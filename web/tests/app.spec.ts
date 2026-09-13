@@ -96,7 +96,8 @@ test('build a workout, log a set against the server, and see it in history', asy
   // A completed set has to read as finished, not just change a label.
   await expect(logger.locator('.set-row.done')).toHaveCount(1);
   await expect(logged).toHaveClass(/primary/);
-  expect(await logged.evaluate(el => getComputedStyle(el).backgroundColor)).toBe('rgb(230, 180, 80)');
+  // The button transitions into its filled state, so poll for the settled colour.
+  await expect.poll(() => logged.evaluate(el => getComputedStyle(el).backgroundColor), { timeout: 5000 }).toBe('rgb(230, 180, 80)');
   // The logged set has to reach the server: nothing is kept on the device to fall back on.
   await expect.poll(() => doneSetsOnServer(page), { timeout: 20000 }).toBe(1);
   await page.screenshot({ path: `artifacts/${testInfo.project.name}-logger.png`, fullPage: true });

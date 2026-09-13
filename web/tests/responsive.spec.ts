@@ -15,8 +15,19 @@ async function checkLayout(page: Page, label: string) {
     innerWidth,
     visualWidth: Math.round(visualViewport!.width)
   }));
-  expect(fit.innerWidth, `${label}: layout viewport must not be inflated by overflow (${JSON.stringify(fit)})`).toBeLessThanOrEqual(fit.visualWidth + 1);
-  expect(fit.scrollWidth, `${label}: page must fit (${JSON.stringify(fit)})`).toBeLessThanOrEqual(fit.visualWidth + 1);
+  // The real signal is whether anything sticks out past the width the device actually has.
+  // Comparing scrollWidth to innerWidth alone cannot see this: when content overflows, the mobile
+  // layout viewport grows to match it, so an overflowing page still reports them as equal.
+  const culprits = await page.evaluate((limit: number) => [...document.querySelectorAll('*')]
+    .map(el => {
+      const box = el.getBoundingClientRect();
+      return { sel: `${el.tagName}.${String(el.className).slice(0, 34)}`, left: Math.round(box.left), right: Math.round(box.right), pos: getComputedStyle(el).position };
+    })
+    .filter(x => x.right > limit + 1 && x.pos !== 'fixed')
+    .sort((a, b) => b.right - a.right || b.left - a.left)
+    .slice(0, 8), fit.visualWidth);
+  expect(culprits, `${label}: these elements overflow the viewport (${JSON.stringify(fit)})`).toEqual([]);
+  expect(fit.scrollWidth, `${label}: page must fit its layout viewport (${JSON.stringify(fit)})`).toBeLessThanOrEqual(fit.innerWidth + 1);
   for (const dialog of await page.getByRole('dialog').all()) {
     expect(await dialog.evaluate(el => el.scrollWidth <= el.clientWidth), `${label}: dialog must fit`).toBe(true);
   }
@@ -53,6 +64,17 @@ for (const theme of ['dark', 'light']) {
     test.setTimeout(180000);
 
     await signIn(page);
+    // Every viewport shares one account, so clear anything a previous run left in progress.
+    const discarded = await page.evaluate(async () => {
+      const headers = { 'X-Workout-Request': '1' };
+      const response = await fetch('/api/workouts/active', { headers, cache: 'no-store' });
+      const active = response.ok ? await response.json() : null;
+      if (!active) return false;
+      await fetch(`/api/workouts/${active.id}/discard`, { method: 'POST', headers });
+      return true;
+    });
+    if (discarded) await page.reload();
+
     await navigate(page, 'Settings');
     await page.getByLabel('Appearance').selectOption(theme === 'dark' ? 'dark' : 'light');
     await expect(page.locator('html')).toHaveAttribute('data-theme', theme);
@@ -102,12 +124,15 @@ for (const theme of ['dark', 'light']) {
 
     await navigate(page, 'Workouts');
     await page.getByRole('button', { name: 'Import a PDF program', exact: true }).click();
-    await screenshot('import-empty');
-    await page.getByLabel('Program PDF').setInputFiles({ name: 'responsive.pdf', mimeType: 'application/pdf', buffer: pdf() });
+    await screenshot('import-upload');
+    // Uploading is rate limited per session, as it should be, and every viewport shares one
+    // account here. The review screen is what this suite checks, so the first run creates the
+    // draft and the rest open the one that already exists.
+    const existing = page.locator('.history-row').filter({ hasText: 'responsive.pdf' }).first();
+    if (await existing.isVisible().catch(() => false)) await existing.click();
+    else await page.getByLabel('Program PDF').setInputFiles({ name: 'responsive.pdf', mimeType: 'application/pdf', buffer: pdf() });
     await expect(page.getByRole('heading', { name: 'Review' })).toBeVisible({ timeout: 60000 });
     await screenshot('import-review');
-    await page.getByRole('button', { name: 'Discard draft', exact: true }).click();
-    await expect(page.getByRole('heading', { name: 'Review' })).toBeHidden({ timeout: 30000 });
 
     await navigate(page, 'Progress');
     await screenshot('progress');
@@ -140,6 +165,9 @@ for (const theme of ['dark', 'light']) {
     await resume.click();
     await page.getByRole('button', { name: 'Discard', exact: true }).click();
     await page.getByRole('button', { name: 'Discard workout', exact: true }).click();
+    // Wait for the discard to land: ending the test here would abort the request in flight and
+    // leave an active workout behind for the next viewport to trip over.
+    await expect(resume).toBeHidden();
     expect(errors).toEqual([]);
   });
 }

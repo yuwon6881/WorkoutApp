@@ -32,6 +32,14 @@ builder.Services.AddHttpClient<WorkoutAi>(c=>c.Timeout=TimeSpan.FromSeconds(150)
 builder.Services.AddRateLimiter(o=>
 {
     o.RejectionStatusCode=429;
+    // Without this a rejected request is an empty 429 and the app can only say "something went
+    // wrong", which reads like a bug rather than a limit the user can simply wait out.
+    o.OnRejected=async(context,token)=>
+    {
+        context.HttpContext.Response.StatusCode=429;
+        context.HttpContext.Response.Headers.CacheControl="no-store";
+        await context.HttpContext.Response.WriteAsJsonAsync(new { message="That was a lot of requests in a short time. Wait a minute and try again." },token);
+    };
     o.AddPolicy("auth",http=>RateLimitPartition.GetFixedWindowLimiter(http.Connection.RemoteIpAddress?.ToString()??"unknown",_=>new FixedWindowRateLimiterOptions { PermitLimit=10,Window=TimeSpan.FromMinutes(1),QueueLimit=0 }));
     o.AddPolicy("ai",http=>RateLimitPartition.GetFixedWindowLimiter(
         string.IsNullOrEmpty(http.Request.Cookies[AuthService.Cookie])?"unauthenticated":AuthService.Hash(http.Request.Cookies[AuthService.Cookie]!),
