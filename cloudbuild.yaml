@@ -1,0 +1,49 @@
+steps:
+  # 1. Build and push the container image
+  - name: 'gcr.io/cloud-builders/docker'
+    entrypoint: bash
+    env:
+      - 'DOCKER_BUILDKIT=1'
+    args:
+      - '-c'
+      - |
+        set -euo pipefail
+        IMAGE="asia-southeast1-docker.pkg.dev/$PROJECT_ID/cloud-run-source-deploy/workout-api"
+        docker build \
+          -t "$$IMAGE:$COMMIT_SHA" \
+          -t "$$IMAGE:latest" \
+          -f Dockerfile .
+        docker push "$$IMAGE:latest"
+        docker push "$$IMAGE:$COMMIT_SHA"
+    id: BuildPush
+
+  # 2. Deploy to Cloud Run. _PUBLIC_ORIGIN must be the exact Vercel production HTTPS origin,
+  #    without a trailing slash: it is what the cookie and CSRF origin checks compare against.
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: gcloud
+    args:
+      - 'run'
+      - 'deploy'
+      - 'workout-api'
+      - '--image=asia-southeast1-docker.pkg.dev/$PROJECT_ID/cloud-run-source-deploy/workout-api:$COMMIT_SHA'
+      - '--region=asia-southeast1'
+      - '--platform=managed'
+      - '--allow-unauthenticated'
+      - '--min-instances=0'
+      - '--max-instances=1'
+      - '--memory=512Mi'
+      - '--cpu=1'
+      - '--timeout=180'
+      - '--concurrency=20'
+      - '--service-account=workout-api@$PROJECT_ID.iam.gserviceaccount.com'
+      - '--set-env-vars=PublicOrigin=${_PUBLIC_ORIGIN},Auth__MaxUsers=2,Database__MigrateOnStartup=false,OpenAi__Model=gpt-5.4-mini'
+      - '--set-secrets=ConnectionStrings__Database=workout-neon-database:1,OpenAi__ApiKey=financialapp-openai-api-key:latest'
+    id: Deploy
+    waitFor:
+      - BuildPush
+
+substitutions:
+  _PUBLIC_ORIGIN: 'https://example.invalid'
+
+options:
+  logging: CLOUD_LOGGING_ONLY

@@ -1,0 +1,16 @@
+# Builds and pushes the API image without deploying. Used to validate the Dockerfile before the
+# public origin is known, and as the first half of a two-step release.
+steps:
+  - name: 'gcr.io/cloud-builders/docker'
+    entrypoint: bash
+    env:
+      - 'DOCKER_BUILDKIT=1'
+    args:
+      - '-c'
+      - |
+        set -euo pipefail
+        IMAGE="asia-southeast1-docker.pkg.dev/$PROJECT_ID/cloud-run-source-deploy/workout-api"
+        docker build -t "$$IMAGE:latest" -f Dockerfile .
+        docker push "$$IMAGE:latest"
+options:
+  logging: CLOUD_LOGGING_ONLY

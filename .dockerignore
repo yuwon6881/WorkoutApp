@@ -1,0 +1,6 @@
+web/
+tests/
+deploy/
+**/bin/
+**/obj/
+.git/

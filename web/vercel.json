@@ -1,0 +1,32 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": "vite",
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
+  "routes": [
+    {
+      "src": "/(.*)",
+      "headers": {
+        "X-Content-Type-Options": "nosniff",
+        "Referrer-Policy": "same-origin",
+        "X-Frame-Options": "DENY",
+        "Content-Security-Policy": "default-src 'self'; img-src 'self' blob: data:; style-src 'self'; script-src 'self'; connect-src 'self'; worker-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'"
+      },
+      "continue": true
+    },
+    {
+      "src": "/api/(.*)",
+      "dest": "https://workout-api-i47taxhzba-as.a.run.app/api/$1",
+      "headers": { "Cache-Control": "no-store", "Vercel-CDN-Cache-Control": "no-store" }
+    },
+    {
+      "src": "/health",
+      "dest": "https://workout-api-i47taxhzba-as.a.run.app/health",
+      "headers": { "Cache-Control": "no-store" }
+    },
+    { "src": "/(?:sw\\.js|index\\.html|manifest\\.webmanifest|)", "headers": { "Cache-Control": "no-cache" }, "continue": true },
+    { "handle": "filesystem" },
+    { "src": "/", "dest": "/index.html" },
+    { "src": "/(.*)", "status": 404 }
+  ]
+}

@@ -1,0 +1,30 @@
+import { rmSync } from 'node:fs';
+import { resolve } from 'node:path';
+
+// A throwaway SQLite file per run so an end-to-end suite never reads another run's accounts.
+const database = resolve('tests/.e2e.db');
+for (const suffix of ['', '-shm', '-wal']) { try { rmSync(database + suffix); } catch { /* first run has no file */ } }
+
+/// The end-to-end suite runs the real API against a disposable database, with the AI provider
+/// replaced by a local stand-in so an import can be exercised without a paid call.
+export const testServers = [
+  { command: 'node tests/mock-openai.mjs', url: 'http://127.0.0.1:5184', reuseExistingServer: true, timeout: 30000 },
+  {
+    // The seed command exits when it finishes, so it runs first and the server follows. This
+    // exercises the real seeding path rather than inserting catalog rows behind its back.
+    command: `dotnet run --project ../api/Workout.Api.csproj -- --seed-exercises=${resolve('tests/fixtures/exercises.json')}`
+      + ` && dotnet run --project ../api/Workout.Api.csproj --urls http://127.0.0.1:5183`,
+    url: 'http://127.0.0.1:5183/health',
+    reuseExistingServer: true,
+    timeout: 180000,
+    env: {
+      ASPNETCORE_ENVIRONMENT: 'Development',
+      Database__SqlitePath: database,
+      Auth__MaxUsers: '2',
+      OpenAi__ApiKey: 'e2e-test-key',
+      OpenAi__Model: 'gpt-5.4-mini',
+      OpenAi__BaseUrl: 'http://127.0.0.1:5184/v1/responses'
+    }
+  },
+  { command: 'npm run preview', url: 'http://localhost:5182', reuseExistingServer: true, timeout: 120000 }
+];
