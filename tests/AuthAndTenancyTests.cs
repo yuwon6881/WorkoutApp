@@ -88,4 +88,22 @@ public class AuthAndTenancyTests
         var failure = await Assert.ThrowsAsync<InvalidOperationException>(() => h.Db.SaveChangesAsync());
         Assert.Contains("read-only", failure.Message);
     }
+
+    [Fact] public async Task The_seeded_catalog_is_shared_and_cannot_be_deleted_by_an_account()
+    {
+        await using var h = await Harness.Create();
+        var alice = await h.SignIn();
+        await h.Seed(new SeedExercise("bench", "Bench press", "Chest", "Barbell", "", null));
+        Assert.Single(await h.Catalog.All(default));
+
+        var bob = await h.Auth.Register("bob", "another long password", default);
+        h.Db.ChangeTracker.Clear();
+        h.Db.CurrentUser = bob.Id;
+        Assert.Equal("Bench press", (await h.Catalog.All(default)).Single().Name);
+
+        h.Db.Exercises.Remove(await h.Db.Exercises.SingleAsync(x => x.Slug == "bench"));
+        var failure = await Assert.ThrowsAsync<InvalidOperationException>(() => h.Db.SaveChangesAsync());
+        Assert.Contains("read-only", failure.Message);
+        Assert.NotEqual(alice.Id, bob.Id);
+    }
 }

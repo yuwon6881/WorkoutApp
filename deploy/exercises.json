@@ -1,0 +1,2116 @@
+[
+  {
+    "slug": "air-squat",
+    "name": "Air Squat",
+    "muscle": "Quads",
+    "equipment": "Bodyweight",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "back-squat",
+    "name": "Back Squat",
+    "muscle": "Quads",
+    "equipment": "",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "high-bar-back-squat",
+    "name": "High-Bar Back Squat",
+    "muscle": "Quads",
+    "equipment": "",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "low-bar-back-squat",
+    "name": "Low-Bar Back Squat",
+    "muscle": "Quads",
+    "equipment": "",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "pause-squat",
+    "name": "Pause Squat",
+    "muscle": "Quads",
+    "equipment": "",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "wide-stance-back-squat",
+    "name": "Wide Stance Back Squat",
+    "muscle": "Quads",
+    "equipment": "",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "front-squat",
+    "name": "Front Squat",
+    "muscle": "Quads",
+    "equipment": "",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "hack-squat",
+    "name": "Hack Squat",
+    "muscle": "Quads",
+    "equipment": "",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "pause-hack-squat",
+    "name": "Pause Hack Squat",
+    "muscle": "Quads",
+    "equipment": "",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "leg-press",
+    "name": "Leg Press",
+    "muscle": "Quads",
+    "equipment": "",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "constant-tension-leg-press",
+    "name": "Constant-Tension Leg Press",
+    "muscle": "Quads",
+    "equipment": "",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "single-leg-leg-press",
+    "name": "Single-Leg Leg Press",
+    "muscle": "Quads",
+    "equipment": "",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "smith-machine-squat",
+    "name": "Smith Machine Squat",
+    "muscle": "Quads",
+    "equipment": "Smith Machine",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "belt-squat",
+    "name": "Belt Squat",
+    "muscle": "Quads",
+    "equipment": "",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "pendulum-squat",
+    "name": "Pendulum Squat",
+    "muscle": "Quads",
+    "equipment": "",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "goblet-squat",
+    "name": "Goblet Squat",
+    "muscle": "Quads",
+    "equipment": "",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "dumbbell-walking-lunge",
+    "name": "Dumbbell Walking Lunge",
+    "muscle": "Quads",
+    "equipment": "Dumbbell",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "smith-machine-lunge",
+    "name": "Smith Machine Lunge",
+    "muscle": "Quads",
+    "equipment": "Smith Machine",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "db-lunge",
+    "name": "DB Lunge",
+    "muscle": "Quads",
+    "equipment": "Dumbbell",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "barbell-lunge",
+    "name": "Barbell Lunge",
+    "muscle": "Quads",
+    "equipment": "Barbell",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "db-bulgarian-split-squat",
+    "name": "DB Bulgarian Split Squat",
+    "muscle": "Quads",
+    "equipment": "Dumbbell",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "pause-db-bulgarian-split-squat",
+    "name": "Pause DB Bulgarian Split Squat",
+    "muscle": "Quads",
+    "equipment": "Dumbbell",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "walking-lunge",
+    "name": "Walking Lunge",
+    "muscle": "Quads",
+    "equipment": "Bodyweight",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "leg-extension",
+    "name": "Leg Extension",
+    "muscle": "Quads",
+    "equipment": "",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "unilateral-eccentric-overloaded-leg-extension",
+    "name": "Unilateral Eccentric-Overloaded Leg Extension",
+    "muscle": "Quads",
+    "equipment": "",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "dumbbell-step-up",
+    "name": "Dumbbell Step-Up",
+    "muscle": "Quads",
+    "equipment": "Dumbbell",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "reverse-nordic",
+    "name": "Reverse Nordic",
+    "muscle": "Quads",
+    "equipment": "Bodyweight",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "sissy-squat",
+    "name": "Sissy Squat",
+    "muscle": "Quads",
+    "equipment": "Bodyweight",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "deadlift",
+    "name": "Deadlift",
+    "muscle": "Posterior chain",
+    "equipment": "",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "pause-deadlift",
+    "name": "Pause Deadlift",
+    "muscle": "Posterior chain",
+    "equipment": "",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "trap-bar-deadlift",
+    "name": "Trap Bar Deadlift",
+    "muscle": "Posterior chain",
+    "equipment": "Trap Bar",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "romanian-deadlift",
+    "name": "Romanian Deadlift",
+    "muscle": "Posterior chain",
+    "equipment": "",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "db-romanian-deadlift",
+    "name": "DB Romanian Deadlift",
+    "muscle": "Posterior chain",
+    "equipment": "Dumbbell",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "barbell-rdl",
+    "name": "Barbell RDL",
+    "muscle": "Posterior chain",
+    "equipment": "Barbell",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "db-rdl",
+    "name": "DB RDL",
+    "muscle": "Posterior chain",
+    "equipment": "Dumbbell",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "snatch-grip-rdl",
+    "name": "Snatch-Grip RDL",
+    "muscle": "Posterior chain",
+    "equipment": "",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "stiff-leg-deadlift",
+    "name": "Stiff Leg Deadlift",
+    "muscle": "Posterior chain",
+    "equipment": "",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "eccentric-accentuated-stiff-leg-deadlift",
+    "name": "Eccentric-Accentuated Stiff-Leg Deadlift",
+    "muscle": "Posterior chain",
+    "equipment": "",
+    "cue": "",
+    "aliases": [
+      "Eccentric-Accentuated Stiff Leg Deadlift"
+    ]
+  },
+  {
+    "slug": "good-morning",
+    "name": "Good Morning",
+    "muscle": "Posterior chain",
+    "equipment": "",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "barbell-hip-thrust",
+    "name": "Barbell Hip Thrust",
+    "muscle": "Posterior chain",
+    "equipment": "Barbell",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "machine-hip-thrust",
+    "name": "Machine Hip Thrust",
+    "muscle": "Posterior chain",
+    "equipment": "Machine",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "single-leg-db-hip-thrust",
+    "name": "Single-Leg DB Hip Thrust",
+    "muscle": "Posterior chain",
+    "equipment": "Dumbbell",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "45-hyperextension",
+    "name": "45° Hyperextension",
+    "muscle": "Posterior chain",
+    "equipment": "",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "seated-hamstring-curl",
+    "name": "Seated Hamstring Curl",
+    "muscle": "Posterior chain",
+    "equipment": "",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "lying-leg-curl",
+    "name": "Lying Leg Curl",
+    "muscle": "Posterior chain",
+    "equipment": "",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "constant-tension-lying-leg-curl",
+    "name": "Constant-Tension Lying Leg Curl",
+    "muscle": "Posterior chain",
+    "equipment": "",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "swiss-ball-leg-curl",
+    "name": "Swiss Ball Leg Curl",
+    "muscle": "Posterior chain",
+    "equipment": "",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "standing-cable-leg-curl",
+    "name": "Standing Cable Leg Curl",
+    "muscle": "Posterior chain",
+    "equipment": "Cable",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "sliding-leg-curl",
+    "name": "Sliding Leg Curl",
+    "muscle": "Posterior chain",
+    "equipment": "",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "glute-ham-raise",
+    "name": "Glute Ham Raise",
+    "muscle": "Posterior chain",
+    "equipment": "",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "nordic-ham-curl",
+    "name": "Nordic Ham Curl",
+    "muscle": "Posterior chain",
+    "equipment": "Bodyweight",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "seated-leg-curl",
+    "name": "Seated Leg Curl",
+    "muscle": "Posterior chain",
+    "equipment": "",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "cable-pull-through",
+    "name": "Cable Pull-Through",
+    "muscle": "Posterior chain",
+    "equipment": "Cable",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "seated-cable-deadlift",
+    "name": "Seated Cable Deadlift",
+    "muscle": "Posterior chain",
+    "equipment": "Cable",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "flat-db-press",
+    "name": "Flat DB Press",
+    "muscle": "Chest",
+    "equipment": "Dumbbell",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "flat-machine-chest-press",
+    "name": "Flat Machine Chest Press",
+    "muscle": "Chest",
+    "equipment": "Machine",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "seated-chest-press",
+    "name": "Seated Chest Press",
+    "muscle": "Chest",
+    "equipment": "",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "incline-machine-press",
+    "name": "Incline Machine Press",
+    "muscle": "Chest",
+    "equipment": "Machine",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "incline-smith-machine-press",
+    "name": "Incline Smith Machine Press",
+    "muscle": "Chest",
+    "equipment": "Smith Machine",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "barbell-bench-press",
+    "name": "Barbell Bench Press",
+    "muscle": "Chest",
+    "equipment": "Barbell",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "barbell-incline-press",
+    "name": "Barbell Incline Press",
+    "muscle": "Chest",
+    "equipment": "Barbell",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "bench-press",
+    "name": "Bench Press",
+    "muscle": "Chest",
+    "equipment": "",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "larsen-press",
+    "name": "Larsen Press",
+    "muscle": "Chest",
+    "equipment": "",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "db-bench-press",
+    "name": "DB Bench Press",
+    "muscle": "Chest",
+    "equipment": "Dumbbell",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "machine-chest-press",
+    "name": "Machine Chest Press",
+    "muscle": "Chest",
+    "equipment": "Machine",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "close-grip-barbell-incline-press",
+    "name": "Close-Grip Barbell Incline Press",
+    "muscle": "Chest",
+    "equipment": "Barbell",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "close-grip-db-incline-press",
+    "name": "Close-Grip DB Incline Press",
+    "muscle": "Chest",
+    "equipment": "Dumbbell",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "close-grip-machine-press",
+    "name": "Close-Grip Machine Press",
+    "muscle": "Chest",
+    "equipment": "Machine",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "press-around",
+    "name": "Press-Around",
+    "muscle": "Chest",
+    "equipment": "",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "db-flye",
+    "name": "DB Flye",
+    "muscle": "Chest",
+    "equipment": "Dumbbell",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "deficit-push-up",
+    "name": "Deficit Push Up",
+    "muscle": "Chest",
+    "equipment": "Bodyweight",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "low-incline-db-press",
+    "name": "Low Incline DB Press",
+    "muscle": "Chest",
+    "equipment": "Dumbbell",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "low-incline-machine-press",
+    "name": "Low Incline Machine Press",
+    "muscle": "Chest",
+    "equipment": "Machine",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "low-incline-smith-machine-press",
+    "name": "Low Incline Smith Machine Press",
+    "muscle": "Chest",
+    "equipment": "Smith Machine",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "chest-press-machine",
+    "name": "Chest Press Machine",
+    "muscle": "Chest",
+    "equipment": "Machine",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "dumbbell-chest-press",
+    "name": "Dumbbell Chest Press",
+    "muscle": "Chest",
+    "equipment": "Dumbbell",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "cable-chest-press",
+    "name": "Cable Chest Press",
+    "muscle": "Chest",
+    "equipment": "Cable",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "weighted-dip",
+    "name": "Weighted Dip",
+    "muscle": "Chest",
+    "equipment": "",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "dip",
+    "name": "Dip",
+    "muscle": "Chest",
+    "equipment": "",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "push-up",
+    "name": "Push Up",
+    "muscle": "Chest",
+    "equipment": "Bodyweight",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "close-grip-push-up",
+    "name": "Close-Grip Push Up",
+    "muscle": "Chest",
+    "equipment": "Bodyweight",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "incline-close-grip-push-up",
+    "name": "Incline Close-Grip Push Up",
+    "muscle": "Chest",
+    "equipment": "Bodyweight",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "kneeling-modified-push-up",
+    "name": "Kneeling Modified Push Up",
+    "muscle": "Chest",
+    "equipment": "Bodyweight",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "45-incline-barbell-press",
+    "name": "45° Incline Barbell Press",
+    "muscle": "Chest",
+    "equipment": "Barbell",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "45-incline-db-press",
+    "name": "45° Incline DB Press",
+    "muscle": "Chest",
+    "equipment": "Dumbbell",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "45-incline-machine-press",
+    "name": "45° Incline Machine Press",
+    "muscle": "Chest",
+    "equipment": "Machine",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "dumbbell-floor-press",
+    "name": "Dumbbell Floor Press",
+    "muscle": "Chest",
+    "equipment": "Dumbbell",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "pause-barbell-bench-press",
+    "name": "Pause Barbell Bench Press",
+    "muscle": "Chest",
+    "equipment": "Barbell",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "strict-bench-press",
+    "name": "Strict Bench Press",
+    "muscle": "Chest",
+    "equipment": "",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "close-grip-bench-press",
+    "name": "Close-Grip Bench Press",
+    "muscle": "Chest",
+    "equipment": "",
+    "cue": "",
+    "aliases": [
+      "Close Grip Bench Press"
+    ]
+  },
+  {
+    "slug": "smith-machine-bench-press",
+    "name": "Smith Machine Bench Press",
+    "muscle": "Chest",
+    "equipment": "Smith Machine",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "low-to-high-cable-flye",
+    "name": "Low To High Cable Flye",
+    "muscle": "Chest",
+    "equipment": "Cable",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "cable-flye-21s",
+    "name": "Cable Flye 21s",
+    "muscle": "Chest",
+    "equipment": "Cable",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "cable-flye",
+    "name": "Cable Flye",
+    "muscle": "Chest",
+    "equipment": "Cable",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "pec-deck",
+    "name": "Pec Deck",
+    "muscle": "Chest",
+    "equipment": "Machine",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "bent-over-cable-pec-flye",
+    "name": "Bent-Over Cable Pec Flye",
+    "muscle": "Chest",
+    "equipment": "Cable",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "cable-crossover-ladder",
+    "name": "Cable Crossover Ladder",
+    "muscle": "Chest",
+    "equipment": "Cable",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "bottom-half-db-flye",
+    "name": "Bottom-Half DB Flye",
+    "muscle": "Chest",
+    "equipment": "Dumbbell",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "low-incline-db-flye",
+    "name": "Low Incline DB Flye",
+    "muscle": "Chest",
+    "equipment": "Dumbbell",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "low-to-high-cable-crossover",
+    "name": "Low-To-High Cable Crossover",
+    "muscle": "Chest",
+    "equipment": "Cable",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "2-grip-lat-pulldown",
+    "name": "2-Grip Lat Pulldown",
+    "muscle": "Back",
+    "equipment": "",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "2-grip-pull-up",
+    "name": "2-Grip Pull-up",
+    "muscle": "Back",
+    "equipment": "Bodyweight",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "machine-pulldown",
+    "name": "Machine Pulldown",
+    "muscle": "Back",
+    "equipment": "Machine",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "t-bar-row",
+    "name": "T-Bar Row",
+    "muscle": "Back",
+    "equipment": "Barbell",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "helms-db-row",
+    "name": "Helms DB Row",
+    "muscle": "Back",
+    "equipment": "Dumbbell",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "chest-supported-machine-row",
+    "name": "Chest-Supported Machine Row",
+    "muscle": "Back",
+    "equipment": "Machine",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "seated-cable-row",
+    "name": "Seated Cable Row",
+    "muscle": "Back",
+    "equipment": "Cable",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "incline-chest-supported-db-row",
+    "name": "Incline Chest-Supported DB Row",
+    "muscle": "Back",
+    "equipment": "Dumbbell",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "chest-supported-t-bar-row",
+    "name": "Chest-Supported T-Bar Row",
+    "muscle": "Back",
+    "equipment": "Barbell",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "lat-pulldown",
+    "name": "Lat Pulldown",
+    "muscle": "Back",
+    "equipment": "",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "pull-up",
+    "name": "Pull-Up",
+    "muscle": "Back",
+    "equipment": "Bodyweight",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "1-arm-half-kneeling-lat-pulldown",
+    "name": "1-Arm Half-Kneeling Lat Pulldown",
+    "muscle": "Back",
+    "equipment": "",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "1-arm-lat-pull-in",
+    "name": "1-Arm Lat Pull-In",
+    "muscle": "Back",
+    "equipment": "",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "weighted-pull-up",
+    "name": "Weighted Pull-Up",
+    "muscle": "Back",
+    "equipment": "Bodyweight",
+    "cue": "",
+    "aliases": [
+      "Weighted Pullup"
+    ]
+  },
+  {
+    "slug": "neutral-grip-pullup",
+    "name": "Neutral-Grip Pullup",
+    "muscle": "Back",
+    "equipment": "Bodyweight",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "pendlay-row",
+    "name": "Pendlay Row",
+    "muscle": "Back",
+    "equipment": "",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "barbell-bent-over-row",
+    "name": "Barbell Bent Over Row",
+    "muscle": "Back",
+    "equipment": "Barbell",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "omni-grip-machine-chest-supported-row",
+    "name": "Omni-Grip Machine Chest-Supported Row",
+    "muscle": "Back",
+    "equipment": "Machine",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "cable-seated-row",
+    "name": "Cable Seated Row",
+    "muscle": "Back",
+    "equipment": "Cable",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "kroc-row",
+    "name": "Kroc Row",
+    "muscle": "Back",
+    "equipment": "",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "single-arm-db-row",
+    "name": "Single-Arm DB Row",
+    "muscle": "Back",
+    "equipment": "Dumbbell",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "meadows-row",
+    "name": "Meadows Row",
+    "muscle": "Back",
+    "equipment": "",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "pronated-pulldown",
+    "name": "Pronated Pulldown",
+    "muscle": "Back",
+    "equipment": "",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "humble-row",
+    "name": "Humble Row",
+    "muscle": "Back",
+    "equipment": "",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "wide-grip-pull-up",
+    "name": "Wide-Grip Pull-Up",
+    "muscle": "Back",
+    "equipment": "Bodyweight",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "cable-close-grip-row",
+    "name": "Cable Close-Grip Row",
+    "muscle": "Back",
+    "equipment": "Cable",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "machine-chest-supported-row-w-band",
+    "name": "Machine Chest-Supported Row W/Band",
+    "muscle": "Back",
+    "equipment": "Machine",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "negative-neutral-grip-pull-up",
+    "name": "Negative Neutral-Grip Pull-Up",
+    "muscle": "Back",
+    "equipment": "Bodyweight",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "seated-t-bar-row",
+    "name": "Seated T-Bar Row",
+    "muscle": "Back",
+    "equipment": "Barbell",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "wide-grip-lat-pulldown",
+    "name": "Wide-Grip Lat Pulldown",
+    "muscle": "Back",
+    "equipment": "",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "1-arm-cable-pulldown",
+    "name": "1-Arm Cable Pulldown",
+    "muscle": "Back",
+    "equipment": "Cable",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "close-grip-lat-pulldown",
+    "name": "Close-Grip Lat Pulldown",
+    "muscle": "Back",
+    "equipment": "",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "close-grip-pull-up",
+    "name": "Close-Grip Pull-Up",
+    "muscle": "Back",
+    "equipment": "Bodyweight",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "chest-supported-db-row",
+    "name": "Chest-Supported DB Row",
+    "muscle": "Back",
+    "equipment": "Dumbbell",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "chest-supported-row",
+    "name": "Chest-Supported Row",
+    "muscle": "Back",
+    "equipment": "",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "neutral-grip-pulldown",
+    "name": "Neutral Grip Pulldown",
+    "muscle": "Back",
+    "equipment": "",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "bicep-grip-lat-pulldown",
+    "name": "Bicep Grip Lat Pulldown",
+    "muscle": "Back",
+    "equipment": "",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "dual-handle-lat-pulldown",
+    "name": "Dual-Handle Lat Pulldown",
+    "muscle": "Back",
+    "equipment": "",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "pendlay-deficit-row",
+    "name": "Pendlay Deficit Row",
+    "muscle": "Back",
+    "equipment": "",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "smith-machine-row",
+    "name": "Smith Machine Row",
+    "muscle": "Back",
+    "equipment": "Smith Machine",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "moto-row",
+    "name": "Moto Row",
+    "muscle": "Back",
+    "equipment": "",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "cross-body-lat-pull-around",
+    "name": "Cross-Body Lat Pull-Around",
+    "muscle": "Back",
+    "equipment": "",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "half-kneeling-1-arm-lat-pulldown",
+    "name": "Half-Kneeling 1-Arm Lat Pulldown",
+    "muscle": "Back",
+    "equipment": "",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "cable-lat-prayer",
+    "name": "Cable Lat Prayer",
+    "muscle": "Back",
+    "equipment": "Cable",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "lat-focused-cable-row",
+    "name": "Lat-Focused Cable Row",
+    "muscle": "Back",
+    "equipment": "Cable",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "elbows-in-1-arm-db-row",
+    "name": "Elbows-In 1-Arm DB Row",
+    "muscle": "Back",
+    "equipment": "Dumbbell",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "cable-lat-pullover",
+    "name": "Cable Lat Pullover",
+    "muscle": "Back",
+    "equipment": "Cable",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "db-lat-pullover",
+    "name": "DB Lat Pullover",
+    "muscle": "Back",
+    "equipment": "Dumbbell",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "bottom-half-db-lat-pullover",
+    "name": "Bottom-Half DB Lat Pullover",
+    "muscle": "Back",
+    "equipment": "Dumbbell",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "lat-pullover",
+    "name": "Lat Pullover",
+    "muscle": "Back",
+    "equipment": "",
+    "cue": "",
+    "aliases": [
+      "Lat pull-over"
+    ]
+  },
+  {
+    "slug": "cable-pull-over",
+    "name": "Cable Pull-Over",
+    "muscle": "Back",
+    "equipment": "Cable",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "machine-lat-pullover",
+    "name": "Machine Lat Pullover",
+    "muscle": "Back",
+    "equipment": "Machine",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "machine-pullover",
+    "name": "Machine Pullover",
+    "muscle": "Back",
+    "equipment": "Machine",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "db-pullover",
+    "name": "DB Pullover",
+    "muscle": "Back",
+    "equipment": "Dumbbell",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "machine-shoulder-press",
+    "name": "Machine Shoulder Press",
+    "muscle": "Shoulders",
+    "equipment": "Machine",
+    "cue": "",
+    "aliases": [
+      "Machine Shoulders Press"
+    ]
+  },
+  {
+    "slug": "standing-db-arnold-press",
+    "name": "Standing DB Arnold Press",
+    "muscle": "Shoulders",
+    "equipment": "Dumbbell",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "seated-db-shoulder-press",
+    "name": "Seated DB Shoulder Press",
+    "muscle": "Shoulders",
+    "equipment": "Dumbbell",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "constant-tension-machine-shoulder-press",
+    "name": "Constant-Tension Machine Shoulder Press",
+    "muscle": "Shoulders",
+    "equipment": "Machine",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "arnold-press",
+    "name": "Arnold Press",
+    "muscle": "Shoulders",
+    "equipment": "",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "barbell-overhead-press",
+    "name": "Barbell Overhead Press",
+    "muscle": "Shoulders",
+    "equipment": "Barbell",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "overhead-press",
+    "name": "Overhead Press",
+    "muscle": "Shoulders",
+    "equipment": "",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "db-curl",
+    "name": "DB Curl",
+    "muscle": "Biceps and forearms",
+    "equipment": "Dumbbell",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "cable-ez-curl",
+    "name": "Cable EZ Curl",
+    "muscle": "Biceps and forearms",
+    "equipment": "Cable",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "ez-bar-curl",
+    "name": "EZ-Bar Curl",
+    "muscle": "Biceps and forearms",
+    "equipment": "EZ-Bar",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "db-bicep-curl",
+    "name": "DB Bicep Curl",
+    "muscle": "Biceps and forearms",
+    "equipment": "Dumbbell",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "supinated-dumbbell-curl",
+    "name": "Supinated Dumbbell Curl",
+    "muscle": "Biceps and forearms",
+    "equipment": "Dumbbell",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "bayesian-cable-curl",
+    "name": "Bayesian Cable Curl",
+    "muscle": "Biceps and forearms",
+    "equipment": "Cable",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "db-incline-curl",
+    "name": "DB Incline Curl",
+    "muscle": "Biceps and forearms",
+    "equipment": "Dumbbell",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "hammer-curl",
+    "name": "Hammer Curl",
+    "muscle": "Biceps and forearms",
+    "equipment": "",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "incline-dumbbell-curl",
+    "name": "Incline Dumbbell Curl",
+    "muscle": "Biceps and forearms",
+    "equipment": "Dumbbell",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "ez-bar-strict-curl",
+    "name": "EZ-Bar Strict Curl",
+    "muscle": "Biceps and forearms",
+    "equipment": "EZ-Bar",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "ez-bar-preacher-curl",
+    "name": "EZ-Bar Preacher Curl",
+    "muscle": "Biceps and forearms",
+    "equipment": "EZ-Bar",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "machine-preacher-curl",
+    "name": "Machine Preacher Curl",
+    "muscle": "Biceps and forearms",
+    "equipment": "Machine",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "db-preacher-curl",
+    "name": "DB Preacher Curl",
+    "muscle": "Biceps and forearms",
+    "equipment": "Dumbbell",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "heavy-barbell-hold",
+    "name": "Heavy Barbell Hold",
+    "muscle": "Biceps and forearms",
+    "equipment": "Barbell",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "bench-braced-wrist-curl",
+    "name": "Bench-Braced Wrist Curl",
+    "muscle": "Biceps and forearms",
+    "equipment": "",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "behind-the-back-wrist-curl",
+    "name": "Behind-the-Back Wrist Curl",
+    "muscle": "Biceps and forearms",
+    "equipment": "",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "bench-braced-wrist-extension",
+    "name": "Bench-Braced Wrist Extension",
+    "muscle": "Biceps and forearms",
+    "equipment": "",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "standing-wrist-extension",
+    "name": "Standing Wrist Extension",
+    "muscle": "Biceps and forearms",
+    "equipment": "",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "farmer-s-walk",
+    "name": "Farmer's Walk",
+    "muscle": "Biceps and forearms",
+    "equipment": "",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "plate-pinch",
+    "name": "Plate Pinch",
+    "muscle": "Biceps and forearms",
+    "equipment": "Plate",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "triceps-machine",
+    "name": "Triceps Machine",
+    "muscle": "Triceps",
+    "equipment": "Machine",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "overhead-cable-triceps-extension",
+    "name": "Overhead Cable Triceps Extension",
+    "muscle": "Triceps",
+    "equipment": "Cable",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "db-french-press",
+    "name": "DB French Press",
+    "muscle": "Triceps",
+    "equipment": "Dumbbell",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "ez-bar-skull-crusher",
+    "name": "EZ-Bar Skull Crusher",
+    "muscle": "Triceps",
+    "equipment": "EZ-Bar",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "db-skull-crusher",
+    "name": "DB Skull Crusher",
+    "muscle": "Triceps",
+    "equipment": "Dumbbell",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "triceps-pressdown",
+    "name": "Triceps Pressdown",
+    "muscle": "Triceps",
+    "equipment": "",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "cable-triceps-kickback",
+    "name": "Cable Triceps Kickback",
+    "muscle": "Triceps",
+    "equipment": "Cable",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "db-triceps-kickback",
+    "name": "DB Triceps Kickback",
+    "muscle": "Triceps",
+    "equipment": "Dumbbell",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "n1-style-cross-body-triceps-extension",
+    "name": "N1-Style Cross-Body Triceps Extension",
+    "muscle": "Triceps",
+    "equipment": "",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "single-arm-tricep-pressdown",
+    "name": "Single-Arm Tricep Pressdown",
+    "muscle": "Triceps",
+    "equipment": "",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "single-arm-cable-tricep-kickback",
+    "name": "Single-Arm Cable Tricep Kickback",
+    "muscle": "Triceps",
+    "equipment": "Cable",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "squeeze-only-triceps-pressdown",
+    "name": "Squeeze-Only Triceps Pressdown",
+    "muscle": "Triceps",
+    "equipment": "",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "stretch-only-overhead-triceps-extension",
+    "name": "Stretch-Only Overhead Triceps Extension",
+    "muscle": "Triceps",
+    "equipment": "",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "floor-skull-crusher-heavy",
+    "name": "Floor Skull Crusher (Heavy)",
+    "muscle": "Triceps",
+    "equipment": "",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "db-floor-skull-crusher",
+    "name": "DB Floor Skull Crusher",
+    "muscle": "Triceps",
+    "equipment": "Dumbbell",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "myo-reps-floor-skull-crusher",
+    "name": "Myo Reps Floor Skull Crusher",
+    "muscle": "Triceps",
+    "equipment": "",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "tricep-pushdown",
+    "name": "Tricep Pushdown",
+    "muscle": "Triceps",
+    "equipment": "",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "smith-machine-jm-press",
+    "name": "Smith Machine JM Press",
+    "muscle": "Triceps",
+    "equipment": "Smith Machine",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "overhead-cable-triceps-extension-bar",
+    "name": "Overhead Cable Triceps Extension (Bar)",
+    "muscle": "Triceps",
+    "equipment": "Cable",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "overhead-cable-triceps-extension-rope",
+    "name": "Overhead Cable Triceps Extension (Rope)",
+    "muscle": "Triceps",
+    "equipment": "Cable",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "db-lateral-raise",
+    "name": "DB Lateral Raise",
+    "muscle": "Shoulders",
+    "equipment": "Dumbbell",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "cable-lateral-raise",
+    "name": "Cable Lateral Raise",
+    "muscle": "Shoulders",
+    "equipment": "Cable",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "machine-lateral-raise",
+    "name": "Machine Lateral Raise",
+    "muscle": "Shoulders",
+    "equipment": "Machine",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "incline-db-y-raise",
+    "name": "Incline DB Y-Raise",
+    "muscle": "Shoulders",
+    "equipment": "Dumbbell",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "cable-y-raise",
+    "name": "Cable Y-Raise",
+    "muscle": "Shoulders",
+    "equipment": "Cable",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "cross-body-cable-y-raise-side-delt",
+    "name": "Cross-Body Cable Y-Raise (Side Delt)",
+    "muscle": "Shoulders",
+    "equipment": "Cable",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "omni-direction-face-pull",
+    "name": "Omni-Direction Face Pull",
+    "muscle": "Shoulders",
+    "equipment": "",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "reverse-cable-flye",
+    "name": "Reverse Cable Flye",
+    "muscle": "Shoulders",
+    "equipment": "Cable",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "bent-over-reverse-db-flye",
+    "name": "Bent-Over Reverse DB Flye",
+    "muscle": "Shoulders",
+    "equipment": "Dumbbell",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "rope-face-pull",
+    "name": "Rope Face Pull",
+    "muscle": "Shoulders",
+    "equipment": "",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "high-cable-lateral-raise",
+    "name": "High-Cable Lateral Raise",
+    "muscle": "Shoulders",
+    "equipment": "Cable",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "1-arm-reverse-pec-deck",
+    "name": "1-Arm Reverse Pec Deck",
+    "muscle": "Shoulders",
+    "equipment": "Machine",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "lying-reverse-db-flye",
+    "name": "Lying Reverse DB Flye",
+    "muscle": "Shoulders",
+    "equipment": "Dumbbell",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "reverse-cable-crossover",
+    "name": "Reverse Cable Crossover",
+    "muscle": "Shoulders",
+    "equipment": "Cable",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "rear-delt-fly",
+    "name": "Rear Delt Fly",
+    "muscle": "Shoulders",
+    "equipment": "",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "high-cable-cuffed-lateral-raise",
+    "name": "High-Cable Cuffed Lateral Raise",
+    "muscle": "Shoulders",
+    "equipment": "Cable",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "lean-in-db-lateral-raise",
+    "name": "Lean-In DB Lateral Raise",
+    "muscle": "Shoulders",
+    "equipment": "Dumbbell",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "meadows-incline-db-lateral-raise",
+    "name": "Meadows Incline DB Lateral Raise",
+    "muscle": "Shoulders",
+    "equipment": "Dumbbell",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "cable-unilateral-face-pull",
+    "name": "Cable Unilateral Face Pull",
+    "muscle": "Shoulders",
+    "equipment": "Cable",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "cable-reverse-flye",
+    "name": "Cable Reverse Flye",
+    "muscle": "Shoulders",
+    "equipment": "Cable",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "cuffed-behind-the-back-lateral-raise",
+    "name": "Cuffed Behind-The-Back Lateral Raise",
+    "muscle": "Shoulders",
+    "equipment": "",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "lying-paused-rope-face-pull",
+    "name": "Lying Paused Rope Face Pull",
+    "muscle": "Shoulders",
+    "equipment": "",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "standing-calf-raise",
+    "name": "Standing Calf Raise",
+    "muscle": "Traps, calves, and hips",
+    "equipment": "",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "seated-calf-raise",
+    "name": "Seated Calf Raise",
+    "muscle": "Traps, calves, and hips",
+    "equipment": "",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "leg-press-toe-press",
+    "name": "Leg Press Toe Press",
+    "muscle": "Traps, calves, and hips",
+    "equipment": "",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "leg-press-calf-press",
+    "name": "Leg Press Calf Press",
+    "muscle": "Traps, calves, and hips",
+    "equipment": "",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "donkey-calf-raise",
+    "name": "Donkey Calf Raise",
+    "muscle": "Traps, calves, and hips",
+    "equipment": "",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "single-leg-db-calf-raise",
+    "name": "Single-Leg DB Calf Raise",
+    "muscle": "Traps, calves, and hips",
+    "equipment": "Dumbbell",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "calf-raise-machine",
+    "name": "Calf Raise Machine",
+    "muscle": "Traps, calves, and hips",
+    "equipment": "Machine",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "seated-hip-abduction",
+    "name": "Seated Hip Abduction",
+    "muscle": "Traps, calves, and hips",
+    "equipment": "",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "machine-hip-abduction",
+    "name": "Machine Hip Abduction",
+    "muscle": "Traps, calves, and hips",
+    "equipment": "Machine",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "cable-hip-abduction",
+    "name": "Cable Hip Abduction",
+    "muscle": "Traps, calves, and hips",
+    "equipment": "Cable",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "standing-plate-abduction",
+    "name": "Standing Plate Abduction",
+    "muscle": "Traps, calves, and hips",
+    "equipment": "Plate",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "lateral-band-walk",
+    "name": "Lateral Band Walk",
+    "muscle": "Traps, calves, and hips",
+    "equipment": "Band",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "hex-bar-shrug",
+    "name": "Hex Bar Shrug",
+    "muscle": "Traps, calves, and hips",
+    "equipment": "Trap Bar",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "smith-machine-shrug",
+    "name": "Smith Machine Shrug",
+    "muscle": "Traps, calves, and hips",
+    "equipment": "Smith Machine",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "dumbbell-shrug",
+    "name": "Dumbbell Shrug",
+    "muscle": "Traps, calves, and hips",
+    "equipment": "Dumbbell",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "barbell-shrug",
+    "name": "Barbell Shrug",
+    "muscle": "Traps, calves, and hips",
+    "equipment": "Barbell",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "cable-shrug-in",
+    "name": "Cable Shrug-In",
+    "muscle": "Traps, calves, and hips",
+    "equipment": "Cable",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "machine-shrug",
+    "name": "Machine Shrug",
+    "muscle": "Traps, calves, and hips",
+    "equipment": "Machine",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "kelso-shrug",
+    "name": "Kelso Shrug",
+    "muscle": "Traps, calves, and hips",
+    "equipment": "",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "seated-cable-kelso-shrug",
+    "name": "Seated Cable Kelso Shrug",
+    "muscle": "Traps, calves, and hips",
+    "equipment": "Cable",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "incline-db-kelso-shrug",
+    "name": "Incline DB Kelso Shrug",
+    "muscle": "Traps, calves, and hips",
+    "equipment": "Dumbbell",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "trap-bar-shrug",
+    "name": "Trap Bar Shrug",
+    "muscle": "Traps, calves, and hips",
+    "equipment": "Trap Bar",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "seated-dumbbell-shrug",
+    "name": "Seated Dumbbell Shrug",
+    "muscle": "Traps, calves, and hips",
+    "equipment": "Dumbbell",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "cable-crunch",
+    "name": "Cable Crunch",
+    "muscle": "Core",
+    "equipment": "Cable",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "machine-crunch",
+    "name": "Machine Crunch",
+    "muscle": "Core",
+    "equipment": "Machine",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "plate-weighted-crunch",
+    "name": "Plate-Weighted Crunch",
+    "muscle": "Core",
+    "equipment": "Plate",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "decline-plate-weighted-crunch",
+    "name": "Decline Plate-Weighted Crunch",
+    "muscle": "Core",
+    "equipment": "Plate",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "hanging-leg-raise",
+    "name": "Hanging Leg Raise",
+    "muscle": "Core",
+    "equipment": "Bodyweight",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "roman-chair-crunch",
+    "name": "Roman Chair Crunch",
+    "muscle": "Core",
+    "equipment": "Bodyweight",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "reverse-crunch",
+    "name": "Reverse Crunch",
+    "muscle": "Core",
+    "equipment": "Bodyweight",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "bicycle-crunch",
+    "name": "Bicycle Crunch",
+    "muscle": "Core",
+    "equipment": "Bodyweight",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "weighted-crunch",
+    "name": "Weighted Crunch",
+    "muscle": "Core",
+    "equipment": "",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "dragon-flag",
+    "name": "Dragon Flag",
+    "muscle": "Core",
+    "equipment": "Bodyweight",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "bent-knee-dragon-flag",
+    "name": "Bent-Knee Dragon Flag",
+    "muscle": "Core",
+    "equipment": "Bodyweight",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "lying-leg-raise",
+    "name": "Lying Leg Raise",
+    "muscle": "Core",
+    "equipment": "Bodyweight",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "copenhagen-hip-adduction",
+    "name": "Copenhagen Hip Adduction",
+    "muscle": "Adductors and neck",
+    "equipment": "Bodyweight",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "head-harness-neck-curl",
+    "name": "Head Harness Neck Curl",
+    "muscle": "Adductors and neck",
+    "equipment": "",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "head-harness-neck-extension",
+    "name": "Head Harness Neck Extension",
+    "muscle": "Adductors and neck",
+    "equipment": "",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "plate-loaded-neck-curl",
+    "name": "Plate-Loaded Neck Curl",
+    "muscle": "Adductors and neck",
+    "equipment": "Plate",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "plate-loaded-neck-extension",
+    "name": "Plate-Loaded Neck Extension",
+    "muscle": "Adductors and neck",
+    "equipment": "Plate",
+    "cue": "",
+    "aliases": []
+  }
+]
