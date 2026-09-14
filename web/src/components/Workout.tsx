@@ -13,9 +13,9 @@ import { ExerciseLibrary } from './Exercises';
 const payload = (session: Session, revision: number) => ({
   note: session.note, revision,
   exercises: session.exercises.map(e => ({
-    exerciseId: e.exerciseId, nameSnapshot: e.name, note: e.note, prescription: e.prescription,
-    sequenceGroup: e.sequenceGroup, substitutions: e.substitutions,
-    sets: e.sets.map(s => ({ weightKg: s.weightKg, reps: s.reps, rpe: s.rpe, done: s.done, warmup: s.warmup }))
+    id: e.id, exerciseId: e.exerciseId, nameSnapshot: e.name, note: e.note, prescription: e.prescription,
+    sequenceGroup: e.sequenceGroup, substitutions: e.substitutions, loadModel: e.loadModel,
+    sets: e.sets.map(s => ({ id: s.id, weightKg: s.weightKg, reps: s.reps, rpe: s.rpe, done: s.done, warmup: s.warmup, resistanceMode: s.resistanceMode }))
   }))
 });
 
@@ -50,6 +50,10 @@ export function Workout({ session, preferences, exercises, queue, onSaved, onClo
   }
 
   function editSet(ei: number, si: number, patch: Partial<LoggedSet>) {
+    const exercise = draft.exercises[ei];
+    const loadModel = exercise?.loadModel ?? 'external';
+    const resistanceMode = exercise?.sets[si]?.resistanceMode ?? 'bodyweight';
+    if ('weightKg' in patch && (loadModel === 'bodyweight_context_only' || loadModel === 'reps_only' || loadModel === 'full_bodyweight' && resistanceMode === 'bodyweight')) return;
     change({ ...draft, exercises: draft.exercises.map((e, i) => i === ei ? { ...e, sets: e.sets.map((s, j) => j === si ? { ...s, ...patch } : s) } : e) });
   }
 
@@ -95,7 +99,10 @@ export function Workout({ session, preferences, exercises, queue, onSaved, onClo
 
   return <Modal title={draft.name} onClose={onClose} wide>
     <div className="workout-summary"><span><Clock3 size={16} />{Math.floor(elapsed / 60)}:{String(elapsed % 60).padStart(2, '0')}</span>
-      <span><Check size={16} />{done} / {plannedSets(draft)} working sets</span><span><Dumbbell size={16} />{showVolume(draft.volumeKg, unit)}</span></div>
+      <span><Check size={16} />{done} / {plannedSets(draft)} working sets</span><span><Dumbbell size={16} />{showVolume(draft.volumeKg, unit)} external</span>
+      {draft.systemVolumeKg !== null && draft.systemVolumeKg !== undefined && <span><Dumbbell size={16} />{showVolume(draft.systemVolumeKg, unit)} system</span>}
+      {draft.bodyWeight && <span title="Frozen when this workout started">BW {showWeight(draft.bodyWeight.referenceKg, unit)}</span>}
+      {draft.nutritionContext?.cached && <span title="Nutrition was unavailable when this workout started">Nutrition cached</span>}</div>
     <div className="modal-body workout-body">
       <div className="workout-hint">Enter your working weight, reps, and how hard the set felt. Warm-ups stay separate from working volume.</div>
       {groups.map((group, groupIndex) => <div className={group.length > 1 ? 'superset-block' : ''} key={groupIndex}>
@@ -117,7 +124,7 @@ export function Workout({ session, preferences, exercises, queue, onSaved, onClo
         <Button variant="primary" disabled={busy} onClick={() => { if (!done) { setError('Complete at least one working set before finishing.'); return; } setConfirm('finish'); }}>Finish workout<Check size={17} /></Button></div></div>
     {picker && <Modal title="Add an exercise" onClose={() => setPicker(false)}><div className="modal-body"><ExerciseLibrary exercises={exercises} exclude={draft.exercises.map(e => e.exerciseId).filter((id): id is string => id !== null)} onSelect={id => {
       const chosen = exercises.find(e => e.id === id)!;
-      change({ ...draft, exercises: [...draft.exercises, { id: crypto.randomUUID(), exerciseId: chosen.id, name: chosen.name, position: draft.exercises.length, note: '', sequenceGroup: '', substitutions: [], prescription: [blankPrescription(preferences.restSeconds)], sets: [blankLoggedSet()], progression: null }] });
+      change({ ...draft, exercises: [...draft.exercises, { id: crypto.randomUUID(), exerciseId: chosen.id, name: chosen.name, position: draft.exercises.length, note: '', sequenceGroup: '', substitutions: [], prescription: [blankPrescription(preferences.restSeconds, chosen.loadModel)], sets: [blankLoggedSet(chosen.loadModel)], progression: null, loadModel: chosen.loadModel }] });
       setPicker(false);
     }} /></div></Modal>}
     {confirm && <Modal title={confirm === 'finish' ? 'Finish your workout?' : 'Discard this workout?'} onClose={() => setConfirm(null)}><div className="modal-body"><p>{confirm === 'finish' ? `${done} completed working ${done === 1 ? 'set' : 'sets'} will be saved. Unlogged sets will be left out.` : 'This removes the session in progress. Your completed history stays as it is.'}</p></div>
@@ -142,18 +149,22 @@ function ExerciseBlock({ exercise, index, unit, draft, exercises, change, editSe
     {exercise.progression && <p className="progression-note"><TrendingUp size={14} aria-hidden="true" />
       <span>{exercise.progression.suggestedKg === null ? '' : <strong>{showWeight(exercise.progression.suggestedKg, unit)} · </strong>}{exercise.progression.reason}</span>
       {exercise.progression.trendE1rmKg !== null && <small title="Estimated from your logged reps and RPE, not a max you have tested.">Estimated max {showWeight(exercise.progression.trendE1rmKg, unit)}</small>}</p>}
+    {exercise.loadModel === 'bodyweight_context_only' && <p className="source">Bodyweight context is recorded with this movement; no effective load is calculated.</p>}
+    {exercise.loadModel === 'full_bodyweight' && <p className="source">System load uses the frozen bodyweight snapshot. Enter added load or assistance; a bodyweight adjustment is not a progression increase.</p>}
     {prescription.some(p => p.notes || p.loadText || p.tempo || p.percent1Rm || p.rir) && <details><summary>Plan detail <ChevronDown size={13} /></summary><ul>{prescription.map((p, i) => {
       const warmupNumber = prescription.slice(0, i + 1).filter(item => item.warmup).length;
       const workingNumber = prescription.slice(0, i + 1).filter(item => !item.warmup).length;
       return <li key={i}>{p.warmup ? `Warm-up ${warmupNumber}` : `Set ${workingNumber}`}: {showTarget(p)}{p.loadText ? ` · ${p.loadText}` : ''}{p.tempo ? `, tempo ${p.tempo}` : ''}{p.notes ? ` — ${p.notes}` : ''}</li>;
     })}</ul></details>}
     <div className="set-table"><div className="set-table-head"><span>SET</span><span>TARGET</span><span>{unit.toUpperCase()}</span><span>REPS</span><span>RPE</span><span>LOG</span><span /></div>
-      {exercise.sets.map((set, si) => { const plan = prescription[si] ?? prescription.at(-1); const shown = toDisplay(set.weightKg, unit); const warmup = set.warmup || plan?.warmup;
+      {exercise.sets.map((set, si) => { const plan = prescription[si] ?? prescription.at(-1); const shown = toDisplay(set.weightKg, unit); const warmup = set.warmup || plan?.warmup; const loadModel = exercise.loadModel ?? 'external'; const loadEditable = loadModel === 'external' || loadModel === 'full_bodyweight' && (set.resistanceMode ?? 'bodyweight') !== 'bodyweight';
         const warmupNumber = exercise.sets.slice(0, si + 1).filter((item, index) => item.warmup || prescription[index]?.warmup).length;
         const workingNumber = exercise.sets.slice(0, si + 1).filter((item, index) => !(item.warmup || prescription[index]?.warmup)).length;
-        return <div className={`set-row ${set.done ? 'done' : ''} ${warmup ? 'warmup-row' : ''}`} key={set.id}><span className="set-number">{warmup ? `W${warmupNumber}` : workingNumber}</span>
+        return <div className={`set-row ${set.done ? 'done' : ''} ${warmup ? 'warmup-row' : ''} ${loadEditable ? '' : 'load-locked'}`} key={set.id}><span className="set-number">{warmup ? `W${warmupNumber}` : workingNumber}</span>
+          {set.suggestion && <small className="progression-reason">{set.suggestion.suggestedLoadKg === null ? 'Enter load' : `${set.suggestion.isBodyweightAdjustment ? 'Adjust' : 'Suggested'} ${showWeight(set.suggestion.suggestedLoadKg, unit)}`}: {set.suggestion.reason}</small>}
+          {loadModel === 'full_bodyweight' && <select name={`mode-${exercise.id}-${si}`} aria-label={`${exercise.name} set ${si + 1} resistance mode`} value={set.resistanceMode ?? 'bodyweight'} onChange={e => editSet(index, si, { resistanceMode: e.target.value as LoggedSet['resistanceMode'], done: false })}><option value="bodyweight">Bodyweight</option><option value="added">Added load</option><option value="assistance">Assistance</option></select>}
           <span className="previous-set" title={plan?.restText ? `Rest ${plan.restText}` : undefined}>{plan ? showTarget(plan) : '—'}{plan?.rpeSource === 'inferred' && <small className="ai-marker">AI</small>}</span>
-          <input name={`weight-${exercise.id}-${si}`} aria-label={`${exercise.name} set ${si + 1} weight`} inputMode="decimal" type="number" placeholder="—" value={shown === null ? '' : shown} onChange={e => editSet(index, si, { weightKg: e.target.value === '' ? null : toKg(Number(e.target.value), unit), done: false })} />
+          <input name={`weight-${exercise.id}-${si}`} aria-label={`${exercise.name} set ${si + 1} weight`} inputMode="decimal" type="number" placeholder="—" value={shown === null ? '' : shown} disabled={!loadEditable} onChange={e => editSet(index, si, { weightKg: e.target.value === '' ? null : toKg(Number(e.target.value), unit), done: false })} />
           <input name={`reps-${exercise.id}-${si}`} aria-label={`${exercise.name} set ${si + 1} reps`} inputMode="numeric" type="number" placeholder="—" value={set.reps ?? ''} onChange={e => editSet(index, si, { reps: e.target.value === '' ? null : Number(e.target.value), done: false })} />
           <select name={`rpe-${exercise.id}-${si}`} aria-label={`${exercise.name} set ${si + 1} RPE`} value={set.rpe ?? ''} onChange={e => editSet(index, si, { rpe: e.target.value === '' ? null : Number(e.target.value), done: false })}><option value="">—</option>{rpeSteps.map(step => <option key={step} value={step}>{step}</option>)}</select>
           <Button className="log-set" variant={set.done ? 'primary' : 'secondary'} aria-label={`${set.done ? 'Unlog' : 'Log'} ${exercise.name} set ${si + 1}`} aria-pressed={set.done} onClick={() => toggle(index, si)}><Check size={18} /></Button>
@@ -162,11 +173,24 @@ function ExerciseBlock({ exercise, index, unit, draft, exercises, change, editSe
       })}
     </div>
     <div className="exercise-actions"><input name={`note-${exercise.id}`} aria-label={`Notes for ${exercise.name}`} placeholder="Add an exercise note…" value={exercise.note} onChange={e => change({ ...draft, exercises: draft.exercises.map((item, i) => i === index ? { ...item, note: e.target.value } : item) })} />
-      <Button variant="tertiary" disabled={exercise.sets.length >= 24} onClick={() => change({ ...draft, exercises: draft.exercises.map((item, i) => i === index ? { ...item, sets: [...item.sets, { ...blankLoggedSet(), position: item.sets.length, weightKg: item.sets.at(-1)?.weightKg ?? null }], prescription: [...item.prescription, { ...blankPrescription(prescription.at(-1)?.restSeconds ?? 90), warmup: false }] } : item) })}><Plus size={15} />Add set</Button></div>
+      <Button variant="tertiary" disabled={exercise.sets.length >= 24} onClick={() => change({ ...draft, exercises: draft.exercises.map((item, i) => {
+        if (i !== index) return item;
+        const previousSet = item.sets.at(-1);
+        const previousPlan = item.prescription.at(-1);
+        const mode = previousSet?.resistanceMode ?? previousPlan?.resistanceMode;
+        return { ...item,
+          sets: [...item.sets, { ...blankLoggedSet(item.loadModel, mode), position: item.sets.length, weightKg: previousSet?.weightKg ?? null }],
+          prescription: [...item.prescription, { ...blankPrescription(previousPlan?.restSeconds ?? 90, item.loadModel, mode), warmup: false }]
+        };
+      }) })}><Plus size={15} />Add set</Button></div>
   </section>;
 }
 
-function blankPrescription(restSeconds: number): SessionExercise['prescription'][number] {
-  return { repMin: 8, repMax: 12, targetRpe: 8, restSeconds, tempo: null, loadText: null, notes: null, repsText: null, restText: null, percent1Rm: null, rir: null, warmup: false, repsSource: 'userEdited', rpeSource: 'userEdited', restSource: 'userEdited' };
+function blankPrescription(restSeconds: number, loadModel?: Exercise['loadModel'], resistanceMode?: LoggedSet['resistanceMode']): SessionExercise['prescription'][number] {
+  return { repMin: 8, repMax: 12, targetRpe: 8, restSeconds, tempo: null, loadText: null, notes: null, repsText: null, restText: null, percent1Rm: null, rir: null, warmup: false, repsSource: 'userEdited', rpeSource: 'userEdited', restSource: 'userEdited', resistanceMode: normalizeResistanceMode(loadModel, resistanceMode) };
 }
-function blankLoggedSet(): LoggedSet { return { id: crypto.randomUUID(), position: 0, weightKg: null, reps: null, rpe: null, done: false, warmup: false }; }
+function blankLoggedSet(loadModel?: Exercise['loadModel'], resistanceMode?: LoggedSet['resistanceMode']): LoggedSet { return { id: crypto.randomUUID(), position: 0, weightKg: null, reps: null, rpe: null, done: false, warmup: false, resistanceMode: normalizeResistanceMode(loadModel, resistanceMode) }; }
+function normalizeResistanceMode(loadModel?: Exercise['loadModel'], resistanceMode?: LoggedSet['resistanceMode']): LoggedSet['resistanceMode'] {
+  if (loadModel === 'full_bodyweight') return resistanceMode === 'added' || resistanceMode === 'assistance' || resistanceMode === 'bodyweight' ? resistanceMode : 'bodyweight';
+  return loadModel === 'bodyweight_context_only' || loadModel === 'reps_only' ? 'reps_only' : 'external';
+}

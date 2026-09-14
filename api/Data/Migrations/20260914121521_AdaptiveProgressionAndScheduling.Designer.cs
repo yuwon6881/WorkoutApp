@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Workout.Api.Data;
@@ -11,9 +12,11 @@ using Workout.Api.Data;
 namespace Workout.Api.Data.Migrations
 {
     [DbContext(typeof(AppDb))]
-    partial class AppDbModelSnapshot : ModelSnapshot
+    [Migration("20260914121521_AdaptiveProgressionAndScheduling")]
+    partial class AdaptiveProgressionAndScheduling
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -408,48 +411,6 @@ namespace Workout.Api.Data.Migrations
                         });
                 });
 
-            modelBuilder.Entity("Workout.Api.Data.IntegrationGrant", b =>
-                {
-                    b.Property<Guid>("UserId")
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid>("Id")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("EncryptedRefreshToken")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<DateTime?>("GrantedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("Peer")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<int>("Revision")
-                        .IsConcurrencyToken()
-                        .HasColumnType("integer");
-
-                    b.Property<DateTime?>("RevokedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("ScopesJson")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.HasKey("UserId", "Id");
-
-                    b.HasIndex("UserId", "Peer")
-                        .IsUnique();
-
-                    b.ToTable("IntegrationGrants");
-                });
-
             modelBuilder.Entity("Workout.Api.Data.MutationReceipt", b =>
                 {
                     b.Property<Guid>("UserId")
@@ -495,9 +456,6 @@ namespace Workout.Api.Data.Migrations
                         .HasColumnType("integer");
 
                     b.HasKey("UserId", "Id");
-
-                    b.HasIndex("UserId")
-                        .IsUnique();
 
                     b.ToTable("NutritionContexts");
                 });
@@ -824,15 +782,6 @@ namespace Workout.Api.Data.Migrations
                 });
 
             modelBuilder.Entity("Workout.Api.Data.ExerciseProgress", b =>
-                {
-                    b.HasOne("Workout.Api.Data.AppUser", null)
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("Workout.Api.Data.IntegrationGrant", b =>
                 {
                     b.HasOne("Workout.Api.Data.AppUser", null)
                         .WithMany()

@@ -29,7 +29,8 @@ public sealed class Harness : IAsyncDisposable
         Templates = new TemplateService(db, Catalog);
         Programs = new ProgramService(db, Templates);
         Progression = new ProgressionService(db);
-        Workouts = new WorkoutService(db, Catalog, Templates, Progression);
+        Workouts = new WorkoutService(db, Catalog, Templates, Progression,
+            new NutritionContextService(db, new TestHttpClientFactory(), config));
         Export = new ExportService(db, Programs, Templates, Workouts);
     }
 
@@ -78,6 +79,11 @@ public sealed class Harness : IAsyncDisposable
         await Db.DisposeAsync();
         await connection.DisposeAsync();
     }
+}
+
+file sealed class TestHttpClientFactory : IHttpClientFactory
+{
+    public HttpClient CreateClient(string name) => new();
 }
 
 /// Replays a canned OpenAI Responses payload without touching the network.

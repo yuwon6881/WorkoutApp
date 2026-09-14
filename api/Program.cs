@@ -5,6 +5,7 @@ using Workout.Api.Data;
 using Workout.Api.Domain;
 using Workout.Api.Endpoints;
 using Workout.Api.Services;
+using OpenIddict.Validation.AspNetCore;
 
 var builder=WebApplication.CreateBuilder(args);
 if(int.TryParse(Environment.GetEnvironmentVariable("PORT"),out var cloudRunPort))builder.WebHost.UseUrls($"http://0.0.0.0:{cloudRunPort}");
@@ -26,10 +27,31 @@ builder.Services.AddScoped<CatalogService>();
 builder.Services.AddScoped<TemplateService>();
 builder.Services.AddScoped<ProgramService>();
 builder.Services.AddScoped<ProgressionService>();
+builder.Services.AddScoped<NutritionContextService>();
+builder.Services.AddScoped<SharedAccessTokenService>();
+builder.Services.AddScoped<OpenIddictAccessTokenService>();
+builder.Services.AddHttpClient<IIntegrationKms, IntegrationKmsService>(c => c.Timeout = TimeSpan.FromSeconds(30));
+builder.Services.AddScoped<IntegrationTokenService>();
 builder.Services.AddScoped<WorkoutService>();
 builder.Services.AddScoped<ExportService>();
 builder.Services.AddScoped<ImportService>();
+builder.Services.AddAuthentication(options =>
+{
+    options.DefaultAuthenticateScheme = OpenIddictValidationAspNetCoreDefaults.AuthenticationScheme;
+    options.DefaultChallengeScheme = OpenIddictValidationAspNetCoreDefaults.AuthenticationScheme;
+});
+builder.Services.AddOpenIddict().AddValidation(options =>
+{
+    options.SetIssuer(new Uri(builder.Configuration["Identity:Issuer"] ?? "http://fitness-account"));
+    options.AddAudiences(
+        builder.Configuration["Identity:WorkoutAudience"] ?? "workout-api",
+        builder.Configuration["Identity:NutritionAudience"] ?? "nutrition-api");
+    options.UseSystemNetHttp();
+    options.UseAspNetCore();
+});
 builder.Services.AddHttpClient<WorkoutAi>(c=>c.Timeout=TimeSpan.FromSeconds(150));
+builder.Services.AddHttpClient("nutrition", c => c.Timeout = TimeSpan.FromSeconds(3));
+builder.Services.AddHttpClient("fitness-account", c => c.Timeout = TimeSpan.FromSeconds(10));
 builder.Services.AddRateLimiter(o=>
 {
     o.RejectionStatusCode=429;
@@ -54,6 +76,7 @@ builder.Services.AddRateLimiter(o=>
 });
 var app=builder.Build();
 app.UseForwardedHeaders();
+app.UseAuthentication();
 app.Use(async(http,next)=>
 {
     http.Response.Headers.XContentTypeOptions="nosniff";
@@ -69,7 +92,7 @@ app.Use(async(http,next)=>
             var allowed=builder.Configuration["PublicOrigin"]??$"{http.Request.Scheme}://{http.Request.Host}";
             Validation.Require(origin==allowed&&http.Request.Headers["X-Workout-Request"]=="1","Request origin is not allowed.",403);
         }
-        if(http.Request.Path.StartsWithSegments("/api")&&http.Request.Path.Value is not ("/api/auth/status" or "/api/auth/login" or "/api/auth/register" or "/api/auth/dev-reset"))
+        if(http.Request.Path.StartsWithSegments("/api") && !http.Request.Path.StartsWithSegments("/api/integrations/v1") && http.Request.Path.Value is not ("/api/auth/status" or "/api/auth/login" or "/api/auth/register" or "/api/auth/dev-reset" or "/api/auth/central/start" or "/api/auth/central/callback"))
         {
             var db=http.RequestServices.GetRequiredService<AppDb>();
             var token=http.Request.Cookies[AuthService.Cookie];
@@ -87,7 +110,7 @@ app.Use(async(http,next)=>
 });
 app.UseRateLimiter();
 app.UseDefaultFiles();app.UseStaticFiles(new StaticFileOptions { OnPrepareResponse=c=> { if(c.File.Name=="sw.js"||c.File.Name=="index.html") c.Context.Response.Headers.CacheControl="no-cache"; } });
-app.MapAuth();app.MapBootstrap();app.MapCatalog();app.MapTemplates();app.MapPrograms();app.MapWorkouts();app.MapImports();
+app.MapAuth();app.MapCentralAuth();app.MapBootstrap();app.MapCatalog();app.MapTemplates();app.MapPrograms();app.MapWorkouts();app.MapImports();app.MapIntegrations();app.MapIdentityOperations();
 app.MapGet("/health",()=>new { status="ok" });
 app.MapFallback(async http=>
 {

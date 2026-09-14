@@ -8,10 +8,10 @@ public class ProgramTests
 {
     private static ProgramInput TwoWeeks(Guid benchId) => new("Starting strength", "A two-week block",
     [
-        new ProgramWorkoutInput(1, "Week 1 Day A", "Push", null, [Harness.Exercise(benchId, "Bench press", Harness.Set(8, 10))]),
-        new ProgramWorkoutInput(1, "Week 1 Day B", "Pull", null, [Harness.Exercise(benchId, "Bench press", Harness.Set(8, 10))]),
-        new ProgramWorkoutInput(2, "Week 2 Day A", "Push", null, [Harness.Exercise(benchId, "Bench press", Harness.Set(6, 8))])
-    ], null);
+        new ProgramWorkoutInput(1, "Week 1 Day A", "Push", null, [Harness.Exercise(benchId, "Bench press", Harness.Set(8, 10))], Weekday: 1),
+        new ProgramWorkoutInput(1, "Week 1 Day B", "Pull", null, [Harness.Exercise(benchId, "Bench press", Harness.Set(8, 10))], Weekday: 3),
+        new ProgramWorkoutInput(2, "Week 2 Day A", "Push", null, [Harness.Exercise(benchId, "Bench press", Harness.Set(6, 8))], Weekday: 1)
+    ], null, new DateOnly(2026, 9, 14));
 
     private static async Task<(Harness h, Guid benchId)> Ready()
     {
@@ -119,10 +119,10 @@ public class ProgramTests
         await using var _h = h;
         var program = await h.Programs.Create(new ProgramInput("Blocks", null,
             [
-                new ProgramWorkoutInput(1, "Monday", "Push", null, [Harness.Exercise(benchId, "Bench press", Harness.Set(8, 10))], "Block 1", "Base", 1, false),
+                new ProgramWorkoutInput(1, "Monday", "Push", null, [Harness.Exercise(benchId, "Bench press", Harness.Set(8, 10))], "Block 1", "Base", 1, false, 1),
                 new ProgramWorkoutInput(1, "Tuesday recovery", null, "Sleep and recover", [], "Block 1", "Base", 1, true),
-                new ProgramWorkoutInput(1, "Wednesday", "Pull", null, [Harness.Exercise(benchId, "Bench press", Harness.Set(8, 10))], "Block 1", "Base", 1, false)
-            ], null), true, null, default);
+                new ProgramWorkoutInput(1, "Wednesday", "Pull", null, [Harness.Exercise(benchId, "Bench press", Harness.Set(8, 10))], "Block 1", "Base", 1, false, 3)
+            ], null, new DateOnly(2026, 9, 14)), true, null, default);
 
         Assert.Equal(3, program.Workouts.Count);
         Assert.True(program.Workouts[1].IsRestDay);

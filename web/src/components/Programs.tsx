@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type Dispatch, type SetStateAction } from 'react';
 import { ArrowRight, Dumbbell, FileText, Pencil, Plus, Trash2 } from 'lucide-react';
 import type { Bootstrap, Exercise, ProgramSummary, SetPrescription, Template, TemplateExercise } from '../types';
 import { ApiError, api } from '../lib/api';
@@ -10,7 +10,26 @@ import { ExerciseLibrary } from './Exercises';
 
 type Draft = { id: string | null; name: string; focus: string; revision: number | null; exercises: TemplateExercise[] };
 
-const blankSet = (): SetPrescription => ({ repMin: 8, repMax: 12, targetRpe: 8, restSeconds: 90, tempo: null, loadText: null, notes: null, repsText: null, restText: null, percent1Rm: null, rir: null, warmup: false, repsSource: 'userEdited', rpeSource: 'userEdited', restSource: 'userEdited' });
+const blankSet = (loadModel?: Exercise['loadModel']): SetPrescription => ({ repMin: 8, repMax: 12, targetRpe: 8, restSeconds: 90, tempo: null, loadText: null, notes: null, repsText: null, restText: null, percent1Rm: null, rir: null, warmup: false, repsSource: 'userEdited', rpeSource: 'userEdited', restSource: 'userEdited', resistanceMode: loadModel === 'full_bodyweight' ? 'bodyweight' : loadModel === 'bodyweight_context_only' || loadModel === 'reps_only' ? 'reps_only' : 'external' });
+
+function updateSet(setDraft: Dispatch<SetStateAction<Draft | null>>, draft: Draft, exerciseIndex: number, setIndex: number, patch: Partial<SetPrescription>) {
+  setDraft({ ...draft, exercises: draft.exercises.map((exercise, index) => index === exerciseIndex
+    ? { ...exercise, sets: exercise.sets.map((set, current) => current === setIndex ? { ...set, ...patch } : set) }
+    : exercise) });
+}
+
+const weekdayNames = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+
+function nextMondayIso() {
+  const date = new Date();
+  const day = date.getDay();
+  date.setDate(date.getDate() + (day === 0 ? 1 : 8 - day));
+  return date.toISOString().slice(0, 10);
+}
+
+function defaultWeekdays(days: ProgramSummary['days']) {
+  return Object.fromEntries(days.filter(day => !day.isRestDay).map(day => [day.id, day.weekday ?? (day.position % 7) + 1]));
+}
 
 export function Programs({ data, exercises, onStart, onImport, onChanged }: {
   data: Bootstrap; exercises: Exercise[]; onStart: (templateId: string) => void; onImport: () => void; onChanged: () => Promise<void>;
@@ -85,25 +104,26 @@ export function Programs({ data, exercises, onStart, onImport, onChanged }: {
         <label className="field">Workout name<input name="template-name" value={draft.name} onChange={e => setDraft({ ...draft, name: e.target.value })} placeholder="e.g. Full body strength" /></label>
         <label className="field">Focus<input name="template-focus" value={draft.focus} onChange={e => setDraft({ ...draft, focus: e.target.value })} /></label>
         <div className="editor-exercises">{draft.exercises.map((exercise, i) => <div className="editor-row" key={exercise.id}>
-          <strong>{exercise.name}</strong>
-          <label>Sets<select name={`sets-${exercise.id}`} aria-label={`Sets for ${exercise.name}`} value={exercise.sets.length} onChange={e => {
-            const count = Number(e.target.value);
-            setDraft({ ...draft, exercises: draft.exercises.map((p, j) => i === j ? { ...p, sets: Array.from({ length: count }, (_, k) => p.sets[k] ?? blankSet()) } : p) });
-          }}>{Array.from({ length: 10 }, (_, n) => <option key={n} value={n + 1}>{n + 1}</option>)}</select></label>
-          <label>Reps<input name={`reps-${exercise.id}`} aria-label={`Reps for ${exercise.name}`} inputMode="numeric" type="number" value={exercise.sets[0]?.repMin ?? 8} onChange={e => {
-            const reps = Number(e.target.value);
-            setDraft({ ...draft, exercises: draft.exercises.map((p, j) => i === j ? { ...p, sets: p.sets.map(s => ({ ...s, repMin: reps, repMax: Math.max(reps, s.repMax) })) } : p) });
-          }} /></label>
-          <label>RPE<input name={`rpe-${exercise.id}`} aria-label={`Target RPE for ${exercise.name}`} inputMode="decimal" type="number" value={exercise.sets[0]?.targetRpe ?? 8} onChange={e => {
-            const rpe = Number(e.target.value);
-            setDraft({ ...draft, exercises: draft.exercises.map((p, j) => i === j ? { ...p, sets: p.sets.map(s => ({ ...s, targetRpe: rpe })) } : p) });
-          }} /></label>
-          <Button variant="tertiary" aria-label={`Remove ${exercise.name}`} onClick={() => setDraft({ ...draft, exercises: draft.exercises.filter((_, j) => j !== i) })}><Trash2 size={16} /></Button>
+          <div className="section-heading"><strong>{exercise.name}</strong><Button variant="tertiary" aria-label={`Remove ${exercise.name}`} onClick={() => setDraft({ ...draft, exercises: draft.exercises.filter((_, j) => j !== i) })}><Trash2 size={16} /></Button></div>
+          <div className="set-editor" aria-label={`Set prescriptions for ${exercise.name}`}>
+            {exercise.sets.map((set, si) => <div className="set-editor-row" key={si}>
+              <span className="tiny-label">SET {si + 1}</span>
+              <label>Min reps<input name={`rep-min-${exercise.id}-${si}`} aria-label={`${exercise.name} set ${si + 1} minimum reps`} type="number" min="1" max="1000" value={set.repMin} onChange={e => updateSet(setDraft, draft, i, si, { repMin: Number(e.target.value), repMax: Math.max(Number(e.target.value), set.repMax) })} /></label>
+              <label>Max reps<input name={`rep-max-${exercise.id}-${si}`} aria-label={`${exercise.name} set ${si + 1} maximum reps`} type="number" min="1" max="1000" value={set.repMax} onChange={e => updateSet(setDraft, draft, i, si, { repMax: Number(e.target.value) })} /></label>
+              <label>Target RPE<input name={`target-rpe-${exercise.id}-${si}`} aria-label={`${exercise.name} set ${si + 1} target RPE`} type="number" min="6" max="10" step="0.5" value={set.targetRpe ?? ''} placeholder={set.warmup ? 'optional' : '6–10'} onChange={e => updateSet(setDraft, draft, i, si, { targetRpe: e.target.value === '' ? null : Number(e.target.value) })} /></label>
+              <label>Rest (s)<input name={`rest-${exercise.id}-${si}`} aria-label={`${exercise.name} set ${si + 1} rest seconds`} type="number" min="0" max="3600" value={set.restSeconds ?? ''} onChange={e => updateSet(setDraft, draft, i, si, { restSeconds: e.target.value === '' ? null : Number(e.target.value) })} /></label>
+              <label>Tempo<input name={`tempo-${exercise.id}-${si}`} aria-label={`${exercise.name} set ${si + 1} tempo`} value={set.tempo ?? ''} onChange={e => updateSet(setDraft, draft, i, si, { tempo: e.target.value || null })} placeholder="e.g. 3010" /></label>
+              <label>Note<input name={`set-note-${exercise.id}-${si}`} aria-label={`${exercise.name} set ${si + 1} note`} value={set.notes ?? ''} onChange={e => updateSet(setDraft, draft, i, si, { notes: e.target.value || null })} /></label>
+              <label className="checkbox-field"><input type="checkbox" name={`warmup-${exercise.id}-${si}`} checked={set.warmup} onChange={e => updateSet(setDraft, draft, i, si, { warmup: e.target.checked, targetRpe: e.target.checked ? null : set.targetRpe ?? 8 })} />Warm-up</label>
+              <Button variant="tertiary" aria-label={`Remove ${exercise.name} set ${si + 1}`} disabled={exercise.sets.length <= 1} onClick={() => setDraft({ ...draft, exercises: draft.exercises.map((item, index) => index === i ? { ...item, sets: item.sets.filter((_, current) => current !== si) } : item) })}><Trash2 size={14} /></Button>
+            </div>)}
+            <Button variant="tertiary" disabled={exercise.sets.length >= 24} onClick={() => setDraft({ ...draft, exercises: draft.exercises.map((item, index) => index === i ? { ...item, sets: [...item.sets, blankSet(item.loadModel)] } : item) })}><Plus size={15} />Add set</Button>
+          </div>
         </div>)}</div>
         <Button onClick={() => setPicking(!picking)}><Plus size={17} />{picking ? 'Hide exercise picker' : 'Add exercise'}</Button>
         {picking && <ExerciseLibrary exercises={exercises} exclude={draft.exercises.map(e => e.exerciseId).filter((id): id is string => id !== null)} onSelect={id => {
           const chosen = exercises.find(e => e.id === id)!;
-          setDraft({ ...draft, exercises: [...draft.exercises, { id: crypto.randomUUID(), exerciseId: chosen.id, sourceName: chosen.name, name: chosen.name, note: '', position: draft.exercises.length, sets: [blankSet(), blankSet(), blankSet()], sequenceGroup: '', substitutions: [] }] });
+          setDraft({ ...draft, exercises: [...draft.exercises, { id: crypto.randomUUID(), exerciseId: chosen.id, sourceName: chosen.name, name: chosen.name, note: '', position: draft.exercises.length, sets: [blankSet(chosen.loadModel), blankSet(chosen.loadModel), blankSet(chosen.loadModel)], sequenceGroup: '', substitutions: [], loadModel: chosen.loadModel }] });
           setPicking(false);
         }} />}
         {error && <p role="alert" className="error-text">{error}</p>}
@@ -126,6 +146,9 @@ function ProgramCard({ program, onStart, onChanged }: { program: ProgramSummary;
   const [error, setError] = useState('');
   const [expanded, setExpanded] = useState(false);
   const [detail, setDetail] = useState<Template[] | null>(null);
+  const [scheduling, setScheduling] = useState(program.needsSchedule ?? false);
+  const [scheduleAnchor, setScheduleAnchor] = useState(program.scheduleAnchor ?? nextMondayIso());
+  const [scheduleWeekdays, setScheduleWeekdays] = useState<Record<string, number>>(() => defaultWeekdays(program.days));
   const next = program.days.find(w => w.id === program.nextTemplateId);
 
   async function toggleDetails() {
@@ -145,6 +168,20 @@ function ProgramCard({ program, onStart, onChanged }: { program: ProgramSummary;
     finally { setBusy(false); }
   }
 
+  function openSchedule() {
+    setScheduleAnchor(program.scheduleAnchor ?? nextMondayIso());
+    setScheduleWeekdays(defaultWeekdays(program.days));
+    setScheduling(true);
+  }
+
+  async function saveSchedule() {
+    const slots = program.days.filter(day => !day.isRestDay).map(day => ({ templateId: day.id, weekday: scheduleWeekdays[day.id] ?? 1 }));
+    await act(async () => {
+      await api.scheduleProgram(program.id, { anchor: scheduleAnchor, slots, revision: program.revision });
+      setScheduling(false);
+    });
+  }
+
   return <section className="panel program-card">
     <div className="section-heading">
       <div><h2>{program.name}</h2><p className="muted">{program.weeks} {program.weeks === 1 ? 'week' : 'weeks'} · {program.days.length} days · {program.completedTemplateIds.length} completed</p></div>
@@ -154,6 +191,25 @@ function ProgramCard({ program, onStart, onChanged }: { program: ProgramSummary;
     <Button variant="tertiary" className="full-width" onClick={() => void toggleDetails()} disabled={busy}>{busy ? 'Loading program…' : expanded ? 'Hide program detail' : 'Show block and phase detail'}</Button>
     {expanded && <ProgramTree days={program.days} completed={program.completedTemplateIds} nextId={program.nextTemplateId} detail={detail} onStart={onStart} />}
     {error && <p className="error-text" role="alert">{error}</p>}
+    {program.needsSchedule && !scheduling && <div className="empty-message">
+      <strong>Choose when this program happens</strong>
+      <p>Set a Monday start and a weekday for each workout before activating the program.</p>
+      <Button onClick={openSchedule}>Schedule workouts</Button>
+    </div>}
+    {!program.needsSchedule && !scheduling && <div className="settings-actions">
+      <Button variant="tertiary" onClick={openSchedule}>Edit schedule</Button>
+    </div>}
+    {scheduling && <div className="schedule-editor" aria-label={`Schedule ${program.name}`}>
+      <label className="field">Program week 1 starts on Monday<input type="date" value={scheduleAnchor} onChange={event => setScheduleAnchor(event.target.value)} /></label>
+      <div className="schedule-rows">
+        {program.days.filter(day => !day.isRestDay).map(day => <label className="field" key={day.id}>{day.name} · week {day.week}
+          <select value={scheduleWeekdays[day.id] ?? 1} onChange={event => setScheduleWeekdays(current => ({ ...current, [day.id]: Number(event.target.value) }))}>
+            {weekdayNames.map((name, index) => <option value={index + 1} key={name}>{name}</option>)}
+          </select>
+        </label>)}
+      </div>
+      <div className="settings-actions"><Button variant="primary" disabled={busy || !scheduleAnchor} onClick={() => void saveSchedule()}>Save schedule</Button><Button disabled={busy} onClick={() => setScheduling(false)}>Cancel</Button></div>
+    </div>}
     <div className="settings-actions">
       {next && <Button variant="primary" onClick={() => onStart(next.id)}>Start {next.name}<ArrowRight size={16} /></Button>}
       <Button disabled={busy} onClick={() => act(() => api.setProgramActive(program.id, !program.active, program.revision))}>{program.active ? 'Make inactive' : 'Make active'}</Button>

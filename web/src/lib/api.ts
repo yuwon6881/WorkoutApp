@@ -1,4 +1,4 @@
-import type { Bootstrap, DraftWorkout, HistoryPage, ImportDraft, ImportView, Preferences, Program, ProgramSummary, Session, Template } from '../types';
+import type { Bootstrap, DraftWorkout, HistoryPage, ImportDraft, ImportView, Preferences, ProgressSummary, Program, ProgramSummary, Session, Template } from '../types';
 
 export class ApiError extends Error {
   constructor(message: string, readonly status: number) { super(message); }
@@ -56,6 +56,7 @@ export const api = {
   programs: () => call<ProgramSummary[]>('/api/programs'),
   getProgram: (id: string) => call<Program>(`/api/programs/${id}`),
   createProgram: (input: unknown) => call<Program>('/api/programs', 'POST', input),
+  scheduleProgram: (id: string, input: { anchor: string; slots: { templateId: string; weekday: number }[]; revision: number }) => call<Program>(`/api/programs/${id}/schedule`, 'POST', input),
   setProgramActive: (id: string, active: boolean, revision: number) => call<Program>(`/api/programs/${id}/active`, 'POST', { active, revision }),
   deleteProgram: (id: string) => call<void>(`/api/programs/${id}`, 'DELETE'),
 
@@ -66,6 +67,11 @@ export const api = {
   discardWorkout: (id: string) => call<void>(`/api/workouts/${id}/discard`, 'POST'),
   deleteWorkout: (id: string) => call<void>(`/api/workouts/${id}`, 'DELETE'),
   history: (page: number, size = 20) => call<HistoryPage>(`/api/history?page=${page}&size=${size}`),
+  progress: () => call<ProgressSummary>('/api/progress'),
+  connectedApps: () => call<{ peer: string; status: string; scopes: string[]; grantedAt: string | null; revokedAt: string | null }[]>('/api/integrations/connected'),
+  connectApp: (peer: string, refreshToken: string | null = null) => call<{ peer: string; status: string; scopes: string[] }>('/api/integrations/connected', 'POST', { peer, refreshToken }),
+  revokeApp: (peer: string) => call<void>(`/api/integrations/connected/${peer}`, 'DELETE'),
+  refreshNutritionContext: () => call<{ mode: string; cached: boolean; confirmed: boolean; error: string | null }>('/api/integrations/refresh', 'POST'),
 
   imports: () => call<ImportView[]>('/api/imports'),
   getImport: (id: string) => call<ImportView>(`/api/imports/${id}`),

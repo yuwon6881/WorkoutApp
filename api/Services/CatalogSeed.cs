@@ -4,7 +4,8 @@ using Workout.Api.Domain;
 
 namespace Workout.Api.Services;
 
-public record SeedExercise(string Slug, string Name, string Muscle, string Equipment, string Cue, List<string>? Aliases, double? LoadStepKg = null);
+public record SeedExercise(string Slug, string Name, string Muscle, string Equipment, string Cue, List<string>? Aliases,
+    double? LoadStepKg = null, string LoadModel = LoadModels.External);
 
 /// The catalog changes only here. Seeding is keyed by slug, so re-running the same file
 /// updates rows in place instead of creating duplicates, and leaves omitted exercises alone.
@@ -27,6 +28,7 @@ public static class CatalogSeed
             Validation.Name(row.Name, "Exercise name", 160);
             Validation.Text(row.Muscle, 60, "Muscle"); Validation.Text(row.Equipment, 60, "Equipment"); Validation.Text(row.Cue, 600, "Cue");
             if (row.LoadStepKg is { } step) Validation.Number(step, 0, 50, "Load step");
+            Validation.Require(LoadModels.All.Contains(row.LoadModel), "Unknown exercise load model.");
         }
         Validation.Require(input.Select(r => r.Slug).Distinct(StringComparer.OrdinalIgnoreCase).Count() == input.Count, "The seed file repeats a slug.");
 
@@ -41,7 +43,10 @@ public static class CatalogSeed
             else updated++;
             exercise.Name = row.Name.Trim(); exercise.Muscle = row.Muscle ?? ""; exercise.Equipment = row.Equipment ?? ""; exercise.Cue = row.Cue ?? ""; exercise.Active = true;
             // The seed may state the smallest jump a gym actually has; otherwise equipment decides.
-            exercise.LoadStepKg = row.LoadStepKg ?? Progression.StepForEquipment(row.Equipment);
+            exercise.LoadStepKg = row.LoadStepKg ?? (row.LoadModel == LoadModels.FullBodyweight
+                ? Progression.DefaultStepKg
+                : Progression.StepForEquipment(row.Equipment));
+            exercise.LoadModel = row.LoadModel;
         }
         var deactivated = 0;
         if (deactivateMissing)

@@ -7,6 +7,7 @@ RUN dotnet publish api/Workout.Api.csproj -c Release -r linux-x64 --no-restore -
 FROM mcr.microsoft.com/dotnet/aspnet:10.0
 WORKDIR /app
 COPY --from=api /out/ ./
+COPY deploy/exercises.json /app/deploy/exercises.json
 ENV ASPNETCORE_URLS=http://+:8080
 EXPOSE 8080
 USER $APP_UID

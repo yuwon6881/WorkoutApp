@@ -45,10 +45,10 @@ public class ProgressionFormulaTests
         Assert.Equal(62.5, plan.SuggestedTopKg);
     }
 
-    [Fact] public void Finishing_the_range_well_inside_the_effort_target_adds_a_double_jump()
+    [Fact] public void Finishing_the_range_never_adds_more_than_one_equipment_step()
     {
         var plan = Plan(3, 5, 8, new PreviousSet(60, 5, 6.5));
-        Assert.Equal(5, plan.DeltaKg);
+        Assert.Equal(2.5, plan.DeltaKg);
         Assert.Equal(3, plan.TargetReps);
     }
 
@@ -56,7 +56,7 @@ public class ProgressionFormulaTests
     {
         var plan = Plan(3, 5, 8, new PreviousSet(60, 4, 9.5));
         Assert.Equal(0, plan.DeltaKg);
-        Assert.Equal(4, plan.TargetReps);
+        Assert.Equal(3, plan.TargetReps);
         Assert.Contains("Repeat", plan.Reason);
     }
 
@@ -67,12 +67,18 @@ public class ProgressionFormulaTests
         Assert.Equal(5, plan.TargetReps);
     }
 
-    [Fact] public void A_stalled_lift_is_told_to_take_a_lighter_week()
+    [Fact] public void Three_consecutive_hard_exposures_deload_from_the_last_successful_load()
     {
-        var stalled = new ProgressionState(100, 90, 2);
-        var plan = Progression.Next(5, 8, 8, [new PreviousSet(60, 3, 9.5)], stalled, 2.5);
-        Assert.Equal(-5, plan.DeltaKg);
-        Assert.Contains("Lighter week", plan.Reason);
+        var exposures = new[]
+        {
+            new SetExposure(Guid.NewGuid(), DateTime.UtcNow, 60, 3, 9.5),
+            new SetExposure(Guid.NewGuid(), DateTime.UtcNow.AddDays(-7), 60, 3, 9.5),
+            new SetExposure(Guid.NewGuid(), DateTime.UtcNow.AddDays(-14), 60, 3, 9.5),
+            new SetExposure(Guid.NewGuid(), DateTime.UtcNow.AddDays(-21), 60, 5, 8)
+        };
+        var suggestion = Progression.SuggestSet(5, 8, 8, exposures, ProgressionModes.Normal, 2.5);
+        Assert.Equal(55, suggestion.SuggestedLoadKg);
+        Assert.Contains("Deload", suggestion.Reason);
     }
 
     [Fact] public void The_heaviest_honest_estimate_of_the_session_is_the_one_that_counts()
@@ -93,7 +99,7 @@ public class ProgressionFormulaTests
     {
         var plan = Plan(3, 5, 8, new PreviousSet(60, 5, null));
         Assert.Equal(0, plan.DeltaKg);
-        Assert.Contains("No effort rating", plan.Reason);
+        Assert.Contains("No actual RPE", plan.Reason);
     }
 
     [Fact] public void A_first_session_suggests_nothing_at_all()
@@ -181,12 +187,12 @@ public class ProgressionSessionTests
         var exercise = next.Exercises.Single();
         Assert.NotNull(exercise.Progression);
         Assert.Equal(62.5, exercise.Progression!.SuggestedKg);
-        Assert.Contains("Up 2.5 kg", exercise.Progression.Reason);
+        Assert.Contains("Increase one equipment step", exercise.Progression.Reason);
         Assert.Equal(2.5, exercise.Progression.StepKg);
 
         var saved = await h.Workouts.Save(next.Id, new SessionInput("note", [new SessionExerciseInput(exercise.ExerciseId, exercise.Name, null, exercise.Prescription,
             exercise.Sets.Select(s => new SetInput(s.WeightKg, s.Reps, s.Rpe, false)).ToList())], next.Revision, null), default);
-        Assert.Equal("Up 2.5 kg. You finished the rep range, so reps reset to 3.", saved.Exercises.Single().Progression!.Reason);
+        Assert.Contains("Increase one equipment step", saved.Exercises.Single().Progression!.Reason);
     }
 
     [Fact] public async Task A_load_the_user_never_recorded_stays_unknown_instead_of_becoming_zero()
@@ -232,6 +238,62 @@ public class ProgressionSessionTests
         var sets = (await h.Workouts.Start(templateId, null, default)).Exercises.Single().Sets;
         Assert.Equal(62.5, sets[0].WeightKg);
         Assert.Equal(52.5, sets[1].WeightKg);
+    }
+
+    [Fact] public async Task A_skipped_first_set_keeps_the_second_set_ordinal()
+    {
+        var (h, templateId) = await Ready();
+        await using var _h = h;
+        var first = await h.Workouts.Start(templateId, null, default);
+        var exercise = first.Exercises.Single();
+        await h.Workouts.Save(first.Id, new SessionInput(null,
+            [new SessionExerciseInput(exercise.ExerciseId, exercise.Name, null, exercise.Prescription,
+                [new SetInput(null, null, null, false), new SetInput(60, 5, 8, true)])], first.Revision, null), default);
+        await h.Workouts.Finish(first.Id, null, default);
+
+        var next = (await h.Workouts.Start(templateId, null, default)).Exercises.Single().Sets;
+        Assert.Null(next[0].WeightKg);
+        Assert.Equal(62.5, next[1].WeightKg);
+    }
+
+    [Fact] public async Task Training_summary_includes_an_active_session_as_in_progress()
+    {
+        var h = await Harness.Create();
+        await using var _h = h;
+        await h.SignIn();
+
+        await h.Workouts.Start(null, "In progress", default);
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var summary = await h.Workouts.TrainingSummary(today, today, default);
+
+        var item = Assert.Single(summary);
+        Assert.Equal("in_progress", item.Status);
+        Assert.False(item.Completed);
+        Assert.StartsWith("session:", item.Id);
+    }
+
+    [Fact] public async Task Added_bodyweight_load_is_rounded_and_system_load_uses_the_same_value()
+    {
+        var h = await Harness.Create();
+        await using var _h = h;
+        await h.SignIn();
+        await h.Seed(new SeedExercise("pull-up", "Pull-up", "Back", "Bodyweight", "Pull", null, 2.5, LoadModels.FullBodyweight));
+        var exerciseId = await h.ExerciseId("pull-up");
+        var template = await h.Templates.Create(
+            Harness.Template("Pull", Harness.Exercise(exerciseId, "Pull-up", Harness.Set(3, 8))), null, 1, 0, default);
+        var session = await h.Workouts.Start(template.Id, null, default);
+        var row = await h.Db.Workouts.SingleAsync(item => item.Id == session.Id);
+        row.BodyWeightSnapshotJson = Json.Write(new BodyWeightSnapshot(80, null, null, null, 80, "scale", null, "test", null, DateTime.UtcNow));
+        await h.Db.SaveChangesAsync();
+
+        var exercise = session.Exercises.Single();
+        var saved = await h.Workouts.Save(session.Id, new SessionInput(null,
+            [new SessionExerciseInput(exercise.ExerciseId, exercise.Name, null, exercise.Prescription,
+                [new SetInput(3, 5, 8, true, ResistanceMode: ResistanceModes.Added, Id: exercise.Sets[0].Id)])], session.Revision, null), default);
+
+        var set = Assert.Single(saved.Exercises.Single().Sets);
+        Assert.Equal(2.5, set.WeightKg);
+        Assert.Equal(82.5, set.SystemLoadKg);
     }
 
     [Fact] public async Task An_exercise_outside_the_catalog_still_progresses_by_its_name()

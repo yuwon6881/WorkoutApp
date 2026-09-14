@@ -4,7 +4,8 @@ using Workout.Api.Domain;
 
 namespace Workout.Api.Services;
 
-public record CatalogExercise(Guid Id, string Slug, string Name, string Muscle, string Equipment, string Cue, List<string> Aliases, double LoadStepKg);
+public record CatalogExercise(Guid Id, string Slug, string Name, string Muscle, string Equipment, string Cue, List<string> Aliases, double LoadStepKg,
+    string LoadModel = LoadModels.External);
 
 public sealed class CatalogService(AppDb db)
 {
@@ -21,7 +22,8 @@ public sealed class CatalogService(AppDb db)
         var ids = exercises.Select(x => x.Id).ToList();
         var aliases = await db.Aliases.AsNoTracking().Where(a => ids.Contains(a.ExerciseId)).ToListAsync(ct);
         return exercises.Select(x => new CatalogExercise(x.Id, x.Slug, x.Name, x.Muscle, x.Equipment, x.Cue,
-            aliases.Where(a => a.ExerciseId == x.Id).Select(a => a.Alias).OrderBy(a => a).ToList(), x.LoadStepKg)).ToList();
+            aliases.Where(a => a.ExerciseId == x.Id).Select(a => a.Alias).OrderBy(a => a).ToList(), x.LoadStepKg,
+            LoadModels.All.Contains(x.LoadModel) ? x.LoadModel : LoadModels.External)).ToList();
     }
 
     /// Returns the catalog id for a written name, or null when nothing matches.
@@ -43,5 +45,13 @@ public sealed class CatalogService(AppDb db)
     {
         if (id == null) return;
         Validation.Require(await db.Exercises.AsNoTracking().AnyAsync(x => x.Id == id && x.Active, ct), "That exercise is not in the library.", 400);
+    }
+
+    public async Task<Dictionary<Guid, string>> LoadModelsFor(IEnumerable<Guid?> ids, CancellationToken ct)
+    {
+        var wanted = ids.Where(id => id != null).Select(id => id!.Value).Distinct().ToList();
+        if (wanted.Count == 0) return [];
+        return await db.Exercises.AsNoTracking().Where(x => wanted.Contains(x.Id))
+            .ToDictionaryAsync(x => x.Id, x => LoadModels.All.Contains(x.LoadModel) ? x.LoadModel : LoadModels.External, ct);
     }
 }

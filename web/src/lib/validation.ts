@@ -67,15 +67,23 @@ export function validateRpe(value: number | null, label = 'RPE'): string | undef
   return undefined;
 }
 
+export function validateTargetRpe(value: number | null, warmup = false): string | undefined {
+  if (warmup && value === null) return undefined;
+  if (value === null) return 'Working sets need a target RPE from 6 to 10.';
+  if (!Number.isFinite(value) || value < 6 || value > 10) return 'Target RPE must be between 6 and 10.';
+  if (Math.abs(value * 2 - Math.round(value * 2)) >= 1e-9) return 'Target RPE must use whole or half points.';
+  return undefined;
+}
+
 function validateSubstitutions(substitutions: string[] | null | undefined): string | undefined {
   if (!substitutions) return undefined;
   if (substitutions.length > 2) return 'An exercise can have at most 2 substitutions.';
   return substitutions.map(value => validateName(value, 'Substitution', 160)).find(Boolean);
 }
 
-type ValidatablePrescription = Pick<SetPrescription, 'repMin' | 'repMax' | 'targetRpe' | 'restSeconds' | 'tempo' | 'loadText' | 'notes' | 'repsText' | 'restText' | 'percent1Rm' | 'rir'>;
+type ValidatablePrescription = Pick<SetPrescription, 'repMin' | 'repMax' | 'targetRpe' | 'restSeconds' | 'tempo' | 'loadText' | 'notes' | 'repsText' | 'restText' | 'percent1Rm' | 'rir' | 'warmup'>;
 
-export function validatePrescription(set: ValidatablePrescription): string | undefined {
+export function validatePrescription(set: ValidatablePrescription, requireWorkingRpe = false): string | undefined {
   const reps = validateInteger(set.repMin, 1, 1000, 'Reps');
   if (reps) return reps;
   const maxReps = validateInteger(set.repMax, 1, 1000, 'Reps');
@@ -83,6 +91,10 @@ export function validatePrescription(set: ValidatablePrescription): string | und
   if (set.repMin > set.repMax) return 'The lowest rep target cannot exceed the highest.';
   const targetRpe = validateRpe(set.targetRpe, 'Target RPE');
   if (targetRpe) return targetRpe;
+  if (requireWorkingRpe) {
+    const targetError = validateTargetRpe(set.targetRpe, set.warmup);
+    if (targetError) return targetError;
+  }
   const rest = validateInteger(set.restSeconds, 0, 3600, 'Rest');
   if (rest) return rest;
   for (const [value, label, max] of [
@@ -97,7 +109,7 @@ export function validatePrescription(set: ValidatablePrescription): string | und
 
 function validateExercise(exercise: TemplateExercise | {
   sourceName: string; notes: string | null; sequenceGroup: string; substitutions: string[]; sets: ValidatablePrescription[];
-}): string | undefined {
+}, requireWorkingRpe = false): string | undefined {
   const name = validateName(exercise.sourceName, 'Exercise name', 160);
   if (name) return name;
   const notes = validateText('note' in exercise ? exercise.note : exercise.notes, 'Exercise notes', 1000);
@@ -108,7 +120,7 @@ function validateExercise(exercise: TemplateExercise | {
   if (substitutions) return substitutions;
   if (exercise.sets.length === 0) return 'Each exercise needs at least one set.';
   if (exercise.sets.length > 24) return 'An exercise can have at most 24 sets.';
-  return exercise.sets.map(validatePrescription).find(Boolean);
+  return exercise.sets.map(set => validatePrescription(set, requireWorkingRpe)).find(Boolean);
 }
 
 export function validateTemplateDraft(name: string, focus: string, exercises: TemplateExercise[]): string | undefined {
@@ -118,7 +130,7 @@ export function validateTemplateDraft(name: string, focus: string, exercises: Te
   if (focusError) return focusError;
   if (exercises.length === 0) return 'Add at least one exercise.';
   if (exercises.length > 40) return 'A workout can have at most 40 exercises.';
-  return exercises.map(validateExercise).find(Boolean);
+  return exercises.map(exercise => validateExercise(exercise, true)).find(Boolean);
 }
 
 export function validateImportMetadata(programName: string, description: string | null): string | undefined {
@@ -153,7 +165,7 @@ export function validateLoggedSet(set: LoggedSet): string | undefined {
   if (reps) return reps;
   const rpe = validateRpe(set.rpe);
   if (rpe) return rpe;
-  if (set.done && (set.reps === null || set.rpe === null)) return 'A completed set needs its reps and RPE.';
+  if (set.done && set.reps === null) return 'A completed set needs its reps.';
   return undefined;
 }
 

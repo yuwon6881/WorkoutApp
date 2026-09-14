@@ -6,6 +6,7 @@ import { requestRestAlerts } from '../lib/restTimer';
 import { validatePasswordChange, type ValidationErrors } from '../lib/validation';
 import { Button } from './ui/Button';
 import { Modal } from './ui/Modal';
+import { ConnectedApps } from './ConnectedApps';
 
 type InstallEvent = Event & { prompt: () => Promise<void>; userChoice: Promise<{ outcome: string }> };
 let installPrompt: InstallEvent | null = null;
@@ -29,6 +30,8 @@ export function SettingsView({ account, preferences, onPreferences, notify, onSi
     window.addEventListener('workout-install-ready', update);
     return () => window.removeEventListener('workout-install-ready', update);
   }, []);
+
+  useEffect(() => { void api.refreshNutritionContext().catch(() => { /* Nutrition is optional and may be offline. */ }); }, []);
 
   async function exportAccount() {
     try {
@@ -76,6 +79,8 @@ export function SettingsView({ account, preferences, onPreferences, notify, onSi
         </div>
         <p className="muted small-copy">The export is a readable copy of your account for your own records. There is no restore: it cannot be uploaded back.</p>
       </section>
+
+      <ConnectedApps />
 
       <section className="panel install-card">
         <MonitorSmartphone size={29} className="accent" />

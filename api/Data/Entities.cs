@@ -19,6 +19,8 @@ public sealed class AppUser
     public int RestSeconds { get; set; } = 90;
     /// Whether the rest timer is allowed to make a sound and raise a notification when it ends.
     public bool RestAlerts { get; set; } = true;
+    /// Central Fitness Account subject. Null is allowed during the additive identity cutover.
+    public string? IdentitySubject { get; set; }
 }
 
 public sealed class AuthSession
@@ -41,6 +43,9 @@ public sealed class Exercise
     /// The smallest load change this exercise can actually make in a gym. Zero means the load
     /// is not adjustable at all, so progression happens through reps.
     public double LoadStepKg { get; set; } = 2.5;
+    /// Explicit loading semantics. An absent/unknown value is treated as external; the app never
+    /// infers a bodyweight model from an equipment label.
+    public string LoadModel { get; set; } = "external";
 }
 
 public sealed class ExerciseAlias
@@ -59,6 +64,9 @@ public sealed class TrainingProgram : OwnedRecord
     public bool Active { get; set; }
     public Guid? SourceImportId { get; set; }
     public DateTime Created { get; set; } = DateTime.UtcNow;
+    /// Monday of the first scheduled program week. A null value means this program is not yet
+    /// scheduled and can only be activated after the scheduling step is completed.
+    public DateOnly? ScheduleAnchor { get; set; }
 }
 
 /// A standalone template has no ProgramId. A program workout carries its week and position,
@@ -76,6 +84,9 @@ public sealed class WorkoutTemplate : OwnedRecord
     public int PhaseWeek { get; set; } = 1;
     public bool IsRestDay { get; set; }
     public DateTime Created { get; set; } = DateTime.UtcNow;
+    /// ISO weekday (1 = Monday, 7 = Sunday). Null is retained for imported programs awaiting
+    /// scheduling and for standalone workouts.
+    public int? Weekday { get; set; }
 }
 
 public sealed class TemplateExercise : OwnedRecord
@@ -99,6 +110,10 @@ public sealed class WorkoutSession : OwnedRecord
     public bool Active { get; set; } = true;
     public DateTime StartedAt { get; set; } = DateTime.UtcNow;
     public DateTime? FinishedAt { get; set; }
+    public DateOnly? PlannedDate { get; set; }
+    public string BodyWeightSnapshotJson { get; set; } = "";
+    public string NutritionContextJson { get; set; } = "";
+    public long? NutritionContextRevision { get; set; }
 }
 
 /// Names and prescriptions are snapshotted so a later catalog edit cannot rewrite history.
@@ -116,6 +131,7 @@ public sealed class SessionExercise : OwnedRecord
     public string ProgressionJson { get; set; } = "";
     public string SequenceGroup { get; set; } = "";
     public string SubstitutionsJson { get; set; } = "[]";
+    public string LoadModel { get; set; } = "external";
 }
 
 public sealed class CompletedSet : OwnedRecord
@@ -124,11 +140,22 @@ public sealed class CompletedSet : OwnedRecord
     public int Position { get; set; }
     /// Null is an unknown load and stays unknown. Zero is a genuine bodyweight set.
     public double? WeightKg { get; set; }
-    /// Reps and RPE stay null while a set is planned or still being typed; completing it requires both.
+    /// Reps and RPE stay null while a set is planned or still being typed; a completed set may
+    /// have no actual RPE so that the exposure repeats without advancing progression.
     public int? Reps { get; set; }
     public double? Rpe { get; set; }
     public bool Done { get; set; }
     public bool Warmup { get; set; }
+    /// Ordinal among working sets only; warm-ups have no ordinal and never enter progression.
+    public int? WorkingSetOrdinal { get; set; }
+    /// The exact suggestion presented when the session began. It is deliberately not accepted
+    /// from a save request, so later policy/context changes cannot rewrite the user's view.
+    public string SuggestionJson { get; set; } = "";
+    /// The entered load is external, added, assistance, bodyweight, or intentionally irrelevant.
+    public string ResistanceMode { get; set; } = "external";
+    /// Frozen effective system load for full-bodyweight records; absent for external, partial
+    /// bodyweight, unknown, or reps-only movements.
+    public double? SystemLoadKg { get; set; }
 }
 
 /// The running strength estimate for one exercise, derived from completed sets. It is a cache
@@ -190,4 +217,24 @@ public sealed class MutationReceipt
     public Guid UserId { get; set; }
     public Guid Id { get; set; }
     public DateTime Created { get; set; } = DateTime.UtcNow;
+}
+
+/// Last confirmed Nutrition context. It is a fallback only; a stale row never becomes a zero or
+/// silently changes a completed workout's frozen context.
+public sealed class NutritionContextCache : OwnedRecord
+{
+    public string ContextJson { get; set; } = "";
+    public DateTime? LastSuccessAt { get; set; }
+    public DateTime? LastErrorAt { get; set; }
+    public string LastError { get; set; } = "";
+}
+
+public sealed class IntegrationGrant : OwnedRecord
+{
+    public string Peer { get; set; } = "";
+    public string Status { get; set; } = "revoked";
+    public string ScopesJson { get; set; } = "[]";
+    public string EncryptedRefreshToken { get; set; } = "";
+    public DateTime? GrantedAt { get; set; }
+    public DateTime? RevokedAt { get; set; }
 }

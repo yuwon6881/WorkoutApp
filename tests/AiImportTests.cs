@@ -172,7 +172,7 @@ public class AiImportTests
 
         var program = await imports.Accept(view.Id, default);
         Assert.Equal("Hypertrophy block", program.Name);
-        Assert.True(program.Active);
+        Assert.False(program.Active);
         Assert.Equal(view.Id, program.SourceImportId);
         var workout = Assert.Single(program.Workouts);
         Assert.Equal("Day A", workout.Name);

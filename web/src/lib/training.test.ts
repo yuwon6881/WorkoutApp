@@ -85,9 +85,9 @@ describe('RPE and reps validation', () => {
     expect(validReps(null)).toBe(false);
   });
 
-  it('only allows completing a set that has both reps and an RPE', () => {
+  it('allows completing a set with reps before RPE is recorded', () => {
     expect(canComplete(set())).toBe(true);
-    expect(canComplete(set({ rpe: null }))).toBe(false);
+    expect(canComplete(set({ rpe: null }))).toBe(true);
     expect(canComplete(set({ reps: null }))).toBe(false);
     // A blank weight is allowed: the load is simply not recorded.
     expect(canComplete(set({ weightKg: null }))).toBe(true);

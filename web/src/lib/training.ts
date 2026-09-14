@@ -48,6 +48,7 @@ export const normalizeExerciseName = (value: string): string => value.trim().toL
 export const showTarget = (set: SetPrescription): string => {
   const parts = [showReps(set)];
   if (set.targetRpe !== null) parts.push(`RPE ${set.targetRpe}`);
+  else if (!set.warmup) parts.push('app default RPE 8');
   if (set.percent1Rm) parts.push(set.percent1Rm);
   if (set.rir) parts.push(`RIR ${set.rir}`);
   return parts.join(' · ');
@@ -77,6 +78,6 @@ export const validRpe = (value: number | null): boolean =>
 export const validReps = (value: number | null): boolean =>
   value !== null && Number.isInteger(value) && value > 0 && value <= 1000;
 
-export const canComplete = (set: LoggedSet): boolean => validReps(set.reps) && validRpe(set.rpe);
+export const canComplete = (set: LoggedSet): boolean => validReps(set.reps);
 
 export const rpeSteps = Array.from({ length: 19 }, (_, i) => 1 + i * 0.5);

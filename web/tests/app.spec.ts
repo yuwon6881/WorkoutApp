@@ -90,9 +90,8 @@ test('build a workout, log a set against the server, and see it in history', asy
     return box.width >= 44 && box.height >= 44 && (hit === el || el.contains(hit));
   })).toBe(true);
 
-  // A set cannot be logged without its reps and RPE: the completed record has to be real.
+  // Suggested reps are available immediately; load and actual RPE may remain blank until recorded.
   await logButton.click();
-  await expect(logger.getByRole('alert')).toContainText('RPE');
 
   await logger.getByRole('spinbutton', { name: 'Barbell bench press set 1 weight', exact: true }).fill('60');
   await logger.getByRole('spinbutton', { name: 'Barbell bench press set 1 reps', exact: true }).fill('8');
@@ -146,7 +145,7 @@ test('build a workout, log a set against the server, and see it in history', asy
   await page.locator('.routine-card').filter({ hasText: name }).getByRole('button', { name: 'Start workout', exact: true }).click();
   await page.getByRole('dialog', { name: `Start ${name}?`, exact: true }).getByRole('button', { name: 'Start workout', exact: true }).click();
   const again = page.getByRole('dialog', { name, exact: true });
-  await expect(again.locator('.progression-note')).toContainText('9 reps');
+  await expect(again.locator('.progression-note')).toContainText('one more rep');
   await expect(again.getByRole('spinbutton', { name: 'Barbell bench press set 1 weight', exact: true })).toHaveValue('60');
   await expect(again.getByRole('spinbutton', { name: 'Barbell bench press set 1 reps', exact: true })).toHaveValue('9');
   await again.getByRole('button', { name: 'Discard', exact: true }).click();

@@ -32,9 +32,9 @@ describe('application-owned validation', () => {
     expect(validateTemplateDraft('Upper body', '', [{ ...exercise(), sets: [] }])).toBe('Each exercise needs at least one set.');
   });
 
-  it('allows incomplete sets while rejecting invalid values and completed blanks', () => {
+  it('allows incomplete sets while rejecting invalid values and completed reps blanks', () => {
     expect(validateLoggedSet({ id: 'set', position: 0, weightKg: null, reps: null, rpe: null, done: false, warmup: false })).toBeUndefined();
     expect(validateLoggedSet({ id: 'set', position: 0, weightKg: 1001, reps: 8, rpe: 8, done: false, warmup: false })).toBe('Weight must be between 0 and 1,000 kg.');
-    expect(validateLoggedSet({ id: 'set', position: 0, weightKg: null, reps: null, rpe: null, done: true, warmup: false })).toBe('A completed set needs its reps and RPE.');
+    expect(validateLoggedSet({ id: 'set', position: 0, weightKg: null, reps: null, rpe: null, done: true, warmup: false })).toBe('A completed set needs its reps.');
   });
 });

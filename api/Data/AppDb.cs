@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Workout.Api.Domain;
 
 namespace Workout.Api.Data;
 
@@ -20,6 +21,8 @@ public sealed class AppDb(DbContextOptions<AppDb> options) : DbContext(options)
     public DbSet<AiImport> Imports => Set<AiImport>();
     public DbSet<AiUsage> Usage => Set<AiUsage>();
     public DbSet<MutationReceipt> Receipts => Set<MutationReceipt>();
+    public DbSet<NutritionContextCache> NutritionContexts => Set<NutritionContextCache>();
+    public DbSet<IntegrationGrant> IntegrationGrants => Set<IntegrationGrant>();
 
     protected override void OnModelCreating(ModelBuilder m)
     {
@@ -30,6 +33,7 @@ public sealed class AppDb(DbContextOptions<AppDb> options) : DbContext(options)
         m.Entity<AppUser>().Property(x => x.Theme).HasDefaultValue("dark");
         m.Entity<AppUser>().Property(x => x.RestSeconds).HasDefaultValue(90);
         m.Entity<AppUser>().Property(x => x.RestAlerts).HasDefaultValue(true);
+        m.Entity<AppUser>().HasIndex(x => x.IdentitySubject).IsUnique().HasFilter("\"IdentitySubject\" IS NOT NULL");
         m.Entity<AppUser>().ToTable("Users", t =>
         {
             t.HasCheckConstraint("CK_Users_Unit", "\"Unit\" IN ('kg','lb')");
@@ -46,23 +50,33 @@ public sealed class AppDb(DbContextOptions<AppDb> options) : DbContext(options)
         m.Entity<Exercise>().Property(x => x.Slug).HasMaxLength(120);
         m.Entity<Exercise>().Property(x => x.Name).HasMaxLength(160);
         m.Entity<Exercise>().Property(x => x.LoadStepKg).HasDefaultValue(2.5);
+        m.Entity<Exercise>().Property(x => x.LoadModel).HasDefaultValue("external");
         m.Entity<Exercise>().ToTable("Exercises", t =>
-            t.HasCheckConstraint("CK_Exercises_LoadStep", "\"LoadStepKg\" >= 0 AND \"LoadStepKg\" <= 50"));
+        {
+            t.HasCheckConstraint("CK_Exercises_LoadStep", "\"LoadStepKg\" >= 0 AND \"LoadStepKg\" <= 50");
+            t.HasCheckConstraint("CK_Exercises_LoadModel", "\"LoadModel\" IN ('external','full_bodyweight','bodyweight_context_only','reps_only')");
+        });
         m.Entity<ExerciseAlias>().HasIndex(x => x.Normalized).IsUnique();
         m.Entity<ExerciseAlias>().HasOne<Exercise>().WithMany().HasForeignKey(x => x.ExerciseId).OnDelete(DeleteBehavior.Cascade);
 
         Configure<TrainingProgram>(m); Configure<WorkoutTemplate>(m); Configure<TemplateExercise>(m);
         Configure<WorkoutSession>(m); Configure<SessionExercise>(m); Configure<CompletedSet>(m); Configure<AiImport>(m);
-        Configure<ExerciseProgress>(m);
+        Configure<ExerciseProgress>(m); Configure<NutritionContextCache>(m); Configure<IntegrationGrant>(m);
+        m.Entity<IntegrationGrant>().HasIndex(x => new { x.UserId, x.Peer }).IsUnique();
+        m.Entity<NutritionContextCache>().HasIndex(x => x.UserId).IsUnique();
+        m.Entity<SessionExercise>().Property(x => x.LoadModel).HasDefaultValue(LoadModels.External);
+        m.Entity<CompletedSet>().Property(x => x.ResistanceMode).HasDefaultValue(ResistanceModes.External);
 
         // One active program and one active workout per user, enforced by the database.
         m.Entity<TrainingProgram>().HasIndex(x => x.UserId).IsUnique().HasFilter("\"Active\"").HasDatabaseName("IX_Programs_ActivePerUser");
         m.Entity<WorkoutSession>().HasIndex(x => x.UserId).IsUnique().HasFilter("\"Active\"").HasDatabaseName("IX_Workouts_ActivePerUser");
         m.Entity<WorkoutTemplate>().HasIndex(x => new { x.UserId, x.ProgramId, x.Week, x.Position });
+        m.Entity<WorkoutTemplate>().HasIndex(x => new { x.UserId, x.ProgramId, x.Week, x.Weekday });
         m.Entity<TemplateExercise>().HasIndex(x => new { x.UserId, x.TemplateId, x.Position });
         m.Entity<SessionExercise>().HasIndex(x => new { x.UserId, x.SessionId, x.Position });
         m.Entity<CompletedSet>().HasIndex(x => new { x.UserId, x.SessionExerciseId, x.Position });
         m.Entity<WorkoutSession>().HasIndex(x => new { x.UserId, x.FinishedAt });
+        m.Entity<WorkoutSession>().HasIndex(x => new { x.UserId, x.PlannedDate });
         // One running estimate per exercise. Guid.Empty plus a name key is a real identity here,
         // not a null, so the database can hold the uniqueness instead of hoping the code does.
         m.Entity<ExerciseProgress>().HasIndex(x => new { x.UserId, x.ExerciseId, x.NameKey }).IsUnique().HasDatabaseName("IX_Progress_ExercisePerUser");
@@ -81,8 +95,10 @@ public sealed class AppDb(DbContextOptions<AppDb> options) : DbContext(options)
             t.HasCheckConstraint("CK_Sets_Reps", "\"Reps\" IS NULL OR (\"Reps\" > 0 AND \"Reps\" <= 1000)");
             // RPE is 1-10 in half-point steps; doubling must land on a whole number.
             t.HasCheckConstraint("CK_Sets_Rpe", "\"Rpe\" IS NULL OR (\"Rpe\" >= 1 AND \"Rpe\" <= 10 AND \"Rpe\" * 2 = FLOOR(\"Rpe\" * 2))");
-            // A completed set is a real observation: it must carry reps and an RPE.
-            t.HasCheckConstraint("CK_Sets_Done", "NOT \"Done\" OR (\"Reps\" IS NOT NULL AND \"Rpe\" IS NOT NULL)");
+            // RPE may be intentionally missing; that exposure repeats without advancing.
+            t.HasCheckConstraint("CK_Sets_Done", "NOT \"Done\" OR \"Reps\" IS NOT NULL");
+            t.HasCheckConstraint("CK_Sets_ResistanceMode", "\"ResistanceMode\" IN ('external','bodyweight','added','assistance','reps_only')");
+            t.HasCheckConstraint("CK_Sets_SystemLoad", "\"SystemLoadKg\" IS NULL OR (\"SystemLoadKg\" >= 0 AND \"SystemLoadKg\" <= 1000)");
         });
 
         m.Entity<AiUsage>().HasKey(x => new { x.UserId, x.Date });

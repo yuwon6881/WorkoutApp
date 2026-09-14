@@ -9,9 +9,9 @@ public record TemplateExerciseInput(Guid? ExerciseId, string SourceName, string?
 public record TemplateInput(string Name, string? Focus, string? Note, List<TemplateExerciseInput> Exercises, int? Revision, Guid? IdempotencyId,
     string? Block = null, string? Phase = null, int PhaseWeek = 1, bool IsRestDay = false);
 public record TemplateExerciseView(Guid Id, Guid? ExerciseId, string SourceName, string Name, string Note, int Position, List<SetPrescription> Sets,
-    string SequenceGroup = "", List<string>? Substitutions = null);
+    string SequenceGroup = "", List<string>? Substitutions = null, string LoadModel = LoadModels.External);
 public record TemplateView(Guid Id, Guid? ProgramId, string Name, string Focus, string Note, int Week, int Position, int Revision, List<TemplateExerciseView> Exercises,
-    string Block = "", string Phase = "", int PhaseWeek = 1, bool IsRestDay = false);
+    string Block = "", string Phase = "", int PhaseWeek = 1, bool IsRestDay = false, int? Weekday = null);
 
 public sealed class TemplateService(AppDb db, CatalogService catalog)
 {
@@ -36,11 +36,13 @@ public sealed class TemplateService(AppDb db, CatalogService catalog)
         var ids = templates.Select(t => t.Id).ToList();
         var rows = await db.TemplateExercises.AsNoTracking().Where(e => ids.Contains(e.TemplateId)).OrderBy(e => e.Position).ToListAsync(ct);
         var names = await CatalogNames(rows.Select(r => r.ExerciseId), ct);
+        var models = await catalog.LoadModelsFor(rows.Select(r => r.ExerciseId), ct);
         return templates.Select(t => new TemplateView(t.Id, t.ProgramId, t.Name, t.Focus, t.Note, t.Week, t.Position, t.Revision,
             rows.Where(e => e.TemplateId == t.Id).Select(e => new TemplateExerciseView(e.Id, e.ExerciseId, e.SourceName,
                 e.ExerciseId is { } id && names.TryGetValue(id, out var name) ? name : e.SourceName,
                 e.Note, e.Position, Json.Read<List<SetPrescription>>(e.SetsJson), e.SequenceGroup,
-                Json.Read<List<string>>(e.SubstitutionsJson))).ToList(), t.Block, t.Phase, t.PhaseWeek, t.IsRestDay)).ToList();
+                Json.Read<List<string>>(e.SubstitutionsJson), e.ExerciseId is { } modelId && models.TryGetValue(modelId, out var model) ? model : LoadModels.External)).ToList(),
+            t.Block, t.Phase, t.PhaseWeek, t.IsRestDay, t.Weekday)).ToList();
     }
 
     public async Task<Dictionary<Guid, string>> CatalogNames(IEnumerable<Guid?> ids, CancellationToken ct)
@@ -109,7 +111,7 @@ public sealed class TemplateService(AppDb db, CatalogService catalog)
             });
     }
 
-    public async Task ValidateInput(TemplateInput input, CancellationToken ct)
+    public async Task ValidateInput(TemplateInput input, CancellationToken ct, bool requireWorkingRpe = true)
     {
         Validation.Name(input.Name, "Workout name");
         Validation.Text(input.Focus, 120, "Focus"); Validation.Text(input.Note, 2000, "Workout notes");
@@ -124,7 +126,7 @@ public sealed class TemplateService(AppDb db, CatalogService catalog)
             Validation.Text(exercise.Note, 1000, "Exercise notes");
             Validation.Text(exercise.SequenceGroup, 8, "Sequence group");
             Validation.Substitutions(exercise.Substitutions);
-            Validation.Prescriptions(exercise.Sets);
+            Validation.Prescriptions(exercise.Sets, requireWorkingRpe);
             await catalog.RequireActive(exercise.ExerciseId, ct);
         }
     }

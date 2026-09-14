@@ -347,7 +347,7 @@ public sealed class ImportService(AppDb db, WorkoutAi ai, CatalogService catalog
                 w.Exercises.Select(e => new TemplateExerciseInput(e.ExerciseId, e.SourceName, e.Notes,
                     e.Sets.Select(ToPrescription).ToList(), e.SequenceGroup, e.Substitutions)).ToList(),
                 w.Block, w.Phase, w.PhaseWeek, w.IsRestDay)).ToList(), null);
-        await programs.Validate(input, ct);
+        await programs.Validate(input, ct, allowMissingWorkingRpe: true);
         var program = await programs.Materialize(input, activate: true, sourceImportId: import.Id, ct);
         import.Status = ImportStatus.Accepted; import.ProgramId = program.Id; import.Revision++;
         await db.SaveChangesAsync(ct);

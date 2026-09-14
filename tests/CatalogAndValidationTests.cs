@@ -81,10 +81,10 @@ public class CatalogAndValidationTests
     [InlineData(0.5)] [InlineData(10.5)] [InlineData(7.3)] [InlineData(8.25)]
     public void An_RPE_off_the_half_point_scale_is_refused(double value) => Assert.Throws<DomainException>(() => Validation.Rpe(value));
 
-    [Fact] public void A_completed_set_needs_reps_and_an_RPE()
+    [Fact] public void A_completed_set_needs_reps_but_RPE_can_be_recorded_later()
     {
         Assert.Throws<DomainException>(() => Validation.LoggedSet(60, null, 8, done: true));
-        Assert.Throws<DomainException>(() => Validation.LoggedSet(60, 10, null, done: true));
+        Validation.LoggedSet(60, 10, null, done: true);
         Validation.LoggedSet(60, 10, 8, done: true);
     }
 

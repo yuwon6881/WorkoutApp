@@ -567,6 +567,7 @@
     "muscle": "Chest",
     "equipment": "Bodyweight",
     "cue": "",
+    "loadModel": "bodyweight_context_only",
     "aliases": []
   },
   {
@@ -623,6 +624,7 @@
     "muscle": "Chest",
     "equipment": "",
     "cue": "",
+    "loadModel": "full_bodyweight",
     "aliases": []
   },
   {
@@ -631,6 +633,7 @@
     "muscle": "Chest",
     "equipment": "",
     "cue": "",
+    "loadModel": "full_bodyweight",
     "aliases": []
   },
   {
@@ -639,6 +642,7 @@
     "muscle": "Chest",
     "equipment": "Bodyweight",
     "cue": "",
+    "loadModel": "bodyweight_context_only",
     "aliases": []
   },
   {
@@ -647,6 +651,7 @@
     "muscle": "Chest",
     "equipment": "Bodyweight",
     "cue": "",
+    "loadModel": "bodyweight_context_only",
     "aliases": []
   },
   {
@@ -655,6 +660,7 @@
     "muscle": "Chest",
     "equipment": "Bodyweight",
     "cue": "",
+    "loadModel": "bodyweight_context_only",
     "aliases": []
   },
   {
@@ -663,6 +669,7 @@
     "muscle": "Chest",
     "equipment": "Bodyweight",
     "cue": "",
+    "loadModel": "bodyweight_context_only",
     "aliases": []
   },
   {
@@ -817,6 +824,7 @@
     "muscle": "Back",
     "equipment": "Bodyweight",
     "cue": "",
+    "loadModel": "full_bodyweight",
     "aliases": []
   },
   {
@@ -889,6 +897,7 @@
     "muscle": "Back",
     "equipment": "Bodyweight",
     "cue": "",
+    "loadModel": "full_bodyweight",
     "aliases": []
   },
   {
@@ -913,6 +922,7 @@
     "muscle": "Back",
     "equipment": "Bodyweight",
     "cue": "",
+    "loadModel": "full_bodyweight",
     "aliases": [
       "Weighted Pullup"
     ]
@@ -923,6 +933,7 @@
     "muscle": "Back",
     "equipment": "Bodyweight",
     "cue": "",
+    "loadModel": "full_bodyweight",
     "aliases": []
   },
   {

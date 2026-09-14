@@ -6,7 +6,8 @@ namespace Workout.Api.Services;
 
 /// What the app is suggesting for one exercise and why. Every field is optional because a
 /// first session has nothing to go on, and an empty suggestion is shown as empty.
-public record ProgressionView(double? SuggestedKg, int TargetReps, string Reason, double? LastE1rmKg, double? TrendE1rmKg, double StepKg);
+public record ProgressionView(double? SuggestedKg, int TargetReps, string Reason, double? LastE1rmKg, double? TrendE1rmKg, double StepKg,
+    string Mode = ProgressionModes.Normal, long? NutritionContextRevision = null);
 
 /// Reads and writes the running strength estimate. Suggestions are derived by Progression;
 /// this class only supplies it with history and stores what comes back.
@@ -34,6 +35,14 @@ public sealed class ProgressionService(AppDb db)
         var ids = exerciseIds.Where(id => id != null).Select(id => id!.Value).Distinct().ToList();
         if (ids.Count == 0) return [];
         return await db.Exercises.AsNoTracking().Where(x => ids.Contains(x.Id)).ToDictionaryAsync(x => x.Id, x => x.LoadStepKg, ct);
+    }
+
+    public async Task<Dictionary<Guid, (string LoadModel, double StepKg)>> LoadInfo(IEnumerable<Guid?> exerciseIds, CancellationToken ct)
+    {
+        var ids = exerciseIds.Where(id => id != null).Select(id => id!.Value).Distinct().ToList();
+        if (ids.Count == 0) return [];
+        return await db.Exercises.AsNoTracking().Where(x => ids.Contains(x.Id))
+            .ToDictionaryAsync(x => x.Id, x => (x.LoadModel, x.LoadStepKg), ct);
     }
 
     /// Folds a finished session's completed sets into the running estimate. Exercises whose

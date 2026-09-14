@@ -77,6 +77,7 @@ export function Auth({ onSignedIn }: { onSignedIn: () => void }) {
         {busy ? 'Signing in…' : mode === 'register' ? 'Create account' : 'Sign in'}
         <ArrowRight size={16} />
       </Button>
+      <Button className="full-width" variant="secondary" type="button" onClick={() => { window.location.href = '/api/auth/central/start'; }}>Sign in with Fitness Account<ArrowRight size={16} /></Button>
       {registrationOpen === false && mode === 'login' && <p className="muted small-copy">Registration is closed: both accounts are taken.</p>}
       {registrationOpen !== false && <Button variant="tertiary" className="full-width" onClick={() => { setMode(mode === 'login' ? 'register' : 'login'); setError(''); setFieldErrors({}); }}>
         {mode === 'login' ? 'Create an account instead' : 'I already have an account'}

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { ArrowRight, BarChart3, CalendarDays, Dumbbell, Trophy } from 'lucide-react';
-import type { HistoryPage, Preferences, Session } from '../types';
+import type { HistoryPage, Preferences, ProgressSummary, Session } from '../types';
 import { ApiError, api } from '../lib/api';
 import { completedSets, duration, showRpe, showVolume, showWeight, toDisplay } from '../lib/training';
 import { Button } from './ui/Button';
@@ -12,6 +12,7 @@ export function HistoryView({ initial, preferences, onSession, onStart }: {
   const [page, setPage] = useState<HistoryPage>(initial);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [progress, setProgress] = useState<ProgressSummary | null>(null);
   const unit = preferences.unit;
 
   useEffect(() => {
@@ -21,6 +22,8 @@ export function HistoryView({ initial, preferences, onSession, onStart }: {
       .then(next => { if (!cancelled) { setPage(next); setError(''); } })
       .catch(failure => { if (!cancelled) setError(failure instanceof ApiError ? failure.message : 'Could not load your history.'); })
       .finally(() => { if (!cancelled) setLoading(false); });
+    api.progress().then(next => { if (!cancelled) setProgress(next); }).catch(() => { /* history remains usable if the optional records read is unavailable */ });
+    api.refreshNutritionContext().catch(() => { /* progression context is optional */ });
     return () => { cancelled = true; };
   }, []);
 
@@ -40,6 +43,7 @@ export function HistoryView({ initial, preferences, onSession, onStart }: {
     for (const set of exercise.sets) if (set.done && !set.warmup && set.weightKg !== null) acc[exercise.name] = Math.max(acc[exercise.name] ?? -1, set.weightKg);
     return acc;
   }, {})).sort((a, b) => b[1] - a[1]);
+  const bodyweightRecords = progress?.exercises.filter(exercise => exercise.bodyweightRepRecord !== null) ?? [];
 
   return <>
     <div className="page-heading">
@@ -59,6 +63,12 @@ export function HistoryView({ initial, preferences, onSession, onStart }: {
       {bests.length ? bests.slice(0, 6).map(([name, kg]) => <div className="best-row" key={name}><span>{name}</span><strong>{showWeight(kg, unit)}</strong></div>)
         : <div className="empty-message"><Trophy size={30} /><p>Your first personal best is waiting.<br />Log a workout to get started.</p></div>}
     </section>
+
+    {bodyweightRecords.length > 0 && <section className="panel">
+      <div className="section-heading"><h2>Bodyweight records</h2><Trophy size={18} className="accent" /></div>
+      <p className="muted">Reps stay separate from effective load. These records keep the frozen bodyweight context beside the achievement.</p>
+      {bodyweightRecords.map(record => <div className="best-row" key={record.exercise}><span>{record.exercise}</span><strong>{record.bodyweightRepRecord!.reps} reps at {toDisplay(record.bodyweightRepRecord!.bodyweightKg, unit)} {unit} bodyweight</strong></div>)}
+    </section>}
 
     <section className="panel">
       <div className="section-heading"><h2>Workout history</h2><span className="muted">{sessions.length} of {page.total}</span></div>

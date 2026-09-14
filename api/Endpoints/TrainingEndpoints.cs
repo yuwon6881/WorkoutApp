@@ -9,6 +9,7 @@ public record PreferencesInput(string Unit, string Theme, int RestSeconds, bool?
 public record StartInput(Guid? TemplateId, string? Name);
 public record FinishInput(int? Revision);
 public record ActivateInput(bool Active, int? Revision);
+public record ScheduleInput(DateOnly Anchor, List<ScheduleSlot> Slots, int? Revision);
 
 public static class TrainingEndpoints
 {
@@ -66,6 +67,8 @@ public static class TrainingEndpoints
         app.MapGet("/api/programs/{id:guid}", async (Guid id, ProgramService programs, CancellationToken ct) => await programs.Get(id, ct));
         app.MapPost("/api/programs", async (ProgramInput input, ProgramService programs, CancellationToken ct) => await programs.Create(input, activate: true, sourceImportId: null, ct));
         app.MapPost("/api/programs/{id:guid}/active", async (Guid id, ActivateInput input, ProgramService programs, CancellationToken ct) => await programs.SetActive(id, input.Active, input.Revision, ct));
+        app.MapPost("/api/programs/{id:guid}/schedule", async (Guid id, ScheduleInput input, ProgramService programs, CancellationToken ct)
+            => await programs.Schedule(id, input.Anchor, input.Slots, input.Revision, ct));
         app.MapDelete("/api/programs/{id:guid}", async (Guid id, ProgramService programs, CancellationToken ct) =>
         { await programs.Delete(id, ct); return Results.NoContent(); });
     }
@@ -83,6 +86,8 @@ public static class TrainingEndpoints
         { await workouts.DeleteFromHistory(id, ct); return Results.NoContent(); });
         app.MapGet("/api/history", async (int? page, int? size, WorkoutService workouts, CancellationToken ct) => await workouts.History(page ?? 0, size ?? 20, ct));
         app.MapGet("/api/progress", async (AppDb db, WorkoutService workouts, CancellationToken ct) => await Progress(db, workouts, ct));
+        app.MapGet("/api/workouts/schedule", async (DateOnly? from, DateOnly? to, WorkoutService workouts, CancellationToken ct)
+            => await workouts.TrainingSummary(from, to, ct));
     }
 
     /// Per-exercise bests and recent volume, read from completed sets only.
@@ -94,28 +99,68 @@ public static class TrainingEndpoints
         var exerciseIds = exercises.Select(e => e.Id).ToList();
         var sets = await db.Sets.AsNoTracking().Where(s => exerciseIds.Contains(s.SessionExerciseId) && s.Done && !s.Warmup).ToListAsync(ct);
         var states = await db.Progress.AsNoTracking().ToListAsync(ct);
+        var sessionById = sessions.ToDictionary(s => s.Id);
         var best = exercises.GroupBy(e => e.NameSnapshot).Select(group =>
         {
             var groupIds = group.Select(e => e.Id).ToHashSet();
+            var logged = group.SelectMany(exercise => sets.Where(set => set.SessionExerciseId == exercise.Id)
+                .Select(set => new { Exercise = exercise, Set = set, Session = sessionById[exercise.SessionId] })).ToList();
             // An unknown load cannot be a heaviest set; it is left out rather than counted as zero.
-            var known = sets.Where(s => groupIds.Contains(s.SessionExerciseId) && s.WeightKg != null).ToList();
-            var heaviest = known.OrderByDescending(s => s.WeightKg).ThenByDescending(s => s.Reps).FirstOrDefault();
+            var external = logged.Where(row => row.Exercise.LoadModel == LoadModels.External && row.Set.WeightKg != null).ToList();
+            var heaviest = external.OrderByDescending(row => row.Set.WeightKg).ThenByDescending(row => row.Set.Reps).FirstOrDefault();
+            var fullBodyweight = logged.Where(row => row.Exercise.LoadModel == LoadModels.FullBodyweight).ToList();
+            var systemLoads = fullBodyweight.Where(row => row.Set.SystemLoadKg is not null).Select(row => row.Set.SystemLoadKg!.Value).ToList();
+            var addedLoads = fullBodyweight.Where(row => row.Set.ResistanceMode == ResistanceModes.Added && row.Set.WeightKg is not null)
+                .Select(row => row.Set.WeightKg!.Value).ToList();
+            var assistanceLoads = fullBodyweight.Where(row => row.Set.ResistanceMode == ResistanceModes.Assistance && row.Set.WeightKg is not null)
+                .Select(row => row.Set.WeightKg!.Value).ToList();
+            var systemEstimateRows = fullBodyweight.Select(row => new { row.Session.FinishedAt, Estimate = Progression.E1rm(row.Set.SystemLoadKg, row.Set.Reps, row.Set.Rpe) })
+                .Where(row => row.Estimate is not null).ToList();
+            var systemEstimates = systemEstimateRows.Select(row => row.Estimate!.Value).ToList();
+            var latestSystemEstimate = systemEstimateRows.OrderByDescending(row => row.FinishedAt).FirstOrDefault()?.Estimate;
+            var relativeEstimates = fullBodyweight.Select(row =>
+            {
+                var snapshot = ReadBodyWeight(row.Session);
+                var estimate = Progression.E1rm(row.Set.SystemLoadKg, row.Set.Reps, row.Set.Rpe);
+                if (estimate is not { } value || snapshot?.ReferenceKg is not { } reference || reference <= 0) return null;
+                return (double?)(value / reference);
+            }).OfType<double>().ToList();
+            var repRows = logged.Where(row => row.Set.Reps is not null).ToList();
+            var bodyweightRep = logged.Where(row => row.Exercise.LoadModel == LoadModels.BodyweightContextOnly && row.Set.Reps is not null)
+                .Select(row => new { row.Set.Reps, Snapshot = ReadBodyWeight(row.Session) })
+                .Where(row => row.Snapshot?.ReferenceKg is not null)
+                .OrderByDescending(row => row.Reps).ThenByDescending(row => row.Snapshot!.ReferenceKg).FirstOrDefault();
             var key = ProgressionService.Key(group.Select(e => e.ExerciseId).FirstOrDefault(id => id != null), group.Key);
             var state = states.FirstOrDefault(s => s.ExerciseId == key.ExerciseId && s.NameKey == key.NameKey);
             return new
             {
                 exercise = group.Key,
                 sessions = group.Select(e => e.SessionId).Distinct().Count(),
-                heaviestKg = heaviest?.WeightKg,
-                heaviestReps = heaviest?.Reps,
-                volumeKg = known.Count == 0 ? (double?)null : known.Sum(s => s.WeightKg!.Value * s.Reps!.Value),
+                heaviestKg = heaviest?.Set.WeightKg,
+                heaviestReps = heaviest?.Set.Reps,
+                volumeKg = external.Count == 0 ? (double?)null : external.Sum(row => row.Set.WeightKg!.Value * row.Set.Reps!.GetValueOrDefault()),
                 // Estimates exist only where sets could support one, so they stay absent rather
                 // than appearing as a confident zero.
-                estimatedMaxKg = state?.TrendE1rmKg,
-                lastEstimatedMaxKg = state?.LastE1rmKg
+                estimatedMaxKg = fullBodyweight.Count > 0 ? (systemEstimates.Count == 0 ? (double?)null : systemEstimates.Max()) : external.Count > 0 ? state?.TrendE1rmKg : null,
+                lastEstimatedMaxKg = fullBodyweight.Count > 0 ? latestSystemEstimate : external.Count > 0 ? state?.LastE1rmKg : null,
+                externalLoadPrKg = external.Count == 0 ? (double?)null : external.Max(row => row.Set.WeightKg!.Value),
+                addedLoadPrKg = addedLoads.Count == 0 ? (double?)null : addedLoads.Max(),
+                assistanceReductionPrKg = assistanceLoads.Count == 0 ? (double?)null : assistanceLoads.Min(),
+                systemLoadPrKg = systemLoads.Count == 0 ? (double?)null : systemLoads.Max(),
+                repPr = repRows.Count == 0 ? (int?)null : repRows.Max(row => row.Set.Reps!.Value),
+                estimatedSystemLoadMaxKg = systemEstimates.Count == 0 ? (double?)null : systemEstimates.Max(),
+                relativeStrength = relativeEstimates.Count == 0 ? (double?)null : relativeEstimates.Max(),
+                bodyweightRepRecord = bodyweightRep is null ? null : new { reps = bodyweightRep.Reps, bodyweightKg = bodyweightRep.Snapshot!.ReferenceKg }
             };
         }).OrderByDescending(x => x.sessions).ToList();
         return new { sessions = sessions.Count, exercises = best };
+    }
+
+    private static BodyWeightSnapshot? ReadBodyWeight(WorkoutSession session)
+    {
+        if (string.IsNullOrWhiteSpace(session.BodyWeightSnapshotJson)) return null;
+        try { return Json.Read<BodyWeightSnapshot>(session.BodyWeightSnapshotJson); }
+        catch (DomainException) { return null; }
     }
 
     private static async Task<int> Remaining(AppDb db, CancellationToken ct)
