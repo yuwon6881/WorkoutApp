@@ -92,7 +92,7 @@ public static class TrainingEndpoints
         var ids = sessions.Select(s => s.Id).ToList();
         var exercises = await db.SessionExercises.AsNoTracking().Where(e => ids.Contains(e.SessionId)).ToListAsync(ct);
         var exerciseIds = exercises.Select(e => e.Id).ToList();
-        var sets = await db.Sets.AsNoTracking().Where(s => exerciseIds.Contains(s.SessionExerciseId) && s.Done).ToListAsync(ct);
+        var sets = await db.Sets.AsNoTracking().Where(s => exerciseIds.Contains(s.SessionExerciseId) && s.Done && !s.Warmup).ToListAsync(ct);
         var best = exercises.GroupBy(e => e.NameSnapshot).Select(group =>
         {
             var groupIds = group.Select(e => e.Id).ToHashSet();

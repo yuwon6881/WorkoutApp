@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Workout.Api.Domain;
 using Workout.Api.Services;
 
@@ -23,7 +24,26 @@ public static class ImportEndpoints
             return await imports.Create(stream.ToArray(), file.FileName, ct);
         }).RequireRateLimiting("ai").DisableAntiforgery();
 
-        app.MapPut("/api/imports/{id:guid}", async (Guid id, ImportDraft draft, ImportService imports, CancellationToken ct) => await imports.Edit(id, draft, ct));
+        app.MapPost("/api/imports/{id:guid}/extract", async (Guid id, HttpRequest request, ImportService imports, CancellationToken ct) =>
+        {
+            Validation.Require(request.HasFormContentType, "Upload the same PDF as a form file.");
+            var form = await request.ReadFormAsync(ct);
+            var file = form.Files.GetFile("file");
+            Validation.Require(file != null, "Choose the same PDF to continue this import.");
+            Validation.Require(file!.Length <= PdfInspection.MaxBytes, "That PDF is larger than 20 MB.", 413);
+            using var stream = new MemoryStream();
+            await file.CopyToAsync(stream, ct);
+            return await imports.Extract(id, stream.ToArray(), file.FileName, ct);
+        }).RequireRateLimiting("ai-extract").DisableAntiforgery();
+
+        app.MapPut("/api/imports/{id:guid}", async (Guid id, JsonElement payload, ImportService imports, CancellationToken ct) =>
+        {
+            if (payload.TryGetProperty("workouts", out _))
+                return await imports.Edit(id, Json.Read<ImportDraft>(payload.GetRawText()), ct);
+            return await imports.EditMetadata(id, Json.Read<ImportMetadata>(payload.GetRawText()), ct);
+        });
+        app.MapPut("/api/imports/{id:guid}/days/{lineId:guid}", async (Guid id, Guid lineId, DraftWorkout day, ImportService imports, CancellationToken ct)
+            => await imports.EditDay(id, lineId, day, ct));
         app.MapPost("/api/imports/{id:guid}/rematch", async (Guid id, ImportService imports, CancellationToken ct) => await imports.Rematch(id, ct));
         app.MapPost("/api/imports/{id:guid}/accept", async (Guid id, ImportService imports, CancellationToken ct) => await imports.Accept(id, ct));
         app.MapPost("/api/imports/{id:guid}/discard", async (Guid id, ImportService imports, CancellationToken ct) =>

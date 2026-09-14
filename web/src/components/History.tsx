@@ -37,7 +37,7 @@ export function HistoryView({ initial, preferences, onSession, onStart }: {
   const known = sessions.filter(s => s.volumeKg !== null);
   const totalVolume = known.length ? known.reduce((total, s) => total + (s.volumeKg ?? 0), 0) : null;
   const bests = Object.entries(sessions.flatMap(s => s.exercises).reduce<Record<string, number>>((acc, exercise) => {
-    for (const set of exercise.sets) if (set.done && set.weightKg !== null) acc[exercise.name] = Math.max(acc[exercise.name] ?? -1, set.weightKg);
+    for (const set of exercise.sets) if (set.done && !set.warmup && set.weightKg !== null) acc[exercise.name] = Math.max(acc[exercise.name] ?? -1, set.weightKg);
     return acc;
   }, {})).sort((a, b) => b[1] - a[1]);
 
@@ -94,11 +94,15 @@ export function SessionDetail({ session, preferences, onClose, onDeleted }: {
       </div>
       {session.exercises.map(exercise => <section className="detail-exercise" key={exercise.id}>
         <h3>{exercise.name}</h3>
-        {exercise.sets.filter(s => s.done).map((set, i) => <div key={set.id}>
-          <span>Set {i + 1}</span>
+        {exercise.sets.filter(s => s.done).map((set, i, completed) => {
+          const warmupNumber = completed.slice(0, i + 1).filter(item => item.warmup).length;
+          const workingNumber = completed.slice(0, i + 1).filter(item => !item.warmup).length;
+          return <div key={set.id}>
+          <span>{set.warmup ? `Warm-up ${warmupNumber}` : `Set ${workingNumber}`}</span>
           <strong>{set.weightKg === null ? `${set.reps} reps` : `${toDisplay(set.weightKg, unit)} ${unit} × ${set.reps}`}</strong>
           <span>{showRpe(set.rpe)}</span>
-        </div>)}
+        </div>;
+        })}
         {exercise.note && <p>{exercise.note}</p>}
       </section>)}
       {session.note && <p className="note-block">{session.note}</p>}

@@ -19,7 +19,12 @@ export function Dashboard({ data, onStart, onHistory, onProgram, onImport, onSes
   });
 
   const program = data.activeProgram;
-  const next = program?.workouts.find(w => w.id === program.nextTemplateId) ?? data.templates[0] ?? null;
+  const next = program?.days.find(w => w.id === program.nextTemplateId) ?? data.templates[0] ?? null;
+  const nextName = next ? next.name : null;
+  const nextFocus = next && 'focus' in next ? next.focus : null;
+  const nextWeek = next?.week ?? 1;
+  const nextExerciseCount = next && 'exerciseCount' in next ? next.exerciseCount : next?.exercises.length ?? 0;
+  const nextSets = next && 'exerciseCount' in next ? null : next?.exercises.reduce((total, e) => total + e.sets.filter(s => !s.warmup).length, 0) ?? 0;
   const weeklyVolume = weekly.some(s => s.volumeKg !== null) ? weekly.reduce((total, s) => total + (s.volumeKg ?? 0), 0) : null;
 
   return <>
@@ -51,14 +56,14 @@ export function Dashboard({ data, onStart, onHistory, onProgram, onImport, onSes
         <section className="next-workout">
           <div className="hero-top">
             <span className="eyebrow"><span className="status-dot" /> {data.activeWorkout ? 'WORKOUT IN PROGRESS' : next ? 'UP NEXT' : 'GETTING STARTED'}</span>
-            <span className="pill">{(data.activeWorkout ?? next)?.exercises.length ?? 0} exercises</span>
+            <span className="pill">{data.activeWorkout?.exercises.length ?? nextExerciseCount} exercises</span>
           </div>
           <div className="hero-content">
             <div>
-              <h2>{data.activeWorkout?.name ?? next?.name ?? 'Your next chapter'}</h2>
-              <p>{data.activeWorkout ? 'In progress · pick up where you left off' : program ? `${program.name} · week ${next?.week ?? 1}` : next ? next.focus : 'Import a program from a PDF, or build a workout by hand.'}</p>
+              <h2>{data.activeWorkout?.name ?? nextName ?? 'Your next chapter'}</h2>
+              <p>{data.activeWorkout ? 'In progress · pick up where you left off' : program ? `${program.name} · week ${nextWeek}` : next ? nextFocus : 'Import a program from a PDF, or build a workout by hand.'}</p>
               <div className="hero-facts">
-                <span><Dumbbell size={15} />{(data.activeWorkout ?? next)?.exercises.reduce((total, e) => total + (('sets' in e ? e.sets.length : 0)), 0) ?? 0} working sets</span>
+                <span><Dumbbell size={15} />{data.activeWorkout ? data.activeWorkout.exercises.reduce((total, e) => total + e.sets.filter(s => !s.warmup).length, 0) : nextSets ?? nextExerciseCount} working sets</span>
                 <span><Target size={15} />Build strength</span>
               </div>
             </div>
@@ -104,11 +109,11 @@ export function Dashboard({ data, onStart, onHistory, onProgram, onImport, onSes
           <div className="section-heading"><h2>Your program</h2>{program && <span className="tiny-label">{program.weeks} WEEK{program.weeks === 1 ? '' : 'S'}</span>}</div>
           {program ? <>
             <div className="program-title"><span className="program-icon"><Dumbbell size={25} /></span><div><h3>{program.name}</h3>
-              <p>{program.completedTemplateIds.length} of {program.workouts.length} workouts complete</p></div></div>
-            <div className="routine-list">{program.workouts.slice(0, 5).map(workout => <Button variant="tertiary"
+              <p>{program.completedTemplateIds.length} of {program.days.length} workouts complete</p></div></div>
+            <div className="routine-list">{program.days.slice(0, 5).map(workout => <Button variant="tertiary" disabled={workout.isRestDay}
               className={`routine-row ${workout.id === program.nextTemplateId ? 'next' : ''}`} key={workout.id} onClick={() => onStart(workout.id)}>
-              <span className="routine-number">W{workout.week}</span><span>{workout.name}</span>
-              {program.completedTemplateIds.includes(workout.id) ? <Check size={14} /> : workout.id === program.nextTemplateId ? <span className="tiny-label accent">UP NEXT</span> : <ChevronRight size={14} />}
+              <span className="routine-number">W{workout.phaseWeek}</span><span>{workout.name}</span>
+              {workout.isRestDay ? <span className="tiny-label">REST DAY</span> : program.completedTemplateIds.includes(workout.id) ? <Check size={14} /> : workout.id === program.nextTemplateId ? <span className="tiny-label accent">UP NEXT</span> : <ChevronRight size={14} />}
             </Button>)}</div>
           </> : <div className="empty-inline"><span className="exercise-icon"><FileText size={20} /></span>
             <div><h3>No active program</h3><p>Import a training PDF and review it before it becomes a program.</p></div></div>}

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { ArrowRight, Dumbbell, FileText, Pencil, Plus, Trash2 } from 'lucide-react';
-import type { Bootstrap, Exercise, Program, SetPrescription, Template, TemplateExercise } from '../types';
+import type { Bootstrap, Exercise, ProgramSummary, SetPrescription, Template, TemplateExercise } from '../types';
 import { ApiError, api } from '../lib/api';
 import { showReps } from '../lib/training';
 import { Button } from './ui/Button';
@@ -9,7 +9,7 @@ import { ExerciseLibrary } from './Exercises';
 
 type Draft = { id: string | null; name: string; focus: string; revision: number | null; exercises: TemplateExercise[] };
 
-const blankSet = (): SetPrescription => ({ repMin: 8, repMax: 12, targetRpe: 8, restSeconds: 90, tempo: null, loadText: null, notes: null });
+const blankSet = (): SetPrescription => ({ repMin: 8, repMax: 12, targetRpe: 8, restSeconds: 90, tempo: null, loadText: null, notes: null, repsText: null, restText: null, percent1Rm: null, rir: null, warmup: false, repsSource: 'userEdited', rpeSource: 'userEdited', restSource: 'userEdited' });
 
 export function Programs({ data, exercises, onStart, onImport, onChanged }: {
   data: Bootstrap; exercises: Exercise[]; onStart: (templateId: string) => void; onImport: () => void; onChanged: () => Promise<void>;
@@ -101,7 +101,7 @@ export function Programs({ data, exercises, onStart, onImport, onChanged }: {
         <Button onClick={() => setPicking(!picking)}><Plus size={17} />{picking ? 'Hide exercise picker' : 'Add exercise'}</Button>
         {picking && <ExerciseLibrary exercises={exercises} exclude={draft.exercises.map(e => e.exerciseId).filter((id): id is string => id !== null)} onSelect={id => {
           const chosen = exercises.find(e => e.id === id)!;
-          setDraft({ ...draft, exercises: [...draft.exercises, { id: crypto.randomUUID(), exerciseId: chosen.id, sourceName: chosen.name, name: chosen.name, note: '', position: draft.exercises.length, sets: [blankSet(), blankSet(), blankSet()] }] });
+          setDraft({ ...draft, exercises: [...draft.exercises, { id: crypto.randomUUID(), exerciseId: chosen.id, sourceName: chosen.name, name: chosen.name, note: '', position: draft.exercises.length, sets: [blankSet(), blankSet(), blankSet()], sequenceGroup: '', substitutions: [] }] });
           setPicking(false);
         }} />}
         {error && <p role="alert" className="error-text">{error}</p>}
@@ -119,10 +119,22 @@ export function Programs({ data, exercises, onStart, onImport, onChanged }: {
   </>;
 }
 
-function ProgramCard({ program, onStart, onChanged }: { program: Program; onStart: (id: string) => void; onChanged: () => Promise<void> }) {
+function ProgramCard({ program, onStart, onChanged }: { program: ProgramSummary; onStart: (id: string) => void; onChanged: () => Promise<void> }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
-  const next = program.workouts.find(w => w.id === program.nextTemplateId);
+  const [expanded, setExpanded] = useState(false);
+  const [detail, setDetail] = useState<Template[] | null>(null);
+  const next = program.days.find(w => w.id === program.nextTemplateId);
+
+  async function toggleDetails() {
+    if (!expanded && detail === null) {
+      setBusy(true); setError('');
+      try { setDetail((await api.getProgram(program.id)).workouts); }
+      catch (failure) { setError(failure instanceof ApiError ? failure.message : 'Could not load this program.'); }
+      finally { setBusy(false); }
+    }
+    setExpanded(value => !value);
+  }
 
   async function act(run: () => Promise<unknown>) {
     setBusy(true); setError('');
@@ -133,18 +145,12 @@ function ProgramCard({ program, onStart, onChanged }: { program: Program; onStar
 
   return <section className="panel program-card">
     <div className="section-heading">
-      <div><h2>{program.name}</h2><p className="muted">{program.weeks} {program.weeks === 1 ? 'week' : 'weeks'} · {program.workouts.length} workouts · {program.completedTemplateIds.length} completed</p></div>
+      <div><h2>{program.name}</h2><p className="muted">{program.weeks} {program.weeks === 1 ? 'week' : 'weeks'} · {program.days.length} days · {program.completedTemplateIds.length} completed</p></div>
       <span className="tiny-label accent">{program.active ? 'ACTIVE' : 'INACTIVE'}</span>
     </div>
     {program.description && <p>{program.description}</p>}
-    <div className="routine-list">{program.workouts.map(workout => {
-      const complete = program.completedTemplateIds.includes(workout.id);
-      return <Button variant="tertiary" className={`routine-row ${workout.id === program.nextTemplateId ? 'next' : ''}`} key={workout.id} onClick={() => onStart(workout.id)}>
-        <span className="routine-number">W{workout.week}</span>
-        <span>{workout.name}</span>
-        <span className="tiny-label">{complete ? 'DONE' : workout.id === program.nextTemplateId ? 'UP NEXT' : `${workout.exercises.length} exercises`}</span>
-      </Button>;
-    })}</div>
+    <Button variant="tertiary" className="full-width" onClick={() => void toggleDetails()} disabled={busy}>{busy ? 'Loading program…' : expanded ? 'Hide program detail' : 'Show block and phase detail'}</Button>
+    {expanded && <ProgramTree days={program.days} completed={program.completedTemplateIds} nextId={program.nextTemplateId} detail={detail} onStart={onStart} />}
     {error && <p className="error-text" role="alert">{error}</p>}
     <div className="settings-actions">
       {next && <Button variant="primary" onClick={() => onStart(next.id)}>Start {next.name}<ArrowRight size={16} /></Button>}
@@ -152,4 +158,28 @@ function ProgramCard({ program, onStart, onChanged }: { program: Program; onStar
       <Button variant="destructive" disabled={busy} onClick={() => act(() => api.deleteProgram(program.id))}>Delete program</Button>
     </div>
   </section>;
+}
+
+function ProgramTree({ days, completed, nextId, detail, onStart }: { days: ProgramSummary['days']; completed: string[]; nextId: string | null; detail: Template[] | null; onStart: (id: string) => void }) {
+  const blocks = new Map<string, Map<string, typeof days>>();
+  for (const day of days) {
+    const block = day.block || 'Program';
+    const phase = day.phase || 'General';
+    if (!blocks.has(block)) blocks.set(block, new Map());
+    const phases = blocks.get(block)!;
+    if (!phases.has(phase)) phases.set(phase, []);
+    phases.get(phase)!.push(day);
+  }
+  return <div className="program-tree">{[...blocks].map(([block, phases]) => <details key={block} open>
+    <summary>{block}</summary>
+    {[...phases].map(([phase, phaseDays]) => <details key={phase} className="phase-tree" open>
+      <summary>{phase}</summary>
+      <div className="routine-list">{phaseDays.map(day => {
+        const full = detail?.find(template => template.id === day.id);
+        const complete = completed.includes(day.id);
+        const row = <><span className="routine-number">W{day.phaseWeek}</span><span>{day.name}</span><span className="tiny-label">{day.isRestDay ? 'REST DAY' : complete ? 'DONE' : day.id === nextId ? 'UP NEXT' : `${full?.exercises.length ?? day.exerciseCount} exercises`}</span></>;
+        return day.isRestDay ? <div className="routine-row rest-row" key={day.id}>{row}</div> : <Button variant="tertiary" className={`routine-row ${day.id === nextId ? 'next' : ''}`} key={day.id} onClick={() => onStart(day.id)}>{row}</Button>;
+      })}</div>
+    </details>)}
+  </details>)}</div>;
 }

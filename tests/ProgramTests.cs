@@ -112,4 +112,29 @@ public class ProgramTests
         Assert.Equal(new SetPrescription(8, 10, 8, 120, "3010", "70%", "top set"), sets[0]);
         Assert.Equal(new SetPrescription(12, 12, 7.5, null, null, null, null), sets[1]);
     }
+
+    [Fact] public async Task Rest_days_are_stored_but_never_selected_as_the_next_workout()
+    {
+        var (h, benchId) = await Ready();
+        await using var _h = h;
+        var program = await h.Programs.Create(new ProgramInput("Blocks", null,
+            [
+                new ProgramWorkoutInput(1, "Monday", "Push", null, [Harness.Exercise(benchId, "Bench press", Harness.Set(8, 10))], "Block 1", "Base", 1, false),
+                new ProgramWorkoutInput(1, "Tuesday recovery", null, "Sleep and recover", [], "Block 1", "Base", 1, true),
+                new ProgramWorkoutInput(1, "Wednesday", "Pull", null, [Harness.Exercise(benchId, "Bench press", Harness.Set(8, 10))], "Block 1", "Base", 1, false)
+            ], null), true, null, default);
+
+        Assert.Equal(3, program.Workouts.Count);
+        Assert.True(program.Workouts[1].IsRestDay);
+        Assert.Equal(program.Workouts[0].Id, program.NextTemplateId);
+        await Assert.ThrowsAsync<DomainException>(() => h.Workouts.Start(program.Workouts[1].Id, null, default));
+        var first = await h.Workouts.Start(program.Workouts[0].Id, null, default);
+        var firstExercise = first.Exercises.Single();
+        await h.Workouts.Save(first.Id, new SessionInput(null,
+            [new SessionExerciseInput(firstExercise.ExerciseId, firstExercise.Name, firstExercise.Note,
+                firstExercise.Prescription, [new SetInput(60, 8, 8, true)])], first.Revision, null), default);
+        await h.Workouts.Finish(first.Id, null, default);
+        var afterFirst = await h.Programs.Get(program.Id, default);
+        Assert.Equal(program.Workouts[2].Id, afterFirst.NextTemplateId);
+    }
 }

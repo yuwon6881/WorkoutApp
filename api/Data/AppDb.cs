@@ -58,7 +58,11 @@ public sealed class AppDb(DbContextOptions<AppDb> options) : DbContext(options)
         m.Entity<CompletedSet>().HasIndex(x => new { x.UserId, x.SessionExerciseId, x.Position });
         m.Entity<WorkoutSession>().HasIndex(x => new { x.UserId, x.FinishedAt });
         m.Entity<AiImport>().HasIndex(x => new { x.UserId, x.DocumentHash, x.PromptVersion });
-        m.Entity<AiImport>().ToTable("Imports", t => t.HasCheckConstraint("CK_Imports_Status", "\"Status\" IN ('pending','ready','failed','accepted','discarded')"));
+        m.Entity<AiImport>().ToTable("Imports", t =>
+        {
+            t.HasCheckConstraint("CK_Imports_Status", "\"Status\" IN ('pending','ready','failed','accepted','discarded')");
+            t.HasCheckConstraint("CK_Imports_Stage", "\"Stage\" IN ('outline','extract','done')");
+        });
         m.Entity<CompletedSet>().ToTable("Sets", t =>
         {
             t.HasCheckConstraint("CK_Sets_Weight", "\"WeightKg\" IS NULL OR (\"WeightKg\" >= 0 AND \"WeightKg\" <= 1000)");

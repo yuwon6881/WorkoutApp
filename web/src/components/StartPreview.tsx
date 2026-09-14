@@ -1,6 +1,6 @@
 import { Clock3, Dumbbell, ListChecks, Play } from 'lucide-react';
 import type { Template } from '../types';
-import { showReps } from '../lib/training';
+import { showTarget } from '../lib/training';
 import { Button } from './ui/Button';
 import { Modal } from './ui/Modal';
 
@@ -9,7 +9,7 @@ import { Modal } from './ui/Modal';
 export function StartPreview({ template, busy, onCancel, onConfirm }: {
   template: Template; busy: boolean; onCancel: () => void; onConfirm: () => void;
 }) {
-  const totalSets = template.exercises.reduce((total, exercise) => total + exercise.sets.length, 0);
+  const totalSets = template.exercises.reduce((total, exercise) => total + exercise.sets.filter(set => !set.warmup).length, 0);
   const rest = template.exercises.flatMap(e => e.sets).map(s => s.restSeconds).filter((s): s is number => s !== null);
   const typicalRest = rest.length ? Math.round(rest.reduce((a, b) => a + b, 0) / rest.length) : null;
   const unmapped = template.exercises.filter(e => !e.exerciseId).length;
@@ -21,7 +21,7 @@ export function StartPreview({ template, busy, onCancel, onConfirm }: {
       {typicalRest !== null && <span><Clock3 size={16} />{typicalRest}s rest</span>}
     </div>
     <div className="modal-body">
-      {template.focus && <p>{template.focus}</p>}
+      {template.isRestDay ? <p className="note-block">This is a rest day and cannot be started as a workout.</p> : template.focus && <p>{template.focus}</p>}
       {template.note && <p className="note-block">{template.note}</p>}
       <div className="preview-list">
         {template.exercises.map((exercise, index) => <div className="preview-row" key={exercise.id}>
@@ -33,7 +33,7 @@ export function StartPreview({ template, busy, onCancel, onConfirm }: {
           </div>
           <div className="preview-sets">
             {exercise.sets.map((set, setIndex) => <span key={setIndex}>
-              {showReps(set)} reps{set.targetRpe !== null ? ` @ RPE ${set.targetRpe}` : ''}{set.loadText ? ` · ${set.loadText}` : ''}
+              {set.warmup ? 'Warm-up · ' : ''}{showTarget(set)}{set.loadText ? ` · ${set.loadText}` : ''}
             </span>)}
           </div>
         </div>)}
@@ -43,7 +43,7 @@ export function StartPreview({ template, busy, onCancel, onConfirm }: {
     </div>
     <div className="modal-actions">
       <Button onClick={onCancel}>Cancel</Button>
-      <Button variant="primary" disabled={busy} onClick={onConfirm}>
+      <Button variant="primary" disabled={busy || template.isRestDay} onClick={onConfirm}>
         <Play size={16} fill="currentColor" />{busy ? 'Starting…' : 'Start workout'}
       </Button>
     </div>

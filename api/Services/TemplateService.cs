@@ -4,10 +4,14 @@ using Workout.Api.Domain;
 
 namespace Workout.Api.Services;
 
-public record TemplateExerciseInput(Guid? ExerciseId, string SourceName, string? Note, List<SetPrescription> Sets);
-public record TemplateInput(string Name, string? Focus, string? Note, List<TemplateExerciseInput> Exercises, int? Revision, Guid? IdempotencyId);
-public record TemplateExerciseView(Guid Id, Guid? ExerciseId, string SourceName, string Name, string Note, int Position, List<SetPrescription> Sets);
-public record TemplateView(Guid Id, Guid? ProgramId, string Name, string Focus, string Note, int Week, int Position, int Revision, List<TemplateExerciseView> Exercises);
+public record TemplateExerciseInput(Guid? ExerciseId, string SourceName, string? Note, List<SetPrescription> Sets,
+    string? SequenceGroup = null, List<string>? Substitutions = null);
+public record TemplateInput(string Name, string? Focus, string? Note, List<TemplateExerciseInput> Exercises, int? Revision, Guid? IdempotencyId,
+    string? Block = null, string? Phase = null, int PhaseWeek = 1, bool IsRestDay = false);
+public record TemplateExerciseView(Guid Id, Guid? ExerciseId, string SourceName, string Name, string Note, int Position, List<SetPrescription> Sets,
+    string SequenceGroup = "", List<string>? Substitutions = null);
+public record TemplateView(Guid Id, Guid? ProgramId, string Name, string Focus, string Note, int Week, int Position, int Revision, List<TemplateExerciseView> Exercises,
+    string Block = "", string Phase = "", int PhaseWeek = 1, bool IsRestDay = false);
 
 public sealed class TemplateService(AppDb db, CatalogService catalog)
 {
@@ -35,7 +39,8 @@ public sealed class TemplateService(AppDb db, CatalogService catalog)
         return templates.Select(t => new TemplateView(t.Id, t.ProgramId, t.Name, t.Focus, t.Note, t.Week, t.Position, t.Revision,
             rows.Where(e => e.TemplateId == t.Id).Select(e => new TemplateExerciseView(e.Id, e.ExerciseId, e.SourceName,
                 e.ExerciseId is { } id && names.TryGetValue(id, out var name) ? name : e.SourceName,
-                e.Note, e.Position, Json.Read<List<SetPrescription>>(e.SetsJson))).ToList())).ToList();
+                e.Note, e.Position, Json.Read<List<SetPrescription>>(e.SetsJson), e.SequenceGroup,
+                Json.Read<List<string>>(e.SubstitutionsJson))).ToList(), t.Block, t.Phase, t.PhaseWeek, t.IsRestDay)).ToList();
     }
 
     public async Task<Dictionary<Guid, string>> CatalogNames(IEnumerable<Guid?> ids, CancellationToken ct)
@@ -51,7 +56,8 @@ public sealed class TemplateService(AppDb db, CatalogService catalog)
         var template = new WorkoutTemplate
         {
             UserId = db.CurrentUser!.Value, ProgramId = programId, Name = input.Name.Trim(),
-            Focus = input.Focus?.Trim() ?? "", Note = input.Note?.Trim() ?? "", Week = week, Position = position
+            Focus = input.Focus?.Trim() ?? "", Note = input.Note?.Trim() ?? "", Week = week, Position = position,
+            Block = input.Block?.Trim() ?? "", Phase = input.Phase?.Trim() ?? "", PhaseWeek = input.PhaseWeek, IsRestDay = input.IsRestDay
         };
         db.Templates.Add(template);
         AddExercises(template.Id, input.Exercises);
@@ -68,6 +74,7 @@ public sealed class TemplateService(AppDb db, CatalogService catalog)
         Validation.Require(template != null, "That workout no longer exists.", 404);
         RequireFresh(input.Revision, template!.Revision);
         template.Name = input.Name.Trim(); template.Focus = input.Focus?.Trim() ?? ""; template.Note = input.Note?.Trim() ?? "";
+        template.Block = input.Block?.Trim() ?? ""; template.Phase = input.Phase?.Trim() ?? ""; template.PhaseWeek = input.PhaseWeek; template.IsRestDay = input.IsRestDay;
         template.Revision++;
         db.TemplateExercises.RemoveRange(await db.TemplateExercises.Where(e => e.TemplateId == id).ToListAsync(ct));
         AddExercises(id, input.Exercises);
@@ -97,7 +104,8 @@ public sealed class TemplateService(AppDb db, CatalogService catalog)
             {
                 UserId = db.CurrentUser!.Value, TemplateId = templateId, ExerciseId = exercise.ExerciseId,
                 SourceName = exercise.SourceName.Trim(), Note = exercise.Note?.Trim() ?? "", Position = position++,
-                SetsJson = Json.Write(exercise.Sets)
+                SetsJson = Json.Write(exercise.Sets), SequenceGroup = exercise.SequenceGroup?.Trim() ?? "",
+                SubstitutionsJson = Json.Write((exercise.Substitutions ?? []).Where(s => !string.IsNullOrWhiteSpace(s)).Select(s => s.Trim()).Take(2).ToList())
             });
     }
 
@@ -105,12 +113,17 @@ public sealed class TemplateService(AppDb db, CatalogService catalog)
     {
         Validation.Name(input.Name, "Workout name");
         Validation.Text(input.Focus, 120, "Focus"); Validation.Text(input.Note, 2000, "Workout notes");
-        Validation.Require(input.Exercises is { Count: > 0 }, "Add at least one exercise to this workout.");
+        Validation.Text(input.Block, 80, "Block"); Validation.Text(input.Phase, 120, "Phase");
+        Validation.Require(input.PhaseWeek is > 0 and <= 104, "Phase week must be between 1 and 104.");
+        Validation.Require(input.IsRestDay ? input.Exercises is { Count: 0 } : input.Exercises is { Count: > 0 },
+            input.IsRestDay ? "A rest day cannot contain exercises." : "Add at least one exercise to this workout.");
         Validation.Require(input.Exercises.Count <= 40, "A workout can have at most 40 exercises.");
         foreach (var exercise in input.Exercises)
         {
             Validation.Name(exercise.SourceName, "Exercise name", 160);
             Validation.Text(exercise.Note, 1000, "Exercise notes");
+            Validation.Text(exercise.SequenceGroup, 8, "Sequence group");
+            Validation.Substitutions(exercise.Substitutions);
             Validation.Prescriptions(exercise.Sets);
             await catalog.RequireActive(exercise.ExerciseId, ct);
         }

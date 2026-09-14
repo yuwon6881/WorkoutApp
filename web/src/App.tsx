@@ -50,12 +50,11 @@ export default function App() {
 
   /// Opening a plan shows what it contains first. A session is only created on the server once
   /// the preview is confirmed, so backing out leaves nothing behind.
-  function start(templateId: string) {
+  async function start(templateId: string) {
     setActionError('');
     if (data!.activeWorkout) { setTraining(true); return; }
-    const template = [...data!.templates, ...data!.programs.flatMap(program => program.workouts)].find(item => item.id === templateId);
-    if (!template) { setActionError('That workout plan is no longer available. Refresh to see the current list.'); return; }
-    setPreview(template);
+    try { setPreview(await api.getTemplate(templateId)); }
+    catch (failure) { setActionError(failure instanceof ApiError ? failure.message : 'That workout plan is no longer available. Refresh to see the current list.'); }
   }
 
   async function confirmStart() {

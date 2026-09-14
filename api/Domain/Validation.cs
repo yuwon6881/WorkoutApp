@@ -10,7 +10,10 @@ public sealed class DomainException(string message, int status = 400) : Exceptio
 
 /// One prescribed set. Rep ranges and per-set differences are preserved exactly as written,
 /// so a program that asks for 8-10 on set one and 12 on set three stays that way.
-public record SetPrescription(int RepMin, int RepMax, double? TargetRpe, int? RestSeconds, string? Tempo, string? LoadText, string? Notes);
+public record SetPrescription(
+    int RepMin, int RepMax, double? TargetRpe, int? RestSeconds, string? Tempo, string? LoadText, string? Notes,
+    string? RepsText = null, string? RestText = null, string? Percent1Rm = null, string? Rir = null,
+    bool Warmup = false, string RepsSource = "extracted", string RpeSource = "extracted", string RestSource = "extracted");
 
 public static class Validation
 {
@@ -59,7 +62,8 @@ public static class Validation
     public static void Prescriptions(List<SetPrescription>? sets)
     {
         Require(sets is { Count: > 0 }, "Each exercise needs at least one set.");
-        Require(sets!.Count <= 20, "An exercise can have at most 20 sets.");
+        Require(sets!.Count <= 24, "An exercise can have at most 24 sets.");
+        var workingStarted = false;
         foreach (var set in sets)
         {
             Require(set is not null, "A set is missing its details.");
@@ -67,7 +71,19 @@ public static class Validation
             Require(set.RepMin <= set.RepMax, "The lowest rep target cannot exceed the highest.");
             if (set.TargetRpe is { } target) Rpe(target, "Target RPE");
             if (set.RestSeconds is { } rest) Require(rest is >= 0 and <= 3600, "Rest must be between 0 and 3600 seconds.");
+            if (!set.Warmup) workingStarted = true;
+            else Require(!workingStarted, "Warm-up sets must come before working sets.");
             Text(set.Tempo, 24, "Tempo"); Text(set.LoadText, 60, "Load"); Text(set.Notes, 400, "Set notes");
+            Text(set.RepsText, 40, "Verbatim reps"); Text(set.RestText, 24, "Verbatim rest");
+            Text(set.Percent1Rm, 24, "%1RM"); Text(set.Rir, 16, "RIR");
+            foreach (var source in new[] { set.RepsSource, set.RpeSource, set.RestSource })
+                Require(source is "extracted" or "inferred" or "userEdited", "Unknown provenance label.");
         }
+    }
+
+    public static void Substitutions(List<string>? substitutions)
+    {
+        Require(substitutions is null || substitutions.Count <= 2, "An exercise can have at most 2 substitutions.");
+        foreach (var substitution in substitutions ?? []) Name(substitution, "Substitution", 160);
     }
 }

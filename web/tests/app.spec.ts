@@ -7,7 +7,7 @@ const PASSWORD = 'an end to end password';
 
 /// A minimal but structurally valid PDF. The API checks the signature and counts page markers;
 /// the stand-in provider ignores the content entirely.
-const pdf = (pages = 3) => Buffer.from(`%PDF-1.7\n${'/Type /Page \n'.repeat(pages)}%%EOF`, 'latin1');
+const pdf = (pages = 3, marker = '') => Buffer.from(`%PDF-1.7\n${'/Type /Page \n'.repeat(pages)}% ${marker}\n%%EOF`, 'latin1');
 
 const signIn = (page: Page) => auth(page, USER, PASSWORD);
 
@@ -121,29 +121,25 @@ test('build a workout, log a set against the server, and see it in history', asy
   expect(errors).toEqual([]);
 });
 
-test('import a PDF program, map every exercise, and accept it', async ({ page }, testInfo) => {
+test('import a PDF program, preserve an unmapped exercise, and accept it', async ({ page }, testInfo) => {
   await signIn(page);
   await openTab(page, 'Workouts');
   await page.getByRole('button', { name: 'Import a PDF program', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Import a program.' })).toBeVisible();
 
-  await page.getByLabel('Program PDF').setInputFiles({ name: 'block.pdf', mimeType: 'application/pdf', buffer: pdf() });
+  await page.getByLabel('Program PDF').setInputFiles({ name: 'block.pdf', mimeType: 'application/pdf', buffer: pdf(3, testInfo.project.name) });
   await expect(page.getByRole('heading', { name: 'Review' })).toBeVisible({ timeout: 60000 });
   await page.screenshot({ path: `artifacts/${testInfo.project.name}-import-review.png`, fullPage: true });
 
   // Every value carries where it came from, and the rep range from the PDF is preserved.
+  await page.getByRole('button', { name: /W1 · Week 1 Upper/ }).click();
   await expect(page.getByText('From the PDF').first()).toBeVisible();
   await expect(page.getByText('AI suggestion').first()).toBeVisible();
-  await expect(page.getByRole('spinbutton', { name: 'Set 1 lowest reps' }).first()).toHaveValue('8');
-  await expect(page.getByRole('spinbutton', { name: 'Set 1 highest reps' }).first()).toHaveValue('10');
+  await expect(page.getByLabel('Set 1 reps text').first()).toHaveValue('8–10');
 
-  // The name the model could not match stays unresolved and blocks acceptance.
-  await expect(page.getByText('NEEDS MAPPING').first()).toBeVisible();
+  // The name the model could not match stays verbatim and does not block acceptance.
+  await expect(page.getByText(/UNMAPPED · PRESERVED/).first()).toBeVisible();
   const accept = page.getByRole('button', { name: 'Accept and create program', exact: true });
-  await expect(accept).toBeDisabled();
-
-  await page.getByRole('combobox', { name: 'Library exercise for Mystery machine row' }).selectOption({ label: 'Seated cable row' });
-  await expect(page.getByText('NEEDS MAPPING')).toHaveCount(0, { timeout: 30000 });
   await expect(accept).toBeEnabled({ timeout: 30000 });
 
   // Rename the draft so each viewport's accepted program is its own, and to prove the edit sticks.
@@ -153,12 +149,17 @@ test('import a PDF program, map every exercise, and accept it', async ({ page },
   await expect.poll(async () => page.evaluate(async () => {
     const response = await fetch('/api/imports', { headers: { 'X-Workout-Request': '1' }, cache: 'no-store' });
     const rows = await response.json();
-    return rows.find((row: { status: string }) => row.status === 'ready')?.draft?.programName ?? '';
+    const row = rows.find((item: { status: string }) => item.status === 'ready');
+    if (!row) return '';
+    const full = await fetch(`/api/imports/${(row as { id: string }).id}`, { headers: { 'X-Workout-Request': '1' }, cache: 'no-store' });
+    return (await full.json()).draft?.programName ?? '';
   }), { timeout: 20000 }).toBe(programName);
 
   await accept.click();
   await expect(page.getByRole('heading', { name: 'Your workouts.' })).toBeVisible({ timeout: 30000 });
   await expect(page.getByRole('heading', { name: programName })).toBeVisible();
+  const programCard = page.locator('.program-card').filter({ hasText: programName });
+  await programCard.getByRole('button', { name: 'Show block and phase detail', exact: true }).click();
   await expect(page.getByText('Week 1 Upper', { exact: true }).first()).toBeVisible();
   await expect(page.getByText('Week 2 Upper', { exact: true }).first()).toBeVisible();
 });

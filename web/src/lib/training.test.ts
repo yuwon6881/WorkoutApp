@@ -1,15 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import type { Session } from '../types';
-import { canComplete, completedSets, duration, showReps, showRpe, showVolume, showWeight, toDisplay, toKg, validReps, validRpe } from './training';
+import { canComplete, completedSets, duration, normalizeExerciseName, plannedSets, showReps, showRpe, showTarget, showVolume, showWeight, toDisplay, toKg, validReps, validRpe } from './training';
 
 const set = (overrides: Partial<Session['exercises'][number]['sets'][number]> = {}) =>
-  ({ id: 'set', position: 0, weightKg: 60, reps: 10, rpe: 8, done: true, ...overrides });
+  ({ id: 'set', position: 0, weightKg: 60, reps: 10, rpe: 8, done: true, warmup: false, ...overrides });
 
 const session = (overrides: Partial<Session> = {}): Session => ({
   id: 's', templateId: null, programId: null, name: 'Push', note: '', active: false,
   startedAt: '2026-09-13T10:00:00Z', finishedAt: '2026-09-13T11:00:00Z', revision: 1,
-  exercises: [{ id: 'e', exerciseId: null, name: 'Bench press', position: 0, note: '', prescription: [], sets: [set()] }],
-  volumeKg: 600, completedSets: 1, ...overrides
+  exercises: [{ id: 'e', exerciseId: null, name: 'Bench press', position: 0, note: '', prescription: [], sets: [set()], sequenceGroup: '', substitutions: [] }],
+  volumeKg: 600, completedSets: 1, warmupSets: 0, ...overrides
 });
 
 describe('weight conversion', () => {
@@ -47,6 +47,31 @@ describe('prescriptions', () => {
     expect(showRpe(null)).toBe('—');
     expect(showRpe(7.5)).toBe('RPE 7.5');
   });
+
+  it('prefers verbatim targets and keeps the machine fallback', () => {
+    expect(showTarget({ repMin: 8, repMax: 12, repsText: 'AMRAP', targetRpe: 8, percent1Rm: '75%', rir: '2' } as never)).toBe('AMRAP · RPE 8 · 75% · RIR 2');
+  });
+});
+
+describe('catalog name parity', () => {
+  it.each([
+    ['Barbell Bench-Press', 'barbell bench press'],
+    [' Constant_Tension  Lying Leg Curl ', 'constant tension lying leg curl'],
+    ['Cable / Row 2', 'cable row 2']
+  ])('normalizes %s like the API', (value, expected) => expect(normalizeExerciseName(value)).toBe(expected));
+});
+
+describe('working and warm-up counts', () => {
+  it('does not count warm-up rows as working sets', () => {
+    const warmup = set({ warmup: true });
+    const warmupPrescription = {
+      repMin: 8, repMax: 8, targetRpe: null, restSeconds: null, tempo: null, loadText: null, notes: null,
+      repsText: null, restText: null, percent1Rm: null, rir: null, repsSource: 'inferred', rpeSource: 'inferred', restSource: 'inferred', warmup: true
+    } as const;
+    const mixed = session({ exercises: [{ ...session().exercises[0], prescription: [warmupPrescription], sets: [warmup, set({ id: 'working' })] }] });
+    expect(plannedSets(mixed)).toBe(1);
+    expect(completedSets(mixed)).toHaveLength(1);
+  });
 });
 
 describe('RPE and reps validation', () => {
@@ -72,7 +97,7 @@ describe('RPE and reps validation', () => {
 describe('session summaries', () => {
   it('counts only completed sets', () => {
     const mixed = session({
-      exercises: [{ id: 'e', exerciseId: null, name: 'Bench press', position: 0, note: '', prescription: [], sets: [set(), set({ id: 'b', done: false })] }]
+      exercises: [{ id: 'e', exerciseId: null, name: 'Bench press', position: 0, note: '', prescription: [], sets: [set(), set({ id: 'b', done: false })], sequenceGroup: '', substitutions: [] }]
     });
     expect(completedSets(mixed)).toHaveLength(1);
   });

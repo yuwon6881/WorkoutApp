@@ -18,7 +18,7 @@ public sealed class ExportService(AppDb db, ProgramService programs, TemplateSer
             exportedAt = DateTime.UtcNow,
             account = new { user.Username, user.Unit, user.Theme, user.RestSeconds },
             note = "Weights are stored in kilograms. A null weight means the load was not recorded.",
-            programs = await programs.List(ct),
+            programs = await programs.FullList(ct),
             templates = await templates.List(null, standaloneOnly: true, ct),
             history = sessions
         };

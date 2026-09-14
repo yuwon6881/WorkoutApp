@@ -22,13 +22,23 @@ export const showVolume = (kg: number | null, unit: Unit): string => {
 
 /// The rep target as the program wrote it: a single number or a range, never flattened.
 export const showReps = (set: SetPrescription | { repMin: number; repMax: number }): string =>
-  set.repMin === set.repMax ? String(set.repMin) : `${set.repMin}–${set.repMax}`;
+  'repsText' in set && set.repsText?.trim() ? set.repsText : set.repMin === set.repMax ? String(set.repMin) : `${set.repMin}–${set.repMax}`;
 
 export const showRpe = (rpe: number | null): string => rpe === null ? '—' : `RPE ${Number(rpe.toFixed(1))}`;
 
-export const completedSets = (session: Session): LoggedSet[] => session.exercises.flatMap(e => e.sets).filter(s => s.done);
+export const completedSets = (session: Session): LoggedSet[] => session.exercises.flatMap(e => e.sets).filter(s => s.done && !s.warmup);
 
-export const plannedSets = (session: Session): number => session.exercises.reduce((total, e) => total + e.sets.length, 0);
+export const plannedSets = (session: Session): number => session.exercises.reduce((total, e) => total + e.sets.filter(s => !s.warmup).length, 0);
+
+export const normalizeExerciseName = (value: string): string => value.trim().toLowerCase().replace(/[^a-z0-9]/g, ' ').split(/\s+/).filter(Boolean).join(' ');
+
+export const showTarget = (set: SetPrescription): string => {
+  const parts = [showReps(set)];
+  if (set.targetRpe !== null) parts.push(`RPE ${set.targetRpe}`);
+  if (set.percent1Rm) parts.push(set.percent1Rm);
+  if (set.rir) parts.push(`RIR ${set.rir}`);
+  return parts.join(' · ');
+};
 
 export const duration = (session: Session): number => {
   const end = session.finishedAt ? Date.parse(session.finishedAt) : Date.now();

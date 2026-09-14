@@ -4,12 +4,15 @@ using Workout.Api.Domain;
 
 namespace Workout.Api.Services;
 
-public record SetInput(double? WeightKg, int? Reps, double? Rpe, bool Done);
-public record SessionExerciseInput(Guid? ExerciseId, string NameSnapshot, string? Note, List<SetPrescription> Prescription, List<SetInput> Sets);
+public record SetInput(double? WeightKg, int? Reps, double? Rpe, bool Done, bool Warmup = false);
+public record SessionExerciseInput(Guid? ExerciseId, string NameSnapshot, string? Note, List<SetPrescription> Prescription, List<SetInput> Sets,
+    string? SequenceGroup = null, List<string>? Substitutions = null);
 public record SessionInput(string? Note, List<SessionExerciseInput> Exercises, int? Revision, Guid? IdempotencyId);
-public record SetView(Guid Id, int Position, double? WeightKg, int? Reps, double? Rpe, bool Done);
-public record SessionExerciseView(Guid Id, Guid? ExerciseId, string Name, int Position, string Note, List<SetPrescription> Prescription, List<SetView> Sets);
-public record SessionView(Guid Id, Guid? TemplateId, Guid? ProgramId, string Name, string Note, bool Active, DateTime StartedAt, DateTime? FinishedAt, int Revision, List<SessionExerciseView> Exercises, double? VolumeKg, int CompletedSets);
+public record SetView(Guid Id, int Position, double? WeightKg, int? Reps, double? Rpe, bool Done, bool Warmup = false);
+public record SessionExerciseView(Guid Id, Guid? ExerciseId, string Name, int Position, string Note, List<SetPrescription> Prescription, List<SetView> Sets,
+    string SequenceGroup = "", List<string>? Substitutions = null);
+public record SessionView(Guid Id, Guid? TemplateId, Guid? ProgramId, string Name, string Note, bool Active, DateTime StartedAt, DateTime? FinishedAt, int Revision,
+    List<SessionExerciseView> Exercises, double? VolumeKg, int CompletedSets, int WarmupSets = 0);
 
 public sealed class WorkoutService(AppDb db, CatalogService catalog, TemplateService templates)
 {
@@ -32,14 +35,17 @@ public sealed class WorkoutService(AppDb db, CatalogService catalog, TemplateSer
         var ids = exercises.Select(e => e.Id).ToList();
         var sets = await db.Sets.AsNoTracking().Where(s => ids.Contains(s.SessionExerciseId)).OrderBy(s => s.Position).ToListAsync(ct);
         var done = sets.Where(s => s.Done).ToList();
+        var workingDone = done.Where(s => !s.Warmup).ToList();
+        var warmupDone = done.Where(s => s.Warmup).ToList();
         // Volume counts only sets whose load is actually known; an unknown weight is not zero.
-        var known = done.Where(s => s.WeightKg != null).ToList();
+        var known = workingDone.Where(s => s.WeightKg != null).ToList();
         return new SessionView(session.Id, session.TemplateId, session.ProgramId, session.Name, session.Note, session.Active,
             session.StartedAt, session.FinishedAt, session.Revision,
             exercises.Select(e => new SessionExerciseView(e.Id, e.ExerciseId, e.NameSnapshot, e.Position, e.Note,
                 Json.Read<List<SetPrescription>>(e.PrescriptionJson),
-                sets.Where(s => s.SessionExerciseId == e.Id).Select(s => new SetView(s.Id, s.Position, s.WeightKg, s.Reps, s.Rpe, s.Done)).ToList())).ToList(),
-            known.Count == 0 ? null : known.Sum(s => s.WeightKg!.Value * s.Reps!.Value), done.Count);
+                sets.Where(s => s.SessionExerciseId == e.Id).Select(s => new SetView(s.Id, s.Position, s.WeightKg, s.Reps, s.Rpe, s.Done, s.Warmup)).ToList(),
+                e.SequenceGroup, Json.Read<List<string>>(e.SubstitutionsJson))).ToList(),
+            known.Count == 0 ? null : known.Sum(s => s.WeightKg!.Value * s.Reps!.Value), workingDone.Count, warmupDone.Count);
     }
 
     /// Starts a workout from a plan, prefilling each set with the last load and reps recorded
@@ -53,6 +59,7 @@ public sealed class WorkoutService(AppDb db, CatalogService catalog, TemplateSer
         {
             template = await db.Templates.AsNoTracking().SingleOrDefaultAsync(t => t.Id == id, ct);
             Validation.Require(template != null, "That workout plan no longer exists.", 404);
+            Validation.Require(!template!.IsRestDay, "That slot is a rest day.", 409);
         }
         else Validation.Name(name, "Workout name");
 
@@ -74,17 +81,20 @@ public sealed class WorkoutService(AppDb db, CatalogService catalog, TemplateSer
                 {
                     UserId = session.UserId, SessionId = session.Id, ExerciseId = plan.ExerciseId, Position = plan.Position,
                     NameSnapshot = plan.ExerciseId is { } catalogId && names.TryGetValue(catalogId, out var resolved) ? resolved : plan.SourceName,
-                    Note = plan.Note, PrescriptionJson = plan.SetsJson
+                    Note = plan.Note, PrescriptionJson = plan.SetsJson, SequenceGroup = plan.SequenceGroup,
+                    SubstitutionsJson = plan.SubstitutionsJson
                 };
                 db.SessionExercises.Add(exercise);
                 var previous = await Previous(plan.ExerciseId, plan.SourceName, ct);
+                var workingIndex = 0;
                 for (var index = 0; index < prescription.Count; index++)
                 {
-                    var last = previous.ElementAtOrDefault(index);
+                    var planSet = prescription[index];
+                    var last = planSet.Warmup ? null : previous.ElementAtOrDefault(workingIndex++);
                     db.Sets.Add(new CompletedSet
                     {
                         UserId = session.UserId, SessionExerciseId = exercise.Id, Position = index,
-                        WeightKg = last?.WeightKg, Reps = last?.Reps ?? prescription[index].RepMin, Rpe = null, Done = false
+                        WeightKg = last?.WeightKg, Reps = last?.Reps ?? planSet.RepMin, Rpe = null, Done = false, Warmup = planSet.Warmup
                     });
                 }
             }
@@ -105,7 +115,7 @@ public sealed class WorkoutService(AppDb db, CatalogService catalog, TemplateSer
             : query.Where(x => x.Exercise.ExerciseId == null && x.Exercise.NameSnapshot == name);
         var latest = await query.OrderByDescending(x => x.FinishedAt).Select(x => x.Exercise.Id).FirstOrDefaultAsync(ct);
         if (latest == Guid.Empty) return [];
-        return await db.Sets.AsNoTracking().Where(s => s.SessionExerciseId == latest && s.Done).OrderBy(s => s.Position).ToListAsync(ct);
+        return await db.Sets.AsNoTracking().Where(s => s.SessionExerciseId == latest && s.Done && !s.Warmup).OrderBy(s => s.Position).ToListAsync(ct);
     }
 
     public async Task<SessionView> Save(Guid id, SessionInput input, CancellationToken ct)
@@ -117,7 +127,8 @@ public sealed class WorkoutService(AppDb db, CatalogService catalog, TemplateSer
             Validation.Name(exercise.NameSnapshot, "Exercise name", 160);
             Validation.Text(exercise.Note, 1000, "Exercise notes");
             Validation.Prescriptions(exercise.Prescription);
-            Validation.Require(exercise.Sets is { Count: <= 20 }, "An exercise can have at most 20 sets.");
+            Validation.Require(exercise.Sets is { Count: <= 24 }, "An exercise can have at most 24 sets.");
+            Validation.Substitutions(exercise.Substitutions);
             foreach (var set in exercise.Sets) Validation.LoggedSet(set.WeightKg, set.Reps, set.Rpe, set.Done);
             await catalog.RequireActive(exercise.ExerciseId, ct);
         }
@@ -139,12 +150,13 @@ public sealed class WorkoutService(AppDb db, CatalogService catalog, TemplateSer
             var row = new SessionExercise
             {
                 UserId = session.UserId, SessionId = id, ExerciseId = exercise.ExerciseId, Position = position++,
-                NameSnapshot = exercise.NameSnapshot.Trim(), Note = exercise.Note?.Trim() ?? "", PrescriptionJson = Json.Write(exercise.Prescription)
+                NameSnapshot = exercise.NameSnapshot.Trim(), Note = exercise.Note?.Trim() ?? "", PrescriptionJson = Json.Write(exercise.Prescription),
+                SequenceGroup = exercise.SequenceGroup?.Trim() ?? "", SubstitutionsJson = Json.Write((exercise.Substitutions ?? []).Take(2).Select(s => s.Trim()).ToList())
             };
             db.SessionExercises.Add(row);
             var setPosition = 0;
             foreach (var set in exercise.Sets)
-                db.Sets.Add(new CompletedSet { UserId = session.UserId, SessionExerciseId = row.Id, Position = setPosition++, WeightKg = set.WeightKg, Reps = set.Reps, Rpe = set.Rpe, Done = set.Done });
+                db.Sets.Add(new CompletedSet { UserId = session.UserId, SessionExerciseId = row.Id, Position = setPosition++, WeightKg = set.WeightKg, Reps = set.Reps, Rpe = set.Rpe, Done = set.Done, Warmup = set.Warmup });
         }
         await templates.Receipt(input.IdempotencyId, ct);
         await db.SaveChangesAsync(ct);

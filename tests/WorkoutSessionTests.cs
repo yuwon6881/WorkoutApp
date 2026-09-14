@@ -96,6 +96,29 @@ public class WorkoutSessionTests
         Assert.Equal(600, finished.VolumeKg);
     }
 
+    [Fact] public async Task Warmup_rows_are_snapshotted_and_excluded_from_working_volume()
+    {
+        var h = await Harness.Create();
+        await using var _h = h;
+        await h.SignIn();
+        await h.Seed(new SeedExercise("bench", "Bench press", "Chest", "Barbell", "Cue", null));
+        var benchId = await h.ExerciseId("bench");
+        var template = await h.Templates.Create(Harness.Template("Warm-up test", Harness.Exercise(benchId, "Bench press",
+            new SetPrescription(10, 10, null, 60, null, null, null, "10", "1 min", null, null, true, "inferred", "inferred", "extracted"),
+            Harness.Set(8, 10))), null, 1, 0, default);
+
+        var session = await h.Workouts.Start(template.Id, null, default);
+        Assert.True(session.Exercises.Single().Sets[0].Warmup);
+        Assert.False(session.Exercises.Single().Sets[1].Warmup);
+        await h.Workouts.Save(session.Id, new SessionInput(null,
+            [new SessionExerciseInput(benchId, "Bench press", null, session.Exercises.Single().Prescription,
+                [new SetInput(20, 10, 7, true, true), new SetInput(60, 10, 8, true, false)])], session.Revision, null), default);
+        var finished = await h.Workouts.Finish(session.Id, null, default);
+        Assert.Equal(600, finished.VolumeKg);
+        Assert.Equal(1, finished.CompletedSets);
+        Assert.Equal(1, finished.WarmupSets);
+    }
+
     [Fact] public async Task A_bodyweight_set_at_zero_is_kept_as_a_real_zero()
     {
         var (h, templateId, benchId) = await Ready();

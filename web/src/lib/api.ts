@@ -1,4 +1,4 @@
-import type { Bootstrap, HistoryPage, ImportDraft, ImportView, Preferences, Program, Session, Template } from '../types';
+import type { Bootstrap, DraftWorkout, HistoryPage, ImportDraft, ImportView, Preferences, Program, ProgramSummary, Session, Template } from '../types';
 
 export class ApiError extends Error {
   constructor(message: string, readonly status: number) { super(message); }
@@ -48,11 +48,13 @@ export const api = {
   exportAccount: () => call<unknown>('/api/export'),
 
   templates: () => call<Template[]>('/api/templates'),
+  getTemplate: (id: string) => call<Template>(`/api/templates/${id}`),
   createTemplate: (input: unknown) => call<Template>('/api/templates', 'POST', input),
   updateTemplate: (id: string, input: unknown) => call<Template>(`/api/templates/${id}`, 'PUT', input),
   deleteTemplate: (id: string) => call<void>(`/api/templates/${id}`, 'DELETE'),
 
-  programs: () => call<Program[]>('/api/programs'),
+  programs: () => call<ProgramSummary[]>('/api/programs'),
+  getProgram: (id: string) => call<Program>(`/api/programs/${id}`),
   createProgram: (input: unknown) => call<Program>('/api/programs', 'POST', input),
   setProgramActive: (id: string, active: boolean, revision: number) => call<Program>(`/api/programs/${id}/active`, 'POST', { active, revision }),
   deleteProgram: (id: string) => call<void>(`/api/programs/${id}`, 'DELETE'),
@@ -68,7 +70,9 @@ export const api = {
   imports: () => call<ImportView[]>('/api/imports'),
   getImport: (id: string) => call<ImportView>(`/api/imports/${id}`),
   uploadImport: (file: File) => { const form = new FormData(); form.append('file', file); return call<ImportView>('/api/imports', 'POST', form); },
-  editImport: (id: string, draft: ImportDraft) => call<ImportView>(`/api/imports/${id}`, 'PUT', draft),
+  extractImport: (id: string, file: File) => { const form = new FormData(); form.append('file', file); return call<ImportView>(`/api/imports/${id}/extract`, 'POST', form); },
+  editImport: (id: string, draft: Pick<ImportDraft, 'programName' | 'description'>) => call<ImportView>(`/api/imports/${id}`, 'PUT', draft),
+  editImportDay: (id: string, day: DraftWorkout) => call<ImportView>(`/api/imports/${id}/days/${day.lineId}`, 'PUT', day),
   rematchImport: (id: string) => call<ImportView>(`/api/imports/${id}/rematch`, 'POST'),
   acceptImport: (id: string) => call<Program>(`/api/imports/${id}/accept`, 'POST'),
   discardImport: (id: string) => call<void>(`/api/imports/${id}/discard`, 'POST')

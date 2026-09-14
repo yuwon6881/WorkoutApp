@@ -66,6 +66,10 @@ public sealed class WorkoutTemplate : OwnedRecord
     public string Note { get; set; } = "";
     public int Week { get; set; } = 1;
     public int Position { get; set; }
+    public string Block { get; set; } = "";
+    public string Phase { get; set; } = "";
+    public int PhaseWeek { get; set; } = 1;
+    public bool IsRestDay { get; set; }
     public DateTime Created { get; set; } = DateTime.UtcNow;
 }
 
@@ -77,6 +81,8 @@ public sealed class TemplateExercise : OwnedRecord
     public int Position { get; set; }
     public string Note { get; set; } = "";
     public string SetsJson { get; set; } = "[]";
+    public string SequenceGroup { get; set; } = "";
+    public string SubstitutionsJson { get; set; } = "[]";
 }
 
 public sealed class WorkoutSession : OwnedRecord
@@ -99,6 +105,8 @@ public sealed class SessionExercise : OwnedRecord
     public int Position { get; set; }
     public string Note { get; set; } = "";
     public string PrescriptionJson { get; set; } = "[]";
+    public string SequenceGroup { get; set; } = "";
+    public string SubstitutionsJson { get; set; } = "[]";
 }
 
 public sealed class CompletedSet : OwnedRecord
@@ -111,6 +119,7 @@ public sealed class CompletedSet : OwnedRecord
     public int? Reps { get; set; }
     public double? Rpe { get; set; }
     public bool Done { get; set; }
+    public bool Warmup { get; set; }
 }
 
 public sealed class AiImport : OwnedRecord
@@ -123,6 +132,13 @@ public sealed class AiImport : OwnedRecord
     public string DraftJson { get; set; } = "";
     public string Error { get; set; } = "";
     public string Model { get; set; } = "";
+    public string Stage { get; set; } = "done";
+    public string OutlineJson { get; set; } = "";
+    public int ChunksDone { get; set; }
+    public int ChunksTotal { get; set; }
+    public int Calls { get; set; }
+    public int UnresolvedCount { get; set; }
+    public bool CatalogStale { get; set; }
     public long InputTokens { get; set; }
     public long OutputTokens { get; set; }
     public Guid? ProgramId { get; set; }

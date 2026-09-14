@@ -4,13 +4,25 @@ using Workout.Api.Domain;
 
 namespace Workout.Api.Services;
 
-public record ProgramWorkoutInput(int Week, string Name, string? Focus, string? Note, List<TemplateExerciseInput> Exercises);
+public record ProgramWorkoutInput(int Week, string Name, string? Focus, string? Note, List<TemplateExerciseInput> Exercises,
+    string? Block = null, string? Phase = null, int PhaseWeek = 1, bool IsRestDay = false);
 public record ProgramInput(string Name, string? Description, List<ProgramWorkoutInput> Workouts, Guid? IdempotencyId);
 public record ProgramView(Guid Id, string Name, string Description, int Weeks, bool Active, int Revision, Guid? SourceImportId, List<TemplateView> Workouts, List<Guid> CompletedTemplateIds, Guid? NextTemplateId);
+public record ProgramDayView(Guid Id, string Name, string Focus, string Block, string Phase, int Week, int PhaseWeek, int Position, bool IsRestDay, int ExerciseCount);
+public record ProgramSummaryView(Guid Id, string Name, string Description, int Weeks, bool Active, int Revision, Guid? SourceImportId,
+    List<ProgramDayView> Days, List<Guid> CompletedTemplateIds, Guid? NextTemplateId);
 
 public sealed class ProgramService(AppDb db, TemplateService templates)
 {
-    public async Task<List<ProgramView>> List(CancellationToken ct)
+    public async Task<List<ProgramSummaryView>> List(CancellationToken ct)
+    {
+        var programs = await db.Programs.AsNoTracking().OrderByDescending(p => p.Active).ThenByDescending(p => p.Created).ToListAsync(ct);
+        var views = new List<ProgramSummaryView>();
+        foreach (var program in programs) views.Add(await Summary(program, ct));
+        return views;
+    }
+
+    public async Task<List<ProgramView>> FullList(CancellationToken ct)
     {
         var programs = await db.Programs.AsNoTracking().OrderByDescending(p => p.Active).ThenByDescending(p => p.Created).ToListAsync(ct);
         var views = new List<ProgramView>();
@@ -33,8 +45,25 @@ public sealed class ProgramService(AppDb db, TemplateService templates)
         var completed = await db.Workouts.AsNoTracking()
             .Where(w => w.ProgramId == program.Id && w.FinishedAt != null && w.TemplateId != null)
             .Select(w => w.TemplateId!.Value).Distinct().ToListAsync(ct);
-        var next = workouts.FirstOrDefault(w => !completed.Contains(w.Id))?.Id;
+        var next = workouts.FirstOrDefault(w => !w.IsRestDay && !completed.Contains(w.Id))?.Id;
         return new ProgramView(program.Id, program.Name, program.Description, program.Weeks, program.Active, program.Revision, program.SourceImportId, workouts, completed, next);
+    }
+
+    public async Task<ProgramSummaryView> Summary(TrainingProgram program, CancellationToken ct)
+    {
+        var rows = await db.Templates.AsNoTracking().Where(t => t.ProgramId == program.Id)
+            .OrderBy(t => t.Week).ThenBy(t => t.Position).ToListAsync(ct);
+        var ids = rows.Select(t => t.Id).ToList();
+        var exerciseCounts = await db.TemplateExercises.AsNoTracking().Where(e => ids.Contains(e.TemplateId))
+            .GroupBy(e => e.TemplateId).Select(g => new { g.Key, Count = g.Count() }).ToDictionaryAsync(x => x.Key, x => x.Count, ct);
+        var completed = await db.Workouts.AsNoTracking()
+            .Where(w => w.ProgramId == program.Id && w.FinishedAt != null && w.TemplateId != null)
+            .Select(w => w.TemplateId!.Value).Distinct().ToListAsync(ct);
+        var days = rows.Select(t => new ProgramDayView(t.Id, t.Name, t.Focus, t.Block, t.Phase, t.Week, t.PhaseWeek, t.Position,
+            t.IsRestDay, exerciseCounts.GetValueOrDefault(t.Id))).ToList();
+        var next = days.FirstOrDefault(d => !d.IsRestDay && !completed.Contains(d.Id))?.Id;
+        return new ProgramSummaryView(program.Id, program.Name, program.Description, program.Weeks, program.Active, program.Revision,
+            program.SourceImportId, days, completed, next);
     }
 
     public async Task<ProgramView> Create(ProgramInput input, bool activate, Guid? sourceImportId, CancellationToken ct)
@@ -68,7 +97,9 @@ public sealed class ProgramService(AppDb db, TemplateService templates)
             var template = new WorkoutTemplate
             {
                 UserId = program.UserId, ProgramId = program.Id, Name = workout.Name.Trim(), Focus = workout.Focus?.Trim() ?? "",
-                Note = workout.Note?.Trim() ?? "", Week = workout.Week, Position = index
+                Note = workout.Note?.Trim() ?? "", Week = workout.Week, Position = index,
+                Block = workout.Block?.Trim() ?? "", Phase = workout.Phase?.Trim() ?? "", PhaseWeek = workout.PhaseWeek,
+                IsRestDay = workout.IsRestDay
             };
             db.Templates.Add(template);
             templates.AddExercises(template.Id, workout.Exercises);
@@ -118,9 +149,10 @@ public sealed class ProgramService(AppDb db, TemplateService templates)
         Validation.Name(input.Name, "Program name");
         Validation.Text(input.Description, 4000, "Program description");
         Validation.Require(input.Workouts is { Count: > 0 }, "A program needs at least one workout.");
-        Validation.Require(input.Workouts.Count <= 200, "A program can have at most 200 workouts.");
+        Validation.Require(input.Workouts.Count <= 400, "A program can have at most 400 workouts.");
         Validation.Require(input.Workouts.All(w => w.Week is > 0 and <= 104), "Program weeks must be between 1 and 104.");
         foreach (var workout in input.Workouts)
-            await templates.ValidateInput(new TemplateInput(workout.Name, workout.Focus, workout.Note, workout.Exercises, null, null), ct);
+            await templates.ValidateInput(new TemplateInput(workout.Name, workout.Focus, workout.Note, workout.Exercises, null, null,
+                workout.Block, workout.Phase, workout.PhaseWeek, workout.IsRestDay), ct);
     }
 }

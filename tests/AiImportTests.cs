@@ -1,5 +1,6 @@
 using System.Net;
 using System.Text;
+using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Workout.Api.Data;
 using Workout.Api.Domain;
@@ -10,10 +11,11 @@ namespace Workout.Tests;
 
 public class AiImportTests
 {
-    private static byte[] Pdf(int pages = 2)
+    private static byte[] Pdf(int pages = 2, int? marker = null)
     {
         var body = new StringBuilder("%PDF-1.7\n");
         for (var i = 0; i < pages; i++) body.Append("/Type /Page \n");
+        if (marker is { } value) body.Append($"% seed {value}\n");
         body.Append("%%EOF");
         return Encoding.Latin1.GetBytes(body.ToString());
     }
@@ -24,6 +26,18 @@ public class AiImportTests
         {"sourceName":"Barbell bench press","exerciseId":null,"notes":null,"sets":[
           {"repMin":8,"repMax":10,"targetRpe":8,"restSeconds":120,"tempo":null,"loadText":null,"notes":null,
            "repsSource":"extracted","rpeSource":"inferred","restSource":"extracted"}]}]}]}]}
+    """;
+
+    private const string Outline = """
+    {"programTitle":"Faithful block","description":"Blocks survive","chunks":[
+      {"label":"Block 1 · Base · Week 1","block":"Block 1","phase":"Base Hypertrophy","weekFrom":1,"weekTo":1,"pageFrom":1,"pageTo":4,"dayCount":1}]}
+    """;
+
+    private const string Chunk = """
+    {"programTitle":"Faithful block","description":"Blocks survive","days":[
+      {"block":"Block 1","phase":"Base Hypertrophy","weekNumber":1,"phaseWeek":1,"dayName":"Lower A","isRestDay":false,"notes":"Keep the tempo","exercises":[
+        {"sequenceGroup":"A1","sourceName":"Constant-Tension Lying Leg Curl","exerciseId":null,"warmupSets":"2-3","substitutions":["Seated leg curl","Nordic curl"],"coachingNotes":"Control the eccentric","notes":null,"sets":[
+          {"repMin":8,"repMax":12,"repsText":"AMRAP","targetRpe":null,"rir":"2","percent1Rm":"75%","restSeconds":60,"restText":"3-5 min","tempo":"3010","loadText":null,"notes":null,"repsSource":"extracted","rpeSource":"inferred","restSource":"extracted"}]}]}]}
     """;
 
     private static Dictionary<string, string?> Configured => new() { ["OpenAi:ApiKey"] = "test-key", ["OpenAi:Model"] = "gpt-5.4-mini" };
@@ -44,7 +58,57 @@ public class AiImportTests
         Assert.Equal(10, exercise.Sets[0].RepMax);
     }
 
-    [Fact] public async Task An_unmatched_exercise_stays_unresolved_and_blocks_acceptance()
+    [Fact] public async Task A_chunked_import_preserves_blocks_verbatim_targets_and_accepts_unmapped_names()
+    {
+        await using var h = await Harness.Create(Configured);
+        await h.SignIn();
+        var call = 0;
+        var stub = new StubHandler(_ =>
+        {
+            var body = call++ == 0 ? Outline : Chunk;
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent($$"""{"status":"completed","usage":{"input_tokens":10,"output_tokens":20},"output":[{"content":[{"type":"output_text","text":{{JsonSerializer.Serialize(body)}}}]}]}""")
+            };
+        });
+        var imports = h.Imports(stub);
+        var partial = await imports.Create(Pdf(), "faithful.pdf", default);
+
+        Assert.Equal(ImportStatus.Pending, partial.Status);
+        Assert.Equal("extract", partial.Stage);
+        Assert.Equal(0, partial.ChunksDone);
+        Assert.Equal(1, partial.ChunksTotal);
+        Assert.Equal(1, (await h.Db.Imports.AsNoTracking().SingleAsync()).Calls);
+
+        var ready = await imports.Extract(partial.Id, Pdf(), "faithful.pdf", default);
+        Assert.Equal(ImportStatus.Ready, ready.Status);
+        Assert.True(ready.Acceptable);
+        Assert.Equal(1, ready.UnresolvedCount);
+        var exercise = ready.Draft!.Workouts.Single().Exercises.Single();
+        Assert.Equal("A1", exercise.SequenceGroup);
+        Assert.Equal(["Seated leg curl", "Nordic curl"], exercise.Substitutions);
+        Assert.Equal(3, exercise.Sets.Count);
+        Assert.All(exercise.Sets.Take(2), set => Assert.True(set.Warmup));
+        Assert.False(exercise.Sets[2].Warmup);
+        Assert.Equal("AMRAP", exercise.Sets[2].RepsText);
+        Assert.Equal("3-5 min", exercise.Sets[2].RestText);
+        Assert.Equal("75%", exercise.Sets[2].Percent1Rm);
+        Assert.Equal("2", exercise.Sets[2].Rir);
+        Assert.Equal(8, exercise.Sets[2].TargetRpe);
+        Assert.Equal("inferred", exercise.Sets[2].RepsSource);
+
+        var program = await imports.Accept(ready.Id, default);
+        var workout = Assert.Single(program.Workouts);
+        Assert.Equal("Block 1", workout.Block);
+        Assert.Equal("Base Hypertrophy", workout.Phase);
+        Assert.Equal(1, workout.PhaseWeek);
+        Assert.Equal("A1", workout.Exercises.Single().SequenceGroup);
+        Assert.Equal("AMRAP", workout.Exercises.Single().Sets[2].RepsText);
+        Assert.Equal("Constant-Tension Lying Leg Curl", workout.Exercises.Single().SourceName);
+        Assert.Equal(2, (await h.Db.Imports.AsNoTracking().SingleAsync()).Calls);
+    }
+
+    [Fact] public async Task An_unmatched_exercise_stays_unresolved_but_does_not_block_acceptance()
     {
         await using var h = await Harness.Create(Configured);
         await h.SignIn();
@@ -53,11 +117,11 @@ public class AiImportTests
 
         Assert.Null(view.Draft!.Workouts.Single().Exercises.Single().ExerciseId);
         Assert.Single(view.Unresolved);
-        Assert.False(view.Acceptable);
-        var failure = await Assert.ThrowsAsync<DomainException>(() => imports.Accept(view.Id, default));
-        Assert.Equal(409, failure.Status);
-        Assert.Contains("Map every exercise", failure.Message);
-        Assert.Equal(0, await h.Db.Programs.CountAsync());
+        Assert.True(view.Acceptable);
+        var program = await imports.Accept(view.Id, default);
+        Assert.Equal("Barbell bench press", program.Workouts.Single().Exercises.Single().SourceName);
+        Assert.Null(program.Workouts.Single().Exercises.Single().ExerciseId);
+        Assert.Equal(1, await h.Db.Programs.CountAsync());
     }
 
     [Fact] public async Task An_exercise_already_in_the_library_is_matched_by_name()
@@ -79,7 +143,7 @@ public class AiImportTests
         await h.SignIn();
         var imports = h.Imports(StubHandler.Program(OneWorkout));
         var view = await imports.Create(Pdf(), "block.pdf", default);
-        Assert.False(view.Acceptable);
+        Assert.True(view.Acceptable);
 
         await h.Seed(new SeedExercise("bench", "Barbell bench press", "Chest", "Barbell", "Cue", null));
         var rematched = await imports.Rematch(view.Id, default);
@@ -112,7 +176,7 @@ public class AiImportTests
         Assert.Equal(view.Id, program.SourceImportId);
         var workout = Assert.Single(program.Workouts);
         Assert.Equal("Day A", workout.Name);
-        Assert.Equal(new SetPrescription(8, 10, 8, 120, null, null, null), workout.Exercises.Single().Sets.Single());
+        Assert.Equal(new SetPrescription(8, 10, 8, 120, null, null, null, null, null, null, null, false, "extracted", "inferred", "extracted"), workout.Exercises.Single().Sets.Single());
         Assert.Equal(ImportStatus.Accepted, (await imports.Get(view.Id, default)).Status);
     }
 
@@ -217,8 +281,8 @@ public class AiImportTests
         await using var h = await Harness.Create(Configured);
         await h.SignIn();
         var imports = h.Imports(StubHandler.Program(OneWorkout));
-        for (var i = 0; i < ImportService.DailyLimit; i++) await imports.Create(Pdf(i + 1), $"block{i}.pdf", default);
-        var failure = await Assert.ThrowsAsync<DomainException>(() => imports.Create(Pdf(99), "one-too-many.pdf", default));
+        for (var i = 0; i < ImportService.DailyLimit; i++) await imports.Create(Pdf(2, i), $"block{i}.pdf", default);
+        var failure = await Assert.ThrowsAsync<DomainException>(() => imports.Create(Pdf(2, 999), "one-too-many.pdf", default));
         Assert.Equal(429, failure.Status);
     }
 

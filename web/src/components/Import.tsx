@@ -1,54 +1,87 @@
 import { useEffect, useRef, useState } from 'react';
-import { AlertTriangle, ArrowLeft, Check, ChevronDown, ChevronUp, FileText, Plus, Sparkles, Trash2, Upload, Wand2 } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, Check, ChevronDown, FileText, Plus, Trash2, Upload, Wand2 } from 'lucide-react';
 import type { DraftExercise, DraftSet, DraftWorkout, Exercise, ImportDraft, ImportView } from '../types';
 import { ApiError, api } from '../lib/api';
 import { showReps } from '../lib/training';
 import { Button } from './ui/Button';
 
 const MAX_BYTES = 20 * 1024 * 1024;
-
-const label: Record<string, string> = { extracted: 'From the PDF', inferred: 'AI suggestion', userEdited: 'Your edit' };
+const sourceLabel: Record<string, string> = { extracted: 'From the PDF', inferred: 'AI suggestion', userEdited: 'Your edit' };
 
 function Source({ source }: { source: string }) {
-  return <span className={`tiny-label provenance ${source}`} title={label[source] ?? source}>{label[source] ?? source}</span>;
+  return <span className={`tiny-label provenance ${source}`} title={sourceLabel[source] ?? source}>{sourceLabel[source] ?? source}</span>;
 }
 
-/// The review workflow gets its own page: a multi-week program does not fit a routine dialog,
-/// and the reviewer needs room to see every prescription and where each value came from.
 export function ImportReview({ exercises, imports, remaining, onBack, onChanged }: {
   exercises: Exercise[]; imports: ImportView[]; remaining: number; onBack: () => void; onChanged: () => Promise<void>;
 }) {
-  const [selected, setSelected] = useState<ImportView | null>(imports.find(i => i.status === 'ready') ?? null);
+  const [selected, setSelected] = useState<ImportView | null>(imports.find(i => i.status === 'ready') ?? imports[0] ?? null);
   const [draft, setDraft] = useState<ImportDraft | null>(selected?.draft ?? null);
+  const [expandedDay, setExpandedDay] = useState<string | null>(null);
   const [busy, setBusy] = useState('');
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const file = useRef<HTMLInputElement>(null);
 
-  useEffect(() => { setDraft(selected?.draft ?? null); }, [selected]);
+  useEffect(() => {
+    let cancelled = false;
+    if (!selected) { setDraft(null); return; }
+    if (selected.draft) { setDraft(selected.draft); return; }
+    setBusy('Loading this import…');
+    api.getImport(selected.id).then(view => {
+      if (!cancelled) { setSelected(view); setDraft(view.draft); }
+    }).catch(failure => { if (!cancelled) setError(failure instanceof ApiError ? failure.message : 'Could not load this import.'); })
+      .finally(() => { if (!cancelled) setBusy(''); });
+    return () => { cancelled = true; };
+  }, [selected?.id]);
+
+  async function continueExtraction(view: ImportView, chosen: File) {
+    let current = view;
+    while (current.status === 'pending' && current.stage === 'extract' && current.chunksDone < current.chunksTotal) {
+      setBusy(`Reading chunk ${current.chunksDone + 1} of ${current.chunksTotal}${current.currentChunkLabel ? ` · ${current.currentChunkLabel}` : ''}…`);
+      try {
+        current = await api.extractImport(current.id, chosen);
+        setSelected(current); setDraft(current.draft);
+        await onChanged();
+      } catch (failure) {
+        setError(failure instanceof ApiError ? failure.message : 'That extraction chunk failed. Retry with the same PDF.');
+        setSelected(current);
+        return;
+      }
+    }
+    setSelected(current); setDraft(current.draft);
+    if (current.status === 'ready') setNotice(`Read ${current.draft?.workouts.length ?? 0} days. Review the tree before accepting it.`);
+  }
 
   async function upload(chosen: File) {
     setError(''); setNotice('');
     if (chosen.size > MAX_BYTES) { setError('That PDF is larger than 20 MB.'); return; }
     if (!/\.pdf$/i.test(chosen.name)) { setError('Choose a PDF file.'); return; }
-    setBusy('Reading your program. This can take a minute for a long PDF…');
+    setBusy('Reading the program outline…');
     try {
       const view = await api.uploadImport(chosen);
-      setSelected(view);
-      setNotice(view.unresolved.length
-        ? `Read ${view.draft?.workouts.length ?? 0} workouts. ${view.unresolved.length} exercises still need mapping.`
-        : `Read ${view.draft?.workouts.length ?? 0} workouts. Every exercise is mapped.`);
+      setSelected(view); setDraft(view.draft);
       await onChanged();
+      if (view.stage === 'extract') await continueExtraction(view, chosen);
+      else if (view.status === 'ready') setNotice(`Read ${view.draft?.workouts.length ?? 0} days. Review the tree before accepting it.`);
     } catch (failure) { setError(failure instanceof ApiError ? failure.message : 'Could not read that PDF.'); }
     finally { setBusy(''); }
   }
 
   async function persist(next: ImportDraft) {
     if (!selected) return;
-    setDraft(next);
-    setBusy('Saving your changes…'); setError('');
-    try { const view = await api.editImport(selected.id, next); setSelected(view); await onChanged(); }
+    setDraft(next); setBusy('Saving your changes…'); setError('');
+    try { const view = await api.editImport(selected.id, { programName: next.programName, description: next.description }); setSelected(view); setDraft(view.draft); await onChanged(); }
     catch (failure) { setError(failure instanceof ApiError ? failure.message : 'Could not save your changes.'); }
+    finally { setBusy(''); }
+  }
+
+  async function persistDay(day: DraftWorkout) {
+    if (!selected) return;
+    setDraft(current => current ? { ...current, workouts: current.workouts.map(item => item.lineId === day.lineId ? day : item) } : current);
+    setBusy('Saving this day…'); setError('');
+    try { const view = await api.editImportDay(selected.id, day); setSelected(view); setDraft(view.draft); await onChanged(); }
+    catch (failure) { setError(failure instanceof ApiError ? failure.message : 'Could not save this day.'); }
     finally { setBusy(''); }
   }
 
@@ -61,13 +94,10 @@ export function ImportReview({ exercises, imports, remaining, onBack, onChanged 
 
   return <>
     <div className="page-heading">
-      <div>
-        <Button variant="tertiary" onClick={onBack}><ArrowLeft size={16} />Back to workouts</Button>
-        <div className="eyebrow">TURN A PDF INTO A PROGRAM</div>
-        <h1>Import a program<span className="accent">.</span></h1>
-        <p>Upload a training PDF. Everything it reads lands in a draft you review and correct before anything is saved as a program.</p>
-      </div>
-      <span className="pill">{remaining} imports left today</span>
+      <div><Button variant="tertiary" onClick={onBack}><ArrowLeft size={16} />Back to workouts</Button>
+        <div className="eyebrow">TURN A PDF INTO A PROGRAM</div><h1>Import a program<span className="accent">.</span></h1>
+        <p>Upload a training PDF. It becomes an editable draft before anything is saved as a program.</p></div>
+      <span className="pill">{remaining} AI reads left today</span>
     </div>
 
     <section className="panel">
@@ -78,140 +108,125 @@ export function ImportReview({ exercises, imports, remaining, onBack, onChanged 
       {busy && <p className="muted" role="status">{busy}</p>}
       {notice && <p className="muted" role="status">{notice}</p>}
       {error && <p className="error-text" role="alert">{error}</p>}
-      <p className="muted small-copy">The PDF is read once and never stored. If an import fails, upload the file again.</p>
+      <p className="muted small-copy">The PDF is read once and never stored. A partial import can resume when you choose the same file again.</p>
     </section>
 
     {imports.length > 0 && <section className="panel">
       <div className="section-heading"><h2>Your imports</h2><span className="muted">{imports.length}</span></div>
-      {imports.map(view => <Button key={view.id} variant="tertiary" className={`history-row ${selected?.id === view.id ? 'selected' : ''}`} onClick={() => setSelected(view)}>
-        <span className="exercise-icon"><FileText size={19} /></span>
-        <span className="row-title"><strong>{view.fileName}</strong><small>{new Date(view.created).toLocaleString()} · {view.status}{view.error ? ` · ${view.error}` : ''}</small></span>
-        {view.status === 'ready' && <span className="tiny-label">{view.unresolved.length ? `${view.unresolved.length} to map` : 'ready'}</span>}
+      {imports.map(view => <Button key={view.id} variant="tertiary" className={`history-row ${selected?.id === view.id ? 'selected' : ''}`} onClick={() => { setError(''); setSelected(view); }}>
+        <span className="exercise-icon"><FileText size={19} /></span><span className="row-title"><strong>{view.fileName}</strong>
+          <small>{new Date(view.created).toLocaleString()} · {view.status}{view.stage !== 'done' ? ` · ${view.chunksDone}/${view.chunksTotal} chunks` : ''}{view.error ? ` · ${view.error}` : ''}</small></span>
+        {view.status === 'ready' && <span className="tiny-label">{view.unresolvedCount ? `${view.unresolvedCount} unmapped` : 'ready'}</span>}
       </Button>)}
+    </section>}
+
+    {selected && selected.status === 'pending' && <section className="panel">
+      <div className="empty-message"><Wand2 size={30} /><h3>Extraction paused</h3>
+        <p>{selected.chunksDone} of {selected.chunksTotal} chunks are complete. Choose the same PDF to continue this import.</p>
+        {selected.error && <p className="error-text">Last chunk: {selected.error}</p>}
+        <Button variant="primary" onClick={() => file.current?.click()} disabled={!!busy}><Upload size={16} />Choose the same PDF to continue</Button>
+      </div>
     </section>}
 
     {selected && draft && selected.status === 'ready' && <>
       <section className="panel">
         <div className="section-heading"><h2>Review</h2><span className="tiny-label">READ BY {selected.model || 'AI'}</span></div>
-        <label className="field">Program name<input name="import-program-name" maxLength={120} value={draft.programName} onChange={e => setDraft({ ...draft, programName: e.target.value })} onBlur={() => persist(draft)} /></label>
-        <label className="field">Description<textarea name="import-description" maxLength={4000} value={draft.description ?? ''} onChange={e => setDraft({ ...draft, description: e.target.value })} onBlur={() => persist(draft)} /></label>
-        {selected.unresolved.length > 0 && <div className="error-banner" role="status">
-          <AlertTriangle size={17} />
-          {exercises.length
-            ? `${selected.unresolved.length} ${selected.unresolved.length === 1 ? 'exercise is' : 'exercises are'} not matched to the library yet. Map each one below to accept this program.`
-            : `The exercise library is empty, so none of these ${selected.unresolved.length} exercises can be mapped yet. The draft is saved and will wait until exercises are available.`}
+        <label className="field">Program name<input name="import-program-name" maxLength={120} value={draft.programName} onChange={e => setDraft({ ...draft, programName: e.target.value })} onBlur={() => void persist(draft)} /></label>
+        <label className="field">Description<textarea name="import-description" maxLength={4000} value={draft.description ?? ''} onChange={e => setDraft({ ...draft, description: e.target.value })} onBlur={() => void persist(draft)} /></label>
+        {selected.unresolved.length > 0 && <div className="error-banner" role="status"><AlertTriangle size={17} />
+          {selected.unresolved.length} exercise name{selected.unresolved.length === 1 ? '' : 's'} are not linked to the catalog. They will stay verbatim and can still be logged.
         </div>}
       </section>
-
-      {draft.workouts.map((workout, wi) => <WorkoutBlock key={workout.lineId} workout={workout} index={wi} total={draft.workouts.length} exercises={exercises}
-        onChange={next => persist({ ...draft, workouts: draft.workouts.map((w, i) => i === wi ? next : w) })}
-        onMove={direction => {
-          const target = wi + direction;
-          if (target < 0 || target >= draft.workouts.length) return;
-          const copy = [...draft.workouts];
-          [copy[wi], copy[target]] = [copy[target], copy[wi]];
-          persist({ ...draft, workouts: copy });
-        }}
-        onRemove={() => persist({ ...draft, workouts: draft.workouts.filter((_, i) => i !== wi) })} />)}
-
-      <section className="panel">
-        <div className="settings-actions">
-          <Button disabled={!!busy} onClick={() => act('rematch', async () => { const view = await api.rematchImport(selected.id); setSelected(view); })}>
-            <Wand2 size={17} />Match against the library again
-          </Button>
-          <Button variant="destructive" disabled={!!busy} onClick={() => act('discard', async () => { await api.discardImport(selected.id); setSelected(null); })}>
-            <Trash2 size={17} />Discard draft
-          </Button>
-          <Button variant="primary" disabled={!!busy || !selected.acceptable} onClick={() => act('accept', async () => { await api.acceptImport(selected.id); setSelected(null); onBack(); })}>
-            <Check size={17} />Accept and create program
-          </Button>
-        </div>
-        {!selected.acceptable && <p className="muted small-copy">Accepting stays disabled until every exercise is mapped to the library.</p>}
-      </section>
+      {draft.workouts.length > 0 ? <DraftOutline draft={draft} expandedDay={expandedDay} setExpandedDay={setExpandedDay} exercises={exercises} onDayChange={persistDay} />
+        : <section className="panel"><div className="empty-message"><AlertTriangle size={30} /><h3>No extracted days</h3><p>The draft needs at least one training or rest day.</p></div></section>}
+      <section className="panel"><div className="settings-actions">
+        <Button disabled={!!busy} onClick={() => act('rematch', async () => { const view = await api.rematchImport(selected.id); setSelected(view); setDraft(view.draft); })}><Wand2 size={17} />Match against the library again</Button>
+        <Button variant="destructive" disabled={!!busy} onClick={() => act('discard', async () => { await api.discardImport(selected.id); setSelected(null); setDraft(null); })}><Trash2 size={17} />Discard draft</Button>
+        <Button variant="primary" disabled={!!busy || !selected.acceptable} onClick={() => act('accept', async () => { await api.acceptImport(selected.id); setSelected(null); setDraft(null); onBack(); })}><Check size={17} />Accept and create program</Button>
+      </div><p className="muted small-copy">Catalog matches are helpful but optional; unmapped names are preserved exactly.</p></section>
     </>}
 
-    {selected && selected.status === 'failed' && <section className="panel">
-      <div className="empty-message"><AlertTriangle size={30} /><h3>That import did not finish</h3><p>{selected.error}</p>
-        <p className="muted">The original PDF was not kept, so it needs to be uploaded again.</p></div>
-    </section>}
+    {selected && selected.status === 'failed' && <section className="panel"><div className="empty-message"><AlertTriangle size={30} /><h3>That outline did not finish</h3><p>{selected.error}</p><p className="muted">The original PDF was not kept, so upload it again.</p></div></section>}
   </>;
 }
 
-function WorkoutBlock({ workout, index, total, exercises, onChange, onMove, onRemove }: {
-  workout: DraftWorkout; index: number; total: number; exercises: Exercise[];
-  onChange: (next: DraftWorkout) => void; onMove: (direction: number) => void; onRemove: () => void;
-}) {
-  return <section className="panel">
-    <div className="section-heading">
-      <div><span className="tiny-label accent">WEEK {workout.week}</span>
-        <input name={`workout-name-${workout.lineId}`} className="inline-input" aria-label={`Name for workout ${index + 1}`} maxLength={120} value={workout.name} onChange={e => onChange({ ...workout, name: e.target.value })} /></div>
-      <div className="topbar-actions">
-        <Button variant="tertiary" aria-label={`Move ${workout.name} earlier`} disabled={index === 0} onClick={() => onMove(-1)}><ChevronUp size={16} /></Button>
-        <Button variant="tertiary" aria-label={`Move ${workout.name} later`} disabled={index === total - 1} onClick={() => onMove(1)}><ChevronDown size={16} /></Button>
-        <Button variant="tertiary" aria-label={`Remove ${workout.name}`} onClick={onRemove}><Trash2 size={16} /></Button>
-      </div>
-    </div>
+function DraftOutline({ draft, expandedDay, setExpandedDay, exercises, onDayChange }: { draft: ImportDraft; expandedDay: string | null; setExpandedDay: (id: string | null) => void; exercises: Exercise[]; onDayChange: (day: DraftWorkout) => Promise<void> }) {
+  const blocks = new Map<string, Map<string, Map<number, DraftWorkout[]>>>();
+  for (const day of draft.workouts) {
+    const block = day.block || 'Program'; const phase = day.phase || 'General';
+    if (!blocks.has(block)) blocks.set(block, new Map());
+    const phases = blocks.get(block)!; if (!phases.has(phase)) phases.set(phase, new Map());
+    const weeks = phases.get(phase)!; if (!weeks.has(day.phaseWeek)) weeks.set(day.phaseWeek, []); weeks.get(day.phaseWeek)!.push(day);
+  }
+  return <div className="import-tree">{[...blocks].map(([block, phases]) => <section className="panel" key={block}>
+    <div className="section-heading"><h2>{block}</h2><span className="tiny-label">BLOCK</span></div>
+    {[...phases].map(([phase, weeks]) => <details className="phase-tree" key={phase} open><summary><ChevronDown size={15} />{phase}</summary>
+      {[...weeks].map(([week, days]) => <div className="week-tree" key={week}><div className="tiny-label accent">WEEK {week}</div>
+        {days.map(day => <DayRow key={day.lineId} day={day} expanded={expandedDay === day.lineId} onToggle={() => setExpandedDay(expandedDay === day.lineId ? null : day.lineId)} exercises={exercises} onChange={onDayChange} />)}
+      </div>)}
+    </details>)}
+  </section>)}</div>;
+}
 
-    {workout.exercises.map((exercise, ei) => <ExerciseRow key={exercise.lineId} exercise={exercise} exercises={exercises}
-      onChange={next => onChange({ ...workout, exercises: workout.exercises.map((e, i) => i === ei ? next : e) })}
-      onRemove={() => onChange({ ...workout, exercises: workout.exercises.filter((_, i) => i !== ei) })} />)}
-
-    <Button variant="tertiary" onClick={() => onChange({
-      ...workout, exercises: [...workout.exercises, {
-        lineId: crypto.randomUUID(), sourceName: 'New exercise', exerciseId: null, notes: null,
-        sets: [{ repMin: 8, repMax: 12, targetRpe: 8, restSeconds: 90, tempo: null, loadText: null, notes: null, repsSource: 'userEdited', rpeSource: 'userEdited', restSource: 'userEdited' }]
-      }]
-    })}><Plus size={16} />Add exercise</Button>
+function DayRow({ day, expanded, onToggle, exercises, onChange }: { day: DraftWorkout; expanded: boolean; onToggle: () => void; exercises: Exercise[]; onChange: (day: DraftWorkout) => Promise<void> }) {
+  return <section className={`draft-day ${day.isRestDay ? 'rest-day' : ''}`}>
+    <button type="button" className="draft-day-summary" aria-expanded={expanded} onClick={onToggle}>
+      <span><strong>W{day.phaseWeek} · {day.name}</strong><small>{day.isRestDay ? 'REST DAY' : `${day.exercises.length} exercises`}{day.phase?.toLowerCase().includes('deload') ? ' · DELOAD' : ''}</small></span>
+      <span className="tiny-label">{day.isRestDay ? 'REST DAY' : expanded ? 'CLOSE' : 'EDIT'}</span>
+    </button>
+    {expanded && <DayEditor day={day} exercises={exercises} onChange={onChange} />}
   </section>;
 }
 
-function ExerciseRow({ exercise, exercises, onChange, onRemove }: {
-  exercise: DraftExercise; exercises: Exercise[]; onChange: (next: DraftExercise) => void; onRemove: () => void;
-}) {
-  const editSet = (index: number, patch: Partial<DraftSet>) =>
-    onChange({ ...exercise, sets: exercise.sets.map((s, i) => i === index ? { ...s, ...patch } : s) });
+function DayEditor({ day, exercises, onChange }: { day: DraftWorkout; exercises: Exercise[]; onChange: (day: DraftWorkout) => Promise<void> }) {
+  const [draft, setDraft] = useState(day);
+  useEffect(() => setDraft(day), [day]);
+  const save = (next: DraftWorkout) => { setDraft(next); void onChange(next); };
+  const groups: DraftExercise[][] = [];
+  for (const exercise of draft.exercises) {
+    const prefix = exercise.sequenceGroup?.trim().match(/^[A-Za-z]+/)?.[0] ?? '';
+    const previous = groups.at(-1)?.[0]?.sequenceGroup?.match(/^[A-Za-z]+/)?.[0] ?? '';
+    if (prefix && prefix === previous) groups.at(-1)!.push(exercise); else groups.push([exercise]);
+  }
+  return <div className="day-editor">
+    <label className="field">Day name<input value={draft.name} maxLength={120} onChange={e => setDraft({ ...draft, name: e.target.value })} onBlur={() => void onChange(draft)} /></label>
+    <label className="field">Notes<textarea value={draft.notes ?? ''} maxLength={2000} onChange={e => setDraft({ ...draft, notes: e.target.value })} onBlur={() => void onChange(draft)} /></label>
+    {draft.isRestDay ? <div className="rest-callout"><span className="tiny-label">REST DAY</span><p>No exercises are scheduled for this slot.</p></div> : groups.map((group, groupIndex) => <div className={group.length > 1 ? 'superset-block' : ''} key={groupIndex}>
+      {group.length > 1 && <div className="superset-heading">SUPERSET {group[0].sequenceGroup.match(/^[A-Za-z]+/)?.[0] ?? ''}</div>}
+      {group.map(exercise => <ExerciseEditor key={exercise.lineId} exercise={exercise} exercises={exercises} onChange={next => save({ ...draft, exercises: draft.exercises.map(item => item.lineId === next.lineId ? next : item) })} />)}
+    </div>)}
+    {!draft.isRestDay && <Button variant="tertiary" onClick={() => save({ ...draft, exercises: [...draft.exercises, blankExercise()] })}><Plus size={16} />Add exercise</Button>}
+  </div>;
+}
 
+function ExerciseEditor({ exercise, exercises, onChange }: { exercise: DraftExercise; exercises: Exercise[]; onChange: (exercise: DraftExercise) => void }) {
+  const editSet = (index: number, patch: Partial<DraftSet>) => onChange({ ...exercise, sets: exercise.sets.map((set, i) => i === index ? { ...set, ...patch } : set) });
   return <div className="import-exercise">
-    <div className="section-heading">
-      <div>
-        <input name={`source-name-${exercise.lineId}`} className="inline-input" aria-label="Exercise name as written in the PDF" maxLength={160} value={exercise.sourceName} onChange={e => onChange({ ...exercise, sourceName: e.target.value })} />
-        {!exercise.exerciseId && <span className="tiny-label warn"><AlertTriangle size={12} /> NEEDS MAPPING</span>}
-      </div>
-      <Button variant="tertiary" aria-label={`Remove ${exercise.sourceName}`} onClick={onRemove}><Trash2 size={15} /></Button>
-    </div>
-
-    <label className="field">Library exercise
-      <select name={`map-${exercise.lineId}`} aria-label={`Library exercise for ${exercise.sourceName}`} value={exercise.exerciseId ?? ''} onChange={e => onChange({ ...exercise, exerciseId: e.target.value || null })}>
-        <option value="">Not mapped</option>
-        {exercises.map(option => <option key={option.id} value={option.id}>{option.name}</option>)}
-      </select>
-    </label>
-
-    <div className="set-table">
-      <div className="set-table-head"><span>SET</span><span>REPS</span><span>RPE</span><span>REST</span><span className="source-cell">SOURCE</span><span /></div>
-      {exercise.sets.map((set, i) => <div className="set-row" key={i}>
-        <span className="set-number">{i + 1}</span>
-        <span className="import-reps">
-          <input name={`rep-min-${exercise.lineId}-${i}`} aria-label={`Set ${i + 1} lowest reps`} type="number" min="1" max="1000" value={set.repMin}
-            onChange={e => editSet(i, { repMin: Number(e.target.value), repsSource: 'userEdited' })} />
-          <input name={`rep-max-${exercise.lineId}-${i}`} aria-label={`Set ${i + 1} highest reps`} type="number" min="1" max="1000" value={set.repMax}
-            onChange={e => editSet(i, { repMax: Number(e.target.value), repsSource: 'userEdited' })} />
-        </span>
-        <input name={`target-rpe-${exercise.lineId}-${i}`} aria-label={`Set ${i + 1} target RPE`} type="number" min="1" max="10" step="0.5" value={set.targetRpe ?? ''}
-          onChange={e => editSet(i, { targetRpe: e.target.value === '' ? null : Number(e.target.value), rpeSource: 'userEdited' })} />
-        <input name={`rest-${exercise.lineId}-${i}`} aria-label={`Set ${i + 1} rest in seconds`} type="number" min="0" max="3600" value={set.restSeconds ?? ''}
-          onChange={e => editSet(i, { restSeconds: e.target.value === '' ? null : Number(e.target.value), restSource: 'userEdited' })} />
+    <div className="section-heading"><div><input className="inline-input" aria-label={`Exercise name as written in the PDF`} maxLength={160} value={exercise.sourceName} onChange={e => onChange({ ...exercise, sourceName: e.target.value })} />
+      {!exercise.exerciseId && <span className="tiny-label warn"><AlertTriangle size={12} /> UNMAPPED · PRESERVED</span>}</div></div>
+    <div className="import-fields"><label className="field">Library exercise<select aria-label={`Library exercise for ${exercise.sourceName}`} value={exercise.exerciseId ?? ''} onChange={e => onChange({ ...exercise, exerciseId: e.target.value || null })}>
+      <option value="">Not mapped</option>{exercises.map(option => <option key={option.id} value={option.id}>{option.name}</option>)}
+    </select></label><label className="field">Superset group<input maxLength={8} value={exercise.sequenceGroup} onChange={e => onChange({ ...exercise, sequenceGroup: e.target.value })} placeholder="A1" /></label>
+      <label className="field">Substitutions<input value={exercise.substitutions.join(', ')} onChange={e => onChange({ ...exercise, substitutions: e.target.value.split(',').map(s => s.trim()).filter(Boolean).slice(0, 2) })} placeholder="Optional alternates" /></label></div>
+    {exercise.notes && <p className="note-block">{exercise.notes}</p>}
+    <div className="set-table import-set-table"><div className="set-table-head"><span>SET</span><span>REPS</span><span>RPE/RIR</span><span>%1RM</span><span>REST</span><span>SOURCE</span><span /></div>
+      {exercise.sets.map((set, i) => <div className={`set-row ${set.warmup ? 'warmup-row' : ''}`} key={i}><span>{set.warmup ? `W${i + 1}` : i + 1}</span>
+        <input aria-label={`Set ${i + 1} reps text`} value={set.repsText ?? showReps(set)} onChange={e => editSet(i, { repsText: e.target.value, repsSource: 'userEdited' })} />
+        <input aria-label={`Set ${i + 1} target RPE`} type="number" min="1" max="10" step="0.5" value={set.targetRpe ?? ''} onChange={e => editSet(i, { targetRpe: e.target.value === '' ? null : Number(e.target.value), rpeSource: 'userEdited' })} />
+        <input aria-label={`Set ${i + 1} percent 1RM`} value={set.percent1Rm ?? ''} onChange={e => editSet(i, { percent1Rm: e.target.value })} />
+        <input aria-label={`Set ${i + 1} rest text`} value={set.restText ?? (set.restSeconds === null ? '' : `${set.restSeconds}s`)} onChange={e => editSet(i, { restText: e.target.value, restSource: 'userEdited' })} />
         <span className="source-cell"><Source source={set.repsSource} />{set.rpeSource !== set.repsSource && <Source source={set.rpeSource} />}</span>
-        <Button variant="tertiary" aria-label={`Remove set ${i + 1}`} disabled={exercise.sets.length === 1} onClick={() => onChange({ ...exercise, sets: exercise.sets.filter((_, j) => j !== i) })}><Trash2 size={14} /></Button>
+        <Button variant="tertiary" aria-label={`Remove set ${i + 1}`} onClick={() => onChange({ ...exercise, sets: exercise.sets.filter((_, j) => j !== i) })}><Trash2 size={14} /></Button>
       </div>)}
     </div>
-
-    <div className="exercise-actions">
-      <span className="muted small-copy">{exercise.sets.length} sets · {showReps(exercise.sets[0])} reps{exercise.sets[0].loadText ? ` · ${exercise.sets[0].loadText}` : ''}</span>
-      <Button variant="tertiary" disabled={exercise.sets.length >= 20} onClick={() => onChange({ ...exercise, sets: [...exercise.sets, { ...exercise.sets.at(-1)!, repsSource: 'userEdited', rpeSource: 'userEdited', restSource: 'userEdited' }] })}>
-        <Plus size={15} />Add set
-      </Button>
-    </div>
-    {exercise.notes && <p className="muted small-copy"><Sparkles size={13} /> {exercise.notes}</p>}
+    <Button variant="tertiary" disabled={exercise.sets.length >= 24} onClick={() => onChange({ ...exercise, sets: [...exercise.sets, { ...exercise.sets.at(-1)!, warmup: false, repsSource: 'userEdited', rpeSource: 'userEdited', restSource: 'userEdited' }] })}><Plus size={15} />Add set</Button>
   </div>;
+}
+
+function blankExercise(): DraftExercise {
+  return { lineId: crypto.randomUUID(), sourceName: 'New exercise', exerciseId: null, notes: null, sequenceGroup: '', substitutions: [], sets: [blankSet()] };
+}
+
+function blankSet(): DraftSet {
+  return { repMin: 8, repMax: 12, targetRpe: 8, restSeconds: 90, tempo: null, loadText: null, notes: null, repsSource: 'userEdited', rpeSource: 'userEdited', restSource: 'userEdited', repsText: null, restText: null, percent1Rm: null, rir: null, warmup: false };
 }
