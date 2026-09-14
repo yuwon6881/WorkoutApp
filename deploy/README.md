@@ -73,6 +73,17 @@ rather than the SPA document, and no authenticated API response is cached.
 The project's **Root Directory must be set to `web`**, since the repository root now holds the
 API. Set the exact Cloud Run origin in `web/vercel.json` before deploying.
 
+## Automatic deployment
+
+The private GitHub repository `yuwon6881/WorkoutApp` is connected to the Vercel `workout` project.
+Vercel builds from the `web` root and promotes `master` pushes to the production domain
+`https://workout-one-mocha.vercel.app`.
+
+Cloud Build trigger `deploy-workout-api-master` watches the same repository's `master` branch.
+It runs `cloudbuild.yaml`, builds and publishes the API image, and deploys Cloud Run with the
+production Vercel origin. Database migrations remain an explicit pre-deployment operation; the
+runtime keeps `Database__MigrateOnStartup=false`.
+
 ## Verification after a deploy
 
 ```powershell
