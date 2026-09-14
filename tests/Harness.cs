@@ -17,6 +17,7 @@ public sealed class Harness : IAsyncDisposable
     public CatalogService Catalog { get; }
     public TemplateService Templates { get; }
     public ProgramService Programs { get; }
+    public ProgressionService Progression { get; }
     public WorkoutService Workouts { get; }
     public ExportService Export { get; }
 
@@ -27,7 +28,8 @@ public sealed class Harness : IAsyncDisposable
         Catalog = new CatalogService(db);
         Templates = new TemplateService(db, Catalog);
         Programs = new ProgramService(db, Templates);
-        Workouts = new WorkoutService(db, Catalog, Templates);
+        Progression = new ProgressionService(db);
+        Workouts = new WorkoutService(db, Catalog, Templates, Progression);
         Export = new ExportService(db, Programs, Templates, Workouts);
     }
 

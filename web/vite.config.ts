@@ -13,7 +13,7 @@ export default defineConfig({
   preview: { proxy },
   plugins: [react(), VitePWA({
     registerType: 'prompt',
-    includeAssets: ['favicon.svg', 'icon-192.png', 'icon-512.png'],
+    includeAssets: ['favicon.svg', 'icon-192.png', 'icon-512.png', 'rest-alert-sw.js'],
     manifest: {
       name: 'Workout', short_name: 'Workout',
       description: 'Plan, train, and track your lifting. Your training is saved to your account.',
@@ -29,6 +29,9 @@ export default defineConfig({
       // reach the server or fail visibly, and must never be answered with the SPA document.
       navigateFallbackDenylist: [/^\/assets\//, /^\/api\//, /^\/health$/],
       globPatterns: ['**/*.{js,css,html,png,svg,woff2}'],
+      // The rest-timer notification needs a click handler in the worker itself. It is imported
+      // rather than hand-written as a whole worker so Workbox keeps owning the precache.
+      importScripts: ['rest-alert-sw.js'],
       cleanupOutdatedCaches: true
     }
   })]

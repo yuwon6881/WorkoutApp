@@ -26,6 +26,19 @@ export const showReps = (set: SetPrescription | { repMin: number; repMax: number
 
 export const showRpe = (rpe: number | null): string => rpe === null ? '—' : `RPE ${Number(rpe.toFixed(1))}`;
 
+/// Mirrors the server's estimate so the app can show one for a set the user is typing, before
+/// anything is saved. Epley extended with reps in reserve: the set is rated as if it had been
+/// carried to failure. Outside the range the equation holds, there is no estimate to give.
+export const estimate1Rm = (weightKg: number | null, reps: number | null, rpe: number | null): number | null => {
+  if (weightKg === null || reps === null || rpe === null) return null;
+  if (weightKg <= 0 || reps <= 0 || rpe < 6) return null;
+  const total = reps + (10 - rpe);
+  return total > 12 ? null : weightKg * (1 + total / 30);
+};
+
+/// Minutes and seconds, for a clock the user is watching rather than reading.
+export const showClock = (seconds: number): string => `${Math.floor(seconds / 60)}:${String(Math.max(0, seconds) % 60).padStart(2, '0')}`;
+
 export const completedSets = (session: Session): LoggedSet[] => session.exercises.flatMap(e => e.sets).filter(s => s.done && !s.warmup);
 
 export const plannedSets = (session: Session): number => session.exercises.reduce((total, e) => total + e.sets.filter(s => !s.warmup).length, 0);

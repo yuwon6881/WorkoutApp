@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Session } from '../types';
-import { canComplete, completedSets, duration, normalizeExerciseName, plannedSets, showReps, showRpe, showTarget, showVolume, showWeight, toDisplay, toKg, validReps, validRpe } from './training';
+import { canComplete, completedSets, duration, estimate1Rm, normalizeExerciseName, plannedSets, showClock, showReps, showRpe, showTarget, showVolume, showWeight, toDisplay, toKg, validReps, validRpe } from './training';
 
 const set = (overrides: Partial<Session['exercises'][number]['sets'][number]> = {}) =>
   ({ id: 'set', position: 0, weightKg: 60, reps: 10, rpe: 8, done: true, warmup: false, ...overrides });
@@ -8,7 +8,7 @@ const set = (overrides: Partial<Session['exercises'][number]['sets'][number]> = 
 const session = (overrides: Partial<Session> = {}): Session => ({
   id: 's', templateId: null, programId: null, name: 'Push', note: '', active: false,
   startedAt: '2026-09-13T10:00:00Z', finishedAt: '2026-09-13T11:00:00Z', revision: 1,
-  exercises: [{ id: 'e', exerciseId: null, name: 'Bench press', position: 0, note: '', prescription: [], sets: [set()], sequenceGroup: '', substitutions: [] }],
+  exercises: [{ id: 'e', exerciseId: null, name: 'Bench press', position: 0, note: '', prescription: [], sets: [set()], sequenceGroup: '', substitutions: [], progression: null }],
   volumeKg: 600, completedSets: 1, warmupSets: 0, ...overrides
 });
 
@@ -97,12 +97,37 @@ describe('RPE and reps validation', () => {
 describe('session summaries', () => {
   it('counts only completed sets', () => {
     const mixed = session({
-      exercises: [{ id: 'e', exerciseId: null, name: 'Bench press', position: 0, note: '', prescription: [], sets: [set(), set({ id: 'b', done: false })], sequenceGroup: '', substitutions: [] }]
+      exercises: [{ id: 'e', exerciseId: null, name: 'Bench press', position: 0, note: '', prescription: [], sets: [set(), set({ id: 'b', done: false })], sequenceGroup: '', substitutions: [], progression: null }]
     });
     expect(completedSets(mixed)).toHaveLength(1);
   });
 
   it('measures a finished session from its own timestamps', () => {
     expect(duration(session())).toBe(60);
+  });
+});
+
+describe('strength estimate', () => {
+  /// These numbers are the same contract the server holds, so a disagreement here is a
+  /// disagreement about what the app is telling the user, not a rounding difference.
+  it('rates a set as if it had been carried to failure', () => {
+    expect(estimate1Rm(60, 3, 8)).toBeCloseTo(60 * (1 + 5 / 30), 6);
+    expect(estimate1Rm(100, 1, 10)).toBeCloseTo(100 * (1 + 1 / 30), 6);
+  });
+
+  it('gives no estimate where the equation does not hold', () => {
+    expect(estimate1Rm(null, 5, 8)).toBeNull();
+    expect(estimate1Rm(60, 5, null)).toBeNull();
+    // Too easy to say anything, and too many reps for the equation to mean much.
+    expect(estimate1Rm(60, 5, 5)).toBeNull();
+    expect(estimate1Rm(60, 20, 9)).toBeNull();
+    // A bodyweight set carries no load to estimate from.
+    expect(estimate1Rm(0, 10, 9)).toBeNull();
+  });
+
+  it('reads a rest clock in minutes and seconds', () => {
+    expect(showClock(90)).toBe('1:30');
+    expect(showClock(5)).toBe('0:05');
+    expect(showClock(0)).toBe('0:00');
   });
 });

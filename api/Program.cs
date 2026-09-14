@@ -25,6 +25,7 @@ builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<CatalogService>();
 builder.Services.AddScoped<TemplateService>();
 builder.Services.AddScoped<ProgramService>();
+builder.Services.AddScoped<ProgressionService>();
 builder.Services.AddScoped<WorkoutService>();
 builder.Services.AddScoped<ExportService>();
 builder.Services.AddScoped<ImportService>();

@@ -17,6 +17,8 @@ public sealed class AppUser
     public string Unit { get; set; } = "kg";
     public string Theme { get; set; } = "dark";
     public int RestSeconds { get; set; } = 90;
+    /// Whether the rest timer is allowed to make a sound and raise a notification when it ends.
+    public bool RestAlerts { get; set; } = true;
 }
 
 public sealed class AuthSession
@@ -36,6 +38,9 @@ public sealed class Exercise
     public string Equipment { get; set; } = "";
     public string Cue { get; set; } = "";
     public bool Active { get; set; } = true;
+    /// The smallest load change this exercise can actually make in a gym. Zero means the load
+    /// is not adjustable at all, so progression happens through reps.
+    public double LoadStepKg { get; set; } = 2.5;
 }
 
 public sealed class ExerciseAlias
@@ -105,6 +110,10 @@ public sealed class SessionExercise : OwnedRecord
     public int Position { get; set; }
     public string Note { get; set; } = "";
     public string PrescriptionJson { get; set; } = "[]";
+    /// The suggestion this exercise started with, snapshotted so the reason the user read when
+    /// the workout began survives every later save. It is server-derived and never accepted
+    /// from the client.
+    public string ProgressionJson { get; set; } = "";
     public string SequenceGroup { get; set; } = "";
     public string SubstitutionsJson { get; set; } = "[]";
 }
@@ -120,6 +129,20 @@ public sealed class CompletedSet : OwnedRecord
     public double? Rpe { get; set; }
     public bool Done { get; set; }
     public bool Warmup { get; set; }
+}
+
+/// The running strength estimate for one exercise, derived from completed sets. It is a cache
+/// that lets a workout start without replaying history: losing a row costs a suggestion, never
+/// a record. ExerciseId is Guid.Empty for an exercise that never matched the catalog, and
+/// NameKey then carries its normalised name so unmatched work still progresses.
+public sealed class ExerciseProgress : OwnedRecord
+{
+    public Guid ExerciseId { get; set; }
+    public string NameKey { get; set; } = "";
+    public double TrendE1rmKg { get; set; }
+    public double LastE1rmKg { get; set; }
+    public int Stalls { get; set; }
+    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 }
 
 public sealed class AiImport : OwnedRecord

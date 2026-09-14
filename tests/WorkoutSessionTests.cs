@@ -41,7 +41,7 @@ public class WorkoutSessionTests
         Assert.Null(session.VolumeKg);
     }
 
-    [Fact] public async Task The_next_workout_prefills_the_last_load_without_completing_it()
+    [Fact] public async Task The_next_workout_prefills_a_suggestion_without_completing_it()
     {
         var (h, templateId, _) = await Ready();
         await using var _h = h;
@@ -51,8 +51,10 @@ public class WorkoutSessionTests
 
         var second = await h.Workouts.Start(templateId, null, default);
         var sets = second.Exercises.Single().Sets;
-        Assert.Equal(60, sets[0].WeightKg);
-        Assert.Equal(10, sets[0].Reps);
+        // The plan asked for 8-10 at RPE 8 and got all ten of them, so the load moves and the
+        // reps go back to the bottom of the range. Nothing is marked as done or rated for the user.
+        Assert.Equal(62.5, sets[0].WeightKg);
+        Assert.Equal(8, sets[0].Reps);
         Assert.False(sets[0].Done);
         Assert.Null(sets[0].Rpe);
     }

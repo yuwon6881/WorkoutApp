@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
-import { Check, ChevronDown, Clock3, Dumbbell, Minus, Plus, Timer, Trash2 } from 'lucide-react';
+import { Check, ChevronDown, Clock3, Dumbbell, Minus, Plus, Timer, Trash2, TrendingUp } from 'lucide-react';
 import type { Exercise, LoggedSet, Preferences, Session, SessionExercise } from '../types';
 import { ApiError, api } from '../lib/api';
 import type { SaveQueue } from '../lib/queue';
-import { canComplete, completedSets, normalizeExerciseName, plannedSets, rpeSteps, showTarget, showVolume, toDisplay, toKg } from '../lib/training';
+import { canComplete, completedSets, normalizeExerciseName, plannedSets, rpeSteps, showClock, showTarget, showVolume, showWeight, toDisplay, toKg } from '../lib/training';
+import { restTimer } from '../lib/restTimer';
 import { Button } from './ui/Button';
 import { Modal } from './ui/Modal';
 import { ExerciseLibrary } from './Exercises';
@@ -23,7 +24,7 @@ export function Workout({ session, preferences, exercises, queue, onSaved, onClo
 }) {
   const [draft, setDraft] = useState(session);
   const [now, setNow] = useState(Date.now());
-  const [restEnd, setRestEnd] = useState(0);
+  const [rest, setRest] = useState(restTimer.current);
   const [picker, setPicker] = useState(false);
   const [confirm, setConfirm] = useState<'finish' | 'discard' | null>(null);
   const [error, setError] = useState('');
@@ -31,6 +32,10 @@ export function Workout({ session, preferences, exercises, queue, onSaved, onClo
   const revision = useRef(session.revision);
 
   useEffect(() => { const timer = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(timer); }, []);
+
+  // The timer outlives this component: minimising the workout must not cancel a rest that is
+  // already counting, so the state lives in the module and the view only listens to it.
+  useEffect(() => restTimer.subscribe(setRest), []);
 
   function change(next: Session) {
     setDraft(next);
@@ -49,13 +54,15 @@ export function Workout({ session, preferences, exercises, queue, onSaved, onClo
     if (!set.done && !canComplete(set)) { setError('Enter 1–1,000 reps and an RPE from 1 to 10 before logging this set.'); return; }
     setError(''); editSet(ei, si, { done: !set.done });
     const plan = draft.exercises[ei].prescription[si];
-    const rest = plan?.restSeconds ?? preferences.restSeconds;
-    if (!set.done && rest > 0) setRestEnd(Date.now() + rest * 1000);
+    const seconds = plan?.restSeconds ?? preferences.restSeconds;
+    // Started from inside the tap, which is the only moment a browser will let the app open the
+    // audio session the alert depends on once the screen goes off.
+    if (!set.done && seconds > 0) restTimer.start(seconds);
   }
 
   async function finish() {
     setBusy(true);
-    try { const saved = await api.finishWorkout(draft.id, revision.current); setRestEnd(0); onFinish(saved); }
+    try { const saved = await api.finishWorkout(draft.id, revision.current); restTimer.skip(); onFinish(saved); }
     catch (failure) { setError(failure instanceof ApiError ? failure.message : 'Could not save this workout.'); setBusy(false); setConfirm(null); }
   }
 
@@ -66,7 +73,7 @@ export function Workout({ session, preferences, exercises, queue, onSaved, onClo
   }
 
   const elapsed = Math.max(0, Math.floor((now - Date.parse(draft.startedAt)) / 1000));
-  const remaining = Math.max(0, Math.ceil((restEnd - now) / 1000));
+  const remaining = rest.endsAt === 0 ? 0 : Math.max(0, Math.ceil((rest.endsAt - now) / 1000));
   const done = completedSets(draft).length;
   const unit = preferences.unit;
   const groups: SessionExercise[][] = [];
@@ -89,13 +96,18 @@ export function Workout({ session, preferences, exercises, queue, onSaved, onClo
       <label className="field">Workout notes<textarea name="workout-note" maxLength={4000} placeholder="How did the session feel?" value={draft.note} onChange={e => change({ ...draft, note: e.target.value })} /></label>
       {error && <p className="error-text" role="alert">{error}</p>}
     </div>
-    <div className="workout-footer"><div className="rest-control"><Timer size={19} /><span>{remaining ? `${Math.floor(remaining / 60)}:${String(remaining % 60).padStart(2, '0')} rest` : 'Rest timer'}</span>
-      <Button variant="tertiary" onClick={() => setRestEnd(Date.now() + (remaining ? remaining + 30 : preferences.restSeconds) * 1000)}>+{remaining ? '30s' : `${preferences.restSeconds}s`}</Button>{remaining > 0 && <Button variant="tertiary" onClick={() => setRestEnd(0)}>Skip</Button>}</div>
+    <div className="workout-footer"><div className={`rest-control ${remaining > 0 ? 'resting' : ''}`}>
+      <Timer size={19} />
+      <span className="rest-clock" role="timer" aria-live="off">{remaining > 0 ? `${showClock(remaining)} rest` : 'Rest timer'}</span>
+      {remaining > 0 && <span className="rest-track" aria-hidden="true"><span style={{ width: `${rest.totalSeconds > 0 ? Math.min(100, (remaining / rest.totalSeconds) * 100) : 0}%` }} /></span>}
+      <Button variant="tertiary" aria-label={remaining > 0 ? 'Add 30 seconds of rest' : `Start a ${preferences.restSeconds} second rest`}
+        onClick={() => remaining > 0 ? restTimer.extend(30) : restTimer.start(preferences.restSeconds)}>+{remaining > 0 ? '30s' : `${preferences.restSeconds}s`}</Button>
+      {remaining > 0 && <Button variant="tertiary" onClick={() => restTimer.skip()}>Skip</Button>}</div>
       <div className="modal-actions"><Button variant="destructive" disabled={busy} onClick={() => setConfirm('discard')}>Discard</Button><Button onClick={onClose}>Minimize</Button>
         <Button variant="primary" disabled={busy} onClick={() => { if (!done) { setError('Complete at least one working set before finishing.'); return; } setConfirm('finish'); }}>Finish workout<Check size={17} /></Button></div></div>
     {picker && <Modal title="Add an exercise" onClose={() => setPicker(false)}><div className="modal-body"><ExerciseLibrary exercises={exercises} exclude={draft.exercises.map(e => e.exerciseId).filter((id): id is string => id !== null)} onSelect={id => {
       const chosen = exercises.find(e => e.id === id)!;
-      change({ ...draft, exercises: [...draft.exercises, { id: crypto.randomUUID(), exerciseId: chosen.id, name: chosen.name, position: draft.exercises.length, note: '', sequenceGroup: '', substitutions: [], prescription: [blankPrescription(preferences.restSeconds)], sets: [blankLoggedSet()] }] });
+      change({ ...draft, exercises: [...draft.exercises, { id: crypto.randomUUID(), exerciseId: chosen.id, name: chosen.name, position: draft.exercises.length, note: '', sequenceGroup: '', substitutions: [], prescription: [blankPrescription(preferences.restSeconds)], sets: [blankLoggedSet()], progression: null }] });
       setPicker(false);
     }} /></div></Modal>}
     {confirm && <Modal title={confirm === 'finish' ? 'Finish your workout?' : 'Discard this workout?'} onClose={() => setConfirm(null)}><div className="modal-body"><p>{confirm === 'finish' ? `${done} completed working ${done === 1 ? 'set' : 'sets'} will be saved. Unlogged sets will be left out.` : 'This removes the session in progress. Your completed history stays as it is.'}</p></div>
@@ -117,6 +129,9 @@ function ExerciseBlock({ exercise, index, unit, draft, exercises, change, editSe
   return <section className="logging-exercise"><div className="section-heading"><div><h3>{exercise.name}</h3>{!exercise.exerciseId && <span className="tiny-label">NOT IN LIBRARY</span>}</div>
     <div className="topbar-actions">{exercise.substitutions.length > 0 && <Button variant="tertiary" onClick={() => setSwapOpen(value => !value)}>Swap</Button>}<Button variant="tertiary" aria-label={`Remove ${exercise.name}`} onClick={() => change({ ...draft, exercises: draft.exercises.filter((_, i) => i !== index) })}><Trash2 size={16} /></Button></div></div>
     {swapOpen && <div className="swap-menu" role="group" aria-label={`Substitutions for ${exercise.name}`}>{exercise.substitutions.map(name => <Button key={name} variant="tertiary" onClick={() => swap(name)}>{name}</Button>)}</div>}
+    {exercise.progression && <p className="progression-note"><TrendingUp size={14} aria-hidden="true" />
+      <span>{exercise.progression.suggestedKg === null ? '' : <strong>{showWeight(exercise.progression.suggestedKg, unit)} · </strong>}{exercise.progression.reason}</span>
+      {exercise.progression.trendE1rmKg !== null && <small title="Estimated from your logged reps and RPE, not a max you have tested.">Estimated max {showWeight(exercise.progression.trendE1rmKg, unit)}</small>}</p>}
     {prescription.some(p => p.notes || p.loadText || p.tempo || p.percent1Rm || p.rir) && <details><summary>Plan detail <ChevronDown size={13} /></summary><ul>{prescription.map((p, i) => {
       const warmupNumber = prescription.slice(0, i + 1).filter(item => item.warmup).length;
       const workingNumber = prescription.slice(0, i + 1).filter(item => !item.warmup).length;

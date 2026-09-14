@@ -16,6 +16,7 @@ public sealed class AppDb(DbContextOptions<AppDb> options) : DbContext(options)
     public DbSet<WorkoutSession> Workouts => Set<WorkoutSession>();
     public DbSet<SessionExercise> SessionExercises => Set<SessionExercise>();
     public DbSet<CompletedSet> Sets => Set<CompletedSet>();
+    public DbSet<ExerciseProgress> Progress => Set<ExerciseProgress>();
     public DbSet<AiImport> Imports => Set<AiImport>();
     public DbSet<AiUsage> Usage => Set<AiUsage>();
     public DbSet<MutationReceipt> Receipts => Set<MutationReceipt>();
@@ -28,6 +29,7 @@ public sealed class AppDb(DbContextOptions<AppDb> options) : DbContext(options)
         m.Entity<AppUser>().Property(x => x.Unit).HasDefaultValue("kg");
         m.Entity<AppUser>().Property(x => x.Theme).HasDefaultValue("dark");
         m.Entity<AppUser>().Property(x => x.RestSeconds).HasDefaultValue(90);
+        m.Entity<AppUser>().Property(x => x.RestAlerts).HasDefaultValue(true);
         m.Entity<AppUser>().ToTable("Users", t =>
         {
             t.HasCheckConstraint("CK_Users_Unit", "\"Unit\" IN ('kg','lb')");
@@ -43,11 +45,15 @@ public sealed class AppDb(DbContextOptions<AppDb> options) : DbContext(options)
         m.Entity<Exercise>().HasIndex(x => x.Slug).IsUnique();
         m.Entity<Exercise>().Property(x => x.Slug).HasMaxLength(120);
         m.Entity<Exercise>().Property(x => x.Name).HasMaxLength(160);
+        m.Entity<Exercise>().Property(x => x.LoadStepKg).HasDefaultValue(2.5);
+        m.Entity<Exercise>().ToTable("Exercises", t =>
+            t.HasCheckConstraint("CK_Exercises_LoadStep", "\"LoadStepKg\" >= 0 AND \"LoadStepKg\" <= 50"));
         m.Entity<ExerciseAlias>().HasIndex(x => x.Normalized).IsUnique();
         m.Entity<ExerciseAlias>().HasOne<Exercise>().WithMany().HasForeignKey(x => x.ExerciseId).OnDelete(DeleteBehavior.Cascade);
 
         Configure<TrainingProgram>(m); Configure<WorkoutTemplate>(m); Configure<TemplateExercise>(m);
         Configure<WorkoutSession>(m); Configure<SessionExercise>(m); Configure<CompletedSet>(m); Configure<AiImport>(m);
+        Configure<ExerciseProgress>(m);
 
         // One active program and one active workout per user, enforced by the database.
         m.Entity<TrainingProgram>().HasIndex(x => x.UserId).IsUnique().HasFilter("\"Active\"").HasDatabaseName("IX_Programs_ActivePerUser");
@@ -57,6 +63,12 @@ public sealed class AppDb(DbContextOptions<AppDb> options) : DbContext(options)
         m.Entity<SessionExercise>().HasIndex(x => new { x.UserId, x.SessionId, x.Position });
         m.Entity<CompletedSet>().HasIndex(x => new { x.UserId, x.SessionExerciseId, x.Position });
         m.Entity<WorkoutSession>().HasIndex(x => new { x.UserId, x.FinishedAt });
+        // One running estimate per exercise. Guid.Empty plus a name key is a real identity here,
+        // not a null, so the database can hold the uniqueness instead of hoping the code does.
+        m.Entity<ExerciseProgress>().HasIndex(x => new { x.UserId, x.ExerciseId, x.NameKey }).IsUnique().HasDatabaseName("IX_Progress_ExercisePerUser");
+        m.Entity<ExerciseProgress>().Property(x => x.NameKey).HasMaxLength(160);
+        m.Entity<ExerciseProgress>().ToTable("Progress", t =>
+            t.HasCheckConstraint("CK_Progress_E1rm", "\"TrendE1rmKg\" >= 0 AND \"LastE1rmKg\" >= 0"));
         m.Entity<AiImport>().HasIndex(x => new { x.UserId, x.DocumentHash, x.PromptVersion });
         m.Entity<AiImport>().ToTable("Imports", t =>
         {

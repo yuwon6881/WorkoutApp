@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Download, KeyRound, LogOut, MonitorSmartphone, Server } from 'lucide-react';
 import type { Account, Preferences } from '../types';
 import { ApiError, api } from '../lib/api';
+import { requestRestAlerts } from '../lib/restTimer';
 import { Button } from './ui/Button';
 import { Modal } from './ui/Modal';
 
@@ -18,6 +19,9 @@ export function SettingsView({ account, preferences, onPreferences, notify, onSi
   const [install, setInstall] = useState(installPrompt);
   const [help, setHelp] = useState(false);
   const [password, setPassword] = useState(false);
+  // Said plainly, because the guarantee genuinely differs by state: the screen is held awake
+  // during rest, and the sound is queued ahead of time so a locked phone still hears it.
+  const alertHint = 'Sounds when your rest ends, with the screen on or locked. If the browser closes the app entirely, you are told what you missed when you come back.';
 
   useEffect(() => {
     const update = () => setInstall(installPrompt);
@@ -48,6 +52,14 @@ export function SettingsView({ account, preferences, onPreferences, notify, onSi
         <label className="setting-row"><span><strong>Rest between sets</strong><small>Starts when you complete a set.</small></span>
           <select name="rest-seconds" aria-label="Rest between sets" value={preferences.restSeconds} onChange={e => onPreferences({ ...preferences, restSeconds: Number(e.target.value) })}>
             {[0, 30, 60, 90, 120, 180, 240, 300].map(n => <option key={n} value={n}>{n ? `${n} seconds` : 'Off'}</option>)}</select></label>
+        <label className="setting-row"><span><strong>Rest alerts</strong><small>{alertHint}</small></span>
+          <select name="rest-alerts" aria-label="Rest alerts" value={preferences.restAlerts ? 'on' : 'off'} onChange={async e => {
+            const wanted = e.target.value === 'on';
+            // Permission can only be asked for from a real interaction, and a refusal is kept:
+            // the sound still works, so the setting stays on and the copy says what is missing.
+            if (wanted && (await requestRestAlerts()) === 'denied') notify('Notifications are blocked for this site, so rest alerts will sound but not show a banner.');
+            onPreferences({ ...preferences, restAlerts: wanted });
+          }}><option value="on">Sound and notification</option><option value="off">Silent</option></select></label>
         <label className="setting-row"><span><strong>Appearance</strong><small>Choose your training environment.</small></span>
           <select name="appearance" aria-label="Appearance" value={preferences.theme} onChange={e => onPreferences({ ...preferences, theme: e.target.value as Preferences['theme'] })}>
             <option value="dark">Ayu dark</option><option value="light">Ayu light</option></select></label>

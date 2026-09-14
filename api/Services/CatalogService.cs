@@ -4,7 +4,7 @@ using Workout.Api.Domain;
 
 namespace Workout.Api.Services;
 
-public record CatalogExercise(Guid Id, string Slug, string Name, string Muscle, string Equipment, string Cue, List<string> Aliases);
+public record CatalogExercise(Guid Id, string Slug, string Name, string Muscle, string Equipment, string Cue, List<string> Aliases, double LoadStepKg);
 
 public sealed class CatalogService(AppDb db)
 {
@@ -21,7 +21,7 @@ public sealed class CatalogService(AppDb db)
         var ids = exercises.Select(x => x.Id).ToList();
         var aliases = await db.Aliases.AsNoTracking().Where(a => ids.Contains(a.ExerciseId)).ToListAsync(ct);
         return exercises.Select(x => new CatalogExercise(x.Id, x.Slug, x.Name, x.Muscle, x.Equipment, x.Cue,
-            aliases.Where(a => a.ExerciseId == x.Id).Select(a => a.Alias).OrderBy(a => a).ToList())).ToList();
+            aliases.Where(a => a.ExerciseId == x.Id).Select(a => a.Alias).OrderBy(a => a).ToList(), x.LoadStepKg)).ToList();
     }
 
     /// Returns the catalog id for a written name, or null when nothing matches.

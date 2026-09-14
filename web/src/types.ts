@@ -3,8 +3,8 @@ export type Unit = 'kg' | 'lb';
 export type Theme = 'dark' | 'light';
 export type Provenance = 'extracted' | 'inferred' | 'userEdited';
 
-export type Exercise = { id: string; slug: string; name: string; muscle: string; equipment: string; cue: string; aliases: string[] };
-export type Preferences = { unit: Unit; theme: Theme; restSeconds: number };
+export type Exercise = { id: string; slug: string; name: string; muscle: string; equipment: string; cue: string; aliases: string[]; loadStepKg: number };
+export type Preferences = { unit: Unit; theme: Theme; restSeconds: number; restAlerts: boolean };
 export type Account = { id: string; username: string };
 
 export type SetPrescription = {
@@ -19,7 +19,10 @@ export type ProgramSummary = { id: string; name: string; description: string; we
 export type Program = ProgramSummary & { workouts: Template[] };
 
 export type LoggedSet = { id: string; position: number; weightKg: number | null; reps: number | null; rpe: number | null; done: boolean; warmup: boolean };
-export type SessionExercise = { id: string; exerciseId: string | null; name: string; position: number; note: string; prescription: SetPrescription[]; sets: LoggedSet[]; sequenceGroup: string; substitutions: string[] };
+/// What the server suggested for this exercise when the workout started, and why. Every figure
+/// is optional: a first session has nothing to go on, and that is shown rather than filled in.
+export type Progression = { suggestedKg: number | null; targetReps: number; reason: string; lastE1rmKg: number | null; trendE1rmKg: number | null; stepKg: number };
+export type SessionExercise = { id: string; exerciseId: string | null; name: string; position: number; note: string; prescription: SetPrescription[]; sets: LoggedSet[]; sequenceGroup: string; substitutions: string[]; progression: Progression | null };
 export type Session = { id: string; templateId: string | null; programId: string | null; name: string; note: string; active: boolean; startedAt: string; finishedAt: string | null; revision: number; exercises: SessionExercise[]; volumeKg: number | null; completedSets: number; warmupSets: number };
 export type HistoryPage = { total: number; page: number; size: number; sessions: Session[] };
 

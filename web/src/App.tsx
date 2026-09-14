@@ -3,6 +3,7 @@ import { Activity, AlertTriangle, ArrowUpRight, CheckCircle2, Cloud, Dumbbell, L
 import type { Session, Template } from './types';
 import { ApiError, api } from './lib/api';
 import { useApp } from './app/useApp';
+import { restTimer } from './lib/restTimer';
 import { Button } from './components/ui/Button';
 import { Auth } from './components/Auth';
 import { Dashboard } from './components/Dashboard';
@@ -35,6 +36,9 @@ export default function App() {
   const [actionError, setActionError] = useState('');
 
   useEffect(() => { document.documentElement.dataset.theme = data?.preferences.theme ?? 'dark'; }, [data?.preferences.theme]);
+  // The rest timer belongs to the shell, not the workout view: it has to keep counting while the
+  // workout is minimised, and it has to be listening for a resume from a locked screen.
+  useEffect(() => restTimer.attach(data?.preferences.restAlerts ?? true), [data?.preferences.restAlerts]);
   useEffect(() => { if (!toast) return; const timer = setTimeout(() => setToast(''), 4500); return () => clearTimeout(timer); }, [toast]);
 
   if (signedOut) return <Auth onSignedIn={() => { setTab('overview'); void app.reload(); }} />;

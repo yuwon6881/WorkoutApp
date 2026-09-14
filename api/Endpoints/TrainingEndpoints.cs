@@ -5,7 +5,7 @@ using Workout.Api.Services;
 
 namespace Workout.Api.Endpoints;
 
-public record PreferencesInput(string Unit, string Theme, int RestSeconds);
+public record PreferencesInput(string Unit, string Theme, int RestSeconds, bool? RestAlerts);
 public record StartInput(Guid? TemplateId, string? Name);
 public record FinishInput(int? Revision);
 public record ActivateInput(bool Active, int? Revision);
@@ -22,7 +22,7 @@ public static class TrainingEndpoints
             return new
             {
                 account = new { user.Id, user.Username },
-                preferences = new { user.Unit, user.Theme, user.RestSeconds },
+                preferences = new { user.Unit, user.Theme, user.RestSeconds, user.RestAlerts },
                 exercises = await catalog.All(ct),
                 templates = await templates.List(null, standaloneOnly: true, ct),
                 programs = programList,
@@ -42,9 +42,9 @@ public static class TrainingEndpoints
         {
             Validation.Unit(input.Unit); Validation.Theme(input.Theme); Validation.RestSeconds(input.RestSeconds);
             var user = await db.Users.SingleAsync(u => u.Id == db.CurrentUser, ct);
-            user.Unit = input.Unit; user.Theme = input.Theme; user.RestSeconds = input.RestSeconds;
+            user.Unit = input.Unit; user.Theme = input.Theme; user.RestSeconds = input.RestSeconds; user.RestAlerts = input.RestAlerts ?? true;
             await db.SaveChangesAsync(ct);
-            return new { user.Unit, user.Theme, user.RestSeconds };
+            return new { user.Unit, user.Theme, user.RestSeconds, user.RestAlerts };
         });
 
         app.MapGet("/api/export", async (ExportService export, CancellationToken ct) => await export.Build(ct)).RequireRateLimiting("export");
@@ -93,19 +93,26 @@ public static class TrainingEndpoints
         var exercises = await db.SessionExercises.AsNoTracking().Where(e => ids.Contains(e.SessionId)).ToListAsync(ct);
         var exerciseIds = exercises.Select(e => e.Id).ToList();
         var sets = await db.Sets.AsNoTracking().Where(s => exerciseIds.Contains(s.SessionExerciseId) && s.Done && !s.Warmup).ToListAsync(ct);
+        var states = await db.Progress.AsNoTracking().ToListAsync(ct);
         var best = exercises.GroupBy(e => e.NameSnapshot).Select(group =>
         {
             var groupIds = group.Select(e => e.Id).ToHashSet();
             // An unknown load cannot be a heaviest set; it is left out rather than counted as zero.
             var known = sets.Where(s => groupIds.Contains(s.SessionExerciseId) && s.WeightKg != null).ToList();
             var heaviest = known.OrderByDescending(s => s.WeightKg).ThenByDescending(s => s.Reps).FirstOrDefault();
+            var key = ProgressionService.Key(group.Select(e => e.ExerciseId).FirstOrDefault(id => id != null), group.Key);
+            var state = states.FirstOrDefault(s => s.ExerciseId == key.ExerciseId && s.NameKey == key.NameKey);
             return new
             {
                 exercise = group.Key,
                 sessions = group.Select(e => e.SessionId).Distinct().Count(),
                 heaviestKg = heaviest?.WeightKg,
                 heaviestReps = heaviest?.Reps,
-                volumeKg = known.Count == 0 ? (double?)null : known.Sum(s => s.WeightKg!.Value * s.Reps!.Value)
+                volumeKg = known.Count == 0 ? (double?)null : known.Sum(s => s.WeightKg!.Value * s.Reps!.Value),
+                // Estimates exist only where sets could support one, so they stay absent rather
+                // than appearing as a confident zero.
+                estimatedMaxKg = state?.TrendE1rmKg,
+                lastEstimatedMaxKg = state?.LastE1rmKg
             };
         }).OrderByDescending(x => x.sessions).ToList();
         return new { sessions = sessions.Count, exercises = best };

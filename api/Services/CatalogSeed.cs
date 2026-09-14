@@ -4,7 +4,7 @@ using Workout.Api.Domain;
 
 namespace Workout.Api.Services;
 
-public record SeedExercise(string Slug, string Name, string Muscle, string Equipment, string Cue, List<string>? Aliases);
+public record SeedExercise(string Slug, string Name, string Muscle, string Equipment, string Cue, List<string>? Aliases, double? LoadStepKg = null);
 
 /// The catalog changes only here. Seeding is keyed by slug, so re-running the same file
 /// updates rows in place instead of creating duplicates, and leaves omitted exercises alone.
@@ -26,6 +26,7 @@ public static class CatalogSeed
             Validation.Require(row.Slug.All(c => char.IsAsciiLetterOrDigit(c) || c is '-'), $"Slug '{row.Slug}' may use letters, digits, and hyphens only.");
             Validation.Name(row.Name, "Exercise name", 160);
             Validation.Text(row.Muscle, 60, "Muscle"); Validation.Text(row.Equipment, 60, "Equipment"); Validation.Text(row.Cue, 600, "Cue");
+            if (row.LoadStepKg is { } step) Validation.Number(step, 0, 50, "Load step");
         }
         Validation.Require(input.Select(r => r.Slug).Distinct(StringComparer.OrdinalIgnoreCase).Count() == input.Count, "The seed file repeats a slug.");
 
@@ -39,6 +40,8 @@ public static class CatalogSeed
             if (exercise == null) { exercise = new Exercise { Slug = row.Slug }; db.Exercises.Add(exercise); added++; }
             else updated++;
             exercise.Name = row.Name.Trim(); exercise.Muscle = row.Muscle ?? ""; exercise.Equipment = row.Equipment ?? ""; exercise.Cue = row.Cue ?? ""; exercise.Active = true;
+            // The seed may state the smallest jump a gym actually has; otherwise equipment decides.
+            exercise.LoadStepKg = row.LoadStepKg ?? Progression.StepForEquipment(row.Equipment);
         }
         var deactivated = 0;
         if (deactivateMissing)

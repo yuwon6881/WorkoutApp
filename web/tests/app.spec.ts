@@ -34,6 +34,13 @@ const doneSetsOnServer = (page: Page) => page.evaluate(async () => {
   return active ? active.exercises.flatMap((e: { sets: { done: boolean }[] }) => e.sets).filter((s: { done: boolean }) => s.done).length : 0;
 });
 
+/// The rest clock reads "1:24 rest"; this is the number behind it.
+async function restSeconds(clock: import('@playwright/test').Locator): Promise<number> {
+  const text = (await clock.textContent()) ?? '';
+  const match = /(\d+):(\d{2})/.exec(text);
+  return match ? Number(match[1]) * 60 + Number(match[2]) : -1;
+}
+
 async function openTab(page: Page, name: string) {
   await page.getByRole('button', { name, exact: true }).filter({ visible: true }).first().click();
 }
@@ -103,10 +110,23 @@ test('build a workout, log a set against the server, and see it in history', asy
   await page.screenshot({ path: `artifacts/${testInfo.project.name}-logger.png`, fullPage: true });
   expect(await logger.evaluate(el => el.scrollWidth <= el.clientWidth)).toBe(true);
 
+  // Logging a set starts the rest, and the clock counts down rather than sitting still.
+  const clock = logger.locator('.rest-clock');
+  await expect(clock).toContainText('rest');
+  const started = await restSeconds(clock);
+  expect(started).toBeGreaterThan(60);
+  await expect.poll(() => restSeconds(clock), { timeout: 8000 }).toBeLessThan(started);
+
   // The set came back from the server, not from this device: a reload proves it.
   await page.reload();
   await page.getByRole('button', { name: `Resume ${name}`, exact: true }).click();
   await expect(page.getByRole('spinbutton', { name: 'Barbell bench press set 1 weight', exact: true })).toHaveValue('60');
+
+  // The rest is a deadline, not a count held in memory, so a reload finds it already lower
+  // rather than restarting it or losing it.
+  const resumed = await restSeconds(page.locator('.rest-clock'));
+  expect(resumed).toBeLessThan(started);
+  expect(resumed).toBeGreaterThan(0);
 
   await page.getByRole('button', { name: 'Finish workout', exact: true }).click();
   await page.getByRole('button', { name: 'Save workout', exact: true }).click();
@@ -118,6 +138,21 @@ test('build a workout, log a set against the server, and see it in history', asy
   await openTab(page, 'Progress');
   await expect(page.getByRole('heading', { name: 'Your progress.' })).toBeVisible();
   await expect(page.getByText(name, { exact: true }).first()).toBeVisible();
+
+  // Starting the same plan again has to carry the last session forward: 8 reps at RPE 8 against
+  // a target of 8-12 leaves effort in the tank, so the app asks for one more rep at the same
+  // load and says so in words rather than silently changing a number.
+  await openTab(page, 'Workouts');
+  await page.locator('.routine-card').filter({ hasText: name }).getByRole('button', { name: 'Start workout', exact: true }).click();
+  await page.getByRole('dialog', { name: `Start ${name}?`, exact: true }).getByRole('button', { name: 'Start workout', exact: true }).click();
+  const again = page.getByRole('dialog', { name, exact: true });
+  await expect(again.locator('.progression-note')).toContainText('9 reps');
+  await expect(again.getByRole('spinbutton', { name: 'Barbell bench press set 1 weight', exact: true })).toHaveValue('60');
+  await expect(again.getByRole('spinbutton', { name: 'Barbell bench press set 1 reps', exact: true })).toHaveValue('9');
+  await again.getByRole('button', { name: 'Discard', exact: true }).click();
+  await page.getByRole('button', { name: 'Discard workout', exact: true }).click();
+  await expect(again).toBeHidden();
+
   expect(errors).toEqual([]);
 });
 
