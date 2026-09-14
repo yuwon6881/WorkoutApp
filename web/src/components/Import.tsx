@@ -3,6 +3,7 @@ import { AlertTriangle, ArrowLeft, Check, ChevronDown, FileText, Plus, Trash2, U
 import type { DraftExercise, DraftSet, DraftWorkout, Exercise, ImportDraft, ImportView } from '../types';
 import { ApiError, api } from '../lib/api';
 import { showReps } from '../lib/training';
+import { validateDraftWorkout, validateImportMetadata } from '../lib/validation';
 import { Button } from './ui/Button';
 
 const MAX_BYTES = 20 * 1024 * 1024;
@@ -70,7 +71,10 @@ export function ImportReview({ exercises, imports, remaining, onBack, onChanged 
 
   async function persist(next: ImportDraft) {
     if (!selected) return;
-    setDraft(next); setBusy('Saving your changes…'); setError('');
+    setDraft(next);
+    const validationError = validateImportMetadata(next.programName, next.description);
+    if (validationError) { setError(validationError); return; }
+    setBusy('Saving your changes…'); setError('');
     try { const view = await api.editImport(selected.id, { programName: next.programName, description: next.description }); setSelected(view); setDraft(view.draft); await onChanged(); }
     catch (failure) { setError(failure instanceof ApiError ? failure.message : 'Could not save your changes.'); }
     finally { setBusy(''); }
@@ -79,6 +83,8 @@ export function ImportReview({ exercises, imports, remaining, onBack, onChanged 
   async function persistDay(day: DraftWorkout) {
     if (!selected) return;
     setDraft(current => current ? { ...current, workouts: current.workouts.map(item => item.lineId === day.lineId ? day : item) } : current);
+    const validationError = validateDraftWorkout(day);
+    if (validationError) { setError(validationError); return; }
     setBusy('Saving this day…'); setError('');
     try { const view = await api.editImportDay(selected.id, day); setSelected(view); setDraft(view.draft); await onChanged(); }
     catch (failure) { setError(failure instanceof ApiError ? failure.message : 'Could not save this day.'); }
@@ -131,8 +137,8 @@ export function ImportReview({ exercises, imports, remaining, onBack, onChanged 
     {selected && draft && selected.status === 'ready' && <>
       <section className="panel">
         <div className="section-heading"><h2>Review</h2><span className="tiny-label">READ BY {selected.model || 'AI'}</span></div>
-        <label className="field">Program name<input name="import-program-name" maxLength={120} value={draft.programName} onChange={e => setDraft({ ...draft, programName: e.target.value })} onBlur={() => void persist(draft)} /></label>
-        <label className="field">Description<textarea name="import-description" maxLength={4000} value={draft.description ?? ''} onChange={e => setDraft({ ...draft, description: e.target.value })} onBlur={() => void persist(draft)} /></label>
+        <label className="field">Program name<input name="import-program-name" value={draft.programName} onChange={e => setDraft({ ...draft, programName: e.target.value })} onBlur={() => void persist(draft)} /></label>
+        <label className="field">Description<textarea name="import-description" value={draft.description ?? ''} onChange={e => setDraft({ ...draft, description: e.target.value })} onBlur={() => void persist(draft)} /></label>
         {selected.unresolved.length > 0 && <div className="error-banner" role="status"><AlertTriangle size={17} />
           {selected.unresolved.length} exercise name{selected.unresolved.length === 1 ? '' : 's'} are not linked to the catalog. They will stay verbatim and can still be logged.
         </div>}
@@ -189,8 +195,8 @@ function DayEditor({ day, exercises, onChange }: { day: DraftWorkout; exercises:
     if (prefix && prefix === previous) groups.at(-1)!.push(exercise); else groups.push([exercise]);
   }
   return <div className="day-editor">
-    <label className="field">Day name<input value={draft.name} maxLength={120} onChange={e => setDraft({ ...draft, name: e.target.value })} onBlur={() => void onChange(draft)} /></label>
-    <label className="field">Notes<textarea value={draft.notes ?? ''} maxLength={2000} onChange={e => setDraft({ ...draft, notes: e.target.value })} onBlur={() => void onChange(draft)} /></label>
+    <label className="field">Day name<input value={draft.name} onChange={e => setDraft({ ...draft, name: e.target.value })} onBlur={() => void onChange(draft)} /></label>
+    <label className="field">Notes<textarea value={draft.notes ?? ''} onChange={e => setDraft({ ...draft, notes: e.target.value })} onBlur={() => void onChange(draft)} /></label>
     {draft.isRestDay ? <div className="rest-callout"><span className="tiny-label">REST DAY</span><p>No exercises are scheduled for this slot.</p></div> : groups.map((group, groupIndex) => <div className={group.length > 1 ? 'superset-block' : ''} key={groupIndex}>
       {group.length > 1 && <div className="superset-heading">SUPERSET {group[0].sequenceGroup.match(/^[A-Za-z]+/)?.[0] ?? ''}</div>}
       {group.map(exercise => <ExerciseEditor key={exercise.lineId} exercise={exercise} exercises={exercises} onChange={next => save({ ...draft, exercises: draft.exercises.map(item => item.lineId === next.lineId ? next : item) })} />)}
@@ -202,17 +208,17 @@ function DayEditor({ day, exercises, onChange }: { day: DraftWorkout; exercises:
 function ExerciseEditor({ exercise, exercises, onChange }: { exercise: DraftExercise; exercises: Exercise[]; onChange: (exercise: DraftExercise) => void }) {
   const editSet = (index: number, patch: Partial<DraftSet>) => onChange({ ...exercise, sets: exercise.sets.map((set, i) => i === index ? { ...set, ...patch } : set) });
   return <div className="import-exercise">
-    <div className="section-heading"><div><input className="inline-input" aria-label={`Exercise name as written in the PDF`} maxLength={160} value={exercise.sourceName} onChange={e => onChange({ ...exercise, sourceName: e.target.value })} />
+    <div className="section-heading"><div><input className="inline-input" aria-label={`Exercise name as written in the PDF`} value={exercise.sourceName} onChange={e => onChange({ ...exercise, sourceName: e.target.value })} />
       {!exercise.exerciseId && <span className="tiny-label warn"><AlertTriangle size={12} /> UNMAPPED · PRESERVED</span>}</div></div>
     <div className="import-fields"><label className="field">Library exercise<select aria-label={`Library exercise for ${exercise.sourceName}`} value={exercise.exerciseId ?? ''} onChange={e => onChange({ ...exercise, exerciseId: e.target.value || null })}>
       <option value="">Not mapped</option>{exercises.map(option => <option key={option.id} value={option.id}>{option.name}</option>)}
-    </select></label><label className="field">Superset group<input maxLength={8} value={exercise.sequenceGroup} onChange={e => onChange({ ...exercise, sequenceGroup: e.target.value })} placeholder="A1" /></label>
+      </select></label><label className="field">Superset group<input value={exercise.sequenceGroup} onChange={e => onChange({ ...exercise, sequenceGroup: e.target.value })} placeholder="A1" /></label>
       <label className="field">Substitutions<input value={exercise.substitutions.join(', ')} onChange={e => onChange({ ...exercise, substitutions: e.target.value.split(',').map(s => s.trim()).filter(Boolean).slice(0, 2) })} placeholder="Optional alternates" /></label></div>
     {exercise.notes && <p className="note-block">{exercise.notes}</p>}
     <div className="set-table import-set-table"><div className="set-table-head"><span>SET</span><span>REPS</span><span>RPE/RIR</span><span>%1RM</span><span>REST</span><span>SOURCE</span><span /></div>
       {exercise.sets.map((set, i) => <div className={`set-row ${set.warmup ? 'warmup-row' : ''}`} key={i}><span>{set.warmup ? `W${i + 1}` : i + 1}</span>
         <input aria-label={`Set ${i + 1} reps text`} value={set.repsText ?? showReps(set)} onChange={e => editSet(i, { repsText: e.target.value, repsSource: 'userEdited' })} />
-        <input aria-label={`Set ${i + 1} target RPE`} type="number" min="1" max="10" step="0.5" value={set.targetRpe ?? ''} onChange={e => editSet(i, { targetRpe: e.target.value === '' ? null : Number(e.target.value), rpeSource: 'userEdited' })} />
+        <input aria-label={`Set ${i + 1} target RPE`} inputMode="decimal" type="number" value={set.targetRpe ?? ''} onChange={e => editSet(i, { targetRpe: e.target.value === '' ? null : Number(e.target.value), rpeSource: 'userEdited' })} />
         <input aria-label={`Set ${i + 1} percent 1RM`} value={set.percent1Rm ?? ''} onChange={e => editSet(i, { percent1Rm: e.target.value })} />
         <input aria-label={`Set ${i + 1} rest text`} value={set.restText ?? (set.restSeconds === null ? '' : `${set.restSeconds}s`)} onChange={e => editSet(i, { restText: e.target.value, restSource: 'userEdited' })} />
         <span className="source-cell"><Source source={set.repsSource} />{set.rpeSource !== set.repsSource && <Source source={set.rpeSource} />}</span>

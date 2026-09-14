@@ -3,7 +3,8 @@ import { Check, ChevronDown, Clock3, Dumbbell, Minus, Plus, Timer, Trash2, Trend
 import type { Exercise, LoggedSet, Preferences, Session, SessionExercise } from '../types';
 import { ApiError, api } from '../lib/api';
 import type { SaveQueue } from '../lib/queue';
-import { canComplete, completedSets, normalizeExerciseName, plannedSets, rpeSteps, showClock, showTarget, showVolume, showWeight, toDisplay, toKg } from '../lib/training';
+import { completedSets, normalizeExerciseName, plannedSets, rpeSteps, showClock, showTarget, showVolume, showWeight, toDisplay, toKg } from '../lib/training';
+import { validateLoggedSet, validateSessionDraft } from '../lib/validation';
 import { restTimer } from '../lib/restTimer';
 import { Button } from './ui/Button';
 import { Modal } from './ui/Modal';
@@ -39,6 +40,9 @@ export function Workout({ session, preferences, exercises, queue, onSaved, onClo
 
   function change(next: Session) {
     setDraft(next);
+    const validationError = validateSessionDraft(next);
+    if (validationError) { setError(validationError); return; }
+    setError('');
     queue.push('workout', async () => {
       const saved = await api.saveWorkout(next.id, payload(next, revision.current));
       revision.current = saved.revision; onSaved(saved);
@@ -51,7 +55,10 @@ export function Workout({ session, preferences, exercises, queue, onSaved, onClo
 
   function toggle(ei: number, si: number) {
     const set = draft.exercises[ei].sets[si];
-    if (!set.done && !canComplete(set)) { setError('Enter 1–1,000 reps and an RPE from 1 to 10 before logging this set.'); return; }
+    if (!set.done) {
+      const validationError = validateLoggedSet({ ...set, done: true });
+      if (validationError) { setError(validationError); return; }
+    }
     setError(''); editSet(ei, si, { done: !set.done });
     const plan = draft.exercises[ei].prescription[si];
     const seconds = plan?.restSeconds ?? preferences.restSeconds;
@@ -61,6 +68,9 @@ export function Workout({ session, preferences, exercises, queue, onSaved, onClo
   }
 
   async function finish() {
+    const validationError = validateSessionDraft(draft);
+    if (validationError) { setError(validationError); return; }
+    if (!done) { setError('Complete at least one working set before finishing.'); return; }
     setBusy(true);
     try { const saved = await api.finishWorkout(draft.id, revision.current); restTimer.skip(); onFinish(saved); }
     catch (failure) { setError(failure instanceof ApiError ? failure.message : 'Could not save this workout.'); setBusy(false); setConfirm(null); }
@@ -93,7 +103,7 @@ export function Workout({ session, preferences, exercises, queue, onSaved, onClo
         {group.map(exercise => <ExerciseBlock key={exercise.id} exercise={exercise} index={draft.exercises.indexOf(exercise)} unit={unit} draft={draft} exercises={exercises} change={change} editSet={editSet} toggle={toggle} />)}
       </div>)}
       <Button className="full-width" onClick={() => setPicker(true)}><Plus size={18} />Add exercise</Button>
-      <label className="field">Workout notes<textarea name="workout-note" maxLength={4000} placeholder="How did the session feel?" value={draft.note} onChange={e => change({ ...draft, note: e.target.value })} /></label>
+      <label className="field">Workout notes<textarea name="workout-note" placeholder="How did the session feel?" value={draft.note} onChange={e => change({ ...draft, note: e.target.value })} /></label>
       {error && <p className="error-text" role="alert">{error}</p>}
     </div>
     <div className="workout-footer"><div className={`rest-control ${remaining > 0 ? 'resting' : ''}`}>
@@ -143,15 +153,15 @@ function ExerciseBlock({ exercise, index, unit, draft, exercises, change, editSe
         const workingNumber = exercise.sets.slice(0, si + 1).filter((item, index) => !(item.warmup || prescription[index]?.warmup)).length;
         return <div className={`set-row ${set.done ? 'done' : ''} ${warmup ? 'warmup-row' : ''}`} key={set.id}><span className="set-number">{warmup ? `W${warmupNumber}` : workingNumber}</span>
           <span className="previous-set" title={plan?.restText ? `Rest ${plan.restText}` : undefined}>{plan ? showTarget(plan) : '—'}{plan?.rpeSource === 'inferred' && <small className="ai-marker">AI</small>}</span>
-          <input name={`weight-${exercise.id}-${si}`} aria-label={`${exercise.name} set ${si + 1} weight`} inputMode="decimal" type="number" min="0" max="2200" step="0.25" placeholder="—" value={shown === null ? '' : shown} onChange={e => editSet(index, si, { weightKg: e.target.value === '' ? null : toKg(Number(e.target.value), unit), done: false })} />
-          <input name={`reps-${exercise.id}-${si}`} aria-label={`${exercise.name} set ${si + 1} reps`} inputMode="numeric" type="number" min="1" max="1000" placeholder="—" value={set.reps ?? ''} onChange={e => editSet(index, si, { reps: e.target.value === '' ? null : Number(e.target.value), done: false })} />
+          <input name={`weight-${exercise.id}-${si}`} aria-label={`${exercise.name} set ${si + 1} weight`} inputMode="decimal" type="number" placeholder="—" value={shown === null ? '' : shown} onChange={e => editSet(index, si, { weightKg: e.target.value === '' ? null : toKg(Number(e.target.value), unit), done: false })} />
+          <input name={`reps-${exercise.id}-${si}`} aria-label={`${exercise.name} set ${si + 1} reps`} inputMode="numeric" type="number" placeholder="—" value={set.reps ?? ''} onChange={e => editSet(index, si, { reps: e.target.value === '' ? null : Number(e.target.value), done: false })} />
           <select name={`rpe-${exercise.id}-${si}`} aria-label={`${exercise.name} set ${si + 1} RPE`} value={set.rpe ?? ''} onChange={e => editSet(index, si, { rpe: e.target.value === '' ? null : Number(e.target.value), done: false })}><option value="">—</option>{rpeSteps.map(step => <option key={step} value={step}>{step}</option>)}</select>
           <Button className="log-set" variant={set.done ? 'primary' : 'secondary'} aria-label={`${set.done ? 'Unlog' : 'Log'} ${exercise.name} set ${si + 1}`} aria-pressed={set.done} onClick={() => toggle(index, si)}><Check size={18} /></Button>
           <Button variant="tertiary" aria-label={`Remove ${exercise.name} set ${si + 1}`} onClick={() => change({ ...draft, exercises: draft.exercises.map((item, i) => i === index ? { ...item, sets: item.sets.filter((_, j) => j !== si), prescription: item.prescription.filter((_, j) => j !== si) } : item) })}><Minus size={14} /></Button>
         </div>;
       })}
     </div>
-    <div className="exercise-actions"><input name={`note-${exercise.id}`} aria-label={`Notes for ${exercise.name}`} placeholder="Add an exercise note…" value={exercise.note} maxLength={1000} onChange={e => change({ ...draft, exercises: draft.exercises.map((item, i) => i === index ? { ...item, note: e.target.value } : item) })} />
+    <div className="exercise-actions"><input name={`note-${exercise.id}`} aria-label={`Notes for ${exercise.name}`} placeholder="Add an exercise note…" value={exercise.note} onChange={e => change({ ...draft, exercises: draft.exercises.map((item, i) => i === index ? { ...item, note: e.target.value } : item) })} />
       <Button variant="tertiary" disabled={exercise.sets.length >= 24} onClick={() => change({ ...draft, exercises: draft.exercises.map((item, i) => i === index ? { ...item, sets: [...item.sets, { ...blankLoggedSet(), position: item.sets.length, weightKg: item.sets.at(-1)?.weightKg ?? null }], prescription: [...item.prescription, { ...blankPrescription(prescription.at(-1)?.restSeconds ?? 90), warmup: false }] } : item) })}><Plus size={15} />Add set</Button></div>
   </section>;
 }

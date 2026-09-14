@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { Download, KeyRound, LogOut, MonitorSmartphone, Server } from 'lucide-react';
 import type { Account, Preferences } from '../types';
 import { ApiError, api } from '../lib/api';
 import { requestRestAlerts } from '../lib/restTimer';
+import { validatePasswordChange, type ValidationErrors } from '../lib/validation';
 import { Button } from './ui/Button';
 import { Modal } from './ui/Modal';
 
@@ -112,21 +113,37 @@ function PasswordDialog({ onClose, onChanged }: { onClose: () => void; onChanged
   const [next, setNext] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [fieldErrors, setFieldErrors] = useState<ValidationErrors>({});
+  const currentInput = useRef<HTMLInputElement>(null);
+  const nextInput = useRef<HTMLInputElement>(null);
+
+  async function submit(event: FormEvent) {
+    event.preventDefault();
+    if (busy) return;
+    const nextErrors = validatePasswordChange(current, next);
+    setFieldErrors(nextErrors);
+    setError('');
+    const firstInvalid = nextErrors.current ? currentInput : nextErrors.next ? nextInput : null;
+    if (firstInvalid) { firstInvalid.current?.focus(); return; }
+    setBusy(true);
+    try { await api.changePassword(current, next); await onChanged(); }
+    catch (failure) { setError(failure instanceof ApiError ? failure.message : 'Could not change your password.'); setBusy(false); }
+  }
 
   return <Modal title="Change your password" onClose={onClose}>
-    <div className="modal-body">
-      <label className="field">Current password<input name="current-password" type="password" autoComplete="current-password" value={current} onChange={e => setCurrent(e.target.value)} /></label>
-      <label className="field">New password<input name="new-password" type="password" autoComplete="new-password" minLength={12} value={next} onChange={e => setNext(e.target.value)} placeholder="at least 12 characters" /></label>
+    <form className="modal-form" noValidate onSubmit={submit}>
+      <div className="modal-body">
+      <label className={`field ${fieldErrors.current ? 'has-error' : ''}`} htmlFor="current-password">Current password<input id="current-password" name="current-password" ref={currentInput} type="password" autoComplete="current-password" aria-invalid={fieldErrors.current ? 'true' : 'false'} aria-describedby={fieldErrors.current ? 'current-password-error' : undefined} value={current} onChange={e => { setCurrent(e.target.value); if (fieldErrors.current) setFieldErrors(errors => ({ ...errors, current: validatePasswordChange(e.target.value, next).current ?? '' })); }} onBlur={() => setFieldErrors(errors => ({ ...errors, current: validatePasswordChange(current, next).current ?? '' }))} /></label>
+      {fieldErrors.current && <span id="current-password-error" className="field-error" role="alert">{fieldErrors.current}</span>}
+      <label className={`field ${fieldErrors.next ? 'has-error' : ''}`} htmlFor="new-password">New password<input id="new-password" name="new-password" ref={nextInput} type="password" autoComplete="new-password" aria-invalid={fieldErrors.next ? 'true' : 'false'} aria-describedby={fieldErrors.next ? 'new-password-error' : undefined} value={next} onChange={e => { setNext(e.target.value); if (fieldErrors.next) setFieldErrors(errors => ({ ...errors, next: validatePasswordChange(current, e.target.value).next ?? '' })); }} onBlur={() => setFieldErrors(errors => ({ ...errors, next: validatePasswordChange(current, next).next ?? '' }))} placeholder="at least 12 characters" /></label>
+      {fieldErrors.next && <span id="new-password-error" className="field-error" role="alert">{fieldErrors.next}</span>}
       <p className="muted small-copy">Changing your password signs out every device, including this one.</p>
       {error && <p className="error-text" role="alert">{error}</p>}
-    </div>
-    <div className="modal-actions">
+      </div>
+      <div className="modal-actions">
       <Button onClick={onClose}>Cancel</Button>
-      <Button variant="primary" disabled={busy} onClick={async () => {
-        setBusy(true); setError('');
-        try { await api.changePassword(current, next); await onChanged(); }
-        catch (failure) { setError(failure instanceof ApiError ? failure.message : 'Could not change your password.'); setBusy(false); }
-      }}>Change password</Button>
-    </div>
+      <Button type="submit" variant="primary" disabled={busy}>{busy ? 'Changing password…' : 'Change password'}</Button>
+      </div>
+    </form>
   </Modal>;
 }

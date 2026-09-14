@@ -3,6 +3,7 @@ import { ArrowRight, Dumbbell, FileText, Pencil, Plus, Trash2 } from 'lucide-rea
 import type { Bootstrap, Exercise, ProgramSummary, SetPrescription, Template, TemplateExercise } from '../types';
 import { ApiError, api } from '../lib/api';
 import { showReps } from '../lib/training';
+import { validateTemplateDraft } from '../lib/validation';
 import { Button } from './ui/Button';
 import { Modal } from './ui/Modal';
 import { ExerciseLibrary } from './Exercises';
@@ -29,7 +30,8 @@ export function Programs({ data, exercises, onStart, onImport, onChanged }: {
 
   async function save() {
     if (!draft) return;
-    if (!draft.name.trim() || !draft.exercises.length) { setError('Add a name and at least one exercise.'); return; }
+    const validationError = validateTemplateDraft(draft.name, draft.focus, draft.exercises);
+    if (validationError) { setError(validationError); return; }
     setBusy(true);
     const input = {
       name: draft.name.trim(), focus: draft.focus.trim(), note: null, revision: draft.revision, idempotencyId: crypto.randomUUID(),
@@ -80,19 +82,19 @@ export function Programs({ data, exercises, onStart, onImport, onChanged }: {
 
     {draft && <Modal title={draft.id ? `Edit ${draft.name || 'workout'}` : 'Build a workout'} onClose={() => setDraft(null)} wide>
       <div className="modal-body">
-        <label className="field">Workout name<input name="template-name" maxLength={120} value={draft.name} onChange={e => setDraft({ ...draft, name: e.target.value })} placeholder="e.g. Full body strength" /></label>
-        <label className="field">Focus<input name="template-focus" maxLength={120} value={draft.focus} onChange={e => setDraft({ ...draft, focus: e.target.value })} /></label>
+        <label className="field">Workout name<input name="template-name" value={draft.name} onChange={e => setDraft({ ...draft, name: e.target.value })} placeholder="e.g. Full body strength" /></label>
+        <label className="field">Focus<input name="template-focus" value={draft.focus} onChange={e => setDraft({ ...draft, focus: e.target.value })} /></label>
         <div className="editor-exercises">{draft.exercises.map((exercise, i) => <div className="editor-row" key={exercise.id}>
           <strong>{exercise.name}</strong>
           <label>Sets<select name={`sets-${exercise.id}`} aria-label={`Sets for ${exercise.name}`} value={exercise.sets.length} onChange={e => {
             const count = Number(e.target.value);
             setDraft({ ...draft, exercises: draft.exercises.map((p, j) => i === j ? { ...p, sets: Array.from({ length: count }, (_, k) => p.sets[k] ?? blankSet()) } : p) });
           }}>{Array.from({ length: 10 }, (_, n) => <option key={n} value={n + 1}>{n + 1}</option>)}</select></label>
-          <label>Reps<input name={`reps-${exercise.id}`} aria-label={`Reps for ${exercise.name}`} type="number" min="1" max="1000" value={exercise.sets[0]?.repMin ?? 8} onChange={e => {
+          <label>Reps<input name={`reps-${exercise.id}`} aria-label={`Reps for ${exercise.name}`} inputMode="numeric" type="number" value={exercise.sets[0]?.repMin ?? 8} onChange={e => {
             const reps = Number(e.target.value);
             setDraft({ ...draft, exercises: draft.exercises.map((p, j) => i === j ? { ...p, sets: p.sets.map(s => ({ ...s, repMin: reps, repMax: Math.max(reps, s.repMax) })) } : p) });
           }} /></label>
-          <label>RPE<input name={`rpe-${exercise.id}`} aria-label={`Target RPE for ${exercise.name}`} type="number" min="1" max="10" step="0.5" value={exercise.sets[0]?.targetRpe ?? 8} onChange={e => {
+          <label>RPE<input name={`rpe-${exercise.id}`} aria-label={`Target RPE for ${exercise.name}`} inputMode="decimal" type="number" value={exercise.sets[0]?.targetRpe ?? 8} onChange={e => {
             const rpe = Number(e.target.value);
             setDraft({ ...draft, exercises: draft.exercises.map((p, j) => i === j ? { ...p, sets: p.sets.map(s => ({ ...s, targetRpe: rpe })) } : p) });
           }} /></label>

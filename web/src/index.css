@@ -18,6 +18,8 @@ h1,h2,h3,p{overflow-wrap:anywhere}.row-title{min-width:0;white-space:normal;over
 .auth-card{width:100%;max-width:400px;display:flex;flex-direction:column;gap:14px;text-align:left}
 .auth-card h1{font-size:26px}
 .auth-card .field{display:flex;flex-direction:column;gap:6px;font-size:11px;color:var(--muted)}
+.field.has-error input,.field.has-error textarea,.field.has-error select{border-color:var(--red)}
+.field-error{display:block;color:var(--red);font-size:11px;line-height:1.45}
 @keyframes workout-spin{to{transform:rotate(360deg)}}
 .spin{animation:workout-spin 1s linear infinite}
 @media (prefers-reduced-motion:reduce){.spin{animation-duration:3s}}
