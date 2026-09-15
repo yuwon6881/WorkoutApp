@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { TemplateExercise } from '../types';
-import { validateAuth, validateLoggedSet, validatePasswordChange, validateTemplateDraft } from './validation';
+import { validateLoggedSet, validateTemplateDraft } from './validation';
 
 const exercise = (): TemplateExercise => ({
   id: 'exercise-row', exerciseId: 'exercise', sourceName: 'Bench press', name: 'Bench press', note: '', position: 0,
@@ -9,21 +9,6 @@ const exercise = (): TemplateExercise => ({
 });
 
 describe('application-owned validation', () => {
-  it('returns registration errors instead of browser constraint text', () => {
-    expect(validateAuth('register', 'ab', 'short')).toEqual({
-      username: 'Username must be at least 3 characters (you are currently using 2).',
-      password: 'Password must be at least 12 characters (you are currently using 5).'
-    });
-    expect(validateAuth('register', 'lifter', 'a long enough password')).toEqual({});
-  });
-
-  it('keeps login and password-change rules separate', () => {
-    expect(validateAuth('login', 'lifter', 'short')).toEqual({});
-    expect(validatePasswordChange('', 'short')).toEqual({
-      current: 'Current password is required.',
-      next: 'Password must be at least 12 characters (you are currently using 5).'
-    });
-  });
 
   it('validates program fields before a save is sent', () => {
     expect(validateTemplateDraft('', '', [])).toBe('Workout name is required.');

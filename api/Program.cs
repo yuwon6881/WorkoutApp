@@ -63,7 +63,6 @@ builder.Services.AddRateLimiter(o=>
         context.HttpContext.Response.Headers.CacheControl="no-store";
         await context.HttpContext.Response.WriteAsJsonAsync(new { message="That was a lot of requests in a short time. Wait a minute and try again." },token);
     };
-    o.AddPolicy("auth",http=>RateLimitPartition.GetFixedWindowLimiter(http.Connection.RemoteIpAddress?.ToString()??"unknown",_=>new FixedWindowRateLimiterOptions { PermitLimit=10,Window=TimeSpan.FromMinutes(1),QueueLimit=0 }));
     o.AddPolicy("ai",http=>RateLimitPartition.GetFixedWindowLimiter(
         string.IsNullOrEmpty(http.Request.Cookies[AuthService.Cookie])?"unauthenticated":AuthService.Hash(http.Request.Cookies[AuthService.Cookie]!),
         _=>new FixedWindowRateLimiterOptions { PermitLimit=6,Window=TimeSpan.FromMinutes(5),QueueLimit=0 }));
@@ -92,7 +91,7 @@ app.Use(async(http,next)=>
             var allowed=builder.Configuration["PublicOrigin"]??$"{http.Request.Scheme}://{http.Request.Host}";
             Validation.Require(origin==allowed&&http.Request.Headers["X-Workout-Request"]=="1","Request origin is not allowed.",403);
         }
-        if(http.Request.Path.StartsWithSegments("/api") && !http.Request.Path.StartsWithSegments("/api/integrations/v1") && http.Request.Path.Value is not ("/api/auth/status" or "/api/auth/login" or "/api/auth/register" or "/api/auth/dev-reset" or "/api/auth/central/start" or "/api/auth/central/callback"))
+        if(http.Request.Path.StartsWithSegments("/api") && !http.Request.Path.StartsWithSegments("/api/integrations/v1") && http.Request.Path.Value is not ("/api/auth/dev-reset" or "/api/auth/central/start" or "/api/auth/central/callback"))
         {
             var db=http.RequestServices.GetRequiredService<AppDb>();
             var token=http.Request.Cookies[AuthService.Cookie];

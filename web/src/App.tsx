@@ -41,7 +41,7 @@ export default function App() {
   useEffect(() => restTimer.attach(data?.preferences.restAlerts ?? true), [data?.preferences.restAlerts]);
   useEffect(() => { if (!toast) return; const timer = setTimeout(() => setToast(''), 4500); return () => clearTimeout(timer); }, [toast]);
 
-  if (signedOut) return <Auth onSignedIn={() => { setTab('overview'); void app.reload(); }} />;
+  if (signedOut) return <Auth />;
 
   if (loading && !data) return <div className="auth-screen"><div className="panel auth-card"><Loader2 className="spin" size={26} /><h1>Loading your training…</h1>
     <p className="muted">Your workouts live on the server, so this needs a connection.</p></div></div>;
@@ -83,8 +83,8 @@ export default function App() {
       <div className="sidebar-bottom">
         <div className="local-note"><StatusIcon state={status.state} online={online} /><div><strong>{statusTitle(status.state, online)}</strong><p>{statusDetail(status, online)}</p></div></div>
         <Button variant="tertiary" className={`nav-item ${tab === 'settings' ? 'selected' : ''}`} onClick={() => setTab('settings')}><Settings size={19} /> Settings</Button>
-        <div className="profile"><span className="avatar">{data.account.username.slice(0, 2).toUpperCase()}</span>
-          <span><strong>{data.account.username}</strong><small>Make every rep count</small></span></div>
+        <div className="profile"><span className="avatar">{data.account.displayName.slice(0, 2).toUpperCase()}</span>
+          <span><strong>{data.account.displayName}</strong><small>Make every rep count</small></span></div>
       </div>
     </aside>
 
@@ -95,7 +95,7 @@ export default function App() {
         <div className="topbar-actions">
           <span className="device-status" role="status"><StatusIcon state={status.state} online={online} /> {statusTitle(status.state, online)}</span>
           <Button variant="tertiary" className="settings-icon" aria-label="Settings" onClick={() => setTab('settings')}><Settings size={19} /></Button>
-          <span className="avatar small">{data.account.username.slice(0, 2).toUpperCase()}</span>
+          <span className="avatar small">{data.account.displayName.slice(0, 2).toUpperCase()}</span>
         </div>
       </header>
 

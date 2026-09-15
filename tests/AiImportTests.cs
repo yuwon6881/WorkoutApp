@@ -293,7 +293,7 @@ public class AiImportTests
         var imports = h.Imports(StubHandler.Program(OneWorkout));
         var view = await imports.Create(Pdf(), "block.pdf", default);
 
-        var bob = await h.Auth.Register("bob", "another long password", default);
+        var bob = await h.CreateUser("bob");
         h.Db.ChangeTracker.Clear();
         h.Db.CurrentUser = bob.Id;
         var failure = await Assert.ThrowsAsync<DomainException>(() => imports.Get(view.Id, default));

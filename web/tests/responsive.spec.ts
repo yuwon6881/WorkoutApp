@@ -3,7 +3,6 @@ import type { Page } from '@playwright/test';
 import { signIn as auth } from './signIn';
 
 const USER = 'e2e-responsive';
-const PASSWORD = 'a responsive test password';
 const pdf = (pages = 3) => Buffer.from(`%PDF-1.7\n${'/Type /Page \n'.repeat(pages)}%%EOF`, 'latin1');
 
 async function checkLayout(page: Page, label: string) {
@@ -55,7 +54,7 @@ async function navigate(page: Page, name: string) {
   await page.getByRole('button', { name, exact: true }).filter({ visible: true }).first().click();
 }
 
-const signIn = (page: Page) => auth(page, USER, PASSWORD);
+const signIn = (page: Page) => auth(page, USER);
 
 for (const theme of ['dark', 'light']) {
   test(`all views and dialogs in ${theme} theme`, async ({ page }, info) => {
@@ -89,9 +88,6 @@ for (const theme of ['dark', 'light']) {
     await page.getByRole('button', { name: 'Install app', exact: true }).click();
     await screenshot('install-dialog');
     await page.getByRole('button', { name: 'Got it' }).click();
-    await page.getByRole('button', { name: 'Change password', exact: true }).click();
-    await screenshot('password-dialog');
-    await page.getByRole('button', { name: 'Cancel', exact: true }).click();
 
     await navigate(page, 'Overview');
     await screenshot('overview');

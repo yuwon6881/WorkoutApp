@@ -7,7 +7,7 @@ export type LoadModel = 'external' | 'full_bodyweight' | 'bodyweight_context_onl
 export type ResistanceMode = 'external' | 'bodyweight' | 'added' | 'assistance' | 'reps_only';
 export type Exercise = { id: string; slug: string; name: string; muscle: string; equipment: string; cue: string; aliases: string[]; loadStepKg: number; loadModel?: LoadModel };
 export type Preferences = { unit: Unit; theme: Theme; restSeconds: number; restAlerts: boolean };
-export type Account = { id: string; username: string; displayName?: string };
+export type Account = { id: string; displayName: string };
 
 export type SetPrescription = {
   repMin: number; repMax: number; targetRpe: number | null; restSeconds: number | null; tempo: string | null;

@@ -157,6 +157,7 @@ public static class CentralAuthEndpoints
 
     internal static async Task<AppUser> ProvisionOrGetUser(AppDb db, IConfiguration config, string identitySubject, string? identityName, CancellationToken ct)
     {
+        var trimmedName = NormalizeDisplayName(identityName);
         var user = await db.Users.IgnoreQueryFilters().SingleOrDefaultAsync(item => item.IdentitySubject == identitySubject, ct);
         if (user is null)
         {
@@ -167,18 +168,25 @@ public static class CentralAuthEndpoints
             {
                 Id = Guid.NewGuid(),
                 IdentitySubject = identitySubject,
-                DisplayName = !string.IsNullOrWhiteSpace(identityName) ? identityName : "User"
+                DisplayName = trimmedName
             };
             db.Users.Add(user);
             await db.SaveChangesAsync(ct);
         }
-        else if (!string.IsNullOrWhiteSpace(identityName) && user.DisplayName != identityName)
+        else if (!string.IsNullOrWhiteSpace(identityName) && user.DisplayName != trimmedName)
         {
-            user.DisplayName = identityName;
+            user.DisplayName = trimmedName;
             await db.SaveChangesAsync(ct);
         }
 
         return user;
+    }
+
+    private static string NormalizeDisplayName(string? name)
+    {
+        if (string.IsNullOrWhiteSpace(name)) return "User";
+        var trimmed = name.Trim();
+        return trimmed.Length > 120 ? trimmed[..120] : trimmed;
     }
 
     internal static OidcSettings Settings(IConfiguration config, IHostEnvironment environment)

@@ -20,7 +20,7 @@ public static class AuthEndpoints
         app.MapGet("/api/auth/me", async (AppDb db, CancellationToken ct) =>
         {
             var user = await db.Users.AsNoTracking().SingleAsync(u => u.Id == db.CurrentUser, ct);
-            return new { user.Id, displayName = user.DisplayName, username = user.DisplayName, user.Unit, user.Theme, user.RestSeconds };
+            return new { user.Id, displayName = user.DisplayName, user.Unit, user.Theme, user.RestSeconds };
         });
 
         app.MapPost("/api/auth/logout", async (AppDb db, HttpContext http, CancellationToken ct) =>

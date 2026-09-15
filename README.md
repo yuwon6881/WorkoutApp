@@ -25,8 +25,9 @@ external is needed to work on the app. Point `WORKOUT_API` at another origin to 
 
 ## What it does
 
-- Username and password accounts, capped at two, with hashed sessions in a 30-day `HttpOnly`,
-  `Secure`, `SameSite=Strict` cookie, origin and header CSRF checks, and per-address rate limits.
+- Central identity via Fitness Account OIDC (`openid`, `profile`), capped at two accounts,
+  with hashed local sessions in a 30-day `HttpOnly`, `Secure`, `SameSite=Lax` cookie (`workout-session`),
+  origin and custom header CSRF checks, and rate limits. No user credentials or passwords are stored in WorkoutApp.
 - Workouts built by hand, or imported from a training PDF by AI and corrected in a review screen
   before anything becomes a program.
 - Set logging with weight, reps, and RPE; the next session is prefilled but never pre-logged.

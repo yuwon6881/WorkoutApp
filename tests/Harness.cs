@@ -24,7 +24,7 @@ public sealed class Harness : IAsyncDisposable
     private Harness(SqliteConnection connection, AppDb db, IConfiguration config)
     {
         this.connection = connection; Db = db; Config = config;
-        Auth = new AuthService(db, config);
+        Auth = new AuthService(db);
         Catalog = new CatalogService(db);
         Templates = new TemplateService(db, Catalog);
         Programs = new ProgramService(db, Templates);
@@ -44,9 +44,22 @@ public sealed class Harness : IAsyncDisposable
         return new Harness(connection, db, config);
     }
 
-    public async Task<AppUser> SignIn(string username = "alice", string password = "a long enough password")
+    public async Task<AppUser> CreateUser(string name = "alice", string? subject = null)
     {
-        var user = await Auth.Register(username, password, default);
+        var user = new AppUser
+        {
+            Id = Guid.NewGuid(),
+            DisplayName = name,
+            IdentitySubject = subject ?? $"sub_{Guid.NewGuid():N}"
+        };
+        Db.Users.Add(user);
+        await Db.SaveChangesAsync();
+        return user;
+    }
+
+    public async Task<AppUser> SignIn(string username = "alice")
+    {
+        var user = await CreateUser(username);
         Db.CurrentUser = user.Id;
         return user;
     }

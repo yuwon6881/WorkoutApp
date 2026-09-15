@@ -3,13 +3,12 @@ import type { Page } from '@playwright/test';
 import { signIn as auth } from './signIn';
 
 const USER = 'e2e-lifter';
-const PASSWORD = 'an end to end password';
 
 /// A minimal but structurally valid PDF. The API checks the signature and counts page markers;
 /// the stand-in provider ignores the content entirely.
 const pdf = (pages = 3, marker = '') => Buffer.from(`%PDF-1.7\n${'/Type /Page \n'.repeat(pages)}% ${marker}\n%%EOF`, 'latin1');
 
-const signIn = (page: Page) => auth(page, USER, PASSWORD);
+const signIn = (page: Page) => auth(page, USER);
 
 /// Each viewport project shares one account, so a workout a previous project left open has to
 /// go before this one starts its own.

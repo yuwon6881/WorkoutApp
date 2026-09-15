@@ -69,7 +69,7 @@ export function SettingsView({ account, preferences, onPreferences, notify, onSi
 
       <section className="panel">
         <div className="section-heading"><h2>Your account</h2><Server size={20} /></div>
-        <p>Signed in as <strong>{account.displayName || account.username}</strong>. Your training lives on the server, so it is the same on every device you sign in on.</p>
+        <p>Signed in as <strong>{account.displayName}</strong>. Your training lives on the server, so it is the same on every device you sign in on.</p>
         <div className="settings-actions">
           <Button onClick={exportAccount}><Download size={17} />Export a copy</Button>
           <Button variant="destructive" onClick={onSignOut}><LogOut size={17} />Sign out</Button>

@@ -17,7 +17,7 @@ public sealed class SharedAccessTokenService(IConfiguration config)
     private readonly ConfigurationManager<OpenIdConnectConfiguration> configuration = new(
         MetadataAddress(config),
         new OpenIdConnectConfigurationRetriever(),
-        new HttpDocumentRetriever { RequireHttps = true });
+        new HttpDocumentRetriever { RequireHttps = config.GetValue("Identity:RequireHttpsMetadata", true) });
 
     public async Task<ValidatedIdentity> ValidateIdentityToken(string token, string nonce, string clientId, CancellationToken ct)
     {
@@ -70,6 +70,6 @@ public sealed class SharedAccessTokenService(IConfiguration config)
             ValidAlgorithms = [SecurityAlgorithms.RsaSha256],
             ClockSkew = TimeSpan.FromMinutes(1)
         };
-        return new JwtSecurityTokenHandler().ValidateToken(token, parameters, out _);
+        return new JwtSecurityTokenHandler { MapInboundClaims = false }.ValidateToken(token, parameters, out _);
     }
 }

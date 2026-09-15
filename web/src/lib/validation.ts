@@ -1,43 +1,5 @@
 import type { DraftWorkout, LoggedSet, Session, SetPrescription, TemplateExercise } from '../types';
 
-export type ValidationErrors = Record<string, string>;
-
-const USERNAME_CHARACTERS = /^[A-Za-z0-9_.@-]+$/;
-
-export function validateUsername(value: string, registration: boolean): string | undefined {
-  const username = value.trim();
-  if (!username) return 'Username is required.';
-  if (registration && username.length < 3) return `Username must be at least 3 characters (you are currently using ${username.length}).`;
-  if (username.length > 80) return 'Username must be 80 characters or fewer.';
-  if (registration && !USERNAME_CHARACTERS.test(username)) return 'Use 3–80 letters, digits, or . _ - @ for your username.';
-  return undefined;
-}
-
-export function validatePassword(value: string, minimumLength = false): string | undefined {
-  if (!value) return 'Password is required.';
-  if (minimumLength && value.length < 12) return `Password must be at least 12 characters (you are currently using ${value.length}).`;
-  if (value.length > 256) return 'Password must be 256 characters or fewer.';
-  return undefined;
-}
-
-export function validateAuth(mode: 'login' | 'register', username: string, password: string): ValidationErrors {
-  const errors: ValidationErrors = {};
-  const usernameError = validateUsername(username, mode === 'register');
-  const passwordError = validatePassword(password, mode === 'register');
-  if (usernameError) errors.username = usernameError;
-  if (passwordError) errors.password = passwordError;
-  return errors;
-}
-
-export function validatePasswordChange(current: string, next: string): ValidationErrors {
-  const errors: ValidationErrors = {};
-  const currentError = validatePassword(current);
-  const nextError = validatePassword(next, true);
-  if (currentError) errors.current = currentError === 'Password is required.' ? 'Current password is required.' : currentError;
-  if (nextError) errors.next = nextError;
-  return errors;
-}
-
 export function validateName(value: string | null | undefined, label: string, max = 120): string | undefined {
   if (!value?.trim()) return `${label} is required.`;
   if (value.trim().length > max) return `${label} must be ${max} characters or fewer.`;

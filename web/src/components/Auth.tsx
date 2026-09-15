@@ -1,14 +1,15 @@
 import { useEffect, useState } from 'react';
 import { ArrowRight, Dumbbell } from 'lucide-react';
 import { Button } from './ui/Button';
+import { centralAuthError } from '../lib/centralAuthError';
 
-export function Auth({ onSignedIn: _onSignedIn }: { onSignedIn?: () => void }) {
+export function Auth() {
   const [error, setError] = useState('');
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const centralError = params.get('central_error');
-    if (centralError) setError(centralError);
+    if (centralError) setError(centralAuthError(centralError));
   }, []);
 
   return (

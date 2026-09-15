@@ -22,7 +22,7 @@ public static class TrainingEndpoints
             var programList = await programs.List(ct);
             return new
             {
-                account = new { user.Id, user.Username },
+                account = new { user.Id, displayName = user.DisplayName },
                 preferences = new { user.Unit, user.Theme, user.RestSeconds, user.RestAlerts },
                 exercises = await catalog.All(ct),
                 templates = await templates.List(null, standaloneOnly: true, ct),
