@@ -26,14 +26,12 @@ public sealed class AppDb(DbContextOptions<AppDb> options) : DbContext(options)
 
     protected override void OnModelCreating(ModelBuilder m)
     {
-        m.Entity<AppUser>().HasIndex(x => x.Username).IsUnique();
-        m.Entity<AppUser>().HasIndex(x => x.Slot).IsUnique();
-        m.Entity<AppUser>().Property(x => x.Username).HasMaxLength(80);
+        m.Entity<AppUser>().Property(x => x.DisplayName).HasMaxLength(120);
         m.Entity<AppUser>().Property(x => x.Unit).HasDefaultValue("kg");
         m.Entity<AppUser>().Property(x => x.Theme).HasDefaultValue("dark");
         m.Entity<AppUser>().Property(x => x.RestSeconds).HasDefaultValue(90);
         m.Entity<AppUser>().Property(x => x.RestAlerts).HasDefaultValue(true);
-        m.Entity<AppUser>().HasIndex(x => x.IdentitySubject).IsUnique().HasFilter("\"IdentitySubject\" IS NOT NULL");
+        m.Entity<AppUser>().HasIndex(x => x.IdentitySubject).IsUnique();
         m.Entity<AppUser>().ToTable("Users", t =>
         {
             t.HasCheckConstraint("CK_Users_Unit", "\"Unit\" IN ('kg','lb')");

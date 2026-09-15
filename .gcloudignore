@@ -1,7 +1,6 @@
 .git/
 web/
 tests/
-deploy/
 artifacts/
 **/bin/
 **/obj/

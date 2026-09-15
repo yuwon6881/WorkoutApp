@@ -7,6 +7,8 @@ using Workout.Api.Domain;
 
 namespace Workout.Api.Services;
 
+public sealed record ValidatedIdentity(string Subject, string? Name);
+
 /// Validates the ID token returned by the central authorization-code flow through OIDC discovery.
 /// Resource access tokens are validated by OpenIddictAccessTokenService; neither path accepts a
 /// static HMAC key or a manually parsed JWT.
@@ -17,7 +19,7 @@ public sealed class SharedAccessTokenService(IConfiguration config)
         new OpenIdConnectConfigurationRetriever(),
         new HttpDocumentRetriever { RequireHttps = true });
 
-    public async Task<string> ValidateIdentityToken(string token, string nonce, string clientId, CancellationToken ct)
+    public async Task<ValidatedIdentity> ValidateIdentityToken(string token, string nonce, string clientId, CancellationToken ct)
     {
         Validation.Require(!string.IsNullOrWhiteSpace(token), "The central identity token is missing.", 401);
         OpenIdConnectConfiguration metadata;
@@ -40,7 +42,8 @@ public sealed class SharedAccessTokenService(IConfiguration config)
         Validation.Require(string.Equals(receivedNonce, nonce, StringComparison.Ordinal), "The central identity nonce did not match.", 401);
         var subject = principal.FindFirst("sub")?.Value;
         Validation.Require(!string.IsNullOrWhiteSpace(subject), "The central identity token has no subject.", 401);
-        return subject!;
+        var name = principal.FindFirst("name")?.Value ?? principal.FindFirst(System.Security.Claims.ClaimTypes.Name)?.Value;
+        return new ValidatedIdentity(subject!, name);
     }
 
     private static string MetadataAddress(IConfiguration config)

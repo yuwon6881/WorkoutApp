@@ -37,11 +37,7 @@ function safeParse(text: string): { message?: string } & Record<string, unknown>
 }
 
 export const api = {
-  status: () => call<{ registrationOpen: boolean }>('/api/auth/status'),
-  register: (username: string, password: string) => call<{ id: string; username: string }>('/api/auth/register', 'POST', { username, password }),
-  login: (username: string, password: string) => call<{ id: string; username: string }>('/api/auth/login', 'POST', { username, password }),
   logout: () => call<void>('/api/auth/logout', 'POST'),
-  changePassword: (currentPassword: string, newPassword: string) => call<void>('/api/auth/password', 'POST', { currentPassword, newPassword }),
 
   bootstrap: (signal?: AbortSignal) => call<Bootstrap>('/api/bootstrap', 'GET', undefined, signal),
   preferences: (input: Preferences) => call<Preferences>('/api/preferences', 'PUT', input),

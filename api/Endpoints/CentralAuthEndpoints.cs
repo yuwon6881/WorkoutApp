@@ -60,7 +60,9 @@ public static class CentralAuthEndpoints
             var payload = await Exchange(code, state, settings, clients, ct);
             var idToken = payload.TryGetProperty("id_token", out var identity) ? identity.GetString() : null;
             Validation.Require(!string.IsNullOrWhiteSpace(idToken), "The central sign-in returned no identity token.", 401);
-            var identitySubject = await tokens.ValidateIdentityToken(idToken!, state.Nonce, settings.ClientId, ct);
+            var validatedIdentity = await tokens.ValidateIdentityToken(idToken!, state.Nonce, settings.ClientId, ct);
+            var identitySubject = validatedIdentity.Subject;
+            var identityName = validatedIdentity.Name;
             if (connect)
             {
                 var accessToken = payload.TryGetProperty("access_token", out var access) ? access.GetString() : null;
@@ -75,7 +77,7 @@ public static class CentralAuthEndpoints
             {
                 var local = await LocalUser(request, db, state.LocalUserId, ct);
                 Validation.Require(local is not null && local.IdentitySubject == identitySubject,
-                    "This central subject is not attached to the current Workout account. Use the guarded identity attach operation first.", 403);
+                    "This central subject is not attached to the current Workout account.", 403);
                 var refresh = payload.TryGetProperty("refresh_token", out var refreshElement) ? refreshElement.GetString() : null;
                 Validation.Require(!string.IsNullOrWhiteSpace(refresh), "The central connection returned no rotating refresh token.", 401);
                 db.CurrentUser = local!.Id;
@@ -89,9 +91,9 @@ public static class CentralAuthEndpoints
                 return Results.Redirect(state.ReturnUrl);
             }
 
-            var user = await db.Users.IgnoreQueryFilters().SingleOrDefaultAsync(item => item.IdentitySubject == identitySubject, ct);
-            Validation.Require(user is not null, "This central account has not been attached to a Workout account yet.", 403);
-            var session = await auth.CreateSession(user!.Id, ct);
+            var user = await ProvisionOrGetUser(db, config, identitySubject, identityName, ct);
+
+            var session = await auth.CreateSession(user.Id, ct);
             SetSessionCookie(response, session, environment, AuthService.Cookie);
             return Results.Redirect(state.ReturnUrl);
         });
@@ -153,7 +155,33 @@ public static class CentralAuthEndpoints
         return session?.UserId == expectedUser ? await db.Users.IgnoreQueryFilters().SingleOrDefaultAsync(x => x.Id == expectedUser, ct) : null;
     }
 
-    private static OidcSettings Settings(IConfiguration config, IHostEnvironment environment)
+    internal static async Task<AppUser> ProvisionOrGetUser(AppDb db, IConfiguration config, string identitySubject, string? identityName, CancellationToken ct)
+    {
+        var user = await db.Users.IgnoreQueryFilters().SingleOrDefaultAsync(item => item.IdentitySubject == identitySubject, ct);
+        if (user is null)
+        {
+            var maxUsers = config.GetValue("Auth:MaxUsers", 2);
+            var count = await db.Users.IgnoreQueryFilters().CountAsync(ct);
+            Validation.Require(count < maxUsers, "Registration is closed: the maximum number of accounts has been reached.", 403);
+            user = new AppUser
+            {
+                Id = Guid.NewGuid(),
+                IdentitySubject = identitySubject,
+                DisplayName = !string.IsNullOrWhiteSpace(identityName) ? identityName : "User"
+            };
+            db.Users.Add(user);
+            await db.SaveChangesAsync(ct);
+        }
+        else if (!string.IsNullOrWhiteSpace(identityName) && user.DisplayName != identityName)
+        {
+            user.DisplayName = identityName;
+            await db.SaveChangesAsync(ct);
+        }
+
+        return user;
+    }
+
+    internal static OidcSettings Settings(IConfiguration config, IHostEnvironment environment)
     {
         var authority = config["Identity:Authority"];
         var clientId = config["Identity:ClientId"];
@@ -181,8 +209,8 @@ public static class CentralAuthEndpoints
     private static CookieOptions CookieOptions(IHostEnvironment environment, TimeSpan lifetime)
         => new() { HttpOnly = true, Secure = !environment.IsDevelopment(), SameSite = environment.IsDevelopment() ? SameSiteMode.Lax : SameSiteMode.None, Path = "/", MaxAge = lifetime };
     private static void SetSessionCookie(HttpResponse response, string token, IHostEnvironment environment, string name)
-        => response.Cookies.Append(name, token, new CookieOptions { HttpOnly = true, Secure = !environment.IsDevelopment(), SameSite = SameSiteMode.Strict, Path = "/", MaxAge = TimeSpan.FromDays(30), IsEssential = true });
+        => response.Cookies.Append(name, token, new CookieOptions { HttpOnly = true, Secure = !environment.IsDevelopment(), SameSite = SameSiteMode.Lax, Path = "/", MaxAge = TimeSpan.FromDays(30), IsEssential = true });
 
     private sealed record LoginState(string State, string Nonce, string Verifier, string ReturnUrl, bool Connect, Guid? LocalUserId);
-    private sealed record OidcSettings(string Authority, string ClientId, string ClientSecret, string RedirectUri, string ReturnUrl, string ConnectReturnUrl);
+    internal sealed record OidcSettings(string Authority, string ClientId, string ClientSecret, string RedirectUri, string ReturnUrl, string ConnectReturnUrl);
 }

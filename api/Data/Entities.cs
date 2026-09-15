@@ -10,17 +10,15 @@ public abstract class OwnedRecord
 public sealed class AppUser
 {
     public Guid Id { get; set; } = Guid.NewGuid();
-    public string Username { get; set; } = "";
-    public int Slot { get; set; }
-    public string PasswordHash { get; set; } = "";
+    public string DisplayName { get; set; } = "";
     // Display preferences only. Every stored load is canonical kilograms.
     public string Unit { get; set; } = "kg";
     public string Theme { get; set; } = "dark";
     public int RestSeconds { get; set; } = 90;
     /// Whether the rest timer is allowed to make a sound and raise a notification when it ends.
     public bool RestAlerts { get; set; } = true;
-    /// Central Fitness Account subject. Null is allowed during the additive identity cutover.
-    public string? IdentitySubject { get; set; }
+    /// Central Fitness Account subject.
+    public string IdentitySubject { get; set; } = "";
 }
 
 public sealed class AuthSession
