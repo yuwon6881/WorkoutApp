@@ -119,25 +119,38 @@ public sealed class ProgramService(AppDb db, TemplateService templates)
             db.Templates.Add(template);
             templates.AddExercises(template.Id, workout.Exercises);
         }
-        CreatePhases(program, input.Workouts);
+        var phases = CreatePhases(program, input.Workouts);
+        var templatesForPhase = db.Templates.Local.Where(t => t.ProgramId == program.Id).ToList();
+        for (var phaseIndex = 0; phaseIndex < phases.Count; phaseIndex++)
+        {
+            var group = GroupPhases(input.Workouts)[phaseIndex];
+            var from = group.Min(w => w.Week); var to = group.Max(w => w.Week);
+            foreach (var template in templatesForPhase.Where(t => t.Week >= from && t.Week <= to &&
+                string.Equals(t.Block, group[0].Block?.Trim() ?? "", StringComparison.OrdinalIgnoreCase) &&
+                string.Equals(t.Phase, group[0].Phase?.Trim() ?? "", StringComparison.OrdinalIgnoreCase)))
+                template.ProgramPhaseId = phases[phaseIndex].Id;
+        }
         return program;
     }
 
-    private void CreatePhases(TrainingProgram program, IEnumerable<ProgramWorkoutInput> workouts)
+    private List<ProgramPhase> CreatePhases(TrainingProgram program, IEnumerable<ProgramWorkoutInput> workouts)
     {
         var groups = GroupPhases(workouts);
         var position = 0;
+        var result = new List<ProgramPhase>();
         foreach (var group in groups)
         {
             var from = group.Min(w => w.Week); var to = group.Max(w => w.Week);
             var block = group[0].Block?.Trim() ?? ""; var phase = group[0].Phase?.Trim() ?? "";
-            db.ProgramPhases.Add(new ProgramPhase { UserId = program.UserId, ProgramId = program.Id, Position = position++,
+            var phaseRow = new ProgramPhase { UserId = program.UserId, ProgramId = program.Id, Position = position++,
                 Name = string.IsNullOrWhiteSpace(phase) ? (string.IsNullOrWhiteSpace(block) ? "Program" : block) : phase,
                 Block = block, WeekFrom = from, WeekTo = to, DurationWeeks = to - from + 1,
                 SourcePageFrom = group.Select(w => w.SourcePage).Where(p => p is > 0).Min(),
                 SourcePageTo = group.Select(w => w.SourcePage).Where(p => p is > 0).Max(),
-                StartDate = program.ScheduleAnchor is { } anchor ? anchor.AddDays((from - 1) * 7) : null });
+                StartDate = program.ScheduleAnchor is { } anchor ? anchor.AddDays((from - 1) * 7) : null };
+            db.ProgramPhases.Add(phaseRow); result.Add(phaseRow);
         }
+        return result;
     }
 
     private static List<List<ProgramWorkoutInput>> GroupPhases(IEnumerable<ProgramWorkoutInput> workouts)
@@ -317,6 +330,8 @@ public sealed class ProgramService(AppDb db, TemplateService templates)
             TimeZone = NormalizeTimeZone(timeZone ?? source.TimeZone), ScheduleAnchor = source.ScheduleAnchor
         };
         db.Programs.Add(fresh);
+        var phases = await db.ProgramPhases.Where(p => p.ProgramId == id).OrderBy(p => p.Position).ToListAsync(ct);
+        var copiedTemplates = new List<(WorkoutTemplate Original, WorkoutTemplate Copy)>();
         foreach (var original in sourceTemplates)
         {
             var copy = new WorkoutTemplate
@@ -326,23 +341,34 @@ public sealed class ProgramService(AppDb db, TemplateService templates)
                 PhaseWeek = original.PhaseWeek, IsRestDay = original.IsRestDay, Weekday = original.Weekday, SourcePage = original.SourcePage
             };
             db.Templates.Add(copy);
+            copiedTemplates.Add((original, copy));
             foreach (var exercise in sourceExercises.Where(e => e.TemplateId == original.Id))
                 db.TemplateExercises.Add(new TemplateExercise
                 {
                     UserId = fresh.UserId, TemplateId = copy.Id, ExerciseId = exercise.ExerciseId, SourceName = exercise.SourceName,
                     Position = exercise.Position, Note = exercise.Note, SetsJson = exercise.SetsJson,
-                    SequenceGroup = exercise.SequenceGroup, SubstitutionsJson = exercise.SubstitutionsJson, SourcePage = exercise.SourcePage
+                    SequenceGroup = exercise.SequenceGroup, SubstitutionsJson = exercise.SubstitutionsJson, SourcePage = exercise.SourcePage,
+                    SlotKey = Guid.NewGuid()
                 });
         }
-        var phases = await db.ProgramPhases.Where(p => p.ProgramId == id).OrderBy(p => p.Position).ToListAsync(ct);
+        var newPhases = new List<ProgramPhase>();
         foreach (var phase in phases)
-            db.ProgramPhases.Add(new ProgramPhase
+        {
+            var copy = new ProgramPhase
             {
                 UserId = fresh.UserId, ProgramId = fresh.Id, Position = phase.Position, Name = phase.Name, Block = phase.Block,
                 WeekFrom = phase.WeekFrom, WeekTo = phase.WeekTo, DurationWeeks = phase.DurationWeeks,
                 StartDate = fresh.ScheduleAnchor is { } anchor ? anchor.AddDays((phase.WeekFrom - 1) * 7) : null,
                 SourcePageFrom = phase.SourcePageFrom, SourcePageTo = phase.SourcePageTo
-            });
+            };
+            db.ProgramPhases.Add(copy); newPhases.Add(copy);
+        }
+        foreach (var (original, copy) in copiedTemplates)
+        {
+            var sourcePhasePosition = phases.FirstOrDefault(p => p.Id == original.ProgramPhaseId)?.Position;
+            copy.ProgramPhaseId = sourcePhasePosition is { } phasePosition ? newPhases.FirstOrDefault(p => p.Position == phasePosition)?.Id :
+                newPhases.FirstOrDefault(p => copy.Week >= p.WeekFrom && copy.Week <= p.WeekTo)?.Id;
+        }
         await db.SaveChangesAsync(ct); await gate.Commit(ct);
         return await Get(fresh.Id, ct);
     }
@@ -523,6 +549,7 @@ public sealed class ProgramService(AppDb db, TemplateService templates)
                 Name = string.IsNullOrWhiteSpace(phaseName) ? (string.IsNullOrWhiteSpace(block) ? "Program" : block) : phaseName,
                 Block = block, WeekFrom = group.Min(t => t.Week), WeekTo = group.Max(t => t.Week), DurationWeeks = group.Max(t => t.Week) - group.Min(t => t.Week) + 1,
                 StartDate = scheduleAnchor?.AddDays((group.Min(t => t.Week) - 1) * 7) };
+            foreach (var template in group) template.ProgramPhaseId = phase.Id;
             db.ProgramPhases.Add(phase); phases.Add(phase);
         }
         return phases;

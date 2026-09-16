@@ -5,7 +5,7 @@ using Workout.Api.Domain;
 namespace Workout.Api.Services;
 
 public record SeedExercise(string Slug, string Name, string Muscle, string Equipment, string Cue, List<string>? Aliases,
-    double? LoadStepKg = null, string LoadModel = LoadModels.External);
+    double? LoadStepKg = null, string LoadModel = LoadModels.External, string? MovementPattern = null);
 
 /// The catalog changes only here. Seeding is keyed by slug, so re-running the same file
 /// updates rows in place instead of creating duplicates, and leaves omitted exercises alone.
@@ -27,6 +27,7 @@ public static class CatalogSeed
             Validation.Require(row.Slug.All(c => char.IsAsciiLetterOrDigit(c) || c is '-'), $"Slug '{row.Slug}' may use letters, digits, and hyphens only.");
             Validation.Name(row.Name, "Exercise name", 160);
             Validation.Text(row.Muscle, 60, "Muscle"); Validation.Text(row.Equipment, 60, "Equipment"); Validation.Text(row.Cue, 600, "Cue");
+            Validation.Text(row.MovementPattern, 80, "Movement pattern");
             if (row.LoadStepKg is { } step) Validation.Number(step, 0, 50, "Load step");
             Validation.Require(LoadModels.All.Contains(row.LoadModel), "Unknown exercise load model.");
         }
@@ -47,6 +48,7 @@ public static class CatalogSeed
                 ? Progression.DefaultStepKg
                 : Progression.StepForEquipment(row.Equipment));
             exercise.LoadModel = row.LoadModel;
+            exercise.MovementPattern = row.MovementPattern?.Trim() ?? CuratedMovementPattern(row.Slug);
         }
         var deactivated = 0;
         if (deactivateMissing)
@@ -76,5 +78,22 @@ public static class CatalogSeed
         await transaction.CommitAsync(ct);
         db.MaintenanceAccess = false;
         return $"Seeded {input.Count} exercises: {added} added, {updated} updated, {deactivated} deactivated, {aliasCount} aliases.";
+    }
+
+    /// The shipped catalog predates the movement-pattern column. Keep its metadata useful on the
+    /// first additive seed while allowing a curator to override any row explicitly in JSON.
+    private static string CuratedMovementPattern(string slug)
+    {
+        var key = slug.ToLowerInvariant();
+        if (key.Contains("squat") || key.Contains("leg-press") || key.Contains("hack-squat") || key.Contains("lunge")) return "knee_dominant";
+        if (key.Contains("deadlift") || key.Contains("good-morning") || key.Contains("hip-thrust") || key.Contains("back-extension")) return "hip_dominant";
+        if (key.Contains("bench") || key.Contains("push-up") || key.Contains("pushup") || key.Contains("chest-press") || key.Contains("overhead-press")) return "horizontal_or_vertical_push";
+        if (key.Contains("row") || key.Contains("pull-up") || key.Contains("pullup") || key.Contains("lat-pulldown") || key.Contains("pulldown")) return "horizontal_or_vertical_pull";
+        if (key.Contains("curl")) return "elbow_flexion";
+        if (key.Contains("extension") || key.Contains("pushdown")) return "elbow_extension";
+        if (key.Contains("raise") || key.Contains("fly") || key.Contains("flye")) return "shoulder_isolation";
+        if (key.Contains("carry")) return "loaded_carry";
+        if (key.Contains("crunch") || key.Contains("plank") || key.Contains("leg-raise") || key.Contains("dragon-flag")) return "trunk_flexion_or_anti_extension";
+        return "";
     }
 }

@@ -26,6 +26,7 @@ public sealed class AppDb(DbContextOptions<AppDb> options) : DbContext(options)
     public DbSet<MutationReceipt> Receipts => Set<MutationReceipt>();
     public DbSet<NutritionContextCache> NutritionContexts => Set<NutritionContextCache>();
     public DbSet<IntegrationGrant> IntegrationGrants => Set<IntegrationGrant>();
+    public DbSet<ExerciseSubstitution> ExerciseSubstitutions => Set<ExerciseSubstitution>();
 
     protected override void OnModelCreating(ModelBuilder m)
     {
@@ -52,6 +53,7 @@ public sealed class AppDb(DbContextOptions<AppDb> options) : DbContext(options)
         m.Entity<Exercise>().Property(x => x.Name).HasMaxLength(160);
         m.Entity<Exercise>().Property(x => x.LoadStepKg).HasDefaultValue(2.5);
         m.Entity<Exercise>().Property(x => x.LoadModel).HasDefaultValue("external");
+        m.Entity<Exercise>().Property(x => x.MovementPattern).HasDefaultValue("");
         m.Entity<Exercise>().ToTable("Exercises", t =>
         {
             t.HasCheckConstraint("CK_Exercises_LoadStep", "\"LoadStepKg\" >= 0 AND \"LoadStepKg\" <= 50");
@@ -61,7 +63,7 @@ public sealed class AppDb(DbContextOptions<AppDb> options) : DbContext(options)
         m.Entity<ExerciseAlias>().HasOne<Exercise>().WithMany().HasForeignKey(x => x.ExerciseId).OnDelete(DeleteBehavior.Cascade);
 
         Configure<TrainingProgram>(m); Configure<ProgramPhase>(m); Configure<ProgramSkip>(m); Configure<WorkoutTemplate>(m); Configure<TemplateExercise>(m);
-        Configure<WorkoutSession>(m); Configure<SessionExercise>(m); Configure<CompletedSet>(m); Configure<AiImport>(m); Configure<ImportUpload>(m);
+        Configure<WorkoutSession>(m); Configure<SessionExercise>(m); Configure<CompletedSet>(m); Configure<ExerciseSubstitution>(m); Configure<AiImport>(m); Configure<ImportUpload>(m);
         Configure<ExerciseProgress>(m); Configure<NutritionContextCache>(m); Configure<IntegrationGrant>(m);
         m.Entity<IntegrationGrant>().HasIndex(x => new { x.UserId, x.Peer }).IsUnique();
         m.Entity<NutritionContextCache>().HasIndex(x => x.UserId).IsUnique();
@@ -80,7 +82,11 @@ public sealed class AppDb(DbContextOptions<AppDb> options) : DbContext(options)
         m.Entity<WorkoutTemplate>().HasIndex(x => new { x.UserId, x.ProgramId, x.Week, x.Position });
         m.Entity<WorkoutTemplate>().HasIndex(x => new { x.UserId, x.ProgramId, x.Week, x.Weekday });
         m.Entity<TemplateExercise>().HasIndex(x => new { x.UserId, x.TemplateId, x.Position });
+        m.Entity<TemplateExercise>().HasIndex(x => new { x.UserId, x.TemplateId, x.SlotKey }).IsUnique();
+        m.Entity<WorkoutTemplate>().HasIndex(x => new { x.UserId, x.ProgramId, x.ProgramPhaseId });
         m.Entity<SessionExercise>().HasIndex(x => new { x.UserId, x.SessionId, x.Position });
+        m.Entity<SessionExercise>().HasIndex(x => new { x.UserId, x.SessionId, x.SourceSlotKey });
+        m.Entity<ExerciseSubstitution>().HasIndex(x => new { x.UserId, x.SessionId, x.PendingRetention });
         m.Entity<CompletedSet>().HasIndex(x => new { x.UserId, x.SessionExerciseId, x.Position });
         m.Entity<WorkoutSession>().HasIndex(x => new { x.UserId, x.FinishedAt });
         m.Entity<WorkoutSession>().HasIndex(x => new { x.UserId, x.PlannedDate });

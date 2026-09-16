@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { Check, ChevronDown, Clock3, Dumbbell, Minus, Plus, Timer, Trash2, TrendingUp } from 'lucide-react';
-import type { Exercise, LoggedSet, Preferences, Session, SessionExercise } from '../types';
+import type { Exercise, LoggedSet, Preferences, Session, SessionExercise, SubstitutionCandidate } from '../types';
 import { ApiError, api } from '../lib/api';
 import type { SaveQueue } from '../lib/queue';
-import { completedSets, normalizeExerciseName, plannedSets, rpeSteps, showClock, showTarget, showVolume, showWeight, toDisplay, toKg } from '../lib/training';
+import { completedSets, plannedSets, rpeSteps, showClock, showTarget, showVolume, showWeight, toDisplay, toKg } from '../lib/training';
 import { validateLoggedSet, validateSessionDraft } from '../lib/validation';
 import { restTimer } from '../lib/restTimer';
 import { Button } from './ui/Button';
@@ -15,6 +15,8 @@ const payload = (session: Session, revision: number) => ({
   exercises: session.exercises.map(e => ({
     id: e.id, exerciseId: e.exerciseId, nameSnapshot: e.name, note: e.note, prescription: e.prescription,
     sequenceGroup: e.sequenceGroup, substitutions: e.substitutions, loadModel: e.loadModel,
+    sourceTemplateExerciseId: e.sourceTemplateExerciseId, sourceSlotKey: e.sourceSlotKey, sourcePhaseId: e.sourcePhaseId,
+    sourcePage: e.sourcePage,
     sets: e.sets.map(s => ({ id: s.id, weightKg: s.weightKg, reps: s.reps, rpe: s.rpe, done: s.done, warmup: s.warmup, resistanceMode: s.resistanceMode }))
   }))
 });
@@ -28,6 +30,7 @@ export function Workout({ session, preferences, exercises, queue, onSaved, onClo
   const [rest, setRest] = useState(restTimer.current);
   const [picker, setPicker] = useState(false);
   const [confirm, setConfirm] = useState<'finish' | 'discard' | null>(null);
+  const [retainSwaps, setRetainSwaps] = useState(false);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const revision = useRef(session.revision);
@@ -76,8 +79,17 @@ export function Workout({ session, preferences, exercises, queue, onSaved, onClo
     if (validationError) { setError(validationError); return; }
     if (!done) { setError('Complete at least one working set before finishing.'); return; }
     setBusy(true);
-    try { const saved = await api.finishWorkout(draft.id, revision.current); restTimer.skip(); onFinish(saved); }
+    try { const saved = await api.finishWorkout(draft.id, revision.current, retainSwaps); restTimer.skip(); onFinish(saved); }
     catch (failure) { setError(failure instanceof ApiError ? failure.message : 'Could not save this workout.'); setBusy(false); setConfirm(null); }
+  }
+
+  async function swapExercise(sessionExerciseId: string, replacementExerciseId: string | null, replacementName: string) {
+    setBusy(true); setError('');
+    try {
+      const saved = await api.substituteSessionExercise(draft.id, { sessionExerciseId, replacementExerciseId, replacementName, revision: revision.current, idempotencyId: crypto.randomUUID() });
+      revision.current = saved.revision; setDraft(saved); onSaved(saved);
+    } catch (failure) { setError(failure instanceof ApiError ? failure.message : 'Could not swap this exercise.'); }
+    finally { setBusy(false); }
   }
 
   async function discard() {
@@ -94,7 +106,8 @@ export function Workout({ session, preferences, exercises, queue, onSaved, onClo
   for (const exercise of draft.exercises) {
     const prefix = exercise.sequenceGroup?.match(/^[A-Za-z]+/)?.[0] ?? '';
     const previous = groups.at(-1)?.[0]?.sequenceGroup?.match(/^[A-Za-z]+/)?.[0] ?? '';
-    if (prefix && prefix === previous) groups.at(-1)!.push(exercise); else groups.push([exercise]);
+    const previousSwap = groups.at(-1)?.[0]?.swapGroupKey;
+    if ((exercise.swapGroupKey && previousSwap && exercise.swapGroupKey === previousSwap) || (prefix && prefix === previous)) groups.at(-1)!.push(exercise); else groups.push([exercise]);
   }
 
   return <Modal title={draft.name} onClose={onClose} wide>
@@ -105,9 +118,9 @@ export function Workout({ session, preferences, exercises, queue, onSaved, onClo
       {draft.nutritionContext?.cached && <span title="Nutrition was unavailable when this workout started">Nutrition cached</span>}</div>
     <div className="modal-body workout-body">
       <div className="workout-hint">Enter your working weight, reps, and how hard the set felt. Warm-ups stay separate from working volume.</div>
-      {groups.map((group, groupIndex) => <div className={group.length > 1 ? 'superset-block' : ''} key={groupIndex}>
-        {group.length > 1 && <div className="superset-heading">SUPERSET {group[0].sequenceGroup.match(/^[A-Za-z]+/)?.[0] ?? ''}</div>}
-        {group.map(exercise => <ExerciseBlock key={exercise.id} exercise={exercise} index={draft.exercises.indexOf(exercise)} unit={unit} draft={draft} exercises={exercises} change={change} editSet={editSet} toggle={toggle} />)}
+      {groups.map((group, groupIndex) => <div className={group.length > 1 ? (group.some(item => item.swapGroupKey) ? 'swap-block' : 'superset-block') : ''} key={groupIndex}>
+        {group.length > 1 && <div className="superset-heading">{group.some(item => item.swapGroupKey) ? 'EXERCISE SWAP' : `SUPERSET ${group[0].sequenceGroup.match(/^[A-Za-z]+/)?.[0] ?? ''}`}</div>}
+        {group.map(exercise => <ExerciseBlock key={exercise.id} exercise={exercise} index={draft.exercises.indexOf(exercise)} unit={unit} draft={draft} exercises={exercises} change={change} editSet={editSet} toggle={toggle} onSwap={swapExercise} />)}
       </div>)}
       <Button className="full-width" onClick={() => setPicker(true)}><Plus size={18} />Add exercise</Button>
       <label className="field">Workout notes<textarea name="workout-note" placeholder="How did the session feel?" value={draft.note} onChange={e => change({ ...draft, note: e.target.value })} /></label>
@@ -127,25 +140,31 @@ export function Workout({ session, preferences, exercises, queue, onSaved, onClo
       change({ ...draft, exercises: [...draft.exercises, { id: crypto.randomUUID(), exerciseId: chosen.id, name: chosen.name, position: draft.exercises.length, note: '', sequenceGroup: '', substitutions: [], prescription: [blankPrescription(preferences.restSeconds, chosen.loadModel)], sets: [blankLoggedSet(chosen.loadModel)], progression: null, loadModel: chosen.loadModel }] });
       setPicker(false);
     }} /></div></Modal>}
-    {confirm && <Modal title={confirm === 'finish' ? 'Finish your workout?' : 'Discard this workout?'} onClose={() => setConfirm(null)}><div className="modal-body"><p>{confirm === 'finish' ? `${done} completed working ${done === 1 ? 'set' : 'sets'} will be saved. Unlogged sets will be left out.` : 'This removes the session in progress. Your completed history stays as it is.'}</p></div>
+    {confirm && <Modal title={confirm === 'finish' ? 'Finish your workout?' : 'Discard this workout?'} onClose={() => setConfirm(null)}><div className="modal-body"><p>{confirm === 'finish' ? `${done} completed working ${done === 1 ? 'set' : 'sets'} will be saved. Unlogged sets will be left out.` : 'This removes the session in progress. Your completed history stays as it is.'}</p>{confirm === 'finish' && draft.exercises.some(e => e.sourcePhaseId && e.isReplacement) && <label className="checkbox-row"><input type="checkbox" checked={retainSwaps} onChange={e => setRetainSwaps(e.target.checked)} />Keep exercise swaps for the remaining workouts in this phase.</label>}</div>
       <div className="modal-actions"><Button onClick={() => setConfirm(null)}>Keep training</Button><Button variant={confirm === 'finish' ? 'primary' : 'destructive'} disabled={busy} onClick={() => confirm === 'finish' ? void finish() : void discard()}>{confirm === 'finish' ? 'Save workout' : 'Discard workout'}</Button></div></Modal>}
   </Modal>;
 }
 
-function ExerciseBlock({ exercise, index, unit, draft, exercises, change, editSet, toggle }: {
+function ExerciseBlock({ exercise, index, unit, draft, exercises, change, editSet, toggle, onSwap }: {
   exercise: SessionExercise; index: number; unit: Preferences['unit']; draft: Session; exercises: Exercise[];
   change: (s: Session) => void; editSet: (ei: number, si: number, patch: Partial<LoggedSet>) => void; toggle: (ei: number, si: number) => void;
+  onSwap: (sessionExerciseId: string, replacementExerciseId: string | null, replacementName: string) => Promise<void>;
 }) {
   const [swapOpen, setSwapOpen] = useState(false);
+  const [candidates, setCandidates] = useState<SubstitutionCandidate[]>([]);
   const prescription = exercise.prescription;
-  function swap(name: string) {
-    const match = exercises.find(item => normalizeExerciseName(item.name) === normalizeExerciseName(name));
-    change({ ...draft, exercises: draft.exercises.map((item, i) => i === index ? { ...item, name, exerciseId: match?.id ?? null } : item) });
-    setSwapOpen(false);
-  }
-  return <section className="logging-exercise"><div className="section-heading"><div><h3>{exercise.name}</h3>{!exercise.exerciseId && <span className="tiny-label">NOT IN LIBRARY</span>}</div>
-    <div className="topbar-actions">{exercise.substitutions.length > 0 && <Button variant="tertiary" onClick={() => setSwapOpen(value => !value)}>Swap</Button>}<Button variant="tertiary" aria-label={`Remove ${exercise.name}`} onClick={() => change({ ...draft, exercises: draft.exercises.filter((_, i) => i !== index) })}><Trash2 size={16} /></Button></div></div>
-    {swapOpen && <div className="swap-menu" role="group" aria-label={`Substitutions for ${exercise.name}`}>{exercise.substitutions.map(name => <Button key={name} variant="tertiary" onClick={() => swap(name)}>{name}</Button>)}</div>}
+  useEffect(() => {
+    if (!swapOpen) return;
+    let alive = true;
+    void api.substitutionCandidates({ exerciseId: exercise.exerciseId, name: exercise.name, imported: exercise.substitutions }).then(rows => { if (alive) setCandidates(rows); }).catch(() => { if (alive) setCandidates([]); });
+    return () => { alive = false; };
+  }, [swapOpen, exercise.exerciseId, exercise.name, exercise.substitutions]);
+  return <section className={`logging-exercise ${exercise.isReplacement ? 'swap-continuation' : ''}`}><div className="section-heading"><div><h3>{exercise.isReplacement && exercise.originalName ? `Continuation · ${exercise.name}` : exercise.name}</h3>{exercise.isReplacement && <span className="tiny-label">SWAPPED · {exercise.originalName}</span>}{!exercise.exerciseId && <span className="tiny-label">NOT IN LIBRARY</span>}</div>
+    <div className="topbar-actions"><Button variant="tertiary" onClick={() => setSwapOpen(value => !value)}>Swap</Button><Button variant="tertiary" aria-label={`Remove ${exercise.name}`} onClick={() => change({ ...draft, exercises: draft.exercises.filter((_, i) => i !== index) })}><Trash2 size={16} /></Button></div></div>
+    {swapOpen && <Modal title={`Swap ${exercise.name}`} onClose={() => setSwapOpen(false)}><div className="modal-body"><p className="source">Completed sets stay with {exercise.isReplacement && exercise.originalName ? exercise.originalName : exercise.name}; remaining sets continue under the replacement.</p>
+      {!!exercise.substitutions.length && !candidates.length && <div className="swap-menu" role="group" aria-label="Imported alternatives"><span className="tiny-label">Imported alternatives</span>{exercise.substitutions.map(name => <Button key={name} variant="tertiary" onClick={() => void onSwap(exercise.id, exercises.find(item => item.name.toLowerCase() === name.toLowerCase())?.id ?? null, name).then(() => setSwapOpen(false))}>{name}</Button>)}</div>}
+      {!!candidates.length && <div className="swap-menu" role="group" aria-label="Suggested substitutions"><span className="tiny-label">Suggested first</span>{candidates.slice(0, 12).map(candidate => <Button key={`${candidate.source}-${candidate.name}`} variant="tertiary" onClick={() => void onSwap(exercise.id, candidate.exerciseId, candidate.name).then(() => setSwapOpen(false))}>{candidate.name}<small>{candidate.source === 'imported' ? 'Imported alternative' : candidate.source === 'similar' ? 'Similar movement' : 'Library'}</small></Button>)}</div>}
+      <ExerciseLibrary exercises={exercises} onSelect={id => { const chosen = exercises.find(item => item.id === id); if (chosen) void onSwap(exercise.id, chosen.id, chosen.name).then(() => setSwapOpen(false)); }} /></div></Modal>}
     {exercise.progression && <p className="progression-note"><TrendingUp size={14} aria-hidden="true" />
       <span>{exercise.progression.suggestedKg === null ? '' : <strong>{showWeight(exercise.progression.suggestedKg, unit)} · </strong>}{exercise.progression.reason}</span>
       {exercise.progression.trendE1rmKg !== null && <small title="Estimated from your logged reps and RPE, not a max you have tested.">Estimated max {showWeight(exercise.progression.trendE1rmKg, unit)}</small>}</p>}

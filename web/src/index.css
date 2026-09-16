@@ -119,6 +119,8 @@ input:disabled,select:disabled,textarea:disabled{opacity:.55;cursor:not-allowed}
 .checkbox-field input{width:17px;height:17px;flex:0 0 auto;margin:0}
 .program-slot-row{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:6px}
 .program-slot-row>.button{min-width:44px}
+.slot-exercises{display:flex;flex-wrap:wrap;gap:6px;grid-column:1 / -1;padding:4px 0 4px 8px}.slot-exercises .button{font-size:10px;padding:7px 9px}.slot-exercises .button small{display:none}
+.swap-continuation{border-left:3px solid var(--accent);padding-left:12px}.swap-block{border:1px solid var(--accent-border);border-radius:9px;padding:8px;margin:10px 0;background:var(--accent-soft)}.checkbox-row{display:flex;align-items:flex-start;gap:9px;font-size:12px;line-height:1.5;color:var(--muted)}.checkbox-row input{width:18px;height:18px;flex:0 0 auto;margin:0}.preview-card{padding:12px;background:var(--accent-soft);border:1px solid var(--accent-border);border-radius:8px;font-size:11px;line-height:1.5}.swap-menu .button small{display:block;color:var(--muted);font-size:9px;margin-left:4px}
 .schedule-editor{display:grid;gap:14px;margin-top:15px;padding:14px;border:1px solid var(--border);border-radius:9px;background:var(--surface-raised)}
 .schedule-rows{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
 @media(max-width:639px){.schedule-rows{grid-template-columns:1fr}.program-slot-row{grid-template-columns:minmax(0,1fr) auto}}

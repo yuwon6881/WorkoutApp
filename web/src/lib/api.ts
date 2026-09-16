@@ -1,4 +1,4 @@
-import type { Bootstrap, DraftWorkout, HistoryPage, ImportDraft, ImportView, Preferences, ProgressSummary, Program, ProgramSummary, Session, Template } from '../types';
+import type { Bootstrap, DraftWorkout, HistoryPage, ImportDraft, ImportView, Preferences, ProgressSummary, Program, ProgramSummary, Session, Template, SubstitutionCandidate, TemplateSubstitutionResult } from '../types';
 
 export class ApiError extends Error {
   constructor(message: string, readonly status: number) { super(message); }
@@ -43,11 +43,18 @@ export const api = {
   bootstrap: (signal?: AbortSignal) => call<Bootstrap>('/api/bootstrap', 'GET', undefined, signal),
   preferences: (input: Preferences) => call<Preferences>('/api/preferences', 'PUT', input),
   exportAccount: () => call<unknown>('/api/export'),
+  substitutionCandidates: (input: { exerciseId?: string | null; name?: string; imported?: string[]; query?: string } = {}) => {
+    const params = new URLSearchParams(); if (input.exerciseId) params.set('exerciseId', input.exerciseId); if (input.name) params.set('name', input.name);
+    if (input.imported?.length) params.set('imported', input.imported.join('|')); if (input.query) params.set('q', input.query);
+    return call<SubstitutionCandidate[]>(`/api/exercises/substitutions?${params.toString()}`);
+  },
 
   templates: () => call<Template[]>('/api/templates'),
   getTemplate: (id: string) => call<Template>(`/api/templates/${id}`),
   createTemplate: (input: unknown) => call<Template>('/api/templates', 'POST', input),
   updateTemplate: (id: string, input: unknown) => call<Template>(`/api/templates/${id}`, 'PUT', input),
+  substituteTemplateExercise: (id: string, input: { templateExerciseId?: string; slotKey?: string; replacementExerciseId?: string | null; replacementName: string; scope?: 'slot' | 'phase'; revision?: number; idempotencyId?: string }) => call<TemplateSubstitutionResult>(`/api/templates/${id}/substitution`, 'POST', input),
+  previewTemplateSubstitution: (id: string, input: { templateExerciseId?: string; slotKey?: string; replacementExerciseId?: string | null; replacementName: string; scope?: 'slot' | 'phase'; revision?: number }) => call<TemplateSubstitutionResult>(`/api/templates/${id}/substitution/preview`, 'POST', input),
   deleteTemplate: (id: string) => call<void>(`/api/templates/${id}`, 'DELETE'),
 
   programs: () => call<ProgramSummary[]>('/api/programs'),
@@ -63,7 +70,8 @@ export const api = {
   activeWorkout: () => call<Session | null>('/api/workouts/active'),
   startWorkout: (templateId: string | null, name?: string) => call<Session>('/api/workouts', 'POST', { templateId, name }),
   saveWorkout: (id: string, input: unknown) => call<Session>(`/api/workouts/${id}`, 'PUT', input),
-  finishWorkout: (id: string, revision: number) => call<Session>(`/api/workouts/${id}/finish`, 'POST', { revision }),
+  substituteSessionExercise: (id: string, input: { sessionExerciseId: string; replacementExerciseId?: string | null; replacementName: string; revision?: number; idempotencyId?: string }) => call<Session>(`/api/workouts/${id}/substitution`, 'POST', input),
+  finishWorkout: (id: string, revision: number, retainExerciseSwaps = false) => call<Session>(`/api/workouts/${id}/finish`, 'POST', { revision, retainExerciseSwaps }),
   discardWorkout: (id: string) => call<void>(`/api/workouts/${id}/discard`, 'POST'),
   deleteWorkout: (id: string) => call<void>(`/api/workouts/${id}`, 'DELETE'),
   history: (page: number, size = 20) => call<HistoryPage>(`/api/history?page=${page}&size=${size}`),

@@ -7,7 +7,7 @@ namespace Workout.Api.Endpoints;
 
 public record PreferencesInput(string Unit, string Theme, int RestSeconds, bool? RestAlerts);
 public record StartInput(Guid? TemplateId, string? Name);
-public record FinishInput(int? Revision);
+public record FinishInput(int? Revision, bool RetainExerciseSwaps = false);
 public record ActivateInput(bool Active, int? Revision);
 public record ScheduleInput(DateOnly Anchor, List<ScheduleSlot> Slots, int? Revision);
 public record RepeatProgramInput(string? TimeZone);
@@ -39,6 +39,21 @@ public static class TrainingEndpoints
     public static void MapCatalog(this WebApplication app)
     {
         app.MapGet("/api/exercises", async (CatalogService catalog, CancellationToken ct) => await catalog.All(ct));
+        app.MapGet("/api/exercises/substitutions", async (Guid? exerciseId, string? name, string? imported, string? q, CatalogService catalog, CancellationToken ct) =>
+        {
+            var alternatives = string.IsNullOrWhiteSpace(imported) ? [] : imported.Split('|', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            return await catalog.Substitutions(exerciseId, name, alternatives, q, ct);
+        });
+        app.MapGet("/api/exercises/{exerciseId:guid}/substitutions", async (Guid exerciseId, string? imported, string? q, CatalogService catalog, CancellationToken ct) =>
+        {
+            var alternatives = string.IsNullOrWhiteSpace(imported) ? [] : imported.Split('|', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            return await catalog.Substitutions(exerciseId, null, alternatives, q, ct);
+        });
+        app.MapGet("/api/substitutions/candidates", async (Guid? exerciseId, string? name, string? imported, string? q, CatalogService catalog, CancellationToken ct) =>
+        {
+            var alternatives = string.IsNullOrWhiteSpace(imported) ? [] : imported.Split('|', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            return await catalog.Substitutions(exerciseId, name, alternatives, q, ct);
+        });
 
         app.MapPut("/api/preferences", async (PreferencesInput input, AppDb db, CancellationToken ct) =>
         {
@@ -58,6 +73,16 @@ public static class TrainingEndpoints
         app.MapGet("/api/templates/{id:guid}", async (Guid id, TemplateService templates, CancellationToken ct) => await templates.Get(id, ct));
         app.MapPost("/api/templates", async (TemplateInput input, TemplateService templates, CancellationToken ct) => await templates.Create(input, null, 1, 0, ct));
         app.MapPut("/api/templates/{id:guid}", async (Guid id, TemplateInput input, TemplateService templates, CancellationToken ct) => await templates.Update(id, input, ct));
+        app.MapPost("/api/templates/{id:guid}/substitution/preview", async (Guid id, TemplateSubstitutionInput input, TemplateService templates, CancellationToken ct)
+            => await templates.Preview(id, input, ct));
+        app.MapPost("/api/templates/{id:guid}/exercise-substitution/preview", async (Guid id, TemplateSubstitutionInput input, TemplateService templates, CancellationToken ct)
+            => await templates.Preview(id, input, ct));
+        app.MapPost("/api/templates/{id:guid}/substitution", async (Guid id, TemplateSubstitutionInput input, TemplateService templates, CancellationToken ct)
+            => await templates.Swap(id, input, ct));
+        app.MapPost("/api/templates/{id:guid}/exercise-substitution", async (Guid id, TemplateSubstitutionInput input, TemplateService templates, CancellationToken ct)
+            => await templates.Swap(id, input, ct));
+        app.MapPost("/api/templates/{id:guid}/swap", async (Guid id, TemplateSubstitutionInput input, TemplateService templates, CancellationToken ct)
+            => await templates.Swap(id, input, ct));
         app.MapDelete("/api/templates/{id:guid}", async (Guid id, TemplateService templates, CancellationToken ct) =>
         { await templates.Delete(id, ct); return Results.NoContent(); });
     }
@@ -85,7 +110,13 @@ public static class TrainingEndpoints
         app.MapGet("/api/workouts/active", async (WorkoutService workouts, CancellationToken ct) => await workouts.Active(ct));
         app.MapPost("/api/workouts", async (StartInput input, WorkoutService workouts, CancellationToken ct) => await workouts.Start(input.TemplateId, input.Name, ct));
         app.MapPut("/api/workouts/{id:guid}", async (Guid id, SessionInput input, WorkoutService workouts, CancellationToken ct) => await workouts.Save(id, input, ct));
-        app.MapPost("/api/workouts/{id:guid}/finish", async (Guid id, FinishInput input, WorkoutService workouts, CancellationToken ct) => await workouts.Finish(id, input.Revision, ct));
+        app.MapPost("/api/workouts/{id:guid}/substitution", async (Guid id, SessionSubstitutionInput input, WorkoutService workouts, CancellationToken ct)
+            => await workouts.Swap(id, input, ct));
+        app.MapPost("/api/workouts/{id:guid}/exercise-substitution", async (Guid id, SessionSubstitutionInput input, WorkoutService workouts, CancellationToken ct)
+            => await workouts.Swap(id, input, ct));
+        app.MapPost("/api/workouts/{id:guid}/swap", async (Guid id, SessionSubstitutionInput input, WorkoutService workouts, CancellationToken ct)
+            => await workouts.Swap(id, input, ct));
+        app.MapPost("/api/workouts/{id:guid}/finish", async (Guid id, FinishInput input, WorkoutService workouts, CancellationToken ct) => await workouts.Finish(id, input.Revision, ct, input.RetainExerciseSwaps));
         app.MapPost("/api/workouts/{id:guid}/discard", async (Guid id, WorkoutService workouts, CancellationToken ct) =>
         { await workouts.Discard(id, ct); return Results.NoContent(); });
         app.MapGet("/api/workouts/{id:guid}", async (Guid id, WorkoutService workouts, CancellationToken ct) => await workouts.Get(id, ct));

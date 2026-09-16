@@ -44,6 +44,9 @@ public sealed class Exercise
     /// Explicit loading semantics. An absent/unknown value is treated as external; the app never
     /// infers a bodyweight model from an equipment label.
     public string LoadModel { get; set; } = "external";
+    /// Curated movement pattern used to rank safe substitution candidates. It is optional for
+    /// legacy catalog rows; an empty value simply falls back to muscle/equipment matching.
+    public string MovementPattern { get; set; } = "";
 }
 
 public sealed class ExerciseAlias
@@ -122,6 +125,9 @@ public sealed class WorkoutTemplate : OwnedRecord
     public int? Weekday { get; set; }
     /// Page in the source document for an imported workout/day heading.
     public int? SourcePage { get; set; }
+    /// Stable phase identity. The display name is not unique (two phases may both be called
+    /// "Base"), so substitutions always use this id when a program phase is available.
+    public Guid? ProgramPhaseId { get; set; }
 }
 
 public sealed class TemplateExercise : OwnedRecord
@@ -136,6 +142,9 @@ public sealed class TemplateExercise : OwnedRecord
     public string SubstitutionsJson { get; set; } = "[]";
     /// Page in the source document for imported exercise/prescription provenance.
     public int? SourcePage { get; set; }
+    /// Stable identity for this logical exercise slot. Editing a template updates this row in
+    /// place so active sessions and future substitutions keep their source link.
+    public Guid SlotKey { get; set; } = Guid.NewGuid();
 }
 
 public sealed class WorkoutSession : OwnedRecord
@@ -169,6 +178,16 @@ public sealed class SessionExercise : OwnedRecord
     public string SequenceGroup { get; set; } = "";
     public string SubstitutionsJson { get; set; } = "[]";
     public string LoadModel { get; set; } = "external";
+    public Guid? SourceTemplateExerciseId { get; set; }
+    public Guid? SourceSlotKey { get; set; }
+    public Guid? SourcePhaseId { get; set; }
+    /// Rows created by a partial swap share a group key. The original row retains completed sets
+    /// while the replacement row contains the continuation sets.
+    public Guid? SwapGroupKey { get; set; }
+    public bool IsReplacement { get; set; }
+    public Guid? OriginalExerciseId { get; set; }
+    public string OriginalNameSnapshot { get; set; } = "";
+    public int? SourcePage { get; set; }
 }
 
 public sealed class CompletedSet : OwnedRecord
@@ -193,6 +212,24 @@ public sealed class CompletedSet : OwnedRecord
     /// Frozen effective system load for full-bodyweight records; absent for external, partial
     /// bodyweight, unknown, or reps-only movements.
     public double? SystemLoadKg { get; set; }
+}
+
+/// Durable account-scoped record of an in-session substitution. A pending row is applied to the
+/// remaining slots in the same phase only when the user opts into retention at finish.
+public sealed class ExerciseSubstitution : OwnedRecord
+{
+    public Guid SessionId { get; set; }
+    public Guid? SourceTemplateExerciseId { get; set; }
+    public Guid? SourceSlotKey { get; set; }
+    public Guid? SourcePhaseId { get; set; }
+    public Guid? OriginalExerciseId { get; set; }
+    public string OriginalName { get; set; } = "";
+    public Guid? ReplacementExerciseId { get; set; }
+    public string ReplacementName { get; set; } = "";
+    public string Scope { get; set; } = "slot";
+    public bool PendingRetention { get; set; }
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime? RetainedAt { get; set; }
 }
 
 /// The running strength estimate for one exercise, derived from completed sets. It is a cache

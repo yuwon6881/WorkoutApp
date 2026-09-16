@@ -1,5 +1,5 @@
 import { useState, type Dispatch, type SetStateAction } from 'react';
-import { ArrowRight, Dumbbell, FileText, Pencil, Plus, Trash2 } from 'lucide-react';
+import { ArrowRight, Dumbbell, FileText, Pencil, Plus, RefreshCw, Trash2 } from 'lucide-react';
 import type { Bootstrap, Exercise, ProgramSummary, SetPrescription, Template, TemplateExercise } from '../types';
 import { ApiError, api } from '../lib/api';
 import { showReps } from '../lib/training';
@@ -39,12 +39,14 @@ export function Programs({ data, exercises, onStart, onImport, onChanged }: {
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [swapIndex, setSwapIndex] = useState<number | null>(null);
 
   const open = (template?: Template) => {
     setDraft(template
       ? { id: template.id, name: template.name, focus: template.focus, revision: template.revision, exercises: structuredClone(template.exercises) }
       : { id: null, name: '', focus: 'Custom workout', revision: null, exercises: [] });
     setPicking(false); setDeleting(false); setError('');
+    setSwapIndex(null);
   };
 
   async function save() {
@@ -54,7 +56,8 @@ export function Programs({ data, exercises, onStart, onImport, onChanged }: {
     setBusy(true);
     const input = {
       name: draft.name.trim(), focus: draft.focus.trim(), note: null, revision: draft.revision, idempotencyId: crypto.randomUUID(),
-      exercises: draft.exercises.map(e => ({ exerciseId: e.exerciseId, sourceName: e.sourceName || e.name, note: e.note || null, sets: e.sets }))
+      exercises: draft.exercises.map(e => ({ exerciseId: e.exerciseId, sourceName: e.sourceName || e.name, note: e.note || null, sets: e.sets,
+        sequenceGroup: e.sequenceGroup || null, substitutions: e.substitutions ?? [], sourcePage: e.sourcePage ?? null, slotKey: e.slotKey ?? null }))
     };
     try {
       if (draft.id) await api.updateTemplate(draft.id, input); else await api.createTemplate(input);
@@ -86,7 +89,7 @@ export function Programs({ data, exercises, onStart, onImport, onChanged }: {
       if (!programs.length) return null;
       const title = status === 'active' ? 'Active program' : status === 'standby' ? 'Standby programs' : 'Completed programs';
       return <section key={status} className="program-section"><div className="section-heading"><h2>{title}</h2><span className="muted">{programs.length}</span></div>
-        {programs.map(program => <ProgramCard key={program.id} program={program} onStart={onStart} onChanged={onChanged} />)}</section>;
+        {programs.map(program => <ProgramCard key={program.id} program={program} exercises={exercises} onStart={onStart} onChanged={onChanged} />)}</section>;
     })}
 
     <section className="panel">
@@ -110,7 +113,7 @@ export function Programs({ data, exercises, onStart, onImport, onChanged }: {
         <label className="field">Workout name<input name="template-name" value={draft.name} onChange={e => setDraft({ ...draft, name: e.target.value })} placeholder="e.g. Full body strength" /></label>
         <label className="field">Focus<input name="template-focus" value={draft.focus} onChange={e => setDraft({ ...draft, focus: e.target.value })} /></label>
         <div className="editor-exercises">{draft.exercises.map((exercise, i) => <div className="editor-row" key={exercise.id}>
-          <div className="section-heading"><strong>{exercise.name}</strong><Button variant="tertiary" aria-label={`Remove ${exercise.name}`} onClick={() => setDraft({ ...draft, exercises: draft.exercises.filter((_, j) => j !== i) })}><Trash2 size={16} /></Button></div>
+          <div className="section-heading"><strong>{exercise.name}</strong><div className="topbar-actions"><Button variant="tertiary" aria-label={`Swap ${exercise.name}`} onClick={() => setSwapIndex(i)}><RefreshCw size={16} />Swap</Button><Button variant="tertiary" aria-label={`Remove ${exercise.name}`} onClick={() => setDraft({ ...draft, exercises: draft.exercises.filter((_, j) => j !== i) })}><Trash2 size={16} /></Button></div></div>
           <div className="set-editor" aria-label={`Set prescriptions for ${exercise.name}`}>
             {exercise.sets.map((set, si) => <div className="set-editor-row" key={si}>
               <span className="tiny-label">SET {si + 1}</span>
@@ -143,11 +146,17 @@ export function Programs({ data, exercises, onStart, onImport, onChanged }: {
         <div className="modal-body"><p>Your completed sessions stay in your history.</p></div>
         <div className="modal-actions"><Button onClick={() => setDeleting(false)}>Keep workout</Button><Button variant="destructive" disabled={busy} onClick={remove}>Delete workout</Button></div>
       </Modal>}
+      {swapIndex !== null && <Modal title={`Swap ${draft.exercises[swapIndex]?.name ?? 'exercise'}`} onClose={() => setSwapIndex(null)}>
+        <div className="modal-body"><p className="source">Prescriptions, notes, warm-ups, and imported source pages stay with this slot.</p>
+          {!!draft.exercises[swapIndex]?.substitutions.length && <div className="swap-menu" role="group" aria-label="Imported alternatives">{draft.exercises[swapIndex].substitutions.map(name => <Button key={name} variant="tertiary" onClick={() => { const match = exercises.find(item => item.name.toLowerCase() === name.toLowerCase()); setDraft({ ...draft, exercises: draft.exercises.map((item, index) => index === swapIndex ? { ...item, exerciseId: match?.id ?? null, name, sourceName: name } : item) }); setSwapIndex(null); }}>{name}</Button>)}</div>}
+          <ExerciseLibrary exercises={exercises} exclude={draft.exercises.map(e => e.exerciseId).filter((id): id is string => id !== null)} onSelect={id => { const chosen = exercises.find(item => item.id === id); if (!chosen) return; setDraft({ ...draft, exercises: draft.exercises.map((item, index) => index === swapIndex ? { ...item, exerciseId: chosen.id, name: chosen.name, sourceName: chosen.name, loadModel: chosen.loadModel } : item) }); setSwapIndex(null); }} />
+        </div>
+      </Modal>}
     </Modal>}
   </>;
 }
 
-function ProgramCard({ program, onStart, onChanged }: { program: ProgramSummary; onStart: (id: string) => void; onChanged: () => Promise<void> }) {
+function ProgramCard({ program, exercises, onStart, onChanged }: { program: ProgramSummary; exercises: Exercise[]; onStart: (id: string) => void; onChanged: () => Promise<void> }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [expanded, setExpanded] = useState(false);
@@ -155,6 +164,10 @@ function ProgramCard({ program, onStart, onChanged }: { program: ProgramSummary;
   const [scheduling, setScheduling] = useState(program.needsSchedule ?? false);
   const [scheduleAnchor, setScheduleAnchor] = useState(program.scheduleAnchor ?? nextMondayIso());
   const [scheduleWeekdays, setScheduleWeekdays] = useState<Record<string, number | undefined>>(() => defaultWeekdays(program.days));
+  const [swapTarget, setSwapTarget] = useState<{ template: Template; exercise: TemplateExercise } | null>(null);
+  const [swapScope, setSwapScope] = useState<'slot' | 'phase'>('slot');
+  const [swapChoice, setSwapChoice] = useState<Exercise | null>(null);
+  const [confirmPhaseSwap, setConfirmPhaseSwap] = useState(false);
   const next = program.days.find(w => w.id === program.nextTemplateId);
   const skipped = new Set(program.skippedTemplateIds ?? []);
 
@@ -204,7 +217,7 @@ function ProgramCard({ program, onStart, onChanged }: { program: ProgramSummary;
       {program.phases.map(phase => <span className="tiny-label" key={phase.id}>{phase.name} · W{phase.currentWeek ?? 1}/{phase.durationWeeks} · {phase.completedWorkouts} completed{phase.skippedWorkouts ? ` · ${phase.skippedWorkouts} skipped` : ''}/{phase.totalWorkouts}{phase.complete ? ' · DONE' : ''}{phase.sourcePageFrom ? ` · PDF pp.${phase.sourcePageFrom}${phase.sourcePageTo && phase.sourcePageTo !== phase.sourcePageFrom ? `–${phase.sourcePageTo}` : ''}` : ''}</span>)}
     </div>}
     <Button variant="tertiary" className="full-width" onClick={() => void toggleDetails()} disabled={busy}>{busy ? 'Loading program…' : expanded ? 'Hide program detail' : 'Show block and phase detail'}</Button>
-    {expanded && <ProgramTree days={program.days} completed={program.completedTemplateIds} skipped={program.skippedTemplateIds ?? []} nextId={program.nextTemplateId} detail={detail} onStart={onStart} onSkip={toggleSkip} canStart={program.active} />}
+    {expanded && <ProgramTree days={program.days} completed={program.completedTemplateIds} skipped={program.skippedTemplateIds ?? []} nextId={program.nextTemplateId} detail={detail} onStart={onStart} onSkip={toggleSkip} canStart={program.active} onSwap={template => exercise => { setSwapTarget({ template, exercise }); setSwapScope('slot'); setSwapChoice(null); setConfirmPhaseSwap(false); }} />}
     {error && <p className="error-text" role="alert">{error}</p>}
     {program.needsSchedule && !scheduling && <div className="empty-message">
       <strong>Choose when this program happens</strong>
@@ -232,10 +245,19 @@ function ProgramCard({ program, onStart, onChanged }: { program: ProgramSummary;
       {program.lifecycleStatus === 'completed' && <Button disabled={busy} onClick={() => act(() => api.repeatProgram(program.id))}>Repeat program</Button>}
       <Button variant="destructive" disabled={busy} onClick={() => act(() => api.deleteProgram(program.id))}>Delete program</Button>
     </div>
+    {swapTarget && <Modal title={`Swap ${swapTarget.exercise.name}`} onClose={() => setSwapTarget(null)}>
+      <div className="modal-body"><p className="source">Reps, sets, RPE, rest, tempo, warm-ups, notes, and source provenance stay with the slot. Loads are recalculated when the workout starts.</p>
+        {program.phases?.some(phase => phase.id === swapTarget.template.phaseId || (phase.name === swapTarget.template.phase && phase.block === swapTarget.template.block)) && <label className="field">Apply to<select value={swapScope} onChange={event => { setSwapScope(event.target.value as 'slot' | 'phase'); setConfirmPhaseSwap(false); }}><option value="slot">This workout only</option><option value="phase">Remaining workouts in this phase</option></select></label>}
+        {swapScope === 'phase' && <><div className="preview-card"><strong>Preview</strong><p>{detail?.filter(item => (item.phaseId === swapTarget.template.phaseId || (item.phase === swapTarget.template.phase && item.block === swapTarget.template.block)) && !program.completedTemplateIds.includes(item.id) && !(program.skippedTemplateIds ?? []).includes(item.id)).map(item => item.name).join(', ') || 'No remaining workouts in this phase.'}</p></div><label className="checkbox-row"><input type="checkbox" checked={confirmPhaseSwap} onChange={event => setConfirmPhaseSwap(event.target.checked)} />Apply this replacement to the previewed remaining workouts only.</label></>}
+        <ExerciseLibrary exercises={exercises} exclude={[]} onSelect={id => setSwapChoice(exercises.find(item => item.id === id) ?? null)} />
+        {swapChoice && <p className="source">Selected replacement: <strong>{swapChoice.name}</strong></p>}
+      </div>
+      <div className="modal-actions"><Button onClick={() => setSwapTarget(null)}>Cancel</Button><Button variant="primary" disabled={!swapChoice || busy || swapScope === 'phase' && !confirmPhaseSwap} onClick={() => void (async () => { if (!swapChoice) return; await act(async () => { await api.substituteTemplateExercise(swapTarget.template.id, { templateExerciseId: swapTarget.exercise.id, slotKey: swapTarget.exercise.slotKey ?? undefined, replacementExerciseId: swapChoice.id, replacementName: swapChoice.name, scope: swapScope, revision: swapTarget.template.revision, idempotencyId: crypto.randomUUID() }); setDetail((await api.getProgram(program.id)).workouts); setSwapTarget(null); }); })()}>Apply swap</Button></div>
+    </Modal>}
   </section>;
 }
 
-function ProgramTree({ days, completed, skipped, nextId, detail, onStart, onSkip, canStart }: { days: ProgramSummary['days']; completed: string[]; skipped: string[]; nextId: string | null; detail: Template[] | null; onStart: (id: string) => void; onSkip: (id: string) => Promise<void>; canStart: boolean }) {
+function ProgramTree({ days, completed, skipped, nextId, detail, onStart, onSkip, canStart, onSwap }: { days: ProgramSummary['days']; completed: string[]; skipped: string[]; nextId: string | null; detail: Template[] | null; onStart: (id: string) => void; onSkip: (id: string) => Promise<void>; canStart: boolean; onSwap: (template: Template) => (exercise: TemplateExercise) => void }) {
   const blocks = new Map<string, Map<string, typeof days>>();
   for (const day of days) {
     const block = day.block || 'Program';
@@ -255,6 +277,7 @@ function ProgramTree({ days, completed, skipped, nextId, detail, onStart, onSkip
         const row = <><span className="routine-number">W{day.phaseWeek}</span><span>{day.name}{day.sourcePage ? <small className="muted"> · PDF p.{day.sourcePage}</small> : null}</span><span className="tiny-label">{day.isRestDay ? 'REST DAY' : complete ? 'DONE' : isSkipped ? 'SKIPPED' : day.id === nextId ? 'UP NEXT' : `${full?.exercises.length ?? day.exerciseCount} exercises`}</span></>;
         if (day.isRestDay) return <div className="routine-row rest-row" key={day.id}>{row}</div>;
         return <div className="program-slot-row" key={day.id}><Button variant="tertiary" className={`routine-row ${day.id === nextId ? 'next' : ''}`} disabled={!canStart || complete || isSkipped} onClick={() => onStart(day.id)}>{row}</Button>
+          {full && <div className="slot-exercises">{full.exercises.map(exercise => <Button key={exercise.id} variant="tertiary" aria-label={`Swap ${exercise.name} in ${day.name}`} onClick={() => onSwap(full)(exercise)}><RefreshCw size={14} />{exercise.name}</Button>)}</div>}
           <Button variant="tertiary" disabled={(!canStart && !isSkipped) || (complete && !isSkipped)} aria-label={`${isSkipped ? 'Unskip' : 'Skip'} ${day.name}`} onClick={() => void onSkip(day.id)}>{isSkipped ? 'Unskip' : 'Skip'}</Button></div>;
       })}</div>
     </details>)}

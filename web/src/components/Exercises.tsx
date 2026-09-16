@@ -11,7 +11,7 @@ export function ExerciseLibrary({ exercises, onSelect, exclude = [] }: { exercis
   const muscles = ['All muscles', ...new Set(exercises.map(e => e.muscle).filter(Boolean))];
   const filtered = exercises.filter(e => !exclude.includes(e.id)
     && (muscle === 'All muscles' || e.muscle === muscle)
-    && `${e.name} ${e.equipment} ${e.muscle} ${e.aliases.join(' ')}`.toLowerCase().includes(query.toLowerCase()));
+    && `${e.name} ${e.equipment} ${e.muscle} ${e.movementPattern ?? ''} ${e.aliases.join(' ')}`.toLowerCase().includes(query.toLowerCase()));
 
   if (!exercises.length) return <div className="empty-message">
     <Library size={32} />
