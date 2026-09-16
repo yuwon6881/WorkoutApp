@@ -100,9 +100,13 @@ export function ImportReview({ exercises, imports, remaining, onBack, onChanged 
 
   return <>
     <div className="page-heading">
-      <div><Button variant="tertiary" onClick={onBack}><ArrowLeft size={16} />Back to workouts</Button>
+      <div>
+        <div className="back-nav-row">
+          <Button variant="tertiary" className="back-button" onClick={onBack}><ArrowLeft size={16} />Back to workouts</Button>
+        </div>
         <div className="eyebrow">TURN A PDF INTO A PROGRAM</div><h1>Import a program<span className="accent">.</span></h1>
-        <p>Upload a training PDF. It becomes an editable draft before anything is saved as a program.</p></div>
+        <p>Upload a training PDF. It becomes an editable draft before anything is saved as a program.</p>
+      </div>
       <span className="pill">{remaining} AI reads left today</span>
     </div>
 
