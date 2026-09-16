@@ -13,12 +13,16 @@ Singapore. The FinancialApp and NutritionApp services and databases are independ
 | Secret (OpenAI key) | `financialapp-openai-api-key` — shared with the sibling apps, not duplicated |
 | GCP project | `project-7eb1aec8-8636-4c86-b2a` |
 | Cloud Run service | `workout-api`, `asia-southeast1` |
+| Cloud Run import worker | `workout-import-worker`, `asia-southeast1` (private, 2 GiB, concurrency 1) |
 | Service account | `workout-api@project-7eb1aec8-8636-4c86-b2a.iam.gserviceaccount.com` |
 | API URL | `https://workout-api-i47taxhzba-as.a.run.app` |
 | Image | `asia-southeast1-docker.pkg.dev/<project>/cloud-run-source-deploy/workout-api` |
 
-Cloud Run runs with 1 CPU, 512 MiB, a 180 second timeout, concurrency 20, and minimum 0 /
-maximum 1 instances, matching the sibling services.
+The API runs with 1 CPU, 2 GiB, a 3,600 second timeout, HTTP/2, concurrency 1, and minimum 0 /
+maximum 1 instances. PDF extraction runs in the private `workout-import-worker` service with the
+same resource limits, minimum 1 / maximum 1 instances, and the persisted import lock. The worker
+polls pending extraction stages so browser closure does not interrupt an import; Cloud Tasks can
+trigger the same idempotent operation when a queue is provisioned.
 
 ## Database and secrets
 
@@ -26,6 +30,19 @@ The API accepts a PostgreSQL URL or an Npgsql connection string in `ConnectionSt
 Neon URLs are normalised with verified TLS, required channel binding, and a maximum local pool
 size of 10. Runtime uses the `-pooler` hostname; migrations use its direct counterpart, which
 `ConnectionSettings.Direct` derives. No secret belongs in Vite variables or source control.
+
+For production PDF retention, create a private bucket and set `_IMPORT_BUCKET` in Cloud Build (or
+`ImportStorage__Bucket` on both Cloud Run services) to its name. The API and worker use application
+default credentials for private object reads, resumable sessions, and deletion. Without that
+variable, local development and tests use a private transient filesystem directory instead. Add a
+24-hour object lifecycle rule as a storage backstop; application cleanup deletes source objects and
+temporary derivatives as soon as an import reaches a terminal state.
+
+Cloud Tasks dispatch is optional and configured by `_IMPORT_TASK_QUEUE`, `_IMPORT_WORKER_URL`, and
+`_IMPORT_WORKER_SERVICE_ACCOUNT` in Cloud Build. Grant that service account `roles/run.invoker` on
+`workout-import-worker`; Cloud Run IAM authenticates the task, and the worker's
+`/internal/import-tasks` route accepts one idempotent extraction step. Leave the substitutions empty
+to use the worker's persisted polling fallback.
 
 Migrations are applied before deployment and `Database__MigrateOnStartup` stays `false`:
 

@@ -41,7 +41,17 @@ external is needed to work on the app. Point `WORKOUT_API` at another origin to 
   the screen is held awake while it runs, and the end tone is queued on the audio clock ahead of
   time so it still sounds with the screen off. If the browser closes the app outright, the timer
   is still correct on return and reports what was missed.
-- Programs run in order: finishing a workout completes its slot and the next one is suggested.
+- Programs run in phase order: finishing or explicitly skipping every training slot completes a
+  phase, and the next Monday starts the following phase. The final phase moves the program to
+  Completed; imported programs wait in Standby until scheduled and activated.
+- PDF imports accept 150 MiB and up to 1,000 actual pages. Larger uploads use a resumable 4 MiB
+  chunk API; configure `ImportStorage:Bucket` in production for private Google Cloud Storage,
+  otherwise the API uses its private transient filesystem store. Source objects expire after 24
+  hours and are removed after completion, discard, or cleanup. Readable pages are sent as bounded
+  text subsets so the same PDF is not sent again for every extraction chunk; scanned fallbacks use
+  bounded page subsets where possible and are tracked below the provider's per-request file limit.
+  A private Cloud Run worker resumes persisted chunks; optional Cloud Tasks dispatch is enabled by
+  the deployment queue substitutions.
 - Kilograms are canonical; pounds are a display conversion.
 
 ## Data boundaries
@@ -56,8 +66,9 @@ document.
 
 The exercise catalog is global and read-only to users: only the seed command writes it. The
 production default catalog is checked in at `deploy/exercises.json`; a fresh schema remains empty
-until that file is loaded. Imported PDFs are read once and never stored — a failed import keeps its
-error, not the document. A weight that was not recorded stays unknown and is left out of volume
+until that file is loaded. Imported PDFs are held in a private transient source store only while
+extraction can resume, expire after 24 hours, and are deleted once the import reaches a terminal
+state. A weight that was not recorded stays unknown and is left out of volume
 totals rather than counted as zero; a zero weight is a real bodyweight set.
 
 Unfinished sessions stay drafts until the workout is saved, and only completed sets enter history.

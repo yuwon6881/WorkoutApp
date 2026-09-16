@@ -110,10 +110,11 @@ export function Dashboard({ data, onStart, onHistory, onProgram, onImport, onSes
           {program ? <>
             <div className="program-title"><span className="program-icon"><Dumbbell size={25} /></span><div><h3>{program.name}</h3>
               <p>{program.completedTemplateIds.length} of {program.days.length} workouts complete</p></div></div>
-            <div className="routine-list">{program.days.slice(0, 5).map(workout => <Button variant="tertiary" disabled={workout.isRestDay}
+            <div className="routine-list">{program.days.slice(0, 5).map(workout => <Button variant="tertiary"
+              disabled={workout.isRestDay || !program.active || program.completedTemplateIds.includes(workout.id) || (program.skippedTemplateIds ?? []).includes(workout.id) || workout.id !== program.nextTemplateId}
               className={`routine-row ${workout.id === program.nextTemplateId ? 'next' : ''}`} key={workout.id} onClick={() => onStart(workout.id)}>
               <span className="routine-number">W{workout.phaseWeek}</span><span>{workout.name}</span>
-              {workout.isRestDay ? <span className="tiny-label">REST DAY</span> : program.completedTemplateIds.includes(workout.id) ? <Check size={14} /> : workout.id === program.nextTemplateId ? <span className="tiny-label accent">UP NEXT</span> : <ChevronRight size={14} />}
+              {workout.isRestDay ? <span className="tiny-label">REST DAY</span> : program.completedTemplateIds.includes(workout.id) ? <Check size={14} /> : (program.skippedTemplateIds ?? []).includes(workout.id) ? <span className="tiny-label">SKIPPED</span> : workout.id === program.nextTemplateId ? <span className="tiny-label accent">UP NEXT</span> : <ChevronRight size={14} />}
             </Button>)}</div>
           </> : <div className="empty-inline"><span className="exercise-icon"><FileText size={20} /></span>
             <div><h3>No active program</h3><p>Import a training PDF and review it before it becomes a program.</p></div></div>}

@@ -5,13 +5,13 @@ using Workout.Api.Domain;
 namespace Workout.Api.Services;
 
 public record TemplateExerciseInput(Guid? ExerciseId, string SourceName, string? Note, List<SetPrescription> Sets,
-    string? SequenceGroup = null, List<string>? Substitutions = null);
+    string? SequenceGroup = null, List<string>? Substitutions = null, int? SourcePage = null);
 public record TemplateInput(string Name, string? Focus, string? Note, List<TemplateExerciseInput> Exercises, int? Revision, Guid? IdempotencyId,
     string? Block = null, string? Phase = null, int PhaseWeek = 1, bool IsRestDay = false);
 public record TemplateExerciseView(Guid Id, Guid? ExerciseId, string SourceName, string Name, string Note, int Position, List<SetPrescription> Sets,
-    string SequenceGroup = "", List<string>? Substitutions = null, string LoadModel = LoadModels.External);
+    string SequenceGroup = "", List<string>? Substitutions = null, string LoadModel = LoadModels.External, int? SourcePage = null);
 public record TemplateView(Guid Id, Guid? ProgramId, string Name, string Focus, string Note, int Week, int Position, int Revision, List<TemplateExerciseView> Exercises,
-    string Block = "", string Phase = "", int PhaseWeek = 1, bool IsRestDay = false, int? Weekday = null);
+    string Block = "", string Phase = "", int PhaseWeek = 1, bool IsRestDay = false, int? Weekday = null, int? SourcePage = null);
 
 public sealed class TemplateService(AppDb db, CatalogService catalog)
 {
@@ -41,8 +41,8 @@ public sealed class TemplateService(AppDb db, CatalogService catalog)
             rows.Where(e => e.TemplateId == t.Id).Select(e => new TemplateExerciseView(e.Id, e.ExerciseId, e.SourceName,
                 e.ExerciseId is { } id && names.TryGetValue(id, out var name) ? name : e.SourceName,
                 e.Note, e.Position, Json.Read<List<SetPrescription>>(e.SetsJson), e.SequenceGroup,
-                Json.Read<List<string>>(e.SubstitutionsJson), e.ExerciseId is { } modelId && models.TryGetValue(modelId, out var model) ? model : LoadModels.External)).ToList(),
-            t.Block, t.Phase, t.PhaseWeek, t.IsRestDay, t.Weekday)).ToList();
+                Json.Read<List<string>>(e.SubstitutionsJson), e.ExerciseId is { } modelId && models.TryGetValue(modelId, out var model) ? model : LoadModels.External, e.SourcePage)).ToList(),
+            t.Block, t.Phase, t.PhaseWeek, t.IsRestDay, t.Weekday, t.SourcePage)).ToList();
     }
 
     public async Task<Dictionary<Guid, string>> CatalogNames(IEnumerable<Guid?> ids, CancellationToken ct)
@@ -107,11 +107,13 @@ public sealed class TemplateService(AppDb db, CatalogService catalog)
                 UserId = db.CurrentUser!.Value, TemplateId = templateId, ExerciseId = exercise.ExerciseId,
                 SourceName = exercise.SourceName.Trim(), Note = exercise.Note?.Trim() ?? "", Position = position++,
                 SetsJson = Json.Write(exercise.Sets), SequenceGroup = exercise.SequenceGroup?.Trim() ?? "",
-                SubstitutionsJson = Json.Write((exercise.Substitutions ?? []).Where(s => !string.IsNullOrWhiteSpace(s)).Select(s => s.Trim()).Take(2).ToList())
+                SubstitutionsJson = Json.Write((exercise.Substitutions ?? []).Where(s => !string.IsNullOrWhiteSpace(s)).Select(s => s.Trim()).Take(2).ToList()),
+                SourcePage = exercise.SourcePage
             });
     }
 
-    public async Task ValidateInput(TemplateInput input, CancellationToken ct, bool requireWorkingRpe = true)
+    public async Task ValidateInput(TemplateInput input, CancellationToken ct, bool requireWorkingRpe = true,
+        bool allowTargetRpeOutsideTrainingRange = false)
     {
         Validation.Name(input.Name, "Workout name");
         Validation.Text(input.Focus, 120, "Focus"); Validation.Text(input.Note, 2000, "Workout notes");
@@ -124,9 +126,10 @@ public sealed class TemplateService(AppDb db, CatalogService catalog)
         {
             Validation.Name(exercise.SourceName, "Exercise name", 160);
             Validation.Text(exercise.Note, 1000, "Exercise notes");
+            Validation.Require(exercise.SourcePage is null || exercise.SourcePage.Value is > 0 and <= PdfInspection.MaxPages, "Exercise source page is invalid.");
             Validation.Text(exercise.SequenceGroup, 8, "Sequence group");
             Validation.Substitutions(exercise.Substitutions);
-            Validation.Prescriptions(exercise.Sets, requireWorkingRpe);
+            Validation.Prescriptions(exercise.Sets, requireWorkingRpe, allowTargetRpeOutsideTrainingRange);
             await catalog.RequireActive(exercise.ExerciseId, ct);
         }
     }

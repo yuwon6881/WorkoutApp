@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Workout.Api.Data;
@@ -11,9 +12,11 @@ using Workout.Api.Data;
 namespace Workout.Api.Data.Migrations
 {
     [DbContext(typeof(AppDb))]
-    partial class AppDbModelSnapshot : ModelSnapshot
+    [Migration("20260916073328_ResumableImportUploads")]
+    partial class ResumableImportUploads
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -29,10 +32,6 @@ namespace Workout.Api.Data.Migrations
 
                     b.Property<Guid>("Id")
                         .HasColumnType("uuid");
-
-                    b.Property<string>("AlternativesJson")
-                        .IsRequired()
-                        .HasColumnType("text");
 
                     b.Property<int>("Calls")
                         .HasColumnType("integer");
@@ -100,10 +99,6 @@ namespace Workout.Api.Data.Migrations
                         .IsConcurrencyToken()
                         .HasColumnType("integer");
 
-                    b.Property<string>("SelectedAlternativeId")
-                        .IsRequired()
-                        .HasColumnType("text");
-
                     b.Property<DateTime?>("SourceFileExpiresAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -131,7 +126,7 @@ namespace Workout.Api.Data.Migrations
 
                     b.ToTable("Imports", null, t =>
                         {
-                            t.HasCheckConstraint("CK_Imports_Stage", "\"Stage\" IN ('outline','select','extract','done')");
+                            t.HasCheckConstraint("CK_Imports_Stage", "\"Stage\" IN ('outline','extract','done')");
 
                             t.HasCheckConstraint("CK_Imports_Status", "\"Status\" IN ('pending','ready','failed','accepted','discarded')");
                         });
@@ -922,9 +917,6 @@ namespace Workout.Api.Data.Migrations
 
                     b.Property<int>("Revision")
                         .IsConcurrencyToken()
-                        .HasColumnType("integer");
-
-                    b.Property<int?>("SourcePage")
                         .HasColumnType("integer");
 
                     b.Property<int>("Week")

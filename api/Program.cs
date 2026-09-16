@@ -1,5 +1,6 @@
 using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.HttpOverrides;
+using Microsoft.AspNetCore.Http.Features;
 using Microsoft.EntityFrameworkCore;
 using Workout.Api.Data;
 using Workout.Api.Domain;
@@ -12,8 +13,9 @@ if(int.TryParse(Environment.GetEnvironmentVariable("PORT"),out var cloudRunPort)
 builder.Configuration.AddJsonFile("appsettings.Local.json",optional:true,reloadOnChange:false);
 if(!builder.Environment.IsDevelopment()&&(!Uri.TryCreate(builder.Configuration["PublicOrigin"],UriKind.Absolute,out var publicOrigin)||publicOrigin.Scheme!="https"))
     throw new InvalidOperationException("PublicOrigin must be the exact public HTTPS origin in production.");
-// A program PDF is capped at 20 MB; the margin covers multipart framing only.
-builder.WebHost.ConfigureKestrel(o=>o.Limits.MaxRequestBodySize=21_500_000);
+// A program PDF is capped at 150 MiB; the margin covers multipart framing only.
+builder.WebHost.ConfigureKestrel(o=>o.Limits.MaxRequestBodySize=160 * 1024 * 1024);
+builder.Services.Configure<FormOptions>(o => o.MultipartBodyLengthLimit = 160 * 1024 * 1024);
 builder.Services.Configure<ForwardedHeadersOptions>(o=> { o.ForwardedHeaders=ForwardedHeaders.XForwardedProto; });
 builder.Services.AddDbContext<AppDb>(o=>
 {
@@ -31,10 +33,20 @@ builder.Services.AddScoped<NutritionContextService>();
 builder.Services.AddScoped<SharedAccessTokenService>();
 builder.Services.AddScoped<OpenIddictAccessTokenService>();
 builder.Services.AddHttpClient<IIntegrationKms, IntegrationKmsService>(c => c.Timeout = TimeSpan.FromSeconds(30));
+builder.Services.AddHttpClient<IImportJobDispatcher, CloudTasksImportJobDispatcher>(c => c.Timeout = TimeSpan.FromSeconds(20));
 builder.Services.AddScoped<IntegrationTokenService>();
 builder.Services.AddScoped<WorkoutService>();
 builder.Services.AddScoped<ExportService>();
 builder.Services.AddScoped<ImportService>();
+builder.Services.AddSingleton<IImportFileStore>(services =>
+{
+    var configuration = services.GetRequiredService<IConfiguration>();
+    return string.IsNullOrWhiteSpace(configuration["ImportStorage:Bucket"])
+        ? new TransientImportFileStore(configuration)
+        : new GcsImportFileStore(configuration, services.GetRequiredService<IHttpClientFactory>().CreateClient());
+});
+builder.Services.AddHostedService<ImportCleanupWorker>();
+builder.Services.AddHostedService<ImportExtractionWorker>();
 builder.Services.AddAuthentication(options =>
 {
     options.DefaultAuthenticateScheme = OpenIddictValidationAspNetCoreDefaults.AuthenticationScheme;

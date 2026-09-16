@@ -10,6 +10,7 @@ public record StartInput(Guid? TemplateId, string? Name);
 public record FinishInput(int? Revision);
 public record ActivateInput(bool Active, int? Revision);
 public record ScheduleInput(DateOnly Anchor, List<ScheduleSlot> Slots, int? Revision);
+public record RepeatProgramInput(string? TimeZone);
 
 public static class TrainingEndpoints
 {
@@ -69,6 +70,12 @@ public static class TrainingEndpoints
         app.MapPost("/api/programs/{id:guid}/active", async (Guid id, ActivateInput input, ProgramService programs, CancellationToken ct) => await programs.SetActive(id, input.Active, input.Revision, ct));
         app.MapPost("/api/programs/{id:guid}/schedule", async (Guid id, ScheduleInput input, ProgramService programs, CancellationToken ct)
             => await programs.Schedule(id, input.Anchor, input.Slots, input.Revision, ct));
+        app.MapPost("/api/programs/{id:guid}/workouts/{templateId:guid}/skip", async (Guid id, Guid templateId, ProgramService programs, CancellationToken ct)
+            => await programs.Skip(id, templateId, ct));
+        app.MapDelete("/api/programs/{id:guid}/workouts/{templateId:guid}/skip", async (Guid id, Guid templateId, ProgramService programs, CancellationToken ct)
+            => await programs.Unskip(id, templateId, ct));
+        app.MapPost("/api/programs/{id:guid}/repeat", async (Guid id, RepeatProgramInput? input, ProgramService programs, CancellationToken ct)
+            => await programs.Repeat(id, input?.TimeZone, ct));
         app.MapDelete("/api/programs/{id:guid}", async (Guid id, ProgramService programs, CancellationToken ct) =>
         { await programs.Delete(id, ct); return Results.NoContent(); });
     }

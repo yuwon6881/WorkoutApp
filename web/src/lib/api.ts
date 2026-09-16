@@ -9,7 +9,7 @@ export class ApiError extends Error {
   get offline() { return this.status === 0; }
 }
 
-async function call<T>(path: string, method = 'GET', body?: unknown, signal?: AbortSignal): Promise<T> {
+async function call<T>(path: string, method = 'GET', body?: unknown, signal?: AbortSignal, extraHeaders?: Record<string, string>): Promise<T> {
   let response: Response;
   try {
     response = await fetch(path, {
@@ -18,9 +18,10 @@ async function call<T>(path: string, method = 'GET', body?: unknown, signal?: Ab
         // The custom header is what the server checks alongside Origin, so a cross-site form
         // post cannot reach a mutating endpoint.
         'X-Workout-Request': '1',
-        ...(body instanceof FormData ? {} : body !== undefined ? { 'Content-Type': 'application/json' } : {})
+        ...(body instanceof FormData ? {} : body instanceof Uint8Array ? { 'Content-Type': 'application/octet-stream' } : body !== undefined ? { 'Content-Type': 'application/json' } : {})
+        , ...extraHeaders
       },
-      body: body === undefined ? undefined : body instanceof FormData ? body : JSON.stringify(body)
+      body: body === undefined ? undefined : body instanceof FormData ? body : body instanceof Uint8Array ? body as BodyInit : JSON.stringify(body)
     });
   } catch {
     throw new ApiError('No connection to the server. Your workout needs a connection to save.', 0);
@@ -54,6 +55,9 @@ export const api = {
   createProgram: (input: unknown) => call<Program>('/api/programs', 'POST', input),
   scheduleProgram: (id: string, input: { anchor: string; slots: { templateId: string; weekday: number }[]; revision: number }) => call<Program>(`/api/programs/${id}/schedule`, 'POST', input),
   setProgramActive: (id: string, active: boolean, revision: number) => call<Program>(`/api/programs/${id}/active`, 'POST', { active, revision }),
+  skipProgramWorkout: (id: string, templateId: string) => call<Program>(`/api/programs/${id}/workouts/${templateId}/skip`, 'POST'),
+  unskipProgramWorkout: (id: string, templateId: string) => call<Program>(`/api/programs/${id}/workouts/${templateId}/skip`, 'DELETE'),
+  repeatProgram: (id: string) => call<Program>(`/api/programs/${id}/repeat`, 'POST', { timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone }),
   deleteProgram: (id: string) => call<void>(`/api/programs/${id}`, 'DELETE'),
 
   activeWorkout: () => call<Session | null>('/api/workouts/active'),
@@ -72,10 +76,16 @@ export const api = {
   imports: () => call<ImportView[]>('/api/imports'),
   getImport: (id: string) => call<ImportView>(`/api/imports/${id}`),
   uploadImport: (file: File) => { const form = new FormData(); form.append('file', file); return call<ImportView>('/api/imports', 'POST', form); },
-  extractImport: (id: string, file: File) => { const form = new FormData(); form.append('file', file); return call<ImportView>(`/api/imports/${id}/extract`, 'POST', form); },
+  extractImport: (id: string, file?: File) => { if (!file) return call<ImportView>(`/api/imports/${id}/extract`, 'POST'); const form = new FormData(); form.append('file', file); return call<ImportView>(`/api/imports/${id}/extract`, 'POST', form); },
+  retryImport: (id: string) => call<ImportView>(`/api/imports/${id}/retry`, 'POST'),
+  initImportUpload: (fileName: string, size: number) => call<{ id: string; fileName: string; expectedBytes: number; receivedBytes: number; chunkBytes: number; status: string; expiresAt: string }>('/api/imports/upload/init', 'POST', { fileName, size }),
+  appendImportUpload: (id: string, offset: number, chunk: Uint8Array) => call<{ id: string; fileName: string; expectedBytes: number; receivedBytes: number; chunkBytes: number; status: string; expiresAt: string }>(`/api/imports/upload/${id}`, 'PUT', chunk, undefined, { 'Upload-Offset': String(offset) }),
+  completeImportUpload: (id: string) => call<ImportView>(`/api/imports/upload/${id}/complete`, 'POST'),
+  cancelImportUpload: (id: string) => call<void>(`/api/imports/upload/${id}`, 'DELETE'),
   editImport: (id: string, draft: Pick<ImportDraft, 'programName' | 'description'>) => call<ImportView>(`/api/imports/${id}`, 'PUT', draft),
   editImportDay: (id: string, day: DraftWorkout) => call<ImportView>(`/api/imports/${id}/days/${day.lineId}`, 'PUT', day),
   rematchImport: (id: string) => call<ImportView>(`/api/imports/${id}/rematch`, 'POST'),
-  acceptImport: (id: string) => call<Program>(`/api/imports/${id}/accept`, 'POST'),
+  selectImportAlternative: (id: string, alternativeId: string) => call<ImportView>(`/api/imports/${id}/alternative`, 'POST', { alternativeId }),
+  acceptImport: (id: string, acknowledgeUnspecified = false) => call<Program>(`/api/imports/${id}/accept`, 'POST', { timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone, acknowledgeUnspecified }),
   discardImport: (id: string) => call<void>(`/api/imports/${id}/discard`, 'POST')
 };

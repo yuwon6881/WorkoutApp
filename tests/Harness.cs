@@ -30,7 +30,7 @@ public sealed class Harness : IAsyncDisposable
         Programs = new ProgramService(db, Templates);
         Progression = new ProgressionService(db);
         Workouts = new WorkoutService(db, Catalog, Templates, Progression,
-            new NutritionContextService(db, new TestHttpClientFactory(), config));
+            new NutritionContextService(db, new TestHttpClientFactory(), config), Programs);
         Export = new ExportService(db, Programs, Templates, Workouts);
     }
 
@@ -65,7 +65,7 @@ public sealed class Harness : IAsyncDisposable
     }
 
     public ImportService Imports(HttpMessageHandler handler)
-        => new(Db, new WorkoutAi(new HttpClient(handler), Config), Catalog, Programs);
+        => new(Db, new WorkoutAi(new HttpClient(handler), Config), Catalog, Programs, new TransientImportFileStore(Config));
 
     public async Task Seed(params SeedExercise[] exercises)
     {

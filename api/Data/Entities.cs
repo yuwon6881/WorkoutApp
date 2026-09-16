@@ -62,9 +62,44 @@ public sealed class TrainingProgram : OwnedRecord
     public bool Active { get; set; }
     public Guid? SourceImportId { get; set; }
     public DateTime Created { get; set; } = DateTime.UtcNow;
+    /// Lifecycle is derived from completion but persisted so the program list can group it
+    /// without replaying all sessions. Existing rows default to standby when migrated.
+    public string LifecycleStatus { get; set; } = ProgramLifecycle.Standby;
+    public DateTime? CompletedAt { get; set; }
+    /// IANA/Windows timezone identifier used for planned dates and phase transitions.
+    public string TimeZone { get; set; } = "UTC";
     /// Monday of the first scheduled program week. A null value means this program is not yet
     /// scheduled and can only be activated after the scheduling step is completed.
     public DateOnly? ScheduleAnchor { get; set; }
+}
+
+public sealed class ProgramPhase : OwnedRecord
+{
+    public Guid ProgramId { get; set; }
+    public int Position { get; set; }
+    public string Name { get; set; } = "";
+    public string Block { get; set; } = "";
+    public int WeekFrom { get; set; }
+    public int WeekTo { get; set; }
+    public int DurationWeeks { get; set; }
+    public DateOnly? StartDate { get; set; }
+    public int? SourcePageFrom { get; set; }
+    public int? SourcePageTo { get; set; }
+}
+
+public sealed class ProgramSkip : OwnedRecord
+{
+    public Guid ProgramId { get; set; }
+    public Guid TemplateId { get; set; }
+    public DateTime SkippedAt { get; set; } = DateTime.UtcNow;
+}
+
+public static class ProgramLifecycle
+{
+    public const string Standby = "standby";
+    public const string Active = "active";
+    public const string Completed = "completed";
+    public static readonly string[] All = [Standby, Active, Completed];
 }
 
 /// A standalone template has no ProgramId. A program workout carries its week and position,
@@ -85,6 +120,8 @@ public sealed class WorkoutTemplate : OwnedRecord
     /// ISO weekday (1 = Monday, 7 = Sunday). Null is retained for imported programs awaiting
     /// scheduling and for standalone workouts.
     public int? Weekday { get; set; }
+    /// Page in the source document for an imported workout/day heading.
+    public int? SourcePage { get; set; }
 }
 
 public sealed class TemplateExercise : OwnedRecord
@@ -97,6 +134,8 @@ public sealed class TemplateExercise : OwnedRecord
     public string SetsJson { get; set; } = "[]";
     public string SequenceGroup { get; set; } = "";
     public string SubstitutionsJson { get; set; } = "[]";
+    /// Page in the source document for imported exercise/prescription provenance.
+    public int? SourcePage { get; set; }
 }
 
 public sealed class WorkoutSession : OwnedRecord
@@ -182,6 +221,8 @@ public sealed class AiImport : OwnedRecord
     public string Model { get; set; } = "";
     public string Stage { get; set; } = "done";
     public string OutlineJson { get; set; } = "";
+    public string AlternativesJson { get; set; } = "[]";
+    public string SelectedAlternativeId { get; set; } = "";
     public int ChunksDone { get; set; }
     public int ChunksTotal { get; set; }
     public int Calls { get; set; }
@@ -189,8 +230,27 @@ public sealed class AiImport : OwnedRecord
     public bool CatalogStale { get; set; }
     public long InputTokens { get; set; }
     public long OutputTokens { get; set; }
+    public int Retries { get; set; }
+    public int VisualFallbacks { get; set; }
+    public string PageCoverageJson { get; set; } = "[]";
     public Guid? ProgramId { get; set; }
     public DateTime Created { get; set; } = DateTime.UtcNow;
+    /// A transient private object key. Source bytes are deleted after the import reaches ready,
+    /// accepted, failed, or discarded; an unfinished key expires after 24 hours.
+    public string SourceFileKey { get; set; } = "";
+    public DateTime? SourceFileExpiresAt { get; set; }
+}
+
+/// Durable server-side state for a resumable PDF upload. The source key is private and is never
+/// returned to the browser; completion turns the uploaded object into the normal import record.
+public sealed class ImportUpload : OwnedRecord
+{
+    public string FileName { get; set; } = "";
+    public long ExpectedBytes { get; set; }
+    public long ReceivedBytes { get; set; }
+    public string SourceFileKey { get; set; } = "";
+    public string Status { get; set; } = "open";
+    public DateTime ExpiresAt { get; set; } = DateTime.UtcNow.AddHours(24);
 }
 
 public static class ImportStatus

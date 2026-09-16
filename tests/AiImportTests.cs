@@ -20,6 +20,44 @@ public class AiImportTests
         return Encoding.Latin1.GetBytes(body.ToString());
     }
 
+    private static byte[] RealPdf(int pages)
+    {
+        var fontId = 3 + pages * 2;
+        var objects = new List<string>
+        {
+            "<< /Type /Catalog /Pages 2 0 R >>",
+            $"<< /Type /Pages /Kids [{string.Join(' ', Enumerable.Range(0, pages).Select(i => $"{3 + i * 2} 0 R"))}] /Count {pages} >>"
+        };
+        for (var i = 0; i < pages; i++)
+        {
+            var pageId = 3 + i * 2; var contentId = pageId + 1;
+            var text = $"BT /F1 12 Tf 72 720 Td (WEEK {i + 1}) Tj ET";
+            objects.Add($"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 {fontId} 0 R >> >> /Contents {contentId} 0 R >>");
+            objects.Add($"<< /Length {Encoding.ASCII.GetByteCount(text)} >>\nstream\n{text}\nendstream");
+        }
+        objects.Add("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>");
+        var output = new StringBuilder("%PDF-1.4\n");
+        var offsets = new List<int> { 0 };
+        foreach (var (value, index) in objects.Select((value, index) => (value, index + 1)))
+        {
+            offsets.Add(Encoding.ASCII.GetByteCount(output.ToString()));
+            output.Append($"{index} 0 obj\n{value}\nendobj\n");
+        }
+        var xref = Encoding.ASCII.GetByteCount(output.ToString());
+        output.Append($"xref\n0 {objects.Count + 1}\n0000000000 65535 f \n");
+        foreach (var offset in offsets.Skip(1)) output.Append($"{offset:0000000000} 00000 n \n");
+        output.Append($"trailer\n<< /Size {objects.Count + 1} /Root 1 0 R >>\nstartxref\n{xref}\n%%EOF");
+        return Encoding.ASCII.GetBytes(output.ToString());
+    }
+
+    [Fact] public void Pdf_inspection_reads_the_actual_page_tree_and_coverage()
+    {
+        var pdf = RealPdf(3);
+        Assert.Equal(3, PdfInspection.ApproximatePages(pdf));
+        Assert.Equal([1, 2, 3], PdfInspection.Coverage(pdf).Select(page => page.Page));
+        Assert.All(PdfInspection.Coverage(pdf), page => Assert.True(page.HasText));
+    }
+
     private const string OneWorkout = """
     {"programName":"Hypertrophy block","description":"Four weeks","weeks":[
       {"week":1,"workouts":[{"name":"Day A","focus":"Push","notes":null,"exercises":[
@@ -35,9 +73,16 @@ public class AiImportTests
 
     private const string Chunk = """
     {"programTitle":"Faithful block","description":"Blocks survive","days":[
-      {"block":"Block 1","phase":"Base Hypertrophy","weekNumber":1,"phaseWeek":1,"dayName":"Lower A","isRestDay":false,"notes":"Keep the tempo","exercises":[
-        {"sequenceGroup":"A1","sourceName":"Constant-Tension Lying Leg Curl","exerciseId":null,"warmupSets":"2-3","substitutions":["Seated leg curl","Nordic curl"],"coachingNotes":"Control the eccentric","notes":null,"sets":[
-          {"repMin":8,"repMax":12,"repsText":"AMRAP","targetRpe":null,"rir":"2","percent1Rm":"75%","restSeconds":60,"restText":"3-5 min","tempo":"3010","loadText":null,"notes":null,"repsSource":"extracted","rpeSource":"inferred","restSource":"extracted"}]}]}]}
+      {"block":"Block 1","phase":"Base Hypertrophy","weekNumber":1,"phaseWeek":1,"dayName":"Lower A","isRestDay":false,"weekday":1,"sourcePage":3,"notes":"Keep the tempo","exercises":[
+        {"sequenceGroup":"A1","sourceName":"Constant-Tension Lying Leg Curl","exerciseId":null,"warmupSets":"2-3","substitutions":["Seated leg curl","Nordic curl"],"coachingNotes":"Control the eccentric","notes":null,"sourcePage":3,"sets":[
+          {"repMin":8,"repMax":12,"repsText":"AMRAP","targetRpe":null,"rir":"2","percent1Rm":"75%","restSeconds":60,"restText":"3-5 min","tempo":"3010","loadText":null,"notes":null,"repsSource":"extracted","rpeSource":"inferred","restSource":"extracted","sourcePage":3}]}]}]}
+    """;
+
+    private const string AlternativesOutline = """
+    {"programTitle":"Choices","description":null,"chunks":[],"alternatives":[
+      {"id":"alpha","name":"Alpha","description":"First choice","chunks":[{"label":"Alpha week 1","block":"Alpha","phase":"Base","weekFrom":1,"weekTo":1,"pageFrom":1,"pageTo":2,"dayCount":1}]},
+      {"id":"beta","name":"Beta","description":"Second choice","chunks":[{"label":"Beta week 1","block":"Beta","phase":"Base","weekFrom":1,"weekTo":1,"pageFrom":1,"pageTo":2,"dayCount":1}]}
+    ]}
     """;
 
     private static Dictionary<string, string?> Configured => new() { ["OpenAi:ApiKey"] = "test-key", ["OpenAi:Model"] = "gpt-5.4-mini" };
@@ -86,6 +131,8 @@ public class AiImportTests
         Assert.Equal(1, ready.UnresolvedCount);
         var exercise = ready.Draft!.Workouts.Single().Exercises.Single();
         Assert.Equal("A1", exercise.SequenceGroup);
+        Assert.Equal(1, ready.Draft.Workouts.Single().Weekday);
+        Assert.Equal(3, exercise.SourcePage);
         Assert.Equal(["Seated leg curl", "Nordic curl"], exercise.Substitutions);
         Assert.Equal(3, exercise.Sets.Count);
         Assert.All(exercise.Sets.Take(2), set => Assert.True(set.Warmup));
@@ -97,14 +144,20 @@ public class AiImportTests
         Assert.Equal(8, exercise.Sets[2].TargetRpe);
         Assert.Equal("inferred", exercise.Sets[2].RepsSource);
 
-        var program = await imports.Accept(ready.Id, default);
+        var program = await imports.Accept(ready.Id, "Asia/Kuala_Lumpur", default);
         var workout = Assert.Single(program.Workouts);
         Assert.Equal("Block 1", workout.Block);
         Assert.Equal("Base Hypertrophy", workout.Phase);
         Assert.Equal(1, workout.PhaseWeek);
+        Assert.Equal(3, workout.SourcePage);
         Assert.Equal("A1", workout.Exercises.Single().SequenceGroup);
         Assert.Equal("AMRAP", workout.Exercises.Single().Sets[2].RepsText);
         Assert.Equal("Constant-Tension Lying Leg Curl", workout.Exercises.Single().SourceName);
+        Assert.Equal(3, workout.Exercises.Single().SourcePage);
+        Assert.Equal(3, workout.Exercises.Single().Sets[2].SourcePage);
+        Assert.False(program.Active);
+        Assert.Equal(ProgramLifecycle.Standby, program.LifecycleStatus);
+        Assert.Equal("Asia/Kuala_Lumpur", program.TimeZone);
         Assert.Equal(2, (await h.Db.Imports.AsNoTracking().SingleAsync()).Calls);
     }
 
@@ -122,6 +175,20 @@ public class AiImportTests
         Assert.Equal("Barbell bench press", program.Workouts.Single().Exercises.Single().SourceName);
         Assert.Null(program.Workouts.Single().Exercises.Single().ExerciseId);
         Assert.Equal(1, await h.Db.Programs.CountAsync());
+    }
+
+    [Fact] public async Task Missing_optional_rpe_or_rest_requires_an_explicit_review_acknowledgement()
+    {
+        await using var h = await Harness.Create(Configured);
+        await h.SignIn();
+        var body = OneWorkout.Replace("\"targetRpe\":8", "\"targetRpe\":null").Replace("\"restSeconds\":120", "\"restSeconds\":null");
+        var imports = h.Imports(StubHandler.Program(body));
+        var view = await imports.Create(Pdf(), "unspecified.pdf", default);
+
+        var failure = await Assert.ThrowsAsync<DomainException>(() => imports.Accept(view.Id, default));
+        Assert.Equal(409, failure.Status);
+        var accepted = await imports.Accept(view.Id, null, true, default);
+        Assert.Equal(ProgramLifecycle.Standby, accepted.LifecycleStatus);
     }
 
     [Fact] public async Task An_exercise_already_in_the_library_is_matched_by_name()
@@ -358,5 +425,47 @@ public class AiImportTests
         var failure = await Assert.ThrowsAsync<DomainException>(() => imports.Create(Pdf(), "block.pdf", default));
         Assert.Equal(503, failure.Status);
         Assert.Contains("Manual program building remains available", failure.Message);
+    }
+
+    [Fact] public async Task A_resumable_upload_can_be_completed_without_reposting_the_source_for_each_chunk()
+    {
+        await using var h = await Harness.Create(Configured);
+        await h.SignIn();
+        var pdf = Pdf();
+        var imports = h.Imports(StubHandler.Program(OneWorkout));
+        var upload = await imports.InitiateUpload("resumable.pdf", pdf.Length, default);
+        Assert.Equal(0, upload.ReceivedBytes);
+        var split = pdf.Length / 2;
+        var first = await imports.AppendUpload(upload.Id, 0, pdf[..split], default);
+        Assert.Equal(split, first.ReceivedBytes);
+        var second = await imports.AppendUpload(upload.Id, split, pdf[split..], default);
+        Assert.Equal(pdf.Length, second.ReceivedBytes);
+        var view = await imports.CompleteUpload(upload.Id, default);
+        Assert.Equal(ImportStatus.Ready, view.Status);
+        Assert.Empty(await h.Db.ImportUploads.AsNoTracking().ToListAsync());
+    }
+
+    [Fact] public async Task Alternative_programs_are_selected_before_chunk_extraction()
+    {
+        await using var h = await Harness.Create(Configured);
+        await h.SignIn();
+        var call = 0;
+        var stub = new StubHandler(_ =>
+        {
+            var body = call++ == 0 ? AlternativesOutline : Chunk;
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent($$"""{"status":"completed","output":[{"content":[{"type":"output_text","text":{{JsonSerializer.Serialize(body)}}}]}]}""")
+            };
+        });
+        var imports = h.Imports(stub);
+        var pending = await imports.Create(Pdf(), "choices.pdf", default);
+        Assert.Equal("select", pending.Stage);
+        Assert.Equal(2, pending.Alternatives!.Count);
+        var selected = await imports.SelectAlternative(pending.Id, "alpha", default);
+        Assert.Equal("extract", selected.Stage);
+        var ready = await imports.Extract(selected.Id, Pdf(), "choices.pdf", default);
+        Assert.Equal(ImportStatus.Ready, ready.Status);
+        Assert.Equal(2, stub.Calls);
     }
 }

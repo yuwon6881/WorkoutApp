@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Workout.Api.Data;
@@ -11,9 +12,11 @@ using Workout.Api.Data;
 namespace Workout.Api.Data.Migrations
 {
     [DbContext(typeof(AppDb))]
-    partial class AppDbModelSnapshot : ModelSnapshot
+    [Migration("20260916073050_ImportUsageCoverage")]
+    partial class ImportUsageCoverage
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -29,10 +32,6 @@ namespace Workout.Api.Data.Migrations
 
                     b.Property<Guid>("Id")
                         .HasColumnType("uuid");
-
-                    b.Property<string>("AlternativesJson")
-                        .IsRequired()
-                        .HasColumnType("text");
 
                     b.Property<int>("Calls")
                         .HasColumnType("integer");
@@ -100,10 +99,6 @@ namespace Workout.Api.Data.Migrations
                         .IsConcurrencyToken()
                         .HasColumnType("integer");
 
-                    b.Property<string>("SelectedAlternativeId")
-                        .IsRequired()
-                        .HasColumnType("text");
-
                     b.Property<DateTime?>("SourceFileExpiresAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -131,7 +126,7 @@ namespace Workout.Api.Data.Migrations
 
                     b.ToTable("Imports", null, t =>
                         {
-                            t.HasCheckConstraint("CK_Imports_Stage", "\"Stage\" IN ('outline','select','extract','done')");
+                            t.HasCheckConstraint("CK_Imports_Stage", "\"Stage\" IN ('outline','extract','done')");
 
                             t.HasCheckConstraint("CK_Imports_Status", "\"Status\" IN ('pending','ready','failed','accepted','discarded')");
                         });
@@ -417,51 +412,6 @@ namespace Workout.Api.Data.Migrations
                     b.ToTable("Progress", null, t =>
                         {
                             t.HasCheckConstraint("CK_Progress_E1rm", "\"TrendE1rmKg\" >= 0 AND \"LastE1rmKg\" >= 0");
-                        });
-                });
-
-            modelBuilder.Entity("Workout.Api.Data.ImportUpload", b =>
-                {
-                    b.Property<Guid>("UserId")
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid>("Id")
-                        .HasColumnType("uuid");
-
-                    b.Property<long>("ExpectedBytes")
-                        .HasColumnType("bigint");
-
-                    b.Property<DateTime>("ExpiresAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("FileName")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<long>("ReceivedBytes")
-                        .HasColumnType("bigint");
-
-                    b.Property<int>("Revision")
-                        .IsConcurrencyToken()
-                        .HasColumnType("integer");
-
-                    b.Property<string>("SourceFileKey")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("text")
-                        .HasDefaultValue("open");
-
-                    b.HasKey("UserId", "Id");
-
-                    b.HasIndex("UserId", "ExpiresAt");
-
-                    b.ToTable("ImportUploads", null, t =>
-                        {
-                            t.HasCheckConstraint("CK_ImportUploads_Status", "\"Status\" IN ('open','processing','completed','cancelled')");
                         });
                 });
 
@@ -924,9 +874,6 @@ namespace Workout.Api.Data.Migrations
                         .IsConcurrencyToken()
                         .HasColumnType("integer");
 
-                    b.Property<int?>("SourcePage")
-                        .HasColumnType("integer");
-
                     b.Property<int>("Week")
                         .HasColumnType("integer");
 
@@ -988,15 +935,6 @@ namespace Workout.Api.Data.Migrations
                 });
 
             modelBuilder.Entity("Workout.Api.Data.ExerciseProgress", b =>
-                {
-                    b.HasOne("Workout.Api.Data.AppUser", null)
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("Workout.Api.Data.ImportUpload", b =>
                 {
                     b.HasOne("Workout.Api.Data.AppUser", null)
                         .WithMany()

@@ -12,6 +12,8 @@ public sealed class AppDb(DbContextOptions<AppDb> options) : DbContext(options)
     public DbSet<Exercise> Exercises => Set<Exercise>();
     public DbSet<ExerciseAlias> Aliases => Set<ExerciseAlias>();
     public DbSet<TrainingProgram> Programs => Set<TrainingProgram>();
+    public DbSet<ProgramPhase> ProgramPhases => Set<ProgramPhase>();
+    public DbSet<ProgramSkip> ProgramSkips => Set<ProgramSkip>();
     public DbSet<WorkoutTemplate> Templates => Set<WorkoutTemplate>();
     public DbSet<TemplateExercise> TemplateExercises => Set<TemplateExercise>();
     public DbSet<WorkoutSession> Workouts => Set<WorkoutSession>();
@@ -19,6 +21,7 @@ public sealed class AppDb(DbContextOptions<AppDb> options) : DbContext(options)
     public DbSet<CompletedSet> Sets => Set<CompletedSet>();
     public DbSet<ExerciseProgress> Progress => Set<ExerciseProgress>();
     public DbSet<AiImport> Imports => Set<AiImport>();
+    public DbSet<ImportUpload> ImportUploads => Set<ImportUpload>();
     public DbSet<AiUsage> Usage => Set<AiUsage>();
     public DbSet<MutationReceipt> Receipts => Set<MutationReceipt>();
     public DbSet<NutritionContextCache> NutritionContexts => Set<NutritionContextCache>();
@@ -57,8 +60,8 @@ public sealed class AppDb(DbContextOptions<AppDb> options) : DbContext(options)
         m.Entity<ExerciseAlias>().HasIndex(x => x.Normalized).IsUnique();
         m.Entity<ExerciseAlias>().HasOne<Exercise>().WithMany().HasForeignKey(x => x.ExerciseId).OnDelete(DeleteBehavior.Cascade);
 
-        Configure<TrainingProgram>(m); Configure<WorkoutTemplate>(m); Configure<TemplateExercise>(m);
-        Configure<WorkoutSession>(m); Configure<SessionExercise>(m); Configure<CompletedSet>(m); Configure<AiImport>(m);
+        Configure<TrainingProgram>(m); Configure<ProgramPhase>(m); Configure<ProgramSkip>(m); Configure<WorkoutTemplate>(m); Configure<TemplateExercise>(m);
+        Configure<WorkoutSession>(m); Configure<SessionExercise>(m); Configure<CompletedSet>(m); Configure<AiImport>(m); Configure<ImportUpload>(m);
         Configure<ExerciseProgress>(m); Configure<NutritionContextCache>(m); Configure<IntegrationGrant>(m);
         m.Entity<IntegrationGrant>().HasIndex(x => new { x.UserId, x.Peer }).IsUnique();
         m.Entity<NutritionContextCache>().HasIndex(x => x.UserId).IsUnique();
@@ -67,6 +70,12 @@ public sealed class AppDb(DbContextOptions<AppDb> options) : DbContext(options)
 
         // One active program and one active workout per user, enforced by the database.
         m.Entity<TrainingProgram>().HasIndex(x => x.UserId).IsUnique().HasFilter("\"Active\"").HasDatabaseName("IX_Programs_ActivePerUser");
+        m.Entity<TrainingProgram>().Property(x => x.LifecycleStatus).HasDefaultValue(ProgramLifecycle.Standby);
+        m.Entity<TrainingProgram>().Property(x => x.TimeZone).HasDefaultValue("UTC");
+        m.Entity<TrainingProgram>().ToTable("Programs", t => t.HasCheckConstraint("CK_Programs_Lifecycle", "\"LifecycleStatus\" IN ('standby','active','completed')"));
+        m.Entity<ProgramPhase>().HasIndex(x => new { x.UserId, x.ProgramId, x.Position }).IsUnique();
+        m.Entity<ProgramPhase>().HasIndex(x => new { x.UserId, x.ProgramId, x.WeekFrom, x.WeekTo });
+        m.Entity<ProgramSkip>().HasIndex(x => new { x.UserId, x.ProgramId, x.TemplateId }).IsUnique();
         m.Entity<WorkoutSession>().HasIndex(x => x.UserId).IsUnique().HasFilter("\"Active\"").HasDatabaseName("IX_Workouts_ActivePerUser");
         m.Entity<WorkoutTemplate>().HasIndex(x => new { x.UserId, x.ProgramId, x.Week, x.Position });
         m.Entity<WorkoutTemplate>().HasIndex(x => new { x.UserId, x.ProgramId, x.Week, x.Weekday });
@@ -85,8 +94,12 @@ public sealed class AppDb(DbContextOptions<AppDb> options) : DbContext(options)
         m.Entity<AiImport>().ToTable("Imports", t =>
         {
             t.HasCheckConstraint("CK_Imports_Status", "\"Status\" IN ('pending','ready','failed','accepted','discarded')");
-            t.HasCheckConstraint("CK_Imports_Stage", "\"Stage\" IN ('outline','extract','done')");
+            t.HasCheckConstraint("CK_Imports_Stage", "\"Stage\" IN ('outline','select','extract','done')");
         });
+        m.Entity<ImportUpload>().Property(x => x.Status).HasDefaultValue("open");
+        m.Entity<ImportUpload>().ToTable("ImportUploads", t =>
+            t.HasCheckConstraint("CK_ImportUploads_Status", "\"Status\" IN ('open','processing','completed','cancelled')"));
+        m.Entity<ImportUpload>().HasIndex(x => new { x.UserId, x.ExpiresAt });
         m.Entity<CompletedSet>().ToTable("Sets", t =>
         {
             t.HasCheckConstraint("CK_Sets_Weight", "\"WeightKg\" IS NULL OR (\"WeightKg\" >= 0 AND \"WeightKg\" <= 1000)");

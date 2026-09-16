@@ -6,7 +6,9 @@ import { showReps } from '../lib/training';
 import { validateDraftWorkout, validateImportMetadata } from '../lib/validation';
 import { Button } from './ui/Button';
 
-const MAX_BYTES = 20 * 1024 * 1024;
+const MAX_BYTES = 150 * 1024 * 1024;
+const RESUMABLE_THRESHOLD = 8 * 1024 * 1024;
+const weekdayNames = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 const sourceLabel: Record<string, string> = { extracted: 'From the PDF', inferred: 'AI suggestion', userEdited: 'Your edit' };
 
 function Source({ source }: { source: string }) {
@@ -22,10 +24,13 @@ export function ImportReview({ exercises, imports, remaining, onBack, onChanged 
   const [busy, setBusy] = useState('');
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
+  const [acknowledgeUnspecified, setAcknowledgeUnspecified] = useState(false);
   const file = useRef<HTMLInputElement>(null);
+  const selectedFile = useRef<File | null>(null);
 
   useEffect(() => {
     let cancelled = false;
+    setAcknowledgeUnspecified(false);
     if (!selected) { setDraft(null); return; }
     if (selected.draft) { setDraft(selected.draft); return; }
     setBusy('Loading this import…');
@@ -41,7 +46,12 @@ export function ImportReview({ exercises, imports, remaining, onBack, onChanged 
     while (current.status === 'pending' && current.stage === 'extract' && current.chunksDone < current.chunksTotal) {
       setBusy(`Reading chunk ${current.chunksDone + 1} of ${current.chunksTotal}${current.currentChunkLabel ? ` · ${current.currentChunkLabel}` : ''}…`);
       try {
-        current = await api.extractImport(current.id, chosen);
+        try { current = await api.extractImport(current.id); }
+        catch (failure) {
+          // Legacy/past-expiry imports can still be resumed by explicitly selecting the source PDF.
+          if (failure instanceof ApiError && failure.status === 410) current = await api.extractImport(current.id, chosen);
+          else throw failure;
+        }
         setSelected(current); setDraft(current.draft);
         await onChanged();
       } catch (failure) {
@@ -55,12 +65,27 @@ export function ImportReview({ exercises, imports, remaining, onBack, onChanged 
   }
 
   async function upload(chosen: File) {
+    selectedFile.current = chosen;
+    setAcknowledgeUnspecified(false);
     setError(''); setNotice('');
-    if (chosen.size > MAX_BYTES) { setError('That PDF is larger than 20 MB.'); return; }
+    if (chosen.size > MAX_BYTES) { setError('That PDF is larger than 150 MiB.'); return; }
     if (!/\.pdf$/i.test(chosen.name)) { setError('Choose a PDF file.'); return; }
     setBusy('Reading the program outline…');
     try {
-      const view = await api.uploadImport(chosen);
+      let view: ImportView;
+      if (chosen.size > RESUMABLE_THRESHOLD) {
+        const upload = await api.initImportUpload(chosen.name, chosen.size);
+        let offset = upload.receivedBytes;
+        while (offset < chosen.size) {
+          const end = Math.min(chosen.size, offset + upload.chunkBytes);
+          const chunk = new Uint8Array(await chosen.slice(offset, end).arrayBuffer());
+          const progress = await api.appendImportUpload(upload.id, offset, chunk);
+          offset = progress.receivedBytes;
+          setBusy(`Uploading ${Math.round(offset / chosen.size * 100)}%…`);
+        }
+        setBusy('Reading the program outline…');
+        view = await api.completeImportUpload(upload.id);
+      } else view = await api.uploadImport(chosen);
       setSelected(view); setDraft(view.draft);
       await onChanged();
       if (view.stage === 'extract') await continueExtraction(view, chosen);
@@ -98,6 +123,8 @@ export function ImportReview({ exercises, imports, remaining, onBack, onChanged 
     finally { setBusy(''); }
   }
 
+  const requiresAcknowledgement = !!selected?.reviewIssues?.some(issue => issue.code === 'rpe_unspecified' || issue.code === 'rest_unspecified');
+
   return <>
     <div className="page-heading">
       <div>
@@ -111,14 +138,14 @@ export function ImportReview({ exercises, imports, remaining, onBack, onChanged 
     </div>
 
     <section className="panel">
-      <div className="section-heading"><h2>Upload</h2><span className="muted">PDF · up to 20 MB · up to 100 pages</span></div>
+      <div className="section-heading"><h2>Upload</h2><span className="muted">PDF · up to 150 MiB · up to 1,000 pages</span></div>
       <input name="program-pdf" ref={file} type="file" accept="application/pdf,.pdf" hidden aria-label="Program PDF"
         onChange={e => { const chosen = e.target.files?.[0]; e.target.value = ''; if (chosen) void upload(chosen); }} />
       <Button variant="primary" disabled={!!busy} onClick={() => file.current?.click()}><Upload size={17} />Choose a PDF</Button>
       {busy && <p className="muted" role="status">{busy}</p>}
       {notice && <p className="muted" role="status">{notice}</p>}
       {error && <p className="error-text" role="alert">{error}</p>}
-      <p className="muted small-copy">The PDF is read once and never stored. A partial import can resume when you choose the same file again.</p>
+      <p className="muted small-copy">The PDF is inspected in bounded passes and becomes an editable draft before it can affect your programs.</p>
     </section>
 
     {imports.length > 0 && <section className="panel">
@@ -131,11 +158,19 @@ export function ImportReview({ exercises, imports, remaining, onBack, onChanged 
     </section>}
 
     {selected && selected.status === 'pending' && <section className="panel">
-      <div className="empty-message"><Wand2 size={30} /><h3>Extraction paused</h3>
-        <p>{selected.chunksDone} of {selected.chunksTotal} chunks are complete. Choose the same PDF to continue this import.</p>
+      {selected.stage === 'select' && selected.alternatives?.length ? <div className="empty-message"><Wand2 size={30} /><h3>Choose a program</h3>
+        <p>This PDF contains several programs. Choose one before detailed extraction; its consecutive phases will stay together.</p>
+        <div className="settings-actions">{selected.alternatives.map(alternative => <Button key={alternative.id} variant="primary" disabled={!!busy} onClick={() => act('Selecting program…', async () => { const view = await api.selectImportAlternative(selected.id, alternative.id); setSelected(view); setDraft(view.draft); if (view.stage === 'extract') await continueExtraction(view, selectedFile.current ?? new File([], view.fileName)); })}>{alternative.name} · {alternative.dayCount} days</Button>)}</div>
+      </div> : <div className="empty-message"><Wand2 size={30} /><h3>Extraction paused</h3>
+        <p>{selected.chunksDone} of {selected.chunksTotal} chunks are complete. Extraction can continue from the server; select the PDF only if its temporary source has expired.</p>
         {selected.error && <p className="error-text">Last chunk: {selected.error}</p>}
+        <Button variant="primary" onClick={() => void act('Continuing extraction…', async () => {
+          const view = await api.retryImport(selected.id);
+          setSelected(view); setDraft(view.draft);
+          if (view.stage === 'extract') await continueExtraction(view, selectedFile.current ?? new File([], view.fileName));
+        })} disabled={!!busy}>Continue saved extraction</Button>
         <Button variant="primary" onClick={() => file.current?.click()} disabled={!!busy}><Upload size={16} />Choose the same PDF to continue</Button>
-      </div>
+      </div>}
     </section>}
 
     {selected && draft && selected.status === 'ready' && <>
@@ -146,14 +181,20 @@ export function ImportReview({ exercises, imports, remaining, onBack, onChanged 
         {selected.unresolved.length > 0 && <div className="error-banner" role="status"><AlertTriangle size={17} />
           {selected.unresolved.length} exercise name{selected.unresolved.length === 1 ? '' : 's'} are not linked to the catalog. They will stay verbatim and can still be logged.
         </div>}
+        {!!selected.reviewIssues?.length && <div className="notice-list" role="status">
+          {selected.reviewIssues.map((issue, index) => <p key={`${issue.code}-${index}`} className={issue.severity === 'blocking' ? 'error-text' : 'muted'}>
+            <AlertTriangle size={14} /> {issue.message}{issue.sourcePage ? ` (PDF p.${issue.sourcePage})` : ''}
+          </p>)}
+        </div>}
+        {(selected.inputTokens || selected.outputTokens || selected.pageCoverage?.length) ? <p className="muted small-copy">{selected.pageCoverage?.length ? `${selected.pageCoverage.filter(page => page.hasText).length}/${selected.pageCoverage.length} pages have selectable text · ` : ''}Usage: {selected.inputTokens ?? 0} input · {selected.outputTokens ?? 0} output tokens{selected.visualFallbacks ? ` · ${selected.visualFallbacks} visual pass${selected.visualFallbacks === 1 ? '' : 'es'}` : ''}{selected.retries ? ` · ${selected.retries} retr${selected.retries === 1 ? 'y' : 'ies'}` : ''}</p> : null}
       </section>
       {draft.workouts.length > 0 ? <DraftOutline draft={draft} expandedDay={expandedDay} setExpandedDay={setExpandedDay} exercises={exercises} onDayChange={persistDay} />
         : <section className="panel"><div className="empty-message"><AlertTriangle size={30} /><h3>No extracted days</h3><p>The draft needs at least one training or rest day.</p></div></section>}
       <section className="panel"><div className="settings-actions">
         <Button disabled={!!busy} onClick={() => act('rematch', async () => { const view = await api.rematchImport(selected.id); setSelected(view); setDraft(view.draft); })}><Wand2 size={17} />Match against the library again</Button>
         <Button variant="destructive" disabled={!!busy} onClick={() => act('discard', async () => { await api.discardImport(selected.id); setSelected(null); setDraft(null); })}><Trash2 size={17} />Discard draft</Button>
-        <Button variant="primary" disabled={!!busy || !selected.acceptable} onClick={() => act('accept', async () => { await api.acceptImport(selected.id); setSelected(null); setDraft(null); onBack(); })}><Check size={17} />Accept and create program</Button>
-      </div><p className="muted small-copy">Catalog matches are helpful but optional; unmapped names are preserved exactly.</p></section>
+        <Button variant="primary" disabled={!!busy || !selected.acceptable || (requiresAcknowledgement && !acknowledgeUnspecified)} onClick={() => act('accept', async () => { await api.acceptImport(selected.id, acknowledgeUnspecified); setSelected(null); setDraft(null); onBack(); })}><Check size={17} />Accept and create program</Button>
+      </div>{requiresAcknowledgement && <label className="checkbox-field"><input type="checkbox" checked={acknowledgeUnspecified} onChange={event => setAcknowledgeUnspecified(event.target.checked)} />I acknowledge that the PDF did not state every working-set RPE or rest value; those remain unspecified.</label>}<p className="muted small-copy">Catalog matches are helpful but optional; unmapped names are preserved exactly.</p></section>
     </>}
 
     {selected && selected.status === 'failed' && <section className="panel"><div className="empty-message"><AlertTriangle size={30} /><h3>That outline did not finish</h3><p>{selected.error}</p><p className="muted">The original PDF was not kept, so upload it again.</p></div></section>}
@@ -181,7 +222,7 @@ function DraftOutline({ draft, expandedDay, setExpandedDay, exercises, onDayChan
 function DayRow({ day, expanded, onToggle, exercises, onChange }: { day: DraftWorkout; expanded: boolean; onToggle: () => void; exercises: Exercise[]; onChange: (day: DraftWorkout) => Promise<void> }) {
   return <section className={`draft-day ${day.isRestDay ? 'rest-day' : ''}`}>
     <button type="button" className="draft-day-summary" aria-expanded={expanded} onClick={onToggle}>
-      <span><strong>W{day.phaseWeek} · {day.name}</strong><small>{day.isRestDay ? 'REST DAY' : `${day.exercises.length} exercises`}{day.phase?.toLowerCase().includes('deload') ? ' · DELOAD' : ''}</small></span>
+      <span><strong>W{day.phaseWeek} · {day.name}</strong><small>{day.isRestDay ? 'REST DAY' : `${day.exercises.length} exercises`}{day.phase?.toLowerCase().includes('deload') ? ' · DELOAD' : ''}{day.sourcePage ? ` · PDF p.${day.sourcePage}` : ''}</small></span>
       <span className="tiny-label">{day.isRestDay ? 'REST DAY' : expanded ? 'CLOSE' : 'EDIT'}</span>
     </button>
     {expanded && <DayEditor day={day} exercises={exercises} onChange={onChange} />}
@@ -201,6 +242,9 @@ function DayEditor({ day, exercises, onChange }: { day: DraftWorkout; exercises:
   return <div className="day-editor">
     <label className="field">Day name<input value={draft.name} onChange={e => setDraft({ ...draft, name: e.target.value })} onBlur={() => void onChange(draft)} /></label>
     <label className="field">Notes<textarea value={draft.notes ?? ''} onChange={e => setDraft({ ...draft, notes: e.target.value })} onBlur={() => void onChange(draft)} /></label>
+    <label className="field">Weekday <select aria-label="Workout weekday" value={draft.weekday ?? ''} onChange={e => save({ ...draft, weekday: e.target.value ? Number(e.target.value) : null })}>
+      <option value="">Unspecified — choose when scheduling</option>{weekdayNames.map((name, index) => <option key={name} value={index + 1}>{name}</option>)}
+    </select></label>
     {draft.isRestDay ? <div className="rest-callout"><span className="tiny-label">REST DAY</span><p>No exercises are scheduled for this slot.</p></div> : groups.map((group, groupIndex) => <div className={group.length > 1 ? 'superset-block' : ''} key={groupIndex}>
       {group.length > 1 && <div className="superset-heading">SUPERSET {group[0].sequenceGroup.match(/^[A-Za-z]+/)?.[0] ?? ''}</div>}
       {group.map(exercise => <ExerciseEditor key={exercise.lineId} exercise={exercise} exercises={exercises} onChange={next => save({ ...draft, exercises: draft.exercises.map(item => item.lineId === next.lineId ? next : item) })} />)}
@@ -213,6 +257,7 @@ function ExerciseEditor({ exercise, exercises, onChange }: { exercise: DraftExer
   const editSet = (index: number, patch: Partial<DraftSet>) => onChange({ ...exercise, sets: exercise.sets.map((set, i) => i === index ? { ...set, ...patch } : set) });
   return <div className="import-exercise">
     <div className="section-heading"><div><input className="inline-input" aria-label={`Exercise name as written in the PDF`} value={exercise.sourceName} onChange={e => onChange({ ...exercise, sourceName: e.target.value })} />
+      {exercise.sourcePage && <span className="tiny-label">PDF p.{exercise.sourcePage}</span>}
       {!exercise.exerciseId && <span className="tiny-label warn"><AlertTriangle size={12} /> UNMAPPED · PRESERVED</span>}</div></div>
     <div className="import-fields"><label className="field">Library exercise<select aria-label={`Library exercise for ${exercise.sourceName}`} value={exercise.exerciseId ?? ''} onChange={e => onChange({ ...exercise, exerciseId: e.target.value || null })}>
       <option value="">Not mapped</option>{exercises.map(option => <option key={option.id} value={option.id}>{option.name}</option>)}

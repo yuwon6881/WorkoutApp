@@ -24,11 +24,11 @@ function nextMondayIso() {
   const date = new Date();
   const day = date.getDay();
   date.setDate(date.getDate() + (day === 0 ? 1 : 8 - day));
-  return date.toISOString().slice(0, 10);
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 }
 
 function defaultWeekdays(days: ProgramSummary['days']) {
-  return Object.fromEntries(days.filter(day => !day.isRestDay).map(day => [day.id, day.weekday ?? (day.position % 7) + 1]));
+  return Object.fromEntries(days.filter(day => !day.isRestDay && day.weekday != null).map(day => [day.id, day.weekday!]));
 }
 
 export function Programs({ data, exercises, onStart, onImport, onChanged }: {
@@ -81,7 +81,13 @@ export function Programs({ data, exercises, onStart, onImport, onChanged }: {
       </div>
     </div>
 
-    {data.programs.map(program => <ProgramCard key={program.id} program={program} onStart={onStart} onChanged={onChanged} />)}
+    {(['active', 'standby', 'completed'] as const).map(status => {
+      const programs = data.programs.filter(program => (program.lifecycleStatus ?? (program.active ? 'active' : 'standby')) === status);
+      if (!programs.length) return null;
+      const title = status === 'active' ? 'Active program' : status === 'standby' ? 'Standby programs' : 'Completed programs';
+      return <section key={status} className="program-section"><div className="section-heading"><h2>{title}</h2><span className="muted">{programs.length}</span></div>
+        {programs.map(program => <ProgramCard key={program.id} program={program} onStart={onStart} onChanged={onChanged} />)}</section>;
+    })}
 
     <section className="panel">
       <div className="section-heading"><h2>Standalone workouts</h2><span className="muted">{data.templates.length} saved</span></div>
@@ -148,8 +154,9 @@ function ProgramCard({ program, onStart, onChanged }: { program: ProgramSummary;
   const [detail, setDetail] = useState<Template[] | null>(null);
   const [scheduling, setScheduling] = useState(program.needsSchedule ?? false);
   const [scheduleAnchor, setScheduleAnchor] = useState(program.scheduleAnchor ?? nextMondayIso());
-  const [scheduleWeekdays, setScheduleWeekdays] = useState<Record<string, number>>(() => defaultWeekdays(program.days));
+  const [scheduleWeekdays, setScheduleWeekdays] = useState<Record<string, number | undefined>>(() => defaultWeekdays(program.days));
   const next = program.days.find(w => w.id === program.nextTemplateId);
+  const skipped = new Set(program.skippedTemplateIds ?? []);
 
   async function toggleDetails() {
     if (!expanded && detail === null) {
@@ -175,21 +182,29 @@ function ProgramCard({ program, onStart, onChanged }: { program: ProgramSummary;
   }
 
   async function saveSchedule() {
-    const slots = program.days.filter(day => !day.isRestDay).map(day => ({ templateId: day.id, weekday: scheduleWeekdays[day.id] ?? 1 }));
+    const slots = program.days.filter(day => !day.isRestDay).map(day => ({ templateId: day.id, weekday: scheduleWeekdays[day.id] ?? 0 }));
     await act(async () => {
       await api.scheduleProgram(program.id, { anchor: scheduleAnchor, slots, revision: program.revision });
       setScheduling(false);
     });
   }
 
+  async function toggleSkip(templateId: string) {
+    await act(() => skipped.has(templateId) ? api.unskipProgramWorkout(program.id, templateId) : api.skipProgramWorkout(program.id, templateId));
+  }
+
   return <section className="panel program-card">
     <div className="section-heading">
-      <div><h2>{program.name}</h2><p className="muted">{program.weeks} {program.weeks === 1 ? 'week' : 'weeks'} · {program.days.length} days · {program.completedTemplateIds.length} completed</p></div>
-      <span className="tiny-label accent">{program.active ? 'ACTIVE' : 'INACTIVE'}</span>
+      <div><h2>{program.name}</h2><p className="muted">{program.weeks} {program.weeks === 1 ? 'week' : 'weeks'} · {program.days.length} days · {program.completedTemplateIds.length} completed{program.skippedTemplateIds?.length ? ` · ${program.skippedTemplateIds.length} skipped` : ''}</p></div>
+      <span className={`tiny-label ${program.lifecycleStatus === 'completed' ? '' : 'accent'}`}>{program.lifecycleStatus === 'completed' ? 'COMPLETED' : program.active ? 'ACTIVE' : 'STANDBY'}</span>
     </div>
     {program.description && <p>{program.description}</p>}
+    {program.lifecycleStatus === 'completed' && program.completedAt && <p className="muted small-copy">Completed {new Date(program.completedAt).toLocaleString()}</p>}
+    {!!program.phases?.length && <div className="phase-progress" aria-label="Program phase progress">
+      {program.phases.map(phase => <span className="tiny-label" key={phase.id}>{phase.name} · W{phase.currentWeek ?? 1}/{phase.durationWeeks} · {phase.completedWorkouts} completed{phase.skippedWorkouts ? ` · ${phase.skippedWorkouts} skipped` : ''}/{phase.totalWorkouts}{phase.complete ? ' · DONE' : ''}{phase.sourcePageFrom ? ` · PDF pp.${phase.sourcePageFrom}${phase.sourcePageTo && phase.sourcePageTo !== phase.sourcePageFrom ? `–${phase.sourcePageTo}` : ''}` : ''}</span>)}
+    </div>}
     <Button variant="tertiary" className="full-width" onClick={() => void toggleDetails()} disabled={busy}>{busy ? 'Loading program…' : expanded ? 'Hide program detail' : 'Show block and phase detail'}</Button>
-    {expanded && <ProgramTree days={program.days} completed={program.completedTemplateIds} nextId={program.nextTemplateId} detail={detail} onStart={onStart} />}
+    {expanded && <ProgramTree days={program.days} completed={program.completedTemplateIds} skipped={program.skippedTemplateIds ?? []} nextId={program.nextTemplateId} detail={detail} onStart={onStart} onSkip={toggleSkip} canStart={program.active} />}
     {error && <p className="error-text" role="alert">{error}</p>}
     {program.needsSchedule && !scheduling && <div className="empty-message">
       <strong>Choose when this program happens</strong>
@@ -202,23 +217,25 @@ function ProgramCard({ program, onStart, onChanged }: { program: ProgramSummary;
     {scheduling && <div className="schedule-editor" aria-label={`Schedule ${program.name}`}>
       <label className="field">Program week 1 starts on Monday<input type="date" value={scheduleAnchor} onChange={event => setScheduleAnchor(event.target.value)} /></label>
       <div className="schedule-rows">
-        {program.days.filter(day => !day.isRestDay).map(day => <label className="field" key={day.id}>{day.name} · week {day.week}
-          <select value={scheduleWeekdays[day.id] ?? 1} onChange={event => setScheduleWeekdays(current => ({ ...current, [day.id]: Number(event.target.value) }))}>
+          {program.days.filter(day => !day.isRestDay).map(day => <label className="field" key={day.id}>{day.name} · week {day.week}
+          <select value={scheduleWeekdays[day.id] ?? ''} onChange={event => setScheduleWeekdays(current => ({ ...current, [day.id]: event.target.value ? Number(event.target.value) : undefined }))}>
+            <option value="">Choose a weekday</option>
             {weekdayNames.map((name, index) => <option value={index + 1} key={name}>{name}</option>)}
           </select>
         </label>)}
       </div>
-      <div className="settings-actions"><Button variant="primary" disabled={busy || !scheduleAnchor} onClick={() => void saveSchedule()}>Save schedule</Button><Button disabled={busy} onClick={() => setScheduling(false)}>Cancel</Button></div>
+      <div className="settings-actions"><Button variant="primary" disabled={busy || !scheduleAnchor || program.days.some(day => !day.isRestDay && scheduleWeekdays[day.id] == null)} onClick={() => void saveSchedule()}>Save schedule</Button><Button disabled={busy} onClick={() => setScheduling(false)}>Cancel</Button></div>
     </div>}
     <div className="settings-actions">
-      {next && <Button variant="primary" onClick={() => onStart(next.id)}>Start {next.name}<ArrowRight size={16} /></Button>}
-      <Button disabled={busy} onClick={() => act(() => api.setProgramActive(program.id, !program.active, program.revision))}>{program.active ? 'Make inactive' : 'Make active'}</Button>
+      {program.active && next && <Button variant="primary" onClick={() => onStart(next.id)}>Start {next.name}<ArrowRight size={16} /></Button>}
+      {program.lifecycleStatus !== 'completed' && <Button disabled={busy} onClick={() => act(() => api.setProgramActive(program.id, !program.active, program.revision))}>{program.active ? 'Move to standby' : 'Make active'}</Button>}
+      {program.lifecycleStatus === 'completed' && <Button disabled={busy} onClick={() => act(() => api.repeatProgram(program.id))}>Repeat program</Button>}
       <Button variant="destructive" disabled={busy} onClick={() => act(() => api.deleteProgram(program.id))}>Delete program</Button>
     </div>
   </section>;
 }
 
-function ProgramTree({ days, completed, nextId, detail, onStart }: { days: ProgramSummary['days']; completed: string[]; nextId: string | null; detail: Template[] | null; onStart: (id: string) => void }) {
+function ProgramTree({ days, completed, skipped, nextId, detail, onStart, onSkip, canStart }: { days: ProgramSummary['days']; completed: string[]; skipped: string[]; nextId: string | null; detail: Template[] | null; onStart: (id: string) => void; onSkip: (id: string) => Promise<void>; canStart: boolean }) {
   const blocks = new Map<string, Map<string, typeof days>>();
   for (const day of days) {
     const block = day.block || 'Program';
@@ -234,9 +251,11 @@ function ProgramTree({ days, completed, nextId, detail, onStart }: { days: Progr
       <summary>{phase}</summary>
       <div className="routine-list">{phaseDays.map(day => {
         const full = detail?.find(template => template.id === day.id);
-        const complete = completed.includes(day.id);
-        const row = <><span className="routine-number">W{day.phaseWeek}</span><span>{day.name}</span><span className="tiny-label">{day.isRestDay ? 'REST DAY' : complete ? 'DONE' : day.id === nextId ? 'UP NEXT' : `${full?.exercises.length ?? day.exerciseCount} exercises`}</span></>;
-        return day.isRestDay ? <div className="routine-row rest-row" key={day.id}>{row}</div> : <Button variant="tertiary" className={`routine-row ${day.id === nextId ? 'next' : ''}`} key={day.id} onClick={() => onStart(day.id)}>{row}</Button>;
+        const complete = completed.includes(day.id); const isSkipped = skipped.includes(day.id);
+        const row = <><span className="routine-number">W{day.phaseWeek}</span><span>{day.name}{day.sourcePage ? <small className="muted"> · PDF p.{day.sourcePage}</small> : null}</span><span className="tiny-label">{day.isRestDay ? 'REST DAY' : complete ? 'DONE' : isSkipped ? 'SKIPPED' : day.id === nextId ? 'UP NEXT' : `${full?.exercises.length ?? day.exerciseCount} exercises`}</span></>;
+        if (day.isRestDay) return <div className="routine-row rest-row" key={day.id}>{row}</div>;
+        return <div className="program-slot-row" key={day.id}><Button variant="tertiary" className={`routine-row ${day.id === nextId ? 'next' : ''}`} disabled={!canStart || complete || isSkipped} onClick={() => onStart(day.id)}>{row}</Button>
+          <Button variant="tertiary" disabled={(!canStart && !isSkipped) || (complete && !isSkipped)} aria-label={`${isSkipped ? 'Unskip' : 'Skip'} ${day.name}`} onClick={() => void onSkip(day.id)}>{isSkipped ? 'Unskip' : 'Skip'}</Button></div>;
       })}</div>
     </details>)}
   </details>)}</div>;
