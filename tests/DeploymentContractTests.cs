@@ -42,6 +42,40 @@ public sealed class DeploymentContractTests
         Assert.DoesNotContain("fonts.googleapis.com", entry);
     }
 
+    [Fact]
+    public void Database_secret_is_dedicated_to_workout()
+    {
+        var build = File.ReadAllText(Path.Combine(RepositoryRoot(), "cloudbuild.yaml"));
+        Assert.Contains("ConnectionStrings__Database=workout-neon-database:latest", build);
+        Assert.DoesNotContain("fitness-account-neon-database", build);
+        Assert.DoesNotContain("nutrition-neon-database", build);
+    }
+
+    [Fact]
+    public void Database_secrets_across_fitness_stack_are_distinct()
+    {
+        var root = RepositoryRoot();
+        var workoutBuild = File.ReadAllText(Path.Combine(root, "cloudbuild.yaml"));
+        var parent = Directory.GetParent(root);
+        if (parent is null) return;
+        var nutritionBuildPath = Path.Combine(parent.FullName, "NutritionApp", "deploy", "cloudbuild.yaml");
+        var fitnessBuildPath = Path.Combine(parent.FullName, "FitnessAccount", "cloudbuild.yaml");
+        if (File.Exists(nutritionBuildPath) && File.Exists(fitnessBuildPath))
+        {
+            var nutritionBuild = File.ReadAllText(nutritionBuildPath);
+            var fitnessBuild = File.ReadAllText(fitnessBuildPath);
+            Assert.Contains("workout-neon-database", workoutBuild);
+            Assert.Contains("nutrition-neon-database", nutritionBuild);
+            Assert.Contains("fitness-account-neon-database", fitnessBuild);
+            Assert.DoesNotContain("workout-neon-database", nutritionBuild);
+            Assert.DoesNotContain("workout-neon-database", fitnessBuild);
+            Assert.DoesNotContain("nutrition-neon-database", workoutBuild);
+            Assert.DoesNotContain("nutrition-neon-database", fitnessBuild);
+            Assert.DoesNotContain("fitness-account-neon-database", workoutBuild);
+            Assert.DoesNotContain("fitness-account-neon-database", nutritionBuild);
+        }
+    }
+
     private static string RepositoryRoot()
     {
         for (var directory = new DirectoryInfo(AppContext.BaseDirectory); directory is not null; directory = directory.Parent)

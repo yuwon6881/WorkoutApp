@@ -97,6 +97,7 @@ public sealed class AppDb(DbContextOptions<AppDb> options) : DbContext(options)
         m.Entity<ExerciseProgress>().ToTable("Progress", t =>
             t.HasCheckConstraint("CK_Progress_E1rm", "\"TrendE1rmKg\" >= 0 AND \"LastE1rmKg\" >= 0"));
         m.Entity<AiImport>().HasIndex(x => new { x.UserId, x.DocumentHash, x.PromptVersion });
+        m.Entity<AiImport>().HasIndex(x => x.Created);
         m.Entity<AiImport>().ToTable("Imports", t =>
         {
             t.HasCheckConstraint("CK_Imports_Status", "\"Status\" IN ('pending','ready','failed','accepted','discarded')");

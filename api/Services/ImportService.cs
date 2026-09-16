@@ -8,12 +8,12 @@ using Workout.Api.Domain;
 
 namespace Workout.Api.Services;
 
-public sealed class ImportService(AppDb db, WorkoutAi ai, CatalogService catalog, ProgramService programs, IImportFileStore files, IImportJobDispatcher? jobs = null)
+public sealed class ImportService(AppDb db, WorkoutAi ai, CatalogService catalog, ProgramService programs, IImportFileStore files, IImportJobDispatcher? jobs = null, IConfiguration? config = null)
 {
     // The original public constructor remains available to direct callers while the app container
     // supplies the configured GCS or transient store through the primary constructor.
     public ImportService(AppDb db, WorkoutAi ai, CatalogService catalog, ProgramService programs)
-        : this(db, ai, catalog, programs, new TransientImportFileStore(new ConfigurationBuilder().Build()))
+        : this(db, ai, catalog, programs, new TransientImportFileStore(new ConfigurationBuilder().Build()), null, new ConfigurationBuilder().Build())
     {
     }
 
@@ -243,6 +243,7 @@ public sealed class ImportService(AppDb db, WorkoutAi ai, CatalogService catalog
         catch (DomainException ex)
         {
             import.Status = ImportStatus.Failed; import.Error = ex.Message;
+            import.DraftJson = ""; import.OutlineJson = ""; import.AlternativesJson = "[]"; import.PageCoverageJson = "[]";
             await files.Delete(import.SourceFileKey, ct); import.SourceFileKey = ""; import.SourceFileExpiresAt = null;
             await db.SaveChangesAsync(ct);
             await gate.Commit(ct);
@@ -583,6 +584,7 @@ public sealed class ImportService(AppDb db, WorkoutAi ai, CatalogService catalog
         // activated by the user so a mistaken import never displaces the current program.
         var program = await programs.Materialize(input, activate: false, sourceImportId: import.Id, ct);
         import.Status = ImportStatus.Accepted; import.ProgramId = program.Id; import.Revision++;
+        import.DraftJson = ""; import.OutlineJson = ""; import.AlternativesJson = "[]"; import.PageCoverageJson = "[]";
         await db.SaveChangesAsync(ct);
         await gate.Commit(ct);
         return await programs.Get(program.Id, ct);
@@ -595,7 +597,8 @@ public sealed class ImportService(AppDb db, WorkoutAi ai, CatalogService catalog
         Validation.Require(import != null, "That import no longer exists.", 404);
         Validation.Require(import!.Status != ImportStatus.Accepted, "An accepted program is removed from Programs, not here.", 409);
         await files.Delete(import.SourceFileKey, ct);
-        import.Status = ImportStatus.Discarded; import.DraftJson = ""; import.OutlineJson = ""; import.Revision++;
+        import.Status = ImportStatus.Discarded; import.DraftJson = ""; import.OutlineJson = "";
+        import.AlternativesJson = "[]"; import.PageCoverageJson = "[]"; import.Revision++;
         import.SourceFileKey = ""; import.SourceFileExpiresAt = null;
         await db.SaveChangesAsync(ct);
         await gate.Commit(ct);
@@ -613,7 +616,12 @@ public sealed class ImportService(AppDb db, WorkoutAi ai, CatalogService catalog
         {
             await files.Delete(import.SourceFileKey, ct);
             import.SourceFileKey = ""; import.SourceFileExpiresAt = null;
-            if (import.Status == ImportStatus.Pending) { import.Status = ImportStatus.Failed; import.Error = "The temporary PDF expired before extraction finished. Upload it again."; }
+            if (import.Status == ImportStatus.Pending)
+            {
+                import.Status = ImportStatus.Failed;
+                import.Error = "The temporary PDF expired before extraction finished. Upload it again.";
+                import.DraftJson = ""; import.OutlineJson = ""; import.AlternativesJson = "[]"; import.PageCoverageJson = "[]";
+            }
         }
         var uploads = await db.ImportUploads.IgnoreQueryFilters().Where(x => x.ExpiresAt < now).ToListAsync(ct);
         foreach (var upload in uploads)
@@ -621,7 +629,39 @@ public sealed class ImportService(AppDb db, WorkoutAi ai, CatalogService catalog
             await files.Delete(upload.SourceFileKey, ct);
             db.ImportUploads.Remove(upload);
         }
-        if (expired.Count > 0 || uploads.Count > 0) await db.SaveChangesAsync(ct);
+
+        var terminalWithBlobs = await db.Imports.IgnoreQueryFilters()
+            .Where(i => (i.Status == ImportStatus.Accepted || i.Status == ImportStatus.Failed || i.Status == ImportStatus.Discarded) &&
+                        (i.DraftJson != "" || i.OutlineJson != "" || i.AlternativesJson != "[]" || i.PageCoverageJson != "[]"))
+            .Take(100)
+            .ToListAsync(ct);
+        foreach (var item in terminalWithBlobs)
+        {
+            item.DraftJson = "";
+            item.OutlineJson = "";
+            item.AlternativesJson = "[]";
+            item.PageCoverageJson = "[]";
+        }
+
+        if (expired.Count > 0 || uploads.Count > 0 || terminalWithBlobs.Count > 0)
+            await db.SaveChangesAsync(ct);
+
+        var importDays = Math.Max(1, config?.GetValue("Retention:ImportDays", 30) ?? 30);
+        var importCutoff = now.AddDays(-importDays);
+        await db.Imports.IgnoreQueryFilters()
+            .Where(i => (i.Status == ImportStatus.Accepted || i.Status == ImportStatus.Failed || i.Status == ImportStatus.Discarded) &&
+                        i.Created < importCutoff)
+            .ExecuteDeleteAsync(ct);
+
+        await db.Sessions.Where(s => s.Expires < now).ExecuteDeleteAsync(ct);
+
+        var receiptDays = Math.Max(1, config?.GetValue("Retention:ReceiptDays", 90) ?? 90);
+        var receiptCutoff = now.AddDays(-receiptDays);
+        await db.Receipts.IgnoreQueryFilters().Where(r => r.Created < receiptCutoff).ExecuteDeleteAsync(ct);
+
+        var aiUsageMonths = Math.Max(1, config?.GetValue("Retention:AiUsageMonths", 2) ?? 2);
+        var usageCutoff = DateOnly.FromDateTime(now.AddMonths(-aiUsageMonths));
+        await db.Usage.IgnoreQueryFilters().Where(u => u.Date < usageCutoff).ExecuteDeleteAsync(ct);
         }
         finally { db.MaintenanceAccess = previousMaintenance; }
     }
