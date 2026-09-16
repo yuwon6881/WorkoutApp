@@ -1,6 +1,6 @@
 # WorkoutApp guidance
 
-Applies only to this independent repository; app-specific rules override the parent's FinancialApp rules. `CLAUDE.md` is canonical; keep `AGENTS.md` byte-identical. After editing, run `Copy-Item CLAUDE.md AGENTS.md` from this repository.
+Applies only to this independent repository; app-specific rules override the parent's FinancialApp rules. `CLAUDE.md` is canonical; keep `AGENTS.md` byte-identical. After editing, run `node scripts/sync-docs.mjs`, then verify with `node scripts/sync-docs.mjs --check`.
 
 ## Keep this guidance concise
 
@@ -45,6 +45,6 @@ Applies only to this independent repository; app-specific rules override the par
 ## Verification
 
 - Frontend: `web/`; API: `api/`; API regressions: `tests/`; browser tests: `web/tests/`. Use Node 24 and .NET 10.
-- From repository root: `dotnet test tests/Workout.Tests.csproj`. From `web/`: `npm.cmd run typecheck`, `npm.cmd test`, `npm.cmd run build`; UI/shared-surface changes also require `npm.cmd run test:visual` and `npm.cmd run test:responsive`.
+- From repository root: `dotnet test tests/Workout.Tests.csproj`. From `web/`: `npm.cmd run check:docs`, `npm.cmd run check:standards`, `npm.cmd run typecheck`, `npm.cmd test`, `npm.cmd run build`; UI/shared-surface changes also require `npm.cmd run test:visual` and `npm.cmd run test:responsive`.
 - Browser suites use a disposable API/database and local AI stand-in. Never run reset flows against production/personal data; serialize shared browser/build output during concurrent work.
 - Verify documentation equality and `git diff --check`. Report checks run and explicitly label skipped tests, live providers, browser sign-in, and deployment checks as unverified.

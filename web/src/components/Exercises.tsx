@@ -25,20 +25,20 @@ export function ExerciseLibrary({ exercises, onSelect, exclude = [] }: { exercis
       <label className="search-box">
         <Search size={18} />
         <input name="exercise-search" aria-label="Search exercises" placeholder="Search exercises or equipment…" value={query} onChange={e => setQuery(e.target.value)} />
-        {query && <button type="button" className="search-clear-btn" aria-label="Clear search" onClick={() => setQuery('')}><X size={16} /></button>}
+        {query && <Button presentation="plain" className="search-clear-btn" aria-label="Clear search" onClick={() => setQuery('')}><X size={16} /></Button>}
       </label>
       <select name="exercise-muscle" aria-label="Filter by muscle" value={muscle} onChange={e => setMuscle(e.target.value)}>{muscles.map(m => <option key={m}>{m}</option>)}</select>
     </div>
     <div className="filter-chips" role="group" aria-label="Filter exercises by muscle">
       {muscles.map(m => (
-        <button
-          type="button"
+        <Button
+          presentation="plain"
           key={m}
           className={`filter-chip ${muscle === m ? 'active' : ''}`}
           onClick={() => setMuscle(m)}
         >
           {m}
-        </button>
+        </Button>
       ))}
     </div>
     <div className={onSelect ? 'picker-list' : 'exercise-grid'}>{filtered.map(e =>

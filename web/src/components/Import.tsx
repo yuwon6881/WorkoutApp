@@ -5,6 +5,7 @@ import { ApiError, api } from '../lib/api';
 import { showReps } from '../lib/training';
 import { validateDraftWorkout, validateImportMetadata } from '../lib/validation';
 import { Button } from './ui/Button';
+import { Field, SelectField, TextAreaField } from './ui/Field';
 
 const MAX_BYTES = 150 * 1024 * 1024;
 const RESUMABLE_THRESHOLD = 8 * 1024 * 1024;
@@ -179,8 +180,8 @@ export function ImportReview({ exercises, imports, remaining, onBack, onChanged 
     {selected && draft && selected.status === 'ready' && <>
       <section className="panel">
         <div className="section-heading"><h2>Review</h2></div>
-        <label className="field">Program name<input name="import-program-name" value={draft.programName} onChange={e => setDraft({ ...draft, programName: e.target.value })} onBlur={() => void persist(draft)} /></label>
-        <label className="field">Description<textarea name="import-description" value={draft.description ?? ''} onChange={e => setDraft({ ...draft, description: e.target.value })} onBlur={() => void persist(draft)} /></label>
+        <Field label="Program name" name="import-program-name" value={draft.programName} onChange={e => setDraft({ ...draft, programName: e.target.value })} onBlur={() => void persist(draft)} />
+        <TextAreaField label="Description" name="import-description" value={draft.description ?? ''} onChange={e => setDraft({ ...draft, description: e.target.value })} onBlur={() => void persist(draft)} />
         {selected.unresolved.length > 0 && <div className="error-banner" role="status"><AlertTriangle size={17} />
           {selected.unresolved.length} exercise name{selected.unresolved.length === 1 ? '' : 's'} are not linked to the catalog. They will stay verbatim and can still be logged.
         </div>}
@@ -233,10 +234,10 @@ function DraftOutline({ draft, expandedDay, setExpandedDay, exercises, onDayChan
 
 function DayRow({ day, expanded, onToggle, exercises, onChange }: { day: DraftWorkout; expanded: boolean; onToggle: () => void; exercises: Exercise[]; onChange: (day: DraftWorkout) => Promise<void> }) {
   return <section className={`draft-day ${day.isRestDay ? 'rest-day' : ''}`}>
-    <button type="button" className="draft-day-summary" aria-expanded={expanded} onClick={onToggle}>
+    <Button presentation="plain" className="draft-day-summary" aria-expanded={expanded} onClick={onToggle}>
       <span><strong>W{day.phaseWeek} · {day.name}</strong><small>{day.isRestDay ? 'Rest day' : `${day.exercises.length} exercises`}{day.phase?.toLowerCase().includes('deload') ? ' · Deload' : ''}{day.sourcePage ? ` · PDF p.${day.sourcePage}` : ''}</small></span>
       <span className="tiny-label">{day.isRestDay ? 'Rest day' : expanded ? 'Close' : 'Edit'}</span>
-    </button>
+    </Button>
     {expanded && <DayEditor day={day} exercises={exercises} onChange={onChange} />}
   </section>;
 }
@@ -252,11 +253,11 @@ function DayEditor({ day, exercises, onChange }: { day: DraftWorkout; exercises:
     if (prefix && prefix === previous) groups.at(-1)!.push(exercise); else groups.push([exercise]);
   }
   return <div className="day-editor">
-    <label className="field">Day name<input value={draft.name} onChange={e => setDraft({ ...draft, name: e.target.value })} onBlur={() => void onChange(draft)} /></label>
-    <label className="field">Notes<textarea value={draft.notes ?? ''} onChange={e => setDraft({ ...draft, notes: e.target.value })} onBlur={() => void onChange(draft)} /></label>
-    <label className="field">Weekday <select aria-label="Workout weekday" value={draft.weekday ?? ''} onChange={e => save({ ...draft, weekday: e.target.value ? Number(e.target.value) : null })}>
+    <Field label="Day name" value={draft.name} onChange={e => setDraft({ ...draft, name: e.target.value })} onBlur={() => void onChange(draft)} />
+    <TextAreaField label="Notes" value={draft.notes ?? ''} onChange={e => setDraft({ ...draft, notes: e.target.value })} onBlur={() => void onChange(draft)} />
+    <SelectField label="Weekday" aria-label="Workout weekday" value={draft.weekday ?? ''} onChange={e => save({ ...draft, weekday: e.target.value ? Number(e.target.value) : null })}>
       <option value="">Unspecified — choose when scheduling</option>{weekdayNames.map((name, index) => <option key={name} value={index + 1}>{name}</option>)}
-    </select></label>
+    </SelectField>
     {draft.isRestDay ? <div className="rest-callout"><span className="tiny-label">Rest day</span><p>No exercises are scheduled for this slot.</p></div> : groups.map((group, groupIndex) => <div className={group.length > 1 ? 'superset-block' : ''} key={groupIndex}>
       {group.length > 1 && <div className="superset-heading">Superset {group[0].sequenceGroup.match(/^[A-Za-z]+/)?.[0] ?? ''}</div>}
       {group.map(exercise => <ExerciseEditor key={exercise.lineId} exercise={exercise} exercises={exercises} onChange={next => save({ ...draft, exercises: draft.exercises.map(item => item.lineId === next.lineId ? next : item) })} />)}
