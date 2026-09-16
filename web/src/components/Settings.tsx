@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Download, LogOut, MonitorSmartphone, Server } from 'lucide-react';
+import { Download, LogOut, MonitorSmartphone } from 'lucide-react';
 import type { Account, Preferences } from '../types';
 import { ApiError, api } from '../lib/api';
 import { requestRestAlerts } from '../lib/restTimer';
@@ -44,14 +44,14 @@ export function SettingsView({ account, preferences, onPreferences, notify, onSi
   }
 
   return <>
-    <div className="page-heading"><div className="eyebrow">MAKE IT WORK FOR YOU</div><h1>Your preferences<span className="accent">.</span></h1><p>A few simple settings. Your own training space.</p></div>
+    <div className="page-heading"><h1>Settings</h1></div>
     <div className="settings-grid">
       <section className="panel">
         <h2>Training preferences</h2>
-        <label className="setting-row"><span><strong>Weight unit</strong><small>Loads are stored in kilograms and shown in your unit.</small></span>
+        <label className="setting-row"><span><strong>Weight unit</strong></span>
           <select name="weight-unit" aria-label="Weight unit" value={preferences.unit} onChange={e => onPreferences({ ...preferences, unit: e.target.value as Preferences['unit'] })}>
             <option value="kg">Kilograms (kg)</option><option value="lb">Pounds (lb)</option></select></label>
-        <label className="setting-row"><span><strong>Rest between sets</strong><small>Starts when you complete a set.</small></span>
+        <label className="setting-row"><span><strong>Rest between sets</strong><small>Starts after logging a set.</small></span>
           <select name="rest-seconds" aria-label="Rest between sets" value={preferences.restSeconds} onChange={e => onPreferences({ ...preferences, restSeconds: Number(e.target.value) })}>
             {[0, 30, 60, 90, 120, 180, 240, 300].map(n => <option key={n} value={n}>{n ? `${n} seconds` : 'Off'}</option>)}</select></label>
         <label className="setting-row"><span><strong>Rest alerts</strong><small>{alertHint}</small></span>
@@ -62,14 +62,14 @@ export function SettingsView({ account, preferences, onPreferences, notify, onSi
             if (wanted && (await requestRestAlerts()) === 'denied') notify('Notifications are blocked for this site, so rest alerts will sound but not show a banner.');
             onPreferences({ ...preferences, restAlerts: wanted });
           }}><option value="on">Sound and notification</option><option value="off">Silent</option></select></label>
-        <label className="setting-row"><span><strong>Appearance</strong><small>Choose your training environment.</small></span>
+        <label className="setting-row"><span><strong>Appearance</strong></span>
           <select name="appearance" aria-label="Appearance" value={preferences.theme} onChange={e => onPreferences({ ...preferences, theme: e.target.value as Preferences['theme'] })}>
             <option value="dark">Ayu dark</option><option value="light">Ayu light</option></select></label>
       </section>
 
       <section className="panel">
-        <div className="section-heading"><h2>Your account</h2><Server size={20} /></div>
-        <p>Signed in as <strong>{account.displayName}</strong>. Your training lives on the server, so it is the same on every device you sign in on.</p>
+        <div className="section-heading"><h2>Your account</h2></div>
+        <p>Signed in as <strong>{account.displayName}</strong>. Your training is available on every device you sign in on.</p>
         <div className="settings-actions">
           <Button onClick={exportAccount}><Download size={17} />Export a copy</Button>
           <Button variant="destructive" onClick={onSignOut}><LogOut size={17} />Sign out</Button>
@@ -81,8 +81,8 @@ export function SettingsView({ account, preferences, onPreferences, notify, onSi
 
       <section className="panel install-card">
         <MonitorSmartphone size={29} className="accent" />
-        <h2>Your gym companion</h2>
-        <p>Install Workout on your home screen and open it like an app. A connection is still required: workouts are saved on the server as you log them, not on the device.</p>
+        <h2>Install Workout</h2>
+        <p>Add Workout to your home screen. A connection is required while you log because workouts are saved on the server.</p>
         <Button variant="primary" onClick={async () => {
           if (install) { try { await install.prompt(); await install.userChoice; setInstall(null); installPrompt = null; } catch { setHelp(true); } }
           else setHelp(true);
@@ -90,9 +90,8 @@ export function SettingsView({ account, preferences, onPreferences, notify, onSi
       </section>
 
       <section className="panel about-card">
-        <span className="tiny-label accent">WORKOUT · VERSION 2.0</span>
-        <h2>Built for the long game.</h2>
-        <p>An independent workout tracker. Plan your training, track your effort, and make progress at your pace.</p>
+        <h2>About Workout</h2>
+        <p>An independent workout tracker for planning sessions, logging effort, and reviewing progress.</p>
         <p className="muted">Not affiliated with MacroFactor. Progress is based on your logged sets; no proprietary coaching algorithm is used.</p>
       </section>
     </div>

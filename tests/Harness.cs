@@ -64,8 +64,8 @@ public sealed class Harness : IAsyncDisposable
         return user;
     }
 
-    public ImportService Imports(HttpMessageHandler handler)
-        => new(Db, new WorkoutAi(new HttpClient(handler), Config), Catalog, Programs, new TransientImportFileStore(Config));
+    public ImportService Imports(HttpMessageHandler handler, IImportJobDispatcher? jobs = null)
+        => new(Db, new WorkoutAi(new HttpClient(handler), Config), Catalog, Programs, new TransientImportFileStore(Config), jobs);
 
     public async Task Seed(params SeedExercise[] exercises)
     {

@@ -15,12 +15,12 @@ export function ExerciseLibrary({ exercises, onSelect, exclude = [] }: { exercis
 
   if (!exercises.length) return <div className="empty-message">
     <Library size={32} />
-    <h3>The exercise library is empty</h3>
-    <p>Exercises are added to the shared library by an administrator, not from the app. Once they are loaded, they will appear here and become selectable in your workouts.</p>
+    <h3>No exercises available</h3>
+    <p>The shared exercise library has not been loaded yet.</p>
   </div>;
 
   return <div>
-    {!onSelect && <div className="page-heading"><div className="eyebrow">FIND YOUR NEXT MOVEMENT</div><h1>Exercise library<span className="accent">.</span></h1><p>The movements available to your workouts, with cues to make every rep count.</p></div>}
+    {!onSelect && <div className="page-heading"><h1>Exercises</h1></div>}
     <div className="search-row">
       <label className="search-box">
         <Search size={18} />
@@ -78,6 +78,6 @@ export function ExerciseLibrary({ exercises, onSelect, exclude = [] }: { exercis
         </article>
       ))}
     </div>
-    {!filtered.length && <p className="empty-message">No matching exercises. Try another name or muscle group.</p>}
+    {!filtered.length && <p className="empty-message">No matching exercises.</p>}
   </div>;
 }

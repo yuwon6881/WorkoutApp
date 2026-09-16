@@ -77,7 +77,7 @@ export function Programs({ data, exercises, onStart, onImport, onChanged }: {
 
   return <>
     <div className="page-heading">
-      <div><div className="eyebrow">A PLAN YOU CAN MAKE YOUR OWN</div><h1>Your workouts<span className="accent">.</span></h1><p>Build a workout by hand, or import a training program from a PDF.</p></div>
+      <h1>Workouts</h1>
       <div className="heading-actions">
         <Button onClick={onImport}><FileText size={18} />Import a PDF program</Button>
         <Button variant="primary" onClick={() => open()}><Plus size={18} />New workout</Button>
@@ -95,7 +95,7 @@ export function Programs({ data, exercises, onStart, onImport, onChanged }: {
     <section className="panel">
       <div className="section-heading"><h2>Standalone workouts</h2><span className="muted">{data.templates.length} saved</span></div>
       {data.templates.length ? <div className="program-grid">{data.templates.map((template, i) => <section className="panel routine-card" key={template.id}>
-        <div className="section-heading"><span className="routine-number">WORKOUT {String(i + 1).padStart(2, '0')}</span>
+        <div className="section-heading"><span className="routine-number">Workout {String(i + 1).padStart(2, '0')}</span>
           <Button variant="tertiary" aria-label={`Edit ${template.name}`} onClick={() => open(template)}><Pencil size={17} /></Button></div>
         <h2>{template.name}</h2><p>{template.focus}</p>
         <div className="routine-exercises">{template.exercises.map(e => <div key={e.id}>
@@ -116,7 +116,7 @@ export function Programs({ data, exercises, onStart, onImport, onChanged }: {
           <div className="section-heading"><strong>{exercise.name}</strong><div className="topbar-actions"><Button variant="tertiary" aria-label={`Swap ${exercise.name}`} onClick={() => setSwapIndex(i)}><RefreshCw size={16} />Swap</Button><Button variant="tertiary" aria-label={`Remove ${exercise.name}`} onClick={() => setDraft({ ...draft, exercises: draft.exercises.filter((_, j) => j !== i) })}><Trash2 size={16} /></Button></div></div>
           <div className="set-editor" aria-label={`Set prescriptions for ${exercise.name}`}>
             {exercise.sets.map((set, si) => <div className="set-editor-row" key={si}>
-              <span className="tiny-label">SET {si + 1}</span>
+              <span className="tiny-label">Set {si + 1}</span>
               <label>Min reps<input name={`rep-min-${exercise.id}-${si}`} aria-label={`${exercise.name} set ${si + 1} minimum reps`} type="number" min="1" max="1000" value={set.repMin} onChange={e => updateSet(setDraft, draft, i, si, { repMin: Number(e.target.value), repMax: Math.max(Number(e.target.value), set.repMax) })} /></label>
               <label>Max reps<input name={`rep-max-${exercise.id}-${si}`} aria-label={`${exercise.name} set ${si + 1} maximum reps`} type="number" min="1" max="1000" value={set.repMax} onChange={e => updateSet(setDraft, draft, i, si, { repMax: Number(e.target.value) })} /></label>
               <label>Target RPE<input name={`target-rpe-${exercise.id}-${si}`} aria-label={`${exercise.name} set ${si + 1} target RPE`} type="number" min="6" max="10" step="0.5" value={set.targetRpe ?? ''} placeholder={set.warmup ? 'optional' : '6–10'} onChange={e => updateSet(setDraft, draft, i, si, { targetRpe: e.target.value === '' ? null : Number(e.target.value) })} /></label>
@@ -209,14 +209,14 @@ function ProgramCard({ program, exercises, onStart, onChanged }: { program: Prog
   return <section className="panel program-card">
     <div className="section-heading">
       <div><h2>{program.name}</h2><p className="muted">{program.weeks} {program.weeks === 1 ? 'week' : 'weeks'} · {program.days.length} days · {program.completedTemplateIds.length} completed{program.skippedTemplateIds?.length ? ` · ${program.skippedTemplateIds.length} skipped` : ''}</p></div>
-      <span className={`tiny-label ${program.lifecycleStatus === 'completed' ? '' : 'accent'}`}>{program.lifecycleStatus === 'completed' ? 'COMPLETED' : program.active ? 'ACTIVE' : 'STANDBY'}</span>
+      <span className={`tiny-label ${program.lifecycleStatus === 'completed' ? '' : 'accent'}`}>{program.lifecycleStatus === 'completed' ? 'Completed' : program.active ? 'Active' : 'Standby'}</span>
     </div>
     {program.description && <p>{program.description}</p>}
     {program.lifecycleStatus === 'completed' && program.completedAt && <p className="muted small-copy">Completed {new Date(program.completedAt).toLocaleString()}</p>}
     {!!program.phases?.length && <div className="phase-progress" aria-label="Program phase progress">
-      {program.phases.map(phase => <span className="tiny-label" key={phase.id}>{phase.name} · W{phase.currentWeek ?? 1}/{phase.durationWeeks} · {phase.completedWorkouts} completed{phase.skippedWorkouts ? ` · ${phase.skippedWorkouts} skipped` : ''}/{phase.totalWorkouts}{phase.complete ? ' · DONE' : ''}{phase.sourcePageFrom ? ` · PDF pp.${phase.sourcePageFrom}${phase.sourcePageTo && phase.sourcePageTo !== phase.sourcePageFrom ? `–${phase.sourcePageTo}` : ''}` : ''}</span>)}
+      {program.phases.map(phase => <span className="tiny-label" key={phase.id}>{phase.name} · W{phase.currentWeek ?? 1}/{phase.durationWeeks} · {phase.completedWorkouts} completed{phase.skippedWorkouts ? ` · ${phase.skippedWorkouts} skipped` : ''}/{phase.totalWorkouts}{phase.complete ? ' · Done' : ''}{phase.sourcePageFrom ? ` · PDF pp.${phase.sourcePageFrom}${phase.sourcePageTo && phase.sourcePageTo !== phase.sourcePageFrom ? `–${phase.sourcePageTo}` : ''}` : ''}</span>)}
     </div>}
-    <Button variant="tertiary" className="full-width" onClick={() => void toggleDetails()} disabled={busy}>{busy ? 'Loading program…' : expanded ? 'Hide program detail' : 'Show block and phase detail'}</Button>
+      <Button variant="tertiary" className="full-width" onClick={() => void toggleDetails()} disabled={busy}>{busy ? 'Loading…' : expanded ? 'Hide details' : 'Show details'}</Button>
     {expanded && <ProgramTree days={program.days} completed={program.completedTemplateIds} skipped={program.skippedTemplateIds ?? []} nextId={program.nextTemplateId} detail={detail} onStart={onStart} onSkip={toggleSkip} canStart={program.active} onSwap={template => exercise => { setSwapTarget({ template, exercise }); setSwapScope('slot'); setSwapChoice(null); setConfirmPhaseSwap(false); }} />}
     {error && <p className="error-text" role="alert">{error}</p>}
     {program.needsSchedule && !scheduling && <div className="empty-message">
@@ -274,9 +274,12 @@ function ProgramTree({ days, completed, skipped, nextId, detail, onStart, onSkip
       <div className="routine-list">{phaseDays.map(day => {
         const full = detail?.find(template => template.id === day.id);
         const complete = completed.includes(day.id); const isSkipped = skipped.includes(day.id);
-        const row = <><span className="routine-number">W{day.phaseWeek}</span><span>{day.name}{day.sourcePage ? <small className="muted"> · PDF p.{day.sourcePage}</small> : null}</span><span className="tiny-label">{day.isRestDay ? 'REST DAY' : complete ? 'DONE' : isSkipped ? 'SKIPPED' : day.id === nextId ? 'UP NEXT' : `${full?.exercises.length ?? day.exerciseCount} exercises`}</span></>;
+        const row = <><span className="routine-number">W{day.phaseWeek}</span><span>{day.name}{day.sourcePage ? <small className="muted"> · PDF p.{day.sourcePage}</small> : null}</span><span className="tiny-label">{day.isRestDay ? 'Rest day' : complete ? 'Done' : isSkipped ? 'Skipped' : day.id === nextId ? 'Up next' : `${full?.exercises.length ?? day.exerciseCount} exercises`}</span></>;
         if (day.isRestDay) return <div className="routine-row rest-row" key={day.id}>{row}</div>;
-        return <div className="program-slot-row" key={day.id}><Button variant="tertiary" className={`routine-row ${day.id === nextId ? 'next' : ''}`} disabled={!canStart || complete || isSkipped} onClick={() => onStart(day.id)}>{row}</Button>
+        const actionable = canStart && !complete && !isSkipped;
+        return <div className="program-slot-row" key={day.id}>{actionable
+          ? <Button variant="tertiary" className={`routine-row ${day.id === nextId ? 'next' : ''}`} onClick={() => onStart(day.id)}>{row}</Button>
+          : <div className="routine-row routine-row-static">{row}</div>}
           {full && <div className="slot-exercises">{full.exercises.map(exercise => <Button key={exercise.id} variant="tertiary" aria-label={`Swap ${exercise.name} in ${day.name}`} onClick={() => onSwap(full)(exercise)}><RefreshCw size={14} />{exercise.name}</Button>)}</div>}
           <Button variant="tertiary" disabled={(!canStart && !isSkipped) || (complete && !isSkipped)} aria-label={`${isSkipped ? 'Unskip' : 'Skip'} ${day.name}`} onClick={() => void onSkip(day.id)}>{isSkipped ? 'Unskip' : 'Skip'}</Button></div>;
       })}</div>

@@ -276,6 +276,12 @@ public sealed class AiImport : OwnedRecord
     /// accepted, failed, or discarded; an unfinished key expires after 24 hours.
     public string SourceFileKey { get; set; } = "";
     public DateTime? SourceFileExpiresAt { get; set; }
+    /// The next extraction chunk that still needs a durable Cloud Tasks delivery. The value stays
+    /// present until that chunk commits, so a worker crash can be recovered by maintenance.
+    public int? PendingDispatchChunk { get; set; }
+    /// A dispatch lease/next retry time. A future value means Cloud Tasks accepted the delivery;
+    /// an expired value means maintenance should enqueue it again.
+    public DateTime? PendingDispatchAt { get; set; }
 }
 
 /// Durable server-side state for a resumable PDF upload. The source key is private and is never

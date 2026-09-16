@@ -11,7 +11,9 @@ public sealed class ImportExtractionWorker(IServiceScopeFactory scopes, IConfigu
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        if (!config.GetValue("ImportWorker:Enabled", false)) return;
+        // Cloud Tasks is the production delivery path. Polling remains an explicit local/fallback
+        // option, but a permanently warm Cloud Run instance must not be required for normal imports.
+        if (!config.GetValue("ImportWorker:PollingEnabled", false)) return;
         using var timer = new PeriodicTimer(TimeSpan.FromSeconds(15));
         while (await timer.WaitForNextTickAsync(stoppingToken))
         {

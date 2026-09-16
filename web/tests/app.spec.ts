@@ -83,11 +83,13 @@ test('build a workout, log a set against the server, and see it in history', asy
   await expect(logger).toBeVisible();
 
   const logButton = page.getByRole('button', { name: 'Log Barbell bench press set 1', exact: true });
-  expect(await logButton.evaluate(el => {
+  await logButton.evaluate(el => el.scrollIntoView({ block: 'center', inline: 'nearest' }));
+  const logHit = await logButton.evaluate(el => {
     const box = el.getBoundingClientRect();
     const hit = document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2);
-    return box.width >= 44 && box.height >= 44 && (hit === el || el.contains(hit));
-  })).toBe(true);
+    return { ok: box.width >= 44 && box.height >= 44 && (hit === el || el.contains(hit)), viewport: { innerWidth, innerHeight, visualWidth: visualViewport?.width, visualHeight: visualViewport?.height, scrollY }, box: { x: box.x, y: box.y, width: box.width, height: box.height }, hit: hit && { tag: hit.tagName, cls: String(hit.className), text: hit.textContent?.slice(0, 80) }, parents: [...el.parentElement?.parentElement?.children ?? []].map(node => { const b = (node as HTMLElement).getBoundingClientRect(); return { tag: node.tagName, cls: String(node.className), x: b.x, y: b.y, width: b.width, height: b.height }; }) };
+  });
+  expect(logHit.ok).toBe(true);
 
   // Suggested reps are available immediately; load and actual RPE may remain blank until recorded.
   await logButton.click();
@@ -134,7 +136,7 @@ test('build a workout, log a set against the server, and see it in history', asy
   await page.getByRole('button', { name: 'Done', exact: true }).click();
 
   await openTab(page, 'Progress');
-  await expect(page.getByRole('heading', { name: 'Your progress.' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Progress' })).toBeVisible();
   await expect(page.getByText(name, { exact: true }).first()).toBeVisible();
 
   // Starting the same plan again has to carry the last session forward: 8 reps at RPE 8 against
@@ -158,7 +160,7 @@ test('import a PDF program, preserve an unmapped exercise, and accept it', async
   await signIn(page);
   await openTab(page, 'Workouts');
   await page.getByRole('button', { name: 'Import a PDF program', exact: true }).click();
-  await expect(page.getByRole('heading', { name: 'Import a program.' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Import a program' })).toBeVisible();
 
   await page.getByLabel('Program PDF').setInputFiles({ name: 'block.pdf', mimeType: 'application/pdf', buffer: pdf(3, testInfo.project.name) });
   await expect(page.getByRole('heading', { name: 'Review' })).toBeVisible({ timeout: 60000 });
@@ -171,7 +173,7 @@ test('import a PDF program, preserve an unmapped exercise, and accept it', async
   await expect(page.getByLabel('Set 1 reps text').first()).toHaveValue('8–10');
 
   // The name the model could not match stays verbatim and does not block acceptance.
-  await expect(page.getByText(/UNMAPPED · PRESERVED/).first()).toBeVisible();
+  await expect(page.getByText(/Unmapped · preserved/).first()).toBeVisible();
   const accept = page.getByRole('button', { name: 'Accept and create program', exact: true });
   await expect(accept).toBeEnabled({ timeout: 30000 });
 
@@ -189,12 +191,13 @@ test('import a PDF program, preserve an unmapped exercise, and accept it', async
   }), { timeout: 20000 }).toBe(programName);
 
   await accept.click();
-  await expect(page.getByRole('heading', { name: 'Your workouts.' })).toBeVisible({ timeout: 30000 });
+  await expect(page.getByRole('heading', { name: 'Workouts', exact: true })).toBeVisible({ timeout: 30000 });
   await expect(page.getByRole('heading', { name: programName })).toBeVisible();
   const programCard = page.locator('.program-card').filter({ hasText: programName });
-  await programCard.getByRole('button', { name: 'Show block and phase detail', exact: true }).click();
+  await programCard.getByRole('button', { name: 'Show details', exact: true }).click();
   await expect(page.getByText('Week 1 Upper', { exact: true }).first()).toBeVisible();
   await expect(page.getByText('Week 2 Upper', { exact: true }).first()).toBeVisible();
+  expect(await programCard.locator('.routine-row-static').evaluateAll(rows => rows.every(row => row.tagName !== 'BUTTON'))).toBe(true);
 });
 
 test('a discarded draft leaves no program behind', async ({ page }) => {
@@ -221,7 +224,7 @@ test('offline and server failures are reported instead of faked', async ({ page,
 
   await context.setOffline(false);
   await page.getByRole('button', { name: 'Try again', exact: true }).click();
-  await expect(page.getByRole('heading', { name: 'Let’s get stronger.' })).toBeVisible({ timeout: 30000 });
+  await expect(page.getByRole('heading', { name: 'Overview' })).toBeVisible({ timeout: 30000 });
 });
 
 test('the API is never answered from the app shell and requires a session', async ({ page, request }) => {

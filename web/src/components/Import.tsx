@@ -11,6 +11,10 @@ const RESUMABLE_THRESHOLD = 8 * 1024 * 1024;
 const weekdayNames = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 const sourceLabel: Record<string, string> = { extracted: 'From the PDF', inferred: 'AI suggestion', userEdited: 'Your edit' };
 
+function statusLabel(status: string) {
+  return { pending: 'Processing', ready: 'Ready', failed: 'Failed' }[status] ?? 'Unknown status';
+}
+
 function Source({ source }: { source: string }) {
   return <span className={`tiny-label provenance ${source}`} title={sourceLabel[source] ?? source}>{sourceLabel[source] ?? source}</span>;
 }
@@ -131,8 +135,7 @@ export function ImportReview({ exercises, imports, remaining, onBack, onChanged 
         <div className="back-nav-row">
           <Button variant="tertiary" className="back-button" onClick={onBack}><ArrowLeft size={16} />Back to workouts</Button>
         </div>
-        <div className="eyebrow">TURN A PDF INTO A PROGRAM</div><h1>Import a program<span className="accent">.</span></h1>
-        <p>Upload a training PDF. It becomes an editable draft before anything is saved as a program.</p>
+        <h1>Import a program</h1>
       </div>
       <span className="pill">{remaining} AI reads left today</span>
     </div>
@@ -145,15 +148,15 @@ export function ImportReview({ exercises, imports, remaining, onBack, onChanged 
       {busy && <p className="muted" role="status">{busy}</p>}
       {notice && <p className="muted" role="status">{notice}</p>}
       {error && <p className="error-text" role="alert">{error}</p>}
-      <p className="muted small-copy">The PDF is inspected in bounded passes and becomes an editable draft before it can affect your programs.</p>
+      <p className="muted small-copy">The PDF becomes an editable draft before it can affect your workouts.</p>
     </section>
 
     {imports.length > 0 && <section className="panel">
       <div className="section-heading"><h2>Your imports</h2><span className="muted">{imports.length}</span></div>
       {imports.map(view => <Button key={view.id} variant="tertiary" className={`history-row ${selected?.id === view.id ? 'selected' : ''}`} onClick={() => { setError(''); setSelected(view); }}>
         <span className="exercise-icon"><FileText size={19} /></span><span className="row-title"><strong>{view.fileName}</strong>
-          <small>{new Date(view.created).toLocaleString()} · {view.status}{view.stage !== 'done' ? ` · ${view.chunksDone}/${view.chunksTotal} chunks` : ''}{view.error ? ` · ${view.error}` : ''}</small></span>
-        {view.status === 'ready' && <span className="tiny-label">{view.unresolvedCount ? `${view.unresolvedCount} unmapped` : 'ready'}</span>}
+          <small>{new Date(view.created).toLocaleString()} · {statusLabel(view.status)}{view.stage !== 'done' ? ` · ${view.chunksDone}/${view.chunksTotal} chunks` : ''}{view.error ? ` · ${view.error}` : ''}</small></span>
+        {view.status === 'ready' && <span className="tiny-label">{view.unresolvedCount ? `${view.unresolvedCount} unmapped` : 'Ready'}</span>}
       </Button>)}
     </section>}
 
@@ -175,7 +178,7 @@ export function ImportReview({ exercises, imports, remaining, onBack, onChanged 
 
     {selected && draft && selected.status === 'ready' && <>
       <section className="panel">
-        <div className="section-heading"><h2>Review</h2><span className="tiny-label">READ BY {selected.model || 'AI'}</span></div>
+        <div className="section-heading"><h2>Review</h2></div>
         <label className="field">Program name<input name="import-program-name" value={draft.programName} onChange={e => setDraft({ ...draft, programName: e.target.value })} onBlur={() => void persist(draft)} /></label>
         <label className="field">Description<textarea name="import-description" value={draft.description ?? ''} onChange={e => setDraft({ ...draft, description: e.target.value })} onBlur={() => void persist(draft)} /></label>
         {selected.unresolved.length > 0 && <div className="error-banner" role="status"><AlertTriangle size={17} />
@@ -186,7 +189,16 @@ export function ImportReview({ exercises, imports, remaining, onBack, onChanged 
             <AlertTriangle size={14} /> {issue.message}{issue.sourcePage ? ` (PDF p.${issue.sourcePage})` : ''}
           </p>)}
         </div>}
-        {(selected.inputTokens || selected.outputTokens || selected.pageCoverage?.length) ? <p className="muted small-copy">{selected.pageCoverage?.length ? `${selected.pageCoverage.filter(page => page.hasText).length}/${selected.pageCoverage.length} pages have selectable text · ` : ''}Usage: {selected.inputTokens ?? 0} input · {selected.outputTokens ?? 0} output tokens{selected.visualFallbacks ? ` · ${selected.visualFallbacks} visual pass${selected.visualFallbacks === 1 ? '' : 'es'}` : ''}{selected.retries ? ` · ${selected.retries} retr${selected.retries === 1 ? 'y' : 'ies'}` : ''}</p> : null}
+        {(selected.model || selected.inputTokens || selected.outputTokens || selected.pageCoverage?.length || selected.visualFallbacks || selected.retries) ? <details className="import-details">
+          <summary>Import details <ChevronDown size={14} /></summary>
+          <div className="import-details-body">
+            {selected.model && <p>Model: {selected.model}</p>}
+            {selected.pageCoverage?.length ? <p>{selected.pageCoverage.filter(page => page.hasText).length} of {selected.pageCoverage.length} pages have selectable text.</p> : null}
+            {(selected.inputTokens || selected.outputTokens) ? <p>Usage: {selected.inputTokens ?? 0} input · {selected.outputTokens ?? 0} output tokens.</p> : null}
+            {selected.visualFallbacks ? <p>{selected.visualFallbacks} visual pass{selected.visualFallbacks === 1 ? '' : 'es'} used.</p> : null}
+            {selected.retries ? <p>{selected.retries} retr{selected.retries === 1 ? 'y' : 'ies'} recorded.</p> : null}
+          </div>
+        </details> : null}
       </section>
       {draft.workouts.length > 0 ? <DraftOutline draft={draft} expandedDay={expandedDay} setExpandedDay={setExpandedDay} exercises={exercises} onDayChange={persistDay} />
         : <section className="panel"><div className="empty-message"><AlertTriangle size={30} /><h3>No extracted days</h3><p>The draft needs at least one training or rest day.</p></div></section>}
@@ -197,7 +209,7 @@ export function ImportReview({ exercises, imports, remaining, onBack, onChanged 
       </div>{requiresAcknowledgement && <label className="checkbox-field"><input type="checkbox" checked={acknowledgeUnspecified} onChange={event => setAcknowledgeUnspecified(event.target.checked)} />I acknowledge that the PDF did not state every working-set RPE or rest value; those remain unspecified.</label>}<p className="muted small-copy">Catalog matches are helpful but optional; unmapped names are preserved exactly.</p></section>
     </>}
 
-    {selected && selected.status === 'failed' && <section className="panel"><div className="empty-message"><AlertTriangle size={30} /><h3>That outline did not finish</h3><p>{selected.error}</p><p className="muted">The original PDF was not kept, so upload it again.</p></div></section>}
+    {selected && selected.status === 'failed' && <section className="panel"><div className="empty-message"><AlertTriangle size={30} /><h3>Import failed</h3><p>{selected.error}</p><p className="muted">The original PDF was not kept, so upload it again.</p></div></section>}
   </>;
 }
 
@@ -210,9 +222,9 @@ function DraftOutline({ draft, expandedDay, setExpandedDay, exercises, onDayChan
     const weeks = phases.get(phase)!; if (!weeks.has(day.phaseWeek)) weeks.set(day.phaseWeek, []); weeks.get(day.phaseWeek)!.push(day);
   }
   return <div className="import-tree">{[...blocks].map(([block, phases]) => <section className="panel" key={block}>
-    <div className="section-heading"><h2>{block}</h2><span className="tiny-label">BLOCK</span></div>
+    <div className="section-heading"><h2>{block}</h2><span className="tiny-label">Block</span></div>
     {[...phases].map(([phase, weeks]) => <details className="phase-tree" key={phase} open><summary><ChevronDown size={15} />{phase}</summary>
-      {[...weeks].map(([week, days]) => <div className="week-tree" key={week}><div className="tiny-label accent">WEEK {week}</div>
+      {[...weeks].map(([week, days]) => <div className="week-tree" key={week}><div className="tiny-label accent">Week {week}</div>
         {days.map(day => <DayRow key={day.lineId} day={day} expanded={expandedDay === day.lineId} onToggle={() => setExpandedDay(expandedDay === day.lineId ? null : day.lineId)} exercises={exercises} onChange={onDayChange} />)}
       </div>)}
     </details>)}
@@ -222,8 +234,8 @@ function DraftOutline({ draft, expandedDay, setExpandedDay, exercises, onDayChan
 function DayRow({ day, expanded, onToggle, exercises, onChange }: { day: DraftWorkout; expanded: boolean; onToggle: () => void; exercises: Exercise[]; onChange: (day: DraftWorkout) => Promise<void> }) {
   return <section className={`draft-day ${day.isRestDay ? 'rest-day' : ''}`}>
     <button type="button" className="draft-day-summary" aria-expanded={expanded} onClick={onToggle}>
-      <span><strong>W{day.phaseWeek} · {day.name}</strong><small>{day.isRestDay ? 'REST DAY' : `${day.exercises.length} exercises`}{day.phase?.toLowerCase().includes('deload') ? ' · DELOAD' : ''}{day.sourcePage ? ` · PDF p.${day.sourcePage}` : ''}</small></span>
-      <span className="tiny-label">{day.isRestDay ? 'REST DAY' : expanded ? 'CLOSE' : 'EDIT'}</span>
+      <span><strong>W{day.phaseWeek} · {day.name}</strong><small>{day.isRestDay ? 'Rest day' : `${day.exercises.length} exercises`}{day.phase?.toLowerCase().includes('deload') ? ' · Deload' : ''}{day.sourcePage ? ` · PDF p.${day.sourcePage}` : ''}</small></span>
+      <span className="tiny-label">{day.isRestDay ? 'Rest day' : expanded ? 'Close' : 'Edit'}</span>
     </button>
     {expanded && <DayEditor day={day} exercises={exercises} onChange={onChange} />}
   </section>;
@@ -245,8 +257,8 @@ function DayEditor({ day, exercises, onChange }: { day: DraftWorkout; exercises:
     <label className="field">Weekday <select aria-label="Workout weekday" value={draft.weekday ?? ''} onChange={e => save({ ...draft, weekday: e.target.value ? Number(e.target.value) : null })}>
       <option value="">Unspecified — choose when scheduling</option>{weekdayNames.map((name, index) => <option key={name} value={index + 1}>{name}</option>)}
     </select></label>
-    {draft.isRestDay ? <div className="rest-callout"><span className="tiny-label">REST DAY</span><p>No exercises are scheduled for this slot.</p></div> : groups.map((group, groupIndex) => <div className={group.length > 1 ? 'superset-block' : ''} key={groupIndex}>
-      {group.length > 1 && <div className="superset-heading">SUPERSET {group[0].sequenceGroup.match(/^[A-Za-z]+/)?.[0] ?? ''}</div>}
+    {draft.isRestDay ? <div className="rest-callout"><span className="tiny-label">Rest day</span><p>No exercises are scheduled for this slot.</p></div> : groups.map((group, groupIndex) => <div className={group.length > 1 ? 'superset-block' : ''} key={groupIndex}>
+      {group.length > 1 && <div className="superset-heading">Superset {group[0].sequenceGroup.match(/^[A-Za-z]+/)?.[0] ?? ''}</div>}
       {group.map(exercise => <ExerciseEditor key={exercise.lineId} exercise={exercise} exercises={exercises} onChange={next => save({ ...draft, exercises: draft.exercises.map(item => item.lineId === next.lineId ? next : item) })} />)}
     </div>)}
     {!draft.isRestDay && <Button variant="tertiary" onClick={() => save({ ...draft, exercises: [...draft.exercises, blankExercise()] })}><Plus size={16} />Add exercise</Button>}
@@ -258,20 +270,22 @@ function ExerciseEditor({ exercise, exercises, onChange }: { exercise: DraftExer
   return <div className="import-exercise">
     <div className="section-heading"><div><input className="inline-input" aria-label={`Exercise name as written in the PDF`} value={exercise.sourceName} onChange={e => onChange({ ...exercise, sourceName: e.target.value })} />
       {exercise.sourcePage && <span className="tiny-label">PDF p.{exercise.sourcePage}</span>}
-      {!exercise.exerciseId && <span className="tiny-label warn"><AlertTriangle size={12} /> UNMAPPED · PRESERVED</span>}</div></div>
+      {!exercise.exerciseId && <span className="tiny-label warn"><AlertTriangle size={12} /> Unmapped · preserved</span>}</div></div>
     <div className="import-fields"><label className="field">Library exercise<select aria-label={`Library exercise for ${exercise.sourceName}`} value={exercise.exerciseId ?? ''} onChange={e => onChange({ ...exercise, exerciseId: e.target.value || null })}>
       <option value="">Not mapped</option>{exercises.map(option => <option key={option.id} value={option.id}>{option.name}</option>)}
       </select></label><label className="field">Superset group<input value={exercise.sequenceGroup} onChange={e => onChange({ ...exercise, sequenceGroup: e.target.value })} placeholder="A1" /></label>
       <label className="field">Substitutions<input value={exercise.substitutions.join(', ')} onChange={e => onChange({ ...exercise, substitutions: e.target.value.split(',').map(s => s.trim()).filter(Boolean).slice(0, 2) })} placeholder="Optional alternates" /></label></div>
     {exercise.notes && <p className="note-block">{exercise.notes}</p>}
-    <div className="set-table import-set-table"><div className="set-table-head"><span>SET</span><span>REPS</span><span>RPE/RIR</span><span>%1RM</span><span>REST</span><span>SOURCE</span><span /></div>
-      {exercise.sets.map((set, i) => <div className={`set-row ${set.warmup ? 'warmup-row' : ''}`} key={i}><span>{set.warmup ? `W${i + 1}` : i + 1}</span>
-        <input aria-label={`Set ${i + 1} reps text`} value={set.repsText ?? showReps(set)} onChange={e => editSet(i, { repsText: e.target.value, repsSource: 'userEdited' })} />
-        <input aria-label={`Set ${i + 1} target RPE`} inputMode="decimal" type="number" value={set.targetRpe ?? ''} onChange={e => editSet(i, { targetRpe: e.target.value === '' ? null : Number(e.target.value), rpeSource: 'userEdited' })} />
-        <input aria-label={`Set ${i + 1} percent 1RM`} value={set.percent1Rm ?? ''} onChange={e => editSet(i, { percent1Rm: e.target.value })} />
-        <input aria-label={`Set ${i + 1} rest text`} value={set.restText ?? (set.restSeconds === null ? '' : `${set.restSeconds}s`)} onChange={e => editSet(i, { restText: e.target.value, restSource: 'userEdited' })} />
+    <div className="set-table import-set-table"><div className="set-table-head"><span>Set</span><span>Reps</span><span>RPE/RIR</span><span>%1RM</span><span>Rest</span><span>Source</span><span /></div>
+      {exercise.sets.map((set, i) => <div className={`set-row ${set.warmup ? 'warmup-row' : ''}`} key={i}><span className="set-number">{set.warmup ? `W${i + 1}` : i + 1}</span>
+        <div className="set-fields">
+          <label className="set-field"><span>Reps</span><input aria-label={`Set ${i + 1} reps text`} value={set.repsText ?? showReps(set)} onChange={e => editSet(i, { repsText: e.target.value, repsSource: 'userEdited' })} /></label>
+          <label className="set-field"><span>RPE/RIR</span><input aria-label={`Set ${i + 1} target RPE`} inputMode="decimal" type="number" value={set.targetRpe ?? ''} onChange={e => editSet(i, { targetRpe: e.target.value === '' ? null : Number(e.target.value), rpeSource: 'userEdited' })} /></label>
+          <label className="set-field"><span>%1RM</span><input aria-label={`Set ${i + 1} percent 1RM`} value={set.percent1Rm ?? ''} onChange={e => editSet(i, { percent1Rm: e.target.value })} /></label>
+          <label className="set-field"><span>Rest</span><input aria-label={`Set ${i + 1} rest text`} value={set.restText ?? (set.restSeconds === null ? '' : `${set.restSeconds}s`)} onChange={e => editSet(i, { restText: e.target.value, restSource: 'userEdited' })} /></label>
+        </div>
         <span className="source-cell"><Source source={set.repsSource} />{set.rpeSource !== set.repsSource && <Source source={set.rpeSource} />}</span>
-        <Button variant="tertiary" aria-label={`Remove set ${i + 1}`} onClick={() => onChange({ ...exercise, sets: exercise.sets.filter((_, j) => j !== i) })}><Trash2 size={14} /></Button>
+        <div className="set-actions"><Button variant="tertiary" aria-label={`Remove set ${i + 1}`} onClick={() => onChange({ ...exercise, sets: exercise.sets.filter((_, j) => j !== i) })}><Trash2 size={14} /></Button></div>
       </div>)}
     </div>
     <Button variant="tertiary" disabled={exercise.sets.length >= 24} onClick={() => onChange({ ...exercise, sets: [...exercise.sets, { ...exercise.sets.at(-1)!, warmup: false, repsSource: 'userEdited', rpeSource: 'userEdited', restSource: 'userEdited' }] })}><Plus size={15} />Add set</Button>

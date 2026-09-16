@@ -13,16 +13,20 @@ Singapore. The FinancialApp and NutritionApp services and databases are independ
 | Secret (OpenAI key) | `financialapp-openai-api-key` — shared with the sibling apps, not duplicated |
 | GCP project | `project-7eb1aec8-8636-4c86-b2a` |
 | Cloud Run service | `workout-api`, `asia-southeast1` |
-| Cloud Run import worker | `workout-import-worker`, `asia-southeast1` (private, 2 GiB, concurrency 1) |
+| Cloud Run import worker | `workout-import-worker`, `asia-southeast1` (private, 2 GiB, concurrency 1, scale-to-zero) |
+| Import bucket | `workout-imports-396431756440` (private, same region, two-day lifecycle safety net) |
+| Import task queue | `workout-imports` (`asia-southeast1`, one chunk per authenticated task) |
+| Maintenance scheduler | `workout-import-maintenance` (hourly, authenticated Cloud Run request) |
 | Service account | `workout-api@project-7eb1aec8-8636-4c86-b2a.iam.gserviceaccount.com` |
 | API URL | `https://workout-api-i47taxhzba-as.a.run.app` |
 | Image | `asia-southeast1-docker.pkg.dev/<project>/cloud-run-source-deploy/workout-api` |
 
-The API runs with 1 CPU, 2 GiB, a 3,600 second timeout, HTTP/2, concurrency 1, and minimum 0 /
+The API runs with 1 CPU, 2 GiB, a 3,600 second timeout, HTTP/1.1, concurrency 1, and minimum 0 /
 maximum 1 instances. PDF extraction runs in the private `workout-import-worker` service with the
-same resource limits, minimum 1 / maximum 1 instances, and the persisted import lock. The worker
-polls pending extraction stages so browser closure does not interrupt an import; Cloud Tasks can
-trigger the same idempotent operation when a queue is provisioned.
+same resource limits, a 1,800 second request timeout, concurrency 1, and minimum 0 / maximum 1
+instances. Cloud Tasks delivers one expected extraction chunk per request; the worker keeps no
+polling loop in production. An hourly authenticated maintenance request removes expired objects
+and recovers dispatches that were not accepted or whose delivery lease expired.
 
 ## Database and secrets
 
@@ -31,18 +35,24 @@ Neon URLs are normalised with verified TLS, required channel binding, and a maxi
 size of 10. Runtime uses the `-pooler` hostname; migrations use its direct counterpart, which
 `ConnectionSettings.Direct` derives. No secret belongs in Vite variables or source control.
 
-For production PDF retention, create a private bucket and set `_IMPORT_BUCKET` in Cloud Build (or
-`ImportStorage__Bucket` on both Cloud Run services) to its name. The API and worker use application
-default credentials for private object reads, resumable sessions, and deletion. Without that
-variable, local development and tests use a private transient filesystem directory instead. Add a
-24-hour object lifecycle rule as a storage backstop; application cleanup deletes source objects and
-temporary derivatives as soon as an import reaches a terminal state.
+For production PDF retention, `_IMPORT_BUCKET` is set to `workout-imports-396431756440` in Cloud
+Build (or set `ImportStorage__Bucket` on both Cloud Run services). The bucket is private, uniform
+access, same-region, and has a two-day object lifecycle safety net. The API and worker use
+application default credentials for private object reads, resumable sessions, and deletion.
+Without that variable, local development and tests use a private transient filesystem directory
+instead. Application cleanup deletes source objects and temporary derivatives as soon as an import
+reaches a terminal state; the persisted 24-hour source expiry remains the user-visible retention
+contract.
 
-Cloud Tasks dispatch is optional and configured by `_IMPORT_TASK_QUEUE`, `_IMPORT_WORKER_URL`, and
-`_IMPORT_WORKER_SERVICE_ACCOUNT` in Cloud Build. Grant that service account `roles/run.invoker` on
-`workout-import-worker`; Cloud Run IAM authenticates the task, and the worker's
-`/internal/import-tasks` route accepts one idempotent extraction step. Leave the substitutions empty
-to use the worker's persisted polling fallback.
+Cloud Tasks dispatch is configured by `_IMPORT_TASK_QUEUE`, `_IMPORT_WORKER_URL`, and
+`_IMPORT_WORKER_SERVICE_ACCOUNT` in Cloud Build. Grant the API service account
+`roles/cloudtasks.enqueuer` on the queue or project and `roles/run.invoker` on the private
+`workout-import-worker`; Cloud Run IAM authenticates each task. The worker's
+`/internal/import-tasks` route accepts one idempotent extraction step and receives the expected
+chunk in its payload, so duplicates cannot advance another chunk. Keep
+`ImportWorker__PollingEnabled=false` in production. The persisted dispatch marker and hourly
+maintenance route recover enqueue failures and worker restarts; immediate user-triggered retry
+remains available.
 
 Migrations are applied before deployment and `Database__MigrateOnStartup` stays `false`:
 
@@ -102,8 +112,10 @@ Vercel builds from the `web` root and promotes `master` pushes to the production
 
 Cloud Build trigger `deploy-workout-api-master` watches the same repository's `master` branch.
 It runs `cloudbuild.yaml`, builds and publishes the API image, and deploys Cloud Run with the
-production Vercel origin. Database migrations remain an explicit pre-deployment operation; the
-runtime keeps `Database__MigrateOnStartup=false`.
+production Vercel origin. Its included-file filter is limited to `api/**`, Docker/deployment files,
+and `deploy/**`, so frontend-only commits do not run migrations or catalog jobs. Database
+migrations remain an explicit pre-deployment operation; the runtime keeps
+`Database__MigrateOnStartup=false`.
 
 ## Verification after a deploy
 

@@ -193,9 +193,12 @@ public sealed class ImportService(AppDb db, WorkoutAi ai, CatalogService catalog
     public async Task<ImportView> Create(byte[] pdf, string fileName, CancellationToken ct)
     {
         ValidatePdf(pdf, fileName);
-        await using var gate = await MutationLock.Acquire(db, db.CurrentUser, ct);
-        var hash = Convert.ToHexString(SHA256.HashData(pdf));
         var user = db.CurrentUser!.Value;
+        int? nextChunk = null;
+        Guid importId;
+        await using (var gate = await MutationLock.Acquire(db, db.CurrentUser, ct))
+        {
+        var hash = Convert.ToHexString(SHA256.HashData(pdf));
         var existing = await db.Imports.AsNoTracking().FirstOrDefaultAsync(i => i.DocumentHash == hash && i.PromptVersion == WorkoutAi.PromptVersion
             && (i.Status == ImportStatus.Pending || i.Status == ImportStatus.Ready || i.Status == ImportStatus.Accepted), ct);
         if (existing != null)
@@ -266,15 +269,22 @@ public sealed class ImportService(AppDb db, WorkoutAi ai, CatalogService catalog
             await gate.Commit(ct);
             throw;
         }
+        MarkDispatch(import);
+        importId = import.Id;
+        nextChunk = import.PendingDispatchChunk;
         await db.SaveChangesAsync(ct);
         await gate.Commit(ct);
-        if (import.Stage == "extract" && jobs is not null) await jobs.Enqueue(user, import.Id, ct);
-        return await Get(import.Id, ct);
+        }
+        await TryDispatch(user, importId, nextChunk, ct);
+        return await Get(importId, ct);
     }
 
     public async Task<ImportView> SelectAlternative(Guid id, string alternativeId, CancellationToken ct)
     {
-        await using var gate = await MutationLock.Acquire(db, db.CurrentUser, ct);
+        var user = db.CurrentUser!.Value;
+        int? nextChunk = null;
+        await using (var gate = await MutationLock.Acquire(db, db.CurrentUser, ct))
+        {
         var import = await db.Imports.SingleOrDefaultAsync(i => i.Id == id, ct);
         Validation.Require(import != null, "That import no longer exists.", 404);
         Validation.Require(import!.Status == ImportStatus.Pending && import.Stage == "select", "This import is not waiting for an alternative selection.", 409);
@@ -286,17 +296,23 @@ public sealed class ImportService(AppDb db, WorkoutAi ai, CatalogService catalog
         import.SelectedAlternativeId = selected.Id; import.OutlineJson = Json.Write(chunks);
         import.DraftJson = Json.Write(new ImportDraft(selected.Name, selected.Description, []));
         import.Stage = "extract"; import.ChunksDone = 0; import.ChunksTotal = chunks.Count; import.Revision++;
+        MarkDispatch(import);
+        nextChunk = import.PendingDispatchChunk;
         await db.SaveChangesAsync(ct); await gate.Commit(ct);
-        if (jobs is not null) await jobs.Enqueue(db.CurrentUser!.Value, id, ct);
+        }
+        await TryDispatch(user, id, nextChunk, ct);
         return await Get(id, ct);
     }
 
     private static ImportChunk ToImportChunk(AiOutlineChunk chunk)
         => new(chunk.Label, chunk.Block, chunk.Phase, chunk.WeekFrom, chunk.WeekTo, chunk.PageFrom, chunk.PageTo, chunk.DayCount);
 
-    public async Task<ImportView> Extract(Guid id, byte[] pdf, string fileName, CancellationToken ct)
+    public async Task<ImportView> Extract(Guid id, byte[] pdf, string fileName, CancellationToken ct, int? expectedChunk = null)
     {
-        await using var gate = await MutationLock.Acquire(db, db.CurrentUser, ct);
+        var user = db.CurrentUser!.Value;
+        int? nextChunk = null;
+        await using (var gate = await MutationLock.Acquire(db, db.CurrentUser, ct))
+        {
         var import = await db.Imports.SingleOrDefaultAsync(i => i.Id == id, ct);
         Validation.Require(import != null, "That import no longer exists.", 404);
         // A duplicate delivery after the last chunk committed is already complete and is safe to
@@ -307,6 +323,17 @@ public sealed class ImportService(AppDb db, WorkoutAi ai, CatalogService catalog
             return await Get(id, ct);
         }
         Validation.Require(import.Status == ImportStatus.Pending && import.Stage == "extract", "This import is not waiting for another extraction pass.", 409);
+        if (expectedChunk is { } expected)
+        {
+            // A stale duplicate is acknowledged after a later chunk has committed. A future task
+            // cannot advance the import out of order and is retried after its predecessor.
+            if (import.ChunksDone > expected)
+            {
+                await gate.Commit(ct);
+                return await Get(id, ct);
+            }
+            Validation.Require(import.ChunksDone == expected, "This extraction chunk is not ready yet; retry after the previous chunk commits.", 409);
+        }
         if (pdf.Length == 0)
         {
             Validation.Require(!string.IsNullOrWhiteSpace(import.SourceFileKey), "The temporary PDF has expired. Upload it again.", 410);
@@ -340,6 +367,8 @@ public sealed class ImportService(AppDb db, WorkoutAi ai, CatalogService catalog
                 import.Status = ImportStatus.Ready; import.Stage = "done"; UpdateCounters(import, merged);
                 await files.Delete(import.SourceFileKey, ct); import.SourceFileKey = ""; import.SourceFileExpiresAt = null;
             }
+            MarkDispatch(import);
+            nextChunk = import.PendingDispatchChunk;
             await db.SaveChangesAsync(ct);
             await gate.Commit(ct);
         }
@@ -347,12 +376,17 @@ public sealed class ImportService(AppDb db, WorkoutAi ai, CatalogService catalog
         {
             import.Error = ex.Message;
             import.Retries++;
+            if (expectedChunk is { } expectedChunkValue && import.ChunksDone == expectedChunkValue)
+            {
+                import.PendingDispatchChunk = expectedChunkValue;
+                import.PendingDispatchAt = DateTime.UtcNow;
+            }
             await db.SaveChangesAsync(ct);
             await gate.Commit(ct);
             throw;
         }
-        if (import.Status == ImportStatus.Pending && import.Stage == "extract" && jobs is not null)
-            await jobs.Enqueue(db.CurrentUser!.Value, id, ct);
+        }
+        await TryDispatch(user, id, nextChunk, ct);
         return await Get(id, ct);
     }
 
@@ -611,6 +645,79 @@ public sealed class ImportService(AppDb db, WorkoutAi ai, CatalogService catalog
         if (expired.Count > 0 || uploads.Count > 0) await db.SaveChangesAsync(ct);
         }
         finally { db.MaintenanceAccess = previousMaintenance; }
+    }
+
+    /// Re-enqueues extraction chunks whose delivery was never accepted or whose delivery lease
+    /// expired while a worker was restarting. This is intentionally bounded so the maintenance
+    /// endpoint remains cheap even if a user has accumulated stale imports.
+    public async Task<int> RecoverUndispatched(CancellationToken ct)
+    {
+        if (jobs is null) return 0;
+        var previousUser = db.CurrentUser;
+        var previousMaintenance = db.MaintenanceAccess;
+        db.MaintenanceAccess = true;
+        try
+        {
+            var now = DateTime.UtcNow;
+            var candidates = await db.Imports.IgnoreQueryFilters().AsNoTracking()
+                .Where(i => i.Status == ImportStatus.Pending && i.Stage == "extract" &&
+                    i.ChunksDone < i.ChunksTotal &&
+                    (i.PendingDispatchChunk == null || i.PendingDispatchAt == null || i.PendingDispatchAt <= now))
+                .OrderBy(i => i.Created).Take(32)
+                .Select(i => new { i.UserId, i.Id, Chunk = i.PendingDispatchChunk ?? i.ChunksDone }).ToListAsync(ct);
+            var recovered = 0;
+            foreach (var candidate in candidates)
+            {
+                if (await TryDispatch(candidate.UserId, candidate.Id, candidate.Chunk, ct)) recovered++;
+                db.ChangeTracker.Clear();
+            }
+            return recovered;
+        }
+        finally
+        {
+            db.CurrentUser = previousUser;
+            db.MaintenanceAccess = previousMaintenance;
+        }
+    }
+
+    private void MarkDispatch(AiImport import)
+    {
+        if (import.Status == ImportStatus.Pending && import.Stage == "extract" && import.ChunksDone < import.ChunksTotal)
+        {
+            import.PendingDispatchChunk = import.ChunksDone;
+            import.PendingDispatchAt = DateTime.UtcNow;
+        }
+        else
+        {
+            import.PendingDispatchChunk = null;
+            import.PendingDispatchAt = null;
+        }
+    }
+
+    private async Task<bool> TryDispatch(Guid userId, Guid importId, int? expectedChunk, CancellationToken ct)
+    {
+        if (jobs is null || expectedChunk is not { } chunk) return false;
+        if (!await jobs.Enqueue(userId, importId, chunk, ct)) return false;
+
+        var previousUser = db.CurrentUser;
+        db.CurrentUser = userId;
+        try
+        {
+            await using var gate = await MutationLock.Acquire(db, userId, ct);
+            var import = await db.Imports.SingleOrDefaultAsync(i => i.Id == importId, ct);
+            if (import is not null && import.Status == ImportStatus.Pending && import.Stage == "extract" &&
+                import.ChunksDone == chunk && (import.PendingDispatchChunk is null || import.PendingDispatchChunk == chunk))
+            {
+                // Keep the marker until the task commits. The lease lets hourly maintenance
+                // recover a task lost during worker startup without creating an unbounded queue.
+                import.PendingDispatchAt = DateTime.UtcNow.AddMinutes(30);
+                import.Revision++;
+                await db.SaveChangesAsync(ct);
+            }
+            await gate.Commit(ct);
+            return true;
+        }
+        finally { db.CurrentUser = previousUser; }
     }
 
     public async Task ValidateDraft(ImportDraft draft, CancellationToken ct)

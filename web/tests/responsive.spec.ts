@@ -48,6 +48,31 @@ async function checkLayout(page: Page, label: string) {
     }).map(el => el.getAttribute('aria-label') || el.textContent?.slice(0, 70));
   });
   expect(smallTargets, `${label}: controls have usable touch targets`).toEqual([]);
+
+  const smallText = await page.evaluate(() => [...document.querySelectorAll('body *')].filter(el => {
+    const box = el.getBoundingClientRect();
+    const style = getComputedStyle(el);
+    return box.width > 0 && box.height > 0 && style.display !== 'none' && style.visibility !== 'hidden'
+      && el.textContent?.trim() && !['SCRIPT', 'STYLE', 'SVG', 'PATH'].includes(el.tagName)
+      && Number.parseFloat(style.fontSize) < 14;
+  }).map(el => {
+    const visibleText = el.textContent?.trim() || '';
+    return { tag: el.tagName, className: String(el.className).slice(0, 40), text: visibleText.slice(0, 40), size: getComputedStyle(el).fontSize };
+  }));
+  expect(smallText, `${label}: visible interface text is at least 14px`).toEqual([]);
+
+  const clippedText = await page.evaluate(() => [...document.querySelectorAll('h1,h2,h3,p,button,a,label,summary,span,small')].filter(el => {
+    const box = el.getBoundingClientRect();
+    const style = getComputedStyle(el);
+    return box.width > 0 && box.height > 0 && el.textContent?.trim() && !el.closest('[aria-hidden="true"]')
+      && (style.overflowX === 'hidden' || style.overflowY === 'hidden' || style.textOverflow === 'ellipsis')
+      && (el.scrollWidth > el.clientWidth + 1 || el.scrollHeight > el.clientHeight + 1);
+  }).map(el => ({ tag: el.tagName, className: String(el.className).slice(0, 40), text: el.textContent?.trim().slice(0, 60) })));
+  expect(clippedText, `${label}: visible text is not clipped`).toEqual([]);
+
+  const passiveButtons = await page.evaluate(() => [...document.querySelectorAll('.routine-row-static')]
+    .filter(row => row.tagName === 'BUTTON').map(row => row.textContent?.trim().slice(0, 60)));
+  expect(passiveButtons, `${label}: passive workout rows are not controls`).toEqual([]);
 }
 
 async function navigate(page: Page, name: string) {
@@ -75,6 +100,7 @@ for (const theme of ['dark', 'light']) {
     if (discarded) await page.reload();
 
     await navigate(page, 'Settings');
+    await expect(page.locator('.nav-label, .breadcrumb, .profile, .page-footer')).toHaveCount(0);
     await page.getByLabel('Appearance').selectOption(theme === 'dark' ? 'dark' : 'light');
     await expect(page.locator('html')).toHaveAttribute('data-theme', theme);
     await expect(page).toHaveTitle('Workout');
@@ -93,7 +119,7 @@ for (const theme of ['dark', 'light']) {
     await screenshot('overview');
 
     await navigate(page, 'Workouts');
-    await expect(page.getByRole('heading', { name: 'Your workouts.' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Workouts', exact: true })).toBeVisible();
     await screenshot('workouts');
 
     await page.getByRole('button', { name: 'New workout', exact: true }).first().click();
@@ -130,6 +156,16 @@ for (const theme of ['dark', 'light']) {
     await expect(page.getByRole('heading', { name: 'Review' })).toBeVisible({ timeout: 60000 });
     await screenshot('import-review');
 
+    const importDetails = page.locator('details.import-details');
+    if (await importDetails.count()) {
+      const summary = importDetails.locator('summary');
+      await summary.focus();
+      await page.keyboard.press('Enter');
+      await expect(importDetails).toHaveAttribute('open', '');
+      await page.keyboard.press('Enter');
+      await expect(importDetails).not.toHaveAttribute('open', '');
+    }
+
     await navigate(page, 'Progress');
     await screenshot('progress');
 
@@ -142,6 +178,13 @@ for (const theme of ['dark', 'light']) {
     await expect(preview).toBeHidden();
     await expect(page.getByRole('dialog')).toBeVisible();
     await screenshot('workout-logger');
+    const workoutHelp = page.locator('details.workout-help');
+    await expect(workoutHelp).toHaveCount(1);
+    await workoutHelp.locator('summary').focus();
+    await page.keyboard.press('Enter');
+    await expect(workoutHelp).toHaveAttribute('open', '');
+    await page.keyboard.press('Enter');
+    await expect(workoutHelp).not.toHaveAttribute('open', '');
     await page.getByRole('button', { name: 'Add exercise', exact: true }).click();
     await screenshot('logger-picker');
     await page.getByRole('dialog', { name: 'Add an exercise' }).getByRole('button', { name: 'Close dialog' }).click();

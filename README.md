@@ -23,6 +23,15 @@ cd web;  npm ci;  npm run dev             # http://localhost:5182, proxying /api
 In development the API falls back to SQLite when no connection string is configured, so nothing
 external is needed to work on the app. Point `WORKOUT_API` at another origin to proxy elsewhere.
 
+## UI text and type
+
+Visible interface text uses the shared Ayu typography scale in `web/src/index.css`: 16px body and
+form text, 14px navigation, metadata, badges, and secondary text, 20px section headings, and
+28–32px page titles. Keep labels factual and concise, remove repeated slogans, and keep warnings,
+targets, provenance, and server or permission consequences visible. Use a keyboard-accessible
+`details` disclosure for diagnostics or supporting instructions that do not help the current
+decision. Passive status rows are regular content; only rows with an available action use buttons.
+
 ## What it does
 
 - Central identity via Fitness Account OIDC (`openid`, `profile`), capped at two accounts,

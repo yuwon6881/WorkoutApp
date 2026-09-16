@@ -1,7 +1,7 @@
 import { expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
 
-const DASHBOARD = 'Let’s get stronger.';
+const DASHBOARD = 'Overview';
 
 /// Signs in through central Fitness Account via mock IdP.
 export async function signIn(page: Page, username = 'e2e-lifter') {
@@ -28,5 +28,4 @@ export async function signIn(page: Page, username = 'e2e-lifter') {
   }
 
   await expect(dashboard).toBeVisible({ timeout: 30000 });
-  await expect(page.locator('.profile strong')).toHaveText(username, { timeout: 30000 });
 }

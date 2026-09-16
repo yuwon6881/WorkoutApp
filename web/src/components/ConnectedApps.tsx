@@ -27,11 +27,10 @@ export function ConnectedApps() {
   }
 
   return <section className="panel" aria-labelledby="connected-apps-title">
-    <h2 id="connected-apps-title">Connected Apps</h2>
-    <p>Workout reads Nutrition’s confirmed goal, trend, and body-weight context. Nutrition never changes workout targets. To enable the reverse direction, connect Workout from Nutrition.</p>
-    <ul className="source-list"><li><code>nutrition.training_context.read</code> · Nutrition → Workout</li></ul>
+    <h2 id="connected-apps-title">Connected apps</h2>
+    <p>Workout can read Nutrition’s confirmed goal, trend, and bodyweight context. Nutrition never changes workout targets.</p>
     {connected ? <div className="settings-actions"><span className="notice">Nutrition access is granted.</span><Button variant="destructive" disabled={busy} onClick={() => void revoke()}>Revoke access</Button></div>
-      : <Button variant="secondary" disabled={busy} onClick={connect}>{busy ? 'Opening Fitness Account…' : 'Connect Nutrition'}</Button>}
+      : <Button variant="secondary" disabled={busy} onClick={connect}>{busy ? 'Opening account…' : 'Connect Nutrition'}</Button>}
     {error && <p className="error-text" role="alert">{error}</p>}
   </section>;
 }

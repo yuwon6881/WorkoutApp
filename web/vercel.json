@@ -10,7 +10,7 @@
         "X-Content-Type-Options": "nosniff",
         "Referrer-Policy": "same-origin",
         "X-Frame-Options": "DENY",
-        "Content-Security-Policy": "default-src 'self'; img-src 'self' blob: data:; style-src 'self'; script-src 'self'; connect-src 'self'; worker-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'"
+        "Content-Security-Policy": "default-src 'self'; img-src 'self' blob: data:; style-src 'self'; style-src-elem 'self'; font-src 'self'; script-src 'self'; connect-src 'self'; worker-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'"
       },
       "continue": true
     },

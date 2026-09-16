@@ -1,0 +1,50 @@
+# WorkoutApp guidance
+
+Applies only to this independent repository; app-specific rules override the parent's FinancialApp rules. `CLAUDE.md` is canonical; keep `AGENTS.md` byte-identical. After editing, run `Copy-Item CLAUDE.md AGENTS.md` from this repository.
+
+## Keep this guidance concise
+
+- Update the implemented-feature index in the same change as a feature addition, removal, or material behavior change. Update an existing bullet before adding one; group capabilities and link to detail instead of keeping a changelog here.
+- List implemented behavior only; plans are not shipped features. Keep this file near 100 lines or fewer. Product details belong in `README.md`, deployment instructions in `deploy/README.md`, and improvement work in `ENHANCEMENT_PLAN.md`.
+
+## Implemented feature index
+
+- FitnessAccount central sign-in, profile/preferences, connected-app settings, and account export.
+- Global exercise catalog, manual templates/programs, multi-phase scheduling, and AI PDF extraction with editable review before program creation.
+- Active workout drafts, weight/rep/RPE logging, exercise substitutions, completed-session history, and a deadline-based rest timer.
+- Rep/load progression, effort-based suggestions, lighter-week recommendations, bodyweight/resistance-mode handling, and Nutrition-informed adaptive tiers.
+- Scoped Nutrition context and shared training summaries. Nutrition owns weight/goals; Workout owns training history/progression.
+
+## UI standardization
+
+- Search `web/src/components/ui/`, nearby feature components, `web/src/lib/`, and `web/src/index.css` before adding UI. Reuse `Button`, `Modal`, `Skeleton`, and shared motion components; extend existing patterns rather than making another button, dialog, card, or selector system.
+- Feature actions use `Button`, including icon actions with explicit accessible names. Raw buttons belong inside shared primitives. Repeated field/error behavior should become one shared primitive using `web/src/lib/validation.ts`, not copied feature markup.
+- Preserve Ayu light/dark themes and semantic variables in `web/src/index.css` (such as `--bg`, `--surface`, `--text`, `--muted`, `--accent`). Use bundled Inter Variable, tabular numbers, existing typography/spacing/radii, and visible focus. Do not introduce hard-coded feature colors, remote fonts, or sibling-app token names.
+- Reuse `MotionScene`, `MotionPanel`, `SelectionIndicator`, and `useReducedMotion` from `ui/Motion.tsx`. Keep shared CSS durations/easing consistent with JS motion; motion must not delay content, focus, errors, or saves. Respect reduced motion and avoid decorative loops.
+- Preserve compact/medium/expanded layout behavior at <640 / 640-1023 / >=1024 px. Verify 390/768/1440 px in both themes and the existing 320-1920 px responsive suite. Maintain 44 px compact/medium targets, no horizontal overflow, keyboard/focus behavior, accessible names, and dialog focus restoration.
+- Keep action rows trailing-aligned or deliberately centered when they do not fill the row. Use factual labels, units, sources, uncertainty, and actionable errors. Passive status content is not a button; supporting diagnostics can use accessible disclosures.
+- Use application-owned validation (`noValidate`, inline errors, `aria-invalid`/`aria-describedby`, first-invalid focus) backed by authoritative server checks. Preserve loading, empty, partial, offline, error, and busy states; update matching skeletons with layout changes.
+
+## Code standardization
+
+- Inspect Git status and preserve concurrent edits. Run commands in this repository, keep commits separate from sibling apps, and do not commit/push/deploy unless requested.
+- Keep components and minimal API endpoints thin. Move reusable coordination into focused hooks, pure calculations into `web/src/lib/`, and backend rules into `api/Services/`. Reuse DTOs, validation, training/unit helpers, and request/error handling.
+- Prefer explicit types, clear names, small functions, and readable multiline formatting. Avoid `any`, compressed logic, dead code, swallowed failures, and premature abstractions. Comments explain why.
+- Aim for <=300 lines per new source file; split before 500 along responsibility boundaries. Do not grow oversized services: extract the responsibility being changed. Generated migrations are exempt. Never compress code to satisfy the limit.
+- Server behavior is authoritative. Preserve tenancy, revision checks, transactions, idempotency, timeouts/cancellation, and structured error handling. Add regression coverage before changing authentication, save ordering, progression, or program lifecycle. Never rewrite applied migrations.
+
+## Data boundaries
+
+- FitnessAccount alone stores credentials. `IdentitySubject` is immutable; display name is mutable metadata. Consumer apps exchange OIDC codes server-side and use local sessions; never add consumer password storage or registration.
+- Training data is database-backed and online-only. Do not persist workout records in localStorage/sessionStorage/IndexedDB or service-worker caches. The device-local rest deadline is the narrow exception; static-shell caching must not cache API responses or return SPA HTML for API/asset failures.
+- Kilograms are canonical and pounds are display conversion. Unknown load stays unknown and is excluded from volume; zero is a real bodyweight load. Freeze session bodyweight context so later weigh-ins do not rewrite historical calculations.
+- Suggestions prefill but never pre-log sets or overwrite prescribed rep/RPE targets. Only completed sets enter history. Preserve effort, resistance-mode, phase-order, skip/completion, and draft-versus-finished semantics.
+- The exercise catalog is global and seed-owned, read-only to users. Imports remain editable before program creation; preserve extracted/inferred/user-edited provenance and unresolved exercises instead of inventing matches. PDF sources stay private/transient with expiry and terminal-state cleanup.
+- Nutrition owns weight/goal context; Workout owns sessions/progression/PRs. Integration data may inform Workout suggestions, but must never automatically change Nutrition calorie/macronutrient targets. Keep tokens scoped and optional-provider failures bounded and visible where actionable.
+
+## Verification
+
+- Frontend: `web/`; API: `api/`; API regressions: `tests/`; browser tests: `web/tests/`. Use Node 24 and .NET 10.
+- From repository root: `dotnet test tests/Workout.Tests.csproj`. From `web/`: `npm.cmd run typecheck`, `npm.cmd test`, `npm.cmd run build`; UI/shared-surface changes also require `npm.cmd run test:visual` and `npm.cmd run test:responsive`.
+- Browser suites use a disposable API/database and local AI stand-in. Never run reset flows against production/personal data; serialize shared browser/build output during concurrent work.
+- Verify documentation equality and `git diff --check`. Report checks run and explicitly label skipped tests, live providers, browser sign-in, and deployment checks as unverified.

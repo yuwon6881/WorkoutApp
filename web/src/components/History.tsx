@@ -47,26 +47,24 @@ export function HistoryView({ initial, preferences, onSession, onStart }: {
 
   return <>
     <div className="page-heading">
-      <div><div className="eyebrow">PROOF OF THE WORK YOU PUT IN</div><h1>Your progress<span className="accent">.</span></h1><p>Small steps. Stronger numbers. A story that’s yours.</p></div>
-      <span className="muted">{page.total} completed {page.total === 1 ? 'workout' : 'workouts'}</span>
+      <h1>Progress</h1>
     </div>
     {error && <div className="error-banner" role="alert">{error}</div>}
     <div className="stats-grid progress-stats">
-      <div className="stat-card"><div className="stat-label"><CalendarDays size={17} />Workouts</div><strong>{page.total}</strong><span className="muted">Completed sessions</span></div>
-      <div className="stat-card"><div className="stat-label"><BarChart3 size={17} />Total volume</div><strong>{showVolume(totalVolume, unit)}</strong><span className="muted">Weight × reps, where the load was recorded</span></div>
-      <div className="stat-card"><div className="stat-label"><Dumbbell size={17} />Training time</div><strong>{sessions.reduce((total, s) => total + duration(s), 0)}<small> min</small></strong><span className="muted">Time you invested in yourself</span></div>
+      <div className="stat-card"><div className="stat-label"><CalendarDays size={17} />Workouts</div><strong>{page.total}</strong></div>
+      <div className="stat-card"><div className="stat-label"><BarChart3 size={17} />Total volume</div><strong>{showVolume(totalVolume, unit)}</strong></div>
+      <div className="stat-card"><div className="stat-label"><Dumbbell size={17} />Training time</div><strong>{sessions.reduce((total, s) => total + duration(s), 0)}<small> min</small></strong></div>
     </div>
 
     <section className="panel">
       <div className="section-heading"><h2>Personal bests</h2><Trophy size={18} className="accent" /></div>
-      <p className="muted">Heaviest completed working set</p>
       {bests.length ? bests.slice(0, 6).map(([name, kg]) => <div className="best-row" key={name}><span>{name}</span><strong>{showWeight(kg, unit)}</strong></div>)
-        : <div className="empty-message"><Trophy size={30} /><p>Your first personal best is waiting.<br />Log a workout to get started.</p></div>}
+        : <div className="empty-message"><Trophy size={30} /><p>No personal bests yet. Log a workout to record one.</p></div>}
     </section>
 
     {bodyweightRecords.length > 0 && <section className="panel">
       <div className="section-heading"><h2>Bodyweight records</h2><Trophy size={18} className="accent" /></div>
-      <p className="muted">Reps stay separate from effective load. These records keep the frozen bodyweight context beside the achievement.</p>
+      <p className="muted">Bodyweight records keep the bodyweight context captured with each set.</p>
       {bodyweightRecords.map(record => <div className="best-row" key={record.exercise}><span>{record.exercise}</span><strong>{record.bodyweightRepRecord!.reps} reps at {toDisplay(record.bodyweightRepRecord!.bodyweightKg, unit)} {unit} bodyweight</strong></div>)}
     </section>}
 
@@ -79,8 +77,8 @@ export function HistoryView({ initial, preferences, onSession, onStart }: {
         <span>{showVolume(session.volumeKg, unit)}</span>
         <ArrowRight size={16} />
       </Button>)}
-      {!sessions.length && !loading && <div className="empty-message"><Dumbbell size={32} /><h3>No completed workouts yet</h3>
-        <p>Finish a workout and it will appear here with its sets, volume, and effort.</p>
+      {!sessions.length && !loading && <div className="empty-message"><Dumbbell size={32} /><h3>No workouts yet</h3>
+        <p>Finish a workout to see its sets and volume here.</p>
         <Button onClick={onStart}>Find a workout<ArrowRight size={16} /></Button></div>}
       {sessions.length < page.total && <Button className="full-width" disabled={loading} onClick={more}>{loading ? 'Loading…' : 'Load more'}</Button>}
     </section>

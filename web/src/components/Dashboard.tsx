@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ArrowDownLeft, ArrowRight, Check, ChevronLeft, ChevronRight, Dumbbell, FileText, Flame, Play, Target, TrendingUp } from 'lucide-react';
+import { ArrowRight, Check, ChevronLeft, ChevronRight, Dumbbell, FileText, Flame, Play, TrendingUp } from 'lucide-react';
 import type { Bootstrap, Session } from '../types';
 import { duration, localDate, showVolume, weekDays } from '../lib/training';
 import { Button } from './ui/Button';
@@ -29,7 +29,7 @@ export function Dashboard({ data, onStart, onHistory, onProgram, onImport, onSes
 
   return <>
     <div className="page-heading">
-      <div><div className="eyebrow">YOUR TRAINING, MOVING FORWARD</div><h1>Let’s get stronger<span className="accent">.</span></h1><p>Show up. Put in the work. See your progress.</p></div>
+      <h1>Overview</h1>
       <span className="date-label">{new Date().toLocaleDateString('en', { month: 'long', day: 'numeric', year: 'numeric' })}</span>
     </div>
 
@@ -55,22 +55,20 @@ export function Dashboard({ data, onStart, onHistory, onProgram, onImport, onSes
       <div className="main-column">
         <section className="next-workout">
           <div className="hero-top">
-            <span className="eyebrow"><span className="status-dot" /> {data.activeWorkout ? 'WORKOUT IN PROGRESS' : next ? 'UP NEXT' : 'GETTING STARTED'}</span>
+            <span className="eyebrow"><span className="status-dot" /> {data.activeWorkout ? 'Workout in progress' : next ? 'Up next' : 'No workout selected'}</span>
             <span className="pill">{data.activeWorkout?.exercises.length ?? nextExerciseCount} exercises</span>
           </div>
           <div className="hero-content">
             <div>
-              <h2>{data.activeWorkout?.name ?? nextName ?? 'Your next chapter'}</h2>
+              <h2>{data.activeWorkout?.name ?? nextName ?? 'Choose a workout'}</h2>
               <p>{data.activeWorkout ? 'In progress · pick up where you left off' : program ? `${program.name} · week ${nextWeek}` : next ? nextFocus : 'Import a program from a PDF, or build a workout by hand.'}</p>
               <div className="hero-facts">
                 <span><Dumbbell size={15} />{data.activeWorkout ? data.activeWorkout.exercises.reduce((total, e) => total + e.sets.filter(s => !s.warmup).length, 0) : nextSets ?? nextExerciseCount} working sets</span>
-                <span><Target size={15} />Build strength</span>
               </div>
             </div>
             <div className="hero-art" aria-hidden="true"><div className="orbit orbit-one" /><div className="orbit orbit-two" /><Dumbbell strokeWidth={1.1} /><span className="art-spark">+</span></div>
           </div>
           <div className="hero-bottom">
-            <span>One set closer to your goals.</span>
             {data.activeWorkout
               ? <Button variant="primary" onClick={onResume}><Play size={17} fill="currentColor" />Resume workout<ArrowRight size={18} /></Button>
               : next
@@ -82,10 +80,10 @@ export function Dashboard({ data, onStart, onHistory, onProgram, onImport, onSes
         <section>
           <div className="section-heading"><h2>Your training week</h2><span className="muted">Monday – Sunday</span></div>
           <div className="stats-grid">
-            <div className="stat-card"><div className="stat-label"><Dumbbell size={17} /> Workouts</div><strong>{weekly.length}</strong><span className="muted">Completed this week</span>
+            <div className="stat-card"><div className="stat-label"><Dumbbell size={17} /> Workouts</div><strong>{weekly.length}</strong>
               <div className="mini-progress">{[0, 1, 2, 3].map(i => <span key={i} className={i < weekly.length ? 'filled' : ''} />)}</div></div>
-            <div className="stat-card"><div className="stat-label"><TrendingUp size={17} /> Total volume</div><strong>{showVolume(weeklyVolume, unit)}</strong><span className="muted">Across recorded loads</span></div>
-            <div className="stat-card"><div className="stat-label"><Flame size={17} /> Working sets</div><strong>{weekly.reduce((total, s) => total + s.completedSets, 0)}<small> sets</small></strong><span className="muted">Every rep adds up</span></div>
+            <div className="stat-card"><div className="stat-label"><TrendingUp size={17} /> Total volume</div><strong>{showVolume(weeklyVolume, unit)}</strong></div>
+            <div className="stat-card"><div className="stat-label"><Flame size={17} /> Working sets</div><strong>{weekly.reduce((total, s) => total + s.completedSets, 0)}<small> sets</small></strong></div>
           </div>
         </section>
 
@@ -98,36 +96,31 @@ export function Dashboard({ data, onStart, onHistory, onProgram, onImport, onSes
             <span>{showVolume(session.volumeKg, unit)}</span><ArrowRight size={16} />
           </Button>) : <div className="empty-inline">
             <span className="exercise-icon"><Dumbbell size={22} /></span>
-            <div><h3>Your first workout starts the story</h3><p>Completed sessions and personal bests will show up here.</p></div>
-            <ArrowDownLeft size={23} className="muted" />
+            <div><h3>No workouts yet</h3><p>Finish a workout to see it here.</p></div>
           </div>}
         </section>
       </div>
 
       <aside className="side-column">
         <section className="panel program-card">
-          <div className="section-heading"><h2>Your program</h2>{program && <span className="tiny-label">{program.weeks} WEEK{program.weeks === 1 ? '' : 'S'}</span>}</div>
+          <div className="section-heading"><h2>Your program</h2>{program && <span className="tiny-label">{program.weeks} {program.weeks === 1 ? 'week' : 'weeks'}</span>}</div>
           {program ? <>
             <div className="program-title"><span className="program-icon"><Dumbbell size={25} /></span><div><h3>{program.name}</h3>
               <p>{program.completedTemplateIds.length} of {program.days.length} workouts complete</p></div></div>
-            <div className="routine-list">{program.days.slice(0, 5).map(workout => <Button variant="tertiary"
-              disabled={workout.isRestDay || !program.active || program.completedTemplateIds.includes(workout.id) || (program.skippedTemplateIds ?? []).includes(workout.id) || workout.id !== program.nextTemplateId}
-              className={`routine-row ${workout.id === program.nextTemplateId ? 'next' : ''}`} key={workout.id} onClick={() => onStart(workout.id)}>
-              <span className="routine-number">W{workout.phaseWeek}</span><span>{workout.name}</span>
-              {workout.isRestDay ? <span className="tiny-label">REST DAY</span> : program.completedTemplateIds.includes(workout.id) ? <Check size={14} /> : (program.skippedTemplateIds ?? []).includes(workout.id) ? <span className="tiny-label">SKIPPED</span> : workout.id === program.nextTemplateId ? <span className="tiny-label accent">UP NEXT</span> : <ChevronRight size={14} />}
-            </Button>)}</div>
+            <div className="routine-list">{program.days.slice(0, 5).map(workout => {
+              const completed = program.completedTemplateIds.includes(workout.id);
+              const skipped = (program.skippedTemplateIds ?? []).includes(workout.id);
+              const nextWorkout = workout.id === program.nextTemplateId;
+              const row = <><span className="routine-number">W{workout.phaseWeek}</span><span>{workout.name}</span>
+                {workout.isRestDay ? <span className="tiny-label">Rest day</span> : completed ? <Check size={14} aria-label="Completed" /> : skipped ? <span className="tiny-label">Skipped</span> : nextWorkout ? <span className="tiny-label accent">Up next</span> : <span className="tiny-label">Later</span>}</>;
+              if (nextWorkout && program.active) return <Button variant="tertiary" className="routine-row next" key={workout.id} onClick={() => onStart(workout.id)}>{row}</Button>;
+              return <div className="routine-row routine-row-static" key={workout.id}>{row}</div>;
+            })}</div>
           </> : <div className="empty-inline"><span className="exercise-icon"><FileText size={20} /></span>
             <div><h3>No active program</h3><p>Import a training PDF and review it before it becomes a program.</p></div></div>}
           <Button className="full-width" onClick={onProgram}>Manage workouts <ArrowRight size={16} /></Button>
         </section>
 
-        <section className="panel muscle-card">
-          <div className="section-heading"><h2>Exercise library</h2><span className="tiny-label">{data.exercises.length} MOVEMENTS</span></div>
-          {data.exercises.length
-            ? <p>Your workouts can draw on {data.exercises.length} exercises, each with its own technique cue.</p>
-            : <p>The shared library has not been loaded yet. Imported programs will keep their exercise names and wait to be mapped once it is.</p>}
-          <div className="tip"><span><FileText size={15} /></span><p>{data.aiImportsRemaining} AI imports left today.</p></div>
-        </section>
       </aside>
     </div>
   </>;

@@ -16,7 +16,7 @@ export function Auth() {
     <div className="auth-screen">
       <div className="panel auth-card">
         <span className="exercise-icon"><Dumbbell size={26} /></span>
-        <h1>Welcome<span className="accent">.</span></h1>
+        <h1>Welcome</h1>
         <p className="muted">Your training is stored on the server, so it follows you to every device you sign in on.</p>
         {error && <p className="error-text" role="alert">{error}</p>}
         <Button className="full-width" variant="primary" type="button" onClick={() => { window.location.href = '/api/auth/central/start'; }}>

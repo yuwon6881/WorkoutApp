@@ -28,7 +28,7 @@ export function StartPreview({ template, busy, onCancel, onConfirm }: {
           <span className="routine-number">{String(index + 1).padStart(2, '0')}</span>
           <div className="preview-name">
             <strong>{exercise.name}</strong>
-            {!exercise.exerciseId && <span className="tiny-label warn">NOT IN LIBRARY</span>}
+            {!exercise.exerciseId && <span className="tiny-label warn">Not in library</span>}
             {exercise.note && <small>{exercise.note}</small>}
           </div>
           <div className="preview-sets">

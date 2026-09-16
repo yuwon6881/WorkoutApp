@@ -25,8 +25,22 @@ public static class ImportEndpoints
                 (string.IsNullOrWhiteSpace(expected) || CryptographicOperations.FixedTimeEquals(Encoding.UTF8.GetBytes(expected), Encoding.UTF8.GetBytes(presented))),
                 "Worker task is not authorized.", 401);
             var previous = db.CurrentUser; db.CurrentUser = input.UserId;
-            try { return await imports.Extract(input.ImportId, [], "", ct); }
+            using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            timeout.CancelAfter(TimeSpan.FromMinutes(25));
+            try { return await imports.Extract(input.ImportId, [], "", timeout.Token, input.ExpectedChunk); }
+            catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+            { throw new DomainException("The extraction chunk exceeded its worker time budget and will be retried.", 503); }
             finally { db.CurrentUser = previous; }
+        }).DisableAntiforgery();
+
+        // Cloud Scheduler invokes this endpoint hourly with Cloud Run IAM. ImportWorker:Enabled
+        // is false on the public API, so exposing the same route there remains a safe no-op error;
+        // only the private worker accepts maintenance traffic.
+        app.MapPost("/internal/import-maintenance", async (IConfiguration config, ImportService imports, CancellationToken ct) =>
+        {
+            Validation.Require(config.GetValue("ImportWorker:Enabled", false), "Worker maintenance is disabled.", 404);
+            await imports.CleanupExpired(ct);
+            return Results.Ok(new { recovered = await imports.RecoverUndispatched(ct) });
         }).DisableAntiforgery();
 
         app.MapGet("/api/imports", async (ImportService imports, CancellationToken ct) => await imports.List(ct));

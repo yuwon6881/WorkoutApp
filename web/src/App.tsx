@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Activity, AlertTriangle, ArrowUpRight, CheckCircle2, Cloud, Dumbbell, LayoutDashboard, Library, Loader2, Plus, RefreshCw, Settings, WifiOff } from 'lucide-react';
+import { Activity, AlertTriangle, CheckCircle2, Cloud, Dumbbell, LayoutDashboard, Library, Loader2, Plus, RefreshCw, Settings, WifiOff } from 'lucide-react';
 import type { Session, Template } from './types';
 import { ApiError, api } from './lib/api';
 import { useApp } from './app/useApp';
@@ -22,8 +22,6 @@ const NAV = [
   { id: 'history', label: 'Progress', icon: Activity },
   { id: 'exercises', label: 'Exercises', icon: Library }
 ];
-
-const TITLES: Record<string, string> = { overview: 'Overview', program: 'Workouts', history: 'Progress', exercises: 'Exercise library', settings: 'Settings', import: 'Import a program' };
 
 export default function App() {
   const app = useApp();
@@ -77,26 +75,20 @@ export default function App() {
   return <div className="app-shell">
     <aside className="sidebar">
       <a className="brand" href="#" onClick={e => { e.preventDefault(); setTab('overview'); }}><img src="/favicon.svg" alt="" /><span>Workout</span></a>
-      <div className="nav-label">YOUR WORKSPACE</div>
       <nav aria-label="Main navigation">{NAV.map(item => <Button key={item.id} variant="tertiary" className={`nav-item ${tab === item.id ? 'selected' : ''}`}
         aria-current={tab === item.id ? 'page' : undefined} onClick={() => setTab(item.id)}>
         <item.icon size={19} /><span>{item.label}</span>{tab === item.id && <span className="nav-dot" />}</Button>)}</nav>
       <div className="sidebar-bottom">
-        <div className="local-note"><StatusIcon state={status.state} online={online} /><div><strong>{statusTitle(status.state, online)}</strong><p>{statusDetail(status, online)}</p></div></div>
         <Button variant="tertiary" className={`nav-item ${tab === 'settings' ? 'selected' : ''}`} onClick={() => setTab('settings')}><Settings size={19} /> Settings</Button>
-        <div className="profile"><span className="avatar">{data.account.displayName.slice(0, 2).toUpperCase()}</span>
-          <span><strong>{data.account.displayName}</strong><small>Make every rep count</small></span></div>
       </div>
     </aside>
 
     <div className="workspace">
       <header className="topbar">
-        <div className="breadcrumb"><span>Workspace</span><span>/</span><strong>{TITLES[tab]}</strong></div>
         <a className="brand mobile-brand" href="#" onClick={e => { e.preventDefault(); setTab('overview'); }}><img src="/favicon.svg" alt="" />Workout</a>
         <div className="topbar-actions">
-          <span className="device-status" role="status"><StatusIcon state={status.state} online={online} /> {statusTitle(status.state, online)}</span>
+          {online && status.state !== 'idle' && <span className="device-status" role="status"><StatusIcon state={status.state} online={online} /> {statusTitle(status.state, online)}</span>}
           <Button variant="tertiary" className="settings-icon" aria-label="Settings" onClick={() => setTab('settings')}><Settings size={19} /></Button>
-          <span className="avatar small">{data.account.displayName.slice(0, 2).toUpperCase()}</span>
         </div>
       </header>
 
@@ -105,7 +97,7 @@ export default function App() {
           <AlertTriangle size={17} />{status.message || 'A change could not be saved.'}
           <Button variant="tertiary" onClick={() => void app.reload()}><RefreshCw size={15} />Refresh</Button>
         </div>}
-        {!online && <div className="error-banner" role="alert"><WifiOff size={17} />You are offline. Workouts are saved on the server, so logging is paused until the connection returns.</div>}
+        {!online && <div className="error-banner" role="alert"><WifiOff size={17} />You are offline. Workouts are saved on the server, so logging is paused until the connection returns.<Button variant="tertiary" onClick={() => void app.reload()}><RefreshCw size={15} />Retry</Button></div>}
         {actionError && <div className="error-banner" role="alert">{actionError}</div>}
 
         <MotionScene sceneKey={tab}>
@@ -120,18 +112,17 @@ export default function App() {
         </MotionScene>
       </main>
 
-      <footer className="page-footer"><span>Built for the long game.</span><span>WORKOUT <ArrowUpRight size={12} /></span></footer>
     </div>
 
     <nav className="bottom-nav" aria-label="Mobile navigation">{NAV.map(item => <Button key={item.id} variant="tertiary" className={tab === item.id ? 'selected' : ''}
       aria-current={tab === item.id ? 'page' : undefined} onClick={() => setTab(item.id)}><item.icon size={20} /><span>{item.label}</span></Button>)}</nav>
 
     {data.activeWorkout && !training && <Button className="resume-workout" variant="primary" onClick={() => setTraining(true)}>
-      <span className="status-dot" />Resume {data.activeWorkout.name}<ArrowUpRight size={16} /></Button>}
+      <span className="status-dot" />Resume {data.activeWorkout.name}</Button>}
 
     {training && data.activeWorkout && <Workout session={data.activeWorkout} preferences={data.preferences} exercises={data.exercises} queue={app.queue}
       onSaved={app.setActiveWorkout} onClose={() => setTraining(false)}
-      onFinish={async session => { setTraining(false); setDetail(session); setToast('Workout saved. One session stronger.'); await app.reload(); }}
+      onFinish={async session => { setTraining(false); setDetail(session); setToast('Workout saved.'); await app.reload(); }}
       onDiscard={async () => { setTraining(false); await app.reload(); }} />}
 
     {preview && <StartPreview template={preview} busy={starting} onCancel={() => setPreview(null)} onConfirm={confirmStart} />}
@@ -150,13 +141,5 @@ function StatusIcon({ state, online }: { state: string; online: boolean }) {
 
 function statusTitle(state: string, online: boolean): string {
   if (!online) return 'Offline';
-  return { connecting: 'Connecting', saving: 'Saving…', saved: 'Saved', failed: 'Not saved', 'signed-out': 'Signed out', idle: 'Ready' }[state] ?? 'Ready';
-}
-
-function statusDetail(status: { state: string; message: string }, online: boolean): string {
-  if (!online) return 'Logging resumes when you are back online.';
-  if (status.state === 'failed') return status.message || 'Refresh to see the saved version.';
-  if (status.state === 'saving') return 'Sending your changes to the server.';
-  if (status.state === 'saved') return 'Everything is on the server.';
-  return 'Your training, saved on the server.';
+  return { connecting: 'Connecting', saving: 'Saving…', saved: 'Saved', failed: 'Not saved', 'signed-out': 'Signed out' }[state] ?? '';
 }

@@ -93,7 +93,7 @@ app.Use(async(http,next)=>
     http.Response.Headers.XContentTypeOptions="nosniff";
     if(!app.Environment.IsDevelopment()) http.Response.Headers.StrictTransportSecurity="max-age=31536000";
     http.Response.Headers["Referrer-Policy"]="same-origin";
-    http.Response.Headers.ContentSecurityPolicy="default-src 'self'; img-src 'self' blob: data:; style-src 'self'; script-src 'self'; connect-src 'self'; worker-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'";
+    http.Response.Headers.ContentSecurityPolicy="default-src 'self'; img-src 'self' blob: data:; style-src 'self'; style-src-elem 'self'; font-src 'self'; script-src 'self'; connect-src 'self'; worker-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'";
     if(http.Request.Path.StartsWithSegments("/api")) http.Response.Headers.CacheControl="no-store";
     try
     {
