@@ -5,6 +5,7 @@ import { ApiError, api } from './lib/api';
 import { useApp } from './app/useApp';
 import { restTimer } from './lib/restTimer';
 import { Button } from './components/ui/Button';
+import { MotionScene } from './components/ui/Motion';
 import { Auth } from './components/Auth';
 import { Dashboard } from './components/Dashboard';
 import { Programs } from './components/Programs';
@@ -107,6 +108,7 @@ export default function App() {
         {!online && <div className="error-banner" role="alert"><WifiOff size={17} />You are offline. Workouts are saved on the server, so logging is paused until the connection returns.</div>}
         {actionError && <div className="error-banner" role="alert">{actionError}</div>}
 
+        <MotionScene sceneKey={tab}>
         {tab === 'overview' && <Dashboard data={data} onStart={start} onHistory={() => setTab('history')} onProgram={() => setTab('program')}
           onImport={() => setTab('import')} onSession={setDetail} onResume={() => setTraining(true)} />}
         {tab === 'program' && <Programs data={data} exercises={data.exercises} onStart={start} onImport={() => setTab('import')} onChanged={app.reload} />}
@@ -115,6 +117,7 @@ export default function App() {
         {tab === 'history' && <HistoryView initial={data.history} preferences={data.preferences} onSession={setDetail} onStart={() => setTab('program')} />}
         {tab === 'exercises' && <ExerciseLibrary exercises={data.exercises} />}
         {tab === 'settings' && <SettingsView account={data.account} preferences={data.preferences} onPreferences={app.savePreferences} notify={setToast} onSignOut={app.signOut} />}
+        </MotionScene>
       </main>
 
       <footer className="page-footer"><span>Built for the long game.</span><span>WORKOUT <ArrowUpRight size={12} /></span></footer>
