@@ -95,6 +95,7 @@ app.Use(async(http,next)=>
     http.Response.Headers["Referrer-Policy"]="same-origin";
     http.Response.Headers.ContentSecurityPolicy="default-src 'self'; img-src 'self' blob: data:; style-src 'self'; style-src-elem 'self'; font-src 'self'; script-src 'self'; connect-src 'self'; worker-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'";
     if(http.Request.Path.StartsWithSegments("/api")) http.Response.Headers.CacheControl="no-store";
+    IAsyncDisposable? readGate=null;
     try
     {
         if(!HttpMethods.IsGet(http.Request.Method)&&!HttpMethods.IsHead(http.Request.Method)&&http.Request.Path.StartsWithSegments("/api"))
@@ -112,12 +113,15 @@ app.Use(async(http,next)=>
             var session=await db.Sessions.AsNoTracking().SingleOrDefaultAsync(s=>s.Hash==hash&&s.Expires>DateTime.UtcNow,http.RequestAborted);
             Validation.Require(session!=null,"Your session expired. Sign in again to continue.",401);db.CurrentUser=session!.UserId;
         }
+        if(HttpMethods.IsGet(http.Request.Method)&&http.Request.Path.StartsWithSegments("/api"))
+            readGate=await MutationLock.AcquireRead(http.RequestServices.GetRequiredService<AppDb>(),http.RequestAborted);
         await next();
     }
     catch(DomainException ex) { http.Response.StatusCode=ex.Status;await http.Response.WriteAsJsonAsync(new { message=ex.Message }); }
     catch(DbUpdateConcurrencyException) { http.Response.StatusCode=409;await http.Response.WriteAsJsonAsync(new { message="This workout changed on another device. Refresh to see the newer version before saving." }); }
     catch(DbUpdateException) { http.Response.StatusCode=409;await http.Response.WriteAsJsonAsync(new { message="This record conflicts with saved data. Refresh and review before retrying." }); }
     catch(System.Text.Json.JsonException) { http.Response.StatusCode=400;await http.Response.WriteAsJsonAsync(new { message="Invalid data format." }); }
+    finally { if(readGate is not null) await readGate.DisposeAsync(); }
 });
 app.UseRateLimiter();
 app.UseDefaultFiles();app.UseStaticFiles(new StaticFileOptions { OnPrepareResponse=c=> { if(c.File.Name=="sw.js"||c.File.Name=="index.html") c.Context.Response.Headers.CacheControl="no-cache"; } });

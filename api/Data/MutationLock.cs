@@ -32,4 +32,26 @@ public sealed class MutationLock : IAsyncDisposable
         if (transaction != null) await transaction.DisposeAsync();
         if (local) { local = false; LocalGate.Release(); }
     }
+
+    public static async Task<IAsyncDisposable> AcquireRead(AppDb db, CancellationToken ct)
+    {
+        if (!db.Database.IsSqlite()) return NoopLock.Instance;
+        await LocalGate.WaitAsync(ct);
+        return new ReadLock();
+    }
+
+    private sealed class ReadLock : IAsyncDisposable
+    {
+        public ValueTask DisposeAsync()
+        {
+            LocalGate.Release();
+            return ValueTask.CompletedTask;
+        }
+    }
+
+    private sealed class NoopLock : IAsyncDisposable
+    {
+        public static readonly NoopLock Instance = new();
+        public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+    }
 }
