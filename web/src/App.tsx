@@ -55,7 +55,7 @@ export default function App() {
   /// the preview is confirmed, so backing out leaves nothing behind.
   async function start(templateId: string) {
     setActionError('');
-    if (data!.activeWorkout) { setTraining(true); return; }
+    if (data!.activeWorkout?.active) { setTraining(true); return; }
     try { setPreview(await api.getTemplate(templateId)); }
     catch (failure) { setActionError(failure instanceof ApiError ? failure.message : 'That workout plan is no longer available. Refresh to see the current list.'); }
   }
@@ -117,13 +117,13 @@ export default function App() {
     <nav className="bottom-nav" aria-label="Mobile navigation">{NAV.map(item => <Button key={item.id} variant="tertiary" className={tab === item.id ? 'selected' : ''}
       aria-current={tab === item.id ? 'page' : undefined} onClick={() => setTab(item.id)}><item.icon size={20} /><span>{item.label}</span></Button>)}</nav>
 
-    {data.activeWorkout && !training && <Button className="resume-workout" variant="primary" onClick={() => setTraining(true)}>
+    {data.activeWorkout?.active && !training && <Button className="resume-workout" variant="primary" onClick={() => setTraining(true)}>
       <span className="status-dot" />Resume {data.activeWorkout.name}</Button>}
 
-    {training && data.activeWorkout && <Workout session={data.activeWorkout} preferences={data.preferences} exercises={data.exercises} queue={app.queue}
+    {training && data.activeWorkout?.active && <Workout session={data.activeWorkout} preferences={data.preferences} exercises={data.exercises} queue={app.queue}
       onSaved={app.setActiveWorkout} onClose={() => setTraining(false)}
-      onFinish={async session => { app.setActiveWorkout(null); setTraining(false); setDetail(session); setToast('Workout saved.'); await app.reload(); }}
-      onDiscard={async () => { app.setActiveWorkout(null); setTraining(false); await app.reload(); }} />}
+      onFinish={async session => { app.queue.clear(); app.setActiveWorkout(null); setTraining(false); setDetail(session); setToast('Workout saved.'); await app.reload(); }}
+      onDiscard={async () => { app.queue.clear(); app.setActiveWorkout(null); setTraining(false); await app.reload(); }} />}
 
     {preview && <StartPreview template={preview} busy={starting} onCancel={() => setPreview(null)} onConfirm={confirmStart} />}
     {detail && <SessionDetail session={detail} preferences={data.preferences} onClose={() => setDetail(null)} onDeleted={app.reload} />}

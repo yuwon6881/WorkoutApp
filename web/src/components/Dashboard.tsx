@@ -55,21 +55,21 @@ export function Dashboard({ data, onStart, onHistory, onProgram, onImport, onSes
       <div className="main-column">
         <section className="next-workout">
           <div className="hero-top">
-            <span className="eyebrow"><span className="status-dot" /> {data.activeWorkout ? 'Workout in progress' : next ? 'Up next' : 'No workout selected'}</span>
-            <span className="pill">{data.activeWorkout?.exercises.length ?? nextExerciseCount} exercises</span>
+            <span className="eyebrow"><span className="status-dot" /> {data.activeWorkout?.active ? 'Workout in progress' : next ? 'Up next' : 'No workout selected'}</span>
+            <span className="pill">{data.activeWorkout?.active ? data.activeWorkout.exercises.length : nextExerciseCount} exercises</span>
           </div>
           <div className="hero-content">
             <div>
-              <h2>{data.activeWorkout?.name ?? nextName ?? 'Choose a workout'}</h2>
-              <p>{data.activeWorkout ? 'In progress · pick up where you left off' : program ? `${program.name} · week ${nextWeek}` : next ? nextFocus : 'Import a program from a PDF, or build a workout by hand.'}</p>
+              <h2>{data.activeWorkout?.active ? data.activeWorkout.name : nextName ?? 'Choose a workout'}</h2>
+              <p>{data.activeWorkout?.active ? 'In progress · pick up where you left off' : program ? `${program.name} · week ${nextWeek}` : next ? nextFocus : 'Import a program from a PDF, or build a workout by hand.'}</p>
               <div className="hero-facts">
-                <span><Dumbbell size={15} />{data.activeWorkout ? data.activeWorkout.exercises.reduce((total, e) => total + e.sets.filter(s => !s.warmup).length, 0) : nextSets ?? nextExerciseCount} working sets</span>
+                <span><Dumbbell size={15} />{data.activeWorkout?.active ? data.activeWorkout.exercises.reduce((total, e) => total + e.sets.filter(s => !s.warmup).length, 0) : nextSets ?? nextExerciseCount} working sets</span>
               </div>
             </div>
             <div className="hero-art" aria-hidden="true"><div className="orbit orbit-one" /><div className="orbit orbit-two" /><Dumbbell strokeWidth={1.1} /><span className="art-spark">+</span></div>
           </div>
           <div className="hero-bottom">
-            {data.activeWorkout
+            {data.activeWorkout?.active
               ? <Button variant="primary" onClick={onResume}><Play size={17} fill="currentColor" />Resume workout<ArrowRight size={18} /></Button>
               : next
                 ? <Button variant="primary" onClick={() => onStart(next.id)}><Play size={17} fill="currentColor" />Start workout<ArrowRight size={18} /></Button>

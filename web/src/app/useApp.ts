@@ -81,7 +81,7 @@ export function useApp(): AppState {
   }, [patch, queue]);
 
   const setActiveWorkout = useCallback((session: Session | null) =>
-    patch(current => ({ ...current, activeWorkout: session })), [patch]);
+    patch(current => ({ ...current, activeWorkout: session?.active ? session : null })), [patch]);
 
   const signOut = useCallback(async () => {
     try { await api.logout(); } finally { queue.clear(); setData(null); setSignedOut(true); }

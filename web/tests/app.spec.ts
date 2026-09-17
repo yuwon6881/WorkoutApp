@@ -143,6 +143,7 @@ test('build a workout, log a set against the server, and see it in history', asy
   // a target of 8-12 leaves effort in the tank, so the app asks for one more rep at the same
   // load and says so in words rather than silently changing a number.
   await openTab(page, 'Workouts');
+  await expect(page.getByRole('heading', { name: 'Workouts', exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: /^Resume / })).toBeHidden();
   await page.locator('.routine-card').filter({ hasText: name }).getByRole('button', { name: 'Start workout', exact: true }).click();
   await page.getByRole('dialog', { name: `Start ${name}?`, exact: true }).getByRole('button', { name: 'Start workout', exact: true }).click();
