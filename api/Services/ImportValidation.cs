@@ -102,8 +102,10 @@ internal static class ImportValidation
         // The outline model owns the semantic boundaries. Never derive week ranges from a count
         // of training days: a three-day schedule and a seven-day schedule have different weeks.
         Validation.Require(source.Count is > 0 and <= 24, "This program has too many extraction chunks.", 422);
-        var result = source.Select(chunk => new ImportChunk(chunk.Label, chunk.Block, chunk.Phase, chunk.WeekFrom, chunk.WeekTo,
-            chunk.PageFrom, chunk.PageTo, chunk.DayCount)).ToList();
+        var result = source.Select((chunk, index) => new ImportChunk(
+            ImportNormalization.Label(chunk.Label, 200, $"Section {index + 1}"),
+            ImportNormalization.Text(chunk.Block, 80), ImportNormalization.Text(chunk.Phase, 120),
+            chunk.WeekFrom, chunk.WeekTo, chunk.PageFrom, chunk.PageTo, chunk.DayCount)).ToList();
         Validation.Require(result.Select(c => c.Label).Distinct(StringComparer.OrdinalIgnoreCase).Count() == result.Count,
             "AI returned duplicate extraction chunk labels.", 422);
         ValidateChunkRanges(result);

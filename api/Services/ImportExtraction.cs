@@ -146,10 +146,11 @@ public sealed partial class ImportService
         var alternatives = result.Outline!.Alternatives ?? [];
         if (alternatives.Count > 1)
         {
-            import.AlternativesJson = Json.Write(alternatives.Select(a => new ImportAlternative(a.Id, a.Name, a.Description,
+            import.AlternativesJson = Json.Write(alternatives.Select(a => new ImportAlternative(a.Id,
+                ImportNormalization.Label(a.Name, 200, a.Id), ImportNormalization.Text(a.Description, 4000),
                 a.Chunks.Count, a.Chunks.Sum(c => c.DayCount), a.Chunks.Select(ToImportChunk).ToList())).ToList());
             import.Stage = "select"; import.Status = ImportStatus.Pending; import.ChunksDone = 0; import.ChunksTotal = 0;
-            import.DraftJson = Json.Write(new ImportDraft(result.Outline.ProgramTitle, result.Outline.Description, []));
+            import.DraftJson = Json.Write(new ImportDraft(ProgramTitle(result.Outline.ProgramTitle, import.FileName), ImportNormalization.Text(result.Outline.Description, 4000), []));
             return;
         }
         var selected = alternatives.Count == 1 ? alternatives[0] : null;
@@ -157,7 +158,8 @@ public sealed partial class ImportService
         ValidateChunkPages(chunks, import.PageCoverageJson);
         import.SelectedAlternativeId = selected?.Id ?? "";
         import.OutlineJson = Json.Write(chunks);
-        import.DraftJson = Json.Write(new ImportDraft(selected?.Name ?? result.Outline.ProgramTitle, selected?.Description ?? result.Outline.Description, []));
+        import.DraftJson = Json.Write(new ImportDraft(ProgramTitle(selected?.Name ?? result.Outline.ProgramTitle, import.FileName),
+            ImportNormalization.Text(selected?.Description ?? result.Outline.Description, 4000), []));
         import.Stage = "extract"; import.Status = ImportStatus.Pending; import.ChunksDone = 0; import.ChunksTotal = chunks.Count;
         import.UnresolvedCount = 0; import.CatalogStale = false;
     }
@@ -175,13 +177,18 @@ public sealed partial class ImportService
             var chunks = SplitChunks(selected!.Chunks ?? []);
             ValidateChunkPages(chunks, import.PageCoverageJson);
             import.SelectedAlternativeId = selected.Id; import.OutlineJson = Json.Write(chunks);
-            import.DraftJson = Json.Write(new ImportDraft(selected.Name, selected.Description, []));
+            import.DraftJson = Json.Write(new ImportDraft(ProgramTitle(selected.Name, import.FileName), ImportNormalization.Text(selected.Description, 4000), []));
             import.Stage = "extract"; import.ChunksDone = 0; import.ChunksTotal = chunks.Count; import.Revision++;
             await db.SaveChangesAsync(ct); await gate.Commit(ct);
         }
         db.ChangeTracker.Clear();
         return await Get(id, ct);
     }
+
+    /// A program always has something to call itself on the review screen; the document's own
+    /// file name is a better stand-in than a blank field when the model returns no title.
+    private static string ProgramTitle(string? title, string fileName)
+        => ImportNormalization.Label(title, 120, Path.GetFileNameWithoutExtension(fileName) is { Length: > 0 } name ? name : "Imported program");
 
     private static ImportChunk ToImportChunk(AiOutlineChunk chunk)
         => new(chunk.Label, chunk.Block, chunk.Phase, chunk.WeekFrom, chunk.WeekTo, chunk.PageFrom, chunk.PageTo, chunk.DayCount);

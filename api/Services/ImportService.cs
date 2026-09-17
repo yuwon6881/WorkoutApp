@@ -99,18 +99,21 @@ public sealed partial class ImportService(AppDb db, WorkoutAi ai, CatalogService
                     var warmup = seed with { Warmup = true, RepsSource = "inferred", RpeSource = seed.TargetRpe == null ? "inferred" : seed.RpeSource };
                     working.InsertRange(0, Enumerable.Repeat(warmup, warmups));
                 }
-                var noteParts = new[] { source.Notes, source.CoachingNotes }.Where(s => !string.IsNullOrWhiteSpace(s)).Select(s => s!.Trim()).ToList();
-                var alternates = (source.Substitutions ?? []).Where(s => !string.IsNullOrWhiteSpace(s)).Select(s => s.Trim()).ToList();
+                var noteParts = new[] { ImportNormalization.Text(source.Notes, 1000), ImportNormalization.Text(source.CoachingNotes, 1000) }
+                    .Where(value => value is not null).Select(value => value!).ToList();
+                var alternates = ImportNormalization.Alternates(source.Substitutions);
                 // An exercise holds two substitutions. A program that lists four has still said
                 // something about the other two, so they are written into the note rather than
                 // dropped on the floor.
                 var substitutions = alternates.Take(2).ToList();
                 if (alternates.Count > 2) noteParts.Add($"Other alternates: {string.Join(", ", alternates.Skip(2))}");
-                exercises.Add(new DraftExercise(Guid.NewGuid(), source.SourceName.Trim(), id, Note(noteParts), working,
-                    source.SequenceGroup?.Trim() ?? "", substitutions, source.SourcePage));
+                exercises.Add(new DraftExercise(Guid.NewGuid(), ImportNormalization.Label(source.SourceName, 160, "Unnamed exercise"), id, Note(noteParts), working,
+                    ImportNormalization.Text(source.SequenceGroup, 8) ?? "", substitutions, source.SourcePage));
             }
         }
-        return new DraftWorkout(Guid.NewGuid(), week, name.Trim(), focus, notes, exercises, block, phase, phaseWeek, restDay, weekday, sourcePage);
+        return new DraftWorkout(Guid.NewGuid(), week, ImportNormalization.Label(name, 120, $"Week {week} day"),
+            ImportNormalization.Text(focus, 120), ImportNormalization.Text(notes, 2000), exercises,
+            ImportNormalization.Text(block, 80), ImportNormalization.Text(phase, 120), phaseWeek, restDay, weekday, sourcePage);
     }
 
     /// Joins what an exercise's note is made of, within the length a note can hold. Trimming the
@@ -124,12 +127,18 @@ public sealed partial class ImportService(AppDb db, WorkoutAi ai, CatalogService
 
     private static DraftSet ToDraftSet(AiSet set)
     {
-        var reps = DeriveReps(set.RepsText, set.RepMin, set.RepMax);
-        var rest = DeriveRest(set.RestText, set.RestSeconds);
+        // A stored set needs rep bounds, an RPE on the 1-10 half-point scale, and a rest inside
+        // an hour. A row written as a timed hold, an AMRAP finisher, or a high-to-low range gives
+        // none of those cleanly, so each value is brought into range and marked inferred when it
+        // had to move. What the page actually said stays verbatim in the text fields below.
+        var reps = ImportNormalization.Reps(set.RepMin, set.RepMax);
+        var rpeValue = ImportNormalization.Rpe(set.TargetRpe);
+        var restValue = ImportNormalization.Rest(DeriveRest(set.RestText, set.RestSeconds));
         var repsSource = set.RepsSource;
+        if (reps.Adjusted) repsSource = "inferred";
         if (!string.IsNullOrWhiteSpace(set.RepsText) && !Regex.IsMatch(set.RepsText.Trim(), @"^\d+\s*(?:[-–]\s*\d+)?$")) repsSource = "inferred";
-        var rpe = set.TargetRpe;
-        var rpeSource = set.RpeSource;
+        var rpe = rpeValue.Value;
+        var rpeSource = rpeValue.Adjusted ? "inferred" : set.RpeSource;
         if (rpe == null && TryFirstNumber(set.Rir, out var rir))
         {
             // RIR is useful evidence, but an out-of-range conversion is not a reason to invent a
@@ -137,17 +146,11 @@ public sealed partial class ImportService(AppDb db, WorkoutAi ai, CatalogService
             var inferred = 10 - rir;
             if (inferred is >= 6 and <= 10) { rpe = inferred; rpeSource = "inferred"; }
         }
-        return new DraftSet(reps.Min, reps.Max, rpe, rest, set.Tempo, set.LoadText, set.Notes,
-            repsSource, rpeSource, set.RestSource, NullIfBlank(set.RepsText), NullIfBlank(set.RestText), NullIfBlank(set.Percent1Rm), NullIfBlank(set.Rir), false, set.SourcePage);
-    }
-
-    private static (int Min, int Max) DeriveReps(string? text, int min, int max)
-    {
-        if (string.IsNullOrWhiteSpace(text)) return (min, max);
-        // AMRAP, dropsets (10+5), 21s (7/7/7), and similar notation stay in repsText. The
-        // numeric bounds supplied by the model remain the reviewable planning bounds; collapsing
-        // the notation into a made-up single target would change what the PDF says.
-        return (min, max);
+        return new DraftSet(reps.Min, reps.Max, rpe, restValue.Value,
+            ImportNormalization.Text(set.Tempo, 24), ImportNormalization.Text(set.LoadText, 60), ImportNormalization.Text(set.Notes, 400),
+            repsSource, rpeSource, restValue.Adjusted ? "inferred" : set.RestSource,
+            ImportNormalization.Text(set.RepsText, 40), ImportNormalization.Text(set.RestText, 24),
+            ImportNormalization.Text(set.Percent1Rm, 24), ImportNormalization.Text(set.Rir, 16), false, set.SourcePage);
     }
 
     private static int? DeriveRest(string? text, int? fallback)
@@ -156,7 +159,10 @@ public sealed partial class ImportService(AppDb db, WorkoutAi ai, CatalogService
         var numbers = NumberMatches(text).ToList();
         if (numbers.Count != 1 || !TryFirstNumber(text, out var number)) return fallback;
         var lower = text.ToLowerInvariant();
-        return (int)Math.Round(number * (lower.Contains("min") ? 60 : 1), MidpointRounding.AwayFromZero);
+        // A written rest is stated in seconds, minutes, or occasionally hours. Reading "2 hours"
+        // as two seconds would quietly turn a long rest into none at all.
+        var multiplier = lower.Contains("hour") || lower.Contains("hr") ? 3600 : lower.Contains("min") ? 60 : 1;
+        return (int)Math.Round(number * multiplier, MidpointRounding.AwayFromZero);
     }
 
     private static int ParseWarmupCount(string? text)
