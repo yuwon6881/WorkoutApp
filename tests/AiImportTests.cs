@@ -143,6 +143,9 @@ public class AiImportTests
         Assert.Equal("2", exercise.Sets[2].Rir);
         Assert.Equal(8, exercise.Sets[2].TargetRpe);
         Assert.Equal("inferred", exercise.Sets[2].RepsSource);
+        // Two AI reads: one outline pass and one chunk. Counted before accepting, because
+        // accepting removes the import row.
+        Assert.Equal(2, (await h.Db.Imports.AsNoTracking().SingleAsync()).Calls);
 
         var program = await imports.Accept(ready.Id, "Asia/Kuala_Lumpur", default);
         var workout = Assert.Single(program.Workouts);
@@ -158,7 +161,7 @@ public class AiImportTests
         Assert.False(program.Active);
         Assert.Equal(ProgramLifecycle.Standby, program.LifecycleStatus);
         Assert.Equal("Asia/Kuala_Lumpur", program.TimeZone);
-        Assert.Equal(2, (await h.Db.Imports.AsNoTracking().SingleAsync()).Calls);
+        Assert.Empty(await h.Db.Imports.AsNoTracking().ToListAsync());
     }
 
     [Fact] public async Task An_unmatched_exercise_stays_unresolved_but_does_not_block_acceptance()
@@ -244,7 +247,8 @@ public class AiImportTests
         var workout = Assert.Single(program.Workouts);
         Assert.Equal("Day A", workout.Name);
         Assert.Equal(new SetPrescription(8, 10, 8, 120, null, null, null, null, null, null, null, false, "extracted", "inferred", "extracted"), workout.Exercises.Single().Sets.Single());
-        Assert.Equal(ImportStatus.Accepted, (await imports.Get(view.Id, default)).Status);
+        // Accepting removes the import: the program it produced is the lasting record.
+        Assert.Equal(404, (await Assert.ThrowsAsync<DomainException>(() => imports.Get(view.Id, default))).Status);
     }
 
     [Fact] public async Task An_accepted_program_waits_its_turn_when_another_is_already_active()
@@ -274,17 +278,18 @@ public class AiImportTests
         Assert.Equal(1, stub.Calls);
     }
 
-    [Fact] public async Task A_failed_import_keeps_only_its_error_and_has_to_be_uploaded_again()
+    /// A failed import is removed outright. Its reason travels back in the response that reports
+    /// it, and nothing is kept for the user to find and clear later.
+    [Fact] public async Task A_failed_import_leaves_nothing_behind()
     {
         await using var h = await Harness.Create(Configured);
         await h.SignIn();
         var imports = h.Imports(new StubHandler(_ => new HttpResponseMessage(HttpStatusCode.InternalServerError) { Content = new StringContent("{}") }));
-        await Assert.ThrowsAsync<DomainException>(() => imports.Create(Pdf(), "block.pdf", default));
+        var failure = await Assert.ThrowsAsync<DomainException>(() => imports.Create(Pdf(), "block.pdf", default));
 
-        var row = await h.Db.Imports.AsNoTracking().SingleAsync();
-        Assert.Equal(ImportStatus.Failed, row.Status);
-        Assert.NotEmpty(row.Error);
-        Assert.Empty(row.DraftJson);
+        Assert.NotEmpty(failure.Message);
+        Assert.Empty(await h.Db.Imports.AsNoTracking().ToListAsync());
+        Assert.Empty(await imports.List(default));
     }
 
     [Fact] public async Task A_refusal_is_reported_rather_than_salvaged()
@@ -395,8 +400,10 @@ public class AiImportTests
         var imports = h.Imports(StubHandler.Program(OneWorkout));
         var view = await imports.Create(Pdf(), "block.pdf", default);
         await imports.Discard(view.Id, default);
+        // Discarding removes the import, so it is simply gone rather than a row in a refused state.
         var failure = await Assert.ThrowsAsync<DomainException>(() => imports.Accept(view.Id, default));
-        Assert.Equal(409, failure.Status);
+        Assert.Equal(404, failure.Status);
+        Assert.Empty(await h.Db.Imports.AsNoTracking().ToListAsync());
     }
 
     [Fact] public async Task The_request_carries_the_PDF_the_schema_and_no_stored_copy()

@@ -50,67 +50,6 @@ public sealed class RetentionTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task Terminal_imports_clear_heavy_json_and_delete_past_retention_window()
-    {
-        var user = await harness.SignIn();
-        var now = DateTime.UtcNow;
-
-        var oldTerminal = new AiImport
-        {
-            Id = Guid.NewGuid(),
-            UserId = user.Id,
-            Status = ImportStatus.Accepted,
-            DraftJson = "{\"sample\": true}",
-            OutlineJson = "[{\"week\": 1}]",
-            AlternativesJson = "[{\"id\": \"alt1\"}]",
-            PageCoverageJson = "[{\"page\": 1}]",
-            Created = now.AddDays(-20)
-        };
-
-        var recentTerminal = new AiImport
-        {
-            Id = Guid.NewGuid(),
-            UserId = user.Id,
-            Status = ImportStatus.Failed,
-            DraftJson = "{\"sample\": true}",
-            OutlineJson = "[{\"week\": 1}]",
-            AlternativesJson = "[{\"id\": \"alt1\"}]",
-            PageCoverageJson = "[{\"page\": 1}]",
-            Created = now.AddDays(-2)
-        };
-
-        var pendingImport = new AiImport
-        {
-            Id = Guid.NewGuid(),
-            UserId = user.Id,
-            Status = ImportStatus.Pending,
-            DraftJson = "{\"sample\": true}",
-            Created = now.AddDays(-20)
-        };
-
-        harness.Db.Imports.AddRange(oldTerminal, recentTerminal, pendingImport);
-        await harness.Db.SaveChangesAsync();
-
-        var imports = harness.Imports(new FakeHandler());
-        await imports.CleanupExpired(default);
-
-        var importsInDb = await harness.Db.Imports.IgnoreQueryFilters().ToListAsync();
-
-        // oldTerminal created 20 days ago (> 14 days) should be deleted
-        Assert.DoesNotContain(importsInDb, i => i.Id == oldTerminal.Id);
-
-        // recentTerminal created 2 days ago is kept, but its heavy JSON blobs must be cleared
-        var recent = Assert.Single(importsInDb, i => i.Id == recentTerminal.Id);
-        Assert.Equal("", recent.DraftJson);
-        Assert.Equal("", recent.OutlineJson);
-        Assert.Equal("[]", recent.AlternativesJson);
-        Assert.Equal("[]", recent.PageCoverageJson);
-
-        // pendingImport is not deleted by terminal age retention
-        Assert.Contains(importsInDb, i => i.Id == pendingImport.Id);
-    }
-
-    [Fact]
     public async Task MutationReceipts_older_than_retention_window_are_deleted()
     {
         var user = await harness.SignIn();
@@ -150,53 +89,34 @@ public sealed class RetentionTests : IAsyncLifetime
         Assert.Equal(recentUsage.Date, remaining[0].Date);
     }
 
+    /// Imports are unfinished work, not history: a finished one is deleted as it finishes and an
+    /// abandoned one is deleted by age. Neither is kept blank, because blanking a draft the user
+    /// has not reviewed destroys the very thing they came back for.
     [Fact]
-    public async Task Abandoned_ready_imports_are_cleaned_up_after_retention_window()
+    public async Task Abandoned_imports_are_deleted_by_age_and_recent_drafts_are_left_intact()
     {
         var user = await harness.SignIn();
         var now = DateTime.UtcNow;
-
-        var oldReady = new AiImport
+        var abandoned = new AiImport
         {
-            Id = Guid.NewGuid(),
-            UserId = user.Id,
-            Status = ImportStatus.Ready,
-            DraftJson = "{\"sample\": true}",
-            OutlineJson = "[{\"week\": 1}]",
-            AlternativesJson = "[{\"id\": \"alt1\"}]",
-            PageCoverageJson = "[{\"page\": 1}]",
-            Created = now.AddDays(-20)
+            Id = Guid.NewGuid(), UserId = user.Id, Status = ImportStatus.Ready,
+            DraftJson = "{\"sample\": true}", Created = now.AddDays(-120)
         };
-
-        var recentReady = new AiImport
+        var reviewable = new AiImport
         {
-            Id = Guid.NewGuid(),
-            UserId = user.Id,
-            Status = ImportStatus.Ready,
-            DraftJson = "{\"sample\": true}",
-            OutlineJson = "[{\"week\": 1}]",
-            AlternativesJson = "[{\"id\": \"alt1\"}]",
-            PageCoverageJson = "[{\"page\": 1}]",
-            Created = now.AddDays(-2)
+            Id = Guid.NewGuid(), UserId = user.Id, Status = ImportStatus.Ready,
+            DraftJson = "{\"sample\": true}", OutlineJson = "[{\"week\": 1}]", Created = now.AddDays(-2)
         };
-
-        harness.Db.Imports.AddRange(oldReady, recentReady);
+        harness.Db.Imports.AddRange(abandoned, reviewable);
         await harness.Db.SaveChangesAsync();
 
-        var imports = harness.Imports(new FakeHandler());
-        await imports.CleanupExpired(default);
+        await harness.Imports(new FakeHandler()).CleanupExpired(default);
 
-        var importsInDb = await harness.Db.Imports.IgnoreQueryFilters().ToListAsync();
-
-        // Old Ready import (20 days > 14 days retention) should be deleted
-        Assert.DoesNotContain(importsInDb, i => i.Id == oldReady.Id);
-
-        // Recent Ready import is kept but its heavy JSON blobs must be cleared
-        var recent = Assert.Single(importsInDb, i => i.Id == recentReady.Id);
-        Assert.Equal("", recent.DraftJson);
-        Assert.Equal("", recent.OutlineJson);
-        Assert.Equal("[]", recent.AlternativesJson);
-        Assert.Equal("[]", recent.PageCoverageJson);
+        var rows = await harness.Db.Imports.IgnoreQueryFilters().ToListAsync();
+        Assert.DoesNotContain(rows, i => i.Id == abandoned.Id);
+        var kept = Assert.Single(rows, i => i.Id == reviewable.Id);
+        Assert.Equal("{\"sample\": true}", kept.DraftJson);
+        Assert.Equal("[{\"week\": 1}]", kept.OutlineJson);
     }
 
     private sealed class FakeHandler : HttpMessageHandler

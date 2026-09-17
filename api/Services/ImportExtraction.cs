@@ -397,11 +397,10 @@ public sealed partial class ImportService
         {
             var import = await db.Imports.SingleOrDefaultAsync(i => i.Id == importId, settle);
             if (import is null || import.Status != ImportStatus.Pending) { await gate.Commit(settle); return; }
-            import.Status = ImportStatus.Failed; import.Error = message;
-            import.DraftJson = ""; import.OutlineJson = ""; import.AlternativesJson = "[]"; import.PageCoverageJson = "[]";
-            import.PendingDispatchChunk = null; import.PendingDispatchAt = null;
-            import.Revision++;
+            // A failed import leaves nothing worth keeping. The reason travels back in the response
+            // that reports it, so the row is removed instead of lingering in the list forever.
             release = TakeSource(import);
+            db.Imports.Remove(import);
             await db.SaveChangesAsync(settle);
             await gate.Commit(settle);
         }

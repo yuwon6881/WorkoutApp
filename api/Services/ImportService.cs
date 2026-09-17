@@ -17,10 +17,13 @@ public sealed partial class ImportService(AppDb db, WorkoutAi ai, CatalogService
     {
     }
 
+    /// Only work still in progress. A finished import is deleted rather than kept, so there is no
+    /// import history to list: the program it produced is the lasting record.
     public async Task<List<ImportView>> List(CancellationToken ct)
     {
-        var rows = await db.Imports.AsNoTracking().Where(i => i.Status != ImportStatus.Discarded)
-            .OrderByDescending(i => i.Created).Take(50).ToListAsync(ct);
+        var rows = await db.Imports.AsNoTracking()
+            .Where(i => i.Status == ImportStatus.Pending || i.Status == ImportStatus.Ready)
+            .OrderByDescending(i => i.Created).Take(10).ToListAsync(ct);
         var views = new List<ImportView>();
         foreach (var row in rows) views.Add(await View(row, includeDraft: false, ct));
         return views;
@@ -267,8 +270,9 @@ public sealed partial class ImportService(AppDb db, WorkoutAi ai, CatalogService
         // Imported drafts always enter Standby. Even a fully scheduled PDF must be explicitly
         // activated by the user so a mistaken import never displaces the current program.
         var program = await programs.Materialize(input, activate: false, sourceImportId: import.Id, ct);
-        import.Status = ImportStatus.Accepted; import.ProgramId = program.Id; import.Revision++;
-        import.DraftJson = ""; import.OutlineJson = ""; import.AlternativesJson = "[]"; import.PageCoverageJson = "[]";
+        // An import is working state, not history. Once its program exists the row has nothing
+        // left to say, so it is removed rather than kept as a record of what was imported.
+        db.Imports.Remove(import);
         await db.SaveChangesAsync(ct);
         await gate.Commit(ct);
         return await programs.Get(program.Id, ct);
@@ -281,11 +285,8 @@ public sealed partial class ImportService(AppDb db, WorkoutAi ai, CatalogService
         {
             var import = await db.Imports.SingleOrDefaultAsync(i => i.Id == id, ct);
             Validation.Require(import != null, "That import no longer exists.", 404);
-            Validation.Require(import!.Status != ImportStatus.Accepted, "An accepted program is removed from Programs, not here.", 409);
-            import.Status = ImportStatus.Discarded; import.DraftJson = ""; import.OutlineJson = "";
-            import.AlternativesJson = "[]"; import.PageCoverageJson = "[]"; import.Revision++;
-            import.PendingDispatchChunk = null; import.PendingDispatchAt = null;
-            release = TakeSource(import);
+            release = TakeSource(import!);
+            db.Imports.Remove(import!);
             await db.SaveChangesAsync(ct);
             await gate.Commit(ct);
         }
@@ -307,13 +308,9 @@ public sealed partial class ImportService(AppDb db, WorkoutAi ai, CatalogService
         foreach (var import in expired)
         {
             release.Add(TakeSource(import));
-            import.PendingDispatchChunk = null; import.PendingDispatchAt = null;
-            if (import.Status == ImportStatus.Pending)
-            {
-                import.Status = ImportStatus.Failed;
-                import.Error = "The temporary PDF expired before extraction finished. Upload it again.";
-                import.DraftJson = ""; import.OutlineJson = ""; import.AlternativesJson = "[]"; import.PageCoverageJson = "[]";
-            }
+            // An unfinished import whose source expired can never be completed, and there is no
+            // history to preserve it in.
+            if (import.Status == ImportStatus.Pending) db.Imports.Remove(import);
         }
         var uploads = await db.ImportUploads.IgnoreQueryFilters().Where(x => x.ExpiresAt < now).ToListAsync(ct);
         foreach (var upload in uploads)
@@ -322,29 +319,14 @@ public sealed partial class ImportService(AppDb db, WorkoutAi ai, CatalogService
             db.ImportUploads.Remove(upload);
         }
 
-        var terminalWithBlobs = await db.Imports.IgnoreQueryFilters()
-            .Where(i => (i.Status == ImportStatus.Accepted || i.Status == ImportStatus.Failed || i.Status == ImportStatus.Discarded || i.Status == ImportStatus.Ready) &&
-                        (i.DraftJson != "" || i.OutlineJson != "" || i.AlternativesJson != "[]" || i.PageCoverageJson != "[]"))
-            .Take(100)
-            .ToListAsync(ct);
-        foreach (var item in terminalWithBlobs)
-        {
-            item.DraftJson = "";
-            item.OutlineJson = "";
-            item.AlternativesJson = "[]";
-            item.PageCoverageJson = "[]";
-        }
-
-        if (expired.Count > 0 || uploads.Count > 0 || terminalWithBlobs.Count > 0)
-            await db.SaveChangesAsync(ct);
+        if (expired.Count > 0 || uploads.Count > 0) await db.SaveChangesAsync(ct);
         foreach (var key in release) await DeleteQuietly(key, ct);
 
+        // Only unfinished imports exist now, so an abandoned one is removed outright rather than
+        // blanked in place. Nothing here may grow without bound.
         var importDays = Math.Max(1, config?.GetValue("Retention:ImportDays", 30) ?? 30);
         var importCutoff = now.AddDays(-importDays);
-        await db.Imports.IgnoreQueryFilters()
-            .Where(i => (i.Status == ImportStatus.Accepted || i.Status == ImportStatus.Failed || i.Status == ImportStatus.Discarded || i.Status == ImportStatus.Ready) &&
-                        i.Created < importCutoff)
-            .ExecuteDeleteAsync(ct);
+        await db.Imports.IgnoreQueryFilters().Where(i => i.Created < importCutoff).ExecuteDeleteAsync(ct);
 
         await db.Sessions.Where(s => s.Expires < now).ExecuteDeleteAsync(ct);
 

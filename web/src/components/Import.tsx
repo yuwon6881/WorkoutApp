@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { AlertTriangle, ArrowLeft, Check, ChevronDown, FileText, Trash2, Upload, Wand2, X } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, Check, ChevronDown, Trash2, Upload, Wand2, X } from 'lucide-react';
 import type { DraftWorkout, Exercise, ImportDraft, ImportView } from '../types';
 import { ApiError, api } from '../lib/api';
 import { validateDraftWorkout, validateImportMetadata } from '../lib/validation';
@@ -8,15 +8,11 @@ import { Field, TextAreaField } from './ui/Field';
 import { DraftOutline } from './ImportDraftTree';
 import { useImportPipeline, type ImportFailure, type ImportProgress } from './useImportPipeline';
 
-function statusLabel(status: string) {
-  return { pending: 'Reading', ready: 'Ready to review', failed: 'Failed', accepted: 'Added to your programs' }[status] ?? 'Unknown status';
-}
-
 function stageLabel(view: ImportView) {
   if (view.stage === 'outline') return 'Reading the outline';
   if (view.stage === 'select') return 'Waiting for your choice';
   if (view.stage === 'extract') return `Section ${Math.min(view.chunksDone + 1, view.chunksTotal)} of ${view.chunksTotal}`;
-  return statusLabel(view.status);
+  return 'Reading';
 }
 
 /// One honest progress reading. A step with no measurable size stays indeterminate rather than
@@ -127,15 +123,6 @@ export function ImportReview({ exercises, imports, remaining, onBack, onChanged 
       {saveError && <p className="error-text" role="alert">{saveError}</p>}
       <p className="muted small-copy">The PDF becomes an editable draft before it can affect your workouts.</p>
     </section>
-
-    {imports.length > 0 && <section className="panel">
-      <div className="section-heading"><h2>Your imports</h2><span className="muted">{imports.length}</span></div>
-      {imports.map(view => <Button key={view.id} variant="tertiary" className={`history-row ${selected?.id === view.id ? 'selected' : ''}`} onClick={() => { setSaveError(''); pipeline.clearFailure(); setSelected(view); }}>
-        <span className="exercise-icon"><FileText size={19} /></span><span className="row-title"><strong>{view.fileName}</strong>
-          <small>{new Date(view.created).toLocaleString()} · {statusLabel(view.status)}{view.status === 'pending' ? ` · ${stageLabel(view)}` : ''}{view.error ? ` · ${view.error}` : ''}</small></span>
-        {view.status === 'ready' && <span className="tiny-label">{view.unresolvedCount ? `${view.unresolvedCount} unmapped` : 'Ready'}</span>}
-      </Button>)}
-    </section>}
 
     {selected && selected.status === 'pending' && <section className="panel">
       {selected.stage === 'select' && selected.alternatives?.length ? <div className="empty-message"><Wand2 size={30} /><h3>Choose a program</h3>
