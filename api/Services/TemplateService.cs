@@ -59,7 +59,10 @@ public sealed class TemplateService(AppDb db, CatalogService catalog)
     {
         var wanted = ids.Where(i => i != null).Select(i => i!.Value).Distinct().ToList();
         if (wanted.Count == 0) return [];
-        return await db.Exercises.AsNoTracking().Where(x => wanted.Contains(x.Id)).ToDictionaryAsync(x => x.Id, x => x.Name, ct);
+        var names = await db.Exercises.AsNoTracking().Where(x => wanted.Contains(x.Id)).ToDictionaryAsync(x => x.Id, x => x.Name, ct);
+        var custom = await db.CustomExercises.AsNoTracking().Where(x => wanted.Contains(x.Id)).ToListAsync(ct);
+        foreach (var row in custom) names[row.Id] = row.Name;
+        return names;
     }
 
     public async Task<TemplateView> Create(TemplateInput input, Guid? programId, int week, int position, CancellationToken ct)

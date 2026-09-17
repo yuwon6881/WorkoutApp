@@ -49,6 +49,22 @@ public sealed class Exercise
     public string MovementPattern { get; set; } = "";
 }
 
+/// Account-owned exercises extend the shared seed catalog without allowing one user to mutate
+/// or remove another user's library. Archived rows remain resolvable by historical workouts.
+public sealed class CustomExercise : OwnedRecord
+{
+    public string Name { get; set; } = "";
+    public string Muscle { get; set; } = "";
+    public string Equipment { get; set; } = "";
+    public string Cue { get; set; } = "";
+    public double LoadStepKg { get; set; } = 2.5;
+    public string LoadModel { get; set; } = "external";
+    public string MovementPattern { get; set; } = "";
+    public bool Archived { get; set; }
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime? ArchivedAt { get; set; }
+}
+
 public sealed class ExerciseAlias
 {
     public Guid Id { get; set; } = Guid.NewGuid();
@@ -244,6 +260,17 @@ public sealed class ExerciseProgress : OwnedRecord
     public double LastE1rmKg { get; set; }
     public int Stalls { get; set; }
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+}
+
+/// Audit marker for a user-requested exercise-history clear. The marker is intentionally small;
+/// it lets exports and support tooling explain why a finished session has no sets for the slot.
+public sealed class ExerciseHistoryClear : OwnedRecord
+{
+    public Guid ExerciseId { get; set; }
+    public string NameSnapshot { get; set; } = "";
+    public DateTime ClearedAt { get; set; } = DateTime.UtcNow;
+    public int RemovedSets { get; set; }
+    public int AffectedWorkouts { get; set; }
 }
 
 public sealed class AiImport : OwnedRecord

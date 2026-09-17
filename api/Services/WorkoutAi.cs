@@ -99,17 +99,32 @@ public sealed class WorkoutAi(HttpClient http, IConfiguration config)
     public const string PromptVersion = "workout-import-v2";
     // OpenAI documents this as a 50 MB combined request limit. Keep the decimal provider
     // boundary (rather than treating it as 50 MiB) and reserve room for the JSON envelope.
-    private const long MaxCombinedFileInputBytes = 50_000_000;
+    // It is configurable because a provider limit is not ours to hard-code forever, and because
+    // a test can then exercise the oversized path without building a 50 MB document.
+    private const long DefaultCombinedFileInputBytes = 50_000_000;
+    private long MaxCombinedFileInputBytes => config.GetValue("OpenAi:MaxVisualInputBytes", DefaultCombinedFileInputBytes);
+
+    /// Naming the pages whose images were not sent keeps the model from quietly treating a gap in
+    /// the text as a gap in the program.
+    private static string UnreadablePagesNote(IReadOnlyList<int> pages)
+        => $"\n\n[These pages carry no extractable text and their images were not attached: {string.Join(", ", pages.Take(60))}" +
+           $"{(pages.Count > 60 ? $", and {pages.Count - 60} more" : "")}. Do not invent content for them.]";
     private const int MaxVisualPages = 24;
 
     public async Task<AiOutlineResult> Outline(byte[] pdf, string fileName, IReadOnlyList<CatalogExercise> catalog, string safetyIdentifier, CancellationToken ct)
     {
         var documentText = ExtractPageText(pdf, 1, PdfInspection.MaxPages, 1_500_000);
         var coverage = PdfInspection.Coverage(pdf);
-        var hasScannedPages = coverage.Count > 0 && coverage.Any(page => !page.HasText);
-        var includeFile = string.IsNullOrWhiteSpace(documentText) || hasScannedPages;
-        if (includeFile && !VisualInputFits(pdf.Length))
-            throw new DomainException("This PDF is too large for one AI visual input and has no readable text. Provide a text-readable copy or split the scanned document into smaller files.", 422);
+        var scannedPages = coverage.Where(page => !page.HasText).Select(page => page.Page).ToList();
+        var hasText = !string.IsNullOrWhiteSpace(documentText);
+        // Images are worth sending when they fit, because a photo-only page can carry part of the
+        // program. They are not a reason to refuse a document that is too large to send whole:
+        // a written program lives in the text layer, and dropping the pictures reads it fine.
+        // Only a document with no text at all truly depends on the visual input.
+        var includeFile = (!hasText || scannedPages.Count > 0) && VisualInputFits(pdf.Length);
+        if (!includeFile && !hasText)
+            throw new DomainException("This PDF has no readable text and is too large to send as one AI visual input. Provide a text-readable copy or split the scanned document into smaller files.", 422);
+        if (!includeFile && scannedPages.Count > 0) documentText += UnreadablePagesNote(scannedPages);
         var result = await Call(pdf, fileName, catalog, safetyIdentifier, detail: "low", maxOutputTokens: 8000,
             "Return only the program outline and semantic extraction chunks. Detect separate alternative programs first; when alternatives exist, return each with its own chunks and do not mix them. Create one chunk per phase or unambiguous page section, keep each chunk at 80 days or fewer, and report the exact expected day count. Do not extract individual exercises in this pass.", OutlineSchema, "training_program_outline", ct,
             documentText, includeFile);
@@ -143,12 +158,19 @@ public sealed class WorkoutAi(HttpClient http, IConfiguration config)
         var rangeCoverage = pageFrom is { } coverageFrom && pageTo is { } coverageTo
             ? PdfInspection.Coverage(pdf).Where(page => page.Page >= coverageFrom && page.Page <= coverageTo).ToList()
             : [];
-        var includeFile = string.IsNullOrWhiteSpace(pageText) || rangeCoverage.Any(page => !page.HasText);
-        var visualPdf = includeFile ? BuildVisualSubset(pdf, pageFrom, pageTo) : pdf;
+        var scannedPages = rangeCoverage.Where(page => !page.HasText).Select(page => page.Page).ToList();
+        var hasText = !string.IsNullOrWhiteSpace(pageText);
+        var wantsFile = !hasText || scannedPages.Count > 0;
+        var visualPdf = wantsFile ? BuildVisualSubset(pdf, pageFrom, pageTo) : pdf;
+        // Same rule as the outline pass: the pictures are a bonus when they fit, and only a range
+        // with no text of its own actually needs them.
+        var includeFile = wantsFile && VisualInputFits(visualPdf.Length);
+        if (!includeFile && !hasText)
+            throw new DomainException("These pages have no readable text and are too large to send as one AI visual input. Provide a text-readable copy or split the scanned document into smaller files.", 422);
+        if (!includeFile) visualPdf = pdf;
         var visualName = includeFile && pageFrom is { } visualFrom && pageTo is { } visualTo && visualPdf.Length != pdf.Length
             ? $"{Path.GetFileNameWithoutExtension(fileName)}-pages-{visualFrom}-{visualTo}.pdf" : fileName;
-        if (includeFile && !VisualInputFits(visualPdf.Length))
-            throw new DomainException("This PDF is too large for one AI visual input and its selected pages have no readable text. Provide a text-readable copy or split the scanned document into smaller files.", 422);
+        if (!includeFile && scannedPages.Count > 0) pageText += UnreadablePagesNote(scannedPages);
         var result = await Call(visualPdf, visualName, catalog, safetyIdentifier, detail: "high", maxOutputTokens: 24000,
             chunkDirective + (visualPdf.Length != pdf.Length ? " The attached visual file contains only the requested pages; preserve original document page numbers in sourcePage." : ""), ContentSchema, "training_program_chunk", ct, pageText, includeFile);
         AiProgram program;
@@ -254,7 +276,7 @@ public sealed class WorkoutAi(HttpClient http, IConfiguration config)
         catch { return null; }
     }
 
-    private static bool VisualInputFits(int rawBytes)
+    private bool VisualInputFits(int rawBytes)
     {
         // Responses file_data is a base64 data URL. Leave room for the JSON envelope so the
         // provider's combined 50 MB input limit is never crossed by a nominally 50 MB PDF.
