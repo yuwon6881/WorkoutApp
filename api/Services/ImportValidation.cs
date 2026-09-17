@@ -23,6 +23,15 @@ internal static class ImportValidation
                     issues.Add(new ImportReviewIssue("rest_unspecified", $"{day.Name} contains a set without a stated rest; it will remain unspecified.", "warning", set.SourcePage ?? day.SourcePage));
             }
         }
+        foreach (var phase in GroupDraftPhases(draft.Workouts))
+        {
+            var weeks = phase.Select(day => day.Week).Distinct().OrderBy(week => week).ToList();
+            for (var index = 1; index < weeks.Count; index++)
+                if (weeks[index] != weeks[index - 1] + 1)
+                    issues.Add(new ImportReviewIssue("phase_week_gap",
+                        $"'{phase[0].Phase}' jumps from week {weeks[index - 1]} to week {weeks[index]}; check that nothing is missing.",
+                        "warning", phase[0].SourcePage));
+        }
         return issues;
     }
 
@@ -37,12 +46,11 @@ internal static class ImportValidation
         Validation.Require(scheduled.Count == scheduled.Distinct().Count(), "A program contains two workouts on the same weekday in one week.");
         foreach (var phase in GroupDraftPhases(draft.Workouts))
         {
+            // Phase weeks count from one inside their phase. Imported drafts are renumbered before
+            // they get here, so reaching this with a gap means an edit introduced one.
             var phaseWeeks = phase.Select(w => w.PhaseWeek).Distinct().OrderBy(value => value).ToList();
             Validation.Require(phaseWeeks.Count == 0 || phaseWeeks.Select((value, index) => value == index + 1).All(value => value),
                 $"Phase '{phase[0].Phase}' has a missing phase week. Review the outline before accepting it.", 422);
-            var absoluteWeeks = phase.Select(w => w.Week).Distinct().OrderBy(value => value).ToList();
-            Validation.Require(absoluteWeeks.Count == 0 || absoluteWeeks.SequenceEqual(Enumerable.Range(absoluteWeeks[0], absoluteWeeks[^1] - absoluteWeeks[0] + 1)),
-                $"Phase '{phase[0].Phase}' has a missing absolute week. Review the outline before accepting it.", 422);
         }
         foreach (var workout in draft.Workouts) await ValidateWorkout(workout, catalog, ct);
     }
@@ -72,6 +80,26 @@ internal static class ImportValidation
             }
             await catalog.RequireActive(exercise.ExerciseId, ct);
         }
+    }
+
+    /// Numbers each phase's weeks from one. A document regularly labels a phase — a deload week
+    /// most of all — while letting the block's week counter run on, so the phase arrives as "week
+    /// five of one week". That is a numbering convention, not a missing week: the phase's real
+    /// order is its absolute weeks, which are left exactly as the document stated them.
+    public static (List<DraftWorkout> Workouts, bool Renumbered) NormalizePhaseWeeks(List<DraftWorkout> workouts)
+    {
+        var mapped = new Dictionary<Guid, int>();
+        foreach (var phase in GroupDraftPhases(workouts))
+        {
+            var order = phase.Select(day => day.PhaseWeek).Distinct().OrderBy(week => week)
+                .Select((week, index) => (Week: week, Position: index + 1))
+                .ToDictionary(item => item.Week, item => item.Position);
+            foreach (var day in phase) mapped[day.LineId] = order[day.PhaseWeek];
+        }
+        if (!workouts.Any(day => mapped.TryGetValue(day.LineId, out var week) && week != day.PhaseWeek)) return (workouts, false);
+        return (workouts.Select(day => mapped.TryGetValue(day.LineId, out var week) && week != day.PhaseWeek
+            ? day with { PhaseWeek = week }
+            : day).ToList(), true);
     }
 
     public static List<List<DraftWorkout>> GroupDraftPhases(IEnumerable<DraftWorkout> workouts)

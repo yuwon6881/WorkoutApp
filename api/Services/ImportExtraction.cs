@@ -324,6 +324,16 @@ public sealed partial class ImportService
                         }
                         if (complete)
                         {
+                            // Every section has landed, so the phases are finally whole and their
+                            // weeks can be numbered from one within each of them.
+                            var numbered = NormalizePhaseWeeks(merged.Workouts);
+                            if (numbered.Renumbered)
+                            {
+                                merged = merged with { Workouts = numbered.Workouts };
+                                notices.Add(new ImportReviewIssue("phase_week_renumbered",
+                                    "Some phases continued the block's week numbering, so their weeks were numbered from one within each phase. The weeks themselves are unchanged.",
+                                    "warning", null));
+                            }
                             await ValidateDraft(merged, settle);
                             ValidateDraftPages(merged, import.PageCoverageJson);
                         }
