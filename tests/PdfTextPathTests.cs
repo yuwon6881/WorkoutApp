@@ -86,4 +86,15 @@ public sealed class PdfTextPathTests
         Assert.Equal(422, failure.Status);
         Assert.Contains("no readable text", failure.Message);
     }
+
+    /// A document the parser cannot open is not a document without text. Collapsing the two hid
+    /// the real reason a readable program was rejected.
+    [Fact]
+    public void An_unopenable_document_reports_why_rather_than_claiming_it_has_no_text()
+    {
+        var damaged = System.Text.Encoding.ASCII.GetBytes("%PDF-1.7 this is not actually a pdf body");
+
+        Assert.NotNull(PdfInspection.ReadFailure(damaged));
+        Assert.Null(PdfInspection.ReadFailure(IllustratedPdf(imagePages: 1)));
+    }
 }

@@ -34,14 +34,35 @@ public static partial class PdfInspection
 
     public static bool LooksLikePdf(byte[] bytes) => bytes.Length > 5 && Encoding.ASCII.GetString(bytes, 0, 5) == "%PDF-";
 
+    /// PdfPig refuses an encrypted document unless a password is supplied. Commercial training
+    /// PDFs are routinely owner-password protected to restrict printing and copying while staying
+    /// fully readable in a viewer, so the empty user password is offered before giving up.
+    /// Without this a perfectly readable program parses as nothing at all and is then reported,
+    /// wrongly, as having no text.
+    private static ParsingOptions ReadOptions => new() { Password = "", UseLenientParsing = true };
+
+    public static PdfDocument Open(byte[] bytes) => PdfDocument.Open(bytes, ReadOptions);
+
+    /// Null when the document parses, otherwise a short reason why it did not. Every parse failure
+    /// used to collapse into the same "no readable text" claim, which describes a scanned document
+    /// and sends everyone whose PDF failed for some other reason to fix the wrong thing.
+    public static string? ReadFailure(byte[] bytes)
+    {
+        try { using var document = Open(bytes); return null; }
+        catch (Exception ex)
+        {
+            var reason = $"{ex.GetType().Name}: {ex.Message}".ReplaceLineEndings(" ").Trim();
+            return reason.Length > 200 ? reason[..200] : reason;
+        }
+    }
+
     /// Prefer the PDF page tree. The marker fallback keeps malformed test fixtures and partially
     /// uploaded documents diagnosable without treating an unreadable document as valid content.
     public static int ApproximatePages(byte[] bytes)
     {
         try
         {
-            using var stream = new MemoryStream(bytes, writable: false);
-            using var document = PdfDocument.Open(stream);
+            using var document = Open(bytes);
             return document.NumberOfPages;
         }
         catch
@@ -54,8 +75,7 @@ public static partial class PdfInspection
     {
         try
         {
-            using var stream = new MemoryStream(bytes, writable: false);
-            using var document = PdfDocument.Open(stream);
+            using var document = Open(bytes);
             var coverage = new List<PdfPageCoverage>(document.NumberOfPages);
             for (var pageNumber = 1; pageNumber <= document.NumberOfPages; pageNumber++)
             {
@@ -123,7 +143,9 @@ public sealed class WorkoutAi(HttpClient http, IConfiguration config)
         // Only a document with no text at all truly depends on the visual input.
         var includeFile = (!hasText || scannedPages.Count > 0) && VisualInputFits(pdf.Length);
         if (!includeFile && !hasText)
-            throw new DomainException("This PDF has no readable text and is too large to send as one AI visual input. Provide a text-readable copy or split the scanned document into smaller files.", 422);
+            throw new DomainException(PdfInspection.ReadFailure(pdf) is { } reason
+                ? $"This PDF could not be opened, so none of its text could be read. Printing to a new PDF usually clears this. Reason: {reason}"
+                : "This PDF has no readable text and is too large to send as one AI visual input. Provide a text-readable copy or split the scanned document into smaller files.", 422);
         if (!includeFile && scannedPages.Count > 0) documentText += UnreadablePagesNote(scannedPages);
         var result = await Call(pdf, fileName, catalog, safetyIdentifier, detail: "low", maxOutputTokens: 8000,
             "Return only the program outline and semantic extraction chunks. Detect separate alternative programs first; when alternatives exist, return each with its own chunks and do not mix them. Create one chunk per phase or unambiguous page section, keep each chunk at 80 days or fewer, and report the exact expected day count. Do not extract individual exercises in this pass.", OutlineSchema, "training_program_outline", ct,
@@ -263,8 +285,7 @@ public sealed class WorkoutAi(HttpClient http, IConfiguration config)
     {
         try
         {
-            using var stream = new MemoryStream(pdf, writable: false);
-            using var document = PdfDocument.Open(stream);
+            using var document = PdfInspection.Open(pdf);
             var from = Math.Max(1, pageFrom); var to = Math.Min(document.NumberOfPages, pageTo);
             if (from > to) return null;
             var pages = Enumerable.Range(from, to - from + 1)
@@ -290,8 +311,7 @@ public sealed class WorkoutAi(HttpClient http, IConfiguration config)
             return pdf;
         try
         {
-            using var stream = new MemoryStream(pdf, writable: false);
-            using var document = PdfDocument.Open(stream);
+            using var document = PdfInspection.Open(pdf);
             if (to > document.NumberOfPages) return pdf;
             var builder = new PdfDocumentBuilder();
             for (var page = from; page <= to; page++) builder.AddPage(document, page);
