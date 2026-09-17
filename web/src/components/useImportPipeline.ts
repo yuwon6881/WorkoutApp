@@ -4,6 +4,9 @@ import { ApiError, api } from '../lib/api';
 
 export const MAX_IMPORT_BYTES = 150 * 1024 * 1024;
 const RESUMABLE_THRESHOLD = 8 * 1024 * 1024;
+/// Cloud Run caps a single request body at 32 MiB, so a direct post is only a usable fallback
+/// below that. Larger files have no choice but the resumable session.
+const DIRECT_POST_LIMIT = 30 * 1024 * 1024;
 const POLL_MS = 4000;
 
 /// `percent` is null while the step has no measurable size, so the bar can stay indeterminate
@@ -117,7 +120,16 @@ export function useImportPipeline({ selected, setSelected, setDraft, onChanged }
             setProgress({ label: 'Uploading the PDF', detail: chosen.name, percent: Math.round((offset / chosen.size) * 100) });
           }
           setProgress({ label: 'Reading the program outline', detail: chosen.name, percent: null });
-          view = await api.completeImportUpload(session.id);
+          try {
+            view = await api.completeImportUpload(session.id);
+          } catch (completion) {
+            // The assembled upload could not be read back. This browser still holds the file, so
+            // posting it directly is a real second chance instead of making the user start over.
+            if (chosen.size > DIRECT_POST_LIMIT) throw completion;
+            await api.cancelImportUpload(session.id).catch(() => { /* the expiry sweep clears it */ });
+            setProgress({ label: 'Retrying the upload directly', detail: chosen.name, percent: null });
+            view = await api.uploadImport(chosen);
+          }
         } else {
           setProgress({ label: 'Reading the program outline', detail: chosen.name, percent: null });
           view = await api.uploadImport(chosen);

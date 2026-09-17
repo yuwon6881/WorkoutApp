@@ -55,7 +55,12 @@ public sealed class TransientImportFileStore(IConfiguration config) : IImportFil
     public async Task<byte[]> Read(string key, CancellationToken ct)
     {
         var full = Resolve(key);
-        if (!File.Exists(full)) throw new DomainException("The temporary PDF has expired. Upload it again.", 410);
+        // A resumable part and an import source fail for different reasons and need different
+        // instructions: one asks for the upload to be started again, the other for the PDF.
+        if (!File.Exists(full)) throw new DomainException(
+            full.EndsWith(".part", StringComparison.OrdinalIgnoreCase)
+                ? "That upload did not finish storing. Start the upload again."
+                : "The temporary PDF has expired. Upload it again.", 410);
         return await File.ReadAllBytesAsync(full, ct);
     }
 
@@ -115,17 +120,30 @@ public sealed class GcsImportFileStore(IConfiguration config, HttpClient http) :
         request.Content = new ByteArrayContent(bytes);
         request.Content.Headers.ContentType = new MediaTypeHeaderValue("application/pdf");
         using var response = await http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct);
-        Validation.Require(response.IsSuccessStatusCode || (int)response.StatusCode == 308,
-            "The cloud upload rejected this chunk. Retry the same chunk.", 503);
+        // 308 means "resume incomplete" and is the only correct answer to a chunk that is not the
+        // last one. Accepting it for the final chunk would leave the session unfinalised: no object
+        // is created, and the completion read would later report a perfectly good upload as an
+        // expired PDF. The last chunk therefore has to be acknowledged as stored.
+        var final = offset + bytes.Length >= totalBytes;
+        Validation.Require(final ? response.IsSuccessStatusCode : (response.IsSuccessStatusCode || (int)response.StatusCode == 308),
+            final ? "The cloud storage did not finish this upload. Start the upload again." : "The cloud upload rejected this chunk. Retry the same chunk.",
+            final ? 410 : 503);
     }
 
     public async Task<byte[]> Read(string key, CancellationToken ct)
     {
-        var (_, objectName) = ParseObject(key);
+        var (session, objectName) = ParseObject(key);
         await using var stream = new MemoryStream();
         try { await (await client.Value).DownloadObjectAsync(bucket, objectName, stream, cancellationToken: ct); }
         catch (Google.GoogleApiException ex) when (ex.HttpStatusCode == HttpStatusCode.NotFound)
-        { throw new DomainException("The temporary PDF has expired. Upload it again.", 410); }
+        {
+            // A missing resumable part is an unfinished upload, not an expired import source.
+            // Saying "the temporary PDF has expired" here sends the user to re-upload a file the
+            // importer never actually accepted.
+            throw session is null
+                ? new DomainException("The temporary PDF has expired. Upload it again.", 410)
+                : new DomainException("That upload did not finish storing. Start the upload again.", 410);
+        }
         return stream.ToArray();
     }
 
