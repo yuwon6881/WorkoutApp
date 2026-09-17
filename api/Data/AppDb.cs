@@ -10,7 +10,6 @@ public sealed class AppDb(DbContextOptions<AppDb> options) : DbContext(options)
     public DbSet<AppUser> Users => Set<AppUser>();
     public DbSet<AuthSession> Sessions => Set<AuthSession>();
     public DbSet<Exercise> Exercises => Set<Exercise>();
-    public DbSet<CustomExercise> CustomExercises => Set<CustomExercise>();
     public DbSet<ExerciseAlias> Aliases => Set<ExerciseAlias>();
     public DbSet<TrainingProgram> Programs => Set<TrainingProgram>();
     public DbSet<ProgramPhase> ProgramPhases => Set<ProgramPhase>();
@@ -21,7 +20,6 @@ public sealed class AppDb(DbContextOptions<AppDb> options) : DbContext(options)
     public DbSet<SessionExercise> SessionExercises => Set<SessionExercise>();
     public DbSet<CompletedSet> Sets => Set<CompletedSet>();
     public DbSet<ExerciseProgress> Progress => Set<ExerciseProgress>();
-    public DbSet<ExerciseHistoryClear> ExerciseHistoryClears => Set<ExerciseHistoryClear>();
     public DbSet<AiImport> Imports => Set<AiImport>();
     public DbSet<ImportUpload> ImportUploads => Set<ImportUpload>();
     public DbSet<AiUsage> Usage => Set<AiUsage>();
@@ -61,24 +59,12 @@ public sealed class AppDb(DbContextOptions<AppDb> options) : DbContext(options)
             t.HasCheckConstraint("CK_Exercises_LoadStep", "\"LoadStepKg\" >= 0 AND \"LoadStepKg\" <= 50");
             t.HasCheckConstraint("CK_Exercises_LoadModel", "\"LoadModel\" IN ('external','full_bodyweight','bodyweight_context_only','reps_only')");
         });
-        Configure<CustomExercise>(m);
-        m.Entity<CustomExercise>().Property(x => x.Name).HasMaxLength(160);
-        m.Entity<CustomExercise>().Property(x => x.LoadStepKg).HasDefaultValue(2.5);
-        m.Entity<CustomExercise>().Property(x => x.LoadModel).HasDefaultValue("external");
-        m.Entity<CustomExercise>().ToTable("CustomExercises", t =>
-        {
-            t.HasCheckConstraint("CK_CustomExercises_LoadStep", "\"LoadStepKg\" >= 0 AND \"LoadStepKg\" <= 50");
-            t.HasCheckConstraint("CK_CustomExercises_LoadModel", "\"LoadModel\" IN ('external','full_bodyweight','bodyweight_context_only','reps_only')");
-        });
-        m.Entity<CustomExercise>().HasIndex(x => new { x.UserId, x.Name }).IsUnique();
         m.Entity<ExerciseAlias>().HasIndex(x => x.Normalized).IsUnique();
         m.Entity<ExerciseAlias>().HasOne<Exercise>().WithMany().HasForeignKey(x => x.ExerciseId).OnDelete(DeleteBehavior.Cascade);
 
         Configure<TrainingProgram>(m); Configure<ProgramPhase>(m); Configure<ProgramSkip>(m); Configure<WorkoutTemplate>(m); Configure<TemplateExercise>(m);
         Configure<WorkoutSession>(m); Configure<SessionExercise>(m); Configure<CompletedSet>(m); Configure<ExerciseSubstitution>(m); Configure<AiImport>(m); Configure<ImportUpload>(m);
-        Configure<ExerciseProgress>(m); Configure<ExerciseHistoryClear>(m); Configure<NutritionContextCache>(m); Configure<IntegrationGrant>(m);
-        m.Entity<ExerciseHistoryClear>().HasIndex(x => new { x.UserId, x.ExerciseId, x.ClearedAt });
-        m.Entity<ExerciseHistoryClear>().Property(x => x.NameSnapshot).HasMaxLength(160);
+        Configure<ExerciseProgress>(m); Configure<NutritionContextCache>(m); Configure<IntegrationGrant>(m);
         m.Entity<IntegrationGrant>().HasIndex(x => new { x.UserId, x.Peer }).IsUnique();
         m.Entity<NutritionContextCache>().HasIndex(x => x.UserId).IsUnique();
         m.Entity<SessionExercise>().Property(x => x.LoadModel).HasDefaultValue(LoadModels.External);
