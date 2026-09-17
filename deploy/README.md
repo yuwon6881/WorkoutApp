@@ -36,8 +36,8 @@ size of 10. Runtime uses the `-pooler` hostname; migrations use its direct count
 `ConnectionSettings.Direct` derives. No secret belongs in Vite variables or source control.
 
 The application database is `workout` in the `WorkoutApp` Neon project. Neon’s provider-created
-`neondb` and `postgres` databases are not application targets; `neondb` is empty and is retained
-only until the exact cleanup action is separately confirmed.
+`neondb` and `postgres` databases are not application targets. The unused provider-created
+`neondb` database was removed on 2026-09-17; `workout` remains the sole application database.
 
 For production PDF retention, `_IMPORT_BUCKET` is set to `workout-imports-396431756440` in Cloud
 Build (or set `ImportStorage__Bucket` on both Cloud Run services). The bucket is private, uniform

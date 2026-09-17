@@ -1,4 +1,4 @@
-﻿using System.Net;
+using System.Net;
 using Microsoft.EntityFrameworkCore;
 using Workout.Api.Data;
 using Workout.Api.Domain;
@@ -148,6 +148,55 @@ public sealed class RetentionTests : IAsyncLifetime
         var remaining = await harness.Db.Usage.IgnoreQueryFilters().ToListAsync();
         Assert.Single(remaining);
         Assert.Equal(recentUsage.Date, remaining[0].Date);
+    }
+
+    [Fact]
+    public async Task Abandoned_ready_imports_are_cleaned_up_after_retention_window()
+    {
+        var user = await harness.SignIn();
+        var now = DateTime.UtcNow;
+
+        var oldReady = new AiImport
+        {
+            Id = Guid.NewGuid(),
+            UserId = user.Id,
+            Status = ImportStatus.Ready,
+            DraftJson = "{\"sample\": true}",
+            OutlineJson = "[{\"week\": 1}]",
+            AlternativesJson = "[{\"id\": \"alt1\"}]",
+            PageCoverageJson = "[{\"page\": 1}]",
+            Created = now.AddDays(-20)
+        };
+
+        var recentReady = new AiImport
+        {
+            Id = Guid.NewGuid(),
+            UserId = user.Id,
+            Status = ImportStatus.Ready,
+            DraftJson = "{\"sample\": true}",
+            OutlineJson = "[{\"week\": 1}]",
+            AlternativesJson = "[{\"id\": \"alt1\"}]",
+            PageCoverageJson = "[{\"page\": 1}]",
+            Created = now.AddDays(-2)
+        };
+
+        harness.Db.Imports.AddRange(oldReady, recentReady);
+        await harness.Db.SaveChangesAsync();
+
+        var imports = harness.Imports(new FakeHandler());
+        await imports.CleanupExpired(default);
+
+        var importsInDb = await harness.Db.Imports.IgnoreQueryFilters().ToListAsync();
+
+        // Old Ready import (20 days > 14 days retention) should be deleted
+        Assert.DoesNotContain(importsInDb, i => i.Id == oldReady.Id);
+
+        // Recent Ready import is kept but its heavy JSON blobs must be cleared
+        var recent = Assert.Single(importsInDb, i => i.Id == recentReady.Id);
+        Assert.Equal("", recent.DraftJson);
+        Assert.Equal("", recent.OutlineJson);
+        Assert.Equal("[]", recent.AlternativesJson);
+        Assert.Equal("[]", recent.PageCoverageJson);
     }
 
     private sealed class FakeHandler : HttpMessageHandler
