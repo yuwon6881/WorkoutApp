@@ -45,9 +45,21 @@ async function openTab(page: Page, name: string) {
   await page.locator('.motion-scene').evaluate(el => Promise.all(el.getAnimations().map(a => a.finished))).catch(() => {});
 }
 
-async function openStartPreview(startButton: import('@playwright/test').Locator, preview: import('@playwright/test').Locator) {
+async function openStartPreview(page: Page, startButton: import('@playwright/test').Locator, preview: import('@playwright/test').Locator) {
+  const templateResponse = page.waitForResponse(response => response.request().method() === 'GET' && /\/api\/templates\/[0-9a-f-]+$/i.test(new URL(response.url()).pathname), { timeout: 15000 }).catch(() => null);
   await startButton.click({ force: true });
-  await expect(preview).toBeVisible({ timeout: 15000 });
+  try {
+    const response = await templateResponse;
+    if (response && !response.ok()) throw new Error(`Template preview request failed with ${response.status()}: ${await response.text()}`);
+    await expect(preview).toBeVisible({ timeout: 15000 });
+  } catch (failure) {
+    const state = await page.evaluate(() => ({
+      alerts: [...document.querySelectorAll('[role="alert"]')].map(element => element.textContent),
+      dialogs: [...document.querySelectorAll('dialog')].map(dialog => ({ open: dialog.open, label: dialog.getAttribute('aria-label'), text: dialog.textContent?.slice(0, 200) }))
+    }));
+    console.log(`Start preview diagnostic: ${JSON.stringify(state)}`);
+    throw failure;
+  }
 }
 
 test.describe.configure({ mode: 'serial' });
@@ -76,7 +88,7 @@ test('build a workout, log a set against the server, and see it in history', asy
   const preview = page.getByRole('dialog', { name: `Start ${name}?`, exact: true });
   const startBtn = page.locator('.routine-card').filter({ hasText: name }).getByRole('button', { name: 'Start workout', exact: true });
   await startBtn.evaluate(el => el.scrollIntoView({ block: 'center', inline: 'nearest' }));
-  await openStartPreview(startBtn, preview);
+  await openStartPreview(page, startBtn, preview);
 
   // The plan is previewed first; nothing is created until it is confirmed.
   await expect(preview.getByText('Barbell bench press', { exact: true })).toBeVisible();
@@ -84,7 +96,7 @@ test('build a workout, log a set against the server, and see it in history', asy
   await expect(preview).toBeHidden();
   expect(await doneSetsOnServer(page)).toBe(0);
 
-  await openStartPreview(startBtn, preview);
+  await openStartPreview(page, startBtn, preview);
   await preview.getByRole('button', { name: 'Start workout', exact: true }).click();
   const logger = page.getByRole('dialog', { name, exact: true });
   await expect(logger).toBeVisible();
@@ -159,7 +171,7 @@ test('build a workout, log a set against the server, and see it in history', asy
     return Promise.all(document.getAnimations().map(a => a.finished));
   });
   const againPreview = page.getByRole('dialog', { name: `Start ${name}?`, exact: true });
-  await openStartPreview(againStartBtn, againPreview);
+  await openStartPreview(page, againStartBtn, againPreview);
   await againPreview.getByRole('button', { name: 'Start workout', exact: true }).click();
   const again = page.getByRole('dialog', { name, exact: true });
   await expect(again.locator('.progression-note')).toContainText('one more rep');
