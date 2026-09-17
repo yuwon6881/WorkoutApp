@@ -3,10 +3,12 @@ import type { ImportDraft, ImportView } from '../types';
 import { ApiError, api } from '../lib/api';
 
 export const MAX_IMPORT_BYTES = 150 * 1024 * 1024;
-const RESUMABLE_THRESHOLD = 8 * 1024 * 1024;
-/// Cloud Run caps a single request body at 32 MiB, so a direct post is only a usable fallback
-/// below that. Larger files have no choice but the resumable session.
-const DIRECT_POST_LIMIT = 30 * 1024 * 1024;
+/// This app reaches its API through the Vercel rewrite, which rejects or stalls a request body
+/// over roughly 4.5 MB. Anything that would not comfortably fit in one body goes through the
+/// resumable session instead, and a direct post is only ever a fallback below the same ceiling —
+/// Cloud Run's own 32 MiB limit never applies, because the proxy is the narrower hop.
+const RESUMABLE_THRESHOLD = 3 * 1024 * 1024;
+const DIRECT_POST_LIMIT = RESUMABLE_THRESHOLD;
 const POLL_MS = 4000;
 
 /// `percent` is null while the step has no measurable size, so the bar can stay indeterminate

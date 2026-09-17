@@ -8,7 +8,10 @@ namespace Workout.Api.Services;
 /// dropped connection resumes at the next chunk instead of restarting a 150 MiB transfer.
 public sealed partial class ImportService
 {
-    public const int UploadChunkBytes = 4 * 1024 * 1024;
+    /// The browser reaches this API through the Vercel rewrite in `web/vercel.json`, and that proxy
+    /// rejects or stalls a request body over roughly 4.5 MB. Chunks stay well under it: a 4 MiB
+    /// chunk sat on the limit once headers were counted and hung mid-upload instead of failing.
+    public const int UploadChunkBytes = 2 * 1024 * 1024;
 
     public async Task<ImportUploadView> InitiateUpload(string fileName, long expectedBytes, CancellationToken ct)
     {
