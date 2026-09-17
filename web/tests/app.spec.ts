@@ -181,8 +181,19 @@ test('import a PDF program, preserve an unmapped exercise, and accept it', async
   await page.getByRole('button', { name: 'Import a PDF program', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Import a program' })).toBeVisible();
 
+  // The server answers the first section as though it no longer held the PDF. The browser still
+  // has the file the user picked, so the read has to continue from it rather than stopping on
+  // "The temporary PDF has expired" with nothing left to press.
+  let expired = false;
+  await page.route('**/api/imports/*/extract', async route => {
+    if (expired) return route.continue();
+    expired = true;
+    await route.fulfill({ status: 410, contentType: 'application/json', body: JSON.stringify({ message: 'The temporary PDF has expired. Upload it again.' }) });
+  });
+
   await page.getByLabel('Program PDF').setInputFiles({ name: 'block.pdf', mimeType: 'application/pdf', buffer: pdf(3, testInfo.project.name) });
   await expect(page.getByRole('heading', { name: 'Review' })).toBeVisible({ timeout: 60000 });
+  expect(expired).toBe(true);
   await page.screenshot({ path: `artifacts/${testInfo.project.name}-import-review.png`, fullPage: true });
 
   // Every value carries where it came from, and the rep range from the PDF is preserved.

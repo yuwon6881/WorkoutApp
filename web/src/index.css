@@ -193,6 +193,16 @@ input::file-selector-button{font-size:var(--font-secondary)!important}
 .workout-help summary svg{transition:transform .18s ease}
 .workout-help[open] summary svg{transform:rotate(180deg)}
 .workout-help p{padding:4px 0 2px}
+.import-progress{display:grid;gap:6px;margin:14px 0 4px;width:100%}
+.import-progress-line{display:flex;align-items:baseline;justify-content:space-between;gap:12px;font-size:var(--font-secondary)}
+.import-progress-label{color:var(--text);font-weight:600}
+.import-progress-percent{color:var(--muted);font-variant-numeric:tabular-nums}
+.import-progress-track{height:4px;border-radius:999px;background:var(--border);overflow:hidden}
+.import-progress-fill{height:100%;width:100%;background:var(--accent);border-radius:999px;transition:width .3s ease}
+.import-progress-track.indeterminate .import-progress-fill{width:40%;animation:import-sweep 1.4s ease-in-out infinite}
+@keyframes import-sweep{0%{transform:translateX(-100%)}100%{transform:translateX(250%)}}
+.import-failure-message{flex:1 1 200px;min-width:0}
+.import-failure-actions{display:flex;gap:8px;margin-left:auto;flex-wrap:wrap}
 .import-details{margin-top:14px;border-top:1px solid var(--border);padding-top:8px}
 .import-details summary{display:flex;align-items:center;gap:7px;cursor:pointer;min-height:44px;color:var(--muted);font-size:var(--font-secondary);list-style:none}
 .import-details summary::-webkit-details-marker{display:none}

@@ -8,7 +8,7 @@ using Workout.Api.Domain;
 
 namespace Workout.Api.Services;
 
-public sealed class ImportService(AppDb db, WorkoutAi ai, CatalogService catalog, ProgramService programs, IImportFileStore files, IImportJobDispatcher? jobs = null, IConfiguration? config = null)
+public sealed partial class ImportService(AppDb db, WorkoutAi ai, CatalogService catalog, ProgramService programs, IImportFileStore files, IImportJobDispatcher? jobs = null, IConfiguration? config = null)
 {
     // The original public constructor remains available to direct callers while the app container
     // supplies the configured GCS or transient store through the primary constructor.
@@ -16,9 +16,6 @@ public sealed class ImportService(AppDb db, WorkoutAi ai, CatalogService catalog
         : this(db, ai, catalog, programs, new TransientImportFileStore(new ConfigurationBuilder().Build()), null, new ConfigurationBuilder().Build())
     {
     }
-
-    public const int DailyLimit = 150;
-    public const int UploadChunkBytes = 4 * 1024 * 1024;
 
     public async Task<List<ImportView>> List(CancellationToken ct)
     {
@@ -61,301 +58,6 @@ public sealed class ImportService(AppDb db, WorkoutAi ai, CatalogService catalog
     public static List<UnresolvedExercise> Unresolved(ImportDraft draft) => ImportValidation.Unresolved(draft);
 
     private static List<ImportReviewIssue> ReviewIssues(ImportDraft draft) => ImportValidation.ReviewIssues(draft);
-
-    public async Task<ImportUploadView> InitiateUpload(string fileName, long expectedBytes, CancellationToken ct)
-    {
-        Validation.Require(expectedBytes is > 0 and <= PdfInspection.MaxBytes, "That PDF must be between 1 byte and 150 MiB.", 413);
-        Validation.Name(fileName, "File name", 200);
-        Validation.Require(fileName.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase), "Choose a PDF file.");
-        await using var gate = await MutationLock.Acquire(db, db.CurrentUser, ct);
-        var upload = new ImportUpload { UserId = db.CurrentUser!.Value, FileName = fileName.Trim(), ExpectedBytes = expectedBytes };
-        db.ImportUploads.Add(upload);
-        upload.SourceFileKey = await files.StartUpload(upload.UserId, upload.Id, upload.ExpectedBytes, ct);
-        await db.SaveChangesAsync(ct); await gate.Commit(ct);
-        return ToUploadView(upload);
-    }
-
-    public async Task<ImportUploadView> AppendUpload(Guid id, long offset, byte[] bytes, CancellationToken ct)
-    {
-        Validation.Require(bytes.Length > 0 && bytes.Length <= UploadChunkBytes, $"Upload chunks must be between 1 and {UploadChunkBytes / (1024 * 1024)} MiB.", 413);
-        await using var gate = await MutationLock.Acquire(db, db.CurrentUser, ct);
-        var upload = await db.ImportUploads.SingleOrDefaultAsync(x => x.Id == id, ct);
-        Validation.Require(upload != null, "That upload session has expired. Start the upload again.", 404);
-        Validation.Require(upload!.Status == "open" && upload.ExpiresAt > DateTime.UtcNow, "That upload session has expired. Start the upload again.", 410);
-        Validation.Require(offset == upload.ReceivedBytes, "The upload offset is stale; refresh the upload and retry the next chunk.", 409);
-        Validation.Require(upload.ReceivedBytes + bytes.Length <= upload.ExpectedBytes, "That chunk is larger than the remaining upload.", 413);
-        await files.Append(upload.SourceFileKey, offset, bytes, upload.ExpectedBytes, ct);
-        upload.ReceivedBytes += bytes.Length; upload.Revision++;
-        await db.SaveChangesAsync(ct); await gate.Commit(ct);
-        return ToUploadView(upload);
-    }
-
-    public async Task<ImportView> CompleteUpload(Guid id, CancellationToken ct)
-    {
-        byte[] pdf;
-        string fileName;
-        string sourceKey;
-        long expectedBytes;
-        await using (var gate = await MutationLock.Acquire(db, db.CurrentUser, ct))
-        {
-            var upload = await db.ImportUploads.SingleOrDefaultAsync(x => x.Id == id, ct);
-            Validation.Require(upload != null, "That upload session has expired. Start the upload again.", 404);
-            Validation.Require(upload!.Status == "open" && upload.ExpiresAt > DateTime.UtcNow, "That upload session has expired. Start the upload again.", 410);
-            Validation.Require(upload.ReceivedBytes == upload.ExpectedBytes, "The PDF upload is not complete yet.", 409);
-            upload.Status = "processing"; upload.Revision++;
-            pdf = await files.Read(upload.SourceFileKey, ct); fileName = upload.FileName; sourceKey = upload.SourceFileKey; expectedBytes = upload.ExpectedBytes;
-            await db.SaveChangesAsync(ct); await gate.Commit(ct);
-        }
-        try
-        {
-            Validation.Require(pdf.LongLength == expectedBytes, "The uploaded PDF size does not match the resumable upload.", 422);
-            // Create validates the complete object and stores its own transient source for any
-            // background extraction continuation. The resumable part is removed immediately.
-            // Once the upload has been committed, let outline processing finish even if the
-            // browser closes. Extraction chunks are persisted separately and can be resumed by
-            // the worker, so a disconnected response must not roll the import back.
-            var processingCt = CancellationToken.None;
-            var result = await Create(pdf, fileName, processingCt);
-            await files.Delete(sourceKey, processingCt);
-            await using var cleanupGate = await MutationLock.Acquire(db, db.CurrentUser, processingCt);
-            var row = await db.ImportUploads.SingleOrDefaultAsync(x => x.Id == id, processingCt);
-            if (row is not null) db.ImportUploads.Remove(row);
-            await db.SaveChangesAsync(processingCt); await cleanupGate.Commit(processingCt);
-            return result;
-        }
-        catch
-        {
-            // Restore the resumable session even when the request was cancelled. The original
-            // exception remains authoritative; the 24-hour expiry is the cleanup backstop.
-            await using var retryGate = await MutationLock.Acquire(db, db.CurrentUser, CancellationToken.None);
-            var row = await db.ImportUploads.SingleOrDefaultAsync(x => x.Id == id, CancellationToken.None);
-            if (row is not null && row.ExpiresAt > DateTime.UtcNow)
-            {
-                row.Status = "open"; row.Revision++;
-                await db.SaveChangesAsync(CancellationToken.None); await retryGate.Commit(CancellationToken.None);
-            }
-            throw;
-        }
-    }
-
-    public async Task CancelUpload(Guid id, CancellationToken ct)
-    {
-        await using var gate = await MutationLock.Acquire(db, db.CurrentUser, ct);
-        var upload = await db.ImportUploads.SingleOrDefaultAsync(x => x.Id == id, ct);
-        Validation.Require(upload != null, "That upload session has expired. Start the upload again.", 404);
-        Validation.Require(upload!.Status == "open", "This upload is already being processed and cannot be cancelled.", 409);
-        await files.Delete(upload!.SourceFileKey, ct); db.ImportUploads.Remove(upload);
-        await db.SaveChangesAsync(ct); await gate.Commit(ct);
-    }
-
-    private static ImportUploadView ToUploadView(ImportUpload upload)
-        => new(upload.Id, upload.FileName, upload.ExpectedBytes, upload.ReceivedBytes, UploadChunkBytes, upload.Status, upload.ExpiresAt);
-
-    public async Task<ImportView> Create(byte[] pdf, string fileName, CancellationToken ct)
-    {
-        ValidatePdf(pdf, fileName);
-        var user = db.CurrentUser!.Value;
-        int? nextChunk = null;
-        Guid importId;
-        await using (var gate = await MutationLock.Acquire(db, db.CurrentUser, ct))
-        {
-        var hash = Convert.ToHexString(SHA256.HashData(pdf));
-        var existing = await db.Imports.AsNoTracking().FirstOrDefaultAsync(i => i.DocumentHash == hash && i.PromptVersion == WorkoutAi.PromptVersion
-            && (i.Status == ImportStatus.Pending || i.Status == ImportStatus.Ready || i.Status == ImportStatus.Accepted), ct);
-        if (existing != null)
-        {
-            await gate.Commit(ct);
-            return await Get(existing.Id, ct);
-        }
-
-        var import = new AiImport
-        {
-            UserId = user, DocumentHash = hash, PromptVersion = WorkoutAi.PromptVersion,
-            FileName = fileName.Trim(), Pages = PdfInspection.ApproximatePages(pdf), Status = ImportStatus.Pending, Stage = "outline"
-        };
-        import.PageCoverageJson = Json.Write(PdfInspection.Coverage(pdf));
-        db.Imports.Add(import);
-        await db.SaveChangesAsync(ct);
-        import.SourceFileKey = await files.Save(user, import.Id, pdf, ct);
-        import.SourceFileExpiresAt = DateTime.UtcNow.AddHours(24);
-        await db.SaveChangesAsync(ct);
-
-        try
-        {
-            await Meter(import, ct);
-            // Exercise matching is local and happens after each chunk is parsed. The catalog is
-            // deliberately absent from outline/extraction requests so a long library cannot consume
-            // context tokens or bias the transcription toward a near match.
-            var result = await ai.Outline(pdf, import.FileName, [], AuthService.Hash(user.ToString())[..32], ct);
-            import.Model = result.Model; import.InputTokens += result.InputTokens; import.OutputTokens += result.OutputTokens;
-            import.VisualFallbacks += result.VisualFallback ? 1 : 0; import.Error = "";
-            if (result.LegacyProgram is { } legacy)
-            {
-                var draft = await ToDraft(legacy, ct);
-                await ValidateDraft(draft, ct);
-                ValidateDraftPages(draft, import.PageCoverageJson);
-                import.DraftJson = Json.Write(draft); import.Stage = "done"; import.Status = ImportStatus.Ready;
-                import.ChunksDone = 1; import.ChunksTotal = 1;
-                UpdateCounters(import, draft);
-                await files.Delete(import.SourceFileKey, ct); import.SourceFileKey = ""; import.SourceFileExpiresAt = null;
-            }
-            else
-            {
-                var alternatives = result.Outline!.Alternatives ?? [];
-                if (alternatives.Count > 1)
-                {
-                    import.AlternativesJson = Json.Write(alternatives.Select(a => new ImportAlternative(a.Id, a.Name, a.Description,
-                        a.Chunks.Count, a.Chunks.Sum(c => c.DayCount), a.Chunks.Select(ToImportChunk).ToList())).ToList());
-                    import.Stage = "select"; import.Status = ImportStatus.Pending; import.ChunksDone = 0; import.ChunksTotal = 0;
-                    import.DraftJson = Json.Write(new ImportDraft(result.Outline.ProgramTitle, result.Outline.Description, []));
-                }
-                else
-                {
-                    var selected = alternatives.Count == 1 ? alternatives[0] : null;
-                    var chunks = SplitChunks((selected?.Chunks ?? result.Outline.Chunks).Select(c => c with { }).ToList());
-                    ValidateChunkPages(chunks, import.PageCoverageJson);
-                    import.SelectedAlternativeId = selected?.Id ?? "";
-                    import.OutlineJson = Json.Write(chunks);
-                    import.DraftJson = Json.Write(new ImportDraft(selected?.Name ?? result.Outline.ProgramTitle, selected?.Description ?? result.Outline.Description, []));
-                    import.Stage = "extract"; import.Status = ImportStatus.Pending; import.ChunksDone = 0; import.ChunksTotal = chunks.Count;
-                    import.UnresolvedCount = 0; import.CatalogStale = false;
-                }
-            }
-        }
-        catch (DomainException ex)
-        {
-            import.Status = ImportStatus.Failed; import.Error = ex.Message;
-            import.DraftJson = ""; import.OutlineJson = ""; import.AlternativesJson = "[]"; import.PageCoverageJson = "[]";
-            await files.Delete(import.SourceFileKey, ct); import.SourceFileKey = ""; import.SourceFileExpiresAt = null;
-            await db.SaveChangesAsync(ct);
-            await gate.Commit(ct);
-            throw;
-        }
-        MarkDispatch(import);
-        importId = import.Id;
-        nextChunk = import.PendingDispatchChunk;
-        await db.SaveChangesAsync(ct);
-        await gate.Commit(ct);
-        }
-        await TryDispatch(user, importId, nextChunk, ct);
-        return await Get(importId, ct);
-    }
-
-    public async Task<ImportView> SelectAlternative(Guid id, string alternativeId, CancellationToken ct)
-    {
-        var user = db.CurrentUser!.Value;
-        int? nextChunk = null;
-        await using (var gate = await MutationLock.Acquire(db, db.CurrentUser, ct))
-        {
-        var import = await db.Imports.SingleOrDefaultAsync(i => i.Id == id, ct);
-        Validation.Require(import != null, "That import no longer exists.", 404);
-        Validation.Require(import!.Status == ImportStatus.Pending && import.Stage == "select", "This import is not waiting for an alternative selection.", 409);
-        var alternatives = string.IsNullOrWhiteSpace(import.AlternativesJson) ? [] : Json.Read<List<ImportAlternative>>(import.AlternativesJson);
-        var selected = alternatives.SingleOrDefault(a => string.Equals(a.Id, alternativeId, StringComparison.OrdinalIgnoreCase));
-        Validation.Require(selected is not null, "That alternative is no longer available. Read the outline again.", 409);
-        var chunks = SplitChunks(selected!.Chunks ?? []);
-        ValidateChunkPages(chunks, import.PageCoverageJson);
-        import.SelectedAlternativeId = selected.Id; import.OutlineJson = Json.Write(chunks);
-        import.DraftJson = Json.Write(new ImportDraft(selected.Name, selected.Description, []));
-        import.Stage = "extract"; import.ChunksDone = 0; import.ChunksTotal = chunks.Count; import.Revision++;
-        MarkDispatch(import);
-        nextChunk = import.PendingDispatchChunk;
-        await db.SaveChangesAsync(ct); await gate.Commit(ct);
-        }
-        await TryDispatch(user, id, nextChunk, ct);
-        return await Get(id, ct);
-    }
-
-    private static ImportChunk ToImportChunk(AiOutlineChunk chunk)
-        => new(chunk.Label, chunk.Block, chunk.Phase, chunk.WeekFrom, chunk.WeekTo, chunk.PageFrom, chunk.PageTo, chunk.DayCount);
-
-    public async Task<ImportView> Extract(Guid id, byte[] pdf, string fileName, CancellationToken ct, int? expectedChunk = null)
-    {
-        var user = db.CurrentUser!.Value;
-        int? nextChunk = null;
-        await using (var gate = await MutationLock.Acquire(db, db.CurrentUser, ct))
-        {
-        var import = await db.Imports.SingleOrDefaultAsync(i => i.Id == id, ct);
-        Validation.Require(import != null, "That import no longer exists.", 404);
-        // A duplicate delivery after the last chunk committed is already complete and is safe to
-        // acknowledge without asking the model to read the document again.
-        if (import!.Status == ImportStatus.Ready && import.Stage == "done")
-        {
-            await gate.Commit(ct);
-            return await Get(id, ct);
-        }
-        Validation.Require(import.Status == ImportStatus.Pending && import.Stage == "extract", "This import is not waiting for another extraction pass.", 409);
-        if (expectedChunk is { } expected)
-        {
-            // A stale duplicate is acknowledged after a later chunk has committed. A future task
-            // cannot advance the import out of order and is retried after its predecessor.
-            if (import.ChunksDone > expected)
-            {
-                await gate.Commit(ct);
-                return await Get(id, ct);
-            }
-            Validation.Require(import.ChunksDone == expected, "This extraction chunk is not ready yet; retry after the previous chunk commits.", 409);
-        }
-        if (pdf.Length == 0)
-        {
-            Validation.Require(!string.IsNullOrWhiteSpace(import.SourceFileKey), "The temporary PDF has expired. Upload it again.", 410);
-            pdf = await files.Read(import.SourceFileKey, ct); fileName = import.FileName;
-        }
-        ValidatePdf(pdf, fileName);
-        var hash = Convert.ToHexString(SHA256.HashData(pdf));
-        Validation.Require(hash == import.DocumentHash, "Choose the same PDF that started this import so the next chunk can be verified.", 409);
-        var chunks = ReadChunks(import.OutlineJson);
-        Validation.Require(import.ChunksDone < chunks.Count, "This import has already finished extracting.", 409);
-        var chunk = chunks[import.ChunksDone];
-        ValidateChunkPages([chunk], import.PageCoverageJson);
-        try
-        {
-            await Meter(import, ct);
-            var result = await ai.ExtractChunk(pdf, import.FileName, [], AuthService.Hash(db.CurrentUser!.Value.ToString())[..32],
-                $"Extract only chunk '{chunk.Label}', covering block '{chunk.Block}', phase '{chunk.Phase}', absolute weeks {chunk.WeekFrom}-{chunk.WeekTo}, pages {chunk.PageFrom}-{chunk.PageTo}. Return those days and no days from other chunks.", ct, chunk.PageFrom, chunk.PageTo);
-            var existing = Json.Read<ImportDraft>(import.DraftJson);
-            var extracted = await ToDraft(result.Program, ct);
-            ValidateChunkCoverage(existing, extracted, chunk);
-            var title = result.Program.ProgramTitle ?? result.Program.ProgramName ?? existing.ProgramName;
-            var description = result.Program.Description ?? existing.Description;
-            var merged = existing with { ProgramName = title, Description = description, Workouts = [.. existing.Workouts, .. extracted.Workouts] };
-            import.DraftJson = Json.Write(merged); import.ChunksDone++; import.Revision++; import.Model = result.Model;
-            import.InputTokens += result.InputTokens; import.OutputTokens += result.OutputTokens;
-            import.VisualFallbacks += result.VisualFallback ? 1 : 0; import.Error = "";
-            if (import.ChunksDone >= import.ChunksTotal)
-            {
-                await ValidateDraft(merged, ct);
-                ValidateDraftPages(merged, import.PageCoverageJson);
-                import.Status = ImportStatus.Ready; import.Stage = "done"; UpdateCounters(import, merged);
-                await files.Delete(import.SourceFileKey, ct); import.SourceFileKey = ""; import.SourceFileExpiresAt = null;
-            }
-            MarkDispatch(import);
-            nextChunk = import.PendingDispatchChunk;
-            await db.SaveChangesAsync(ct);
-            await gate.Commit(ct);
-        }
-        catch (DomainException ex)
-        {
-            import.Error = ex.Message;
-            import.Retries++;
-            if (expectedChunk is { } expectedChunkValue && import.ChunksDone == expectedChunkValue)
-            {
-                import.PendingDispatchChunk = expectedChunkValue;
-                import.PendingDispatchAt = DateTime.UtcNow;
-            }
-            await db.SaveChangesAsync(ct);
-            await gate.Commit(ct);
-            throw;
-        }
-        }
-        await TryDispatch(user, id, nextChunk, ct);
-        return await Get(id, ct);
-    }
-
-    /// Retry is an explicit idempotent operation for a failed/pending extraction chunk. The
-    /// persisted source is reused when it is still inside its retention window; callers can use
-    /// the existing extract endpoint with the PDF when that source has expired.
-    public Task<ImportView> Retry(Guid id, CancellationToken ct) => Extract(id, [], "", ct);
 
     /// Every id the model proposes is checked against the live catalog here. An id that does not
     /// resolve is dropped to null so the reviewer can keep the written exercise name.
@@ -574,16 +276,20 @@ public sealed class ImportService(AppDb db, WorkoutAi ai, CatalogService catalog
 
     public async Task Discard(Guid id, CancellationToken ct)
     {
-        await using var gate = await MutationLock.Acquire(db, db.CurrentUser, ct);
-        var import = await db.Imports.SingleOrDefaultAsync(i => i.Id == id, ct);
-        Validation.Require(import != null, "That import no longer exists.", 404);
-        Validation.Require(import!.Status != ImportStatus.Accepted, "An accepted program is removed from Programs, not here.", 409);
-        await files.Delete(import.SourceFileKey, ct);
-        import.Status = ImportStatus.Discarded; import.DraftJson = ""; import.OutlineJson = "";
-        import.AlternativesJson = "[]"; import.PageCoverageJson = "[]"; import.Revision++;
-        import.SourceFileKey = ""; import.SourceFileExpiresAt = null;
-        await db.SaveChangesAsync(ct);
-        await gate.Commit(ct);
+        string release;
+        await using (var gate = await MutationLock.Acquire(db, db.CurrentUser, ct))
+        {
+            var import = await db.Imports.SingleOrDefaultAsync(i => i.Id == id, ct);
+            Validation.Require(import != null, "That import no longer exists.", 404);
+            Validation.Require(import!.Status != ImportStatus.Accepted, "An accepted program is removed from Programs, not here.", 409);
+            import.Status = ImportStatus.Discarded; import.DraftJson = ""; import.OutlineJson = "";
+            import.AlternativesJson = "[]"; import.PageCoverageJson = "[]"; import.Revision++;
+            import.PendingDispatchChunk = null; import.PendingDispatchAt = null;
+            release = TakeSource(import);
+            await db.SaveChangesAsync(ct);
+            await gate.Commit(ct);
+        }
+        await DeleteQuietly(release, ct);
     }
 
     public async Task CleanupExpired(CancellationToken ct)
@@ -593,11 +299,15 @@ public sealed class ImportService(AppDb db, WorkoutAi ai, CatalogService catalog
         try
         {
         var now = DateTime.UtcNow;
+        // Keys are released in the database first and the objects are removed after the commit:
+        // an object deleted ahead of a rolled-back sweep would leave a live import pointing at
+        // bytes that are gone.
+        var release = new List<string>();
         var expired = await db.Imports.IgnoreQueryFilters().Where(i => i.SourceFileExpiresAt != null && i.SourceFileExpiresAt < now && i.SourceFileKey != "").ToListAsync(ct);
         foreach (var import in expired)
         {
-            await files.Delete(import.SourceFileKey, ct);
-            import.SourceFileKey = ""; import.SourceFileExpiresAt = null;
+            release.Add(TakeSource(import));
+            import.PendingDispatchChunk = null; import.PendingDispatchAt = null;
             if (import.Status == ImportStatus.Pending)
             {
                 import.Status = ImportStatus.Failed;
@@ -608,12 +318,12 @@ public sealed class ImportService(AppDb db, WorkoutAi ai, CatalogService catalog
         var uploads = await db.ImportUploads.IgnoreQueryFilters().Where(x => x.ExpiresAt < now).ToListAsync(ct);
         foreach (var upload in uploads)
         {
-            await files.Delete(upload.SourceFileKey, ct);
+            release.Add(upload.SourceFileKey);
             db.ImportUploads.Remove(upload);
         }
 
         var terminalWithBlobs = await db.Imports.IgnoreQueryFilters()
-            .Where(i => (i.Status == ImportStatus.Accepted || i.Status == ImportStatus.Failed || i.Status == ImportStatus.Discarded) &&
+            .Where(i => (i.Status == ImportStatus.Accepted || i.Status == ImportStatus.Failed || i.Status == ImportStatus.Discarded || i.Status == ImportStatus.Ready) &&
                         (i.DraftJson != "" || i.OutlineJson != "" || i.AlternativesJson != "[]" || i.PageCoverageJson != "[]"))
             .Take(100)
             .ToListAsync(ct);
@@ -627,11 +337,12 @@ public sealed class ImportService(AppDb db, WorkoutAi ai, CatalogService catalog
 
         if (expired.Count > 0 || uploads.Count > 0 || terminalWithBlobs.Count > 0)
             await db.SaveChangesAsync(ct);
+        foreach (var key in release) await DeleteQuietly(key, ct);
 
         var importDays = Math.Max(1, config?.GetValue("Retention:ImportDays", 30) ?? 30);
         var importCutoff = now.AddDays(-importDays);
         await db.Imports.IgnoreQueryFilters()
-            .Where(i => (i.Status == ImportStatus.Accepted || i.Status == ImportStatus.Failed || i.Status == ImportStatus.Discarded) &&
+            .Where(i => (i.Status == ImportStatus.Accepted || i.Status == ImportStatus.Failed || i.Status == ImportStatus.Discarded || i.Status == ImportStatus.Ready) &&
                         i.Created < importCutoff)
             .ExecuteDeleteAsync(ct);
 
@@ -646,79 +357,6 @@ public sealed class ImportService(AppDb db, WorkoutAi ai, CatalogService catalog
         await db.Usage.IgnoreQueryFilters().Where(u => u.Date < usageCutoff).ExecuteDeleteAsync(ct);
         }
         finally { db.MaintenanceAccess = previousMaintenance; }
-    }
-
-    /// Re-enqueues extraction chunks whose delivery was never accepted or whose delivery lease
-    /// expired while a worker was restarting. This is intentionally bounded so the maintenance
-    /// endpoint remains cheap even if a user has accumulated stale imports.
-    public async Task<int> RecoverUndispatched(CancellationToken ct)
-    {
-        if (jobs is null) return 0;
-        var previousUser = db.CurrentUser;
-        var previousMaintenance = db.MaintenanceAccess;
-        db.MaintenanceAccess = true;
-        try
-        {
-            var now = DateTime.UtcNow;
-            var candidates = await db.Imports.IgnoreQueryFilters().AsNoTracking()
-                .Where(i => i.Status == ImportStatus.Pending && i.Stage == "extract" &&
-                    i.ChunksDone < i.ChunksTotal &&
-                    (i.PendingDispatchChunk == null || i.PendingDispatchAt == null || i.PendingDispatchAt <= now))
-                .OrderBy(i => i.Created).Take(32)
-                .Select(i => new { i.UserId, i.Id, Chunk = i.PendingDispatchChunk ?? i.ChunksDone }).ToListAsync(ct);
-            var recovered = 0;
-            foreach (var candidate in candidates)
-            {
-                if (await TryDispatch(candidate.UserId, candidate.Id, candidate.Chunk, ct)) recovered++;
-                db.ChangeTracker.Clear();
-            }
-            return recovered;
-        }
-        finally
-        {
-            db.CurrentUser = previousUser;
-            db.MaintenanceAccess = previousMaintenance;
-        }
-    }
-
-    private void MarkDispatch(AiImport import)
-    {
-        if (import.Status == ImportStatus.Pending && import.Stage == "extract" && import.ChunksDone < import.ChunksTotal)
-        {
-            import.PendingDispatchChunk = import.ChunksDone;
-            import.PendingDispatchAt = DateTime.UtcNow;
-        }
-        else
-        {
-            import.PendingDispatchChunk = null;
-            import.PendingDispatchAt = null;
-        }
-    }
-
-    private async Task<bool> TryDispatch(Guid userId, Guid importId, int? expectedChunk, CancellationToken ct)
-    {
-        if (jobs is null || expectedChunk is not { } chunk) return false;
-        if (!await jobs.Enqueue(userId, importId, chunk, ct)) return false;
-
-        var previousUser = db.CurrentUser;
-        db.CurrentUser = userId;
-        try
-        {
-            await using var gate = await MutationLock.Acquire(db, userId, ct);
-            var import = await db.Imports.SingleOrDefaultAsync(i => i.Id == importId, ct);
-            if (import is not null && import.Status == ImportStatus.Pending && import.Stage == "extract" &&
-                import.ChunksDone == chunk && (import.PendingDispatchChunk is null || import.PendingDispatchChunk == chunk))
-            {
-                // Keep the marker until the task commits. The lease lets hourly maintenance
-                // recover a task lost during worker startup without creating an unbounded queue.
-                import.PendingDispatchAt = DateTime.UtcNow.AddMinutes(30);
-                import.Revision++;
-                await db.SaveChangesAsync(ct);
-            }
-            await gate.Commit(ct);
-            return true;
-        }
-        finally { db.CurrentUser = previousUser; }
     }
 
     public Task ValidateDraft(ImportDraft draft, CancellationToken ct) => ImportValidation.ValidateDraft(draft, catalog, ct);
@@ -741,16 +379,6 @@ public sealed class ImportService(AppDb db, WorkoutAi ai, CatalogService catalog
         var unresolved = Unresolved(draft);
         import.UnresolvedCount = unresolved.Count;
         import.CatalogStale = draft.Workouts.SelectMany(w => w.Exercises).Any(e => e.ExerciseId is null ? false : !db.Exercises.Any(x => x.Id == e.ExerciseId && x.Active));
-    }
-
-    private async Task Meter(AiImport import, CancellationToken ct)
-    {
-        var today = DateOnly.FromDateTime(DateTime.UtcNow);
-        var usage = await db.Usage.SingleOrDefaultAsync(u => u.Date == today, ct);
-        if (usage == null) { usage = new AiUsage { UserId = db.CurrentUser!.Value, Date = today, Count = 0 }; db.Usage.Add(usage); }
-        Validation.Require(usage.Count < DailyLimit, $"You have used all {DailyLimit} AI reads for today. Manual program building remains available.", 429);
-        usage.Count++; import.Calls++;
-        await db.SaveChangesAsync(ct);
     }
 
     private static void ValidatePdf(byte[] pdf, string fileName) => ImportValidation.ValidatePdf(pdf, fileName);

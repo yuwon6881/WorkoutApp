@@ -92,8 +92,10 @@ public sealed class GcsImportFileStore(IConfiguration config, HttpClient http) :
     {
         var name = ObjectName(userId, importId);
         await using var stream = new MemoryStream(bytes, writable: false);
-        await (await client.Value).UploadObjectAsync(bucket, name, "application/pdf", stream,
-            new UploadObjectOptions { IfGenerationMatch = 0 }, ct);
+        // The name is derived from the owning user and import, so only this import can write it.
+        // Overwriting is deliberate: re-uploading the same PDF is how a lost source is restored,
+        // and a generation precondition would turn that recovery into a permanent failure.
+        await (await client.Value).UploadObjectAsync(bucket, name, "application/pdf", stream, null, ct);
         return ObjectPrefix + name;
     }
 

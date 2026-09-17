@@ -5,7 +5,6 @@ const root = resolve(import.meta.dirname, '..');
 const sourceRoot = resolve(root, 'web/src');
 const allowedLargeFiles = new Set([]);
 const existingLargeBackendFiles = new Map([
-  ['api/Services/ImportService.cs', 900],
   ['api/Services/ProgramService.cs', 560],
   ['api/Services/WorkoutService.cs', 780]
 ]);
