@@ -100,12 +100,26 @@ public sealed partial class ImportService(AppDb db, WorkoutAi ai, CatalogService
                     working.InsertRange(0, Enumerable.Repeat(warmup, warmups));
                 }
                 var noteParts = new[] { source.Notes, source.CoachingNotes }.Where(s => !string.IsNullOrWhiteSpace(s)).Select(s => s!.Trim()).ToList();
-                var substitutions = (source.Substitutions ?? []).Where(s => !string.IsNullOrWhiteSpace(s)).Select(s => s.Trim()).Take(2).ToList();
-                exercises.Add(new DraftExercise(Guid.NewGuid(), source.SourceName.Trim(), id, noteParts.Count == 0 ? null : string.Join(" — ", noteParts), working,
+                var alternates = (source.Substitutions ?? []).Where(s => !string.IsNullOrWhiteSpace(s)).Select(s => s.Trim()).ToList();
+                // An exercise holds two substitutions. A program that lists four has still said
+                // something about the other two, so they are written into the note rather than
+                // dropped on the floor.
+                var substitutions = alternates.Take(2).ToList();
+                if (alternates.Count > 2) noteParts.Add($"Other alternates: {string.Join(", ", alternates.Skip(2))}");
+                exercises.Add(new DraftExercise(Guid.NewGuid(), source.SourceName.Trim(), id, Note(noteParts), working,
                     source.SequenceGroup?.Trim() ?? "", substitutions, source.SourcePage));
             }
         }
         return new DraftWorkout(Guid.NewGuid(), week, name.Trim(), focus, notes, exercises, block, phase, phaseWeek, restDay, weekday, sourcePage);
+    }
+
+    /// Joins what an exercise's note is made of, within the length a note can hold. Trimming the
+    /// tail is better than failing the import over an unusually chatty source row.
+    private static string? Note(List<string> parts)
+    {
+        if (parts.Count == 0) return null;
+        var note = string.Join(" — ", parts);
+        return note.Length <= 1000 ? note : note[..1000].TrimEnd();
     }
 
     private static DraftSet ToDraftSet(AiSet set)

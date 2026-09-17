@@ -75,7 +75,14 @@ internal static class WorkoutAiValidation
         Validation.Name(exercise.SourceName, "Exercise name", 160);
             Validation.Text(exercise.Notes, 1000, "Exercise notes"); Validation.Text(exercise.CoachingNotes, 1000, "Coaching notes");
             Validation.Require(exercise.SourcePage is null || exercise.SourcePage.Value is > 0 and <= ImportSourceText.MaxPages, "AI returned an invalid exercise source page.", 422);
-        Validation.Text(exercise.SequenceGroup, 8, "Sequence group"); Validation.Substitutions(exercise.Substitutions);
+        Validation.Text(exercise.SequenceGroup, 8, "Sequence group");
+        // A written program routinely offers three or four alternates for one movement. That is
+        // source material, not storage: the draft keeps the first two an exercise can hold, so
+        // rejecting the whole section here would throw away a faithful read over a list length
+        // the importer already knows how to handle.
+        Validation.Require(exercise.Substitutions is null || exercise.Substitutions.Count <= 12,
+            "AI returned an unusable substitution list.", 422);
+        foreach (var substitution in exercise.Substitutions ?? []) Validation.Text(substitution, 160, "Substitution");
         Validation.Require(exercise.Sets is { Count: > 0 and <= 24 }, "AI returned an exercise without usable sets.", 422);
         foreach (var set in exercise.Sets!)
         {

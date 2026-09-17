@@ -111,4 +111,34 @@ public sealed class ImportReconciliationTests
         // The skipped section costs nothing: only the outline and the one real section were read.
         Assert.Equal(2, stub.Calls);
     }
+
+    /// A coached program routinely lists three or four alternates for one movement. The importer
+    /// keeps the two an exercise can hold, so the length of that list must never be the reason a
+    /// whole section is rejected — which is what "An exercise can have at most 2 substitutions"
+    /// did to the first section of a real import.
+    [Fact]
+    public async Task An_exercise_offering_more_alternates_than_it_can_hold_is_still_read()
+    {
+        await using var h = await Harness.Create(Configured());
+        await h.SignIn();
+        var manyAlternates = """
+            {"programTitle":"Nine week block","description":null,"days":[
+              {"block":"Base","phase":"Intro","weekNumber":1,"phaseWeek":1,"dayName":"Day A","isRestDay":false,"weekday":1,"sourcePage":1,"notes":null,"exercises":[
+                {"sequenceGroup":"A1","sourceName":"Barbell bench press","exerciseId":null,"notes":null,"sourcePage":1,
+                 "substitutions":["Incline dumbbell press","Machine chest press","Push-up","Floor press"],"sets":[
+                  {"repMin":5,"repMax":8,"targetRpe":8,"restSeconds":120,"tempo":null,"loadText":null,"notes":null,"repsSource":"extracted","rpeSource":"extracted","restSource":"extracted","sourcePage":1}]}]}]}
+            """;
+        var source = new ImportSourceInput("nippard.pdf", 2,
+            [new ImportPageText(1, "WEEK 1\nBench 3x5"), new ImportPageText(2, "WEEK 2\nBench 3x5")]);
+        var imports = h.Imports(Reading(Outline, manyAlternates));
+
+        var pending = await imports.Create(source, default);
+        var ready = await imports.Extract(pending.Id, default);
+
+        Assert.Equal(ImportStatus.Ready, ready.Status);
+        var exercise = ready.Draft!.Workouts.Single().Exercises.Single();
+        Assert.Equal(["Incline dumbbell press", "Machine chest press"], exercise.Substitutions);
+        // The alternates that do not fit are still written down rather than dropped.
+        Assert.Contains("Other alternates: Push-up, Floor press", exercise.Notes);
+    }
 }
