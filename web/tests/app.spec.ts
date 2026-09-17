@@ -48,18 +48,9 @@ async function openTab(page: Page, name: string) {
 async function openStartPreview(page: Page, startButton: import('@playwright/test').Locator, preview: import('@playwright/test').Locator) {
   const templateResponse = page.waitForResponse(response => response.request().method() === 'GET' && /\/api\/templates\/[0-9a-f-]+$/i.test(new URL(response.url()).pathname), { timeout: 15000 }).catch(() => null);
   await startButton.click({ force: true });
-  try {
-    const response = await templateResponse;
-    if (response && !response.ok()) throw new Error(`Template preview request failed with ${response.status()}: ${await response.text()}`);
-    await expect(preview).toBeVisible({ timeout: 15000 });
-  } catch (failure) {
-    const state = await page.evaluate(() => ({
-      alerts: [...document.querySelectorAll('[role="alert"]')].map(element => element.textContent),
-      dialogs: [...document.querySelectorAll('dialog')].map(dialog => ({ open: dialog.open, label: dialog.getAttribute('aria-label'), text: dialog.textContent?.slice(0, 200) }))
-    }));
-    console.log(`Start preview diagnostic: ${JSON.stringify(state)}`);
-    throw failure;
-  }
+  const response = await templateResponse;
+  if (response) expect(response.ok()).toBe(true);
+  await expect(preview).toBeVisible({ timeout: 15000 });
 }
 
 test.describe.configure({ mode: 'serial' });

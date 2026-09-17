@@ -1,9 +1,10 @@
-import { rmSync } from 'node:fs';
+import { randomUUID } from 'node:crypto';
 import { resolve } from 'node:path';
 
-// A throwaway SQLite file per run so an end-to-end suite never reads another run's accounts.
-const database = resolve('tests/.e2e.db');
-for (const suffix of ['', '-shm', '-wal']) { try { rmSync(database + suffix); } catch { /* first run has no file */ } }
+// A unique file prevents a worker loading this module from deleting the database used by the
+// already-running API process. The repository ignores SQLite files, so abandoned test files are
+// harmless and never become another run's accounts.
+const database = resolve('tests', `.e2e-${randomUUID()}.db`);
 
 /// The end-to-end suite runs the real API against a disposable database, with the AI provider
 /// replaced by a local stand-in so an import can be exercised without a paid call.
