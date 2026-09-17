@@ -79,7 +79,7 @@ export function Workout({ session, preferences, exercises, queue, onSaved, onClo
     if (validationError) { setError(validationError); return; }
     if (!done) { setError('Complete at least one working set before finishing.'); return; }
     setBusy(true);
-    try { const saved = await api.finishWorkout(draft.id, revision.current, retainSwaps); restTimer.skip(); onFinish(saved); }
+    try { const saved = await api.finishWorkout(draft.id, revision.current, retainSwaps); restTimer.skip(); await onFinish(saved); }
     catch (failure) { setError(failure instanceof ApiError ? failure.message : 'Could not save this workout.'); setBusy(false); setConfirm(null); }
   }
 
@@ -94,7 +94,7 @@ export function Workout({ session, preferences, exercises, queue, onSaved, onClo
 
   async function discard() {
     setBusy(true);
-    try { await api.discardWorkout(draft.id); onDiscard(); }
+    try { await api.discardWorkout(draft.id); await onDiscard(); }
     catch (failure) { setError(failure instanceof ApiError ? failure.message : 'Could not discard this workout.'); setBusy(false); setConfirm(null); }
   }
 

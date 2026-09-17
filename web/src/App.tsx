@@ -122,8 +122,8 @@ export default function App() {
 
     {training && data.activeWorkout && <Workout session={data.activeWorkout} preferences={data.preferences} exercises={data.exercises} queue={app.queue}
       onSaved={app.setActiveWorkout} onClose={() => setTraining(false)}
-      onFinish={async session => { setTraining(false); setDetail(session); setToast('Workout saved.'); await app.reload(); }}
-      onDiscard={async () => { setTraining(false); await app.reload(); }} />}
+      onFinish={async session => { app.setActiveWorkout(null); setTraining(false); setDetail(session); setToast('Workout saved.'); await app.reload(); }}
+      onDiscard={async () => { app.setActiveWorkout(null); setTraining(false); await app.reload(); }} />}
 
     {preview && <StartPreview template={preview} busy={starting} onCancel={() => setPreview(null)} onConfirm={confirmStart} />}
     {detail && <SessionDetail session={detail} preferences={data.preferences} onClose={() => setDetail(null)} onDeleted={app.reload} />}

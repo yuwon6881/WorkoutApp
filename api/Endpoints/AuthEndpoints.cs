@@ -1,3 +1,4 @@
+using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Workout.Api.Data;
 using Workout.Api.Domain;
@@ -12,6 +13,11 @@ public static class AuthEndpoints
         if (app.Environment.IsDevelopment())
             app.MapPost("/api/auth/dev-reset", async (AppDb db, CancellationToken ct) =>
             {
+                if (db.Database.IsSqlite())
+                {
+                    await db.Database.CloseConnectionAsync();
+                    SqliteConnection.ClearAllPools();
+                }
                 await db.Database.EnsureDeletedAsync(ct);
                 await db.Database.EnsureCreatedAsync(ct);
                 return Results.Ok(new { reset = true });
