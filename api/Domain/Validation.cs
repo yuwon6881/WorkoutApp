@@ -79,7 +79,7 @@ public static class Validation
             }
             else Require(!requireWorkingRpe || set.Warmup, "Working sets need a target RPE between 6 and 10.");
             if (set.RestSeconds is { } rest) Require(rest is >= 0 and <= 3600, "Rest must be between 0 and 3600 seconds.");
-            Require(set.SourcePage is null || set.SourcePage.Value is > 0 and <= PdfInspection.MaxPages, "Set source page is invalid.");
+            Require(set.SourcePage is null || set.SourcePage.Value is > 0 and <= ImportSourceText.MaxPages, "Set source page is invalid.");
             if (!set.Warmup) workingStarted = true;
             else Require(!workingStarted, "Warm-up sets must come before working sets.");
             Text(set.Tempo, 24, "Tempo"); Text(set.LoadText, 60, "Load"); Text(set.Notes, 400, "Set notes");

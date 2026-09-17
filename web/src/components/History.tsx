@@ -6,13 +6,19 @@ import { completedSets, duration, showRpe, showVolume, showWeight, toDisplay } f
 import { Button } from './ui/Button';
 import { Modal } from './ui/Modal';
 
-export function HistoryView({ initial, preferences, onSession, onStart }: {
-  initial: HistoryPage; preferences: Preferences; onSession: (s: Session) => void; onStart: () => void;
+let progressCache: ProgressSummary | null = null;
+let historyCache: HistoryPage | null = null;
+export function clearHistoryViewCache() { progressCache = null; historyCache = null; }
+
+export function HistoryView({ initial, preferences, onSession, onStart, onExercise }: {
+  initial: HistoryPage; preferences: Preferences; onSession: (s: Session) => void; onStart: () => void; onExercise?: (id: string) => void;
 }) {
-  const [page, setPage] = useState<HistoryPage>(initial);
+  const [page, setPage] = useState<HistoryPage>(historyCache ?? initial);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [progress, setProgress] = useState<ProgressSummary | null>(null);
+  const [progress, setProgress] = useState<ProgressSummary | null>(progressCache);
+  const [progressError, setProgressError] = useState('');
+  const [progressRetry, setProgressRetry] = useState(0);
   const unit = preferences.unit;
 
   useEffect(() => {
@@ -20,55 +26,49 @@ export function HistoryView({ initial, preferences, onSession, onStart }: {
     const controller = new AbortController();
     setLoading(true);
     api.history(0, 20, controller.signal)
-      .then(next => { if (!cancelled) { setPage(next); setError(''); } })
+      .then(next => { if (!cancelled) { historyCache = next; setPage(next); setError(''); } })
       .catch(failure => { if (!cancelled) setError(failure instanceof ApiError ? failure.message : 'Could not load your history.'); })
       .finally(() => { if (!cancelled) setLoading(false); });
-    api.progress(controller.signal).then(next => { if (!cancelled) setProgress(next); }).catch(() => { /* history remains usable if the optional records read is unavailable */ });
     api.refreshNutritionContext(controller.signal).catch(() => { /* progression context is optional */ });
     return () => { cancelled = true; controller.abort(); };
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    const controller = new AbortController();
+    setProgressError('');
+    api.progress(controller.signal)
+      .then(next => { if (!cancelled) { progressCache = next; setProgress(next); } })
+      .catch(failure => { if (!cancelled) setProgressError(failure instanceof ApiError ? failure.message : 'Progress records could not be loaded.'); });
+    return () => { cancelled = true; controller.abort(); };
+  }, [progressRetry]);
 
   async function more() {
     setLoading(true);
     try {
       const next = await api.history(page.page + 1, page.size);
-      setPage({ ...next, sessions: [...page.sessions, ...next.sessions] });
+      const merged = { ...next, sessions: [...page.sessions, ...next.sessions] };
+      historyCache = merged;
+      setPage(merged);
     } catch (failure) { setError(failure instanceof ApiError ? failure.message : 'Could not load more history.'); }
     finally { setLoading(false); }
   }
 
   const sessions = page.sessions;
-  const known = sessions.filter(s => s.volumeKg !== null);
-  const totalVolume = known.length ? known.reduce((total, s) => total + (s.volumeKg ?? 0), 0) : null;
-  const bests = Object.entries(sessions.flatMap(s => s.exercises).reduce<Record<string, number>>((acc, exercise) => {
-    for (const set of exercise.sets) if (set.done && !set.warmup && set.weightKg !== null) acc[exercise.name] = Math.max(acc[exercise.name] ?? -1, set.weightKg);
-    return acc;
-  }, {})).sort((a, b) => b[1] - a[1]);
   const bodyweightRecords = progress?.exercises.filter(exercise => exercise.bodyweightRepRecord !== null) ?? [];
+  const bests = progress?.exercises
+    .map(exercise => ({
+      ...exercise,
+      value: exercise.estimatedMaxKg ?? exercise.externalLoadPrKg ?? exercise.addedLoadPrKg ?? exercise.systemLoadPrKg ?? exercise.assistanceReductionPrKg
+    }))
+    .filter(exercise => exercise.value !== null)
+    .sort((a, b) => (b.value ?? 0) - (a.value ?? 0)) ?? [];
 
   return <>
     <div className="page-heading">
       <h1>Progress</h1>
     </div>
     {error && <div className="error-banner" role="alert">{error}</div>}
-    <div className="stats-grid progress-stats">
-      <div className="stat-card"><div className="stat-label"><CalendarDays size={17} />Workouts</div><strong>{page.total}</strong></div>
-      <div className="stat-card"><div className="stat-label"><BarChart3 size={17} />Total volume</div><strong>{showVolume(totalVolume, unit)}</strong></div>
-      <div className="stat-card"><div className="stat-label"><Dumbbell size={17} />Training time</div><strong>{sessions.reduce((total, s) => total + duration(s), 0)}<small> min</small></strong></div>
-    </div>
-
-    <section className="panel">
-      <div className="section-heading"><h2>Personal bests</h2><Trophy size={18} className="accent" /></div>
-      {bests.length ? bests.slice(0, 6).map(([name, kg]) => <div className="best-row" key={name}><span>{name}</span><strong>{showWeight(kg, unit)}</strong></div>)
-        : <div className="empty-message"><Trophy size={30} /><p>No personal bests yet. Log a workout to record one.</p></div>}
-    </section>
-
-    {bodyweightRecords.length > 0 && <section className="panel">
-      <div className="section-heading"><h2>Bodyweight records</h2><Trophy size={18} className="accent" /></div>
-      <p className="muted">Bodyweight records keep the bodyweight context captured with each set.</p>
-      {bodyweightRecords.map(record => <div className="best-row" key={record.exercise}><span>{record.exercise}</span><strong>{record.bodyweightRepRecord!.reps} reps at {toDisplay(record.bodyweightRepRecord!.bodyweightKg, unit)} {unit} bodyweight</strong></div>)}
-    </section>}
-
     <section className="panel">
       <div className="section-heading"><h2>Workout history</h2><span className="muted">{sessions.length} of {page.total}</span></div>
       {sessions.map(session => <Button className="history-row" variant="tertiary" key={session.id} onClick={() => onSession(session)}>
@@ -78,10 +78,36 @@ export function HistoryView({ initial, preferences, onSession, onStart }: {
         <span>{showVolume(session.volumeKg, unit)}</span>
         <ArrowRight size={16} />
       </Button>)}
+      {loading && !sessions.length && <div className="history-loading-list" aria-label="Loading workout history">{[0, 1, 2].map(row => <div className="skeleton history-row-skeleton" key={row} />)}</div>}
       {!sessions.length && !loading && <div className="empty-message"><Dumbbell size={32} /><h3>No workouts yet</h3>
         <p>Finish a workout to see its sets and volume here.</p>
         <Button onClick={onStart}>Find a workout<ArrowRight size={16} /></Button></div>}
       {sessions.length < page.total && <Button className="full-width" disabled={loading} onClick={more}>{loading ? 'Loading…' : 'Load more'}</Button>}
+    </section>
+
+    <div className="stats-grid progress-stats">
+      <div className="stat-card"><div className="stat-label"><CalendarDays size={17} />Workouts</div><strong>{progress?.sessions ?? '—'}</strong></div>
+      <div className="stat-card"><div className="stat-label"><CalendarDays size={17} />This week</div><strong>{progress?.weekSessions ?? '—'}</strong></div>
+      <div className="stat-card"><div className="stat-label"><BarChart3 size={17} />Weekly volume</div><strong>{showVolume(progress?.weekVolumeKg ?? null, unit)}</strong></div>
+      <div className="stat-card"><div className="stat-label"><Dumbbell size={17} />Working sets</div><strong>{progress?.workingSets ?? '—'}</strong></div>
+      <div className="stat-card"><div className="stat-label"><Dumbbell size={17} />Training time</div><strong>{progress?.trainingMinutes ?? '—'}<small> min</small></strong></div>
+    </div>
+
+    <section className="panel progress-optional-section" aria-live="polite">
+      {!progress && !progressError && <div className="skeleton progress-section-skeleton" aria-label="Loading progress records" />}
+      {progressError && <div className="error-banner" role="alert"><span>{progressError}</span><Button variant="tertiary" onClick={() => setProgressRetry(value => value + 1)}>Retry</Button></div>}
+      {progress && <>
+        <div className="section-heading"><h2>Personal bests</h2><Trophy size={18} className="accent" /></div>
+        {bests.length ? bests.slice(0, 6).map(record => record.exerciseId && onExercise
+          ? <Button variant="tertiary" className="best-row best-row-action" key={record.exercise} onClick={() => onExercise(record.exerciseId!)} aria-label={`Open ${record.exercise} exercise details`}><span>{record.exercise}</span><strong>{showWeight(record.value ?? null, unit)}</strong><ArrowRight size={15} /></Button>
+          : <div className="best-row" key={record.exercise}><span>{record.exercise}</span><strong>{showWeight(record.value ?? null, unit)}</strong></div>)
+          : <div className="empty-message"><Trophy size={30} /><p>No personal bests yet. Log a workout to record one.</p></div>}
+      </>}
+      {progress && bodyweightRecords.length > 0 && <>
+        <div className="section-heading"><h2>Bodyweight records</h2><Trophy size={18} className="accent" /></div>
+        <p className="muted">Bodyweight records keep the bodyweight context captured with each set.</p>
+        {bodyweightRecords.map(record => <div className="best-row" key={record.exercise}><span>{record.exercise}</span><strong>{record.bodyweightRepRecord!.reps} reps at {toDisplay(record.bodyweightRepRecord!.bodyweightKg, unit)} {unit} bodyweight</strong></div>)}
+      </>}
     </section>
   </>;
 }

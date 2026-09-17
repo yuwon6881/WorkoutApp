@@ -12,18 +12,19 @@ public sealed class DeploymentContractTests
         Assert.DoesNotContain("'--use-http2'", build);
     }
 
+    /// Importing is a short series of text-only model calls driven by the browser, so there is no
+    /// worker service, task queue, or source bucket to deploy or pay for.
     [Fact]
-    public void Import_worker_uses_tasks_and_scales_to_zero()
+    public void Importing_needs_no_worker_service_queue_or_bucket()
     {
         var build = File.ReadAllText(Path.Combine(RepositoryRoot(), "cloudbuild.yaml"));
 
         Assert.DoesNotContain("'--min-instances=1'", build);
-        Assert.Contains("ImportWorker__Enabled=true,ImportWorker__PollingEnabled=false", build);
-        Assert.Contains("_IMPORT_BUCKET: 'workout-imports-396431756440'", build);
-        Assert.Contains("_IMPORT_TASK_QUEUE: 'workout-imports'", build);
-        Assert.Contains("/internal/import-tasks", build);
-        var dispatcher = File.ReadAllText(Path.Combine(RepositoryRoot(), "api", "Services", "ImportJobDispatcher.cs"));
-        Assert.Contains("dispatchDeadline = \"1800s\"", dispatcher);
+        Assert.DoesNotContain("workout-import-worker", build);
+        Assert.DoesNotContain("ImportWorker__", build);
+        Assert.DoesNotContain("ImportStorage__", build);
+        // The retention sweep still has a caller, and it is reachable only with its own secret.
+        Assert.Contains("Maintenance__Secret=", build);
     }
 
     [Fact]

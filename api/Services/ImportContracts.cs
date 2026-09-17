@@ -24,12 +24,11 @@ public record ImportMetadata(string ProgramName, string? Description);
 public record UnresolvedExercise(Guid LineId, string SourceName);
 public record ImportReviewIssue(string Code, string Message, string Severity = "warning", int? SourcePage = null);
 public record ImportAlternative(string Id, string Name, string? Description, int ChunkCount, int DayCount, List<ImportChunk>? Chunks = null);
-public record ImportUploadView(Guid Id, string FileName, long ExpectedBytes, long ReceivedBytes, int ChunkBytes, string Status, DateTime ExpiresAt);
 
 public record ImportView(
     Guid Id, string Status, string FileName, int Pages, string Error, DateTime Created, string Model,
     string Stage, int ChunksDone, int ChunksTotal, string? CurrentChunkLabel, int UnresolvedCount, ImportDraft? Draft,
     List<UnresolvedExercise> Unresolved, bool Acceptable, Guid? ProgramId, List<ImportReviewIssue>? ReviewIssues = null,
-    long InputTokens = 0, long OutputTokens = 0, int Retries = 0, int VisualFallbacks = 0,
-    DateTime? SourceFileExpiresAt = null, List<PdfPageCoverage>? PageCoverage = null,
+    long InputTokens = 0, long OutputTokens = 0, int Retries = 0,
+    DateTime? SourceExpiresAt = null, List<PdfPageCoverage>? PageCoverage = null,
     List<ImportAlternative>? Alternatives = null, string? SelectedAlternativeId = null);

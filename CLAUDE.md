@@ -10,10 +10,10 @@ Applies only to this independent repository; app-specific rules override the par
 ## Implemented feature index
 
 - FitnessAccount central sign-in, profile/preferences, connected-app settings, and account export.
-- Global exercise catalog, manual templates/programs, multi-phase scheduling, and AI PDF extraction with editable review before program creation.
+- Global and account-owned exercise libraries with progress insights/history clearing, manual templates/programs, multi-phase scheduling, and AI PDF extraction with editable review before program creation.
 - Active workout drafts, weight/rep/RPE logging, exercise substitutions, completed-session history, and a deadline-based rest timer.
 - Rep/load progression, effort-based suggestions, lighter-week recommendations, bodyweight/resistance-mode handling, and Nutrition-informed adaptive tiers.
-- Scoped Nutrition context and shared training summaries. Nutrition owns weight/goals; Workout owns training history/progression.
+- Exercise-aware progress aggregates and scheduled/completed workout calendar states. Scoped Nutrition context and shared training summaries; Nutrition owns weight/goals and Workout owns training history/progression.
 
 ## UI standardization
 
@@ -39,7 +39,8 @@ Applies only to this independent repository; app-specific rules override the par
 - Training data is database-backed and online-only. Do not persist workout records in localStorage/sessionStorage/IndexedDB or service-worker caches. The device-local rest deadline is the narrow exception; static-shell caching must not cache API responses or return SPA HTML for API/asset failures.
 - Kilograms are canonical and pounds are display conversion. Unknown load stays unknown and is excluded from volume; zero is a real bodyweight load. Freeze session bodyweight context so later weigh-ins do not rewrite historical calculations.
 - Suggestions prefill but never pre-log sets or overwrite prescribed rep/RPE targets. Only completed sets enter history. Preserve effort, resistance-mode, phase-order, skip/completion, and draft-versus-finished semantics.
-- The exercise catalog is global and seed-owned, read-only to users. Imports remain editable before program creation; preserve extracted/inferred/user-edited provenance and unresolved exercises instead of inventing matches. PDF sources stay private/transient with expiry and terminal-state cleanup.
+- The exercise catalog is global and seed-owned, read-only to users. Imports remain editable before program creation; preserve extracted/inferred/user-edited provenance and unresolved exercises instead of inventing matches.
+- A PDF is read on the device: the browser extracts its text layer and submits only that text, so no document bytes or page images reach the API or a model provider. The stored text is the whole source, expires after 24 hours, and is cleared at a terminal state. Pages without selectable text carry nothing and are reported, never guessed. The outline's day count is an estimate to reconcile and report, not a gate.
 - Nutrition owns weight/goal context; Workout owns sessions/progression/PRs. Integration data may inform Workout suggestions, but must never automatically change Nutrition calorie/macronutrient targets. Keep tokens scoped and optional-provider failures bounded and visible where actionable.
 
 ## Verification

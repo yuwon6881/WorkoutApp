@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Activity, AlertTriangle, CheckCircle2, Cloud, Dumbbell, LayoutDashboard, Library, Loader2, Plus, RefreshCw, Settings, WifiOff } from 'lucide-react';
-import type { Session, Template } from './types';
+import type { Exercise, Session, Template } from './types';
 import { ApiError, api } from './lib/api';
 import { useApp } from './app/useApp';
 import { restTimer } from './lib/restTimer';
@@ -10,9 +10,9 @@ import { Auth } from './components/Auth';
 import { Dashboard } from './components/Dashboard';
 import { Programs } from './components/Programs';
 import { Workout } from './components/Workout';
-import { HistoryView, SessionDetail } from './components/History';
+import { clearHistoryViewCache, HistoryView, SessionDetail } from './components/History';
 import { SettingsView } from './components/Settings';
-import { ExerciseLibrary } from './components/Exercises';
+import { ExerciseDetailModal, ExerciseLibrary } from './components/Exercises';
 import { ImportReview } from './components/Import';
 import { StartPreview } from './components/StartPreview';
 
@@ -29,6 +29,7 @@ export default function App() {
   const [tab, setTab] = useState('overview');
   const [training, setTraining] = useState(false);
   const [detail, setDetail] = useState<Session | null>(null);
+  const [exerciseDetail, setExerciseDetail] = useState<import('./types').Exercise | null>(null);
   const [toast, setToast] = useState('');
   const [starting, setStarting] = useState(false);
   const [preview, setPreview] = useState<Template | null>(null);
@@ -76,6 +77,23 @@ export default function App() {
     finally { setStarting(false); }
   }
 
+  async function openExercise(id: string) {
+    const existing = data!.exercises.find(candidate => candidate.id === id);
+    if (existing) { setExerciseDetail(existing); return; }
+    try {
+      const insight = await api.exerciseInsight(id, '3m', 0, 20);
+      const archived: Exercise = {
+        id: insight.id, slug: `exercise-${insight.id}`, name: insight.name, muscle: insight.muscle,
+        equipment: insight.equipment, cue: insight.cue, aliases: [], loadStepKg: insight.loadStepKg,
+        loadModel: insight.loadModel, source: insight.isCustom ? 'custom' : 'catalog',
+        isCustom: insight.isCustom, archived: insight.archived
+      };
+      setExerciseDetail(archived);
+    } catch (failure) {
+      setActionError(failure instanceof ApiError ? failure.message : 'That exercise detail is no longer available.');
+    }
+  }
+
   return <div className="app-shell">
     <aside className="sidebar">
       <a className="brand" href="#" onClick={e => { e.preventDefault(); setTab('overview'); }}><img src="/favicon.svg" alt="" /><span>Workout</span></a>
@@ -110,9 +128,10 @@ export default function App() {
         {tab === 'program' && <Programs data={data} exercises={data.exercises} onStart={start} onImport={() => setTab('import')} onChanged={app.reload} />}
         {tab === 'import' && <ImportReview exercises={data.exercises} imports={data.imports} remaining={data.aiImportsRemaining}
           onBack={() => setTab('program')} onChanged={app.reload} />}
-        {tab === 'history' && <HistoryView initial={data.history} preferences={data.preferences} onSession={setDetail} onStart={() => setTab('program')} />}
-        {tab === 'exercises' && <ExerciseLibrary exercises={data.exercises} />}
-        {tab === 'settings' && <SettingsView account={data.account} preferences={data.preferences} onPreferences={app.savePreferences} notify={setToast} onSignOut={app.signOut} />}
+        {tab === 'history' && <HistoryView initial={data.history} preferences={data.preferences} onSession={setDetail} onStart={() => setTab('program')}
+          onExercise={id => { void openExercise(id); }} />}
+        {tab === 'exercises' && <ExerciseLibrary exercises={data.exercises} onOpen={setExerciseDetail} onChanged={app.reload} />}
+        {tab === 'settings' && <SettingsView account={data.account} preferences={data.preferences} onPreferences={app.savePreferences} notify={setToast} onSignOut={async () => { clearHistoryViewCache(); await app.signOut(); }} />}
         </MotionScene>
       </main>
 
@@ -131,6 +150,8 @@ export default function App() {
 
     {preview && <StartPreview template={preview} busy={starting} onCancel={() => setPreview(null)} onConfirm={confirmStart} />}
     {detail && <SessionDetail session={detail} preferences={data.preferences} onClose={() => setDetail(null)} onDeleted={app.reload} />}
+    {exerciseDetail && <ExerciseDetailModal exercise={exerciseDetail} unit={data.preferences.unit} onClose={() => setExerciseDetail(null)} onChanged={async () => { clearHistoryViewCache(); await app.reload(); }}
+      onSession={session => { setExerciseDetail(null); setDetail(session); }} />}
     {toast && <div className="toast" role="status"><Plus size={17} />{toast}</div>}
   </div>;
 }

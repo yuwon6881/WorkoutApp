@@ -20,6 +20,8 @@ public sealed class ExportService(AppDb db, ProgramService programs, TemplateSer
             note = "Weights are stored in kilograms. A null weight means the load was not recorded.",
             programs = await programs.FullList(ct),
             templates = await templates.List(null, standaloneOnly: true, ct),
+            customExercises = await db.CustomExercises.AsNoTracking().Select(x => new { x.Id, x.Name, x.Muscle, x.Equipment, x.Cue, x.LoadStepKg, x.LoadModel, x.MovementPattern, x.Archived, x.CreatedAt, x.ArchivedAt }).ToListAsync(ct),
+            exerciseHistoryClears = await db.ExerciseHistoryClears.AsNoTracking().OrderBy(x => x.ClearedAt).Select(x => new { x.ExerciseId, x.NameSnapshot, x.ClearedAt, x.RemovedSets, x.AffectedWorkouts }).ToListAsync(ct),
             history = sessions
         };
     }

@@ -1,23 +1,13 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import type { ImportDraft, ImportView } from '../types';
 import { ApiError, api } from '../lib/api';
-
-export const MAX_IMPORT_BYTES = 150 * 1024 * 1024;
-/// This app reaches its API through the Vercel rewrite, which rejects or stalls a request body
-/// over roughly 4.5 MB. Anything that would not comfortably fit in one body goes through the
-/// resumable session instead, and a direct post is only ever a fallback below the same ceiling —
-/// Cloud Run's own 32 MiB limit never applies, because the proxy is the narrower hop.
-const RESUMABLE_THRESHOLD = 3 * 1024 * 1024;
-const DIRECT_POST_LIMIT = RESUMABLE_THRESHOLD;
-const POLL_MS = 4000;
+import { PdfTextError, extractPdfText, type PdfExtraction } from '../lib/pdfText';
 
 /// `percent` is null while the step has no measurable size, so the bar can stay indeterminate
 /// instead of inventing a number.
 export type ImportProgress = { label: string; detail: string; percent: number | null };
 
-/// `needsSource` marks the one failure the user alone can clear: the server no longer holds the
-/// PDF, so nothing but the file itself moves the import forward.
-export type ImportFailure = { message: string; needsSource: boolean };
+export type ImportFailure = { message: string };
 
 export type ImportPipeline = {
   progress: ImportProgress | null;
@@ -32,29 +22,24 @@ export type ImportPipeline = {
 };
 
 type Options = {
-  selected: ImportView | null;
   setSelected: (view: ImportView | null) => void;
   setDraft: (draft: ImportDraft | null) => void;
   onChanged: () => Promise<void>;
 };
 
-/// Coordinates the whole read of a PDF: upload, outline, and one extraction pass per section.
-/// The server owns the work and can finish it without this tab, so the browser reports progress,
-/// resumes what it can, and only asks for the file again when the server truly cannot continue.
-export function useImportPipeline({ selected, setSelected, setDraft, onChanged }: Options): ImportPipeline {
+/// Coordinates the whole read of a PDF: the text is extracted here, on this device, and only that
+/// text is sent. The server then reads an outline and one section at a time, and holds the
+/// extracted text for a day so a reload continues an unfinished import instead of restarting it.
+export function useImportPipeline({ setSelected, setDraft, onChanged }: Options): ImportPipeline {
   const [progress, setProgress] = useState<ImportProgress | null>(null);
   const [failure, setFailure] = useState<ImportFailure | null>(null);
   const [notice, setNotice] = useState('');
-  const sourceFile = useRef<File | null>(null);
   const running = useRef(false);
 
   const apply = useCallback((view: ImportView) => { setSelected(view); setDraft(view.draft); }, [setSelected, setDraft]);
 
   const report = useCallback((error: unknown, fallback: string) => {
-    setFailure({
-      message: error instanceof ApiError ? error.message : fallback,
-      needsSource: error instanceof ApiError && error.status === 410
-    });
+    setFailure({ message: error instanceof ApiError || error instanceof PdfTextError ? error.message : fallback });
   }, []);
 
   /// Refreshes the row after a failed pass so the panel shows what the server recorded rather
@@ -68,19 +53,15 @@ export function useImportPipeline({ selected, setSelected, setDraft, onChanged }
     while (current.status === 'pending' && current.stage === 'extract' && current.chunksDone < current.chunksTotal) {
       setProgress({
         label: `Reading section ${current.chunksDone + 1} of ${current.chunksTotal}`,
-        detail: current.currentChunkLabel ?? 'The server keeps this section even if you leave.',
+        detail: current.currentChunkLabel ?? '',
         percent: Math.round((current.chunksDone / current.chunksTotal) * 100)
       });
       try {
         current = await api.extractImport(current.id);
       } catch (error) {
-        const expired = error instanceof ApiError && error.status === 410;
-        const held = sourceFile.current;
-        // Sending an empty file would only repeat the same "temporary PDF has expired" answer,
-        // so the copy this browser still has is the only worthwhile retry.
-        if (!expired || !held) { report(error, 'That section could not be read. Try again.'); await refresh(current.id); return; }
-        try { current = await api.extractImport(current.id, held); }
-        catch (retryError) { report(retryError, 'That section could not be read. Try again.'); await refresh(current.id); return; }
+        report(error, 'That section could not be read. Try again.');
+        await refresh(current.id);
+        return;
       }
       apply(current);
       await onChanged();
@@ -104,43 +85,25 @@ export function useImportPipeline({ selected, setSelected, setDraft, onChanged }
   }, []);
 
   const upload = useCallback(async (chosen: File) => {
-    if (chosen.size > MAX_IMPORT_BYTES) { setFailure({ message: 'That PDF is larger than 150 MiB.', needsSource: false }); return; }
-    if (!/\.pdf$/i.test(chosen.name)) { setFailure({ message: 'Choose a PDF file.', needsSource: false }); return; }
-    sourceFile.current = chosen;
+    if (!/\.pdf$/i.test(chosen.name)) { setFailure({ message: 'Choose a PDF file.' }); return; }
     await drive(async () => {
+      let source: PdfExtraction;
       try {
-        let view: ImportView;
-        if (chosen.size > RESUMABLE_THRESHOLD) {
-          setProgress({ label: 'Uploading the PDF', detail: chosen.name, percent: 0 });
-          const session = await api.initImportUpload(chosen.name, chosen.size);
-          let offset = session.receivedBytes;
-          while (offset < chosen.size) {
-            const end = Math.min(chosen.size, offset + session.chunkBytes);
-            const part = new Uint8Array(await chosen.slice(offset, end).arrayBuffer());
-            const sent = await api.appendImportUpload(session.id, offset, part);
-            // The server reports what storage committed, which can be less than was sent. Looping
-            // on an offset that never advances would freeze the bar on a percentage forever, so a
-            // stalled session is reported instead of retried without end.
-            if (sent.receivedBytes <= offset) throw new ApiError('The upload stopped making progress. Start the upload again.', 410);
-            offset = sent.receivedBytes;
-            setProgress({ label: 'Uploading the PDF', detail: chosen.name, percent: Math.round((offset / chosen.size) * 100) });
-          }
-          setProgress({ label: 'Reading the program outline', detail: chosen.name, percent: null });
-          try {
-            view = await api.completeImportUpload(session.id);
-          } catch (completion) {
-            // The assembled upload could not be read back. This browser still holds the file, so
-            // posting it directly is a real second chance instead of making the user start over.
-            if (chosen.size > DIRECT_POST_LIMIT) throw completion;
-            await api.cancelImportUpload(session.id).catch(() => { /* the expiry sweep clears it */ });
-            setProgress({ label: 'Retrying the upload directly', detail: chosen.name, percent: null });
-            view = await api.uploadImport(chosen);
-          }
-        } else {
-          setProgress({ label: 'Reading the program outline', detail: chosen.name, percent: null });
-          view = await api.uploadImport(chosen);
-        }
-        await advance(view);
+        // Reading the text is the only step whose size this app knows, so it is the only step
+        // that reports a real percentage.
+        setProgress({ label: 'Reading the PDF on this device', detail: chosen.name, percent: 0 });
+        source = await extractPdfText(chosen, (page, pageCount) => {
+          setProgress({ label: 'Reading the PDF on this device', detail: `Page ${page} of ${pageCount}`, percent: Math.round((page / pageCount) * 100) });
+        });
+      } catch (error) { report(error, 'The text in that PDF could not be read on this device.'); return; }
+
+      try {
+        setProgress({
+          label: 'Finding the program',
+          detail: `${source.pagesWithText} of ${source.pageCount} pages have selectable text`,
+          percent: null
+        });
+        await advance(await api.createImport(source));
       } catch (error) { report(error, 'Could not read that PDF.'); }
     });
   }, [advance, drive, report]);
@@ -168,22 +131,6 @@ export function useImportPipeline({ selected, setSelected, setDraft, onChanged }
       catch (error) { report(error, 'That did not work. Try again.'); }
     });
   }, [drive, onChanged, report]);
-
-  const pendingId = selected?.status === 'pending' ? selected.id : null;
-  useEffect(() => {
-    if (!pendingId) return;
-    // Extraction also runs on the server, so an import can finish while this tab is idle. Polling
-    // keeps the panel honest without asking the user to press anything.
-    const timer = window.setInterval(async () => {
-      if (running.current || document.hidden) return;
-      try {
-        const view = await api.getImport(pendingId);
-        apply(view);
-        if (view.status !== 'pending') await onChanged();
-      } catch { /* a single missed poll is not worth reporting; the next tick retries */ }
-    }, POLL_MS);
-    return () => window.clearInterval(timer);
-  }, [pendingId, apply, onChanged]);
 
   return {
     progress, failure, notice, busy: progress !== null,

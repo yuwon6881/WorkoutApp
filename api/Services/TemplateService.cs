@@ -59,7 +59,12 @@ public sealed class TemplateService(AppDb db, CatalogService catalog)
     {
         var wanted = ids.Where(i => i != null).Select(i => i!.Value).Distinct().ToList();
         if (wanted.Count == 0) return [];
-        return await db.Exercises.AsNoTracking().Where(x => wanted.Contains(x.Id)).ToDictionaryAsync(x => x.Id, x => x.Name, ct);
+        var names = await db.Exercises.AsNoTracking().Where(x => wanted.Contains(x.Id)).ToDictionaryAsync(x => x.Id, x => x.Name, ct);
+        var custom = await db.CustomExercises.AsNoTracking().Where(x => wanted.Contains(x.Id)).ToListAsync(ct);
+        // Archived custom identities remain attached to existing templates. Keep the original
+        // prescription usable, while making the replacement decision visible in the picker.
+        foreach (var row in custom) names[row.Id] = row.Archived ? $"{row.Name} (deleted)" : row.Name;
+        return names;
     }
 
     public async Task<TemplateView> Create(TemplateInput input, Guid? programId, int week, int position, CancellationToken ct)
@@ -132,7 +137,7 @@ public sealed class TemplateService(AppDb db, CatalogService catalog)
         var targetRow = target!;
         var replacement = input.ReplacementName.Trim();
         if (input.ReplacementExerciseId is { } replacementId)
-            replacement = await db.Exercises.AsNoTracking().Where(e => e.Id == replacementId && e.Active).Select(e => e.Name).SingleAsync(ct);
+            replacement = await catalog.NameFor(replacementId, ct);
 
         var templatesToChange = new List<WorkoutTemplate> { templateRow };
         if (input.Scope == "phase")
@@ -271,7 +276,7 @@ public sealed class TemplateService(AppDb db, CatalogService catalog)
         {
             Validation.Name(exercise.SourceName, "Exercise name", 160);
             Validation.Text(exercise.Note, 1000, "Exercise notes");
-            Validation.Require(exercise.SourcePage is null || exercise.SourcePage.Value is > 0 and <= PdfInspection.MaxPages, "Exercise source page is invalid.");
+            Validation.Require(exercise.SourcePage is null || exercise.SourcePage.Value is > 0 and <= ImportSourceText.MaxPages, "Exercise source page is invalid.");
             Validation.Text(exercise.SequenceGroup, 8, "Sequence group");
             Validation.Substitutions(exercise.Substitutions);
             Validation.Prescriptions(exercise.Sets, requireWorkingRpe, allowTargetRpeOutsideTrainingRange);

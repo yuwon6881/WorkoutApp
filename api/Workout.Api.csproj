@@ -9,7 +9,6 @@
     <PackageReference Include="OpenIddict.Validation.AspNetCore" Version="7.7.0" />
     <PackageReference Include="OpenIddict.Validation.SystemNetHttp" Version="7.7.0" />
     <PackageReference Include="SQLitePCLRaw.bundle_e_sqlite3" Version="3.0.2" />
-    <PackageReference Include="UglyToad.PdfPig" Version="1.7.0-custom-5" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.10"><PrivateAssets>all</PrivateAssets></PackageReference>
   </ItemGroup>
   <ItemGroup>

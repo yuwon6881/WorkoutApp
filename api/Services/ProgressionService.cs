@@ -34,15 +34,21 @@ public sealed class ProgressionService(AppDb db)
     {
         var ids = exerciseIds.Where(id => id != null).Select(id => id!.Value).Distinct().ToList();
         if (ids.Count == 0) return [];
-        return await db.Exercises.AsNoTracking().Where(x => ids.Contains(x.Id)).ToDictionaryAsync(x => x.Id, x => x.LoadStepKg, ct);
+        var output = await db.Exercises.AsNoTracking().Where(x => ids.Contains(x.Id)).ToDictionaryAsync(x => x.Id, x => x.LoadStepKg, ct);
+        var custom = await db.CustomExercises.AsNoTracking().Where(x => ids.Contains(x.Id)).ToListAsync(ct);
+        foreach (var row in custom) output[row.Id] = row.LoadStepKg;
+        return output;
     }
 
     public async Task<Dictionary<Guid, (string LoadModel, double StepKg)>> LoadInfo(IEnumerable<Guid?> exerciseIds, CancellationToken ct)
     {
         var ids = exerciseIds.Where(id => id != null).Select(id => id!.Value).Distinct().ToList();
         if (ids.Count == 0) return [];
-        return await db.Exercises.AsNoTracking().Where(x => ids.Contains(x.Id))
+        var output = await db.Exercises.AsNoTracking().Where(x => ids.Contains(x.Id))
             .ToDictionaryAsync(x => x.Id, x => (x.LoadModel, x.LoadStepKg), ct);
+        var custom = await db.CustomExercises.AsNoTracking().Where(x => ids.Contains(x.Id)).ToListAsync(ct);
+        foreach (var row in custom) output[row.Id] = (row.LoadModel, row.LoadStepKg);
+        return output;
     }
 
     /// Folds a finished session's completed sets into the running estimate. Exercises whose

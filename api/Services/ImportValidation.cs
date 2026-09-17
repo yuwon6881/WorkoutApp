@@ -59,14 +59,14 @@ internal static class ImportValidation
         foreach (var exercise in workout.Exercises)
         {
             Validation.Name(exercise.SourceName, "Exercise name", 160); Validation.Text(exercise.Notes, 1000, "Exercise notes");
-            Validation.Require(exercise.SourcePage is null || exercise.SourcePage.Value is > 0 and <= PdfInspection.MaxPages, "Exercise source page is invalid.");
+            Validation.Require(exercise.SourcePage is null || exercise.SourcePage.Value is > 0 and <= ImportSourceText.MaxPages, "Exercise source page is invalid.");
             Validation.Text(exercise.SequenceGroup, 8, "Sequence group"); Validation.Substitutions(exercise.Substitutions);
             // Imported notation is preserved for review, including unusual but valid 1-10
             // target RPE values; manual program editing keeps the stricter training range.
             Validation.Prescriptions(exercise.Sets.Select(ToPrescription).ToList(), false, true);
             foreach (var set in exercise.Sets)
             {
-                Validation.Require(set.SourcePage is null || set.SourcePage.Value is > 0 and <= PdfInspection.MaxPages, "Set source page is invalid.");
+                Validation.Require(set.SourcePage is null || set.SourcePage.Value is > 0 and <= ImportSourceText.MaxPages, "Set source page is invalid.");
                 foreach (var source in new[] { set.RepsSource, set.RpeSource, set.RestSource })
                     Validation.Require(source is "extracted" or "inferred" or "userEdited", "Unknown provenance label.");
             }
@@ -151,10 +151,13 @@ internal static class ImportValidation
     public static List<ImportChunk> ReadChunks(string json)
         => string.IsNullOrWhiteSpace(json) ? [] : Json.Read<List<ImportChunk>>(json);
 
-    public static void ValidateChunkCoverage(ImportDraft existing, ImportDraft extracted, ImportChunk chunk)
+    /// Merges one chunk's days into the draft's world view. The outline's `dayCount` is an
+    /// estimate made from page previews, so a different number of days is reconciled and reported
+    /// rather than rejected: a section header the outline read as fifteen training days is often
+    /// seven, and throwing away a completed read over that estimate helps nobody. A day outside
+    /// the chunk's weeks or a day already extracted is a real error and stays retryable.
+    public static ImportReviewIssue? ReconcileChunkCoverage(ImportDraft existing, ImportDraft extracted, ImportChunk chunk)
     {
-        Validation.Require(extracted.Workouts.Count == chunk.DayCount,
-            $"AI returned {extracted.Workouts.Count} days for '{chunk.Label}', but the outline expects {chunk.DayCount}. Review or retry this chunk.", 422);
         Validation.Require(extracted.Workouts.All(day => day.Week >= chunk.WeekFrom && day.Week <= chunk.WeekTo),
             $"AI returned a day outside the week range for '{chunk.Label}'. Retry this chunk.", 422);
         var existingKeys = existing.Workouts.Select(DayKey).ToHashSet(StringComparer.OrdinalIgnoreCase);
@@ -165,21 +168,17 @@ internal static class ImportValidation
             Validation.Require(chunkKeys.Add(key) && !existingKeys.Contains(key),
                 $"AI returned a duplicate workout day for '{chunk.Label}'. Retry this chunk.", 422);
         }
+        if (extracted.Workouts.Count == chunk.DayCount) return null;
+        return new ImportReviewIssue("chunk_day_count",
+            $"'{chunk.Label}' was outlined as about {chunk.DayCount} day{(chunk.DayCount == 1 ? "" : "s")} but reads as {extracted.Workouts.Count}. Check that section in the review.",
+            "warning", chunk.PageFrom);
     }
+
+    public static List<ImportReviewIssue> ReadNotices(string json)
+        => string.IsNullOrWhiteSpace(json) ? [] : Json.Read<List<ImportReviewIssue>>(json);
 
     public static string DayKey(DraftWorkout day)
         => $"{day.Week}|{day.PhaseWeek}|{day.Block?.Trim()}|{day.Phase?.Trim()}|{day.Weekday}|{day.Name.Trim()}";
-
-    public static void ValidatePdf(byte[] pdf, string fileName)
-    {
-        Validation.Require(pdf.Length > 0, "Choose a PDF to import.");
-        Validation.Require(pdf.Length <= PdfInspection.MaxBytes, "That PDF is larger than 150 MiB.", 413);
-        Validation.Require(PdfInspection.LooksLikePdf(pdf), "That file is not a PDF.");
-        var pages = PdfInspection.ApproximatePages(pdf);
-        Validation.Require(pages > 0, "The PDF page structure could not be read. Choose a complete PDF file.", 422);
-        Validation.Require(pages <= PdfInspection.MaxPages, $"That PDF has about {pages} pages; the importer accepts up to {PdfInspection.MaxPages}.");
-        Validation.Name(fileName, "File name", 200);
-    }
 
     public static void ValidateChunkPages(IEnumerable<ImportChunk> chunks, string coverageJson)
     {

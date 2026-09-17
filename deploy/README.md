@@ -13,20 +13,18 @@ Singapore. The FinancialApp and NutritionApp services and databases are independ
 | Secret (OpenAI key) | `financialapp-openai-api-key` — shared with the sibling apps, not duplicated |
 | GCP project | `project-7eb1aec8-8636-4c86-b2a` |
 | Cloud Run service | `workout-api`, `asia-southeast1` |
-| Cloud Run import worker | `workout-import-worker`, `asia-southeast1` (private, 2 GiB, concurrency 1, scale-to-zero) |
-| Import bucket | `workout-imports-396431756440` (private, same region, two-day lifecycle safety net) |
-| Import task queue | `workout-imports` (`asia-southeast1`, one chunk per authenticated task) |
-| Maintenance scheduler | `workout-import-maintenance` (hourly, authenticated Cloud Run request) |
+| Maintenance scheduler | `workout-import-maintenance` (hourly, `X-Workout-Maintenance-Secret`) |
+| Secret (maintenance) | `workout-maintenance-secret` (Google Secret Manager) |
 | Service account | `workout-api@project-7eb1aec8-8636-4c86-b2a.iam.gserviceaccount.com` |
 | API URL | `https://workout-api-i47taxhzba-as.a.run.app` |
 | Image | `asia-southeast1-docker.pkg.dev/<project>/cloud-run-source-deploy/workout-api` |
 
 The API runs with 1 CPU, 2 GiB, a 3,600 second timeout, HTTP/1.1, concurrency 1, and minimum 0 /
-maximum 1 instances. PDF extraction runs in the private `workout-import-worker` service with the
-same resource limits, a 1,800 second request timeout, concurrency 1, and minimum 0 / maximum 1
-instances. Cloud Tasks delivers one expected extraction chunk per request; the worker keeps no
-polling loop in production. An hourly authenticated maintenance request removes expired objects
-and recovers dispatches that were not accepted or whose delivery lease expired.
+maximum 1 instances. PDF import needs nothing else: the browser reads the document's text on the
+device and posts it gzipped, and each pass is one short text-only model call driven by that
+browser. An hourly maintenance request runs the retention sweep; because the API is reachable
+without Cloud Run IAM, `/internal/import-maintenance` exists only when `Maintenance__Secret` is
+configured and answers 404 unless the request presents it in `X-Workout-Maintenance-Secret`.
 
 ## Database and secrets
 
@@ -39,24 +37,15 @@ The application database is `workout` in the `WorkoutApp` Neon project. Neon’s
 `neondb` and `postgres` databases are not application targets. The unused provider-created
 `neondb` database was removed on 2026-09-17; `workout` remains the sole application database.
 
-For production PDF retention, `_IMPORT_BUCKET` is set to `workout-imports-396431756440` in Cloud
-Build (or set `ImportStorage__Bucket` on both Cloud Run services). The bucket is private, uniform
-access, same-region, and has a two-day object lifecycle safety net. The API and worker use
-application default credentials for private object reads, resumable sessions, and deletion.
-Without that variable, local development and tests use a private transient filesystem directory
-instead. Application cleanup deletes source objects and temporary derivatives as soon as an import
-reaches a terminal state; the persisted 24-hour source expiry remains the user-visible retention
-contract.
+An import's source is the page text the browser extracted, stored on the import row and cleared
+as soon as the import reaches a terminal state. An unfinished import expires 24 hours after its
+text was stored, which remains the user-visible retention contract. No document, page image, or
+object-store copy exists on the server, so there is no import bucket, task queue, or worker
+service to provision.
 
-Cloud Tasks dispatch is configured by `_IMPORT_TASK_QUEUE`, `_IMPORT_WORKER_URL`, and
-`_IMPORT_WORKER_SERVICE_ACCOUNT` in Cloud Build. Grant the API service account
-`roles/cloudtasks.enqueuer` on the queue or project and `roles/run.invoker` on the private
-`workout-import-worker`; Cloud Run IAM authenticates each task. The worker's
-`/internal/import-tasks` route accepts one idempotent extraction step and receives the expected
-chunk in its payload, so duplicates cannot advance another chunk. Keep
-`ImportWorker__PollingEnabled=false` in production. The persisted dispatch marker and hourly
-maintenance route recover enqueue failures and worker restarts; immediate user-triggered retry
-remains available.
+The `workout-import-worker` Cloud Run service, the `workout-imports` Cloud Tasks queue, and the
+`workout-imports-396431756440` bucket are no longer used by any deployed code. Delete them
+manually after this change is deployed and verified.
 
 Migrations are applied before deployment and `Database__MigrateOnStartup` stays `false`:
 

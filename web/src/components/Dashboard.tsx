@@ -1,22 +1,30 @@
-import { useState } from 'react';
-import { ArrowRight, Check, ChevronLeft, ChevronRight, Dumbbell, FileText, Flame, Play, TrendingUp } from 'lucide-react';
-import type { Bootstrap, Session } from '../types';
-import { duration, localDate, showVolume, weekDays } from '../lib/training';
+import { useEffect, useState } from 'react';
+import { ArrowRight, Check, ChevronLeft, ChevronRight, Dumbbell, FileText, Play } from 'lucide-react';
+import type { Bootstrap, Session, WorkoutTrainingSummary } from '../types';
+import { api } from '../lib/api';
+import { localDate, weekDays } from '../lib/training';
 import { Button } from './ui/Button';
+import { Modal } from './ui/Modal';
 
-export function Dashboard({ data, onStart, onHistory, onProgram, onImport, onSession, onResume }: {
+export function Dashboard({ data, onStart, onProgram, onImport, onResume, onSession }: {
   data: Bootstrap; onStart: (templateId: string) => void; onHistory: () => void; onProgram: () => void;
   onImport: () => void; onSession: (s: Session) => void; onResume: () => void;
 }) {
   const [offset, setOffset] = useState(0);
   const days = weekDays(offset);
-  const week = weekDays();
-  const unit = data.preferences.unit;
   const history = data.history.sessions;
-  const weekly = history.filter(s => {
-    const at = Date.parse(s.startedAt);
-    return at >= week[0].getTime() && at < week[6].getTime() + 86400000;
-  });
+  const [calendar, setCalendar] = useState<WorkoutTrainingSummary[]>([]);
+  const [calendarError, setCalendarError] = useState('');
+  const [selectedDay, setSelectedDay] = useState<Date | null>(null);
+  const [selectedDayError, setSelectedDayError] = useState('');
+  const localDay = (day: Date) => `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, '0')}-${String(day.getDate()).padStart(2, '0')}`;
+
+  useEffect(() => {
+    const from = localDay(days[0]); const to = localDay(days[6]);
+    const controller = new AbortController();
+    api.schedule(from, to, controller.signal).then(next => { setCalendar(next); setCalendarError(''); }).catch(() => { if (!controller.signal.aborted) setCalendarError('Calendar could not be refreshed.'); });
+    return () => controller.abort();
+  }, [offset]);
 
   const program = data.activeProgram;
   const next = program?.days.find(w => w.id === program.nextTemplateId) ?? data.templates[0] ?? null;
@@ -25,8 +33,6 @@ export function Dashboard({ data, onStart, onHistory, onProgram, onImport, onSes
   const nextWeek = next?.week ?? 1;
   const nextExerciseCount = next && 'exerciseCount' in next ? next.exerciseCount : next?.exercises.length ?? 0;
   const nextSets = next && 'exerciseCount' in next ? null : next?.exercises.reduce((total, e) => total + e.sets.filter(s => !s.warmup).length, 0) ?? 0;
-  const weeklyVolume = weekly.some(s => s.volumeKg !== null) ? weekly.reduce((total, s) => total + (s.volumeKg ?? 0), 0) : null;
-
   return <>
     <div className="page-heading">
       <h1>Overview</h1>
@@ -38,17 +44,23 @@ export function Dashboard({ data, onStart, onHistory, onProgram, onImport, onSes
         <span><span className="status-dot" /> {offset === 0 ? 'This week' : days[0].toLocaleDateString('en', { month: 'short', day: 'numeric' })}</span>
         <div>
           <Button aria-label="Previous week" variant="tertiary" onClick={() => setOffset(o => o - 1)}><ChevronLeft size={17} /></Button>
-          <Button aria-label="Next week" variant="tertiary" disabled={offset === 0} onClick={() => setOffset(o => o + 1)}><ChevronRight size={17} /></Button>
+          {offset !== 0 && <Button aria-label="Return to this week" variant="tertiary" onClick={() => setOffset(0)}>Today</Button>}
+          <Button aria-label="Next week" variant="tertiary" onClick={() => setOffset(o => o + 1)}><ChevronRight size={17} /></Button>
         </div>
       </div>
       <div className="week-days">{days.map(day => {
-        const logged = history.some(s => localDate(s.startedAt) === localDate(day));
+        const entries = calendar.filter(item => item.localDate === localDay(day));
+        const fallbackLogged = history.some(s => localDate(s.startedAt) === localDate(day));
+        const status = entries.some(e => e.status === 'in_progress') ? 'in_progress' : entries.some(e => e.status === 'completed' || e.status === 'completed_early' || e.status === 'completed_late') ? (entries.some(e => e.status === 'completed_early' || e.status === 'completed_late') ? 'completed_shifted' : 'completed') : entries.some(e => e.status === 'missed') ? 'missed' : entries.some(e => e.status === 'skipped') ? 'skipped' : entries.some(e => e.status === 'scheduled') ? 'scheduled' : fallbackLogged ? 'completed' : 'rest';
         const today = localDate(day) === localDate(Date.now());
-        return <div key={day.toISOString()} className={`day ${today ? 'today' : ''}`} aria-label={`${day.toDateString()}${logged ? ', workout completed' : ''}${today ? ', today' : ''}`}>
+        const label = status === 'completed' ? 'workout completed' : status === 'completed_shifted' ? 'workout completed on a different day' : status === 'scheduled' ? 'workout scheduled' : status === 'missed' ? 'workout missed' : status === 'skipped' ? 'workout skipped' : status === 'in_progress' ? 'workout in progress' : 'rest day';
+        return <Button presentation="plain" key={day.toISOString()} className={`day day-${status} ${today ? 'today' : ''}`} aria-label={`${day.toDateString()}, ${label}${today ? ', today' : ''}`} onClick={() => { setSelectedDay(day); setSelectedDayError(''); }}>
           <span>{day.toLocaleDateString('en', { weekday: 'short' })}</span><strong>{day.getDate()}</strong>
-          <span className="day-marker">{logged ? <Check size={12} /> : today ? <span className="status-dot" /> : '·'}</span>
-        </div>;
+          <span className="day-marker">{status === 'completed' ? <Check size={12} /> : status === 'completed_shifted' ? '↔' : status === 'scheduled' ? '○' : status === 'missed' ? '!' : status === 'skipped' ? '–' : status === 'in_progress' ? '…' : today ? <span className="status-dot" /> : '·'}</span>
+        </Button>;
       })}</div>
+      <div className="calendar-legend" aria-label="Calendar status legend"><span><i className="legend-dot scheduled" />Scheduled</span><span><i className="legend-dot completed" />Completed</span><span><i className="legend-dot shifted" />Early/late</span><span><i className="legend-dot missed" />Missed</span><span><i className="legend-dot skipped" />Skipped</span><span><i className="legend-dot in-progress" />In progress</span></div>
+      {calendarError && <p className="muted calendar-error">{calendarError}</p>}
     </section>
 
     <div className="dashboard-grid">
@@ -63,10 +75,9 @@ export function Dashboard({ data, onStart, onHistory, onProgram, onImport, onSes
               <h2>{data.activeWorkout?.active ? data.activeWorkout.name : nextName ?? 'Choose a workout'}</h2>
               <p>{data.activeWorkout?.active ? 'In progress · pick up where you left off' : program ? `${program.name} · week ${nextWeek}` : next ? nextFocus : 'Import a program from a PDF, or build a workout by hand.'}</p>
               <div className="hero-facts">
-                <span><Dumbbell size={15} />{data.activeWorkout?.active ? data.activeWorkout.exercises.reduce((total, e) => total + e.sets.filter(s => !s.warmup).length, 0) : nextSets ?? nextExerciseCount} working sets</span>
+                <span><Dumbbell size={15} />{data.activeWorkout?.active ? data.activeWorkout.exercises.reduce((total, e) => total + e.sets.filter(s => !s.warmup).length, 0) : nextSets !== null ? nextSets : '—'} working sets</span>
               </div>
             </div>
-            <div className="hero-art" aria-hidden="true"><div className="orbit orbit-one" /><div className="orbit orbit-two" /><Dumbbell strokeWidth={1.1} /><span className="art-spark">+</span></div>
           </div>
           <div className="hero-bottom">
             {data.activeWorkout?.active
@@ -77,28 +88,6 @@ export function Dashboard({ data, onStart, onHistory, onProgram, onImport, onSes
           </div>
         </section>
 
-        <section>
-          <div className="section-heading"><h2>Your training week</h2><span className="muted">Monday – Sunday</span></div>
-          <div className="stats-grid">
-            <div className="stat-card"><div className="stat-label"><Dumbbell size={17} /> Workouts</div><strong>{weekly.length}</strong>
-              <div className="mini-progress">{[0, 1, 2, 3].map(i => <span key={i} className={i < weekly.length ? 'filled' : ''} />)}</div></div>
-            <div className="stat-card"><div className="stat-label"><TrendingUp size={17} /> Total volume</div><strong>{showVolume(weeklyVolume, unit)}</strong></div>
-            <div className="stat-card"><div className="stat-label"><Flame size={17} /> Working sets</div><strong>{weekly.reduce((total, s) => total + s.completedSets, 0)}<small> sets</small></strong></div>
-          </div>
-        </section>
-
-        <section className="panel recent-panel">
-          <div className="section-heading"><h2>Recent workouts</h2><Button variant="tertiary" onClick={onHistory}>View all <ArrowRight size={16} /></Button></div>
-          {history.length ? history.slice(0, 3).map(session => <Button className="history-row" variant="tertiary" key={session.id} onClick={() => onSession(session)}>
-            <span className="exercise-icon"><Dumbbell size={19} /></span>
-            <span className="row-title"><strong>{session.name}</strong>
-              <small>{new Date(session.startedAt).toLocaleDateString('en', { month: 'short', day: 'numeric' })} · {duration(session)} min · {session.completedSets} sets</small></span>
-            <span>{showVolume(session.volumeKg, unit)}</span><ArrowRight size={16} />
-          </Button>) : <div className="empty-inline">
-            <span className="exercise-icon"><Dumbbell size={22} /></span>
-            <div><h3>No workouts yet</h3><p>Finish a workout to see it here.</p></div>
-          </div>}
-        </section>
       </div>
 
       <aside className="side-column">
@@ -106,16 +95,8 @@ export function Dashboard({ data, onStart, onHistory, onProgram, onImport, onSes
           <div className="section-heading"><h2>Your program</h2>{program && <span className="tiny-label">{program.weeks} {program.weeks === 1 ? 'week' : 'weeks'}</span>}</div>
           {program ? <>
             <div className="program-title"><span className="program-icon"><Dumbbell size={25} /></span><div><h3>{program.name}</h3>
-              <p>{program.completedTemplateIds.length} of {program.days.length} workouts complete</p></div></div>
-            <div className="routine-list">{program.days.slice(0, 5).map(workout => {
-              const completed = program.completedTemplateIds.includes(workout.id);
-              const skipped = (program.skippedTemplateIds ?? []).includes(workout.id);
-              const nextWorkout = workout.id === program.nextTemplateId;
-              const row = <><span className="routine-number">W{workout.phaseWeek}</span><span>{workout.name}</span>
-                {workout.isRestDay ? <span className="tiny-label">Rest day</span> : completed ? <Check size={14} aria-label="Completed" /> : skipped ? <span className="tiny-label">Skipped</span> : nextWorkout ? <span className="tiny-label accent">Up next</span> : <span className="tiny-label">Later</span>}</>;
-              if (nextWorkout && program.active) return <Button variant="tertiary" className="routine-row next" key={workout.id} onClick={() => onStart(workout.id)}>{row}</Button>;
-              return <div className="routine-row routine-row-static" key={workout.id}>{row}</div>;
-            })}</div>
+              <p>{program.completedTemplateIds.length} of {program.days.filter(day => !day.isRestDay).length} workouts complete</p></div></div>
+            {program.phases?.find(phase => !phase.complete) && <p className="muted overview-phase">Current phase: {program.phases.find(phase => !phase.complete)?.name}</p>}
           </> : <div className="empty-inline"><span className="exercise-icon"><FileText size={20} /></span>
             <div><h3>No active program</h3><p>Import a training PDF and review it before it becomes a program.</p></div></div>}
           <Button className="full-width" onClick={onProgram}>Manage workouts <ArrowRight size={16} /></Button>
@@ -123,5 +104,19 @@ export function Dashboard({ data, onStart, onHistory, onProgram, onImport, onSes
 
       </aside>
     </div>
+    {selectedDay && <CalendarDayModal day={selectedDay} entries={calendar.filter(item => item.localDate === localDay(selectedDay))}
+      onClose={() => setSelectedDay(null)} onSession={async id => { try { const session = await api.getWorkout(id); setSelectedDay(null); onSession(session); } catch { setSelectedDayError('This workout could not be opened.'); } }} error={selectedDayError} />}
   </>;
+}
+
+function CalendarDayModal({ day, entries, onClose, onSession, error }: { day: Date; entries: WorkoutTrainingSummary[]; onClose: () => void; onSession: (id: string) => Promise<void>; error: string }) {
+  return <Modal title={day.toLocaleDateString('en', { weekday: 'long', month: 'long', day: 'numeric' })} onClose={onClose}>
+    <div className="modal-body calendar-day-details">
+      {entries.length ? entries.map(entry => <div className="calendar-entry" key={entry.id}>
+        <div><strong>{entry.workoutName}</strong><span className="muted">{entry.status.replace('_', ' ')}{entry.actualDate && entry.actualDate !== entry.localDate ? ` · actual ${entry.actualDate}` : ''}</span></div>
+        {entry.id.startsWith('session:') && <Button variant="tertiary" onClick={() => void onSession(entry.id.slice('session:'.length))}>Open workout <ArrowRight size={15} /></Button>}
+      </div>) : <p className="muted">No scheduled or completed workout recorded for this day.</p>}
+      {error && <div className="error-text" role="alert">{error}</div>}
+    </div>
+  </Modal>;
 }

@@ -5,7 +5,7 @@ using Workout.Api.Domain;
 namespace Workout.Api.Services;
 
 public record CatalogExercise(Guid Id, string Slug, string Name, string Muscle, string Equipment, string Cue, List<string> Aliases, double LoadStepKg,
-    string LoadModel = LoadModels.External, string MovementPattern = "");
+    string LoadModel = LoadModels.External, string MovementPattern = "", string Source = "catalog", bool IsCustom = false, bool Archived = false);
 
 public record SubstitutionCandidate(Guid? ExerciseId, string Name, string Muscle, string Equipment, string Cue,
     string Source, int Rank, bool IsCatalog, string MovementPattern = "");
@@ -24,9 +24,13 @@ public sealed class CatalogService(AppDb db)
         var exercises = await db.Exercises.AsNoTracking().Where(x => x.Active).OrderBy(x => x.Name).ToListAsync(ct);
         var ids = exercises.Select(x => x.Id).ToList();
         var aliases = await db.Aliases.AsNoTracking().Where(a => ids.Contains(a.ExerciseId)).ToListAsync(ct);
-        return exercises.Select(x => new CatalogExercise(x.Id, x.Slug, x.Name, x.Muscle, x.Equipment, x.Cue,
+        var output = exercises.Select(x => new CatalogExercise(x.Id, x.Slug, x.Name, x.Muscle, x.Equipment, x.Cue,
             aliases.Where(a => a.ExerciseId == x.Id).Select(a => a.Alias).OrderBy(a => a).ToList(), x.LoadStepKg,
             LoadModels.All.Contains(x.LoadModel) ? x.LoadModel : LoadModels.External, x.MovementPattern)).ToList();
+        var custom = await db.CustomExercises.AsNoTracking().Where(x => !x.Archived).OrderBy(x => x.Name).ToListAsync(ct);
+        output.AddRange(custom.Select(x => new CatalogExercise(x.Id, $"custom-{x.Id:N}", x.Name, x.Muscle, x.Equipment, x.Cue, [], x.LoadStepKg,
+            LoadModels.All.Contains(x.LoadModel) ? x.LoadModel : LoadModels.External, x.MovementPattern, "custom", true)));
+        return output;
     }
 
     /// Returns candidates in the server-defined order: imported alternatives first, then curated
@@ -93,23 +97,57 @@ public sealed class CatalogService(AppDb db)
         var alias = await db.Aliases.AsNoTracking().FirstOrDefaultAsync(a => a.Normalized == key, ct);
         if (alias != null) return alias.ExerciseId;
         var exercises = await db.Exercises.AsNoTracking().Where(x => x.Active).ToListAsync(ct);
-        return exercises.FirstOrDefault(x => Normalize(x.Name) == key)?.Id;
+        var catalog = exercises.FirstOrDefault(x => Normalize(x.Name) == key);
+        if (catalog != null) return catalog.Id;
+        var custom = await db.CustomExercises.AsNoTracking().Where(x => !x.Archived).ToListAsync(ct);
+        return custom.FirstOrDefault(x => Normalize(x.Name) == key)?.Id;
     }
 
     public async Task<HashSet<Guid>> ActiveIds(CancellationToken ct)
-        => (await db.Exercises.AsNoTracking().Where(x => x.Active).Select(x => x.Id).ToListAsync(ct)).ToHashSet();
+    {
+        var ids = await db.Exercises.AsNoTracking().Where(x => x.Active).Select(x => x.Id).ToListAsync(ct);
+        ids.AddRange(await db.CustomExercises.AsNoTracking().Where(x => !x.Archived).Select(x => x.Id).ToListAsync(ct));
+        return ids.ToHashSet();
+    }
 
     public async Task RequireActive(Guid? id, CancellationToken ct)
     {
         if (id == null) return;
-        Validation.Require(await db.Exercises.AsNoTracking().AnyAsync(x => x.Id == id && x.Active, ct), "That exercise is not in the library.", 400);
+        var catalog = await db.Exercises.AsNoTracking().AnyAsync(x => x.Id == id && x.Active, ct);
+        var custom = await db.CustomExercises.AsNoTracking().AnyAsync(x => x.Id == id && !x.Archived, ct);
+        Validation.Require(catalog || custom, "That exercise is not in the library.", 400);
     }
 
     public async Task<Dictionary<Guid, string>> LoadModelsFor(IEnumerable<Guid?> ids, CancellationToken ct)
     {
         var wanted = ids.Where(id => id != null).Select(id => id!.Value).Distinct().ToList();
         if (wanted.Count == 0) return [];
-        return await db.Exercises.AsNoTracking().Where(x => wanted.Contains(x.Id))
+        var output = await db.Exercises.AsNoTracking().Where(x => wanted.Contains(x.Id))
             .ToDictionaryAsync(x => x.Id, x => LoadModels.All.Contains(x.LoadModel) ? x.LoadModel : LoadModels.External, ct);
+        // Archived custom exercises stay readable for historical/template references. They are
+        // excluded from the picker and RequireActive, but their original load model is needed
+        // when an existing prescription is opened.
+        var custom = await db.CustomExercises.AsNoTracking().Where(x => wanted.Contains(x.Id)).ToListAsync(ct);
+        foreach (var row in custom) output[row.Id] = LoadModels.All.Contains(row.LoadModel) ? row.LoadModel : LoadModels.External;
+        return output;
+    }
+
+    public async Task<string> NameFor(Guid id, CancellationToken ct)
+    {
+        var name = await db.Exercises.AsNoTracking().Where(x => x.Id == id && x.Active).Select(x => x.Name).SingleOrDefaultAsync(ct);
+        if (name != null) return name;
+        name = await db.CustomExercises.AsNoTracking().Where(x => x.Id == id).Select(x => x.Name).SingleOrDefaultAsync(ct);
+        Validation.Require(name != null, "That exercise is not in the library.", 400);
+        return name!;
+    }
+
+    public async Task<Dictionary<Guid, string>> MusclesFor(IEnumerable<Guid> ids, CancellationToken ct)
+    {
+        var wanted = ids.Distinct().ToList();
+        if (wanted.Count == 0) return [];
+        var output = await db.Exercises.AsNoTracking().Where(x => wanted.Contains(x.Id)).ToDictionaryAsync(x => x.Id, x => x.Muscle, ct);
+        var custom = await db.CustomExercises.AsNoTracking().Where(x => wanted.Contains(x.Id)).ToListAsync(ct);
+        foreach (var row in custom) output[row.Id] = row.Muscle;
+        return output;
     }
 }

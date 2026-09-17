@@ -49,6 +49,22 @@ public sealed class Exercise
     public string MovementPattern { get; set; } = "";
 }
 
+/// Account-owned exercises extend the shared seed catalog without allowing one user to mutate
+/// or remove another user's library. Archived rows remain resolvable by historical workouts.
+public sealed class CustomExercise : OwnedRecord
+{
+    public string Name { get; set; } = "";
+    public string Muscle { get; set; } = "";
+    public string Equipment { get; set; } = "";
+    public string Cue { get; set; } = "";
+    public double LoadStepKg { get; set; } = 2.5;
+    public string LoadModel { get; set; } = "external";
+    public string MovementPattern { get; set; } = "";
+    public bool Archived { get; set; }
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime? ArchivedAt { get; set; }
+}
+
 public sealed class ExerciseAlias
 {
     public Guid Id { get; set; } = Guid.NewGuid();
@@ -246,6 +262,17 @@ public sealed class ExerciseProgress : OwnedRecord
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 }
 
+/// Audit marker for a user-requested exercise-history clear. The marker is intentionally small;
+/// it lets exports and support tooling explain why a finished session has no sets for the slot.
+public sealed class ExerciseHistoryClear : OwnedRecord
+{
+    public Guid ExerciseId { get; set; }
+    public string NameSnapshot { get; set; } = "";
+    public DateTime ClearedAt { get; set; } = DateTime.UtcNow;
+    public int RemovedSets { get; set; }
+    public int AffectedWorkouts { get; set; }
+}
+
 public sealed class AiImport : OwnedRecord
 {
     public string Status { get; set; } = ImportStatus.Pending;
@@ -268,32 +295,17 @@ public sealed class AiImport : OwnedRecord
     public long InputTokens { get; set; }
     public long OutputTokens { get; set; }
     public int Retries { get; set; }
-    public int VisualFallbacks { get; set; }
     public string PageCoverageJson { get; set; } = "[]";
+    /// Reconciliation notes recorded while reading, such as a section whose day count differed
+    /// from the outline's estimate. They are shown in review rather than failing the import.
+    public string NoticesJson { get; set; } = "[]";
     public Guid? ProgramId { get; set; }
     public DateTime Created { get; set; } = DateTime.UtcNow;
-    /// A transient private object key. Source bytes are deleted after the import reaches ready,
-    /// accepted, failed, or discarded; an unfinished key expires after 24 hours.
-    public string SourceFileKey { get; set; } = "";
-    public DateTime? SourceFileExpiresAt { get; set; }
-    /// The next extraction chunk that still needs a durable Cloud Tasks delivery. The value stays
-    /// present until that chunk commits, so a worker crash can be recovered by maintenance.
-    public int? PendingDispatchChunk { get; set; }
-    /// A dispatch lease/next retry time. A future value means Cloud Tasks accepted the delivery;
-    /// an expired value means maintenance should enqueue it again.
-    public DateTime? PendingDispatchAt { get; set; }
-}
-
-/// Durable server-side state for a resumable PDF upload. The source key is private and is never
-/// returned to the browser; completion turns the uploaded object into the normal import record.
-public sealed class ImportUpload : OwnedRecord
-{
-    public string FileName { get; set; } = "";
-    public long ExpectedBytes { get; set; }
-    public long ReceivedBytes { get; set; }
-    public string SourceFileKey { get; set; } = "";
-    public string Status { get; set; } = "open";
-    public DateTime ExpiresAt { get; set; } = DateTime.UtcNow.AddHours(24);
+    /// The page text the browser extracted from the PDF. The document itself never reaches this
+    /// server, so this is the entire source: it is cleared once the import reaches ready,
+    /// accepted, failed, or discarded, and an unfinished import expires after 24 hours.
+    public string SourceTextJson { get; set; } = "";
+    public DateTime? SourceExpiresAt { get; set; }
 }
 
 public static class ImportStatus

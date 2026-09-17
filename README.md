@@ -53,14 +53,14 @@ decision. Passive status rows are regular content; only rows with an available a
 - Programs run in phase order: finishing or explicitly skipping every training slot completes a
   phase, and the next Monday starts the following phase. The final phase moves the program to
   Completed; imported programs wait in Standby until scheduled and activated.
-- PDF imports accept 150 MiB and up to 1,000 actual pages. Larger uploads use a resumable 4 MiB
-  chunk API; configure `ImportStorage:Bucket` in production for private Google Cloud Storage,
-  otherwise the API uses its private transient filesystem store. Source objects expire after 24
-  hours and are removed after completion, discard, or cleanup. Readable pages are sent as bounded
-  text subsets so the same PDF is not sent again for every extraction chunk; scanned fallbacks use
-  bounded page subsets where possible and are tracked below the provider's per-request file limit.
-  A private Cloud Run worker resumes persisted chunks; optional Cloud Tasks dispatch is enabled by
-  the deployment queue substitutions.
+- A PDF program is read on the device: the browser extracts the text layer with pdf.js and posts
+  only that text, gzipped, so a 70 MB illustrated training book never leaves the phone or laptop
+  and no page image is ever sent to a model. Up to 1,000 pages are accepted. A first cheap pass
+  reads a page-by-page view to find the pages that actually carry the schedule — commonly ten
+  pages out of a hundred — and only those pages are read in full, one section at a time. Pages
+  with no selectable text contribute nothing and are reported rather than guessed at; a scanned
+  document has to be re-saved as a text PDF. The extracted text is held for 24 hours so an
+  interrupted read continues, and is dropped as soon as the draft is complete.
 - Kilograms are canonical; pounds are a display conversion.
 
 ## Data boundaries

@@ -40,9 +40,9 @@ function Failure({ failure, onChooseFile, onRetry, onDismiss }: {
     <AlertTriangle size={17} />
     <span className="import-failure-message">{failure.message}</span>
     <div className="import-failure-actions">
-      {failure.needsSource
-        ? <Button variant="primary" onClick={onChooseFile}><Upload size={15} />Choose the same PDF</Button>
-        : onRetry && <Button variant="primary" onClick={onRetry}>Try again</Button>}
+      {onRetry
+        ? <Button variant="primary" onClick={onRetry}>Try again</Button>
+        : <Button variant="primary" onClick={onChooseFile}><Upload size={15} />Choose a PDF</Button>}
       <Button variant="tertiary" aria-label="Dismiss this message" onClick={onDismiss}><X size={15} /></Button>
     </div>
   </div>;
@@ -58,7 +58,7 @@ export function ImportReview({ exercises, imports, remaining, onBack, onChanged 
   const [saveError, setSaveError] = useState('');
   const [acknowledgeUnspecified, setAcknowledgeUnspecified] = useState(false);
   const file = useRef<HTMLInputElement>(null);
-  const pipeline = useImportPipeline({ selected, setSelected, setDraft, onChanged });
+  const pipeline = useImportPipeline({ setSelected, setDraft, onChanged });
   const busy = pipeline.busy || !!saving;
 
   useEffect(() => {
@@ -95,9 +95,9 @@ export function ImportReview({ exercises, imports, remaining, onBack, onChanged 
   }
 
   const requiresAcknowledgement = !!selected?.reviewIssues?.some(issue => issue.code === 'rpe_unspecified' || issue.code === 'rest_unspecified');
-  // A stored expiry is the server's own statement that it still holds the PDF and can finish
-  // the read without this browser.
-  const serverHoldsSource = !!selected?.sourceFileExpiresAt;
+  // A stored expiry is the server's own statement that it still holds this document's text and
+  // can continue the read without extracting it again.
+  const serverHoldsSource = !!selected?.sourceExpiresAt;
 
   return <>
     <div className="page-heading">
@@ -111,7 +111,7 @@ export function ImportReview({ exercises, imports, remaining, onBack, onChanged 
     </div>
 
     <section className="panel">
-      <div className="section-heading"><h2>Upload</h2><span className="muted">PDF · up to 150 MiB · up to 1,000 pages</span></div>
+      <div className="section-heading"><h2>Upload</h2><span className="muted">PDF · read on this device · up to 1,000 pages</span></div>
       <input name="program-pdf" ref={file} type="file" accept="application/pdf,.pdf" hidden aria-label="Program PDF"
         onChange={e => { const chosen = e.target.files?.[0]; e.target.value = ''; if (chosen) void pipeline.upload(chosen); }} />
       <Button variant="primary" disabled={busy} onClick={() => file.current?.click()}><Upload size={17} />Choose a PDF</Button>
@@ -121,7 +121,7 @@ export function ImportReview({ exercises, imports, remaining, onBack, onChanged 
       {pipeline.failure && <Failure failure={pipeline.failure} onChooseFile={() => file.current?.click()} onDismiss={pipeline.clearFailure}
         onRetry={selected && selected.status === 'pending' && serverHoldsSource ? () => void pipeline.resume(selected) : undefined} />}
       {saveError && <p className="error-text" role="alert">{saveError}</p>}
-      <p className="muted small-copy">The PDF becomes an editable draft before it can affect your workouts.</p>
+      <p className="muted small-copy">The text is read from the PDF on this device and only that text is sent; the file itself stays here. It becomes an editable draft before it can affect your workouts.</p>
     </section>
 
     {selected && selected.status === 'pending' && <section className="panel">
@@ -131,8 +131,8 @@ export function ImportReview({ exercises, imports, remaining, onBack, onChanged 
           onClick={() => void pipeline.chooseAlternative(selected, alternative.id)}>{alternative.name} · {alternative.dayCount} days</Button>)}</div>
       </div> : <div className="empty-message"><Wand2 size={30} /><h3>{stageLabel(selected)}</h3>
         <p>{serverHoldsSource
-          ? 'The server is holding this PDF and keeps reading it even if you close this page. Progress here updates on its own.'
-          : 'The server no longer holds this PDF. Choose the same file to continue from where the read stopped — nothing already read is lost.'}</p>
+          ? 'The text from this PDF is saved for a day, so you can continue this read now or come back to it later. Nothing already read is lost.'
+          : 'The saved text from this PDF has expired. Choose the file again to read it from the start.'}</p>
         {selected.chunksTotal > 0 && <Progress progress={{
           label: stageLabel(selected), detail: selected.currentChunkLabel ?? '',
           percent: Math.round((selected.chunksDone / selected.chunksTotal) * 100)
@@ -140,7 +140,7 @@ export function ImportReview({ exercises, imports, remaining, onBack, onChanged 
         {selected.error && <p className="error-text">Last attempt: {selected.error}</p>}
         <div className="settings-actions">
           {serverHoldsSource && <Button variant="primary" disabled={busy} onClick={() => void pipeline.resume(selected)}>Continue now</Button>}
-          <Button variant={serverHoldsSource ? 'secondary' : 'primary'} disabled={busy} onClick={() => file.current?.click()}><Upload size={16} />Choose the same PDF</Button>
+          <Button variant={serverHoldsSource ? 'secondary' : 'primary'} disabled={busy} onClick={() => file.current?.click()}><Upload size={16} />Choose the PDF again</Button>
         </div>
       </div>}
     </section>}
@@ -158,13 +158,12 @@ export function ImportReview({ exercises, imports, remaining, onBack, onChanged 
             <AlertTriangle size={14} /> {issue.message}{issue.sourcePage ? ` (PDF p.${issue.sourcePage})` : ''}
           </p>)}
         </div>}
-        {(selected.model || selected.inputTokens || selected.outputTokens || selected.pageCoverage?.length || selected.visualFallbacks || selected.retries) ? <details className="import-details">
+        {(selected.model || selected.inputTokens || selected.outputTokens || selected.pageCoverage?.length || selected.retries) ? <details className="import-details">
           <summary>Import details <ChevronDown size={14} /></summary>
           <div className="import-details-body">
             {selected.model && <p>Model: {selected.model}</p>}
             {selected.pageCoverage?.length ? <p>{selected.pageCoverage.filter(page => page.hasText).length} of {selected.pageCoverage.length} pages have selectable text.</p> : null}
             {(selected.inputTokens || selected.outputTokens) ? <p>Usage: {selected.inputTokens ?? 0} input · {selected.outputTokens ?? 0} output tokens.</p> : null}
-            {selected.visualFallbacks ? <p>{selected.visualFallbacks} visual pass{selected.visualFallbacks === 1 ? '' : 'es'} used.</p> : null}
             {selected.retries ? <p>{selected.retries} retr{selected.retries === 1 ? 'y' : 'ies'} recorded.</p> : null}
           </div>
         </details> : null}
@@ -178,7 +177,7 @@ export function ImportReview({ exercises, imports, remaining, onBack, onChanged 
       </div>{requiresAcknowledgement && <label className="checkbox-field"><input type="checkbox" checked={acknowledgeUnspecified} onChange={event => setAcknowledgeUnspecified(event.target.checked)} />I acknowledge that the PDF did not state every working-set RPE or rest value; those remain unspecified.</label>}<p className="muted small-copy">Catalog matches are helpful but optional; unmapped names are preserved exactly.</p></section>
     </>}
 
-    {selected && selected.status === 'failed' && <section className="panel"><div className="empty-message"><AlertTriangle size={30} /><h3>Import failed</h3><p>{selected.error}</p><p className="muted">The original PDF was not kept, so upload it again.</p>
+    {selected && selected.status === 'failed' && <section className="panel"><div className="empty-message"><AlertTriangle size={30} /><h3>Import failed</h3><p>{selected.error}</p><p className="muted">Nothing from that read was kept, so choose the PDF again.</p>
       <Button variant="primary" disabled={busy} onClick={() => file.current?.click()}><Upload size={16} />Choose the PDF again</Button></div></section>}
   </>;
 }

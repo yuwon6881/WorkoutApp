@@ -11,52 +11,13 @@ namespace Workout.Tests;
 
 public class AiImportTests
 {
-    private static byte[] Pdf(int pages = 2, int? marker = null)
-    {
-        var body = new StringBuilder("%PDF-1.7\n");
-        for (var i = 0; i < pages; i++) body.Append("/Type /Page \n");
-        if (marker is { } value) body.Append($"% seed {value}\n");
-        body.Append("%%EOF");
-        return Encoding.Latin1.GetBytes(body.ToString());
-    }
-
-    private static byte[] RealPdf(int pages)
-    {
-        var fontId = 3 + pages * 2;
-        var objects = new List<string>
-        {
-            "<< /Type /Catalog /Pages 2 0 R >>",
-            $"<< /Type /Pages /Kids [{string.Join(' ', Enumerable.Range(0, pages).Select(i => $"{3 + i * 2} 0 R"))}] /Count {pages} >>"
-        };
-        for (var i = 0; i < pages; i++)
-        {
-            var pageId = 3 + i * 2; var contentId = pageId + 1;
-            var text = $"BT /F1 12 Tf 72 720 Td (WEEK {i + 1}) Tj ET";
-            objects.Add($"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 {fontId} 0 R >> >> /Contents {contentId} 0 R >>");
-            objects.Add($"<< /Length {Encoding.ASCII.GetByteCount(text)} >>\nstream\n{text}\nendstream");
-        }
-        objects.Add("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>");
-        var output = new StringBuilder("%PDF-1.4\n");
-        var offsets = new List<int> { 0 };
-        foreach (var (value, index) in objects.Select((value, index) => (value, index + 1)))
-        {
-            offsets.Add(Encoding.ASCII.GetByteCount(output.ToString()));
-            output.Append($"{index} 0 obj\n{value}\nendobj\n");
-        }
-        var xref = Encoding.ASCII.GetByteCount(output.ToString());
-        output.Append($"xref\n0 {objects.Count + 1}\n0000000000 65535 f \n");
-        foreach (var offset in offsets.Skip(1)) output.Append($"{offset:0000000000} 00000 n \n");
-        output.Append($"trailer\n<< /Size {objects.Count + 1} /Root 1 0 R >>\nstartxref\n{xref}\n%%EOF");
-        return Encoding.ASCII.GetBytes(output.ToString());
-    }
-
-    [Fact] public void Pdf_inspection_reads_the_actual_page_tree_and_coverage()
-    {
-        var pdf = RealPdf(3);
-        Assert.Equal(3, PdfInspection.ApproximatePages(pdf));
-        Assert.Equal([1, 2, 3], PdfInspection.Coverage(pdf).Select(page => page.Page));
-        Assert.All(PdfInspection.Coverage(pdf), page => Assert.True(page.HasText));
-    }
+    /// The browser's side of an import: the page text it read out of a PDF. Six pages of plain
+    /// training text is enough for the outline fixtures below, which point at pages 1-4.
+    private static ImportSourceInput Source(string fileName = "block.pdf", int pages = 6, int? marker = null)
+        => new(fileName, pages, Enumerable.Range(1, pages)
+            .Select(page => new ImportPageText(page,
+                $"WEEK {page}\nBarbell bench press 3 x 8-10 @ RPE 8{(marker is { } seed ? $"\nvariant {seed}" : "")}"))
+            .ToList());
 
     private const string OneWorkout = """
     {"programName":"Hypertrophy block","description":"Four weeks","weeks":[
@@ -92,7 +53,7 @@ public class AiImportTests
         await using var h = await Harness.Create(Configured);
         await h.SignIn();
         var imports = h.Imports(StubHandler.Program(OneWorkout));
-        var view = await imports.Create(Pdf(), "block.pdf", default);
+        var view = await imports.Create(Source("block.pdf"), default);
 
         Assert.Equal(ImportStatus.Ready, view.Status);
         var exercise = view.Draft!.Workouts.Single().Exercises.Single();
@@ -117,7 +78,7 @@ public class AiImportTests
             };
         });
         var imports = h.Imports(stub);
-        var partial = await imports.Create(Pdf(), "faithful.pdf", default);
+        var partial = await imports.Create(Source("faithful.pdf"), default);
 
         Assert.Equal(ImportStatus.Pending, partial.Status);
         Assert.Equal("extract", partial.Stage);
@@ -125,7 +86,7 @@ public class AiImportTests
         Assert.Equal(1, partial.ChunksTotal);
         Assert.Equal(1, (await h.Db.Imports.AsNoTracking().SingleAsync()).Calls);
 
-        var ready = await imports.Extract(partial.Id, Pdf(), "faithful.pdf", default);
+        var ready = await imports.Extract(partial.Id, default);
         Assert.Equal(ImportStatus.Ready, ready.Status);
         Assert.True(ready.Acceptable);
         Assert.Equal(1, ready.UnresolvedCount);
@@ -169,7 +130,7 @@ public class AiImportTests
         await using var h = await Harness.Create(Configured);
         await h.SignIn();
         var imports = h.Imports(StubHandler.Program(OneWorkout));
-        var view = await imports.Create(Pdf(), "block.pdf", default);
+        var view = await imports.Create(Source("block.pdf"), default);
 
         Assert.Null(view.Draft!.Workouts.Single().Exercises.Single().ExerciseId);
         Assert.Single(view.Unresolved);
@@ -186,7 +147,7 @@ public class AiImportTests
         await h.SignIn();
         var body = OneWorkout.Replace("\"targetRpe\":8", "\"targetRpe\":null").Replace("\"restSeconds\":120", "\"restSeconds\":null");
         var imports = h.Imports(StubHandler.Program(body));
-        var view = await imports.Create(Pdf(), "unspecified.pdf", default);
+        var view = await imports.Create(Source("unspecified.pdf"), default);
 
         var failure = await Assert.ThrowsAsync<DomainException>(() => imports.Accept(view.Id, default));
         Assert.Equal(409, failure.Status);
@@ -200,7 +161,7 @@ public class AiImportTests
         await h.SignIn();
         await h.Seed(new SeedExercise("bench", "Barbell bench press", "Chest", "Barbell", "Cue", null));
         var imports = h.Imports(StubHandler.Program(OneWorkout));
-        var view = await imports.Create(Pdf(), "block.pdf", default);
+        var view = await imports.Create(Source("block.pdf"), default);
 
         Assert.Equal(await h.ExerciseId("bench"), view.Draft!.Workouts.Single().Exercises.Single().ExerciseId);
         Assert.Empty(view.Unresolved);
@@ -212,7 +173,7 @@ public class AiImportTests
         await using var h = await Harness.Create(Configured);
         await h.SignIn();
         var imports = h.Imports(StubHandler.Program(OneWorkout));
-        var view = await imports.Create(Pdf(), "block.pdf", default);
+        var view = await imports.Create(Source("block.pdf"), default);
         Assert.True(view.Acceptable);
 
         await h.Seed(new SeedExercise("bench", "Barbell bench press", "Chest", "Barbell", "Cue", null));
@@ -227,7 +188,7 @@ public class AiImportTests
         await h.SignIn();
         var invented = OneWorkout.Replace("\"exerciseId\":null", $"\"exerciseId\":\"{Guid.NewGuid()}\"");
         var imports = h.Imports(StubHandler.Program(invented));
-        var view = await imports.Create(Pdf(), "block.pdf", default);
+        var view = await imports.Create(Source("block.pdf"), default);
         Assert.Null(view.Draft!.Workouts.Single().Exercises.Single().ExerciseId);
         Assert.Single(view.Unresolved);
     }
@@ -238,7 +199,7 @@ public class AiImportTests
         await h.SignIn();
         await h.Seed(new SeedExercise("bench", "Barbell bench press", "Chest", "Barbell", "Cue", null));
         var imports = h.Imports(StubHandler.Program(OneWorkout));
-        var view = await imports.Create(Pdf(), "block.pdf", default);
+        var view = await imports.Create(Source("block.pdf"), default);
 
         var program = await imports.Accept(view.Id, default);
         Assert.Equal("Hypertrophy block", program.Name);
@@ -261,7 +222,7 @@ public class AiImportTests
             [new ProgramWorkoutInput(1, "Day A", null, null, [Harness.Exercise(benchId, "Barbell bench press", Harness.Set(8, 10))])], null), true, null, default);
 
         var imports = h.Imports(StubHandler.Program(OneWorkout));
-        var view = await imports.Create(Pdf(), "block.pdf", default);
+        var view = await imports.Create(Source("block.pdf"), default);
         var program = await imports.Accept(view.Id, default);
         Assert.False(program.Active);
     }
@@ -272,8 +233,8 @@ public class AiImportTests
         await h.SignIn();
         var stub = StubHandler.Program(OneWorkout);
         var imports = h.Imports(stub);
-        var first = await imports.Create(Pdf(), "block.pdf", default);
-        var second = await imports.Create(Pdf(), "block.pdf", default);
+        var first = await imports.Create(Source("block.pdf"), default);
+        var second = await imports.Create(Source("block.pdf"), default);
         Assert.Equal(first.Id, second.Id);
         Assert.Equal(1, stub.Calls);
     }
@@ -285,7 +246,7 @@ public class AiImportTests
         await using var h = await Harness.Create(Configured);
         await h.SignIn();
         var imports = h.Imports(new StubHandler(_ => new HttpResponseMessage(HttpStatusCode.InternalServerError) { Content = new StringContent("{}") }));
-        var failure = await Assert.ThrowsAsync<DomainException>(() => imports.Create(Pdf(), "block.pdf", default));
+        var failure = await Assert.ThrowsAsync<DomainException>(() => imports.Create(Source("block.pdf"), default));
 
         Assert.NotEmpty(failure.Message);
         Assert.Empty(await h.Db.Imports.AsNoTracking().ToListAsync());
@@ -297,7 +258,7 @@ public class AiImportTests
         await using var h = await Harness.Create(Configured);
         await h.SignIn();
         var imports = h.Imports(StubHandler.Returning("""{"status":"completed","output":[{"content":[{"type":"refusal","refusal":"no"}]}]}"""));
-        var failure = await Assert.ThrowsAsync<DomainException>(() => imports.Create(Pdf(), "block.pdf", default));
+        var failure = await Assert.ThrowsAsync<DomainException>(() => imports.Create(Source("block.pdf"), default));
         Assert.Equal(422, failure.Status);
     }
 
@@ -306,7 +267,7 @@ public class AiImportTests
         await using var h = await Harness.Create(Configured);
         await h.SignIn();
         var imports = h.Imports(StubHandler.Program("""{"programName":"Broken","description":null,"weeks":[]}"""));
-        var failure = await Assert.ThrowsAsync<DomainException>(() => imports.Create(Pdf(), "block.pdf", default));
+        var failure = await Assert.ThrowsAsync<DomainException>(() => imports.Create(Source("block.pdf"), default));
         Assert.Equal(422, failure.Status);
     }
 
@@ -315,7 +276,7 @@ public class AiImportTests
         await using var h = await Harness.Create(Configured);
         await h.SignIn();
         var imports = h.Imports(StubHandler.Returning("""{"status":"incomplete","output":[]}"""));
-        var failure = await Assert.ThrowsAsync<DomainException>(() => imports.Create(Pdf(), "block.pdf", default));
+        var failure = await Assert.ThrowsAsync<DomainException>(() => imports.Create(Source("block.pdf"), default));
         Assert.Equal(422, failure.Status);
     }
 
@@ -324,17 +285,22 @@ public class AiImportTests
         await using var h = await Harness.Create(Configured);
         await h.SignIn();
         var imports = h.Imports(new StubHandler(_ => throw new TaskCanceledException()));
-        var failure = await Assert.ThrowsAsync<DomainException>(() => imports.Create(Pdf(), "block.pdf", default));
+        var failure = await Assert.ThrowsAsync<DomainException>(() => imports.Create(Source("block.pdf"), default));
         Assert.Equal(504, failure.Status);
     }
 
-    [Fact] public async Task A_file_that_is_not_a_PDF_never_reaches_the_model()
+    /// A scanned document produces no text on the device, and an empty read is never worth a model
+    /// call: it could only invent a program out of nothing.
+    [Fact] public async Task A_document_with_no_selectable_text_never_reaches_the_model()
     {
         await using var h = await Harness.Create(Configured);
         await h.SignIn();
         var stub = StubHandler.Program(OneWorkout);
         var imports = h.Imports(stub);
-        await Assert.ThrowsAsync<DomainException>(() => imports.Create(Encoding.UTF8.GetBytes("PK not a pdf"), "block.pdf", default));
+        var scanned = new ImportSourceInput("scanned.pdf", 3, [new ImportPageText(1, "   "), new ImportPageText(2, "")]);
+        var failure = await Assert.ThrowsAsync<DomainException>(() => imports.Create(scanned, default));
+        Assert.Equal(422, failure.Status);
+        Assert.Contains("scanned document", failure.Message);
         Assert.Equal(0, stub.Calls);
     }
 
@@ -344,7 +310,7 @@ public class AiImportTests
         await h.SignIn();
         var stub = StubHandler.Program(OneWorkout);
         var imports = h.Imports(stub);
-        await Assert.ThrowsAsync<DomainException>(() => imports.Create(Pdf(PdfInspection.MaxPages + 1), "huge.pdf", default));
+        await Assert.ThrowsAsync<DomainException>(() => imports.Create(Source("huge.pdf", ImportSourceText.MaxPages + 1), default));
         Assert.Equal(0, stub.Calls);
     }
 
@@ -353,8 +319,8 @@ public class AiImportTests
         await using var h = await Harness.Create(Configured);
         await h.SignIn();
         var imports = h.Imports(StubHandler.Program(OneWorkout));
-        for (var i = 0; i < ImportService.DailyLimit; i++) await imports.Create(Pdf(2, i), $"block{i}.pdf", default);
-        var failure = await Assert.ThrowsAsync<DomainException>(() => imports.Create(Pdf(2, 999), "one-too-many.pdf", default));
+        for (var i = 0; i < ImportService.DailyLimit; i++) await imports.Create(Source($"block{i}.pdf", marker: i), default);
+        var failure = await Assert.ThrowsAsync<DomainException>(() => imports.Create(Source("one-too-many.pdf", marker: 999), default));
         Assert.Equal(429, failure.Status);
     }
 
@@ -363,7 +329,7 @@ public class AiImportTests
         await using var h = await Harness.Create(Configured);
         await h.SignIn();
         var imports = h.Imports(StubHandler.Program(OneWorkout));
-        var view = await imports.Create(Pdf(), "block.pdf", default);
+        var view = await imports.Create(Source("block.pdf"), default);
 
         var bob = await h.CreateUser("bob");
         h.Db.ChangeTracker.Clear();
@@ -378,7 +344,7 @@ public class AiImportTests
         await h.SignIn();
         await h.Seed(new SeedExercise("bench", "Barbell bench press", "Chest", "Barbell", "Cue", null));
         var imports = h.Imports(StubHandler.Program(OneWorkout));
-        var view = await imports.Create(Pdf(), "block.pdf", default);
+        var view = await imports.Create(Source("block.pdf"), default);
 
         var workout = view.Draft!.Workouts.Single();
         var exercise = workout.Exercises.Single();
@@ -398,7 +364,7 @@ public class AiImportTests
         await h.SignIn();
         await h.Seed(new SeedExercise("bench", "Barbell bench press", "Chest", "Barbell", "Cue", null));
         var imports = h.Imports(StubHandler.Program(OneWorkout));
-        var view = await imports.Create(Pdf(), "block.pdf", default);
+        var view = await imports.Create(Source("block.pdf"), default);
         await imports.Discard(view.Id, default);
         // Discarding removes the import, so it is simply gone rather than a row in a refused state.
         var failure = await Assert.ThrowsAsync<DomainException>(() => imports.Accept(view.Id, default));
@@ -406,22 +372,24 @@ public class AiImportTests
         Assert.Empty(await h.Db.Imports.AsNoTracking().ToListAsync());
     }
 
-    [Fact] public async Task The_request_carries_the_PDF_the_schema_and_no_stored_copy()
+    [Fact] public async Task The_request_carries_page_text_the_schema_and_no_document()
     {
         await using var h = await Harness.Create(Configured);
         await h.SignIn();
         var stub = StubHandler.Program(OneWorkout);
         var imports = h.Imports(stub);
-        await imports.Create(Pdf(), "block.pdf", default);
+        await imports.Create(Source("block.pdf"), default);
 
-        Assert.Contains("\"type\":\"input_file\"", stub.Body);
-        Assert.Contains("data:application/pdf;base64,", stub.Body);
+        Assert.Contains("=== PAGE 1 ===", stub.Body);
+        // No document, no page images: a provider only ever receives the text layer.
+        Assert.DoesNotContain("input_file", stub.Body);
+        Assert.DoesNotContain("application/pdf", stub.Body);
         Assert.Contains("\"store\":false", stub.Body);
         Assert.Contains("\"strict\":true", stub.Body);
         Assert.Contains("\"safety_identifier\"", stub.Body);
         Assert.Contains("gpt-5.4-mini", stub.Body);
-        // Nothing keeps the document itself.
-        Assert.Empty(await h.Db.Imports.AsNoTracking().Where(i => i.DraftJson.Contains("%PDF")).ToListAsync());
+        // A finished read keeps the draft and drops the text it was made from.
+        Assert.All(await h.Db.Imports.AsNoTracking().ToListAsync(), import => Assert.Equal("", import.SourceTextJson));
     }
 
     [Fact] public async Task Without_a_key_the_importer_says_so_instead_of_failing_obscurely()
@@ -429,27 +397,9 @@ public class AiImportTests
         await using var h = await Harness.Create();
         await h.SignIn();
         var imports = h.Imports(StubHandler.Program(OneWorkout));
-        var failure = await Assert.ThrowsAsync<DomainException>(() => imports.Create(Pdf(), "block.pdf", default));
+        var failure = await Assert.ThrowsAsync<DomainException>(() => imports.Create(Source("block.pdf"), default));
         Assert.Equal(503, failure.Status);
         Assert.Contains("Manual program building remains available", failure.Message);
-    }
-
-    [Fact] public async Task A_resumable_upload_can_be_completed_without_reposting_the_source_for_each_chunk()
-    {
-        await using var h = await Harness.Create(Configured);
-        await h.SignIn();
-        var pdf = Pdf();
-        var imports = h.Imports(StubHandler.Program(OneWorkout));
-        var upload = await imports.InitiateUpload("resumable.pdf", pdf.Length, default);
-        Assert.Equal(0, upload.ReceivedBytes);
-        var split = pdf.Length / 2;
-        var first = await imports.AppendUpload(upload.Id, 0, pdf[..split], default);
-        Assert.Equal(split, first.ReceivedBytes);
-        var second = await imports.AppendUpload(upload.Id, split, pdf[split..], default);
-        Assert.Equal(pdf.Length, second.ReceivedBytes);
-        var view = await imports.CompleteUpload(upload.Id, default);
-        Assert.Equal(ImportStatus.Ready, view.Status);
-        Assert.Empty(await h.Db.ImportUploads.AsNoTracking().ToListAsync());
     }
 
     [Fact] public async Task Alternative_programs_are_selected_before_chunk_extraction()
@@ -466,12 +416,12 @@ public class AiImportTests
             };
         });
         var imports = h.Imports(stub);
-        var pending = await imports.Create(Pdf(), "choices.pdf", default);
+        var pending = await imports.Create(Source("choices.pdf"), default);
         Assert.Equal("select", pending.Stage);
         Assert.Equal(2, pending.Alternatives!.Count);
         var selected = await imports.SelectAlternative(pending.Id, "alpha", default);
         Assert.Equal("extract", selected.Stage);
-        var ready = await imports.Extract(selected.Id, Pdf(), "choices.pdf", default);
+        var ready = await imports.Extract(selected.Id, default);
         Assert.Equal(ImportStatus.Ready, ready.Status);
         Assert.Equal(2, stub.Calls);
     }

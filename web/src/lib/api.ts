@@ -1,4 +1,5 @@
-import type { Bootstrap, DraftWorkout, HistoryPage, ImportDraft, ImportView, Preferences, ProgressSummary, Program, ProgramSummary, Session, Template, SubstitutionCandidate, TemplateSubstitutionResult } from '../types';
+import type { PdfExtraction } from './pdfText';
+import type { Bootstrap, DraftWorkout, ExerciseClearPreview, ExerciseInsight, HistoryPage, ImportDraft, ImportView, Preferences, ProgressSummary, Program, ProgramSummary, Session, Template, SubstitutionCandidate, TemplateSubstitutionResult, WorkoutTrainingSummary } from '../types';
 
 export class ApiError extends Error {
   constructor(message: string, readonly status: number) { super(message); }
@@ -33,6 +34,17 @@ async function call<T>(path: string, method = 'GET', body?: unknown, signal?: Ab
   return payload as T;
 }
 
+/// Posts JSON gzipped where the browser can compress a stream, and as plain JSON where it
+/// cannot. The server accepts both, so an older browser stays able to import a smaller document
+/// rather than losing the feature entirely.
+async function callCompressed<T>(path: string, body: unknown): Promise<T> {
+  const json = JSON.stringify(body);
+  if (typeof CompressionStream === 'undefined') return call<T>(path, 'POST', body);
+  const stream = new Blob([json]).stream().pipeThrough(new CompressionStream('gzip'));
+  const compressed = new Uint8Array(await new Response(stream).arrayBuffer());
+  return call<T>(path, 'POST', compressed, undefined, { 'Content-Type': 'application/json', 'Content-Encoding': 'gzip' });
+}
+
 function safeParse(text: string): { message?: string } & Record<string, unknown> {
   try { return JSON.parse(text); } catch { return { message: 'The server sent a response this app could not read.' }; }
 }
@@ -41,6 +53,7 @@ export const api = {
   logout: () => call<void>('/api/auth/logout', 'POST'),
 
   bootstrap: (signal?: AbortSignal) => call<Bootstrap>('/api/bootstrap', 'GET', undefined, signal),
+  schedule: (from: string, to: string, signal?: AbortSignal) => call<WorkoutTrainingSummary[]>(`/api/workouts/schedule?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`, 'GET', undefined, signal),
   preferences: (input: Preferences) => call<Preferences>('/api/preferences', 'PUT', input),
   exportAccount: () => call<unknown>('/api/export'),
   substitutionCandidates: (input: { exerciseId?: string | null; name?: string; imported?: string[]; query?: string } = {}) => {
@@ -48,6 +61,11 @@ export const api = {
     if (input.imported?.length) params.set('imported', input.imported.join('|')); if (input.query) params.set('q', input.query);
     return call<SubstitutionCandidate[]>(`/api/exercises/substitutions?${params.toString()}`);
   },
+  createCustomExercise: (input: { name: string; muscle?: string; equipment?: string; cue?: string; loadStepKg: number; loadModel: string; movementPattern?: string }) => call<unknown>('/api/exercises/custom', 'POST', input),
+  deleteCustomExercise: (id: string) => call<void>(`/api/exercises/custom/${id}`, 'DELETE'),
+  exerciseInsight: (id: string, range = '3m', page = 0, size = 20, signal?: AbortSignal) => call<ExerciseInsight>(`/api/exercises/${id}/insight?range=${range}&page=${page}&size=${size}`, 'GET', undefined, signal),
+  exerciseClearPreview: (id: string, signal?: AbortSignal) => call<ExerciseClearPreview>(`/api/exercises/${id}/clear-preview`, 'GET', undefined, signal),
+  clearExerciseHistory: (id: string) => call<ExerciseClearPreview>(`/api/exercises/${id}/clear-history`, 'POST'),
 
   templates: () => call<Template[]>('/api/templates'),
   getTemplate: (id: string) => call<Template>(`/api/templates/${id}`),
@@ -68,6 +86,7 @@ export const api = {
   deleteProgram: (id: string) => call<void>(`/api/programs/${id}`, 'DELETE'),
 
   activeWorkout: () => call<Session | null>('/api/workouts/active'),
+  getWorkout: (id: string) => call<Session>(`/api/workouts/${id}`),
   startWorkout: (templateId: string | null, name?: string) => call<Session>('/api/workouts', 'POST', { templateId, name }),
   saveWorkout: (id: string, input: unknown) => call<Session>(`/api/workouts/${id}`, 'PUT', input),
   substituteSessionExercise: (id: string, input: { sessionExerciseId: string; replacementExerciseId?: string | null; replacementName: string; revision?: number; idempotencyId?: string }) => call<Session>(`/api/workouts/${id}/substitution`, 'POST', input),
@@ -83,13 +102,11 @@ export const api = {
 
   imports: () => call<ImportView[]>('/api/imports'),
   getImport: (id: string) => call<ImportView>(`/api/imports/${id}`),
-  uploadImport: (file: File) => { const form = new FormData(); form.append('file', file); return call<ImportView>('/api/imports', 'POST', form); },
-  extractImport: (id: string, file?: File) => { if (!file) return call<ImportView>(`/api/imports/${id}/extract`, 'POST'); const form = new FormData(); form.append('file', file); return call<ImportView>(`/api/imports/${id}/extract`, 'POST', form); },
+  createImport: (source: PdfExtraction) => callCompressed<ImportView>('/api/imports', {
+    fileName: source.fileName, pageCount: source.pageCount, pages: source.pages
+  }),
+  extractImport: (id: string) => call<ImportView>(`/api/imports/${id}/extract`, 'POST'),
   retryImport: (id: string) => call<ImportView>(`/api/imports/${id}/retry`, 'POST'),
-  initImportUpload: (fileName: string, size: number) => call<{ id: string; fileName: string; expectedBytes: number; receivedBytes: number; chunkBytes: number; status: string; expiresAt: string }>('/api/imports/upload/init', 'POST', { fileName, size }),
-  appendImportUpload: (id: string, offset: number, chunk: Uint8Array) => call<{ id: string; fileName: string; expectedBytes: number; receivedBytes: number; chunkBytes: number; status: string; expiresAt: string }>(`/api/imports/upload/${id}`, 'PUT', chunk, undefined, { 'Upload-Offset': String(offset) }),
-  completeImportUpload: (id: string) => call<ImportView>(`/api/imports/upload/${id}/complete`, 'POST'),
-  cancelImportUpload: (id: string) => call<void>(`/api/imports/upload/${id}`, 'DELETE'),
   editImport: (id: string, draft: Pick<ImportDraft, 'programName' | 'description'>) => call<ImportView>(`/api/imports/${id}`, 'PUT', draft),
   editImportDay: (id: string, day: DraftWorkout) => call<ImportView>(`/api/imports/${id}/days/${day.lineId}`, 'PUT', day),
   rematchImport: (id: string) => call<ImportView>(`/api/imports/${id}/rematch`, 'POST'),

@@ -5,7 +5,7 @@ export type Provenance = 'extracted' | 'inferred' | 'userEdited';
 
 export type LoadModel = 'external' | 'full_bodyweight' | 'bodyweight_context_only' | 'reps_only';
 export type ResistanceMode = 'external' | 'bodyweight' | 'added' | 'assistance' | 'reps_only';
-export type Exercise = { id: string; slug: string; name: string; muscle: string; equipment: string; cue: string; aliases: string[]; loadStepKg: number; loadModel?: LoadModel; movementPattern?: string };
+export type Exercise = { id: string; slug: string; name: string; muscle: string; equipment: string; cue: string; aliases: string[]; loadStepKg: number; loadModel?: LoadModel; movementPattern?: string; source?: 'catalog' | 'custom'; isCustom?: boolean; archived?: boolean };
 export type Preferences = { unit: Unit; theme: Theme; restSeconds: number; restAlerts: boolean };
 export type Account = { id: string; displayName: string };
 
@@ -32,12 +32,18 @@ export type SessionExercise = { id: string; exerciseId: string | null; name: str
 export type Session = { id: string; templateId: string | null; programId: string | null; name: string; note: string; active: boolean; startedAt: string; finishedAt: string | null; revision: number; exercises: SessionExercise[]; volumeKg: number | null; completedSets: number; warmupSets: number; plannedDate?: string | null; bodyWeight?: BodyWeightSnapshot | null; nutritionContext?: NutritionTrainingContext | null; systemVolumeKg?: number | null };
 export type HistoryPage = { total: number; page: number; size: number; sessions: Session[] };
 export type ProgressExercise = {
-  exercise: string; sessions: number; heaviestKg: number | null; heaviestReps: number | null; volumeKg: number | null;
+  exerciseId: string | null; exercise: string; sessions: number; heaviestKg: number | null; heaviestReps: number | null; volumeKg: number | null;
   estimatedMaxKg: number | null; lastEstimatedMaxKg: number | null; externalLoadPrKg: number | null; addedLoadPrKg: number | null;
   assistanceReductionPrKg: number | null; systemLoadPrKg: number | null; repPr: number | null; estimatedSystemLoadMaxKg: number | null;
   relativeStrength: number | null; bodyweightRepRecord: { reps: number; bodyweightKg: number } | null;
 };
-export type ProgressSummary = { sessions: number; exercises: ProgressExercise[] };
+export type ProgressSummary = { sessions: number; exercises: ProgressExercise[]; totalVolumeKg?: number | null; workingSets?: number; trainingMinutes?: number; weekSessions?: number; weekVolumeKg?: number | null; weekWorkingSets?: number };
+export type WorkoutTrainingSummary = { id: string; status: 'scheduled' | 'missed' | 'skipped' | 'completed' | 'completed_early' | 'completed_late' | 'in_progress'; localDate: string; actualDate?: string | null; startedAt: string | null; finishedAt: string | null; workoutName: string; muscleGroups: string[]; workingSetCount: number; externalVolumeKg: number | null; systemVolumeKg: number | null; averageRpe: number | null; completed: boolean };
+export type ExerciseMetricPoint = { date: string; sessionId: string; sessionName: string; estimated1RmKg: number | null; loadKg: number | null; volumeKg: number | null; reps: number | null; partial: boolean };
+export type ExerciseHistoryRow = { sessionId: string; sessionName: string; date: string; setCount: number; volumeKg: number | null; partial: boolean; finishedAt: string | null };
+export type ExerciseHistoryClear = { clearedAt: string; removedSets: number; affectedWorkouts: number };
+export type ExerciseInsight = { id: string; name: string; muscle: string; equipment: string; cue: string; loadModel: LoadModel; loadStepKg: number; isCustom: boolean; archived: boolean; sessions: number; setCount: number; clearableSetCount: number; estimated1RmKg: number | null; estimated1RmDate: string | null; heaviestKg: number | null; heaviestReps: number | null; heaviestDate: string | null; largestSetVolumeKg: number | null; largestSetVolumeDate: string | null; largestSessionVolumeKg: number | null; largestSessionVolumeDate: string | null; repPr: number | null; repPrDate: string | null; lastPerformedDate: string | null; partialVolume: boolean; points: ExerciseMetricPoint[]; history: ExerciseHistoryRow[]; page: number; size: number; totalHistoryRows: number; externalLoadPrKg?: number | null; addedLoadPrKg?: number | null; assistanceReductionPrKg?: number | null; systemLoadPrKg?: number | null; historyClears?: ExerciseHistoryClear[] };
+export type ExerciseClearPreview = { exerciseId: string; name: string; affectedWorkouts: number; affectedSets: number; hasActiveWorkout: boolean; canClear: boolean };
 
 export type DraftSet = {
   repMin: number; repMax: number; targetRpe: number | null; restSeconds: number | null; tempo: string | null; loadText: string | null; notes: string | null;
@@ -51,7 +57,7 @@ export type ImportView = {
   id: string; status: 'pending' | 'ready' | 'failed' | 'accepted' | 'discarded';
   fileName: string; pages: number; error: string; created: string; model: string; stage: 'outline' | 'select' | 'extract' | 'done'; chunksDone: number; chunksTotal: number; currentChunkLabel: string | null; unresolvedCount: number;
   draft: ImportDraft | null; unresolved: { lineId: string; sourceName: string }[]; acceptable: boolean; programId: string | null;
-  reviewIssues?: { code: string; message: string; severity: string; sourcePage?: number | null }[]; inputTokens?: number; outputTokens?: number; retries?: number; visualFallbacks?: number; sourceFileExpiresAt?: string | null; pageCoverage?: { page: number; hasText: boolean; characterCount: number }[]; alternatives?: { id: string; name: string; description: string | null; chunkCount: number; dayCount: number }[]; selectedAlternativeId?: string | null;
+  reviewIssues?: { code: string; message: string; severity: string; sourcePage?: number | null }[]; inputTokens?: number; outputTokens?: number; retries?: number; sourceExpiresAt?: string | null; pageCoverage?: { page: number; hasText: boolean; characterCount: number }[]; alternatives?: { id: string; name: string; description: string | null; chunkCount: number; dayCount: number }[]; selectedAlternativeId?: string | null;
 };
 
 export type Bootstrap = {

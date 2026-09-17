@@ -46,7 +46,8 @@ public sealed record WorkoutTrainingSummary(
     double? ExternalVolumeKg,
     double? SystemVolumeKg,
     double? AverageRpe,
-    bool Completed = true);
+    bool Completed = true,
+    DateOnly? ActualDate = null);
 
 public static class LoadModels
 {

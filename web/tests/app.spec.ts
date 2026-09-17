@@ -1,12 +1,10 @@
 import { expect, test } from '@playwright/test';
 import type { Page } from '@playwright/test';
 import { signIn as auth } from './signIn';
+import { pdf } from './pdfFixture';
 
 const USER = 'e2e-lifter';
 
-/// A minimal but structurally valid PDF. The API checks the signature and counts page markers;
-/// the stand-in provider ignores the content entirely.
-const pdf = (pages = 3, marker = '') => Buffer.from(`%PDF-1.7\n${'/Type /Page \n'.repeat(pages)}% ${marker}\n%%EOF`, 'latin1');
 
 const signIn = (page: Page) => auth(page, USER);
 
@@ -181,19 +179,17 @@ test('import a PDF program, preserve an unmapped exercise, and accept it', async
   await page.getByRole('button', { name: 'Import a PDF program', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Import a program' })).toBeVisible();
 
-  // The server answers the first section as though it no longer held the PDF. The browser still
-  // has the file the user picked, so the read has to continue from it rather than stopping on
-  // "The temporary PDF has expired" with nothing left to press.
-  let expired = false;
-  await page.route('**/api/imports/*/extract', async route => {
-    if (expired) return route.continue();
-    expired = true;
-    await route.fulfill({ status: 410, contentType: 'application/json', body: JSON.stringify({ message: 'The temporary PDF has expired. Upload it again.' }) });
+  // The document itself must never leave the browser: what reaches the API is the page text this
+  // device read out of it.
+  const posted: string[] = [];
+  await page.route('**/api/imports', async route => {
+    if (route.request().method() === 'POST') posted.push(route.request().headers()['content-encoding'] ?? '');
+    await route.continue();
   });
 
-  await page.getByLabel('Program PDF').setInputFiles({ name: 'block.pdf', mimeType: 'application/pdf', buffer: pdf(3, testInfo.project.name) });
+  await page.getByLabel('Program PDF').setInputFiles({ name: 'block.pdf', mimeType: 'application/pdf', buffer: pdf(4, testInfo.project.name) });
   await expect(page.getByRole('heading', { name: 'Review' })).toBeVisible({ timeout: 60000 });
-  expect(expired).toBe(true);
+  expect(posted).toEqual(['gzip']);
   await page.screenshot({ path: `artifacts/${testInfo.project.name}-import-review.png`, fullPage: true });
 
   // Every value carries where it came from, and the rep range from the PDF is preserved.
@@ -234,7 +230,7 @@ test('a discarded draft leaves no program behind', async ({ page }) => {
   await signIn(page);
   await openTab(page, 'Workouts');
   await page.getByRole('button', { name: 'Import a PDF program', exact: true }).click();
-  await page.getByLabel('Program PDF').setInputFiles({ name: 'throwaway.pdf', mimeType: 'application/pdf', buffer: pdf(5) });
+  await page.getByLabel('Program PDF').setInputFiles({ name: 'throwaway.pdf', mimeType: 'application/pdf', buffer: pdf(5, 'throwaway') });
   await expect(page.getByRole('heading', { name: 'Review' })).toBeVisible({ timeout: 60000 });
 
   await page.getByRole('button', { name: 'Discard draft', exact: true }).click();

@@ -8,14 +8,8 @@ using Workout.Api.Domain;
 
 namespace Workout.Api.Services;
 
-public sealed partial class ImportService(AppDb db, WorkoutAi ai, CatalogService catalog, ProgramService programs, IImportFileStore files, IImportJobDispatcher? jobs = null, IConfiguration? config = null)
+public sealed partial class ImportService(AppDb db, WorkoutAi ai, CatalogService catalog, ProgramService programs, IConfiguration? config = null)
 {
-    // The original public constructor remains available to direct callers while the app container
-    // supplies the configured GCS or transient store through the primary constructor.
-    public ImportService(AppDb db, WorkoutAi ai, CatalogService catalog, ProgramService programs)
-        : this(db, ai, catalog, programs, new TransientImportFileStore(new ConfigurationBuilder().Build()), null, new ConfigurationBuilder().Build())
-    {
-    }
 
     /// Only work still in progress. A finished import is deleted rather than kept, so there is no
     /// import history to list: the program it produced is the lasting record.
@@ -48,6 +42,9 @@ public sealed partial class ImportService(AppDb db, WorkoutAi ai, CatalogService
         var chunks = ReadChunks(import.OutlineJson);
         var unresolvedCount = includeDraft ? unresolved.Count : import.UnresolvedCount;
         var issues = includeDraft && draft is not null ? ReviewIssues(draft) : [];
+        // Reading notes are recorded as the import runs and are as much a part of the review as
+        // the issues derived from the draft, so both reach the panel through one list.
+        issues = [.. ReadNotices(import.NoticesJson), .. issues];
         var coverage = string.IsNullOrWhiteSpace(import.PageCoverageJson) ? [] : Json.Read<List<PdfPageCoverage>>(import.PageCoverageJson);
         var alternatives = string.IsNullOrWhiteSpace(import.AlternativesJson) ? [] : Json.Read<List<ImportAlternative>>(import.AlternativesJson);
         return new ImportView(import.Id, import.Status, import.FileName, import.Pages, import.Error, import.Created, import.Model,
@@ -55,7 +52,7 @@ public sealed partial class ImportService(AppDb db, WorkoutAi ai, CatalogService
             // Unmapped names are a review warning, not a reason to discard a faithful import;
             // a catalog id that went inactive is different and still needs rematching.
             unresolved, import.Status == ImportStatus.Ready && !import.CatalogStale, import.ProgramId, issues,
-            import.InputTokens, import.OutputTokens, import.Retries, import.VisualFallbacks, import.SourceFileExpiresAt, coverage, alternatives, import.SelectedAlternativeId);
+            import.InputTokens, import.OutputTokens, import.Retries, import.SourceExpiresAt, coverage, alternatives, import.SelectedAlternativeId);
     }
 
     public static List<UnresolvedExercise> Unresolved(ImportDraft draft) => ImportValidation.Unresolved(draft);
@@ -280,17 +277,12 @@ public sealed partial class ImportService(AppDb db, WorkoutAi ai, CatalogService
 
     public async Task Discard(Guid id, CancellationToken ct)
     {
-        string release;
-        await using (var gate = await MutationLock.Acquire(db, db.CurrentUser, ct))
-        {
-            var import = await db.Imports.SingleOrDefaultAsync(i => i.Id == id, ct);
-            Validation.Require(import != null, "That import no longer exists.", 404);
-            release = TakeSource(import!);
-            db.Imports.Remove(import!);
-            await db.SaveChangesAsync(ct);
-            await gate.Commit(ct);
-        }
-        await DeleteQuietly(release, ct);
+        await using var gate = await MutationLock.Acquire(db, db.CurrentUser, ct);
+        var import = await db.Imports.SingleOrDefaultAsync(i => i.Id == id, ct);
+        Validation.Require(import != null, "That import no longer exists.", 404);
+        db.Imports.Remove(import!);
+        await db.SaveChangesAsync(ct);
+        await gate.Commit(ct);
     }
 
     public async Task CleanupExpired(CancellationToken ct)
@@ -300,30 +292,17 @@ public sealed partial class ImportService(AppDb db, WorkoutAi ai, CatalogService
         try
         {
         var now = DateTime.UtcNow;
-        // Keys are released in the database first and the objects are removed after the commit:
-        // an object deleted ahead of a rolled-back sweep would leave a live import pointing at
-        // bytes that are gone.
-        var release = new List<string>();
-        var expired = await db.Imports.IgnoreQueryFilters().Where(i => i.SourceFileExpiresAt != null && i.SourceFileExpiresAt < now && i.SourceFileKey != "").ToListAsync(ct);
-        foreach (var import in expired)
-        {
-            release.Add(TakeSource(import));
-            // An unfinished import whose source expired can never be completed, and there is no
-            // history to preserve it in.
-            if (import.Status == ImportStatus.Pending) db.Imports.Remove(import);
-        }
-        var uploads = await db.ImportUploads.IgnoreQueryFilters().Where(x => x.ExpiresAt < now).ToListAsync(ct);
-        foreach (var upload in uploads)
-        {
-            release.Add(upload.SourceFileKey);
-            db.ImportUploads.Remove(upload);
-        }
+        // An unfinished import whose extracted text expired can never be completed, and there is
+        // no history to preserve it in. A finished draft simply loses the text it no longer needs.
+        await db.Imports.IgnoreQueryFilters()
+            .Where(i => i.SourceExpiresAt != null && i.SourceExpiresAt < now && i.Status == ImportStatus.Pending)
+            .ExecuteDeleteAsync(ct);
+        await db.Imports.IgnoreQueryFilters()
+            .Where(i => i.SourceExpiresAt != null && i.SourceExpiresAt < now)
+            .ExecuteUpdateAsync(set => set.SetProperty(i => i.SourceTextJson, "").SetProperty(i => i.SourceExpiresAt, (DateTime?)null), ct);
 
-        if (expired.Count > 0 || uploads.Count > 0) await db.SaveChangesAsync(ct);
-        foreach (var key in release) await DeleteQuietly(key, ct);
-
-        // Only unfinished imports exist now, so an abandoned one is removed outright rather than
-        // blanked in place. Nothing here may grow without bound.
+        // Only unfinished imports exist beyond acceptance, so an abandoned one is removed outright
+        // rather than blanked in place. Nothing here may grow without bound.
         var importDays = Math.Max(1, config?.GetValue("Retention:ImportDays", 30) ?? 30);
         var importCutoff = now.AddDays(-importDays);
         await db.Imports.IgnoreQueryFilters().Where(i => i.Created < importCutoff).ExecuteDeleteAsync(ct);
@@ -353,8 +332,10 @@ public sealed partial class ImportService(AppDb db, WorkoutAi ai, CatalogService
 
     private static List<ImportChunk> ReadChunks(string json) => ImportValidation.ReadChunks(json);
 
-    private static void ValidateChunkCoverage(ImportDraft existing, ImportDraft extracted, ImportChunk chunk)
-        => ImportValidation.ValidateChunkCoverage(existing, extracted, chunk);
+    private static ImportReviewIssue? ReconcileChunkCoverage(ImportDraft existing, ImportDraft extracted, ImportChunk chunk)
+        => ImportValidation.ReconcileChunkCoverage(existing, extracted, chunk);
+
+    private static List<ImportReviewIssue> ReadNotices(string json) => ImportValidation.ReadNotices(json);
 
     private void UpdateCounters(AiImport import, ImportDraft draft)
     {
@@ -362,8 +343,6 @@ public sealed partial class ImportService(AppDb db, WorkoutAi ai, CatalogService
         import.UnresolvedCount = unresolved.Count;
         import.CatalogStale = draft.Workouts.SelectMany(w => w.Exercises).Any(e => e.ExerciseId is null ? false : !db.Exercises.Any(x => x.Id == e.ExerciseId && x.Active));
     }
-
-    private static void ValidatePdf(byte[] pdf, string fileName) => ImportValidation.ValidatePdf(pdf, fileName);
 
     private static void ValidateChunkPages(IEnumerable<ImportChunk> chunks, string coverageJson)
         => ImportValidation.ValidateChunkPages(chunks, coverageJson);

@@ -26,6 +26,7 @@ builder.Services.AddDbContext<AppDb>(o=>
 });
 builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<CatalogService>();
+builder.Services.AddScoped<ExerciseService>();
 builder.Services.AddScoped<TemplateService>();
 builder.Services.AddScoped<ProgramService>();
 builder.Services.AddScoped<ProgressionService>();
@@ -33,20 +34,11 @@ builder.Services.AddScoped<NutritionContextService>();
 builder.Services.AddScoped<SharedAccessTokenService>();
 builder.Services.AddScoped<OpenIddictAccessTokenService>();
 builder.Services.AddHttpClient<IIntegrationKms, IntegrationKmsService>(c => c.Timeout = TimeSpan.FromSeconds(30));
-builder.Services.AddHttpClient<IImportJobDispatcher, CloudTasksImportJobDispatcher>(c => c.Timeout = TimeSpan.FromSeconds(20));
 builder.Services.AddScoped<IntegrationTokenService>();
 builder.Services.AddScoped<WorkoutService>();
 builder.Services.AddScoped<ExportService>();
 builder.Services.AddScoped<ImportService>();
-builder.Services.AddSingleton<IImportFileStore>(services =>
-{
-    var configuration = services.GetRequiredService<IConfiguration>();
-    return string.IsNullOrWhiteSpace(configuration["ImportStorage:Bucket"])
-        ? new TransientImportFileStore(configuration)
-        : new GcsImportFileStore(configuration, services.GetRequiredService<IHttpClientFactory>().CreateClient());
-});
 builder.Services.AddHostedService<ImportCleanupWorker>();
-builder.Services.AddHostedService<ImportExtractionWorker>();
 builder.Services.AddAuthentication(options =>
 {
     options.DefaultAuthenticateScheme = OpenIddictValidationAspNetCoreDefaults.AuthenticationScheme;

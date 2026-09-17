@@ -135,8 +135,10 @@ export function MotionScene({
       };
     }
 
+    // Keep the destination visible while the scene settles. Fading the whole page to opacity
+    // zero made ready server content look like it was still loading during tab navigation.
     const animation = node.animate(
-      [{ opacity: 0, transform: 'translateY(16px)' }, { opacity: 1, transform: 'translateY(0)' }],
+      [{ transform: 'translateY(16px)' }, { transform: 'translateY(0)' }],
       motionTiming('--motion-panel', 240)
     );
 

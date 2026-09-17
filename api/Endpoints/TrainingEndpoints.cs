@@ -39,6 +39,16 @@ public static class TrainingEndpoints
     public static void MapCatalog(this WebApplication app)
     {
         app.MapGet("/api/exercises", async (CatalogService catalog, CancellationToken ct) => await catalog.All(ct));
+        app.MapPost("/api/exercises/custom", async (CustomExerciseInput input, ExerciseService exercises, CancellationToken ct)
+            => await exercises.Create(input, ct));
+        app.MapDelete("/api/exercises/custom/{exerciseId:guid}", async (Guid exerciseId, ExerciseService exercises, CancellationToken ct)
+            => { await exercises.ArchiveCustom(exerciseId, ct); return Results.NoContent(); });
+        app.MapGet("/api/exercises/{exerciseId:guid}/insight", async (Guid exerciseId, string? range, int? page, int? size, ExerciseService exercises, CancellationToken ct)
+            => await exercises.Insight(exerciseId, range, page ?? 0, size ?? 20, ct));
+        app.MapGet("/api/exercises/{exerciseId:guid}/clear-preview", async (Guid exerciseId, ExerciseService exercises, CancellationToken ct)
+            => await exercises.ClearPreview(exerciseId, ct));
+        app.MapPost("/api/exercises/{exerciseId:guid}/clear-history", async (Guid exerciseId, ExerciseService exercises, CancellationToken ct)
+            => await exercises.ClearHistory(exerciseId, ct));
         app.MapGet("/api/exercises/substitutions", async (Guid? exerciseId, string? name, string? imported, string? q, CatalogService catalog, CancellationToken ct) =>
         {
             var alternatives = string.IsNullOrWhiteSpace(imported) ? [] : imported.Split('|', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
@@ -131,14 +141,31 @@ public static class TrainingEndpoints
     /// Per-exercise bests and recent volume, read from completed sets only.
     private static async Task<object> Progress(AppDb db, WorkoutService workouts, CancellationToken ct)
     {
-        var sessions = await db.Workouts.AsNoTracking().Where(w => w.FinishedAt != null).OrderByDescending(w => w.FinishedAt).Take(200).ToListAsync(ct);
+        // Progress is an account aggregate. Do not page or truncate the source history here;
+        // the history endpoint is paginated for rendering, while records must remain complete.
+        var sessions = await db.Workouts.AsNoTracking().Where(w => w.FinishedAt != null).OrderByDescending(w => w.FinishedAt).ToListAsync(ct);
         var ids = sessions.Select(s => s.Id).ToList();
         var exercises = await db.SessionExercises.AsNoTracking().Where(e => ids.Contains(e.SessionId)).ToListAsync(ct);
         var exerciseIds = exercises.Select(e => e.Id).ToList();
         var sets = await db.Sets.AsNoTracking().Where(s => exerciseIds.Contains(s.SessionExerciseId) && s.Done && !s.Warmup).ToListAsync(ct);
         var states = await db.Progress.AsNoTracking().ToListAsync(ct);
         var sessionById = sessions.ToDictionary(s => s.Id);
-        var best = exercises.GroupBy(e => e.NameSnapshot).Select(group =>
+        var exerciseById = exercises.ToDictionary(exercise => exercise.Id);
+        var volumeRows = sets.Select(set =>
+        {
+            var exercise = exerciseById[set.SessionExerciseId];
+            var load = exercise.LoadModel == LoadModels.FullBodyweight ? set.SystemLoadKg : exercise.LoadModel == LoadModels.External ? set.WeightKg : null;
+            return new { Set = set, Exercise = exercise, Load = load };
+        }).Where(row => row.Load is not null && row.Set.Reps is not null).ToList();
+        var totalVolume = volumeRows.Sum(row => row.Load!.Value * row.Set.Reps!.Value);
+        var recentCutoff = DateTime.UtcNow.Date.AddDays(-6);
+        var recentSessions = sessions.Where(session => (session.FinishedAt ?? session.StartedAt) >= recentCutoff).ToList();
+        var recentIds = recentSessions.Select(x => x.Id).ToHashSet();
+        var recentExerciseIds = exercises.Where(x => recentIds.Contains(x.SessionId)).Select(x => x.Id).ToHashSet();
+        var recentWorkingSets = sets.Where(x => recentExerciseIds.Contains(x.SessionExerciseId)).ToList();
+        var recentSets = volumeRows.Where(x => recentExerciseIds.Contains(x.Set.SessionExerciseId)).ToList();
+        var trainingMinutes = sessions.Sum(session => Math.Max(1, (int)Math.Round(((session.FinishedAt ?? DateTime.UtcNow) - session.StartedAt).TotalMinutes)));
+        var best = exercises.GroupBy(e => new { e.ExerciseId, e.NameSnapshot }).Select(group =>
         {
             var groupIds = group.Select(e => e.Id).ToHashSet();
             var logged = group.SelectMany(exercise => sets.Where(set => set.SessionExerciseId == exercise.Id)
@@ -168,11 +195,12 @@ public static class TrainingEndpoints
                 .Select(row => new { row.Set.Reps, Snapshot = ReadBodyWeight(row.Session) })
                 .Where(row => row.Snapshot?.ReferenceKg is not null)
                 .OrderByDescending(row => row.Reps).ThenByDescending(row => row.Snapshot!.ReferenceKg).FirstOrDefault();
-            var key = ProgressionService.Key(group.Select(e => e.ExerciseId).FirstOrDefault(id => id != null), group.Key);
+            var key = ProgressionService.Key(group.Key.ExerciseId, group.Key.NameSnapshot);
             var state = states.FirstOrDefault(s => s.ExerciseId == key.ExerciseId && s.NameKey == key.NameKey);
             return new
             {
-                exercise = group.Key,
+                exerciseId = group.Key.ExerciseId,
+                exercise = group.Key.NameSnapshot,
                 sessions = group.Select(e => e.SessionId).Distinct().Count(),
                 heaviestKg = heaviest?.Set.WeightKg,
                 heaviestReps = heaviest?.Set.Reps,
@@ -191,7 +219,17 @@ public static class TrainingEndpoints
                 bodyweightRepRecord = bodyweightRep is null ? null : new { reps = bodyweightRep.Reps, bodyweightKg = bodyweightRep.Snapshot!.ReferenceKg }
             };
         }).OrderByDescending(x => x.sessions).ToList();
-        return new { sessions = sessions.Count, exercises = best };
+        return new
+        {
+            sessions = sessions.Count,
+            exercises = best,
+            totalVolumeKg = totalVolume == 0 && !sets.Any(set => set.WeightKg == 0) ? (double?)null : totalVolume,
+            workingSets = sets.Count,
+            trainingMinutes,
+            weekSessions = recentSessions.Count,
+            weekVolumeKg = recentSets.Count == 0 ? (double?)null : recentSets.Sum(row => row.Load!.Value * row.Set.Reps!.Value),
+            weekWorkingSets = recentWorkingSets.Count
+        };
     }
 
     private static BodyWeightSnapshot? ReadBodyWeight(WorkoutSession session)

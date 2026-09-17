@@ -411,7 +411,7 @@ public sealed class ProgramService(AppDb db, TemplateService templates)
         foreach (var workout in input.Workouts)
         {
             Validation.Require(workout.Weekday is null or >= 1 and <= 7, "Workout weekdays must use ISO values from 1 (Monday) to 7 (Sunday).");
-            Validation.Require(workout.SourcePage is null || workout.SourcePage.Value is > 0 and <= PdfInspection.MaxPages, "Workout source page is invalid.");
+            Validation.Require(workout.SourcePage is null || workout.SourcePage.Value is > 0 and <= ImportSourceText.MaxPages, "Workout source page is invalid.");
             await templates.ValidateInput(new TemplateInput(workout.Name, workout.Focus, workout.Note, workout.Exercises, null, null,
                 workout.Block, workout.Phase, workout.PhaseWeek, workout.IsRestDay), ct, !allowMissingWorkingRpe, allowOutOfRangeTargetRpe);
         }

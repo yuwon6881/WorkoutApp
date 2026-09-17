@@ -499,7 +499,7 @@ public sealed class WorkoutService(
         var sourceRow = source!;
         var replacementName = input.ReplacementName.Trim();
         if (input.ReplacementExerciseId is { } replacementId)
-            replacementName = await db.Exercises.AsNoTracking().Where(e => e.Id == replacementId && e.Active).Select(e => e.Name).SingleAsync(ct);
+            replacementName = await catalog.NameFor(replacementId, ct);
         var replacementModel = input.ReplacementExerciseId is { } modelId
             ? (await catalog.LoadModelsFor([modelId], ct)).GetValueOrDefault(modelId, LoadModels.External)
             : LoadModels.External;
@@ -716,11 +716,12 @@ public sealed class WorkoutService(
             var sets = view.Exercises.SelectMany(e => e.Sets).Where(s => s.Done && !s.Warmup).ToList();
             var rpes = sets.Where(s => s.Rpe is not null).Select(s => s.Rpe!.Value).ToList();
             var exerciseIds = view.Exercises.Where(e => e.ExerciseId is not null).Select(e => e.ExerciseId!.Value).Distinct().ToList();
-            var muscles = await db.Exercises.AsNoTracking().Where(e => exerciseIds.Contains(e.Id))
-                .OrderBy(e => e.Muscle).Select(e => e.Muscle).Distinct().ToListAsync(ct);
-            var status = session.Active ? "in_progress" : "completed";
-            result.Add(new WorkoutTrainingSummary($"session:{session.Id}", status, session.PlannedDate ?? DateOnly.FromDateTime(session.StartedAt), session.StartedAt, session.FinishedAt,
-                session.Name, muscles, sets.Count, view.VolumeKg, view.SystemVolumeKg, rpes.Count == 0 ? null : rpes.Average(), !session.Active));
+            var muscles = (await catalog.MusclesFor(exerciseIds, ct)).Values.Where(x => !string.IsNullOrWhiteSpace(x)).Distinct().OrderBy(x => x).ToList();
+            var actualDate = DateOnly.FromDateTime(session.StartedAt);
+            var status = session.Active ? "in_progress" : session.PlannedDate is { } planned && actualDate < planned ? "completed_early" :
+                session.PlannedDate is { } later && actualDate > later ? "completed_late" : "completed";
+            result.Add(new WorkoutTrainingSummary($"session:{session.Id}", status, session.PlannedDate ?? actualDate, session.StartedAt, session.FinishedAt,
+                session.Name, muscles, sets.Count, view.VolumeKg, view.SystemVolumeKg, rpes.Count == 0 ? null : rpes.Average(), !session.Active, actualDate));
         }
         var scheduled = await db.Templates.AsNoTracking().Join(db.Programs.AsNoTracking(), t => t.ProgramId, p => p.Id,
             (t, p) => new { Template = t, p.Id, p.ScheduleAnchor, p.Active }).Where(x => x.Active && x.ScheduleAnchor != null && x.Template.Weekday != null && !x.Template.IsRestDay).ToListAsync(ct);
@@ -731,7 +732,7 @@ public sealed class WorkoutService(
             .OrderBy(phase => phase.Position).ToListAsync(ct);
         foreach (var item in scheduled)
         {
-            if (skippedScheduled.Contains(item.Template.Id)) continue;
+            var isSkipped = skippedScheduled.Contains(item.Template.Id);
             var phases = phaseSchedules.Where(phase => phase.ProgramId == item.Id);
             var phase = phases.FirstOrDefault(candidate => item.Template.Week >= candidate.WeekFrom && item.Template.Week <= candidate.WeekTo &&
                 BelongsToPhase(item.Template, candidate));
@@ -743,9 +744,9 @@ public sealed class WorkoutService(
             if (date < start || date > end || occupiedScheduledSlots.Contains((item.Template.Id, date))) continue;
             var exerciseIds = await db.TemplateExercises.AsNoTracking().Where(e => e.TemplateId == item.Template.Id && e.ExerciseId != null)
                 .Select(e => e.ExerciseId!.Value).Distinct().ToListAsync(ct);
-            var muscles = await db.Exercises.AsNoTracking().Where(e => exerciseIds.Contains(e.Id))
-                .OrderBy(e => e.Muscle).Select(e => e.Muscle).Distinct().ToListAsync(ct);
-            result.Add(new WorkoutTrainingSummary($"schedule:{item.Template.Id}:{date:yyyy-MM-dd}", "scheduled", date, null, null, item.Template.Name, muscles, 0, null, null, null, false));
+            var muscles = (await catalog.MusclesFor(exerciseIds, ct)).Values.Where(x => !string.IsNullOrWhiteSpace(x)).Distinct().OrderBy(x => x).ToList();
+            var status = isSkipped ? "skipped" : date < DateOnly.FromDateTime(DateTime.UtcNow) ? "missed" : "scheduled";
+            result.Add(new WorkoutTrainingSummary($"schedule:{item.Template.Id}:{date:yyyy-MM-dd}", status, date, null, null, item.Template.Name, muscles, 0, null, null, null, false));
         }
         result.Sort((left, right) => left.LocalDate.CompareTo(right.LocalDate));
         return result;

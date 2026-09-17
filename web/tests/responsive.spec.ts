@@ -1,9 +1,9 @@
 import { expect, test } from '@playwright/test';
 import type { Page } from '@playwright/test';
 import { signIn as auth } from './signIn';
+import { pdf } from './pdfFixture';
 
 const USER = 'e2e-responsive';
-const pdf = (pages = 3) => Buffer.from(`%PDF-1.7\n${'/Type /Page \n'.repeat(pages)}%%EOF`, 'latin1');
 
 async function checkLayout(page: Page, label: string) {
   // Comparing against innerWidth is not enough: when content overflows, the mobile layout
