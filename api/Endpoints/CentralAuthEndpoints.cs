@@ -67,9 +67,7 @@ public static class CentralAuthEndpoints
             {
                 var accessToken = payload.TryGetProperty("access_token", out var access) ? access.GetString() : null;
                 Validation.Require(!string.IsNullOrWhiteSpace(accessToken), "The central connection returned no access token.", 401);
-                var bearer = new DefaultHttpContext { RequestServices = request.HttpContext.RequestServices };
-                bearer.Request.Headers.Authorization = $"Bearer {accessToken}";
-                var validated = await accessTokens.Require(bearer, NutritionScope, ct);
+                var validated = await accessTokens.RequireAccessToken(accessToken!, NutritionScope, ct);
                 Validation.Require(identitySubject == validated.Subject, "The central identity subject did not match the access token.", 401);
             }
 

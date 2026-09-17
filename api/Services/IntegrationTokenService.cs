@@ -3,7 +3,6 @@ using System.Net.Http.Headers;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
-using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Workout.Api.Data;
 using Workout.Api.Domain;
@@ -17,8 +16,7 @@ public sealed class IntegrationTokenService(
     IHttpClientFactory clients,
     IConfiguration config,
     OpenIddictAccessTokenService tokens,
-    IIntegrationKms kms,
-    IServiceProvider services)
+    IIntegrationKms kms)
 {
     private static readonly SemaphoreSlim RotationGate = new(1, 1);
 
@@ -67,9 +65,7 @@ public sealed class IntegrationTokenService(
             using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync(ct));
             var access = document.RootElement.TryGetProperty("access_token", out var accessElement) ? accessElement.GetString() : null;
             if (string.IsNullOrWhiteSpace(access)) return null;
-            var context = new DefaultHttpContext { RequestServices = services };
-            context.Request.Headers.Authorization = $"Bearer {access}";
-            var validated = await tokens.Require(context, requiredScope, ct);
+            var validated = await tokens.RequireAccessToken(access, requiredScope, ct);
             Validation.Require(string.Equals(validated.Subject, identitySubject, StringComparison.Ordinal), "The peer token belongs to a different account.", 403);
             if (document.RootElement.TryGetProperty("refresh_token", out var nextRefresh) && !string.IsNullOrWhiteSpace(nextRefresh.GetString()))
             {
