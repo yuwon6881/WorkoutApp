@@ -141,6 +141,7 @@ export function MotionScene({
     );
 
     animation.onfinish = () => {
+      animation.cancel();
       node.style.removeProperty('opacity');
       node.style.removeProperty('transform');
     };

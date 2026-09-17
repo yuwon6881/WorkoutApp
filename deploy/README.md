@@ -1,13 +1,13 @@
 # Deployment and recovery
 
-Workout uses an independent Neon PostgreSQL database, a Vercel PWA, and a Cloud Run API in
+WorkoutApp uses an independent Neon PostgreSQL database, a Vercel PWA, and a Cloud Run API in
 Singapore. The FinancialApp and NutritionApp services and databases are independent of this one.
 
 ## Provisioned resources
 
 | Resource | Value |
 | --- | --- |
-| Neon project | `workout` (`aged-haze-27826198`), `aws-ap-southeast-1` |
+| Neon project | `WorkoutApp` (`aged-haze-27826198`), `aws-ap-southeast-1` |
 | Neon database | `workout`, role `neondb_owner`, branch `br-little-silence-b3ar6gwa` |
 | Secret (connection) | `workout-neon-database` (Google Secret Manager, version 1) |
 | Secret (OpenAI key) | `financialapp-openai-api-key` — shared with the sibling apps, not duplicated |
@@ -34,6 +34,10 @@ The API accepts a PostgreSQL URL or an Npgsql connection string in `ConnectionSt
 Neon URLs are normalised with verified TLS, required channel binding, and a maximum local pool
 size of 10. Runtime uses the `-pooler` hostname; migrations use its direct counterpart, which
 `ConnectionSettings.Direct` derives. No secret belongs in Vite variables or source control.
+
+The application database is `workout` in the `WorkoutApp` Neon project. Neon’s provider-created
+`neondb` and `postgres` databases are not application targets; `neondb` is empty and is retained
+only until the exact cleanup action is separately confirmed.
 
 For production PDF retention, `_IMPORT_BUCKET` is set to `workout-imports-396431756440` in Cloud
 Build (or set `ImportStorage__Bucket` on both Cloud Run services). The bucket is private, uniform

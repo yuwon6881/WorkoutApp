@@ -5,7 +5,7 @@ const signedIn = { storageState: 'tests/.auth/lifter.json' };
 
 export default defineConfig({
   testDir: './tests', fullyParallel: false, workers: 1, timeout: 120000,
-  use: { baseURL: process.env.WORKOUT_BASE_URL || 'http://localhost:5182', headless: true, channel: 'chrome' },
+  use: { baseURL: process.env.WORKOUT_BASE_URL || 'http://localhost:5182', headless: true, channel: 'chrome', reducedMotion: 'reduce' },
   projects: [
     { name: 'setup', testMatch: 'auth.setup.ts' },
     { name: 'desktop', testMatch: 'app.spec.ts', dependencies: ['setup'], use: { ...devices['Desktop Chrome'], ...signedIn, viewport: { width: 1440, height: 1000 } } },

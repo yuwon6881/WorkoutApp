@@ -46,7 +46,8 @@ public sealed class DeploymentContractTests
     public void Database_secret_is_dedicated_to_workout()
     {
         var build = File.ReadAllText(Path.Combine(RepositoryRoot(), "cloudbuild.yaml"));
-        Assert.Contains("ConnectionStrings__Database=workout-neon-database:latest", build);
+        Assert.Contains("ConnectionStrings__Database=workout-neon-database:${_WORKOUT_DATABASE_SECRET_VERSION}", build);
+        Assert.Contains("_WORKOUT_DATABASE_SECRET_VERSION: '1'", build);
         Assert.DoesNotContain("fitness-account-neon-database", build);
         Assert.DoesNotContain("nutrition-neon-database", build);
     }

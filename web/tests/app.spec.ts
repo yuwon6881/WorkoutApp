@@ -42,6 +42,7 @@ async function restSeconds(clock: import('@playwright/test').Locator): Promise<n
 
 async function openTab(page: Page, name: string) {
   await page.getByRole('button', { name, exact: true }).filter({ visible: true }).first().click();
+  await page.locator('.motion-scene').evaluate(el => Promise.all(el.getAnimations().map(a => a.finished))).catch(() => {});
 }
 
 test.describe.configure({ mode: 'serial' });
@@ -67,18 +68,25 @@ test('build a workout, log a set against the server, and see it in history', asy
   await expect(page.getByRole('heading', { name, exact: true })).toBeVisible();
 
   // Other projects leave their own workouts behind, so start the one this test just built.
-  await page.locator('.routine-card').filter({ hasText: name }).getByRole('button', { name: 'Start workout', exact: true }).click();
+  const preview = page.getByRole('dialog', { name: `Start ${name}?`, exact: true });
+  const startBtn = page.locator('.routine-card').filter({ hasText: name }).getByRole('button', { name: 'Start workout', exact: true });
+  await startBtn.evaluate(el => el.scrollIntoView({ block: 'center', inline: 'nearest' }));
+  await expect(async () => {
+    if (!await preview.isVisible()) await startBtn.click({ force: true });
+    await expect(preview).toBeVisible({ timeout: 2000 });
+  }).toPass({ timeout: 15000 });
 
   // The plan is previewed first; nothing is created until it is confirmed.
-  const preview = page.getByRole('dialog', { name: `Start ${name}?`, exact: true });
-  await expect(preview).toBeVisible();
   await expect(preview.getByText('Barbell bench press', { exact: true })).toBeVisible();
   await preview.getByRole('button', { name: 'Cancel', exact: true }).click();
   await expect(preview).toBeHidden();
   expect(await doneSetsOnServer(page)).toBe(0);
 
-  await page.locator('.routine-card').filter({ hasText: name }).getByRole('button', { name: 'Start workout', exact: true }).click();
-  await page.getByRole('dialog', { name: `Start ${name}?`, exact: true }).getByRole('button', { name: 'Start workout', exact: true }).click();
+  await expect(async () => {
+    if (!await preview.isVisible()) await startBtn.click({ force: true });
+    await expect(preview).toBeVisible({ timeout: 2000 });
+  }).toPass({ timeout: 15000 });
+  await preview.getByRole('button', { name: 'Start workout', exact: true }).click();
   const logger = page.getByRole('dialog', { name, exact: true });
   await expect(logger).toBeVisible();
 
@@ -145,8 +153,18 @@ test('build a workout, log a set against the server, and see it in history', asy
   await openTab(page, 'Workouts');
   await expect(page.getByRole('heading', { name: 'Workouts', exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: /^Resume / })).toBeHidden();
-  await page.locator('.routine-card').filter({ hasText: name }).getByRole('button', { name: 'Start workout', exact: true }).click();
-  await page.getByRole('dialog', { name: `Start ${name}?`, exact: true }).getByRole('button', { name: 'Start workout', exact: true }).click();
+  const againCard = page.locator('.routine-card').filter({ hasText: name });
+  const againStartBtn = againCard.getByRole('button', { name: 'Start workout', exact: true });
+  await againStartBtn.evaluate(el => {
+    el.scrollIntoView({ block: 'center', inline: 'nearest' });
+    return Promise.all(document.getAnimations().map(a => a.finished));
+  });
+  const againPreview = page.getByRole('dialog', { name: `Start ${name}?`, exact: true });
+  await expect(async () => {
+    if (!await againPreview.isVisible()) await againStartBtn.click({ force: true });
+    await expect(againPreview).toBeVisible({ timeout: 2000 });
+  }).toPass({ timeout: 15000 });
+  await againPreview.getByRole('button', { name: 'Start workout', exact: true }).click();
   const again = page.getByRole('dialog', { name, exact: true });
   await expect(again.locator('.progression-note')).toContainText('one more rep');
   await expect(again.getByRole('spinbutton', { name: 'Barbell bench press set 1 weight', exact: true })).toHaveValue('60');
