@@ -153,27 +153,68 @@ internal static class ImportValidation
     public static List<ImportChunk> ReadChunks(string json)
         => string.IsNullOrWhiteSpace(json) ? [] : Json.Read<List<ImportChunk>>(json);
 
-    /// Merges one chunk's days into the draft's world view. The outline's `dayCount` is an
-    /// estimate made from page previews, so a different number of days is reconciled and reported
-    /// rather than rejected: a section header the outline read as fifteen training days is often
-    /// seven, and throwing away a completed read over that estimate helps nobody. A day outside
-    /// the chunk's weeks or a day already extracted is a real error and stays retryable.
-    public static ImportReviewIssue? ReconcileChunkCoverage(ImportDraft existing, ImportDraft extracted, ImportChunk chunk)
+    /// What one chunk contributes to the draft, once its days have been reconciled with what the
+    /// earlier sections already read.
+    public sealed record ChunkMerge(List<DraftWorkout> Workouts, List<ImportReviewIssue> Notices);
+
+    /// Merges one chunk's days into the draft's world view. Both of the things that used to fail a
+    /// section here are judgements about a document, not defects in it: the outline's `dayCount` is
+    /// an estimate made from page previews, and two days can genuinely look identical — a program
+    /// that runs the same session twice in a week, with no weekday printed next to either, says so
+    /// in exactly the way a mistaken repeat would. Failing the chunk over either left the import
+    /// stuck on a section that failed the same way on every retry, so both are reconciled and
+    /// reported instead. A day outside the chunk's weeks is still a real error and stays retryable.
+    public static ChunkMerge ReconcileChunkCoverage(ImportDraft existing, ImportDraft extracted, ImportChunk chunk)
     {
         Validation.Require(extracted.Workouts.All(day => day.Week >= chunk.WeekFrom && day.Week <= chunk.WeekTo),
             $"AI returned a day outside the week range for '{chunk.Label}'. Retry this chunk.", 422);
+
+        var notices = new List<ImportReviewIssue>();
         var existingKeys = existing.Workouts.Select(DayKey).ToHashSet(StringComparer.OrdinalIgnoreCase);
-        var chunkKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var takenSlots = existing.Workouts.Where(day => day.Weekday is not null)
+            .Select(day => (day.Week, Weekday: day.Weekday!.Value)).ToHashSet();
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var workouts = new List<DraftWorkout>();
+        var repeated = 0;
+
         foreach (var day in extracted.Workouts)
         {
             var key = DayKey(day);
-            Validation.Require(chunkKeys.Add(key) && !existingKeys.Contains(key),
-                $"AI returned a duplicate workout day for '{chunk.Label}'. Retry this chunk.", 422);
+            if (existingKeys.Contains(key))
+            {
+                // An earlier section already read this exact day. Merging it again would put the
+                // same session into the program twice, so this copy is dropped rather than doubled.
+                notices.Add(new ImportReviewIssue("duplicate_day_dropped",
+                    $"'{chunk.Label}' repeated {day.Name} from an earlier section; it was kept once.",
+                    "warning", day.SourcePage ?? chunk.PageFrom));
+                continue;
+            }
+            if (!seen.Add(key)) repeated++;
+
+            // Two sessions cannot hold the same weekday in one week. The repeat keeps its place in
+            // the program and loses only the day it claimed, which the review screen then asks for.
+            var placed = day;
+            if (day.Weekday is { } weekday && !takenSlots.Add((day.Week, weekday)))
+            {
+                placed = day with { Weekday = null };
+                notices.Add(new ImportReviewIssue("weekday_taken",
+                    $"Week {day.Week} already has a session on that weekday, so {day.Name} needs one of its own.",
+                    "warning", day.SourcePage ?? chunk.PageFrom));
+            }
+            workouts.Add(placed);
         }
-        if (extracted.Workouts.Count == chunk.DayCount) return null;
-        return new ImportReviewIssue("chunk_day_count",
-            $"'{chunk.Label}' was outlined as about {chunk.DayCount} day{(chunk.DayCount == 1 ? "" : "s")} but reads as {extracted.Workouts.Count}. Check that section in the review.",
-            "warning", chunk.PageFrom);
+
+        if (repeated > 0)
+            notices.Add(new ImportReviewIssue("repeated_day",
+                $"'{chunk.Label}' lists {repeated} day{(repeated == 1 ? "" : "s")} that read identically. Both were kept — delete one in the review if the document only has it once.",
+                "warning", chunk.PageFrom));
+
+        if (workouts.Count != chunk.DayCount)
+            notices.Add(new ImportReviewIssue("chunk_day_count",
+                $"'{chunk.Label}' was outlined as about {chunk.DayCount} day{(chunk.DayCount == 1 ? "" : "s")} but reads as {workouts.Count}. Check that section in the review.",
+                "warning", chunk.PageFrom));
+
+        return new ChunkMerge(workouts, notices);
     }
 
     public static List<ImportReviewIssue> ReadNotices(string json)

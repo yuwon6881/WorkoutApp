@@ -236,8 +236,8 @@ public sealed partial class ImportService
                 // honest and lets the rest of the program finish; failing would strand the import.
                 if (string.IsNullOrWhiteSpace(chunkText))
                 {
-                    AdvanceChunk(import, chunkIndex, new ImportReviewIssue("section_without_text",
-                        $"'{chunk.Label}' (PDF pages {chunk.PageFrom}-{chunk.PageTo}) has no selectable text and was skipped.", "warning", chunk.PageFrom));
+                    AdvanceChunk(import, chunkIndex, [new ImportReviewIssue("section_without_text",
+                        $"'{chunk.Label}' (PDF pages {chunk.PageFrom}-{chunk.PageTo}) has no selectable text and was skipped.", "warning", chunk.PageFrom)]);
                     await db.SaveChangesAsync(ct);
                     await claim.Commit(ct);
                     skipped = true;
@@ -299,7 +299,7 @@ public sealed partial class ImportService
                     {
                         ProgramName = result.Program.ProgramTitle ?? result.Program.ProgramName ?? existing.ProgramName,
                         Description = result.Program.Description ?? existing.Description,
-                        Workouts = [.. existing.Workouts, .. extracted.Workouts]
+                        Workouts = [.. existing.Workouts, .. reconciled.Workouts]
                     };
                     if (complete)
                     {
@@ -308,7 +308,7 @@ public sealed partial class ImportService
                     }
                     import.DraftJson = Json.Write(merged); import.Model = result.Model;
                     import.InputTokens += result.InputTokens; import.OutputTokens += result.OutputTokens;
-                    AdvanceChunk(import, chunkIndex, reconciled);
+                    AdvanceChunk(import, chunkIndex, reconciled.Notices);
                     if (complete)
                     {
                         import.Status = ImportStatus.Ready; import.Stage = "done"; UpdateCounters(import, merged);
@@ -358,12 +358,12 @@ public sealed partial class ImportService
     /// while it is inside its retention window.
     public Task<ImportView> Retry(Guid id, CancellationToken ct) => Extract(id, ct);
 
-    private static void AdvanceChunk(AiImport import, int chunkIndex, ImportReviewIssue? notice)
+    private static void AdvanceChunk(AiImport import, int chunkIndex, IReadOnlyList<ImportReviewIssue> recorded)
     {
         import.ChunksDone = chunkIndex + 1; import.Error = ""; import.Revision++;
-        if (notice is null) return;
+        if (recorded.Count == 0) return;
         var notices = ReadNotices(import.NoticesJson);
-        notices.Add(notice);
+        notices.AddRange(recorded);
         import.NoticesJson = Json.Write(notices.TakeLast(40).ToList());
     }
 

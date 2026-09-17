@@ -141,4 +141,54 @@ public sealed class ImportReconciliationTests
         // The alternates that do not fit are still written down rather than dropped.
         Assert.Contains("Other alternates: Push-up, Floor press", exercise.Notes);
     }
+
+    /// A program that runs the same session twice in one week, with no weekday printed next to
+    /// either, produces two days that read identically. That is what the document says, not a
+    /// defect, and refusing the section over it stranded a real import on its third block.
+    [Fact]
+    public async Task Two_days_that_read_identically_are_both_kept_and_reported()
+    {
+        await using var h = await Harness.Create(Configured());
+        await h.SignIn();
+        var source = new ImportSourceInput("nippard.pdf", 2,
+            [new ImportPageText(1, "WEEK 1\nBench 3x5"), new ImportPageText(2, "WEEK 2\nBench 3x5")]);
+        var imports = h.Imports(Reading(Outline, Days((1, "Conditioning"), (1, "Conditioning"))));
+
+        var pending = await imports.Create(source, default);
+        var ready = await imports.Extract(pending.Id, default);
+
+        Assert.Equal(ImportStatus.Ready, ready.Status);
+        Assert.Equal(2, ready.Draft!.Workouts.Count);
+        var notice = Assert.Single(ready.ReviewIssues!, issue => issue.Code == "repeated_day");
+        Assert.Contains("delete one in the review", notice.Message);
+        // Both cannot hold the same weekday, so the repeat asks for one of its own.
+        Assert.Single(ready.ReviewIssues!, issue => issue.Code == "weekday_taken");
+        Assert.Contains(ready.Draft.Workouts, day => day.Weekday is null);
+    }
+
+    /// A section that repeats a day an earlier section already read is the one duplicate worth
+    /// acting on: merging it would put the same session in the program twice.
+    [Fact]
+    public async Task A_day_an_earlier_section_already_read_is_kept_only_once()
+    {
+        await using var h = await Harness.Create(Configured());
+        await h.SignIn();
+        var overlapping = """
+            {"programTitle":"Nine week block","description":null,"chunks":[
+              {"label":"Week 1 pages","block":"Base","phase":"Intro","weekFrom":1,"weekTo":1,"pageFrom":1,"pageTo":1,"dayCount":1},
+              {"label":"Week 1 continued","block":"Base","phase":"Intro","weekFrom":1,"weekTo":1,"pageFrom":2,"pageTo":2,"dayCount":1}]}
+            """;
+        var source = new ImportSourceInput("nippard.pdf", 2,
+            [new ImportPageText(1, "WEEK 1\nBench 3x5"), new ImportPageText(2, "WEEK 1\nBench 3x5 again")]);
+        var imports = h.Imports(Reading(overlapping, Days((1, "Day A")), Days((1, "Day A"))));
+
+        var pending = await imports.Create(source, default);
+        await imports.Extract(pending.Id, default);
+        var ready = await imports.Extract(pending.Id, default);
+
+        Assert.Equal(ImportStatus.Ready, ready.Status);
+        Assert.Single(ready.Draft!.Workouts);
+        var notice = Assert.Single(ready.ReviewIssues!, issue => issue.Code == "duplicate_day_dropped");
+        Assert.Contains("kept once", notice.Message);
+    }
 }

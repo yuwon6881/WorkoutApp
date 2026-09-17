@@ -352,7 +352,7 @@ public sealed partial class ImportService(AppDb db, WorkoutAi ai, CatalogService
 
     private static List<ImportChunk> ReadChunks(string json) => ImportValidation.ReadChunks(json);
 
-    private static ImportReviewIssue? ReconcileChunkCoverage(ImportDraft existing, ImportDraft extracted, ImportChunk chunk)
+    private static ImportValidation.ChunkMerge ReconcileChunkCoverage(ImportDraft existing, ImportDraft extracted, ImportChunk chunk)
         => ImportValidation.ReconcileChunkCoverage(existing, extracted, chunk);
 
     private static List<ImportReviewIssue> ReadNotices(string json) => ImportValidation.ReadNotices(json);
