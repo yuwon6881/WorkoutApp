@@ -96,6 +96,21 @@ public sealed class ImportUploadTests
         }
     }
 
+    /// Content-Range is a content header. Adding it to HttpRequestMessage.Headers is silently
+    /// refused, which sent every chunk to Google with no range at all: nothing accumulated, the
+    /// session never finalised, and the upload stalled. The header has to reach the wire.
+    [Fact]
+    public void A_chunk_addresses_its_byte_range_on_the_content_headers()
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Put, "https://storage.googleapis.com/session");
+        Assert.False(request.Headers.TryAddWithoutValidation("Content-Range", "bytes 0-9/100"));
+
+        request.Content = new ByteArrayContent(new byte[10]);
+        Assert.True(request.Content.Headers.TryAddWithoutValidation("Content-Range", "bytes 0-9/100"));
+        Assert.True(request.Content.Headers.TryGetValues("Content-Range", out var values));
+        Assert.Equal("bytes 0-9/100", values!.Single());
+    }
+
     [Fact]
     public async Task A_completed_part_reads_back_the_bytes_that_were_appended()
     {

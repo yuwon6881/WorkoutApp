@@ -120,29 +120,49 @@ public sealed class GcsImportFileStore(IConfiguration config, HttpClient http) :
     {
         var (session, _) = ParseSession(key);
         using var request = new HttpRequestMessage(HttpMethod.Put, session);
-        request.Headers.TryAddWithoutValidation("Content-Range", $"bytes {offset}-{offset + bytes.Length - 1}/{totalBytes}");
         request.Content = new ByteArrayContent(bytes);
         request.Content.Headers.ContentType = new MediaTypeHeaderValue("application/pdf");
+        // Content-Range is a content header. Adding it to request.Headers is silently refused by
+        // HttpRequestHeaders, which sent every chunk with no range at all — so Google never learned
+        // where a chunk belonged and the session could never be completed.
+        var added = request.Content.Headers.TryAddWithoutValidation("Content-Range", $"bytes {offset}-{offset + bytes.Length - 1}/{totalBytes}");
+        Validation.Require(added, "The upload chunk could not be addressed. Start the upload again.", 500);
         using var response = await http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct);
         // A success here is the finalising write: the object now exists and holds every byte.
         if (response.IsSuccessStatusCode) return totalBytes;
-        // 308 "resume incomplete" is the normal answer to every other chunk, and its Range header
-        // is the only trustworthy account of what was stored. Google may commit less than was
-        // sent, so assuming the whole chunk landed walks the next Content-Range past the real
-        // offset and every later chunk is rejected — which is what stalled large uploads.
+        // 308 "resume incomplete" is the normal answer to every other chunk, and Google may commit
+        // less than was sent, so the session's own offset is the only trustworthy account of what
+        // was stored. Assuming the whole chunk landed walks the next Content-Range past the real
+        // offset and every later chunk is rejected, which is what stalled large uploads.
         Validation.Require((int)response.StatusCode == 308, "The cloud upload rejected this chunk. Retry the same chunk.", 503);
-        return Committed(response, offset);
+        return Committed(response) ?? await QueryCommitted(session, totalBytes, ct);
     }
 
-    /// Reads Google's `Range: bytes=0-<last>` acknowledgement. An absent header means nothing has
-    /// been committed yet, which is a legitimate answer to a chunk it chose not to keep.
-    private static long Committed(HttpResponseMessage response, long offset)
+    /// Reads Google's `Range: bytes=0-<last>` acknowledgement. It is absent whenever nothing has
+    /// been committed yet, and .NET does not surface it on every response, so a missing header
+    /// means "ask the session" rather than "nothing was stored".
+    private static long? Committed(HttpResponseMessage response)
     {
-        var range = response.Headers.TryGetValues("Range", out var values) ? values.FirstOrDefault() : null;
-        if (string.IsNullOrWhiteSpace(range)) return 0;
+        var values = response.Headers.TryGetValues("Range", out var header) ? header
+            : response.Content.Headers.TryGetValues("Range", out var content) ? content : null;
+        var range = values?.FirstOrDefault();
+        if (string.IsNullOrWhiteSpace(range)) return null;
         var dash = range.LastIndexOf('-');
-        if (dash < 0 || !long.TryParse(range[(dash + 1)..], out var last)) return offset;
-        return last + 1;
+        return dash >= 0 && long.TryParse(range[(dash + 1)..], out var last) ? last + 1 : null;
+    }
+
+    /// The documented status query: an empty PUT with `Content-Range: bytes */<total>` answers with
+    /// the range Google actually holds. A 2xx means the upload already finalised; a 308 with no
+    /// range means the session is still empty.
+    private async Task<long> QueryCommitted(Uri session, long totalBytes, CancellationToken ct)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Put, session) { Content = new ByteArrayContent([]) };
+        request.Content.Headers.TryAddWithoutValidation("Content-Range", $"bytes */{totalBytes}");
+        using var response = await http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct);
+        if (response.IsSuccessStatusCode) return totalBytes;
+        Validation.Require((int)response.StatusCode == 308,
+            "The cloud upload session is no longer available. Start the upload again.", 410);
+        return Committed(response) ?? 0;
     }
 
     public async Task<byte[]> Read(string key, CancellationToken ct)
