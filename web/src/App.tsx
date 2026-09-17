@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Activity, AlertTriangle, CheckCircle2, Cloud, Dumbbell, LayoutDashboard, Library, Loader2, Plus, RefreshCw, Settings, WifiOff } from 'lucide-react';
 import type { Session, Template } from './types';
 import { ApiError, api } from './lib/api';
@@ -33,6 +33,7 @@ export default function App() {
   const [starting, setStarting] = useState(false);
   const [preview, setPreview] = useState<Template | null>(null);
   const [actionError, setActionError] = useState('');
+  const previewRequest = useRef<string | null>(null);
 
   useEffect(() => { document.documentElement.dataset.theme = data?.preferences.theme ?? 'dark'; }, [data?.preferences.theme]);
   // The rest timer belongs to the shell, not the workout view: it has to keep counting while the
@@ -56,8 +57,11 @@ export default function App() {
   async function start(templateId: string) {
     setActionError('');
     if (data!.activeWorkout?.active) { setTraining(true); return; }
+    if (previewRequest.current === templateId) return;
+    previewRequest.current = templateId;
     try { setPreview(await api.getTemplate(templateId)); }
     catch (failure) { setActionError(failure instanceof ApiError ? failure.message : 'That workout plan is no longer available. Refresh to see the current list.'); }
+    finally { if (previewRequest.current === templateId) previewRequest.current = null; }
   }
 
   async function confirmStart() {

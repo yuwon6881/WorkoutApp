@@ -45,6 +45,11 @@ async function openTab(page: Page, name: string) {
   await page.locator('.motion-scene').evaluate(el => Promise.all(el.getAnimations().map(a => a.finished))).catch(() => {});
 }
 
+async function openStartPreview(startButton: import('@playwright/test').Locator, preview: import('@playwright/test').Locator) {
+  await startButton.click({ force: true });
+  await expect(preview).toBeVisible({ timeout: 15000 });
+}
+
 test.describe.configure({ mode: 'serial' });
 
 test('build a workout, log a set against the server, and see it in history', async ({ page }, testInfo) => {
@@ -71,10 +76,7 @@ test('build a workout, log a set against the server, and see it in history', asy
   const preview = page.getByRole('dialog', { name: `Start ${name}?`, exact: true });
   const startBtn = page.locator('.routine-card').filter({ hasText: name }).getByRole('button', { name: 'Start workout', exact: true });
   await startBtn.evaluate(el => el.scrollIntoView({ block: 'center', inline: 'nearest' }));
-  await expect(async () => {
-    if (!await preview.isVisible()) await startBtn.click({ force: true });
-    await expect(preview).toBeVisible({ timeout: 2000 });
-  }).toPass({ timeout: 15000 });
+  await openStartPreview(startBtn, preview);
 
   // The plan is previewed first; nothing is created until it is confirmed.
   await expect(preview.getByText('Barbell bench press', { exact: true })).toBeVisible();
@@ -82,10 +84,7 @@ test('build a workout, log a set against the server, and see it in history', asy
   await expect(preview).toBeHidden();
   expect(await doneSetsOnServer(page)).toBe(0);
 
-  await expect(async () => {
-    if (!await preview.isVisible()) await startBtn.click({ force: true });
-    await expect(preview).toBeVisible({ timeout: 2000 });
-  }).toPass({ timeout: 15000 });
+  await openStartPreview(startBtn, preview);
   await preview.getByRole('button', { name: 'Start workout', exact: true }).click();
   const logger = page.getByRole('dialog', { name, exact: true });
   await expect(logger).toBeVisible();
@@ -160,10 +159,7 @@ test('build a workout, log a set against the server, and see it in history', asy
     return Promise.all(document.getAnimations().map(a => a.finished));
   });
   const againPreview = page.getByRole('dialog', { name: `Start ${name}?`, exact: true });
-  await expect(async () => {
-    if (!await againPreview.isVisible()) await againStartBtn.click({ force: true });
-    await expect(againPreview).toBeVisible({ timeout: 2000 });
-  }).toPass({ timeout: 15000 });
+  await openStartPreview(againStartBtn, againPreview);
   await againPreview.getByRole('button', { name: 'Start workout', exact: true }).click();
   const again = page.getByRole('dialog', { name, exact: true });
   await expect(again.locator('.progression-note')).toContainText('one more rep');
