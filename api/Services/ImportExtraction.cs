@@ -193,17 +193,18 @@ public sealed partial class ImportService
     private static ImportChunk ToImportChunk(AiOutlineChunk chunk)
         => new(chunk.Label, chunk.Block, chunk.Phase, chunk.WeekFrom, chunk.WeekTo, chunk.PageFrom, chunk.PageTo, chunk.DayCount);
 
-    /// One extraction pass over the pages of the next outline chunk. An import whose outline never
-    /// landed is resumed from the same stored text, so a retry continues the import rather than
-    /// reporting a stage it can never leave.
+    /// One extraction pass over every section the import still owes. The sections are independent
+    /// reads of different pages, so they are sent concurrently and merged afterwards in outline
+    /// order: the draft is assembled exactly as if they had run one after another, but the import
+    /// takes as long as its slowest section rather than the sum of all of them.
+    ///
+    /// An import whose outline never landed is resumed from the same stored text instead, so a
+    /// retry continues the import rather than reporting a stage it can never leave.
     public async Task<ImportView> Extract(Guid id, CancellationToken ct)
     {
         var user = db.CurrentUser!.Value;
-        ImportChunk chunk = default!;
-        var chunkIndex = 0;
-        var chunkText = "";
-        var skipped = false;
         List<ImportPageText>? outlinePages = null;
+        var pending = new List<PendingChunk>();
         await using (var claim = await MutationLock.Acquire(db, db.CurrentUser, ct))
         {
             var import = await db.Imports.SingleOrDefaultAsync(i => i.Id == id, ct);
@@ -227,132 +228,139 @@ public sealed partial class ImportService
                 Validation.Require(import.Status == ImportStatus.Pending && import.Stage == "extract", "This import is not waiting for another extraction pass.", 409);
                 var chunks = ReadChunks(import.OutlineJson);
                 Validation.Require(import.ChunksDone < chunks.Count, "This import has already finished extracting.", 409);
-                chunkIndex = import.ChunksDone;
-                chunk = chunks[chunkIndex];
-                ValidateChunkPages([chunk], import.PageCoverageJson);
-                chunkText = ImportSourceText.Slice(pages, chunk.PageFrom, chunk.PageTo);
-                // A section the outline pointed at pages that carry no text — a photo spread, a
-                // scanned insert — has nothing to transcribe. Skipping it with a visible note is
-                // honest and lets the rest of the program finish; failing would strand the import.
-                if (string.IsNullOrWhiteSpace(chunkText))
+                ValidateChunkPages(chunks.Skip(import.ChunksDone), import.PageCoverageJson);
+                for (var index = import.ChunksDone; index < chunks.Count; index++)
                 {
-                    AdvanceChunk(import, chunkIndex, [new ImportReviewIssue("section_without_text",
-                        $"'{chunk.Label}' (PDF pages {chunk.PageFrom}-{chunk.PageTo}) has no selectable text and was skipped.", "warning", chunk.PageFrom)]);
-                    await db.SaveChangesAsync(ct);
-                    await claim.Commit(ct);
-                    skipped = true;
+                    var chunk = chunks[index];
+                    // A section the outline pointed at pages that carry no text — a photo spread, a
+                    // scanned insert — has nothing to transcribe, so it costs no read and no budget.
+                    var text = ImportSourceText.Slice(pages, chunk.PageFrom, chunk.PageTo);
+                    if (!string.IsNullOrWhiteSpace(text))
+                    {
+                        // Every read is paid for up front. When the day's budget runs out partway,
+                        // the sections already covered still run and the rest wait for tomorrow;
+                        // only an import that can afford nothing at all is refused outright.
+                        try { await Meter(import, ct); }
+                        catch (DomainException) when (pending.Any(item => item.Text.Length > 0)) { break; }
+                    }
+                    pending.Add(new PendingChunk(index, chunk, text));
                 }
-                else
-                {
-                    await Meter(import, ct);
-                    await db.SaveChangesAsync(ct);
-                    await claim.Commit(ct);
-                }
+                await db.SaveChangesAsync(ct);
+                await claim.Commit(ct);
             }
         }
         db.ChangeTracker.Clear();
         if (outlinePages is not null) return await ReadOutline(id, outlinePages, ct);
-        if (skipped)
+
+        var results = new Dictionary<int, AiImportResult>();
+        var failures = new Dictionary<int, DomainException>();
+        var identifier = AuthService.Hash(user.ToString())[..32];
+        // Concurrency is bounded so one import cannot open an unlimited number of provider
+        // requests at once; a handful in flight is what turns the sum of the sections into the
+        // longest of them.
+        using (var inFlight = new SemaphoreSlim(Math.Max(1, config?.GetValue("OpenAi:MaxConcurrentChunks", 4) ?? 4)))
         {
-            // The account lock is not reentrant, so the import is completed after that gate closed.
-            try { await FinishIfComplete(id, ct); }
-            catch (DomainException ex) { await RecordRetryableFailure(id, ex.Message); throw; }
-            return await Get(id, ct);
+            await Task.WhenAll(pending.Where(item => item.Text.Length > 0).Select(async item =>
+            {
+                await inFlight.WaitAsync(ct);
+                try
+                {
+                    var result = await ai.ExtractChunk(item.Text, [], identifier, Directive(item.Chunk), ct);
+                    lock (results) results[item.Index] = result;
+                }
+                catch (DomainException ex) { lock (failures) failures[item.Index] = ex; }
+                catch (Exception) when (!ct.IsCancellationRequested)
+                {
+                    lock (failures) failures[item.Index] = new DomainException("That extraction chunk did not finish. Try again.", 503);
+                }
+                finally { inFlight.Release(); }
+            }));
         }
 
-        AiImportResult result;
-        try
-        {
-            result = await ai.ExtractChunk(chunkText, [], AuthService.Hash(user.ToString())[..32],
-                $"Extract only chunk '{chunk.Label}', covering block '{chunk.Block}', phase '{chunk.Phase}', absolute weeks {chunk.WeekFrom}-{chunk.WeekTo}, pages {chunk.PageFrom}-{chunk.PageTo}. " +
-                $"The outline estimated about {chunk.DayCount} days; return every day these pages actually document, and no days from other chunks.", ct);
-        }
-        catch (DomainException ex)
-        {
-            await RecordRetryableFailure(id, ex.Message);
-            throw;
-        }
-        catch (Exception) when (!ct.IsCancellationRequested)
-        {
-            await RecordRetryableFailure(id, "That extraction chunk did not finish. Try again.");
-            throw;
-        }
-
+        // The reads are paid for and complete: commit them even if the browser has since
+        // disconnected. Sections merge in outline order and stop at the first one that failed, so
+        // what is committed is always an unbroken prefix that a retry can continue from.
         var settle = CancellationToken.None;
-        DomainException? rejected = null;
+        DomainException? stopped = null;
         await using (var gate = await MutationLock.Acquire(db, db.CurrentUser, settle))
         {
             var import = await db.Imports.SingleOrDefaultAsync(i => i.Id == id, settle);
-            // Another delivery may have committed this same chunk while the model was reading.
-            // The duplicate result is dropped instead of being merged a second time.
-            if (import is not null && import.Status == ImportStatus.Pending && import.Stage == "extract" && import.ChunksDone == chunkIndex)
+            if (import is not null && import.Status == ImportStatus.Pending && import.Stage == "extract")
             {
-                var existing = Json.Read<ImportDraft>(import.DraftJson);
-                var complete = chunkIndex + 1 >= import.ChunksTotal;
-                try
+                var draft = Json.Read<ImportDraft>(import.DraftJson);
+                foreach (var item in pending.OrderBy(item => item.Index))
                 {
-                    // Everything that can reject this result runs before the row is touched, so a
-                    // rejected chunk stays retryable instead of committing a half-applied import.
-                    var extracted = await ToDraft(result.Program, settle);
-                    var reconciled = ReconcileChunkCoverage(existing, extracted, chunk);
-                    var merged = existing with
+                    // Another delivery may have committed this same section while the model was
+                    // reading. Its result is dropped instead of being merged a second time.
+                    if (import.ChunksDone != item.Index) break;
+                    if (failures.TryGetValue(item.Index, out var failure)) { stopped = failure; break; }
+                    var complete = item.Index + 1 >= import.ChunksTotal;
+                    try
                     {
-                        ProgramName = result.Program.ProgramTitle ?? result.Program.ProgramName ?? existing.ProgramName,
-                        Description = result.Program.Description ?? existing.Description,
-                        Workouts = [.. existing.Workouts, .. reconciled.Workouts]
-                    };
-                    if (complete)
-                    {
-                        await ValidateDraft(merged, settle);
-                        ValidateDraftPages(merged, import.PageCoverageJson);
+                        // Everything that can reject a section runs before the row is touched, so a
+                        // rejected section stays retryable instead of committing half of itself.
+                        var notices = new List<ImportReviewIssue>();
+                        var merged = draft;
+                        if (item.Text.Length == 0)
+                        {
+                            notices.Add(new ImportReviewIssue("section_without_text",
+                                $"'{item.Chunk.Label}' (PDF pages {item.Chunk.PageFrom}-{item.Chunk.PageTo}) has no selectable text and was skipped.",
+                                "warning", item.Chunk.PageFrom));
+                        }
+                        else
+                        {
+                            var result = results[item.Index];
+                            var extracted = await ToDraft(result.Program, settle);
+                            var reconciled = ReconcileChunkCoverage(draft, extracted, item.Chunk);
+                            notices.AddRange(reconciled.Notices);
+                            merged = draft with
+                            {
+                                ProgramName = result.Program.ProgramTitle ?? result.Program.ProgramName ?? draft.ProgramName,
+                                Description = result.Program.Description ?? draft.Description,
+                                Workouts = [.. draft.Workouts, .. reconciled.Workouts]
+                            };
+                            import.Model = result.Model;
+                            import.InputTokens += result.InputTokens; import.OutputTokens += result.OutputTokens;
+                        }
+                        if (complete)
+                        {
+                            await ValidateDraft(merged, settle);
+                            ValidateDraftPages(merged, import.PageCoverageJson);
+                        }
+                        draft = merged;
+                        AdvanceChunk(import, item.Index, notices);
+                        if (complete)
+                        {
+                            import.Status = ImportStatus.Ready; import.Stage = "done";
+                            UpdateCounters(import, draft);
+                            ClearSource(import);
+                        }
                     }
-                    import.DraftJson = Json.Write(merged); import.Model = result.Model;
-                    import.InputTokens += result.InputTokens; import.OutputTokens += result.OutputTokens;
-                    AdvanceChunk(import, chunkIndex, reconciled.Notices);
-                    if (complete)
-                    {
-                        import.Status = ImportStatus.Ready; import.Stage = "done"; UpdateCounters(import, merged);
-                        ClearSource(import);
-                    }
-                    await db.SaveChangesAsync(settle);
+                    catch (DomainException ex) { stopped = ex; break; }
                 }
-                catch (DomainException ex)
-                {
-                    db.ChangeTracker.Clear();
-                    rejected = ex;
-                }
+                import.DraftJson = Json.Write(draft);
+                await db.SaveChangesAsync(settle);
             }
             await gate.Commit(settle);
         }
-        if (rejected is not null)
+        if (stopped is not null)
         {
-            await RecordRetryableFailure(id, rejected.Message);
-            throw rejected;
+            await RecordRetryableFailure(id, stopped.Message);
+            throw stopped;
         }
         return await Get(id, ct);
     }
 
-    /// Marks an import ready once every outline chunk has been accounted for, whether it was
-    /// extracted or skipped for having no text. Returns false when chunks remain.
-    private async Task<bool> FinishIfComplete(Guid id, CancellationToken ct)
-    {
-        await using var gate = await MutationLock.Acquire(db, db.CurrentUser, ct);
-        var import = await db.Imports.SingleOrDefaultAsync(i => i.Id == id, ct);
-        if (import is null || import.Status != ImportStatus.Pending || import.Stage != "extract" || import.ChunksDone < import.ChunksTotal)
-        {
-            await gate.Commit(ct);
-            return false;
-        }
-        var draft = Json.Read<ImportDraft>(import.DraftJson);
-        await ValidateDraft(draft, ct);
-        ValidateDraftPages(draft, import.PageCoverageJson);
-        import.Status = ImportStatus.Ready; import.Stage = "done"; import.Revision++;
-        UpdateCounters(import, draft);
-        ClearSource(import);
-        await db.SaveChangesAsync(ct);
-        await gate.Commit(ct);
-        return true;
-    }
+    /// What one section asks the model for. The outline's day count travels with it as an estimate
+    /// rather than an instruction, because the pages themselves are the authority on how many days
+    /// they document.
+    private static string Directive(ImportChunk chunk)
+        => $"Extract only chunk '{chunk.Label}', covering block '{chunk.Block}', phase '{chunk.Phase}', absolute weeks {chunk.WeekFrom}-{chunk.WeekTo}, pages {chunk.PageFrom}-{chunk.PageTo}. " +
+           $"The outline estimated about {chunk.DayCount} days; return every day these pages actually document, and no days from other chunks.";
+
+    /// One section waiting to be read, with the page text it covers. An empty text means the
+    /// section's pages carry none, which is settled without a model call.
+    private sealed record PendingChunk(int Index, ImportChunk Chunk, string Text);
 
     /// Retry is an explicit idempotent operation for a pending import; the stored text is reused
     /// while it is inside its retention window.

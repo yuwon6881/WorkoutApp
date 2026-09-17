@@ -100,11 +100,10 @@ public sealed class ImportReconciliationTests
         var imports = h.Imports(stub);
 
         var pending = await imports.Create(source, default);
-        var afterFirst = await imports.Extract(pending.Id, default);
-        Assert.Equal(1, afterFirst.ChunksDone);
-
         var ready = await imports.Extract(pending.Id, default);
+
         Assert.Equal(ImportStatus.Ready, ready.Status);
+        Assert.Equal(2, ready.ChunksDone);
         Assert.Single(ready.Draft!.Workouts);
         var notice = Assert.Single(ready.ReviewIssues!, issue => issue.Code == "section_without_text");
         Assert.Contains("Photographs", notice.Message);
@@ -183,7 +182,6 @@ public sealed class ImportReconciliationTests
         var imports = h.Imports(Reading(overlapping, Days((1, "Day A")), Days((1, "Day A"))));
 
         var pending = await imports.Create(source, default);
-        await imports.Extract(pending.Id, default);
         var ready = await imports.Extract(pending.Id, default);
 
         Assert.Equal(ImportStatus.Ready, ready.Status);

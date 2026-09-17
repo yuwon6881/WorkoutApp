@@ -129,15 +129,15 @@ public sealed class ImportRecoveryTests
     }
 
     [Fact]
-    public async Task A_rejected_final_chunk_leaves_the_import_retryable()
+    public async Task A_rejected_section_keeps_the_sections_before_it_and_stays_retryable()
     {
         await using var h = await Harness.Create(Configured());
         await h.SignIn();
-        // The second chunk repeats the first chunk's day, which is a real extraction error rather
-        // than an estimate that drifted: merging it would put the same session in twice.
+        // The second section answers with a week that belongs to the first, which is a real
+        // extraction error rather than an estimate that drifted. Sections are read together now,
+        // so what must survive is the unbroken prefix: section one commits, section two does not.
         var imports = h.Imports(Reading(TwoChunkOutline, Day(1, "Day A"), Day(1, "Day A")));
         var pending = await imports.Create(Source(), default);
-        await imports.Extract(pending.Id, default);
         var failure = await Assert.ThrowsAsync<DomainException>(() => imports.Extract(pending.Id, default));
         Assert.Equal(422, failure.Status);
 
