@@ -13,7 +13,10 @@ public interface IImportFileStore
 {
     Task<string> Save(Guid userId, Guid importId, byte[] bytes, CancellationToken ct);
     Task<string> StartUpload(Guid userId, Guid uploadId, long expectedBytes, CancellationToken ct);
-    Task Append(string key, long offset, byte[] bytes, long totalBytes, CancellationToken ct);
+    /// Returns the total number of bytes the store has actually committed. Storage is the
+    /// authority on that number: a resumable backend may commit less than was sent, and assuming
+    /// otherwise drifts the caller past the real offset until every later chunk is rejected.
+    Task<long> Append(string key, long offset, byte[] bytes, long totalBytes, CancellationToken ct);
     Task<byte[]> Read(string key, CancellationToken ct);
     Task Delete(string? key, CancellationToken ct);
 }
@@ -41,7 +44,7 @@ public sealed class TransientImportFileStore(IConfiguration config) : IImportFil
         return Task.FromResult(relative);
     }
 
-    public async Task Append(string key, long offset, byte[] bytes, long totalBytes, CancellationToken ct)
+    public async Task<long> Append(string key, long offset, byte[] bytes, long totalBytes, CancellationToken ct)
     {
         var full = Resolve(key);
         Validation.Require(File.Exists(full), "That upload session has expired. Start the upload again.", 410);
@@ -50,6 +53,7 @@ public sealed class TransientImportFileStore(IConfiguration config) : IImportFil
         stream.Seek(offset, SeekOrigin.Begin);
         await stream.WriteAsync(bytes, ct);
         await stream.FlushAsync(ct);
+        return stream.Length;
     }
 
     public async Task<byte[]> Read(string key, CancellationToken ct)
@@ -112,7 +116,7 @@ public sealed class GcsImportFileStore(IConfiguration config, HttpClient http) :
         return SessionPrefix + Encode(session.ToString()) + "|" + name;
     }
 
-    public async Task Append(string key, long offset, byte[] bytes, long totalBytes, CancellationToken ct)
+    public async Task<long> Append(string key, long offset, byte[] bytes, long totalBytes, CancellationToken ct)
     {
         var (session, _) = ParseSession(key);
         using var request = new HttpRequestMessage(HttpMethod.Put, session);
@@ -120,14 +124,25 @@ public sealed class GcsImportFileStore(IConfiguration config, HttpClient http) :
         request.Content = new ByteArrayContent(bytes);
         request.Content.Headers.ContentType = new MediaTypeHeaderValue("application/pdf");
         using var response = await http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct);
-        // 308 means "resume incomplete" and is the only correct answer to a chunk that is not the
-        // last one. Accepting it for the final chunk would leave the session unfinalised: no object
-        // is created, and the completion read would later report a perfectly good upload as an
-        // expired PDF. The last chunk therefore has to be acknowledged as stored.
-        var final = offset + bytes.Length >= totalBytes;
-        Validation.Require(final ? response.IsSuccessStatusCode : (response.IsSuccessStatusCode || (int)response.StatusCode == 308),
-            final ? "The cloud storage did not finish this upload. Start the upload again." : "The cloud upload rejected this chunk. Retry the same chunk.",
-            final ? 410 : 503);
+        // A success here is the finalising write: the object now exists and holds every byte.
+        if (response.IsSuccessStatusCode) return totalBytes;
+        // 308 "resume incomplete" is the normal answer to every other chunk, and its Range header
+        // is the only trustworthy account of what was stored. Google may commit less than was
+        // sent, so assuming the whole chunk landed walks the next Content-Range past the real
+        // offset and every later chunk is rejected — which is what stalled large uploads.
+        Validation.Require((int)response.StatusCode == 308, "The cloud upload rejected this chunk. Retry the same chunk.", 503);
+        return Committed(response, offset);
+    }
+
+    /// Reads Google's `Range: bytes=0-<last>` acknowledgement. An absent header means nothing has
+    /// been committed yet, which is a legitimate answer to a chunk it chose not to keep.
+    private static long Committed(HttpResponseMessage response, long offset)
+    {
+        var range = response.Headers.TryGetValues("Range", out var values) ? values.FirstOrDefault() : null;
+        if (string.IsNullOrWhiteSpace(range)) return 0;
+        var dash = range.LastIndexOf('-');
+        if (dash < 0 || !long.TryParse(range[(dash + 1)..], out var last)) return offset;
+        return last + 1;
     }
 
     public async Task<byte[]> Read(string key, CancellationToken ct)

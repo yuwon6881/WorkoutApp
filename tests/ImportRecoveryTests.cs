@@ -160,7 +160,7 @@ public sealed class ImportRecoveryTests
     {
         public Task<string> Save(Guid userId, Guid importId, byte[] bytes, CancellationToken ct) => inner.Save(userId, importId, bytes, ct);
         public Task<string> StartUpload(Guid userId, Guid uploadId, long expectedBytes, CancellationToken ct) => inner.StartUpload(userId, uploadId, expectedBytes, ct);
-        public Task Append(string key, long offset, byte[] bytes, long totalBytes, CancellationToken ct) => inner.Append(key, offset, bytes, totalBytes, ct);
+        public Task<long> Append(string key, long offset, byte[] bytes, long totalBytes, CancellationToken ct) => inner.Append(key, offset, bytes, totalBytes, ct);
         public Task<byte[]> Read(string key, CancellationToken ct) => inner.Read(key, ct);
         public Task Delete(string? key, CancellationToken ct) => throw new IOException("storage unavailable");
     }

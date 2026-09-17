@@ -35,8 +35,12 @@ public sealed partial class ImportService
         Validation.Require(upload!.Status == "open" && upload.ExpiresAt > DateTime.UtcNow, "That upload session has expired. Start the upload again.", 410);
         Validation.Require(offset == upload.ReceivedBytes, "The upload offset is stale; refresh the upload and retry the next chunk.", 409);
         Validation.Require(upload.ReceivedBytes + bytes.Length <= upload.ExpectedBytes, "That chunk is larger than the remaining upload.", 413);
-        await files.Append(upload.SourceFileKey, offset, bytes, upload.ExpectedBytes, ct);
-        upload.ReceivedBytes += bytes.Length; upload.Revision++;
+        // Storage decides how much it kept, so the session resumes from its number rather than
+        // from what was sent. A chunk it did not commit is simply re-sent by the client.
+        var committed = await files.Append(upload.SourceFileKey, offset, bytes, upload.ExpectedBytes, ct);
+        Validation.Require(committed > upload.ReceivedBytes,
+            "The cloud storage did not keep that chunk. Retry the same chunk.", 503);
+        upload.ReceivedBytes = Math.Min(committed, upload.ExpectedBytes); upload.Revision++;
         await db.SaveChangesAsync(ct); await gate.Commit(ct);
         return ToUploadView(upload);
     }

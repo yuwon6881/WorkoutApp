@@ -118,6 +118,10 @@ export function useImportPipeline({ selected, setSelected, setDraft, onChanged }
             const end = Math.min(chosen.size, offset + session.chunkBytes);
             const part = new Uint8Array(await chosen.slice(offset, end).arrayBuffer());
             const sent = await api.appendImportUpload(session.id, offset, part);
+            // The server reports what storage committed, which can be less than was sent. Looping
+            // on an offset that never advances would freeze the bar on a percentage forever, so a
+            // stalled session is reported instead of retried without end.
+            if (sent.receivedBytes <= offset) throw new ApiError('The upload stopped making progress. Start the upload again.', 410);
             offset = sent.receivedBytes;
             setProgress({ label: 'Uploading the PDF', detail: chosen.name, percent: Math.round((offset / chosen.size) * 100) });
           }
