@@ -17,14 +17,15 @@ export function HistoryView({ initial, preferences, onSession, onStart }: {
 
   useEffect(() => {
     let cancelled = false;
+    const controller = new AbortController();
     setLoading(true);
-    api.history(0, 20)
+    api.history(0, 20, controller.signal)
       .then(next => { if (!cancelled) { setPage(next); setError(''); } })
       .catch(failure => { if (!cancelled) setError(failure instanceof ApiError ? failure.message : 'Could not load your history.'); })
       .finally(() => { if (!cancelled) setLoading(false); });
-    api.progress().then(next => { if (!cancelled) setProgress(next); }).catch(() => { /* history remains usable if the optional records read is unavailable */ });
-    api.refreshNutritionContext().catch(() => { /* progression context is optional */ });
-    return () => { cancelled = true; };
+    api.progress(controller.signal).then(next => { if (!cancelled) setProgress(next); }).catch(() => { /* history remains usable if the optional records read is unavailable */ });
+    api.refreshNutritionContext(controller.signal).catch(() => { /* progression context is optional */ });
+    return () => { cancelled = true; controller.abort(); };
   }, []);
 
   async function more() {
