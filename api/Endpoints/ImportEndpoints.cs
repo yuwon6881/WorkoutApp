@@ -45,10 +45,13 @@ public static class ImportEndpoints
             return await imports.Create(input, CancellationToken.None);
         }).RequireRateLimiting("ai").DisableAntiforgery();
 
-        app.MapPost("/api/imports/{id:guid}/extract", async (Guid id, ImportService imports, CancellationToken ct)
-            => await imports.Extract(id, ct)).RequireRateLimiting("ai-extract").DisableAntiforgery();
-        app.MapPost("/api/imports/{id:guid}/retry", async (Guid id, ImportService imports, CancellationToken ct)
-            => await imports.Retry(id, ct)).RequireRateLimiting("ai-extract").DisableAntiforgery();
+        // A read is billed the moment it starts, so closing the tab must not throw it away. The
+        // pass runs to completion and commits on its own; the browser is welcome to leave and find
+        // the finished draft when it comes back.
+        app.MapPost("/api/imports/{id:guid}/extract", async (Guid id, ImportService imports)
+            => await imports.Extract(id, CancellationToken.None)).RequireRateLimiting("ai-extract").DisableAntiforgery();
+        app.MapPost("/api/imports/{id:guid}/retry", async (Guid id, ImportService imports)
+            => await imports.Retry(id, CancellationToken.None)).RequireRateLimiting("ai-extract").DisableAntiforgery();
 
         app.MapPut("/api/imports/{id:guid}", async (Guid id, JsonElement payload, ImportService imports, CancellationToken ct) =>
         {

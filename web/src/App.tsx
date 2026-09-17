@@ -127,7 +127,7 @@ export default function App() {
           onImport={() => setTab('import')} onSession={setDetail} onResume={() => setTraining(true)} />}
         {tab === 'program' && <Programs data={data} exercises={data.exercises} onStart={start} onImport={() => setTab('import')} onChanged={app.reload} />}
         {tab === 'import' && <ImportReview exercises={data.exercises} imports={data.imports} remaining={data.aiImportsRemaining}
-          onBack={() => setTab('program')} onChanged={app.reload} />}
+          onBack={() => setTab('program')} onChanged={app.reload} notify={setToast} />}
         {tab === 'history' && <HistoryView initial={data.history} preferences={data.preferences} onSession={setDetail} onStart={() => setTab('program')}
           onExercise={id => { void openExercise(id); }} />}
         {tab === 'exercises' && <ExerciseLibrary exercises={data.exercises} onOpen={setExerciseDetail} onChanged={app.reload} />}

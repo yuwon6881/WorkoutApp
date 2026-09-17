@@ -5,6 +5,7 @@ import { ApiError, api } from '../lib/api';
 import { requestRestAlerts } from '../lib/restTimer';
 import { Button } from './ui/Button';
 import { Modal } from './ui/Modal';
+import { Select } from './ui/Select';
 import { ConnectedApps } from './ConnectedApps';
 
 type InstallEvent = Event & { prompt: () => Promise<void>; userChoice: Promise<{ outcome: string }> };
@@ -48,33 +49,82 @@ export function SettingsView({ account, preferences, onPreferences, notify, onSi
     <div className="settings-grid">
       <section className="panel">
         <h2>Training preferences</h2>
-        <label className="setting-row"><span><strong>Weight unit</strong></span>
-          <select name="weight-unit" aria-label="Weight unit" value={preferences.unit} onChange={e => onPreferences({ ...preferences, unit: e.target.value as Preferences['unit'] })}>
-            <option value="kg">Kilograms (kg)</option><option value="lb">Pounds (lb)</option></select></label>
-        <label className="setting-row"><span><strong>Rest between sets</strong><small>Starts after logging a set.</small></span>
-          <select name="rest-seconds" aria-label="Rest between sets" value={preferences.restSeconds} onChange={e => onPreferences({ ...preferences, restSeconds: Number(e.target.value) })}>
-            {[0, 30, 60, 90, 120, 180, 240, 300].map(n => <option key={n} value={n}>{n ? `${n} seconds` : 'Off'}</option>)}</select></label>
-        <label className="setting-row"><span><strong>Rest alerts</strong><small>{alertHint}</small></span>
-          <select name="rest-alerts" aria-label="Rest alerts" value={preferences.restAlerts ? 'on' : 'off'} onChange={async e => {
-            const wanted = e.target.value === 'on';
-            // Permission can only be asked for from a real interaction, and a refusal is kept:
-            // the sound still works, so the setting stays on and the copy says what is missing.
-            if (wanted && (await requestRestAlerts()) === 'denied') notify('Notifications are blocked for this site, so rest alerts will sound but not show a banner.');
-            onPreferences({ ...preferences, restAlerts: wanted });
-          }}><option value="on">Sound and notification</option><option value="off">Silent</option></select></label>
-        <label className="setting-row"><span><strong>Appearance</strong></span>
-          <select name="appearance" aria-label="Appearance" value={preferences.theme} onChange={e => onPreferences({ ...preferences, theme: e.target.value as Preferences['theme'] })}>
-            <option value="dark">Ayu dark</option><option value="light">Ayu light</option></select></label>
+        <div className="setting-row"><span><strong>Weight unit</strong></span>
+          <Select
+            name="weight-unit"
+            label="Weight unit"
+            value={preferences.unit}
+            onChange={val => onPreferences({ ...preferences, unit: val as Preferences['unit'] })}
+            options={[
+              { value: 'kg', label: 'Kilograms (kg)' },
+              { value: 'lb', label: 'Pounds (lb)' }
+            ]}
+          /></div>
+        <div className="setting-row"><span><strong>Rest between sets</strong><small>Starts after logging a set.</small></span>
+          <Select
+            name="rest-seconds"
+            label="Rest between sets"
+            value={preferences.restSeconds}
+            onChange={val => onPreferences({ ...preferences, restSeconds: Number(val) })}
+            options={[
+              { value: 0, label: 'Off' },
+              { value: 30, label: '30 seconds' },
+              { value: 60, label: '60 seconds' },
+              { value: 90, label: '90 seconds' },
+              { value: 120, label: '120 seconds' },
+              { value: 180, label: '180 seconds' },
+              { value: 240, label: '240 seconds' },
+              { value: 300, label: '300 seconds' }
+            ]}
+          /></div>
+        <div className="setting-row"><span><strong>Rest alerts</strong><small>{alertHint}</small></span>
+          <Select
+            name="rest-alerts"
+            label="Rest alerts"
+            value={preferences.restAlerts ? 'on' : 'off'}
+            onChange={async val => {
+              const wanted = val === 'on';
+              if (wanted && (await requestRestAlerts()) === 'denied') notify('Notifications are blocked for this site, so rest alerts will sound but not show a banner.');
+              onPreferences({ ...preferences, restAlerts: wanted });
+            }}
+            options={[
+              { value: 'on', label: 'Sound and notification' },
+              { value: 'off', label: 'Silent' }
+            ]}
+          /></div>
+        <div className="setting-row"><span><strong>Appearance</strong></span>
+          <Select
+            name="appearance"
+            label="Appearance"
+            value={preferences.theme}
+            onChange={val => onPreferences({ ...preferences, theme: val as Preferences['theme'] })}
+            options={[
+              { value: 'dark', label: 'Ayu dark' },
+              { value: 'light', label: 'Ayu light' }
+            ]}
+          /></div>
       </section>
 
       <section className="panel">
         <div className="section-heading"><h2>Your account</h2></div>
-        <p>Signed in as <strong>{account.displayName}</strong>. Your training is available on every device you sign in on.</p>
-        <div className="settings-actions">
-          <Button onClick={exportAccount}><Download size={17} />Export a copy</Button>
-          <Button variant="destructive" onClick={onSignOut}><LogOut size={17} />Sign out</Button>
+        <div className="setting-row setting-action-row">
+          <div className="setting-action-info">
+            <strong>{account.displayName}</strong>
+            <small>Signed in. Your training is available on every device you sign in on.</small>
+          </div>
+          <div className="setting-action-controls">
+            <Button variant="destructive" onClick={onSignOut}><LogOut size={16} />Sign out</Button>
+          </div>
         </div>
-        <p className="muted small-copy">The export is a readable copy of your account for your own records. There is no restore: it cannot be uploaded back.</p>
+        <div className="setting-row setting-action-row">
+          <div className="setting-action-info">
+            <strong>Account export</strong>
+            <small>A readable copy of your account for your own records. It cannot be uploaded back.</small>
+          </div>
+          <div className="setting-action-controls">
+            <Button onClick={exportAccount}><Download size={16} />Export a copy</Button>
+          </div>
+        </div>
       </section>
 
       <ConnectedApps />

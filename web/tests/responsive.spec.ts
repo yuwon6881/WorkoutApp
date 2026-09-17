@@ -140,7 +140,7 @@ for (const theme of ['dark', 'light']) {
 
     await navigate(page, 'Exercises');
     await page.getByRole('textbox', { name: 'Search exercises' }).fill('barbell');
-    await page.getByLabel('Filter by muscle').selectOption('Chest');
+    await page.getByRole('group', { name: 'Filter exercises by muscle' }).getByRole('button', { name: 'Chest', exact: true }).click();
     await expect(page.getByRole('heading', { name: 'Barbell bench press' })).toBeVisible();
     await screenshot('exercises');
 

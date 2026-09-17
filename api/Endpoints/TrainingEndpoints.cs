@@ -31,7 +31,7 @@ public static class TrainingEndpoints
                 activeProgram = programList.FirstOrDefault(p => p.Active),
                 activeWorkout = await workouts.Active(ct),
                 imports = await imports.List(ct),
-                history = await workouts.History(0, 10, ct),
+                history = await workouts.History(0, 20, ct),
                 aiImportsRemaining = await Remaining(db, ct)
             };
         });

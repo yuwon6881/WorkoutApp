@@ -10,6 +10,18 @@ let progressCache: ProgressSummary | null = null;
 let historyCache: HistoryPage | null = null;
 export function clearHistoryViewCache() { progressCache = null; historyCache = null; }
 
+function isSameHistory(a: HistoryPage, b: HistoryPage): boolean {
+  if (a.total !== b.total || a.page !== b.page || a.sessions.length !== b.sessions.length) return false;
+  for (let i = 0; i < a.sessions.length; i++) {
+    const s1 = a.sessions[i];
+    const s2 = b.sessions[i];
+    if (s1.id !== s2.id || s1.startedAt !== s2.startedAt || s1.finishedAt !== s2.finishedAt || s1.completedSets !== s2.completedSets || s1.volumeKg !== s2.volumeKg) {
+      return false;
+    }
+  }
+  return true;
+}
+
 export function HistoryView({ initial, preferences, onSession, onStart, onExercise }: {
   initial: HistoryPage; preferences: Preferences; onSession: (s: Session) => void; onStart: () => void; onExercise?: (id: string) => void;
 }) {
@@ -24,9 +36,15 @@ export function HistoryView({ initial, preferences, onSession, onStart, onExerci
   useEffect(() => {
     let cancelled = false;
     const controller = new AbortController();
-    setLoading(true);
+    if (!page.sessions.length) setLoading(true);
     api.history(0, 20, controller.signal)
-      .then(next => { if (!cancelled) { historyCache = next; setPage(next); setError(''); } })
+      .then(next => {
+        if (!cancelled) {
+          historyCache = next;
+          setPage(current => isSameHistory(current, next) ? current : next);
+          setError('');
+        }
+      })
       .catch(failure => { if (!cancelled) setError(failure instanceof ApiError ? failure.message : 'Could not load your history.'); })
       .finally(() => { if (!cancelled) setLoading(false); });
     api.refreshNutritionContext(controller.signal).catch(() => { /* progression context is optional */ });

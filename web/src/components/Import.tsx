@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
-import { AlertTriangle, ArrowLeft, Check, ChevronDown, Trash2, Upload, Wand2, X } from 'lucide-react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { AlertTriangle, ArrowLeft, Check, ChevronDown, Loader2, Trash2, Upload, Wand2, X } from 'lucide-react';
 import type { DraftWorkout, Exercise, ImportDraft, ImportView } from '../types';
 import { ApiError, api } from '../lib/api';
 import { validateDraftWorkout, validateImportMetadata } from '../lib/validation';
@@ -48,8 +48,8 @@ function Failure({ failure, onChooseFile, onRetry, onDismiss }: {
   </div>;
 }
 
-export function ImportReview({ exercises, imports, remaining, onBack, onChanged }: {
-  exercises: Exercise[]; imports: ImportView[]; remaining: number; onBack: () => void; onChanged: () => Promise<void>;
+export function ImportReview({ exercises, imports, remaining, onBack, onChanged, notify }: {
+  exercises: Exercise[]; imports: ImportView[]; remaining: number; onBack: () => void; onChanged: () => Promise<void>; notify?: (message: string) => void;
 }) {
   const [selected, setSelected] = useState<ImportView | null>(imports.find(i => i.status === 'ready') ?? imports[0] ?? null);
   const [draft, setDraft] = useState<ImportDraft | null>(selected?.draft ?? null);
@@ -58,7 +58,25 @@ export function ImportReview({ exercises, imports, remaining, onBack, onChanged 
   const [saveError, setSaveError] = useState('');
   const [acknowledgeUnspecified, setAcknowledgeUnspecified] = useState(false);
   const file = useRef<HTMLInputElement>(null);
-  const pipeline = useImportPipeline({ setSelected, setDraft, onChanged });
+  const reviewRef = useRef<HTMLElement>(null);
+
+  const handleComplete = useCallback((count: number) => {
+    notify?.(`Import complete! Read ${count} workout days. Review your program below.`);
+    if (typeof document !== 'undefined' && document.hidden) {
+      const originalTitle = document.title;
+      document.title = '✓ Import complete! — Workout';
+      const onFocus = () => {
+        document.title = originalTitle;
+        window.removeEventListener('focus', onFocus);
+      };
+      window.addEventListener('focus', onFocus);
+    }
+    window.setTimeout(() => {
+      reviewRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 150);
+  }, [notify]);
+
+  const pipeline = useImportPipeline({ selected, setSelected, setDraft, onChanged, onComplete: handleComplete });
   const busy = pipeline.busy || !!saving;
 
   useEffect(() => {
@@ -114,7 +132,9 @@ export function ImportReview({ exercises, imports, remaining, onBack, onChanged 
       <div className="section-heading"><h2>Upload</h2><span className="muted">PDF · read on this device · up to 1,000 pages</span></div>
       <input name="program-pdf" ref={file} type="file" accept="application/pdf,.pdf" hidden aria-label="Program PDF"
         onChange={e => { const chosen = e.target.files?.[0]; e.target.value = ''; if (chosen) void pipeline.upload(chosen); }} />
-      <Button variant="primary" disabled={busy} onClick={() => file.current?.click()}><Upload size={17} />Choose a PDF</Button>
+      <div className="upload-action-row">
+        <Button variant="primary" disabled={busy} onClick={() => file.current?.click()}><Upload size={17} />Choose a PDF</Button>
+      </div>
       {pipeline.progress && <Progress progress={pipeline.progress} />}
       {saving && <p className="muted" role="status">{saving}</p>}
       {pipeline.notice && <p className="muted" role="status">{pipeline.notice}</p>}
@@ -124,13 +144,20 @@ export function ImportReview({ exercises, imports, remaining, onBack, onChanged 
       <p className="muted small-copy">The text is read from the PDF on this device and only that text is sent; the file itself stays here. It becomes an editable draft before it can affect your workouts.</p>
     </section>
 
-    {selected && selected.status === 'pending' && <section className="panel">
-      {selected.stage === 'select' && selected.alternatives?.length ? <div className="empty-message"><Wand2 size={30} /><h3>Choose a program</h3>
+    {selected && selected.status === 'pending' && <section className="panel import-reading-panel">
+      {selected.stage === 'select' && selected.alternatives?.length ? <div className="empty-message"><Wand2 size={24} /><h3>Choose a program</h3>
         <p>This PDF contains several programs. Choose one before detailed extraction; its consecutive phases will stay together.</p>
         <div className="settings-actions">{selected.alternatives.map(alternative => <Button key={alternative.id} variant="primary" disabled={busy}
           onClick={() => void pipeline.chooseAlternative(selected, alternative.id)}>{alternative.name} · {alternative.dayCount} days</Button>)}</div>
-      </div> : <div className="empty-message"><Wand2 size={30} /><h3>{stageLabel(selected)}</h3>
-        <p>{serverHoldsSource
+      </div> : <div className="import-reading-card">
+        <div className="reading-card-header">
+          <div className="reading-card-title">
+            {busy ? <Loader2 size={18} className="spin accent" /> : <Wand2 size={18} className="accent" />}
+            <h3>{busy ? 'Reading PDF…' : stageLabel(selected)}</h3>
+          </div>
+          <span className="pill pill-accent">{serverHoldsSource ? 'Saved for 24h' : 'Expired'}</span>
+        </div>
+        <p className="muted small-copy">{serverHoldsSource
           ? 'The text from this PDF is saved for a day, so you can continue this read now or come back to it later. Nothing already read is lost.'
           : 'The saved text from this PDF has expired. Choose the file again to read it from the start.'}</p>
         {selected.chunksTotal > 0 && <Progress progress={{
@@ -138,15 +165,18 @@ export function ImportReview({ exercises, imports, remaining, onBack, onChanged 
           percent: Math.round((selected.chunksDone / selected.chunksTotal) * 100)
         }} />}
         {selected.error && <p className="error-text">Last attempt: {selected.error}</p>}
-        <div className="settings-actions">
-          {serverHoldsSource && <Button variant="primary" disabled={busy} onClick={() => void pipeline.resume(selected)}>Continue now</Button>}
-          <Button variant={serverHoldsSource ? 'secondary' : 'primary'} disabled={busy} onClick={() => file.current?.click()}><Upload size={16} />Choose the PDF again</Button>
+        <div className="reading-card-actions">
+          {serverHoldsSource && <Button variant="primary" disabled={busy} onClick={() => void pipeline.resume(selected)}><Wand2 size={15} />Continue now</Button>}
+          <Button variant={serverHoldsSource ? 'secondary' : 'primary'} disabled={busy} onClick={() => file.current?.click()}><Upload size={15} />Choose the PDF again</Button>
+          {/* Cancelling stays available while a read is out: that is exactly when someone realises
+              they picked the wrong file and wants a clean start. */}
+          <Button variant="destructive" onClick={() => void pipeline.cancel(selected)}><Trash2 size={15} />Cancel import</Button>
         </div>
       </div>}
     </section>}
 
     {selected && draft && selected.status === 'ready' && <>
-      <section className="panel">
+      <section className="panel" ref={reviewRef}>
         <div className="section-heading"><h2>Review</h2></div>
         <Field label="Program name" name="import-program-name" value={draft.programName} onChange={e => setDraft({ ...draft, programName: e.target.value })} onBlur={() => void persist(draft)} />
         <TextAreaField label="Description" name="import-description" value={draft.description ?? ''} onChange={e => setDraft({ ...draft, description: e.target.value })} onBlur={() => void persist(draft)} />

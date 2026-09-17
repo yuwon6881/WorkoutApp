@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Link2 } from 'lucide-react';
 import { ApiError, api } from '../lib/api';
 import { Button } from './ui/Button';
 
@@ -27,10 +28,37 @@ export function ConnectedApps() {
   }
 
   return <section className="panel" aria-labelledby="connected-apps-title">
-    <h2 id="connected-apps-title">Connected apps</h2>
+    <div className="section-heading"><h2 id="connected-apps-title">Connected apps</h2></div>
     <p>Workout can read Nutrition’s confirmed goal, trend, and bodyweight context. Nutrition never changes workout targets.</p>
-    {connected ? <div className="settings-actions"><span className="notice">Nutrition access is granted.</span><Button variant="destructive" disabled={busy} onClick={() => void revoke()}>Revoke access</Button></div>
-      : <Button variant="secondary" disabled={busy} onClick={connect}>{busy ? 'Opening account…' : 'Connect Nutrition'}</Button>}
+    <div className="connected-app-item">
+      <div className="connected-app-info">
+        <div className="connected-app-title">
+          <strong>Nutrition</strong>
+          {connected ? (
+            <span className="pill pill-accent connected-badge">
+              <span className="status-dot online" /> Connected
+            </span>
+          ) : (
+            <span className="pill connected-badge">Not connected</span>
+          )}
+        </div>
+        <small className="muted">
+          {connected ? 'Nutrition access is granted.' : 'Link your account to share weight trends and goals.'}
+        </small>
+      </div>
+      <div className="connected-app-actions">
+        {connected ? (
+          <Button variant="destructive" disabled={busy} onClick={() => void revoke()}>
+            Revoke access
+          </Button>
+        ) : (
+          <Button variant="primary" disabled={busy} onClick={connect}>
+            <Link2 size={16} />
+            {busy ? 'Opening account…' : 'Connect Nutrition'}
+          </Button>
+        )}
+      </div>
+    </div>
     {error && <p className="error-text" role="alert">{error}</p>}
   </section>;
 }

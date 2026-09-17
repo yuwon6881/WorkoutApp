@@ -70,12 +70,11 @@ export function ExerciseLibrary({ exercises, onSelect, exclude = [], onOpen, onC
         <input name="exercise-search" aria-label="Search exercises" placeholder="Search exercises or equipment…" value={query} onChange={e => setQuery(e.target.value)} />
         {query && <Button presentation="plain" className="search-clear-btn" aria-label="Clear search" onClick={() => setQuery('')}><X size={16} /></Button>}
       </label>
-      <select name="exercise-muscle" aria-label="Filter by muscle" value={muscle} onChange={e => setMuscle(e.target.value)}>{muscles.map(m => <option key={m}>{m}</option>)}</select>
+      {!onSelect && <div className="exercise-source-toggle" role="group" aria-label="Filter exercise source">
+        <Button presentation="plain" className={`filter-chip ${source === 'all' ? 'active' : ''}`} onClick={() => setSource('all')}>All exercises</Button>
+        <Button presentation="plain" className={`filter-chip ${source === 'custom' ? 'active' : ''}`} onClick={() => setSource('custom')}>Custom</Button>
+      </div>}
     </div>
-    {!onSelect && <div className="filter-chips exercise-source-filter" role="group" aria-label="Filter exercise source">
-      <Button presentation="plain" className={`filter-chip ${source === 'all' ? 'active' : ''}`} onClick={() => setSource('all')}>All exercises</Button>
-      <Button presentation="plain" className={`filter-chip ${source === 'custom' ? 'active' : ''}`} onClick={() => setSource('custom')}>Custom</Button>
-    </div>}
     <div className="filter-chips-nav">
       <Button
         presentation="plain"

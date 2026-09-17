@@ -162,4 +162,36 @@ public sealed class ImportRecoveryTests
         Assert.Equal(ImportStatus.Ready, duplicate.Status);
         Assert.Equal(2, stub.Calls);
     }
+
+    /// Cancelling is what lets someone start over cleanly, and it has to work while a read is in
+    /// flight — that is exactly when someone decides they picked the wrong file. The pass finds no
+    /// row to commit to when it returns, so a cancelled import cannot come back to life.
+    [Fact]
+    public async Task Cancelling_while_a_section_is_being_read_leaves_nothing_behind()
+    {
+        await using var h = await Harness.Create(Configured());
+        await h.SignIn();
+        ImportService imports = null!;
+        var importId = Guid.Empty;
+        var call = 0;
+        var stub = new StubHandler(_ =>
+        {
+            var body = call++ == 0 ? Outline : Day(1, "Day A");
+            // The second request is the section read. Someone presses cancel while it is out.
+            if (call == 2) imports.Discard(importId, default).GetAwaiter().GetResult();
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent($$"""{"status":"completed","output":[{"content":[{"type":"output_text","text":{{System.Text.Json.JsonSerializer.Serialize(body)}}}]}]}""")
+            };
+        });
+        imports = h.Imports(stub);
+
+        var pending = await imports.Create(Source(), default);
+        importId = pending.Id;
+        var failure = await Assert.ThrowsAsync<DomainException>(() => imports.Extract(pending.Id, default));
+
+        Assert.Equal(404, failure.Status);
+        Assert.Empty(await h.Db.Imports.IgnoreQueryFilters().AsNoTracking().ToListAsync());
+    }
+
 }

@@ -1,7 +1,8 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ImportDraft, ImportView } from '../types';
 import { ApiError, api } from '../lib/api';
 import { PdfTextError, extractPdfText, type PdfExtraction } from '../lib/pdfText';
+import { soundNow } from '../lib/alarm';
 
 /// `percent` is null while the step has no measurable size, so the bar can stay indeterminate
 /// instead of inventing a number.
@@ -17,30 +18,49 @@ export type ImportPipeline = {
   clearFailure: () => void;
   upload: (chosen: File) => Promise<void>;
   resume: (view: ImportView) => Promise<void>;
+  cancel: (view: ImportView) => Promise<void>;
   chooseAlternative: (view: ImportView, alternativeId: string) => Promise<void>;
   run: (label: string, action: () => Promise<unknown>) => Promise<void>;
 };
 
 type Options = {
+  /// The import this screen is showing, so an unfinished read can continue on its own.
+  selected?: ImportView | null;
   setSelected: (view: ImportView | null) => void;
   setDraft: (draft: ImportDraft | null) => void;
   onChanged: () => Promise<void>;
+  onComplete?: (count: number) => void;
 };
 
 /// Coordinates the whole read of a PDF: the text is extracted here, on this device, and only that
 /// text is sent. The server then reads an outline and one section at a time, and holds the
 /// extracted text for a day so a reload continues an unfinished import instead of restarting it.
-export function useImportPipeline({ setSelected, setDraft, onChanged }: Options): ImportPipeline {
+export function useImportPipeline({ selected, setSelected, setDraft, onChanged, onComplete }: Options): ImportPipeline {
   const [progress, setProgress] = useState<ImportProgress | null>(null);
   const [failure, setFailure] = useState<ImportFailure | null>(null);
   const [notice, setNotice] = useState('');
   const running = useRef(false);
+  /// An import someone cancelled while a pass was still out. Whatever that pass answers belongs to
+  /// something the user has already thrown away, so it must not reappear on screen.
+  const cancelled = useRef<string | null>(null);
+  /// Imports this screen has already continued by itself, so a read that keeps failing is never
+  /// retried forever without anyone asking.
+  const resumed = useRef(new Set<string>());
 
-  const apply = useCallback((view: ImportView) => { setSelected(view); setDraft(view.draft); }, [setSelected, setDraft]);
+  const apply = useCallback((view: ImportView) => {
+    if (cancelled.current === view.id) return;
+    setSelected(view); setDraft(view.draft);
+  }, [setSelected, setDraft]);
 
   const report = useCallback((error: unknown, fallback: string) => {
     setFailure({ message: error instanceof ApiError || error instanceof PdfTextError ? error.message : fallback });
   }, []);
+
+  /// A failure that belongs to a cancelled import is not news; everything else is reported.
+  const reportFor = useCallback((id: string, error: unknown, fallback: string) => {
+    if (cancelled.current === id) return;
+    report(error, fallback);
+  }, [report]);
 
   /// Refreshes the row after a failed pass so the panel shows what the server recorded rather
   /// than the view this browser happened to be holding.
@@ -59,22 +79,32 @@ export function useImportPipeline({ setSelected, setDraft, onChanged }: Options)
       try {
         current = await api.extractImport(current.id);
       } catch (error) {
-        report(error, 'That section could not be read. Try again.');
-        await refresh(current.id);
+        reportFor(current.id, error, 'That section could not be read. Try again.');
+        if (cancelled.current !== current.id) await refresh(current.id);
         return;
       }
       apply(current);
       await onChanged();
     }
-    if (current.status === 'ready') setNotice(`Read ${current.draft?.workouts.length ?? 0} days. Review them before accepting.`);
-  }, [apply, onChanged, refresh, report]);
+    if (current.status === 'ready') {
+      soundNow();
+      const count = current.draft?.workouts.length ?? 0;
+      setNotice(`Read ${count} days. Review them before accepting.`);
+      onComplete?.(count);
+    }
+  }, [apply, onChanged, onComplete, refresh, reportFor]);
 
   const advance = useCallback(async (view: ImportView) => {
     apply(view);
     await onChanged();
     if (view.stage === 'extract') await extractAll(view);
-    else if (view.status === 'ready') setNotice(`Read ${view.draft?.workouts.length ?? 0} days. Review them before accepting.`);
-  }, [apply, extractAll, onChanged]);
+    else if (view.status === 'ready') {
+      soundNow();
+      const count = view.draft?.workouts.length ?? 0;
+      setNotice(`Read ${count} days. Review them before accepting.`);
+      onComplete?.(count);
+    }
+  }, [apply, extractAll, onComplete, onChanged]);
 
   const drive = useCallback(async (action: () => Promise<void>) => {
     if (running.current) return;
@@ -112,9 +142,38 @@ export function useImportPipeline({ setSelected, setDraft, onChanged }: Options)
     await drive(async () => {
       setProgress({ label: 'Continuing the saved read', detail: view.fileName, percent: null });
       try { await advance(await api.retryImport(view.id)); }
-      catch (error) { report(error, 'That import could not be continued. Try again.'); await refresh(view.id); }
+      catch (error) {
+        reportFor(view.id, error, 'That import could not be continued. Try again.');
+        if (cancelled.current !== view.id) await refresh(view.id);
+      }
     });
-  }, [advance, drive, refresh, report]);
+  }, [advance, drive, refresh, reportFor]);
+
+  /// Throws the import away, whether or not a read is still out for it. Cancelling mid-read is
+  /// exactly when someone realises they picked the wrong file, so it does not wait its turn behind
+  /// the pass in flight: the server finds no row to commit to and the draft never appears.
+  const cancel = useCallback(async (view: ImportView) => {
+    cancelled.current = view.id;
+    resumed.current.delete(view.id);
+    setFailure(null); setNotice(''); setProgress(null);
+    try {
+      await api.discardImport(view.id);
+      setSelected(null); setDraft(null);
+      await onChanged();
+      setNotice('That import was cancelled. Choose a PDF to start again.');
+    } catch (error) { report(error, 'That import could not be cancelled. Try again.'); }
+  }, [onChanged, report, setDraft, setSelected]);
+
+  /// An unfinished read continues by itself when this screen opens, so nobody has to press
+  /// anything to pick a read back up. A read that already failed is left alone: it said why, and
+  /// spending another read on it is the user's call rather than this screen's.
+  useEffect(() => {
+    if (!selected || selected.status !== 'pending' || selected.stage === 'select') return;
+    if (!selected.sourceExpiresAt || selected.error || running.current) return;
+    if (resumed.current.has(selected.id)) return;
+    resumed.current.add(selected.id);
+    void resume(selected);
+  }, [selected, resume]);
 
   const chooseAlternative = useCallback(async (view: ImportView, alternativeId: string) => {
     await drive(async () => {
@@ -135,6 +194,6 @@ export function useImportPipeline({ setSelected, setDraft, onChanged }: Options)
   return {
     progress, failure, notice, busy: progress !== null,
     clearFailure: useCallback(() => setFailure(null), []),
-    upload, resume, chooseAlternative, run
+    upload, resume, cancel, chooseAlternative, run
   };
 }
