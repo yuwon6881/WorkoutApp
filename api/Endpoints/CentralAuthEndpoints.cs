@@ -51,7 +51,9 @@ public static class CentralAuthEndpoints
             var (state, connect) = ReadState(request, protection);
             response.Cookies.Delete(connect ? ConnectStateCookie : StateCookie, CookieOptions(environment, TimeSpan.Zero));
             Validation.Require(FixedEquals(state.State, request.Query["state"]), "The central sign-in state did not match.", 400);
-            var error = request.Query["error"].ToString();
+            var error = request.Query["error"]
+                .SelectMany(value => (value ?? string.Empty).Split(',', StringSplitOptions.RemoveEmptyEntries))
+                .FirstOrDefault(value => !string.IsNullOrWhiteSpace(value));
             if (!string.IsNullOrWhiteSpace(error))
                 return Results.Redirect(AppendError(state.ReturnUrl, error));
             var code = request.Query["code"].ToString();

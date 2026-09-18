@@ -26,6 +26,7 @@
     },
     { "src": "/(?:sw\\.js|index\\.html|manifest\\.webmanifest|)", "headers": { "Cache-Control": "no-cache" }, "continue": true },
     { "handle": "filesystem" },
+    { "src": "/settings/?", "dest": "/index.html" },
     { "src": "/", "dest": "/index.html" },
     { "src": "/(.*)", "status": 404 }
   ]

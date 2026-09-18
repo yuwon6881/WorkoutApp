@@ -26,7 +26,8 @@ const NAV = [
 export default function App() {
   const app = useApp();
   const { data, status, loading, signedOut, online } = app;
-  const [tab, setTab] = useState('overview');
+  const initialTab = typeof window !== 'undefined' && (window.location.pathname === '/settings' || window.location.search.includes('central_error') || window.location.search.includes('error')) ? 'settings' : 'overview';
+  const [tab, setTab] = useState(initialTab);
   const [training, setTraining] = useState(false);
   const [detail, setDetail] = useState<Session | null>(null);
   const [exerciseDetail, setExerciseDetail] = useState<import('./types').Exercise | null>(null);

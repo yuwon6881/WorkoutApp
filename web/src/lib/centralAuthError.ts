@@ -8,3 +8,20 @@ const messages: Record<string, string> = {
 export function centralAuthError(code: string | null): string {
   return code ? messages[code] ?? 'We could not complete sign-in. Please try again.' : '';
 }
+
+export function consumeCentralAuthError(url: URL): string | null {
+  const canceled = url.searchParams.get('central_error') === 'access_denied'
+    || url.searchParams.get('error') === 'access_denied';
+  if (canceled) {
+    url.searchParams.delete('central_error');
+    url.searchParams.delete('error');
+    return 'Nutrition connection was canceled.';
+  }
+  const other = url.searchParams.get('central_error') || url.searchParams.get('error');
+  if (other) {
+    url.searchParams.delete('central_error');
+    url.searchParams.delete('error');
+    return 'Could not connect Nutrition. Please try again.';
+  }
+  return null;
+}

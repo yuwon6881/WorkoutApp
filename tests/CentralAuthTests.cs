@@ -145,6 +145,51 @@ public sealed class CentralAuthTests : IAsyncLifetime
         }
     }
 
+    [Fact]
+    public async Task Central_callback_with_access_denied_redirects_to_connect_return_url()
+    {
+        var tempDb = Path.Combine(Path.GetTempPath(), $"workout-test-{Guid.NewGuid():N}.db");
+        try
+        {
+            using var factory = new TestAppFactory(tempDb);
+            var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+
+            using var scope = factory.Services.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<AppDb>();
+            await db.Database.EnsureCreatedAsync();
+            var user = new AppUser { Id = Guid.NewGuid(), DisplayName = "Alice", IdentitySubject = "sub_test" };
+            db.Users.Add(user);
+            var token = Guid.NewGuid().ToString("N");
+            db.Sessions.Add(new AuthSession { Hash = AuthService.Hash(token), UserId = user.Id, Expires = DateTime.UtcNow.AddDays(1) });
+            await db.SaveChangesAsync();
+
+            client.DefaultRequestHeaders.Add("Cookie", $"{AuthService.Cookie}={token}");
+
+            var connectRes = await client.GetAsync("/api/auth/central/connect");
+            Assert.Equal(HttpStatusCode.Redirect, connectRes.StatusCode);
+            var authorizeLocation = connectRes.Headers.Location!.ToString();
+            var query = Microsoft.AspNetCore.WebUtilities.QueryHelpers.ParseQuery(new Uri(authorizeLocation).Query);
+            var state = query["state"].ToString();
+            Assert.False(string.IsNullOrWhiteSpace(state));
+
+            var setCookie = connectRes.Headers.GetValues("Set-Cookie").FirstOrDefault(c => c.StartsWith("workout-oidc-connect-state="));
+            Assert.NotNull(setCookie);
+            var stateCookieValue = setCookie!.Split(';')[0];
+
+            var callbackRequest = new HttpRequestMessage(HttpMethod.Get, $"/api/auth/central/callback?error=access_denied,access_denied&state={state}");
+            callbackRequest.Headers.Add("Cookie", $"{AuthService.Cookie}={token}; {stateCookieValue}");
+            var callbackRes = await client.SendAsync(callbackRequest);
+
+            Assert.Equal(HttpStatusCode.Redirect, callbackRes.StatusCode);
+            Assert.Equal("/settings?central_error=access_denied", callbackRes.Headers.Location!.ToString());
+        }
+        finally
+        {
+            SqliteConnection.ClearAllPools();
+            try { if (File.Exists(tempDb)) File.Delete(tempDb); } catch { /* best-effort cleanup */ }
+        }
+    }
+
     private sealed class TestAppFactory(string dbPath) : WebApplicationFactory<Program>
     {
         protected override void ConfigureWebHost(IWebHostBuilder builder)
@@ -155,7 +200,13 @@ public sealed class CentralAuthTests : IAsyncLifetime
                 config.AddInMemoryCollection(new Dictionary<string, string?>
                 {
                     ["Database:SqlitePath"] = dbPath,
-                    ["PublicOrigin"] = "https://localhost"
+                    ["PublicOrigin"] = "https://localhost",
+                    ["Identity:Authority"] = "https://fitness-account.example.invalid",
+                    ["Identity:ClientId"] = "workout-api",
+                    ["Identity:ClientSecret"] = "secret",
+                    ["Identity:RedirectUri"] = "https://localhost/api/auth/central/callback",
+                    ["Identity:ReturnUrl"] = "/",
+                    ["Identity:ConnectReturnUrl"] = "/settings"
                 });
             });
         }
