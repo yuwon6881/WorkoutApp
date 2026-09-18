@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Download, LogOut, MonitorSmartphone } from 'lucide-react';
 import type { Account, Preferences } from '../types';
-import { ApiError, api } from '../lib/api';
+import { api } from '../lib/api';
 import { requestRestAlerts } from '../lib/restTimer';
 import { Button } from './ui/Button';
 import { Modal } from './ui/Modal';
@@ -31,18 +31,6 @@ export function SettingsView({ account, preferences, onPreferences, notify, onSi
   }, []);
 
   useEffect(() => { void api.refreshNutritionContext().catch(() => { /* Nutrition is optional and may be offline. */ }); }, []);
-
-  async function exportAccount() {
-    try {
-      const payload = await api.exportAccount();
-      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url; link.download = `workout-export-${new Date().toISOString().slice(0, 10)}.json`; link.click();
-      setTimeout(() => URL.revokeObjectURL(url), 1000);
-      notify('Export downloaded. It is a readable copy, not a restore file.');
-    } catch (failure) { notify(failure instanceof ApiError ? failure.message : 'Could not build your export.'); }
-  }
 
   return <>
     <div className="page-heading"><h1>Settings</h1></div>
@@ -116,15 +104,6 @@ export function SettingsView({ account, preferences, onPreferences, notify, onSi
             <Button variant="destructive" onClick={onSignOut}><LogOut size={16} />Sign out</Button>
           </div>
         </div>
-        <div className="setting-row setting-action-row">
-          <div className="setting-action-info">
-            <strong>Account export</strong>
-            <small>A readable copy of your account for your own records. It cannot be uploaded back.</small>
-          </div>
-          <div className="setting-action-controls">
-            <Button onClick={exportAccount}><Download size={16} />Export a copy</Button>
-          </div>
-        </div>
       </section>
 
       <ConnectedApps />
@@ -137,12 +116,6 @@ export function SettingsView({ account, preferences, onPreferences, notify, onSi
           if (install) { try { await install.prompt(); await install.userChoice; setInstall(null); installPrompt = null; } catch { setHelp(true); } }
           else setHelp(true);
         }}><Download size={17} />Install app</Button>
-      </section>
-
-      <section className="panel about-card">
-        <h2>About Workout</h2>
-        <p>An independent workout tracker for planning sessions, logging effort, and reviewing progress.</p>
-        <p className="muted">Not affiliated with MacroFactor. Progress is based on your logged sets; no proprietary coaching algorithm is used.</p>
       </section>
     </div>
 

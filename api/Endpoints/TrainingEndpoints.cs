@@ -32,6 +32,7 @@ public static class TrainingEndpoints
                 activeWorkout = await workouts.Active(ct),
                 imports = await imports.List(ct),
                 history = await workouts.History(0, 20, ct),
+                progress = await Progress(db, workouts, ct),
                 aiImportsRemaining = await Remaining(db, ct)
             };
         });
@@ -73,8 +74,6 @@ public static class TrainingEndpoints
             await db.SaveChangesAsync(ct);
             return new { user.Unit, user.Theme, user.RestSeconds, user.RestAlerts };
         });
-
-        app.MapGet("/api/export", async (ExportService export, CancellationToken ct) => await export.Build(ct)).RequireRateLimiting("export");
     }
 
     public static void MapTemplates(this WebApplication app)

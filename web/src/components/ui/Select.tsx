@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react';
 import { Check, ChevronDown } from 'lucide-react';
 import { Button } from './Button';
 
@@ -10,6 +10,7 @@ export type SelectOption<T extends string | number> = {
 export function Select<T extends string | number>({
   name,
   label,
+  ariaLabel,
   value,
   onChange,
   options,
@@ -17,15 +18,32 @@ export function Select<T extends string | number>({
   disabled = false
 }: {
   name?: string;
-  label: string;
+  label?: string;
+  ariaLabel?: string;
   value: T;
   onChange: (val: T) => void;
   options: SelectOption<T>[];
   className?: string;
   disabled?: boolean;
 }) {
+  const accessibleLabel = label ?? ariaLabel ?? '';
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const listboxRef = useRef<HTMLUListElement>(null);
+  const id = useId();
+
+  const [highlightedIndex, setHighlightedIndex] = useState(() => {
+    const idx = options.findIndex(o => o.value === value);
+    return idx >= 0 ? idx : 0;
+  });
+
+  useEffect(() => {
+    if (open) {
+      const idx = options.findIndex(o => o.value === value);
+      setHighlightedIndex(idx >= 0 ? idx : 0);
+    }
+  }, [open, value, options]);
 
   useEffect(() => {
     if (!open) return;
@@ -34,24 +52,75 @@ export function Select<T extends string | number>({
         setOpen(false);
       }
     };
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setOpen(false);
-    };
     document.addEventListener('mousedown', handleClick);
-    document.addEventListener('keydown', handleKeyDown);
     return () => {
       document.removeEventListener('mousedown', handleClick);
-      document.removeEventListener('keydown', handleKeyDown);
     };
   }, [open]);
 
+  useEffect(() => {
+    if (open && listboxRef.current) {
+      const item = listboxRef.current.children[highlightedIndex] as HTMLElement | undefined;
+      item?.scrollIntoView({ block: 'nearest' });
+    }
+  }, [open, highlightedIndex]);
+
   const selectedOption = options.find(o => o.value === value) ?? options[0];
 
+  const handleKeyDown = (e: ReactKeyboardEvent) => {
+    if (disabled) return;
+    if (e.key === 'Escape') {
+      if (open) {
+        e.preventDefault();
+        setOpen(false);
+        triggerRef.current?.focus();
+      }
+    } else if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      if (!open) {
+        setOpen(true);
+      } else {
+        setHighlightedIndex(prev => (prev + 1 < options.length ? prev + 1 : 0));
+      }
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      if (!open) {
+        setOpen(true);
+      } else {
+        setHighlightedIndex(prev => (prev - 1 >= 0 ? prev - 1 : options.length - 1));
+      }
+    } else if (e.key === 'Home') {
+      if (open) {
+        e.preventDefault();
+        setHighlightedIndex(0);
+      }
+    } else if (e.key === 'End') {
+      if (open) {
+        e.preventDefault();
+        setHighlightedIndex(options.length - 1);
+      }
+    } else if (e.key === 'Enter' || e.key === ' ') {
+      if (open) {
+        e.preventDefault();
+        const chosen = options[highlightedIndex];
+        if (chosen) {
+          onChange(chosen.value);
+          setOpen(false);
+          triggerRef.current?.focus();
+        }
+      }
+    } else if (e.key === 'Tab') {
+      if (open) {
+        setOpen(false);
+      }
+    }
+  };
+
   return (
-    <div ref={containerRef} className={`custom-select-wrap ${className}`.trim()}>
+    <div ref={containerRef} className={`custom-select-wrap ${className}`.trim()} onKeyDown={handleKeyDown}>
       <select
         name={name}
-        aria-label={label}
+        aria-label={accessibleLabel}
         value={String(value)}
         disabled={disabled}
         onChange={e => {
@@ -70,8 +139,10 @@ export function Select<T extends string | number>({
       </select>
 
       <Button
+        ref={triggerRef}
         presentation="plain"
         type="button"
+        aria-label={accessibleLabel}
         className={`custom-select-trigger ${open ? 'active' : ''}`}
         aria-haspopup="listbox"
         aria-expanded={open}
@@ -83,18 +154,22 @@ export function Select<T extends string | number>({
       </Button>
 
       {open && (
-        <ul className="custom-select-dropdown" role="listbox" aria-label={label}>
-          {options.map(o => {
+        <ul ref={listboxRef} className="custom-select-dropdown" role="listbox" aria-label={accessibleLabel}>
+          {options.map((o, idx) => {
             const isSelected = o.value === value;
+            const isHighlighted = idx === highlightedIndex;
             return (
               <li
                 key={String(o.value)}
+                id={`${id}-opt-${idx}`}
                 role="option"
                 aria-selected={isSelected}
-                className={`custom-select-item ${isSelected ? 'selected' : ''}`}
+                className={`custom-select-item ${isSelected ? 'selected' : ''} ${isHighlighted ? 'highlighted' : ''}`}
+                onMouseEnter={() => setHighlightedIndex(idx)}
                 onClick={() => {
                   onChange(o.value);
                   setOpen(false);
+                  triggerRef.current?.focus();
                 }}
               >
                 <span>{o.label}</span>

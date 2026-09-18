@@ -19,7 +19,6 @@ public sealed class Harness : IAsyncDisposable
     public ProgramService Programs { get; }
     public ProgressionService Progression { get; }
     public WorkoutService Workouts { get; }
-    public ExportService Export { get; }
 
     private Harness(SqliteConnection connection, AppDb db, IConfiguration config)
     {
@@ -31,7 +30,6 @@ public sealed class Harness : IAsyncDisposable
         Progression = new ProgressionService(db);
         Workouts = new WorkoutService(db, Catalog, Templates, Progression,
             new NutritionContextService(db, new TestHttpClientFactory(), config), Programs);
-        Export = new ExportService(db, Programs, Templates, Workouts);
     }
 
     public static async Task<Harness> Create(Dictionary<string, string?>? settings = null)

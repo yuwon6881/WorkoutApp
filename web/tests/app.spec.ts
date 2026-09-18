@@ -262,10 +262,10 @@ test('the API is never answered from the app shell and requires a session', asyn
   expect(missingAsset.status()).toBe(404);
 
   await signIn(page);
-  const exported = await page.evaluate(async () => {
-    const response = await fetch('/api/export', { headers: { 'X-Workout-Request': '1' } });
+  const responseCheck = await page.evaluate(async () => {
+    const response = await fetch('/api/history', { headers: { 'X-Workout-Request': '1' } });
     return { status: response.status, cache: response.headers.get('cache-control') };
   });
-  expect(exported.status).toBe(200);
-  expect(exported.cache).toContain('no-store');
+  expect(responseCheck.status).toBe(200);
+  expect(responseCheck.cache).toContain('no-store');
 });

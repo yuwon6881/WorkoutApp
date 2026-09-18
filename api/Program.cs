@@ -36,7 +36,6 @@ builder.Services.AddScoped<OpenIddictAccessTokenService>();
 builder.Services.AddHttpClient<IIntegrationKms, IntegrationKmsService>(c => c.Timeout = TimeSpan.FromSeconds(30));
 builder.Services.AddScoped<IntegrationTokenService>();
 builder.Services.AddScoped<WorkoutService>();
-builder.Services.AddScoped<ExportService>();
 builder.Services.AddScoped<ImportService>();
 builder.Services.AddHostedService<ImportCleanupWorker>();
 builder.Services.AddAuthentication(options =>
@@ -73,9 +72,6 @@ builder.Services.AddRateLimiter(o=>
     o.AddPolicy("ai-extract",http=>RateLimitPartition.GetFixedWindowLimiter(
         string.IsNullOrEmpty(http.Request.Cookies[AuthService.Cookie])?"unauthenticated":AuthService.Hash(http.Request.Cookies[AuthService.Cookie]!),
         _=>new FixedWindowRateLimiterOptions { PermitLimit=40,Window=TimeSpan.FromMinutes(5),QueueLimit=0 }));
-    o.AddPolicy("export",http=>RateLimitPartition.GetFixedWindowLimiter(
-        string.IsNullOrEmpty(http.Request.Cookies[AuthService.Cookie])?"unauthenticated":AuthService.Hash(http.Request.Cookies[AuthService.Cookie]!),
-        _=>new FixedWindowRateLimiterOptions { PermitLimit=5,Window=TimeSpan.FromMinutes(5),QueueLimit=0 }));
 });
 var app=builder.Build();
 app.UseForwardedHeaders();

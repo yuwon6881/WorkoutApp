@@ -22,21 +22,37 @@ function isSameHistory(a: HistoryPage, b: HistoryPage): boolean {
   return true;
 }
 
-export function HistoryView({ initial, preferences, onSession, onStart, onExercise }: {
-  initial: HistoryPage; preferences: Preferences; onSession: (s: Session) => void; onStart: () => void; onExercise?: (id: string) => void;
+export function HistoryView({ initial, initialProgress, preferences, onSession, onStart, onExercise }: {
+  initial: HistoryPage; initialProgress?: ProgressSummary; preferences: Preferences; onSession: (s: Session) => void; onStart: () => void; onExercise?: (id: string) => void;
 }) {
+  if (!historyCache && initial) historyCache = initial;
+  if (!progressCache && initialProgress) progressCache = initialProgress;
+
   const [page, setPage] = useState<HistoryPage>(historyCache ?? initial);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [progress, setProgress] = useState<ProgressSummary | null>(progressCache);
+  const [progress, setProgress] = useState<ProgressSummary | null>(progressCache ?? initialProgress ?? null);
   const [progressError, setProgressError] = useState('');
   const [progressRetry, setProgressRetry] = useState(0);
   const unit = preferences.unit;
 
   useEffect(() => {
+    if (initial) {
+      historyCache = initial;
+      setPage(current => isSameHistory(current, initial) ? current : initial);
+    }
+  }, [initial]);
+
+  useEffect(() => {
+    if (initialProgress) {
+      progressCache = initialProgress;
+      setProgress(initialProgress);
+    }
+  }, [initialProgress]);
+
+  useEffect(() => {
     let cancelled = false;
     const controller = new AbortController();
-    if (!page.sessions.length) setLoading(true);
     api.history(0, 20, controller.signal)
       .then(next => {
         if (!cancelled) {
@@ -45,8 +61,11 @@ export function HistoryView({ initial, preferences, onSession, onStart, onExerci
           setError('');
         }
       })
-      .catch(failure => { if (!cancelled) setError(failure instanceof ApiError ? failure.message : 'Could not load your history.'); })
-      .finally(() => { if (!cancelled) setLoading(false); });
+      .catch(failure => {
+        if (!cancelled && !page.sessions.length && !error) {
+          setError(failure instanceof ApiError ? failure.message : 'Could not load your history.');
+        }
+      });
     api.refreshNutritionContext(controller.signal).catch(() => { /* progression context is optional */ });
     return () => { cancelled = true; controller.abort(); };
   }, []);
@@ -57,7 +76,7 @@ export function HistoryView({ initial, preferences, onSession, onStart, onExerci
     setProgressError('');
     api.progress(controller.signal)
       .then(next => { if (!cancelled) { progressCache = next; setProgress(next); } })
-      .catch(failure => { if (!cancelled) setProgressError(failure instanceof ApiError ? failure.message : 'Progress records could not be loaded.'); });
+      .catch(failure => { if (!cancelled && !progress) setProgressError(failure instanceof ApiError ? failure.message : 'Progress records could not be loaded.'); });
     return () => { cancelled = true; controller.abort(); };
   }, [progressRetry]);
 

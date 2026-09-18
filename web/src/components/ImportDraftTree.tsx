@@ -3,7 +3,8 @@ import { AlertTriangle, ChevronDown, Plus, Trash2 } from 'lucide-react';
 import type { DraftExercise, DraftSet, DraftWorkout, Exercise, ImportDraft } from '../types';
 import { showReps } from '../lib/training';
 import { Button } from './ui/Button';
-import { Field, SelectField, TextAreaField } from './ui/Field';
+import { Field, TextAreaField } from './ui/Field';
+import { Select } from './ui/Select';
 
 const weekdayNames = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 const sourceLabel: Record<string, string> = { extracted: 'From the PDF', inferred: 'AI suggestion', userEdited: 'Your edit' };
@@ -55,9 +56,17 @@ function DayEditor({ day, exercises, onChange }: { day: DraftWorkout; exercises:
   return <div className="day-editor">
     <Field label="Day name" value={draft.name} onChange={e => setDraft({ ...draft, name: e.target.value })} onBlur={() => void onChange(draft)} />
     <TextAreaField label="Notes" value={draft.notes ?? ''} onChange={e => setDraft({ ...draft, notes: e.target.value })} onBlur={() => void onChange(draft)} />
-    <SelectField label="Weekday" aria-label="Workout weekday" value={draft.weekday ?? ''} onChange={e => save({ ...draft, weekday: e.target.value ? Number(e.target.value) : null })}>
-      <option value="">Unspecified — choose when scheduling</option>{weekdayNames.map((name, index) => <option key={name} value={index + 1}>{name}</option>)}
-    </SelectField>
+    <label className="field">Weekday
+      <Select
+        value={draft.weekday != null ? String(draft.weekday) : ''}
+        onChange={value => save({ ...draft, weekday: value ? Number(value) : null })}
+        ariaLabel="Workout weekday"
+        options={[
+          { value: '', label: 'Unspecified — choose when scheduling' },
+          ...weekdayNames.map((name, index) => ({ value: String(index + 1), label: name }))
+        ]}
+      />
+    </label>
     {draft.isRestDay ? <div className="rest-callout"><span className="tiny-label">Rest day</span><p>No exercises are scheduled for this slot.</p></div> : groups.map((group, groupIndex) => <div className={group.length > 1 ? 'superset-block' : ''} key={groupIndex}>
       {group.length > 1 && <div className="superset-heading">Superset {group[0].sequenceGroup.match(/^[A-Za-z]+/)?.[0] ?? ''}</div>}
       {group.map(exercise => <ExerciseEditor key={exercise.lineId} exercise={exercise} exercises={exercises} onChange={next => save({ ...draft, exercises: draft.exercises.map(item => item.lineId === next.lineId ? next : item) })} />)}
@@ -72,9 +81,17 @@ function ExerciseEditor({ exercise, exercises, onChange }: { exercise: DraftExer
     <div className="section-heading"><div><input className="inline-input" aria-label={`Exercise name as written in the PDF`} value={exercise.sourceName} onChange={e => onChange({ ...exercise, sourceName: e.target.value })} />
       {exercise.sourcePage && <span className="tiny-label">PDF p.{exercise.sourcePage}</span>}
       {!exercise.exerciseId && <span className="tiny-label warn"><AlertTriangle size={12} /> Unmapped · preserved</span>}</div></div>
-    <div className="import-fields"><label className="field">Library exercise<select aria-label={`Library exercise for ${exercise.sourceName}`} value={exercise.exerciseId ?? ''} onChange={e => onChange({ ...exercise, exerciseId: e.target.value || null })}>
-      <option value="">Not mapped</option>{exercises.map(option => <option key={option.id} value={option.id}>{option.name}</option>)}
-      </select></label><label className="field">Superset group<input value={exercise.sequenceGroup} onChange={e => onChange({ ...exercise, sequenceGroup: e.target.value })} placeholder="A1" /></label>
+    <div className="import-fields"><label className="field">Library exercise
+      <Select
+        value={exercise.exerciseId ?? ''}
+        onChange={value => onChange({ ...exercise, exerciseId: (value as string) || null })}
+        ariaLabel={`Library exercise for ${exercise.sourceName}`}
+        options={[
+          { value: '', label: 'Not mapped' },
+          ...exercises.map(option => ({ value: option.id, label: option.name }))
+        ]}
+      />
+    </label><label className="field">Superset group<input value={exercise.sequenceGroup} onChange={e => onChange({ ...exercise, sequenceGroup: e.target.value })} placeholder="A1" /></label>
       <label className="field">Substitutions<input value={exercise.substitutions.join(', ')} onChange={e => onChange({ ...exercise, substitutions: e.target.value.split(',').map(s => s.trim()).filter(Boolean).slice(0, 2) })} placeholder="Optional alternates" /></label></div>
     {exercise.notes && <p className="note-block">{exercise.notes}</p>}
     <div className="set-table import-set-table"><div className="set-table-head"><span>Set</span><span>Reps</span><span>RPE/RIR</span><span>%1RM</span><span>Rest</span><span>Source</span><span /></div>

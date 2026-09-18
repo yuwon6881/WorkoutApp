@@ -129,7 +129,7 @@ export default function App() {
         {tab === 'program' && <Programs data={data} exercises={data.exercises} onStart={start} onImport={() => setTab('import')} onChanged={app.reload} />}
         {tab === 'import' && <ImportReview exercises={data.exercises} imports={data.imports} remaining={data.aiImportsRemaining}
           onBack={() => setTab('program')} onChanged={app.reload} notify={setToast} />}
-        {tab === 'history' && <HistoryView initial={data.history} preferences={data.preferences} onSession={setDetail} onStart={() => setTab('program')}
+        {tab === 'history' && <HistoryView initial={data.history} initialProgress={data.progress} preferences={data.preferences} onSession={setDetail} onStart={() => setTab('program')}
           onExercise={id => { void openExercise(id); }} />}
         {tab === 'exercises' && <ExerciseLibrary exercises={data.exercises} onOpen={setExerciseDetail} onChanged={app.reload} />}
         {tab === 'settings' && <SettingsView account={data.account} preferences={data.preferences} onPreferences={app.savePreferences} notify={setToast} onSignOut={async () => { clearHistoryViewCache(); await app.signOut(); }} />}

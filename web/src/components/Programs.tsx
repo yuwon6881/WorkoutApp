@@ -6,6 +6,7 @@ import { showReps } from '../lib/training';
 import { validateTemplateDraft } from '../lib/validation';
 import { Button } from './ui/Button';
 import { Modal } from './ui/Modal';
+import { Select } from './ui/Select';
 import { ExerciseLibrary } from './Exercises';
 
 type Draft = { id: string | null; name: string; focus: string; revision: number | null; exercises: TemplateExercise[] };
@@ -230,11 +231,16 @@ function ProgramCard({ program, exercises, onStart, onChanged }: { program: Prog
     {scheduling && <div className="schedule-editor" aria-label={`Schedule ${program.name}`}>
       <label className="field">Program week 1 starts on Monday<input type="date" value={scheduleAnchor} onChange={event => setScheduleAnchor(event.target.value)} /></label>
       <div className="schedule-rows">
-          {program.days.filter(day => !day.isRestDay).map(day => <label className="field" key={day.id}>{day.name} · week {day.week}
-          <select value={scheduleWeekdays[day.id] ?? ''} onChange={event => setScheduleWeekdays(current => ({ ...current, [day.id]: event.target.value ? Number(event.target.value) : undefined }))}>
-            <option value="">Choose a weekday</option>
-            {weekdayNames.map((name, index) => <option value={index + 1} key={name}>{name}</option>)}
-          </select>
+        {program.days.filter(day => !day.isRestDay).map(day => <label className="field" key={day.id}>{day.name} · week {day.week}
+          <Select
+            value={scheduleWeekdays[day.id] != null ? String(scheduleWeekdays[day.id]) : ''}
+            onChange={value => setScheduleWeekdays(current => ({ ...current, [day.id]: value ? Number(value) : undefined }))}
+            ariaLabel={`Weekday for ${day.name}`}
+            options={[
+              { value: '', label: 'Choose a weekday' },
+              ...weekdayNames.map((name, index) => ({ value: String(index + 1), label: name }))
+            ]}
+          />
         </label>)}
       </div>
       <div className="settings-actions"><Button variant="primary" disabled={busy || !scheduleAnchor || program.days.some(day => !day.isRestDay && scheduleWeekdays[day.id] == null)} onClick={() => void saveSchedule()}>Save schedule</Button><Button disabled={busy} onClick={() => setScheduling(false)}>Cancel</Button></div>
@@ -247,7 +253,7 @@ function ProgramCard({ program, exercises, onStart, onChanged }: { program: Prog
     </div>
     {swapTarget && <Modal title={`Swap ${swapTarget.exercise.name}`} onClose={() => setSwapTarget(null)}>
       <div className="modal-body"><p className="source">Reps, sets, RPE, rest, tempo, warm-ups, notes, and source provenance stay with the slot. Loads are recalculated when the workout starts.</p>
-        {program.phases?.some(phase => phase.id === swapTarget.template.phaseId || (phase.name === swapTarget.template.phase && phase.block === swapTarget.template.block)) && <label className="field">Apply to<select value={swapScope} onChange={event => { setSwapScope(event.target.value as 'slot' | 'phase'); setConfirmPhaseSwap(false); }}><option value="slot">This workout only</option><option value="phase">Remaining workouts in this phase</option></select></label>}
+        {program.phases?.some(phase => phase.id === swapTarget.template.phaseId || (phase.name === swapTarget.template.phase && phase.block === swapTarget.template.block)) && <label className="field">Apply to<Select value={swapScope} onChange={val => { setSwapScope(val as 'slot' | 'phase'); setConfirmPhaseSwap(false); }} ariaLabel="Apply swap scope" options={[{ value: 'slot', label: 'This workout only' }, { value: 'phase', label: 'Remaining workouts in this phase' }]} /></label>}
         {swapScope === 'phase' && <><div className="preview-card"><strong>Preview</strong><p>{detail?.filter(item => (item.phaseId === swapTarget.template.phaseId || (item.phase === swapTarget.template.phase && item.block === swapTarget.template.block)) && !program.completedTemplateIds.includes(item.id) && !(program.skippedTemplateIds ?? []).includes(item.id)).map(item => item.name).join(', ') || 'No remaining workouts in this phase.'}</p></div><label className="checkbox-row"><input type="checkbox" checked={confirmPhaseSwap} onChange={event => setConfirmPhaseSwap(event.target.checked)} />Apply this replacement to the previewed remaining workouts only.</label></>}
         <ExerciseLibrary exercises={exercises} exclude={[]} onSelect={id => setSwapChoice(exercises.find(item => item.id === id) ?? null)} />
         {swapChoice && <p className="source">Selected replacement: <strong>{swapChoice.name}</strong></p>}

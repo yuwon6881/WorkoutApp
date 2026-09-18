@@ -197,19 +197,6 @@ public class WorkoutSessionTests
         Assert.Equal(0, (await h.Workouts.History(0, 10, default)).Total);
     }
 
-    [Fact] public async Task An_export_carries_the_account_its_plans_and_its_history()
-    {
-        var (h, templateId, _) = await Ready();
-        await using var _h = h;
-        var session = await h.Workouts.Start(templateId, null, default);
-        await Complete(h, session, 60, 10, 8);
-        await h.Workouts.Finish(session.Id, null, default);
-        var export = Json.Write(await h.Export.Build(default));
-        Assert.Contains("\"alice\"", export);
-        Assert.Contains("Bench press", export);
-        Assert.Contains("kilograms", export);
-    }
-
     private static async Task Complete(Harness h, SessionView session, double weight, int reps, double rpe)
     {
         var exercise = session.Exercises.Single();

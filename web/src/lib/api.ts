@@ -55,7 +55,6 @@ export const api = {
   bootstrap: (signal?: AbortSignal) => call<Bootstrap>('/api/bootstrap', 'GET', undefined, signal),
   schedule: (from: string, to: string, signal?: AbortSignal) => call<WorkoutTrainingSummary[]>(`/api/workouts/schedule?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`, 'GET', undefined, signal),
   preferences: (input: Preferences) => call<Preferences>('/api/preferences', 'PUT', input),
-  exportAccount: () => call<unknown>('/api/export'),
   substitutionCandidates: (input: { exerciseId?: string | null; name?: string; imported?: string[]; query?: string } = {}) => {
     const params = new URLSearchParams(); if (input.exerciseId) params.set('exerciseId', input.exerciseId); if (input.name) params.set('name', input.name);
     if (input.imported?.length) params.set('imported', input.imported.join('|')); if (input.query) params.set('q', input.query);

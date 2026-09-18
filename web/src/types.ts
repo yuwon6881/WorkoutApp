@@ -63,7 +63,7 @@ export type ImportView = {
 export type Bootstrap = {
   account: Account; preferences: Preferences; exercises: Exercise[]; templates: Template[];
   programs: ProgramSummary[]; activeProgram: ProgramSummary | null; activeWorkout: Session | null;
-  imports: ImportView[]; history: HistoryPage; aiImportsRemaining: number;
+  imports: ImportView[]; history: HistoryPage; progress?: ProgressSummary; aiImportsRemaining: number;
 };
 
 /// What the shell reports about the connection to the server. Nothing about workout data is

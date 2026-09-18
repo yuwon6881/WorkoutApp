@@ -9,7 +9,7 @@ Applies only to this independent repository; app-specific rules override the par
 
 ## Implemented feature index
 
-- FitnessAccount central sign-in, profile/preferences, connected-app settings, and account export.
+- FitnessAccount central sign-in, profile/preferences, and connected-app settings.
 - Global and account-owned exercise libraries with progress insights/history clearing, manual templates/programs, multi-phase scheduling, and AI PDF extraction with editable review before program creation.
 - Active workout drafts, weight/rep/RPE logging, exercise substitutions, completed-session history, and a deadline-based rest timer.
 - Rep/load progression, effort-based suggestions, lighter-week recommendations, bodyweight/resistance-mode handling, and Nutrition-informed adaptive tiers.
@@ -17,8 +17,8 @@ Applies only to this independent repository; app-specific rules override the par
 
 ## UI standardization
 
-- Search `web/src/components/ui/`, nearby feature components, `web/src/lib/`, and `web/src/index.css` before adding UI. Reuse `Button`, `Modal`, `Skeleton`, and shared motion components; extend existing patterns rather than making another button, dialog, card, or selector system.
-- Feature actions use `Button`, including icon actions with explicit accessible names. Raw buttons belong inside shared primitives. Repeated field/error behavior should become one shared primitive using `web/src/lib/validation.ts`, not copied feature markup.
+- Search `web/src/components/ui/`, nearby feature components, `web/src/lib/`, and `web/src/index.css` before adding UI. Reuse `Button`, `Modal`, `Select`, `Skeleton`, and shared motion components; extend existing patterns rather than making another button, dialog, card, or selector system.
+- Feature actions use `Button`, including icon actions with explicit accessible names. Raw buttons belong inside shared primitives. Dropdowns must use `Select` rather than unstyled native popups to preserve Ayu dark/light theme styling, keyboard navigation, and custom scrollbars. Scrollbars app-wide and inside dropdowns/modals must use thin semantic Ayu colors (`var(--border-hover)` thumb, transparent track). Repeated field/error behavior should become one shared primitive using `web/src/lib/validation.ts`, not copied feature markup.
 - Preserve Ayu light/dark themes and semantic variables in `web/src/index.css` (such as `--bg`, `--surface`, `--text`, `--muted`, `--accent`). Use bundled Inter Variable, tabular numbers, existing typography/spacing/radii, and visible focus. Do not introduce hard-coded feature colors, remote fonts, or sibling-app token names.
 - Reuse `MotionScene`, `MotionPanel`, `SelectionIndicator`, and `useReducedMotion` from `ui/Motion.tsx`. Keep shared CSS durations/easing consistent with JS motion; motion must not delay content, focus, errors, or saves. Respect reduced motion and avoid decorative loops.
 - Preserve compact/medium/expanded layout behavior at <640 / 640-1023 / >=1024 px. Verify 390/768/1440 px in both themes and the existing 320-1920 px responsive suite. Maintain 44 px compact/medium targets, no horizontal overflow, keyboard/focus behavior, accessible names, and dialog focus restoration.
