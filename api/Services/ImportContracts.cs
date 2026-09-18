@@ -19,11 +19,11 @@ public record DraftWorkout(
     string? Block = null, string? Phase = null, int PhaseWeek = 1, bool IsRestDay = false,
     int? Weekday = null, int? SourcePage = null);
 
-public record ImportDraft(string ProgramName, string? Description, List<DraftWorkout> Workouts);
-public record ImportMetadata(string ProgramName, string? Description);
+public record ImportDraft(string ProgramName, List<DraftWorkout> Workouts);
+public record ImportMetadata(string ProgramName);
 public record UnresolvedExercise(Guid LineId, string SourceName);
 public record ImportReviewIssue(string Code, string Message, string Severity = "warning", int? SourcePage = null);
-public record ImportAlternative(string Id, string Name, string? Description, int ChunkCount, int DayCount, List<ImportChunk>? Chunks = null);
+public record ImportAlternative(string Id, string Name, int ChunkCount, int DayCount, List<ImportChunk>? Chunks = null);
 
 public record ImportView(
     Guid Id, string Status, string FileName, int Pages, string Error, DateTime Created, string Model,

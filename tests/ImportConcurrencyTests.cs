@@ -14,14 +14,14 @@ namespace Workout.Tests;
 public sealed class ImportConcurrencyTests
 {
     private const string ThreeSections = """
-        {"programTitle":"Nine week block","description":null,"chunks":[
+        {"programTitle":"Nine week block","chunks":[
           {"label":"Block 1","block":"Base","phase":"Intro","weekFrom":1,"weekTo":1,"pageFrom":1,"pageTo":1,"dayCount":1},
           {"label":"Block 2","block":"Base","phase":"Main","weekFrom":2,"weekTo":2,"pageFrom":2,"pageTo":2,"dayCount":1},
           {"label":"Block 3","block":"Base","phase":"Peak","weekFrom":3,"weekTo":3,"pageFrom":3,"pageTo":3,"dayCount":1}]}
         """;
 
     private static string Day(int week, string phase) => $$"""
-        {"programTitle":"Nine week block","description":null,"days":[
+        {"programTitle":"Nine week block","days":[
           {"block":"Base","phase":"{{phase}}","weekNumber":{{week}},"phaseWeek":1,"dayName":"Week {{week}} Upper","isRestDay":false,"weekday":1,"sourcePage":{{week}},"notes":null,"exercises":[
             {"sequenceGroup":"A1","sourceName":"Barbell bench press","exerciseId":null,"notes":null,"sourcePage":{{week}},"sets":[
               {"repMin":5,"repMax":8,"targetRpe":8,"restSeconds":120,"tempo":null,"loadText":null,"notes":null,"repsSource":"extracted","rpeSource":"extracted","restSource":"extracted","sourcePage":{{week}}}]}]}]}

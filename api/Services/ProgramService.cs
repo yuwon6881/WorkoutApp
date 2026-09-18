@@ -6,15 +6,15 @@ namespace Workout.Api.Services;
 
 public record ProgramWorkoutInput(int Week, string Name, string? Focus, string? Note, List<TemplateExerciseInput> Exercises,
     string? Block = null, string? Phase = null, int PhaseWeek = 1, bool IsRestDay = false, int? Weekday = null, int? SourcePage = null);
-public record ProgramInput(string Name, string? Description, List<ProgramWorkoutInput> Workouts, Guid? IdempotencyId, DateOnly? ScheduleAnchor = null, string? TimeZone = null);
+public record ProgramInput(string Name, List<ProgramWorkoutInput> Workouts, Guid? IdempotencyId, DateOnly? ScheduleAnchor = null, string? TimeZone = null);
 public record ProgramPhaseView(Guid Id, string Name, string Block, int WeekFrom, int WeekTo, int DurationWeeks,
     int CompletedWorkouts, int TotalWorkouts, bool Complete, DateOnly? StartDate = null, int CurrentWeek = 1, int SkippedWorkouts = 0,
     int? SourcePageFrom = null, int? SourcePageTo = null);
-public record ProgramView(Guid Id, string Name, string Description, int Weeks, bool Active, int Revision, Guid? SourceImportId, List<TemplateView> Workouts, List<Guid> CompletedTemplateIds, Guid? NextTemplateId,
+public record ProgramView(Guid Id, string Name, int Weeks, bool Active, int Revision, Guid? SourceImportId, List<TemplateView> Workouts, List<Guid> CompletedTemplateIds, Guid? NextTemplateId,
     DateOnly? ScheduleAnchor = null, bool NeedsSchedule = false, string LifecycleStatus = ProgramLifecycle.Standby,
     DateTime? CompletedAt = null, List<Guid>? SkippedTemplateIds = null, List<ProgramPhaseView>? Phases = null, string TimeZone = "UTC");
 public record ProgramDayView(Guid Id, string Name, string Focus, string Block, string Phase, int Week, int PhaseWeek, int Position, bool IsRestDay, int ExerciseCount, int? Weekday = null, int? SourcePage = null);
-public record ProgramSummaryView(Guid Id, string Name, string Description, int Weeks, bool Active, int Revision, Guid? SourceImportId,
+public record ProgramSummaryView(Guid Id, string Name, int Weeks, bool Active, int Revision, Guid? SourceImportId,
     List<ProgramDayView> Days, List<Guid> CompletedTemplateIds, Guid? NextTemplateId, DateOnly? ScheduleAnchor = null, bool NeedsSchedule = false,
     string LifecycleStatus = ProgramLifecycle.Standby, DateTime? CompletedAt = null, List<Guid>? SkippedTemplateIds = null,
     List<ProgramPhaseView>? Phases = null, string TimeZone = "UTC");
@@ -55,7 +55,7 @@ public sealed class ProgramService(AppDb db, TemplateService templates)
         var skipped = await db.ProgramSkips.AsNoTracking().Where(s => s.ProgramId == program.Id).Select(s => s.TemplateId).ToListAsync(ct);
         var next = workouts.FirstOrDefault(w => !w.IsRestDay && !completed.Contains(w.Id) && !skipped.Contains(w.Id))?.Id;
         var phases = await PhaseViews(program.Id, rows, completed, skipped, program.TimeZone, ct);
-        return new ProgramView(program.Id, program.Name, program.Description, program.Weeks, program.Active, program.Revision, program.SourceImportId, workouts, completed, next,
+        return new ProgramView(program.Id, program.Name, program.Weeks, program.Active, program.Revision, program.SourceImportId, workouts, completed, next,
             program.ScheduleAnchor, NeedsSchedule(program, rows), program.LifecycleStatus, program.CompletedAt, skipped, phases, program.TimeZone);
     }
 
@@ -74,7 +74,7 @@ public sealed class ProgramService(AppDb db, TemplateService templates)
         var skipped = await db.ProgramSkips.AsNoTracking().Where(s => s.ProgramId == program.Id).Select(s => s.TemplateId).ToListAsync(ct);
         var next = days.FirstOrDefault(d => !d.IsRestDay && !completed.Contains(d.Id) && !skipped.Contains(d.Id))?.Id;
         var phases = await PhaseViews(program.Id, rows, completed, skipped, program.TimeZone, ct);
-        return new ProgramSummaryView(program.Id, program.Name, program.Description, program.Weeks, program.Active, program.Revision,
+        return new ProgramSummaryView(program.Id, program.Name, program.Weeks, program.Active, program.Revision,
             program.SourceImportId, days, completed, next, program.ScheduleAnchor, NeedsSchedule(program, rows), program.LifecycleStatus, program.CompletedAt, skipped, phases, program.TimeZone);
     }
 
@@ -97,7 +97,7 @@ public sealed class ProgramService(AppDb db, TemplateService templates)
         var active = activate && !await db.Programs.AnyAsync(p => p.Active, ct);
         var program = new TrainingProgram
         {
-            UserId = db.CurrentUser!.Value, Name = input.Name.Trim(), Description = input.Description?.Trim() ?? "",
+            UserId = db.CurrentUser!.Value, Name = input.Name.Trim(),
             Weeks = input.Workouts.Max(w => w.Week), Active = active && HasSchedule(input), LifecycleStatus = active && HasSchedule(input) ? ProgramLifecycle.Active : ProgramLifecycle.Standby,
             SourceImportId = sourceImportId,
             TimeZone = NormalizeTimeZone(input.TimeZone),
@@ -325,7 +325,7 @@ public sealed class ProgramService(AppDb db, TemplateService templates)
         var sourceExercises = await db.TemplateExercises.Where(e => sourceIds.Contains(e.TemplateId)).OrderBy(e => e.Position).ToListAsync(ct);
         var fresh = new TrainingProgram
         {
-            UserId = source.UserId, Name = source.Name, Description = source.Description, Weeks = source.Weeks,
+            UserId = source.UserId, Name = source.Name, Weeks = source.Weeks,
             Active = false, LifecycleStatus = ProgramLifecycle.Standby, SourceImportId = source.SourceImportId,
             TimeZone = NormalizeTimeZone(timeZone ?? source.TimeZone), ScheduleAnchor = source.ScheduleAnchor
         };
@@ -395,7 +395,6 @@ public sealed class ProgramService(AppDb db, TemplateService templates)
         bool allowOutOfRangeTargetRpe = false)
     {
         Validation.Name(input.Name, "Program name");
-        Validation.Text(input.Description, 4000, "Program description");
         Validation.Require(input.Workouts is { Count: > 0 }, "A program needs at least one workout.");
         Validation.Require(input.Workouts.Count <= 400, "A program can have at most 400 workouts.");
         Validation.Require(input.Workouts.Any(workout => !workout.IsRestDay), "A program needs at least one training workout.");

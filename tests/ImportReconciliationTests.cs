@@ -18,18 +18,18 @@ public sealed class ImportReconciliationTests
     /// One page, so the section is small enough to read whole and stays exactly as the outline
     /// drew it; what is under test here is the estimate, not how a long section is divided.
     private const string Outline = """
-        {"programTitle":"Nine week block","description":null,"chunks":[
+        {"programTitle":"Nine week block","chunks":[
           {"label":"Front matter and program explanation","block":"Base","phase":"Intro","weekFrom":1,"weekTo":2,"pageFrom":1,"pageTo":1,"dayCount":15}]}
         """;
 
     private const string OutlineOverTwoPages = """
-        {"programTitle":"Nine week block","description":null,"chunks":[
+        {"programTitle":"Nine week block","chunks":[
           {"label":"Week 1","block":"Base","phase":"Intro","weekFrom":1,"weekTo":1,"pageFrom":1,"pageTo":1,"dayCount":1},
           {"label":"Photographs","block":"Base","phase":"Intro","weekFrom":2,"weekTo":2,"pageFrom":3,"pageTo":3,"dayCount":4}]}
         """;
 
     private static string Days(params (int Week, string Name)[] days) => $$"""
-        {"programTitle":"Nine week block","description":null,"days":[{{string.Join(",", days.Select(day => $$"""
+        {"programTitle":"Nine week block","days":[{{string.Join(",", days.Select(day => $$"""
           {"block":"Base","phase":"Intro","weekNumber":{{day.Week}},"phaseWeek":{{day.Week}},"dayName":"{{day.Name}}","isRestDay":false,"weekday":1,"sourcePage":1,"notes":null,"exercises":[
             {"sequenceGroup":"A1","sourceName":"Barbell bench press","exerciseId":null,"notes":null,"sourcePage":1,"sets":[
               {"repMin":5,"repMax":8,"targetRpe":8,"restSeconds":120,"tempo":null,"loadText":null,"notes":null,"repsSource":"extracted","rpeSource":"extracted","restSource":"extracted","sourcePage":1}]}]}
@@ -129,7 +129,7 @@ public sealed class ImportReconciliationTests
         await using var h = await Harness.Create(Configured());
         await h.SignIn();
         var manyAlternates = """
-            {"programTitle":"Nine week block","description":null,"days":[
+            {"programTitle":"Nine week block","days":[
               {"block":"Base","phase":"Intro","weekNumber":1,"phaseWeek":1,"dayName":"Day A","isRestDay":false,"weekday":1,"sourcePage":1,"notes":null,"exercises":[
                 {"sequenceGroup":"A1","sourceName":"Barbell bench press","exerciseId":null,"notes":null,"sourcePage":1,
                  "substitutions":["Incline dumbbell press","Machine chest press","Push-up","Floor press"],"sets":[
@@ -182,7 +182,7 @@ public sealed class ImportReconciliationTests
         await using var h = await Harness.Create(Configured());
         await h.SignIn();
         var overlapping = """
-            {"programTitle":"Nine week block","description":null,"chunks":[
+            {"programTitle":"Nine week block","chunks":[
               {"label":"Week 1 pages","block":"Base","phase":"Intro","weekFrom":1,"weekTo":1,"pageFrom":1,"pageTo":1,"dayCount":1},
               {"label":"Week 1 continued","block":"Base","phase":"Intro","weekFrom":1,"weekTo":1,"pageFrom":2,"pageTo":2,"dayCount":1}]}
             """;

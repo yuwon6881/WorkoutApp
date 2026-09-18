@@ -80,7 +80,7 @@ public sealed partial class ImportService(AppDb db, WorkoutAi ai, CatalogService
                 foreach (var workout in week.Workouts ?? [])
                     workouts.Add(ToDraftWorkout(null, null, week.Week, 1, workout.Name, false, workout.Notes, workout.Exercises, active, library, workout.Focus));
         }
-        return new ImportDraft(title, ImportNormalization.Text(program.Description, 4000), workouts);
+        return new ImportDraft(title, workouts);
     }
 
     private static DraftWorkout ToDraftWorkout(string? block, string? phase, int week, int phaseWeek, string name, bool restDay,
@@ -231,8 +231,8 @@ public sealed partial class ImportService(AppDb db, WorkoutAi ai, CatalogService
         Validation.Require(import != null, "That import no longer exists.", 404);
         Validation.Require(import!.Status == ImportStatus.Ready, "This import is no longer editable.", 409);
         var current = Json.Read<ImportDraft>(import.DraftJson);
-        var next = current with { ProgramName = metadata.ProgramName, Description = metadata.Description };
-        Validation.Name(next.ProgramName, "Program name"); Validation.Text(next.Description, 4000, "Program description");
+        var next = current with { ProgramName = metadata.ProgramName };
+        Validation.Name(next.ProgramName, "Program name");
         import.DraftJson = Json.Write(next); import.Revision++;
         await db.SaveChangesAsync(ct);
         await gate.Commit(ct);
@@ -277,7 +277,7 @@ public sealed partial class ImportService(AppDb db, WorkoutAi ai, CatalogService
         var unspecified = ReviewIssues(draft).Where(issue => issue.Code is "rpe_unspecified" or "rest_unspecified").ToList();
         Validation.Require(acknowledgeUnspecified || unspecified.Count == 0,
             "Acknowledge the unspecified RPE or rest values in the review before accepting this program.", 409);
-        var input = new ProgramInput(draft.ProgramName, draft.Description,
+        var input = new ProgramInput(draft.ProgramName,
             draft.Workouts.Select(w => new ProgramWorkoutInput(w.Week, w.Name, w.Focus, w.Notes,
                 w.Exercises.Select(e => new TemplateExerciseInput(e.ExerciseId, e.SourceName, e.Notes,
                     e.Sets.Select(ToPrescription).ToList(), e.SequenceGroup, e.Substitutions, e.SourcePage)).ToList(),

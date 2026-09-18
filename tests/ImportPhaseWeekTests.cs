@@ -13,12 +13,12 @@ namespace Workout.Tests;
 public sealed class ImportPhaseWeekTests
 {
     private const string Outline = """
-        {"programTitle":"Nine week block","description":null,"chunks":[
+        {"programTitle":"Nine week block","chunks":[
           {"label":"Block 1","block":"Block 1","phase":"Accumulation","weekFrom":1,"weekTo":5,"pageFrom":1,"pageTo":1,"dayCount":2}]}
         """;
 
     private static string Days(params (int Week, int PhaseWeek, string Phase)[] days) => $$"""
-        {"programTitle":"Nine week block","description":null,"days":[{{string.Join(",", days.Select(day => $$"""
+        {"programTitle":"Nine week block","days":[{{string.Join(",", days.Select(day => $$"""
           {"block":"Block 1","phase":"{{day.Phase}}","weekNumber":{{day.Week}},"phaseWeek":{{day.PhaseWeek}},"dayName":"Week {{day.Week}} Upper","isRestDay":false,"weekday":1,"sourcePage":1,"notes":null,"exercises":[
             {"sequenceGroup":"A1","sourceName":"Barbell bench press","exerciseId":null,"notes":null,"sourcePage":1,"sets":[
               {"repMin":5,"repMax":8,"targetRpe":8,"restSeconds":120,"tempo":null,"loadText":null,"notes":null,"repsSource":"extracted","rpeSource":"extracted","restSource":"extracted","sourcePage":1}]}]}

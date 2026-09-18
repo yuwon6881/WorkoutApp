@@ -15,12 +15,12 @@ namespace Workout.Tests;
 public sealed class ImportExerciseShapeTests
 {
     private const string Outline = """
-        {"programTitle":"Nine week block","description":null,"chunks":[
+        {"programTitle":"Nine week block","chunks":[
           {"label":"Week 1","block":"Base","phase":"Intro","weekFrom":1,"weekTo":1,"pageFrom":1,"pageTo":1,"dayCount":1}]}
         """;
 
     private static string Day(string exercises) => $$"""
-        {"programTitle":"Nine week block","description":null,"days":[
+        {"programTitle":"Nine week block","days":[
           {"block":"Base","phase":"Intro","weekNumber":1,"phaseWeek":1,"dayName":"Day A","isRestDay":false,"weekday":1,"sourcePage":1,"notes":null,"exercises":[{{exercises}}]}]}
         """;
 
@@ -104,7 +104,7 @@ public sealed class ImportExerciseShapeTests
         await using var h = await Harness.Create(Configured());
         await h.SignIn();
         var day = """
-            {"programTitle":"Nine week block","description":null,"days":[
+            {"programTitle":"Nine week block","days":[
               {"block":"Base","phase":"Intro","weekNumber":1,"phaseWeek":1,"dayName":"Day A","isRestDay":false,"weekday":9,"sourcePage":4000,"notes":null,"exercises":[
                 {"sequenceGroup":"A1","sourceName":"Barbell bench press","exerciseId":null,"notes":null,"sourcePage":4000,"sets":[
                   {"repMin":5,"repMax":8,"targetRpe":8,"restSeconds":120,"tempo":null,"loadText":null,"notes":null,"repsSource":"guessed","rpeSource":"extracted","restSource":"extracted","sourcePage":4000}]}]}]}

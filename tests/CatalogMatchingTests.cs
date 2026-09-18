@@ -20,7 +20,15 @@ public sealed class CatalogMatchingTests
             new SeedExercise("incline-press", "Dumbbell Incline Press", "Chest", "Dumbbell", "Cue", null),
             new SeedExercise("lat-pulldown", "Lat Pulldown", "Back", "Cable", "Cue", null),
             new SeedExercise("preacher-curl", "Preacher Curl", "Biceps", "Barbell", "Cue", null),
-            new SeedExercise("squat", "Squat", "Legs", "Barbell", "Cue", null));
+            new SeedExercise("squat", "Squat", "Legs", "Barbell", "Cue", null),
+            new SeedExercise("cable-kickback", "Cable Triceps Kickback", "Triceps", "Cable", "Cue", null),
+            new SeedExercise("close-grip-lat-pulldown", "Close-Grip Lat Pulldown", "Back", "Cable", "Cue", null),
+            new SeedExercise("chest-supported-t-bar-row", "Chest-Supported T-Bar Row", "Back", "Barbell", "Cue", null),
+            new SeedExercise("machine-chest-press", "Machine Chest Press", "Chest", "Machine", "Cue", null),
+            new SeedExercise("standing-calf-raise", "Standing Calf Raise", "Calves", "Machine", "Cue", null),
+            new SeedExercise("dumbbell-wrist-curl", "DB Wrist Curl", "Forearms", "Dumbbell", "Cue", null),
+            new SeedExercise("dumbbell-wrist-extension", "DB Wrist Extension", "Forearms", "Dumbbell", "Cue", ["Dumbbell Wrist Extension"]),
+            new SeedExercise("modified-zottman-curl", "Modified Zottman Curl", "Biceps", "Dumbbell", "Cue", null));
         return (h, h.Catalog);
     }
 
@@ -61,12 +69,57 @@ public sealed class CatalogMatchingTests
         Assert.Null(await catalog.Match(written, default));
     }
 
+    [Theory]
+    [InlineData("Cable Triceps Two Drop Sets Kickback (~25% per)", "Cable Triceps Kickback")]
+    [InlineData("Close-Grip Lat Lengthened Partials Pulldown (Extend Set)", "Close-Grip Lat Pulldown")]
+    [InlineData("Machine Chest Weighted Static Hold Press", "Machine Chest Press")]
+    [InlineData("Pull-Up Lengthened Partials (Wide Grip) (Extend Set)", "Pull-Up")]
+    [InlineData("Standing Calf Lengthened Partials Raise (Extend Set)", "Standing Calf Raise")]
+    [InlineData("Chest-Supported Two Drop Sets T-Bar Row (~25% per)", "Chest-Supported T-Bar Row")]
+    public async Task A_set_technique_does_not_hide_the_movement(string written, string expected)
+    {
+        var (h, catalog) = await Library();
+        await using var _h = h;
+
+        var matched = await catalog.Match(written, default);
+
+        Assert.NotNull(matched);
+        Assert.Equal(await h.ExerciseId(Slug(expected)), matched);
+    }
+
+    [Theory]
+    [InlineData("DB Wrist Curl", "dumbbell-wrist-curl")]
+    [InlineData("Dumbbell Wrist Extension", "dumbbell-wrist-extension")]
+    [InlineData("Modified Zottman Curl", "modified-zottman-curl")]
+    public async Task Newly_catalogued_pdf_movements_match_without_an_unsafe_neighbour(string written, string slug)
+    {
+        var (h, catalog) = await Library();
+        await using var _h = h;
+
+        Assert.Equal(await h.ExerciseId(slug), await catalog.Match(written, default));
+    }
+
+    [Fact]
+    public async Task A_choice_label_stays_unresolved_instead_of_picking_a_squat_variant()
+    {
+        var (h, catalog) = await Library();
+        await using var _h = h;
+
+        Assert.Null(await catalog.Match("Squat (Your Choice)", default));
+    }
+
     private static string Slug(string name) => name switch
     {
         "Pull Up" => "pull-up",
         "Dumbbell Incline Press" => "incline-press",
         "Lat Pulldown" => "lat-pulldown",
         "Preacher Curl" => "preacher-curl",
+        "Cable Triceps Kickback" => "cable-kickback",
+        "Close-Grip Lat Pulldown" => "close-grip-lat-pulldown",
+        "Chest-Supported T-Bar Row" => "chest-supported-t-bar-row",
+        "Machine Chest Press" => "machine-chest-press",
+        "Pull-Up" => "pull-up",
+        "Standing Calf Raise" => "standing-calf-raise",
         _ => "squat"
     };
 }

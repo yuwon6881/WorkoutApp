@@ -154,10 +154,10 @@ public sealed partial class ImportService
         if (alternatives.Count > 1)
         {
             import.AlternativesJson = Json.Write(alternatives.Select(a => new ImportAlternative(a.Id,
-                ImportNormalization.Label(a.Name, 200, a.Id), ImportNormalization.Text(a.Description, 4000),
-                a.Chunks.Count, a.Chunks.Sum(c => c.DayCount), a.Chunks.Select(ToImportChunk).ToList())).ToList());
+                ImportNormalization.Label(a.Name, 200, a.Id), a.Chunks.Count, a.Chunks.Sum(c => c.DayCount),
+                a.Chunks.Select(ToImportChunk).ToList())).ToList());
             import.Stage = "select"; import.Status = ImportStatus.Pending; import.ChunksDone = 0; import.ChunksTotal = 0;
-            import.DraftJson = Json.Write(new ImportDraft(ProgramTitle(result.Outline.ProgramTitle, import.FileName), ImportNormalization.Text(result.Outline.Description, 4000), []));
+            import.DraftJson = Json.Write(new ImportDraft(ProgramTitle(result.Outline.ProgramTitle, import.FileName), []));
             return;
         }
         var selected = alternatives.Count == 1 ? alternatives[0] : null;
@@ -165,8 +165,7 @@ public sealed partial class ImportService
         ValidateChunkPages(chunks, import.PageCoverageJson);
         import.SelectedAlternativeId = selected?.Id ?? "";
         import.OutlineJson = Json.Write(chunks);
-        import.DraftJson = Json.Write(new ImportDraft(ProgramTitle(selected?.Name ?? result.Outline.ProgramTitle, import.FileName),
-            ImportNormalization.Text(selected?.Description ?? result.Outline.Description, 4000), []));
+        import.DraftJson = Json.Write(new ImportDraft(ProgramTitle(selected?.Name ?? result.Outline.ProgramTitle, import.FileName), []));
         import.Stage = "extract"; import.Status = ImportStatus.Pending; import.ChunksDone = 0; import.ChunksTotal = chunks.Count;
         import.UnresolvedCount = 0;
     }
@@ -184,7 +183,7 @@ public sealed partial class ImportService
             var chunks = SplitChunks(selected!.Chunks ?? []);
             ValidateChunkPages(chunks, import.PageCoverageJson);
             import.SelectedAlternativeId = selected.Id; import.OutlineJson = Json.Write(chunks);
-            import.DraftJson = Json.Write(new ImportDraft(ProgramTitle(selected.Name, import.FileName), ImportNormalization.Text(selected.Description, 4000), []));
+            import.DraftJson = Json.Write(new ImportDraft(ProgramTitle(selected.Name, import.FileName), []));
             import.Stage = "extract"; import.ChunksDone = 0; import.ChunksTotal = chunks.Count; import.Revision++;
             await db.SaveChangesAsync(ct); await gate.Commit(ct);
         }
@@ -328,7 +327,6 @@ public sealed partial class ImportService
                             merged = draft with
                             {
                                 ProgramName = ImportNormalization.Text(result.Program.ProgramTitle ?? result.Program.ProgramName, 120) ?? draft.ProgramName,
-                                Description = ImportNormalization.Text(result.Program.Description, 4000) ?? draft.Description,
                                 Workouts = [.. draft.Workouts, .. reconciled.Workouts]
                             };
                             import.Model = result.Model;

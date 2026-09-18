@@ -13,18 +13,18 @@ namespace Workout.Tests;
 public sealed class ImportRecoveryTests
 {
     private const string Outline = """
-        {"programTitle":"Recovery","description":null,"chunks":[
+        {"programTitle":"Recovery","chunks":[
           {"label":"Week 1","block":"Base","phase":"Strength","weekFrom":1,"weekTo":1,"pageFrom":1,"pageTo":1,"dayCount":1}]}
         """;
 
     private const string TwoChunkOutline = """
-        {"programTitle":"Recovery","description":null,"chunks":[
+        {"programTitle":"Recovery","chunks":[
           {"label":"Week 1","block":"Base","phase":"Strength","weekFrom":1,"weekTo":1,"pageFrom":1,"pageTo":1,"dayCount":1},
           {"label":"Week 2","block":"Base","phase":"Strength","weekFrom":2,"weekTo":2,"pageFrom":2,"pageTo":2,"dayCount":1}]}
         """;
 
     private static string Day(int week, string name) => $$"""
-        {"programTitle":"Recovery","description":null,"days":[
+        {"programTitle":"Recovery","days":[
           {"block":"Base","phase":"Strength","weekNumber":{{week}},"phaseWeek":{{week}},"dayName":"{{name}}","isRestDay":false,"weekday":1,"sourcePage":1,"notes":null,"exercises":[
             {"sequenceGroup":"A1","sourceName":"Barbell bench press","exerciseId":null,"notes":null,"sourcePage":1,"sets":[
               {"repMin":5,"repMax":8,"targetRpe":8,"restSeconds":120,"tempo":null,"loadText":null,"notes":null,"repsSource":"extracted","rpeSource":"extracted","restSource":"extracted","sourcePage":1}]}]}]}

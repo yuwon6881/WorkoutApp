@@ -7,7 +7,7 @@ namespace Workout.Tests;
 
 public class ProgramTests
 {
-    private static ProgramInput TwoWeeks(Guid benchId) => new("Starting strength", "A two-week block",
+    private static ProgramInput TwoWeeks(Guid benchId) => new("Starting strength",
     [
         new ProgramWorkoutInput(1, "Week 1 Day A", "Push", null, [Harness.Exercise(benchId, "Bench press", Harness.Set(8, 10))], Weekday: 1),
         new ProgramWorkoutInput(1, "Week 1 Day B", "Pull", null, [Harness.Exercise(benchId, "Bench press", Harness.Set(8, 10))], Weekday: 3),
@@ -38,7 +38,7 @@ public class ProgramTests
     {
         var (h, benchId) = await Ready();
         await using var _h = h;
-        var program = await h.Programs.Create(new ProgramInput("Two phases", null,
+        var program = await h.Programs.Create(new ProgramInput("Two phases",
             [
                 new ProgramWorkoutInput(1, "Base A", null, null, [Harness.Exercise(benchId, "Bench press", Harness.Set(8, 10))], "Block 1", "Base", 1, false, 1, 12),
                 new ProgramWorkoutInput(2, "Base A", null, null, [Harness.Exercise(benchId, "Bench press", Harness.Set(8, 10))], "Block 1", "Base", 2, false, 1, 18),
@@ -193,7 +193,7 @@ public class ProgramTests
     {
         var (h, benchId) = await Ready();
         await using var _h = h;
-        var program = await h.Programs.Create(new ProgramInput("Mixed", null,
+        var program = await h.Programs.Create(new ProgramInput("Mixed",
             [new ProgramWorkoutInput(1, "Day A", null, null,
                 [Harness.Exercise(benchId, "Bench press", new SetPrescription(8, 10, 8, 120, "3010", "70%", "top set"), new SetPrescription(12, 12, 7.5, null, null, null, null))])], null),
             true, null, default);
@@ -207,7 +207,7 @@ public class ProgramTests
     {
         var (h, benchId) = await Ready();
         await using var _h = h;
-        var program = await h.Programs.Create(new ProgramInput("Blocks", null,
+        var program = await h.Programs.Create(new ProgramInput("Blocks",
             [
                 new ProgramWorkoutInput(1, "Monday", "Push", null, [Harness.Exercise(benchId, "Bench press", Harness.Set(8, 10))], "Block 1", "Base", 1, false, 1),
                 new ProgramWorkoutInput(1, "Tuesday recovery", null, "Sleep and recover", [], "Block 1", "Base", 1, true),
@@ -234,7 +234,7 @@ public class ProgramTests
         await using var _h = h;
         var today = DateOnly.FromDateTime(DateTime.UtcNow);
         var anchor = today.AddDays(-(((int)today.DayOfWeek + 6) % 7));
-        var program = await h.Programs.Create(new ProgramInput("Rest bridge", null,
+        var program = await h.Programs.Create(new ProgramInput("Rest bridge",
             [
                 new ProgramWorkoutInput(1, "Base A", null, null, [Harness.Exercise(benchId, "Bench press", Harness.Set(8, 10))], "Block", "Base", 1, false, 1),
                 new ProgramWorkoutInput(2, "Recovery week", null, null, [], "Block", "Recovery", 1, true, 1),
@@ -262,7 +262,7 @@ public class ProgramTests
         var today = DateOnly.FromDateTime(DateTime.UtcNow);
         var thisMonday = today.AddDays(-(((int)today.DayOfWeek + 6) % 7));
         var originalAnchor = thisMonday.AddDays(-28);
-        var program = await h.Programs.Create(new ProgramInput("Late block", null,
+        var program = await h.Programs.Create(new ProgramInput("Late block",
             [
                 new ProgramWorkoutInput(1, "Base", null, null, [Harness.Exercise(benchId, "Bench press", Harness.Set(8, 10))], "Block", "Base", 1, false, 1),
                 new ProgramWorkoutInput(2, "Peak", null, null, [Harness.Exercise(benchId, "Bench press", Harness.Set(5, 8))], "Block", "Peak", 1, false, 1)

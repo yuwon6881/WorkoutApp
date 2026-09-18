@@ -1429,6 +1429,16 @@
     "aliases": []
   },
   {
+    "slug": "dumbbell-wrist-curl",
+    "name": "DB Wrist Curl",
+    "muscle": "Biceps and forearms",
+    "equipment": "Dumbbell",
+    "cue": "",
+    "aliases": [
+      "Dumbbell Wrist Curl"
+    ]
+  },
+  {
     "slug": "behind-the-back-wrist-curl",
     "name": "Behind-the-Back Wrist Curl",
     "muscle": "Biceps and forearms",
@@ -1439,6 +1449,24 @@
   {
     "slug": "bench-braced-wrist-extension",
     "name": "Bench-Braced Wrist Extension",
+    "muscle": "Biceps and forearms",
+    "equipment": "Dumbbell",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "dumbbell-wrist-extension",
+    "name": "DB Wrist Extension",
+    "muscle": "Biceps and forearms",
+    "equipment": "Dumbbell",
+    "cue": "",
+    "aliases": [
+      "Dumbbell Wrist Extension"
+    ]
+  },
+  {
+    "slug": "modified-zottman-curl",
+    "name": "Modified Zottman Curl",
     "muscle": "Biceps and forearms",
     "equipment": "Dumbbell",
     "cue": "",

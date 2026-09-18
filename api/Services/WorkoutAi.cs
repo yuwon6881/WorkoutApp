@@ -18,10 +18,10 @@ public record AiWorkout(string Name, string? Focus, string? Notes, List<AiExerci
 public record AiWeek(int Week, List<AiWorkout> Workouts);
 public record AiDay(string? Block, string? Phase, int WeekNumber, int PhaseWeek, string DayName, bool IsRestDay, string? Notes, List<AiExercise> Exercises,
     int? Weekday = null, int? SourcePage = null);
-public record AiProgram(string? ProgramTitle, string? Description, List<AiDay>? Days, string? ProgramName = null, List<AiWeek>? Weeks = null);
+public record AiProgram(string? ProgramTitle, List<AiDay>? Days, string? ProgramName = null, List<AiWeek>? Weeks = null);
 public record AiOutlineChunk(string Label, string? Block, string? Phase, int WeekFrom, int WeekTo, int PageFrom, int PageTo, int DayCount);
-public record AiAlternative(string Id, string Name, string? Description, List<AiOutlineChunk> Chunks);
-public record AiOutline(string ProgramTitle, string? Description, List<AiOutlineChunk> Chunks, List<AiAlternative>? Alternatives = null);
+public record AiAlternative(string Id, string Name, List<AiOutlineChunk> Chunks);
+public record AiOutline(string ProgramTitle, List<AiOutlineChunk> Chunks, List<AiAlternative>? Alternatives = null);
 public record AiOutlineResult(AiOutline? Outline, AiProgram? LegacyProgram, string Model, long InputTokens, long OutputTokens);
 public record AiImportResult(AiProgram Program, string Model, long InputTokens, long OutputTokens);
 
@@ -33,8 +33,9 @@ public sealed class WorkoutAi(HttpClient http, IConfiguration config)
     /// Bumped when a change here would make a stored import inconsistent with a new read, so the
     /// same document read again starts afresh rather than continuing under the older shape. v4
     /// divided the outline into sections small enough to read whole; v5 asks a table for the
-    /// working-set count it states in a column.
-    public const string PromptVersion = "workout-import-v5-text";
+    /// working-set count it states in a column; v6 separates set techniques from movement names
+    /// and removes the unused program summary field.
+    public const string PromptVersion = "workout-import-v6-text";
 
     /// One cheap pass over a page-by-page view of the document. Most of a commercial training PDF
     /// is explanation and photography; this pass exists to find the few pages that actually carry

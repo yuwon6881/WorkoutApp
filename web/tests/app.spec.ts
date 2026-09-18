@@ -189,6 +189,7 @@ test('import a PDF program, preserve an unmapped exercise, and accept it', async
 
   await page.getByLabel('Program PDF').setInputFiles({ name: 'block.pdf', mimeType: 'application/pdf', buffer: pdf(4, testInfo.project.name) });
   await expect(page.getByRole('heading', { name: 'Review' })).toBeVisible({ timeout: 60000 });
+  await expect(page.getByText('Description', { exact: true })).toHaveCount(0);
   expect(posted).toEqual(['gzip']);
   await page.screenshot({ path: `artifacts/${testInfo.project.name}-import-review.png`, fullPage: true });
 

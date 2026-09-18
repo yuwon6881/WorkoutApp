@@ -15,13 +15,13 @@ namespace Workout.Tests;
 public sealed class ImportChunkLabelTests
 {
     private const string TwoDeloads = """
-        {"programTitle":"Nine week block","description":null,"chunks":[
+        {"programTitle":"Nine week block","chunks":[
           {"label":"Deload","block":"Block 1","phase":"Deload","weekFrom":1,"weekTo":1,"pageFrom":1,"pageTo":1,"dayCount":1},
           {"label":"Deload","block":"Block 2","phase":"Deload","weekFrom":2,"weekTo":2,"pageFrom":2,"pageTo":2,"dayCount":1}]}
         """;
 
     private static string Day(int week, string block) => $$"""
-        {"programTitle":"Nine week block","description":null,"days":[
+        {"programTitle":"Nine week block","days":[
           {"block":"{{block}}","phase":"Deload","weekNumber":{{week}},"phaseWeek":1,"dayName":"Week {{week}} Upper","isRestDay":false,"weekday":1,"sourcePage":{{week}},"notes":null,"exercises":[
             {"sequenceGroup":"A1","sourceName":"Barbell bench press","exerciseId":null,"notes":null,"sourcePage":{{week}},"sets":[
               {"repMin":5,"repMax":8,"targetRpe":8,"restSeconds":120,"tempo":null,"loadText":null,"notes":null,"repsSource":"extracted","rpeSource":"extracted","restSource":"extracted","sourcePage":{{week}}}]}]}]}

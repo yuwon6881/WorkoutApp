@@ -15,12 +15,12 @@ namespace Workout.Tests;
 public sealed class ImportNormalizationTests
 {
     private const string Outline = """
-        {"programTitle":"Nine week block","description":null,"chunks":[
+        {"programTitle":"Nine week block","chunks":[
           {"label":"Week 1","block":"Base","phase":"Intro","weekFrom":1,"weekTo":1,"pageFrom":1,"pageTo":1,"dayCount":1}]}
         """;
 
     private static string Day(string exercise, string sets) => $$"""
-        {"programTitle":"Nine week block","description":null,"days":[
+        {"programTitle":"Nine week block","days":[
           {"block":"Base","phase":"Intro","weekNumber":1,"phaseWeek":1,"dayName":"Day A","isRestDay":false,"weekday":1,"sourcePage":1,"notes":null,"exercises":[
             {{{exercise}},"sets":[{{sets}}]}]}]}
         """;

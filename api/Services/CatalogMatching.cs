@@ -24,12 +24,26 @@ internal static class CatalogMatching
         ["gm"] = "good morning", ["bor"] = "bent over row", ["dl"] = "deadlift"
     };
 
+    /// A table sometimes puts the set method in the exercise column even though it is a
+    /// prescription, not a different movement. These are deliberately complete phrases rather
+    /// than loose words: "weighted" must not disappear from "Weighted Pull-Up", while the
+    /// document's "Weighted Static Hold" should leave "Machine Chest Press" behind.
+    private static readonly string[] TechniquePhrases =
+    [
+        "lengthened partials", "lengthened partial", "two drop sets", "drop sets",
+        "weighted static hold", "static hold", "extend set"
+    ];
+
     /// The library entry a written name means, or none. Steps are tried in order of how much they
     /// assume and stop at the first hit; the tail of a name is considered only once nothing spells
     /// the whole of it.
     public static Guid? Find(Dictionary<string, Guid> library, string name)
     {
         if (CatalogService.Normalize(name).Length == 0) return null;
+        // "Your Choice" explicitly means the document leaves the movement to the person. Even if
+        // a generic "Squat" happens to be in a tenant's library, selecting it would erase that
+        // choice and could change the prescribed movement.
+        if (CatalogService.Normalize(name).Contains("your choice", StringComparison.Ordinal)) return null;
         foreach (var variant in Variants(name))
             if (library.TryGetValue(variant, out var id)) return id;
         foreach (var tail in HeadVariants(name))
@@ -53,16 +67,31 @@ internal static class CatalogMatching
         yield return plain;
         yield return Expand(plain);
 
+        // Preserve the movement's meaningful qualifiers (close-grip, machine, dumbbell, incline)
+        // while removing only the table's set technique. This is tried after the literal spelling
+        // so a catalog entry that intentionally includes a technique still wins first.
+        var withoutTechnique = RemoveTechnique(plain);
+        yield return withoutTechnique;
+        yield return Expand(withoutTechnique);
+
         // A bracketed qualifier is how a table notes a grip, a stance or a tempo on a movement the
         // library holds under its plain name: "Pull-Up (Wide Grip)" is stored as "Pull Up".
         var unbracketed = CatalogService.Normalize(RemoveBracketed(name));
         yield return unbracketed;
         yield return Expand(unbracketed);
 
+        var unbracketedWithoutTechnique = RemoveTechnique(unbracketed);
+        yield return unbracketedWithoutTechnique;
+        yield return Expand(unbracketedWithoutTechnique);
+
         yield return Singular(plain);
         yield return Singular(Expand(plain));
+        yield return Singular(withoutTechnique);
+        yield return Singular(Expand(withoutTechnique));
         yield return Singular(unbracketed);
         yield return Singular(Expand(unbracketed));
+        yield return Singular(unbracketedWithoutTechnique);
+        yield return Singular(Expand(unbracketedWithoutTechnique));
     }
 
     /// The tail of a written name, for a library entry the name ends with: "Smith Machine Incline
@@ -99,6 +128,14 @@ internal static class CatalogMatching
     private static string Expand(string normalized)
         => string.Join(' ', normalized.Split(' ', StringSplitOptions.RemoveEmptyEntries)
             .Select(word => Abbreviations.TryGetValue(word, out var full) ? full : word));
+
+    private static string RemoveTechnique(string normalized)
+    {
+        var output = normalized;
+        foreach (var phrase in TechniquePhrases)
+            output = output.Replace(phrase, " ", StringComparison.Ordinal);
+        return string.Join(' ', output.Split(' ', StringSplitOptions.RemoveEmptyEntries));
+    }
 
     /// The same words written singly. A table says "Curls" where the library says "Curl".
     private static string Singular(string normalized)

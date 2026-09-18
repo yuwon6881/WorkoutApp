@@ -95,10 +95,6 @@ export function validateTemplateDraft(name: string, focus: string, exercises: Te
   return exercises.map(exercise => validateExercise(exercise, true)).find(Boolean);
 }
 
-export function validateImportMetadata(programName: string, description: string | null): string | undefined {
-  return validateName(programName, 'Program name') ?? validateText(description, 'Program description', 4000);
-}
-
 export function validateDraftWorkout(day: DraftWorkout): string | undefined {
   const name = validateName(day.name, 'Workout name');
   if (name) return name;

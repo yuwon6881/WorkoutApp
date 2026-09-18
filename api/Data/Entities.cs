@@ -76,7 +76,6 @@ public sealed class ExerciseAlias
 public sealed class TrainingProgram : OwnedRecord
 {
     public string Name { get; set; } = "";
-    public string Description { get; set; } = "";
     public int Weeks { get; set; } = 1;
     public bool Active { get; set; }
     public Guid? SourceImportId { get; set; }

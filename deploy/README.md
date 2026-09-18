@@ -62,7 +62,7 @@ dotnet run --project api\Workout.Api.csproj -- --migrate-only
 ## Exercise catalog
 
 The schema ships with an empty catalog and it is the only data users cannot create, edit, or
-delete. The checked-in `deploy\exercises.json` contains the 263 default movements. Load it with
+delete. The checked-in `deploy\exercises.json` contains the 266 default movements. Load it with
 the seed command, which is keyed by stable slug, so re-running the same file updates rows in place
 instead of duplicating them. Exercises the file omits are left untouched unless
 `--deactivate-missing` is supplied. The whole file is applied in one transaction or not at all.
@@ -73,9 +73,11 @@ dotnet run --project api\Workout.Api.csproj -- --seed-exercises=$seed
 ```
 
 Each entry is `{ "slug", "name", "muscle", "equipment", "cue", "aliases": [] }`. Aliases are
-matched case- and punctuation-insensitively, and are what lets an AI import resolve a written
-exercise name to a catalog row. The default file keeps cues empty because the supplied list did not
-include coaching text; equipment labels are only filled when the name makes them unambiguous.
+matched case- and punctuation-insensitively. Imports also expand common equipment abbreviations,
+ignore bracketed grip qualifiers, and remove recognized set-technique phrases before trying a
+conservative movement match; ambiguous choices stay unresolved for review. The default file keeps
+cues empty because the supplied list did not include coaching text; equipment labels are only
+filled when the name makes them unambiguous.
 `web/tests/fixtures/exercises.json` remains a three-row test example.
 
 ## API

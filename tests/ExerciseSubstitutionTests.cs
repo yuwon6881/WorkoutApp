@@ -79,7 +79,7 @@ public sealed class ExerciseSubstitutionTests
             new SeedExercise("bench", "Barbell bench press", "Chest", "Barbell", "", null),
             new SeedExercise("incline", "Incline dumbbell press", "Chest", "Dumbbell", "", null));
         var bench = await h.ExerciseId("bench"); var incline = await h.ExerciseId("incline");
-        var input = new ProgramInput("Two week push", null, [
+        var input = new ProgramInput("Two week push", [
             new ProgramWorkoutInput(1, "Push 1", null, null, [Harness.Exercise(bench, "Barbell bench press", Harness.Set(8, 10))], "Block", "Base", 1, false, 1),
             new ProgramWorkoutInput(2, "Push 2", null, null, [Harness.Exercise(bench, "Barbell bench press", Harness.Set(8, 10))], "Block", "Base", 2, false, 1)
         ], null, new DateOnly(2026, 9, 14), "UTC");

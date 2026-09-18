@@ -15,7 +15,7 @@ public sealed class ImportSectionSizeTests
 {
     /// One block of thirty days across thirty pages: what the model drew before it was divided.
     private const string OneLongBlock = """
-        {"programTitle":"Six week block","description":null,"chunks":[
+        {"programTitle":"Six week block","chunks":[
           {"label":"Block 1","block":"Block 1","phase":"Accumulation","weekFrom":1,"weekTo":6,"pageFrom":25,"pageTo":54,"dayCount":30}]}
         """;
 
@@ -57,7 +57,7 @@ public sealed class ImportSectionSizeTests
               {"sequenceGroup":"A1","sourceName":"Barbell bench press","exerciseId":null,"notes":null,"sourcePage":{{page}},"sets":[
                 {"repMin":5,"repMax":8,"targetRpe":8,"restSeconds":120,"tempo":null,"loadText":null,"notes":null,"repsSource":"extracted","rpeSource":"extracted","restSource":"extracted","sourcePage":{{page}}}]}]}
             """);
-        return Answer($$"""{"programTitle":"Six week block","description":null,"days":[{{string.Join(",", days)}}]}""");
+        return Answer($$"""{"programTitle":"Six week block","days":[{{string.Join(",", days)}}]}""");
     }
 
     [Fact]

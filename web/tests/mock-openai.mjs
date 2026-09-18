@@ -5,7 +5,6 @@ import { createServer } from 'node:http';
 
 const outline = {
   programTitle: 'Imported strength block',
-  description: 'A two-week block read from the uploaded PDF.',
   chunks: [
     { label: 'Block 1 · Base · Week 1', block: 'Block 1', phase: 'Base', weekFrom: 1, weekTo: 1, pageFrom: 1, pageTo: 2, dayCount: 1 },
     { label: 'Block 1 · Base · Week 2', block: 'Block 1', phase: 'Base', weekFrom: 2, weekTo: 2, pageFrom: 3, pageTo: 4, dayCount: 2 }
@@ -15,7 +14,6 @@ const outline = {
 const chunks = [
   {
     programTitle: 'Imported strength block',
-    description: 'A two-week block read from the uploaded PDF.',
     days: [{
       block: 'Block 1', phase: 'Base', weekNumber: 1, phaseWeek: 1, dayName: 'Week 1 Upper', isRestDay: false, notes: null,
       exercises: [
@@ -36,8 +34,7 @@ const chunks = [
     }]
   },
   {
-    programTitle: 'Imported strength block',
-    description: 'A two-week block read from the uploaded PDF.',
+      programTitle: 'Imported strength block',
     days: [
       {
         block: 'Block 1', phase: 'Base', weekNumber: 2, phaseWeek: 2, dayName: 'Week 2 Upper', isRestDay: false, notes: null,

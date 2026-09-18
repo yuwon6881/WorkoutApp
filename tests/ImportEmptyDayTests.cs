@@ -15,7 +15,7 @@ namespace Workout.Tests;
 public sealed class ImportEmptyDayTests
 {
     private const string TwoSections = """
-        {"programTitle":"Nine week block","description":null,"chunks":[
+        {"programTitle":"Nine week block","chunks":[
           {"label":"Block 1","block":"Base","phase":"Intro","weekFrom":1,"weekTo":1,"pageFrom":1,"pageTo":1,"dayCount":2},
           {"label":"Block 2","block":"Base","phase":"Main","weekFrom":2,"weekTo":2,"pageFrom":2,"pageTo":2,"dayCount":1}]}
         """;
@@ -32,7 +32,7 @@ public sealed class ImportEmptyDayTests
         """;
 
     private static string Days(params string[] days) => $$"""
-        {"programTitle":"Nine week block","description":null,"days":[{{string.Join(",", days)}}]}
+        {"programTitle":"Nine week block","days":[{{string.Join(",", days)}}]}
         """;
 
     private static Dictionary<string, string?> Configured() => new()

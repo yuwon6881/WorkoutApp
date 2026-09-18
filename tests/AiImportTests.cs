@@ -20,7 +20,7 @@ public class AiImportTests
             .ToList());
 
     private const string OneWorkout = """
-    {"programName":"Hypertrophy block","description":"Four weeks","weeks":[
+    {"programName":"Hypertrophy block","weeks":[
       {"week":1,"workouts":[{"name":"Day A","focus":"Push","notes":null,"exercises":[
         {"sourceName":"Barbell bench press","exerciseId":null,"notes":null,"sets":[
           {"repMin":8,"repMax":10,"targetRpe":8,"restSeconds":120,"tempo":null,"loadText":null,"notes":null,
@@ -28,21 +28,21 @@ public class AiImportTests
     """;
 
     private const string Outline = """
-    {"programTitle":"Faithful block","description":"Blocks survive","chunks":[
+    {"programTitle":"Faithful block","chunks":[
       {"label":"Block 1 · Base · Week 1","block":"Block 1","phase":"Base Hypertrophy","weekFrom":1,"weekTo":1,"pageFrom":1,"pageTo":4,"dayCount":1}]}
     """;
 
     private const string Chunk = """
-    {"programTitle":"Faithful block","description":"Blocks survive","days":[
+    {"programTitle":"Faithful block","days":[
       {"block":"Block 1","phase":"Base Hypertrophy","weekNumber":1,"phaseWeek":1,"dayName":"Lower A","isRestDay":false,"weekday":1,"sourcePage":3,"notes":"Keep the tempo","exercises":[
         {"sequenceGroup":"A1","sourceName":"Constant-Tension Lying Leg Curl","exerciseId":null,"warmupSets":"2-3","substitutions":["Seated leg curl","Nordic curl"],"coachingNotes":"Control the eccentric","notes":null,"sourcePage":3,"sets":[
           {"repMin":8,"repMax":12,"repsText":"AMRAP","targetRpe":null,"rir":"2","percent1Rm":"75%","restSeconds":60,"restText":"3-5 min","tempo":"3010","loadText":null,"notes":null,"repsSource":"extracted","rpeSource":"inferred","restSource":"extracted","sourcePage":3}]}]}]}
     """;
 
     private const string AlternativesOutline = """
-    {"programTitle":"Choices","description":null,"chunks":[],"alternatives":[
-      {"id":"alpha","name":"Alpha","description":"First choice","chunks":[{"label":"Alpha week 1","block":"Alpha","phase":"Base","weekFrom":1,"weekTo":1,"pageFrom":1,"pageTo":2,"dayCount":1}]},
-      {"id":"beta","name":"Beta","description":"Second choice","chunks":[{"label":"Beta week 1","block":"Beta","phase":"Base","weekFrom":1,"weekTo":1,"pageFrom":1,"pageTo":2,"dayCount":1}]}
+    {"programTitle":"Choices","chunks":[],"alternatives":[
+      {"id":"alpha","name":"Alpha","chunks":[{"label":"Alpha week 1","block":"Alpha","phase":"Base","weekFrom":1,"weekTo":1,"pageFrom":1,"pageTo":2,"dayCount":1}]},
+      {"id":"beta","name":"Beta","chunks":[{"label":"Beta week 1","block":"Beta","phase":"Base","weekFrom":1,"weekTo":1,"pageFrom":1,"pageTo":2,"dayCount":1}]}
     ]}
     """;
 
@@ -204,7 +204,7 @@ public class AiImportTests
         await h.SignIn();
         await h.Seed(new SeedExercise("bench", "Barbell bench press", "Chest", "Barbell", "Cue", null));
         var benchId = await h.ExerciseId("bench");
-        await h.Programs.Create(new ProgramInput("Existing", null,
+        await h.Programs.Create(new ProgramInput("Existing",
             [new ProgramWorkoutInput(1, "Day A", null, null, [Harness.Exercise(benchId, "Barbell bench press", Harness.Set(8, 10))])], null), true, null, default);
 
         var imports = h.Imports(StubHandler.Program(OneWorkout));
@@ -252,7 +252,7 @@ public class AiImportTests
     {
         await using var h = await Harness.Create(Configured);
         await h.SignIn();
-        var imports = h.Imports(StubHandler.Program("""{"programName":"Broken","description":null,"weeks":[]}"""));
+        var imports = h.Imports(StubHandler.Program("""{"programName":"Broken","weeks":[]}"""));
         var failure = await Assert.ThrowsAsync<DomainException>(() => imports.Create(Source("block.pdf"), default));
         Assert.Equal(422, failure.Status);
     }

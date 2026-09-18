@@ -68,7 +68,6 @@ internal static class ImportValidation
     public static async Task ValidateDraft(ImportDraft draft, CatalogService catalog, CancellationToken ct)
     {
         Validation.Name(draft.ProgramName, "Program name");
-        Validation.Text(draft.Description, 4000, "Program description");
         Validation.Require(draft.Workouts is { Count: > 0 and <= 400 }, "A program needs between 1 and 400 days.");
         Validation.Require(draft.Workouts.All(w => w.Week is > 0 and <= 104), "Program weeks must be between 1 and 104.");
         Validation.Require(draft.Workouts.Select(w => w.LineId).Distinct().Count() == draft.Workouts.Count, "A program contains duplicate workout rows.");
