@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ChevronDown, ChevronUp, Pencil } from 'lucide-react';
+import { CalendarDays, ChevronDown, ChevronUp, FileText, Pencil } from 'lucide-react';
 import type { DraftWorkout, Exercise, ImportDraft } from '../types';
 import { Button } from './ui/Button';
 import { ChipScroller } from './ui/ChipScroller';
@@ -111,9 +111,15 @@ export function DraftOutline({ draft, expandedDay, setExpandedDay, exercises, on
   const selectedBlock = blockIndex(weeks, selectedIndex);
 
   return <section className="panel import-program-card">
-    <div className="section-heading">
-      <h2>{draft.programName}</h2>
-      <span className="tiny-label">{weeks.length} {weeks.length === 1 ? 'week' : 'weeks'}</span>
+    <div className="section-heading import-program-heading">
+      <div className="import-program-title">
+        <span className="import-program-icon" aria-hidden="true"><CalendarDays size={18} /></span>
+        <div>
+          <span className="import-program-kicker">Program timeline</span>
+          <h2>{draft.programName}</h2>
+        </div>
+      </div>
+      <span className="import-week-count">{weeks.length} {weeks.length === 1 ? 'week' : 'weeks'}</span>
     </div>
     {blocks.length > 1 && <div className="import-block-selector" role="tablist" aria-label="Program blocks">
       {blocks.map(b => {
@@ -125,6 +131,10 @@ export function DraftOutline({ draft, expandedDay, setExpandedDay, exercises, on
         </Button>;
       })}
     </div>}
+    <div className="import-weeks-heading">
+      <span>Weeks</span>
+      <span className="muted">Swipe or use the arrows to browse the plan</span>
+    </div>
     <ChipScroller ariaLabel="Program weeks" role="tablist" resetKey={weeks.map(entry => entry.week).join('|')}
       leftLabel="Scroll program weeks left" rightLabel="Scroll program weeks right">
       {weeks.map(entry => <Button key={entry.week} presentation="plain" role="tab" aria-selected={entry.week === week.week}
@@ -173,10 +183,12 @@ function DayRow({ day, expanded, onToggle, exercises, onChange }: {
   return <section className={`draft-day ${day.isRestDay ? 'rest-day' : ''}`}>
     <div className="draft-day-card-header">
       <Button presentation="plain" className="draft-day-summary" aria-expanded={expanded} aria-label={fullName} onClick={onToggle}>
+        <span className={`draft-day-disclosure ${expanded ? 'open' : ''}`} aria-hidden="true"><ChevronDown size={17} /></span>
         <div className="draft-day-title-group">
           <strong>{fullName}</strong>
           <div className="draft-day-meta-tags">
             <span className="tiny-label">{day.isRestDay ? 'Rest day' : `${day.exercises.length} exercises`}</span>
+            {day.focus && <span className="day-focus-tag">{day.focus}</span>}
             {day.phase?.toLowerCase().includes('deload') && <span className="pill pill-accent">Deload</span>}
             {day.sourcePage && <span className="muted">PDF p.{day.sourcePage}</span>}
           </div>
@@ -203,6 +215,7 @@ function DayRow({ day, expanded, onToggle, exercises, onChange }: {
           {muscles.slice(0, 5).map(m => <span key={m} className="muscle-chip">{m}</span>)}
           {muscles.length > 5 && <span className="muscle-chip muscle-chip-overflow" title={muscles.slice(5).join(', ')}>+{muscles.length - 5}</span>}
         </div>}
+        {day.notes && <p className="draft-day-note"><FileText size={14} aria-hidden="true" /><span>{day.notes}</span></p>}
       </div>
     )}
 
