@@ -43,9 +43,11 @@ text was stored, which remains the user-visible retention contract. No document,
 object-store copy exists on the server, so there is no import bucket, task queue, or worker
 service to provision.
 
-The `workout-import-worker` Cloud Run service, the `workout-imports` Cloud Tasks queue, and the
-`workout-imports-396431756440` bucket are no longer used by any deployed code. Delete them
-manually after this change is deployed and verified.
+The former `workout-import-worker` Cloud Run service and `workout-imports` Cloud Tasks queue were
+retired after the client-side extraction cutover and removed from the project on 2026-09-18. The
+`workout-imports-396431756440` bucket is no longer used by deployed code, but still contains five
+active PDFs and five retained generations; its application access bindings have been removed.
+Delete the bucket only after the retained objects are explicitly approved for deletion.
 
 Migrations are applied before deployment and `Database__MigrateOnStartup` stays `false`:
 
