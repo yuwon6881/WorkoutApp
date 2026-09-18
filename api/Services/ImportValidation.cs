@@ -8,21 +8,34 @@ internal static class ImportValidation
         => draft.Workouts.Where(w => !w.IsRestDay).SelectMany(w => w.Exercises).Where(e => e.ExerciseId == null)
             .Select(e => new UnresolvedExercise(e.LineId, e.SourceName)).ToList();
 
+    /// What the reviewer is told about the draft. A ninety-day program has ninety days without a
+    /// weekday and hundreds of sets the document never rated, and one line each buries everything
+    /// worth reading under a list nobody scrolls. Each kind is counted once and names the first
+    /// few days it applies to, so the review reads as a summary rather than a log.
     public static List<ImportReviewIssue> ReviewIssues(ImportDraft draft)
     {
         var issues = new List<ImportReviewIssue>();
-        foreach (var day in draft.Workouts.Where(w => !w.IsRestDay))
-        {
-            if (day.Weekday is null)
-                issues.Add(new ImportReviewIssue("schedule_required", $"{day.Name} has no weekday yet; choose one before activation.", "blocking", day.SourcePage));
-            foreach (var set in day.Exercises.SelectMany(e => e.Sets).Where(s => !s.Warmup))
-            {
-                if (set.TargetRpe is null)
-                    issues.Add(new ImportReviewIssue("rpe_unspecified", $"{day.Name} contains a working set without a target RPE; it will remain unspecified.", "warning", set.SourcePage ?? day.SourcePage));
-                if (set.RestSeconds is null && string.IsNullOrWhiteSpace(set.RestText))
-                    issues.Add(new ImportReviewIssue("rest_unspecified", $"{day.Name} contains a set without a stated rest; it will remain unspecified.", "warning", set.SourcePage ?? day.SourcePage));
-            }
-        }
+        var training = draft.Workouts.Where(w => !w.IsRestDay).ToList();
+
+        var unscheduled = training.Where(day => day.Weekday is null).ToList();
+        if (unscheduled.Count > 0)
+            issues.Add(new ImportReviewIssue("schedule_required",
+                $"{Count(unscheduled.Count, "day has", "days have")} no weekday yet; choose one for each before activation. {Naming(unscheduled)}",
+                "blocking", unscheduled[0].SourcePage));
+
+        var working = training.SelectMany(day => day.Exercises.SelectMany(e => e.Sets).Where(s => !s.Warmup).Select(set => (day, set))).ToList();
+        var unrated = working.Where(item => item.set.TargetRpe is null).ToList();
+        if (unrated.Count > 0)
+            issues.Add(new ImportReviewIssue("rpe_unspecified",
+                $"{Count(unrated.Count, "working set has", "working sets have")} no target RPE in the PDF; {(unrated.Count == 1 ? "it remains" : "they remain")} unspecified. {Naming(unrated.Select(item => item.day))}",
+                "warning", unrated[0].set.SourcePage ?? unrated[0].day.SourcePage));
+
+        var unrested = working.Where(item => item.set.RestSeconds is null && string.IsNullOrWhiteSpace(item.set.RestText)).ToList();
+        if (unrested.Count > 0)
+            issues.Add(new ImportReviewIssue("rest_unspecified",
+                $"{Count(unrested.Count, "set has", "sets have")} no stated rest in the PDF; {(unrested.Count == 1 ? "it remains" : "they remain")} unspecified. {Naming(unrested.Select(item => item.day))}",
+                "warning", unrested[0].set.SourcePage ?? unrested[0].day.SourcePage));
+
         foreach (var phase in GroupDraftPhases(draft.Workouts))
         {
             var weeks = phase.Select(day => day.Week).Distinct().OrderBy(week => week).ToList();
@@ -33,6 +46,20 @@ internal static class ImportValidation
                         "warning", phase[0].SourcePage));
         }
         return issues;
+    }
+
+    private static string Count(int count, string one, string many)
+        => count == 1 ? $"1 {one}" : $"{count} {many}";
+
+    /// Which days a counted issue falls on, without listing a hundred of them.
+    private static string Naming(IEnumerable<DraftWorkout> days)
+    {
+        var names = days.Select(day => day.Name.Trim()).Where(name => name.Length > 0).Distinct().ToList();
+        if (names.Count == 0) return "";
+        var shown = names.Take(3).ToList();
+        return names.Count <= shown.Count
+            ? $"On {string.Join(", ", shown)}."
+            : $"On {string.Join(", ", shown)} and {names.Count - shown.Count} more.";
     }
 
     public static async Task ValidateDraft(ImportDraft draft, CatalogService catalog, CancellationToken ct)
@@ -300,7 +327,11 @@ internal static class ImportValidation
                 $"'{chunk.Label}' lists {repeated} day{(repeated == 1 ? "" : "s")} that read identically. Both were kept — delete one in the review if the document only has it once.",
                 "warning", chunk.PageFrom));
 
-        if (workouts.Count != chunk.DayCount)
+        // The outline's count is an estimate made from page previews and divided across the
+        // sections its pages became, so it is a day or two out almost every time and saying so
+        // every time buries the notices that matter. Only a section that read barely half of what
+        // was expected is worth a reviewer's attention: that is what missed pages look like.
+        if (workouts.Count * 2 < chunk.DayCount)
             notices.Add(new ImportReviewIssue("chunk_day_count",
                 $"'{chunk.Label}' was outlined as about {chunk.DayCount} day{(chunk.DayCount == 1 ? "" : "s")} but reads as {workouts.Count}. Check that section in the review.",
                 "warning", chunk.PageFrom));
@@ -311,8 +342,13 @@ internal static class ImportValidation
     public static List<ImportReviewIssue> ReadNotices(string json)
         => string.IsNullOrWhiteSpace(json) ? [] : Json.Read<List<ImportReviewIssue>>(json);
 
+    /// What makes two days the same day. The page is part of it: a program prints "Rest Day" on
+    /// every rest page of a block, so identical names in one week are two rest days rather than
+    /// one read twice, and dropping the repeat took a real day out of the program. The page a day
+    /// was read from is what tells them apart — the same day read twice by two sections whose
+    /// pages overlap still reports the same page.
     public static string DayKey(DraftWorkout day)
-        => $"{day.Week}|{day.PhaseWeek}|{day.Block?.Trim()}|{day.Phase?.Trim()}|{day.Weekday}|{day.Name.Trim()}";
+        => $"{day.Week}|{day.PhaseWeek}|{day.Block?.Trim()}|{day.Phase?.Trim()}|{day.Weekday}|{day.SourcePage}|{day.Name.Trim()}";
 
     public static void ValidateChunkPages(IEnumerable<ImportChunk> chunks, string coverageJson)
     {

@@ -90,18 +90,23 @@ public sealed class CatalogService(AppDb db)
 
     /// Returns the catalog id for a written name, or null when nothing matches.
     /// An unmatched name stays unresolved; it is never guessed into a neighbouring exercise.
-    public async Task<Guid?> Match(string name, CancellationToken ct)
+    /// Every name the library answers to, against the exercise it names. A caller with many names
+    /// to place — an import draft is a hundred of them — builds this once and asks it directly,
+    /// rather than reading the whole catalog again for each name. It is never held between calls:
+    /// rematching a parked draft exists precisely to see a library that has changed since.
+    public async Task<Dictionary<string, Guid>> MatchIndex(CancellationToken ct)
     {
-        var key = Normalize(name);
-        if (key.Length == 0) return null;
-        var alias = await db.Aliases.AsNoTracking().FirstOrDefaultAsync(a => a.Normalized == key, ct);
-        if (alias != null) return alias.ExerciseId;
-        var exercises = await db.Exercises.AsNoTracking().Where(x => x.Active).ToListAsync(ct);
-        var catalog = exercises.FirstOrDefault(x => Normalize(x.Name) == key);
-        if (catalog != null) return catalog.Id;
-        var custom = await db.CustomExercises.AsNoTracking().Where(x => !x.Archived).ToListAsync(ct);
-        return custom.FirstOrDefault(x => Normalize(x.Name) == key)?.Id;
+        var built = new Dictionary<string, Guid>(StringComparer.Ordinal);
+        // Later entries never displace earlier ones, so a curated alias keeps its exercise when a
+        // custom name happens to normalise to the same words.
+        foreach (var alias in await db.Aliases.AsNoTracking().ToListAsync(ct)) built.TryAdd(alias.Normalized, alias.ExerciseId);
+        foreach (var exercise in await db.Exercises.AsNoTracking().Where(x => x.Active).ToListAsync(ct)) built.TryAdd(Normalize(exercise.Name), exercise.Id);
+        foreach (var custom in await db.CustomExercises.AsNoTracking().Where(x => !x.Archived).ToListAsync(ct)) built.TryAdd(Normalize(custom.Name), custom.Id);
+        return built;
     }
+
+    public async Task<Guid?> Match(string name, CancellationToken ct)
+        => CatalogMatching.Find(await MatchIndex(ct), name);
 
     public async Task<HashSet<Guid>> ActiveIds(CancellationToken ct)
     {

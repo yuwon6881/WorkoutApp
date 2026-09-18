@@ -117,7 +117,11 @@ function ExerciseEditor({ exercise, exercises, onChange }: { exercise: DraftExer
       />
     </label><label className="field">Superset group<input value={exercise.sequenceGroup} onChange={e => onChange({ ...exercise, sequenceGroup: e.target.value })} placeholder="A1" /></label>
       <label className="field">Substitutions<input value={exercise.substitutions.join(', ')} onChange={e => onChange({ ...exercise, substitutions: e.target.value.split(',').map(s => s.trim()).filter(Boolean).slice(0, 2) })} placeholder="Optional alternates" /></label></div>
-    {exercise.notes && <p className="note-block">{exercise.notes}</p>}
+    {/* The coaching note is what the page said about the movement and is as worth correcting as
+        anything else the read got from it, so it is edited here rather than only displayed. */}
+    <TextAreaField label="Notes from the PDF" value={exercise.notes ?? ''} placeholder="Cues, tempo or coaching notes"
+      onChange={e => onChange({ ...exercise, notes: e.target.value })} />
+
     <div className="set-table import-set-table"><div className="set-table-head"><span>Set</span><span>Reps</span><span>RPE/RIR</span><span>%1RM</span><span>Rest</span><span>Source</span><span /></div>
       {exercise.sets.map((set, i) => <div className={`set-row ${set.warmup ? 'warmup-row' : ''}`} key={i}><span className="set-number">{set.warmup ? `W${i + 1}` : i + 1}</span>
         <div className="set-fields">

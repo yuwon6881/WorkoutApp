@@ -10,7 +10,10 @@ public record AiSet(
     string? RepsText = null, string? RestText = null, string? Percent1Rm = null, string? Rir = null,
     string RepsSource = "extracted", string RpeSource = "extracted", string RestSource = "extracted", int? SourcePage = null);
 public record AiExercise(string SourceName, string? ExerciseId, string? Notes, List<AiSet> Sets,
-    string? SequenceGroup = null, string? WarmupSets = null, List<string>? Substitutions = null, string? CoachingNotes = null, int? SourcePage = null);
+    string? SequenceGroup = null, string? WarmupSets = null, List<string>? Substitutions = null, string? CoachingNotes = null, int? SourcePage = null,
+    /// A training table states its working sets as a count in its own column rather than as one
+    /// row per set, so the count is carried verbatim and the rows are expanded to match it.
+    string? WorkingSets = null);
 public record AiWorkout(string Name, string? Focus, string? Notes, List<AiExercise> Exercises);
 public record AiWeek(int Week, List<AiWorkout> Workouts);
 public record AiDay(string? Block, string? Phase, int WeekNumber, int PhaseWeek, string DayName, bool IsRestDay, string? Notes, List<AiExercise> Exercises,
@@ -27,10 +30,11 @@ public record AiImportResult(AiProgram Program, string Model, long InputTokens, 
 /// That keeps a 70 MB illustrated training book inside an ordinary JSON request.
 public sealed class WorkoutAi(HttpClient http, IConfiguration config)
 {
-    /// Bumped when a change here would make a stored import inconsistent with a new read. v4
-    /// divides the outline into sections small enough to read whole, so an import made under v3
-    /// keeps its oversized sections and the same document read again gets the new ones.
-    public const string PromptVersion = "workout-import-v4-text";
+    /// Bumped when a change here would make a stored import inconsistent with a new read, so the
+    /// same document read again starts afresh rather than continuing under the older shape. v4
+    /// divided the outline into sections small enough to read whole; v5 asks a table for the
+    /// working-set count it states in a column.
+    public const string PromptVersion = "workout-import-v5-text";
 
     /// One cheap pass over a page-by-page view of the document. Most of a commercial training PDF
     /// is explanation and photography; this pass exists to find the few pages that actually carry

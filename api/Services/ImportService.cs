@@ -64,24 +64,27 @@ public sealed partial class ImportService(AppDb db, WorkoutAi ai, CatalogService
     public async Task<ImportDraft> ToDraft(AiProgram program, CancellationToken ct)
     {
         var active = await catalog.ActiveIds(ct);
+        // A draft is a hundred written names, and reading the whole library for each of them was a
+        // hundred passes over the catalog. It is read once here and asked directly per name.
+        var library = await catalog.MatchIndex(ct);
         var title = ImportNormalization.Label(program.ProgramTitle ?? program.ProgramName, 120, "Imported program");
         var workouts = new List<DraftWorkout>();
         if (program.Days is { } days)
         {
             foreach (var day in days)
-                workouts.Add(await ToDraftWorkout(day.Block, day.Phase, day.WeekNumber, day.PhaseWeek, day.DayName, day.IsRestDay, day.Notes, day.Exercises, active, ct, weekday: day.Weekday, sourcePage: day.SourcePage));
+                workouts.Add(ToDraftWorkout(day.Block, day.Phase, day.WeekNumber, day.PhaseWeek, day.DayName, day.IsRestDay, day.Notes, day.Exercises, active, library, weekday: day.Weekday, sourcePage: day.SourcePage));
         }
         else
         {
             foreach (var week in program.Weeks!.OrderBy(w => w.Week))
                 foreach (var workout in week.Workouts ?? [])
-                    workouts.Add(await ToDraftWorkout(null, null, week.Week, 1, workout.Name, false, workout.Notes, workout.Exercises, active, ct, workout.Focus));
+                    workouts.Add(ToDraftWorkout(null, null, week.Week, 1, workout.Name, false, workout.Notes, workout.Exercises, active, library, workout.Focus));
         }
         return new ImportDraft(title, ImportNormalization.Text(program.Description, 4000), workouts);
     }
 
-    private async Task<DraftWorkout> ToDraftWorkout(string? block, string? phase, int week, int phaseWeek, string name, bool restDay,
-        string? notes, List<AiExercise>? sourceExercises, HashSet<Guid> active, CancellationToken ct, string? focus = null,
+    private static DraftWorkout ToDraftWorkout(string? block, string? phase, int week, int phaseWeek, string name, bool restDay,
+        string? notes, List<AiExercise>? sourceExercises, HashSet<Guid> active, Dictionary<string, Guid> library, string? focus = null,
         int? weekday = null, int? sourcePage = null)
     {
         var exercises = new List<DraftExercise>();
@@ -90,8 +93,15 @@ public sealed partial class ImportService(AppDb db, WorkoutAi ai, CatalogService
             foreach (var source in sourceExercises ?? [])
             {
                 Guid? id = Guid.TryParse(source.ExerciseId, out var parsed) && active.Contains(parsed) ? parsed : null;
-                id ??= await catalog.Match(source.SourceName, ct);
+                id ??= CatalogMatching.Find(library, source.SourceName);
                 var working = source.Sets.Select(ToDraftSet).ToList();
+                // A training table states its working sets as a count in its own column — "WORKING
+                // SETS: 2" — rather than as one row per set, and a read that returns a single row
+                // for it loses every set but one. The stated count is authoritative over the rows:
+                // the last row is repeated up to it, marked as this app's own expansion.
+                var stated = ParseSetCount(source.WorkingSets);
+                while (working.Count > 0 && working.Count < stated)
+                    working.Add(working[^1] with { RepsSource = "inferred", RpeSource = "inferred", RestSource = "inferred" });
                 var warmups = ParseWarmupCount(source.WarmupSets);
                 // A movement can be listed with no prescription at all, and then there is nothing
                 // for a warm-up to be modelled on. The exercise is given its one set further on.
@@ -176,6 +186,13 @@ public sealed partial class ImportService(AppDb db, WorkoutAi ai, CatalogService
     {
         if (!TryFirstNumber(text, out var number)) return 0;
         return Math.Clamp((int)Math.Floor(number), 0, 8);
+    }
+
+    /// A stated working-set count, held to what one exercise can carry.
+    private static int ParseSetCount(string? text)
+    {
+        if (!TryFirstNumber(text, out var number)) return 0;
+        return Math.Clamp((int)Math.Floor(number), 0, ImportDayShape.MaxExerciseSets);
     }
 
     private static bool TryFirstNumber(string? text, out double value)
