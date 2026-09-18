@@ -93,7 +93,7 @@ public sealed class CatalogService(AppDb db)
     /// Every name the library answers to, against the exercise it names. A caller with many names
     /// to place — an import draft is a hundred of them — builds this once and asks it directly,
     /// rather than reading the whole catalog again for each name. It is never held between calls:
-    /// rematching a parked draft exists precisely to see a library that has changed since.
+    /// A reviewer can choose an exercise explicitly when an import name was not matched.
     public async Task<Dictionary<string, Guid>> MatchIndex(CancellationToken ct)
     {
         var built = new Dictionary<string, Guid>(StringComparer.Ordinal);

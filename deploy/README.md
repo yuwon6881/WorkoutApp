@@ -21,8 +21,10 @@ Singapore. The FinancialApp and NutritionApp services and databases are independ
 
 The API runs with 1 CPU, 2 GiB, a 3,600 second timeout, HTTP/1.1, concurrency 1, and minimum 0 /
 maximum 1 instances. PDF import needs nothing else: the browser reads the document's text on the
-device and posts it gzipped, and each pass is one short text-only model call driven by that
-browser. An hourly maintenance request runs the retention sweep; because the API is reachable
+device and posts it gzipped. The extract endpoint starts an in-process background pass and returns
+immediately; the browser polls the import row while the runner reads sections and commits them in
+outline order. `--no-cpu-throttling` keeps that pass running between polls even when the service
+scales from zero. An hourly maintenance request runs the retention sweep; because the API is reachable
 without Cloud Run IAM, `/internal/import-maintenance` exists only when `Maintenance__Secret` is
 configured and answers 404 unless the request presents it in `X-Workout-Maintenance-Secret`.
 

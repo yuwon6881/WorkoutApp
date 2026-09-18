@@ -168,20 +168,6 @@ public class AiImportTests
         Assert.True(view.Acceptable);
     }
 
-    [Fact] public async Task A_draft_parked_before_a_seed_picks_the_exercise_up_on_rematch()
-    {
-        await using var h = await Harness.Create(Configured);
-        await h.SignIn();
-        var imports = h.Imports(StubHandler.Program(OneWorkout));
-        var view = await imports.Create(Source("block.pdf"), default);
-        Assert.True(view.Acceptable);
-
-        await h.Seed(new SeedExercise("bench", "Barbell bench press", "Chest", "Barbell", "Cue", null));
-        var rematched = await imports.Rematch(view.Id, default);
-        Assert.Empty(rematched.Unresolved);
-        Assert.True(rematched.Acceptable);
-    }
-
     [Fact] public async Task An_id_the_model_invents_is_dropped_rather_than_trusted()
     {
         await using var h = await Harness.Create(Configured);

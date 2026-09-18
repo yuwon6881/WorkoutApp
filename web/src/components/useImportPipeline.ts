@@ -9,6 +9,9 @@ export type ImportProgress = { label: string; detail: string; percent: number | 
 
 export type ImportFailure = { message: string };
 
+const POLL_INTERVAL_MS = 2_000;
+const STALL_INTERVAL_MS = 90_000;
+
 export type ImportPipeline = {
   progress: ImportProgress | null;
   failure: ImportFailure | null;
@@ -32,8 +35,9 @@ type Options = {
 };
 
 /// Coordinates the whole read of a PDF: the text is extracted here, on this device, and only that
-/// text is sent. The server then reads an outline and one section at a time, and holds the
-/// extracted text for a day so a reload continues an unfinished import instead of restarting it.
+/// text is sent. The server reads the outline and sections in its background runner while this hook
+/// polls persisted progress, and holds the extracted text for a day so a reload continues an
+/// unfinished import instead of restarting it.
 export function useImportPipeline({ selected, setSelected, setDraft, onChanged, onComplete }: Options): ImportPipeline {
   const [progress, setProgress] = useState<ImportProgress | null>(null);
   const [failure, setFailure] = useState<ImportFailure | null>(null);
@@ -69,26 +73,74 @@ export function useImportPipeline({ selected, setSelected, setDraft, onChanged, 
 
   const extractAll = useCallback(async (start: ImportView) => {
     let current = start;
-    while (current.status === 'pending' && current.stage === 'extract' && current.chunksDone < current.chunksTotal) {
-      // One pass reads every section the import still owes, so the label counts what is in flight
-      // rather than naming a single section the read has already gone past.
-      const remaining = current.chunksTotal - current.chunksDone;
+    let lastDone = current.chunksDone;
+    let lastStage = current.stage;
+    let lastProgressAt = Date.now();
+
+    const showProgress = (view: ImportView) => {
+      const remaining = Math.max(0, view.chunksTotal - view.chunksDone);
       setProgress({
-        label: remaining > 1 ? `Reading ${remaining} sections at once` : 'Reading the last section',
-        detail: remaining > 1 ? 'Sections commit in order as they land.' : current.currentChunkLabel ?? '',
-        percent: Math.round((current.chunksDone / current.chunksTotal) * 100)
+        label: view.stage === 'outline'
+          ? 'Reading the outline'
+          : remaining > 1 ? `Reading ${remaining} sections` : 'Reading the last section',
+        detail: remaining > 1 ? 'Sections commit in order as they land.' : view.currentChunkLabel ?? '',
+        percent: view.chunksTotal > 0 ? Math.round((view.chunksDone / view.chunksTotal) * 100) : null
       });
-      try {
-        current = await api.extractImport(current.id);
-      } catch (error) {
-        reportFor(current.id, error, 'That section could not be read. Try again.');
-        if (cancelled.current !== current.id) await refresh(current.id);
-        return;
-      }
+    };
+
+    showProgress(current);
+    try {
+      // The POST only kicks the server-side pass. It is intentionally not held open while model
+      // calls run behind the Vercel proxy.
+      current = await api.extractImport(current.id);
       apply(current);
-      await onChanged();
+      showProgress(current);
+
+      while (current.status === 'pending' && current.stage !== 'select') {
+        await new Promise(resolve => window.setTimeout(resolve, POLL_INTERVAL_MS));
+        try {
+          current = await api.getImport(current.id);
+        } catch (error) {
+          reportFor(current.id, error, 'The import progress could not be loaded. Try again.');
+          if (cancelled.current !== current.id) await refresh(current.id);
+          return;
+        }
+        apply(current);
+        showProgress(current);
+
+        if (current.stage !== lastStage || current.chunksDone > lastDone) {
+          lastStage = current.stage;
+          lastDone = current.chunksDone;
+          lastProgressAt = Date.now();
+        }
+        if (current.error) {
+          reportFor(current.id, new Error(current.error), current.error);
+          return;
+        }
+        if (current.status !== 'pending' || current.stage === 'select') break;
+
+        if (Date.now() - lastProgressAt >= STALL_INTERVAL_MS) {
+          // A recycled scale-to-zero instance has no in-memory pass left. Kicking again is safe
+          // when the original is still alive because ImportRunner coalesces the duplicate.
+          try {
+            current = await api.extractImport(current.id);
+            apply(current);
+            showProgress(current);
+          } catch (error) {
+            reportFor(current.id, error, 'That import could not be restarted. Try again.');
+            return;
+          }
+          lastProgressAt = Date.now();
+        }
+      }
+    } catch (error) {
+      reportFor(current.id, error, 'That import could not be started. Try again.');
+      if (cancelled.current !== current.id) await refresh(current.id);
+      return;
     }
+
     if (current.status === 'ready') {
+      await onChanged();
       const count = current.draft?.workouts.length ?? 0;
       setNotice(`Read ${count} days. Review them before accepting.`);
       onComplete?.(count);
@@ -98,7 +150,7 @@ export function useImportPipeline({ selected, setSelected, setDraft, onChanged, 
   const advance = useCallback(async (view: ImportView) => {
     apply(view);
     await onChanged();
-    if (view.stage === 'extract') await extractAll(view);
+    if (view.status === 'pending' && view.stage !== 'select') await extractAll(view);
     else if (view.status === 'ready') {
       const count = view.draft?.workouts.length ?? 0;
       setNotice(`Read ${count} days. Review them before accepting.`);

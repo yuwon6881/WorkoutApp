@@ -168,7 +168,7 @@ public sealed partial class ImportService
         import.DraftJson = Json.Write(new ImportDraft(ProgramTitle(selected?.Name ?? result.Outline.ProgramTitle, import.FileName),
             ImportNormalization.Text(selected?.Description ?? result.Outline.Description, 4000), []));
         import.Stage = "extract"; import.Status = ImportStatus.Pending; import.ChunksDone = 0; import.ChunksTotal = chunks.Count;
-        import.UnresolvedCount = 0; import.CatalogStale = false;
+        import.UnresolvedCount = 0;
     }
 
     public async Task<ImportView> SelectAlternative(Guid id, string alternativeId, CancellationToken ct)
@@ -228,11 +228,16 @@ public sealed partial class ImportService
             {
                 // The account lock is not reentrant, so the outline pass starts after this closes.
                 outlinePages = pages;
+                import.Error = "";
+                import.Revision++;
+                await db.SaveChangesAsync(ct);
                 await claim.Commit(ct);
             }
             else
             {
                 Validation.Require(import.Status == ImportStatus.Pending && import.Stage == "extract", "This import is not waiting for another extraction pass.", 409);
+                import.Error = "";
+                import.Revision++;
                 var chunks = ReadChunks(import.OutlineJson);
                 Validation.Require(import.ChunksDone < chunks.Count, "This import has already finished extracting.", 409);
                 ValidateChunkPages(chunks.Skip(import.ChunksDone), import.PageCoverageJson);
@@ -378,6 +383,24 @@ public sealed partial class ImportService
         return await Get(id, ct);
     }
 
+    /// Runs the synchronous extraction path from an owned background scope. HTTP callers use the
+    /// runner, while direct callers and tests can still await Extract deterministically.
+    public async Task RunExtract(Guid id, CancellationToken ct)
+    {
+        try
+        {
+            await Extract(id, ct);
+        }
+        catch (DomainException ex)
+        {
+            await RecordBackgroundFailure(id, ex.Message);
+        }
+        catch (Exception) when (!ct.IsCancellationRequested)
+        {
+            await RecordBackgroundFailure(id, "That extraction did not finish. Try again.");
+        }
+    }
+
     /// What one section asks the model for. The outline's day count travels with it as an estimate
     /// rather than an instruction, because the pages themselves are the authority on how many days
     /// they document.
@@ -441,6 +464,20 @@ public sealed partial class ImportService
         if (import is null || import.Status != ImportStatus.Pending) { await gate.Commit(settle); return; }
         import.Error = message; import.Retries++; import.Revision++;
         await db.SaveChangesAsync(settle);
+        await gate.Commit(settle);
+    }
+
+    private async Task RecordBackgroundFailure(Guid importId, string message)
+    {
+        var settle = CancellationToken.None;
+        db.ChangeTracker.Clear();
+        await using var gate = await MutationLock.Acquire(db, db.CurrentUser, settle);
+        var import = await db.Imports.SingleOrDefaultAsync(i => i.Id == importId, settle);
+        if (import is not null && import.Status == ImportStatus.Pending && string.IsNullOrWhiteSpace(import.Error))
+        {
+            import.Error = message; import.Retries++; import.Revision++;
+            await db.SaveChangesAsync(settle);
+        }
         await gate.Commit(settle);
     }
 

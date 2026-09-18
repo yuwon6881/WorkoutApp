@@ -108,7 +108,6 @@ export const api = {
   retryImport: (id: string) => call<ImportView>(`/api/imports/${id}/retry`, 'POST'),
   editImport: (id: string, draft: Pick<ImportDraft, 'programName' | 'description'>) => call<ImportView>(`/api/imports/${id}`, 'PUT', draft),
   editImportDay: (id: string, day: DraftWorkout) => call<ImportView>(`/api/imports/${id}/days/${day.lineId}`, 'PUT', day),
-  rematchImport: (id: string) => call<ImportView>(`/api/imports/${id}/rematch`, 'POST'),
   selectImportAlternative: (id: string, alternativeId: string) => call<ImportView>(`/api/imports/${id}/alternative`, 'POST', { alternativeId }),
   acceptImport: (id: string, acknowledgeUnspecified = false) => call<Program>(`/api/imports/${id}/accept`, 'POST', { timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone, acknowledgeUnspecified }),
   discardImport: (id: string) => call<void>(`/api/imports/${id}/discard`, 'POST')

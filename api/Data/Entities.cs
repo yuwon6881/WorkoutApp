@@ -291,6 +291,8 @@ public sealed class AiImport : OwnedRecord
     public int ChunksTotal { get; set; }
     public int Calls { get; set; }
     public int UnresolvedCount { get; set; }
+    // Legacy persisted state retained for database compatibility; review mappings use the
+    // searchable picker now.
     public bool CatalogStale { get; set; }
     public long InputTokens { get; set; }
     public long OutputTokens { get; set; }

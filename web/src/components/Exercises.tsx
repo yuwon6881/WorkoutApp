@@ -1,11 +1,12 @@
-import { useEffect, useRef, useState, type FormEvent } from 'react';
-import { ChevronLeft, ChevronRight, Dumbbell, Library, Plus, Search, X, Trash2, RotateCcw, TrendingUp } from 'lucide-react';
+import { useEffect, useState, type FormEvent } from 'react';
+import { Dumbbell, Library, Plus, Search, X, Trash2, RotateCcw, TrendingUp } from 'lucide-react';
 import type { Exercise, ExerciseClearPreview, ExerciseInsight, Session } from '../types';
 import { ApiError, api } from '../lib/api';
 import { Button } from './ui/Button';
 import { Field, TextAreaField } from './ui/Field';
 import { Modal } from './ui/Modal';
 import { Select } from './ui/Select';
+import { ChipScroller } from './ui/ChipScroller';
 
 /// The catalog is supplied by the server and is empty until a seed file is loaded, so the
 /// empty state explains that rather than implying the user should have added something.
@@ -14,44 +15,12 @@ export function ExerciseLibrary({ exercises, onSelect, exclude = [], onOpen, onC
   const [muscle, setMuscle] = useState('All muscles');
   const [source, setSource] = useState<'all' | 'custom'>('all');
   const [createOpen, setCreateOpen] = useState(false);
-  const chipsRef = useRef<HTMLDivElement>(null);
-  const [canScrollLeft, setCanScrollLeft] = useState(false);
-  const [canScrollRight, setCanScrollRight] = useState(false);
 
   const muscles = ['All muscles', ...new Set(exercises.map(e => e.muscle).filter(Boolean))];
   const filtered = exercises.filter(e => !exclude.includes(e.id)
     && (source === 'all' || e.isCustom)
     && (muscle === 'All muscles' || e.muscle === muscle)
     && `${e.name} ${e.equipment} ${e.muscle} ${e.movementPattern ?? ''} ${e.aliases.join(' ')}`.toLowerCase().includes(query.toLowerCase()));
-
-  const checkScroll = () => {
-    const el = chipsRef.current;
-    if (!el) return;
-    setCanScrollLeft(el.scrollLeft > 2);
-    setCanScrollRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 2);
-  };
-
-  useEffect(() => {
-    const el = chipsRef.current;
-    if (!el) return;
-    // A browser may restore the horizontal scroll position when returning to this page. Start
-    // with the first filter aligned beside the navigation control, then measure after layout.
-    el.scrollLeft = 0;
-    const frame = window.requestAnimationFrame(checkScroll);
-    el.addEventListener('scroll', checkScroll, { passive: true });
-    window.addEventListener('resize', checkScroll);
-    return () => {
-      window.cancelAnimationFrame(frame);
-      el.removeEventListener('scroll', checkScroll);
-      window.removeEventListener('resize', checkScroll);
-    };
-  }, [muscles.join('|')]);
-
-  const scrollChips = (direction: 'left' | 'right') => {
-    const el = chipsRef.current;
-    if (!el) return;
-    el.scrollBy({ left: direction === 'left' ? -240 : 240, behavior: 'smooth' });
-  };
 
   if (!exercises.length) return <>
     {!onSelect && <div className="page-heading"><h1>Exercises</h1><Button variant="primary" onClick={() => setCreateOpen(true)}><Plus size={16} />Create exercise</Button></div>}
@@ -76,17 +45,8 @@ export function ExerciseLibrary({ exercises, onSelect, exclude = [], onOpen, onC
         <Button presentation="plain" className={`filter-chip ${source === 'custom' ? 'active' : ''}`} onClick={() => setSource('custom')}>Custom</Button>
       </div>}
     </div>
-    <div className="filter-chips-nav">
-      <Button
-        presentation="plain"
-        className="filter-nav-btn"
-        aria-label="Scroll muscle filters left"
-        disabled={!canScrollLeft}
-        onClick={() => scrollChips('left')}
-      >
-        <ChevronLeft size={18} />
-      </Button>
-      <div className="filter-chips" ref={chipsRef} role="group" aria-label="Filter exercises by muscle">
+    <ChipScroller ariaLabel="Filter exercises by muscle" resetKey={muscles.join('|')}
+      leftLabel="Scroll muscle filters left" rightLabel="Scroll muscle filters right">
         {muscles.map(m => (
           <Button
             presentation="plain"
@@ -97,17 +57,7 @@ export function ExerciseLibrary({ exercises, onSelect, exclude = [], onOpen, onC
             {m}
           </Button>
         ))}
-      </div>
-      <Button
-        presentation="plain"
-        className="filter-nav-btn"
-        aria-label="Scroll muscle filters right"
-        disabled={!canScrollRight}
-        onClick={() => scrollChips('right')}
-      >
-        <ChevronRight size={18} />
-      </Button>
-    </div>
+    </ChipScroller>
     <div className={onSelect ? 'picker-list' : 'exercise-grid'}>{filtered.map(e =>
       onSelect ? (
         <article className="panel picker-card" key={e.id}>

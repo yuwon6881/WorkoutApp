@@ -37,6 +37,7 @@ builder.Services.AddHttpClient<IIntegrationKms, IntegrationKmsService>(c => c.Ti
 builder.Services.AddScoped<IntegrationTokenService>();
 builder.Services.AddScoped<WorkoutService>();
 builder.Services.AddScoped<ImportService>();
+builder.Services.AddSingleton<ImportRunner>();
 builder.Services.AddHostedService<ImportCleanupWorker>();
 builder.Services.AddAuthentication(options =>
 {

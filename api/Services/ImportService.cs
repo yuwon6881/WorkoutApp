@@ -50,8 +50,8 @@ public sealed partial class ImportService(AppDb db, WorkoutAi ai, CatalogService
         return new ImportView(import.Id, import.Status, import.FileName, import.Pages, import.Error, import.Created, import.Model,
             import.Stage, import.ChunksDone, import.ChunksTotal, chunks.ElementAtOrDefault(import.ChunksDone)?.Label, unresolvedCount, draft,
             // Unmapped names are a review warning, not a reason to discard a faithful import;
-            // a catalog id that went inactive is different and still needs rematching.
-            unresolved, import.Status == ImportStatus.Ready && !import.CatalogStale, import.ProgramId, issues,
+            // the reviewer can link them explicitly from the searchable picker.
+            unresolved, import.Status == ImportStatus.Ready, import.ProgramId, issues,
             import.InputTokens, import.OutputTokens, import.Retries, import.SourceExpiresAt, coverage, alternatives, import.SelectedAlternativeId);
     }
 
@@ -256,31 +256,6 @@ public sealed partial class ImportService(AppDb db, WorkoutAi ai, CatalogService
         return await Get(id, ct);
     }
 
-    public async Task<ImportView> Rematch(Guid id, CancellationToken ct)
-    {
-        await using var gate = await MutationLock.Acquire(db, db.CurrentUser, ct);
-        var import = await db.Imports.SingleOrDefaultAsync(i => i.Id == id, ct);
-        Validation.Require(import != null, "That import no longer exists.", 404);
-        Validation.Require(import!.Status == ImportStatus.Ready, "This import has no draft to rematch.", 409);
-        var draft = Json.Read<ImportDraft>(import.DraftJson);
-        var active = await catalog.ActiveIds(ct);
-        var workouts = new List<DraftWorkout>();
-        foreach (var workout in draft.Workouts)
-        {
-            var exercises = workout.Exercises.Select(async exercise =>
-            {
-                var resolved = exercise.ExerciseId is { } current && active.Contains(current) ? current : await catalog.Match(exercise.SourceName, ct);
-                return exercise with { ExerciseId = resolved };
-            }).ToList();
-            workouts.Add(workout with { Exercises = (await Task.WhenAll(exercises)).ToList() });
-        }
-        var next = draft with { Workouts = workouts };
-        import.DraftJson = Json.Write(next); import.Revision++; UpdateCounters(import, next);
-        await db.SaveChangesAsync(ct);
-        await gate.Commit(ct);
-        return await Get(id, ct);
-    }
-
     /// Acceptance is all-or-nothing: unmatched exercise names are intentionally kept as
     /// unresolved rows and remain usable through name-based history matching.
     // The original overload remains for callers compiled against the first importer. It follows
@@ -391,7 +366,6 @@ public sealed partial class ImportService(AppDb db, WorkoutAi ai, CatalogService
     {
         var unresolved = Unresolved(draft);
         import.UnresolvedCount = unresolved.Count;
-        import.CatalogStale = draft.Workouts.SelectMany(w => w.Exercises).Any(e => e.ExerciseId is null ? false : !db.Exercises.Any(x => x.Id == e.ExerciseId && x.Active));
     }
 
     private static void ValidateChunkPages(IEnumerable<ImportChunk> chunks, string coverageJson)

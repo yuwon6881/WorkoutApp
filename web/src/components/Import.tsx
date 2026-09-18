@@ -211,11 +211,10 @@ export function ImportReview({ exercises, imports, remaining, onBack, onChanged,
       </section>
       {draft.workouts.length > 0 ? <DraftOutline draft={draft} expandedDay={expandedDay} setExpandedDay={setExpandedDay} exercises={exercises} onDayChange={persistDay} />
         : <section className="panel"><div className="empty-message"><AlertTriangle size={30} /><h3>No extracted days</h3><p>The draft needs at least one training or rest day.</p></div></section>}
-      <section className="panel"><div className="settings-actions">
-        <Button disabled={busy} onClick={() => pipeline.run('Matching against the library…', async () => { const view = await api.rematchImport(selected.id); setSelected(view); setDraft(view.draft); })}><Wand2 size={17} />Match against the library again</Button>
+      <section className="panel import-actions-panel"><div className="settings-actions import-actions">
         <Button variant="destructive" disabled={busy} onClick={() => pipeline.run('Discarding this draft…', async () => { await api.discardImport(selected.id); setSelected(null); setDraft(null); })}><Trash2 size={17} />Discard draft</Button>
         <Button variant="primary" disabled={busy || !selected.acceptable || (requiresAcknowledgement && !acknowledgeUnspecified)} onClick={() => pipeline.run('Creating the program…', async () => { await api.acceptImport(selected.id, acknowledgeUnspecified); setSelected(null); setDraft(null); onBack(); })}><Check size={17} />Accept and create program</Button>
-      </div>{requiresAcknowledgement && <label className="checkbox-field"><input type="checkbox" checked={acknowledgeUnspecified} onChange={event => setAcknowledgeUnspecified(event.target.checked)} />I acknowledge that the PDF did not state every working-set RPE or rest value; those remain unspecified.</label>}<p className="muted small-copy">Catalog matches are helpful but optional; unmapped names are preserved exactly.</p></section>
+      </div>{requiresAcknowledgement && <label className="checkbox-field import-acknowledgement"><input type="checkbox" checked={acknowledgeUnspecified} onChange={event => setAcknowledgeUnspecified(event.target.checked)} /><span>I acknowledge that the PDF did not state every working-set RPE or rest value; those remain unspecified.</span></label>}<p className="muted small-copy">Unmapped exercise names are preserved exactly; link them individually only when needed.</p></section>
     </>}
 
     {selected && selected.status === 'failed' && <section className="panel"><div className="empty-message"><AlertTriangle size={30} /><h3>Import failed</h3><p>{selected.error}</p><p className="muted">Nothing from that read was kept, so choose the PDF again.</p>

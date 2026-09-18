@@ -28,6 +28,14 @@ public sealed class DeploymentContractTests
     }
 
     [Fact]
+    public void Background_imports_keep_cpu_allocated_between_poll_requests()
+    {
+        var build = File.ReadAllText(Path.Combine(RepositoryRoot(), "cloudbuild.yaml"));
+
+        Assert.Contains("'--no-cpu-throttling'", build);
+    }
+
+    [Fact]
     public void Frontend_and_api_csp_explicitly_keep_styles_and_fonts_first_party()
     {
         var root = RepositoryRoot();

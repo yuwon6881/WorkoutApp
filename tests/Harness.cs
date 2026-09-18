@@ -1,6 +1,7 @@
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using Workout.Api.Data;
 using Workout.Api.Domain;
 using Workout.Api.Services;
@@ -11,6 +12,7 @@ namespace Workout.Tests;
 public sealed class Harness : IAsyncDisposable
 {
     private readonly SqliteConnection connection;
+    private readonly List<ServiceProvider> backgroundProviders = [];
     public AppDb Db { get; }
     public IConfiguration Config { get; }
     public AuthService Auth { get; }
@@ -65,6 +67,23 @@ public sealed class Harness : IAsyncDisposable
     public ImportService Imports(HttpMessageHandler handler)
         => new(Db, new WorkoutAi(new HttpClient(handler), Config), Catalog, Programs, Config);
 
+    public ImportRunner Runner(HttpMessageHandler handler)
+    {
+        var services = new ServiceCollection();
+        services.AddLogging();
+        services.AddSingleton<IConfiguration>(Config);
+        services.AddSingleton(Db);
+        services.AddScoped(_ => new WorkoutAi(new HttpClient(handler), Config));
+        services.AddScoped<CatalogService>();
+        services.AddScoped<TemplateService>();
+        services.AddScoped<ProgramService>();
+        services.AddScoped<ImportService>();
+        services.AddSingleton<ImportRunner>();
+        var provider = services.BuildServiceProvider();
+        backgroundProviders.Add(provider);
+        return provider.GetRequiredService<ImportRunner>();
+    }
+
     public async Task Seed(params SeedExercise[] exercises)
     {
         var user = Db.CurrentUser;
@@ -87,6 +106,7 @@ public sealed class Harness : IAsyncDisposable
 
     public async ValueTask DisposeAsync()
     {
+        foreach (var provider in backgroundProviders) await provider.DisposeAsync();
         await Db.DisposeAsync();
         await connection.DisposeAsync();
     }

@@ -2,6 +2,7 @@ using System.IO.Compression;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using Workout.Api.Data;
 using Workout.Api.Domain;
 using Workout.Api.Services;
 
@@ -46,12 +47,20 @@ public static class ImportEndpoints
         }).RequireRateLimiting("ai").DisableAntiforgery();
 
         // A read is billed the moment it starts, so closing the tab must not throw it away. The
-        // pass runs to completion and commits on its own; the browser is welcome to leave and find
-        // the finished draft when it comes back.
-        app.MapPost("/api/imports/{id:guid}/extract", async (Guid id, ImportService imports)
-            => await imports.Extract(id, CancellationToken.None)).RequireRateLimiting("ai-extract").DisableAntiforgery();
-        app.MapPost("/api/imports/{id:guid}/retry", async (Guid id, ImportService imports)
-            => await imports.Retry(id, CancellationToken.None)).RequireRateLimiting("ai-extract").DisableAntiforgery();
+        // runner owns the pass and this response only acknowledges the current persisted state;
+        // the browser polls the GET route while the model reads happen outside the proxy request.
+        app.MapPost("/api/imports/{id:guid}/extract", async (Guid id, AppDb db, ImportRunner runner, ImportService imports) =>
+        {
+            Validation.Require(db.CurrentUser is not null, "Sign in to load your training.", 401);
+            runner.Start(id, db.CurrentUser!.Value);
+            return await imports.Get(id, CancellationToken.None);
+        }).RequireRateLimiting("ai-extract").DisableAntiforgery();
+        app.MapPost("/api/imports/{id:guid}/retry", async (Guid id, AppDb db, ImportRunner runner, ImportService imports) =>
+        {
+            Validation.Require(db.CurrentUser is not null, "Sign in to load your training.", 401);
+            runner.Start(id, db.CurrentUser!.Value);
+            return await imports.Get(id, CancellationToken.None);
+        }).RequireRateLimiting("ai-extract").DisableAntiforgery();
 
         app.MapPut("/api/imports/{id:guid}", async (Guid id, JsonElement payload, ImportService imports, CancellationToken ct) =>
         {
@@ -61,7 +70,6 @@ public static class ImportEndpoints
         });
         app.MapPut("/api/imports/{id:guid}/days/{lineId:guid}", async (Guid id, Guid lineId, DraftWorkout day, ImportService imports, CancellationToken ct)
             => await imports.EditDay(id, lineId, day, ct));
-        app.MapPost("/api/imports/{id:guid}/rematch", async (Guid id, ImportService imports, CancellationToken ct) => await imports.Rematch(id, ct));
         app.MapPost("/api/imports/{id:guid}/alternative", async (Guid id, ImportAlternativeInput input, ImportService imports, CancellationToken ct)
             => await imports.SelectAlternative(id, input.AlternativeId, ct));
         app.MapPost("/api/imports/{id:guid}/accept", async (Guid id, HttpRequest request, ImportService imports, CancellationToken ct) =>

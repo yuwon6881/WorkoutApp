@@ -201,6 +201,17 @@ test('import a PDF program, preserve an unmapped exercise, and accept it', async
   await day.click();
   await expect(page.getByLabel('Reps').first()).toHaveValue('8–10');
 
+  // Review maps one exercise at a time through the searchable picker; the removed bulk rematch
+  // action must not return as a hidden or alternate path.
+  await expect(page.getByRole('button', { name: 'Match against the library again', exact: true })).toHaveCount(0);
+  const mapping = page.getByRole('button', { name: 'Library exercise for Mystery machine row', exact: true });
+  await mapping.click();
+  const picker = page.getByRole('dialog', { name: 'Choose a library exercise for Mystery machine row', exact: true });
+  await expect(picker).toBeVisible();
+  await picker.getByRole('textbox', { name: 'Search exercises', exact: true }).fill('bench press');
+  await expect(picker.getByRole('button', { name: 'Add Barbell bench press', exact: true })).toBeVisible();
+  await picker.getByRole('button', { name: 'Clear mapping', exact: true }).click();
+
   // The name the model could not match stays verbatim and does not block acceptance.
   await expect(page.getByText(/Unmapped · preserved/).first()).toBeVisible();
   const accept = page.getByRole('button', { name: 'Accept and create program', exact: true });
