@@ -17,11 +17,14 @@ internal static class ImportValidation
         var issues = new List<ImportReviewIssue>();
         var training = draft.Workouts.Where(w => !w.IsRestDay).ToList();
 
+        // A weekday comes from the order the document printed its week in, so one is missing only
+        // where a week held more days than a week has. That is worth saying once, and is settled
+        // on the program's own schedule screen rather than here.
         var unscheduled = training.Where(day => day.Weekday is null).ToList();
         if (unscheduled.Count > 0)
             issues.Add(new ImportReviewIssue("schedule_required",
-                $"{Count(unscheduled.Count, "day has", "days have")} no weekday yet; choose one for each before activation. {Naming(unscheduled)}",
-                "blocking", unscheduled[0].SourcePage));
+                $"{Count(unscheduled.Count, "day has", "days have")} more sessions in its week than a week has days, so {(unscheduled.Count == 1 ? "it has" : "they have")} no weekday. Give {(unscheduled.Count == 1 ? "it one" : "them one each")} when you activate the program. {Naming(unscheduled)}",
+                "warning", unscheduled[0].SourcePage));
 
         var working = training.SelectMany(day => day.Exercises.SelectMany(e => e.Sets).Where(s => !s.Warmup).Select(set => (day, set))).ToList();
         var unrated = working.Where(item => item.set.TargetRpe is null).ToList();

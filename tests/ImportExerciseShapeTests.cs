@@ -116,9 +116,9 @@ public sealed class ImportExerciseShapeTests
 
         Assert.Equal(ImportStatus.Ready, ready.Status);
         var workout = ready.Draft!.Workouts.Single();
-        // An unplaceable weekday and an impossible page become unknown; the review screen then
-        // asks for the weekday rather than the import failing over it.
-        Assert.Null(workout.Weekday);
+        // A weekday that is not a weekday is dropped, and the day then takes its place from the
+        // order the document printed rather than failing the import.
+        Assert.Equal(1, workout.Weekday);
         Assert.Null(workout.SourcePage);
         Assert.Null(workout.Exercises.Single().SourcePage);
         Assert.Equal("inferred", workout.Exercises.Single().Sets.Single().RepsSource);

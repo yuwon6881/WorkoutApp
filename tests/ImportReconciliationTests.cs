@@ -168,9 +168,10 @@ public sealed class ImportReconciliationTests
         Assert.Equal(2, ready.Draft!.Workouts.Count);
         var notice = Assert.Single(ready.ReviewIssues!, issue => issue.Code == "repeated_day");
         Assert.Contains("delete one in the review", notice.Message);
-        // Both cannot hold the same weekday, so the repeat asks for one of its own.
+        // Both cannot hold the same weekday, so the repeat gives up the one it claimed and takes
+        // its place in the week's order instead.
         Assert.Single(ready.ReviewIssues!, issue => issue.Code == "weekday_taken");
-        Assert.Contains(ready.Draft.Workouts, day => day.Weekday is null);
+        Assert.Equal([1, 2], ready.Draft.Workouts.Select(day => day.Weekday));
     }
 
     /// A section that repeats a day an earlier section already read is the one duplicate worth

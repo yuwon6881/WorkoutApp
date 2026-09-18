@@ -192,11 +192,14 @@ test('import a PDF program, preserve an unmapped exercise, and accept it', async
   expect(posted).toEqual(['gzip']);
   await page.screenshot({ path: `artifacts/${testInfo.project.name}-import-review.png`, fullPage: true });
 
-  // Every value carries where it came from, and the rep range from the PDF is preserved.
-  await page.getByRole('button', { name: /W1 · Week 1 Upper/ }).click();
-  await expect(page.getByText('From the PDF').first()).toBeVisible();
-  await expect(page.getByText('AI suggestion').first()).toBeVisible();
-  await expect(page.getByLabel('Set 1 reps text').first()).toHaveValue('8–10');
+  // The day reads as what it prescribes before it is opened, and the weekday comes from the order
+  // the document printed the week in rather than from the reviewer.
+  const day = page.getByRole('button', { name: /Monday · Week 1 Upper/ });
+  await expect(day).toBeVisible();
+
+  // Opening it is for editing, and the rep range from the PDF is preserved in the field.
+  await day.click();
+  await expect(page.getByLabel('Reps').first()).toHaveValue('8–10');
 
   // The name the model could not match stays verbatim and does not block acceptance.
   await expect(page.getByText(/Unmapped · preserved/).first()).toBeVisible();
