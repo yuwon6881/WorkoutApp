@@ -130,12 +130,10 @@ internal static class ImportValidation
         // The outline model owns the semantic boundaries. Never derive week ranges from a count
         // of training days: a three-day schedule and a seven-day schedule have different weeks.
         Validation.Require(source.Count is > 0 and <= 24, "This program has too many extraction chunks.", 422);
-        var result = source.Select((chunk, index) => new ImportChunk(
+        var result = DistinctLabels(source.Select((chunk, index) => new ImportChunk(
             ImportNormalization.Label(chunk.Label, 200, $"Section {index + 1}"),
             ImportNormalization.Text(chunk.Block, 80), ImportNormalization.Text(chunk.Phase, 120),
-            chunk.WeekFrom, chunk.WeekTo, chunk.PageFrom, chunk.PageTo, chunk.DayCount)).ToList();
-        Validation.Require(result.Select(c => c.Label).Distinct(StringComparer.OrdinalIgnoreCase).Count() == result.Count,
-            "AI returned duplicate extraction chunk labels.", 422);
+            chunk.WeekFrom, chunk.WeekTo, chunk.PageFrom, chunk.PageTo, chunk.DayCount)).ToList());
         ValidateChunkRanges(result);
         Validation.Require(result.Sum(c => c.DayCount) <= 400, "This program is larger than the importer supports.", 422);
         return result;
@@ -144,13 +142,63 @@ internal static class ImportValidation
     public static List<ImportChunk> SplitChunks(List<ImportChunk> source)
     {
         Validation.Require(source.Count is > 0 and <= 24, "This program has too many extraction chunks.", 422);
-        Validation.Require(source.Select(c => c.Label).Distinct(StringComparer.OrdinalIgnoreCase).Count() == source.Count,
-            "AI returned duplicate extraction chunk labels.", 422);
         Validation.Require(source.All(c => c.DayCount is > 0 and <= 80 && c.WeekFrom > 0 && c.WeekTo >= c.WeekFrom && c.PageFrom > 0 && c.PageTo >= c.PageFrom),
             "AI returned an invalid extraction chunk.", 422);
-        ValidateChunkRanges(source);
-        Validation.Require(source.Sum(c => c.DayCount) <= 400, "This program is larger than the importer supports.", 422);
-        return source;
+        var result = DistinctLabels(source);
+        ValidateChunkRanges(result);
+        Validation.Require(result.Sum(c => c.DayCount) <= 400, "This program is larger than the importer supports.", 422);
+        return result;
+    }
+
+    /// A section label is what the reviewer reads while the import runs; nothing is keyed on it,
+    /// and sections are addressed by their outline position. A document regularly earns two
+    /// sections the same name — "Deload" printed at the end of every block, or one phase split
+    /// across page ranges — which is its naming convention rather than a defect in the read.
+    /// Refusing the whole outline over it left the import dead on arrival on a document that
+    /// failed the same way on every retry, so a repeat is renamed with whatever actually
+    /// separates it from the first.
+    public static List<ImportChunk> DistinctLabels(List<ImportChunk> chunks)
+    {
+        var taken = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var first = new Dictionary<string, ImportChunk>(StringComparer.OrdinalIgnoreCase);
+        return chunks.Select(chunk =>
+        {
+            if (taken.Add(chunk.Label))
+            {
+                first[chunk.Label] = chunk;
+                return chunk;
+            }
+            // A name can also be taken by an earlier rename rather than by a section of its own,
+            // in which case there is nothing to compare against and every detail is worth trying.
+            var original = first.TryGetValue(chunk.Label, out var owner) ? owner : chunk with { WeekFrom = 0, PageFrom = 0 };
+            foreach (var candidate in LabelCandidates(chunk, original))
+                if (taken.Add(candidate)) return chunk with { Label = candidate };
+            return chunk;
+        }).ToList();
+    }
+
+    /// Ordered by how much a detail actually separates this section from the one that already
+    /// owns the name: a detail the two share says nothing and is skipped, and a plain count is
+    /// the last resort when they differ in nothing a reviewer can see.
+    private static IEnumerable<string> LabelCandidates(ImportChunk chunk, ImportChunk original)
+    {
+        var weeks = $"weeks {chunk.WeekFrom}-{chunk.WeekTo}";
+        var pages = $"pages {chunk.PageFrom}-{chunk.PageTo}";
+        var sameWeeks = chunk.WeekFrom == original.WeekFrom && chunk.WeekTo == original.WeekTo;
+        var samePages = chunk.PageFrom == original.PageFrom && chunk.PageTo == original.PageTo;
+        if (!sameWeeks) yield return Suffixed(chunk.Label, weeks);
+        if (!samePages) yield return Suffixed(chunk.Label, pages);
+        if (!sameWeeks && !samePages) yield return Suffixed(chunk.Label, $"{weeks}, {pages}");
+        for (var index = 2; index <= 32; index++) yield return Suffixed(chunk.Label, index.ToString());
+    }
+
+    /// Keeps a disambiguated label inside the 200 characters the column holds, trimming the name
+    /// rather than the detail that makes it distinct.
+    private static string Suffixed(string label, string detail)
+    {
+        var suffix = $" ({detail})";
+        var room = Math.Max(0, 200 - suffix.Length);
+        return (label.Length <= room ? label : label[..room].TrimEnd()) + suffix;
     }
 
     public static void ValidateChunkRanges(IEnumerable<ImportChunk> chunks)
