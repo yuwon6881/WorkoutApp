@@ -118,9 +118,12 @@ export function Select<T extends string | number>({
 
   return (
     <div ref={containerRef} className={`custom-select-wrap ${className}`.trim()} onKeyDown={handleKeyDown}>
+      {/* A mirror of the value for form semantics, not a second control: the trigger below is the
+          one thing that carries this field's accessible name, so a screen reader is offered one
+          control rather than two identically named ones. */}
       <select
         name={name}
-        aria-label={accessibleLabel}
+        aria-hidden="true"
         value={String(value)}
         disabled={disabled}
         onChange={e => {
