@@ -2,7 +2,6 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ImportDraft, ImportView } from '../types';
 import { ApiError, api } from '../lib/api';
 import { PdfTextError, extractPdfText, type PdfExtraction } from '../lib/pdfText';
-import { soundNow } from '../lib/alarm';
 
 /// `percent` is null while the step has no measurable size, so the bar can stay indeterminate
 /// instead of inventing a number.
@@ -71,9 +70,12 @@ export function useImportPipeline({ selected, setSelected, setDraft, onChanged, 
   const extractAll = useCallback(async (start: ImportView) => {
     let current = start;
     while (current.status === 'pending' && current.stage === 'extract' && current.chunksDone < current.chunksTotal) {
+      // One pass reads every section the import still owes, so the label counts what is in flight
+      // rather than naming a single section the read has already gone past.
+      const remaining = current.chunksTotal - current.chunksDone;
       setProgress({
-        label: `Reading section ${current.chunksDone + 1} of ${current.chunksTotal}`,
-        detail: current.currentChunkLabel ?? '',
+        label: remaining > 1 ? `Reading ${remaining} sections at once` : 'Reading the last section',
+        detail: remaining > 1 ? 'Sections commit in order as they land.' : current.currentChunkLabel ?? '',
         percent: Math.round((current.chunksDone / current.chunksTotal) * 100)
       });
       try {
@@ -87,7 +89,6 @@ export function useImportPipeline({ selected, setSelected, setDraft, onChanged, 
       await onChanged();
     }
     if (current.status === 'ready') {
-      soundNow();
       const count = current.draft?.workouts.length ?? 0;
       setNotice(`Read ${count} days. Review them before accepting.`);
       onComplete?.(count);
@@ -99,7 +100,6 @@ export function useImportPipeline({ selected, setSelected, setDraft, onChanged, 
     await onChanged();
     if (view.stage === 'extract') await extractAll(view);
     else if (view.status === 'ready') {
-      soundNow();
       const count = view.draft?.workouts.length ?? 0;
       setNotice(`Read ${count} days. Review them before accepting.`);
       onComplete?.(count);
