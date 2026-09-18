@@ -28,6 +28,15 @@ public sealed class AdaptiveProgressionTests
         Assert.Equal(11, result.SuggestedReps);
     }
 
+    [Fact]
+    public void Progression_stays_inside_a_narrow_imported_rep_range()
+    {
+        var result = Progression.SuggestSet(6, 8, 8, [Exposure(40, 8, 8)], ProgressionModes.Normal, 2.5);
+
+        Assert.Equal(6, result.SuggestedReps);
+        Assert.Equal(42.5, result.SuggestedLoadKg);
+    }
+
     [Theory]
     [InlineData(ProgressionModes.Normal, 1)]
     [InlineData(ProgressionModes.Conservative, 2)]

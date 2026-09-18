@@ -16,8 +16,9 @@ internal static class WorkoutAiSchemas
         "Read the progression rules, legends, substitutions, and cross-referenced notes that govern a table before transcribing it. If a workout template is explicitly repeated across named weeks, expand one explicit day per stated week and apply each documented weekly change; never invent an unstated repetition. " +
         "Keep each movement separate and preserve meaningful movement qualifiers such as close-grip, wide-grip, machine, barbell, dumbbell, incline, and unilateral. " +
         "Do not fold a set method into sourceName: phrases such as lengthened partials, two drop sets, weighted static hold, extend set, or a parenthetical percentage describe how the set is performed. Put that technique in notes or coachingNotes and return the underlying movement in sourceName so the server can match it safely. " +
-        "Preserve rep ranges, AMRAP, dropset notation such as 10+5, and 21s notation such as 7/7/7 exactly in repsText. " +
-        "Return both rpe and percent1Rm when both appear. Parse RIR into rir and convert RIR to targetRpe = 10 - RIR for the numeric RPE column. " +
+        "For a simple rep count or range, set repMin and repMax to its bounds; a single count uses the same value for both. Preserve rep ranges, AMRAP, dropset notation such as 10+5, and 21s notation such as 7/7/7 exactly in repsText. " +
+        "Read target RPE when it appears. Parse RIR into rir and convert RIR to targetRpe = 10 - RIR for the numeric RPE column. " +
+        "Preserve rest ranges and their units exactly in restText, and set restSeconds to the midpoint in seconds when a range is given (for example, 1-2 minutes becomes 90). " +
         "Preserve sequenceGroup verbatim (A1, A2, B1); a shared letter prefix means a superset chain. " +
         "Extract both substitution columns and text-based alternates into substitutions or coachingNotes. " +
         "Emit explicit rest days as isRestDay true with an empty exercises array. Blank source values must be null, never a placeholder. " +
@@ -44,6 +45,44 @@ internal static class WorkoutAiSchemas
 
     public static readonly JsonElement Content = JsonDocument.Parse(
         """
-        {"type":"object","additionalProperties":false,"required":["programTitle","days"],"properties":{"programTitle":{"type":"string"},"days":{"type":"array","items":{"type":"object","additionalProperties":false,"required":["block","phase","weekNumber","phaseWeek","dayName","isRestDay","notes","exercises","weekday","sourcePage"],"properties":{"block":{"type":["string","null"]},"phase":{"type":["string","null"]},"weekNumber":{"type":"integer"},"phaseWeek":{"type":"integer"},"dayName":{"type":"string"},"isRestDay":{"type":"boolean"},"notes":{"type":["string","null"]},"weekday":{"type":["integer","null"]},"sourcePage":{"type":["integer","null"]},"exercises":{"type":"array","items":{"type":"object","additionalProperties":false,"required":["sequenceGroup","sourceName","exerciseId","warmupSets","workingSets","substitutions","coachingNotes","notes","sourcePage","sets"],"properties":{"sequenceGroup":{"type":["string","null"]},"sourceName":{"type":"string"},"exerciseId":{"type":["string","null"]},"warmupSets":{"type":["string","null"]},"workingSets":{"type":["string","null"]},"substitutions":{"type":"array","items":{"type":"string"}},"coachingNotes":{"type":["string","null"]},"notes":{"type":["string","null"]},"sourcePage":{"type":["integer","null"]},"sets":{"type":"array","items":{"type":"object","additionalProperties":false,"required":["repMin","repMax","repsText","targetRpe","rir","percent1Rm","restSeconds","restText","tempo","loadText","notes","repsSource","rpeSource","restSource","sourcePage"],"properties":{"repMin":{"type":"integer"},"repMax":{"type":"integer"},"repsText":{"type":["string","null"]},"targetRpe":{"type":["number","null"]},"rir":{"type":["string","null"]},"percent1Rm":{"type":["string","null"]},"restSeconds":{"type":["integer","null"]},"tempo":{"type":["string","null"]},"loadText":{"type":["string","null"]},"notes":{"type":["string","null"]},"repsSource":{"type":"string","enum":["extracted","inferred"]},"rpeSource":{"type":"string","enum":["extracted","inferred"]},"restSource":{"type":"string","enum":["extracted","inferred"]},"sourcePage":{"type":["integer","null"]}}}}}}}}}}}}
+        {
+          "type":"object","additionalProperties":false,"required":["programTitle","days"],
+          "properties":{
+            "programTitle":{"type":"string"},
+            "days":{"type":"array","items":{"type":"object","additionalProperties":false,
+              "required":["block","phase","weekNumber","phaseWeek","dayName","isRestDay","notes","exercises","weekday","sourcePage"],
+              "properties":{
+                "block":{"type":["string","null"]},"phase":{"type":["string","null"]},
+                "weekNumber":{"type":"integer"},"phaseWeek":{"type":"integer"},"dayName":{"type":"string"},
+                "isRestDay":{"type":"boolean"},"notes":{"type":["string","null"]},
+                "weekday":{"type":["integer","null"]},"sourcePage":{"type":["integer","null"]},
+                "exercises":{"type":"array","items":{"type":"object","additionalProperties":false,
+                  "required":["sequenceGroup","sourceName","exerciseId","warmupSets","workingSets","substitutions","coachingNotes","notes","sourcePage","sets"],
+                  "properties":{
+                    "sequenceGroup":{"type":["string","null"]},"sourceName":{"type":"string"},
+                    "exerciseId":{"type":["string","null"]},"warmupSets":{"type":["string","null"]},
+                    "workingSets":{"type":["string","null"]},"substitutions":{"type":"array","items":{"type":"string"}},
+                    "coachingNotes":{"type":["string","null"]},"notes":{"type":["string","null"]},
+                    "sourcePage":{"type":["integer","null"]},
+                    "sets":{"type":"array","items":{"type":"object","additionalProperties":false,
+                      "required":["repMin","repMax","repsText","targetRpe","rir","restSeconds","restText","tempo","loadText","notes","repsSource","rpeSource","restSource","sourcePage"],
+                      "properties":{
+                        "repMin":{"type":"integer"},"repMax":{"type":"integer"},"repsText":{"type":["string","null"]},
+                        "targetRpe":{"type":["number","null"]},"rir":{"type":["string","null"]},
+                        "restSeconds":{"type":["integer","null"]},"restText":{"type":["string","null"]},
+                        "tempo":{"type":["string","null"]},"loadText":{"type":["string","null"]},
+                        "notes":{"type":["string","null"]},
+                        "repsSource":{"type":"string","enum":["extracted","inferred"]},
+                        "rpeSource":{"type":"string","enum":["extracted","inferred"]},
+                        "restSource":{"type":"string","enum":["extracted","inferred"]},
+                        "sourcePage":{"type":["integer","null"]}
+                      }
+                    }}
+                  }
+                }}
+              }
+            }}
+          }
+        }
         """).RootElement.Clone();
 }

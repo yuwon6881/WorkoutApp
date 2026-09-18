@@ -3,11 +3,12 @@ import { Check, ChevronDown, Clock3, Dumbbell, Minus, Plus, Timer, Trash2, Trend
 import type { Exercise, LoggedSet, Preferences, Session, SessionExercise, SubstitutionCandidate } from '../types';
 import { ApiError, api } from '../lib/api';
 import type { SaveQueue } from '../lib/queue';
-import { completedSets, plannedSets, rpeSteps, showClock, showTarget, showVolume, showWeight, toDisplay, toKg } from '../lib/training';
+import { completedSets, plannedSets, rpeOptions, showClock, showTarget, showVolume, showWeight, toDisplay, toKg } from '../lib/training';
 import { validateLoggedSet, validateSessionDraft } from '../lib/validation';
 import { restTimer } from '../lib/restTimer';
 import { Button } from './ui/Button';
 import { Modal } from './ui/Modal';
+import { Select } from './ui/Select';
 import { ExerciseLibrary } from './Exercises';
 
 const payload = (session: Session, revision: number) => ({
@@ -170,7 +171,7 @@ function ExerciseBlock({ exercise, index, unit, draft, exercises, change, editSe
       {exercise.progression.trendE1rmKg !== null && <details className="progression-details"><summary>Estimated max {showWeight(exercise.progression.trendE1rmKg, unit)} <ChevronDown size={13} /></summary><p>Estimated from logged reps and RPE; this is not a tested max.</p></details>}</div>}
     {exercise.loadModel === 'bodyweight_context_only' && <p className="source">Bodyweight context is recorded with this movement; no effective load is calculated.</p>}
     {exercise.loadModel === 'full_bodyweight' && <p className="source">System load uses the bodyweight snapshot. Enter added load or assistance.</p>}
-    {prescription.some(p => p.notes || p.loadText || p.tempo || p.percent1Rm || p.rir) && <details><summary>Plan detail <ChevronDown size={13} /></summary><ul>{prescription.map((p, i) => {
+    {prescription.some(p => p.notes || p.loadText || p.tempo || p.rir) && <details><summary>Plan detail <ChevronDown size={13} /></summary><ul>{prescription.map((p, i) => {
       const warmupNumber = prescription.slice(0, i + 1).filter(item => item.warmup).length;
       const workingNumber = prescription.slice(0, i + 1).filter(item => !item.warmup).length;
       return <li key={i}>{p.warmup ? `Warm-up ${warmupNumber}` : `Set ${workingNumber}`}: {showTarget(p)}{p.loadText ? ` · ${p.loadText}` : ''}{p.tempo ? `, tempo ${p.tempo}` : ''}{p.notes ? ` — ${p.notes}` : ''}</li>;
@@ -186,7 +187,9 @@ function ExerciseBlock({ exercise, index, unit, draft, exercises, change, editSe
             {loadModel === 'full_bodyweight' && <label className="set-field"><span>Mode</span><select name={`mode-${exercise.id}-${si}`} aria-label={`${exercise.name} set ${si + 1} resistance mode`} value={set.resistanceMode ?? 'bodyweight'} onChange={e => editSet(index, si, { resistanceMode: e.target.value as LoggedSet['resistanceMode'], done: false })}><option value="bodyweight">Bodyweight</option><option value="added">Added load</option><option value="assistance">Assistance</option></select></label>}
             <label className="set-field"><span>Load</span><input name={`weight-${exercise.id}-${si}`} aria-label={`${exercise.name} set ${si + 1} weight`} inputMode="decimal" type="number" placeholder="—" value={shown === null ? '' : shown} disabled={!loadEditable} onChange={e => editSet(index, si, { weightKg: e.target.value === '' ? null : toKg(Number(e.target.value), unit), done: false })} /></label>
             <label className="set-field"><span>Reps</span><input name={`reps-${exercise.id}-${si}`} aria-label={`${exercise.name} set ${si + 1} reps`} inputMode="numeric" type="number" placeholder="—" value={set.reps ?? ''} onChange={e => editSet(index, si, { reps: e.target.value === '' ? null : Number(e.target.value), done: false })} /></label>
-            <label className="set-field"><span>RPE</span><select name={`rpe-${exercise.id}-${si}`} aria-label={`${exercise.name} set ${si + 1} RPE`} value={set.rpe ?? ''} onChange={e => editSet(index, si, { rpe: e.target.value === '' ? null : Number(e.target.value), done: false })}><option value="">—</option>{rpeSteps.map(step => <option key={step} value={step}>{step}</option>)}</select></label>
+            <label className="set-field"><span>RPE</span><Select name={`rpe-${exercise.id}-${si}`} ariaLabel={`${exercise.name} set ${si + 1} RPE`} value={set.rpe ?? ''}
+              options={[{ value: '', label: '—' }, ...rpeOptions]}
+              onChange={value => editSet(index, si, { rpe: value === '' ? null : Number(value), done: false })} /></label>
           </div>
           <div className="set-actions"><Button className="log-set" variant={set.done ? 'primary' : 'secondary'} aria-label={`${set.done ? 'Unlog' : 'Log'} ${exercise.name} set ${si + 1}`} aria-pressed={set.done} onClick={() => toggle(index, si)}><Check size={18} /></Button>
             <Button variant="tertiary" aria-label={`Remove ${exercise.name} set ${si + 1}`} onClick={() => change({ ...draft, exercises: draft.exercises.map((item, i) => i === index ? { ...item, sets: item.sets.filter((_, j) => j !== si), prescription: item.prescription.filter((_, j) => j !== si) } : item) })}><Minus size={14} /></Button></div>
@@ -208,7 +211,7 @@ function ExerciseBlock({ exercise, index, unit, draft, exercises, change, editSe
 }
 
 function blankPrescription(restSeconds: number, loadModel?: Exercise['loadModel'], resistanceMode?: LoggedSet['resistanceMode']): SessionExercise['prescription'][number] {
-  return { repMin: 8, repMax: 12, targetRpe: 8, restSeconds, tempo: null, loadText: null, notes: null, repsText: null, restText: null, percent1Rm: null, rir: null, warmup: false, repsSource: 'userEdited', rpeSource: 'userEdited', restSource: 'userEdited', resistanceMode: normalizeResistanceMode(loadModel, resistanceMode) };
+  return { repMin: 8, repMax: 12, targetRpe: 8, restSeconds, tempo: null, loadText: null, notes: null, repsText: null, restText: null, rir: null, warmup: false, repsSource: 'userEdited', rpeSource: 'userEdited', restSource: 'userEdited', resistanceMode: normalizeResistanceMode(loadModel, resistanceMode) };
 }
 function blankLoggedSet(loadModel?: Exercise['loadModel'], resistanceMode?: LoggedSet['resistanceMode']): LoggedSet { return { id: crypto.randomUUID(), position: 0, weightKg: null, reps: null, rpe: null, done: false, warmup: false, resistanceMode: normalizeResistanceMode(loadModel, resistanceMode) }; }
 function normalizeResistanceMode(loadModel?: Exercise['loadModel'], resistanceMode?: LoggedSet['resistanceMode']): LoggedSet['resistanceMode'] {

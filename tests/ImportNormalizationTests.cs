@@ -95,6 +95,32 @@ public sealed class ImportNormalizationTests
     }
 
     [Fact]
+    public async Task A_single_pdf_rep_count_becomes_the_minimum_and_maximum()
+    {
+        await using var h = await Harness.Create(Configured());
+        await h.SignIn();
+        var set = await ReadSet(h, Set("""
+            "repMin":8,"repMax":12,"repsText":"6"
+            """.Replace("\n", " ")));
+
+        Assert.Equal(6, set.RepMin);
+        Assert.Equal(6, set.RepMax);
+    }
+
+    [Fact]
+    public async Task A_rest_range_uses_its_average_in_seconds()
+    {
+        await using var h = await Harness.Create(Configured());
+        await h.SignIn();
+        var set = await ReadSet(h, Set("""
+            "restSeconds":60,"restText":"1 - 2 minute"
+            """.Replace("\n", " ")));
+
+        Assert.Equal(90, set.RestSeconds);
+        Assert.Equal("1 - 2 minute", set.RestText);
+    }
+
+    [Fact]
     public async Task An_rpe_off_the_half_point_scale_is_snapped_and_labelled()
     {
         await using var h = await Harness.Create(Configured());
@@ -161,7 +187,12 @@ public sealed class ImportNormalizationTests
         Assert.Equal((8, 12, true), ImportNormalization.Reps(12, 8));
         Assert.Equal((1, 1, true), ImportNormalization.Reps(0, 0));
         Assert.Equal((1000, 1000, true), ImportNormalization.Reps(5000, 5000));
+        Assert.Equal((6, 6, true), ImportNormalization.Reps(6, 8, "6"));
+        Assert.Equal((6, 8, true), ImportNormalization.Reps(8, 6, "6-8"));
+        Assert.Equal((6, 6, false), ImportNormalization.Reps(6, 6, "6"));
+        Assert.Equal((1, 1, true), ImportNormalization.Reps(8, 12, "0"));
         Assert.Equal((8.0, false), ImportNormalization.Rpe(8));
+        Assert.Equal((6.0, true), ImportNormalization.Rpe(5));
         Assert.Equal((10.0, true), ImportNormalization.Rpe(12));
         Assert.Equal((null, false), ImportNormalization.Rpe(null));
         Assert.Equal((120, false), ImportNormalization.Rest(120));

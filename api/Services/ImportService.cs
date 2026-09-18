@@ -144,16 +144,16 @@ public sealed partial class ImportService(AppDb db, WorkoutAi ai, CatalogService
 
     private static DraftSet ToDraftSet(AiSet set)
     {
-        // A stored set needs rep bounds, an RPE on the 1-10 half-point scale, and a rest inside
+        // A stored set needs rep bounds, an RPE on the 6-10 half-point scale, and a rest inside
         // an hour. A row written as a timed hold, an AMRAP finisher, or a high-to-low range gives
         // none of those cleanly, so each value is brought into range and marked inferred when it
         // had to move. What the page actually said stays verbatim in the text fields below.
-        var reps = ImportNormalization.Reps(set.RepMin, set.RepMax);
+        var reps = ImportNormalization.Reps(set.RepMin, set.RepMax, set.RepsText);
         var rpeValue = ImportNormalization.Rpe(set.TargetRpe);
         var restValue = ImportNormalization.Rest(DeriveRest(set.RestText, set.RestSeconds));
         var repsSource = ImportNormalization.Provenance(set.RepsSource);
         if (reps.Adjusted) repsSource = "inferred";
-        if (!string.IsNullOrWhiteSpace(set.RepsText) && !Regex.IsMatch(set.RepsText.Trim(), @"^\d+\s*(?:[-–]\s*\d+)?$")) repsSource = "inferred";
+        if (!string.IsNullOrWhiteSpace(set.RepsText) && !Regex.IsMatch(set.RepsText.Trim(), @"^\d+\s*(?:(?:[-–]|to)\s*\d+)?\s*(?:reps?)?$", RegexOptions.IgnoreCase)) repsSource = "inferred";
         var rpe = rpeValue.Value;
         var rpeSource = rpeValue.Adjusted ? "inferred" : ImportNormalization.Provenance(set.RpeSource);
         if (rpe == null && TryFirstNumber(set.Rir, out var rir))
@@ -167,14 +167,18 @@ public sealed partial class ImportService(AppDb db, WorkoutAi ai, CatalogService
             ImportNormalization.Text(set.Tempo, 24), ImportNormalization.Text(set.LoadText, 60), ImportNormalization.Text(set.Notes, 400),
             repsSource, rpeSource, restValue.Adjusted ? "inferred" : ImportNormalization.Provenance(set.RestSource),
             ImportNormalization.Text(set.RepsText, 40), ImportNormalization.Text(set.RestText, 24),
-            ImportNormalization.Text(set.Percent1Rm, 24), ImportNormalization.Text(set.Rir, 16), false, ImportNormalization.Page(set.SourcePage));
+            ImportNormalization.Text(set.Rir, 16), false, ImportNormalization.Page(set.SourcePage));
     }
 
     private static int? DeriveRest(string? text, int? fallback)
     {
         if (string.IsNullOrWhiteSpace(text)) return fallback;
-        var numbers = NumberMatches(text).ToList();
-        if (numbers.Count != 1 || !TryFirstNumber(text, out var number)) return fallback;
+        var range = Regex.Match(text, @"(?<min>\d+(?:\.\d+)?)\s*(?:[-–]|to)\s*(?<max>\d+(?:\.\d+)?)", RegexOptions.IgnoreCase);
+        double number;
+        if (range.Success && double.TryParse(range.Groups["min"].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var minimum) &&
+            double.TryParse(range.Groups["max"].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var maximum))
+            number = (minimum + maximum) / 2;
+        else if (!TryFirstNumber(text, out number)) return fallback;
         var lower = text.ToLowerInvariant();
         // A written rest is stated in seconds, minutes, or occasionally hours. Reading "2 hours"
         // as two seconds would quietly turn a long rest into none at all.
@@ -201,9 +205,6 @@ public sealed partial class ImportService(AppDb db, WorkoutAi ai, CatalogService
         if (!match.Success || !double.TryParse(match.Value, NumberStyles.Float, CultureInfo.InvariantCulture, out value)) { value = 0; return false; }
         return true;
     }
-
-    private static IEnumerable<int> NumberMatches(string text)
-        => Regex.Matches(text, @"\d+").Select(m => int.TryParse(m.Value, out var value) ? value : 0).Where(v => v > 0);
 
     private async Task<ImportView> SaveDraft(Guid id, ImportDraft draft, CancellationToken ct)
     {
@@ -282,7 +283,7 @@ public sealed partial class ImportService(AppDb db, WorkoutAi ai, CatalogService
                 w.Exercises.Select(e => new TemplateExerciseInput(e.ExerciseId, e.SourceName, e.Notes,
                     e.Sets.Select(ToPrescription).ToList(), e.SequenceGroup, e.Substitutions, e.SourcePage)).ToList(),
                 w.Block, w.Phase, w.PhaseWeek, w.IsRestDay, w.Weekday, w.SourcePage)).ToList(), null, null, timeZone);
-        await programs.Validate(input, ct, allowMissingWorkingRpe: true, allowOutOfRangeTargetRpe: true);
+        await programs.Validate(input, ct, allowMissingWorkingRpe: true);
         // Imported drafts always enter Standby. Even a fully scheduled PDF must be explicitly
         // activated by the user so a mistaken import never displaces the current program.
         var program = await programs.Materialize(input, activate: false, sourceImportId: import.Id, ct);

@@ -7,7 +7,7 @@ public record ImportChunk(string Label, string? Block, string? Phase, int WeekFr
 public record DraftSet(
     int RepMin, int RepMax, double? TargetRpe, int? RestSeconds, string? Tempo, string? LoadText, string? Notes,
     string RepsSource = "extracted", string RpeSource = "extracted", string RestSource = "extracted",
-    string? RepsText = null, string? RestText = null, string? Percent1Rm = null, string? Rir = null,
+    string? RepsText = null, string? RestText = null, string? Rir = null,
     bool Warmup = false, int? SourcePage = null);
 
 public record DraftExercise(

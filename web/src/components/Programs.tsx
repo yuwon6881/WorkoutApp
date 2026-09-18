@@ -3,7 +3,7 @@ import { ArrowRight, Check, ChevronDown, ChevronUp, Dumbbell, FileText, Pencil, 
 import type { Bootstrap, Exercise, ProgramSummary, SetPrescription, Template, TemplateExercise } from '../types';
 import { ApiError, api } from '../lib/api';
 import { getWorkoutMuscles } from '../lib/muscles';
-import { showReps } from '../lib/training';
+import { rpeOptions, showReps } from '../lib/training';
 import { validateTemplateDraft } from '../lib/validation';
 import { Button } from './ui/Button';
 import { Modal } from './ui/Modal';
@@ -12,7 +12,7 @@ import { ExerciseLibrary } from './Exercises';
 
 type Draft = { id: string | null; name: string; focus: string; revision: number | null; exercises: TemplateExercise[] };
 
-const blankSet = (loadModel?: Exercise['loadModel']): SetPrescription => ({ repMin: 8, repMax: 12, targetRpe: 8, restSeconds: 90, tempo: null, loadText: null, notes: null, repsText: null, restText: null, percent1Rm: null, rir: null, warmup: false, repsSource: 'userEdited', rpeSource: 'userEdited', restSource: 'userEdited', resistanceMode: loadModel === 'full_bodyweight' ? 'bodyweight' : loadModel === 'bodyweight_context_only' || loadModel === 'reps_only' ? 'reps_only' : 'external' });
+const blankSet = (loadModel?: Exercise['loadModel']): SetPrescription => ({ repMin: 8, repMax: 12, targetRpe: 8, restSeconds: 90, tempo: null, loadText: null, notes: null, repsText: null, restText: null, rir: null, warmup: false, repsSource: 'userEdited', rpeSource: 'userEdited', restSource: 'userEdited', resistanceMode: loadModel === 'full_bodyweight' ? 'bodyweight' : loadModel === 'bodyweight_context_only' || loadModel === 'reps_only' ? 'reps_only' : 'external' });
 
 function updateSet(setDraft: Dispatch<SetStateAction<Draft | null>>, draft: Draft, exerciseIndex: number, setIndex: number, patch: Partial<SetPrescription>) {
   setDraft({ ...draft, exercises: draft.exercises.map((exercise, index) => index === exerciseIndex
@@ -121,7 +121,9 @@ export function Programs({ data, exercises, onStart, onImport, onChanged }: {
               <span className="tiny-label">Set {si + 1}</span>
               <label>Min reps<input name={`rep-min-${exercise.id}-${si}`} aria-label={`${exercise.name} set ${si + 1} minimum reps`} type="number" min="1" max="1000" value={set.repMin} onChange={e => updateSet(setDraft, draft, i, si, { repMin: Number(e.target.value), repMax: Math.max(Number(e.target.value), set.repMax) })} /></label>
               <label>Max reps<input name={`rep-max-${exercise.id}-${si}`} aria-label={`${exercise.name} set ${si + 1} maximum reps`} type="number" min="1" max="1000" value={set.repMax} onChange={e => updateSet(setDraft, draft, i, si, { repMax: Number(e.target.value) })} /></label>
-              <label>Target RPE<input name={`target-rpe-${exercise.id}-${si}`} aria-label={`${exercise.name} set ${si + 1} target RPE`} type="number" min="6" max="10" step="0.5" value={set.targetRpe ?? ''} placeholder={set.warmup ? 'optional' : '6–10'} onChange={e => updateSet(setDraft, draft, i, si, { targetRpe: e.target.value === '' ? null : Number(e.target.value) })} /></label>
+              <label>Target RPE<Select name={`target-rpe-${exercise.id}-${si}`} label={`${exercise.name} set ${si + 1} target RPE`} value={set.targetRpe ?? ''}
+                options={[{ value: '', label: set.warmup ? 'Not set' : 'Choose RPE' }, ...rpeOptions]}
+                onChange={value => updateSet(setDraft, draft, i, si, { targetRpe: value === '' ? null : Number(value) })} /></label>
               <label>Rest (s)<input name={`rest-${exercise.id}-${si}`} aria-label={`${exercise.name} set ${si + 1} rest seconds`} type="number" min="0" max="3600" value={set.restSeconds ?? ''} onChange={e => updateSet(setDraft, draft, i, si, { restSeconds: e.target.value === '' ? null : Number(e.target.value) })} /></label>
               <label>Tempo<input name={`tempo-${exercise.id}-${si}`} aria-label={`${exercise.name} set ${si + 1} tempo`} value={set.tempo ?? ''} onChange={e => updateSet(setDraft, draft, i, si, { tempo: e.target.value || null })} placeholder="e.g. 3010" /></label>
               <label>Note<input name={`set-note-${exercise.id}-${si}`} aria-label={`${exercise.name} set ${si + 1} note`} value={set.notes ?? ''} onChange={e => updateSet(setDraft, draft, i, si, { notes: e.target.value || null })} /></label>

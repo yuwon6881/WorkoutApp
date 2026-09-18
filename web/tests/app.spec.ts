@@ -104,7 +104,9 @@ test('build a workout, log a set against the server, and see it in history', asy
 
   await logger.getByRole('spinbutton', { name: 'Barbell bench press set 1 weight', exact: true }).fill('60');
   await logger.getByRole('spinbutton', { name: 'Barbell bench press set 1 reps', exact: true }).fill('8');
-  await logger.getByRole('combobox', { name: 'Barbell bench press set 1 RPE', exact: true }).selectOption('8');
+  await logger.getByRole('button', { name: 'Barbell bench press set 1 RPE', exact: true }).click();
+  await logger.getByRole('listbox', { name: 'Barbell bench press set 1 RPE', exact: true })
+    .getByRole('option', { name: '8', exact: true }).click();
   await logButton.click();
   const logged = page.getByRole('button', { name: 'Unlog Barbell bench press set 1', exact: true });
   await expect(logged).toHaveAttribute('aria-pressed', 'true');
@@ -198,9 +200,10 @@ test('import a PDF program, preserve an unmapped exercise, and accept it', async
   const day = page.getByRole('button', { name: /Monday · Week 1 Upper/ });
   await expect(day).toBeVisible();
 
-  // Opening it is for editing, and the rep range from the PDF is preserved in the field.
+  // Opening it is for editing, and the rep range from the PDF is preserved as explicit bounds.
   await day.click();
-  await expect(page.getByLabel('Reps').first()).toHaveValue('8–10');
+  await expect(page.getByLabel('Min reps').first()).toHaveValue('8');
+  await expect(page.getByLabel('Max reps').first()).toHaveValue('10');
 
   // Review maps one exercise at a time through the searchable picker; the removed bulk rematch
   // action must not return as a hidden or alternate path.

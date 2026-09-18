@@ -36,7 +36,7 @@ public class AiImportTests
     {"programTitle":"Faithful block","days":[
       {"block":"Block 1","phase":"Base Hypertrophy","weekNumber":1,"phaseWeek":1,"dayName":"Lower A","isRestDay":false,"weekday":1,"sourcePage":3,"notes":"Keep the tempo","exercises":[
         {"sequenceGroup":"A1","sourceName":"Constant-Tension Lying Leg Curl","exerciseId":null,"warmupSets":"2-3","substitutions":["Seated leg curl","Nordic curl"],"coachingNotes":"Control the eccentric","notes":null,"sourcePage":3,"sets":[
-          {"repMin":8,"repMax":12,"repsText":"AMRAP","targetRpe":null,"rir":"2","percent1Rm":"75%","restSeconds":60,"restText":"3-5 min","tempo":"3010","loadText":null,"notes":null,"repsSource":"extracted","rpeSource":"inferred","restSource":"extracted","sourcePage":3}]}]}]}
+          {"repMin":8,"repMax":12,"repsText":"AMRAP","targetRpe":null,"rir":"2","restSeconds":60,"restText":"3-5 min","tempo":"3010","loadText":null,"notes":null,"repsSource":"extracted","rpeSource":"inferred","restSource":"extracted","sourcePage":3}]}]}]}
     """;
 
     private const string AlternativesOutline = """
@@ -100,7 +100,6 @@ public class AiImportTests
         Assert.False(exercise.Sets[2].Warmup);
         Assert.Equal("AMRAP", exercise.Sets[2].RepsText);
         Assert.Equal("3-5 min", exercise.Sets[2].RestText);
-        Assert.Equal("75%", exercise.Sets[2].Percent1Rm);
         Assert.Equal("2", exercise.Sets[2].Rir);
         Assert.Equal(8, exercise.Sets[2].TargetRpe);
         Assert.Equal("inferred", exercise.Sets[2].RepsSource);
@@ -193,7 +192,7 @@ public class AiImportTests
         Assert.Equal(view.Id, program.SourceImportId);
         var workout = Assert.Single(program.Workouts);
         Assert.Equal("Day A", workout.Name);
-        Assert.Equal(new SetPrescription(8, 10, 8, 120, null, null, null, null, null, null, null, false, "extracted", "inferred", "extracted"), workout.Exercises.Single().Sets.Single());
+        Assert.Equal(new SetPrescription(8, 10, 8, 120, null, null, null, null, null, null, false, "extracted", "inferred", "extracted"), workout.Exercises.Single().Sets.Single());
         // Accepting removes the import: the program it produced is the lasting record.
         Assert.Equal(404, (await Assert.ThrowsAsync<DomainException>(() => imports.Get(view.Id, default))).Status);
     }

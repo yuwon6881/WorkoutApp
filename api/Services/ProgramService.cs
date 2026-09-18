@@ -391,8 +391,7 @@ public sealed class ProgramService(AppDb db, TemplateService templates)
         await gate.Commit(ct);
     }
 
-    public async Task Validate(ProgramInput input, CancellationToken ct, bool allowMissingWorkingRpe = false,
-        bool allowOutOfRangeTargetRpe = false)
+    public async Task Validate(ProgramInput input, CancellationToken ct, bool allowMissingWorkingRpe = false)
     {
         Validation.Name(input.Name, "Program name");
         Validation.Require(input.Workouts is { Count: > 0 }, "A program needs at least one workout.");
@@ -412,7 +411,7 @@ public sealed class ProgramService(AppDb db, TemplateService templates)
             Validation.Require(workout.Weekday is null or >= 1 and <= 7, "Workout weekdays must use ISO values from 1 (Monday) to 7 (Sunday).");
             Validation.Require(workout.SourcePage is null || workout.SourcePage.Value is > 0 and <= ImportSourceText.MaxPages, "Workout source page is invalid.");
             await templates.ValidateInput(new TemplateInput(workout.Name, workout.Focus, workout.Note, workout.Exercises, null, null,
-                workout.Block, workout.Phase, workout.PhaseWeek, workout.IsRestDay), ct, !allowMissingWorkingRpe, allowOutOfRangeTargetRpe);
+                workout.Block, workout.Phase, workout.PhaseWeek, workout.IsRestDay), ct, !allowMissingWorkingRpe);
         }
         if (input.ScheduleAnchor is not null)
         {

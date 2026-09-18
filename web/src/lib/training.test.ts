@@ -49,7 +49,7 @@ describe('prescriptions', () => {
   });
 
   it('prefers verbatim targets and keeps the machine fallback', () => {
-    expect(showTarget({ repMin: 8, repMax: 12, repsText: 'AMRAP', targetRpe: 8, percent1Rm: '75%', rir: '2' } as never)).toBe('AMRAP · RPE 8 · 75% · RIR 2');
+    expect(showTarget({ repMin: 8, repMax: 12, repsText: 'AMRAP', targetRpe: 8, rir: '2' } as never)).toBe('AMRAP · RPE 8 · RIR 2');
   });
 });
 
@@ -66,7 +66,7 @@ describe('working and warm-up counts', () => {
     const warmup = set({ warmup: true });
     const warmupPrescription = {
       repMin: 8, repMax: 8, targetRpe: null, restSeconds: null, tempo: null, loadText: null, notes: null,
-      repsText: null, restText: null, percent1Rm: null, rir: null, repsSource: 'inferred', rpeSource: 'inferred', restSource: 'inferred', warmup: true
+      repsText: null, restText: null, rir: null, repsSource: 'inferred', rpeSource: 'inferred', restSource: 'inferred', warmup: true
     } as const;
     const mixed = session({ exercises: [{ ...session().exercises[0], prescription: [warmupPrescription], sets: [warmup, set({ id: 'working' })] }] });
     expect(plannedSets(mixed)).toBe(1);
@@ -75,8 +75,8 @@ describe('working and warm-up counts', () => {
 });
 
 describe('RPE and reps validation', () => {
-  it.each([1, 7.5, 8, 10])('accepts %s', value => expect(validRpe(value)).toBe(true));
-  it.each([0.5, 10.5, 7.3, null])('rejects %s', value => expect(validRpe(value)).toBe(false));
+  it.each([6, 7.5, 8, 10])('accepts %s', value => expect(validRpe(value)).toBe(true));
+  it.each([0.5, 5.5, 10.5, 7.3, null])('rejects %s', value => expect(validRpe(value)).toBe(false));
 
   it('requires whole positive reps', () => {
     expect(validReps(10)).toBe(true);

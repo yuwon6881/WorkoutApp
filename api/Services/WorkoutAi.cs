@@ -7,7 +7,7 @@ namespace Workout.Api.Services;
 
 public record AiSet(
     int RepMin, int RepMax, double? TargetRpe, int? RestSeconds, string? Tempo, string? LoadText, string? Notes,
-    string? RepsText = null, string? RestText = null, string? Percent1Rm = null, string? Rir = null,
+    string? RepsText = null, string? RestText = null, string? Rir = null,
     string RepsSource = "extracted", string RpeSource = "extracted", string RestSource = "extracted", int? SourcePage = null);
 public record AiExercise(string SourceName, string? ExerciseId, string? Notes, List<AiSet> Sets,
     string? SequenceGroup = null, string? WarmupSets = null, List<string>? Substitutions = null, string? CoachingNotes = null, int? SourcePage = null,
@@ -34,8 +34,9 @@ public sealed class WorkoutAi(HttpClient http, IConfiguration config)
     /// same document read again starts afresh rather than continuing under the older shape. v4
     /// divided the outline into sections small enough to read whole; v5 asks a table for the
     /// working-set count it states in a column; v6 separates set techniques from movement names
-    /// and removes the unused program summary field.
-    public const string PromptVersion = "workout-import-v6-text";
+    /// and removes the unused program summary field; v7 removes the unsupported one-repetition-max percentage field;
+    /// v8 makes simple rep bounds and averaged rest ranges explicit extraction rules.
+    public const string PromptVersion = "workout-import-v8-text";
 
     /// One cheap pass over a page-by-page view of the document. Most of a commercial training PDF
     /// is explanation and photography; this pass exists to find the few pages that actually carry

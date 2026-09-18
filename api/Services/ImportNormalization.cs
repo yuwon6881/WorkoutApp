@@ -1,3 +1,5 @@
+using System.Text.RegularExpressions;
+
 namespace Workout.Api.Services;
 
 /// The document decides what a program says; this app decides what it can store. A written program
@@ -9,7 +11,7 @@ namespace Workout.Api.Services;
 ///
 /// So each value is brought into range here rather than refused, and labelled `inferred` whenever
 /// the stored number no longer came straight from the page. Nothing written is lost: the verbatim
-/// notation stays in repsText, restText, percent1Rm, and rir for the reviewer to read.
+/// notation stays in repsText, restText, and rir for the reviewer to read.
 internal static class ImportNormalization
 {
     /// Free text trimmed to what its column holds. Truncating the tail of an unusually long note
@@ -44,21 +46,42 @@ internal static class ImportNormalization
         => source is "extracted" or "userEdited" ? source : "inferred";
 
     /// Rep bounds for a row that may not state reps at all. A stored set needs 1-1000 with the low
-    /// bound first; `Adjusted` reports whether that required changing what the model returned.
-    public static (int Min, int Max, bool Adjusted) Reps(int min, int max)
+    /// bound first; when the source gives a simple single number or range, that notation is the
+    /// authority over the model's duplicate numeric fields. `Adjusted` reports any change.
+    public static (int Min, int Max, bool Adjusted) Reps(int min, int max, string? text = null)
     {
+        if (TrySimpleReps(text, out var parsedMin, out var parsedMax))
+        {
+            var parsedLow = Math.Min(parsedMin, parsedMax);
+            var parsedHigh = Math.Max(parsedMin, parsedMax);
+            var normalizedLow = Math.Clamp(parsedLow, 1, 1000);
+            var normalizedHigh = Math.Clamp(parsedHigh, 1, 1000);
+            return (normalizedLow, normalizedHigh,
+                min != parsedLow || max != parsedHigh || parsedMin != parsedLow || parsedMax != parsedHigh ||
+                normalizedLow != parsedLow || normalizedHigh != parsedHigh);
+        }
         var low = Math.Min(min, max);
         var high = Math.Max(min, max);
         var adjusted = min > max || low < 1 || high > 1000;
         return (Math.Clamp(low, 1, 1000), Math.Clamp(high, 1, 1000), adjusted);
     }
 
-    /// RPE is rated 1-10 in half points. A value outside that scale is a transcription slip rather
+    private static bool TrySimpleReps(string? text, out int min, out int max)
+    {
+        min = max = 0;
+        if (string.IsNullOrWhiteSpace(text)) return false;
+        var match = Regex.Match(text.Trim(), @"^(?<min>\d+)\s*(?:(?:[-–]|to)\s*(?<max>\d+))?\s*(?:reps?)?$", RegexOptions.IgnoreCase);
+        if (!match.Success || !int.TryParse(match.Groups["min"].Value, out min)) return false;
+        max = match.Groups["max"].Success && int.TryParse(match.Groups["max"].Value, out var parsedMax) ? parsedMax : min;
+        return true;
+    }
+
+    /// RPE is rated 6-10 in half points. A value outside that scale is a transcription slip rather
     /// than precision, so it is snapped to the nearest storable point and marked inferred.
     public static (double? Value, bool Adjusted) Rpe(double? value)
     {
         if (value is not { } rpe || !double.IsFinite(rpe)) return (null, false);
-        var snapped = Math.Clamp(Math.Round(rpe * 2, MidpointRounding.AwayFromZero) / 2, 1, 10);
+        var snapped = Math.Clamp(Math.Round(rpe * 2, MidpointRounding.AwayFromZero) / 2, 6, 10);
         return (snapped, Math.Abs(snapped - rpe) > 1e-9);
     }
 

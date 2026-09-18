@@ -106,7 +106,7 @@ public class WorkoutSessionTests
         await h.Seed(new SeedExercise("bench", "Bench press", "Chest", "Barbell", "Cue", null));
         var benchId = await h.ExerciseId("bench");
         var template = await h.Templates.Create(Harness.Template("Warm-up test", Harness.Exercise(benchId, "Bench press",
-            new SetPrescription(10, 10, null, 60, null, null, null, "10", "1 min", null, null, true, "inferred", "inferred", "extracted"),
+            new SetPrescription(10, 10, null, 60, null, null, null, "10", "1 min", null, true, "inferred", "inferred", "extracted"),
             Harness.Set(8, 10))), null, 1, 0, default);
 
         var session = await h.Workouts.Start(template.Id, null, default);

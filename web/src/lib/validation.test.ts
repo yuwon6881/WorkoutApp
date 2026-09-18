@@ -4,7 +4,7 @@ import { validateLoggedSet, validateTemplateDraft } from './validation';
 
 const exercise = (): TemplateExercise => ({
   id: 'exercise-row', exerciseId: 'exercise', sourceName: 'Bench press', name: 'Bench press', note: '', position: 0,
-  sets: [{ repMin: 8, repMax: 12, targetRpe: 8, restSeconds: 90, tempo: null, loadText: null, notes: null, repsText: null, restText: null, percent1Rm: null, rir: null, warmup: false, repsSource: 'userEdited', rpeSource: 'userEdited', restSource: 'userEdited' }],
+  sets: [{ repMin: 8, repMax: 12, targetRpe: 8, restSeconds: 90, tempo: null, loadText: null, notes: null, repsText: null, restText: null, rir: null, warmup: false, repsSource: 'userEdited', rpeSource: 'userEdited', restSource: 'userEdited' }],
   sequenceGroup: '', substitutions: []
 });
 

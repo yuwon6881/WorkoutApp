@@ -13,10 +13,10 @@ type Audio = { context: AudioContext; keepAlive: AudioBufferSourceNode };
 let audio: Audio | null = null;
 let scheduled: OscillatorNode[] = [];
 
-const BEEPS = 3;
-const BEEP_SECONDS = 0.18;
-const BEEP_GAP = 0.22;
-const TONE_HZ = 880;
+const CHIME = [
+  { frequency: 659.25, offset: 0, duration: 0.24, gain: 0.14 },
+  { frequency: 880, offset: 0.16, duration: 0.34, gain: 0.16 }
+] as const;
 
 /// Browsers only allow audio to start inside a real user gesture, so this is called from the
 /// tap that starts the rest, not from the timer. Calling it again is free.
@@ -55,22 +55,22 @@ export function scheduleAlarm(atEpochMs: number): boolean {
   const delay = (atEpochMs - Date.now()) / 1000;
   if (delay < 0) return false;
   const start = context.currentTime + delay;
-  for (let i = 0; i < BEEPS; i++) scheduled.push(beep(context, start + i * (BEEP_SECONDS + BEEP_GAP)));
+  for (const tone of CHIME) scheduled.push(beep(context, start + tone.offset, tone.frequency, tone.duration, tone.gain));
   return true;
 }
 
-function beep(context: AudioContext, at: number): OscillatorNode {
+function beep(context: AudioContext, at: number, frequency: number, duration: number, peakGain: number): OscillatorNode {
   const oscillator = context.createOscillator();
   const gain = context.createGain();
   oscillator.type = 'sine';
-  oscillator.frequency.value = TONE_HZ;
-  // A flat gate clicks; the short ramps are what make it read as a chime rather than a fault.
+  oscillator.frequency.value = frequency;
+  // A soft attack/release and two-note interval make a quiet chime instead of an alarm-like burst.
   gain.gain.setValueAtTime(0, at);
-  gain.gain.linearRampToValueAtTime(0.35, at + 0.02);
-  gain.gain.setValueAtTime(0.35, at + BEEP_SECONDS - 0.04);
-  gain.gain.linearRampToValueAtTime(0, at + BEEP_SECONDS);
+  gain.gain.linearRampToValueAtTime(peakGain, at + 0.035);
+  gain.gain.setValueAtTime(peakGain, at + duration - 0.07);
+  gain.gain.linearRampToValueAtTime(0, at + duration);
   oscillator.connect(gain); gain.connect(context.destination);
-  oscillator.start(at); oscillator.stop(at + BEEP_SECONDS + 0.02);
+  oscillator.start(at); oscillator.stop(at + duration + 0.03);
   return oscillator;
 }
 
@@ -92,5 +92,6 @@ export function releaseAlarm(): void {
 export function soundNow(): void {
   if (!primeAlarm() || !audio) return;
   const { context } = audio;
-  for (let i = 0; i < BEEPS; i++) scheduled.push(beep(context, context.currentTime + 0.05 + i * (BEEP_SECONDS + BEEP_GAP)));
+  const start = context.currentTime + 0.05;
+  for (const tone of CHIME) scheduled.push(beep(context, start + tone.offset, tone.frequency, tone.duration, tone.gain));
 }

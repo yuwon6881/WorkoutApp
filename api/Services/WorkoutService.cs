@@ -161,7 +161,7 @@ public sealed class WorkoutService(
                 var exercise = new SessionExercise
                 {
                     UserId = session.UserId, SessionId = session.Id, ExerciseId = plan.ExerciseId, Position = plan.Position,
-                    NameSnapshot = resolvedName, Note = plan.Note, PrescriptionJson = plan.SetsJson, SequenceGroup = plan.SequenceGroup,
+                    NameSnapshot = resolvedName, Note = plan.Note, PrescriptionJson = Json.Write(prescription), SequenceGroup = plan.SequenceGroup,
                     SubstitutionsJson = plan.SubstitutionsJson, LoadModel = loadModel,
                     SourceTemplateExerciseId = plan.Id, SourceSlotKey = plan.SlotKey, SourcePhaseId = template.ProgramPhaseId, SourcePage = plan.SourcePage
                 };

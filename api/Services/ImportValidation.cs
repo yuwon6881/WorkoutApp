@@ -98,9 +98,7 @@ internal static class ImportValidation
             Validation.Name(exercise.SourceName, "Exercise name", 160); Validation.Text(exercise.Notes, 1000, "Exercise notes");
             Validation.Require(exercise.SourcePage is null || exercise.SourcePage.Value is > 0 and <= ImportSourceText.MaxPages, "Exercise source page is invalid.");
             Validation.Text(exercise.SequenceGroup, 8, "Sequence group"); Validation.Substitutions(exercise.Substitutions);
-            // Imported notation is preserved for review, including unusual but valid 1-10
-            // target RPE values; manual program editing keeps the stricter training range.
-            Validation.Prescriptions(exercise.Sets.Select(ToPrescription).ToList(), false, true);
+            Validation.Prescriptions(exercise.Sets.Select(ToPrescription).ToList(), false);
             foreach (var set in exercise.Sets)
             {
                 Validation.Require(set.SourcePage is null || set.SourcePage.Value is > 0 and <= ImportSourceText.MaxPages, "Set source page is invalid.");
@@ -151,7 +149,7 @@ internal static class ImportValidation
 
     public static SetPrescription ToPrescription(DraftSet set)
         => new(set.RepMin, set.RepMax, set.TargetRpe, set.RestSeconds, set.Tempo, set.LoadText, set.Notes,
-            set.RepsText, set.RestText, set.Percent1Rm, set.Rir, set.Warmup, set.RepsSource, set.RpeSource, set.RestSource,
+            set.RepsText, set.RestText, set.Rir, set.Warmup, set.RepsSource, set.RpeSource, set.RestSource,
             SourcePage: set.SourcePage);
 
     public static List<ImportChunk> SplitChunks(List<AiOutlineChunk> source)

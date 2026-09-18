@@ -260,8 +260,7 @@ public sealed class TemplateService(AppDb db, CatalogService catalog)
             });
     }
 
-    public async Task ValidateInput(TemplateInput input, CancellationToken ct, bool requireWorkingRpe = true,
-        bool allowTargetRpeOutsideTrainingRange = false)
+    public async Task ValidateInput(TemplateInput input, CancellationToken ct, bool requireWorkingRpe = true)
     {
         Validation.Name(input.Name, "Workout name");
         Validation.Text(input.Focus, 120, "Focus"); Validation.Text(input.Note, 2000, "Workout notes");
@@ -279,7 +278,7 @@ public sealed class TemplateService(AppDb db, CatalogService catalog)
             Validation.Require(exercise.SourcePage is null || exercise.SourcePage.Value is > 0 and <= ImportSourceText.MaxPages, "Exercise source page is invalid.");
             Validation.Text(exercise.SequenceGroup, 8, "Sequence group");
             Validation.Substitutions(exercise.Substitutions);
-            Validation.Prescriptions(exercise.Sets, requireWorkingRpe, allowTargetRpeOutsideTrainingRange);
+            Validation.Prescriptions(exercise.Sets, requireWorkingRpe);
             await catalog.RequireActive(exercise.ExerciseId, ct);
         }
     }

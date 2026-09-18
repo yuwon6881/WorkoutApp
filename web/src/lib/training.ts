@@ -49,7 +49,6 @@ export const showTarget = (set: SetPrescription): string => {
   const parts = [showReps(set)];
   if (set.targetRpe !== null) parts.push(`RPE ${set.targetRpe}`);
   else if (!set.warmup) parts.push('app default RPE 8');
-  if (set.percent1Rm) parts.push(set.percent1Rm);
   if (set.rir) parts.push(`RIR ${set.rir}`);
   return parts.join(' · ');
 };
@@ -71,13 +70,14 @@ export function weekDays(offset = 0): Date[] {
   return Array.from({ length: 7 }, (_, i) => { const day = new Date(start); day.setDate(day.getDate() + i); return day; });
 }
 
-/// RPE is recorded in half points from 1 to 10; anything else is a typing error.
+/// RPE is recorded in half points from 6 to 10; anything else is a typing error.
 export const validRpe = (value: number | null): boolean =>
-  value !== null && Number.isFinite(value) && value >= 1 && value <= 10 && Math.abs(value * 2 - Math.round(value * 2)) < 1e-9;
+  value !== null && Number.isFinite(value) && value >= 6 && value <= 10 && Math.abs(value * 2 - Math.round(value * 2)) < 1e-9;
 
 export const validReps = (value: number | null): boolean =>
   value !== null && Number.isInteger(value) && value > 0 && value <= 1000;
 
 export const canComplete = (set: LoggedSet): boolean => validReps(set.reps);
 
-export const rpeSteps = Array.from({ length: 19 }, (_, i) => 1 + i * 0.5);
+export const rpeSteps = Array.from({ length: 9 }, (_, i) => 6 + i * 0.5);
+export const rpeOptions = rpeSteps.map(value => ({ value, label: String(value) }));

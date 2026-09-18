@@ -74,11 +74,11 @@ public class CatalogAndValidationTests
     }
 
     [Theory]
-    [InlineData(8)] [InlineData(7.5)] [InlineData(1)] [InlineData(10)]
+    [InlineData(8)] [InlineData(7.5)] [InlineData(6)] [InlineData(10)]
     public void An_RPE_on_a_half_point_is_accepted(double value) => Validation.Rpe(value);
 
     [Theory]
-    [InlineData(0.5)] [InlineData(10.5)] [InlineData(7.3)] [InlineData(8.25)]
+    [InlineData(0.5)] [InlineData(5.5)] [InlineData(10.5)] [InlineData(7.3)] [InlineData(8.25)]
     public void An_RPE_off_the_half_point_scale_is_refused(double value) => Assert.Throws<DomainException>(() => Validation.Rpe(value));
 
     [Fact] public void A_completed_set_needs_reps_but_RPE_can_be_recorded_later()
@@ -108,7 +108,7 @@ public class CatalogAndValidationTests
 
     [Fact] public void Set_prescriptions_survive_a_round_trip_with_their_differences_intact()
     {
-        List<SetPrescription> sets = [new(8, 10, 8, 120, "3010", "70% 1RM", "top set"), new(12, 12, 7.5, null, null, null, null)];
+        List<SetPrescription> sets = [new(8, 10, 8, 120, "3010", "70 kg top set", "top set"), new(12, 12, 7.5, null, null, null, null)];
         var parsed = Validation.Prescriptions(Json.Write(sets));
         Assert.Equal(sets, parsed);
         Assert.Equal(10, parsed[0].RepMax);

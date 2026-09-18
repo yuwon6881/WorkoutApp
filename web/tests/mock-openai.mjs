@@ -21,14 +21,14 @@ const chunks = [
           sequenceGroup: 'A1', sourceName: 'Barbell bench press', exerciseId: null, warmupSets: '2-3', substitutions: ['Incline dumbbell press', 'Push-up'],
           coachingNotes: null, notes: null,
           sets: [
-            { repMin: 8, repMax: 10, repsText: '8–10', targetRpe: 8, rir: null, percent1Rm: null, restSeconds: 120, restText: '2 min', tempo: null, loadText: null, notes: null, repsSource: 'extracted', rpeSource: 'inferred', restSource: 'extracted' },
-            { repMin: 8, repMax: 10, repsText: '8–10', targetRpe: 8, rir: null, percent1Rm: null, restSeconds: 120, restText: '2 min', tempo: null, loadText: null, notes: null, repsSource: 'extracted', rpeSource: 'inferred', restSource: 'extracted' }
+            { repMin: 8, repMax: 10, repsText: '8–10', targetRpe: 8, rir: null, restSeconds: 120, restText: '2 min', tempo: null, loadText: null, notes: null, repsSource: 'extracted', rpeSource: 'inferred', restSource: 'extracted' },
+            { repMin: 8, repMax: 10, repsText: '8–10', targetRpe: 8, rir: null, restSeconds: 120, restText: '2 min', tempo: null, loadText: null, notes: null, repsSource: 'extracted', rpeSource: 'inferred', restSource: 'extracted' }
           ]
         },
         {
           sequenceGroup: 'A2', sourceName: 'Mystery machine row', exerciseId: null, warmupSets: null, substitutions: [],
           coachingNotes: 'Keep the chest supported.', notes: 'Not named in the library.',
-          sets: [{ repMin: 12, repMax: 12, repsText: 'AMRAP', targetRpe: 7, rir: '3', percent1Rm: null, restSeconds: 90, restText: '90 sec', tempo: null, loadText: null, notes: null, repsSource: 'extracted', rpeSource: 'extracted', restSource: 'inferred' }]
+          sets: [{ repMin: 12, repMax: 12, repsText: 'AMRAP', targetRpe: 7, rir: '3', restSeconds: 90, restText: '90 sec', tempo: null, loadText: null, notes: null, repsSource: 'extracted', rpeSource: 'extracted', restSource: 'inferred' }]
         }
       ]
     }]
@@ -40,7 +40,7 @@ const chunks = [
         block: 'Block 1', phase: 'Base', weekNumber: 2, phaseWeek: 2, dayName: 'Week 2 Upper', isRestDay: false, notes: null,
         exercises: [{
           sequenceGroup: 'B1', sourceName: 'Barbell bench press', exerciseId: null, warmupSets: null, substitutions: [], coachingNotes: null, notes: null,
-          sets: [{ repMin: 6, repMax: 8, repsText: '6–8', targetRpe: 9, rir: null, percent1Rm: '80% 1RM', restSeconds: 180, restText: '3 min', tempo: null, loadText: null, notes: null, repsSource: 'extracted', rpeSource: 'extracted', restSource: 'extracted' }]
+          sets: [{ repMin: 6, repMax: 8, repsText: '6–8', targetRpe: 9, rir: null, restSeconds: 180, restText: '3 min', tempo: null, loadText: null, notes: null, repsSource: 'extracted', rpeSource: 'extracted', restSource: 'extracted' }]
         }]
       },
       { block: 'Block 1', phase: 'Base', weekNumber: 2, phaseWeek: 2, dayName: 'Week 2 Recovery', isRestDay: true, notes: 'Recover before the next block.', exercises: [] }

@@ -12,7 +12,7 @@ public sealed class DomainException(string message, int status = 400) : Exceptio
 /// so a program that asks for 8-10 on set one and 12 on set three stays that way.
 public record SetPrescription(
     int RepMin, int RepMax, double? TargetRpe, int? RestSeconds, string? Tempo, string? LoadText, string? Notes,
-    string? RepsText = null, string? RestText = null, string? Percent1Rm = null, string? Rir = null,
+    string? RepsText = null, string? RestText = null, string? Rir = null,
     bool Warmup = false, string RepsSource = "extracted", string RpeSource = "extracted", string RestSource = "extracted",
     string ResistanceMode = ResistanceModes.External, int? SourcePage = null);
 
@@ -23,10 +23,10 @@ public static class Validation
     public static void Number(double number, double min, double max, string name) => Require(double.IsFinite(number) && number >= min && number <= max, $"{name} must be between {min} and {max}.");
     public static void Text(string? value, int max, string name) => Require(value == null || value.Length <= max, $"{name} must be {max} characters or fewer.");
 
-    /// RPE is rated 1-10 in half-point steps. Anything finer is a data-entry error, not precision.
+    /// RPE is rated 6-10 in half-point steps. Anything finer is a data-entry error, not precision.
     public static void Rpe(double value, string name = "RPE")
     {
-        Number(value, 1, 10, name);
+        Number(value, 6, 10, name);
         Require(Math.Abs(value * 2 - Math.Round(value * 2)) < 1e-9, $"{name} must use whole or half points.");
     }
 
@@ -61,8 +61,7 @@ public static class Validation
         return sets;
     }
 
-    public static void Prescriptions(List<SetPrescription>? sets, bool requireWorkingRpe = false,
-        bool allowTargetRpeOutsideTrainingRange = false)
+    public static void Prescriptions(List<SetPrescription>? sets, bool requireWorkingRpe = false)
     {
         Require(sets is { Count: > 0 }, "Each exercise needs at least one set.");
         Require(sets!.Count <= 24, "An exercise can have at most 24 sets.");
@@ -74,7 +73,7 @@ public static class Validation
             Require(set.RepMin <= set.RepMax, "The lowest rep target cannot exceed the highest.");
             if (set.TargetRpe is { } target)
             {
-                Number(target, allowTargetRpeOutsideTrainingRange ? 1 : 6, 10, "Target RPE");
+                Number(target, 6, 10, "Target RPE");
                 Require(Math.Abs(target * 2 - Math.Round(target * 2)) < 1e-9, "Target RPE must use whole or half points.");
             }
             else Require(!requireWorkingRpe || set.Warmup, "Working sets need a target RPE between 6 and 10.");
@@ -84,7 +83,7 @@ public static class Validation
             else Require(!workingStarted, "Warm-up sets must come before working sets.");
             Text(set.Tempo, 24, "Tempo"); Text(set.LoadText, 60, "Load"); Text(set.Notes, 400, "Set notes");
             Text(set.RepsText, 40, "Verbatim reps"); Text(set.RestText, 24, "Verbatim rest");
-            Text(set.Percent1Rm, 24, "%1RM"); Text(set.Rir, 16, "RIR");
+            Text(set.Rir, 16, "RIR");
             Require(ResistanceModes.All.Contains(set.ResistanceMode), "Unknown resistance mode.");
             foreach (var source in new[] { set.RepsSource, set.RpeSource, set.RestSource })
                 Require(source is "extracted" or "inferred" or "userEdited", "Unknown provenance label.");

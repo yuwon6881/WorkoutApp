@@ -24,7 +24,7 @@ export function validateInteger(value: number | null, min: number, max: number, 
 
 export function validateRpe(value: number | null, label = 'RPE'): string | undefined {
   if (value === null) return undefined;
-  if (!Number.isFinite(value) || value < 1 || value > 10) return `${label} must be between 1 and 10.`;
+  if (!Number.isFinite(value) || value < 6 || value > 10) return `${label} must be between 6 and 10.`;
   if (Math.abs(value * 2 - Math.round(value * 2)) >= 1e-9) return `${label} must use whole or half points.`;
   return undefined;
 }
@@ -43,7 +43,7 @@ function validateSubstitutions(substitutions: string[] | null | undefined): stri
   return substitutions.map(value => validateName(value, 'Substitution', 160)).find(Boolean);
 }
 
-type ValidatablePrescription = Pick<SetPrescription, 'repMin' | 'repMax' | 'targetRpe' | 'restSeconds' | 'tempo' | 'loadText' | 'notes' | 'repsText' | 'restText' | 'percent1Rm' | 'rir' | 'warmup'>;
+type ValidatablePrescription = Pick<SetPrescription, 'repMin' | 'repMax' | 'targetRpe' | 'restSeconds' | 'tempo' | 'loadText' | 'notes' | 'repsText' | 'restText' | 'rir' | 'warmup'>;
 
 export function validatePrescription(set: ValidatablePrescription, requireWorkingRpe = false): string | undefined {
   const reps = validateInteger(set.repMin, 1, 1000, 'Reps');
@@ -61,7 +61,7 @@ export function validatePrescription(set: ValidatablePrescription, requireWorkin
   if (rest) return rest;
   for (const [value, label, max] of [
     [set.tempo, 'Tempo', 24], [set.loadText, 'Load', 60], [set.notes, 'Set notes', 400],
-    [set.repsText, 'Verbatim reps', 40], [set.restText, 'Verbatim rest', 24], [set.percent1Rm, '%1RM', 24], [set.rir, 'RIR', 16]
+    [set.repsText, 'Verbatim reps', 40], [set.restText, 'Verbatim rest', 24], [set.rir, 'RIR', 16]
   ] as const) {
     const text = validateText(value, label, max);
     if (text) return text;
