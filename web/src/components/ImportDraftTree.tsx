@@ -33,12 +33,36 @@ export function DraftOutline({ draft, expandedDay, setExpandedDay, exercises, on
   </section>)}</div>;
 }
 
+/// What a day prescribes, in one line per exercise. A draft is read before it is edited, and a
+/// list of day names alone says nothing about whether the PDF was transcribed correctly, so every
+/// day shows its exercises without being opened; opening one is for changing it.
+function DayLines({ day }: { day: DraftWorkout }) {
+  return <ol className="draft-day-lines">
+    {day.exercises.map(exercise => {
+      const working = exercise.sets.filter(set => !set.warmup);
+      const warmups = exercise.sets.length - working.length;
+      const shown = working[0] ?? exercise.sets[0];
+      const parts = shown ? [`${working.length || exercise.sets.length} × ${showReps(shown)}`] : [];
+      if (shown?.targetRpe != null) parts.push(`RPE ${shown.targetRpe}`);
+      if (shown?.restText) parts.push(shown.restText);
+      else if (shown?.restSeconds != null) parts.push(`${shown.restSeconds}s rest`);
+      if (warmups > 0) parts.push(`${warmups} warm-up`);
+      return <li key={exercise.lineId}>
+        {exercise.sequenceGroup && <span className="draft-line-group">{exercise.sequenceGroup}</span>}
+        <span className="draft-line-name">{exercise.sourceName}</span>
+        <span className="draft-line-detail">{parts.join(' · ')}</span>
+      </li>;
+    })}
+  </ol>;
+}
+
 function DayRow({ day, expanded, onToggle, exercises, onChange }: { day: DraftWorkout; expanded: boolean; onToggle: () => void; exercises: Exercise[]; onChange: (day: DraftWorkout) => Promise<void> }) {
   return <section className={`draft-day ${day.isRestDay ? 'rest-day' : ''}`}>
     <Button presentation="plain" className="draft-day-summary" aria-expanded={expanded} onClick={onToggle}>
       <span><strong>W{day.phaseWeek} · {day.name}</strong><small>{day.isRestDay ? 'Rest day' : `${day.exercises.length} exercises`}{day.phase?.toLowerCase().includes('deload') ? ' · Deload' : ''}{day.sourcePage ? ` · PDF p.${day.sourcePage}` : ''}</small></span>
       <span className="tiny-label">{day.isRestDay ? 'Rest day' : expanded ? 'Close' : 'Edit'}</span>
     </Button>
+    {!expanded && !day.isRestDay && day.exercises.length > 0 && <DayLines day={day} />}
     {expanded && <DayEditor day={day} exercises={exercises} onChange={onChange} />}
   </section>;
 }
