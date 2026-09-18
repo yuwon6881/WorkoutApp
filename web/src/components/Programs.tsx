@@ -1,7 +1,8 @@
-import { useState, type Dispatch, type SetStateAction } from 'react';
-import { ArrowRight, Dumbbell, FileText, Pencil, Plus, RefreshCw, Trash2 } from 'lucide-react';
+import { useMemo, useState, type Dispatch, type SetStateAction } from 'react';
+import { ArrowRight, Check, ChevronDown, ChevronUp, Dumbbell, FileText, Pencil, Play, Plus, RefreshCw, Trash2 } from 'lucide-react';
 import type { Bootstrap, Exercise, ProgramSummary, SetPrescription, Template, TemplateExercise } from '../types';
 import { ApiError, api } from '../lib/api';
+import { getWorkoutMuscles } from '../lib/muscles';
 import { showReps } from '../lib/training';
 import { validateTemplateDraft } from '../lib/validation';
 import { Button } from './ui/Button';
@@ -217,7 +218,7 @@ function ProgramCard({ program, exercises, onStart, onChanged }: { program: Prog
       {program.phases.map(phase => <span className="tiny-label" key={phase.id}>{phase.name} · W{phase.currentWeek ?? 1}/{phase.durationWeeks} · {phase.completedWorkouts} completed{phase.skippedWorkouts ? ` · ${phase.skippedWorkouts} skipped` : ''}/{phase.totalWorkouts}{phase.complete ? ' · Done' : ''}{phase.sourcePageFrom ? ` · PDF pp.${phase.sourcePageFrom}${phase.sourcePageTo && phase.sourcePageTo !== phase.sourcePageFrom ? `–${phase.sourcePageTo}` : ''}` : ''}</span>)}
     </div>}
       <Button variant="tertiary" className="full-width" onClick={() => void toggleDetails()} disabled={busy}>{busy ? 'Loading…' : expanded ? 'Hide details' : 'Show details'}</Button>
-    {expanded && <ProgramTree days={program.days} completed={program.completedTemplateIds} skipped={program.skippedTemplateIds ?? []} nextId={program.nextTemplateId} detail={detail} onStart={onStart} onSkip={toggleSkip} canStart={program.active} onSwap={template => exercise => { setSwapTarget({ template, exercise }); setSwapScope('slot'); setSwapChoice(null); setConfirmPhaseSwap(false); }} />}
+    {expanded && <ProgramTree days={program.days} completed={program.completedTemplateIds} skipped={program.skippedTemplateIds ?? []} nextId={program.nextTemplateId} detail={detail} exercises={exercises} onStart={onStart} onSkip={toggleSkip} canStart={program.active} onSwap={template => exercise => { setSwapTarget({ template, exercise }); setSwapScope('slot'); setSwapChoice(null); setConfirmPhaseSwap(false); }} />}
     {error && <p className="error-text" role="alert">{error}</p>}
     {program.needsSchedule && !scheduling && <div className="empty-message">
       <strong>Choose when this program happens</strong>
@@ -262,7 +263,7 @@ function ProgramCard({ program, exercises, onStart, onChanged }: { program: Prog
   </section>;
 }
 
-function ProgramTree({ days, completed, skipped, nextId, detail, onStart, onSkip, canStart, onSwap }: { days: ProgramSummary['days']; completed: string[]; skipped: string[]; nextId: string | null; detail: Template[] | null; onStart: (id: string) => void; onSkip: (id: string) => Promise<void>; canStart: boolean; onSwap: (template: Template) => (exercise: TemplateExercise) => void }) {
+function ProgramTree({ days, completed, skipped, nextId, detail, exercises, onStart, onSkip, canStart, onSwap }: { days: ProgramSummary['days']; completed: string[]; skipped: string[]; nextId: string | null; detail: Template[] | null; exercises: Exercise[]; onStart: (id: string) => void; onSkip: (id: string) => Promise<void>; canStart: boolean; onSwap: (template: Template) => (exercise: TemplateExercise) => void }) {
   const blocks = new Map<string, Map<string, typeof days>>();
   for (const day of days) {
     const block = day.block || 'Program';
@@ -278,16 +279,65 @@ function ProgramTree({ days, completed, skipped, nextId, detail, onStart, onSkip
       <summary>{phase}</summary>
       <div className="routine-list">{phaseDays.map(day => {
         const full = detail?.find(template => template.id === day.id);
-        const complete = completed.includes(day.id); const isSkipped = skipped.includes(day.id);
-        const row = <><span className="routine-number">W{day.phaseWeek}</span><span>{day.name}{day.sourcePage ? <small className="muted"> · PDF p.{day.sourcePage}</small> : null}</span><span className="tiny-label">{day.isRestDay ? 'Rest day' : complete ? 'Done' : isSkipped ? 'Skipped' : day.id === nextId ? 'Up next' : `${full?.exercises.length ?? day.exerciseCount} exercises`}</span></>;
-        if (day.isRestDay) return <div className="routine-row rest-row" key={day.id}>{row}</div>;
-        const actionable = canStart && !complete && !isSkipped;
-        return <div className="program-slot-row" key={day.id}>{actionable
-          ? <Button variant="tertiary" className={`routine-row ${day.id === nextId ? 'next' : ''}`} onClick={() => onStart(day.id)}>{row}</Button>
-          : <div className="routine-row routine-row-static">{row}</div>}
-          {full && <div className="slot-exercises">{full.exercises.map(exercise => <Button key={exercise.id} variant="tertiary" aria-label={`Swap ${exercise.name} in ${day.name}`} onClick={() => onSwap(full)(exercise)}><RefreshCw size={14} />{exercise.name}</Button>)}</div>}
-          <Button variant="tertiary" disabled={(!canStart && !isSkipped) || (complete && !isSkipped)} aria-label={`${isSkipped ? 'Unskip' : 'Skip'} ${day.name}`} onClick={() => void onSkip(day.id)}>{isSkipped ? 'Unskip' : 'Skip'}</Button></div>;
+        const complete = completed.includes(day.id);
+        const isSkipped = skipped.includes(day.id);
+        return <ProgramSlotRow key={day.id} day={day} full={full} complete={complete} isSkipped={isSkipped} isNext={day.id === nextId} canStart={canStart} exercises={exercises} onStart={onStart} onSkip={onSkip} onSwap={full ? onSwap(full) : () => {}} />;
       })}</div>
     </details>)}
   </details>)}</div>;
+}
+
+function ProgramSlotRow({ day, full, complete, isSkipped, isNext, canStart, exercises, onStart, onSkip, onSwap }: {
+  day: ProgramSummary['days'][number];
+  full: Template | undefined;
+  complete: boolean;
+  isSkipped: boolean;
+  isNext: boolean;
+  canStart: boolean;
+  exercises: Exercise[];
+  onStart: (id: string) => void;
+  onSkip: (id: string) => Promise<void>;
+  onSwap: (exercise: TemplateExercise) => void;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const muscles = useMemo(() => full?.exercises ? getWorkoutMuscles(full.exercises, exercises) : [], [full, exercises]);
+  const preview = useMemo(() => {
+    if (!full?.exercises?.length) return '';
+    const names = full.exercises.map(e => e.name);
+    if (names.length <= 4) return names.join(', ');
+    return `${names.slice(0, 4).join(', ')}, and ${names.length - 4} more`;
+  }, [full]);
+
+  const actionable = canStart && !complete && !isSkipped;
+  const statusLabel = day.isRestDay ? 'Rest day' : complete ? 'Done' : isSkipped ? 'Skipped' : isNext ? 'Up next' : `${full?.exercises.length ?? day.exerciseCount} exercises`;
+
+  const row = <>
+    <span className="routine-number">W{day.phaseWeek}</span>
+    <span>{day.name}{day.sourcePage ? <small className="muted"> · PDF p.{day.sourcePage}</small> : null}</span>
+    <span className="tiny-label">{statusLabel}</span>
+  </>;
+
+  if (day.isRestDay) return <div className="routine-row rest-row" key={day.id}>{row}</div>;
+
+  return <div className={`program-slot-card ${complete ? 'completed-slot' : ''} ${isNext ? 'next-slot' : ''}`} key={day.id}>
+    <div className="program-slot-header">
+      {actionable
+        ? <Button variant="tertiary" className={`routine-row ${isNext ? 'next' : ''}`} onClick={() => onStart(day.id)}>{row}</Button>
+        : <div className="routine-row routine-row-static">{row}</div>}
+      <div className="program-slot-controls">
+        {complete && <span className="slot-complete-badge" title="Workout completed"><Check size={16} /></span>}
+        {actionable && <Button variant="primary" className="slot-start-btn" aria-label={`Start ${day.name}`} onClick={() => onStart(day.id)}><Play size={14} fill="currentColor" /><span>Start</span></Button>}
+        <Button variant="tertiary" disabled={(!canStart && !isSkipped) || (complete && !isSkipped)} aria-label={`${isSkipped ? 'Unskip' : 'Skip'} ${day.name}`} onClick={() => void onSkip(day.id)}>{isSkipped ? 'Unskip' : 'Skip'}</Button>
+        {full && full.exercises.length > 0 && <Button variant="tertiary" aria-label={expanded ? `Hide exercises for ${day.name}` : `Swap exercises in ${day.name}`} onClick={() => setExpanded(e => !e)}>{expanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}</Button>}
+      </div>
+    </div>
+    {preview && <p className="day-exercise-preview">{preview}</p>}
+    {muscles.length > 0 && <div className="day-muscles-row" aria-label="Targeted muscles">
+      {muscles.slice(0, 5).map(m => <span key={m} className="muscle-chip">{m}</span>)}
+      {muscles.length > 5 && <span className="muscle-chip muscle-chip-overflow" title={muscles.slice(5).join(', ')}>+{muscles.length - 5}</span>}
+    </div>}
+    {expanded && full && <div className="slot-exercises">
+      {full.exercises.map(exercise => <Button key={exercise.id} variant="tertiary" aria-label={`Swap ${exercise.name} in ${day.name}`} onClick={() => onSwap(exercise)}><RefreshCw size={14} />{exercise.name}</Button>)}
+    </div>}
+  </div>;
 }

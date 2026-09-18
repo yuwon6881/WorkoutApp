@@ -150,7 +150,7 @@ export default function App() {
       onDiscard={async () => { app.queue.clear(); app.setActiveWorkout(null); setTraining(false); await app.reload(); }} />}
 
     {preview && <StartPreview template={preview} busy={starting} onCancel={() => setPreview(null)} onConfirm={confirmStart} />}
-    {detail && <SessionDetail session={detail} preferences={data.preferences} onClose={() => setDetail(null)} onDeleted={app.reload} />}
+    {detail && <SessionDetail session={detail} preferences={data.preferences} exercises={data.exercises} onClose={() => setDetail(null)} onDeleted={app.reload} />}
     {exerciseDetail && <ExerciseDetailModal exercise={exerciseDetail} unit={data.preferences.unit} onClose={() => setExerciseDetail(null)} onChanged={async () => { clearHistoryViewCache(); await app.reload(); }}
       onSession={session => { setExerciseDetail(null); setDetail(session); }} />}
     {toast && <div className="toast" role="status"><Plus size={17} />{toast}</div>}

@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { ArrowRight, BarChart3, CalendarDays, Dumbbell, Trophy } from 'lucide-react';
-import type { HistoryPage, Preferences, ProgressSummary, Session } from '../types';
+import type { Exercise, HistoryPage, Preferences, ProgressSummary, Session } from '../types';
 import { ApiError, api } from '../lib/api';
+import { getWorkoutMuscles } from '../lib/muscles';
 import { completedSets, duration, showRpe, showVolume, showWeight, toDisplay } from '../lib/training';
 import { Button } from './ui/Button';
 import { Modal } from './ui/Modal';
@@ -149,17 +150,21 @@ export function HistoryView({ initial, initialProgress, preferences, onSession, 
   </>;
 }
 
-export function SessionDetail({ session, preferences, onClose, onDeleted }: {
-  session: Session; preferences: Preferences; onClose: () => void; onDeleted?: () => Promise<void>;
+export function SessionDetail({ session, preferences, exercises = [], onClose, onDeleted }: {
+  session: Session; preferences: Preferences; exercises?: Exercise[]; onClose: () => void; onDeleted?: () => Promise<void>;
 }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const unit = preferences.unit;
+  const muscles = useMemo(() => getWorkoutMuscles(session.exercises, exercises), [session.exercises, exercises]);
 
   return <Modal title={session.name} onClose={onClose}>
     <div className="modal-body">
       <div className="saved-badge"><Trophy size={19} />Workout complete</div>
       <p>{new Date(session.startedAt).toLocaleString()} · {duration(session)} min</p>
+      {muscles.length > 0 && <div className="day-muscles-row" aria-label="Targeted muscles">
+        {muscles.map(m => <span key={m} className="muscle-chip">{m}</span>)}
+      </div>}
       <div className="detail-stats">
         <strong>{completedSets(session).length}<small>working sets</small></strong>
         <strong>{showVolume(session.volumeKg, unit)}<small>total volume</small></strong>

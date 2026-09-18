@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
+import { ChevronDown, ChevronUp, Pencil } from 'lucide-react';
 import type { DraftWorkout, Exercise, ImportDraft } from '../types';
 import { Button } from './ui/Button';
 import { ChipScroller } from './ui/ChipScroller';
 import { DayEditor, exerciseSummary } from './ImportDayEditor';
+import { getWorkoutMuscles } from '../lib/muscles';
 
 type Week = {
   week: number;
@@ -77,6 +79,21 @@ export function DraftOutline({ draft, expandedDay, setExpandedDay, exercises, on
   const weeks = useMemo(() => groupWeeks(draft), [draft]);
   const [selectedWeek, setSelectedWeek] = useState(weeks[0]?.week ?? 1);
 
+  const blocks = useMemo(() => {
+    const list: { name: string; number: number; weeks: Week[] }[] = [];
+    for (let i = 0; i < weeks.length; i++) {
+      const w = weeks[i];
+      const num = blockIndex(weeks, i);
+      let b = list.find(item => item.name === w.block);
+      if (!b) {
+        b = { name: w.block, number: num, weeks: [] };
+        list.push(b);
+      }
+      b.weeks.push(w);
+    }
+    return list;
+  }, [weeks]);
+
   useEffect(() => {
     setSelectedWeek(current => {
       if (weeks.some(week => week.week === current)) return current;
@@ -98,15 +115,22 @@ export function DraftOutline({ draft, expandedDay, setExpandedDay, exercises, on
       <h2>{draft.programName}</h2>
       <span className="tiny-label">{weeks.length} {weeks.length === 1 ? 'week' : 'weeks'}</span>
     </div>
+    {blocks.length > 1 && <div className="import-block-selector" role="tablist" aria-label="Program blocks">
+      {blocks.map(b => {
+        const isSelected = b.weeks.some(w => w.week === week.week);
+        return <Button key={b.name} presentation="plain" role="tab" aria-selected={isSelected}
+          className={`filter-chip ${isSelected ? 'active' : ''}`}
+          onClick={() => setSelectedWeek(b.weeks[0]?.week ?? week.week)}>
+          Block {b.number}{b.name && b.name !== `Block ${b.number}` && b.name !== 'Program' ? ` · ${b.name}` : ''}
+        </Button>;
+      })}
+    </div>}
     <ChipScroller ariaLabel="Program weeks" role="tablist" resetKey={weeks.map(entry => entry.week).join('|')}
       leftLabel="Scroll program weeks left" rightLabel="Scroll program weeks right">
-      {weeks.map((entry, index) => <span className="import-week-chip-group" key={entry.week}>
-        {(index === 0 || entry.block !== weeks[index - 1].block) && <span className="import-block-label">Block {blockIndex(weeks, index)}</span>}
-        <Button presentation="plain" role="tab" aria-selected={entry.week === week.week}
-          className={`filter-chip ${entry.week === week.week ? 'active' : ''}`} onClick={() => setSelectedWeek(entry.week)}>
-          Week {entry.week}
-        </Button>
-      </span>)}
+      {weeks.map(entry => <Button key={entry.week} presentation="plain" role="tab" aria-selected={entry.week === week.week}
+        className={`filter-chip ${entry.week === week.week ? 'active' : ''}`} onClick={() => setSelectedWeek(entry.week)}>
+        Week {entry.week}
+      </Button>)}
     </ChipScroller>
     <p className="import-week-caption">{weekCaption(week, selectedBlock)}</p>
     <div className="import-week-days" role="tabpanel" aria-label={`Week ${week.week}`}>
@@ -135,15 +159,54 @@ function DayRow({ day, expanded, onToggle, exercises, onChange }: {
   exercises: Exercise[];
   onChange: (day: DraftWorkout) => Promise<void>;
 }) {
+  const [showDetails, setShowDetails] = useState(false);
+  const muscles = useMemo(() => getWorkoutMuscles(day.exercises, exercises), [day.exercises, exercises]);
+  const exercisePreview = useMemo(() => {
+    if (day.isRestDay || !day.exercises.length) return '';
+    const names = day.exercises.map(e => e.sourceName);
+    if (names.length <= 4) return names.join(', ');
+    return `${names.slice(0, 4).join(', ')}, and ${names.length - 4} more`;
+  }, [day.exercises, day.isRestDay]);
+
+  const fullName = `${day.weekday ? `${weekdayNames[day.weekday - 1]} · ` : ''}${day.name}`;
+
   return <section className={`draft-day ${day.isRestDay ? 'rest-day' : ''}`}>
-    <Button presentation="plain" className="draft-day-summary" aria-expanded={expanded} onClick={onToggle}>
-      <span>
-        <strong>{day.weekday ? `${weekdayNames[day.weekday - 1]} · ` : ''}{day.name}</strong>
-        <small>{day.isRestDay ? 'Rest day' : `${day.exercises.length} exercises`}{day.phase?.toLowerCase().includes('deload') ? ' · Deload' : ''}{day.sourcePage ? ` · PDF p.${day.sourcePage}` : ''}</small>
-      </span>
-      <span className="tiny-label">{day.isRestDay ? 'Rest day' : expanded ? 'Close' : 'Edit'}</span>
-    </Button>
-    {!expanded && !day.isRestDay && day.exercises.length > 0 && <DayLines day={day} />}
+    <div className="draft-day-card-header">
+      <Button presentation="plain" className="draft-day-summary" aria-expanded={expanded} aria-label={fullName} onClick={onToggle}>
+        <div className="draft-day-title-group">
+          <strong>{fullName}</strong>
+          <div className="draft-day-meta-tags">
+            <span className="tiny-label">{day.isRestDay ? 'Rest day' : `${day.exercises.length} exercises`}</span>
+            {day.phase?.toLowerCase().includes('deload') && <span className="pill pill-accent">Deload</span>}
+            {day.sourcePage && <span className="muted">PDF p.{day.sourcePage}</span>}
+          </div>
+        </div>
+      </Button>
+      <div className="draft-day-actions">
+        {day.isRestDay ? <span className="tiny-label rest-badge">Rest day</span> : <>
+          <Button variant="secondary" className="day-action-button" aria-label={`Edit ${day.name}`} onClick={onToggle}>
+            <Pencil size={14} /><span>{expanded ? 'Close' : 'Edit'}</span>
+          </Button>
+          {!expanded && day.exercises.length > 0 && <Button variant="tertiary" className="day-chevron-button"
+            aria-label={showDetails ? `Hide details for ${day.name}` : `View details for ${day.name}`}
+            onClick={e => { e.stopPropagation(); setShowDetails(s => !s); }}>
+            {showDetails ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+          </Button>}
+        </>}
+      </div>
+    </div>
+
+    {!expanded && !day.isRestDay && (
+      <div className="draft-day-compact-body">
+        {exercisePreview && <p className="day-exercise-preview">{exercisePreview}</p>}
+        {muscles.length > 0 && <div className="day-muscles-row" aria-label="Targeted muscles">
+          {muscles.slice(0, 5).map(m => <span key={m} className="muscle-chip">{m}</span>)}
+          {muscles.length > 5 && <span className="muscle-chip muscle-chip-overflow" title={muscles.slice(5).join(', ')}>+{muscles.length - 5}</span>}
+        </div>}
+      </div>
+    )}
+
+    {!expanded && showDetails && !day.isRestDay && day.exercises.length > 0 && <DayLines day={day} />}
     {expanded && <DayEditor day={day} exercises={exercises} onChange={onChange} />}
   </section>;
 }
