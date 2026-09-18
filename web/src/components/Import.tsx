@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { AlertTriangle, ArrowLeft, Check, ChevronDown, ChevronRight, Loader2, Trash2, Upload, Wand2, X } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, Check, ChevronDown, ChevronRight, Loader2, RotateCcw, Trash2, Upload, Wand2, X } from 'lucide-react';
 import type { DraftWorkout, Exercise, ImportDraft, ImportView } from '../types';
 import { ApiError, api } from '../lib/api';
 import { validateDraftWorkout, validateName } from '../lib/validation';
 import { Button } from './ui/Button';
 import { Field } from './ui/Field';
+import { Modal } from './ui/Modal';
 import { DraftOutline, type DraftOutlineHandle, type ImportIssueTarget } from './ImportDraftTree';
 import { useImportPipeline, type ImportFailure, type ImportProgress } from './useImportPipeline';
 
@@ -62,6 +63,7 @@ export function ImportReview({ exercises, imports, remaining, onBack, onChanged,
   const [saving, setSaving] = useState('');
   const [saveError, setSaveError] = useState('');
   const [showAllIssues, setShowAllIssues] = useState(false);
+  const [confirmRestoreDraft, setConfirmRestoreDraft] = useState(false);
   const file = useRef<HTMLInputElement>(null);
   const reviewRef = useRef<HTMLElement>(null);
   const outlineRef = useRef<DraftOutlineHandle>(null);
@@ -94,6 +96,17 @@ export function ImportReview({ exercises, imports, remaining, onBack, onChanged,
     }).catch(failure => { if (!cancelled) setSaveError(failure instanceof ApiError ? failure.message : 'Could not load this import.'); });
     return () => { cancelled = true; };
   }, [selected?.id]);
+
+  async function handleRestoreExercise(exerciseLineId: string) {
+    if (!selected) return;
+    await pipeline.run('Restoring exercise default…', async () => {
+      const view = await api.restoreImportExercise(selected.id, exerciseLineId, selected.revision);
+      setSelected(view);
+      setDraft(view.draft);
+      await onChanged();
+      notify?.('Exercise restored to default.');
+    });
+  }
 
   async function persist(next: ImportDraft) {
     if (!selected) return;
@@ -255,17 +268,37 @@ export function ImportReview({ exercises, imports, remaining, onBack, onChanged,
           </div>
         </details> : null}
       </section>
-      {draft.workouts.length > 0 ? <DraftOutline ref={outlineRef} draft={draft} expandedDay={expandedDay} setExpandedDay={setExpandedDay} exercises={exercises} onDayChange={persistDay} onDraftChange={persist} />
+      {draft.workouts.length > 0 ? <DraftOutline ref={outlineRef} draft={draft} expandedDay={expandedDay} setExpandedDay={setExpandedDay} exercises={exercises} onDayChange={persistDay} onDraftChange={persist} restorableExerciseLineIds={selected.restorableExerciseLineIds} onRestoreExercise={handleRestoreExercise} />
         : <section className="panel"><div className="empty-message"><AlertTriangle size={30} /><h3>No extracted days</h3><p>The draft needs at least one training or rest day.</p></div></section>}
       <section className="panel import-actions-panel">
         <div className="import-action-card-content">
           {!selected.acceptable && <p className="muted small-copy import-notice-copy" role="status">The program can be created after every review item is resolved.</p>}
         </div>
         <div className="import-actions-footer">
+          {selected.canRestoreDraft && <Button variant="tertiary" disabled={busy} onClick={() => setConfirmRestoreDraft(true)}><RotateCcw size={17} />Restore default draft</Button>}
           <Button variant="destructive" disabled={busy} onClick={() => pipeline.run('Discarding this draft…', async () => { await api.discardImport(selected.id); setSelected(null); setDraft(null); })}><Trash2 size={17} />Discard draft</Button>
           <Button variant="primary" disabled={busy || !selected.acceptable} onClick={() => pipeline.run('Creating the program…', async () => { await api.acceptImport(selected.id); setSelected(null); setDraft(null); onBack(); })}><Check size={17} />Accept and create program</Button>
         </div>
       </section>
+      {confirmRestoreDraft && <Modal title="Restore default draft" onClose={() => setConfirmRestoreDraft(false)}>
+        <div className="modal-body">
+          <p>Reset all exercises, mappings, notes, sets, and rep ranges across this entire program to the initial extracted version from the PDF?</p>
+          <p className="muted small-copy">All manual adjustments made since extraction will be replaced with the default baseline.</p>
+        </div>
+        <div className="modal-actions">
+          <Button onClick={() => setConfirmRestoreDraft(false)}>Cancel</Button>
+          <Button variant="primary" disabled={busy} onClick={() => {
+            setConfirmRestoreDraft(false);
+            void pipeline.run('Restoring default draft…', async () => {
+              const view = await api.restoreImport(selected.id, selected.revision);
+              setSelected(view);
+              setDraft(view.draft);
+              await onChanged();
+              notify?.('Draft restored to default extraction.');
+            });
+          }}><RotateCcw size={15} />Restore default draft</Button>
+        </div>
+      </Modal>}
     </>}
 
     {selected && selected.status === 'failed' && <section className="panel"><div className="empty-message"><AlertTriangle size={30} /><h3>Import failed</h3><p>{selected.error}</p><p className="muted">Nothing from that read was kept, so choose the PDF again.</p>

@@ -142,7 +142,7 @@ public sealed partial class ImportService
             if (outlineNotices.Count > 0) import.NoticesJson = Json.Write(outlineNotices.TakeLast(40).ToList());
             await ValidateDraft(draft, ct);
             ValidateDraftPages(draft, import.PageCoverageJson);
-            import.DraftJson = Json.Write(draft); import.Stage = "done"; import.Status = ImportStatus.Ready;
+            import.DraftJson = Json.Write(draft); import.DraftBaselineJson = import.DraftJson; import.Stage = "done"; import.Status = ImportStatus.Ready;
             import.ChunksDone = 1; import.ChunksTotal = 1;
             UpdateCounters(import, draft);
             return;
@@ -362,6 +362,7 @@ public sealed partial class ImportService
                         if (complete)
                         {
                             import.Status = ImportStatus.Ready; import.Stage = "done";
+                            import.DraftBaselineJson = Json.Write(draft);
                             UpdateCounters(import, draft);
                             ClearSource(import);
                         }

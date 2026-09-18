@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
-import { Dumbbell, Plus } from 'lucide-react';
+import { Dumbbell, Plus, RotateCcw } from 'lucide-react';
 import type { Exercise, SetPrescription, TemplateExercise } from '../types';
+import { ApiError, api } from '../lib/api';
 import { getWorkoutMuscles } from '../lib/muscles';
 import { validateTemplateDraft } from '../lib/validation';
 import { Button } from './ui/Button';
@@ -15,6 +16,8 @@ export type WorkoutDraft = {
   focus: string;
   revision: number | null;
   exercises: TemplateExercise[];
+  canRestore?: boolean;
+  isLegacyBaseline?: boolean;
 };
 
 export const blankSetPrescription = (loadModel?: Exercise['loadModel']): SetPrescription => ({
@@ -105,6 +108,46 @@ export function WorkoutEditorModal({
     setPickerOpen(false);
   }
 
+  async function handleRestoreWorkout() {
+    if (!draft.id) return;
+    try {
+      const restored = await api.restoreTemplate(draft.id, draft.revision ?? undefined);
+      setDraft({
+        id: restored.id,
+        name: restored.name,
+        focus: restored.focus,
+        revision: restored.revision,
+        exercises: structuredClone(restored.exercises),
+        canRestore: restored.canRestore,
+        isLegacyBaseline: restored.isLegacyBaseline
+      });
+    } catch (failure) {
+      setError(failure instanceof ApiError ? failure.message : 'Could not restore default workout.');
+    }
+  }
+
+  async function handleRestoreExercise(exerciseId: string) {
+    if (!draft.id) return;
+    try {
+      await api.restoreTemplateSubstitution(draft.id, {
+        templateExerciseId: exerciseId,
+        scope: 'slot',
+        revision: draft.revision ?? undefined,
+        idempotencyId: crypto.randomUUID()
+      });
+      const updated = await api.getTemplate(draft.id);
+      setDraft(curr => ({
+        ...curr,
+        revision: updated.revision,
+        exercises: structuredClone(updated.exercises),
+        canRestore: updated.canRestore,
+        isLegacyBaseline: updated.isLegacyBaseline
+      }));
+    } catch (failure) {
+      setError(failure instanceof ApiError ? failure.message : 'Could not restore exercise default.');
+    }
+  }
+
   async function handleSave() {
     const validationError = validateTemplateDraft(draft.name, draft.focus, draft.exercises);
     if (validationError) {
@@ -136,6 +179,11 @@ export function WorkoutEditorModal({
               placeholder="e.g. Hypertrophy, Upper body, Strength"
               onChange={e => setDraft({ ...draft, focus: e.target.value })}
             />
+            {draft.isLegacyBaseline && (
+              <p className="muted small-copy">
+                Restores to current saved version (earlier history unavailable)
+              </p>
+            )}
           </div>
 
           {muscles.length > 0 && (
@@ -222,6 +270,7 @@ export function WorkoutEditorModal({
                       )
                     }))
                   }
+                  onRestoreExercise={exercise.canRestore && draft.id ? () => void handleRestoreExercise(exercise.id) : undefined}
                 />
               ))
             )}
@@ -235,6 +284,12 @@ export function WorkoutEditorModal({
         </div>
 
         <div className="modal-actions">
+          {draft.id && draft.canRestore && (
+            <Button variant="tertiary" disabled={busy} onClick={() => void handleRestoreWorkout()}>
+              <RotateCcw size={15} />
+              Restore default
+            </Button>
+          )}
           {draft.id && (
             <Button variant="destructive" disabled={busy} onClick={() => setDeleting(true)}>
               Delete workout

@@ -32,6 +32,7 @@ public record ImportReviewIssue(
     int? SetIndex = null,
     string? TargetField = null);
 public record ImportAlternative(string Id, string Name, int ChunkCount, int DayCount, List<ImportChunk>? Chunks = null);
+public record ImportRestoreInput(int? Revision = null);
 
 public record ImportView(
     Guid Id, string Status, string FileName, int Pages, string Error, DateTime Created, string Model,
@@ -39,4 +40,5 @@ public record ImportView(
     List<UnresolvedExercise> Unresolved, bool Acceptable, Guid? ProgramId, List<ImportReviewIssue>? ReviewIssues = null,
     long InputTokens = 0, long OutputTokens = 0, int Retries = 0,
     DateTime? SourceExpiresAt = null, List<PdfPageCoverage>? PageCoverage = null,
-    List<ImportAlternative>? Alternatives = null, string? SelectedAlternativeId = null);
+    List<ImportAlternative>? Alternatives = null, string? SelectedAlternativeId = null,
+    int Revision = 0, bool CanRestoreDraft = false, List<Guid>? RestorableExerciseLineIds = null);

@@ -62,14 +62,29 @@ public static class ImportEndpoints
             return await imports.Get(id, CancellationToken.None);
         }).RequireRateLimiting("ai-extract").DisableAntiforgery();
 
-        app.MapPut("/api/imports/{id:guid}", async (Guid id, JsonElement payload, ImportService imports, CancellationToken ct) =>
+        app.MapPut("/api/imports/{id:guid}", async (Guid id, HttpRequest request, JsonElement payload, ImportService imports, CancellationToken ct) =>
         {
+            int? revision = null;
+            if (payload.TryGetProperty("revision", out var revEl) && revEl.TryGetInt32(out var r)) revision = r;
+            else if (request.Headers.TryGetValue("If-Match", out var ifMatch) && int.TryParse(ifMatch, out var im)) revision = im;
+
             if (payload.TryGetProperty("workouts", out _))
-                return await imports.Edit(id, Json.Read<ImportDraft>(payload.GetRawText()), ct);
-            return await imports.EditMetadata(id, Json.Read<ImportMetadata>(payload.GetRawText()), ct);
+                return await imports.Edit(id, Json.Read<ImportDraft>(payload.GetRawText()), revision, ct);
+            return await imports.EditMetadata(id, Json.Read<ImportMetadata>(payload.GetRawText()), revision, ct);
         });
-        app.MapPut("/api/imports/{id:guid}/days/{lineId:guid}", async (Guid id, Guid lineId, DraftWorkout day, ImportService imports, CancellationToken ct)
-            => await imports.EditDay(id, lineId, day, ct));
+        app.MapPut("/api/imports/{id:guid}/days/{lineId:guid}", async (Guid id, Guid lineId, HttpRequest request, JsonElement payload, ImportService imports, CancellationToken ct) =>
+        {
+            int? revision = null;
+            if (payload.TryGetProperty("revision", out var revEl) && revEl.TryGetInt32(out var r)) revision = r;
+            else if (request.Headers.TryGetValue("If-Match", out var ifMatch) && int.TryParse(ifMatch, out var im)) revision = im;
+
+            var day = Json.Read<DraftWorkout>(payload.GetRawText());
+            return await imports.EditDay(id, lineId, day, revision, ct);
+        });
+        app.MapPost("/api/imports/{id:guid}/restore", async (Guid id, ImportRestoreInput? input, ImportService imports, CancellationToken ct)
+            => await imports.RestoreDraft(id, input?.Revision, ct));
+        app.MapPost("/api/imports/{id:guid}/exercises/{exerciseLineId:guid}/restore", async (Guid id, Guid exerciseLineId, ImportRestoreInput? input, ImportService imports, CancellationToken ct)
+            => await imports.RestoreExercise(id, exerciseLineId, input?.Revision, ct));
         app.MapPost("/api/imports/{id:guid}/alternative", async (Guid id, ImportAlternativeInput input, ImportService imports, CancellationToken ct)
             => await imports.SelectAlternative(id, input.AlternativeId, ct));
         app.MapPost("/api/imports/{id:guid}/accept", async (Guid id, HttpRequest request, ImportService imports, CancellationToken ct) =>

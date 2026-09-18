@@ -9,9 +9,11 @@ public record TemplateExerciseInput(Guid? ExerciseId, string SourceName, string?
 public record TemplateInput(string Name, string? Focus, string? Note, List<TemplateExerciseInput> Exercises, int? Revision, Guid? IdempotencyId,
     string? Block = null, string? Phase = null, int PhaseWeek = 1, bool IsRestDay = false);
 public record TemplateExerciseView(Guid Id, Guid? ExerciseId, string SourceName, string Name, string Note, int Position, List<SetPrescription> Sets,
-    string SequenceGroup = "", List<string>? Substitutions = null, string LoadModel = LoadModels.External, int? SourcePage = null, Guid? SlotKey = null);
+    string SequenceGroup = "", List<string>? Substitutions = null, string LoadModel = LoadModels.External, int? SourcePage = null, Guid? SlotKey = null,
+    bool CanRestore = false, bool IsModified = false);
 public record TemplateView(Guid Id, Guid? ProgramId, string Name, string Focus, string Note, int Week, int Position, int Revision, List<TemplateExerciseView> Exercises,
-    string Block = "", string Phase = "", int PhaseWeek = 1, bool IsRestDay = false, int? Weekday = null, int? SourcePage = null, Guid? PhaseId = null);
+    string Block = "", string Phase = "", int PhaseWeek = 1, bool IsRestDay = false, int? Weekday = null, int? SourcePage = null, Guid? PhaseId = null,
+    bool CanRestore = false, bool IsLegacyBaseline = false);
 public static class SubstitutionScope
 {
     public const string Slot = "slot";
@@ -23,7 +25,7 @@ public record SubstitutionAffectedSlot(Guid TemplateId, Guid TemplateExerciseId,
 public record TemplateSubstitutionResult(TemplateView Template, string Scope, List<SubstitutionAffectedSlot> AffectedSlots,
     Guid? ReplacementExerciseId = null, string ReplacementName = "");
 
-public sealed class TemplateService(AppDb db, CatalogService catalog)
+public sealed partial class TemplateService(AppDb db, CatalogService catalog)
 {
     public async Task<List<TemplateView>> List(Guid? programId, bool standaloneOnly, CancellationToken ct)
     {
@@ -47,12 +49,38 @@ public sealed class TemplateService(AppDb db, CatalogService catalog)
         var rows = await db.TemplateExercises.AsNoTracking().Where(e => ids.Contains(e.TemplateId)).OrderBy(e => e.Position).ToListAsync(ct);
         var names = await CatalogNames(rows.Select(r => r.ExerciseId), ct);
         var models = await catalog.LoadModelsFor(rows.Select(r => r.ExerciseId), ct);
-        return templates.Select(t => new TemplateView(t.Id, t.ProgramId, t.Name, t.Focus, t.Note, t.Week, t.Position, t.Revision,
-            rows.Where(e => e.TemplateId == t.Id).Select(e => new TemplateExerciseView(e.Id, e.ExerciseId, e.SourceName,
-                e.ExerciseId is { } id && names.TryGetValue(id, out var name) ? name : e.SourceName,
-                e.Note, e.Position, Json.Read<List<SetPrescription>>(e.SetsJson), e.SequenceGroup,
-                Json.Read<List<string>>(e.SubstitutionsJson), e.ExerciseId is { } modelId && models.TryGetValue(modelId, out var model) ? model : LoadModels.External, e.SourcePage, e.SlotKey)).ToList(),
-            t.Block, t.Phase, t.PhaseWeek, t.IsRestDay, t.Weekday, t.SourcePage, t.ProgramPhaseId)).ToList();
+        return templates.Select(t =>
+        {
+            TemplateBaseline? baseline = null;
+            if (!string.IsNullOrEmpty(t.BaselineJson))
+            {
+                try { baseline = Json.Read<TemplateBaseline>(t.BaselineJson); } catch { }
+            }
+            var baselineBySlot = baseline?.Exercises.ToDictionary(e => e.SlotKey) ?? [];
+            var baselineByPosition = baseline?.Exercises.ToDictionary(e => e.Position) ?? [];
+            var isLegacy = baseline?.IsLegacy ?? false;
+
+            var exerciseViews = rows.Where(e => e.TemplateId == t.Id).Select(e =>
+            {
+                var resolvedName = e.ExerciseId is { } id && names.TryGetValue(id, out var name) ? name : e.SourceName;
+                var model = e.ExerciseId is { } modelId && models.TryGetValue(modelId, out var m) ? m : LoadModels.External;
+                var bEx = baselineBySlot.GetValueOrDefault(e.SlotKey) ?? baselineByPosition.GetValueOrDefault(e.Position);
+                var isModified = bEx != null && (bEx.ExerciseId != e.ExerciseId || bEx.SourceName != e.SourceName || bEx.SetsJson != e.SetsJson);
+                var canRestore = bEx != null && isModified;
+                return new TemplateExerciseView(e.Id, e.ExerciseId, e.SourceName, resolvedName, e.Note, e.Position,
+                    Json.Read<List<SetPrescription>>(e.SetsJson), e.SequenceGroup, Json.Read<List<string>>(e.SubstitutionsJson),
+                    model, e.SourcePage, e.SlotKey, canRestore, isModified);
+            }).ToList();
+
+            var templateModified = baseline != null && (
+                baseline.Name != t.Name || baseline.Focus != t.Focus || baseline.Note != t.Note ||
+                exerciseViews.Any(ev => ev.IsModified) || exerciseViews.Count != baseline.Exercises.Count);
+            var canRestoreTemplate = baseline != null && templateModified;
+
+            return new TemplateView(t.Id, t.ProgramId, t.Name, t.Focus, t.Note, t.Week, t.Position, t.Revision,
+                exerciseViews, t.Block, t.Phase, t.PhaseWeek, t.IsRestDay, t.Weekday, t.SourcePage, t.ProgramPhaseId,
+                canRestoreTemplate, isLegacy);
+        }).ToList();
     }
 
     public async Task<Dictionary<Guid, string>> CatalogNames(IEnumerable<Guid?> ids, CancellationToken ct)
@@ -78,6 +106,7 @@ public sealed class TemplateService(AppDb db, CatalogService catalog)
         };
         db.Templates.Add(template);
         AddExercises(template.Id, input.Exercises);
+        template.BaselineJson = CreateTemplateBaseline(template, db.TemplateExercises.Local.Where(e => e.TemplateId == template.Id));
         await Receipt(input.IdempotencyId, ct);
         await db.SaveChangesAsync(ct);
         return await Get(template.Id, ct);
@@ -94,6 +123,7 @@ public sealed class TemplateService(AppDb db, CatalogService catalog)
         template.Block = input.Block?.Trim() ?? ""; template.Phase = input.Phase?.Trim() ?? ""; template.PhaseWeek = input.PhaseWeek; template.IsRestDay = input.IsRestDay;
         template.Revision++;
         var existing = await db.TemplateExercises.Where(e => e.TemplateId == id).OrderBy(e => e.Position).ToListAsync(ct);
+        EnsureBaseline(template!, existing);
         foreach (var legacy in existing.Where(e => e.SlotKey == Guid.Empty)) legacy.SlotKey = Guid.NewGuid();
         var bySlot = existing.GroupBy(e => e.SlotKey).ToDictionary(g => g.Key, g => g.First());
         var used = new HashSet<Guid>();
@@ -130,9 +160,11 @@ public sealed class TemplateService(AppDb db, CatalogService catalog)
         Validation.Require(template != null, "That workout no longer exists.", 404);
         var templateRow = template!;
         RequireFresh(input.Revision, templateRow.Revision);
-        var target = await db.TemplateExercises.SingleOrDefaultAsync(e => e.TemplateId == templateId &&
+        var existingExercises = await db.TemplateExercises.Where(e => e.TemplateId == templateId).OrderBy(e => e.Position).ToListAsync(ct);
+        EnsureBaseline(templateRow, existingExercises);
+        var target = existingExercises.SingleOrDefault(e =>
             (input.TemplateExerciseId == null || e.Id == input.TemplateExerciseId) &&
-            (input.SlotKey == null || e.SlotKey == input.SlotKey), ct);
+            (input.SlotKey == null || e.SlotKey == input.SlotKey));
         Validation.Require(target != null, "That exercise slot no longer exists.", 404);
         var targetRow = target!;
         var replacement = input.ReplacementName.Trim();

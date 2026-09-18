@@ -82,14 +82,24 @@ export function Select<T extends string | number>({
     const measuredHeight = Math.min(listbox.scrollHeight, maxHeight);
     const opensAbove = availableBelow < measuredHeight && availableAbove > availableBelow;
 
+    const desiredWidth = Math.max(120, Math.min(260, Math.max(triggerRect.width, 140)));
+    const left = Math.min(
+      Math.max(viewportPadding, triggerRect.left),
+      window.innerWidth - desiredWidth - viewportPadding
+    );
+
     setDropdownStyle({
       position: 'fixed',
-      left: `${Math.max(viewportPadding, triggerRect.left)}px`,
+      left: `${left}px`,
+      right: 'auto',
       top: `${opensAbove
         ? Math.max(viewportPadding, triggerRect.top - measuredHeight - 5)
         : Math.min(window.innerHeight - measuredHeight - viewportPadding, triggerRect.bottom + 5)}px`,
-      width: `${triggerRect.width}px`,
-      maxHeight: `${maxHeight}px`
+      width: `${desiredWidth}px`,
+      minWidth: '120px',
+      maxWidth: 'calc(100vw - 16px)',
+      maxHeight: `${maxHeight}px`,
+      zIndex: 1000
     });
   }, []);
 
@@ -171,14 +181,17 @@ export function Select<T extends string | number>({
     }
   };
 
-  return (
-    <div ref={containerRef} className={`custom-select-wrap ${className}`.trim()} onKeyDown={handleKeyDown}>
-      {/* A mirror of the value for form semantics, not a second control: the trigger below is the
-          one thing that carries this field's accessible name, so a screen reader is offered one
-          control rather than two identically named ones. */}
-      <select
-        name={name}
-        aria-hidden="true"
+    const controlName = name ?? (label ? label.toLowerCase().replace(/[^a-z0-9]+/g, '-') : (ariaLabel ? ariaLabel.toLowerCase().replace(/[^a-z0-9]+/g, '-') : id));
+
+    return (
+      <div ref={containerRef} className={`custom-select-wrap ${className}`.trim()} onKeyDown={handleKeyDown}>
+        {/* A mirror of the value for form semantics, not a second control: the trigger below is the
+            one thing that carries this field's accessible name, so a screen reader is offered one
+            control rather than two identically named ones. */}
+        <select
+          id={`${id}-native`}
+          name={controlName}
+          aria-hidden="true"
         value={String(value)}
         disabled={disabled}
         onChange={e => {

@@ -161,29 +161,32 @@ export function Workout({
     }
   }
 
-  async function swapExercise(
-    sessionExerciseId: string,
-    replacementExerciseId: string | null,
-    replacementName: string
-  ) {
-    setBusy(true);
-    setError('');
+  async function swapExercise(sessionExerciseId: string, replacementExerciseId: string | null, replacementName: string) {
+    setBusy(true); setError('');
     try {
-      const saved = await api.substituteSessionExercise(draft.id, {
-        sessionExerciseId,
-        replacementExerciseId,
-        replacementName,
-        revision: revision.current,
-        idempotencyId: crypto.randomUUID()
+      await queue.push('workout', async () => {
+        const saved = await api.substituteSessionExercise(draft.id, {
+          sessionExerciseId, replacementExerciseId, replacementName, revision: revision.current, idempotencyId: crypto.randomUUID()
+        });
+        revision.current = saved.revision; setDraft(saved); onSaved(saved);
       });
-      revision.current = saved.revision;
-      setDraft(saved);
-      onSaved(saved);
     } catch (failure) {
       setError(failure instanceof ApiError ? failure.message : 'Could not swap this exercise.');
-    } finally {
-      setBusy(false);
-    }
+    } finally { setBusy(false); }
+  }
+
+  async function restoreExercise(sessionExerciseId: string) {
+    setBusy(true); setError('');
+    try {
+      await queue.push('workout', async () => {
+        const saved = await api.restoreSessionExercise(draft.id, {
+          sessionExerciseId, revision: revision.current, idempotencyId: crypto.randomUUID()
+        });
+        revision.current = saved.revision; setDraft(saved); onSaved(saved);
+      });
+    } catch (failure) {
+      setError(failure instanceof ApiError ? failure.message : 'Could not restore this exercise.');
+    } finally { setBusy(false); }
   }
 
   async function discard() {
@@ -274,6 +277,7 @@ export function Workout({
               editSet={editSet}
               toggle={toggle}
               onSwap={swapExercise}
+              onRestore={restoreExercise}
               onRemoveExercise={removeExercise}
             />
           ) : (
@@ -300,6 +304,7 @@ export function Workout({
                 editSet={editSet}
                 toggle={toggle}
                 onSwap={swapExercise}
+                onRestore={restoreExercise}
                 onRemoveExercise={removeExercise}
               />
             ))}

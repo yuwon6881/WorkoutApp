@@ -11,6 +11,7 @@ public record FinishInput(int? Revision, bool RetainExerciseSwaps = false);
 public record ActivateInput(bool Active, int? Revision);
 public record ScheduleInput(DateOnly Anchor, List<ScheduleSlot> Slots, int? Revision);
 public record RepeatProgramInput(string? TimeZone);
+public record TemplateRestoreInput(int? Revision = null, Guid? IdempotencyId = null);
 
 public static class TrainingEndpoints
 {
@@ -92,6 +93,14 @@ public static class TrainingEndpoints
             => await templates.Swap(id, input, ct));
         app.MapPost("/api/templates/{id:guid}/swap", async (Guid id, TemplateSubstitutionInput input, TemplateService templates, CancellationToken ct)
             => await templates.Swap(id, input, ct));
+        app.MapPost("/api/templates/{id:guid}/restore", async (Guid id, TemplateRestoreInput? input, TemplateService templates, CancellationToken ct)
+            => await templates.RestoreTemplate(id, input?.Revision, input?.IdempotencyId, ct));
+        app.MapPost("/api/templates/{id:guid}/substitution/restore/preview", async (Guid id, TemplateSubstitutionRestoreInput input, TemplateService templates, CancellationToken ct)
+            => await templates.PreviewRestore(id, input, ct));
+        app.MapPost("/api/templates/{id:guid}/substitution/restore", async (Guid id, TemplateSubstitutionRestoreInput input, TemplateService templates, CancellationToken ct)
+            => await templates.RestoreSubstitution(id, input, ct));
+        app.MapPost("/api/templates/{id:guid}/exercise-substitution/restore", async (Guid id, TemplateSubstitutionRestoreInput input, TemplateService templates, CancellationToken ct)
+            => await templates.RestoreSubstitution(id, input, ct));
         app.MapDelete("/api/templates/{id:guid}", async (Guid id, TemplateService templates, CancellationToken ct) =>
         { await templates.Delete(id, ct); return Results.NoContent(); });
     }
@@ -125,6 +134,11 @@ public static class TrainingEndpoints
             => await workouts.Swap(id, input, ct));
         app.MapPost("/api/workouts/{id:guid}/swap", async (Guid id, SessionSubstitutionInput input, WorkoutService workouts, CancellationToken ct)
             => await workouts.Swap(id, input, ct));
+        app.MapPost("/api/workouts/{id:guid}/exercises/{sessionExerciseId:guid}/restore", async (Guid id, Guid sessionExerciseId, SessionExerciseRestoreInput input, WorkoutService workouts, CancellationToken ct) =>
+        {
+            Validation.Require(input.SessionExerciseId == Guid.Empty || input.SessionExerciseId == sessionExerciseId, "Session exercise identifier mismatch.", 400);
+            return await workouts.RestoreExercise(id, input with { SessionExerciseId = sessionExerciseId }, ct);
+        });
         app.MapPost("/api/workouts/{id:guid}/finish", async (Guid id, FinishInput input, WorkoutService workouts, CancellationToken ct) => await workouts.Finish(id, input.Revision, ct, input.RetainExerciseSwaps));
         app.MapPost("/api/workouts/{id:guid}/discard", async (Guid id, WorkoutService workouts, CancellationToken ct) =>
         { await workouts.Discard(id, ct); return Results.NoContent(); });

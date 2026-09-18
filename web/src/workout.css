@@ -23,8 +23,8 @@
 .workout-strip-indicator { width: 32px; height: 3px; border-radius: 2px; background: transparent; margin-top: 6px; transition: background-color 0.15s ease; }
 .workout-strip-item.active .workout-strip-thumb { border-color: var(--accent-border-strong); background: var(--surface); box-shadow: 0 0 0 1px var(--accent-border); }
 .workout-strip-item.active .workout-strip-indicator { background: var(--accent); }
-.workout-strip-item.completed .workout-strip-thumb { background: var(--overlay); }
-.workout-strip-badge.completed { position: absolute; inset: 0; display: grid; place-items: center; background: color-mix(in srgb, var(--overlay) 75%, transparent); color: var(--accent); }
+.workout-strip-item.completed .workout-strip-thumb { background: var(--surface-raised); opacity: 0.88; }
+.workout-strip-badge.completed { position: absolute; inset: 0; display: grid; place-items: center; background: color-mix(in srgb, var(--surface) 65%, transparent); color: var(--accent); }
 .workout-strip-progress-ring { position: absolute; bottom: 3px; right: 4px; font-size: var(--font-secondary, 14px); font-weight: 700; color: var(--accent); background: var(--accent-soft); border: 1px solid var(--accent-border); border-radius: 4px; padding: 1px 3px; }
 .workout-strip-add-item { display: flex; flex-direction: column; align-items: center; flex: 0 0 54px; background: transparent; border: 0; cursor: pointer; }
 .add-thumb { width: 54px; min-height: 84px; border-radius: 10px; border: 1px dashed var(--accent-border); background: var(--accent-soft); color: var(--accent); display: grid; place-items: center; }
@@ -72,9 +72,11 @@
 .set-input-cell input:focus { border-color: var(--accent-border-strong); outline: none; }
 .load-cell { display: flex; gap: 4px; align-items: center; }
 .mode-mini-select { font-size: var(--font-secondary, 14px); font-weight: 600; padding: 4px; border-radius: 6px; border: 1px solid var(--border); background: var(--surface-hover); color: var(--text); min-height: 40px; }
+.mode-mini-select.custom-select-wrap { min-width: 72px; max-width: 90px; width: auto; flex-shrink: 0; }
+.mode-mini-select .custom-select-trigger { min-height: 40px; padding: 6px 8px; font-size: var(--font-secondary, 14px); font-weight: 600; }
 .set-log-checkbox { width: 44px; height: 44px; min-width: 44px; min-height: 44px; border-radius: 10px; border: 2px solid var(--border); background: transparent; color: transparent; display: grid; place-items: center; cursor: pointer; transition: all 0.15s ease; }
 .set-log-checkbox:hover { border-color: var(--accent); }
-.set-log-checkbox.checked { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+.set-log-checkbox.checked { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
 .set-del-btn { width: 44px; height: 44px; min-width: 44px; min-height: 44px; padding: 0; display: grid; place-items: center; color: var(--muted); }
 .set-del-btn:hover { color: var(--red); }
 .workout-set-table-footer { margin-top: 6px; }
@@ -129,4 +131,152 @@
   .mode-mini-select,
   .add-set-btn { min-height: 44px; }
   .remove-pill { min-width: 44px; }
+}
+
+/* Custom select dropdown sizing & theme obedience */
+.custom-select-dropdown {
+  position: fixed !important;
+  right: auto !important;
+  min-width: 120px !important;
+  max-width: min(280px, calc(100vw - 16px)) !important;
+  box-shadow: 0 12px 36px var(--overlay), 0 0 0 1px var(--border) !important;
+}
+.custom-select-item:hover,
+.custom-select-item.highlighted {
+  background: var(--surface-hover) !important;
+  color: var(--accent) !important;
+}
+.custom-select-item.selected {
+  background: var(--accent-soft) !important;
+  color: var(--accent) !important;
+  font-weight: 600 !important;
+}
+
+/* Week chip insertion drag-and-drop indicator */
+.import-week-chip {
+  position: relative;
+  transition: transform 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+}
+.import-week-chip.drop-indicator-before::before {
+  content: '';
+  position: absolute;
+  left: -5px;
+  top: 4px;
+  bottom: 4px;
+  width: 3px;
+  background: var(--accent);
+  border-radius: 999px;
+  box-shadow: 0 0 8px var(--accent-border-strong);
+  pointer-events: none;
+  z-index: 5;
+}
+.import-week-chip.drop-indicator-after::after {
+  content: '';
+  position: absolute;
+  right: -5px;
+  top: 4px;
+  bottom: 4px;
+  width: 3px;
+  background: var(--accent);
+  border-radius: 999px;
+  box-shadow: 0 0 8px var(--accent-border-strong);
+  pointer-events: none;
+  z-index: 5;
+}
+
+/* Interactive substitutions */
+.substitution-chips-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+.substitution-chips-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+.substitution-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 550;
+  color: var(--text);
+  background: var(--surface-raised);
+  border: 1px solid var(--accent-border);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.substitution-chip:hover {
+  background: var(--accent-soft);
+  color: var(--accent);
+  border-color: var(--accent);
+  transform: translateY(-1px);
+}
+.substitution-chip svg.swap-icon {
+  color: var(--accent);
+  flex-shrink: 0;
+}
+.substitution-chip .chip-remove-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1px;
+  border-radius: 50%;
+  color: var(--muted);
+  cursor: pointer;
+  background: transparent;
+  border: 0;
+  margin-left: 2px;
+}
+.substitution-chip .chip-remove-btn:hover {
+  color: var(--red);
+  background: var(--red-soft);
+}
+.substitution-add-form {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.substitution-add-input {
+  min-height: 32px !important;
+  padding: 4px 10px !important;
+  font-size: 12px !important;
+  background: var(--surface) !important;
+}
+.substitution-add-btn {
+  min-height: 32px !important;
+  padding: 4px 10px !important;
+  font-size: 11px !important;
+}
+
+/* Superset management interface */
+.superset-control-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.superset-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 9px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: 0.3px;
+  color: var(--accent);
+  background: var(--accent-soft);
+  border: 1px solid var(--accent-border);
+}
+.superset-picker-select {
+  min-width: 130px;
+}
+.exercise-card-superset-active {
+  border-left: 3px solid var(--accent) !important;
 }

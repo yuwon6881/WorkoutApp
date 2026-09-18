@@ -4,6 +4,12 @@ import { rpeOptions, showTarget, showWeight, toDisplay, toKg } from '../lib/trai
 import { Button } from './ui/Button';
 import { Select } from './ui/Select';
 
+const resistanceModeOptions: Array<{ value: NonNullable<LoggedSet['resistanceMode']>; label: string }> = [
+  { value: 'bodyweight', label: 'BW' },
+  { value: 'added', label: '+Load' },
+  { value: 'assistance', label: 'Assist' }
+];
+
 export function WorkoutSetRow({
   set,
   si,
@@ -74,21 +80,18 @@ export function WorkoutSetRow({
           }
         />
         {loadModel === 'full_bodyweight' && (
-          <select
+          <Select
             className="mode-mini-select"
-            aria-label="Resistance mode"
+            ariaLabel="Resistance mode"
             value={set.resistanceMode ?? 'bodyweight'}
-            onChange={e =>
+            options={resistanceModeOptions}
+            onChange={val =>
               editSet(ei, si, {
-                resistanceMode: e.target.value as LoggedSet['resistanceMode'],
+                resistanceMode: val,
                 done: false
               })
             }
-          >
-            <option value="bodyweight">BW</option>
-            <option value="added">+Load</option>
-            <option value="assistance">Assist</option>
-          </select>
+          />
         )}
       </div>
 

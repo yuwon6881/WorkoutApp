@@ -118,6 +118,7 @@ public sealed class ProgramService(AppDb db, TemplateService templates)
             };
             db.Templates.Add(template);
             templates.AddExercises(template.Id, workout.Exercises);
+            template.BaselineJson = TemplateService.CreateTemplateBaseline(template, db.TemplateExercises.Local.Where(e => e.TemplateId == template.Id));
         }
         var phases = CreatePhases(program, input.Workouts);
         var templatesForPhase = db.Templates.Local.Where(t => t.ProgramId == program.Id).ToList();
@@ -338,7 +339,8 @@ public sealed class ProgramService(AppDb db, TemplateService templates)
             {
                 UserId = fresh.UserId, ProgramId = fresh.Id, Name = original.Name, Focus = original.Focus, Note = original.Note,
                 Week = original.Week, Position = original.Position, Block = original.Block, Phase = original.Phase,
-                PhaseWeek = original.PhaseWeek, IsRestDay = original.IsRestDay, Weekday = original.Weekday, SourcePage = original.SourcePage
+                PhaseWeek = original.PhaseWeek, IsRestDay = original.IsRestDay, Weekday = original.Weekday, SourcePage = original.SourcePage,
+                BaselineJson = original.BaselineJson
             };
             db.Templates.Add(copy);
             copiedTemplates.Add((original, copy));

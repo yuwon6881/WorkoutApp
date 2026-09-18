@@ -1,11 +1,12 @@
-import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
-import { CalendarDays, ChevronDown, ChevronUp, Copy, Pencil, Plus } from 'lucide-react';
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useState } from 'react';
+import { CalendarDays, ChevronDown, ChevronUp, Pencil, Plus } from 'lucide-react';
 import type { DraftExercise, DraftSet, DraftWorkout, Exercise, ImportDraft } from '../types';
 import { Button } from './ui/Button';
 import { ChipScroller } from './ui/ChipScroller';
 import { DayEditor, exerciseSummary } from './ImportDayEditor';
 import { getWorkoutMuscles } from '../lib/muscles';
-import { Modal } from './ui/Modal';
+import { AddWeekModal, type AddWeekMode } from './AddWeekModal';
+import { SortableWeekChip } from './SortableWeekChip';
 
 type Week = {
   week: number;
@@ -172,12 +173,14 @@ export const DraftOutline = forwardRef<DraftOutlineHandle, {
   exercises: Exercise[];
   onDayChange: (day: DraftWorkout) => Promise<void>;
   onDraftChange: (draft: ImportDraft) => Promise<void>;
-}>(function DraftOutline({ draft, expandedDay, setExpandedDay, exercises, onDayChange, onDraftChange }, ref) {
+  restorableExerciseLineIds?: string[];
+  onRestoreExercise?: (exerciseLineId: string) => Promise<void>;
+}>(function DraftOutline({ draft, expandedDay, setExpandedDay, exercises, onDayChange, onDraftChange, restorableExerciseLineIds, onRestoreExercise }, ref) {
   const weeks = useMemo(() => groupWeeks(draft), [draft]);
   const [selectedWeek, setSelectedWeek] = useState(weeks[0]?.week ?? 1);
   const [weekModalOpen, setWeekModalOpen] = useState(false);
   const [draggedWeek, setDraggedWeek] = useState<number | null>(null);
-  const [dropWeek, setDropWeek] = useState<number | null>(null);
+  const [dropTarget, setDropTarget] = useState<{ week: number; side: 'before' | 'after' } | null>(null);
 
   const focusIssue = useCallback((target: ImportIssueTarget) => {
     const day = draft.workouts.find(candidate => candidate.lineId === target.workoutLineId)
@@ -253,39 +256,92 @@ export const DraftOutline = forwardRef<DraftOutlineHandle, {
   const selectedIndex = weeks.findIndex(entry => entry.week === week.week);
   const selectedBlock = blockIndex(weeks, selectedIndex);
 
-  const reorderWeeks = useCallback((from: number, to: number) => {
-    if (from === to) return;
+  const reorderWeeks = useCallback((from: number, to: number, side: 'before' | 'after' = 'before') => {
+    if (from === to && side === 'before') {
+      setDraggedWeek(null);
+      setDropTarget(null);
+      return;
+    }
     const fromIndex = weeks.findIndex(entry => entry.week === from);
     const toIndex = weeks.findIndex(entry => entry.week === to);
-    if (fromIndex < 0 || toIndex < 0) return;
+    if (fromIndex < 0 || toIndex < 0) {
+      setDraggedWeek(null);
+      setDropTarget(null);
+      return;
+    }
+
+    const insertionIndex = side === 'before' ? toIndex : toIndex + 1;
     const ordered = [...weeks];
     const [moved] = ordered.splice(fromIndex, 1);
-    ordered.splice(toIndex, 0, moved);
-    setSelectedWeek(toIndex + 1);
+    const targetIndex = fromIndex < insertionIndex ? insertionIndex - 1 : insertionIndex;
+    ordered.splice(targetIndex, 0, moved);
+
+    setSelectedWeek(targetIndex + 1);
     setDraggedWeek(null);
-    setDropWeek(null);
+    setDropTarget(null);
     void onDraftChange(renumberDraft(draft, ordered));
   }, [draft, onDraftChange, weeks]);
 
-  const addWeek = useCallback((mode: 'copy' | 'empty') => {
-    const latest = weeks.at(-1);
-    if (!latest) return;
-    const nextNumber = weeks.length + 1;
-    const days = mode === 'copy'
-      ? cloneWeekDays(latest.days, nextNumber)
-      : [emptyWeekDay(nextNumber, latest)];
+  const addWeek = useCallback((mode: AddWeekMode) => {
+    setWeekModalOpen(false);
+    if (!weeks.length) return;
+
+    const targetBlockWeeks = weeks.filter(w => w.block === week.block);
+    const sourceWeek = mode === 'duplicate-current'
+      ? week
+      : (targetBlockWeeks.at(-1) ?? week);
+
+    const sourceIndex = weeks.findIndex(w => w.week === sourceWeek.week);
+    const insertIndex = sourceIndex >= 0 ? sourceIndex + 1 : weeks.length;
+
+    const nextNumber = insertIndex + 1;
+    const days = mode === 'empty'
+      ? [emptyWeekDay(nextNumber, sourceWeek)]
+      : cloneWeekDays(sourceWeek.days, nextNumber);
+
     const nextWeek: Week = {
       week: nextNumber,
       sourceWeek: nextNumber,
       days,
-      block: mode === 'copy' ? latest.block : latest.block || 'Program',
-      phases: mode === 'copy' ? latest.phases : latest.phases.slice(0, 1),
+      block: sourceWeek.block || 'Program',
+      phases: sourceWeek.phases.slice(0, 1),
       pages: []
     };
-    setWeekModalOpen(false);
-    setSelectedWeek(nextNumber);
-    void onDraftChange(renumberDraft(draft, [...weeks, nextWeek]));
-  }, [draft, onDraftChange, weeks]);
+
+    const ordered = [...weeks];
+    ordered.splice(insertIndex, 0, nextWeek);
+
+    setSelectedWeek(insertIndex + 1);
+    void onDraftChange(renumberDraft(draft, ordered));
+  }, [draft, onDraftChange, week, weeks]);
+
+  const propagateSubstitution = useCallback(async (currentName: string, replacementName: string) => {
+    const replacementLibraryExercise = exercises.find(
+      e => e.name.toLowerCase() === replacementName.toLowerCase()
+    );
+    const updatedWorkouts = draft.workouts.map(workout => {
+      const inSameBlock = (workout.block || 'Program') === (week.block || 'Program');
+      const inSamePhase = !week.phases.length || week.phases.includes(workout.phase ?? '');
+      if (!inSameBlock || !inSamePhase || workout.week < week.week) return workout;
+
+      const updatedExercises = workout.exercises.map(ex => {
+        if (ex.sourceName.toLowerCase() === currentName.toLowerCase()) {
+          const nextSubs = [currentName, ...ex.substitutions.filter(s => s.toLowerCase() !== replacementName.toLowerCase())].slice(0, 2);
+          return {
+            ...ex,
+            sourceName: replacementName,
+            exerciseId: replacementLibraryExercise ? replacementLibraryExercise.id : ex.exerciseId,
+            substitutions: nextSubs
+          };
+        }
+        return ex;
+      });
+
+      return { ...workout, exercises: updatedExercises };
+    });
+
+    await onDraftChange({ ...draft, workouts: updatedWorkouts });
+  }, [draft, onDraftChange, week, exercises]);
 
   return <>
     <section className="panel import-program-card">
@@ -315,10 +371,13 @@ export const DraftOutline = forwardRef<DraftOutlineHandle, {
     </div>
     <ChipScroller ariaLabel="Program weeks" role="tablist" resetKey={weeks.map(entry => entry.week).join('|')}
       leftLabel="Scroll program weeks left" rightLabel="Scroll program weeks right">
-      {weeks.map(entry => <SortableWeekChip key={entry.week} entry={entry} selected={entry.week === week.week}
-        dragging={draggedWeek === entry.week} dropTarget={dropWeek === entry.week && draggedWeek !== entry.week}
-        onSelect={() => setSelectedWeek(entry.week)} onDragStart={() => { setDraggedWeek(entry.week); setDropWeek(entry.week); }}
-        onDragOver={weekNumber => setDropWeek(weekNumber)} onDrop={weekNumber => reorderWeeks(draggedWeek ?? entry.week, weekNumber ?? dropWeek ?? entry.week)} />)}
+      {weeks.map(entry => <SortableWeekChip key={entry.week} week={entry.week} selected={entry.week === week.week}
+        dragging={draggedWeek === entry.week}
+        dropSide={dropTarget?.week === entry.week && draggedWeek !== entry.week ? dropTarget.side : null}
+        onSelect={() => setSelectedWeek(entry.week)}
+        onDragStart={() => { setDraggedWeek(entry.week); setDropTarget(null); }}
+        onDragOver={(weekNumber, side) => setDropTarget({ week: weekNumber, side })}
+        onDrop={(weekNumber, side) => reorderWeeks(draggedWeek ?? entry.week, weekNumber ?? dropTarget?.week ?? entry.week, side ?? dropTarget?.side ?? 'before')} />)}
       <Button presentation="plain" className="filter-chip import-add-week-chip" aria-label="Add week" onClick={() => setWeekModalOpen(true)}>
         <Plus size={15} />Add week
       </Button>
@@ -326,92 +385,22 @@ export const DraftOutline = forwardRef<DraftOutlineHandle, {
     <p className="import-week-caption">{weekCaption(week, selectedBlock)}</p>
     <div className="import-week-days" role="tabpanel" aria-label={`Week ${week.week}`}>
       {week.days.map(day => <DayRow key={day.lineId} day={day} expanded={expandedDay === day.lineId}
-        onToggle={() => setExpandedDay(expandedDay === day.lineId ? null : day.lineId)} exercises={exercises} onChange={onDayChange} />)}
+        onToggle={() => setExpandedDay(expandedDay === day.lineId ? null : day.lineId)} exercises={exercises} onChange={onDayChange}
+        onPropagateSubstitution={propagateSubstitution}
+        restorableExerciseLineIds={restorableExerciseLineIds}
+        onRestoreExercise={onRestoreExercise} />)}
     </div>
     </section>
-    {weekModalOpen && <Modal title="Add a week" onClose={() => setWeekModalOpen(false)}>
-      <div className="modal-body week-create-options">
-        <p>Choose how the new week should start. You can edit its days after it is added.</p>
-        <Button variant="secondary" className="week-create-option" onClick={() => addWeek('copy')}>
-          <Copy size={17} /><span><strong>Copy the latest block</strong><small>Start with the latest block’s most recent week and its day structure.</small></span>
-        </Button>
-        <Button variant="secondary" className="week-create-option" onClick={() => addWeek('empty')}>
-          <Plus size={17} /><span><strong>Start empty</strong><small>Add a blank training day that you can name, map and prescribe.</small></span>
-        </Button>
-      </div>
-    </Modal>}
+    <AddWeekModal
+      open={weekModalOpen}
+      onClose={() => setWeekModalOpen(false)}
+      onAddWeek={addWeek}
+      currentWeekNumber={week.week}
+      blockName={week.block || `Block ${selectedBlock}`}
+      phaseName={week.phases[0]}
+    />
   </>;
 });
-
-function SortableWeekChip({ entry, selected, dragging, dropTarget, onSelect, onDragStart, onDragOver, onDrop }: {
-  entry: Week;
-  selected: boolean;
-  dragging: boolean;
-  dropTarget: boolean;
-  onSelect: () => void;
-  onDragStart: () => void;
-  onDragOver: (week: number) => void;
-  onDrop: (week?: number) => void;
-}) {
-  const pointer = useRef<{ id: number; startX: number; startY: number; armed: boolean; moved: boolean; timer?: number } | null>(null);
-  const chipRef = useRef<HTMLButtonElement>(null);
-  const suppressClick = useRef(false);
-
-  const clearPointer = () => {
-    const current = pointer.current;
-    if (current?.timer != null) window.clearTimeout(current.timer);
-    pointer.current = null;
-  };
-
-  return <Button ref={chipRef} presentation="plain" role="tab" aria-selected={selected} draggable
-    data-import-week-chip={entry.week}
-    className={`filter-chip import-week-chip ${selected ? 'active' : ''} ${dragging ? 'dragging' : ''} ${dropTarget ? 'drop-target' : ''}`}
-    onClick={() => { if (suppressClick.current) { suppressClick.current = false; return; } onSelect(); }}
-    onDragStart={event => { event.dataTransfer.effectAllowed = 'move'; onDragStart(); }}
-    onDragOver={event => { event.preventDefault(); onDragOver(entry.week); }}
-    onDrop={event => { event.preventDefault(); onDrop(entry.week); }}
-    onDragEnd={() => { clearPointer(); suppressClick.current = false; onDrop(); }}
-    onPointerDown={event => {
-      if (event.pointerType === 'mouse' && event.button !== 0) return;
-      const current: { id: number; startX: number; startY: number; armed: boolean; moved: boolean; timer?: number } = { id: event.pointerId, startX: event.clientX, startY: event.clientY, armed: false, moved: false };
-      current.timer = window.setTimeout(() => {
-        if (pointer.current?.id !== current.id || current.moved) return;
-        current.armed = true;
-        onDragStart();
-        try { chipRef.current?.setPointerCapture(event.pointerId); } catch { /* synthetic pointer */ }
-      }, 240);
-      pointer.current = current;
-    }}
-    onPointerMove={event => {
-      const current = pointer.current;
-      if (!current || current.id !== event.pointerId) return;
-      const dx = event.clientX - current.startX;
-      const dy = event.clientY - current.startY;
-      if (!current.armed) {
-        if (Math.max(Math.abs(dx), Math.abs(dy)) > 8) {
-          current.moved = true;
-          if (current.timer != null) window.clearTimeout(current.timer);
-          if (Math.abs(dy) >= Math.abs(dx)) clearPointer();
-        }
-        return;
-      }
-      event.preventDefault();
-      const target = document.elementFromPoint(event.clientX, event.clientY)?.closest<HTMLElement>('[data-import-week-chip]');
-      if (target?.dataset.importWeekChip) onDragOver(Number(target.dataset.importWeekChip));
-    }}
-    onPointerUp={event => {
-      const current = pointer.current;
-      if (!current || current.id !== event.pointerId) return;
-      if (current.armed) {
-        suppressClick.current = true;
-        onDrop();
-      }
-      clearPointer();
-    }}
-    onPointerCancel={clearPointer}>
-    Week {entry.week}
-  </Button>;
-}
 
 const weekdayNames = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
@@ -425,12 +414,15 @@ function DayLines({ day }: { day: DraftWorkout }) {
   </ol>;
 }
 
-function DayRow({ day, expanded, onToggle, exercises, onChange }: {
+function DayRow({ day, expanded, onToggle, exercises, onChange, onPropagateSubstitution, restorableExerciseLineIds, onRestoreExercise }: {
   day: DraftWorkout;
   expanded: boolean;
   onToggle: () => void;
   exercises: Exercise[];
   onChange: (day: DraftWorkout) => Promise<void>;
+  onPropagateSubstitution?: (currentName: string, replacementName: string) => Promise<void>;
+  restorableExerciseLineIds?: string[];
+  onRestoreExercise?: (exerciseLineId: string) => Promise<void>;
 }) {
   const [showDetails, setShowDetails] = useState(false);
   const muscles = useMemo(() => getWorkoutMuscles(day.exercises, exercises), [day.exercises, exercises]);
@@ -482,6 +474,6 @@ function DayRow({ day, expanded, onToggle, exercises, onChange }: {
     )}
 
     {!expanded && showDetails && !day.isRestDay && day.exercises.length > 0 && <DayLines day={day} />}
-    {expanded && <DayEditor day={day} exercises={exercises} onChange={onChange} />}
+    {expanded && <DayEditor day={day} exercises={exercises} onChange={onChange} onPropagateSubstitution={onPropagateSubstitution} restorableExerciseLineIds={restorableExerciseLineIds} onRestoreExercise={onRestoreExercise} />}
   </section>;
 }

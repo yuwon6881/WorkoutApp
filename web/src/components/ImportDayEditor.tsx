@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { AlertTriangle, Dumbbell, FileText, Plus, Trash2 } from 'lucide-react';
+import { AlertTriangle, ArrowLeftRight, Dumbbell, FileText, Link2, Plus, RotateCcw, Trash2, X } from 'lucide-react';
 import type { DraftExercise, DraftSet, DraftWorkout, Exercise } from '../types';
 import { rpeOptions, showReps } from '../lib/training';
 import { Button } from './ui/Button';
@@ -20,6 +20,14 @@ const weekdayOptions = [
   { value: '7', label: 'Sunday' }
 ];
 
+const supersetOptions = [
+  { value: '', label: 'None (Standalone)' },
+  { value: 'A', label: 'Superset A' },
+  { value: 'B', label: 'Superset B' },
+  { value: 'C', label: 'Superset C' },
+  { value: 'D', label: 'Superset D' }
+];
+
 export function exerciseSummary(exercise: DraftExercise): string {
   const working = exercise.sets.filter(set => !set.warmup);
   const prescribed = working.length ? working : exercise.sets;
@@ -36,10 +44,13 @@ export function exerciseSummary(exercise: DraftExercise): string {
   return metrics.join(' · ');
 }
 
-export function DayEditor({ day, exercises, onChange }: {
+export function DayEditor({ day, exercises, onChange, onPropagateSubstitution, restorableExerciseLineIds, onRestoreExercise }: {
   day: DraftWorkout;
   exercises: Exercise[];
   onChange: (day: DraftWorkout) => Promise<void>;
+  onPropagateSubstitution?: (currentName: string, replacementName: string) => Promise<void>;
+  restorableExerciseLineIds?: string[];
+  onRestoreExercise?: (exerciseLineId: string) => Promise<void>;
 }) {
   const [draft, setDraft] = useState(day);
   useEffect(() => setDraft(day), [day]);
@@ -60,7 +71,7 @@ export function DayEditor({ day, exercises, onChange }: {
   return <div className="day-editor">
     {/* A missing weekday is a review issue, so keep the correction beside the day it affects. */}
     <div className="day-editor-fields">
-      <Field className="day-name-field" label="Day name" value={draft.name} data-import-field="name"
+      <Field name={`day-name-${draft.lineId}`} className="day-name-field" label="Day name" value={draft.name} data-import-field="name"
         onChange={event => setDraft({ ...draft, name: event.target.value })}
         onBlur={() => void onChange(draft)} />
       <label className="field day-weekday-field" data-import-field="weekday"><span>Weekday</span>
@@ -72,8 +83,11 @@ export function DayEditor({ day, exercises, onChange }: {
       ? <div className="rest-callout"><span className="tiny-label">Rest day</span><p>No exercises are scheduled for this slot.</p></div>
       : groups.map((group, groupIndex) => <div className={group.length > 1 ? 'superset-block' : ''} key={groupIndex}>
         {group.length > 1 && <div className="superset-heading">Superset {group[0].sequenceGroup.match(/^[A-Za-z]+/)?.[0] ?? ''}</div>}
-        {group.map(exercise => <ExerciseEditor key={exercise.lineId} exercise={exercise} exercises={exercises}
-          onChange={next => save({ ...draft, exercises: draft.exercises.map(item => item.lineId === next.lineId ? next : item) })} />)}
+        {group.map(exercise => <ExerciseEditor key={exercise.lineId} exercise={exercise} exercises={exercises} allDayExercises={draft.exercises}
+          onChange={next => save({ ...draft, exercises: draft.exercises.map(item => item.lineId === next.lineId ? next : item) })}
+          onPropagateSubstitution={onPropagateSubstitution}
+          canRestore={restorableExerciseLineIds?.includes(exercise.lineId)}
+          onRestore={onRestoreExercise ? () => onRestoreExercise(exercise.lineId) : undefined} />)}
       </div>)}
     {!draft.isRestDay && <Button variant="tertiary" className="day-add-exercise-button" onClick={() => save({ ...draft, exercises: [...draft.exercises, blankExercise()] })}>
       <Plus size={16} />Add exercise
@@ -81,12 +95,17 @@ export function DayEditor({ day, exercises, onChange }: {
   </div>;
 }
 
-function ExerciseEditor({ exercise, exercises, onChange }: {
+function ExerciseEditor({ exercise, exercises, allDayExercises, onChange, onPropagateSubstitution, canRestore, onRestore }: {
   exercise: DraftExercise;
   exercises: Exercise[];
+  allDayExercises: DraftExercise[];
   onChange: (exercise: DraftExercise) => void;
+  onPropagateSubstitution?: (currentName: string, replacementName: string) => Promise<void>;
+  canRestore?: boolean;
+  onRestore?: () => Promise<void>;
 }) {
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [newSub, setNewSub] = useState('');
   const editSet = (index: number, patch: Partial<DraftSet>) =>
     onChange({ ...exercise, sets: exercise.sets.map((set, current) => current === index ? { ...set, ...patch } : set) });
   const selected = exercises.find(option => option.id === exercise.exerciseId);
@@ -95,16 +114,61 @@ function ExerciseEditor({ exercise, exercises, onChange }: {
     setPickerOpen(false);
   };
 
-  return <div className="import-exercise" data-import-exercise={exercise.lineId}>
+  const applySubstitution = (subName: string) => {
+    const oldName = exercise.sourceName;
+    const matched = exercises.find(e => e.name.toLowerCase() === subName.toLowerCase());
+    const remainingSubs = [oldName, ...exercise.substitutions.filter(s => s.toLowerCase() !== subName.toLowerCase())].slice(0, 2);
+    onChange({
+      ...exercise,
+      sourceName: subName,
+      exerciseId: matched ? matched.id : exercise.exerciseId,
+      substitutions: remainingSubs
+    });
+    void onPropagateSubstitution?.(oldName, subName);
+  };
+
+  const handleAddSub = () => {
+    const clean = newSub.trim();
+    if (!clean || exercise.substitutions.some(s => s.toLowerCase() === clean.toLowerCase())) {
+      setNewSub('');
+      return;
+    }
+    onChange({ ...exercise, substitutions: [...exercise.substitutions, clean].slice(0, 2) });
+    setNewSub('');
+  };
+
+  const currentGroupLetter = exercise.sequenceGroup.trim().match(/^[A-Za-z]+/)?.[0]?.toUpperCase() ?? '';
+  const handleSupersetChange = (letter: string) => {
+    if (!letter) {
+      onChange({ ...exercise, sequenceGroup: '' });
+      return;
+    }
+    const thisIndex = allDayExercises.findIndex(ex => ex.lineId === exercise.lineId);
+    const priorCount = allDayExercises.slice(0, thisIndex).filter(ex => ex.sequenceGroup.toUpperCase().startsWith(letter)).length;
+    onChange({ ...exercise, sequenceGroup: `${letter}${priorCount + 1}` });
+  };
+
+  return <div className={`import-exercise ${exercise.sequenceGroup ? 'exercise-card-superset-active' : ''}`} data-import-exercise={exercise.lineId}>
     <div className="import-exercise-heading">
       <div className="import-exercise-title">
         <span className="import-exercise-icon" aria-hidden="true"><Dumbbell size={17} /></span>
-        <input className="inline-input" aria-label="Exercise name as written in the PDF" value={exercise.sourceName}
+        <input name={`exercise-source-name-${exercise.lineId}`} className="inline-input" aria-label="Exercise name as written in the PDF" value={exercise.sourceName}
           onChange={event => onChange({ ...exercise, sourceName: event.target.value })} />
       </div>
       <span className="import-exercise-tags">
+        {exercise.sequenceGroup && <span className="superset-badge"><Link2 size={12} />Superset {exercise.sequenceGroup}</span>}
         {exercise.sourcePage && <span className="tiny-label">PDF p.{exercise.sourcePage}</span>}
         {!exercise.exerciseId && <span className="tiny-label warn"><AlertTriangle size={12} /> Unmapped · preserved</span>}
+        {canRestore && onRestore && (
+          <Button
+            variant="tertiary"
+            className="restore-exercise-btn"
+            aria-label={`Restore default for ${exercise.sourceName}`}
+            onClick={onRestore}
+          >
+            <RotateCcw size={12} />Restore default
+          </Button>
+        )}
       </span>
     </div>
     <div className="import-fields">
@@ -112,19 +176,85 @@ function ExerciseEditor({ exercise, exercises, onChange }: {
         <span>Library exercise</span>
         <Button variant="secondary" className="import-library-trigger" aria-haspopup="dialog" data-import-field="library"
           aria-label={`Library exercise for ${exercise.sourceName}`} onClick={() => setPickerOpen(true)}>
-          {selected?.name ?? 'Map exercise'}
+          {selected?.name ?? (exercise.exerciseId ? 'Swap exercise' : 'Map exercise')}
         </Button>
       </div>
-      <label className="field import-superset-field">Superset group
-        <input value={exercise.sequenceGroup} onChange={event => onChange({ ...exercise, sequenceGroup: event.target.value })} placeholder="A1" />
-      </label>
-      <label className="field import-substitutions-field">Substitutions
-        <input value={exercise.substitutions.join(', ')} onChange={event => onChange({ ...exercise, substitutions: event.target.value.split(',').map(value => value.trim()).filter(Boolean).slice(0, 2) })} placeholder="Optional alternates" />
-      </label>
+      <div className="field import-superset-field">
+        <span>Superset group</span>
+        <div className="superset-control-wrap">
+          <Select
+            name={`exercise-superset-${exercise.lineId}`}
+            ariaLabel={`Superset group for ${exercise.sourceName}`}
+            value={currentGroupLetter}
+            options={supersetOptions}
+            onChange={handleSupersetChange}
+          />
+        </div>
+      </div>
+      <div className="field import-substitutions-field">
+        <span>Substitutions (tap to swap slot)</span>
+        <div className="substitution-chips-wrap">
+          {exercise.substitutions.length > 0 && (
+            <div className="substitution-chips-row" role="group" aria-label={`Substitutions for ${exercise.sourceName}`}>
+              {exercise.substitutions.map((sub, sIdx) => (
+                <div
+                  key={sIdx}
+                  className="substitution-chip"
+                  title={`Swap ${exercise.sourceName} with ${sub} across this block`}
+                  onClick={() => applySubstitution(sub)}
+                >
+                  <ArrowLeftRight size={13} className="swap-icon" />
+                  <span>{sub}</span>
+                  <Button
+                    presentation="plain"
+                    className="chip-remove-btn"
+                    aria-label={`Remove substitution ${sub}`}
+                    onClick={e => {
+                      e.stopPropagation();
+                      onChange({
+                        ...exercise,
+                        substitutions: exercise.substitutions.filter((_, idx) => idx !== sIdx)
+                      });
+                    }}
+                  >
+                    <X size={12} />
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
+          {exercise.substitutions.length < 2 && (
+            <div className="substitution-add-form">
+              <input
+                name={`new-sub-${exercise.lineId}`}
+                className="substitution-add-input"
+                placeholder="Add alternate exercise…"
+                value={newSub}
+                onChange={e => setNewSub(e.target.value)}
+                onKeyDown={e => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleAddSub();
+                  }
+                }}
+              />
+              <Button
+                variant="secondary"
+                className="substitution-add-btn"
+                disabled={!newSub.trim()}
+                onClick={handleAddSub}
+                aria-label="Add substitution"
+              >
+                <Plus size={13} />Add
+              </Button>
+            </div>
+          )}
+        </div>
+      </div>
     </div>
     {/* The coaching note is what the page said about the movement and is as worth correcting as
         anything else the read got from it, so it is edited here rather than only displayed. */}
-    <TextAreaField className="import-exercise-notes" label={<span className="import-note-label"><FileText size={15} />Notes from the PDF</span>}
+    <TextAreaField name={`exercise-notes-${exercise.lineId}`} className="import-exercise-notes" label={<span className="import-note-label"><FileText size={15} />Notes from the PDF</span>}
       value={exercise.notes ?? ''} placeholder="Cues, tempo or coaching notes"
       onChange={event => onChange({ ...exercise, notes: event.target.value })} />
 
@@ -144,14 +274,14 @@ function ExerciseEditor({ exercise, exercises, onChange }: {
                 <span className="set-prescription-label">Prescription</span>
               </div>
               <div className="import-set-fields">
-                <Field label="Min reps" inputMode="numeric" type="number" value={set.repMin} data-import-field="repMin" data-import-set-index={index} onChange={event => editSet(index, { repMin: Number(event.target.value), repsText: null, repsSource: 'userEdited' })} />
-                <Field label="Max reps" inputMode="numeric" type="number" value={set.repMax} data-import-field="repMax" data-import-set-index={index} onChange={event => editSet(index, { repMax: Number(event.target.value), repsText: null, repsSource: 'userEdited' })} />
+                <Field name={`rep-min-${exercise.lineId}-${index}`} label="Min reps" inputMode="numeric" type="number" value={set.repMin} data-import-field="repMin" data-import-set-index={index} onChange={event => editSet(index, { repMin: Number(event.target.value), repsText: null, repsSource: 'userEdited' })} />
+                <Field name={`rep-max-${exercise.lineId}-${index}`} label="Max reps" inputMode="numeric" type="number" value={set.repMax} data-import-field="repMax" data-import-set-index={index} onChange={event => editSet(index, { repMax: Number(event.target.value), repsText: null, repsSource: 'userEdited' })} />
                 <label className="field" data-import-field="targetRpe" data-import-set-index={index}>Target RPE
                   <Select name={`target-rpe-${exercise.lineId}-${index}`} ariaLabel={`Target RPE for ${exercise.sourceName} set ${index + 1}`}
                     value={set.targetRpe ?? ''} options={[{ value: '', label: set.warmup ? 'Not set' : 'Choose RPE' }, ...rpeOptions]}
                     onChange={value => editSet(index, { targetRpe: value === '' ? null : Number(value), rpeSource: 'userEdited' })} />
                 </label>
-                <Field label="Rest" value={set.restText ?? (set.restSeconds === null ? '' : `${set.restSeconds}s`)} data-import-field="rest" data-import-set-index={index} onChange={event => editSet(index, { restText: event.target.value, restSource: 'userEdited' })} />
+                <Field name={`rest-${exercise.lineId}-${index}`} label="Rest" value={set.restText ?? (set.restSeconds === null ? '' : `${set.restSeconds}s`)} data-import-field="rest" data-import-set-index={index} onChange={event => editSet(index, { restText: event.target.value, restSource: 'userEdited' })} />
               </div>
             </div>
           </SwipeableRow>
@@ -171,7 +301,7 @@ function ExerciseEditor({ exercise, exercises, onChange }: {
     {pickerOpen && <Modal title={`Choose a library exercise for ${exercise.sourceName}`} wide onClose={() => setPickerOpen(false)}>
       <div className="modal-body import-library-picker">
         <p>Search the catalog by exercise, equipment, muscle, movement pattern, or alias.</p>
-        <ExerciseLibrary exercises={exercises} action="map" onSelect={id => select(id)} />
+        <ExerciseLibrary exercises={exercises} action={exercise.exerciseId ? 'swap' : 'map'} onSelect={id => select(id)} />
       </div>
       <div className="modal-actions">
         <Button variant="tertiary" onClick={() => select(null)}>Clear mapping</Button>

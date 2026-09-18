@@ -143,6 +143,8 @@ public sealed class WorkoutTemplate : OwnedRecord
     /// Stable phase identity. The display name is not unique (two phases may both be called
     /// "Base"), so substitutions always use this id when a program phase is available.
     public Guid? ProgramPhaseId { get; set; }
+    /// Immutable snapshot of the template and its exercise slots when first saved or imported.
+    public string BaselineJson { get; set; } = "";
 }
 
 public sealed class TemplateExercise : OwnedRecord
@@ -203,6 +205,8 @@ public sealed class SessionExercise : OwnedRecord
     public Guid? OriginalExerciseId { get; set; }
     public string OriginalNameSnapshot { get; set; } = "";
     public int? SourcePage { get; set; }
+    /// Snapshot of the planned exercise and its initial sets when the workout begins.
+    public string BaselineJson { get; set; } = "";
 }
 
 public sealed class CompletedSet : OwnedRecord
@@ -280,6 +284,8 @@ public sealed class AiImport : OwnedRecord
     public string FileName { get; set; } = "";
     public int Pages { get; set; }
     public string DraftJson { get; set; } = "";
+    /// Immutable copy of the normalized draft when extraction reaches Ready.
+    public string DraftBaselineJson { get; set; } = "";
     public string Error { get; set; } = "";
     public string Model { get; set; } = "";
     public string Stage { get; set; } = "done";

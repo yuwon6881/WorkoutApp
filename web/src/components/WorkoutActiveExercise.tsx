@@ -4,6 +4,7 @@ import {
   Layers,
   Plus,
   RefreshCw,
+  RotateCcw,
   Target,
   Trash2,
   TrendingUp
@@ -33,6 +34,7 @@ export function WorkoutActiveExercise({
   editSet,
   toggle,
   onSwap,
+  onRestore,
   onRemoveExercise
 }: {
   exercise: SessionExercise;
@@ -44,6 +46,7 @@ export function WorkoutActiveExercise({
   editSet: (ei: number, si: number, patch: Partial<LoggedSet>) => void;
   toggle: (ei: number, si: number) => void;
   onSwap: (sessionExerciseId: string, replacementExerciseId: string | null, replacementName: string) => Promise<void>;
+  onRestore?: (sessionExerciseId: string) => Promise<void>;
   onRemoveExercise: (index: number) => void;
 }) {
   const [swapOpen, setSwapOpen] = useState(false);
@@ -74,6 +77,7 @@ export function WorkoutActiveExercise({
   }, [swapOpen, exercise.exerciseId, exercise.name, exercise.substitutions]);
 
   const workingSets = exercise.sets.filter(s => !s.warmup);
+  const hasCompletedSets = exercise.sets.some(s => s.done);
   const nextUnloggedWorkingIndex = workingSets.findIndex(s => !s.done);
   const currentSetDisplay =
     nextUnloggedWorkingIndex >= 0
@@ -128,11 +132,25 @@ export function WorkoutActiveExercise({
           variant="tertiary"
           className="action-pill"
           aria-label={`Swap ${exercise.name}`}
+          disabled={hasCompletedSets}
+          title={hasCompletedSets ? 'Swapping is not available after completing sets.' : undefined}
           onClick={() => setSwapOpen(true)}
         >
           <RefreshCw size={15} />
           <span>Swap</span>
         </Button>
+
+        {exercise.canRestore && !hasCompletedSets && (
+          <Button
+            variant="tertiary"
+            className="action-pill"
+            aria-label={`Restore default for ${exercise.name}`}
+            onClick={() => void onRestore?.(exercise.id)}
+          >
+            <RotateCcw size={15} />
+            <span>Restore default</span>
+          </Button>
+        )}
 
         <Button
           variant="tertiary"
@@ -319,11 +337,7 @@ export function WorkoutActiveExercise({
         <Modal title={`Swap ${exercise.name}`} onClose={() => setSwapOpen(false)}>
           <div className="modal-body">
             <p className="source">
-              Completed sets stay with{' '}
-              {exercise.isReplacement && exercise.originalName
-                ? exercise.originalName
-                : exercise.name}
-              ; remaining sets continue under the replacement.
+              Prescribed sets, reps, and targets stay with the slot. Swapping is only available before any sets are completed.
             </p>
             {!!exercise.substitutions.length && !candidates.length && (
               <div className="swap-menu" role="group" aria-label="Imported alternatives">

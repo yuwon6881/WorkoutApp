@@ -37,7 +37,15 @@ export default function App() {
   const [actionError, setActionError] = useState('');
   const previewRequest = useRef<string | null>(null);
 
-  useEffect(() => { document.documentElement.dataset.theme = data?.preferences.theme ?? 'dark'; }, [data?.preferences.theme]);
+  useEffect(() => {
+    const theme = data?.preferences.theme ?? 'dark';
+    document.documentElement.dataset.theme = theme;
+    const metaTheme = document.querySelector('meta[name="theme-color"]');
+    if (metaTheme) {
+      const bg = getComputedStyle(document.documentElement).getPropertyValue('--bg').trim();
+      if (bg) metaTheme.setAttribute('content', bg);
+    }
+  }, [data?.preferences.theme]);
   // The rest timer belongs to the shell, not the workout view: it has to keep counting while the
   // workout is minimised, and it has to be listening for a resume from a locked screen.
   useEffect(() => restTimer.attach(data?.preferences.restAlerts ?? true), [data?.preferences.restAlerts]);

@@ -427,4 +427,54 @@ public class AiImportTests
         Assert.Equal(ImportStatus.Ready, ready.Status);
         Assert.Equal(2, stub.Calls);
     }
+
+    [Fact] public async Task Import_draft_restore_and_exercise_restore()
+    {
+        await using var h = await Harness.Create(Configured);
+        await h.SignIn();
+        var imports = h.Imports(StubHandler.Program(OneWorkout));
+        var ready = await imports.Create(Source("block.pdf"), default);
+        Assert.Equal(ImportStatus.Ready, ready.Status);
+        Assert.False(ready.CanRestoreDraft);
+        Assert.Empty(ready.RestorableExerciseLineIds!);
+
+        var originalExercise = ready.Draft!.Workouts.Single().Exercises.Single();
+        var exerciseLineId = originalExercise.LineId;
+
+        var editedDraft = ready.Draft with
+        {
+            ProgramName = "Edited Program Name",
+            Workouts = [ready.Draft.Workouts.Single() with
+            {
+                Exercises = [originalExercise with
+                {
+                    SourceName = "Edited Press",
+                    Notes = "My coaching cues",
+                    Sets = [originalExercise.Sets[0] with { RepMin = 12, RepMax = 15, RepsSource = "userEdited" }]
+                }]
+            }]
+        };
+
+        var editedView = await imports.Edit(ready.Id, editedDraft, default);
+        Assert.True(editedView.CanRestoreDraft);
+        Assert.Contains(exerciseLineId, editedView.RestorableExerciseLineIds!);
+
+        var exerciseRestoredView = await imports.RestoreExercise(ready.Id, exerciseLineId, editedView.Revision, default);
+        var restoredExercise = exerciseRestoredView.Draft!.Workouts.Single().Exercises.Single();
+        Assert.Equal("Barbell bench press", restoredExercise.SourceName);
+        Assert.Equal(8, restoredExercise.Sets[0].RepMin);
+        Assert.Equal(10, restoredExercise.Sets[0].RepMax);
+        Assert.Equal("extracted", restoredExercise.Sets[0].RepsSource);
+        Assert.Equal("Edited Program Name", exerciseRestoredView.Draft.ProgramName);
+        Assert.DoesNotContain(exerciseLineId, exerciseRestoredView.RestorableExerciseLineIds!);
+        Assert.True(exerciseRestoredView.CanRestoreDraft);
+
+        var draftRestoredView = await imports.RestoreDraft(ready.Id, exerciseRestoredView.Revision, default);
+        Assert.Equal("Hypertrophy block", draftRestoredView.Draft!.ProgramName);
+        Assert.False(draftRestoredView.CanRestoreDraft);
+        Assert.Empty(draftRestoredView.RestorableExerciseLineIds!);
+
+        var ex = await Assert.ThrowsAsync<DomainException>(() => imports.RestoreDraft(ready.Id, 1, default));
+        Assert.Equal(409, ex.Status);
+    }
 }

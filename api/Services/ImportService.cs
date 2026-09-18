@@ -48,10 +48,12 @@ public sealed partial class ImportService(AppDb db, WorkoutAi ai, CatalogService
         var coverage = string.IsNullOrWhiteSpace(import.PageCoverageJson) ? [] : Json.Read<List<PdfPageCoverage>>(import.PageCoverageJson);
         var alternatives = string.IsNullOrWhiteSpace(import.AlternativesJson) ? [] : Json.Read<List<ImportAlternative>>(import.AlternativesJson);
         var acceptable = import.Status == ImportStatus.Ready && unresolved.Count == 0 && issues.Count == 0;
+        var (canRestoreDraft, restorableExerciseLineIds) = AnalyzeRestorability(import, draft);
         return new ImportView(import.Id, import.Status, import.FileName, import.Pages, import.Error, import.Created, import.Model,
             import.Stage, import.ChunksDone, import.ChunksTotal, chunks.ElementAtOrDefault(import.ChunksDone)?.Label, unresolvedCount, draft,
             unresolved, acceptable, import.ProgramId, issues,
-            import.InputTokens, import.OutputTokens, import.Retries, import.SourceExpiresAt, coverage, alternatives, import.SelectedAlternativeId);
+            import.InputTokens, import.OutputTokens, import.Retries, import.SourceExpiresAt, coverage, alternatives, import.SelectedAlternativeId,
+            import.Revision, canRestoreDraft, restorableExerciseLineIds);
     }
 
     public static List<UnresolvedExercise> Unresolved(ImportDraft draft) => ImportValidation.Unresolved(draft);
@@ -242,31 +244,39 @@ public sealed partial class ImportService(AppDb db, WorkoutAi ai, CatalogService
         return true;
     }
 
-    private async Task<ImportView> SaveDraft(Guid id, ImportDraft draft, CancellationToken ct)
+    private async Task<ImportView> SaveDraft(Guid id, ImportDraft draft, int? revision, CancellationToken ct)
     {
         var import = await db.Imports.SingleOrDefaultAsync(i => i.Id == id, ct);
         Validation.Require(import != null, "That import no longer exists.", 404);
         Validation.Require(import!.Status == ImportStatus.Ready, "This import is no longer editable.", 409);
+        TemplateService.RequireFresh(revision, import.Revision);
+        if (string.IsNullOrEmpty(import.DraftBaselineJson)) import.DraftBaselineJson = import.DraftJson;
         await ValidateDraft(draft, ct);
         import.DraftJson = Json.Write(draft); import.Revision++; UpdateCounters(import, draft);
         await db.SaveChangesAsync(ct);
         return await Get(id, ct);
     }
 
-    public async Task<ImportView> Edit(Guid id, ImportDraft draft, CancellationToken ct)
+    public Task<ImportView> Edit(Guid id, ImportDraft draft, CancellationToken ct) => Edit(id, draft, null, ct);
+
+    public async Task<ImportView> Edit(Guid id, ImportDraft draft, int? revision, CancellationToken ct)
     {
         await using var gate = await MutationLock.Acquire(db, db.CurrentUser, ct);
-        var result = await SaveDraft(id, draft, ct);
+        var result = await SaveDraft(id, draft, revision, ct);
         await gate.Commit(ct);
         return result;
     }
 
-    public async Task<ImportView> EditMetadata(Guid id, ImportMetadata metadata, CancellationToken ct)
+    public Task<ImportView> EditMetadata(Guid id, ImportMetadata metadata, CancellationToken ct) => EditMetadata(id, metadata, null, ct);
+
+    public async Task<ImportView> EditMetadata(Guid id, ImportMetadata metadata, int? revision, CancellationToken ct)
     {
         await using var gate = await MutationLock.Acquire(db, db.CurrentUser, ct);
         var import = await db.Imports.SingleOrDefaultAsync(i => i.Id == id, ct);
         Validation.Require(import != null, "That import no longer exists.", 404);
         Validation.Require(import!.Status == ImportStatus.Ready, "This import is no longer editable.", 409);
+        TemplateService.RequireFresh(revision, import.Revision);
+        if (string.IsNullOrEmpty(import.DraftBaselineJson)) import.DraftBaselineJson = import.DraftJson;
         var current = Json.Read<ImportDraft>(import.DraftJson);
         var next = current with { ProgramName = metadata.ProgramName };
         Validation.Name(next.ProgramName, "Program name");
@@ -276,13 +286,17 @@ public sealed partial class ImportService(AppDb db, WorkoutAi ai, CatalogService
         return await Get(id, ct);
     }
 
-    public async Task<ImportView> EditDay(Guid id, Guid lineId, DraftWorkout day, CancellationToken ct)
+    public Task<ImportView> EditDay(Guid id, Guid lineId, DraftWorkout day, CancellationToken ct) => EditDay(id, lineId, day, null, ct);
+
+    public async Task<ImportView> EditDay(Guid id, Guid lineId, DraftWorkout day, int? revision, CancellationToken ct)
     {
         await using var gate = await MutationLock.Acquire(db, db.CurrentUser, ct);
         Validation.Require(day.LineId == lineId, "That day does not match the requested draft line.", 400);
         var import = await db.Imports.SingleOrDefaultAsync(i => i.Id == id, ct);
         Validation.Require(import != null, "That import no longer exists.", 404);
         Validation.Require(import!.Status == ImportStatus.Ready, "This import is no longer editable.", 409);
+        TemplateService.RequireFresh(revision, import.Revision);
+        if (string.IsNullOrEmpty(import.DraftBaselineJson)) import.DraftBaselineJson = import.DraftJson;
         var draft = Json.Read<ImportDraft>(import.DraftJson);
         Validation.Require(draft.Workouts.Any(w => w.LineId == lineId), "That day no longer exists.", 404);
         await ValidateWorkout(day, ct);

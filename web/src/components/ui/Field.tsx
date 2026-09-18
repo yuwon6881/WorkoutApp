@@ -12,37 +12,38 @@ type FieldChrome = {
   className?: string;
 };
 
-function fieldIds(id: string | undefined, generated: string, error: string | undefined) {
+function fieldIds(id: string | undefined, generated: string, error: string | undefined, name: string | undefined, label: ReactNode) {
   const controlId = id ?? generated;
-  return { controlId, errorId: error ? `${controlId}-error` : undefined };
+  const controlName = name ?? (typeof label === 'string' ? label.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') : controlId);
+  return { controlId, controlName, errorId: error ? `${controlId}-error` : undefined };
 }
 
-export function Field({ label, error, className = '', id, ...props }: FieldChrome & InputHTMLAttributes<HTMLInputElement>) {
+export function Field({ label, error, className = '', id, name, ...props }: FieldChrome & InputHTMLAttributes<HTMLInputElement>) {
   const generated = useId();
-  const { controlId, errorId } = fieldIds(id, generated, error);
+  const { controlId, controlName, errorId } = fieldIds(id, generated, error, name, label);
   return <label className={`field ${className}`.trim()} htmlFor={controlId}>
     <span>{label}</span>
-    <input id={controlId} aria-invalid={error ? true : undefined} aria-describedby={errorId} {...props} />
+    <input id={controlId} name={controlName} aria-invalid={error ? true : undefined} aria-describedby={errorId} {...props} />
     {error && <span id={errorId} className="field-error" role="alert">{error}</span>}
   </label>;
 }
 
-export function TextAreaField({ label, error, className = '', id, ...props }: FieldChrome & TextareaHTMLAttributes<HTMLTextAreaElement>) {
+export function TextAreaField({ label, error, className = '', id, name, ...props }: FieldChrome & TextareaHTMLAttributes<HTMLTextAreaElement>) {
   const generated = useId();
-  const { controlId, errorId } = fieldIds(id, generated, error);
+  const { controlId, controlName, errorId } = fieldIds(id, generated, error, name, label);
   return <label className={`field ${className}`.trim()} htmlFor={controlId}>
     <span>{label}</span>
-    <textarea id={controlId} aria-invalid={error ? true : undefined} aria-describedby={errorId} {...props} />
+    <textarea id={controlId} name={controlName} aria-invalid={error ? true : undefined} aria-describedby={errorId} {...props} />
     {error && <span id={errorId} className="field-error" role="alert">{error}</span>}
   </label>;
 }
 
-export function SelectField({ label, error, className = '', id, children, ...props }: FieldChrome & SelectHTMLAttributes<HTMLSelectElement>) {
+export function SelectField({ label, error, className = '', id, name, children, ...props }: FieldChrome & SelectHTMLAttributes<HTMLSelectElement>) {
   const generated = useId();
-  const { controlId, errorId } = fieldIds(id, generated, error);
+  const { controlId, controlName, errorId } = fieldIds(id, generated, error, name, label);
   return <label className={`field ${className}`.trim()} htmlFor={controlId}>
     <span>{label}</span>
-    <select id={controlId} aria-invalid={error ? true : undefined} aria-describedby={errorId} {...props}>{children}</select>
+    <select id={controlId} name={controlName} aria-invalid={error ? true : undefined} aria-describedby={errorId} {...props}>{children}</select>
     {error && <span id={errorId} className="field-error" role="alert">{error}</span>}
   </label>;
 }

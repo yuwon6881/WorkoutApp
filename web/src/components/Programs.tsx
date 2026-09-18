@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { ArrowRight, Check, ChevronDown, ChevronUp, Dumbbell, FileText, Pencil, Play, Plus, RefreshCw } from 'lucide-react';
+import { ArrowRight, Check, ChevronDown, ChevronUp, Dumbbell, FileText, Pencil, Play, Plus, RefreshCw, RotateCcw } from 'lucide-react';
 import type { Bootstrap, Exercise, ProgramSummary, Template, TemplateExercise } from '../types';
 import { ApiError, api } from '../lib/api';
 import { getWorkoutMuscles } from '../lib/muscles';
@@ -31,7 +31,7 @@ export function Programs({ data, exercises, onStart, onImport, onChanged }: {
 
   const open = (template?: Template) => {
     setDraft(template
-      ? { id: template.id, name: template.name, focus: template.focus, revision: template.revision, exercises: structuredClone(template.exercises) }
+      ? { id: template.id, name: template.name, focus: template.focus, revision: template.revision, exercises: structuredClone(template.exercises), canRestore: template.canRestore, isLegacyBaseline: template.isLegacyBaseline }
       : { id: null, name: '', focus: 'Custom workout', revision: null, exercises: [] });
   };
 
@@ -187,10 +187,11 @@ function ProgramCard({ program, exercises, onStart, onChanged }: { program: Prog
       <Button variant="tertiary" onClick={openSchedule}>Edit schedule</Button>
     </div>}
     {scheduling && <div className="schedule-editor" aria-label={`Schedule ${program.name}`}>
-      <label className="field">Program week 1 starts on Monday<input type="date" value={scheduleAnchor} onChange={event => setScheduleAnchor(event.target.value)} /></label>
+      <label className="field">Program week 1 starts on Monday<input id="schedule-anchor-date" name="schedule-anchor-date" type="date" value={scheduleAnchor} onChange={event => setScheduleAnchor(event.target.value)} /></label>
       <div className="schedule-rows">
         {program.days.filter(day => !day.isRestDay).map(day => <label className="field" key={day.id}>{day.name} · week {day.week}
           <Select
+            name={`schedule-weekday-${day.id}`}
             value={scheduleWeekdays[day.id] != null ? String(scheduleWeekdays[day.id]) : ''}
             onChange={value => setScheduleWeekdays(current => ({ ...current, [day.id]: value ? Number(value) : undefined }))}
             ariaLabel={`Weekday for ${day.name}`}
@@ -211,12 +212,29 @@ function ProgramCard({ program, exercises, onStart, onChanged }: { program: Prog
     </div>
     {swapTarget && <Modal title={`Swap ${swapTarget.exercise.name}`} onClose={() => setSwapTarget(null)}>
       <div className="modal-body"><p className="source">Reps, sets, RPE, rest, tempo, warm-ups, notes, and source provenance stay with the slot. Loads are recalculated when the workout starts.</p>
-        {program.phases?.some(phase => phase.id === swapTarget.template.phaseId || (phase.name === swapTarget.template.phase && phase.block === swapTarget.template.block)) && <label className="field">Apply to<Select value={swapScope} onChange={val => { setSwapScope(val as 'slot' | 'phase'); setConfirmPhaseSwap(false); }} ariaLabel="Apply swap scope" options={[{ value: 'slot', label: 'This workout only' }, { value: 'phase', label: 'Remaining workouts in this phase' }]} /></label>}
-        {swapScope === 'phase' && <><div className="preview-card"><strong>Preview</strong><p>{detail?.filter(item => (item.phaseId === swapTarget.template.phaseId || (item.phase === swapTarget.template.phase && item.block === swapTarget.template.block)) && !program.completedTemplateIds.includes(item.id) && !(program.skippedTemplateIds ?? []).includes(item.id)).map(item => item.name).join(', ') || 'No remaining workouts in this phase.'}</p></div><label className="checkbox-row"><input type="checkbox" checked={confirmPhaseSwap} onChange={event => setConfirmPhaseSwap(event.target.checked)} />Apply this replacement to the previewed remaining workouts only.</label></>}
+        {swapTarget.template.isLegacyBaseline && <p className="muted small-copy">Restores to current saved version (earlier history unavailable)</p>}
+        {program.phases?.some(phase => phase.id === swapTarget.template.phaseId || (phase.name === swapTarget.template.phase && phase.block === swapTarget.template.block)) && <label className="field">Apply to<Select name="swap-scope-select" value={swapScope} onChange={val => { setSwapScope(val as 'slot' | 'phase'); setConfirmPhaseSwap(false); }} ariaLabel="Apply swap scope" options={[{ value: 'slot', label: 'This workout only' }, { value: 'phase', label: 'Remaining workouts in this phase' }]} /></label>}
+        {swapScope === 'phase' && <><div className="preview-card"><strong>Preview</strong><p>{detail?.filter(item => (item.phaseId === swapTarget.template.phaseId || (item.phase === swapTarget.template.phase && item.block === swapTarget.template.block)) && !program.completedTemplateIds.includes(item.id) && !(program.skippedTemplateIds ?? []).includes(item.id)).map(item => item.name).join(', ') || 'No remaining workouts in this phase.'}</p></div><label className="checkbox-row"><input id="confirm-phase-swap" name="confirm-phase-swap" type="checkbox" checked={confirmPhaseSwap} onChange={event => setConfirmPhaseSwap(event.target.checked)} />Apply this replacement to the previewed remaining workouts only.</label></>}
         <ExerciseLibrary action="swap" exercises={exercises} exclude={[]} onSelect={id => setSwapChoice(exercises.find(item => item.id === id) ?? null)} />
         {swapChoice && <p className="source">Selected replacement: <strong>{swapChoice.name}</strong></p>}
       </div>
-      <div className="modal-actions"><Button onClick={() => setSwapTarget(null)}>Cancel</Button><Button variant="primary" disabled={!swapChoice || busy || swapScope === 'phase' && !confirmPhaseSwap} onClick={() => void (async () => { if (!swapChoice) return; await act(async () => { await api.substituteTemplateExercise(swapTarget.template.id, { templateExerciseId: swapTarget.exercise.id, slotKey: swapTarget.exercise.slotKey ?? undefined, replacementExerciseId: swapChoice.id, replacementName: swapChoice.name, scope: swapScope, revision: swapTarget.template.revision, idempotencyId: crypto.randomUUID() }); setDetail((await api.getProgram(program.id)).workouts); setSwapTarget(null); }); })()}>Apply swap</Button></div>
+      <div className="modal-actions">
+        {swapTarget.exercise.canRestore && <Button variant="tertiary" disabled={busy || (swapScope === 'phase' && !confirmPhaseSwap)} onClick={() => void (async () => {
+          await act(async () => {
+            await api.restoreTemplateSubstitution(swapTarget.template.id, {
+              templateExerciseId: swapTarget.exercise.id,
+              slotKey: swapTarget.exercise.slotKey ?? undefined,
+              scope: swapScope,
+              revision: swapTarget.template.revision,
+              idempotencyId: crypto.randomUUID()
+            });
+            setDetail((await api.getProgram(program.id)).workouts);
+            setSwapTarget(null);
+          });
+        })}><RotateCcw size={14} />Restore default</Button>}
+        <Button onClick={() => setSwapTarget(null)}>Cancel</Button>
+        <Button variant="primary" disabled={!swapChoice || busy || (swapScope === 'phase' && !confirmPhaseSwap)} onClick={() => void (async () => { if (!swapChoice) return; await act(async () => { await api.substituteTemplateExercise(swapTarget.template.id, { templateExerciseId: swapTarget.exercise.id, slotKey: swapTarget.exercise.slotKey ?? undefined, replacementExerciseId: swapChoice.id, replacementName: swapChoice.name, scope: swapScope, revision: swapTarget.template.revision, idempotencyId: crypto.randomUUID() }); setDetail((await api.getProgram(program.id)).workouts); setSwapTarget(null); }); })()}>Apply swap</Button>
+      </div>
     </Modal>}
   </section>;
 }
@@ -295,7 +313,7 @@ function ProgramSlotRow({ day, full, complete, isSkipped, isNext, canStart, exer
       {muscles.length > 5 && <span className="muscle-chip muscle-chip-overflow" title={muscles.slice(5).join(', ')}>+{muscles.length - 5}</span>}
     </div>}
     {expanded && full && <div className="slot-exercises">
-      {full.exercises.map(exercise => <Button key={exercise.id} variant="tertiary" aria-label={`Swap ${exercise.name} in ${day.name}`} onClick={() => onSwap(exercise)}><RefreshCw size={14} />{exercise.name}</Button>)}
+      {full.exercises.map(exercise => <Button key={exercise.id} variant="tertiary" aria-label={`Swap ${exercise.name} in ${day.name}`} onClick={() => onSwap(exercise)}><RefreshCw size={14} />{exercise.name}{exercise.canRestore ? ' · Swapped' : ''}</Button>)}
     </div>}
   </div>;
 }

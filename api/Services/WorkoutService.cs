@@ -16,7 +16,8 @@ public record SetView(Guid Id, int Position, double? WeightKg, int? Reps, double
 public record SessionExerciseView(Guid Id, Guid? ExerciseId, string Name, int Position, string Note, List<SetPrescription> Prescription, List<SetView> Sets,
     string SequenceGroup = "", List<string>? Substitutions = null, ProgressionView? Progression = null,
     string LoadModel = LoadModels.External, Guid? SourceTemplateExerciseId = null, Guid? SourceSlotKey = null, Guid? SourcePhaseId = null,
-    Guid? SwapGroupKey = null, bool IsReplacement = false, Guid? OriginalExerciseId = null, string OriginalName = "", int? SourcePage = null);
+    Guid? SwapGroupKey = null, bool IsReplacement = false, Guid? OriginalExerciseId = null, string OriginalName = "", int? SourcePage = null,
+    bool CanRestore = false);
 public record SessionView(Guid Id, Guid? TemplateId, Guid? ProgramId, string Name, string Note, bool Active, DateTime StartedAt, DateTime? FinishedAt, int Revision,
     List<SessionExerciseView> Exercises, double? VolumeKg, int CompletedSets, int WarmupSets = 0,
     DateOnly? PlannedDate = null, BodyWeightSnapshot? BodyWeight = null, NutritionTrainingContext? NutritionContext = null,
@@ -25,7 +26,7 @@ public record SessionView(Guid Id, Guid? TemplateId, Guid? ProgramId, string Nam
 public record SessionSubstitutionInput(Guid SessionExerciseId, Guid? ReplacementExerciseId, string ReplacementName,
     int? Revision, Guid? IdempotencyId);
 
-public sealed class WorkoutService(
+public sealed partial class WorkoutService(
     AppDb db,
     CatalogService catalog,
     TemplateService templates,
@@ -70,13 +71,18 @@ public sealed class WorkoutService(
         var context = ReadOptional<NutritionTrainingContext>(session.NutritionContextJson);
         return new SessionView(session.Id, session.TemplateId, session.ProgramId, session.Name, session.Note, session.Active,
             session.StartedAt, session.FinishedAt, session.Revision,
-            exercises.Select(e => new SessionExerciseView(e.Id, e.ExerciseId, e.NameSnapshot, e.Position, e.Note,
-                Json.Read<List<SetPrescription>>(e.PrescriptionJson),
-                sets.Where(s => s.SessionExerciseId == e.Id).Select(s => new SetView(s.Id, s.Position, s.WeightKg, s.Reps, s.Rpe, s.Done, s.Warmup,
-                    s.WorkingSetOrdinal, s.ResistanceMode, s.SystemLoadKg, ReadOptional<SetProgressionSuggestion>(s.SuggestionJson))).ToList(),
-                e.SequenceGroup, Json.Read<List<string>>(e.SubstitutionsJson),
-                ReadOptional<ProgressionView>(e.ProgressionJson), e.LoadModel, e.SourceTemplateExerciseId, e.SourceSlotKey, e.SourcePhaseId,
-                e.SwapGroupKey, e.IsReplacement, e.OriginalExerciseId, e.OriginalNameSnapshot, e.SourcePage)).ToList(),
+            exercises.Select(e =>
+            {
+                var exerciseSets = sets.Where(s => s.SessionExerciseId == e.Id).ToList();
+                var canRestore = e.IsReplacement && !string.IsNullOrEmpty(e.BaselineJson) && !exerciseSets.Any(s => s.Done);
+                return new SessionExerciseView(e.Id, e.ExerciseId, e.NameSnapshot, e.Position, e.Note,
+                    Json.Read<List<SetPrescription>>(e.PrescriptionJson),
+                    exerciseSets.Select(s => new SetView(s.Id, s.Position, s.WeightKg, s.Reps, s.Rpe, s.Done, s.Warmup,
+                        s.WorkingSetOrdinal, s.ResistanceMode, s.SystemLoadKg, ReadOptional<SetProgressionSuggestion>(s.SuggestionJson))).ToList(),
+                    e.SequenceGroup, Json.Read<List<string>>(e.SubstitutionsJson),
+                    ReadOptional<ProgressionView>(e.ProgressionJson), e.LoadModel, e.SourceTemplateExerciseId, e.SourceSlotKey, e.SourcePhaseId,
+                    e.SwapGroupKey, e.IsReplacement, e.OriginalExerciseId, e.OriginalNameSnapshot, e.SourcePage, canRestore);
+            }).ToList(),
             external.Count == 0 ? null : external.Sum(s => s.WeightKg!.Value * s.Reps!.Value),
             workingDone.Count, warmupDone.Count, session.PlannedDate, bodyWeight, context,
             system.Count == 0 ? null : system.Sum(s => s.SystemLoadKg!.Value * s.Reps!.Value));
@@ -204,6 +210,7 @@ public sealed class WorkoutService(
                 exercise.ProgressionJson = firstSuggestion is null ? "" : Json.Write(new ProgressionView(
                     firstSuggestion.SuggestedLoadKg, firstSuggestion.SuggestedReps, firstSuggestion.Reason,
                     null, null, step, firstSuggestion.ProgressionMode, firstSuggestion.NutritionContextRevision));
+                exercise.BaselineJson = CreateExerciseBaseline(exercise, db.Sets.Local.Where(s => s.SessionExerciseId == exercise.Id));
             }
         }
         await db.SaveChangesAsync(ct);
@@ -504,41 +511,18 @@ public sealed class WorkoutService(
             ? (await catalog.LoadModelsFor([modelId], ct)).GetValueOrDefault(modelId, LoadModels.External)
             : LoadModels.External;
         var sets = await db.Sets.Where(s => s.SessionExerciseId == sourceRow.Id).OrderBy(s => s.Position).ToListAsync(ct);
-        var completed = sets.Where(s => s.Done).ToList();
+        Validation.Require(!sets.Any(s => s.Done), "Cannot swap an exercise after completing sets.", 409);
         var groupKey = sourceRow.SwapGroupKey ?? Guid.NewGuid();
         sourceRow.SwapGroupKey = groupKey;
         sourceRow.OriginalExerciseId ??= sourceRow.ExerciseId;
         if (string.IsNullOrWhiteSpace(sourceRow.OriginalNameSnapshot)) sourceRow.OriginalNameSnapshot = sourceRow.NameSnapshot;
-        SessionExercise continuation;
-        if (completed.Count == 0)
-        {
-            continuation = sourceRow;
-            continuation.ExerciseId = input.ReplacementExerciseId; continuation.NameSnapshot = replacementName;
-            continuation.LoadModel = replacementModel; continuation.ProgressionJson = ""; continuation.IsReplacement = true;
-            foreach (var set in sets) ClearUnfinishedSet(set, replacementModel);
-            await RefreshReplacementSuggestions(swapSession, continuation, sets, replacementModel, ct);
-        }
-        else
-        {
-            var later = await db.SessionExercises.Where(e => e.SessionId == id && e.Position > sourceRow.Position).ToListAsync(ct);
-            foreach (var row in later) row.Position++;
-            continuation = new SessionExercise
-            {
-                UserId = swapSession.UserId, SessionId = id, ExerciseId = input.ReplacementExerciseId, NameSnapshot = replacementName,
-                Position = sourceRow.Position + 1, Note = sourceRow.Note, PrescriptionJson = sourceRow.PrescriptionJson,
-                SequenceGroup = sourceRow.SequenceGroup, SubstitutionsJson = sourceRow.SubstitutionsJson, LoadModel = replacementModel,
-                SourceTemplateExerciseId = sourceRow.SourceTemplateExerciseId, SourceSlotKey = sourceRow.SourceSlotKey, SourcePhaseId = sourceRow.SourcePhaseId,
-                SwapGroupKey = groupKey, IsReplacement = true, OriginalExerciseId = sourceRow.OriginalExerciseId, OriginalNameSnapshot = sourceRow.OriginalNameSnapshot,
-                SourcePage = sourceRow.SourcePage
-            };
-            db.SessionExercises.Add(continuation);
-            foreach (var set in sets.Where(s => !s.Done).ToList())
-            {
-                set.SessionExerciseId = continuation.Id;
-                ClearUnfinishedSet(set, replacementModel);
-            }
-            await RefreshReplacementSuggestions(swapSession, continuation, sets.Where(s => s.SessionExerciseId == continuation.Id).ToList(), replacementModel, ct);
-        }
+        sourceRow.ExerciseId = input.ReplacementExerciseId;
+        sourceRow.NameSnapshot = replacementName;
+        sourceRow.LoadModel = replacementModel;
+        sourceRow.ProgressionJson = "";
+        sourceRow.IsReplacement = true;
+        foreach (var set in sets) ClearUnfinishedSet(set, replacementModel);
+        await RefreshReplacementSuggestions(swapSession, sourceRow, sets, replacementModel, ct);
         db.ExerciseSubstitutions.Add(new ExerciseSubstitution
         {
             UserId = swapSession.UserId, SessionId = swapSession.Id, SourceTemplateExerciseId = sourceRow.SourceTemplateExerciseId,

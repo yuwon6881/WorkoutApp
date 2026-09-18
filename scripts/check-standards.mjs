@@ -31,6 +31,9 @@ for (const file of filesIn(sourceRoot)) {
   if (extension === '.tsx' && !normalized.includes('/components/ui/') && /<button(?:\s|>)/.test(content)) {
     failures.push(`${normalized} renders a raw button outside the shared UI layer.`);
   }
+  if (extension === '.tsx' && !normalized.includes('/components/ui/') && /<select(?:\s|>)/.test(content)) {
+    failures.push(`${normalized} renders a raw select outside the shared UI layer.`);
+  }
   if (extension === '.tsx' && /#[0-9a-f]{3,8}\b/i.test(content)) failures.push(`${normalized} contains a hard-coded color.`);
 }
 
