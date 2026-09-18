@@ -38,53 +38,29 @@ internal static class WorkoutAiValidation
         }
     }
 
-    public static void Validate(AiProgram program)
+    /// A program the model returned. Almost nothing is required of it, and deliberately so: the
+    /// response's shape is already guaranteed by the strict JSON schema, and every judgement a
+    /// document can make that this app cannot store exactly — a movement listed with no sets, a
+    /// page number miscounted, a weekday outside Monday to Sunday, a session with more exercises
+    /// than one day holds — is brought into shape by `ImportNormalization` and `ImportDayShape`
+    /// and reported to the reviewer. Refusing any of it here throws away a read that has already
+    /// been paid for and leaves the import failing identically on every retry.
+    ///
+    /// `section` says this is one section of a divided outline. A section can land on pages that
+    /// document nothing — a photo spread at the end of a block — and that is a fact about those
+    /// pages rather than a failed read, where a whole-document answer with no days at all means
+    /// the importer genuinely found no program.
+    public static void Validate(AiProgram program, bool section = false)
     {
-        var title = program.ProgramTitle ?? program.ProgramName;
-        Validation.Name(title, "Program name");
-        Validation.Text(program.Description, 4000, "Program description");
         if (program.Days is { } days)
         {
-            Validation.Require(days is { Count: > 0 and <= 400 }, "AI did not find any training days in this PDF.", 422);
-            foreach (var day in days)
-            {
-                Validation.Require(day.WeekNumber is > 0 and <= 104 && day.PhaseWeek is > 0 and <= 104, "AI returned an invalid week number.", 422);
-                Validation.Require(day.Weekday is null || day.Weekday.Value is >= 1 and <= 7, "AI returned an invalid weekday.", 422);
-                Validation.Require(day.SourcePage is null || day.SourcePage.Value is > 0 and <= ImportSourceText.MaxPages, "AI returned an invalid source page.", 422);
-                Validation.Require(day.IsRestDay ? day.Exercises is { Count: 0 } : day.Exercises is { Count: <= 40 }, "AI returned an invalid rest-day exercise list.", 422);
-                foreach (var exercise in day.Exercises ?? []) Validate(exercise);
-            }
+            Validation.Require(section || days.Count > 0, "AI did not find any training days in this PDF.", 422);
+            Validation.Require(days.Count <= 400, "This program is larger than the importer supports.", 422);
             return;
         }
 
         Validation.Require(program.Weeks is { Count: > 0 and <= 104 }, "AI did not find any training weeks in this PDF.", 422);
         var workouts = program.Weeks!.Sum(w => w.Workouts?.Count ?? 0);
         Validation.Require(workouts is > 0 and <= 400, "This program is larger than the importer supports.", 422);
-        foreach (var week in program.Weeks!)
-        {
-            Validation.Require(week.Week is > 0 and <= 104, "AI returned an invalid week number.", 422);
-            foreach (var workout in week.Workouts ?? [])
-            {
-                Validation.Require(workout.Exercises is { Count: > 0 and <= 40 }, "AI returned a workout without usable exercises.", 422);
-                foreach (var exercise in workout.Exercises!) Validate(exercise);
-            }
-        }
-    }
-
-    private static void Validate(AiExercise exercise)
-    {
-        Validation.Require(exercise.SourcePage is null || exercise.SourcePage.Value is > 0 and <= ImportSourceText.MaxPages, "AI returned an invalid exercise source page.", 422);
-        // A written program routinely offers three or four alternates for one movement. The draft
-        // keeps the two an exercise can hold and records the rest in its note, so the length of
-        // this list is never a reason to reject the section it came from.
-        Validation.Require(exercise.Substitutions is null || exercise.Substitutions.Count <= 12,
-            "AI returned an unusable substitution list.", 422);
-        Validation.Require(exercise.Sets is { Count: > 0 and <= 24 }, "AI returned an exercise without usable sets.", 422);
-        foreach (var set in exercise.Sets!)
-        {
-            Validation.Require(set.SourcePage is null || set.SourcePage.Value is > 0 and <= ImportSourceText.MaxPages, "AI returned an invalid set source page.", 422);
-            foreach (var source in new[] { set.RepsSource, set.RpeSource, set.RestSource })
-                Validation.Require(source is "extracted" or "inferred", "AI returned an unknown provenance label.", 422);
-        }
     }
 }

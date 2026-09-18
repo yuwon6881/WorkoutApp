@@ -26,6 +26,23 @@ internal static class ImportNormalization
     public static string Label(string? value, int max, string fallback)
         => Text(value, max) ?? fallback;
 
+    /// A page number the read reported. A number outside the document is a miscount, and an
+    /// unknown page is better than a wrong one or a refused section.
+    public static int? Page(int? page)
+        => page is { } value && value > 0 && value <= ImportSourceText.MaxPages ? value : null;
+
+    /// A week number as the document counts them, held to the range a stored week has.
+    public static int Week(int week) => Math.Clamp(week, 1, 104);
+
+    /// An ISO weekday, or none. A day the read could not place keeps no weekday at all; the review
+    /// screen asks for one before the program can be activated.
+    public static int? Weekday(int? weekday) => weekday is >= 1 and <= 7 ? weekday : null;
+
+    /// Where a stored value came from. Anything this app does not recognise is its own suggestion
+    /// rather than something the page is known to have said.
+    public static string Provenance(string? source)
+        => source is "extracted" or "userEdited" ? source : "inferred";
+
     /// Rep bounds for a row that may not state reps at all. A stored set needs 1-1000 with the low
     /// bound first; `Adjusted` reports whether that required changing what the model returned.
     public static (int Min, int Max, bool Adjusted) Reps(int min, int max)

@@ -128,15 +128,31 @@ public sealed class ImportRecoveryTests
         Assert.Contains("Choose the same PDF again", failure.Message);
     }
 
+    /// Answers by what a request asks for rather than by the order it arrives in, because sections
+    /// are read together and that order is not fixed.
+    private sealed class SectionHandler(Func<string, HttpResponseMessage> respond) : HttpMessageHandler
+    {
+        protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken ct)
+            => respond(request.Content is null ? "" : await request.Content.ReadAsStringAsync(ct));
+    }
+
+    private static HttpResponseMessage Completed(string payload) => new(HttpStatusCode.OK)
+    {
+        Content = new StringContent($$"""{"status":"completed","output":[{"content":[{"type":"output_text","text":{{System.Text.Json.JsonSerializer.Serialize(payload)}}}]}]}""")
+    };
+
     [Fact]
     public async Task A_rejected_section_keeps_the_sections_before_it_and_stays_retryable()
     {
         await using var h = await Harness.Create(Configured());
         await h.SignIn();
-        // The second section answers with a week that belongs to the first, which is a real
-        // extraction error rather than an estimate that drifted. Sections are read together now,
-        // so what must survive is the unbroken prefix: section one commits, section two does not.
-        var imports = h.Imports(Reading(TwoChunkOutline, Day(1, "Day A"), Day(1, "Day A")));
+        // The second section's read never finishes, which is a real failure rather than a document
+        // saying something awkward. Sections are read together now, so what must survive is the
+        // unbroken prefix: section one commits, section two does not.
+        var imports = h.Imports(new SectionHandler(request =>
+            request.Contains("training_program_outline") ? Completed(TwoChunkOutline)
+            : request.Contains("weeks 1-1") ? Completed(Day(1, "Day A"))
+            : new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent("""{"status":"incomplete","output":[]}""") }));
         var pending = await imports.Create(Source(), default);
         var failure = await Assert.ThrowsAsync<DomainException>(() => imports.Extract(pending.Id, default));
         Assert.Equal(422, failure.Status);

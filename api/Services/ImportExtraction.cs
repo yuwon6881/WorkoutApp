@@ -136,8 +136,10 @@ public sealed partial class ImportService
             // A whole-program answer holds the same days as a sectioned one and needs the same
             // reconciliation; it simply has no chunk to attribute a notice to.
             var shaped = ReconcileDayShape(draft.Workouts);
-            draft = draft with { Workouts = shaped.Workouts };
-            if (shaped.Notices.Count > 0) import.NoticesJson = Json.Write(shaped.Notices.TakeLast(40).ToList());
+            var cited = ImportDayShape.ReconcilePages(draft with { Workouts = shaped.Workouts }, import.Pages);
+            draft = cited.Draft;
+            List<ImportReviewIssue> outlineNotices = [.. shaped.Notices, .. cited.Notices];
+            if (outlineNotices.Count > 0) import.NoticesJson = Json.Write(outlineNotices.TakeLast(40).ToList());
             await ValidateDraft(draft, ct);
             ValidateDraftPages(draft, import.PageCoverageJson);
             import.DraftJson = Json.Write(draft); import.Stage = "done"; import.Status = ImportStatus.Ready;
@@ -320,8 +322,8 @@ public sealed partial class ImportService
                             notices.AddRange(reconciled.Notices);
                             merged = draft with
                             {
-                                ProgramName = result.Program.ProgramTitle ?? result.Program.ProgramName ?? draft.ProgramName,
-                                Description = result.Program.Description ?? draft.Description,
+                                ProgramName = ImportNormalization.Text(result.Program.ProgramTitle ?? result.Program.ProgramName, 120) ?? draft.ProgramName,
+                                Description = ImportNormalization.Text(result.Program.Description, 4000) ?? draft.Description,
                                 Workouts = [.. draft.Workouts, .. reconciled.Workouts]
                             };
                             import.Model = result.Model;
@@ -343,8 +345,10 @@ public sealed partial class ImportService
                             // an earlier section committed before this ran is exactly the one that
                             // no retry of the last section could ever reach.
                             var shaped = ReconcileDayShape(merged.Workouts);
-                            merged = merged with { Workouts = shaped.Workouts };
+                            var cited = ImportDayShape.ReconcilePages(merged with { Workouts = shaped.Workouts }, import.Pages);
+                            merged = cited.Draft;
                             notices.AddRange(shaped.Notices);
+                            notices.AddRange(cited.Notices);
                             await ValidateDraft(merged, settle);
                             ValidateDraftPages(merged, import.PageCoverageJson);
                         }

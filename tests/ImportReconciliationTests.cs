@@ -11,8 +11,8 @@ namespace Workout.Tests;
 /// regularly wrong — a section headed "Front matter and program explanation" reads as fifteen
 /// training days and contains seven. Rejecting the section over that number threw away a read the
 /// user had already paid for and left the import stuck on a chunk that would fail the same way
-/// every time. The count is now reconciled and reported; only a genuinely inconsistent section
-/// still fails.
+/// every time. What the outline claimed about a section is reconciled with what the section read
+/// and reported for review; only a read that genuinely did not happen still fails.
 public sealed class ImportReconciliationTests
 {
     /// One page, so the section is small enough to read whole and stays exactly as the outline
@@ -75,8 +75,11 @@ public sealed class ImportReconciliationTests
         Assert.True(ready.Acceptable);
     }
 
+    /// The outline's week range is a claim made from page previews; the page the section actually
+    /// read is the better authority. Refusing the section over the disagreement only produced the
+    /// same answer on every retry, so the page is followed and the reviewer is told.
     [Fact]
-    public async Task A_day_outside_the_sections_weeks_is_still_a_failure_worth_retrying()
+    public async Task A_day_whose_week_falls_outside_the_sections_range_is_kept_and_reported()
     {
         await using var h = await Harness.Create(Configured());
         await h.SignIn();
@@ -85,10 +88,13 @@ public sealed class ImportReconciliationTests
         var imports = h.Imports(Reading(Outline, Days((9, "Day A"))));
 
         var pending = await imports.Create(source, default);
-        var failure = await Assert.ThrowsAsync<DomainException>(() => imports.Extract(pending.Id, default));
-        Assert.Equal(422, failure.Status);
-        Assert.Contains("outside the week range", failure.Message);
-        Assert.Equal(0, (await h.Db.Imports.AsNoTracking().SingleAsync()).ChunksDone);
+        var ready = await imports.Extract(pending.Id, default);
+
+        Assert.Equal(ImportStatus.Ready, ready.Status);
+        Assert.Equal(9, ready.Draft!.Workouts.Single().Week);
+        var notice = Assert.Single(ready.ReviewIssues!, issue => issue.Code == "day_outside_section_weeks");
+        Assert.Contains("Day A", notice.Message);
+        Assert.Equal("warning", notice.Severity);
     }
 
     [Fact]

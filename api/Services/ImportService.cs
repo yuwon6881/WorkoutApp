@@ -64,7 +64,7 @@ public sealed partial class ImportService(AppDb db, WorkoutAi ai, CatalogService
     public async Task<ImportDraft> ToDraft(AiProgram program, CancellationToken ct)
     {
         var active = await catalog.ActiveIds(ct);
-        var title = program.ProgramTitle ?? program.ProgramName ?? "Imported program";
+        var title = ImportNormalization.Label(program.ProgramTitle ?? program.ProgramName, 120, "Imported program");
         var workouts = new List<DraftWorkout>();
         if (program.Days is { } days)
         {
@@ -77,23 +77,25 @@ public sealed partial class ImportService(AppDb db, WorkoutAi ai, CatalogService
                 foreach (var workout in week.Workouts ?? [])
                     workouts.Add(await ToDraftWorkout(null, null, week.Week, 1, workout.Name, false, workout.Notes, workout.Exercises, active, ct, workout.Focus));
         }
-        return new ImportDraft(title.Trim(), program.Description, workouts);
+        return new ImportDraft(title, ImportNormalization.Text(program.Description, 4000), workouts);
     }
 
     private async Task<DraftWorkout> ToDraftWorkout(string? block, string? phase, int week, int phaseWeek, string name, bool restDay,
-        string? notes, List<AiExercise> sourceExercises, HashSet<Guid> active, CancellationToken ct, string? focus = null,
+        string? notes, List<AiExercise>? sourceExercises, HashSet<Guid> active, CancellationToken ct, string? focus = null,
         int? weekday = null, int? sourcePage = null)
     {
         var exercises = new List<DraftExercise>();
         if (!restDay)
         {
-            foreach (var source in sourceExercises)
+            foreach (var source in sourceExercises ?? [])
             {
                 Guid? id = Guid.TryParse(source.ExerciseId, out var parsed) && active.Contains(parsed) ? parsed : null;
                 id ??= await catalog.Match(source.SourceName, ct);
                 var working = source.Sets.Select(ToDraftSet).ToList();
                 var warmups = ParseWarmupCount(source.WarmupSets);
-                if (warmups > 0)
+                // A movement can be listed with no prescription at all, and then there is nothing
+                // for a warm-up to be modelled on. The exercise is given its one set further on.
+                if (warmups > 0 && working.Count > 0)
                 {
                     var seed = working[0];
                     var warmup = seed with { Warmup = true, RepsSource = "inferred", RpeSource = seed.TargetRpe == null ? "inferred" : seed.RpeSource };
@@ -108,12 +110,17 @@ public sealed partial class ImportService(AppDb db, WorkoutAi ai, CatalogService
                 var substitutions = alternates.Take(2).ToList();
                 if (alternates.Count > 2) noteParts.Add($"Other alternates: {string.Join(", ", alternates.Skip(2))}");
                 exercises.Add(new DraftExercise(Guid.NewGuid(), ImportNormalization.Label(source.SourceName, 160, "Unnamed exercise"), id, Note(noteParts), working,
-                    ImportNormalization.Text(source.SequenceGroup, 8) ?? "", substitutions, source.SourcePage));
+                    ImportNormalization.Text(source.SequenceGroup, 8) ?? "", substitutions, ImportNormalization.Page(source.SourcePage)));
             }
         }
-        return new DraftWorkout(Guid.NewGuid(), week, ImportNormalization.Label(name, 120, $"Week {week} day"),
+        // Weeks, weekdays and page numbers are brought into the range a stored day has rather than
+        // failing the section that reported them: a miscounted page or a weekday outside Monday to
+        // Sunday is a slip in one field, not a reason to throw away a whole transcription.
+        var storedWeek = ImportNormalization.Week(week);
+        return new DraftWorkout(Guid.NewGuid(), storedWeek, ImportNormalization.Label(name, 120, $"Week {storedWeek} day"),
             ImportNormalization.Text(focus, 120), ImportNormalization.Text(notes, 2000), exercises,
-            ImportNormalization.Text(block, 80), ImportNormalization.Text(phase, 120), phaseWeek, restDay, weekday, sourcePage);
+            ImportNormalization.Text(block, 80), ImportNormalization.Text(phase, 120), ImportNormalization.Week(phaseWeek), restDay,
+            ImportNormalization.Weekday(weekday), ImportNormalization.Page(sourcePage));
     }
 
     /// Joins what an exercise's note is made of, within the length a note can hold. Trimming the
@@ -134,11 +141,11 @@ public sealed partial class ImportService(AppDb db, WorkoutAi ai, CatalogService
         var reps = ImportNormalization.Reps(set.RepMin, set.RepMax);
         var rpeValue = ImportNormalization.Rpe(set.TargetRpe);
         var restValue = ImportNormalization.Rest(DeriveRest(set.RestText, set.RestSeconds));
-        var repsSource = set.RepsSource;
+        var repsSource = ImportNormalization.Provenance(set.RepsSource);
         if (reps.Adjusted) repsSource = "inferred";
         if (!string.IsNullOrWhiteSpace(set.RepsText) && !Regex.IsMatch(set.RepsText.Trim(), @"^\d+\s*(?:[-–]\s*\d+)?$")) repsSource = "inferred";
         var rpe = rpeValue.Value;
-        var rpeSource = rpeValue.Adjusted ? "inferred" : set.RpeSource;
+        var rpeSource = rpeValue.Adjusted ? "inferred" : ImportNormalization.Provenance(set.RpeSource);
         if (rpe == null && TryFirstNumber(set.Rir, out var rir))
         {
             // RIR is useful evidence, but an out-of-range conversion is not a reason to invent a
@@ -148,9 +155,9 @@ public sealed partial class ImportService(AppDb db, WorkoutAi ai, CatalogService
         }
         return new DraftSet(reps.Min, reps.Max, rpe, restValue.Value,
             ImportNormalization.Text(set.Tempo, 24), ImportNormalization.Text(set.LoadText, 60), ImportNormalization.Text(set.Notes, 400),
-            repsSource, rpeSource, restValue.Adjusted ? "inferred" : set.RestSource,
+            repsSource, rpeSource, restValue.Adjusted ? "inferred" : ImportNormalization.Provenance(set.RestSource),
             ImportNormalization.Text(set.RepsText, 40), ImportNormalization.Text(set.RestText, 24),
-            ImportNormalization.Text(set.Percent1Rm, 24), ImportNormalization.Text(set.Rir, 16), false, set.SourcePage);
+            ImportNormalization.Text(set.Percent1Rm, 24), ImportNormalization.Text(set.Rir, 16), false, ImportNormalization.Page(set.SourcePage));
     }
 
     private static int? DeriveRest(string? text, int? fallback)
@@ -359,7 +366,7 @@ public sealed partial class ImportService(AppDb db, WorkoutAi ai, CatalogService
         => ImportValidation.ReconcileChunkCoverage(existing, extracted, chunk);
 
     private static (List<DraftWorkout> Workouts, List<ImportReviewIssue> Notices) ReconcileDayShape(List<DraftWorkout> days)
-        => ImportValidation.ReconcileDayShape(days);
+        => ImportDayShape.Reconcile(days);
 
     private static List<ImportReviewIssue> ReadNotices(string json) => ImportValidation.ReadNotices(json);
 

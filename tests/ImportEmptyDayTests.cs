@@ -85,11 +85,11 @@ public sealed class ImportEmptyDayTests
     public void An_empty_day_is_reshaped_where_a_rest_day_and_a_trained_day_are_left_alone()
     {
         var trained = new DraftWorkout(Guid.NewGuid(), 1, "Week 1 Upper", null, null,
-            [new DraftExercise(Guid.NewGuid(), "Bench press", null, null, [], "A1", [], 1)]);
+            [new DraftExercise(Guid.NewGuid(), "Bench press", null, null, [new DraftSet(5, 8, 8, 120, null, null, null)], "A1", [], 1)]);
         var rest = new DraftWorkout(Guid.NewGuid(), 1, "Week 1 Rest", null, null, [], IsRestDay: true);
         var empty = new DraftWorkout(Guid.NewGuid(), 1, "Week 1 Off", null, null, []);
 
-        var shaped = ImportValidation.ReconcileDayShape([trained, rest, empty]);
+        var shaped = ImportDayShape.Reconcile([trained, rest, empty]);
 
         Assert.Equal([false, true, true], shaped.Workouts.Select(day => day.IsRestDay));
         var notice = Assert.Single(shaped.Notices);

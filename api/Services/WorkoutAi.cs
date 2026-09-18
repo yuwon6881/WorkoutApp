@@ -80,7 +80,7 @@ public sealed class WorkoutAi(HttpClient http, IConfiguration config)
         AiProgram program;
         try { program = Json.Read<AiProgram>(JsonSerializer.Serialize(result.Payload, Json.Options)); }
         catch (JsonException) { throw new DomainException("AI returned a chunk this app could not read. Try again.", 422); }
-        WorkoutAiValidation.Validate(program);
+        WorkoutAiValidation.Validate(program, section: true);
         return new AiImportResult(program, result.Model, result.InputTokens, result.OutputTokens);
     }
 
