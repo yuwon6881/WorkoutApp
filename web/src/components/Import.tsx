@@ -8,11 +8,16 @@ import { Field, TextAreaField } from './ui/Field';
 import { DraftOutline } from './ImportDraftTree';
 import { useImportPipeline, type ImportFailure, type ImportProgress } from './useImportPipeline';
 
-function stageLabel(view: ImportView) {
+/// What the import is doing. A read in flight covers every section the import still owes, because
+/// they are sent together rather than one after another, so it says how many are being read; a
+/// resting import names the section that commits next instead.
+function stageLabel(view: ImportView, reading = false) {
   if (view.stage === 'outline') return 'Reading the outline';
   if (view.stage === 'select') return 'Waiting for your choice';
-  if (view.stage === 'extract') return `Section ${Math.min(view.chunksDone + 1, view.chunksTotal)} of ${view.chunksTotal}`;
-  return 'Reading';
+  if (view.stage !== 'extract') return 'Reading';
+  const remaining = Math.max(0, view.chunksTotal - view.chunksDone);
+  if (!reading) return `Section ${Math.min(view.chunksDone + 1, view.chunksTotal)} of ${view.chunksTotal}`;
+  return remaining > 1 ? `Reading ${remaining} sections at once` : 'Reading the last section';
 }
 
 /// One honest progress reading. A step with no measurable size stays indeterminate rather than
@@ -160,8 +165,14 @@ export function ImportReview({ exercises, imports, remaining, onBack, onChanged,
         <p className="muted small-copy">{serverHoldsSource
           ? 'The text from this PDF is saved for a day, so you can continue this read now or come back to it later. Nothing already read is lost.'
           : 'The saved text from this PDF has expired. Choose the file again to read it from the start.'}</p>
+        {/* The bar measures what has committed, which is the only part of a read that is finished.
+            While sections are in flight it names none of them: they are all being read, and they
+            commit in outline order as they land. */}
         {selected.chunksTotal > 0 && <Progress progress={{
-          label: stageLabel(selected), detail: selected.currentChunkLabel ?? '',
+          label: stageLabel(selected, busy),
+          detail: busy && selected.chunksTotal - selected.chunksDone > 1
+            ? 'Sections commit in order as they land.'
+            : selected.currentChunkLabel ?? '',
           percent: Math.round((selected.chunksDone / selected.chunksTotal) * 100)
         }} />}
         {selected.error && <p className="error-text">Last attempt: {selected.error}</p>}
