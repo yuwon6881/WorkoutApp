@@ -27,7 +27,10 @@ public record AiImportResult(AiProgram Program, string Model, long InputTokens, 
 /// That keeps a 70 MB illustrated training book inside an ordinary JSON request.
 public sealed class WorkoutAi(HttpClient http, IConfiguration config)
 {
-    public const string PromptVersion = "workout-import-v3-text";
+    /// Bumped when a change here would make a stored import inconsistent with a new read. v4
+    /// divides the outline into sections small enough to read whole, so an import made under v3
+    /// keeps its oversized sections and the same document read again gets the new ones.
+    public const string PromptVersion = "workout-import-v4-text";
 
     /// One cheap pass over a page-by-page view of the document. Most of a commercial training PDF
     /// is explanation and photography; this pass exists to find the few pages that actually carry
@@ -39,7 +42,10 @@ public sealed class WorkoutAi(HttpClient http, IConfiguration config)
             "Return only the program outline and semantic extraction chunks. Every page of this document is numbered in the text; " +
             "cover only the pages that carry the actual training schedule and ignore front matter, coaching essays, exercise glossaries, and reference chapters. " +
             "Detect separate alternative programs first; when alternatives exist, return each with its own chunks and do not mix them. " +
-            "Create one chunk per phase or unambiguous page section, keep each chunk at 80 days or fewer, and estimate the expected day count. " +
+            // A section is read in one answer, and one answer holds only so much. Asking for small
+            // sections here is the first half of that; whatever comes back is divided anyway.
+            "Create one chunk per phase or unambiguous page section, split a long phase into consecutive page sections of about eight training days each, " +
+            "keep every chunk at 80 days or fewer, and estimate the expected day count. " +
             "Do not extract individual exercises in this pass.", WorkoutAiSchemas.Outline, "training_program_outline", ct, documentText);
         var root = result.Payload;
         // Compatibility for drafts made by the first importer: accepting a legacy response here
@@ -66,7 +72,10 @@ public sealed class WorkoutAi(HttpClient http, IConfiguration config)
     {
         Validation.Require(!string.IsNullOrWhiteSpace(chunkText),
             "Those pages hold no readable text, so there is nothing to extract from them. Review the outline and retry.", 422);
-        var result = await Call(catalog, safetyIdentifier, maxOutputTokens: 24000, chunkDirective,
+        // A section is bounded to about eight days of tables, and the answer carries the model's
+        // own reasoning inside the same ceiling. The headroom is what stops a read from wrapping
+        // itself up early and returning a section that looks whole with its last pages missing.
+        var result = await Call(catalog, safetyIdentifier, maxOutputTokens: 48000, chunkDirective,
             WorkoutAiSchemas.Content, "training_program_chunk", ct, chunkText);
         AiProgram program;
         try { program = Json.Read<AiProgram>(JsonSerializer.Serialize(result.Payload, Json.Options)); }

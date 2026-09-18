@@ -15,9 +15,11 @@ namespace Workout.Tests;
 /// still fails.
 public sealed class ImportReconciliationTests
 {
+    /// One page, so the section is small enough to read whole and stays exactly as the outline
+    /// drew it; what is under test here is the estimate, not how a long section is divided.
     private const string Outline = """
         {"programTitle":"Nine week block","description":null,"chunks":[
-          {"label":"Front matter and program explanation","block":"Base","phase":"Intro","weekFrom":1,"weekTo":2,"pageFrom":1,"pageTo":2,"dayCount":15}]}
+          {"label":"Front matter and program explanation","block":"Base","phase":"Intro","weekFrom":1,"weekTo":2,"pageFrom":1,"pageTo":1,"dayCount":15}]}
         """;
 
     private const string OutlineOverTwoPages = """

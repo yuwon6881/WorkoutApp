@@ -130,13 +130,10 @@ internal static class ImportValidation
         // The outline model owns the semantic boundaries. Never derive week ranges from a count
         // of training days: a three-day schedule and a seven-day schedule have different weeks.
         Validation.Require(source.Count is > 0 and <= 24, "This program has too many extraction chunks.", 422);
-        var result = DistinctLabels(source.Select((chunk, index) => new ImportChunk(
+        return Sections(source.Select((chunk, index) => new ImportChunk(
             ImportNormalization.Label(chunk.Label, 200, $"Section {index + 1}"),
             ImportNormalization.Text(chunk.Block, 80), ImportNormalization.Text(chunk.Phase, 120),
             chunk.WeekFrom, chunk.WeekTo, chunk.PageFrom, chunk.PageTo, chunk.DayCount)).ToList());
-        ValidateChunkRanges(result);
-        Validation.Require(result.Sum(c => c.DayCount) <= 400, "This program is larger than the importer supports.", 422);
-        return result;
     }
 
     public static List<ImportChunk> SplitChunks(List<ImportChunk> source)
@@ -144,7 +141,15 @@ internal static class ImportValidation
         Validation.Require(source.Count is > 0 and <= 24, "This program has too many extraction chunks.", 422);
         Validation.Require(source.All(c => c.DayCount is > 0 and <= 80 && c.WeekFrom > 0 && c.WeekTo >= c.WeekFrom && c.PageFrom > 0 && c.PageTo >= c.PageFrom),
             "AI returned an invalid extraction chunk.", 422);
-        var result = DistinctLabels(source);
+        return Sections(source);
+    }
+
+    /// The sections an import will actually read, from the boundaries the outline drew: divided so
+    /// no read is asked for more than one answer holds, then named apart and checked as a whole.
+    private static List<ImportChunk> Sections(List<ImportChunk> source)
+    {
+        var result = DistinctLabels(ImportSections.Divide(source));
+        Validation.Require(result.Count <= ImportSections.MaxSections, "This program has too many extraction chunks.", 422);
         ValidateChunkRanges(result);
         Validation.Require(result.Sum(c => c.DayCount) <= 400, "This program is larger than the importer supports.", 422);
         return result;
@@ -192,8 +197,10 @@ internal static class ImportValidation
         for (var index = 2; index <= 32; index++) yield return Suffixed(chunk.Label, index.ToString());
     }
 
-    /// Keeps a disambiguated label inside the 200 characters the column holds, trimming the name
+    /// Keeps a qualified label inside the 200 characters the column holds, trimming the name
     /// rather than the detail that makes it distinct.
+    public static string SuffixedLabel(string label, string detail) => Suffixed(label, detail);
+
     private static string Suffixed(string label, string detail)
     {
         var suffix = $" ({detail})";
