@@ -8,36 +8,39 @@ internal static class ImportValidation
         => draft.Workouts.Where(w => !w.IsRestDay).SelectMany(w => w.Exercises).Where(e => e.ExerciseId == null)
             .Select(e => new UnresolvedExercise(e.LineId, e.SourceName)).ToList();
 
-    /// What the reviewer is told about the draft. A ninety-day program has ninety days without a
-    /// weekday and hundreds of sets the document never rated, and one line each buries everything
-    /// worth reading under a list nobody scrolls. Each kind is counted once and names the first
-    /// few days it applies to, so the review reads as a summary rather than a log.
+    /// What the reviewer must resolve before the draft can become a program. Each kind is counted
+    /// once and names the first few days it applies to, so the review reads as a summary rather
+    /// than a log while the target points back to a concrete editor field.
     public static List<ImportReviewIssue> ReviewIssues(ImportDraft draft)
     {
         var issues = new List<ImportReviewIssue>();
         var training = draft.Workouts.Where(w => !w.IsRestDay).ToList();
 
         // A weekday comes from the order the document printed its week in, so one is missing only
-        // where a week held more days than a week has. That is worth saying once, and is settled
-        // on the program's own schedule screen rather than here.
+        // where a week held more days than a week has. Keep that correction in the import review.
         var unscheduled = training.Where(day => day.Weekday is null).ToList();
         if (unscheduled.Count > 0)
             issues.Add(new ImportReviewIssue("schedule_required",
-                $"{Count(unscheduled.Count, "day has", "days have")} more sessions in its week than a week has days, so {(unscheduled.Count == 1 ? "it has" : "they have")} no weekday. Give {(unscheduled.Count == 1 ? "it one" : "them one each")} when you activate the program. {Naming(unscheduled)}",
-                "warning", unscheduled[0].SourcePage));
+                $"{Count(unscheduled.Count, "day has", "days have")} more sessions in its week than a week has days, so {(unscheduled.Count == 1 ? "it has" : "they have")} no weekday. Choose {(unscheduled.Count == 1 ? "one for it" : "one for each")} in the day editor. {Naming(unscheduled)}",
+                "warning", unscheduled[0].SourcePage, WorkoutLineId: unscheduled[0].LineId, TargetField: "weekday"));
 
-        var working = training.SelectMany(day => day.Exercises.SelectMany(e => e.Sets).Where(s => !s.Warmup).Select(set => (day, set))).ToList();
+        var working = training.SelectMany(day => day.Exercises.SelectMany(exercise =>
+            exercise.Sets.Select((set, index) => (day, exercise, set, index)))).Where(item => !item.set.Warmup).ToList();
         var unrated = working.Where(item => item.set.TargetRpe is null).ToList();
         if (unrated.Count > 0)
             issues.Add(new ImportReviewIssue("rpe_unspecified",
                 $"{Count(unrated.Count, "working set has", "working sets have")} no target RPE in the PDF; {(unrated.Count == 1 ? "it remains" : "they remain")} unspecified. {Naming(unrated.Select(item => item.day))}",
-                "warning", unrated[0].set.SourcePage ?? unrated[0].day.SourcePage));
+                "warning", unrated[0].set.SourcePage ?? unrated[0].day.SourcePage,
+                WorkoutLineId: unrated[0].day.LineId, ExerciseLineId: unrated[0].exercise.LineId,
+                SetIndex: unrated[0].index, TargetField: "targetRpe"));
 
         var unrested = working.Where(item => item.set.RestSeconds is null && string.IsNullOrWhiteSpace(item.set.RestText)).ToList();
         if (unrested.Count > 0)
             issues.Add(new ImportReviewIssue("rest_unspecified",
                 $"{Count(unrested.Count, "set has", "sets have")} no stated rest in the PDF; {(unrested.Count == 1 ? "it remains" : "they remain")} unspecified. {Naming(unrested.Select(item => item.day))}",
-                "warning", unrested[0].set.SourcePage ?? unrested[0].day.SourcePage));
+                "warning", unrested[0].set.SourcePage ?? unrested[0].day.SourcePage,
+                WorkoutLineId: unrested[0].day.LineId, ExerciseLineId: unrested[0].exercise.LineId,
+                SetIndex: unrested[0].index, TargetField: "rest"));
 
         foreach (var phase in GroupDraftPhases(draft.Workouts))
         {
@@ -46,7 +49,7 @@ internal static class ImportValidation
                 if (weeks[index] != weeks[index - 1] + 1)
                     issues.Add(new ImportReviewIssue("phase_week_gap",
                         $"'{phase[0].Phase}' jumps from week {weeks[index - 1]} to week {weeks[index]}; check that nothing is missing.",
-                        "warning", phase[0].SourcePage));
+                        "warning", phase[0].SourcePage, WorkoutLineId: phase[0].LineId, TargetField: "week"));
         }
         return issues;
     }
@@ -287,7 +290,7 @@ internal static class ImportValidation
         if (strayed.Count > 0)
             notices.Add(new ImportReviewIssue("day_outside_section_weeks",
                 $"'{chunk.Label}' covers weeks {chunk.WeekFrom}-{chunk.WeekTo} but read {string.Join(", ", strayed.Select(day => day.Name).Distinct())} as week {string.Join(", ", strayed.Select(day => day.Week).Distinct().Order())}. The pages were followed; check the order in the review.",
-                "warning", strayed[0].SourcePage ?? chunk.PageFrom));
+                "warning", strayed[0].SourcePage ?? chunk.PageFrom, WorkoutLineId: strayed[0].LineId, TargetField: "week"));
         var existingKeys = existing.Workouts.Select(DayKey).ToHashSet(StringComparer.OrdinalIgnoreCase);
         var takenSlots = existing.Workouts.Where(day => day.Weekday is not null)
             .Select(day => (day.Week, Weekday: day.Weekday!.Value)).ToHashSet();
@@ -304,7 +307,9 @@ internal static class ImportValidation
                 // same session into the program twice, so this copy is dropped rather than doubled.
                 notices.Add(new ImportReviewIssue("duplicate_day_dropped",
                     $"'{chunk.Label}' repeated {day.Name} from an earlier section; it was kept once.",
-                    "warning", day.SourcePage ?? chunk.PageFrom));
+                    "warning", day.SourcePage ?? chunk.PageFrom,
+                    WorkoutLineId: existing.Workouts.FirstOrDefault(existingDay => DayKey(existingDay) == key)?.LineId,
+                    TargetField: "name"));
                 continue;
             }
             if (!seen.Add(key)) repeated++;
@@ -317,7 +322,7 @@ internal static class ImportValidation
                 placed = day with { Weekday = null };
                 notices.Add(new ImportReviewIssue("weekday_taken",
                     $"Week {day.Week} already has a session on that weekday, so {day.Name} needs one of its own.",
-                    "warning", day.SourcePage ?? chunk.PageFrom));
+                    "warning", day.SourcePage ?? chunk.PageFrom, WorkoutLineId: day.LineId, TargetField: "weekday"));
             }
             workouts.Add(placed);
         }

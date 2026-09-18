@@ -38,7 +38,7 @@ internal static class ImportDayShape
             // which is the document saying the same thing in its own words.
             notices.Add(new ImportReviewIssue("day_without_exercises",
                 $"{day.Name} was read with no exercises, so it is kept as a rest day. Add them in the review if that page lists any.",
-                "warning", day.SourcePage));
+                "warning", day.SourcePage, WorkoutLineId: day.LineId, TargetField: "exercises"));
             return day with { IsRestDay = true };
         }
 
@@ -47,7 +47,7 @@ internal static class ImportDayShape
         {
             notices.Add(new ImportReviewIssue("day_exercises_trimmed",
                 $"{day.Name} was read with {exercises.Count} exercises and a day holds {MaxDayExercises}; the rest were left out. Check that page in the review.",
-                "warning", day.SourcePage));
+                "warning", day.SourcePage, WorkoutLineId: day.LineId, TargetField: "exercises"));
             exercises = exercises.Take(MaxDayExercises).ToList();
         }
         return day with { Exercises = exercises.Select(exercise => ReconcileExercise(exercise, day, notices)).ToList() };
@@ -59,7 +59,8 @@ internal static class ImportDayShape
         {
             notices.Add(new ImportReviewIssue("exercise_sets_trimmed",
                 $"{exercise.SourceName} in {day.Name} was read with {exercise.Sets.Count} sets and an exercise holds {MaxExerciseSets}; the rest were left out. Check that page in the review.",
-                "warning", exercise.SourcePage ?? day.SourcePage));
+                "warning", exercise.SourcePage ?? day.SourcePage, WorkoutLineId: day.LineId,
+                ExerciseLineId: exercise.LineId, TargetField: "sets"));
             return exercise with { Sets = exercise.Sets.Take(MaxExerciseSets).ToList() };
         }
         if (exercise.Sets.Count > 0) return exercise;
@@ -69,7 +70,8 @@ internal static class ImportDayShape
         // is kept with one set that claims nothing and is marked as this app's own suggestion.
         notices.Add(new ImportReviewIssue("exercise_without_sets",
             $"{exercise.SourceName} in {day.Name} was read with no prescribed sets, so it has one unspecified set. Check that page in the review.",
-            "warning", exercise.SourcePage ?? day.SourcePage));
+            "warning", exercise.SourcePage ?? day.SourcePage, WorkoutLineId: day.LineId,
+            ExerciseLineId: exercise.LineId, SetIndex: 0, TargetField: "repMin"));
         return exercise with { Sets = [Unspecified(exercise.SourcePage ?? day.SourcePage)] };
     }
 

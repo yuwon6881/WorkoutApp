@@ -64,7 +64,7 @@ public class AiImportTests
         Assert.Equal(10, exercise.Sets[0].RepMax);
     }
 
-    [Fact] public async Task A_chunked_import_preserves_blocks_verbatim_targets_and_accepts_unmapped_names()
+    [Fact] public async Task A_chunked_import_preserves_blocks_verbatim_targets_and_accepts_mapped_names()
     {
         await using var h = await Harness.Create(Configured);
         await h.SignIn();
@@ -78,6 +78,7 @@ public class AiImportTests
             };
         });
         var imports = h.Imports(stub);
+        await h.Seed(new SeedExercise("constant-curl", "Constant-Tension Lying Leg Curl", "Hamstrings", "Machine", "Control the eccentric", null));
         var partial = await imports.Create(Source("faithful.pdf"), default);
 
         Assert.Equal(ImportStatus.Pending, partial.Status);
@@ -89,7 +90,8 @@ public class AiImportTests
         var ready = await imports.Extract(partial.Id, default);
         Assert.Equal(ImportStatus.Ready, ready.Status);
         Assert.True(ready.Acceptable);
-        Assert.Equal(1, ready.UnresolvedCount);
+        Assert.Equal(0, ready.UnresolvedCount);
+        Assert.Empty(ready.Unresolved);
         var exercise = ready.Draft!.Workouts.Single().Exercises.Single();
         Assert.Equal("A1", exercise.SequenceGroup);
         Assert.Equal(1, ready.Draft.Workouts.Single().Weekday);
@@ -124,7 +126,7 @@ public class AiImportTests
         Assert.Empty(await h.Db.Imports.AsNoTracking().ToListAsync());
     }
 
-    [Fact] public async Task An_unmatched_exercise_stays_unresolved_but_does_not_block_acceptance()
+    [Fact] public async Task An_unmatched_exercise_stays_unresolved_and_blocks_acceptance()
     {
         await using var h = await Harness.Create(Configured);
         await h.SignIn();
@@ -133,24 +135,39 @@ public class AiImportTests
 
         Assert.Null(view.Draft!.Workouts.Single().Exercises.Single().ExerciseId);
         Assert.Single(view.Unresolved);
-        Assert.True(view.Acceptable);
-        var program = await imports.Accept(view.Id, default);
-        Assert.Equal("Barbell bench press", program.Workouts.Single().Exercises.Single().SourceName);
-        Assert.Null(program.Workouts.Single().Exercises.Single().ExerciseId);
-        Assert.Equal(1, await h.Db.Programs.CountAsync());
+        Assert.False(view.Acceptable);
+        var failure = await Assert.ThrowsAsync<DomainException>(() => imports.Accept(view.Id, default));
+        Assert.Equal(409, failure.Status);
+        Assert.Empty(await h.Db.Programs.ToListAsync());
     }
 
-    [Fact] public async Task Missing_optional_rpe_or_rest_requires_an_explicit_review_acknowledgement()
+    [Fact] public async Task Missing_optional_rpe_or_rest_blocks_until_the_reviewer_fixes_each_field()
     {
         await using var h = await Harness.Create(Configured);
         await h.SignIn();
+        await h.Seed(new SeedExercise("bench", "Barbell bench press", "Chest", "Barbell", "Cue", null));
         var body = OneWorkout.Replace("\"targetRpe\":8", "\"targetRpe\":null").Replace("\"restSeconds\":120", "\"restSeconds\":null");
         var imports = h.Imports(StubHandler.Program(body));
         var view = await imports.Create(Source("unspecified.pdf"), default);
 
         var failure = await Assert.ThrowsAsync<DomainException>(() => imports.Accept(view.Id, default));
         Assert.Equal(409, failure.Status);
-        var accepted = await imports.Accept(view.Id, null, true, default);
+        var workout = view.Draft!.Workouts.Single();
+        var exercise = workout.Exercises.Single();
+        var edited = view.Draft with
+        {
+            Workouts = [workout with
+            {
+                Weekday = 1,
+                Exercises = [exercise with
+                {
+                    Sets = [exercise.Sets[0] with { TargetRpe = 8, RestSeconds = 120, RpeSource = "userEdited", RestSource = "userEdited" }]
+                }]
+            }]
+        };
+        var saved = await imports.Edit(view.Id, edited, default);
+        Assert.True(saved.Acceptable);
+        var accepted = await imports.Accept(view.Id, default);
         Assert.Equal(ProgramLifecycle.Standby, accepted.LifecycleStatus);
     }
 

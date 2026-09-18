@@ -47,11 +47,10 @@ public sealed partial class ImportService(AppDb db, WorkoutAi ai, CatalogService
         issues = [.. ReadNotices(import.NoticesJson), .. issues];
         var coverage = string.IsNullOrWhiteSpace(import.PageCoverageJson) ? [] : Json.Read<List<PdfPageCoverage>>(import.PageCoverageJson);
         var alternatives = string.IsNullOrWhiteSpace(import.AlternativesJson) ? [] : Json.Read<List<ImportAlternative>>(import.AlternativesJson);
+        var acceptable = import.Status == ImportStatus.Ready && unresolved.Count == 0 && issues.Count == 0;
         return new ImportView(import.Id, import.Status, import.FileName, import.Pages, import.Error, import.Created, import.Model,
             import.Stage, import.ChunksDone, import.ChunksTotal, chunks.ElementAtOrDefault(import.ChunksDone)?.Label, unresolvedCount, draft,
-            // Unmapped names are a review warning, not a reason to discard a faithful import;
-            // the reviewer can link them explicitly from the searchable picker.
-            unresolved, import.Status == ImportStatus.Ready, import.ProgramId, issues,
+            unresolved, acceptable, import.ProgramId, issues,
             import.InputTokens, import.OutputTokens, import.Retries, import.SourceExpiresAt, coverage, alternatives, import.SelectedAlternativeId);
     }
 
@@ -257,16 +256,10 @@ public sealed partial class ImportService(AppDb db, WorkoutAi ai, CatalogService
         return await Get(id, ct);
     }
 
-    /// Acceptance is all-or-nothing: unmatched exercise names are intentionally kept as
-    /// unresolved rows and remain usable through name-based history matching.
-    // The original overload remains for callers compiled against the first importer. It follows
-    // the safe default; new HTTP clients send an explicit acknowledgement when optional RPE/rest
-    // values are unresolved.
-    public Task<ProgramView> Accept(Guid id, CancellationToken ct) => Accept(id, null, false, ct);
+    /// Acceptance is all-or-nothing: the review must have no unresolved mappings or document issues.
+    public Task<ProgramView> Accept(Guid id, CancellationToken ct) => Accept(id, null, ct);
 
-    public Task<ProgramView> Accept(Guid id, string? timeZone, CancellationToken ct) => Accept(id, timeZone, false, ct);
-
-    public async Task<ProgramView> Accept(Guid id, string? timeZone, bool acknowledgeUnspecified, CancellationToken ct)
+    public async Task<ProgramView> Accept(Guid id, string? timeZone, CancellationToken ct)
     {
         await using var gate = await MutationLock.Acquire(db, db.CurrentUser, ct);
         var import = await db.Imports.SingleOrDefaultAsync(i => i.Id == id, ct);
@@ -275,9 +268,10 @@ public sealed partial class ImportService(AppDb db, WorkoutAi ai, CatalogService
         var draft = Json.Read<ImportDraft>(import.DraftJson);
         await ValidateDraft(draft, ct);
         ValidateDraftPages(draft, import.PageCoverageJson);
-        var unspecified = ReviewIssues(draft).Where(issue => issue.Code is "rpe_unspecified" or "rest_unspecified").ToList();
-        Validation.Require(acknowledgeUnspecified || unspecified.Count == 0,
-            "Acknowledge the unspecified RPE or rest values in the review before accepting this program.", 409);
+        var unresolved = Unresolved(draft);
+        List<ImportReviewIssue> issues = [.. ReadNotices(import.NoticesJson), .. ReviewIssues(draft)];
+        Validation.Require(unresolved.Count == 0 && issues.Count == 0,
+            "Resolve every exercise mapping and review issue before creating this program.", 409);
         var input = new ProgramInput(draft.ProgramName,
             draft.Workouts.Select(w => new ProgramWorkoutInput(w.Week, w.Name, w.Focus, w.Notes,
                 w.Exercises.Select(e => new TemplateExerciseInput(e.ExerciseId, e.SourceName, e.Notes,

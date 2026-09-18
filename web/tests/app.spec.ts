@@ -175,7 +175,7 @@ test('build a workout, log a set against the server, and see it in history', asy
   expect(errors).toEqual([]);
 });
 
-test('import a PDF program, preserve an unmapped exercise, and accept it', async ({ page }, testInfo) => {
+test('import a PDF program, resolve an unmapped exercise, and accept it', async ({ page }, testInfo) => {
   await signIn(page);
   await openTab(page, 'Workouts');
   await page.getByRole('button', { name: 'Import a PDF program', exact: true }).click();
@@ -190,20 +190,43 @@ test('import a PDF program, preserve an unmapped exercise, and accept it', async
   });
 
   await page.getByLabel('Program PDF').setInputFiles({ name: 'block.pdf', mimeType: 'application/pdf', buffer: pdf(4, testInfo.project.name) });
+  await expect.poll(() => posted, { timeout: 60000 }).toEqual(['gzip']);
   await expect(page.getByRole('heading', { name: 'Review' })).toBeVisible({ timeout: 60000 });
   await expect(page.getByText('Description', { exact: true })).toHaveCount(0);
-  expect(posted).toEqual(['gzip']);
   await page.screenshot({ path: `artifacts/${testInfo.project.name}-import-review.png`, fullPage: true });
 
   // The day reads as what it prescribes before it is opened, and the weekday comes from the order
   // the document printed the week in rather than from the reviewer.
   const day = page.getByRole('button', { name: /Monday · Week 1 Upper/ });
   await expect(day).toBeVisible();
+  const issue = page.getByRole('button', { name: 'Fix unmapped exercise Mystery machine row', exact: true });
+  await issue.click();
+  await expect(page.getByRole('button', { name: 'Library exercise for Mystery machine row', exact: true })).toBeFocused();
 
   // Opening it is for editing, and the rep range from the PDF is preserved as explicit bounds.
-  await day.click();
   await expect(page.getByLabel('Min reps').first()).toHaveValue('8');
   await expect(page.getByLabel('Max reps').first()).toHaveValue('10');
+
+  if (testInfo.project.name === 'mobile') {
+    const swipeRow = page.locator('.swipeable-row-mobile.import-set-swipe-row').first();
+    const surface = swipeRow.locator('.swipeable-row-surface');
+    await surface.scrollIntoViewIfNeeded();
+    await surface.evaluate(element => {
+      const box = element.getBoundingClientRect();
+      const init = (type: string, clientX: number) => element.dispatchEvent(new PointerEvent(type, {
+        bubbles: true, pointerId: 17, pointerType: 'touch', isPrimary: true,
+        buttons: type === 'pointerup' ? 0 : 1, clientX, clientY: box.top + box.height / 2
+      }));
+      init('pointerdown', box.right - 12);
+      init('pointermove', box.left + 12);
+      init('pointerup', box.left + 12);
+    });
+    await expect(surface).toHaveAttribute('data-swipe-open', 'true');
+    await surface.click();
+    await expect(surface).toHaveAttribute('data-swipe-open', 'false');
+  } else {
+    await expect(page.locator('.swipeable-row-desktop-actions .import-set-remove').first()).toBeVisible();
+  }
 
   // Review maps one exercise at a time through the searchable picker; the removed bulk rematch
   // action must not return as a hidden or alternate path.
@@ -213,12 +236,16 @@ test('import a PDF program, preserve an unmapped exercise, and accept it', async
   const picker = page.getByRole('dialog', { name: 'Choose a library exercise for Mystery machine row', exact: true });
   await expect(picker).toBeVisible();
   await picker.getByRole('textbox', { name: 'Search exercises', exact: true }).fill('bench press');
-  await expect(picker.getByRole('button', { name: 'Add Barbell bench press', exact: true })).toBeVisible();
-  await picker.getByRole('button', { name: 'Clear mapping', exact: true }).click();
+  await expect(picker.getByRole('button', { name: 'Map Barbell bench press', exact: true })).toBeVisible();
+  await picker.getByRole('button', { name: 'Done', exact: true }).click();
 
-  // The name the model could not match stays verbatim and does not block acceptance.
-  await expect(page.getByText(/Unmapped · preserved/).first()).toBeVisible();
+  // An unresolved mapping keeps the server-authoritative create action disabled.
   const accept = page.getByRole('button', { name: 'Accept and create program', exact: true });
+  await expect(accept).toBeDisabled();
+  await mapping.click();
+  await expect(picker).toBeVisible();
+  await picker.getByRole('textbox', { name: 'Search exercises', exact: true }).fill('bench press');
+  await picker.getByRole('button', { name: 'Map Barbell bench press', exact: true }).click();
   await expect(accept).toBeEnabled({ timeout: 30000 });
 
   // Rename the draft so each viewport's accepted program is its own, and to prove the edit sticks.

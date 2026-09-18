@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
-import { CalendarDays, ChevronDown, ChevronUp, FileText, Pencil } from 'lucide-react';
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useState } from 'react';
+import { CalendarDays, ChevronDown, ChevronUp, Pencil } from 'lucide-react';
 import type { DraftWorkout, Exercise, ImportDraft } from '../types';
 import { Button } from './ui/Button';
 import { ChipScroller } from './ui/ChipScroller';
@@ -12,6 +12,18 @@ type Week = {
   block: string;
   phases: string[];
   pages: number[];
+};
+
+export type ImportIssueTarget = {
+  sourcePage?: number | null;
+  workoutLineId?: string | null;
+  exerciseLineId?: string | null;
+  setIndex?: number | null;
+  targetField?: string | null;
+};
+
+export type DraftOutlineHandle = {
+  focusIssue: (target: ImportIssueTarget) => void;
 };
 
 function sourcePages(days: DraftWorkout[]): number[] {
@@ -69,15 +81,55 @@ function weekCaption(week: Week, number: number): string {
   return [`Block ${number}`, phase, source].filter(Boolean).join(' · ');
 }
 
-export function DraftOutline({ draft, expandedDay, setExpandedDay, exercises, onDayChange }: {
+export const DraftOutline = forwardRef<DraftOutlineHandle, {
   draft: ImportDraft;
   expandedDay: string | null;
   setExpandedDay: (id: string | null) => void;
   exercises: Exercise[];
   onDayChange: (day: DraftWorkout) => Promise<void>;
-}) {
+}>(function DraftOutline({ draft, expandedDay, setExpandedDay, exercises, onDayChange }, ref) {
   const weeks = useMemo(() => groupWeeks(draft), [draft]);
   const [selectedWeek, setSelectedWeek] = useState(weeks[0]?.week ?? 1);
+
+  const focusIssue = useCallback((target: ImportIssueTarget) => {
+    const day = draft.workouts.find(candidate => candidate.lineId === target.workoutLineId)
+      ?? draft.workouts.find(candidate => candidate.exercises.some(exercise => exercise.lineId === target.exerciseLineId))
+      ?? (target.sourcePage == null ? undefined : draft.workouts.find(candidate => candidate.sourcePage === target.sourcePage
+        || candidate.exercises.some(exercise => exercise.sourcePage === target.sourcePage
+          || exercise.sets.some(set => set.sourcePage === target.sourcePage))))
+      ?? draft.workouts.find(candidate => !candidate.isRestDay)
+      ?? draft.workouts[0];
+    if (!day) return;
+    setSelectedWeek(day.week);
+    setExpandedDay(day.lineId);
+
+    const reveal = () => window.requestAnimationFrame(() => window.requestAnimationFrame(() => {
+      const dayNode = [...document.querySelectorAll<HTMLElement>('[data-import-day]')]
+        .find(node => node.dataset.importDay === day.lineId);
+      if (!dayNode) return;
+      const exerciseNode = target.exerciseLineId
+        ? [...dayNode.querySelectorAll<HTMLElement>('[data-import-exercise]')]
+          .find(node => node.dataset.importExercise === target.exerciseLineId)
+        : null;
+      const scope = exerciseNode ?? dayNode;
+      const fields = [...scope.querySelectorAll<HTMLElement>('[data-import-field]')]
+        .filter(node => !target.targetField || node.dataset.importField === target.targetField)
+        .filter(node => target.setIndex == null || node.dataset.importSetIndex === String(target.setIndex));
+      const field = fields[0];
+      const control = field?.matches('input,button,textarea,[tabindex]')
+        ? field
+        : field?.querySelector<HTMLElement>('input,button,textarea,[tabindex]');
+      const destination = control ?? field ?? scope;
+      destination.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
+      control?.focus({ preventScroll: true });
+      const highlight = exerciseNode ?? field ?? dayNode;
+      highlight.classList.add('issue-focus');
+      window.setTimeout(() => highlight.classList.remove('issue-focus'), 1800);
+    }));
+    reveal();
+  }, [draft.workouts, setExpandedDay]);
+
+  useImperativeHandle(ref, () => ({ focusIssue }), [focusIssue]);
 
   const blocks = useMemo(() => {
     const list: { name: string; number: number; weeks: Week[] }[] = [];
@@ -148,7 +200,7 @@ export function DraftOutline({ draft, expandedDay, setExpandedDay, exercises, on
         onToggle={() => setExpandedDay(expandedDay === day.lineId ? null : day.lineId)} exercises={exercises} onChange={onDayChange} />)}
     </div>
   </section>;
-}
+});
 
 const weekdayNames = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
@@ -180,7 +232,7 @@ function DayRow({ day, expanded, onToggle, exercises, onChange }: {
 
   const fullName = `${day.weekday ? `${weekdayNames[day.weekday - 1]} · ` : ''}${day.name}`;
 
-  return <section className={`draft-day ${day.isRestDay ? 'rest-day' : ''}`}>
+  return <section className={`draft-day ${day.isRestDay ? 'rest-day' : ''}`} data-import-day={day.lineId}>
     <div className="draft-day-card-header">
       <Button presentation="plain" className="draft-day-summary" aria-expanded={expanded} aria-label={fullName} onClick={onToggle}>
         <span className={`draft-day-disclosure ${expanded ? 'open' : ''}`} aria-hidden="true"><ChevronDown size={17} /></span>
@@ -215,7 +267,6 @@ function DayRow({ day, expanded, onToggle, exercises, onChange }: {
           {muscles.slice(0, 5).map(m => <span key={m} className="muscle-chip">{m}</span>)}
           {muscles.length > 5 && <span className="muscle-chip muscle-chip-overflow" title={muscles.slice(5).join(', ')}>+{muscles.length - 5}</span>}
         </div>}
-        {day.notes && <p className="draft-day-note"><FileText size={14} aria-hidden="true" /><span>{day.notes}</span></p>}
       </div>
     )}
 

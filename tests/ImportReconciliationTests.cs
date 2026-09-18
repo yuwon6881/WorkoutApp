@@ -72,7 +72,7 @@ public sealed class ImportReconciliationTests
         var notice = Assert.Single(ready.ReviewIssues!, issue => issue.Code == "chunk_day_count");
         Assert.Contains("about 15 days but reads as 2", notice.Message);
         Assert.Equal("warning", notice.Severity);
-        Assert.True(ready.Acceptable);
+        Assert.False(ready.Acceptable);
     }
 
     /// The outline's week range is a claim made from page previews; the page the section actually

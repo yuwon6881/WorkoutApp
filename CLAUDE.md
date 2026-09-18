@@ -10,7 +10,7 @@ Applies only to this independent repository; app-specific rules override the par
 ## Implemented feature index
 
 - FitnessAccount central sign-in, profile/preferences, and connected-app settings.
-- Global and account-owned exercise libraries with progress insights/history clearing, manual templates/programs, multi-phase scheduling, and AI PDF extraction with background progress, technique-aware catalog matching, explicit rep bounds, selectable 6–10 RPE, averaged rest ranges, and searchable editable review with compact targeted muscle insights before program creation.
+- Global and account-owned exercise libraries with progress insights/history clearing, manual templates/programs, multi-phase scheduling, and AI PDF extraction with background progress, technique-aware catalog matching, explicit rep bounds, selectable 6–10 RPE, averaged rest ranges, standardized responsive set editing, swipe-to-delete on compact layouts, and searchable editable review that blocks program creation until mappings and issues are resolved.
 - Active workout drafts, weight/rep/RPE logging, exercise substitutions, completed-session history, and a deadline-based rest timer that starts after a completed set with a quiet two-note alert.
 - Rep/load progression, effort-based suggestions, lighter-week recommendations, bodyweight/resistance-mode handling, and Nutrition-informed adaptive tiers.
 - Exercise-aware progress aggregates and scheduled/completed workout calendar states. Scoped Nutrition context and shared training summaries; Nutrition owns weight/goals and Workout owns training history/progression.

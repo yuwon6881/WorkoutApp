@@ -22,7 +22,7 @@ internal static class WorkoutAiSchemas
         "Preserve sequenceGroup verbatim (A1, A2, B1); a shared letter prefix means a superset chain. " +
         "Extract both substitution columns and text-based alternates into substitutions or coachingNotes. " +
         "Emit explicit rest days as isRestDay true with an empty exercises array. Blank source values must be null, never a placeholder. " +
-        "When a value is absent, keep RPE and rest null rather than inventing a target; label those fields inferred so the reviewer can acknowledge them. Only make a machine prefill suggestion for other values when the surrounding notation supports it, and label that field inferred; label document values extracted. " +
+        "When a value is absent, keep RPE and rest null rather than inventing a target; label those fields inferred so the reviewer can resolve them before acceptance. Only make a machine prefill suggestion for other values when the surrounding notation supports it, and label that field inferred; label document values extracted. " +
         "Set exerciseId only to an exact id from the supplied library when confident it is the same exercise. Never invent an id; the server also resolves the written name and will keep it unresolved when the catalog does not carry that exact movement. " +
         "Warm-up counts belong in warmupSets; keep warm-ups separate from working sets. " +
         // A training table counts its working sets in a column and rates each of them in its own

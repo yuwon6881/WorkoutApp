@@ -10,7 +10,7 @@ namespace Workout.Api.Endpoints;
 
 public static class ImportEndpoints
 {
-    public record AcceptImportInput(string? TimeZone, bool AcknowledgeUnspecified = false);
+    public record AcceptImportInput(string? TimeZone);
 
     /// The browser sends the text it read from the PDF, not the PDF. Even a large book's text
     /// layer compresses to a small request, so the body is bounded here twice: once against the
@@ -75,14 +75,12 @@ public static class ImportEndpoints
         app.MapPost("/api/imports/{id:guid}/accept", async (Guid id, HttpRequest request, ImportService imports, CancellationToken ct) =>
         {
             string? timeZone = null;
-            var acknowledgeUnspecified = false;
             if (request.HasJsonContentType())
             {
                 var input = await request.ReadFromJsonAsync<AcceptImportInput>(ct);
                 timeZone = input?.TimeZone;
-                acknowledgeUnspecified = input?.AcknowledgeUnspecified ?? false;
             }
-            return await imports.Accept(id, timeZone, acknowledgeUnspecified, ct);
+            return await imports.Accept(id, timeZone, ct);
         });
         app.MapPost("/api/imports/{id:guid}/discard", async (Guid id, ImportService imports, CancellationToken ct) =>
         { await imports.Discard(id, ct); return Results.NoContent(); });

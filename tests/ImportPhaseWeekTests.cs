@@ -63,7 +63,7 @@ public sealed class ImportPhaseWeekTests
         // The week the document stated is untouched; only the count inside the phase moved.
         Assert.Equal(5, deload.Week);
         Assert.Single(ready.ReviewIssues!, issue => issue.Code == "phase_week_renumbered");
-        Assert.True(ready.Acceptable);
+        Assert.False(ready.Acceptable);
     }
 
     [Fact]
@@ -81,7 +81,7 @@ public sealed class ImportPhaseWeekTests
         var issue = Assert.Single(ready.ReviewIssues!, issue => issue.Code == "phase_week_gap");
         Assert.Contains("jumps from week 1 to week 3", issue.Message);
         Assert.Equal("warning", issue.Severity);
-        Assert.True(ready.Acceptable);
+        Assert.False(ready.Acceptable);
     }
 
     [Fact]

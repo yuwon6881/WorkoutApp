@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { Dumbbell, Library, Plus, Search, X, Trash2, RotateCcw, TrendingUp } from 'lucide-react';
+import { ArrowLeftRight, Dumbbell, Library, Link2, Plus, Search, X, Trash2, RotateCcw, TrendingUp } from 'lucide-react';
 import type { Exercise, ExerciseClearPreview, ExerciseInsight, Session } from '../types';
 import { ApiError, api } from '../lib/api';
 import { Button } from './ui/Button';
@@ -10,7 +10,9 @@ import { ChipScroller } from './ui/ChipScroller';
 
 /// The catalog is supplied by the server and is empty until a seed file is loaded, so the
 /// empty state explains that rather than implying the user should have added something.
-export function ExerciseLibrary({ exercises, onSelect, exclude = [], onOpen, onChanged }: { exercises: Exercise[]; onSelect?: (id: string) => void; exclude?: string[]; onOpen?: (exercise: Exercise) => void; onChanged?: () => Promise<void> | void }) {
+export type ExercisePickerAction = 'add' | 'swap' | 'map';
+
+export function ExerciseLibrary({ exercises, onSelect, exclude = [], onOpen, onChanged, action = 'add' }: { exercises: Exercise[]; onSelect?: (id: string) => void; exclude?: string[]; onOpen?: (exercise: Exercise) => void; onChanged?: () => Promise<void> | void; action?: ExercisePickerAction }) {
   const [query, setQuery] = useState('');
   const [muscle, setMuscle] = useState('All muscles');
   const [source, setSource] = useState<'all' | 'custom'>('all');
@@ -21,6 +23,8 @@ export function ExerciseLibrary({ exercises, onSelect, exclude = [], onOpen, onC
     && (source === 'all' || e.isCustom)
     && (muscle === 'All muscles' || e.muscle === muscle)
     && `${e.name} ${e.equipment} ${e.muscle} ${e.movementPattern ?? ''} ${e.aliases.join(' ')}`.toLowerCase().includes(query.toLowerCase()));
+  const actionLabel = action === 'swap' ? 'Swap' : action === 'map' ? 'Map' : 'Add';
+  const ActionIcon = action === 'add' ? Plus : action === 'swap' ? ArrowLeftRight : Link2;
 
   if (!exercises.length) return <>
     {!onSelect && <div className="page-heading"><h1>Exercises</h1><Button variant="primary" onClick={() => setCreateOpen(true)}><Plus size={16} />Create exercise</Button></div>}
@@ -75,11 +79,11 @@ export function ExerciseLibrary({ exercises, onSelect, exclude = [], onOpen, onC
           <Button
             className="picker-add-btn"
             variant="secondary"
-            aria-label={`Add ${e.name}`}
+            aria-label={`${actionLabel} ${e.name}`}
             onClick={() => onSelect(e.id)}
           >
-            <Plus size={16} />
-            <span className="picker-add-label">Add <span className="picker-btn-name">{e.name}</span></span>
+            <ActionIcon size={16} />
+            <span className="picker-add-label">{actionLabel} <span className="picker-btn-name">{e.name}</span></span>
           </Button>
         </article>
       ) : (

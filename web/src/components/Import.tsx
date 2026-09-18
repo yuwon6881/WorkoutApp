@@ -5,7 +5,7 @@ import { ApiError, api } from '../lib/api';
 import { validateDraftWorkout, validateName } from '../lib/validation';
 import { Button } from './ui/Button';
 import { Field } from './ui/Field';
-import { DraftOutline } from './ImportDraftTree';
+import { DraftOutline, type DraftOutlineHandle, type ImportIssueTarget } from './ImportDraftTree';
 import { useImportPipeline, type ImportFailure, type ImportProgress } from './useImportPipeline';
 
 /// What the import is doing. A read in flight covers every section the import still owes, because
@@ -61,9 +61,9 @@ export function ImportReview({ exercises, imports, remaining, onBack, onChanged,
   const [expandedDay, setExpandedDay] = useState<string | null>(null);
   const [saving, setSaving] = useState('');
   const [saveError, setSaveError] = useState('');
-  const [acknowledgeUnspecified, setAcknowledgeUnspecified] = useState(false);
   const file = useRef<HTMLInputElement>(null);
   const reviewRef = useRef<HTMLElement>(null);
+  const outlineRef = useRef<DraftOutlineHandle>(null);
 
   const handleComplete = useCallback((count: number) => {
     notify?.(`Import complete! Read ${count} workout days. Review your program below.`);
@@ -86,7 +86,6 @@ export function ImportReview({ exercises, imports, remaining, onBack, onChanged,
 
   useEffect(() => {
     let cancelled = false;
-    setAcknowledgeUnspecified(false);
     if (!selected) { setDraft(null); return; }
     if (selected.draft) { setDraft(selected.draft); return; }
     api.getImport(selected.id).then(view => {
@@ -117,10 +116,20 @@ export function ImportReview({ exercises, imports, remaining, onBack, onChanged,
     finally { setSaving(''); }
   }
 
-  const requiresAcknowledgement = !!selected?.reviewIssues?.some(issue => issue.code === 'rpe_unspecified' || issue.code === 'rest_unspecified');
   // A stored expiry is the server's own statement that it still holds this document's text and
   // can continue the read without extracting it again.
   const serverHoldsSource = !!selected?.sourceExpiresAt;
+  const reviewIssues = selected?.reviewIssues ?? [];
+  const unresolved = selected?.unresolved ?? [];
+
+  function unresolvedTarget(lineId: string): ImportIssueTarget {
+    const day = draft?.workouts.find(candidate => candidate.exercises.some(exercise => exercise.lineId === lineId));
+    return { workoutLineId: day?.lineId, exerciseLineId: lineId, targetField: 'library' };
+  }
+
+  function focusReviewIssue(target: ImportIssueTarget) {
+    outlineRef.current?.focusIssue(target);
+  }
 
   return <>
     <div className="page-heading">
@@ -193,11 +202,24 @@ export function ImportReview({ exercises, imports, remaining, onBack, onChanged,
         {selected.unresolved.length > 0 && <div className="error-banner" role="status"><AlertTriangle size={17} />
           {selected.unresolved.length} exercise name{selected.unresolved.length === 1 ? '' : 's'} are not linked to the catalog. They will stay verbatim and can still be logged.
         </div>}
-        {!!selected.reviewIssues?.length && <div className="notice-list" role="status">
-          {selected.reviewIssues.map((issue, index) => <p key={`${issue.code}-${index}`} className={issue.severity === 'blocking' ? 'error-text' : 'muted'}>
-            <AlertTriangle size={14} /> {issue.message}{issue.sourcePage ? ` (PDF p.${issue.sourcePage})` : ''}
-          </p>)}
-        </div>}
+        {(unresolved.length > 0 || reviewIssues.length > 0) && <section className="import-review-issues" aria-labelledby="import-review-issues-title">
+          <div className="import-review-issues-heading">
+            <div><h3 id="import-review-issues-title">Needs attention</h3><p>Resolve each item before creating the program.</p></div>
+            <span className="pill">{unresolved.length + reviewIssues.length} {unresolved.length + reviewIssues.length === 1 ? 'item' : 'items'}</span>
+          </div>
+          <div className="import-issue-list" role="list">
+            {unresolved.map(item => <div className="import-issue-list-item" role="listitem" key={`unresolved-${item.lineId}`}>
+              <Button variant="tertiary" className="import-issue-card" aria-label={`Fix unmapped exercise ${item.sourceName}`} onClick={() => focusReviewIssue(unresolvedTarget(item.lineId))}>
+                <AlertTriangle size={16} /><span><strong>Map {item.sourceName}</strong><small>Choose a library exercise for this slot.</small></span><ChevronDown size={16} />
+              </Button>
+            </div>)}
+            {reviewIssues.map((issue, index) => <div className="import-issue-list-item" role="listitem" key={`${issue.code}-${index}`}>
+              <Button variant="tertiary" className="import-issue-card" aria-label={`Fix issue: ${issue.message}`} onClick={() => focusReviewIssue({ sourcePage: issue.sourcePage, workoutLineId: issue.workoutLineId, exerciseLineId: issue.exerciseLineId, setIndex: issue.setIndex, targetField: issue.targetField })}>
+                <AlertTriangle size={16} /><span><strong>{issue.message}</strong>{issue.sourcePage && <small>PDF p.{issue.sourcePage} · Open the related editor field.</small>}</span><ChevronDown size={16} />
+              </Button>
+            </div>)}
+          </div>
+        </section>}
         {(selected.model || selected.inputTokens || selected.outputTokens || selected.pageCoverage?.length || selected.retries) ? <details className="import-details">
           <summary>Import details <ChevronDown size={14} /></summary>
           <div className="import-details-body">
@@ -208,21 +230,15 @@ export function ImportReview({ exercises, imports, remaining, onBack, onChanged,
           </div>
         </details> : null}
       </section>
-      {draft.workouts.length > 0 ? <DraftOutline draft={draft} expandedDay={expandedDay} setExpandedDay={setExpandedDay} exercises={exercises} onDayChange={persistDay} />
+      {draft.workouts.length > 0 ? <DraftOutline ref={outlineRef} draft={draft} expandedDay={expandedDay} setExpandedDay={setExpandedDay} exercises={exercises} onDayChange={persistDay} />
         : <section className="panel"><div className="empty-message"><AlertTriangle size={30} /><h3>No extracted days</h3><p>The draft needs at least one training or rest day.</p></div></section>}
       <section className="panel import-actions-panel">
         <div className="import-action-card-content">
-          {requiresAcknowledgement && <div className="import-acknowledgement-card">
-            <label className="checkbox-field import-acknowledgement">
-              <input type="checkbox" checked={acknowledgeUnspecified} onChange={event => setAcknowledgeUnspecified(event.target.checked)} />
-              <span>I acknowledge that the PDF did not state every working-set RPE or rest value; those remain unspecified.</span>
-            </label>
-          </div>}
-          <p className="muted small-copy import-notice-copy">Unmapped exercise names are preserved exactly; link them individually only when needed.</p>
+          {!selected.acceptable && <p className="muted small-copy import-notice-copy" role="status">The program can be created after every review item is resolved.</p>}
         </div>
         <div className="import-actions-footer">
           <Button variant="destructive" disabled={busy} onClick={() => pipeline.run('Discarding this draft…', async () => { await api.discardImport(selected.id); setSelected(null); setDraft(null); })}><Trash2 size={17} />Discard draft</Button>
-          <Button variant="primary" disabled={busy || !selected.acceptable || (requiresAcknowledgement && !acknowledgeUnspecified)} onClick={() => pipeline.run('Creating the program…', async () => { await api.acceptImport(selected.id, acknowledgeUnspecified); setSelected(null); setDraft(null); onBack(); })}><Check size={17} />Accept and create program</Button>
+          <Button variant="primary" disabled={busy || !selected.acceptable} onClick={() => pipeline.run('Creating the program…', async () => { await api.acceptImport(selected.id); setSelected(null); setDraft(null); onBack(); })}><Check size={17} />Accept and create program</Button>
         </div>
       </section>
     </>}

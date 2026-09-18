@@ -22,7 +22,15 @@ public record DraftWorkout(
 public record ImportDraft(string ProgramName, List<DraftWorkout> Workouts);
 public record ImportMetadata(string ProgramName);
 public record UnresolvedExercise(Guid LineId, string SourceName);
-public record ImportReviewIssue(string Code, string Message, string Severity = "warning", int? SourcePage = null);
+public record ImportReviewIssue(
+    string Code,
+    string Message,
+    string Severity = "warning",
+    int? SourcePage = null,
+    Guid? WorkoutLineId = null,
+    Guid? ExerciseLineId = null,
+    int? SetIndex = null,
+    string? TargetField = null);
 public record ImportAlternative(string Id, string Name, int ChunkCount, int DayCount, List<ImportChunk>? Chunks = null);
 
 public record ImportView(

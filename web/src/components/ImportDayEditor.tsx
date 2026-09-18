@@ -7,16 +7,30 @@ import { Select } from './ui/Select';
 import { Field, TextAreaField } from './ui/Field';
 import { Modal } from './ui/Modal';
 import { ExerciseLibrary } from './Exercises';
+import { SwipeableRow } from './ui/SwipeableRow';
+
+const weekdayOptions = [
+  { value: '', label: 'Choose a weekday' },
+  { value: '1', label: 'Monday' },
+  { value: '2', label: 'Tuesday' },
+  { value: '3', label: 'Wednesday' },
+  { value: '4', label: 'Thursday' },
+  { value: '5', label: 'Friday' },
+  { value: '6', label: 'Saturday' },
+  { value: '7', label: 'Sunday' }
+];
 
 export function exerciseSummary(exercise: DraftExercise): string {
   const working = exercise.sets.filter(set => !set.warmup);
-  const shown = working[0] ?? exercise.sets[0];
-  if (!shown) return 'No prescription';
+  const prescribed = working.length ? working : exercise.sets;
+  if (!prescribed.length) return 'No prescription';
 
-  const metrics = [`${working.length || exercise.sets.length} × ${showReps(shown)}`];
-  if (shown.targetRpe != null) metrics.push(`RPE ${shown.targetRpe}`);
-  if (shown.restText) metrics.push(shown.restText);
-  else if (shown.restSeconds != null) metrics.push(`${shown.restSeconds}s rest`);
+  const repLabels = [...new Set(prescribed.map(set => showReps(set)))];
+  const rpeLabels = [...new Set(prescribed.map(set => set.targetRpe).filter((rpe): rpe is number => rpe != null))];
+  const restLabels = [...new Set(prescribed.map(set => set.restText || (set.restSeconds == null ? '' : `${set.restSeconds}s`)).filter(Boolean))];
+  const metrics = [`${working.length || exercise.sets.length} × ${repLabels.join(' / ')}`];
+  if (rpeLabels.length) metrics.push(`RPE ${rpeLabels.join(' / ')}`);
+  if (restLabels.length) metrics.push(restLabels.join(' / '));
   const warmups = exercise.sets.length - working.length;
   if (warmups > 0) metrics.push(`${warmups} warm-up`);
   return metrics.join(' · ');
@@ -44,15 +58,18 @@ export function DayEditor({ day, exercises, onChange }: {
   }
 
   return <div className="day-editor">
-    {/* The weekday follows the order the document printed its week in, and is set on the
-        program's own schedule screen when it is activated rather than asked for a day at a time. */}
+    {/* A missing weekday is a review issue, so keep the correction beside the day it affects. */}
     <div className="day-editor-fields">
-      <Field className="day-name-field" label="Day name" value={draft.name}
+      <Field className="day-week-field" label="Week" type="number" min="1" max="104" inputMode="numeric" value={draft.week} data-import-field="week"
+        onChange={event => setDraft({ ...draft, week: Number(event.target.value) })}
+        onBlur={() => void onChange(draft)} />
+      <Field className="day-name-field" label="Day name" value={draft.name} data-import-field="name"
         onChange={event => setDraft({ ...draft, name: event.target.value })}
         onBlur={() => void onChange(draft)} />
-      <TextAreaField className="day-notes-field" label="Day notes" value={draft.notes ?? ''}
-        onChange={event => setDraft({ ...draft, notes: event.target.value })}
-        onBlur={() => void onChange(draft)} />
+      <label className="field day-weekday-field" data-import-field="weekday"><span>Weekday</span>
+        <Select name={`weekday-${draft.lineId}`} ariaLabel={`Weekday for ${draft.name}`} value={draft.weekday == null ? '' : String(draft.weekday)}
+          options={weekdayOptions} onChange={value => save({ ...draft, weekday: value === '' ? null : Number(value) })} />
+      </label>
     </div>
     {draft.isRestDay
       ? <div className="rest-callout"><span className="tiny-label">Rest day</span><p>No exercises are scheduled for this slot.</p></div>
@@ -81,7 +98,7 @@ function ExerciseEditor({ exercise, exercises, onChange }: {
     setPickerOpen(false);
   };
 
-  return <div className="import-exercise">
+  return <div className="import-exercise" data-import-exercise={exercise.lineId}>
     <div className="import-exercise-heading">
       <div className="import-exercise-title">
         <span className="import-exercise-icon" aria-hidden="true"><Dumbbell size={17} /></span>
@@ -96,9 +113,9 @@ function ExerciseEditor({ exercise, exercises, onChange }: {
     <div className="import-fields">
       <div className="field import-library-field">
         <span>Library exercise</span>
-        <Button variant="secondary" className="import-library-trigger" aria-haspopup="dialog"
+        <Button variant="secondary" className="import-library-trigger" aria-haspopup="dialog" data-import-field="library"
           aria-label={`Library exercise for ${exercise.sourceName}`} onClick={() => setPickerOpen(true)}>
-          {selected?.name ?? 'Not mapped'}
+          {selected?.name ?? 'Map exercise'}
         </Button>
       </div>
       <label className="field import-superset-field">Superset group
@@ -114,29 +131,35 @@ function ExerciseEditor({ exercise, exercises, onChange }: {
       value={exercise.notes ?? ''} placeholder="Cues, tempo or coaching notes"
       onChange={event => onChange({ ...exercise, notes: event.target.value })} />
 
-    <ol className="import-sets" aria-label={`Set prescriptions for ${exercise.sourceName}`}>
-      {exercise.sets.map((set, index) => <li className={`import-set ${set.warmup ? 'warmup-row' : ''}`} key={index}>
-        <div className="import-set-heading">
-          <span className="set-number">
-            <span className="set-number-label">{set.warmup ? 'Warm-up' : 'Set'}</span>
-            <strong>{index + 1}</strong>
-          </span>
-          <span className="set-prescription-label">Prescription</span>
-          <Button variant="tertiary" className="import-set-remove" aria-label={`Remove set ${index + 1}`} onClick={() => onChange({ ...exercise, sets: exercise.sets.filter((_, current) => current !== index) })}>
-            <Trash2 size={15} /><span>Remove</span>
-          </Button>
-        </div>
-        <div className="import-set-fields">
-          <Field label="Min reps" inputMode="numeric" type="number" value={set.repMin} onChange={event => editSet(index, { repMin: Number(event.target.value), repsText: null, repsSource: 'userEdited' })} />
-          <Field label="Max reps" inputMode="numeric" type="number" value={set.repMax} onChange={event => editSet(index, { repMax: Number(event.target.value), repsText: null, repsSource: 'userEdited' })} />
-          <label className="field">Target RPE
-            <Select name={`target-rpe-${exercise.lineId}-${index}`} ariaLabel={`Target RPE for ${exercise.sourceName} set ${index + 1}`}
-              value={set.targetRpe ?? ''} options={[{ value: '', label: set.warmup ? 'Not set' : 'Choose RPE' }, ...rpeOptions]}
-              onChange={value => editSet(index, { targetRpe: value === '' ? null : Number(value), rpeSource: 'userEdited' })} />
-          </label>
-          <Field label="Rest" value={set.restText ?? (set.restSeconds === null ? '' : `${set.restSeconds}s`)} onChange={event => editSet(index, { restText: event.target.value, restSource: 'userEdited' })} />
-        </div>
-      </li>)}
+    <ol className="import-sets" aria-label={`Set prescriptions for ${exercise.sourceName}`} data-import-field="sets">
+      {exercise.sets.map((set, index) => {
+        const remove = <Button variant="destructive" className="import-set-remove" aria-label={`Remove set ${index + 1}`} onClick={() => onChange({ ...exercise, sets: exercise.sets.filter((_, current) => current !== index) })}>
+          <Trash2 size={15} /><span>Delete</span>
+        </Button>;
+        return <li className={`import-set ${set.warmup ? 'warmup-row' : ''}`} key={index}>
+          <SwipeableRow className="import-set-swipe-row" actions={remove} desktopActions={remove} actionsWidth={88} actionsLabel={`Actions for ${set.warmup ? 'warm-up' : 'set'} ${index + 1}`}>
+            <div className="import-set-content" data-import-set-index={index}>
+              <div className="import-set-heading">
+                <span className="set-number">
+                  <span className="set-number-label">{set.warmup ? 'Warm-up' : 'Set'}</span>
+                  <strong>{index + 1}</strong>
+                </span>
+                <span className="set-prescription-label">Prescription</span>
+              </div>
+              <div className="import-set-fields">
+                <Field label="Min reps" inputMode="numeric" type="number" value={set.repMin} data-import-field="repMin" data-import-set-index={index} onChange={event => editSet(index, { repMin: Number(event.target.value), repsText: null, repsSource: 'userEdited' })} />
+                <Field label="Max reps" inputMode="numeric" type="number" value={set.repMax} data-import-field="repMax" data-import-set-index={index} onChange={event => editSet(index, { repMax: Number(event.target.value), repsText: null, repsSource: 'userEdited' })} />
+                <label className="field" data-import-field="targetRpe" data-import-set-index={index}>Target RPE
+                  <Select name={`target-rpe-${exercise.lineId}-${index}`} ariaLabel={`Target RPE for ${exercise.sourceName} set ${index + 1}`}
+                    value={set.targetRpe ?? ''} options={[{ value: '', label: set.warmup ? 'Not set' : 'Choose RPE' }, ...rpeOptions]}
+                    onChange={value => editSet(index, { targetRpe: value === '' ? null : Number(value), rpeSource: 'userEdited' })} />
+                </label>
+                <Field label="Rest" value={set.restText ?? (set.restSeconds === null ? '' : `${set.restSeconds}s`)} data-import-field="rest" data-import-set-index={index} onChange={event => editSet(index, { restText: event.target.value, restSource: 'userEdited' })} />
+              </div>
+            </div>
+          </SwipeableRow>
+        </li>;
+      })}
     </ol>
     <div className="import-set-footer">
       <span className="import-set-count">{exercise.sets.length} {exercise.sets.length === 1 ? 'set' : 'sets'} in this prescription</span>
@@ -151,7 +174,7 @@ function ExerciseEditor({ exercise, exercises, onChange }: {
     {pickerOpen && <Modal title={`Choose a library exercise for ${exercise.sourceName}`} wide onClose={() => setPickerOpen(false)}>
       <div className="modal-body import-library-picker">
         <p>Search the catalog by exercise, equipment, muscle, movement pattern, or alias.</p>
-        <ExerciseLibrary exercises={exercises} onSelect={id => select(id)} />
+        <ExerciseLibrary exercises={exercises} action="map" onSelect={id => select(id)} />
       </div>
       <div className="modal-actions">
         <Button variant="tertiary" onClick={() => select(null)}>Clear mapping</Button>
