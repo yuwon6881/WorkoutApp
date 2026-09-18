@@ -233,6 +233,31 @@ internal static class ImportValidation
     /// earlier sections already read.
     public sealed record ChunkMerge(List<DraftWorkout> Workouts, List<ImportReviewIssue> Notices);
 
+    /// A day the stored shape cannot hold, brought into it. A page regularly documents a day with
+    /// nothing to train — "REST", "OFF", a recovery note, a week's introduction — and the read
+    /// comes back with an empty exercise list and no rest-day flag, which is the document's way of
+    /// saying the same thing. A stored day is one or the other, so the empty day becomes the rest
+    /// day it describes and the review screen is told which days that was.
+    ///
+    /// This is deliberately not left to the final validation: a day like that passed its own
+    /// section and failed the whole draft at the very end of a read, after every section had been
+    /// paid for. The retry re-read only the last section while the offending day sat in the draft
+    /// from an earlier one, so the import could never finish however many times it was retried.
+    public static (List<DraftWorkout> Workouts, List<ImportReviewIssue> Notices) ReconcileDayShape(IEnumerable<DraftWorkout> days)
+    {
+        var notices = new List<ImportReviewIssue>();
+        var workouts = new List<DraftWorkout>();
+        foreach (var day in days)
+        {
+            if (day.IsRestDay || day.Exercises.Count > 0) { workouts.Add(day); continue; }
+            notices.Add(new ImportReviewIssue("day_without_exercises",
+                $"{day.Name} was read with no exercises, so it is kept as a rest day. Add them in the review if that page lists any.",
+                "warning", day.SourcePage));
+            workouts.Add(day with { IsRestDay = true });
+        }
+        return (workouts, notices);
+    }
+
     /// Merges one chunk's days into the draft's world view. Both of the things that used to fail a
     /// section here are judgements about a document, not defects in it: the outline's `dayCount` is
     /// an estimate made from page previews, and two days can genuinely look identical — a program
@@ -245,7 +270,8 @@ internal static class ImportValidation
         Validation.Require(extracted.Workouts.All(day => day.Week >= chunk.WeekFrom && day.Week <= chunk.WeekTo),
             $"AI returned a day outside the week range for '{chunk.Label}'. Retry this chunk.", 422);
 
-        var notices = new List<ImportReviewIssue>();
+        var shaped = ReconcileDayShape(extracted.Workouts);
+        var notices = new List<ImportReviewIssue>(shaped.Notices);
         var existingKeys = existing.Workouts.Select(DayKey).ToHashSet(StringComparer.OrdinalIgnoreCase);
         var takenSlots = existing.Workouts.Where(day => day.Weekday is not null)
             .Select(day => (day.Week, Weekday: day.Weekday!.Value)).ToHashSet();
@@ -253,7 +279,7 @@ internal static class ImportValidation
         var workouts = new List<DraftWorkout>();
         var repeated = 0;
 
-        foreach (var day in extracted.Workouts)
+        foreach (var day in shaped.Workouts)
         {
             var key = DayKey(day);
             if (existingKeys.Contains(key))

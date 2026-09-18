@@ -358,6 +358,9 @@ public sealed partial class ImportService(AppDb db, WorkoutAi ai, CatalogService
     private static ImportValidation.ChunkMerge ReconcileChunkCoverage(ImportDraft existing, ImportDraft extracted, ImportChunk chunk)
         => ImportValidation.ReconcileChunkCoverage(existing, extracted, chunk);
 
+    private static (List<DraftWorkout> Workouts, List<ImportReviewIssue> Notices) ReconcileDayShape(List<DraftWorkout> days)
+        => ImportValidation.ReconcileDayShape(days);
+
     private static List<ImportReviewIssue> ReadNotices(string json) => ImportValidation.ReadNotices(json);
 
     private void UpdateCounters(AiImport import, ImportDraft draft)

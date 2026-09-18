@@ -133,6 +133,11 @@ public sealed partial class ImportService
         if (result.LegacyProgram is { } legacy)
         {
             var draft = await ToDraft(legacy, ct);
+            // A whole-program answer holds the same days as a sectioned one and needs the same
+            // reconciliation; it simply has no chunk to attribute a notice to.
+            var shaped = ReconcileDayShape(draft.Workouts);
+            draft = draft with { Workouts = shaped.Workouts };
+            if (shaped.Notices.Count > 0) import.NoticesJson = Json.Write(shaped.Notices.TakeLast(40).ToList());
             await ValidateDraft(draft, ct);
             ValidateDraftPages(draft, import.PageCoverageJson);
             import.DraftJson = Json.Write(draft); import.Stage = "done"; import.Status = ImportStatus.Ready;
@@ -334,6 +339,12 @@ public sealed partial class ImportService
                                     "Some phases continued the block's week numbering, so their weeks were numbered from one within each phase. The weeks themselves are unchanged.",
                                     "warning", null));
                             }
+                            // The whole draft is shaped again, not just this section's days: a day
+                            // an earlier section committed before this ran is exactly the one that
+                            // no retry of the last section could ever reach.
+                            var shaped = ReconcileDayShape(merged.Workouts);
+                            merged = merged with { Workouts = shaped.Workouts };
+                            notices.AddRange(shaped.Notices);
                             await ValidateDraft(merged, settle);
                             ValidateDraftPages(merged, import.PageCoverageJson);
                         }
