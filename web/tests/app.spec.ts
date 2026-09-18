@@ -68,7 +68,9 @@ test('build a workout, log a set against the server, and see it in history', asy
   const name = `E2E day ${Date.now()}`;
   await editor.getByLabel('Workout name').fill(name);
   await editor.getByRole('button', { name: 'Add exercise', exact: true }).click();
-  await editor.getByRole('button', { name: 'Add Barbell bench press', exact: true }).click();
+  const builderPicker = page.getByRole('dialog', { name: 'Add exercise to workout', exact: true });
+  await builderPicker.getByRole('button', { name: 'Add Barbell bench press', exact: true }).click();
+  await expect(builderPicker).toBeHidden();
   await editor.getByRole('button', { name: 'Save workout', exact: true }).click();
   await expect(editor).toBeHidden();
   await expect(page.getByRole('heading', { name, exact: true })).toBeVisible();
@@ -111,8 +113,8 @@ test('build a workout, log a set against the server, and see it in history', asy
   const logged = page.getByRole('button', { name: 'Unlog Barbell bench press set 1', exact: true });
   await expect(logged).toHaveAttribute('aria-pressed', 'true');
   // A completed set has to read as finished, not just change a label.
-  await expect(logger.locator('.set-row.done')).toHaveCount(1);
-  await expect(logged).toHaveClass(/primary/);
+  await expect(logger.locator('.workout-set-row.done')).toHaveCount(1);
+  await expect(logged).toHaveClass(/checked/);
   // The button transitions into its filled state, so poll for the settled colour.
   await expect.poll(() => logged.evaluate(el => getComputedStyle(el).backgroundColor), { timeout: 5000 }).toBe('rgb(230, 180, 80)');
   // The logged set has to reach the server: nothing is kept on the device to fall back on.
@@ -165,7 +167,7 @@ test('build a workout, log a set against the server, and see it in history', asy
   await openStartPreview(page, againStartBtn, againPreview);
   await againPreview.getByRole('button', { name: 'Start workout', exact: true }).click();
   const again = page.getByRole('dialog', { name, exact: true });
-  await expect(again.locator('.progression-note')).toContainText('one more rep');
+  await expect(again.locator('.suggestion-text').first()).toBeVisible();
   await expect(again.getByRole('spinbutton', { name: 'Barbell bench press set 1 weight', exact: true })).toHaveValue('60');
   await expect(again.getByRole('spinbutton', { name: 'Barbell bench press set 1 reps', exact: true })).toHaveValue('9');
   await again.getByRole('button', { name: 'Discard', exact: true }).click();

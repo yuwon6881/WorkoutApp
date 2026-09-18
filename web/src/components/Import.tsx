@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { AlertTriangle, ArrowLeft, Check, ChevronDown, Loader2, Trash2, Upload, Wand2, X } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, Check, ChevronDown, ChevronRight, Loader2, Trash2, Upload, Wand2, X } from 'lucide-react';
 import type { DraftWorkout, Exercise, ImportDraft, ImportView } from '../types';
 import { ApiError, api } from '../lib/api';
 import { validateDraftWorkout, validateName } from '../lib/validation';
@@ -61,6 +61,7 @@ export function ImportReview({ exercises, imports, remaining, onBack, onChanged,
   const [expandedDay, setExpandedDay] = useState<string | null>(null);
   const [saving, setSaving] = useState('');
   const [saveError, setSaveError] = useState('');
+  const [showAllIssues, setShowAllIssues] = useState(false);
   const file = useRef<HTMLInputElement>(null);
   const reviewRef = useRef<HTMLElement>(null);
   const outlineRef = useRef<DraftOutlineHandle>(null);
@@ -100,7 +101,7 @@ export function ImportReview({ exercises, imports, remaining, onBack, onChanged,
     const invalid = validateName(next.programName, 'Program name');
     if (invalid) { setSaveError(invalid); return; }
     setSaving('Saving your changes…'); setSaveError('');
-    try { const view = await api.editImport(selected.id, { programName: next.programName }); setSelected(view); setDraft(view.draft); await onChanged(); }
+    try { const view = await api.editImport(selected.id, next); setSelected(view); setDraft(view.draft); await onChanged(); }
     catch (failure) { setSaveError(failure instanceof ApiError ? failure.message : 'Could not save your changes.'); }
     finally { setSaving(''); }
   }
@@ -121,6 +122,26 @@ export function ImportReview({ exercises, imports, remaining, onBack, onChanged,
   const serverHoldsSource = !!selected?.sourceExpiresAt;
   const reviewIssues = selected?.reviewIssues ?? [];
   const unresolved = selected?.unresolved ?? [];
+
+  const attentionRows = [
+    ...unresolved.map(item => ({
+      key: `unresolved-${item.lineId}`,
+      title: `Map ${item.sourceName}`,
+      detail: 'Choose a library exercise for this slot.',
+      action: 'Map',
+      ariaLabel: `Fix unmapped exercise ${item.sourceName}`,
+      target: unresolvedTarget(item.lineId)
+    })),
+    ...reviewIssues.map((issue, index) => ({
+      key: `${issue.code}-${index}`,
+      title: issue.message,
+      detail: issue.sourcePage ? `PDF p.${issue.sourcePage} · Open the related editor field.` : 'Open the related editor field.',
+      action: 'Fix',
+      ariaLabel: `Fix issue: ${issue.message}`,
+      target: { sourcePage: issue.sourcePage, workoutLineId: issue.workoutLineId, exerciseLineId: issue.exerciseLineId, setIndex: issue.setIndex, targetField: issue.targetField } as ImportIssueTarget
+    }))
+  ];
+  const visibleAttentionRows = showAllIssues ? attentionRows : attentionRows.slice(0, 5);
 
   function unresolvedTarget(lineId: string): ImportIssueTarget {
     const day = draft?.workouts.find(candidate => candidate.exercises.some(exercise => exercise.lineId === lineId));
@@ -202,23 +223,27 @@ export function ImportReview({ exercises, imports, remaining, onBack, onChanged,
         {selected.unresolved.length > 0 && <div className="error-banner" role="status"><AlertTriangle size={17} />
           {selected.unresolved.length} exercise name{selected.unresolved.length === 1 ? '' : 's'} are not linked to the catalog. They will stay verbatim and can still be logged.
         </div>}
-        {(unresolved.length > 0 || reviewIssues.length > 0) && <section className="import-review-issues" aria-labelledby="import-review-issues-title">
+        {attentionRows.length > 0 && <section className="import-review-issues" aria-labelledby="import-review-issues-title">
           <div className="import-review-issues-heading">
             <div><h3 id="import-review-issues-title">Needs attention</h3><p>Resolve each item before creating the program.</p></div>
-            <span className="pill">{unresolved.length + reviewIssues.length} {unresolved.length + reviewIssues.length === 1 ? 'item' : 'items'}</span>
+            <span className="pill">{attentionRows.length} {attentionRows.length === 1 ? 'item' : 'items'}</span>
           </div>
-          <div className="import-issue-list" role="list">
-            {unresolved.map(item => <div className="import-issue-list-item" role="listitem" key={`unresolved-${item.lineId}`}>
-              <Button variant="tertiary" className="import-issue-card" aria-label={`Fix unmapped exercise ${item.sourceName}`} onClick={() => focusReviewIssue(unresolvedTarget(item.lineId))}>
-                <AlertTriangle size={16} /><span><strong>Map {item.sourceName}</strong><small>Choose a library exercise for this slot.</small></span><ChevronDown size={16} />
+          <div className="import-issue-table" role="table" aria-label="Import issues">
+            <div className="import-issue-table-head" role="row">
+              <span role="columnheader">Issue</span><span role="columnheader">Source</span><span role="columnheader">Action</span>
+            </div>
+            {visibleAttentionRows.map(row => <div className="import-issue-table-row" role="row" key={row.key}>
+              <span className="import-issue-table-description" role="cell"><AlertTriangle size={15} /><strong>{row.title}</strong></span>
+              <span className="import-issue-table-detail" role="cell">{row.detail}</span>
+              <Button variant="tertiary" className="import-issue-table-action import-issue-card" aria-label={row.ariaLabel} onClick={() => focusReviewIssue(row.target)}>
+                {row.action}<ChevronRight size={15} />
               </Button>
             </div>)}
-            {reviewIssues.map((issue, index) => <div className="import-issue-list-item" role="listitem" key={`${issue.code}-${index}`}>
-              <Button variant="tertiary" className="import-issue-card" aria-label={`Fix issue: ${issue.message}`} onClick={() => focusReviewIssue({ sourcePage: issue.sourcePage, workoutLineId: issue.workoutLineId, exerciseLineId: issue.exerciseLineId, setIndex: issue.setIndex, targetField: issue.targetField })}>
-                <AlertTriangle size={16} /><span><strong>{issue.message}</strong>{issue.sourcePage && <small>PDF p.{issue.sourcePage} · Open the related editor field.</small>}</span><ChevronDown size={16} />
-              </Button>
-            </div>)}
           </div>
+          {attentionRows.length > 5 && <div className="import-issue-table-footer">
+            <span className="muted">Showing {visibleAttentionRows.length} of {attentionRows.length}</span>
+            <Button variant="tertiary" onClick={() => setShowAllIssues(value => !value)}>{showAllIssues ? 'Show fewer' : `Show all ${attentionRows.length}`}</Button>
+          </div>}
         </section>}
         {(selected.model || selected.inputTokens || selected.outputTokens || selected.pageCoverage?.length || selected.retries) ? <details className="import-details">
           <summary>Import details <ChevronDown size={14} /></summary>
@@ -230,7 +255,7 @@ export function ImportReview({ exercises, imports, remaining, onBack, onChanged,
           </div>
         </details> : null}
       </section>
-      {draft.workouts.length > 0 ? <DraftOutline ref={outlineRef} draft={draft} expandedDay={expandedDay} setExpandedDay={setExpandedDay} exercises={exercises} onDayChange={persistDay} />
+      {draft.workouts.length > 0 ? <DraftOutline ref={outlineRef} draft={draft} expandedDay={expandedDay} setExpandedDay={setExpandedDay} exercises={exercises} onDayChange={persistDay} onDraftChange={persist} />
         : <section className="panel"><div className="empty-message"><AlertTriangle size={30} /><h3>No extracted days</h3><p>The draft needs at least one training or rest day.</p></div></section>}
       <section className="panel import-actions-panel">
         <div className="import-action-card-content">

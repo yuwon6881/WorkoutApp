@@ -1,4 +1,5 @@
-import { useEffect, useId, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react';
+import { createPortal } from 'react-dom';
+import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent } from 'react';
 import { Check, ChevronDown } from 'lucide-react';
 import { Button } from './Button';
 
@@ -32,6 +33,8 @@ export function Select<T extends string | number>({
   const triggerRef = useRef<HTMLButtonElement>(null);
   const listboxRef = useRef<HTMLUListElement>(null);
   const id = useId();
+  const [dropdownStyle, setDropdownStyle] = useState<CSSProperties | null>(null);
+  const [portalTarget, setPortalTarget] = useState<HTMLElement | null>(null);
 
   const [highlightedIndex, setHighlightedIndex] = useState(() => {
     const idx = options.findIndex(o => o.value === value);
@@ -48,7 +51,8 @@ export function Select<T extends string | number>({
   useEffect(() => {
     if (!open) return;
     const handleClick = (e: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+      const target = e.target as Node;
+      if (containerRef.current && !containerRef.current.contains(target) && !listboxRef.current?.contains(target)) {
         setOpen(false);
       }
     };
@@ -64,6 +68,57 @@ export function Select<T extends string | number>({
       item?.scrollIntoView({ block: 'nearest' });
     }
   }, [open, highlightedIndex]);
+
+  const positionDropdown = useCallback(() => {
+    const trigger = triggerRef.current;
+    const listbox = listboxRef.current;
+    if (!trigger || !listbox) return;
+
+    const triggerRect = trigger.getBoundingClientRect();
+    const viewportPadding = 8;
+    const availableBelow = Math.max(0, window.innerHeight - triggerRect.bottom - viewportPadding);
+    const availableAbove = Math.max(0, triggerRect.top - viewportPadding);
+    const maxHeight = Math.min(260, Math.max(120, Math.max(availableBelow, availableAbove)));
+    const measuredHeight = Math.min(listbox.scrollHeight, maxHeight);
+    const opensAbove = availableBelow < measuredHeight && availableAbove > availableBelow;
+
+    setDropdownStyle({
+      position: 'fixed',
+      left: `${Math.max(viewportPadding, triggerRect.left)}px`,
+      top: `${opensAbove
+        ? Math.max(viewportPadding, triggerRect.top - measuredHeight - 5)
+        : Math.min(window.innerHeight - measuredHeight - viewportPadding, triggerRect.bottom + 5)}px`,
+      width: `${triggerRect.width}px`,
+      maxHeight: `${maxHeight}px`
+    });
+  }, []);
+
+  // Portaling the listbox keeps a long option list above clipped cards, drawers and bottom sheets.
+  // Its fixed position is refreshed while the page or modal scrolls so it remains attached to the
+  // trigger instead of becoming a detached overlay.
+  useLayoutEffect(() => {
+    if (!open) {
+      setPortalTarget(null);
+      setDropdownStyle(null);
+      return;
+    }
+    const dialog = containerRef.current?.closest('dialog')
+      ?? triggerRef.current?.closest('dialog')
+      ?? [...document.querySelectorAll<HTMLDialogElement>('dialog[open]')].at(-1);
+    setPortalTarget((dialog as HTMLElement | null) ?? document.body);
+  }, [open]);
+
+  useLayoutEffect(() => {
+    if (!open || !portalTarget) return;
+    positionDropdown();
+    const handleScroll = () => positionDropdown();
+    window.addEventListener('resize', handleScroll);
+    document.addEventListener('scroll', handleScroll, true);
+    return () => {
+      window.removeEventListener('resize', handleScroll);
+      document.removeEventListener('scroll', handleScroll, true);
+    };
+  }, [open, portalTarget, positionDropdown, options.length]);
 
   const selectedOption = options.find(o => o.value === value) ?? options[0];
 
@@ -156,8 +211,8 @@ export function Select<T extends string | number>({
         <ChevronDown size={16} className={`custom-select-chevron ${open ? 'rotated' : ''}`} />
       </Button>
 
-      {open && (
-        <ul ref={listboxRef} className="custom-select-dropdown" role="listbox" aria-label={accessibleLabel}>
+      {open && portalTarget && createPortal(
+        <ul ref={listboxRef} className="custom-select-dropdown" style={dropdownStyle ?? { visibility: 'hidden' }} role="listbox" aria-label={accessibleLabel}>
           {options.map((o, idx) => {
             const isSelected = o.value === value;
             const isHighlighted = idx === highlightedIndex;
@@ -180,7 +235,8 @@ export function Select<T extends string | number>({
               </li>
             );
           })}
-        </ul>
+        </ul>,
+        portalTarget
       )}
     </div>
   );

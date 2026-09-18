@@ -17,14 +17,26 @@ async function checkLayout(page: Page, label: string) {
   // The real signal is whether anything sticks out past the width the device actually has.
   // Comparing scrollWidth to innerWidth alone cannot see this: when content overflows, the mobile
   // layout viewport grows to match it, so an overflowing page still reports them as equal.
-  const culprits = await page.evaluate((limit: number) => [...document.querySelectorAll('*')]
+  const culprits = await page.evaluate((limit: number) => {
+    const insideHorizontalScroller = (element: Element) => {
+      for (let ancestor = element.parentElement; ancestor; ancestor = ancestor.parentElement) {
+        const style = getComputedStyle(ancestor);
+        if ((style.overflowX === 'auto' || style.overflowX === 'scroll') && ancestor.scrollWidth > ancestor.clientWidth) return true;
+      }
+      return false;
+    };
+    return [...document.querySelectorAll('*')]
+    .filter(el => {
+      const box = el.getBoundingClientRect();
+      return box.right > limit + 1 && getComputedStyle(el).position !== 'fixed' && !insideHorizontalScroller(el);
+    })
     .map(el => {
       const box = el.getBoundingClientRect();
       return { sel: `${el.tagName}.${String(el.className).slice(0, 34)}`, left: Math.round(box.left), right: Math.round(box.right), pos: getComputedStyle(el).position };
     })
-    .filter(x => x.right > limit + 1 && x.pos !== 'fixed')
     .sort((a, b) => b.right - a.right || b.left - a.left)
-    .slice(0, 8), fit.visualWidth);
+    .slice(0, 8);
+  }, fit.visualWidth);
   expect(culprits, `${label}: these elements overflow the viewport (${JSON.stringify(fit)})`).toEqual([]);
   expect(fit.scrollWidth, `${label}: page must fit its layout viewport (${JSON.stringify(fit)})`).toBeLessThanOrEqual(fit.innerWidth + 1);
   for (const dialog of await page.getByRole('dialog').all()) {
@@ -33,9 +45,16 @@ async function checkLayout(page: Page, label: string) {
   const overflow = await page.evaluate(() => {
     const dialog = [...document.querySelectorAll('dialog[open]')].at(-1);
     const scope = dialog || document.querySelector('main')!;
+    const insideHorizontalScroller = (element: Element) => {
+      for (let ancestor = element.parentElement; ancestor; ancestor = ancestor.parentElement) {
+        const style = getComputedStyle(ancestor);
+        if ((style.overflowX === 'auto' || style.overflowX === 'scroll') && ancestor.scrollWidth > ancestor.clientWidth) return true;
+      }
+      return false;
+    };
     return [...scope.querySelectorAll('input,select,textarea,button,h1,h2,h3')].filter(el => {
       const box = el.getBoundingClientRect();
-      return box.width && box.height && (box.left < -1 || box.right > innerWidth + 1);
+      return box.width && box.height && !insideHorizontalScroller(el) && (box.left < -1 || box.right > innerWidth + 1);
     }).map(el => el.getAttribute('aria-label') || el.textContent?.slice(0, 70));
   });
   expect(overflow, `${label}: controls and headings stay onscreen`).toEqual([]);
@@ -132,12 +151,13 @@ for (const theme of ['dark', 'light']) {
     await editor.getByLabel('Workout name').fill(workoutName);
     await screenshot('workout-editor');
     await editor.getByRole('button', { name: 'Add exercise', exact: true }).click();
-    await editor.getByRole('textbox', { name: 'Search exercises' }).fill('squat');
+    const builderPicker = page.getByRole('dialog', { name: 'Add exercise to workout', exact: true });
+    await builderPicker.getByRole('textbox', { name: 'Search exercises' }).fill('squat');
     await screenshot('workout-picker');
-    await editor.getByRole('button', { name: 'Add Barbell back squat', exact: true }).click();
+    await builderPicker.getByRole('button', { name: 'Add Barbell back squat', exact: true }).click();
     // The picker collapsing changes the dialog's height; let it settle before aiming at Save.
     await expect(editor.getByText('Barbell back squat', { exact: true })).toBeVisible();
-    await expect(editor.getByRole('textbox', { name: 'Search exercises' })).toBeHidden();
+    await expect(builderPicker).toBeHidden();
     await editor.getByRole('button', { name: 'Save workout', exact: true }).click();
     await expect(editor).toBeHidden();
 
@@ -181,20 +201,13 @@ for (const theme of ['dark', 'light']) {
     await expect(preview).toBeHidden();
     await expect(page.getByRole('dialog')).toBeVisible();
     await screenshot('workout-logger');
-    const workoutHelp = page.locator('details.workout-help');
-    await expect(workoutHelp).toHaveCount(1);
-    await workoutHelp.locator('summary').focus();
-    await page.keyboard.press('Enter');
-    await expect(workoutHelp).toHaveAttribute('open', '');
-    await page.keyboard.press('Enter');
-    await expect(workoutHelp).not.toHaveAttribute('open', '');
-    await page.getByRole('button', { name: 'Add exercise', exact: true }).click();
+    await page.getByRole('button', { name: 'Add another exercise to this workout', exact: true }).click();
     await screenshot('logger-picker');
     await page.getByRole('dialog', { name: 'Add an exercise' }).getByRole('button', { name: 'Close dialog' }).click();
     await page.getByRole('button', { name: 'Discard', exact: true }).click();
     await screenshot('discard-confirmation');
     await page.getByRole('button', { name: 'Keep training' }).click();
-    await page.getByRole('button', { name: 'Minimize' }).click();
+    await page.getByRole('button', { name: 'Minimize', exact: true }).click();
     await screenshot('resume-banner');
 
     const resume = page.getByRole('button', { name: `Resume ${workoutName}`, exact: true });

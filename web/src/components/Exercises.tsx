@@ -67,14 +67,14 @@ export function ExerciseLibrary({ exercises, onSelect, exclude = [], onOpen, onC
         <article className="panel picker-card" key={e.id}>
           <div className="picker-card-info">
             <div className="picker-card-header">
+              <span className="picker-exercise-icon" aria-hidden="true"><Dumbbell size={16} /></span>
               <h3>{e.name}</h3>
-              <div className="picker-tags">
-                {e.isCustom && <span className="pill pill-muted">Custom</span>}
-                <span className="pill pill-accent">{e.muscle || 'Full body'}</span>
-                <span className="pill">{e.equipment || 'General'}</span>
-              </div>
             </div>
-            {e.cue && <p className="picker-cue">{e.cue}</p>}
+            <div className="picker-tags">
+              {e.isCustom && <span className="pill pill-muted">Custom</span>}
+              <span className="pill pill-accent picker-muscle-tag">{e.muscle || 'Full body'}</span>
+              <span className="pill">{e.equipment || 'General'}</span>
+            </div>
           </div>
           <Button
             className="picker-add-btn"
@@ -83,7 +83,7 @@ export function ExerciseLibrary({ exercises, onSelect, exclude = [], onOpen, onC
             onClick={() => onSelect(e.id)}
           >
             <ActionIcon size={16} />
-            <span className="picker-add-label">{actionLabel} <span className="picker-btn-name">{e.name}</span></span>
+            <span className="picker-add-label">{actionLabel}</span>
           </Button>
         </article>
       ) : (

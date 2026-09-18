@@ -1,24 +1,14 @@
-import { useMemo, useState, type Dispatch, type SetStateAction } from 'react';
-import { ArrowRight, Check, ChevronDown, ChevronUp, Dumbbell, FileText, Pencil, Play, Plus, RefreshCw, Trash2 } from 'lucide-react';
-import type { Bootstrap, Exercise, ProgramSummary, SetPrescription, Template, TemplateExercise } from '../types';
+import { useMemo, useState } from 'react';
+import { ArrowRight, Check, ChevronDown, ChevronUp, Dumbbell, FileText, Pencil, Play, Plus, RefreshCw } from 'lucide-react';
+import type { Bootstrap, Exercise, ProgramSummary, Template, TemplateExercise } from '../types';
 import { ApiError, api } from '../lib/api';
 import { getWorkoutMuscles } from '../lib/muscles';
-import { rpeOptions, showReps } from '../lib/training';
-import { validateTemplateDraft } from '../lib/validation';
+import { showReps } from '../lib/training';
 import { Button } from './ui/Button';
 import { Modal } from './ui/Modal';
 import { Select } from './ui/Select';
 import { ExerciseLibrary } from './Exercises';
-
-type Draft = { id: string | null; name: string; focus: string; revision: number | null; exercises: TemplateExercise[] };
-
-const blankSet = (loadModel?: Exercise['loadModel']): SetPrescription => ({ repMin: 8, repMax: 12, targetRpe: 8, restSeconds: 90, tempo: null, loadText: null, notes: null, repsText: null, restText: null, rir: null, warmup: false, repsSource: 'userEdited', rpeSource: 'userEdited', restSource: 'userEdited', resistanceMode: loadModel === 'full_bodyweight' ? 'bodyweight' : loadModel === 'bodyweight_context_only' || loadModel === 'reps_only' ? 'reps_only' : 'external' });
-
-function updateSet(setDraft: Dispatch<SetStateAction<Draft | null>>, draft: Draft, exerciseIndex: number, setIndex: number, patch: Partial<SetPrescription>) {
-  setDraft({ ...draft, exercises: draft.exercises.map((exercise, index) => index === exerciseIndex
-    ? { ...exercise, sets: exercise.sets.map((set, current) => current === setIndex ? { ...set, ...patch } : set) }
-    : exercise) });
-}
+import { WorkoutEditorModal, type WorkoutDraft } from './WorkoutEditorModal';
 
 const weekdayNames = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
@@ -36,44 +26,32 @@ function defaultWeekdays(days: ProgramSummary['days']) {
 export function Programs({ data, exercises, onStart, onImport, onChanged }: {
   data: Bootstrap; exercises: Exercise[]; onStart: (templateId: string) => void; onImport: () => void; onChanged: () => Promise<void>;
 }) {
-  const [draft, setDraft] = useState<Draft | null>(null);
-  const [picking, setPicking] = useState(false);
-  const [deleting, setDeleting] = useState(false);
-  const [error, setError] = useState('');
+  const [draft, setDraft] = useState<WorkoutDraft | null>(null);
   const [busy, setBusy] = useState(false);
-  const [swapIndex, setSwapIndex] = useState<number | null>(null);
 
   const open = (template?: Template) => {
     setDraft(template
       ? { id: template.id, name: template.name, focus: template.focus, revision: template.revision, exercises: structuredClone(template.exercises) }
       : { id: null, name: '', focus: 'Custom workout', revision: null, exercises: [] });
-    setPicking(false); setDeleting(false); setError('');
-    setSwapIndex(null);
   };
 
-  async function save() {
-    if (!draft) return;
-    const validationError = validateTemplateDraft(draft.name, draft.focus, draft.exercises);
-    if (validationError) { setError(validationError); return; }
+  async function save(savedDraft: WorkoutDraft) {
     setBusy(true);
     const input = {
-      name: draft.name.trim(), focus: draft.focus.trim(), note: null, revision: draft.revision, idempotencyId: crypto.randomUUID(),
-      exercises: draft.exercises.map(e => ({ exerciseId: e.exerciseId, sourceName: e.sourceName || e.name, note: e.note || null, sets: e.sets,
+      name: savedDraft.name.trim(), focus: savedDraft.focus.trim(), note: null, revision: savedDraft.revision, idempotencyId: crypto.randomUUID(),
+      exercises: savedDraft.exercises.map(e => ({ exerciseId: e.exerciseId, sourceName: e.sourceName || e.name, note: e.note || null, sets: e.sets,
         sequenceGroup: e.sequenceGroup || null, substitutions: e.substitutions ?? [], sourcePage: e.sourcePage ?? null, slotKey: e.slotKey ?? null }))
     };
     try {
-      if (draft.id) await api.updateTemplate(draft.id, input); else await api.createTemplate(input);
+      if (savedDraft.id) await api.updateTemplate(savedDraft.id, input); else await api.createTemplate(input);
       await onChanged();
       setDraft(null);
-    } catch (failure) { setError(failure instanceof ApiError ? failure.message : 'Could not save this workout.'); }
-    finally { setBusy(false); }
+    } finally { setBusy(false); }
   }
 
-  async function remove() {
-    if (!draft?.id) return;
+  async function remove(id: string) {
     setBusy(true);
-    try { await api.deleteTemplate(draft.id); await onChanged(); setDeleting(false); setDraft(null); }
-    catch (failure) { setError(failure instanceof ApiError ? failure.message : 'Could not delete this workout.'); setDeleting(false); }
+    try { await api.deleteTemplate(id); await onChanged(); setDraft(null); }
     finally { setBusy(false); }
   }
 
@@ -96,68 +74,46 @@ export function Programs({ data, exercises, onStart, onImport, onChanged }: {
 
     <section className="panel">
       <div className="section-heading"><h2>Standalone workouts</h2><span className="muted">{data.templates.length} saved</span></div>
-      {data.templates.length ? <div className="program-grid">{data.templates.map((template, i) => <section className="panel routine-card" key={template.id}>
-        <div className="section-heading"><span className="routine-number">Workout {String(i + 1).padStart(2, '0')}</span>
-          <Button variant="tertiary" aria-label={`Edit ${template.name}`} onClick={() => open(template)}><Pencil size={17} /></Button></div>
-        <h2>{template.name}</h2><p>{template.focus}</p>
-        <div className="routine-exercises">{template.exercises.map(e => <div key={e.id}>
-          <span><Dumbbell size={16} />{e.name}</span><small>{e.sets.length} × {showReps(e.sets[0])}</small>
-        </div>)}</div>
-        <Button className="full-width" onClick={() => onStart(template.id)}>Start workout<ArrowRight size={17} /></Button>
-      </section>)}</div>
+      {data.templates.length ? <div className="program-grid">{data.templates.map((template, i) => (
+        <StandaloneWorkoutCard key={template.id} template={template} index={i} exercises={exercises} onEdit={() => open(template)} onStart={() => onStart(template.id)} />
+      ))}</div>
         : <div className="empty-message"><Dumbbell size={30} /><h3>No standalone workouts yet</h3>
           <p>{exercises.length ? 'Build one by hand, or import a program from a PDF.' : 'The exercise library is still empty, so a workout cannot be built yet. Importing a PDF will still create a reviewable draft.'}</p>
           <Button variant="primary" onClick={() => open()}><Plus size={17} />New workout</Button></div>}
     </section>
 
-    {draft && <Modal title={draft.id ? `Edit ${draft.name || 'workout'}` : 'Build a workout'} onClose={() => setDraft(null)} wide>
-      <div className="modal-body">
-        <label className="field">Workout name<input name="template-name" value={draft.name} onChange={e => setDraft({ ...draft, name: e.target.value })} placeholder="e.g. Full body strength" /></label>
-        <label className="field">Focus<input name="template-focus" value={draft.focus} onChange={e => setDraft({ ...draft, focus: e.target.value })} /></label>
-        <div className="editor-exercises">{draft.exercises.map((exercise, i) => <div className="editor-row" key={exercise.id}>
-          <div className="section-heading"><strong>{exercise.name}</strong><div className="topbar-actions"><Button variant="tertiary" aria-label={`Swap ${exercise.name}`} onClick={() => setSwapIndex(i)}><RefreshCw size={16} />Swap</Button><Button variant="tertiary" aria-label={`Remove ${exercise.name}`} onClick={() => setDraft({ ...draft, exercises: draft.exercises.filter((_, j) => j !== i) })}><Trash2 size={16} /></Button></div></div>
-          <div className="set-editor" aria-label={`Set prescriptions for ${exercise.name}`}>
-            {exercise.sets.map((set, si) => <div className="set-editor-row" key={si}>
-              <span className="tiny-label">Set {si + 1}</span>
-              <label>Min reps<input name={`rep-min-${exercise.id}-${si}`} aria-label={`${exercise.name} set ${si + 1} minimum reps`} type="number" min="1" max="1000" value={set.repMin} onChange={e => updateSet(setDraft, draft, i, si, { repMin: Number(e.target.value), repMax: Math.max(Number(e.target.value), set.repMax) })} /></label>
-              <label>Max reps<input name={`rep-max-${exercise.id}-${si}`} aria-label={`${exercise.name} set ${si + 1} maximum reps`} type="number" min="1" max="1000" value={set.repMax} onChange={e => updateSet(setDraft, draft, i, si, { repMax: Number(e.target.value) })} /></label>
-              <label>Target RPE<Select name={`target-rpe-${exercise.id}-${si}`} label={`${exercise.name} set ${si + 1} target RPE`} value={set.targetRpe ?? ''}
-                options={[{ value: '', label: set.warmup ? 'Not set' : 'Choose RPE' }, ...rpeOptions]}
-                onChange={value => updateSet(setDraft, draft, i, si, { targetRpe: value === '' ? null : Number(value) })} /></label>
-              <label>Rest (s)<input name={`rest-${exercise.id}-${si}`} aria-label={`${exercise.name} set ${si + 1} rest seconds`} type="number" min="0" max="3600" value={set.restSeconds ?? ''} onChange={e => updateSet(setDraft, draft, i, si, { restSeconds: e.target.value === '' ? null : Number(e.target.value) })} /></label>
-              <label>Tempo<input name={`tempo-${exercise.id}-${si}`} aria-label={`${exercise.name} set ${si + 1} tempo`} value={set.tempo ?? ''} onChange={e => updateSet(setDraft, draft, i, si, { tempo: e.target.value || null })} placeholder="e.g. 3010" /></label>
-              <label>Note<input name={`set-note-${exercise.id}-${si}`} aria-label={`${exercise.name} set ${si + 1} note`} value={set.notes ?? ''} onChange={e => updateSet(setDraft, draft, i, si, { notes: e.target.value || null })} /></label>
-              <label className="checkbox-field"><input type="checkbox" name={`warmup-${exercise.id}-${si}`} checked={set.warmup} onChange={e => updateSet(setDraft, draft, i, si, { warmup: e.target.checked, targetRpe: e.target.checked ? null : set.targetRpe ?? 8 })} />Warm-up</label>
-              <Button variant="tertiary" aria-label={`Remove ${exercise.name} set ${si + 1}`} disabled={exercise.sets.length <= 1} onClick={() => setDraft({ ...draft, exercises: draft.exercises.map((item, index) => index === i ? { ...item, sets: item.sets.filter((_, current) => current !== si) } : item) })}><Trash2 size={14} /></Button>
-            </div>)}
-            <Button variant="tertiary" disabled={exercise.sets.length >= 24} onClick={() => setDraft({ ...draft, exercises: draft.exercises.map((item, index) => index === i ? { ...item, sets: [...item.sets, blankSet(item.loadModel)] } : item) })}><Plus size={15} />Add set</Button>
-          </div>
-        </div>)}</div>
-        <Button onClick={() => setPicking(!picking)}><Plus size={17} />{picking ? 'Hide exercise picker' : 'Add exercise'}</Button>
-        {picking && <ExerciseLibrary exercises={exercises} exclude={draft.exercises.map(e => e.exerciseId).filter((id): id is string => id !== null)} onSelect={id => {
-          const chosen = exercises.find(e => e.id === id)!;
-          setDraft({ ...draft, exercises: [...draft.exercises, { id: crypto.randomUUID(), exerciseId: chosen.id, sourceName: chosen.name, name: chosen.name, note: '', position: draft.exercises.length, sets: [blankSet(chosen.loadModel), blankSet(chosen.loadModel), blankSet(chosen.loadModel)], sequenceGroup: '', substitutions: [], loadModel: chosen.loadModel }] });
-          setPicking(false);
-        }} />}
-        {error && <p role="alert" className="error-text">{error}</p>}
-      </div>
-      <div className="modal-actions">
-        {draft.id && <Button variant="destructive" disabled={busy} onClick={() => setDeleting(true)}>Delete workout</Button>}
-        <Button onClick={() => setDraft(null)}>Cancel</Button>
-        <Button variant="primary" disabled={busy} onClick={save}>{busy ? 'Saving…' : 'Save workout'}</Button>
-      </div>
-      {deleting && <Modal title="Delete this workout?" onClose={() => setDeleting(false)}>
-        <div className="modal-body"><p>Your completed sessions stay in your history.</p></div>
-        <div className="modal-actions"><Button onClick={() => setDeleting(false)}>Keep workout</Button><Button variant="destructive" disabled={busy} onClick={remove}>Delete workout</Button></div>
-      </Modal>}
-      {swapIndex !== null && <Modal title={`Swap ${draft.exercises[swapIndex]?.name ?? 'exercise'}`} onClose={() => setSwapIndex(null)}>
-        <div className="modal-body"><p className="source">Prescriptions, notes, warm-ups, and imported source pages stay with this slot.</p>
-          {!!draft.exercises[swapIndex]?.substitutions.length && <div className="swap-menu" role="group" aria-label="Imported alternatives">{draft.exercises[swapIndex].substitutions.map(name => <Button key={name} variant="tertiary" onClick={() => { const match = exercises.find(item => item.name.toLowerCase() === name.toLowerCase()); setDraft({ ...draft, exercises: draft.exercises.map((item, index) => index === swapIndex ? { ...item, exerciseId: match?.id ?? null, name, sourceName: name } : item) }); setSwapIndex(null); }}>{name}</Button>)}</div>}
-          <ExerciseLibrary action="swap" exercises={exercises} exclude={draft.exercises.map(e => e.exerciseId).filter((id): id is string => id !== null)} onSelect={id => { const chosen = exercises.find(item => item.id === id); if (!chosen) return; setDraft({ ...draft, exercises: draft.exercises.map((item, index) => index === swapIndex ? { ...item, exerciseId: chosen.id, name: chosen.name, sourceName: chosen.name, loadModel: chosen.loadModel } : item) }); setSwapIndex(null); }} />
-        </div>
-      </Modal>}
-    </Modal>}
+    {draft && <WorkoutEditorModal initialDraft={draft} exercises={exercises} busy={busy} onSave={save} onDelete={remove} onClose={() => setDraft(null)} />}
   </>;
+}
+
+function StandaloneWorkoutCard({ template, index, exercises, onEdit, onStart }: {
+  template: Template; index: number; exercises: Exercise[]; onEdit: () => void; onStart: () => void;
+}) {
+  const muscles = useMemo(() => getWorkoutMuscles(template.exercises, exercises), [template.exercises, exercises]);
+  const preview = useMemo(() => {
+    if (!template.exercises.length) return '';
+    const names = template.exercises.map(e => e.name);
+    if (names.length <= 3) return names.join(', ');
+    return `${names.slice(0, 3).join(', ')}, and ${names.length - 3} more`;
+  }, [template.exercises]);
+
+  return <section className="panel routine-card">
+    <div className="section-heading">
+      <span className="routine-number">Workout {String(index + 1).padStart(2, '0')}</span>
+      <Button variant="tertiary" aria-label={`Edit ${template.name}`} onClick={onEdit}><Pencil size={17} /></Button>
+    </div>
+    <h2>{template.name}</h2>
+    <p>{template.focus}</p>
+    {preview && <p className="day-exercise-preview">{preview}</p>}
+    {muscles.length > 0 && <div className="day-muscles-row" aria-label="Targeted muscles">
+      {muscles.slice(0, 5).map(m => <span key={m} className="muscle-chip">{m}</span>)}
+      {muscles.length > 5 && <span className="muscle-chip muscle-chip-overflow" title={muscles.slice(5).join(', ')}>+{muscles.length - 5}</span>}
+    </div>}
+    <div className="routine-exercises">{template.exercises.slice(0, 4).map(e => <div key={e.id}>
+      <span><Dumbbell size={16} />{e.name}</span><small>{e.sets.length} × {showReps(e.sets[0])}</small>
+    </div>)}</div>
+    <Button className="full-width" onClick={onStart}>Start workout<ArrowRight size={17} /></Button>
+  </section>;
 }
 
 function ProgramCard({ program, exercises, onStart, onChanged }: { program: ProgramSummary; exercises: Exercise[]; onStart: (id: string) => void; onChanged: () => Promise<void> }) {

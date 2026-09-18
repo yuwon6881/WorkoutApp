@@ -91,8 +91,34 @@ public sealed partial class ImportService(AppDb db, WorkoutAi ai, CatalogService
         {
             foreach (var source in sourceExercises ?? [])
             {
+                var rawName = source.SourceName?.Trim() ?? "";
+                var sequenceGroup = ImportNormalization.Text(source.SequenceGroup, 8) ?? "";
+
+                // A table cell often embeds a superset tag like "A1: Seated Calf Raise". Strip the
+                // tag from the movement name and adopt it as sequenceGroup if none was stated.
+                var cleanName = rawName;
+                var prefix = Regex.Match(rawName, @"^(?<group>[A-Za-z]\d+)[\s:\-–\.]+\s*(?<name>.+)$");
+                if (prefix.Success)
+                {
+                    if (string.IsNullOrEmpty(sequenceGroup))
+                        sequenceGroup = ImportNormalization.Text(prefix.Groups["group"].Value, 8) ?? "";
+                    cleanName = prefix.Groups["name"].Value.Trim();
+                }
+
+                // Exercise cells can carry embedded video hyperlinks from PDF design layers.
+                // Pull URLs into the notes so the written movement name matches the catalog cleanly.
+                var urlMatches = Regex.Matches(cleanName, @"https?://\S+|www\.\S+");
+                var extractedUrls = new List<string>();
+                if (urlMatches.Count > 0)
+                {
+                    foreach (Match m in urlMatches) extractedUrls.Add(m.Value);
+                    cleanName = Regex.Replace(cleanName, @"https?://\S+|www\.\S+", "").Trim();
+                    cleanName = Regex.Replace(cleanName, @"\(\s*\)|\[\s*\]", "").Trim();
+                }
+
                 Guid? id = Guid.TryParse(source.ExerciseId, out var parsed) && active.Contains(parsed) ? parsed : null;
-                id ??= CatalogMatching.Find(library, source.SourceName);
+                id ??= CatalogMatching.Find(library, cleanName);
+                if (id == null && cleanName != rawName) id ??= CatalogMatching.Find(library, rawName);
                 var working = source.Sets.Select(ToDraftSet).ToList();
                 // A training table states its working sets as a count in its own column — "WORKING
                 // SETS: 2" — rather than as one row per set, and a read that returns a single row
@@ -111,6 +137,7 @@ public sealed partial class ImportService(AppDb db, WorkoutAi ai, CatalogService
                     working.InsertRange(0, Enumerable.Repeat(warmup, warmups));
                 }
                 var noteParts = new[] { ImportNormalization.Text(source.Notes, 1000), ImportNormalization.Text(source.CoachingNotes, 1000) }
+                    .Concat(extractedUrls)
                     .Where(value => value is not null).Select(value => value!).ToList();
                 var alternates = ImportNormalization.Alternates(source.Substitutions);
                 // An exercise holds two substitutions. A program that lists four has still said
@@ -118,8 +145,8 @@ public sealed partial class ImportService(AppDb db, WorkoutAi ai, CatalogService
                 // dropped on the floor.
                 var substitutions = alternates.Take(2).ToList();
                 if (alternates.Count > 2) noteParts.Add($"Other alternates: {string.Join(", ", alternates.Skip(2))}");
-                exercises.Add(new DraftExercise(Guid.NewGuid(), ImportNormalization.Label(source.SourceName, 160, "Unnamed exercise"), id, Note(noteParts), working,
-                    ImportNormalization.Text(source.SequenceGroup, 8) ?? "", substitutions, ImportNormalization.Page(source.SourcePage)));
+                exercises.Add(new DraftExercise(Guid.NewGuid(), ImportNormalization.Label(cleanName.Length > 0 ? cleanName : rawName, 160, "Unnamed exercise"), id, Note(noteParts), working,
+                    sequenceGroup, substitutions, ImportNormalization.Page(source.SourcePage)));
             }
         }
         // Weeks, weekdays and page numbers are brought into the range a stored day has rather than
@@ -179,8 +206,18 @@ public sealed partial class ImportService(AppDb db, WorkoutAi ai, CatalogService
             number = (minimum + maximum) / 2;
         else if (!TryFirstNumber(text, out number)) return fallback;
         var lower = text.ToLowerInvariant();
-        // A written rest is stated in seconds, minutes, or occasionally hours. Reading "2 hours"
-        // as two seconds would quietly turn a long rest into none at all.
+        // When the text carries no unit letters the AI's restSeconds is a better authority than
+        // defaulting to seconds, because the model reads document-level context like "REST TIMES
+        // ARE GIVEN IN MINUTES" that this parser cannot see.
+        if (!Regex.IsMatch(text, @"[a-zA-Z]"))
+        {
+            if (fallback is not null) return fallback;
+            // When no fallback exists, small decimal or integer numbers (<= 10) in training tables
+            // represent minutes (e.g. 1.0, 1.5, 2.0, 3.0); resistance rest is never 2 seconds.
+            if (number > 0 && number <= 10)
+                return (int)Math.Round(number * 60, MidpointRounding.AwayFromZero);
+            return (int)Math.Round(number, MidpointRounding.AwayFromZero);
+        }
         var multiplier = lower.Contains("hour") || lower.Contains("hr") ? 3600 : lower.Contains("min") ? 60 : 1;
         return (int)Math.Round(number * multiplier, MidpointRounding.AwayFromZero);
     }

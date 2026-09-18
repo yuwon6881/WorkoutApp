@@ -121,6 +121,52 @@ public sealed class ImportNormalizationTests
     }
 
     [Fact]
+    public async Task A_bare_decimal_rest_with_model_fallback_uses_the_fallback()
+    {
+        await using var h = await Harness.Create(Configured());
+        await h.SignIn();
+        var set = await ReadSet(h, Set("""
+            "restSeconds":90,"restText":"1.5"
+            """.Replace("\n", " ")));
+
+        Assert.Equal(90, set.RestSeconds);
+        Assert.Equal("1.5", set.RestText);
+    }
+
+    [Fact]
+    public async Task A_bare_small_number_rest_without_fallback_assumes_minutes()
+    {
+        await using var h = await Harness.Create(Configured());
+        await h.SignIn();
+        var set = await ReadSet(h, Set("""
+            "restSeconds":null,"restText":"2.0"
+            """.Replace("\n", " ")));
+
+        Assert.Equal(120, set.RestSeconds);
+        Assert.Equal("2.0", set.RestText);
+    }
+
+    [Fact]
+    public async Task A_superset_prefix_and_hyperlink_are_stripped_from_the_exercise_name()
+    {
+        await using var h = await Harness.Create(Configured());
+        await h.SignIn();
+        var exercise = """
+            "sequenceGroup":null,"sourceName":"A1: Barbell bench press https://youtu.be/demo123","exerciseId":null,"notes":null,"sourcePage":1
+            """;
+        var imports = h.Imports(Reading(Outline, Day(exercise, Set("\"tempo\":null"))));
+        var pending = await imports.Create(Source(), default);
+        var ready = await imports.Extract(pending.Id, default);
+
+        Assert.Equal(ImportStatus.Ready, ready.Status);
+        var ex = ready.Draft!.Workouts.Single().Exercises.Single();
+        Assert.Equal("Barbell bench press", ex.SourceName);
+        Assert.Equal("A1", ex.SequenceGroup);
+        Assert.NotNull(ex.Notes);
+        Assert.Contains("https://youtu.be/demo123", ex.Notes);
+    }
+
+    [Fact]
     public async Task An_rpe_off_the_half_point_scale_is_snapped_and_labelled()
     {
         await using var h = await Harness.Create(Configured());

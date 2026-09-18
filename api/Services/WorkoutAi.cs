@@ -35,8 +35,10 @@ public sealed class WorkoutAi(HttpClient http, IConfiguration config)
     /// divided the outline into sections small enough to read whole; v5 asks a table for the
     /// working-set count it states in a column; v6 separates set techniques from movement names
     /// and removes the unused program summary field; v7 removes the unsupported one-repetition-max percentage field;
-    /// v8 makes simple rep bounds and averaged rest ranges explicit extraction rules.
-    public const string PromptVersion = "workout-import-v8-text";
+    /// v8 makes simple rep bounds and averaged rest ranges explicit extraction rules;
+    /// v9 adds APE/LSRPE RPE aliases, dual Early/Last Set RPE columns, Last-Set Intensity
+    /// Technique column routing, rest unit enforcement, and tracking column awareness.
+    public const string PromptVersion = "workout-import-v9-text";
 
     /// One cheap pass over a page-by-page view of the document. Most of a commercial training PDF
     /// is explanation and photography; this pass exists to find the few pages that actually carry

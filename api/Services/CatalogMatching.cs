@@ -30,8 +30,13 @@ internal static class CatalogMatching
     /// document's "Weighted Static Hold" should leave "Machine Chest Press" behind.
     private static readonly string[] TechniquePhrases =
     [
-        "lengthened partials", "lengthened partial", "two drop sets", "drop sets",
-        "weighted static hold", "static hold", "extend set"
+        "lengthened partials", "lengthened partial", "long length partials", "long length partial",
+        "two drop sets", "drop sets", "drop set", "dropset",
+        "weighted static hold", "static hold", "extend set",
+        "myo reps", "myo rep", "myoreps",
+        "integrated partials", "integrated partial",
+        "reverse 21s", "reverse 21 s", "21s", "21 s",
+        "full rom"
     ];
 
     /// The library entry a written name means, or none. Steps are tried in order of how much they
@@ -39,11 +44,14 @@ internal static class CatalogMatching
     /// the whole of it.
     public static Guid? Find(Dictionary<string, Guid> library, string name)
     {
-        if (CatalogService.Normalize(name).Length == 0) return null;
-        // "Your Choice" explicitly means the document leaves the movement to the person. Even if
-        // a generic "Squat" happens to be in a tenant's library, selecting it would erase that
+        var norm = CatalogService.Normalize(name);
+        if (norm.Length == 0) return null;
+        // "Your Choice" and option selectors explicitly mean the document leaves the movement to the person.
+        // Even if a generic "Squat" happens to be in a tenant's library, selecting it would erase that
         // choice and could change the prescribed movement.
-        if (CatalogService.Normalize(name).Contains("your choice", StringComparison.Ordinal)) return null;
+        if (norm.Contains("your choice", StringComparison.Ordinal) ||
+            norm.Contains("weak point", StringComparison.Ordinal) ||
+            norm.Contains("pick one", StringComparison.Ordinal)) return null;
         foreach (var variant in Variants(name))
             if (library.TryGetValue(variant, out var id)) return id;
         foreach (var tail in HeadVariants(name))

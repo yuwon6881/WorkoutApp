@@ -60,9 +60,6 @@ export function DayEditor({ day, exercises, onChange }: {
   return <div className="day-editor">
     {/* A missing weekday is a review issue, so keep the correction beside the day it affects. */}
     <div className="day-editor-fields">
-      <Field className="day-week-field" label="Week" type="number" min="1" max="104" inputMode="numeric" value={draft.week} data-import-field="week"
-        onChange={event => setDraft({ ...draft, week: Number(event.target.value) })}
-        onBlur={() => void onChange(draft)} />
       <Field className="day-name-field" label="Day name" value={draft.name} data-import-field="name"
         onChange={event => setDraft({ ...draft, name: event.target.value })}
         onBlur={() => void onChange(draft)} />
@@ -78,7 +75,7 @@ export function DayEditor({ day, exercises, onChange }: {
         {group.map(exercise => <ExerciseEditor key={exercise.lineId} exercise={exercise} exercises={exercises}
           onChange={next => save({ ...draft, exercises: draft.exercises.map(item => item.lineId === next.lineId ? next : item) })} />)}
       </div>)}
-    {!draft.isRestDay && <Button variant="tertiary" onClick={() => save({ ...draft, exercises: [...draft.exercises, blankExercise()] })}>
+    {!draft.isRestDay && <Button variant="tertiary" className="day-add-exercise-button" onClick={() => save({ ...draft, exercises: [...draft.exercises, blankExercise()] })}>
       <Plus size={16} />Add exercise
     </Button>}
   </div>;

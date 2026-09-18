@@ -76,6 +76,14 @@ public sealed class CatalogMatchingTests
     [InlineData("Pull-Up Lengthened Partials (Wide Grip) (Extend Set)", "Pull-Up")]
     [InlineData("Standing Calf Lengthened Partials Raise (Extend Set)", "Standing Calf Raise")]
     [InlineData("Chest-Supported Two Drop Sets T-Bar Row (~25% per)", "Chest-Supported T-Bar Row")]
+    // Nippard-specific intensity techniques that appear in exercise names or the Last-Set
+    // Intensity Technique column: the underlying movement must still match.
+    [InlineData("Preacher Curl Myo-reps", "Preacher Curl")]
+    [InlineData("Lat Pulldown Long-Length Partials", "Lat Pulldown")]
+    [InlineData("Machine Chest Press Integrated Partials", "Machine Chest Press")]
+    [InlineData("Preacher Curl Reverse 21s", "Preacher Curl")]
+    [InlineData("Dumbbell Incline Press Dropset", "Dumbbell Incline Press")]
+    [InlineData("Squat Full ROM", "Squat")]
     public async Task A_set_technique_does_not_hide_the_movement(string written, string expected)
     {
         var (h, catalog) = await Library();
@@ -99,13 +107,16 @@ public sealed class CatalogMatchingTests
         Assert.Equal(await h.ExerciseId(slug), await catalog.Match(written, default));
     }
 
-    [Fact]
-    public async Task A_choice_label_stays_unresolved_instead_of_picking_a_squat_variant()
+    [Theory]
+    [InlineData("Squat (Your Choice)")]
+    [InlineData("Weak Point Option 1")]
+    [InlineData("Squat (Pick one of the options above)")]
+    public async Task A_choice_or_option_selector_stays_unresolved(string written)
     {
         var (h, catalog) = await Library();
         await using var _h = h;
 
-        Assert.Null(await catalog.Match("Squat (Your Choice)", default));
+        Assert.Null(await catalog.Match(written, default));
     }
 
     private static string Slug(string name) => name switch
