@@ -180,7 +180,10 @@ public sealed class ExerciseService(AppDb db)
             bestE.E1rm, bestE.E1rm is null ? null : bestE.Date, heavy.Load, heavy.Load is null ? null : records.First(x => x.SessionId == heavy.SessionId).Reps,
             heavy.Load is null ? null : heavy.Date, largestSet.Load is null ? null : largestSet.Load.Value * largestSet.Set.Reps!.Value,
             largestSet.Load is null ? null : DateOnly.FromDateTime(largestSet.Session.FinishedAt!.Value), largestSession.Volume,
-            largestSession.Volume is null ? null : largestSession.Date, reps.Set.Reps, reps.Set.Reps is null ? null : DateOnly.FromDateTime(reps.Session.FinishedAt!.Value),
+            largestSession.Volume is null ? null : largestSession.Date,
+            // An exercise can have finished sessions and still no set that states both a load and
+            // reps — every load unknown, for instance — and the empty tuple's Set is null.
+            reps.Set?.Reps, reps.Set?.Reps is null ? null : DateOnly.FromDateTime(reps.Session.FinishedAt!.Value),
             last.Date == default ? null : last.Date, records.Any(x => x.Partial), points, paged, page, size, historyRows.Count,
             externalLoads.Count == 0 ? null : externalLoads.Max(),
             addedLoads.Count == 0 ? null : addedLoads.Max(),
