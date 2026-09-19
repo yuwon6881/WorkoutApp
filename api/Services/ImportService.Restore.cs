@@ -71,7 +71,7 @@ public sealed partial class ImportService
         if (currentDraft is null)
             return (false, []);
 
-        var canRestoreDraft = !string.IsNullOrEmpty(import.DraftBaselineJson) && DraftDiffers(currentDraft, baselineDraft);
+        var canRestoreDraft = DraftDiffers(currentDraft, baselineDraft);
         var restorableIds = new List<Guid>();
 
         var baselineExercises = baselineDraft.Workouts.SelectMany(w => w.Exercises).ToDictionary(e => e.LineId);

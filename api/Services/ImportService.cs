@@ -271,8 +271,10 @@ public sealed partial class ImportService(AppDb db, WorkoutAi ai, CatalogService
         Validation.Require(import!.Status == ImportStatus.Ready, "This import is no longer editable.", 409);
         TemplateService.RequireFresh(revision, import.Revision);
         if (string.IsNullOrEmpty(import.DraftBaselineJson)) import.DraftBaselineJson = import.DraftJson;
-        await ValidateDraft(draft, ct);
-        import.DraftJson = Json.Write(draft); import.Revision++; UpdateCounters(import, draft);
+        var (normalizedWorkouts, _) = ImportValidation.NormalizePhaseWeeks(draft.Workouts);
+        var normalizedDraft = draft with { Workouts = normalizedWorkouts };
+        await ValidateDraft(normalizedDraft, ct);
+        import.DraftJson = Json.Write(normalizedDraft); import.Revision++; UpdateCounters(import, normalizedDraft);
         await db.SaveChangesAsync(ct);
         return await Get(id, ct);
     }

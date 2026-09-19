@@ -70,7 +70,7 @@ export function DayRow({
             <span className="tiny-label rest-badge">Rest day</span>
           ) : (
             <>
-              <Button variant="secondary" className="day-action-button" aria-label={`Edit ${day.name}`} onClick={onToggle}>
+              <Button variant="secondary" className="day-action-button" aria-label={expanded ? `Close editor for ${day.name}` : `Edit ${day.name}`} onClick={onToggle}>
                 <Pencil size={14} /><span>{expanded ? 'Close' : 'Edit'}</span>
               </Button>
               {!expanded && day.exercises.length > 0 && (

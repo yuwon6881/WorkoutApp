@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { AlertTriangle, ArrowLeft, Check, ChevronDown, ChevronRight, Loader2, RotateCcw, Trash2, Upload, Wand2, X } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, ChevronDown, ChevronRight, Loader2, RotateCcw, Trash2, Upload, Wand2, X } from 'lucide-react';
 import type { DraftWorkout, Exercise, ImportDraft, ImportView } from '../types';
 import { ApiError, api } from '../lib/api';
 import { validateDraftWorkout, validateName } from '../lib/validation';
@@ -232,11 +232,6 @@ export function ImportReview({ exercises, imports, remaining, onBack, onChanged,
       <section className="panel" ref={reviewRef}>
         <div className="section-heading import-review-heading">
           <h2>Review</h2>
-          <div className="import-review-actions">
-            {selected.canRestoreDraft && <Button variant="tertiary" disabled={busy} onClick={() => setConfirmRestoreDraft(true)}><RotateCcw size={15} />Restore default draft</Button>}
-            <Button variant="destructive" disabled={busy} onClick={() => pipeline.run('Discarding this draft…', async () => { await api.discardImport(selected.id); setSelected(null); setDraft(null); })}><Trash2 size={15} />Discard draft</Button>
-            <Button variant="primary" disabled={busy || !selected.acceptable} onClick={() => pipeline.run('Creating the program…', async () => { await api.acceptImport(selected.id); setSelected(null); setDraft(null); onBack(); })}><Check size={15} />Accept and create program</Button>
-          </div>
         </div>
         {!selected.acceptable && <p className="muted small-copy import-notice-copy" role="status">The program can be created after every review item is resolved.</p>}
         <Field label="Program name" name="import-program-name" value={draft.programName} onChange={e => setDraft({ ...draft, programName: e.target.value })} onBlur={() => void persist(draft)} />
@@ -275,7 +270,25 @@ export function ImportReview({ exercises, imports, remaining, onBack, onChanged,
           </div>
         </details> : null}
       </section>
-      {draft.workouts.length > 0 ? <DraftOutline ref={outlineRef} draft={draft} expandedDay={expandedDay} setExpandedDay={setExpandedDay} exercises={exercises} onDayChange={persistDay} onDraftChange={persist} restorableExerciseLineIds={selected.restorableExerciseLineIds} onRestoreExercise={handleRestoreExercise} />
+      {draft.workouts.length > 0 ? (
+        <DraftOutline
+          ref={outlineRef}
+          draft={draft}
+          expandedDay={expandedDay}
+          setExpandedDay={setExpandedDay}
+          exercises={exercises}
+          onDayChange={persistDay}
+          onDraftChange={persist}
+          restorableExerciseLineIds={selected.restorableExerciseLineIds}
+          onRestoreExercise={handleRestoreExercise}
+          canRestoreDraft={selected.canRestoreDraft}
+          acceptable={selected.acceptable}
+          busy={busy}
+          onRestoreDraft={() => setConfirmRestoreDraft(true)}
+          onDiscardDraft={() => pipeline.run('Discarding this draft…', async () => { await api.discardImport(selected.id); setSelected(null); setDraft(null); })}
+          onAcceptProgram={() => pipeline.run('Creating the program…', async () => { await api.acceptImport(selected.id); setSelected(null); setDraft(null); onBack(); })}
+        />
+      )
         : <section className="panel"><div className="empty-message"><AlertTriangle size={30} /><h3>No extracted days</h3><p>The draft needs at least one training or rest day.</p></div></section>}
       {confirmRestoreDraft && <Modal title="Restore default draft" onClose={() => !isRestoringDraft && setConfirmRestoreDraft(false)}>
         <div className="modal-body" aria-busy={isRestoringDraft}>

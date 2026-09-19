@@ -1,21 +1,21 @@
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
-import { CalendarDays, Plus, Trash2 } from 'lucide-react';
-import type { DraftExercise, DraftSet, DraftWorkout, Exercise, ImportDraft } from '../types';
+import { CalendarDays, Check, Plus, RotateCcw, Trash2 } from 'lucide-react';
+import type { DraftWorkout, Exercise, ImportDraft } from '../types';
 import { Button } from './ui/Button';
 import { Modal } from './ui/Modal';
 import { ChipScroller } from './ui/ChipScroller';
 import { AddWeekModal, type AddWeekMode } from './AddWeekModal';
 import { SortableWeekChip } from './SortableWeekChip';
 import { DayRow } from './ImportDayRow';
-
-type Week = {
-  week: number;
-  sourceWeek: number;
-  days: DraftWorkout[];
-  block: string;
-  phases: string[];
-  pages: number[];
-};
+import {
+  type Week,
+  blockIndex,
+  cloneWeekDays,
+  emptyWeekDay,
+  groupWeeks,
+  renumberDraft,
+  weekCaption
+} from '../lib/importDraftWeeks';
 
 export type ImportIssueTarget = {
   sourcePage?: number | null;
@@ -29,136 +29,6 @@ export type DraftOutlineHandle = {
   focusIssue: (target: ImportIssueTarget) => void;
 };
 
-function sourcePages(days: DraftWorkout[]): number[] {
-  const pages = days.flatMap(day => [
-    day.sourcePage,
-    ...day.exercises.flatMap(exercise => [exercise.sourcePage, ...exercise.sets.map(set => set.sourcePage)])
-  ]);
-  return [...new Set(pages.filter((page): page is number => page != null))].sort((left, right) => left - right);
-}
-
-function groupWeeks(draft: ImportDraft): Week[] {
-  const grouped = new Map<number, Week>();
-  for (const day of draft.workouts) {
-    const current = grouped.get(day.week);
-    if (current) {
-      current.days.push(day);
-      if (day.phase && !current.phases.includes(day.phase)) current.phases.push(day.phase);
-      continue;
-    }
-    grouped.set(day.week, {
-      week: day.week,
-      sourceWeek: day.week,
-      days: [day],
-      block: day.block || 'Program',
-      phases: day.phase ? [day.phase] : [],
-      pages: []
-    });
-  }
-  return [...grouped.values()]
-    .sort((left, right) => left.week - right.week)
-    .map((week, index) => ({
-      ...week,
-      sourceWeek: week.week,
-      week: index + 1,
-      pages: sourcePages(week.days)
-    }));
-}
-
-function renumberDraft(draft: ImportDraft, orderedWeeks: Week[]): ImportDraft {
-  const phasePositions = new Map<string, { week: number; position: number }>();
-  const workouts = orderedWeeks.flatMap((entry, index) => entry.days.map(day => {
-    const week = index + 1;
-    if (!day.phase) return { ...day, week };
-    const key = `${day.block?.trim() ?? ''}\u001f${day.phase.trim()}`;
-    const previous = phasePositions.get(key);
-    const position = previous?.week === week ? previous.position : (previous?.position ?? 0) + 1;
-    phasePositions.set(key, { week, position });
-    return { ...day, week, phaseWeek: position };
-  }));
-  return { ...draft, workouts };
-}
-
-function cloneSet(set: DraftSet): DraftSet {
-  return {
-    ...set,
-    sourcePage: null,
-    repsSource: 'userEdited',
-    rpeSource: 'userEdited',
-    restSource: 'userEdited'
-  };
-}
-
-function cloneExercise(exercise: DraftExercise): DraftExercise {
-  return { ...exercise, lineId: crypto.randomUUID(), sourcePage: null, sets: exercise.sets.map(cloneSet) };
-}
-
-function cloneWeekDays(days: DraftWorkout[], week: number): DraftWorkout[] {
-  return days.map(day => ({
-    ...day,
-    lineId: crypto.randomUUID(),
-    week,
-    phaseWeek: day.phaseWeek + 1,
-    sourcePage: null,
-    exercises: day.exercises.map(cloneExercise)
-  }));
-}
-
-function emptyWeekDay(week: number, latest: Week | undefined): DraftWorkout {
-  return {
-    lineId: crypto.randomUUID(),
-    week,
-    name: 'New day',
-    focus: null,
-    notes: null,
-    exercises: [blankExercise()],
-    block: latest?.block ?? 'Program',
-    phase: latest?.phases[0] ?? null,
-    phaseWeek: (latest?.days[0]?.phaseWeek ?? 0) + 1,
-    isRestDay: false,
-    weekday: null,
-    sourcePage: null
-  };
-}
-
-function blankExercise(): DraftExercise {
-  const set: DraftSet = {
-    repMin: 8,
-    repMax: 12,
-    targetRpe: 8,
-    restSeconds: 90,
-    tempo: null,
-    loadText: null,
-    notes: null,
-    repsSource: 'userEdited',
-    rpeSource: 'userEdited',
-    restSource: 'userEdited',
-    repsText: null,
-    restText: null,
-    rir: null,
-    warmup: false
-  };
-  return { lineId: crypto.randomUUID(), sourceName: 'New exercise', exerciseId: null, notes: null, sets: [set], sequenceGroup: '', substitutions: [] };
-}
-
-function blockIndex(weeks: Week[], index: number): number {
-  let result = 0;
-  let previous = '';
-  for (let current = 0; current <= index; current++) {
-    if (weeks[current].block !== previous) {
-      result++;
-      previous = weeks[current].block;
-    }
-  }
-  return result;
-}
-
-
-function weekCaption(week: Week, number: number): string {
-  const phase = week.phases.join(' / ') || 'General';
-  return [`Block ${number}`, phase].filter(Boolean).join(' · ');
-}
-
 export const DraftOutline = forwardRef<DraftOutlineHandle, {
   draft: ImportDraft;
   expandedDay: string | null;
@@ -168,7 +38,28 @@ export const DraftOutline = forwardRef<DraftOutlineHandle, {
   onDraftChange: (draft: ImportDraft) => Promise<void>;
   restorableExerciseLineIds?: string[];
   onRestoreExercise?: (exerciseLineId: string) => Promise<void>;
-}>(function DraftOutline({ draft, expandedDay, setExpandedDay, exercises, onDayChange, onDraftChange, restorableExerciseLineIds, onRestoreExercise }, ref) {
+  canRestoreDraft?: boolean;
+  acceptable?: boolean;
+  busy?: boolean;
+  onRestoreDraft?: () => void;
+  onDiscardDraft?: () => void;
+  onAcceptProgram?: () => void;
+}>(function DraftOutline({
+  draft,
+  expandedDay,
+  setExpandedDay,
+  exercises,
+  onDayChange,
+  onDraftChange,
+  restorableExerciseLineIds,
+  onRestoreExercise,
+  canRestoreDraft,
+  acceptable,
+  busy,
+  onRestoreDraft,
+  onDiscardDraft,
+  onAcceptProgram
+}, ref) {
   const weeks = useMemo(() => groupWeeks(draft), [draft]);
   const [selectedWeek, setSelectedWeek] = useState(weeks[0]?.week ?? 1);
   const [weekModalOpen, setWeekModalOpen] = useState(false);
@@ -381,11 +272,32 @@ export const DraftOutline = forwardRef<DraftOutlineHandle, {
       <div className="import-program-title">
         <span className="import-program-icon" aria-hidden="true"><CalendarDays size={18} /></span>
         <div>
-          <span className="import-program-kicker">Program timeline</span>
+          <span className="import-program-kicker">Program timeline · {weeks.length} {weeks.length === 1 ? 'week' : 'weeks'}</span>
           <h2>{draft.programName}</h2>
         </div>
       </div>
-      <span className="import-week-count">{weeks.length} {weeks.length === 1 ? 'week' : 'weeks'}</span>
+      <div className="import-program-actions">
+        {canRestoreDraft && onRestoreDraft && (
+          <Button variant="tertiary" disabled={busy} onClick={onRestoreDraft}>
+            <RotateCcw size={15} />Restore default draft
+          </Button>
+        )}
+        {onDiscardDraft && (
+          <Button variant="destructive" disabled={busy} onClick={onDiscardDraft}>
+            <Trash2 size={15} />Discard draft
+          </Button>
+        )}
+        {onAcceptProgram && (
+          <Button
+            variant="primary"
+            disabled={busy || !acceptable}
+            title={!acceptable ? 'Resolve review items before creating the program' : undefined}
+            onClick={onAcceptProgram}
+          >
+            <Check size={15} />Accept and create program
+          </Button>
+        )}
+      </div>
     </div>
     {blocks.length > 1 && <div className="import-block-selector" role="tablist" aria-label="Program blocks">
       {blocks.map(b => {
