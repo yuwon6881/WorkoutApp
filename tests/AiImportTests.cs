@@ -94,7 +94,6 @@ public class AiImportTests
         Assert.Empty(ready.Unresolved);
         var exercise = ready.Draft!.Workouts.Single().Exercises.Single();
         Assert.Equal("A1", exercise.SequenceGroup);
-        Assert.Equal(1, ready.Draft.Workouts.Single().Weekday);
         Assert.Equal(3, exercise.SourcePage);
         Assert.Equal(["Seated leg curl", "Nordic curl"], exercise.Substitutions);
         Assert.Equal(3, exercise.Sets.Count);
@@ -109,7 +108,7 @@ public class AiImportTests
         // accepting removes the import row.
         Assert.Equal(2, (await h.Db.Imports.AsNoTracking().SingleAsync()).Calls);
 
-        var program = await imports.Accept(ready.Id, "Asia/Kuala_Lumpur", default);
+        var program = await imports.Accept(ready.Id, default);
         var workout = Assert.Single(program.Workouts);
         Assert.Equal("Block 1", workout.Block);
         Assert.Equal("Base Hypertrophy", workout.Phase);
@@ -122,7 +121,6 @@ public class AiImportTests
         Assert.Equal(3, workout.Exercises.Single().Sets[2].SourcePage);
         Assert.False(program.Active);
         Assert.Equal(ProgramLifecycle.Standby, program.LifecycleStatus);
-        Assert.Equal("Asia/Kuala_Lumpur", program.TimeZone);
         Assert.Empty(await h.Db.Imports.AsNoTracking().ToListAsync());
     }
 
@@ -158,7 +156,6 @@ public class AiImportTests
         {
             Workouts = [workout with
             {
-                Weekday = 1,
                 Exercises = [exercise with
                 {
                     Sets = [exercise.Sets[0] with { TargetRpe = 8, RestSeconds = 120, RpeSource = "userEdited", RestSource = "userEdited" }]

@@ -9,8 +9,6 @@ public record PreferencesInput(string Unit, string Theme, int? RestSeconds = nul
 public record StartInput(Guid? TemplateId, string? Name);
 public record FinishInput(int? Revision, bool RetainExerciseSwaps = false);
 public record ActivateInput(bool Active, int? Revision);
-public record ScheduleInput(DateOnly Anchor, List<ScheduleSlot> Slots, int? Revision);
-public record RepeatProgramInput(string? TimeZone);
 public record TemplateRestoreInput(int? Revision = null, Guid? IdempotencyId = null);
 
 public static class TrainingEndpoints
@@ -114,14 +112,12 @@ public static class TrainingEndpoints
         app.MapGet("/api/programs/{id:guid}", async (Guid id, ProgramService programs, CancellationToken ct) => await programs.Get(id, ct));
         app.MapPost("/api/programs", async (ProgramInput input, ProgramService programs, CancellationToken ct) => await programs.Create(input, activate: true, sourceImportId: null, ct));
         app.MapPost("/api/programs/{id:guid}/active", async (Guid id, ActivateInput input, ProgramService programs, CancellationToken ct) => await programs.SetActive(id, input.Active, input.Revision, ct));
-        app.MapPost("/api/programs/{id:guid}/schedule", async (Guid id, ScheduleInput input, ProgramService programs, CancellationToken ct)
-            => await programs.Schedule(id, input.Anchor, input.Slots, input.Revision, ct));
         app.MapPost("/api/programs/{id:guid}/workouts/{templateId:guid}/skip", async (Guid id, Guid templateId, ProgramService programs, CancellationToken ct)
             => await programs.Skip(id, templateId, ct));
         app.MapDelete("/api/programs/{id:guid}/workouts/{templateId:guid}/skip", async (Guid id, Guid templateId, ProgramService programs, CancellationToken ct)
             => await programs.Unskip(id, templateId, ct));
-        app.MapPost("/api/programs/{id:guid}/repeat", async (Guid id, RepeatProgramInput? input, ProgramService programs, CancellationToken ct)
-            => await programs.Repeat(id, input?.TimeZone, ct));
+        app.MapPost("/api/programs/{id:guid}/repeat", async (Guid id, ProgramService programs, CancellationToken ct)
+            => await programs.Repeat(id, ct));
         app.MapDelete("/api/programs/{id:guid}", async (Guid id, ProgramService programs, CancellationToken ct) =>
         { await programs.Delete(id, ct); return Results.NoContent(); });
     }
@@ -150,8 +146,8 @@ public static class TrainingEndpoints
         { await workouts.DeleteFromHistory(id, ct); return Results.NoContent(); });
         app.MapGet("/api/history", async (int? page, int? size, WorkoutService workouts, CancellationToken ct) => await workouts.History(page ?? 0, size ?? 20, ct));
         app.MapGet("/api/progress", async (AppDb db, WorkoutService workouts, CancellationToken ct) => await Progress(db, workouts, ct));
-        app.MapGet("/api/workouts/schedule", async (DateOnly? from, DateOnly? to, WorkoutService workouts, CancellationToken ct)
-            => await workouts.TrainingSummary(from, to, ct));
+        app.MapGet("/api/workouts/activity", async (DateOnly? from, DateOnly? to, string? timeZone, WorkoutService workouts, CancellationToken ct)
+            => await workouts.Activity(from, to, timeZone, ct));
     }
 
     /// Per-exercise bests and recent volume, read from completed sets only.

@@ -21,17 +21,6 @@ import {
   applySetType
 } from '../lib/importSetTypes';
 
-const weekdayOptions = [
-  { value: '', label: 'Choose a weekday' },
-  { value: '1', label: 'Monday' },
-  { value: '2', label: 'Tuesday' },
-  { value: '3', label: 'Wednesday' },
-  { value: '4', label: 'Thursday' },
-  { value: '5', label: 'Friday' },
-  { value: '6', label: 'Saturday' },
-  { value: '7', label: 'Sunday' }
-];
-
 export function exerciseSummary(exercise: DraftExercise): string {
   const working = exercise.sets.filter(set => !set.warmup);
   const prescribed = working.length ? working : exercise.sets;
@@ -100,15 +89,10 @@ export function DayEditor({ day, exercises, onChange, onPropagateSubstitution, r
   };
 
   return <div className="day-editor">
-    {/* A missing weekday is a review issue, so keep the correction beside the day it affects. */}
     <div className="day-editor-fields">
       <Field name={`day-name-${draft.lineId}`} className="day-name-field" label="Day name" value={draft.name} data-import-field="name"
         onChange={event => setDraft({ ...draft, name: event.target.value })}
         onBlur={() => void onChange(draft)} />
-      <label className="field day-weekday-field" data-import-field="weekday"><span>Weekday</span>
-        <Select name={`weekday-${draft.lineId}`} ariaLabel={`Weekday for ${draft.name}`} value={draft.weekday == null ? '' : String(draft.weekday)}
-          options={weekdayOptions} onChange={value => save({ ...draft, weekday: value === '' ? null : Number(value) })} />
-      </label>
     </div>
     {draft.isRestDay
       ? <div className="rest-callout"><span className="tiny-label">Rest day</span><p>No exercises are scheduled for this slot.</p></div>

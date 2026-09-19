@@ -1,5 +1,5 @@
 import type { PdfExtraction } from './pdfText';
-import type { Bootstrap, DraftWorkout, ExerciseClearPreview, ExerciseInsight, HistoryPage, ImportDraft, ImportView, Preferences, ProgressSummary, Program, ProgramSummary, Session, Template, SubstitutionCandidate, TemplateSubstitutionResult, WorkoutTrainingSummary } from '../types';
+import type { Bootstrap, DraftWorkout, ExerciseClearPreview, ExerciseInsight, HistoryPage, ImportDraft, ImportView, Preferences, ProgressSummary, Program, ProgramSummary, Session, Template, SubstitutionCandidate, TemplateSubstitutionResult, WorkoutActivityItem } from '../types';
 
 export class ApiError extends Error {
   constructor(message: string, readonly status: number) { super(message); }
@@ -53,7 +53,11 @@ export const api = {
   logout: () => call<void>('/api/auth/logout', 'POST'),
 
   bootstrap: (signal?: AbortSignal) => call<Bootstrap>('/api/bootstrap', 'GET', undefined, signal),
-  schedule: (from: string, to: string, signal?: AbortSignal) => call<WorkoutTrainingSummary[]>(`/api/workouts/schedule?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`, 'GET', undefined, signal),
+  activity: (from: string, to: string, timeZoneOrSignal?: string | AbortSignal, signal?: AbortSignal) => {
+    const timeZone = typeof timeZoneOrSignal === 'string' ? timeZoneOrSignal : Intl.DateTimeFormat().resolvedOptions().timeZone;
+    const sig = timeZoneOrSignal instanceof AbortSignal ? timeZoneOrSignal : signal;
+    return call<WorkoutActivityItem[]>(`/api/workouts/activity?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}&timeZone=${encodeURIComponent(timeZone)}`, 'GET', undefined, sig);
+  },
   preferences: (input: Preferences) => call<Preferences>('/api/preferences', 'PUT', input),
   substitutionCandidates: (input: { exerciseId?: string | null; name?: string; imported?: string[]; query?: string } = {}) => {
     const params = new URLSearchParams(); if (input.exerciseId) params.set('exerciseId', input.exerciseId); if (input.name) params.set('name', input.name);
@@ -80,11 +84,10 @@ export const api = {
   programs: () => call<ProgramSummary[]>('/api/programs'),
   getProgram: (id: string) => call<Program>(`/api/programs/${id}`),
   createProgram: (input: unknown) => call<Program>('/api/programs', 'POST', input),
-  scheduleProgram: (id: string, input: { anchor: string; slots: { templateId: string; weekday: number }[]; revision: number }) => call<Program>(`/api/programs/${id}/schedule`, 'POST', input),
   setProgramActive: (id: string, active: boolean, revision: number) => call<Program>(`/api/programs/${id}/active`, 'POST', { active, revision }),
   skipProgramWorkout: (id: string, templateId: string) => call<Program>(`/api/programs/${id}/workouts/${templateId}/skip`, 'POST'),
   unskipProgramWorkout: (id: string, templateId: string) => call<Program>(`/api/programs/${id}/workouts/${templateId}/skip`, 'DELETE'),
-  repeatProgram: (id: string) => call<Program>(`/api/programs/${id}/repeat`, 'POST', { timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone }),
+  repeatProgram: (id: string) => call<Program>(`/api/programs/${id}/repeat`, 'POST'),
   deleteProgram: (id: string) => call<void>(`/api/programs/${id}`, 'DELETE'),
 
   activeWorkout: () => call<Session | null>('/api/workouts/active'),
@@ -115,6 +118,6 @@ export const api = {
   restoreImport: (id: string, revision?: number) => call<ImportView>(`/api/imports/${id}/restore`, 'POST', { revision }),
   restoreImportExercise: (id: string, exerciseLineId: string, revision?: number) => call<ImportView>(`/api/imports/${id}/exercises/${exerciseLineId}/restore`, 'POST', { revision }),
   selectImportAlternative: (id: string, alternativeId: string) => call<ImportView>(`/api/imports/${id}/alternative`, 'POST', { alternativeId }),
-  acceptImport: (id: string) => call<Program>(`/api/imports/${id}/accept`, 'POST', { timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone }),
+  acceptImport: (id: string) => call<Program>(`/api/imports/${id}/accept`, 'POST'),
   discardImport: (id: string) => call<void>(`/api/imports/${id}/discard`, 'POST')
 };

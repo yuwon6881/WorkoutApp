@@ -385,9 +385,9 @@ input::file-selector-button{font-size:var(--font-secondary)!important}
 .day{width:100%;min-height:44px;background:transparent;color:var(--text);font:inherit;cursor:pointer}
 .day:hover{background:var(--surface-hover)}
 .legend-dot{width:8px;height:8px;border-radius:50%;display:inline-block;background:var(--border)}
-.legend-dot.scheduled{border:1px solid var(--blue);background:transparent}.legend-dot.completed{background:var(--green)}.legend-dot.shifted{background:var(--teal)}.legend-dot.missed{background:var(--red)}.legend-dot.skipped{background:var(--amber)}.legend-dot.in-progress{background:var(--amber)}
+.legend-dot.completed{background:var(--green)}.legend-dot.in-progress{background:var(--amber)}
 .calendar-error{margin-top:8px;font-size:14px}
-.day-scheduled .day-marker{color:var(--blue)}.day-completed .day-marker{color:var(--green)}.day-completed_shifted .day-marker{color:var(--teal)}.day-missed .day-marker{color:var(--red)}.day-skipped .day-marker{color:var(--amber)}.day-in_progress .day-marker{color:var(--amber)}
+.day-completed .day-marker{color:var(--green)}.day-in_progress .day-marker{color:var(--amber)}
 .overview-phase{margin-top:18px;padding:12px;background:var(--surface-raised);border-radius:8px}
 .calendar-day-details{gap:0}
 .calendar-entry{display:flex;justify-content:space-between;align-items:center;gap:14px;padding:12px 0;border-bottom:1px solid var(--border)}

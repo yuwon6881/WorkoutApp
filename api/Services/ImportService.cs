@@ -44,7 +44,7 @@ public sealed partial class ImportService(AppDb db, WorkoutAi ai, CatalogService
         var issues = includeDraft && draft is not null ? ReviewIssues(draft) : [];
         // Reading notes are recorded as the import runs and are as much a part of the review as
         // the issues derived from the draft, so both reach the panel through one list.
-        issues = [.. ReadNotices(import.NoticesJson), .. issues];
+        issues = [.. FilterNotices(ReadNotices(import.NoticesJson), draft), .. issues];
         var coverage = string.IsNullOrWhiteSpace(import.PageCoverageJson) ? [] : Json.Read<List<PdfPageCoverage>>(import.PageCoverageJson);
         var alternatives = string.IsNullOrWhiteSpace(import.AlternativesJson) ? [] : Json.Read<List<ImportAlternative>>(import.AlternativesJson);
         var acceptable = import.Status == ImportStatus.Ready && unresolved.Count == 0 && issues.All(i => i.Severity == "info");
@@ -75,7 +75,7 @@ public sealed partial class ImportService(AppDb db, WorkoutAi ai, CatalogService
         if (program.Days is { } days)
         {
             foreach (var day in days)
-                workouts.Add(ToDraftWorkout(day.Block, day.Phase, day.WeekNumber, day.PhaseWeek, day.DayName, day.IsRestDay, day.Notes, day.Exercises, active, library, canonicalNames, weekday: day.Weekday, sourcePage: day.SourcePage));
+                workouts.Add(ToDraftWorkout(day.Block, day.Phase, day.WeekNumber, day.PhaseWeek, day.DayName, day.IsRestDay, day.Notes, day.Exercises, active, library, canonicalNames, sourcePage: day.SourcePage));
         }
         else
         {
@@ -88,7 +88,7 @@ public sealed partial class ImportService(AppDb db, WorkoutAi ai, CatalogService
 
     private static DraftWorkout ToDraftWorkout(string? block, string? phase, int week, int phaseWeek, string name, bool restDay,
         string? notes, List<AiExercise>? sourceExercises, HashSet<Guid> active, Dictionary<string, Guid> library,
-        Dictionary<Guid, string> canonicalNames, string? focus = null, int? weekday = null, int? sourcePage = null)
+        Dictionary<Guid, string> canonicalNames, string? focus = null, int? sourcePage = null)
     {
         var exercises = new List<DraftExercise>();
         if (!restDay)
@@ -171,7 +171,7 @@ public sealed partial class ImportService(AppDb db, WorkoutAi ai, CatalogService
         return new DraftWorkout(Guid.NewGuid(), storedWeek, ImportNormalization.Label(name, 120, $"Week {storedWeek} day"),
             ImportNormalization.Text(focus, 120), ImportNormalization.Text(notes, 2000), exercises,
             ImportNormalization.Text(block, 80), ImportNormalization.Text(phase, 120), ImportNormalization.Week(phaseWeek), restDay,
-            ImportNormalization.Weekday(weekday), ImportNormalization.Page(sourcePage));
+            ImportNormalization.Page(sourcePage));
     }
 
     /// Joins what an exercise's note is made of, within the length a note can hold. Trimming the
@@ -330,9 +330,7 @@ public sealed partial class ImportService(AppDb db, WorkoutAi ai, CatalogService
     }
 
     /// Acceptance is all-or-nothing: the review must have no unresolved mappings or document issues.
-    public Task<ProgramView> Accept(Guid id, CancellationToken ct) => Accept(id, null, ct);
-
-    public async Task<ProgramView> Accept(Guid id, string? timeZone, CancellationToken ct)
+    public async Task<ProgramView> Accept(Guid id, CancellationToken ct)
     {
         await using var gate = await MutationLock.Acquire(db, db.CurrentUser, ct);
         var import = await db.Imports.SingleOrDefaultAsync(i => i.Id == id, ct);
@@ -342,7 +340,7 @@ public sealed partial class ImportService(AppDb db, WorkoutAi ai, CatalogService
         await ValidateDraft(draft, ct);
         ValidateDraftPages(draft, import.PageCoverageJson);
         var unresolved = Unresolved(draft);
-        List<ImportReviewIssue> issues = [.. ReadNotices(import.NoticesJson), .. ReviewIssues(draft)];
+        List<ImportReviewIssue> issues = [.. FilterNotices(ReadNotices(import.NoticesJson), draft), .. ReviewIssues(draft)];
         var actionable = issues.Where(i => i.Severity != "info").ToList();
         Validation.Require(unresolved.Count == 0 && actionable.Count == 0,
             "Resolve every exercise mapping and review issue before creating this program.", 409);
@@ -350,9 +348,9 @@ public sealed partial class ImportService(AppDb db, WorkoutAi ai, CatalogService
             draft.Workouts.Select(w => new ProgramWorkoutInput(w.Week, w.Name, w.Focus, w.Notes,
                 w.Exercises.Select(e => new TemplateExerciseInput(e.ExerciseId, e.SourceName, e.Notes,
                     e.Sets.Select(ToPrescription).ToList(), e.SequenceGroup, e.Substitutions, e.SourcePage)).ToList(),
-                w.Block, w.Phase, w.PhaseWeek, w.IsRestDay, w.Weekday, w.SourcePage)).ToList(), null, null, timeZone);
+                w.Block, w.Phase, w.PhaseWeek, w.IsRestDay, w.SourcePage)).ToList(), null);
         await programs.Validate(input, ct, allowMissingWorkingRpe: true);
-        // Imported drafts always enter Standby. Even a fully scheduled PDF must be explicitly
+        // Imported drafts always enter Standby. Even a completed PDF must be explicitly
         // activated by the user so a mistaken import never displaces the current program.
         var program = await programs.Materialize(input, activate: false, sourceImportId: import.Id, ct);
         // An import is working state, not history. Once its program exists the row has nothing
@@ -430,6 +428,16 @@ public sealed partial class ImportService(AppDb db, WorkoutAi ai, CatalogService
         => ImportDayShape.Reconcile(days);
 
     private static List<ImportReviewIssue> ReadNotices(string json) => ImportValidation.ReadNotices(json);
+
+    private static List<ImportReviewIssue> FilterNotices(IEnumerable<ImportReviewIssue> notices, ImportDraft? draft)
+    {
+        if (draft is null) return notices.ToList();
+        var workoutIds = draft.Workouts.Select(w => w.LineId).ToHashSet();
+        var exerciseIds = draft.Workouts.SelectMany(w => w.Exercises).Select(e => e.LineId).ToHashSet();
+        return notices.Where(n =>
+            (n.WorkoutLineId == null || workoutIds.Contains(n.WorkoutLineId.Value)) &&
+            (n.ExerciseLineId == null || exerciseIds.Contains(n.ExerciseLineId.Value))).ToList();
+    }
 
     private void UpdateCounters(AiImport import, ImportDraft draft)
     {

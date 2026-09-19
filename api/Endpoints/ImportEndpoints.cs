@@ -10,8 +10,6 @@ namespace Workout.Api.Endpoints;
 
 public static class ImportEndpoints
 {
-    public record AcceptImportInput(string? TimeZone);
-
     /// The browser sends the text it read from the PDF, not the PDF. Even a large book's text
     /// layer compresses to a small request, so the body is bounded here twice: once against the
     /// bytes actually received and once against what they expand to, so a crafted archive cannot
@@ -87,16 +85,8 @@ public static class ImportEndpoints
             => await imports.RestoreExercise(id, exerciseLineId, input?.Revision, ct));
         app.MapPost("/api/imports/{id:guid}/alternative", async (Guid id, ImportAlternativeInput input, ImportService imports, CancellationToken ct)
             => await imports.SelectAlternative(id, input.AlternativeId, ct));
-        app.MapPost("/api/imports/{id:guid}/accept", async (Guid id, HttpRequest request, ImportService imports, CancellationToken ct) =>
-        {
-            string? timeZone = null;
-            if (request.HasJsonContentType())
-            {
-                var input = await request.ReadFromJsonAsync<AcceptImportInput>(ct);
-                timeZone = input?.TimeZone;
-            }
-            return await imports.Accept(id, timeZone, ct);
-        });
+        app.MapPost("/api/imports/{id:guid}/accept", async (Guid id, ImportService imports, CancellationToken ct) =>
+            await imports.Accept(id, ct));
         app.MapPost("/api/imports/{id:guid}/discard", async (Guid id, ImportService imports, CancellationToken ct) =>
         { await imports.Discard(id, ct); return Results.NoContent(); });
     }

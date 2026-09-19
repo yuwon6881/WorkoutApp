@@ -181,10 +181,6 @@ public sealed class ImportReconciliationTests
         Assert.Equal(2, ready.Draft!.Workouts.Count);
         var notice = Assert.Single(ready.ReviewIssues!, issue => issue.Code == "repeated_day");
         Assert.Contains("delete one in the review", notice.Message);
-        // Both cannot hold the same weekday, so the repeat gives up the one it claimed and takes
-        // its place in the week's order instead.
-        Assert.Single(ready.ReviewIssues!, issue => issue.Code == "weekday_taken");
-        Assert.Equal([1, 2], ready.Draft.Workouts.Select(day => day.Weekday));
     }
 
     [Fact]
@@ -226,5 +222,116 @@ public sealed class ImportReconciliationTests
         Assert.Single(ready.Draft!.Workouts);
         var notice = Assert.Single(ready.ReviewIssues!, issue => issue.Code == "duplicate_day_dropped");
         Assert.Contains("kept once", notice.Message);
+    }
+
+    [Fact]
+    public void Trailing_rest_rows_beyond_seven_days_are_discarded()
+    {
+        var days = Enumerable.Range(1, 7)
+            .Select(i => new DraftWorkout(Guid.NewGuid(), 1, $"Day {i}", null, null,
+                [new DraftExercise(Guid.NewGuid(), "Bench", null, null, [new DraftSet(5, 8, 8, 120, null, null, null)], "A1", [], 1)],
+                Block: "Block 1", Phase: "Phase 1"))
+            .ToList();
+        var rest1 = new DraftWorkout(Guid.NewGuid(), 1, "Rest 1", null, null, [], Block: "Block 1", Phase: "Phase 1", IsRestDay: true);
+        var rest2 = new DraftWorkout(Guid.NewGuid(), 1, "Rest 2", null, null, [], Block: "Block 1", Phase: "Phase 1", IsRestDay: true);
+        days.Add(rest1);
+        days.Add(rest2);
+
+        var (workouts, notices) = ImportDayShape.Reconcile(days);
+
+        Assert.Equal(7, workouts.Count);
+        Assert.All(workouts, w => Assert.False(w.IsRestDay));
+        Assert.DoesNotContain(notices, n => n.Code == "week_day_overflow");
+    }
+
+    [Fact]
+    public void Trailing_rest_rows_beyond_seven_days_preserve_source_order_and_first_seven_rows()
+    {
+        var d1 = new DraftWorkout(Guid.NewGuid(), 1, "Day 1", null, null, [new DraftExercise(Guid.NewGuid(), "Squat", null, null, [new DraftSet(5, 8, 8, 120, null, null, null)], "A1", [], 1)], Block: "B", Phase: "P");
+        var r1 = new DraftWorkout(Guid.NewGuid(), 1, "Rest 1", null, null, [], Block: "B", Phase: "P", IsRestDay: true);
+        var d2 = new DraftWorkout(Guid.NewGuid(), 1, "Day 2", null, null, [new DraftExercise(Guid.NewGuid(), "Bench", null, null, [new DraftSet(5, 8, 8, 120, null, null, null)], "A1", [], 1)], Block: "B", Phase: "P");
+        var r2 = new DraftWorkout(Guid.NewGuid(), 1, "Rest 2", null, null, [], Block: "B", Phase: "P", IsRestDay: true);
+        var d3 = new DraftWorkout(Guid.NewGuid(), 1, "Day 3", null, null, [new DraftExercise(Guid.NewGuid(), "Row", null, null, [new DraftSet(5, 8, 8, 120, null, null, null)], "A1", [], 1)], Block: "B", Phase: "P");
+        var d4 = new DraftWorkout(Guid.NewGuid(), 1, "Day 4", null, null, [new DraftExercise(Guid.NewGuid(), "Press", null, null, [new DraftSet(5, 8, 8, 120, null, null, null)], "A1", [], 1)], Block: "B", Phase: "P");
+        var d5 = new DraftWorkout(Guid.NewGuid(), 1, "Day 5", null, null, [new DraftExercise(Guid.NewGuid(), "Deadlift", null, null, [new DraftSet(5, 8, 8, 120, null, null, null)], "A1", [], 1)], Block: "B", Phase: "P");
+        var trailingRest1 = new DraftWorkout(Guid.NewGuid(), 1, "Rest 3", null, null, [], Block: "B", Phase: "P", IsRestDay: true);
+        var trailingRest2 = new DraftWorkout(Guid.NewGuid(), 1, "Rest 4", null, null, [], Block: "B", Phase: "P", IsRestDay: true);
+
+        var (workouts, notices) = ImportDayShape.Reconcile([d1, r1, d2, r2, d3, d4, d5, trailingRest1, trailingRest2]);
+
+        Assert.Equal(7, workouts.Count);
+        Assert.Equal(["Day 1", "Rest 1", "Day 2", "Rest 2", "Day 3", "Day 4", "Day 5"], workouts.Select(w => w.Name));
+        Assert.DoesNotContain(notices, n => n.Code == "week_day_overflow");
+    }
+
+    [Fact]
+    public void Training_rows_overflowing_seven_days_are_retained_in_shape_reconciliation()
+    {
+        var days = Enumerable.Range(1, 8)
+            .Select(i => new DraftWorkout(Guid.NewGuid(), 1, $"Day {i}", null, null,
+                [new DraftExercise(Guid.NewGuid(), "Bench", null, null, [new DraftSet(5, 8, 8, 120, null, null, null)], "A1", [], 1)],
+                Block: "Block 1", Phase: "Phase 1"))
+            .ToList();
+
+        var (workouts, notices) = ImportDayShape.Reconcile(days);
+
+        Assert.Equal(8, workouts.Count);
+        Assert.Equal("Day 8", workouts[7].Name);
+        Assert.Empty(notices);
+    }
+
+    [Fact]
+    public void ImportValidation_ReviewIssues_flags_overflow_rows_with_blocking_issue()
+    {
+        var days = Enumerable.Range(1, 8)
+            .Select(i => new DraftWorkout(Guid.NewGuid(), 1, $"Day {i}", null, null,
+                [new DraftExercise(Guid.NewGuid(), "Bench", null, null, [new DraftSet(5, 8, 8, 120, null, null, null)], "A1", [], 1)],
+                Block: "Block 1", Phase: "Phase 1"))
+            .ToList();
+
+        var draft = new ImportDraft("Program", days);
+        var issues = ImportValidation.ReviewIssues(draft);
+
+        var issue = Assert.Single(issues, i => i.Code == "week_day_overflow");
+        Assert.Equal("warning", issue.Severity);
+        Assert.Equal(days[7].LineId, issue.WorkoutLineId);
+    }
+
+    [Fact]
+    public async Task Overflow_review_issue_is_single_source_blocks_acceptance_and_clears_on_edit()
+    {
+        await using var h = await Harness.Create(Configured());
+        await h.SignIn();
+        await h.Seed(new SeedExercise("bench", "Barbell bench press", "Chest", "Barbell", "", null));
+
+        var eightDays = Days(Enumerable.Range(1, 8).Select(i => (1, $"Day {i}", 1)).ToArray());
+        var source = new ImportSourceInput("overflow.pdf", 1, [new ImportPageText(1, "WEEK 1\nBench 3x5")]);
+        var imports = h.Imports(Reading(Outline, eightDays));
+
+        var pending = await imports.Create(source, default);
+        var ready = await imports.Extract(pending.Id, default);
+
+        Assert.Equal(ImportStatus.Ready, ready.Status);
+        Assert.Equal(8, ready.Draft!.Workouts.Count);
+
+        // Exactly one issue is exposed, not duplicated between persisted notices and live validation
+        var overflowIssue = Assert.Single(ready.ReviewIssues!, issue => issue.Code == "week_day_overflow");
+        Assert.Equal("warning", overflowIssue.Severity);
+        Assert.False(ready.Acceptable);
+
+        var failure = await Assert.ThrowsAsync<DomainException>(() => imports.Accept(ready.Id, default));
+        Assert.Equal(409, failure.Status);
+
+        // Moving Day 8 to week 2 clears the 7-day week overflow
+        var day8 = ready.Draft.Workouts[7];
+        var editedWorkouts = ready.Draft.Workouts.Take(7).Append(day8 with { Week = 2, PhaseWeek = 2 }).ToList();
+        var editedDraft = ready.Draft with { Workouts = editedWorkouts };
+
+        var saved = await imports.Edit(ready.Id, editedDraft, default);
+        Assert.DoesNotContain(saved.ReviewIssues ?? [], issue => issue.Code == "week_day_overflow");
+        Assert.True(saved.Acceptable);
+
+        var accepted = await imports.Accept(ready.Id, default);
+        Assert.Equal(ProgramLifecycle.Standby, accepted.LifecycleStatus);
     }
 }

@@ -86,14 +86,12 @@ public sealed class AppDb(DbContextOptions<AppDb> options) : DbContext(options)
         // One active program and one active workout per user, enforced by the database.
         m.Entity<TrainingProgram>().HasIndex(x => x.UserId).IsUnique().HasFilter("\"Active\"").HasDatabaseName("IX_Programs_ActivePerUser");
         m.Entity<TrainingProgram>().Property(x => x.LifecycleStatus).HasDefaultValue(ProgramLifecycle.Standby);
-        m.Entity<TrainingProgram>().Property(x => x.TimeZone).HasDefaultValue("UTC");
         m.Entity<TrainingProgram>().ToTable("Programs", t => t.HasCheckConstraint("CK_Programs_Lifecycle", "\"LifecycleStatus\" IN ('standby','active','completed')"));
         m.Entity<ProgramPhase>().HasIndex(x => new { x.UserId, x.ProgramId, x.Position }).IsUnique();
         m.Entity<ProgramPhase>().HasIndex(x => new { x.UserId, x.ProgramId, x.WeekFrom, x.WeekTo });
         m.Entity<ProgramSkip>().HasIndex(x => new { x.UserId, x.ProgramId, x.TemplateId }).IsUnique();
         m.Entity<WorkoutSession>().HasIndex(x => x.UserId).IsUnique().HasFilter("\"Active\"").HasDatabaseName("IX_Workouts_ActivePerUser");
         m.Entity<WorkoutTemplate>().HasIndex(x => new { x.UserId, x.ProgramId, x.Week, x.Position });
-        m.Entity<WorkoutTemplate>().HasIndex(x => new { x.UserId, x.ProgramId, x.Week, x.Weekday });
         m.Entity<TemplateExercise>().HasIndex(x => new { x.UserId, x.TemplateId, x.Position });
         m.Entity<TemplateExercise>().HasIndex(x => new { x.UserId, x.TemplateId, x.SlotKey }).IsUnique();
         m.Entity<WorkoutTemplate>().HasIndex(x => new { x.UserId, x.ProgramId, x.ProgramPhaseId });
@@ -102,7 +100,6 @@ public sealed class AppDb(DbContextOptions<AppDb> options) : DbContext(options)
         m.Entity<ExerciseSubstitution>().HasIndex(x => new { x.UserId, x.SessionId, x.PendingRetention });
         m.Entity<CompletedSet>().HasIndex(x => new { x.UserId, x.SessionExerciseId, x.Position });
         m.Entity<WorkoutSession>().HasIndex(x => new { x.UserId, x.FinishedAt });
-        m.Entity<WorkoutSession>().HasIndex(x => new { x.UserId, x.PlannedDate });
         // One running estimate per exercise. Guid.Empty plus a name key is a real identity here,
         // not a null, so the database can hold the uniqueness instead of hoping the code does.
         m.Entity<ExerciseProgress>().HasIndex(x => new { x.UserId, x.ExerciseId, x.NameKey }).IsUnique().HasDatabaseName("IX_Progress_ExercisePerUser");

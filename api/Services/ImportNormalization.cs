@@ -36,10 +36,6 @@ internal static class ImportNormalization
     /// A week number as the document counts them, held to the range a stored week has.
     public static int Week(int week) => Math.Clamp(week, 1, 104);
 
-    /// An ISO weekday, or none. A day the read could not place keeps no weekday at all; the review
-    /// screen asks for one before the program can be activated.
-    public static int? Weekday(int? weekday) => weekday is >= 1 and <= 7 ? weekday : null;
-
     /// Where a stored value came from. Anything this app does not recognise is its own suggestion
     /// rather than something the page is known to have said.
     public static string Provenance(string? source)

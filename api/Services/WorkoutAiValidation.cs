@@ -41,7 +41,7 @@ internal static class WorkoutAiValidation
     /// A program the model returned. Almost nothing is required of it, and deliberately so: the
     /// response's shape is already guaranteed by the strict JSON schema, and every judgement a
     /// document can make that this app cannot store exactly — a movement listed with no sets, a
-    /// page number miscounted, a weekday outside Monday to Sunday, a session with more exercises
+    /// page number miscounted, a session with more exercises
     /// than one day holds — is brought into shape by `ImportNormalization` and `ImportDayShape`
     /// and reported to the reviewer. Refusing any of it here throws away a read that has already
     /// been paid for and leaves the import failing identically on every retry.

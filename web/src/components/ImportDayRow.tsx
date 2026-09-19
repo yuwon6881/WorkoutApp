@@ -5,8 +5,6 @@ import { getWorkoutMuscles } from '../lib/muscles';
 import { Button } from './ui/Button';
 import { DayEditor, exerciseSummary } from './ImportDayEditor';
 
-const weekdayNames = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-
 function DayLines({ day }: { day: DraftWorkout }) {
   return (
     <ol className="draft-day-lines">
@@ -49,7 +47,7 @@ export function DayRow({
     return `${names.slice(0, 4).join(', ')}, and ${names.length - 4} more`;
   }, [day.exercises, day.isRestDay]);
 
-  const fullName = `${day.weekday ? `${weekdayNames[day.weekday - 1]} · ` : ''}${day.name}`;
+  const fullName = day.name;
 
   return (
     <section className={`draft-day ${day.isRestDay ? 'rest-day' : ''}`} data-import-day={day.lineId}>

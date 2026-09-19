@@ -16,13 +16,17 @@ internal static class ImportValidation
         var issues = new List<ImportReviewIssue>();
         var training = draft.Workouts.Where(w => !w.IsRestDay).ToList();
 
-        // A weekday comes from the order the document printed its week in, so one is missing only
-        // where a week held more days than a week has. Keep that correction in the import review.
-        var unscheduled = training.Where(day => day.Weekday is null).ToList();
-        if (unscheduled.Count > 0)
-            issues.Add(new ImportReviewIssue("schedule_required",
-                $"{Count(unscheduled.Count, "day has", "days have")} more sessions in its week than a week has days, so {(unscheduled.Count == 1 ? "it has" : "they have")} no weekday. Choose {(unscheduled.Count == 1 ? "one for it" : "one for each")} in the day editor. {Naming(unscheduled)}",
-                "warning", unscheduled[0].SourcePage, WorkoutLineId: unscheduled[0].LineId, TargetField: "weekday"));
+        var overflowRows = draft.Workouts
+            .GroupBy(day => (Block: day.Block?.Trim() ?? "", Phase: day.Phase?.Trim() ?? "", day.Week))
+            .SelectMany(group => group.Skip(7))
+            .ToList();
+        if (overflowRows.Count > 0)
+        {
+            var first = overflowRows[0];
+            issues.Add(new ImportReviewIssue("week_day_overflow",
+                $"{Count(overflowRows.Count, "day exceeds", "days exceed")} the 7-day limit for a week. Delete {(overflowRows.Count == 1 ? "it" : "them")} or change {(overflowRows.Count == 1 ? "its" : "their")} week in the review. {Naming(overflowRows)}",
+                "warning", first.SourcePage, WorkoutLineId: first.LineId, TargetField: "week"));
+        }
 
         var working = training.SelectMany(day => day.Exercises.SelectMany(exercise =>
             exercise.Sets.Select((set, index) => (day, exercise, set, index)))).Where(item => !item.set.Warmup).ToList();
@@ -74,8 +78,6 @@ internal static class ImportValidation
         Validation.Require(draft.Workouts is { Count: > 0 and <= 400 }, "A program needs between 1 and 400 days.");
         Validation.Require(draft.Workouts.All(w => w.Week is > 0 and <= 104), "Program weeks must be between 1 and 104.");
         Validation.Require(draft.Workouts.Select(w => w.LineId).Distinct().Count() == draft.Workouts.Count, "A program contains duplicate workout rows.");
-        var scheduled = draft.Workouts.Where(w => w.Weekday is not null).Select(w => (w.Week, Weekday: w.Weekday!.Value)).ToList();
-        Validation.Require(scheduled.Count == scheduled.Distinct().Count(), "A program contains two workouts on the same weekday in one week.");
         foreach (var phase in GroupDraftPhases(draft.Workouts))
         {
             // Phase weeks count from one inside their phase. Imported drafts are renumbered before
@@ -93,7 +95,6 @@ internal static class ImportValidation
         Validation.Text(workout.Block, 80, "Block"); Validation.Text(workout.Phase, 120, "Phase");
         Validation.Text(workout.Focus, 120, "Focus"); Validation.Text(workout.Notes, 2000, "Workout notes");
         Validation.Require(workout.PhaseWeek is > 0 and <= 104, "Phase week must be between 1 and 104.");
-        Validation.Require(workout.Weekday is null or >= 1 and <= 7, "Workout weekdays must use ISO values from 1 (Monday) to 7 (Sunday).");
         Validation.Require(workout.IsRestDay ? workout.Exercises is { Count: 0 } : workout.Exercises is { Count: > 0 and <= 40 },
             workout.IsRestDay ? "A rest day cannot contain exercises." : "Each workout needs between 1 and 40 exercises.");
         foreach (var exercise in workout.Exercises)
@@ -281,7 +282,6 @@ internal static class ImportValidation
     {
         if (a.Week != b.Week) return false;
         if (a.SourcePage == null || b.SourcePage == null || a.SourcePage != b.SourcePage) return false;
-        if (a.Weekday != null && b.Weekday != null && a.Weekday != b.Weekday) return false;
         if (a.IsRestDay != b.IsRestDay) return false;
         if (a.IsRestDay) return true;
         if (!string.Equals(a.Name.Trim(), b.Name.Trim(), StringComparison.OrdinalIgnoreCase)) return false;
@@ -319,8 +319,6 @@ internal static class ImportValidation
                 $"'{chunk.Label}' covers weeks {chunk.WeekFrom}-{chunk.WeekTo} but read {string.Join(", ", strayed.Select(day => day.Name).Distinct())} as week {string.Join(", ", strayed.Select(day => day.Week).Distinct().Order())}. The pages were followed; check the order in the review.",
                 "warning", strayed[0].SourcePage ?? chunk.PageFrom, WorkoutLineId: strayed[0].LineId, TargetField: "week"));
         var existingKeys = existing.Workouts.Select(DayKey).ToHashSet(StringComparer.OrdinalIgnoreCase);
-        var takenSlots = existing.Workouts.Where(day => day.Weekday is not null)
-            .Select(day => (day.Week, Weekday: day.Weekday!.Value)).ToHashSet();
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var workouts = new List<DraftWorkout>();
         var repeated = 0;
@@ -345,18 +343,7 @@ internal static class ImportValidation
                 continue;
             }
             if (!seen.Add(key)) repeated++;
-
-            // Two sessions cannot hold the same weekday in one week. The repeat keeps its place in
-            // the program and loses only the day it claimed, which the review screen then asks for.
-            var placed = day;
-            if (day.Weekday is { } weekday && !takenSlots.Add((day.Week, weekday)))
-            {
-                placed = day with { Weekday = null };
-                notices.Add(new ImportReviewIssue("weekday_taken",
-                    $"Week {day.Week} already has a session on that weekday, so {day.Name} needs one of its own.",
-                    "warning", day.SourcePage ?? chunk.PageFrom, WorkoutLineId: day.LineId, TargetField: "weekday"));
-            }
-            workouts.Add(placed);
+            workouts.Add(day);
         }
 
         if (repeated > 0)
@@ -385,7 +372,7 @@ internal static class ImportValidation
     /// was read from is what tells them apart — the same day read twice by two sections whose
     /// pages overlap still reports the same page.
     public static string DayKey(DraftWorkout day)
-        => $"{day.Week}|{day.PhaseWeek}|{day.Block?.Trim()}|{day.Phase?.Trim()}|{day.Weekday}|{day.SourcePage}|{day.Name.Trim()}";
+        => $"{day.Week}|{day.PhaseWeek}|{day.Block?.Trim()}|{day.Phase?.Trim()}|{day.SourcePage}|{day.Name.Trim()}";
 
     public static void ValidateChunkPages(IEnumerable<ImportChunk> chunks, string coverageJson)
     {

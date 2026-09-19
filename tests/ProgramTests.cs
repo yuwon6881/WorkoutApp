@@ -9,10 +9,10 @@ public class ProgramTests
 {
     private static ProgramInput TwoWeeks(Guid benchId) => new("Starting strength",
     [
-        new ProgramWorkoutInput(1, "Week 1 Day A", "Push", null, [Harness.Exercise(benchId, "Bench press", Harness.Set(8, 10))], Weekday: 1),
-        new ProgramWorkoutInput(1, "Week 1 Day B", "Pull", null, [Harness.Exercise(benchId, "Bench press", Harness.Set(8, 10))], Weekday: 3),
-        new ProgramWorkoutInput(2, "Week 2 Day A", "Push", null, [Harness.Exercise(benchId, "Bench press", Harness.Set(6, 8))], Weekday: 1)
-    ], null, new DateOnly(2026, 9, 14));
+        new ProgramWorkoutInput(1, "Week 1 Day A", "Push", null, [Harness.Exercise(benchId, "Bench press", Harness.Set(8, 10))]),
+        new ProgramWorkoutInput(1, "Week 1 Day B", "Pull", null, [Harness.Exercise(benchId, "Bench press", Harness.Set(8, 10))]),
+        new ProgramWorkoutInput(2, "Week 2 Day A", "Push", null, [Harness.Exercise(benchId, "Bench press", Harness.Set(6, 8))])
+    ]);
 
     private static async Task<(Harness h, Guid benchId)> Ready()
     {
@@ -40,10 +40,10 @@ public class ProgramTests
         await using var _h = h;
         var program = await h.Programs.Create(new ProgramInput("Two phases",
             [
-                new ProgramWorkoutInput(1, "Base A", null, null, [Harness.Exercise(benchId, "Bench press", Harness.Set(8, 10))], "Block 1", "Base", 1, false, 1, 12),
-                new ProgramWorkoutInput(2, "Base A", null, null, [Harness.Exercise(benchId, "Bench press", Harness.Set(8, 10))], "Block 1", "Base", 2, false, 1, 18),
-                new ProgramWorkoutInput(3, "Peak A", null, null, [Harness.Exercise(benchId, "Bench press", Harness.Set(5, 8))], "Block 1", "Peak", 1, false, 1, 24),
-                new ProgramWorkoutInput(4, "Peak A", null, null, [Harness.Exercise(benchId, "Bench press", Harness.Set(5, 8))], "Block 1", "Peak", 2, false, 1, 30)
+                new ProgramWorkoutInput(1, "Base A", null, null, [Harness.Exercise(benchId, "Bench press", Harness.Set(8, 10))], "Block 1", "Base", 1, false, 12),
+                new ProgramWorkoutInput(2, "Base A", null, null, [Harness.Exercise(benchId, "Bench press", Harness.Set(8, 10))], "Block 1", "Base", 2, false, 18),
+                new ProgramWorkoutInput(3, "Peak A", null, null, [Harness.Exercise(benchId, "Bench press", Harness.Set(5, 8))], "Block 1", "Peak", 1, false, 24),
+                new ProgramWorkoutInput(4, "Peak A", null, null, [Harness.Exercise(benchId, "Bench press", Harness.Set(5, 8))], "Block 1", "Peak", 2, false, 30)
             ], null), false, null, default);
 
         Assert.Equal(2, program.Phases!.Count);
@@ -145,13 +145,12 @@ public class ProgramTests
                     [new SetInput(60, 8, 8, true)])], session.Revision, null), default);
             await h.Workouts.Finish(session.Id, null, default);
         }
-        var repeated = await h.Programs.Repeat(original.Id, "Asia/Kuala_Lumpur", default);
+        var repeated = await h.Programs.Repeat(original.Id, default);
         Assert.NotEqual(original.Id, repeated.Id);
         Assert.Equal(ProgramLifecycle.Standby, repeated.LifecycleStatus);
         Assert.False(repeated.Active);
         Assert.Equal(original.Workouts.Select(w => w.Name), repeated.Workouts.Select(w => w.Name));
         Assert.Empty(repeated.CompletedTemplateIds);
-        Assert.Equal("Asia/Kuala_Lumpur", repeated.TimeZone);
     }
 
     [Fact] public async Task Deleting_a_program_leaves_its_finished_history_behind()
@@ -212,7 +211,7 @@ public class ProgramTests
                 new ProgramWorkoutInput(1, "Monday", "Push", null, [Harness.Exercise(benchId, "Bench press", Harness.Set(8, 10))], "Block 1", "Base", 1, false, 1),
                 new ProgramWorkoutInput(1, "Tuesday recovery", null, "Sleep and recover", [], "Block 1", "Base", 1, true),
                 new ProgramWorkoutInput(1, "Wednesday", "Pull", null, [Harness.Exercise(benchId, "Bench press", Harness.Set(8, 10))], "Block 1", "Base", 1, false, 3)
-            ], null, new DateOnly(2026, 9, 14)), true, null, default);
+            ]), true, null, default);
 
         Assert.Equal(3, program.Workouts.Count);
         Assert.True(program.Workouts[1].IsRestDay);
@@ -228,18 +227,16 @@ public class ProgramTests
         Assert.Equal(program.Workouts[2].Id, afterFirst.NextTemplateId);
     }
 
-    [Fact] public async Task A_rest_only_phase_keeps_its_duration_before_the_next_phase_can_start()
+    [Fact] public async Task A_rest_only_phase_completes_immediately_when_its_preceding_phase_completes()
     {
         var (h, benchId) = await Ready();
         await using var _h = h;
-        var today = DateOnly.FromDateTime(DateTime.UtcNow);
-        var anchor = today.AddDays(-(((int)today.DayOfWeek + 6) % 7));
         var program = await h.Programs.Create(new ProgramInput("Rest bridge",
             [
                 new ProgramWorkoutInput(1, "Base A", null, null, [Harness.Exercise(benchId, "Bench press", Harness.Set(8, 10))], "Block", "Base", 1, false, 1),
                 new ProgramWorkoutInput(2, "Recovery week", null, null, [], "Block", "Recovery", 1, true, 1),
                 new ProgramWorkoutInput(3, "Peak A", null, null, [Harness.Exercise(benchId, "Bench press", Harness.Set(5, 8))], "Block", "Peak", 1, false, 1)
-            ], null, anchor), true, null, default);
+            ]), true, null, default);
 
         var session = await h.Workouts.Start(program.Workouts[0].Id, null, default);
         var exercise = session.Exercises.Single();
@@ -251,33 +248,54 @@ public class ProgramTests
         var after = await h.Programs.Get(program.Id, default);
         Assert.True(after.Active);
         Assert.Equal(ProgramLifecycle.Active, after.LifecycleStatus);
-        Assert.False(after.Phases![1].Complete);
-        await Assert.ThrowsAsync<DomainException>(() => h.Workouts.Start(program.Workouts[2].Id, null, default));
+        Assert.True(after.Phases![0].Complete);
+        Assert.True(after.Phases[1].Complete);
+        Assert.False(after.Phases[2].Complete);
+        Assert.Equal(program.Workouts[2].Id, after.NextTemplateId);
+        var peakSession = await h.Workouts.Start(program.Workouts[2].Id, null, default);
+        Assert.NotNull(peakSession);
     }
 
-    [Fact] public async Task A_late_phase_completion_shifts_the_following_phase_to_the_next_monday()
+    [Fact] public async Task A_rest_only_first_phase_completes_immediately_on_activation()
     {
         var (h, benchId) = await Ready();
         await using var _h = h;
-        var today = DateOnly.FromDateTime(DateTime.UtcNow);
-        var thisMonday = today.AddDays(-(((int)today.DayOfWeek + 6) % 7));
-        var originalAnchor = thisMonday.AddDays(-28);
-        var program = await h.Programs.Create(new ProgramInput("Late block",
+        var program = await h.Programs.Create(new ProgramInput("Initial rest",
             [
-                new ProgramWorkoutInput(1, "Base", null, null, [Harness.Exercise(benchId, "Bench press", Harness.Set(8, 10))], "Block", "Base", 1, false, 1),
-                new ProgramWorkoutInput(2, "Peak", null, null, [Harness.Exercise(benchId, "Bench press", Harness.Set(5, 8))], "Block", "Peak", 1, false, 1)
-            ], null, originalAnchor), true, null, default);
+                new ProgramWorkoutInput(1, "Prep rest", null, null, [], "Block", "Prep", 1, true, 1),
+                new ProgramWorkoutInput(2, "Base A", null, null, [Harness.Exercise(benchId, "Bench press", Harness.Set(8, 10))], "Block", "Base", 1, false, 1)
+            ]), true, null, default);
 
-        var session = await h.Workouts.Start(program.Workouts[0].Id, null, default);
-        var exercise = session.Exercises.Single();
-        await h.Workouts.Save(session.Id, new SessionInput(null,
-            [new SessionExerciseInput(exercise.ExerciseId, exercise.Name, null, exercise.Prescription,
-                [new SetInput(60, 8, 8, true)])], session.Revision, null), default);
-        await h.Workouts.Finish(session.Id, null, default);
+        var active = await h.Programs.Get(program.Id, default);
+        Assert.True(active.Active);
+        Assert.True(active.Phases![0].Complete);
+        Assert.False(active.Phases[1].Complete);
+        Assert.Equal(program.Workouts[1].Id, active.NextTemplateId);
+    }
 
-        var after = await h.Programs.Get(program.Id, default);
-        var nextMonday = today.AddDays(((int)DayOfWeek.Monday - (int)today.DayOfWeek + 7) % 7 is 0 ? 7 : ((int)DayOfWeek.Monday - (int)today.DayOfWeek + 7) % 7);
-        Assert.Equal(nextMonday, after.Phases![1].StartDate);
-        Assert.True(after.Phases[1].StartDate > originalAnchor.AddDays(7));
+    [Fact] public async Task Program_advances_in_strict_week_and_position_order_without_calendar_delays()
+    {
+        var (h, benchId) = await Ready();
+        await using var _h = h;
+        var program = await h.Programs.Create(TwoWeeks(benchId), true, null, default);
+        Assert.Equal(program.Workouts[0].Id, program.NextTemplateId);
+
+        // Finish Day 0
+        var s1 = await h.Workouts.Start(program.Workouts[0].Id, null, default);
+        var e1 = s1.Exercises.Single();
+        await h.Workouts.Save(s1.Id, new SessionInput(null, [new SessionExerciseInput(e1.ExerciseId, e1.Name, null, e1.Prescription, [new SetInput(60, 8, 8, true)])], s1.Revision, null), default);
+        await h.Workouts.Finish(s1.Id, null, default);
+
+        var p1 = await h.Programs.Get(program.Id, default);
+        Assert.Equal(program.Workouts[1].Id, p1.NextTemplateId);
+
+        // Finish Day 1
+        var s2 = await h.Workouts.Start(program.Workouts[1].Id, null, default);
+        var e2 = s2.Exercises.Single();
+        await h.Workouts.Save(s2.Id, new SessionInput(null, [new SessionExerciseInput(e2.ExerciseId, e2.Name, null, e2.Prescription, [new SetInput(60, 8, 8, true)])], s2.Revision, null), default);
+        await h.Workouts.Finish(s2.Id, null, default);
+
+        var p2 = await h.Programs.Get(program.Id, default);
+        Assert.Equal(program.Workouts[2].Id, p2.NextTemplateId);
     }
 }

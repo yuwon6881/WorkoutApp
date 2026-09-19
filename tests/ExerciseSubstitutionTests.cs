@@ -122,9 +122,9 @@ public sealed class ExerciseSubstitutionTests
             new SeedExercise("incline", "Incline dumbbell press", "Chest", "Dumbbell", "", null));
         var bench = await h.ExerciseId("bench"); var incline = await h.ExerciseId("incline");
         var input = new ProgramInput("Two week push", [
-            new ProgramWorkoutInput(1, "Push 1", null, null, [Harness.Exercise(bench, "Barbell bench press", Harness.Set(8, 10))], "Block", "Base", 1, false, 1),
-            new ProgramWorkoutInput(2, "Push 2", null, null, [Harness.Exercise(bench, "Barbell bench press", Harness.Set(8, 10))], "Block", "Base", 2, false, 1)
-        ], null, new DateOnly(2026, 9, 14), "UTC");
+            new ProgramWorkoutInput(1, "Push 1", null, null, [Harness.Exercise(bench, "Barbell bench press", Harness.Set(8, 10))], "Block", "Base", 1, false),
+            new ProgramWorkoutInput(2, "Push 2", null, null, [Harness.Exercise(bench, "Barbell bench press", Harness.Set(8, 10))], "Block", "Base", 2, false)
+        ]);
         var program = await h.Programs.Create(input, true, null, default);
         var first = program.Workouts.OrderBy(w => w.Week).First(); var second = program.Workouts.OrderBy(w => w.Week).Last();
         var session = await h.Workouts.Start(first.Id, null, default);
@@ -186,10 +186,10 @@ public sealed class ExerciseSubstitutionTests
             new SeedExercise("incline", "Incline dumbbell press", "Chest", "Dumbbell", "", null));
         var bench = await h.ExerciseId("bench"); var incline = await h.ExerciseId("incline");
         var input = new ProgramInput("Three week push", [
-            new ProgramWorkoutInput(1, "Push 1", null, null, [Harness.Exercise(bench, "Barbell bench press", Harness.Set(8, 10))], "Block", "Base", 1, false, 1),
-            new ProgramWorkoutInput(2, "Push 2", null, null, [Harness.Exercise(bench, "Barbell bench press", Harness.Set(8, 10))], "Block", "Base", 2, false, 2),
-            new ProgramWorkoutInput(3, "Push 3", null, null, [Harness.Exercise(bench, "Barbell bench press", Harness.Set(8, 10))], "Block", "Base", 3, false, 3)
-        ], null, new DateOnly(2026, 9, 14), "UTC");
+            new ProgramWorkoutInput(1, "Push 1", null, null, [Harness.Exercise(bench, "Barbell bench press", Harness.Set(8, 10))], "Block", "Base", 1, false),
+            new ProgramWorkoutInput(2, "Push 2", null, null, [Harness.Exercise(bench, "Barbell bench press", Harness.Set(8, 10))], "Block", "Base", 2, false),
+            new ProgramWorkoutInput(3, "Push 3", null, null, [Harness.Exercise(bench, "Barbell bench press", Harness.Set(8, 10))], "Block", "Base", 3, false)
+        ]);
         var program = await h.Programs.Create(input, true, null, default);
         var workouts = program.Workouts.OrderBy(w => w.Week).ToList();
         var w1 = workouts[0]; var w2 = workouts[1]; var w3 = workouts[2];

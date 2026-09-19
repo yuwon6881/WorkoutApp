@@ -5,19 +5,18 @@ using Workout.Api.Domain;
 namespace Workout.Api.Services;
 
 public record ProgramWorkoutInput(int Week, string Name, string? Focus, string? Note, List<TemplateExerciseInput> Exercises,
-    string? Block = null, string? Phase = null, int PhaseWeek = 1, bool IsRestDay = false, int? Weekday = null, int? SourcePage = null);
-public record ProgramInput(string Name, List<ProgramWorkoutInput> Workouts, Guid? IdempotencyId, DateOnly? ScheduleAnchor = null, string? TimeZone = null);
+    string? Block = null, string? Phase = null, int PhaseWeek = 1, bool IsRestDay = false, int? SourcePage = null);
+public record ProgramInput(string Name, List<ProgramWorkoutInput> Workouts, Guid? IdempotencyId = null);
 public record ProgramPhaseView(Guid Id, string Name, string Block, int WeekFrom, int WeekTo, int DurationWeeks,
-    int CompletedWorkouts, int TotalWorkouts, bool Complete, DateOnly? StartDate = null, int CurrentWeek = 1, int SkippedWorkouts = 0,
+    int CompletedWorkouts, int TotalWorkouts, bool Complete, int CurrentWeek = 1, int SkippedWorkouts = 0,
     int? SourcePageFrom = null, int? SourcePageTo = null);
 public record ProgramView(Guid Id, string Name, int Weeks, bool Active, int Revision, Guid? SourceImportId, List<TemplateView> Workouts, List<Guid> CompletedTemplateIds, Guid? NextTemplateId,
-    DateOnly? ScheduleAnchor = null, bool NeedsSchedule = false, string LifecycleStatus = ProgramLifecycle.Standby,
-    DateTime? CompletedAt = null, List<Guid>? SkippedTemplateIds = null, List<ProgramPhaseView>? Phases = null, string TimeZone = "UTC");
-public record ProgramDayView(Guid Id, string Name, string Focus, string Block, string Phase, int Week, int PhaseWeek, int Position, bool IsRestDay, int ExerciseCount, int? Weekday = null, int? SourcePage = null);
+    string LifecycleStatus = ProgramLifecycle.Standby, DateTime? CompletedAt = null, List<Guid>? SkippedTemplateIds = null, List<ProgramPhaseView>? Phases = null);
+public record ProgramDayView(Guid Id, string Name, string Focus, string Block, string Phase, int Week, int PhaseWeek, int Position, bool IsRestDay, int ExerciseCount, int? SourcePage = null);
 public record ProgramSummaryView(Guid Id, string Name, int Weeks, bool Active, int Revision, Guid? SourceImportId,
-    List<ProgramDayView> Days, List<Guid> CompletedTemplateIds, Guid? NextTemplateId, DateOnly? ScheduleAnchor = null, bool NeedsSchedule = false,
+    List<ProgramDayView> Days, List<Guid> CompletedTemplateIds, Guid? NextTemplateId,
     string LifecycleStatus = ProgramLifecycle.Standby, DateTime? CompletedAt = null, List<Guid>? SkippedTemplateIds = null,
-    List<ProgramPhaseView>? Phases = null, string TimeZone = "UTC");
+    List<ProgramPhaseView>? Phases = null);
 
 public sealed class ProgramService(AppDb db, TemplateService templates)
 {
@@ -54,9 +53,9 @@ public sealed class ProgramService(AppDb db, TemplateService templates)
             .Select(w => w.TemplateId!.Value).Distinct().ToListAsync(ct);
         var skipped = await db.ProgramSkips.AsNoTracking().Where(s => s.ProgramId == program.Id).Select(s => s.TemplateId).ToListAsync(ct);
         var next = workouts.FirstOrDefault(w => !w.IsRestDay && !completed.Contains(w.Id) && !skipped.Contains(w.Id))?.Id;
-        var phases = await PhaseViews(program.Id, rows, completed, skipped, program.TimeZone, ct);
+        var phases = await PhaseViews(program.Id, rows, completed, skipped, ct);
         return new ProgramView(program.Id, program.Name, program.Weeks, program.Active, program.Revision, program.SourceImportId, workouts, completed, next,
-            program.ScheduleAnchor, NeedsSchedule(program, rows), program.LifecycleStatus, program.CompletedAt, skipped, phases, program.TimeZone);
+            program.LifecycleStatus, program.CompletedAt, skipped, phases);
     }
 
     public async Task<ProgramSummaryView> Summary(TrainingProgram program, CancellationToken ct)
@@ -70,12 +69,12 @@ public sealed class ProgramService(AppDb db, TemplateService templates)
             .Where(w => w.ProgramId == program.Id && w.FinishedAt != null && w.TemplateId != null)
             .Select(w => w.TemplateId!.Value).Distinct().ToListAsync(ct);
         var days = rows.Select(t => new ProgramDayView(t.Id, t.Name, t.Focus, t.Block, t.Phase, t.Week, t.PhaseWeek, t.Position,
-            t.IsRestDay, exerciseCounts.GetValueOrDefault(t.Id), t.Weekday, t.SourcePage)).ToList();
+            t.IsRestDay, exerciseCounts.GetValueOrDefault(t.Id), t.SourcePage)).ToList();
         var skipped = await db.ProgramSkips.AsNoTracking().Where(s => s.ProgramId == program.Id).Select(s => s.TemplateId).ToListAsync(ct);
         var next = days.FirstOrDefault(d => !d.IsRestDay && !completed.Contains(d.Id) && !skipped.Contains(d.Id))?.Id;
-        var phases = await PhaseViews(program.Id, rows, completed, skipped, program.TimeZone, ct);
+        var phases = await PhaseViews(program.Id, rows, completed, skipped, ct);
         return new ProgramSummaryView(program.Id, program.Name, program.Weeks, program.Active, program.Revision,
-            program.SourceImportId, days, completed, next, program.ScheduleAnchor, NeedsSchedule(program, rows), program.LifecycleStatus, program.CompletedAt, skipped, phases, program.TimeZone);
+            program.SourceImportId, days, completed, next, program.LifecycleStatus, program.CompletedAt, skipped, phases);
     }
 
     public async Task<ProgramView> Create(ProgramInput input, bool activate, Guid? sourceImportId, CancellationToken ct)
@@ -98,10 +97,8 @@ public sealed class ProgramService(AppDb db, TemplateService templates)
         var program = new TrainingProgram
         {
             UserId = db.CurrentUser!.Value, Name = input.Name.Trim(),
-            Weeks = input.Workouts.Max(w => w.Week), Active = active && HasSchedule(input), LifecycleStatus = active && HasSchedule(input) ? ProgramLifecycle.Active : ProgramLifecycle.Standby,
-            SourceImportId = sourceImportId,
-            TimeZone = NormalizeTimeZone(input.TimeZone),
-            ScheduleAnchor = NormalizeAnchor(input.ScheduleAnchor)
+            Weeks = input.Workouts.Max(w => w.Week), Active = active, LifecycleStatus = active ? ProgramLifecycle.Active : ProgramLifecycle.Standby,
+            SourceImportId = sourceImportId
         };
         db.Programs.Add(program);
         var position = new Dictionary<int, int>();
@@ -114,7 +111,7 @@ public sealed class ProgramService(AppDb db, TemplateService templates)
                 UserId = program.UserId, ProgramId = program.Id, Name = workout.Name.Trim(), Focus = workout.Focus?.Trim() ?? "",
                 Note = workout.Note?.Trim() ?? "", Week = workout.Week, Position = index,
                 Block = workout.Block?.Trim() ?? "", Phase = workout.Phase?.Trim() ?? "", PhaseWeek = workout.PhaseWeek,
-                IsRestDay = workout.IsRestDay, Weekday = workout.Weekday, SourcePage = workout.SourcePage
+                IsRestDay = workout.IsRestDay, SourcePage = workout.SourcePage
             };
             db.Templates.Add(template);
             templates.AddExercises(template.Id, workout.Exercises);
@@ -147,8 +144,7 @@ public sealed class ProgramService(AppDb db, TemplateService templates)
                 Name = string.IsNullOrWhiteSpace(phase) ? (string.IsNullOrWhiteSpace(block) ? "Program" : block) : phase,
                 Block = block, WeekFrom = from, WeekTo = to, DurationWeeks = to - from + 1,
                 SourcePageFrom = group.Select(w => w.SourcePage).Where(p => p is > 0).Min(),
-                SourcePageTo = group.Select(w => w.SourcePage).Where(p => p is > 0).Max(),
-                StartDate = program.ScheduleAnchor is { } anchor ? anchor.AddDays((from - 1) * 7) : null };
+                SourcePageTo = group.Select(w => w.SourcePage).Where(p => p is > 0).Max() };
             db.ProgramPhases.Add(phaseRow); result.Add(phaseRow);
         }
         return result;
@@ -207,8 +203,6 @@ public sealed class ProgramService(AppDb db, TemplateService templates)
         if (active)
         {
             Validation.Require(program.LifecycleStatus != ProgramLifecycle.Completed, "A completed program must be repeated as a new program.", 409);
-            Validation.Require(program!.ScheduleAnchor != null && !await db.Templates.AnyAsync(t => t.ProgramId == id && !t.IsRestDay && t.Weekday == null, ct),
-                "Schedule every program workout before activating it.", 409);
             // The one-active-program index is checked per statement, so the outgoing program has
             // to be written out before the incoming one claims the slot. Both writes share this
             // transaction, so the swap is still atomic.
@@ -245,28 +239,12 @@ public sealed class ProgramService(AppDb db, TemplateService templates)
             // used by the read model before reconciling, so a history deletion can reopen and
             // shift a legacy phased program in the same transaction as newer programs.
             var legacyRows = await db.Templates.Where(t => t.ProgramId == programId).OrderBy(t => t.Week).ThenBy(t => t.Position).ToListAsync(ct);
-            phases = AddBackfilledPhases(programId, program.UserId, legacyRows, program.ScheduleAnchor);
+            phases = AddBackfilledPhases(programId, program.UserId, legacyRows);
         }
-        var today = LocalToday(program.TimeZone);
         var allTemplates = await db.Templates.Where(t => t.ProgramId == programId).ToListAsync(ct);
         var completedIds = completed.ToHashSet(); var skippedIds = skipped.ToHashSet();
-        var phaseScheduleChanged = false;
-        for (var index = 0; index + 1 < phases.Count; index++)
-        {
-            var phase = phases[index];
-            var phaseTemplates = allTemplates.Where(t => t.Week >= phase.WeekFrom && t.Week <= phase.WeekTo).ToList();
-            if (!IsPhaseComplete(phase, phaseTemplates, completedIds, skippedIds, today)) continue;
-            var nextPhase = phases[index + 1];
-            var nextMonday = FollowingMonday(today);
-            if (nextPhase.StartDate is null || nextPhase.StartDate < nextMonday)
-            {
-                nextPhase.StartDate = nextMonday;
-                nextPhase.Revision++;
-                phaseScheduleChanged = true;
-            }
-        }
         var complete = templateIds.Count > 0 && templateIds.All(id => completedIds.Contains(id) || skippedIds.Contains(id)) &&
-            (phases.Count == 0 || phases.All(phase => IsPhaseComplete(phase, allTemplates, completedIds, skippedIds, today)));
+            (phases.Count == 0 || phases.All(phase => IsPhaseComplete(phase, allTemplates, completedIds, skippedIds)));
         if (complete)
         {
             if (program.LifecycleStatus != ProgramLifecycle.Completed || program.Active)
@@ -276,7 +254,6 @@ public sealed class ProgramService(AppDb db, TemplateService templates)
         {
             program.CompletedAt = null; program.LifecycleStatus = program.Active ? ProgramLifecycle.Active : ProgramLifecycle.Standby; program.Revision++;
         }
-        else if (phaseScheduleChanged) program.Revision++;
     }
 
     public async Task<ProgramView> Skip(Guid id, Guid templateId, CancellationToken ct)
@@ -315,7 +292,7 @@ public sealed class ProgramService(AppDb db, TemplateService templates)
 
     /// Repeating is an explicit fresh instance. Template and phase IDs are deliberately new so
     /// the new run cannot merge its completion history into the completed source program.
-    public async Task<ProgramView> Repeat(Guid id, string? timeZone, CancellationToken ct)
+    public async Task<ProgramView> Repeat(Guid id, CancellationToken ct)
     {
         await using var gate = await MutationLock.Acquire(db, db.CurrentUser, ct);
         var source = await db.Programs.SingleOrDefaultAsync(p => p.Id == id, ct);
@@ -327,8 +304,7 @@ public sealed class ProgramService(AppDb db, TemplateService templates)
         var fresh = new TrainingProgram
         {
             UserId = source.UserId, Name = source.Name, Weeks = source.Weeks,
-            Active = false, LifecycleStatus = ProgramLifecycle.Standby, SourceImportId = source.SourceImportId,
-            TimeZone = NormalizeTimeZone(timeZone ?? source.TimeZone), ScheduleAnchor = source.ScheduleAnchor
+            Active = false, LifecycleStatus = ProgramLifecycle.Standby, SourceImportId = source.SourceImportId
         };
         db.Programs.Add(fresh);
         var phases = await db.ProgramPhases.Where(p => p.ProgramId == id).OrderBy(p => p.Position).ToListAsync(ct);
@@ -339,7 +315,7 @@ public sealed class ProgramService(AppDb db, TemplateService templates)
             {
                 UserId = fresh.UserId, ProgramId = fresh.Id, Name = original.Name, Focus = original.Focus, Note = original.Note,
                 Week = original.Week, Position = original.Position, Block = original.Block, Phase = original.Phase,
-                PhaseWeek = original.PhaseWeek, IsRestDay = original.IsRestDay, Weekday = original.Weekday, SourcePage = original.SourcePage,
+                PhaseWeek = original.PhaseWeek, IsRestDay = original.IsRestDay, SourcePage = original.SourcePage,
                 BaselineJson = original.BaselineJson
             };
             db.Templates.Add(copy);
@@ -360,7 +336,6 @@ public sealed class ProgramService(AppDb db, TemplateService templates)
             {
                 UserId = fresh.UserId, ProgramId = fresh.Id, Position = phase.Position, Name = phase.Name, Block = phase.Block,
                 WeekFrom = phase.WeekFrom, WeekTo = phase.WeekTo, DurationWeeks = phase.DurationWeeks,
-                StartDate = fresh.ScheduleAnchor is { } anchor ? anchor.AddDays((phase.WeekFrom - 1) * 7) : null,
                 SourcePageFrom = phase.SourcePageFrom, SourcePageTo = phase.SourcePageTo
             };
             db.ProgramPhases.Add(copy); newPhases.Add(copy);
@@ -400,7 +375,6 @@ public sealed class ProgramService(AppDb db, TemplateService templates)
         Validation.Require(input.Workouts.Count <= 400, "A program can have at most 400 workouts.");
         Validation.Require(input.Workouts.Any(workout => !workout.IsRestDay), "A program needs at least one training workout.");
         Validation.Require(input.Workouts.All(w => w.Week is > 0 and <= 104), "Program weeks must be between 1 and 104.");
-        if (input.ScheduleAnchor is { } anchor) Validation.Require(anchor.DayOfWeek == DayOfWeek.Monday, "Schedule anchor must be a Monday.");
         foreach (var phase in GroupPhases(input.Workouts))
         {
             var phaseWeeks = phase.Select(workout => workout.PhaseWeek).Distinct().OrderBy(week => week).ToList();
@@ -410,82 +384,13 @@ public sealed class ProgramService(AppDb db, TemplateService templates)
         }
         foreach (var workout in input.Workouts)
         {
-            Validation.Require(workout.Weekday is null or >= 1 and <= 7, "Workout weekdays must use ISO values from 1 (Monday) to 7 (Sunday).");
             Validation.Require(workout.SourcePage is null || workout.SourcePage.Value is > 0 and <= ImportSourceText.MaxPages, "Workout source page is invalid.");
             await templates.ValidateInput(new TemplateInput(workout.Name, workout.Focus, workout.Note, workout.Exercises, null, null,
                 workout.Block, workout.Phase, workout.PhaseWeek, workout.IsRestDay), ct, !allowMissingWorkingRpe);
         }
-        if (input.ScheduleAnchor is not null)
-        {
-            var slots = input.Workouts.Where(w => w.Weekday is not null).Select(w => (w.Week, w.Weekday!.Value)).ToList();
-            Validation.Require(slots.Count == slots.Distinct().Count(), "A program cannot have duplicate workout slots on the same date.");
-        }
     }
 
-    public async Task<ProgramView> Schedule(Guid id, DateOnly anchor, List<ScheduleSlot> slots, int? revision, CancellationToken ct)
-    {
-        Validation.Require(anchor.DayOfWeek == DayOfWeek.Monday, "Schedule anchor must be a Monday.");
-        Validation.Require(slots.Count > 0, "Add at least one workout to the schedule.");
-        Validation.Require(slots.All(s => s.Weekday is >= 1 and <= 7), "Workout weekdays must use ISO values from 1 (Monday) to 7 (Sunday).");
-        Validation.Require(slots.Select(s => (s.TemplateId, s.Weekday)).Distinct().Count() == slots.Count, "Each workout can have one scheduled weekday.");
-        await using var gate = await MutationLock.Acquire(db, db.CurrentUser, ct);
-        var program = await db.Programs.SingleOrDefaultAsync(p => p.Id == id, ct);
-        Validation.Require(program != null, "That program no longer exists.", 404);
-        TemplateService.RequireFresh(revision, program!.Revision);
-        var templatesById = await db.Templates.Where(t => t.ProgramId == id).ToDictionaryAsync(t => t.Id, ct);
-        Validation.Require(slots.All(s => templatesById.ContainsKey(s.TemplateId)), "The schedule contains an unknown workout.");
-        var required = templatesById.Values.Where(template => !template.IsRestDay).Select(template => template.Id).ToHashSet();
-        Validation.Require(slots.Select(slot => slot.TemplateId).ToHashSet().SetEquals(required), "Schedule every non-rest workout before saving the program schedule.");
-        var seenDates = new HashSet<DateOnly>();
-        foreach (var slot in slots)
-        {
-            var template = templatesById[slot.TemplateId];
-            var date = anchor.AddDays((template.Week - 1) * 7 + slot.Weekday - 1);
-            Validation.Require(seenDates.Add(date), "Two workout slots resolve to the same planned date.");
-            template.Weekday = slot.Weekday; template.Revision++;
-        }
-        var scheduledDates = templatesById.Values.Where(template => template.Weekday is not null)
-            .Select(template => anchor.AddDays((template.Week - 1) * 7 + template.Weekday!.Value - 1)).ToList();
-        Validation.Require(scheduledDates.Count == scheduledDates.Distinct().Count(), "Two workout and rest slots resolve to the same planned date.");
-        var phases = await db.ProgramPhases.Where(p => p.ProgramId == id).OrderBy(p => p.Position).ToListAsync(ct);
-        foreach (var phase in phases) { phase.StartDate = anchor.AddDays((phase.WeekFrom - 1) * 7); phase.Revision++; }
-        program.ScheduleAnchor = anchor; program.Revision++;
-        await db.SaveChangesAsync(ct); await gate.Commit(ct);
-        return await Get(id, ct);
-    }
-
-    private static DateOnly? NormalizeAnchor(DateOnly? anchor) => anchor;
-
-    private static string NormalizeTimeZone(string? id)
-    {
-        if (string.IsNullOrWhiteSpace(id)) return "UTC";
-        try { return TimeZoneInfo.FindSystemTimeZoneById(id.Trim()).Id; }
-        catch { return "UTC"; }
-    }
-
-    private static DateOnly LocalToday(string id)
-    {
-        try
-        {
-            var zone = TimeZoneInfo.FindSystemTimeZoneById(id);
-            return DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, zone));
-        }
-        catch { return DateOnly.FromDateTime(DateTime.UtcNow); }
-    }
-
-    private static DateOnly FollowingMonday(DateOnly date)
-    {
-        var days = ((int)DayOfWeek.Monday - (int)date.DayOfWeek + 7) % 7;
-        return date.AddDays(days == 0 ? 7 : days);
-    }
-
-    private static bool HasSchedule(ProgramInput input)
-        => input.ScheduleAnchor is not null && input.Workouts.Where(w => !w.IsRestDay).All(w => w.Weekday is not null);
-
-    private static bool NeedsSchedule(TrainingProgram program, IEnumerable<WorkoutTemplate> templates)
-        => program.ScheduleAnchor is null || templates.Any(t => !t.IsRestDay && t.Weekday is null);
-
-    private async Task<List<ProgramPhaseView>> PhaseViews(Guid programId, List<WorkoutTemplate> rows, List<Guid> completed, List<Guid> skipped, string timeZone, CancellationToken ct)
+    private async Task<List<ProgramPhaseView>> PhaseViews(Guid programId, List<WorkoutTemplate> rows, List<Guid> completed, List<Guid> skipped, CancellationToken ct)
     {
         var phases = await db.ProgramPhases.AsNoTracking().Where(p => p.ProgramId == programId).OrderBy(p => p.Position).ToListAsync(ct);
         if (phases.Count == 0 && rows.Count > 0)
@@ -497,8 +402,7 @@ public sealed class ProgramService(AppDb db, TemplateService templates)
             phases = await db.ProgramPhases.AsNoTracking().Where(p => p.ProgramId == programId).OrderBy(p => p.Position).ToListAsync(ct);
             if (phases.Count == 0)
             {
-                var anchor = await db.Programs.AsNoTracking().Where(p => p.Id == programId).Select(p => p.ScheduleAnchor).SingleOrDefaultAsync(ct);
-                phases = AddBackfilledPhases(programId, db.CurrentUser!.Value, rows, anchor);
+                phases = AddBackfilledPhases(programId, db.CurrentUser!.Value, rows);
                 await db.SaveChangesAsync(ct);
             }
             await gate.Commit(ct);
@@ -510,9 +414,9 @@ public sealed class ProgramService(AppDb db, TemplateService templates)
             var skippedCount = ids.Count(id => skipped.Contains(id));
             var completedCount = ids.Count(id => completed.Contains(id));
             var done = completedCount + skippedCount;
-            var restWindowComplete = ids.Count == 0 && phase.StartDate is { } restStart && LocalToday(timeZone) >= restStart.AddDays(phase.DurationWeeks * 7 - 1);
+            var restWindowComplete = ids.Count == 0;
             var current = phaseRows.FirstOrDefault(t => !completed.Contains(t.Id) && !skipped.Contains(t.Id))?.PhaseWeek ?? Math.Max(1, phase.DurationWeeks);
-            return new ProgramPhaseView(phase.Id, phase.Name, phase.Block, phase.WeekFrom, phase.WeekTo, phase.DurationWeeks, completedCount, ids.Count, (ids.Count > 0 && done == ids.Count) || restWindowComplete, phase.StartDate, current, skippedCount, phase.SourcePageFrom, phase.SourcePageTo);
+            return new ProgramPhaseView(phase.Id, phase.Name, phase.Block, phase.WeekFrom, phase.WeekTo, phase.DurationWeeks, completedCount, ids.Count, (ids.Count > 0 && done == ids.Count) || restWindowComplete, current, skippedCount, phase.SourcePageFrom, phase.SourcePageTo);
         }).ToList();
     }
 
@@ -529,16 +433,14 @@ public sealed class ProgramService(AppDb db, TemplateService templates)
     }
 
     private static bool IsPhaseComplete(ProgramPhase phase, IEnumerable<WorkoutTemplate> rows,
-        IReadOnlySet<Guid> completed, IReadOnlySet<Guid> skipped, DateOnly today)
+        IReadOnlySet<Guid> completed, IReadOnlySet<Guid> skipped)
     {
         var ids = rows.Where(template => !template.IsRestDay && template.Week >= phase.WeekFrom && template.Week <= phase.WeekTo && BelongsToPhase(template, phase)).Select(template => template.Id).ToList();
         if (ids.Count > 0) return ids.All(id => completed.Contains(id) || skipped.Contains(id));
-        // Explicit rest-only phases are date windows. They complete after their stated duration,
-        // which keeps a later phase from starting early while requiring no rest-day action.
-        return phase.StartDate is { } start && today >= start.AddDays(phase.DurationWeeks * 7 - 1);
+        return true;
     }
 
-    private List<ProgramPhase> AddBackfilledPhases(Guid programId, Guid userId, IEnumerable<WorkoutTemplate> rows, DateOnly? scheduleAnchor = null)
+    private List<ProgramPhase> AddBackfilledPhases(Guid programId, Guid userId, IEnumerable<WorkoutTemplate> rows)
     {
         var phases = new List<ProgramPhase>();
         var position = 0;
@@ -547,13 +449,10 @@ public sealed class ProgramService(AppDb db, TemplateService templates)
             var block = group[0].Block; var phaseName = group[0].Phase;
             var phase = new ProgramPhase { UserId = userId, ProgramId = programId, Position = position++,
                 Name = string.IsNullOrWhiteSpace(phaseName) ? (string.IsNullOrWhiteSpace(block) ? "Program" : block) : phaseName,
-                Block = block, WeekFrom = group.Min(t => t.Week), WeekTo = group.Max(t => t.Week), DurationWeeks = group.Max(t => t.Week) - group.Min(t => t.Week) + 1,
-                StartDate = scheduleAnchor?.AddDays((group.Min(t => t.Week) - 1) * 7) };
+                Block = block, WeekFrom = group.Min(t => t.Week), WeekTo = group.Max(t => t.Week), DurationWeeks = group.Max(t => t.Week) - group.Min(t => t.Week) + 1 };
             foreach (var template in group) template.ProgramPhaseId = phase.Id;
             db.ProgramPhases.Add(phase); phases.Add(phase);
         }
         return phases;
     }
 }
-
-public record ScheduleSlot(Guid TemplateId, int Weekday);

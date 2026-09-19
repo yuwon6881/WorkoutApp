@@ -137,7 +137,7 @@ public sealed partial class ImportService
             // reconciliation; it simply has no chunk to attribute a notice to.
             var shaped = ReconcileDayShape(draft.Workouts);
             var cited = ImportDayShape.ReconcilePages(draft with { Workouts = shaped.Workouts }, import.Pages);
-            draft = cited.Draft with { Workouts = ImportSchedule.Assign(cited.Draft.Workouts) };
+            draft = cited.Draft;
             List<ImportReviewIssue> outlineNotices = [.. shaped.Notices, .. cited.Notices];
             if (outlineNotices.Count > 0) import.NoticesJson = Json.Write(outlineNotices.TakeLast(40).ToList());
             await ValidateDraft(draft, ct);
@@ -349,9 +349,7 @@ public sealed partial class ImportService
                             // no retry of the last section could ever reach.
                             var shaped = ReconcileDayShape(merged.Workouts);
                             var cited = ImportDayShape.ReconcilePages(merged with { Workouts = shaped.Workouts }, import.Pages);
-                            // The order the document printed its week in is the schedule it means,
-                            // and it can only be read once every section's days are in place.
-                            merged = cited.Draft with { Workouts = ImportSchedule.Assign(cited.Draft.Workouts) };
+                            merged = cited.Draft;
                             notices.AddRange(shaped.Notices);
                             notices.AddRange(cited.Notices);
                             await ValidateDraft(merged, settle);

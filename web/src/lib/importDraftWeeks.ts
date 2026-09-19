@@ -96,7 +96,6 @@ export function emptyWeekDay(week: number, latest: Week | undefined): DraftWorko
     phase: latest?.phases[0] ?? null,
     phaseWeek: (latest?.days[0]?.phaseWeek ?? 0) + 1,
     isRestDay: false,
-    weekday: null,
     sourcePage: null
   };
 }

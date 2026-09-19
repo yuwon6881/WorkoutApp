@@ -84,11 +84,6 @@ public sealed class TrainingProgram : OwnedRecord
     /// without replaying all sessions. Existing rows default to standby when migrated.
     public string LifecycleStatus { get; set; } = ProgramLifecycle.Standby;
     public DateTime? CompletedAt { get; set; }
-    /// IANA/Windows timezone identifier used for planned dates and phase transitions.
-    public string TimeZone { get; set; } = "UTC";
-    /// Monday of the first scheduled program week. A null value means this program is not yet
-    /// scheduled and can only be activated after the scheduling step is completed.
-    public DateOnly? ScheduleAnchor { get; set; }
 }
 
 public sealed class ProgramPhase : OwnedRecord
@@ -100,7 +95,6 @@ public sealed class ProgramPhase : OwnedRecord
     public int WeekFrom { get; set; }
     public int WeekTo { get; set; }
     public int DurationWeeks { get; set; }
-    public DateOnly? StartDate { get; set; }
     public int? SourcePageFrom { get; set; }
     public int? SourcePageTo { get; set; }
 }
@@ -135,9 +129,6 @@ public sealed class WorkoutTemplate : OwnedRecord
     public int PhaseWeek { get; set; } = 1;
     public bool IsRestDay { get; set; }
     public DateTime Created { get; set; } = DateTime.UtcNow;
-    /// ISO weekday (1 = Monday, 7 = Sunday). Null is retained for imported programs awaiting
-    /// scheduling and for standalone workouts.
-    public int? Weekday { get; set; }
     /// Page in the source document for an imported workout/day heading.
     public int? SourcePage { get; set; }
     /// Stable phase identity. The display name is not unique (two phases may both be called
@@ -173,7 +164,6 @@ public sealed class WorkoutSession : OwnedRecord
     public bool Active { get; set; } = true;
     public DateTime StartedAt { get; set; } = DateTime.UtcNow;
     public DateTime? FinishedAt { get; set; }
-    public DateOnly? PlannedDate { get; set; }
     public string BodyWeightSnapshotJson { get; set; } = "";
     public string NutritionContextJson { get; set; } = "";
     public long? NutritionContextRevision { get; set; }

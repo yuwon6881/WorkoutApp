@@ -17,7 +17,7 @@ public record AiExercise(string SourceName, string? ExerciseId, string? Notes, L
 public record AiWorkout(string Name, string? Focus, string? Notes, List<AiExercise> Exercises);
 public record AiWeek(int Week, List<AiWorkout> Workouts);
 public record AiDay(string? Block, string? Phase, int WeekNumber, int PhaseWeek, string DayName, bool IsRestDay, string? Notes, List<AiExercise> Exercises,
-    int? Weekday = null, int? SourcePage = null);
+    int? SourcePage = null);
 public record AiProgram(string? ProgramTitle, List<AiDay>? Days, string? ProgramName = null, List<AiWeek>? Weeks = null);
 public record AiOutlineChunk(string Label, string? Block, string? Phase, int WeekFrom, int WeekTo, int PageFrom, int PageTo, int DayCount);
 public record AiAlternative(string Id, string Name, List<AiOutlineChunk> Chunks);

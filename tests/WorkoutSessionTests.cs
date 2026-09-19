@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Workout.Api.Data;
 using Workout.Api.Domain;
 using Workout.Api.Services;
 using Xunit;
@@ -203,5 +204,153 @@ public class WorkoutSessionTests
         await h.Workouts.Save(session.Id, new SessionInput(null,
             [new SessionExerciseInput(exercise.ExerciseId, exercise.Name, null, exercise.Prescription,
                 exercise.Sets.Select(_ => new SetInput(weight, reps, rpe, true)).ToList())], session.Revision, null), default);
+    }
+
+    [Fact] public async Task Activity_marks_completed_sessions_on_finish_date_and_active_sessions_on_start_date()
+    {
+        var (h, templateId, _) = await Ready();
+        await using var _h = h;
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+
+        var active = await h.Workouts.Start(templateId, "Morning push", default);
+
+        var activity = await h.Workouts.Activity(today.AddDays(-7), today.AddDays(7), "UTC", default);
+        var activeItem = Assert.Single(activity);
+        Assert.Equal(active.Id, activeItem.Id);
+        Assert.Equal("Push", activeItem.Name);
+        Assert.Equal("in_progress", activeItem.Status);
+        Assert.Equal(DateOnly.FromDateTime(active.StartedAt), activeItem.Date);
+
+        await Complete(h, active, 60, 10, 8);
+        var finished = await h.Workouts.Finish(active.Id, null, default);
+
+        activity = await h.Workouts.Activity(today.AddDays(-7), today.AddDays(7), "UTC", default);
+        var finishedItem = Assert.Single(activity);
+        Assert.Equal(finished.Id, finishedItem.Id);
+        Assert.Equal("Push", finishedItem.Name);
+        Assert.Equal("completed", finishedItem.Status);
+        Assert.Equal(DateOnly.FromDateTime(finished.FinishedAt!.Value), finishedItem.Date);
+    }
+
+    [Fact] public async Task Activity_filters_by_date_range_and_preserves_tenant_isolation()
+    {
+        var (h, templateId, _) = await Ready();
+        await using var _h = h;
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+
+        var s1 = await h.Workouts.Start(templateId, "Push 1", default);
+        await Complete(h, s1, 60, 10, 8);
+        await h.Workouts.Finish(s1.Id, null, default);
+
+        var pastActivity = await h.Workouts.Activity(today.AddDays(-10), today.AddDays(-1), "UTC", default);
+        Assert.Empty(pastActivity);
+
+        var todayActivity = await h.Workouts.Activity(today, today, "UTC", default);
+        Assert.Single(todayActivity);
+
+        var h2 = await Harness.Create();
+        await h2.SignIn("other-user");
+        var h2Activity = await h2.Workouts.Activity(today.AddDays(-1), today.AddDays(1), "UTC", default);
+        Assert.Empty(h2Activity);
+    }
+
+    [Fact] public async Task Activity_localizes_timestamps_with_positive_and_negative_utc_offsets()
+    {
+        var (h, templateId, _) = await Ready();
+        await using var _h = h;
+
+        var s = await h.Workouts.Start(templateId, "Night push", default);
+        await Complete(h, s, 60, 10, 8);
+        var finished = await h.Workouts.Finish(s.Id, null, default);
+
+        // Set finishedAt to 23:30 UTC on 2026-06-15
+        var entity = await h.Db.Workouts.SingleAsync(w => w.Id == finished.Id);
+        entity.FinishedAt = new DateTime(2026, 6, 15, 23, 30, 0, DateTimeKind.Utc);
+        await h.Db.SaveChangesAsync();
+
+        // In Asia/Tokyo (UTC+9), 23:30 UTC on June 15 is 08:30 on June 16
+        var tokyoJune16 = await h.Workouts.Activity(new DateOnly(2026, 6, 16), new DateOnly(2026, 6, 16), "Asia/Tokyo", default);
+        var tokyoItem = Assert.Single(tokyoJune16);
+        Assert.Equal(new DateOnly(2026, 6, 16), tokyoItem.Date);
+
+        var tokyoJune15 = await h.Workouts.Activity(new DateOnly(2026, 6, 15), new DateOnly(2026, 6, 15), "Asia/Tokyo", default);
+        Assert.Empty(tokyoJune15);
+
+        // In America/New_York (UTC-4 in summer), 23:30 UTC on June 15 is 19:30 on June 15
+        var nyJune15 = await h.Workouts.Activity(new DateOnly(2026, 6, 15), new DateOnly(2026, 6, 15), "America/New_York", default);
+        var nyItem = Assert.Single(nyJune15);
+        Assert.Equal(new DateOnly(2026, 6, 15), nyItem.Date);
+
+        var nyJune16 = await h.Workouts.Activity(new DateOnly(2026, 6, 16), new DateOnly(2026, 6, 16), "America/New_York", default);
+        Assert.Empty(nyJune16);
+    }
+
+    [Fact] public async Task Activity_localizes_active_session_started_at_across_midnight()
+    {
+        var (h, templateId, _) = await Ready();
+        await using var _h = h;
+
+        var active = await h.Workouts.Start(templateId, "Midnight push", default);
+        var entity = await h.Db.Workouts.SingleAsync(w => w.Id == active.Id);
+        entity.StartedAt = new DateTime(2026, 6, 15, 23, 30, 0, DateTimeKind.Utc);
+        await h.Db.SaveChangesAsync();
+
+        // Tokyo: June 16
+        var tokyo = await h.Workouts.Activity(new DateOnly(2026, 6, 16), new DateOnly(2026, 6, 16), "Asia/Tokyo", default);
+        Assert.Equal(new DateOnly(2026, 6, 16), Assert.Single(tokyo).Date);
+        Assert.Equal("in_progress", tokyo[0].Status);
+
+        // New York: June 15
+        var ny = await h.Workouts.Activity(new DateOnly(2026, 6, 15), new DateOnly(2026, 6, 15), "America/New_York", default);
+        Assert.Equal(new DateOnly(2026, 6, 15), Assert.Single(ny).Date);
+        Assert.Equal("in_progress", ny[0].Status);
+    }
+
+    [Fact] public async Task Activity_handles_daylight_saving_transition_boundaries()
+    {
+        var (h, templateId, _) = await Ready();
+        await using var _h = h;
+
+        // In US Eastern time, DST starts second Sunday in March (March 8, 2026).
+        // Before transition (EST = UTC-5): March 7, 2026 at 04:30 UTC -> March 6 at 23:30 EST
+        var s1 = await h.Workouts.Start(templateId, "Pre-DST", default);
+        await Complete(h, s1, 60, 10, 8);
+        await h.Workouts.Finish(s1.Id, null, default);
+        var e1 = await h.Db.Workouts.SingleAsync(w => w.Id == s1.Id);
+        e1.FinishedAt = new DateTime(2026, 3, 7, 4, 30, 0, DateTimeKind.Utc);
+
+        // After transition (EDT = UTC-4): March 9, 2026 at 03:30 UTC -> March 8 at 23:30 EDT
+        // Start another session for user
+        var s2 = new WorkoutSession
+        {
+            UserId = e1.UserId,
+            Name = "Post-DST",
+            StartedAt = new DateTime(2026, 3, 9, 2, 0, 0, DateTimeKind.Utc),
+            FinishedAt = new DateTime(2026, 3, 9, 3, 30, 0, DateTimeKind.Utc)
+        };
+        h.Db.Workouts.Add(s2);
+        await h.Db.SaveChangesAsync();
+
+        var estItems = await h.Workouts.Activity(new DateOnly(2026, 3, 6), new DateOnly(2026, 3, 6), "America/New_York", default);
+        Assert.Equal(new DateOnly(2026, 3, 6), Assert.Single(estItems).Date);
+
+        var edtItems = await h.Workouts.Activity(new DateOnly(2026, 3, 8), new DateOnly(2026, 3, 8), "America/New_York", default);
+        Assert.Equal(new DateOnly(2026, 3, 8), Assert.Single(edtItems).Date);
+    }
+
+    [Fact] public async Task Activity_rejects_missing_or_invalid_time_zones()
+    {
+        var (h, _, _) = await Ready();
+        await using var _h = h;
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+
+        var exMissing = await Assert.ThrowsAsync<DomainException>(() => h.Workouts.Activity(today, today, null, default));
+        Assert.Equal(400, exMissing.Status);
+
+        var exEmpty = await Assert.ThrowsAsync<DomainException>(() => h.Workouts.Activity(today, today, "   ", default));
+        Assert.Equal(400, exEmpty.Status);
+
+        var exInvalid = await Assert.ThrowsAsync<DomainException>(() => h.Workouts.Activity(today, today, "Moon/Mare_Tranquillitatis", default));
+        Assert.Equal(400, exInvalid.Status);
     }
 }

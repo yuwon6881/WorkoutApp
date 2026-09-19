@@ -10,19 +10,6 @@ import { Select } from './ui/Select';
 import { ExerciseLibrary } from './Exercises';
 import { WorkoutEditorModal, type WorkoutDraft } from './WorkoutEditorModal';
 
-const weekdayNames = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-
-function nextMondayIso() {
-  const date = new Date();
-  const day = date.getDay();
-  date.setDate(date.getDate() + (day === 0 ? 1 : 8 - day));
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-}
-
-function defaultWeekdays(days: ProgramSummary['days']) {
-  return Object.fromEntries(days.filter(day => !day.isRestDay && day.weekday != null).map(day => [day.id, day.weekday!]));
-}
-
 export function Programs({ data, exercises, onStart, onImport, onChanged }: {
   data: Bootstrap; exercises: Exercise[]; onStart: (templateId: string) => void; onImport: () => void; onChanged: () => Promise<void>;
 }) {
@@ -121,9 +108,6 @@ function ProgramCard({ program, exercises, onStart, onChanged }: { program: Prog
   const [error, setError] = useState('');
   const [expanded, setExpanded] = useState(false);
   const [detail, setDetail] = useState<Template[] | null>(null);
-  const [scheduling, setScheduling] = useState(program.needsSchedule ?? false);
-  const [scheduleAnchor, setScheduleAnchor] = useState(program.scheduleAnchor ?? nextMondayIso());
-  const [scheduleWeekdays, setScheduleWeekdays] = useState<Record<string, number | undefined>>(() => defaultWeekdays(program.days));
   const [swapTarget, setSwapTarget] = useState<{ template: Template; exercise: TemplateExercise } | null>(null);
   const [swapScope, setSwapScope] = useState<'slot' | 'phase'>('slot');
   const [swapChoice, setSwapChoice] = useState<Exercise | null>(null);
@@ -148,20 +132,6 @@ function ProgramCard({ program, exercises, onStart, onChanged }: { program: Prog
     finally { setBusy(false); }
   }
 
-  function openSchedule() {
-    setScheduleAnchor(program.scheduleAnchor ?? nextMondayIso());
-    setScheduleWeekdays(defaultWeekdays(program.days));
-    setScheduling(true);
-  }
-
-  async function saveSchedule() {
-    const slots = program.days.filter(day => !day.isRestDay).map(day => ({ templateId: day.id, weekday: scheduleWeekdays[day.id] ?? 0 }));
-    await act(async () => {
-      await api.scheduleProgram(program.id, { anchor: scheduleAnchor, slots, revision: program.revision });
-      setScheduling(false);
-    });
-  }
-
   async function toggleSkip(templateId: string) {
     await act(() => skipped.has(templateId) ? api.unskipProgramWorkout(program.id, templateId) : api.skipProgramWorkout(program.id, templateId));
   }
@@ -178,32 +148,6 @@ function ProgramCard({ program, exercises, onStart, onChanged }: { program: Prog
       <Button variant="tertiary" className="full-width" onClick={() => void toggleDetails()} disabled={busy}>{busy ? 'Loading…' : expanded ? 'Hide details' : 'Show details'}</Button>
     {expanded && <ProgramTree days={program.days} completed={program.completedTemplateIds} skipped={program.skippedTemplateIds ?? []} nextId={program.nextTemplateId} detail={detail} exercises={exercises} onStart={onStart} onSkip={toggleSkip} canStart={program.active} onSwap={template => exercise => { setSwapTarget({ template, exercise }); setSwapScope('slot'); setSwapChoice(null); setConfirmPhaseSwap(false); }} />}
     {error && <p className="error-text" role="alert">{error}</p>}
-    {program.needsSchedule && !scheduling && <div className="empty-message">
-      <strong>Choose when this program happens</strong>
-      <p>Set a Monday start and a weekday for each workout before activating the program.</p>
-      <Button onClick={openSchedule}>Schedule workouts</Button>
-    </div>}
-    {!program.needsSchedule && !scheduling && <div className="settings-actions">
-      <Button variant="tertiary" onClick={openSchedule}>Edit schedule</Button>
-    </div>}
-    {scheduling && <div className="schedule-editor" aria-label={`Schedule ${program.name}`}>
-      <label className="field">Program week 1 starts on Monday<input id="schedule-anchor-date" name="schedule-anchor-date" type="date" value={scheduleAnchor} onChange={event => setScheduleAnchor(event.target.value)} /></label>
-      <div className="schedule-rows">
-        {program.days.filter(day => !day.isRestDay).map(day => <label className="field" key={day.id}>{day.name} · week {day.week}
-          <Select
-            name={`schedule-weekday-${day.id}`}
-            value={scheduleWeekdays[day.id] != null ? String(scheduleWeekdays[day.id]) : ''}
-            onChange={value => setScheduleWeekdays(current => ({ ...current, [day.id]: value ? Number(value) : undefined }))}
-            ariaLabel={`Weekday for ${day.name}`}
-            options={[
-              { value: '', label: 'Choose a weekday' },
-              ...weekdayNames.map((name, index) => ({ value: String(index + 1), label: name }))
-            ]}
-          />
-        </label>)}
-      </div>
-      <div className="settings-actions"><Button variant="primary" disabled={busy || !scheduleAnchor || program.days.some(day => !day.isRestDay && scheduleWeekdays[day.id] == null)} onClick={() => void saveSchedule()}>Save schedule</Button><Button disabled={busy} onClick={() => setScheduling(false)}>Cancel</Button></div>
-    </div>}
     <div className="settings-actions">
       {program.active && next && <Button variant="primary" onClick={() => onStart(next.id)}>Start {next.name}<ArrowRight size={16} /></Button>}
       {program.lifecycleStatus !== 'completed' && <Button disabled={busy} onClick={() => act(() => api.setProgramActive(program.id, !program.active, program.revision))}>{program.active ? 'Move to standby' : 'Make active'}</Button>}

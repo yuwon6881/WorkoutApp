@@ -108,7 +108,6 @@ public sealed partial class ImportService
         if ((current.Phase?.Trim() ?? "") != (baseline.Phase?.Trim() ?? "")) return true;
         if (current.PhaseWeek != baseline.PhaseWeek) return true;
         if (current.IsRestDay != baseline.IsRestDay) return true;
-        if (current.Weekday != baseline.Weekday) return true;
         if (current.SourcePage != baseline.SourcePage) return true;
         if (current.Exercises.Count != baseline.Exercises.Count) return true;
         for (var i = 0; i < current.Exercises.Count; i++)

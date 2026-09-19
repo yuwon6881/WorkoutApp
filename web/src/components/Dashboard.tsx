@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import { ArrowRight, Check, ChevronLeft, ChevronRight, Dumbbell, FileText, Play } from 'lucide-react';
-import type { Bootstrap, Session, WorkoutTrainingSummary } from '../types';
+import type { Bootstrap, Session, WorkoutActivityItem } from '../types';
 import { api } from '../lib/api';
-import { localDate, weekDays } from '../lib/training';
+import { weekDays } from '../lib/training';
 import { Button } from './ui/Button';
 import { Modal } from './ui/Modal';
 
@@ -12,8 +12,7 @@ export function Dashboard({ data, onStart, onProgram, onImport, onResume, onSess
 }) {
   const [offset, setOffset] = useState(0);
   const days = weekDays(offset);
-  const history = data.history.sessions;
-  const [calendar, setCalendar] = useState<WorkoutTrainingSummary[]>([]);
+  const [calendar, setCalendar] = useState<WorkoutActivityItem[]>([]);
   const [calendarError, setCalendarError] = useState('');
   const [selectedDay, setSelectedDay] = useState<Date | null>(null);
   const [selectedDayError, setSelectedDayError] = useState('');
@@ -22,7 +21,7 @@ export function Dashboard({ data, onStart, onProgram, onImport, onResume, onSess
   useEffect(() => {
     const from = localDay(days[0]); const to = localDay(days[6]);
     const controller = new AbortController();
-    api.schedule(from, to, controller.signal).then(next => { setCalendar(next); setCalendarError(''); }).catch(() => { if (!controller.signal.aborted) setCalendarError('Calendar could not be refreshed.'); });
+    api.activity(from, to, controller.signal).then(next => { setCalendar(next); setCalendarError(''); }).catch(() => { if (!controller.signal.aborted) setCalendarError('Calendar could not be refreshed.'); });
     return () => controller.abort();
   }, [offset]);
 
@@ -49,17 +48,17 @@ export function Dashboard({ data, onStart, onProgram, onImport, onResume, onSess
         </div>
       </div>
       <div className="week-days">{days.map(day => {
-        const entries = calendar.filter(item => item.localDate === localDay(day));
-        const fallbackLogged = history.some(s => localDate(s.startedAt) === localDate(day));
-        const status = entries.some(e => e.status === 'in_progress') ? 'in_progress' : entries.some(e => e.status === 'completed' || e.status === 'completed_early' || e.status === 'completed_late') ? (entries.some(e => e.status === 'completed_early' || e.status === 'completed_late') ? 'completed_shifted' : 'completed') : entries.some(e => e.status === 'missed') ? 'missed' : entries.some(e => e.status === 'skipped') ? 'skipped' : entries.some(e => e.status === 'scheduled') ? 'scheduled' : fallbackLogged ? 'completed' : 'rest';
-        const today = localDate(day) === localDate(Date.now());
-        const label = status === 'completed' ? 'workout completed' : status === 'completed_shifted' ? 'workout completed on a different day' : status === 'scheduled' ? 'workout scheduled' : status === 'missed' ? 'workout missed' : status === 'skipped' ? 'workout skipped' : status === 'in_progress' ? 'workout in progress' : 'rest day';
+        const dayStr = localDay(day);
+        const entries = calendar.filter(item => item.date === dayStr);
+        const status = entries.some(e => e.status === 'in_progress') ? 'in_progress' : entries.some(e => e.status === 'completed') ? 'completed' : 'rest';
+        const today = dayStr === localDay(new Date());
+        const label = status === 'completed' ? 'workout completed' : status === 'in_progress' ? 'workout in progress' : 'no workout recorded';
         return <Button presentation="plain" key={day.toISOString()} className={`day day-${status} ${today ? 'today' : ''}`} aria-label={`${day.toDateString()}, ${label}${today ? ', today' : ''}`} onClick={() => { setSelectedDay(day); setSelectedDayError(''); }}>
           <span>{day.toLocaleDateString('en', { weekday: 'short' })}</span><strong>{day.getDate()}</strong>
-          <span className="day-marker">{status === 'completed' ? <Check size={12} /> : status === 'completed_shifted' ? '↔' : status === 'scheduled' ? '○' : status === 'missed' ? '!' : status === 'skipped' ? '–' : status === 'in_progress' ? '…' : today ? <span className="status-dot" /> : '·'}</span>
+          <span className="day-marker">{status === 'completed' ? <Check size={12} /> : status === 'in_progress' ? '…' : today ? <span className="status-dot" /> : '·'}</span>
         </Button>;
       })}</div>
-      <div className="calendar-legend" aria-label="Calendar status legend"><span><i className="legend-dot scheduled" />Scheduled</span><span><i className="legend-dot completed" />Completed</span><span><i className="legend-dot shifted" />Early/late</span><span><i className="legend-dot missed" />Missed</span><span><i className="legend-dot skipped" />Skipped</span><span><i className="legend-dot in-progress" />In progress</span></div>
+      <div className="calendar-legend" aria-label="Calendar status legend"><span><i className="legend-dot completed" />Completed</span><span><i className="legend-dot in-progress" />In progress</span></div>
       {calendarError && <p className="muted calendar-error">{calendarError}</p>}
     </section>
 
@@ -104,18 +103,18 @@ export function Dashboard({ data, onStart, onProgram, onImport, onResume, onSess
 
       </aside>
     </div>
-    {selectedDay && <CalendarDayModal day={selectedDay} entries={calendar.filter(item => item.localDate === localDay(selectedDay))}
+    {selectedDay && <CalendarDayModal day={selectedDay} entries={calendar.filter(item => item.date === localDay(selectedDay))}
       onClose={() => setSelectedDay(null)} onSession={async id => { try { const session = await api.getWorkout(id); setSelectedDay(null); onSession(session); } catch { setSelectedDayError('This workout could not be opened.'); } }} error={selectedDayError} />}
   </>;
 }
 
-function CalendarDayModal({ day, entries, onClose, onSession, error }: { day: Date; entries: WorkoutTrainingSummary[]; onClose: () => void; onSession: (id: string) => Promise<void>; error: string }) {
+function CalendarDayModal({ day, entries, onClose, onSession, error }: { day: Date; entries: WorkoutActivityItem[]; onClose: () => void; onSession: (id: string) => Promise<void>; error: string }) {
   return <Modal title={day.toLocaleDateString('en', { weekday: 'long', month: 'long', day: 'numeric' })} onClose={onClose}>
     <div className="modal-body calendar-day-details">
       {entries.length ? entries.map(entry => <div className="calendar-entry" key={entry.id}>
-        <div><strong>{entry.workoutName}</strong><span className="muted">{entry.status.replace('_', ' ')}{entry.actualDate && entry.actualDate !== entry.localDate ? ` · actual ${entry.actualDate}` : ''}</span></div>
-        {entry.id.startsWith('session:') && <Button variant="tertiary" onClick={() => void onSession(entry.id.slice('session:'.length))}>Open workout <ArrowRight size={15} /></Button>}
-      </div>) : <p className="muted">No scheduled or completed workout recorded for this day.</p>}
+        <div><strong>{entry.name}</strong><span className="muted">{entry.status.replace('_', ' ')}</span></div>
+        <Button variant="tertiary" onClick={() => void onSession(entry.id)}>Open workout <ArrowRight size={15} /></Button>
+      </div>) : <p className="muted">No workout recorded for this day.</p>}
       {error && <div className="error-text" role="alert">{error}</div>}
     </div>
   </Modal>;

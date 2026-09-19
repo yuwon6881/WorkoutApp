@@ -32,6 +32,21 @@ internal static class ImportDayShape
             workouts.Add(ReconcileDay(cleanedDay, notices));
             if (splitRest != null) workouts.Add(splitRest);
         }
+
+        var trimmedRestIds = new HashSet<Guid>();
+        foreach (var group in workouts.GroupBy(day => (Block: day.Block?.Trim() ?? "", Phase: day.Phase?.Trim() ?? "", day.Week)))
+        {
+            var groupDays = group.ToList();
+            while (groupDays.Count > 7 && groupDays[^1].IsRestDay)
+            {
+                trimmedRestIds.Add(groupDays[^1].LineId);
+                groupDays.RemoveAt(groupDays.Count - 1);
+            }
+        }
+        if (trimmedRestIds.Count > 0)
+        {
+            workouts = workouts.Where(w => !trimmedRestIds.Contains(w.LineId)).ToList();
+        }
         return (workouts, notices);
     }
 
@@ -71,7 +86,6 @@ internal static class ImportDayShape
                 day.Phase,
                 day.PhaseWeek,
                 IsRestDay: true,
-                Weekday: null,
                 SourcePage: day.SourcePage
             );
         }

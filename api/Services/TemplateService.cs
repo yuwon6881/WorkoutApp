@@ -12,7 +12,7 @@ public record TemplateExerciseView(Guid Id, Guid? ExerciseId, string SourceName,
     string SequenceGroup = "", List<string>? Substitutions = null, string LoadModel = LoadModels.External, int? SourcePage = null, Guid? SlotKey = null,
     bool CanRestore = false, bool IsModified = false);
 public record TemplateView(Guid Id, Guid? ProgramId, string Name, string Focus, string Note, int Week, int Position, int Revision, List<TemplateExerciseView> Exercises,
-    string Block = "", string Phase = "", int PhaseWeek = 1, bool IsRestDay = false, int? Weekday = null, int? SourcePage = null, Guid? PhaseId = null,
+    string Block = "", string Phase = "", int PhaseWeek = 1, bool IsRestDay = false, int? SourcePage = null, Guid? PhaseId = null,
     bool CanRestore = false, bool IsLegacyBaseline = false);
 public static class SubstitutionScope
 {
@@ -78,7 +78,7 @@ public sealed partial class TemplateService(AppDb db, CatalogService catalog)
             var canRestoreTemplate = baseline != null && templateModified;
 
             return new TemplateView(t.Id, t.ProgramId, t.Name, t.Focus, t.Note, t.Week, t.Position, t.Revision,
-                exerciseViews, t.Block, t.Phase, t.PhaseWeek, t.IsRestDay, t.Weekday, t.SourcePage, t.ProgramPhaseId,
+                exerciseViews, t.Block, t.Phase, t.PhaseWeek, t.IsRestDay, t.SourcePage, t.ProgramPhaseId,
                 canRestoreTemplate, isLegacy);
         }).ToList();
     }

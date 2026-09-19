@@ -76,7 +76,6 @@ public sealed class ImportEmptyDayTests
         Assert.Empty(rest.Exercises);
         // What the page said about the day is kept; only its shape changed.
         Assert.Equal("Walk if you feel like it", rest.Notes);
-        Assert.Equal(3, rest.Weekday);
         Assert.Contains(ready.ReviewIssues!, issue => issue.Code == "day_without_exercises");
         Assert.Equal(2, ready.Draft.Workouts.Count(day => !day.IsRestDay));
     }
@@ -104,8 +103,7 @@ public sealed class ImportEmptyDayTests
             [
                 new DraftExercise(Guid.NewGuid(), "Bench press", null, null, [new DraftSet(5, 8, 8, 120, null, null, null)], "A1", [], 1),
                 new DraftExercise(Guid.NewGuid(), "Rest Day", null, null, [], "A2", [], 1)
-            ],
-            Weekday: 1);
+            ]);
 
         var shaped = ImportDayShape.Reconcile([dayWithPseudoRest]);
 
