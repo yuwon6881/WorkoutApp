@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { AlertTriangle, ArrowLeftRight, Dumbbell, FileText, Link2, Loader2, Plus, RotateCcw, Trash2, X } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { AlertTriangle, ArrowLeftRight, Dumbbell, Link2, Loader2, MoreVertical, Plus, RotateCcw, Trash2, Unlink, X } from 'lucide-react';
 import type { DraftExercise, DraftSet, DraftWorkout, Exercise } from '../types';
 import { rpeOptions, showReps } from '../lib/training';
 import { Button } from './ui/Button';
@@ -10,7 +10,6 @@ import { ExerciseLibrary } from './Exercises';
 import { SwipeableRow } from './ui/SwipeableRow';
 
 import { getSupersetGroup, isSuperset, pairExercises, unlinkExercise } from '../lib/supersets';
-import { SupersetModal } from './SupersetModal';
 
 const weekdayOptions = [
   { value: '', label: 'Choose a weekday' },
@@ -43,7 +42,7 @@ export function DayEditor({ day, exercises, onChange, onPropagateSubstitution, r
   day: DraftWorkout;
   exercises: Exercise[];
   onChange: (day: DraftWorkout) => Promise<void>;
-  onPropagateSubstitution?: (currentName: string, replacementName: string) => Promise<void>;
+  onPropagateSubstitution?: (currentName: string, replacementName: string, exerciseLineId?: string) => Promise<void>;
   restorableExerciseLineIds?: string[];
   onRestoreExercise?: (exerciseLineId: string) => Promise<void>;
 }) {
@@ -128,14 +127,33 @@ function ExerciseEditor({ exercise, exercises, allDayExercises, onChange, onRemo
   onRemove?: () => void;
   onPairExercises: (targetLineId: string) => void;
   onUnlinkExercise: () => void;
-  onPropagateSubstitution?: (currentName: string, replacementName: string) => Promise<void>;
+  onPropagateSubstitution?: (currentName: string, replacementName: string, exerciseLineId?: string) => Promise<void>;
   canRestore?: boolean;
   onRestore?: () => Promise<void>;
 }) {
   const [pickerOpen, setPickerOpen] = useState(false);
-  const [supersetModalOpen, setSupersetModalOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
   const [isRestoring, setIsRestoring] = useState(false);
   const [restoreError, setRestoreError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setMenuOpen(false);
+      }
+    };
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setMenuOpen(false);
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [menuOpen]);
 
   const editSet = (index: number, patch: Partial<DraftSet>) =>
     onChange({ ...exercise, sets: exercise.sets.map((set, current) => current === index ? { ...set, ...patch } : set) });
@@ -163,16 +181,19 @@ function ExerciseEditor({ exercise, exercises, allDayExercises, onChange, onRemo
       e => e.name.toLowerCase() === subName.toLowerCase() || e.aliases.some(a => a.toLowerCase() === subName.toLowerCase())
     );
     if (!matched) return;
-    const oldLibrary = exercises.find(e => e.id === exercise.exerciseId);
-    const oldName = oldLibrary?.name || exercise.sourceName;
-    const remainingSubs = [oldName, ...exercise.substitutions.filter(s => s.toLowerCase() !== subName.toLowerCase())].slice(0, 2);
-    onChange({
+    const currentName = exercise.sourceName;
+    const remainingSubs = [currentName, ...exercise.substitutions.filter(s => s.toLowerCase() !== subName.toLowerCase())].slice(0, 2);
+    const nextExercise: DraftExercise = {
       ...exercise,
       sourceName: matched.name,
       exerciseId: matched.id,
       substitutions: remainingSubs
-    });
-    void onPropagateSubstitution?.(oldName, matched.name);
+    };
+    if (onPropagateSubstitution) {
+      void onPropagateSubstitution(currentName, matched.name, exercise.lineId);
+    } else {
+      onChange(nextExercise);
+    }
   };
 
   const validSubstitutions = exercise.substitutions.filter(sub =>
@@ -183,55 +204,130 @@ function ExerciseEditor({ exercise, exercises, allDayExercises, onChange, onRemo
   const isPaired = isSuperset(exercise.sequenceGroup);
   const partners = allDayExercises.filter(e => e.lineId !== exercise.lineId && getSupersetGroup(e.sequenceGroup) === currentGroup);
   const partnerNames = partners.map(p => p.sourceName).join(', ');
+  const candidates = allDayExercises.filter(e => e.lineId !== exercise.lineId);
 
   return <div className={`import-exercise ${exercise.sequenceGroup ? 'exercise-card-superset-active' : ''}`} data-import-exercise={exercise.lineId}>
     <div className="import-exercise-heading">
       <div className="import-exercise-title">
         <span className="import-exercise-icon" aria-hidden="true"><Dumbbell size={17} /></span>
-        <input name={`exercise-source-name-${exercise.lineId}`} className="inline-input" aria-label="Exercise name as written in the PDF" value={exercise.sourceName}
-          onChange={event => onChange({ ...exercise, sourceName: event.target.value })} />
-        {isPaired && (
-          <span
-            className="superset-badge"
-            role="button"
-            tabIndex={0}
-            title={partnerNames ? `Superset with ${partnerNames}` : 'Superset group'}
-            aria-label={`Superset ${currentGroup} with ${partnerNames}`}
-            onClick={() => setSupersetModalOpen(true)}
-            onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') setSupersetModalOpen(true); }}
-          >
-            <Link2 size={12} />Superset {currentGroup}
-          </span>
+        <div className="import-exercise-name-group">
+          <input
+            name={`exercise-source-name-${exercise.lineId}`}
+            className="inline-input"
+            aria-label="Exercise name"
+            value={exercise.sourceName}
+            onChange={event => onChange({ ...exercise, sourceName: event.target.value })}
+          />
+          <div className="import-exercise-badges">
+            {isPaired && (
+              <span
+                className="superset-badge"
+                title={partnerNames ? `Superset with ${partnerNames}` : 'Superset group'}
+                aria-label={`Superset ${currentGroup} with ${partnerNames}`}
+              >
+                <Link2 size={12} />
+                <span>Superset {currentGroup}</span>
+                <Button
+                  presentation="plain"
+                  className="superset-unlink-chip-btn"
+                  aria-label={`Unlink ${exercise.sourceName} from superset`}
+                  title="Unlink from superset"
+                  onClick={e => {
+                    e.stopPropagation();
+                    onUnlinkExercise();
+                  }}
+                >
+                  <X size={12} />
+                </Button>
+              </span>
+            )}
+            {!exercise.exerciseId && (
+              <span className="tiny-label warn"><AlertTriangle size={12} /> Unmapped</span>
+            )}
+          </div>
+        </div>
+      </div>
+      <div className="import-exercise-menu-wrap" ref={menuRef}>
+        <Button
+          presentation="plain"
+          className="exercise-menu-trigger"
+          aria-label={`Actions for ${exercise.sourceName}`}
+          aria-haspopup="menu"
+          aria-expanded={menuOpen}
+          onClick={() => setMenuOpen(prev => !prev)}
+        >
+          {isRestoring ? <Loader2 size={16} className="spin" /> : <MoreVertical size={16} />}
+        </Button>
+        {menuOpen && (
+          <div className="exercise-menu-dropdown" role="menu">
+            {isPaired ? (
+              <Button
+                presentation="plain"
+                role="menuitem"
+                className="exercise-menu-item"
+                onClick={() => {
+                  setMenuOpen(false);
+                  onUnlinkExercise();
+                }}
+              >
+                <Unlink size={14} />
+                <span>Unlink from superset</span>
+              </Button>
+            ) : (
+              candidates.length > 0 && (
+                <>
+                  <div className="exercise-menu-header">Pair superset with</div>
+                  {candidates.map(candidate => (
+                    <Button
+                      key={candidate.lineId}
+                      presentation="plain"
+                      role="menuitem"
+                      className="exercise-menu-item"
+                      onClick={() => {
+                        setMenuOpen(false);
+                        onPairExercises(candidate.lineId);
+                      }}
+                    >
+                      <Link2 size={14} />
+                      <span className="truncate">{candidate.sourceName}</span>
+                    </Button>
+                  ))}
+                </>
+              )
+            )}
+            {canRestore && onRestore && (
+              <Button
+                presentation="plain"
+                role="menuitem"
+                className="exercise-menu-item"
+                disabled={isRestoring}
+                onClick={() => {
+                  setMenuOpen(false);
+                  void handleRestore();
+                }}
+              >
+                <RotateCcw size={14} />
+                <span>Restore default</span>
+              </Button>
+            )}
+            {onRemove && (
+              <Button
+                presentation="plain"
+                role="menuitem"
+                className="exercise-menu-item exercise-menu-item-destructive"
+                disabled={allDayExercises.length <= 1 || isRestoring}
+                onClick={() => {
+                  setMenuOpen(false);
+                  onRemove();
+                }}
+              >
+                <Trash2 size={14} />
+                <span>Delete exercise</span>
+              </Button>
+            )}
+          </div>
         )}
       </div>
-      <span className="import-exercise-tags">
-        {exercise.sourcePage && <span className="tiny-label">PDF p.{exercise.sourcePage}</span>}
-        {!exercise.exerciseId && <span className="tiny-label warn"><AlertTriangle size={12} /> Unmapped · preserved</span>}
-        {canRestore && onRestore && (
-          <Button
-            variant="tertiary"
-            className="restore-exercise-btn"
-            aria-label={`Restore default for ${exercise.sourceName}`}
-            disabled={isRestoring}
-            aria-busy={isRestoring}
-            onClick={() => void handleRestore()}
-          >
-            {isRestoring ? <Loader2 size={12} className="spin" /> : <RotateCcw size={12} />}
-            {isRestoring ? 'Restoring…' : 'Restore default'}
-          </Button>
-        )}
-        {onRemove && (
-          <Button
-            variant="tertiary"
-            className="remove-exercise-btn"
-            aria-label={`Remove ${exercise.sourceName}`}
-            disabled={allDayExercises.length <= 1 || isRestoring}
-            onClick={onRemove}
-          >
-            <Trash2 size={13} />
-          </Button>
-        )}
-      </span>
     </div>
     {restoreError && (
       <div className="inline-error restore-error" role="alert">
@@ -246,19 +342,6 @@ function ExerciseEditor({ exercise, exercises, allDayExercises, onChange, onRemo
           disabled={isRestoring}
           aria-label={`Library exercise for ${exercise.sourceName}`} onClick={() => setPickerOpen(true)}>
           {selected?.name ?? (exercise.exerciseId ? 'Swap exercise' : 'Map exercise')}
-        </Button>
-      </div>
-      <div className="field import-superset-field">
-        <span>Superset</span>
-        <Button
-          variant="secondary"
-          className={`superset-trigger ${isPaired ? 'paired' : ''}`}
-          disabled={isRestoring}
-          aria-label={`Superset options for ${exercise.sourceName}`}
-          onClick={() => setSupersetModalOpen(true)}
-        >
-          <Link2 size={14} />
-          <span>{isPaired ? `Superset ${currentGroup} · ${partners.length} paired` : 'Pair into superset'}</span>
         </Button>
       </div>
       <div className="field import-substitutions-field">
@@ -299,9 +382,7 @@ function ExerciseEditor({ exercise, exercises, allDayExercises, onChange, onRemo
         </div>
       </div>
     </div>
-    {/* The coaching note is what the page said about the movement and is as worth correcting as
-        anything else the read got from it, so it is edited here rather than only displayed. */}
-    <TextAreaField name={`exercise-notes-${exercise.lineId}`} className="import-exercise-notes" label={<span className="import-note-label"><FileText size={15} />Notes from the PDF</span>}
+    <TextAreaField name={`exercise-notes-${exercise.lineId}`} className="import-exercise-notes" label="Description"
       value={exercise.notes ?? ''} placeholder="Cues, tempo or coaching notes"
       onChange={event => onChange({ ...exercise, notes: event.target.value })} />
 
@@ -318,7 +399,6 @@ function ExerciseEditor({ exercise, exercises, allDayExercises, onChange, onRemo
                   <span className="set-number-label">{set.warmup ? 'Warm-up' : 'Set'}</span>
                   <strong>{index + 1}</strong>
                 </span>
-                <span className="set-prescription-label">Prescription</span>
               </div>
               <div className="import-set-fields">
                 <Field name={`rep-min-${exercise.lineId}-${index}`} label="Min reps" inputMode="numeric" type="number" value={set.repMin} data-import-field="repMin" data-import-set-index={index} onChange={event => editSet(index, { repMin: Number(event.target.value), repsText: null, repsSource: 'userEdited' })} />
@@ -336,7 +416,6 @@ function ExerciseEditor({ exercise, exercises, allDayExercises, onChange, onRemo
       })}
     </ol>
     <div className="import-set-footer">
-      <span className="import-set-count">{exercise.sets.length} {exercise.sets.length === 1 ? 'set' : 'sets'} in this prescription</span>
       <Button variant="secondary" className="import-add-set" disabled={exercise.sets.length >= 24} onClick={() => {
         const previous = exercise.sets.at(-1) ?? blankSet();
         onChange({ ...exercise, sets: [...exercise.sets, { ...previous, warmup: false, repsSource: 'userEdited', rpeSource: 'userEdited', restSource: 'userEdited' }] });
@@ -355,21 +434,6 @@ function ExerciseEditor({ exercise, exercises, allDayExercises, onChange, onRemo
         <Button variant="primary" onClick={() => setPickerOpen(false)}>Done</Button>
       </div>
     </Modal>}
-
-    <SupersetModal
-      open={supersetModalOpen}
-      onClose={() => setSupersetModalOpen(false)}
-      currentExerciseId={exercise.lineId}
-      currentExerciseName={exercise.sourceName}
-      currentSequenceGroup={exercise.sequenceGroup}
-      candidates={allDayExercises.map(e => ({
-        id: e.lineId,
-        name: e.sourceName,
-        sequenceGroup: e.sequenceGroup
-      }))}
-      onPair={targetId => onPairExercises(targetId)}
-      onUnlink={onUnlinkExercise}
-    />
   </div>;
 }
 

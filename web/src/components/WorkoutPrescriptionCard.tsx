@@ -313,9 +313,6 @@ export function WorkoutPrescriptionCard({
       </ol>
 
       <div className="import-set-footer">
-        <span className="import-set-count">
-          {exercise.sets.length} {exercise.sets.length === 1 ? 'set' : 'sets'} in this prescription
-        </span>
         <Button
           variant="secondary"
           className="import-add-set"

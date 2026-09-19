@@ -59,7 +59,7 @@ public sealed partial class ImportService
 
     public static (bool CanRestoreDraft, List<Guid> RestorableExerciseLineIds) AnalyzeRestorability(AiImport import, ImportDraft? draft)
     {
-        if (import.Status != ImportStatus.Ready || draft is null)
+        if (import.Status != ImportStatus.Ready)
             return (false, []);
 
         var baselineJson = string.IsNullOrEmpty(import.DraftBaselineJson) ? import.DraftJson : import.DraftBaselineJson;
@@ -67,11 +67,15 @@ public sealed partial class ImportService
             return (false, []);
 
         var baselineDraft = Json.Read<ImportDraft>(baselineJson);
-        var canRestoreDraft = import.DraftJson != baselineJson;
+        var currentDraft = draft ?? (string.IsNullOrEmpty(import.DraftJson) ? null : Json.Read<ImportDraft>(import.DraftJson));
+        if (currentDraft is null)
+            return (false, []);
+
+        var canRestoreDraft = !string.IsNullOrEmpty(import.DraftBaselineJson) && DraftDiffers(currentDraft, baselineDraft);
         var restorableIds = new List<Guid>();
 
         var baselineExercises = baselineDraft.Workouts.SelectMany(w => w.Exercises).ToDictionary(e => e.LineId);
-        foreach (var exercise in draft.Workouts.SelectMany(w => w.Exercises))
+        foreach (var exercise in currentDraft.Workouts.SelectMany(w => w.Exercises))
         {
             if (baselineExercises.TryGetValue(exercise.LineId, out var baseline) && ExerciseDiffers(exercise, baseline))
             {
@@ -80,6 +84,38 @@ public sealed partial class ImportService
         }
 
         return (canRestoreDraft, restorableIds);
+    }
+
+    public static bool DraftDiffers(ImportDraft current, ImportDraft baseline)
+    {
+        if ((current.ProgramName?.Trim() ?? "") != (baseline.ProgramName?.Trim() ?? "")) return true;
+        if (current.Workouts.Count != baseline.Workouts.Count) return true;
+        for (var i = 0; i < current.Workouts.Count; i++)
+        {
+            if (WorkoutDiffers(current.Workouts[i], baseline.Workouts[i])) return true;
+        }
+        return false;
+    }
+
+    public static bool WorkoutDiffers(DraftWorkout current, DraftWorkout baseline)
+    {
+        if (current.LineId != baseline.LineId) return true;
+        if (current.Week != baseline.Week) return true;
+        if ((current.Name?.Trim() ?? "") != (baseline.Name?.Trim() ?? "")) return true;
+        if ((current.Focus?.Trim() ?? "") != (baseline.Focus?.Trim() ?? "")) return true;
+        if ((current.Notes?.Trim() ?? "") != (baseline.Notes?.Trim() ?? "")) return true;
+        if ((current.Block?.Trim() ?? "") != (baseline.Block?.Trim() ?? "")) return true;
+        if ((current.Phase?.Trim() ?? "") != (baseline.Phase?.Trim() ?? "")) return true;
+        if (current.PhaseWeek != baseline.PhaseWeek) return true;
+        if (current.IsRestDay != baseline.IsRestDay) return true;
+        if (current.Weekday != baseline.Weekday) return true;
+        if (current.SourcePage != baseline.SourcePage) return true;
+        if (current.Exercises.Count != baseline.Exercises.Count) return true;
+        for (var i = 0; i < current.Exercises.Count; i++)
+        {
+            if (ExerciseDiffers(current.Exercises[i], baseline.Exercises[i])) return true;
+        }
+        return false;
     }
 
     private static bool ExerciseDiffers(DraftExercise current, DraftExercise baseline)

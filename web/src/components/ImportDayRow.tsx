@@ -36,7 +36,7 @@ export function DayRow({
   onToggle: () => void;
   exercises: Exercise[];
   onChange: (day: DraftWorkout) => Promise<void>;
-  onPropagateSubstitution?: (currentName: string, replacementName: string) => Promise<void>;
+  onPropagateSubstitution?: (currentName: string, replacementName: string, exerciseLineId?: string) => Promise<void>;
   restorableExerciseLineIds?: string[];
   onRestoreExercise?: (exerciseLineId: string) => Promise<void>;
 }) {
@@ -62,7 +62,6 @@ export function DayRow({
               <span className="tiny-label">{day.isRestDay ? 'Rest day' : `${day.exercises.length} exercises`}</span>
               {day.focus && <span className="day-focus-tag">{day.focus}</span>}
               {day.phase?.toLowerCase().includes('deload') && <span className="pill pill-accent">Deload</span>}
-              {day.sourcePage && <span className="muted">PDF p.{day.sourcePage}</span>}
             </div>
           </div>
         </Button>

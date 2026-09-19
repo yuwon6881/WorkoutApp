@@ -153,17 +153,10 @@ function blockIndex(weeks: Week[], index: number): number {
   return result;
 }
 
-function sourceCaption(pages: number[]): string {
-  if (!pages.length) return '';
-  const first = pages[0];
-  const last = pages.at(-1)!;
-  return first === last ? `PDF p.${first}` : `PDF pp. ${first}-${last}`;
-}
 
 function weekCaption(week: Week, number: number): string {
   const phase = week.phases.join(' / ') || 'General';
-  const source = sourceCaption(week.pages);
-  return [`Block ${number}`, phase, source].filter(Boolean).join(' · ');
+  return [`Block ${number}`, phase].filter(Boolean).join(' · ');
 }
 
 export const DraftOutline = forwardRef<DraftOutlineHandle, {
@@ -289,7 +282,10 @@ export const DraftOutline = forwardRef<DraftOutlineHandle, {
     const insertionIndex = side === 'before' ? toIndex : toIndex + 1;
     const ordered = [...weeks];
     const [moved] = ordered.splice(fromIndex, 1);
-    const targetIndex = fromIndex < insertionIndex ? insertionIndex - 1 : insertionIndex;
+    let targetIndex = fromIndex < insertionIndex ? insertionIndex - 1 : insertionIndex;
+    if (fromIndex < toIndex && side === 'before' && toIndex === fromIndex + 1) {
+      targetIndex = toIndex;
+    }
     ordered.splice(targetIndex, 0, moved);
 
     setSelectedWeek(targetIndex + 1);
@@ -348,7 +344,7 @@ export const DraftOutline = forwardRef<DraftOutlineHandle, {
     void onDraftChange(renumbered);
   }, [draft, onDraftChange, weeks]);
 
-  const propagateSubstitution = useCallback(async (currentName: string, replacementName: string) => {
+  const propagateSubstitution = useCallback(async (currentName: string, replacementName: string, exerciseLineId?: string) => {
     const replacementLibraryExercise = exercises.find(
       e => e.name.toLowerCase() === replacementName.toLowerCase() || e.aliases.some(a => a.toLowerCase() === replacementName.toLowerCase())
     );
@@ -358,8 +354,11 @@ export const DraftOutline = forwardRef<DraftOutlineHandle, {
       if (!inSameBlock || !inSamePhase || workout.week < week.week) return workout;
 
       const updatedExercises = workout.exercises.map(ex => {
-        if (ex.sourceName.toLowerCase() === currentName.toLowerCase()) {
-          const nextSubs = [currentName, ...ex.substitutions.filter(s => s.toLowerCase() !== replacementName.toLowerCase())].slice(0, 2);
+        const matches = (exerciseLineId && ex.lineId === exerciseLineId)
+          || ex.sourceName.toLowerCase() === currentName.toLowerCase()
+          || (ex.exerciseId && exercises.find(e => e.id === ex.exerciseId)?.name.toLowerCase() === currentName.toLowerCase());
+        if (matches) {
+          const nextSubs = [ex.sourceName, ...ex.substitutions.filter(s => s.toLowerCase() !== replacementName.toLowerCase())].slice(0, 2);
           return {
             ...ex,
             sourceName: replacementLibraryExercise ? replacementLibraryExercise.name : replacementName,

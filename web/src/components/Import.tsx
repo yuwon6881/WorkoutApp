@@ -230,7 +230,15 @@ export function ImportReview({ exercises, imports, remaining, onBack, onChanged,
 
     {selected && draft && selected.status === 'ready' && <>
       <section className="panel" ref={reviewRef}>
-        <div className="section-heading"><h2>Review</h2></div>
+        <div className="section-heading import-review-heading">
+          <h2>Review</h2>
+          <div className="import-review-actions">
+            {selected.canRestoreDraft && <Button variant="tertiary" disabled={busy} onClick={() => setConfirmRestoreDraft(true)}><RotateCcw size={15} />Restore default draft</Button>}
+            <Button variant="destructive" disabled={busy} onClick={() => pipeline.run('Discarding this draft…', async () => { await api.discardImport(selected.id); setSelected(null); setDraft(null); })}><Trash2 size={15} />Discard draft</Button>
+            <Button variant="primary" disabled={busy || !selected.acceptable} onClick={() => pipeline.run('Creating the program…', async () => { await api.acceptImport(selected.id); setSelected(null); setDraft(null); onBack(); })}><Check size={15} />Accept and create program</Button>
+          </div>
+        </div>
+        {!selected.acceptable && <p className="muted small-copy import-notice-copy" role="status">The program can be created after every review item is resolved.</p>}
         <Field label="Program name" name="import-program-name" value={draft.programName} onChange={e => setDraft({ ...draft, programName: e.target.value })} onBlur={() => void persist(draft)} />
         {selected.unresolved.length > 0 && <div className="import-unresolved-banner" role="status"><AlertTriangle size={17} />
           <span>{selected.unresolved.length} exercise name{selected.unresolved.length === 1 ? '' : 's'} are not linked to the catalog. They will stay verbatim and can still be logged.</span>
@@ -269,16 +277,6 @@ export function ImportReview({ exercises, imports, remaining, onBack, onChanged,
       </section>
       {draft.workouts.length > 0 ? <DraftOutline ref={outlineRef} draft={draft} expandedDay={expandedDay} setExpandedDay={setExpandedDay} exercises={exercises} onDayChange={persistDay} onDraftChange={persist} restorableExerciseLineIds={selected.restorableExerciseLineIds} onRestoreExercise={handleRestoreExercise} />
         : <section className="panel"><div className="empty-message"><AlertTriangle size={30} /><h3>No extracted days</h3><p>The draft needs at least one training or rest day.</p></div></section>}
-      <section className="panel import-actions-panel">
-        <div className="import-action-card-content">
-          {!selected.acceptable && <p className="muted small-copy import-notice-copy" role="status">The program can be created after every review item is resolved.</p>}
-        </div>
-        <div className="import-actions-footer">
-          {selected.canRestoreDraft && <Button variant="tertiary" disabled={busy} onClick={() => setConfirmRestoreDraft(true)}><RotateCcw size={17} />Restore default draft</Button>}
-          <Button variant="destructive" disabled={busy} onClick={() => pipeline.run('Discarding this draft…', async () => { await api.discardImport(selected.id); setSelected(null); setDraft(null); })}><Trash2 size={17} />Discard draft</Button>
-          <Button variant="primary" disabled={busy || !selected.acceptable} onClick={() => pipeline.run('Creating the program…', async () => { await api.acceptImport(selected.id); setSelected(null); setDraft(null); onBack(); })}><Check size={17} />Accept and create program</Button>
-        </div>
-      </section>
       {confirmRestoreDraft && <Modal title="Restore default draft" onClose={() => !isRestoringDraft && setConfirmRestoreDraft(false)}>
         <div className="modal-body" aria-busy={isRestoringDraft}>
           <p>Reset all exercises, mappings, notes, sets, and rep ranges across this entire program to the initial extracted version from the PDF?</p>

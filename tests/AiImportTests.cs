@@ -477,4 +477,42 @@ public class AiImportTests
         var ex = await Assert.ThrowsAsync<DomainException>(() => imports.RestoreDraft(ready.Id, 1, default));
         Assert.Equal(409, ex.Status);
     }
+
+    [Fact] public async Task Import_week_sorting_and_structural_changes_trigger_draft_restorability()
+    {
+        await using var h = await Harness.Create(Configured);
+        await h.SignIn();
+        const string twoWorkouts = """
+        {"programName":"Hypertrophy block","weeks":[
+          {"week":1,"workouts":[{"name":"Day 1","focus":"Push","notes":null,"exercises":[
+            {"sourceName":"Barbell bench press","exerciseId":null,"notes":null,"sets":[
+              {"repMin":8,"repMax":10,"targetRpe":8,"restSeconds":120,"tempo":null,"loadText":null,"notes":null,
+               "repsSource":"extracted","rpeSource":"inferred","restSource":"extracted"}]}]}]},
+          {"week":2,"workouts":[{"name":"Day 2","focus":"Pull","notes":null,"exercises":[
+            {"sourceName":"Barbell bench press","exerciseId":null,"notes":null,"sets":[
+              {"repMin":8,"repMax":10,"targetRpe":8,"restSeconds":120,"tempo":null,"loadText":null,"notes":null,
+               "repsSource":"extracted","rpeSource":"inferred","restSource":"extracted"}]}]}]}
+        ]}
+        """;
+        var imports = h.Imports(StubHandler.Program(twoWorkouts));
+        var ready = await imports.Create(Source("block.pdf"), default);
+        Assert.Equal(ImportStatus.Ready, ready.Status);
+        Assert.False(ready.CanRestoreDraft);
+
+        // Reorder weeks: swap week 1 and week 2
+        var reorderedDraft = ready.Draft! with
+        {
+            Workouts = [
+                ready.Draft.Workouts[1] with { Week = 1, PhaseWeek = 1 },
+                ready.Draft.Workouts[0] with { Week = 2, PhaseWeek = 2 }
+            ]
+        };
+
+        var editedView = await imports.Edit(ready.Id, reorderedDraft, default);
+        Assert.True(editedView.CanRestoreDraft);
+
+        var restored = await imports.RestoreDraft(ready.Id, editedView.Revision, default);
+        Assert.False(restored.CanRestoreDraft);
+        Assert.Equal(ready.Draft.Workouts[0].LineId, restored.Draft!.Workouts[0].LineId);
+    }
 }
