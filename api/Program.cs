@@ -1,3 +1,5 @@
+using System.Diagnostics;
+using System.Diagnostics.Metrics;
 using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Http.Features;
@@ -17,8 +19,17 @@ if(!builder.Environment.IsDevelopment()&&(!Uri.TryCreate(builder.Configuration["
 builder.WebHost.ConfigureKestrel(o=>o.Limits.MaxRequestBodySize=160 * 1024 * 1024);
 builder.Services.Configure<FormOptions>(o => o.MultipartBodyLengthLimit = 160 * 1024 * 1024);
 builder.Services.Configure<ForwardedHeadersOptions>(o=> { o.ForwardedHeaders=ForwardedHeaders.XForwardedProto; });
-builder.Services.AddDbContext<AppDb>(o=>
+builder.Services.AddResponseCompression(o=>
 {
+    o.EnableForHttps=true;
+    o.MimeTypes=["application/json","text/plain","text/css","application/javascript"];
+});
+builder.Services.AddSingleton<DatabaseMetricsInterceptor>();
+builder.Services.AddMemoryCache(o => o.SizeLimit = 256);
+builder.Services.AddTransient<ExternalCallMetricsHandler>();
+builder.Services.AddDbContext<AppDb>((services,o)=>
+{
+    o.AddInterceptors(services.GetRequiredService<DatabaseMetricsInterceptor>());
     var connection=builder.Configuration.GetConnectionString("Database");
     if(!string.IsNullOrWhiteSpace(connection)) o.UseNpgsql(ConnectionSettings.Normalize(connection));
     else if(builder.Environment.IsDevelopment()) o.UseSqlite("Data Source="+(builder.Configuration["Database:SqlitePath"]??"workout.db"));
@@ -33,7 +44,7 @@ builder.Services.AddScoped<ProgressionService>();
 builder.Services.AddScoped<NutritionContextService>();
 builder.Services.AddScoped<SharedAccessTokenService>();
 builder.Services.AddScoped<OpenIddictAccessTokenService>();
-builder.Services.AddHttpClient<IIntegrationKms, IntegrationKmsService>(c => c.Timeout = TimeSpan.FromSeconds(30));
+builder.Services.AddHttpClient<IIntegrationKms, IntegrationKmsService>(c => c.Timeout = TimeSpan.FromSeconds(30)).AddHttpMessageHandler<ExternalCallMetricsHandler>();
 builder.Services.AddScoped<IntegrationTokenService>();
 builder.Services.AddScoped<WorkoutService>();
 builder.Services.AddScoped<ImportService>();
@@ -53,9 +64,9 @@ builder.Services.AddOpenIddict().AddValidation(options =>
     options.UseSystemNetHttp();
     options.UseAspNetCore();
 });
-builder.Services.AddHttpClient<WorkoutAi>(c=>c.Timeout=TimeSpan.FromSeconds(150));
-builder.Services.AddHttpClient("nutrition", c => c.Timeout = TimeSpan.FromSeconds(3));
-builder.Services.AddHttpClient("fitness-account", c => c.Timeout = TimeSpan.FromSeconds(10));
+builder.Services.AddHttpClient<WorkoutAi>(c=>c.Timeout=TimeSpan.FromSeconds(150)).AddHttpMessageHandler<ExternalCallMetricsHandler>();
+builder.Services.AddHttpClient("nutrition", c => c.Timeout = TimeSpan.FromSeconds(3)).AddHttpMessageHandler<ExternalCallMetricsHandler>();
+builder.Services.AddHttpClient("fitness-account", c => c.Timeout = TimeSpan.FromSeconds(10)).AddHttpMessageHandler<ExternalCallMetricsHandler>();
 builder.Services.AddRateLimiter(o=>
 {
     o.RejectionStatusCode=429;
@@ -75,8 +86,25 @@ builder.Services.AddRateLimiter(o=>
         _=>new FixedWindowRateLimiterOptions { PermitLimit=40,Window=TimeSpan.FromMinutes(5),QueueLimit=0 }));
 });
 var app=builder.Build();
+var requestMeter=new Meter("Fitness.Workout.Api","1.0");
+var requestCount=requestMeter.CreateCounter<long>("http.server.request.count");
+var requestDuration=requestMeter.CreateHistogram<double>("http.server.request.duration", "ms");
+var responseBytes=requestMeter.CreateHistogram<long>("http.server.response.bytes", "bytes");
 app.UseForwardedHeaders();
 app.UseAuthentication();
+app.UseResponseCompression();
+app.Use(async(http,next)=>
+{
+    var started=Stopwatch.GetTimestamp();
+    try { await next(); }
+    finally
+    {
+        var route=http.GetEndpoint()?.DisplayName ?? "unmatched";
+        requestCount.Add(1, new KeyValuePair<string,object?>("route",route), new KeyValuePair<string,object?>("method",http.Request.Method), new KeyValuePair<string,object?>("status",http.Response.StatusCode));
+        requestDuration.Record(Stopwatch.GetElapsedTime(started).TotalMilliseconds, new KeyValuePair<string,object?>("route",route), new KeyValuePair<string,object?>("method",http.Request.Method));
+        if(http.Response.ContentLength is { } length) responseBytes.Record(length, new KeyValuePair<string,object?>("route",route));
+    }
+});
 app.Use(async(http,next)=>
 {
     http.Response.Headers.XContentTypeOptions="nosniff";
@@ -114,7 +142,7 @@ app.Use(async(http,next)=>
 });
 app.UseRateLimiter();
 app.UseDefaultFiles();app.UseStaticFiles(new StaticFileOptions { OnPrepareResponse=c=> { if(c.File.Name=="sw.js"||c.File.Name=="index.html") c.Context.Response.Headers.CacheControl="no-cache"; } });
-app.MapAuth();app.MapCentralAuth();app.MapBootstrap();app.MapCatalog();app.MapTemplates();app.MapPrograms();app.MapWorkouts();app.MapImports();app.MapIntegrations();
+app.MapAuth();app.MapCentralAuth();app.MapBootstrap();app.MapRevisions();app.MapCatalog();app.MapTemplates();app.MapPrograms();app.MapWorkouts();app.MapImports();app.MapIntegrations();
 app.MapGet("/health",()=>new { status="ok" });
 app.MapFallback(async http=>
 {

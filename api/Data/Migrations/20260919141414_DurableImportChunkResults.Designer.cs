@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Workout.Api.Data;
@@ -11,9 +12,11 @@ using Workout.Api.Data;
 namespace Workout.Api.Data.Migrations
 {
     [DbContext(typeof(AppDb))]
-    partial class AppDbModelSnapshot : ModelSnapshot
+    [Migration("20260919141414_DurableImportChunkResults")]
+    partial class DurableImportChunkResults
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -33,9 +36,6 @@ namespace Workout.Api.Data.Migrations
                     b.Property<string>("AlternativesJson")
                         .IsRequired()
                         .HasColumnType("text");
-
-                    b.Property<long>("CachedInputTokens")
-                        .HasColumnType("bigint");
 
                     b.Property<int>("Calls")
                         .HasColumnType("integer");
@@ -78,13 +78,6 @@ namespace Workout.Api.Data.Migrations
 
                     b.Property<long>("InputTokens")
                         .HasColumnType("bigint");
-
-                    b.Property<string>("LeaseId")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<DateTime?>("LeaseUntil")
-                        .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("Model")
                         .IsRequired()

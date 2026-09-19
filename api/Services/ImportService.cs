@@ -30,6 +30,16 @@ public sealed partial class ImportService(AppDb db, WorkoutAi ai, CatalogService
         return await View(import!, includeDraft: true, ct);
     }
 
+    public async Task<ImportStatusView> GetStatus(Guid id, CancellationToken ct)
+    {
+        var import = await db.Imports.AsNoTracking().SingleOrDefaultAsync(i => i.Id == id, ct);
+        Validation.Require(import != null, "That import no longer exists.", 404);
+        var chunks = ReadChunks(import!.OutlineJson);
+        return new ImportStatusView(import.Id, import.Status, import.Stage, import.ChunksDone, import.ChunksTotal,
+            chunks.ElementAtOrDefault(import.ChunksDone)?.Label, import.Error, import.Revision, import.Retries,
+            import.SourceExpiresAt, import.UnresolvedCount);
+    }
+
     private async Task<ImportView> View(AiImport import, bool includeDraft, CancellationToken ct)
     {
         ImportDraft? draft = null;
@@ -381,10 +391,12 @@ public sealed partial class ImportService(AppDb db, WorkoutAi ai, CatalogService
         // An unfinished import whose extracted text expired can never be completed, and there is
         // no history to preserve it in. A finished draft simply loses the text it no longer needs.
         await db.Imports.IgnoreQueryFilters()
-            .Where(i => i.SourceExpiresAt != null && i.SourceExpiresAt < now && i.Status == ImportStatus.Pending)
+            .Where(i => i.SourceExpiresAt != null && i.SourceExpiresAt < now && i.Status == ImportStatus.Pending &&
+                (i.LeaseUntil == null || i.LeaseUntil < now))
             .ExecuteDeleteAsync(ct);
         await db.Imports.IgnoreQueryFilters()
-            .Where(i => i.SourceExpiresAt != null && i.SourceExpiresAt < now)
+            .Where(i => i.SourceExpiresAt != null && i.SourceExpiresAt < now &&
+                (i.Status != ImportStatus.Pending || i.LeaseUntil == null || i.LeaseUntil < now))
             .ExecuteUpdateAsync(set => set.SetProperty(i => i.SourceTextJson, "").SetProperty(i => i.SourceExpiresAt, (DateTime?)null), ct);
 
         // Only unfinished imports exist beyond acceptance, so an abandoned one is removed outright

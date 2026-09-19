@@ -1,9 +1,11 @@
 using System.Net;
 using System.Net.Http.Headers;
+using System.Collections.Concurrent;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 using Workout.Api.Data;
 using Workout.Api.Domain;
 
@@ -18,7 +20,8 @@ public sealed class IntegrationTokenService(
     OpenIddictAccessTokenService tokens,
     IIntegrationKms kms)
 {
-    private static readonly SemaphoreSlim RotationGate = new(1, 1);
+    private static readonly ConcurrentDictionary<string, SemaphoreSlim> RotationGates = new(StringComparer.Ordinal);
+    private static readonly MemoryCache AccessTokens = new(new MemoryCacheOptions { SizeLimit = 512 });
 
     public Task<string> Protect(string value, CancellationToken ct = default) => kms.EncryptAsync(value, ct);
 
@@ -34,12 +37,27 @@ public sealed class IntegrationTokenService(
 
     public async Task<string?> AccessToken(string peer, string requiredScope, CancellationToken ct)
     {
-        await RotationGate.WaitAsync(ct);
+        var userId = db.CurrentUser;
+        if (userId is null) return null;
+        var key = $"{userId.Value:N}:{peer}:{requiredScope}";
+        var grantSnapshot = await db.IntegrationGrants.AsNoTracking()
+            .SingleOrDefaultAsync(x => x.Peer == peer && x.Status == "active", ct);
+        if (grantSnapshot is null) { AccessTokens.Remove(key); return null; }
+        if (AccessTokens.TryGetValue(key, out var cachedValue) && cachedValue is CachedAccessToken cached
+            && cached.GrantRevision == grantSnapshot.Revision
+            && cached.ExpiresAt > DateTime.UtcNow.AddSeconds(60))
+            return cached.Value;
+        var gate = RotationGates.GetOrAdd(key, static _ => new SemaphoreSlim(1, 1));
+        await gate.WaitAsync(ct);
         try
         {
             var grant = await db.IntegrationGrants.SingleOrDefaultAsync(x => x.Peer == peer && x.Status == "active", ct);
             var refresh = grant is null ? null : await Unprotect(grant.EncryptedRefreshToken, ct);
-            if (string.IsNullOrWhiteSpace(refresh)) return null;
+            if (grant is null || string.IsNullOrWhiteSpace(refresh)) { AccessTokens.Remove(key); return null; }
+            if (AccessTokens.TryGetValue(key, out cachedValue) && cachedValue is CachedAccessToken cachedAfterGate
+                && cachedAfterGate.GrantRevision == grant.Revision
+                && cachedAfterGate.ExpiresAt > DateTime.UtcNow.AddSeconds(60))
+                return cachedAfterGate.Value;
             var identitySubject = await db.Users.Where(x => x.Id == db.CurrentUser).Select(x => x.IdentitySubject).SingleOrDefaultAsync(ct);
             var settings = GetCentralClientSettings();
             using var request = new HttpRequestMessage(HttpMethod.Post, $"{settings.Authority.TrimEnd('/')}/connect/token");
@@ -73,12 +91,19 @@ public sealed class IntegrationTokenService(
                 grant.Revision++;
                 await db.SaveChangesAsync(ct);
             }
+            if (document.RootElement.TryGetProperty("expires_in", out var expiresElement)
+                && expiresElement.TryGetInt32(out var expiresIn) && expiresIn > 60)
+                AccessTokens.Set(key, new CachedAccessToken(access, grant.Revision, DateTime.UtcNow.AddSeconds(expiresIn)), new MemoryCacheEntryOptions
+                {
+                    Size = 1,
+                    AbsoluteExpirationRelativeToNow = TimeSpan.FromSeconds(Math.Max(60, expiresIn - 60))
+                });
             return access;
         }
         catch (DomainException) { return null; }
         catch (HttpRequestException) { return null; }
         catch (JsonException) { return null; }
-        finally { RotationGate.Release(); }
+        finally { gate.Release(); }
     }
 
     public async Task RevokeAndPurge(string peer, CancellationToken ct)
@@ -100,6 +125,8 @@ public sealed class IntegrationTokenService(
         }
         db.IntegrationGrants.Remove(grant);
         await db.SaveChangesAsync(ct);
+        // The next access checks the missing grant before using a cached token,
+        // so revocation cannot reuse this entry.
     }
 
     private CentralClientSettings GetCentralClientSettings()
@@ -112,4 +139,5 @@ public sealed class IntegrationTokenService(
     }
 
     private sealed record CentralClientSettings(string Authority, string ClientId, string ClientSecret);
+    private sealed record CachedAccessToken(string Value, long GrantRevision, DateTime ExpiresAt);
 }

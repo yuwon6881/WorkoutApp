@@ -35,6 +35,14 @@ public static class ImportEndpoints
 
         app.MapGet("/api/imports", async (ImportService imports, CancellationToken ct) => await imports.List(ct));
         app.MapGet("/api/imports/{id:guid}", async (Guid id, ImportService imports, CancellationToken ct) => await imports.Get(id, ct));
+        app.MapGet("/api/imports/{id:guid}/status", async (Guid id, HttpContext http, ImportService imports, CancellationToken ct) =>
+        {
+            var status = await imports.GetStatus(id, ct);
+            var etag = $"\"import-status:{status.Id:N}:{status.Revision}\"";
+            http.Response.Headers.ETag = etag;
+            if (http.Request.Headers.IfNoneMatch == etag) return Results.StatusCode(StatusCodes.Status304NotModified);
+            return Results.Ok(status);
+        });
 
         app.MapPost("/api/imports", async (HttpRequest request, ImportService imports, CancellationToken ct) =>
         {

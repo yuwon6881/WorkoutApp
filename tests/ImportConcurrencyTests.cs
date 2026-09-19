@@ -121,6 +121,29 @@ public sealed class ImportConcurrencyTests
     }
 
     [Fact]
+    public async Task An_active_database_lease_prevents_a_duplicate_provider_pass()
+    {
+        await using var h = await Harness.Create(Configured());
+        await h.SignIn();
+        var handler = new SectionHandler(BySection);
+        var imports = h.Imports(handler);
+
+        var pending = await imports.Create(Source(), default);
+        var row = await h.Db.Imports.SingleAsync();
+        row.LeaseId = "another-instance";
+        row.LeaseUntil = DateTime.UtcNow.AddMinutes(1);
+        await h.Db.SaveChangesAsync();
+        var callsBefore = handler.Calls;
+
+        var current = await imports.Extract(pending.Id, default);
+
+        Assert.Equal(ImportStatus.Pending, current.Status);
+        Assert.Equal(callsBefore, handler.Calls);
+        var persisted = await h.Db.Imports.AsNoTracking().SingleAsync();
+        Assert.Equal("another-instance", persisted.LeaseId);
+    }
+
+    [Fact]
     public async Task A_section_that_fails_leaves_the_ones_before_it_committed_and_the_rest_to_retry()
     {
         await using var h = await Harness.Create(Configured());

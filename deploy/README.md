@@ -28,6 +28,16 @@ scales from zero. An hourly maintenance request runs the retention sweep; becaus
 without Cloud Run IAM, `/internal/import-maintenance` exists only when `Maintenance__Secret` is
 configured and answers 404 unless the request presents it in `X-Workout-Maintenance-Secret`.
 
+Each import pass claims a five-minute database lease with a fencing token before calling OpenAI.
+Successful section responses are committed independently, and a stale process cannot commit after
+another lease takes over. The runner is still in-process; move dispatch to the retired Cloud Tasks
+worker only after the durable claim path has been staged and measured.
+
+The API emits low-cardinality OpenTelemetry-compatible meters for route requests, database command
+kind/duration, and outbound OpenAI, Nutrition, Fitness Account, and other provider calls. SQL text,
+URLs, account IDs, PDF text, and tokens are excluded. The progress response is a bounded 30-second
+memory cache keyed by account and source revisions; it is rebuildable after an instance restart.
+
 ## Database and secrets
 
 The API accepts a PostgreSQL URL or an Npgsql connection string in `ConnectionStrings__Database`.

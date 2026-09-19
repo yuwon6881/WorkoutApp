@@ -290,8 +290,16 @@ public sealed class AiImport : OwnedRecord
     // searchable picker now.
     public bool CatalogStale { get; set; }
     public long InputTokens { get; set; }
+    public long CachedInputTokens { get; set; }
     public long OutputTokens { get; set; }
     public int Retries { get; set; }
+    /// Durable execution lease used to fence duplicate workers across instances. A stale worker
+    /// may finish a provider call, but it cannot commit after another lease has taken ownership.
+    public string LeaseId { get; set; } = "";
+    public DateTime? LeaseUntil { get; set; }
+    /// Successful section responses survive a later section failure so a retry
+    /// never pays for work that the provider already completed.
+    public string ChunkResultsJson { get; set; } = "";
     public string PageCoverageJson { get; set; } = "[]";
     /// Reconciliation notes recorded while reading, such as a section whose day count differed
     /// from the outline's estimate. They are shown in review rather than failing the import.

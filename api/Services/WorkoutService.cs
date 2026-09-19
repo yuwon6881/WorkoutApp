@@ -59,9 +59,31 @@ public sealed partial class WorkoutService(
 
     public async Task<SessionView> View(WorkoutSession session, CancellationToken ct)
     {
-        var exercises = await db.SessionExercises.AsNoTracking().Where(e => e.SessionId == session.Id).OrderBy(e => e.Position).ToListAsync(ct);
-        var ids = exercises.Select(e => e.Id).ToList();
-        var sets = await db.Sets.AsNoTracking().Where(s => ids.Contains(s.SessionExerciseId)).OrderBy(s => s.Position).ToListAsync(ct);
+        return (await Views([session], ct))[session.Id];
+    }
+
+    /// Loads a collection of sessions with one exercise query and one set query.
+    /// History and training-summary pages used to call View once per row, which
+    /// multiplied the same two database round trips by the page size.
+    public async Task<Dictionary<Guid, SessionView>> Views(IReadOnlyList<WorkoutSession> sessions, CancellationToken ct)
+    {
+        if (sessions.Count == 0) return [];
+        var sessionIds = sessions.Select(s => s.Id).ToList();
+        var exercises = await db.SessionExercises.AsNoTracking()
+            .Where(e => sessionIds.Contains(e.SessionId)).OrderBy(e => e.SessionId).ThenBy(e => e.Position).ToListAsync(ct);
+        var exerciseIds = exercises.Select(e => e.Id).ToList();
+        var sets = exerciseIds.Count == 0 ? [] : await db.Sets.AsNoTracking()
+            .Where(s => exerciseIds.Contains(s.SessionExerciseId)).OrderBy(s => s.Position).ToListAsync(ct);
+        var exercisesBySession = exercises.GroupBy(e => e.SessionId).ToDictionary(g => g.Key, g => g.ToList());
+        var setsByExercise = sets.GroupBy(s => s.SessionExerciseId).ToDictionary(g => g.Key, g => g.ToList());
+        return sessions.ToDictionary(session => session.Id, session => BuildView(session,
+            exercisesBySession.GetValueOrDefault(session.Id) ?? [], setsByExercise));
+    }
+
+    private static SessionView BuildView(WorkoutSession session, IReadOnlyList<SessionExercise> exercises,
+        IReadOnlyDictionary<Guid, List<CompletedSet>> setsByExercise)
+    {
+        var sets = exercises.SelectMany(e => setsByExercise.GetValueOrDefault(e.Id) ?? []).ToList();
         var done = sets.Where(s => s.Done).ToList();
         var workingDone = done.Where(s => !s.Warmup).ToList();
         var warmupDone = done.Where(s => s.Warmup).ToList();
@@ -75,7 +97,7 @@ public sealed partial class WorkoutService(
             session.StartedAt, session.FinishedAt, session.Revision,
             exercises.Select(e =>
             {
-                var exerciseSets = sets.Where(s => s.SessionExerciseId == e.Id).ToList();
+                var exerciseSets = setsByExercise.GetValueOrDefault(e.Id) ?? [];
                 var canRestore = e.IsReplacement && !string.IsNullOrEmpty(e.BaselineJson) && !exerciseSets.Any(s => s.Done);
                 return new SessionExerciseView(e.Id, e.ExerciseId, e.NameSnapshot, e.Position, e.Note,
                     Json.Read<List<SetPrescription>>(e.PrescriptionJson),
@@ -94,6 +116,11 @@ public sealed partial class WorkoutService(
     /// once here, then saved on the session so later settings/history changes cannot rewrite them.
     public async Task<SessionView> Start(Guid? templateId, string? name, CancellationToken ct)
     {
+        // Nutrition is advisory and may require a peer HTTP/KMS round trip. Resolve it before
+        // taking the account mutation lock so a slow provider cannot block saves, finishes, or
+        // another tab. The active-workout and template checks below are repeated under the lock;
+        // the context is frozen only after those authoritative checks succeed.
+        var contextResult = await nutrition.Get(ct);
         await using var gate = await MutationLock.Acquire(db, db.CurrentUser, ct);
         Validation.Require(!await db.Workouts.AnyAsync(w => w.Active, ct), "Finish or discard your current workout before starting another.", 409);
         WorkoutTemplate? template = null;
@@ -135,7 +162,6 @@ public sealed partial class WorkoutService(
         }
         else Validation.Name(name, "Workout name");
 
-        var contextResult = await nutrition.Get(ct);
         var context = contextResult.Context;
         var bodyWeight = ChooseBodyWeight(context);
         var session = new WorkoutSession
@@ -156,12 +182,14 @@ public sealed partial class WorkoutService(
             var planned = await db.TemplateExercises.AsNoTracking().Where(e => e.TemplateId == template.Id).OrderBy(e => e.Position).ToListAsync(ct);
             var names = await templates.CatalogNames(planned.Select(p => p.ExerciseId), ct);
             var info = await progression.LoadInfo(planned.Select(p => p.ExerciseId), ct);
+            var models = await catalog.LoadModelsFor(planned.Select(p => p.ExerciseId), ct);
+            var histories = await PreviousExposuresBatch(planned.Select(p => (p.ExerciseId, p.SourceName)), ct);
             foreach (var plan in planned)
             {
                 var prescription = Json.Read<List<SetPrescription>>(plan.SetsJson);
                 var resolvedName = plan.ExerciseId is { } catalogId && names.TryGetValue(catalogId, out var resolved) ? resolved : plan.SourceName;
-                var loadModel = plan.ExerciseId is { } modelId && info.TryGetValue(modelId, out _) ?
-                    (await catalog.LoadModelsFor([modelId], ct)).GetValueOrDefault(modelId, LoadModels.External) : LoadModels.External;
+                var loadModel = plan.ExerciseId is { } modelId && info.TryGetValue(modelId, out _)
+                    ? models.GetValueOrDefault(modelId, LoadModels.External) : LoadModels.External;
                 var exercise = new SessionExercise
                 {
                     UserId = session.UserId, SessionId = session.Id, ExerciseId = plan.ExerciseId, Position = plan.Position,
@@ -171,7 +199,8 @@ public sealed partial class WorkoutService(
                 };
                 db.SessionExercises.Add(exercise);
 
-                var histories = await PreviousExposures(plan.ExerciseId, plan.SourceName, ct);
+                var historyKey = (plan.ExerciseId, plan.ExerciseId is null ? CatalogService.Normalize(plan.SourceName) : "");
+                var previous = histories.GetValueOrDefault(historyKey) ?? [];
                 var step = plan.ExerciseId is { } id2 && info.TryGetValue(id2, out var found) ? found.StepKg : Progression.DefaultStepKg;
                 var workingOrdinal = 0;
                 var firstSuggestion = (SetProgressionSuggestion?)null;
@@ -191,7 +220,7 @@ public sealed partial class WorkoutService(
 
                     workingOrdinal++;
                     var resistanceMode = ResolveResistanceMode(loadModel, planSet.ResistanceMode);
-                    var exposures = histories.GetValueOrDefault(workingOrdinal) ?? [];
+                    var exposures = previous.GetValueOrDefault(workingOrdinal) ?? [];
                     var suggestion = MakeSuggestion(planSet, exposures, contextResult.Mode, step, contextResult, resistanceMode, loadModel, bodyWeight);
                     firstSuggestion ??= suggestion;
                     db.Sets.Add(new CompletedSet
@@ -318,52 +347,6 @@ public sealed partial class WorkoutService(
         var ids = rows.Where(template => !template.IsRestDay && template.Week >= phase.WeekFrom && template.Week <= phase.WeekTo && BelongsToPhase(template, phase)).Select(template => template.Id).ToList();
         if (ids.Count > 0) return ids.All(id => completed.Contains(id) || skipped.Contains(id));
         return true;
-    }
-
-    /// Return the latest three completed exposures plus the most recent successful exposure per
-    /// working-set ordinal, matching catalog id or normalized unresolved name. Warm-ups are
-    /// excluded before legacy ordinals are assigned.
-    public async Task<Dictionary<int, List<SetExposure>>> PreviousExposures(Guid? exerciseId, string name, CancellationToken ct)
-    {
-        var query = db.SessionExercises.AsNoTracking().Join(db.Workouts.AsNoTracking().Where(w => w.FinishedAt != null),
-            e => e.SessionId, w => w.Id, (e, w) => new { Exercise = e, w.Id, w.FinishedAt });
-        var matches = exerciseId is { } id
-            ? await query.Where(x => x.Exercise.ExerciseId == id).OrderByDescending(x => x.FinishedAt).Take(30).ToListAsync(ct)
-            : (await query.Where(x => x.Exercise.ExerciseId == null).OrderByDescending(x => x.FinishedAt).Take(60).ToListAsync(ct))
-                .Where(x => CatalogService.Normalize(x.Exercise.NameSnapshot) == CatalogService.Normalize(name)).Take(30).ToList();
-        var exerciseIds = matches.Select(x => x.Exercise.Id).ToList();
-        if (exerciseIds.Count == 0) return [];
-        var sets = await db.Sets.AsNoTracking().Where(s => exerciseIds.Contains(s.SessionExerciseId) && s.Done && !s.Warmup)
-            .OrderBy(s => s.Position).ToListAsync(ct);
-        var output = new Dictionary<int, List<SetExposure>>();
-        foreach (var match in matches.OrderByDescending(x => x.FinishedAt))
-        {
-            var legacyOrdinal = 0;
-            foreach (var set in sets.Where(s => s.SessionExerciseId == match.Exercise.Id).OrderBy(s => s.Position))
-            {
-                var ordinal = set.WorkingSetOrdinal ?? ++legacyOrdinal;
-                if (set.WorkingSetOrdinal is not null) legacyOrdinal = Math.Max(legacyOrdinal, ordinal);
-                var list = output.GetValueOrDefault(ordinal);
-                if (list is null) { list = []; output[ordinal] = list; }
-                // Four rows are enough for a three-hard-exposure decision and the successful
-                // exposure immediately before that streak. The policy reads newest first.
-                if (list.Count >= 4) continue;
-                list.Add(new SetExposure(match.Id, match.FinishedAt!.Value, set.WeightKg, set.Reps, set.Rpe, set.SystemLoadKg, set.ResistanceMode));
-            }
-        }
-        return output;
-    }
-
-    /// Compatibility helper used by exports and older callers: the newest completed working sets
-    /// are returned in ordinal order.
-    public async Task<List<CompletedSet>> Previous(Guid? exerciseId, string name, CancellationToken ct)
-    {
-        var histories = await PreviousExposures(exerciseId, name, ct);
-        return histories.OrderBy(pair => pair.Key).SelectMany(pair => pair.Value.Take(1).Select(exposure => new CompletedSet
-        {
-            WeightKg = exposure.LoadKg, Reps = exposure.Reps, Rpe = exposure.Rpe, SystemLoadKg = exposure.SystemLoadKg,
-            ResistanceMode = exposure.ResistanceMode, Done = true, Warmup = false, WorkingSetOrdinal = pair.Key
-        })).ToList();
     }
 
     public async Task<SessionView> Save(Guid id, SessionInput input, CancellationToken ct)
@@ -649,9 +632,25 @@ public sealed partial class WorkoutService(
         var query = db.Workouts.AsNoTracking().Where(w => w.FinishedAt != null).OrderByDescending(w => w.FinishedAt);
         var total = await query.CountAsync(ct);
         var rows = await query.Skip(page * size).Take(size).ToListAsync(ct);
-        var views = new List<SessionView>();
-        foreach (var row in rows) views.Add(await View(row, ct));
+        var byId = await Views(rows, ct);
+        var views = rows.Select(row => byId[row.Id]).ToList();
         return new HistoryPage(total, page, size, views);
+    }
+
+    public async Task<HistoryCursorPage> HistoryCursor(DateTime? beforeAt, Guid? beforeId, int size, CancellationToken ct)
+    {
+        Validation.Require(size is > 0 and <= 100, "Invalid page request.");
+        var query = db.Workouts.AsNoTracking().Where(w => w.FinishedAt != null);
+        if (beforeAt is { } cursorAt && beforeId is { } cursorId)
+            query = query.Where(w => w.FinishedAt < cursorAt || (w.FinishedAt == cursorAt && w.Id.CompareTo(cursorId) < 0));
+        var rows = await query.OrderByDescending(w => w.FinishedAt).ThenByDescending(w => w.Id).Take(size + 1).ToListAsync(ct);
+        var pageRows = rows.Take(size).ToList();
+        var byId = await Views(pageRows, ct);
+        var views = pageRows.Select(row => byId[row.Id]).ToList();
+        var hasMore = rows.Count > size;
+        var last = pageRows.LastOrDefault();
+        return new HistoryCursorPage(views, hasMore && last is not null ? last.FinishedAt : null,
+            hasMore && last is not null ? last.Id : null);
     }
 
     public async Task<List<WorkoutActivityItem>> Activity(DateOnly? from, DateOnly? to, string? timeZone, CancellationToken ct)
@@ -703,14 +702,19 @@ public sealed partial class WorkoutService(
             (w.FinishedAt != null && w.FinishedAt >= startUtc && w.FinishedAt < endUtc) ||
             (w.Active && w.StartedAt >= startUtc && w.StartedAt < endUtc))
             .OrderBy(w => w.StartedAt).ToListAsync(ct);
+        var views = await Views(rows, ct);
+        var muscleIds = views.Values.SelectMany(v => v.Exercises).Where(e => e.ExerciseId is not null)
+            .Select(e => e.ExerciseId!.Value).Distinct().ToList();
+        var musclesById = await catalog.MusclesFor(muscleIds, ct);
         var result = new List<WorkoutTrainingSummary>();
         foreach (var session in rows)
         {
-            var view = await View(session, ct);
+            var view = views[session.Id];
             var sets = view.Exercises.SelectMany(e => e.Sets).Where(s => s.Done && !s.Warmup).ToList();
             var rpes = sets.Where(s => s.Rpe is not null).Select(s => s.Rpe!.Value).ToList();
             var exerciseIds = view.Exercises.Where(e => e.ExerciseId is not null).Select(e => e.ExerciseId!.Value).Distinct().ToList();
-            var muscles = (await catalog.MusclesFor(exerciseIds, ct)).Values.Where(x => !string.IsNullOrWhiteSpace(x)).Distinct().OrderBy(x => x).ToList();
+            var muscles = exerciseIds.Select(id => musclesById.GetValueOrDefault(id, ""))
+                .Where(x => !string.IsNullOrWhiteSpace(x)).Distinct().OrderBy(x => x).ToList();
             var actualDate = DateOnly.FromDateTime(session.StartedAt);
             var status = session.Active ? "in_progress" : "completed";
             result.Add(new WorkoutTrainingSummary($"session:{session.Id}", status, actualDate, session.StartedAt, session.FinishedAt,
@@ -739,8 +743,11 @@ public sealed partial class WorkoutService(
             ? Progression.RoundToStep(Math.Max(0, value), step)
             : input;
 
+
+
     private static T? ReadOptional<T>(string json) where T : class
         => string.IsNullOrWhiteSpace(json) ? null : Json.Read<T>(json);
 }
 
 public record HistoryPage(int Total, int Page, int Size, List<SessionView> Sessions);
+public record HistoryCursorPage(List<SessionView> Sessions, DateTime? NextBeforeAt, Guid? NextBeforeId);

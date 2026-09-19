@@ -277,6 +277,8 @@
   border: 1px solid var(--accent-border);
   cursor: pointer;
   transition: all 0.15s ease;
+  flex-shrink: 0;
+  margin-left: -2px;
 }
 .superset-badge:hover {
   background: var(--surface-hover);

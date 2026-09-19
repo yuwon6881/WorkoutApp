@@ -79,7 +79,7 @@ export const DraftOutline = forwardRef<DraftOutlineHandle, {
     if (!day) return;
     const displayWeek = weeks.find(entry => entry.sourceWeek === day.week)?.week ?? day.week;
     setSelectedWeek(displayWeek);
-    setExpandedDay(day.lineId);
+    setExpandedDay(day.isRestDay ? null : day.lineId);
 
     const reveal = () => window.requestAnimationFrame(() => window.requestAnimationFrame(() => {
       const dayNode = [...document.querySelectorAll<HTMLElement>('[data-import-day]')]
@@ -330,7 +330,7 @@ export const DraftOutline = forwardRef<DraftOutlineHandle, {
       <p className="import-week-caption">{weekCaption(week, selectedBlock)}</p>
       {weeks.length > 1 && (
         <Button
-          variant="destructive"
+          variant="tertiary"
           className="import-delete-week-btn"
           aria-label={`Delete week ${week.week}`}
           onClick={() => setDeleteConfirmWeek(week.week)}

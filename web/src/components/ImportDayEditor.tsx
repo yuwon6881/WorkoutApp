@@ -367,22 +367,26 @@ function ExerciseEditor({ exercise, exercises, allDayExercises, onChange, onRemo
 
     <ol className="import-sets" aria-label={`Set prescriptions for ${exercise.sourceName}`} data-import-field="sets">
       {exercise.sets.map((set, index) => {
-        const remove = <Button variant="destructive" className="import-set-remove" aria-label={`Remove set ${index + 1}`} onClick={() => onChange({ ...exercise, sets: exercise.sets.filter((_, current) => current !== index) })}>
+        const setDisplayNumber = exercise.sets
+          .slice(0, index + 1)
+          .filter(s => !!s.warmup === !!set.warmup).length;
+        const setTypeLabel = getSetTypeLabel(set);
+        const remove = <Button variant="destructive" className="import-set-remove" aria-label={`Remove ${set.warmup ? 'warm-up' : 'set'} ${setDisplayNumber}`} onClick={() => onChange({ ...exercise, sets: exercise.sets.filter((_, current) => current !== index) })}>
           <Trash2 size={15} /><span>Delete</span>
         </Button>;
         return <li className={`import-set ${set.warmup ? 'warmup-row' : ''}`} key={index}>
-          <SwipeableRow className="import-set-swipe-row" actions={remove} desktopActions={remove} actionsWidth={88} actionsLabel={`Actions for ${set.warmup ? 'warm-up' : 'set'} ${index + 1}`}>
+          <SwipeableRow className="import-set-swipe-row" actions={remove} desktopActions={remove} actionsWidth={88} actionsLabel={`Actions for ${set.warmup ? 'warm-up' : 'set'} ${setDisplayNumber}`}>
             <div className="import-set-content" data-import-set-index={index}>
               <div className="import-set-heading">
                 <span className={`set-number set-badge-${getSetType(set)}`}>
-                  <span className="set-number-label">{getSetTypeLabel(set)}</span>
-                  <strong>{index + 1}</strong>
+                  <span className="set-number-label">{setTypeLabel}</span>
+                  <strong>{setDisplayNumber}</strong>
                 </span>
                 <label className="field set-type-field">
                   <span>Type</span>
                   <Select
                     name={`set-type-${exercise.lineId}-${index}`}
-                    ariaLabel={`Set ${index + 1} type for ${exercise.sourceName}`}
+                    ariaLabel={`Set ${setDisplayNumber} type for ${exercise.sourceName}`}
                     value={getSetType(set)}
                     options={setTypeOptions}
                     onChange={val => changeSetType(index, val as SetType)}
@@ -393,7 +397,7 @@ function ExerciseEditor({ exercise, exercises, allDayExercises, onChange, onRemo
                 <Field name={`rep-min-${exercise.lineId}-${index}`} label="Min reps" inputMode="numeric" type="number" value={set.repMin} data-import-field="repMin" data-import-set-index={index} onChange={event => editSet(index, { repMin: Number(event.target.value), repsText: null, repsSource: 'userEdited' })} />
                 <Field name={`rep-max-${exercise.lineId}-${index}`} label="Max reps" inputMode="numeric" type="number" value={set.repMax} data-import-field="repMax" data-import-set-index={index} onChange={event => editSet(index, { repMax: Number(event.target.value), repsText: null, repsSource: 'userEdited' })} />
                 <label className="field" data-import-field="targetRpe" data-import-set-index={index}>Target RPE
-                  <Select name={`target-rpe-${exercise.lineId}-${index}`} ariaLabel={`Target RPE for ${exercise.sourceName} set ${index + 1}`}
+                  <Select name={`target-rpe-${exercise.lineId}-${index}`} ariaLabel={`Target RPE for ${exercise.sourceName} set ${setDisplayNumber}`}
                     value={set.targetRpe ?? ''} options={[{ value: '', label: set.warmup ? 'Not set' : 'Choose RPE' }, ...rpeOptions]}
                     disabled={set.warmup}
                     onChange={value => editSet(index, { targetRpe: value === '' ? null : Number(value), rpeSource: 'userEdited' })} />

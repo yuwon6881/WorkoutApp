@@ -56,17 +56,29 @@ public sealed class ProgressionService(AppDb db)
     public async Task Record(List<(Guid? ExerciseId, string Name, List<PreviousSet> Sets)> performed, CancellationToken ct)
     {
         var user = db.CurrentUser!.Value;
-        foreach (var (exerciseId, name, sets) in performed)
+        var candidates = performed.Select(item =>
         {
-            if (Progression.SessionE1rm(sets) is not { } estimate) continue;
-            var (key, nameKey) = Key(exerciseId, name);
-            var row = await db.Progress.SingleOrDefaultAsync(p => p.ExerciseId == key && p.NameKey == nameKey, ct);
+            var estimate = Progression.SessionE1rm(item.Sets);
+            var (key, nameKey) = Key(item.ExerciseId, item.Name);
+            return (item, estimate, key, nameKey);
+        }).Where(x => x.estimate is not null).ToList();
+        if (candidates.Count == 0) return;
+        var ids = candidates.Select(x => x.key).Distinct().ToList();
+        var names = candidates.Select(x => x.nameKey).Distinct(StringComparer.Ordinal).ToHashSet(StringComparer.Ordinal);
+        var existing = await db.Progress.Where(p => ids.Contains(p.ExerciseId) && names.Contains(p.NameKey)).ToListAsync(ct);
+        var byKey = existing.ToDictionary(row => (row.ExerciseId, row.NameKey));
+        foreach (var candidate in candidates)
+        {
+            var estimate = candidate.estimate!.Value;
+            var key = candidate.key; var nameKey = candidate.nameKey;
+            byKey.TryGetValue((key, nameKey), out var row);
             var current = row == null ? null : new ProgressionState(row.TrendE1rmKg, row.LastE1rmKg, row.Stalls);
             var next = Progression.Advance(current, estimate);
             if (row == null)
             {
                 row = new ExerciseProgress { UserId = user, ExerciseId = key, NameKey = nameKey };
                 db.Progress.Add(row);
+                byKey[(key, nameKey)] = row;
             }
             row.TrendE1rmKg = next.TrendE1rmKg; row.LastE1rmKg = next.LastE1rmKg; row.Stalls = next.Stalls;
             row.UpdatedAt = DateTime.UtcNow; row.Revision++;

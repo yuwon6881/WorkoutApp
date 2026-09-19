@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 using Workout.Api.Data;
 using Workout.Api.Domain;
 
@@ -12,6 +13,13 @@ public record SubstitutionCandidate(Guid ExerciseId, string Name, string Muscle,
 
 public sealed class CatalogService(AppDb db)
 {
+    // Catalog rows are shared across accounts. Keep this process-local and bounded;
+    // custom exercises are still loaded through the account-scoped query below.
+    // The short expiry also makes a catalog seed visible without requiring a
+    // restart or a cross-service cache invalidation channel.
+    private static readonly MemoryCache SharedCache = new(new MemoryCacheOptions { SizeLimit = 4 });
+    private const string SharedCatalogKey = "workout:catalog:active:v1";
+
     /// Normalizing on comparison keeps "Barbell Bench-Press" and "barbell bench press" the same key.
     public static string Normalize(string value)
     {
@@ -28,16 +36,40 @@ public sealed class CatalogService(AppDb db)
 
     public async Task<List<CatalogExercise>> All(CancellationToken ct)
     {
-        var exercises = await db.Exercises.AsNoTracking().Where(x => x.Active).OrderBy(x => x.Name).ToListAsync(ct);
-        var ids = exercises.Select(x => x.Id).ToList();
-        var aliases = await db.Aliases.AsNoTracking().Where(a => ids.Contains(a.ExerciseId)).ToListAsync(ct);
-        var output = exercises.Select(x => new CatalogExercise(x.Id, x.Slug, x.Name, x.Muscle, x.Equipment, x.Cue,
-            aliases.Where(a => a.ExerciseId == x.Id).Select(a => a.Alias).OrderBy(a => a).ToList(), x.LoadStepKg,
-            LoadModels.All.Contains(x.LoadModel) ? x.LoadModel : LoadModels.External, x.MovementPattern)).ToList();
+        var shared = await Shared(ct);
+        var output = shared.Select(x => x with { Aliases = x.Aliases.ToList() }).ToList();
         var custom = await db.CustomExercises.AsNoTracking().Where(x => !x.Archived).OrderBy(x => x.Name).ToListAsync(ct);
         output.AddRange(custom.Select(x => new CatalogExercise(x.Id, $"custom-{x.Id:N}", x.Name, x.Muscle, x.Equipment, x.Cue, [], x.LoadStepKg,
             LoadModels.All.Contains(x.LoadModel) ? x.LoadModel : LoadModels.External, x.MovementPattern, "custom", true)));
         return output;
+    }
+
+    private async Task<List<CatalogExercise>> Shared(CancellationToken ct)
+    {
+        // Test and local SQLite databases are deliberately isolated per harness;
+        // never let a process-global production cache leak rows between them.
+        if (!db.Database.IsSqlite()
+            && SharedCache.TryGetValue<List<CatalogExercise>>(SharedCatalogKey, out var cached) && cached is not null)
+            return cached;
+
+        var exercises = await db.Exercises.AsNoTracking().Where(x => x.Active)
+            .OrderBy(x => x.Name)
+            .Select(x => new { x.Id, x.Slug, x.Name, x.Muscle, x.Equipment, x.Cue, x.LoadStepKg, x.LoadModel, x.MovementPattern })
+            .ToListAsync(ct);
+        var ids = exercises.Select(x => x.Id).ToList();
+        var aliases = ids.Count == 0 ? [] : await db.Aliases.AsNoTracking().Where(a => ids.Contains(a.ExerciseId)).ToListAsync(ct);
+        var aliasesByExercise = aliases.GroupBy(a => a.ExerciseId)
+            .ToDictionary(g => g.Key, g => g.Select(a => a.Alias).OrderBy(a => a).ToList());
+        var result = exercises.Select(x => new CatalogExercise(x.Id, x.Slug, x.Name, x.Muscle, x.Equipment, x.Cue,
+            aliasesByExercise.GetValueOrDefault(x.Id) ?? [], x.LoadStepKg,
+            LoadModels.All.Contains(x.LoadModel) ? x.LoadModel : LoadModels.External, x.MovementPattern)).ToList();
+        if (!db.Database.IsSqlite())
+            SharedCache.Set(SharedCatalogKey, result, new MemoryCacheEntryOptions
+            {
+                Size = 1,
+                AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(10)
+            });
+        return result;
     }
 
     /// Returns candidates in the server-defined order: imported alternatives first, then curated
@@ -107,8 +139,11 @@ public sealed class CatalogService(AppDb db)
         var built = new Dictionary<string, Guid>(StringComparer.Ordinal);
         // Later entries never displace earlier ones, so a curated alias keeps its exercise when a
         // custom name happens to normalise to the same words.
-        foreach (var alias in await db.Aliases.AsNoTracking().ToListAsync(ct)) built.TryAdd(alias.Normalized, alias.ExerciseId);
-        foreach (var exercise in await db.Exercises.AsNoTracking().Where(x => x.Active).ToListAsync(ct)) built.TryAdd(Normalize(exercise.Name), exercise.Id);
+        foreach (var exercise in await Shared(ct))
+        {
+            foreach (var alias in exercise.Aliases) built.TryAdd(Normalize(alias), exercise.Id);
+            built.TryAdd(Normalize(exercise.Name), exercise.Id);
+        }
         foreach (var custom in await db.CustomExercises.AsNoTracking().Where(x => !x.Archived).ToListAsync(ct)) built.TryAdd(Normalize(custom.Name), custom.Id);
         return built;
     }

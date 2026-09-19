@@ -29,6 +29,10 @@ export default defineConfig({
       // reach the server or fail visibly, and must never be answered with the SPA document.
       navigateFallbackDenylist: [/^\/assets\//, /^\/api\//, /^\/health$/],
       globPatterns: ['**/*.{js,css,html,png,svg,woff2}'],
+      // PDF.js is loaded only after a user selects an import. Keep its large worker and dynamic
+      // chunks out of the install-time download; the importer remains available online and the
+      // rest of the workout shell stays fast on a fresh install.
+      globIgnores: ['**/assets/*pdf*', '**/assets/*PDF*'],
       // The rest-timer notification needs a click handler in the worker itself. It is imported
       // rather than hand-written as a whole worker so Workbox keeps owning the precache.
       importScripts: ['rest-alert-sw.js'],

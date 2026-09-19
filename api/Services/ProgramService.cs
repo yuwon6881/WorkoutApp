@@ -23,8 +23,44 @@ public sealed class ProgramService(AppDb db, TemplateService templates)
     public async Task<List<ProgramSummaryView>> List(CancellationToken ct)
     {
         var programs = await db.Programs.AsNoTracking().OrderByDescending(p => p.Active).ThenByDescending(p => p.Created).ToListAsync(ct);
-        var views = new List<ProgramSummaryView>();
-        foreach (var program in programs) views.Add(await Summary(program, ct));
+        if (programs.Count == 0) return [];
+
+        // The bootstrap used to call Summary once per program, which in turn loaded templates,
+        // counts, completion, skips, and phases independently. These bounded set queries keep
+        // the request cost stable as a user accumulates programs.
+        var ids = programs.Select(p => p.Id).ToList();
+        var templates = await db.Templates.AsNoTracking().Where(t => t.ProgramId != null && ids.Contains(t.ProgramId.Value))
+            .OrderBy(t => t.ProgramId).ThenBy(t => t.Week).ThenBy(t => t.Position).ToListAsync(ct);
+        var templateIds = templates.Select(t => t.Id).ToList();
+        var exerciseCounts = templateIds.Count == 0 ? new Dictionary<Guid, int>() : await db.TemplateExercises.AsNoTracking()
+            .Where(e => templateIds.Contains(e.TemplateId)).GroupBy(e => e.TemplateId)
+            .Select(g => new { g.Key, Count = g.Count() }).ToDictionaryAsync(x => x.Key, x => x.Count, ct);
+        var completedRows = await db.Workouts.AsNoTracking().Where(w => w.ProgramId != null && ids.Contains(w.ProgramId.Value) && w.FinishedAt != null && w.TemplateId != null)
+            .Select(w => new { ProgramId = w.ProgramId!.Value, TemplateId = w.TemplateId!.Value }).Distinct().ToListAsync(ct);
+        var skippedRows = await db.ProgramSkips.AsNoTracking().Where(s => ids.Contains(s.ProgramId))
+            .Select(s => new { s.ProgramId, s.TemplateId }).ToListAsync(ct);
+        var phases = await db.ProgramPhases.AsNoTracking().Where(p => ids.Contains(p.ProgramId)).OrderBy(p => p.Position).ToListAsync(ct);
+        var views = new List<ProgramSummaryView>(programs.Count);
+        foreach (var program in programs)
+        {
+            var rows = templates.Where(t => t.ProgramId == program.Id).ToList();
+            var completed = completedRows.Where(x => x.ProgramId == program.Id).Select(x => x.TemplateId).ToList();
+            var skipped = skippedRows.Where(x => x.ProgramId == program.Id).Select(x => x.TemplateId).ToList();
+            var programPhases = phases.Where(p => p.ProgramId == program.Id).ToList();
+            // Legacy programs without persisted phases retain the existing repair path. New and
+            // migrated programs use the batched read model above.
+            if (programPhases.Count == 0 && rows.Count > 0)
+            {
+                views.Add(await Summary(program, ct));
+                continue;
+            }
+            var days = rows.Select(t => new ProgramDayView(t.Id, t.Name, t.Focus, t.Block, t.Phase, t.Week, t.PhaseWeek,
+                t.Position, t.IsRestDay, exerciseCounts.GetValueOrDefault(t.Id), t.SourcePage)).ToList();
+            var next = days.FirstOrDefault(d => !d.IsRestDay && !completed.Contains(d.Id) && !skipped.Contains(d.Id))?.Id;
+            var phaseViews = BuildPhaseViews(programPhases, rows, completed, skipped);
+            views.Add(new ProgramSummaryView(program.Id, program.Name, program.Weeks, program.Active, program.Revision, program.SourceImportId,
+                days, completed, next, program.LifecycleStatus, program.CompletedAt, skipped, phaseViews));
+        }
         return views;
     }
 
@@ -407,6 +443,12 @@ public sealed class ProgramService(AppDb db, TemplateService templates)
             }
             await gate.Commit(ct);
         }
+        return BuildPhaseViews(phases, rows, completed, skipped);
+    }
+
+    private static List<ProgramPhaseView> BuildPhaseViews(IReadOnlyList<ProgramPhase> phases, IReadOnlyList<WorkoutTemplate> rows,
+        IReadOnlyCollection<Guid> completed, IReadOnlyCollection<Guid> skipped)
+    {
         return phases.Select(phase =>
         {
             var phaseRows = rows.Where(t => t.Week >= phase.WeekFrom && t.Week <= phase.WeekTo && !t.IsRestDay && BelongsToPhase(t, phase)).ToList();

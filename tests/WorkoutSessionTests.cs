@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using System.Text.Json;
 using Workout.Api.Data;
 using Workout.Api.Domain;
 using Workout.Api.Services;
@@ -40,6 +41,25 @@ public class WorkoutSessionTests
         Assert.All(exercise.Sets, s => Assert.Null(s.Rpe));
         Assert.Equal(0, session.CompletedSets);
         Assert.Null(session.VolumeKg);
+    }
+
+    [Fact] public async Task A_set_patch_updates_only_the_changed_set_and_honors_session_revision()
+    {
+        var (h, templateId, _) = await Ready();
+        await using var _h = h;
+        var session = await h.Workouts.Start(templateId, null, default);
+        var set = session.Exercises.Single().Sets.First();
+        using var payload = JsonDocument.Parse($"{{\"revision\":{session.Revision},\"weightKg\":65,\"reps\":9,\"rpe\":8,\"done\":true,\"mutationId\":\"{Guid.NewGuid()}\"}}");
+        var patched = await h.Workouts.PatchSet(session.Id, set.Id, payload.RootElement.Clone(), default);
+        var changed = patched.Exercises.Single().Sets.Single(item => item.Id == set.Id);
+        Assert.Equal(65, changed.WeightKg);
+        Assert.Equal(9, changed.Reps);
+        Assert.True(changed.Done);
+        Assert.Equal(session.Revision + 1, patched.Revision);
+
+        using var stale = JsonDocument.Parse($"{{\"revision\":{session.Revision},\"reps\":10}} ");
+        var failure = await Assert.ThrowsAsync<DomainException>(() => h.Workouts.PatchSet(session.Id, set.Id, stale.RootElement.Clone(), default));
+        Assert.Equal(409, failure.Status);
     }
 
     [Fact] public async Task The_next_workout_prefills_a_suggestion_without_completing_it()

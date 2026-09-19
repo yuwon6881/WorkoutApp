@@ -60,6 +60,10 @@ export type ImportView = {
   reviewIssues?: { code: string; message: string; severity: string; sourcePage?: number | null; workoutLineId?: string | null; exerciseLineId?: string | null; setIndex?: number | null; targetField?: string | null }[]; inputTokens?: number; outputTokens?: number; retries?: number; sourceExpiresAt?: string | null; pageCoverage?: { page: number; hasText: boolean; characterCount: number }[]; alternatives?: { id: string; name: string; chunkCount: number; dayCount: number }[]; selectedAlternativeId?: string | null;
   revision: number; canRestoreDraft?: boolean; restorableExerciseLineIds?: string[];
 };
+export type ImportStatusView = {
+  id: string; status: ImportView['status']; stage: ImportView['stage']; chunksDone: number; chunksTotal: number;
+  currentChunkLabel: string | null; error: string; revision: number; retries: number; sourceExpiresAt?: string | null; unresolvedCount: number;
+};
 
 export type Bootstrap = {
   account: Account; preferences: Preferences; exercises: Exercise[]; templates: Template[];

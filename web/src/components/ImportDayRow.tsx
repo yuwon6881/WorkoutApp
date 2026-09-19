@@ -52,17 +52,31 @@ export function DayRow({
   return (
     <section className={`draft-day ${day.isRestDay ? 'rest-day' : ''}`} data-import-day={day.lineId}>
       <div className="draft-day-card-header">
-        <Button presentation="plain" className="draft-day-summary" aria-expanded={expanded} aria-label={fullName} onClick={onToggle}>
-          <span className={`draft-day-disclosure ${expanded ? 'open' : ''}`} aria-hidden="true"><ChevronDown size={17} /></span>
-          <div className="draft-day-title-group">
-            <strong>{fullName}</strong>
-            <div className="draft-day-meta-tags">
-              <span className="tiny-label">{day.isRestDay ? 'Rest day' : `${day.exercises.length} exercises`}</span>
-              {day.focus && <span className="day-focus-tag">{day.focus}</span>}
-              {day.phase?.toLowerCase().includes('deload') && <span className="pill pill-accent">Deload</span>}
+        {day.isRestDay ? (
+          <div className="draft-day-summary draft-day-summary-static">
+            <div className="draft-day-title-group">
+              <strong>{fullName}</strong>
+              {(day.focus || day.phase?.toLowerCase().includes('deload')) && (
+                <div className="draft-day-meta-tags">
+                  {day.focus && <span className="day-focus-tag">{day.focus}</span>}
+                  {day.phase?.toLowerCase().includes('deload') && <span className="pill pill-accent">Deload</span>}
+                </div>
+              )}
             </div>
           </div>
-        </Button>
+        ) : (
+          <Button presentation="plain" className="draft-day-summary" aria-expanded={expanded} aria-label={fullName} onClick={onToggle}>
+            <span className={`draft-day-disclosure ${expanded ? 'open' : ''}`} aria-hidden="true"><ChevronDown size={17} /></span>
+            <div className="draft-day-title-group">
+              <strong>{fullName}</strong>
+              <div className="draft-day-meta-tags">
+                <span className="tiny-label">{`${day.exercises.length} exercises`}</span>
+                {day.focus && <span className="day-focus-tag">{day.focus}</span>}
+                {day.phase?.toLowerCase().includes('deload') && <span className="pill pill-accent">Deload</span>}
+              </div>
+            </div>
+          </Button>
+        )}
         <div className="draft-day-actions">
           {day.isRestDay ? (
             <span className="tiny-label rest-badge">Rest day</span>
@@ -108,7 +122,7 @@ export function DayRow({
       )}
 
       {!expanded && showDetails && !day.isRestDay && day.exercises.length > 0 && <DayLines day={day} />}
-      {expanded && (
+      {expanded && !day.isRestDay && (
         <DayEditor
           day={day}
           exercises={exercises}

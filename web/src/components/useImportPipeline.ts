@@ -49,6 +49,7 @@ export function useImportPipeline({ selected, setSelected, setDraft, onChanged, 
   /// Imports this screen has already continued by itself, so a read that keeps failing is never
   /// retried forever without anyone asking.
   const resumed = useRef(new Set<string>());
+  const statusEtags = useRef(new Map<string, string>());
 
   const apply = useCallback((view: ImportView) => {
     if (cancelled.current === view.id) return;
@@ -70,6 +71,20 @@ export function useImportPipeline({ selected, setSelected, setDraft, onChanged, 
   const refresh = useCallback(async (id: string) => {
     try { apply(await api.getImport(id)); } catch { /* the panel keeps the last known view */ }
   }, [apply]);
+
+  const poll = useCallback(async (current: ImportView): Promise<ImportView> => {
+    const meta = await api.getImportStatusMeta(current.id, statusEtags.current.get(current.id));
+    if (meta.etag) statusEtags.current.set(current.id, meta.etag);
+    if (meta.notModified || !meta.data) return current;
+    const status = meta.data;
+    const lightweight: ImportView = { ...current, ...status };
+    // A completed draft or an alternative choice carries data that is deliberately omitted from
+    // the polling contract. Fetch it once at the transition instead of transferring it every two
+    // seconds while the model is still working.
+    if (status.status === 'ready' || status.stage === 'select' || status.status === 'failed')
+      return api.getImport(current.id);
+    return lightweight;
+  }, []);
 
   const extractAll = useCallback(async (start: ImportView) => {
     let current = start;
@@ -99,7 +114,7 @@ export function useImportPipeline({ selected, setSelected, setDraft, onChanged, 
       while (current.status === 'pending' && current.stage !== 'select') {
         await new Promise(resolve => window.setTimeout(resolve, POLL_INTERVAL_MS));
         try {
-          current = await api.getImport(current.id);
+          current = await poll(current);
         } catch (error) {
           reportFor(current.id, error, 'The import progress could not be loaded. Try again.');
           if (cancelled.current !== current.id) await refresh(current.id);
@@ -145,7 +160,7 @@ export function useImportPipeline({ selected, setSelected, setDraft, onChanged, 
       setNotice(`Read ${count} days. Review them before accepting.`);
       onComplete?.(count);
     }
-  }, [apply, onChanged, onComplete, refresh, reportFor]);
+  }, [apply, onChanged, onComplete, poll, refresh, reportFor]);
 
   const advance = useCallback(async (view: ImportView) => {
     apply(view);

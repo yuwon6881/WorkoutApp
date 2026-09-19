@@ -1,4 +1,6 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
+using System.Text.Json;
 using Workout.Api.Data;
 using Workout.Api.Domain;
 using Workout.Api.Services;
@@ -16,7 +18,7 @@ public static class TrainingEndpoints
     /// One call gives the signed-in app everything it needs to render: preferences, the catalog,
     /// plans, the active program, any workout still in progress, and a short history summary.
     public static void MapBootstrap(this WebApplication app)
-        => app.MapGet("/api/bootstrap", async (AppDb db, CatalogService catalog, TemplateService templates, ProgramService programs, WorkoutService workouts, ImportService imports, CancellationToken ct) =>
+        => app.MapGet("/api/bootstrap", async (AppDb db, CatalogService catalog, TemplateService templates, ProgramService programs, WorkoutService workouts, ImportService imports, IMemoryCache cache, CancellationToken ct) =>
         {
             var user = await db.Users.AsNoTracking().SingleAsync(u => u.Id == db.CurrentUser, ct);
             var programList = await programs.List(ct);
@@ -31,9 +33,38 @@ public static class TrainingEndpoints
                 activeWorkout = await workouts.Active(ct),
                 imports = await imports.List(ct),
                 history = await workouts.History(0, 20, ct),
-                progress = await Progress(db, workouts, ct),
+                progress = await Progress(db, cache, ct),
                 aiImportsRemaining = await Remaining(db, ct)
             };
+        });
+
+    public static void MapRevisions(this WebApplication app)
+        => app.MapGet("/api/revisions", async (HttpContext http, AppDb db, CancellationToken ct) =>
+        {
+            var user = await db.Users.AsNoTracking().SingleAsync(x => x.Id == db.CurrentUser, ct);
+            var programs = await db.Programs.Select(x => (int?)x.Revision).MaxAsync(ct) ?? 0;
+            var templates = await db.Templates.Select(x => (int?)x.Revision).MaxAsync(ct) ?? 0;
+            var sessions = await db.Workouts.Select(x => (int?)x.Revision).MaxAsync(ct) ?? 0;
+            var imports = await db.Imports.Select(x => (int?)x.Revision).MaxAsync(ct) ?? 0;
+            var progress = await db.Progress.Select(x => (int?)x.Revision).MaxAsync(ct) ?? 0;
+            var customExercises = await db.CustomExercises.Select(x => (int?)x.Revision).MaxAsync(ct) ?? 0;
+            var etag = $"\"revisions:{user.Id:N}:{programs}:{templates}:{sessions}:{imports}:{progress}:{customExercises}\"";
+            if (http.Request.Headers.IfNoneMatch == etag)
+            {
+                http.Response.Headers.ETag = etag;
+                return Results.StatusCode(StatusCodes.Status304NotModified);
+            }
+            http.Response.Headers.ETag = etag;
+            return Results.Ok(new
+            {
+                account = user.Id,
+                programs,
+                templates,
+                sessions,
+                imports,
+                progress,
+                customExercises
+            });
         });
 
     public static void MapCatalog(this WebApplication app)
@@ -127,6 +158,8 @@ public static class TrainingEndpoints
         app.MapGet("/api/workouts/active", async (WorkoutService workouts, CancellationToken ct) => await workouts.Active(ct));
         app.MapPost("/api/workouts", async (StartInput input, WorkoutService workouts, CancellationToken ct) => await workouts.Start(input.TemplateId, input.Name, ct));
         app.MapPut("/api/workouts/{id:guid}", async (Guid id, SessionInput input, WorkoutService workouts, CancellationToken ct) => await workouts.Save(id, input, ct));
+        app.MapPatch("/api/workouts/{id:guid}/sets/{setId:guid}", async (Guid id, Guid setId, JsonElement payload, WorkoutService workouts, CancellationToken ct)
+            => await workouts.PatchSet(id, setId, payload, ct));
         app.MapPost("/api/workouts/{id:guid}/substitution", async (Guid id, SessionSubstitutionInput input, WorkoutService workouts, CancellationToken ct)
             => await workouts.Swap(id, input, ct));
         app.MapPost("/api/workouts/{id:guid}/exercise-substitution", async (Guid id, SessionSubstitutionInput input, WorkoutService workouts, CancellationToken ct)
@@ -145,14 +178,30 @@ public static class TrainingEndpoints
         app.MapDelete("/api/workouts/{id:guid}", async (Guid id, WorkoutService workouts, CancellationToken ct) =>
         { await workouts.DeleteFromHistory(id, ct); return Results.NoContent(); });
         app.MapGet("/api/history", async (int? page, int? size, WorkoutService workouts, CancellationToken ct) => await workouts.History(page ?? 0, size ?? 20, ct));
-        app.MapGet("/api/progress", async (AppDb db, WorkoutService workouts, CancellationToken ct) => await Progress(db, workouts, ct));
+        app.MapGet("/api/history/cursor", async (DateTime? beforeAt, Guid? beforeId, int? size, WorkoutService workouts, CancellationToken ct)
+            => await workouts.HistoryCursor(beforeAt, beforeId, size ?? 20, ct));
+        app.MapGet("/api/progress", async (AppDb db, IMemoryCache cache, CancellationToken ct) => await Progress(db, cache, ct));
         app.MapGet("/api/workouts/activity", async (DateOnly? from, DateOnly? to, string? timeZone, WorkoutService workouts, CancellationToken ct)
             => await workouts.Activity(from, to, timeZone, ct));
     }
 
     /// Per-exercise bests and recent volume, read from completed sets only.
-    private static async Task<object> Progress(AppDb db, WorkoutService workouts, CancellationToken ct)
+    private static async Task<object> Progress(AppDb db, IMemoryCache cache, CancellationToken ct)
     {
+        // The result is a rebuildable read cache. Its key contains cheap source counts and
+        // revisions so a deleted or edited history row cannot leave a stale account response;
+        // the account id prevents equal revision sequences from crossing tenants.
+        var userId = db.CurrentUser!.Value;
+        var workoutCount = await db.Workouts.LongCountAsync(ct);
+        var workoutRevision = await db.Workouts.Select(x => (long?)x.Revision).MaxAsync(ct) ?? 0;
+        var exerciseCount = await db.SessionExercises.LongCountAsync(ct);
+        var exerciseRevision = await db.SessionExercises.Select(x => (long?)x.Revision).MaxAsync(ct) ?? 0;
+        var setCount = await db.Sets.LongCountAsync(ct);
+        var setRevision = await db.Sets.Select(x => (long?)x.Revision).MaxAsync(ct) ?? 0;
+        var progressRevision = await db.Progress.Select(x => (long?)x.Revision).MaxAsync(ct) ?? 0;
+        var cacheKey = $"workout:progress:{userId:N}:{workoutCount}:{workoutRevision}:{exerciseCount}:{exerciseRevision}:{setCount}:{setRevision}:{progressRevision}";
+        if (cache.TryGetValue(cacheKey, out object? cached) && cached is not null) return cached;
+
         // Progress is an account aggregate. Do not page or truncate the source history here;
         // the history endpoint is paginated for rendering, while records must remain complete.
         var sessions = await db.Workouts.AsNoTracking().Where(w => w.FinishedAt != null).OrderByDescending(w => w.FinishedAt).ToListAsync(ct);
@@ -163,6 +212,8 @@ public static class TrainingEndpoints
         var states = await db.Progress.AsNoTracking().ToListAsync(ct);
         var sessionById = sessions.ToDictionary(s => s.Id);
         var exerciseById = exercises.ToDictionary(exercise => exercise.Id);
+        var setsByExerciseId = sets.GroupBy(set => set.SessionExerciseId)
+            .ToDictionary(group => group.Key, group => group.ToList());
         var volumeRows = sets.Select(set =>
         {
             var exercise = exerciseById[set.SessionExerciseId];
@@ -179,12 +230,15 @@ public static class TrainingEndpoints
         var trainingMinutes = sessions.Sum(session => Math.Max(1, (int)Math.Round(((session.FinishedAt ?? DateTime.UtcNow) - session.StartedAt).TotalMinutes)));
         var best = exercises.GroupBy(e => new { e.ExerciseId, e.NameSnapshot }).Select(group =>
         {
-            var groupIds = group.Select(e => e.Id).ToHashSet();
-            var logged = group.SelectMany(exercise => sets.Where(set => set.SessionExerciseId == exercise.Id)
-                .Select(set => new { Exercise = exercise, Set = set, Session = sessionById[exercise.SessionId] })).ToList();
+            var logged = new List<(SessionExercise Exercise, CompletedSet Set, WorkoutSession Session)>();
+            foreach (var exercise in group)
+                if (setsByExerciseId.TryGetValue(exercise.Id, out var exerciseSets))
+                    foreach (var set in exerciseSets)
+                        logged.Add((exercise, set, sessionById[exercise.SessionId]));
             // An unknown load cannot be a heaviest set; it is left out rather than counted as zero.
             var external = logged.Where(row => row.Exercise.LoadModel == LoadModels.External && row.Set.WeightKg != null).ToList();
-            var heaviest = external.OrderByDescending(row => row.Set.WeightKg).ThenByDescending(row => row.Set.Reps).FirstOrDefault();
+            var heaviest = external.Select(row => new { row.Set.WeightKg, row.Set.Reps })
+                .OrderByDescending(row => row.WeightKg).ThenByDescending(row => row.Reps).FirstOrDefault();
             var fullBodyweight = logged.Where(row => row.Exercise.LoadModel == LoadModels.FullBodyweight).ToList();
             var systemLoads = fullBodyweight.Where(row => row.Set.SystemLoadKg is not null).Select(row => row.Set.SystemLoadKg!.Value).ToList();
             var addedLoads = fullBodyweight.Where(row => row.Set.ResistanceMode == ResistanceModes.Added && row.Set.WeightKg is not null)
@@ -214,8 +268,8 @@ public static class TrainingEndpoints
                 exerciseId = group.Key.ExerciseId,
                 exercise = group.Key.NameSnapshot,
                 sessions = group.Select(e => e.SessionId).Distinct().Count(),
-                heaviestKg = heaviest?.Set.WeightKg,
-                heaviestReps = heaviest?.Set.Reps,
+                heaviestKg = heaviest?.WeightKg,
+                heaviestReps = heaviest?.Reps,
                 volumeKg = external.Count == 0 ? (double?)null : external.Sum(row => row.Set.WeightKg!.Value * row.Set.Reps!.GetValueOrDefault()),
                 // Estimates exist only where sets could support one, so they stay absent rather
                 // than appearing as a confident zero.
@@ -231,7 +285,7 @@ public static class TrainingEndpoints
                 bodyweightRepRecord = bodyweightRep is null ? null : new { reps = bodyweightRep.Reps, bodyweightKg = bodyweightRep.Snapshot!.ReferenceKg }
             };
         }).OrderByDescending(x => x.sessions).ToList();
-        return new
+        var result = new
         {
             sessions = sessions.Count,
             exercises = best,
@@ -242,6 +296,8 @@ public static class TrainingEndpoints
             weekVolumeKg = recentSets.Count == 0 ? (double?)null : recentSets.Sum(row => row.Load!.Value * row.Set.Reps!.Value),
             weekWorkingSets = recentWorkingSets.Count
         };
+        cache.Set(cacheKey, result, new MemoryCacheEntryOptions { Size = 1, AbsoluteExpirationRelativeToNow = TimeSpan.FromSeconds(30) });
+        return result;
     }
 
     private static BodyWeightSnapshot? ReadBodyWeight(WorkoutSession session)

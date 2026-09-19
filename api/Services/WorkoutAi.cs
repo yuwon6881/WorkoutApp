@@ -22,8 +22,8 @@ public record AiProgram(string? ProgramTitle, List<AiDay>? Days, string? Program
 public record AiOutlineChunk(string Label, string? Block, string? Phase, int WeekFrom, int WeekTo, int PageFrom, int PageTo, int DayCount);
 public record AiAlternative(string Id, string Name, List<AiOutlineChunk> Chunks);
 public record AiOutline(string ProgramTitle, List<AiOutlineChunk> Chunks, List<AiAlternative>? Alternatives = null);
-public record AiOutlineResult(AiOutline? Outline, AiProgram? LegacyProgram, string Model, long InputTokens, long OutputTokens);
-public record AiImportResult(AiProgram Program, string Model, long InputTokens, long OutputTokens);
+public record AiOutlineResult(AiOutline? Outline, AiProgram? LegacyProgram, string Model, long InputTokens, long OutputTokens, long CachedInputTokens = 0);
+public record AiImportResult(AiProgram Program, string Model, long InputTokens, long OutputTokens, long CachedInputTokens = 0);
 
 /// The model-facing half of the importer. It only ever sees text: the browser extracts the PDF's
 /// text layer on the device, so no document bytes, page images, or scanned pages reach a provider.
@@ -67,14 +67,14 @@ public sealed class WorkoutAi(HttpClient http, IConfiguration config)
             try { legacy = Json.Read<AiProgram>(JsonSerializer.Serialize(root, Json.Options)); }
             catch (JsonException) { throw new DomainException("AI returned a program this app could not read. Try again.", 422); }
             WorkoutAiValidation.Validate(legacy);
-            return new AiOutlineResult(null, legacy, result.Model, result.InputTokens, result.OutputTokens);
+            return new AiOutlineResult(null, legacy, result.Model, result.InputTokens, result.OutputTokens, result.CachedInputTokens);
         }
 
         AiOutline outline;
         try { outline = Json.Read<AiOutline>(JsonSerializer.Serialize(root, Json.Options)); }
         catch (JsonException) { throw new DomainException("AI returned an outline this app could not read. Try again.", 422); }
         WorkoutAiValidation.Validate(outline);
-        return new AiOutlineResult(outline, null, result.Model, result.InputTokens, result.OutputTokens);
+        return new AiOutlineResult(outline, null, result.Model, result.InputTokens, result.OutputTokens, result.CachedInputTokens);
     }
 
     public async Task<AiImportResult> ExtractChunk(string chunkText, IReadOnlyList<CatalogExercise> catalog,
@@ -91,7 +91,7 @@ public sealed class WorkoutAi(HttpClient http, IConfiguration config)
         try { program = Json.Read<AiProgram>(JsonSerializer.Serialize(result.Payload, Json.Options)); }
         catch (JsonException) { throw new DomainException("AI returned a chunk this app could not read. Try again.", 422); }
         WorkoutAiValidation.Validate(program, section: true);
-        return new AiImportResult(program, result.Model, result.InputTokens, result.OutputTokens);
+        return new AiImportResult(program, result.Model, result.InputTokens, result.OutputTokens, result.CachedInputTokens);
     }
 
     private async Task<AiResponse> Call(IReadOnlyList<CatalogExercise> catalog, string safetyIdentifier,
@@ -115,6 +115,7 @@ public sealed class WorkoutAi(HttpClient http, IConfiguration config)
             model,
             store = false,
             safety_identifier = safetyIdentifier,
+            prompt_cache_key = PromptVersion,
             max_output_tokens = maxOutputTokens,
             instructions = WorkoutAiSchemas.Instructions,
             input = new[] { new { role = "user", content } },
@@ -154,9 +155,13 @@ public sealed class WorkoutAi(HttpClient http, IConfiguration config)
             var usage = responseRoot.TryGetProperty("usage", out var usageElement) && usageElement.ValueKind == JsonValueKind.Object ? usageElement : default;
             var input = usage.ValueKind == JsonValueKind.Object && usage.TryGetProperty("input_tokens", out var inputElement) && inputElement.TryGetInt64(out var inputCount) ? inputCount : 0;
             var outputTokens = usage.ValueKind == JsonValueKind.Object && usage.TryGetProperty("output_tokens", out var outputElement) && outputElement.TryGetInt64(out var outputCount) ? outputCount : 0;
-            return new AiResponse(payload, model, input, outputTokens);
+            var cachedTokens = 0L;
+            if (usage.ValueKind == JsonValueKind.Object && usage.TryGetProperty("input_tokens_details", out var details)
+                && details.ValueKind == JsonValueKind.Object && details.TryGetProperty("cached_tokens", out var cachedElement)
+                && cachedElement.TryGetInt64(out var cached)) cachedTokens = cached;
+            return new AiResponse(payload, model, input, outputTokens, cachedTokens);
         }
     }
 
-    private readonly record struct AiResponse(JsonElement Payload, string Model, long InputTokens, long OutputTokens);
+    private readonly record struct AiResponse(JsonElement Payload, string Model, long InputTokens, long OutputTokens, long CachedInputTokens);
 }

@@ -1,5 +1,5 @@
 import type { PdfExtraction } from './pdfText';
-import type { Bootstrap, DraftWorkout, ExerciseClearPreview, ExerciseInsight, HistoryPage, ImportDraft, ImportView, Preferences, ProgressSummary, Program, ProgramSummary, Session, Template, SubstitutionCandidate, TemplateSubstitutionResult, WorkoutActivityItem } from '../types';
+import type { Bootstrap, DraftWorkout, ExerciseClearPreview, ExerciseInsight, HistoryPage, ImportDraft, ImportStatusView, ImportView, Preferences, ProgressSummary, Program, ProgramSummary, Session, Template, SubstitutionCandidate, TemplateSubstitutionResult, WorkoutActivityItem } from '../types';
 
 export class ApiError extends Error {
   constructor(message: string, readonly status: number) { super(message); }
@@ -32,6 +32,30 @@ async function call<T>(path: string, method = 'GET', body?: unknown, signal?: Ab
   const payload = text ? safeParse(text) : null;
   if (!response.ok) throw new ApiError(payload?.message ?? 'Something went wrong. Try again.', response.status);
   return payload as T;
+}
+
+async function callWithMeta<T>(path: string, method = 'GET', body?: unknown, signal?: AbortSignal,
+  extraHeaders?: Record<string, string>): Promise<{ data: T | null; notModified: boolean; etag: string | null }> {
+  let response: Response;
+  try {
+    response = await fetch(path, {
+      method, signal, credentials: 'same-origin', cache: 'no-store',
+      headers: {
+        'X-Workout-Request': '1',
+        ...(body instanceof FormData ? {} : body instanceof Uint8Array ? { 'Content-Type': 'application/octet-stream' } : body !== undefined ? { 'Content-Type': 'application/json' } : {}),
+        ...extraHeaders
+      },
+      body: body === undefined ? undefined : body instanceof FormData ? body : body instanceof Uint8Array ? body as BodyInit : JSON.stringify(body)
+    });
+  } catch {
+    throw new ApiError('No connection to the server. Your workout needs a connection to save.', 0);
+  }
+  const etag = response.headers.get('ETag');
+  if (response.status === 304) return { data: null, notModified: true, etag };
+  const text = await response.text();
+  const payload = text ? safeParse(text) : null;
+  if (!response.ok) throw new ApiError(payload?.message ?? 'Something went wrong. Try again.', response.status);
+  return { data: payload as T, notModified: false, etag };
 }
 
 /// Posts JSON gzipped where the browser can compress a stream, and as plain JSON where it
@@ -94,12 +118,14 @@ export const api = {
   getWorkout: (id: string) => call<Session>(`/api/workouts/${id}`),
   startWorkout: (templateId: string | null, name?: string) => call<Session>('/api/workouts', 'POST', { templateId, name }),
   saveWorkout: (id: string, input: unknown) => call<Session>(`/api/workouts/${id}`, 'PUT', input),
+  patchWorkoutSet: (sessionId: string, setId: string, input: unknown) => call<Session>(`/api/workouts/${sessionId}/sets/${setId}`, 'PATCH', input),
   substituteSessionExercise: (id: string, input: { sessionExerciseId: string; replacementExerciseId?: string | null; replacementName: string; revision?: number; idempotencyId?: string }) => call<Session>(`/api/workouts/${id}/substitution`, 'POST', input),
   restoreSessionExercise: (id: string, input: { sessionExerciseId: string; revision?: number; idempotencyId?: string }) => call<Session>(`/api/workouts/${id}/exercises/${input.sessionExerciseId}/restore`, 'POST', input),
   finishWorkout: (id: string, revision: number, retainExerciseSwaps = false) => call<Session>(`/api/workouts/${id}/finish`, 'POST', { revision, retainExerciseSwaps }),
   discardWorkout: (id: string) => call<void>(`/api/workouts/${id}/discard`, 'POST'),
   deleteWorkout: (id: string) => call<void>(`/api/workouts/${id}`, 'DELETE'),
   history: (page: number, size = 20, signal?: AbortSignal) => call<HistoryPage>(`/api/history?page=${page}&size=${size}`, 'GET', undefined, signal),
+  historyCursor: (beforeAt?: string, beforeId?: string, size = 20, signal?: AbortSignal) => call<{ sessions: import('../types').Session[]; nextBeforeAt: string | null; nextBeforeId: string | null }>(`/api/history/cursor?size=${size}${beforeAt ? `&beforeAt=${encodeURIComponent(beforeAt)}` : ''}${beforeId ? `&beforeId=${encodeURIComponent(beforeId)}` : ''}`, 'GET', undefined, signal),
   progress: (signal?: AbortSignal) => call<ProgressSummary>('/api/progress', 'GET', undefined, signal),
   connectedApps: () => call<{ peer: string; status: string; scopes: string[]; grantedAt: string | null; revokedAt: string | null }[]>('/api/integrations/connected'),
   connectApp: (peer: string, refreshToken: string | null = null) => call<{ peer: string; status: string; scopes: string[] }>('/api/integrations/connected', 'POST', { peer, refreshToken }),
@@ -108,6 +134,8 @@ export const api = {
 
   imports: () => call<ImportView[]>('/api/imports'),
   getImport: (id: string) => call<ImportView>(`/api/imports/${id}`),
+  getImportStatus: (id: string) => call<ImportStatusView>(`/api/imports/${id}/status`),
+  getImportStatusMeta: (id: string, etag?: string, signal?: AbortSignal) => callWithMeta<ImportStatusView>(`/api/imports/${id}/status`, 'GET', undefined, signal, etag ? { 'If-None-Match': etag } : undefined),
   createImport: (source: PdfExtraction) => callCompressed<ImportView>('/api/imports', {
     fileName: source.fileName, pageCount: source.pageCount, pages: source.pages
   }),

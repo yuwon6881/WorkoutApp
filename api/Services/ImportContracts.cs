@@ -42,3 +42,11 @@ public record ImportView(
     DateTime? SourceExpiresAt = null, List<PdfPageCoverage>? PageCoverage = null,
     List<ImportAlternative>? Alternatives = null, string? SelectedAlternativeId = null,
     int Revision = 0, bool CanRestoreDraft = false, List<Guid>? RestorableExerciseLineIds = null);
+
+/// Lightweight polling contract.  Extraction progress must not repeatedly serialize the
+/// potentially large draft, page coverage, and review metadata; the full view is fetched only
+/// when a draft or alternative selection is actually ready to display.
+public record ImportStatusView(
+    Guid Id, string Status, string Stage, int ChunksDone, int ChunksTotal,
+    string? CurrentChunkLabel, string Error, int Revision, int Retries,
+    DateTime? SourceExpiresAt, int UnresolvedCount);
