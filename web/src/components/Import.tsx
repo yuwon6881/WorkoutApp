@@ -233,13 +233,13 @@ export function ImportReview({ exercises, imports, remaining, onBack, onChanged,
       <section className="panel" ref={reviewRef}>
         <div className="section-heading"><h2>Review</h2></div>
         <Field label="Program name" name="import-program-name" value={draft.programName} onChange={e => setDraft({ ...draft, programName: e.target.value })} onBlur={() => void persist(draft)} />
-        {selected.unresolved.length > 0 && <div className="error-banner" role="status"><AlertTriangle size={17} />
-          {selected.unresolved.length} exercise name{selected.unresolved.length === 1 ? '' : 's'} are not linked to the catalog. They will stay verbatim and can still be logged.
+        {selected.unresolved.length > 0 && <div className="import-unresolved-banner" role="status"><AlertTriangle size={17} />
+          <span>{selected.unresolved.length} exercise name{selected.unresolved.length === 1 ? '' : 's'} are not linked to the catalog. They will stay verbatim and can still be logged.</span>
         </div>}
         {attentionRows.length > 0 && <section className="import-review-issues" aria-labelledby="import-review-issues-title">
           <div className="import-review-issues-heading">
-            <div><h3 id="import-review-issues-title">Needs attention</h3><p>Resolve each item before creating the program.</p></div>
-            <span className="pill">{attentionRows.length} {attentionRows.length === 1 ? 'item' : 'items'}</span>
+            <div><h3 id="import-review-issues-title">Needs attention</h3><p className="muted">Resolve each item before creating the program.</p></div>
+            <span className="pill pill-accent">{attentionRows.length} {attentionRows.length === 1 ? 'item' : 'items'}</span>
           </div>
           <div className="import-issue-table" role="table" aria-label="Import issues">
             <div className="import-issue-table-head" role="row">
@@ -248,8 +248,8 @@ export function ImportReview({ exercises, imports, remaining, onBack, onChanged,
             {visibleAttentionRows.map(row => <div className="import-issue-table-row" role="row" key={row.key}>
               <span className="import-issue-table-description" role="cell"><AlertTriangle size={15} /><strong>{row.title}</strong></span>
               <span className="import-issue-table-detail" role="cell">{row.detail}</span>
-              <Button variant="tertiary" className="import-issue-table-action import-issue-card" aria-label={row.ariaLabel} onClick={() => focusReviewIssue(row.target)}>
-                {row.action}<ChevronRight size={15} />
+              <Button variant="secondary" className="import-issue-action-btn" aria-label={row.ariaLabel} onClick={() => focusReviewIssue(row.target)}>
+                {row.action}<ChevronRight size={14} />
               </Button>
             </div>)}
           </div>

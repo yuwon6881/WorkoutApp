@@ -4,6 +4,7 @@ import type { Exercise, SetPrescription, TemplateExercise } from '../types';
 import { ApiError, api } from '../lib/api';
 import { getWorkoutMuscles } from '../lib/muscles';
 import { validateTemplateDraft } from '../lib/validation';
+import { pairExercises, unlinkExercise } from '../lib/supersets';
 import { Button } from './ui/Button';
 import { Field } from './ui/Field';
 import { Modal } from './ui/Modal';
@@ -148,6 +149,20 @@ export function WorkoutEditorModal({
     }
   }
 
+  function handlePairExercises(idA: string, idB: string) {
+    setDraft(curr => ({
+      ...curr,
+      exercises: pairExercises(curr.exercises, idA, idB)
+    }));
+  }
+
+  function handleUnlinkExercise(id: string) {
+    setDraft(curr => ({
+      ...curr,
+      exercises: unlinkExercise(curr.exercises, id)
+    }));
+  }
+
   async function handleSave() {
     const validationError = validateTemplateDraft(draft.name, draft.focus, draft.exercises);
     if (validationError) {
@@ -228,6 +243,9 @@ export function WorkoutEditorModal({
                   exercise={exercise}
                   index={ei}
                   exercises={exercises}
+                  allExercises={draft.exercises}
+                  onPairExercises={targetId => handlePairExercises(exercise.id, targetId)}
+                  onUnlinkExercise={() => handleUnlinkExercise(exercise.id)}
                   onUpdateExercise={patch =>
                     setDraft(curr => ({
                       ...curr,

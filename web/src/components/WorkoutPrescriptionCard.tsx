@@ -7,21 +7,19 @@ import { Field, TextAreaField } from './ui/Field';
 import { Select } from './ui/Select';
 import { SwipeableRow } from './ui/SwipeableRow';
 
-const supersetOptions = [
-  { value: '', label: 'None (Standalone)' },
-  { value: 'A', label: 'Superset A' },
-  { value: 'B', label: 'Superset B' },
-  { value: 'C', label: 'Superset C' },
-  { value: 'D', label: 'Superset D' }
-];
+import { getSupersetGroup, isSuperset } from '../lib/supersets';
+import { SupersetModal } from './SupersetModal';
 
 export function WorkoutPrescriptionCard({
   exercise,
   index,
   exercises,
+  allExercises,
   onUpdateExercise,
   onRemoveExercise,
   onOpenSwap,
+  onPairExercises,
+  onUnlinkExercise,
   onAddSet,
   onUpdateSet,
   onRemoveSet,
@@ -30,25 +28,34 @@ export function WorkoutPrescriptionCard({
   exercise: TemplateExercise;
   index: number;
   exercises: Exercise[];
+  allExercises?: TemplateExercise[];
   onUpdateExercise: (patch: Partial<TemplateExercise>) => void;
   onRemoveExercise: () => void;
   onOpenSwap: () => void;
+  onPairExercises?: (targetExerciseId: string) => void;
+  onUnlinkExercise?: () => void;
   onAddSet: () => void;
   onUpdateSet: (setIndex: number, patch: Partial<SetPrescription>) => void;
   onRemoveSet: (setIndex: number) => void;
   onRestoreExercise?: () => void;
 }) {
   const [newSub, setNewSub] = useState('');
+  const [supersetModalOpen, setSupersetModalOpen] = useState(false);
   const linked = exercises.find(item => item.id === exercise.exerciseId);
 
   const applySubstitution = (subName: string) => {
-    const oldName = exercise.name;
-    const matched = exercises.find(e => e.name.toLowerCase() === subName.toLowerCase());
+    const matched = exercises.find(
+      e => e.name.toLowerCase() === subName.toLowerCase() || e.aliases.some(a => a.toLowerCase() === subName.toLowerCase())
+    );
+    const oldLibrary = exercises.find(e => e.id === exercise.exerciseId);
+    const oldName = oldLibrary?.name || exercise.name;
     const remainingSubs = [oldName, ...exercise.substitutions.filter(s => s.toLowerCase() !== subName.toLowerCase())].slice(0, 2);
+    const newName = matched ? matched.name : subName;
     onUpdateExercise({
-      name: subName,
-      sourceName: subName,
-      exerciseId: matched ? matched.id : exercise.exerciseId,
+      name: newName,
+      sourceName: newName,
+      exerciseId: matched ? matched.id : null,
+      loadModel: matched ? matched.loadModel : exercise.loadModel,
       substitutions: remainingSubs
     });
   };
@@ -59,18 +66,18 @@ export function WorkoutPrescriptionCard({
       setNewSub('');
       return;
     }
-    onUpdateExercise({ substitutions: [...exercise.substitutions, clean].slice(0, 2) });
+    const matched = exercises.find(e => e.name.toLowerCase() === clean.toLowerCase());
+    const nameToAdd = matched ? matched.name : clean;
+    onUpdateExercise({ substitutions: [...exercise.substitutions, nameToAdd].slice(0, 2) });
     setNewSub('');
   };
 
-  const currentGroupLetter = exercise.sequenceGroup?.trim().match(/^[A-Za-z]+/)?.[0]?.toUpperCase() ?? '';
-  const handleSupersetChange = (letter: string) => {
-    if (!letter) {
-      onUpdateExercise({ sequenceGroup: '' });
-      return;
-    }
-    onUpdateExercise({ sequenceGroup: `${letter}1` });
-  };
+  const currentGroup = getSupersetGroup(exercise.sequenceGroup);
+  const isPaired = isSuperset(exercise.sequenceGroup);
+  const partners = (allExercises ?? []).filter(
+    e => e.id !== exercise.id && getSupersetGroup(e.sequenceGroup) === currentGroup
+  );
+  const partnerNames = partners.map(p => p.name).join(', ');
 
   return (
     <div className={`import-exercise workout-builder-exercise-card ${exercise.sequenceGroup ? 'exercise-card-superset-active' : ''}`} key={exercise.id}>
@@ -86,13 +93,21 @@ export function WorkoutPrescriptionCard({
             value={exercise.name}
             onChange={e => onUpdateExercise({ name: e.target.value, sourceName: e.target.value })}
           />
-        </div>
-        <div className="topbar-actions">
-          {exercise.sequenceGroup && (
-            <span className="superset-badge">
-              <Link2 size={12} />Superset {exercise.sequenceGroup}
+          {isPaired && (
+            <span
+              className="superset-badge"
+              role="button"
+              tabIndex={0}
+              title={partnerNames ? `Superset with ${partnerNames}` : 'Superset group'}
+              aria-label={`Superset ${currentGroup} with ${partnerNames}`}
+              onClick={() => setSupersetModalOpen(true)}
+              onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') setSupersetModalOpen(true); }}
+            >
+              <Link2 size={12} />Superset {currentGroup}
             </span>
           )}
+        </div>
+        <div className="topbar-actions">
           {!exercise.exerciseId && (
             <span className="tiny-label warn">
               <AlertTriangle size={12} /> Unmapped
@@ -127,16 +142,16 @@ export function WorkoutPrescriptionCard({
           </Button>
         </div>
         <div className="field import-superset-field">
-          <span>Superset group</span>
-          <div className="superset-control-wrap">
-            <Select
-              name={`workout-superset-${exercise.id}`}
-              ariaLabel={`Superset group for ${exercise.name}`}
-              value={currentGroupLetter}
-              options={supersetOptions}
-              onChange={handleSupersetChange}
-            />
-          </div>
+          <span>Superset</span>
+          <Button
+            variant="secondary"
+            className={`superset-trigger ${isPaired ? 'paired' : ''}`}
+            aria-label={`Superset options for ${exercise.name}`}
+            onClick={() => setSupersetModalOpen(true)}
+          >
+            <Link2 size={14} />
+            <span>{isPaired ? `Superset ${currentGroup} · ${partners.length} paired` : 'Pair into superset'}</span>
+          </Button>
         </div>
         <div className="field import-substitutions-field">
           <span>Substitutions</span>
@@ -344,6 +359,21 @@ export function WorkoutPrescriptionCard({
           Add set
         </Button>
       </div>
+
+      <SupersetModal
+        open={supersetModalOpen}
+        onClose={() => setSupersetModalOpen(false)}
+        currentExerciseId={exercise.id}
+        currentExerciseName={exercise.name}
+        currentSequenceGroup={exercise.sequenceGroup}
+        candidates={(allExercises ?? []).map(e => ({
+          id: e.id,
+          name: e.name,
+          sequenceGroup: e.sequenceGroup
+        }))}
+        onPair={targetId => onPairExercises?.(targetId)}
+        onUnlink={() => onUnlinkExercise?.()}
+      />
     </div>
   );
 }

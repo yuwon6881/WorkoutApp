@@ -1,4 +1,4 @@
-import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useState } from 'react';
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import { CalendarDays, ChevronDown, ChevronUp, Pencil, Plus } from 'lucide-react';
 import type { DraftExercise, DraftSet, DraftWorkout, Exercise, ImportDraft } from '../types';
 import { Button } from './ui/Button';
@@ -181,6 +181,7 @@ export const DraftOutline = forwardRef<DraftOutlineHandle, {
   const [weekModalOpen, setWeekModalOpen] = useState(false);
   const [draggedWeek, setDraggedWeek] = useState<number | null>(null);
   const [dropTarget, setDropTarget] = useState<{ week: number; side: 'before' | 'after' } | null>(null);
+  const pendingFocusWeek = useRef<number | null>(null);
 
   const focusIssue = useCallback((target: ImportIssueTarget) => {
     const day = draft.workouts.find(candidate => candidate.lineId === target.workoutLineId)
@@ -251,6 +252,20 @@ export const DraftOutline = forwardRef<DraftOutlineHandle, {
     });
   }, [weeks]);
 
+  useEffect(() => {
+    if (pendingFocusWeek.current !== null) {
+      const target = pendingFocusWeek.current;
+      if (weeks.some(w => w.week === target)) {
+        pendingFocusWeek.current = null;
+        window.requestAnimationFrame(() => {
+          const chip = document.querySelector<HTMLButtonElement>(`[data-import-week-chip="${target}"]`);
+          chip?.focus();
+          chip?.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+        });
+      }
+    }
+  }, [weeks]);
+
   const week = weeks.find(entry => entry.week === selectedWeek) ?? weeks[0];
   if (!week) return null;
   const selectedIndex = weeks.findIndex(entry => entry.week === week.week);
@@ -311,13 +326,14 @@ export const DraftOutline = forwardRef<DraftOutlineHandle, {
     const ordered = [...weeks];
     ordered.splice(insertIndex, 0, nextWeek);
 
-    setSelectedWeek(insertIndex + 1);
+    pendingFocusWeek.current = nextNumber;
+    setSelectedWeek(nextNumber);
     void onDraftChange(renumberDraft(draft, ordered));
   }, [draft, onDraftChange, week, weeks]);
 
   const propagateSubstitution = useCallback(async (currentName: string, replacementName: string) => {
     const replacementLibraryExercise = exercises.find(
-      e => e.name.toLowerCase() === replacementName.toLowerCase()
+      e => e.name.toLowerCase() === replacementName.toLowerCase() || e.aliases.some(a => a.toLowerCase() === replacementName.toLowerCase())
     );
     const updatedWorkouts = draft.workouts.map(workout => {
       const inSameBlock = (workout.block || 'Program') === (week.block || 'Program');
@@ -329,8 +345,8 @@ export const DraftOutline = forwardRef<DraftOutlineHandle, {
           const nextSubs = [currentName, ...ex.substitutions.filter(s => s.toLowerCase() !== replacementName.toLowerCase())].slice(0, 2);
           return {
             ...ex,
-            sourceName: replacementName,
-            exerciseId: replacementLibraryExercise ? replacementLibraryExercise.id : ex.exerciseId,
+            sourceName: replacementLibraryExercise ? replacementLibraryExercise.name : replacementName,
+            exerciseId: replacementLibraryExercise ? replacementLibraryExercise.id : null,
             substitutions: nextSubs
           };
         }

@@ -9,6 +9,9 @@ import { Modal } from './ui/Modal';
 import { ExerciseLibrary } from './Exercises';
 import { SwipeableRow } from './ui/SwipeableRow';
 
+import { getSupersetGroup, isSuperset, pairExercises, unlinkExercise } from '../lib/supersets';
+import { SupersetModal } from './SupersetModal';
+
 const weekdayOptions = [
   { value: '', label: 'Choose a weekday' },
   { value: '1', label: 'Monday' },
@@ -18,14 +21,6 @@ const weekdayOptions = [
   { value: '5', label: 'Friday' },
   { value: '6', label: 'Saturday' },
   { value: '7', label: 'Sunday' }
-];
-
-const supersetOptions = [
-  { value: '', label: 'None (Standalone)' },
-  { value: 'A', label: 'Superset A' },
-  { value: 'B', label: 'Superset B' },
-  { value: 'C', label: 'Superset C' },
-  { value: 'D', label: 'Superset D' }
 ];
 
 export function exerciseSummary(exercise: DraftExercise): string {
@@ -68,6 +63,23 @@ export function DayEditor({ day, exercises, onChange, onPropagateSubstitution, r
     else groups.push([exercise]);
   }
 
+  const handlePairExercises = (idA: string, idB: string) => {
+    const updated = pairExercises(
+      draft.exercises.map(e => ({ ...e, id: e.lineId })),
+      idA,
+      idB
+    ).map(e => ({ ...e, lineId: e.id }));
+    save({ ...draft, exercises: updated });
+  };
+
+  const handleUnlinkExercise = (id: string) => {
+    const updated = unlinkExercise(
+      draft.exercises.map(e => ({ ...e, id: e.lineId })),
+      id
+    ).map(e => ({ ...e, lineId: e.id }));
+    save({ ...draft, exercises: updated });
+  };
+
   return <div className="day-editor">
     {/* A missing weekday is a review issue, so keep the correction beside the day it affects. */}
     <div className="day-editor-fields">
@@ -85,6 +97,8 @@ export function DayEditor({ day, exercises, onChange, onPropagateSubstitution, r
         {group.length > 1 && <div className="superset-heading">Superset {group[0].sequenceGroup.match(/^[A-Za-z]+/)?.[0] ?? ''}</div>}
         {group.map(exercise => <ExerciseEditor key={exercise.lineId} exercise={exercise} exercises={exercises} allDayExercises={draft.exercises}
           onChange={next => save({ ...draft, exercises: draft.exercises.map(item => item.lineId === next.lineId ? next : item) })}
+          onPairExercises={targetLineId => handlePairExercises(exercise.lineId, targetLineId)}
+          onUnlinkExercise={() => handleUnlinkExercise(exercise.lineId)}
           onPropagateSubstitution={onPropagateSubstitution}
           canRestore={restorableExerciseLineIds?.includes(exercise.lineId)}
           onRestore={onRestoreExercise ? () => onRestoreExercise(exercise.lineId) : undefined} />)}
@@ -95,16 +109,19 @@ export function DayEditor({ day, exercises, onChange, onPropagateSubstitution, r
   </div>;
 }
 
-function ExerciseEditor({ exercise, exercises, allDayExercises, onChange, onPropagateSubstitution, canRestore, onRestore }: {
+function ExerciseEditor({ exercise, exercises, allDayExercises, onChange, onPairExercises, onUnlinkExercise, onPropagateSubstitution, canRestore, onRestore }: {
   exercise: DraftExercise;
   exercises: Exercise[];
   allDayExercises: DraftExercise[];
   onChange: (exercise: DraftExercise) => void;
+  onPairExercises: (targetLineId: string) => void;
+  onUnlinkExercise: () => void;
   onPropagateSubstitution?: (currentName: string, replacementName: string) => Promise<void>;
   canRestore?: boolean;
   onRestore?: () => Promise<void>;
 }) {
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [supersetModalOpen, setSupersetModalOpen] = useState(false);
   const [newSub, setNewSub] = useState('');
   const editSet = (index: number, patch: Partial<DraftSet>) =>
     onChange({ ...exercise, sets: exercise.sets.map((set, current) => current === index ? { ...set, ...patch } : set) });
@@ -115,16 +132,20 @@ function ExerciseEditor({ exercise, exercises, allDayExercises, onChange, onProp
   };
 
   const applySubstitution = (subName: string) => {
-    const oldName = exercise.sourceName;
-    const matched = exercises.find(e => e.name.toLowerCase() === subName.toLowerCase());
+    const matched = exercises.find(
+      e => e.name.toLowerCase() === subName.toLowerCase() || e.aliases.some(a => a.toLowerCase() === subName.toLowerCase())
+    );
+    const oldLibrary = exercises.find(e => e.id === exercise.exerciseId);
+    const oldName = oldLibrary?.name || exercise.sourceName;
     const remainingSubs = [oldName, ...exercise.substitutions.filter(s => s.toLowerCase() !== subName.toLowerCase())].slice(0, 2);
+    const newName = matched ? matched.name : subName;
     onChange({
       ...exercise,
-      sourceName: subName,
-      exerciseId: matched ? matched.id : exercise.exerciseId,
+      sourceName: newName,
+      exerciseId: matched ? matched.id : null,
       substitutions: remainingSubs
     });
-    void onPropagateSubstitution?.(oldName, subName);
+    void onPropagateSubstitution?.(oldName, newName);
   };
 
   const handleAddSub = () => {
@@ -133,20 +154,16 @@ function ExerciseEditor({ exercise, exercises, allDayExercises, onChange, onProp
       setNewSub('');
       return;
     }
-    onChange({ ...exercise, substitutions: [...exercise.substitutions, clean].slice(0, 2) });
+    const matched = exercises.find(e => e.name.toLowerCase() === clean.toLowerCase());
+    const nameToAdd = matched ? matched.name : clean;
+    onChange({ ...exercise, substitutions: [...exercise.substitutions, nameToAdd].slice(0, 2) });
     setNewSub('');
   };
 
-  const currentGroupLetter = exercise.sequenceGroup.trim().match(/^[A-Za-z]+/)?.[0]?.toUpperCase() ?? '';
-  const handleSupersetChange = (letter: string) => {
-    if (!letter) {
-      onChange({ ...exercise, sequenceGroup: '' });
-      return;
-    }
-    const thisIndex = allDayExercises.findIndex(ex => ex.lineId === exercise.lineId);
-    const priorCount = allDayExercises.slice(0, thisIndex).filter(ex => ex.sequenceGroup.toUpperCase().startsWith(letter)).length;
-    onChange({ ...exercise, sequenceGroup: `${letter}${priorCount + 1}` });
-  };
+  const currentGroup = getSupersetGroup(exercise.sequenceGroup);
+  const isPaired = isSuperset(exercise.sequenceGroup);
+  const partners = allDayExercises.filter(e => e.lineId !== exercise.lineId && getSupersetGroup(e.sequenceGroup) === currentGroup);
+  const partnerNames = partners.map(p => p.sourceName).join(', ');
 
   return <div className={`import-exercise ${exercise.sequenceGroup ? 'exercise-card-superset-active' : ''}`} data-import-exercise={exercise.lineId}>
     <div className="import-exercise-heading">
@@ -154,9 +171,21 @@ function ExerciseEditor({ exercise, exercises, allDayExercises, onChange, onProp
         <span className="import-exercise-icon" aria-hidden="true"><Dumbbell size={17} /></span>
         <input name={`exercise-source-name-${exercise.lineId}`} className="inline-input" aria-label="Exercise name as written in the PDF" value={exercise.sourceName}
           onChange={event => onChange({ ...exercise, sourceName: event.target.value })} />
+        {isPaired && (
+          <span
+            className="superset-badge"
+            role="button"
+            tabIndex={0}
+            title={partnerNames ? `Superset with ${partnerNames}` : 'Superset group'}
+            aria-label={`Superset ${currentGroup} with ${partnerNames}`}
+            onClick={() => setSupersetModalOpen(true)}
+            onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') setSupersetModalOpen(true); }}
+          >
+            <Link2 size={12} />Superset {currentGroup}
+          </span>
+        )}
       </div>
       <span className="import-exercise-tags">
-        {exercise.sequenceGroup && <span className="superset-badge"><Link2 size={12} />Superset {exercise.sequenceGroup}</span>}
         {exercise.sourcePage && <span className="tiny-label">PDF p.{exercise.sourcePage}</span>}
         {!exercise.exerciseId && <span className="tiny-label warn"><AlertTriangle size={12} /> Unmapped · preserved</span>}
         {canRestore && onRestore && (
@@ -180,16 +209,16 @@ function ExerciseEditor({ exercise, exercises, allDayExercises, onChange, onProp
         </Button>
       </div>
       <div className="field import-superset-field">
-        <span>Superset group</span>
-        <div className="superset-control-wrap">
-          <Select
-            name={`exercise-superset-${exercise.lineId}`}
-            ariaLabel={`Superset group for ${exercise.sourceName}`}
-            value={currentGroupLetter}
-            options={supersetOptions}
-            onChange={handleSupersetChange}
-          />
-        </div>
+        <span>Superset</span>
+        <Button
+          variant="secondary"
+          className={`superset-trigger ${isPaired ? 'paired' : ''}`}
+          aria-label={`Superset options for ${exercise.sourceName}`}
+          onClick={() => setSupersetModalOpen(true)}
+        >
+          <Link2 size={14} />
+          <span>{isPaired ? `Superset ${currentGroup} · ${partners.length} paired` : 'Pair into superset'}</span>
+        </Button>
       </div>
       <div className="field import-substitutions-field">
         <span>Substitutions (tap to swap slot)</span>
@@ -308,6 +337,21 @@ function ExerciseEditor({ exercise, exercises, allDayExercises, onChange, onProp
         <Button variant="primary" onClick={() => setPickerOpen(false)}>Done</Button>
       </div>
     </Modal>}
+
+    <SupersetModal
+      open={supersetModalOpen}
+      onClose={() => setSupersetModalOpen(false)}
+      currentExerciseId={exercise.lineId}
+      currentExerciseName={exercise.sourceName}
+      currentSequenceGroup={exercise.sequenceGroup}
+      candidates={allDayExercises.map(e => ({
+        id: e.lineId,
+        name: e.sourceName,
+        sequenceGroup: e.sequenceGroup
+      }))}
+      onPair={targetId => onPairExercises(targetId)}
+      onUnlink={onUnlinkExercise}
+    />
   </div>;
 }
 
