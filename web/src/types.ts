@@ -6,7 +6,7 @@ export type Provenance = 'extracted' | 'inferred' | 'userEdited';
 export type LoadModel = 'external' | 'full_bodyweight' | 'bodyweight_context_only' | 'reps_only';
 export type ResistanceMode = 'external' | 'bodyweight' | 'added' | 'assistance' | 'reps_only';
 export type Exercise = { id: string; slug: string; name: string; muscle: string; equipment: string; cue: string; aliases: string[]; loadStepKg: number; loadModel?: LoadModel; movementPattern?: string; source?: 'catalog' | 'custom'; isCustom?: boolean; archived?: boolean };
-export type Preferences = { unit: Unit; theme: Theme; restSeconds: number; restAlerts: boolean };
+export type Preferences = { unit: Unit; theme: Theme; restSeconds?: number; restAlerts: boolean };
 export type Account = { id: string; displayName: string };
 
 export type SetPrescription = {

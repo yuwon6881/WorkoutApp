@@ -200,8 +200,8 @@ input::file-selector-button{font-size:var(--font-secondary)!important}
 .reading-card-header{display:flex;justify-content:space-between;align-items:center;gap:10px}
 .reading-card-title{display:flex;align-items:center;gap:8px}
 .reading-card-title h3{margin:0;font-size:15px;font-weight:600}
-.reading-card-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:4px;flex-wrap:wrap}
-@media(max-width:639px){.reading-card-actions{justify-content:stretch}.reading-card-actions .button{flex:1}}
+.reading-card-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:4px;flex-wrap:wrap}.import-week-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:2px 0 14px;flex-wrap:wrap}.import-week-toolbar .import-week-caption{margin:0}.import-delete-week-btn{min-height:36px;padding:6px 12px;font-size:var(--font-secondary);gap:6px}
+@media(max-width:639px){.reading-card-actions{flex-direction:column;align-items:stretch}.reading-card-actions .button{width:100%;min-height:44px;justify-content:center}.import-delete-week-btn{min-height:44px}}
 .import-details{margin-top:14px;border-top:1px solid var(--border);padding-top:8px}
 .import-details summary{display:flex;align-items:center;gap:7px;cursor:pointer;min-height:44px;color:var(--muted);font-size:var(--font-secondary);list-style:none}
 .import-details summary::-webkit-details-marker{display:none}

@@ -202,12 +202,17 @@ public sealed partial class ImportService(AppDb db, WorkoutAi ai, CatalogService
     {
         if (string.IsNullOrWhiteSpace(text)) return fallback;
         var range = Regex.Match(text, @"(?<min>\d+(?:\.\d+)?)\s*(?:[-–]|to)\s*(?<max>\d+(?:\.\d+)?)", RegexOptions.IgnoreCase);
-        double number;
+        var lower = text.ToLowerInvariant();
         if (range.Success && double.TryParse(range.Groups["min"].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var minimum) &&
             double.TryParse(range.Groups["max"].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var maximum))
-            number = (minimum + maximum) / 2;
-        else if (!TryFirstNumber(text, out number)) return fallback;
-        var lower = text.ToLowerInvariant();
+        {
+            var average = (minimum + maximum) / 2;
+            var isSec = Regex.IsMatch(lower, @"\b(?:sec|secs|second|seconds)\b|(?:\d|\))\s*s\b");
+            var isHr = lower.Contains("hour") || lower.Contains("hr");
+            var multiplier = isSec ? 1 : isHr ? 3600 : (Regex.IsMatch(lower, @"\b(?:m|min|mins|minute|minutes)\b|(?:\d|\))\s*m\b") || average <= 10) ? 60 : 1;
+            return (int)Math.Round(average * multiplier, MidpointRounding.AwayFromZero);
+        }
+        if (!TryFirstNumber(text, out var number)) return fallback;
         // When the text carries no unit letters the AI's restSeconds is a better authority than
         // defaulting to seconds, because the model reads document-level context like "REST TIMES
         // ARE GIVEN IN MINUTES" that this parser cannot see.
@@ -220,8 +225,10 @@ public sealed partial class ImportService(AppDb db, WorkoutAi ai, CatalogService
                 return (int)Math.Round(number * 60, MidpointRounding.AwayFromZero);
             return (int)Math.Round(number, MidpointRounding.AwayFromZero);
         }
-        var multiplier = lower.Contains("hour") || lower.Contains("hr") ? 3600 : lower.Contains("min") ? 60 : 1;
-        return (int)Math.Round(number * multiplier, MidpointRounding.AwayFromZero);
+        var isSingleSec = Regex.IsMatch(lower, @"\b(?:sec|secs|second|seconds)\b|(?:\d|\))\s*s\b");
+        var isSingleHr = lower.Contains("hour") || lower.Contains("hr");
+        var singleMultiplier = isSingleSec ? 1 : isSingleHr ? 3600 : (Regex.IsMatch(lower, @"\b(?:m|min|mins|minute|minutes)\b|(?:\d|\))\s*m\b") || number <= 10) ? 60 : 1;
+        return (int)Math.Round(number * singleMultiplier, MidpointRounding.AwayFromZero);
     }
 
     private static int ParseWarmupCount(string? text)

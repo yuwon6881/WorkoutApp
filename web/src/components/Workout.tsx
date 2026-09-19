@@ -132,10 +132,10 @@ export function Workout({
     setError('');
     editSet(ei, si, { done: !set.done });
     const plan = draft.exercises[ei].prescription[si];
-    const seconds = plan?.restSeconds ?? preferences.restSeconds;
+    const seconds = plan?.restSeconds;
     // Started from inside the tap, which is the only moment a browser will let the app open the
     // audio session the alert depends on once the screen goes off.
-    if (!set.done && seconds > 0) restTimer.start(seconds);
+    if (!set.done && seconds && seconds > 0) restTimer.start(seconds);
   }
 
   async function finish() {
@@ -216,6 +216,9 @@ export function Workout({
   const unit = preferences.unit;
 
   const currentExercise = draft.exercises[activeIndex] ?? draft.exercises[0];
+  const uncompletedSetIndex = currentExercise ? currentExercise.sets.findIndex(s => !s.done) : -1;
+  const currentPrescription = currentExercise ? currentExercise.prescription[uncompletedSetIndex >= 0 ? uncompletedSetIndex : 0] : undefined;
+  const defaultRestSeconds = currentPrescription?.restSeconds ?? currentExercise?.prescription[0]?.restSeconds ?? 90;
 
   return (
     <Modal title={draft.name} onClose={onClose} wide>
@@ -335,7 +338,7 @@ export function Workout({
       <WorkoutFooter
         remaining={remaining}
         totalSeconds={rest.totalSeconds}
-        preferences={preferences}
+        defaultRestSeconds={defaultRestSeconds}
         busy={busy}
         onDiscard={() => setConfirm('discard')}
         onMinimize={onClose}
@@ -366,7 +369,7 @@ export function Workout({
                   note: '',
                   sequenceGroup: '',
                   substitutions: [],
-                  prescription: [blankPrescription(preferences.restSeconds, chosen.loadModel)],
+                  prescription: [blankPrescription(90, chosen.loadModel)],
                   sets: [blankLoggedSet(chosen.loadModel)],
                   progression: null,
                   loadModel: chosen.loadModel
@@ -423,7 +426,7 @@ export function Workout({
 }
 
 function blankPrescription(
-  restSeconds: number,
+  restSeconds: number | null = 90,
   loadModel?: Exercise['loadModel'],
   resistanceMode?: LoggedSet['resistanceMode']
 ): SessionExercise['prescription'][number] {

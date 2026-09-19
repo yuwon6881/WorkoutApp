@@ -121,6 +121,32 @@ public sealed class ImportNormalizationTests
     }
 
     [Fact]
+    public async Task A_rest_range_with_rest_word_averages_to_minutes_in_seconds()
+    {
+        await using var h = await Harness.Create(Configured());
+        await h.SignIn();
+        var set = await ReadSet(h, Set("""
+            "restSeconds":null,"restText":"1-3 rest"
+            """.Replace("\n", " ")));
+
+        Assert.Equal(120, set.RestSeconds);
+        Assert.Equal("1-3 rest", set.RestText);
+    }
+
+    [Fact]
+    public async Task A_bare_rest_range_averages_to_minutes_in_seconds()
+    {
+        await using var h = await Harness.Create(Configured());
+        await h.SignIn();
+        var set = await ReadSet(h, Set("""
+            "restSeconds":60,"restText":"1-3"
+            """.Replace("\n", " ")));
+
+        Assert.Equal(120, set.RestSeconds);
+        Assert.Equal("1-3", set.RestText);
+    }
+
+    [Fact]
     public async Task A_bare_decimal_rest_with_model_fallback_uses_the_fallback()
     {
         await using var h = await Harness.Create(Configured());

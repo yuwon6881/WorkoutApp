@@ -5,7 +5,7 @@ using Workout.Api.Services;
 
 namespace Workout.Api.Endpoints;
 
-public record PreferencesInput(string Unit, string Theme, int RestSeconds, bool? RestAlerts);
+public record PreferencesInput(string Unit, string Theme, int? RestSeconds = null, bool? RestAlerts = null);
 public record StartInput(Guid? TemplateId, string? Name);
 public record FinishInput(int? Revision, bool RetainExerciseSwaps = false);
 public record ActivateInput(bool Active, int? Revision);
@@ -69,9 +69,12 @@ public static class TrainingEndpoints
 
         app.MapPut("/api/preferences", async (PreferencesInput input, AppDb db, CancellationToken ct) =>
         {
-            Validation.Unit(input.Unit); Validation.Theme(input.Theme); Validation.RestSeconds(input.RestSeconds);
+            Validation.Unit(input.Unit); Validation.Theme(input.Theme);
+            if (input.RestSeconds is { } rest) Validation.RestSeconds(rest);
             var user = await db.Users.SingleAsync(u => u.Id == db.CurrentUser, ct);
-            user.Unit = input.Unit; user.Theme = input.Theme; user.RestSeconds = input.RestSeconds; user.RestAlerts = input.RestAlerts ?? true;
+            user.Unit = input.Unit; user.Theme = input.Theme;
+            if (input.RestSeconds is { } restVal) user.RestSeconds = restVal;
+            user.RestAlerts = input.RestAlerts ?? true;
             await db.SaveChangesAsync(ct);
             return new { user.Unit, user.Theme, user.RestSeconds, user.RestAlerts };
         });

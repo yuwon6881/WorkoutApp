@@ -1,12 +1,12 @@
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
-import { CalendarDays, ChevronDown, ChevronUp, Pencil, Plus } from 'lucide-react';
+import { CalendarDays, Plus, Trash2 } from 'lucide-react';
 import type { DraftExercise, DraftSet, DraftWorkout, Exercise, ImportDraft } from '../types';
 import { Button } from './ui/Button';
+import { Modal } from './ui/Modal';
 import { ChipScroller } from './ui/ChipScroller';
-import { DayEditor, exerciseSummary } from './ImportDayEditor';
-import { getWorkoutMuscles } from '../lib/muscles';
 import { AddWeekModal, type AddWeekMode } from './AddWeekModal';
 import { SortableWeekChip } from './SortableWeekChip';
+import { DayRow } from './ImportDayRow';
 
 type Week = {
   week: number;
@@ -179,6 +179,7 @@ export const DraftOutline = forwardRef<DraftOutlineHandle, {
   const weeks = useMemo(() => groupWeeks(draft), [draft]);
   const [selectedWeek, setSelectedWeek] = useState(weeks[0]?.week ?? 1);
   const [weekModalOpen, setWeekModalOpen] = useState(false);
+  const [deleteConfirmWeek, setDeleteConfirmWeek] = useState<number | null>(null);
   const [draggedWeek, setDraggedWeek] = useState<number | null>(null);
   const [dropTarget, setDropTarget] = useState<{ week: number; side: 'before' | 'after' } | null>(null);
   const pendingFocusWeek = useRef<number | null>(null);
@@ -331,6 +332,22 @@ export const DraftOutline = forwardRef<DraftOutlineHandle, {
     void onDraftChange(renumberDraft(draft, ordered));
   }, [draft, onDraftChange, week, weeks]);
 
+  const deleteWeek = useCallback((weekToDelete: number) => {
+    if (weeks.length <= 1) return;
+    const targetIndex = weeks.findIndex(w => w.week === weekToDelete);
+    if (targetIndex < 0) return;
+
+    const remainingWeeks = weeks.filter(w => w.week !== weekToDelete);
+    const renumbered = renumberDraft(draft, remainingWeeks);
+
+    const nextSelectedIndex = Math.min(targetIndex, remainingWeeks.length - 1);
+    const nextSelectedWeek = nextSelectedIndex + 1;
+
+    pendingFocusWeek.current = nextSelectedWeek;
+    setSelectedWeek(nextSelectedWeek);
+    void onDraftChange(renumbered);
+  }, [draft, onDraftChange, weeks]);
+
   const propagateSubstitution = useCallback(async (currentName: string, replacementName: string) => {
     const replacementLibraryExercise = exercises.find(
       e => e.name.toLowerCase() === replacementName.toLowerCase() || e.aliases.some(a => a.toLowerCase() === replacementName.toLowerCase())
@@ -398,7 +415,19 @@ export const DraftOutline = forwardRef<DraftOutlineHandle, {
         <Plus size={15} />Add week
       </Button>
     </ChipScroller>
-    <p className="import-week-caption">{weekCaption(week, selectedBlock)}</p>
+    <div className="import-week-toolbar">
+      <p className="import-week-caption">{weekCaption(week, selectedBlock)}</p>
+      {weeks.length > 1 && (
+        <Button
+          variant="destructive"
+          className="import-delete-week-btn"
+          aria-label={`Delete week ${week.week}`}
+          onClick={() => setDeleteConfirmWeek(week.week)}
+        >
+          <Trash2 size={14} /> Delete week
+        </Button>
+      )}
+    </div>
     <div className="import-week-days" role="tabpanel" aria-label={`Week ${week.week}`}>
       {week.days.map(day => <DayRow key={day.lineId} day={day} expanded={expandedDay === day.lineId}
         onToggle={() => setExpandedDay(expandedDay === day.lineId ? null : day.lineId)} exercises={exercises} onChange={onDayChange}
@@ -415,81 +444,29 @@ export const DraftOutline = forwardRef<DraftOutlineHandle, {
       blockName={week.block || `Block ${selectedBlock}`}
       phaseName={week.phases[0]}
     />
-  </>;
-});
-
-const weekdayNames = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-
-function DayLines({ day }: { day: DraftWorkout }) {
-  return <ol className="draft-day-lines">
-    {day.exercises.map(exercise => <li key={exercise.lineId}>
-      {exercise.sequenceGroup && <span className="draft-line-group">{exercise.sequenceGroup}</span>}
-      <span className="draft-line-name">{exercise.sourceName}</span>
-      <span className="draft-line-detail">{exerciseSummary(exercise)}</span>
-    </li>)}
-  </ol>;
-}
-
-function DayRow({ day, expanded, onToggle, exercises, onChange, onPropagateSubstitution, restorableExerciseLineIds, onRestoreExercise }: {
-  day: DraftWorkout;
-  expanded: boolean;
-  onToggle: () => void;
-  exercises: Exercise[];
-  onChange: (day: DraftWorkout) => Promise<void>;
-  onPropagateSubstitution?: (currentName: string, replacementName: string) => Promise<void>;
-  restorableExerciseLineIds?: string[];
-  onRestoreExercise?: (exerciseLineId: string) => Promise<void>;
-}) {
-  const [showDetails, setShowDetails] = useState(false);
-  const muscles = useMemo(() => getWorkoutMuscles(day.exercises, exercises), [day.exercises, exercises]);
-  const exercisePreview = useMemo(() => {
-    if (day.isRestDay || !day.exercises.length) return '';
-    const names = day.exercises.map(e => e.sourceName);
-    if (names.length <= 4) return names.join(', ');
-    return `${names.slice(0, 4).join(', ')}, and ${names.length - 4} more`;
-  }, [day.exercises, day.isRestDay]);
-
-  const fullName = `${day.weekday ? `${weekdayNames[day.weekday - 1]} · ` : ''}${day.name}`;
-
-  return <section className={`draft-day ${day.isRestDay ? 'rest-day' : ''}`} data-import-day={day.lineId}>
-    <div className="draft-day-card-header">
-      <Button presentation="plain" className="draft-day-summary" aria-expanded={expanded} aria-label={fullName} onClick={onToggle}>
-        <span className={`draft-day-disclosure ${expanded ? 'open' : ''}`} aria-hidden="true"><ChevronDown size={17} /></span>
-        <div className="draft-day-title-group">
-          <strong>{fullName}</strong>
-          <div className="draft-day-meta-tags">
-            <span className="tiny-label">{day.isRestDay ? 'Rest day' : `${day.exercises.length} exercises`}</span>
-            {day.focus && <span className="day-focus-tag">{day.focus}</span>}
-            {day.phase?.toLowerCase().includes('deload') && <span className="pill pill-accent">Deload</span>}
-            {day.sourcePage && <span className="muted">PDF p.{day.sourcePage}</span>}
+    {deleteConfirmWeek !== null && (
+      <Modal title={`Delete Week ${deleteConfirmWeek}?`} onClose={() => setDeleteConfirmWeek(null)}>
+        <div className="modal-body">
+          <p>
+            Are you sure you want to delete <strong>Week {deleteConfirmWeek}</strong>? All days and exercises in this week will be removed and subsequent weeks will be renumbered.
+          </p>
+          <div className="modal-actions">
+            <Button variant="tertiary" onClick={() => setDeleteConfirmWeek(null)}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => {
+                const target = deleteConfirmWeek;
+                setDeleteConfirmWeek(null);
+                deleteWeek(target);
+              }}
+            >
+              <Trash2 size={15} /> Delete week
+            </Button>
           </div>
         </div>
-      </Button>
-      <div className="draft-day-actions">
-        {day.isRestDay ? <span className="tiny-label rest-badge">Rest day</span> : <>
-          <Button variant="secondary" className="day-action-button" aria-label={`Edit ${day.name}`} onClick={onToggle}>
-            <Pencil size={14} /><span>{expanded ? 'Close' : 'Edit'}</span>
-          </Button>
-          {!expanded && day.exercises.length > 0 && <Button variant="tertiary" className="day-chevron-button"
-            aria-label={showDetails ? `Hide details for ${day.name}` : `View details for ${day.name}`}
-            onClick={e => { e.stopPropagation(); setShowDetails(s => !s); }}>
-            {showDetails ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-          </Button>}
-        </>}
-      </div>
-    </div>
-
-    {!expanded && !day.isRestDay && (
-      <div className="draft-day-compact-body">
-        {exercisePreview && <p className="day-exercise-preview">{exercisePreview}</p>}
-        {muscles.length > 0 && <div className="day-muscles-row" aria-label="Targeted muscles">
-          {muscles.slice(0, 5).map(m => <span key={m} className="muscle-chip">{m}</span>)}
-          {muscles.length > 5 && <span className="muscle-chip muscle-chip-overflow" title={muscles.slice(5).join(', ')}>+{muscles.length - 5}</span>}
-        </div>}
-      </div>
+      </Modal>
     )}
-
-    {!expanded && showDetails && !day.isRestDay && day.exercises.length > 0 && <DayLines day={day} />}
-    {expanded && <DayEditor day={day} exercises={exercises} onChange={onChange} onPropagateSubstitution={onPropagateSubstitution} restorableExerciseLineIds={restorableExerciseLineIds} onRestoreExercise={onRestoreExercise} />}
-  </section>;
-}
+  </>;
+});

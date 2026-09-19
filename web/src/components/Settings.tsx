@@ -48,23 +48,6 @@ export function SettingsView({ account, preferences, onPreferences, notify, onSi
               { value: 'lb', label: 'Pounds (lb)' }
             ]}
           /></div>
-        <div className="setting-row"><span><strong>Rest between sets</strong><small>Starts after logging a set.</small></span>
-          <Select
-            name="rest-seconds"
-            label="Rest between sets"
-            value={preferences.restSeconds}
-            onChange={val => onPreferences({ ...preferences, restSeconds: Number(val) })}
-            options={[
-              { value: 0, label: 'Off' },
-              { value: 30, label: '30 seconds' },
-              { value: 60, label: '60 seconds' },
-              { value: 90, label: '90 seconds' },
-              { value: 120, label: '120 seconds' },
-              { value: 180, label: '180 seconds' },
-              { value: 240, label: '240 seconds' },
-              { value: 300, label: '300 seconds' }
-            ]}
-          /></div>
         <div className="setting-row"><span><strong>Rest alerts</strong><small>{alertHint}</small></span>
           <Select
             name="rest-alerts"

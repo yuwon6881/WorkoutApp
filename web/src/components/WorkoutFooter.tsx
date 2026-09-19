@@ -1,5 +1,4 @@
 import { Check, Timer } from 'lucide-react';
-import type { Preferences } from '../types';
 import { showClock } from '../lib/training';
 import { restTimer } from '../lib/restTimer';
 import { Button } from './ui/Button';
@@ -7,7 +6,7 @@ import { Button } from './ui/Button';
 export function WorkoutFooter({
   remaining,
   totalSeconds,
-  preferences,
+  defaultRestSeconds,
   busy,
   onDiscard,
   onMinimize,
@@ -15,12 +14,13 @@ export function WorkoutFooter({
 }: {
   remaining: number;
   totalSeconds: number;
-  preferences: Preferences;
+  defaultRestSeconds?: number | null;
   busy: boolean;
   onDiscard: () => void;
   onMinimize: () => void;
   onFinish: () => void;
 }) {
+  const defaultRest = defaultRestSeconds && defaultRestSeconds > 0 ? defaultRestSeconds : 90;
   return (
     <div className="workout-footer">
       <div className={`rest-control ${remaining > 0 ? 'resting' : ''}`}>
@@ -44,13 +44,13 @@ export function WorkoutFooter({
           aria-label={
             remaining > 0
               ? 'Add 30 seconds of rest'
-              : `Start a ${preferences.restSeconds} second rest`
+              : `Start a ${defaultRest} second rest`
           }
           onClick={() =>
-            remaining > 0 ? restTimer.extend(30) : restTimer.start(preferences.restSeconds)
+            remaining > 0 ? restTimer.extend(30) : restTimer.start(defaultRest)
           }
         >
-          +{remaining > 0 ? '30s' : `${preferences.restSeconds}s`}
+          +{remaining > 0 ? '30s' : `${defaultRest}s`}
         </Button>
         {remaining > 0 && (
           <Button variant="tertiary" onClick={() => restTimer.skip()}>
