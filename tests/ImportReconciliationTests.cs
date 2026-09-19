@@ -28,11 +28,14 @@ public sealed class ImportReconciliationTests
           {"label":"Photographs","block":"Base","phase":"Intro","weekFrom":2,"weekTo":2,"pageFrom":3,"pageTo":3,"dayCount":4}]}
         """;
 
-    private static string Days(params (int Week, string Name)[] days) => $$"""
+    private static string Days(params (int Week, string Name)[] days)
+        => Days(days.Select(d => (d.Week, d.Name, 1)).ToArray());
+
+    private static string Days(params (int Week, string Name, int Page)[] days) => $$"""
         {"programTitle":"Nine week block","days":[{{string.Join(",", days.Select(day => $$"""
-          {"block":"Base","phase":"Intro","weekNumber":{{day.Week}},"phaseWeek":{{day.Week}},"dayName":"{{day.Name}}","isRestDay":false,"weekday":1,"sourcePage":1,"notes":null,"exercises":[
-            {"sequenceGroup":"A1","sourceName":"Barbell bench press","exerciseId":null,"notes":null,"sourcePage":1,"sets":[
-              {"repMin":5,"repMax":8,"targetRpe":8,"restSeconds":120,"tempo":null,"loadText":null,"notes":null,"repsSource":"extracted","rpeSource":"extracted","restSource":"extracted","sourcePage":1}]}]}
+          {"block":"Base","phase":"Intro","weekNumber":{{day.Week}},"phaseWeek":{{day.Week}},"dayName":"{{day.Name}}","isRestDay":false,"weekday":1,"sourcePage":{{day.Page}},"notes":null,"exercises":[
+            {"sequenceGroup":"A1","sourceName":"Barbell bench press","exerciseId":null,"notes":null,"sourcePage":{{day.Page}},"sets":[
+              {"repMin":5,"repMax":8,"targetRpe":8,"restSeconds":120,"tempo":null,"loadText":null,"notes":null,"repsSource":"extracted","rpeSource":"extracted","restSource":"extracted","sourcePage":{{day.Page}}}]}]}
         """))}}]}
         """;
 
@@ -159,7 +162,17 @@ public sealed class ImportReconciliationTests
         await h.SignIn();
         var source = new ImportSourceInput("nippard.pdf", 2,
             [new ImportPageText(1, "WEEK 1\nBench 3x5"), new ImportPageText(2, "WEEK 2\nBench 3x5")]);
-        var imports = h.Imports(Reading(Outline, Days((1, "Conditioning"), (1, "Conditioning"))));
+        var twoDistinctConditioning = """
+            {"programTitle":"Nine week block","days":[
+              {"block":"Base","phase":"Intro","weekNumber":1,"phaseWeek":1,"dayName":"Conditioning","isRestDay":false,"weekday":1,"sourcePage":1,"notes":null,"exercises":[
+                {"sequenceGroup":"A1","sourceName":"Barbell bench press","exerciseId":null,"notes":null,"sourcePage":1,"sets":[
+                  {"repMin":5,"repMax":8,"targetRpe":8,"restSeconds":120,"tempo":null,"loadText":null,"notes":null,"repsSource":"extracted","rpeSource":"extracted","restSource":"extracted","sourcePage":1}]}]},
+              {"block":"Base","phase":"Intro","weekNumber":1,"phaseWeek":1,"dayName":"Conditioning","isRestDay":false,"weekday":1,"sourcePage":1,"notes":null,"exercises":[
+                {"sequenceGroup":"A1","sourceName":"Dumbbell curl","exerciseId":null,"notes":null,"sourcePage":1,"sets":[
+                  {"repMin":10,"repMax":12,"targetRpe":8,"restSeconds":60,"tempo":null,"loadText":null,"notes":null,"repsSource":"extracted","rpeSource":"extracted","restSource":"extracted","sourcePage":1}]}]}
+            ]}
+            """;
+        var imports = h.Imports(Reading(Outline, twoDistinctConditioning));
 
         var pending = await imports.Create(source, default);
         var ready = await imports.Extract(pending.Id, default);
@@ -172,6 +185,22 @@ public sealed class ImportReconciliationTests
         // its place in the week's order instead.
         Assert.Single(ready.ReviewIssues!, issue => issue.Code == "weekday_taken");
         Assert.Equal([1, 2], ready.Draft.Workouts.Select(day => day.Weekday));
+    }
+
+    [Fact]
+    public async Task Two_days_that_read_identically_on_same_page_are_collapsed()
+    {
+        await using var h = await Harness.Create(Configured());
+        await h.SignIn();
+        var source = new ImportSourceInput("nippard.pdf", 1, [new ImportPageText(1, "WEEK 1\nBench 3x5")]);
+        var imports = h.Imports(Reading(Outline, Days((1, "Conditioning", 1), (1, "Conditioning", 1))));
+
+        var pending = await imports.Create(source, default);
+        var ready = await imports.Extract(pending.Id, default);
+
+        Assert.Equal(ImportStatus.Ready, ready.Status);
+        Assert.Single(ready.Draft!.Workouts);
+        Assert.DoesNotContain(ready.ReviewIssues ?? [], issue => issue.Code == "repeated_day");
     }
 
     /// A section that repeats a day an earlier section already read is the one duplicate worth

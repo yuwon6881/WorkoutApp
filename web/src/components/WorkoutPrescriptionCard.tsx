@@ -39,7 +39,6 @@ export function WorkoutPrescriptionCard({
   onRemoveSet: (setIndex: number) => void;
   onRestoreExercise?: () => void;
 }) {
-  const [newSub, setNewSub] = useState('');
   const [supersetModalOpen, setSupersetModalOpen] = useState(false);
   const linked = exercises.find(item => item.id === exercise.exerciseId);
 
@@ -47,30 +46,22 @@ export function WorkoutPrescriptionCard({
     const matched = exercises.find(
       e => e.name.toLowerCase() === subName.toLowerCase() || e.aliases.some(a => a.toLowerCase() === subName.toLowerCase())
     );
+    if (!matched) return;
     const oldLibrary = exercises.find(e => e.id === exercise.exerciseId);
     const oldName = oldLibrary?.name || exercise.name;
     const remainingSubs = [oldName, ...exercise.substitutions.filter(s => s.toLowerCase() !== subName.toLowerCase())].slice(0, 2);
-    const newName = matched ? matched.name : subName;
     onUpdateExercise({
-      name: newName,
-      sourceName: newName,
-      exerciseId: matched ? matched.id : null,
-      loadModel: matched ? matched.loadModel : exercise.loadModel,
+      name: matched.name,
+      sourceName: matched.name,
+      exerciseId: matched.id,
+      loadModel: matched.loadModel || exercise.loadModel,
       substitutions: remainingSubs
     });
   };
 
-  const handleAddSub = () => {
-    const clean = newSub.trim();
-    if (!clean || exercise.substitutions.some(s => s.toLowerCase() === clean.toLowerCase())) {
-      setNewSub('');
-      return;
-    }
-    const matched = exercises.find(e => e.name.toLowerCase() === clean.toLowerCase());
-    const nameToAdd = matched ? matched.name : clean;
-    onUpdateExercise({ substitutions: [...exercise.substitutions, nameToAdd].slice(0, 2) });
-    setNewSub('');
-  };
+  const validSubstitutions = exercise.substitutions.filter(sub =>
+    exercises.some(e => e.name.toLowerCase() === sub.toLowerCase() || e.aliases.some(a => a.toLowerCase() === sub.toLowerCase()))
+  );
 
   const currentGroup = getSupersetGroup(exercise.sequenceGroup);
   const isPaired = isSuperset(exercise.sequenceGroup);
@@ -156,9 +147,9 @@ export function WorkoutPrescriptionCard({
         <div className="field import-substitutions-field">
           <span>Substitutions</span>
           <div className="substitution-chips-wrap">
-            {exercise.substitutions.length > 0 && (
+            {validSubstitutions.length > 0 ? (
               <div className="substitution-chips-row" role="group" aria-label={`Substitutions for ${exercise.name}`}>
-                {exercise.substitutions.map((sub, sIdx) => (
+                {validSubstitutions.map((sub, sIdx) => (
                   <div
                     key={sIdx}
                     className="substitution-chip"
@@ -174,7 +165,7 @@ export function WorkoutPrescriptionCard({
                       onClick={e => {
                         e.stopPropagation();
                         onUpdateExercise({
-                          substitutions: exercise.substitutions.filter((_, idx) => idx !== sIdx)
+                          substitutions: exercise.substitutions.filter(s => s.toLowerCase() !== sub.toLowerCase())
                         });
                       }}
                     >
@@ -183,32 +174,8 @@ export function WorkoutPrescriptionCard({
                   </div>
                 ))}
               </div>
-            )}
-            {exercise.substitutions.length < 2 && (
-              <div className="substitution-add-form">
-                <input
-                  name={`new-sub-${exercise.id}`}
-                  className="substitution-add-input"
-                  placeholder="Add alternate exercise…"
-                  value={newSub}
-                  onChange={e => setNewSub(e.target.value)}
-                  onKeyDown={e => {
-                    if (e.key === 'Enter') {
-                      e.preventDefault();
-                      handleAddSub();
-                    }
-                  }}
-                />
-                <Button
-                  variant="secondary"
-                  className="substitution-add-btn"
-                  disabled={!newSub.trim()}
-                  onClick={handleAddSub}
-                  aria-label="Add alternate exercise"
-                >
-                  <Plus size={13} />Add
-                </Button>
-              </div>
+            ) : (
+              <span className="muted small-copy">No substitutions available.</span>
             )}
           </div>
         </div>

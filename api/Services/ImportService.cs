@@ -47,7 +47,7 @@ public sealed partial class ImportService(AppDb db, WorkoutAi ai, CatalogService
         issues = [.. ReadNotices(import.NoticesJson), .. issues];
         var coverage = string.IsNullOrWhiteSpace(import.PageCoverageJson) ? [] : Json.Read<List<PdfPageCoverage>>(import.PageCoverageJson);
         var alternatives = string.IsNullOrWhiteSpace(import.AlternativesJson) ? [] : Json.Read<List<ImportAlternative>>(import.AlternativesJson);
-        var acceptable = import.Status == ImportStatus.Ready && unresolved.Count == 0 && issues.Count == 0;
+        var acceptable = import.Status == ImportStatus.Ready && unresolved.Count == 0 && issues.All(i => i.Severity == "info");
         var (canRestoreDraft, restorableExerciseLineIds) = AnalyzeRestorability(import, draft);
         return new ImportView(import.Id, import.Status, import.FileName, import.Pages, import.Error, import.Created, import.Model,
             import.Stage, import.ChunksDone, import.ChunksTotal, chunks.ElementAtOrDefault(import.ChunksDone)?.Label, unresolvedCount, draft,
@@ -68,25 +68,27 @@ public sealed partial class ImportService(AppDb db, WorkoutAi ai, CatalogService
         // A draft is a hundred written names, and reading the whole library for each of them was a
         // hundred passes over the catalog. It is read once here and asked directly per name.
         var library = await catalog.MatchIndex(ct);
+        var all = await catalog.All(ct);
+        var canonicalNames = all.ToDictionary(x => x.Id, x => x.Name);
         var title = ImportNormalization.Label(program.ProgramTitle ?? program.ProgramName, 120, "Imported program");
         var workouts = new List<DraftWorkout>();
         if (program.Days is { } days)
         {
             foreach (var day in days)
-                workouts.Add(ToDraftWorkout(day.Block, day.Phase, day.WeekNumber, day.PhaseWeek, day.DayName, day.IsRestDay, day.Notes, day.Exercises, active, library, weekday: day.Weekday, sourcePage: day.SourcePage));
+                workouts.Add(ToDraftWorkout(day.Block, day.Phase, day.WeekNumber, day.PhaseWeek, day.DayName, day.IsRestDay, day.Notes, day.Exercises, active, library, canonicalNames, weekday: day.Weekday, sourcePage: day.SourcePage));
         }
         else
         {
             foreach (var week in program.Weeks!.OrderBy(w => w.Week))
                 foreach (var workout in week.Workouts ?? [])
-                    workouts.Add(ToDraftWorkout(null, null, week.Week, 1, workout.Name, false, workout.Notes, workout.Exercises, active, library, workout.Focus));
+                    workouts.Add(ToDraftWorkout(null, null, week.Week, 1, workout.Name, false, workout.Notes, workout.Exercises, active, library, canonicalNames, workout.Focus));
         }
         return new ImportDraft(title, workouts);
     }
 
     private static DraftWorkout ToDraftWorkout(string? block, string? phase, int week, int phaseWeek, string name, bool restDay,
-        string? notes, List<AiExercise>? sourceExercises, HashSet<Guid> active, Dictionary<string, Guid> library, string? focus = null,
-        int? weekday = null, int? sourcePage = null)
+        string? notes, List<AiExercise>? sourceExercises, HashSet<Guid> active, Dictionary<string, Guid> library,
+        Dictionary<Guid, string> canonicalNames, string? focus = null, int? weekday = null, int? sourcePage = null)
     {
         var exercises = new List<DraftExercise>();
         if (!restDay)
@@ -141,10 +143,21 @@ public sealed partial class ImportService(AppDb db, WorkoutAi ai, CatalogService
                 var noteParts = new[] { ImportNormalization.Text(source.Notes, 1000), ImportNormalization.Text(source.CoachingNotes, 1000) }
                     .Concat(extractedUrls)
                     .Where(value => value is not null).Select(value => value!).ToList();
-                var alternates = ImportNormalization.Alternates(source.Substitutions);
-                // An exercise holds two substitutions. A program that lists four has still said
-                // something about the other two, so they are written into the note rather than
-                // dropped on the floor.
+                var alternates = (source.Substitutions ?? [])
+                    .Where(s => !CatalogService.IsPlaceholder(s))
+                    .Select(s =>
+                    {
+                        var clean = ImportNormalization.Text(s, 160);
+                        if (clean == null) return null;
+                        var matchId = CatalogMatching.Find(library, clean);
+                        if (matchId is { } mId && canonicalNames.TryGetValue(mId, out var canonicalName))
+                            return canonicalName;
+                        return clean;
+                    })
+                    .Where(s => s is not null)
+                    .Select(s => s!)
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToList();
                 var substitutions = alternates.Take(2).ToList();
                 if (alternates.Count > 2) noteParts.Add($"Other alternates: {string.Join(", ", alternates.Skip(2))}");
                 exercises.Add(new DraftExercise(Guid.NewGuid(), ImportNormalization.Label(cleanName.Length > 0 ? cleanName : rawName, 160, "Unnamed exercise"), id, Note(noteParts), working,
@@ -328,7 +341,8 @@ public sealed partial class ImportService(AppDb db, WorkoutAi ai, CatalogService
         ValidateDraftPages(draft, import.PageCoverageJson);
         var unresolved = Unresolved(draft);
         List<ImportReviewIssue> issues = [.. ReadNotices(import.NoticesJson), .. ReviewIssues(draft)];
-        Validation.Require(unresolved.Count == 0 && issues.Count == 0,
+        var actionable = issues.Where(i => i.Severity != "info").ToList();
+        Validation.Require(unresolved.Count == 0 && actionable.Count == 0,
             "Resolve every exercise mapping and review issue before creating this program.", 409);
         var input = new ProgramInput(draft.ProgramName,
             draft.Workouts.Select(w => new ProgramWorkoutInput(w.Week, w.Name, w.Focus, w.Notes,

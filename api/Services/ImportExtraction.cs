@@ -342,7 +342,7 @@ public sealed partial class ImportService
                                 merged = merged with { Workouts = numbered.Workouts };
                                 notices.Add(new ImportReviewIssue("phase_week_renumbered",
                                     "Some phases continued the block's week numbering, so their weeks were numbered from one within each phase. The weeks themselves are unchanged.",
-                                    "warning", null));
+                                    "info", null));
                             }
                             // The whole draft is shaped again, not just this section's days: a day
                             // an earlier section committed before this ran is exactly the one that

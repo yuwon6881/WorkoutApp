@@ -277,6 +277,33 @@ internal static class ImportValidation
     /// in exactly the way a mistaken repeat would. Failing the chunk over either left the import
     /// stuck on a section that failed the same way on every retry, so both are reconciled and
     /// reported instead. A day outside the chunk's weeks is still a real error and stays retryable.
+    public static bool AreStructurallyIdentical(DraftWorkout a, DraftWorkout b)
+    {
+        if (a.Week != b.Week) return false;
+        if (a.SourcePage == null || b.SourcePage == null || a.SourcePage != b.SourcePage) return false;
+        if (a.Weekday != null && b.Weekday != null && a.Weekday != b.Weekday) return false;
+        if (a.IsRestDay != b.IsRestDay) return false;
+        if (a.IsRestDay) return true;
+        if (!string.Equals(a.Name.Trim(), b.Name.Trim(), StringComparison.OrdinalIgnoreCase)) return false;
+        if (a.Exercises.Count != b.Exercises.Count) return false;
+        for (var i = 0; i < a.Exercises.Count; i++)
+        {
+            var exA = a.Exercises[i];
+            var exB = b.Exercises[i];
+            if (!string.Equals(exA.SourceName.Trim(), exB.SourceName.Trim(), StringComparison.OrdinalIgnoreCase)) return false;
+            if (exA.Sets.Count != exB.Sets.Count) return false;
+            for (var s = 0; s < exA.Sets.Count; s++)
+            {
+                var setA = exA.Sets[s];
+                var setB = exB.Sets[s];
+                if (setA.RepMin != setB.RepMin || setA.RepMax != setB.RepMax) return false;
+                if (setA.TargetRpe != setB.TargetRpe) return false;
+                if (setA.RestSeconds != setB.RestSeconds) return false;
+            }
+        }
+        return true;
+    }
+
     public static ChunkMerge ReconcileChunkCoverage(ImportDraft existing, ImportDraft extracted, ImportChunk chunk)
     {
         var shaped = ImportDayShape.Reconcile(extracted.Workouts);
@@ -300,6 +327,11 @@ internal static class ImportValidation
 
         foreach (var day in shaped.Workouts)
         {
+            if (workouts.Any(w => AreStructurallyIdentical(w, day)))
+            {
+                // Structurally identical session from the same week and source page; collapse to one.
+                continue;
+            }
             var key = DayKey(day);
             if (existingKeys.Contains(key))
             {

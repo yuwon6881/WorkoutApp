@@ -96,4 +96,30 @@ public sealed class ImportEmptyDayTests
         Assert.Equal("day_without_exercises", notice.Code);
         Assert.Contains("Week 1 Off", notice.Message);
     }
+
+    [Fact]
+    public void A_training_day_with_accidental_rest_day_pseudo_exercise_is_cleaned_and_splits_rest_day()
+    {
+        var dayWithPseudoRest = new DraftWorkout(Guid.NewGuid(), 1, "Day 1 Upper", null, null,
+            [
+                new DraftExercise(Guid.NewGuid(), "Bench press", null, null, [new DraftSet(5, 8, 8, 120, null, null, null)], "A1", [], 1),
+                new DraftExercise(Guid.NewGuid(), "Rest Day", null, null, [], "A2", [], 1)
+            ],
+            Weekday: 1);
+
+        var shaped = ImportDayShape.Reconcile([dayWithPseudoRest]);
+
+        Assert.Equal(2, shaped.Workouts.Count);
+        var training = shaped.Workouts[0];
+        var rest = shaped.Workouts[1];
+
+        Assert.False(training.IsRestDay);
+        Assert.Single(training.Exercises);
+        Assert.Equal("Bench press", training.Exercises[0].SourceName);
+
+        Assert.True(rest.IsRestDay);
+        Assert.Empty(rest.Exercises);
+        Assert.Equal("Rest Day", rest.Name);
+        Assert.DoesNotContain(shaped.Notices, n => n.Code == "exercise_without_sets");
+    }
 }

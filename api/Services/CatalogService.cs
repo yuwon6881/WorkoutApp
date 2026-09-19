@@ -7,7 +7,7 @@ namespace Workout.Api.Services;
 public record CatalogExercise(Guid Id, string Slug, string Name, string Muscle, string Equipment, string Cue, List<string> Aliases, double LoadStepKg,
     string LoadModel = LoadModels.External, string MovementPattern = "", string Source = "catalog", bool IsCustom = false, bool Archived = false);
 
-public record SubstitutionCandidate(Guid? ExerciseId, string Name, string Muscle, string Equipment, string Cue,
+public record SubstitutionCandidate(Guid ExerciseId, string Name, string Muscle, string Equipment, string Cue,
     string Source, int Rank, bool IsCatalog, string MovementPattern = "");
 
 public sealed class CatalogService(AppDb db)
@@ -17,6 +17,13 @@ public sealed class CatalogService(AppDb db)
     {
         var cleaned = new string(value.Trim().ToLowerInvariant().Select(c => char.IsAsciiLetterOrDigit(c) ? c : ' ').ToArray());
         return string.Join(' ', cleaned.Split(' ', StringSplitOptions.RemoveEmptyEntries));
+    }
+
+    public static bool IsPlaceholder(string? text)
+    {
+        if (string.IsNullOrWhiteSpace(text)) return true;
+        var norm = Normalize(text);
+        return norm is "n a" or "na" or "none" or "see notes" or "see note" or "view notes" or "view note" or "null";
     }
 
     public async Task<List<CatalogExercise>> All(CancellationToken ct)
@@ -49,10 +56,11 @@ public sealed class CatalogService(AppDb db)
         foreach (var imported in importedAlternatives ?? [])
         {
             var clean = imported?.Trim() ?? "";
-            if (clean.Length == 0 || !seenNames.Add(Normalize(clean))) continue;
+            if (clean.Length == 0 || IsPlaceholder(clean) || !seenNames.Add(Normalize(clean))) continue;
             var match = all.FirstOrDefault(x => Normalize(x.Name) == Normalize(clean) || x.Aliases.Any(a => Normalize(a) == Normalize(clean)));
-            output.Add(new SubstitutionCandidate(match?.Id, clean, match?.Muscle ?? "", match?.Equipment ?? "", match?.Cue ?? "",
-                "imported", rank++, match is not null, match?.MovementPattern ?? ""));
+            if (match == null) continue;
+            output.Add(new SubstitutionCandidate(match.Id, match.Name, match.Muscle, match.Equipment, match.Cue,
+                "imported", rank++, true, match.MovementPattern));
         }
         IEnumerable<CatalogExercise> filtered = all;
         if (search.Length > 0)

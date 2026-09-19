@@ -2151,5 +2151,29 @@
     "equipment": "Plate",
     "cue": "",
     "aliases": []
+  },
+  {
+    "slug": "dead-hang",
+    "name": "Dead Hang",
+    "muscle": "Back",
+    "equipment": "Bodyweight",
+    "cue": "",
+    "loadModel": "full_bodyweight",
+    "aliases": [
+      "Dead Hangs",
+      "Bar Hang"
+    ]
+  },
+  {
+    "slug": "db-incline-press",
+    "name": "DB Incline Press",
+    "muscle": "Chest",
+    "equipment": "Dumbbell",
+    "cue": "",
+    "aliases": [
+      "Incline DB Press",
+      "Incline Dumbbell Press",
+      "Dumbbell Incline Press"
+    ]
   }
 ]

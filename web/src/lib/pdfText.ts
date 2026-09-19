@@ -11,6 +11,9 @@ const MAX_TOTAL_CHARS = 2_000_000;
 /// Words on the same printed line rarely differ by more than a point or two of baseline. Grouping
 /// at this tolerance keeps a training table's rows intact instead of interleaving its columns.
 const ROW_TOLERANCE = 2.5;
+/// Visible horizontal separation across table columns. Normal word spacing in Latin text is
+/// around 3-8 points; anything wider than 20 points is a column break across adjacent table cells.
+export const COLUMN_GAP_THRESHOLD = 20;
 
 export type PdfPageText = { page: number; text: string };
 export type PdfExtraction = { fileName: string; pageCount: number; pages: PdfPageText[]; pagesWithText: number };
@@ -40,16 +43,20 @@ export function buildPageText(items: readonly TextPiece[]): string {
       const start = item.transform[4];
       // pdf.js emits a table cell as several pieces and does not always include the space between
       // them, so two adjacent pieces are separated unless one of them already carries whitespace.
-      // A visible horizontal gap is a column boundary and always separates.
+      // A visible horizontal gap is a column boundary and always separates with an explicit ' | '.
       const gap = Number.isNaN(end) ? 0 : start - end;
       const touching = line.length === 0 || /\s$/.test(line) || /^\s/.test(item.str);
       // A hair's gap is kerning inside one word; anything wider is a space or a column boundary.
       const continuesWord = gap > 0 && gap <= 0.5;
-      if (!touching && !continuesWord) line += ' ';
-      line += item.str;
+      if (gap >= COLUMN_GAP_THRESHOLD) {
+        line = line.trimEnd() + ' | ' + item.str.trimStart();
+      } else {
+        if (!touching && !continuesWord) line += ' ';
+        line += item.str;
+      }
       end = start + (item.width ?? 0);
     }
-    const trimmed = line.replace(/\s+/g, ' ').trim();
+    const trimmed = line.replace(/[ \t]+/g, ' ').trim();
     if (trimmed.length > 0) lines.push(trimmed);
   }
   return lines.join('\n');

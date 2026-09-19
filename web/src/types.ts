@@ -72,6 +72,6 @@ export type Bootstrap = {
 export type SaveState = 'connecting' | 'idle' | 'saving' | 'saved' | 'failed' | 'signed-out' | 'offline';
 
 export type SubstitutionScope = 'slot' | 'phase';
-export type SubstitutionCandidate = { exerciseId: string | null; name: string; muscle: string; equipment: string; cue: string; source: 'imported' | 'similar' | 'library'; rank: number; isCatalog: boolean; movementPattern?: string };
+export type SubstitutionCandidate = { exerciseId: string; name: string; muscle: string; equipment: string; cue: string; source: 'imported' | 'similar' | 'library'; rank: number; isCatalog: boolean; movementPattern?: string };
 export type SubstitutionAffectedSlot = { templateId: string; templateExerciseId: string; slotKey: string; week: number; workoutName: string };
 export type TemplateSubstitutionResult = { template: Template; scope: SubstitutionScope; affectedSlots: SubstitutionAffectedSlot[] };

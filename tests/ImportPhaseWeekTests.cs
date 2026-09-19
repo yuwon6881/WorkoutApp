@@ -62,8 +62,26 @@ public sealed class ImportPhaseWeekTests
         Assert.Equal(1, deload.PhaseWeek);
         // The week the document stated is untouched; only the count inside the phase moved.
         Assert.Equal(5, deload.Week);
-        Assert.Single(ready.ReviewIssues!, issue => issue.Code == "phase_week_renumbered");
-        Assert.False(ready.Acceptable);
+        var issue = Assert.Single(ready.ReviewIssues!, issue => issue.Code == "phase_week_renumbered");
+        Assert.Equal("info", issue.Severity);
+    }
+
+    [Fact]
+    public async Task Phase_week_renumbered_is_informational_and_does_not_block_acceptance()
+    {
+        await using var h = await Harness.Create(Configured());
+        await h.SignIn();
+        await h.Seed(new SeedExercise("bench", "Barbell bench press", "Chest", "Barbell", "", null));
+        var imports = h.Imports(Reading(Outline, Days((4, 4, "Accumulation"), (5, 5, "Deload Week"))));
+
+        var pending = await imports.Create(Source(), default);
+        var ready = await imports.Extract(pending.Id, default);
+
+        Assert.Equal(ImportStatus.Ready, ready.Status);
+        var issue = Assert.Single(ready.ReviewIssues!, issue => issue.Code == "phase_week_renumbered");
+        Assert.Equal("info", issue.Severity);
+        Assert.Empty(ready.Unresolved);
+        Assert.True(ready.Acceptable);
     }
 
     [Fact]

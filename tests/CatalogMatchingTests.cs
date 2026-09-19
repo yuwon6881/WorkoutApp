@@ -28,7 +28,8 @@ public sealed class CatalogMatchingTests
             new SeedExercise("standing-calf-raise", "Standing Calf Raise", "Calves", "Machine", "Cue", null),
             new SeedExercise("dumbbell-wrist-curl", "DB Wrist Curl", "Forearms", "Dumbbell", "Cue", null),
             new SeedExercise("dumbbell-wrist-extension", "DB Wrist Extension", "Forearms", "Dumbbell", "Cue", ["Dumbbell Wrist Extension"]),
-            new SeedExercise("modified-zottman-curl", "Modified Zottman Curl", "Biceps", "Dumbbell", "Cue", null));
+            new SeedExercise("modified-zottman-curl", "Modified Zottman Curl", "Biceps", "Dumbbell", "Cue", null),
+            new SeedExercise("dead-hang", "Dead Hang", "Back", "Bodyweight", "Cue", ["Dead Hangs", "Bar Hang"]));
         return (h, h.Catalog);
     }
 
@@ -44,6 +45,9 @@ public sealed class CatalogMatchingTests
     [InlineData("Seated Machine Lat Pulldown", "Lat Pulldown")]
     // Exact spelling still matches, unchanged.
     [InlineData("Pull Up", "Pull Up")]
+    [InlineData("Dead Hang", "Dead Hang")]
+    [InlineData("Dead Hangs", "Dead Hang")]
+    [InlineData("Bar Hang", "Dead Hang")]
     public async Task A_written_name_finds_the_movement_it_spells(string written, string expected)
     {
         var (h, catalog) = await Library();
@@ -131,6 +135,7 @@ public sealed class CatalogMatchingTests
         "Machine Chest Press" => "machine-chest-press",
         "Pull-Up" => "pull-up",
         "Standing Calf Raise" => "standing-calf-raise",
+        "Dead Hang" => "dead-hang",
         _ => "squat"
     };
 }

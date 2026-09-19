@@ -23,9 +23,59 @@ internal static class ImportDayShape
     public static (List<DraftWorkout> Workouts, List<ImportReviewIssue> Notices) Reconcile(IEnumerable<DraftWorkout> days)
     {
         var notices = new List<ImportReviewIssue>();
+        var inputList = days.ToList();
         var workouts = new List<DraftWorkout>();
-        foreach (var day in days) workouts.Add(ReconcileDay(day, notices));
+        for (var i = 0; i < inputList.Count; i++)
+        {
+            var day = inputList[i];
+            var (cleanedDay, splitRest) = CleanAndSplitDay(day, inputList.ElementAtOrDefault(i + 1));
+            workouts.Add(ReconcileDay(cleanedDay, notices));
+            if (splitRest != null) workouts.Add(splitRest);
+        }
         return (workouts, notices);
+    }
+
+    private static bool IsRestPseudoExercise(DraftExercise exercise)
+    {
+        var name = exercise.SourceName.Trim();
+        return string.Equals(name, "Rest Day", StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(name, "Rest", StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(name, "Rest Days", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static (DraftWorkout Day, DraftWorkout? SplitRest) CleanAndSplitDay(DraftWorkout day, DraftWorkout? nextDay)
+    {
+        if (day.IsRestDay) return (day, null);
+        var hasRestPseudo = day.Exercises.Any(IsRestPseudoExercise);
+        if (!hasRestPseudo) return (day, null);
+
+        var realExercises = day.Exercises.Where(e => !IsRestPseudoExercise(e)).ToList();
+        if (realExercises.Count == 0)
+        {
+            // The whole day was just a rest pseudo-exercise; keep it as a clean rest day.
+            return (day with { IsRestDay = true, Exercises = [] }, null);
+        }
+
+        var cleanedDay = day with { Exercises = realExercises };
+        DraftWorkout? splitRest = null;
+        if (nextDay == null || !nextDay.IsRestDay || nextDay.Week != day.Week)
+        {
+            splitRest = new DraftWorkout(
+                Guid.NewGuid(),
+                day.Week,
+                "Rest Day",
+                null,
+                null,
+                [],
+                day.Block,
+                day.Phase,
+                day.PhaseWeek,
+                IsRestDay: true,
+                Weekday: null,
+                SourcePage: day.SourcePage
+            );
+        }
+        return (cleanedDay, splitRest);
     }
 
     private static DraftWorkout ReconcileDay(DraftWorkout day, List<ImportReviewIssue> notices)
@@ -107,6 +157,6 @@ internal static class ImportDayShape
         if (dropped == 0) return (draft, []);
         return (draft with { Workouts = workouts }, [new ImportReviewIssue("source_page_outside_pdf",
             $"{dropped} reference{(dropped == 1 ? "" : "s")} pointed to a page this PDF does not have, so {(dropped == 1 ? "it was" : "they were")} left blank. Everything read from those rows is kept.",
-            "warning", null)]);
+            "info", null)]);
     }
 }

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { AlertTriangle, ArrowLeftRight, Dumbbell, FileText, Link2, Plus, RotateCcw, Trash2, X } from 'lucide-react';
+import { AlertTriangle, ArrowLeftRight, Dumbbell, FileText, Link2, Loader2, Plus, RotateCcw, Trash2, X } from 'lucide-react';
 import type { DraftExercise, DraftSet, DraftWorkout, Exercise } from '../types';
 import { rpeOptions, showReps } from '../lib/training';
 import { Button } from './ui/Button';
@@ -80,6 +80,16 @@ export function DayEditor({ day, exercises, onChange, onPropagateSubstitution, r
     save({ ...draft, exercises: updated });
   };
 
+  const handleRemoveExercise = (lineId: string) => {
+    if (draft.exercises.length <= 1) return;
+    const unlinked = unlinkExercise(
+      draft.exercises.map(e => ({ ...e, id: e.lineId })),
+      lineId
+    ).map(e => ({ ...e, lineId: e.id }));
+    const remaining = unlinked.filter(e => e.lineId !== lineId);
+    save({ ...draft, exercises: remaining });
+  };
+
   return <div className="day-editor">
     {/* A missing weekday is a review issue, so keep the correction beside the day it affects. */}
     <div className="day-editor-fields">
@@ -97,6 +107,7 @@ export function DayEditor({ day, exercises, onChange, onPropagateSubstitution, r
         {group.length > 1 && <div className="superset-heading">Superset {group[0].sequenceGroup.match(/^[A-Za-z]+/)?.[0] ?? ''}</div>}
         {group.map(exercise => <ExerciseEditor key={exercise.lineId} exercise={exercise} exercises={exercises} allDayExercises={draft.exercises}
           onChange={next => save({ ...draft, exercises: draft.exercises.map(item => item.lineId === next.lineId ? next : item) })}
+          onRemove={() => handleRemoveExercise(exercise.lineId)}
           onPairExercises={targetLineId => handlePairExercises(exercise.lineId, targetLineId)}
           onUnlinkExercise={() => handleUnlinkExercise(exercise.lineId)}
           onPropagateSubstitution={onPropagateSubstitution}
@@ -109,11 +120,12 @@ export function DayEditor({ day, exercises, onChange, onPropagateSubstitution, r
   </div>;
 }
 
-function ExerciseEditor({ exercise, exercises, allDayExercises, onChange, onPairExercises, onUnlinkExercise, onPropagateSubstitution, canRestore, onRestore }: {
+function ExerciseEditor({ exercise, exercises, allDayExercises, onChange, onRemove, onPairExercises, onUnlinkExercise, onPropagateSubstitution, canRestore, onRestore }: {
   exercise: DraftExercise;
   exercises: Exercise[];
   allDayExercises: DraftExercise[];
   onChange: (exercise: DraftExercise) => void;
+  onRemove?: () => void;
   onPairExercises: (targetLineId: string) => void;
   onUnlinkExercise: () => void;
   onPropagateSubstitution?: (currentName: string, replacementName: string) => Promise<void>;
@@ -122,7 +134,9 @@ function ExerciseEditor({ exercise, exercises, allDayExercises, onChange, onPair
 }) {
   const [pickerOpen, setPickerOpen] = useState(false);
   const [supersetModalOpen, setSupersetModalOpen] = useState(false);
-  const [newSub, setNewSub] = useState('');
+  const [isRestoring, setIsRestoring] = useState(false);
+  const [restoreError, setRestoreError] = useState<string | null>(null);
+
   const editSet = (index: number, patch: Partial<DraftSet>) =>
     onChange({ ...exercise, sets: exercise.sets.map((set, current) => current === index ? { ...set, ...patch } : set) });
   const selected = exercises.find(option => option.id === exercise.exerciseId);
@@ -131,34 +145,39 @@ function ExerciseEditor({ exercise, exercises, allDayExercises, onChange, onPair
     setPickerOpen(false);
   };
 
+  const handleRestore = async () => {
+    if (!onRestore || isRestoring) return;
+    setIsRestoring(true);
+    setRestoreError(null);
+    try {
+      await onRestore();
+    } catch (err) {
+      setRestoreError(err instanceof Error ? err.message : 'Could not restore exercise.');
+    } finally {
+      setIsRestoring(false);
+    }
+  };
+
   const applySubstitution = (subName: string) => {
     const matched = exercises.find(
       e => e.name.toLowerCase() === subName.toLowerCase() || e.aliases.some(a => a.toLowerCase() === subName.toLowerCase())
     );
+    if (!matched) return;
     const oldLibrary = exercises.find(e => e.id === exercise.exerciseId);
     const oldName = oldLibrary?.name || exercise.sourceName;
     const remainingSubs = [oldName, ...exercise.substitutions.filter(s => s.toLowerCase() !== subName.toLowerCase())].slice(0, 2);
-    const newName = matched ? matched.name : subName;
     onChange({
       ...exercise,
-      sourceName: newName,
-      exerciseId: matched ? matched.id : null,
+      sourceName: matched.name,
+      exerciseId: matched.id,
       substitutions: remainingSubs
     });
-    void onPropagateSubstitution?.(oldName, newName);
+    void onPropagateSubstitution?.(oldName, matched.name);
   };
 
-  const handleAddSub = () => {
-    const clean = newSub.trim();
-    if (!clean || exercise.substitutions.some(s => s.toLowerCase() === clean.toLowerCase())) {
-      setNewSub('');
-      return;
-    }
-    const matched = exercises.find(e => e.name.toLowerCase() === clean.toLowerCase());
-    const nameToAdd = matched ? matched.name : clean;
-    onChange({ ...exercise, substitutions: [...exercise.substitutions, nameToAdd].slice(0, 2) });
-    setNewSub('');
-  };
+  const validSubstitutions = exercise.substitutions.filter(sub =>
+    exercises.some(e => e.name.toLowerCase() === sub.toLowerCase() || e.aliases.some(a => a.toLowerCase() === sub.toLowerCase()))
+  );
 
   const currentGroup = getSupersetGroup(exercise.sequenceGroup);
   const isPaired = isSuperset(exercise.sequenceGroup);
@@ -193,17 +212,38 @@ function ExerciseEditor({ exercise, exercises, allDayExercises, onChange, onPair
             variant="tertiary"
             className="restore-exercise-btn"
             aria-label={`Restore default for ${exercise.sourceName}`}
-            onClick={onRestore}
+            disabled={isRestoring}
+            aria-busy={isRestoring}
+            onClick={() => void handleRestore()}
           >
-            <RotateCcw size={12} />Restore default
+            {isRestoring ? <Loader2 size={12} className="spin" /> : <RotateCcw size={12} />}
+            {isRestoring ? 'Restoring…' : 'Restore default'}
+          </Button>
+        )}
+        {onRemove && (
+          <Button
+            variant="tertiary"
+            className="remove-exercise-btn"
+            aria-label={`Remove ${exercise.sourceName}`}
+            disabled={allDayExercises.length <= 1 || isRestoring}
+            onClick={onRemove}
+          >
+            <Trash2 size={13} />
           </Button>
         )}
       </span>
     </div>
+    {restoreError && (
+      <div className="inline-error restore-error" role="alert">
+        <span>{restoreError}</span>
+        <Button variant="tertiary" onClick={() => void handleRestore()}>Retry</Button>
+      </div>
+    )}
     <div className="import-fields">
       <div className="field import-library-field">
         <span>Library exercise</span>
         <Button variant="secondary" className="import-library-trigger" aria-haspopup="dialog" data-import-field="library"
+          disabled={isRestoring}
           aria-label={`Library exercise for ${exercise.sourceName}`} onClick={() => setPickerOpen(true)}>
           {selected?.name ?? (exercise.exerciseId ? 'Swap exercise' : 'Map exercise')}
         </Button>
@@ -213,6 +253,7 @@ function ExerciseEditor({ exercise, exercises, allDayExercises, onChange, onPair
         <Button
           variant="secondary"
           className={`superset-trigger ${isPaired ? 'paired' : ''}`}
+          disabled={isRestoring}
           aria-label={`Superset options for ${exercise.sourceName}`}
           onClick={() => setSupersetModalOpen(true)}
         >
@@ -223,14 +264,14 @@ function ExerciseEditor({ exercise, exercises, allDayExercises, onChange, onPair
       <div className="field import-substitutions-field">
         <span>Substitutions (tap to swap slot)</span>
         <div className="substitution-chips-wrap">
-          {exercise.substitutions.length > 0 && (
+          {validSubstitutions.length > 0 ? (
             <div className="substitution-chips-row" role="group" aria-label={`Substitutions for ${exercise.sourceName}`}>
-              {exercise.substitutions.map((sub, sIdx) => (
+              {validSubstitutions.map((sub, sIdx) => (
                 <div
                   key={sIdx}
                   className="substitution-chip"
                   title={`Swap ${exercise.sourceName} with ${sub} across this block`}
-                  onClick={() => applySubstitution(sub)}
+                  onClick={() => !isRestoring && applySubstitution(sub)}
                 >
                   <ArrowLeftRight size={13} className="swap-icon" />
                   <span>{sub}</span>
@@ -238,11 +279,12 @@ function ExerciseEditor({ exercise, exercises, allDayExercises, onChange, onPair
                     presentation="plain"
                     className="chip-remove-btn"
                     aria-label={`Remove substitution ${sub}`}
+                    disabled={isRestoring}
                     onClick={e => {
                       e.stopPropagation();
                       onChange({
                         ...exercise,
-                        substitutions: exercise.substitutions.filter((_, idx) => idx !== sIdx)
+                        substitutions: exercise.substitutions.filter(s => s.toLowerCase() !== sub.toLowerCase())
                       });
                     }}
                   >
@@ -251,32 +293,8 @@ function ExerciseEditor({ exercise, exercises, allDayExercises, onChange, onPair
                 </div>
               ))}
             </div>
-          )}
-          {exercise.substitutions.length < 2 && (
-            <div className="substitution-add-form">
-              <input
-                name={`new-sub-${exercise.lineId}`}
-                className="substitution-add-input"
-                placeholder="Add alternate exercise…"
-                value={newSub}
-                onChange={e => setNewSub(e.target.value)}
-                onKeyDown={e => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault();
-                    handleAddSub();
-                  }
-                }}
-              />
-              <Button
-                variant="secondary"
-                className="substitution-add-btn"
-                disabled={!newSub.trim()}
-                onClick={handleAddSub}
-                aria-label="Add substitution"
-              >
-                <Plus size={13} />Add
-              </Button>
-            </div>
+          ) : (
+            <span className="muted small-copy">No substitutions available.</span>
           )}
         </div>
       </div>

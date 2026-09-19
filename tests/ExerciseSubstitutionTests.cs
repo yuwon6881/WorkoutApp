@@ -8,7 +8,7 @@ namespace Workout.Tests;
 public sealed class ExerciseSubstitutionTests
 {
     [Fact]
-    public async Task Candidates_keep_unresolved_imports_first_and_rank_similar_movements()
+    public async Task Candidates_keep_matched_imports_first_and_discard_unmatched_or_placeholders()
     {
         await using var h = await Harness.Create();
         await h.SignIn();
@@ -17,11 +17,12 @@ public sealed class ExerciseSubstitutionTests
             new SeedExercise("incline", "Incline dumbbell press", "Chest", "Dumbbell", "", null, 2.5, Workout.Api.Domain.LoadModels.External, "horizontal_push"),
             new SeedExercise("curl", "Dumbbell curl", "Biceps", "Dumbbell", "", null, 2.5, Workout.Api.Domain.LoadModels.External, "elbow_flexion"));
         var bench = await h.ExerciseId("bench");
-        var rows = await h.Catalog.Substitutions(bench, null, ["Mystery press"], null, default);
-        Assert.Equal("Mystery press", rows[0].Name);
-        Assert.Null(rows[0].ExerciseId);
-        Assert.Equal("similar", rows[1].Source);
-        Assert.Equal("Incline dumbbell press", rows[1].Name);
+        var incline = await h.ExerciseId("incline");
+        var rows = await h.Catalog.Substitutions(bench, null, ["Incline dumbbell press", "Mystery press", "N/A", "See Notes"], null, default);
+        Assert.Equal("Incline dumbbell press", rows[0].Name);
+        Assert.Equal(incline, rows[0].ExerciseId);
+        Assert.Equal("imported", rows[0].Source);
+        Assert.DoesNotContain(rows, r => r.Name == "Mystery press" || r.Name == "N/A" || r.Name == "See Notes");
     }
 
     [Fact]

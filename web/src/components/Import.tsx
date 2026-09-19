@@ -64,6 +64,8 @@ export function ImportReview({ exercises, imports, remaining, onBack, onChanged,
   const [saveError, setSaveError] = useState('');
   const [showAllIssues, setShowAllIssues] = useState(false);
   const [confirmRestoreDraft, setConfirmRestoreDraft] = useState(false);
+  const [isRestoringDraft, setIsRestoringDraft] = useState(false);
+  const [draftRestoreError, setDraftRestoreError] = useState<string | null>(null);
   const file = useRef<HTMLInputElement>(null);
   const reviewRef = useRef<HTMLElement>(null);
   const outlineRef = useRef<DraftOutlineHandle>(null);
@@ -99,13 +101,10 @@ export function ImportReview({ exercises, imports, remaining, onBack, onChanged,
 
   async function handleRestoreExercise(exerciseLineId: string) {
     if (!selected) return;
-    await pipeline.run('Restoring exercise default…', async () => {
-      const view = await api.restoreImportExercise(selected.id, exerciseLineId, selected.revision);
-      setSelected(view);
-      setDraft(view.draft);
-      await onChanged();
-      notify?.('Exercise restored to default.');
-    });
+    const view = await api.restoreImportExercise(selected.id, exerciseLineId, selected.revision);
+    setSelected(view);
+    setDraft(view.draft);
+    notify?.('Exercise restored to default.');
   }
 
   async function persist(next: ImportDraft) {
@@ -145,7 +144,7 @@ export function ImportReview({ exercises, imports, remaining, onBack, onChanged,
       ariaLabel: `Fix unmapped exercise ${item.sourceName}`,
       target: unresolvedTarget(item.lineId)
     })),
-    ...reviewIssues.map((issue, index) => ({
+    ...reviewIssues.filter(issue => issue.severity !== 'info').map((issue, index) => ({
       key: `${issue.code}-${index}`,
       title: issue.message,
       detail: issue.sourcePage ? `PDF p.${issue.sourcePage} · Open the related editor field.` : 'Open the related editor field.',
@@ -280,23 +279,38 @@ export function ImportReview({ exercises, imports, remaining, onBack, onChanged,
           <Button variant="primary" disabled={busy || !selected.acceptable} onClick={() => pipeline.run('Creating the program…', async () => { await api.acceptImport(selected.id); setSelected(null); setDraft(null); onBack(); })}><Check size={17} />Accept and create program</Button>
         </div>
       </section>
-      {confirmRestoreDraft && <Modal title="Restore default draft" onClose={() => setConfirmRestoreDraft(false)}>
-        <div className="modal-body">
+      {confirmRestoreDraft && <Modal title="Restore default draft" onClose={() => !isRestoringDraft && setConfirmRestoreDraft(false)}>
+        <div className="modal-body" aria-busy={isRestoringDraft}>
           <p>Reset all exercises, mappings, notes, sets, and rep ranges across this entire program to the initial extracted version from the PDF?</p>
           <p className="muted small-copy">All manual adjustments made since extraction will be replaced with the default baseline.</p>
+          {draftRestoreError && <p className="error-text" role="alert">{draftRestoreError}</p>}
         </div>
         <div className="modal-actions">
-          <Button onClick={() => setConfirmRestoreDraft(false)}>Cancel</Button>
-          <Button variant="primary" disabled={busy} onClick={() => {
-            setConfirmRestoreDraft(false);
-            void pipeline.run('Restoring default draft…', async () => {
-              const view = await api.restoreImport(selected.id, selected.revision);
-              setSelected(view);
-              setDraft(view.draft);
-              await onChanged();
-              notify?.('Draft restored to default extraction.');
-            });
-          }}><RotateCcw size={15} />Restore default draft</Button>
+          <Button disabled={isRestoringDraft} onClick={() => setConfirmRestoreDraft(false)}>Cancel</Button>
+          <Button
+            variant="primary"
+            disabled={isRestoringDraft}
+            aria-busy={isRestoringDraft}
+            onClick={async () => {
+              if (!selected) return;
+              setIsRestoringDraft(true);
+              setDraftRestoreError(null);
+              try {
+                const view = await api.restoreImport(selected.id, selected.revision);
+                setSelected(view);
+                setDraft(view.draft);
+                setConfirmRestoreDraft(false);
+                notify?.('Draft restored to default extraction.');
+              } catch (err) {
+                setDraftRestoreError(err instanceof Error ? err.message : 'Could not restore default draft.');
+              } finally {
+                setIsRestoringDraft(false);
+              }
+            }}
+          >
+            {isRestoringDraft ? <Loader2 size={15} className="spin" /> : <RotateCcw size={15} />}
+            {isRestoringDraft ? 'Restoring…' : 'Restore default draft'}
+          </Button>
         </div>
       </Modal>}
     </>}
