@@ -1,3 +1,5 @@
+using System.Text.RegularExpressions;
+
 namespace Workout.Api.Services;
 
 /// A day read from a document, brought into the shape a stored day has.
@@ -98,11 +100,12 @@ internal static class ImportDayShape
     }
 
     private static bool IsRestPseudoExercise(DraftExercise exercise)
+        => IsRestLabel(exercise.SourceName);
+
+    private static bool IsRestLabel(string? value)
     {
-        var name = exercise.SourceName.Trim();
-        return string.Equals(name, "Rest Day", StringComparison.OrdinalIgnoreCase) ||
-               string.Equals(name, "Rest", StringComparison.OrdinalIgnoreCase) ||
-               string.Equals(name, "Rest Days", StringComparison.OrdinalIgnoreCase);
+        var name = Regex.Replace(value?.Trim() ?? "", @"\s+", " ").TrimEnd('.', ':');
+        return Regex.IsMatch(name, @"^(?:(?:suggested|mandatory)\s+)?rest(?:\s+days?)?$", RegexOptions.IgnoreCase);
     }
 
     private static (DraftWorkout Day, DraftWorkout? SplitRest) CleanAndSplitDay(DraftWorkout day, DraftWorkout? nextDay)
@@ -142,6 +145,7 @@ internal static class ImportDayShape
     private static DraftWorkout ReconcileDay(DraftWorkout day, List<ImportReviewIssue> notices)
     {
         if (day.IsRestDay) return day;
+        if (IsRestLabel(day.Name)) return day with { IsRestDay = true, Exercises = [] };
         if (day.Exercises.Count == 0)
         {
             // A page regularly documents a day with nothing to train — "REST", "OFF", a recovery

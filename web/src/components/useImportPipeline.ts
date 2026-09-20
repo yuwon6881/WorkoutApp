@@ -19,6 +19,7 @@ export type ImportPipeline = {
   busy: boolean;
   clearFailure: () => void;
   upload: (chosen: File) => Promise<void>;
+  cancelUpload: () => void;
   resume: (view: ImportView) => Promise<void>;
   cancel: (view: ImportView) => Promise<void>;
   chooseAlternative: (view: ImportView, alternativeId: string) => Promise<void>;
@@ -50,6 +51,9 @@ export function useImportPipeline({ selected, setSelected, setDraft, onChanged, 
   /// retried forever without anyone asking.
   const resumed = useRef(new Set<string>());
   const statusEtags = useRef(new Map<string, string>());
+  const uploadAbort = useRef<AbortController | null>(null);
+
+  useEffect(() => () => uploadAbort.current?.abort(), []);
 
   const apply = useCallback((view: ImportView) => {
     if (cancelled.current === view.id) return;
@@ -185,14 +189,22 @@ export function useImportPipeline({ selected, setSelected, setDraft, onChanged, 
     if (!/\.pdf$/i.test(chosen.name)) { setFailure({ message: 'Choose a PDF file.' }); return; }
     await drive(async () => {
       let source: PdfExtraction;
+      const controller = new AbortController();
+      uploadAbort.current = controller;
       try {
         // Reading the text is the only step whose size this app knows, so it is the only step
         // that reports a real percentage.
         setProgress({ label: 'Reading the PDF on this device', detail: chosen.name, percent: 0 });
         source = await extractPdfText(chosen, (page, pageCount) => {
           setProgress({ label: 'Reading the PDF on this device', detail: `Page ${page} of ${pageCount}`, percent: Math.round((page / pageCount) * 100) });
-        });
-      } catch (error) { report(error, 'The text in that PDF could not be read on this device.'); return; }
+        }, controller.signal);
+      } catch (error) {
+        if (controller.signal.aborted) setNotice('PDF reading was cancelled. Choose a PDF to start again.');
+        else report(error, 'The text in that PDF could not be read on this device.');
+        return;
+      } finally {
+        if (uploadAbort.current === controller) uploadAbort.current = null;
+      }
 
       try {
         setProgress({
@@ -204,6 +216,8 @@ export function useImportPipeline({ selected, setSelected, setDraft, onChanged, 
       } catch (error) { report(error, 'Could not read that PDF.'); }
     });
   }, [advance, drive, report]);
+
+  const cancelUpload = useCallback(() => uploadAbort.current?.abort(), []);
 
   const resume = useCallback(async (view: ImportView) => {
     await drive(async () => {
@@ -261,6 +275,6 @@ export function useImportPipeline({ selected, setSelected, setDraft, onChanged, 
   return {
     progress, failure, notice, busy: progress !== null,
     clearFailure: useCallback(() => setFailure(null), []),
-    upload, resume, cancel, chooseAlternative, run
+    upload, cancelUpload, resume, cancel, chooseAlternative, run
   };
 }

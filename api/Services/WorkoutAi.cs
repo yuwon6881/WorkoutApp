@@ -39,8 +39,9 @@ public sealed class WorkoutAi(HttpClient http, IConfiguration config)
     /// v9 adds APE/LSRPE RPE aliases, dual Early/Last Set RPE columns, Last-Set Intensity
     /// Technique column routing, rest unit enforcement, and tracking column awareness;
     /// v10 preserves PDF table column separation, dual working set and RIR-to-RPE extraction,
-    /// N/A and See Notes filtering, and footer rest day handling.
-    public const string PromptVersion = "workout-import-v10-text";
+    /// N/A and See Notes filtering, and footer rest day handling; v11 expands that contract to
+    /// legacy RPE/%1RM tables and multiple explicitly offered program routines.
+    public const string PromptVersion = "workout-import-v11-layout-text";
 
     /// One cheap pass over a page-by-page view of the document. Most of a commercial training PDF
     /// is explanation and photography; this pass exists to find the few pages that actually carry

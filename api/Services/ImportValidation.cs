@@ -113,7 +113,15 @@ internal static class ImportValidation
 
         var working = training.SelectMany(day => day.Exercises.SelectMany(exercise =>
             exercise.Sets.Select((set, index) => (day, exercise, set, index)))).Where(item => !item.set.Warmup).ToList();
-        var unrated = working.Where(item => item.set.TargetRpe is null).ToList();
+        var loadSpecified = working.Where(item => item.set.TargetRpe is null && IsPercentageLoad(item.set.LoadText)).ToList();
+        if (loadSpecified.Count > 0)
+            issues.Add(new ImportReviewIssue("percentage_load_without_rpe",
+                $"{Count(loadSpecified.Count, "working set has", "working sets have")} a percentage load prescription and no RPE target; the load is preserved as source text. {Naming(loadSpecified.Select(item => item.day))}",
+                "info", loadSpecified[0].set.SourcePage ?? loadSpecified[0].day.SourcePage,
+                WorkoutLineId: loadSpecified[0].day.LineId, ExerciseLineId: loadSpecified[0].exercise.LineId,
+                SetIndex: loadSpecified[0].index, TargetField: "targetRpe"));
+
+        var unrated = working.Where(item => item.set.TargetRpe is null && !IsPercentageLoad(item.set.LoadText)).ToList();
         if (unrated.Count > 0)
             issues.Add(new ImportReviewIssue("rpe_unspecified",
                 $"{Count(unrated.Count, "working set has", "working sets have")} no target RPE in the PDF; {(unrated.Count == 1 ? "it remains" : "they remain")} unspecified. {Naming(unrated.Select(item => item.day))}",
@@ -140,6 +148,11 @@ internal static class ImportValidation
         }
         return issues;
     }
+
+    private static bool IsPercentageLoad(string? value)
+        => !string.IsNullOrWhiteSpace(value) && Regex.IsMatch(value.Trim(),
+            @"^\d+(?:\.\d+)?(?:\s*[-–]\s*\d+(?:\.\d+)?)?\s*%\s*(?:1\s*RM)?$",
+            RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
 
     private static string Count(int count, string one, string many)
         => count == 1 ? $"1 {one}" : $"{count} {many}";

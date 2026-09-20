@@ -1,5 +1,12 @@
-import { describe, expect, it } from 'vitest';
-import { buildPageText } from './pdfText';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { buildPageText, extractPdfText } from './pdfText';
+
+const pdfjsMock = vi.hoisted(() => ({
+  GlobalWorkerOptions: { workerSrc: '' },
+  getDocument: vi.fn()
+}));
+
+vi.mock('pdfjs-dist', () => pdfjsMock);
 
 /// pdf.js hands back text in content-stream order with each piece's position. A training table's
 /// cells arrive in whatever order the document happened to draw them, so reading order has to be
@@ -7,6 +14,26 @@ import { buildPageText } from './pdfText';
 function piece(text: string, x: number, y: number, width = text.length * 5) {
   return { str: text, transform: [1, 0, 0, 1, x, y], width };
 }
+
+function rotatedPiece(text: string, x: number, rowY: number, width = text.length * 5) {
+  // A quarter-turn text matrix stores the line position along its vertical baseline.
+  return { str: text, transform: [0, 1, -1, 0, x, rowY - width], width, height: 10 };
+}
+
+function pdfFile(): File {
+  return { name: 'fixture.pdf', arrayBuffer: vi.fn().mockResolvedValue(new ArrayBuffer(0)) } as unknown as File;
+}
+
+function loadDocument(document: { numPages: number; getPage: ReturnType<typeof vi.fn>; destroy: ReturnType<typeof vi.fn> }) {
+  const loadingTaskDestroy = vi.fn().mockResolvedValue(undefined);
+  pdfjsMock.getDocument.mockReturnValue({ promise: Promise.resolve(document), destroy: loadingTaskDestroy });
+  return loadingTaskDestroy;
+}
+
+beforeEach(() => {
+  pdfjsMock.getDocument.mockReset();
+  pdfjsMock.GlobalWorkerOptions.workerSrc = '';
+});
 
 describe('buildPageText', () => {
   it('reads rows top to bottom and emits column separators for distinct table columns', () => {
@@ -77,5 +104,179 @@ describe('buildPageText', () => {
 
   it('drops empty pieces and pages that hold nothing but whitespace', () => {
     expect(buildPageText([piece('  ', 100, 400), piece('', 120, 400)])).toBe('');
+  });
+
+  it('uses close header-aligned columns even when the cell gaps are smaller than normal word spacing', () => {
+    const text = buildPageText([
+      piece('Exercise', 100, 700, 40), piece('Sets', 148, 700, 20), piece('Reps', 175, 700, 25),
+      piece('RPE/%1RM', 205, 700, 50), piece('Rest', 263, 700, 20),
+      piece('Bench Press', 100, 680, 50), piece('3', 148, 680, 8), piece('6-8', 175, 680, 15),
+      piece('75% 1RM', 205, 680, 45), piece('2 min', 263, 680, 25)
+    ]);
+
+    expect(text).toBe([
+      'Exercise | Sets | Reps | RPE/%1RM | Rest',
+      'Bench Press | 3 | 6-8 | 75% 1RM | 2 min'
+    ].join('\n'));
+  });
+
+  it('keeps Min-Max dual RIR columns and wrapped notes under the source header columns', () => {
+    const headers = [
+      ['Exercise', 100, 50], ['Warm-Up Sets', 260, 70], ['Working Sets', 440, 70],
+      ['Set 1 RIR', 620, 55], ['Set 2 RIR', 790, 55], ['Rest', 960, 30],
+      ['Substitutions', 1090, 70], ['Notes', 1280, 35]
+    ] as const;
+    const headerItems = headers.map(([label, x, width]) => piece(label, x, 700, width));
+    const row = [
+      piece('Squat (Your Choice)', 100, 680, 100), piece('N/A', 260, 680, 20),
+      piece('2', 440, 680, 8), piece('2-3', 620, 680, 15), piece('1-2', 790, 680, 15),
+      piece('3-5 min', 960, 680, 40), piece('Hack Squat', 1090, 680, 55),
+      piece('Choose a squat', 1280, 680, 70), piece('that suits you', 1280, 670, 65)
+    ];
+
+    expect(buildPageText([...headerItems, ...row])).toBe([
+      'Exercise | Warm-Up Sets | Working Sets | Set 1 RIR | Set 2 RIR | Rest | Substitutions | Notes',
+      'Squat (Your Choice) | N/A | 2 | 2-3 | 1-2 | 3-5 min | Hack Squat | Choose a squat',
+      'that suits you'
+    ].join('\n'));
+  });
+
+  it('reconstructs newer warm-up, working-set, RPE, technique, substitution, and note columns', () => {
+    const items = [
+      piece('Exercise', 100, 700, 45), piece('Warm-Up Sets', 200, 700, 55),
+      piece('Working Sets', 320, 700, 55), piece('Early Set RPE', 440, 700, 65),
+      piece('Last Set RPE', 570, 700, 60), piece('Last Set Techniques', 690, 700, 85),
+      piece('Substitutions', 840, 700, 60), piece('Notes', 930, 700, 30),
+      piece('Incline DB Press', 100, 680, 75), piece('2', 200, 680, 8),
+      piece('3', 320, 680, 8), piece('7-8', 440, 680, 15), piece('9', 570, 680, 8),
+      piece('Drop set', 690, 680, 40), piece('Machine Press', 840, 680, 65), piece('Controlled', 930, 680, 45)
+    ];
+
+    expect(buildPageText(items)).toBe([
+      'Exercise | Warm-Up Sets | Working Sets | Early Set RPE | Last Set RPE | Last Set Techniques | Substitutions | Notes',
+      'Incline DB Press | 2 | 3 | 7-8 | 9 | Drop set | Machine Press | Controlled'
+    ].join('\n'));
+  });
+
+  it('keeps header words split by pdf.js in the same aligned column label', () => {
+    const text = buildPageText([
+      piece('Exercise', 100, 700, 45), piece('Early', 200, 700, 25), piece('Set', 228, 700, 15),
+      piece('RPE', 246, 700, 18), piece('Last', 320, 700, 20), piece('Set', 343, 700, 15),
+      piece('RPE', 361, 700, 18), piece('Rest', 440, 700, 20),
+      piece('Bench Press', 100, 680, 50), piece('7-8', 200, 680, 15),
+      piece('9', 320, 680, 8), piece('2 min', 440, 680, 25)
+    ]);
+
+    expect(text).toBe([
+      'Exercise | Early Set RPE | Last Set RPE | Rest',
+      'Bench Press | 7-8 | 9 | 2 min'
+    ].join('\n'));
+  });
+
+  it('refreshes columns for repeated legacy headers and preserves several workouts on one page', () => {
+    const items = [
+      piece('Exercise', 100, 700, 40), piece('Sets', 200, 700, 20), piece('Reps', 270, 700, 20),
+      piece('RPE/%1RM', 340, 700, 45), piece('Rest', 450, 700, 20), piece('LSRPE', 520, 700, 30),
+      piece('Front Squat', 100, 680, 50), piece('4', 200, 680, 8), piece('6/6', 270, 680, 15),
+      piece('75% 1RM', 340, 680, 40), piece('3 min', 450, 680, 25), piece('8', 520, 680, 8),
+      piece('Exercise', 100, 640, 40), piece('Sets', 200, 640, 20), piece('Reps', 270, 640, 20),
+      piece('RPE/%1RM', 340, 640, 45), piece('Rest', 450, 640, 20), piece('LSRPE', 520, 640, 30),
+      piece('Romanian Deadlift', 100, 620, 80), piece('3', 200, 620, 8), piece('10/10', 270, 620, 25),
+      piece('RPE 8', 340, 620, 30), piece('2 min', 450, 620, 25), piece('9', 520, 620, 8)
+    ];
+
+    const lines = buildPageText(items).split('\n');
+    expect(lines).toHaveLength(4);
+    expect(lines[1]).toBe('Front Squat | 4 | 6/6 | 75% 1RM | 3 min | 8');
+    expect(lines[3]).toBe('Romanian Deadlift | 3 | 10/10 | RPE 8 | 2 min | 9');
+  });
+
+  it('normalizes quarter-turned landscape text into reading order', () => {
+    const text = buildPageText([
+      rotatedPiece('Sets', 180, 700, 20), rotatedPiece('Exercise', 100, 700, 40),
+      rotatedPiece('3', 180, 680, 8), rotatedPiece('Bench Press', 100, 680, 50)
+    ]);
+    expect(text).toBe('Exercise | Sets\nBench Press | 3');
+  });
+
+  it('places vertical day labels at the leading edge of their workout table', () => {
+    const verticalDay = { str: 'Day 1', transform: [0, 1, -1, 0, 90, 90], width: 35, height: 10 };
+    const text = buildPageText([
+      verticalDay,
+      piece('Exercise', 120, 120, 40), piece('Sets', 300, 120, 20), piece('Reps', 400, 120, 20),
+      piece('Bench Press', 120, 100, 50), piece('3', 300, 100, 8), piece('8-10', 400, 100, 20)
+    ]);
+    expect(text.split('\n')[0]).toBe('Day 1');
+    expect(text).toContain('Bench Press');
+  });
+
+  it('stops applying table columns after a large vertical gap below the table', () => {
+    const headers = [
+      ['Exercise', 100, 50], ['Warm-Up Sets', 260, 70], ['Working Sets', 440, 70],
+      ['Set 1 RIR', 620, 55], ['Set 2 RIR', 790, 55], ['Rest', 960, 30],
+      ['Substitutions', 1090, 70], ['Notes', 1280, 35]
+    ] as const;
+    const text = buildPageText([
+      ...headers.map(([label, x, width]) => piece(label, x, 700, width)),
+      piece('Squat', 100, 680, 35), piece('N/A', 260, 680, 20), piece('2', 440, 680, 8),
+      piece('2-3', 620, 680, 15), piece('1-2', 790, 680, 15), piece('3-5 min', 960, 680, 40),
+      piece('Hack Squat', 1090, 680, 55), piece('Choose a squat', 1280, 680, 70),
+      piece('Source note', 100, 600, 55), piece('continues', 1280, 600, 45)
+    ]);
+
+    expect(text.split('\n').at(-1)).toBe('Source note | continues');
+  });
+});
+
+describe('extractPdfText failures and cancellation', () => {
+  it('surfaces unknown page extraction failures instead of reporting an image-only page', async () => {
+    const document = {
+      numPages: 1,
+      getPage: vi.fn().mockRejectedValue(new Error('unexpected parser failure')),
+      destroy: vi.fn().mockResolvedValue(undefined)
+    };
+    loadDocument(document);
+
+    await expect(extractPdfText(pdfFile())).rejects.toThrow('Page 1 could not be read');
+    expect(document.destroy).toHaveBeenCalledOnce();
+  });
+
+  it('translates password-protected PDFs into an actionable message', async () => {
+    const loadingTaskDestroy = vi.fn().mockResolvedValue(undefined);
+    const passwordError = Object.assign(new Error('password required'), { name: 'PasswordException' });
+    const promise = Promise.reject(passwordError);
+    void promise.catch(() => undefined);
+    pdfjsMock.getDocument.mockReturnValue({ promise, destroy: loadingTaskDestroy });
+
+    await expect(extractPdfText(pdfFile())).rejects.toThrow('password-protected');
+    expect(loadingTaskDestroy).toHaveBeenCalledOnce();
+  });
+
+  it('translates memory failures while reading a page into an actionable message', async () => {
+    const document = {
+      numPages: 1,
+      getPage: vi.fn().mockRejectedValue(new RangeError('Invalid array length')),
+      destroy: vi.fn().mockResolvedValue(undefined)
+    };
+    loadDocument(document);
+
+    await expect(extractPdfText(pdfFile())).rejects.toThrow('browser ran out of room');
+    expect(document.destroy).toHaveBeenCalledOnce();
+  });
+
+  it('cancels between pages and destroys the active document', async () => {
+    const document = {
+      numPages: 2,
+      getPage: vi.fn(),
+      destroy: vi.fn().mockResolvedValue(undefined)
+    };
+    loadDocument(document);
+    const controller = new AbortController();
+
+    await expect(extractPdfText(pdfFile(), page => {
+      if (page === 1) controller.abort();
+    }, controller.signal)).rejects.toThrow('PDF import cancelled');
+    expect(document.getPage).not.toHaveBeenCalled();
+    expect(document.destroy).toHaveBeenCalledOnce();
   });
 });

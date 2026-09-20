@@ -28,7 +28,7 @@ const chunks = [
         {
           sequenceGroup: 'A2', sourceName: 'Mystery machine row', exerciseId: null, warmupSets: null, substitutions: [],
           coachingNotes: 'Keep the chest supported.', notes: 'Not named in the library.',
-          sets: [{ repMin: 12, repMax: 12, repsText: 'AMRAP', targetRpe: 7, rir: '3', restSeconds: 90, restText: '90 sec', tempo: null, loadText: null, notes: null, repsSource: 'extracted', rpeSource: 'extracted', restSource: 'inferred' }]
+          sets: [{ repMin: 12, repMax: 12, repsText: 'AMRAP', targetRpe: null, rir: null, restSeconds: 90, restText: '90 sec', tempo: null, loadText: '70–75% 1RM', notes: null, repsSource: 'extracted', rpeSource: 'inferred', restSource: 'inferred' }]
         }
       ]
     }]

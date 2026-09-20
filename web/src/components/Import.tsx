@@ -160,6 +160,7 @@ export function ImportReview({ exercises, imports, remaining, onBack, onChanged,
         onChange={e => { const chosen = e.target.files?.[0]; e.target.value = ''; if (chosen) void pipeline.upload(chosen); }} />
       <div className="upload-action-row">
         <Button variant="primary" disabled={busy} onClick={() => file.current?.click()}><Upload size={17} />Choose a PDF</Button>
+        {pipeline.progress?.label === 'Reading the PDF on this device' && <Button variant="secondary" onClick={pipeline.cancelUpload}>Cancel PDF reading</Button>}
       </div>
       {pipeline.progress && <Progress progress={pipeline.progress} />}
       {saver.pending && <p className="muted" role="status">Saving your changes…</p>}

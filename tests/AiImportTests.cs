@@ -41,8 +41,9 @@ public class AiImportTests
 
     private const string AlternativesOutline = """
     {"programTitle":"Choices","chunks":[],"alternatives":[
-      {"id":"alpha","name":"Alpha","chunks":[{"label":"Alpha week 1","block":"Alpha","phase":"Base","weekFrom":1,"weekTo":1,"pageFrom":1,"pageTo":2,"dayCount":1}]},
-      {"id":"beta","name":"Beta","chunks":[{"label":"Beta week 1","block":"Beta","phase":"Base","weekFrom":1,"weekTo":1,"pageFrom":1,"pageTo":2,"dayCount":1}]}
+      {"id":"full-body","name":"Full Body","chunks":[{"label":"Full Body week 1","block":"Full Body","phase":"Base","weekFrom":1,"weekTo":1,"pageFrom":1,"pageTo":2,"dayCount":1}]},
+      {"id":"upper-lower","name":"Upper/Lower","chunks":[{"label":"Upper/Lower week 1","block":"Upper/Lower","phase":"Base","weekFrom":1,"weekTo":1,"pageFrom":1,"pageTo":2,"dayCount":1}]},
+      {"id":"body-part","name":"Body Part Split","chunks":[{"label":"Body Part Split week 1","block":"Body Part Split","phase":"Base","weekFrom":1,"weekTo":1,"pageFrom":1,"pageTo":2,"dayCount":1}]}
     ]}
     """;
 
@@ -417,8 +418,10 @@ public class AiImportTests
         var imports = h.Imports(stub);
         var pending = await imports.Create(Source("choices.pdf"), default);
         Assert.Equal("select", pending.Stage);
-        Assert.Equal(2, pending.Alternatives!.Count);
-        var selected = await imports.SelectAlternative(pending.Id, "alpha", default);
+        Assert.Equal(["Full Body", "Upper/Lower", "Body Part Split"], pending.Alternatives!.Select(option => option.Name));
+        var selected = await imports.SelectAlternative(pending.Id, "upper-lower", default);
+        Assert.Equal("upper-lower", selected.SelectedAlternativeId);
+        Assert.Equal(1, selected.ChunksTotal);
         Assert.Equal("extract", selected.Stage);
         var ready = await imports.Extract(selected.Id, default);
         Assert.Equal(ImportStatus.Ready, ready.Status);

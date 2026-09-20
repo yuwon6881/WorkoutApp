@@ -207,6 +207,28 @@ test('import a PDF program, resolve an unmapped exercise, and accept it', async 
   // Opening it is for editing, and the rep range from the PDF is preserved as explicit bounds.
   await expect(page.getByLabel('Min reps').first()).toHaveValue('8');
   await expect(page.getByLabel('Max reps').first()).toHaveValue('10');
+  const mysteryExercise = page.locator('.import-exercise').filter({
+    has: page.locator('input[aria-label="Exercise name"][value="Mystery machine row"]')
+  });
+  // The compact and expanded set editors coexist for responsive layout; only one is visible.
+  const sourceReps = mysteryExercise.locator('input[aria-label="Source reps (verbatim) for Mystery machine row set 1"]:visible');
+  const sourceLoad = mysteryExercise.locator('input[aria-label="Source load for Mystery machine row set 1"]:visible');
+  await expect(sourceReps).toHaveValue('AMRAP');
+  await expect(sourceLoad).toHaveValue('70–75% 1RM');
+  // The verbatim AMRAP text is source evidence, but its required numeric bounds are inferred.
+  await expect(mysteryExercise.locator('.provenance.inferred').first()).toContainText('Bounds inferred');
+  await expect(mysteryExercise.getByRole('note')).toContainText('does not specify RPE');
+  await expect(mysteryExercise.getByRole('button', { name: 'Target RPE for Mystery machine row set 1', exact: true })).toContainText('Choose RPE');
+
+  await sourceReps.focus();
+  await page.keyboard.press('Tab');
+  await expect(sourceLoad).toBeFocused();
+  await sourceReps.fill('12/12');
+  await sourceLoad.fill('75% 1RM');
+  await expect(sourceReps).toHaveValue('12/12');
+  await expect(sourceLoad).toHaveValue('75% 1RM');
+  await expect(mysteryExercise.locator('.provenance.userEdited').first()).toContainText('Edited');
+  await expect(mysteryExercise.getByRole('note')).toContainText('75% 1RM');
 
   if (testInfo.project.name === 'mobile') {
     const swipeRow = page.locator('.swipeable-row-mobile.import-set-swipe-row').first();
@@ -300,6 +322,27 @@ test('import a PDF program, resolve an unmapped exercise, and accept it', async 
     return view.draft?.workouts.flatMap((day: { exercises: { lineId: string; sourceName: string }[] }) => day.exercises)
       .find((exercise: { lineId: string }) => exercise.lineId === lineId)?.sourceName ?? '';
   }, substitutionLineId), { timeout: 20000 }).toBe('DB Incline Press');
+
+  await restoreDraft.click();
+  const restoreDialog = page.getByRole('dialog', { name: 'Restore default draft', exact: true });
+  await expect(restoreDialog).toBeVisible();
+  await restoreDialog.getByRole('button', { name: 'Restore default draft', exact: true }).click();
+  await expect(restoreDialog).toBeHidden({ timeout: 30000 });
+  const restoredMystery = page.locator('.import-exercise').filter({
+    has: page.locator('input[aria-label="Exercise name"][value="Mystery machine row"]')
+  });
+  await expect(restoredMystery.locator('input[aria-label="Source reps (verbatim) for Mystery machine row set 1"]:visible').first()).toHaveValue('AMRAP');
+  await expect(restoredMystery.locator('input[aria-label="Source load for Mystery machine row set 1"]:visible').first()).toHaveValue('70–75% 1RM');
+
+  // Whole-draft restore also removes the earlier mapping/name edits; make the row resolvable again.
+  const restoredMapping = page.getByRole('button', { name: 'Library exercise for Mystery machine row', exact: true });
+  await restoredMapping.click();
+  const restoredPicker = page.getByRole('dialog', { name: 'Choose a library exercise for Mystery machine row', exact: true });
+  await restoredPicker.getByRole('textbox', { name: 'Search exercises', exact: true }).fill('bench press');
+  await restoredPicker.getByRole('button', { name: 'Map Barbell bench press', exact: true }).click();
+  await expect(accept).toBeEnabled({ timeout: 30000 });
+  await page.getByLabel('Program name').fill(programName);
+  await page.getByLabel('Program name').blur();
 
   await accept.click();
   await expect(page.getByRole('heading', { name: 'Workouts', exact: true })).toBeVisible({ timeout: 30000 });
