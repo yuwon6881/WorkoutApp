@@ -91,6 +91,10 @@ public sealed class WorkoutAi(HttpClient http, IConfiguration config)
         try { program = Json.Read<AiProgram>(JsonSerializer.Serialize(result.Payload, Json.Options)); }
         catch (JsonException) { throw new DomainException("AI returned a chunk this app could not read. Try again.", 422); }
         WorkoutAiValidation.Validate(program, section: true);
+        // The coordinate-preserving text contains authoritative numeric table cells. Recovering
+        // those values here closes the gap where a model omitted a second RIR column or working
+        // set count even though the source page stated it explicitly.
+        program = ImportTableEvidence.Enrich(program, chunkText);
         return new AiImportResult(program, result.Model, result.InputTokens, result.OutputTokens, result.CachedInputTokens);
     }
 

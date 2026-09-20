@@ -12,7 +12,8 @@ public record DraftSet(
 
 public record DraftExercise(
     Guid LineId, string SourceName, Guid? ExerciseId, string? Notes, List<DraftSet> Sets,
-    string SequenceGroup = "", List<string>? Substitutions = null, int? SourcePage = null);
+    string SequenceGroup = "", List<string>? Substitutions = null, int? SourcePage = null,
+    Guid? SlotKey = null);
 
 public record DraftWorkout(
     Guid LineId, int Week, string Name, string? Focus, string? Notes, List<DraftExercise> Exercises,
@@ -21,7 +22,9 @@ public record DraftWorkout(
 
 public record ImportDraft(string ProgramName, List<DraftWorkout> Workouts);
 public record ImportMetadata(string ProgramName);
-public record UnresolvedExercise(Guid LineId, string SourceName);
+/// One unresolved recurring slot, represented once even when the source repeats it in every week.
+public record UnresolvedExercise(Guid LineId, string SourceName, Guid? SlotKey = null,
+    string? Block = null, int Occurrences = 1);
 public record ImportReviewIssue(
     string Code,
     string Message,
@@ -33,6 +36,7 @@ public record ImportReviewIssue(
     string? TargetField = null);
 public record ImportAlternative(string Id, string Name, int ChunkCount, int DayCount, List<ImportChunk>? Chunks = null);
 public record ImportRestoreInput(int? Revision = null);
+public record ImportSlotMappingInput(Guid ExerciseLineId, Guid? ReplacementExerciseId, int? Revision = null);
 
 public record ImportView(
     Guid Id, string Status, string FileName, int Pages, string Error, DateTime Created, string Model,

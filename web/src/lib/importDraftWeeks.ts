@@ -124,9 +124,10 @@ export function blockIndex(weeks: Week[], index: number): number {
   let result = 0;
   let previous = '';
   for (let current = 0; current <= index; current++) {
-    if (weeks[current].block !== previous) {
+    const block = weeks[current].block.trim().toLowerCase();
+    if (block !== previous) {
       result++;
-      previous = weeks[current].block;
+      previous = block;
     }
   }
   return result;

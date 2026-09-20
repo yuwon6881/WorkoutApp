@@ -91,6 +91,8 @@ public static class ImportEndpoints
             => await imports.RestoreDraft(id, input?.Revision, ct));
         app.MapPost("/api/imports/{id:guid}/exercises/{exerciseLineId:guid}/restore", async (Guid id, Guid exerciseLineId, ImportRestoreInput? input, ImportService imports, CancellationToken ct)
             => await imports.RestoreExercise(id, exerciseLineId, input?.Revision, ct));
+        app.MapPost("/api/imports/{id:guid}/exercises/{exerciseLineId:guid}/mapping", async (Guid id, Guid exerciseLineId, ImportSlotMappingInput? input, ImportService imports, CancellationToken ct)
+            => await imports.MapSlot(id, exerciseLineId, input?.ReplacementExerciseId, input?.Revision, ct));
         app.MapPost("/api/imports/{id:guid}/alternative", async (Guid id, ImportAlternativeInput input, ImportService imports, CancellationToken ct)
             => await imports.SelectAlternative(id, input.AlternativeId, ct));
         app.MapPost("/api/imports/{id:guid}/accept", async (Guid id, ImportService imports, CancellationToken ct) =>

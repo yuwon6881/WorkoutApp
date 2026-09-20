@@ -36,6 +36,7 @@ export const DraftOutline = forwardRef<DraftOutlineHandle, {
   exercises: Exercise[];
   onDayChange: (day: DraftWorkout) => Promise<void>;
   onDraftChange: (draft: ImportDraft) => Promise<void>;
+  onMapExerciseSlot?: (exerciseLineId: string, exerciseId: string | null) => Promise<void>;
   restorableExerciseLineIds?: string[];
   onRestoreExercise?: (exerciseLineId: string) => Promise<void>;
   canRestoreDraft?: boolean;
@@ -51,6 +52,7 @@ export const DraftOutline = forwardRef<DraftOutlineHandle, {
   exercises,
   onDayChange,
   onDraftChange,
+  onMapExerciseSlot,
   restorableExerciseLineIds,
   onRestoreExercise,
   canRestoreDraft,
@@ -116,7 +118,7 @@ export const DraftOutline = forwardRef<DraftOutlineHandle, {
     for (let i = 0; i < weeks.length; i++) {
       const w = weeks[i];
       const num = blockIndex(weeks, i);
-      let b = list.find(item => item.name === w.block);
+      let b = list.find(item => item.name.trim().toLowerCase() === w.block.trim().toLowerCase());
       if (!b) {
         b = { name: w.block, number: num, weeks: [] };
         list.push(b);
@@ -189,7 +191,7 @@ export const DraftOutline = forwardRef<DraftOutlineHandle, {
     setWeekModalOpen(false);
     if (!weeks.length) return;
 
-    const targetBlockWeeks = weeks.filter(w => w.block === week.block);
+    const targetBlockWeeks = weeks.filter(w => w.block.trim().toLowerCase() === week.block.trim().toLowerCase());
     const sourceWeek = mode === 'duplicate-current'
       ? week
       : (targetBlockWeeks.at(-1) ?? week);
@@ -239,15 +241,21 @@ export const DraftOutline = forwardRef<DraftOutlineHandle, {
     const replacementLibraryExercise = exercises.find(
       e => e.name.toLowerCase() === replacementName.toLowerCase() || e.aliases.some(a => a.toLowerCase() === replacementName.toLowerCase())
     );
+    const target = exerciseLineId
+      ? draft.workouts.flatMap(workout => workout.exercises.map(exercise => ({ workout, exercise }))).find(item => item.exercise.lineId === exerciseLineId)
+      : undefined;
+    const targetSlot = target?.exercise.slotKey;
+    const targetBlock = (target?.workout.block || week.block || 'Program').trim().toLowerCase();
     const updatedWorkouts = draft.workouts.map(workout => {
-      const inSameBlock = (workout.block || 'Program') === (week.block || 'Program');
-      const inSamePhase = !week.phases.length || week.phases.includes(workout.phase ?? '');
-      if (!inSameBlock || !inSamePhase || workout.week < week.week) return workout;
+      const inSameBlock = (workout.block || 'Program').trim().toLowerCase() === targetBlock;
+      if (!inSameBlock) return workout;
 
       const updatedExercises = workout.exercises.map(ex => {
-        const matches = (exerciseLineId && ex.lineId === exerciseLineId)
-          || ex.sourceName.toLowerCase() === currentName.toLowerCase()
-          || (ex.exerciseId && exercises.find(e => e.id === ex.exerciseId)?.name.toLowerCase() === currentName.toLowerCase());
+        const matches = targetSlot
+          ? ex.slotKey === targetSlot
+          : (exerciseLineId && ex.lineId === exerciseLineId)
+            || ex.sourceName.toLowerCase() === currentName.toLowerCase()
+            || (ex.exerciseId && exercises.find(e => e.id === ex.exerciseId)?.name.toLowerCase() === currentName.toLowerCase());
         if (matches) {
           const nextSubs = [ex.sourceName, ...ex.substitutions.filter(s => s.toLowerCase() !== replacementName.toLowerCase())].slice(0, 2);
           return {
@@ -278,7 +286,7 @@ export const DraftOutline = forwardRef<DraftOutlineHandle, {
       </div>
       <div className="import-program-actions">
         {canRestoreDraft && onRestoreDraft && (
-          <Button variant="tertiary" disabled={busy} onClick={onRestoreDraft}>
+          <Button variant="tertiary" disabled={busy && !canRestoreDraft} onClick={onRestoreDraft}>
             <RotateCcw size={15} />Restore default draft
           </Button>
         )}
@@ -343,6 +351,7 @@ export const DraftOutline = forwardRef<DraftOutlineHandle, {
       {week.days.map(day => <DayRow key={day.lineId} day={day} expanded={expandedDay === day.lineId}
         onToggle={() => setExpandedDay(expandedDay === day.lineId ? null : day.lineId)} exercises={exercises} onChange={onDayChange}
         onPropagateSubstitution={propagateSubstitution}
+        onMapExerciseSlot={onMapExerciseSlot}
         restorableExerciseLineIds={restorableExerciseLineIds}
         onRestoreExercise={onRestoreExercise} />)}
     </div>

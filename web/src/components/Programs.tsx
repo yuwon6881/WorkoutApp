@@ -159,7 +159,10 @@ function ProgramCard({ program, exercises, onStart, onChanged }: { program: Prog
         {swapTarget.template.isLegacyBaseline && <p className="muted small-copy">Restores to current saved version (earlier history unavailable)</p>}
         {program.phases?.some(phase => phase.id === swapTarget.template.phaseId || (phase.name === swapTarget.template.phase && phase.block === swapTarget.template.block)) && <label className="field">Apply to<Select name="swap-scope-select" value={swapScope} onChange={val => { setSwapScope(val as 'slot' | 'phase'); setConfirmPhaseSwap(false); }} ariaLabel="Apply swap scope" options={[{ value: 'slot', label: 'This workout only' }, { value: 'phase', label: 'Remaining workouts in this phase' }]} /></label>}
         {swapScope === 'phase' && <><div className="preview-card"><strong>Preview</strong><p>{detail?.filter(item => (item.phaseId === swapTarget.template.phaseId || (item.phase === swapTarget.template.phase && item.block === swapTarget.template.block)) && !program.completedTemplateIds.includes(item.id) && !(program.skippedTemplateIds ?? []).includes(item.id)).map(item => item.name).join(', ') || 'No remaining workouts in this phase.'}</p></div><label className="checkbox-row"><input id="confirm-phase-swap" name="confirm-phase-swap" type="checkbox" checked={confirmPhaseSwap} onChange={event => setConfirmPhaseSwap(event.target.checked)} />Apply this replacement to the previewed remaining workouts only.</label></>}
-        <ExerciseLibrary action="swap" exercises={exercises} exclude={[]} onSelect={id => setSwapChoice(exercises.find(item => item.id === id) ?? null)} />
+        <ExerciseLibrary action="swap" exercises={exercises} exclude={[]}
+          currentExerciseId={swapTarget.exercise.exerciseId}
+          preferredNames={swapTarget.exercise.substitutions}
+          onSelect={id => setSwapChoice(exercises.find(item => item.id === id) ?? null)} />
         {swapChoice && <p className="source">Selected replacement: <strong>{swapChoice.name}</strong></p>}
       </div>
       <div className="modal-actions">

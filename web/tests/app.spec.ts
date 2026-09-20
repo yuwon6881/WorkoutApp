@@ -249,10 +249,39 @@ test('import a PDF program, resolve an unmapped exercise, and accept it', async 
   await picker.getByRole('button', { name: 'Map Barbell bench press', exact: true }).click();
   await expect(accept).toBeEnabled({ timeout: 30000 });
 
-  // Rename the draft so each viewport's accepted program is its own, and to prove the edit sticks.
+  // Hold a normal draft save while substituting a mapped exercise. The substitution must be
+  // serialized behind that save and stay selected after the older response arrives.
+  let signalFirstDraftWrite!: () => void;
+  const firstDraftWrite = new Promise<void>(resolve => { signalFirstDraftWrite = resolve; });
+  let delayedFirstDraftWrite = false;
+  await page.route('**/api/imports/**', async route => {
+    const pathname = new URL(route.request().url()).pathname;
+    if (!delayedFirstDraftWrite && route.request().method() === 'PUT' && /^\/api\/imports\/[^/]+$/.test(pathname)) {
+      delayedFirstDraftWrite = true;
+      signalFirstDraftWrite();
+      await new Promise(resolve => setTimeout(resolve, 1500));
+    }
+    await route.continue();
+  });
+
   const programName = `Imported block ${testInfo.project.name} ${Date.now()}`;
   await page.getByLabel('Program name').fill(programName);
   await page.getByLabel('Program name').blur();
+  await firstDraftWrite;
+  const restoreDraft = page.getByRole('button', { name: 'Restore default draft', exact: true });
+  await expect(restoreDraft).toBeVisible();
+  await expect(restoreDraft).toBeEnabled();
+
+  const substitutionCard = page.locator('.import-exercise').filter({
+    has: page.locator('.substitution-chip').filter({ hasText: 'DB Incline Press' })
+  }).first();
+  const substitutionLineId = await substitutionCard.getAttribute('data-import-exercise');
+  expect(substitutionLineId).toBeTruthy();
+  const substitutedExercise = page.locator(`[data-import-exercise="${substitutionLineId}"]`);
+  await substitutionCard.locator('.substitution-chip').filter({ hasText: 'DB Incline Press' }).click();
+  await expect(substitutedExercise.getByRole('textbox', { name: 'Exercise name' })).toHaveValue('DB Incline Press');
+  await page.waitForTimeout(2000);
+  await expect(substitutedExercise.getByRole('textbox', { name: 'Exercise name' })).toHaveValue('DB Incline Press');
   await expect.poll(async () => page.evaluate(async () => {
     const response = await fetch('/api/imports', { headers: { 'X-Workout-Request': '1' }, cache: 'no-store' });
     const rows = await response.json();
@@ -261,6 +290,16 @@ test('import a PDF program, resolve an unmapped exercise, and accept it', async 
     const full = await fetch(`/api/imports/${(row as { id: string }).id}`, { headers: { 'X-Workout-Request': '1' }, cache: 'no-store' });
     return (await full.json()).draft?.programName ?? '';
   }), { timeout: 20000 }).toBe(programName);
+  await expect.poll(async () => page.evaluate(async lineId => {
+    const response = await fetch('/api/imports', { headers: { 'X-Workout-Request': '1' }, cache: 'no-store' });
+    const rows = await response.json();
+    const row = rows.find((item: { status: string }) => item.status === 'ready');
+    if (!row) return '';
+    const full = await fetch(`/api/imports/${row.id}`, { headers: { 'X-Workout-Request': '1' }, cache: 'no-store' });
+    const view = await full.json();
+    return view.draft?.workouts.flatMap((day: { exercises: { lineId: string; sourceName: string }[] }) => day.exercises)
+      .find((exercise: { lineId: string }) => exercise.lineId === lineId)?.sourceName ?? '';
+  }, substitutionLineId), { timeout: 20000 }).toBe('DB Incline Press');
 
   await accept.click();
   await expect(page.getByRole('heading', { name: 'Workouts', exact: true })).toBeVisible({ timeout: 30000 });

@@ -54,6 +54,7 @@ public sealed class AppDb(DbContextOptions<AppDb> options) : DbContext(options)
         m.Entity<Exercise>().Property(x => x.Name).HasMaxLength(160);
         m.Entity<Exercise>().Property(x => x.LoadStepKg).HasDefaultValue(2.5);
         m.Entity<Exercise>().Property(x => x.LoadModel).HasDefaultValue("external");
+        m.Entity<Exercise>().Property(x => x.SecondaryMusclesJson).HasDefaultValue("[]");
         m.Entity<Exercise>().Property(x => x.MovementPattern).HasDefaultValue("");
         m.Entity<Exercise>().ToTable("Exercises", t =>
         {
@@ -64,6 +65,7 @@ public sealed class AppDb(DbContextOptions<AppDb> options) : DbContext(options)
         m.Entity<CustomExercise>().Property(x => x.Name).HasMaxLength(160);
         m.Entity<CustomExercise>().Property(x => x.LoadStepKg).HasDefaultValue(2.5);
         m.Entity<CustomExercise>().Property(x => x.LoadModel).HasDefaultValue("external");
+        m.Entity<CustomExercise>().Property(x => x.SecondaryMusclesJson).HasDefaultValue("[]");
         m.Entity<CustomExercise>().ToTable("CustomExercises", t =>
         {
             t.HasCheckConstraint("CK_CustomExercises_LoadStep", "\"LoadStepKg\" >= 0 AND \"LoadStepKg\" <= 50");

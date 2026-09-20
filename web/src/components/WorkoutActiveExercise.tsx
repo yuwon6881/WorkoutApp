@@ -388,6 +388,8 @@ export function WorkoutActiveExercise({
             <ExerciseLibrary
               exercises={exercises}
               action="swap"
+              currentExerciseId={exercise.exerciseId}
+              preferredNames={exercise.substitutions}
               onSelect={id => {
                 const chosen = exercises.find(item => item.id === id);
                 if (chosen)

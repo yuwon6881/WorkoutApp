@@ -147,7 +147,7 @@ public sealed partial class ImportService
             // reconciliation; it simply has no chunk to attribute a notice to.
             var shaped = ReconcileDayShape(draft.Workouts);
             var cited = ImportDayShape.ReconcilePages(draft with { Workouts = shaped.Workouts }, import.Pages);
-            draft = cited.Draft;
+            draft = ImportValidation.NormalizeDraft(cited.Draft);
             List<ImportReviewIssue> outlineNotices = [.. shaped.Notices, .. cited.Notices];
             if (outlineNotices.Count > 0) import.NoticesJson = Json.Write(outlineNotices.TakeLast(40).ToList());
             await ValidateDraft(draft, ct);

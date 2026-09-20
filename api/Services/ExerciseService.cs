@@ -5,10 +5,12 @@ using Workout.Api.Domain;
 namespace Workout.Api.Services;
 
 public record CustomExerciseInput(string Name, string? Muscle, string? Equipment, string? Cue,
-    double LoadStepKg = 2.5, string LoadModel = LoadModels.External, string? MovementPattern = null);
+    double LoadStepKg = 2.5, string LoadModel = LoadModels.External, string? MovementPattern = null,
+    List<string>? SecondaryMuscles = null);
 
 public record CustomExerciseView(Guid Id, string Name, string Muscle, string Equipment, string Cue,
-    double LoadStepKg, string LoadModel, string MovementPattern, bool Archived, DateTime CreatedAt);
+    double LoadStepKg, string LoadModel, string MovementPattern, bool Archived, DateTime CreatedAt,
+    List<string>? SecondaryMuscles = null);
 
 public record ExerciseMetricPoint(DateOnly Date, Guid SessionId, string SessionName,
     double? Estimated1RmKg, double? LoadKg, double? VolumeKg, int? Reps, bool Partial);
@@ -43,6 +45,8 @@ public sealed class ExerciseService(AppDb db)
         Validation.Text(input.Equipment, 80, "Equipment");
         Validation.Text(input.Cue, 1000, "Instructions");
         Validation.Text(input.MovementPattern, 80, "Movement pattern");
+        Validation.Require((input.SecondaryMuscles ?? []).Count <= 8, "An exercise can have at most 8 secondary muscle groups.");
+        foreach (var secondary in input.SecondaryMuscles ?? []) Validation.Text(secondary, 80, "Secondary muscle");
         Validation.Require(LoadModels.All.Contains(input.LoadModel), "Choose a valid load model.");
         Validation.Number(input.LoadStepKg, 0, 50, "Load increment");
         await using var gate = await MutationLock.Acquire(db, db.CurrentUser, ct);
@@ -57,7 +61,8 @@ public sealed class ExerciseService(AppDb db)
         {
             UserId = db.CurrentUser!.Value, Name = input.Name.Trim(), Muscle = input.Muscle?.Trim() ?? "",
             Equipment = input.Equipment?.Trim() ?? "", Cue = input.Cue?.Trim() ?? "", LoadStepKg = input.LoadStepKg,
-            LoadModel = input.LoadModel, MovementPattern = input.MovementPattern?.Trim() ?? ""
+            LoadModel = input.LoadModel, MovementPattern = input.MovementPattern?.Trim() ?? "",
+            SecondaryMusclesJson = Json.Write(CatalogService.NormalizeMuscles(input.Muscle, input.SecondaryMuscles))
         };
         db.CustomExercises.Add(row);
         await db.SaveChangesAsync(ct);
@@ -207,5 +212,6 @@ public sealed class ExerciseService(AppDb db)
         => loadModel == LoadModels.FullBodyweight ? set.SystemLoadKg : set.WeightKg;
 
     private static CustomExerciseView View(CustomExercise row)
-        => new(row.Id, row.Name, row.Muscle, row.Equipment, row.Cue, row.LoadStepKg, row.LoadModel, row.MovementPattern, row.Archived, row.CreatedAt);
+        => new(row.Id, row.Name, row.Muscle, row.Equipment, row.Cue, row.LoadStepKg, row.LoadModel, row.MovementPattern, row.Archived, row.CreatedAt,
+            CatalogService.NormalizeMuscles(row.Muscle, string.IsNullOrWhiteSpace(row.SecondaryMusclesJson) ? [] : Json.Read<List<string>>(row.SecondaryMusclesJson)));
 }

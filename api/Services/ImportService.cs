@@ -40,13 +40,52 @@ public sealed partial class ImportService(AppDb db, WorkoutAi ai, CatalogService
             import.SourceExpiresAt, import.UnresolvedCount);
     }
 
+    public async Task<ImportView> MapSlot(Guid id, Guid exerciseLineId, Guid? replacementExerciseId, int? revision, CancellationToken ct)
+    {
+        await using var gate = await MutationLock.Acquire(db, db.CurrentUser, ct);
+        var import = await db.Imports.SingleOrDefaultAsync(i => i.Id == id, ct);
+        Validation.Require(import != null, "That import no longer exists.", 404);
+        Validation.Require(import!.Status == ImportStatus.Ready, "This import is no longer editable.", 409);
+        TemplateService.RequireFresh(revision, import.Revision);
+        var draft = ImportValidation.NormalizeDraft(Json.Read<ImportDraft>(import.DraftJson));
+        var target = draft.Workouts.SelectMany(workout => workout.Exercises.Select((exercise, position) => (workout, exercise, position)))
+            .FirstOrDefault(item => item.exercise.LineId == exerciseLineId);
+        Validation.Require(target.exercise is not null, "That exercise slot no longer exists.", 404);
+        await catalog.RequireActive(replacementExerciseId, ct);
+        var slot = target.exercise!.SlotKey;
+        Validation.Require(slot is not null, "That exercise slot has no stable identity. Edit the draft and try again.", 409);
+        var targetBlock = ImportValidation.CanonicalBlock(target.workout.Block);
+        var targetSignature = ImportValidation.SlotSignature(target.workout, target.position);
+        var next = draft with
+        {
+            Workouts = draft.Workouts.Select(workout => workout with
+            {
+                Exercises = workout.Exercises.Select((exercise, position) =>
+                    ImportValidation.CanonicalBlock(workout.Block).Equals(targetBlock, StringComparison.OrdinalIgnoreCase) &&
+                    ImportValidation.SlotSignature(workout, position).Equals(targetSignature, StringComparison.Ordinal) &&
+                    exercise.SlotKey == slot
+                        ? exercise with
+                        {
+                            ExerciseId = replacementExerciseId,
+                            SlotKey = slot
+                        }
+                        : exercise).ToList()
+            }).ToList()
+        };
+        await ValidateDraft(next, ct);
+        import.DraftJson = Json.Write(next); import.Revision++; UpdateCounters(import, next);
+        await db.SaveChangesAsync(ct);
+        await gate.Commit(ct);
+        return await Get(id, ct);
+    }
+
     private async Task<ImportView> View(AiImport import, bool includeDraft, CancellationToken ct)
     {
         ImportDraft? draft = null;
         var unresolved = new List<UnresolvedExercise>();
         if (includeDraft && !string.IsNullOrEmpty(import.DraftJson))
         {
-            draft = Json.Read<ImportDraft>(import.DraftJson);
+            draft = ImportValidation.NormalizeDraft(Json.Read<ImportDraft>(import.DraftJson));
             unresolved = Unresolved(draft);
         }
         var chunks = ReadChunks(import.OutlineJson);
@@ -282,7 +321,7 @@ public sealed partial class ImportService(AppDb db, WorkoutAi ai, CatalogService
         TemplateService.RequireFresh(revision, import.Revision);
         if (string.IsNullOrEmpty(import.DraftBaselineJson)) import.DraftBaselineJson = import.DraftJson;
         var (normalizedWorkouts, _) = ImportValidation.NormalizePhaseWeeks(draft.Workouts);
-        var normalizedDraft = draft with { Workouts = normalizedWorkouts };
+        var normalizedDraft = ImportValidation.NormalizeDraft(draft with { Workouts = normalizedWorkouts });
         await ValidateDraft(normalizedDraft, ct);
         import.DraftJson = Json.Write(normalizedDraft); import.Revision++; UpdateCounters(import, normalizedDraft);
         await db.SaveChangesAsync(ct);
@@ -309,7 +348,7 @@ public sealed partial class ImportService(AppDb db, WorkoutAi ai, CatalogService
         Validation.Require(import!.Status == ImportStatus.Ready, "This import is no longer editable.", 409);
         TemplateService.RequireFresh(revision, import.Revision);
         if (string.IsNullOrEmpty(import.DraftBaselineJson)) import.DraftBaselineJson = import.DraftJson;
-        var current = Json.Read<ImportDraft>(import.DraftJson);
+        var current = ImportValidation.NormalizeDraft(Json.Read<ImportDraft>(import.DraftJson));
         var next = current with { ProgramName = metadata.ProgramName };
         Validation.Name(next.ProgramName, "Program name");
         import.DraftJson = Json.Write(next); import.Revision++;
@@ -329,10 +368,10 @@ public sealed partial class ImportService(AppDb db, WorkoutAi ai, CatalogService
         Validation.Require(import!.Status == ImportStatus.Ready, "This import is no longer editable.", 409);
         TemplateService.RequireFresh(revision, import.Revision);
         if (string.IsNullOrEmpty(import.DraftBaselineJson)) import.DraftBaselineJson = import.DraftJson;
-        var draft = Json.Read<ImportDraft>(import.DraftJson);
+        var draft = ImportValidation.NormalizeDraft(Json.Read<ImportDraft>(import.DraftJson));
         Validation.Require(draft.Workouts.Any(w => w.LineId == lineId), "That day no longer exists.", 404);
         await ValidateWorkout(day, ct);
-        var next = draft with { Workouts = draft.Workouts.Select(w => w.LineId == lineId ? day : w).ToList() };
+        var next = ImportValidation.NormalizeDraft(draft with { Workouts = draft.Workouts.Select(w => w.LineId == lineId ? day : w).ToList() });
         import.DraftJson = Json.Write(next); import.Revision++; UpdateCounters(import, next);
         await db.SaveChangesAsync(ct);
         await gate.Commit(ct);
@@ -346,7 +385,7 @@ public sealed partial class ImportService(AppDb db, WorkoutAi ai, CatalogService
         var import = await db.Imports.SingleOrDefaultAsync(i => i.Id == id, ct);
         Validation.Require(import != null, "That import no longer exists.", 404);
         Validation.Require(import!.Status == ImportStatus.Ready, "This import has already been accepted or discarded.", 409);
-        var draft = Json.Read<ImportDraft>(import.DraftJson);
+        var draft = ImportValidation.NormalizeDraft(Json.Read<ImportDraft>(import.DraftJson));
         await ValidateDraft(draft, ct);
         ValidateDraftPages(draft, import.PageCoverageJson);
         var unresolved = Unresolved(draft);
@@ -357,7 +396,7 @@ public sealed partial class ImportService(AppDb db, WorkoutAi ai, CatalogService
         var input = new ProgramInput(draft.ProgramName,
             draft.Workouts.Select(w => new ProgramWorkoutInput(w.Week, w.Name, w.Focus, w.Notes,
                 w.Exercises.Select(e => new TemplateExerciseInput(e.ExerciseId, e.SourceName, e.Notes,
-                    e.Sets.Select(ToPrescription).ToList(), e.SequenceGroup, e.Substitutions, e.SourcePage)).ToList(),
+                    e.Sets.Select(ToPrescription).ToList(), e.SequenceGroup, e.Substitutions, e.SourcePage, e.SlotKey)).ToList(),
                 w.Block, w.Phase, w.PhaseWeek, w.IsRestDay, w.SourcePage)).ToList(), null);
         await programs.Validate(input, ct, allowMissingWorkingRpe: true);
         // Imported drafts always enter Standby. Even a completed PDF must be explicitly
@@ -418,50 +457,4 @@ public sealed partial class ImportService(AppDb db, WorkoutAi ai, CatalogService
         finally { db.MaintenanceAccess = previousMaintenance; }
     }
 
-    public Task ValidateDraft(ImportDraft draft, CancellationToken ct) => ImportValidation.ValidateDraft(draft, catalog, ct);
-
-    private Task ValidateWorkout(DraftWorkout workout, CancellationToken ct) => ImportValidation.ValidateWorkout(workout, catalog, ct);
-
-    private static SetPrescription ToPrescription(DraftSet set) => ImportValidation.ToPrescription(set);
-
-    private static List<ImportChunk> SplitChunks(List<AiOutlineChunk> source) => ImportValidation.SplitChunks(source);
-
-    private static List<ImportChunk> SplitChunks(List<ImportChunk> source) => ImportValidation.SplitChunks(source);
-
-    private static List<ImportChunk> ReadChunks(string json) => ImportValidation.ReadChunks(json);
-
-    private static (List<DraftWorkout> Workouts, bool Renumbered) NormalizePhaseWeeks(List<DraftWorkout> workouts)
-        => ImportValidation.NormalizePhaseWeeks(workouts);
-
-    private static ImportValidation.ChunkMerge ReconcileChunkCoverage(ImportDraft existing, ImportDraft extracted, ImportChunk chunk)
-        => ImportValidation.ReconcileChunkCoverage(existing, extracted, chunk);
-
-    private static (List<DraftWorkout> Workouts, List<ImportReviewIssue> Notices) ReconcileDayShape(List<DraftWorkout> days)
-        => ImportDayShape.Reconcile(days);
-
-    private static List<ImportReviewIssue> ReadNotices(string json) => ImportValidation.ReadNotices(json);
-
-    private static List<ImportReviewIssue> FilterNotices(IEnumerable<ImportReviewIssue> notices, ImportDraft? draft)
-    {
-        if (draft is null) return notices.ToList();
-        var workoutIds = draft.Workouts.Select(w => w.LineId).ToHashSet();
-        var exerciseIds = draft.Workouts.SelectMany(w => w.Exercises).Select(e => e.LineId).ToHashSet();
-        return notices.Where(n =>
-            (n.WorkoutLineId == null || workoutIds.Contains(n.WorkoutLineId.Value)) &&
-            (n.ExerciseLineId == null || exerciseIds.Contains(n.ExerciseLineId.Value))).ToList();
-    }
-
-    private void UpdateCounters(AiImport import, ImportDraft draft)
-    {
-        var unresolved = Unresolved(draft);
-        import.UnresolvedCount = unresolved.Count;
-    }
-
-    private static void ValidateChunkPages(IEnumerable<ImportChunk> chunks, string coverageJson)
-        => ImportValidation.ValidateChunkPages(chunks, coverageJson);
-
-    private static void ValidateDraftPages(ImportDraft draft, string coverageJson)
-        => ImportValidation.ValidateDraftPages(draft, coverageJson);
-
-    private static string? NullIfBlank(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 }

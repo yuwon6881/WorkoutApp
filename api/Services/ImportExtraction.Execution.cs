@@ -200,7 +200,7 @@ public sealed partial class ImportService
                             // no retry of the last section could ever reach.
                             var shaped = ReconcileDayShape(merged.Workouts);
                             var cited = ImportDayShape.ReconcilePages(merged with { Workouts = shaped.Workouts }, import.Pages);
-                            merged = cited.Draft;
+                            merged = ImportValidation.NormalizeDraft(cited.Draft);
                             notices.AddRange(shaped.Notices);
                             notices.AddRange(cited.Notices);
                             await ValidateDraft(merged, settle);

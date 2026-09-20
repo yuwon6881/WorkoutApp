@@ -12,17 +12,51 @@ import { ChipScroller } from './ui/ChipScroller';
 /// empty state explains that rather than implying the user should have added something.
 export type ExercisePickerAction = 'add' | 'swap' | 'map';
 
-export function ExerciseLibrary({ exercises, onSelect, exclude = [], onOpen, onChanged, action = 'add' }: { exercises: Exercise[]; onSelect?: (id: string) => void; exclude?: string[]; onOpen?: (exercise: Exercise) => void; onChanged?: () => Promise<void> | void; action?: ExercisePickerAction }) {
+function normalized(value: string) {
+  return value.trim().toLowerCase().replace(/[^a-z0-9]+/g, ' ').replace(/\s+/g, ' ');
+}
+
+function exerciseRank(candidate: Exercise, current: Exercise | undefined, preferredNames: string[]) {
+  const candidateNames = [candidate.name, ...candidate.aliases].map(normalized);
+  if (preferredNames.some(name => candidateNames.includes(normalized(name)))) return 0;
+  if (!current) return 1;
+
+  const primary = normalized(current.muscle);
+  const secondary = new Set((current.secondaryMuscles ?? []).map(normalized));
+  const candidatePrimary = normalized(candidate.muscle);
+  const candidateSecondary = (candidate.secondaryMuscles ?? []).map(normalized);
+  const sharedSecondary = candidateSecondary.filter(value => secondary.has(value)).length;
+  if (candidatePrimary === primary && sharedSecondary > 0) return 1;
+  if (candidatePrimary === primary) return 2;
+  if (secondary.has(candidatePrimary) || candidateSecondary.includes(primary)) return 3;
+  return 4;
+}
+
+export function ExerciseLibrary({ exercises, onSelect, exclude = [], onOpen, onChanged, action = 'add', currentExerciseId, preferredNames = [] }: {
+  exercises: Exercise[];
+  onSelect?: (id: string) => void;
+  exclude?: string[];
+  onOpen?: (exercise: Exercise) => void;
+  onChanged?: () => Promise<void> | void;
+  action?: ExercisePickerAction;
+  currentExerciseId?: string | null;
+  preferredNames?: string[];
+}) {
   const [query, setQuery] = useState('');
   const [muscle, setMuscle] = useState('All muscles');
   const [source, setSource] = useState<'all' | 'custom'>('all');
   const [createOpen, setCreateOpen] = useState(false);
 
-  const muscles = ['All muscles', ...new Set(exercises.map(e => e.muscle).filter(Boolean))];
-  const filtered = exercises.filter(e => !exclude.includes(e.id)
+  const muscles = ['All muscles', ...new Map(exercises.flatMap(e => [e.muscle, ...(e.secondaryMuscles ?? [])])
+    .filter(Boolean).map(value => [value.toLowerCase(), value] as const)).values()];
+  const current = currentExerciseId ? exercises.find(e => e.id === currentExerciseId) : undefined;
+  const excluded = new Set([...exclude, ...(currentExerciseId ? [currentExerciseId] : [])]);
+  const filtered = exercises.filter(e => !excluded.has(e.id)
     && (source === 'all' || e.isCustom)
-    && (muscle === 'All muscles' || e.muscle === muscle)
-    && `${e.name} ${e.equipment} ${e.muscle} ${e.movementPattern ?? ''} ${e.aliases.join(' ')}`.toLowerCase().includes(query.toLowerCase()));
+    && (muscle === 'All muscles' || [e.muscle, ...(e.secondaryMuscles ?? [])].some(value => value.toLowerCase() === muscle.toLowerCase()))
+    && `${e.name} ${e.equipment} ${e.muscle} ${(e.secondaryMuscles ?? []).join(' ')} ${e.movementPattern ?? ''} ${e.aliases.join(' ')}`.toLowerCase().includes(query.toLowerCase()));
+  const ordered = [...filtered].sort((a, b) => exerciseRank(a, current, preferredNames) - exerciseRank(b, current, preferredNames)
+    || a.name.localeCompare(b.name));
   const actionLabel = action === 'swap' ? 'Swap' : action === 'map' ? 'Map' : 'Add';
   const ActionIcon = action === 'add' ? Plus : action === 'swap' ? ArrowLeftRight : Link2;
 
@@ -62,7 +96,7 @@ export function ExerciseLibrary({ exercises, onSelect, exclude = [], onOpen, onC
           </Button>
         ))}
     </ChipScroller>
-    <div className={onSelect ? 'picker-list' : 'exercise-grid'}>{filtered.map(e =>
+    <div className={onSelect ? 'picker-list' : 'exercise-grid'}>{ordered.map(e =>
       onSelect ? (
         <article className="panel picker-card" key={e.id}>
           <div className="picker-card-info">
@@ -73,6 +107,7 @@ export function ExerciseLibrary({ exercises, onSelect, exclude = [], onOpen, onC
             <div className="picker-tags">
               {e.isCustom && <span className="pill pill-muted">Custom</span>}
               <span className="pill pill-accent picker-muscle-tag">{e.muscle || 'Full body'}</span>
+              {(e.secondaryMuscles ?? []).map(secondary => <span className="pill pill-muted" key={`${e.id}-${secondary}`}>{secondary}</span>)}
               <span className="pill">{e.equipment || 'General'}</span>
             </div>
           </div>
@@ -94,6 +129,7 @@ export function ExerciseLibrary({ exercises, onSelect, exclude = [], onOpen, onC
             <div className="picker-tags">
               {e.isCustom && <span className="pill pill-muted">Custom</span>}
               <span className="pill pill-accent">{e.muscle || 'Full body'}</span>
+              {(e.secondaryMuscles ?? []).map(secondary => <span className="pill pill-muted" key={`${e.id}-${secondary}`}>{secondary}</span>)}
               <span className="pill">{e.equipment || 'General'}</span>
             </div>
           </div>
@@ -121,6 +157,7 @@ function dateLabel(value: string | null | undefined) {
 
 function CustomExerciseModal({ onClose, onCreated }: { onClose: () => void; onCreated: () => Promise<void> }) {
   const [name, setName] = useState(''); const [muscle, setMuscle] = useState(''); const [equipment, setEquipment] = useState('');
+  const [secondaryMuscles, setSecondaryMuscles] = useState('');
   const [cue, setCue] = useState(''); const [loadModel, setLoadModel] = useState('external'); const [loadStepKg, setLoadStepKg] = useState('2.5');
   const [error, setError] = useState(''); const [busy, setBusy] = useState(false);
   async function submit(event: FormEvent) {
@@ -128,14 +165,16 @@ function CustomExerciseModal({ onClose, onCreated }: { onClose: () => void; onCr
     if (!name.trim()) { setError('Exercise name is required.'); return; }
     const step = Number(loadStepKg); if (!Number.isFinite(step) || step < 0 || step > 50) { setError('Load increment must be between 0 and 50 kg.'); return; }
     setBusy(true);
-    try { await api.createCustomExercise({ name: name.trim(), muscle, equipment, cue, loadStepKg: step, loadModel }); await onCreated(); }
+    const secondary = [...new Set(secondaryMuscles.split(',').map(value => value.trim()).filter(Boolean))];
+    try { await api.createCustomExercise({ name: name.trim(), muscle, secondaryMuscles: secondary, equipment, cue, loadStepKg: step, loadModel }); await onCreated(); }
     catch (failure) { setError(failure instanceof ApiError ? failure.message : 'Could not create the exercise.'); }
     finally { setBusy(false); }
   }
   return <Modal title="Create custom exercise" onClose={onClose}>
     <form className="modal-body" noValidate onSubmit={submit}>
       <Field name="custom-exercise-name" label="Name" value={name} onChange={e => setName(e.target.value)} maxLength={160} autoFocus />
-      <div className="form-grid-two"><Field name="custom-exercise-muscle" label="Muscle" value={muscle} onChange={e => setMuscle(e.target.value)} maxLength={80} /><Field name="custom-exercise-equipment" label="Equipment" value={equipment} onChange={e => setEquipment(e.target.value)} maxLength={80} /></div>
+      <div className="form-grid-two"><Field name="custom-exercise-muscle" label="Primary muscle" value={muscle} onChange={e => setMuscle(e.target.value)} maxLength={80} /><Field name="custom-exercise-equipment" label="Equipment" value={equipment} onChange={e => setEquipment(e.target.value)} maxLength={80} /></div>
+      <Field name="custom-exercise-secondary-muscles" label="Secondary muscles (comma-separated)" value={secondaryMuscles} onChange={e => setSecondaryMuscles(e.target.value)} maxLength={320} />
       <TextAreaField name="custom-exercise-cue" label="Instructions (optional)" value={cue} onChange={e => setCue(e.target.value)} maxLength={1000} />
       <div className="form-grid-two"><label className="field"><span>Load model</span><Select name="custom-exercise-load-model" label="Load model" value={loadModel} onChange={val => setLoadModel(val as string)} options={[{ value: 'external', label: 'External load' }, { value: 'full_bodyweight', label: 'Full bodyweight' }, { value: 'bodyweight_context_only', label: 'Bodyweight context only' }, { value: 'reps_only', label: 'Reps only' }]} /></label><Field name="custom-exercise-load-step" label="Load increment (kg)" type="number" min="0" max="50" step="0.5" value={loadStepKg} onChange={e => setLoadStepKg(e.target.value)} /></div>
       {error && <div className="error-text" role="alert">{error}</div>}
@@ -155,7 +194,11 @@ export function ExerciseDetailModal({ exercise, unit, onClose, onChanged, onSess
   return <>
     <Modal title={exercise.name} onClose={onClose} wide>
       <div className="modal-body exercise-detail-modal">
-        <div className="exercise-detail-meta"><span className="pill pill-accent">{exercise.archived && exercise.isCustom ? 'Deleted custom exercise' : exercise.isCustom ? 'Custom exercise' : exercise.muscle || 'Full body'}</span><span className="pill">{exercise.equipment || 'General'}</span></div>
+        <div className="exercise-detail-meta">
+          <span className="pill pill-accent">{exercise.archived && exercise.isCustom ? 'Deleted custom exercise' : exercise.isCustom ? 'Custom exercise' : exercise.muscle || 'Full body'}</span>
+          {(exercise.secondaryMuscles ?? []).map(secondary => <span className="pill pill-muted" key={secondary}>{secondary}</span>)}
+          <span className="pill">{exercise.equipment || 'General'}</span>
+        </div>
         {exercise.cue && <p className="muted">{exercise.cue}</p>}
         {error && <div className="error-banner" role="alert">{error}</div>}
         {!insight && !error && <div className="skeleton detail-loading" aria-label="Loading exercise details" />}

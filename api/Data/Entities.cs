@@ -35,6 +35,8 @@ public sealed class Exercise
     public string Slug { get; set; } = "";
     public string Name { get; set; } = "";
     public string Muscle { get; set; } = "";
+    /// JSON array of normalized secondary muscle groups. The primary muscle remains in Muscle.
+    public string SecondaryMusclesJson { get; set; } = "[]";
     public string Equipment { get; set; } = "";
     public string Cue { get; set; } = "";
     public bool Active { get; set; } = true;
@@ -55,6 +57,8 @@ public sealed class CustomExercise : OwnedRecord
 {
     public string Name { get; set; } = "";
     public string Muscle { get; set; } = "";
+    /// JSON array of normalized secondary muscle groups. The primary muscle remains in Muscle.
+    public string SecondaryMusclesJson { get; set; } = "[]";
     public string Equipment { get; set; } = "";
     public string Cue { get; set; } = "";
     public double LoadStepKg { get; set; } = 2.5;

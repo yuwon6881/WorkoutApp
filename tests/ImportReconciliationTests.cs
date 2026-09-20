@@ -281,6 +281,21 @@ public sealed class ImportReconciliationTests
     }
 
     [Fact]
+    public void Identical_sessions_from_different_source_pages_remain_ambiguous()
+    {
+        var days = Enumerable.Range(1, 8)
+            .Select(page => new DraftWorkout(Guid.NewGuid(), 1, "Lower 1", null, null,
+                [new DraftExercise(Guid.NewGuid(), "Squat", null, null, [new DraftSet(5, 8, 8, 120, null, null, null)], "A1", [], page)],
+                Block: "Block 1", Phase: "Phase 1", SourcePage: page))
+            .ToList();
+
+        var (workouts, notices) = ImportDayShape.Reconcile(days);
+
+        Assert.Equal(8, workouts.Count);
+        Assert.Empty(notices);
+    }
+
+    [Fact]
     public void ImportValidation_ReviewIssues_flags_overflow_rows_with_blocking_issue()
     {
         var days = Enumerable.Range(1, 8)

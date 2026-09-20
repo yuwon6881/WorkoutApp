@@ -1,5 +1,6 @@
 [
   { "slug": "bench-press", "name": "Barbell bench press", "muscle": "Chest", "equipment": "Barbell", "cue": "Keep your feet planted and shoulder blades steady. Lower with control, then press.", "aliases": ["bench", "flat bench", "bb bench press"] },
+  { "slug": "db-incline-press", "name": "DB Incline Press", "muscle": "Chest", "equipment": "Dumbbell", "cue": "", "aliases": ["Incline Dumbbell Press", "Dumbbell Incline Press"], "secondaryMuscles": ["Triceps", "Shoulders"] },
   { "slug": "back-squat", "name": "Barbell back squat", "muscle": "Quads", "equipment": "Barbell", "cue": "Brace before descending. Keep your whole foot planted and use a controlled depth.", "aliases": ["squat", "back squat"] },
   { "slug": "seated-cable-row", "name": "Seated cable row", "muscle": "Back", "equipment": "Cable", "cue": "Keep your torso steady and pull your elbows back.", "aliases": ["cable row"] }
 ]

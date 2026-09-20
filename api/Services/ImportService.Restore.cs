@@ -16,9 +16,9 @@ public sealed partial class ImportService
         if (string.IsNullOrEmpty(import.DraftBaselineJson)) import.DraftBaselineJson = import.DraftJson;
         Validation.Require(!string.IsNullOrEmpty(import.DraftBaselineJson), "No default baseline exists for this draft.", 409);
 
-        var baselineDraft = Json.Read<ImportDraft>(import.DraftBaselineJson);
+        var baselineDraft = ImportValidation.NormalizeDraft(Json.Read<ImportDraft>(import.DraftBaselineJson));
         await ValidateDraft(baselineDraft, ct);
-        import.DraftJson = import.DraftBaselineJson;
+        import.DraftJson = Json.Write(baselineDraft);
         import.Revision++;
         UpdateCounters(import, baselineDraft);
         await db.SaveChangesAsync(ct);
@@ -36,17 +36,17 @@ public sealed partial class ImportService
         if (string.IsNullOrEmpty(import.DraftBaselineJson)) import.DraftBaselineJson = import.DraftJson;
         Validation.Require(!string.IsNullOrEmpty(import.DraftBaselineJson), "No default baseline exists for this draft.", 409);
 
-        var baselineDraft = Json.Read<ImportDraft>(import.DraftBaselineJson);
+        var baselineDraft = ImportValidation.NormalizeDraft(Json.Read<ImportDraft>(import.DraftBaselineJson));
         var baselineExercise = baselineDraft.Workouts.SelectMany(w => w.Exercises).FirstOrDefault(e => e.LineId == exerciseLineId);
         Validation.Require(baselineExercise != null, "That exercise cannot be restored to its default.", 404);
 
-        var draft = Json.Read<ImportDraft>(import.DraftJson);
+        var draft = ImportValidation.NormalizeDraft(Json.Read<ImportDraft>(import.DraftJson));
         var targetWorkout = draft.Workouts.FirstOrDefault(w => w.Exercises.Any(e => e.LineId == exerciseLineId));
         Validation.Require(targetWorkout != null, "That exercise is no longer in this draft.", 404);
 
         var nextExercises = targetWorkout!.Exercises.Select(e => e.LineId == exerciseLineId ? baselineExercise! : e).ToList();
         var nextWorkout = targetWorkout with { Exercises = nextExercises };
-        var nextDraft = draft with { Workouts = draft.Workouts.Select(w => w.LineId == nextWorkout.LineId ? nextWorkout : w).ToList() };
+        var nextDraft = ImportValidation.NormalizeDraft(draft with { Workouts = draft.Workouts.Select(w => w.LineId == nextWorkout.LineId ? nextWorkout : w).ToList() });
 
         await ValidateWorkout(nextWorkout, ct);
         import.DraftJson = Json.Write(nextDraft);
@@ -66,8 +66,10 @@ public sealed partial class ImportService
         if (string.IsNullOrEmpty(baselineJson))
             return (false, []);
 
-        var baselineDraft = Json.Read<ImportDraft>(baselineJson);
-        var currentDraft = draft ?? (string.IsNullOrEmpty(import.DraftJson) ? null : Json.Read<ImportDraft>(import.DraftJson));
+        var baselineDraft = ImportValidation.NormalizeDraft(Json.Read<ImportDraft>(baselineJson));
+        var currentDraft = draft is not null
+            ? ImportValidation.NormalizeDraft(draft)
+            : (string.IsNullOrEmpty(import.DraftJson) ? null : ImportValidation.NormalizeDraft(Json.Read<ImportDraft>(import.DraftJson)));
         if (currentDraft is null)
             return (false, []);
 

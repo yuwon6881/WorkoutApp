@@ -7,6 +7,12 @@ namespace Workout.Tests;
 
 public class CatalogAndValidationTests
 {
+    [Fact]
+    public void Secondary_muscles_are_trimmed_deduplicated_and_never_repeat_primary()
+    {
+        Assert.Equal(["Triceps", "Shoulders"], CatalogService.NormalizeMuscles("Chest", [" Triceps ", "triceps", "Chest", "Shoulders"]));
+    }
+
     [Fact] public async Task A_new_database_ships_with_no_exercises()
     {
         await using var h = await Harness.Create();

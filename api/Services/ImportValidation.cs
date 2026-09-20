@@ -1,3 +1,6 @@
+using System.Security.Cryptography;
+using System.Text;
+using System.Text.RegularExpressions;
 using Workout.Api.Domain;
 
 namespace Workout.Api.Services;
@@ -5,8 +8,88 @@ namespace Workout.Api.Services;
 internal static class ImportValidation
 {
     public static List<UnresolvedExercise> Unresolved(ImportDraft draft)
-        => draft.Workouts.Where(w => !w.IsRestDay).SelectMany(w => w.Exercises).Where(e => e.ExerciseId == null)
-            .Select(e => new UnresolvedExercise(e.LineId, e.SourceName)).ToList();
+    {
+        var unresolved = draft.Workouts.Where(w => !w.IsRestDay)
+            .SelectMany(w => w.Exercises.Select((exercise, position) => (workout: w, exercise, position)))
+            .Where(item => item.exercise.ExerciseId == null)
+            .ToList();
+        return unresolved
+            .GroupBy(item => item.exercise.SlotKey is { } slot
+                ? $"{CanonicalBlock(item.workout.Block).ToUpperInvariant()}\u001fslot:{slot:N}"
+                : SlotSignature(item.workout, item.position), StringComparer.OrdinalIgnoreCase)
+            .Select(group =>
+            {
+                var first = group.First();
+                return new UnresolvedExercise(first.exercise.LineId, RepresentativeName(group.Select(item => item.exercise.SourceName)),
+                    first.exercise.SlotKey,
+                    string.IsNullOrWhiteSpace(first.workout.Block) ? null : CanonicalBlock(first.workout.Block),
+                    group.Count());
+            })
+            .ToList();
+    }
+
+    /// Canonicalizes imported structural labels and assigns a stable recurring slot identity. The
+    /// key is deliberately based on the block, workout name, and exercise position: a document may
+    /// spell the same movement differently on one page, but a reviewer still means the same slot.
+    public static ImportDraft NormalizeDraft(ImportDraft draft)
+    {
+        var slots = new Dictionary<string, Guid>(StringComparer.OrdinalIgnoreCase);
+        var signaturesBySlot = new Dictionary<Guid, string>();
+        var workouts = draft.Workouts.Select(workout =>
+        {
+            var block = string.IsNullOrWhiteSpace(workout.Block) ? workout.Block : CanonicalBlock(workout.Block);
+            var exercises = workout.Exercises.Select((exercise, position) =>
+            {
+                var signature = SlotSignature(workout with { Block = block }, position);
+                if (!slots.TryGetValue(signature, out var slot))
+                {
+                    var candidate = exercise.SlotKey;
+                    if (candidate is null || signaturesBySlot.TryGetValue(candidate.Value, out var owner) &&
+                        !string.Equals(owner, signature, StringComparison.Ordinal))
+                        candidate = StableGuid(signature);
+
+                    slot = candidate.Value;
+                    slots[signature] = slot;
+                    signaturesBySlot[slot] = signature;
+                }
+
+                return exercise with { SlotKey = slot };
+            }).ToList();
+            return workout with { Block = block, Exercises = exercises };
+        }).ToList();
+        return draft with { Workouts = workouts };
+    }
+
+    public static string CanonicalBlock(string? block)
+    {
+        var value = Collapse(block);
+        if (value.Length == 0) return "";
+        var numbered = Regex.Match(value, @"^block\s+(?<number>\d+)$", RegexOptions.IgnoreCase);
+        return numbered.Success ? $"Block {numbered.Groups["number"].Value}" : value;
+    }
+
+    public static string SlotSignature(DraftWorkout workout, int position)
+        => $"{CanonicalBlock(workout.Block).ToUpperInvariant()}\u001f{Identity(workout.Name)}\u001f{position}";
+
+    private static string Identity(string? value) => Collapse(value).ToUpperInvariant();
+
+    private static string Collapse(string? value)
+        => Regex.Replace(value?.Trim() ?? "", @"\s+", " ");
+
+    private static string RepresentativeName(IEnumerable<string> names)
+        => names.Where(name => !string.IsNullOrWhiteSpace(name)).GroupBy(Identity)
+            .OrderByDescending(group => group.Count()).ThenBy(group => group.First(), StringComparer.OrdinalIgnoreCase)
+            .Select(group => group.First().Trim()).FirstOrDefault() ?? "Unnamed exercise";
+
+    private static Guid StableGuid(string value)
+    {
+        var bytes = SHA256.HashData(Encoding.UTF8.GetBytes(value));
+        Span<byte> guid = stackalloc byte[16];
+        bytes.AsSpan(0, 16).CopyTo(guid);
+        guid[6] = (byte)((guid[6] & 0x0F) | 0x50);
+        guid[8] = (byte)((guid[8] & 0x3F) | 0x80);
+        return new Guid(guid);
+    }
 
     /// What the reviewer must resolve before the draft can become a program. Each kind is counted
     /// once and names the first few days it applies to, so the review reads as a summary rather
@@ -17,7 +100,7 @@ internal static class ImportValidation
         var training = draft.Workouts.Where(w => !w.IsRestDay).ToList();
 
         var overflowRows = draft.Workouts
-            .GroupBy(day => (Block: day.Block?.Trim() ?? "", Phase: day.Phase?.Trim() ?? "", day.Week))
+            .GroupBy(day => $"{CanonicalBlock(day.Block).ToUpperInvariant()}\u001f{Identity(day.Phase)}\u001f{day.Week}", StringComparer.OrdinalIgnoreCase)
             .SelectMany(group => group.Skip(7))
             .ToList();
         if (overflowRows.Count > 0)

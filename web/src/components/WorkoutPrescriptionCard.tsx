@@ -77,13 +77,16 @@ export function WorkoutPrescriptionCard({
           <span className="import-exercise-icon" aria-hidden="true">
             <Dumbbell size={17} />
           </span>
-          <input
-            name={`workout-exercise-name-${exercise.id}`}
-            className="inline-input"
-            aria-label={`Name for exercise ${index + 1}`}
-            value={exercise.name}
-            onChange={e => onUpdateExercise({ name: e.target.value, sourceName: e.target.value })}
-          />
+          <div className="inline-input-wrap">
+            <span className="inline-input-mirror" aria-hidden="true" data-value={exercise.name || ''} />
+            <input
+              name={`workout-exercise-name-${exercise.id}`}
+              className="inline-input"
+              aria-label={`Name for exercise ${index + 1}`}
+              value={exercise.name}
+              onChange={e => onUpdateExercise({ name: e.target.value, sourceName: e.target.value })}
+            />
+          </div>
           {isPaired && (
             <span
               className="superset-badge"

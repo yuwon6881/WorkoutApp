@@ -8,6 +8,26 @@ namespace Workout.Tests;
 public sealed class ExerciseSubstitutionTests
 {
     [Fact]
+    public async Task Substitution_candidates_rank_shared_secondary_muscles_after_imported_alternatives()
+    {
+        await using var h = await Harness.Create();
+        await h.SignIn();
+        await h.Seed(
+            new SeedExercise("press", "Barbell Press", "Chest", "Barbell", "", null, SecondaryMuscles: ["Triceps", "Shoulders"]),
+            new SeedExercise("press-match", "Incline Press", "Chest", "Dumbbell", "", null, SecondaryMuscles: ["Triceps", "Shoulders"]),
+            new SeedExercise("press-primary", "Machine Press", "Chest", "Machine", "", null, SecondaryMuscles: ["Core"]),
+            new SeedExercise("row", "Cable Row", "Back", "Cable", "", null, SecondaryMuscles: ["Biceps"]));
+
+        var source = await h.ExerciseId("press");
+        var rows = await h.Catalog.Substitutions(source, null, [], null, default);
+
+        Assert.Equal("Incline Press", rows[0].Name);
+        Assert.Equal("Machine Press", rows[1].Name);
+        Assert.DoesNotContain(rows.Take(2), row => row.Name == "Cable Row");
+        Assert.Equal(["Triceps", "Shoulders"], rows[0].SecondaryMuscles);
+    }
+
+    [Fact]
     public async Task Candidates_keep_matched_imports_first_and_discard_unmatched_or_placeholders()
     {
         await using var h = await Harness.Create();

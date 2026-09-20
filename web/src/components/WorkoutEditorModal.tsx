@@ -347,6 +347,8 @@ export function WorkoutEditorModal({
             <ExerciseLibrary
               action="swap"
               exercises={exercises}
+              currentExerciseId={swapIndex === null ? null : draft.exercises[swapIndex]?.exerciseId}
+              preferredNames={swapIndex === null ? [] : draft.exercises[swapIndex]?.substitutions ?? []}
               exclude={draft.exercises
                 .map(e => e.exerciseId)
                 .filter((id): id is string => id !== null)}

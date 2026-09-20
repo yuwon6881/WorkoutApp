@@ -26,6 +26,7 @@ export function DayRow({
   exercises,
   onChange,
   onPropagateSubstitution,
+  onMapExerciseSlot,
   restorableExerciseLineIds,
   onRestoreExercise
 }: {
@@ -35,6 +36,7 @@ export function DayRow({
   exercises: Exercise[];
   onChange: (day: DraftWorkout) => Promise<void>;
   onPropagateSubstitution?: (currentName: string, replacementName: string, exerciseLineId?: string) => Promise<void>;
+  onMapExerciseSlot?: (exerciseLineId: string, exerciseId: string | null) => Promise<void>;
   restorableExerciseLineIds?: string[];
   onRestoreExercise?: (exerciseLineId: string) => Promise<void>;
 }) {
@@ -128,6 +130,7 @@ export function DayRow({
           exercises={exercises}
           onChange={onChange}
           onPropagateSubstitution={onPropagateSubstitution}
+          onMapExerciseSlot={onMapExerciseSlot}
           restorableExerciseLineIds={restorableExerciseLineIds}
           onRestoreExercise={onRestoreExercise}
         />

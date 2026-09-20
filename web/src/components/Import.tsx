@@ -1,13 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { AlertTriangle, ArrowLeft, ChevronDown, ChevronRight, Loader2, RotateCcw, Trash2, Upload, Wand2, X } from 'lucide-react';
-import type { DraftWorkout, Exercise, ImportDraft, ImportView } from '../types';
+import type { Exercise, ImportDraft, ImportView } from '../types';
 import { ApiError, api } from '../lib/api';
-import { validateDraftWorkout, validateName } from '../lib/validation';
 import { Button } from './ui/Button';
 import { Field } from './ui/Field';
 import { Modal } from './ui/Modal';
 import { DraftOutline, type DraftOutlineHandle, type ImportIssueTarget } from './ImportDraftTree';
 import { useImportPipeline, type ImportFailure, type ImportProgress } from './useImportPipeline';
+import { useImportDraftSaver } from './useImportDraftSaver';
 
 /// What the import is doing. A read in flight covers every section the import still owes, because
 /// they are sent together rather than one after another, so it says how many are being read; a
@@ -60,7 +60,6 @@ export function ImportReview({ exercises, imports, remaining, onBack, onChanged,
   const [selected, setSelected] = useState<ImportView | null>(imports.find(i => i.status === 'ready') ?? imports[0] ?? null);
   const [draft, setDraft] = useState<ImportDraft | null>(selected?.draft ?? null);
   const [expandedDay, setExpandedDay] = useState<string | null>(null);
-  const [saving, setSaving] = useState('');
   const [saveError, setSaveError] = useState('');
   const [showAllIssues, setShowAllIssues] = useState(false);
   const [confirmRestoreDraft, setConfirmRestoreDraft] = useState(false);
@@ -87,7 +86,8 @@ export function ImportReview({ exercises, imports, remaining, onBack, onChanged,
   }, [notify]);
 
   const pipeline = useImportPipeline({ selected, setSelected, setDraft, onChanged, onComplete: handleComplete });
-  const busy = pipeline.busy || !!saving;
+  const saver = useImportDraftSaver({ selected, setSelected, draft, setDraft, onChanged, setSaveError });
+  const busy = pipeline.busy || saver.pending;
 
   useEffect(() => {
     let cancelled = false;
@@ -100,33 +100,12 @@ export function ImportReview({ exercises, imports, remaining, onBack, onChanged,
   }, [selected?.id]);
 
   async function handleRestoreExercise(exerciseLineId: string) {
-    if (!selected) return;
-    const view = await api.restoreImportExercise(selected.id, exerciseLineId, selected.revision);
-    setSelected(view);
-    setDraft(view.draft);
+    await saver.mutate((view, revision) => api.restoreImportExercise(view.id, exerciseLineId, revision), 'Could not restore exercise.');
     notify?.('Exercise restored to default.');
   }
 
-  async function persist(next: ImportDraft) {
-    if (!selected) return;
-    setDraft(next);
-    const invalid = validateName(next.programName, 'Program name');
-    if (invalid) { setSaveError(invalid); return; }
-    setSaving('Saving your changes…'); setSaveError('');
-    try { const view = await api.editImport(selected.id, next); setSelected(view); setDraft(view.draft); await onChanged(); }
-    catch (failure) { setSaveError(failure instanceof ApiError ? failure.message : 'Could not save your changes.'); }
-    finally { setSaving(''); }
-  }
-
-  async function persistDay(day: DraftWorkout) {
-    if (!selected) return;
-    setDraft(current => current ? { ...current, workouts: current.workouts.map(item => item.lineId === day.lineId ? day : item) } : current);
-    const invalid = validateDraftWorkout(day);
-    if (invalid) { setSaveError(invalid); return; }
-    setSaving('Saving this day…'); setSaveError('');
-    try { const view = await api.editImportDay(selected.id, day); setSelected(view); setDraft(view.draft); await onChanged(); }
-    catch (failure) { setSaveError(failure instanceof ApiError ? failure.message : 'Could not save this day.'); }
-    finally { setSaving(''); }
+  async function mapExerciseSlot(exerciseLineId: string, exerciseId: string | null) {
+    await saver.mutate((view, revision) => api.mapImportExerciseSlot(view.id, exerciseLineId, exerciseId, revision), 'Could not map this exercise slot.');
   }
 
   // A stored expiry is the server's own statement that it still holds this document's text and
@@ -138,8 +117,8 @@ export function ImportReview({ exercises, imports, remaining, onBack, onChanged,
   const attentionRows = [
     ...unresolved.map(item => ({
       key: `unresolved-${item.lineId}`,
-      title: `Map ${item.sourceName}`,
-      detail: 'Choose a library exercise for this slot.',
+      title: `Map ${item.sourceName} slot`,
+      detail: `${item.block ? `${item.block} · ` : ''}${item.occurrences && item.occurrences > 1 ? `${item.occurrences} occurrences · ` : ''}Choose a library exercise for this slot.`,
       action: 'Map',
       ariaLabel: `Fix unmapped exercise ${item.sourceName}`,
       target: unresolvedTarget(item.lineId)
@@ -183,7 +162,7 @@ export function ImportReview({ exercises, imports, remaining, onBack, onChanged,
         <Button variant="primary" disabled={busy} onClick={() => file.current?.click()}><Upload size={17} />Choose a PDF</Button>
       </div>
       {pipeline.progress && <Progress progress={pipeline.progress} />}
-      {saving && <p className="muted" role="status">{saving}</p>}
+      {saver.pending && <p className="muted" role="status">Saving your changes…</p>}
       {pipeline.notice && <p className="muted" role="status">{pipeline.notice}</p>}
       {pipeline.failure && <Failure failure={pipeline.failure} onChooseFile={() => file.current?.click()} onDismiss={pipeline.clearFailure}
         onRetry={selected && selected.status === 'pending' && serverHoldsSource ? () => void pipeline.resume(selected) : undefined} />}
@@ -234,9 +213,9 @@ export function ImportReview({ exercises, imports, remaining, onBack, onChanged,
           <h2>Review</h2>
         </div>
         {!selected.acceptable && <p className="muted small-copy import-notice-copy" role="status">The program can be created after every review item is resolved.</p>}
-        <Field label="Program name" name="import-program-name" value={draft.programName} onChange={e => setDraft({ ...draft, programName: e.target.value })} onBlur={() => void persist(draft)} />
+        <Field label="Program name" name="import-program-name" value={draft.programName} onChange={e => setDraft({ ...draft, programName: e.target.value })} onBlur={() => void saver.persist(draft)} />
         {selected.unresolved.length > 0 && <div className="import-unresolved-banner" role="status"><AlertTriangle size={17} />
-          <span>{selected.unresolved.length} exercise name{selected.unresolved.length === 1 ? '' : 's'} are not linked to the catalog. They will stay verbatim and can still be logged.</span>
+          <span>{selected.unresolved.length} exercise slot{selected.unresolved.length === 1 ? '' : 's'} are not linked to the catalog. Unmapped names stay verbatim and can still be logged.</span>
         </div>}
         {attentionRows.length > 0 && <section className="import-review-issues" aria-labelledby="import-review-issues-title">
           <div className="import-review-issues-heading">
@@ -277,11 +256,12 @@ export function ImportReview({ exercises, imports, remaining, onBack, onChanged,
           expandedDay={expandedDay}
           setExpandedDay={setExpandedDay}
           exercises={exercises}
-          onDayChange={persistDay}
-          onDraftChange={persist}
+          onDayChange={saver.persistDay}
+          onDraftChange={saver.persist}
+          onMapExerciseSlot={mapExerciseSlot}
           restorableExerciseLineIds={selected.restorableExerciseLineIds}
           onRestoreExercise={handleRestoreExercise}
-          canRestoreDraft={selected.canRestoreDraft}
+          canRestoreDraft={selected.canRestoreDraft || saver.localDirty}
           acceptable={selected.acceptable}
           busy={busy}
           onRestoreDraft={() => setConfirmRestoreDraft(true)}
@@ -307,9 +287,9 @@ export function ImportReview({ exercises, imports, remaining, onBack, onChanged,
               setIsRestoringDraft(true);
               setDraftRestoreError(null);
               try {
-                const view = await api.restoreImport(selected.id, selected.revision);
-                setSelected(view);
-                setDraft(view.draft);
+                await saver.flush();
+                const view = await api.restoreImport(selected.id, saver.revision());
+                saver.applyView(view);
                 setConfirmRestoreDraft(false);
                 notify?.('Draft restored to default extraction.');
               } catch (err) {

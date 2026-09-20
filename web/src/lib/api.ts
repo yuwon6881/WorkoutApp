@@ -88,7 +88,7 @@ export const api = {
     if (input.imported?.length) params.set('imported', input.imported.join('|')); if (input.query) params.set('q', input.query);
     return call<SubstitutionCandidate[]>(`/api/exercises/substitutions?${params.toString()}`);
   },
-  createCustomExercise: (input: { name: string; muscle?: string; equipment?: string; cue?: string; loadStepKg: number; loadModel: string; movementPattern?: string }) => call<unknown>('/api/exercises/custom', 'POST', input),
+  createCustomExercise: (input: { name: string; muscle?: string; secondaryMuscles?: string[]; equipment?: string; cue?: string; loadStepKg: number; loadModel: string; movementPattern?: string }) => call<unknown>('/api/exercises/custom', 'POST', input),
   deleteCustomExercise: (id: string) => call<void>(`/api/exercises/custom/${id}`, 'DELETE'),
   exerciseInsight: (id: string, range = '3m', page = 0, size = 20, signal?: AbortSignal) => call<ExerciseInsight>(`/api/exercises/${id}/insight?range=${range}&page=${page}&size=${size}`, 'GET', undefined, signal),
   exerciseClearPreview: (id: string, signal?: AbortSignal) => call<ExerciseClearPreview>(`/api/exercises/${id}/clear-preview`, 'GET', undefined, signal),
@@ -141,10 +141,11 @@ export const api = {
   }),
   extractImport: (id: string) => call<ImportView>(`/api/imports/${id}/extract`, 'POST'),
   retryImport: (id: string) => call<ImportView>(`/api/imports/${id}/retry`, 'POST'),
-  editImport: (id: string, draft: Pick<ImportDraft, 'programName'> | ImportDraft) => call<ImportView>(`/api/imports/${id}`, 'PUT', draft),
-  editImportDay: (id: string, day: DraftWorkout) => call<ImportView>(`/api/imports/${id}/days/${day.lineId}`, 'PUT', day),
+  editImport: (id: string, draft: Pick<ImportDraft, 'programName'> | ImportDraft, revision?: number) => call<ImportView>(`/api/imports/${id}`, 'PUT', revision == null ? draft : { ...draft, revision }),
+  editImportDay: (id: string, day: DraftWorkout, revision?: number) => call<ImportView>(`/api/imports/${id}/days/${day.lineId}`, 'PUT', revision == null ? day : { ...day, revision }),
   restoreImport: (id: string, revision?: number) => call<ImportView>(`/api/imports/${id}/restore`, 'POST', { revision }),
   restoreImportExercise: (id: string, exerciseLineId: string, revision?: number) => call<ImportView>(`/api/imports/${id}/exercises/${exerciseLineId}/restore`, 'POST', { revision }),
+  mapImportExerciseSlot: (id: string, exerciseLineId: string, replacementExerciseId: string | null, revision?: number) => call<ImportView>(`/api/imports/${id}/exercises/${exerciseLineId}/mapping`, 'POST', { replacementExerciseId, revision }),
   selectImportAlternative: (id: string, alternativeId: string) => call<ImportView>(`/api/imports/${id}/alternative`, 'POST', { alternativeId }),
   acceptImport: (id: string) => call<Program>(`/api/imports/${id}/accept`, 'POST'),
   discardImport: (id: string) => call<void>(`/api/imports/${id}/discard`, 'POST')

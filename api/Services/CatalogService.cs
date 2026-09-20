@@ -6,10 +6,11 @@ using Workout.Api.Domain;
 namespace Workout.Api.Services;
 
 public record CatalogExercise(Guid Id, string Slug, string Name, string Muscle, string Equipment, string Cue, List<string> Aliases, double LoadStepKg,
-    string LoadModel = LoadModels.External, string MovementPattern = "", string Source = "catalog", bool IsCustom = false, bool Archived = false);
+    string LoadModel = LoadModels.External, string MovementPattern = "", string Source = "catalog", bool IsCustom = false, bool Archived = false,
+    List<string>? SecondaryMuscles = null);
 
 public record SubstitutionCandidate(Guid ExerciseId, string Name, string Muscle, string Equipment, string Cue,
-    string Source, int Rank, bool IsCatalog, string MovementPattern = "");
+    string Source, int Rank, bool IsCatalog, string MovementPattern = "", List<string>? SecondaryMuscles = null);
 
 public sealed class CatalogService(AppDb db)
 {
@@ -18,13 +19,34 @@ public sealed class CatalogService(AppDb db)
     // The short expiry also makes a catalog seed visible without requiring a
     // restart or a cross-service cache invalidation channel.
     private static readonly MemoryCache SharedCache = new(new MemoryCacheOptions { SizeLimit = 4 });
-    private const string SharedCatalogKey = "workout:catalog:active:v1";
+    private const string SharedCatalogKey = "workout:catalog:active:v2";
 
     /// Normalizing on comparison keeps "Barbell Bench-Press" and "barbell bench press" the same key.
     public static string Normalize(string value)
     {
         var cleaned = new string(value.Trim().ToLowerInvariant().Select(c => char.IsAsciiLetterOrDigit(c) ? c : ' ').ToArray());
         return string.Join(' ', cleaned.Split(' ', StringSplitOptions.RemoveEmptyEntries));
+    }
+
+    public static List<string> NormalizeMuscles(string? primary, IEnumerable<string>? secondary)
+    {
+        var primaryKey = Normalize(primary ?? "");
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        var output = new List<string>();
+        foreach (var value in secondary ?? [])
+        {
+            var clean = string.Join(' ', (value ?? "").Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries));
+            var key = Normalize(clean);
+            if (key.Length == 0 || key == primaryKey || !seen.Add(key)) continue;
+            output.Add(clean);
+        }
+        return output;
+    }
+
+    private static List<string> ReadMuscles(string? json, string primary)
+    {
+        try { return NormalizeMuscles(primary, string.IsNullOrWhiteSpace(json) ? [] : Json.Read<List<string>>(json)); }
+        catch { return []; }
     }
 
     public static bool IsPlaceholder(string? text)
@@ -40,7 +62,8 @@ public sealed class CatalogService(AppDb db)
         var output = shared.Select(x => x with { Aliases = x.Aliases.ToList() }).ToList();
         var custom = await db.CustomExercises.AsNoTracking().Where(x => !x.Archived).OrderBy(x => x.Name).ToListAsync(ct);
         output.AddRange(custom.Select(x => new CatalogExercise(x.Id, $"custom-{x.Id:N}", x.Name, x.Muscle, x.Equipment, x.Cue, [], x.LoadStepKg,
-            LoadModels.All.Contains(x.LoadModel) ? x.LoadModel : LoadModels.External, x.MovementPattern, "custom", true)));
+            LoadModels.All.Contains(x.LoadModel) ? x.LoadModel : LoadModels.External, x.MovementPattern, "custom", true, false,
+            ReadMuscles(x.SecondaryMusclesJson, x.Muscle))));
         return output;
     }
 
@@ -54,7 +77,7 @@ public sealed class CatalogService(AppDb db)
 
         var exercises = await db.Exercises.AsNoTracking().Where(x => x.Active)
             .OrderBy(x => x.Name)
-            .Select(x => new { x.Id, x.Slug, x.Name, x.Muscle, x.Equipment, x.Cue, x.LoadStepKg, x.LoadModel, x.MovementPattern })
+            .Select(x => new { x.Id, x.Slug, x.Name, x.Muscle, x.Equipment, x.Cue, x.LoadStepKg, x.LoadModel, x.MovementPattern, x.SecondaryMusclesJson })
             .ToListAsync(ct);
         var ids = exercises.Select(x => x.Id).ToList();
         var aliases = ids.Count == 0 ? [] : await db.Aliases.AsNoTracking().Where(a => ids.Contains(a.ExerciseId)).ToListAsync(ct);
@@ -62,7 +85,8 @@ public sealed class CatalogService(AppDb db)
             .ToDictionary(g => g.Key, g => g.Select(a => a.Alias).OrderBy(a => a).ToList());
         var result = exercises.Select(x => new CatalogExercise(x.Id, x.Slug, x.Name, x.Muscle, x.Equipment, x.Cue,
             aliasesByExercise.GetValueOrDefault(x.Id) ?? [], x.LoadStepKg,
-            LoadModels.All.Contains(x.LoadModel) ? x.LoadModel : LoadModels.External, x.MovementPattern)).ToList();
+            LoadModels.All.Contains(x.LoadModel) ? x.LoadModel : LoadModels.External, x.MovementPattern, "catalog", false, false,
+            ReadMuscles(x.SecondaryMusclesJson, x.Muscle))).ToList();
         if (!db.Database.IsSqlite())
             SharedCache.Set(SharedCatalogKey, result, new MemoryCacheEntryOptions
             {
@@ -92,28 +116,30 @@ public sealed class CatalogService(AppDb db)
             var match = all.FirstOrDefault(x => Normalize(x.Name) == Normalize(clean) || x.Aliases.Any(a => Normalize(a) == Normalize(clean)));
             if (match == null) continue;
             output.Add(new SubstitutionCandidate(match.Id, match.Name, match.Muscle, match.Equipment, match.Cue,
-                "imported", rank++, true, match.MovementPattern));
+                "imported", rank++, true, match.MovementPattern, match.SecondaryMuscles));
         }
         IEnumerable<CatalogExercise> filtered = all;
         if (search.Length > 0)
             filtered = filtered.Where(x => Normalize(x.Name).Contains(search) || Normalize(x.Muscle).Contains(search) ||
-                Normalize(x.Equipment).Contains(search) || x.Aliases.Any(a => Normalize(a).Contains(search)));
+                Normalize(x.Equipment).Contains(search) || (x.SecondaryMuscles ?? []).Any(muscle => Normalize(muscle).Contains(search)) ||
+                x.Aliases.Any(a => Normalize(a).Contains(search)));
         var similar = current is null ? filtered : filtered.Where(x => x.Id != current.Id &&
             (!string.IsNullOrWhiteSpace(current.MovementPattern) && string.Equals(x.MovementPattern, current.MovementPattern, StringComparison.OrdinalIgnoreCase) ||
              string.Equals(x.Muscle, current.Muscle, StringComparison.OrdinalIgnoreCase) ||
-             string.Equals(x.Equipment, current.Equipment, StringComparison.OrdinalIgnoreCase)));
+             string.Equals(x.Equipment, current.Equipment, StringComparison.OrdinalIgnoreCase) ||
+             SharedSecondary(current, x) > 0));
         foreach (var candidate in similar.OrderBy(x => SimilarityScore(current, x)).ThenBy(x => x.Name))
         {
             if (!seenNames.Add(Normalize(candidate.Name))) continue;
             output.Add(new SubstitutionCandidate(candidate.Id, candidate.Name, candidate.Muscle, candidate.Equipment, candidate.Cue,
-                "similar", rank++, true, candidate.MovementPattern));
+                "similar", rank++, true, candidate.MovementPattern, candidate.SecondaryMuscles));
         }
         foreach (var candidate in filtered.OrderBy(x => x.Name))
         {
             if (current?.Id == candidate.Id) continue;
             if (!seenNames.Add(Normalize(candidate.Name))) continue;
             output.Add(new SubstitutionCandidate(candidate.Id, candidate.Name, candidate.Muscle, candidate.Equipment, candidate.Cue,
-                "library", rank++, true, candidate.MovementPattern));
+                "library", rank++, true, candidate.MovementPattern, candidate.SecondaryMuscles));
         }
         return output;
     }
@@ -121,12 +147,22 @@ public sealed class CatalogService(AppDb db)
     private static int SimilarityScore(CatalogExercise? source, CatalogExercise candidate)
     {
         if (source is null) return 0;
-        var score = 0;
-        if (!string.IsNullOrWhiteSpace(source.MovementPattern) && string.Equals(source.MovementPattern, candidate.MovementPattern, StringComparison.OrdinalIgnoreCase)) score -= 4;
-        if (string.Equals(source.Muscle, candidate.Muscle, StringComparison.OrdinalIgnoreCase)) score -= 2;
-        if (string.Equals(source.Equipment, candidate.Equipment, StringComparison.OrdinalIgnoreCase)) score--;
-        return score;
+        var sourceSecondary = source.SecondaryMuscles ?? [];
+        var candidateSecondary = candidate.SecondaryMuscles ?? [];
+        var sharedSecondary = sourceSecondary.Count(value => candidateSecondary.Any(candidateValue =>
+            string.Equals(value, candidateValue, StringComparison.OrdinalIgnoreCase)));
+        var samePrimary = string.Equals(source.Muscle, candidate.Muscle, StringComparison.OrdinalIgnoreCase);
+        if (samePrimary && sharedSecondary > 0) return -100 - sharedSecondary;
+        if (samePrimary) return -80;
+        if (sharedSecondary > 0) return -60 - sharedSecondary;
+        if (!string.IsNullOrWhiteSpace(source.MovementPattern) && string.Equals(source.MovementPattern, candidate.MovementPattern, StringComparison.OrdinalIgnoreCase)) return -40;
+        if (string.Equals(source.Equipment, candidate.Equipment, StringComparison.OrdinalIgnoreCase)) return -20;
+        return 0;
     }
+
+    private static int SharedSecondary(CatalogExercise source, CatalogExercise candidate)
+        => (source.SecondaryMuscles ?? []).Count(value => (candidate.SecondaryMuscles ?? []).Any(candidateValue =>
+            string.Equals(value, candidateValue, StringComparison.OrdinalIgnoreCase)));
 
     /// Returns the catalog id for a written name, or null when nothing matches.
     /// An unmatched name stays unresolved; it is never guessed into a neighbouring exercise.

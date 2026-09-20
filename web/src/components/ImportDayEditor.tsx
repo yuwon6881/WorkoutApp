@@ -37,11 +37,12 @@ export function exerciseSummary(exercise: DraftExercise): string {
   return metrics.join(' · ');
 }
 
-export function DayEditor({ day, exercises, onChange, onPropagateSubstitution, restorableExerciseLineIds, onRestoreExercise }: {
+export function DayEditor({ day, exercises, onChange, onPropagateSubstitution, onMapExerciseSlot, restorableExerciseLineIds, onRestoreExercise }: {
   day: DraftWorkout;
   exercises: Exercise[];
   onChange: (day: DraftWorkout) => Promise<void>;
   onPropagateSubstitution?: (currentName: string, replacementName: string, exerciseLineId?: string) => Promise<void>;
+  onMapExerciseSlot?: (exerciseLineId: string, exerciseId: string | null) => Promise<void>;
   restorableExerciseLineIds?: string[];
   onRestoreExercise?: (exerciseLineId: string) => Promise<void>;
 }) {
@@ -104,6 +105,7 @@ export function DayEditor({ day, exercises, onChange, onPropagateSubstitution, r
           onPairExercises={targetLineId => handlePairExercises(exercise.lineId, targetLineId)}
           onUnlinkExercise={() => handleUnlinkExercise(exercise.lineId)}
           onPropagateSubstitution={onPropagateSubstitution}
+          onMapExerciseSlot={onMapExerciseSlot}
           canRestore={restorableExerciseLineIds?.includes(exercise.lineId)}
           onRestore={onRestoreExercise ? () => onRestoreExercise(exercise.lineId) : undefined} />)}
       </div>)}
@@ -113,7 +115,7 @@ export function DayEditor({ day, exercises, onChange, onPropagateSubstitution, r
   </div>;
 }
 
-function ExerciseEditor({ exercise, exercises, allDayExercises, onChange, onRemove, onPairExercises, onUnlinkExercise, onPropagateSubstitution, canRestore, onRestore }: {
+function ExerciseEditor({ exercise, exercises, allDayExercises, onChange, onRemove, onPairExercises, onUnlinkExercise, onPropagateSubstitution, onMapExerciseSlot, canRestore, onRestore }: {
   exercise: DraftExercise;
   exercises: Exercise[];
   allDayExercises: DraftExercise[];
@@ -122,6 +124,7 @@ function ExerciseEditor({ exercise, exercises, allDayExercises, onChange, onRemo
   onPairExercises: (targetLineId: string) => void;
   onUnlinkExercise: () => void;
   onPropagateSubstitution?: (currentName: string, replacementName: string, exerciseLineId?: string) => Promise<void>;
+  onMapExerciseSlot?: (exerciseLineId: string, exerciseId: string | null) => Promise<void>;
   canRestore?: boolean;
   onRestore?: () => Promise<void>;
 }) {
@@ -131,6 +134,7 @@ function ExerciseEditor({ exercise, exercises, allDayExercises, onChange, onRemo
   const menuRef = useRef<HTMLDivElement>(null);
   const [isRestoring, setIsRestoring] = useState(false);
   const [restoreError, setRestoreError] = useState<string | null>(null);
+  const [isMapping, setIsMapping] = useState(false);
 
   useEffect(() => {
     if (!menuOpen) return;
@@ -165,7 +169,15 @@ function ExerciseEditor({ exercise, exercises, allDayExercises, onChange, onRemo
   };
 
   const selected = exercises.find(option => option.id === exercise.exerciseId);
-  const select = (exerciseId: string | null) => {
+  const select = async (exerciseId: string | null) => {
+    if (onMapExerciseSlot) {
+      setIsMapping(true);
+      setRestoreError(null);
+      try { await onMapExerciseSlot(exercise.lineId, exerciseId); setPickerOpen(false); }
+      catch (err) { setRestoreError(err instanceof Error ? err.message : 'Could not map this exercise slot.'); }
+      finally { setIsMapping(false); }
+      return;
+    }
     onChange({ ...exercise, exerciseId });
     setPickerOpen(false);
   };
@@ -216,13 +228,16 @@ function ExerciseEditor({ exercise, exercises, allDayExercises, onChange, onRemo
     <div className="import-exercise-heading">
       <div className="import-exercise-title">
         <span className="import-exercise-icon" aria-hidden="true"><Dumbbell size={17} /></span>
-        <input
-          name={`exercise-source-name-${exercise.lineId}`}
-          className="inline-input"
-          aria-label="Exercise name"
-          value={exercise.sourceName}
-          onChange={event => onChange({ ...exercise, sourceName: event.target.value })}
-        />
+        <div className="inline-input-wrap">
+          <span className="inline-input-mirror" aria-hidden="true" data-value={exercise.sourceName || ''} />
+          <input
+            name={`exercise-source-name-${exercise.lineId}`}
+            className="inline-input"
+            aria-label="Exercise name"
+            value={exercise.sourceName}
+            onChange={event => onChange({ ...exercise, sourceName: event.target.value })}
+          />
+        </div>
         {isPaired && (
           <span
             className="superset-badge"
@@ -318,7 +333,7 @@ function ExerciseEditor({ exercise, exercises, allDayExercises, onChange, onRemo
       <div className="field import-library-field">
         <span>Library exercise</span>
         <Button variant="secondary" className="import-library-trigger" aria-haspopup="dialog" data-import-field="library"
-          disabled={isRestoring}
+          disabled={isRestoring || isMapping}
           aria-label={`Library exercise for ${exercise.sourceName}`} onClick={() => setPickerOpen(true)}>
           {selected?.name ?? (exercise.exerciseId ? 'Swap exercise' : 'Map exercise')}
         </Button>
@@ -421,11 +436,16 @@ function ExerciseEditor({ exercise, exercises, allDayExercises, onChange, onRemo
     {pickerOpen && <Modal title={`Choose a library exercise for ${exercise.sourceName}`} wide onClose={() => setPickerOpen(false)}>
       <div className="modal-body import-library-picker">
         <p>Search the catalog by exercise, equipment, muscle, movement pattern, or alias.</p>
-        <ExerciseLibrary exercises={exercises} action={exercise.exerciseId ? 'swap' : 'map'} onSelect={id => select(id)} />
+        <ExerciseLibrary
+          exercises={exercises}
+          action={exercise.exerciseId ? 'swap' : 'map'}
+          currentExerciseId={exercise.exerciseId}
+          preferredNames={exercise.substitutions}
+          onSelect={id => select(id)}
+        />
       </div>
       <div className="modal-actions">
-        <Button variant="tertiary" onClick={() => select(null)}>Clear mapping</Button>
-        <Button variant="primary" onClick={() => setPickerOpen(false)}>Done</Button>
+        <Button variant="primary" disabled={isMapping} onClick={() => setPickerOpen(false)}>Done</Button>
       </div>
     </Modal>}
 
