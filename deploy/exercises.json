@@ -1025,7 +1025,9 @@
     "muscle": "Back",
     "equipment": "Bodyweight",
     "cue": "",
-    "aliases": []
+    "aliases": [
+      "Pull-Up (Wide Grip)"
+    ]
   },
   {
     "slug": "cable-close-grip-row",
@@ -1348,6 +1350,14 @@
   {
     "slug": "db-bicep-curl",
     "name": "DB Bicep Curl",
+    "muscle": "Biceps and forearms",
+    "equipment": "Dumbbell",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "alternating-db-curl",
+    "name": "Alternating DB Curl",
     "muscle": "Biceps and forearms",
     "equipment": "Dumbbell",
     "cue": "",

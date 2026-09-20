@@ -16,7 +16,7 @@ public static class CentralAuthEndpoints
     private const string StateCookie = "workout-oidc-state";
     private const string ConnectStateCookie = "workout-oidc-connect-state";
     private const string IdentityScope = "openid profile";
-    private const string IntegrationScope = "openid profile offline_access nutrition.training_context.read";
+    private const string IntegrationScope = "openid profile nutrition.training_context.read";
     private const string NutritionScope = "nutrition.training_context.read";
 
     public static void MapCentralAuth(this WebApplication app)
@@ -31,13 +31,14 @@ public static class CentralAuthEndpoints
         });
 
         // Consent is a separate backend flow. Shared login above requests identity claims only.
-        app.MapGet("/api/auth/central/connect", (HttpResponse response, IConfiguration config, [FromServices] IDataProtectionProvider protection,
-            IHostEnvironment environment, AppDb db) =>
+        app.MapGet("/api/auth/central/connect", async (HttpResponse response, IConfiguration config, [FromServices] IDataProtectionProvider protection,
+            IHostEnvironment environment, AppDb db, IntegrationTokenService peerTokens, CancellationToken ct) =>
         {
             Validation.Require(db.CurrentUser is not null, "Sign in before connecting Nutrition.", 401);
             var localUser = db.CurrentUser!.Value;
             var settings = Settings(config, environment);
-            var state = NewState(settings.ConnectReturnUrl, true, localUser);
+            var revision = await peerTokens.BeginConnectionAttempt(ct);
+            var state = NewState(settings.ConnectReturnUrl, true, localUser, revision);
             var protector = protection.CreateProtector("workout-fitness-account-oidc-connect-v1");
             response.Cookies.Append(ConnectStateCookie, protector.Protect(JsonSerializer.Serialize(state)), CookieOptions(environment, TimeSpan.FromMinutes(10)));
             return Results.Redirect(AuthorizeUrl(settings, state, IntegrationScope));
@@ -65,12 +66,15 @@ public static class CentralAuthEndpoints
             var validatedIdentity = await tokens.ValidateIdentityToken(idToken!, state.Nonce, settings.ClientId, ct);
             var identitySubject = validatedIdentity.Subject;
             var identityName = validatedIdentity.Name;
+            ValidatedAccessToken? connectionToken = null;
             if (connect)
             {
                 var accessToken = payload.TryGetProperty("access_token", out var access) ? access.GetString() : null;
                 Validation.Require(!string.IsNullOrWhiteSpace(accessToken), "The central connection returned no access token.", 401);
-                var validated = await accessTokens.RequireAccessToken(accessToken!, NutritionScope, ct);
-                Validation.Require(identitySubject == validated.Subject, "The central identity subject did not match the access token.", 401);
+                connectionToken = await accessTokens.RequireAccessToken(accessToken!, NutritionScope, ct);
+                Validation.Require(identitySubject == connectionToken.Subject, "The central identity subject did not match the access token.", 401);
+                Validation.Require(connectionToken.FitnessConnectionId is not null && connectionToken.FitnessConnectionGeneration is not null,
+                    "The central connection did not return durable consent details.", 401);
             }
 
             if (connect)
@@ -78,16 +82,11 @@ public static class CentralAuthEndpoints
                 var local = await LocalUser(request, db, state.LocalUserId, ct);
                 Validation.Require(local is not null && local.IdentitySubject == identitySubject,
                     "This central subject is not attached to the current Workout account.", 403);
-                var refresh = payload.TryGetProperty("refresh_token", out var refreshElement) ? refreshElement.GetString() : null;
-                Validation.Require(!string.IsNullOrWhiteSpace(refresh), "The central connection returned no rotating refresh token.", 401);
                 db.CurrentUser = local!.Id;
-                var grant = await db.IntegrationGrants.SingleOrDefaultAsync(x => x.Peer == "nutrition", ct);
-                if (grant is null) { grant = new IntegrationGrant { UserId = local.Id, Peer = "nutrition" }; db.IntegrationGrants.Add(grant); }
-                grant.Status = "active";
-                grant.ScopesJson = JsonSerializer.Serialize(new[] { NutritionScope }, Json.Options);
-                grant.EncryptedRefreshToken = await peerTokens.Protect(refresh!, ct);
-                grant.GrantedAt = DateTime.UtcNow; grant.RevokedAt = null; grant.Revision++;
-                await db.SaveChangesAsync(ct);
+                if (state.ConnectionRevision is not { } expectedRevision
+                    || !await peerTokens.StoreDurableConnection(local.Id, connectionToken!.FitnessConnectionId!.Value,
+                        connectionToken.FitnessConnectionGeneration!.Value, NutritionScope, expectedRevision, ct))
+                    return Results.Redirect(AppendError(state.ReturnUrl, "connection_changed"));
                 return Results.Redirect(state.ReturnUrl);
             }
 
@@ -99,8 +98,8 @@ public static class CentralAuthEndpoints
         });
     }
 
-    private static LoginState NewState(string returnUrl, bool connect, Guid? localUserId)
-        => new(RandomString(32), RandomString(32), RandomString(64), returnUrl, connect, localUserId);
+    private static LoginState NewState(string returnUrl, bool connect, Guid? localUserId, int? connectionRevision = null)
+        => new(RandomString(32), RandomString(32), RandomString(64), returnUrl, connect, localUserId, connectionRevision);
 
     private static string AuthorizeUrl(OidcSettings settings, LoginState state, string scope)
     {
@@ -219,6 +218,7 @@ public static class CentralAuthEndpoints
     private static void SetSessionCookie(HttpResponse response, string token, IHostEnvironment environment, string name)
         => response.Cookies.Append(name, token, new CookieOptions { HttpOnly = true, Secure = !environment.IsDevelopment(), SameSite = SameSiteMode.Lax, Path = "/", MaxAge = TimeSpan.FromDays(30), IsEssential = true });
 
-    private sealed record LoginState(string State, string Nonce, string Verifier, string ReturnUrl, bool Connect, Guid? LocalUserId);
+    private sealed record LoginState(string State, string Nonce, string Verifier, string ReturnUrl, bool Connect,
+        Guid? LocalUserId, int? ConnectionRevision = null);
     internal sealed record OidcSettings(string Authority, string ClientId, string ClientSecret, string RedirectUri, string ReturnUrl, string ConnectReturnUrl);
 }

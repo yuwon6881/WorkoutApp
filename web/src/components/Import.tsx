@@ -23,7 +23,7 @@ function stageLabel(view: ImportView, reading = false) {
 
 /// One honest progress reading. A step with no measurable size stays indeterminate rather than
 /// showing a number the app cannot stand behind.
-function Progress({ progress }: { progress: ImportProgress }) {
+function Progress({ progress, action }: { progress: ImportProgress; action?: React.ReactNode }) {
   return <div className="import-progress" role="status" aria-live="polite">
     <div className="import-progress-line">
       <span className="import-progress-label">{progress.label}</span>
@@ -34,7 +34,10 @@ function Progress({ progress }: { progress: ImportProgress }) {
       aria-valuenow={progress.percent ?? undefined} aria-valuemin={progress.percent === null ? undefined : 0} aria-valuemax={progress.percent === null ? undefined : 100}>
       <div className="import-progress-fill" style={progress.percent === null ? undefined : { width: `${progress.percent}%` }} />
     </div>
-    {progress.detail && <small>{progress.detail}</small>}
+    {(progress.detail || action) && <div className="import-progress-footer">
+      {progress.detail && <small>{progress.detail}</small>}
+      {action && <div className="import-progress-actions">{action}</div>}
+    </div>}
   </div>;
 }
 
@@ -160,9 +163,12 @@ export function ImportReview({ exercises, imports, remaining, onBack, onChanged,
         onChange={e => { const chosen = e.target.files?.[0]; e.target.value = ''; if (chosen) void pipeline.upload(chosen); }} />
       <div className="upload-action-row">
         <Button variant="primary" disabled={busy} onClick={() => file.current?.click()}><Upload size={17} />Choose a PDF</Button>
-        {pipeline.progress?.label === 'Reading the PDF on this device' && <Button variant="secondary" onClick={pipeline.cancelUpload}>Cancel PDF reading</Button>}
       </div>
-      {pipeline.progress && <Progress progress={pipeline.progress} />}
+      {pipeline.progress && <Progress progress={pipeline.progress} action={
+        pipeline.progress.label === 'Reading the PDF on this device'
+          ? <Button variant="secondary" onClick={pipeline.cancelUpload}><X size={15} />Cancel PDF reading</Button>
+          : undefined
+      } />}
       {saver.pending && <p className="muted" role="status">Saving your changes…</p>}
       {pipeline.notice && <p className="muted" role="status">{pipeline.notice}</p>}
       {pipeline.failure && <Failure failure={pipeline.failure} onChooseFile={() => file.current?.click()} onDismiss={pipeline.clearFailure}

@@ -621,12 +621,206 @@ namespace Workout.Api.Data.Migrations
                     b.ToTable("ExerciseSubstitutions");
                 });
 
+            modelBuilder.Entity("Workout.Api.Data.GoogleHealthConnection", b =>
+                {
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("ConnectedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<long>("ConnectionGeneration")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("EncryptedGoogleId")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("EncryptedRefreshToken")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("EncryptedStepHistoryJson")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("GoogleIdHash")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("GrantedScopesJson")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("LastSyncedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<long>("Revision")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("WorkoutLastSuccessfulSyncAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("WorkoutSyncEnabled")
+                        .HasColumnType("boolean");
+
+                    b.Property<long>("WorkoutSyncRevision")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("UserId");
+
+                    b.HasIndex("GoogleIdHash")
+                        .IsUnique();
+
+                    b.ToTable("GoogleHealthConnections");
+                });
+
+            modelBuilder.Entity("Workout.Api.Data.GoogleHealthOAuthState", b =>
+                {
+                    b.Property<string>("State")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("ExpiresAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("RequestedOperationsJson")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("RequestedScopesJson")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("SessionHash")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("State");
+
+                    b.HasIndex("ExpiresAt");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("GoogleHealthOAuthStates");
+                });
+
+            modelBuilder.Entity("Workout.Api.Data.GoogleHealthWorkoutSyncWork", b =>
+                {
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid");
+
+                    b.Property<long>("ConnectionGeneration")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("DesiredDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTime>("DesiredFinishedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("DesiredName")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("DesiredNotes")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<long>("DesiredRevision")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTime>("DesiredStartedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("GoogleIdHash")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("GoogleOperationName")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("GoogleResourceName")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("LastErrorCategory")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("LastErrorMessage")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("LastSuccessfulSyncAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("LeaseId")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("LeaseUntil")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("NextAttemptAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ProcessingState")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<int>("RetryCount")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("Revision")
+                        .IsConcurrencyToken()
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("WorkoutSessionId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("UserId", "Id");
+
+                    b.HasIndex("ProcessingState", "NextAttemptAt");
+
+                    b.HasIndex("UserId", "WorkoutSessionId")
+                        .IsUnique();
+
+                    b.ToTable("GoogleHealthWorkoutSyncWork");
+                });
+
             modelBuilder.Entity("Workout.Api.Data.IntegrationGrant", b =>
                 {
                     b.Property<Guid>("UserId")
                         .HasColumnType("uuid");
 
                     b.Property<Guid>("Id")
+                        .HasColumnType("uuid");
+
+                    b.Property<long?>("CentralConnectionGeneration")
+                        .HasColumnType("bigint");
+
+                    b.Property<Guid?>("CentralConnectionId")
                         .HasColumnType("uuid");
 
                     b.Property<string>("EncryptedRefreshToken")
@@ -1191,6 +1385,33 @@ namespace Workout.Api.Data.Migrations
                 });
 
             modelBuilder.Entity("Workout.Api.Data.ExerciseSubstitution", b =>
+                {
+                    b.HasOne("Workout.Api.Data.AppUser", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Workout.Api.Data.GoogleHealthConnection", b =>
+                {
+                    b.HasOne("Workout.Api.Data.AppUser", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Workout.Api.Data.GoogleHealthOAuthState", b =>
+                {
+                    b.HasOne("Workout.Api.Data.AppUser", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Workout.Api.Data.GoogleHealthWorkoutSyncWork", b =>
                 {
                     b.HasOne("Workout.Api.Data.AppUser", null)
                         .WithMany()

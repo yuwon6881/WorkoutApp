@@ -34,13 +34,14 @@ public sealed partial class WorkoutService(
     TemplateService templates,
     ProgressionService progression,
     NutritionContextService nutrition,
-    ProgramService programs)
+    ProgramService programs,
+    GoogleHealthWorkoutSyncService? workoutSync = null)
 {
     // Keep the pre-phase constructor usable for integrations and focused tests that create the
     // service directly. The application container resolves the primary constructor above.
     public WorkoutService(AppDb db, CatalogService catalog, TemplateService templates,
         ProgressionService progression, NutritionContextService nutrition)
-        : this(db, catalog, templates, progression, nutrition, new ProgramService(db, templates))
+        : this(db, catalog, templates, progression, nutrition, new ProgramService(db, templates), null)
     {
     }
 
@@ -562,6 +563,7 @@ public sealed partial class WorkoutService(
         session.Active = false; session.FinishedAt = DateTime.UtcNow; session.Revision++;
         await db.SaveChangesAsync(ct);
         if (session.ProgramId is { } programId) await programs.Reconcile(programId, ct);
+        if (workoutSync is not null) await workoutSync.QueueWorkoutAsync(id, isDelete: false, ct);
         await db.SaveChangesAsync(ct);
         await gate.Commit(ct);
         return await Get(id, ct);
@@ -611,6 +613,7 @@ public sealed partial class WorkoutService(
         var session = await db.Workouts.SingleOrDefaultAsync(w => w.Id == id && !w.Active, ct);
         Validation.Require(session != null, "That workout is not in your history.", 404);
         var programId = session!.ProgramId;
+        if (workoutSync is not null) await workoutSync.QueueWorkoutAsync(id, isDelete: true, ct);
         await Remove(session, ct);
         await db.SaveChangesAsync(ct);
         if (programId is { } restoredProgram) await programs.Reconcile(restoredProgram, ct);

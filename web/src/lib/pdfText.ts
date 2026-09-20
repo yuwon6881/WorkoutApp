@@ -23,6 +23,8 @@ type TextPiece = { str: string; transform: number[]; width?: number; height?: nu
 type PositionedPiece = TextPiece & { x: number; y: number; endX: number };
 type TextRow = { y: number; items: PositionedPiece[] };
 type HeaderColumns = { centers: number[] };
+type MinMaxColumn = { center: number; label: string };
+type MinMaxTable = { columns: MinMaxColumn[]; headerTop: number; headerBottom: number; anchors: TextRow[] };
 
 const HEADER_LABELS = [
   /^exercise(?:s)?$/i,
@@ -159,6 +161,159 @@ function estimateTableRegionGap(rows: TextRow[]): number {
   return Math.max(ROW_TOLERANCE * 4, typicalFont * 3.5, typicalRowGap * 2.5);
 }
 
+function normalizedText(value: string): string {
+  return value.replace(/\s+/g, ' ').trim();
+}
+
+function pieceCenter(item: PositionedPiece): number {
+  return (item.x + item.endX) / 2;
+}
+
+function findMinMaxTable(rows: TextRow[]): MinMaxTable | undefined {
+  const items = rows.flatMap(row => row.items);
+  for (const parent of items.filter(item => /^tracking load and reps$/i.test(normalizedText(item.str)))) {
+    // Min-Max places the tracking banner above a three-line prescription header. Requiring its
+    // complete signature keeps this specialized reconstruction away from the other table families.
+    const band = items.filter(item => item.y <= parent.y + 8 && item.y >= parent.y - 70);
+    const text = band.map(item => normalizedText(item.str));
+    const exact = (value: string) => band.filter(item => normalizedText(item.str).toLowerCase() === value.toLowerCase());
+    const exercise = exact('Exercise')[0];
+    const technique = exact('Technique')[0];
+    const lastSet = band.find(item => /^last-set intensity$/i.test(normalizedText(item.str)));
+    const warmup = exact('Warm-up')[0];
+    const working = exact('WORKING')[0];
+    const rep = exact('Rep')[0];
+    const range = exact('Range')[0];
+    const loads = exact('LOAD').sort((a, b) => pieceCenter(a) - pieceCenter(b));
+    const trackedReps = exact('REPS').sort((a, b) => pieceCenter(a) - pieceCenter(b));
+    const rirs = exact('RIR').sort((a, b) => pieceCenter(a) - pieceCenter(b));
+    const rest = exact('Rest')[0];
+    const option1 = exact('Option 1')[0];
+    const option2 = exact('Option 2')[0];
+    const notes = exact('NOTES')[0];
+    const setLabels = band.filter(item => /^sets?$/i.test(normalizedText(item.str)));
+    const warmupSets = warmup && setLabels.length > 0
+      ? [...setLabels].sort((a, b) => Math.abs(pieceCenter(a) - pieceCenter(warmup))
+        - Math.abs(pieceCenter(b) - pieceCenter(warmup)))[0]
+      : undefined;
+    const workingSets = working && setLabels.length > 0
+      ? [...setLabels].sort((a, b) => Math.abs(pieceCenter(a) - pieceCenter(working))
+        - Math.abs(pieceCenter(b) - pieceCenter(working)))[0]
+      : undefined;
+    const repRange = range && rep ? { center: (pieceCenter(range) + pieceCenter(rep)) / 2, label: 'Rep Range' } : undefined;
+    const trackingLoad1 = loads[0];
+    const trackingLoad2 = loads[1];
+    const trackingReps1 = trackedReps[0];
+    const trackingReps2 = trackedReps[1];
+    if (!exercise || !technique || !lastSet || !warmup || !working || !repRange || !warmupSets || !workingSets
+      || loads.length !== 2 || trackedReps.length !== 2 || rirs.length !== 2 || !rest || !option1 || !option2 || !notes
+      || !text.some(value => /substitution/i.test(value))) continue;
+
+    const columns: MinMaxColumn[] = [
+      { center: pieceCenter(exercise), label: 'Exercise' },
+      { center: (pieceCenter(lastSet) + pieceCenter(technique)) / 2, label: 'Last-Set Intensity Technique' },
+      { center: (pieceCenter(warmup) + pieceCenter(warmupSets)) / 2, label: 'Warm-up Sets' },
+      { center: (pieceCenter(working) + pieceCenter(workingSets)) / 2, label: 'Working Sets' },
+      repRange,
+      { center: pieceCenter(trackingLoad1), label: 'Tracking Load Set 1' },
+      { center: pieceCenter(trackingReps1), label: 'Tracking Reps Set 1' },
+      { center: pieceCenter(trackingLoad2), label: 'Tracking Load Set 2' },
+      { center: pieceCenter(trackingReps2), label: 'Tracking Reps Set 2' },
+      { center: pieceCenter(rirs[0]), label: 'RIR Set 1' },
+      { center: pieceCenter(rirs[1]), label: 'RIR Set 2' },
+      { center: pieceCenter(rest), label: 'Rest' },
+      { center: pieceCenter(option1), label: 'Substitution Option 1' },
+      { center: pieceCenter(option2), label: 'Substitution Option 2' },
+      { center: pieceCenter(notes), label: 'Notes' }
+    ].sort((a, b) => a.center - b.center);
+    if (columns.some((column, index) => index > 0 && column.center <= columns[index - 1].center)) continue;
+
+    const headerYs = band.map(item => item.y);
+    const headerTop = Math.max(...headerYs);
+    const headerBottom = Math.min(...headerYs);
+    const centers = columns.map(column => column.center);
+    const isNumeric = (value: string | undefined) => !!value && /^(?:\d+(?:\.\d+)?|N\/A)$/i.test(normalizedText(value));
+    const isRep = (value: string | undefined) => !!value && /^(?:\d+(?:\s*[-–]\s*\d+)?|N\/A)$/i.test(normalizedText(value));
+    const hasTextInColumn = (row: TextRow, index: number, match: (value: string | undefined) => boolean) =>
+      row.items.some(item => columnIndex(pieceCenter(item), centers) === index && match(item.str));
+    const anchors = rows.filter(row => row.y < headerBottom - 10
+      && hasTextInColumn(row, 3, value => !!value && /^\d{1,2}$/.test(normalizedText(value)))
+      && hasTextInColumn(row, 4, isRep)
+      && hasTextInColumn(row, 9, isNumeric)
+      && hasTextInColumn(row, 10, isNumeric)
+      && hasTextInColumn(row, 11, value => !!value && /^\d+(?:\.\d+)?(?:\s*[-–]\s*\d+(?:\.\d+)?)?\s*(?:min|mins|minutes?|sec|secs|seconds?|s|m)$/i.test(normalizedText(value))))
+      .sort((a, b) => b.y - a.y);
+    if (anchors.length > 0) return { columns, headerTop, headerBottom, anchors };
+  }
+  return undefined;
+}
+
+function columnIndex(center: number, centers: number[]): number {
+  let index = 0;
+  for (let next = 1; next < centers.length; next++) {
+    if (center >= (centers[next - 1] + centers[next]) / 2) index = next;
+    else break;
+  }
+  return index;
+}
+
+function minMaxColumnIndex(item: PositionedPiece, centers: number[]): number {
+  const index = columnIndex(pieceCenter(item), centers);
+  const notesIndex = centers.length - 1;
+  const substitution2Index = notesIndex - 1;
+  // Min-Max centers its Notes heading far to the right while the long note cell begins directly
+  // after substitution 2. Keep those left-aligned paragraphs in Notes even when their width pulls
+  // the text midpoint back across the generic center-based boundary.
+  if (index === substitution2Index && item.x > centers[substitution2Index] + 50) return notesIndex;
+  return index;
+}
+
+function isScheduleLabel(value: string): boolean {
+  return /^(?:BLOCK\s+\d+|WEEK\s+\d+|INTRO\s+WEEK|DELOAD\s+WEEK|(?:SUGGESTED\s+|MANDATORY\s+)?REST\s+DAY|(?:UPPER|LOWER)\s+\d+|ARMS\s*\/\s*DELTS)$/i.test(normalizedText(value));
+}
+
+function renderMinMaxPage(rows: TextRow[], fallbackGap: number, table: MinMaxTable): string {
+  const rowGaps = table.anchors.slice(1).map((row, index) => table.anchors[index].y - row.y).filter(gap => gap > 0);
+  const typicalRowGap = median(rowGaps);
+  const finalRowPadding = Math.max(ROW_TOLERANCE * 4, typicalRowGap > 0 ? typicalRowGap / 2 : 40);
+  const tableBottom = table.anchors.at(-1)!.y - finalRowPadding;
+  const centers = table.columns.map(column => column.center);
+  const rendered: { y: number; x: number; text: string }[] = [];
+  const schedule = rows.flatMap(row => row.items)
+    .filter(item => isScheduleLabel(item.str))
+    .map(item => ({ y: item.y, x: item.x, text: normalizedText(item.str) }));
+  rendered.push(...schedule);
+
+  for (const row of rows) {
+    const inTable = row.y <= table.headerTop + 4 && row.y >= tableBottom;
+    if (inTable || row.items.every(item => isScheduleLabel(item.str))) continue;
+    const remaining = row.items.filter(item => !isScheduleLabel(item.str));
+    const line = renderRow({ ...row, items: remaining }, undefined, fallbackGap);
+    if (line) rendered.push({ y: row.y, x: remaining[0]?.x ?? 0, text: line });
+  }
+
+  const header = table.columns.map(column => column.label).join(' | ');
+  rendered.push({ y: table.headerTop, x: 0, text: header });
+  for (let index = 0; index < table.anchors.length; index++) {
+    const anchor = table.anchors[index];
+    const upper = index === 0 ? (table.headerBottom + anchor.y) / 2 : (table.anchors[index - 1].y + anchor.y) / 2;
+    const lower = index === table.anchors.length - 1 ? anchor.y - finalRowPadding
+      : (anchor.y + table.anchors[index + 1].y) / 2;
+    const cells = table.columns.map(() => [] as string[]);
+    for (const row of rows) {
+      if (row.y > upper || row.y < lower) continue;
+      for (const item of row.items) {
+        if (isScheduleLabel(item.str)) continue;
+        cells[minMaxColumnIndex(item, centers)].push(normalizedText(item.str));
+      }
+    }
+    const line = cells.map(cell => cell.join(' ').replace(/\s+/g, ' ').trim()).join(' | ');
+    if (line.replace(/[|\s]/g, '')) rendered.push({ y: anchor.y, x: 0, text: line });
+  }
+
+  return rendered.sort((a, b) => b.y - a.y || a.x - b.x).map(line => line.text).join('\n');
+}
+
 function renderRow(row: TextRow, columns: HeaderColumns | undefined, fallbackGap: number): string {
   let line = '';
   let endX = Number.NaN;
@@ -196,6 +351,8 @@ function renderRow(row: TextRow, columns: HeaderColumns | undefined, fallbackGap
 export function buildPageText(items: readonly TextPiece[]): string {
   const rows = buildRows(items);
   const fallbackGap = estimateFallbackColumnGap(rows);
+  const minMaxTable = findMinMaxTable(rows);
+  if (minMaxTable) return renderMinMaxPage(rows, fallbackGap, minMaxTable);
   const headers = findHeaderColumns(rows, fallbackGap / 2.35);
   const tableRegionGap = estimateTableRegionGap(rows);
   let activeColumns: HeaderColumns | undefined;
@@ -247,9 +404,13 @@ export async function extractPdfText(
   const loadingTask = pdfjs.getDocument({ data, disableFontFace: true, useSystemFonts: false });
   let document: Awaited<typeof loadingTask.promise> | undefined;
   let destruction: Promise<void> | undefined;
-  const destroyActivePdf = () => {
-    destruction ??= document ? document.destroy() : loadingTask.destroy();
-    return destruction;
+  const destroyActivePdf = async () => {
+    try {
+      destruction ??= (document ? document.destroy() : loadingTask.destroy());
+      await destruction;
+    } catch {
+      // Destruction failures on aborted or destroyed pdf tasks should not mask cancellation.
+    }
   };
   const onAbort = () => { void destroyActivePdf(); };
   signal?.addEventListener('abort', onAbort, { once: true });

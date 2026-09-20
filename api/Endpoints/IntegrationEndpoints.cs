@@ -20,23 +20,35 @@ public static class IntegrationEndpoints
         });
 
         app.MapGet("/api/integrations/v1/training-summary", async (HttpContext context, OpenIddictAccessTokenService tokens,
-            AppDb db, WorkoutService workouts, DateOnly? from, DateOnly? to, CancellationToken ct) =>
+            IntegrationTokenService peerTokens, AppDb db, WorkoutService workouts, DateOnly? from, DateOnly? to, CancellationToken ct) =>
         {
             var token = await tokens.Require(context, SummaryScope, ct);
+            await peerTokens.ValidateIncoming(token, ct);
             var user = await db.Users.SingleOrDefaultAsync(u => u.IdentitySubject == token.Subject, ct);
             Validation.Require(user != null, "That shared account is not mapped to this Workout account.", 403);
             db.CurrentUser = user!.Id;
             return Results.Ok(await workouts.TrainingSummary(from, to, ct));
         });
 
-        app.MapGet("/api/integrations/connected", async (AppDb db, CancellationToken ct) =>
+        app.MapGet("/api/integrations/connected", async (AppDb db, IntegrationTokenService peerTokens, CancellationToken ct) =>
         {
-            var rows = await db.IntegrationGrants.AsNoTracking().OrderBy(x => x.Peer).ToListAsync(ct);
-            return rows.Select(x => new
+            var grant = await db.IntegrationGrants.AsNoTracking().SingleOrDefaultAsync(x => x.Peer == "nutrition", ct);
+            var connectionState = await peerTokens.ConnectionState("nutrition", ct);
+            var context = await db.NutritionContexts.AsNoTracking().SingleOrDefaultAsync(ct);
+            var syncWarning = connectionState == "temporary_unavailable"
+                || (context?.LastErrorAt is { } errorAt && (context.LastSuccessAt is null || errorAt > context.LastSuccessAt));
+            if (connectionState == "connected" && syncWarning) connectionState = "temporary_unavailable";
+            return Results.Ok(new[] { new
             {
-                peer = x.Peer, status = x.Status, scopes = JsonSerializer.Deserialize<List<string>>(x.ScopesJson, Json.Options) ?? new List<string>(),
-                grantedAt = x.GrantedAt, revokedAt = x.RevokedAt
-            });
+                peer = "nutrition",
+                status = connectionState is "connected" or "temporary_unavailable" ? "active" : connectionState,
+                connectionState,
+                canDisconnect = grant is { Status: "active" or "reconnect_required" },
+                syncWarning,
+                scopes = grant is null ? new List<string>() : JsonSerializer.Deserialize<List<string>>(grant.ScopesJson, Json.Options) ?? new List<string>(),
+                grantedAt = grant?.GrantedAt,
+                revokedAt = grant?.RevokedAt
+            }});
         });
 
         app.MapDelete("/api/integrations/connected/{peer}", async (string peer, AppDb db, IntegrationTokenService peerTokens, CancellationToken ct) =>

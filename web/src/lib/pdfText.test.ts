@@ -141,6 +141,38 @@ describe('buildPageText', () => {
     ].join('\n'));
   });
 
+  it('reconstructs Min-Max multi-line tracking headers and wrapped movement names by column', () => {
+    const headers = [
+      piece('Tracking Load and Reps', 887, 1128, 189), piece('Failure?', 1239, 1128, 64),
+      piece('Substitution', 1484, 1112, 105), piece('Option 1', 1503, 1094, 67),
+      piece('Substitution', 1627, 1112, 105), piece('Option 2', 1646, 1094, 67),
+      piece('Last-Set Intensity', 338, 1111, 146), piece('Technique', 370, 1093, 82),
+      piece('Warm-up', 514, 1111, 71), piece('Sets', 532, 1093, 36),
+      piece('WORKING', 611, 1111, 68), piece('SETS', 629, 1093, 36),
+      piece('Rep', 728, 1111, 28), piece('Range', 717, 1093, 49),
+      piece('SET 1', 867, 1103, 39), piece('LOAD', 818, 1076, 38), piece('REPS', 915, 1076, 37),
+      piece('SET 2', 1059, 1103, 39), piece('LOAD', 1010, 1076, 38), piece('REPS', 1107, 1076, 37),
+      piece('RIR', 1209, 1099, 23), piece('(Set 1)', 1196, 1081, 49),
+      piece('RIR', 1305, 1099, 23), piece('(Set 2)', 1292, 1081, 49),
+      piece('Rest', 1397, 1105, 36), piece('Exercise', 215, 1104, 68), piece('NOTES', 2000, 1103, 47)
+    ];
+    const text = buildPageText([
+      piece('Upper 2', 125, 1300, 40), piece('WEEK 2', 88, 1103, 62), ...headers,
+      piece('1-Arm Reverse', 201, 1024, 94), piece('Pec Deck', 218, 1006, 61),
+      piece('N/A', 398, 1015, 27), piece('0-1', 538, 1015, 21), piece('1', 642, 1015, 8),
+      piece('8-10', 727, 1015, 29), piece('0', 1217, 1015, 8), piece('N/A', 1304, 1015, 27),
+      piece('1-2 min', 1391, 1015, 50), piece('Lying Reverse DB Flye', 1475, 1015, 121),
+      piece('Reverse Cable Crossover', 1627, 1015, 130), piece('Sweep the weight out', 1774, 1024, 140),
+      piece('to make a large arc.', 1774, 1006, 110)
+    ]);
+
+    const lines = text.split('\n');
+    expect(lines[0]).toBe('Upper 2');
+    expect(lines).toContain('WEEK 2');
+    expect(lines[1]).toContain('Exercise | Last-Set Intensity Technique | Warm-up Sets | Working Sets | Rep Range');
+    expect(lines).toContain('1-Arm Reverse Pec Deck | N/A | 0-1 | 1 | 8-10 |  |  |  |  | 0 | N/A | 1-2 min | Lying Reverse DB Flye | Reverse Cable Crossover | Sweep the weight out to make a large arc.');
+  });
+
   it('reconstructs newer warm-up, working-set, RPE, technique, substitution, and note columns', () => {
     const items = [
       piece('Exercise', 100, 700, 45), piece('Warm-Up Sets', 200, 700, 55),
@@ -277,6 +309,38 @@ describe('extractPdfText failures and cancellation', () => {
       if (page === 1) controller.abort();
     }, controller.signal)).rejects.toThrow('PDF import cancelled');
     expect(document.getPage).not.toHaveBeenCalled();
+    expect(document.destroy).toHaveBeenCalledOnce();
+  });
+
+  it('cancels cleanly and throws PDF import cancelled even if document destroy rejects', async () => {
+    const document = {
+      numPages: 2,
+      getPage: vi.fn(),
+      destroy: vi.fn().mockRejectedValue(new Error('Worker already terminated'))
+    };
+    loadDocument(document);
+    const controller = new AbortController();
+
+    await expect(extractPdfText(pdfFile(), page => {
+      if (page === 1) controller.abort();
+    }, controller.signal)).rejects.toThrow('PDF import cancelled');
+    expect(document.destroy).toHaveBeenCalledOnce();
+  });
+
+  it('cancels while getPage is pending and stops further extraction', async () => {
+    const controller = new AbortController();
+    const document = {
+      numPages: 5,
+      getPage: vi.fn().mockImplementation(() => {
+        controller.abort();
+        return Promise.reject(new Error('Page reading aborted'));
+      }),
+      destroy: vi.fn().mockResolvedValue(undefined)
+    };
+    loadDocument(document);
+
+    await expect(extractPdfText(pdfFile(), undefined, controller.signal)).rejects.toThrow('PDF import cancelled');
+    expect(document.getPage).toHaveBeenCalledTimes(1);
     expect(document.destroy).toHaveBeenCalledOnce();
   });
 });

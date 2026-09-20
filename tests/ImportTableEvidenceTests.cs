@@ -324,7 +324,7 @@ public sealed class ImportTableEvidenceTests
     }
 
     [Fact]
-    public void Exact_source_row_preserves_valid_model_values_and_unmatched_rows_are_not_applied_positionally()
+    public void One_to_one_positional_match_repairs_the_name_and_preserves_valid_model_prescriptions()
     {
         var program = new AiProgram("Preserve", [new AiDay(null, null, 1, 1, "Day 1", false, null, [
             new AiExercise("Different Movement", null, null, [
@@ -338,11 +338,85 @@ public sealed class ImportTableEvidenceTests
             """;
 
         var exercise = Assert.Single(Assert.Single(ImportTableEvidence.Enrich(program, text).Days!).Exercises);
-        var set = Assert.Single(exercise.Sets);
 
-        Assert.Null(exercise.WorkingSets);
+        Assert.Equal("Barbell Squat", exercise.SourceName);
+        Assert.Equal("4", exercise.WorkingSets);
+        Assert.Equal(4, exercise.Sets.Count);
+        var set = exercise.Sets[0];
         Assert.Equal((5, 7, "5-7", 8, "40 kg", "45 sec", 45, "2"),
             (set.RepMin, set.RepMax, set.RepsText, set.TargetRpe, set.LoadText, set.RestText, set.RestSeconds, set.Rir));
+    }
+
+    [Fact]
+    public void Single_workout_positional_repair_restores_fused_names_and_prescription_cells()
+    {
+        var program = new AiProgram("Min-Max", [new AiDay(null, null, 2, 2, "Lower 2", false, null, [
+            new AiExercise("Smith Machine Leg Press Squat", null, null,
+                [new AiSet(1, 1, null, null, null, null, null, RpeSource: "inferred")], SourcePage: 33),
+            new AiExercise("Cable Triceps Kickback Machine", null, null,
+                [new AiSet(1, 1, null, null, null, null, null, RpeSource: "inferred")], SourcePage: 34)
+        ], 33)]);
+        const string text = """
+            === PAGE 33 ===
+            Exercise | Working Sets | Rep Range | Tracking Load Set 1 | Tracking Reps Set 1 | Tracking Load Set 2 | Tracking Reps Set 2 | RIR Set 1 | RIR Set 2 | Rest
+            Leg Press | 1 | 6-8 | | | | | 0 | N/A | 2-3 min
+            Cable Triceps Kickback | 2 | 8-10 | | | | | 0 | 0 | 1-2 min
+            """;
+        var enriched = ImportTableEvidence.Enrich(program, text);
+        var exercises = Assert.Single(enriched.Days!).Exercises;
+
+        Assert.Equal(["Leg Press", "Cable Triceps Kickback"], exercises.Select(exercise => exercise.SourceName));
+        Assert.Equal(["1", "2"], exercises.Select(exercise => exercise.WorkingSets));
+        Assert.Equal([10d, 10d], exercises.Select(exercise => exercise.Sets[0].TargetRpe));
+        Assert.Equal(["6-8", "8-10"], exercises.Select(exercise => exercise.Sets[0].RepsText));
+        Assert.Equal([150, 90], exercises.Select(exercise => exercise.Sets[0].RestSeconds));
+        Assert.Single(exercises[0].Sets);
+        Assert.Equal(["0", "0"], exercises[1].Sets.Select(set => set.Rir));
+    }
+
+    [Fact]
+    public void Positional_repair_is_refused_for_multiple_workouts_on_a_page()
+    {
+        var program = new AiProgram("Two tables", [
+            new AiDay(null, null, 1, 1, "Upper", false, null, [
+                new AiExercise("Fused upper name", null, null, [new AiSet(1, 1, null, null, null, null, null)], SourcePage: 44)
+            ], 44),
+            new AiDay(null, null, 1, 1, "Lower", false, null, [
+                new AiExercise("Fused lower name", null, null, [new AiSet(1, 1, null, null, null, null, null)], SourcePage: 44)
+            ], 44)
+        ]);
+        const string text = """
+            === PAGE 44 ===
+            Exercise | Sets | Reps | RPE | Rest
+            Barbell Row | 2 | 6-8 | 8 | 90 sec
+            Squat | 3 | 8-10 | 9 | 120 sec
+            """;
+
+        var days = ImportTableEvidence.Enrich(program, text).Days!;
+
+        Assert.Equal(["Fused upper name", "Fused lower name"], days.Select(day => day.Exercises.Single().SourceName));
+        Assert.All(days, day => Assert.Null(day.Exercises.Single().WorkingSets));
+    }
+
+    [Fact]
+    public void Positional_repair_is_refused_when_exercise_and_source_row_counts_differ()
+    {
+        var program = new AiProgram("Mismatch", [new AiDay(null, null, 1, 1, "Day 1", false, null, [
+            new AiExercise("Fused first", null, null, [new AiSet(1, 1, null, null, null, null, null)], SourcePage: 45),
+            new AiExercise("Fused second", null, null, [new AiSet(1, 1, null, null, null, null, null)], SourcePage: 45),
+            new AiExercise("Fused third", null, null, [new AiSet(1, 1, null, null, null, null, null)], SourcePage: 45)
+        ], 45)]);
+        const string text = """
+            === PAGE 45 ===
+            Exercise | Sets | Reps | RPE | Rest
+            Barbell Row | 2 | 6-8 | 8 | 90 sec
+            Squat | 3 | 8-10 | 9 | 120 sec
+            """;
+
+        var exercises = Assert.Single(ImportTableEvidence.Enrich(program, text).Days!).Exercises;
+
+        Assert.Equal(["Fused first", "Fused second", "Fused third"], exercises.Select(exercise => exercise.SourceName));
+        Assert.All(exercises, exercise => Assert.Null(exercise.WorkingSets));
     }
 
     [Theory]

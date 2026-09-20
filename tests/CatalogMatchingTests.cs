@@ -5,10 +5,9 @@ using Xunit;
 namespace Workout.Tests;
 
 /// A program writes movements the way a coach says them and the library stores one canonical name
-/// each. Exact spelling was the only thing that matched, so a real import arrived with over a
-/// hundred names unlinked — "Pull-Up (Wide Grip)" never found "Pull Up" — and every one had to be
-/// mapped by hand. What is matched here is a different spelling of the same movement, never a
-/// judgement that two movements are near enough.
+/// each. A grip qualifier must resolve to its specific catalog movement when available, while a
+/// genuinely unlisted movement stays available for review. What is matched here is a different
+/// spelling of the same movement, never a judgement that two movements are near enough.
 public sealed class CatalogMatchingTests
 {
     private static async Task<(Harness h, CatalogService catalog)> Library()
@@ -17,6 +16,7 @@ public sealed class CatalogMatchingTests
         await h.SignIn();
         await h.Seed(
             new SeedExercise("pull-up", "Pull Up", "Back", "Bodyweight", "Cue", null),
+            new SeedExercise("wide-grip-pull-up", "Wide-Grip Pull-Up", "Back", "Bodyweight", "Cue", ["Pull-Up (Wide Grip)"]),
             new SeedExercise("incline-press", "Dumbbell Incline Press", "Chest", "Dumbbell", "Cue", null),
             new SeedExercise("lat-pulldown", "Lat Pulldown", "Back", "Cable", "Cue", null),
             new SeedExercise("preacher-curl", "Preacher Curl", "Biceps", "Barbell", "Cue", null),
@@ -29,13 +29,14 @@ public sealed class CatalogMatchingTests
             new SeedExercise("dumbbell-wrist-curl", "DB Wrist Curl", "Forearms", "Dumbbell", "Cue", null),
             new SeedExercise("dumbbell-wrist-extension", "DB Wrist Extension", "Forearms", "Dumbbell", "Cue", ["Dumbbell Wrist Extension"]),
             new SeedExercise("modified-zottman-curl", "Modified Zottman Curl", "Biceps", "Dumbbell", "Cue", null),
-            new SeedExercise("dead-hang", "Dead Hang", "Back", "Bodyweight", "Cue", ["Dead Hangs", "Bar Hang"]));
+            new SeedExercise("dead-hang", "Dead Hang", "Back", "Bodyweight", "Cue", ["Dead Hangs", "Bar Hang"]),
+            new SeedExercise("alternating-db-curl", "Alternating DB Curl", "Biceps", "Dumbbell", "Cue", null));
         return (h, h.Catalog);
     }
 
     [Theory]
     // A grip, stance or tempo noted in brackets is the same movement written more precisely.
-    [InlineData("Pull-Up (Wide Grip)", "Pull Up")]
+    [InlineData("Pull-Up (Wide Grip)", "Wide-Grip Pull-Up")]
     [InlineData("Lat Pulldown (Wide Grip)", "Lat Pulldown")]
     // Equipment as a table abbreviates it.
     [InlineData("DB Incline Press", "Dumbbell Incline Press")]
@@ -48,6 +49,8 @@ public sealed class CatalogMatchingTests
     [InlineData("Dead Hang", "Dead Hang")]
     [InlineData("Dead Hangs", "Dead Hang")]
     [InlineData("Bar Hang", "Dead Hang")]
+    [InlineData("Dead Hang (optional)", "Dead Hang")]
+    [InlineData("Alternating DB Curl", "Alternating DB Curl")]
     public async Task A_written_name_finds_the_movement_it_spells(string written, string expected)
     {
         var (h, catalog) = await Library();
@@ -77,7 +80,7 @@ public sealed class CatalogMatchingTests
     [InlineData("Cable Triceps Two Drop Sets Kickback (~25% per)", "Cable Triceps Kickback")]
     [InlineData("Close-Grip Lat Lengthened Partials Pulldown (Extend Set)", "Close-Grip Lat Pulldown")]
     [InlineData("Machine Chest Weighted Static Hold Press", "Machine Chest Press")]
-    [InlineData("Pull-Up Lengthened Partials (Wide Grip) (Extend Set)", "Pull-Up")]
+    [InlineData("Pull-Up Lengthened Partials (Wide Grip) (Extend Set)", "Wide-Grip Pull-Up")]
     [InlineData("Standing Calf Lengthened Partials Raise (Extend Set)", "Standing Calf Raise")]
     [InlineData("Chest-Supported Two Drop Sets T-Bar Row (~25% per)", "Chest-Supported T-Bar Row")]
     // Nippard-specific intensity techniques that appear in exercise names or the Last-Set
@@ -115,6 +118,7 @@ public sealed class CatalogMatchingTests
     [InlineData("Squat (Your Choice)")]
     [InlineData("Weak Point Option 1")]
     [InlineData("Squat (Pick one of the options above)")]
+    [InlineData("Squat (Choose one)")]
     public async Task A_choice_or_option_selector_stays_unresolved(string written)
     {
         var (h, catalog) = await Library();
@@ -126,6 +130,8 @@ public sealed class CatalogMatchingTests
     private static string Slug(string name) => name switch
     {
         "Pull Up" => "pull-up",
+        "Wide-Grip Pull-Up" => "wide-grip-pull-up",
+        "Alternating DB Curl" => "alternating-db-curl",
         "Dumbbell Incline Press" => "incline-press",
         "Lat Pulldown" => "lat-pulldown",
         "Preacher Curl" => "preacher-curl",

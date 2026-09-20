@@ -28,6 +28,9 @@ public sealed class AppDb(DbContextOptions<AppDb> options) : DbContext(options)
     public DbSet<NutritionContextCache> NutritionContexts => Set<NutritionContextCache>();
     public DbSet<IntegrationGrant> IntegrationGrants => Set<IntegrationGrant>();
     public DbSet<ExerciseSubstitution> ExerciseSubstitutions => Set<ExerciseSubstitution>();
+    public DbSet<GoogleHealthConnection> GoogleHealthConnections => Set<GoogleHealthConnection>();
+    public DbSet<GoogleHealthOAuthState> GoogleHealthOAuthStates => Set<GoogleHealthOAuthState>();
+    public DbSet<GoogleHealthWorkoutSyncWork> GoogleHealthWorkoutSyncWork => Set<GoogleHealthWorkoutSyncWork>();
 
     protected override void OnModelCreating(ModelBuilder m)
     {
@@ -135,6 +138,21 @@ public sealed class AppDb(DbContextOptions<AppDb> options) : DbContext(options)
         m.Entity<MutationReceipt>().HasQueryFilter(x => x.UserId == CurrentUser);
         m.Entity<MutationReceipt>().HasIndex(x => x.Created);
         m.Entity<MutationReceipt>().HasOne<AppUser>().WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
+
+        Configure<GoogleHealthWorkoutSyncWork>(m);
+        m.Entity<GoogleHealthWorkoutSyncWork>().HasIndex(x => new { x.UserId, x.WorkoutSessionId }).IsUnique();
+        m.Entity<GoogleHealthWorkoutSyncWork>().HasIndex(x => new { x.ProcessingState, x.NextAttemptAt });
+
+        m.Entity<GoogleHealthConnection>().HasKey(x => x.UserId);
+        m.Entity<GoogleHealthConnection>().HasQueryFilter(x => x.UserId == CurrentUser);
+        m.Entity<GoogleHealthConnection>().HasIndex(x => x.GoogleIdHash).IsUnique();
+        m.Entity<GoogleHealthConnection>().Property(x => x.Revision).IsConcurrencyToken();
+        m.Entity<GoogleHealthConnection>().HasOne<AppUser>().WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
+
+        m.Entity<GoogleHealthOAuthState>().HasKey(x => x.State);
+        m.Entity<GoogleHealthOAuthState>().HasQueryFilter(x => x.UserId == CurrentUser);
+        m.Entity<GoogleHealthOAuthState>().HasIndex(x => x.ExpiresAt);
+        m.Entity<GoogleHealthOAuthState>().HasOne<AppUser>().WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
     }
 
     private void Configure<T>(ModelBuilder m) where T : OwnedRecord
@@ -159,6 +177,10 @@ public sealed class AppDb(DbContextOptions<AppDb> options) : DbContext(options)
             if (entry.Entity.UserId != CurrentUser) throw new InvalidOperationException("Receipt ownership violation.");
         foreach (var entry in ChangeTracker.Entries<AiUsage>().Where(e => e.State is EntityState.Added or EntityState.Modified))
             if (!MaintenanceAccess && entry.Entity.UserId != CurrentUser) throw new InvalidOperationException("Usage ownership violation.");
+        foreach (var entry in ChangeTracker.Entries<GoogleHealthConnection>().Where(e => e.State is EntityState.Added or EntityState.Modified or EntityState.Deleted))
+            if (!MaintenanceAccess && (CurrentUser == null || entry.Entity.UserId != CurrentUser)) throw new InvalidOperationException("Connection ownership violation.");
+        foreach (var entry in ChangeTracker.Entries<GoogleHealthOAuthState>().Where(e => e.State is EntityState.Added or EntityState.Modified or EntityState.Deleted))
+            if (!MaintenanceAccess && (CurrentUser == null || entry.Entity.UserId != CurrentUser)) throw new InvalidOperationException("OAuth state ownership violation.");
         // Only the seed command may write the shared catalog.
         foreach (var entry in ChangeTracker.Entries<Exercise>().Where(e => e.State != EntityState.Unchanged))
             if (!MaintenanceAccess) throw new InvalidOperationException("The exercise catalog is read-only.");

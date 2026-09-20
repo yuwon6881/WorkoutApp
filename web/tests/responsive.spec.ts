@@ -1,9 +1,11 @@
 import { expect, test } from '@playwright/test';
 import type { Page } from '@playwright/test';
+import { join } from 'node:path';
 import { signIn as auth } from './signIn';
 import { pdf } from './pdfFixture';
 
 const USER = 'e2e-responsive';
+const screenshotsDirectory = process.env.WORKOUT_TEST_SCREENSHOTS || 'artifacts';
 
 async function checkLayout(page: Page, label: string) {
   // Comparing against innerWidth is not enough: when content overflows, the mobile layout
@@ -130,7 +132,7 @@ for (const theme of ['dark', 'light']) {
 
     const screenshot = async (label: string) => {
       await checkLayout(page, label);
-      await page.screenshot({ path: `artifacts/responsive/${info.project.name}-${theme}-${label}.png` });
+      await page.screenshot({ path: join(screenshotsDirectory, 'responsive', `${info.project.name}-${theme}-${label}.png`) });
     };
     await screenshot('settings');
     await page.getByRole('button', { name: 'Install app', exact: true }).click();

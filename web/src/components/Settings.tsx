@@ -7,6 +7,7 @@ import { Button } from './ui/Button';
 import { Modal } from './ui/Modal';
 import { Select } from './ui/Select';
 import { ConnectedApps } from './ConnectedApps';
+import { GoogleHealthSettings } from './GoogleHealthSettings';
 
 type InstallEvent = Event & { prompt: () => Promise<void>; userChoice: Promise<{ outcome: string }> };
 let installPrompt: InstallEvent | null = null;
@@ -90,6 +91,7 @@ export function SettingsView({ account, preferences, onPreferences, notify, onSi
       </section>
 
       <ConnectedApps />
+      <GoogleHealthSettings />
 
       <section className="panel install-card">
         <MonitorSmartphone size={29} className="accent" />

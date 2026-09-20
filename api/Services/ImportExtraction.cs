@@ -112,7 +112,7 @@ public sealed partial class ImportService
             {
                 try
                 {
-                    await ApplyOutline(import, result, settle);
+                    await ApplyOutline(import, result, pages, settle);
                     if (import.Status == ImportStatus.Ready) ClearSource(import);
                     ReleaseLease(import);
                     import.Revision++;
@@ -136,13 +136,16 @@ public sealed partial class ImportService
         return await Get(importId, ct);
     }
 
-    private async Task ApplyOutline(AiImport import, AiOutlineResult result, CancellationToken ct)
+    private async Task ApplyOutline(AiImport import, AiOutlineResult result, List<ImportPageText> pages, CancellationToken ct)
     {
+        var sourceEvidence = ImportOutlineEvidence.Read(pages);
         import.Model = result.Model; import.InputTokens += result.InputTokens; import.CachedInputTokens += result.CachedInputTokens; import.OutputTokens += result.OutputTokens;
         import.Error = "";
         if (result.LegacyProgram is { } legacy)
         {
-            var draft = await ToDraft(legacy, ct);
+            var sourceText = ImportSourceText.Slice(pages, 1, ImportSourceText.MaxPages);
+            var reconciledLegacy = ImportTableEvidence.Enrich(legacy, sourceText);
+            var draft = ImportOutlineEvidence.NormalizeDraft(await ToDraft(reconciledLegacy, ct), sourceEvidence);
             // A whole-program answer holds the same days as a sectioned one and needs the same
             // reconciliation; it simply has no chunk to attribute a notice to.
             var shaped = ReconcileDayShape(draft.Workouts);
@@ -163,15 +166,19 @@ public sealed partial class ImportService
         var alternatives = result.Outline!.Alternatives ?? [];
         if (alternatives.Count > 1)
         {
-            import.AlternativesJson = Json.Write(alternatives.Select(a => new ImportAlternative(a.Id,
-                ImportNormalization.Label(a.Name, 200, a.Id), a.Chunks.Count, a.Chunks.Sum(c => c.DayCount),
-                a.Chunks.Select(ToImportChunk).ToList())).ToList());
+            import.AlternativesJson = Json.Write(alternatives.Select(alternative =>
+            {
+                var chunks = ImportOutlineEvidence.NormalizeChunks(alternative.Chunks, sourceEvidence);
+                return new ImportAlternative(alternative.Id,
+                    ImportNormalization.Label(alternative.Name, 200, alternative.Id), chunks.Count, chunks.Sum(chunk => chunk.DayCount), chunks);
+            }).ToList());
             import.Stage = "select"; import.Status = ImportStatus.Pending; import.ChunksDone = 0; import.ChunksTotal = 0;
             import.DraftJson = Json.Write(new ImportDraft(ProgramTitle(result.Outline.ProgramTitle, import.FileName), []));
             return;
         }
         var selected = alternatives.Count == 1 ? alternatives[0] : null;
-        var chunks = SplitChunks((selected?.Chunks ?? result.Outline.Chunks).Select(c => c with { }).ToList());
+        var normalizedChunks = ImportOutlineEvidence.NormalizeChunks(selected?.Chunks ?? result.Outline.Chunks, sourceEvidence);
+        var chunks = SplitChunks(normalizedChunks);
         ValidateChunkPages(chunks, import.PageCoverageJson);
         import.SelectedAlternativeId = selected?.Id ?? "";
         import.OutlineJson = Json.Write(chunks);
@@ -187,6 +194,8 @@ public sealed partial class ImportService
             var import = await db.Imports.SingleOrDefaultAsync(i => i.Id == id, ct);
             Validation.Require(import != null, "That import no longer exists.", 404);
             Validation.Require(import!.Status == ImportStatus.Pending && import.Stage == "select", "This import is not waiting for an alternative selection.", 409);
+            Validation.Require(import.PromptVersion == WorkoutAi.PromptVersion,
+                "This PDF outline was created by an older importer. Upload the PDF again to continue with the updated reader.", 409);
             var alternatives = string.IsNullOrWhiteSpace(import.AlternativesJson) ? [] : Json.Read<List<ImportAlternative>>(import.AlternativesJson);
             var selected = alternatives.SingleOrDefault(a => string.Equals(a.Id, alternativeId, StringComparison.OrdinalIgnoreCase));
             Validation.Require(selected is not null, "That alternative is no longer available. Read the outline again.", 409);
@@ -205,9 +214,5 @@ public sealed partial class ImportService
     /// file name is a better stand-in than a blank field when the model returns no title.
     private static string ProgramTitle(string? title, string fileName)
         => ImportNormalization.Label(title, 120, Path.GetFileNameWithoutExtension(fileName) is { Length: > 0 } name ? name : "Imported program");
-
-    private static ImportChunk ToImportChunk(AiOutlineChunk chunk)
-        => new(chunk.Label, chunk.Block, chunk.Phase, chunk.WeekFrom, chunk.WeekTo, chunk.PageFrom, chunk.PageTo, chunk.DayCount);
-
 
 }

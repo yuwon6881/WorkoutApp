@@ -51,7 +51,8 @@ internal static class CatalogMatching
         // choice and could change the prescribed movement.
         if (norm.Contains("your choice", StringComparison.Ordinal) ||
             norm.Contains("weak point", StringComparison.Ordinal) ||
-            norm.Contains("pick one", StringComparison.Ordinal)) return null;
+            norm.Contains("pick one", StringComparison.Ordinal) ||
+            norm.Contains("choose one", StringComparison.Ordinal)) return null;
         foreach (var variant in Variants(name))
             if (library.TryGetValue(variant, out var id)) return id;
         foreach (var tail in HeadVariants(name))

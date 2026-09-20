@@ -44,7 +44,11 @@ builder.Services.AddScoped<ProgressionService>();
 builder.Services.AddScoped<NutritionContextService>();
 builder.Services.AddScoped<SharedAccessTokenService>();
 builder.Services.AddScoped<OpenIddictAccessTokenService>();
+builder.Services.AddScoped<ISharedAccessTokenValidator>(services => services.GetRequiredService<OpenIddictAccessTokenService>());
+builder.Services.AddScoped<FitnessConnectionClient>();
 builder.Services.AddHttpClient<IIntegrationKms, IntegrationKmsService>(c => c.Timeout = TimeSpan.FromSeconds(30)).AddHttpMessageHandler<ExternalCallMetricsHandler>();
+builder.Services.AddHttpClient<GoogleHealthService>(c => c.Timeout = TimeSpan.FromSeconds(30)).AddHttpMessageHandler<ExternalCallMetricsHandler>();
+builder.Services.AddHttpClient<GoogleHealthWorkoutSyncService>(c => c.Timeout = TimeSpan.FromSeconds(30)).AddHttpMessageHandler<ExternalCallMetricsHandler>();
 builder.Services.AddScoped<IntegrationTokenService>();
 builder.Services.AddScoped<WorkoutService>();
 builder.Services.AddScoped<ImportService>();
@@ -65,7 +69,7 @@ builder.Services.AddOpenIddict().AddValidation(options =>
     options.UseAspNetCore();
 });
 builder.Services.AddHttpClient<WorkoutAi>(c=>c.Timeout=TimeSpan.FromSeconds(150)).AddHttpMessageHandler<ExternalCallMetricsHandler>();
-builder.Services.AddHttpClient("nutrition", c => c.Timeout = TimeSpan.FromSeconds(3)).AddHttpMessageHandler<ExternalCallMetricsHandler>();
+builder.Services.AddHttpClient("nutrition", c => c.Timeout = TimeSpan.FromSeconds(2)).AddHttpMessageHandler<ExternalCallMetricsHandler>();
 builder.Services.AddHttpClient("fitness-account", c => c.Timeout = TimeSpan.FromSeconds(10)).AddHttpMessageHandler<ExternalCallMetricsHandler>();
 builder.Services.AddRateLimiter(o=>
 {
@@ -121,7 +125,7 @@ app.Use(async(http,next)=>
             var allowed=builder.Configuration["PublicOrigin"]??$"{http.Request.Scheme}://{http.Request.Host}";
             Validation.Require(origin==allowed&&http.Request.Headers["X-Workout-Request"]=="1","Request origin is not allowed.",403);
         }
-        if(http.Request.Path.StartsWithSegments("/api") && !http.Request.Path.StartsWithSegments("/api/integrations/v1") && http.Request.Path.Value is not ("/api/auth/dev-reset" or "/api/auth/central/start" or "/api/auth/central/callback"))
+        if(http.Request.Path.StartsWithSegments("/api") && !http.Request.Path.StartsWithSegments("/api/integrations/v1") && http.Request.Path.Value is not ("/api/auth/dev-reset" or "/api/auth/central/start" or "/api/auth/central/callback" or "/api/integrations/google-health/callback"))
         {
             var db=http.RequestServices.GetRequiredService<AppDb>();
             var token=http.Request.Cookies[AuthService.Cookie];
@@ -142,7 +146,7 @@ app.Use(async(http,next)=>
 });
 app.UseRateLimiter();
 app.UseDefaultFiles();app.UseStaticFiles(new StaticFileOptions { OnPrepareResponse=c=> { if(c.File.Name=="sw.js"||c.File.Name=="index.html") c.Context.Response.Headers.CacheControl="no-cache"; } });
-app.MapAuth();app.MapCentralAuth();app.MapBootstrap();app.MapRevisions();app.MapCatalog();app.MapTemplates();app.MapPrograms();app.MapWorkouts();app.MapImports();app.MapIntegrations();
+app.MapAuth();app.MapCentralAuth();app.MapBootstrap();app.MapRevisions();app.MapCatalog();app.MapTemplates();app.MapPrograms();app.MapWorkouts();app.MapImports();app.MapIntegrations();app.MapGoogleHealth();
 app.MapGet("/health",()=>new { status="ok" });
 app.MapFallback(async http=>
 {

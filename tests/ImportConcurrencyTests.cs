@@ -34,7 +34,8 @@ public sealed class ImportConcurrencyTests
     };
 
     private static ImportSourceInput Source() => new("nippard.pdf", 3,
-        Enumerable.Range(1, 3).Select(page => new ImportPageText(page, $"WEEK {page}\nBench 3x5")).ToList());
+        Enumerable.Range(1, 3).Select(page => new ImportPageText(page,
+            $"{(page == 1 ? "BLOCK 1\n" : "")}{page switch { 1 => "INTRO", 2 => "MAIN", _ => "PEAK" }}\nWEEK {page}\nBench 3x5")).ToList());
 
     /// Answers by what a request asks for rather than by the order it arrives in, because with
     /// sections in flight together that order is no longer fixed.
@@ -68,8 +69,8 @@ public sealed class ImportConcurrencyTests
     /// Each section names itself in the request, so the stand-in can answer the one being asked for.
     private static HttpResponseMessage BySection(string request) =>
         request.Contains("training_program_outline") ? Answer(ThreeSections)
-        : request.Contains("Block 1") ? Answer(Day(1, "Intro"))
-        : request.Contains("Block 2") ? Answer(Day(2, "Main"))
+        : request.Contains("=== PAGE 1 ===") ? Answer(Day(1, "Intro"))
+        : request.Contains("=== PAGE 2 ===") ? Answer(Day(2, "Main"))
         : Answer(Day(3, "Peak"));
 
     [Fact]
@@ -148,7 +149,7 @@ public sealed class ImportConcurrencyTests
     {
         await using var h = await Harness.Create(Configured());
         await h.SignIn();
-        var failing = new SectionHandler(request => request.Contains("Block 2")
+        var failing = new SectionHandler(request => !request.Contains("training_program_outline") && request.Contains("=== PAGE 2 ===")
             ? new HttpResponseMessage(HttpStatusCode.InternalServerError) { Content = new StringContent("{}") }
             : BySection(request));
         var imports = h.Imports(failing);

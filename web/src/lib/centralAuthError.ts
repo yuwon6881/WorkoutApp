@@ -1,5 +1,6 @@
 const messages: Record<string, string> = {
   access_denied: 'Sign-in was cancelled. Try again when you are ready.',
+  connection_changed: 'Nutrition connection changed before setup completed. Try connecting again.',
   invalid_request: 'The sign-in request was not accepted. Try again.',
   login_required: 'Sign-in is required. Please try again.',
   interaction_required: 'The sign-in session needs your attention. Please try again.'
@@ -18,6 +19,11 @@ export function consumeCentralAuthError(url: URL): string | null {
     return 'Nutrition connection was canceled.';
   }
   const other = url.searchParams.get('central_error') || url.searchParams.get('error');
+  if (other === 'connection_changed') {
+    url.searchParams.delete('central_error');
+    url.searchParams.delete('error');
+    return centralAuthError(other);
+  }
   if (other) {
     url.searchParams.delete('central_error');
     url.searchParams.delete('error');

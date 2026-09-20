@@ -15,14 +15,16 @@ internal static class ImportValidation
             .ToList();
         return unresolved
             .GroupBy(item => item.exercise.SlotKey is { } slot
-                ? $"{CanonicalBlock(item.workout.Block).ToUpperInvariant()}\u001fslot:{slot:N}"
+                ? $"slot:{slot:N}"
                 : SlotSignature(item.workout, item.position), StringComparer.OrdinalIgnoreCase)
             .Select(group =>
             {
                 var first = group.First();
+                var blocks = group.Select(item => CanonicalBlock(item.workout.Block)).Where(block => block.Length > 0)
+                    .Distinct(StringComparer.OrdinalIgnoreCase).ToList();
                 return new UnresolvedExercise(first.exercise.LineId, RepresentativeName(group.Select(item => item.exercise.SourceName)),
                     first.exercise.SlotKey,
-                    string.IsNullOrWhiteSpace(first.workout.Block) ? null : CanonicalBlock(first.workout.Block),
+                    blocks.Count == 1 ? blocks[0] : null,
                     group.Count());
             })
             .ToList();
@@ -40,7 +42,7 @@ internal static class ImportValidation
             var block = string.IsNullOrWhiteSpace(workout.Block) ? workout.Block : CanonicalBlock(workout.Block);
             var exercises = workout.Exercises.Select((exercise, position) =>
             {
-                var signature = SlotSignature(workout with { Block = block }, position);
+                var signature = SlotSignature(workout with { Block = block }, position, exercise.SourceName);
                 if (!slots.TryGetValue(signature, out var slot))
                 {
                     var candidate = exercise.SlotKey;
@@ -70,6 +72,14 @@ internal static class ImportValidation
 
     public static string SlotSignature(DraftWorkout workout, int position)
         => $"{CanonicalBlock(workout.Block).ToUpperInvariant()}\u001f{Identity(workout.Name)}\u001f{position}";
+
+    public static string SlotSignature(DraftWorkout workout, int position, string? sourceName)
+        => IsRecurringChoice(sourceName)
+            ? $"choice\u001f{Identity(workout.Name)}\u001f{position}\u001f{Identity(sourceName)}"
+            : SlotSignature(workout, position);
+
+    private static bool IsRecurringChoice(string? sourceName)
+        => Regex.IsMatch(sourceName ?? "", @"\b(?:your\s+choice|weak\s+point|pick\s+one|choose\s+one)\b", RegexOptions.IgnoreCase);
 
     private static string Identity(string? value) => Collapse(value).ToUpperInvariant();
 
@@ -363,112 +373,8 @@ internal static class ImportValidation
     public static List<ImportChunk> ReadChunks(string json)
         => string.IsNullOrWhiteSpace(json) ? [] : Json.Read<List<ImportChunk>>(json);
 
-    /// What one chunk contributes to the draft, once its days have been reconciled with what the
-    /// earlier sections already read.
-    public sealed record ChunkMerge(List<DraftWorkout> Workouts, List<ImportReviewIssue> Notices);
-
-    /// Merges one chunk's days into the draft's world view. Both of the things that used to fail a
-    /// section here are judgements about a document, not defects in it: the outline's `dayCount` is
-    /// an estimate made from page previews, and two days can genuinely look identical — a program
-    /// that runs the same session twice in a week, with no weekday printed next to either, says so
-    /// in exactly the way a mistaken repeat would. Failing the chunk over either left the import
-    /// stuck on a section that failed the same way on every retry, so both are reconciled and
-    /// reported instead. A day outside the chunk's weeks is still a real error and stays retryable.
-    public static bool AreStructurallyIdentical(DraftWorkout a, DraftWorkout b)
-    {
-        if (a.Week != b.Week) return false;
-        if (a.SourcePage == null || b.SourcePage == null || a.SourcePage != b.SourcePage) return false;
-        if (a.IsRestDay != b.IsRestDay) return false;
-        if (a.IsRestDay) return true;
-        if (!string.Equals(a.Name.Trim(), b.Name.Trim(), StringComparison.OrdinalIgnoreCase)) return false;
-        if (a.Exercises.Count != b.Exercises.Count) return false;
-        for (var i = 0; i < a.Exercises.Count; i++)
-        {
-            var exA = a.Exercises[i];
-            var exB = b.Exercises[i];
-            if (!string.Equals(exA.SourceName.Trim(), exB.SourceName.Trim(), StringComparison.OrdinalIgnoreCase)) return false;
-            if (exA.Sets.Count != exB.Sets.Count) return false;
-            for (var s = 0; s < exA.Sets.Count; s++)
-            {
-                var setA = exA.Sets[s];
-                var setB = exB.Sets[s];
-                if (setA.RepMin != setB.RepMin || setA.RepMax != setB.RepMax) return false;
-                if (setA.TargetRpe != setB.TargetRpe) return false;
-                if (setA.RestSeconds != setB.RestSeconds) return false;
-            }
-        }
-        return true;
-    }
-
-    public static ChunkMerge ReconcileChunkCoverage(ImportDraft existing, ImportDraft extracted, ImportChunk chunk)
-    {
-        var shaped = ImportDayShape.Reconcile(extracted.Workouts);
-        var notices = new List<ImportReviewIssue>(shaped.Notices);
-
-        // The outline's week range is a claim made from page previews; the page itself is what the
-        // section actually read. Where they disagree the page wins and the reviewer is told, because
-        // refusing the section only produced the same answer on every retry. A day that belongs to
-        // another section arrives as a duplicate there and is dropped once, as duplicates always are.
-        var strayed = shaped.Workouts.Where(day => day.Week < chunk.WeekFrom || day.Week > chunk.WeekTo).ToList();
-        if (strayed.Count > 0)
-            notices.Add(new ImportReviewIssue("day_outside_section_weeks",
-                $"'{chunk.Label}' covers weeks {chunk.WeekFrom}-{chunk.WeekTo} but read {string.Join(", ", strayed.Select(day => day.Name).Distinct())} as week {string.Join(", ", strayed.Select(day => day.Week).Distinct().Order())}. The pages were followed; check the order in the review.",
-                "warning", strayed[0].SourcePage ?? chunk.PageFrom, WorkoutLineId: strayed[0].LineId, TargetField: "week"));
-        var existingKeys = existing.Workouts.Select(DayKey).ToHashSet(StringComparer.OrdinalIgnoreCase);
-        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        var workouts = new List<DraftWorkout>();
-        var repeated = 0;
-
-        foreach (var day in shaped.Workouts)
-        {
-            if (workouts.Any(w => AreStructurallyIdentical(w, day)))
-            {
-                // Structurally identical session from the same week and source page; collapse to one.
-                continue;
-            }
-            var key = DayKey(day);
-            if (existingKeys.Contains(key))
-            {
-                // An earlier section already read this exact day. Merging it again would put the
-                // same session into the program twice, so this copy is dropped rather than doubled.
-                notices.Add(new ImportReviewIssue("duplicate_day_dropped",
-                    $"'{chunk.Label}' repeated {day.Name} from an earlier section; it was kept once.",
-                    "warning", day.SourcePage ?? chunk.PageFrom,
-                    WorkoutLineId: existing.Workouts.FirstOrDefault(existingDay => DayKey(existingDay) == key)?.LineId,
-                    TargetField: "name"));
-                continue;
-            }
-            if (!seen.Add(key)) repeated++;
-            workouts.Add(day);
-        }
-
-        if (repeated > 0)
-            notices.Add(new ImportReviewIssue("repeated_day",
-                $"'{chunk.Label}' lists {repeated} day{(repeated == 1 ? "" : "s")} that read identically. Both were kept — delete one in the review if the document only has it once.",
-                "warning", chunk.PageFrom));
-
-        // The outline's count is an estimate made from page previews and divided across the
-        // sections its pages became, so it is a day or two out almost every time and saying so
-        // every time buries the notices that matter. Only a section that read barely half of what
-        // was expected is worth a reviewer's attention: that is what missed pages look like.
-        if (workouts.Count * 2 < chunk.DayCount)
-            notices.Add(new ImportReviewIssue("chunk_day_count",
-                $"'{chunk.Label}' was outlined as about {chunk.DayCount} day{(chunk.DayCount == 1 ? "" : "s")} but reads as {workouts.Count}. Check that section in the review.",
-                "warning", chunk.PageFrom));
-
-        return new ChunkMerge(workouts, notices);
-    }
-
     public static List<ImportReviewIssue> ReadNotices(string json)
         => string.IsNullOrWhiteSpace(json) ? [] : Json.Read<List<ImportReviewIssue>>(json);
-
-    /// What makes two days the same day. The page is part of it: a program prints "Rest Day" on
-    /// every rest page of a block, so identical names in one week are two rest days rather than
-    /// one read twice, and dropping the repeat took a real day out of the program. The page a day
-    /// was read from is what tells them apart — the same day read twice by two sections whose
-    /// pages overlap still reports the same page.
-    public static string DayKey(DraftWorkout day)
-        => $"{day.Week}|{day.PhaseWeek}|{day.Block?.Trim()}|{day.Phase?.Trim()}|{day.SourcePage}|{day.Name.Trim()}";
 
     public static void ValidateChunkPages(IEnumerable<ImportChunk> chunks, string coverageJson)
     {

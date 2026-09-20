@@ -73,7 +73,7 @@ internal static class ImportTableEvidence
             if (matches.Count == 1) return matches[0];
             if (matches.Count > 1) return null;
         }
-        if (!positionalMatchIsSafe || rows.Any(row => !string.IsNullOrWhiteSpace(row.ExerciseName)) || rows.Count != dayExercises.Count)
+        if (!positionalMatchIsSafe || rows.Count != dayExercises.Count)
             return null;
         return exerciseIndex >= 0 && exerciseIndex < rows.Count ? rows[exerciseIndex] : null;
     }
@@ -115,6 +115,7 @@ internal static class ImportTableEvidence
         var repaired = sets.Select((set, index) => ApplySet(set, evidence, index, sets.Count)).ToList();
         return exercise with
         {
+            SourceName = HasText(evidence.ExerciseName) ? evidence.ExerciseName! : exercise.SourceName,
             WorkingSets = evidence.WorkingSets is { } stated
                 ? stated.ToString(CultureInfo.InvariantCulture) : exercise.WorkingSets,
             Sets = repaired
@@ -192,6 +193,7 @@ internal static class ImportTableEvidence
                     currentWeek = nextWeek;
                 }
                 else if (Block.Match(clean) is { Success: true } blockMatch) currentBlock = $"Block {blockMatch.Groups["block"].Value}";
+                else if (clean.Equals("Intro Week", StringComparison.OrdinalIgnoreCase)) currentPhase = "Intro Week";
                 else if (clean.Equals("Deload Week", StringComparison.OrdinalIgnoreCase)) currentPhase = "Deload Week";
                 else if (RestDay.IsMatch(clean)) hasRestDayFooter = true;
                 else if (Day.IsMatch(clean)) dayName = clean;
@@ -231,7 +233,7 @@ internal static class ImportTableEvidence
             var h = Regex.Replace(cells[i].ToLowerInvariant(), @"\s+", " ").Trim();
             if (h is "exercise" or "movement" || h.Contains("exercise name") || h.Contains("movement name")) name = i;
             if ((h.Contains("working") && h.Contains("set")) || h is "sets" or "set count" || h.Contains("number of sets")) sets = i;
-            if ((h.Contains("rep") || h.Contains("duration")) && !h.Contains("rir") && !h.Contains("rpe")) reps = i;
+            if (!h.Contains("tracking") && (h.Contains("rep") || h.Contains("duration")) && !h.Contains("rir") && !h.Contains("rpe")) reps = i;
             if (!h.Contains("tracking") && (h.Contains("load") || h.Contains("weight") || h.Contains("1rm")))
             {
                 load = i;
@@ -282,7 +284,7 @@ internal static class ImportTableEvidence
             var rir2 = ParseRir(rir2Text);
             var rest = ParseRest(Cell(cells, map.Rest), map.RestUnit ?? pageRestHint);
             var loadText = mixedLoad ?? (combinedIntensity ? null : NormalizeLoad(loadCell, map.LoadIsPercent1Rm));
-            if (name is null && setCount is null && repsText is null && loadText is null && rpe is null && early is null && last is null
+            if (!HasText(name) && setCount is null && repsText is null && loadText is null && rpe is null && early is null && last is null
                 && rirText is null && rir1Text is null && rir2Text is null && rest.Text is null) return false;
             row = new EvidenceRow(IsMovementName(name) ? StripSetTag(name!) : null, setCount, repsText, repMin, repMax,
                 loadText, rirText, rir, rir1Text, rir1, rir2Text, rir2, rpe, early, last, rest.Text, rest.Seconds);

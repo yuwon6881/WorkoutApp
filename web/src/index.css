@@ -184,8 +184,7 @@ input::file-selector-button{font-size:var(--font-secondary)!important}
 .workout-help summary svg{transition:transform .18s ease}
 .workout-help[open] summary svg{transform:rotate(180deg)}
 .workout-help p{padding:4px 0 2px}
-.upload-action-row{margin-bottom:14px}
-.import-progress{display:grid;gap:6px;margin:14px 0 4px;width:100%}
+.upload-action-row{margin-bottom:14px}.import-progress{display:grid;gap:6px;margin:14px 0 4px;width:100%}
 .import-progress-line{display:flex;align-items:baseline;justify-content:space-between;gap:12px;font-size:var(--font-secondary)}
 .import-progress-label{color:var(--text);font-weight:600}
 .import-progress-percent{color:var(--muted);font-variant-numeric:tabular-nums}
@@ -193,6 +192,7 @@ input::file-selector-button{font-size:var(--font-secondary)!important}
 .import-progress-fill{height:100%;width:100%;background:var(--accent);border-radius:999px;transition:width .3s ease}
 .import-progress-track.indeterminate .import-progress-fill{width:40%;animation:import-sweep 1.4s ease-in-out infinite}
 @keyframes import-sweep{0%{transform:translateX(-100%)}100%{transform:translateX(250%)}}
+.import-progress-footer{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:6px;flex-wrap:wrap}.import-progress-footer small{margin:0;color:var(--muted)}.import-progress-actions{display:flex;align-items:center;gap:8px;margin-left:auto}
 .import-failure-message{flex:1 1 220px;min-width:0;color:var(--text);line-height:1.45}
 .import-failure-actions{display:flex;align-items:center;gap:8px;margin-left:auto;flex-wrap:wrap;flex-shrink:0}
 .import-reading-panel{padding:20px 24px}
@@ -201,7 +201,7 @@ input::file-selector-button{font-size:var(--font-secondary)!important}
 .reading-card-title{display:flex;align-items:center;gap:8px}
 .reading-card-title h3{margin:0;font-size:15px;font-weight:600}
 .reading-card-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:4px;flex-wrap:wrap}.import-week-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:2px 0 14px;flex-wrap:wrap}.import-week-toolbar .import-week-caption{margin:0}.import-delete-week-btn{min-height:36px;padding:6px 12px;font-size:var(--font-secondary);gap:6px}
-@media(max-width:639px){.reading-card-actions{flex-direction:column;align-items:stretch}.reading-card-actions .button{width:100%;min-height:44px;justify-content:center}.import-delete-week-btn{min-height:44px}}
+@media(max-width:639px){.reading-card-actions{flex-direction:column;align-items:stretch}.reading-card-actions .button{width:100%;min-height:44px;justify-content:center}.import-delete-week-btn{min-height:44px}.import-progress-footer{flex-direction:column;align-items:stretch;gap:8px}.import-progress-actions{width:100%;margin-left:0}.import-progress-actions .button{width:100%;min-height:44px;justify-content:center}}
 .import-details{margin-top:14px;border-top:1px solid var(--border);padding-top:8px}
 .import-details summary{display:flex;align-items:center;gap:7px;cursor:pointer;min-height:44px;color:var(--muted);font-size:var(--font-secondary);list-style:none}
 .import-details summary::-webkit-details-marker{display:none}

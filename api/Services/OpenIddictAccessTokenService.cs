@@ -4,11 +4,22 @@ using Workout.Api.Domain;
 
 namespace Workout.Api.Services;
 
-public sealed record ValidatedAccessToken(string Subject, string Issuer, IReadOnlySet<string> Scopes, DateTime ExpiresAt);
+public sealed record ValidatedAccessToken(
+    string Subject,
+    string Issuer,
+    IReadOnlySet<string> Scopes,
+    DateTime ExpiresAt,
+    Guid? FitnessConnectionId = null,
+    long? FitnessConnectionGeneration = null);
+
+public interface ISharedAccessTokenValidator
+{
+    Task<ValidatedAccessToken> RequireAccessToken(string accessToken, string requiredScope, CancellationToken ct);
+}
 
 /// Uses OpenIddict's discovery/JWKS validation handler for resource requests. No application
 /// code parses JWTs or loads a long-lived signing key.
-public sealed class OpenIddictAccessTokenService(OpenIddictValidationService validation)
+public sealed class OpenIddictAccessTokenService(OpenIddictValidationService validation) : ISharedAccessTokenValidator
 {
     public async Task<ValidatedAccessToken> Require(HttpContext context, string requiredScope, CancellationToken ct)
     {
@@ -31,6 +42,12 @@ public sealed class OpenIddictAccessTokenService(OpenIddictValidationService val
         var expiry = principal.GetExpirationDate();
         Validation.Require(expiry is { } && expiry > DateTimeOffset.UtcNow,
             "The shared access token has expired.", 401);
-        return new(subject!, principal.FindFirst(OpenIddictConstants.Claims.Issuer)?.Value ?? "", scopes, expiry!.Value.UtcDateTime);
+        var connectionValue = principal.FindFirst("fitness_connection_id")?.Value;
+        var generationValue = principal.FindFirst("fitness_connection_generation")?.Value;
+        var connectionId = Guid.TryParse(connectionValue, out var parsedId) ? parsedId : (Guid?)null;
+        var generation = long.TryParse(generationValue, System.Globalization.NumberStyles.Integer,
+            System.Globalization.CultureInfo.InvariantCulture, out var parsedGeneration) ? parsedGeneration : (long?)null;
+        return new(subject!, principal.FindFirst(OpenIddictConstants.Claims.Issuer)?.Value ?? "", scopes,
+            expiry!.Value.UtcDateTime, connectionId, generation);
     }
 }

@@ -10,6 +10,10 @@ describe('centralAuthError', () => {
     expect(centralAuthError('provider_internal_code')).toBe('We could not complete sign-in. Please try again.');
   });
 
+  it('explains when a delayed Nutrition callback lost a local disconnect race', () => {
+    expect(centralAuthError('connection_changed')).toBe('Nutrition connection changed before setup completed. Try connecting again.');
+  });
+
   it('consumes and cleans up access_denied cancellation parameters', () => {
     const url = new URL('https://workout.example/settings?central_error=access_denied&foo=bar');
     expect(consumeCentralAuthError(url)).toBe('Nutrition connection was canceled.');
@@ -26,6 +30,12 @@ describe('centralAuthError', () => {
   it('handles other central errors gracefully', () => {
     const url = new URL('https://workout.example/settings?central_error=server_error');
     expect(consumeCentralAuthError(url)).toBe('Could not connect Nutrition. Please try again.');
+    expect(url.searchParams.get('central_error')).toBeNull();
+  });
+
+  it('explains when a delayed connection callback was invalidated by disconnect', () => {
+    const url = new URL('https://workout.example/settings?central_error=connection_changed');
+    expect(consumeCentralAuthError(url)).toBe('Nutrition connection changed before setup completed. Try connecting again.');
     expect(url.searchParams.get('central_error')).toBeNull();
   });
 

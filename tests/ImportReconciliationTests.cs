@@ -222,7 +222,31 @@ public sealed class ImportReconciliationTests
         Assert.Single(ready.Draft!.Workouts);
         var notice = Assert.Single(ready.ReviewIssues!, issue => issue.Code == "duplicate_day_dropped");
         Assert.Contains("kept once", notice.Message);
+        Assert.Equal("info", notice.Severity);
     }
+
+    [Fact]
+    public void Earlier_section_duplicates_are_aggregated_and_coverage_uses_pre_deduplication_days()
+    {
+        var existingDays = Enumerable.Range(3, 3).Select(page => ReconciliationDay(page)).ToList();
+        var existing = new ImportDraft("Program", existingDays);
+        var extracted = new ImportDraft("Program", existingDays.Select(day => day with { LineId = Guid.NewGuid() }).ToList());
+        var chunk = new ImportChunk("Overlapping section", null, null, 1, 1, 3, 5, 6);
+
+        var merge = ImportChunkReconciliation.ReconcileChunkCoverage(existing, extracted, chunk);
+
+        Assert.Empty(merge.Workouts);
+        var duplicate = Assert.Single(merge.Notices, issue => issue.Code == "duplicate_day_dropped");
+        Assert.Equal("info", duplicate.Severity);
+        Assert.Contains("repeated 3 days", duplicate.Message);
+        Assert.DoesNotContain(merge.Notices, issue => issue.Code == "chunk_day_count");
+    }
+
+    private static DraftWorkout ReconciliationDay(int page)
+        => new(Guid.NewGuid(), 1, $"Day {page}", null, null, [
+            new DraftExercise(Guid.NewGuid(), "Bench Press", null, null,
+                [new DraftSet(6, 8, 8, 90, null, null, null, SourcePage: page)], SourcePage: page)
+        ], SourcePage: page);
 
     [Fact]
     public void Trailing_rest_rows_beyond_seven_days_are_discarded()

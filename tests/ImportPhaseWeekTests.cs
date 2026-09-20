@@ -31,7 +31,8 @@ public sealed class ImportPhaseWeekTests
         ["OpenAi:Model"] = "gpt-5.4-mini"
     };
 
-    private static ImportSourceInput Source() => new("nippard.pdf", 1, [new ImportPageText(1, "WEEK 1\nBench 3x5")]);
+    private static ImportSourceInput Source() => new("nippard.pdf", 1, [new ImportPageText(1,
+        "BLOCK 1\nACCUMULATION\nWEEK 4\nBench 3x5\nDELOAD WEEK\nWEEK 5\nBench 3x5")]);
 
     private static StubHandler Reading(params string[] bodies)
     {

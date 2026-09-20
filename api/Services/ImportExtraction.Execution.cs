@@ -19,6 +19,7 @@ public sealed partial class ImportService
         var user = db.CurrentUser!.Value;
         var leaseId = NewLeaseId();
         List<ImportPageText>? outlinePages = null;
+        List<ImportPageText> sourcePages = [];
         var pending = new List<PendingChunk>();
         Dictionary<int, AiImportResult> persistedResults = [];
         await using (var claim = await MutationLock.Acquire(db, db.CurrentUser, ct))
@@ -33,6 +34,8 @@ public sealed partial class ImportService
                 await claim.Commit(ct);
                 return await Get(id, ct);
             }
+            Validation.Require(import.Status != ImportStatus.Pending || import.PromptVersion == WorkoutAi.PromptVersion,
+                "This PDF import was created by an older importer. Upload the PDF again to continue with the updated reader.", 409);
             if (LeaseHeldByAnother(import, leaseId, DateTime.UtcNow))
             {
                 await claim.Commit(ct);
@@ -41,6 +44,7 @@ public sealed partial class ImportService
             }
             ClaimLease(import, leaseId, DateTime.UtcNow);
             var pages = SourcePages(import);
+            sourcePages = pages;
             if (import.Status == ImportStatus.Pending && import.Stage == "outline")
             {
                 // The account lock is not reentrant, so the outline pass starts after this closes.
@@ -80,6 +84,7 @@ public sealed partial class ImportService
         }
         db.ChangeTracker.Clear();
         if (outlinePages is not null) return await ReadOutline(id, outlinePages, ct, leaseId);
+        var sourceEvidence = ImportOutlineEvidence.Read(sourcePages);
 
         var results = persistedResults;
         var completedThisPass = new HashSet<int>();
@@ -174,7 +179,7 @@ public sealed partial class ImportService
                         else
                         {
                             var result = results[item.Index];
-                            var extracted = await ToDraft(result.Program, settle);
+                            var extracted = ImportOutlineEvidence.NormalizeDraft(await ToDraft(result.Program, settle), sourceEvidence);
                             var reconciled = ReconcileChunkCoverage(draft, extracted, item.Chunk);
                             notices.AddRange(reconciled.Notices);
                             merged = draft with

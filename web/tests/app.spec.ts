@@ -1,9 +1,11 @@
 import { expect, test } from '@playwright/test';
 import type { Page } from '@playwright/test';
+import { join } from 'node:path';
 import { signIn as auth } from './signIn';
 import { pdf } from './pdfFixture';
 
 const USER = 'e2e-lifter';
+const screenshotsDirectory = process.env.WORKOUT_TEST_SCREENSHOTS || 'artifacts';
 
 
 const signIn = (page: Page) => auth(page, USER);
@@ -59,7 +61,7 @@ test('build a workout, log a set against the server, and see it in history', asy
 
   await signIn(page);
   await clearActiveWorkout(page);
-  await page.screenshot({ path: `artifacts/${testInfo.project.name}-overview.png`, fullPage: true });
+  await page.screenshot({ path: join(screenshotsDirectory, `${testInfo.project.name}-overview.png`), fullPage: true });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 
   await openTab(page, 'Workouts');
@@ -119,7 +121,7 @@ test('build a workout, log a set against the server, and see it in history', asy
   await expect.poll(() => logged.evaluate(el => getComputedStyle(el).backgroundColor), { timeout: 5000 }).toBe('rgb(230, 180, 80)');
   // The logged set has to reach the server: nothing is kept on the device to fall back on.
   await expect.poll(() => doneSetsOnServer(page), { timeout: 20000 }).toBe(1);
-  await page.screenshot({ path: `artifacts/${testInfo.project.name}-logger.png`, fullPage: true });
+  await page.screenshot({ path: join(screenshotsDirectory, `${testInfo.project.name}-logger.png`), fullPage: true });
   expect(await logger.evaluate(el => el.scrollWidth <= el.clientWidth)).toBe(true);
 
   // Logging a set starts the rest, and the clock counts down rather than sitting still.
@@ -195,7 +197,7 @@ test('import a PDF program, resolve an unmapped exercise, and accept it', async 
   await expect.poll(() => posted, { timeout: 60000 }).toEqual(['gzip']);
   await expect(page.getByRole('heading', { name: 'Review' })).toBeVisible({ timeout: 60000 });
   await expect(page.getByText('Description', { exact: true })).toHaveCount(0);
-  await page.screenshot({ path: `artifacts/${testInfo.project.name}-import-review.png`, fullPage: true });
+  await page.screenshot({ path: join(screenshotsDirectory, `${testInfo.project.name}-import-review.png`), fullPage: true });
 
   // The day reads as what it prescribes before it is opened.
   const day = page.getByRole('button', { name: 'Week 1 Upper', exact: true });

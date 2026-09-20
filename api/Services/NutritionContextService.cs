@@ -17,7 +17,7 @@ public sealed record NutritionContextResult(
 /// only the confirmed mode and bodyweight context are reused, and only for seven calendar days.
 public sealed class NutritionContextService(AppDb db, IHttpClientFactory clients, IConfiguration config, IntegrationTokenService? peerTokens = null)
 {
-    private static readonly TimeSpan Timeout = TimeSpan.FromSeconds(2);
+    private static readonly TimeSpan FetchTimeout = TimeSpan.FromSeconds(2);
     private static readonly TimeSpan CacheWindow = TimeSpan.FromDays(7);
 
     public async Task<NutritionContextResult> Get(CancellationToken ct)
@@ -25,21 +25,23 @@ public sealed class NutritionContextService(AppDb db, IHttpClientFactory clients
         var cached = await db.NutritionContexts.AsNoTracking().SingleOrDefaultAsync(ct);
         var now = DateTime.UtcNow;
         var url = config["Integrations:NutritionTrainingContextUrl"];
-        var connected = await db.IntegrationGrants.AsNoTracking().AnyAsync(x => x.Peer == "nutrition" && x.Status == "active", ct);
+        var connected = await db.IntegrationGrants.AsNoTracking().AnyAsync(x => x.Peer == "nutrition" && x.Status == "active"
+            && x.CentralConnectionId != null && x.CentralConnectionGeneration != null, ct);
         if (connected && !string.IsNullOrWhiteSpace(url))
         {
             try
             {
-                using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
-                timeout.CancelAfter(Timeout);
-                using var request = new HttpRequestMessage(HttpMethod.Get, url);
-                var token = peerTokens is null
-                    ? config["Integrations:NutritionAccessToken"]
-                    : await peerTokens.AccessToken("nutrition", "nutrition.training_context.read", timeout.Token);
+                // Token renewal has its own ten-second bound. A short peer-data deadline must not
+                // cancel the durable connection's server-to-server token exchange.
+                var token = peerTokens is null ? null
+                    : await peerTokens.AccessToken("nutrition", "nutrition.training_context.read", ct);
                 if (peerTokens is not null && string.IsNullOrWhiteSpace(token))
                     throw new InvalidOperationException("Nutrition access is not available.");
+                using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
+                timeout.CancelAfter(FetchTimeout);
+                using var request = new HttpRequestMessage(HttpMethod.Get, url);
                 if (!string.IsNullOrWhiteSpace(token)) request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
-                var subject = await db.Users.AsNoTracking().Where(u => u.Id == db.CurrentUser).Select(u => u.IdentitySubject).SingleOrDefaultAsync(timeout.Token);
+                var subject = await db.Users.AsNoTracking().Where(u => u.Id == db.CurrentUser).Select(u => u.IdentitySubject).SingleOrDefaultAsync(ct);
                 if (!string.IsNullOrWhiteSpace(subject)) request.Headers.Add("X-Identity-Subject", subject);
                 var response = await clients.CreateClient("nutrition").SendAsync(request, timeout.Token);
                 response.EnsureSuccessStatusCode();
@@ -53,10 +55,12 @@ public sealed class NutritionContextService(AppDb db, IHttpClientFactory clients
                 }
                 throw new InvalidOperationException("Nutrition returned an invalid training context.");
             }
-            catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or JsonException or InvalidOperationException)
+            catch (Exception ex) when ((ex is HttpRequestException or TaskCanceledException or JsonException or InvalidOperationException)
+                && !ct.IsCancellationRequested)
             {
-                await SaveError(ex.Message, now, ct);
-                return FromCache(cached, now, ex.Message);
+                const string warning = "Nutrition data could not be refreshed right now.";
+                await SaveError(warning, now, ct);
+                return FromCache(cached, now, warning);
             }
         }
         return FromCache(cached, now, null);

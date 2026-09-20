@@ -54,15 +54,13 @@ public sealed partial class ImportService(AppDb db, WorkoutAi ai, CatalogService
         await catalog.RequireActive(replacementExerciseId, ct);
         var slot = target.exercise!.SlotKey;
         Validation.Require(slot is not null, "That exercise slot has no stable identity. Edit the draft and try again.", 409);
-        var targetBlock = ImportValidation.CanonicalBlock(target.workout.Block);
-        var targetSignature = ImportValidation.SlotSignature(target.workout, target.position);
+        var targetSignature = ImportValidation.SlotSignature(target.workout, target.position, target.exercise.SourceName);
         var next = draft with
         {
             Workouts = draft.Workouts.Select(workout => workout with
             {
                 Exercises = workout.Exercises.Select((exercise, position) =>
-                    ImportValidation.CanonicalBlock(workout.Block).Equals(targetBlock, StringComparison.OrdinalIgnoreCase) &&
-                    ImportValidation.SlotSignature(workout, position).Equals(targetSignature, StringComparison.Ordinal) &&
+                    ImportValidation.SlotSignature(workout, position, exercise.SourceName).Equals(targetSignature, StringComparison.Ordinal) &&
                     exercise.SlotKey == slot
                         ? exercise with
                         {

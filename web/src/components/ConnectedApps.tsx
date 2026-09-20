@@ -1,19 +1,37 @@
-import { useEffect, useState } from 'react';
-import { AlertTriangle, Link2 } from 'lucide-react';
+import { useCallback, useEffect, useState } from 'react';
+import { AlertTriangle, Link2, RefreshCw } from 'lucide-react';
 import { ApiError, api } from '../lib/api';
 import { consumeCentralAuthError } from '../lib/centralAuthError';
 import { Button } from './ui/Button';
+import { connectedAppActions, parseConnectionState, type ConnectionState } from './connectedAppsState';
 
 export function ConnectedApps() {
-  const [connected, setConnected] = useState(false);
+  const [connectionState, setConnectionState] = useState<ConnectionState>('loading');
+  const [canRevoke, setCanRevoke] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [syncWarning, setSyncWarning] = useState(false);
   const [bannerNotice, setBannerNotice] = useState<{ type: 'error' | 'success'; message: string } | null>(null);
 
-  useEffect(() => {
-    api.connectedApps().then(rows => setConnected(rows.some(row => row.peer === 'nutrition' && row.status === 'active')))
-      .catch(failure => setError(failure instanceof ApiError ? failure.message : 'Connected app status is unavailable.'));
+  const loadStatus = useCallback(async () => {
+    setError('');
+    try {
+      const rows = await api.connectedApps();
+      const row = rows.find(item => item.peer === 'nutrition');
+      const state = row?.connectionState;
+      setConnectionState(parseConnectionState(state));
+      setCanRevoke(row?.canDisconnect === true);
+      setSyncWarning(row?.syncWarning === true);
+    } catch (failure) {
+      setConnectionState('temporary_unavailable');
+      setCanRevoke(false);
+      setSyncWarning(true);
+      setError(failure instanceof ApiError ? failure.message : 'Could not check the Nutrition connection. Try again.');
+    }
+  }, []);
 
+  useEffect(() => {
+    void loadStatus();
     if (typeof window !== 'undefined') {
       const url = new URL(window.location.href);
       const notice = consumeCentralAuthError(url);
@@ -22,21 +40,34 @@ export function ConnectedApps() {
         window.history.replaceState(window.history.state, '', url.pathname + (url.search ? url.search : '') + url.hash);
       }
     }
-  }, []);
+  }, [loadStatus]);
 
   function connect() {
     setBusy(true); setError('');
-    // The backend performs the authorization-code exchange and stores only the encrypted
-    // rotating refresh token. The PWA never receives either token.
+    // The backend handles the authorization-code exchange. The PWA never receives a token.
     window.location.href = '/api/auth/central/connect';
   }
 
   async function revoke() {
     setBusy(true); setError('');
-    try { await api.revokeApp('nutrition'); setConnected(false); }
-    catch (failure) { setError(failure instanceof ApiError ? failure.message : 'Could not revoke Nutrition access.'); }
-    finally { setBusy(false); }
+    try {
+      await api.revokeApp('nutrition');
+      setConnectionState('disconnected'); setCanRevoke(false); setSyncWarning(false);
+    } catch (failure) {
+      // Keep the prior state visible so a failed central revocation cannot appear successful.
+      setError(failure instanceof ApiError ? failure.message : 'Could not confirm Nutrition was disconnected. Try again.');
+    } finally { setBusy(false); }
   }
+
+  const statusLabel: Record<ConnectionState, string> = {
+    loading: 'Checking connection…',
+    connected: 'Connected',
+    temporary_unavailable: 'Temporarily unavailable',
+    reconnect_required: 'Reconnect required',
+    upgrade_required: 'Reconnect to upgrade',
+    disconnected: 'Not connected'
+  };
+  const actions = connectedAppActions(connectionState, canRevoke);
 
   return <section className="panel" aria-labelledby="connected-apps-title">
     <div className="section-heading"><h2 id="connected-apps-title">Connected apps</h2></div>
@@ -51,29 +82,50 @@ export function ConnectedApps() {
       <div className="connected-app-info">
         <div className="connected-app-title">
           <strong>Nutrition</strong>
-          {connected ? (
-            <span className="pill pill-accent connected-badge">
-              <span className="status-dot online" /> Connected
-            </span>
-          ) : (
-            <span className="pill connected-badge">Not connected</span>
-          )}
+          <span className={`pill connected-badge ${connectionState === 'connected' ? 'pill-accent' : ''}`} aria-live="polite">
+            {connectionState === 'connected' && <span className="status-dot online" />}
+            {statusLabel[connectionState]}
+          </span>
         </div>
         <small className="muted">
-          {connected ? 'Nutrition access is granted.' : 'Link your account to share weight trends and goals.'}
+          {connectionState === 'loading' && 'Checking Fitness Account…'}
+          {connectionState === 'connected' && 'Nutrition access is granted.'}
+          {connectionState === 'temporary_unavailable' && (syncWarning
+            ? 'Workout could not refresh Nutrition data. The connection has not been removed.'
+            : 'Workout could not confirm this connection. Try checking again.')}
+          {connectionState === 'reconnect_required' && 'Fitness Account no longer recognizes this connection. Connect again to share data.'}
+          {connectionState === 'upgrade_required' && 'Reconnect once to move this older connection to durable consent.'}
+          {connectionState === 'disconnected' && 'Link your account to share weight trends and goals.'}
         </small>
       </div>
       <div className="connected-app-actions">
-        {connected ? (
+        {actions === 'checking' ? (
+          <Button variant="tertiary" disabled>Checking…</Button>
+        ) : actions === 'retry' || actions === 'retry_disconnect' ? (
+          <>
+            <Button variant="tertiary" disabled={busy} onClick={() => void loadStatus()}>
+              <RefreshCw size={16} /> Try again
+            </Button>
+            {actions === 'retry_disconnect' && <Button variant="destructive" disabled={busy} onClick={() => void revoke()}>Disconnect</Button>}
+          </>
+        ) : actions === 'reconnect' || actions === 'reconnect_disconnect' ? (
+          <>
+            <Button variant="primary" disabled={busy} onClick={connect}>
+              <Link2 size={16} />
+              {busy ? 'Opening account…' : connectionState === 'upgrade_required' ? 'Reconnect to upgrade' : 'Reconnect Nutrition'}
+            </Button>
+            {actions === 'reconnect_disconnect' && <Button variant="destructive" disabled={busy} onClick={() => void revoke()}>Disconnect</Button>}
+          </>
+        ) : actions === 'disconnect' ? (
           <Button variant="destructive" disabled={busy} onClick={() => void revoke()}>
-            Revoke access
+            Disconnect
           </Button>
-        ) : (
+        ) : actions === 'connect' ? (
           <Button variant="primary" disabled={busy} onClick={connect}>
             <Link2 size={16} />
             {busy ? 'Opening account…' : 'Connect Nutrition'}
           </Button>
-        )}
+        ) : null}
       </div>
     </div>
     {error && <p className="error-text" role="alert">{error}</p>}

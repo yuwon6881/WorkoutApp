@@ -116,7 +116,9 @@ export function useImportPipeline({ selected, setSelected, setDraft, onChanged, 
       showProgress(current);
 
       while (current.status === 'pending' && current.stage !== 'select') {
+        if (cancelled.current === current.id) return;
         await new Promise(resolve => window.setTimeout(resolve, POLL_INTERVAL_MS));
+        if (cancelled.current === current.id) return;
         try {
           current = await poll(current);
         } catch (error) {
@@ -124,6 +126,7 @@ export function useImportPipeline({ selected, setSelected, setDraft, onChanged, 
           if (cancelled.current !== current.id) await refresh(current.id);
           return;
         }
+        if (cancelled.current === current.id) return;
         apply(current);
         showProgress(current);
 
@@ -143,6 +146,7 @@ export function useImportPipeline({ selected, setSelected, setDraft, onChanged, 
           // when the original is still alive because ImportRunner coalesces the duplicate.
           try {
             current = await api.extractImport(current.id);
+            if (cancelled.current === current.id) return;
             apply(current);
             showProgress(current);
           } catch (error) {
@@ -158,7 +162,7 @@ export function useImportPipeline({ selected, setSelected, setDraft, onChanged, 
       return;
     }
 
-    if (current.status === 'ready') {
+    if (current.status === 'ready' && cancelled.current !== current.id) {
       await onChanged();
       const count = current.draft?.workouts.length ?? 0;
       setNotice(`Read ${count} days. Review them before accepting.`);
@@ -204,6 +208,11 @@ export function useImportPipeline({ selected, setSelected, setDraft, onChanged, 
         return;
       } finally {
         if (uploadAbort.current === controller) uploadAbort.current = null;
+      }
+
+      if (controller.signal.aborted) {
+        setNotice('PDF reading was cancelled. Choose a PDF to start again.');
+        return;
       }
 
       try {

@@ -20,8 +20,8 @@ public sealed partial class ImportService
     private static (List<DraftWorkout> Workouts, bool Renumbered) NormalizePhaseWeeks(List<DraftWorkout> workouts)
         => ImportValidation.NormalizePhaseWeeks(workouts);
 
-    private static ImportValidation.ChunkMerge ReconcileChunkCoverage(ImportDraft existing, ImportDraft extracted, ImportChunk chunk)
-        => ImportValidation.ReconcileChunkCoverage(existing, extracted, chunk);
+    private static ImportChunkReconciliation.ChunkMerge ReconcileChunkCoverage(ImportDraft existing, ImportDraft extracted, ImportChunk chunk)
+        => ImportChunkReconciliation.ReconcileChunkCoverage(existing, extracted, chunk);
 
     private static (List<DraftWorkout> Workouts, List<ImportReviewIssue> Notices) ReconcileDayShape(List<DraftWorkout> days)
         => ImportDayShape.Reconcile(days);

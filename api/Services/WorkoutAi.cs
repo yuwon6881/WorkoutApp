@@ -40,8 +40,9 @@ public sealed class WorkoutAi(HttpClient http, IConfiguration config)
     /// Technique column routing, rest unit enforcement, and tracking column awareness;
     /// v10 preserves PDF table column separation, dual working set and RIR-to-RPE extraction,
     /// N/A and See Notes filtering, and footer rest day handling; v11 expands that contract to
-    /// legacy RPE/%1RM tables and multiple explicitly offered program routines.
-    public const string PromptVersion = "workout-import-v11-layout-text";
+    /// legacy RPE/%1RM tables and multiple explicitly offered program routines; v12 makes source
+    /// headings authoritative and recovers fused exercise names only from one-to-one table rows.
+    public const string PromptVersion = "workout-import-v12-source-evidence";
 
     /// One cheap pass over a page-by-page view of the document. Most of a commercial training PDF
     /// is explanation and photography; this pass exists to find the few pages that actually carry

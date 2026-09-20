@@ -3,6 +3,8 @@
 // without spending a real call or depending on model wording.
 import { createServer } from 'node:http';
 
+const port = parseInt(process.env.PORT || process.argv[2] || '5184', 10);
+
 const outline = {
   programTitle: 'Imported strength block',
   chunks: [
@@ -75,4 +77,4 @@ createServer((request, responseStream) => {
     responseStream.writeHead(200, { 'Content-Type': 'application/json' });
     responseStream.end(JSON.stringify(response(payload)));
   });
-}).listen(5184, '127.0.0.1', () => console.log('mock openai listening on 5184'));
+}).listen(port, '127.0.0.1', () => console.log(`mock openai listening on ${port}`));

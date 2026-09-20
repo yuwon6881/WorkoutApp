@@ -356,7 +356,64 @@ public sealed class IntegrationGrant : OwnedRecord
     public string Peer { get; set; } = "";
     public string Status { get; set; } = "revoked";
     public string ScopesJson { get; set; } = "[]";
+    public Guid? CentralConnectionId { get; set; }
+    public long? CentralConnectionGeneration { get; set; }
+    // Retained through the compatibility migration; new connections never populate it.
     public string EncryptedRefreshToken { get; set; } = "";
     public DateTime? GrantedAt { get; set; }
     public DateTime? RevokedAt { get; set; }
+}
+
+public class GoogleHealthConnection
+{
+    public Guid UserId { get; set; }
+    public string GoogleIdHash { get; set; } = "";
+    public string EncryptedGoogleId { get; set; } = "";
+    public string EncryptedRefreshToken { get; set; } = "";
+    public string EncryptedStepHistoryJson { get; set; } = "[]";
+    public string GrantedScopesJson { get; set; } = "[]";
+    public bool WorkoutSyncEnabled { get; set; }
+    public long WorkoutSyncRevision { get; set; }
+    public DateTime? WorkoutLastSuccessfulSyncAt { get; set; }
+    public long ConnectionGeneration { get; set; } = 1;
+    public DateTime ConnectedAt { get; set; } = DateTime.UtcNow;
+    public DateTime? LastSyncedAt { get; set; }
+    public string Status { get; set; } = "connected";
+    public long Revision { get; set; }
+}
+
+public class GoogleHealthOAuthState
+{
+    public string State { get; set; } = "";
+    public Guid UserId { get; set; }
+    public string SessionHash { get; set; } = "";
+    public string RequestedOperationsJson { get; set; } = "[]";
+    public string RequestedScopesJson { get; set; } = "[]";
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime ExpiresAt { get; set; }
+}
+
+public class GoogleHealthWorkoutSyncWork : OwnedRecord
+{
+    public Guid WorkoutSessionId { get; set; }
+    public long DesiredRevision { get; set; }
+    public DateTime DesiredStartedAt { get; set; }
+    public DateTime DesiredFinishedAt { get; set; }
+    public string DesiredName { get; set; } = "";
+    public string DesiredNotes { get; set; } = "";
+    public bool DesiredDeleted { get; set; }
+    public string GoogleIdHash { get; set; } = "";
+    public long ConnectionGeneration { get; set; }
+    public string GoogleResourceName { get; set; } = "";
+    public string GoogleOperationName { get; set; } = "";
+    public string ProcessingState { get; set; } = "pending";
+    public DateTime NextAttemptAt { get; set; } = DateTime.UtcNow;
+    public DateTime? LeaseUntil { get; set; }
+    public string LeaseId { get; set; } = "";
+    public string LastErrorCategory { get; set; } = "";
+    public string LastErrorMessage { get; set; } = "";
+    public int RetryCount { get; set; }
+    public DateTime? LastSuccessfulSyncAt { get; set; }
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 }

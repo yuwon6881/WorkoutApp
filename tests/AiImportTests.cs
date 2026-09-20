@@ -80,7 +80,11 @@ public class AiImportTests
         });
         var imports = h.Imports(stub);
         await h.Seed(new SeedExercise("constant-curl", "Constant-Tension Lying Leg Curl", "Hamstrings", "Machine", "Control the eccentric", null));
-        var partial = await imports.Create(Source("faithful.pdf"), default);
+        var source = Source("faithful.pdf") with
+        {
+            Pages = Source("faithful.pdf").Pages.Select(page => page with { Text = $"BLOCK 1\nBASE HYPERTROPHY\n{page.Text}" }).ToList()
+        };
+        var partial = await imports.Create(source, default);
 
         Assert.Equal(ImportStatus.Pending, partial.Status);
         Assert.Equal("extract", partial.Stage);
@@ -123,6 +127,29 @@ public class AiImportTests
         Assert.False(program.Active);
         Assert.Equal(ProgramLifecycle.Standby, program.LifecycleStatus);
         Assert.Empty(await h.Db.Imports.AsNoTracking().ToListAsync());
+    }
+
+    [Fact] public async Task Pending_imports_from_an_older_prompt_version_are_not_resumed_with_mixed_behavior()
+    {
+        await using var h = await Harness.Create(Configured);
+        await h.SignIn();
+        var stub = StubHandler.Program(Outline);
+        var imports = h.Imports(stub);
+        var pending = await imports.Create(Source("older.pdf"), default);
+        var row = await h.Db.Imports.SingleAsync(item => item.Id == pending.Id);
+        row.PromptVersion = "workout-import-v11-layout-text";
+        await h.Db.SaveChangesAsync();
+
+        var extractionError = await Assert.ThrowsAsync<DomainException>(() => imports.Extract(pending.Id, default));
+        Assert.Equal(409, extractionError.Status);
+        Assert.Equal(1, stub.Calls);
+
+        row.Stage = "select";
+        row.AlternativesJson = Json.Write(new List<ImportAlternative> { new("full-body", "Full Body", 1, 1, []) });
+        await h.Db.SaveChangesAsync();
+        var selectionError = await Assert.ThrowsAsync<DomainException>(() => imports.SelectAlternative(pending.Id, "full-body", default));
+        Assert.Equal(409, selectionError.Status);
+        Assert.Equal(1, stub.Calls);
     }
 
     [Fact] public async Task An_unmatched_exercise_stays_unresolved_and_blocks_acceptance()
