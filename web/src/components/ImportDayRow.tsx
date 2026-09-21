@@ -43,12 +43,31 @@ export function DayRow({
     return `${names.slice(0, 4).join(', ')}, and ${names.length - 4} more`;
   }, [day.exercises, day.isRestDay]);
 
+  const isGenericDay = !day.name
+    || day.name.trim().toLowerCase() === `day ${index + 1}`.toLowerCase()
+    || /^(day\s*\d+)$/i.test(day.name.trim());
+  const isGenericRest = day.isRestDay && (isGenericDay || day.name.trim().toLowerCase() === 'rest day');
+
   const meta = <>
-    <span className="draft-day-index">Day {index + 1}</span>
-    <strong>{day.name}</strong>
-    {day.isRestDay
-      ? <span className="tiny-label rest-badge">Rest day</span>
-      : <span className="tiny-label">{day.exercises.length} {day.exercises.length === 1 ? 'exercise' : 'exercises'}</span>}
+    {!day.isRestDay && (isGenericDay
+      ? <strong>{day.name || `Day ${index + 1}`}</strong>
+      : <>
+        <span className="draft-day-index">Day {index + 1}</span>
+        <strong>{day.name}</strong>
+      </>)}
+    {day.isRestDay && (isGenericRest
+      ? <>
+        <span className="draft-day-index">Day {index + 1}</span>
+        <span className="tiny-label rest-badge">Rest day</span>
+      </>
+      : <>
+        <span className="draft-day-index">Day {index + 1}</span>
+        <strong>{day.name}</strong>
+        <span className="tiny-label rest-badge">Rest day</span>
+      </>)}
+    {!day.isRestDay && (
+      <span className="tiny-label">{day.exercises.length} {day.exercises.length === 1 ? 'exercise' : 'exercises'}</span>
+    )}
     {day.focus && <span className="day-focus-tag">{day.focus}</span>}
     {day.phase?.toLowerCase().includes('deload') && <span className="pill pill-accent">Deload</span>}
   </>;
@@ -63,9 +82,9 @@ export function DayRow({
           </div>
           : <Button presentation="plain" className="draft-day-summary" aria-expanded={expanded}
             aria-label={day.name} onClick={onToggle}>
-            <span className={`draft-day-disclosure ${expanded ? 'open' : ''}`} aria-hidden="true"><ChevronDown size={16} /></span>
             <span className="draft-day-heading">{meta}</span>
             {!expanded && exercisePreview && <span className="day-exercise-preview">{exercisePreview}</span>}
+            <span className={`draft-day-disclosure ${expanded ? 'open' : ''}`} aria-hidden="true"><ChevronDown size={16} /></span>
           </Button>}
         {menu}
       </div>

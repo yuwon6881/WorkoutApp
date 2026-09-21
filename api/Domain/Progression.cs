@@ -86,6 +86,28 @@ public static class Progression
 
     public static double? E1rm(PreviousSet set) => E1rm(set.WeightKg, set.Reps, set.Rpe);
 
+    /// Estimates 1RM using the scientific Epley formula with optional RIR adjustment.
+    /// When effort (RPE >= 6) is known, reps are adjusted to failure (reps + (10 - RPE)).
+    /// When RPE is absent, the completed reps are taken as performed.
+    /// Caps at 12 effective reps where the Epley relationship is valid.
+    public static double? Estimate1Rm(double? weightKg, int? reps, double? rpe = null)
+    {
+        if (weightKg is not { } weight || reps is not { } count) return null;
+        if (weight <= 0 || count <= 0) return null;
+        double total;
+        if (rpe is { } effort)
+        {
+            if (effort < MinEstimatedRpe) return null;
+            total = count + (10 - effort);
+        }
+        else
+        {
+            total = count;
+        }
+        if (total > MaxEstimatedReps) return null;
+        return weight * (1 + total / 30.0);
+    }
+
     /// Round to the nearest available step for legacy displays.
     public static double RoundToStep(double value, double stepKg)
         => stepKg <= 0 ? value : Math.Round(value / stepKg, MidpointRounding.AwayFromZero) * stepKg;

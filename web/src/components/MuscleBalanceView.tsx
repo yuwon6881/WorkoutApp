@@ -34,7 +34,8 @@ export function MuscleBalanceView({ timeZone }: { timeZone: string }) {
   const [hoveredMuscle, setHoveredMuscle] = useState<string | null>(null);
   const requestId = useRef(0);
   const activeMuscle = hoveredMuscle ?? pinnedMuscle;
-  const view = views[range] ?? null;
+  const [lastView, setLastView] = useState<MuscleBalanceData | null>(null);
+  const view = views[range] ?? lastView;
   const muscles = useMemo(() => sortMuscles(view?.muscles ?? []), [view?.muscles]);
   const trained = useMemo(() => muscles.filter(muscle => muscle.sets > 0), [muscles]);
   const untrained = useMemo(() => muscles.filter(muscle => muscle.sets <= 0), [muscles]);
@@ -51,6 +52,7 @@ export function MuscleBalanceView({ timeZone }: { timeZone: string }) {
       .then(next => {
         if (controller.signal.aborted || id !== requestId.current) return;
         setViews(current => ({ ...current, [range]: next }));
+        setLastView(next);
       })
       .catch(failure => {
         if (controller.signal.aborted || id !== requestId.current) return;
@@ -116,7 +118,7 @@ export function MuscleBalanceView({ timeZone }: { timeZone: string }) {
             </div>
           </div>
 
-          <section className="panel muscle-balance-map-panel">
+          <section className="panel muscle-balance-map-panel" aria-busy={loading}>
             <div className="section-heading muscle-balance-section-heading">
               <h2>Coverage</h2>
               <div className="muscle-balance-range-control">

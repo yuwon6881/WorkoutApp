@@ -39,7 +39,7 @@
 .body-map-silhouette{
   fill:var(--surface-raised);
   stroke:var(--border);
-  stroke-width:0.8;
+  stroke-width:1;
   stroke-linejoin:round;
   vector-effect:non-scaling-stroke;
 }
@@ -50,8 +50,8 @@
    how many sets that muscle accumulated. */
 .muscle-region{
   fill:color-mix(in srgb,var(--accent) var(--muscle-shade,16%),var(--surface-raised));
-  stroke:var(--muscle-outline);
-  stroke-width:1.4;
+  stroke:var(--border);
+  stroke-width:1;
   stroke-linejoin:round;
   vector-effect:non-scaling-stroke;
   cursor:pointer;
@@ -63,7 +63,7 @@
 .muscle-region:focus-visible,
 .muscle-region.is-active{
   stroke:var(--accent);
-  stroke-width:2.4;
+  stroke-width:2.2;
 }
 
 /* Decorative anatomy detail lines (ab grid, spine) drawn on top of

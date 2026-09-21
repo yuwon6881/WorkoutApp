@@ -36,6 +36,23 @@ export const estimate1Rm = (weightKg: number | null, reps: number | null, rpe: n
   return total > 12 ? null : weightKg * (1 + total / 30);
 };
 
+/// Estimates 1RM using the scientific Epley equation with optional RIR adjustment.
+/// When effort (RPE >= 6) is known, reps are adjusted to failure (reps + (10 - RPE)).
+/// When RPE is absent, the completed reps are taken as performed.
+/// Caps at 12 effective reps where the Epley relationship is valid.
+export const calculateEstimated1Rm = (weightKg: number | null, reps: number | null, rpe?: number | null): number | null => {
+  if (weightKg === null || reps === null) return null;
+  if (weightKg <= 0 || reps <= 0) return null;
+  let total: number;
+  if (rpe !== undefined && rpe !== null) {
+    if (rpe < 6) return null;
+    total = reps + (10 - rpe);
+  } else {
+    total = reps;
+  }
+  return total > 12 ? null : weightKg * (1 + total / 30);
+};
+
 /// Minutes and seconds, for a clock the user is watching rather than reading.
 export const showClock = (seconds: number): string => `${Math.floor(seconds / 60)}:${String(Math.max(0, seconds) % 60).padStart(2, '0')}`;
 

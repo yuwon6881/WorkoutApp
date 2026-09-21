@@ -13,16 +13,16 @@ public record SessionExerciseInput(Guid? ExerciseId, string NameSnapshot, string
 public record SessionInput(string? Note, List<SessionExerciseInput> Exercises, int? Revision, Guid? IdempotencyId);
 public record SetView(Guid Id, int Position, double? WeightKg, int? Reps, double? Rpe, bool Done, bool Warmup = false,
     int? WorkingSetOrdinal = null, string ResistanceMode = ResistanceModes.External, double? SystemLoadKg = null,
-    SetProgressionSuggestion? Suggestion = null);
+    SetProgressionSuggestion? Suggestion = null, bool IsPr = false, double? Estimated1RmKg = null);
 public record SessionExerciseView(Guid Id, Guid? ExerciseId, string Name, int Position, string Note, List<SetPrescription> Prescription, List<SetView> Sets,
     string SequenceGroup = "", List<string>? Substitutions = null, ProgressionView? Progression = null,
     string LoadModel = LoadModels.External, Guid? SourceTemplateExerciseId = null, Guid? SourceSlotKey = null, Guid? SourcePhaseId = null,
     Guid? SwapGroupKey = null, bool IsReplacement = false, Guid? OriginalExerciseId = null, string OriginalName = "", int? SourcePage = null,
-    bool CanRestore = false, int? RestSeconds = null);
+    bool CanRestore = false, int? RestSeconds = null, bool IsPr = false, double? PrE1rmKg = null);
 public record SessionView(Guid Id, Guid? TemplateId, Guid? ProgramId, string Name, string Note, bool Active, DateTime StartedAt, DateTime? FinishedAt, int Revision,
     List<SessionExerciseView> Exercises, double? VolumeKg, int CompletedSets, int WarmupSets = 0,
     BodyWeightSnapshot? BodyWeight = null, NutritionTrainingContext? NutritionContext = null,
-    double? SystemVolumeKg = null, DateTime? PausedAt = null, long PausedSeconds = 0);
+    double? SystemVolumeKg = null, DateTime? PausedAt = null, long PausedSeconds = 0, int PrCount = 0);
 
 public sealed record WorkoutActivityItem(Guid Id, string Name, string Status, DateOnly Date);
 
@@ -82,43 +82,10 @@ public sealed partial class WorkoutService(
         var exerciseIds = exercises.Select(e => e.Id).ToList();
         var sets = exerciseIds.Count == 0 ? [] : await db.Sets.AsNoTracking()
             .Where(s => exerciseIds.Contains(s.SessionExerciseId)).OrderBy(s => s.Position).ToListAsync(ct);
-        var exercisesBySession = exercises.GroupBy(e => e.SessionId).ToDictionary(g => g.Key, g => g.ToList());
-        var setsByExercise = sets.GroupBy(s => s.SessionExerciseId).ToDictionary(g => g.Key, g => g.ToList());
-        return sessions.ToDictionary(session => session.Id, session => BuildView(session,
-            exercisesBySession.GetValueOrDefault(session.Id) ?? [], setsByExercise));
+
+        return await WorkoutViewBuilder.BuildViews(db, sessions, exercises, sets, ct);
     }
 
-    private static SessionView BuildView(WorkoutSession session, IReadOnlyList<SessionExercise> exercises,
-        IReadOnlyDictionary<Guid, List<CompletedSet>> setsByExercise)
-    {
-        var sets = exercises.SelectMany(e => setsByExercise.GetValueOrDefault(e.Id) ?? []).ToList();
-        var done = sets.Where(s => s.Done).ToList();
-        var workingDone = done.Where(s => !s.Warmup).ToList();
-        var warmupDone = done.Where(s => s.Warmup).ToList();
-        var loadModels = exercises.ToDictionary(e => e.Id, e => e.LoadModel);
-        var external = workingDone.Where(s => s.WeightKg != null && s.SystemLoadKg == null &&
-            loadModels.GetValueOrDefault(s.SessionExerciseId, LoadModels.External) == LoadModels.External).ToList();
-        var system = workingDone.Where(s => s.SystemLoadKg != null).ToList();
-        var bodyWeight = ReadOptional<BodyWeightSnapshot>(session.BodyWeightSnapshotJson);
-        var context = ReadOptional<NutritionTrainingContext>(session.NutritionContextJson);
-        return new SessionView(session.Id, session.TemplateId, session.ProgramId, session.Name, session.Note, session.Active,
-            session.StartedAt, session.FinishedAt, session.Revision,
-            exercises.Select(e =>
-            {
-                var exerciseSets = setsByExercise.GetValueOrDefault(e.Id) ?? [];
-                var canRestore = e.IsReplacement && !string.IsNullOrEmpty(e.BaselineJson) && !exerciseSets.Any(s => s.Done);
-                return new SessionExerciseView(e.Id, e.ExerciseId, e.NameSnapshot, e.Position, e.Note,
-                    Json.Read<List<SetPrescription>>(e.PrescriptionJson),
-                    exerciseSets.Select(s => new SetView(s.Id, s.Position, s.WeightKg, s.Reps, s.Rpe, s.Done, s.Warmup,
-                        s.WorkingSetOrdinal, s.ResistanceMode, s.SystemLoadKg, ReadOptional<SetProgressionSuggestion>(s.SuggestionJson))).ToList(),
-                    e.SequenceGroup, Json.Read<List<string>>(e.SubstitutionsJson),
-                    ReadOptional<ProgressionView>(e.ProgressionJson), e.LoadModel, e.SourceTemplateExerciseId, e.SourceSlotKey, e.SourcePhaseId,
-                    e.SwapGroupKey, e.IsReplacement, e.OriginalExerciseId, e.OriginalNameSnapshot, e.SourcePage, canRestore, e.RestSeconds);
-            }).ToList(),
-            external.Count == 0 ? null : external.Sum(s => s.WeightKg!.Value * s.Reps!.Value),
-            workingDone.Count, warmupDone.Count, bodyWeight, context,
-            system.Count == 0 ? null : system.Sum(s => s.SystemLoadKg!.Value * s.Reps!.Value), session.PausedAt, session.PausedSeconds);
-    }
 
     /// Start-time snapshots are the contract: all set suggestions and Nutrition context are made
     /// once here, then saved on the session so later settings/history changes cannot rewrite them.

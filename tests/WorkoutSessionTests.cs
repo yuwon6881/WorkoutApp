@@ -333,6 +333,45 @@ public class WorkoutSessionTests
         Assert.Equal(0, (await h.Workouts.History(0, 10, default)).Total);
     }
 
+    [Fact] public async Task History_marks_pr_when_estimated_1rm_increases_over_previous_sessions()
+    {
+        var (h, templateId, _) = await Ready();
+        await using var _h = h;
+
+        // Session 1: 60 kg x 5 @ RPE 8 -> e1RM = 60 * (1 + 7/30) = 74 kg (baseline, not a PR increase)
+        var s1 = await h.Workouts.Start(templateId, null, default);
+        await Complete(h, s1, 60, 5, 8);
+        await h.Workouts.Finish(s1.Id, null, default);
+
+        var history1 = await h.Workouts.History(0, 10, default);
+        var hSession1 = history1.Sessions.Single(s => s.Id == s1.Id);
+        Assert.Equal(0, hSession1.PrCount);
+        Assert.False(hSession1.Exercises.Single().IsPr);
+
+        // Session 2: 65 kg x 5 @ RPE 8 -> e1RM = 65 * (1 + 7/30) = 80.17 kg > 74 kg -> PR!
+        var s2 = await h.Workouts.Start(templateId, null, default);
+        await Complete(h, s2, 65, 5, 8);
+        await h.Workouts.Finish(s2.Id, null, default);
+
+        var history2 = await h.Workouts.History(0, 10, default);
+        var hSession2 = history2.Sessions.Single(s => s.Id == s2.Id);
+        Assert.Equal(1, hSession2.PrCount);
+        var hEx2 = hSession2.Exercises.Single();
+        Assert.True(hEx2.IsPr);
+        Assert.NotNull(hEx2.PrE1rmKg);
+        Assert.Contains(hEx2.Sets, s => s.IsPr);
+
+        // Session 3: 60 kg x 3 @ RPE 7 -> lower than previous best of 80.17 kg -> no PR
+        var s3 = await h.Workouts.Start(templateId, null, default);
+        await Complete(h, s3, 60, 3, 7);
+        await h.Workouts.Finish(s3.Id, null, default);
+
+        var history3 = await h.Workouts.History(0, 10, default);
+        var hSession3 = history3.Sessions.Single(s => s.Id == s3.Id);
+        Assert.Equal(0, hSession3.PrCount);
+        Assert.False(hSession3.Exercises.Single().IsPr);
+    }
+
     private static async Task Complete(Harness h, SessionView session, double weight, int reps, double rpe)
     {
         var exercise = session.Exercises.Single();

@@ -165,6 +165,59 @@ public sealed class ImportPhaseWeekTests
         Assert.DoesNotContain(result.Notices, notice => notice.Code == "block_label_repeated");
     }
 
+    /// The Min-Max Phase 2 5x document prints its block banner on every week's first page and
+    /// mislabels weeks 8-12 as "Block 1" after printing "Block 2" over the week 7 deload. The day
+    /// level already coalesced that run; the outline refused first, because the chunk range check
+    /// groups by block label and read the week 6 to week 8 jump as a skipped week.
+    [Fact]
+    public void A_repeated_block_banner_in_the_outline_continues_the_preceding_run()
+    {
+        var chunks = new[] { Chunk("Weeks 1-6", "Block 1", 1, 6, 26, 55), Chunk("Week 7", "Block 2", 7, 7, 56, 60),
+            Chunk("Weeks 8-12", "Block 1", 8, 12, 61, 85) };
+
+        // Grouped by the labels the document printed, the range check reads week 6 to week 8 as a
+        // skipped week and refuses the outline before any section is read.
+        var refused = Assert.Throws<DomainException>(() => ImportValidation.ValidateChunkRanges(chunks));
+        Assert.Equal(422, refused.Status);
+        Assert.Contains("skip a week", refused.Message);
+
+        var result = ImportBlockRuns.ReconcileChunks(chunks);
+
+        Assert.Equal(["Block 1", "Block 2", "Block 2"], result.Chunks.Select(chunk => chunk.Block));
+        Assert.Contains(result.Notices, notice => notice.Code == "block_label_repeated"
+            && notice.SourcePage == 61 && notice.Severity == "info");
+        // The reconciled labels are what let the outline through the range check at all.
+        ImportValidation.ValidateChunkRanges(result.Chunks);
+    }
+
+    [Fact]
+    public void An_outline_block_that_never_resumes_is_left_alone()
+    {
+        var chunks = new[] { Chunk("Weeks 1-6", "Block 1", 1, 6, 26, 55), Chunk("Weeks 7-12", "Block 2", 7, 12, 56, 85) };
+
+        var result = ImportBlockRuns.ReconcileChunks(chunks);
+
+        Assert.Equal(["Block 1", "Block 2"], result.Chunks.Select(chunk => chunk.Block));
+        Assert.Empty(result.Notices);
+    }
+
+    /// A phase legitimately split into page sections for the same weeks must not be read as a
+    /// resumed block: the later run starts no later than the earlier one ended.
+    [Fact]
+    public void Outline_sections_covering_the_same_weeks_are_not_rewritten()
+    {
+        var chunks = new[] { Chunk("Part 1", "Block 1", 1, 2, 26, 30), Chunk("Choice", "Block 2", 1, 2, 31, 35),
+            Chunk("Part 2", "Block 1", 1, 2, 36, 40) };
+
+        var result = ImportBlockRuns.ReconcileChunks(chunks);
+
+        Assert.Equal(["Block 1", "Block 2", "Block 1"], result.Chunks.Select(chunk => chunk.Block));
+        Assert.Empty(result.Notices);
+    }
+
     private static DraftWorkout Day(int week, int phaseWeek, string phase)
         => new(Guid.NewGuid(), week, $"Week {week} Upper", null, null, [], "Block 1", phase, phaseWeek);
+
+    private static ImportChunk Chunk(string label, string block, int weekFrom, int weekTo, int pageFrom, int pageTo)
+        => new(label, block, null, weekFrom, weekTo, pageFrom, pageTo, (weekTo - weekFrom + 1) * 5);
 }

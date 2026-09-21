@@ -13,6 +13,7 @@ export type TableSpan = { top: number; bottom: number; left?: number; right?: nu
 
 const STRUCTURAL_BANNER = /^(?:WEEK\b|BLOCK\b|INTRO\b|DELOAD\b|REST\s+DAY\b)/i;
 const DAY_VOCABULARY = /^(?:(?:DAY\s*\d{1,2}|(?:UPPER|LOWER|PUSH|PULL|LEGS?|ARMS?|CHEST|BACK|FULL\s+BODY)(?:\s+(?:#?\d{1,2}|STRENGTH|HYPERTROPHY|VOLUME|POWER))?|ARMS\s*[&/]\s*(?:DELTS|WEAK\s+POINTS))(?:\s*(?:#\d{1,2}|\([^()]{1,28}\)))?)$/i;
+const POSITIONAL_LABEL = /^DAY\s*\d{1,2}$/i;
 const CHART_AXIS_LABEL = /^(?:TOTAL\s+VOLUME|VOLUME\s*\(|\d+(?:\.\d+)?\s*[x×]\s*\/\s*week)/i;
 
 function usableLabel(value: string): boolean {
@@ -82,9 +83,19 @@ function findHorizontalLabels(pieces: PositionedPiece[]): DayLabel[] {
 /// Rotated margin text is the strongest day-title signal. Bare vocabulary is a fallback for
 /// layouts that print the title horizontally; week, block, deload, and rest banners stay distinct.
 export function findDayLabels(pieces: PositionedPiece[]): DayLabel[] {
-  const rotated = findRotatedLabels(pieces);
-  const labels = rotated.length > 0 ? rotated : findHorizontalLabels(pieces);
+  const labels = preferredLabels(findRotatedLabels(pieces), findHorizontalLabels(pieces));
   return labels.sort((a, b) => b.y - a.y || a.x - b.x);
+}
+
+/// A rotated tab usually carries the day's own title, but some layouts use it only to count the
+/// day and print the session's name as the table header. "Day 3" states the position the draft
+/// already knows and would replace "Upper #1" with it, so an equally numerous descriptive header
+/// is preferred. Anything less certain keeps the margin text.
+function preferredLabels(rotated: DayLabel[], horizontal: DayLabel[]): DayLabel[] {
+  if (rotated.length === 0) return horizontal;
+  if (!rotated.every(label => POSITIONAL_LABEL.test(normalizedText(label.text)))) return rotated;
+  const descriptive = horizontal.filter(label => !POSITIONAL_LABEL.test(normalizedText(label.text)));
+  return descriptive.length === rotated.length ? descriptive : rotated;
 }
 
 /// Place a marked label immediately before its table header. A long sidebar label may overlap

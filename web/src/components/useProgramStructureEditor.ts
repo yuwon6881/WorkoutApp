@@ -178,7 +178,7 @@ export function useProgramStructureEditor({ draft, onDraftChange, onDayChange }:
   }, [normalizedDraft, onDraftChange, totalDayCount, week, weeks]);
 
   const deleteWeek = useCallback((weekToDelete: number) => {
-    if (selectedBlockWeeks.length <= 1) return;
+    if (weeks.length <= 1) return;
     const targetIndex = weeks.findIndex(entry => entry.week === weekToDelete);
     if (targetIndex < 0) return;
     const remainingWeeks = weeks.filter(entry => entry.week !== weekToDelete);
@@ -187,7 +187,7 @@ export function useProgramStructureEditor({ draft, onDraftChange, onDayChange }:
     setDeleteConfirmWeek(null);
     setSelectedWeek(nextSelectedWeek);
     void onDraftChange(renumberDraft(normalizedDraft, remainingWeeks));
-  }, [normalizedDraft, onDraftChange, selectedBlockWeeks.length, weeks]);
+  }, [normalizedDraft, onDraftChange, weeks]);
 
   const addDay = useCallback((restDay: boolean) => {
     if (!week || week.days.length >= 7 || totalDayCount >= 400) return;

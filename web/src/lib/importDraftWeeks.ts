@@ -235,3 +235,35 @@ export function orderedBlocks(weeks: Week[]): { id: string; name: string; weeks:
   }
   return blocks;
 }
+
+export function isExerciseEmpty(exercise: DraftExercise): boolean {
+  if (exercise.exerciseId != null) return false;
+  if (exercise.notes && exercise.notes.trim().length > 0) return false;
+  if (exercise.sourcePage != null) return false;
+  if (exercise.sequenceGroup && exercise.sequenceGroup.trim().length > 0) return false;
+  if (exercise.substitutions && exercise.substitutions.length > 0) return false;
+  const name = exercise.sourceName?.trim().toLowerCase();
+  if (name && name !== 'new exercise' && name !== 'exercise') return false;
+  if (exercise.sets.length > 1) return false;
+  if (exercise.sets.some(s => s.loadText || s.notes || s.warmup || s.repsText || s.restText)) return false;
+  return true;
+}
+
+export function isDayEmpty(day: DraftWorkout): boolean {
+  if (day.sourcePage != null) return false;
+  if (day.focus && day.focus.trim().length > 0) return false;
+  if (day.notes && day.notes.trim().length > 0) return false;
+  const name = day.name?.trim().toLowerCase();
+  const isDefaultName = !name || name === 'new day' || name === 'rest day' || /^day\s*\d*$/i.test(name);
+  if (!isDefaultName) return false;
+  if (day.isRestDay) return true;
+  return day.exercises.length === 0 || day.exercises.every(isExerciseEmpty);
+}
+
+export function isWeekEmpty(week: Week): boolean {
+  return week.days.length === 0 || week.days.every(isDayEmpty);
+}
+
+export function isBlockEmpty(block: { weeks: Week[] }): boolean {
+  return block.weeks.length === 0 || block.weeks.every(isWeekEmpty);
+}

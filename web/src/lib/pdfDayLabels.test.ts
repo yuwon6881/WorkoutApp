@@ -26,6 +26,28 @@ describe('PDF day labels', () => {
     expect(findDayLabels(pieces).map(dayLabelLine)).toEqual(['DAY LABEL: Arms & Weak Points #1']);
   });
 
+  it('prefers a descriptive table header over a margin tab that only counts the day', () => {
+    // Jeff Nippard's Upper/Lower prints "DAY 1" down the page spine and "LOWER #1" as the table
+    // header. Taking the spine tab renamed every session after its position and said nothing.
+    const pieces = positionPieces([
+      rotatedPiece('DAY 1', 17, 200, 30), rotatedPiece('DAY 2', 17, 100, 30),
+      horizontalPiece('LOWER #1', 60, 210, 40), horizontalPiece('Exercise', 140, 210, 50),
+      horizontalPiece('Back Squat', 140, 190, 60),
+      horizontalPiece('UPPER #1', 60, 110, 40), horizontalPiece('Exercise', 140, 110, 50),
+      horizontalPiece('Bench Press', 140, 90, 60)
+    ]);
+    expect(findDayLabels(pieces).map(dayLabelLine)).toEqual(['DAY LABEL: LOWER #1', 'DAY LABEL: UPPER #1']);
+  });
+
+  it('keeps a margin tab that names the day rather than counting it', () => {
+    const pieces = positionPieces([
+      rotatedPiece('UPPER', 17, 200, 30),
+      horizontalPiece('PUSH', 60, 210, 40), horizontalPiece('Exercise', 140, 210, 50),
+      horizontalPiece('Bench Press', 140, 190, 60)
+    ]);
+    expect(findDayLabels(pieces).map(dayLabelLine)).toEqual(['DAY LABEL: UPPER']);
+  });
+
   it('does not treat landscape table content or chart axes as a rotated day title', () => {
     const landscape = positionPieces([
       rotatedPiece('Exercise', 100, 100), rotatedPiece('Sets', 200, 100),

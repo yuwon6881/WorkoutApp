@@ -1,12 +1,9 @@
 import { useCallback, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
-import { CalendarDays, Copy, Dumbbell, GripVertical, Moon, Plus, Trash2 } from 'lucide-react';
+import { Copy, GripVertical, Plus, Trash2 } from 'lucide-react';
 import type { DraftWorkout, Exercise } from '../types';
 import { Button } from './ui/Button';
-import { Modal } from './ui/Modal';
-import { Select } from './ui/Select';
-import { MenuButton, MenuItem, MenuNote } from './ui/MenuButton';
+import { MenuButton, MenuItem } from './ui/MenuButton';
 import { DayRow } from './ImportDayRow';
-import { blockIndex } from '../lib/importDraftWeeks';
 import type { ProgramStructureEditor } from './useProgramStructureEditor';
 
 type DragState = { lineId: string; overIndex: number; side: 'before' | 'after' };
@@ -33,12 +30,9 @@ export function ProgramDayList({
   onRestoreExercise?: (exerciseLineId: string) => Promise<void>;
 }) {
   const {
-    weeks, week, canAddDay, duplicateDay, reorderDay, moveDayTo, setDeleteConfirmDay,
-    changeDayKind, moveDayToWeek, addDay
+    week, canAddDay, duplicateDay, reorderDay, moveDayTo, setDeleteConfirmDay, addDay
   } = structure;
   const [drag, setDragState] = useState<DragState | null>(null);
-  const [moveDayId, setMoveDayId] = useState<string | null>(null);
-  const [moveTargetWeekId, setMoveTargetWeekId] = useState('');
   const dragRef = useRef<DragState | null>(null);
   const pointer = useRef<{ id: number; startY: number; lineId: string; index: number; active: boolean } | null>(null);
 
@@ -91,9 +85,6 @@ export function ProgramDayList({
 
   if (!week) return null;
 
-  const moveDay = moveDayId ? days.find(day => day.lineId === moveDayId) : undefined;
-  const moveTargets = weeks.filter(target => target.weekId !== week.weekId && target.days.length < 7);
-
   return <>
     <div className="import-week-days" role="tabpanel" aria-label={`Week ${week.week}`}>
       {days.map((day, dayIndex) => {
@@ -137,22 +128,10 @@ export function ProgramDayList({
             >
               <GripVertical size={16} />
             </Button>}
-            menu={<MenuButton label={`Actions for ${day.name}`} triggerClassName="program-day-menu-trigger">
+            menu={<MenuButton label={`Actions for ${day.name}`} triggerClassName="program-day-menu-trigger" portal>
               <MenuItem disabled={!canAddDay} onClick={() => duplicateDay(day.lineId)}>
                 <Copy size={14} />Duplicate day
               </MenuItem>
-              <MenuItem onClick={() => changeDayKind(day)}>
-                {day.isRestDay ? <Dumbbell size={14} /> : <Moon size={14} />}
-                {day.isRestDay ? 'Make training day' : 'Make rest day'}
-              </MenuItem>
-              {weeks.length > 1 && (days.length <= 1
-                ? <MenuNote>Add another day before moving this one.</MenuNote>
-                : <MenuItem disabled={moveTargets.length === 0} onClick={() => {
-                  setMoveTargetWeekId(moveTargets[0]?.weekId ?? '');
-                  setMoveDayId(day.lineId);
-                }}>
-                  <CalendarDays size={14} />Move to another week…
-                </MenuItem>)}
               <MenuItem destructive disabled={days.length <= 1} onClick={() => setDeleteConfirmDay(day.lineId)}>
                 <Trash2 size={14} />Delete day
               </MenuItem>
@@ -172,23 +151,5 @@ export function ProgramDayList({
         </Button>
       </div>
     </div>
-    {moveDay && <Modal title="Move this day" onClose={() => setMoveDayId(null)}>
-      <div className="modal-body">
-        <p>Move <strong>{moveDay.name}</strong> out of Week {week.week} into another week of the plan.</p>
-        <Select label="Destination week" name="move-day-week" value={moveTargetWeekId}
-          options={moveTargets.map(target => ({
-            value: target.weekId,
-            label: `Block ${blockIndex(weeks, target.week - 1)} · Week ${target.week} · ${target.days.length} of 7 days`
-          }))}
-          onChange={value => setMoveTargetWeekId(String(value))} />
-      </div>
-      <div className="modal-actions">
-        <Button variant="tertiary" onClick={() => setMoveDayId(null)}>Cancel</Button>
-        <Button variant="primary" disabled={!moveTargetWeekId} onClick={() => {
-          moveDayToWeek(moveDay.lineId, moveTargetWeekId);
-          setMoveDayId(null);
-        }}>Move day</Button>
-      </div>
-    </Modal>}
   </>;
 }

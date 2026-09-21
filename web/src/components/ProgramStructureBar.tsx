@@ -3,6 +3,7 @@ import { Button } from './ui/Button';
 import { ChipScroller } from './ui/ChipScroller';
 import { MenuButton, MenuItem } from './ui/MenuButton';
 import { SortableWeekChip } from './SortableWeekChip';
+import { isBlockEmpty } from '../lib/importDraftWeeks';
 import type { ProgramStructureEditor } from './useProgramStructureEditor';
 
 function blockLabel(index: number): string {
@@ -13,8 +14,8 @@ function blockLabel(index: number): string {
 /// belongs to, so the bar carries the plan itself rather than a row of buttons beside it.
 export function ProgramStructureBar({ structure }: { structure: ProgramStructureEditor }) {
   const {
-    weeks, blocks, week, setSelectedWeek, selectedBlockIndex, selectedBlockWeeks,
-    totalDayCount, setWeekModalOpen, setDeleteConfirmWeek, setDeleteConfirmBlock,
+    weeks, blocks, week, setSelectedWeek, selectedBlockIndex,
+    totalDayCount, setWeekModalOpen, setDeleteConfirmWeek, setDeleteConfirmBlock, deleteBlock,
     setRenameBlock, setRenameValue, draggedWeek, setDraggedWeek, dropTarget, setDropTarget,
     reorderWeeks, reorderBlocks, addBlock
   } = structure;
@@ -35,7 +36,7 @@ export function ProgramStructureBar({ structure }: { structure: ProgramStructure
               onClick={() => setSelectedWeek(block.weeks[0]?.week ?? week.week)}>
               {label}
             </Button>
-            {isSelected && <MenuButton label={`Actions for ${label}`} triggerClassName="chip-icon-btn" portal>
+            {isSelected && <MenuButton label={`Actions for ${label}`} triggerClassName="chip-icon-btn" align="start" portal>
               <MenuItem onClick={() => { setRenameValue(block.name); setRenameBlock({ id: block.id, name: block.name }); }}>
                 <Pencil size={14} />Rename block
               </MenuItem>
@@ -47,17 +48,23 @@ export function ProgramStructureBar({ structure }: { structure: ProgramStructure
                 onClick={() => reorderBlocks(selectedBlockIndex, selectedBlockIndex + 1)}>
                 <ArrowDown size={14} />Move block later
               </MenuItem>
-              <MenuItem destructive disabled={blocks.length <= 1} onClick={() => setDeleteConfirmBlock(block.id)}>
+              <MenuItem destructive disabled={blocks.length <= 1} onClick={() => {
+                if (isBlockEmpty(block)) {
+                  deleteBlock(block.id);
+                } else {
+                  setDeleteConfirmBlock(block.id);
+                }
+              }}>
                 <Trash2 size={14} />Delete block
               </MenuItem>
             </MenuButton>}
           </span>;
         })}
+        <Button presentation="plain" className="chip-add-btn" aria-label="Add block" title="Add block"
+          disabled={atCapacity} onClick={addBlock}>
+          <Plus size={16} />
+        </Button>
       </div>
-      <Button presentation="plain" className="chip-add-btn" aria-label="Add block" title="Add block"
-        disabled={atCapacity} onClick={addBlock}>
-        <Plus size={16} />
-      </Button>
     </div>
 
     <ChipScroller ariaLabel="Program weeks" role="tablist" resetKey={weeks.map(entry => entry.week).join('|')}
@@ -66,7 +73,7 @@ export function ProgramStructureBar({ structure }: { structure: ProgramStructure
         dragging={draggedWeek === entry.week}
         dropSide={dropTarget?.week === entry.week && draggedWeek !== entry.week ? dropTarget.side : null}
         onSelect={() => setSelectedWeek(entry.week)}
-        onDelete={entry.week === week.week && selectedBlockWeeks.length > 1
+        onDelete={entry.week === week.week && weeks.length > 1
           ? () => setDeleteConfirmWeek(entry.week)
           : undefined}
         onDragStart={() => { setDraggedWeek(entry.week); setDropTarget(null); }}

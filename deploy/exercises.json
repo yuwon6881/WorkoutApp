@@ -169,7 +169,7 @@
     "muscle": "Quads",
     "equipment": "Dumbbell",
     "cue": "",
-    "aliases": []
+    "aliases": ["Bulgarian Split Squat"]
   },
   {
     "slug": "pause-db-bulgarian-split-squat",
@@ -873,7 +873,7 @@
     "muscle": "Back",
     "equipment": "Cable",
     "cue": "",
-    "aliases": []
+    "aliases": ["Cable Row"]
   },
   {
     "slug": "incline-chest-supported-db-row",
@@ -1075,7 +1075,7 @@
     "muscle": "Back",
     "equipment": "Cable",
     "cue": "",
-    "aliases": []
+    "aliases": ["Single-Arm Pulldown", "Single-Arm Lat Pulldown"]
   },
   {
     "slug": "close-grip-lat-pulldown",
@@ -1320,7 +1320,7 @@
     "muscle": "Shoulders",
     "equipment": "Barbell",
     "cue": "",
-    "aliases": [],
+    "aliases": ["Military Press"],
     "secondaryMuscles": ["Triceps", "Core"]
   },
   {
@@ -1677,7 +1677,7 @@
     "muscle": "Triceps",
     "equipment": "Cable",
     "cue": "",
-    "aliases": []
+    "aliases": ["Rope Overhead Triceps Extension"]
   },
   {
     "slug": "db-lateral-raise",
@@ -1933,7 +1933,7 @@
     "muscle": "Traps, calves, and hips",
     "equipment": "Cable",
     "cue": "",
-    "aliases": []
+    "aliases": ["Cable Standing Hip Abduction"]
   },
   {
     "slug": "standing-plate-abduction",
@@ -1954,7 +1954,7 @@
   {
     "slug": "hex-bar-shrug",
     "name": "Hex Bar Shrug",
-    "muscle": "Traps, calves, and hips",
+    "muscle": "Traps",
     "equipment": "Trap Bar",
     "cue": "",
     "aliases": []
@@ -1962,7 +1962,7 @@
   {
     "slug": "smith-machine-shrug",
     "name": "Smith Machine Shrug",
-    "muscle": "Traps, calves, and hips",
+    "muscle": "Traps",
     "equipment": "Smith Machine",
     "cue": "",
     "aliases": []
@@ -1970,7 +1970,7 @@
   {
     "slug": "dumbbell-shrug",
     "name": "Dumbbell Shrug",
-    "muscle": "Traps, calves, and hips",
+    "muscle": "Traps",
     "equipment": "Dumbbell",
     "cue": "",
     "aliases": []
@@ -1978,7 +1978,7 @@
   {
     "slug": "barbell-shrug",
     "name": "Barbell Shrug",
-    "muscle": "Traps, calves, and hips",
+    "muscle": "Traps",
     "equipment": "Barbell",
     "cue": "",
     "aliases": []
@@ -1986,7 +1986,7 @@
   {
     "slug": "cable-shrug-in",
     "name": "Cable Shrug-In",
-    "muscle": "Traps, calves, and hips",
+    "muscle": "Traps",
     "equipment": "Cable",
     "cue": "",
     "aliases": []
@@ -1994,7 +1994,7 @@
   {
     "slug": "machine-shrug",
     "name": "Machine Shrug",
-    "muscle": "Traps, calves, and hips",
+    "muscle": "Traps",
     "equipment": "Machine",
     "cue": "",
     "aliases": []
@@ -2002,7 +2002,7 @@
   {
     "slug": "kelso-shrug",
     "name": "Kelso Shrug",
-    "muscle": "Traps, calves, and hips",
+    "muscle": "Traps",
     "equipment": "Dumbbell",
     "cue": "",
     "aliases": []
@@ -2010,7 +2010,7 @@
   {
     "slug": "seated-cable-kelso-shrug",
     "name": "Seated Cable Kelso Shrug",
-    "muscle": "Traps, calves, and hips",
+    "muscle": "Traps",
     "equipment": "Cable",
     "cue": "",
     "aliases": []
@@ -2018,7 +2018,7 @@
   {
     "slug": "incline-db-kelso-shrug",
     "name": "Incline DB Kelso Shrug",
-    "muscle": "Traps, calves, and hips",
+    "muscle": "Traps",
     "equipment": "Dumbbell",
     "cue": "",
     "aliases": []
@@ -2026,7 +2026,7 @@
   {
     "slug": "trap-bar-shrug",
     "name": "Trap Bar Shrug",
-    "muscle": "Traps, calves, and hips",
+    "muscle": "Traps",
     "equipment": "Trap Bar",
     "cue": "",
     "aliases": []
@@ -2034,7 +2034,7 @@
   {
     "slug": "seated-dumbbell-shrug",
     "name": "Seated Dumbbell Shrug",
-    "muscle": "Traps, calves, and hips",
+    "muscle": "Traps",
     "equipment": "Dumbbell",
     "cue": "",
     "aliases": []
@@ -2200,5 +2200,93 @@
       "Dumbbell Incline Press"
     ],
     "secondaryMuscles": ["Triceps", "Shoulders"]
+  },
+  {
+    "slug": "deficit-deadlift",
+    "name": "Deficit Deadlift",
+    "muscle": "Posterior chain",
+    "equipment": "Barbell",
+    "cue": "",
+    "aliases": [],
+    "secondaryMuscles": ["Glutes", "Core"]
+  },
+  {
+    "slug": "leg-curl",
+    "name": "Leg Curl",
+    "muscle": "Posterior chain",
+    "equipment": "Machine",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "dumbbell-row",
+    "name": "Dumbbell Row",
+    "muscle": "Back",
+    "equipment": "Dumbbell",
+    "cue": "",
+    "aliases": [],
+    "secondaryMuscles": ["Biceps"]
+  },
+  {
+    "slug": "barbell-supinated-row",
+    "name": "Barbell Supinated Row",
+    "muscle": "Back",
+    "equipment": "Barbell",
+    "cue": "",
+    "aliases": ["Supinated Barbell Row", "Supinated Row"],
+    "secondaryMuscles": ["Biceps"]
+  },
+  {
+    "slug": "cable-upright-row",
+    "name": "Cable Upright Row",
+    "muscle": "Shoulders",
+    "equipment": "Cable",
+    "cue": "",
+    "aliases": ["Upright Row"],
+    "secondaryMuscles": ["Traps"]
+  },
+  {
+    "slug": "barbell-floor-press",
+    "name": "Barbell Floor Press",
+    "muscle": "Chest",
+    "equipment": "Barbell",
+    "cue": "",
+    "aliases": ["Floor Press"],
+    "secondaryMuscles": ["Triceps"]
+  },
+  {
+    "slug": "california-press",
+    "name": "California Press",
+    "muscle": "Triceps",
+    "equipment": "Barbell",
+    "cue": "",
+    "aliases": [],
+    "secondaryMuscles": ["Chest"]
+  },
+  {
+    "slug": "band-pull-apart",
+    "name": "Band Pull-Apart",
+    "muscle": "Back",
+    "equipment": "Band",
+    "cue": "",
+    "aliases": [],
+    "secondaryMuscles": ["Shoulders"]
+  },
+  {
+    "slug": "reverse-hyper",
+    "name": "Reverse Hyper",
+    "muscle": "Posterior chain",
+    "equipment": "Machine",
+    "cue": "",
+    "aliases": ["Reverse Hyperextension"],
+    "secondaryMuscles": ["Glutes"]
+  },
+  {
+    "slug": "plank",
+    "name": "Plank",
+    "muscle": "Core",
+    "equipment": "Bodyweight",
+    "cue": "",
+    "aliases": []
   }
 ]

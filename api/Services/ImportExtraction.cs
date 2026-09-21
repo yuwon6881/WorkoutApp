@@ -197,7 +197,10 @@ public sealed partial class ImportService
         }
         var selected = alternatives.Count == 1 ? alternatives[0] : null;
         var normalizedChunks = ImportOutlineEvidence.NormalizeChunks(selected?.Chunks ?? reconciled.Chunks, sourceEvidence);
-        var chunks = SplitChunks(normalizedChunks);
+        var runs = ImportBlockRuns.ReconcileChunks(normalizedChunks);
+        if (runs.Notices.Count > 0)
+            import.NoticesJson = Json.Write(ImportReviewNotices.Merge(ReadNotices(import.NoticesJson), runs.Notices));
+        var chunks = SplitChunks(runs.Chunks);
         ValidateChunkPages(chunks, import.PageCoverageJson);
         import.SelectedAlternativeId = selected?.Id ?? "";
         import.OutlineJson = Json.Write(chunks);
@@ -218,7 +221,10 @@ public sealed partial class ImportService
             var alternatives = string.IsNullOrWhiteSpace(import.AlternativesJson) ? [] : Json.Read<List<ImportAlternative>>(import.AlternativesJson);
             var selected = alternatives.SingleOrDefault(a => string.Equals(a.Id, alternativeId, StringComparison.OrdinalIgnoreCase));
             Validation.Require(selected is not null, "That alternative is no longer available. Read the outline again.", 409);
-            var chunks = SplitChunks(selected!.Chunks ?? []);
+            var runs = ImportBlockRuns.ReconcileChunks(selected!.Chunks ?? []);
+            if (runs.Notices.Count > 0)
+                import.NoticesJson = Json.Write(ImportReviewNotices.Merge(ReadNotices(import.NoticesJson), runs.Notices));
+            var chunks = SplitChunks(runs.Chunks);
             ValidateChunkPages(chunks, import.PageCoverageJson);
             import.SelectedAlternativeId = selected.Id; import.OutlineJson = Json.Write(chunks);
             import.DraftJson = Json.Write(new ImportDraft(ProgramTitle(selected.Name, import.FileName), []));

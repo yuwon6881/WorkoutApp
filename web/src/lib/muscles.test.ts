@@ -63,6 +63,18 @@ describe('getWorkoutMuscles', () => {
     expect(muscles).toContain('Core');
   });
 
+  it('resolves Traps directly and refines shrug movements from compound buckets', () => {
+    const trapCatalog: Exercise[] = [
+      { id: 'ex-4', slug: 'dumbbell-shrug', name: 'Dumbbell Shrug', muscle: 'Traps', equipment: 'Dumbbell', cue: '', aliases: [], loadStepKg: 2 },
+      { id: 'ex-5', slug: 'kelso-shrug', name: 'Kelso Shrug', muscle: 'Traps, calves, and hips', equipment: 'Dumbbell', cue: '', aliases: [], loadStepKg: 2 },
+      { id: 'ex-6', slug: 'standing-calf-raise', name: 'Standing Calf Raise', muscle: 'Traps, calves, and hips', equipment: 'Machine', cue: '', aliases: [], loadStepKg: 5 }
+    ];
+    const items = [{ exerciseId: 'ex-4' }, { exerciseId: 'ex-5' }, { exerciseId: 'ex-6' }, { sourceName: 'Barbell Shrug' }];
+    const muscles = getWorkoutMuscles(items, trapCatalog);
+    expect(muscles).toContain('Traps');
+    expect(muscles).toContain('Calves');
+  });
+
   it('returns empty array when no items provided', () => {
     expect(getWorkoutMuscles([], catalog)).toEqual([]);
   });

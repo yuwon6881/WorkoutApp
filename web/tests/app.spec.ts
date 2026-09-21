@@ -216,7 +216,8 @@ test('build a workout, log a set against the server, and see it in history', asy
   const workoutHistoryHeading = page.getByRole('heading', { name: 'Workout history', exact: true });
   expect(await progressStats.evaluate((stats, heading) => Boolean(stats.compareDocumentPosition(heading as Node) & Node.DOCUMENT_POSITION_FOLLOWING), await workoutHistoryHeading.elementHandle())).toBe(true);
   const progressHeadings = await page.locator('main h2').allTextContents();
-  expect(progressHeadings.indexOf('Personal bests')).toBeLessThan(progressHeadings.indexOf('Workout history'));
+  expect(progressHeadings).not.toContain('Personal bests');
+  expect(progressHeadings).toContain('Workout history');
 
   await page.getByRole('button', { name: 'See muscle coverage', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Muscle coverage', exact: true })).toBeVisible();
@@ -675,10 +676,11 @@ test('create a custom multi-block program and cap each week at seven scheduled d
     const turnNewDayIntoRest = async (week: number) => {
       await page.getByRole('tab', { name: `Week ${week}`, exact: true }).click();
       const entry = page.locator('.program-day-entry').filter({ hasText: 'New day' });
+      await page.getByRole('button', { name: 'Add rest day', exact: true }).click();
       await entry.getByRole('button', { name: 'Actions for New day', exact: true }).click();
-      await entry.getByRole('menuitem', { name: 'Make rest day', exact: true }).click();
-      const confirm = page.getByRole('dialog', { name: 'Make this a rest day?', exact: true });
-      await confirm.getByRole('button', { name: 'Clear workout and make rest day', exact: true }).click();
+      await page.getByRole('menuitem', { name: 'Delete day', exact: true }).click();
+      const confirm = page.getByRole('dialog', { name: 'Delete this day?', exact: true });
+      await confirm.getByRole('button', { name: 'Delete day', exact: true }).click();
       await expect(page.getByRole('tabpanel', { name: `Week ${week}` }).locator('.rest-badge')).toBeVisible();
     };
 

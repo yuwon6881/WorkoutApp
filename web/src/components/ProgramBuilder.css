@@ -155,6 +155,7 @@
   margin:0;
   border-radius:12px;
   background:transparent;
+  overflow:visible;
 }
 .program-day-entry .draft-day:hover{border-color:transparent}
 
@@ -173,6 +174,7 @@
   width:36px;
   min-width:36px;
   height:36px;
+  border:0;
   border-radius:var(--radius-control);
   color:var(--faint);
   background:transparent;
@@ -187,13 +189,14 @@
   flex:1 1 auto;
   min-width:0;
   display:grid;
-  grid-template-columns:24px minmax(0,1fr);
+  grid-template-columns:minmax(0,1fr) 24px;
   align-items:center;
   column-gap:8px;
   row-gap:1px;
-  padding:6px 4px;
+  padding:6px 6px 6px 4px;
   min-height:44px;
   text-align:left;
+  border:0;
   border-radius:var(--radius-control);
   background:transparent;
   color:var(--text);
@@ -201,9 +204,18 @@
 }
 .draft-day .draft-day-summary-static{cursor:default;grid-template-columns:minmax(0,1fr)}
 .draft-day .draft-day-summary:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
-.draft-day-summary>.draft-day-disclosure{grid-column:1;grid-row:1;width:24px;height:24px;flex:0 0 24px}
-.draft-day-heading{
+.draft-day-summary>.draft-day-disclosure{
   grid-column:2;
+  grid-row:1 / span 2;
+  display:grid;
+  place-items:center;
+  width:24px;
+  height:24px;
+  flex:0 0 24px;
+  margin-left:auto;
+}
+.draft-day-heading{
+  grid-column:1;
   grid-row:1;
   display:flex;
   align-items:center;
@@ -225,7 +237,7 @@
   font-variant-numeric:tabular-nums;
 }
 .draft-day-summary>.day-exercise-preview{
-  grid-column:2;
+  grid-column:1;
   grid-row:2;
   display:block;
   min-width:0;
@@ -250,7 +262,7 @@
   .program-day-add-actions .settings-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;width:100%}
   .program-day-add-actions .settings-actions>.button{justify-content:center;min-width:0;padding-inline:8px}
   .draft-day-row{gap:2px;padding:4px 4px 4px 2px}
-  .draft-day .draft-day-summary{grid-template-columns:24px minmax(0,1fr);column-gap:6px}
+  .draft-day .draft-day-summary{grid-template-columns:minmax(0,1fr) 24px;column-gap:6px}
   .draft-day-summary>.draft-day-disclosure{width:24px;height:24px;flex:0 0 24px}
   [data-editor-mode="custom"] .import-program-heading{flex-direction:column;align-items:stretch}
   [data-editor-mode="custom"] .import-program-title{max-width:100%}

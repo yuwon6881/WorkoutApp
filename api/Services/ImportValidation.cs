@@ -73,10 +73,20 @@ internal static class ImportValidation
     public static string SlotSignature(DraftWorkout workout, int position)
         => $"{CanonicalBlock(workout.Block).ToUpperInvariant()}\u001f{Identity(workout.Name)}\u001f{position}";
 
+    /// A "pick one" placeholder is a single decision for the whole program, however the document
+    /// places it. Keying it on the day title and the position within that day split one decision
+    /// into a review row per placement: the same upper-body weak point printed on six differently
+    /// titled days, at shifting positions, wanted six mappings instead of one.
     public static string SlotSignature(DraftWorkout workout, int position, string? sourceName)
         => IsRecurringChoice(sourceName)
-            ? $"choice\u001f{Identity(workout.Name)}\u001f{position}\u001f{Identity(sourceName)}"
+            ? $"choice\u001f{ChoiceIdentity(sourceName)}"
             : SlotSignature(workout, position);
+
+    /// A lone placeholder is printed "... 1" whether or not a second one exists, and the trailing
+    /// ordinal survives transcription only some of the time, which splits one slot in two. A
+    /// higher ordinal genuinely names a further placeholder and is kept.
+    private static string ChoiceIdentity(string? sourceName)
+        => Regex.Replace(Identity(sourceName), @"\s+1$", "");
 
     private static bool IsRecurringChoice(string? sourceName)
         => Regex.IsMatch(sourceName ?? "", @"\b(?:your\s+choice|weak\s+point|pick\s+one|choose\s+one)\b", RegexOptions.IgnoreCase);

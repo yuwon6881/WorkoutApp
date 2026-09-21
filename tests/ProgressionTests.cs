@@ -27,6 +27,22 @@ public class ProgressionFormulaTests
         Assert.Null(Progression.E1rm(60, 20, 9));
     }
 
+    [Fact] public void Estimate1Rm_supports_optional_effort_rating()
+    {
+        // With RPE
+        Assert.Equal(60 * (1 + 5 / 30.0), Progression.Estimate1Rm(60, 3, 8)!.Value, 6);
+        Assert.Equal(100 * (1 + 1 / 30.0), Progression.Estimate1Rm(100, 1, 10)!.Value, 6);
+        // Without RPE (reps at face value)
+        Assert.Equal(60 * (1 + 5 / 30.0), Progression.Estimate1Rm(60, 5)!.Value, 6);
+        Assert.Equal(60 * (1 + 5 / 30.0), Progression.Estimate1Rm(60, 5, null)!.Value, 6);
+        // Invalid boundaries
+        Assert.Null(Progression.Estimate1Rm(null, 5));
+        Assert.Null(Progression.Estimate1Rm(60, null));
+        Assert.Null(Progression.Estimate1Rm(60, 0));
+        Assert.Null(Progression.Estimate1Rm(60, 20));
+        Assert.Null(Progression.Estimate1Rm(60, 5, 5));
+    }
+
     private static ProgressionPlan Plan(int repMin, int repMax, double? rpe, params PreviousSet[] previous)
         => Progression.Next(repMin, repMax, rpe, previous.ToList(), null, 2.5);
 

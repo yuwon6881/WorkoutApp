@@ -3,6 +3,7 @@ import { Button } from './ui/Button';
 import { Field } from './ui/Field';
 import { Modal } from './ui/Modal';
 import { AddWeekModal } from './AddWeekModal';
+import { isExerciseEmpty } from '../lib/importDraftWeeks';
 import type { ProgramStructureEditor } from './useProgramStructureEditor';
 
 /// Every confirmation the structure editor can raise. They are grouped so the outline itself stays
@@ -48,10 +49,12 @@ export function ProgramStructureModals({ structure }: { structure: ProgramStruct
     )}
     {deleteConfirmBlock !== null && (() => {
       const block = blocks.find(entry => entry.id === deleteConfirmBlock);
-      const exerciseCount = block?.weeks.flatMap(entry => entry.days).reduce((count, day) => count + day.exercises.length, 0) ?? 0;
+      const exercises = block?.weeks.flatMap(entry => entry.days).flatMap(day => day.exercises) ?? [];
+      const realExercises = exercises.filter(e => !isExerciseEmpty(e));
+      const exerciseCount = realExercises.length;
       return <Modal title="Delete this block?" onClose={() => setDeleteConfirmBlock(null)}>
         <div className="modal-body">
-          <p>Delete <strong>{block?.name ?? 'this block'}</strong>, including {block?.weeks.length ?? 0} {(block?.weeks.length ?? 0) === 1 ? 'week' : 'weeks'}, its days, and {exerciseCount} {exerciseCount === 1 ? 'exercise' : 'exercises'}?</p>
+          <p>Delete <strong>{block?.name ?? 'this block'}</strong>, including {block?.weeks.length ?? 0} {(block?.weeks.length ?? 0) === 1 ? 'week' : 'weeks'}{exerciseCount > 0 ? `, its days, and ${exerciseCount} ${exerciseCount === 1 ? 'exercise' : 'exercises'}` : ' and its days'}?</p>
         </div>
         <div className="modal-actions">
           <Button variant="tertiary" onClick={() => setDeleteConfirmBlock(null)}>Keep block</Button>

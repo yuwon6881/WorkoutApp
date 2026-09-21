@@ -6,6 +6,10 @@ namespace Workout.Api.Services;
 /// had no title that could be paired unambiguously.
 internal static class ImportDayLabels
 {
+    /// How many renamed days are worth a note of their own before the review is better served by
+    /// a single count.
+    private const int MaxAnchoredRenames = 3;
+
     internal sealed record Result(ImportDraft Draft, List<ImportReviewIssue> Notices);
 
     public static Dictionary<int, List<string>> Read(IReadOnlyList<ImportPageText> pages)
@@ -30,6 +34,7 @@ internal static class ImportDayLabels
 
         var workouts = draft.Workouts.ToList();
         var notices = new List<ImportReviewIssue>();
+        var renamed = new List<(int Page, Guid LineId, string Label)>();
         foreach (var (page, labels) in labelsByPage)
         {
             var dayIndexes = workouts.Select((workout, index) => (Workout: workout, Index: index, Page: SourcePage(workout)))
@@ -50,15 +55,26 @@ internal static class ImportDayLabels
                 var label = ImportNormalization.Text(TidyLabel(labels[index]), 120);
                 if (label is null) continue;
                 if (!string.Equals(workout.Name.Trim(), label, StringComparison.Ordinal))
-                {
-                    notices.Add(new ImportReviewIssue("day_name_from_source",
-                        $"The printed day title '{label}' was used for this day.", "info", page, workout.LineId));
-                }
+                    renamed.Add((page, workout.LineId, label));
                 workouts[workoutIndex] = workout with { Name = label };
             }
         }
 
+        notices.AddRange(RenameNotices(renamed));
         return new Result(draft with { Workouts = workouts }, notices);
+    }
+
+    /// A printed title is where a day's name is expected to come from, so reporting it for every
+    /// day of a twelve-week program fills the review with a note nobody can act on and crowds out
+    /// the ones that matter. A handful stays anchored to its own day; more than that is counted.
+    private static IEnumerable<ImportReviewIssue> RenameNotices(List<(int Page, Guid LineId, string Label)> renamed)
+    {
+        if (renamed.Count == 0) return [];
+        if (renamed.Count <= MaxAnchoredRenames)
+            return renamed.Select(item => new ImportReviewIssue("day_name_from_source",
+                $"The printed day title '{item.Label}' was used for this day.", "info", item.Page, item.LineId));
+        return [new ImportReviewIssue("day_name_from_source",
+            $"{renamed.Count} days were named from the titles printed in the PDF.", "info", renamed[0].Page)];
     }
 
     public static Result FillMissing(ImportDraft draft)

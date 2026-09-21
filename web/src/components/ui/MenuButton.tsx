@@ -84,7 +84,7 @@ export function MenuButton({
     };
   }, [close, open]);
 
-  return <div className="ui-menu" ref={wrapRef}>
+  return <div className={`ui-menu ${align === 'start' ? 'ui-menu-start' : ''}`.trim()} ref={wrapRef}>
     <Button
       ref={triggerRef}
       presentation={text ? 'control' : 'plain'}

@@ -81,4 +81,57 @@ public sealed class ImportSlotMappingTests
         var error = await Assert.ThrowsAsync<DomainException>(() => imports.MapSlot(view.Id, line, benchId, view.Revision - 1, default));
         Assert.Equal(409, error.Status);
     }
+    /// Jeff Nippard's Upper/Lower prints one "UPPER BODY WEAK POINT 1" placeholder in 27 places
+    /// and one "LOWER BODY WEAK POINT 1" in 9. They fall on six differently titled days, at
+    /// shifting positions within those days, and the read transcribes the trailing ordinal only
+    /// some of the time — so keying a choice on day title and position split one decision into
+    /// twelve review rows, each wanting its own mapping.
+    [Fact]
+    public void One_placeholder_is_one_slot_however_the_document_places_it()
+    {
+        var draft = ImportValidation.NormalizeDraft(new ImportDraft("Upper/Lower",
+        [
+            Day(1, "Upper #1", Exercise("Barbell Bench Press"), Exercise("UPPER BODY WEAK POINT 1")),
+            Day(1, "Lower #1", Exercise("Back Squat"), Exercise("LOWER BODY WEAK POINT 1")),
+            // A different day title, a different position, and the ordinal dropped by the read.
+            Day(2, "Upper #2", Exercise("Dip"), Exercise("Lat Pulldown"), Exercise("Upper Body Weak Point")),
+            Day(2, "Lower #2", Exercise("Deadlift"), Exercise("LOWER BODY WEAK POINT"))
+        ]));
+
+        var placeholders = Placeholders(ImportValidation.Unresolved(draft));
+
+        Assert.Equal(2, placeholders.Count);
+        Assert.All(placeholders, item => Assert.Equal(2, item.Occurrences));
+        Assert.Single(placeholders, item => item.SourceName.StartsWith("Upper", StringComparison.OrdinalIgnoreCase));
+        Assert.Single(placeholders, item => item.SourceName.StartsWith("Lower", StringComparison.OrdinalIgnoreCase));
+        // One slot identity is what carries a single mapping to every occurrence.
+        var upper = draft.Workouts.SelectMany(day => day.Exercises)
+            .Where(exercise => exercise.SourceName.StartsWith("Upper", StringComparison.OrdinalIgnoreCase)).ToList();
+        Assert.Equal(2, upper.Count);
+        Assert.Single(upper.Select(exercise => exercise.SlotKey).Distinct());
+    }
+
+    /// An ordinal that genuinely distinguishes two placeholders still separates them.
+    [Fact]
+    public void Numbered_placeholders_beyond_the_first_stay_separate()
+    {
+        var draft = ImportValidation.NormalizeDraft(new ImportDraft("Two choices",
+        [
+            Day(1, "Upper", Exercise("UPPER BODY WEAK POINT 1"), Exercise("UPPER BODY WEAK POINT 2"))
+        ]));
+
+        var placeholders = Placeholders(ImportValidation.Unresolved(draft));
+
+        Assert.Equal(["UPPER BODY WEAK POINT 1", "UPPER BODY WEAK POINT 2"],
+            placeholders.Select(item => item.SourceName));
+    }
+
+    private static DraftWorkout Day(int week, string name, params DraftExercise[] exercises)
+        => new(Guid.NewGuid(), week, name, null, null, [.. exercises]);
+
+    private static DraftExercise Exercise(string sourceName)
+        => new(Guid.NewGuid(), sourceName, null, null, [new DraftSet(6, 8, 8, 120, null, null, null)]);
+    private static List<UnresolvedExercise> Placeholders(IEnumerable<UnresolvedExercise> unresolved)
+        => unresolved.Where(item => item.SourceName.Contains("WEAK POINT", StringComparison.OrdinalIgnoreCase)).ToList();
+
 }

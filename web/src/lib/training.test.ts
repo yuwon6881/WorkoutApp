@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Session } from '../types';
-import { canComplete, completedSets, duration, estimate1Rm, normalizeExerciseName, plannedSets, showClock, showReps, showRpe, showTarget, showVolume, showWeight, toDisplay, toKg, validReps, validRpe } from './training';
+import { calculateEstimated1Rm, canComplete, completedSets, duration, estimate1Rm, normalizeExerciseName, plannedSets, showClock, showReps, showRpe, showTarget, showVolume, showWeight, toDisplay, toKg, validReps, validRpe } from './training';
 
 const set = (overrides: Partial<Session['exercises'][number]['sets'][number]> = {}) =>
   ({ id: 'set', position: 0, weightKg: 60, reps: 10, rpe: 8, done: true, warmup: false, ...overrides });
@@ -123,6 +123,20 @@ describe('strength estimate', () => {
     expect(estimate1Rm(60, 20, 9)).toBeNull();
     // A bodyweight set carries no load to estimate from.
     expect(estimate1Rm(0, 10, 9)).toBeNull();
+  });
+
+  it('calculates estimated 1RM with or without RPE using the Epley relationship', () => {
+    // With RPE specified
+    expect(calculateEstimated1Rm(60, 3, 8)).toBeCloseTo(60 * (1 + 5 / 30), 6);
+    expect(calculateEstimated1Rm(100, 1, 10)).toBeCloseTo(100 * (1 + 1 / 30), 6);
+    // Without RPE specified (uses reps at face value)
+    expect(calculateEstimated1Rm(60, 5)).toBeCloseTo(60 * (1 + 5 / 30), 6);
+    expect(calculateEstimated1Rm(60, 5, null)).toBeCloseTo(60 * (1 + 5 / 30), 6);
+    // Boundary conditions
+    expect(calculateEstimated1Rm(null, 5)).toBeNull();
+    expect(calculateEstimated1Rm(60, 0)).toBeNull();
+    expect(calculateEstimated1Rm(60, 15)).toBeNull(); // > 12 reps
+    expect(calculateEstimated1Rm(60, 5, 5)).toBeNull(); // RPE < 6
   });
 
   it('reads a rest clock in minutes and seconds', () => {

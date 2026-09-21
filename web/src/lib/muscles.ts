@@ -16,7 +16,15 @@ const COMPOUND_MUSCLE_MAP: Record<string, string[]> = {
   'back': ['Back'],
   'core': ['Core'],
   'shoulders': ['Shoulders'],
-  'triceps': ['Triceps']
+  'triceps': ['Triceps'],
+  'traps': ['Traps'],
+  'calves': ['Calves'],
+  'glutes': ['Glutes'],
+  'neck': ['Neck'],
+  'hamstrings': ['Hamstrings'],
+  'adductors': ['Adductors'],
+  'forearms': ['Forearms'],
+  'biceps': ['Biceps']
 };
 
 const HEURISTIC_KEYWORDS: [RegExp, string][] = [
@@ -33,8 +41,13 @@ const HEURISTIC_KEYWORDS: [RegExp, string][] = [
   [/\b(abs?|core|dragon flag|plank|crunch)\b/i, 'Core']
 ];
 
-function normalizeCatalogMuscle(muscle: string): string[] {
+function normalizeCatalogMuscle(muscle: string, exerciseName?: string): string[] {
   const clean = muscle.trim().toLowerCase();
+  if (clean === 'traps, calves, and hips' && exerciseName) {
+    if (/\b(shrug|kelso|trap)\b/i.test(exerciseName)) return ['Traps'];
+    if (/\b(calf|calves|toe press)\b/i.test(exerciseName)) return ['Calves'];
+    if (/\b(abduction|band walk)\b/i.test(exerciseName)) return ['Glutes'];
+  }
   if (COMPOUND_MUSCLE_MAP[clean]) return COMPOUND_MUSCLE_MAP[clean];
   if (!muscle.trim()) return [];
   return [muscle.split(/\s+/).map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ')];
@@ -76,7 +89,7 @@ export function getWorkoutMuscles(items: ExerciseLike[], catalog: Exercise[]): s
     }
 
     if (matched?.muscle) {
-      for (const m of normalizeCatalogMuscle(matched.muscle)) {
+      for (const m of normalizeCatalogMuscle(matched.muscle, matched.name || name)) {
         result.add(m);
       }
     } else if (name) {
