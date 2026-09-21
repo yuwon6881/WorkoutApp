@@ -239,6 +239,7 @@ internal static class ImportValidation
             Validation.Name(exercise.SourceName, "Exercise name", 160); Validation.Text(exercise.Notes, 1000, "Exercise notes");
             Validation.Require(exercise.SourcePage is null || exercise.SourcePage.Value is > 0 and <= ImportSourceText.MaxPages, "Exercise source page is invalid.");
             Validation.Text(exercise.SequenceGroup, 8, "Sequence group"); Validation.Substitutions(exercise.Substitutions);
+            Validation.ExerciseRestSeconds(exercise.RestSeconds);
             Validation.Prescriptions(exercise.Sets.Select(ToPrescription).ToList(), false);
             foreach (var set in exercise.Sets)
             {

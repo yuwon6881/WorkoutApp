@@ -125,6 +125,7 @@ public sealed partial class ImportService
         if (!string.Equals(current.SourceName?.Trim(), baseline.SourceName?.Trim(), StringComparison.OrdinalIgnoreCase)) return true;
         if ((current.Notes?.Trim() ?? "") != (baseline.Notes?.Trim() ?? "")) return true;
         if ((current.SequenceGroup?.Trim() ?? "") != (baseline.SequenceGroup?.Trim() ?? "")) return true;
+        if (current.RestSeconds != baseline.RestSeconds) return true;
         if (current.SourcePage != baseline.SourcePage) return true;
         var curSubs = current.Substitutions ?? [];
         var baseSubs = baseline.Substitutions ?? [];

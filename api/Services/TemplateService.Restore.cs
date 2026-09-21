@@ -13,7 +13,8 @@ public record TemplateExerciseBaseline(
     string SetsJson,
     string SequenceGroup,
     string SubstitutionsJson,
-    int? SourcePage = null);
+    int? SourcePage = null,
+    int? RestSeconds = null);
 
 public record TemplateBaseline(
     string Name,
@@ -35,7 +36,7 @@ public sealed partial class TemplateService
     {
         var list = exercises.OrderBy(e => e.Position).Select(e => new TemplateExerciseBaseline(
             e.SlotKey, e.ExerciseId, e.SourceName, e.Note, e.Position,
-            e.SetsJson, e.SequenceGroup, e.SubstitutionsJson, e.SourcePage)).ToList();
+            e.SetsJson, e.SequenceGroup, e.SubstitutionsJson, e.SourcePage, e.RestSeconds)).ToList();
 
         return Json.Write(new TemplateBaseline(template.Name, template.Focus, template.Note, list, isLegacy));
     }
@@ -211,7 +212,8 @@ public sealed partial class TemplateService
                 SequenceGroup = bEx.SequenceGroup,
                 SubstitutionsJson = bEx.SubstitutionsJson,
                 SourcePage = bEx.SourcePage,
-                SlotKey = bEx.SlotKey
+                SlotKey = bEx.SlotKey,
+                RestSeconds = bEx.RestSeconds
             });
         }
 

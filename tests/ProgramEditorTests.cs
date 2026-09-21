@@ -81,6 +81,34 @@ public sealed class ProgramEditorTests
         Assert.Equal(400, error.Status);
     }
 
+    [Fact]
+    public async Task ExerciseRestSeconds_RoundTripsThroughTemplateAndSession()
+    {
+        await using var h = await Harness.Create();
+        await h.SignIn();
+        await h.Seed(new SeedExercise("bench-press", "Barbell bench press", "Chest", "Barbell", "Press", []));
+        var exerciseId = await h.ExerciseId("bench-press");
+        var exercise = new DraftExercise(Guid.NewGuid(), "Barbell bench press", exerciseId, null,
+            [new DraftSet(8, 10, 8, 90, null, null, null)], RestSeconds: 120);
+        var input = new ProgramEditorCreateInput(new ImportDraft("Rest plan", [Day("Upper", [exercise])]));
+
+        var program = await h.ProgramEditor.CreateProgram(input, default);
+        var template = Assert.Single(program.Workouts);
+        var templateExercise = Assert.Single(template.Exercises);
+        Assert.Equal(120, templateExercise.RestSeconds);
+
+        var stored = h.Db.Programs.Single(candidate => candidate.Id == program.Id);
+        stored.Active = true;
+        stored.LifecycleStatus = ProgramLifecycle.Active;
+        stored.Revision++;
+        await h.Db.SaveChangesAsync();
+        await h.Programs.List(default);
+
+        var session = await h.Workouts.Start(template.Id, null, default);
+        var sessionExercise = Assert.Single(session.Exercises);
+        Assert.Equal(120, sessionExercise.RestSeconds);
+    }
+
     private static DraftWorkout Day(string name, List<DraftExercise> exercises, int week = 1)
         => new(Guid.NewGuid(), week, name, null, null, exercises, Block: "Block 1", BlockId: BlockId,
             WeekId: Guid.Parse($"00000000-0000-0000-0000-{week:D12}"));

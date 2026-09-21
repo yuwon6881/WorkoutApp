@@ -69,8 +69,13 @@ export function validatePrescription(set: ValidatablePrescription, requireWorkin
   return undefined;
 }
 
+export function validateExerciseRestSeconds(value: number | null | undefined): string | undefined {
+  if (value === null || value === undefined) return undefined;
+  return validateInteger(value, 0, 3600, 'Rest');
+}
+
 function validateExercise(exercise: TemplateExercise | {
-  sourceName: string; notes: string | null; sequenceGroup: string; substitutions: string[]; sets: ValidatablePrescription[];
+  sourceName: string; notes: string | null; sequenceGroup: string; substitutions: string[]; sets: ValidatablePrescription[]; restSeconds?: number | null;
 }, requireWorkingRpe = false): string | undefined {
   const name = validateName(exercise.sourceName, 'Exercise name', 160);
   if (name) return name;
@@ -80,6 +85,8 @@ function validateExercise(exercise: TemplateExercise | {
   if (sequence) return sequence;
   const substitutions = validateSubstitutions(exercise.substitutions);
   if (substitutions) return substitutions;
+  const restError = validateExerciseRestSeconds(exercise.restSeconds);
+  if (restError) return restError;
   if (exercise.sets.length === 0) return 'Each exercise needs at least one set.';
   if (exercise.sets.length > 24) return 'An exercise can have at most 24 sets.';
   return exercise.sets.map(set => validatePrescription(set, requireWorkingRpe)).find(Boolean);

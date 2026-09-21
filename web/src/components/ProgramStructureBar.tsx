@@ -3,22 +3,20 @@ import { Button } from './ui/Button';
 import { ChipScroller } from './ui/ChipScroller';
 import { MenuButton, MenuItem } from './ui/MenuButton';
 import { SortableWeekChip } from './SortableWeekChip';
-import { weekCaption } from '../lib/importDraftWeeks';
 import type { ProgramStructureEditor } from './useProgramStructureEditor';
 
-function blockLabel(name: string, index: number): string {
-  const fallback = `Block ${index + 1}`;
-  return !name || name === fallback || name === 'Program' ? fallback : `${fallback} · ${name}`;
+function blockLabel(index: number): string {
+  return `Block ${index + 1}`;
 }
 
 /// Block and week navigation. Every structural action for a block or a week lives on the chip it
 /// belongs to, so the bar carries the plan itself rather than a row of buttons beside it.
 export function ProgramStructureBar({ structure }: { structure: ProgramStructureEditor }) {
   const {
-    weeks, blocks, week, setSelectedWeek, selectedBlock, selectedBlockIndex, selectedBlockWeeks,
-    totalDayCount, canAddDay, setWeekModalOpen, setDeleteConfirmWeek, setDeleteConfirmBlock,
+    weeks, blocks, week, setSelectedWeek, selectedBlockIndex, selectedBlockWeeks,
+    totalDayCount, setWeekModalOpen, setDeleteConfirmWeek, setDeleteConfirmBlock,
     setRenameBlock, setRenameValue, draggedWeek, setDraggedWeek, dropTarget, setDropTarget,
-    reorderWeeks, reorderBlocks, addBlock, addDay
+    reorderWeeks, reorderBlocks, addBlock
   } = structure;
 
   if (!week) return null;
@@ -29,7 +27,7 @@ export function ProgramStructureBar({ structure }: { structure: ProgramStructure
       <div className="import-block-selector" role="tablist" aria-label="Program blocks">
         {blocks.map((block, index) => {
           const isSelected = block.id === week.blockId;
-          const label = blockLabel(block.name, index);
+          const label = blockLabel(index);
           return <span key={block.id} role="presentation"
             className={`chip-group import-block-chip-group ${isSelected ? 'active' : ''}`}>
             <Button presentation="plain" role="tab" aria-selected={isSelected}
@@ -37,7 +35,7 @@ export function ProgramStructureBar({ structure }: { structure: ProgramStructure
               onClick={() => setSelectedWeek(block.weeks[0]?.week ?? week.week)}>
               {label}
             </Button>
-            {isSelected && <MenuButton label={`Actions for ${label}`} triggerClassName="chip-icon-btn">
+            {isSelected && <MenuButton label={`Actions for ${label}`} triggerClassName="chip-icon-btn" portal>
               <MenuItem onClick={() => { setRenameValue(block.name); setRenameBlock({ id: block.id, name: block.name }); }}>
                 <Pencil size={14} />Rename block
               </MenuItem>
@@ -79,20 +77,5 @@ export function ProgramStructureBar({ structure }: { structure: ProgramStructure
         <Plus size={16} />
       </Button>
     </ChipScroller>
-
-    <div className="import-week-toolbar program-day-add-actions">
-      <div className="import-week-meta">
-        <p className="import-week-caption">{weekCaption(week, selectedBlock)}</p>
-        <span className="muted">{week.days.length} of 7 days</span>
-      </div>
-      <div className="settings-actions">
-        <Button variant="secondary" aria-label="Add workout day" disabled={!canAddDay} onClick={() => addDay(false)}>
-          <Plus size={15} />Workout day
-        </Button>
-        <Button variant="tertiary" aria-label="Add rest day" disabled={!canAddDay} onClick={() => addDay(true)}>
-          <Plus size={15} />Rest day
-        </Button>
-      </div>
-    </div>
   </>;
 }

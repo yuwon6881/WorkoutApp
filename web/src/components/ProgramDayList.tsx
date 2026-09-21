@@ -1,5 +1,5 @@
 import { useCallback, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
-import { CalendarDays, Copy, Dumbbell, GripVertical, Moon, Trash2 } from 'lucide-react';
+import { CalendarDays, Copy, Dumbbell, GripVertical, Moon, Plus, Trash2 } from 'lucide-react';
 import type { DraftWorkout, Exercise } from '../types';
 import { Button } from './ui/Button';
 import { Modal } from './ui/Modal';
@@ -34,7 +34,7 @@ export function ProgramDayList({
 }) {
   const {
     weeks, week, canAddDay, duplicateDay, reorderDay, moveDayTo, setDeleteConfirmDay,
-    changeDayKind, moveDayToWeek
+    changeDayKind, moveDayToWeek, addDay
   } = structure;
   const [drag, setDragState] = useState<DragState | null>(null);
   const [moveDayId, setMoveDayId] = useState<string | null>(null);
@@ -160,6 +160,17 @@ export function ProgramDayList({
           />
         </div>;
       })}
+    </div>
+    <div className="program-day-add-actions">
+      <span className="muted">{days.length} of 7 days</span>
+      <div className="settings-actions">
+        <Button variant="secondary" aria-label="Add workout day" disabled={!canAddDay} onClick={() => addDay(false)}>
+          <Plus size={15} />Workout day
+        </Button>
+        <Button variant="tertiary" aria-label="Add rest day" disabled={!canAddDay} onClick={() => addDay(true)}>
+          <Plus size={15} />Rest day
+        </Button>
+      </div>
     </div>
     {moveDay && <Modal title="Move this day" onClose={() => setMoveDayId(null)}>
       <div className="modal-body">

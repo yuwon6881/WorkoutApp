@@ -6,21 +6,22 @@ import { completedSets, plannedSets } from '../lib/training';
 import { structuralChanges } from '../lib/workoutDraft';
 import { validateLoggedSet, validateSessionDraft } from '../lib/validation';
 import { restTimer } from '../lib/restTimer';
+import { findNextStep, restAppliesAfter } from '../lib/restRules';
 import {
   clearRecovery, enqueueFinish, enqueueSave, enqueueSetEdits, enqueueTiming, getRecovery,
-  keepLocalWorkout, persistDraftOnly, saveNavigation,
+  isStorageFailure, keepLocalWorkout, persistDraftOnly, saveNavigation,
   startRecovery, useServerWorkout
 } from '../lib/workoutRecovery';
 import { startRestAfterSetIsDurable, workoutServerBaseline } from '../lib/workoutRecoveryActions';
 import type { WorkoutRecoveryRecord } from '../lib/workoutRecovery';
 import { drainWorkoutOutbox, sessionPayload } from '../lib/workoutOutbox';
-import { Button } from './ui/Button';
 import { Modal } from './ui/Modal';
 import { WorkoutFooter } from './WorkoutFooter';
 import { WorkoutTopBar } from './WorkoutTopBar';
 import { WorkoutEditor } from './WorkoutEditor';
 import { WorkoutRecoveryConflict } from './WorkoutRecoveryConflict';
 import { useWorkoutOnlineFallback } from './useWorkoutOnlineFallback';
+import { WorkoutConfirmModal } from './WorkoutConfirmModal';
 
 export function Workout({
   session,
@@ -219,10 +220,12 @@ export function Workout({
     const generation = (setGeneration.get(set.id) ?? 0) + 1;
     setGeneration.set(set.id, generation);
     const persist = () => editSet(ei, si, { done: !set.done });
-    const plan = draft.exercises[ei].prescription[si];
-    const seconds = plan?.restSeconds;
-    if (!set.done && seconds && seconds > 0 && !draft.pausedAt) {
-      const restSeconds = seconds;
+    const exercise = draft.exercises[ei];
+    const plan = exercise.prescription[si];
+    const restSeconds = exercise.restSeconds ?? preferences.restSeconds ?? 90;
+    const nextStep = findNextStep(draft.exercises, ei, si);
+    const shouldRest = !set.done && restSeconds > 0 && !draft.pausedAt && restAppliesAfter({ exercise, setIndex: si, set, prescription: plan }, nextStep);
+    if (shouldRest) {
       restTimer.primeSound();
       await startRestAfterSetIsDurable(persist, () => {
         if (setGeneration.get(set.id) === generation) restTimer.start(restSeconds);
@@ -414,9 +417,7 @@ export function Workout({
   }
 
   const currentExercise = draft.exercises[activeIndex] ?? draft.exercises[0];
-  const uncompletedSetIndex = currentExercise ? currentExercise.sets.findIndex(s => !s.done) : -1;
-  const currentPrescription = currentExercise ? currentExercise.prescription[uncompletedSetIndex >= 0 ? uncompletedSetIndex : 0] : undefined;
-  const defaultRestSeconds = currentPrescription?.restSeconds ?? currentExercise?.prescription[0]?.restSeconds ?? 90;
+  const defaultRestSeconds = currentExercise?.restSeconds ?? preferences.restSeconds ?? 90;
 
   return (
     <Modal title={draft.name} onClose={onClose} wide>
@@ -455,44 +456,18 @@ export function Workout({
         }} />
 
       {confirm && (
-        <Modal
-          title={confirm === 'finish' ? 'Finish your workout?' : 'Discard this workout?'}
+        <WorkoutConfirmModal
+          confirm={confirm}
+          done={done}
+          busy={busy}
+          draft={draft}
+          retainSwaps={retainSwaps}
+          onRetainSwapsChange={setRetainSwaps}
           onClose={() => setConfirm(null)}
-        >
-          <div className="modal-body">
-            <p>
-              {confirm === 'finish'
-                ? `${done} completed working ${done === 1 ? 'set' : 'sets'} will be saved. Unlogged sets will be left out.`
-                : 'This removes the session in progress. Your completed history stays as it is.'}
-            </p>
-            {confirm === 'finish' &&
-              draft.exercises.some(e => e.sourcePhaseId && e.isReplacement) && (
-                <label className="checkbox-row">
-                  <input
-                    type="checkbox"
-                    checked={retainSwaps}
-                    onChange={e => setRetainSwaps(e.target.checked)}
-                  />
-                  Keep exercise swaps for the remaining workouts in this phase.
-                </label>
-              )}
-          </div>
-          <div className="modal-actions">
-            <Button onClick={() => setConfirm(null)}>Keep training</Button>
-            <Button
-              variant={confirm === 'finish' ? 'primary' : 'destructive'}
-              disabled={busy}
-              onClick={() => (confirm === 'finish' ? void finish() : void discard())}
-            >
-              {confirm === 'finish' ? 'Save workout' : 'Discard workout'}
-            </Button>
-          </div>
-        </Modal>
+          onFinish={() => void finish()}
+          onDiscard={() => void discard()}
+        />
       )}
     </Modal>
   );
-}
-
-function isStorageFailure(failure: unknown): boolean {
-  return failure instanceof Error && /device|storage|quota|indexeddb|transaction/i.test(failure.message);
 }

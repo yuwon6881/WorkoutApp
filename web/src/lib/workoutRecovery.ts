@@ -416,3 +416,7 @@ export function hasUnresolvedRecovery(record: WorkoutRecoveryRecord): boolean {
 export function hasPendingTimingOperations(record: WorkoutRecoveryRecord): boolean {
   return record.operations.some(operation => operation.type === 'pause' || operation.type === 'resume');
 }
+
+export function isStorageFailure(failure: unknown): boolean {
+  return failure instanceof Error && /device|storage|quota|indexeddb|transaction/i.test(failure.message);
+}

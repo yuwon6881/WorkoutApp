@@ -190,7 +190,7 @@ export function blankExercise(): DraftExercise {
     repMin: 8,
     repMax: 12,
     targetRpe: 8,
-    restSeconds: 90,
+    restSeconds: null,
     tempo: null,
     loadText: null,
     notes: null,
@@ -202,7 +202,7 @@ export function blankExercise(): DraftExercise {
     rir: null,
     warmup: false
   };
-  return { lineId: crypto.randomUUID(), sourceName: 'New exercise', exerciseId: null, notes: null, sets: [set], sequenceGroup: '', substitutions: [] };
+  return { lineId: crypto.randomUUID(), sourceName: 'New exercise', exerciseId: null, notes: null, sets: [set], sequenceGroup: '', substitutions: [], restSeconds: 90 };
 }
 
 export function blockIndex(weeks: Week[], index: number): number {

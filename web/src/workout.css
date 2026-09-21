@@ -200,22 +200,32 @@
 .substitution-chip {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 4px 10px;
+  gap: 2px;
+  padding: 2px 4px 2px 8px;
   border-radius: 999px;
-  font-size: var(--font-secondary);
-  font-weight: 550;
-  color: var(--text);
   background: var(--surface-raised);
   border: 1px solid var(--accent-border);
-  cursor: pointer;
   transition: all 0.15s ease;
 }
 .substitution-chip:hover {
-  background: var(--accent-soft);
-  color: var(--accent);
   border-color: var(--accent);
-  transform: translateY(-1px);
+}
+.substitution-swap-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: transparent;
+  border: 0;
+  padding: 4px 4px;
+  font-size: var(--font-secondary);
+  font-weight: 550;
+  color: var(--text);
+  cursor: pointer;
+  border-radius: 999px;
+  transition: color 0.15s ease;
+}
+.substitution-swap-btn:hover:not(:disabled) {
+  color: var(--accent);
 }
 .substitution-chip svg.swap-icon {
   color: var(--accent);
@@ -225,17 +235,19 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 28px;
-  min-height: 28px;
-  padding: 2px;
+  width: 24px;
+  height: 24px;
+  min-width: 24px;
+  min-height: 24px;
+  padding: 0;
   border-radius: 50%;
   color: var(--muted);
   cursor: pointer;
   background: transparent;
   border: 0;
-  margin-left: 2px;
+  transition: color 0.14s ease, background 0.14s ease;
 }
-.substitution-chip .chip-remove-btn:hover {
+.substitution-chip .chip-remove-btn:hover:not(:disabled) {
   color: var(--red);
   background: var(--red-soft);
 }

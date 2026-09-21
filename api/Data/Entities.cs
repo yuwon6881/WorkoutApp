@@ -186,6 +186,7 @@ public sealed class TemplateExercise : OwnedRecord
     public string Note { get; set; } = "";
     public string SetsJson { get; set; } = "[]";
     public string SequenceGroup { get; set; } = "";
+    public int? RestSeconds { get; set; }
     public string SubstitutionsJson { get; set; } = "[]";
     /// Page in the source document for imported exercise/prescription provenance.
     public int? SourcePage { get; set; }
@@ -226,6 +227,7 @@ public sealed class SessionExercise : OwnedRecord
     /// from the client.
     public string ProgressionJson { get; set; } = "";
     public string SequenceGroup { get; set; } = "";
+    public int? RestSeconds { get; set; }
     public string SubstitutionsJson { get; set; } = "[]";
     public string LoadModel { get; set; } = "external";
     public Guid? SourceTemplateExerciseId { get; set; }

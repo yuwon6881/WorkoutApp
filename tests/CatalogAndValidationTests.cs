@@ -120,4 +120,14 @@ public class CatalogAndValidationTests
         Assert.Equal(10, parsed[0].RepMax);
         Assert.Equal(12, parsed[1].RepMin);
     }
+
+    [Fact] public void Exercise_rest_seconds_validation()
+    {
+        Validation.ExerciseRestSeconds(null);
+        Validation.ExerciseRestSeconds(0);
+        Validation.ExerciseRestSeconds(90);
+        Validation.ExerciseRestSeconds(3600);
+        Assert.Throws<DomainException>(() => Validation.ExerciseRestSeconds(-1));
+        Assert.Throws<DomainException>(() => Validation.ExerciseRestSeconds(3601));
+    }
 }

@@ -8,8 +8,10 @@ import {
   useState,
   type ReactNode
 } from 'react';
+import { createPortal } from 'react-dom';
 import { ChevronDown, MoreVertical } from 'lucide-react';
 import { Button, type ButtonVariant } from './Button';
+import { useAnchoredLayer } from './useAnchoredLayer';
 
 const MenuCloseContext = createContext<() => void>(() => {});
 
@@ -24,7 +26,8 @@ export function MenuButton({
   align = 'end',
   disabled = false,
   text,
-  variant = 'secondary'
+  variant = 'secondary',
+  portal = false
 }: {
   label: string;
   children: ReactNode;
@@ -35,11 +38,24 @@ export function MenuButton({
   disabled?: boolean;
   text?: string;
   variant?: ButtonVariant;
+  portal?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const wrapRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
   const menuId = useId();
+
+  const { portalTarget, style } = useAnchoredLayer({
+    open: open && portal,
+    triggerRef,
+    layerRef: menuRef,
+    align,
+    minWidth: 210,
+    maxWidth: 280,
+    maxHeight: 300,
+    offset: 4
+  });
 
   const close = useCallback((restoreFocus = false) => {
     setOpen(false);
@@ -49,7 +65,10 @@ export function MenuButton({
   useEffect(() => {
     if (!open) return;
     const onPointerDown = (event: MouseEvent) => {
-      if (!wrapRef.current?.contains(event.target as Node)) setOpen(false);
+      const target = event.target as Node;
+      if (!wrapRef.current?.contains(target) && !menuRef.current?.contains(target)) {
+        setOpen(false);
+      }
     };
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
@@ -82,10 +101,30 @@ export function MenuButton({
       {text}
       {text && <ChevronDown size={15} />}
     </Button>
-    {open && <div id={menuId} role="menu" aria-label={label}
-      className={`ui-menu-dropdown ${align === 'start' ? 'align-start' : ''} ${menuClassName}`.trim()}>
-      <MenuCloseContext.Provider value={close}>{children}</MenuCloseContext.Provider>
-    </div>}
+    {open && !portal && (
+      <div
+        ref={menuRef}
+        id={menuId}
+        role="menu"
+        aria-label={label}
+        className={`ui-menu-dropdown ${menuClassName}`.trim()}
+      >
+        <MenuCloseContext.Provider value={close}>{children}</MenuCloseContext.Provider>
+      </div>
+    )}
+    {open && portal && portalTarget && createPortal(
+      <div
+        ref={menuRef}
+        id={menuId}
+        role="menu"
+        aria-label={label}
+        style={style ?? { visibility: 'hidden' }}
+        className={`ui-menu-dropdown ${menuClassName}`.trim()}
+      >
+        <MenuCloseContext.Provider value={close}>{children}</MenuCloseContext.Provider>
+      </div>,
+      portalTarget
+    )}
   </div>;
 }
 

@@ -45,13 +45,13 @@ function Progress({ progress, action }: { progress: ImportProgress; action?: Rea
 function Failure({ failure, onChooseFile, onRetry, onDismiss }: {
   failure: ImportFailure; onChooseFile: () => void; onRetry?: () => void; onDismiss: () => void;
 }) {
-  return <div className="error-banner" role="alert">
+  return <div className="error-banner import-failure-banner" role="alert">
     <AlertTriangle size={17} />
     <span className="import-failure-message">{failure.message}</span>
     <div className="import-failure-actions">
       {onRetry
-        ? <Button variant="primary" onClick={onRetry}>Try again</Button>
-        : <Button variant="primary" onClick={onChooseFile}><Upload size={15} />Choose a PDF</Button>}
+        ? <Button variant="secondary" onClick={onRetry}>Try again</Button>
+        : <Button variant="secondary" onClick={onChooseFile}><Upload size={15} />Choose a PDF</Button>}
       <Button variant="tertiary" aria-label="Dismiss this message" onClick={onDismiss}><X size={15} /></Button>
     </div>
   </div>;

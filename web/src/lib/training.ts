@@ -81,3 +81,26 @@ export const canComplete = (set: LoggedSet): boolean => validReps(set.reps);
 
 export const rpeSteps = Array.from({ length: 9 }, (_, i) => 6 + i * 0.5);
 export const rpeOptions = rpeSteps.map(value => ({ value, label: String(value) }));
+
+export const formatRest = (seconds: number | null | undefined): string => {
+  if (seconds === null || seconds === undefined || seconds === 0) return 'No rest';
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  if (m === 0) return `${s}s`;
+  if (s === 0) return `${m}m`;
+  return `${m}m ${s}s`;
+};
+
+const STANDARD_REST_SECONDS = [0, 30, 45, 60, 90, 120, 150, 180, 240, 300];
+
+export const restOptions = (currentSeconds?: number | null): { value: number; label: string }[] => {
+  const values = [...STANDARD_REST_SECONDS];
+  if (typeof currentSeconds === 'number' && !values.includes(currentSeconds) && currentSeconds >= 0 && currentSeconds <= 3600) {
+    values.push(currentSeconds);
+    values.sort((a, b) => a - b);
+  }
+  return values.map(value => ({
+    value,
+    label: formatRest(value)
+  }));
+};

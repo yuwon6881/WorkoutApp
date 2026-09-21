@@ -33,6 +33,10 @@ public static class Validation
     public static void Unit(string unit) => Require(unit is "kg" or "lb", "Choose kilograms or pounds.");
     public static void Theme(string theme) => Require(theme is "dark" or "light", "Choose the dark or light theme.");
     public static void RestSeconds(int seconds) => Require(seconds is >= 0 and <= 600, "Rest must be between 0 and 600 seconds.");
+    public static void ExerciseRestSeconds(int? seconds)
+    {
+        if (seconds is { } rest) Require(rest is >= 0 and <= 3600, "Rest must be between 0 and 3600 seconds.");
+    }
 
     public static void Name(string? value, string what, int max = 120)
     {

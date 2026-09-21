@@ -1,7 +1,8 @@
 import { createPortal } from 'react-dom';
-import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent } from 'react';
+import { useEffect, useId, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react';
 import { Check, ChevronDown } from 'lucide-react';
 import { Button } from './Button';
+import { useAnchoredLayer } from './useAnchoredLayer';
 
 export type SelectOption<T extends string | number> = {
   value: T;
@@ -33,8 +34,6 @@ export function Select<T extends string | number>({
   const triggerRef = useRef<HTMLButtonElement>(null);
   const listboxRef = useRef<HTMLUListElement>(null);
   const id = useId();
-  const [dropdownStyle, setDropdownStyle] = useState<CSSProperties | null>(null);
-  const [portalTarget, setPortalTarget] = useState<HTMLElement | null>(null);
 
   const [highlightedIndex, setHighlightedIndex] = useState(() => {
     const idx = options.findIndex(o => o.value === value);
@@ -69,66 +68,17 @@ export function Select<T extends string | number>({
     }
   }, [open, highlightedIndex]);
 
-  const positionDropdown = useCallback(() => {
-    const trigger = triggerRef.current;
-    const listbox = listboxRef.current;
-    if (!trigger || !listbox) return;
-
-    const triggerRect = trigger.getBoundingClientRect();
-    const viewportPadding = 8;
-    const availableBelow = Math.max(0, window.innerHeight - triggerRect.bottom - viewportPadding);
-    const availableAbove = Math.max(0, triggerRect.top - viewportPadding);
-    const maxHeight = Math.min(260, Math.max(120, Math.max(availableBelow, availableAbove)));
-    const measuredHeight = Math.min(listbox.scrollHeight, maxHeight);
-    const opensAbove = availableBelow < measuredHeight && availableAbove > availableBelow;
-
-    const desiredWidth = Math.max(120, Math.min(260, Math.max(triggerRect.width, 140)));
-    const left = Math.min(
-      Math.max(viewportPadding, triggerRect.left),
-      window.innerWidth - desiredWidth - viewportPadding
-    );
-
-    setDropdownStyle({
-      position: 'fixed',
-      left: `${left}px`,
-      right: 'auto',
-      top: `${opensAbove
-        ? Math.max(viewportPadding, triggerRect.top - measuredHeight - 5)
-        : Math.min(window.innerHeight - measuredHeight - viewportPadding, triggerRect.bottom + 5)}px`,
-      width: `${desiredWidth}px`,
-      minWidth: '120px',
-      maxWidth: 'calc(100vw - 16px)',
-      maxHeight: `${maxHeight}px`,
-      zIndex: 1000
-    });
-  }, []);
-
-  // Portaling the listbox keeps a long option list above clipped cards, drawers and bottom sheets.
-  // Its fixed position is refreshed while the page or modal scrolls so it remains attached to the
-  // trigger instead of becoming a detached overlay.
-  useLayoutEffect(() => {
-    if (!open) {
-      setPortalTarget(null);
-      setDropdownStyle(null);
-      return;
-    }
-    const dialog = containerRef.current?.closest('dialog')
-      ?? triggerRef.current?.closest('dialog')
-      ?? [...document.querySelectorAll<HTMLDialogElement>('dialog[open]')].at(-1);
-    setPortalTarget((dialog as HTMLElement | null) ?? document.body);
-  }, [open]);
-
-  useLayoutEffect(() => {
-    if (!open || !portalTarget) return;
-    positionDropdown();
-    const handleScroll = () => positionDropdown();
-    window.addEventListener('resize', handleScroll);
-    document.addEventListener('scroll', handleScroll, true);
-    return () => {
-      window.removeEventListener('resize', handleScroll);
-      document.removeEventListener('scroll', handleScroll, true);
-    };
-  }, [open, portalTarget, positionDropdown, options.length]);
+  const { portalTarget, style: dropdownStyle } = useAnchoredLayer({
+    open,
+    triggerRef,
+    layerRef: listboxRef,
+    matchTriggerWidth: true,
+    minWidth: 120,
+    maxWidth: 260,
+    maxHeight: 260,
+    offset: 5,
+    dependencies: [options.length]
+  });
 
   const selectedOption = options.find(o => o.value === value) ?? options[0];
 

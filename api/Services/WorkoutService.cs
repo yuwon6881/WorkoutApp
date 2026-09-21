@@ -8,7 +8,8 @@ public record SetInput(double? WeightKg, int? Reps, double? Rpe, bool Done, bool
     string? ResistanceMode = null, Guid? Id = null);
 public record SessionExerciseInput(Guid? ExerciseId, string NameSnapshot, string? Note, List<SetPrescription> Prescription, List<SetInput> Sets,
     string? SequenceGroup = null, List<string>? Substitutions = null, string? LoadModel = null, Guid? Id = null,
-    Guid? SourceTemplateExerciseId = null, Guid? SourceSlotKey = null, Guid? SourcePhaseId = null, int? SourcePage = null);
+    Guid? SourceTemplateExerciseId = null, Guid? SourceSlotKey = null, Guid? SourcePhaseId = null, int? SourcePage = null,
+    int? RestSeconds = null);
 public record SessionInput(string? Note, List<SessionExerciseInput> Exercises, int? Revision, Guid? IdempotencyId);
 public record SetView(Guid Id, int Position, double? WeightKg, int? Reps, double? Rpe, bool Done, bool Warmup = false,
     int? WorkingSetOrdinal = null, string ResistanceMode = ResistanceModes.External, double? SystemLoadKg = null,
@@ -17,7 +18,7 @@ public record SessionExerciseView(Guid Id, Guid? ExerciseId, string Name, int Po
     string SequenceGroup = "", List<string>? Substitutions = null, ProgressionView? Progression = null,
     string LoadModel = LoadModels.External, Guid? SourceTemplateExerciseId = null, Guid? SourceSlotKey = null, Guid? SourcePhaseId = null,
     Guid? SwapGroupKey = null, bool IsReplacement = false, Guid? OriginalExerciseId = null, string OriginalName = "", int? SourcePage = null,
-    bool CanRestore = false);
+    bool CanRestore = false, int? RestSeconds = null);
 public record SessionView(Guid Id, Guid? TemplateId, Guid? ProgramId, string Name, string Note, bool Active, DateTime StartedAt, DateTime? FinishedAt, int Revision,
     List<SessionExerciseView> Exercises, double? VolumeKg, int CompletedSets, int WarmupSets = 0,
     BodyWeightSnapshot? BodyWeight = null, NutritionTrainingContext? NutritionContext = null,
@@ -112,7 +113,7 @@ public sealed partial class WorkoutService(
                         s.WorkingSetOrdinal, s.ResistanceMode, s.SystemLoadKg, ReadOptional<SetProgressionSuggestion>(s.SuggestionJson))).ToList(),
                     e.SequenceGroup, Json.Read<List<string>>(e.SubstitutionsJson),
                     ReadOptional<ProgressionView>(e.ProgressionJson), e.LoadModel, e.SourceTemplateExerciseId, e.SourceSlotKey, e.SourcePhaseId,
-                    e.SwapGroupKey, e.IsReplacement, e.OriginalExerciseId, e.OriginalNameSnapshot, e.SourcePage, canRestore);
+                    e.SwapGroupKey, e.IsReplacement, e.OriginalExerciseId, e.OriginalNameSnapshot, e.SourcePage, canRestore, e.RestSeconds);
             }).ToList(),
             external.Count == 0 ? null : external.Sum(s => s.WeightKg!.Value * s.Reps!.Value),
             workingDone.Count, warmupDone.Count, bodyWeight, context,
@@ -178,6 +179,7 @@ public sealed partial class WorkoutService(
                 {
                     UserId = session.UserId, SessionId = session.Id, ExerciseId = plan.ExerciseId, Position = plan.Position,
                     NameSnapshot = resolvedName, Note = plan.Note, PrescriptionJson = Json.Write(prescription), SequenceGroup = plan.SequenceGroup,
+                    RestSeconds = plan.RestSeconds,
                     SubstitutionsJson = plan.SubstitutionsJson, LoadModel = loadModel,
                     SourceTemplateExerciseId = plan.Id, SourceSlotKey = plan.SlotKey, SourcePhaseId = template.ProgramPhaseId, SourcePage = plan.SourcePage
                 };
@@ -353,6 +355,7 @@ public sealed partial class WorkoutService(
         {
             Validation.Name(exercise.NameSnapshot, "Exercise name", 160);
             Validation.Text(exercise.Note, 1000, "Exercise notes");
+            Validation.ExerciseRestSeconds(exercise.RestSeconds);
             Validation.Prescriptions(exercise.Prescription);
             Validation.Require(exercise.Sets is { Count: <= 24 }, "An exercise can have at most 24 sets.");
             Validation.Substitutions(exercise.Substitutions);
@@ -398,6 +401,7 @@ public sealed partial class WorkoutService(
             row.NameSnapshot = exercise.NameSnapshot.Trim(); row.Note = exercise.Note?.Trim() ?? "";
             row.PrescriptionJson = Json.Write(exercise.Prescription);
             row.SequenceGroup = exercise.SequenceGroup?.Trim() ?? "";
+            row.RestSeconds = exercise.RestSeconds;
             row.SubstitutionsJson = Json.Write((exercise.Substitutions ?? []).Take(2).Select(s => s.Trim()).ToList());
             row.LoadModel = loadModel;
             row.SourceTemplateExerciseId = exercise.SourceTemplateExerciseId ?? row.SourceTemplateExerciseId;

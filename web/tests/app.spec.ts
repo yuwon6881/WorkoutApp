@@ -331,7 +331,8 @@ test('import a PDF program, resolve an unmapped exercise, and accept it', async 
   });
   // Percentage load remains part of the imported prescription, while RPE stays editable.
   await expect(mysteryExercise.getByRole('button', { name: 'Target RPE for Mystery machine row set 1', exact: true })).toContainText('Choose RPE');
-  await expect(mysteryExercise.locator('.import-set-fields:visible [data-import-field]')).toHaveCount(4);
+  await expect(mysteryExercise.locator('.import-set-fields:visible [data-import-field]')).toHaveCount(3);
+  await expect(mysteryExercise.locator('[data-import-field="rest"]')).toBeVisible();
 
   if (testInfo.project.name === 'mobile') {
     const swipeRow = page.locator('.swipeable-row-mobile.import-set-swipe-row').first();

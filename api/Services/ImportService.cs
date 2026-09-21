@@ -208,7 +208,7 @@ public sealed partial class ImportService(AppDb db, WorkoutAi ai, CatalogService
                 var substitutions = alternates.Take(2).ToList();
                 if (alternates.Count > 2) noteParts.Add($"Other alternates: {string.Join(", ", alternates.Skip(2))}");
                 exercises.Add(new DraftExercise(Guid.NewGuid(), ImportNormalization.Label(cleanName.Length > 0 ? cleanName : rawName, 160, "Unnamed exercise"), id, Note(noteParts), working,
-                    sequenceGroup, substitutions, ImportNormalization.Page(source.SourcePage)));
+                    sequenceGroup, substitutions, ImportNormalization.Page(source.SourcePage), RestSeconds: DeriveRestSeconds(working)));
             }
         }
         // Weeks, weekdays and page numbers are brought into the range a stored day has rather than
@@ -228,6 +228,25 @@ public sealed partial class ImportService(AppDb db, WorkoutAi ai, CatalogService
         if (parts.Count == 0) return null;
         var note = string.Join(" — ", parts);
         return note.Length <= 1000 ? note : note[..1000].TrimEnd();
+    }
+
+    private static int? DeriveRestSeconds(List<DraftSet> sets)
+    {
+        var candidates = sets.Where(s => !s.Warmup && s.RestSeconds is >= 0 and <= 3600)
+            .Select(s => s.RestSeconds!.Value)
+            .ToList();
+        if (candidates.Count == 0)
+        {
+            candidates = sets.Where(s => s.RestSeconds is >= 0 and <= 3600)
+                .Select(s => s.RestSeconds!.Value)
+                .ToList();
+        }
+        if (candidates.Count == 0) return null;
+        return candidates
+            .GroupBy(v => v)
+            .OrderByDescending(g => g.Count())
+            .First()
+            .Key;
     }
 
     private static DraftSet ToDraftSet(AiSet set)
@@ -394,7 +413,7 @@ public sealed partial class ImportService(AppDb db, WorkoutAi ai, CatalogService
         var input = new ProgramInput(draft.ProgramName,
             draft.Workouts.Select(w => new ProgramWorkoutInput(w.Week, w.Name, w.Focus, w.Notes,
                 w.Exercises.Select(e => new TemplateExerciseInput(e.ExerciseId, e.SourceName, e.Notes,
-                    e.Sets.Select(ToPrescription).ToList(), e.SequenceGroup, e.Substitutions, e.SourcePage, e.SlotKey)).ToList(),
+                    e.Sets.Select(ToPrescription).ToList(), e.SequenceGroup, e.Substitutions, e.SourcePage, e.SlotKey, e.RestSeconds)).ToList(),
                 w.Block, w.Phase, w.PhaseWeek, w.IsRestDay, w.SourcePage)).ToList(), null);
         await programs.Validate(input, ct, allowMissingWorkingRpe: true);
         // Imported drafts always enter Standby. Even a completed PDF must be explicitly

@@ -13,7 +13,7 @@ public record DraftSet(
 public record DraftExercise(
     Guid LineId, string SourceName, Guid? ExerciseId, string? Notes, List<DraftSet> Sets,
     string SequenceGroup = "", List<string>? Substitutions = null, int? SourcePage = null,
-    Guid? SlotKey = null);
+    Guid? SlotKey = null, int? RestSeconds = null);
 
 public record DraftWorkout(
     Guid LineId, int Week, string Name, string? Focus, string? Notes, List<DraftExercise> Exercises,

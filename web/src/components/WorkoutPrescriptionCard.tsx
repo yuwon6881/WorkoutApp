@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { AlertTriangle, ArrowLeftRight, Dumbbell, FileText, Link2, Plus, RefreshCw, RotateCcw, Trash2, X } from 'lucide-react';
 import type { Exercise, SetPrescription, TemplateExercise } from '../types';
-import { rpeOptions } from '../lib/training';
+import { restOptions, rpeOptions } from '../lib/training';
 import { Button } from './ui/Button';
 import { Field, TextAreaField } from './ui/Field';
 import { Select } from './ui/Select';
@@ -147,6 +147,16 @@ export function WorkoutPrescriptionCard({
             <span>{isPaired ? `Superset ${currentGroup} · ${partners.length} paired` : 'Pair into superset'}</span>
           </Button>
         </div>
+        <div className="field import-rest-field">
+          <span>Rest</span>
+          <Select
+            name={`workout-exercise-rest-${exercise.id}`}
+            ariaLabel={`Rest timer for ${exercise.name}`}
+            value={exercise.restSeconds ?? 90}
+            options={restOptions(exercise.restSeconds)}
+            onChange={val => onUpdateExercise({ restSeconds: Number(val) })}
+          />
+        </div>
         <div className="field import-substitutions-field">
           <span>Substitutions</span>
           <div className="substitution-chips-wrap">
@@ -286,20 +296,6 @@ export function WorkoutPrescriptionCard({
                         }
                       />
                     </label>
-                    <Field
-                      name={`workout-rest-${exercise.id}-${si}`}
-                      label="Rest (s)"
-                      type="number"
-                      inputMode="numeric"
-                      min="0"
-                      max="3600"
-                      value={set.restSeconds ?? ''}
-                      onChange={e =>
-                        onUpdateSet(si, {
-                          restSeconds: e.target.value === '' ? null : Number(e.target.value)
-                        })
-                      }
-                    />
                     <Field
                       name={`workout-tempo-${exercise.id}-${si}`}
                       label="Tempo"

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { AlertTriangle, ArrowLeftRight, Dumbbell, Link2, Loader2, Plus, RotateCcw, Trash2, X } from 'lucide-react';
 import type { DraftExercise, DraftSet, DraftWorkout, Exercise } from '../types';
-import { rpeOptions } from '../lib/training';
+import { restOptions, rpeOptions } from '../lib/training';
 import { Button } from './ui/Button';
 import { Select } from './ui/Select';
 import { Field, TextAreaField } from './ui/Field';
@@ -236,27 +236,38 @@ function ExerciseEditor({ exercise, exercises, allDayExercises, onChange, onRemo
           <span className="tiny-label warn"><AlertTriangle size={12} /> Unmapped</span>
         )}
       </div>
-      <MenuButton
-        label={`Actions for ${exercise.sourceName}`}
-        icon={isRestoring ? <Loader2 size={16} className="spin" /> : undefined}
-      >
-        <MenuItem onClick={() => setSupersetModalOpen(true)}>
-          <Link2 size={14} />
-          <span>{isPaired ? `Superset options (Group ${currentGroup})` : 'Pair into superset'}</span>
-        </MenuItem>
-        {canRestore && onRestore && (
-          <MenuItem disabled={isRestoring} onClick={() => void handleRestore()}>
-            <RotateCcw size={14} />
-            <span>Restore default</span>
+      <div className="import-exercise-actions">
+        <div className="field import-rest-field" data-import-field="rest">
+          <Select
+            name={`exercise-rest-${exercise.lineId}`}
+            ariaLabel={`Rest timer for ${exercise.sourceName}`}
+            value={exercise.restSeconds ?? 90}
+            options={restOptions(exercise.restSeconds)}
+            onChange={val => onChange({ ...exercise, restSeconds: Number(val) })}
+          />
+        </div>
+        <MenuButton
+          label={`Actions for ${exercise.sourceName}`}
+          icon={isRestoring ? <Loader2 size={16} className="spin" /> : undefined}
+        >
+          <MenuItem onClick={() => setSupersetModalOpen(true)}>
+            <Link2 size={14} />
+            <span>{isPaired ? `Superset options (Group ${currentGroup})` : 'Pair into superset'}</span>
           </MenuItem>
-        )}
-        {onRemove && (
-          <MenuItem destructive disabled={allDayExercises.length <= 1 || isRestoring} onClick={onRemove}>
-            <Trash2 size={14} />
-            <span>Delete exercise</span>
-          </MenuItem>
-        )}
-      </MenuButton>
+          {canRestore && onRestore && (
+            <MenuItem disabled={isRestoring} onClick={() => void handleRestore()}>
+              <RotateCcw size={14} />
+              <span>Restore default</span>
+            </MenuItem>
+          )}
+          {onRemove && (
+            <MenuItem destructive disabled={allDayExercises.length <= 1 || isRestoring} onClick={onRemove}>
+              <Trash2 size={14} />
+              <span>Delete exercise</span>
+            </MenuItem>
+          )}
+        </MenuButton>
+      </div>
     </div>
     {restoreError && (
       <div className="inline-error restore-error" role="alert">
@@ -266,34 +277,37 @@ function ExerciseEditor({ exercise, exercises, allDayExercises, onChange, onRemo
     )}
     <div className="import-fields">
       <div className="field import-library-field">
-        <span>Library exercise</span>
         <Button variant="secondary" className="import-library-trigger" aria-haspopup="dialog" data-import-field="library"
           disabled={isRestoring || isMapping}
           aria-label={`Library exercise for ${exercise.sourceName}`} onClick={() => { setMappingError(null); setPickerOpen(true); }}>
+          <Dumbbell size={15} />
           {selected?.name ?? (exercise.exerciseId ? 'Swap exercise' : 'Map exercise')}
         </Button>
       </div>
       <div className="field import-substitutions-field">
-        <span>Substitutions (tap to swap slot)</span>
         <div className="substitution-chips-wrap">
           {validSubstitutions.length > 0 ? (
             <div className="substitution-chips-row" role="group" aria-label={`Substitutions for ${exercise.sourceName}`}>
               {validSubstitutions.map((sub, sIdx) => (
-                <div
-                  key={sIdx}
-                  className="substitution-chip"
-                  title={`Swap ${exercise.sourceName} with ${sub} across this block`}
-                  onClick={() => !isRestoring && applySubstitution(sub)}
-                >
-                  <ArrowLeftRight size={13} className="swap-icon" />
-                  <span>{sub}</span>
+                <span key={sIdx} className="substitution-chip">
+                  <Button
+                    presentation="plain"
+                    className="substitution-swap-btn"
+                    title={`Swap ${exercise.sourceName} for ${sub} across this block`}
+                    aria-label={`Swap ${exercise.sourceName} for ${sub} across this block`}
+                    disabled={isRestoring}
+                    onClick={() => applySubstitution(sub)}
+                  >
+                    <ArrowLeftRight size={13} className="swap-icon" />
+                    <span>{sub}</span>
+                  </Button>
                   <Button
                     presentation="plain"
                     className="chip-remove-btn"
+                    title={`Remove substitution ${sub}`}
                     aria-label={`Remove substitution ${sub}`}
                     disabled={isRestoring}
-                    onClick={e => {
-                      e.stopPropagation();
+                    onClick={() => {
                       onChange({
                         ...exercise,
                         substitutions: exercise.substitutions.filter(s => s.toLowerCase() !== sub.toLowerCase())
@@ -302,7 +316,7 @@ function ExerciseEditor({ exercise, exercises, allDayExercises, onChange, onRemo
                   >
                     <X size={12} />
                   </Button>
-                </div>
+                </span>
               ))}
             </div>
           ) : (
@@ -352,7 +366,6 @@ function ExerciseEditor({ exercise, exercises, allDayExercises, onChange, onRemo
                     disabled={set.warmup}
                     onChange={value => editSet(index, { targetRpe: value === '' ? null : Number(value), rpeSource: 'userEdited' })} />
                 </label>
-                <Field name={`rest-${exercise.lineId}-${index}`} label="Rest" value={set.restText ?? (set.restSeconds === null ? '' : `${set.restSeconds}s`)} data-import-field="rest" data-import-set-index={index} onChange={event => editSet(index, { restText: event.target.value, restSource: 'userEdited' })} />
               </div>
             </div>
           </SwipeableRow>
@@ -406,9 +419,9 @@ function ExerciseEditor({ exercise, exercises, allDayExercises, onChange, onRemo
 }
 
 function blankExercise(): DraftExercise {
-  return { lineId: crypto.randomUUID(), sourceName: 'New exercise', exerciseId: null, notes: null, sequenceGroup: '', substitutions: [], sets: [blankSet()] };
+  return { lineId: crypto.randomUUID(), sourceName: 'New exercise', exerciseId: null, restSeconds: 90, notes: null, sequenceGroup: '', substitutions: [], sets: [blankSet()] };
 }
 
 function blankSet(): DraftSet {
-  return { repMin: 8, repMax: 12, targetRpe: 8, restSeconds: 90, tempo: null, loadText: null, notes: null, repsSource: 'userEdited', rpeSource: 'userEdited', restSource: 'userEdited', repsText: null, restText: null, rir: null, warmup: false };
+  return { repMin: 8, repMax: 12, targetRpe: 8, restSeconds: null, tempo: null, loadText: null, notes: null, repsSource: 'userEdited', rpeSource: 'userEdited', restSource: 'userEdited', repsText: null, restText: null, rir: null, warmup: false };
 }
