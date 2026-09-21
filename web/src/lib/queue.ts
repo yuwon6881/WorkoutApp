@@ -12,6 +12,7 @@ export class SaveQueue {
   private queue: Task[] = [];
   private running = false;
   private listeners = new Set<(status: QueueStatus) => void>();
+  private idleWaiters = new Set<() => void>();
   private status: QueueStatus = { state: 'idle', message: '', pending: 0 };
 
   subscribe(listener: (status: QueueStatus) => void) {
@@ -52,12 +53,28 @@ export class SaveQueue {
         this.running = false;
         const failure = error instanceof ApiError ? error : new ApiError('Something went wrong. Try again.', -1);
         this.set(failure.signedOut ? 'signed-out' : failure.offline ? 'offline' : 'failed', failure.message);
+        this.resolveIdleWaiters();
         return;
       }
     }
     this.running = false;
     this.set('saved');
+    this.resolveIdleWaiters();
   }
 
-  clear() { this.queue = []; this.running = false; this.set('idle'); }
+  /// Waits for writes already in this serial queue. Finish uses this before it enqueues the
+  /// server-side completion so an in-flight save cannot race or be silently discarded.
+  async whenIdle(): Promise<void> {
+    if (this.running || this.queue.length > 0) await new Promise<void>(resolve => this.idleWaiters.add(resolve));
+    if (this.status.state === 'offline' || this.status.state === 'failed' || this.status.state === 'signed-out')
+      throw new ApiError(this.status.message || 'A workout change still needs attention.', this.status.state === 'signed-out' ? 401 : this.status.state === 'offline' ? 0 : 409);
+  }
+
+  private resolveIdleWaiters(): void {
+    if (this.running || this.queue.length > 0) return;
+    for (const resolve of this.idleWaiters) resolve();
+    this.idleWaiters.clear();
+  }
+
+  clear() { this.queue = []; this.running = false; this.set('idle'); this.resolveIdleWaiters(); }
 }

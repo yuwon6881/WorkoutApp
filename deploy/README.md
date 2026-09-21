@@ -13,9 +13,10 @@ Singapore. The FinancialApp and NutritionApp services and databases are independ
 | Secret (OpenAI key) | `financialapp-openai-api-key` — shared with the sibling apps, not duplicated |
 | GCP project | `project-7eb1aec8-8636-4c86-b2a` |
 | Cloud Run service | `workout-api`, `asia-southeast1` |
-| Maintenance scheduler | `workout-import-maintenance` (hourly, `X-Workout-Maintenance-Secret`) |
+| Maintenance scheduler | `workout-import-maintenance` (daily, `X-Workout-Maintenance-Secret`) |
 | Secret (maintenance) | `workout-maintenance-secret` (Google Secret Manager) |
 | Service account | `workout-api@project-7eb1aec8-8636-4c86-b2a.iam.gserviceaccount.com` |
+| Rest-alert task caller | `workout-rest-task@project-7eb1aec8-8636-4c86-b2a.iam.gserviceaccount.com` (must be provisioned before enabling push) |
 | API URL | `https://workout-api-i47taxhzba-as.a.run.app` |
 | Image | `asia-southeast1-docker.pkg.dev/<project>/cloud-run-source-deploy/workout-api` |
 
@@ -23,8 +24,7 @@ The API runs with 1 CPU, 2 GiB, a 3,600 second timeout, HTTP/1.1, concurrency 1,
 maximum 1 instances. PDF import needs nothing else: the browser reads the document's text on the
 device and posts it gzipped. The extract endpoint starts an in-process background pass and returns
 immediately; the browser polls the import row while the runner reads sections and commits them in
-outline order. `--no-cpu-throttling` keeps that pass running between polls even when the service
-scales from zero. An hourly maintenance request runs the retention sweep; because the API is reachable
+outline order. Request-based billing scales to zero when idle. A daily maintenance request runs the retention sweep; because the API is reachable
 without Cloud Run IAM, `/internal/import-maintenance` exists only when `Maintenance__Secret` is
 configured and answers 404 unless the request presents it in `X-Workout-Maintenance-Secret`.
 
@@ -60,6 +60,75 @@ retired after the client-side extraction cutover and removed from the project on
 `workout-imports-396431756440` bucket is no longer used by deployed code, but still contains five
 active PDFs and five retained generations; its application access bindings have been removed.
 Delete the bucket only after the retained objects are explicitly approved for deletion.
+
+### Optional Workout rest-alert push
+
+The rest-alert feature uses a new, separate `workout-rest-alerts` Cloud Tasks queue. Each schedule
+is first committed as an account- and device-scoped database intent. Task creation is idempotent;
+the authenticated internal recovery endpoint retries pending intents once a minute. Before sending,
+the API rechecks that the rest generation is current, the workout is active and unpaused, the account
+allows rest alerts, and the same device subscription still exists. Rest payloads contain only a
+generic title/body and workout route. FCM's successful response is recorded as *accepted by the
+provider*, never as proof that a phone displayed it. Recovery can recreate a pending task after its
+deadline while it remains within the two-minute expiry window; dispatch is valid until `ExpiresAt`,
+not an earlier fixed grace period. A visible Workout window suppresses the system push only after a
+bounded reply confirms its signed-in timer owns the same session and generation. Explicit sign-out
+tries to cancel the authenticated account's device schedules before logout and invalidates the local
+FCM token. If authentication has already expired or the account changes without sign-out, protected
+cleanup may be unavailable; delivery still has a short expiry and dispatch rechecks account, session,
+preference, and device ownership. OS Focus, connectivity, browser policy, or token invalidation can
+still prevent delivery.
+
+As checked on 2026-09-21, the project has no `workout-rest-alerts` queue, no
+`workout-rest-task` caller identity, and no rest-alert recovery job; the only listed Cloud Tasks
+queue is `receipt-scan`. The former import queue must not be reused. To enable rest push, first
+create the separate task identity and queue, and grant the Cloud
+Run service account task-enqueue permission, permission to attach that OIDC caller identity, and
+Firebase Cloud Messaging send permission. Cloud Tasks and Cloud Scheduler service agents must keep
+their Google-managed service-agent roles. One-time setup (run only after reviewing the project):
+
+```powershell
+$project = 'project-7eb1aec8-8636-4c86-b2a'
+$projectNumber = '396431756440'
+gcloud services enable cloudtasks.googleapis.com cloudscheduler.googleapis.com fcm.googleapis.com --project $project
+gcloud iam service-accounts create workout-rest-task --project $project
+gcloud tasks queues create workout-rest-alerts --location asia-southeast1 --project $project --max-attempts 8 --max-retry-duration 120s --min-backoff 2s --max-backoff 15s --max-doublings 3
+gcloud projects add-iam-policy-binding $project --member "serviceAccount:workout-api@$project.iam.gserviceaccount.com" --role roles/cloudtasks.enqueuer
+gcloud projects add-iam-policy-binding $project --member "serviceAccount:workout-api@$project.iam.gserviceaccount.com" --role roles/firebasecloudmessaging.admin
+gcloud iam service-accounts add-iam-policy-binding "workout-rest-task@$project.iam.gserviceaccount.com" --project $project --member "serviceAccount:workout-api@$project.iam.gserviceaccount.com" --role roles/iam.serviceAccountUser
+```
+
+Keep the Cloud Tasks service agent's `roles/cloudtasks.serviceAgent` role, and grant it
+`roles/iam.serviceAccountUser` on the dedicated task caller as shown above so it can mint task OIDC
+tokens. The identity creating the Scheduler job also needs `roles/iam.serviceAccountUser` on that
+caller identity. The endpoint is publicly routable like the existing API but validates the exact
+Google OIDC audience and caller email itself; do not remove that validation.
+
+The Cloud Build configuration supplies the project, queue, target URL, OIDC audience, caller account,
+and Firebase project ID to Cloud Run. The checked-in Firebase project ID is deliberately
+`__not_configured__`; set `_FIREBASE_PROJECT_ID` to a Firebase-enabled project before deployment.
+Configure these Vercel `web` build variables from that Firebase project's Web App and Cloud Messaging
+settings: `VITE_FIREBASE_API_KEY`, `VITE_FIREBASE_AUTH_DOMAIN`, `VITE_FIREBASE_PROJECT_ID`,
+`VITE_FIREBASE_MESSAGING_SENDER_ID`, `VITE_FIREBASE_APP_ID`, and `VITE_FIREBASE_VAPID_KEY`. These
+values are public client configuration, not secrets; restrict the Firebase API key to the Workout
+origins. No permission is requested until the user explicitly enables alerts in Settings.
+
+After deploying the migration and API, create the independent minute-level recovery trigger. Cloud
+Tasks may execute slightly after a deadline, and this recovery trigger repairs a task-intent insert
+that could not reach Cloud Tasks. Its OIDC audience must match `CloudTasks__Audience`; use the same
+`workout-rest-task` identity so the internal endpoint accepts only this configured caller:
+
+```powershell
+$api = 'https://workout-api-i47taxhzba-as.a.run.app'
+gcloud scheduler jobs create http workout-rest-alert-recovery --project $project --location asia-southeast1 --schedule '* * * * *' --time-zone UTC --uri "$api/internal/rest-alerts/recover" --http-method POST --oidc-service-account "workout-rest-task@$project.iam.gserviceaccount.com" --oidc-token-audience $api --attempt-deadline 30s
+```
+
+For new builds, `_WORKOUT_API_ORIGIN` must be the Cloud Run service origin, without a trailing slash,
+and `_REST_TASK_SERVICE_ACCOUNT` must match the provisioned caller account. If any server or Vercel
+configuration is missing, Settings reports closed-app reminders unavailable; local timer, sound,
+and wake-lock behavior remain usable. Turning off account alerts or unregistering this device
+cancels unexpired task generations. A task already in flight or a push accepted by FCM cannot always
+be recalled, so the short expiry limits but does not eliminate stale notifications.
 
 Migrations are applied before deployment and `Database__MigrateOnStartup` stays `false`:
 

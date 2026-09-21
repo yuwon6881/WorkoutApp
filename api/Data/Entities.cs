@@ -204,6 +204,9 @@ public sealed class WorkoutSession : OwnedRecord
     public bool Active { get; set; } = true;
     public DateTime StartedAt { get; set; } = DateTime.UtcNow;
     public DateTime? FinishedAt { get; set; }
+    public DateTime? PausedAt { get; set; }
+    public long PausedSeconds { get; set; }
+    public DateTime? LastTimingEventAt { get; set; }
     public string BodyWeightSnapshotJson { get; set; } = "";
     public string NutritionContextJson { get; set; } = "";
     public long? NutritionContextRevision { get; set; }
@@ -375,6 +378,9 @@ public sealed class MutationReceipt
     public Guid UserId { get; set; }
     public Guid Id { get; set; }
     public DateTime Created { get; set; } = DateTime.UtcNow;
+    public string? Operation { get; set; }
+    public Guid? ResourceId { get; set; }
+    public string? RequestHash { get; set; }
 }
 
 /// Last confirmed Nutrition context. It is a fallback only; a stale row never becomes a zero or

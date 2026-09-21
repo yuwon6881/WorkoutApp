@@ -101,11 +101,10 @@ steps:
       - '--max-instances=1'
       - '--memory=2Gi'
       - '--cpu=1'
-      - '--no-cpu-throttling'
       - '--timeout=3600'
       - '--concurrency=1'
       - '--service-account=workout-api@$PROJECT_ID.iam.gserviceaccount.com'
-      - '--set-env-vars=PublicOrigin=${_PUBLIC_ORIGIN},Auth__MaxUsers=2,Database__MigrateOnStartup=false,Identity__Authority=${_FITNESS_ACCOUNT_AUTHORITY},Identity__Issuer=${_FITNESS_ACCOUNT_ISSUER},Identity__ClientId=workout-api,Identity__RedirectUri=${_WORKOUT_REDIRECT_URI},Identity__ReturnUrl=/,Identity__ConnectReturnUrl=/settings,Identity__WorkoutAudience=workout-api,Identity__NutritionAudience=nutrition-api,Integrations__NutritionTrainingContextUrl=${_NUTRITION_CONTEXT_URL},Integrations__KmsKeyName=projects/$PROJECT_ID/locations/asia-southeast1/keyRings/fitness/cryptoKeys/integration-tokens,OpenAi__Model=gpt-5.4-mini'
+      - '--set-env-vars=PublicOrigin=${_PUBLIC_ORIGIN},Auth__MaxUsers=2,Database__MigrateOnStartup=false,Identity__Authority=${_FITNESS_ACCOUNT_AUTHORITY},Identity__Issuer=${_FITNESS_ACCOUNT_ISSUER},Identity__ClientId=workout-api,Identity__RedirectUri=${_WORKOUT_REDIRECT_URI},Identity__ReturnUrl=/,Identity__ConnectReturnUrl=/settings,Identity__WorkoutAudience=workout-api,Identity__NutritionAudience=nutrition-api,Integrations__NutritionTrainingContextUrl=${_NUTRITION_CONTEXT_URL},Integrations__KmsKeyName=projects/$PROJECT_ID/locations/asia-southeast1/keyRings/fitness/cryptoKeys/integration-tokens,OpenAi__Model=gpt-5.4-mini,CloudTasks__ProjectId=$PROJECT_ID,CloudTasks__Location=asia-southeast1,CloudTasks__Queue=workout-rest-alerts,CloudTasks__TargetUrl=${_WORKOUT_API_ORIGIN}/internal/rest-alerts/dispatch,CloudTasks__CallerServiceAccountEmail=${_REST_TASK_SERVICE_ACCOUNT},CloudTasks__Audience=${_WORKOUT_API_ORIGIN},Fcm__ProjectId=${_FIREBASE_PROJECT_ID}'
       - '--set-secrets=ConnectionStrings__Database=workout-neon-database:${_WORKOUT_DATABASE_SECRET_VERSION},Identity__ClientSecret=fitness-workout-client-secret:latest,OpenAi__ApiKey=financialapp-openai-api-key:latest,Maintenance__Secret=workout-maintenance-secret:latest'
     id: Deploy
     waitFor:
@@ -118,6 +117,9 @@ substitutions:
   _FITNESS_ACCOUNT_ISSUER: 'https://fitness-account-i47taxhzba-as.a.run.app'
   _WORKOUT_REDIRECT_URI: 'https://workout-one-mocha.vercel.app/api/auth/central/callback'
   _NUTRITION_CONTEXT_URL: 'https://nutrition-api-396431756440.asia-southeast1.run.app/api/integrations/v1/training-context'
+  _WORKOUT_API_ORIGIN: 'https://workout-api-i47taxhzba-as.a.run.app'
+  _REST_TASK_SERVICE_ACCOUNT: 'workout-rest-task@project-7eb1aec8-8636-4c86-b2a.iam.gserviceaccount.com'
+  _FIREBASE_PROJECT_ID: '__not_configured__'
 
 options:
   logging: CLOUD_LOGGING_ONLY

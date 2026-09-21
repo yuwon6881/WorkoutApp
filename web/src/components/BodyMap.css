@@ -33,17 +33,25 @@
   max-height:470px;
   overflow:visible;
 }
+
+/* Background body contour — subtle fill behind muscles so gaps and
+   non-muscle areas (head, hands, feet) are still visible. */
 .body-map-silhouette{
   fill:var(--surface-raised);
   stroke:var(--border);
-  stroke-width:1.5;
+  stroke-width:0.8;
   stroke-linejoin:round;
   vector-effect:non-scaling-stroke;
 }
+
+/* Interactive muscle regions.  Untrained muscles get a lighter fill
+   with visible outlines so every muscle is distinct even at rest.
+   Trained muscles receive an accent-tinted fill whose depth reflects
+   how many sets that muscle accumulated. */
 .muscle-region{
   fill:color-mix(in srgb,var(--accent) var(--muscle-shade,16%),var(--surface-raised));
-  stroke:var(--border);
-  stroke-width:1.2;
+  stroke:var(--muscle-outline);
+  stroke-width:1.4;
   stroke-linejoin:round;
   vector-effect:non-scaling-stroke;
   cursor:pointer;
@@ -56,6 +64,18 @@
 .muscle-region.is-active{
   stroke:var(--accent);
   stroke-width:2.4;
+}
+
+/* Decorative anatomy detail lines (ab grid, spine) drawn on top of
+   muscle fills.  Non-interactive and invisible to assistive tech. */
+.muscle-anatomy-lines{
+  fill:none;
+  stroke:var(--border);
+  stroke-width:0.7;
+  stroke-linecap:round;
+  vector-effect:non-scaling-stroke;
+  pointer-events:none;
+  opacity:0.6;
 }
 
 /* A reserved row: the readout never adds or removes height while a muscle is pointed at. */

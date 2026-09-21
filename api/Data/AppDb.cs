@@ -33,6 +33,8 @@ public sealed class AppDb(DbContextOptions<AppDb> options) : DbContext(options)
     public DbSet<GoogleHealthConnection> GoogleHealthConnections => Set<GoogleHealthConnection>();
     public DbSet<GoogleHealthOAuthState> GoogleHealthOAuthStates => Set<GoogleHealthOAuthState>();
     public DbSet<GoogleHealthWorkoutSyncWork> GoogleHealthWorkoutSyncWork => Set<GoogleHealthWorkoutSyncWork>();
+    public DbSet<WorkoutPushDevice> WorkoutPushDevices => Set<WorkoutPushDevice>();
+    public DbSet<WorkoutRestAlertSchedule> WorkoutRestAlertSchedules => Set<WorkoutRestAlertSchedule>();
 
     protected override void OnModelCreating(ModelBuilder m)
     {
@@ -83,6 +85,7 @@ public sealed class AppDb(DbContextOptions<AppDb> options) : DbContext(options)
         Configure<TrainingProgram>(m); Configure<ProgramPhase>(m); Configure<ProgramSkip>(m); Configure<ProgramRun>(m);
         Configure<ProgramDayProgress>(m); Configure<WorkoutTemplate>(m); Configure<TemplateExercise>(m);
         Configure<WorkoutSession>(m); Configure<SessionExercise>(m); Configure<CompletedSet>(m); Configure<ExerciseSubstitution>(m); Configure<AiImport>(m);
+        m.Entity<WorkoutSession>().Property(x => x.PausedSeconds).HasDefaultValue(0L);
         Configure<ExerciseProgress>(m); Configure<ExerciseHistoryClear>(m); Configure<NutritionContextCache>(m); Configure<IntegrationGrant>(m);
         m.Entity<ExerciseHistoryClear>().HasIndex(x => new { x.UserId, x.ExerciseId, x.ClearedAt });
         m.Entity<ExerciseHistoryClear>().Property(x => x.NameSnapshot).HasMaxLength(160);
@@ -145,6 +148,8 @@ public sealed class AppDb(DbContextOptions<AppDb> options) : DbContext(options)
         m.Entity<MutationReceipt>().HasKey(x => new { x.UserId, x.Id });
         m.Entity<MutationReceipt>().HasQueryFilter(x => x.UserId == CurrentUser);
         m.Entity<MutationReceipt>().HasIndex(x => x.Created);
+        m.Entity<MutationReceipt>().Property(x => x.Operation).HasMaxLength(64);
+        m.Entity<MutationReceipt>().Property(x => x.RequestHash).HasMaxLength(64);
         m.Entity<MutationReceipt>().HasOne<AppUser>().WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
 
         Configure<GoogleHealthWorkoutSyncWork>(m);
@@ -161,6 +166,23 @@ public sealed class AppDb(DbContextOptions<AppDb> options) : DbContext(options)
         m.Entity<GoogleHealthOAuthState>().HasQueryFilter(x => x.UserId == CurrentUser);
         m.Entity<GoogleHealthOAuthState>().HasIndex(x => x.ExpiresAt);
         m.Entity<GoogleHealthOAuthState>().HasOne<AppUser>().WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
+
+        Configure<WorkoutPushDevice>(m);
+        m.Entity<WorkoutPushDevice>().Property(x => x.DeviceId).HasMaxLength(200);
+        m.Entity<WorkoutPushDevice>().Property(x => x.FcmToken).HasMaxLength(4096);
+        m.Entity<WorkoutPushDevice>().HasIndex(x => new { x.UserId, x.DeviceId }).IsUnique();
+        Configure<WorkoutRestAlertSchedule>(m);
+        m.Entity<WorkoutRestAlertSchedule>().Property(x => x.DeviceId).HasMaxLength(200);
+        // Store the full projects/.../tasks/... Cloud Tasks resource name for reliable cancellation.
+        m.Entity<WorkoutRestAlertSchedule>().Property(x => x.TaskName).HasMaxLength(512);
+        m.Entity<WorkoutRestAlertSchedule>().Property(x => x.Status).HasMaxLength(24);
+        m.Entity<WorkoutRestAlertSchedule>().HasIndex(x => new { x.UserId, x.SessionId, x.DeviceId, x.Generation }).IsUnique();
+        m.Entity<WorkoutRestAlertSchedule>().HasIndex(x => new { x.Status, x.ExpiresAt });
+        m.Entity<WorkoutRestAlertSchedule>().HasIndex(x => new { x.Status, x.CreatedAt });
+        m.Entity<WorkoutRestAlertSchedule>().HasOne<WorkoutSession>().WithMany()
+            .HasForeignKey(x => new { x.UserId, x.SessionId }).OnDelete(DeleteBehavior.Cascade);
+        m.Entity<WorkoutRestAlertSchedule>().ToTable("WorkoutRestAlertSchedules", t =>
+            t.HasCheckConstraint("CK_WorkoutRestAlertSchedules_Status", "\"Status\" IN ('pending','scheduled','dispatching','accepted','cancelled','disabled','expired','failed')"));
     }
 
     private void Configure<T>(ModelBuilder m) where T : OwnedRecord

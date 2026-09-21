@@ -130,9 +130,9 @@ for (const theme of ['dark', 'light']) {
       const headers = { 'X-Workout-Request': '1' };
       const response = await fetch('/api/workouts/active', { headers, cache: 'no-store' });
       const active = response.ok ? await response.json() : null;
-      if (!active) return false;
-      await fetch(`/api/workouts/${active.id}/discard`, { method: 'POST', headers });
-      return true;
+      if (active) await fetch(`/api/workouts/${active.id}/discard`, { method: 'POST', headers });
+      if ('indexedDB' in window) await new Promise(r => { const req = indexedDB.deleteDatabase('workout-recovery'); req.onsuccess = req.onerror = req.onblocked = r; });
+      return Boolean(active);
     });
     if (discarded) await page.reload();
 
@@ -245,6 +245,7 @@ for (const theme of ['dark', 'light']) {
     await page.getByRole('button', { name: 'Discard workout', exact: true }).click();
     // Wait for the discard to land: ending the test here would abort the request in flight and
     // leave an active workout behind for the next viewport to trip over.
+    await expect(page.locator('dialog[open]')).toHaveCount(0);
     await expect(resume).toBeHidden();
     expect(errors).toEqual([]);
   });

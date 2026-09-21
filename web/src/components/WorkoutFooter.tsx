@@ -6,16 +6,20 @@ import { Button } from './ui/Button';
 export function WorkoutFooter({
   remaining,
   totalSeconds,
+  restEndedAt,
   defaultRestSeconds,
   busy,
+  restDisabled = false,
   onDiscard,
   onMinimize,
   onFinish
 }: {
   remaining: number;
   totalSeconds: number;
+  restEndedAt: number | null;
   defaultRestSeconds?: number | null;
   busy: boolean;
+  restDisabled?: boolean;
   onDiscard: () => void;
   onMinimize: () => void;
   onFinish: () => void;
@@ -28,6 +32,7 @@ export function WorkoutFooter({
         <span className="rest-clock" role="timer" aria-live="off">
           {remaining > 0 ? `${showClock(remaining)} rest` : 'Rest timer'}
         </span>
+        {remaining === 0 && restEndedAt !== null && <span className="device-status" role="status">Rest ended at {new Date(restEndedAt).toLocaleTimeString()}</span>}
         {remaining > 0 && (
           <span className="rest-track" aria-hidden="true">
             <span
@@ -41,6 +46,7 @@ export function WorkoutFooter({
         )}
         <Button
           variant="tertiary"
+          disabled={busy || restDisabled}
           aria-label={
             remaining > 0
               ? 'Add 30 seconds of rest'
@@ -53,7 +59,7 @@ export function WorkoutFooter({
           +{remaining > 0 ? '30s' : `${defaultRest}s`}
         </Button>
         {remaining > 0 && (
-          <Button variant="tertiary" onClick={() => restTimer.skip()}>
+          <Button variant="tertiary" disabled={busy || restDisabled} onClick={() => restTimer.skip()}>
             Skip
           </Button>
         )}

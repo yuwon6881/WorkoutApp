@@ -25,7 +25,7 @@ function motionTiming(variable: string, fallback: number) {
 }
 type NavigationInput = 'keyboard' | 'pointer';
 let lastNavigationInput: NavigationInput = 'pointer';
-let modalityReset: ReturnType<typeof setTimeout> | undefined;
+let modalityReset: number | undefined;
 
 function useNavigationInput() {
   useEffect(() => {

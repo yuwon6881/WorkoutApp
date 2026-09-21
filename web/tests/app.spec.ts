@@ -13,15 +13,47 @@ const signIn = (page: Page) => auth(page, USER);
 /// Each viewport project shares one account, so a workout a previous project left open has to
 /// go before this one starts its own.
 async function clearActiveWorkout(page: Page) {
-  const discarded = await page.evaluate(async () => {
+  await page.evaluate(async () => {
     const headers = { 'X-Workout-Request': '1' };
     const response = await fetch('/api/workouts/active', { headers, cache: 'no-store' });
-    const active = response.ok ? await response.json() : null;
-    if (!active) return false;
-    await fetch(`/api/workouts/${active.id}/discard`, { method: 'POST', headers });
-    return true;
+    if (!response.ok) throw new Error('Could not check for an existing E2E workout.');
+    const active = await response.json();
+    if (active) {
+      const discarded = await fetch(`/api/workouts/${active.id}/discard`, { method: 'POST', headers });
+      if (!discarded.ok) throw new Error('Could not discard the previous E2E workout.');
+      const verified = await fetch('/api/workouts/active', { headers, cache: 'no-store' });
+      if (!verified.ok || await verified.json()) throw new Error('The previous E2E workout is still active.');
+    }
+
+    // E2E cleanup mutates the server directly, so remove the corresponding device snapshot too.
+    // This is fixture isolation; normal app flows always resolve recovery through the UI.
+    const bootstrap = await fetch('/api/bootstrap', { headers, cache: 'no-store' });
+    if (!bootstrap.ok) throw new Error('Could not load the E2E account for local cleanup.');
+    const { account } = await bootstrap.json();
+    const request = indexedDB.open('workout-recovery');
+    const db = await new Promise<IDBDatabase>((resolve, reject) => {
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error ?? new Error('Could not open E2E workout storage.'));
+    });
+    if (db.objectStoreNames.contains('active-sessions')) {
+      await new Promise<void>((resolve, reject) => {
+        const tx = db.transaction('active-sessions', 'readwrite');
+        tx.objectStore('active-sessions').delete(account.id);
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error ?? new Error('Could not clear E2E workout recovery.'));
+        tx.onabort = () => reject(tx.error ?? new Error('E2E workout recovery cleanup was interrupted.'));
+      });
+    }
+    db.close();
+    try {
+      localStorage.removeItem('workout.rest');
+      for (const key of Object.keys(localStorage))
+        if (key.startsWith(`workout.rest.v2:${account.id}:`)) localStorage.removeItem(key);
+    } catch { /* Test cleanup remains valid if the browser blocks optional timer storage. */ }
   });
-  if (discarded) await page.reload();
+  await page.reload();
+  await expect(page.getByRole('heading', { name: 'Overview', exact: true })).toBeVisible();
+  await expect(page.getByRole('dialog')).toBeHidden();
   await expect(page.getByRole('button', { name: /^Resume / })).toBeHidden();
 }
 
@@ -159,7 +191,9 @@ test('build a workout, log a set against the server, and see it in history', asy
 
   // The set came back from the server, not from this device: a reload proves it.
   await page.reload();
-  await page.getByRole('button', { name: `Resume ${name}`, exact: true }).click();
+  // Recovery opens the saved active workout directly after launch.
+  const activeLogger = page.getByRole('dialog', { name, exact: true });
+  await expect(activeLogger).toBeVisible();
   await expect(page.getByRole('spinbutton', { name: 'Barbell bench press set 1 weight', exact: true })).toHaveValue('60');
 
   // The rest is a deadline, not a count held in memory, so a reload finds it already lower
@@ -470,12 +504,16 @@ test('offline and server failures are reported instead of faked', async ({ page,
   await context.setOffline(true);
   await page.reload();
   // The shell still loads from the precache, but it must not pretend to have training data.
-  await expect(page.getByRole('heading', { name: /Could not reach the server|Loading your training/ })).toBeVisible({ timeout: 30000 });
+  await expect(page.getByRole('heading', { name: 'Could not reach the server', exact: true })).toBeVisible({ timeout: 30000 });
   expect(await page.evaluate(() => navigator.serviceWorker.controller !== null)).toBe(true);
-  expect(await page.evaluate(() => localStorage.length)).toBe(0);
+  const localEntries = await page.evaluate(() => Object.entries(localStorage));
+  expect(localEntries).toHaveLength(1); // Only the opaque per-device push identifier is kept here.
+  expect(localEntries[0][0]).toBe('workout.push-device.v1');
+  expect(localEntries[0][1]).toMatch(/^[a-f0-9-]{36}$/i);
 
   await context.setOffline(false);
-  await page.getByRole('button', { name: 'Try again', exact: true }).click();
+  // Returning online retries bootstrap automatically; the error screen can disappear before a
+  // manual retry click is scheduled.
   await expect(page.getByRole('heading', { name: 'Overview' })).toBeVisible({ timeout: 30000 });
 });
 

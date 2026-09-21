@@ -1,47 +1,68 @@
-import { cancelAlarm, primeAlarm, releaseAlarm, scheduleAlarm, soundNow } from './alarm';
+import { cancelAlarm, primeAlarm, releaseAlarm, scheduleAlarm, soundNow, testAlarmSound } from './alarm';
 
-/// The rest timer, kept as a deadline rather than a countdown. A phone that sleeps, a tab that
-/// is frozen, and a reload all stop JavaScript from counting, but none of them move a clock, so
-/// the remaining time is always recomputed from the deadline and is never wrong on return.
-///
-/// The deadline is the single thing written to the device. Training data is not: it belongs to
-/// the account and comes from the server.
-
-const STORAGE_KEY = 'workout.rest';
+/// Rest uses a deadline so its display stays accurate when the browser suspends the page. The
+/// local record is scoped to the signed-in account and active workout; it is never an authority
+/// for training data or a promise that an alarm can run after the browser kills the PWA.
+const LEGACY_STORAGE_KEY = 'workout.rest';
+const STORAGE_PREFIX = 'workout.rest.v2';
 
 export type RestState = {
-  /// Epoch milliseconds the rest ends, or 0 when no rest is running.
   endsAt: number;
-  /// How long this rest was set for, so the display can show progress through it.
   totalSeconds: number;
-  /// Set once the end has been announced, so a resume does not announce it twice.
   announced: boolean;
+  generation: string;
+  pausedRemainingMs: number;
 };
 
+export type RestTimerOptions = { notifications: boolean; sound: boolean; vibration: boolean; keepAwake: boolean };
 type Announcement = 'ended' | 'missed';
 
-const idle: RestState = { endsAt: 0, totalSeconds: 0, announced: true };
+const idle = (): RestState => ({ endsAt: 0, totalSeconds: 0, announced: true, generation: '', pausedRemainingMs: 0 });
+const defaults: RestTimerOptions = { notifications: false, sound: true, vibration: false, keepAwake: false };
 
 export class RestTimer {
-  private state: RestState = idle;
+  private state: RestState = idle();
   private listeners = new Set<(state: RestState) => void>();
   private timeout: ReturnType<typeof setTimeout> | null = null;
   private wakeLock: WakeLockSentinel | null = null;
-  private alerts = true;
-  private started = false;
+  private options: RestTimerOptions = defaults;
+  private accountId: string | null = null;
+  private sessionId: string | null = null;
+  private storageKey: string | null = null;
+  private workoutVisible = false;
 
   get current(): RestState { return this.state; }
-  get remainingMs(): number { return this.state.endsAt === 0 ? 0 : Math.max(0, this.state.endsAt - Date.now()); }
+  get remainingMs(): number {
+    return this.state.endsAt === 0 ? Math.max(0, this.state.pausedRemainingMs) : Math.max(0, this.state.endsAt - Date.now());
+  }
 
-  /// Picks up a rest that was running before a reload. Nothing sounds on restore: a deadline
-  /// that has already passed is reported as missed, not replayed as if it just happened.
-  attach(alerts: boolean): () => void {
-    this.alerts = alerts;
-    if (!this.started) {
-      this.started = true;
-      this.state = read() ?? idle;
-      if (this.state.endsAt > 0 && this.remainingMs === 0) this.state = { ...this.state, announced: true };
-    }
+  setScope(accountId: string | null, sessionId: string | null, options: RestTimerOptions = defaults): void {
+    const changed = accountId !== this.accountId || sessionId !== this.sessionId;
+    this.options = options;
+    if (!changed) { this.syncAlarm(); return; }
+    this.disarm();
+    void this.releaseScreen();
+    releaseAlarm();
+    this.accountId = accountId;
+    this.sessionId = sessionId;
+    this.storageKey = accountId && sessionId ? `${STORAGE_PREFIX}:${accountId}:${sessionId}` : null;
+    this.state = this.storageKey ? read(this.storageKey) ?? idle() : idle();
+    try { localStorage.removeItem(LEGACY_STORAGE_KEY); } catch { /* the old record is ignored */ }
+    if (this.state.endsAt > 0 && this.remainingMs === 0) this.state = { ...this.state, announced: true };
+    this.emit();
+    this.syncAlarm();
+  }
+
+  setOptions(options: RestTimerOptions): void { this.options = options; this.syncAlarm(); }
+
+  primeSound(): boolean { return this.options.sound && primeAlarm(); }
+
+  setWorkoutVisible(visible: boolean): void {
+    this.workoutVisible = visible;
+    this.syncAlarm();
+  }
+
+  attach(): () => void {
     const wake = () => { void this.resumed(); };
     document.addEventListener('visibilitychange', wake);
     window.addEventListener('focus', wake);
@@ -49,134 +70,191 @@ export class RestTimer {
     return () => { document.removeEventListener('visibilitychange', wake); window.removeEventListener('focus', wake); };
   }
 
-  setAlerts(alerts: boolean): void { this.alerts = alerts; }
-
   subscribe(listener: (state: RestState) => void): () => void {
     this.listeners.add(listener);
     return () => { this.listeners.delete(listener); };
   }
 
-  /// Starting or extending has to happen inside the tap that caused it: that gesture is the only
-  /// moment the browser will let the app open an audio session that can outlive the screen.
+  async claimBackgroundAlert(accountId: string, sessionId: string, generation: string): Promise<boolean> {
+    if (this.accountId !== accountId || this.sessionId !== sessionId || !isRestAlertOwner({
+      accountId: this.accountId,
+      sessionId: this.sessionId,
+      generation: this.state.generation,
+      endsAt: this.state.endsAt,
+      visible: document.visibilityState === 'visible'
+    }, { sessionId, generation })) return false;
+    if (!this.state.announced) await this.announce('ended');
+    return true;
+  }
+
   start(seconds: number): void {
     if (seconds <= 0) { this.skip(); return; }
-    primeAlarm();
-    this.write({ endsAt: Date.now() + seconds * 1000, totalSeconds: seconds, announced: false });
+    if (this.options.sound) primeAlarm();
+    this.write({ endsAt: Date.now() + seconds * 1000, totalSeconds: seconds, announced: false, generation: newGeneration(), pausedRemainingMs: 0 });
     this.arm();
   }
 
   extend(seconds: number): void {
+    if (seconds <= 0) return;
+    if (this.options.sound) primeAlarm();
+    if (this.state.endsAt === 0 && this.state.pausedRemainingMs > 0) {
+      this.write({ ...this.state, totalSeconds: this.state.totalSeconds + seconds, pausedRemainingMs: this.state.pausedRemainingMs + seconds * 1000, generation: newGeneration(), announced: false });
+      return;
+    }
     const from = Math.max(Date.now(), this.state.endsAt);
-    primeAlarm();
-    this.write({ endsAt: from + seconds * 1000, totalSeconds: this.state.totalSeconds + seconds, announced: false });
+    const totalSeconds = this.state.totalSeconds + seconds;
+    this.write({ endsAt: from + seconds * 1000, totalSeconds, announced: false, generation: newGeneration(), pausedRemainingMs: 0 });
+    this.arm();
+  }
+
+  pause(): void {
+    if (this.state.endsAt <= 0) return;
+    const remaining = this.remainingMs;
+    this.disarm();
+    this.write({ ...this.state, endsAt: 0, pausedRemainingMs: remaining, announced: false, generation: newGeneration() });
+  }
+
+  resume(): void {
+    if (this.state.pausedRemainingMs <= 0) return;
+    const remaining = this.state.pausedRemainingMs;
+    this.write({ ...this.state, endsAt: Date.now() + remaining, pausedRemainingMs: 0, announced: false, generation: newGeneration() });
     this.arm();
   }
 
   skip(): void {
     this.disarm();
     releaseAlarm();
-    this.write(idle);
+    this.write(idle());
   }
 
-  /// Everything that can fire the end is set up here, because no single one of them is reliable
-  /// on a phone: the tone is queued on the audio clock, the notification on a JavaScript timer,
-  /// and the screen is held awake so that in the ordinary case neither is needed.
+  private syncAlarm(): void {
+    if (this.remainingMs > 0 && this.state.endsAt > 0) this.arm();
+    else {
+      this.disarm();
+      if (this.shouldHoldScreen()) void this.holdScreen();
+    }
+  }
+
   private arm(): void {
     this.disarm();
-    if (this.remainingMs <= 0) return;
-    if (this.alerts) scheduleAlarm(this.state.endsAt);
+    if (this.remainingMs <= 0 || this.state.endsAt === 0) return;
+    if (this.options.sound) scheduleAlarm(this.state.endsAt);
     this.timeout = setTimeout(() => { void this.announce('ended'); }, this.remainingMs);
-    void this.holdScreen();
+    if (this.shouldHoldScreen()) void this.holdScreen();
   }
 
   private disarm(): void {
     if (this.timeout !== null) { clearTimeout(this.timeout); this.timeout = null; }
     cancelAlarm();
-    void this.releaseScreen();
+    if (!this.shouldHoldScreen()) void this.releaseScreen();
   }
 
-  /// A rest that ends while the user is looking at their phone should not have needed a sound at
-  /// all, so the screen is held awake for its duration and released the moment it is over.
+  private shouldHoldScreen(): boolean {
+    return this.options.keepAwake && this.workoutVisible && document.visibilityState === 'visible';
+  }
+
   private async holdScreen(): Promise<void> {
-    if (this.wakeLock || !('wakeLock' in navigator)) return;
+    if (!this.shouldHoldScreen() || this.wakeLock || !('wakeLock' in navigator)) return;
     try {
       this.wakeLock = await navigator.wakeLock.request('screen');
-      this.wakeLock.addEventListener('release', () => { this.wakeLock = null; });
+      this.wakeLock.addEventListener('release', () => {
+        this.wakeLock = null;
+        if (this.shouldHoldScreen()) void this.holdScreen();
+      }, { once: true });
     } catch { this.wakeLock = null; }
   }
 
   private async releaseScreen(): Promise<void> {
     const held = this.wakeLock;
     this.wakeLock = null;
-    if (held) { try { await held.release(); } catch { /* already gone */ } }
+    if (held) { try { await held.release(); } catch { /* already released by the browser */ } }
   }
 
-  /// Coming back from a locked screen or a frozen tab. The wake lock is not restored by the
-  /// browser, and a deadline may have passed unheard, so both are settled here.
   private async resumed(): Promise<void> {
-    if (document.visibilityState !== 'visible') return;
-    if (this.remainingMs > 0) { await this.holdScreen(); return; }
+    if (document.visibilityState !== 'visible') { if (this.wakeLock) await this.releaseScreen(); return; }
+    if (this.shouldHoldScreen()) await this.holdScreen();
+    if (this.remainingMs > 0 && this.state.endsAt > 0) { this.arm(); return; }
     if (this.state.endsAt > 0 && !this.state.announced) await this.announce('missed');
   }
 
   private async announce(kind: Announcement): Promise<void> {
     if (this.state.endsAt === 0 || this.state.announced) return;
     const late = Math.round((Date.now() - this.state.endsAt) / 1000);
-    this.write({ ...this.state, announced: true });
-    void this.releaseScreen();
-    if (!this.alerts) return;
-    // The scheduled tone already played for an 'ended'; a missed one never got the chance.
-    if (kind === 'missed') soundNow();
-    if (navigator.vibrate) { try { navigator.vibrate([200, 100, 200]); } catch { /* unsupported */ } }
-    await notify(kind === 'missed' && late > 5
-      ? { title: 'Rest is over', body: `Your rest finished ${showLate(late)} ago.` }
-      : { title: 'Rest is over', body: 'Back to the bar for your next set.' });
+    const state = this.state;
+    this.write({ ...state, announced: true });
+    if (this.shouldHoldScreen()) void this.holdScreen();
+    else void this.releaseScreen();
+    if (this.options.sound && kind === 'missed') soundNow();
+    if (this.options.vibration && navigator.vibrate) { try { navigator.vibrate([200, 100, 200]); } catch { /* unsupported */ } }
+    if (this.options.notifications) await notify({ lateSeconds: late, sessionId: this.sessionId });
   }
 
   private write(state: RestState): void {
     this.state = state;
     try {
-      if (state.endsAt === 0) localStorage.removeItem(STORAGE_KEY);
-      else localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-    } catch { /* private mode, or storage is full: the timer still runs for this page */ }
-    for (const listener of this.listeners) listener(state);
+      if (!this.storageKey || state.endsAt === 0 && state.pausedRemainingMs === 0) {
+        if (this.storageKey) localStorage.removeItem(this.storageKey);
+      } else localStorage.setItem(this.storageKey, JSON.stringify(state));
+    } catch { /* local timer continues in this page; next launch may not recover it */ }
+    this.emit();
   }
+
+  private emit(): void { for (const listener of this.listeners) listener(this.state); }
 }
 
-function read(): RestState | null {
+function read(key: string): RestState | null {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = localStorage.getItem(key);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as Partial<RestState>;
     if (typeof parsed.endsAt !== 'number' || !Number.isFinite(parsed.endsAt)) return null;
-    return { endsAt: parsed.endsAt, totalSeconds: Number(parsed.totalSeconds) || 0, announced: parsed.announced === true };
+    return {
+      endsAt: parsed.endsAt,
+      totalSeconds: Number(parsed.totalSeconds) || 0,
+      announced: parsed.announced === true,
+      generation: typeof parsed.generation === 'string' ? parsed.generation : newGeneration(),
+      pausedRemainingMs: Number(parsed.pausedRemainingMs) || 0
+    };
   } catch { return null; }
 }
 
-const showLate = (seconds: number): string =>
-  seconds < 60 ? `${seconds} seconds` : `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
+function newGeneration(): string {
+  try { return crypto.randomUUID(); } catch { return `${Date.now()}-${Math.random().toString(16).slice(2)}`; }
+}
 
-/// Android forbids page-constructed notifications, so the service worker raises it where one is
-/// running and the page falls back only when it is allowed to.
-async function notify(message: { title: string; body: string }): Promise<void> {
+async function notify(message: { lateSeconds: number; sessionId: string | null }): Promise<void> {
   if (!('Notification' in window) || Notification.permission !== 'granted') return;
+  const data = message.sessionId ? { sessionId: message.sessionId, url: `/?workout=${encodeURIComponent(message.sessionId)}` } : undefined;
+  const body = message.lateSeconds > 5 ? `Your rest ended ${showLate(message.lateSeconds)} ago.` : 'Your rest is over.';
   const options: NotificationOptions = {
-    body: message.body, icon: '/icon-192.png', badge: '/icon-192.png',
-    tag: 'workout-rest', renotify: true, requireInteraction: false
+    body, icon: '/icon-192.png', badge: '/icon-192.png', tag: `workout-rest-${message.sessionId ?? 'active'}`,
+    renotify: true, requireInteraction: false, data
   } as NotificationOptions;
   try {
     const registration = await navigator.serviceWorker?.getRegistration();
-    if (registration) { await registration.showNotification(message.title, options); return; }
-    new Notification(message.title, options);
-  } catch { /* the sound and the screen already did their job */ }
+    if (registration) { await registration.showNotification('Rest timer', options); return; }
+    new Notification('Rest timer', options);
+  } catch { /* visible timer and sound remain available */ }
 }
 
-/// Asking has to come from a tap, and the answer is final: a denial is reported honestly rather
-/// than retried on every rest.
+function showLate(seconds: number): string {
+  return seconds < 60 ? `${seconds} seconds` : `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
+}
+
+export function isRestAlertOwner(
+  owner: { accountId: string | null; sessionId: string | null; generation: string; endsAt: number; visible: boolean },
+  alert: { sessionId: string; generation: string },
+  now = Date.now()
+): boolean {
+  return owner.visible && Boolean(owner.accountId) && owner.sessionId === alert.sessionId &&
+    owner.generation === alert.generation && owner.endsAt > 0 && owner.endsAt <= now;
+}
+
 export async function requestRestAlerts(): Promise<NotificationPermission> {
   if (!('Notification' in window)) return 'denied';
   if (Notification.permission !== 'default') return Notification.permission;
   try { return await Notification.requestPermission(); } catch { return 'denied'; }
 }
 
+export { testAlarmSound };
 export const restTimer = new RestTimer();

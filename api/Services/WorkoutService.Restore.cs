@@ -45,10 +45,17 @@ public sealed partial class WorkoutService
 
     public async Task<SessionView> RestoreExercise(Guid id, SessionExerciseRestoreInput input, CancellationToken ct)
     {
+        var requestHash = Fingerprint(input);
         await using var gate = await MutationLock.Acquire(db, db.CurrentUser, ct);
         var session = await db.Workouts.SingleOrDefaultAsync(w => w.Id == id, ct);
         Validation.Require(session != null, "That workout no longer exists.", 404);
         var targetSession = session!;
+        var replay = await ReplayWorkoutMutation(id, input.IdempotencyId, "workout.exercise.restore", requestHash, ct);
+        if (replay is not null)
+        {
+            await gate.Commit(ct);
+            return replay;
+        }
         Validation.Require(targetSession.Active, "This workout is already saved to your history.", 409);
         TemplateService.RequireFresh(input.Revision, targetSession.Revision);
 
@@ -114,7 +121,7 @@ public sealed partial class WorkoutService
         db.ExerciseSubstitutions.RemoveRange(pendingSubs);
 
         targetSession.Revision++;
-        await templates.Receipt(input.IdempotencyId, ct);
+        await RecordWorkoutMutation(input.IdempotencyId, id, "workout.exercise.restore", requestHash, ct);
         await db.SaveChangesAsync(ct);
         await gate.Commit(ct);
         return await Get(id, ct);

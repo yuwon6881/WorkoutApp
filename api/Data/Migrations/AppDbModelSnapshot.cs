@@ -868,6 +868,17 @@ namespace Workout.Api.Data.Migrations
                     b.Property<DateTime>("Created")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<string>("Operation")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("RequestHash")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<Guid?>("ResourceId")
+                        .HasColumnType("uuid");
+
                     b.HasKey("UserId", "Id");
 
                     b.HasIndex("Created");
@@ -1269,6 +1280,105 @@ namespace Workout.Api.Data.Migrations
                         });
                 });
 
+            modelBuilder.Entity("Workout.Api.Data.WorkoutPushDevice", b =>
+                {
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("DeviceId")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("FcmToken")
+                        .IsRequired()
+                        .HasMaxLength(4096)
+                        .HasColumnType("character varying(4096)");
+
+                    b.Property<int>("Revision")
+                        .IsConcurrencyToken()
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("UserId", "Id");
+
+                    b.HasIndex("UserId", "DeviceId")
+                        .IsUnique();
+
+                    b.ToTable("WorkoutPushDevices");
+                });
+
+            modelBuilder.Entity("Workout.Api.Data.WorkoutRestAlertSchedule", b =>
+                {
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("AcceptedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("Deadline")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("DeviceId")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<DateTime>("ExpiresAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("Generation")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("LeaseUntil")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("Revision")
+                        .IsConcurrencyToken()
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("SessionId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(24)
+                        .HasColumnType("character varying(24)");
+
+                    b.Property<string>("TaskName")
+                        .IsRequired()
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("UserId", "Id");
+
+                    b.HasIndex("Status", "CreatedAt");
+
+                    b.HasIndex("Status", "ExpiresAt");
+
+                    b.HasIndex("UserId", "SessionId", "DeviceId", "Generation")
+                        .IsUnique();
+
+                    b.ToTable("WorkoutRestAlertSchedules", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_WorkoutRestAlertSchedules_Status", "\"Status\" IN ('pending','scheduled','dispatching','accepted','cancelled','disabled','expired','failed')");
+                        });
+                });
+
             modelBuilder.Entity("Workout.Api.Data.WorkoutSession", b =>
                 {
                     b.Property<Guid>("UserId")
@@ -1287,6 +1397,9 @@ namespace Workout.Api.Data.Migrations
                     b.Property<DateTime?>("FinishedAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<DateTime?>("LastTimingEventAt")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasColumnType("text");
@@ -1301,6 +1414,14 @@ namespace Workout.Api.Data.Migrations
 
                     b.Property<long?>("NutritionContextRevision")
                         .HasColumnType("bigint");
+
+                    b.Property<DateTime?>("PausedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<long>("PausedSeconds")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasDefaultValue(0L);
 
                     b.Property<Guid?>("ProgramDayProgressId")
                         .HasColumnType("uuid");
@@ -1595,6 +1716,30 @@ namespace Workout.Api.Data.Migrations
                     b.HasOne("Workout.Api.Data.AppUser", null)
                         .WithMany()
                         .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Workout.Api.Data.WorkoutPushDevice", b =>
+                {
+                    b.HasOne("Workout.Api.Data.AppUser", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Workout.Api.Data.WorkoutRestAlertSchedule", b =>
+                {
+                    b.HasOne("Workout.Api.Data.AppUser", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Workout.Api.Data.WorkoutSession", null)
+                        .WithMany()
+                        .HasForeignKey("UserId", "SessionId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });

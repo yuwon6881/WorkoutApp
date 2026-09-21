@@ -9,6 +9,7 @@ using Workout.Api.Domain;
 using Workout.Api.Endpoints;
 using Workout.Api.Services;
 using OpenIddict.Validation.AspNetCore;
+using Workout.Api.Services.RestAlerts;
 
 var builder=WebApplication.CreateBuilder(args);
 if(int.TryParse(Environment.GetEnvironmentVariable("PORT"),out var cloudRunPort))builder.WebHost.UseUrls($"http://0.0.0.0:{cloudRunPort}");
@@ -56,6 +57,11 @@ builder.Services.AddHttpClient<GoogleHealthService>(c => c.Timeout = TimeSpan.Fr
 builder.Services.AddHttpClient<GoogleHealthWorkoutSyncService>(c => c.Timeout = TimeSpan.FromSeconds(30)).AddHttpMessageHandler<ExternalCallMetricsHandler>();
 builder.Services.AddScoped<IntegrationTokenService>();
 builder.Services.AddScoped<WorkoutService>();
+builder.Services.AddSingleton<IGoogleAccessTokenProvider, GoogleAdcAccessTokenProvider>();
+builder.Services.AddHttpClient<IWorkoutPushSender, WorkoutFcmPushSender>(c => c.Timeout = TimeSpan.FromSeconds(15));
+builder.Services.AddHttpClient<IWorkoutRestTaskQueue, CloudTasksRestAlertQueue>(c => c.Timeout = TimeSpan.FromSeconds(10));
+builder.Services.AddSingleton<ICloudTaskTokenValidator, GoogleCloudTaskTokenValidator>();
+builder.Services.AddScoped<WorkoutRestAlertService>();
 builder.Services.AddScoped<ImportService>();
 builder.Services.AddSingleton<ImportRunner>();
 builder.Services.AddHostedService<ImportCleanupWorker>();
@@ -151,7 +157,7 @@ app.Use(async(http,next)=>
 });
 app.UseRateLimiter();
 app.UseDefaultFiles();app.UseStaticFiles(new StaticFileOptions { OnPrepareResponse=c=> { if(c.File.Name=="sw.js"||c.File.Name=="index.html") c.Context.Response.Headers.CacheControl="no-cache"; } });
-app.MapAuth();app.MapCentralAuth();app.MapBootstrap();app.MapRevisions();app.MapCatalog();app.MapTemplates();app.MapPrograms();app.MapProgramEditor();app.MapWorkouts();app.MapImports();app.MapIntegrations();app.MapGoogleHealth();
+app.MapAuth();app.MapCentralAuth();app.MapBootstrap();app.MapRevisions();app.MapCatalog();app.MapTemplates();app.MapPrograms();app.MapProgramEditor();app.MapWorkouts();app.MapImports();app.MapIntegrations();app.MapGoogleHealth();app.MapRestAlerts();
 app.MapGet("/health",()=>new { status="ok" });
 app.MapFallback(async http=>
 {

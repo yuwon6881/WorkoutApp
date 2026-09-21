@@ -83,6 +83,15 @@ export const api = {
     return call<WorkoutActivityItem[]>(`/api/workouts/activity?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}&timeZone=${encodeURIComponent(timeZone)}`, 'GET', undefined, sig);
   },
   preferences: (input: Preferences) => call<Preferences>('/api/preferences', 'PUT', input),
+  restAlertStatus: (deviceId: string, sessionId?: string) => call<{ configured: boolean; registered: boolean; currentGeneration: string | null; message: string }>(
+    `/api/notifications/rest-alerts?deviceId=${encodeURIComponent(deviceId)}${sessionId ? `&sessionId=${encodeURIComponent(sessionId)}` : ''}`),
+  registerRestAlertDevice: (deviceId: string, fcmToken: string) => call<{ configured: boolean; registered: boolean; currentGeneration: string | null; message: string }>(
+    '/api/notifications/rest-alerts/subscription', 'POST', { deviceId, fcmToken }),
+  unregisterRestAlertDevice: (deviceId: string) => call<void>(`/api/notifications/rest-alerts/subscription/${encodeURIComponent(deviceId)}`, 'DELETE'),
+  scheduleRestAlert: (sessionId: string, input: { deviceId: string; generation: string; deadline: string; expectedGeneration: string | null }) =>
+    call<{ scheduled: boolean; generation: string | null; message: string }>(`/api/workouts/${encodeURIComponent(sessionId)}/rest-alert`, 'POST', input),
+  cancelRestAlert: (sessionId: string, input: { deviceId: string; generation: string }) =>
+    call<void>(`/api/workouts/${encodeURIComponent(sessionId)}/rest-alert`, 'DELETE', input),
   substitutionCandidates: (input: { exerciseId?: string | null; name?: string; imported?: string[]; query?: string } = {}) => {
     const params = new URLSearchParams(); if (input.exerciseId) params.set('exerciseId', input.exerciseId); if (input.name) params.set('name', input.name);
     if (input.imported?.length) params.set('imported', input.imported.join('|')); if (input.query) params.set('q', input.query);
@@ -120,10 +129,12 @@ export const api = {
   getWorkout: (id: string) => call<Session>(`/api/workouts/${id}`),
   startWorkout: (templateId: string | null, name?: string) => call<Session>('/api/workouts', 'POST', { templateId, name }),
   saveWorkout: (id: string, input: unknown) => call<Session>(`/api/workouts/${id}`, 'PUT', input),
-  patchWorkoutSet: (sessionId: string, setId: string, input: unknown) => call<Session>(`/api/workouts/${sessionId}/sets/${setId}`, 'PATCH', input),
+  patchWorkoutSet: (sessionId: string, setId: string, input: { revision: number; mutationId: string; weightKg?: number | null; reps?: number | null; rpe?: number | null; done?: boolean; warmup?: boolean; resistanceMode?: string }) => call<Session>(`/api/workouts/${sessionId}/sets/${setId}`, 'PATCH', input),
   substituteSessionExercise: (id: string, input: { sessionExerciseId: string; replacementExerciseId?: string | null; replacementName: string; revision?: number; idempotencyId?: string }) => call<Session>(`/api/workouts/${id}/substitution`, 'POST', input),
   restoreSessionExercise: (id: string, input: { sessionExerciseId: string; revision?: number; idempotencyId?: string }) => call<Session>(`/api/workouts/${id}/exercises/${input.sessionExerciseId}/restore`, 'POST', input),
-  finishWorkout: (id: string, revision: number, retainExerciseSwaps = false) => call<Session>(`/api/workouts/${id}/finish`, 'POST', { revision, retainExerciseSwaps }),
+  pauseWorkout: (id: string, input: { revision: number; mutationId: string; occurredAt: string }) => call<Session>(`/api/workouts/${id}/pause`, 'POST', input),
+  resumeWorkout: (id: string, input: { revision: number; mutationId: string; occurredAt: string }) => call<Session>(`/api/workouts/${id}/resume`, 'POST', input),
+  finishWorkout: (id: string, input: { revision: number; retainExerciseSwaps?: boolean; mutationId?: string; finishedAt?: string }) => call<Session>(`/api/workouts/${id}/finish`, 'POST', input),
   discardWorkout: (id: string) => call<void>(`/api/workouts/${id}/discard`, 'POST'),
   deleteWorkout: (id: string) => call<void>(`/api/workouts/${id}`, 'DELETE'),
   history: (page: number, size = 20, signal?: AbortSignal) => call<HistoryPage>(`/api/history?page=${page}&size=${size}`, 'GET', undefined, signal),

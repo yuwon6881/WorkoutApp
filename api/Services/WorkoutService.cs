@@ -21,7 +21,7 @@ public record SessionExerciseView(Guid Id, Guid? ExerciseId, string Name, int Po
 public record SessionView(Guid Id, Guid? TemplateId, Guid? ProgramId, string Name, string Note, bool Active, DateTime StartedAt, DateTime? FinishedAt, int Revision,
     List<SessionExerciseView> Exercises, double? VolumeKg, int CompletedSets, int WarmupSets = 0,
     BodyWeightSnapshot? BodyWeight = null, NutritionTrainingContext? NutritionContext = null,
-    double? SystemVolumeKg = null);
+    double? SystemVolumeKg = null, DateTime? PausedAt = null, long PausedSeconds = 0);
 
 public sealed record WorkoutActivityItem(Guid Id, string Name, string Status, DateOnly Date);
 
@@ -116,7 +116,7 @@ public sealed partial class WorkoutService(
             }).ToList(),
             external.Count == 0 ? null : external.Sum(s => s.WeightKg!.Value * s.Reps!.Value),
             workingDone.Count, warmupDone.Count, bodyWeight, context,
-            system.Count == 0 ? null : system.Sum(s => s.SystemLoadKg!.Value * s.Reps!.Value));
+            system.Count == 0 ? null : system.Sum(s => s.SystemLoadKg!.Value * s.Reps!.Value), session.PausedAt, session.PausedSeconds);
     }
 
     /// Start-time snapshots are the contract: all set suggestions and Nutrition context are made
@@ -335,6 +335,18 @@ public sealed partial class WorkoutService(
 
     public async Task<SessionView> Save(Guid id, SessionInput input, CancellationToken ct)
     {
+        var requestHash = Fingerprint(input);
+        await using var gate = await MutationLock.Acquire(db, db.CurrentUser, ct);
+        var session = await db.Workouts.SingleOrDefaultAsync(w => w.Id == id, ct);
+        Validation.Require(session != null, "That workout no longer exists.", 404);
+        var sessionRow = session!;
+        var replay = await ReplayWorkoutMutation(id, input.IdempotencyId, "workout.save", requestHash, ct);
+        if (replay is not null)
+        {
+            await gate.Commit(ct);
+            return replay;
+        }
+
         Validation.Text(input.Note, 4000, "Workout notes");
         Validation.Require(input.Exercises is { Count: <= 40 }, "A workout can have at most 40 exercises.");
         foreach (var exercise in input.Exercises)
@@ -352,10 +364,6 @@ public sealed partial class WorkoutService(
             await catalog.RequireActive(exercise.ExerciseId, ct);
         }
 
-        await using var gate = await MutationLock.Acquire(db, db.CurrentUser, ct);
-        var session = await db.Workouts.SingleOrDefaultAsync(w => w.Id == id, ct);
-        Validation.Require(session != null, "That workout no longer exists.", 404);
-        var sessionRow = session!;
         Validation.Require(sessionRow.Active, "This workout is already saved to your history.", 409);
         TemplateService.RequireFresh(input.Revision, sessionRow.Revision);
         sessionRow.Note = input.Note?.Trim() ?? ""; sessionRow.Revision++;
@@ -425,7 +433,7 @@ public sealed partial class WorkoutService(
         }
         db.Sets.RemoveRange(oldSets.Where(set => !usedSets.Contains(set.Id)));
         db.SessionExercises.RemoveRange(existing.Where(exercise => !usedExercises.Contains(exercise.Id)));
-        await templates.Receipt(input.IdempotencyId, ct);
+        await RecordWorkoutMutation(input.IdempotencyId, id, "workout.save", requestHash, ct);
         await db.SaveChangesAsync(ct);
         await gate.Commit(ct);
         return await Get(id, ct);
@@ -436,14 +444,21 @@ public sealed partial class WorkoutService(
     /// the UI can therefore render one logical slot with an original and a continuation.
     public async Task<SessionView> Swap(Guid id, SessionSubstitutionInput input, CancellationToken ct)
     {
-        Validation.Name(input.ReplacementName, "Replacement exercise", 160);
-        await catalog.RequireActive(input.ReplacementExerciseId, ct);
+        var requestHash = Fingerprint(input);
         await using var gate = await MutationLock.Acquire(db, db.CurrentUser, ct);
         var session = await db.Workouts.SingleOrDefaultAsync(w => w.Id == id, ct);
         Validation.Require(session != null, "That workout no longer exists.", 404);
         var swapSession = session!;
+        var replay = await ReplayWorkoutMutation(id, input.IdempotencyId, "workout.exercise.substitute", requestHash, ct);
+        if (replay is not null)
+        {
+            await gate.Commit(ct);
+            return replay;
+        }
         Validation.Require(swapSession.Active, "This workout is already saved to your history.", 409);
         TemplateService.RequireFresh(input.Revision, swapSession.Revision);
+        Validation.Name(input.ReplacementName, "Replacement exercise", 160);
+        await catalog.RequireActive(input.ReplacementExerciseId, ct);
         var source = await db.SessionExercises.SingleOrDefaultAsync(e => e.Id == input.SessionExerciseId && e.SessionId == id, ct);
         Validation.Require(source != null, "That exercise is no longer in this workout.", 404);
         var sourceRow = source!;
@@ -474,7 +489,7 @@ public sealed partial class WorkoutService(
             Scope = sourceRow.SourcePhaseId is null ? "slot" : "phase", PendingRetention = sourceRow.SourcePhaseId is not null
         });
         swapSession.Revision++;
-        await templates.Receipt(input.IdempotencyId, ct);
+        await RecordWorkoutMutation(input.IdempotencyId, id, "workout.exercise.substitute", requestHash, ct);
         await db.SaveChangesAsync(ct); await gate.Commit(ct);
         return await Get(id, ct);
     }
@@ -514,13 +529,28 @@ public sealed partial class WorkoutService(
     }
 
     /// Finishing keeps only completed sets, so an untouched suggestion never becomes history.
-    public async Task<SessionView> Finish(Guid id, int? revision, CancellationToken ct, bool retainExerciseSwaps = false)
+    public async Task<SessionView> Finish(Guid id, int? revision, CancellationToken ct, bool retainExerciseSwaps = false,
+        Guid? mutationId = null, DateTimeOffset? finishedAt = null)
     {
         await using var gate = await MutationLock.Acquire(db, db.CurrentUser, ct);
         var session = await db.Workouts.SingleOrDefaultAsync(w => w.Id == id, ct);
         Validation.Require(session != null, "That workout no longer exists.", 404);
+        var finishRequest = new FinishMutation(revision, retainExerciseSwaps, finishedAt?.ToUniversalTime());
+        var requestHash = Fingerprint(finishRequest);
+        var replay = await ReplayWorkoutMutation(id, mutationId, "workout.finish", requestHash, ct);
+        if (replay is not null)
+        {
+            await gate.Commit(ct);
+            return replay;
+        }
         Validation.Require(session!.Active, "This workout is already saved to your history.", 409);
+        Validation.Require(mutationId is null || mutationId != Guid.Empty, "The mutation identity is invalid.");
+        Validation.Require(finishedAt is null || mutationId is not null,
+            "A client-provided finish time requires an operation identity.");
         TemplateService.RequireFresh(revision, session.Revision);
+        var completedAt = ResolveFinishedAt(session, finishedAt);
+        Validation.Require(session.LastTimingEventAt is null || completedAt >= session.LastTimingEventAt,
+            "The finish time must follow the last pause or resume.", 409);
         var exercises = await db.SessionExercises.Where(e => e.SessionId == id).ToListAsync(ct);
         var ids = exercises.Select(e => e.Id).ToList();
         var sets = await db.Sets.Where(s => ids.Contains(s.SessionExerciseId)).ToListAsync(ct);
@@ -543,7 +573,14 @@ public sealed partial class WorkoutService(
             sets.Where(s => s.SessionExerciseId == e.Id && s.Done && !s.Warmup).OrderBy(s => s.Position)
                 .Select(s => new PreviousSet(e.LoadModel == LoadModels.FullBodyweight ? s.SystemLoadKg : s.WeightKg, s.Reps, s.Rpe)).ToList())).ToList(), ct);
 
-        session.Active = false; session.FinishedAt = DateTime.UtcNow; session.Revision++;
+        if (session.PausedAt is { } pauseStart)
+        {
+            Validation.Require(completedAt >= pauseStart, "The finish time must follow the pause start.", 409);
+            session.PausedSeconds += (long)Math.Round((completedAt - pauseStart).TotalSeconds, MidpointRounding.AwayFromZero);
+            session.PausedAt = null;
+        }
+        session.Active = false; session.FinishedAt = completedAt; session.LastTimingEventAt = completedAt; session.Revision++;
+        await RecordWorkoutMutation(mutationId, id, "workout.finish", requestHash, ct);
         await db.SaveChangesAsync(ct);
         if (session.ProgramId is not null) await programs.CompleteWorkout(session, ct);
         if (workoutSync is not null) await workoutSync.QueueWorkoutAsync(id, isDelete: false, ct);

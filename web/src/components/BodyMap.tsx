@@ -2,7 +2,10 @@ import type { CSSProperties } from 'react';
 import type { MuscleBalanceRow } from '../types';
 import { formatSets, shadeFor } from '../lib/muscleBalance';
 import './BodyMap.css';
-import { BACK_REGIONS, BODY_MAP_SILHOUETTE, BODY_MAP_VIEW_BOX, FRONT_REGIONS } from './bodyMapPaths';
+import {
+  BACK_ANATOMY_LINES, BACK_REGIONS, BODY_MAP_SILHOUETTE, BODY_MAP_VIEW_BOX,
+  FRONT_ANATOMY_LINES, FRONT_REGIONS
+} from './bodyMapPaths';
 
 type BodyMapProps = {
   muscles: MuscleBalanceRow[];
@@ -15,7 +18,7 @@ type BodyMapProps = {
 /// The fill is one accent hue at a depth proportional to the muscle's share of the busiest muscle,
 /// so a deeper region simply means more credited sets.
 function fillStyle(shade: number): CSSProperties {
-  const depth = Math.round(16 + 74 * shade);
+  const depth = Math.round(25 + 65 * shade);
   return { '--muscle-shade': `${depth}%` } as CSSProperties;
 }
 
@@ -34,9 +37,10 @@ function makeAccessibleLabel(view: string, regions: Record<string, string>, musc
   return `${view} body heat map. Most trained: ${top}. Not trained: ${untrained.join(', ') || 'none'}.`;
 }
 
-function BodyFigure({ view, regions, muscles, peak, activeMuscle, onHoverMuscle, onSelectMuscle }: {
+function BodyFigure({ view, regions, anatomyLines, muscles, peak, activeMuscle, onHoverMuscle, onSelectMuscle }: {
   view: 'Front' | 'Back';
   regions: Record<string, string>;
+  anatomyLines: string;
   muscles: MuscleBalanceRow[];
   peak: number;
   activeMuscle?: string | null;
@@ -83,6 +87,7 @@ function BodyFigure({ view, regions, muscles, peak, activeMuscle, onHoverMuscle,
             />
           );
         })}
+        <path className="muscle-anatomy-lines" d={anatomyLines} aria-hidden="true" />
       </svg>
     </figure>
   );
@@ -94,6 +99,7 @@ export function BodyMap({ muscles, peak, activeMuscle, onHoverMuscle, onSelectMu
       <BodyFigure
         view="Front"
         regions={FRONT_REGIONS}
+        anatomyLines={FRONT_ANATOMY_LINES}
         muscles={muscles}
         peak={peak}
         activeMuscle={activeMuscle}
@@ -103,6 +109,7 @@ export function BodyMap({ muscles, peak, activeMuscle, onHoverMuscle, onSelectMu
       <BodyFigure
         view="Back"
         regions={BACK_REGIONS}
+        anatomyLines={BACK_ANATOMY_LINES}
         muscles={muscles}
         peak={peak}
         activeMuscle={activeMuscle}

@@ -9,7 +9,7 @@ namespace Workout.Api.Endpoints;
 
 public record PreferencesInput(string Unit, string Theme, int? RestSeconds = null, bool? RestAlerts = null);
 public record StartInput(Guid? TemplateId, string? Name);
-public record FinishInput(int? Revision, bool RetainExerciseSwaps = false);
+public record FinishInput(int? Revision, bool RetainExerciseSwaps = false, Guid? MutationId = null, DateTimeOffset? FinishedAt = null);
 public record ActivateInput(bool Active, int? Revision);
 public record TemplateRestoreInput(int? Revision = null, Guid? IdempotencyId = null);
 
@@ -175,7 +175,9 @@ public static class TrainingEndpoints
             Validation.Require(input.SessionExerciseId == Guid.Empty || input.SessionExerciseId == sessionExerciseId, "Session exercise identifier mismatch.", 400);
             return await workouts.RestoreExercise(id, input with { SessionExerciseId = sessionExerciseId }, ct);
         });
-        app.MapPost("/api/workouts/{id:guid}/finish", async (Guid id, FinishInput input, WorkoutService workouts, CancellationToken ct) => await workouts.Finish(id, input.Revision, ct, input.RetainExerciseSwaps));
+        app.MapPost("/api/workouts/{id:guid}/pause", async (Guid id, WorkoutTimingInput input, WorkoutService workouts, CancellationToken ct) => await workouts.Pause(id, input, ct));
+        app.MapPost("/api/workouts/{id:guid}/resume", async (Guid id, WorkoutTimingInput input, WorkoutService workouts, CancellationToken ct) => await workouts.Resume(id, input, ct));
+        app.MapPost("/api/workouts/{id:guid}/finish", async (Guid id, FinishInput input, WorkoutService workouts, CancellationToken ct) => await workouts.Finish(id, input.Revision, ct, input.RetainExerciseSwaps, input.MutationId, input.FinishedAt));
         app.MapPost("/api/workouts/{id:guid}/discard", async (Guid id, WorkoutService workouts, CancellationToken ct) =>
         { await workouts.Discard(id, ct); return Results.NoContent(); });
         app.MapGet("/api/workouts/{id:guid}", async (Guid id, WorkoutService workouts, CancellationToken ct) => await workouts.Get(id, ct));
@@ -233,7 +235,15 @@ public static class TrainingEndpoints
         var recentExerciseIds = exercises.Where(x => recentIds.Contains(x.SessionId)).Select(x => x.Id).ToHashSet();
         var recentWorkingSets = sets.Where(x => recentExerciseIds.Contains(x.SessionExerciseId)).ToList();
         var recentSets = volumeRows.Where(x => recentExerciseIds.Contains(x.Set.SessionExerciseId)).ToList();
-        var trainingMinutes = sessions.Sum(session => Math.Max(1, (int)Math.Round(((session.FinishedAt ?? DateTime.UtcNow) - session.StartedAt).TotalMinutes)));
+        var trainingMinutes = sessions.Sum(session =>
+        {
+            var endedAt = session.FinishedAt ?? DateTime.UtcNow;
+            var pausedSeconds = session.PausedSeconds + (session.PausedAt is { } pausedAt
+                ? Math.Max(0, (long)Math.Round((endedAt - pausedAt).TotalSeconds))
+                : 0);
+            var activeMinutes = ((endedAt - session.StartedAt).TotalSeconds - pausedSeconds) / 60;
+            return Math.Max(1, (int)Math.Round(Math.Max(0, activeMinutes)));
+        });
         var best = exercises.GroupBy(e => new { e.ExerciseId, e.NameSnapshot }).Select(group =>
         {
             var logged = new List<(SessionExercise Exercise, CompletedSet Set, WorkoutSession Session)>();

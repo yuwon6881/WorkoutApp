@@ -13,26 +13,31 @@ public sealed partial class WorkoutService
     public async Task<SessionView> PatchSet(Guid sessionId, Guid setId, JsonElement payload, CancellationToken ct)
     {
         Validation.Require(payload.ValueKind == JsonValueKind.Object, "A set change is required.");
-        var revision = 0;
-        Validation.Require(payload.TryGetProperty("revision", out var revisionElement) && revisionElement.TryGetInt32(out revision),
-            "The workout revision is required.", 409);
         Guid? mutationId = null;
         if (payload.TryGetProperty("mutationId", out var mutationElement) && mutationElement.ValueKind != JsonValueKind.Null)
             Validation.Require(mutationElement.ValueKind == JsonValueKind.String && Guid.TryParse(mutationElement.GetString(), out var parsed) && parsed != Guid.Empty,
                 "The mutation identity is invalid.");
         if (mutationElement.ValueKind == JsonValueKind.String) mutationId = Guid.Parse(mutationElement.GetString()!);
+        var requestHash = Fingerprint(payload);
+        var revision = 0;
+        Validation.Require(payload.TryGetProperty("revision", out var revisionElement) && revisionElement.TryGetInt32(out revision),
+            "The workout revision is required.", 409);
 
         await using var gate = await MutationLock.Acquire(db, db.CurrentUser, ct);
         var session = await db.Workouts.SingleOrDefaultAsync(w => w.Id == sessionId, ct);
         Validation.Require(session != null, "That workout no longer exists.", 404);
+        var replay = await ReplayWorkoutMutation(sessionId, mutationId, "workout.set.patch", requestHash, ct);
+        if (replay is not null)
+        {
+            await gate.Commit(ct);
+            return replay;
+        }
         Validation.Require(session!.Active, "This workout is already saved to your history.", 409);
         TemplateService.RequireFresh(revision, session.Revision);
         var set = await db.Sets.SingleOrDefaultAsync(s => s.Id == setId, ct);
         Validation.Require(set != null, "That set no longer exists.", 404);
         var exercise = await db.SessionExercises.SingleOrDefaultAsync(e => e.Id == set!.SessionExerciseId && e.SessionId == sessionId, ct);
         Validation.Require(exercise != null, "That set is not part of this workout.", 409);
-
-        if (mutationId is { } id) await templates.Receipt(id, ct);
 
         var loadModel = exercise!.LoadModel;
         var resistanceMode = set!.ResistanceMode;
@@ -79,7 +84,11 @@ public sealed partial class WorkoutService
             }
             set.Revision++; session.Revision++;
         }
-        if (changed || mutationId is not null) await db.SaveChangesAsync(ct);
+        if (changed || mutationId is not null)
+        {
+            await RecordWorkoutMutation(mutationId, sessionId, "workout.set.patch", requestHash, ct);
+            await db.SaveChangesAsync(ct);
+        }
         await gate.Commit(ct);
         return await Get(sessionId, ct);
     }

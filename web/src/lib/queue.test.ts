@@ -74,6 +74,26 @@ describe('the save pipeline', () => {
     expect(queue.unsaved).toBe(false);
   });
 
+  it('waits for an in-flight write before allowing completion', async () => {
+    const queue = new SaveQueue();
+    let release!: () => void;
+    queue.push('workout', () => new Promise<void>(resolve => { release = resolve; }));
+    let finished = false;
+    const waiting = queue.whenIdle().then(() => { finished = true; });
+    await settle();
+    expect(finished).toBe(false);
+    release();
+    await waiting;
+    expect(finished).toBe(true);
+  });
+
+  it('rejects completion when an earlier save failed', async () => {
+    const queue = new SaveQueue();
+    queue.push('workout', async () => { throw new ApiError('The connection dropped.', 0); });
+    await settle();
+    await expect(queue.whenIdle()).rejects.toMatchObject({ offline: true });
+  });
+
   it('notifies subscribers of the current state', async () => {
     const queue = new SaveQueue();
     const states: string[] = [];

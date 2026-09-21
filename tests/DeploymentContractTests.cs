@@ -28,11 +28,12 @@ public sealed class DeploymentContractTests
     }
 
     [Fact]
-    public void Background_imports_keep_cpu_allocated_between_poll_requests()
+    public void Workout_api_uses_request_based_billing_and_scales_to_zero()
     {
         var build = File.ReadAllText(Path.Combine(RepositoryRoot(), "cloudbuild.yaml"));
 
-        Assert.Contains("'--no-cpu-throttling'", build);
+        Assert.DoesNotContain("'--no-cpu-throttling'", build);
+        Assert.Contains("'--min-instances=0'", build);
     }
 
     [Fact]

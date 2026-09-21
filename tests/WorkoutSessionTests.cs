@@ -62,6 +62,121 @@ public class WorkoutSessionTests
         Assert.Equal(409, failure.Status);
     }
 
+    [Fact] public async Task Replaying_a_set_patch_acknowledges_before_the_stale_revision_check()
+    {
+        var (h, templateId, _) = await Ready();
+        await using var _h = h;
+        var session = await h.Workouts.Start(templateId, null, default);
+        var exercise = Assert.Single(session.Exercises);
+        var firstSet = exercise.Sets[0];
+        var secondSet = exercise.Sets[1];
+        var firstMutation = Guid.NewGuid();
+        using var firstPayload = JsonDocument.Parse($"{{\"revision\":{session.Revision},\"reps\":9,\"mutationId\":\"{firstMutation}\"}}");
+        var first = await h.Workouts.PatchSet(session.Id, firstSet.Id, firstPayload.RootElement.Clone(), default);
+
+        using var secondPayload = JsonDocument.Parse($"{{\"revision\":{first.Revision},\"reps\":10,\"mutationId\":\"{Guid.NewGuid()}\"}}");
+        var latest = await h.Workouts.PatchSet(session.Id, secondSet.Id, secondPayload.RootElement.Clone(), default);
+
+        // Object property order does not change the request fingerprint, and the old revision
+        // is intentionally retained because this is the exact request whose response was lost.
+        using var retryPayload = JsonDocument.Parse($"{{\"mutationId\":\"{firstMutation}\",\"reps\":9,\"revision\":{session.Revision}}}");
+        var replay = await h.Workouts.PatchSet(session.Id, firstSet.Id, retryPayload.RootElement.Clone(), default);
+        Assert.Equal(latest.Revision, replay.Revision);
+        Assert.Equal(9, replay.Exercises.Single().Sets[0].Reps);
+        Assert.Equal(10, replay.Exercises.Single().Sets[1].Reps);
+
+        using var reusedId = JsonDocument.Parse($"{{\"revision\":{session.Revision},\"reps\":8,\"mutationId\":\"{firstMutation}\"}}");
+        var failure = await Assert.ThrowsAsync<DomainException>(() => h.Workouts.PatchSet(session.Id, firstSet.Id, reusedId.RootElement.Clone(), default));
+        Assert.Equal(409, failure.Status);
+    }
+
+    [Fact] public async Task Replaying_a_full_session_save_does_not_replace_newer_session_state()
+    {
+        var (h, templateId, _) = await Ready();
+        await using var _h = h;
+        var session = await h.Workouts.Start(templateId, null, default);
+        var exercise = Assert.Single(session.Exercises);
+        var input = new SessionInput("First note",
+            [new SessionExerciseInput(exercise.ExerciseId, exercise.Name, null, exercise.Prescription,
+                exercise.Sets.Select(set => new SetInput(set.WeightKg, set.Reps, set.Rpe, set.Done, set.Warmup,
+                    set.ResistanceMode, set.Id)).ToList(),
+                SequenceGroup: exercise.SequenceGroup, Substitutions: [], LoadModel: exercise.LoadModel, Id: exercise.Id,
+                SourceTemplateExerciseId: exercise.SourceTemplateExerciseId, SourceSlotKey: exercise.SourceSlotKey,
+                SourcePhaseId: exercise.SourcePhaseId, SourcePage: exercise.SourcePage)], session.Revision, Guid.NewGuid());
+        var saved = await h.Workouts.Save(session.Id, input, default);
+
+        var set = saved.Exercises.Single().Sets[0];
+        using var newerPayload = JsonDocument.Parse($"{{\"revision\":{saved.Revision},\"reps\":9,\"mutationId\":\"{Guid.NewGuid()}\"}}");
+        var latest = await h.Workouts.PatchSet(session.Id, set.Id, newerPayload.RootElement.Clone(), default);
+
+        var replay = await h.Workouts.Save(session.Id, input, default);
+        Assert.Equal(latest.Revision, replay.Revision);
+        Assert.Equal("First note", replay.Note);
+        Assert.Equal(9, replay.Exercises.Single().Sets[0].Reps);
+    }
+
+    [Fact] public async Task Pause_and_resume_keep_ordered_durable_timing_and_exact_retries()
+    {
+        var (h, templateId, _) = await Ready();
+        await using var _h = h;
+        var session = await h.Workouts.Start(templateId, null, default);
+        var startedAt = DateTime.UtcNow.AddHours(-1);
+        var row = await h.Db.Workouts.SingleAsync(workout => workout.Id == session.Id);
+        row.StartedAt = startedAt;
+        await h.Db.SaveChangesAsync();
+
+        var pausedAt = startedAt.AddMinutes(20);
+        var pauseInput = new WorkoutTimingInput(session.Revision, Guid.NewGuid(), new DateTimeOffset(pausedAt, TimeSpan.Zero));
+        var paused = await h.Workouts.Pause(session.Id, pauseInput, default);
+        Assert.Equal(pausedAt, paused.PausedAt);
+        Assert.Equal(0, paused.PausedSeconds);
+
+        var replayedPause = await h.Workouts.Pause(session.Id, pauseInput, default);
+        Assert.Equal(paused.Revision, replayedPause.Revision);
+
+        var resumedAt = pausedAt.AddSeconds(30);
+        var resumeInput = new WorkoutTimingInput(paused.Revision, Guid.NewGuid(), new DateTimeOffset(resumedAt, TimeSpan.Zero));
+        var resumed = await h.Workouts.Resume(session.Id, resumeInput, default);
+        Assert.Null(resumed.PausedAt);
+        Assert.Equal(30, resumed.PausedSeconds);
+
+        var outOfOrder = new WorkoutTimingInput(resumed.Revision, Guid.NewGuid(), new DateTimeOffset(pausedAt.AddSeconds(10), TimeSpan.Zero));
+        var failure = await Assert.ThrowsAsync<DomainException>(() => h.Workouts.Pause(session.Id, outOfOrder, default));
+        Assert.Equal(409, failure.Status);
+    }
+
+    [Fact] public async Task Finish_uses_the_client_time_and_closes_an_open_pause_once()
+    {
+        var (h, templateId, _) = await Ready();
+        await using var _h = h;
+        var session = await h.Workouts.Start(templateId, null, default);
+        var startedAt = DateTime.UtcNow.AddHours(-2);
+        var row = await h.Db.Workouts.SingleAsync(workout => workout.Id == session.Id);
+        row.StartedAt = startedAt;
+        await h.Db.SaveChangesAsync();
+        var current = await h.Workouts.Get(session.Id, default);
+        await Complete(h, current, 60, 10, 8);
+        current = await h.Workouts.Get(session.Id, default);
+
+        var pausedAt = DateTime.UtcNow.AddMinutes(-30);
+        var paused = await h.Workouts.Pause(session.Id,
+            new WorkoutTimingInput(current.Revision, Guid.NewGuid(), new DateTimeOffset(pausedAt, TimeSpan.Zero)), default);
+        var finishedAt = pausedAt.AddMinutes(20);
+        var finishId = Guid.NewGuid();
+        var finished = await h.Workouts.Finish(session.Id, paused.Revision, default, false, finishId,
+            new DateTimeOffset(finishedAt, TimeSpan.Zero));
+
+        Assert.Equal(finishedAt, finished.FinishedAt);
+        Assert.Null(finished.PausedAt);
+        Assert.Equal(20 * 60, finished.PausedSeconds);
+
+        var replay = await h.Workouts.Finish(session.Id, paused.Revision, default, false, finishId,
+            new DateTimeOffset(finishedAt, TimeSpan.Zero));
+        Assert.Equal(finished.Revision, replay.Revision);
+        Assert.Equal(finishedAt, replay.FinishedAt);
+        Assert.Equal(20 * 60, replay.PausedSeconds);
+    }
+
     [Fact] public async Task The_next_workout_prefills_a_suggestion_without_completing_it()
     {
         var (h, templateId, _) = await Ready();
