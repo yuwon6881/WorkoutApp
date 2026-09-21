@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { RotateCw } from 'lucide-react';
 import type { MuscleBalanceRow, MuscleBalanceView as MuscleBalanceData } from '../types';
 import { ApiError, api } from '../lib/api';
@@ -52,6 +52,7 @@ export function MuscleBalanceView({ timeZone }: { timeZone: string }) {
   const [views, setViews] = useState<Partial<Record<BalanceRange, MuscleBalanceData>>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [activeMuscle, setActiveMuscle] = useState<string | null>(null);
   const requestId = useRef(0);
   const view = views[range] ?? null;
   const muscles = useMemo(() => sortMuscles(view?.muscles ?? []), [view?.muscles]);
@@ -78,72 +79,131 @@ export function MuscleBalanceView({ timeZone }: { timeZone: string }) {
     return () => controller.abort();
   }, [range, retry, timeZone]);
 
+  const selectMuscle = useCallback((muscleName: string) => {
+    setActiveMuscle(current => (current === muscleName ? null : muscleName));
+    const row = document.querySelector<HTMLElement>(`.muscle-balance-table-row[data-muscle="${muscleName}"]`);
+    row?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, []);
+
   const hasCompletedSets = (view?.totalSets ?? 0) > 0;
+  const trainedMusclesCount = useMemo(() => muscles.filter(m => m.sets > 0).length, [muscles]);
+  const topMuscle = useMemo(() => (muscles.length > 0 && muscles[0].sets > 0 ? muscles[0] : null), [muscles]);
 
-  return <div className="muscle-balance-page">
-    <div className="page-heading">
-      <h1 data-page-heading tabIndex={-1}>Muscle coverage</h1>
-      <p>See which muscles your completed working sets have trained.</p>
-    </div>
+  return (
+    <div className="muscle-balance-page">
+      <div className="page-heading">
+        <h1 data-page-heading tabIndex={-1}>Muscle coverage</h1>
+        <p>See which muscles your completed working sets have trained.</p>
+      </div>
 
-    <div className="muscle-balance-range" role="group" aria-label="Muscle coverage period">
-      {RANGES.map(option => <Button
-        key={option.value}
-        presentation="plain"
-        className={`filter-chip ${range === option.value ? 'active' : ''}`}
-        aria-pressed={range === option.value}
-        onClick={() => setRange(option.value)}
-      >{option.label}</Button>)}
-    </div>
+      <div className="muscle-balance-range" role="group" aria-label="Muscle coverage period">
+        {RANGES.map(option => (
+          <Button
+            key={option.value}
+            presentation="plain"
+            className={`filter-chip ${range === option.value ? 'active' : ''}`}
+            aria-pressed={range === option.value}
+            onClick={() => setRange(option.value)}
+          >
+            {option.label}
+          </Button>
+        ))}
+      </div>
 
-    {error && <div className="error-banner muscle-balance-error" role="alert">
-      <span>{error}</span>
-      <Button variant="tertiary" onClick={() => setRetry(value => value + 1)}>
-        <RotateCw size={15} />Retry
-      </Button>
-    </div>}
+      {error && (
+        <div className="error-banner muscle-balance-error" role="alert">
+          <span>{error}</span>
+          <Button variant="tertiary" onClick={() => setRetry(value => value + 1)}>
+            <RotateCw size={15} />Retry
+          </Button>
+        </div>
+      )}
 
-    {!view && loading && <section className="panel muscle-balance-loading" aria-label="Loading muscle coverage" aria-busy="true">
-      <div className="skeleton muscle-balance-loading-title" />
-      <div className="skeleton muscle-balance-loading-map" />
-      <div className="skeleton muscle-balance-loading-list" />
-    </section>}
+      {!view && loading && (
+        <section className="panel muscle-balance-loading" aria-label="Loading muscle coverage" aria-busy="true">
+          <div className="skeleton muscle-balance-loading-title" />
+          <div className="skeleton muscle-balance-loading-map" />
+          <div className="skeleton muscle-balance-loading-list" />
+        </section>
+      )}
 
-    {view && <>
-      <MotionPanel motionKey={`muscle-map-${range}`} className="panel muscle-balance-map-panel">
-        <div className="section-heading muscle-balance-section-heading">
-          <div>
-            <h2>{rangeLabel(range)} muscle coverage</h2>
-            <p>{view.sessions} {view.sessions === 1 ? 'workout' : 'workouts'} · {formatSets(view.totalSets)} completed working {view.totalSets === 1 ? 'set' : 'sets'}</p>
+      {view && (
+        <>
+          <div className="muscle-balance-stats-strip" role="region" aria-label="Coverage summary">
+            <div className="muscle-balance-stat-card">
+              <span className="muscle-balance-stat-label">Workouts</span>
+              <strong className="muscle-balance-stat-value">{view.sessions}</strong>
+            </div>
+            <div className="muscle-balance-stat-card">
+              <span className="muscle-balance-stat-label">Total sets</span>
+              <strong className="muscle-balance-stat-value">{formatSets(view.totalSets)}</strong>
+            </div>
+            <div className="muscle-balance-stat-card">
+              <span className="muscle-balance-stat-label">Trained groups</span>
+              <strong className="muscle-balance-stat-value">{trainedMusclesCount} of {muscles.length}</strong>
+            </div>
+            <div className="muscle-balance-stat-card">
+              <span className="muscle-balance-stat-label">Top muscle</span>
+              <strong className="muscle-balance-stat-value">{topMuscle ? topMuscle.muscle : 'None'}</strong>
+            </div>
           </div>
-          {loading && <span className="muted" role="status">Updating…</span>}
-        </div>
-        <p className="muscle-balance-explainer">
-          Each completed working set credits its primary muscle as 1 set and each listed or estimated indirect muscle as 0.5. Warm-ups and unfinished workouts are excluded.
-        </p>
-        {!hasCompletedSets && <p className="muscle-balance-empty-note" role="status">No completed sets in this window.</p>}
-        <BodyMap muscles={view.muscles} weeks={view.weeks} />
-        <div className="muscle-balance-legend" role="group" aria-label="Muscle set bands">
-          {BAND_LABELS.map((label, band) => <div className="muscle-balance-legend-item" key={label}>
-            <span className={`muscle-balance-swatch band-${band}`} aria-hidden="true" />
-            <span className="muscle-balance-legend-copy"><strong>{label}</strong><small>{bandRangeLabel(band, view.weeks)}</small></span>
-          </div>)}
-        </div>
-      </MotionPanel>
 
-      <MotionPanel motionKey={`muscle-list-${range}`} className="panel muscle-balance-list-panel">
-        <div className="section-heading muscle-balance-section-heading">
-          <div>
-            <h2>Muscles</h2>
-            <p>Sorted by credited sets; untrained muscles are listed last.</p>
-          </div>
-        </div>
-        <MuscleBalanceList muscles={muscles} weeks={view.weeks} dateLabel={dateLabel} />
-        {view.unattributedSets > 0 && <p className="muscle-balance-unattributed">
-          {formatSets(view.unattributedSets)} completed {view.unattributedSets === 1 ? 'set could' : 'sets could'} not be matched to a muscle and are excluded from the map.
-          {view.unattributedExamples.length > 0 && <> Examples: {view.unattributedExamples.slice(0, 3).join(', ')}.</>}
-        </p>}
-      </MotionPanel>
-    </>}
-  </div>;
+          <MotionPanel motionKey={`muscle-map-${range}`} className="panel muscle-balance-map-panel">
+            <div className="section-heading muscle-balance-section-heading">
+              <div>
+                <h2>{rangeLabel(range)} muscle coverage</h2>
+                <p>{view.sessions} {view.sessions === 1 ? 'workout' : 'workouts'} · {formatSets(view.totalSets)} completed working {view.totalSets === 1 ? 'set' : 'sets'}</p>
+              </div>
+              {loading && <span className="muted" role="status">Updating…</span>}
+            </div>
+            <p className="muscle-balance-explainer">
+              Each completed working set credits its primary muscle as 1 set and each listed or estimated indirect muscle as 0.5. Warm-ups and unfinished workouts are excluded.
+            </p>
+            {!hasCompletedSets && <p className="muscle-balance-empty-note" role="status">No completed sets in this window.</p>}
+            <BodyMap
+              muscles={view.muscles}
+              weeks={view.weeks}
+              activeMuscle={activeMuscle}
+              onHoverMuscle={setActiveMuscle}
+              onSelectMuscle={selectMuscle}
+            />
+            <div className="muscle-balance-legend" role="group" aria-label="Muscle set bands">
+              {BAND_LABELS.map((label, band) => (
+                <div className="muscle-balance-legend-item" key={label}>
+                  <span className={`muscle-balance-swatch band-${band}`} aria-hidden="true" />
+                  <span className="muscle-balance-legend-copy">
+                    <strong>{label}</strong>
+                    <small>{bandRangeLabel(band, view.weeks)}</small>
+                  </span>
+                </div>
+              ))}
+            </div>
+          </MotionPanel>
+
+          <MotionPanel motionKey={`muscle-list-${range}`} className="panel muscle-balance-list-panel">
+            <div className="section-heading muscle-balance-section-heading">
+              <div>
+                <h2>Muscles</h2>
+                <p>Sorted by credited sets; untrained muscles are listed last.</p>
+              </div>
+            </div>
+            <MuscleBalanceList
+              muscles={muscles}
+              weeks={view.weeks}
+              dateLabel={dateLabel}
+              activeMuscle={activeMuscle}
+              onHoverMuscle={setActiveMuscle}
+              onSelectMuscle={selectMuscle}
+            />
+            {view.unattributedSets > 0 && (
+              <p className="muscle-balance-unattributed">
+                {formatSets(view.unattributedSets)} completed {view.unattributedSets === 1 ? 'set could' : 'sets could'} not be matched to a muscle and are excluded from the map.
+                {view.unattributedExamples.length > 0 && <> Examples: {view.unattributedExamples.slice(0, 3).join(', ')}.</>}
+              </p>
+            )}
+          </MotionPanel>
+        </>
+      )}
+    </div>
+  );
 }

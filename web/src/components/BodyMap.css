@@ -29,11 +29,31 @@
   gap:6px;
   min-width:0;
   margin:0;
+  position:relative;
 }
 .body-map-diagram figcaption{
   color:var(--muted);
   font-size:14px;
   font-weight:600;
+  letter-spacing:0.04em;
+  text-transform:uppercase;
+}
+.body-map-active-callout{
+  display:flex;
+  align-items:center;
+  gap:4px;
+  padding:3px 10px;
+  border-radius:999px;
+  background:var(--surface-raised);
+  border:1px solid var(--accent-border);
+  color:var(--accent);
+  font-size:14px;
+  font-weight:600;
+  min-height:28px;
+}
+.body-map-active-callout span{
+  color:var(--text);
+  font-weight:400;
 }
 .body-map-figure{
   display:block;
@@ -44,29 +64,53 @@
 }
 .body-map-silhouette{
   fill:var(--surface-raised);
-  stroke:var(--muscle-outline);
+  stroke:var(--border);
   stroke-width:1.5;
   stroke-linejoin:round;
   vector-effect:non-scaling-stroke;
 }
 .muscle-region{
-  stroke:var(--muscle-outline);
-  stroke-width:1.4;
+  stroke:var(--border);
+  stroke-width:1.2;
   stroke-linejoin:round;
   vector-effect:non-scaling-stroke;
-  transition:fill var(--motion-control) var(--motion-ease);
+  cursor:pointer;
+  outline:none;
+  transition:fill var(--motion-control) var(--motion-ease),
+             stroke var(--motion-control) var(--motion-ease),
+             filter var(--motion-control) var(--motion-ease);
 }
 .muscle-region.band-0{fill:var(--muscle-0)}
 .muscle-region.band-1{fill:var(--muscle-1)}
 .muscle-region.band-2{fill:var(--muscle-2)}
 .muscle-region.band-3{fill:var(--muscle-3)}
 .muscle-region.band-4{fill:var(--muscle-4)}
+
+.muscle-region:hover,
+.muscle-region:focus-visible,
+.muscle-region.is-active{
+  stroke:var(--accent);
+  stroke-width:2.2;
+  filter:drop-shadow(0 0 4px var(--accent-soft));
+}
+
 [data-motion-reduced] .muscle-region{transition:none}
 
 @media(max-width:639px){
-  .body-map-pair{grid-template-columns:minmax(0,1fr);gap:14px}
-  .body-map-diagram{width:min(100%,270px);margin-inline:auto}
+  .body-map-pair{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:10px;
+  }
+  .body-map-diagram{
+    width:100%;
+    max-width:180px;
+    margin-inline:auto;
+  }
+  .body-map-figure{
+    max-height:380px;
+  }
 }
+
 @media(prefers-reduced-motion:reduce){
   .muscle-region{transition:none}
 }

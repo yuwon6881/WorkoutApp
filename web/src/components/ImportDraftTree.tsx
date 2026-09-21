@@ -199,22 +199,24 @@ export const DraftOutline = forwardRef<DraftOutlineHandle, {
         )}
       </div>
     </div>
-    <div className="import-block-selector" role="tablist" aria-label="Program blocks">
-      {blocks.map((block, index) => {
-        const isSelected = block.id === week.blockId;
-        return <Button key={block.id} presentation="plain" role="tab" aria-selected={isSelected}
-          className={`filter-chip ${isSelected ? 'active' : ''}`}
-          onClick={() => setSelectedWeek(block.weeks[0]?.week ?? week.week)}>
-          Block {index + 1}{block.name && block.name !== `Block ${index + 1}` && block.name !== 'Program' ? ` · ${block.name}` : ''}
-        </Button>;
-      })}
-    </div>
-    <div className="program-structure-actions">
-      <Button variant="secondary" disabled={weeks.length >= 104 || totalDayCount >= 400} onClick={addBlock}><Plus size={15} />Add block</Button>
-      <Button variant="tertiary" onClick={() => { setRenameValue(blocks[selectedBlockIndex]?.name ?? ''); setRenameBlock({ id: week.blockId, name: week.block }); }}>Rename block</Button>
-      <Button variant="tertiary" aria-label="Move block earlier" disabled={selectedBlockIndex <= 0} onClick={() => reorderBlocks(selectedBlockIndex, selectedBlockIndex - 1)}><ArrowUp size={15} /></Button>
-      <Button variant="tertiary" aria-label="Move block later" disabled={selectedBlockIndex < 0 || selectedBlockIndex >= blocks.length - 1} onClick={() => reorderBlocks(selectedBlockIndex, selectedBlockIndex + 1)}><ArrowDown size={15} /></Button>
-      <Button variant="destructive" disabled={blocks.length <= 1} onClick={() => setDeleteConfirmBlock(week.blockId)}><Trash2 size={15} />Delete block</Button>
+    <div className="program-block-control-bar">
+      <div className="import-block-selector" role="tablist" aria-label="Program blocks">
+        {blocks.map((block, index) => {
+          const isSelected = block.id === week.blockId;
+          return <Button key={block.id} presentation="plain" role="tab" aria-selected={isSelected}
+            className={`filter-chip ${isSelected ? 'active' : ''}`}
+            onClick={() => setSelectedWeek(block.weeks[0]?.week ?? week.week)}>
+            Block {index + 1}{block.name && block.name !== `Block ${index + 1}` && block.name !== 'Program' ? ` · ${block.name}` : ''}
+          </Button>;
+        })}
+      </div>
+      <div className="program-structure-actions">
+        <Button variant="secondary" disabled={weeks.length >= 104 || totalDayCount >= 400} onClick={addBlock}><Plus size={15} />Add block</Button>
+        <Button variant="tertiary" onClick={() => { setRenameValue(blocks[selectedBlockIndex]?.name ?? ''); setRenameBlock({ id: week.blockId, name: week.block }); }}>Rename block</Button>
+        <Button variant="tertiary" aria-label="Move block earlier" disabled={selectedBlockIndex <= 0} onClick={() => reorderBlocks(selectedBlockIndex, selectedBlockIndex - 1)}><ArrowUp size={15} /></Button>
+        <Button variant="tertiary" aria-label="Move block later" disabled={selectedBlockIndex < 0 || selectedBlockIndex >= blocks.length - 1} onClick={() => reorderBlocks(selectedBlockIndex, selectedBlockIndex + 1)}><ArrowDown size={15} /></Button>
+        <Button variant="destructive" disabled={blocks.length <= 1} onClick={() => setDeleteConfirmBlock(week.blockId)}><Trash2 size={15} />Delete block</Button>
+      </div>
     </div>
     <div className="import-weeks-heading">
       <span>Weeks</span>
@@ -233,24 +235,24 @@ export const DraftOutline = forwardRef<DraftOutlineHandle, {
         <Plus size={15} />Add week
       </Button>
     </ChipScroller>
-    <div className="import-week-toolbar">
-      <p className="import-week-caption">{weekCaption(week, selectedBlock)}</p>
-      {selectedBlockWeeks.length > 1 && (
-        <Button
-          variant="tertiary"
-          className="import-delete-week-btn"
-          aria-label={`Delete week ${week.week}`}
-          onClick={() => setDeleteConfirmWeek(week.week)}
-        >
-          <Trash2 size={14} /> Delete week
-        </Button>
-      )}
-    </div>
     <div className="import-week-toolbar program-day-add-actions">
-      <span className="muted">{week.days.length} of 7 days</span>
+      <div className="import-week-meta">
+        <p className="import-week-caption">{weekCaption(week, selectedBlock)}</p>
+        <span className="muted">{week.days.length} of 7 days</span>
+      </div>
       <div className="settings-actions">
         <Button variant="secondary" disabled={!canAddDay} onClick={() => addDay(false)}><Plus size={15} />Add workout day</Button>
         <Button variant="tertiary" disabled={!canAddDay} onClick={() => addDay(true)}><Plus size={15} />Add rest day</Button>
+        {selectedBlockWeeks.length > 1 && (
+          <Button
+            variant="tertiary"
+            className="import-delete-week-btn"
+            aria-label={`Delete week ${week.week}`}
+            onClick={() => setDeleteConfirmWeek(week.week)}
+          >
+            <Trash2 size={14} /> Delete week
+          </Button>
+        )}
       </div>
     </div>
     <div className="import-week-days" role="tabpanel" aria-label={`Week ${week.week}`}>

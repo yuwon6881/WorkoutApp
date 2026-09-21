@@ -1,4 +1,4 @@
-.muscle-balance-page{display:flex;flex-direction:column;gap:22px;min-width:0}
+.muscle-balance-page{display:flex;flex-direction:column;gap:20px;min-width:0}
 .muscle-balance-page p{font-size:14px}
 .muscle-balance-page .page-heading{margin-bottom:0}
 .muscle-balance-page .page-heading p{font-size:14px!important}
@@ -9,6 +9,36 @@
 .muscle-balance-error{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0}
 .muscle-balance-error>span{min-width:0;overflow-wrap:anywhere}
 .muscle-balance-error .button{flex:0 0 auto}
+
+.muscle-balance-stats-strip{
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:12px;
+}
+.muscle-balance-stat-card{
+  display:flex;
+  flex-direction:column;
+  gap:4px;
+  padding:12px 14px;
+  border:1px solid var(--border);
+  border-radius:10px;
+  background:var(--surface-raised);
+}
+.muscle-balance-stat-label{
+  color:var(--muted);
+  font-size:14px;
+  font-weight:500;
+}
+.muscle-balance-stat-value{
+  color:var(--text);
+  font-size:18px;
+  font-weight:700;
+  font-variant-numeric:tabular-nums;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+
 .muscle-balance-map-panel,.muscle-balance-list-panel,.muscle-balance-loading{display:flex;flex-direction:column;gap:18px;min-width:0;margin:0}
 .muscle-balance-section-heading{align-items:flex-start;margin:0}
 .muscle-balance-section-heading>div{display:grid;gap:5px;min-width:0}
@@ -31,8 +61,10 @@
 .muscle-balance-table-head,.muscle-balance-table-row{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(115px,1fr) minmax(120px,.9fr) minmax(135px,1fr);align-items:center;gap:12px;padding:11px 14px}
 .muscle-balance-table-head{background:var(--surface-hover);color:var(--muted);font-size:14px;font-weight:600}
 .muscle-balance-table-head>span:not(:first-child){text-align:left}
-.muscle-balance-table-row{min-height:66px;border-top:1px solid var(--border);color:var(--text)}
+.muscle-balance-table-row{min-height:66px;border-top:1px solid var(--border);color:var(--text);cursor:pointer;outline:none;transition:background .15s ease,border-color .15s ease}
 .muscle-balance-table-row:first-child{border-top:0}
+.muscle-balance-table-row:hover,.muscle-balance-table-row:focus-visible,.muscle-balance-table-row.is-active{background:var(--surface-hover)}
+.muscle-balance-table-row.is-active{outline:2px solid var(--accent);outline-offset:-2px}
 .muscle-balance-cell{min-width:0;overflow-wrap:anywhere}
 .muscle-balance-name{font-size:14px;font-weight:600}
 .muscle-balance-sets,.muscle-balance-last-trained{display:grid;gap:3px}
@@ -51,12 +83,17 @@
 .muscle-balance-loading-list{height:180px;border-radius:10px}
 
 @media(max-width:1023px){
+  .muscle-balance-stats-strip{grid-template-columns:repeat(2,minmax(0,1fr))}
   .muscle-balance-legend{grid-template-columns:repeat(3,minmax(0,1fr))}
   .muscle-balance-table-head,.muscle-balance-table-row{grid-template-columns:minmax(0,1fr) minmax(100px,.9fr) minmax(95px,.8fr) minmax(110px,.9fr);gap:9px;padding-inline:11px}
 }
 
 @media(max-width:639px){
   .muscle-balance-page{gap:18px}
+  .muscle-balance-stats-strip{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+  .muscle-balance-stat-card{padding:10px 12px}
+  .muscle-balance-stat-label{font-size:14px}
+  .muscle-balance-stat-value{font-size:16px}
   .muscle-balance-range{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin-top:-5px}
   .muscle-balance-range .filter-chip{min-width:0;padding-inline:5px;white-space:normal;text-align:center;line-height:1.25}
   .muscle-balance-error{align-items:flex-start}
@@ -86,5 +123,5 @@
 }
 
 @media(prefers-reduced-motion:reduce){
-  .muscle-balance-swatch,.muscle-balance-band-label{transition:none}
+  .muscle-balance-swatch,.muscle-balance-band-label,.muscle-balance-table-row{transition:none}
 }

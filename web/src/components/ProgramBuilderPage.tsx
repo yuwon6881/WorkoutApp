@@ -130,7 +130,9 @@ export function ProgramBuilderPage({ initialView, initialDraft, exercises, onBac
       editorMode="custom" actionLabel="Create program" editableProgramName onProgramNameChange={setProgramName}
       acceptable={!save.conflicted} busy={busy || !allSaved} actionHint={save.conflicted ? 'Resolve the draft conflict before creating the program.' : undefined}
       onAcceptProgram={() => void create()} />
-    {issue && !validationError && <p className="program-builder-hint" role="status">{issue}</p>}
+    {issue && !validationError && (draft.programName.trim() !== '' || issue !== 'Program name is required.') && (
+      <p className="program-builder-hint" role="status">{issue}</p>
+    )}
     {leaveConfirmOpen && <Modal title="Leave this program draft?" onClose={() => setLeaveConfirmOpen(false)}>
       <div className="modal-body">
         <p>{save.hasSavedDraft

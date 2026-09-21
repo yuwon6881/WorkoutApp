@@ -77,7 +77,7 @@ export function DayRow({
             <div className="draft-day-title-group">
               <strong>{fullName}</strong>
               <div className="draft-day-meta-tags">
-                <span className="tiny-label">{`${day.exercises.length} exercises`}</span>
+                <span className="tiny-label">{`${day.exercises.length} ${day.exercises.length === 1 ? 'exercise' : 'exercises'}`}</span>
                 {day.focus && <span className="day-focus-tag">{day.focus}</span>}
                 {day.phase?.toLowerCase().includes('deload') && <span className="pill pill-accent">Deload</span>}
               </div>
