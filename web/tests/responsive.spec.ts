@@ -206,7 +206,7 @@ for (const theme of ['dark', 'light']) {
 
     await navigate(page, 'Body');
     await expect(page.getByRole('heading', { name: 'Muscle coverage', exact: true })).toBeVisible();
-    await expect(page.getByRole('group', { name: 'Muscle set bands' })).toBeVisible();
+    await expect(page.locator('.body-map-detail')).toBeVisible();
     await screenshot('body');
 
     await navigate(page, 'Workouts');

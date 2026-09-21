@@ -1,33 +1,29 @@
 import { describe, expect, it } from 'vitest';
-import { BAND_LABELS, bandFor, formatSets, RANGES } from './muscleBalance';
+import type { MuscleBalanceRow } from '../types';
+import { formatSets, peakSets, RANGES, shadeFor } from './muscleBalance';
 
-describe('muscle balance bands', () => {
-  it('uses fixed weekly thresholds and includes both ends of the productive band', () => {
-    expect(bandFor(0, 1)).toBe(0);
-    expect(bandFor(0.5, 1)).toBe(1);
-    expect(bandFor(4.5, 1)).toBe(1);
-    expect(bandFor(5, 1)).toBe(2);
-    expect(bandFor(9.5, 1)).toBe(2);
-    expect(bandFor(10, 1)).toBe(3);
-    expect(bandFor(20, 1)).toBe(3);
-    expect(bandFor(20.5, 1)).toBe(4);
+function row(muscle: string, sets: number): MuscleBalanceRow {
+  return { muscle, sets, primarySets: sets, secondarySets: 0, sessions: 1, lastTrainedDate: null };
+}
+
+describe('muscle balance shading', () => {
+  it('takes the peak from the busiest muscle in the window', () => {
+    expect(peakSets([row('Chest', 4), row('Back', 12.5), row('Calves', 0)])).toBe(12.5);
+    expect(peakSets([])).toBe(0);
   });
 
-  it('scales thresholds to monthly and three-month windows', () => {
-    const monthWeeks = 30 / 7;
-    const quarterWeeks = 91 / 7;
-
-    expect(bandFor(5 * monthWeeks - 0.1, monthWeeks)).toBe(1);
-    expect(bandFor(5 * monthWeeks, monthWeeks)).toBe(2);
-    expect(bandFor(10 * quarterWeeks, quarterWeeks)).toBe(3);
-    expect(bandFor(20 * quarterWeeks, quarterWeeks)).toBe(3);
-    expect(bandFor(20 * quarterWeeks + 0.1, quarterWeeks)).toBe(4);
+  it('shades every muscle relative to that peak', () => {
+    expect(shadeFor(12.5, 12.5)).toBe(1);
+    expect(shadeFor(0, 12.5)).toBe(0);
+    expect(shadeFor(3.125, 12.5)).toBeCloseTo(0.5, 5);
+    expect(shadeFor(1, 4)).toBeCloseTo(0.5, 5);
   });
 
-  it('returns the untrained band for invalid or empty values', () => {
-    expect(bandFor(-1, 1)).toBe(0);
-    expect(bandFor(Number.NaN, 1)).toBe(0);
-    expect(bandFor(10, 0)).toBe(0);
+  it('treats missing, negative, and peakless values as untrained', () => {
+    expect(shadeFor(-1, 10)).toBe(0);
+    expect(shadeFor(Number.NaN, 10)).toBe(0);
+    expect(shadeFor(5, 0)).toBe(0);
+    expect(shadeFor(12, 10)).toBe(1);
   });
 });
 
@@ -37,12 +33,11 @@ describe('muscle balance display metadata', () => {
     expect(formatSets(12.5)).toBe('12.5');
   });
 
-  it('defines the three selectable time ranges and five band labels', () => {
+  it('defines the three selectable time ranges', () => {
     expect(RANGES).toEqual([
       { value: '1w', label: 'Last week' },
       { value: '1m', label: 'Last month' },
       { value: '3m', label: 'Last 3 months' }
     ]);
-    expect(BAND_LABELS).toEqual(['Not trained', 'Light', 'Maintenance', 'Productive', 'High']);
   });
 });

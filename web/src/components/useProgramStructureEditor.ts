@@ -21,6 +21,8 @@ type Options = {
   onDayChange: (day: DraftWorkout) => Promise<void>;
 };
 
+export type ProgramStructureEditor = ReturnType<typeof useProgramStructureEditor>;
+
 export function useProgramStructureEditor({ draft, onDraftChange, onDayChange }: Options) {
   const normalizedDraft = useMemo(() => ensureStructureIds(draft), [draft]);
   const weeks = useMemo(() => groupWeeks(normalizedDraft), [normalizedDraft]);
@@ -58,9 +60,10 @@ export function useProgramStructureEditor({ draft, onDraftChange, onDayChange }:
     if (!weeks.some(week => week.week === target)) return;
     pendingFocusWeek.current = null;
     window.requestAnimationFrame(() => {
-      const chip = document.querySelector<HTMLButtonElement>(`[data-import-week-chip="${target}"]`);
+      const group = document.querySelector<HTMLElement>(`[data-import-week-chip="${target}"]`);
+      const chip = group?.querySelector<HTMLButtonElement>('.import-week-chip') ?? null;
       chip?.focus();
-      chip?.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+      group?.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
     });
   }, [weeks]);
 
@@ -211,16 +214,27 @@ export function useProgramStructureEditor({ draft, onDraftChange, onDayChange }:
       entry.weekId === week.weekId ? { ...entry, days } : entry)));
   }, [normalizedDraft, onDraftChange, totalDayCount, week, weeks]);
 
-  const reorderDay = useCallback((lineId: string, direction: -1 | 1) => {
+  /// Places a day at an absolute position inside its week. Drag-and-drop and the keyboard fallback
+  /// share this so a dropped day and an arrow-key move land identically.
+  const moveDayTo = useCallback((lineId: string, targetIndex: number) => {
     if (!week) return;
     const index = week.days.findIndex(day => day.lineId === lineId);
-    const target = index + direction;
-    if (index < 0 || target < 0 || target >= week.days.length) return;
+    if (index < 0) return;
+    const target = Math.max(0, Math.min(week.days.length - 1, targetIndex));
+    if (target === index) return;
     const days = [...week.days];
-    [days[index], days[target]] = [days[target], days[index]];
+    const [moved] = days.splice(index, 1);
+    days.splice(target, 0, moved);
     void onDraftChange(renumberDraft(normalizedDraft, weeks.map(entry =>
       entry.weekId === week.weekId ? { ...entry, days } : entry)));
   }, [normalizedDraft, onDraftChange, week, weeks]);
+
+  const reorderDay = useCallback((lineId: string, direction: -1 | 1) => {
+    if (!week) return;
+    const index = week.days.findIndex(day => day.lineId === lineId);
+    if (index < 0) return;
+    moveDayTo(lineId, index + direction);
+  }, [moveDayTo, week]);
 
   const deleteDay = useCallback((lineId: string) => {
     if (!week || week.days.length <= 1) return;
@@ -271,7 +285,7 @@ export function useProgramStructureEditor({ draft, onDraftChange, onDayChange }:
     setDeleteConfirmWeek, deleteConfirmBlock, setDeleteConfirmBlock, deleteConfirmDay, setDeleteConfirmDay,
     restConfirmDay, setRestConfirmDay, renameBlock, setRenameBlock, renameValue, setRenameValue,
     draggedWeek, setDraggedWeek, dropTarget, setDropTarget, reorderWeeks, reorderBlocks, addBlock,
-    commitBlockName, deleteBlock, addWeek, deleteWeek, addDay, duplicateDay, reorderDay, deleteDay,
+    commitBlockName, deleteBlock, addWeek, deleteWeek, addDay, duplicateDay, reorderDay, moveDayTo, deleteDay,
     changeDayKind, confirmRestConversion, moveDayToWeek
   };
 }

@@ -1,6 +1,4 @@
-import type { MuscleBalanceRange } from '../types';
-
-export type MuscleBand = 0 | 1 | 2 | 3 | 4;
+import type { MuscleBalanceRange, MuscleBalanceRow } from '../types';
 
 export const RANGES = [
   { value: '1w', label: 'Last week' },
@@ -8,16 +6,17 @@ export const RANGES = [
   { value: '3m', label: 'Last 3 months' }
 ] as const satisfies ReadonlyArray<{ value: MuscleBalanceRange; label: string }>;
 
-export const BAND_LABELS = ['Not trained', 'Light', 'Maintenance', 'Productive', 'High'] as const;
+/// The busiest muscle in the window. Shading is relative to it, so the map answers "where did my
+/// sets go" for this window instead of grading the work against a fixed target.
+export function peakSets(rows: readonly MuscleBalanceRow[]): number {
+  return rows.reduce((peak, row) => (Number.isFinite(row.sets) && row.sets > peak ? row.sets : peak), 0);
+}
 
-/// Weekly evidence bands: 0, <5, <10, 10–20, and >20 sets, scaled to the selected window.
-export function bandFor(sets: number, weeks: number): MuscleBand {
-  if (!Number.isFinite(sets) || sets <= 0 || !Number.isFinite(weeks) || weeks <= 0) return 0;
-
-  if (sets < 5 * weeks) return 1;
-  if (sets < 10 * weeks) return 2;
-  if (sets <= 20 * weeks) return 3;
-  return 4;
+/// How deep a muscle is shaded, from 0 (untrained) to 1 (the peak). The square root keeps the
+/// lighter end of the scale distinguishable when one muscle dominates the window.
+export function shadeFor(sets: number, peak: number): number {
+  if (!Number.isFinite(sets) || sets <= 0 || !Number.isFinite(peak) || peak <= 0) return 0;
+  return Math.min(1, Math.sqrt(sets / peak));
 }
 
 /// Muscle credits are whole or half sets, so one decimal place is enough for display.

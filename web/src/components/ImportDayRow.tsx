@@ -1,26 +1,16 @@
-import { useMemo, useState } from 'react';
-import { ChevronDown, ChevronUp } from 'lucide-react';
+import { useMemo, type ReactNode } from 'react';
+import { ChevronDown } from 'lucide-react';
 import type { DraftWorkout, Exercise } from '../types';
 import { getWorkoutMuscles } from '../lib/muscles';
 import { Button } from './ui/Button';
-import { DayEditor, exerciseSummary } from './ImportDayEditor';
+import { DayEditor } from './ImportDayEditor';
 
-function DayLines({ day }: { day: DraftWorkout }) {
-  return (
-    <ol className="draft-day-lines">
-      {day.exercises.map(exercise => (
-        <li key={exercise.lineId}>
-          {exercise.sequenceGroup && <span className="draft-line-group">{exercise.sequenceGroup}</span>}
-          <span className="draft-line-name">{exercise.sourceName}</span>
-          <span className="draft-line-detail">{exerciseSummary(exercise)}</span>
-        </li>
-      ))}
-    </ol>
-  );
-}
-
+/// One line per day when collapsed: what it is called, how much is in it and which exercises it
+/// holds. Everything else — muscles, prescriptions, editing — waits until the day is opened, so a
+/// full week stays readable on one screen.
 export function DayRow({
   day,
+  index,
   expanded,
   onToggle,
   exercises,
@@ -28,9 +18,12 @@ export function DayRow({
   onPropagateSubstitution,
   onMapExerciseSlot,
   restorableExerciseLineIds,
-  onRestoreExercise
+  onRestoreExercise,
+  handle,
+  menu
 }: {
   day: DraftWorkout;
+  index: number;
   expanded: boolean;
   onToggle: () => void;
   exercises: Exercise[];
@@ -39,85 +32,48 @@ export function DayRow({
   onMapExerciseSlot?: (exerciseLineId: string, exerciseId: string | null) => Promise<void>;
   restorableExerciseLineIds?: string[];
   onRestoreExercise?: (exerciseLineId: string) => Promise<void>;
+  handle?: ReactNode;
+  menu?: ReactNode;
 }) {
-  const [showDetails, setShowDetails] = useState(false);
   const muscles = useMemo(() => getWorkoutMuscles(day.exercises, exercises), [day.exercises, exercises]);
   const exercisePreview = useMemo(() => {
     if (day.isRestDay || !day.exercises.length) return '';
-    const names = day.exercises.map(e => e.sourceName);
+    const names = day.exercises.map(exercise => exercise.sourceName);
     if (names.length <= 4) return names.join(', ');
     return `${names.slice(0, 4).join(', ')}, and ${names.length - 4} more`;
   }, [day.exercises, day.isRestDay]);
 
-  const fullName = day.name;
+  const meta = <>
+    <span className="draft-day-index">Day {index + 1}</span>
+    <strong>{day.name}</strong>
+    {day.isRestDay
+      ? <span className="tiny-label rest-badge">Rest day</span>
+      : <span className="tiny-label">{day.exercises.length} {day.exercises.length === 1 ? 'exercise' : 'exercises'}</span>}
+    {day.focus && <span className="day-focus-tag">{day.focus}</span>}
+    {day.phase?.toLowerCase().includes('deload') && <span className="pill pill-accent">Deload</span>}
+  </>;
 
   return (
     <section className={`draft-day ${day.isRestDay ? 'rest-day' : ''}`} data-import-day={day.lineId}>
-      {day.isRestDay ? (
-        <div className="draft-day-card-header">
-          <div className="draft-day-summary draft-day-summary-static">
-            <div className="draft-day-title-group">
-              <strong>{fullName}</strong>
-              {(day.focus || day.phase?.toLowerCase().includes('deload')) && (
-                <div className="draft-day-meta-tags">
-                  {day.focus && <span className="day-focus-tag">{day.focus}</span>}
-                  {day.phase?.toLowerCase().includes('deload') && <span className="pill pill-accent">Deload</span>}
-                </div>
-              )}
-            </div>
+      <div className="draft-day-row">
+        {handle}
+        {day.isRestDay
+          ? <div className="draft-day-summary draft-day-summary-static">
+            <span className="draft-day-heading">{meta}</span>
           </div>
-          <div className="draft-day-actions">
-            <span className="tiny-label rest-badge">Rest day</span>
-          </div>
-        </div>
-      ) : (
-        <>
-          <Button presentation="plain" className="draft-day-summary" aria-expanded={expanded} aria-label={fullName} onClick={onToggle}>
-            <span className={`draft-day-disclosure ${expanded ? 'open' : ''}`} aria-hidden="true"><ChevronDown size={17} /></span>
-            <div className="draft-day-title-group">
-              <strong>{fullName}</strong>
-              <div className="draft-day-meta-tags">
-                <span className="tiny-label">{`${day.exercises.length} ${day.exercises.length === 1 ? 'exercise' : 'exercises'}`}</span>
-                {day.focus && <span className="day-focus-tag">{day.focus}</span>}
-                {day.phase?.toLowerCase().includes('deload') && <span className="pill pill-accent">Deload</span>}
-              </div>
-            </div>
-            {!expanded && (
-              <div className="draft-day-compact-body">
-                {exercisePreview && <p className="day-exercise-preview">{exercisePreview}</p>}
-                {muscles.length > 0 && (
-                  <div className="day-muscles-row" aria-label="Targeted muscles">
-                    {muscles.slice(0, 5).map(m => (
-                      <span key={m} className="muscle-chip">{m}</span>
-                    ))}
-                    {muscles.length > 5 && (
-                      <span className="muscle-chip muscle-chip-overflow" title={muscles.slice(5).join(', ')}>
-                        +{muscles.length - 5}
-                      </span>
-                    )}
-                  </div>
-                )}
-              </div>
-            )}
-          </Button>
-          {!expanded && day.exercises.length > 0 && (
-            <div className="draft-day-actions">
-              <Button
-                variant="tertiary"
-                className="day-chevron-button"
-                aria-label={showDetails ? `Hide details for ${day.name}` : `View details for ${day.name}`}
-                aria-expanded={showDetails}
-                onClick={() => setShowDetails(s => !s)}
-              >
-                {showDetails ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-              </Button>
-            </div>
-          )}
-        </>
-      )}
+          : <Button presentation="plain" className="draft-day-summary" aria-expanded={expanded}
+            aria-label={day.name} onClick={onToggle}>
+            <span className={`draft-day-disclosure ${expanded ? 'open' : ''}`} aria-hidden="true"><ChevronDown size={16} /></span>
+            <span className="draft-day-heading">{meta}</span>
+            {!expanded && exercisePreview && <span className="day-exercise-preview">{exercisePreview}</span>}
+          </Button>}
+        {menu}
+      </div>
 
-      {!expanded && showDetails && !day.isRestDay && day.exercises.length > 0 && <DayLines day={day} />}
-      {expanded && !day.isRestDay && (
+      {expanded && !day.isRestDay && <>
+        {muscles.length > 0 && <div className="day-muscles-row" aria-label="Targeted muscles">
+          {muscles.map(muscle => <span key={muscle} className="muscle-chip">{muscle}</span>)}
+        </div>}
         <DayEditor
           day={day}
           exercises={exercises}
@@ -127,7 +83,7 @@ export function DayRow({
           restorableExerciseLineIds={restorableExerciseLineIds}
           onRestoreExercise={onRestoreExercise}
         />
-      )}
+      </>}
     </section>
   );
 }

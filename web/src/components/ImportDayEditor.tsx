@@ -1,13 +1,14 @@
-import { useEffect, useRef, useState } from 'react';
-import { AlertTriangle, ArrowLeftRight, Dumbbell, Link2, Loader2, MoreVertical, Plus, RotateCcw, Trash2, X } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { AlertTriangle, ArrowLeftRight, Dumbbell, Link2, Loader2, Plus, RotateCcw, Trash2, X } from 'lucide-react';
 import type { DraftExercise, DraftSet, DraftWorkout, Exercise } from '../types';
-import { rpeOptions, showReps } from '../lib/training';
+import { rpeOptions } from '../lib/training';
 import { Button } from './ui/Button';
 import { Select } from './ui/Select';
 import { Field, TextAreaField } from './ui/Field';
 import { Modal } from './ui/Modal';
 import { ExerciseLibrary } from './Exercises';
 import { SwipeableRow } from './ui/SwipeableRow';
+import { MenuButton, MenuItem } from './ui/MenuButton';
 
 import { getSupersetGroup, isSuperset, pairExercises, unlinkExercise } from '../lib/supersets';
 import { SupersetModal } from './SupersetModal';
@@ -20,22 +21,6 @@ import {
   cleanTechniqueNotes,
   applySetType
 } from '../lib/importSetTypes';
-
-export function exerciseSummary(exercise: DraftExercise): string {
-  const working = exercise.sets.filter(set => !set.warmup);
-  const prescribed = working.length ? working : exercise.sets;
-  if (!prescribed.length) return 'No prescription';
-
-  const repLabels = [...new Set(prescribed.map(set => showReps(set)))];
-  const rpeLabels = [...new Set(prescribed.map(set => set.targetRpe).filter((rpe): rpe is number => rpe != null))];
-  const restLabels = [...new Set(prescribed.map(set => set.restText || (set.restSeconds == null ? '' : `${set.restSeconds}s`)).filter(Boolean))];
-  const metrics = [`${working.length || exercise.sets.length} × ${repLabels.join(' / ')}`];
-  if (rpeLabels.length) metrics.push(`RPE ${rpeLabels.join(' / ')}`);
-  if (restLabels.length) metrics.push(restLabels.join(' / '));
-  const warmups = exercise.sets.length - working.length;
-  if (warmups > 0) metrics.push(`${warmups} warm-up`);
-  return metrics.join(' · ');
-}
 
 export function DayEditor({ day, exercises, onChange, onPropagateSubstitution, onMapExerciseSlot, restorableExerciseLineIds, onRestoreExercise }: {
   day: DraftWorkout;
@@ -130,30 +115,10 @@ function ExerciseEditor({ exercise, exercises, allDayExercises, onChange, onRemo
 }) {
   const [pickerOpen, setPickerOpen] = useState(false);
   const [supersetModalOpen, setSupersetModalOpen] = useState(false);
-  const [menuOpen, setMenuOpen] = useState(false);
-  const menuRef = useRef<HTMLDivElement>(null);
   const [isRestoring, setIsRestoring] = useState(false);
   const [restoreError, setRestoreError] = useState<string | null>(null);
   const [isMapping, setIsMapping] = useState(false);
   const [mappingError, setMappingError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!menuOpen) return;
-    const handleClickOutside = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        setMenuOpen(false);
-      }
-    };
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setMenuOpen(false);
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    document.addEventListener('keydown', handleKeyDown);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-      document.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [menuOpen]);
 
   const editSet = (index: number, patch: Partial<DraftSet>) =>
     onChange({ ...exercise, sets: exercise.sets.map((set, current) => current === index ? { ...set, ...patch } : set) });
@@ -271,64 +236,27 @@ function ExerciseEditor({ exercise, exercises, allDayExercises, onChange, onRemo
           <span className="tiny-label warn"><AlertTriangle size={12} /> Unmapped</span>
         )}
       </div>
-      <div className="import-exercise-menu-wrap" ref={menuRef}>
-        <Button
-          presentation="plain"
-          className="exercise-menu-trigger"
-          aria-label={`Actions for ${exercise.sourceName}`}
-          aria-haspopup="menu"
-          aria-expanded={menuOpen}
-          onClick={() => setMenuOpen(prev => !prev)}
-        >
-          {isRestoring ? <Loader2 size={16} className="spin" /> : <MoreVertical size={16} />}
-        </Button>
-        {menuOpen && (
-          <div className="exercise-menu-dropdown" role="menu">
-            <Button
-              presentation="plain"
-              role="menuitem"
-              className="exercise-menu-item"
-              onClick={() => {
-                setMenuOpen(false);
-                setSupersetModalOpen(true);
-              }}
-            >
-              <Link2 size={14} />
-              <span>{isPaired ? `Superset options (Group ${currentGroup})` : 'Pair into superset'}</span>
-            </Button>
-            {canRestore && onRestore && (
-              <Button
-                presentation="plain"
-                role="menuitem"
-                className="exercise-menu-item"
-                disabled={isRestoring}
-                onClick={() => {
-                  setMenuOpen(false);
-                  void handleRestore();
-                }}
-              >
-                <RotateCcw size={14} />
-                <span>Restore default</span>
-              </Button>
-            )}
-            {onRemove && (
-              <Button
-                presentation="plain"
-                role="menuitem"
-                className="exercise-menu-item exercise-menu-item-destructive"
-                disabled={allDayExercises.length <= 1 || isRestoring}
-                onClick={() => {
-                  setMenuOpen(false);
-                  onRemove();
-                }}
-              >
-                <Trash2 size={14} />
-                <span>Delete exercise</span>
-              </Button>
-            )}
-          </div>
+      <MenuButton
+        label={`Actions for ${exercise.sourceName}`}
+        icon={isRestoring ? <Loader2 size={16} className="spin" /> : undefined}
+      >
+        <MenuItem onClick={() => setSupersetModalOpen(true)}>
+          <Link2 size={14} />
+          <span>{isPaired ? `Superset options (Group ${currentGroup})` : 'Pair into superset'}</span>
+        </MenuItem>
+        {canRestore && onRestore && (
+          <MenuItem disabled={isRestoring} onClick={() => void handleRestore()}>
+            <RotateCcw size={14} />
+            <span>Restore default</span>
+          </MenuItem>
         )}
-      </div>
+        {onRemove && (
+          <MenuItem destructive disabled={allDayExercises.length <= 1 || isRestoring} onClick={onRemove}>
+            <Trash2 size={14} />
+            <span>Delete exercise</span>
+          </MenuItem>
+        )}
+      </MenuButton>
     </div>
     {restoreError && (
       <div className="inline-error restore-error" role="alert">

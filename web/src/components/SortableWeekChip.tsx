@@ -1,4 +1,5 @@
 import { useRef } from 'react';
+import { X } from 'lucide-react';
 import { Button } from './ui/Button';
 
 export interface SortableWeekChipProps {
@@ -10,6 +11,7 @@ export interface SortableWeekChipProps {
   onDragStart: () => void;
   onDragOver: (week: number, side: 'before' | 'after') => void;
   onDrop: (week?: number, side?: 'before' | 'after') => void;
+  onDelete?: () => void;
 }
 
 export function SortableWeekChip({
@@ -20,7 +22,8 @@ export function SortableWeekChip({
   onSelect,
   onDragStart,
   onDragOver,
-  onDrop
+  onDrop,
+  onDelete
 }: SortableWeekChipProps) {
   const pointer = useRef<{ id: number; startX: number; startY: number; armed: boolean; moved: boolean; timer?: number } | null>(null);
   const chipRef = useRef<HTMLButtonElement>(null);
@@ -40,100 +43,116 @@ export function SortableWeekChip({
   const dropClass = dropSide === 'before' ? 'drop-indicator-before' : dropSide === 'after' ? 'drop-indicator-after' : '';
 
   return (
-    <Button
-      ref={chipRef}
-      presentation="plain"
-      role="tab"
-      aria-selected={selected}
-      draggable
+    <span
+      role="presentation"
       data-import-week-chip={week}
-      className={`filter-chip import-week-chip ${selected ? 'active' : ''} ${dragging ? 'dragging' : ''} ${dropClass}`.trim()}
-      onClick={() => {
-        if (suppressClick.current) {
-          suppressClick.current = false;
-          return;
-        }
-        onSelect();
-      }}
-      onDragStart={event => {
-        event.dataTransfer.effectAllowed = 'move';
-        onDragStart();
-      }}
-      onDragOver={event => {
-        event.preventDefault();
-        const side = calcSide(event.clientX, event.currentTarget);
-        onDragOver(week, side);
-      }}
-      onDrop={event => {
-        event.preventDefault();
-        const side = calcSide(event.clientX, event.currentTarget);
-        onDrop(week, side);
-      }}
-      onDragEnd={() => {
-        clearPointer();
-        suppressClick.current = false;
-        onDrop();
-      }}
-      onPointerDown={event => {
-        if (event.pointerType === 'mouse' && event.button !== 0) return;
-        const current = {
-          id: event.pointerId,
-          startX: event.clientX,
-          startY: event.clientY,
-          armed: false,
-          moved: false,
-          timer: undefined as number | undefined
-        };
-        current.timer = window.setTimeout(() => {
-          if (pointer.current?.id !== current.id || current.moved) return;
-          current.armed = true;
+      className={`chip-group import-week-chip-group ${selected ? 'active' : ''} ${dragging ? 'dragging' : ''} ${dropClass}`.trim()}
+    >
+      <Button
+        ref={chipRef}
+        presentation="plain"
+        role="tab"
+        aria-selected={selected}
+        draggable
+        className={`filter-chip import-week-chip ${selected ? 'active' : ''}`}
+        onClick={() => {
+          if (suppressClick.current) {
+            suppressClick.current = false;
+            return;
+          }
+          onSelect();
+        }}
+        onDragStart={event => {
+          event.dataTransfer.effectAllowed = 'move';
           onDragStart();
-          try {
-            chipRef.current?.setPointerCapture(event.pointerId);
-          } catch {
-            /* synthetic pointer */
+        }}
+        onDragOver={event => {
+          event.preventDefault();
+          const side = calcSide(event.clientX, event.currentTarget);
+          onDragOver(week, side);
+        }}
+        onDrop={event => {
+          event.preventDefault();
+          const side = calcSide(event.clientX, event.currentTarget);
+          onDrop(week, side);
+        }}
+        onDragEnd={() => {
+          clearPointer();
+          suppressClick.current = false;
+          onDrop();
+        }}
+        onPointerDown={event => {
+          if (event.pointerType === 'mouse' && event.button !== 0) return;
+          const current = {
+            id: event.pointerId,
+            startX: event.clientX,
+            startY: event.clientY,
+            armed: false,
+            moved: false,
+            timer: undefined as number | undefined
+          };
+          current.timer = window.setTimeout(() => {
+            if (pointer.current?.id !== current.id || current.moved) return;
+            current.armed = true;
+            onDragStart();
+            try {
+              chipRef.current?.setPointerCapture(event.pointerId);
+            } catch {
+              /* synthetic pointer */
+            }
+          }, 240);
+          pointer.current = current;
+        }}
+        onPointerMove={event => {
+          const current = pointer.current;
+          if (!current || current.id !== event.pointerId) return;
+          const dx = event.clientX - current.startX;
+          const dy = event.clientY - current.startY;
+          if (!current.armed) {
+            if (Math.max(Math.abs(dx), Math.abs(dy)) > 8) {
+              current.moved = true;
+              if (current.timer != null) window.clearTimeout(current.timer);
+              if (Math.abs(dy) >= Math.abs(dx)) clearPointer();
+            }
+            return;
           }
-        }, 240);
-        pointer.current = current;
-      }}
-      onPointerMove={event => {
-        const current = pointer.current;
-        if (!current || current.id !== event.pointerId) return;
-        const dx = event.clientX - current.startX;
-        const dy = event.clientY - current.startY;
-        if (!current.armed) {
-          if (Math.max(Math.abs(dx), Math.abs(dy)) > 8) {
-            current.moved = true;
-            if (current.timer != null) window.clearTimeout(current.timer);
-            if (Math.abs(dy) >= Math.abs(dx)) clearPointer();
-          }
-          return;
-        }
-        event.preventDefault();
-        const target = document.elementFromPoint(event.clientX, event.clientY)?.closest<HTMLElement>('[data-import-week-chip]');
-        if (target?.dataset.importWeekChip) {
-          const side = calcSide(event.clientX, target);
-          onDragOver(Number(target.dataset.importWeekChip), side);
-        }
-      }}
-      onPointerUp={event => {
-        const current = pointer.current;
-        if (!current || current.id !== event.pointerId) return;
-        if (current.armed) {
-          suppressClick.current = true;
+          event.preventDefault();
           const target = document.elementFromPoint(event.clientX, event.clientY)?.closest<HTMLElement>('[data-import-week-chip]');
           if (target?.dataset.importWeekChip) {
             const side = calcSide(event.clientX, target);
-            onDrop(Number(target.dataset.importWeekChip), side);
-          } else {
-            onDrop();
+            onDragOver(Number(target.dataset.importWeekChip), side);
           }
-        }
-        clearPointer();
-      }}
-      onPointerCancel={clearPointer}
-    >
-      Week {week}
-    </Button>
+        }}
+        onPointerUp={event => {
+          const current = pointer.current;
+          if (!current || current.id !== event.pointerId) return;
+          if (current.armed) {
+            suppressClick.current = true;
+            const target = document.elementFromPoint(event.clientX, event.clientY)?.closest<HTMLElement>('[data-import-week-chip]');
+            if (target?.dataset.importWeekChip) {
+              const side = calcSide(event.clientX, target);
+              onDrop(Number(target.dataset.importWeekChip), side);
+            } else {
+              onDrop();
+            }
+          }
+          clearPointer();
+        }}
+        onPointerCancel={clearPointer}
+      >
+        Week {week}
+      </Button>
+      {onDelete && (
+        <Button
+          presentation="plain"
+          className="chip-icon-btn"
+          aria-label={`Delete week ${week}`}
+          title={`Delete week ${week}`}
+          onClick={onDelete}
+        >
+          <X size={13} />
+        </Button>
+      )}
+    </span>
   );
 }

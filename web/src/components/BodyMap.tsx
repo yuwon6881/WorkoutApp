@@ -1,15 +1,23 @@
+import type { CSSProperties } from 'react';
 import type { MuscleBalanceRow } from '../types';
-import { BAND_LABELS, bandFor, formatSets } from '../lib/muscleBalance';
+import { formatSets, shadeFor } from '../lib/muscleBalance';
 import './BodyMap.css';
 import { BACK_REGIONS, BODY_MAP_SILHOUETTE, BODY_MAP_VIEW_BOX, FRONT_REGIONS } from './bodyMapPaths';
 
 type BodyMapProps = {
   muscles: MuscleBalanceRow[];
-  weeks: number;
+  peak: number;
   activeMuscle?: string | null;
   onHoverMuscle?: (muscle: string | null) => void;
   onSelectMuscle?: (muscle: string) => void;
 };
+
+/// The fill is one accent hue at a depth proportional to the muscle's share of the busiest muscle,
+/// so a deeper region simply means more credited sets.
+function fillStyle(shade: number): CSSProperties {
+  const depth = Math.round(16 + 74 * shade);
+  return { '--muscle-shade': `${depth}%` } as CSSProperties;
+}
 
 function makeAccessibleLabel(view: string, regions: Record<string, string>, muscles: MuscleBalanceRow[]): string {
   const visibleRegions = new Set(Object.keys(regions));
@@ -26,27 +34,20 @@ function makeAccessibleLabel(view: string, regions: Record<string, string>, musc
   return `${view} body heat map. Most trained: ${top}. Not trained: ${untrained.join(', ') || 'none'}.`;
 }
 
-function BodyFigure({ view, regions, muscles, weeks, activeMuscle, onHoverMuscle, onSelectMuscle }: {
+function BodyFigure({ view, regions, muscles, peak, activeMuscle, onHoverMuscle, onSelectMuscle }: {
   view: 'Front' | 'Back';
   regions: Record<string, string>;
   muscles: MuscleBalanceRow[];
-  weeks: number;
+  peak: number;
   activeMuscle?: string | null;
   onHoverMuscle?: (muscle: string | null) => void;
   onSelectMuscle?: (muscle: string) => void;
 }) {
   const values = new Map(muscles.map(muscle => [muscle.muscle, muscle.sets]));
-  const activeSets = activeMuscle && values.has(activeMuscle) ? values.get(activeMuscle) : null;
 
   return (
     <figure className="body-map-diagram">
       <figcaption>{view}</figcaption>
-      {activeMuscle && regions[activeMuscle] && (
-        <div className="body-map-active-callout" role="status">
-          <strong>{activeMuscle}</strong>
-          <span>· {formatSets(activeSets ?? 0)} {activeSets === 1 ? 'set' : 'sets'}</span>
-        </div>
-      )}
       <svg
         className="body-map-figure"
         viewBox={BODY_MAP_VIEW_BOX}
@@ -57,20 +58,21 @@ function BodyFigure({ view, regions, muscles, weeks, activeMuscle, onHoverMuscle
         <path className="body-map-silhouette" d={BODY_MAP_SILHOUETTE} aria-hidden="true" />
         {Object.entries(regions).map(([muscle, path]) => {
           const sets = values.get(muscle) ?? 0;
-          const band = bandFor(sets, weeks);
           const isActive = activeMuscle === muscle;
           return (
             <path
               key={muscle}
-              className={`muscle-region band-${band}${isActive ? ' is-active' : ''}`}
+              className={`muscle-region${sets > 0 ? '' : ' is-untrained'}${isActive ? ' is-active' : ''}`}
+              style={fillStyle(shadeFor(sets, peak))}
               data-muscle={muscle}
               d={path}
               role="button"
               tabIndex={0}
-              aria-label={`${muscle}: ${formatSets(sets)} sets (${BAND_LABELS[band]})`}
+              aria-label={sets > 0 ? `${muscle}: ${formatSets(sets)} credited sets` : `${muscle}: not trained`}
               aria-pressed={isActive}
               onMouseEnter={() => onHoverMuscle?.(muscle)}
               onMouseLeave={() => onHoverMuscle?.(null)}
+              onFocus={() => onHoverMuscle?.(muscle)}
               onClick={() => onSelectMuscle?.(muscle)}
               onKeyDown={e => {
                 if (e.key === 'Enter' || e.key === ' ') {
@@ -86,14 +88,14 @@ function BodyFigure({ view, regions, muscles, weeks, activeMuscle, onHoverMuscle
   );
 }
 
-export function BodyMap({ muscles, weeks, activeMuscle, onHoverMuscle, onSelectMuscle }: BodyMapProps) {
+export function BodyMap({ muscles, peak, activeMuscle, onHoverMuscle, onSelectMuscle }: BodyMapProps) {
   return (
     <div className="body-map-pair">
       <BodyFigure
         view="Front"
         regions={FRONT_REGIONS}
         muscles={muscles}
-        weeks={weeks}
+        peak={peak}
         activeMuscle={activeMuscle}
         onHoverMuscle={onHoverMuscle}
         onSelectMuscle={onSelectMuscle}
@@ -102,11 +104,36 @@ export function BodyMap({ muscles, weeks, activeMuscle, onHoverMuscle, onSelectM
         view="Back"
         regions={BACK_REGIONS}
         muscles={muscles}
-        weeks={weeks}
+        peak={peak}
         activeMuscle={activeMuscle}
         onHoverMuscle={onHoverMuscle}
         onSelectMuscle={onSelectMuscle}
       />
+    </div>
+  );
+}
+
+/// A fixed slot under the figures. It reads out whichever muscle is hovered, focused or tapped, and
+/// never changes the page height, so pointing at a region cannot move the region out from under the
+/// pointer.
+export function MuscleDetail({ muscle, dateLabel }: {
+  muscle: MuscleBalanceRow | null;
+  dateLabel: (value: string | null) => string;
+}) {
+  return (
+    <div className="body-map-detail" role="status" aria-live="polite">
+      {muscle ? <>
+        <strong className="body-map-detail-name">{muscle.muscle}</strong>
+        <span className="body-map-detail-sets">
+          {formatSets(muscle.sets)} {muscle.sets === 1 ? 'set' : 'sets'}
+        </span>
+        <span className="body-map-detail-split">
+          {formatSets(muscle.primarySets)} primary · {formatSets(muscle.secondarySets)} indirect
+        </span>
+        <span className="body-map-detail-last">
+          {muscle.sets > 0 ? `Last trained ${dateLabel(muscle.lastTrainedDate)}` : 'Not trained in this window'}
+        </span>
+      </> : <span className="body-map-detail-hint">Select a muscle to see its sets</span>}
     </div>
   );
 }

@@ -40,6 +40,26 @@ async function restSeconds(clock: import('@playwright/test').Locator): Promise<n
   return match ? Number(match[1]) * 60 + Number(match[2]) : -1;
 }
 
+/// Muscle regions are irregular shapes, so the bounding-box centre can sit over the silhouette
+/// behind them. This finds a point the browser actually hit-tests to the region and clicks there.
+async function tapMuscleRegion(page: Page, muscle: string) {
+  const region = page.locator(`.muscle-region[data-muscle="${muscle}"]`).first();
+  await region.scrollIntoViewIfNeeded();
+  const point = await region.evaluate(element => {
+    const box = element.getBoundingClientRect();
+    for (let ratioY = 0.2; ratioY <= 0.81; ratioY += 0.1) {
+      for (let ratioX = 0.1; ratioX <= 0.91; ratioX += 0.05) {
+        const x = box.left + box.width * ratioX;
+        const y = box.top + box.height * ratioY;
+        if (document.elementFromPoint(x, y) === element) return { x, y };
+      }
+    }
+    return null;
+  });
+  if (!point) throw new Error(`No point on the map hit-tests to ${muscle}.`);
+  await page.mouse.click(point.x, point.y);
+}
+
 async function openTab(page: Page, name: string) {
   await page.getByRole('button', { name, exact: true }).filter({ visible: true }).first().click();
   await page.locator('.motion-scene').evaluate(el => Promise.all(el.getAnimations().map(a => a.finished))).catch(() => {});
@@ -160,15 +180,31 @@ test('build a workout, log a set against the server, and see it in history', asy
 
   await page.getByRole('button', { name: 'See muscle coverage', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Muscle coverage', exact: true })).toBeVisible();
-  for (const range of ['Last week', 'Last month', 'Last 3 months']) {
-    await expect(page.getByRole('button', { name: range, exact: true })).toBeVisible();
-  }
+  const rangeSelect = page.getByRole('button', { name: 'Muscle coverage period', exact: true });
+  await expect(rangeSelect).toContainText('Last week');
   await expect(page.getByRole('img', { name: /front/i })).toBeVisible();
   await expect(page.getByRole('img', { name: /back/i })).toBeVisible();
+
+  // Selecting a muscle reads it out in a slot that is always there, so the figure cannot move out
+  // from under the pointer that is picking it.
+  const figure = page.getByRole('img', { name: /front/i });
+  const figureBefore = await figure.boundingBox();
+  const detail = page.locator('.body-map-detail');
+  await tapMuscleRegion(page, 'Chest');
+  await expect(detail).toContainText('Chest');
+  expect(await figure.boundingBox()).toEqual(figureBefore);
+
+  // Shade depth is relative: a trained muscle is deeper than one with no credited sets.
+  const shadeOf = (muscle: string) => page.locator(`.muscle-region[data-muscle="${muscle}"]`).first()
+    .evaluate(element => Number.parseFloat(getComputedStyle(element).getPropertyValue('--muscle-shade')));
+  expect(await shadeOf('Chest')).toBeGreaterThan(await shadeOf('Calves'));
+
   const longerRange = page.waitForResponse(response => response.request().method() === 'GET'
     && new URL(response.url()).pathname === '/api/progress/muscles'
     && new URL(response.url()).searchParams.get('range') === '3m');
-  await page.getByRole('button', { name: 'Last 3 months', exact: true }).click();
+  await rangeSelect.click();
+  await page.getByRole('listbox', { name: 'Muscle coverage period', exact: true })
+    .getByRole('option', { name: 'Last 3 months', exact: true }).click();
   expect((await longerRange).ok()).toBe(true);
   const chest = page.locator('.muscle-balance-table-row[data-muscle="Chest"]');
   await expect(chest).toBeVisible();
@@ -228,26 +264,21 @@ test('import a PDF program, resolve an unmapped exercise, and accept it', async 
   await expect(day).toHaveAttribute('aria-expanded', 'true');
   await day.click();
   await expect(day).toHaveAttribute('aria-expanded', 'false');
+  // A collapsed day stays one compact row: the muscles it trains appear once it is opened.
+  await expect(page.locator('.day-muscles-row')).toHaveCount(0);
   if ((page.viewportSize()?.width ?? 0) >= 640) {
-    const detailsButton = page.locator('.draft-day').filter({ has: day }).locator('.day-chevron-button');
-    await expect(detailsButton).toHaveAccessibleName('View details for Week 1 Upper');
+    const dayActions = page.getByRole('button', { name: 'Actions for Week 1 Upper', exact: true });
     await day.focus();
     await page.keyboard.press('Tab');
-    await expect(detailsButton).toBeFocused();
+    await expect(dayActions).toBeFocused();
     await page.keyboard.press('Shift+Tab');
     await expect(day).toBeFocused();
     await expect(day).toHaveCSS('outline-style', 'solid');
     await expect(day).toHaveCSS('outline-width', '2px');
-    await page.keyboard.press('Tab');
-    await expect(detailsButton).toBeFocused();
-    await detailsButton.click();
-    await expect(day).toHaveAttribute('aria-expanded', 'false');
-    await expect(detailsButton).toHaveAttribute('aria-expanded', 'true');
-    await expect(detailsButton).toHaveAccessibleName('Hide details for Week 1 Upper');
-    await expect(page.locator('.draft-day-lines')).toBeVisible();
-    await detailsButton.click();
-    await expect(page.locator('.draft-day-lines')).toHaveCount(0);
   }
+  await day.click();
+  await expect(day).toHaveAttribute('aria-expanded', 'true');
+  await expect(page.locator('.day-muscles-row')).toBeVisible();
   const issue = page.getByRole('button', { name: 'Fix unmapped exercise Mystery machine row', exact: true });
   await issue.click();
   await expect(page.getByRole('button', { name: 'Library exercise for Mystery machine row', exact: true })).toBeFocused();
@@ -353,7 +384,9 @@ test('import a PDF program, resolve an unmapped exercise, and accept it', async 
   await page.getByLabel('Program name').fill(programName);
   await page.getByLabel('Program name').blur();
   await firstDraftWrite;
-  const restoreDraft = page.getByRole('button', { name: 'Restore default draft', exact: true });
+  const draftActions = page.getByRole('button', { name: 'Draft actions', exact: true });
+  await draftActions.click();
+  const restoreDraft = page.getByRole('menuitem', { name: 'Restore default draft', exact: true });
   await expect(restoreDraft).toBeVisible();
   await expect(restoreDraft).toBeEnabled();
 
@@ -386,6 +419,7 @@ test('import a PDF program, resolve an unmapped exercise, and accept it', async 
       .find((exercise: { lineId: string }) => exercise.lineId === lineId)?.sourceName ?? '';
   }, substitutionLineId), { timeout: 20000 }).toBe('DB Incline Press');
 
+  await draftActions.click();
   await restoreDraft.click();
   const restoreDialog = page.getByRole('dialog', { name: 'Restore default draft', exact: true });
   await expect(restoreDialog).toBeVisible();
@@ -418,7 +452,8 @@ test('a discarded draft leaves no program behind', async ({ page }) => {
   await page.getByLabel('Program PDF').setInputFiles({ name: 'throwaway.pdf', mimeType: 'application/pdf', buffer: pdf(5, 'throwaway') });
   await expect(page.getByRole('heading', { name: 'Review' })).toBeVisible({ timeout: 60000 });
 
-  await page.getByRole('button', { name: 'Discard draft', exact: true }).click();
+  await page.getByRole('button', { name: 'Draft actions', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'Discard draft', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Review' })).toBeHidden({ timeout: 30000 });
 });
 
@@ -595,8 +630,8 @@ test('create a custom multi-block program and cap each week at seven scheduled d
     const turnNewDayIntoRest = async (week: number) => {
       await page.getByRole('tab', { name: `Week ${week}`, exact: true }).click();
       const entry = page.locator('.program-day-entry').filter({ hasText: 'New day' });
-      await entry.getByText('Day actions', { exact: true }).click();
-      await entry.getByRole('button', { name: 'Make rest day', exact: true }).click();
+      await entry.getByRole('button', { name: 'Actions for New day', exact: true }).click();
+      await entry.getByRole('menuitem', { name: 'Make rest day', exact: true }).click();
       const confirm = page.getByRole('dialog', { name: 'Make this a rest day?', exact: true });
       await confirm.getByRole('button', { name: 'Clear workout and make rest day', exact: true }).click();
       await expect(page.getByRole('tabpanel', { name: `Week ${week}` }).locator('.rest-badge')).toBeVisible();
@@ -610,6 +645,15 @@ test('create a custom multi-block program and cap each week at seven scheduled d
     await addWeek.getByRole('button', { name: /Start empty/ }).click();
     await turnNewDayIntoRest(3);
 
+    // A week is removed from its own chip, so the week strip carries the structural action.
+    await page.getByRole('button', { name: 'Add week', exact: true }).click();
+    await addWeek.getByRole('button', { name: /Start empty/ }).click();
+    await expect(page.getByRole('tab', { name: 'Week 4', exact: true })).toBeVisible();
+    await page.getByRole('button', { name: 'Delete week 4', exact: true }).click();
+    const deleteWeek = page.getByRole('dialog', { name: 'Delete Week 4?', exact: true });
+    await deleteWeek.getByRole('button', { name: 'Delete week', exact: true }).click();
+    await expect(page.getByRole('tab', { name: 'Week 4', exact: true })).toHaveCount(0);
+
     await page.getByRole('tab', { name: 'Block 1', exact: true }).click();
     for (let index = 0; index < 6; index++) {
       await page.getByRole('button', { name: 'Add rest day', exact: true }).click();
@@ -617,6 +661,34 @@ test('create a custom multi-block program and cap each week at seven scheduled d
     await expect(page.getByText('7 of 7 days', { exact: true })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Add rest day', exact: true })).toBeDisabled();
     await expect(page.getByRole('button', { name: 'Add workout day', exact: true })).toBeDisabled();
+
+    // Days are sorted by dragging the grip, and the same move is available from the keyboard.
+    const entries = page.locator('.program-day-entry');
+    const firstDayName = 'Day 1';
+    await expect(entries.first().getByRole('button', { name: firstDayName, exact: true })).toBeVisible();
+    const grip = entries.first().getByRole('button', { name: /^Reorder Day 1/ });
+    await grip.evaluate(element => {
+      const entry = element.closest('[data-day-index]');
+      const next = entry?.nextElementSibling;
+      if (!entry || !(next instanceof HTMLElement)) throw new Error('The week needs a second day to drag onto.');
+      entry.scrollIntoView({ block: 'center' });
+      const box = element.getBoundingClientRect();
+      const nextBox = next.getBoundingClientRect();
+      const x = box.left + box.width / 2;
+      const dropY = nextBox.top + nextBox.height * 0.75;
+      if (!next.contains(document.elementFromPoint(x, dropY))) throw new Error('The drop point must land on the next day row.');
+      const send = (type: string, clientY: number) => element.dispatchEvent(new PointerEvent(type, {
+        bubbles: true, pointerId: 31, pointerType: 'touch', isPrimary: true,
+        buttons: type === 'pointerup' ? 0 : 1, clientX: x, clientY
+      }));
+      send('pointerdown', box.top + box.height / 2);
+      send('pointermove', box.top + box.height / 2 + 20);
+      send('pointermove', dropY);
+      send('pointerup', dropY);
+    });
+    await expect(entries.nth(1).getByRole('button', { name: firstDayName, exact: true })).toBeVisible();
+    await entries.nth(1).getByRole('button', { name: /^Reorder Day 1/ }).press('ArrowUp');
+    await expect(entries.first().getByRole('button', { name: firstDayName, exact: true })).toBeVisible();
 
     await page.getByRole('button', { name: 'Day 1', exact: true }).click();
     await page.getByRole('button', { name: 'Library exercise for New exercise', exact: true }).click();

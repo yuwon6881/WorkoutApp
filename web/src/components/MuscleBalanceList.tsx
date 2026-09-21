@@ -1,21 +1,24 @@
+import type { CSSProperties } from 'react';
 import type { MuscleBalanceRow } from '../types';
-import { BAND_LABELS, bandFor, formatSets } from '../lib/muscleBalance';
+import { formatSets, shadeFor } from '../lib/muscleBalance';
 
 function setCountLabel(sets: number) {
   const count = formatSets(sets);
   return `${count} ${sets === 1 ? 'set' : 'sets'}`;
 }
 
+/// Only the muscles that were trained get a row. Untrained ones are named once underneath instead
+/// of repeating an empty row for every muscle in the catalog.
 export function MuscleBalanceList({
   muscles,
-  weeks,
+  peak,
   dateLabel,
   activeMuscle,
   onHoverMuscle,
   onSelectMuscle
 }: {
   muscles: MuscleBalanceRow[];
-  weeks: number;
+  peak: number;
   dateLabel: (value: string | null) => string;
   activeMuscle?: string | null;
   onHoverMuscle?: (muscle: string | null) => void;
@@ -26,13 +29,12 @@ export function MuscleBalanceList({
       <div className="muscle-balance-table-head" role="row">
         <span role="columnheader">Muscle</span>
         <span role="columnheader">Credited sets</span>
-        <span role="columnheader">Band</span>
         <span role="columnheader">Last trained</span>
       </div>
       <div className="muscle-balance-table-body" role="rowgroup">
         {muscles.map(muscle => {
-          const band = bandFor(muscle.sets, weeks);
           const isActive = activeMuscle === muscle.muscle;
+          const barStyle = { '--muscle-bar': `${Math.round(shadeFor(muscle.sets, peak) * 100)}%` } as CSSProperties;
           return (
             <div
               className={`muscle-balance-table-row${isActive ? ' is-active' : ''}`}
@@ -51,14 +53,12 @@ export function MuscleBalanceList({
               }}
             >
               <span className="muscle-balance-cell muscle-balance-name" role="cell" data-label="Muscle">
-                {muscle.muscle}
+                <span>{muscle.muscle}</span>
+                <span className="muscle-balance-bar" style={barStyle} aria-hidden="true" />
               </span>
               <span className="muscle-balance-cell muscle-balance-sets" role="cell" data-label="Credited sets">
                 <strong>{setCountLabel(muscle.sets)}</strong>
                 <small>{formatSets(muscle.primarySets)} primary · {formatSets(muscle.secondarySets)} indirect</small>
-              </span>
-              <span className="muscle-balance-cell muscle-balance-band-cell" role="cell" data-label="Band">
-                <span className={`muscle-balance-band-label band-${band}`}>{BAND_LABELS[band]}</span>
               </span>
               <span className="muscle-balance-cell muscle-balance-last-trained" role="cell" data-label="Last trained">
                 <span>{dateLabel(muscle.lastTrainedDate)}</span>

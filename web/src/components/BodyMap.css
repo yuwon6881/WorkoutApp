@@ -1,17 +1,5 @@
 :root{
-  --muscle-0:var(--surface-hover);
-  --muscle-1:color-mix(in srgb,var(--accent) 18%,var(--surface-raised));
-  --muscle-2:color-mix(in srgb,var(--accent) 40%,var(--surface-raised));
-  --muscle-3:color-mix(in srgb,var(--accent) 68%,var(--surface-raised));
-  --muscle-4:var(--accent);
-  --muscle-outline:var(--border-hover);
-}
-:root[data-theme=light]{
-  --muscle-0:var(--surface-hover);
-  --muscle-1:color-mix(in srgb,var(--accent) 18%,var(--surface-raised));
-  --muscle-2:color-mix(in srgb,var(--accent) 40%,var(--surface-raised));
-  --muscle-3:color-mix(in srgb,var(--accent) 68%,var(--surface-raised));
-  --muscle-4:var(--accent);
+  --muscle-empty:var(--surface-hover);
   --muscle-outline:var(--border-hover);
 }
 .body-map-pair{
@@ -38,23 +26,6 @@
   letter-spacing:0.04em;
   text-transform:uppercase;
 }
-.body-map-active-callout{
-  display:flex;
-  align-items:center;
-  gap:4px;
-  padding:3px 10px;
-  border-radius:999px;
-  background:var(--surface-raised);
-  border:1px solid var(--accent-border);
-  color:var(--accent);
-  font-size:14px;
-  font-weight:600;
-  min-height:28px;
-}
-.body-map-active-callout span{
-  color:var(--text);
-  font-weight:400;
-}
 .body-map-figure{
   display:block;
   width:100%;
@@ -70,29 +41,44 @@
   vector-effect:non-scaling-stroke;
 }
 .muscle-region{
+  fill:color-mix(in srgb,var(--accent) var(--muscle-shade,16%),var(--surface-raised));
   stroke:var(--border);
   stroke-width:1.2;
   stroke-linejoin:round;
   vector-effect:non-scaling-stroke;
   cursor:pointer;
   outline:none;
-  transition:fill var(--motion-control) var(--motion-ease),
-             stroke var(--motion-control) var(--motion-ease),
-             filter var(--motion-control) var(--motion-ease);
+  transition:fill var(--motion-control) var(--motion-ease),stroke var(--motion-control) var(--motion-ease);
 }
-.muscle-region.band-0{fill:var(--muscle-0)}
-.muscle-region.band-1{fill:var(--muscle-1)}
-.muscle-region.band-2{fill:var(--muscle-2)}
-.muscle-region.band-3{fill:var(--muscle-3)}
-.muscle-region.band-4{fill:var(--muscle-4)}
-
+.muscle-region.is-untrained{fill:var(--muscle-empty)}
 .muscle-region:hover,
 .muscle-region:focus-visible,
 .muscle-region.is-active{
   stroke:var(--accent);
-  stroke-width:2.2;
-  filter:drop-shadow(0 0 4px var(--accent-soft));
+  stroke-width:2.4;
 }
+
+/* A reserved row: the readout never adds or removes height while a muscle is pointed at. */
+.body-map-detail{
+  display:grid;
+  grid-template-columns:auto auto minmax(0,1fr) auto;
+  align-items:center;
+  gap:0 12px;
+  min-height:52px;
+  padding-block:8px;
+  margin-top:10px;
+  padding:0 14px;
+  overflow:hidden;
+  border:1px solid var(--border);
+  border-radius:10px;
+  background:var(--surface-raised);
+  font-size:14px;
+}
+.body-map-detail>*{min-width:0;overflow-wrap:anywhere}
+.body-map-detail-name{color:var(--accent);font-size:15px;font-weight:650}
+.body-map-detail-sets{color:var(--text);font-weight:600;font-variant-numeric:tabular-nums}
+.body-map-detail-split,.body-map-detail-last,.body-map-detail-hint{color:var(--muted)}
+.body-map-detail-last{text-align:right}
 
 [data-motion-reduced] .muscle-region{transition:none}
 
@@ -109,6 +95,10 @@
   .body-map-figure{
     max-height:380px;
   }
+  .body-map-detail{grid-template-columns:minmax(0,1fr) auto;min-height:66px;padding:8px 11px;gap:2px 10px}
+  .body-map-detail-hint{grid-column:1 / -1}
+  .body-map-detail-split{justify-self:start}
+  .body-map-detail-last{text-align:right}
 }
 
 @media(prefers-reduced-motion:reduce){
