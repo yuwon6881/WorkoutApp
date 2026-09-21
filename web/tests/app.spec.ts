@@ -60,6 +60,12 @@ async function tapMuscleRegion(page: Page, muscle: string) {
   await page.mouse.click(point.x, point.y);
 }
 
+/// Everything that starts a workout, a program or an import now lives behind one New menu.
+async function openNewMenu(page: Page, item: string) {
+  await page.getByRole('button', { name: 'New', exact: true }).filter({ visible: true }).first().click();
+  await page.getByRole('menuitem', { name: item, exact: true }).click();
+}
+
 async function openTab(page: Page, name: string) {
   await page.getByRole('button', { name, exact: true }).filter({ visible: true }).first().click();
   await page.locator('.motion-scene').evaluate(el => Promise.all(el.getAnimations().map(a => a.finished))).catch(() => {});
@@ -85,7 +91,7 @@ test('build a workout, log a set against the server, and see it in history', asy
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 
   await openTab(page, 'Workouts');
-  await page.getByRole('button', { name: 'New workout', exact: true }).first().click();
+  await openNewMenu(page, 'New workout');
   const editor = page.getByRole('dialog', { name: 'Build a workout' });
   const name = `E2E day ${Date.now()}`;
   await editor.getByLabel('Workout name').fill(name);
@@ -239,7 +245,7 @@ test('build a workout, log a set against the server, and see it in history', asy
 test('import a PDF program, resolve an unmapped exercise, and accept it', async ({ page }, testInfo) => {
   await signIn(page);
   await openTab(page, 'Workouts');
-  await page.getByRole('button', { name: 'Import a PDF program', exact: true }).click();
+  await openNewMenu(page, 'Import a PDF program');
   await expect(page.getByRole('heading', { name: 'Import a program' })).toBeVisible();
 
   // The document itself must never leave the browser: what reaches the API is the page text this
@@ -448,7 +454,7 @@ test('import a PDF program, resolve an unmapped exercise, and accept it', async 
 test('a discarded draft leaves no program behind', async ({ page }) => {
   await signIn(page);
   await openTab(page, 'Workouts');
-  await page.getByRole('button', { name: 'Import a PDF program', exact: true }).click();
+  await openNewMenu(page, 'Import a PDF program');
   await page.getByLabel('Program PDF').setInputFiles({ name: 'throwaway.pdf', mimeType: 'application/pdf', buffer: pdf(5, 'throwaway') });
   await expect(page.getByRole('heading', { name: 'Review' })).toBeVisible({ timeout: 60000 });
 
@@ -621,7 +627,7 @@ test('create a custom multi-block program and cap each week at seven scheduled d
   const name = `Custom E2E ${Date.now()}`;
 
   try {
-    await page.getByRole('button', { name: 'New program', exact: true }).click();
+    await openNewMenu(page, 'New program');
     await expect(page.getByRole('heading', { name: 'Build a program', exact: true })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Create program', exact: true })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Accept and create program', exact: true })).toHaveCount(0);
@@ -696,7 +702,6 @@ test('create a custom multi-block program and cap each week at seven scheduled d
     await picker.getByRole('button', { name: 'Map Barbell bench press', exact: true }).click();
     await expect(picker).toBeHidden();
     await expect(page.getByRole('button', { name: 'Library exercise for Barbell bench press', exact: true })).toBeVisible();
-    await expect(page.locator('.program-builder-save-state')).toHaveText('Saved', { timeout: 30000 });
 
     await page.getByRole('button', { name: 'Create program', exact: true }).click();
     const createdCard = page.locator('.program-card').filter({ hasText: name });
@@ -714,13 +719,6 @@ test('create a custom multi-block program and cap each week at seven scheduled d
         const data = await bootstrap.json();
         for (const program of data.programs.filter((item: { name: string }) => item.name === programName)) {
           await fetch(`/api/programs/${program.id}`, { method: 'DELETE', headers });
-        }
-      }
-      const draftsResponse = await fetch('/api/program-drafts', { headers, cache: 'no-store' });
-      if (draftsResponse.ok) {
-        const drafts = await draftsResponse.json();
-        for (const draft of drafts.filter((item: { programName: string }) => item.programName === programName)) {
-          await fetch(`/api/program-drafts/${draft.id}`, { method: 'DELETE', headers });
         }
       }
     }, name).catch(() => {});

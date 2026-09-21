@@ -22,7 +22,7 @@ public sealed class Harness : IAsyncDisposable
     public TemplateService Templates { get; }
     public ProgramProgressService ProgramProgress { get; }
     public ProgramService Programs { get; }
-    public ProgramDraftService ProgramDrafts { get; }
+    public ProgramEditorService ProgramEditor { get; }
     public ProgressionService Progression { get; }
     public WorkoutService Workouts { get; }
     public MuscleBalanceService MuscleBalance { get; }
@@ -37,7 +37,7 @@ public sealed class Harness : IAsyncDisposable
         ProgramProgress = new ProgramProgressService(db);
         var lifecycle = new ProgramLifecycleService(db, Templates, ProgramProgress);
         Programs = new ProgramService(db, Templates, ProgramProgress, lifecycle);
-        ProgramDrafts = new ProgramDraftService(db, Programs);
+        ProgramEditor = new ProgramEditorService(Programs);
         Progression = new ProgressionService(db);
         Workouts = new WorkoutService(db, Catalog, Templates, Progression,
             new NutritionContextService(db, new TestHttpClientFactory(), config), Programs);

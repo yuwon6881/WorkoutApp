@@ -106,6 +106,12 @@ async function checkLayout(page: Page, label: string) {
   expect(passiveButtons, `${label}: passive workout rows are not controls`).toEqual([]);
 }
 
+/// Everything that starts a workout, a program or an import now lives behind one New menu.
+async function openNewMenu(page: Page, item: string) {
+  await page.getByRole('button', { name: 'New', exact: true }).filter({ visible: true }).first().click();
+  await page.getByRole('menuitem', { name: item, exact: true }).click();
+}
+
 async function navigate(page: Page, name: string) {
   await page.getByRole('button', { name, exact: true }).filter({ visible: true }).first().click();
 }
@@ -156,7 +162,7 @@ for (const theme of ['dark', 'light']) {
     await expect(page.getByRole('heading', { name: 'Workouts', exact: true })).toBeVisible();
     await screenshot('workouts');
 
-    await page.getByRole('button', { name: 'New workout', exact: true }).first().click();
+    await openNewMenu(page, 'New workout');
     const editor = page.getByRole('dialog', { name: 'Build a workout' });
     // Every viewport project shares one account, so each run needs its own workout to act on.
     const workoutName = `Lower body strength and conditioning ${info.project.name} ${theme}`;
@@ -180,7 +186,7 @@ for (const theme of ['dark', 'light']) {
     await screenshot('exercises');
 
     await navigate(page, 'Workouts');
-    await page.getByRole('button', { name: 'Import a PDF program', exact: true }).click();
+    await openNewMenu(page, 'Import a PDF program');
     await screenshot('import-upload');
     // Uploading is rate limited per session, as it should be, and every viewport shares one
     // account here. The review screen is what this suite checks, so the first run creates the

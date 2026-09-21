@@ -1,130 +1,19 @@
 using System.Text;
-using Microsoft.EntityFrameworkCore;
-using Workout.Api.Data;
 using Workout.Api.Domain;
 
 namespace Workout.Api.Services;
 
-public sealed record ProgramDraftCreateInput(ImportDraft Draft, Guid? RequestKey = null);
-public sealed record ProgramDraftUpdateInput(ImportDraft Draft, int Revision);
-public sealed record ProgramDraftCreateProgramInput(int Revision);
-public sealed record ProgramDraftSummaryView(Guid Id, string ProgramName, int Revision, DateTime Created,
-    DateTime Updated, Guid? CreatedProgramId);
-public sealed record ProgramDraftView(Guid Id, ImportDraft? Draft, int Revision, DateTime Created,
-    DateTime Updated, Guid? CreatedProgramId);
+public sealed record ProgramEditorCreateInput(ImportDraft Draft, Guid? IdempotencyId = null);
 
-/// Tenant-scoped persistence and one-time materialization for user-authored program drafts.
-public sealed class ProgramDraftService(AppDb db, ProgramService programs)
+/// Validation and one-shot materialization for a program authored in the builder. The document is
+/// held in the browser until the lifter asks for the program, so nothing half-built is stored.
+public sealed class ProgramEditorService(ProgramService programs)
 {
     private const int MaxJsonBytes = 1_048_576;
-    private const int MaxOpenDrafts = 20;
 
-    public async Task<List<ProgramDraftSummaryView>> List(CancellationToken ct)
+    public async Task<ProgramView> CreateProgram(ProgramEditorCreateInput input, CancellationToken ct)
     {
-        var rows = await db.ProgramDrafts.AsNoTracking()
-            .Where(row => row.CreatedProgramId == null)
-            .OrderByDescending(row => row.Updated)
-            .Take(MaxOpenDrafts)
-            .Select(row => new ProgramDraftSummaryView(row.Id, row.ProgramName, row.Revision,
-                row.Created, row.Updated, row.CreatedProgramId))
-            .ToListAsync(ct);
-        return rows;
-    }
-
-    public async Task<ProgramDraftView> Create(ProgramDraftCreateInput input, CancellationToken ct)
-    {
-        var draftJson = SerializeAndValidate(input.Draft);
-        Validation.Require(input.RequestKey is null || input.RequestKey != Guid.Empty, "The draft request key is invalid.");
-        await using var gate = await MutationLock.Acquire(db, db.CurrentUser, ct);
-        var userId = RequireUser();
-        if (input.RequestKey is { } requestKey)
-        {
-            var existing = await db.ProgramDrafts.SingleOrDefaultAsync(
-                row => row.UserId == userId && row.RequestKey == requestKey, ct);
-            if (existing is not null)
-            {
-                var existingDraft = string.IsNullOrEmpty(existing.DraftJson)
-                    ? null
-                    : Json.Read<ImportDraft>(existing.DraftJson);
-                await gate.Commit(ct);
-                return ToView(existing, existingDraft);
-            }
-        }
-
-        var activeDrafts = await db.ProgramDrafts.CountAsync(row => row.CreatedProgramId == null, ct);
-        Validation.Require(activeDrafts < MaxOpenDrafts, "Discard an unused program draft before creating another.", 422);
-
-        var now = DateTime.UtcNow;
-        var row = new ProgramDraft
-        {
-            UserId = userId,
-            ProgramName = input.Draft.ProgramName,
-            DraftJson = draftJson,
-            RequestKey = input.RequestKey,
-            Created = now,
-            Updated = now
-        };
-        db.ProgramDrafts.Add(row);
-        await db.SaveChangesAsync(ct);
-        await gate.Commit(ct);
-        return ToView(row, input.Draft);
-    }
-
-    public async Task<ProgramDraftView> Get(Guid id, CancellationToken ct)
-    {
-        var row = await db.ProgramDrafts.AsNoTracking().SingleOrDefaultAsync(item => item.Id == id, ct);
-        Validation.Require(row is not null, "That program draft no longer exists.", 404);
-        var draft = string.IsNullOrEmpty(row!.DraftJson) ? null : Json.Read<ImportDraft>(row.DraftJson);
-        return ToView(row, draft);
-    }
-
-    public async Task<ProgramDraftView> Update(Guid id, ProgramDraftUpdateInput input, CancellationToken ct)
-    {
-        var draftJson = SerializeAndValidate(input.Draft);
-        await using var gate = await MutationLock.Acquire(db, db.CurrentUser, ct);
-        var row = await db.ProgramDrafts.SingleOrDefaultAsync(item => item.Id == id, ct);
-        Validation.Require(row is not null, "That program draft no longer exists.", 404);
-        Validation.Require(row!.CreatedProgramId is null, "This draft has already created a program.", 409);
-        RequireRevision(input.Revision, row.Revision);
-
-        row.DraftJson = draftJson;
-        row.ProgramName = input.Draft.ProgramName;
-        row.Revision++;
-        row.Updated = DateTime.UtcNow;
-        await db.SaveChangesAsync(ct);
-        await gate.Commit(ct);
-        return ToView(row, input.Draft);
-    }
-
-    public async Task Delete(Guid id, CancellationToken ct)
-    {
-        await using var gate = await MutationLock.Acquire(db, db.CurrentUser, ct);
-        var row = await db.ProgramDrafts.SingleOrDefaultAsync(item => item.Id == id, ct);
-        Validation.Require(row is not null, "That program draft no longer exists.", 404);
-        Validation.Require(row!.CreatedProgramId is null, "A converted program draft cannot be discarded.", 409);
-        db.ProgramDrafts.Remove(row);
-        await db.SaveChangesAsync(ct);
-        await gate.Commit(ct);
-    }
-
-    public async Task<ProgramView> CreateProgram(Guid id, ProgramDraftCreateProgramInput input, CancellationToken ct)
-    {
-        await using var gate = await MutationLock.Acquire(db, db.CurrentUser, ct);
-        var row = await db.ProgramDrafts.SingleOrDefaultAsync(item => item.Id == id, ct);
-        Validation.Require(row is not null, "That program draft no longer exists.", 404);
-
-        // The tombstone is deliberately checked before the revision. A client that lost the
-        // successful response can retry its old request and receive the same program.
-        if (row!.CreatedProgramId is { } existingProgramId)
-        {
-            var exists = await db.Programs.AnyAsync(program => program.Id == existingProgramId, ct);
-            Validation.Require(exists, "This draft already created a program that was later deleted.", 410);
-            await gate.Commit(ct);
-            return await programs.Get(existingProgramId, ct);
-        }
-
-        RequireRevision(input.Revision, row.Revision);
-        var draft = Json.Read<ImportDraft>(row.DraftJson);
+        var draft = input.Draft;
         SerializeAndValidate(draft);
         ValidateCreationReadiness(draft);
         var programInput = new ProgramInput(draft.ProgramName,
@@ -134,26 +23,18 @@ public sealed class ProgramDraftService(AppDb db, ProgramService programs)
                     exercise.SourceName, exercise.Notes,
                     exercise.Sets.Select(ToPrescription).ToList(), exercise.SequenceGroup,
                     exercise.Substitutions, exercise.SourcePage, exercise.SlotKey)).ToList(),
-                workout.Block, workout.Phase, workout.PhaseWeek, workout.IsRestDay, workout.SourcePage)).ToList());
+                workout.Block, workout.Phase, workout.PhaseWeek, workout.IsRestDay, workout.SourcePage)).ToList(),
+            input.IdempotencyId);
 
-        await programs.Validate(programInput, ct);
-        var program = await programs.Materialize(programInput, activate: false, sourceImportId: null, ct);
-        row.CreatedProgramId = program.Id;
-        row.DraftJson = "";
-        row.Updated = DateTime.UtcNow;
-        row.Revision++;
-        await db.SaveChangesAsync(ct);
-        await gate.Commit(ct);
-        return await programs.Get(program.Id, ct);
+        // A program built by hand starts on standby: the lifter chooses when it becomes the one
+        // they are running.
+        return await programs.Create(programInput, activate: false, sourceImportId: null, ct);
     }
 
     private static SetPrescription ToPrescription(DraftSet set)
         => new(set.RepMin, set.RepMax, set.TargetRpe, set.RestSeconds, set.Tempo, set.LoadText,
             set.Notes, set.RepsText, set.RestText, set.Rir, set.Warmup, set.RepsSource,
             set.RpeSource, set.RestSource, ResistanceModes.External, set.SourcePage);
-
-    private static ProgramDraftView ToView(ProgramDraft row, ImportDraft? draft)
-        => new(row.Id, draft, row.Revision, row.Created, row.Updated, row.CreatedProgramId);
 
     private static string SerializeAndValidate(ImportDraft? draft)
     {
@@ -259,15 +140,5 @@ public sealed class ProgramDraftService(AppDb db, ProgramService programs)
             foreach (var exercise in workout.Exercises)
                 Validation.Require(exercise.ExerciseId is not null,
                     "Choose an exercise from the library for every training-day exercise before creating the program.", 422);
-    }
-
-    private static void RequireRevision(int expected, int actual)
-        => Validation.Require(expected == actual,
-            "This program draft changed on another device. Refresh to see the newer version before saving.", 409);
-
-    private Guid RequireUser()
-    {
-        Validation.Require(db.CurrentUser is not null, "Sign in to save a program draft.", 401);
-        return db.CurrentUser!.Value;
     }
 }

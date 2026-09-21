@@ -1,16 +1,16 @@
 import { useMemo, useState } from 'react';
 import { ArrowRight, Check, ChevronDown, ChevronUp, Dumbbell, FileText, Pencil, Play, Plus, RefreshCw, RotateCcw } from 'lucide-react';
-import type { Bootstrap, Exercise, ImportDraft, ProgramDraftView, ProgramSummary, Template, TemplateExercise } from '../types';
+import type { Bootstrap, Exercise, ProgramSummary, Template, TemplateExercise } from '../types';
 import { ApiError, api } from '../lib/api';
 import { getWorkoutMuscles } from '../lib/muscles';
 import { showReps } from '../lib/training';
 import { createEmptyProgramDraft } from '../lib/importDraftWeeks';
 import { Button } from './ui/Button';
 import { Modal } from './ui/Modal';
+import { MenuButton, MenuItem } from './ui/MenuButton';
 import { Select } from './ui/Select';
 import { ExerciseLibrary } from './Exercises';
 import { WorkoutEditorModal, type WorkoutDraft } from './WorkoutEditorModal';
-import { ProgramDraftsSection } from './ProgramDraftsSection';
 import { ProgramBuilderPage } from './ProgramBuilderPage';
 import { ProgramWeekChecklist } from './ProgramWeekChecklist';
 
@@ -19,9 +19,7 @@ export function Programs({ data, exercises, onStart, onImport, onChanged }: {
 }) {
   const [draft, setDraft] = useState<WorkoutDraft | null>(null);
   const [busy, setBusy] = useState(false);
-  const [programBuilder, setProgramBuilder] = useState<{ view: ProgramDraftView | null; initialDraft?: ImportDraft } | null>(null);
-  const [draftRefreshKey, setDraftRefreshKey] = useState(0);
-  const [openDraftCount, setOpenDraftCount] = useState<number | null>(null);
+  const [building, setBuilding] = useState(false);
 
   const open = (template?: Template) => {
     setDraft(template
@@ -49,43 +47,47 @@ export function Programs({ data, exercises, onStart, onImport, onChanged }: {
     finally { setBusy(false); }
   }
 
-  if (programBuilder) {
-    return <ProgramBuilderPage initialView={programBuilder.view} initialDraft={programBuilder.initialDraft}
-      exercises={exercises} onBack={() => setProgramBuilder(null)}
-      onDraftSaved={() => setDraftRefreshKey(value => value + 1)}
-      onCreated={async () => { await onChanged(); setDraftRefreshKey(value => value + 1); }} />;
+  if (building) {
+    return <ProgramBuilderPage initialDraft={createEmptyProgramDraft()} exercises={exercises}
+      onBack={() => setBuilding(false)}
+      onCreated={async () => { await onChanged(); }} />;
   }
+
+  const isActive = (program: ProgramSummary) => (program.lifecycleStatus ?? (program.active ? 'active' : 'standby')) === 'active';
+  const activePrograms = data.programs.filter(isActive);
+  const libraryPrograms = data.programs.filter(program => !isActive(program));
 
   return <>
     <div className="page-heading">
       <h1>Workouts</h1>
       <div className="heading-actions">
-        <Button onClick={onImport}><FileText size={18} />Import a PDF program</Button>
-        <Button variant="secondary" disabled={openDraftCount !== null && openDraftCount >= 20}
-          onClick={() => setProgramBuilder({ view: null, initialDraft: createEmptyProgramDraft() })}><Plus size={18} />New program</Button>
-        <Button variant="primary" onClick={() => open()}><Plus size={18} />New workout</Button>
+        <MenuButton label="Add a workout or program" text="New" variant="primary" icon={<Plus size={17} />}>
+          <MenuItem onClick={() => open()}><Dumbbell size={14} />New workout</MenuItem>
+          <MenuItem onClick={() => setBuilding(true)}><Plus size={14} />New program</MenuItem>
+          <MenuItem onClick={onImport}><FileText size={14} />Import a PDF program</MenuItem>
+        </MenuButton>
       </div>
     </div>
 
-    {(['active', 'standby', 'completed'] as const).map(status => {
-      const programs = data.programs.filter(program => (program.lifecycleStatus ?? (program.active ? 'active' : 'standby')) === status);
-      if (!programs.length) return null;
-      const title = status === 'active' ? 'Active program' : status === 'standby' ? 'Standby programs' : 'Completed programs';
-      return <section key={status} className="program-section"><div className="section-heading"><h2>{title}</h2><span className="muted">{programs.length}</span></div>
-        {programs.map(program => <ProgramCard key={program.id} program={program} exercises={exercises} onStart={onStart} onChanged={onChanged} hasActiveWorkout={Boolean(data.activeWorkout?.active)} />)}</section>;
-    })}
+    <section className="program-section">
+      <div className="section-heading"><h2>Active workout</h2></div>
+      {activePrograms.length
+        ? activePrograms.map(program => <ProgramCard key={program.id} program={program} exercises={exercises}
+          onStart={onStart} onChanged={onChanged} hasActiveWorkout={Boolean(data.activeWorkout?.active)} />)
+        : <section className="panel"><div className="empty-message"><Play size={28} /><h3>Nothing running yet</h3>
+          <p>Make a program active from your library, or start a workout from it.</p></div></section>}
+    </section>
 
-    <ProgramDraftsSection refreshKey={draftRefreshKey} onDraftCount={setOpenDraftCount}
-      onResume={view => setProgramBuilder({ view })} />
-
-    <section className="panel">
-      <div className="section-heading"><h2>Standalone workouts</h2><span className="muted">{data.templates.length} saved</span></div>
+    <section className="program-section">
+      <div className="section-heading"><h2>Workout library</h2>
+        <span className="muted">{libraryPrograms.length + data.templates.length} saved</span></div>
+      {libraryPrograms.map(program => <ProgramCard key={program.id} program={program} exercises={exercises}
+        onStart={onStart} onChanged={onChanged} hasActiveWorkout={Boolean(data.activeWorkout?.active)} />)}
       {data.templates.length ? <div className="program-grid">{data.templates.map((template, i) => (
         <StandaloneWorkoutCard key={template.id} template={template} index={i} exercises={exercises} onEdit={() => open(template)} onStart={() => onStart(template.id)} />
       ))}</div>
-        : <div className="empty-message"><Dumbbell size={30} /><h3>No standalone workouts yet</h3>
-          <p>{exercises.length ? 'Build one by hand, or import a program from a PDF.' : 'The exercise library is still empty, so a workout cannot be built yet. Importing a PDF will still create a reviewable draft.'}</p>
-          <Button variant="primary" onClick={() => open()}><Plus size={17} />New workout</Button></div>}
+        : libraryPrograms.length === 0 && <section className="panel"><div className="empty-message"><Dumbbell size={30} /><h3>Your library is empty</h3>
+          <p>{exercises.length ? 'Build a workout or a program by hand, or import one from a PDF.' : 'The exercise library is still empty, so a workout cannot be built yet. Importing a PDF will still create a reviewable draft.'}</p></div></section>}
     </section>
 
     {draft && <WorkoutEditorModal initialDraft={draft} exercises={exercises} busy={busy} onSave={save} onDelete={remove} onClose={() => setDraft(null)} />}

@@ -90,18 +90,6 @@ public sealed class TrainingProgram : OwnedRecord
     public DateTime? CompletedAt { get; set; }
 }
 
-/// Account-owned custom program working state. Converted rows remain as small tombstones so a
-/// retried create request can return the program that was already materialized.
-public sealed class ProgramDraft : OwnedRecord
-{
-    public string ProgramName { get; set; } = "";
-    public string DraftJson { get; set; } = "";
-    public Guid? RequestKey { get; set; }
-    public DateTime Created { get; set; } = DateTime.UtcNow;
-    public DateTime Updated { get; set; } = DateTime.UtcNow;
-    public Guid? CreatedProgramId { get; set; }
-}
-
 public sealed class ProgramPhase : OwnedRecord
 {
     public Guid ProgramId { get; set; }

@@ -1,13 +1,5 @@
-.program-draft-list{display:grid;gap:9px}
-.program-draft-row{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:14px;padding:14px 16px;border:1px solid var(--border);border-radius:12px;background:var(--surface-raised)}
-.program-draft-info{min-width:0;display:grid;gap:6px}
-.program-draft-info h3{font-size:14px;overflow-wrap:anywhere}
-.program-draft-info p{display:flex;align-items:center;gap:6px;font-size:14px}
-.program-draft-actions{display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap}
-.program-draft-actions>.button{min-height:44px}
 .program-builder-page{display:grid;gap:16px}
 .program-builder-page .page-heading{margin-bottom:0}
-.program-builder-save-state{display:flex;align-items:center;gap:7px;min-height:44px;color:var(--muted);font-size:14px}
 .program-builder-hint{margin:-4px 0 0;padding:11px 14px;border:1px solid var(--border);border-radius:10px;background:var(--surface-raised);color:var(--muted);font-size:14px}
 
 [data-editor-mode="custom"] .import-program-heading{
@@ -254,9 +246,6 @@
   .program-day-entry .program-day-handle{width:44px;min-width:44px;height:44px}
 }
 @media(max-width:639px){
-  .program-draft-row{grid-template-columns:minmax(0,1fr);gap:10px;padding:12px}
-  .program-draft-actions{justify-content:stretch}
-  .program-draft-actions>.button{flex:1 1 110px;min-width:0;padding-inline:10px}
   .program-block-control-bar{gap:6px;padding:6px}
   .import-week-toolbar.program-day-add-actions{align-items:stretch;flex-direction:column;gap:10px}
   .import-week-toolbar.program-day-add-actions .settings-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;width:100%}

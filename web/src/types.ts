@@ -81,9 +81,6 @@ export type ImportDraft = { programName: string; workouts: DraftWorkout[] };
 /// Custom program drafts use the same editable workout document as PDF review, with stable
 /// structural IDs where the editor has assigned them.
 export type ProgramEditorDocument = ImportDraft;
-export type ProgramDraftSummary = { id: string; programName: string; revision: number; created: string; updated: string; createdProgramId?: string | null };
-export type ProgramDraftView = { id: string; draft: ProgramEditorDocument; revision: number; created: string; updated: string; createdProgramId?: string | null };
-export type ProgramDraftResponse = Omit<ProgramDraftView, 'draft'> & { draft: ProgramEditorDocument | null };
 export type ImportView = {
   id: string; status: 'pending' | 'ready' | 'failed' | 'accepted' | 'discarded';
   fileName: string; pages: number; error: string; created: string; model: string; stage: 'outline' | 'select' | 'extract' | 'done'; chunksDone: number; chunksTotal: number; currentChunkLabel: string | null; unresolvedCount: number;

@@ -8,8 +8,8 @@ import {
   useState,
   type ReactNode
 } from 'react';
-import { MoreVertical } from 'lucide-react';
-import { Button } from './Button';
+import { ChevronDown, MoreVertical } from 'lucide-react';
+import { Button, type ButtonVariant } from './Button';
 
 const MenuCloseContext = createContext<() => void>(() => {});
 
@@ -22,7 +22,9 @@ export function MenuButton({
   triggerClassName = '',
   menuClassName = '',
   align = 'end',
-  disabled = false
+  disabled = false,
+  text,
+  variant = 'secondary'
 }: {
   label: string;
   children: ReactNode;
@@ -31,6 +33,8 @@ export function MenuButton({
   menuClassName?: string;
   align?: 'start' | 'end';
   disabled?: boolean;
+  text?: string;
+  variant?: ButtonVariant;
 }) {
   const [open, setOpen] = useState(false);
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -64,16 +68,19 @@ export function MenuButton({
   return <div className="ui-menu" ref={wrapRef}>
     <Button
       ref={triggerRef}
-      presentation="plain"
-      className={`ui-menu-trigger ${triggerClassName}`.trim()}
-      aria-label={label}
+      presentation={text ? 'control' : 'plain'}
+      variant={variant}
+      className={text ? triggerClassName : `ui-menu-trigger ${triggerClassName}`.trim()}
+      aria-label={text ? undefined : label}
       aria-haspopup="menu"
       aria-expanded={open}
       aria-controls={open ? menuId : undefined}
       disabled={disabled}
       onClick={() => setOpen(value => !value)}
     >
-      {icon ?? <MoreVertical size={16} />}
+      {icon ?? (text ? null : <MoreVertical size={16} />)}
+      {text}
+      {text && <ChevronDown size={15} />}
     </Button>
     {open && <div id={menuId} role="menu" aria-label={label}
       className={`ui-menu-dropdown ${align === 'start' ? 'align-start' : ''} ${menuClassName}`.trim()}>
