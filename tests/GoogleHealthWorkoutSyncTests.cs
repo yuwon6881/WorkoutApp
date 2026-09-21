@@ -47,7 +47,8 @@ public sealed class GoogleHealthWorkoutSyncTests
         await harness.Db.SaveChangesAsync();
 
         var google = new GoogleHealthService(new HttpClient(), harness.Db, new TestKms(), new ConfigurationBuilder().Build());
-        var workoutSync = new GoogleHealthWorkoutSyncService(harness.Db, google, new HttpClient());
+        var workoutSummary = new GoogleHealthWorkoutSummaryService(harness.Db);
+        var workoutSync = new GoogleHealthWorkoutSyncService(harness.Db, google, new HttpClient(), workoutSummary);
         var workouts = new WorkoutService(
             harness.Db,
             harness.Catalog,

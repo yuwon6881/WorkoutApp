@@ -244,12 +244,12 @@ export function GoogleHealthSettings() {
                 </small>
               )}
               {state.workoutSync.state === 'failed' && (
-                <small style={{ color: 'var(--error, #e65050)', display: 'block' }}>
+                <small style={{ color: 'var(--red)', display: 'block' }}>
                   {state.workoutSync.failureMessage ?? 'Workout upload failed.'}
                 </small>
               )}
               {state.workoutSync.state === 'unknown' && (
-                <small style={{ color: 'var(--warning, #e6a750)', display: 'block' }}>
+                <small style={{ color: 'var(--amber)', display: 'block' }}>
                   Upload status uncertain. Check Google Health before recovering.
                 </small>
               )}

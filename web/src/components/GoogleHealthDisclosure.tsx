@@ -73,7 +73,7 @@ export function GoogleHealthDisclosure({
         </div>
 
         {error && (
-          <p className="error" role="alert" style={{ color: 'var(--error, #e65050)', marginTop: '0.75rem' }}>
+          <p className="error" role="alert" style={{ color: 'var(--red)', marginTop: '0.75rem' }}>
             {error}
           </p>
         )}
