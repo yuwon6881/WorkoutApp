@@ -1,0 +1,90 @@
+.muscle-balance-page{display:flex;flex-direction:column;gap:22px;min-width:0}
+.muscle-balance-page p{font-size:14px}
+.muscle-balance-page .page-heading{margin-bottom:0}
+.muscle-balance-page .page-heading p{font-size:14px!important}
+.muscle-balance-page .button{min-height:44px;font-size:14px}
+.muscle-balance-page .error-banner{font-size:14px}
+.muscle-balance-range{display:flex;flex-wrap:wrap;gap:8px;min-width:0;margin-top:-6px}
+.muscle-balance-range .filter-chip{min-height:44px;padding-inline:15px;font-size:14px}
+.muscle-balance-error{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0}
+.muscle-balance-error>span{min-width:0;overflow-wrap:anywhere}
+.muscle-balance-error .button{flex:0 0 auto}
+.muscle-balance-map-panel,.muscle-balance-list-panel,.muscle-balance-loading{display:flex;flex-direction:column;gap:18px;min-width:0;margin:0}
+.muscle-balance-section-heading{align-items:flex-start;margin:0}
+.muscle-balance-section-heading>div{display:grid;gap:5px;min-width:0}
+.muscle-balance-section-heading>.muted{font-size:14px}
+.muscle-balance-section-heading p{font-size:14px}
+.muscle-balance-explainer{max-width:76ch}
+.muscle-balance-empty-note{padding:11px 13px;border:1px solid var(--border);border-radius:9px;background:var(--surface-raised);color:var(--muted)}
+.muscle-balance-legend{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;padding-top:2px}
+.muscle-balance-legend-item{display:flex;align-items:center;gap:9px;min-width:0}
+.muscle-balance-swatch{width:20px;height:20px;flex:0 0 20px;border:1px solid var(--muscle-outline);border-radius:5px}
+.muscle-balance-swatch.band-0{background:var(--muscle-0)}
+.muscle-balance-swatch.band-1{background:var(--muscle-1)}
+.muscle-balance-swatch.band-2{background:var(--muscle-2)}
+.muscle-balance-swatch.band-3{background:var(--muscle-3)}
+.muscle-balance-swatch.band-4{background:var(--muscle-4)}
+.muscle-balance-legend-copy{display:grid;gap:2px;min-width:0}
+.muscle-balance-legend-copy strong{font-size:14px;font-weight:600}
+.muscle-balance-legend-copy small{font-size:14px;line-height:1.35;overflow-wrap:anywhere}
+.muscle-balance-table{position:relative;min-width:0;width:100%;overflow:hidden;border:1px solid var(--border);border-radius:10px;background:var(--surface-raised)}
+.muscle-balance-table-head,.muscle-balance-table-row{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(115px,1fr) minmax(120px,.9fr) minmax(135px,1fr);align-items:center;gap:12px;padding:11px 14px}
+.muscle-balance-table-head{background:var(--surface-hover);color:var(--muted);font-size:14px;font-weight:600}
+.muscle-balance-table-head>span:not(:first-child){text-align:left}
+.muscle-balance-table-row{min-height:66px;border-top:1px solid var(--border);color:var(--text)}
+.muscle-balance-table-row:first-child{border-top:0}
+.muscle-balance-cell{min-width:0;overflow-wrap:anywhere}
+.muscle-balance-name{font-size:14px;font-weight:600}
+.muscle-balance-sets,.muscle-balance-last-trained{display:grid;gap:3px}
+.muscle-balance-sets strong{font-size:14px;font-variant-numeric:tabular-nums}
+.muscle-balance-sets small,.muscle-balance-last-trained small{font-size:14px;line-height:1.35}
+.muscle-balance-band-label{display:inline-flex;align-items:center;justify-content:center;min-height:28px;width:max-content;max-width:100%;padding:5px 9px;border:1px solid var(--border);border-radius:999px;background:var(--surface);color:var(--text);font-size:14px;font-weight:600}
+.muscle-balance-band-label.band-1,.muscle-balance-band-label.band-2,.muscle-balance-band-label.band-3,.muscle-balance-band-label.band-4{border-color:var(--muscle-outline)}
+.muscle-balance-band-label.band-1{background:var(--muscle-1)}
+.muscle-balance-band-label.band-2{background:var(--muscle-2)}
+.muscle-balance-band-label.band-3{background:var(--muscle-3)}
+.muscle-balance-band-label.band-4{background:var(--muscle-4);color:var(--on-accent)}
+.muscle-balance-last-trained>span{font-size:14px;font-variant-numeric:tabular-nums}
+.muscle-balance-unattributed{padding-top:14px;border-top:1px solid var(--border);font-size:14px}
+.muscle-balance-loading-title{width:min(280px,70%);height:24px;border-radius:7px}
+.muscle-balance-loading-map{height:270px;border-radius:10px}
+.muscle-balance-loading-list{height:180px;border-radius:10px}
+
+@media(max-width:1023px){
+  .muscle-balance-legend{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .muscle-balance-table-head,.muscle-balance-table-row{grid-template-columns:minmax(0,1fr) minmax(100px,.9fr) minmax(95px,.8fr) minmax(110px,.9fr);gap:9px;padding-inline:11px}
+}
+
+@media(max-width:639px){
+  .muscle-balance-page{gap:18px}
+  .muscle-balance-range{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin-top:-5px}
+  .muscle-balance-range .filter-chip{min-width:0;padding-inline:5px;white-space:normal;text-align:center;line-height:1.25}
+  .muscle-balance-error{align-items:flex-start}
+  .muscle-balance-error .button{min-height:44px;padding-inline:10px}
+  .muscle-balance-map-panel,.muscle-balance-list-panel,.muscle-balance-loading{gap:14px}
+  .muscle-balance-section-heading{gap:7px}
+  .muscle-balance-section-heading p{font-size:14px}
+  .muscle-balance-explainer,.muscle-balance-unattributed{font-size:14px}
+  .muscle-balance-legend{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px 8px}
+  .muscle-balance-legend-item{gap:7px}
+  .muscle-balance-swatch{width:18px;height:18px;flex-basis:18px}
+  .muscle-balance-legend-copy strong{font-size:14px}
+  .muscle-balance-legend-copy small{font-size:14px}
+  .muscle-balance-table-head{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+  .muscle-balance-table-row{grid-template-columns:minmax(0,1fr) auto;gap:8px 12px;padding:11px 10px}
+  .muscle-balance-cell::before{display:block;margin-bottom:3px;color:var(--muted);font-size:14px;font-weight:550;line-height:1.3;content:attr(data-label)}
+  .muscle-balance-name{font-size:14px}
+  .muscle-balance-sets{justify-self:end;text-align:right}
+  .muscle-balance-sets strong{font-size:14px}
+  .muscle-balance-sets small{font-size:14px}
+  .muscle-balance-band-cell,.muscle-balance-last-trained{align-self:start}
+  .muscle-balance-last-trained{justify-self:end;text-align:right}
+  .muscle-balance-band-label{min-height:30px;font-size:14px}
+  .muscle-balance-last-trained>span{font-size:14px}
+  .muscle-balance-last-trained small{font-size:14px}
+  .muscle-balance-loading-map{height:220px}
+}
+
+@media(prefers-reduced-motion:reduce){
+  .muscle-balance-swatch,.muscle-balance-band-label{transition:none}
+}

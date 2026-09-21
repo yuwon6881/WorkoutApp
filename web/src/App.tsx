@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Activity, AlertTriangle, CheckCircle2, Cloud, Dumbbell, LayoutDashboard, Library, Loader2, Plus, RefreshCw, Settings, WifiOff } from 'lucide-react';
+import { Activity, AlertTriangle, CheckCircle2, Cloud, Dumbbell, LayoutDashboard, Library, Loader2, PersonStanding, Plus, RefreshCw, Settings, WifiOff } from 'lucide-react';
 import type { Exercise, Session, Template } from './types';
 import { ApiError, api } from './lib/api';
 import { useApp } from './app/useApp';
@@ -15,11 +15,13 @@ import { SettingsView } from './components/Settings';
 import { ExerciseDetailModal, ExerciseLibrary } from './components/Exercises';
 import { ImportReview } from './components/Import';
 import { StartPreview } from './components/StartPreview';
+import { MuscleBalanceView } from './components/MuscleBalanceView';
 
 const NAV = [
   { id: 'overview', label: 'Overview', icon: LayoutDashboard },
   { id: 'program', label: 'Workouts', icon: Dumbbell },
   { id: 'history', label: 'Progress', icon: Activity },
+  { id: 'body', label: 'Body', icon: PersonStanding },
   { id: 'exercises', label: 'Exercises', icon: Library }
 ];
 
@@ -138,7 +140,8 @@ export default function App() {
         {tab === 'import' && <ImportReview exercises={data.exercises} imports={data.imports} remaining={data.aiImportsRemaining}
           onBack={() => setTab('program')} onChanged={app.reload} notify={setToast} />}
         {tab === 'history' && <HistoryView initial={data.history} initialProgress={data.progress} preferences={data.preferences} onSession={setDetail} onStart={() => setTab('program')}
-          onExercise={id => { void openExercise(id); }} />}
+          onExercise={id => { void openExercise(id); }} onMuscles={() => setTab('body')} />}
+        {tab === 'body' && <MuscleBalanceView timeZone={Intl.DateTimeFormat().resolvedOptions().timeZone} />}
         {tab === 'exercises' && <ExerciseLibrary exercises={data.exercises} onOpen={setExerciseDetail} onChanged={app.reload} />}
         {tab === 'settings' && <SettingsView account={data.account} preferences={data.preferences} onPreferences={app.savePreferences} notify={setToast} onSignOut={async () => { clearHistoryViewCache(); await app.signOut(); }} />}
         </MotionScene>

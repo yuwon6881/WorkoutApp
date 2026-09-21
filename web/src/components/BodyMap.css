@@ -1,0 +1,72 @@
+:root{
+  --muscle-0:var(--surface-hover);
+  --muscle-1:color-mix(in srgb,var(--accent) 18%,var(--surface-raised));
+  --muscle-2:color-mix(in srgb,var(--accent) 40%,var(--surface-raised));
+  --muscle-3:color-mix(in srgb,var(--accent) 68%,var(--surface-raised));
+  --muscle-4:var(--accent);
+  --muscle-outline:var(--border-hover);
+}
+:root[data-theme=light]{
+  --muscle-0:var(--surface-hover);
+  --muscle-1:color-mix(in srgb,var(--accent) 18%,var(--surface-raised));
+  --muscle-2:color-mix(in srgb,var(--accent) 40%,var(--surface-raised));
+  --muscle-3:color-mix(in srgb,var(--accent) 68%,var(--surface-raised));
+  --muscle-4:var(--accent);
+  --muscle-outline:var(--border-hover);
+}
+.body-map-pair{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  align-items:start;
+  gap:clamp(12px,3vw,30px);
+  width:100%;
+  max-width:680px;
+  margin-inline:auto;
+}
+.body-map-diagram{
+  display:grid;
+  justify-items:center;
+  gap:6px;
+  min-width:0;
+  margin:0;
+}
+.body-map-diagram figcaption{
+  color:var(--muted);
+  font-size:14px;
+  font-weight:600;
+}
+.body-map-figure{
+  display:block;
+  width:100%;
+  height:auto;
+  max-height:470px;
+  overflow:visible;
+}
+.body-map-silhouette{
+  fill:var(--surface-raised);
+  stroke:var(--muscle-outline);
+  stroke-width:1.5;
+  stroke-linejoin:round;
+  vector-effect:non-scaling-stroke;
+}
+.muscle-region{
+  stroke:var(--muscle-outline);
+  stroke-width:1.4;
+  stroke-linejoin:round;
+  vector-effect:non-scaling-stroke;
+  transition:fill var(--motion-control) var(--motion-ease);
+}
+.muscle-region.band-0{fill:var(--muscle-0)}
+.muscle-region.band-1{fill:var(--muscle-1)}
+.muscle-region.band-2{fill:var(--muscle-2)}
+.muscle-region.band-3{fill:var(--muscle-3)}
+.muscle-region.band-4{fill:var(--muscle-4)}
+[data-motion-reduced] .muscle-region{transition:none}
+
+@media(max-width:639px){
+  .body-map-pair{grid-template-columns:minmax(0,1fr);gap:14px}
+  .body-map-diagram{width:min(100%,270px);margin-inline:auto}
+}
+@media(prefers-reduced-motion:reduce){
+  .muscle-region{transition:none}
+}

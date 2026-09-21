@@ -44,6 +44,7 @@ builder.Services.AddScoped<ProgramLifecycleService>();
 builder.Services.AddScoped<ProgramService>();
 builder.Services.AddScoped<ProgramDraftService>();
 builder.Services.AddScoped<ProgressionService>();
+builder.Services.AddScoped<MuscleBalanceService>();
 builder.Services.AddScoped<NutritionContextService>();
 builder.Services.AddScoped<SharedAccessTokenService>();
 builder.Services.AddScoped<OpenIddictAccessTokenService>();

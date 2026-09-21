@@ -1,0 +1,5 @@
+.progress-page-heading>div{min-width:0;flex:1}
+.progress-page-heading>div p{max-width:600px;margin-top:6px;font-size:14px}
+.progress-page-heading .progress-muscles-link{min-height:44px}
+.progress-record-panel+.progress-record-panel{margin-top:0}
+@media(max-width:639px){.progress-page-heading{align-items:stretch}.progress-page-heading>div{flex-basis:100%}.progress-page-heading .progress-muscles-link{align-self:flex-start;white-space:normal}}

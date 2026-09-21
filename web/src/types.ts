@@ -43,6 +43,26 @@ export type ProgressExercise = {
   relativeStrength: number | null; bodyweightRepRecord: { reps: number; bodyweightKg: number } | null;
 };
 export type ProgressSummary = { sessions: number; exercises: ProgressExercise[]; totalVolumeKg?: number | null; workingSets?: number; trainingMinutes?: number; weekSessions?: number; weekVolumeKg?: number | null; weekWorkingSets?: number };
+export type MuscleBalanceRange = '1w' | '1m' | '3m';
+export type MuscleBalanceRow = {
+  muscle: string;
+  sets: number;
+  primarySets: number;
+  secondarySets: number;
+  sessions: number;
+  lastTrainedDate: string | null;
+};
+export type MuscleBalanceView = {
+  range: MuscleBalanceRange;
+  from: string;
+  to: string;
+  weeks: number;
+  sessions: number;
+  totalSets: number;
+  muscles: MuscleBalanceRow[];
+  unattributedSets: number;
+  unattributedExamples: string[];
+};
 export type WorkoutActivityItem = { id: string; name: string; status: 'completed' | 'in_progress'; date: string };
 export type ExerciseMetricPoint = { date: string; sessionId: string; sessionName: string; estimated1RmKg: number | null; loadKg: number | null; volumeKg: number | null; reps: number | null; partial: boolean };
 export type ExerciseHistoryRow = { sessionId: string; sessionName: string; date: string; setCount: number; volumeKg: number | null; partial: boolean; finishedAt: string | null };

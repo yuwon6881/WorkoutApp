@@ -1,5 +1,5 @@
 import type { PdfExtraction } from './pdfText';
-import type { Bootstrap, DraftWorkout, ExerciseClearPreview, ExerciseInsight, HistoryPage, ImportDraft, ImportStatusView, ImportView, Preferences, ProgressSummary, Program, ProgramDayActionInput, ProgramDraftResponse, ProgramDraftSummary, ProgramDraftView, ProgramEditorDocument, ProgramSummary, ProgramWeekResetInput, Session, Template, SubstitutionCandidate, TemplateSubstitutionResult, WorkoutActivityItem } from '../types';
+import type { Bootstrap, DraftWorkout, ExerciseClearPreview, ExerciseInsight, HistoryPage, ImportDraft, ImportStatusView, ImportView, MuscleBalanceRange, MuscleBalanceView, Preferences, ProgressSummary, Program, ProgramDayActionInput, ProgramDraftResponse, ProgramDraftSummary, ProgramDraftView, ProgramEditorDocument, ProgramSummary, ProgramWeekResetInput, Session, Template, SubstitutionCandidate, TemplateSubstitutionResult, WorkoutActivityItem } from '../types';
 
 export class ApiError extends Error {
   constructor(message: string, readonly status: number) { super(message); }
@@ -134,6 +134,7 @@ export const api = {
   history: (page: number, size = 20, signal?: AbortSignal) => call<HistoryPage>(`/api/history?page=${page}&size=${size}`, 'GET', undefined, signal),
   historyCursor: (beforeAt?: string, beforeId?: string, size = 20, signal?: AbortSignal) => call<{ sessions: import('../types').Session[]; nextBeforeAt: string | null; nextBeforeId: string | null }>(`/api/history/cursor?size=${size}${beforeAt ? `&beforeAt=${encodeURIComponent(beforeAt)}` : ''}${beforeId ? `&beforeId=${encodeURIComponent(beforeId)}` : ''}`, 'GET', undefined, signal),
   progress: (signal?: AbortSignal) => call<ProgressSummary>('/api/progress', 'GET', undefined, signal),
+  muscleBalance: (range: MuscleBalanceRange, timeZone: string, signal?: AbortSignal) => call<MuscleBalanceView>(`/api/progress/muscles?range=${encodeURIComponent(range)}&timeZone=${encodeURIComponent(timeZone)}`, 'GET', undefined, signal),
   connectedApps: () => call<{ peer: string; status: string; connectionState: string; canDisconnect: boolean; syncWarning: boolean; scopes: string[]; grantedAt: string | null; revokedAt: string | null }[]>('/api/integrations/connected'),
   revokeApp: (peer: string) => call<void>(`/api/integrations/connected/${peer}`, 'DELETE'),
   refreshNutritionContext: (signal?: AbortSignal) => call<{ mode: string; cached: boolean; confirmed: boolean; error: string | null }>('/api/integrations/refresh', 'POST', undefined, signal),

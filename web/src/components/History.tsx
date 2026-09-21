@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ArrowRight, BarChart3, CalendarDays, Dumbbell, Trophy } from 'lucide-react';
+import { ArrowRight, Dumbbell, Trophy } from 'lucide-react';
 import type { Exercise, HistoryPage, Preferences, ProgressSummary, Session } from '../types';
 import { ApiError, api } from '../lib/api';
 import { getWorkoutMuscles } from '../lib/muscles';
-import { completedSets, duration, showRpe, showVolume, showWeight, toDisplay } from '../lib/training';
+import { completedSets, duration, showRpe, showVolume, toDisplay } from '../lib/training';
 import { Button } from './ui/Button';
 import { Modal } from './ui/Modal';
+import { BodyweightRecords, PersonalBests, ProgressStats } from './ProgressPanels';
 
 let progressCache: ProgressSummary | null = null;
 let historyCache: HistoryPage | null = null;
@@ -23,8 +24,8 @@ function isSameHistory(a: HistoryPage, b: HistoryPage): boolean {
   return true;
 }
 
-export function HistoryView({ initial, initialProgress, preferences, onSession, onStart, onExercise }: {
-  initial: HistoryPage; initialProgress?: ProgressSummary; preferences: Preferences; onSession: (s: Session) => void; onStart: () => void; onExercise?: (id: string) => void;
+export function HistoryView({ initial, initialProgress, preferences, onSession, onStart, onExercise, onMuscles }: {
+  initial: HistoryPage; initialProgress?: ProgressSummary; preferences: Preferences; onSession: (s: Session) => void; onStart: () => void; onExercise?: (id: string) => void; onMuscles: () => void;
 }) {
   if (!historyCache && initial) historyCache = initial;
   if (!progressCache && initialProgress) progressCache = initialProgress;
@@ -93,22 +94,17 @@ export function HistoryView({ initial, initialProgress, preferences, onSession, 
   }
 
   const sessions = page.sessions;
-  const bodyweightRecords = progress?.exercises.filter(exercise => exercise.bodyweightRepRecord !== null) ?? [];
-  const bests = progress?.exercises
-    .map(exercise => ({
-      ...exercise,
-      value: exercise.estimatedMaxKg ?? exercise.externalLoadPrKg ?? exercise.addedLoadPrKg ?? exercise.systemLoadPrKg ?? exercise.assistanceReductionPrKg
-    }))
-    .filter(exercise => exercise.value !== null)
-    .sort((a, b) => (b.value ?? 0) - (a.value ?? 0)) ?? [];
-
   return <>
-    <div className="page-heading">
-      <h1>Progress</h1>
+    <div className="page-heading progress-page-heading">
+      <div><h1>Progress</h1><p>Review your training history and records.</p></div>
+      <Button variant="secondary" className="progress-muscles-link" onClick={onMuscles}>See muscle coverage<ArrowRight size={16} /></Button>
     </div>
-    {error && <div className="error-banner" role="alert">{error}</div>}
+    <ProgressStats progress={progress} unit={unit} />
+    <PersonalBests progress={progress} error={progressError} onRetry={() => setProgressRetry(value => value + 1)} onExercise={onExercise} unit={unit} />
+    <BodyweightRecords progress={progress} unit={unit} />
     <section className="panel">
       <div className="section-heading"><h2>Workout history</h2><span className="muted">{sessions.length} of {page.total}</span></div>
+      {error && <div className="error-banner" role="alert">{error}</div>}
       {sessions.map(session => <Button className="history-row" variant="tertiary" key={session.id} onClick={() => onSession(session)}>
         <span className="exercise-icon"><Dumbbell size={20} /></span>
         <span className="row-title"><strong>{session.name}</strong>
@@ -123,30 +119,6 @@ export function HistoryView({ initial, initialProgress, preferences, onSession, 
       {sessions.length < page.total && <Button className="full-width" disabled={loading} onClick={more}>{loading ? 'Loading…' : 'Load more'}</Button>}
     </section>
 
-    <div className="stats-grid progress-stats">
-      <div className="stat-card"><div className="stat-label"><CalendarDays size={17} />Workouts</div><strong>{progress?.sessions ?? '—'}</strong></div>
-      <div className="stat-card"><div className="stat-label"><CalendarDays size={17} />This week</div><strong>{progress?.weekSessions ?? '—'}</strong></div>
-      <div className="stat-card"><div className="stat-label"><BarChart3 size={17} />Weekly volume</div><strong>{showVolume(progress?.weekVolumeKg ?? null, unit)}</strong></div>
-      <div className="stat-card"><div className="stat-label"><Dumbbell size={17} />Working sets</div><strong>{progress?.workingSets ?? '—'}</strong></div>
-      <div className="stat-card"><div className="stat-label"><Dumbbell size={17} />Training time</div><strong>{progress?.trainingMinutes ?? '—'}<small> min</small></strong></div>
-    </div>
-
-    <section className="panel progress-optional-section" aria-live="polite">
-      {!progress && !progressError && <div className="skeleton progress-section-skeleton" aria-label="Loading progress records" />}
-      {progressError && <div className="error-banner" role="alert"><span>{progressError}</span><Button variant="tertiary" onClick={() => setProgressRetry(value => value + 1)}>Retry</Button></div>}
-      {progress && <>
-        <div className="section-heading"><h2>Personal bests</h2><Trophy size={18} className="accent" /></div>
-        {bests.length ? bests.slice(0, 6).map(record => record.exerciseId && onExercise
-          ? <Button variant="tertiary" className="best-row best-row-action" key={record.exercise} onClick={() => onExercise(record.exerciseId!)} aria-label={`Open ${record.exercise} exercise details`}><span>{record.exercise}</span><strong>{showWeight(record.value ?? null, unit)}</strong><ArrowRight size={15} /></Button>
-          : <div className="best-row" key={record.exercise}><span>{record.exercise}</span><strong>{showWeight(record.value ?? null, unit)}</strong></div>)
-          : <div className="empty-message"><Trophy size={30} /><p>No personal bests yet. Log a workout to record one.</p></div>}
-      </>}
-      {progress && bodyweightRecords.length > 0 && <>
-        <div className="section-heading"><h2>Bodyweight records</h2><Trophy size={18} className="accent" /></div>
-        <p className="muted">Bodyweight records keep the bodyweight context captured with each set.</p>
-        {bodyweightRecords.map(record => <div className="best-row" key={record.exercise}><span>{record.exercise}</span><strong>{record.bodyweightRepRecord!.reps} reps at {toDisplay(record.bodyweightRepRecord!.bodyweightKg, unit)} {unit} bodyweight</strong></div>)}
-      </>}
-    </section>
   </>;
 }
 

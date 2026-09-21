@@ -234,4 +234,23 @@ public sealed class CatalogService(AppDb db)
         foreach (var row in custom) output[row.Id] = row.Muscle;
         return output;
     }
+
+    public async Task<Dictionary<Guid, (string Primary, List<string> Secondary)>> MuscleProfilesFor(
+        IEnumerable<Guid> ids, CancellationToken ct)
+    {
+        var wanted = ids.Distinct().ToList();
+        if (wanted.Count == 0) return [];
+
+        var shared = await db.Exercises.AsNoTracking().Where(x => wanted.Contains(x.Id))
+            .Select(x => new { x.Id, x.Muscle, x.SecondaryMusclesJson }).ToListAsync(ct);
+        var output = shared.ToDictionary(x => x.Id,
+            x => (Primary: x.Muscle, Secondary: ReadMuscles(x.SecondaryMusclesJson, x.Muscle)));
+
+        // Historical exercises remain resolvable after they are archived, so include all of the
+        // current user's custom rows rather than only the active picker entries.
+        var custom = await db.CustomExercises.AsNoTracking().Where(x => wanted.Contains(x.Id)).ToListAsync(ct);
+        foreach (var row in custom)
+            output[row.Id] = (row.Muscle, ReadMuscles(row.SecondaryMusclesJson, row.Muscle));
+        return output;
+    }
 }

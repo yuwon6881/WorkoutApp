@@ -1,6 +1,7 @@
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.DependencyInjection;
 using Workout.Api.Data;
 using Workout.Api.Domain;
@@ -14,6 +15,7 @@ public sealed class Harness : IAsyncDisposable
     private readonly SqliteConnection connection;
     private readonly List<ServiceProvider> backgroundProviders = [];
     public AppDb Db { get; }
+    private MemoryCache Cache { get; } = new(new MemoryCacheOptions());
     public IConfiguration Config { get; }
     public AuthService Auth { get; }
     public CatalogService Catalog { get; }
@@ -23,12 +25,14 @@ public sealed class Harness : IAsyncDisposable
     public ProgramDraftService ProgramDrafts { get; }
     public ProgressionService Progression { get; }
     public WorkoutService Workouts { get; }
+    public MuscleBalanceService MuscleBalance { get; }
 
     private Harness(SqliteConnection connection, AppDb db, IConfiguration config)
     {
         this.connection = connection; Db = db; Config = config;
         Auth = new AuthService(db);
         Catalog = new CatalogService(db);
+        MuscleBalance = new MuscleBalanceService(db, Catalog, Cache);
         Templates = new TemplateService(db, Catalog);
         ProgramProgress = new ProgramProgressService(db);
         var lifecycle = new ProgramLifecycleService(db, Templates, ProgramProgress);
@@ -114,6 +118,7 @@ public sealed class Harness : IAsyncDisposable
     public async ValueTask DisposeAsync()
     {
         foreach (var provider in backgroundProviders) await provider.DisposeAsync();
+        Cache.Dispose();
         await Db.DisposeAsync();
         await connection.DisposeAsync();
     }

@@ -185,6 +185,8 @@ public static class TrainingEndpoints
         app.MapGet("/api/history/cursor", async (DateTime? beforeAt, Guid? beforeId, int? size, WorkoutService workouts, CancellationToken ct)
             => await workouts.HistoryCursor(beforeAt, beforeId, size ?? 20, ct));
         app.MapGet("/api/progress", async (AppDb db, IMemoryCache cache, CancellationToken ct) => await Progress(db, cache, ct));
+        app.MapGet("/api/progress/muscles", async (string? range, string? timeZone, MuscleBalanceService balance, CancellationToken ct)
+            => await balance.Balance(range, timeZone, ct));
         app.MapGet("/api/workouts/activity", async (DateOnly? from, DateOnly? to, string? timeZone, WorkoutService workouts, CancellationToken ct)
             => await workouts.Activity(from, to, timeZone, ct));
     }

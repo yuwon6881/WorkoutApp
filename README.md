@@ -46,6 +46,9 @@ decision. Passive status rows are regular content; only rows with an available a
   reserve — a set is rated as if it had been carried to failure — and a set outside the range
   that equation holds produces no estimate rather than a misleading one. Every suggestion says
   in words why it changed, and a program's own reps and RPE are never overwritten.
+- The Body tab shows completed working-set coverage by muscle for the last week, month, or three
+  months. Each set credits its primary muscle fully and secondary muscles at half weight; fixed
+  weekly bands keep the map colors consistent, and unresolved exercises are listed as unattributed.
 - A rest timer that survives a locked phone: it is stored as a deadline rather than a countdown,
   the screen is held awake while it runs, and the end tone is queued on the audio clock ahead of
   time so it still sounds with the screen off. If the browser closes the app outright, the timer

@@ -152,6 +152,27 @@ test('build a workout, log a set against the server, and see it in history', asy
   await openTab(page, 'Progress');
   await expect(page.getByRole('heading', { name: 'Progress' })).toBeVisible();
   await expect(page.getByText(name, { exact: true }).first()).toBeVisible();
+  const progressStats = page.locator('.progress-stats');
+  const workoutHistoryHeading = page.getByRole('heading', { name: 'Workout history', exact: true });
+  expect(await progressStats.evaluate((stats, heading) => Boolean(stats.compareDocumentPosition(heading as Node) & Node.DOCUMENT_POSITION_FOLLOWING), await workoutHistoryHeading.elementHandle())).toBe(true);
+  const progressHeadings = await page.locator('main h2').allTextContents();
+  expect(progressHeadings.indexOf('Personal bests')).toBeLessThan(progressHeadings.indexOf('Workout history'));
+
+  await page.getByRole('button', { name: 'See muscle coverage', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Muscle coverage', exact: true })).toBeVisible();
+  for (const range of ['Last week', 'Last month', 'Last 3 months']) {
+    await expect(page.getByRole('button', { name: range, exact: true })).toBeVisible();
+  }
+  await expect(page.getByRole('img', { name: /front/i })).toBeVisible();
+  await expect(page.getByRole('img', { name: /back/i })).toBeVisible();
+  const longerRange = page.waitForResponse(response => response.request().method() === 'GET'
+    && new URL(response.url()).pathname === '/api/progress/muscles'
+    && new URL(response.url()).searchParams.get('range') === '3m');
+  await page.getByRole('button', { name: 'Last 3 months', exact: true }).click();
+  expect((await longerRange).ok()).toBe(true);
+  const chest = page.locator('.muscle-balance-table-row[data-muscle="Chest"]');
+  await expect(chest).toBeVisible();
+  await expect(chest).not.toContainText(/0(?:\.0)? sets/);
 
   // Starting the same plan again has to carry the last session forward: 8 reps at RPE 8 against
   // a target of 8-12 leaves effort in the tank, so the app asks for one more rep at the same

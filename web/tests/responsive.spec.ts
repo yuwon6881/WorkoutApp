@@ -27,14 +27,24 @@ async function checkLayout(page: Page, label: string) {
       }
       return false;
     };
+    const insideVisuallyHiddenContent = (element: Element) => {
+      for (let ancestor = element.parentElement; ancestor; ancestor = ancestor.parentElement) {
+        const style = getComputedStyle(ancestor);
+        const box = ancestor.getBoundingClientRect();
+        if (style.position === 'absolute' && box.width <= 1 && box.height <= 1
+          && (style.clip !== 'auto' || style.clipPath !== 'none')) return true;
+      }
+      return false;
+    };
     return [...document.querySelectorAll('*')]
     .filter(el => {
       const box = el.getBoundingClientRect();
-      return box.right > limit + 1 && getComputedStyle(el).position !== 'fixed' && !insideHorizontalScroller(el);
+      return box.right > limit + 1 && getComputedStyle(el).position !== 'fixed'
+        && !insideHorizontalScroller(el) && !insideVisuallyHiddenContent(el);
     })
     .map(el => {
       const box = el.getBoundingClientRect();
-      return { sel: `${el.tagName}.${String(el.className).slice(0, 34)}`, left: Math.round(box.left), right: Math.round(box.right), pos: getComputedStyle(el).position };
+      return { sel: `${el.tagName}.${String(el.className).slice(0, 34)}`, text: el.textContent?.trim().slice(0, 80), left: Math.round(box.left), right: Math.round(box.right), pos: getComputedStyle(el).position };
     })
     .sort((a, b) => b.right - a.right || b.left - a.left)
     .slice(0, 8);
@@ -193,6 +203,11 @@ for (const theme of ['dark', 'light']) {
 
     await navigate(page, 'Progress');
     await screenshot('progress');
+
+    await navigate(page, 'Body');
+    await expect(page.getByRole('heading', { name: 'Muscle coverage', exact: true })).toBeVisible();
+    await expect(page.getByRole('group', { name: 'Muscle set bands' })).toBeVisible();
+    await screenshot('body');
 
     await navigate(page, 'Workouts');
     await page.locator('.routine-card').filter({ hasText: workoutName }).getByRole('button', { name: 'Start workout', exact: true }).click();
