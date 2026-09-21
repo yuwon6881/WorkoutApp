@@ -42,8 +42,10 @@ public sealed class WorkoutAi(HttpClient http, IConfiguration config)
     /// N/A and See Notes filtering, and footer rest day handling; v11 expands that contract to
     /// legacy RPE/%1RM tables and multiple explicitly offered program routines; v12 makes source
     /// headings authoritative and recovers fused exercise names only from one-to-one table rows;
-    /// v13 treats marked source day titles as authoritative and permits an absent title.
-    public const string PromptVersion = "workout-import-v13-source-day-labels";
+    /// v13 treats marked source day titles as authoritative and permits an absent title;
+    /// v14 requires printed schedule tables for named program versions and reconciles
+    /// advertised-but-absent alternatives against printed page evidence.
+    public const string PromptVersion = "workout-import-v14-printed-alternatives";
 
     /// One cheap pass over a page-by-page view of the document. Most of a commercial training PDF
     /// is explanation and photography; this pass exists to find the few pages that actually carry
@@ -54,7 +56,9 @@ public sealed class WorkoutAi(HttpClient http, IConfiguration config)
         var result = await Call(catalog, safetyIdentifier, maxOutputTokens: 8000,
             "Return only the program outline and semantic extraction chunks. Every page of this document is numbered in the text; " +
             "cover only the pages that carry the actual training schedule and ignore front matter, coaching essays, exercise glossaries, and reference chapters. " +
-            "Detect separate alternative programs first; when alternatives exist, return each with its own chunks and do not mix them. " +
+            "Return an alternative program only when this document prints that program's own schedule tables on its own pages. " +
+            "A version that is only described in prose, named in an FAQ, linked, or sold separately is not an alternative: ignore it and outline only the schedule printed here. " +
+            "When you return alternatives, give each its own chunks and leave the top-level chunks array empty; when you return no alternatives, put every schedule chunk in the top-level chunks array. " +
             // A section is read in one answer, and one answer holds only so much. Asking for small
             // sections here is the first half of that; whatever comes back is divided anyway.
             "Create one chunk per phase or unambiguous page section, split a long phase into consecutive page sections of about eight training days each, " +

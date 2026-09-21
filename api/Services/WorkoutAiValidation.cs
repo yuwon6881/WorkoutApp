@@ -6,8 +6,9 @@ namespace Workout.Api.Services;
 /// anywhere near a draft. A response that fails here is retryable: nothing has been written yet.
 ///
 /// These are checks about the shape of a program — how many days, which weeks, which pages — not
-/// about whether each written value fits the column that will hold it. Lengths, rep bounds, RPE
-/// precision and rest are brought into range by `ImportNormalization` instead, because failing a
+/// about whether each written value fits the column that will hold it. Alternative-versus-chunk
+/// shape disagreements are reconciled against page evidence in ApplyOutline. Lengths, rep bounds,
+/// RPE precision and rest are brought into range by `ImportNormalization` instead, because failing a
 /// section over a long coaching note or a timed set with no rep count discards a transcription
 /// that is otherwise faithful and leaves the import stuck on a section that fails identically on
 /// every retry.
@@ -20,15 +21,13 @@ internal static class WorkoutAiValidation
         Validation.Require(alternatives.Count <= 12, "AI returned too many alternative programs in this PDF.", 422);
         Validation.Require(alternatives.Select(a => a.Id).Distinct(StringComparer.OrdinalIgnoreCase).Count() == alternatives.Count,
             "AI returned duplicate alternative program ids.", 422);
-        Validation.Require(alternatives.Count <= 1 || chunks.Count == 0,
-            "AI mixed alternative programs with an unscoped chunk list.", 422);
         Validation.Require(chunks is { Count: > 0 and <= 24 } || alternatives.Any(a => a.Chunks is { Count: > 0 }), "AI did not find usable program chunks in this PDF.", 422);
         foreach (var alternative in alternatives)
         {
             // The id is the key the browser sends back to choose this program, so it has to be
             // present and short; its prose is normalised like everything else.
             Validation.Name(alternative.Id, "Alternative id", 80);
-            Validation.Require(alternative.Chunks is { Count: > 0 and <= 24 }, "AI returned an alternative without usable chunks.", 422);
+            Validation.Require(alternative.Chunks is null or { Count: <= 24 }, "AI returned an alternative with too many chunks.", 422);
         }
         foreach (var chunk in chunks.Concat(alternatives.SelectMany(a => a.Chunks ?? [])))
         {

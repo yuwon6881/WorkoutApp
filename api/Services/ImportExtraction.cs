@@ -179,7 +179,10 @@ public sealed partial class ImportService
         // Exercise matching is local and happens after each chunk is parsed. The catalog is
         // deliberately absent from outline/extraction requests so a long library cannot consume
         // context tokens or bias the transcription toward a near match.
-        var alternatives = result.Outline!.Alternatives ?? [];
+        var reconciled = ImportAlternativeReconciliation.Reconcile(result.Outline!, pages);
+        if (reconciled.Notices.Count > 0)
+            import.NoticesJson = Json.Write(ImportReviewNotices.Merge(ReadNotices(import.NoticesJson), reconciled.Notices));
+        var alternatives = reconciled.Alternatives;
         if (alternatives.Count > 1)
         {
             import.AlternativesJson = Json.Write(alternatives.Select(alternative =>
@@ -189,16 +192,16 @@ public sealed partial class ImportService
                     ImportNormalization.Label(alternative.Name, 200, alternative.Id), chunks.Count, chunks.Sum(chunk => chunk.DayCount), chunks);
             }).ToList());
             import.Stage = "select"; import.Status = ImportStatus.Pending; import.ChunksDone = 0; import.ChunksTotal = 0;
-            import.DraftJson = Json.Write(new ImportDraft(ProgramTitle(result.Outline.ProgramTitle, import.FileName), []));
+            import.DraftJson = Json.Write(new ImportDraft(ProgramTitle(result.Outline!.ProgramTitle, import.FileName), []));
             return;
         }
         var selected = alternatives.Count == 1 ? alternatives[0] : null;
-        var normalizedChunks = ImportOutlineEvidence.NormalizeChunks(selected?.Chunks ?? result.Outline.Chunks, sourceEvidence);
+        var normalizedChunks = ImportOutlineEvidence.NormalizeChunks(selected?.Chunks ?? reconciled.Chunks, sourceEvidence);
         var chunks = SplitChunks(normalizedChunks);
         ValidateChunkPages(chunks, import.PageCoverageJson);
         import.SelectedAlternativeId = selected?.Id ?? "";
         import.OutlineJson = Json.Write(chunks);
-        import.DraftJson = Json.Write(new ImportDraft(ProgramTitle(selected?.Name ?? result.Outline.ProgramTitle, import.FileName), []));
+        import.DraftJson = Json.Write(new ImportDraft(ProgramTitle(selected?.Name ?? result.Outline!.ProgramTitle, import.FileName), []));
         import.Stage = "extract"; import.Status = ImportStatus.Pending; import.ChunksDone = 0; import.ChunksTotal = chunks.Count;
         import.UnresolvedCount = 0;
     }
