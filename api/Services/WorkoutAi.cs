@@ -16,7 +16,7 @@ public record AiExercise(string SourceName, string? ExerciseId, string? Notes, L
     string? WorkingSets = null);
 public record AiWorkout(string Name, string? Focus, string? Notes, List<AiExercise> Exercises);
 public record AiWeek(int Week, List<AiWorkout> Workouts);
-public record AiDay(string? Block, string? Phase, int WeekNumber, int PhaseWeek, string DayName, bool IsRestDay, string? Notes, List<AiExercise> Exercises,
+public record AiDay(string? Block, string? Phase, int WeekNumber, int PhaseWeek, string? DayName, bool IsRestDay, string? Notes, List<AiExercise> Exercises,
     int? SourcePage = null);
 public record AiProgram(string? ProgramTitle, List<AiDay>? Days, string? ProgramName = null, List<AiWeek>? Weeks = null);
 public record AiOutlineChunk(string Label, string? Block, string? Phase, int WeekFrom, int WeekTo, int PageFrom, int PageTo, int DayCount);
@@ -41,8 +41,9 @@ public sealed class WorkoutAi(HttpClient http, IConfiguration config)
     /// v10 preserves PDF table column separation, dual working set and RIR-to-RPE extraction,
     /// N/A and See Notes filtering, and footer rest day handling; v11 expands that contract to
     /// legacy RPE/%1RM tables and multiple explicitly offered program routines; v12 makes source
-    /// headings authoritative and recovers fused exercise names only from one-to-one table rows.
-    public const string PromptVersion = "workout-import-v12-source-evidence";
+    /// headings authoritative and recovers fused exercise names only from one-to-one table rows;
+    /// v13 treats marked source day titles as authoritative and permits an absent title.
+    public const string PromptVersion = "workout-import-v13-source-day-labels";
 
     /// One cheap pass over a page-by-page view of the document. Most of a commercial training PDF
     /// is explanation and photography; this pass exists to find the few pages that actually carry

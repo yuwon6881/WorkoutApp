@@ -133,7 +133,7 @@ public sealed partial class ImportService(AppDb db, WorkoutAi ai, CatalogService
         return new ImportDraft(title, workouts);
     }
 
-    private static DraftWorkout ToDraftWorkout(string? block, string? phase, int week, int phaseWeek, string name, bool restDay,
+    private static DraftWorkout ToDraftWorkout(string? block, string? phase, int week, int phaseWeek, string? name, bool restDay,
         string? notes, List<AiExercise>? sourceExercises, HashSet<Guid> active, Dictionary<string, Guid> library,
         Dictionary<Guid, string> canonicalNames, string? focus = null, int? sourcePage = null)
     {
@@ -215,7 +215,7 @@ public sealed partial class ImportService(AppDb db, WorkoutAi ai, CatalogService
         // failing the section that reported them: a miscounted page or a weekday outside Monday to
         // Sunday is a slip in one field, not a reason to throw away a whole transcription.
         var storedWeek = ImportNormalization.Week(week);
-        return new DraftWorkout(Guid.NewGuid(), storedWeek, ImportNormalization.Label(name, 120, $"Week {storedWeek} day"),
+        return new DraftWorkout(Guid.NewGuid(), storedWeek, ImportNormalization.Text(name, 120) ?? "",
             ImportNormalization.Text(focus, 120), ImportNormalization.Text(notes, 2000), exercises,
             ImportNormalization.Text(block, 80), ImportNormalization.Text(phase, 120), ImportNormalization.Week(phaseWeek), restDay,
             ImportNormalization.Page(sourcePage));

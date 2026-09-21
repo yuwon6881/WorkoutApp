@@ -178,7 +178,7 @@ export function WorkoutPrescriptionCard({
                 ))}
               </div>
             ) : (
-              <span className="muted small-copy">No substitutions available.</span>
+              <span className="muted small-copy substitution-empty-state">No substitutions available.</span>
             )}
           </div>
         </div>

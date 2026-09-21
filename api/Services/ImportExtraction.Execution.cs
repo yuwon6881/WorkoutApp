@@ -179,7 +179,10 @@ public sealed partial class ImportService
                         else
                         {
                             var result = results[item.Index];
-                            var extracted = ImportOutlineEvidence.NormalizeDraft(await ToDraft(result.Program, settle), sourceEvidence);
+                            var chunkPages = sourcePages.Where(page => page.Page >= item.Chunk.PageFrom && page.Page <= item.Chunk.PageTo).ToList();
+                            var labeled = ImportDayLabels.Apply(await ToDraft(result.Program, settle), chunkPages);
+                            notices.AddRange(labeled.Notices);
+                            var extracted = ImportOutlineEvidence.NormalizeDraft(labeled.Draft, sourceEvidence);
                             var reconciled = ReconcileChunkCoverage(draft, extracted, item.Chunk);
                             notices.AddRange(reconciled.Notices);
                             merged = draft with
@@ -190,6 +193,12 @@ public sealed partial class ImportService
                         }
                         if (complete)
                         {
+                            var blockRuns = ImportBlockRuns.Reconcile(merged.Workouts);
+                            merged = merged with { Workouts = blockRuns.Workouts };
+                            notices.AddRange(blockRuns.Notices);
+                            var named = ImportDayLabels.FillMissing(merged);
+                            merged = named.Draft;
+                            notices.AddRange(named.Notices);
                             // Every section has landed, so the phases are finally whole and their
                             // weeks can be numbered from one within each of them.
                             var numbered = NormalizePhaseWeeks(merged.Workouts);
@@ -274,9 +283,8 @@ public sealed partial class ImportService
     {
         import.ChunksDone = chunkIndex + 1; import.Error = ""; import.Revision++;
         if (recorded.Count == 0) return;
-        var notices = ReadNotices(import.NoticesJson);
-        notices.AddRange(recorded);
-        import.NoticesJson = Json.Write(notices.TakeLast(40).ToList());
+        var notices = ImportReviewNotices.Merge(ReadNotices(import.NoticesJson), recorded);
+        import.NoticesJson = Json.Write(notices);
     }
 
     private static List<ImportPageText> SourcePages(AiImport import)

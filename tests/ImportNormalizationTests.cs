@@ -249,7 +249,7 @@ public sealed class ImportNormalizationTests
         var ready = await imports.Extract(pending.Id, default);
 
         Assert.Equal(ImportStatus.Ready, ready.Status);
-        Assert.Equal("Week 1 day", ready.Draft!.Workouts.Single().Name);
+        Assert.Equal("Week 1 day 1", ready.Draft!.Workouts.Single().Name);
     }
 
     [Fact]

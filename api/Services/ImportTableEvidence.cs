@@ -8,8 +8,6 @@ namespace Workout.Api.Services;
 internal static class ImportTableEvidence
 {
     private static readonly Regex Page = new(@"(?m)^=== PAGE (?<page>\d+) ===\s*$", RegexOptions.Compiled);
-    private static readonly Regex Week = new(@"^WEEK\s+(?<week>\d+)$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
-    private static readonly Regex Block = new(@"^BLOCK\s+(?<block>\d+)$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
     private static readonly Regex Day = new(@"^(?:LOWER|UPPER)\s+\d+$|^ARMS\s*/\s*DELTS$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
     private static readonly Regex SimpleReps = new(@"^(?<min>\d+)\s*(?:(?:[-–]|\bto\b)\s*(?<max>\d+))?\s*(?:reps?)?$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
     private static readonly Regex RestValue = new(@"^(?<min>\d+(?:\.\d+)?)\s*(?:[-–]\s*(?<max>\d+(?:\.\d+)?))?\s*(?<unit>min|mins|minutes?|sec|secs|seconds?|s|m)?$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
@@ -20,11 +18,12 @@ internal static class ImportTableEvidence
     private static readonly Regex RestDay = new(@"^(?:(?:suggested|mandatory)\s+)?rest\s+days?$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
     private sealed record EvidenceRow(string? ExerciseName, int? WorkingSets, string? RepsText, int? RepMin, int? RepMax,
-        string? LoadText, string? RirText, double? Rir, string? Rir1Text, double? Rir1, string? Rir2Text, double? Rir2,
+        string? LoadText, string? RirText, double? Rir, List<RirEvidence> RirBySet,
         double? Rpe, double? EarlyRpe, double? LastRpe, string? RestText, int? RestSeconds);
+    private sealed record RirEvidence(string? Text, double? Value);
     private sealed record EvidencePage(int? Week, string? Block, string? Phase, string? DayName, bool HasRestDayFooter,
         List<EvidenceRow> Rows);
-    private sealed record Columns(int? Name, int? Sets, int? Reps, int? Load, int? Rir, int? Rir1, int? Rir2,
+    private sealed record Columns(int? Name, int? Sets, int? Reps, int? Load, int? Rir, int?[] RirBySet,
         int? Rpe, int? EarlyRpe, int? LastRpe, int? Rest, string? RestUnit, bool LoadIsPercent1Rm);
 
     public static AiProgram Enrich(AiProgram program, string sourceText)
@@ -128,8 +127,9 @@ internal static class ImportTableEvidence
     private static AiSet ApplySet(AiSet set, EvidenceRow evidence, int index, int count)
     {
         var last = index == count - 1;
-        var rirText = index == 0 ? evidence.Rir1Text ?? evidence.RirText : evidence.Rir2Text ?? evidence.RirText;
-        var rir = index == 0 ? evidence.Rir1 ?? evidence.Rir : evidence.Rir2 ?? evidence.Rir;
+        var setRir = index < evidence.RirBySet.Count ? evidence.RirBySet[index] : null;
+        var rirText = setRir?.Text ?? evidence.RirText;
+        var rir = setRir?.Text is not null ? setRir.Value : evidence.Rir;
         var inferredFromRir = rir is { } rirValue && rirValue is >= 0 and <= 4 ? 10 - rirValue : (double?)null;
         var sourceRpe = last ? evidence.LastRpe ?? evidence.EarlyRpe ?? evidence.Rpe : evidence.EarlyRpe ?? evidence.Rpe;
         var targetRpe = rirText?.Equals("N/A", StringComparison.OrdinalIgnoreCase) == true && index > 0 && set.RpeSource == "inferred"
@@ -186,13 +186,13 @@ internal static class ImportTableEvidence
             foreach (var line in body.Split('\n'))
             {
                 var clean = line.Trim();
-                if (Week.Match(clean) is { Success: true } weekMatch)
+                var leading = ImportStructureHeadings.LeadingSegment(clean);
+                if (ImportStructureHeadings.TryWeek(leading, out var nextWeek))
                 {
-                    var nextWeek = int.Parse(weekMatch.Groups["week"].Value, CultureInfo.InvariantCulture);
                     if (currentWeek is not null && currentWeek != nextWeek) currentPhase = null;
                     currentWeek = nextWeek;
                 }
-                else if (Block.Match(clean) is { Success: true } blockMatch) currentBlock = $"Block {blockMatch.Groups["block"].Value}";
+                else if (ImportStructureHeadings.TryBlock(leading, out var block)) currentBlock = $"Block {block}";
                 else if (clean.Equals("Intro Week", StringComparison.OrdinalIgnoreCase)) currentPhase = "Intro Week";
                 else if (clean.Equals("Deload Week", StringComparison.OrdinalIgnoreCase)) currentPhase = "Deload Week";
                 else if (RestDay.IsMatch(clean)) hasRestDayFooter = true;
@@ -223,8 +223,9 @@ internal static class ImportTableEvidence
 
     private static bool TryColumns(string[] cells, out Columns columns)
     {
-        columns = new Columns(null, null, null, null, null, null, null, null, null, null, null, null, false);
-        int? name = null, sets = null, reps = null, load = null, rir = null, rir1 = null, rir2 = null;
+        columns = new Columns(null, null, null, null, null, [], null, null, null, null, null, false);
+        int? name = null, sets = null, reps = null, load = null, rir = null;
+        var rirBySet = new Dictionary<int, int>();
         int? rpe = null, early = null, last = null, rest = null;
         string? restUnit = null;
         var loadIsPercent1Rm = false;
@@ -247,16 +248,20 @@ internal static class ImportTableEvidence
             }
             var isRir = h.Contains("rir");
             var isRpe = h.Contains("rpe") || Regex.IsMatch(h, @"\bape\b|\blsrpe\b");
-            if (isRir && (h.Contains("set 1") || h.Contains("set1") || h.Contains("first"))) rir1 = i;
-            else if (isRir && (h.Contains("set 2") || h.Contains("set2") || h.Contains("second"))) rir2 = i;
+            if (isRir && Regex.Match(h, @"\bset\s*(?<index>\d+)\b") is { Success: true } setMatch
+                && int.TryParse(setMatch.Groups["index"].Value, NumberStyles.None, CultureInfo.InvariantCulture, out var setIndex)
+                && setIndex is >= 1 and <= 8) rirBySet[setIndex] = i;
             else if (isRir) rir = i;
             if (isRpe && (h.Contains("early") || h.Contains("first"))) early = i;
             else if (isRpe && (h.Contains("last") || h.Contains("final"))) last = i;
             else if (isRpe) rpe = i;
         }
-        var recognized = new[] { name, sets, reps, load, rir, rir1, rir2, rpe, early, last, rest }.Count(value => value.HasValue);
+        var recognized = new[] { name, sets, reps, load, rir, rpe, early, last, rest }.Count(value => value.HasValue)
+            + rirBySet.Count;
         if (recognized < 2 || (!name.HasValue && !sets.HasValue && !reps.HasValue)) return false;
-        columns = new Columns(name, sets, reps, load, rir, rir1, rir2, rpe, early, last, rest, restUnit, loadIsPercent1Rm);
+        var indexedRir = rirBySet.Count == 0 ? [] : Enumerable.Range(1, rirBySet.Keys.Max())
+            .Select(index => rirBySet.TryGetValue(index, out var column) ? (int?)column : null).ToArray();
+        columns = new Columns(name, sets, reps, load, rir, indexedRir, rpe, early, last, rest, restUnit, loadIsPercent1Rm);
         return true;
     }
 
@@ -267,6 +272,7 @@ internal static class ImportTableEvidence
         {
             var map = columns;
             var name = Cell(cells, map.Name);
+            if (ImportStructureHeadings.TryDayLabel(name, out _)) return false;
             var setCount = ParseSetCount(Cell(cells, map.Sets));
             var repsText = CleanValue(Cell(cells, map.Reps));
             var (repMin, repMax) = ParseSimpleReps(repsText);
@@ -278,16 +284,17 @@ internal static class ImportTableEvidence
             var last = ParseRpe(Cell(cells, map.LastRpe));
             var rirText = RirCellText(Cell(cells, map.Rir));
             var rir = ParseRir(rirText);
-            var rir1Text = RirCellText(Cell(cells, map.Rir1));
-            var rir1 = ParseRir(rir1Text);
-            var rir2Text = RirCellText(Cell(cells, map.Rir2));
-            var rir2 = ParseRir(rir2Text);
+            var rirBySet = map.RirBySet.Select(column =>
+            {
+                var value = RirCellText(Cell(cells, column));
+                return new RirEvidence(value, ParseRir(value));
+            }).ToList();
             var rest = ParseRest(Cell(cells, map.Rest), map.RestUnit ?? pageRestHint);
             var loadText = mixedLoad ?? (combinedIntensity ? null : NormalizeLoad(loadCell, map.LoadIsPercent1Rm));
             if (!HasText(name) && setCount is null && repsText is null && loadText is null && rpe is null && early is null && last is null
-                && rirText is null && rir1Text is null && rir2Text is null && rest.Text is null) return false;
+                && rirText is null && rirBySet.All(value => value.Text is null) && rest.Text is null) return false;
             row = new EvidenceRow(IsMovementName(name) ? StripSetTag(name!) : null, setCount, repsText, repMin, repMax,
-                loadText, rirText, rir, rir1Text, rir1, rir2Text, rir2, rpe, early, last, rest.Text, rest.Seconds);
+                loadText, rirText, rir, rirBySet, rpe, early, last, rest.Text, rest.Seconds);
             return true;
         }
 
@@ -306,7 +313,8 @@ internal static class ImportTableEvidence
             var (min, max) = ParseSimpleReps(repsText);
             var name = cells.Length > 0 && i > 0 && IsMovementName(cells[0]) ? StripSetTag(cells[0]) : null;
             row = new EvidenceRow(name, setCount, IsUnavailable(repsText) ? null : repsText, min, max, null,
-                null, null, rir1Text, ParseRir(rir1Text), rir2Text, ParseRir(rir2Text), null, null, null, rest.Text, rest.Seconds);
+                null, null, [new RirEvidence(rir1Text, ParseRir(rir1Text)), new RirEvidence(rir2Text, ParseRir(rir2Text))],
+                null, null, null, rest.Text, rest.Seconds);
             return true;
         }
         return false;
@@ -318,7 +326,8 @@ internal static class ImportTableEvidence
 
     private static bool IsHeaderOrScheduleWord(string value)
         => Regex.IsMatch(value, @"\b(exercise|movement|sets?|reps?|rpe|rir|rest|load|warm.?up|substitutions?|notes?)\b", RegexOptions.IgnoreCase)
-           || Week.IsMatch(value) || Block.IsMatch(value) || Day.IsMatch(value) || RestDay.IsMatch(value);
+           || ImportStructureHeadings.TryWeek(value, out _) || ImportStructureHeadings.TryBlock(value, out _)
+           || ImportStructureHeadings.TryDayLabel(value, out _) || Day.IsMatch(value) || RestDay.IsMatch(value);
 
     private static bool IsMovementName(string? value)
         => !string.IsNullOrWhiteSpace(value) && value.Length <= 100 && value.Any(char.IsLetter)

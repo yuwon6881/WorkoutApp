@@ -429,4 +429,42 @@ public sealed class ImportTableEvidenceTests
 
         Assert.True(Assert.Single(ImportTableEvidence.Enrich(program, text).Days!).IsRestDay);
     }
+
+    [Fact]
+    public void Third_and_fourth_rir_columns_apply_to_their_own_sets()
+    {
+        var program = new AiProgram("Four sets", [new AiDay(null, null, 1, 1, "Week 1 day 1", false, null, [
+            new AiExercise("Squat", null, null,
+                Enumerable.Range(0, 4).Select(_ => new AiSet(6, 8, null, null, null, null, null)).ToList(), SourcePage: 61)
+        ], 61)]);
+        const string text = """
+            === PAGE 61 ===
+            Exercise | Working Sets | Rep Range | RIR Set 1 | RIR Set 2 | RIR Set 3 | RIR Set 4 | Rest
+            Squat | 4 | 6-8 | 0 | 1 | 2 | 3 | 2 min
+            """;
+
+        var sets = Assert.Single(Assert.Single(ImportTableEvidence.Enrich(program, text).Days!).Exercises).Sets;
+
+        Assert.Equal(["0", "1", "2", "3"], sets.Select(set => set.Rir));
+        Assert.Equal([10d, 9d, 8d, 7d], sets.Select(set => set.TargetRpe));
+    }
+
+    [Fact]
+    public void Day_label_marker_cannot_become_a_movement_name()
+    {
+        var program = new AiProgram("Marker", [new AiDay(null, null, 1, 1, "Model Day", false, null, [
+            new AiExercise("Barbell Row", null, null, [new AiSet(1, 1, null, null, null, null, null)], SourcePage: 62)
+        ], 62)]);
+        const string text = """
+            === PAGE 62 ===
+            Exercise | Sets | Reps | RPE | Rest
+            DAY LABEL: Upper 1
+            | 2 | 8-10 | 8 | 90 sec
+            """;
+
+        var exercise = Assert.Single(Assert.Single(ImportTableEvidence.Enrich(program, text).Days!).Exercises);
+
+        Assert.Equal("Barbell Row", exercise.SourceName);
+        Assert.Equal("2", exercise.WorkingSets);
+    }
 }

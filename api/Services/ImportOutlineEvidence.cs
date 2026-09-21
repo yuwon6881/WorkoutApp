@@ -8,8 +8,6 @@ namespace Workout.Api.Services;
 /// time so two alternatives may legitimately point at the same physical pages.
 internal static class ImportOutlineEvidence
 {
-    private static readonly Regex BlockHeading = new(@"^BLOCK\s+(?<label>[A-Z0-9][A-Z0-9 -]{0,30})$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
-    private static readonly Regex WeekHeading = new(@"^WEEK\s+(?<week>\d+)(?:\s*\|.*)?$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
     private static readonly Regex PhaseHeading = new(
         @"^(?:INTRO\s+WEEK|DELOAD\s+WEEK|INTRO|MAIN|PEAK|PHASE\s+[A-Z0-9]+(?:\s*[:\-–]\s*[A-Z0-9 &/()\-]+)?|(?:BASE|ACCUMULATION|INTENSIFICATION|HYPERTROPHY|STRENGTH|VOLUME|PEAKING|DELOAD)(?:\s+(?:PHASE|BLOCK|HYPERTROPHY|STRENGTH|VOLUME|INTENSIFICATION|ACCUMULATION|PEAKING))?(?:\s+\d+)?)$",
         RegexOptions.Compiled | RegexOptions.IgnoreCase);
@@ -24,18 +22,23 @@ internal static class ImportOutlineEvidence
     public static Evidence Read(IReadOnlyList<ImportPageText> pages)
     {
         var lines = pages.SelectMany(page => Lines(page.Text)).ToList();
+        var contextLines = pages.SelectMany(page => ContextLines(page.Text)).ToList();
         var sourceLines = lines.Select(Key).Where(value => value.Length > 0).ToHashSet(StringComparer.OrdinalIgnoreCase);
         var blocks = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         var phases = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var line in contextLines)
+        {
+            var key = Key(line);
+            if (ImportStructureHeadings.TryBlock(key, out var block))
+            {
+                var label = $"Block {block}";
+                blocks[Key(label)] = label;
+            }
+        }
         foreach (var line in lines)
         {
             var key = Key(line);
-            if (BlockHeading.Match(key) is { Success: true } block)
-            {
-                var label = $"Block {block.Groups["label"].Value.Trim()}";
-                blocks[Key(label)] = label;
-            }
-            else if (PhaseHeading.IsMatch(key) && IsNotDayOrHeader(key))
+            if (PhaseHeading.IsMatch(key) && IsNotDayOrHeader(key))
             {
                 var label = CanonicalPhase(key);
                 phases[Key(label)] = label;
@@ -50,12 +53,11 @@ internal static class ImportOutlineEvidence
         foreach (var page in pages.OrderBy(page => page.Page))
         {
             var snapshots = new List<SourceContext>();
-            var pageLines = Lines(page.Text).ToList();
+            var pageLines = ContextLines(page.Text).ToList();
             for (var lineIndex = 0; lineIndex < pageLines.Count; lineIndex++)
             {
                 var key = Key(pageLines[lineIndex]);
-                if (WeekHeading.Match(key) is { Success: true } weekMatch
-                    && int.TryParse(weekMatch.Groups["week"].Value, out var week))
+                if (ImportStructureHeadings.TryWeek(key, out var week))
                 {
                     if (pendingPhase is not null)
                     {
@@ -67,16 +69,17 @@ internal static class ImportOutlineEvidence
                     snapshots.Add(new SourceContext(currentWeek, currentBlock, currentPhase));
                     continue;
                 }
-                if (BlockHeading.Match(key) is { Success: true } blockMatch)
+                if (ImportStructureHeadings.TryBlock(key, out var block))
                 {
-                    currentBlock = $"Block {blockMatch.Groups["label"].Value.Trim()}";
+                    currentBlock = $"Block {block}";
                     snapshots.Add(new SourceContext(currentWeek, currentBlock, currentPhase));
                     continue;
                 }
                 if (PhaseHeading.IsMatch(key) && IsNotDayOrHeader(key))
                 {
                     var phase = CanonicalPhase(key);
-                    var appliesToLaterWeek = pageLines.Skip(lineIndex + 1).Any(line => WeekHeading.IsMatch(Key(line)));
+                    var appliesToLaterWeek = pageLines.Skip(lineIndex + 1)
+                        .Any(line => ImportStructureHeadings.TryWeek(Key(line), out _));
                     if (appliesToLaterWeek) pendingPhase = phase;
                     else
                     {
@@ -87,7 +90,8 @@ internal static class ImportOutlineEvidence
             }
             if (currentWeek is not null || currentBlock is not null || currentPhase is not null)
                 snapshots.Add(new SourceContext(currentWeek, currentBlock, currentPhase));
-            pageContexts[page.Page] = snapshots.Distinct().ToList();
+            pageContexts[page.Page] = snapshots.Distinct().GroupBy(snapshot => snapshot.Week)
+                .Select(group => group.Last()).ToList();
         }
 
         return new Evidence(sourceLines, blocks, phases, pageContexts);
@@ -192,8 +196,11 @@ internal static class ImportOutlineEvidence
     {
         var key = Key(value);
         if (key.Length == 0) return null;
+        if (ImportStructureHeadings.TryBlock(key, out var number)
+            && evidence.Blocks.TryGetValue(Key($"Block {number}"), out var sourceBlock)) return sourceBlock;
         if (evidence.Blocks.TryGetValue(key, out var block)) return block;
-        if (evidence.SourceLines.Contains(key) && IsNotDayOrHeader(key)) return value!.Trim();
+        if (evidence.SourceLines.Contains(key) && IsNotDayOrHeader(key)
+            && !ImportStructureHeadings.TryWeek(key, out _) && !ImportStructureHeadings.TryBlock(key, out _)) return value!.Trim();
         return null;
     }
 
@@ -203,12 +210,13 @@ internal static class ImportOutlineEvidence
         if (key.Length == 0) return null;
         if (evidence.Phases.TryGetValue(key, out var phase)) return phase;
         if (evidence.SourceLines.Contains(key) && IsNotDayOrHeader(key)
-            && !WeekHeading.IsMatch(key) && !BlockHeading.IsMatch(key)) return value!.Trim();
+            && !ImportStructureHeadings.TryWeek(key, out _) && !ImportStructureHeadings.TryBlock(key, out _)) return value!.Trim();
         return null;
     }
 
     private static bool IsNotDayOrHeader(string value)
         => !Regex.IsMatch(value, @"^(?:UPPER|LOWER)\s+\d+$|^ARMS\s*/\s*DELTS$|^(?:PUSH|PULL|LEGS)(?:\s+\d+)?$|^DAY\s+\d+$", RegexOptions.IgnoreCase)
+           && !ImportStructureHeadings.TryDayLabel(value, out _)
            && !Regex.IsMatch(value, @"^(?:EXERCISE|MOVEMENT|SETS?|REPS?|RPE|RIR|REST|LOAD|WEIGHT|NOTES?|SUBSTITUTION|TRACKING)\b", RegexOptions.IgnoreCase)
            && !Regex.IsMatch(value, @"^(?:SUGGESTED\s+|MANDATORY\s+)?REST\s+DAY$", RegexOptions.IgnoreCase);
 
@@ -231,6 +239,27 @@ internal static class ImportOutlineEvidence
         => (text ?? "").ReplaceLineEndings("\n").Split('\n')
             .Select(line => Regex.Replace(line.Trim(), @"\s+", " "))
             .Where(line => line.Length > 0 && !line.Contains('|'));
+
+    /// Context scanning sees ordinary banner lines plus the first table cell only when that cell
+    /// starts with a recognized block or week heading. Other table cells never enter the phase
+    /// vocabulary, because many of their words also happen to be valid phase names.
+    private static IEnumerable<string> ContextLines(string? text)
+    {
+        foreach (var raw in (text ?? "").ReplaceLineEndings("\n").Split('\n'))
+        {
+            var line = Regex.Replace(raw.Trim(), @"\s+", " ");
+            if (line.Length == 0) continue;
+            if (!line.Contains('|'))
+            {
+                yield return line;
+                continue;
+            }
+
+            var leading = ImportStructureHeadings.LeadingSegment(line);
+            if (ImportStructureHeadings.TryBlock(leading, out _) || ImportStructureHeadings.TryWeek(leading, out _))
+                yield return leading;
+        }
+    }
 
     private static string Key(string? value) => Regex.Replace(value?.Trim() ?? "", @"\s+", " ");
 

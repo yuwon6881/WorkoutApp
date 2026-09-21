@@ -145,14 +145,22 @@ public sealed partial class ImportService
         {
             var sourceText = ImportSourceText.Slice(pages, 1, ImportSourceText.MaxPages);
             var reconciledLegacy = ImportTableEvidence.Enrich(legacy, sourceText);
-            var draft = ImportOutlineEvidence.NormalizeDraft(await ToDraft(reconciledLegacy, ct), sourceEvidence);
+            var labeled = ImportDayLabels.Apply(await ToDraft(reconciledLegacy, ct), pages);
+            var draft = ImportOutlineEvidence.NormalizeDraft(labeled.Draft, sourceEvidence);
+            var blockRuns = ImportBlockRuns.Reconcile(draft.Workouts);
+            draft = draft with { Workouts = blockRuns.Workouts };
+            var named = ImportDayLabels.FillMissing(draft);
+            draft = named.Draft;
             // A whole-program answer holds the same days as a sectioned one and needs the same
             // reconciliation; it simply has no chunk to attribute a notice to.
             var shaped = ReconcileDayShape(draft.Workouts);
             var cited = ImportDayShape.ReconcilePages(draft with { Workouts = shaped.Workouts }, import.Pages);
             draft = ImportValidation.NormalizeDraft(cited.Draft);
-            List<ImportReviewIssue> outlineNotices = [.. shaped.Notices, .. cited.Notices];
-            if (outlineNotices.Count > 0) import.NoticesJson = Json.Write(outlineNotices.TakeLast(40).ToList());
+            List<ImportReviewIssue> outlineNotices = [.. labeled.Notices, .. blockRuns.Notices, .. named.Notices];
+            outlineNotices.AddRange(shaped.Notices);
+            outlineNotices.AddRange(cited.Notices);
+            if (outlineNotices.Count > 0)
+                import.NoticesJson = Json.Write(ImportReviewNotices.Merge(ReadNotices(import.NoticesJson), outlineNotices));
             await ValidateDraft(draft, ct);
             ValidateDraftPages(draft, import.PageCoverageJson);
             import.DraftJson = Json.Write(draft); import.DraftBaselineJson = import.DraftJson; import.Stage = "done"; import.Status = ImportStatus.Ready;

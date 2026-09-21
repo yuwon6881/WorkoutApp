@@ -272,6 +272,37 @@ test('import a PDF program, resolve an unmapped exercise, and accept it', async 
   await picker.getByRole('textbox', { name: 'Search exercises', exact: true }).fill('bench press');
   await picker.getByRole('button', { name: 'Map Barbell bench press', exact: true }).click();
   await expect(accept).toBeEnabled({ timeout: 30000 });
+  await expect(picker).toBeHidden();
+  const activeAcceptColors = await accept.evaluate(element => {
+    const probe = document.createElement('span');
+    probe.style.color = 'var(--on-accent)';
+    document.body.append(probe);
+    const expected = getComputedStyle(probe).color;
+    probe.remove();
+    const style = getComputedStyle(element);
+    return { color: style.color, background: style.backgroundColor, opacity: style.opacity, expected };
+  });
+  expect(activeAcceptColors).toEqual({ color: activeAcceptColors.expected, background: 'rgb(230, 180, 80)', opacity: '1', expected: activeAcceptColors.expected });
+  const emptySubstitutions = mysteryExercise.locator('.substitution-empty-state');
+  await expect(emptySubstitutions).toBeVisible();
+  const libraryBox = await mysteryExercise.getByRole('button', { name: 'Library exercise for Mystery machine row', exact: true }).boundingBox();
+  const substitutionsBox = await emptySubstitutions.boundingBox();
+  expect(libraryBox).not.toBeNull();
+  expect(substitutionsBox).not.toBeNull();
+  if ((page.viewportSize()?.width ?? 0) < 640) {
+    expect(Math.abs(libraryBox!.x - substitutionsBox!.x)).toBeLessThanOrEqual(2);
+  } else {
+    expect(Math.abs((libraryBox!.y + libraryBox!.height / 2) - (substitutionsBox!.y + substitutionsBox!.height / 2))).toBeLessThanOrEqual(2);
+  }
+  const descriptionFrame = mysteryExercise.locator('.import-exercise-notes');
+  await expect(descriptionFrame).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
+  await expect(descriptionFrame).toHaveCSS('padding', '0px');
+  const setRow = mysteryExercise.locator('.import-set-swipe-row:visible').first();
+  const setBorders = await setRow.evaluate(element => {
+    const style = getComputedStyle(element);
+    return { leftWidth: style.borderLeftWidth, leftColor: style.borderLeftColor, borderColor: style.borderTopColor };
+  });
+  expect(setBorders).toEqual({ leftWidth: '1px', leftColor: setBorders.borderColor, borderColor: setBorders.borderColor });
 
   // Hold a normal draft save while substituting a mapped exercise. The substitution must be
   // serialized behind that save and stay selected after the older response arrives.

@@ -166,11 +166,12 @@ describe('buildPageText', () => {
       piece('to make a large arc.', 1774, 1006, 110)
     ]);
 
-    const lines = text.split('\n');
-    expect(lines[0]).toBe('Upper 2');
-    expect(lines).toContain('WEEK 2');
-    expect(lines[1]).toContain('Exercise | Last-Set Intensity Technique | Warm-up Sets | Working Sets | Rep Range');
-    expect(lines).toContain('1-Arm Reverse Pec Deck | N/A | 0-1 | 1 | 8-10 |  |  |  |  | 0 | N/A | 1-2 min | Lying Reverse DB Flye | Reverse Cable Crossover | Sweep the weight out to make a large arc.');
+    expect(text).toBe([
+      'DAY LABEL: Upper 2',
+      'Exercise | Last-Set Intensity Technique | Warm-up Sets | Working Sets | Rep Range | Tracking Load Set 1 | Tracking Reps Set 1 | Tracking Load Set 2 | Tracking Reps Set 2 | RIR Set 1 | RIR Set 2 | Rest | Substitution Option 1 | Substitution Option 2 | Notes',
+      'WEEK 2',
+      '1-Arm Reverse Pec Deck | N/A | 0-1 | 1 | 8-10 |  |  |  |  | 0 | N/A | 1-2 min | Lying Reverse DB Flye | Reverse Cable Crossover | Sweep the weight out to make a large arc.'
+    ].join('\n'));
   });
 
   it('reconstructs newer warm-up, working-set, RPE, technique, substitution, and note columns', () => {
@@ -238,7 +239,7 @@ describe('buildPageText', () => {
       piece('Exercise', 120, 120, 40), piece('Sets', 300, 120, 20), piece('Reps', 400, 120, 20),
       piece('Bench Press', 120, 100, 50), piece('3', 300, 100, 8), piece('8-10', 400, 100, 20)
     ]);
-    expect(text.split('\n')[0]).toBe('Day 1');
+    expect(text.split('\n')[0]).toBe('DAY LABEL: Day 1');
     expect(text).toContain('Bench Press');
   });
 

@@ -115,6 +115,7 @@ export function ImportReview({ exercises, imports, remaining, onBack, onChanged,
   // can continue the read without extracting it again.
   const serverHoldsSource = !!selected?.sourceExpiresAt;
   const reviewIssues = selected?.reviewIssues ?? [];
+  const informationalIssues = reviewIssues.filter(issue => issue.severity === 'info');
   const unresolved = selected?.unresolved ?? [];
 
   const attentionRows = [
@@ -246,6 +247,15 @@ export function ImportReview({ exercises, imports, remaining, onBack, onChanged,
             <Button variant="tertiary" onClick={() => setShowAllIssues(value => !value)}>{showAllIssues ? 'Show fewer' : `Show all ${attentionRows.length}`}</Button>
           </div>}
         </section>}
+        {informationalIssues.length > 0 && <details className="import-details import-reading-notes">
+          <summary>Reading notes ({informationalIssues.length}) <ChevronDown size={14} /></summary>
+          <div className="import-details-body import-reading-notes-body">
+            {informationalIssues.map((issue, index) => <p key={`${issue.code}-${issue.sourcePage ?? 'source'}-${index}`}>
+              <span>{issue.message}</span>
+              {issue.sourcePage && <small>PDF p.{issue.sourcePage}</small>}
+            </p>)}
+          </div>
+        </details>}
         {(selected.model || selected.inputTokens || selected.outputTokens || selected.pageCoverage?.length || selected.retries) ? <details className="import-details">
           <summary>Import details <ChevronDown size={14} /></summary>
           <div className="import-details-body">

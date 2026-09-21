@@ -75,6 +75,68 @@ public sealed class ImportOutlineEvidenceTests
             normalized.Workouts.Select(workout => (workout.Block, workout.Phase)));
     }
 
+    [Fact]
+    public void Structural_headings_accept_subtitles_parentheses_and_fused_table_headers()
+    {
+        var evidence = ImportOutlineEvidence.Read([
+            new ImportPageText(1, "BLOCK 1: 5-WEEK CLIMB PHASE\nWEEK 1 Exercise | Sets | Reps\nBarbell Row | 3 | 8"),
+            new ImportPageText(2, "WEEK 7\n(BLOCK 2)\nExercise | Sets | Reps\nBarbell Row | 3 | 8")
+        ]);
+
+        Assert.Contains("Block 1", evidence.Blocks.Values);
+        Assert.Contains("Block 2", evidence.Blocks.Values);
+        var weekOne = Assert.Single(evidence.Pages[1], context => context.Week == 1);
+        Assert.Equal("Block 1", weekOne.Block);
+        var weekSeven = Assert.Single(evidence.Pages[2], context => context.Week == 7);
+        Assert.Equal("Block 2", weekSeven.Block);
+    }
+
+    [Theory]
+    [InlineData("BLOCK 1: 5-WEEK CLIMB PHASE")]
+    [InlineData("(BLOCK 1)")]
+    public void Outline_block_labels_are_resolved_through_source_heading_grammar(string modelBlock)
+    {
+        var normalized = ImportOutlineEvidence.NormalizeChunks([
+            new AiOutlineChunk("Weeks 1-6", modelBlock, null, 1, 6, 25, 26, 12)
+        ], Evidence());
+
+        Assert.Equal("Block 1", Assert.Single(normalized).Block);
+    }
+
+    [Theory]
+    [InlineData("WEEK 1-6 Exercise | Sets | Reps")]
+    [InlineData("WEEK 1 & 2 Exercise | Sets | Reps")]
+    public void Week_ranges_and_multiweek_banners_are_not_read_as_single_weeks(string banner)
+    {
+        var evidence = ImportOutlineEvidence.Read([new ImportPageText(1, $"{banner}\nExercise | Sets | Reps")]);
+
+        Assert.DoesNotContain(evidence.Pages[1], context => context.Week is not null);
+    }
+
+    [Fact]
+    public void Fused_week_prefix_is_context_but_day_labels_do_not_enter_phase_vocabulary()
+    {
+        var evidence = ImportOutlineEvidence.Read([
+            new ImportPageText(1, "ACCUMULATION\nDAY LABEL: Deload Week\nWEEK 1 Exercise | Sets | Reps\nWEEK 2 Exercise | Sets | Reps")
+        ]);
+
+        Assert.Equal([1, 2], evidence.Pages[1].Where(context => context.Week.HasValue)
+            .Select(context => context.Week!.Value));
+        Assert.All(evidence.Pages[1].Where(context => context.Week.HasValue), context => Assert.Equal("Accumulation", context.Phase));
+        Assert.DoesNotContain("Deload Week", evidence.Phases.Values);
+    }
+
+    [Fact]
+    public void Fused_block_prefix_is_read_from_the_leading_table_cell()
+    {
+        var evidence = ImportOutlineEvidence.Read([
+            new ImportPageText(1, "BLOCK 1 Exercise | Sets | Reps\nWEEK 1 Exercise | Sets | Reps\nBench Press | 3 | 8")
+        ]);
+
+        Assert.Contains("Block 1", evidence.Blocks.Values);
+        Assert.Contains(evidence.Pages[1], context => context.Week == 1 && context.Block == "Block 1");
+    }
+
     private static DraftWorkout Workout(int week, string name, string? block, string? phase, int page)
         => new(Guid.NewGuid(), week, name, null, null, [], block, phase, 1, SourcePage: page);
 }

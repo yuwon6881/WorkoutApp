@@ -65,6 +65,43 @@ public class AiImportTests
         Assert.Equal(10, exercise.Sets[0].RepMax);
     }
 
+    [Fact]
+    public async Task A_nullable_model_day_name_is_replaced_by_the_printed_page_title()
+    {
+        const string outline = """
+            {"programTitle":"Labeled block","chunks":[{"label":"Week 1","block":null,"phase":null,"weekFrom":1,"weekTo":1,"pageFrom":1,"pageTo":1,"dayCount":1}]}
+            """;
+        const string content = """
+            {"programTitle":"Labeled block","days":[
+              {"block":null,"phase":null,"weekNumber":1,"phaseWeek":1,"dayName":null,"isRestDay":false,"notes":null,"sourcePage":1,"exercises":[
+                {"sequenceGroup":null,"sourceName":"Barbell bench press","exerciseId":null,"warmupSets":null,"workingSets":"1","substitutions":[],"coachingNotes":null,"notes":null,"sourcePage":1,"sets":[
+                  {"repMin":5,"repMax":8,"repsText":"5-8","targetRpe":8,"rir":null,"restSeconds":120,"restText":"2 min","tempo":null,"loadText":null,"notes":null,"repsSource":"extracted","rpeSource":"extracted","restSource":"extracted","sourcePage":1}]}]}]}
+            """;
+        var responseIndex = 0;
+        var bodies = new[] { outline, content };
+        var handler = new StubHandler(_ =>
+        {
+            var body = bodies[Math.Min(responseIndex++, bodies.Length - 1)];
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent($$"""{"status":"completed","usage":{"input_tokens":10,"output_tokens":20},"output":[{"content":[{"type":"output_text","text":{{JsonSerializer.Serialize(body)}}}]}]}""")
+            };
+        });
+
+        await using var h = await Harness.Create(Configured);
+        await h.SignIn();
+        var imports = h.Imports(handler);
+        var source = new ImportSourceInput("labels.pdf", 1, [new ImportPageText(1,
+            "WEEK 1\nDAY LABEL: LOWER 1\nExercise | Sets | Reps | RPE | Rest\nBarbell bench press | 1 | 5-8 | 8 | 2 min")]);
+
+        var pending = await imports.Create(source, default);
+        var ready = await imports.Extract(pending.Id, default);
+
+        Assert.Equal(ImportStatus.Ready, ready.Status);
+        Assert.Equal("Lower 1", Assert.Single(ready.Draft!.Workouts).Name);
+        Assert.Contains(ready.ReviewIssues!, issue => issue.Code == "day_name_from_source" && issue.Severity == "info");
+    }
+
     [Fact] public async Task A_chunked_import_preserves_blocks_verbatim_targets_and_accepts_mapped_names()
     {
         await using var h = await Harness.Create(Configured);

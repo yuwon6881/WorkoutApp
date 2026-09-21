@@ -118,6 +118,37 @@ public sealed class ImportPhaseWeekTests
         Assert.Equal([1, 2], untouched.Select(day => day.PhaseWeek));
     }
 
+    [Fact]
+    public void A_repeated_block_banner_continues_the_preceding_run_and_is_reported()
+    {
+        var days = new[] { Day(1, 1, "Accumulation") with { Block = "Block 1" },
+            Day(6, 6, "Accumulation") with { Block = "Block 1" },
+            Day(7, 1, "Deload Week") with { Block = "Block 2", SourcePage = 55 },
+            Day(8, 1, "Accumulation") with { Block = "Block 1", SourcePage = 61 },
+            Day(12, 5, "Accumulation") with { Block = "Block 1" } };
+
+        var result = ImportBlockRuns.Reconcile(days);
+
+        Assert.Equal(["Block 1", "Block 1", "Block 2", "Block 2", "Block 2"],
+            result.Workouts.Select(day => day.Block));
+        Assert.Contains(result.Notices, notice => notice.Code == "block_label_repeated"
+            && notice.SourcePage == 61 && notice.Severity == "info");
+        Assert.Equal(days.Select(day => (day.Week, day.Name)), result.Workouts.Select(day => (day.Week, day.Name)));
+    }
+
+    [Fact]
+    public void Same_week_block_reappearance_is_not_rewritten()
+    {
+        var days = new[] { Day(1, 1, "Accumulation") with { Block = "Block 1" },
+            Day(1, 1, "Accumulation") with { Block = "Block 2" },
+            Day(1, 1, "Accumulation") with { Block = "Block 1" } };
+
+        var result = ImportBlockRuns.Reconcile(days);
+
+        Assert.Equal(["Block 1", "Block 2", "Block 1"], result.Workouts.Select(day => day.Block));
+        Assert.DoesNotContain(result.Notices, notice => notice.Code == "block_label_repeated");
+    }
+
     private static DraftWorkout Day(int week, int phaseWeek, string phase)
         => new(Guid.NewGuid(), week, $"Week {week} Upper", null, null, [], "Block 1", phase, phaseWeek);
 }

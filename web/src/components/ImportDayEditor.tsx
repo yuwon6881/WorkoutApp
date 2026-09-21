@@ -136,6 +136,7 @@ function ExerciseEditor({ exercise, exercises, allDayExercises, onChange, onRemo
   const [isRestoring, setIsRestoring] = useState(false);
   const [restoreError, setRestoreError] = useState<string | null>(null);
   const [isMapping, setIsMapping] = useState(false);
+  const [mappingError, setMappingError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!menuOpen) return;
@@ -173,9 +174,14 @@ function ExerciseEditor({ exercise, exercises, allDayExercises, onChange, onRemo
   const select = async (exerciseId: string | null) => {
     if (onMapExerciseSlot) {
       setIsMapping(true);
+      setMappingError(null);
       setRestoreError(null);
-      try { await onMapExerciseSlot(exercise.lineId, exerciseId); setPickerOpen(false); }
-      catch (err) { setRestoreError(err instanceof Error ? err.message : 'Could not map this exercise slot.'); }
+      try {
+        await onMapExerciseSlot(exercise.lineId, exerciseId);
+        setPickerOpen(false);
+      } catch (err) {
+        setMappingError(err instanceof Error ? err.message : 'Could not map this exercise slot.');
+      }
       finally { setIsMapping(false); }
       return;
     }
@@ -335,7 +341,7 @@ function ExerciseEditor({ exercise, exercises, allDayExercises, onChange, onRemo
         <span>Library exercise</span>
         <Button variant="secondary" className="import-library-trigger" aria-haspopup="dialog" data-import-field="library"
           disabled={isRestoring || isMapping}
-          aria-label={`Library exercise for ${exercise.sourceName}`} onClick={() => setPickerOpen(true)}>
+          aria-label={`Library exercise for ${exercise.sourceName}`} onClick={() => { setMappingError(null); setPickerOpen(true); }}>
           {selected?.name ?? (exercise.exerciseId ? 'Swap exercise' : 'Map exercise')}
         </Button>
       </div>
@@ -372,7 +378,7 @@ function ExerciseEditor({ exercise, exercises, allDayExercises, onChange, onRemo
               ))}
             </div>
           ) : (
-            <span className="muted small-copy">No substitutions available.</span>
+            <span className="muted small-copy substitution-empty-state">No substitutions available.</span>
           )}
         </div>
       </div>
@@ -439,11 +445,13 @@ function ExerciseEditor({ exercise, exercises, allDayExercises, onChange, onRemo
     {pickerOpen && <Modal title={`Choose a library exercise for ${exercise.sourceName}`} wide onClose={() => setPickerOpen(false)}>
       <div className="modal-body import-library-picker">
         <p>Search the catalog by exercise, equipment, muscle, movement pattern, or alias.</p>
+        {mappingError && <div className="inline-error" role="alert">{mappingError}</div>}
         <ExerciseLibrary
           exercises={exercises}
           action={exercise.exerciseId ? 'swap' : 'map'}
           currentExerciseId={exercise.exerciseId}
           preferredNames={exercise.substitutions}
+          disabled={isMapping}
           onSelect={id => select(id)}
         />
       </div>

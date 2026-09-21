@@ -181,7 +181,7 @@ for (const theme of ['dark', 'light']) {
     await expect(page.getByRole('heading', { name: 'Review' })).toBeVisible({ timeout: 60000 });
     await screenshot('import-review');
 
-    const importDetails = page.locator('details.import-details');
+    const importDetails = page.locator('details.import-details').filter({ has: page.getByText('Import details', { exact: true }) });
     if (await importDetails.count()) {
       const summary = importDetails.locator('summary');
       await summary.focus();

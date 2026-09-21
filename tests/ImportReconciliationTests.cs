@@ -226,6 +226,31 @@ public sealed class ImportReconciliationTests
     }
 
     [Fact]
+    public async Task Repeated_day_label_ambiguity_across_sections_is_recorded_once()
+    {
+        await using var h = await Harness.Create(Configured());
+        await h.SignIn();
+        var outline = """
+            {"programTitle":"Nine week block","chunks":[
+              {"label":"Week 1 part 1","block":null,"phase":null,"weekFrom":1,"weekTo":1,"pageFrom":1,"pageTo":1,"dayCount":2},
+              {"label":"Week 1 part 2","block":null,"phase":null,"weekFrom":1,"weekTo":1,"pageFrom":2,"pageTo":2,"dayCount":2}]}
+            """;
+        var source = new ImportSourceInput("nippard.pdf", 2, [
+            new ImportPageText(1, "WEEK 1\nDAY LABEL: Upper 1\nExercise | Sets | Reps"),
+            new ImportPageText(2, "WEEK 1\nDAY LABEL: Upper 1\nExercise | Sets | Reps")
+        ]);
+        var imports = h.Imports(Reading(outline, Days((1, "Model A", 1), (1, "Model B", 1)),
+            Days((1, "Model C", 2), (1, "Model D", 2))));
+
+        var pending = await imports.Create(source, default);
+        var ready = await imports.Extract(pending.Id, default);
+
+        var notice = Assert.Single(ready.ReviewIssues!, issue => issue.Code == "day_label_ambiguous");
+        Assert.Equal(2, notice.SourcePage);
+        Assert.Equal(4, ready.Draft!.Workouts.Count);
+    }
+
+    [Fact]
     public void Earlier_section_duplicates_are_aggregated_and_coverage_uses_pre_deduplication_days()
     {
         var existingDays = Enumerable.Range(3, 3).Select(page => ReconciliationDay(page)).ToList();
@@ -278,14 +303,17 @@ public sealed class ImportReconciliationTests
         var d3 = new DraftWorkout(Guid.NewGuid(), 1, "Day 3", null, null, [new DraftExercise(Guid.NewGuid(), "Row", null, null, [new DraftSet(5, 8, 8, 120, null, null, null)], "A1", [], 1)], Block: "B", Phase: "P");
         var d4 = new DraftWorkout(Guid.NewGuid(), 1, "Day 4", null, null, [new DraftExercise(Guid.NewGuid(), "Press", null, null, [new DraftSet(5, 8, 8, 120, null, null, null)], "A1", [], 1)], Block: "B", Phase: "P");
         var d5 = new DraftWorkout(Guid.NewGuid(), 1, "Day 5", null, null, [new DraftExercise(Guid.NewGuid(), "Deadlift", null, null, [new DraftSet(5, 8, 8, 120, null, null, null)], "A1", [], 1)], Block: "B", Phase: "P");
-        var trailingRest1 = new DraftWorkout(Guid.NewGuid(), 1, "Rest 3", null, null, [], Block: "B", Phase: "P", IsRestDay: true);
-        var trailingRest2 = new DraftWorkout(Guid.NewGuid(), 1, "Rest 4", null, null, [], Block: "B", Phase: "P", IsRestDay: true);
+        var trailingRest1 = new DraftWorkout(Guid.NewGuid(), 1, "Rest 3", null, null, [], Block: "B", Phase: "P", IsRestDay: true, SourcePage: 71);
+        var trailingRest2 = new DraftWorkout(Guid.NewGuid(), 1, "Rest 4", null, null, [], Block: "B", Phase: "P", IsRestDay: true, SourcePage: 72);
 
         var (workouts, notices) = ImportDayShape.Reconcile([d1, r1, d2, r2, d3, d4, d5, trailingRest1, trailingRest2]);
 
         Assert.Equal(7, workouts.Count);
         Assert.Equal(["Day 1", "Rest 1", "Day 2", "Rest 2", "Day 3", "Day 4", "Day 5"], workouts.Select(w => w.Name));
         Assert.DoesNotContain(notices, n => n.Code == "week_day_overflow");
+        var trimNotice = Assert.Single(notices, n => n.Code == "trailing_rest_day_trimmed");
+        Assert.Equal("info", trimNotice.Severity);
+        Assert.Equal(71, trimNotice.SourcePage);
     }
 
     [Fact]

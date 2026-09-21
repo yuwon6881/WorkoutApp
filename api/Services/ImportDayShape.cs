@@ -37,6 +37,7 @@ internal static class ImportDayShape
 
         var duplicateIds = new HashSet<Guid>();
         var trimmedRestIds = new HashSet<Guid>();
+        DraftWorkout? firstTrimmedRestDay = null;
         foreach (var group in workouts.GroupBy(day =>
                      $"{ImportValidation.CanonicalBlock(day.Block).ToUpperInvariant()}\u001f{(day.Phase?.Trim() ?? "").ToUpperInvariant()}\u001f{day.Week}",
                      StringComparer.OrdinalIgnoreCase))
@@ -57,11 +58,15 @@ internal static class ImportDayShape
                 }
             }
             duplicateIds.UnionWith(localDuplicateIds);
+            var trimmedDays = new List<DraftWorkout>();
             while (groupDays.Count > 7 && groupDays[^1].IsRestDay)
             {
                 trimmedRestIds.Add(groupDays[^1].LineId);
+                trimmedDays.Add(groupDays[^1]);
                 groupDays.RemoveAt(groupDays.Count - 1);
             }
+            if (firstTrimmedRestDay is null && trimmedDays.Count > 0)
+                firstTrimmedRestDay = trimmedDays[^1];
         }
         if (duplicateIds.Count > 0)
         {
@@ -73,6 +78,9 @@ internal static class ImportDayShape
         if (trimmedRestIds.Count > 0)
         {
             workouts = workouts.Where(w => !trimmedRestIds.Contains(w.LineId)).ToList();
+            notices.Add(new ImportReviewIssue("trailing_rest_day_trimmed",
+                $"{trimmedRestIds.Count} trailing rest day{(trimmedRestIds.Count == 1 ? " was" : "s were")} removed because a week can hold at most seven days.",
+                "info", firstTrimmedRestDay?.SourcePage));
         }
         return (workouts, notices);
     }

@@ -32,7 +32,7 @@ function exerciseRank(candidate: Exercise, current: Exercise | undefined, prefer
   return 4;
 }
 
-export function ExerciseLibrary({ exercises, onSelect, exclude = [], onOpen, onChanged, action = 'add', currentExerciseId, preferredNames = [] }: {
+export function ExerciseLibrary({ exercises, onSelect, exclude = [], onOpen, onChanged, action = 'add', currentExerciseId, preferredNames = [], disabled = false }: {
   exercises: Exercise[];
   onSelect?: (id: string) => void;
   exclude?: string[];
@@ -41,6 +41,7 @@ export function ExerciseLibrary({ exercises, onSelect, exclude = [], onOpen, onC
   action?: ExercisePickerAction;
   currentExerciseId?: string | null;
   preferredNames?: string[];
+  disabled?: boolean;
 }) {
   const [query, setQuery] = useState('');
   const [muscle, setMuscle] = useState('All muscles');
@@ -115,6 +116,7 @@ export function ExerciseLibrary({ exercises, onSelect, exclude = [], onOpen, onC
             className="picker-add-btn"
             variant="secondary"
             aria-label={`${actionLabel} ${e.name}`}
+            disabled={disabled}
             onClick={() => onSelect(e.id)}
           >
             <ActionIcon size={16} />
