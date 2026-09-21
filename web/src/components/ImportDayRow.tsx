@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { ChevronDown, ChevronUp, Pencil } from 'lucide-react';
+import { ChevronDown, ChevronUp } from 'lucide-react';
 import type { DraftWorkout, Exercise } from '../types';
 import { getWorkoutMuscles } from '../lib/muscles';
 import { Button } from './ui/Button';
@@ -53,8 +53,8 @@ export function DayRow({
 
   return (
     <section className={`draft-day ${day.isRestDay ? 'rest-day' : ''}`} data-import-day={day.lineId}>
-      <div className="draft-day-card-header">
-        {day.isRestDay ? (
+      {day.isRestDay ? (
+        <div className="draft-day-card-header">
           <div className="draft-day-summary draft-day-summary-static">
             <div className="draft-day-title-group">
               <strong>{fullName}</strong>
@@ -66,7 +66,12 @@ export function DayRow({
               )}
             </div>
           </div>
-        ) : (
+          <div className="draft-day-actions">
+            <span className="tiny-label rest-badge">Rest day</span>
+          </div>
+        </div>
+      ) : (
+        <>
           <Button presentation="plain" className="draft-day-summary" aria-expanded={expanded} aria-label={fullName} onClick={onToggle}>
             <span className={`draft-day-disclosure ${expanded ? 'open' : ''}`} aria-hidden="true"><ChevronDown size={17} /></span>
             <div className="draft-day-title-group">
@@ -77,50 +82,38 @@ export function DayRow({
                 {day.phase?.toLowerCase().includes('deload') && <span className="pill pill-accent">Deload</span>}
               </div>
             </div>
+            {!expanded && (
+              <div className="draft-day-compact-body">
+                {exercisePreview && <p className="day-exercise-preview">{exercisePreview}</p>}
+                {muscles.length > 0 && (
+                  <div className="day-muscles-row" aria-label="Targeted muscles">
+                    {muscles.slice(0, 5).map(m => (
+                      <span key={m} className="muscle-chip">{m}</span>
+                    ))}
+                    {muscles.length > 5 && (
+                      <span className="muscle-chip muscle-chip-overflow" title={muscles.slice(5).join(', ')}>
+                        +{muscles.length - 5}
+                      </span>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
           </Button>
-        )}
-        <div className="draft-day-actions">
-          {day.isRestDay ? (
-            <span className="tiny-label rest-badge">Rest day</span>
-          ) : (
-            <>
-              <Button variant="secondary" className="day-action-button" aria-label={expanded ? `Close editor for ${day.name}` : `Edit ${day.name}`} onClick={onToggle}>
-                <Pencil size={14} /><span>{expanded ? 'Close' : 'Edit'}</span>
+          {!expanded && day.exercises.length > 0 && (
+            <div className="draft-day-actions">
+              <Button
+                variant="tertiary"
+                className="day-chevron-button"
+                aria-label={showDetails ? `Hide details for ${day.name}` : `View details for ${day.name}`}
+                aria-expanded={showDetails}
+                onClick={() => setShowDetails(s => !s)}
+              >
+                {showDetails ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
               </Button>
-              {!expanded && day.exercises.length > 0 && (
-                <Button
-                  variant="tertiary"
-                  className="day-chevron-button"
-                  aria-label={showDetails ? `Hide details for ${day.name}` : `View details for ${day.name}`}
-                  onClick={e => {
-                    e.stopPropagation();
-                    setShowDetails(s => !s);
-                  }}
-                >
-                  {showDetails ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-                </Button>
-              )}
-            </>
-          )}
-        </div>
-      </div>
-
-      {!expanded && !day.isRestDay && (
-        <div className="draft-day-compact-body">
-          {exercisePreview && <p className="day-exercise-preview">{exercisePreview}</p>}
-          {muscles.length > 0 && (
-            <div className="day-muscles-row" aria-label="Targeted muscles">
-              {muscles.slice(0, 5).map(m => (
-                <span key={m} className="muscle-chip">{m}</span>
-              ))}
-              {muscles.length > 5 && (
-                <span className="muscle-chip muscle-chip-overflow" title={muscles.slice(5).join(', ')}>
-                  +{muscles.length - 5}
-                </span>
-              )}
             </div>
           )}
-        </div>
+        </>
       )}
 
       {!expanded && showDetails && !day.isRestDay && day.exercises.length > 0 && <DayLines day={day} />}

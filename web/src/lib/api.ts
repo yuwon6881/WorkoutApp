@@ -1,5 +1,5 @@
 import type { PdfExtraction } from './pdfText';
-import type { Bootstrap, DraftWorkout, ExerciseClearPreview, ExerciseInsight, HistoryPage, ImportDraft, ImportStatusView, ImportView, Preferences, ProgressSummary, Program, ProgramSummary, Session, Template, SubstitutionCandidate, TemplateSubstitutionResult, WorkoutActivityItem } from '../types';
+import type { Bootstrap, DraftWorkout, ExerciseClearPreview, ExerciseInsight, HistoryPage, ImportDraft, ImportStatusView, ImportView, Preferences, ProgressSummary, Program, ProgramDayActionInput, ProgramDraftResponse, ProgramDraftSummary, ProgramDraftView, ProgramEditorDocument, ProgramSummary, ProgramWeekResetInput, Session, Template, SubstitutionCandidate, TemplateSubstitutionResult, WorkoutActivityItem } from '../types';
 
 export class ApiError extends Error {
   constructor(message: string, readonly status: number) { super(message); }
@@ -108,9 +108,16 @@ export const api = {
   programs: () => call<ProgramSummary[]>('/api/programs'),
   getProgram: (id: string) => call<Program>(`/api/programs/${id}`),
   createProgram: (input: unknown) => call<Program>('/api/programs', 'POST', input),
+  programDrafts: () => call<ProgramDraftSummary[]>('/api/program-drafts'),
+  getProgramDraft: (id: string) => call<ProgramDraftResponse>(`/api/program-drafts/${id}`),
+  createProgramDraft: (draft: ProgramEditorDocument, requestKey: string) => call<ProgramDraftView>('/api/program-drafts', 'POST', { draft, requestKey }),
+  updateProgramDraft: (id: string, draft: ProgramEditorDocument, revision: number) => call<ProgramDraftView>(`/api/program-drafts/${id}`, 'PUT', { draft, revision }),
+  deleteProgramDraft: (id: string) => call<void>(`/api/program-drafts/${id}`, 'DELETE'),
+  createProgramFromDraft: (id: string, revision: number) => call<Program>(`/api/program-drafts/${id}/create-program`, 'POST', { revision }),
   setProgramActive: (id: string, active: boolean, revision: number) => call<Program>(`/api/programs/${id}/active`, 'POST', { active, revision }),
-  skipProgramWorkout: (id: string, templateId: string) => call<Program>(`/api/programs/${id}/workouts/${templateId}/skip`, 'POST'),
-  unskipProgramWorkout: (id: string, templateId: string) => call<Program>(`/api/programs/${id}/workouts/${templateId}/skip`, 'DELETE'),
+  skipProgramWorkout: (id: string, templateId: string, input: ProgramDayActionInput) => call<Program>(`/api/programs/${id}/workouts/${templateId}/skip`, 'POST', input),
+  passProgramRestDay: (id: string, templateId: string, input: ProgramDayActionInput) => call<Program>(`/api/programs/${id}/days/${templateId}/pass`, 'POST', input),
+  resetProgramWeek: (id: string, input: ProgramWeekResetInput) => call<Program>(`/api/programs/${id}/week/reset`, 'POST', input),
   repeatProgram: (id: string) => call<Program>(`/api/programs/${id}/repeat`, 'POST'),
   deleteProgram: (id: string) => call<void>(`/api/programs/${id}`, 'DELETE'),
 

@@ -152,7 +152,8 @@ internal static class ImportDayShape
 
     private static DraftWorkout ReconcileDay(DraftWorkout day, List<ImportReviewIssue> notices)
     {
-        if (day.IsRestDay) return day;
+        if (day.IsRestDay)
+            return string.IsNullOrWhiteSpace(day.Name) ? day with { Name = "Rest Day" } : day;
         if (IsRestLabel(day.Name)) return day with { IsRestDay = true, Exercises = [] };
         if (day.Exercises.Count == 0)
         {

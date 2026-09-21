@@ -90,6 +90,18 @@ public sealed class TrainingProgram : OwnedRecord
     public DateTime? CompletedAt { get; set; }
 }
 
+/// Account-owned custom program working state. Converted rows remain as small tombstones so a
+/// retried create request can return the program that was already materialized.
+public sealed class ProgramDraft : OwnedRecord
+{
+    public string ProgramName { get; set; } = "";
+    public string DraftJson { get; set; } = "";
+    public Guid? RequestKey { get; set; }
+    public DateTime Created { get; set; } = DateTime.UtcNow;
+    public DateTime Updated { get; set; } = DateTime.UtcNow;
+    public Guid? CreatedProgramId { get; set; }
+}
+
 public sealed class ProgramPhase : OwnedRecord
 {
     public Guid ProgramId { get; set; }
@@ -108,6 +120,41 @@ public sealed class ProgramSkip : OwnedRecord
     public Guid ProgramId { get; set; }
     public Guid TemplateId { get; set; }
     public DateTime SkippedAt { get; set; } = DateTime.UtcNow;
+}
+
+/// A single activation run. Pausing a program leaves this row open; completing the final week
+/// closes it, and activating a closed program creates a new run.
+public sealed class ProgramRun : OwnedRecord
+{
+    public Guid ProgramId { get; set; }
+    public int Number { get; set; }
+    public int CurrentWeek { get; set; }
+    public int CurrentAttempt { get; set; } = 1;
+    public DateTime StartedAt { get; set; } = DateTime.UtcNow;
+    public DateTime? CompletedAt { get; set; }
+}
+
+/// Passed-day state belongs to a run and a week attempt, so resetting a week never rewrites
+/// completed session history or causes an old session to re-tick the new attempt.
+public sealed class ProgramDayProgress : OwnedRecord
+{
+    public Guid ProgramId { get; set; }
+    public Guid RunId { get; set; }
+    public Guid TemplateId { get; set; }
+    public int Week { get; set; }
+    public int Attempt { get; set; } = 1;
+    public string Status { get; set; } = ProgramDayStatus.Pending;
+    public DateTime? PassedAt { get; set; }
+}
+
+public static class ProgramDayStatus
+{
+    public const string Pending = "pending";
+    public const string Completed = "completed";
+    public const string Skipped = "skipped";
+    public const string RestPassed = "rest_passed";
+
+    public static bool IsPassed(string status) => status is Completed or Skipped or RestPassed;
 }
 
 public static class ProgramLifecycle
@@ -163,6 +210,7 @@ public sealed class WorkoutSession : OwnedRecord
 {
     public Guid? TemplateId { get; set; }
     public Guid? ProgramId { get; set; }
+    public Guid? ProgramDayProgressId { get; set; }
     public string Name { get; set; } = "";
     public string Note { get; set; } = "";
     public bool Active { get; set; } = true;

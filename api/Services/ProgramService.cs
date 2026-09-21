@@ -11,19 +11,30 @@ public record ProgramPhaseView(Guid Id, string Name, string Block, int WeekFrom,
     int CompletedWorkouts, int TotalWorkouts, bool Complete, int CurrentWeek = 1, int SkippedWorkouts = 0,
     int? SourcePageFrom = null, int? SourcePageTo = null);
 public record ProgramView(Guid Id, string Name, int Weeks, bool Active, int Revision, Guid? SourceImportId, List<TemplateView> Workouts, List<Guid> CompletedTemplateIds, Guid? NextTemplateId,
-    string LifecycleStatus = ProgramLifecycle.Standby, DateTime? CompletedAt = null, List<Guid>? SkippedTemplateIds = null, List<ProgramPhaseView>? Phases = null);
-public record ProgramDayView(Guid Id, string Name, string Focus, string Block, string Phase, int Week, int PhaseWeek, int Position, bool IsRestDay, int ExerciseCount, int? SourcePage = null);
+    string LifecycleStatus = ProgramLifecycle.Standby, DateTime? CompletedAt = null, List<Guid>? SkippedTemplateIds = null,
+    List<ProgramPhaseView>? Phases = null, ProgramProgressView? Progress = null);
+public record ProgramDayView(Guid Id, string Name, string Focus, string Block, string Phase, int Week, int PhaseWeek, int Position, bool IsRestDay, int ExerciseCount,
+    int? SourcePage = null, string? ProgressStatus = null);
+public record ProgramProgressDayView(Guid TemplateId, string Status, bool IsRestDay, int Position);
+public record ProgramProgressView(Guid RunId, int CurrentWeek, int CurrentAttempt, int PassedDays, int TotalDays, List<ProgramProgressDayView> Days);
 public record ProgramSummaryView(Guid Id, string Name, int Weeks, bool Active, int Revision, Guid? SourceImportId,
     List<ProgramDayView> Days, List<Guid> CompletedTemplateIds, Guid? NextTemplateId,
     string LifecycleStatus = ProgramLifecycle.Standby, DateTime? CompletedAt = null, List<Guid>? SkippedTemplateIds = null,
-    List<ProgramPhaseView>? Phases = null);
+    List<ProgramPhaseView>? Phases = null, ProgramProgressView? Progress = null);
+public record ProgramDayActionInput(int? Revision, Guid? RunId, int? Week, int? Attempt, Guid? IdempotencyId = null);
+public record ProgramWeekResetInput(int? Revision, Guid? RunId, int? Week, int? Attempt, string Confirmation, Guid? IdempotencyId = null);
 
-public sealed class ProgramService(AppDb db, TemplateService templates)
+public sealed class ProgramService(AppDb db, TemplateService templates, ProgramProgressService progress, ProgramLifecycleService lifecycle)
 {
     public async Task<List<ProgramSummaryView>> List(CancellationToken ct)
     {
         var programs = await db.Programs.AsNoTracking().OrderByDescending(p => p.Active).ThenByDescending(p => p.Created).ToListAsync(ct);
         if (programs.Count == 0) return [];
+
+        // Older active programs have no run rows yet. Repair that single slot under the account
+        // lock, then build the bootstrap view from persisted run state.
+        foreach (var active in programs.Where(program => program.Active)) await lifecycle.EnsureActiveRun(active.Id, ct);
+        programs = await db.Programs.AsNoTracking().OrderByDescending(p => p.Active).ThenByDescending(p => p.Created).ToListAsync(ct);
 
         // The bootstrap used to call Summary once per program, which in turn loaded templates,
         // counts, completion, skips, and phases independently. These bounded set queries keep
@@ -35,17 +46,15 @@ public sealed class ProgramService(AppDb db, TemplateService templates)
         var exerciseCounts = templateIds.Count == 0 ? new Dictionary<Guid, int>() : await db.TemplateExercises.AsNoTracking()
             .Where(e => templateIds.Contains(e.TemplateId)).GroupBy(e => e.TemplateId)
             .Select(g => new { g.Key, Count = g.Count() }).ToDictionaryAsync(x => x.Key, x => x.Count, ct);
-        var completedRows = await db.Workouts.AsNoTracking().Where(w => w.ProgramId != null && ids.Contains(w.ProgramId.Value) && w.FinishedAt != null && w.TemplateId != null)
-            .Select(w => new { ProgramId = w.ProgramId!.Value, TemplateId = w.TemplateId!.Value }).Distinct().ToListAsync(ct);
-        var skippedRows = await db.ProgramSkips.AsNoTracking().Where(s => ids.Contains(s.ProgramId))
-            .Select(s => new { s.ProgramId, s.TemplateId }).ToListAsync(ct);
         var phases = await db.ProgramPhases.AsNoTracking().Where(p => ids.Contains(p.ProgramId)).OrderBy(p => p.Position).ToListAsync(ct);
+        var runs = await db.ProgramRuns.AsNoTracking().Where(run => ids.Contains(run.ProgramId)).OrderBy(run => run.Number).ToListAsync(ct);
+        var runIds = runs.Select(run => run.Id).ToList();
+        var dayProgress = runIds.Count == 0 ? [] : await db.ProgramDayProgresses.AsNoTracking()
+            .Where(day => runIds.Contains(day.RunId)).ToListAsync(ct);
         var views = new List<ProgramSummaryView>(programs.Count);
         foreach (var program in programs)
         {
             var rows = templates.Where(t => t.ProgramId == program.Id).ToList();
-            var completed = completedRows.Where(x => x.ProgramId == program.Id).Select(x => x.TemplateId).ToList();
-            var skipped = skippedRows.Where(x => x.ProgramId == program.Id).Select(x => x.TemplateId).ToList();
             var programPhases = phases.Where(p => p.ProgramId == program.Id).ToList();
             // Legacy programs without persisted phases retain the existing repair path. New and
             // migrated programs use the batched read model above.
@@ -54,12 +63,19 @@ public sealed class ProgramService(AppDb db, TemplateService templates)
                 views.Add(await Summary(program, ct));
                 continue;
             }
+            var run = runs.LastOrDefault(candidate => candidate.ProgramId == program.Id);
+            var relevantProgress = RelevantProgress(run, dayProgress.Where(day => day.RunId == run?.Id).ToList());
+            var statusByTemplate = relevantProgress.ToDictionary(day => day.TemplateId, day => day.Status);
+            var completed = relevantProgress.Where(day => day.Status == ProgramDayStatus.Completed).Select(day => day.TemplateId).ToList();
+            var skipped = relevantProgress.Where(day => day.Status == ProgramDayStatus.Skipped).Select(day => day.TemplateId).ToList();
             var days = rows.Select(t => new ProgramDayView(t.Id, t.Name, t.Focus, t.Block, t.Phase, t.Week, t.PhaseWeek,
-                t.Position, t.IsRestDay, exerciseCounts.GetValueOrDefault(t.Id), t.SourcePage)).ToList();
-            var next = days.FirstOrDefault(d => !d.IsRestDay && !completed.Contains(d.Id) && !skipped.Contains(d.Id))?.Id;
+                t.Position, t.IsRestDay, exerciseCounts.GetValueOrDefault(t.Id), t.SourcePage, statusByTemplate.GetValueOrDefault(t.Id))).ToList();
+            var next = run is null || run.CompletedAt is not null ? null : days.FirstOrDefault(day => day.Week == run.CurrentWeek &&
+                !day.IsRestDay && day.ProgressStatus == ProgramDayStatus.Pending)?.Id;
             var phaseViews = BuildPhaseViews(programPhases, rows, completed, skipped);
             views.Add(new ProgramSummaryView(program.Id, program.Name, program.Weeks, program.Active, program.Revision, program.SourceImportId,
-                days, completed, next, program.LifecycleStatus, program.CompletedAt, skipped, phaseViews));
+                days, completed, next, program.LifecycleStatus, program.CompletedAt, skipped, phaseViews,
+                CreateProgressView(run, rows, relevantProgress)));
         }
         return views;
     }
@@ -83,15 +99,18 @@ public sealed class ProgramService(AppDb db, TemplateService templates)
     {
         var rows = await db.Templates.AsNoTracking().Where(t => t.ProgramId == program.Id).OrderBy(t => t.Week).ThenBy(t => t.Position).ToListAsync(ct);
         var workouts = await templates.Views(rows, ct);
-        // A program slot counts as done once a session started from it has been finished.
-        var completed = await db.Workouts.AsNoTracking()
-            .Where(w => w.ProgramId == program.Id && w.FinishedAt != null && w.TemplateId != null)
-            .Select(w => w.TemplateId!.Value).Distinct().ToListAsync(ct);
-        var skipped = await db.ProgramSkips.AsNoTracking().Where(s => s.ProgramId == program.Id).Select(s => s.TemplateId).ToListAsync(ct);
-        var next = workouts.FirstOrDefault(w => !w.IsRestDay && !completed.Contains(w.Id) && !skipped.Contains(w.Id))?.Id;
+        var run = await db.ProgramRuns.AsNoTracking().Where(candidate => candidate.ProgramId == program.Id)
+            .OrderByDescending(candidate => candidate.Number).FirstOrDefaultAsync(ct);
+        var runProgress = run is null ? [] : await db.ProgramDayProgresses.AsNoTracking().Where(day => day.RunId == run.Id).ToListAsync(ct);
+        var relevantProgress = RelevantProgress(run, runProgress);
+        var statusByTemplate = relevantProgress.ToDictionary(day => day.TemplateId, day => day.Status);
+        var completed = relevantProgress.Where(day => day.Status == ProgramDayStatus.Completed).Select(day => day.TemplateId).ToList();
+        var skipped = relevantProgress.Where(day => day.Status == ProgramDayStatus.Skipped).Select(day => day.TemplateId).ToList();
+        var next = run is null || run.CompletedAt is not null ? null : workouts.FirstOrDefault(workout =>
+            workout.Week == run.CurrentWeek && !workout.IsRestDay && statusByTemplate.GetValueOrDefault(workout.Id) == ProgramDayStatus.Pending)?.Id;
         var phases = await PhaseViews(program.Id, rows, completed, skipped, ct);
         return new ProgramView(program.Id, program.Name, program.Weeks, program.Active, program.Revision, program.SourceImportId, workouts, completed, next,
-            program.LifecycleStatus, program.CompletedAt, skipped, phases);
+            program.LifecycleStatus, program.CompletedAt, skipped, phases, CreateProgressView(run, rows, relevantProgress));
     }
 
     public async Task<ProgramSummaryView> Summary(TrainingProgram program, CancellationToken ct)
@@ -101,16 +120,21 @@ public sealed class ProgramService(AppDb db, TemplateService templates)
         var ids = rows.Select(t => t.Id).ToList();
         var exerciseCounts = await db.TemplateExercises.AsNoTracking().Where(e => ids.Contains(e.TemplateId))
             .GroupBy(e => e.TemplateId).Select(g => new { g.Key, Count = g.Count() }).ToDictionaryAsync(x => x.Key, x => x.Count, ct);
-        var completed = await db.Workouts.AsNoTracking()
-            .Where(w => w.ProgramId == program.Id && w.FinishedAt != null && w.TemplateId != null)
-            .Select(w => w.TemplateId!.Value).Distinct().ToListAsync(ct);
+        var run = await db.ProgramRuns.AsNoTracking().Where(candidate => candidate.ProgramId == program.Id)
+            .OrderByDescending(candidate => candidate.Number).FirstOrDefaultAsync(ct);
+        var runProgress = run is null ? [] : await db.ProgramDayProgresses.AsNoTracking().Where(day => day.RunId == run.Id).ToListAsync(ct);
+        var relevantProgress = RelevantProgress(run, runProgress);
+        var statusByTemplate = relevantProgress.ToDictionary(day => day.TemplateId, day => day.Status);
+        var completed = relevantProgress.Where(day => day.Status == ProgramDayStatus.Completed).Select(day => day.TemplateId).ToList();
+        var skipped = relevantProgress.Where(day => day.Status == ProgramDayStatus.Skipped).Select(day => day.TemplateId).ToList();
         var days = rows.Select(t => new ProgramDayView(t.Id, t.Name, t.Focus, t.Block, t.Phase, t.Week, t.PhaseWeek, t.Position,
-            t.IsRestDay, exerciseCounts.GetValueOrDefault(t.Id), t.SourcePage)).ToList();
-        var skipped = await db.ProgramSkips.AsNoTracking().Where(s => s.ProgramId == program.Id).Select(s => s.TemplateId).ToListAsync(ct);
-        var next = days.FirstOrDefault(d => !d.IsRestDay && !completed.Contains(d.Id) && !skipped.Contains(d.Id))?.Id;
+            t.IsRestDay, exerciseCounts.GetValueOrDefault(t.Id), t.SourcePage, statusByTemplate.GetValueOrDefault(t.Id))).ToList();
+        var next = run is null || run.CompletedAt is not null ? null : days.FirstOrDefault(day => day.Week == run.CurrentWeek &&
+            !day.IsRestDay && day.ProgressStatus == ProgramDayStatus.Pending)?.Id;
         var phases = await PhaseViews(program.Id, rows, completed, skipped, ct);
         return new ProgramSummaryView(program.Id, program.Name, program.Weeks, program.Active, program.Revision,
-            program.SourceImportId, days, completed, next, program.LifecycleStatus, program.CompletedAt, skipped, phases);
+            program.SourceImportId, days, completed, next, program.LifecycleStatus, program.CompletedAt, skipped, phases,
+            CreateProgressView(run, rows, relevantProgress));
     }
 
     public async Task<ProgramView> Create(ProgramInput input, bool activate, Guid? sourceImportId, CancellationToken ct)
@@ -164,6 +188,7 @@ public sealed class ProgramService(AppDb db, TemplateService templates)
                 string.Equals(t.Phase, group[0].Phase?.Trim() ?? "", StringComparison.OrdinalIgnoreCase)))
                 template.ProgramPhaseId = phases[phaseIndex].Id;
         }
+        if (active) progress.CreateRun(program, templatesForPhase, number: 1);
         return program;
     }
 
@@ -226,106 +251,45 @@ public sealed class ProgramService(AppDb db, TemplateService templates)
 
     public async Task<ProgramView> SetActive(Guid id, bool active, int? revision, CancellationToken ct)
     {
-        await using var gate = await MutationLock.Acquire(db, db.CurrentUser, ct);
-        var program = await db.Programs.SingleOrDefaultAsync(p => p.Id == id, ct);
-        Validation.Require(program != null, "That program no longer exists.", 404);
-        if (program!.Active == active && ((active && program.LifecycleStatus == ProgramLifecycle.Active) ||
-            (!active && program.LifecycleStatus is ProgramLifecycle.Standby or ProgramLifecycle.Completed)))
-        {
-            await gate.Commit(ct);
-            return await Get(id, ct);
-        }
-        TemplateService.RequireFresh(revision, program!.Revision);
-        if (active)
-        {
-            Validation.Require(program.LifecycleStatus != ProgramLifecycle.Completed, "A completed program must be repeated as a new program.", 409);
-            // The one-active-program index is checked per statement, so the outgoing program has
-            // to be written out before the incoming one claims the slot. Both writes share this
-            // transaction, so the swap is still atomic.
-            var current = await db.Programs.Where(p => p.Active && p.Id != id).ToListAsync(ct);
-            foreach (var other in current)
-            {
-                other.Active = false;
-                other.LifecycleStatus = other.CompletedAt is null ? ProgramLifecycle.Standby : ProgramLifecycle.Completed;
-                other.Revision++;
-            }
-            if (current.Count > 0) await db.SaveChangesAsync(ct);
-        }
-        program.Active = active; program.LifecycleStatus = active ? ProgramLifecycle.Active :
-            (program.CompletedAt is null ? ProgramLifecycle.Standby : ProgramLifecycle.Completed); program.Revision++;
-        await db.SaveChangesAsync(ct);
-        await gate.Commit(ct);
+        await lifecycle.SetActive(id, active, revision, ct);
         return await Get(id, ct);
     }
 
-    /// Reconciles the lifecycle from durable completed sessions and explicit skips. Callers hold
-    /// the per-account mutation lock, so this method only mutates the tracked program.
-    public async Task Reconcile(Guid programId, CancellationToken ct)
+    public async Task<ProgramView> Skip(Guid id, Guid templateId, ProgramDayActionInput input, CancellationToken ct)
     {
-        var program = await db.Programs.SingleOrDefaultAsync(p => p.Id == programId, ct);
-        if (program is null) return;
-        var templateIds = await db.Templates.Where(t => t.ProgramId == programId && !t.IsRestDay).Select(t => t.Id).ToListAsync(ct);
-        var completed = await db.Workouts.Where(w => w.ProgramId == programId && w.FinishedAt != null && w.TemplateId != null)
-            .Select(w => w.TemplateId!.Value).Distinct().ToListAsync(ct);
-        var skipped = await db.ProgramSkips.Where(s => s.ProgramId == programId).Select(s => s.TemplateId).ToListAsync(ct);
-        var phases = await db.ProgramPhases.Where(p => p.ProgramId == programId).OrderBy(p => p.Position).ToListAsync(ct);
-        if (phases.Count == 0 && templateIds.Count > 0)
-        {
-            // Older programs did not persist phase rows. Materialize the same contiguous groups
-            // used by the read model before reconciling, so a history deletion can reopen and
-            // shift a legacy phased program in the same transaction as newer programs.
-            var legacyRows = await db.Templates.Where(t => t.ProgramId == programId).OrderBy(t => t.Week).ThenBy(t => t.Position).ToListAsync(ct);
-            phases = AddBackfilledPhases(programId, program.UserId, legacyRows);
-        }
-        var allTemplates = await db.Templates.Where(t => t.ProgramId == programId).ToListAsync(ct);
-        var completedIds = completed.ToHashSet(); var skippedIds = skipped.ToHashSet();
-        var complete = templateIds.Count > 0 && templateIds.All(id => completedIds.Contains(id) || skippedIds.Contains(id)) &&
-            (phases.Count == 0 || phases.All(phase => IsPhaseComplete(phase, allTemplates, completedIds, skippedIds)));
-        if (complete)
-        {
-            if (program.LifecycleStatus != ProgramLifecycle.Completed || program.Active)
-            { program.Active = false; program.LifecycleStatus = ProgramLifecycle.Completed; program.CompletedAt ??= DateTime.UtcNow; program.Revision++; }
-        }
-        else if (program.LifecycleStatus == ProgramLifecycle.Completed || (program.Active && program.LifecycleStatus != ProgramLifecycle.Active))
-        {
-            program.CompletedAt = null; program.LifecycleStatus = program.Active ? ProgramLifecycle.Active : ProgramLifecycle.Standby; program.Revision++;
-        }
+        await lifecycle.Skip(id, templateId, input, ct);
+        return await Get(id, ct);
     }
 
     public async Task<ProgramView> Skip(Guid id, Guid templateId, CancellationToken ct)
     {
-        await using var gate = await MutationLock.Acquire(db, db.CurrentUser, ct);
-        var program = await db.Programs.SingleOrDefaultAsync(p => p.Id == id, ct);
-        Validation.Require(program != null, "That program no longer exists.", 404);
-        var template = await db.Templates.SingleOrDefaultAsync(t => t.Id == templateId && t.ProgramId == id, ct);
-        Validation.Require(template != null && !template!.IsRestDay, "That workout slot cannot be skipped.", 409);
-        var existingSkip = await db.ProgramSkips.SingleOrDefaultAsync(s => s.ProgramId == id && s.TemplateId == templateId, ct);
-        if (existingSkip is not null)
-        {
-            await gate.Commit(ct);
-            return await Get(id, ct);
-        }
-        Validation.Require(program!.Active, "Activate this program before skipping its workouts.", 409);
-        Validation.Require(program!.LifecycleStatus != ProgramLifecycle.Completed, "A completed program cannot be changed; repeat it to start a fresh run.", 409);
-        Validation.Require(!await db.Workouts.AnyAsync(w => w.ProgramId == id && w.TemplateId == templateId && w.FinishedAt != null, ct), "A completed workout cannot be skipped.", 409);
-        Validation.Require(!await db.Workouts.AnyAsync(w => w.ProgramId == id && w.TemplateId == templateId && w.Active, ct), "Finish or discard the active workout first.", 409);
-        db.ProgramSkips.Add(new ProgramSkip { UserId = db.CurrentUser!.Value, ProgramId = id, TemplateId = templateId });
-        await db.SaveChangesAsync(ct);
-        await Reconcile(id, ct); await db.SaveChangesAsync(ct); await gate.Commit(ct); return await Get(id, ct);
+        await lifecycle.SkipLegacy(id, templateId, ct);
+        return await Get(id, ct);
+    }
+
+    public async Task<ProgramView> AcknowledgeRest(Guid id, Guid templateId, ProgramDayActionInput input, CancellationToken ct)
+    {
+        await lifecycle.AcknowledgeRest(id, templateId, input, ct);
+        return await Get(id, ct);
+    }
+
+    public async Task<ProgramView> ResetWeek(Guid id, ProgramWeekResetInput input, CancellationToken ct)
+    {
+        await lifecycle.ResetWeek(id, input, ct);
+        return await Get(id, ct);
     }
 
     public async Task<ProgramView> Unskip(Guid id, Guid templateId, CancellationToken ct)
     {
-        await using var gate = await MutationLock.Acquire(db, db.CurrentUser, ct);
-        var skip = await db.ProgramSkips.SingleOrDefaultAsync(s => s.ProgramId == id && s.TemplateId == templateId, ct);
-        if (skip is null)
-        {
-            await gate.Commit(ct);
-            return await Get(id, ct);
-        }
-        db.ProgramSkips.Remove(skip!); await db.SaveChangesAsync(ct); await Reconcile(id, ct); await db.SaveChangesAsync(ct); await gate.Commit(ct); return await Get(id, ct);
+        await lifecycle.Unskip(id, templateId, ct);
+        return await Get(id, ct);
     }
 
+    public Task<ProgramDayProgress> PendingWorkoutDay(Guid programId, Guid templateId, CancellationToken ct)
+        => lifecycle.PendingWorkoutDay(programId, templateId, ct);
+
+    public Task CompleteWorkout(WorkoutSession session, CancellationToken ct)
+        => lifecycle.CompleteWorkout(session, ct);
     /// Repeating is an explicit fresh instance. Template and phase IDs are deliberately new so
     /// the new run cannot merge its completion history into the completed source program.
     public async Task<ProgramView> Repeat(Guid id, CancellationToken ct)
@@ -333,7 +297,9 @@ public sealed class ProgramService(AppDb db, TemplateService templates)
         await using var gate = await MutationLock.Acquire(db, db.CurrentUser, ct);
         var source = await db.Programs.SingleOrDefaultAsync(p => p.Id == id, ct);
         Validation.Require(source != null, "That program no longer exists.", 404);
-        Validation.Require(source!.LifecycleStatus == ProgramLifecycle.Completed, "Only a completed program can be repeated.", 409);
+        var latestRun = await progress.LatestRun(id, ct);
+        Validation.Require(source!.LifecycleStatus == ProgramLifecycle.Completed || latestRun?.CompletedAt is not null,
+            "Only a completed program can be repeated.", 409);
         var sourceTemplates = await db.Templates.Where(t => t.ProgramId == id).OrderBy(t => t.Week).ThenBy(t => t.Position).ToListAsync(ct);
         var sourceIds = sourceTemplates.Select(t => t.Id).ToList();
         var sourceExercises = await db.TemplateExercises.Where(e => sourceIds.Contains(e.TemplateId)).OrderBy(e => e.Position).ToListAsync(ct);
@@ -397,8 +363,12 @@ public sealed class ProgramService(AppDb db, TemplateService templates)
         db.Templates.RemoveRange(await db.Templates.Where(t => t.ProgramId == id).ToListAsync(ct));
         db.ProgramPhases.RemoveRange(await db.ProgramPhases.Where(phase => phase.ProgramId == id).ToListAsync(ct));
         db.ProgramSkips.RemoveRange(await db.ProgramSkips.Where(skip => skip.ProgramId == id).ToListAsync(ct));
+        var runIds = await db.ProgramRuns.Where(run => run.ProgramId == id).Select(run => run.Id).ToListAsync(ct);
+        db.ProgramDayProgresses.RemoveRange(await db.ProgramDayProgresses.Where(day => runIds.Contains(day.RunId)).ToListAsync(ct));
+        db.ProgramRuns.RemoveRange(await db.ProgramRuns.Where(run => run.ProgramId == id).ToListAsync(ct));
         // Finished sessions keep their own snapshots, so history survives the program going away.
-        foreach (var session in await db.Workouts.Where(w => w.ProgramId == id).ToListAsync(ct)) { session.ProgramId = null; session.TemplateId = null; session.Revision++; }
+        foreach (var session in await db.Workouts.Where(w => w.ProgramId == id).ToListAsync(ct))
+        { session.ProgramId = null; session.TemplateId = null; session.ProgramDayProgressId = null; session.Revision++; }
         db.Programs.Remove(program!);
         await db.SaveChangesAsync(ct);
         await gate.Commit(ct);
@@ -409,8 +379,13 @@ public sealed class ProgramService(AppDb db, TemplateService templates)
         Validation.Name(input.Name, "Program name");
         Validation.Require(input.Workouts is { Count: > 0 }, "A program needs at least one workout.");
         Validation.Require(input.Workouts.Count <= 400, "A program can have at most 400 workouts.");
+        Validation.Require(input.Workouts.GroupBy(workout => workout.Week).All(week => week.Count() <= 7),
+            "A program week can have at most 7 days.", 422);
         Validation.Require(input.Workouts.Any(workout => !workout.IsRestDay), "A program needs at least one training workout.");
         Validation.Require(input.Workouts.All(w => w.Week is > 0 and <= 104), "Program weeks must be between 1 and 104.");
+        var programWeeks = input.Workouts.Select(workout => workout.Week).Distinct().Order().ToList();
+        Validation.Require(programWeeks.SequenceEqual(Enumerable.Range(programWeeks[0], programWeeks.Count)),
+            "Program weeks must be contiguous.", 422);
         foreach (var phase in GroupPhases(input.Workouts))
         {
             var phaseWeeks = phase.Select(workout => workout.PhaseWeek).Distinct().OrderBy(week => week).ToList();
@@ -424,6 +399,26 @@ public sealed class ProgramService(AppDb db, TemplateService templates)
             await templates.ValidateInput(new TemplateInput(workout.Name, workout.Focus, workout.Note, workout.Exercises, null, null,
                 workout.Block, workout.Phase, workout.PhaseWeek, workout.IsRestDay), ct, !allowMissingWorkingRpe);
         }
+    }
+
+    private static List<ProgramDayProgress> RelevantProgress(ProgramRun? run, IReadOnlyCollection<ProgramDayProgress> rows)
+    {
+        if (run is null) return [];
+        return rows.Where(day => day.Week < run.CurrentWeek && day.Attempt == 1 ||
+            day.Week == run.CurrentWeek && day.Attempt == run.CurrentAttempt).ToList();
+    }
+
+    private static ProgramProgressView? CreateProgressView(ProgramRun? run, IReadOnlyList<WorkoutTemplate> templates,
+        IReadOnlyCollection<ProgramDayProgress> statuses)
+    {
+        if (run is null) return null;
+        var statusByTemplate = statuses.Where(day => day.Week == run.CurrentWeek)
+            .ToDictionary(day => day.TemplateId, day => day.Status);
+        var days = templates.Where(template => template.Week == run.CurrentWeek).OrderBy(template => template.Position)
+            .Select(template => new ProgramProgressDayView(template.Id,
+                statusByTemplate.GetValueOrDefault(template.Id, ProgramDayStatus.Pending), template.IsRestDay, template.Position)).ToList();
+        return new ProgramProgressView(run.Id, run.CurrentWeek, run.CurrentAttempt,
+            days.Count(day => ProgramDayStatus.IsPassed(day.Status)), days.Count, days);
     }
 
     private async Task<List<ProgramPhaseView>> PhaseViews(Guid programId, List<WorkoutTemplate> rows, List<Guid> completed, List<Guid> skipped, CancellationToken ct)

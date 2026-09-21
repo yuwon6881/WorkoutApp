@@ -294,6 +294,16 @@ public sealed class ImportReconciliationTests
     }
 
     [Fact]
+    public void An_untitled_rest_day_keeps_its_shape_owned_name()
+    {
+        var rest = new DraftWorkout(Guid.NewGuid(), 1, "", null, null, [], IsRestDay: true, SourcePage: 73);
+
+        var (workouts, _) = ImportDayShape.Reconcile([rest]);
+
+        Assert.Equal("Rest Day", Assert.Single(workouts).Name);
+    }
+
+    [Fact]
     public void Trailing_rest_rows_beyond_seven_days_preserve_source_order_and_first_seven_rows()
     {
         var d1 = new DraftWorkout(Guid.NewGuid(), 1, "Day 1", null, null, [new DraftExercise(Guid.NewGuid(), "Squat", null, null, [new DraftSet(5, 8, 8, 120, null, null, null)], "A1", [], 1)], Block: "B", Phase: "P");
@@ -361,6 +371,21 @@ public sealed class ImportReconciliationTests
 
         var issue = Assert.Single(issues, i => i.Code == "week_day_overflow");
         Assert.Equal("warning", issue.Severity);
+        Assert.Equal(days[7].LineId, issue.WorkoutLineId);
+    }
+
+    [Fact]
+    public void ImportValidation_ReviewIssues_counts_days_across_phases_and_blocks()
+    {
+        var days = Enumerable.Range(1, 8)
+            .Select(i => new DraftWorkout(Guid.NewGuid(), 1, $"Day {i}", null, null,
+                [new DraftExercise(Guid.NewGuid(), "Bench", null, null, [new DraftSet(5, 8, 8, 120, null, null, null)], "A1", [], 1)],
+                Block: i <= 4 ? "Block 1" : "Block 2", Phase: i <= 4 ? "Phase 1" : "Phase 2"))
+            .ToList();
+
+        var issues = ImportValidation.ReviewIssues(new ImportDraft("Program", days));
+
+        var issue = Assert.Single(issues, i => i.Code == "week_day_overflow");
         Assert.Equal(days[7].LineId, issue.WorkoutLineId);
     }
 

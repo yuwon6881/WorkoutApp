@@ -202,6 +202,31 @@ test('import a PDF program, resolve an unmapped exercise, and accept it', async 
   // The day reads as what it prescribes before it is opened.
   const day = page.getByRole('button', { name: 'Week 1 Upper', exact: true });
   await expect(day).toBeVisible();
+  await expect(page.locator('.day-action-button')).toHaveCount(0);
+  await day.locator('.day-exercise-preview').click();
+  await expect(day).toHaveAttribute('aria-expanded', 'true');
+  await day.click();
+  await expect(day).toHaveAttribute('aria-expanded', 'false');
+  if ((page.viewportSize()?.width ?? 0) >= 640) {
+    const detailsButton = page.locator('.draft-day').filter({ has: day }).locator('.day-chevron-button');
+    await expect(detailsButton).toHaveAccessibleName('View details for Week 1 Upper');
+    await day.focus();
+    await page.keyboard.press('Tab');
+    await expect(detailsButton).toBeFocused();
+    await page.keyboard.press('Shift+Tab');
+    await expect(day).toBeFocused();
+    await expect(day).toHaveCSS('outline-style', 'solid');
+    await expect(day).toHaveCSS('outline-width', '2px');
+    await page.keyboard.press('Tab');
+    await expect(detailsButton).toBeFocused();
+    await detailsButton.click();
+    await expect(day).toHaveAttribute('aria-expanded', 'false');
+    await expect(detailsButton).toHaveAttribute('aria-expanded', 'true');
+    await expect(detailsButton).toHaveAccessibleName('Hide details for Week 1 Upper');
+    await expect(page.locator('.draft-day-lines')).toBeVisible();
+    await detailsButton.click();
+    await expect(page.locator('.draft-day-lines')).toHaveCount(0);
+  }
   const issue = page.getByRole('button', { name: 'Fix unmapped exercise Mystery machine row', exact: true });
   await issue.click();
   await expect(page.getByRole('button', { name: 'Library exercise for Mystery machine row', exact: true })).toBeFocused();
@@ -212,25 +237,9 @@ test('import a PDF program, resolve an unmapped exercise, and accept it', async 
   const mysteryExercise = page.locator('.import-exercise').filter({
     has: page.locator('input[aria-label="Exercise name"][value="Mystery machine row"]')
   });
-  // The compact and expanded set editors coexist for responsive layout; only one is visible.
-  const sourceReps = mysteryExercise.locator('input[aria-label="Source reps (verbatim) for Mystery machine row set 1"]:visible');
-  const sourceLoad = mysteryExercise.locator('input[aria-label="Source load for Mystery machine row set 1"]:visible');
-  await expect(sourceReps).toHaveValue('AMRAP');
-  await expect(sourceLoad).toHaveValue('70–75% 1RM');
-  // The verbatim AMRAP text is source evidence, but its required numeric bounds are inferred.
-  await expect(mysteryExercise.locator('.provenance.inferred').first()).toContainText('Bounds inferred');
-  await expect(mysteryExercise.getByRole('note')).toContainText('does not specify RPE');
+  // Percentage load remains part of the imported prescription, while RPE stays editable.
   await expect(mysteryExercise.getByRole('button', { name: 'Target RPE for Mystery machine row set 1', exact: true })).toContainText('Choose RPE');
-
-  await sourceReps.focus();
-  await page.keyboard.press('Tab');
-  await expect(sourceLoad).toBeFocused();
-  await sourceReps.fill('12/12');
-  await sourceLoad.fill('75% 1RM');
-  await expect(sourceReps).toHaveValue('12/12');
-  await expect(sourceLoad).toHaveValue('75% 1RM');
-  await expect(mysteryExercise.locator('.provenance.userEdited').first()).toContainText('Edited');
-  await expect(mysteryExercise.getByRole('note')).toContainText('75% 1RM');
+  await expect(mysteryExercise.locator('.import-set-fields:visible [data-import-field]')).toHaveCount(4);
 
   if (testInfo.project.name === 'mobile') {
     const swipeRow = page.locator('.swipeable-row-mobile.import-set-swipe-row').first();
@@ -361,12 +370,6 @@ test('import a PDF program, resolve an unmapped exercise, and accept it', async 
   await expect(restoreDialog).toBeVisible();
   await restoreDialog.getByRole('button', { name: 'Restore default draft', exact: true }).click();
   await expect(restoreDialog).toBeHidden({ timeout: 30000 });
-  const restoredMystery = page.locator('.import-exercise').filter({
-    has: page.locator('input[aria-label="Exercise name"][value="Mystery machine row"]')
-  });
-  await expect(restoredMystery.locator('input[aria-label="Source reps (verbatim) for Mystery machine row set 1"]:visible').first()).toHaveValue('AMRAP');
-  await expect(restoredMystery.locator('input[aria-label="Source load for Mystery machine row set 1"]:visible').first()).toHaveValue('70–75% 1RM');
-
   // Whole-draft restore also removes the earlier mapping/name edits; make the row resolvable again.
   const restoredMapping = page.getByRole('button', { name: 'Library exercise for Mystery machine row', exact: true });
   await restoredMapping.click();
@@ -553,4 +556,80 @@ test('overview calendar displays matching markers and details for completed, in-
   await expect(emptyModal.getByText('No workout recorded for this day.', { exact: true })).toBeVisible();
   await emptyModal.getByRole('button', { name: 'Close dialog', exact: true }).click();
   await expect(emptyModal).toBeHidden();
+});
+
+test('create a custom multi-block program and cap each week at seven scheduled days', async ({ page }) => {
+  await signIn(page);
+  await clearActiveWorkout(page);
+  await openTab(page, 'Workouts');
+  const name = `Custom E2E ${Date.now()}`;
+
+  try {
+    await page.getByRole('button', { name: 'New program', exact: true }).click();
+    await expect(page.getByRole('heading', { name: 'Build a program', exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Create program', exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Accept and create program', exact: true })).toHaveCount(0);
+    await page.getByLabel('Program name').fill(name);
+
+    const turnNewDayIntoRest = async (week: number) => {
+      await page.getByRole('tab', { name: `Week ${week}`, exact: true }).click();
+      const entry = page.locator('.program-day-entry').filter({ hasText: 'New day' });
+      await entry.getByText('Day actions', { exact: true }).click();
+      await entry.getByRole('button', { name: 'Make rest day', exact: true }).click();
+      const confirm = page.getByRole('dialog', { name: 'Make this a rest day?', exact: true });
+      await confirm.getByRole('button', { name: 'Clear workout and make rest day', exact: true }).click();
+      await expect(page.getByRole('tabpanel', { name: `Week ${week}` }).locator('.rest-badge')).toBeVisible();
+    };
+
+    await page.getByRole('button', { name: 'Add block', exact: true }).click();
+    await expect(page.getByRole('tab', { name: 'Block 2', exact: true })).toBeVisible();
+    await turnNewDayIntoRest(2);
+    await page.getByRole('button', { name: 'Add week', exact: true }).click();
+    const addWeek = page.getByRole('dialog', { name: 'Add a week', exact: true });
+    await addWeek.getByRole('button', { name: /Start empty/ }).click();
+    await turnNewDayIntoRest(3);
+
+    await page.getByRole('tab', { name: 'Block 1', exact: true }).click();
+    for (let index = 0; index < 6; index++) {
+      await page.getByRole('button', { name: 'Add rest day', exact: true }).click();
+    }
+    await expect(page.getByText('7 of 7 days', { exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Add rest day', exact: true })).toBeDisabled();
+    await expect(page.getByRole('button', { name: 'Add workout day', exact: true })).toBeDisabled();
+
+    await page.getByRole('button', { name: 'Day 1', exact: true }).click();
+    await page.getByRole('button', { name: 'Library exercise for New exercise', exact: true }).click();
+    const picker = page.getByRole('dialog', { name: 'Choose a library exercise for New exercise', exact: true });
+    await picker.getByRole('button', { name: 'Map Barbell bench press', exact: true }).click();
+    await expect(picker).toBeHidden();
+    await expect(page.getByRole('button', { name: 'Library exercise for Barbell bench press', exact: true })).toBeVisible();
+    await expect(page.locator('.program-builder-save-state')).toHaveText('Saved', { timeout: 30000 });
+
+    await page.getByRole('button', { name: 'Create program', exact: true }).click();
+    const createdCard = page.locator('.program-card').filter({ hasText: name });
+    await expect(createdCard).toBeVisible({ timeout: 30000 });
+    await expect(createdCard.getByText(/3 weeks · 9 days/)).toBeVisible();
+    await expect(createdCard.getByText('Standby', { exact: true })).toBeVisible();
+    await createdCard.getByRole('button', { name: 'Delete program', exact: true }).click();
+    await expect(createdCard).toHaveCount(0);
+  } finally {
+    // Keep this shared test account clean even if an earlier assertion fails.
+    await page.evaluate(async programName => {
+      const headers = { 'X-Workout-Request': '1' };
+      const bootstrap = await fetch('/api/bootstrap', { headers, cache: 'no-store' });
+      if (bootstrap.ok) {
+        const data = await bootstrap.json();
+        for (const program of data.programs.filter((item: { name: string }) => item.name === programName)) {
+          await fetch(`/api/programs/${program.id}`, { method: 'DELETE', headers });
+        }
+      }
+      const draftsResponse = await fetch('/api/program-drafts', { headers, cache: 'no-store' });
+      if (draftsResponse.ok) {
+        const drafts = await draftsResponse.json();
+        for (const draft of drafts.filter((item: { programName: string }) => item.programName === programName)) {
+          await fetch(`/api/program-drafts/${draft.id}`, { method: 'DELETE', headers });
+        }
+      }
+    }, name).catch(() => {});
+  }
 });

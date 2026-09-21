@@ -18,7 +18,9 @@ public sealed class Harness : IAsyncDisposable
     public AuthService Auth { get; }
     public CatalogService Catalog { get; }
     public TemplateService Templates { get; }
+    public ProgramProgressService ProgramProgress { get; }
     public ProgramService Programs { get; }
+    public ProgramDraftService ProgramDrafts { get; }
     public ProgressionService Progression { get; }
     public WorkoutService Workouts { get; }
 
@@ -28,7 +30,10 @@ public sealed class Harness : IAsyncDisposable
         Auth = new AuthService(db);
         Catalog = new CatalogService(db);
         Templates = new TemplateService(db, Catalog);
-        Programs = new ProgramService(db, Templates);
+        ProgramProgress = new ProgramProgressService(db);
+        var lifecycle = new ProgramLifecycleService(db, Templates, ProgramProgress);
+        Programs = new ProgramService(db, Templates, ProgramProgress, lifecycle);
+        ProgramDrafts = new ProgramDraftService(db, Programs);
         Progression = new ProgressionService(db);
         Workouts = new WorkoutService(db, Catalog, Templates, Progression,
             new NutritionContextService(db, new TestHttpClientFactory(), config), Programs);
@@ -76,6 +81,8 @@ public sealed class Harness : IAsyncDisposable
         services.AddScoped(_ => new WorkoutAi(new HttpClient(handler), Config));
         services.AddScoped<CatalogService>();
         services.AddScoped<TemplateService>();
+        services.AddScoped<ProgramProgressService>();
+        services.AddScoped<ProgramLifecycleService>();
         services.AddScoped<ProgramService>();
         services.AddScoped<ImportService>();
         services.AddSingleton<ImportRunner>();

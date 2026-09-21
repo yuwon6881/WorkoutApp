@@ -39,7 +39,10 @@ builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<CatalogService>();
 builder.Services.AddScoped<ExerciseService>();
 builder.Services.AddScoped<TemplateService>();
+builder.Services.AddScoped<ProgramProgressService>();
+builder.Services.AddScoped<ProgramLifecycleService>();
 builder.Services.AddScoped<ProgramService>();
+builder.Services.AddScoped<ProgramDraftService>();
 builder.Services.AddScoped<ProgressionService>();
 builder.Services.AddScoped<NutritionContextService>();
 builder.Services.AddScoped<SharedAccessTokenService>();
@@ -146,7 +149,7 @@ app.Use(async(http,next)=>
 });
 app.UseRateLimiter();
 app.UseDefaultFiles();app.UseStaticFiles(new StaticFileOptions { OnPrepareResponse=c=> { if(c.File.Name=="sw.js"||c.File.Name=="index.html") c.Context.Response.Headers.CacheControl="no-cache"; } });
-app.MapAuth();app.MapCentralAuth();app.MapBootstrap();app.MapRevisions();app.MapCatalog();app.MapTemplates();app.MapPrograms();app.MapWorkouts();app.MapImports();app.MapIntegrations();app.MapGoogleHealth();
+app.MapAuth();app.MapCentralAuth();app.MapBootstrap();app.MapRevisions();app.MapCatalog();app.MapTemplates();app.MapPrograms();app.MapProgramDrafts();app.MapWorkouts();app.MapImports();app.MapIntegrations();app.MapGoogleHealth();
 app.MapGet("/health",()=>new { status="ok" });
 app.MapFallback(async http=>
 {

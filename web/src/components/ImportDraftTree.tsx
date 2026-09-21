@@ -1,21 +1,17 @@
-import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
-import { CalendarDays, Check, Plus, RotateCcw, Trash2 } from 'lucide-react';
+import { forwardRef, useCallback, useImperativeHandle } from 'react';
+import { ArrowDown, ArrowUp, CalendarDays, Check, Copy, Plus, RotateCcw, Trash2 } from 'lucide-react';
 import type { DraftWorkout, Exercise, ImportDraft } from '../types';
 import { Button } from './ui/Button';
 import { Modal } from './ui/Modal';
+import { Field } from './ui/Field';
+import { Select } from './ui/Select';
 import { ChipScroller } from './ui/ChipScroller';
-import { AddWeekModal, type AddWeekMode } from './AddWeekModal';
+import { AddWeekModal } from './AddWeekModal';
 import { SortableWeekChip } from './SortableWeekChip';
 import { DayRow } from './ImportDayRow';
-import {
-  type Week,
-  blockIndex,
-  cloneWeekDays,
-  emptyWeekDay,
-  groupWeeks,
-  renumberDraft,
-  weekCaption
-} from '../lib/importDraftWeeks';
+import { blockIndex, weekCaption } from '../lib/importDraftWeeks';
+import { useProgramStructureEditor } from './useProgramStructureEditor';
+import './ProgramBuilder.css';
 
 export type ImportIssueTarget = {
   sourcePage?: number | null;
@@ -40,6 +36,11 @@ export const DraftOutline = forwardRef<DraftOutlineHandle, {
   restorableExerciseLineIds?: string[];
   onRestoreExercise?: (exerciseLineId: string) => Promise<void>;
   canRestoreDraft?: boolean;
+  editorMode?: 'import' | 'custom';
+  actionLabel?: string;
+  editableProgramName?: boolean;
+  onProgramNameChange?: (name: string) => void;
+  actionHint?: string;
   acceptable?: boolean;
   busy?: boolean;
   onRestoreDraft?: () => void;
@@ -56,19 +57,27 @@ export const DraftOutline = forwardRef<DraftOutlineHandle, {
   restorableExerciseLineIds,
   onRestoreExercise,
   canRestoreDraft,
+  editorMode = 'import',
+  actionLabel = 'Accept and create program',
+  editableProgramName,
+  onProgramNameChange,
+  actionHint,
   acceptable,
   busy,
   onRestoreDraft,
   onDiscardDraft,
   onAcceptProgram
 }, ref) {
-  const weeks = useMemo(() => groupWeeks(draft), [draft]);
-  const [selectedWeek, setSelectedWeek] = useState(weeks[0]?.week ?? 1);
-  const [weekModalOpen, setWeekModalOpen] = useState(false);
-  const [deleteConfirmWeek, setDeleteConfirmWeek] = useState<number | null>(null);
-  const [draggedWeek, setDraggedWeek] = useState<number | null>(null);
-  const [dropTarget, setDropTarget] = useState<{ week: number; side: 'before' | 'after' } | null>(null);
-  const pendingFocusWeek = useRef<number | null>(null);
+  const structure = useProgramStructureEditor({ draft, onDraftChange, onDayChange });
+  const {
+    normalizedDraft, weeks, blocks, week, setSelectedWeek, selectedBlock, selectedBlockIndex,
+    selectedBlockWeeks, totalDayCount, canAddDay, weekModalOpen, setWeekModalOpen, deleteConfirmWeek,
+    setDeleteConfirmWeek, deleteConfirmBlock, setDeleteConfirmBlock, deleteConfirmDay, setDeleteConfirmDay,
+    restConfirmDay, setRestConfirmDay, renameBlock, setRenameBlock, renameValue, setRenameValue,
+    draggedWeek, setDraggedWeek, dropTarget, setDropTarget, reorderWeeks, reorderBlocks, addBlock,
+    commitBlockName, deleteBlock, addWeek, deleteWeek, addDay, duplicateDay, reorderDay, deleteDay,
+    changeDayKind, confirmRestConversion, moveDayToWeek
+  } = structure;
 
   const focusIssue = useCallback((target: ImportIssueTarget) => {
     const day = draft.workouts.find(candidate => candidate.lineId === target.workoutLineId)
@@ -113,141 +122,19 @@ export const DraftOutline = forwardRef<DraftOutlineHandle, {
 
   useImperativeHandle(ref, () => ({ focusIssue }), [focusIssue]);
 
-  const blocks = useMemo(() => {
-    const list: { name: string; number: number; weeks: Week[] }[] = [];
-    for (let i = 0; i < weeks.length; i++) {
-      const w = weeks[i];
-      const num = blockIndex(weeks, i);
-      let b = list.find(item => item.name.trim().toLowerCase() === w.block.trim().toLowerCase());
-      if (!b) {
-        b = { name: w.block, number: num, weeks: [] };
-        list.push(b);
-      }
-      b.weeks.push(w);
-    }
-    return list;
-  }, [weeks]);
-
-  useEffect(() => {
-    setSelectedWeek(current => {
-      if (weeks.some(week => week.week === current)) return current;
-      const first = weeks[0];
-      if (!first) return 1;
-      return weeks.reduce((nearest, candidate) =>
-        Math.abs(candidate.week - current) < Math.abs(nearest.week - current) ? candidate : nearest,
-        first).week;
-    });
-  }, [weeks]);
-
-  useEffect(() => {
-    if (pendingFocusWeek.current !== null) {
-      const target = pendingFocusWeek.current;
-      if (weeks.some(w => w.week === target)) {
-        pendingFocusWeek.current = null;
-        window.requestAnimationFrame(() => {
-          const chip = document.querySelector<HTMLButtonElement>(`[data-import-week-chip="${target}"]`);
-          chip?.focus();
-          chip?.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
-        });
-      }
-    }
-  }, [weeks]);
-
-  const week = weeks.find(entry => entry.week === selectedWeek) ?? weeks[0];
-  if (!week) return null;
-  const selectedIndex = weeks.findIndex(entry => entry.week === week.week);
-  const selectedBlock = blockIndex(weeks, selectedIndex);
-
-  const reorderWeeks = useCallback((from: number, to: number, side: 'before' | 'after' = 'before') => {
-    if (from === to && side === 'before') {
-      setDraggedWeek(null);
-      setDropTarget(null);
-      return;
-    }
-    const fromIndex = weeks.findIndex(entry => entry.week === from);
-    const toIndex = weeks.findIndex(entry => entry.week === to);
-    if (fromIndex < 0 || toIndex < 0) {
-      setDraggedWeek(null);
-      setDropTarget(null);
-      return;
-    }
-
-    const insertionIndex = side === 'before' ? toIndex : toIndex + 1;
-    const ordered = [...weeks];
-    const [moved] = ordered.splice(fromIndex, 1);
-    let targetIndex = fromIndex < insertionIndex ? insertionIndex - 1 : insertionIndex;
-    if (fromIndex < toIndex && side === 'before' && toIndex === fromIndex + 1) {
-      targetIndex = toIndex;
-    }
-    ordered.splice(targetIndex, 0, moved);
-
-    setSelectedWeek(targetIndex + 1);
-    setDraggedWeek(null);
-    setDropTarget(null);
-    void onDraftChange(renumberDraft(draft, ordered));
-  }, [draft, onDraftChange, weeks]);
-
-  const addWeek = useCallback((mode: AddWeekMode) => {
-    setWeekModalOpen(false);
-    if (!weeks.length) return;
-
-    const targetBlockWeeks = weeks.filter(w => w.block.trim().toLowerCase() === week.block.trim().toLowerCase());
-    const sourceWeek = mode === 'duplicate-current'
-      ? week
-      : (targetBlockWeeks.at(-1) ?? week);
-
-    const sourceIndex = weeks.findIndex(w => w.week === sourceWeek.week);
-    const insertIndex = sourceIndex >= 0 ? sourceIndex + 1 : weeks.length;
-
-    const nextNumber = insertIndex + 1;
-    const days = mode === 'empty'
-      ? [emptyWeekDay(nextNumber, sourceWeek)]
-      : cloneWeekDays(sourceWeek.days, nextNumber);
-
-    const nextWeek: Week = {
-      week: nextNumber,
-      sourceWeek: nextNumber,
-      days,
-      block: sourceWeek.block || 'Program',
-      phases: sourceWeek.phases.slice(0, 1),
-      pages: []
-    };
-
-    const ordered = [...weeks];
-    ordered.splice(insertIndex, 0, nextWeek);
-
-    pendingFocusWeek.current = nextNumber;
-    setSelectedWeek(nextNumber);
-    void onDraftChange(renumberDraft(draft, ordered));
-  }, [draft, onDraftChange, week, weeks]);
-
-  const deleteWeek = useCallback((weekToDelete: number) => {
-    if (weeks.length <= 1) return;
-    const targetIndex = weeks.findIndex(w => w.week === weekToDelete);
-    if (targetIndex < 0) return;
-
-    const remainingWeeks = weeks.filter(w => w.week !== weekToDelete);
-    const renumbered = renumberDraft(draft, remainingWeeks);
-
-    const nextSelectedIndex = Math.min(targetIndex, remainingWeeks.length - 1);
-    const nextSelectedWeek = nextSelectedIndex + 1;
-
-    pendingFocusWeek.current = nextSelectedWeek;
-    setSelectedWeek(nextSelectedWeek);
-    void onDraftChange(renumbered);
-  }, [draft, onDraftChange, weeks]);
-
   const propagateSubstitution = useCallback(async (currentName: string, replacementName: string, exerciseLineId?: string) => {
     const replacementLibraryExercise = exercises.find(
       e => e.name.toLowerCase() === replacementName.toLowerCase() || e.aliases.some(a => a.toLowerCase() === replacementName.toLowerCase())
     );
     const target = exerciseLineId
-      ? draft.workouts.flatMap(workout => workout.exercises.map(exercise => ({ workout, exercise }))).find(item => item.exercise.lineId === exerciseLineId)
+      ? normalizedDraft.workouts.flatMap(workout => workout.exercises.map(exercise => ({ workout, exercise }))).find(item => item.exercise.lineId === exerciseLineId)
       : undefined;
+    if (!target && !week) return;
     const targetSlot = target?.exercise.slotKey;
-    const targetBlock = (target?.workout.block || week.block || 'Program').trim().toLowerCase();
-    const updatedWorkouts = draft.workouts.map(workout => {
-      const inSameBlock = (workout.block || 'Program').trim().toLowerCase() === targetBlock;
+    const targetBlock = target?.workout.blockId ?? week?.blockId;
+    if (!targetBlock) return;
+    const updatedWorkouts = normalizedDraft.workouts.map(workout => {
+      const inSameBlock = workout.blockId === targetBlock;
       if (!inSameBlock) return workout;
 
       const updatedExercises = workout.exercises.map(ex => {
@@ -271,17 +158,22 @@ export const DraftOutline = forwardRef<DraftOutlineHandle, {
       return { ...workout, exercises: updatedExercises };
     });
 
-    await onDraftChange({ ...draft, workouts: updatedWorkouts });
-  }, [draft, onDraftChange, week, exercises]);
+    await onDraftChange({ ...normalizedDraft, workouts: updatedWorkouts });
+  }, [normalizedDraft, onDraftChange, week?.blockId, exercises]);
+
+  if (!week) return null;
 
   return <>
-    <section className="panel import-program-card">
+    <section className="panel import-program-card" data-editor-mode={editorMode}>
     <div className="section-heading import-program-heading">
       <div className="import-program-title">
         <span className="import-program-icon" aria-hidden="true"><CalendarDays size={18} /></span>
         <div>
           <span className="import-program-kicker">Program timeline · {weeks.length} {weeks.length === 1 ? 'week' : 'weeks'}</span>
-          <h2>{draft.programName}</h2>
+          {editableProgramName
+            ? <Field label="Program name" name="program-name" value={draft.programName}
+              onChange={event => onProgramNameChange?.(event.currentTarget.value)} />
+            : <h2>{draft.programName}</h2>}
         </div>
       </div>
       <div className="import-program-actions">
@@ -299,24 +191,31 @@ export const DraftOutline = forwardRef<DraftOutlineHandle, {
           <Button
             variant="primary"
             disabled={busy || !acceptable}
-            title={!acceptable ? 'Resolve review items before creating the program' : undefined}
+            title={!acceptable ? actionHint ?? 'Resolve review items before creating the program' : undefined}
             onClick={onAcceptProgram}
           >
-            <Check size={15} />Accept and create program
+            <Check size={15} />{actionLabel}
           </Button>
         )}
       </div>
     </div>
-    {blocks.length > 1 && <div className="import-block-selector" role="tablist" aria-label="Program blocks">
-      {blocks.map(b => {
-        const isSelected = b.weeks.some(w => w.week === week.week);
-        return <Button key={b.name} presentation="plain" role="tab" aria-selected={isSelected}
+    <div className="import-block-selector" role="tablist" aria-label="Program blocks">
+      {blocks.map((block, index) => {
+        const isSelected = block.id === week.blockId;
+        return <Button key={block.id} presentation="plain" role="tab" aria-selected={isSelected}
           className={`filter-chip ${isSelected ? 'active' : ''}`}
-          onClick={() => setSelectedWeek(b.weeks[0]?.week ?? week.week)}>
-          Block {b.number}{b.name && b.name !== `Block ${b.number}` && b.name !== 'Program' ? ` · ${b.name}` : ''}
+          onClick={() => setSelectedWeek(block.weeks[0]?.week ?? week.week)}>
+          Block {index + 1}{block.name && block.name !== `Block ${index + 1}` && block.name !== 'Program' ? ` · ${block.name}` : ''}
         </Button>;
       })}
-    </div>}
+    </div>
+    <div className="program-structure-actions">
+      <Button variant="secondary" disabled={weeks.length >= 104 || totalDayCount >= 400} onClick={addBlock}><Plus size={15} />Add block</Button>
+      <Button variant="tertiary" onClick={() => { setRenameValue(blocks[selectedBlockIndex]?.name ?? ''); setRenameBlock({ id: week.blockId, name: week.block }); }}>Rename block</Button>
+      <Button variant="tertiary" aria-label="Move block earlier" disabled={selectedBlockIndex <= 0} onClick={() => reorderBlocks(selectedBlockIndex, selectedBlockIndex - 1)}><ArrowUp size={15} /></Button>
+      <Button variant="tertiary" aria-label="Move block later" disabled={selectedBlockIndex < 0 || selectedBlockIndex >= blocks.length - 1} onClick={() => reorderBlocks(selectedBlockIndex, selectedBlockIndex + 1)}><ArrowDown size={15} /></Button>
+      <Button variant="destructive" disabled={blocks.length <= 1} onClick={() => setDeleteConfirmBlock(week.blockId)}><Trash2 size={15} />Delete block</Button>
+    </div>
     <div className="import-weeks-heading">
       <span>Weeks</span>
       <span className="muted">Swipe or use the arrows to browse the plan</span>
@@ -330,13 +229,13 @@ export const DraftOutline = forwardRef<DraftOutlineHandle, {
         onDragStart={() => { setDraggedWeek(entry.week); setDropTarget(null); }}
         onDragOver={(weekNumber, side) => setDropTarget({ week: weekNumber, side })}
         onDrop={(weekNumber, side) => reorderWeeks(draggedWeek ?? entry.week, weekNumber ?? dropTarget?.week ?? entry.week, side ?? dropTarget?.side ?? 'before')} />)}
-      <Button presentation="plain" className="filter-chip import-add-week-chip" aria-label="Add week" onClick={() => setWeekModalOpen(true)}>
+      <Button presentation="plain" className="filter-chip import-add-week-chip" aria-label="Add week" disabled={weeks.length >= 104 || totalDayCount >= 400} onClick={() => setWeekModalOpen(true)}>
         <Plus size={15} />Add week
       </Button>
     </ChipScroller>
     <div className="import-week-toolbar">
       <p className="import-week-caption">{weekCaption(week, selectedBlock)}</p>
-      {weeks.length > 1 && (
+      {selectedBlockWeeks.length > 1 && (
         <Button
           variant="tertiary"
           className="import-delete-week-btn"
@@ -347,13 +246,41 @@ export const DraftOutline = forwardRef<DraftOutlineHandle, {
         </Button>
       )}
     </div>
+    <div className="import-week-toolbar program-day-add-actions">
+      <span className="muted">{week.days.length} of 7 days</span>
+      <div className="settings-actions">
+        <Button variant="secondary" disabled={!canAddDay} onClick={() => addDay(false)}><Plus size={15} />Add workout day</Button>
+        <Button variant="tertiary" disabled={!canAddDay} onClick={() => addDay(true)}><Plus size={15} />Add rest day</Button>
+      </div>
+    </div>
     <div className="import-week-days" role="tabpanel" aria-label={`Week ${week.week}`}>
-      {week.days.map(day => <DayRow key={day.lineId} day={day} expanded={expandedDay === day.lineId}
-        onToggle={() => setExpandedDay(expandedDay === day.lineId ? null : day.lineId)} exercises={exercises} onChange={onDayChange}
-        onPropagateSubstitution={propagateSubstitution}
-        onMapExerciseSlot={onMapExerciseSlot}
-        restorableExerciseLineIds={restorableExerciseLineIds}
-        onRestoreExercise={onRestoreExercise} />)}
+      {week.days.map((day, dayIndex) => <div key={day.lineId} className="program-day-entry">
+        <div className="program-day-toolbar">
+          <span className="tiny-label">Day {dayIndex + 1} of {week.days.length}</span>
+          <details className="program-day-menu">
+            <summary>Day actions</summary>
+            <div className="program-day-menu-content">
+              <Button variant="tertiary" disabled={dayIndex === 0} aria-label={`Move ${day.name} earlier`} onClick={() => reorderDay(day.lineId, -1)}><ArrowUp size={15} />Move earlier</Button>
+              <Button variant="tertiary" disabled={dayIndex === week.days.length - 1} aria-label={`Move ${day.name} later`} onClick={() => reorderDay(day.lineId, 1)}><ArrowDown size={15} />Move later</Button>
+              <Button variant="tertiary" disabled={!canAddDay} onClick={() => duplicateDay(day.lineId)}><Copy size={15} />Duplicate day</Button>
+              <Button variant="tertiary" onClick={() => changeDayKind(day)}>{day.isRestDay ? 'Make training day' : 'Make rest day'}</Button>
+              {weeks.length > 1 && (week.days.length <= 1
+                ? <span className="muted small-copy">Add another day before moving this one.</span>
+                : <Select ariaLabel={`Move ${day.name} to another week`} value={week.weekId}
+                options={weeks.filter(target => target.weekId === week.weekId || target.days.length < 7)
+                  .map(target => ({ value: target.weekId, label: `Block ${blockIndex(weeks, target.week - 1)} · Week ${target.week}` }))}
+                onChange={value => moveDayToWeek(day.lineId, String(value))} />)}
+              <Button variant="destructive" disabled={week.days.length <= 1} onClick={() => setDeleteConfirmDay(day.lineId)}><Trash2 size={15} />Delete day</Button>
+            </div>
+          </details>
+        </div>
+        <DayRow day={day} expanded={expandedDay === day.lineId}
+          onToggle={() => setExpandedDay(expandedDay === day.lineId ? null : day.lineId)} exercises={exercises} onChange={onDayChange}
+          onPropagateSubstitution={propagateSubstitution}
+          onMapExerciseSlot={onMapExerciseSlot}
+          restorableExerciseLineIds={restorableExerciseLineIds}
+          onRestoreExercise={onRestoreExercise} />
+      </div>)}
     </div>
     </section>
     <AddWeekModal
@@ -364,11 +291,61 @@ export const DraftOutline = forwardRef<DraftOutlineHandle, {
       blockName={week.block || `Block ${selectedBlock}`}
       phaseName={week.phases[0]}
     />
+    {renameBlock && (
+      <Modal title="Rename block" onClose={() => setRenameBlock(null)}>
+        <div className="modal-body">
+          <Field label="Block name" name="block-name" value={renameValue} autoFocus maxLength={80}
+            onChange={event => setRenameValue(event.currentTarget.value)} />
+          {blocks.some(block => block.id !== renameBlock.id && block.name.trim().toLocaleLowerCase() === renameValue.trim().toLocaleLowerCase())
+            && <p className="error-text" role="alert">Each block needs a different name.</p>}
+        </div>
+        <div className="modal-actions">
+          <Button variant="tertiary" onClick={() => setRenameBlock(null)}>Cancel</Button>
+          <Button variant="primary" disabled={!renameValue.trim() || renameValue.trim().length > 80
+            || blocks.some(block => block.id !== renameBlock.id && block.name.trim().toLocaleLowerCase() === renameValue.trim().toLocaleLowerCase())}
+            onClick={commitBlockName}>Save block name</Button>
+        </div>
+      </Modal>
+    )}
+    {deleteConfirmBlock !== null && (() => {
+      const block = blocks.find(entry => entry.id === deleteConfirmBlock);
+      const exerciseCount = block?.weeks.flatMap(entry => entry.days).reduce((count, day) => count + day.exercises.length, 0) ?? 0;
+      return <Modal title="Delete this block?" onClose={() => setDeleteConfirmBlock(null)}>
+        <div className="modal-body">
+          <p>Delete <strong>{block?.name ?? 'this block'}</strong>, including {block?.weeks.length ?? 0} {(block?.weeks.length ?? 0) === 1 ? 'week' : 'weeks'}, its days, and {exerciseCount} {exerciseCount === 1 ? 'exercise' : 'exercises'}?</p>
+        </div>
+        <div className="modal-actions">
+          <Button variant="tertiary" onClick={() => setDeleteConfirmBlock(null)}>Keep block</Button>
+          <Button variant="destructive" disabled={blocks.length <= 1} onClick={() => deleteBlock(deleteConfirmBlock)}><Trash2 size={15} />Delete block</Button>
+        </div>
+      </Modal>;
+    })()}
+    {deleteConfirmDay !== null && (() => {
+      const day = week.days.find(entry => entry.lineId === deleteConfirmDay);
+      return <Modal title="Delete this day?" onClose={() => setDeleteConfirmDay(null)}>
+        <div className="modal-body">
+          <p>Delete <strong>{day?.name ?? 'this day'}</strong> and its {day?.exercises.length ?? 0} {(day?.exercises.length ?? 0) === 1 ? 'exercise' : 'exercises'} from Week {week.week}?</p>
+        </div>
+        <div className="modal-actions">
+          <Button variant="tertiary" onClick={() => setDeleteConfirmDay(null)}>Keep day</Button>
+          <Button variant="destructive" disabled={week.days.length <= 1} onClick={() => deleteDay(deleteConfirmDay)}><Trash2 size={15} />Delete day</Button>
+        </div>
+      </Modal>;
+    })()}
+    {restConfirmDay !== null && (
+      <Modal title="Make this a rest day?" onClose={() => setRestConfirmDay(null)}>
+        <div className="modal-body"><p>This clears the workout name, notes, and exercise prescriptions for this day.</p></div>
+        <div className="modal-actions">
+          <Button variant="tertiary" onClick={() => setRestConfirmDay(null)}>Keep workout</Button>
+          <Button variant="destructive" onClick={confirmRestConversion}>Clear workout and make rest day</Button>
+        </div>
+      </Modal>
+    )}
     {deleteConfirmWeek !== null && (
       <Modal title={`Delete Week ${deleteConfirmWeek}?`} onClose={() => setDeleteConfirmWeek(null)}>
         <div className="modal-body">
           <p>
-            Are you sure you want to delete <strong>Week {deleteConfirmWeek}</strong>? All days and exercises in this week will be removed and subsequent weeks will be renumbered.
+            Are you sure you want to delete <strong>Week {deleteConfirmWeek}</strong>? All {weeks.find(entry => entry.week === deleteConfirmWeek)?.days.length ?? 0} days and their exercises will be removed; subsequent weeks will be renumbered.
           </p>
           <div className="modal-actions">
             <Button variant="tertiary" onClick={() => setDeleteConfirmWeek(null)}>

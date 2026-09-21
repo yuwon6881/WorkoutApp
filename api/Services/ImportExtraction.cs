@@ -151,12 +151,20 @@ public sealed partial class ImportService
             draft = draft with { Workouts = blockRuns.Workouts };
             var named = ImportDayLabels.FillMissing(draft);
             draft = named.Draft;
+            var numbered = NormalizePhaseWeeks(draft.Workouts);
+            if (numbered.Renumbered) draft = draft with { Workouts = numbered.Workouts };
             // A whole-program answer holds the same days as a sectioned one and needs the same
             // reconciliation; it simply has no chunk to attribute a notice to.
             var shaped = ReconcileDayShape(draft.Workouts);
             var cited = ImportDayShape.ReconcilePages(draft with { Workouts = shaped.Workouts }, import.Pages);
             draft = ImportValidation.NormalizeDraft(cited.Draft);
             List<ImportReviewIssue> outlineNotices = [.. labeled.Notices, .. blockRuns.Notices, .. named.Notices];
+            if (numbered.Renumbered)
+            {
+                outlineNotices.Add(new ImportReviewIssue("phase_week_renumbered",
+                    "Some phases continued the block's week numbering, so their weeks were numbered from one within each phase. The weeks themselves are unchanged.",
+                    "info", null));
+            }
             outlineNotices.AddRange(shaped.Notices);
             outlineNotices.AddRange(cited.Notices);
             if (outlineNotices.Count > 0)

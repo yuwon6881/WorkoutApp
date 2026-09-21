@@ -41,8 +41,14 @@ public sealed partial class WorkoutService(
     // service directly. The application container resolves the primary constructor above.
     public WorkoutService(AppDb db, CatalogService catalog, TemplateService templates,
         ProgressionService progression, NutritionContextService nutrition)
-        : this(db, catalog, templates, progression, nutrition, new ProgramService(db, templates), null)
+        : this(db, catalog, templates, progression, nutrition, CreateProgramService(db, templates), null)
     {
+    }
+
+    private static ProgramService CreateProgramService(AppDb db, TemplateService templates)
+    {
+        var progress = new ProgramProgressService(db);
+        return new ProgramService(db, templates, progress, new ProgramLifecycleService(db, templates, progress));
     }
 
     public async Task<SessionView?> Active(CancellationToken ct)
@@ -125,6 +131,7 @@ public sealed partial class WorkoutService(
         await using var gate = await MutationLock.Acquire(db, db.CurrentUser, ct);
         Validation.Require(!await db.Workouts.AnyAsync(w => w.Active, ct), "Finish or discard your current workout before starting another.", 409);
         WorkoutTemplate? template = null;
+        Guid? programDayProgressId = null;
         if (templateId is { } id)
         {
             template = await db.Templates.AsNoTracking().SingleOrDefaultAsync(t => t.Id == id, ct);
@@ -132,33 +139,8 @@ public sealed partial class WorkoutService(
             Validation.Require(!template!.IsRestDay, "That slot is a rest day.", 409);
             if (template.ProgramId is { } programId)
             {
-                // A rest-only phase can finish by elapsed calendar time without a workout
-                // request. Reconcile before choosing the next slot so its following phase gets
-                // the correct (possibly shifted) Monday start and a stale completed program
-                // cannot be started again.
-                await programs.Reconcile(programId, ct);
-                await db.SaveChangesAsync(ct);
-                var program = await db.Programs.AsNoTracking().SingleAsync(p => p.Id == programId, ct);
-                Validation.Require(program.Active && program.LifecycleStatus != ProgramLifecycle.Completed, "Activate this program before starting its workouts.", 409);
-                var completed = await db.Workouts.AsNoTracking().Where(w => w.ProgramId == programId && w.FinishedAt != null && w.TemplateId != null)
-                    .Select(w => w.TemplateId!.Value).Distinct().ToListAsync(ct);
-                var skipped = await db.ProgramSkips.AsNoTracking().Where(s => s.ProgramId == programId).Select(s => s.TemplateId).ToListAsync(ct);
-                var programTemplates = await db.Templates.AsNoTracking().Where(t => t.ProgramId == programId)
-                    .OrderBy(t => t.Week).ThenBy(t => t.Position).ToListAsync(ct);
-                var nextId = programTemplates.Where(t => !t.IsRestDay && !completed.Contains(t.Id) && !skipped.Contains(t.Id))
-                    .Select(t => (Guid?)t.Id).FirstOrDefault();
-                Validation.Require(nextId == template.Id, "Finish or skip the earlier workout slots first.", 409);
-                var phases = await db.ProgramPhases.AsNoTracking().Where(p => p.ProgramId == programId).OrderBy(p => p.Position).ToListAsync(ct);
-                var phase = phases.FirstOrDefault(candidate => template.Week >= candidate.WeekFrom && template.Week <= candidate.WeekTo && BelongsToPhase(template, candidate));
-                if (phase is not null)
-                {
-                    var completedIds = completed.ToHashSet(); var skippedIds = skipped.ToHashSet();
-                    foreach (var previous in phases.Where(candidate => candidate.Position < phase.Position))
-                    {
-                        Validation.Require(IsPhaseComplete(previous, programTemplates, completedIds, skippedIds),
-                            "Finish or skip the earlier phase slots first.", 409);
-                    }
-                }
+                var day = await programs.PendingWorkoutDay(programId, template.Id, ct);
+                programDayProgressId = day.Id;
             }
         }
         else Validation.Name(name, "Workout name");
@@ -170,6 +152,7 @@ public sealed partial class WorkoutService(
             UserId = db.CurrentUser!.Value,
             TemplateId = template?.Id,
             ProgramId = template?.ProgramId,
+            ProgramDayProgressId = programDayProgressId,
             Name = template?.Name ?? name!.Trim(),
             Active = true,
             BodyWeightSnapshotJson = bodyWeight is null ? "" : Json.Write(bodyWeight),
@@ -562,7 +545,7 @@ public sealed partial class WorkoutService(
 
         session.Active = false; session.FinishedAt = DateTime.UtcNow; session.Revision++;
         await db.SaveChangesAsync(ct);
-        if (session.ProgramId is { } programId) await programs.Reconcile(programId, ct);
+        if (session.ProgramId is not null) await programs.CompleteWorkout(session, ct);
         if (workoutSync is not null) await workoutSync.QueueWorkoutAsync(id, isDelete: false, ct);
         await db.SaveChangesAsync(ct);
         await gate.Commit(ct);
@@ -604,7 +587,7 @@ public sealed partial class WorkoutService(
         var session = await db.Workouts.SingleOrDefaultAsync(w => w.Id == id, ct);
         Validation.Require(session != null, "That workout no longer exists.", 404);
         Validation.Require(session!.Active, "A saved workout is deleted from your history, not discarded.", 409);
-        await Remove(session, ct); await db.SaveChangesAsync(ct); await gate.Commit(ct);
+        await Remove(session!, ct); await db.SaveChangesAsync(ct); await gate.Commit(ct);
     }
 
     public async Task DeleteFromHistory(Guid id, CancellationToken ct)
@@ -612,12 +595,10 @@ public sealed partial class WorkoutService(
         await using var gate = await MutationLock.Acquire(db, db.CurrentUser, ct);
         var session = await db.Workouts.SingleOrDefaultAsync(w => w.Id == id && !w.Active, ct);
         Validation.Require(session != null, "That workout is not in your history.", 404);
-        var programId = session!.ProgramId;
         if (workoutSync is not null) await workoutSync.QueueWorkoutAsync(id, isDelete: true, ct);
-        await Remove(session, ct);
+        await Remove(session!, ct);
         await db.SaveChangesAsync(ct);
-        if (programId is { } restoredProgram) await programs.Reconcile(restoredProgram, ct);
-        await db.SaveChangesAsync(ct); await gate.Commit(ct);
+        await gate.Commit(ct);
     }
 
     private async Task Remove(WorkoutSession session, CancellationToken ct)

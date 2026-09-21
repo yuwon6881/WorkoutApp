@@ -1,20 +1,27 @@
 import { useMemo, useState } from 'react';
 import { ArrowRight, Check, ChevronDown, ChevronUp, Dumbbell, FileText, Pencil, Play, Plus, RefreshCw, RotateCcw } from 'lucide-react';
-import type { Bootstrap, Exercise, ProgramSummary, Template, TemplateExercise } from '../types';
+import type { Bootstrap, Exercise, ImportDraft, ProgramDraftView, ProgramSummary, Template, TemplateExercise } from '../types';
 import { ApiError, api } from '../lib/api';
 import { getWorkoutMuscles } from '../lib/muscles';
 import { showReps } from '../lib/training';
+import { createEmptyProgramDraft } from '../lib/importDraftWeeks';
 import { Button } from './ui/Button';
 import { Modal } from './ui/Modal';
 import { Select } from './ui/Select';
 import { ExerciseLibrary } from './Exercises';
 import { WorkoutEditorModal, type WorkoutDraft } from './WorkoutEditorModal';
+import { ProgramDraftsSection } from './ProgramDraftsSection';
+import { ProgramBuilderPage } from './ProgramBuilderPage';
+import { ProgramWeekChecklist } from './ProgramWeekChecklist';
 
 export function Programs({ data, exercises, onStart, onImport, onChanged }: {
   data: Bootstrap; exercises: Exercise[]; onStart: (templateId: string) => void; onImport: () => void; onChanged: () => Promise<void>;
 }) {
   const [draft, setDraft] = useState<WorkoutDraft | null>(null);
   const [busy, setBusy] = useState(false);
+  const [programBuilder, setProgramBuilder] = useState<{ view: ProgramDraftView | null; initialDraft?: ImportDraft } | null>(null);
+  const [draftRefreshKey, setDraftRefreshKey] = useState(0);
+  const [openDraftCount, setOpenDraftCount] = useState<number | null>(null);
 
   const open = (template?: Template) => {
     setDraft(template
@@ -42,11 +49,20 @@ export function Programs({ data, exercises, onStart, onImport, onChanged }: {
     finally { setBusy(false); }
   }
 
+  if (programBuilder) {
+    return <ProgramBuilderPage initialView={programBuilder.view} initialDraft={programBuilder.initialDraft}
+      exercises={exercises} onBack={() => setProgramBuilder(null)}
+      onDraftSaved={() => setDraftRefreshKey(value => value + 1)}
+      onCreated={async () => { await onChanged(); setDraftRefreshKey(value => value + 1); }} />;
+  }
+
   return <>
     <div className="page-heading">
       <h1>Workouts</h1>
       <div className="heading-actions">
         <Button onClick={onImport}><FileText size={18} />Import a PDF program</Button>
+        <Button variant="secondary" disabled={openDraftCount !== null && openDraftCount >= 20}
+          onClick={() => setProgramBuilder({ view: null, initialDraft: createEmptyProgramDraft() })}><Plus size={18} />New program</Button>
         <Button variant="primary" onClick={() => open()}><Plus size={18} />New workout</Button>
       </div>
     </div>
@@ -56,8 +72,11 @@ export function Programs({ data, exercises, onStart, onImport, onChanged }: {
       if (!programs.length) return null;
       const title = status === 'active' ? 'Active program' : status === 'standby' ? 'Standby programs' : 'Completed programs';
       return <section key={status} className="program-section"><div className="section-heading"><h2>{title}</h2><span className="muted">{programs.length}</span></div>
-        {programs.map(program => <ProgramCard key={program.id} program={program} exercises={exercises} onStart={onStart} onChanged={onChanged} />)}</section>;
+        {programs.map(program => <ProgramCard key={program.id} program={program} exercises={exercises} onStart={onStart} onChanged={onChanged} hasActiveWorkout={Boolean(data.activeWorkout?.active)} />)}</section>;
     })}
+
+    <ProgramDraftsSection refreshKey={draftRefreshKey} onDraftCount={setOpenDraftCount}
+      onResume={view => setProgramBuilder({ view })} />
 
     <section className="panel">
       <div className="section-heading"><h2>Standalone workouts</h2><span className="muted">{data.templates.length} saved</span></div>
@@ -103,7 +122,7 @@ function StandaloneWorkoutCard({ template, index, exercises, onEdit, onStart }: 
   </section>;
 }
 
-function ProgramCard({ program, exercises, onStart, onChanged }: { program: ProgramSummary; exercises: Exercise[]; onStart: (id: string) => void; onChanged: () => Promise<void> }) {
+function ProgramCard({ program, exercises, onStart, onChanged, hasActiveWorkout }: { program: ProgramSummary; exercises: Exercise[]; onStart: (id: string) => void; onChanged: () => Promise<void>; hasActiveWorkout: boolean }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [expanded, setExpanded] = useState(false);
@@ -113,7 +132,10 @@ function ProgramCard({ program, exercises, onStart, onChanged }: { program: Prog
   const [swapChoice, setSwapChoice] = useState<Exercise | null>(null);
   const [confirmPhaseSwap, setConfirmPhaseSwap] = useState(false);
   const next = program.days.find(w => w.id === program.nextTemplateId);
-  const skipped = new Set(program.skippedTemplateIds ?? []);
+  const completedRun = !program.active && !!program.progress && program.progress.passedDays === program.progress.totalDays;
+  const visibleDays = program.active && program.progress
+    ? program.days.filter(day => day.week === program.progress?.currentWeek)
+    : program.days;
 
   async function toggleDetails() {
     if (!expanded && detail === null) {
@@ -132,26 +154,24 @@ function ProgramCard({ program, exercises, onStart, onChanged }: { program: Prog
     finally { setBusy(false); }
   }
 
-  async function toggleSkip(templateId: string) {
-    await act(() => skipped.has(templateId) ? api.unskipProgramWorkout(program.id, templateId) : api.skipProgramWorkout(program.id, templateId));
-  }
-
   return <section className="panel program-card">
     <div className="section-heading">
-      <div><h2>{program.name}</h2><p className="muted">{program.weeks} {program.weeks === 1 ? 'week' : 'weeks'} · {program.days.length} days · {program.completedTemplateIds.length} completed{program.skippedTemplateIds?.length ? ` · ${program.skippedTemplateIds.length} skipped` : ''}</p></div>
+      <div><h2>{program.name}</h2><p className="muted">{program.weeks} {program.weeks === 1 ? 'week' : 'weeks'} · {program.days.length} days{program.progress ? ` · Week ${program.progress.currentWeek}: ${program.progress.passedDays} of ${program.progress.totalDays} passed` : ''}</p></div>
       <span className={`tiny-label ${program.lifecycleStatus === 'completed' ? '' : 'accent'}`}>{program.lifecycleStatus === 'completed' ? 'Completed' : program.active ? 'Active' : 'Standby'}</span>
     </div>
     {program.lifecycleStatus === 'completed' && program.completedAt && <p className="muted small-copy">Completed {new Date(program.completedAt).toLocaleString()}</p>}
     {!!program.phases?.length && <div className="phase-progress" aria-label="Program phase progress">
       {program.phases.map(phase => <span className="tiny-label" key={phase.id}>{phase.name} · W{phase.currentWeek ?? 1}/{phase.durationWeeks} · {phase.completedWorkouts} completed{phase.skippedWorkouts ? ` · ${phase.skippedWorkouts} skipped` : ''}/{phase.totalWorkouts}{phase.complete ? ' · Done' : ''}{phase.sourcePageFrom ? ` · PDF pp.${phase.sourcePageFrom}${phase.sourcePageTo && phase.sourcePageTo !== phase.sourcePageFrom ? `–${phase.sourcePageTo}` : ''}` : ''}</span>)}
     </div>}
+    {program.progress && <ProgramWeekChecklist program={program} onStart={onStart} onChanged={onChanged} hasActiveWorkout={hasActiveWorkout} />}
       <Button variant="tertiary" className="full-width" onClick={() => void toggleDetails()} disabled={busy}>{busy ? 'Loading…' : expanded ? 'Hide details' : 'Show details'}</Button>
-    {expanded && <ProgramTree days={program.days} completed={program.completedTemplateIds} skipped={program.skippedTemplateIds ?? []} nextId={program.nextTemplateId} detail={detail} exercises={exercises} onStart={onStart} onSkip={toggleSkip} canStart={program.active} onSwap={template => exercise => { setSwapTarget({ template, exercise }); setSwapScope('slot'); setSwapChoice(null); setConfirmPhaseSwap(false); }} />}
+    {expanded && <ProgramTree days={visibleDays} completed={program.completedTemplateIds} skipped={program.skippedTemplateIds ?? []} nextId={program.nextTemplateId} detail={detail} exercises={exercises} onStart={onStart} canStart={program.active} onSwap={template => exercise => { setSwapTarget({ template, exercise }); setSwapScope('slot'); setSwapChoice(null); setConfirmPhaseSwap(false); }} />}
     {error && <p className="error-text" role="alert">{error}</p>}
     <div className="settings-actions">
       {program.active && next && <Button variant="primary" onClick={() => onStart(next.id)}>Start {next.name}<ArrowRight size={16} /></Button>}
       {program.lifecycleStatus !== 'completed' && <Button disabled={busy} onClick={() => act(() => api.setProgramActive(program.id, !program.active, program.revision))}>{program.active ? 'Move to standby' : 'Make active'}</Button>}
-      {program.lifecycleStatus === 'completed' && <Button disabled={busy} onClick={() => act(() => api.repeatProgram(program.id))}>Repeat program</Button>}
+      {program.lifecycleStatus === 'completed' && <Button disabled={busy} onClick={() => act(() => api.setProgramActive(program.id, true, program.revision))}>Start fresh run</Button>}
+      {(program.lifecycleStatus === 'completed' || completedRun) && <Button variant="tertiary" disabled={busy} onClick={() => act(() => api.repeatProgram(program.id))}>Repeat as new program</Button>}
       <Button variant="destructive" disabled={busy} onClick={() => act(() => api.deleteProgram(program.id))}>Delete program</Button>
     </div>
     {swapTarget && <Modal title={`Swap ${swapTarget.exercise.name}`} onClose={() => setSwapTarget(null)}>
@@ -186,7 +206,7 @@ function ProgramCard({ program, exercises, onStart, onChanged }: { program: Prog
   </section>;
 }
 
-function ProgramTree({ days, completed, skipped, nextId, detail, exercises, onStart, onSkip, canStart, onSwap }: { days: ProgramSummary['days']; completed: string[]; skipped: string[]; nextId: string | null; detail: Template[] | null; exercises: Exercise[]; onStart: (id: string) => void; onSkip: (id: string) => Promise<void>; canStart: boolean; onSwap: (template: Template) => (exercise: TemplateExercise) => void }) {
+function ProgramTree({ days, completed, skipped, nextId, detail, exercises, onStart, canStart, onSwap }: { days: ProgramSummary['days']; completed: string[]; skipped: string[]; nextId: string | null; detail: Template[] | null; exercises: Exercise[]; onStart: (id: string) => void; canStart: boolean; onSwap: (template: Template) => (exercise: TemplateExercise) => void }) {
   const blocks = new Map<string, Map<string, typeof days>>();
   for (const day of days) {
     const block = day.block || 'Program';
@@ -202,24 +222,25 @@ function ProgramTree({ days, completed, skipped, nextId, detail, exercises, onSt
       <summary>{phase}</summary>
       <div className="routine-list">{phaseDays.map(day => {
         const full = detail?.find(template => template.id === day.id);
-        const complete = completed.includes(day.id);
-        const isSkipped = skipped.includes(day.id);
-        return <ProgramSlotRow key={day.id} day={day} full={full} complete={complete} isSkipped={isSkipped} isNext={day.id === nextId} canStart={canStart} exercises={exercises} onStart={onStart} onSkip={onSkip} onSwap={full ? onSwap(full) : () => {}} />;
+        const complete = day.progressStatus === 'completed' || completed.includes(day.id);
+        const isSkipped = day.progressStatus === 'skipped' || skipped.includes(day.id);
+        const restPassed = day.progressStatus === 'rest_passed';
+        return <ProgramSlotRow key={day.id} day={day} full={full} complete={complete} isSkipped={isSkipped} restPassed={restPassed} isNext={day.id === nextId} canStart={canStart} exercises={exercises} onStart={onStart} onSwap={full ? onSwap(full) : () => {}} />;
       })}</div>
     </details>)}
   </details>)}</div>;
 }
 
-function ProgramSlotRow({ day, full, complete, isSkipped, isNext, canStart, exercises, onStart, onSkip, onSwap }: {
+function ProgramSlotRow({ day, full, complete, isSkipped, restPassed, isNext, canStart, exercises, onStart, onSwap }: {
   day: ProgramSummary['days'][number];
   full: Template | undefined;
   complete: boolean;
   isSkipped: boolean;
+  restPassed: boolean;
   isNext: boolean;
   canStart: boolean;
   exercises: Exercise[];
   onStart: (id: string) => void;
-  onSkip: (id: string) => Promise<void>;
   onSwap: (exercise: TemplateExercise) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
@@ -231,8 +252,8 @@ function ProgramSlotRow({ day, full, complete, isSkipped, isNext, canStart, exer
     return `${names.slice(0, 4).join(', ')}, and ${names.length - 4} more`;
   }, [full]);
 
-  const actionable = canStart && !complete && !isSkipped;
-  const statusLabel = day.isRestDay ? 'Rest day' : complete ? 'Done' : isSkipped ? 'Skipped' : isNext ? 'Up next' : `${full?.exercises.length ?? day.exerciseCount} exercises`;
+  const actionable = canStart && !day.isRestDay && day.progressStatus === 'pending' && !complete && !isSkipped;
+  const statusLabel = day.isRestDay ? restPassed ? 'Rest day passed' : 'Rest day' : complete ? 'Done' : isSkipped ? 'Skipped' : isNext ? 'Up next' : `${full?.exercises.length ?? day.exerciseCount} exercises`;
 
   const row = <>
     <span className="routine-number">W{day.phaseWeek}</span>
@@ -250,7 +271,6 @@ function ProgramSlotRow({ day, full, complete, isSkipped, isNext, canStart, exer
       <div className="program-slot-controls">
         {complete && <span className="slot-complete-badge" title="Workout completed"><Check size={16} /></span>}
         {actionable && <Button variant="primary" className="slot-start-btn" aria-label={`Start ${day.name}`} onClick={() => onStart(day.id)}><Play size={14} fill="currentColor" /><span>Start</span></Button>}
-        <Button variant="tertiary" disabled={(!canStart && !isSkipped) || (complete && !isSkipped)} aria-label={`${isSkipped ? 'Unskip' : 'Skip'} ${day.name}`} onClick={() => void onSkip(day.id)}>{isSkipped ? 'Unskip' : 'Skip'}</Button>
         {full && full.exercises.length > 0 && <Button variant="tertiary" aria-label={expanded ? `Hide exercises for ${day.name}` : `Swap exercises in ${day.name}`} onClick={() => setExpanded(e => !e)}>{expanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}</Button>}
       </div>
     </div>

@@ -1,4 +1,4 @@
-import type { DraftWorkout, LoggedSet, Session, SetPrescription, TemplateExercise } from '../types';
+import type { DraftWorkout, ImportDraft, LoggedSet, Session, SetPrescription, TemplateExercise } from '../types';
 
 export function validateName(value: string | null | undefined, label: string, max = 120): string | undefined {
   if (!value?.trim()) return `${label} is required.`;
@@ -112,6 +112,61 @@ export function validateDraftWorkout(day: DraftWorkout): string | undefined {
   for (const exercise of day.exercises) {
     const error = validateExercise(exercise);
     if (error) return error;
+  }
+  return undefined;
+}
+
+export function validateProgramEditorDocument(document: ImportDraft, requireCatalogExercises = false): string | undefined {
+  const name = validateName(document.programName, 'Program name');
+  if (name) return name;
+  const days = document.workouts;
+  if (!days.length) return 'Add a week with at least one day.';
+  if (days.length > 400) return 'A program can have at most 400 days.';
+  const dayIds = new Set<string>();
+  const weeks = new Map<number, DraftWorkout[]>();
+  for (const day of days) {
+    if (!dayIds.add(day.lineId)) return 'Each day must have a unique identity.';
+    if (!day.blockId || !day.weekId) return 'Save the program structure before creating it.';
+    if (day.week < 1 || day.week > 104 || !Number.isInteger(day.week)) return 'Program weeks must be between 1 and 104.';
+    weeks.set(day.week, [...(weeks.get(day.week) ?? []), day]);
+  }
+  if (weeks.size > 104) return 'A program can have at most 104 weeks.';
+  const orderedWeeks = [...weeks.entries()].sort(([left], [right]) => left - right);
+  if (orderedWeeks.some(([week], index) => week !== index + 1)) return 'Program weeks must be in order without gaps.';
+  if (orderedWeeks.some(([, weekDays]) => weekDays.length > 7)) return 'A week can contain at most 7 days.';
+  if (orderedWeeks.some(([, weekDays]) => weekDays.some(day => day.blockId !== weekDays[0].blockId || day.weekId !== weekDays[0].weekId))) {
+    return 'Every week must belong to one block and have one identity.';
+  }
+  const blockIds = orderedWeeks.map(([, weekDays]) => weekDays[0].blockId!);
+  const completedBlocks = new Set<string>();
+  const blockNames = new Map<string, string>();
+  let previousBlock = '';
+  for (const [index, blockId] of blockIds.entries()) {
+    if (blockId !== previousBlock && completedBlocks.has(blockId)) return 'Block weeks must remain together.';
+    if (previousBlock && blockId !== previousBlock) completedBlocks.add(previousBlock);
+    const blockDays = orderedWeeks[index][1];
+    const name = (blockDays[0].block ?? '').trim();
+    const existingName = blockNames.get(blockId);
+    if (existingName !== undefined && existingName !== name) return 'Each block must have one name.';
+    blockNames.set(blockId, name);
+    previousBlock = blockId;
+  }
+  const uniqueNames = new Set<string>();
+  for (const name of blockNames.values()) {
+    const normalized = name.toLocaleLowerCase();
+    if (uniqueNames.has(normalized)) return 'Give each block a different name.';
+    uniqueNames.add(normalized);
+  }
+  if (!days.some(day => !day.isRestDay)) return 'A program needs at least one training day.';
+  const workoutIds = new Set<string>();
+  for (const day of days) {
+    const invalid = validateDraftWorkout(day);
+    if (invalid) return invalid;
+    for (const exercise of day.exercises) {
+      if (requireCatalogExercises && !exercise.exerciseId) return `Select a library exercise for ${exercise.sourceName}.`;
+      if (workoutIds.has(exercise.lineId)) return 'Each exercise must have a unique identity.';
+      workoutIds.add(exercise.lineId);
+    }
   }
   return undefined;
 }

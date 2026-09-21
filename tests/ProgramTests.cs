@@ -22,6 +22,49 @@ public class ProgramTests
         return (h, await h.ExerciseId("bench"));
     }
 
+    private static ProgramDayActionInput Action(ProgramView program)
+    {
+        var progress = program.Progress ?? throw new InvalidOperationException("The active program has no run progress.");
+        return new ProgramDayActionInput(program.Revision, progress.RunId, progress.CurrentWeek,
+            progress.CurrentAttempt, Guid.NewGuid());
+    }
+
+    private static async Task CompleteWorkout(Harness h, Guid templateId)
+    {
+        var session = await h.Workouts.Start(templateId, null, default);
+        var exercise = session.Exercises.Single();
+        await h.Workouts.Save(session.Id, new SessionInput(null,
+            [new SessionExerciseInput(exercise.ExerciseId, exercise.Name, null, exercise.Prescription,
+                [new SetInput(60, 8, 8, true)])], session.Revision, null), default);
+        await h.Workouts.Finish(session.Id, null, default);
+    }
+    [Fact] public async Task Program_creation_rejects_more_than_seven_days_in_a_week()
+    {
+        var (h, benchId) = await Ready();
+        await using var _h = h;
+        var workouts = Enumerable.Range(1, 8).Select(index => new ProgramWorkoutInput(1, $"Day {index}", null, null,
+            [Harness.Exercise(benchId, "Bench press", Harness.Set(8, 10))])).ToList();
+
+        var error = await Assert.ThrowsAsync<DomainException>(() =>
+            h.Programs.Create(new ProgramInput("Eight day week", workouts), false, null, default));
+
+        Assert.Equal(422, error.Status);
+    }
+    [Fact] public async Task Program_creation_rejects_missing_weeks_between_phases()
+    {
+        var (h, benchId) = await Ready();
+        await using var _h = h;
+        var input = new ProgramInput("Gapped phases",
+        [
+            new ProgramWorkoutInput(1, "Base", null, null, [Harness.Exercise(benchId, "Bench press", Harness.Set(8, 10))], "Block 1", "Base", 1, false),
+            new ProgramWorkoutInput(3, "Peak", null, null, [Harness.Exercise(benchId, "Bench press", Harness.Set(5, 8))], "Block 1", "Peak", 1, false)
+        ]);
+
+        var error = await Assert.ThrowsAsync<DomainException>(() =>
+            h.Programs.Create(input, false, null, default));
+
+        Assert.Equal(422, error.Status);
+    }
     [Fact] public async Task A_program_keeps_its_weeks_and_ordering()
     {
         var (h, benchId) = await Ready();
@@ -85,7 +128,7 @@ public class ProgramTests
         Assert.Equal(program.Workouts[1].Id, progressed.NextTemplateId);
     }
 
-    [Fact] public async Task Finishing_the_last_training_slot_completes_and_deactivates_the_program()
+    [Fact] public async Task Finishing_the_last_week_returns_the_program_to_standby()
     {
         var (h, benchId) = await Ready();
         await using var _h = h;
@@ -102,12 +145,13 @@ public class ProgramTests
 
         var completed = await h.Programs.Get(program.Id, default);
         Assert.False(completed.Active);
-        Assert.Equal(ProgramLifecycle.Completed, completed.LifecycleStatus);
+        Assert.Equal(ProgramLifecycle.Standby, completed.LifecycleStatus);
         Assert.Null(completed.NextTemplateId);
+        Assert.Equal(completed.Progress!.TotalDays, completed.Progress.PassedDays);
         Assert.All(completed.Phases!, phase => Assert.True(phase.Complete));
     }
 
-    [Fact] public async Task A_skipped_slot_can_complete_a_program_and_be_reopened()
+    [Fact] public async Task Passed_workouts_can_complete_a_program_but_cannot_be_unticked()
     {
         var (h, benchId) = await Ready();
         await using var _h = h;
@@ -123,12 +167,13 @@ public class ProgramTests
 
         var completed = await h.Programs.Skip(program.Id, remaining[0].Id, default);
         completed = await h.Programs.Skip(program.Id, remaining[1].Id, default);
-        Assert.Equal(ProgramLifecycle.Completed, completed.LifecycleStatus);
+        Assert.Equal(ProgramLifecycle.Standby, completed.LifecycleStatus);
         Assert.Contains(remaining[0].Id, completed.SkippedTemplateIds!);
 
-        var reopened = await h.Programs.Unskip(program.Id, remaining[1].Id, default);
-        Assert.Equal(ProgramLifecycle.Standby, reopened.LifecycleStatus);
-        Assert.Equal(remaining[1].Id, reopened.NextTemplateId);
+        var failure = await Assert.ThrowsAsync<DomainException>(() => h.Programs.Unskip(program.Id, remaining[1].Id, default));
+        Assert.Equal(409, failure.Status);
+        var stillPassed = await h.Programs.Get(program.Id, default);
+        Assert.Contains(remaining[1].Id, stillPassed.SkippedTemplateIds!);
     }
 
     [Fact] public async Task A_completed_program_can_be_repeated_as_a_fresh_standby_instance()
@@ -227,27 +272,27 @@ public class ProgramTests
         Assert.Equal(program.Workouts[2].Id, afterFirst.NextTemplateId);
     }
 
-    [Fact] public async Task A_rest_only_phase_completes_immediately_when_its_preceding_phase_completes()
+    [Fact] public async Task A_rest_only_phase_waits_for_its_rest_day_to_be_ticked()
     {
         var (h, benchId) = await Ready();
         await using var _h = h;
-        var program = await h.Programs.Create(new ProgramInput("Rest bridge",
+        var program = await h.Programs.Create(new ProgramInput("Rest phase",
             [
                 new ProgramWorkoutInput(1, "Base A", null, null, [Harness.Exercise(benchId, "Bench press", Harness.Set(8, 10))], "Block", "Base", 1, false, 1),
                 new ProgramWorkoutInput(2, "Recovery week", null, null, [], "Block", "Recovery", 1, true, 1),
                 new ProgramWorkoutInput(3, "Peak A", null, null, [Harness.Exercise(benchId, "Bench press", Harness.Set(5, 8))], "Block", "Peak", 1, false, 1)
             ]), true, null, default);
 
-        var session = await h.Workouts.Start(program.Workouts[0].Id, null, default);
-        var exercise = session.Exercises.Single();
-        await h.Workouts.Save(session.Id, new SessionInput(null,
-            [new SessionExerciseInput(exercise.ExerciseId, exercise.Name, null, exercise.Prescription,
-                [new SetInput(60, 8, 8, true)])], session.Revision, null), default);
-        await h.Workouts.Finish(session.Id, null, default);
-
+        await CompleteWorkout(h, program.Workouts[0].Id);
         var after = await h.Programs.Get(program.Id, default);
         Assert.True(after.Active);
-        Assert.Equal(ProgramLifecycle.Active, after.LifecycleStatus);
+        Assert.Equal(2, after.Progress!.CurrentWeek);
+        Assert.Null(after.NextTemplateId);
+        Assert.Equal(ProgramDayStatus.Pending, Assert.Single(after.Progress.Days).Status);
+
+        var restDay = program.Workouts.Single(workout => workout.Week == 2);
+        after = await h.Programs.AcknowledgeRest(program.Id, restDay.Id, Action(after), default);
+        Assert.Equal(3, after.Progress!.CurrentWeek);
         Assert.True(after.Phases![0].Complete);
         Assert.True(after.Phases[1].Complete);
         Assert.False(after.Phases[2].Complete);
@@ -256,7 +301,7 @@ public class ProgramTests
         Assert.NotNull(peakSession);
     }
 
-    [Fact] public async Task A_rest_only_first_phase_completes_immediately_on_activation()
+    [Fact] public async Task A_rest_only_first_phase_requires_a_tick_before_training_week_is_available()
     {
         var (h, benchId) = await Ready();
         await using var _h = h;
@@ -268,9 +313,16 @@ public class ProgramTests
 
         var active = await h.Programs.Get(program.Id, default);
         Assert.True(active.Active);
-        Assert.True(active.Phases![0].Complete);
-        Assert.False(active.Phases[1].Complete);
-        Assert.Equal(program.Workouts[1].Id, active.NextTemplateId);
+        Assert.Equal(1, active.Progress!.CurrentWeek);
+        Assert.Null(active.NextTemplateId);
+        Assert.Equal(ProgramDayStatus.Pending, Assert.Single(active.Progress.Days).Status);
+
+        var restDay = program.Workouts[0];
+        var advanced = await h.Programs.AcknowledgeRest(program.Id, restDay.Id, Action(active), default);
+        Assert.True(advanced.Phases![0].Complete);
+        Assert.False(advanced.Phases[1].Complete);
+        Assert.Equal(2, advanced.Progress!.CurrentWeek);
+        Assert.Equal(program.Workouts[1].Id, advanced.NextTemplateId);
     }
 
     [Fact] public async Task Program_advances_in_strict_week_and_position_order_without_calendar_delays()

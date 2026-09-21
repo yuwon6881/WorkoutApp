@@ -8,7 +8,6 @@ import { Field, TextAreaField } from './ui/Field';
 import { Modal } from './ui/Modal';
 import { ExerciseLibrary } from './Exercises';
 import { SwipeableRow } from './ui/SwipeableRow';
-import { ImportSetSourceFields } from './ImportSetSourceFields';
 
 import { getSupersetGroup, isSuperset, pairExercises, unlinkExercise } from '../lib/supersets';
 import { SupersetModal } from './SupersetModal';
@@ -185,7 +184,8 @@ function ExerciseEditor({ exercise, exercises, allDayExercises, onChange, onRemo
       finally { setIsMapping(false); }
       return;
     }
-    onChange({ ...exercise, exerciseId });
+    const selectedExercise = exerciseId ? exercises.find(item => item.id === exerciseId) : undefined;
+    onChange({ ...exercise, exerciseId, sourceName: selectedExercise?.name ?? exercise.sourceName });
     setPickerOpen(false);
   };
 
@@ -425,8 +425,6 @@ function ExerciseEditor({ exercise, exercises, allDayExercises, onChange, onRemo
                     onChange={value => editSet(index, { targetRpe: value === '' ? null : Number(value), rpeSource: 'userEdited' })} />
                 </label>
                 <Field name={`rest-${exercise.lineId}-${index}`} label="Rest" value={set.restText ?? (set.restSeconds === null ? '' : `${set.restSeconds}s`)} data-import-field="rest" data-import-set-index={index} onChange={event => editSet(index, { restText: event.target.value, restSource: 'userEdited' })} />
-                <ImportSetSourceFields exerciseLineId={exercise.lineId} exerciseName={exercise.sourceName} index={index} setNumber={setDisplayNumber} set={set}
-                  onChange={patch => editSet(index, patch)} />
               </div>
             </div>
           </SwipeableRow>

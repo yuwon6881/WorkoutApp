@@ -13,8 +13,11 @@ public sealed class AppDb(DbContextOptions<AppDb> options) : DbContext(options)
     public DbSet<CustomExercise> CustomExercises => Set<CustomExercise>();
     public DbSet<ExerciseAlias> Aliases => Set<ExerciseAlias>();
     public DbSet<TrainingProgram> Programs => Set<TrainingProgram>();
+    public DbSet<ProgramDraft> ProgramDrafts => Set<ProgramDraft>();
     public DbSet<ProgramPhase> ProgramPhases => Set<ProgramPhase>();
     public DbSet<ProgramSkip> ProgramSkips => Set<ProgramSkip>();
+    public DbSet<ProgramRun> ProgramRuns => Set<ProgramRun>();
+    public DbSet<ProgramDayProgress> ProgramDayProgresses => Set<ProgramDayProgress>();
     public DbSet<WorkoutTemplate> Templates => Set<WorkoutTemplate>();
     public DbSet<TemplateExercise> TemplateExercises => Set<TemplateExercise>();
     public DbSet<WorkoutSession> Workouts => Set<WorkoutSession>();
@@ -78,7 +81,9 @@ public sealed class AppDb(DbContextOptions<AppDb> options) : DbContext(options)
         m.Entity<ExerciseAlias>().HasIndex(x => x.Normalized).IsUnique();
         m.Entity<ExerciseAlias>().HasOne<Exercise>().WithMany().HasForeignKey(x => x.ExerciseId).OnDelete(DeleteBehavior.Cascade);
 
-        Configure<TrainingProgram>(m); Configure<ProgramPhase>(m); Configure<ProgramSkip>(m); Configure<WorkoutTemplate>(m); Configure<TemplateExercise>(m);
+        Configure<TrainingProgram>(m); Configure<ProgramDraft>(m); Configure<ProgramPhase>(m); Configure<ProgramSkip>(m); Configure<ProgramRun>(m);
+        Configure<ProgramDayProgress>(m); Configure<WorkoutTemplate>(m); Configure<TemplateExercise>(m);
+        m.Entity<ProgramDraft>().Property(x => x.ProgramName).HasMaxLength(120);
         Configure<WorkoutSession>(m); Configure<SessionExercise>(m); Configure<CompletedSet>(m); Configure<ExerciseSubstitution>(m); Configure<AiImport>(m);
         Configure<ExerciseProgress>(m); Configure<ExerciseHistoryClear>(m); Configure<NutritionContextCache>(m); Configure<IntegrationGrant>(m);
         m.Entity<ExerciseHistoryClear>().HasIndex(x => new { x.UserId, x.ExerciseId, x.ClearedAt });
@@ -93,9 +98,17 @@ public sealed class AppDb(DbContextOptions<AppDb> options) : DbContext(options)
         m.Entity<TrainingProgram>().Property(x => x.LifecycleStatus).HasDefaultValue(ProgramLifecycle.Standby);
         m.Entity<TrainingProgram>().ToTable("Programs", t => t.HasCheckConstraint("CK_Programs_Lifecycle", "\"LifecycleStatus\" IN ('standby','active','completed')"));
         m.Entity<ProgramPhase>().HasIndex(x => new { x.UserId, x.ProgramId, x.Position }).IsUnique();
+        m.Entity<ProgramDraft>().HasIndex(x => new { x.UserId, x.Updated });
+        m.Entity<ProgramDraft>().HasIndex(x => new { x.UserId, x.RequestKey }).IsUnique().HasFilter("\"RequestKey\" IS NOT NULL");
+        m.Entity<ProgramDraft>().HasIndex(x => new { x.UserId, x.CreatedProgramId }).IsUnique().HasFilter("\"CreatedProgramId\" IS NOT NULL");
         m.Entity<ProgramPhase>().HasIndex(x => new { x.UserId, x.ProgramId, x.WeekFrom, x.WeekTo });
         m.Entity<ProgramSkip>().HasIndex(x => new { x.UserId, x.ProgramId, x.TemplateId }).IsUnique();
+        m.Entity<ProgramRun>().HasIndex(x => new { x.UserId, x.ProgramId, x.Number }).IsUnique();
+        m.Entity<ProgramRun>().HasIndex(x => new { x.UserId, x.ProgramId, x.CompletedAt });
+        m.Entity<ProgramDayProgress>().HasIndex(x => new { x.UserId, x.RunId, x.Week, x.Attempt, x.TemplateId }).IsUnique();
+        m.Entity<ProgramDayProgress>().HasIndex(x => new { x.UserId, x.ProgramId, x.RunId, x.Week, x.Attempt });
         m.Entity<WorkoutSession>().HasIndex(x => x.UserId).IsUnique().HasFilter("\"Active\"").HasDatabaseName("IX_Workouts_ActivePerUser");
+        m.Entity<WorkoutSession>().HasIndex(x => new { x.UserId, x.ProgramDayProgressId });
         m.Entity<WorkoutTemplate>().HasIndex(x => new { x.UserId, x.ProgramId, x.Week, x.Position });
         m.Entity<TemplateExercise>().HasIndex(x => new { x.UserId, x.TemplateId, x.Position });
         m.Entity<TemplateExercise>().HasIndex(x => new { x.UserId, x.TemplateId, x.SlotKey }).IsUnique();

@@ -110,7 +110,7 @@ internal static class ImportValidation
         var training = draft.Workouts.Where(w => !w.IsRestDay).ToList();
 
         var overflowRows = draft.Workouts
-            .GroupBy(day => $"{CanonicalBlock(day.Block).ToUpperInvariant()}\u001f{Identity(day.Phase)}\u001f{day.Week}", StringComparer.OrdinalIgnoreCase)
+            .GroupBy(day => day.Week)
             .SelectMany(group => group.Skip(7))
             .ToList();
         if (overflowRows.Count > 0)
@@ -147,13 +147,44 @@ internal static class ImportValidation
                 WorkoutLineId: unrested[0].day.LineId, ExerciseLineId: unrested[0].exercise.LineId,
                 SetIndex: unrested[0].index, TargetField: "rest"));
 
-        foreach (var phase in GroupDraftPhases(draft.Workouts))
+        var weeks = draft.Workouts.Select(day => day.Week).Distinct().Order().ToList();
+        var missingWeeksBetweenPhases = new List<int>();
+        var phases = GroupDraftPhases(draft.Workouts);
+        for (var index = 1; index < weeks.Count; index++)
         {
-            var weeks = phase.Select(day => day.Week).Distinct().OrderBy(week => week).ToList();
-            for (var index = 1; index < weeks.Count; index++)
-                if (weeks[index] != weeks[index - 1] + 1)
+            if (weeks[index] == weeks[index - 1] + 1) continue;
+            var missingWeeks = Enumerable.Range(weeks[index - 1] + 1, weeks[index] - weeks[index - 1] - 1).ToList();
+            foreach (var missingWeek in missingWeeks)
+            {
+                var coveredByPhaseGap = phases.Any(phase =>
+                {
+                    var phaseWeeks = phase.Select(day => day.Week).Distinct().Order().ToList();
+                    return phaseWeeks.Count > 1 && phaseWeeks[0] < missingWeek && phaseWeeks[^1] > missingWeek;
+                });
+                if (!coveredByPhaseGap) missingWeeksBetweenPhases.Add(missingWeek);
+            }
+        }
+        if (missingWeeksBetweenPhases.Count > 0)
+        {
+            var firstMissingWeek = missingWeeksBetweenPhases[0];
+            var nextDay = draft.Workouts.Where(day => day.Week > firstMissingWeek).MinBy(day => day.Week)!;
+            var uniqueMissingWeeks = missingWeeksBetweenPhases.Distinct().Order().ToList();
+            var missing = string.Join(", ", uniqueMissingWeeks);
+            var gapMessage = uniqueMissingWeeks.Count == 1
+                ? $"Program week {missing} has no days. Add the missing week or move later days in the review."
+                : $"Program weeks {missing} have no days. Add the missing weeks or move later days in the review.";
+            issues.Add(new ImportReviewIssue("program_week_gap",
+                gapMessage,
+                "warning", nextDay.SourcePage, WorkoutLineId: nextDay.LineId, TargetField: "week"));
+        }
+
+        foreach (var phase in phases)
+        {
+            var phaseWeeks = phase.Select(day => day.Week).Distinct().OrderBy(week => week).ToList();
+            for (var index = 1; index < phaseWeeks.Count; index++)
+                if (phaseWeeks[index] != phaseWeeks[index - 1] + 1)
                     issues.Add(new ImportReviewIssue("phase_week_gap",
-                        $"'{phase[0].Phase}' jumps from week {weeks[index - 1]} to week {weeks[index]}; check that nothing is missing.",
+                        $"'{phase[0].Phase}' jumps from week {phaseWeeks[index - 1]} to week {phaseWeeks[index]}; check that nothing is missing.",
                         "warning", phase[0].SourcePage, WorkoutLineId: phase[0].LineId, TargetField: "week"));
         }
         return issues;

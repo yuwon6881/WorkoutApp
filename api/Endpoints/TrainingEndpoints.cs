@@ -143,10 +143,14 @@ public static class TrainingEndpoints
         app.MapGet("/api/programs/{id:guid}", async (Guid id, ProgramService programs, CancellationToken ct) => await programs.Get(id, ct));
         app.MapPost("/api/programs", async (ProgramInput input, ProgramService programs, CancellationToken ct) => await programs.Create(input, activate: true, sourceImportId: null, ct));
         app.MapPost("/api/programs/{id:guid}/active", async (Guid id, ActivateInput input, ProgramService programs, CancellationToken ct) => await programs.SetActive(id, input.Active, input.Revision, ct));
-        app.MapPost("/api/programs/{id:guid}/workouts/{templateId:guid}/skip", async (Guid id, Guid templateId, ProgramService programs, CancellationToken ct)
-            => await programs.Skip(id, templateId, ct));
+        app.MapPost("/api/programs/{id:guid}/workouts/{templateId:guid}/skip", async (Guid id, Guid templateId, ProgramDayActionInput input, ProgramService programs, CancellationToken ct)
+            => await programs.Skip(id, templateId, input, ct));
         app.MapDelete("/api/programs/{id:guid}/workouts/{templateId:guid}/skip", async (Guid id, Guid templateId, ProgramService programs, CancellationToken ct)
             => await programs.Unskip(id, templateId, ct));
+        app.MapPost("/api/programs/{id:guid}/days/{templateId:guid}/pass", async (Guid id, Guid templateId, ProgramDayActionInput input, ProgramService programs, CancellationToken ct)
+            => await programs.AcknowledgeRest(id, templateId, input, ct));
+        app.MapPost("/api/programs/{id:guid}/week/reset", async (Guid id, ProgramWeekResetInput input, ProgramService programs, CancellationToken ct)
+            => await programs.ResetWeek(id, input, ct));
         app.MapPost("/api/programs/{id:guid}/repeat", async (Guid id, ProgramService programs, CancellationToken ct)
             => await programs.Repeat(id, ct));
         app.MapDelete("/api/programs/{id:guid}", async (Guid id, ProgramService programs, CancellationToken ct) =>

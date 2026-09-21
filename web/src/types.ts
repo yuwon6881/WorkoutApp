@@ -16,9 +16,14 @@ export type SetPrescription = {
 };
 export type TemplateExercise = { id: string; exerciseId: string | null; sourceName: string; name: string; note: string; position: number; sets: SetPrescription[]; sequenceGroup: string; substitutions: string[]; loadModel?: LoadModel; sourcePage?: number | null; slotKey?: string | null; canRestore?: boolean; isModified?: boolean };
 export type Template = { id: string; programId: string | null; name: string; focus: string; note: string; week: number; position: number; revision: number; exercises: TemplateExercise[]; block: string; phase: string; phaseWeek: number; isRestDay: boolean; sourcePage?: number | null; phaseId?: string | null; canRestore?: boolean; isLegacyBaseline?: boolean };
-export type ProgramDay = { id: string; name: string; focus: string; block: string; phase: string; week: number; phaseWeek: number; position: number; isRestDay: boolean; exerciseCount: number; sourcePage?: number | null };
+export type ProgramDayStatus = 'pending' | 'completed' | 'skipped' | 'rest_passed';
+export type ProgramProgressDay = { templateId: string; status: ProgramDayStatus; isRestDay: boolean; position: number };
+export type ProgramProgress = { runId: string; currentWeek: number; currentAttempt: number; passedDays: number; totalDays: number; days: ProgramProgressDay[] };
+export type ProgramDayActionInput = { revision: number; runId: string; week: number; attempt: number; idempotencyId: string };
+export type ProgramWeekResetInput = ProgramDayActionInput & { confirmation: string };
+export type ProgramDay = { id: string; name: string; focus: string; block: string; phase: string; week: number; phaseWeek: number; position: number; isRestDay: boolean; exerciseCount: number; sourcePage?: number | null; progressStatus?: ProgramDayStatus | null };
 export type ProgramPhase = { id: string; name: string; block: string; weekFrom: number; weekTo: number; durationWeeks: number; completedWorkouts: number; totalWorkouts: number; complete: boolean; currentWeek?: number; skippedWorkouts?: number; sourcePageFrom?: number | null; sourcePageTo?: number | null };
-export type ProgramSummary = { id: string; name: string; weeks: number; active: boolean; revision: number; sourceImportId: string | null; days: ProgramDay[]; completedTemplateIds: string[]; nextTemplateId: string | null; lifecycleStatus?: 'standby' | 'active' | 'completed'; completedAt?: string | null; skippedTemplateIds?: string[]; phases?: ProgramPhase[] };
+export type ProgramSummary = { id: string; name: string; weeks: number; active: boolean; revision: number; sourceImportId: string | null; days: ProgramDay[]; completedTemplateIds: string[]; nextTemplateId: string | null; lifecycleStatus?: 'standby' | 'active' | 'completed'; completedAt?: string | null; skippedTemplateIds?: string[]; phases?: ProgramPhase[]; progress?: ProgramProgress | null };
 export type Program = ProgramSummary & { workouts: Template[] };
 
 export type SetProgressionSuggestion = { suggestedLoadKg: number | null; suggestedReps: number; reason: string; sourceSessionId: string | null; sourceDate: string | null; progressionMode: string; nutritionContextRevision: number | null; isBodyweightAdjustment: boolean; suggestedSystemLoadKg: number | null; resistanceMode: ResistanceMode };
@@ -51,8 +56,14 @@ export type DraftSet = {
   rir: string | null; warmup: boolean; sourcePage?: number | null;
 };
 export type DraftExercise = { lineId: string; sourceName: string; exerciseId: string | null; notes: string | null; sets: DraftSet[]; sequenceGroup: string; substitutions: string[]; sourcePage?: number | null; slotKey?: string | null };
-export type DraftWorkout = { lineId: string; week: number; name: string; focus: string | null; notes: string | null; exercises: DraftExercise[]; block: string | null; phase: string | null; phaseWeek: number; isRestDay: boolean; sourcePage?: number | null };
+export type DraftWorkout = { lineId: string; week: number; name: string; focus: string | null; notes: string | null; exercises: DraftExercise[]; block: string | null; phase: string | null; phaseWeek: number; isRestDay: boolean; sourcePage?: number | null; blockId?: string | null; weekId?: string | null };
 export type ImportDraft = { programName: string; workouts: DraftWorkout[] };
+/// Custom program drafts use the same editable workout document as PDF review, with stable
+/// structural IDs where the editor has assigned them.
+export type ProgramEditorDocument = ImportDraft;
+export type ProgramDraftSummary = { id: string; programName: string; revision: number; created: string; updated: string; createdProgramId?: string | null };
+export type ProgramDraftView = { id: string; draft: ProgramEditorDocument; revision: number; created: string; updated: string; createdProgramId?: string | null };
+export type ProgramDraftResponse = Omit<ProgramDraftView, 'draft'> & { draft: ProgramEditorDocument | null };
 export type ImportView = {
   id: string; status: 'pending' | 'ready' | 'failed' | 'accepted' | 'discarded';
   fileName: string; pages: number; error: string; created: string; model: string; stage: 'outline' | 'select' | 'extract' | 'done'; chunksDone: number; chunksTotal: number; currentChunkLabel: string | null; unresolvedCount: number;

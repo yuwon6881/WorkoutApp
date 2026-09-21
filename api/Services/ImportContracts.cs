@@ -18,7 +18,7 @@ public record DraftExercise(
 public record DraftWorkout(
     Guid LineId, int Week, string Name, string? Focus, string? Notes, List<DraftExercise> Exercises,
     string? Block = null, string? Phase = null, int PhaseWeek = 1, bool IsRestDay = false,
-    int? SourcePage = null);
+    int? SourcePage = null, Guid? BlockId = null, Guid? WeekId = null);
 
 public record ImportDraft(string ProgramName, List<DraftWorkout> Workouts);
 public record ImportMetadata(string ProgramName);

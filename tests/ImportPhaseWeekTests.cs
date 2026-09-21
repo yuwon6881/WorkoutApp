@@ -104,6 +104,22 @@ public sealed class ImportPhaseWeekTests
     }
 
     [Fact]
+    public void A_missing_week_between_phases_is_flagged_in_import_review()
+    {
+        var draft = new ImportDraft("Program",
+        [
+            Day(1, 1, "Accumulation"),
+            Day(3, 1, "Deload Week")
+        ]);
+
+        var issues = ImportValidation.ReviewIssues(draft);
+
+        var issue = Assert.Single(issues, issue => issue.Code == "program_week_gap");
+        Assert.Contains("Program week 2 has no days", issue.Message);
+        Assert.Equal("warning", issue.Severity);
+    }
+
+    [Fact]
     public void Renumbering_counts_each_phase_from_one_and_leaves_a_correct_draft_alone()
     {
         var accumulation = Day(1, 1, "Accumulation");

@@ -1,0 +1,33 @@
+.program-week-checklist{display:grid;gap:10px;margin:14px 0;padding:14px;border:1px solid var(--border);border-radius:12px;background:var(--surface-raised)}
+.program-week-heading{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.program-week-heading h3{margin-top:3px;color:var(--text)}
+.program-week-kicker{font-size:var(--font-secondary);font-weight:650;letter-spacing:.06em;text-transform:uppercase;color:var(--accent)}
+.program-week-count{flex:0 0 auto;padding:6px 9px;border:1px solid var(--border);border-radius:999px;color:var(--muted);font-size:var(--font-secondary);font-variant-numeric:tabular-nums}
+.program-week-days{display:grid;gap:6px}
+.program-week-day{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:4px 10px;min-width:0;padding:5px 8px;border:1px solid var(--border);border-radius:9px;background:var(--surface)}
+.program-week-day.passed{background:var(--surface-hover)}
+.program-week-check{display:flex;align-items:center;gap:11px;min-width:0;min-height:44px;cursor:pointer}
+.program-week-check input{width:20px;height:20px;min-height:20px;flex:0 0 20px;margin:0;padding:0;accent-color:var(--accent)}
+.program-week-check input:disabled{opacity:1}
+.program-week-check:has(input:disabled){cursor:default}
+.program-week-name{min-width:0;overflow-wrap:anywhere;color:var(--text);font-size:var(--font-body);font-weight:550}
+.program-week-status{color:var(--muted);font-size:var(--font-secondary);text-align:right;white-space:nowrap}
+.program-week-actions{grid-column:1/-1;display:flex;justify-content:flex-end;gap:6px;padding:0 0 3px}
+.program-week-actions .button{min-width:74px;min-height:44px}
+.program-week-complete-icon{color:var(--accent)}
+.program-week-note{color:var(--muted);font-size:var(--font-secondary);line-height:1.5}
+.program-week-reset{justify-self:end;min-height:44px}
+.program-week-error{margin:0}
+.program-week-reset-form{display:grid;gap:12px}
+.program-week-reset-form .field{display:grid;gap:6px;color:var(--text)}
+.program-week-reset-form .field input{width:100%;text-transform:uppercase}
+.program-week-reset-form .modal-actions{justify-content:flex-end}
+
+@media(max-width:639px){
+  .program-week-checklist{padding:12px}
+  .program-week-day{gap:4px 7px;padding:5px 6px}
+  .program-week-check{gap:9px}
+  .program-week-status{font-size:var(--font-secondary)}
+  .program-week-actions .button{flex:1;min-width:0}
+  .program-week-reset{width:100%}
+}

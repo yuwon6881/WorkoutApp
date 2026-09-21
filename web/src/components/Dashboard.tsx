@@ -5,10 +5,11 @@ import { api } from '../lib/api';
 import { weekDays } from '../lib/training';
 import { Button } from './ui/Button';
 import { Modal } from './ui/Modal';
+import { ProgramWeekChecklist } from './ProgramWeekChecklist';
 
-export function Dashboard({ data, onStart, onProgram, onImport, onResume, onSession }: {
+export function Dashboard({ data, onStart, onProgram, onImport, onResume, onSession, onChanged }: {
   data: Bootstrap; onStart: (templateId: string) => void; onHistory: () => void; onProgram: () => void;
-  onImport: () => void; onSession: (s: Session) => void; onResume: () => void;
+  onImport: () => void; onSession: (s: Session) => void; onResume: () => void; onChanged: () => Promise<void>;
 }) {
   const [offset, setOffset] = useState(0);
   const days = weekDays(offset);
@@ -26,7 +27,7 @@ export function Dashboard({ data, onStart, onProgram, onImport, onResume, onSess
   }, [offset]);
 
   const program = data.activeProgram;
-  const next = program?.days.find(w => w.id === program.nextTemplateId) ?? data.templates[0] ?? null;
+  const next = program ? program.days.find(w => w.id === program.nextTemplateId) ?? null : data.templates[0] ?? null;
   const nextName = next ? next.name : null;
   const nextFocus = next && 'focus' in next ? next.focus : null;
   const nextWeek = next?.week ?? 1;
@@ -66,13 +67,13 @@ export function Dashboard({ data, onStart, onProgram, onImport, onResume, onSess
       <div className="main-column">
         <section className="next-workout">
           <div className="hero-top">
-            <span className="eyebrow"><span className="status-dot" /> {data.activeWorkout?.active ? 'Workout in progress' : next ? 'Up next' : 'No workout selected'}</span>
-            <span className="pill">{data.activeWorkout?.active ? data.activeWorkout.exercises.length : nextExerciseCount} exercises</span>
+            <span className="eyebrow"><span className="status-dot" /> {data.activeWorkout?.active ? 'Workout in progress' : next ? 'Up next' : program ? 'Week checklist' : 'No workout selected'}</span>
+            <span className="pill">{data.activeWorkout?.active ? `${data.activeWorkout.exercises.length} exercises` : next ? `${nextExerciseCount} exercises` : program?.progress ? `${program.progress.passedDays}/${program.progress.totalDays} days passed` : 'No workout'}</span>
           </div>
           <div className="hero-content">
             <div>
-              <h2>{data.activeWorkout?.active ? data.activeWorkout.name : nextName ?? 'Choose a workout'}</h2>
-              <p>{data.activeWorkout?.active ? 'In progress · pick up where you left off' : program ? `${program.name} · week ${nextWeek}` : next ? nextFocus : 'Import a program from a PDF, or build a workout by hand.'}</p>
+              <h2>{data.activeWorkout?.active ? data.activeWorkout.name : nextName ?? (program ? 'Your current week' : 'Choose a workout')}</h2>
+              <p>{data.activeWorkout?.active ? 'In progress · pick up where you left off' : next ? program ? `${program.name} · week ${nextWeek}` : nextFocus : program ? `${program.name} · week ${program.progress?.currentWeek ?? 1} checklist` : 'Import a program from a PDF, or build a workout by hand.'}</p>
               <div className="hero-facts">
                 <span><Dumbbell size={15} />{data.activeWorkout?.active ? data.activeWorkout.exercises.reduce((total, e) => total + e.sets.filter(s => !s.warmup).length, 0) : nextSets !== null ? nextSets : '—'} working sets</span>
               </div>
@@ -83,9 +84,12 @@ export function Dashboard({ data, onStart, onProgram, onImport, onResume, onSess
               ? <Button variant="primary" onClick={onResume}><Play size={17} fill="currentColor" />Resume workout<ArrowRight size={18} /></Button>
               : next
                 ? <Button variant="primary" onClick={() => onStart(next.id)}><Play size={17} fill="currentColor" />Start workout<ArrowRight size={18} /></Button>
+              : program
+                ? <Button variant="primary" onClick={onProgram}><Check size={17} />Open week checklist<ArrowRight size={18} /></Button>
                 : <Button variant="primary" onClick={onImport}><FileText size={17} />Import a program<ArrowRight size={18} /></Button>}
           </div>
         </section>
+        {program?.progress && <ProgramWeekChecklist program={program} onStart={onStart} onChanged={onChanged} hasActiveWorkout={Boolean(data.activeWorkout?.active)} />}
 
       </div>
 
@@ -94,7 +98,7 @@ export function Dashboard({ data, onStart, onProgram, onImport, onResume, onSess
           <div className="section-heading"><h2>Your program</h2>{program && <span className="tiny-label">{program.weeks} {program.weeks === 1 ? 'week' : 'weeks'}</span>}</div>
           {program ? <>
             <div className="program-title"><span className="program-icon"><Dumbbell size={25} /></span><div><h3>{program.name}</h3>
-              <p>{program.completedTemplateIds.length} of {program.days.filter(day => !day.isRestDay).length} workouts complete</p></div></div>
+              <p>{program.progress ? `${program.progress.passedDays} of ${program.progress.totalDays} week days passed` : `${program.completedTemplateIds.length} workouts complete`}</p></div></div>
             {program.phases?.find(phase => !phase.complete) && <p className="muted overview-phase">Current phase: {program.phases.find(phase => !phase.complete)?.name}</p>}
           </> : <div className="empty-inline"><span className="exercise-icon"><FileText size={20} /></span>
             <div><h3>No active program</h3><p>Import a training PDF and review it before it becomes a program.</p></div></div>}
