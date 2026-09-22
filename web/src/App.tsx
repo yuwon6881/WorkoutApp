@@ -20,6 +20,11 @@ import { ExerciseDetailModal, ExerciseLibrary } from './components/Exercises';
 import { ImportReview } from './components/Import';
 import { StartPreview } from './components/StartPreview';
 import { MuscleBalanceView } from './components/MuscleBalanceView';
+import { ImportProgressPill } from './components/ImportProgressPill';
+import { useImportWatch } from './components/useImportWatch';
+
+/// Matches the server's refusal in ImportService.Create, so both sides say the same thing.
+const IMPORT_BLOCKED_MESSAGE = 'Finish or discard the active workout before importing a program.';
 
 const NAV = [
   { id: 'overview', label: 'Overview', icon: LayoutDashboard },
@@ -50,6 +55,12 @@ export default function App() {
   const workoutSession = recoverySession && (reviewRecovery || !hasServerWorkout || data?.activeWorkout?.id === recoverySession.id)
     ? recoverySession : data?.activeWorkout ?? null;
   const recoveryForAccount = recovery && recovery.accountId === data?.account.id ? recovery : null;
+  const importBlocked = Boolean(workoutSession?.active);
+  const importWatch = useImportWatch({
+    imports: data?.imports ?? [],
+    active: tab !== 'import',
+    onFinished: app.reload
+  });
   const safeToUpdate = canApplyPwaUpdate({
     page: tab, workoutOpen: training, activeWorkout: Boolean(workoutSession?.active),
     editorOpen: Boolean(preview || detail || exerciseDetail || tab === 'program' || tab === 'import' || tab === 'exercises'),
@@ -203,6 +214,12 @@ export default function App() {
       (recovery.operations.length > 0 || recovery.conflict || data?.activeWorkout?.id === recovery.sessionId)) setTraining(true);
   }, [recovery?.sessionId, recovery?.operations.length, recovery?.conflict, data?.activeWorkout?.id, data?.account.id]);
   useEffect(() => { if (!toast) return; const timer = setTimeout(() => setToast(''), 4500); return () => clearTimeout(timer); }, [toast]);
+  /// A workout can become active while the import screen is already open — restored from recovery
+  /// on this device, or started on another one. The screen closes rather than staying open around
+  /// an upload the server would now refuse, and says why instead of just moving.
+  useEffect(() => {
+    if (tab === 'import' && importBlocked) { setTab('program'); setToast(IMPORT_BLOCKED_MESSAGE); }
+  }, [tab, importBlocked]);
   useEffect(() => {
     const requested = new URLSearchParams(window.location.search).get('workout');
     if (!requested) return;
@@ -294,6 +311,15 @@ export default function App() {
     finally { setStarting(false); }
   }
 
+  /// Reading a program rewrites the account's programs and the days a session starts from, so it
+  /// may not begin while a workout is open. The server refuses it outright; this keeps the app from
+  /// offering a screen whose first action would be rejected. Guarding here as well as on the menu
+  /// item covers a tab restored from an earlier visit.
+  function openImport() {
+    if (importBlocked) { setToast(IMPORT_BLOCKED_MESSAGE); return; }
+    setTab('import');
+  }
+
   async function openExercise(id: string) {
     const existing = data!.exercises.find(candidate => candidate.id === id);
     if (existing) { setExerciseDetail(existing); return; }
@@ -350,8 +376,8 @@ export default function App() {
 
         <MotionScene sceneKey={tab}>
         {tab === 'overview' && <Dashboard data={data} onStart={start} onHistory={() => setTab('history')} onProgram={() => setTab('program')}
-            onImport={() => setTab('import')} onSession={setDetail} onResume={() => setTraining(true)} onChanged={app.reload} />}
-        {tab === 'program' && <Programs data={data} exercises={data.exercises} onStart={start} onImport={() => setTab('import')} onChanged={app.reload} />}
+            onImport={openImport} onSession={setDetail} onResume={() => setTraining(true)} onChanged={app.reload} />}
+        {tab === 'program' && <Programs data={data} exercises={data.exercises} onStart={start} onImport={openImport} onChanged={app.reload} />}
         {tab === 'import' && <ImportReview exercises={data.exercises} imports={data.imports} remaining={data.aiImportsRemaining}
           onBack={() => setTab('program')} onChanged={app.reload} notify={setToast} />}
         {tab === 'history' && <HistoryView initial={data.history} initialProgress={data.progress} preferences={data.preferences} onSession={setDetail} onStart={() => setTab('program')}
@@ -373,6 +399,9 @@ export default function App() {
 
     {workoutSession?.active && !training && <Button className="resume-workout" variant="primary" onClick={() => setTraining(true)}>
       <span className="status-dot" />Resume {workoutSession.name}</Button>}
+
+    {importWatch && !training && <ImportProgressPill progress={importWatch.progress}
+      withResume={Boolean(workoutSession?.active)} onOpen={openImport} />}
 
     {training && workoutSession && <Suspense fallback={<div className="panel recovery-card" role="status">Opening your workout…</div>}><Workout session={workoutSession} accountId={data.account.id} preferences={recovery?.sessionId === workoutSession.id ? recovery.preferences : data.preferences}
       exercises={data.exercises} queue={app.queue} online={online} recovery={recovery?.sessionId === workoutSession.id ? recovery : null} onRecoveryChange={record => { app.setRecovery(record); if (!record) setReviewRecovery(false); }}

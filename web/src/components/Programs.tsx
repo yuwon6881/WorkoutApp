@@ -53,6 +53,7 @@ export function Programs({ data, exercises, onStart, onImport, onChanged }: {
       onCreated={async () => { await onChanged(); }} />;
   }
 
+  const hasActiveWorkout = Boolean(data.activeWorkout?.active);
   const isActive = (program: ProgramSummary) => (program.lifecycleStatus ?? (program.active ? 'active' : 'standby')) === 'active';
   const activePrograms = data.programs.filter(isActive);
   const libraryPrograms = data.programs.filter(program => !isActive(program));
@@ -64,16 +65,17 @@ export function Programs({ data, exercises, onStart, onImport, onChanged }: {
         <MenuButton label="Add a workout or program" text="New" variant="primary" icon={<Plus size={17} />}>
           <MenuItem onClick={() => open()}><Dumbbell size={14} />New workout</MenuItem>
           <MenuItem onClick={() => setBuilding(true)}><Plus size={14} />New program</MenuItem>
-          <MenuItem onClick={onImport}><FileText size={14} />Import a PDF program</MenuItem>
+          <MenuItem onClick={onImport} disabled={hasActiveWorkout}><FileText size={14} />Import a PDF program</MenuItem>
         </MenuButton>
       </div>
     </div>
+    {hasActiveWorkout && <p className="program-week-note">Finish or discard the active workout before importing a program.</p>}
 
     <section className="program-section">
       <div className="section-heading"><h2>Active workout</h2></div>
       {activePrograms.length
         ? activePrograms.map(program => <ProgramCard key={program.id} program={program} exercises={exercises}
-          onStart={onStart} onChanged={onChanged} hasActiveWorkout={Boolean(data.activeWorkout?.active)} />)
+          onStart={onStart} onChanged={onChanged} hasActiveWorkout={hasActiveWorkout} />)
         : <section className="panel"><div className="empty-message"><Play size={28} /><h3>Nothing running yet</h3>
           <p>Make a program active from your library, or start a workout from it.</p></div></section>}
     </section>
@@ -82,7 +84,7 @@ export function Programs({ data, exercises, onStart, onImport, onChanged }: {
       <div className="section-heading"><h2>Workout library</h2>
         <span className="muted">{libraryPrograms.length + data.templates.length} saved</span></div>
       {libraryPrograms.map(program => <ProgramCard key={program.id} program={program} exercises={exercises}
-        onStart={onStart} onChanged={onChanged} hasActiveWorkout={Boolean(data.activeWorkout?.active)} />)}
+        onStart={onStart} onChanged={onChanged} hasActiveWorkout={hasActiveWorkout} />)}
       {data.templates.length ? <div className="program-grid">{data.templates.map((template, i) => (
         <StandaloneWorkoutCard key={template.id} template={template} index={i} exercises={exercises} onEdit={() => open(template)} onStart={() => onStart(template.id)} />
       ))}</div>

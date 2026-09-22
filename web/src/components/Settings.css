@@ -1,5 +1,7 @@
-.settings-layout,
-.settings-grid {
+/* This page owns its own layout end to end. It deliberately does not use the shared `.settings-grid`
+   class: that one is a two-column grid, and a settings row is a label beside a control, which needs
+   the full width to stay on one line. */
+.settings-layout {
   display: flex;
   flex-direction: column;
   gap: 20px;
@@ -8,115 +10,155 @@
   width: 100%;
 }
 
-.settings-panel-header {
-  display: flex;
+/* The column's own gap does the spacing, so the panel's default bottom margin would double it. */
+.settings-layout > .panel {
+  margin-bottom: 0;
+}
+
+.settings-layout .panel > h2 {
+  margin-bottom: 16px;
+}
+
+.setting-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
-  justify-content: space-between;
-  margin-bottom: 14px;
+  gap: 16px;
+  min-width: 0;
+  padding: 16px 0;
+  border-bottom: 1px solid var(--border);
 }
 
-.settings-panel-header h2 {
-  font-size: 16px;
-  font-weight: 650;
-  color: var(--text);
-  margin: 0;
+.setting-row:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
 }
 
-.settings-section-subtitle {
-  font-size: 14px;
-  color: var(--muted);
-  margin: -6px 0 14px;
-  line-height: 1.5;
+.setting-row-stacked {
+  grid-template-columns: minmax(0, 1fr);
+  align-items: start;
 }
 
 .setting-label-wrap {
-  display: inline-flex;
-  align-items: center;
-  gap: 2px;
+  display: flex;
+  align-items: flex-start;
+  gap: 4px;
   min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
 }
 
-.setting-label-wrap strong {
+.setting-label-content {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.setting-label-content strong {
+  display: block;
   font-size: 14px;
   font-weight: 550;
   color: var(--text);
+  overflow-wrap: anywhere;
 }
 
 .setting-controls-wrap {
   display: flex;
   align-items: center;
+  justify-content: flex-end;
   gap: 10px;
-  flex-shrink: 0;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.setting-row-stacked .setting-controls-wrap {
+  justify-content: flex-start;
+  width: 100%;
+}
+
+.settings-layout .setting-controls-wrap > .custom-select-wrap {
+  width: min(260px, 100%);
+  min-width: 0;
+  max-width: 260px;
 }
 
 .setting-sound-controls {
   display: flex;
   align-items: center;
+  justify-content: flex-start;
+  flex-wrap: wrap;
   gap: 10px;
-  flex-shrink: 0;
-}
-
-.setting-action-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 16px 0;
-  border-bottom: 1px solid var(--border);
-}
-
-.setting-action-row:last-child {
-  border-bottom: 0;
-  padding-bottom: 0;
-}
-
-.setting-action-info {
-  display: flex;
-  align-items: center;
-  gap: 4px;
+  width: 100%;
   min-width: 0;
 }
 
-.setting-action-info strong {
-  font-size: 14px;
-  font-weight: 550;
-  color: var(--text);
+.setting-sound-controls .custom-select-wrap {
+  width: min(260px, 100%);
+  min-width: 0;
+  max-width: 260px;
 }
 
 .setting-action-controls {
   display: flex;
   align-items: center;
+  justify-content: flex-start;
+  flex-wrap: wrap;
   gap: 8px;
-  flex-shrink: 0;
+  min-width: 0;
 }
 
-.app-update-banner {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 14px 18px;
-  background: var(--accent-soft);
-  border: 1px solid var(--accent-border);
-  border-radius: var(--radius-card, 14px);
-  color: var(--text);
+.connected-app-item.setting-row {
+  margin-top: 18px;
+  padding: 16px 18px;
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  border-radius: 12px;
 }
 
-.app-update-info {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
+.connected-app-item.setting-row:last-child {
+  padding-bottom: 16px;
 }
 
-.app-update-info strong {
-  font-size: 14px;
-  font-weight: 600;
+.connected-app-item.setting-row .setting-controls-wrap {
+  align-self: center;
+}
+
+.google-health-stream {
+  margin-top: 1.25rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border);
+}
+
+.google-health-stream h3 {
+  font-size: 1rem;
+  margin: 0 0 0.75rem;
+}
+
+.google-health-stream .setting-row {
+  align-items: start;
+}
+
+.google-health-stream-status {
+  display: block;
+}
+
+.google-health-stream-status.is-pending {
   color: var(--accent);
 }
 
-.app-update-info small {
-  font-size: 14px;
-  color: var(--muted);
+.google-health-stream-status.is-failed {
+  color: var(--red);
+}
+
+.google-health-stream-status.is-unknown {
+  color: var(--amber);
+}
+
+.google-health-stream-controls {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 12px;
 }
 
 .install-panel-content {
@@ -130,6 +172,7 @@
   display: flex;
   flex-direction: column;
   gap: 6px;
+  min-width: 0;
 }
 
 .install-panel-info h2 {
@@ -155,7 +198,58 @@
   padding: 10px 0 20px;
 }
 
+@media (max-width: 900px) {
+  .setting-sound-controls .custom-select-wrap {
+    flex: 1 1 180px;
+  }
+
+  .setting-sound-controls .button {
+    flex: 1 1 160px;
+  }
+}
+
 @media (max-width: 639px) {
+  .setting-row {
+    grid-template-columns: minmax(0, 1fr);
+    align-items: start;
+    gap: 10px;
+  }
+
+  .setting-controls-wrap,
+  .setting-row-stacked .setting-controls-wrap {
+    width: 100%;
+    justify-content: stretch;
+  }
+
+  .settings-layout .setting-controls-wrap > .custom-select-wrap,
+  .setting-sound-controls .custom-select-wrap {
+    width: 100%;
+    max-width: none;
+  }
+
+  .setting-sound-controls {
+    align-items: stretch;
+  }
+
+  .setting-sound-controls .button,
+  .setting-action-controls .button {
+    width: 100%;
+    min-height: 44px;
+    justify-content: center;
+  }
+
+  .setting-sound-controls .custom-select-wrap {
+    flex-basis: 100%;
+  }
+
+  .setting-action-controls {
+    width: 100%;
+  }
+
+  .google-health-stream-controls {
+    justify-content: flex-start;
+  }
+
   .install-panel-content {
     flex-direction: column;
     align-items: stretch;
@@ -165,46 +259,5 @@
   .install-panel-content .button {
     width: 100%;
     justify-content: center;
-  }
-
-  .setting-sound-controls {
-    flex-wrap: wrap;
-    width: 100%;
-    gap: 10px;
-  }
-
-  .setting-sound-controls .button {
-    flex: 1 1 auto;
-    min-height: 44px;
-  }
-
-  .setting-sound-controls .custom-select-wrap {
-    flex: 1 1 auto;
-    min-width: 130px;
-    width: 100%;
-  }
-
-  .setting-action-row {
-    flex-wrap: wrap;
-    gap: 12px;
-  }
-
-  .setting-action-controls {
-    width: 100%;
-  }
-
-  .setting-action-controls .button {
-    width: 100%;
-    justify-content: center;
-  }
-
-  .app-update-banner {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 12px;
-  }
-
-  .app-update-banner .button {
-    width: 100%;
   }
 }

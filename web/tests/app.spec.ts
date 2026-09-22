@@ -494,16 +494,67 @@ test('import a PDF program, resolve an unmapped exercise, and accept it', async 
   expect(await programCard.locator('.routine-row-static').evaluateAll(rows => rows.every(row => row.tagName !== 'BUTTON'))).toBe(true);
 });
 
-test('a discarded draft leaves no program behind', async ({ page }) => {
+test('a discarded draft leaves no program behind, and reports itself while it reads', async ({ page }) => {
   await signIn(page);
+  await clearActiveWorkout(page);
   await openTab(page, 'Workouts');
   await openNewMenu(page, 'Import a PDF program');
+
+  // Hold the section read open so the import is still running once the screen is left. The read
+  // belongs to the server, so leaving must not make it look like nothing is happening.
+  await page.route('**/api/imports/*/extract', async route => {
+    await new Promise(resolve => setTimeout(resolve, 6000));
+    await route.continue();
+  });
+  const created = page.waitForResponse(response =>
+    response.request().method() === 'POST' && new URL(response.url()).pathname === '/api/imports', { timeout: 60000 });
+
   await page.getByLabel('Program PDF').setInputFiles({ name: 'throwaway.pdf', mimeType: 'application/pdf', buffer: pdf(5, 'throwaway') });
+  expect((await created).ok()).toBe(true);
+
+  await openTab(page, 'Overview');
+  const pill = page.locator('.import-progress-pill');
+  await expect(pill).toBeVisible({ timeout: 30000 });
+  await expect(pill).toContainText(/Reading/);
+  // It is also the way back to the screen it reports on.
+  await pill.click();
+  await expect(page.getByRole('heading', { name: 'Import a program' })).toBeVisible({ timeout: 30000 });
+  await page.unroute('**/api/imports/*/extract');
+
   await expect(page.getByRole('heading', { name: 'Review' })).toBeVisible({ timeout: 60000 });
 
   await page.getByRole('button', { name: 'Draft actions', exact: true }).click();
   await page.getByRole('menuitem', { name: 'Discard draft', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Review' })).toBeHidden({ timeout: 30000 });
+});
+
+/// An import rewrites the programs and the days a session starts from, so it may not begin while a
+/// workout is open. The server's own refusal is covered by the API regression tests; what matters
+/// here is that the app does not offer an action the server would reject.
+test('importing is refused while a workout is in progress', async ({ page }) => {
+  await signIn(page);
+  await clearActiveWorkout(page);
+  await openTab(page, 'Workouts');
+
+  // An empty ad-hoc session is enough: what matters here is only that one is open.
+  await page.evaluate(async () => {
+    const headers = { 'X-Workout-Request': '1', 'content-type': 'application/json' };
+    const started = await fetch('/api/workouts', {
+      method: 'POST', headers, body: JSON.stringify({ templateId: null, name: 'E2E gate' })
+    });
+    if (!started.ok) throw new Error(`Could not start the E2E workout: ${await started.text()}`);
+  });
+  await page.reload();
+  // An open workout takes over the screen on load; the import rule applies behind it.
+  await page.getByRole('button', { name: 'Minimize workout', exact: true }).click();
+  await openTab(page, 'Workouts');
+
+  await page.getByRole('button', { name: 'New', exact: true }).filter({ visible: true }).first().click();
+  await expect(page.getByRole('menuitem', { name: 'Import a PDF program', exact: true })).toBeDisabled();
+  await page.keyboard.press('Escape');
+  await expect(page.getByText('Finish or discard the active workout before importing a program.')).toBeVisible();
+
+  await clearActiveWorkout(page);
 });
 
 test('offline and server failures are reported instead of faked', async ({ page, context }) => {

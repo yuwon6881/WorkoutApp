@@ -34,10 +34,12 @@
   overflow:visible;
 }
 
-/* Background body contour — subtle fill behind muscles so gaps and
-   non-muscle areas (head, hands, feet) are still visible. */
+/* Background body contour. It carries the same fill as an untrained muscle on purpose: the regions
+   tile the figure, but any sub-pixel seam left between two of them would otherwise read as a dark
+   hole in the body rather than as part of it. Head, hands and feet stay legible through the
+   stroke. */
 .body-map-silhouette{
-  fill:var(--surface-raised);
+  fill:var(--muscle-empty);
   stroke:var(--border);
   stroke-width:1;
   stroke-linejoin:round;

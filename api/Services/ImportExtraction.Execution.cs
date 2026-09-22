@@ -93,8 +93,9 @@ public sealed partial class ImportService
         var identifier = AuthService.Hash(user.ToString())[..32];
         // Concurrency is bounded so one import cannot open an unlimited number of provider
         // requests at once; a handful in flight is what turns the sum of the sections into the
-        // longest of them.
-        using (var inFlight = new SemaphoreSlim(Math.Max(1, config?.GetValue("OpenAi:MaxConcurrentChunks", 4) ?? 4)))
+        // longest of them. These are I/O waits, so widening the gate costs no extra CPU here and
+        // no extra tokens — the real ceiling is the provider's per-minute allowance.
+        using (var inFlight = new SemaphoreSlim(Math.Max(1, config?.GetValue("OpenAi:MaxConcurrentChunks", 8) ?? 8)))
         {
             await Task.WhenAll(pending.Where(item => item.Text.Length > 0 && !results.ContainsKey(item.Index)).Select(async item =>
             {
@@ -187,7 +188,13 @@ public sealed partial class ImportService
                             notices.AddRange(reconciled.Notices);
                             merged = draft with
                             {
-                                ProgramName = ImportNormalization.Text(result.Program.ProgramTitle ?? result.Program.ProgramName, 120) ?? draft.ProgramName,
+                                // The outline pass reads the whole document and owns its title. A section
+                                // answers only for the pages it was handed, so it reports the block heading
+                                // printed over those pages: letting the last section win renamed the program
+                                // after whichever block happened to be read last.
+                                ProgramName = string.IsNullOrWhiteSpace(draft.ProgramName)
+                                    ? ImportNormalization.Text(result.Program.ProgramTitle ?? result.Program.ProgramName, 120) ?? draft.ProgramName
+                                    : draft.ProgramName,
                                 Workouts = [.. draft.Workouts, .. reconciled.Workouts]
                             };
                         }

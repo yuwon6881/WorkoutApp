@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Button } from './ui/Button';
 import { Modal } from './ui/Modal';
+import { SettingRow } from './ui/SettingRow';
 import {
   recoverGoogleHealthWorkoutSync,
   setGoogleHealthWorkoutSync,
@@ -174,9 +175,9 @@ export function GoogleHealthSettings() {
         Connect Google Health to sync your completed workouts, exercise sets, and training volume.
       </p>
 
-      <div className="connected-app-item">
+      <SettingRow className="connected-app-item" label={
         <div className="connected-app-info">
-          <div className="connected-app-title" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <div className="connected-app-title">
             <Activity size={18} className="accent" />
             <strong>Google Health Connection</strong>
             <span
@@ -191,7 +192,7 @@ export function GoogleHealthSettings() {
                   : 'Not connected'}
             </span>
           </div>
-          <small className="muted" style={{ display: 'block', marginTop: '0.25rem' }}>
+          <small className="muted">
             {isConnected
               ? `Connected${state.connectedAt ? ` on ${new Date(state.connectedAt).toLocaleDateString()}` : ''}.`
               : isReconnectRequired
@@ -199,8 +200,8 @@ export function GoogleHealthSettings() {
                 : 'Link your Google account to sync workout data to Google Health.'}
           </small>
         </div>
-
-        <div className="setting-action-controls" style={{ marginTop: '0.75rem', display: 'flex', gap: '0.5rem' }}>
+      }>
+        <div className="setting-action-controls">
           {!isConnected ? (
             <Button variant="primary" onClick={openDisclosure} disabled={loading || connecting}>
               {connecting ? 'Connecting…' : isReconnectRequired ? 'Reconnect Google Health' : 'Connect Google Health'}
@@ -227,55 +228,53 @@ export function GoogleHealthSettings() {
             </>
           )}
         </div>
-      </div>
+      </SettingRow>
 
       {isConnected && (
-        <div className="stream-sync-section" style={{ marginTop: '1.25rem', paddingTop: '1rem', borderTop: '1px solid var(--border)' }}>
-          <h3 style={{ fontSize: '1rem', marginBottom: '0.75rem' }}>Workout Synchronization</h3>
-          <div className="setting-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div>
-              <strong>Sync completed workouts</strong>
-              <small className="muted" style={{ display: 'block' }}>
-                Uploads finished sessions, sets, volume, and exercise notes.
-              </small>
-              {state.workoutSync.pendingCount > 0 && (
-                <small style={{ color: 'var(--accent)', display: 'block' }}>
-                  {state.workoutSync.pendingCount} workout{state.workoutSync.pendingCount === 1 ? '' : 's'} queued for upload
+        <div className="google-health-stream">
+          <h3>Workout Synchronization</h3>
+          <SettingRow
+            label={
+              <>
+                <strong>Sync completed workouts</strong>
+                <small className="muted google-health-stream-status">
+                  Uploads finished sessions, sets, volume, and exercise notes.
                 </small>
-              )}
-              {state.workoutSync.state === 'failed' && (
-                <small style={{ color: 'var(--red)', display: 'block' }}>
-                  {state.workoutSync.failureMessage ?? 'Workout upload failed.'}
-                </small>
-              )}
-              {state.workoutSync.state === 'unknown' && (
-                <small style={{ color: 'var(--amber)', display: 'block' }}>
-                  Upload status uncertain. Check Google Health before recovering.
-                </small>
-              )}
-            </div>
-
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                {state.workoutSync.pendingCount > 0 && (
+                  <small className="google-health-stream-status is-pending">
+                    {state.workoutSync.pendingCount} workout{state.workoutSync.pendingCount === 1 ? '' : 's'} queued for upload
+                  </small>
+                )}
+                {state.workoutSync.state === 'failed' && (
+                  <small className="google-health-stream-status is-failed">
+                    {state.workoutSync.failureMessage ?? 'Workout upload failed.'}
+                  </small>
+                )}
+                {state.workoutSync.state === 'unknown' && (
+                  <small className="google-health-stream-status is-unknown">
+                    Upload status uncertain. Check Google Health before recovering.
+                  </small>
+                )}
+              </>
+            }
+          >
+            <div className="google-health-stream-controls">
               {(state.workoutSync.state === 'failed' || state.workoutSync.state === 'unknown') && (
-                <Button
-                  variant="tertiary"
-                  onClick={handleWorkoutRecover}
-                  disabled={workoutActionLoading}
-                >
+                <Button variant="tertiary" onClick={handleWorkoutRecover} disabled={workoutActionLoading}>
                   Retry
                 </Button>
               )}
-              <label className="checkbox-row" style={{ cursor: 'pointer' }}>
+              <label className="checkbox-row">
                 <input
                   type="checkbox"
                   checked={state.workoutSync.enabled}
-                  onChange={e => void handleWorkoutSyncToggle(e.target.checked)}
+                  onChange={event => void handleWorkoutSyncToggle(event.target.checked)}
                   disabled={workoutActionLoading}
                 />
                 <span className="muted">{state.workoutSync.enabled ? 'Enabled' : 'Disabled'}</span>
               </label>
             </div>
-          </div>
+          </SettingRow>
         </div>
       )}
 

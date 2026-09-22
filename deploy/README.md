@@ -20,11 +20,22 @@ Singapore. The FinancialApp and NutritionApp services and databases are independ
 | API URL | `https://workout-api-i47taxhzba-as.a.run.app` |
 | Image | `asia-southeast1-docker.pkg.dev/<project>/cloud-run-source-deploy/workout-api` |
 
-The API runs with 1 CPU, 2 GiB, a 3,600 second timeout, HTTP/1.1, concurrency 1, and minimum 0 /
+The API runs with 1 CPU, 2 GiB, a 3,600 second timeout, HTTP/1.1, concurrency 4, and minimum 0 /
 maximum 1 instances. PDF import needs nothing else: the browser reads the document's text on the
 device and posts it gzipped. The extract endpoint starts an in-process background pass and returns
 immediately; the browser polls the import row while the runner reads sections and commits them in
-outline order. Request-based billing scales to zero when idle. A daily maintenance request runs the retention sweep; because the API is reachable
+outline order. Concurrency is 4 rather than 1 so those two-second polls do not queue behind each
+other and behind the account's other calls on the single instance; it is still one container, so
+the billing shape is unchanged.
+
+CPU throttling stays on — `--no-cpu-throttling` is deliberately absent. It would keep the
+background pass on CPU between polls, but it switches the service to instance-based billing for the
+whole lifetime of the instance rather than per request. An import spends almost all of its wall
+clock awaiting the model over HTTPS, so the throttled work is only response parsing and the merge
+pass, and those already get CPU on each poll. Import latency is governed by `OpenAi:ReasoningEffort`
+and `OpenAi:MaxConcurrentChunks`, neither of which costs Cloud Run anything.
+
+Request-based billing scales to zero when idle. A daily maintenance request runs the retention sweep; because the API is reachable
 without Cloud Run IAM, `/internal/import-maintenance` exists only when `Maintenance__Secret` is
 configured and answers 404 unless the request presents it in `X-Workout-Maintenance-Secret`.
 

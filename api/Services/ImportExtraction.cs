@@ -21,8 +21,16 @@ public sealed partial class ImportService
 
     /// Accepts the extracted text and reads its outline. Submitting the same document again while
     /// an unfinished import exists continues that import rather than starting a second one.
+    ///
+    /// Reading a program is refused outright while a workout is open. An import ends by rewriting
+    /// the account's programs and the day a session was started from, so letting the two overlap
+    /// would move the ground under a workout already in progress. A read that is already running
+    /// is unaffected: only starting a new one is blocked, so `/extract` and `/retry` stay open and
+    /// an in-flight import can still finish and be retried.
     public async Task<ImportView> Create(ImportSourceInput input, CancellationToken ct)
     {
+        Validation.Require(!await db.Workouts.AnyAsync(w => w.Active, ct),
+            "Finish or discard the active workout before importing a program.", 409);
         var pages = ImportSourceText.Normalize(input);
         var hash = ImportSourceText.Hash(pages);
         var sourceJson = Json.Write(pages);
