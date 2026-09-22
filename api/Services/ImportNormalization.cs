@@ -72,12 +72,12 @@ internal static class ImportNormalization
         return true;
     }
 
-    /// RPE is rated 6-10 in half points. A value outside that scale is a transcription slip rather
-    /// than precision, so it is snapped to the nearest storable point and marked inferred.
+    /// Target effort corresponds to whole-number RIR on the 6-10 scale. Partial .5 points
+    /// are not permitted, so values are snapped to the nearest whole integer and marked inferred.
     public static (double? Value, bool Adjusted) Rpe(double? value)
     {
         if (value is not { } rpe || !double.IsFinite(rpe)) return (null, false);
-        var snapped = Math.Clamp(Math.Round(rpe * 2, MidpointRounding.AwayFromZero) / 2, 6, 10);
+        var snapped = Math.Clamp(Math.Round(rpe, MidpointRounding.AwayFromZero), 6, 10);
         return (snapped, Math.Abs(snapped - rpe) > 1e-9);
     }
 

@@ -230,7 +230,7 @@ export function WorkoutEditorModal({
               <div className="empty-message">
                 <Dumbbell size={28} />
                 <h4>No exercises added yet</h4>
-                <p>Add movements from the library to configure sets, reps, and RPE targets.</p>
+                <p>Add movements from the library to configure sets, reps, and RIR targets.</p>
                 <Button variant="primary" onClick={() => setPickerOpen(true)}>
                   <Plus size={16} />
                   Choose from library

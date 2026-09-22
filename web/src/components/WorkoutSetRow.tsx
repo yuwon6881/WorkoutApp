@@ -116,13 +116,13 @@ export function WorkoutSetRow({
       <div className="set-input-cell rpe-cell">
         <RpeControl
           compact
-          name={`rpe-${exercise.id}-${si}`}
-          ariaLabel={`${exercise.name} set ${si + 1} RPE`}
-          value={set.rpe}
+          name={`rir-${exercise.id}-${si}`}
+          ariaLabel={`${exercise.name} set ${si + 1} RIR`}
+          value={set.rpe !== null ? Math.round(10 - set.rpe) : null}
           disabled={set.done}
           onChange={value =>
             editSet(ei, si, {
-              rpe: value,
+              rpe: value !== null ? 10 - value : null,
               done: false
             })
           }

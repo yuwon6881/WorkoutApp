@@ -3,8 +3,8 @@ import type { MuscleBalanceRow } from '../types';
 import { formatSets, shadeFor } from '../lib/muscleBalance';
 import './BodyMap.css';
 import {
-  BACK_ANATOMY_LINES, BACK_REGIONS, BODY_MAP_SILHOUETTE, BODY_MAP_VIEW_BOX,
-  FRONT_ANATOMY_LINES, FRONT_REGIONS
+  BACK_ANATOMY_LINES, BACK_REGIONS, BACK_SILHOUETTE, BODY_MAP_VIEW_BOX,
+  FRONT_ANATOMY_LINES, FRONT_REGIONS, FRONT_SILHOUETTE
 } from './bodyMapPaths';
 
 type BodyMapProps = {
@@ -37,10 +37,11 @@ function makeAccessibleLabel(view: string, regions: Record<string, string>, musc
   return `${view} body heat map. Most trained: ${top}. Not trained: ${untrained.join(', ') || 'none'}.`;
 }
 
-function BodyFigure({ view, regions, anatomyLines, muscles, peak, activeMuscle, onHoverMuscle, onSelectMuscle }: {
+function BodyFigure({ view, regions, anatomyLines, silhouette, muscles, peak, activeMuscle, onHoverMuscle, onSelectMuscle }: {
   view: 'Front' | 'Back';
   regions: Record<string, string>;
   anatomyLines: string;
+  silhouette: string;
   muscles: MuscleBalanceRow[];
   peak: number;
   activeMuscle?: string | null;
@@ -59,7 +60,7 @@ function BodyFigure({ view, regions, anatomyLines, muscles, peak, activeMuscle, 
         aria-label={makeAccessibleLabel(view, regions, muscles)}
         focusable="false"
       >
-        <path className="body-map-silhouette" d={BODY_MAP_SILHOUETTE} aria-hidden="true" />
+        <path className="body-map-silhouette" d={silhouette} aria-hidden="true" />
         {Object.entries(regions).map(([muscle, path]) => {
           const sets = values.get(muscle) ?? 0;
           const isActive = activeMuscle === muscle;
@@ -100,6 +101,7 @@ export function BodyMap({ muscles, peak, activeMuscle, onHoverMuscle, onSelectMu
         view="Front"
         regions={FRONT_REGIONS}
         anatomyLines={FRONT_ANATOMY_LINES}
+        silhouette={FRONT_SILHOUETTE}
         muscles={muscles}
         peak={peak}
         activeMuscle={activeMuscle}
@@ -110,6 +112,7 @@ export function BodyMap({ muscles, peak, activeMuscle, onHoverMuscle, onSelectMu
         view="Back"
         regions={BACK_REGIONS}
         anatomyLines={BACK_ANATOMY_LINES}
+        silhouette={BACK_SILHOUETTE}
         muscles={muscles}
         peak={peak}
         activeMuscle={activeMuscle}

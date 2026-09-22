@@ -7,6 +7,7 @@ import { Field, TextAreaField } from './ui/Field';
 import { Modal } from './ui/Modal';
 import { Select } from './ui/Select';
 import { ChipScroller } from './ui/ChipScroller';
+import './Exercises.css';
 
 /// The catalog is supplied by the server and is empty until a seed file is loaded, so the
 /// empty state explains that rather than implying the user should have added something.
@@ -59,13 +60,14 @@ export function ExerciseLibrary({ exercises, onSelect, exclude = [], onOpen, onC
 }) {
   const [query, setQuery] = useState('');
   const [muscle, setMuscle] = useState('All muscles');
-  const [source, setSource] = useState<'all' | 'custom'>('all');
+  const [source, setSource] = useState<'all' | 'custom' | 'catalog'>('all');
+  const [category, setCategory] = useState<'all' | ExerciseCategory>('all');
   const [createOpen, setCreateOpen] = useState(false);
   const [showAllMuscles, setShowAllMuscles] = useState(false);
 
   useEffect(() => {
     setShowAllMuscles(false);
-  }, [muscle, currentExerciseId]);
+  }, [muscle, category, source, currentExerciseId]);
 
   const muscles = ['All muscles', ...new Map(exercises.flatMap(e => [e.muscle, ...(e.secondaryMuscles ?? [])])
     .filter(Boolean).map(value => [value.toLowerCase(), value] as const)).values()];
@@ -75,7 +77,8 @@ export function ExerciseLibrary({ exercises, onSelect, exclude = [], onOpen, onC
   // Candidate replacement exercises exclude existing exclusions and the current exercise being swapped
   const excluded = new Set([...exclude, ...(currentExerciseId ? [currentExerciseId] : [])]);
   const filtered = exercises.filter(e => !excluded.has(e.id)
-    && (source === 'all' || e.isCustom)
+    && (source === 'all' || (source === 'custom' ? e.isCustom : !e.isCustom))
+    && (category === 'all' || getExerciseCategory(e) === category)
     && (muscle === 'All muscles' || [e.muscle, ...(e.secondaryMuscles ?? [])].some(value => value.toLowerCase() === muscle.toLowerCase()))
     && `${e.name} ${e.equipment} ${e.muscle} ${(e.secondaryMuscles ?? []).join(' ')} ${e.movementPattern ?? ''} ${e.aliases.join(' ')}`.toLowerCase().includes(query.toLowerCase()));
   const ordered = [...filtered].sort((a, b) => exerciseRank(a, current, preferredNames) - exerciseRank(b, current, preferredNames)
@@ -94,7 +97,10 @@ export function ExerciseLibrary({ exercises, onSelect, exclude = [], onOpen, onC
   const relevantList = showBoundary ? ordered.filter(isRelevant) : ordered;
   const otherList = showBoundary ? ordered.filter(e => !isRelevant(e)) : [];
 
-  const currentMatches = current && (!query.trim() || `${current.name} ${current.equipment} ${current.muscle} ${(current.secondaryMuscles ?? []).join(' ')} ${current.movementPattern ?? ''} ${current.aliases.join(' ')}`.toLowerCase().includes(query.toLowerCase()));
+  const currentMatches = current && (!query.trim() || `${current.name} ${current.equipment} ${current.muscle} ${(current.secondaryMuscles ?? []).join(' ')} ${current.movementPattern ?? ''} ${current.aliases.join(' ')}`.toLowerCase().includes(query.toLowerCase()))
+    && (source === 'all' || (source === 'custom' ? current.isCustom : !current.isCustom))
+    && (category === 'all' || getExerciseCategory(current) === category)
+    && (muscle === 'All muscles' || [current.muscle, ...(current.secondaryMuscles ?? [])].some(val => val.toLowerCase() === muscle.toLowerCase()));
   const showCurrentAtTop = isSwapping && current && currentMatches && (muscle === 'All muscles' || [current.muscle, ...(current.secondaryMuscles ?? [])].some(val => val.toLowerCase() === muscle.toLowerCase()));
 
   function renderCategoryGroups(items: Exercise[]) {
@@ -179,10 +185,33 @@ export function ExerciseLibrary({ exercises, onSelect, exclude = [], onOpen, onC
         <input name="exercise-search" aria-label="Search exercises" placeholder="Search exercises or equipment…" value={query} onChange={e => setQuery(e.target.value)} />
         {query && <Button presentation="plain" className="search-clear-btn" aria-label="Clear search" onClick={() => setQuery('')}><X size={16} /></Button>}
       </label>
-      {!onSelect && <div className="exercise-source-toggle" role="group" aria-label="Filter exercise source">
-        <Button presentation="plain" className={`filter-chip ${source === 'all' ? 'active' : ''}`} onClick={() => setSource('all')}>All exercises</Button>
-        <Button presentation="plain" className={`filter-chip ${source === 'custom' ? 'active' : ''}`} onClick={() => setSource('custom')}>Custom</Button>
-      </div>}
+      <div className="exercise-minor-filters" role="group" aria-label="Filter exercises">
+        <Select
+          name="exercise-source-filter"
+          ariaLabel="Filter exercise source"
+          value={source}
+          onChange={val => setSource(val as 'all' | 'custom' | 'catalog')}
+          className="exercise-filter-select"
+          options={[
+            { value: 'all', label: 'All types' },
+            { value: 'catalog', label: 'Standard' },
+            { value: 'custom', label: 'Custom' }
+          ]}
+        />
+        <Select
+          name="exercise-category-filter"
+          ariaLabel="Filter exercise category"
+          value={category}
+          onChange={val => setCategory(val as 'all' | ExerciseCategory)}
+          className="exercise-filter-select"
+          options={[
+            { value: 'all', label: 'All categories' },
+            { value: 'Free Weights', label: 'Free Weights' },
+            { value: 'Machine', label: 'Machine' },
+            { value: 'Body Weight', label: 'Body Weight' }
+          ]}
+        />
+      </div>
     </div>
     <ChipScroller ariaLabel="Filter exercises by muscle" resetKey={muscles.join('|')}
       leftLabel="Scroll muscle filters left" rightLabel="Scroll muscle filters right">

@@ -201,7 +201,7 @@ public sealed class ImportNormalizationTests
             "targetRpe":8.3
             """.Replace("\n", " ")));
 
-        Assert.Equal(8.5, set.TargetRpe);
+        Assert.Equal(8.0, set.TargetRpe);
         Assert.Equal("inferred", set.RpeSource);
     }
 

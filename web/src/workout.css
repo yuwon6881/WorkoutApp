@@ -129,7 +129,9 @@
   .action-pill,
   .set-input-cell input,
   .mode-mini-select,
-  .add-set-btn { min-height: 44px; }
+  .add-set-btn,
+  .set-input-cell .rpe-control,
+  .set-input-cell .rpe-value-btn { min-height: 44px; }
   .remove-pill { min-width: 44px; }
 }
 
@@ -187,7 +189,8 @@
 /* Interactive substitutions */
 .substitution-chips-wrap {
   display: flex;
-  flex-direction: column;
+  flex-wrap: wrap;
+  align-items: center;
   gap: 6px;
   min-width: 0;
 }

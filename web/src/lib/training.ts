@@ -24,7 +24,18 @@ export const showVolume = (kg: number | null, unit: Unit): string => {
 export const showReps = (set: SetPrescription | { repMin: number; repMax: number }): string =>
   'repsText' in set && set.repsText?.trim() ? set.repsText : set.repMin === set.repMax ? String(set.repMin) : `${set.repMin}–${set.repMax}`;
 
-export const showRpe = (rpe: number | null): string => rpe === null ? '—' : `RPE ${Number(rpe.toFixed(1))}`;
+export const showRpe = (rpe: number | null): string => {
+  if (rpe === null) return '—';
+  const rir = Math.round(10 - rpe);
+  return `${rir} RIR`;
+};
+
+export const showRir = (rir: number | string | null): string => {
+  if (rir === null || rir === undefined || rir === '') return '—';
+  const parsed = typeof rir === 'number' ? rir : Number(rir);
+  if (!Number.isFinite(parsed)) return String(rir);
+  return `${Math.round(parsed)} RIR`;
+};
 
 /// Mirrors the server's estimate so the app can show one for a set the user is typing, before
 /// anything is saved. Epley extended with reps in reserve: the set is rated as if it had been
@@ -64,9 +75,13 @@ export const normalizeExerciseName = (value: string): string => value.trim().toL
 
 export const showTarget = (set: SetPrescription): string => {
   const parts = [showReps(set)];
-  if (set.targetRpe !== null) parts.push(`RPE ${set.targetRpe}`);
-  else if (!set.warmup) parts.push('app default RPE 8');
-  if (set.rir) parts.push(`RIR ${set.rir}`);
+  if (set.rir && Number.isFinite(Number(set.rir))) {
+    parts.push(`${Math.round(Number(set.rir))} RIR`);
+  } else if (set.targetRpe !== null) {
+    parts.push(`${Math.round(10 - set.targetRpe)} RIR`);
+  } else if (!set.warmup) {
+    parts.push('app default 2 RIR');
+  }
   return parts.join(' · ');
 };
 
@@ -87,17 +102,20 @@ export function weekDays(offset = 0): Date[] {
   return Array.from({ length: 7 }, (_, i) => { const day = new Date(start); day.setDate(day.getDate() + i); return day; });
 }
 
-/// RPE is recorded in half points from 6 to 10; anything else is a typing error.
 export const validRpe = (value: number | null): boolean =>
   value !== null && Number.isFinite(value) && value >= 6 && value <= 10 && Math.abs(value * 2 - Math.round(value * 2)) < 1e-9;
+
+export const validRir = (value: number | null): boolean =>
+  value !== null && Number.isInteger(value) && value >= 0 && value <= 4;
 
 export const validReps = (value: number | null): boolean =>
   value !== null && Number.isInteger(value) && value > 0 && value <= 1000;
 
 export const canComplete = (set: LoggedSet): boolean => validReps(set.reps);
 
-export const rpeSteps = Array.from({ length: 9 }, (_, i) => 6 + i * 0.5);
-export const rpeOptions = rpeSteps.map(value => ({ value, label: String(value) }));
+export const rirSteps = [0, 1, 2, 3, 4] as const;
+export const rpeSteps = rirSteps;
+export const rpeOptions = rirSteps.map(value => ({ value, label: `${value} RIR` }));
 
 export const formatRest = (seconds: number | null | undefined): string => {
   if (seconds === null || seconds === undefined || seconds === 0) return 'No rest';

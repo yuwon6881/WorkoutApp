@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ArrowRight, Check, ChevronLeft, ChevronRight, Dumbbell, FileText, Play } from 'lucide-react';
+import { ArrowRight, Check, ChevronLeft, ChevronRight, Dumbbell, FileText, Play, RotateCcw } from 'lucide-react';
 import type { Bootstrap, Session, WorkoutActivityItem } from '../types';
 import { api } from '../lib/api';
 import { weekDays } from '../lib/training';
@@ -41,11 +41,39 @@ export function Dashboard({ data, onStart, onProgram, onImport, onResume, onSess
 
     <section className="week-strip" aria-label="Training calendar">
       <div className="week-caption">
-        <span><span className="status-dot" /> {offset === 0 ? 'This week' : days[0].toLocaleDateString('en', { month: 'short', day: 'numeric' })}</span>
-        <div>
-          <Button aria-label="Previous week" variant="tertiary" onClick={() => setOffset(o => o - 1)}><ChevronLeft size={17} /></Button>
-          {offset !== 0 && <Button aria-label="Return to this week" variant="tertiary" onClick={() => setOffset(0)}>Today</Button>}
-          <Button aria-label="Next week" variant="tertiary" onClick={() => setOffset(o => o + 1)}><ChevronRight size={17} /></Button>
+        <span className="week-caption-label">
+          <span className="status-dot" /> {offset === 0 ? 'This week' : days[0].toLocaleDateString('en', { month: 'short', day: 'numeric' })}
+        </span>
+        <div className="week-nav-actions">
+          <div className="week-nav-chevrons" role="group" aria-label="Navigate weeks">
+            <Button
+              aria-label="Previous week"
+              variant="secondary"
+              className="week-nav-btn"
+              onClick={() => setOffset(o => o - 1)}
+            >
+              <ChevronLeft size={16} />
+            </Button>
+            <Button
+              aria-label="Next week"
+              variant="secondary"
+              className="week-nav-btn"
+              onClick={() => setOffset(o => o + 1)}
+            >
+              <ChevronRight size={16} />
+            </Button>
+          </div>
+          {offset !== 0 && (
+            <Button
+              aria-label="Return to current week"
+              variant="secondary"
+              className="week-today-btn"
+              onClick={() => setOffset(0)}
+            >
+              <RotateCcw size={12} />
+              <span>Current week</span>
+            </Button>
+          )}
         </div>
       </div>
       <div className="week-days">{days.map(day => {

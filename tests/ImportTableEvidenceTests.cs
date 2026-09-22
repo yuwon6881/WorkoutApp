@@ -491,7 +491,8 @@ public sealed class ImportTableEvidenceTests
         {
             Assert.Equal(3, set.RepMin);
             Assert.Equal(5, set.RepMax);
-            Assert.Equal(8.5, set.TargetRpe);
+            Assert.Equal(9.0, set.TargetRpe);
+            Assert.Equal("1", set.Rir);
             Assert.Equal("~3-4 min", set.RestText);
         });
     }

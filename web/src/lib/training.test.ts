@@ -45,11 +45,11 @@ describe('prescriptions', () => {
 
   it('renders a missing RPE honestly', () => {
     expect(showRpe(null)).toBe('—');
-    expect(showRpe(7.5)).toBe('RPE 7.5');
+    expect(showRpe(8)).toBe('2 RIR');
   });
 
   it('prefers verbatim targets and keeps the machine fallback', () => {
-    expect(showTarget({ repMin: 8, repMax: 12, repsText: 'AMRAP', targetRpe: 8, rir: '2' } as never)).toBe('AMRAP · RPE 8 · RIR 2');
+    expect(showTarget({ repMin: 8, repMax: 12, repsText: 'AMRAP', targetRpe: 8, rir: '2' } as never)).toBe('AMRAP · 2 RIR');
   });
 });
 

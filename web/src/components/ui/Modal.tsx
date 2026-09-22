@@ -33,7 +33,7 @@ export function Modal({ title, children, onClose, wide = false }: { title: strin
   };
 
   return <dialog ref={ref} className={`modal ${wide ? 'wide' : ''}`} onPointerDown={handlePointerDown} onClick={handleClick} onCancel={e => { e.preventDefault(); close(); }} aria-label={title}>
-    <header><h2>{title}</h2><Button variant="tertiary" aria-label="Close dialog" onClick={close}><X size={20} /></Button></header>
+    <header><h2 title={title}>{title}</h2><Button variant="tertiary" aria-label="Close dialog" onClick={close}><X size={20} /></Button></header>
     {children}
   </dialog>;
 }

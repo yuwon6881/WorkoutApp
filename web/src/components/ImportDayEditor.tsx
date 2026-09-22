@@ -362,13 +362,17 @@ function ExerciseEditor({ exercise, exercises, allDayExercises, onChange, onRemo
                 <Field name={`rep-min-${exercise.lineId}-${index}`} label="Min reps" inputMode="numeric" type="number" value={set.repMin} data-import-field="repMin" data-import-set-index={index} onChange={event => editSet(index, { repMin: Number(event.target.value), repsText: null, repsSource: 'userEdited' })} />
                 <Field name={`rep-max-${exercise.lineId}-${index}`} label="Max reps" inputMode="numeric" type="number" value={set.repMax} data-import-field="repMax" data-import-set-index={index} onChange={event => editSet(index, { repMax: Number(event.target.value), repsText: null, repsSource: 'userEdited' })} />
                 <div className="field rpe-field" data-import-field="targetRpe" data-import-set-index={index}>
-                  <span>Target RPE</span>
+                  <span>Target RIR</span>
                   <RpeControl
-                    name={`target-rpe-${exercise.lineId}-${index}`}
-                    ariaLabel={`Target RPE for ${exercise.sourceName} set ${setDisplayNumber}`}
-                    value={set.targetRpe}
+                    name={`target-rir-${exercise.lineId}-${index}`}
+                    ariaLabel={`Target RIR for ${exercise.sourceName} set ${setDisplayNumber}`}
+                    value={set.rir && Number.isFinite(Number(set.rir)) ? Math.round(Number(set.rir)) : set.targetRpe !== null ? Math.round(10 - set.targetRpe) : null}
                     disabled={set.warmup}
-                    onChange={value => editSet(index, { targetRpe: value, rpeSource: 'userEdited' })}
+                    onChange={value => editSet(index, {
+                      targetRpe: value !== null ? 10 - value : null,
+                      rir: value !== null ? String(value) : null,
+                      rpeSource: 'userEdited'
+                    })}
                   />
                 </div>
               </div>
@@ -386,7 +390,7 @@ function ExerciseEditor({ exercise, exercises, allDayExercises, onChange, onRemo
       </Button>
     </div>
 
-    {pickerOpen && <Modal title={`Choose a library exercise for ${exercise.sourceName}`} wide onClose={() => setPickerOpen(false)}>
+    {pickerOpen && <Modal title={`Choose exercise for ${exercise.sourceName.length > 32 ? `${exercise.sourceName.slice(0, 30)}…` : exercise.sourceName}`} wide onClose={() => setPickerOpen(false)}>
       <div className="modal-body import-library-picker">
         <p>Search the catalog by exercise, equipment, muscle, movement pattern, or alias.</p>
         {mappingError && <div className="inline-error" role="alert">{mappingError}</div>}

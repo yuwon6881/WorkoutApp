@@ -65,9 +65,9 @@ describe('ExerciseLibrary UI and grouping', () => {
       onSelect: () => {}
     }));
 
-    const bwIndex = bwMarkup.indexOf('Body Weight');
-    const fwIndex = bwMarkup.indexOf('Free Weights');
-    const machIndex = bwMarkup.indexOf('Machine');
+    const bwIndex = bwMarkup.indexOf('aria-label="Body Weight exercises"');
+    const fwIndex = bwMarkup.indexOf('aria-label="Free Weights exercises"');
+    const machIndex = bwMarkup.indexOf('aria-label="Machine exercises"');
 
     expect(bwIndex).toBeLessThan(fwIndex);
     expect(bwIndex).toBeLessThan(machIndex);
@@ -80,9 +80,9 @@ describe('ExerciseLibrary UI and grouping', () => {
       onSelect: () => {}
     }));
 
-    const machIndex2 = machMarkup.indexOf('Machine');
-    const fwIndex2 = machMarkup.indexOf('Free Weights');
-    const bwIndex2 = machMarkup.indexOf('Body Weight');
+    const machIndex2 = machMarkup.indexOf('aria-label="Machine exercises"');
+    const fwIndex2 = machMarkup.indexOf('aria-label="Free Weights exercises"');
+    const bwIndex2 = machMarkup.indexOf('aria-label="Body Weight exercises"');
 
     expect(machIndex2).toBeLessThan(fwIndex2);
     expect(machIndex2).toBeLessThan(bwIndex2);
@@ -119,5 +119,24 @@ describe('ExerciseLibrary UI and grouping', () => {
     expect(libraryMarkup).toContain('Free Weights');
     expect(libraryMarkup).toContain('Machine');
     expect(libraryMarkup).toContain('Body Weight');
+  });
+
+  it('renders minor source and category filter selects in both library and picker modes', () => {
+    const libraryMarkup = renderToStaticMarkup(createElement(ExerciseLibrary, {
+      exercises: sampleExercises
+    }));
+    expect(libraryMarkup).toContain('aria-label="Filter exercise source"');
+    expect(libraryMarkup).toContain('aria-label="Filter exercise category"');
+    expect(libraryMarkup).toContain('exercise-minor-filters');
+
+    const pickerMarkup = renderToStaticMarkup(createElement(ExerciseLibrary, {
+      exercises: sampleExercises,
+      action: 'swap',
+      currentExerciseId: 'ex-bench',
+      onSelect: () => {}
+    }));
+    expect(pickerMarkup).toContain('aria-label="Filter exercise source"');
+    expect(pickerMarkup).toContain('aria-label="Filter exercise category"');
+    expect(pickerMarkup).toContain('exercise-minor-filters');
   });
 });

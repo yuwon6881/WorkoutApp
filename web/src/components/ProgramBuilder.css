@@ -263,7 +263,7 @@
 @media(max-width:1023px){
   .ui-menu>.ui-menu-trigger{width:44px;height:44px;min-width:44px;min-height:44px}
   .ui-menu>.ui-menu-dropdown .ui-menu-item{min-height:44px}
-  .chip-group>.chip-icon-btn,.chip-group>.ui-menu>.chip-icon-btn,.filter-chips>.chip-add-btn,.program-block-control-bar>.chip-add-btn{width:44px;height:44px;min-width:44px;min-height:44px}
+  .chip-group>.chip-icon-btn,.chip-group>.ui-menu>.chip-icon-btn,.chip-add-btn{width:44px;height:44px;min-width:44px;min-height:44px}
   .program-day-entry .program-day-handle{width:44px;min-width:44px;height:44px}
 }
 @media(max-width:639px){

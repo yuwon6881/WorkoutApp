@@ -281,15 +281,16 @@ export function WorkoutPrescriptionCard({
                       onChange={e => onUpdateSet(si, { repMax: Number(e.target.value) })}
                     />
                     <div className="field rpe-field">
-                      <span>Target RPE</span>
+                      <span>Target RIR</span>
                       <RpeControl
-                        name={`target-rpe-${exercise.id}-${si}`}
-                        ariaLabel={`${exercise.name} set ${si + 1} target RPE`}
-                        value={set.targetRpe}
+                        name={`target-rir-${exercise.id}-${si}`}
+                        ariaLabel={`${exercise.name} set ${si + 1} target RIR`}
+                        value={set.rir && Number.isFinite(Number(set.rir)) ? Math.round(Number(set.rir)) : set.targetRpe !== null ? Math.round(10 - set.targetRpe) : null}
                         disabled={set.warmup}
                         onChange={val =>
                           onUpdateSet(si, {
-                            targetRpe: val
+                            targetRpe: val !== null ? 10 - val : null,
+                            rir: val !== null ? String(val) : null
                           })
                         }
                       />

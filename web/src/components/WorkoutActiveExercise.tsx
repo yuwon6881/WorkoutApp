@@ -226,7 +226,7 @@ export function WorkoutActiveExercise({
           <span className="col-target">Target ↔</span>
           <span className="col-load">{unit.toUpperCase()}</span>
           <span className="col-reps">Reps</span>
-          <span className="col-rpe">RPE</span>
+          <span className="col-rpe">RIR</span>
           <span className="col-log">Done</span>
           <span className="col-del" />
         </div>

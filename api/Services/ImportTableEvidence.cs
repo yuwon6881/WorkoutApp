@@ -130,13 +130,25 @@ internal static class ImportTableEvidence
         var setRir = index < evidence.RirBySet.Count ? evidence.RirBySet[index] : null;
         var rirText = setRir?.Text ?? evidence.RirText;
         var rir = setRir?.Text is not null ? setRir.Value : evidence.Rir;
-        var inferredFromRir = rir is { } rirValue && rirValue is >= 0 and <= 4 ? 10 - rirValue : (double?)null;
+        var inferredFromRir = rir is { } rirValue && rirValue is >= 0 and <= 4 ? 10 - Math.Round(rirValue, MidpointRounding.AwayFromZero) : (double?)null;
         var sourceRpe = last ? evidence.LastRpe ?? evidence.EarlyRpe ?? evidence.Rpe : evidence.EarlyRpe ?? evidence.Rpe;
+        if (sourceRpe is { } sRpe) sourceRpe = Math.Round(sRpe, MidpointRounding.AwayFromZero);
         var targetRpe = rirText?.Equals("N/A", StringComparison.OrdinalIgnoreCase) == true && index > 0 && set.RpeSource == "inferred"
             ? null : set.TargetRpe ?? inferredFromRir ?? sourceRpe;
+        if (targetRpe is { } tRpe) targetRpe = Math.Round(tRpe, MidpointRounding.AwayFromZero);
         var rpeSource = set.TargetRpe is null
             ? inferredFromRir is not null ? "inferred" : sourceRpe is not null ? "extracted" : set.RpeSource
             : set.RpeSource;
+
+        var resolvedRir = rirText?.Equals("N/A", StringComparison.OrdinalIgnoreCase) == true
+            ? "N/A"
+            : HasText(set.Rir)
+                ? (double.TryParse(set.Rir, NumberStyles.Float, CultureInfo.InvariantCulture, out var sRir) ? ((int)Math.Round(sRir)).ToString(CultureInfo.InvariantCulture) : set.Rir)
+                : HasText(rirText)
+                    ? (double.TryParse(rirText, NumberStyles.Float, CultureInfo.InvariantCulture, out var eRir) ? ((int)Math.Round(eRir)).ToString(CultureInfo.InvariantCulture) : rirText)
+                    : targetRpe is { } tVal && tVal is >= 6 and <= 10
+                        ? ((int)Math.Round(10 - tVal)).ToString(CultureInfo.InvariantCulture)
+                        : null;
 
         var restText = HasText(set.RestText) ? set.RestText : evidence.RestText;
         var repsText = HasText(set.RepsText) ? set.RepsText : evidence.RepsText;
@@ -154,8 +166,7 @@ internal static class ImportTableEvidence
             RepsSource = !HasText(set.RepsText) && HasText(evidence.RepsText) ? "extracted" : set.RepsSource,
             LoadText = HasText(set.LoadText) ? set.LoadText : evidence.LoadText,
             TargetRpe = targetRpe,
-            Rir = rirText?.Equals("N/A", StringComparison.OrdinalIgnoreCase) == true
-                ? "N/A" : HasText(set.Rir) ? set.Rir : rirText,
+            Rir = resolvedRir,
             RpeSource = rpeSource,
             RestText = restText,
             RestSeconds = set.RestSeconds ?? evidence.RestSeconds ?? ParseRestSeconds(restText),
@@ -352,7 +363,7 @@ internal static class ImportTableEvidence
     }
 
     private static double? ParseRir(string? value)
-        => double.TryParse(CleanValue(value), NumberStyles.Float, CultureInfo.InvariantCulture, out var number) && number is >= 0 and <= 10 ? number : null;
+        => double.TryParse(CleanValue(value), NumberStyles.Float, CultureInfo.InvariantCulture, out var number) && number is >= 0 and <= 10 ? Math.Round(number, MidpointRounding.AwayFromZero) : null;
 
     private static double? ParseRpe(string? value)
     {
@@ -364,11 +375,11 @@ internal static class ImportTableEvidence
             && double.TryParse(rangeMatch.Groups["max"].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var maxRpe)
             && minRpe is >= 6 and <= 10 && maxRpe is >= 6 and <= 10)
         {
-            return Math.Round(((minRpe + maxRpe) / 2) * 2, MidpointRounding.AwayFromZero) / 2;
+            return Math.Round((minRpe + maxRpe) / 2, MidpointRounding.AwayFromZero);
         }
         var match = Regex.Match(clean, @"(?:RPE|APE|LSRPE)?\s*(?<value>\d+(?:\.\d+)?)", RegexOptions.IgnoreCase);
         return match.Success && double.TryParse(match.Groups["value"].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var number)
-            && number is >= 6 and <= 10 ? number : null;
+            && number is >= 6 and <= 10 ? Math.Round(number, MidpointRounding.AwayFromZero) : null;
     }
 
     private static (double? rpe, string? load) ParseMixedIntensity(string? value, bool percentByHeader, bool combinedIntensity)

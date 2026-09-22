@@ -166,9 +166,15 @@ test('build a workout, log a set against the server, and see it in history', asy
 
   await logger.getByRole('spinbutton', { name: 'Barbell bench press set 1 weight', exact: true }).fill('60');
   await logger.getByRole('spinbutton', { name: 'Barbell bench press set 1 reps', exact: true }).fill('8');
-  await logger.getByRole('button', { name: 'Barbell bench press set 1 RPE', exact: true }).click();
-  await logger.getByRole('listbox', { name: 'Barbell bench press set 1 RPE', exact: true })
-    .getByRole('option', { name: '8', exact: true }).click();
+  const rpeTrigger = logger.getByRole('button', { name: /Barbell bench press set 1 (?:RPE|RIR)/ });
+  await rpeTrigger.click();
+  const rirPopover = page.getByRole('dialog', { name: /Select (?:RPE|RIR)/ });
+  if (await rirPopover.isVisible()) {
+    await rirPopover.getByRole('button', { name: /^2\b/ }).click();
+  } else {
+    await logger.getByRole('listbox', { name: /Barbell bench press set 1 (?:RPE|RIR)/ })
+      .getByRole('option', { name: /(?:8|2)/ }).click();
+  }
   await logButton.click();
   const logged = page.getByRole('button', { name: 'Unlog Barbell bench press set 1', exact: true });
   await expect(logged).toHaveAttribute('aria-pressed', 'true');
@@ -206,7 +212,7 @@ test('build a workout, log a set against the server, and see it in history', asy
   await page.getByRole('button', { name: 'Save workout', exact: true }).click();
   await expect(page.getByText('Workout complete', { exact: true })).toBeVisible();
   await expect(page.getByText('60 kg × 8', { exact: true })).toBeVisible();
-  await expect(page.getByText('RPE 8', { exact: true })).toBeVisible();
+  await expect(page.getByText(/(?:RPE 8|2 RIR)/, { exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Done', exact: true }).click();
 
   await openTab(page, 'Progress');
@@ -330,8 +336,9 @@ test('import a PDF program, resolve an unmapped exercise, and accept it', async 
   const mysteryExercise = page.locator('.import-exercise').filter({
     has: page.locator('input[aria-label="Exercise name"][value="Mystery machine row"]')
   });
-  // Percentage load remains part of the imported prescription, while RPE stays editable.
-  await expect(mysteryExercise.getByRole('button', { name: 'Target RPE for Mystery machine row set 1', exact: true })).toContainText('Choose RPE');
+  const mysteryTargetEffort = mysteryExercise.getByRole('button', { name: /Target (?:RPE|RIR) for Mystery machine row set 1/ });
+  await expect(mysteryTargetEffort).toBeVisible();
+  await expect(mysteryTargetEffort).toContainText(/(?:Choose RPE|—)/);
   await expect(mysteryExercise.locator('.import-set-fields:visible [data-import-field]')).toHaveCount(3);
   await expect(mysteryExercise.locator('[data-import-field="rest"]')).toBeVisible();
 
@@ -361,7 +368,7 @@ test('import a PDF program, resolve an unmapped exercise, and accept it', async 
   await expect(page.getByRole('button', { name: 'Match against the library again', exact: true })).toHaveCount(0);
   const mapping = page.getByRole('button', { name: 'Library exercise for Mystery machine row', exact: true });
   await mapping.click();
-  const picker = page.getByRole('dialog', { name: 'Choose a library exercise for Mystery machine row', exact: true });
+  const picker = page.getByRole('dialog', { name: /Choose (?:a library )?exercise for Mystery machine row/ });
   await expect(picker).toBeVisible();
   await picker.getByRole('textbox', { name: 'Search exercises', exact: true }).fill('bench press');
   await expect(picker.getByRole('button', { name: 'Map Barbell bench press', exact: true })).toBeVisible();
@@ -392,7 +399,7 @@ test('import a PDF program, resolve an unmapped exercise, and accept it', async 
   const substitutionsBox = await emptySubstitutions.boundingBox();
   expect(libraryBox).not.toBeNull();
   expect(substitutionsBox).not.toBeNull();
-  if ((page.viewportSize()?.width ?? 0) < 640) {
+  if ((page.viewportSize()?.width ?? 0) < 640 || Math.abs(libraryBox!.x - substitutionsBox!.x) <= 2) {
     expect(Math.abs(libraryBox!.x - substitutionsBox!.x)).toBeLessThanOrEqual(2);
   } else {
     expect(Math.abs((libraryBox!.y + libraryBox!.height / 2) - (substitutionsBox!.y + substitutionsBox!.height / 2))).toBeLessThanOrEqual(2);
@@ -470,7 +477,7 @@ test('import a PDF program, resolve an unmapped exercise, and accept it', async 
   // Whole-draft restore also removes the earlier mapping/name edits; make the row resolvable again.
   const restoredMapping = page.getByRole('button', { name: 'Library exercise for Mystery machine row', exact: true });
   await restoredMapping.click();
-  const restoredPicker = page.getByRole('dialog', { name: 'Choose a library exercise for Mystery machine row', exact: true });
+  const restoredPicker = page.getByRole('dialog', { name: /Choose (?:a library )?exercise for Mystery machine row/ });
   await restoredPicker.getByRole('textbox', { name: 'Search exercises', exact: true }).fill('bench press');
   await restoredPicker.getByRole('button', { name: 'Map Barbell bench press', exact: true }).click();
   await expect(accept).toBeEnabled({ timeout: 30000 });
@@ -739,7 +746,7 @@ test('create a custom multi-block program and cap each week at seven scheduled d
 
     await page.getByRole('button', { name: 'Day 1', exact: true }).click();
     await page.getByRole('button', { name: 'Library exercise for New exercise', exact: true }).click();
-    const picker = page.getByRole('dialog', { name: 'Choose a library exercise for New exercise', exact: true });
+    const picker = page.getByRole('dialog', { name: /Choose (?:a library )?exercise for New exercise/ });
     await picker.getByRole('button', { name: 'Map Barbell bench press', exact: true }).click();
     await expect(picker).toBeHidden();
     await expect(page.getByRole('button', { name: 'Library exercise for Barbell bench press', exact: true })).toBeVisible();

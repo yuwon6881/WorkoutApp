@@ -5,7 +5,8 @@ import { Button } from './Button';
 import { useAnchoredLayer } from './useAnchoredLayer';
 import './RpeControl.css';
 
-export const RPE_STEPS = [6, 6.5, 7, 7.5, 8, 8.5, 9, 9.5, 10] as const;
+export const RIR_STEPS = [0, 1, 2, 3, 4] as const;
+export const RPE_STEPS = RIR_STEPS;
 
 export interface RpeControlProps {
   name?: string;
@@ -21,7 +22,7 @@ export function RpeControl({
   value,
   onChange,
   disabled = false,
-  ariaLabel = 'Rate of Perceived Exertion (RPE)',
+  ariaLabel = 'Reps in Reserve (RIR)',
   compact = false
 }: RpeControlProps) {
   const [open, setOpen] = useState(false);
@@ -35,7 +36,7 @@ export function RpeControl({
     layerRef: popoverRef,
     align: 'start',
     minWidth: 200,
-    maxWidth: 220,
+    maxWidth: 240,
     maxHeight: 260,
     offset: 5
   });
@@ -59,26 +60,26 @@ export function RpeControl({
   const stepDown = () => {
     if (disabled) return;
     if (value === null) {
-      onChange(8);
+      onChange(2);
       return;
     }
-    if (value <= 6) {
+    if (value <= 0) {
       onChange(null);
       return;
     }
-    const next = Math.round((value - 0.5) * 10) / 10;
-    onChange(Math.max(6, next));
+    const next = Math.round(value - 1);
+    onChange(Math.max(0, next));
   };
 
   const stepUp = () => {
     if (disabled) return;
     if (value === null) {
-      onChange(8);
+      onChange(2);
       return;
     }
-    if (value >= 10) return;
-    const next = Math.round((value + 0.5) * 10) / 10;
-    onChange(Math.min(10, next));
+    if (value >= 4) return;
+    const next = Math.round(value + 1);
+    onChange(Math.min(4, next));
   };
 
   const handleKeyDown = (e: ReactKeyboardEvent) => {
@@ -104,16 +105,18 @@ export function RpeControl({
     >
       {name && <input type="hidden" name={name} value={value ?? ''} />}
 
-      <Button
-        presentation="plain"
-        type="button"
-        disabled={disabled || value === null}
-        className="rpe-step-btn rpe-step-down"
-        aria-label="Decrease RPE"
-        onClick={stepDown}
-      >
-        <Minus size={13} />
-      </Button>
+      {!compact && (
+        <Button
+          presentation="plain"
+          type="button"
+          disabled={disabled || value === null}
+          className="rpe-step-btn rpe-step-down"
+          aria-label="Decrease RIR"
+          onClick={stepDown}
+        >
+          <Minus size={13} />
+        </Button>
+      )}
 
       <Button
         ref={triggerRef}
@@ -126,19 +129,21 @@ export function RpeControl({
         aria-expanded={open}
         onClick={() => setOpen(prev => !prev)}
       >
-        <span className="rpe-value-text">{value !== null ? value : '—'}</span>
+        <span className="rpe-value-text">{value !== null ? `${Math.round(value)} RIR` : '—'}</span>
       </Button>
 
-      <Button
-        presentation="plain"
-        type="button"
-        disabled={disabled || (value !== null && value >= 10)}
-        className="rpe-step-btn rpe-step-up"
-        aria-label="Increase RPE"
-        onClick={stepUp}
-      >
-        <Plus size={13} />
-      </Button>
+      {!compact && (
+        <Button
+          presentation="plain"
+          type="button"
+          disabled={disabled || (value !== null && value >= 4)}
+          className="rpe-step-btn rpe-step-up"
+          aria-label="Increase RIR"
+          onClick={stepUp}
+        >
+          <Plus size={13} />
+        </Button>
+      )}
 
       {open && portalTarget && createPortal(
         <div
@@ -146,10 +151,10 @@ export function RpeControl({
           className="rpe-popover"
           style={dropdownStyle ?? { visibility: 'hidden' }}
           role="dialog"
-          aria-label="Select RPE"
+          aria-label="Select RIR"
         >
           <div className="rpe-popover-header">
-            <span className="rpe-popover-title">Target RPE</span>
+            <span className="rpe-popover-title">Target RIR</span>
             <Button
               presentation="plain"
               className="rpe-clear-btn"
@@ -163,9 +168,8 @@ export function RpeControl({
             </Button>
           </div>
           <div className="rpe-popover-grid">
-            {RPE_STEPS.map(step => {
-              const isSelected = value === step;
-              const rir = Math.round((10 - step) * 10) / 10;
+            {RIR_STEPS.map(step => {
+              const isSelected = value !== null && Math.round(value) === step;
               return (
                 <Button
                   key={step}
@@ -178,7 +182,7 @@ export function RpeControl({
                   }}
                 >
                   <strong>{step}</strong>
-                  <small>{rir === 0 ? 'Max' : `${rir} RIR`}</small>
+                  <small>{step === 0 ? 'Max' : `${step} RIR`}</small>
                 </Button>
               );
             })}

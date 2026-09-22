@@ -271,7 +271,7 @@ public class AiImportTests
         Assert.Equal(view.Id, program.SourceImportId);
         var workout = Assert.Single(program.Workouts);
         Assert.Equal("Day A", workout.Name);
-        Assert.Equal(new SetPrescription(8, 10, 8, 120, null, null, null, null, null, null, false, "extracted", "inferred", "extracted"), workout.Exercises.Single().Sets.Single());
+        Assert.Equal(new SetPrescription(8, 10, 8, 120, null, null, null, null, null, "2", false, "extracted", "inferred", "extracted"), workout.Exercises.Single().Sets.Single());
         // Accepting removes the import: the program it produced is the lasting record.
         Assert.Equal(404, (await Assert.ThrowsAsync<DomainException>(() => imports.Get(view.Id, default))).Status);
     }

@@ -1,9 +1,10 @@
 .rpe-control {
   display: inline-flex;
   align-items: stretch;
+  min-height: 44px;
   height: 44px;
-  min-width: 100px;
-  max-width: 130px;
+  min-width: 120px;
+  max-width: 144px;
   width: 100%;
   border: 1px solid var(--border);
   border-radius: var(--radius-control);
@@ -26,15 +27,28 @@
   cursor: not-allowed;
 }
 .rpe-control.compact {
-  height: 40px;
-  min-width: 84px;
+  min-height: 44px;
+  height: 44px;
+  min-width: 72px;
   max-width: 96px;
+}
+@media (min-width: 1024px) {
+  .rpe-control {
+    min-height: 36px;
+    height: 36px;
+    min-width: 108px;
+  }
+  .rpe-control.compact {
+    min-height: 36px;
+    height: 36px;
+  }
 }
 .rpe-step-btn {
   display: inline-grid;
   place-items: center;
-  width: 28px;
-  min-width: 28px;
+  width: 44px;
+  min-width: 44px;
+  min-height: 44px;
   height: 100%;
   padding: 0;
   border: 0;
@@ -42,6 +56,13 @@
   color: var(--muted);
   cursor: pointer;
   transition: color 0.14s ease, background 0.14s ease;
+}
+@media (min-width: 1024px) {
+  .rpe-step-btn {
+    width: 36px;
+    min-width: 36px;
+    min-height: 36px;
+  }
 }
 .rpe-step-btn:hover:not(:disabled) {
   color: var(--text);
@@ -59,7 +80,8 @@
 }
 .rpe-value-btn {
   flex: 1;
-  min-width: 0;
+  min-width: 44px;
+  min-height: 44px;
   height: 100%;
   padding: 0 4px;
   border: 0;
@@ -73,6 +95,18 @@
   justify-content: center;
   transition: background 0.14s ease, color 0.14s ease;
 }
+.rpe-control.compact .rpe-value-btn {
+  border-left: 0;
+  border-right: 0;
+  border-radius: var(--radius-control);
+  width: 100%;
+}
+@media (min-width: 1024px) {
+  .rpe-value-btn {
+    min-height: 36px;
+    min-width: 36px;
+  }
+}
 .rpe-value-btn:hover:not(:disabled) {
   background: var(--surface-hover);
 }
@@ -81,7 +115,7 @@
   background: transparent;
 }
 .rpe-value-text {
-  font-size: 14px;
+  font-size: var(--font-secondary, 14px);
   font-weight: 700;
   letter-spacing: -0.02em;
 }
@@ -100,7 +134,7 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
-  width: 220px;
+  width: 240px;
   box-sizing: border-box;
 }
 .rpe-popover-header {
@@ -110,20 +144,21 @@
   padding: 0 2px;
 }
 .rpe-popover-title {
-  font-size: 11px;
+  font-size: var(--font-secondary, 14px);
   font-weight: 600;
   color: var(--muted);
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
 .rpe-clear-btn {
-  font-size: 11px;
+  font-size: var(--font-secondary, 14px);
   font-weight: 600;
   color: var(--muted);
   background: transparent;
   border: 0;
   cursor: pointer;
-  padding: 2px 6px;
+  padding: 4px 8px;
+  min-height: 36px;
   border-radius: 4px;
   transition: color 0.14s ease, background 0.14s ease;
 }
@@ -133,8 +168,8 @@
 }
 .rpe-popover-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 5px;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 4px;
 }
 .rpe-pill {
   display: flex;
@@ -148,7 +183,8 @@
   color: var(--text);
   cursor: pointer;
   transition: all 0.14s ease;
-  min-height: 40px;
+  min-height: 44px;
+  min-width: 38px;
 }
 .rpe-pill:hover {
   background: var(--surface-hover);
@@ -160,12 +196,12 @@
   color: var(--accent);
 }
 .rpe-pill strong {
-  font-size: 13px;
+  font-size: var(--font-secondary, 14px);
   font-weight: 700;
   line-height: 1.2;
 }
 .rpe-pill small {
-  font-size: 9px;
+  font-size: var(--font-secondary, 14px);
   color: var(--muted);
   margin-top: 1px;
   line-height: 1;

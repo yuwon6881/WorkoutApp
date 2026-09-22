@@ -267,14 +267,25 @@ public sealed partial class ImportService(AppDb db, WorkoutAi ai, CatalogService
         {
             // RIR is useful evidence, but an out-of-range conversion is not a reason to invent a
             // target that the document never supplied. Leave it visibly unresolved for review.
-            var inferred = 10 - rir;
+            var intRir = (int)Math.Round((double)rir);
+            var inferred = 10 - intRir;
             if (inferred is >= 6 and <= 10) { rpe = inferred; rpeSource = "inferred"; }
+        }
+        var rirText = ImportNormalization.Text(set.Rir, 16);
+        if (string.IsNullOrWhiteSpace(rirText) && rpe != null)
+        {
+            var calculatedRir = (int)Math.Round(10 - rpe.Value);
+            if (calculatedRir is >= 0 and <= 4) rirText = calculatedRir.ToString(CultureInfo.InvariantCulture);
+        }
+        else if (TryFirstNumber(rirText, out var parsedRir))
+        {
+            rirText = ((int)Math.Round((double)parsedRir)).ToString(CultureInfo.InvariantCulture);
         }
         return new DraftSet(reps.Min, reps.Max, rpe, restValue.Value,
             ImportNormalization.Text(set.Tempo, 24), ImportNormalization.Text(set.LoadText, 60), ImportNormalization.Text(set.Notes, 400),
             repsSource, rpeSource, restValue.Adjusted ? "inferred" : ImportNormalization.Provenance(set.RestSource),
             ImportNormalization.Text(set.RepsText, 40), ImportNormalization.Text(set.RestText, 24),
-            ImportNormalization.Text(set.Rir, 16), false, ImportNormalization.Page(set.SourcePage));
+            rirText, false, ImportNormalization.Page(set.SourcePage));
     }
 
     private static int? DeriveRest(string? text, int? fallback)

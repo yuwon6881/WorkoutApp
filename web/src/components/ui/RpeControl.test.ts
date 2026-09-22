@@ -7,15 +7,15 @@ describe('RpeControl', () => {
   it('renders value and stepper controls', () => {
     const markup = renderToStaticMarkup(
       createElement(RpeControl, {
-        value: 8.5,
+        value: 2,
         onChange: () => {},
-        ariaLabel: 'Target RPE'
+        ariaLabel: 'Target RIR'
       })
     );
 
-    expect(markup).toContain('8.5');
-    expect(markup).toContain('aria-label="Decrease RPE"');
-    expect(markup).toContain('aria-label="Increase RPE"');
+    expect(markup).toContain('2 RIR');
+    expect(markup).toContain('aria-label="Decrease RIR"');
+    expect(markup).toContain('aria-label="Increase RIR"');
     expect(markup).toContain('class="rpe-control');
   });
 
@@ -24,17 +24,18 @@ describe('RpeControl', () => {
       createElement(RpeControl, {
         value: null,
         onChange: () => {},
-        ariaLabel: 'Target RPE'
+        ariaLabel: 'Target RIR'
       })
     );
 
     expect(markup).toContain('—');
   });
 
-  it('includes valid RPE steps from 6 to 10', () => {
-    expect(RPE_STEPS[0]).toBe(6);
-    expect(RPE_STEPS[RPE_STEPS.length - 1]).toBe(10);
-    expect(RPE_STEPS).toContain(8);
-    expect(RPE_STEPS).toContain(8.5);
+  it('includes valid whole integer RIR steps from 0 to 4 without partial .5', () => {
+    expect(RPE_STEPS[0]).toBe(0);
+    expect(RPE_STEPS[RPE_STEPS.length - 1]).toBe(4);
+    expect(RPE_STEPS).toContain(2);
+    expect(RPE_STEPS).not.toContain(0.5);
+    expect(RPE_STEPS).not.toContain(1.5);
   });
 });

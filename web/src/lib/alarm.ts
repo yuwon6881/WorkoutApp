@@ -7,9 +7,21 @@ type AlarmAudio = { context: AudioContext };
 let audio: AlarmAudio | null = null;
 let scheduled: OscillatorNode[] = [];
 
-const CHIME = [
-  { frequency: 659.25, offset: 0, duration: 0.24, gain: 0.14 },
-  { frequency: 880, offset: 0.16, duration: 0.34, gain: 0.16 }
+type ToneSpec = {
+  frequency: number;
+  offset: number;
+  duration: number;
+  gain: number;
+};
+
+/// Soothing two-note acoustic chime (C5 -> E5) with soft harmonic shimmer and natural exponential decay.
+const CHIME: readonly ToneSpec[] = [
+  // First note: C5 fundamental + soft octave overtone
+  { frequency: 523.25, offset: 0, duration: 0.65, gain: 0.11 },
+  { frequency: 1046.5, offset: 0, duration: 0.28, gain: 0.02 },
+  // Second note: E5 fundamental + soft octave overtone
+  { frequency: 659.25, offset: 0.18, duration: 0.85, gain: 0.12 },
+  { frequency: 1318.5, offset: 0.18, duration: 0.32, gain: 0.025 }
 ] as const;
 
 /// Call from a user gesture because browsers block audio-context startup outside user input.
@@ -32,21 +44,26 @@ export function scheduleAlarm(atEpochMs: number): boolean {
   const delay = (atEpochMs - Date.now()) / 1000;
   if (delay < 0) return false;
   const start = context.currentTime + delay;
-  for (const tone of CHIME) scheduled.push(beep(context, start + tone.offset, tone.frequency, tone.duration, tone.gain));
+  for (const tone of CHIME) scheduled.push(playChimeTone(context, start + tone.offset, tone.frequency, tone.duration, tone.gain));
   return true;
 }
 
-function beep(context: AudioContext, at: number, frequency: number, duration: number, peakGain: number): OscillatorNode {
+function playChimeTone(context: AudioContext, at: number, frequency: number, duration: number, peakGain: number): OscillatorNode {
   const oscillator = context.createOscillator();
   const gain = context.createGain();
   oscillator.type = 'sine';
   oscillator.frequency.value = frequency;
-  gain.gain.setValueAtTime(0, at);
-  gain.gain.linearRampToValueAtTime(peakGain, at + 0.035);
-  gain.gain.setValueAtTime(peakGain, at + duration - 0.07);
-  gain.gain.linearRampToValueAtTime(0, at + duration);
-  oscillator.connect(gain); gain.connect(context.destination);
-  oscillator.start(at); oscillator.stop(at + duration + 0.03);
+
+  // Gentle 20ms attack to avoid clicks, followed by a natural acoustic exponential decay
+  gain.gain.setValueAtTime(0.0001, at);
+  gain.gain.linearRampToValueAtTime(peakGain, at + 0.02);
+  gain.gain.exponentialRampToValueAtTime(0.0005, at + duration);
+  gain.gain.linearRampToValueAtTime(0, at + duration + 0.01);
+
+  oscillator.connect(gain);
+  gain.connect(context.destination);
+  oscillator.start(at);
+  oscillator.stop(at + duration + 0.02);
   return oscillator;
 }
 
@@ -66,7 +83,7 @@ export function soundNow(): boolean {
   if (!primeAlarm() || !audio) return false;
   const { context } = audio;
   const start = context.currentTime + 0.05;
-  for (const tone of CHIME) scheduled.push(beep(context, start + tone.offset, tone.frequency, tone.duration, tone.gain));
+  for (const tone of CHIME) scheduled.push(playChimeTone(context, start + tone.offset, tone.frequency, tone.duration, tone.gain));
   return true;
 }
 
