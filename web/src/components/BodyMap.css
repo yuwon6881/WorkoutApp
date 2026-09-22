@@ -52,8 +52,10 @@
    how many sets that muscle accumulated. */
 .muscle-region{
   fill:color-mix(in srgb,var(--accent) var(--muscle-shade,16%),var(--surface-raised));
-  stroke:var(--border);
-  stroke-width:1;
+  /* The separation between two muscles is the only thing telling them apart when neither is
+     trained, so the outline is drawn against the hover border rather than the faint one. */
+  stroke:var(--border-hover);
+  stroke-width:1.25;
   stroke-linejoin:round;
   vector-effect:non-scaling-stroke;
   cursor:pointer;
@@ -72,12 +74,13 @@
    muscle fills.  Non-interactive and invisible to assistive tech. */
 .muscle-anatomy-lines{
   fill:none;
-  stroke:var(--border);
-  stroke-width:0.7;
+  stroke:var(--border-hover);
+  stroke-width:0.9;
   stroke-linecap:round;
+  stroke-linejoin:round;
   vector-effect:non-scaling-stroke;
   pointer-events:none;
-  opacity:0.6;
+  opacity:0.75;
 }
 
 /* A reserved row: the readout never adds or removes height while a muscle is pointed at. */

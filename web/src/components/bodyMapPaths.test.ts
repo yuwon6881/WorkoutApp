@@ -68,8 +68,10 @@ describe('body map paths', () => {
   }
 
   it.each([
-    ['trapBottom', FRONT_SEAMS.trapBottom, ['Traps', 'Chest']],
-    ['deltChest', FRONT_SEAMS.deltChest, ['Chest', 'Shoulders']],
+    ['clavicle', FRONT_SEAMS.clavicle, ['Traps', 'Chest']],
+    ['torsoSideUpper', FRONT_SEAMS.torsoSideUpper, ['Chest']],
+    ['torsoSide', FRONT_SEAMS.torsoSide, ['Core']],
+    ['armInnerUpper', FRONT_SEAMS.armInnerUpper, ['Shoulders']],
     ['deltArm', FRONT_SEAMS.deltArm, ['Shoulders', 'Biceps']],
     ['armMedial', FRONT_SEAMS.armMedial, ['Biceps']],
     ['chestBottom', FRONT_SEAMS.chestBottom, ['Chest', 'Core']],
@@ -82,13 +84,23 @@ describe('body map paths', () => {
   it.each([
     ['trapLat', BACK_SEAMS.trapLat, ['Traps', 'Back']],
     ['deltArm', BACK_SEAMS.deltArm, ['Shoulders', 'Triceps']],
-    ['deltBack', BACK_SEAMS.deltBack, ['Shoulders']],
+    ['armInnerUpper', BACK_SEAMS.armInnerUpper, ['Shoulders']],
     ['armMedial', BACK_SEAMS.armMedial, ['Triceps']],
     ['latGlute', BACK_SEAMS.latGlute, ['Back', 'Glutes']],
+    ['hipOuter', BACK_SEAMS.hipOuter, ['Glutes']],
     ['gluteHamstring', BACK_SEAMS.gluteHamstring, ['Glutes', 'Hamstrings']],
-    ['kneeLeft', BACK_SEAMS.kneeLeft, ['Calves']]
+    ['kneeLeft', BACK_SEAMS.kneeLeft, ['Calves', 'Hamstrings']]
   ])('back %s joins its regions at the same points', (_name, seam, regions) => {
     sharesSeam(BACK_REGIONS, seam as string, regions as string[]);
+  });
+
+  /// The two views share one body, so an arm or leg edge must be the same line in both.
+  it('shares the arm and leg edges between the two views', () => {
+    expect(BACK_SEAMS.deltArm).toBe(FRONT_SEAMS.deltArm);
+    expect(BACK_SEAMS.armMedial).toBe(FRONT_SEAMS.armMedial);
+    expect(BACK_SEAMS.armInnerUpper).toBe(FRONT_SEAMS.armInnerUpper);
+    expect(BACK_SEAMS.kneeLeft).toBe(FRONT_SEAMS.kneeLeft);
+    expect(BACK_SILHOUETTE).toBe(FRONT_SILHOUETTE);
   });
 
   it('mirrors a left-side path about the centre line', () => {

@@ -1,6 +1,6 @@
 /* This page owns its own layout end to end. It deliberately does not use the shared `.settings-grid`
-   class: that one is a two-column grid, and a settings row is a label beside a control, which needs
-   the full width to stay on one line. */
+   class: that one is a fixed two-column grid, and it was applied at every width, which is what
+   squeezed each row's label against its control. */
 .settings-layout {
   display: flex;
   flex-direction: column;
@@ -17,6 +17,35 @@
 
 .settings-layout .panel > h2 {
   margin-bottom: 16px;
+}
+
+/* Two columns once there is room for them, so a wide screen is not mostly empty. Multi-column
+   rather than a grid because the panels are different heights and should pack, not line up in rows
+   with dead space under the shorter one. The threshold is where a half-width panel is still wide
+   enough to keep a long label and its control on one line — below that, one column reads better
+   than two cramped ones. */
+@media (min-width: 1280px) {
+  .settings-layout {
+    display: block;
+    max-width: 1180px;
+    columns: 2;
+    column-gap: 20px;
+  }
+
+  .settings-layout > * {
+    break-inside: avoid;
+    margin-bottom: 20px;
+  }
+
+  .settings-layout > .panel {
+    margin-bottom: 20px;
+  }
+
+  /* The version line belongs under the whole page, not at the foot of whichever column it lands in. */
+  .settings-layout > .app-version-meta {
+    column-span: all;
+    margin-bottom: 0;
+  }
 }
 
 .setting-row {
@@ -173,6 +202,12 @@
   flex-direction: column;
   gap: 6px;
   min-width: 0;
+}
+
+/* The label does not wrap, so letting the button shrink only clips it. The paragraph beside it is
+   the part with room to give. */
+.install-panel-content > .button {
+  flex-shrink: 0;
 }
 
 .install-panel-info h2 {
