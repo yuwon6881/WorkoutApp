@@ -34,12 +34,18 @@ internal static class ImportChunkReconciliation
         return true;
     }
 
-    public static ChunkMerge ReconcileChunkCoverage(ImportDraft existing, ImportDraft extracted, ImportChunk chunk)
+    public static ChunkMerge ReconcileChunkCoverage(ImportDraft existing, ImportDraft extracted, ImportChunk chunk,
+        IReadOnlyList<ImportPageText>? pages = null)
     {
         var translated = ImportAbsoluteWeeks.TranslateDays(extracted.Workouts, chunk);
-        var shaped = ImportDayShape.Reconcile(translated);
-        var notices = new List<ImportReviewIssue>(shaped.Notices);
-        var strayed = shaped.Workouts.Where(day => day.Week < chunk.WeekFrom || day.Week > chunk.WeekTo).ToList();
+        // Lettered versions of one week are separated before the week is shaped: shaped together
+        // they overflow it, and its trailing rest days would be trimmed as surplus.
+        var versions = ImportWeekVariants.Separate(translated, pages ?? []);
+        var shaped = ImportDayShape.Reconcile(versions.Workouts);
+        var notices = new List<ImportReviewIssue>(versions.Notices);
+        notices.AddRange(shaped.Notices);
+        var strayed = shaped.Workouts.Where(day => !versions.Moved.Contains(day.LineId)
+            && (day.Week < chunk.WeekFrom || day.Week > chunk.WeekTo)).ToList();
         if (strayed.Count > 0)
             notices.Add(new ImportReviewIssue("day_outside_section_weeks",
                 $"'{chunk.Label}' covers weeks {chunk.WeekFrom}-{chunk.WeekTo} but read {string.Join(", ", strayed.Select(day => day.Name).Distinct())} as week {string.Join(", ", strayed.Select(day => day.Week).Distinct().Order())}. The pages were followed; check the order in the review.",
@@ -53,16 +59,23 @@ internal static class ImportChunkReconciliation
         var droppedEarlierDuplicates = new List<DraftWorkout>();
         var repeated = 0;
 
+        // Every rest day on a page reads the same, and a page printing one between each of its
+        // sessions means each of them. A rest day is a repeat only as part of a repeated session.
+        var previousSessionRepeated = false;
         foreach (var day in shaped.Workouts)
         {
-            if (workouts.Any(workout => AreStructurallyIdentical(workout, day))) continue;
+            var identical = workouts.Any(workout => AreStructurallyIdentical(workout, day));
+            if (!day.IsRestDay) previousSessionRepeated = identical;
+            if (identical && (!day.IsRestDay || previousSessionRepeated)) continue;
             var key = DayKey(day);
             if (existingKeys.Contains(key))
             {
                 droppedEarlierDuplicates.Add(day);
                 continue;
             }
-            if (!seen.Add(key)) repeated++;
+            // A page routinely prints "REST DAY" between each of its sessions, and every one of
+            // them reads the same; only a training day that repeats is worth a reviewer's time.
+            if (!seen.Add(key) && !day.IsRestDay) repeated++;
             workouts.Add(day);
         }
 

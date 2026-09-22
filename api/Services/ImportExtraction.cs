@@ -158,7 +158,8 @@ public sealed partial class ImportService
             var sourceText = ImportSourceText.Slice(pages, 1, ImportSourceText.MaxPages);
             var reconciledLegacy = ImportTableEvidence.Enrich(legacy, sourceText);
             var labeled = ImportDayLabels.Apply(await ToDraft(reconciledLegacy, ct), pages);
-            var draft = ImportOutlineEvidence.NormalizeDraft(labeled.Draft, sourceEvidence);
+            var versions = ImportWeekVariants.Separate(labeled.Draft.Workouts, pages);
+            var draft = ImportOutlineEvidence.NormalizeDraft(labeled.Draft with { Workouts = versions.Workouts }, sourceEvidence);
             var blockRuns = ImportBlockRuns.Reconcile(draft.Workouts);
             draft = draft with { Workouts = blockRuns.Workouts };
             var named = ImportDayLabels.FillMissing(draft);
@@ -170,7 +171,7 @@ public sealed partial class ImportService
             var shaped = ReconcileDayShape(draft.Workouts);
             var cited = ImportDayShape.ReconcilePages(draft with { Workouts = shaped.Workouts }, import.Pages);
             draft = ImportValidation.NormalizeDraft(cited.Draft);
-            List<ImportReviewIssue> outlineNotices = [.. labeled.Notices, .. blockRuns.Notices, .. named.Notices];
+            List<ImportReviewIssue> outlineNotices = [.. labeled.Notices, .. versions.Notices, .. blockRuns.Notices, .. named.Notices];
             if (numbered.Renumbered)
             {
                 outlineNotices.Add(new ImportReviewIssue("phase_week_renumbered",

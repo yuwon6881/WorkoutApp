@@ -1,4 +1,4 @@
-import { fontSize, isRotated, normalizedText, type PositionedPiece } from './pdfGeometry';
+import { fontSize, isRotated, median, normalizedText, pieceCenter, type PositionedPiece } from './pdfGeometry';
 
 export type DayLabel = {
   text: string;
@@ -14,6 +14,8 @@ export type TableSpan = { top: number; bottom: number; left?: number; right?: nu
 const STRUCTURAL_BANNER = /^(?:WEEK\b|BLOCK\b|INTRO\b|DELOAD\b|REST\s+DAY\b)/i;
 const DAY_VOCABULARY = /^(?:(?:DAY\s*\d{1,2}|(?:UPPER|LOWER|PUSH|PULL|LEGS?|ARMS?|CHEST|BACK|FULL\s+BODY)(?:\s+(?:#?\d{1,2}|STRENGTH|HYPERTROPHY|VOLUME|POWER))?|ARMS\s*[&/]\s*(?:DELTS|WEAK\s+POINTS))(?:\s*(?:#\d{1,2}|\([^()]{1,28}\)))?)$/i;
 const POSITIONAL_LABEL = /^DAY\s*\d{1,2}$/i;
+/// How much larger than the page's body text a margin word must be to count as a title.
+const STACKED_LABEL_SCALE = 1.4;
 const CHART_AXIS_LABEL = /^(?:TOTAL\s+VOLUME|VOLUME\s*\(|\d+(?:\.\d+)?\s*[x×]\s*\/\s*week)/i;
 
 function usableLabel(value: string): boolean {
@@ -80,11 +82,65 @@ function findHorizontalLabels(pieces: PositionedPiece[]): DayLabel[] {
     .map(piece => makeLabel([piece], piece.str));
 }
 
+/// Some layouts print the day title horizontally in the table's left margin, one word per line
+/// and larger than the table text: "FULL / BODY / 1" or "SQUAT / TEST:". No single word is a
+/// title, and left in the rows each is rendered into the exercise column beside it, turning
+/// "Back Squat" into "BACK SQUAT FULL". These are only candidates: a stack is a title when it
+/// sits beside a table, which the page reader decides once it knows where the tables are.
+export function findStackedLabels(pieces: PositionedPiece[], claimed: ReadonlySet<PositionedPiece>): DayLabel[] {
+  const horizontal = pieces.filter(piece => !isRotated(piece) && !claimed.has(piece));
+  if (horizontal.length === 0) return [];
+  const bodySize = median(horizontal.map(fontSize));
+  const isCandidate = (piece: PositionedPiece) => {
+    const text = normalizedText(piece.str);
+    return fontSize(piece) >= bodySize * STACKED_LABEL_SCALE && text.length <= 16
+      && text.split(' ').length <= 2 && !STRUCTURAL_BANNER.test(text);
+  };
+  const candidates = horizontal.filter(isCandidate).sort((a, b) => b.yEnd - a.yEnd || a.x - b.x);
+  const others = horizontal.filter(piece => !isCandidate(piece));
+  const groups: PositionedPiece[][] = [];
+  for (const piece of candidates) {
+    const group = groups.find(existing => continuesStack(existing.at(-1)!, piece));
+    if (group) group.push(piece);
+    else groups.push([piece]);
+  }
+  return groups.filter(group => group.length >= 2 && !hasHorizontalOverlap(group, others)).flatMap(group => {
+    const text = group.map(piece => normalizedText(piece.str)).join(' ').replace(/:$/, '');
+    return usableLabel(text) ? [makeLabel(group, text)] : [];
+  });
+}
+
+/// The next word of a stack is directly below the last one and centred on the same strip.
+function continuesStack(previous: PositionedPiece, piece: PositionedPiece): boolean {
+  const size = Math.max(fontSize(previous), fontSize(piece));
+  const centred = Math.abs(pieceCenter(previous) - pieceCenter(piece)) <= size * 1.5;
+  const gap = previous.yStart - piece.yEnd;
+  return centred && gap >= -size * 0.2 && gap <= size * 0.8;
+}
+
+/// Whether a stacked candidate is a table's day title: it overlaps the table vertically and sits
+/// to the left of the table's first column.
+export function besideTable(label: DayLabel, tables: TableSpan[]): boolean {
+  const right = Math.max(...label.pieces.map(piece => piece.endX));
+  return tables.some(table => Math.min(label.top, table.top) > Math.max(label.bottom, table.bottom)
+    && (table.left === undefined || right < table.left));
+}
+
 /// Rotated margin text is the strongest day-title signal. Bare vocabulary is a fallback for
 /// layouts that print the title horizontally; week, block, deload, and rest banners stay distinct.
 export function findDayLabels(pieces: PositionedPiece[]): DayLabel[] {
-  const labels = preferredLabels(findRotatedLabels(pieces), findHorizontalLabels(pieces));
-  return labels.sort((a, b) => b.y - a.y || a.x - b.x);
+  return findDayTitles(pieces).labels;
+}
+
+/// The day titles a page marks, plus the margin tabs they were preferred over. A superseded
+/// "DAY 1" tab is still a title rather than table text: left in the rows it is read into the
+/// exercise beside it ("DAY 1 DUMBBELL WALKING LUNGE").
+export function findDayTitles(pieces: PositionedPiece[]): { labels: DayLabel[]; superseded: PositionedPiece[] } {
+  const rotated = findRotatedLabels(pieces);
+  const labels = preferredLabels(rotated, findHorizontalLabels(pieces));
+  const kept = labelPieces(labels);
+  const superseded = rotated.flatMap(label => label.pieces).filter(piece => !kept.has(piece));
+  return { labels: labels.sort((a, b) => b.y - a.y || a.x - b.x), superseded };
 }
 
 /// A rotated tab usually carries the day's own title, but some layouts use it only to count the
@@ -96,6 +152,21 @@ function preferredLabels(rotated: DayLabel[], horizontal: DayLabel[]): DayLabel[
   if (!rotated.every(label => POSITIONAL_LABEL.test(normalizedText(label.text)))) return rotated;
   const descriptive = horizontal.filter(label => !POSITIONAL_LABEL.test(normalizedText(label.text)));
   return descriptive.length === rotated.length ? descriptive : rotated;
+}
+
+/// Place stacked titles where their days begin. One table can hold several days, each titled by
+/// a stack centred on that day's rows, so only a table's first title goes above its header; each
+/// later one goes midway between it and the stack above, which is where one day's rows end and
+/// the next day's begin.
+export function placeStackedLabels(labels: DayLabel[], tables: TableSpan[]): DayLabel[] {
+  const ordered = [...labels].sort((a, b) => b.top - a.top);
+  const tableOf = (label: DayLabel) => tables.findIndex(table => besideTable(label, [table]));
+  return ordered.map((label, index) => {
+    const table = tableOf(label);
+    const previous = ordered[index - 1];
+    if (previous && tableOf(previous) === table) return { ...label, y: (previous.bottom + label.top) / 2 };
+    return table >= 0 ? { ...label, y: tables[table].top + 0.01 } : label;
+  });
 }
 
 /// Place a marked label immediately before its table header. A long sidebar label may overlap

@@ -186,7 +186,7 @@ public sealed partial class ImportService
                             var labeled = ImportDayLabels.Apply(await ToDraft(result.Program, settle), chunkPages);
                             notices.AddRange(labeled.Notices);
                             var extracted = ImportOutlineEvidence.NormalizeDraft(labeled.Draft, sourceEvidence);
-                            var reconciled = ReconcileChunkCoverage(draft, extracted, item.Chunk);
+                            var reconciled = ReconcileChunkCoverage(draft, extracted, item.Chunk, chunkPages);
                             notices.AddRange(reconciled.Notices);
                             // Checked per section rather than against the whole document: a name
                             // belongs to the pages it was read from, and a movement printed in a
@@ -209,6 +209,11 @@ public sealed partial class ImportService
                         }
                         if (complete)
                         {
+                            // A week whose lettered versions landed in different sections is
+                            // only whole now, so it is separated again over the whole draft.
+                            var versions = ImportWeekVariants.Separate(merged.Workouts, sourcePages);
+                            merged = merged with { Workouts = versions.Workouts };
+                            notices.AddRange(versions.Notices);
                             var blockRuns = ImportBlockRuns.Reconcile(merged.Workouts);
                             merged = merged with { Workouts = blockRuns.Workouts };
                             notices.AddRange(blockRuns.Notices);

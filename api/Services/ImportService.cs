@@ -52,21 +52,15 @@ public sealed partial class ImportService(AppDb db, WorkoutAi ai, CatalogService
             .FirstOrDefault(item => item.exercise.LineId == exerciseLineId);
         Validation.Require(target.exercise is not null, "That exercise slot no longer exists.", 404);
         await catalog.RequireActive(replacementExerciseId, ct);
-        var slot = target.exercise!.SlotKey;
-        Validation.Require(slot is not null, "That exercise slot has no stable identity. Edit the draft and try again.", 409);
-        var targetSignature = ImportValidation.SlotSignature(target.workout, target.position, target.exercise.SourceName);
+        // One mapping links every occurrence the review listed under it.
+        var targetKey = ImportValidation.MappingKey(target.workout, target.exercise!.SourceName);
         var next = draft with
         {
             Workouts = draft.Workouts.Select(workout => workout with
             {
-                Exercises = workout.Exercises.Select((exercise, position) =>
-                    ImportValidation.SlotSignature(workout, position, exercise.SourceName).Equals(targetSignature, StringComparison.Ordinal) &&
-                    exercise.SlotKey == slot
-                        ? exercise with
-                        {
-                            ExerciseId = replacementExerciseId,
-                            SlotKey = slot
-                        }
+                Exercises = workout.Exercises.Select(exercise =>
+                    ImportValidation.MappingKey(workout, exercise.SourceName).Equals(targetKey, StringComparison.Ordinal)
+                        ? exercise with { ExerciseId = replacementExerciseId }
                         : exercise).ToList()
             }).ToList()
         };

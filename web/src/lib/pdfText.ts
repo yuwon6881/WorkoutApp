@@ -1,4 +1,7 @@
-import { associateDayLabels, dayLabelLine, findDayLabels, labelPieces, type TableSpan } from './pdfDayLabels';
+import {
+  associateDayLabels, besideTable, dayLabelLine, findDayTitles, findStackedLabels, labelPieces, placeStackedLabels,
+  type DayLabel, type TableSpan
+} from './pdfDayLabels';
 import { findHeaderBands, renderRow, type HeaderBand } from './pdfHeaderColumns';
 import {
   columnIndex, estimateFallbackColumnGap, estimateTableRegionGap, groupRows, normalizedText, pieceCenter,
@@ -22,7 +25,7 @@ export type PdfExtraction = {
 };
 
 function isScheduleLabel(value: string): boolean {
-  return /^(?:BLOCK\s+\d+(?:\s*:\s*.*)?|\(BLOCK\s+\d+\)|WEEK\s+\d+|INTRO\s+WEEK|DELOAD\s+WEEK|(?:SUGGESTED\s+|MANDATORY\s+)?REST\s+DAY)$/i.test(normalizedText(value));
+  return /^(?:BLOCK\s+\d+(?:\s*:\s*.*)?|\(BLOCK\s+\d+\)|WEEK\s+\d+[A-Z]?|INTRO\s+WEEK|DELOAD\s+WEEK|(?:SUGGESTED\s+|MANDATORY\s+)?REST\s+DAY)$/i.test(normalizedText(value));
 }
 
 function withoutLabels(rows: TextRow[], removed: Set<TextPiece>): TextRow[] {
@@ -93,7 +96,8 @@ function renderHeaderTable(
   }
 
   const isWorkingAnchorText = (text: string) =>
-    /^\d{1,2}(?:[-–+]\d{1,2})?$/.test(text) || /^\d{1,2}$/.test(text) || /^amrap$/i.test(text) || /^n\/a$/i.test(text);
+    // "1+" is a working-set count too: a top set followed by as many back-offs as it takes.
+    /^\d{1,2}(?:[-–+]\d{1,2}|\+)?$/.test(text) || /^amrap$/i.test(text) || /^n\/a$/i.test(text);
 
   let anchorBaselines: number[] = [];
   if (anchorColIndex >= 0) {
@@ -157,18 +161,15 @@ function renderHeaderTable(
   return rendered;
 }
 
-/// Rebuilds page text in reading order. Geometry, header bands, day labels, and the strict
-/// tracking-table family each own a focused pass so their heuristics stay independently testable.
-export function buildPageText(items: readonly TextPiece[]): string {
-  const positioned = positionPieces(items);
-  const rows = groupRows(positioned);
-  const fallbackGap = estimateFallbackColumnGap(rows);
-  const trackingTables = findTrackingTables(rows);
-  const sourceDayLabels = findDayLabels(positioned);
-  const labelSources = labelPieces(sourceDayLabels) as Set<TextPiece>;
-  const schedulePieces = new Set(rows.flatMap(r => r.items.filter(item => isScheduleLabel(item.str))));
-  const rowsWithoutLabelsOrSchedule = withoutLabels(rows, new Set([...labelSources, ...schedulePieces]));
-  const genericRows = rowsWithoutLabelsOrSchedule.filter(row => !trackingTables.some(table => isInTrackingTable(row, table)));
+type TableLayout = {
+  genericRows: TextRow[];
+  headerTableSpans: { band: HeaderBand; span: TableSpan }[];
+  tableSpans: TableSpan[];
+};
+
+/// Where a page's tables are once its day titles and schedule banners are set aside.
+function tableLayout(rows: TextRow[], trackingTables: TrackingTable[], removed: Set<TextPiece>, fallbackGap: number): TableLayout {
+  const genericRows = withoutLabels(rows, removed).filter(row => !trackingTables.some(table => isInTrackingTable(row, table)));
   const headerBands = findHeaderBands(genericRows, fallbackGap / 2.35);
   const tableRegionGap = estimateTableRegionGap(genericRows);
   const headerTableSpans = headerBands.map((band, index) => ({
@@ -179,7 +180,39 @@ export function buildPageText(items: readonly TextPiece[]): string {
     ...trackingTables.map(tableSpanForTracking),
     ...headerTableSpans.map(item => item.span)
   ];
-  const dayLabels = associateDayLabels(sourceDayLabels, tableSpans);
+  return { genericRows, headerTableSpans, tableSpans };
+}
+
+/// Rebuilds page text in reading order. Geometry, header bands, day labels, and the strict
+/// tracking-table family each own a focused pass so their heuristics stay independently testable.
+export function buildPageText(items: readonly TextPiece[]): string {
+  const positioned = positionPieces(items);
+  const rows = groupRows(positioned);
+  const fallbackGap = estimateFallbackColumnGap(rows);
+  const trackingTables = findTrackingTables(rows);
+  const { labels: markedDayLabels, superseded } = findDayTitles(positioned);
+  const schedulePieces = new Set<TextPiece>([...superseded, ...rows.flatMap(r => r.items.filter(item => isScheduleLabel(item.str)))]);
+  const layoutWithout = (labels: DayLabel[]) => tableLayout(rows, trackingTables,
+    new Set([...labelPieces(labels) as Set<TextPiece>, ...schedulePieces]), fallbackGap);
+  // A stacked margin title is only a title beside a table, and a table is only found once the
+  // stack's words are out of its rows, so the stacks are tried first and kept where they fit. A
+  // stack may start with a word the vocabulary already marked ("FULL BODY" over "5 (PUMP DAY)"),
+  // so only rotated titles are off limits to it.
+  const rotatedTitles = markedDayLabels.filter(label => label.pieces.some(piece => piece.rotated));
+  const stacked = findStackedLabels(positioned, labelPieces(rotatedTitles));
+  const withStacks = (stacks: DayLabel[]) => {
+    const stackPieces = labelPieces(stacks);
+    return [...markedDayLabels.filter(label => !label.pieces.some(piece => stackPieces.has(piece))), ...stacks];
+  };
+  let layout = layoutWithout(withStacks(stacked));
+  const stackedTitles = stacked.filter(label => besideTable(label, layout.tableSpans));
+  if (stackedTitles.length < stacked.length) layout = layoutWithout(withStacks(stackedTitles));
+  const { genericRows, headerTableSpans, tableSpans } = layout;
+  const stackPieces = labelPieces(stackedTitles);
+  const dayLabels = [
+    ...associateDayLabels(markedDayLabels.filter(label => !label.pieces.some(piece => stackPieces.has(piece))), tableSpans),
+    ...placeStackedLabels(stackedTitles, tableSpans)
+  ];
   const lines: { y: number; x: number; text: string }[] = [
     ...scheduleLines(rows),
     ...dayLabels.map(label => ({ y: label.y, x: label.x, text: dayLabelLine(label) })),

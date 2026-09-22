@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { associateDayLabels, dayLabelLine, findDayLabels, type DayLabel } from './pdfDayLabels';
 import { positionPieces } from './pdfGeometry';
+import { buildPageText } from './pdfText';
 import { horizontalPiece, rotatedPiece } from './pdfPieces.fixtures';
 
 describe('PDF day labels', () => {
@@ -37,6 +38,21 @@ describe('PDF day labels', () => {
       horizontalPiece('Bench Press', 140, 90, 60)
     ]);
     expect(findDayLabels(pieces).map(dayLabelLine)).toEqual(['DAY LABEL: LOWER #1', 'DAY LABEL: UPPER #1']);
+  });
+
+  it('keeps a superseded spine tab out of the table text', () => {
+    // Left in the rows, the tab is read into the exercise beside it: "DAY 1 DUMBBELL WALKING LUNGE".
+    const text = buildPageText([
+      rotatedPiece('DAY 1', 17, 120, 30),
+      horizontalPiece('LEGS #1', 60, 210, 40), horizontalPiece('SETS', 140, 210, 20), horizontalPiece('REPS', 200, 210, 20),
+      horizontalPiece('REST', 260, 210, 20),
+      horizontalPiece('BACK SQUAT', 60, 190, 50), horizontalPiece('4', 145, 190, 5), horizontalPiece('5', 205, 190, 5),
+      horizontalPiece('3-4MIN', 260, 190, 30),
+      horizontalPiece('DUMBBELL WALKING LUNGE', 30, 130, 70), horizontalPiece('2', 145, 130, 5),
+      horizontalPiece('20', 205, 130, 10), horizontalPiece('1-2MIN', 260, 130, 30)
+    ]);
+    expect(text).toContain('DAY LABEL: LEGS #1');
+    expect(text).not.toContain('DAY 1');
   });
 
   it('keeps a margin tab that names the day rather than counting it', () => {

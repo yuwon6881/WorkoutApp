@@ -378,7 +378,9 @@
     "equipment": "Barbell",
     "category": "Free Weights",
     "cue": "",
-    "aliases": []
+    "aliases": [
+      "Pin Good Morning"
+    ]
   },
   {
     "slug": "barbell-hip-thrust",
@@ -409,7 +411,9 @@
     "equipment": "Dumbbell",
     "category": "Free Weights",
     "cue": "",
-    "aliases": []
+    "aliases": [
+      "Single-Leg Hip Thrust"
+    ]
   },
   {
     "slug": "45-hyperextension",
@@ -418,7 +422,11 @@
     "equipment": "Bodyweight",
     "category": "Body Weight",
     "cue": "",
-    "aliases": []
+    "aliases": [
+      "Barbell 45° Hyperextension or Hip Thrust",
+      "Prisoner Back Extension",
+      "45° Back Extension"
+    ]
   },
   {
     "slug": "seated-hamstring-curl",
@@ -511,7 +519,9 @@
     "equipment": "Cable",
     "category": "Machine",
     "cue": "",
-    "aliases": []
+    "aliases": [
+      "Pull-Through"
+    ]
   },
   {
     "slug": "seated-cable-deadlift",
@@ -900,7 +910,9 @@
     "equipment": "Cable",
     "category": "Machine",
     "cue": "",
-    "aliases": []
+    "aliases": [
+      "Pec Flye"
+    ]
   },
   {
     "slug": "pec-deck",
@@ -927,7 +939,9 @@
     "equipment": "Cable",
     "category": "Machine",
     "cue": "",
-    "aliases": []
+    "aliases": [
+      "Multi-Height Cable Crossover"
+    ]
   },
   {
     "slug": "bottom-half-db-flye",
@@ -1000,7 +1014,9 @@
     "equipment": "Dumbbell",
     "category": "Free Weights",
     "cue": "",
-    "aliases": []
+    "aliases": [
+      "Helms Row"
+    ]
   },
   {
     "slug": "chest-supported-machine-row",
@@ -1009,7 +1025,9 @@
     "equipment": "Machine",
     "category": "Machine",
     "cue": "",
-    "aliases": []
+    "aliases": [
+      "Machine \"Strict Form\" Row"
+    ]
   },
   {
     "slug": "seated-cable-row",
@@ -1061,7 +1079,9 @@
     "category": "Body Weight",
     "cue": "",
     "loadModel": "full_bodyweight",
-    "aliases": [],
+    "aliases": [
+      "Eccentric-Accentuated Pull-Up"
+    ],
     "secondaryMuscles": [
       "Biceps",
       "Forearms"
@@ -1094,7 +1114,8 @@
     "cue": "",
     "loadModel": "full_bodyweight",
     "aliases": [
-      "Weighted Pullup"
+      "Weighted Pullup",
+      "Weighted Eccentric-Overload Pull-Up"
     ]
   },
   {
@@ -1114,7 +1135,9 @@
     "equipment": "Barbell",
     "category": "Free Weights",
     "cue": "",
-    "aliases": []
+    "aliases": [
+      "Pendlay Row / Bent Over Row"
+    ]
   },
   {
     "slug": "barbell-bent-over-row",
@@ -1166,7 +1189,10 @@
     "equipment": "Dumbbell",
     "category": "Free Weights",
     "cue": "",
-    "aliases": []
+    "aliases": [
+      "Single-Arm Row",
+      "One-Arm Row"
+    ]
   },
   {
     "slug": "meadows-row",
@@ -1410,7 +1436,10 @@
     "equipment": "Cable",
     "category": "Machine",
     "cue": "",
-    "aliases": []
+    "aliases": [
+      "Cable Pullover",
+      "Constant-Tension Cable Kneeling Pullover"
+    ]
   },
   {
     "slug": "db-lat-pullover",
@@ -1496,7 +1525,8 @@
     "category": "Free Weights",
     "cue": "",
     "aliases": [
-      "Standing Dumbbell Arnold Press"
+      "Standing Dumbbell Arnold Press",
+      "Standing Arnold Dumbbell Press"
     ]
   },
   {
@@ -1547,7 +1577,8 @@
     "category": "Free Weights",
     "cue": "",
     "aliases": [
-      "Military Press"
+      "Military Press",
+      "Overhead Press / Push Press"
     ],
     "secondaryMuscles": [
       "Triceps",
@@ -1570,7 +1601,9 @@
     "equipment": "Cable",
     "category": "Machine",
     "cue": "",
-    "aliases": []
+    "aliases": [
+      "Cable Curl"
+    ]
   },
   {
     "slug": "ez-bar-curl",
@@ -1581,7 +1614,9 @@
     "cue": "",
     "aliases": [
       "EZ-Bar Modified Bicep 21's",
-      "EZ-Bar Modified Bicep 21s"
+      "EZ-Bar Modified Bicep 21s",
+      "EZ Bar Supinated Curl",
+      "EZ Bar or Barbell Curl"
     ]
   },
   {
@@ -1618,7 +1653,9 @@
     "equipment": "Cable",
     "category": "Machine",
     "cue": "",
-    "aliases": []
+    "aliases": [
+      "Bayesian Curl"
+    ]
   },
   {
     "slug": "db-incline-curl",
@@ -1656,7 +1693,10 @@
     "equipment": "EZ-Bar",
     "category": "Free Weights",
     "cue": "",
-    "aliases": []
+    "aliases": [
+      "Barbell (or EZ-Bar) Strict Curl",
+      "Barbell Strict Curl"
+    ]
   },
   {
     "slug": "ez-bar-preacher-curl",
@@ -1820,7 +1860,10 @@
     "equipment": "EZ-Bar",
     "category": "Free Weights",
     "cue": "",
-    "aliases": []
+    "aliases": [
+      "Barbell Skull Crusher",
+      "Skull Crusher"
+    ]
   },
   {
     "slug": "db-skull-crusher",
@@ -1829,7 +1872,9 @@
     "equipment": "Dumbbell",
     "category": "Free Weights",
     "cue": "",
-    "aliases": []
+    "aliases": [
+      "Dumbbell Skull Crusher"
+    ]
   },
   {
     "slug": "triceps-pressdown",
@@ -1912,7 +1957,9 @@
     "equipment": "Barbell",
     "category": "Free Weights",
     "cue": "",
-    "aliases": []
+    "aliases": [
+      "Floor Skull Crusher"
+    ]
   },
   {
     "slug": "db-floor-skull-crusher",
@@ -1977,7 +2024,11 @@
     "equipment": "Dumbbell",
     "category": "Free Weights",
     "cue": "",
-    "aliases": []
+    "aliases": [
+      "Dumbbell Lateral Raise",
+      "DB Lateral Raise Swing",
+      "Dumbbell Lateral Raise Iso-Hold"
+    ]
   },
   {
     "slug": "cable-lateral-raise",
@@ -2051,7 +2102,9 @@
     "equipment": "Dumbbell",
     "category": "Free Weights",
     "cue": "",
-    "aliases": []
+    "aliases": [
+      "Bent Over Reverse Dumbbell Flye"
+    ]
   },
   {
     "slug": "rope-face-pull",
@@ -2061,7 +2114,9 @@
     "category": "Machine",
     "cue": "",
     "aliases": [
-      "Rope Facepull"
+      "Rope Facepull",
+      "Face Pull",
+      "Seated Face Pull"
     ]
   },
   {
@@ -2181,7 +2236,9 @@
     "equipment": "Machine",
     "category": "Machine",
     "cue": "",
-    "aliases": []
+    "aliases": [
+      "Enhanced-Eccentric Calf Raise"
+    ]
   },
   {
     "slug": "seated-calf-raise",
@@ -2253,7 +2310,10 @@
     "equipment": "Machine",
     "category": "Machine",
     "cue": "",
-    "aliases": []
+    "aliases": [
+      "Hip Abduction",
+      "Banded Lateral Walk or Hip Abduction"
+    ]
   },
   {
     "slug": "cable-hip-abduction",
@@ -2744,7 +2804,8 @@
     "cue": "",
     "aliases": [
       "Long-Lever Posterior-Tilt Plank",
-      "Long Lever Posterior Tilt Plank"
+      "Long Lever Posterior Tilt Plank",
+      "Long-Lever Plank"
     ]
   },
   {
@@ -2780,7 +2841,9 @@
     "cue": "",
     "aliases": [
       "Lean-Away Cable Lateral Raise",
-      "Lean Away Cable Lateral Raise"
+      "Lean Away Cable Lateral Raise",
+      "Egyptian Lateral Raise",
+      "Lean-Away Lateral Raise"
     ]
   },
   {
@@ -2914,7 +2977,9 @@
     "equipment": "Cable",
     "cue": "",
     "aliases": [],
-    "secondaryMuscles": ["Triceps"]
+    "secondaryMuscles": [
+      "Triceps"
+    ]
   },
   {
     "slug": "machine-squat",
@@ -2923,7 +2988,9 @@
     "equipment": "Machine",
     "cue": "",
     "aliases": [],
-    "secondaryMuscles": ["Glutes"]
+    "secondaryMuscles": [
+      "Glutes"
+    ]
   },
   {
     "slug": "dead-bug",
@@ -2940,5 +3007,238 @@
     "equipment": "Dumbbell",
     "cue": "",
     "aliases": []
+  },
+  {
+    "slug": "anderson-squat",
+    "name": "Anderson Squat",
+    "muscle": "Quads",
+    "equipment": "Barbell",
+    "category": "Free Weights",
+    "cue": "",
+    "aliases": [],
+    "secondaryMuscles": [
+      "Glutes",
+      "Core"
+    ]
+  },
+  {
+    "slug": "pin-squat",
+    "name": "Pin Squat",
+    "muscle": "Quads",
+    "equipment": "Barbell",
+    "category": "Free Weights",
+    "cue": "",
+    "aliases": [],
+    "secondaryMuscles": [
+      "Glutes",
+      "Core"
+    ]
+  },
+  {
+    "slug": "barbell-box-squat",
+    "name": "Barbell Box Squat",
+    "muscle": "Quads",
+    "equipment": "Barbell",
+    "category": "Free Weights",
+    "cue": "",
+    "aliases": [
+      "Box Squat",
+      "Sumo Box Squat or Pause High-Bar Squat"
+    ],
+    "secondaryMuscles": [
+      "Glutes",
+      "Core"
+    ]
+  },
+  {
+    "slug": "touch-and-go-deadlift",
+    "name": "Touch-and-Go Deadlift",
+    "muscle": "Posterior chain",
+    "equipment": "Barbell",
+    "category": "Free Weights",
+    "cue": "",
+    "aliases": [],
+    "secondaryMuscles": [
+      "Glutes",
+      "Core"
+    ]
+  },
+  {
+    "slug": "reset-deadlift",
+    "name": "Reset Deadlift",
+    "muscle": "Posterior chain",
+    "equipment": "Barbell",
+    "category": "Free Weights",
+    "cue": "",
+    "aliases": [],
+    "secondaryMuscles": [
+      "Glutes",
+      "Core"
+    ]
+  },
+  {
+    "slug": "opposite-stance-deadlift",
+    "name": "Opposite Stance Deadlift",
+    "muscle": "Posterior chain",
+    "equipment": "Barbell",
+    "category": "Free Weights",
+    "cue": "",
+    "aliases": [],
+    "secondaryMuscles": [
+      "Glutes",
+      "Core"
+    ]
+  },
+  {
+    "slug": "block-pull",
+    "name": "Block Pull",
+    "muscle": "Posterior chain",
+    "equipment": "Barbell",
+    "category": "Free Weights",
+    "cue": "",
+    "aliases": [
+      "1\" Block Pull",
+      "2\" Block Pull",
+      "3\" Block Pull",
+      "4\" Block Pull",
+      "5\" Block Pull",
+      "6\" Block Pull"
+    ],
+    "secondaryMuscles": [
+      "Glutes",
+      "Core"
+    ]
+  },
+  {
+    "slug": "chin-up",
+    "name": "Chin-Up",
+    "muscle": "Back",
+    "equipment": "Bodyweight",
+    "category": "Body Weight",
+    "cue": "",
+    "loadModel": "full_bodyweight",
+    "aliases": [],
+    "secondaryMuscles": [
+      "Biceps",
+      "Forearms"
+    ]
+  },
+  {
+    "slug": "assisted-chin-up",
+    "name": "Assisted Chin-Up",
+    "muscle": "Back",
+    "equipment": "Machine",
+    "category": "Machine",
+    "cue": "",
+    "aliases": [],
+    "secondaryMuscles": [
+      "Biceps",
+      "Forearms"
+    ]
+  },
+  {
+    "slug": "db-concentration-curl",
+    "name": "DB Concentration Curl",
+    "muscle": "Biceps and forearms",
+    "equipment": "Dumbbell",
+    "category": "Free Weights",
+    "cue": "",
+    "aliases": [
+      "Concentration Curl",
+      "Concentration Bicep Curl",
+      "Dumbbell Concentration Curl"
+    ]
+  },
+  {
+    "slug": "ez-bar-reverse-curl",
+    "name": "EZ-Bar Reverse Curl",
+    "muscle": "Biceps and forearms",
+    "equipment": "EZ-Bar",
+    "category": "Free Weights",
+    "cue": "",
+    "aliases": [
+      "EZ Bar Pronated Curl",
+      "Reverse-Grip EZ-Bar Curl"
+    ]
+  },
+  {
+    "slug": "plate-shrug",
+    "name": "Plate Shrug",
+    "muscle": "Traps",
+    "equipment": "Plate",
+    "category": "Free Weights",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "incline-shrug",
+    "name": "Incline Shrug",
+    "muscle": "Traps",
+    "equipment": "Dumbbell",
+    "category": "Free Weights",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "v-sit-up",
+    "name": "V Sit-Up",
+    "muscle": "Core",
+    "equipment": "Bodyweight",
+    "category": "Body Weight",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "l-sit-hold",
+    "name": "L-Sit Hold",
+    "muscle": "Core",
+    "equipment": "Bodyweight",
+    "category": "Body Weight",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "wall-slide",
+    "name": "Wall Slide",
+    "muscle": "Shoulders",
+    "equipment": "Bodyweight",
+    "category": "Body Weight",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "squat-walk-out",
+    "name": "Squat Walk-Out",
+    "muscle": "Quads",
+    "equipment": "Barbell",
+    "category": "Free Weights",
+    "cue": "",
+    "aliases": [
+      "Squat Walk-Out (Do Not Squat)"
+    ],
+    "secondaryMuscles": [
+      "Core"
+    ]
+  },
+  {
+    "slug": "neck-flexion-extension",
+    "name": "Neck Flexion/Extension",
+    "muscle": "Adductors and neck",
+    "equipment": "Plate",
+    "category": "Free Weights",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "barbell-isometric-hold",
+    "name": "Barbell Isometric Hold",
+    "muscle": "Biceps and forearms",
+    "equipment": "Barbell",
+    "category": "Free Weights",
+    "cue": "",
+    "aliases": [
+      "Barbell or Dumbbell Isometric Hold",
+      "Barbell or Dumbbell Isometric Hold (Grip Work)"
+    ]
   }
 ]

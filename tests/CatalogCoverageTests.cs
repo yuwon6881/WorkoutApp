@@ -63,7 +63,29 @@ public sealed class CatalogCoverageTests
         { "Two-Arms Two-Legs Dead Bug", "Dead Bug" },
         { "Inverse Zottman Curl", "Zottman Curl" },
         // Written "Pullup" where the catalog spells it "Pull-up".
-        { "2-Grip Pullup", "2-Grip Pull-up" }
+        { "2-Grip Pullup", "2-Grip Pull-up" },
+        // Powerbuilding 3.0 (4x/week), as its tables print them.
+        { "Back Squat (Top Single)", "Back Squat" },
+        { "Pin Good Morning (or 45° Back Extension)", "Good Morning" },
+        { "Barbell (or EZ-Bar) Strict Curl", "EZ-Bar Strict Curl" },
+        { "Seated Face Pull", "Rope Face Pull" },
+        { "Anderson Squat", "Anderson Squat" },
+        { "Close Grip Bench Press", "Close-Grip Bench Press" },
+        { "Dumbbell Skull Crusher", "DB Skull Crusher" },
+        { "Dumbbell Lateral Raise", "DB Lateral Raise" },
+        { "Cable Pullover", "Cable Lat Pullover" },
+        { "Helms Row", "Helms DB Row" },
+        { "Hip Abduction", "Machine Hip Abduction" },
+        { "Barbell Box Squat", "Barbell Box Squat" },
+        { "Touch-And-Go Deadlift", "Touch-and-Go Deadlift" },
+        { "Reset Deadlift", "Reset Deadlift" },
+        // Powerbuilding 2.0 and the Powerbuilding System.
+        { "Chin-Up", "Chin-Up" },
+        { "6\" Block Pull", "Block Pull" },
+        { "Pin Squat", "Pin Squat" },
+        { "Face Pull", "Rope Face Pull" },
+        { "Concentration Bicep Curl", "DB Concentration Curl" },
+        { "Egyptian Lateral Raise", "Egyptian Cable Lateral Raise" }
     };
 
     [Theory, MemberData(nameof(WrittenNames))]

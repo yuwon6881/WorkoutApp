@@ -9,7 +9,8 @@ internal static class ImportStructureHeadings
         @"^(?:\(\s*)?BLOCK\s+(?<label>[A-Z0-9]+(?:-[A-Z0-9]+)*)(?:\s*:\s*.*)?(?:\s*\))?(?:\s+.*)?$",
         RegexOptions.Compiled | RegexOptions.IgnoreCase);
     private static readonly Regex Week = new(
-        @"^WEEK\s+(?<week>\d+)(?!\s*(?:[-–]\s*\d|&\s*\d|TO\b\s+\d))(?=$|\s|\|).*$",
+        // "WEEK 10A" is week 10 in one of its lettered versions; see `ImportWeekVariants`.
+        @"^WEEK\s+(?<week>\d+)[A-Z]?(?!\s*(?:[-–]\s*\d|&\s*\d|TO\b\s+\d))(?=$|\s|\|).*$",
         RegexOptions.Compiled | RegexOptions.IgnoreCase);
     private static readonly Regex DayLabel = new(
         @"^DAY\s+LABEL\s*:\s*(?<label>.+)$", RegexOptions.Compiled | RegexOptions.IgnoreCase);

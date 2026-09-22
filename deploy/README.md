@@ -152,7 +152,7 @@ dotnet run --project api\Workout.Api.csproj -- --migrate-only
 ## Exercise catalog
 
 The schema ships with an empty catalog and it is the only data users cannot create, edit, or
-delete. The checked-in `deploy\exercises.json` contains the 300 default movements. Load it with
+delete. The checked-in `deploy\exercises.json` contains the 319 default movements. Load it with
 the seed command, which is keyed by stable slug, so re-running the same file updates rows in place
 instead of duplicating them. Exercises the file omits are left untouched unless
 `--deactivate-missing` is supplied. The whole file is applied in one transaction or not at all.
