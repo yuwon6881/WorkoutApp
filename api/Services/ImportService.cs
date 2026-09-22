@@ -37,7 +37,7 @@ public sealed partial class ImportService(AppDb db, WorkoutAi ai, CatalogService
         var chunks = ReadChunks(import!.OutlineJson);
         return new ImportStatusView(import.Id, import.Status, import.Stage, import.ChunksDone, import.ChunksTotal,
             chunks.ElementAtOrDefault(import.ChunksDone)?.Label, import.Error, import.Revision, import.Retries,
-            import.SourceExpiresAt, import.UnresolvedCount);
+            import.UnresolvedCount);
     }
 
     public async Task<ImportView> MapSlot(Guid id, Guid exerciseLineId, Guid? replacementExerciseId, int? revision, CancellationToken ct)
@@ -93,7 +93,7 @@ public sealed partial class ImportService(AppDb db, WorkoutAi ai, CatalogService
         return new ImportView(import.Id, import.Status, import.FileName, import.Pages, import.Error, import.Created, import.Model,
             import.Stage, import.ChunksDone, import.ChunksTotal, chunks.ElementAtOrDefault(import.ChunksDone)?.Label, unresolvedCount, draft,
             unresolved, acceptable, import.ProgramId, issues,
-            import.InputTokens, import.OutputTokens, import.Retries, import.SourceExpiresAt, coverage, alternatives, import.SelectedAlternativeId,
+            import.InputTokens, import.OutputTokens, import.Retries, coverage, alternatives, import.SelectedAlternativeId,
             import.Revision, canRestoreDraft, restorableExerciseLineIds);
     }
 
@@ -449,16 +449,15 @@ public sealed partial class ImportService(AppDb db, WorkoutAi ai, CatalogService
         try
         {
         var now = DateTime.UtcNow;
-        // An unfinished import whose extracted text expired can never be completed, and there is
-        // no history to preserve it in. A finished draft simply loses the text it no longer needs.
+        // An unfinished import left in pending state can never be completed.
+        var pendingCutoff = now.AddDays(-1);
         await db.Imports.IgnoreQueryFilters()
-            .Where(i => i.SourceExpiresAt != null && i.SourceExpiresAt < now && i.Status == ImportStatus.Pending &&
+            .Where(i => i.Status == ImportStatus.Pending && i.Created < pendingCutoff &&
                 (i.LeaseUntil == null || i.LeaseUntil < now))
             .ExecuteDeleteAsync(ct);
         await db.Imports.IgnoreQueryFilters()
-            .Where(i => i.SourceExpiresAt != null && i.SourceExpiresAt < now &&
-                (i.Status != ImportStatus.Pending || i.LeaseUntil == null || i.LeaseUntil < now))
-            .ExecuteUpdateAsync(set => set.SetProperty(i => i.SourceTextJson, "").SetProperty(i => i.SourceExpiresAt, (DateTime?)null), ct);
+            .Where(i => i.SourceExpiresAt != null && i.SourceExpiresAt < now)
+            .ExecuteDeleteAsync(ct);
 
         // Only unfinished imports exist beyond acceptance, so an abandoned one is removed outright
         // rather than blanked in place. Nothing here may grow without bound.

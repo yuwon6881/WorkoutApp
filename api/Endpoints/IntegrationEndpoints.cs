@@ -20,14 +20,14 @@ public static class IntegrationEndpoints
         });
 
         app.MapGet("/api/integrations/v1/training-summary", async (HttpContext context, OpenIddictAccessTokenService tokens,
-            IntegrationTokenService peerTokens, AppDb db, WorkoutService workouts, DateOnly? from, DateOnly? to, CancellationToken ct) =>
+            IntegrationTokenService peerTokens, AppDb db, WorkoutService workouts, DateOnly? from, DateOnly? to, string? timeZone, CancellationToken ct) =>
         {
             var token = await tokens.Require(context, SummaryScope, ct);
             await peerTokens.ValidateIncoming(token, ct);
             var user = await db.Users.SingleOrDefaultAsync(u => u.IdentitySubject == token.Subject, ct);
             Validation.Require(user != null, "That shared account is not mapped to this Workout account.", 403);
             db.CurrentUser = user!.Id;
-            return Results.Ok(await workouts.TrainingSummary(from, to, ct));
+            return Results.Ok(await workouts.TrainingSummary(from, to, timeZone, ct));
         });
 
         app.MapGet("/api/integrations/connected", async (AppDb db, IntegrationTokenService peerTokens, CancellationToken ct) =>

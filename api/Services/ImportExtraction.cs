@@ -17,7 +17,6 @@ namespace Workout.Api.Services;
 public sealed partial class ImportService
 {
     public const int DailyLimit = 150;
-    private static readonly TimeSpan SourceRetention = TimeSpan.FromHours(24);
 
     /// Accepts the extracted text and reads its outline. Submitting the same document again while
     /// an unfinished import exists continues that import rather than starting a second one.
@@ -58,7 +57,6 @@ public sealed partial class ImportService
                 // Links live with the source text: both are read from the document, and both are
                 // only needed while the sections are still being assembled into a draft.
                 import.LinksJson = links.Count > 0 ? Json.Write(links) : "";
-                import.SourceExpiresAt = DateTime.UtcNow.Add(SourceRetention);
                 import.Error = ""; import.Revision++;
             }
             readOutline = import.Status == ImportStatus.Pending && import.Stage == "outline";

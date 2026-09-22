@@ -186,11 +186,21 @@ public static class Progression
                 return New(outputLoad(Reduce(load, stepKg)), repMin, "One equipment step lighter after two hard exposures.", source, mode,
                     nutritionContextRevision, resistanceMode);
 
-            var successful = latestExposures.FirstOrDefault(exposure => IsSuccessful(exposure, repMin, goal) && loadSelector(exposure) is not null);
-            var deloadFrom = loadSelector(successful ?? source);
-            var deload = deloadFrom is { } value ? (double?)RoundDownToStep(Math.Max(0, value * DeloadFactor), stepKg) : null;
-            return New(outputLoad(deload), repMin, "Three hard exposures in a row. Deload 7.5% from the last successful load and rebuild.", source,
-                mode, nutritionContextRevision, resistanceMode);
+            if (hardStreak == 3)
+            {
+                var successful = latestExposures.FirstOrDefault(exposure => IsSuccessful(exposure, repMin, goal) && loadSelector(exposure) is not null);
+                var deloadFrom = loadSelector(successful ?? source);
+                var deload = deloadFrom is { } value ? (double?)RoundDownToStep(Math.Max(0, value * DeloadFactor), stepKg) : null;
+                return New(outputLoad(deload), repMin, "Three hard exposures in a row. Deload 7.5% from the last successful load and rebuild.", source,
+                    mode, nutritionContextRevision, resistanceMode);
+            }
+            else
+            {
+                var deloadFrom = loadSelector(source);
+                var deload = deloadFrom is { } value ? (double?)RoundDownToStep(Math.Max(0, value * DeloadFactor), stepKg) : null;
+                return New(outputLoad(deload), repMin, "Continued difficulty after deload. Reducing another 7.5% from the current load.", source,
+                    mode, nutritionContextRevision, resistanceMode);
+            }
         }
 
         // A missing/neutral effort resets both streaks. Only a real success may advance reps.

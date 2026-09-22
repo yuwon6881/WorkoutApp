@@ -129,6 +129,23 @@ public sealed class AdaptiveProgressionTests
     }
 
     [Fact]
+    public void Fourth_hard_exposure_deloads_from_the_current_failed_weight()
+    {
+        var result = Progression.SuggestSet(8, 12, 8,
+            [
+                Exposure(37.5, 7, 9),
+                Exposure(37.5, 7, 9, 7),
+                Exposure(42.5, 7, 9, 14),
+                Exposure(42.5, 7, 9, 21),
+                Exposure(50, 12, 8, 28)
+            ],
+            ProgressionModes.Normal, 2.5);
+
+        Assert.Equal(32.5, result.SuggestedLoadKg);
+        Assert.Contains("Reducing another 7.5%", result.Reason);
+    }
+
+    [Fact]
     public void Nutrition_mode_uses_the_boundary_and_requires_a_qualified_observed_window()
     {
         var now = DateTime.UtcNow;

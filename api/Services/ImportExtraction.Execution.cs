@@ -311,7 +311,7 @@ public sealed partial class ImportService
     private static List<ImportPageText> SourcePages(AiImport import)
     {
         Validation.Require(!string.IsNullOrWhiteSpace(import.SourceTextJson),
-            "The text read from this PDF has expired. Choose the same PDF again.", 410);
+            "The text read from this PDF is no longer available.", 410);
         return Json.Read<List<ImportPageText>>(import.SourceTextJson);
     }
 

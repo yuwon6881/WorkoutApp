@@ -45,7 +45,7 @@ public record ImportView(
     string Stage, int ChunksDone, int ChunksTotal, string? CurrentChunkLabel, int UnresolvedCount, ImportDraft? Draft,
     List<UnresolvedExercise> Unresolved, bool Acceptable, Guid? ProgramId, List<ImportReviewIssue>? ReviewIssues = null,
     long InputTokens = 0, long OutputTokens = 0, int Retries = 0,
-    DateTime? SourceExpiresAt = null, List<PdfPageCoverage>? PageCoverage = null,
+    List<PdfPageCoverage>? PageCoverage = null,
     List<ImportAlternative>? Alternatives = null, string? SelectedAlternativeId = null,
     int Revision = 0, bool CanRestoreDraft = false, List<Guid>? RestorableExerciseLineIds = null);
 
@@ -55,4 +55,4 @@ public record ImportView(
 public record ImportStatusView(
     Guid Id, string Status, string Stage, int ChunksDone, int ChunksTotal,
     string? CurrentChunkLabel, string Error, int Revision, int Retries,
-    DateTime? SourceExpiresAt, int UnresolvedCount);
+    int UnresolvedCount);

@@ -1,0 +1,44 @@
+.dashboard-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.dashboard-date-subtitle {
+  font-size: var(--font-secondary, 14px);
+  color: var(--muted);
+  margin-top: 4px;
+}
+
+.overview-muscles-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+}
+
+.quick-start-hero {
+  margin-bottom: 24px;
+}
+
+@media (max-width: 1023px) {
+  .overview-muscles-link {
+    min-height: 44px;
+  }
+}
+
+@media (max-width: 639px) {
+  .dashboard-heading {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 14px;
+  }
+
+  .overview-muscles-link {
+    width: 100%;
+    justify-content: center;
+  }
+}

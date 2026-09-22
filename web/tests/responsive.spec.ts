@@ -204,10 +204,10 @@ for (const theme of ['dark', 'light']) {
       await expect(importDetails).not.toHaveAttribute('open', '');
     }
 
-    await navigate(page, 'Progress');
+    await navigate(page, 'Overview');
     await screenshot('progress');
 
-    await navigate(page, 'Body');
+    await navigate(page, 'Muscles');
     await expect(page.getByRole('heading', { name: 'Muscle coverage', exact: true })).toBeVisible();
     await expect(page.locator('.body-map-detail')).toBeVisible();
     await screenshot('body');

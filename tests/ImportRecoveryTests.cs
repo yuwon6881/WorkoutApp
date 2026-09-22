@@ -103,7 +103,6 @@ public sealed class ImportRecoveryTests
         var ready = await imports.Extract(pending.Id, default);
 
         Assert.Equal(ImportStatus.Ready, ready.Status);
-        Assert.Null(ready.SourceExpiresAt);
         var row = await h.Db.Imports.AsNoTracking().SingleAsync();
         Assert.Equal("", row.SourceTextJson);
         Assert.Null(row.SourceExpiresAt);
@@ -125,7 +124,7 @@ public sealed class ImportRecoveryTests
 
         var failure = await Assert.ThrowsAsync<DomainException>(() => imports.Extract(pending.Id, default));
         Assert.Equal(410, failure.Status);
-        Assert.Contains("Choose the same PDF again", failure.Message);
+        Assert.Contains("no longer available", failure.Message);
     }
 
     /// Answers by what a request asks for rather than by the order it arrives in, because sections

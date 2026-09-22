@@ -13,6 +13,7 @@ import { ExerciseLibrary } from './Exercises';
 import { WorkoutEditorModal, type WorkoutDraft } from './WorkoutEditorModal';
 import { ProgramBuilderPage } from './ProgramBuilderPage';
 import { ProgramWeekChecklist } from './ProgramWeekChecklist';
+import { ActiveWorkoutStandby } from './ActiveWorkoutStandby';
 
 export function Programs({ data, exercises, onStart, onImport, onChanged }: {
   data: Bootstrap; exercises: Exercise[]; onStart: (templateId: string) => void; onImport: () => void; onChanged: () => Promise<void>;
@@ -76,11 +77,18 @@ export function Programs({ data, exercises, onStart, onImport, onChanged }: {
       {activePrograms.length
         ? activePrograms.map(program => <ProgramCard key={program.id} program={program} exercises={exercises}
           onStart={onStart} onChanged={onChanged} hasActiveWorkout={hasActiveWorkout} />)
-        : <section className="panel"><div className="empty-message"><Play size={28} /><h3>Nothing running yet</h3>
-          <p>Make a program active from your library, or start a workout from it.</p></div></section>}
+        : <ActiveWorkoutStandby
+            hasTemplates={Boolean(libraryPrograms.length || data.templates.length)}
+            onNewWorkout={() => open()}
+            onImport={onImport}
+            onBrowseLibrary={() => {
+              const el = document.getElementById('workout-library-section');
+              if (el) el.scrollIntoView({ behavior: 'smooth' });
+            }}
+          />}
     </section>
 
-    <section className="program-section">
+    <section className="program-section" id="workout-library-section">
       <div className="section-heading"><h2>Workout library</h2>
         <span className="muted">{libraryPrograms.length + data.templates.length} saved</span></div>
       {libraryPrograms.map(program => <ProgramCard key={program.id} program={program} exercises={exercises}

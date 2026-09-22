@@ -684,31 +684,40 @@ public sealed partial class WorkoutService(
             .ToList();
     }
 
-    public async Task<List<WorkoutTrainingSummary>> TrainingSummary(DateOnly? from, DateOnly? to, CancellationToken ct)
+    public async Task<List<WorkoutTrainingSummary>> TrainingSummary(DateOnly? from, DateOnly? to, string? timeZone, CancellationToken ct)
     {
-        var start = from ?? DateOnly.FromDateTime(DateTime.UtcNow).AddDays(-30);
-        var end = to ?? DateOnly.FromDateTime(DateTime.UtcNow);
+        var zone = string.IsNullOrWhiteSpace(timeZone) ? TimeZoneInfo.Utc : SafeZone(timeZone.Trim());
+        var todayLocal = DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, zone));
+        var start = from ?? todayLocal.AddDays(-30);
+        var end = to ?? todayLocal;
         Validation.Require(start <= end && end.DayNumber - start.DayNumber <= 366, "Choose a date range of one year or less.");
-        var startUtc = start.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc);
-        var endUtc = end.AddDays(1).ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc);
+
+        var startUtc = start.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc).AddDays(-1);
+        var endUtc = end.AddDays(2).ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc);
+
         var rows = await db.Workouts.AsNoTracking().Where(w =>
             (w.FinishedAt != null && w.FinishedAt >= startUtc && w.FinishedAt < endUtc) ||
             (w.Active && w.StartedAt >= startUtc && w.StartedAt < endUtc))
             .OrderBy(w => w.StartedAt).ToListAsync(ct);
+
         var views = await Views(rows, ct);
         var muscleIds = views.Values.SelectMany(v => v.Exercises).Where(e => e.ExerciseId is not null)
             .Select(e => e.ExerciseId!.Value).Distinct().ToList();
         var musclesById = await catalog.MusclesFor(muscleIds, ct);
         var result = new List<WorkoutTrainingSummary>();
+
         foreach (var session in rows)
         {
+            var localDateTime = TimeZoneInfo.ConvertTimeFromUtc(session.StartedAt, zone);
+            var actualDate = DateOnly.FromDateTime(localDateTime);
+            if (actualDate < start || actualDate > end) continue;
+
             var view = views[session.Id];
             var sets = view.Exercises.SelectMany(e => e.Sets).Where(s => s.Done && !s.Warmup).ToList();
             var rpes = sets.Where(s => s.Rpe is not null).Select(s => s.Rpe!.Value).ToList();
             var exerciseIds = view.Exercises.Where(e => e.ExerciseId is not null).Select(e => e.ExerciseId!.Value).Distinct().ToList();
             var muscles = exerciseIds.Select(id => musclesById.GetValueOrDefault(id, ""))
                 .Where(x => !string.IsNullOrWhiteSpace(x)).Distinct().OrderBy(x => x).ToList();
-            var actualDate = DateOnly.FromDateTime(session.StartedAt);
             var status = session.Active ? "in_progress" : "completed";
             result.Add(new WorkoutTrainingSummary($"session:{session.Id}", status, actualDate, session.StartedAt, session.FinishedAt,
                 session.Name, muscles, sets.Count, view.VolumeKg, view.SystemVolumeKg, rpes.Count == 0 ? null : rpes.Average(), !session.Active, actualDate));

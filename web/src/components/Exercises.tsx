@@ -125,7 +125,14 @@ export function ExerciseLibrary({ exercises, onSelect, exclude = [], onOpen, onC
                     <div className="picker-tags">
                       {e.isCustom && <span className="pill pill-muted">Custom</span>}
                       <span className="pill pill-accent picker-muscle-tag">{e.muscle || 'Full body'}</span>
-                      {(e.secondaryMuscles ?? []).map(secondary => <span className="pill pill-muted" key={`${e.id}-${secondary}`}>{secondary}</span>)}
+                      {e.secondaryMuscles && e.secondaryMuscles.length > 0 && (
+                        <span className="pill pill-muted">{e.secondaryMuscles[0]}</span>
+                      )}
+                      {e.secondaryMuscles && e.secondaryMuscles.length > 1 && (
+                        <span className="pill pill-muted pill-overflow" title={e.secondaryMuscles.slice(1).join(', ')}>
+                          +{e.secondaryMuscles.length - 1}
+                        </span>
+                      )}
                       <span className="pill">{e.equipment || 'General'}</span>
                       <span className="pill pill-category">{cat}</span>
                     </div>
@@ -146,13 +153,20 @@ export function ExerciseLibrary({ exercises, onSelect, exclude = [], onOpen, onC
                   onClick={() => onOpen?.(e)} onKeyDown={event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); onOpen?.(e); } }}>
                   <div className="exercise-card-top">
                     <span className="exercise-icon"><Dumbbell size={22} /></span>
-                    <div className="picker-tags">
+                    <div className="exercise-card-meta">
                       {e.isCustom && <span className="pill pill-muted">Custom</span>}
                       <span className="pill pill-accent">{e.muscle || 'Full body'}</span>
-                      {(e.secondaryMuscles ?? []).map(secondary => <span className="pill pill-muted" key={`${e.id}-${secondary}`}>{secondary}</span>)}
+                      {e.secondaryMuscles && e.secondaryMuscles.length > 0 && (
+                        <span className="pill pill-muted">{e.secondaryMuscles[0]}</span>
+                      )}
+                      {e.secondaryMuscles && e.secondaryMuscles.length > 1 && (
+                        <span className="pill pill-muted pill-overflow" title={e.secondaryMuscles.slice(1).join(', ')}>
+                          +{e.secondaryMuscles.length - 1}
+                        </span>
+                      )}
                       <span className="pill">{e.equipment || 'General'}</span>
-                      <span className="pill pill-category">{cat}</span>
                     </div>
+                    <span className="pill pill-category">{cat}</span>
                   </div>
                   <div className="exercise-card-body">
                     <h3 title={e.name}>{e.name}</h3>

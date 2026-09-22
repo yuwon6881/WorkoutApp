@@ -1,158 +1,196 @@
 import { useEffect, useState } from 'react';
-import { ArrowRight, Check, ChevronLeft, ChevronRight, Dumbbell, FileText, Play, RotateCcw } from 'lucide-react';
-import type { Bootstrap, Session, WorkoutActivityItem } from '../types';
-import { api } from '../lib/api';
-import { weekDays } from '../lib/training';
+import { ArrowRight, BicepsFlexed, Check, Dumbbell, FileText, Play } from 'lucide-react';
+import type { Bootstrap, ProgressSummary, Session } from '../types';
+import { ApiError, api } from '../lib/api';
 import { Button } from './ui/Button';
-import { Modal } from './ui/Modal';
-import { ProgramWeekChecklist } from './ProgramWeekChecklist';
+import { TrainingCalendar } from './TrainingCalendar';
+import { BodyweightRecords, ProgressStats } from './ProgressPanels';
+import { WorkoutHistory } from './WorkoutHistory';
+import './Dashboard.css';
 
-export function Dashboard({ data, onStart, onProgram, onImport, onResume, onSession, onChanged }: {
-  data: Bootstrap; onStart: (templateId: string) => void; onHistory: () => void; onProgram: () => void;
-  onImport: () => void; onSession: (s: Session) => void; onResume: () => void; onChanged: () => Promise<void>;
-}) {
-  const [offset, setOffset] = useState(0);
-  const days = weekDays(offset);
-  const [calendar, setCalendar] = useState<WorkoutActivityItem[]>([]);
-  const [calendarError, setCalendarError] = useState('');
-  const [selectedDay, setSelectedDay] = useState<Date | null>(null);
-  const [selectedDayError, setSelectedDayError] = useState('');
-  const localDay = (day: Date) => `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, '0')}-${String(day.getDate()).padStart(2, '0')}`;
+interface DashboardProps {
+  data: Bootstrap;
+  onStart: (templateId: string) => void;
+  onProgram: () => void;
+  onImport: () => void;
+  onResume: () => void;
+  onSession: (s: Session) => void;
+  onChanged: () => Promise<void>;
+  onExercise?: (id: string) => void;
+  onMuscles?: () => void;
+}
+
+export function Dashboard({
+  data,
+  onStart,
+  onProgram,
+  onImport,
+  onResume,
+  onSession,
+  onExercise,
+  onMuscles
+}: DashboardProps) {
+  const [progress, setProgress] = useState<ProgressSummary | null>(data.progress ?? null);
+  const [progressError, setProgressError] = useState('');
+  const [progressRetry, setProgressRetry] = useState(0);
 
   useEffect(() => {
-    const from = localDay(days[0]); const to = localDay(days[6]);
+    let cancelled = false;
     const controller = new AbortController();
-    api.activity(from, to, controller.signal).then(next => { setCalendar(next); setCalendarError(''); }).catch(() => { if (!controller.signal.aborted) setCalendarError('Calendar could not be refreshed.'); });
-    return () => controller.abort();
-  }, [offset]);
+    setProgressError('');
+    api
+      .progress(controller.signal)
+      .then(next => {
+        if (!cancelled) setProgress(next);
+      })
+      .catch(failure => {
+        if (!cancelled && !progress) {
+          setProgressError(failure instanceof ApiError ? failure.message : 'Progress records could not be loaded.');
+        }
+      });
+    return () => {
+      cancelled = true;
+      controller.abort();
+    };
+  }, [progressRetry]);
 
   const program = data.activeProgram;
-  const next = program ? program.days.find(w => w.id === program.nextTemplateId) ?? null : data.templates[0] ?? null;
+  const next = program
+    ? program.days.find(w => w.id === program.nextTemplateId) ?? null
+    : data.templates[0] ?? null;
   const nextName = next ? next.name : null;
   const nextFocus = next && 'focus' in next ? next.focus : null;
   const nextWeek = next?.week ?? 1;
   const nextExerciseCount = next && 'exerciseCount' in next ? next.exerciseCount : next?.exercises.length ?? 0;
-  const nextSets = next && 'exerciseCount' in next ? null : next?.exercises.reduce((total, e) => total + e.sets.filter(s => !s.warmup).length, 0) ?? 0;
-  return <>
-    <div className="page-heading">
-      <h1>Overview</h1>
-      <span className="date-label">{new Date().toLocaleDateString('en', { month: 'long', day: 'numeric', year: 'numeric' })}</span>
-    </div>
+  const nextSets =
+    next && 'exerciseCount' in next
+      ? null
+      : next?.exercises.reduce((total, e) => total + e.sets.filter(s => !s.warmup).length, 0) ?? 0;
 
-    <section className="week-strip" aria-label="Training calendar">
-      <div className="week-caption">
-        <span className="week-caption-label">
-          <span className="status-dot" /> {offset === 0 ? 'This week' : days[0].toLocaleDateString('en', { month: 'short', day: 'numeric' })}
-        </span>
-        <div className="week-nav-actions">
-          <div className="week-nav-chevrons" role="group" aria-label="Navigate weeks">
-            <Button
-              aria-label="Previous week"
-              variant="secondary"
-              className="week-nav-btn"
-              onClick={() => setOffset(o => o - 1)}
-            >
-              <ChevronLeft size={16} />
-            </Button>
-            <Button
-              aria-label="Next week"
-              variant="secondary"
-              className="week-nav-btn"
-              onClick={() => setOffset(o => o + 1)}
-            >
-              <ChevronRight size={16} />
-            </Button>
+  const unit = data.preferences.unit;
+
+  const activeWorkout = data.activeWorkout?.active ? data.activeWorkout : null;
+
+  return (
+    <>
+      <div className="page-heading dashboard-heading">
+        <div>
+          <h1>Overview</h1>
+          <p className="dashboard-date-subtitle">
+            {new Date().toLocaleDateString('en', {
+              weekday: 'long',
+              month: 'long',
+              day: 'numeric',
+              year: 'numeric'
+            })}
+          </p>
+        </div>
+        {onMuscles && (
+          <Button variant="secondary" className="overview-muscles-link" onClick={onMuscles}>
+            <BicepsFlexed size={16} /> See muscle coverage
+          </Button>
+        )}
+      </div>
+
+      <section className="next-workout quick-start-hero" aria-label="Today's workout quick start">
+        <div className="hero-top">
+          <span className="eyebrow">
+            <span className="status-dot" />{' '}
+            {activeWorkout
+              ? 'Workout in progress'
+              : next
+                ? program
+                  ? "Today's training"
+                  : 'Quick start'
+                : 'Ready to train'}
+          </span>
+          <span className="pill">
+            {activeWorkout
+              ? `${activeWorkout.exercises.length} exercises`
+              : next
+                ? `${nextExerciseCount} exercises`
+                : 'No workout queued'}
+          </span>
+        </div>
+
+        <div className="hero-content">
+          <div>
+            <h2>
+              {activeWorkout
+                ? activeWorkout.name
+                : nextName ?? 'Choose a workout'}
+            </h2>
+            <p>
+              {activeWorkout
+                ? 'In progress · pick up where you left off'
+                : next
+                  ? program
+                    ? `${program.name} · week ${nextWeek}`
+                    : nextFocus || 'Ready to start'
+                  : 'Import a program from a PDF, or build a workout in your library.'}
+            </p>
+            <div className="hero-facts">
+              {(() => {
+                const workingSetCount = activeWorkout
+                  ? activeWorkout.exercises.reduce(
+                      (total, e) => total + e.sets.filter(s => !s.warmup).length,
+                      0
+                    )
+                  : nextSets;
+                return (
+                  <span>
+                    <Dumbbell size={15} />
+                    {workingSetCount && workingSetCount > 0 ? `${workingSetCount} working sets` : '—'}
+                  </span>
+                );
+              })()}
+            </div>
           </div>
-          {offset !== 0 && (
-            <Button
-              aria-label="Return to current week"
-              variant="secondary"
-              className="week-today-btn"
-              onClick={() => setOffset(0)}
-            >
-              <RotateCcw size={12} />
-              <span>Current week</span>
+        </div>
+
+        <div className="hero-bottom">
+          {activeWorkout ? (
+            <Button variant="primary" onClick={onResume}>
+              <Play size={17} fill="currentColor" /> Resume workout <ArrowRight size={18} />
+            </Button>
+          ) : next ? (
+            <Button variant="primary" onClick={() => onStart(next.id)}>
+              <Play size={17} fill="currentColor" /> Start workout <ArrowRight size={18} />
+            </Button>
+          ) : program ? (
+            <Button variant="primary" onClick={onProgram}>
+              <Check size={17} /> Open workouts <ArrowRight size={18} />
+            </Button>
+          ) : (
+            <Button variant="primary" onClick={onImport}>
+              <FileText size={17} /> Import a program <ArrowRight size={18} />
             </Button>
           )}
         </div>
-      </div>
-      <div className="week-days">{days.map(day => {
-        const dayStr = localDay(day);
-        const entries = calendar.filter(item => item.date === dayStr);
-        const status = entries.some(e => e.status === 'in_progress') ? 'in_progress' : entries.some(e => e.status === 'completed') ? 'completed' : 'rest';
-        const today = dayStr === localDay(new Date());
-        const label = status === 'completed' ? 'workout completed' : status === 'in_progress' ? 'workout in progress' : 'no workout recorded';
-        return <Button presentation="plain" key={day.toISOString()} className={`day day-${status} ${today ? 'today' : ''}`} aria-label={`${day.toDateString()}, ${label}${today ? ', today' : ''}`} onClick={() => { setSelectedDay(day); setSelectedDayError(''); }}>
-          <span>{day.toLocaleDateString('en', { weekday: 'short' })}</span><strong>{day.getDate()}</strong>
-          <span className="day-marker">{status === 'completed' ? <Check size={12} /> : status === 'in_progress' ? '…' : today ? <span className="status-dot" /> : '·'}</span>
-        </Button>;
-      })}</div>
-      <div className="calendar-legend" aria-label="Calendar status legend"><span><i className="legend-dot completed" />Completed</span><span><i className="legend-dot in-progress" />In progress</span></div>
-      {calendarError && <p className="muted calendar-error">{calendarError}</p>}
-    </section>
+      </section>
 
-    <div className="dashboard-grid">
-      <div className="main-column">
-        <section className="next-workout">
-          <div className="hero-top">
-            <span className="eyebrow"><span className="status-dot" /> {data.activeWorkout?.active ? 'Workout in progress' : next ? 'Up next' : program ? 'Week checklist' : 'No workout selected'}</span>
-            <span className="pill">{data.activeWorkout?.active ? `${data.activeWorkout.exercises.length} exercises` : next ? `${nextExerciseCount} exercises` : program?.progress ? `${program.progress.passedDays}/${program.progress.totalDays} days passed` : 'No workout'}</span>
-          </div>
-          <div className="hero-content">
-            <div>
-              <h2>{data.activeWorkout?.active ? data.activeWorkout.name : nextName ?? (program ? 'Your current week' : 'Choose a workout')}</h2>
-              <p>{data.activeWorkout?.active ? 'In progress · pick up where you left off' : next ? program ? `${program.name} · week ${nextWeek}` : nextFocus : program ? `${program.name} · week ${program.progress?.currentWeek ?? 1} checklist` : 'Import a program from a PDF, or build a workout by hand.'}</p>
-              <div className="hero-facts">
-                {(() => {
-                  const workingSetCount = data.activeWorkout?.active
-                    ? data.activeWorkout.exercises.reduce((total, e) => total + e.sets.filter(s => !s.warmup).length, 0)
-                    : nextSets;
-                  return <span><Dumbbell size={15} />{workingSetCount && workingSetCount > 0 ? `${workingSetCount} working sets` : '—'}</span>;
-                })()}
-              </div>
-            </div>
-          </div>
-          <div className="hero-bottom">
-            {data.activeWorkout?.active
-              ? <Button variant="primary" onClick={onResume}><Play size={17} fill="currentColor" />Resume workout<ArrowRight size={18} /></Button>
-              : next
-                ? <Button variant="primary" onClick={() => onStart(next.id)}><Play size={17} fill="currentColor" />Start workout<ArrowRight size={18} /></Button>
-              : program
-                ? <Button variant="primary" onClick={onProgram}><Check size={17} />Open week checklist<ArrowRight size={18} /></Button>
-                : <Button variant="primary" onClick={onImport}><FileText size={17} />Import a program<ArrowRight size={18} /></Button>}
-          </div>
-        </section>
-        {program?.progress && <ProgramWeekChecklist program={program} onStart={onStart} onChanged={onChanged} hasActiveWorkout={Boolean(data.activeWorkout?.active)} />}
+      <TrainingCalendar onSession={onSession} />
 
-      </div>
+      <ProgressStats progress={progress} unit={unit} />
 
-      <aside className="side-column">
-        <section className="panel program-card">
-          <div className="section-heading"><h2>Your program</h2>{program && <span className="tiny-label">{program.weeks} {program.weeks === 1 ? 'week' : 'weeks'}</span>}</div>
-          {program ? <>
-            <div className="program-title"><span className="program-icon"><Dumbbell size={25} /></span><div><h3>{program.name}</h3>
-              <p>{program.progress ? `${program.progress.passedDays} of ${program.progress.totalDays} week days passed` : `${program.completedTemplateIds.length} workouts complete`}</p></div></div>
-            {program.phases?.find(phase => !phase.complete) && <p className="muted overview-phase">Current phase: {program.phases.find(phase => !phase.complete)?.name}</p>}
-          </> : <div className="empty-inline"><span className="exercise-icon"><FileText size={20} /></span>
-            <div><h3>No active program</h3><p>Import a training PDF and review it before it becomes a program.</p></div></div>}
-          <Button className="full-width" onClick={onProgram}>Manage workouts <ArrowRight size={16} /></Button>
-        </section>
+      {progressError && (
+        <div className="error-banner" role="alert">
+          <span>{progressError}</span>
+          <Button variant="tertiary" onClick={() => setProgressRetry(val => val + 1)}>
+            Retry
+          </Button>
+        </div>
+      )}
 
-      </aside>
-    </div>
-    {selectedDay && <CalendarDayModal day={selectedDay} entries={calendar.filter(item => item.date === localDay(selectedDay))}
-      onClose={() => setSelectedDay(null)} onSession={async id => { try { const session = await api.getWorkout(id); setSelectedDay(null); onSession(session); } catch { setSelectedDayError('This workout could not be opened.'); } }} error={selectedDayError} />}
-  </>;
-}
+      <BodyweightRecords progress={progress} unit={unit} />
 
-function CalendarDayModal({ day, entries, onClose, onSession, error }: { day: Date; entries: WorkoutActivityItem[]; onClose: () => void; onSession: (id: string) => Promise<void>; error: string }) {
-  return <Modal title={day.toLocaleDateString('en', { weekday: 'long', month: 'long', day: 'numeric' })} onClose={onClose}>
-    <div className="modal-body calendar-day-details">
-      {entries.length ? entries.map(entry => <div className="calendar-entry" key={entry.id}>
-        <div><strong>{entry.name}</strong><span className="muted">{entry.status.replace('_', ' ')}</span></div>
-        <Button variant="tertiary" onClick={() => void onSession(entry.id)}>Open workout <ArrowRight size={15} /></Button>
-      </div>) : <p className="muted">No workout recorded for this day.</p>}
-      {error && <div className="error-text" role="alert">{error}</div>}
-    </div>
-  </Modal>;
+      <WorkoutHistory
+        initial={data.history}
+        unit={unit}
+        onSession={onSession}
+        onStart={onProgram}
+        onExercise={onExercise}
+      />
+    </>
+  );
 }

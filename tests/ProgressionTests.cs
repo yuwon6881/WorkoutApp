@@ -280,7 +280,7 @@ public class ProgressionSessionTests
 
         await h.Workouts.Start(null, "In progress", default);
         var today = DateOnly.FromDateTime(DateTime.UtcNow);
-        var summary = await h.Workouts.TrainingSummary(today, today, default);
+        var summary = await h.Workouts.TrainingSummary(today, today, null, default);
 
         var item = Assert.Single(summary);
         Assert.Equal("in_progress", item.Status);

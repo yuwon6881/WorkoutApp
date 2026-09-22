@@ -139,4 +139,34 @@ describe('ExerciseLibrary UI and grouping', () => {
     expect(pickerMarkup).toContain('aria-label="Filter exercise category"');
     expect(pickerMarkup).toContain('exercise-minor-filters');
   });
+
+  it('displays one primary muscle, one secondary muscle, and abstracts remaining muscles to an overflow tag', () => {
+    const multiMuscleExercise: Exercise = {
+      id: 'ex-bench-multi',
+      slug: 'bench-multi',
+      name: 'Bench Press Multi',
+      muscle: 'Chest',
+      secondaryMuscles: ['Triceps', 'Shoulders', 'Core'],
+      equipment: 'Barbell',
+      cue: '',
+      aliases: [],
+      loadStepKg: 2.5,
+      category: 'Free Weights'
+    };
+
+    const markup = renderToStaticMarkup(createElement(ExerciseLibrary, {
+      exercises: [multiMuscleExercise]
+    }));
+
+    // Primary muscle is displayed
+    expect(markup).toContain('Chest');
+    // First secondary muscle is displayed
+    expect(markup).toContain('Triceps');
+    // Remaining 2 secondary muscles are abstracted to +2 with title attribute
+    expect(markup).toContain('+2');
+    expect(markup).toContain('title="Shoulders, Core"');
+    // Direct raw tags for remaining muscles are not rendered as individual pills
+    expect(markup).not.toContain('<span class="pill pill-muted">Shoulders</span>');
+    expect(markup).not.toContain('<span class="pill pill-muted">Core</span>');
+  });
 });

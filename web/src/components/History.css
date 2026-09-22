@@ -23,7 +23,7 @@
   align-items: center;
   gap: 4px;
   padding: 3px 8px;
-  font-size: 11px;
+  font-size: var(--font-secondary, 14px);
   font-weight: 600;
   border-radius: 6px;
   background: var(--accent-soft);
@@ -75,17 +75,17 @@
   flex-wrap: wrap;
 }
 .history-exercise-head strong {
-  font-size: 13px;
+  font-size: var(--font-secondary, 14px);
   font-weight: 600;
   color: var(--text);
 }
 .history-exercise-btn {
   padding: 0;
-  min-height: auto;
+  min-height: 36px;
   gap: 5px;
   color: var(--text);
   background: transparent;
-  font-size: 13px;
+  font-size: var(--font-secondary, 14px);
 }
 .history-exercise-btn:hover {
   color: var(--accent);
@@ -98,7 +98,7 @@
   align-items: center;
   gap: 4px;
   padding: 2px 7px;
-  font-size: 11px;
+  font-size: var(--font-secondary, 14px);
   font-weight: 600;
   border-radius: 6px;
   background: var(--accent-soft);
@@ -115,7 +115,7 @@
   display: flex;
   align-items: center;
   gap: 14px;
-  font-size: 12px;
+  font-size: var(--font-secondary, 14px);
   padding: 2px 0;
   font-variant-numeric: tabular-nums;
   color: var(--text);
@@ -124,7 +124,7 @@
   font-weight: 600;
 }
 .pr-set-tag {
-  font-size: 9px;
+  font-size: var(--font-secondary, 14px);
   padding: 1px 5px;
   font-weight: 700;
   border-radius: 4px;
@@ -133,7 +133,7 @@
   gap: 3px;
 }
 .history-exercise-note {
-  font-size: 11px;
+  font-size: var(--font-secondary, 14px);
   color: var(--muted);
   margin-top: 2px;
 }
@@ -161,6 +161,12 @@
   font-weight: 600;
 }
 
+@media (max-width: 1023px) {
+  .history-exercise-btn {
+    min-height: 44px;
+  }
+}
+
 @media(max-width: 639px) {
   .history-expanded-content {
     padding: 10px 12px 14px;
@@ -169,7 +175,7 @@
     gap: 8px;
   }
   .history-pr-pill {
-    font-size: 10px;
+    font-size: var(--font-secondary, 14px);
     padding: 2px 6px;
   }
 }

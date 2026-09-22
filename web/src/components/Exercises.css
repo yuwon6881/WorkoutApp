@@ -19,16 +19,21 @@
 .picker-boundary-label { font-size: var(--font-secondary, 14px) !important; text-transform: uppercase; letter-spacing: .8px; color: var(--muted); }
 .picker-show-all-btn { min-height: 36px; font-size: var(--font-secondary, 14px) !important; }
 .pill-category { border-color: var(--border-hover); color: var(--text); }
+.exercise-card-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; margin-bottom: 14px; }
+.exercise-card-top .exercise-icon { flex-shrink: 0; align-self: flex-start; }
+.exercise-card-meta { flex: 1; min-width: 0; display: flex; align-items: center; flex-wrap: wrap; gap: 6px; }
+.exercise-card-top .pill-category { flex-shrink: 0; align-self: flex-start; margin-left: auto; border-color: var(--border-hover); color: var(--text); }
+.pill-overflow { font-weight: 600; letter-spacing: .2px; }
 .exercise-minor-filters { display: flex; gap: 8px; align-items: center; flex-shrink: 0; }
 .exercise-filter-select.custom-select-wrap { min-width: 130px; max-width: 160px; width: auto; flex: 0 1 auto; }
-.exercise-filter-select .custom-select-trigger { min-height: 44px; padding: 6px 8px; font-size: var(--font-secondary, 14px); background: var(--surface-raised); }
+.exercise-filter-select .custom-select-trigger { min-height: 44px; height: 44px; padding: 0 12px; font-size: var(--font-secondary, 14px); background: var(--surface-raised); border-radius: 10px; }
 @media (min-width: 1024px) {
-  .exercise-filter-select .custom-select-trigger { min-height: 36px; }
+  .exercise-filter-select .custom-select-trigger { min-height: 44px; height: 44px; }
 }
 .picker-card-header { flex-wrap: wrap; min-width: 0; max-width: 100%; }
 .search-box input { min-height: 44px; min-width: 44px; }
 @media (min-width: 1024px) {
-  .search-box input { min-height: 36px; }
+  .search-box input { min-height: 44px; }
 }
 @media (max-width: 767px) {
   .search-row { flex-direction: column; align-items: stretch; gap: 10px; }

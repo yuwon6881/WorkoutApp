@@ -86,12 +86,12 @@ export type ImportView = {
   id: string; status: 'pending' | 'ready' | 'failed' | 'accepted' | 'discarded';
   fileName: string; pages: number; error: string; created: string; model: string; stage: 'outline' | 'select' | 'extract' | 'done'; chunksDone: number; chunksTotal: number; currentChunkLabel: string | null; unresolvedCount: number;
   draft: ImportDraft | null; unresolved: { lineId: string; sourceName: string; slotKey?: string | null; block?: string | null; occurrences?: number }[]; acceptable: boolean; programId: string | null;
-  reviewIssues?: { code: string; message: string; severity: string; sourcePage?: number | null; workoutLineId?: string | null; exerciseLineId?: string | null; setIndex?: number | null; targetField?: string | null }[]; inputTokens?: number; outputTokens?: number; retries?: number; sourceExpiresAt?: string | null; pageCoverage?: { page: number; hasText: boolean; characterCount: number }[]; alternatives?: { id: string; name: string; chunkCount: number; dayCount: number }[]; selectedAlternativeId?: string | null;
+  reviewIssues?: { code: string; message: string; severity: string; sourcePage?: number | null; workoutLineId?: string | null; exerciseLineId?: string | null; setIndex?: number | null; targetField?: string | null }[]; inputTokens?: number; outputTokens?: number; retries?: number; pageCoverage?: { page: number; hasText: boolean; characterCount: number }[]; alternatives?: { id: string; name: string; chunkCount: number; dayCount: number }[]; selectedAlternativeId?: string | null;
   revision: number; canRestoreDraft?: boolean; restorableExerciseLineIds?: string[];
 };
 export type ImportStatusView = {
   id: string; status: ImportView['status']; stage: ImportView['stage']; chunksDone: number; chunksTotal: number;
-  currentChunkLabel: string | null; error: string; revision: number; retries: number; sourceExpiresAt?: string | null; unresolvedCount: number;
+  currentChunkLabel: string | null; error: string; revision: number; retries: number; unresolvedCount: number;
 };
 
 export type Bootstrap = {

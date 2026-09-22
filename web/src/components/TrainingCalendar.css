@@ -1,0 +1,310 @@
+.training-calendar-card,
+.panel.training-calendar-card {
+  padding: 24px 26px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  margin-bottom: 24px;
+}
+
+.calendar-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin-bottom: 18px;
+}
+
+.calendar-title-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.calendar-title-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.calendar-title-row h3 {
+  font-size: 16px;
+  font-weight: 650;
+  color: var(--text);
+  margin: 0;
+}
+
+.calendar-icon-badge {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: var(--accent-soft);
+  border: 1px solid var(--accent-border);
+  color: var(--accent);
+  flex-shrink: 0;
+}
+
+.calendar-range-label {
+  font-size: var(--font-secondary, 14px);
+  color: var(--muted);
+  font-weight: 500;
+  padding-left: 42px;
+}
+
+.calendar-nav-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.calendar-nav-group {
+  display: flex;
+  gap: 4px;
+}
+
+.calendar-nav-btn {
+  min-height: 36px;
+  min-width: 36px;
+  padding: 6px;
+}
+
+.calendar-today-btn {
+  min-height: 36px;
+  padding: 6px 12px;
+  font-size: var(--font-secondary, 14px);
+  gap: 5px;
+}
+
+.calendar-days-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.calendar-day-cell {
+  min-width: 0;
+  padding: 10px 4px 9px;
+  border-radius: 10px;
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 3px;
+  transition: border-color 0.16s ease, background 0.16s ease, transform 0.14s ease;
+  cursor: pointer;
+}
+
+.calendar-day-cell:hover:not(:disabled) {
+  border-color: var(--border-hover);
+  background: var(--surface-hover);
+  transform: translateY(-1px);
+}
+
+.day-weekday {
+  font-size: var(--font-secondary, 14px);
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.day-number {
+  font-size: 18px;
+  font-weight: 650;
+  color: var(--text);
+  line-height: 1.2;
+}
+
+.day-status-indicator {
+  margin-top: 3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.day-status-indicator .day-marker {
+  display: none;
+}
+
+.day-pill-status {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  font-size: var(--font-secondary, 14px);
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 999px;
+  letter-spacing: 0.2px;
+}
+
+.day-pill-status.done {
+  color: var(--green);
+  background: var(--surface);
+  border: 1px solid var(--border);
+}
+
+.day-pill-status.in-progress {
+  color: var(--accent);
+  background: var(--accent-soft);
+  border: 1px solid var(--accent-border);
+}
+
+.day-pill-status.rest {
+  color: var(--faint);
+  background: transparent;
+  border: 1px solid transparent;
+}
+
+.calendar-day-cell.is-today {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  box-shadow: 0 0 0 1px var(--accent-border);
+}
+
+.calendar-day-cell.is-today .day-number {
+  color: var(--accent);
+}
+
+.today-badge {
+  font-size: var(--font-secondary, 14px);
+  font-weight: 700;
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-top: 2px;
+}
+
+.calendar-card-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+  font-size: var(--font-secondary, 14px);
+  color: var(--muted);
+}
+
+.calendar-week-summary {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--font-secondary, 14px);
+}
+
+.calendar-legend-pills {
+  display: flex;
+  gap: 14px;
+  font-size: var(--font-secondary, 14px);
+}
+
+.calendar-legend-pills span {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: var(--font-secondary, 14px);
+}
+
+.calendar-error {
+  margin-top: 10px;
+  font-size: var(--font-secondary, 14px);
+}
+
+@media (max-width: 1023px) {
+  .calendar-nav-btn {
+    min-height: 44px;
+    min-width: 44px;
+    padding: 8px;
+  }
+
+  .calendar-today-btn {
+    min-height: 44px;
+    padding: 8px 14px;
+  }
+
+  .calendar-days-grid {
+    gap: 6px;
+  }
+
+  .calendar-day-cell {
+    padding: 8px 2px 7px;
+  }
+
+  .day-number {
+    font-size: 16px;
+  }
+}
+
+@media (max-width: 639px) {
+  .training-calendar-card,
+  .panel.training-calendar-card {
+    padding: 16px 8px;
+    margin-bottom: 20px;
+  }
+
+  .calendar-card-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  .calendar-range-label {
+    padding-left: 0;
+  }
+
+  .calendar-nav-controls {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .calendar-days-grid {
+    gap: 3px;
+    margin-bottom: 14px;
+  }
+
+  .calendar-day-cell {
+    padding: 6px 1px 6px;
+    min-height: 56px;
+  }
+
+  .day-weekday {
+    font-size: var(--font-secondary, 14px);
+  }
+
+  .day-number {
+    font-size: 15px;
+  }
+
+  .day-pill-status span {
+    display: none;
+  }
+
+  .day-pill-status {
+    padding: 2px 4px;
+    font-size: var(--font-secondary, 14px);
+  }
+
+  .today-badge {
+    letter-spacing: 0;
+  }
+
+  .calendar-card-footer {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+}
+
+@media (max-width: 359px) {
+  .calendar-days-grid {
+    grid-template-columns: repeat(4, minmax(44px, 1fr));
+    gap: 4px;
+  }
+}

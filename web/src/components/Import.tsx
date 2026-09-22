@@ -41,17 +41,12 @@ function Progress({ progress, action }: { progress: ImportProgress; action?: Rea
   </div>;
 }
 
-/// Every import failure carries the one action that clears it, so the message is never a dead end.
-function Failure({ failure, onChooseFile, onRetry, onDismiss }: {
-  failure: ImportFailure; onChooseFile: () => void; onRetry?: () => void; onDismiss: () => void;
-}) {
+/// Every import failure carries the warning message that can be dismissed.
+function Failure({ failure, onDismiss }: { failure: ImportFailure; onDismiss: () => void }) {
   return <div className="error-banner import-failure-banner" role="alert">
     <AlertTriangle size={17} />
     <span className="import-failure-message">{failure.message}</span>
     <div className="import-failure-actions">
-      {onRetry
-        ? <Button variant="secondary" onClick={onRetry}>Try again</Button>
-        : <Button variant="secondary" onClick={onChooseFile}><Upload size={15} />Choose a PDF</Button>}
       <Button variant="tertiary" aria-label="Dismiss this message" onClick={onDismiss}><X size={15} /></Button>
     </div>
   </div>;
@@ -111,9 +106,6 @@ export function ImportReview({ exercises, imports, remaining, onBack, onChanged,
     await saver.mutate((view, revision) => api.mapImportExerciseSlot(view.id, exerciseLineId, exerciseId, revision), 'Could not map this exercise slot.');
   }
 
-  // A stored expiry is the server's own statement that it still holds this document's text and
-  // can continue the read without extracting it again.
-  const serverHoldsSource = !!selected?.sourceExpiresAt;
   const reviewIssues = selected?.reviewIssues ?? [];
   const informationalIssues = reviewIssues.filter(issue => issue.severity === 'info');
   const unresolved = selected?.unresolved ?? [];
@@ -172,8 +164,7 @@ export function ImportReview({ exercises, imports, remaining, onBack, onChanged,
       } />}
       {saver.pending && <p className="muted" role="status">Saving your changes…</p>}
       {pipeline.notice && <p className="muted" role="status">{pipeline.notice}</p>}
-      {pipeline.failure && <Failure failure={pipeline.failure} onChooseFile={() => file.current?.click()} onDismiss={pipeline.clearFailure}
-        onRetry={selected && selected.status === 'pending' && serverHoldsSource ? () => void pipeline.resume(selected) : undefined} />}
+      {pipeline.failure && <Failure failure={pipeline.failure} onDismiss={pipeline.clearFailure} />}
       {saveError && <p className="error-text" role="alert">{saveError}</p>}
       <p className="muted small-copy">The text is read from the PDF on this device and only that text is sent; the file itself stays here. It becomes an editable draft before it can affect your workouts.</p>
     </section>
@@ -186,14 +177,10 @@ export function ImportReview({ exercises, imports, remaining, onBack, onChanged,
       </div> : <div className="import-reading-card">
         <div className="reading-card-header">
           <div className="reading-card-title">
-            {busy ? <Loader2 size={18} className="spin accent" /> : <Wand2 size={18} className="accent" />}
-            <h3>{busy ? 'Reading PDF…' : stageLabel(selected)}</h3>
+            {busy ? <Loader2 size={18} className="spin accent" /> : (selected.error ? <AlertTriangle size={18} className="red" /> : <Wand2 size={18} className="accent" />)}
+            <h3>{busy ? 'Reading PDF…' : (selected.error ? 'Reading stopped' : stageLabel(selected))}</h3>
           </div>
-          <span className="pill pill-accent">{serverHoldsSource ? 'Saved for 24h' : 'Expired'}</span>
         </div>
-        <p className="muted small-copy">{serverHoldsSource
-          ? 'The text from this PDF is saved for a day, so you can continue this read now or come back to it later. Nothing already read is lost.'
-          : 'The saved text from this PDF has expired. Choose the file again to read it from the start.'}</p>
         {/* The bar measures what has committed, which is the only part of a read that is finished.
             While sections are in flight it names none of them: they are all being read, and they
             commit in outline order as they land. */}
@@ -204,10 +191,8 @@ export function ImportReview({ exercises, imports, remaining, onBack, onChanged,
             : selected.currentChunkLabel ?? '',
           percent: Math.round((selected.chunksDone / selected.chunksTotal) * 100)
         }} />}
-        {selected.error && <p className="error-text">Last attempt: {selected.error}</p>}
+        {selected.error && <div className="error-banner" role="alert"><AlertTriangle size={16} /><span>{selected.error}</span></div>}
         <div className="reading-card-actions">
-          {serverHoldsSource && <Button variant="primary" disabled={busy} onClick={() => void pipeline.resume(selected)}><Wand2 size={15} />Continue now</Button>}
-          <Button variant={serverHoldsSource ? 'secondary' : 'primary'} disabled={busy} onClick={() => file.current?.click()}><Upload size={15} />Choose the PDF again</Button>
           {/* Cancelling stays available while a read is out: that is exactly when someone realises
               they picked the wrong file and wants a clean start. */}
           <Button variant="destructive" onClick={() => void pipeline.cancel(selected)}><Trash2 size={15} />Cancel import</Button>
@@ -323,7 +308,7 @@ export function ImportReview({ exercises, imports, remaining, onBack, onChanged,
       </Modal>}
     </>}
 
-    {selected && selected.status === 'failed' && <section className="panel"><div className="empty-message"><AlertTriangle size={30} /><h3>Import failed</h3><p>{selected.error}</p><p className="muted">Nothing from that read was kept, so choose the PDF again.</p>
-      <Button variant="primary" disabled={busy} onClick={() => file.current?.click()}><Upload size={16} />Choose the PDF again</Button></div></section>}
+    {selected && selected.status === 'failed' && <section className="panel"><div className="empty-message"><AlertTriangle size={30} /><h3>Import failed</h3><p>{selected.error}</p>
+      <div className="reading-card-actions"><Button variant="destructive" onClick={() => void pipeline.cancel(selected)}><Trash2 size={15} />Cancel import</Button></div></div></section>}
   </>;
 }

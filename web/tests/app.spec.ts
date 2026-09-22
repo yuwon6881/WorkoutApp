@@ -24,6 +24,13 @@ async function clearActiveWorkout(page: Page) {
       const verified = await fetch('/api/workouts/active', { headers, cache: 'no-store' });
       if (!verified.ok || await verified.json()) throw new Error('The previous E2E workout is still active.');
     }
+    const importsRes = await fetch('/api/imports', { headers, cache: 'no-store' });
+    if (importsRes.ok) {
+      const existingImports = await importsRes.json();
+      for (const item of existingImports) {
+        await fetch(`/api/imports/${item.id}/discard`, { method: 'POST', headers });
+      }
+    }
 
     // E2E cleanup mutates the server directly, so remove the corresponding device snapshot too.
     // This is fixture isolation; normal app flows always resolve recovery through the UI.
@@ -215,8 +222,8 @@ test('build a workout, log a set against the server, and see it in history', asy
   await expect(page.getByText(/(?:RPE 8|2 RIR)/, { exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Done', exact: true }).click();
 
-  await openTab(page, 'Progress');
-  await expect(page.getByRole('heading', { name: 'Progress' })).toBeVisible();
+  await openTab(page, 'Overview');
+  await expect(page.getByRole('heading', { name: 'Overview' })).toBeVisible();
   await expect(page.getByText(name, { exact: true }).first()).toBeVisible();
   const progressStats = page.locator('.progress-stats');
   const workoutHistoryHeading = page.getByRole('heading', { name: 'Workout history', exact: true });
@@ -494,7 +501,7 @@ test('import a PDF program, resolve an unmapped exercise, and accept it', async 
   expect(await programCard.locator('.routine-row-static').evaluateAll(rows => rows.every(row => row.tagName !== 'BUTTON'))).toBe(true);
 });
 
-test('a discarded draft leaves no program behind, and reports itself while it reads', async ({ page }) => {
+test('a discarded draft leaves no program behind, and reports itself while it reads', async ({ page }, testInfo) => {
   await signIn(page);
   await clearActiveWorkout(page);
   await openTab(page, 'Workouts');
@@ -504,12 +511,12 @@ test('a discarded draft leaves no program behind, and reports itself while it re
   // belongs to the server, so leaving must not make it look like nothing is happening.
   await page.route('**/api/imports/*/extract', async route => {
     await new Promise(resolve => setTimeout(resolve, 6000));
-    await route.continue();
+    await route.continue().catch(() => {});
   });
   const created = page.waitForResponse(response =>
     response.request().method() === 'POST' && new URL(response.url()).pathname === '/api/imports', { timeout: 60000 });
 
-  await page.getByLabel('Program PDF').setInputFiles({ name: 'throwaway.pdf', mimeType: 'application/pdf', buffer: pdf(5, 'throwaway') });
+  await page.getByLabel('Program PDF').setInputFiles({ name: `throwaway-${testInfo.project.name}.pdf`, mimeType: 'application/pdf', buffer: pdf(5, `throwaway-${testInfo.project.name}-${Date.now()}`) });
   expect((await created).ok()).toBe(true);
 
   await openTab(page, 'Overview');

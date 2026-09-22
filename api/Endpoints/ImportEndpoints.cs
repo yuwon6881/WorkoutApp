@@ -138,7 +138,7 @@ public static class ImportEndpoints
         }
         catch (JsonException)
         {
-            throw new DomainException("The extracted PDF text could not be read. Choose the PDF again.", 400);
+            throw new DomainException("The extracted PDF text could not be read.", 400);
         }
         finally { expanded?.Dispose(); }
     }

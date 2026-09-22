@@ -27,8 +27,7 @@ export type ImportPipeline = {
 };
 
 type Options = {
-  /// The import this screen is showing, so an unfinished read can continue on its own.
-  selected?: ImportView | null;
+  selected: ImportView | null;
   setSelected: (view: ImportView | null) => void;
   setDraft: (draft: ImportDraft | null) => void;
   onChanged: () => Promise<void>;
@@ -37,8 +36,7 @@ type Options = {
 
 /// Coordinates the whole read of a PDF: the text is extracted here, on this device, and only that
 /// text is sent. The server reads the outline and sections in its background runner while this hook
-/// polls persisted progress, and holds the extracted text for a day so a reload continues an
-/// unfinished import instead of restarting it.
+/// polls persisted progress.
 export function useImportPipeline({ selected, setSelected, setDraft, onChanged, onComplete }: Options): ImportPipeline {
   const [progress, setProgress] = useState<ImportProgress | null>(null);
   const [failure, setFailure] = useState<ImportFailure | null>(null);
@@ -54,7 +52,6 @@ export function useImportPipeline({ selected, setSelected, setDraft, onChanged, 
   const uploadAbort = useRef<AbortController | null>(null);
 
   useEffect(() => () => uploadAbort.current?.abort(), []);
-
   const apply = useCallback((view: ImportView) => {
     if (cancelled.current === view.id) return;
     setSelected(view); setDraft(view.draft);
@@ -250,7 +247,7 @@ export function useImportPipeline({ selected, setSelected, setDraft, onChanged, 
       await api.discardImport(view.id);
       setSelected(null); setDraft(null);
       await onChanged();
-      setNotice('That import was cancelled. Choose a PDF to start again.');
+      setNotice('That import was cancelled.');
     } catch (error) { report(error, 'That import could not be cancelled. Try again.'); }
   }, [onChanged, report, setDraft, setSelected]);
 
@@ -259,7 +256,7 @@ export function useImportPipeline({ selected, setSelected, setDraft, onChanged, 
   /// spending another read on it is the user's call rather than this screen's.
   useEffect(() => {
     if (!selected || selected.status !== 'pending' || selected.stage === 'select') return;
-    if (!selected.sourceExpiresAt || selected.error || running.current) return;
+    if (selected.error || running.current) return;
     if (resumed.current.has(selected.id)) return;
     resumed.current.add(selected.id);
     void resume(selected);

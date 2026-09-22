@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useRef, useState } from 'react';
-import { Activity, AlertTriangle, CheckCircle2, Cloud, Dumbbell, LayoutDashboard, Library, Loader2, PersonStanding, Plus, RefreshCw, Settings, WifiOff } from 'lucide-react';
+import { AlertTriangle, BicepsFlexed, CheckCircle2, Cloud, Dumbbell, LayoutDashboard, Library, Loader2, Plus, RefreshCw, Settings, WifiOff } from 'lucide-react';
 import type { Exercise, Session, Template } from './types';
 import { ApiError, api } from './lib/api';
 import { useApp } from './app/useApp';
@@ -12,7 +12,8 @@ import { Auth } from './components/Auth';
 import { Dashboard } from './components/Dashboard';
 import { Programs } from './components/Programs';
 const Workout = lazy(() => import('./components/Workout').then(module => ({ default: module.Workout })));
-import { clearHistoryViewCache, HistoryView, SessionDetail } from './components/History';
+import { clearHistoryViewCache, SessionDetail } from './components/History';
+import { clearWorkoutHistoryCache } from './components/WorkoutHistory';
 import { SettingsView } from './components/Settings';
 import { ExerciseDetailModal, ExerciseLibrary } from './components/Exercises';
 import { ImportReview } from './components/Import';
@@ -27,8 +28,7 @@ const IMPORT_BLOCKED_MESSAGE = 'Finish or discard the active workout before impo
 const NAV = [
   { id: 'overview', label: 'Overview', icon: LayoutDashboard },
   { id: 'program', label: 'Workouts', icon: Dumbbell },
-  { id: 'history', label: 'Progress', icon: Activity },
-  { id: 'body', label: 'Body', icon: PersonStanding },
+  { id: 'body', label: 'Muscles', icon: BicepsFlexed },
   { id: 'exercises', label: 'Exercises', icon: Library }
 ];
 
@@ -360,19 +360,18 @@ export default function App() {
         {!online && <div className="error-banner" role="status"><WifiOff size={17} />Offline. Set logging, notes, pause, and finish are saved on this device; exercise-list changes and discard need a connection.<Button variant="tertiary" onClick={() => void app.reload()}><RefreshCw size={15} />Retry</Button></div>}
         {actionError && <div className="error-banner" role="alert">{actionError}</div>}
 
-        <MotionScene sceneKey={tab}>
-        {tab === 'overview' && <Dashboard data={data} onStart={start} onHistory={() => setTab('history')} onProgram={() => setTab('program')}
-            onImport={openImport} onSession={setDetail} onResume={() => setTraining(true)} onChanged={app.reload} />}
+        <MotionScene sceneKey={tab === 'history' ? 'overview' : tab}>
+        {(tab === 'overview' || tab === 'history') && <Dashboard data={data} onStart={start} onProgram={() => setTab('program')}
+            onImport={openImport} onSession={setDetail} onResume={() => setTraining(true)} onChanged={app.reload}
+            onExercise={id => { void openExercise(id); }} onMuscles={() => setTab('body')} />}
         {tab === 'program' && <Programs data={data} exercises={data.exercises} onStart={start} onImport={openImport} onChanged={app.reload} />}
         {tab === 'import' && <ImportReview exercises={data.exercises} imports={data.imports} remaining={data.aiImportsRemaining}
           onBack={() => setTab('program')} onChanged={app.reload} notify={setToast} />}
-        {tab === 'history' && <HistoryView initial={data.history} initialProgress={data.progress} preferences={data.preferences} onSession={setDetail} onStart={() => setTab('program')}
-          onExercise={id => { void openExercise(id); }} onMuscles={() => setTab('body')} />}
         {tab === 'body' && <MuscleBalanceView timeZone={Intl.DateTimeFormat().resolvedOptions().timeZone} />}
         {tab === 'exercises' && <ExerciseLibrary exercises={data.exercises} onOpen={setExerciseDetail} onChanged={app.reload} />}
         {tab === 'settings' && <SettingsView account={data.account} preferences={data.preferences} devicePreferences={app.devicePreferences}
           version={__APP_VERSION__}
-          onDevicePreferences={app.setDevicePreferences} onPreferences={app.savePreferences} notify={setToast} onSignOut={async () => { clearHistoryViewCache(); await app.signOut(); }} />}
+          onDevicePreferences={app.setDevicePreferences} onPreferences={app.savePreferences} notify={setToast} onSignOut={async () => { clearHistoryViewCache(); clearWorkoutHistoryCache(); await app.signOut(); }} />}
         </MotionScene>
       </main>
 
@@ -395,7 +394,7 @@ export default function App() {
 
     {preview && <StartPreview template={preview} busy={starting} onCancel={() => setPreview(null)} onConfirm={confirmStart} />}
     {detail && <SessionDetail session={detail} preferences={data.preferences} exercises={data.exercises} onClose={() => setDetail(null)} onDeleted={app.reload} />}
-    {exerciseDetail && <ExerciseDetailModal exercise={exerciseDetail} unit={data.preferences.unit} onClose={() => setExerciseDetail(null)} onChanged={async () => { clearHistoryViewCache(); await app.reload(); }}
+    {exerciseDetail && <ExerciseDetailModal exercise={exerciseDetail} unit={data.preferences.unit} onClose={() => setExerciseDetail(null)} onChanged={async () => { clearHistoryViewCache(); clearWorkoutHistoryCache(); await app.reload(); }}
       onSession={session => { setExerciseDetail(null); setDetail(session); }} />}
     {toast && <div className="toast" role="status"><Plus size={17} />{toast}</div>}
   </div>;
