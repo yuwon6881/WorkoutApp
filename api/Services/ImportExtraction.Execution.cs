@@ -20,6 +20,7 @@ public sealed partial class ImportService
         var leaseId = NewLeaseId();
         List<ImportPageText>? outlinePages = null;
         List<ImportPageText> sourcePages = [];
+        List<ImportPageLink> demoLinks = [];
         var pending = new List<PendingChunk>();
         Dictionary<int, AiImportResult> persistedResults = [];
         await using (var claim = await MutationLock.Acquire(db, db.CurrentUser, ct))
@@ -45,6 +46,7 @@ public sealed partial class ImportService
             ClaimLease(import, leaseId, DateTime.UtcNow);
             var pages = SourcePages(import);
             sourcePages = pages;
+            demoLinks = string.IsNullOrWhiteSpace(import.LinksJson) ? [] : Json.Read<List<ImportPageLink>>(import.LinksJson);
             if (import.Status == ImportStatus.Pending && import.Stage == "outline")
             {
                 // The account lock is not reentrant, so the outline pass starts after this closes.
@@ -186,6 +188,13 @@ public sealed partial class ImportService
                             var extracted = ImportOutlineEvidence.NormalizeDraft(labeled.Draft, sourceEvidence);
                             var reconciled = ReconcileChunkCoverage(draft, extracted, item.Chunk);
                             notices.AddRange(reconciled.Notices);
+                            // Checked per section rather than against the whole document: a name
+                            // belongs to the pages it was read from, and a movement printed in a
+                            // later block is no evidence for a section that never saw it.
+                            var section = ImportDemoLinks.Attach(
+                                extracted with { Workouts = reconciled.Workouts }, demoLinks);
+                            notices.AddRange(ImportNameEvidence.Unsupported(section, chunkPages));
+                            notices.AddRange(ImportNameEvidence.OverCounted(section, chunkPages));
                             merged = draft with
                             {
                                 // The outline pass reads the whole document and owns its title. A section
@@ -195,7 +204,7 @@ public sealed partial class ImportService
                                 ProgramName = string.IsNullOrWhiteSpace(draft.ProgramName)
                                     ? ImportNormalization.Text(result.Program.ProgramTitle ?? result.Program.ProgramName, 120) ?? draft.ProgramName
                                     : draft.ProgramName,
-                                Workouts = [.. draft.Workouts, .. reconciled.Workouts]
+                                Workouts = [.. draft.Workouts, .. section.Workouts]
                             };
                         }
                         if (complete)
@@ -305,7 +314,7 @@ public sealed partial class ImportService
     /// nothing left to say and is dropped rather than kept next to the draft it produced.
     private static void ClearSource(AiImport import)
     {
-        import.SourceTextJson = ""; import.SourceExpiresAt = null; import.ChunkResultsJson = "";
+        import.SourceTextJson = ""; import.LinksJson = ""; import.SourceExpiresAt = null; import.ChunkResultsJson = "";
     }
 
     private static Dictionary<int, AiImportResult> ReadChunkResults(string? json)

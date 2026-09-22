@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react';
-import { AlertTriangle, ArrowLeftRight, Dumbbell, Link2, Loader2, Plus, RotateCcw, Trash2, X } from 'lucide-react';
+import { AlertTriangle, ArrowLeftRight, Dumbbell, Link2, Loader2, Plus, RotateCcw, Timer, Trash2, X } from 'lucide-react';
 import type { DraftExercise, DraftSet, DraftWorkout, Exercise } from '../types';
 import { restOptions } from '../lib/training';
 import { Button } from './ui/Button';
+import { DemoLink } from './ui/DemoLink';
 import { Select } from './ui/Select';
 import { RpeControl } from './ui/RpeControl';
+import { RepPrescriptionControl } from './ui/RepPrescriptionControl';
 import { Field, TextAreaField } from './ui/Field';
 import { Modal } from './ui/Modal';
 import { ExerciseLibrary } from './Exercises';
@@ -242,6 +244,8 @@ function ExerciseEditor({ exercise, exercises, allDayExercises, onChange, onRemo
           <Select
             name={`exercise-rest-${exercise.lineId}`}
             ariaLabel={`Rest timer for ${exercise.sourceName}`}
+            title="Rest timer"
+            icon={<Timer size={14} className="rest-timer-icon" />}
             value={exercise.restSeconds ?? 90}
             options={restOptions(exercise.restSeconds)}
             onChange={val => onChange({ ...exercise, restSeconds: Number(val) })}
@@ -323,6 +327,7 @@ function ExerciseEditor({ exercise, exercises, allDayExercises, onChange, onRemo
           ) : (
             <span className="muted small-copy substitution-empty-state">No substitutions available.</span>
           )}
+          <DemoLink url={exercise.demoUrl} exerciseName={exercise.sourceName} />
         </div>
       </div>
     </div>
@@ -359,8 +364,17 @@ function ExerciseEditor({ exercise, exercises, allDayExercises, onChange, onRemo
                 </label>
               </div>
               <div className="import-set-fields">
-                <Field name={`rep-min-${exercise.lineId}-${index}`} label="Min reps" inputMode="numeric" type="number" value={set.repMin} data-import-field="repMin" data-import-set-index={index} onChange={event => editSet(index, { repMin: Number(event.target.value), repsText: null, repsSource: 'userEdited' })} />
-                <Field name={`rep-max-${exercise.lineId}-${index}`} label="Max reps" inputMode="numeric" type="number" value={set.repMax} data-import-field="repMax" data-import-set-index={index} onChange={event => editSet(index, { repMax: Number(event.target.value), repsText: null, repsSource: 'userEdited' })} />
+                <RepPrescriptionControl
+                  repMin={set.repMin}
+                  repMax={set.repMax}
+                  nameMin={`rep-min-${exercise.lineId}-${index}`}
+                  nameMax={`rep-max-${exercise.lineId}-${index}`}
+                  nameSingle={`rep-${exercise.lineId}-${index}`}
+                  dataImportIndex={index}
+                  onChange={({ repMin, repMax }) =>
+                    editSet(index, { repMin, repMax, repsText: null, repsSource: 'userEdited' })
+                  }
+                />
                 <div className="field rpe-field" data-import-field="targetRpe" data-import-set-index={index}>
                   <span>Target RIR</span>
                   <RpeControl

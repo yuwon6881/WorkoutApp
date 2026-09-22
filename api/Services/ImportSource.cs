@@ -10,7 +10,7 @@ namespace Workout.Api.Services;
 public record ImportPageText(int Page, string Text);
 
 /// What a browser submits in place of the PDF. The document itself never leaves the device.
-public record ImportSourceInput(string FileName, int PageCount, List<ImportPageText> Pages);
+public record ImportSourceInput(string FileName, int PageCount, List<ImportPageText> Pages, List<ImportPageLink>? Links = null);
 
 public record PdfPageCoverage(int Page, bool HasText, int CharacterCount);
 

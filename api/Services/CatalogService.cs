@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using Workout.Api.Data;
@@ -21,11 +22,19 @@ public sealed class CatalogService(AppDb db)
     private static readonly MemoryCache SharedCache = new(new MemoryCacheOptions { SizeLimit = 4 });
     private const string SharedCatalogKey = "workout:catalog:active:v2";
 
+    /// Movements a document writes as one word, two words, or hyphenated interchangeably. The
+    /// catalog is itself inconsistent — "Neutral-Grip Pullup" sits beside "Close-Grip Pull-Up" —
+    /// so both the library and the written name settle on the joined spelling here rather than
+    /// needing an alias for every grip and prefix a document might put in front.
+    private static readonly Regex CompoundMovement =
+        new(@"\b(pull|push|chin|sit|step|hang|warm) (ups?|downs?)\b", RegexOptions.Compiled);
+
     /// Normalizing on comparison keeps "Barbell Bench-Press" and "barbell bench press" the same key.
     public static string Normalize(string value)
     {
         var cleaned = new string(value.Trim().ToLowerInvariant().Select(c => char.IsAsciiLetterOrDigit(c) ? c : ' ').ToArray());
-        return string.Join(' ', cleaned.Split(' ', StringSplitOptions.RemoveEmptyEntries));
+        var words = string.Join(' ', cleaned.Split(' ', StringSplitOptions.RemoveEmptyEntries));
+        return CompoundMovement.Replace(words, "$1$2");
     }
 
     public static List<string> NormalizeMuscles(string? primary, IEnumerable<string>? secondary)

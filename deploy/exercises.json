@@ -2898,5 +2898,47 @@
     "aliases": [
       "Bicep Static Stretch (30s)"
     ]
+  },
+  {
+    "slug": "spider-curl",
+    "name": "Spider Curl",
+    "muscle": "Biceps and forearms",
+    "equipment": "Dumbbell",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "cable-shoulder-press",
+    "name": "Cable Shoulder Press",
+    "muscle": "Shoulders",
+    "equipment": "Cable",
+    "cue": "",
+    "aliases": [],
+    "secondaryMuscles": ["Triceps"]
+  },
+  {
+    "slug": "machine-squat",
+    "name": "Machine Squat",
+    "muscle": "Quads",
+    "equipment": "Machine",
+    "cue": "",
+    "aliases": [],
+    "secondaryMuscles": ["Glutes"]
+  },
+  {
+    "slug": "dead-bug",
+    "name": "Dead Bug",
+    "muscle": "Core",
+    "equipment": "Bodyweight",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "zottman-curl",
+    "name": "Zottman Curl",
+    "muscle": "Biceps and forearms",
+    "equipment": "Dumbbell",
+    "cue": "",
+    "aliases": []
   }
 ]

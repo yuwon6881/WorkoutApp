@@ -424,7 +424,7 @@ public sealed partial class ImportService(AppDb db, WorkoutAi ai, CatalogService
         var input = new ProgramInput(draft.ProgramName,
             draft.Workouts.Select(w => new ProgramWorkoutInput(w.Week, w.Name, w.Focus, w.Notes,
                 w.Exercises.Select(e => new TemplateExerciseInput(e.ExerciseId, e.SourceName, e.Notes,
-                    e.Sets.Select(ToPrescription).ToList(), e.SequenceGroup, e.Substitutions, e.SourcePage, e.SlotKey, e.RestSeconds)).ToList(),
+                    e.Sets.Select(ToPrescription).ToList(), e.SequenceGroup, e.Substitutions, e.SourcePage, e.SlotKey, e.RestSeconds, e.DemoUrl)).ToList(),
                 w.Block, w.Phase, w.PhaseWeek, w.IsRestDay, w.SourcePage)).ToList(), null);
         await programs.Validate(input, ct, allowMissingWorkingRpe: true);
         // Imported drafts always enter Standby. Even a completed PDF must be explicitly

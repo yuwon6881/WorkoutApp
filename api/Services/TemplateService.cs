@@ -6,12 +6,12 @@ namespace Workout.Api.Services;
 
 public record TemplateExerciseInput(Guid? ExerciseId, string SourceName, string? Note, List<SetPrescription> Sets,
     string? SequenceGroup = null, List<string>? Substitutions = null, int? SourcePage = null, Guid? SlotKey = null,
-    int? RestSeconds = null);
+    int? RestSeconds = null, string? DemoUrl = null);
 public record TemplateInput(string Name, string? Focus, string? Note, List<TemplateExerciseInput> Exercises, int? Revision, Guid? IdempotencyId,
     string? Block = null, string? Phase = null, int PhaseWeek = 1, bool IsRestDay = false);
 public record TemplateExerciseView(Guid Id, Guid? ExerciseId, string SourceName, string Name, string Note, int Position, List<SetPrescription> Sets,
     string SequenceGroup = "", List<string>? Substitutions = null, string LoadModel = LoadModels.External, int? SourcePage = null, Guid? SlotKey = null,
-    bool CanRestore = false, bool IsModified = false, int? RestSeconds = null);
+    bool CanRestore = false, bool IsModified = false, int? RestSeconds = null, string? DemoUrl = null);
 public record TemplateView(Guid Id, Guid? ProgramId, string Name, string Focus, string Note, int Week, int Position, int Revision, List<TemplateExerciseView> Exercises,
     string Block = "", string Phase = "", int PhaseWeek = 1, bool IsRestDay = false, int? SourcePage = null, Guid? PhaseId = null,
     bool CanRestore = false, bool IsLegacyBaseline = false);
@@ -70,7 +70,7 @@ public sealed partial class TemplateService(AppDb db, CatalogService catalog)
                 var canRestore = bEx != null && isModified;
                 return new TemplateExerciseView(e.Id, e.ExerciseId, e.SourceName, resolvedName, e.Note, e.Position,
                     Json.Read<List<SetPrescription>>(e.SetsJson), e.SequenceGroup, Json.Read<List<string>>(e.SubstitutionsJson),
-                    model, e.SourcePage, e.SlotKey, canRestore, isModified, e.RestSeconds);
+                    model, e.SourcePage, e.SlotKey, canRestore, isModified, e.RestSeconds, e.DemoUrl is { Length: > 0 } demo ? demo : null);
             }).ToList();
 
             var templateModified = baseline != null && (
@@ -141,7 +141,9 @@ public sealed partial class TemplateService(AppDb db, CatalogService catalog)
             row.SetsJson = Json.Write(inputExercise.Sets); row.SequenceGroup = inputExercise.SequenceGroup?.Trim() ?? "";
             row.RestSeconds = inputExercise.RestSeconds;
             row.SubstitutionsJson = Json.Write((inputExercise.Substitutions ?? []).Where(s => !string.IsNullOrWhiteSpace(s)).Select(s => s.Trim()).Take(2).ToList());
-            row.SourcePage = inputExercise.SourcePage; used.Add(row.Id);
+            row.SourcePage = inputExercise.SourcePage;
+            row.DemoUrl = ImportDemoLinks.Video(inputExercise.DemoUrl) ?? "";
+            used.Add(row.Id);
             if (!existing.Contains(row)) db.TemplateExercises.Add(row);
         }
         db.TemplateExercises.RemoveRange(existing.Where(e => !used.Contains(e.Id)));
@@ -291,7 +293,8 @@ public sealed partial class TemplateService(AppDb db, CatalogService catalog)
                 SetsJson = Json.Write(exercise.Sets), SequenceGroup = exercise.SequenceGroup?.Trim() ?? "",
                 RestSeconds = exercise.RestSeconds,
                 SubstitutionsJson = Json.Write((exercise.Substitutions ?? []).Where(s => !string.IsNullOrWhiteSpace(s)).Select(s => s.Trim()).Take(2).ToList()),
-                SourcePage = exercise.SourcePage, SlotKey = exercise.SlotKey ?? Guid.NewGuid()
+                SourcePage = exercise.SourcePage, SlotKey = exercise.SlotKey ?? Guid.NewGuid(),
+                DemoUrl = ImportDemoLinks.Video(exercise.DemoUrl) ?? ""
             });
     }
 

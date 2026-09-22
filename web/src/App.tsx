@@ -3,9 +3,7 @@ import { Activity, AlertTriangle, CheckCircle2, Cloud, Dumbbell, LayoutDashboard
 import type { Exercise, Session, Template } from './types';
 import { ApiError, api } from './lib/api';
 import { useApp } from './app/useApp';
-import { useRegisterSW } from 'virtual:pwa-register/react';
 import { restTimer } from './lib/restTimer';
-import { canApplyPwaUpdate } from './lib/pwaUpdateSafety';
 import { getWorkoutPushDeviceId } from './lib/push/firebaseMessaging';
 import { getRecovery, hasUnresolvedRecovery, sameWorkoutEdits, startRecovery } from './lib/workoutRecovery';
 import { Button } from './components/ui/Button';
@@ -36,7 +34,6 @@ const NAV = [
 
 export default function App() {
   const app = useApp();
-  const { needRefresh: [updateReady], offlineReady: [offlineReady], updateServiceWorker } = useRegisterSW({ immediate: true });
   const { data, status, loading, signedOut, online } = app;
   const initialTab = typeof window !== 'undefined' && (window.location.pathname === '/settings' || window.location.search.includes('central_error') || window.location.search.includes('error')) ? 'settings' : 'overview';
   const [tab, setTab] = useState(initialTab);
@@ -54,18 +51,11 @@ export default function App() {
   const hasServerWorkout = Boolean(data?.activeWorkout?.active);
   const workoutSession = recoverySession && (reviewRecovery || !hasServerWorkout || data?.activeWorkout?.id === recoverySession.id)
     ? recoverySession : data?.activeWorkout ?? null;
-  const recoveryForAccount = recovery && recovery.accountId === data?.account.id ? recovery : null;
   const importBlocked = Boolean(workoutSession?.active);
   const importWatch = useImportWatch({
     imports: data?.imports ?? [],
     active: tab !== 'import',
     onFinished: app.reload
-  });
-  const safeToUpdate = canApplyPwaUpdate({
-    page: tab, workoutOpen: training, activeWorkout: Boolean(workoutSession?.active),
-    editorOpen: Boolean(preview || detail || exerciseDetail || tab === 'program' || tab === 'import' || tab === 'exercises'),
-    recoveryUnresolved: Boolean(recoveryForAccount && (recoveryForAccount.conflict || recoveryForAccount.operations.length || hasUnresolvedRecovery(recoveryForAccount))),
-    saving: status.state === 'saving' || status.state === 'connecting'
   });
 
   useEffect(() => {
@@ -358,10 +348,6 @@ export default function App() {
       </header>
 
       <main>
-        {updateReady && <div className="error-banner pwa-update-ready" role="status">
-          <span>An app update is ready.{safeToUpdate ? ' Your local workout changes are saved.' : ' Finish the open task and sync local changes before updating.'}</span>
-          <Button variant="secondary" disabled={!safeToUpdate} onClick={() => void updateServiceWorker(true)}>Update Workout</Button>
-        </div>}
         {status.state === 'failed' && <div className="error-banner" role="alert">
           <AlertTriangle size={17} />{status.message || 'A change could not be saved.'}
           <Button variant="tertiary" onClick={() => void app.reload()}><RefreshCw size={15} />Refresh</Button>
@@ -385,9 +371,7 @@ export default function App() {
         {tab === 'body' && <MuscleBalanceView timeZone={Intl.DateTimeFormat().resolvedOptions().timeZone} />}
         {tab === 'exercises' && <ExerciseLibrary exercises={data.exercises} onOpen={setExerciseDetail} onChanged={app.reload} />}
         {tab === 'settings' && <SettingsView account={data.account} preferences={data.preferences} devicePreferences={app.devicePreferences}
-          mobileStatus={{ version: __APP_VERSION__, offlineReady: offlineReady || Boolean(navigator.serviceWorker?.controller), activeWorkout: Boolean(workoutSession?.active),
-            pendingOperations: recoveryForAccount?.operations.length ?? 0, needsReview: recoveryForAccount?.conflict ?? false,
-            updateReady, canUpdate: safeToUpdate }} onUpdateApp={() => void updateServiceWorker(true)}
+          version={__APP_VERSION__}
           onDevicePreferences={app.setDevicePreferences} onPreferences={app.savePreferences} notify={setToast} onSignOut={async () => { clearHistoryViewCache(); await app.signOut(); }} />}
         </MotionScene>
       </main>

@@ -155,7 +155,7 @@ export const api = {
   getImportStatus: (id: string) => call<ImportStatusView>(`/api/imports/${id}/status`),
   getImportStatusMeta: (id: string, etag?: string, signal?: AbortSignal) => callWithMeta<ImportStatusView>(`/api/imports/${id}/status`, 'GET', undefined, signal, etag ? { 'If-None-Match': etag } : undefined),
   createImport: (source: PdfExtraction) => callCompressed<ImportView>('/api/imports', {
-    fileName: source.fileName, pageCount: source.pageCount, pages: source.pages
+    fileName: source.fileName, pageCount: source.pageCount, pages: source.pages, links: source.links
   }),
   extractImport: (id: string) => call<ImportView>(`/api/imports/${id}/extract`, 'POST'),
   retryImport: (id: string) => call<ImportView>(`/api/imports/${id}/retry`, 'POST'),

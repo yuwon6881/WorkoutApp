@@ -119,7 +119,7 @@ public class AiImportTests
         await h.Seed(new SeedExercise("constant-curl", "Constant-Tension Lying Leg Curl", "Hamstrings", "Machine", "Control the eccentric", null));
         var source = Source("faithful.pdf") with
         {
-            Pages = Source("faithful.pdf").Pages.Select(page => page with { Text = $"BLOCK 1\nBASE HYPERTROPHY\n{page.Text}" }).ToList()
+            Pages = Source("faithful.pdf").Pages.Select(page => page with { Text = $"BLOCK 1\nBASE HYPERTROPHY\nConstant-Tension Lying Leg Curl 3 x 8-12\n{page.Text}" }).ToList()
         };
         var partial = await imports.Create(source, default);
 

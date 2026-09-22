@@ -18,7 +18,7 @@ public record SessionExerciseView(Guid Id, Guid? ExerciseId, string Name, int Po
     string SequenceGroup = "", List<string>? Substitutions = null, ProgressionView? Progression = null,
     string LoadModel = LoadModels.External, Guid? SourceTemplateExerciseId = null, Guid? SourceSlotKey = null, Guid? SourcePhaseId = null,
     Guid? SwapGroupKey = null, bool IsReplacement = false, Guid? OriginalExerciseId = null, string OriginalName = "", int? SourcePage = null,
-    bool CanRestore = false, int? RestSeconds = null, bool IsPr = false, double? PrE1rmKg = null);
+    bool CanRestore = false, int? RestSeconds = null, string? DemoUrl = null, bool IsPr = false, double? PrE1rmKg = null);
 public record SessionView(Guid Id, Guid? TemplateId, Guid? ProgramId, string Name, string Note, bool Active, DateTime StartedAt, DateTime? FinishedAt, int Revision,
     List<SessionExerciseView> Exercises, double? VolumeKg, int CompletedSets, int WarmupSets = 0,
     BodyWeightSnapshot? BodyWeight = null, NutritionTrainingContext? NutritionContext = null,
@@ -148,7 +148,8 @@ public sealed partial class WorkoutService(
                     NameSnapshot = resolvedName, Note = plan.Note, PrescriptionJson = Json.Write(prescription), SequenceGroup = plan.SequenceGroup,
                     RestSeconds = plan.RestSeconds,
                     SubstitutionsJson = plan.SubstitutionsJson, LoadModel = loadModel,
-                    SourceTemplateExerciseId = plan.Id, SourceSlotKey = plan.SlotKey, SourcePhaseId = template.ProgramPhaseId, SourcePage = plan.SourcePage
+                    SourceTemplateExerciseId = plan.Id, SourceSlotKey = plan.SlotKey, SourcePhaseId = template.ProgramPhaseId, SourcePage = plan.SourcePage,
+                    DemoUrl = plan.DemoUrl
                 };
                 db.SessionExercises.Add(exercise);
 

@@ -2,10 +2,10 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 46px;
-  height: 46px;
-  width: 46px;
-  min-width: 46px;
+  min-height: 44px;
+  height: 44px;
+  width: 44px;
+  min-width: 44px;
   max-width: 50px;
   border: 1px solid var(--border);
   border-radius: var(--radius-control, 8px);
@@ -33,11 +33,16 @@
 }
 
 @media (min-width: 1024px) {
-  .rpe-control {
+  .rpe-control.compact {
     min-height: 38px;
     height: 38px;
     width: 38px;
     min-width: 38px;
+  }
+
+  .rpe-control.compact .rpe-value-btn {
+    min-width: 36px;
+    min-height: 36px;
   }
 }
 
@@ -58,13 +63,6 @@
   transition: color 0.14s ease;
 }
 
-@media (min-width: 1024px) {
-  .rpe-value-btn {
-    min-width: 36px;
-    min-height: 36px;
-  }
-}
-
 .rpe-value-btn:disabled {
   cursor: not-allowed;
 }
@@ -72,6 +70,15 @@
 .rpe-effort-icon {
   color: var(--muted);
   transition: color 0.16s ease, transform 0.16s ease;
+}
+
+.rpe-empty-marker {
+  position: absolute;
+  width: 0;
+  height: 0;
+  overflow: hidden;
+  opacity: 0;
+  pointer-events: none;
 }
 
 .rpe-control:hover:not(.disabled) .rpe-effort-icon {

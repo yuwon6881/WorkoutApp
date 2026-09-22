@@ -5,6 +5,7 @@ import {
   positionPieces, ROW_TOLERANCE, type PositionedPiece, type TextPiece, type TextRow
 } from './pdfGeometry';
 import { findTrackingTables, isInTrackingTable, renderTrackingTables, type TrackingTable } from './pdfTrackingTable';
+import { MAX_PDF_LINKS, pageLinks, type LinkRect, type PdfLink } from './pdfLinks';
 
 /// Mirrors the server's bounds in `ImportSourceText`, so a document the browser accepts is a
 /// document the API accepts.
@@ -13,7 +14,12 @@ const MAX_PAGE_CHARS = 40_000;
 const MAX_TOTAL_CHARS = 2_000_000;
 
 export type PdfPageText = { page: number; text: string };
-export type PdfExtraction = { fileName: string; pageCount: number; pages: PdfPageText[]; pagesWithText: number };
+export type PdfExtraction = {
+  fileName: string; pageCount: number; pages: PdfPageText[]; pagesWithText: number;
+  /// Demonstration videos the document links from its exercise names. Empty for the many
+  /// documents that carry no annotation layer.
+  links: PdfLink[];
+};
 
 function isScheduleLabel(value: string): boolean {
   return /^(?:BLOCK\s+\d+(?:\s*:\s*.*)?|\(BLOCK\s+\d+\)|WEEK\s+\d+|INTRO\s+WEEK|DELOAD\s+WEEK|(?:SUGGESTED\s+|MANDATORY\s+)?REST\s+DAY)$/i.test(normalizedText(value));
@@ -258,6 +264,7 @@ export async function extractPdfText(
       throw new PdfTextError(`That PDF has ${pageCount} pages; the importer accepts up to ${MAX_PDF_PAGES}.`);
     }
     const pages: PdfPageText[] = [];
+    const links: PdfLink[] = [];
     let total = 0;
     for (let number = 1; number <= pageCount; number++) {
       assertNotAborted(signal);
@@ -269,8 +276,10 @@ export async function extractPdfText(
         try {
           const content = await page.getTextContent();
           // Marked-content entries carry no text of their own and are dropped here.
-          text = buildPageText(content.items.flatMap(item =>
-            'str' in item ? [{ str: item.str, transform: item.transform, width: item.width, height: item.height }] : []));
+          const pieces = content.items.flatMap(item =>
+            'str' in item ? [{ str: item.str, transform: item.transform, width: item.width, height: item.height }] : []);
+          text = buildPageText(pieces);
+          if (links.length < MAX_PDF_LINKS) links.push(...await readPageLinks(page, number, pieces));
         } finally { page.cleanup(); }
       } catch (error) {
         if (signal?.aborted) throw cancelledError();
@@ -290,10 +299,32 @@ export async function extractPdfText(
     if (pages.length === 0) {
       throw new PdfTextError('No selectable text was found in that PDF. A scanned document has to be re-saved as a text PDF before it can be imported.');
     }
-    return { fileName: file.name, pageCount, pages, pagesWithText: pages.length };
+    return { fileName: file.name, pageCount, pages, pagesWithText: pages.length, links: links.slice(0, MAX_PDF_LINKS) };
   } finally {
     signal?.removeEventListener('abort', onAbort);
     await destroyActivePdf();
+  }
+}
+
+/// Demonstration links are a best-effort extra. A document that carries no annotation layer, or
+/// refuses to hand one over, still imports exactly as before — it simply has no videos to offer.
+async function readPageLinks(
+  page: { getAnnotations: (options: { intent: string }) => Promise<unknown[]> },
+  number: number,
+  pieces: readonly TextPiece[]
+): Promise<PdfLink[]> {
+  try {
+    const annotations = await page.getAnnotations({ intent: 'display' });
+    const rects = annotations.flatMap(item => {
+      const link = item as { subtype?: string; url?: unknown; rect?: unknown };
+      return link.subtype === 'Link' && typeof link.url === 'string'
+        && Array.isArray(link.rect) && link.rect.length === 4 && link.rect.every(value => typeof value === 'number')
+        ? [{ url: link.url, rect: link.rect as LinkRect['rect'] }]
+        : [];
+    });
+    return pageLinks(number, pieces, rects);
+  } catch {
+    return [];
   }
 }
 

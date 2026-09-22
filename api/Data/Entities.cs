@@ -194,6 +194,9 @@ public sealed class TemplateExercise : OwnedRecord
     public string SubstitutionsJson { get; set; } = "[]";
     /// Page in the source document for imported exercise/prescription provenance.
     public int? SourcePage { get; set; }
+    /// Demonstration video the source document linked from this exercise name, if any. Kept with
+    /// the exercise so it is still reachable mid-set, which is when it is actually wanted.
+    public string DemoUrl { get; set; } = "";
     /// Stable identity for this logical exercise slot. Editing a template updates this row in
     /// place so active sessions and future substitutions keep their source link.
     public Guid SlotKey { get; set; } = Guid.NewGuid();
@@ -244,6 +247,8 @@ public sealed class SessionExercise : OwnedRecord
     public Guid? OriginalExerciseId { get; set; }
     public string OriginalNameSnapshot { get; set; } = "";
     public int? SourcePage { get; set; }
+    /// Demonstration video carried from the program so it stays reachable mid-set.
+    public string DemoUrl { get; set; } = "";
     /// Snapshot of the planned exercise and its initial sets when the workout begins.
     public string BaselineJson { get; set; } = "";
 }
@@ -359,6 +364,9 @@ public sealed class AiImport : OwnedRecord
     /// server, so this is the entire source: it is cleared once the import reaches ready,
     /// accepted, failed, or discarded, and an unfinished import expires after 24 hours.
     public string SourceTextJson { get; set; } = "";
+    /// Exercise demonstration links read from the document's annotation layer, held only until the
+    /// sections are assembled and cleared with the source text.
+    public string LinksJson { get; set; } = "";
     public DateTime? SourceExpiresAt { get; set; }
 }
 

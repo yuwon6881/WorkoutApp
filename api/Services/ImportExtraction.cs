@@ -34,6 +34,7 @@ public sealed partial class ImportService
         var pages = ImportSourceText.Normalize(input);
         var hash = ImportSourceText.Hash(pages);
         var sourceJson = Json.Write(pages);
+        var links = ImportDemoLinks.Normalize(input.Links, input.PageCount);
         Guid importId;
         bool readOutline;
         await using (var gate = await MutationLock.Acquire(db, db.CurrentUser, ct))
@@ -54,6 +55,9 @@ public sealed partial class ImportService
             if (import.Status == ImportStatus.Pending && string.IsNullOrEmpty(import.SourceTextJson))
             {
                 import.SourceTextJson = sourceJson;
+                // Links live with the source text: both are read from the document, and both are
+                // only needed while the sections are still being assembled into a draft.
+                import.LinksJson = links.Count > 0 ? Json.Write(links) : "";
                 import.SourceExpiresAt = DateTime.UtcNow.Add(SourceRetention);
                 import.Error = ""; import.Revision++;
             }

@@ -28,7 +28,7 @@ export default defineConfig({
     }
   },
   plugins: [react(), VitePWA({
-    registerType: 'prompt',
+    registerType: 'autoUpdate',
     includeAssets: ['favicon.svg', 'icon-192.png', 'icon-512.png', 'rest-alert-sw.js'],
     manifest: {
       id: '/', name: 'Workout', short_name: 'Workout',

@@ -1,11 +1,13 @@
 import { useState } from 'react';
-import { AlertTriangle, ArrowLeftRight, Dumbbell, FileText, Link2, Plus, RefreshCw, RotateCcw, Trash2, X } from 'lucide-react';
+import { AlertTriangle, ArrowLeftRight, Dumbbell, FileText, Link2, Plus, RefreshCw, RotateCcw, Timer, Trash2, X } from 'lucide-react';
 import type { Exercise, SetPrescription, TemplateExercise } from '../types';
 import { restOptions } from '../lib/training';
 import { Button } from './ui/Button';
+import { DemoLink } from './ui/DemoLink';
 import { Field, TextAreaField } from './ui/Field';
 import { Select } from './ui/Select';
 import { RpeControl } from './ui/RpeControl';
+import { RepPrescriptionControl } from './ui/RepPrescriptionControl';
 import { SwipeableRow } from './ui/SwipeableRow';
 
 import { getSupersetGroup, isSuperset } from '../lib/supersets';
@@ -108,6 +110,7 @@ export function WorkoutPrescriptionCard({
               <AlertTriangle size={12} /> Unmapped
             </span>
           )}
+          <DemoLink url={exercise.demoUrl} exerciseName={exercise.name} />
           {exercise.canRestore && onRestoreExercise && (
             <Button variant="tertiary" aria-label={`Restore default for ${exercise.name}`} onClick={onRestoreExercise}>
               <RotateCcw size={14} />
@@ -149,10 +152,12 @@ export function WorkoutPrescriptionCard({
           </Button>
         </div>
         <div className="field import-rest-field">
-          <span>Rest</span>
+          <span>Rest timer</span>
           <Select
             name={`workout-exercise-rest-${exercise.id}`}
             ariaLabel={`Rest timer for ${exercise.name}`}
+            title="Rest timer"
+            icon={<Timer size={14} className="rest-timer-icon" />}
             value={exercise.restSeconds ?? 90}
             options={restOptions(exercise.restSeconds)}
             onChange={val => onUpdateExercise({ restSeconds: Number(val) })}
@@ -255,30 +260,15 @@ export function WorkoutPrescriptionCard({
                     </label>
                   </div>
                   <div className="import-set-fields">
-                    <Field
-                      name={`workout-rep-min-${exercise.id}-${si}`}
-                      label="Min reps"
-                      type="number"
-                      inputMode="numeric"
-                      min="1"
-                      max="1000"
-                      value={set.repMin}
-                      onChange={e =>
-                        onUpdateSet(si, {
-                          repMin: Number(e.target.value),
-                          repMax: Math.max(Number(e.target.value), set.repMax)
-                        })
+                    <RepPrescriptionControl
+                      repMin={set.repMin}
+                      repMax={set.repMax}
+                      nameMin={`workout-rep-min-${exercise.id}-${si}`}
+                      nameMax={`workout-rep-max-${exercise.id}-${si}`}
+                      nameSingle={`workout-rep-${exercise.id}-${si}`}
+                      onChange={({ repMin, repMax }) =>
+                        onUpdateSet(si, { repMin, repMax })
                       }
-                    />
-                    <Field
-                      name={`workout-rep-max-${exercise.id}-${si}`}
-                      label="Max reps"
-                      type="number"
-                      inputMode="numeric"
-                      min="1"
-                      max="1000"
-                      value={set.repMax}
-                      onChange={e => onUpdateSet(si, { repMax: Number(e.target.value) })}
                     />
                     <div className="field rpe-field">
                       <span>Target RIR</span>

@@ -54,7 +54,16 @@ public sealed class CatalogCoverageTests
         { "Pec Static Stretch", "Pec Static Stretch" },
         { "Lat Static Stretch", "Lat Static Stretch" },
         { "Side Delt Static Stretch", "Side Delt Static Stretch" },
-        { "Bicep Static Stretch", "Bicep Static Stretch" }
+        { "Bicep Static Stretch", "Bicep Static Stretch" },
+        // The Essentials Program: each of these is printed verbatim in that PDF.
+        { "Spider Curl", "Spider Curl" },
+        { "Cable Shoulder Press", "Cable Shoulder Press" },
+        { "Machine Squat (Heavy)", "Machine Squat" },
+        { "Machine Squat (Back off)", "Machine Squat" },
+        { "Two-Arms Two-Legs Dead Bug", "Dead Bug" },
+        { "Inverse Zottman Curl", "Zottman Curl" },
+        // Written "Pullup" where the catalog spells it "Pull-up".
+        { "2-Grip Pullup", "2-Grip Pull-up" }
     };
 
     [Theory, MemberData(nameof(WrittenNames))]

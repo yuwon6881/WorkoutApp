@@ -151,9 +151,6 @@ for (const theme of ['dark', 'light']) {
       await page.screenshot({ path: join(screenshotsDirectory, 'responsive', `${info.project.name}-${theme}-${label}.png`) });
     };
     await screenshot('settings');
-    await page.getByRole('button', { name: 'Install app', exact: true }).click();
-    await screenshot('install-dialog');
-    await page.getByRole('button', { name: 'Got it' }).click();
 
     await navigate(page, 'Overview');
     await screenshot('overview');

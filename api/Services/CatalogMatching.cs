@@ -134,7 +134,10 @@ internal static class CatalogMatching
         return builder.ToString();
     }
 
-    private static string Expand(string normalized)
+    /// Exposed so source-grounding can settle a written name and the page text it came from on
+    /// one spelling: a document that prints "DB Flye" and a read that returns "Dumbbell Flye"
+    /// describe the same printed row.
+    internal static string Expand(string normalized)
         => string.Join(' ', normalized.Split(' ', StringSplitOptions.RemoveEmptyEntries)
             .Select(word => Abbreviations.TryGetValue(word, out var full) ? full : word));
 

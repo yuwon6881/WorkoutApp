@@ -8,9 +8,16 @@ export function pdf(pages = 4, marker = ''): Buffer {
     '<< /Type /Catalog /Pages 2 0 R >>',
     `<< /Type /Pages /Kids [${Array.from({ length: pages }, (_, index) => `${3 + index * 2} 0 R`).join(' ')}] /Count ${pages} >>`
   ];
+  const pageTexts = [
+    `WEEK 1 Upper ${marker} Barbell bench press Mystery machine row Incline dumbbell press Push-up`,
+    `WEEK 1 Upper ${marker} Barbell bench press Mystery machine row Incline dumbbell press Push-up`,
+    `WEEK 2 Upper ${marker} Barbell bench press`,
+    `WEEK 2 Recovery ${marker}`
+  ];
   for (let index = 0; index < pages; index++) {
     const pageId = 3 + index * 2;
-    const content = `BT /F1 12 Tf 72 720 Td (WEEK ${index + 1} Upper ${marker}) Tj ET`;
+    const text = pageTexts[index] ?? `WEEK ${index + 1} Upper ${marker}`;
+    const content = `BT /F1 12 Tf 72 720 Td (${text}) Tj ET`;
     objects.push(`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 ${fontId} 0 R >> >> /Contents ${pageId + 1} 0 R >>`);
     objects.push(`<< /Length ${Buffer.byteLength(content, 'latin1')} >>\nstream\n${content}\nendstream`);
   }

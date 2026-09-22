@@ -158,6 +158,7 @@ public static class WorkoutViewBuilder
                     e.SequenceGroup, Json.Read<List<string>>(e.SubstitutionsJson),
                     ReadOptional<ProgressionView>(e.ProgressionJson), e.LoadModel, e.SourceTemplateExerciseId, e.SourceSlotKey, e.SourcePhaseId,
                     e.SwapGroupKey, e.IsReplacement, e.OriginalExerciseId, e.OriginalNameSnapshot, e.SourcePage, canRestore, e.RestSeconds,
+                    e.DemoUrl is { Length: > 0 } demoUrl ? demoUrl : null,
                     isExPr, prE1rmKg);
             }).ToList(),
             external.Count == 0 ? null : external.Sum(s => s.WeightKg!.Value * s.Reps!.Value),

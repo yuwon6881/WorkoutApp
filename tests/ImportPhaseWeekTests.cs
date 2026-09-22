@@ -32,7 +32,7 @@ public sealed class ImportPhaseWeekTests
     };
 
     private static ImportSourceInput Source() => new("nippard.pdf", 1, [new ImportPageText(1,
-        "BLOCK 1\nACCUMULATION\nWEEK 4\nBench 3x5\nDELOAD WEEK\nWEEK 5\nBench 3x5")]);
+        "BLOCK 1\nACCUMULATION\nWEEK 4\nBarbell bench press 3x5\nDELOAD WEEK\nWEEK 5\nBarbell bench press 3x5")]);
 
     private static StubHandler Reading(params string[] bodies)
     {

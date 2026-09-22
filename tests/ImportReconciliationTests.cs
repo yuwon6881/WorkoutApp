@@ -397,7 +397,7 @@ public sealed class ImportReconciliationTests
         await h.Seed(new SeedExercise("bench", "Barbell bench press", "Chest", "Barbell", "", null));
 
         var eightDays = Days(Enumerable.Range(1, 8).Select(i => (1, $"Day {i}", 1)).ToArray());
-        var source = new ImportSourceInput("overflow.pdf", 1, [new ImportPageText(1, "WEEK 1\nBench 3x5")]);
+        var source = new ImportSourceInput("overflow.pdf", 1, [new ImportPageText(1, "WEEK 1\nBarbell bench press 3x5")]);
         var imports = h.Imports(Reading(Outline, eightDays));
 
         var pending = await imports.Create(source, default);

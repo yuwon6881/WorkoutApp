@@ -66,7 +66,7 @@ export function RpeControl({
         ) : (
           <>
             <Flame size={17} className="rpe-effort-icon" aria-hidden="true" />
-            <span className="sr-only">—</span>
+            <span className="rpe-empty-marker">—</span>
           </>
         )}
       </Button>

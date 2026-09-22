@@ -13,6 +13,8 @@ export function Select<T extends string | number>({
   name,
   label,
   ariaLabel,
+  title,
+  icon,
   value,
   onChange,
   options,
@@ -22,6 +24,8 @@ export function Select<T extends string | number>({
   name?: string;
   label?: string;
   ariaLabel?: string;
+  title?: string;
+  icon?: React.ReactNode;
   value: T;
   onChange: (val: T) => void;
   options: SelectOption<T>[];
@@ -163,6 +167,7 @@ export function Select<T extends string | number>({
         ref={triggerRef}
         presentation="plain"
         type="button"
+        title={title}
         aria-label={accessibleLabel}
         className={`custom-select-trigger ${open ? 'active' : ''}`}
         aria-haspopup="listbox"
@@ -170,7 +175,10 @@ export function Select<T extends string | number>({
         disabled={disabled}
         onClick={() => setOpen(prev => !prev)}
       >
-        <span className="custom-select-text">{selectedOption?.label}</span>
+        <div className="custom-select-content">
+          {icon && <span className="custom-select-icon" aria-hidden="true">{icon}</span>}
+          <span className="custom-select-text">{selectedOption?.label}</span>
+        </div>
         <ChevronDown size={16} className={`custom-select-chevron ${open ? 'rotated' : ''}`} />
       </Button>
 
