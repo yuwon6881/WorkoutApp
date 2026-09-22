@@ -118,11 +118,12 @@ export function WorkoutSetRow({
           compact
           name={`rir-${exercise.id}-${si}`}
           ariaLabel={`${exercise.name} set ${si + 1} RIR`}
-          value={set.rpe !== null ? Math.round(10 - set.rpe) : null}
+          value={set.rir === '5+' ? 5 : (set.rpe !== null ? Math.round(10 - set.rpe) : null)}
           disabled={set.done}
           onChange={value =>
             editSet(ei, si, {
-              rpe: value !== null ? 10 - value : null,
+              rpe: value !== null ? (value >= 5 ? null : 10 - value) : null,
+              rir: value !== null ? (value >= 5 ? '5+' : String(value)) : null,
               done: false
             })
           }

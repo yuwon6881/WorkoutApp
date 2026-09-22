@@ -1,9 +1,17 @@
-import { useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react';
-import { createPortal } from 'react-dom';
-import { Minus, Plus } from 'lucide-react';
+import { useRef, useState } from 'react';
+import { Flame } from 'lucide-react';
 import { Button } from './Button';
-import { useAnchoredLayer } from './useAnchoredLayer';
+import { Modal } from './Modal';
 import './RpeControl.css';
+
+export const RIR_OPTIONS = [
+  { value: 0, label: '0 RIR', sub: 'Max effort / Failure' },
+  { value: 1, label: '1 RIR', sub: '1 rep in reserve' },
+  { value: 2, label: '2 RIR', sub: '2 reps in reserve' },
+  { value: 3, label: '3 RIR', sub: '3 reps in reserve' },
+  { value: 4, label: '4 RIR', sub: '4 reps in reserve' },
+  { value: 5, label: '5+ RIR', sub: 'Light / Warm-up effort' },
+] as const;
 
 export const RIR_STEPS = [0, 1, 2, 3, 4] as const;
 export const RPE_STEPS = RIR_STEPS;
@@ -26,97 +34,21 @@ export function RpeControl({
   compact = false
 }: RpeControlProps) {
   const [open, setOpen] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
-  const popoverRef = useRef<HTMLDivElement>(null);
 
-  const { style: dropdownStyle, portalTarget } = useAnchoredLayer({
-    open,
-    triggerRef,
-    layerRef: popoverRef,
-    align: 'start',
-    minWidth: 200,
-    maxWidth: 240,
-    maxHeight: 260,
-    offset: 5
-  });
-
-  useEffect(() => {
-    if (!open) return;
-    const handleOutsideClick = (e: MouseEvent) => {
-      const target = e.target as Node;
-      if (
-        containerRef.current &&
-        !containerRef.current.contains(target) &&
-        !popoverRef.current?.contains(target)
-      ) {
-        setOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handleOutsideClick);
-    return () => document.removeEventListener('mousedown', handleOutsideClick);
-  }, [open]);
-
-  const stepDown = () => {
-    if (disabled) return;
-    if (value === null) {
-      onChange(2);
-      return;
-    }
-    if (value <= 0) {
-      onChange(null);
-      return;
-    }
-    const next = Math.round(value - 1);
-    onChange(Math.max(0, next));
-  };
-
-  const stepUp = () => {
-    if (disabled) return;
-    if (value === null) {
-      onChange(2);
-      return;
-    }
-    if (value >= 4) return;
-    const next = Math.round(value + 1);
-    onChange(Math.min(4, next));
-  };
-
-  const handleKeyDown = (e: ReactKeyboardEvent) => {
-    if (disabled) return;
-    if (e.key === 'ArrowDown' || e.key === 'ArrowLeft') {
-      e.preventDefault();
-      stepDown();
-    } else if (e.key === 'ArrowUp' || e.key === 'ArrowRight') {
-      e.preventDefault();
-      stepUp();
-    } else if (e.key === 'Escape' && open) {
-      e.preventDefault();
-      setOpen(false);
-      triggerRef.current?.focus();
-    }
-  };
+  const displayValue = value !== null ? (value >= 5 ? '5+' : String(Math.round(value))) : null;
 
   return (
     <div
-      ref={containerRef}
-      className={`rpe-control ${compact ? 'compact' : ''} ${disabled ? 'disabled' : ''} ${open ? 'open' : ''}`}
-      onKeyDown={handleKeyDown}
+      className={[
+        'rpe-control',
+        compact && 'compact',
+        disabled && 'disabled',
+        displayValue !== null ? 'has-value' : 'is-empty',
+        open && 'open'
+      ].filter(Boolean).join(' ')}
     >
       {name && <input type="hidden" name={name} value={value ?? ''} />}
-
-      {!compact && (
-        <Button
-          presentation="plain"
-          type="button"
-          disabled={disabled || value === null}
-          className="rpe-step-btn rpe-step-down"
-          aria-label="Decrease RIR"
-          onClick={stepDown}
-        >
-          <Minus size={13} />
-        </Button>
-      )}
 
       <Button
         ref={triggerRef}
@@ -124,71 +56,73 @@ export function RpeControl({
         type="button"
         disabled={disabled}
         className="rpe-value-btn"
-        aria-label={ariaLabel}
+        aria-label={displayValue !== null ? `${displayValue} RIR` : ariaLabel}
         aria-haspopup="dialog"
         aria-expanded={open}
-        onClick={() => setOpen(prev => !prev)}
+        onClick={() => setOpen(true)}
       >
-        <span className="rpe-value-text">{value !== null ? `${Math.round(value)} RIR` : '—'}</span>
+        {displayValue !== null ? (
+          <span className="rpe-value-text">{displayValue}</span>
+        ) : (
+          <>
+            <Flame size={17} className="rpe-effort-icon" aria-hidden="true" />
+            <span className="sr-only">—</span>
+          </>
+        )}
       </Button>
 
-      {!compact && (
-        <Button
-          presentation="plain"
-          type="button"
-          disabled={disabled || (value !== null && value >= 4)}
-          className="rpe-step-btn rpe-step-up"
-          aria-label="Increase RIR"
-          onClick={stepUp}
+      {open && (
+        <Modal
+          title="Select RIR"
+          onClose={() => {
+            setOpen(false);
+            triggerRef.current?.focus();
+          }}
         >
-          <Plus size={13} />
-        </Button>
-      )}
-
-      {open && portalTarget && createPortal(
-        <div
-          ref={popoverRef}
-          className="rpe-popover"
-          style={dropdownStyle ?? { visibility: 'hidden' }}
-          role="dialog"
-          aria-label="Select RIR"
-        >
-          <div className="rpe-popover-header">
-            <span className="rpe-popover-title">Target RIR</span>
-            <Button
-              presentation="plain"
-              className="rpe-clear-btn"
-              onClick={() => {
-                onChange(null);
-                setOpen(false);
-                triggerRef.current?.focus();
-              }}
-            >
-              Clear (—)
-            </Button>
+          <div className="rir-modal-content">
+            <p className="rir-modal-desc">
+              Select how many reps you could perform before reaching failure:
+            </p>
+            <div className="rir-modal-grid">
+              {RIR_OPTIONS.map(opt => {
+                const isSelected =
+                  value !== null &&
+                  (opt.value === 5 ? value >= 5 : Math.round(value) === opt.value);
+                return (
+                  <Button
+                    key={opt.value}
+                    presentation="plain"
+                    className={`rir-option-card ${isSelected ? 'selected' : ''}`}
+                    onClick={() => {
+                      onChange(opt.value);
+                      setOpen(false);
+                      triggerRef.current?.focus();
+                    }}
+                  >
+                    <div className="rir-option-num">{opt.value === 5 ? '5+' : opt.value}</div>
+                    <div className="rir-option-text">
+                      <strong>{opt.label}</strong>
+                      <small>{opt.sub}</small>
+                    </div>
+                  </Button>
+                );
+              })}
+            </div>
+            <div className="rir-modal-actions">
+              <Button
+                variant="tertiary"
+                className="rir-clear-action"
+                onClick={() => {
+                  onChange(null);
+                  setOpen(false);
+                  triggerRef.current?.focus();
+                }}
+              >
+                Clear effort (unset)
+              </Button>
+            </div>
           </div>
-          <div className="rpe-popover-grid">
-            {RIR_STEPS.map(step => {
-              const isSelected = value !== null && Math.round(value) === step;
-              return (
-                <Button
-                  key={step}
-                  presentation="plain"
-                  className={`rpe-pill ${isSelected ? 'selected' : ''}`}
-                  onClick={() => {
-                    onChange(step);
-                    setOpen(false);
-                    triggerRef.current?.focus();
-                  }}
-                >
-                  <strong>{step}</strong>
-                  <small>{step === 0 ? 'Max' : `${step} RIR`}</small>
-                </Button>
-              );
-            })}
-          </div>
-        </div>,
-        portalTarget
+        </Modal>
       )}
     </div>
   );

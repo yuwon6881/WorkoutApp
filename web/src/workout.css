@@ -131,7 +131,7 @@
   .mode-mini-select,
   .add-set-btn,
   .set-input-cell .rpe-control,
-  .set-input-cell .rpe-value-btn { min-height: 44px; }
+  .set-input-cell .rpe-value-btn { min-height: 44px; min-width: 44px; }
   .remove-pill { min-width: 44px; }
 }
 

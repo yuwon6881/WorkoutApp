@@ -366,11 +366,19 @@ function ExerciseEditor({ exercise, exercises, allDayExercises, onChange, onRemo
                   <RpeControl
                     name={`target-rir-${exercise.lineId}-${index}`}
                     ariaLabel={`Target RIR for ${exercise.sourceName} set ${setDisplayNumber}`}
-                    value={set.rir && Number.isFinite(Number(set.rir)) ? Math.round(Number(set.rir)) : set.targetRpe !== null ? Math.round(10 - set.targetRpe) : null}
+                    value={
+                      set.rir === '5+' || (set.rir && Number(set.rir) >= 5)
+                        ? 5
+                        : set.rir && Number.isFinite(Number(set.rir))
+                        ? Math.round(Number(set.rir))
+                        : set.targetRpe !== null
+                        ? Math.round(10 - set.targetRpe)
+                        : null
+                    }
                     disabled={set.warmup}
                     onChange={value => editSet(index, {
-                      targetRpe: value !== null ? 10 - value : null,
-                      rir: value !== null ? String(value) : null,
+                      targetRpe: value !== null ? (value >= 5 ? 6 : 10 - value) : null,
+                      rir: value !== null ? (value >= 5 ? '5+' : String(value)) : null,
                       rpeSource: 'userEdited'
                     })}
                   />

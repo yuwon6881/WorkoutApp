@@ -70,8 +70,8 @@
 
 .setting-label-wrap {
   display: flex;
-  align-items: flex-start;
-  gap: 4px;
+  align-items: center;
+  gap: 6px;
   min-width: 0;
   max-width: 100%;
   overflow-wrap: anywhere;

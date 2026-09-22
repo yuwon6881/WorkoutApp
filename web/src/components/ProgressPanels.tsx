@@ -1,17 +1,73 @@
-import { ArrowRight, BarChart3, CalendarDays, Dumbbell, Trophy } from 'lucide-react';
+import { ArrowRight, CalendarDays, Clock, Dumbbell, TrendingUp, Trophy } from 'lucide-react';
 import type { ProgressSummary, Unit } from '../types';
 import { showVolume, showWeight, toDisplay } from '../lib/training';
 import { Button } from './ui/Button';
 import './ProgressPanels.css';
 
 export function ProgressStats({ progress, unit }: { progress: ProgressSummary | null; unit: Unit }) {
-  return <div className="stats-grid progress-stats">
-    <div className="stat-card"><div className="stat-label"><CalendarDays size={17} />Workouts</div><strong>{progress?.sessions ? progress.sessions : '—'}</strong></div>
-    <div className="stat-card"><div className="stat-label"><CalendarDays size={17} />This week</div><strong>{progress?.weekSessions ? progress.weekSessions : '—'}</strong></div>
-    <div className="stat-card"><div className="stat-label"><BarChart3 size={17} />Weekly volume</div><strong>{progress?.weekVolumeKg ? showVolume(progress.weekVolumeKg, unit) : '—'}</strong></div>
-    <div className="stat-card"><div className="stat-label"><Dumbbell size={17} />Working sets</div><strong>{progress?.workingSets ? progress.workingSets : '—'}</strong></div>
-    <div className="stat-card"><div className="stat-label"><Dumbbell size={17} />Training time</div><strong>{progress?.trainingMinutes ? `${progress.trainingMinutes} min` : '—'}</strong></div>
-  </div>;
+  return (
+    <div className="stats-grid progress-stats" role="region" aria-label="Training statistics">
+      <div className="stat-card progress-stat-card">
+        <div className="stat-card-header">
+          <span className="stat-icon-wrap"><Trophy size={16} aria-hidden="true" /></span>
+          <span className="stat-label-text">Workouts</span>
+        </div>
+        <div className="stat-card-value">
+          <strong>{progress?.sessions ? progress.sessions.toLocaleString() : '—'}</strong>
+        </div>
+      </div>
+
+      <div className="stat-card progress-stat-card highlight">
+        <div className="stat-card-header">
+          <span className="stat-icon-wrap accent"><CalendarDays size={16} aria-hidden="true" /></span>
+          <span className="stat-label-text">This week</span>
+        </div>
+        <div className="stat-card-value">
+          <strong>{progress?.weekSessions ? progress.weekSessions.toLocaleString() : '—'}</strong>
+          {progress?.weekSessions ? <span className="stat-subtext">workouts</span> : null}
+        </div>
+      </div>
+
+      <div className="stat-card progress-stat-card highlight">
+        <div className="stat-card-header">
+          <span className="stat-icon-wrap accent"><TrendingUp size={16} aria-hidden="true" /></span>
+          <span className="stat-label-text">Weekly volume</span>
+        </div>
+        <div className="stat-card-value">
+          <strong>{progress?.weekVolumeKg ? showVolume(progress.weekVolumeKg, unit) : '—'}</strong>
+        </div>
+      </div>
+
+      <div className="stat-card progress-stat-card">
+        <div className="stat-card-header">
+          <span className="stat-icon-wrap"><Dumbbell size={16} aria-hidden="true" /></span>
+          <span className="stat-label-text">Working sets</span>
+        </div>
+        <div className="stat-card-value">
+          <strong>{progress?.workingSets ? progress.workingSets.toLocaleString() : '—'}</strong>
+        </div>
+      </div>
+
+      <div className="stat-card progress-stat-card">
+        <div className="stat-card-header">
+          <span className="stat-icon-wrap"><Clock size={16} aria-hidden="true" /></span>
+          <span className="stat-label-text">Training time</span>
+        </div>
+        <div className="stat-card-value">
+          <strong>
+            {progress?.trainingMinutes ? (
+              <>
+                {progress.trainingMinutes.toLocaleString()}{' '}
+                <small className="stat-unit">min</small>
+              </>
+            ) : (
+              '—'
+            )}
+          </strong>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 export function PersonalBests({ progress, error, onRetry, onExercise, unit }: {

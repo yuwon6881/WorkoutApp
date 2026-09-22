@@ -119,13 +119,13 @@ export function InfoTooltip({
         <HelpCircle size={15} aria-hidden="true" />
       </Button>
 
-      {open && portalTarget && style && createPortal(
+      {open && portalTarget && createPortal(
         <div
           ref={layerRef}
           id={tooltipId}
           role="tooltip"
           className="info-tooltip-popover"
-          style={style}
+          style={style ?? { visibility: 'hidden' }}
           onMouseEnter={handleOpen}
           onMouseLeave={handleDelayedClose}
         >

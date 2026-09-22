@@ -28,7 +28,7 @@ export type ProgramSummary = { id: string; name: string; weeks: number; active: 
 export type Program = ProgramSummary & { workouts: Template[] };
 
 export type SetProgressionSuggestion = { suggestedLoadKg: number | null; suggestedReps: number; reason: string; sourceSessionId: string | null; sourceDate: string | null; progressionMode: string; nutritionContextRevision: number | null; isBodyweightAdjustment: boolean; suggestedSystemLoadKg: number | null; resistanceMode: ResistanceMode };
-export type LoggedSet = { id: string; position: number; weightKg: number | null; reps: number | null; rpe: number | null; done: boolean; warmup: boolean; workingSetOrdinal?: number | null; resistanceMode?: ResistanceMode; systemLoadKg?: number | null; suggestion?: SetProgressionSuggestion | null; isPr?: boolean; estimated1RmKg?: number | null };
+export type LoggedSet = { id: string; position: number; weightKg: number | null; reps: number | null; rpe: number | null; done: boolean; warmup: boolean; workingSetOrdinal?: number | null; resistanceMode?: ResistanceMode; systemLoadKg?: number | null; suggestion?: SetProgressionSuggestion | null; isPr?: boolean; estimated1RmKg?: number | null; rir?: string | null };
 /// What the server suggested for this exercise when the workout started, and why. Every figure
 /// is optional: a first session has nothing to go on, and that is shown rather than filled in.
 export type Progression = { suggestedKg: number | null; targetReps: number; reason: string; lastE1rmKg: number | null; trendE1rmKg: number | null; stepKg: number; progressionMode?: string; nutritionContextRevision?: number | null };

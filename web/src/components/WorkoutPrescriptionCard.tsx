@@ -285,12 +285,20 @@ export function WorkoutPrescriptionCard({
                       <RpeControl
                         name={`target-rir-${exercise.id}-${si}`}
                         ariaLabel={`${exercise.name} set ${si + 1} target RIR`}
-                        value={set.rir && Number.isFinite(Number(set.rir)) ? Math.round(Number(set.rir)) : set.targetRpe !== null ? Math.round(10 - set.targetRpe) : null}
+                        value={
+                          set.rir === '5+' || (set.rir && Number(set.rir) >= 5)
+                            ? 5
+                            : set.rir && Number.isFinite(Number(set.rir))
+                            ? Math.round(Number(set.rir))
+                            : set.targetRpe !== null
+                            ? Math.round(10 - set.targetRpe)
+                            : null
+                        }
                         disabled={set.warmup}
                         onChange={val =>
                           onUpdateSet(si, {
-                            targetRpe: val !== null ? 10 - val : null,
-                            rir: val !== null ? String(val) : null
+                            targetRpe: val !== null ? (val >= 5 ? 6 : 10 - val) : null,
+                            rir: val !== null ? (val >= 5 ? '5+' : String(val)) : null
                           })
                         }
                       />
