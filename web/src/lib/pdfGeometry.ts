@@ -73,14 +73,18 @@ export function positionPieces(items: readonly TextPiece[]): PositionedPiece[] {
 }
 
 export function groupRows(items: readonly PositionedPiece[]): TextRow[] {
-  const rows = new Map<number, PositionedPiece[]>();
-  for (const item of items) {
-    const key = Math.round(item.y / ROW_TOLERANCE) * ROW_TOLERANCE;
-    const row = rows.get(key);
-    if (row) row.push(item); else rows.set(key, [item]);
+  const sorted = [...items].sort((a, b) => b.y - a.y || a.x - b.x);
+  const rows: { y: number; items: PositionedPiece[] }[] = [];
+  for (const item of sorted) {
+    const existing = rows.find(row => Math.abs(row.y - item.y) <= ROW_TOLERANCE);
+    if (existing) {
+      existing.items.push(item);
+    } else {
+      rows.push({ y: item.y, items: [item] });
+    }
   }
-  return [...rows.entries()]
-    .map(([y, row]) => ({ y, items: row.sort((a, b) => a.x - b.x) }))
+  return rows
+    .map(row => ({ y: row.y, items: row.items.sort((a, b) => a.x - b.x) }))
     .sort((a, b) => b.y - a.y);
 }
 

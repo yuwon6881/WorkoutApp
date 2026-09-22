@@ -30,7 +30,31 @@ public sealed class CatalogCoverageTests
         { "Single-Arm Pulldown", "1-Arm Cable Pulldown" },
         { "Cable Standing Hip Abduction", "Cable Hip Abduction" },
         { "Eccentric-Accentuated Cable Row", "Seated Cable Row" },
-        { "Eccentric-Overloaded Rope Overhead Triceps Extension", "Overhead Cable Triceps Extension (Rope)" }
+        { "Eccentric-Overloaded Rope Overhead Triceps Extension", "Overhead Cable Triceps Extension (Rope)" },
+        { "Squat", "Back Squat" },
+        { "Standing Dumbbell Arnold Press", "Standing DB Arnold Press" },
+        { "1-Arm DB Preacher Curl", "DB Preacher Curl" },
+        { "Close-Grip Seated Cable Row", "Cable Close-Grip Row" },
+        { "High-Incline Smith Machine Press", "Incline Smith Machine Press" },
+        { "Dumbbell RDL", "DB Romanian Deadlift" },
+        { "Hammer Cheat Curl", "Hammer Curl" },
+        { "Reverse Pec Deck", "Reverse Pec Deck" },
+        { "Egyptian Cable Lateral Raise", "Egyptian Cable Lateral Raise" },
+        { "Diamond Push Up", "Diamond Push Up" },
+        { "Med-Ball Close Grip Push Up", "Med-Ball Close Grip Push Up" },
+        { "Corpse Crunch", "Corpse Crunch" },
+        { "LLPT Plank", "LLPT Plank" },
+        { "Roman Chair Leg Raise", "Roman Chair Leg Raise" },
+        { "Plate Front Raise", "Plate Front Raise" },
+        { "Machine Low Row", "Machine Low Row" },
+        { "Wide-Grip Cable Row", "Wide-Grip Cable Row" },
+        { "Omni-Grip Lat Pulldown", "Omni-Grip Lat Pulldown" },
+        { "N1-Style Cross-Body Cable Bicep Curl", "N1-Style Cross-Body Cable Bicep Curl" },
+        { "N1-Style Cross-Body Triceps Extension", "N1-Style Cross-Body Triceps Extension" },
+        { "Pec Static Stretch", "Pec Static Stretch" },
+        { "Lat Static Stretch", "Lat Static Stretch" },
+        { "Side Delt Static Stretch", "Side Delt Static Stretch" },
+        { "Bicep Static Stretch", "Bicep Static Stretch" }
     };
 
     [Theory, MemberData(nameof(WrittenNames))]

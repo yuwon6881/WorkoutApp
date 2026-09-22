@@ -1,8 +1,9 @@
 import { Check, Minus } from 'lucide-react';
 import type { LoggedSet, Preferences, SessionExercise, SetPrescription } from '../types';
-import { rpeOptions, showTarget, showWeight, toDisplay, toKg } from '../lib/training';
+import { showTarget, showWeight, toDisplay, toKg } from '../lib/training';
 import { Button } from './ui/Button';
 import { Select } from './ui/Select';
+import { RpeControl } from './ui/RpeControl';
 
 const resistanceModeOptions: Array<{ value: NonNullable<LoggedSet['resistanceMode']>; label: string }> = [
   { value: 'bodyweight', label: 'BW' },
@@ -113,14 +114,15 @@ export function WorkoutSetRow({
       </div>
 
       <div className="set-input-cell rpe-cell">
-        <Select
+        <RpeControl
+          compact
           name={`rpe-${exercise.id}-${si}`}
           ariaLabel={`${exercise.name} set ${si + 1} RPE`}
-          value={set.rpe ?? ''}
-          options={[{ value: '', label: '—' }, ...rpeOptions]}
+          value={set.rpe}
+          disabled={set.done}
           onChange={value =>
             editSet(ei, si, {
-              rpe: value === '' ? null : Number(value),
+              rpe: value,
               done: false
             })
           }

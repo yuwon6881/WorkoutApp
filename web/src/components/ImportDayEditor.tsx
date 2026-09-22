@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
 import { AlertTriangle, ArrowLeftRight, Dumbbell, Link2, Loader2, Plus, RotateCcw, Trash2, X } from 'lucide-react';
 import type { DraftExercise, DraftSet, DraftWorkout, Exercise } from '../types';
-import { restOptions, rpeOptions } from '../lib/training';
+import { restOptions } from '../lib/training';
 import { Button } from './ui/Button';
 import { Select } from './ui/Select';
+import { RpeControl } from './ui/RpeControl';
 import { Field, TextAreaField } from './ui/Field';
 import { Modal } from './ui/Modal';
 import { ExerciseLibrary } from './Exercises';
@@ -360,12 +361,16 @@ function ExerciseEditor({ exercise, exercises, allDayExercises, onChange, onRemo
               <div className="import-set-fields">
                 <Field name={`rep-min-${exercise.lineId}-${index}`} label="Min reps" inputMode="numeric" type="number" value={set.repMin} data-import-field="repMin" data-import-set-index={index} onChange={event => editSet(index, { repMin: Number(event.target.value), repsText: null, repsSource: 'userEdited' })} />
                 <Field name={`rep-max-${exercise.lineId}-${index}`} label="Max reps" inputMode="numeric" type="number" value={set.repMax} data-import-field="repMax" data-import-set-index={index} onChange={event => editSet(index, { repMax: Number(event.target.value), repsText: null, repsSource: 'userEdited' })} />
-                <label className="field" data-import-field="targetRpe" data-import-set-index={index}>Target RPE
-                  <Select name={`target-rpe-${exercise.lineId}-${index}`} ariaLabel={`Target RPE for ${exercise.sourceName} set ${setDisplayNumber}`}
-                    value={set.targetRpe ?? ''} options={[{ value: '', label: set.warmup ? 'Not set' : 'Choose RPE' }, ...rpeOptions]}
+                <div className="field rpe-field" data-import-field="targetRpe" data-import-set-index={index}>
+                  <span>Target RPE</span>
+                  <RpeControl
+                    name={`target-rpe-${exercise.lineId}-${index}`}
+                    ariaLabel={`Target RPE for ${exercise.sourceName} set ${setDisplayNumber}`}
+                    value={set.targetRpe}
                     disabled={set.warmup}
-                    onChange={value => editSet(index, { targetRpe: value === '' ? null : Number(value), rpeSource: 'userEdited' })} />
-                </label>
+                    onChange={value => editSet(index, { targetRpe: value, rpeSource: 'userEdited' })}
+                  />
+                </div>
               </div>
             </div>
           </SwipeableRow>

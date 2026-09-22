@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { ArrowLeftRight, Dumbbell, Library, Link2, Plus, Search, X, Trash2, RotateCcw, TrendingUp } from 'lucide-react';
-import type { Exercise, ExerciseClearPreview, ExerciseInsight, Session } from '../types';
+import type { Exercise, ExerciseCategory, ExerciseClearPreview, ExerciseInsight, Session } from '../types';
 import { ApiError, api } from '../lib/api';
 import { Button } from './ui/Button';
 import { Field, TextAreaField } from './ui/Field';
@@ -11,6 +11,20 @@ import { ChipScroller } from './ui/ChipScroller';
 /// The catalog is supplied by the server and is empty until a seed file is loaded, so the
 /// empty state explains that rather than implying the user should have added something.
 export type ExercisePickerAction = 'add' | 'swap' | 'map';
+
+export function getExerciseCategory(exercise: { category?: string; equipment?: string; loadModel?: string }): ExerciseCategory {
+  if (exercise.category === 'Free Weights' || exercise.category === 'Machine' || exercise.category === 'Body Weight') {
+    return exercise.category;
+  }
+  const eq = (exercise.equipment ?? '').trim().toLowerCase();
+  if (eq === 'bodyweight' || eq === 'band' || exercise.loadModel === 'full_bodyweight' || exercise.loadModel === 'bodyweight_context_only' || exercise.loadModel === 'reps_only') {
+    return 'Body Weight';
+  }
+  if (eq === 'machine' || eq === 'smith machine' || eq === 'cable') {
+    return 'Machine';
+  }
+  return 'Free Weights';
+}
 
 function normalized(value: string) {
   return value.trim().toLowerCase().replace(/[^a-z0-9]+/g, ' ').replace(/\s+/g, ' ');
@@ -47,10 +61,18 @@ export function ExerciseLibrary({ exercises, onSelect, exclude = [], onOpen, onC
   const [muscle, setMuscle] = useState('All muscles');
   const [source, setSource] = useState<'all' | 'custom'>('all');
   const [createOpen, setCreateOpen] = useState(false);
+  const [showAllMuscles, setShowAllMuscles] = useState(false);
+
+  useEffect(() => {
+    setShowAllMuscles(false);
+  }, [muscle, currentExerciseId]);
 
   const muscles = ['All muscles', ...new Map(exercises.flatMap(e => [e.muscle, ...(e.secondaryMuscles ?? [])])
     .filter(Boolean).map(value => [value.toLowerCase(), value] as const)).values()];
   const current = currentExerciseId ? exercises.find(e => e.id === currentExerciseId) : undefined;
+  const isSwapping = action === 'swap' && !!current;
+
+  // Candidate replacement exercises exclude existing exclusions and the current exercise being swapped
   const excluded = new Set([...exclude, ...(currentExerciseId ? [currentExerciseId] : [])]);
   const filtered = exercises.filter(e => !excluded.has(e.id)
     && (source === 'all' || e.isCustom)
@@ -60,6 +82,84 @@ export function ExerciseLibrary({ exercises, onSelect, exclude = [], onOpen, onC
     || a.name.localeCompare(b.name));
   const actionLabel = action === 'swap' ? 'Swap' : action === 'map' ? 'Map' : 'Add';
   const ActionIcon = action === 'add' ? Plus : action === 'swap' ? ArrowLeftRight : Link2;
+
+  const currentCategory = current ? getExerciseCategory(current) : null;
+  const baseCategories: ExerciseCategory[] = ['Free Weights', 'Machine', 'Body Weight'];
+  const categoryOrder: ExerciseCategory[] = currentCategory
+    ? [currentCategory, ...baseCategories.filter(c => c !== currentCategory)]
+    : ['Free Weights', 'Machine', 'Body Weight'];
+
+  const isRelevant = (e: Exercise) => exerciseRank(e, current, preferredNames) < 4;
+  const showBoundary = isSwapping && !query.trim() && muscle === 'All muscles';
+  const relevantList = showBoundary ? ordered.filter(isRelevant) : ordered;
+  const otherList = showBoundary ? ordered.filter(e => !isRelevant(e)) : [];
+
+  const currentMatches = current && (!query.trim() || `${current.name} ${current.equipment} ${current.muscle} ${(current.secondaryMuscles ?? []).join(' ')} ${current.movementPattern ?? ''} ${current.aliases.join(' ')}`.toLowerCase().includes(query.toLowerCase()));
+  const showCurrentAtTop = isSwapping && current && currentMatches && (muscle === 'All muscles' || [current.muscle, ...(current.secondaryMuscles ?? [])].some(val => val.toLowerCase() === muscle.toLowerCase()));
+
+  function renderCategoryGroups(items: Exercise[]) {
+    return categoryOrder.map(cat => {
+      const catItems = items.filter(e => getExerciseCategory(e) === cat);
+      if (!catItems.length) return null;
+      return (
+        <section className="category-group" key={cat} aria-label={`${cat} exercises`}>
+          <div className="category-group-header">
+            <h4 className="category-group-title">{cat}</h4>
+            <span className="tiny-label category-group-count">{catItems.length}</span>
+          </div>
+          <div className={onSelect ? 'picker-list' : 'exercise-grid'}>
+            {catItems.map(e => (
+              onSelect ? (
+                <article className="panel picker-card" key={e.id}>
+                  <div className="picker-card-info">
+                    <div className="picker-card-header">
+                      <span className="picker-exercise-icon" aria-hidden="true"><Dumbbell size={16} /></span>
+                      <h3 title={e.name}>{e.name}</h3>
+                    </div>
+                    <div className="picker-tags">
+                      {e.isCustom && <span className="pill pill-muted">Custom</span>}
+                      <span className="pill pill-accent picker-muscle-tag">{e.muscle || 'Full body'}</span>
+                      {(e.secondaryMuscles ?? []).map(secondary => <span className="pill pill-muted" key={`${e.id}-${secondary}`}>{secondary}</span>)}
+                      <span className="pill">{e.equipment || 'General'}</span>
+                      <span className="pill pill-category">{cat}</span>
+                    </div>
+                  </div>
+                  <Button
+                    className="picker-add-btn"
+                    variant="secondary"
+                    aria-label={`${actionLabel} ${e.name}`}
+                    disabled={disabled}
+                    onClick={() => onSelect(e.id)}
+                  >
+                    <ActionIcon size={16} />
+                    <span className="picker-add-label">{actionLabel}</span>
+                  </Button>
+                </article>
+              ) : (
+                <article className="panel exercise-card exercise-card-action" key={e.id} tabIndex={0} role="button" aria-label={`View ${e.name} details`}
+                  onClick={() => onOpen?.(e)} onKeyDown={event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); onOpen?.(e); } }}>
+                  <div className="exercise-card-top">
+                    <span className="exercise-icon"><Dumbbell size={22} /></span>
+                    <div className="picker-tags">
+                      {e.isCustom && <span className="pill pill-muted">Custom</span>}
+                      <span className="pill pill-accent">{e.muscle || 'Full body'}</span>
+                      {(e.secondaryMuscles ?? []).map(secondary => <span className="pill pill-muted" key={`${e.id}-${secondary}`}>{secondary}</span>)}
+                      <span className="pill">{e.equipment || 'General'}</span>
+                      <span className="pill pill-category">{cat}</span>
+                    </div>
+                  </div>
+                  <div className="exercise-card-body">
+                    <h3 title={e.name}>{e.name}</h3>
+                    {e.cue && <p>{e.cue}</p>}
+                  </div>
+                </article>
+              )
+            ))}
+          </div>
+        </section>
+      );
+    });
+  }
 
   if (!exercises.length) return <>
     {!onSelect && <div className="page-heading"><h1>Exercises</h1><Button variant="primary" onClick={() => setCreateOpen(true)}><Plus size={16} />Create exercise</Button></div>}
@@ -97,52 +197,67 @@ export function ExerciseLibrary({ exercises, onSelect, exclude = [], onOpen, onC
           </Button>
         ))}
     </ChipScroller>
-    <div className={onSelect ? 'picker-list' : 'exercise-grid'}>{ordered.map(e =>
-      onSelect ? (
-        <article className="panel picker-card" key={e.id}>
+
+    {showCurrentAtTop && (
+      <div className="picker-current-section">
+        <span className="tiny-label">Current exercise</span>
+        <article className="panel picker-card picker-card-current" key={`current-${current.id}`}>
           <div className="picker-card-info">
             <div className="picker-card-header">
               <span className="picker-exercise-icon" aria-hidden="true"><Dumbbell size={16} /></span>
-              <h3>{e.name}</h3>
+              <h3 title={current.name}>{current.name}</h3>
             </div>
             <div className="picker-tags">
-              {e.isCustom && <span className="pill pill-muted">Custom</span>}
-              <span className="pill pill-accent picker-muscle-tag">{e.muscle || 'Full body'}</span>
-              {(e.secondaryMuscles ?? []).map(secondary => <span className="pill pill-muted" key={`${e.id}-${secondary}`}>{secondary}</span>)}
-              <span className="pill">{e.equipment || 'General'}</span>
+              {current.isCustom && <span className="pill pill-muted">Custom</span>}
+              <span className="pill pill-accent picker-muscle-tag">{current.muscle || 'Full body'}</span>
+              {(current.secondaryMuscles ?? []).map(secondary => <span className="pill pill-muted" key={`cur-${current.id}-${secondary}`}>{secondary}</span>)}
+              <span className="pill">{current.equipment || 'General'}</span>
+              <span className="pill pill-category">{getExerciseCategory(current)}</span>
             </div>
           </div>
           <Button
-            className="picker-add-btn"
+            className="picker-add-btn picker-current-btn"
             variant="secondary"
-            aria-label={`${actionLabel} ${e.name}`}
-            disabled={disabled}
-            onClick={() => onSelect(e.id)}
+            aria-label={`Current exercise: ${current.name}`}
+            disabled
           >
-            <ActionIcon size={16} />
-            <span className="picker-add-label">{actionLabel}</span>
+            <span className="picker-add-label">Current</span>
           </Button>
         </article>
-      ) : (
-        <article className="panel exercise-card exercise-card-action" key={e.id} tabIndex={0} role="button" aria-label={`View ${e.name} details`}
-          onClick={() => onOpen?.(e)} onKeyDown={event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); onOpen?.(e); } }}>
-          <div className="exercise-card-top">
-            <span className="exercise-icon"><Dumbbell size={22} /></span>
-            <div className="picker-tags">
-              {e.isCustom && <span className="pill pill-muted">Custom</span>}
-              <span className="pill pill-accent">{e.muscle || 'Full body'}</span>
-              {(e.secondaryMuscles ?? []).map(secondary => <span className="pill pill-muted" key={`${e.id}-${secondary}`}>{secondary}</span>)}
-              <span className="pill">{e.equipment || 'General'}</span>
-            </div>
+      </div>
+    )}
+
+    {renderCategoryGroups(relevantList)}
+
+    {showBoundary && otherList.length > 0 && !showAllMuscles && (
+      <div className="picker-relevancy-boundary" role="region" aria-label="End of similar exercises">
+        <div className="picker-divider-line" />
+        <div className="picker-boundary-content">
+          <p className="picker-boundary-text">Showing exercises similar to {current.name}.</p>
+          <Button
+            variant="secondary"
+            className="picker-show-all-btn"
+            onClick={() => setShowAllMuscles(true)}
+          >
+            Show all exercises
+          </Button>
+        </div>
+      </div>
+    )}
+
+    {showBoundary && otherList.length > 0 && showAllMuscles && (
+      <>
+        <div className="picker-relevancy-boundary" role="region" aria-label="Other muscle exercises">
+          <div className="picker-divider-line" />
+          <div className="picker-boundary-content">
+            <span className="tiny-label picker-boundary-label">Other muscle exercises</span>
           </div>
-          <div className="exercise-card-body">
-            <h3>{e.name}</h3>
-            {e.cue && <p>{e.cue}</p>}
-          </div>
-        </article>
-      ))}
-    </div>
-    {!filtered.length && <p className="empty-message">No matching exercises.</p>}
+        </div>
+        {renderCategoryGroups(otherList)}
+      </>
+    )}
+
+    {!filtered.length && !showCurrentAtTop && <p className="empty-message">No matching exercises.</p>}
     {createOpen && <CustomExerciseModal onClose={() => setCreateOpen(false)} onCreated={async () => { setCreateOpen(false); await onChanged?.(); }} />}
   </div>;
 }
@@ -159,6 +274,7 @@ function dateLabel(value: string | null | undefined) {
 
 function CustomExerciseModal({ onClose, onCreated }: { onClose: () => void; onCreated: () => Promise<void> }) {
   const [name, setName] = useState(''); const [muscle, setMuscle] = useState(''); const [equipment, setEquipment] = useState('');
+  const [category, setCategory] = useState<ExerciseCategory>('Free Weights');
   const [secondaryMuscles, setSecondaryMuscles] = useState('');
   const [cue, setCue] = useState(''); const [loadModel, setLoadModel] = useState('external'); const [loadStepKg, setLoadStepKg] = useState('2.5');
   const [error, setError] = useState(''); const [busy, setBusy] = useState(false);
@@ -168,17 +284,18 @@ function CustomExerciseModal({ onClose, onCreated }: { onClose: () => void; onCr
     const step = Number(loadStepKg); if (!Number.isFinite(step) || step < 0 || step > 50) { setError('Load increment must be between 0 and 50 kg.'); return; }
     setBusy(true);
     const secondary = [...new Set(secondaryMuscles.split(',').map(value => value.trim()).filter(Boolean))];
-    try { await api.createCustomExercise({ name: name.trim(), muscle, secondaryMuscles: secondary, equipment, cue, loadStepKg: step, loadModel }); await onCreated(); }
+    try { await api.createCustomExercise({ name: name.trim(), muscle, secondaryMuscles: secondary, equipment, category, cue, loadStepKg: step, loadModel }); await onCreated(); }
     catch (failure) { setError(failure instanceof ApiError ? failure.message : 'Could not create the exercise.'); }
     finally { setBusy(false); }
   }
   return <Modal title="Create custom exercise" onClose={onClose}>
     <form className="modal-body" noValidate onSubmit={submit}>
       <Field name="custom-exercise-name" label="Name" value={name} onChange={e => setName(e.target.value)} maxLength={160} autoFocus />
-      <div className="form-grid-two"><Field name="custom-exercise-muscle" label="Primary muscle" value={muscle} onChange={e => setMuscle(e.target.value)} maxLength={80} /><Field name="custom-exercise-equipment" label="Equipment" value={equipment} onChange={e => setEquipment(e.target.value)} maxLength={80} /></div>
+      <div className="form-grid-two"><Field name="custom-exercise-muscle" label="Primary muscle" value={muscle} onChange={e => setMuscle(e.target.value)} maxLength={80} /><Field name="custom-exercise-equipment" label="Equipment" value={equipment} onChange={e => { setEquipment(e.target.value); setCategory(getExerciseCategory({ equipment: e.target.value, loadModel })); }} maxLength={80} /></div>
       <Field name="custom-exercise-secondary-muscles" label="Secondary muscles (comma-separated)" value={secondaryMuscles} onChange={e => setSecondaryMuscles(e.target.value)} maxLength={320} />
       <TextAreaField name="custom-exercise-cue" label="Instructions (optional)" value={cue} onChange={e => setCue(e.target.value)} maxLength={1000} />
-      <div className="form-grid-two"><label className="field"><span>Load model</span><Select name="custom-exercise-load-model" label="Load model" value={loadModel} onChange={val => setLoadModel(val as string)} options={[{ value: 'external', label: 'External load' }, { value: 'full_bodyweight', label: 'Full bodyweight' }, { value: 'bodyweight_context_only', label: 'Bodyweight context only' }, { value: 'reps_only', label: 'Reps only' }]} /></label><Field name="custom-exercise-load-step" label="Load increment (kg)" type="number" min="0" max="50" step="0.5" value={loadStepKg} onChange={e => setLoadStepKg(e.target.value)} /></div>
+      <div className="form-grid-two"><label className="field"><span>Category</span><Select name="custom-exercise-category" label="Category" value={category} onChange={val => setCategory(val as ExerciseCategory)} options={[{ value: 'Free Weights', label: 'Free Weights' }, { value: 'Machine', label: 'Machine' }, { value: 'Body Weight', label: 'Body Weight' }]} /></label><label className="field"><span>Load model</span><Select name="custom-exercise-load-model" label="Load model" value={loadModel} onChange={val => { setLoadModel(val as string); setCategory(getExerciseCategory({ equipment, loadModel: val as string })); }} options={[{ value: 'external', label: 'External load' }, { value: 'full_bodyweight', label: 'Full bodyweight' }, { value: 'bodyweight_context_only', label: 'Bodyweight context only' }, { value: 'reps_only', label: 'Reps only' }]} /></label></div>
+      <div className="form-grid-two"><Field name="custom-exercise-load-step" label="Load increment (kg)" type="number" min="0" max="50" step="0.5" value={loadStepKg} onChange={e => setLoadStepKg(e.target.value)} /></div>
       {error && <div className="error-text" role="alert">{error}</div>}
       <div className="modal-actions"><Button variant="tertiary" onClick={onClose}>Cancel</Button><Button variant="primary" type="submit" disabled={busy}>{busy ? 'Creating…' : 'Create exercise'}</Button></div>
     </form>
@@ -200,17 +317,26 @@ export function ExerciseDetailModal({ exercise, unit, onClose, onChanged, onSess
           <span className="pill pill-accent">{exercise.archived && exercise.isCustom ? 'Deleted custom exercise' : exercise.isCustom ? 'Custom exercise' : exercise.muscle || 'Full body'}</span>
           {(exercise.secondaryMuscles ?? []).map(secondary => <span className="pill pill-muted" key={secondary}>{secondary}</span>)}
           <span className="pill">{exercise.equipment || 'General'}</span>
+          <span className="pill pill-category">{getExerciseCategory(exercise)}</span>
         </div>
         {exercise.cue && <p className="muted">{exercise.cue}</p>}
         {error && <div className="error-banner" role="alert">{error}</div>}
         {!insight && !error && <div className="skeleton detail-loading" aria-label="Loading exercise details" />}
         {insight && <>
-          <div className="detail-record-grid"><div className="stat-card"><span className="stat-label">Estimated 1RM</span><strong>{displayKg(insight.estimated1RmKg, unit)}</strong><small>{dateLabel(insight.estimated1RmDate)}</small></div><div className="stat-card"><span className="stat-label">Heaviest load</span><strong>{displayKg(insight.heaviestKg, unit)}</strong><small>{insight.heaviestReps ? `${insight.heaviestReps} reps · ` : ''}{dateLabel(insight.heaviestDate)}</small></div><div className="stat-card"><span className="stat-label">Largest set volume</span><strong>{displayKg(insight.largestSetVolumeKg, unit)}</strong><small>{dateLabel(insight.largestSetVolumeDate)}</small></div><div className="stat-card"><span className="stat-label">Largest session volume</span><strong>{displayKg(insight.largestSessionVolumeKg, unit)}</strong><small>{dateLabel(insight.largestSessionVolumeDate)}</small></div><div className="stat-card"><span className="stat-label">Rep PR</span><strong>{insight.repPr ?? '—'}</strong><small>{dateLabel(insight.repPrDate)}</small></div><div className="stat-card"><span className="stat-label">Sessions</span><strong>{insight.sessions}</strong><small>completed workouts</small></div><div className="stat-card"><span className="stat-label">Last performed</span><strong>{dateLabel(insight.lastPerformedDate)}</strong><small>{insight.setCount} working sets</small></div></div>
-          <div className="detail-resistance-records" aria-label="Resistance records">{insight.externalLoadPrKg != null && <span>External load PR <strong>{displayKg(insight.externalLoadPrKg, unit)}</strong></span>}{insight.addedLoadPrKg != null && <span>Added load PR <strong>{displayKg(insight.addedLoadPrKg, unit)}</strong></span>}{insight.assistanceReductionPrKg != null && <span>Lowest assistance <strong>{displayKg(insight.assistanceReductionPrKg, unit)}</strong></span>}{insight.systemLoadPrKg != null && <span>System load PR <strong>{displayKg(insight.systemLoadPrKg, unit)}</strong></span>}</div>
           <div className="section-heading"><h3>Progress</h3><div className="detail-selectors"><label className="field"><span>Metric</span><Select name="progress-metric-select" label="Progress metric" value={metric} onChange={val => setMetric(val as ChartMetric)} options={[{ value: 'estimated1rm', label: 'Estimated 1RM' }, { value: 'load', label: 'Heaviest load' }, { value: 'volume', label: 'Session volume' }, { value: 'reps', label: 'Reps' }]} /></label><label className="field"><span>Range</span><Select name="progress-range-select" label="Progress range" value={range} onChange={val => setRange(val as string)} options={[{ value: '1m', label: 'Last month' }, { value: '3m', label: 'Last 3 months' }, { value: '6m', label: 'Last 6 months' }, { value: 'all', label: 'All time' }]} /></label></div></div>
           <div className="exercise-chart" role="img" aria-label={`${chartMetricLabel(metric)} progress chart`}><div className="exercise-chart-bars">{insight.points.length ? insight.points.map(point => { const value = metricValue(point, metric); return <div className="exercise-chart-point" key={`${point.sessionId}-${point.date}`} aria-label={`${dateLabel(point.date)}: ${formatMetricValue(value, metric, unit)}`}><i style={{ height: `${Math.max(4, Math.min(100, ((value ?? 0) / chartMax) * 100))}%` }} /><small>{dateLabel(point.date)}</small></div>; }) : <span className="muted">No completed working sets in this range.</span>}</div></div>
           <div className="chart-table" role="table" aria-label="Exercise progress table"><div className="chart-table-row chart-table-head" role="row"><span>Date</span><span>1RM</span><span>Load</span><span>Volume</span><span>Reps</span></div>{insight.points.map(point => <div className="chart-table-row" role="row" key={`row-${point.sessionId}-${point.date}`}><span>{dateLabel(point.date)}</span><span>{displayKg(point.estimated1RmKg, unit)}</span><span>{displayKg(point.loadKg, unit)}</span><span>{displayKg(point.volumeKg, unit)}{point.partial ? ' *' : ''}</span><span>{point.reps ?? '—'}</span></div>)}</div>
           {insight.partialVolume && <p className="muted detail-note">* Volume is partial because one or more logged loads were unknown.</p>}
+          <div className="detail-record-grid">
+            <div className="stat-card"><span className="stat-label">Estimated 1RM</span><strong>{displayKg(insight.estimated1RmKg, unit)}</strong>{insight.estimated1RmKg != null && <small>{dateLabel(insight.estimated1RmDate)}</small>}</div>
+            <div className="stat-card"><span className="stat-label">Heaviest load</span><strong>{displayKg(insight.heaviestKg, unit)}</strong>{insight.heaviestKg != null && <small>{insight.heaviestReps ? `${insight.heaviestReps} reps · ` : ''}{dateLabel(insight.heaviestDate)}</small>}</div>
+            <div className="stat-card"><span className="stat-label">Largest set volume</span><strong>{displayKg(insight.largestSetVolumeKg, unit)}</strong>{insight.largestSetVolumeKg != null && <small>{dateLabel(insight.largestSetVolumeDate)}</small>}</div>
+            <div className="stat-card"><span className="stat-label">Largest session volume</span><strong>{displayKg(insight.largestSessionVolumeKg, unit)}</strong>{insight.largestSessionVolumeKg != null && <small>{dateLabel(insight.largestSessionVolumeDate)}</small>}</div>
+            <div className="stat-card"><span className="stat-label">Rep PR</span><strong>{insight.repPr ?? '—'}</strong>{insight.repPr != null && <small>{dateLabel(insight.repPrDate)}</small>}</div>
+            <div className="stat-card"><span className="stat-label">Sessions</span><strong>{insight.sessions > 0 ? insight.sessions : '—'}</strong>{insight.sessions > 0 && <small>completed workouts</small>}</div>
+            <div className="stat-card"><span className="stat-label">Last performed</span><strong>{dateLabel(insight.lastPerformedDate)}</strong>{insight.setCount > 0 && <small>{insight.setCount} working sets</small>}</div>
+          </div>
+          <div className="detail-resistance-records" aria-label="Resistance records">{insight.externalLoadPrKg != null && <span>External load PR <strong>{displayKg(insight.externalLoadPrKg, unit)}</strong></span>}{insight.addedLoadPrKg != null && <span>Added load PR <strong>{displayKg(insight.addedLoadPrKg, unit)}</strong></span>}{insight.assistanceReductionPrKg != null && <span>Lowest assistance <strong>{displayKg(insight.assistanceReductionPrKg, unit)}</strong></span>}{insight.systemLoadPrKg != null && <span>System load PR <strong>{displayKg(insight.systemLoadPrKg, unit)}</strong></span>}</div>
           <div className="section-heading"><h3>History</h3><span className="muted">{insight.totalHistoryRows} workouts</span></div>
           {insight.history.map(row => <Button variant="tertiary" className="history-row" key={row.sessionId} onClick={async () => { const session = await api.getWorkout(row.sessionId); onSession?.(session); }}><span className="row-title"><strong>{row.sessionName}</strong><small>{dateLabel(row.date)} · {row.setCount} sets</small></span><span>{displayKg(row.volumeKg, unit)}{row.partial ? ' *' : ''}</span><TrendingUp size={15} /></Button>)}
           {insight.history.length < insight.totalHistoryRows && <Button variant="tertiary" className="full-width" onClick={() => void moreHistory()} disabled={historyBusy}>{historyBusy ? 'Loading…' : 'Load more history'}</Button>}

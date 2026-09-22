@@ -148,7 +148,7 @@ public sealed partial class ImportService(AppDb db, WorkoutAi ai, CatalogService
                 // A table cell often embeds a superset tag like "A1: Seated Calf Raise". Strip the
                 // tag from the movement name and adopt it as sequenceGroup if none was stated.
                 var cleanName = rawName;
-                var prefix = Regex.Match(rawName, @"^(?<group>[A-Za-z]\d+)[\s:\-–\.]+\s*(?<name>.+)$");
+                var prefix = Regex.Match(rawName, @"^(?<group>[A-Za-z]\d+)(?::|\.|\s*[-–]\s+|\s+)\s*(?<name>.+)$");
                 if (prefix.Success)
                 {
                     if (string.IsNullOrEmpty(sequenceGroup))

@@ -39,6 +39,16 @@
 .chip-group:hover{border-color:var(--border-hover)}
 .chip-group.active{border-color:var(--accent-border-strong);background:var(--accent-soft)}
 .chip-group>.filter-chip,.chip-group>.filter-chip.active{border:0;background:transparent;border-radius:999px;padding-right:4px}
+.chip-group.chip-group-lone,
+.chip-group:not(:has(.chip-icon-btn, .ui-menu)) {
+  padding-right: 0;
+}
+.chip-group.chip-group-lone > .filter-chip,
+.chip-group.chip-group-lone > .filter-chip.active,
+.chip-group:not(:has(.chip-icon-btn, .ui-menu)) > .filter-chip,
+.chip-group:not(:has(.chip-icon-btn, .ui-menu)) > .filter-chip.active {
+  padding-right: 14px;
+}
 .chip-group>.filter-chip:hover:not(:disabled){background:transparent}
 .chip-group.active>.filter-chip.active{color:var(--accent);font-weight:650}
 .chip-group>.filter-chip:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}

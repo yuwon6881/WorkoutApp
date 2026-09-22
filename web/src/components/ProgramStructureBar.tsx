@@ -30,7 +30,7 @@ export function ProgramStructureBar({ structure }: { structure: ProgramStructure
           const isSelected = block.id === week.blockId;
           const label = blockLabel(index);
           return <span key={block.id} role="presentation"
-            className={`chip-group import-block-chip-group ${isSelected ? 'active' : ''}`}>
+            className={`chip-group import-block-chip-group ${isSelected ? 'active' : 'chip-group-lone'}`}>
             <Button presentation="plain" role="tab" aria-selected={isSelected}
               className={`filter-chip ${isSelected ? 'active' : ''}`}
               onClick={() => setSelectedWeek(block.weeks[0]?.week ?? week.week)}>

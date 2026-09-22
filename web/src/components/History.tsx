@@ -98,7 +98,7 @@ export function HistoryView({ initial, initialProgress, preferences, onSession, 
   const sessions = page.sessions;
   return <>
     <div className="page-heading progress-page-heading">
-      <div><h1>Progress</h1><p>Review your training history and records.</p></div>
+      <div><h1>Progress</h1></div>
       <Button variant="secondary" className="progress-muscles-link" onClick={onMuscles}>See muscle coverage<ArrowRight size={16} /></Button>
     </div>
     <ProgressStats progress={progress} unit={unit} />

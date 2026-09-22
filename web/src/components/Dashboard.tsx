@@ -75,7 +75,12 @@ export function Dashboard({ data, onStart, onProgram, onImport, onResume, onSess
               <h2>{data.activeWorkout?.active ? data.activeWorkout.name : nextName ?? (program ? 'Your current week' : 'Choose a workout')}</h2>
               <p>{data.activeWorkout?.active ? 'In progress · pick up where you left off' : next ? program ? `${program.name} · week ${nextWeek}` : nextFocus : program ? `${program.name} · week ${program.progress?.currentWeek ?? 1} checklist` : 'Import a program from a PDF, or build a workout by hand.'}</p>
               <div className="hero-facts">
-                <span><Dumbbell size={15} />{data.activeWorkout?.active ? data.activeWorkout.exercises.reduce((total, e) => total + e.sets.filter(s => !s.warmup).length, 0) : nextSets !== null ? nextSets : '—'} working sets</span>
+                {(() => {
+                  const workingSetCount = data.activeWorkout?.active
+                    ? data.activeWorkout.exercises.reduce((total, e) => total + e.sets.filter(s => !s.warmup).length, 0)
+                    : nextSets;
+                  return <span><Dumbbell size={15} />{workingSetCount && workingSetCount > 0 ? `${workingSetCount} working sets` : '—'}</span>;
+                })()}
               </div>
             </div>
           </div>

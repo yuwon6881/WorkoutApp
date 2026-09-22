@@ -6,7 +6,7 @@ namespace Workout.Api.Services;
 
 public record SeedExercise(string Slug, string Name, string Muscle, string Equipment, string Cue, List<string>? Aliases,
     double? LoadStepKg = null, string LoadModel = LoadModels.External, string? MovementPattern = null,
-    List<string>? SecondaryMuscles = null);
+    List<string>? SecondaryMuscles = null, string? Category = null);
 
 /// The catalog changes only here. Seeding is keyed by slug, so re-running the same file
 /// updates rows in place instead of creating duplicates, and leaves omitted exercises alone.
@@ -45,7 +45,9 @@ public static class CatalogSeed
             var exercise = existing.FirstOrDefault(x => x.Slug == row.Slug);
             if (exercise == null) { exercise = new Exercise { Slug = row.Slug }; db.Exercises.Add(exercise); added++; }
             else updated++;
-            exercise.Name = row.Name.Trim(); exercise.Muscle = row.Muscle ?? ""; exercise.Equipment = row.Equipment ?? ""; exercise.Cue = row.Cue ?? ""; exercise.Active = true;
+            exercise.Name = row.Name.Trim(); exercise.Muscle = row.Muscle ?? ""; exercise.Equipment = row.Equipment ?? "";
+            exercise.Category = ExerciseCategories.Normalize(row.Category, row.Equipment, row.LoadModel);
+            exercise.Cue = row.Cue ?? ""; exercise.Active = true;
             exercise.SecondaryMusclesJson = Json.Write(CatalogService.NormalizeMuscles(row.Muscle, row.SecondaryMuscles));
             // The seed may state the smallest jump a gym actually has; otherwise equipment decides.
             exercise.LoadStepKg = row.LoadStepKg ?? (row.LoadModel == LoadModels.FullBodyweight

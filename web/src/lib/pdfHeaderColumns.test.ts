@@ -85,4 +85,22 @@ describe('findHeaderBands', () => {
     expect(bands[0].skipYValues).toEqual([700]);
     expect(bands[0].text).not.toContain('Bench Press');
   });
+
+  it('separates Warm-up and WORKING when gap is small and matches working header label', () => {
+    const rows = [
+      row(862.5, [
+        piece('Exercise', 234, 862.5, 45), piece('Warm-up', 400, 862.5, 50), piece('WORKING', 460, 862.5, 50),
+        piece('REPS', 570, 862.5, 30), piece('RPE', 660, 862.5, 20), piece('REST', 740, 862.5, 25)
+      ]),
+      row(852.5, [
+        piece('Sets', 410, 852.5, 25), piece('SETS', 470, 852.5, 25)
+      ])
+    ];
+
+    const band = findHeaderBands(rows, 16)[0];
+    expect(band.text).toContain('Warm-up Sets | WORKING SETS');
+    expect(band.columns?.map(c => c.label)).toEqual([
+      'Exercise', 'Warm-up Sets', 'WORKING SETS', 'REPS', 'RPE', 'REST'
+    ]);
+  });
 });

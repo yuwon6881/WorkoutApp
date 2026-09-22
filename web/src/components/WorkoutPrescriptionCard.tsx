@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { AlertTriangle, ArrowLeftRight, Dumbbell, FileText, Link2, Plus, RefreshCw, RotateCcw, Trash2, X } from 'lucide-react';
 import type { Exercise, SetPrescription, TemplateExercise } from '../types';
-import { restOptions, rpeOptions } from '../lib/training';
+import { restOptions } from '../lib/training';
 import { Button } from './ui/Button';
 import { Field, TextAreaField } from './ui/Field';
 import { Select } from './ui/Select';
+import { RpeControl } from './ui/RpeControl';
 import { SwipeableRow } from './ui/SwipeableRow';
 
 import { getSupersetGroup, isSuperset } from '../lib/supersets';
@@ -279,23 +280,20 @@ export function WorkoutPrescriptionCard({
                       value={set.repMax}
                       onChange={e => onUpdateSet(si, { repMax: Number(e.target.value) })}
                     />
-                    <label className="field">
-                      Target RPE
-                      <Select
+                    <div className="field rpe-field">
+                      <span>Target RPE</span>
+                      <RpeControl
                         name={`target-rpe-${exercise.id}-${si}`}
                         ariaLabel={`${exercise.name} set ${si + 1} target RPE`}
-                        value={set.targetRpe ?? ''}
-                        options={[
-                          { value: '', label: set.warmup ? 'Not set' : 'Choose RPE' },
-                          ...rpeOptions
-                        ]}
+                        value={set.targetRpe}
+                        disabled={set.warmup}
                         onChange={val =>
                           onUpdateSet(si, {
-                            targetRpe: val === '' ? null : Number(val)
+                            targetRpe: val
                           })
                         }
                       />
-                    </label>
+                    </div>
                     <Field
                       name={`workout-tempo-${exercise.id}-${si}`}
                       label="Tempo"

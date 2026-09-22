@@ -36,7 +36,8 @@ internal static class ImportChunkReconciliation
 
     public static ChunkMerge ReconcileChunkCoverage(ImportDraft existing, ImportDraft extracted, ImportChunk chunk)
     {
-        var shaped = ImportDayShape.Reconcile(extracted.Workouts);
+        var translated = ImportAbsoluteWeeks.TranslateDays(extracted.Workouts, chunk);
+        var shaped = ImportDayShape.Reconcile(translated);
         var notices = new List<ImportReviewIssue>(shaped.Notices);
         var strayed = shaped.Workouts.Where(day => day.Week < chunk.WeekFrom || day.Week > chunk.WeekTo).ToList();
         if (strayed.Count > 0)

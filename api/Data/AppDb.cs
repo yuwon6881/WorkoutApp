@@ -61,22 +61,26 @@ public sealed class AppDb(DbContextOptions<AppDb> options) : DbContext(options)
         m.Entity<Exercise>().Property(x => x.Name).HasMaxLength(160);
         m.Entity<Exercise>().Property(x => x.LoadStepKg).HasDefaultValue(2.5);
         m.Entity<Exercise>().Property(x => x.LoadModel).HasDefaultValue("external");
+        m.Entity<Exercise>().Property(x => x.Category).HasDefaultValue(ExerciseCategories.FreeWeights);
         m.Entity<Exercise>().Property(x => x.SecondaryMusclesJson).HasDefaultValue("[]");
         m.Entity<Exercise>().Property(x => x.MovementPattern).HasDefaultValue("");
         m.Entity<Exercise>().ToTable("Exercises", t =>
         {
             t.HasCheckConstraint("CK_Exercises_LoadStep", "\"LoadStepKg\" >= 0 AND \"LoadStepKg\" <= 50");
             t.HasCheckConstraint("CK_Exercises_LoadModel", "\"LoadModel\" IN ('external','full_bodyweight','bodyweight_context_only','reps_only')");
+            t.HasCheckConstraint("CK_Exercises_Category", "\"Category\" IN ('Free Weights','Machine','Body Weight')");
         });
         Configure<CustomExercise>(m);
         m.Entity<CustomExercise>().Property(x => x.Name).HasMaxLength(160);
         m.Entity<CustomExercise>().Property(x => x.LoadStepKg).HasDefaultValue(2.5);
         m.Entity<CustomExercise>().Property(x => x.LoadModel).HasDefaultValue("external");
+        m.Entity<CustomExercise>().Property(x => x.Category).HasDefaultValue(ExerciseCategories.FreeWeights);
         m.Entity<CustomExercise>().Property(x => x.SecondaryMusclesJson).HasDefaultValue("[]");
         m.Entity<CustomExercise>().ToTable("CustomExercises", t =>
         {
             t.HasCheckConstraint("CK_CustomExercises_LoadStep", "\"LoadStepKg\" >= 0 AND \"LoadStepKg\" <= 50");
             t.HasCheckConstraint("CK_CustomExercises_LoadModel", "\"LoadModel\" IN ('external','full_bodyweight','bodyweight_context_only','reps_only')");
+            t.HasCheckConstraint("CK_CustomExercises_Category", "\"Category\" IN ('Free Weights','Machine','Body Weight')");
         });
         m.Entity<CustomExercise>().HasIndex(x => new { x.UserId, x.Name }).IsUnique();
         m.Entity<ExerciseAlias>().HasIndex(x => x.Normalized).IsUnique();

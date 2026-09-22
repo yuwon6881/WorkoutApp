@@ -6,11 +6,11 @@ import './ProgressPanels.css';
 
 export function ProgressStats({ progress, unit }: { progress: ProgressSummary | null; unit: Unit }) {
   return <div className="stats-grid progress-stats">
-    <div className="stat-card"><div className="stat-label"><CalendarDays size={17} />Workouts</div><strong>{progress?.sessions ?? '—'}</strong></div>
-    <div className="stat-card"><div className="stat-label"><CalendarDays size={17} />This week</div><strong>{progress?.weekSessions ?? '—'}</strong></div>
-    <div className="stat-card"><div className="stat-label"><BarChart3 size={17} />Weekly volume</div><strong>{showVolume(progress?.weekVolumeKg ?? null, unit)}</strong></div>
-    <div className="stat-card"><div className="stat-label"><Dumbbell size={17} />Working sets</div><strong>{progress?.workingSets ?? '—'}</strong></div>
-    <div className="stat-card"><div className="stat-label"><Dumbbell size={17} />Training time</div><strong>{progress?.trainingMinutes ?? '—'}<small> min</small></strong></div>
+    <div className="stat-card"><div className="stat-label"><CalendarDays size={17} />Workouts</div><strong>{progress?.sessions ? progress.sessions : '—'}</strong></div>
+    <div className="stat-card"><div className="stat-label"><CalendarDays size={17} />This week</div><strong>{progress?.weekSessions ? progress.weekSessions : '—'}</strong></div>
+    <div className="stat-card"><div className="stat-label"><BarChart3 size={17} />Weekly volume</div><strong>{progress?.weekVolumeKg ? showVolume(progress.weekVolumeKg, unit) : '—'}</strong></div>
+    <div className="stat-card"><div className="stat-label"><Dumbbell size={17} />Working sets</div><strong>{progress?.workingSets ? progress.workingSets : '—'}</strong></div>
+    <div className="stat-card"><div className="stat-label"><Dumbbell size={17} />Training time</div><strong>{progress?.trainingMinutes ? `${progress.trainingMinutes} min` : '—'}</strong></div>
   </div>;
 }
 
@@ -42,7 +42,6 @@ export function BodyweightRecords({ progress, unit }: { progress: ProgressSummar
 
   return <section className="panel progress-record-panel">
     <div className="section-heading"><h2>Bodyweight records</h2><Trophy size={18} className="accent" /></div>
-    <p className="muted">Bodyweight records keep the bodyweight context captured with each set.</p>
     {records.map(record => <div className="best-row" key={record.exercise}><span>{record.exercise}</span><strong>{record.bodyweightRepRecord!.reps} reps at {toDisplay(record.bodyweightRepRecord!.bodyweightKg, unit)} {unit} bodyweight</strong></div>)}
   </section>;
 }

@@ -4,6 +4,7 @@
     "name": "Air Squat",
     "muscle": "Quads",
     "equipment": "Bodyweight",
+    "category": "Body Weight",
     "cue": "",
     "aliases": []
   },
@@ -12,24 +13,36 @@
     "name": "Back Squat",
     "muscle": "Quads",
     "equipment": "Barbell",
+    "category": "Free Weights",
     "cue": "",
-    "aliases": [],
-    "secondaryMuscles": ["Glutes", "Core"]
+    "aliases": [
+      "Squat",
+      "Squat or Machine Squat"
+    ],
+    "secondaryMuscles": [
+      "Glutes",
+      "Core"
+    ]
   },
   {
     "slug": "high-bar-back-squat",
     "name": "High-Bar Back Squat",
     "muscle": "Quads",
     "equipment": "Barbell",
+    "category": "Free Weights",
     "cue": "",
     "aliases": [],
-    "secondaryMuscles": ["Core", "Glutes"]
+    "secondaryMuscles": [
+      "Core",
+      "Glutes"
+    ]
   },
   {
     "slug": "low-bar-back-squat",
     "name": "Low-Bar Back Squat",
     "muscle": "Quads",
     "equipment": "Barbell",
+    "category": "Free Weights",
     "cue": "",
     "aliases": []
   },
@@ -38,6 +51,7 @@
     "name": "Pause Squat",
     "muscle": "Quads",
     "equipment": "Barbell",
+    "category": "Free Weights",
     "cue": "",
     "aliases": []
   },
@@ -46,6 +60,7 @@
     "name": "Wide Stance Back Squat",
     "muscle": "Quads",
     "equipment": "Barbell",
+    "category": "Free Weights",
     "cue": "",
     "aliases": []
   },
@@ -54,6 +69,7 @@
     "name": "Front Squat",
     "muscle": "Quads",
     "equipment": "Barbell",
+    "category": "Free Weights",
     "cue": "",
     "aliases": []
   },
@@ -62,15 +78,19 @@
     "name": "Hack Squat",
     "muscle": "Quads",
     "equipment": "Machine",
+    "category": "Machine",
     "cue": "",
     "aliases": [],
-    "secondaryMuscles": ["Glutes"]
+    "secondaryMuscles": [
+      "Glutes"
+    ]
   },
   {
     "slug": "pause-hack-squat",
     "name": "Pause Hack Squat",
     "muscle": "Quads",
     "equipment": "Machine",
+    "category": "Machine",
     "cue": "",
     "aliases": []
   },
@@ -79,15 +99,19 @@
     "name": "Leg Press",
     "muscle": "Quads",
     "equipment": "Machine",
+    "category": "Machine",
     "cue": "",
     "aliases": [],
-    "secondaryMuscles": ["Glutes"]
+    "secondaryMuscles": [
+      "Glutes"
+    ]
   },
   {
     "slug": "constant-tension-leg-press",
     "name": "Constant-Tension Leg Press",
     "muscle": "Quads",
     "equipment": "Machine",
+    "category": "Machine",
     "cue": "",
     "aliases": []
   },
@@ -96,6 +120,7 @@
     "name": "Single-Leg Leg Press",
     "muscle": "Quads",
     "equipment": "Machine",
+    "category": "Machine",
     "cue": "",
     "aliases": []
   },
@@ -104,6 +129,7 @@
     "name": "Smith Machine Squat",
     "muscle": "Quads",
     "equipment": "Smith Machine",
+    "category": "Machine",
     "cue": "",
     "aliases": []
   },
@@ -112,6 +138,7 @@
     "name": "Belt Squat",
     "muscle": "Quads",
     "equipment": "Machine",
+    "category": "Machine",
     "cue": "",
     "aliases": []
   },
@@ -120,6 +147,7 @@
     "name": "Pendulum Squat",
     "muscle": "Quads",
     "equipment": "Machine",
+    "category": "Machine",
     "cue": "",
     "aliases": []
   },
@@ -128,6 +156,7 @@
     "name": "Goblet Squat",
     "muscle": "Quads",
     "equipment": "Dumbbell",
+    "category": "Free Weights",
     "cue": "",
     "aliases": []
   },
@@ -136,6 +165,7 @@
     "name": "Dumbbell Walking Lunge",
     "muscle": "Quads",
     "equipment": "Dumbbell",
+    "category": "Free Weights",
     "cue": "",
     "aliases": []
   },
@@ -144,6 +174,7 @@
     "name": "Smith Machine Lunge",
     "muscle": "Quads",
     "equipment": "Smith Machine",
+    "category": "Machine",
     "cue": "",
     "aliases": []
   },
@@ -152,6 +183,7 @@
     "name": "DB Lunge",
     "muscle": "Quads",
     "equipment": "Dumbbell",
+    "category": "Free Weights",
     "cue": "",
     "aliases": []
   },
@@ -160,6 +192,7 @@
     "name": "Barbell Lunge",
     "muscle": "Quads",
     "equipment": "Barbell",
+    "category": "Free Weights",
     "cue": "",
     "aliases": []
   },
@@ -168,14 +201,18 @@
     "name": "DB Bulgarian Split Squat",
     "muscle": "Quads",
     "equipment": "Dumbbell",
+    "category": "Free Weights",
     "cue": "",
-    "aliases": ["Bulgarian Split Squat"]
+    "aliases": [
+      "Bulgarian Split Squat"
+    ]
   },
   {
     "slug": "pause-db-bulgarian-split-squat",
     "name": "Pause DB Bulgarian Split Squat",
     "muscle": "Quads",
     "equipment": "Dumbbell",
+    "category": "Free Weights",
     "cue": "",
     "aliases": []
   },
@@ -184,6 +221,7 @@
     "name": "Walking Lunge",
     "muscle": "Quads",
     "equipment": "Bodyweight",
+    "category": "Body Weight",
     "cue": "",
     "aliases": []
   },
@@ -192,14 +230,18 @@
     "name": "Leg Extension",
     "muscle": "Quads",
     "equipment": "Machine",
+    "category": "Machine",
     "cue": "",
-    "aliases": []
+    "aliases": [
+      "Slow-Eccentric Leg Extension"
+    ]
   },
   {
     "slug": "unilateral-eccentric-overloaded-leg-extension",
     "name": "Unilateral Eccentric-Overloaded Leg Extension",
     "muscle": "Quads",
     "equipment": "Machine",
+    "category": "Machine",
     "cue": "",
     "aliases": []
   },
@@ -208,6 +250,7 @@
     "name": "Dumbbell Step-Up",
     "muscle": "Quads",
     "equipment": "Dumbbell",
+    "category": "Free Weights",
     "cue": "",
     "aliases": []
   },
@@ -216,6 +259,7 @@
     "name": "Reverse Nordic",
     "muscle": "Quads",
     "equipment": "Bodyweight",
+    "category": "Body Weight",
     "cue": "",
     "aliases": []
   },
@@ -224,6 +268,7 @@
     "name": "Sissy Squat",
     "muscle": "Quads",
     "equipment": "Bodyweight",
+    "category": "Body Weight",
     "cue": "",
     "aliases": []
   },
@@ -232,6 +277,7 @@
     "name": "Deadlift",
     "muscle": "Posterior chain",
     "equipment": "Barbell",
+    "category": "Free Weights",
     "cue": "",
     "aliases": []
   },
@@ -240,6 +286,7 @@
     "name": "Pause Deadlift",
     "muscle": "Posterior chain",
     "equipment": "Barbell",
+    "category": "Free Weights",
     "cue": "",
     "aliases": []
   },
@@ -248,6 +295,7 @@
     "name": "Trap Bar Deadlift",
     "muscle": "Posterior chain",
     "equipment": "Trap Bar",
+    "category": "Free Weights",
     "cue": "",
     "aliases": []
   },
@@ -256,23 +304,32 @@
     "name": "Romanian Deadlift",
     "muscle": "Posterior chain",
     "equipment": "Barbell",
+    "category": "Free Weights",
     "cue": "",
     "aliases": [],
-    "secondaryMuscles": ["Glutes", "Hamstrings"]
+    "secondaryMuscles": [
+      "Glutes",
+      "Hamstrings"
+    ]
   },
   {
     "slug": "db-romanian-deadlift",
     "name": "DB Romanian Deadlift",
     "muscle": "Posterior chain",
     "equipment": "Dumbbell",
+    "category": "Free Weights",
     "cue": "",
-    "aliases": []
+    "aliases": [
+      "Dumbbell RDL",
+      "Dumbbell Romanian Deadlift"
+    ]
   },
   {
     "slug": "barbell-rdl",
     "name": "Barbell RDL",
     "muscle": "Posterior chain",
     "equipment": "Barbell",
+    "category": "Free Weights",
     "cue": "",
     "aliases": []
   },
@@ -281,6 +338,7 @@
     "name": "DB RDL",
     "muscle": "Posterior chain",
     "equipment": "Dumbbell",
+    "category": "Free Weights",
     "cue": "",
     "aliases": []
   },
@@ -289,6 +347,7 @@
     "name": "Snatch-Grip RDL",
     "muscle": "Posterior chain",
     "equipment": "Barbell",
+    "category": "Free Weights",
     "cue": "",
     "aliases": []
   },
@@ -297,6 +356,7 @@
     "name": "Stiff Leg Deadlift",
     "muscle": "Posterior chain",
     "equipment": "Barbell",
+    "category": "Free Weights",
     "cue": "",
     "aliases": []
   },
@@ -305,6 +365,7 @@
     "name": "Eccentric-Accentuated Stiff-Leg Deadlift",
     "muscle": "Posterior chain",
     "equipment": "Barbell",
+    "category": "Free Weights",
     "cue": "",
     "aliases": [
       "Eccentric-Accentuated Stiff Leg Deadlift"
@@ -315,6 +376,7 @@
     "name": "Good Morning",
     "muscle": "Posterior chain",
     "equipment": "Barbell",
+    "category": "Free Weights",
     "cue": "",
     "aliases": []
   },
@@ -323,15 +385,20 @@
     "name": "Barbell Hip Thrust",
     "muscle": "Posterior chain",
     "equipment": "Barbell",
+    "category": "Free Weights",
     "cue": "",
     "aliases": [],
-    "secondaryMuscles": ["Hamstrings", "Core"]
+    "secondaryMuscles": [
+      "Hamstrings",
+      "Core"
+    ]
   },
   {
     "slug": "machine-hip-thrust",
     "name": "Machine Hip Thrust",
     "muscle": "Posterior chain",
     "equipment": "Machine",
+    "category": "Machine",
     "cue": "",
     "aliases": []
   },
@@ -340,6 +407,7 @@
     "name": "Single-Leg DB Hip Thrust",
     "muscle": "Posterior chain",
     "equipment": "Dumbbell",
+    "category": "Free Weights",
     "cue": "",
     "aliases": []
   },
@@ -348,6 +416,7 @@
     "name": "45° Hyperextension",
     "muscle": "Posterior chain",
     "equipment": "Bodyweight",
+    "category": "Body Weight",
     "cue": "",
     "aliases": []
   },
@@ -356,6 +425,7 @@
     "name": "Seated Hamstring Curl",
     "muscle": "Posterior chain",
     "equipment": "Machine",
+    "category": "Machine",
     "cue": "",
     "aliases": []
   },
@@ -364,6 +434,7 @@
     "name": "Lying Leg Curl",
     "muscle": "Posterior chain",
     "equipment": "Machine",
+    "category": "Machine",
     "cue": "",
     "aliases": []
   },
@@ -372,6 +443,7 @@
     "name": "Constant-Tension Lying Leg Curl",
     "muscle": "Posterior chain",
     "equipment": "Machine",
+    "category": "Machine",
     "cue": "",
     "aliases": []
   },
@@ -380,6 +452,7 @@
     "name": "Swiss Ball Leg Curl",
     "muscle": "Posterior chain",
     "equipment": "Bodyweight",
+    "category": "Body Weight",
     "cue": "",
     "aliases": []
   },
@@ -388,6 +461,7 @@
     "name": "Standing Cable Leg Curl",
     "muscle": "Posterior chain",
     "equipment": "Cable",
+    "category": "Machine",
     "cue": "",
     "aliases": []
   },
@@ -396,6 +470,7 @@
     "name": "Sliding Leg Curl",
     "muscle": "Posterior chain",
     "equipment": "Bodyweight",
+    "category": "Body Weight",
     "cue": "",
     "aliases": []
   },
@@ -404,6 +479,7 @@
     "name": "Glute Ham Raise",
     "muscle": "Posterior chain",
     "equipment": "Bodyweight",
+    "category": "Body Weight",
     "cue": "",
     "aliases": []
   },
@@ -412,6 +488,7 @@
     "name": "Nordic Ham Curl",
     "muscle": "Posterior chain",
     "equipment": "Bodyweight",
+    "category": "Body Weight",
     "cue": "",
     "aliases": []
   },
@@ -420,14 +497,19 @@
     "name": "Seated Leg Curl",
     "muscle": "Posterior chain",
     "equipment": "Machine",
+    "category": "Machine",
     "cue": "",
-    "aliases": []
+    "aliases": [
+      "Slow Seated Leg Curl (3 up, 3 down)",
+      "Slow Seated Leg Curl"
+    ]
   },
   {
     "slug": "cable-pull-through",
     "name": "Cable Pull-Through",
     "muscle": "Posterior chain",
     "equipment": "Cable",
+    "category": "Machine",
     "cue": "",
     "aliases": []
   },
@@ -436,6 +518,7 @@
     "name": "Seated Cable Deadlift",
     "muscle": "Posterior chain",
     "equipment": "Cable",
+    "category": "Machine",
     "cue": "",
     "aliases": []
   },
@@ -444,6 +527,7 @@
     "name": "Flat DB Press",
     "muscle": "Chest",
     "equipment": "Dumbbell",
+    "category": "Free Weights",
     "cue": "",
     "aliases": []
   },
@@ -452,6 +536,7 @@
     "name": "Flat Machine Chest Press",
     "muscle": "Chest",
     "equipment": "Machine",
+    "category": "Machine",
     "cue": "",
     "aliases": []
   },
@@ -460,6 +545,7 @@
     "name": "Seated Chest Press",
     "muscle": "Chest",
     "equipment": "Machine",
+    "category": "Machine",
     "cue": "",
     "aliases": []
   },
@@ -468,6 +554,7 @@
     "name": "Incline Machine Press",
     "muscle": "Chest",
     "equipment": "Machine",
+    "category": "Machine",
     "cue": "",
     "aliases": []
   },
@@ -476,32 +563,45 @@
     "name": "Incline Smith Machine Press",
     "muscle": "Chest",
     "equipment": "Smith Machine",
+    "category": "Machine",
     "cue": "",
-    "aliases": []
+    "aliases": [
+      "High-Incline Smith Machine Press",
+      "High Incline Smith Machine Press"
+    ]
   },
   {
     "slug": "barbell-bench-press",
     "name": "Barbell Bench Press",
     "muscle": "Chest",
     "equipment": "Barbell",
+    "category": "Free Weights",
     "cue": "",
     "aliases": [],
-    "secondaryMuscles": ["Triceps", "Shoulders"]
+    "secondaryMuscles": [
+      "Triceps",
+      "Shoulders"
+    ]
   },
   {
     "slug": "barbell-incline-press",
     "name": "Barbell Incline Press",
     "muscle": "Chest",
     "equipment": "Barbell",
+    "category": "Free Weights",
     "cue": "",
     "aliases": [],
-    "secondaryMuscles": ["Triceps", "Shoulders"]
+    "secondaryMuscles": [
+      "Triceps",
+      "Shoulders"
+    ]
   },
   {
     "slug": "bench-press",
     "name": "Bench Press",
     "muscle": "Chest",
     "equipment": "Barbell",
+    "category": "Free Weights",
     "cue": "",
     "aliases": []
   },
@@ -510,6 +610,7 @@
     "name": "Larsen Press",
     "muscle": "Chest",
     "equipment": "Barbell",
+    "category": "Free Weights",
     "cue": "",
     "aliases": []
   },
@@ -518,6 +619,7 @@
     "name": "DB Bench Press",
     "muscle": "Chest",
     "equipment": "Dumbbell",
+    "category": "Free Weights",
     "cue": "",
     "aliases": []
   },
@@ -526,6 +628,7 @@
     "name": "Machine Chest Press",
     "muscle": "Chest",
     "equipment": "Machine",
+    "category": "Machine",
     "cue": "",
     "aliases": []
   },
@@ -534,6 +637,7 @@
     "name": "Close-Grip Barbell Incline Press",
     "muscle": "Chest",
     "equipment": "Barbell",
+    "category": "Free Weights",
     "cue": "",
     "aliases": []
   },
@@ -542,6 +646,7 @@
     "name": "Close-Grip DB Incline Press",
     "muscle": "Chest",
     "equipment": "Dumbbell",
+    "category": "Free Weights",
     "cue": "",
     "aliases": []
   },
@@ -550,6 +655,7 @@
     "name": "Close-Grip Machine Press",
     "muscle": "Chest",
     "equipment": "Machine",
+    "category": "Machine",
     "cue": "",
     "aliases": []
   },
@@ -558,6 +664,7 @@
     "name": "Press-Around",
     "muscle": "Chest",
     "equipment": "Cable",
+    "category": "Machine",
     "cue": "",
     "aliases": []
   },
@@ -566,6 +673,7 @@
     "name": "DB Flye",
     "muscle": "Chest",
     "equipment": "Dumbbell",
+    "category": "Free Weights",
     "cue": "",
     "aliases": []
   },
@@ -574,6 +682,7 @@
     "name": "Deficit Push Up",
     "muscle": "Chest",
     "equipment": "Bodyweight",
+    "category": "Body Weight",
     "cue": "",
     "loadModel": "bodyweight_context_only",
     "aliases": []
@@ -583,6 +692,7 @@
     "name": "Low Incline DB Press",
     "muscle": "Chest",
     "equipment": "Dumbbell",
+    "category": "Free Weights",
     "cue": "",
     "aliases": []
   },
@@ -591,6 +701,7 @@
     "name": "Low Incline Machine Press",
     "muscle": "Chest",
     "equipment": "Machine",
+    "category": "Machine",
     "cue": "",
     "aliases": []
   },
@@ -599,6 +710,7 @@
     "name": "Low Incline Smith Machine Press",
     "muscle": "Chest",
     "equipment": "Smith Machine",
+    "category": "Machine",
     "cue": "",
     "aliases": []
   },
@@ -607,6 +719,7 @@
     "name": "Chest Press Machine",
     "muscle": "Chest",
     "equipment": "Machine",
+    "category": "Machine",
     "cue": "",
     "aliases": []
   },
@@ -615,6 +728,7 @@
     "name": "Dumbbell Chest Press",
     "muscle": "Chest",
     "equipment": "Dumbbell",
+    "category": "Free Weights",
     "cue": "",
     "aliases": []
   },
@@ -623,6 +737,7 @@
     "name": "Cable Chest Press",
     "muscle": "Chest",
     "equipment": "Cable",
+    "category": "Machine",
     "cue": "",
     "aliases": []
   },
@@ -631,6 +746,7 @@
     "name": "Weighted Dip",
     "muscle": "Chest",
     "equipment": "Bodyweight",
+    "category": "Body Weight",
     "cue": "",
     "loadModel": "full_bodyweight",
     "aliases": []
@@ -640,6 +756,7 @@
     "name": "Dip",
     "muscle": "Chest",
     "equipment": "Bodyweight",
+    "category": "Body Weight",
     "cue": "",
     "loadModel": "full_bodyweight",
     "aliases": []
@@ -649,6 +766,7 @@
     "name": "Push Up",
     "muscle": "Chest",
     "equipment": "Bodyweight",
+    "category": "Body Weight",
     "cue": "",
     "loadModel": "bodyweight_context_only",
     "aliases": []
@@ -658,6 +776,7 @@
     "name": "Close-Grip Push Up",
     "muscle": "Chest",
     "equipment": "Bodyweight",
+    "category": "Body Weight",
     "cue": "",
     "loadModel": "bodyweight_context_only",
     "aliases": []
@@ -667,6 +786,7 @@
     "name": "Incline Close-Grip Push Up",
     "muscle": "Chest",
     "equipment": "Bodyweight",
+    "category": "Body Weight",
     "cue": "",
     "loadModel": "bodyweight_context_only",
     "aliases": []
@@ -676,6 +796,7 @@
     "name": "Kneeling Modified Push Up",
     "muscle": "Chest",
     "equipment": "Bodyweight",
+    "category": "Body Weight",
     "cue": "",
     "loadModel": "bodyweight_context_only",
     "aliases": []
@@ -685,6 +806,7 @@
     "name": "45° Incline Barbell Press",
     "muscle": "Chest",
     "equipment": "Barbell",
+    "category": "Free Weights",
     "cue": "",
     "aliases": []
   },
@@ -693,6 +815,7 @@
     "name": "45° Incline DB Press",
     "muscle": "Chest",
     "equipment": "Dumbbell",
+    "category": "Free Weights",
     "cue": "",
     "aliases": []
   },
@@ -701,6 +824,7 @@
     "name": "45° Incline Machine Press",
     "muscle": "Chest",
     "equipment": "Machine",
+    "category": "Machine",
     "cue": "",
     "aliases": []
   },
@@ -709,6 +833,7 @@
     "name": "Dumbbell Floor Press",
     "muscle": "Chest",
     "equipment": "Dumbbell",
+    "category": "Free Weights",
     "cue": "",
     "aliases": []
   },
@@ -717,6 +842,7 @@
     "name": "Pause Barbell Bench Press",
     "muscle": "Chest",
     "equipment": "Barbell",
+    "category": "Free Weights",
     "cue": "",
     "aliases": []
   },
@@ -725,6 +851,7 @@
     "name": "Strict Bench Press",
     "muscle": "Chest",
     "equipment": "Barbell",
+    "category": "Free Weights",
     "cue": "",
     "aliases": []
   },
@@ -733,6 +860,7 @@
     "name": "Close-Grip Bench Press",
     "muscle": "Chest",
     "equipment": "Barbell",
+    "category": "Free Weights",
     "cue": "",
     "aliases": [
       "Close Grip Bench Press"
@@ -743,6 +871,7 @@
     "name": "Smith Machine Bench Press",
     "muscle": "Chest",
     "equipment": "Smith Machine",
+    "category": "Machine",
     "cue": "",
     "aliases": []
   },
@@ -751,6 +880,7 @@
     "name": "Low To High Cable Flye",
     "muscle": "Chest",
     "equipment": "Cable",
+    "category": "Machine",
     "cue": "",
     "aliases": []
   },
@@ -759,6 +889,7 @@
     "name": "Cable Flye 21s",
     "muscle": "Chest",
     "equipment": "Cable",
+    "category": "Machine",
     "cue": "",
     "aliases": []
   },
@@ -767,6 +898,7 @@
     "name": "Cable Flye",
     "muscle": "Chest",
     "equipment": "Cable",
+    "category": "Machine",
     "cue": "",
     "aliases": []
   },
@@ -775,6 +907,7 @@
     "name": "Pec Deck",
     "muscle": "Chest",
     "equipment": "Machine",
+    "category": "Machine",
     "cue": "",
     "aliases": []
   },
@@ -783,6 +916,7 @@
     "name": "Bent-Over Cable Pec Flye",
     "muscle": "Chest",
     "equipment": "Cable",
+    "category": "Machine",
     "cue": "",
     "aliases": []
   },
@@ -791,6 +925,7 @@
     "name": "Cable Crossover Ladder",
     "muscle": "Chest",
     "equipment": "Cable",
+    "category": "Machine",
     "cue": "",
     "aliases": []
   },
@@ -799,6 +934,7 @@
     "name": "Bottom-Half DB Flye",
     "muscle": "Chest",
     "equipment": "Dumbbell",
+    "category": "Free Weights",
     "cue": "",
     "aliases": []
   },
@@ -807,6 +943,7 @@
     "name": "Low Incline DB Flye",
     "muscle": "Chest",
     "equipment": "Dumbbell",
+    "category": "Free Weights",
     "cue": "",
     "aliases": []
   },
@@ -815,6 +952,7 @@
     "name": "Low-To-High Cable Crossover",
     "muscle": "Chest",
     "equipment": "Cable",
+    "category": "Machine",
     "cue": "",
     "aliases": []
   },
@@ -823,6 +961,7 @@
     "name": "2-Grip Lat Pulldown",
     "muscle": "Back",
     "equipment": "Cable",
+    "category": "Machine",
     "cue": "",
     "aliases": []
   },
@@ -831,6 +970,7 @@
     "name": "2-Grip Pull-up",
     "muscle": "Back",
     "equipment": "Bodyweight",
+    "category": "Body Weight",
     "cue": "",
     "loadModel": "full_bodyweight",
     "aliases": []
@@ -840,6 +980,7 @@
     "name": "Machine Pulldown",
     "muscle": "Back",
     "equipment": "Machine",
+    "category": "Machine",
     "cue": "",
     "aliases": []
   },
@@ -848,6 +989,7 @@
     "name": "T-Bar Row",
     "muscle": "Back",
     "equipment": "Barbell",
+    "category": "Free Weights",
     "cue": "",
     "aliases": []
   },
@@ -856,6 +998,7 @@
     "name": "Helms DB Row",
     "muscle": "Back",
     "equipment": "Dumbbell",
+    "category": "Free Weights",
     "cue": "",
     "aliases": []
   },
@@ -864,6 +1007,7 @@
     "name": "Chest-Supported Machine Row",
     "muscle": "Back",
     "equipment": "Machine",
+    "category": "Machine",
     "cue": "",
     "aliases": []
   },
@@ -872,14 +1016,18 @@
     "name": "Seated Cable Row",
     "muscle": "Back",
     "equipment": "Cable",
+    "category": "Machine",
     "cue": "",
-    "aliases": ["Cable Row"]
+    "aliases": [
+      "Cable Row"
+    ]
   },
   {
     "slug": "incline-chest-supported-db-row",
     "name": "Incline Chest-Supported DB Row",
     "muscle": "Back",
     "equipment": "Dumbbell",
+    "category": "Free Weights",
     "cue": "",
     "aliases": []
   },
@@ -888,6 +1036,7 @@
     "name": "Chest-Supported T-Bar Row",
     "muscle": "Back",
     "equipment": "Barbell",
+    "category": "Free Weights",
     "cue": "",
     "aliases": []
   },
@@ -896,25 +1045,34 @@
     "name": "Lat Pulldown",
     "muscle": "Back",
     "equipment": "Cable",
+    "category": "Machine",
     "cue": "",
     "aliases": [],
-    "secondaryMuscles": ["Biceps", "Forearms"]
+    "secondaryMuscles": [
+      "Biceps",
+      "Forearms"
+    ]
   },
   {
     "slug": "pull-up",
     "name": "Pull-Up",
     "muscle": "Back",
     "equipment": "Bodyweight",
+    "category": "Body Weight",
     "cue": "",
     "loadModel": "full_bodyweight",
     "aliases": [],
-    "secondaryMuscles": ["Biceps", "Forearms"]
+    "secondaryMuscles": [
+      "Biceps",
+      "Forearms"
+    ]
   },
   {
     "slug": "1-arm-half-kneeling-lat-pulldown",
     "name": "1-Arm Half-Kneeling Lat Pulldown",
     "muscle": "Back",
     "equipment": "Cable",
+    "category": "Machine",
     "cue": "",
     "aliases": []
   },
@@ -923,6 +1081,7 @@
     "name": "1-Arm Lat Pull-In",
     "muscle": "Back",
     "equipment": "Cable",
+    "category": "Machine",
     "cue": "",
     "aliases": []
   },
@@ -931,6 +1090,7 @@
     "name": "Weighted Pull-Up",
     "muscle": "Back",
     "equipment": "Bodyweight",
+    "category": "Body Weight",
     "cue": "",
     "loadModel": "full_bodyweight",
     "aliases": [
@@ -942,6 +1102,7 @@
     "name": "Neutral-Grip Pullup",
     "muscle": "Back",
     "equipment": "Bodyweight",
+    "category": "Body Weight",
     "cue": "",
     "loadModel": "full_bodyweight",
     "aliases": []
@@ -951,6 +1112,7 @@
     "name": "Pendlay Row",
     "muscle": "Back",
     "equipment": "Barbell",
+    "category": "Free Weights",
     "cue": "",
     "aliases": []
   },
@@ -959,15 +1121,23 @@
     "name": "Barbell Bent Over Row",
     "muscle": "Back",
     "equipment": "Barbell",
+    "category": "Free Weights",
     "cue": "",
-    "aliases": [],
-    "secondaryMuscles": ["Biceps", "Core"]
+    "aliases": [
+      "SLOW Barbell Row (3 up, 3 down)",
+      "Slow Barbell Row"
+    ],
+    "secondaryMuscles": [
+      "Biceps",
+      "Core"
+    ]
   },
   {
     "slug": "omni-grip-machine-chest-supported-row",
     "name": "Omni-Grip Machine Chest-Supported Row",
     "muscle": "Back",
     "equipment": "Machine",
+    "category": "Machine",
     "cue": "",
     "aliases": []
   },
@@ -976,6 +1146,7 @@
     "name": "Cable Seated Row",
     "muscle": "Back",
     "equipment": "Cable",
+    "category": "Machine",
     "cue": "",
     "aliases": []
   },
@@ -984,6 +1155,7 @@
     "name": "Kroc Row",
     "muscle": "Back",
     "equipment": "Dumbbell",
+    "category": "Free Weights",
     "cue": "",
     "aliases": []
   },
@@ -992,6 +1164,7 @@
     "name": "Single-Arm DB Row",
     "muscle": "Back",
     "equipment": "Dumbbell",
+    "category": "Free Weights",
     "cue": "",
     "aliases": []
   },
@@ -1000,6 +1173,7 @@
     "name": "Meadows Row",
     "muscle": "Back",
     "equipment": "Barbell",
+    "category": "Free Weights",
     "cue": "",
     "aliases": []
   },
@@ -1008,6 +1182,7 @@
     "name": "Pronated Pulldown",
     "muscle": "Back",
     "equipment": "Cable",
+    "category": "Machine",
     "cue": "",
     "aliases": []
   },
@@ -1016,6 +1191,7 @@
     "name": "Humble Row",
     "muscle": "Back",
     "equipment": "Barbell",
+    "category": "Free Weights",
     "cue": "",
     "aliases": []
   },
@@ -1024,6 +1200,7 @@
     "name": "Wide-Grip Pull-Up",
     "muscle": "Back",
     "equipment": "Bodyweight",
+    "category": "Body Weight",
     "cue": "",
     "aliases": [
       "Pull-Up (Wide Grip)"
@@ -1034,14 +1211,19 @@
     "name": "Cable Close-Grip Row",
     "muscle": "Back",
     "equipment": "Cable",
+    "category": "Machine",
     "cue": "",
-    "aliases": []
+    "aliases": [
+      "Close-Grip Seated Cable Row",
+      "Close-Grip Cable Row"
+    ]
   },
   {
     "slug": "machine-chest-supported-row-w-band",
     "name": "Machine Chest-Supported Row W/Band",
     "muscle": "Back",
     "equipment": "Machine",
+    "category": "Machine",
     "cue": "",
     "aliases": []
   },
@@ -1050,6 +1232,7 @@
     "name": "Negative Neutral-Grip Pull-Up",
     "muscle": "Back",
     "equipment": "Bodyweight",
+    "category": "Body Weight",
     "cue": "",
     "aliases": []
   },
@@ -1058,6 +1241,7 @@
     "name": "Seated T-Bar Row",
     "muscle": "Back",
     "equipment": "Barbell",
+    "category": "Free Weights",
     "cue": "",
     "aliases": []
   },
@@ -1066,6 +1250,7 @@
     "name": "Wide-Grip Lat Pulldown",
     "muscle": "Back",
     "equipment": "Cable",
+    "category": "Machine",
     "cue": "",
     "aliases": []
   },
@@ -1074,14 +1259,19 @@
     "name": "1-Arm Cable Pulldown",
     "muscle": "Back",
     "equipment": "Cable",
+    "category": "Machine",
     "cue": "",
-    "aliases": ["Single-Arm Pulldown", "Single-Arm Lat Pulldown"]
+    "aliases": [
+      "Single-Arm Pulldown",
+      "Single-Arm Lat Pulldown"
+    ]
   },
   {
     "slug": "close-grip-lat-pulldown",
     "name": "Close-Grip Lat Pulldown",
     "muscle": "Back",
     "equipment": "Cable",
+    "category": "Machine",
     "cue": "",
     "aliases": []
   },
@@ -1090,6 +1280,7 @@
     "name": "Close-Grip Pull-Up",
     "muscle": "Back",
     "equipment": "Bodyweight",
+    "category": "Body Weight",
     "cue": "",
     "aliases": []
   },
@@ -1098,6 +1289,7 @@
     "name": "Chest-Supported DB Row",
     "muscle": "Back",
     "equipment": "Dumbbell",
+    "category": "Free Weights",
     "cue": "",
     "aliases": []
   },
@@ -1106,6 +1298,7 @@
     "name": "Chest-Supported Row",
     "muscle": "Back",
     "equipment": "Machine",
+    "category": "Machine",
     "cue": "",
     "aliases": []
   },
@@ -1114,14 +1307,18 @@
     "name": "Neutral Grip Pulldown",
     "muscle": "Back",
     "equipment": "Cable",
+    "category": "Machine",
     "cue": "",
-    "aliases": []
+    "aliases": [
+      "Neutral-Grip Lat Pulldown"
+    ]
   },
   {
     "slug": "bicep-grip-lat-pulldown",
     "name": "Bicep Grip Lat Pulldown",
     "muscle": "Back",
     "equipment": "Cable",
+    "category": "Machine",
     "cue": "",
     "aliases": []
   },
@@ -1130,6 +1327,7 @@
     "name": "Dual-Handle Lat Pulldown",
     "muscle": "Back",
     "equipment": "Cable",
+    "category": "Machine",
     "cue": "",
     "aliases": []
   },
@@ -1138,6 +1336,7 @@
     "name": "Pendlay Deficit Row",
     "muscle": "Back",
     "equipment": "Barbell",
+    "category": "Free Weights",
     "cue": "",
     "aliases": []
   },
@@ -1146,6 +1345,7 @@
     "name": "Smith Machine Row",
     "muscle": "Back",
     "equipment": "Smith Machine",
+    "category": "Machine",
     "cue": "",
     "aliases": []
   },
@@ -1154,6 +1354,7 @@
     "name": "Moto Row",
     "muscle": "Back",
     "equipment": "Cable",
+    "category": "Machine",
     "cue": "",
     "aliases": []
   },
@@ -1162,6 +1363,7 @@
     "name": "Cross-Body Lat Pull-Around",
     "muscle": "Back",
     "equipment": "Cable",
+    "category": "Machine",
     "cue": "",
     "aliases": []
   },
@@ -1170,6 +1372,7 @@
     "name": "Half-Kneeling 1-Arm Lat Pulldown",
     "muscle": "Back",
     "equipment": "Cable",
+    "category": "Machine",
     "cue": "",
     "aliases": []
   },
@@ -1178,6 +1381,7 @@
     "name": "Cable Lat Prayer",
     "muscle": "Back",
     "equipment": "Cable",
+    "category": "Machine",
     "cue": "",
     "aliases": []
   },
@@ -1186,6 +1390,7 @@
     "name": "Lat-Focused Cable Row",
     "muscle": "Back",
     "equipment": "Cable",
+    "category": "Machine",
     "cue": "",
     "aliases": []
   },
@@ -1194,6 +1399,7 @@
     "name": "Elbows-In 1-Arm DB Row",
     "muscle": "Back",
     "equipment": "Dumbbell",
+    "category": "Free Weights",
     "cue": "",
     "aliases": []
   },
@@ -1202,6 +1408,7 @@
     "name": "Cable Lat Pullover",
     "muscle": "Back",
     "equipment": "Cable",
+    "category": "Machine",
     "cue": "",
     "aliases": []
   },
@@ -1210,6 +1417,7 @@
     "name": "DB Lat Pullover",
     "muscle": "Back",
     "equipment": "Dumbbell",
+    "category": "Free Weights",
     "cue": "",
     "aliases": []
   },
@@ -1218,6 +1426,7 @@
     "name": "Bottom-Half DB Lat Pullover",
     "muscle": "Back",
     "equipment": "Dumbbell",
+    "category": "Free Weights",
     "cue": "",
     "aliases": []
   },
@@ -1226,6 +1435,7 @@
     "name": "Lat Pullover",
     "muscle": "Back",
     "equipment": "Cable",
+    "category": "Machine",
     "cue": "",
     "aliases": [
       "Lat pull-over"
@@ -1236,6 +1446,7 @@
     "name": "Cable Pull-Over",
     "muscle": "Back",
     "equipment": "Cable",
+    "category": "Machine",
     "cue": "",
     "aliases": []
   },
@@ -1244,6 +1455,7 @@
     "name": "Machine Lat Pullover",
     "muscle": "Back",
     "equipment": "Machine",
+    "category": "Machine",
     "cue": "",
     "aliases": []
   },
@@ -1252,6 +1464,7 @@
     "name": "Machine Pullover",
     "muscle": "Back",
     "equipment": "Machine",
+    "category": "Machine",
     "cue": "",
     "aliases": []
   },
@@ -1260,6 +1473,7 @@
     "name": "DB Pullover",
     "muscle": "Back",
     "equipment": "Dumbbell",
+    "category": "Free Weights",
     "cue": "",
     "aliases": []
   },
@@ -1268,6 +1482,7 @@
     "name": "Machine Shoulder Press",
     "muscle": "Shoulders",
     "equipment": "Machine",
+    "category": "Machine",
     "cue": "",
     "aliases": [
       "Machine Shoulders Press"
@@ -1278,14 +1493,18 @@
     "name": "Standing DB Arnold Press",
     "muscle": "Shoulders",
     "equipment": "Dumbbell",
+    "category": "Free Weights",
     "cue": "",
-    "aliases": []
+    "aliases": [
+      "Standing Dumbbell Arnold Press"
+    ]
   },
   {
     "slug": "seated-db-shoulder-press",
     "name": "Seated DB Shoulder Press",
     "muscle": "Shoulders",
     "equipment": "Dumbbell",
+    "category": "Free Weights",
     "cue": "",
     "aliases": []
   },
@@ -1294,6 +1513,7 @@
     "name": "Constant-Tension Machine Shoulder Press",
     "muscle": "Shoulders",
     "equipment": "Machine",
+    "category": "Machine",
     "cue": "",
     "aliases": []
   },
@@ -1302,6 +1522,7 @@
     "name": "Arnold Press",
     "muscle": "Shoulders",
     "equipment": "Dumbbell",
+    "category": "Free Weights",
     "cue": "",
     "aliases": []
   },
@@ -1310,24 +1531,35 @@
     "name": "Barbell Overhead Press",
     "muscle": "Shoulders",
     "equipment": "Barbell",
+    "category": "Free Weights",
     "cue": "",
     "aliases": [],
-    "secondaryMuscles": ["Triceps", "Core"]
+    "secondaryMuscles": [
+      "Triceps",
+      "Core"
+    ]
   },
   {
     "slug": "overhead-press",
     "name": "Overhead Press",
     "muscle": "Shoulders",
     "equipment": "Barbell",
+    "category": "Free Weights",
     "cue": "",
-    "aliases": ["Military Press"],
-    "secondaryMuscles": ["Triceps", "Core"]
+    "aliases": [
+      "Military Press"
+    ],
+    "secondaryMuscles": [
+      "Triceps",
+      "Core"
+    ]
   },
   {
     "slug": "db-curl",
     "name": "DB Curl",
     "muscle": "Biceps and forearms",
     "equipment": "Dumbbell",
+    "category": "Free Weights",
     "cue": "",
     "aliases": []
   },
@@ -1336,6 +1568,7 @@
     "name": "Cable EZ Curl",
     "muscle": "Biceps and forearms",
     "equipment": "Cable",
+    "category": "Machine",
     "cue": "",
     "aliases": []
   },
@@ -1344,14 +1577,19 @@
     "name": "EZ-Bar Curl",
     "muscle": "Biceps and forearms",
     "equipment": "EZ-Bar",
+    "category": "Free Weights",
     "cue": "",
-    "aliases": []
+    "aliases": [
+      "EZ-Bar Modified Bicep 21's",
+      "EZ-Bar Modified Bicep 21s"
+    ]
   },
   {
     "slug": "db-bicep-curl",
     "name": "DB Bicep Curl",
     "muscle": "Biceps and forearms",
     "equipment": "Dumbbell",
+    "category": "Free Weights",
     "cue": "",
     "aliases": []
   },
@@ -1360,6 +1598,7 @@
     "name": "Alternating DB Curl",
     "muscle": "Biceps and forearms",
     "equipment": "Dumbbell",
+    "category": "Free Weights",
     "cue": "",
     "aliases": []
   },
@@ -1368,6 +1607,7 @@
     "name": "Supinated Dumbbell Curl",
     "muscle": "Biceps and forearms",
     "equipment": "Dumbbell",
+    "category": "Free Weights",
     "cue": "",
     "aliases": []
   },
@@ -1376,6 +1616,7 @@
     "name": "Bayesian Cable Curl",
     "muscle": "Biceps and forearms",
     "equipment": "Cable",
+    "category": "Machine",
     "cue": "",
     "aliases": []
   },
@@ -1384,6 +1625,7 @@
     "name": "DB Incline Curl",
     "muscle": "Biceps and forearms",
     "equipment": "Dumbbell",
+    "category": "Free Weights",
     "cue": "",
     "aliases": []
   },
@@ -1392,14 +1634,18 @@
     "name": "Hammer Curl",
     "muscle": "Biceps and forearms",
     "equipment": "Dumbbell",
+    "category": "Free Weights",
     "cue": "",
-    "aliases": []
+    "aliases": [
+      "Hammer Cheat Curl"
+    ]
   },
   {
     "slug": "incline-dumbbell-curl",
     "name": "Incline Dumbbell Curl",
     "muscle": "Biceps and forearms",
     "equipment": "Dumbbell",
+    "category": "Free Weights",
     "cue": "",
     "aliases": []
   },
@@ -1408,6 +1654,7 @@
     "name": "EZ-Bar Strict Curl",
     "muscle": "Biceps and forearms",
     "equipment": "EZ-Bar",
+    "category": "Free Weights",
     "cue": "",
     "aliases": []
   },
@@ -1416,14 +1663,18 @@
     "name": "EZ-Bar Preacher Curl",
     "muscle": "Biceps and forearms",
     "equipment": "EZ-Bar",
+    "category": "Free Weights",
     "cue": "",
-    "aliases": []
+    "aliases": [
+      "Bottom-Half Preacher Curl"
+    ]
   },
   {
     "slug": "machine-preacher-curl",
     "name": "Machine Preacher Curl",
     "muscle": "Biceps and forearms",
     "equipment": "Machine",
+    "category": "Machine",
     "cue": "",
     "aliases": []
   },
@@ -1432,14 +1683,18 @@
     "name": "DB Preacher Curl",
     "muscle": "Biceps and forearms",
     "equipment": "Dumbbell",
+    "category": "Free Weights",
     "cue": "",
-    "aliases": []
+    "aliases": [
+      "1-Arm DB Preacher Curl"
+    ]
   },
   {
     "slug": "heavy-barbell-hold",
     "name": "Heavy Barbell Hold",
     "muscle": "Biceps and forearms",
     "equipment": "Barbell",
+    "category": "Free Weights",
     "cue": "",
     "aliases": []
   },
@@ -1448,6 +1703,7 @@
     "name": "Bench-Braced Wrist Curl",
     "muscle": "Biceps and forearms",
     "equipment": "Dumbbell",
+    "category": "Free Weights",
     "cue": "",
     "aliases": []
   },
@@ -1456,6 +1712,7 @@
     "name": "DB Wrist Curl",
     "muscle": "Biceps and forearms",
     "equipment": "Dumbbell",
+    "category": "Free Weights",
     "cue": "",
     "aliases": [
       "Dumbbell Wrist Curl"
@@ -1466,6 +1723,7 @@
     "name": "Behind-the-Back Wrist Curl",
     "muscle": "Biceps and forearms",
     "equipment": "Barbell",
+    "category": "Free Weights",
     "cue": "",
     "aliases": []
   },
@@ -1474,6 +1732,7 @@
     "name": "Bench-Braced Wrist Extension",
     "muscle": "Biceps and forearms",
     "equipment": "Dumbbell",
+    "category": "Free Weights",
     "cue": "",
     "aliases": []
   },
@@ -1482,6 +1741,7 @@
     "name": "DB Wrist Extension",
     "muscle": "Biceps and forearms",
     "equipment": "Dumbbell",
+    "category": "Free Weights",
     "cue": "",
     "aliases": [
       "Dumbbell Wrist Extension"
@@ -1492,6 +1752,7 @@
     "name": "Modified Zottman Curl",
     "muscle": "Biceps and forearms",
     "equipment": "Dumbbell",
+    "category": "Free Weights",
     "cue": "",
     "aliases": []
   },
@@ -1500,6 +1761,7 @@
     "name": "Standing Wrist Extension",
     "muscle": "Biceps and forearms",
     "equipment": "Barbell",
+    "category": "Free Weights",
     "cue": "",
     "aliases": []
   },
@@ -1508,6 +1770,7 @@
     "name": "Farmer's Walk",
     "muscle": "Biceps and forearms",
     "equipment": "Dumbbell",
+    "category": "Free Weights",
     "cue": "",
     "aliases": []
   },
@@ -1516,6 +1779,7 @@
     "name": "Plate Pinch",
     "muscle": "Biceps and forearms",
     "equipment": "Plate",
+    "category": "Free Weights",
     "cue": "",
     "aliases": []
   },
@@ -1524,6 +1788,7 @@
     "name": "Triceps Machine",
     "muscle": "Triceps",
     "equipment": "Machine",
+    "category": "Machine",
     "cue": "",
     "aliases": []
   },
@@ -1532,14 +1797,19 @@
     "name": "Overhead Cable Triceps Extension",
     "muscle": "Triceps",
     "equipment": "Cable",
+    "category": "Machine",
     "cue": "",
-    "aliases": []
+    "aliases": [
+      "1-Arm Bottom-Half Overhead Cable Tricep Extensions",
+      "Overhead Triceps Extension"
+    ]
   },
   {
     "slug": "db-french-press",
     "name": "DB French Press",
     "muscle": "Triceps",
     "equipment": "Dumbbell",
+    "category": "Free Weights",
     "cue": "",
     "aliases": []
   },
@@ -1548,6 +1818,7 @@
     "name": "EZ-Bar Skull Crusher",
     "muscle": "Triceps",
     "equipment": "EZ-Bar",
+    "category": "Free Weights",
     "cue": "",
     "aliases": []
   },
@@ -1556,6 +1827,7 @@
     "name": "DB Skull Crusher",
     "muscle": "Triceps",
     "equipment": "Dumbbell",
+    "category": "Free Weights",
     "cue": "",
     "aliases": []
   },
@@ -1564,14 +1836,18 @@
     "name": "Triceps Pressdown",
     "muscle": "Triceps",
     "equipment": "Cable",
+    "category": "Machine",
     "cue": "",
-    "aliases": []
+    "aliases": [
+      "Squeeze-Only Triceps Pressdown + Stretch- Only Overhead Triceps Extension"
+    ]
   },
   {
     "slug": "cable-triceps-kickback",
     "name": "Cable Triceps Kickback",
     "muscle": "Triceps",
     "equipment": "Cable",
+    "category": "Machine",
     "cue": "",
     "aliases": []
   },
@@ -1580,6 +1856,7 @@
     "name": "DB Triceps Kickback",
     "muscle": "Triceps",
     "equipment": "Dumbbell",
+    "category": "Free Weights",
     "cue": "",
     "aliases": []
   },
@@ -1588,6 +1865,7 @@
     "name": "N1-Style Cross-Body Triceps Extension",
     "muscle": "Triceps",
     "equipment": "Cable",
+    "category": "Machine",
     "cue": "",
     "aliases": []
   },
@@ -1596,6 +1874,7 @@
     "name": "Single-Arm Tricep Pressdown",
     "muscle": "Triceps",
     "equipment": "Cable",
+    "category": "Machine",
     "cue": "",
     "aliases": []
   },
@@ -1604,6 +1883,7 @@
     "name": "Single-Arm Cable Tricep Kickback",
     "muscle": "Triceps",
     "equipment": "Cable",
+    "category": "Machine",
     "cue": "",
     "aliases": []
   },
@@ -1612,6 +1892,7 @@
     "name": "Squeeze-Only Triceps Pressdown",
     "muscle": "Triceps",
     "equipment": "Cable",
+    "category": "Machine",
     "cue": "",
     "aliases": []
   },
@@ -1620,6 +1901,7 @@
     "name": "Stretch-Only Overhead Triceps Extension",
     "muscle": "Triceps",
     "equipment": "Cable",
+    "category": "Machine",
     "cue": "",
     "aliases": []
   },
@@ -1628,6 +1910,7 @@
     "name": "Floor Skull Crusher (Heavy)",
     "muscle": "Triceps",
     "equipment": "Barbell",
+    "category": "Free Weights",
     "cue": "",
     "aliases": []
   },
@@ -1636,6 +1919,7 @@
     "name": "DB Floor Skull Crusher",
     "muscle": "Triceps",
     "equipment": "Dumbbell",
+    "category": "Free Weights",
     "cue": "",
     "aliases": []
   },
@@ -1644,6 +1928,7 @@
     "name": "Myo Reps Floor Skull Crusher",
     "muscle": "Triceps",
     "equipment": "Barbell",
+    "category": "Free Weights",
     "cue": "",
     "aliases": []
   },
@@ -1652,6 +1937,7 @@
     "name": "Tricep Pushdown",
     "muscle": "Triceps",
     "equipment": "Cable",
+    "category": "Machine",
     "cue": "",
     "aliases": []
   },
@@ -1660,6 +1946,7 @@
     "name": "Smith Machine JM Press",
     "muscle": "Triceps",
     "equipment": "Smith Machine",
+    "category": "Machine",
     "cue": "",
     "aliases": []
   },
@@ -1668,6 +1955,7 @@
     "name": "Overhead Cable Triceps Extension (Bar)",
     "muscle": "Triceps",
     "equipment": "Cable",
+    "category": "Machine",
     "cue": "",
     "aliases": []
   },
@@ -1676,14 +1964,18 @@
     "name": "Overhead Cable Triceps Extension (Rope)",
     "muscle": "Triceps",
     "equipment": "Cable",
+    "category": "Machine",
     "cue": "",
-    "aliases": ["Rope Overhead Triceps Extension"]
+    "aliases": [
+      "Rope Overhead Triceps Extension"
+    ]
   },
   {
     "slug": "db-lateral-raise",
     "name": "DB Lateral Raise",
     "muscle": "Shoulders",
     "equipment": "Dumbbell",
+    "category": "Free Weights",
     "cue": "",
     "aliases": []
   },
@@ -1692,14 +1984,18 @@
     "name": "Cable Lateral Raise",
     "muscle": "Shoulders",
     "equipment": "Cable",
+    "category": "Machine",
     "cue": "",
-    "aliases": []
+    "aliases": [
+      "Eccentric-Accentuated Cable Lateral Raise, Constant-Tension Cable Lateral Raise"
+    ]
   },
   {
     "slug": "machine-lateral-raise",
     "name": "Machine Lateral Raise",
     "muscle": "Shoulders",
     "equipment": "Machine",
+    "category": "Machine",
     "cue": "",
     "aliases": []
   },
@@ -1708,6 +2004,7 @@
     "name": "Incline DB Y-Raise",
     "muscle": "Shoulders",
     "equipment": "Dumbbell",
+    "category": "Free Weights",
     "cue": "",
     "aliases": []
   },
@@ -1716,6 +2013,7 @@
     "name": "Cable Y-Raise",
     "muscle": "Shoulders",
     "equipment": "Cable",
+    "category": "Machine",
     "cue": "",
     "aliases": []
   },
@@ -1724,6 +2022,7 @@
     "name": "Cross-Body Cable Y-Raise (Side Delt)",
     "muscle": "Shoulders",
     "equipment": "Cable",
+    "category": "Machine",
     "cue": "",
     "aliases": []
   },
@@ -1732,6 +2031,7 @@
     "name": "Omni-Direction Face Pull",
     "muscle": "Shoulders",
     "equipment": "Cable",
+    "category": "Machine",
     "cue": "",
     "aliases": []
   },
@@ -1740,6 +2040,7 @@
     "name": "Reverse Cable Flye",
     "muscle": "Shoulders",
     "equipment": "Cable",
+    "category": "Machine",
     "cue": "",
     "aliases": []
   },
@@ -1748,6 +2049,7 @@
     "name": "Bent-Over Reverse DB Flye",
     "muscle": "Shoulders",
     "equipment": "Dumbbell",
+    "category": "Free Weights",
     "cue": "",
     "aliases": []
   },
@@ -1756,14 +2058,18 @@
     "name": "Rope Face Pull",
     "muscle": "Shoulders",
     "equipment": "Cable",
+    "category": "Machine",
     "cue": "",
-    "aliases": []
+    "aliases": [
+      "Rope Facepull"
+    ]
   },
   {
     "slug": "high-cable-lateral-raise",
     "name": "High-Cable Lateral Raise",
     "muscle": "Shoulders",
     "equipment": "Cable",
+    "category": "Machine",
     "cue": "",
     "aliases": []
   },
@@ -1772,6 +2078,7 @@
     "name": "1-Arm Reverse Pec Deck",
     "muscle": "Shoulders",
     "equipment": "Machine",
+    "category": "Machine",
     "cue": "",
     "aliases": []
   },
@@ -1780,6 +2087,7 @@
     "name": "Lying Reverse DB Flye",
     "muscle": "Shoulders",
     "equipment": "Dumbbell",
+    "category": "Free Weights",
     "cue": "",
     "aliases": []
   },
@@ -1788,6 +2096,7 @@
     "name": "Reverse Cable Crossover",
     "muscle": "Shoulders",
     "equipment": "Cable",
+    "category": "Machine",
     "cue": "",
     "aliases": []
   },
@@ -1796,6 +2105,7 @@
     "name": "Rear Delt Fly",
     "muscle": "Shoulders",
     "equipment": "Machine",
+    "category": "Machine",
     "cue": "",
     "aliases": []
   },
@@ -1804,6 +2114,7 @@
     "name": "High-Cable Cuffed Lateral Raise",
     "muscle": "Shoulders",
     "equipment": "Cable",
+    "category": "Machine",
     "cue": "",
     "aliases": []
   },
@@ -1812,14 +2123,18 @@
     "name": "Lean-In DB Lateral Raise",
     "muscle": "Shoulders",
     "equipment": "Dumbbell",
+    "category": "Free Weights",
     "cue": "",
-    "aliases": []
+    "aliases": [
+      "Lean-In Constant Tension DB Lateral Raise"
+    ]
   },
   {
     "slug": "meadows-incline-db-lateral-raise",
     "name": "Meadows Incline DB Lateral Raise",
     "muscle": "Shoulders",
     "equipment": "Dumbbell",
+    "category": "Free Weights",
     "cue": "",
     "aliases": []
   },
@@ -1828,6 +2143,7 @@
     "name": "Cable Unilateral Face Pull",
     "muscle": "Shoulders",
     "equipment": "Cable",
+    "category": "Machine",
     "cue": "",
     "aliases": []
   },
@@ -1836,6 +2152,7 @@
     "name": "Cable Reverse Flye",
     "muscle": "Shoulders",
     "equipment": "Cable",
+    "category": "Machine",
     "cue": "",
     "aliases": []
   },
@@ -1844,6 +2161,7 @@
     "name": "Cuffed Behind-The-Back Lateral Raise",
     "muscle": "Shoulders",
     "equipment": "Cable",
+    "category": "Machine",
     "cue": "",
     "aliases": []
   },
@@ -1852,6 +2170,7 @@
     "name": "Lying Paused Rope Face Pull",
     "muscle": "Shoulders",
     "equipment": "Cable",
+    "category": "Machine",
     "cue": "",
     "aliases": []
   },
@@ -1860,6 +2179,7 @@
     "name": "Standing Calf Raise",
     "muscle": "Traps, calves, and hips",
     "equipment": "Machine",
+    "category": "Machine",
     "cue": "",
     "aliases": []
   },
@@ -1868,6 +2188,7 @@
     "name": "Seated Calf Raise",
     "muscle": "Traps, calves, and hips",
     "equipment": "Machine",
+    "category": "Machine",
     "cue": "",
     "aliases": []
   },
@@ -1876,6 +2197,7 @@
     "name": "Leg Press Toe Press",
     "muscle": "Traps, calves, and hips",
     "equipment": "Machine",
+    "category": "Machine",
     "cue": "",
     "aliases": []
   },
@@ -1884,6 +2206,7 @@
     "name": "Leg Press Calf Press",
     "muscle": "Traps, calves, and hips",
     "equipment": "Machine",
+    "category": "Machine",
     "cue": "",
     "aliases": []
   },
@@ -1892,6 +2215,7 @@
     "name": "Donkey Calf Raise",
     "muscle": "Traps, calves, and hips",
     "equipment": "Machine",
+    "category": "Machine",
     "cue": "",
     "aliases": []
   },
@@ -1900,6 +2224,7 @@
     "name": "Single-Leg DB Calf Raise",
     "muscle": "Traps, calves, and hips",
     "equipment": "Dumbbell",
+    "category": "Free Weights",
     "cue": "",
     "aliases": []
   },
@@ -1908,6 +2233,7 @@
     "name": "Calf Raise Machine",
     "muscle": "Traps, calves, and hips",
     "equipment": "Machine",
+    "category": "Machine",
     "cue": "",
     "aliases": []
   },
@@ -1916,6 +2242,7 @@
     "name": "Seated Hip Abduction",
     "muscle": "Traps, calves, and hips",
     "equipment": "Machine",
+    "category": "Machine",
     "cue": "",
     "aliases": []
   },
@@ -1924,6 +2251,7 @@
     "name": "Machine Hip Abduction",
     "muscle": "Traps, calves, and hips",
     "equipment": "Machine",
+    "category": "Machine",
     "cue": "",
     "aliases": []
   },
@@ -1932,14 +2260,18 @@
     "name": "Cable Hip Abduction",
     "muscle": "Traps, calves, and hips",
     "equipment": "Cable",
+    "category": "Machine",
     "cue": "",
-    "aliases": ["Cable Standing Hip Abduction"]
+    "aliases": [
+      "Cable Standing Hip Abduction"
+    ]
   },
   {
     "slug": "standing-plate-abduction",
     "name": "Standing Plate Abduction",
     "muscle": "Traps, calves, and hips",
     "equipment": "Plate",
+    "category": "Free Weights",
     "cue": "",
     "aliases": []
   },
@@ -1948,6 +2280,7 @@
     "name": "Lateral Band Walk",
     "muscle": "Traps, calves, and hips",
     "equipment": "Band",
+    "category": "Body Weight",
     "cue": "",
     "aliases": []
   },
@@ -1956,6 +2289,7 @@
     "name": "Hex Bar Shrug",
     "muscle": "Traps",
     "equipment": "Trap Bar",
+    "category": "Free Weights",
     "cue": "",
     "aliases": []
   },
@@ -1964,6 +2298,7 @@
     "name": "Smith Machine Shrug",
     "muscle": "Traps",
     "equipment": "Smith Machine",
+    "category": "Machine",
     "cue": "",
     "aliases": []
   },
@@ -1972,6 +2307,7 @@
     "name": "Dumbbell Shrug",
     "muscle": "Traps",
     "equipment": "Dumbbell",
+    "category": "Free Weights",
     "cue": "",
     "aliases": []
   },
@@ -1980,6 +2316,7 @@
     "name": "Barbell Shrug",
     "muscle": "Traps",
     "equipment": "Barbell",
+    "category": "Free Weights",
     "cue": "",
     "aliases": []
   },
@@ -1988,6 +2325,7 @@
     "name": "Cable Shrug-In",
     "muscle": "Traps",
     "equipment": "Cable",
+    "category": "Machine",
     "cue": "",
     "aliases": []
   },
@@ -1996,6 +2334,7 @@
     "name": "Machine Shrug",
     "muscle": "Traps",
     "equipment": "Machine",
+    "category": "Machine",
     "cue": "",
     "aliases": []
   },
@@ -2004,6 +2343,7 @@
     "name": "Kelso Shrug",
     "muscle": "Traps",
     "equipment": "Dumbbell",
+    "category": "Free Weights",
     "cue": "",
     "aliases": []
   },
@@ -2012,6 +2352,7 @@
     "name": "Seated Cable Kelso Shrug",
     "muscle": "Traps",
     "equipment": "Cable",
+    "category": "Machine",
     "cue": "",
     "aliases": []
   },
@@ -2020,6 +2361,7 @@
     "name": "Incline DB Kelso Shrug",
     "muscle": "Traps",
     "equipment": "Dumbbell",
+    "category": "Free Weights",
     "cue": "",
     "aliases": []
   },
@@ -2028,6 +2370,7 @@
     "name": "Trap Bar Shrug",
     "muscle": "Traps",
     "equipment": "Trap Bar",
+    "category": "Free Weights",
     "cue": "",
     "aliases": []
   },
@@ -2036,6 +2379,7 @@
     "name": "Seated Dumbbell Shrug",
     "muscle": "Traps",
     "equipment": "Dumbbell",
+    "category": "Free Weights",
     "cue": "",
     "aliases": []
   },
@@ -2044,6 +2388,7 @@
     "name": "Cable Crunch",
     "muscle": "Core",
     "equipment": "Cable",
+    "category": "Machine",
     "cue": "",
     "aliases": []
   },
@@ -2052,6 +2397,7 @@
     "name": "Machine Crunch",
     "muscle": "Core",
     "equipment": "Machine",
+    "category": "Machine",
     "cue": "",
     "aliases": []
   },
@@ -2060,6 +2406,7 @@
     "name": "Plate-Weighted Crunch",
     "muscle": "Core",
     "equipment": "Plate",
+    "category": "Free Weights",
     "cue": "",
     "aliases": []
   },
@@ -2068,6 +2415,7 @@
     "name": "Decline Plate-Weighted Crunch",
     "muscle": "Core",
     "equipment": "Plate",
+    "category": "Free Weights",
     "cue": "",
     "aliases": []
   },
@@ -2076,6 +2424,7 @@
     "name": "Hanging Leg Raise",
     "muscle": "Core",
     "equipment": "Bodyweight",
+    "category": "Body Weight",
     "cue": "",
     "aliases": []
   },
@@ -2084,6 +2433,7 @@
     "name": "Roman Chair Crunch",
     "muscle": "Core",
     "equipment": "Bodyweight",
+    "category": "Body Weight",
     "cue": "",
     "aliases": []
   },
@@ -2092,6 +2442,7 @@
     "name": "Reverse Crunch",
     "muscle": "Core",
     "equipment": "Bodyweight",
+    "category": "Body Weight",
     "cue": "",
     "aliases": []
   },
@@ -2100,6 +2451,7 @@
     "name": "Bicycle Crunch",
     "muscle": "Core",
     "equipment": "Bodyweight",
+    "category": "Body Weight",
     "cue": "",
     "aliases": []
   },
@@ -2108,6 +2460,7 @@
     "name": "Weighted Crunch",
     "muscle": "Core",
     "equipment": "Bodyweight",
+    "category": "Body Weight",
     "cue": "",
     "aliases": []
   },
@@ -2116,6 +2469,7 @@
     "name": "Dragon Flag",
     "muscle": "Core",
     "equipment": "Bodyweight",
+    "category": "Body Weight",
     "cue": "",
     "aliases": []
   },
@@ -2124,6 +2478,7 @@
     "name": "Bent-Knee Dragon Flag",
     "muscle": "Core",
     "equipment": "Bodyweight",
+    "category": "Body Weight",
     "cue": "",
     "aliases": []
   },
@@ -2132,6 +2487,7 @@
     "name": "Lying Leg Raise",
     "muscle": "Core",
     "equipment": "Bodyweight",
+    "category": "Body Weight",
     "cue": "",
     "aliases": []
   },
@@ -2140,6 +2496,7 @@
     "name": "Copenhagen Hip Adduction",
     "muscle": "Adductors and neck",
     "equipment": "Bodyweight",
+    "category": "Body Weight",
     "cue": "",
     "aliases": []
   },
@@ -2148,6 +2505,7 @@
     "name": "Head Harness Neck Curl",
     "muscle": "Adductors and neck",
     "equipment": "Plate",
+    "category": "Free Weights",
     "cue": "",
     "aliases": []
   },
@@ -2156,6 +2514,7 @@
     "name": "Head Harness Neck Extension",
     "muscle": "Adductors and neck",
     "equipment": "Plate",
+    "category": "Free Weights",
     "cue": "",
     "aliases": []
   },
@@ -2164,6 +2523,7 @@
     "name": "Plate-Loaded Neck Curl",
     "muscle": "Adductors and neck",
     "equipment": "Plate",
+    "category": "Free Weights",
     "cue": "",
     "aliases": []
   },
@@ -2172,6 +2532,7 @@
     "name": "Plate-Loaded Neck Extension",
     "muscle": "Adductors and neck",
     "equipment": "Plate",
+    "category": "Free Weights",
     "cue": "",
     "aliases": []
   },
@@ -2180,41 +2541,54 @@
     "name": "Dead Hang",
     "muscle": "Back",
     "equipment": "Bodyweight",
+    "category": "Body Weight",
     "cue": "",
     "loadModel": "full_bodyweight",
     "aliases": [
       "Dead Hangs",
       "Bar Hang"
     ],
-    "secondaryMuscles": ["Forearms", "Shoulders"]
+    "secondaryMuscles": [
+      "Forearms",
+      "Shoulders"
+    ]
   },
   {
     "slug": "db-incline-press",
     "name": "DB Incline Press",
     "muscle": "Chest",
     "equipment": "Dumbbell",
+    "category": "Free Weights",
     "cue": "",
     "aliases": [
       "Incline DB Press",
       "Incline Dumbbell Press",
       "Dumbbell Incline Press"
     ],
-    "secondaryMuscles": ["Triceps", "Shoulders"]
+    "secondaryMuscles": [
+      "Triceps",
+      "Shoulders"
+    ]
   },
   {
     "slug": "deficit-deadlift",
     "name": "Deficit Deadlift",
     "muscle": "Posterior chain",
     "equipment": "Barbell",
+    "category": "Free Weights",
     "cue": "",
     "aliases": [],
-    "secondaryMuscles": ["Glutes", "Core"]
+    "secondaryMuscles": [
+      "Glutes",
+      "Core"
+    ]
   },
   {
     "slug": "leg-curl",
     "name": "Leg Curl",
     "muscle": "Posterior chain",
     "equipment": "Machine",
+    "category": "Machine",
     "cue": "",
     "aliases": []
   },
@@ -2223,70 +2597,306 @@
     "name": "Dumbbell Row",
     "muscle": "Back",
     "equipment": "Dumbbell",
+    "category": "Free Weights",
     "cue": "",
     "aliases": [],
-    "secondaryMuscles": ["Biceps"]
+    "secondaryMuscles": [
+      "Biceps"
+    ]
   },
   {
     "slug": "barbell-supinated-row",
     "name": "Barbell Supinated Row",
     "muscle": "Back",
     "equipment": "Barbell",
+    "category": "Free Weights",
     "cue": "",
-    "aliases": ["Supinated Barbell Row", "Supinated Row"],
-    "secondaryMuscles": ["Biceps"]
+    "aliases": [
+      "Supinated Barbell Row",
+      "Supinated Row"
+    ],
+    "secondaryMuscles": [
+      "Biceps"
+    ]
   },
   {
     "slug": "cable-upright-row",
     "name": "Cable Upright Row",
     "muscle": "Shoulders",
     "equipment": "Cable",
+    "category": "Machine",
     "cue": "",
-    "aliases": ["Upright Row"],
-    "secondaryMuscles": ["Traps"]
+    "aliases": [
+      "Upright Row"
+    ],
+    "secondaryMuscles": [
+      "Traps"
+    ]
   },
   {
     "slug": "barbell-floor-press",
     "name": "Barbell Floor Press",
     "muscle": "Chest",
     "equipment": "Barbell",
+    "category": "Free Weights",
     "cue": "",
-    "aliases": ["Floor Press"],
-    "secondaryMuscles": ["Triceps"]
+    "aliases": [
+      "Floor Press"
+    ],
+    "secondaryMuscles": [
+      "Triceps"
+    ]
   },
   {
     "slug": "california-press",
     "name": "California Press",
     "muscle": "Triceps",
     "equipment": "Barbell",
+    "category": "Free Weights",
     "cue": "",
     "aliases": [],
-    "secondaryMuscles": ["Chest"]
+    "secondaryMuscles": [
+      "Chest"
+    ]
   },
   {
     "slug": "band-pull-apart",
     "name": "Band Pull-Apart",
     "muscle": "Back",
     "equipment": "Band",
+    "category": "Body Weight",
     "cue": "",
     "aliases": [],
-    "secondaryMuscles": ["Shoulders"]
+    "secondaryMuscles": [
+      "Shoulders"
+    ]
   },
   {
     "slug": "reverse-hyper",
     "name": "Reverse Hyper",
     "muscle": "Posterior chain",
     "equipment": "Machine",
+    "category": "Machine",
     "cue": "",
-    "aliases": ["Reverse Hyperextension"],
-    "secondaryMuscles": ["Glutes"]
+    "aliases": [
+      "Reverse Hyperextension"
+    ],
+    "secondaryMuscles": [
+      "Glutes"
+    ]
   },
   {
     "slug": "plank",
     "name": "Plank",
     "muscle": "Core",
     "equipment": "Bodyweight",
+    "category": "Body Weight",
     "cue": "",
     "aliases": []
+  },
+  {
+    "slug": "diamond-push-up",
+    "name": "Diamond Push Up",
+    "muscle": "Chest",
+    "equipment": "Bodyweight",
+    "category": "Body Weight",
+    "cue": "",
+    "aliases": [
+      "Diamond Push-Up",
+      "Diamond Pushup"
+    ],
+    "secondaryMuscles": [
+      "Triceps",
+      "Shoulders"
+    ]
+  },
+  {
+    "slug": "med-ball-close-grip-push-up",
+    "name": "Med-Ball Close Grip Push Up",
+    "muscle": "Chest",
+    "equipment": "Medicine Ball",
+    "category": "Free Weights",
+    "cue": "",
+    "aliases": [
+      "Medicine Ball Close Grip Push Up",
+      "Med Ball Close-Grip Push Up"
+    ],
+    "secondaryMuscles": [
+      "Triceps",
+      "Shoulders"
+    ]
+  },
+  {
+    "slug": "corpse-crunch",
+    "name": "Corpse Crunch",
+    "muscle": "Core",
+    "equipment": "Bodyweight",
+    "category": "Body Weight",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "llpt-plank",
+    "name": "LLPT Plank",
+    "muscle": "Core",
+    "equipment": "Bodyweight",
+    "category": "Body Weight",
+    "cue": "",
+    "aliases": [
+      "Long-Lever Posterior-Tilt Plank",
+      "Long Lever Posterior Tilt Plank"
+    ]
+  },
+  {
+    "slug": "roman-chair-leg-raise",
+    "name": "Roman Chair Leg Raise",
+    "muscle": "Core",
+    "equipment": "Bodyweight",
+    "category": "Body Weight",
+    "cue": "",
+    "aliases": [
+      "Captains Chair Leg Raise",
+      "Captain's Chair Leg Raise"
+    ]
+  },
+  {
+    "slug": "plate-front-raise",
+    "name": "Plate Front Raise",
+    "muscle": "Shoulders",
+    "equipment": "Plate",
+    "category": "Free Weights",
+    "cue": "",
+    "aliases": [
+      "Front Plate Raise",
+      "Plate Raise"
+    ]
+  },
+  {
+    "slug": "egyptian-cable-lateral-raise",
+    "name": "Egyptian Cable Lateral Raise",
+    "muscle": "Shoulders",
+    "equipment": "Cable",
+    "category": "Machine",
+    "cue": "",
+    "aliases": [
+      "Lean-Away Cable Lateral Raise",
+      "Lean Away Cable Lateral Raise"
+    ]
+  },
+  {
+    "slug": "reverse-pec-deck",
+    "name": "Reverse Pec Deck",
+    "muscle": "Shoulders",
+    "equipment": "Machine",
+    "category": "Machine",
+    "cue": "",
+    "aliases": [
+      "Reverse Pec Flye",
+      "Machine Reverse Flye"
+    ],
+    "secondaryMuscles": [
+      "Back"
+    ]
+  },
+  {
+    "slug": "machine-low-row",
+    "name": "Machine Low Row",
+    "muscle": "Back",
+    "equipment": "Machine",
+    "category": "Machine",
+    "cue": "",
+    "aliases": [
+      "Low Row Machine",
+      "Low Machine Row"
+    ],
+    "secondaryMuscles": [
+      "Biceps"
+    ]
+  },
+  {
+    "slug": "wide-grip-cable-row",
+    "name": "Wide-Grip Cable Row",
+    "muscle": "Back",
+    "equipment": "Cable",
+    "category": "Machine",
+    "cue": "",
+    "aliases": [
+      "Wide Grip Cable Row",
+      "Cable Wide-Grip Row"
+    ],
+    "secondaryMuscles": [
+      "Biceps"
+    ]
+  },
+  {
+    "slug": "omni-grip-lat-pulldown",
+    "name": "Omni-Grip Lat Pulldown",
+    "muscle": "Back",
+    "equipment": "Cable",
+    "category": "Machine",
+    "cue": "",
+    "aliases": [
+      "Omni Grip Lat Pulldown"
+    ],
+    "secondaryMuscles": [
+      "Biceps"
+    ]
+  },
+  {
+    "slug": "n1-style-cross-body-cable-bicep-curl",
+    "name": "N1-Style Cross-Body Cable Bicep Curl",
+    "muscle": "Biceps and forearms",
+    "equipment": "Cable",
+    "category": "Machine",
+    "cue": "",
+    "aliases": [
+      "N1-Style Cross Body Cable Bicep Curl",
+      "Cross-Body Cable Bicep Curl"
+    ]
+  },
+  {
+    "slug": "pec-static-stretch",
+    "name": "Pec Static Stretch",
+    "muscle": "Chest",
+    "equipment": "Bodyweight",
+    "category": "Body Weight",
+    "cue": "",
+    "aliases": [
+      "Chest Static Stretch",
+      "Pec Static Stretch 30s"
+    ]
+  },
+  {
+    "slug": "lat-static-stretch",
+    "name": "Lat Static Stretch",
+    "muscle": "Back",
+    "equipment": "Bodyweight",
+    "category": "Body Weight",
+    "cue": "",
+    "aliases": [
+      "Lat Static Stretch 30s"
+    ]
+  },
+  {
+    "slug": "side-delt-static-stretch",
+    "name": "Side Delt Static Stretch",
+    "muscle": "Shoulders",
+    "equipment": "Bodyweight",
+    "category": "Body Weight",
+    "cue": "",
+    "aliases": [
+      "Side Delt Static Stretch (30s)"
+    ]
+  },
+  {
+    "slug": "bicep-static-stretch",
+    "name": "Bicep Static Stretch",
+    "muscle": "Biceps and forearms",
+    "equipment": "Bodyweight",
+    "category": "Body Weight",
+    "cue": "",
+    "aliases": [
+      "Bicep Static Stretch (30s)"
+    ]
   }
 ]

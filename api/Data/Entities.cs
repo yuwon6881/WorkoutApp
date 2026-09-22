@@ -1,5 +1,7 @@
 namespace Workout.Api.Data;
 
+using Workout.Api.Domain;
+
 public abstract class OwnedRecord
 {
     public Guid UserId { get; set; }
@@ -38,6 +40,7 @@ public sealed class Exercise
     /// JSON array of normalized secondary muscle groups. The primary muscle remains in Muscle.
     public string SecondaryMusclesJson { get; set; } = "[]";
     public string Equipment { get; set; } = "";
+    public string Category { get; set; } = ExerciseCategories.FreeWeights;
     public string Cue { get; set; } = "";
     public bool Active { get; set; } = true;
     /// The smallest load change this exercise can actually make in a gym. Zero means the load
@@ -60,6 +63,7 @@ public sealed class CustomExercise : OwnedRecord
     /// JSON array of normalized secondary muscle groups. The primary muscle remains in Muscle.
     public string SecondaryMusclesJson { get; set; } = "[]";
     public string Equipment { get; set; } = "";
+    public string Category { get; set; } = ExerciseCategories.FreeWeights;
     public string Cue { get; set; } = "";
     public double LoadStepKg { get; set; } = 2.5;
     public string LoadModel { get; set; } = "external";

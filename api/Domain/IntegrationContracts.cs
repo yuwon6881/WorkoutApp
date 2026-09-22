@@ -57,3 +57,37 @@ public static class LoadModels
     public const string RepsOnly = "reps_only";
     public static readonly string[] All = [External, FullBodyweight, BodyweightContextOnly, RepsOnly];
 }
+
+public static class ExerciseCategories
+{
+    public const string FreeWeights = "Free Weights";
+    public const string Machine = "Machine";
+    public const string BodyWeight = "Body Weight";
+    public static readonly string[] All = [FreeWeights, Machine, BodyWeight];
+
+    public static string Normalize(string? value, string? equipment = null, string? loadModel = null)
+    {
+        if (!string.IsNullOrWhiteSpace(value))
+        {
+            var trimmed = value.Trim();
+            if (trimmed.Equals(FreeWeights, StringComparison.OrdinalIgnoreCase)
+                || trimmed.Equals("Free Weight", StringComparison.OrdinalIgnoreCase)
+                || trimmed.Equals("Freeweights", StringComparison.OrdinalIgnoreCase))
+                return FreeWeights;
+            if (trimmed.Equals(Machine, StringComparison.OrdinalIgnoreCase)
+                || trimmed.Equals("Machines", StringComparison.OrdinalIgnoreCase))
+                return Machine;
+            if (trimmed.Equals(BodyWeight, StringComparison.OrdinalIgnoreCase)
+                || trimmed.Equals("Bodyweight", StringComparison.OrdinalIgnoreCase))
+                return BodyWeight;
+        }
+
+        var eq = (equipment ?? "").Trim().ToLowerInvariant();
+        if (eq is "bodyweight" or "band"
+            || loadModel is LoadModels.FullBodyweight or LoadModels.BodyweightContextOnly or LoadModels.RepsOnly)
+            return BodyWeight;
+        if (eq is "machine" or "smith machine" or "cable")
+            return Machine;
+        return FreeWeights;
+    }
+}

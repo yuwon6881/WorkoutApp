@@ -13,10 +13,10 @@ import './MuscleBalance.css';
 type BalanceRange = typeof RANGES[number]['value'];
 
 function dateLabel(value: string | null) {
-  if (!value) return 'Never';
+  if (!value) return '—';
   const date = new Date(`${value.slice(0, 10)}T12:00:00`);
   return Number.isNaN(date.getTime())
-    ? 'Date unavailable'
+    ? '—'
     : date.toLocaleDateString('en', { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
@@ -102,19 +102,19 @@ export function MuscleBalanceView({ timeZone }: { timeZone: string }) {
           <div className="muscle-balance-stats-strip" role="region" aria-label="Coverage summary">
             <div className="muscle-balance-stat-card">
               <span className="muscle-balance-stat-label">Workouts</span>
-              <strong className="muscle-balance-stat-value">{view.sessions}</strong>
+              <strong className="muscle-balance-stat-value">{view.sessions ? view.sessions : '—'}</strong>
             </div>
             <div className="muscle-balance-stat-card">
               <span className="muscle-balance-stat-label">Total sets</span>
-              <strong className="muscle-balance-stat-value">{formatSets(view.totalSets)}</strong>
+              <strong className="muscle-balance-stat-value">{view.totalSets > 0 ? formatSets(view.totalSets) : '—'}</strong>
             </div>
             <div className="muscle-balance-stat-card">
               <span className="muscle-balance-stat-label">Trained groups</span>
-              <strong className="muscle-balance-stat-value">{trained.length} of {muscles.length}</strong>
+              <strong className="muscle-balance-stat-value">{trained.length > 0 ? `${trained.length} of ${muscles.length}` : '—'}</strong>
             </div>
             <div className="muscle-balance-stat-card">
               <span className="muscle-balance-stat-label">Top muscle</span>
-              <strong className="muscle-balance-stat-value">{trained[0]?.muscle ?? 'None'}</strong>
+              <strong className="muscle-balance-stat-value">{trained[0]?.muscle ?? '—'}</strong>
             </div>
           </div>
 

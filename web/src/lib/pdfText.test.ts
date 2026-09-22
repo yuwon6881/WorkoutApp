@@ -136,8 +136,7 @@ describe('buildPageText', () => {
 
     expect(buildPageText([...headerItems, ...row])).toBe([
       'Exercise | Warm-Up Sets | Working Sets | Set 1 RIR | Set 2 RIR | Rest | Substitutions | Notes',
-      'Squat (Your Choice) | N/A | 2 | 2-3 | 1-2 | 3-5 min | Hack Squat | Choose a squat',
-      'that suits you'
+      'Squat (Your Choice) | N/A | 2 | 2-3 | 1-2 | 3-5 min | Hack Squat | Choose a squat that suits you'
     ].join('\n'));
   });
 
@@ -258,6 +257,38 @@ describe('buildPageText', () => {
     ]);
 
     expect(text.split('\n').at(-1)).toBe('Source note | continues');
+  });
+
+  it('excludes schedule labels on the same baseline from header bands', () => {
+    const text = buildPageText([
+      piece('WEEK 1', 93, 862.5, 50),
+      piece('Exercise', 234, 862.5, 45), piece('Warm-up Sets', 400, 862.5, 65), piece('WORKING SETS', 480, 862.5, 65),
+      piece('Reps', 570, 862.5, 30), piece('Rest', 660, 862.5, 25),
+      piece('Bench Press', 234, 800, 60), piece('3-4', 400, 800, 20), piece('2', 480, 800, 8),
+      piece('6-8', 570, 800, 20), piece('3 min', 660, 800, 30)
+    ]);
+    const lines = text.split('\n');
+    expect(lines[0]).toBe('WEEK 1');
+    expect(lines[1]).toBe('Exercise | Warm-up Sets | WORKING SETS | Reps | Rest');
+    expect(lines[2]).toBe('Bench Press | 3-4 | 2 | 6-8 | 3 min');
+  });
+
+  it('reconstructs multiline wrapped exercise table cells into single clean rows', () => {
+    const text = buildPageText([
+      piece('Exercise', 234, 862.5, 45), piece('Warm-up Sets', 400, 862.5, 65), piece('WORKING SETS', 488, 862.5, 65),
+      piece('Reps', 574, 862.5, 30), piece('Substitutions 1', 958, 862.5, 80), piece('Substitutions 2', 1101, 862.5, 80),
+      piece('Notes', 1446, 862.5, 35),
+      piece('Machine Chest', 1101, 801, 80),
+      piece('Set up a comfortable arch and', 1446, 801, 150),
+      piece('Bench Press', 234, 792.5, 65), piece('3-4', 400, 792.5, 20), piece('1', 488, 792.5, 8),
+      piece('3-5', 574, 792.5, 20), piece('DB Bench Press', 958, 792.5, 75),
+      piece('Press', 1101, 783.5, 30),
+      piece('explode up on each rep.', 1446, 783.5, 120)
+    ]);
+    const lines = text.split('\n');
+    expect(lines).toHaveLength(2);
+    expect(lines[0]).toBe('Exercise | Warm-up Sets | WORKING SETS | Reps | Substitutions 1 | Substitutions 2 | Notes');
+    expect(lines[1]).toBe('Bench Press | 3-4 | 1 | 3-5 | DB Bench Press | Machine Chest Press | Set up a comfortable arch and explode up on each rep.');
   });
 });
 

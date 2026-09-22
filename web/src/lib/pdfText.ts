@@ -1,8 +1,8 @@
 import { associateDayLabels, dayLabelLine, findDayLabels, labelPieces, type TableSpan } from './pdfDayLabels';
 import { findHeaderBands, renderRow, type HeaderBand } from './pdfHeaderColumns';
 import {
-  estimateFallbackColumnGap, estimateTableRegionGap, groupRows, normalizedText, positionPieces,
-  type HeaderColumns, type TextPiece, type TextRow
+  columnIndex, estimateFallbackColumnGap, estimateTableRegionGap, groupRows, normalizedText, pieceCenter,
+  positionPieces, ROW_TOLERANCE, type PositionedPiece, type TextPiece, type TextRow
 } from './pdfGeometry';
 import { findTrackingTables, isInTrackingTable, renderTrackingTables, type TrackingTable } from './pdfTrackingTable';
 
@@ -28,14 +28,18 @@ function tableSpanForTracking(table: TrackingTable): TableSpan {
     right: table.columns.at(-1)?.center };
 }
 
-function tableSpanForHeader(rows: TextRow[], band: HeaderBand, tableRegionGap: number): TableSpan {
+function tableSpanForHeader(rows: TextRow[], band: HeaderBand, tableRegionGap: number, nextBandTop?: number): TableSpan {
   let bottom = band.bottomY;
   let previousY = band.bottomY;
-  const laterRows = rows.filter(row => row.y < band.bottomY).sort((a, b) => b.y - a.y);
+  const laterRows = rows.filter(row => row.y < band.bottomY && (nextBandTop === undefined || row.y > nextBandTop))
+    .sort((a, b) => b.y - a.y);
+  let first = true;
   for (const row of laterRows) {
-    if (previousY - row.y > tableRegionGap) break;
+    const allowedGap = first ? Math.max(tableRegionGap * 3, 80) : tableRegionGap;
+    if (previousY - row.y > allowedGap) break;
     bottom = row.y;
     previousY = row.y;
+    first = false;
   }
   return { top: band.topY, bottom, left: band.centers[0], right: band.centers.at(-1) };
 }
@@ -43,6 +47,108 @@ function tableSpanForHeader(rows: TextRow[], band: HeaderBand, tableRegionGap: n
 function scheduleLines(rows: TextRow[]): { y: number; x: number; text: string }[] {
   return rows.flatMap(row => row.items.filter(item => isScheduleLabel(item.str))
     .map(item => ({ y: item.y, x: item.x, text: normalizedText(item.str) })));
+}
+
+function renderCellPieces(pieces: PositionedPiece[]): string {
+  let line = '';
+  let endX = Number.NaN;
+  let lastY = Number.NaN;
+  for (const item of pieces) {
+    const gap = Number.isNaN(endX) ? 0 : item.x - endX;
+    const isNewLine = !Number.isNaN(lastY) && Math.abs(lastY - item.y) > ROW_TOLERANCE;
+    const touching = line.length === 0 || /\s$/.test(line) || /^\s/.test(item.str);
+    const continuesWord = !isNewLine && gap > 0 && gap <= 0.5;
+    if (isNewLine) {
+      if (!touching) line += ' ';
+    } else if (!touching && !continuesWord) {
+      line += ' ';
+    }
+    line += item.str;
+    endX = item.endX;
+    lastY = item.y;
+  }
+  return line.replace(/[ \t]+/g, ' ').trim();
+}
+
+function renderHeaderTable(
+  band: HeaderBand,
+  tableRows: TextRow[],
+  bottom: number,
+  fallbackGap: number
+): { y: number; x: number; text: string }[] {
+  if (tableRows.length === 0) return [];
+
+  let anchorColIndex = -1;
+  if (band.columns) {
+    anchorColIndex = band.columns.findIndex(c => /^working(?: sets?)?$/i.test(c.label.trim()) || /^sets?$/i.test(c.label.trim()));
+    if (anchorColIndex === -1) {
+      anchorColIndex = band.columns.findIndex(c => /^(?:reps?|repetitions?)$/i.test(c.label.trim()));
+    }
+  }
+
+  const isWorkingAnchorText = (text: string) =>
+    /^\d{1,2}(?:[-–+]\d{1,2})?$/.test(text) || /^\d{1,2}$/.test(text) || /^amrap$/i.test(text) || /^n\/a$/i.test(text);
+
+  let anchorBaselines: number[] = [];
+  if (anchorColIndex >= 0) {
+    const candidatePieces = tableRows.flatMap(r => r.items).filter(item => {
+      const c = columnIndex(pieceCenter(item), band.centers);
+      return c === anchorColIndex && isWorkingAnchorText(normalizedText(item.str).trim());
+    });
+    const baselines: number[] = [];
+    for (const piece of candidatePieces.sort((a, b) => b.y - a.y)) {
+      if (!baselines.some(existing => Math.abs(existing - piece.y) <= ROW_TOLERANCE)) {
+        baselines.push(piece.y);
+      }
+    }
+    const filtered: number[] = [];
+    for (const y of baselines.sort((a, b) => b - a)) {
+      if (filtered.length === 0 || filtered.at(-1)! - y >= 10) {
+        filtered.push(y);
+      }
+    }
+    anchorBaselines = filtered;
+  }
+
+  if (anchorBaselines.length === 0) {
+    return tableRows.map(row => {
+      const text = renderRow(row, { centers: band.centers }, fallbackGap);
+      return { y: row.y, x: row.items[0]?.x ?? 0, text };
+    }).filter(line => line.text.length > 0);
+  }
+
+  const rendered: { y: number; x: number; text: string }[] = [];
+  const allItems = tableRows.flatMap(r => r.items);
+  for (let i = 0; i < anchorBaselines.length; i++) {
+    const anchorY = anchorBaselines[i];
+    const upper = i === 0 ? band.bottomY : (anchorBaselines[i - 1] + anchorY) / 2;
+    const lower = i === anchorBaselines.length - 1 ? bottom - 4 : (anchorY + anchorBaselines[i + 1]) / 2;
+
+    const rowItems = allItems.filter(p => p.y <= upper && p.y > lower);
+    rowItems.sort((a, b) => b.y - a.y || a.x - b.x);
+
+    const cells: PositionedPiece[][] = Array.from({ length: band.centers.length }, () => []);
+    for (const item of rowItems) {
+      const col = columnIndex(pieceCenter(item), band.centers);
+      cells[col].push(item);
+    }
+
+    const cellTexts = cells.map(cellPieces => {
+      if (cellPieces.length === 0) return '';
+      cellPieces.sort((a, b) => b.y - a.y || a.x - b.x);
+      return renderCellPieces(cellPieces);
+    });
+
+    while (cellTexts.length > 0 && cellTexts[cellTexts.length - 1] === '') {
+      cellTexts.pop();
+    }
+    const line = cellTexts.join(' | ');
+    if (line.replace(/[|\s]/g, '').length > 0) {
+      rendered.push({ y: anchorY, x: 0, text: line });
+    }
+  }
+
+  return rendered;
 }
 
 /// Rebuilds page text in reading order. Geometry, header bands, day labels, and the strict
@@ -54,44 +160,46 @@ export function buildPageText(items: readonly TextPiece[]): string {
   const trackingTables = findTrackingTables(rows);
   const sourceDayLabels = findDayLabels(positioned);
   const labelSources = labelPieces(sourceDayLabels) as Set<TextPiece>;
-  const rowsWithoutLabels = withoutLabels(rows, labelSources);
-  const genericRows = rowsWithoutLabels.filter(row => !trackingTables.some(table => isInTrackingTable(row, table)));
+  const schedulePieces = new Set(rows.flatMap(r => r.items.filter(item => isScheduleLabel(item.str))));
+  const rowsWithoutLabelsOrSchedule = withoutLabels(rows, new Set([...labelSources, ...schedulePieces]));
+  const genericRows = rowsWithoutLabelsOrSchedule.filter(row => !trackingTables.some(table => isInTrackingTable(row, table)));
   const headerBands = findHeaderBands(genericRows, fallbackGap / 2.35);
   const tableRegionGap = estimateTableRegionGap(genericRows);
+  const headerTableSpans = headerBands.map((band, index) => ({
+    band,
+    span: tableSpanForHeader(genericRows, band, tableRegionGap, headerBands[index + 1]?.topY)
+  }));
   const tableSpans = [
     ...trackingTables.map(tableSpanForTracking),
-    ...headerBands.map(band => tableSpanForHeader(genericRows, band, tableRegionGap))
+    ...headerTableSpans.map(item => item.span)
   ];
   const dayLabels = associateDayLabels(sourceDayLabels, tableSpans);
   const lines: { y: number; x: number; text: string }[] = [
-    ...scheduleLines(rowsWithoutLabels),
+    ...scheduleLines(rows),
     ...dayLabels.map(label => ({ y: label.y, x: label.x, text: dayLabelLine(label) })),
-    ...renderTrackingTables(rowsWithoutLabels, trackingTables)
+    ...renderTrackingTables(rows, trackingTables)
   ];
-  const bandByBaseline = new Map<number, HeaderBand>();
-  for (const band of headerBands) {
-    for (const y of band.skipYValues) bandByBaseline.set(y, band);
+
+  for (let i = 0; i < headerTableSpans.length; i++) {
+    const { band, span } = headerTableSpans[i];
+    const nextBand = headerTableSpans[i + 1]?.band;
+    lines.push({ y: band.topY, x: band.centers[0] ?? 0, text: band.text });
+    const tableRows = genericRows.filter(r => r.y < band.bottomY && r.y >= span.bottom && (!nextBand || r.y > nextBand.topY));
+    lines.push(...renderHeaderTable(band, tableRows, span.bottom, fallbackGap));
   }
-  const topBaselines = new Set(headerBands.map(band => band.topY));
-  let activeColumns: HeaderColumns | undefined;
-  let previousY: number | undefined;
-  const skipSchedule = (row: TextRow): TextRow => ({ ...row, items: row.items.filter(item => !isScheduleLabel(item.str)) });
-  for (const sourceRow of genericRows) {
-    const row = skipSchedule(sourceRow);
-    const band = bandByBaseline.get(row.y);
-    if (band) {
-      if (topBaselines.has(row.y)) {
-        activeColumns = { centers: band.centers };
-        lines.push({ y: row.y, x: 0, text: band.text });
-      }
-      previousY = row.y;
-      continue;
-    }
-    if (activeColumns && previousY !== undefined && previousY - row.y > tableRegionGap) activeColumns = undefined;
-    const text = renderRow(row, activeColumns, fallbackGap);
+
+  const outsideRows = genericRows.filter(row =>
+    !headerTableSpans.some(({ band, span }, i) => {
+      const nextBand = headerTableSpans[i + 1]?.band;
+      const lower = nextBand ? Math.max(span.bottom, nextBand.topY) : span.bottom;
+      return row.y <= band.topY && row.y >= lower;
+    })
+  );
+  for (const row of outsideRows) {
+    const text = renderRow(row, undefined, fallbackGap);
     if (text) lines.push({ y: row.y, x: row.items[0]?.x ?? 0, text });
-    previousY = row.y;
   }
+
   return lines.sort((a, b) => b.y - a.y || a.x - b.x).map(line => line.text).join('\n');
 }
 /// Loads pdf.js only when an import actually starts. It is a large dependency and no other part

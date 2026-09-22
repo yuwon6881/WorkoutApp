@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { positionPiece } from './pdfGeometry';
+import { groupRows, positionPiece, positionPieces } from './pdfGeometry';
 import { rotatedPiece } from './pdfPieces.fixtures';
 
 describe('PDF text geometry', () => {
@@ -11,5 +11,22 @@ describe('PDF text geometry', () => {
   it('supports the opposite quarter-turn direction', () => {
     const positioned = positionPiece(rotatedPiece('DAY 1', 90, 100, 25, 12, 'ccw'));
     expect(positioned).toMatchObject({ x: 90, endX: 102, y: 100, yStart: 75, yEnd: 100 });
+  });
+
+  it('clusters pieces on near baselines into the same TextRow using proximity grouping', () => {
+    const pieces = positionPieces([
+      { str: 'Barbell', transform: [10, 0, 0, 10, 100, 501.2], width: 45 },
+      { str: 'RDL', transform: [10, 0, 0, 10, 150, 501.3], width: 25 },
+      { str: 'Hyperextension', transform: [10, 0, 0, 10, 100, 480], width: 80 }
+    ]);
+    const rows = groupRows(pieces);
+    expect(rows).toHaveLength(2);
+    expect(rows[0].items.map(i => i.str)).toEqual(['Barbell', 'RDL']);
+    expect(rows[1].items.map(i => i.str)).toEqual(['Hyperextension']);
+  });
+
+  it('positions pieces with special characters like degree symbols faithfully', () => {
+    const positioned = positionPiece({ str: '45°', transform: [10, 0, 0, 10, 200, 500], width: 20 });
+    expect(positioned).toMatchObject({ x: 200, y: 500, endX: 220, rotated: false });
   });
 });

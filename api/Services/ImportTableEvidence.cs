@@ -10,7 +10,7 @@ internal static class ImportTableEvidence
     private static readonly Regex Page = new(@"(?m)^=== PAGE (?<page>\d+) ===\s*$", RegexOptions.Compiled);
     private static readonly Regex Day = new(@"^(?:LOWER|UPPER)\s+\d+$|^ARMS\s*/\s*DELTS$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
     private static readonly Regex SimpleReps = new(@"^(?<min>\d+)\s*(?:(?:[-–]|\bto\b)\s*(?<max>\d+))?\s*(?:reps?)?$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
-    private static readonly Regex RestValue = new(@"^(?<min>\d+(?:\.\d+)?)\s*(?:[-–]\s*(?<max>\d+(?:\.\d+)?))?\s*(?<unit>min|mins|minutes?|sec|secs|seconds?|s|m)?$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+    private static readonly Regex RestValue = new(@"^(?:[~≈]\s*|\bapprox(?:\.|\b)\s*)?(?<min>\d+(?:\.\d+)?)\s*(?:[-–]\s*(?<max>\d+(?:\.\d+)?))?\s*(?<unit>min|mins|minutes?|sec|secs|seconds?|s|m)?$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
     private static readonly Regex Numeric = new(@"^\d+(?:\.\d+)?$", RegexOptions.Compiled);
     private static readonly Regex Percentage = new(@"\b\d+(?:\.\d+)?\s*(?:[-–]\s*\d+(?:\.\d+)?\s*)?%\s*(?:1\s*rm)?", RegexOptions.Compiled | RegexOptions.IgnoreCase);
     private static readonly Regex PageRestMinutes = new(@"\brest\b.{0,45}\b(?:minutes?|mins?)\b|\b(?:minutes?|mins?)\b.{0,45}\brest\b", RegexOptions.Compiled | RegexOptions.IgnoreCase);
@@ -79,7 +79,7 @@ internal static class ImportTableEvidence
 
     private static string NormalizeName(string value)
     {
-        var clean = Regex.Replace(value.Trim(), @"^[A-Z]\d+\s*[:.)-]\s*", "", RegexOptions.IgnoreCase);
+        var clean = Regex.Replace(value.Trim(), @"^[A-Z]\d+(?::|\.|\s*[-–]\s+|\s+)\s*", "", RegexOptions.IgnoreCase);
         return Regex.Replace(clean, @"[^\p{L}\p{N}]", "").ToLowerInvariant();
     }
 
@@ -334,7 +334,7 @@ internal static class ImportTableEvidence
            && !Numeric.IsMatch(value) && !value.Equals("N/A", StringComparison.OrdinalIgnoreCase);
 
     private static string StripSetTag(string value)
-        => Regex.Replace(value.Trim(), @"^[A-Z]\d+\s*[:.)-]\s*", "", RegexOptions.IgnoreCase);
+        => Regex.Replace(value.Trim(), @"^[A-Z]\d+(?::|\.|\s*[-–]\s+|\s+)\s*", "", RegexOptions.IgnoreCase);
 
     private static string? Cell(string[] cells, int? index)
         => index is { } i && i >= 0 && i < cells.Length ? cells[i] : null;
@@ -358,6 +358,14 @@ internal static class ImportTableEvidence
     {
         var clean = CleanValue(value);
         if (clean is null) return null;
+        var rangeMatch = Regex.Match(clean, @"(?:RPE|APE|LSRPE)?\s*(?<min>\d+(?:\.\d+)?)\s*[-–]\s*(?<max>\d+(?:\.\d+)?)", RegexOptions.IgnoreCase);
+        if (rangeMatch.Success
+            && double.TryParse(rangeMatch.Groups["min"].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var minRpe)
+            && double.TryParse(rangeMatch.Groups["max"].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var maxRpe)
+            && minRpe is >= 6 and <= 10 && maxRpe is >= 6 and <= 10)
+        {
+            return Math.Round(((minRpe + maxRpe) / 2) * 2, MidpointRounding.AwayFromZero) / 2;
+        }
         var match = Regex.Match(clean, @"(?:RPE|APE|LSRPE)?\s*(?<value>\d+(?:\.\d+)?)", RegexOptions.IgnoreCase);
         return match.Success && double.TryParse(match.Groups["value"].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var number)
             && number is >= 6 and <= 10 ? number : null;

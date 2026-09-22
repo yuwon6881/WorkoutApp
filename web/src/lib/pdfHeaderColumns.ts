@@ -2,12 +2,15 @@
 /// extraction and positioning; these shapes keep this pure header pass usable independently.
 import { fontSize, median, type HeaderColumns, type PositionedPiece, type TextRow } from './pdfGeometry';
 
+export type HeaderColumn = { label: string; center: number };
+
 export type HeaderBand = {
   topY: number;
   bottomY: number;
   skipYValues: number[];
   centers: number[];
   text: string;
+  columns?: HeaderColumn[];
 };
 
 const HEADER_BAND_GAP_FACTOR = 1.6;
@@ -16,7 +19,7 @@ const HEADER_LABELS = [
   /^exercise(?:s)?$/i,
   /^(?:exercise )?name$/i,
   /^warm[ -]?ups?(?: sets?)?$/i,
-  /^working sets?$/i,
+  /^working(?: sets?)?$/i,
   /^sets?$/i,
   /^(?:reps?|repetitions?)$/i,
   /^early set rpe$/i,
@@ -162,7 +165,7 @@ export function findHeaderBands(rows: TextRow[], typicalWordGap: number): Header
     const text = bandRows.length === 1
       ? renderRow(bandRows[0], { centers }, typicalWordGap * 2.35)
       : labels.join(' | ');
-    output.push({ topY, bottomY, skipYValues, centers, text });
+    output.push({ topY, bottomY, skipYValues, centers, text, columns: cells });
   }
   return output.sort((left, right) => right.topY - left.topY);
 }

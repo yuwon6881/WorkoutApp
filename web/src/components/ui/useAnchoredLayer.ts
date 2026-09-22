@@ -58,31 +58,35 @@ export function useAnchoredLayer({
     } else {
       const measuredWidth = Math.max(minWidth, Math.min(maxWidth, layer.scrollWidth || triggerRect.width));
       if (align === 'end') {
-        const desiredLeft = triggerRect.right - measuredWidth;
-        left = Math.min(
-          Math.max(viewportPadding, desiredLeft),
-          window.innerWidth - measuredWidth - viewportPadding
-        );
+        const right = Math.max(viewportPadding, window.innerWidth - triggerRect.right);
+        const maxAvailable = Math.max(minWidth, window.innerWidth - right - viewportPadding);
+        const resolvedMaxWidth = Math.min(maxWidth, maxAvailable);
+        left = 0; // Not used when right is specified
+        widthStyle = {
+          minWidth: `min(${minWidth}px, calc(100vw - 16px))`,
+          maxWidth: `min(${resolvedMaxWidth}px, calc(100vw - 16px))`
+        };
       } else {
         left = Math.min(
           Math.max(viewportPadding, triggerRect.left),
           window.innerWidth - measuredWidth - viewportPadding
         );
+        widthStyle = {
+          minWidth: `min(${minWidth}px, calc(100vw - 16px))`,
+          maxWidth: `min(${maxWidth}px, calc(100vw - 16px))`
+        };
       }
-      widthStyle = {
-        minWidth: `min(${minWidth}px, calc(100vw - 16px))`,
-        maxWidth: `min(${maxWidth}px, calc(100vw - 16px))`
-      };
     }
 
     const top = opensAbove
       ? Math.max(viewportPadding, triggerRect.top - measuredHeight - offset)
       : Math.min(window.innerHeight - measuredHeight - viewportPadding, triggerRect.bottom + offset);
 
+    const isEndAligned = !matchTriggerWidth && align === 'end';
     setStyle({
       position: 'fixed',
-      left: `${left}px`,
-      right: 'auto',
+      left: isEndAligned ? 'auto' : `${left}px`,
+      right: isEndAligned ? `${Math.max(viewportPadding, window.innerWidth - triggerRect.right)}px` : 'auto',
       top: `${top}px`,
       ...widthStyle,
       maxHeight: `${resolvedMaxHeight}px`,

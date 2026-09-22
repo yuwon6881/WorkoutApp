@@ -467,4 +467,51 @@ public sealed class ImportTableEvidenceTests
         Assert.Equal("Barbell Row", exercise.SourceName);
         Assert.Equal("2", exercise.WorkingSets);
     }
+
+    [Fact]
+    public void Reconstructed_table_row_restores_exercise_without_fusion_and_recovers_rpe_range()
+    {
+        var program = new AiProgram("PPL", [new AiDay("Phase 1", "Phase 1", 1, 1, "Push 1", false, null, [
+            new AiExercise("Bench Press", null, null, [
+                new AiSet(1, 1, null, null, null, null, null)], SourcePage: 35)
+        ], 35)]);
+        const string text = """
+            === PAGE 35 ===
+            Exercise | Warm-up Sets | WORKING SETS | Reps | %1RM / RPE | RIR | Rest | Substitutions 1 | Substitutions 2 | Notes
+            Bench Press | 3-4 | 2 | 3-5 | 8-9 | | ~3-4 min | DB Bench Press | Machine Chest Press | Set up a comfortable arch, quick pause on the chest and explode up on each rep.
+            """;
+
+        var enriched = ImportTableEvidence.Enrich(program, text);
+        var exercise = Assert.Single(Assert.Single(enriched.Days!).Exercises);
+
+        Assert.Equal("Bench Press", exercise.SourceName);
+        Assert.Equal("2", exercise.WorkingSets);
+        Assert.Equal(2, exercise.Sets.Count);
+        Assert.All(exercise.Sets, set =>
+        {
+            Assert.Equal(3, set.RepMin);
+            Assert.Equal(5, set.RepMax);
+            Assert.Equal(8.5, set.TargetRpe);
+            Assert.Equal("~3-4 min", set.RestText);
+        });
+    }
+
+    [Fact]
+    public void Silent_rpe_and_rir_leaves_target_rpe_null_without_inventing_values()
+    {
+        var program = new AiProgram("Silent RPE", [new AiDay(null, null, 1, 1, "Day 1", false, null, [
+            new AiExercise("Calf Raise", null, null, [new AiSet(10, 12, null, null, null, null, null)], SourcePage: 40)
+        ], 40)]);
+        const string text = """
+            === PAGE 40 ===
+            Exercise | Sets | Reps | Rest
+            Calf Raise | 3 | 10-12 | 2 min
+            """;
+
+        var enriched = ImportTableEvidence.Enrich(program, text);
+        var exercise = Assert.Single(Assert.Single(enriched.Days!).Exercises);
+
+        Assert.Equal("3", exercise.WorkingSets);
+        Assert.All(exercise.Sets, set => Assert.Null(set.TargetRpe));
+    }
 }

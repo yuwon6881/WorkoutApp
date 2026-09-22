@@ -46,7 +46,7 @@ export function SortableWeekChip({
     <span
       role="presentation"
       data-import-week-chip={week}
-      className={`chip-group import-week-chip-group ${selected ? 'active' : ''} ${dragging ? 'dragging' : ''} ${dropClass}`.trim()}
+      className={`chip-group import-week-chip-group ${selected ? 'active' : ''} ${!onDelete ? 'chip-group-lone' : ''} ${dragging ? 'dragging' : ''} ${dropClass}`.trim()}
     >
       <Button
         ref={chipRef}

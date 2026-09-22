@@ -130,4 +130,27 @@ public class CatalogAndValidationTests
         Assert.Throws<DomainException>(() => Validation.ExerciseRestSeconds(-1));
         Assert.Throws<DomainException>(() => Validation.ExerciseRestSeconds(3601));
     }
+
+    [Fact] public async Task Exercise_categories_normalize_and_seed_properly()
+    {
+        Assert.Equal(ExerciseCategories.FreeWeights, ExerciseCategories.Normalize("Free Weights"));
+        Assert.Equal(ExerciseCategories.Machine, ExerciseCategories.Normalize(null, equipment: "Machine"));
+        Assert.Equal(ExerciseCategories.Machine, ExerciseCategories.Normalize(null, equipment: "Cable"));
+        Assert.Equal(ExerciseCategories.BodyWeight, ExerciseCategories.Normalize(null, equipment: "Bodyweight"));
+        Assert.Equal(ExerciseCategories.BodyWeight, ExerciseCategories.Normalize(null, equipment: "Band"));
+        Assert.Equal(ExerciseCategories.BodyWeight, ExerciseCategories.Normalize(null, equipment: null, loadModel: LoadModels.FullBodyweight));
+        Assert.Equal(ExerciseCategories.FreeWeights, ExerciseCategories.Normalize(null, equipment: "Dumbbell"));
+
+        await using var h = await Harness.Create();
+        await h.SignIn();
+        await h.Seed(
+            new SeedExercise("bench", "Barbell bench press", "Chest", "Barbell", "Cue", null, Category: "Free Weights"),
+            new SeedExercise("cable-row", "Cable row", "Back", "Cable", "Cue", null),
+            new SeedExercise("pullup", "Pull-up", "Back", "Bodyweight", "Cue", null)
+        );
+        var all = await h.Catalog.All(default);
+        Assert.Equal(ExerciseCategories.FreeWeights, all.Single(x => x.Slug == "bench").Category);
+        Assert.Equal(ExerciseCategories.Machine, all.Single(x => x.Slug == "cable-row").Category);
+        Assert.Equal(ExerciseCategories.BodyWeight, all.Single(x => x.Slug == "pullup").Category);
+    }
 }
