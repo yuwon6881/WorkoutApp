@@ -23,7 +23,7 @@ internal static class ImportTableEvidence
 
     private sealed record EvidenceRow(string? ExerciseName, int? WorkingSets, string? RepsText, int? RepMin, int? RepMax,
         string? LoadText, string? RirText, double? Rir, List<RirEvidence> RirBySet,
-        double? Rpe, double? EarlyRpe, double? LastRpe, string? RestText, int? RestSeconds);
+        double? Rpe, double? EarlyRpe, double? LastRpe, string? RestText, int? RestSeconds, bool RestNotStated = false);
     private sealed record RirEvidence(string? Text, double? Value);
     private sealed record EvidencePage(int? Week, string? Block, string? Phase, string? DayName, bool HasRestDayFooter,
         List<EvidenceRow> Rows);
@@ -75,11 +75,21 @@ internal static class ImportTableEvidence
             var matches = rows.Where(row => NormalizeName(row.ExerciseName ?? "") == name).Take(2).ToList();
             if (matches.Count == 1) return matches[0];
             if (matches.Count > 1) return null;
+            // A read can drop a printed qualifier ("Weak Point Exercise 2" for "... 2 (optional)"),
+            // which split one movement into two slots. The printed row still names it uniquely.
+            var bare = NormalizeName(WithoutBrackets(exercise.SourceName));
+            var qualified = bare.Length == 0 ? [] : rows.Where(row => NormalizeName(WithoutBrackets(row.ExerciseName ?? "")) == bare).Take(2).ToList();
+            if (qualified.Count == 1) return qualified[0];
         }
         if (!positionalMatchIsSafe || rows.Count != dayExercises.Count)
             return null;
         return exerciseIndex >= 0 && exerciseIndex < rows.Count ? rows[exerciseIndex] : null;
     }
+
+    private static string WithoutBrackets(string value) => Regex.Replace(value, @"\([^()]*\)|\[[^\[\]]*\]", " ");
+
+    private static bool IsStatedAbsent(string? value)
+        => value is not null && Regex.IsMatch(value.Trim(), @"^(?:N/?A|[-–—])$", RegexOptions.IgnoreCase);
 
     private static string NormalizeName(string value)
     {
@@ -154,6 +164,9 @@ internal static class ImportTableEvidence
                         ? ((int)Math.Round(10 - tVal)).ToString(CultureInfo.InvariantCulture)
                         : null;
 
+        // A rest cell that reads "N/A" states that the row prescribes none. A time the model supplied
+        // there came from somewhere else in the document, and would enter the program as printed.
+        if (evidence.RestNotStated) set = set with { RestText = null, RestSeconds = null, RestSource = "extracted" };
         var restText = HasText(set.RestText) ? set.RestText : evidence.RestText;
         var repsText = HasText(set.RepsText) ? set.RepsText : evidence.RepsText;
         var hasModelRepBounds = set.RepMin > 0 && set.RepMax >= set.RepMin
@@ -320,7 +333,8 @@ internal static class ImportTableEvidence
             if (!HasText(name) && setCount is null && repsText is null && loadText is null && rpe is null && early is null && last is null
                 && rirText is null && rirBySet.All(value => value.Text is null) && rest.Text is null) return false;
             row = new EvidenceRow(IsMovementName(name) ? StripSetTag(name!) : null, setCount, repsText, repMin, repMax,
-                loadText, rirText, rir, rirBySet, rpe, early, last, rest.Text, rest.Seconds);
+                loadText, rirText, rir, rirBySet, rpe, early, last, rest.Text, rest.Seconds,
+                RestNotStated: IsStatedAbsent(Cell(cells, map.Rest)));
             return true;
         }
 

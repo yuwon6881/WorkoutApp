@@ -585,4 +585,44 @@ public sealed class ImportTableEvidenceTests
         Assert.Equal("2", exercise.WorkingSets);
         Assert.Equal(2, exercise.Sets.Count);
     }
+
+    /// Pure Bodybuilding prints "Weak Point Exercise 2 (optional)" every week; a read that dropped
+    /// the qualifier on some days split the one movement into two slots to map.
+    [Fact]
+    public void A_read_that_drops_a_printed_qualifier_takes_the_printed_name()
+    {
+        var program = new AiProgram("Pure Bodybuilding", [new AiDay(null, null, 1, 1, "Arms & Weak Points", false, null, [
+            new AiExercise("Weak Point Exercise 2", null, null, [new AiSet(8, 12, null, null, null, null, null)], SourcePage: 10)
+        ], 10)]);
+        const string text = """
+            === PAGE 10 ===
+            Exercise | Last-Set Intensity Technique | Warm-up Sets | WORKING SETS | Reps | Early Set RPE | Last Set RPE | Rest
+            Weak Point Exercise 1 | N/A | 1-3 | 3 | 8-12 | ~9 | ~9-10 | ~1-3 min
+            Weak Point Exercise 2 (optional) | N/A | 1-3 | 2 | 8-12 | ~9 | ~9-10 | ~1-3 min
+            """;
+
+        var exercise = Assert.Single(Assert.Single(ImportTableEvidence.Enrich(program, text).Days!).Exercises);
+
+        Assert.Equal("Weak Point Exercise 2 (optional)", exercise.SourceName);
+        Assert.Equal(2, exercise.Sets.Count);
+    }
+
+    /// Weeks 6-10 print "N/A" rest for both halves of the hip superset. A rest time the model
+    /// supplied there was not printed, so it must not enter the program as if it were.
+    [Fact]
+    public void A_rest_printed_as_not_applicable_clears_a_rest_the_model_supplied()
+    {
+        var program = new AiProgram("Pure Bodybuilding", [new AiDay(null, null, 8, 1, "Lower #2", false, null, [
+            new AiExercise("Machine Hip Adduction", null, null, [new AiSet(10, 12, 9, 45, null, null, null, RestText: "~0.5-1 min")], SourcePage: 44)
+        ], 44)]);
+        const string text = """
+            === PAGE 44 ===
+            Exercise | Last-Set Intensity Technique | Warm-up Sets | WORKING SETS | Reps | Early Set RPE | Last Set RPE | Rest
+            A1: Machine Hip Adduction | N/A | 1 | 3 | 10-12 | ~9-10 | 10 | N/A
+            """;
+
+        var exercise = Assert.Single(Assert.Single(ImportTableEvidence.Enrich(program, text).Days!).Exercises);
+
+        Assert.All(exercise.Sets, set => Assert.Equal((null, null), (set.RestSeconds, set.RestText)));
+    }
 }
