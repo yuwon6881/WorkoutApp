@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { pageLinks, videoUrl, type LinkRect } from './pdfLinks';
+import { pageLinks, printedLinks, videoUrl, type LinkRect } from './pdfLinks';
 import type { TextPiece } from './pdfGeometry';
 
 function piece(str: string, x: number, y: number, width = str.length * 6, height = 10): TextPiece {
@@ -12,6 +12,10 @@ describe('PDF exercise demo links', () => {
     expect(videoUrl('http://youtu.be/qTSTOVVr8rU')).toBe('https://youtu.be/qTSTOVVr8rU');
     expect(videoUrl('https://www.youtube.com/watch?v=bEv6CCg2BC8&t=1s'))
       .toBe('https://www.youtube.com/watch?v=bEv6CCg2BC8&t=1s');
+    expect(videoUrl('https://exrx.net/WeightExercises/Quadriceps/BBSquat'))
+      .toBe('https://exrx.net/WeightExercises/Quadriceps/BBSquat');
+    expect(videoUrl('https://www.roguefitness.com/learn/back-squat'))
+      .toBe('https://www.roguefitness.com/learn/back-squat');
     // The same annotation layer carries an affiliate shop and a journal article.
     expect(videoUrl('http://bit.ly/jeffmacrofactorworkouts')).toBeUndefined();
     expect(videoUrl('https://journals.lww.com/acsm-msse/fulltext/2011/07000/exercise.aspx')).toBeUndefined();
@@ -81,7 +85,36 @@ describe('PDF exercise demo links', () => {
     ]);
   });
 
+  it('pairs a glossary URL with the exercise label immediately to its left', () => {
+    const pieces = [
+      piece('BACK', 40, 200, 36), piece('SQUAT:', 80, 200, 45), piece('https://youtu.be/aaa', 145, 200, 130),
+      piece('BENCH PRESS:', 40, 180, 95), piece('https://youtu.be/bbb', 145, 180, 130)
+    ];
+    const annotations: LinkRect[] = [
+      { url: 'https://youtu.be/aaa', rect: [143, 195, 280, 211] },
+      { url: 'https://youtu.be/bbb', rect: [143, 175, 280, 191] }
+    ];
+
+    expect(pageLinks(102, pieces, annotations)).toEqual([
+      { page: 102, name: 'BACK SQUAT', url: 'https://youtu.be/aaa' },
+      { page: 102, name: 'BENCH PRESS', url: 'https://youtu.be/bbb' }
+    ]);
+  });
+
+  it('does not guess a glossary exercise when the URL has no adjacent label', () => {
+    const pieces = [piece('https://youtu.be/aaa', 145, 200, 130), piece('OTHER NOTE', 40, 175, 85)];
+    expect(pageLinks(102, pieces, [{ url: 'https://youtu.be/aaa', rect: [143, 195, 280, 211] }])).toEqual([]);
+  });
+
   it('produces nothing for a document with no annotations', () => {
     expect(pageLinks(1, [piece('Back Squat', 40, 200)], [])).toEqual([]);
+  });
+
+  it('reads an explicitly paired printed exercise URL without an annotation', () => {
+    expect(printedLinks(12, 'BACK SQUAT: https://exrx.net/WeightExercises/Quadriceps/BBSquat\n' +
+      'BENCH PRESS:\nhttps://youtu.be/aaa\nUnrelated https://example.com')).toEqual([
+      { page: 12, name: 'BACK SQUAT', url: 'https://exrx.net/WeightExercises/Quadriceps/BBSquat' },
+      { page: 12, name: 'BENCH PRESS', url: 'https://youtu.be/aaa' }
+    ]);
   });
 });

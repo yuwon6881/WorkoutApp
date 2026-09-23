@@ -79,6 +79,27 @@ public sealed class ImportLongWeekTests
         Assert.DoesNotContain(shaped.Notices, notice => notice.Code == "trailing_rest_day_trimmed");
     }
 
+    [Theory]
+    [InlineData("The workouts follow a 10-day rotation with eight sessions and two rests.")]
+    [InlineData("Run this asynchronous 10 day split before repeating it.")]
+    [InlineData("Each 10-day cycle repeats in source order.")]
+    public void Alternate_printed_phrases_identify_a_ten_day_cycle(string source)
+    {
+        Assert.True(ImportLongWeeks.IsTenDayCycleSource([new ImportPageText(2, source)]));
+    }
+
+    [Fact]
+    public void A_repeated_week_number_in_a_new_block_does_not_create_a_false_long_week()
+    {
+        var pages = new List<ImportPageText>
+        {
+            new(1, "BLOCK 1\nWEEK 1\nDAY LABEL: Day 1\nDAY LABEL: Day 2\nDAY LABEL: Day 3\nDAY LABEL: Day 4\nDAY LABEL: Day 5\nREST DAY\nREST DAY"),
+            new(2, "BLOCK 2\nWEEK 1\nDAY LABEL: Day 1\nDAY LABEL: Day 2\nDAY LABEL: Day 3\nDAY LABEL: Day 4\nDAY LABEL: Day 5\nREST DAY\nREST DAY")
+        };
+
+        Assert.False(ImportLongWeeks.HasSourceLongWeek(pages));
+    }
+
     [Fact]
     public void Ambiguous_extra_day_without_its_own_printed_label_remains_for_review()
     {
@@ -124,8 +145,38 @@ public sealed class ImportLongWeekTests
 
         var result = ImportLongWeeks.Reconcile(source, pages);
 
-        Assert.Equal(source.Select(day => day.Week), result.Workouts.Select(day => day.Week));
-        Assert.Empty(result.Notices);
+        Assert.Equal([1, 1, 1, 1, 1, 1, 1, 2, 3], result.Workouts.Select(day => day.Week));
+        Assert.Single(result.Notices, issue => issue.Code == "long_source_week_reflowed");
+    }
+
+    [Fact]
+    public void Source_backed_optional_and_rest_slots_reflow_without_discarding_the_next_week()
+    {
+        var days = new List<DraftWorkout>
+        {
+            Training(1, 1, "Block 1", "Day 1", 1),
+            Training(1, 1, "Block 1", "Day 2", 2),
+            Rest(1, 2),
+            Training(1, 1, "Block 1", "Day 3", 3),
+            Rest(1, 3),
+            Training(1, 1, "Block 1", "Day 4", 4),
+            Training(1, 1, "Block 1", "Day 5 Optional", 5),
+            Rest(1, 5),
+            Training(2, 2, "Block 1", "Next week", 6)
+        };
+        var pages = Enumerable.Range(1, 6).Select(page => new ImportPageText(page,
+            $"WEEK {(page == 6 ? 2 : 1)}\nDAY LABEL: {(page == 6 ? "Next week" : page == 5 ? "Day 5 Optional" : $"Day {page}")}" +
+            (page is 2 or 3 or 5 ? "\nREST DAY" : ""))).ToList();
+
+        Assert.True(ImportLongWeeks.HasSourceLongWeek(pages));
+        var shaped = ImportDayShape.Reconcile(days.Take(8), ImportLongWeeks.HasSourceLongWeek(pages));
+        Assert.Equal(8, shaped.Workouts.Count);
+        var result = ImportLongWeeks.Reconcile(days, pages);
+
+        Assert.Equal(days.Count, result.Workouts.Count);
+        Assert.Equal(3, result.Workouts.Count(day => day.IsRestDay));
+        Assert.Equal([1, 1, 1, 1, 1, 1, 1, 2, 3], result.Workouts.Select(day => day.Week));
+        Assert.Contains(result.Notices, issue => issue.Code == "long_source_week_reflowed");
     }
 
     private static DraftWorkout Training(int week, int phaseWeek, string block, string name, int page)

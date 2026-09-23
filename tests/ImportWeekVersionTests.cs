@@ -57,6 +57,23 @@ public sealed class ImportWeekVersionTests
     }
 
     [Fact]
+    public void Option_headings_keep_two_source_backed_versions_separate()
+    {
+        var pages = new List<ImportPageText>
+        {
+            new(66, "WEEK 10 - OPTION A\nDAY LABEL: SQUAT TEST"),
+            new(68, "WEEK 10 (OPTION B)\nDAY LABEL: SQUAT TEST")
+        };
+        var days = TestingWeek(10, 66).Concat(TestingWeek(10, 68)).ToList();
+
+        var result = ImportWeekVariants.Separate(days, pages);
+
+        Assert.Equal(6, result.Workouts.Count(day => day.Week == 10));
+        Assert.Equal(6, result.Workouts.Count(day => day.Week == 11));
+        Assert.Single(result.Notices, notice => notice.Code == ImportWeekVariants.Code);
+    }
+
+    [Fact]
     public void A_section_holding_both_versions_neither_overflows_the_week_nor_reports_its_rest_days_as_repeats()
     {
         var extracted = new ImportDraft("Powerbuilding 3.0", [.. TestingWeek(10, 66), .. TestingWeek(10, 68)]);

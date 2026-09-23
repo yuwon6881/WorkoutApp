@@ -100,14 +100,18 @@ internal static class ImportChunkReconciliation
             : ImportDayLabels.Read(pages).Values.Sum(labels => labels.Count);
         var readTrainingDays = shaped.Workouts.Count(day => !day.IsRestDay);
         var underRead = sourceTrainingDays > 0
-            ? readTrainingDays * 2 < sourceTrainingDays
+            ? readTrainingDays < sourceTrainingDays
             : sectionDayCount * 2 < chunk.DayCount;
         if (underRead)
             notices.Add(new ImportReviewIssue("chunk_day_count",
                 sourceTrainingDays > 0
                     ? $"'{chunk.Label}' has {sourceTrainingDays} printed training-day title{(sourceTrainingDays == 1 ? "" : "s")} but reads as {readTrainingDays}. Check that section in the review."
                     : $"'{chunk.Label}' was outlined as about {chunk.DayCount} day{(chunk.DayCount == 1 ? "" : "s")} but reads as {sectionDayCount}. Check that section in the review.",
-                "warning", chunk.PageFrom));
+                "warning", chunk.PageFrom, TargetField: "week",
+                ExpectedTrainingDays: sourceTrainingDays > 0 ? sourceTrainingDays : null,
+                SourcePageTo: sourceTrainingDays > 0 ? chunk.PageTo : null,
+                WeekFrom: sourceTrainingDays > 0 ? chunk.WeekFrom : null,
+                WeekTo: sourceTrainingDays > 0 ? chunk.WeekTo : null));
 
         return new ChunkMerge(workouts, notices);
     }

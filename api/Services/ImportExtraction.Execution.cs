@@ -87,7 +87,8 @@ public sealed partial class ImportService
         db.ChangeTracker.Clear();
         if (outlinePages is not null) return await ReadOutline(id, outlinePages, ct, leaseId);
         var sourceEvidence = ImportOutlineEvidence.Read(sourcePages);
-        var preserveTrailingRestDays = ImportLongWeeks.IsTenDayCycleSource(sourcePages);
+        var preserveTrailingRestDays = ImportLongWeeks.IsTenDayCycleSource(sourcePages)
+            || ImportLongWeeks.HasSourceLongWeek(sourcePages);
 
         var results = persistedResults;
         var completedThisPass = new HashSet<int>();
@@ -107,6 +108,28 @@ public sealed partial class ImportService
                 try
                 {
                     var result = await ai.ExtractChunk(item.Text, [], identifier, Directive(item.Chunk), ct);
+                    var chunkPages = sourcePages.Where(page => page.Page >= item.Chunk.PageFrom &&
+                        page.Page <= item.Chunk.PageTo).ToList();
+                    var printedDays = ImportDayLabels.Read(chunkPages).Values.Sum(labels => labels.Count);
+                    var firstDays = result.Program.Days?.Count(day => !day.IsRestDay) ?? 0;
+                    if (printedDays > firstDays && await TryReserveRecoveryRead(id, leaseId, persistGate, ct))
+                    {
+                        try
+                        {
+                            var recovered = await ai.ExtractChunk(item.Text, [], identifier,
+                                Directive(item.Chunk) + $" A prior read returned {firstDays} training days, but these pages print {printedDays} DAY LABEL titles. Re-read every table and return the complete section, including the missing titled days.", ct);
+                            var recoveredDays = recovered.Program.Days?.Count(day => !day.IsRestDay) ?? 0;
+                            result = new AiImportResult(recoveredDays > firstDays ? recovered.Program : result.Program,
+                                recovered.Model, result.InputTokens + recovered.InputTokens,
+                                result.OutputTokens + recovered.OutputTokens,
+                                result.CachedInputTokens + recovered.CachedInputTokens);
+                        }
+                        catch (DomainException)
+                        {
+                            // The first valid read is still useful. Its missing printed days are
+                            // reported by chunk reconciliation rather than hiding the omission.
+                        }
+                    }
                     lock (results)
                     {
                         results[item.Index] = result;
@@ -327,6 +350,33 @@ public sealed partial class ImportService
     private static string Directive(ImportChunk chunk)
         => $"Extract only chunk '{chunk.Label}', covering block '{chunk.Block}', phase '{chunk.Phase}', absolute weeks {chunk.WeekFrom}-{chunk.WeekTo}, pages {chunk.PageFrom}-{chunk.PageTo}. " +
            $"The outline estimated about {chunk.DayCount} days; return every day these pages actually document, and no days from other chunks.";
+
+    private async Task<bool> TryReserveRecoveryRead(Guid id, string leaseId, SemaphoreSlim persistGate, CancellationToken ct)
+    {
+        await persistGate.WaitAsync(ct);
+        try
+        {
+            await using var gate = await MutationLock.Acquire(db, db.CurrentUser, ct);
+            var import = await db.Imports.SingleOrDefaultAsync(row => row.Id == id, ct);
+            if (import is null || import.Status != ImportStatus.Pending || !OwnsLease(import, leaseId))
+            {
+                await gate.Commit(ct);
+                return false;
+            }
+            try { await Meter(import, ct); }
+            catch (DomainException)
+            {
+                await gate.Commit(ct);
+                return false;
+            }
+            RenewLease(import);
+            import.Revision++;
+            await db.SaveChangesAsync(ct);
+            await gate.Commit(ct);
+            return true;
+        }
+        finally { persistGate.Release(); }
+    }
 
     /// One section waiting to be read, with the page text it covers. An empty text means the
     /// section's pages carry none, which is settled without a model call.

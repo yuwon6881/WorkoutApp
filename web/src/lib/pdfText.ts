@@ -9,7 +9,7 @@ import {
   positionPieces, ROW_TOLERANCE, type PositionedPiece, type TextPiece, type TextRow
 } from './pdfGeometry';
 import { findTrackingTables, isInTrackingTable, renderTrackingTables, type TrackingTable } from './pdfTrackingTable';
-import { MAX_PDF_LINKS, pageLinks, type LinkRect, type PdfLink } from './pdfLinks';
+import { MAX_PDF_LINKS, pageLinks, printedLinks, type LinkRect, type PdfLink } from './pdfLinks';
 
 /// Mirrors the server's bounds in `ImportSourceText`, so a document the browser accepts is a
 /// document the API accepts.
@@ -245,6 +245,7 @@ export async function extractPdfText(
             'str' in item ? [{ str: item.str, transform: item.transform, width: item.width, height: item.height }] : []);
           text = buildPageText(pieces);
           if (links.length < MAX_PDF_LINKS) links.push(...await readPageLinks(page, number, pieces));
+          if (links.length < MAX_PDF_LINKS) links.push(...printedLinks(number, text));
         } finally { page.cleanup(); }
       } catch (error) {
         if (signal?.aborted) throw cancelledError();

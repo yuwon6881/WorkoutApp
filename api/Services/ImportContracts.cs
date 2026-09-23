@@ -35,7 +35,11 @@ public record ImportReviewIssue(
     Guid? WorkoutLineId = null,
     Guid? ExerciseLineId = null,
     int? SetIndex = null,
-    string? TargetField = null);
+    string? TargetField = null,
+    int? ExpectedTrainingDays = null,
+    int? SourcePageTo = null,
+    int? WeekFrom = null,
+    int? WeekTo = null);
 public record ImportAlternative(string Id, string Name, int ChunkCount, int DayCount, List<ImportChunk>? Chunks = null);
 public record ImportRestoreInput(int? Revision = null);
 public record ImportSlotMappingInput(Guid ExerciseLineId, Guid? ReplacementExerciseId, int? Revision = null);

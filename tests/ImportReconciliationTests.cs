@@ -109,6 +109,38 @@ public sealed class ImportReconciliationTests
         Assert.Contains("8 printed training-day titles but reads as 1", warning.Message);
     }
 
+    [Fact]
+    public void One_missing_printed_day_is_reported_even_when_most_days_were_read()
+    {
+        var pages = Enumerable.Range(46, 8)
+            .Select(page => new ImportPageText(page, $"WEEK 6\nDAY LABEL: Session {page}"))
+            .ToList();
+        var extracted = new ImportDraft("Pure Bodybuilding", Enumerable.Range(46, 7)
+            .Select(page => ReconciliationDay(page) with { Week = 6, Name = $"Session {page}" }).ToList());
+        var chunk = new ImportChunk("Week 6", "Block 2", "Grind", 6, 6, 46, 53, 8);
+
+        var merge = ImportChunkReconciliation.ReconcileChunkCoverage(new ImportDraft("Pure Bodybuilding", []), extracted, chunk, pages);
+
+        Assert.Contains(merge.Notices, issue => issue.Code == "chunk_day_count" && issue.Severity == "warning");
+    }
+
+    [Fact]
+    public async Task A_short_model_read_is_retried_once_and_a_complete_second_read_is_used()
+    {
+        await using var h = await Harness.Create(Configured());
+        await h.SignIn();
+        var source = new ImportSourceInput("nippard.pdf", 1,
+            [new ImportPageText(1, "WEEK 1\nDAY LABEL: Day A\nBarbell bench press\nDAY LABEL: Day B\nBarbell bench press")]);
+        var imports = h.Imports(Reading(Outline, Days((1, "Day A")), Days((1, "Day A"), (1, "Day B"))));
+
+        var ready = await imports.Extract((await imports.Create(source, default)).Id, default);
+
+        Assert.Equal(ImportStatus.Ready, ready.Status);
+        Assert.Equal(["Day A", "Day B"], ready.Draft!.Workouts.Select(day => day.Name));
+        Assert.DoesNotContain(ready.ReviewIssues ?? [], issue => issue.Code == "chunk_day_count");
+        Assert.Equal(3, (await h.Db.Usage.SingleAsync()).Count);
+    }
+
     /// The outline's week range is a claim made from page previews; the page the section actually
     /// read is the better authority. Refusing the section over the disagreement only produced the
     /// same answer on every retry, so the page is followed and the reviewer is told.

@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using Workout.Api.Domain;
 
 namespace Workout.Api.Services;
@@ -11,8 +12,8 @@ public record ImportPageLink(int Page, string Name, string Url);
 ///
 /// The URL is checked again here rather than trusted from the client: it originates in an
 /// untrusted document, and it is a place the app will later offer to send someone. Anything that
-/// is not an https video link is dropped rather than refused — a bad link in the annotation layer
-/// is no reason to fail a faithful read of the schedule.
+/// is not an https link to an approved demonstration or exercise guide is dropped rather than
+/// refused — a bad link in the PDF is no reason to fail a faithful read of the schedule.
 internal static class ImportDemoLinks
 {
     public const int MaxLinks = 4000;
@@ -20,7 +21,8 @@ internal static class ImportDemoLinks
     public const int MaxUrlChars = 400;
 
     private static readonly HashSet<string> VideoHosts = new(StringComparer.OrdinalIgnoreCase)
-        { "youtube.com", "www.youtube.com", "m.youtube.com", "youtu.be", "www.youtu.be" };
+        { "youtube.com", "www.youtube.com", "m.youtube.com", "youtu.be", "www.youtu.be",
+          "exrx.net", "www.exrx.net", "roguefitness.com", "www.roguefitness.com" };
 
     public static List<ImportPageLink> Normalize(IEnumerable<ImportPageLink>? links, int pageCount)
     {
@@ -49,19 +51,48 @@ internal static class ImportDemoLinks
         return new UriBuilder(uri) { Scheme = Uri.UriSchemeHttps, Port = -1 }.Uri.ToString();
     }
 
-    /// Attaches each link to the exercises that carry its name. The name is the whole key: one
-    /// movement has one demonstration wherever the document repeats it, so matching on the name
-    /// rather than the page keeps every week's copy linked even when a section misreports a page.
+    /// A cited page wins when the same printed movement carries different demonstrations. A
+    /// document-wide name match is used only when it points to one unambiguous URL.
     public static ImportDraft Attach(ImportDraft draft, IReadOnlyList<ImportPageLink> links)
     {
         if (links.Count == 0) return draft;
-        var byName = new Dictionary<string, string>(StringComparer.Ordinal);
+        var byName = new Dictionary<string, string?>(StringComparer.Ordinal);
+        var byPage = new Dictionary<(int Page, string Name), string?>();
         foreach (var link in links)
         {
             var key = Key(link.Name);
-            if (key.Length > 0) byName.TryAdd(key, link.Url);
+            if (key.Length == 0) continue;
+            Record(byName, key, link.Url);
+            Record(byPage, (link.Page, key), link.Url);
         }
         if (byName.Count == 0) return draft;
+
+        // Only a printed set qualifier or superset prefix may be removed. If two linked rows then
+        // claim different videos for the same movement, leave the fallback unset rather than guess.
+        var fallback = new Dictionary<string, string?>(StringComparer.Ordinal);
+        var pageFallback = new Dictionary<(int Page, string Name), string?>();
+        foreach (var link in links)
+        {
+            var name = Regex.Replace(link.Name, @"^\s*[A-Z]\d+\s*:\s*", "", RegexOptions.IgnoreCase);
+            name = Regex.Replace(name, @"\s*\(\s*(?:HEAVY|BACK[- ]?OFF)\s*\)\s*$", "", RegexOptions.IgnoreCase);
+            var key = Key(name);
+            if (key.Length == 0 || key == Key(link.Name)) continue;
+            Record(fallback, key, link.Url);
+            Record(pageFallback, (link.Page, key), link.Url);
+        }
+
+        static void Record<TKey>(Dictionary<TKey, string?> map, TKey key, string url) where TKey : notnull
+        {
+            if (map.TryGetValue(key, out var prior) && prior != url) map[key] = null;
+            else if (!map.ContainsKey(key)) map[key] = url;
+        }
+
+        string? Find(int? page, string key, Dictionary<(int Page, string Name), string?> pageLinks,
+            Dictionary<string, string?> documentLinks)
+        {
+            if (page is { } sourcePage && pageLinks.TryGetValue((sourcePage, key), out var local)) return local;
+            return documentLinks.GetValueOrDefault(key);
+        }
 
         return draft with
         {
@@ -71,8 +102,14 @@ internal static class ImportDemoLinks
                 {
                     var names = new[] { exercise.SourceName }.Concat(exercise.Substitutions ?? []);
                     var available = new Dictionary<string, string>(StringComparer.Ordinal);
+                    var sourcePage = exercise.SourcePage ?? workout.SourcePage;
                     foreach (var name in names)
-                        if (byName.TryGetValue(Key(name), out var link)) available[Key(name)] = link;
+                    {
+                        var key = Key(name);
+                        var link = Find(sourcePage, key, byPage, byName)
+                            ?? Find(sourcePage, key, pageFallback, fallback);
+                        if (link is not null) available[key] = link;
+                    }
                     var current = ForName(available, exercise.SourceName);
                     return exercise with { DemoUrl = current, DemoLinks = available };
                 }).ToList()

@@ -35,6 +35,7 @@ public sealed partial class ImportService
         var workoutIds = draft.Workouts.Select(w => w.LineId).ToHashSet();
         var exerciseIds = draft.Workouts.SelectMany(w => w.Exercises).Select(e => e.LineId).ToHashSet();
         return notices.Where(n =>
+            !ImportReviewNotices.IsResolved(n, draft) &&
             (n.WorkoutLineId == null || workoutIds.Contains(n.WorkoutLineId.Value)) &&
             (n.ExerciseLineId == null || exerciseIds.Contains(n.ExerciseLineId.Value))).ToList();
     }

@@ -49,8 +49,9 @@ public sealed class WorkoutAi(HttpClient http, IConfiguration config)
     /// and ~ rest prefixes, and recovers table rows under header bands without movement fusion;
     /// v16 names optional and counted ("1-2 REST DAYS") rest-day bands, one rest day per band;
     /// v17 reconciles source-confirmed ten-day cycles in page order and applies printed table evidence
-    /// in chunked imports so a re-read cannot reuse the earlier ready draft.
-    public const string PromptVersion = "workout-import-v17-cycle-evidence";
+    /// in chunked imports; v18 re-reads source day coverage and printed or glossary exercise references
+    /// instead of reusing an older ready draft without that evidence.
+    public const string PromptVersion = "workout-import-v18-source-coverage-links";
 
     /// One cheap pass over a page-by-page view of the document. Most of a commercial training PDF
     /// is explanation and photography; this pass exists to find the few pages that actually carry

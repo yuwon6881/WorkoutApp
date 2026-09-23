@@ -9,10 +9,11 @@ export type LinkRect = { url: string; rect: [number, number, number, number] };
 export const MAX_PDF_LINKS = 4000;
 const MAX_LINK_NAME = 120;
 const MAX_LINK_URL = 400;
-/// Only video hosts. Recent programs also link an affiliate shop and a journal article from the
-/// same annotation layer, and a document is untrusted input: whatever this accepts is a place the
+/// Only known demonstration and exercise-guide hosts. Recent programs also link an affiliate shop
+/// and a journal article from the same annotation layer. A document is untrusted input: what this accepts is a place the
 /// app will later offer to send someone, so it stays as narrow as the feature needs.
-const VIDEO_HOSTS = new Set(['youtube.com', 'www.youtube.com', 'm.youtube.com', 'youtu.be', 'www.youtu.be']);
+const VIDEO_HOSTS = new Set(['youtube.com', 'www.youtube.com', 'm.youtube.com', 'youtu.be', 'www.youtu.be',
+  'exrx.net', 'www.exrx.net', 'roguefitness.com', 'www.roguefitness.com']);
 
 /// Keeps only links this app is willing to open, normalised to https.
 export function videoUrl(raw: unknown): string | undefined {
@@ -80,6 +81,28 @@ function coveredText(pieces: readonly TextPiece[], rect: LinkRect['rect']): stri
   return normalizedText(ordered.map(piece => piece.str).join(' '));
 }
 
+function glossaryLabel(pieces: readonly TextPiece[], rect: LinkRect['rect']): string | undefined {
+  const left = Math.min(rect[0], rect[2]);
+  const bottom = Math.min(rect[1], rect[3]);
+  const top = Math.max(rect[1], rect[3]);
+  const candidates = pieces.filter(piece => {
+    const right = piece.transform[4] + (piece.width ?? 0);
+    const y = piece.transform[5];
+    return right <= left + 2 && left - right < 250 && overlaps(y, y + Math.max(piece.height ?? 0, 1), bottom, top)
+      && /:\s*$/.test(piece.str) && !/^https?:/i.test(piece.str);
+  }).sort((a, b) => b.transform[4] - a.transform[4]);
+  const anchor = candidates[0];
+  if (!anchor) return undefined;
+  const label = normalizedText(pieces.filter(piece => {
+    const x = piece.transform[4];
+    const right = x + (piece.width ?? 0);
+    return x >= left - 250 && right <= left + 2 && Math.abs(piece.transform[5] - anchor.transform[5]) <= 3
+      && !/^https?:/i.test(piece.str);
+  }).sort((a, b) => a.transform[4] - b.transform[4]).map(piece => piece.str).join(' '))
+    .replace(/:\s*$/, '').replace(/^\d+[.)]\s*/, '').trim();
+  return label && label.length <= MAX_LINK_NAME ? label : undefined;
+}
+
 /// Pairs each video annotation on a page with the text it is drawn over. Documents that carry no
 /// annotations simply produce nothing, which is what makes this skippable rather than conditional.
 export function pageLinks(page: number, pieces: readonly TextPiece[], annotations: readonly LinkRect[]): PdfLink[] {
@@ -87,12 +110,33 @@ export function pageLinks(page: number, pieces: readonly TextPiece[], annotation
   const links: PdfLink[] = [];
   for (const annotation of joinedLinkRects(annotations)) {
     const url = annotation.url;
-    const name = coveredText(pieces, annotation.rect).slice(0, MAX_LINK_NAME).trim();
+    const covered = coveredText(pieces, annotation.rect);
+    const name = (/^https?:\/\//i.test(covered)
+      ? glossaryLabel(pieces, annotation.rect) ?? ''
+      : covered.slice(0, MAX_LINK_NAME).trim());
     if (name.length === 0) continue;
     const key = `${name.toLowerCase()}${url}`;
     if (seen.has(key)) continue;
     seen.add(key);
     links.push({ page, name, url });
+  }
+  return links;
+}
+
+/// Earlier guides print exercise references instead of attaching annotations. Only an explicit
+/// label beside the URL, or on the immediately preceding line, is strong enough to pair them.
+export function printedLinks(page: number, text: string): PdfLink[] {
+  const links: PdfLink[] = [];
+  let precedingLabel: string | undefined;
+  for (const rawLine of text.split(/\r?\n/)) {
+    const line = rawLine.trim();
+    const pair = /^(.{2,120}?):\s*\|?\s*(https?:\/\/\S+)$/i.exec(line);
+    const standalone = /^(https?:\/\/\S+)$/i.exec(line);
+    const name = pair?.[1]?.trim() ?? (standalone ? precedingLabel : undefined);
+    const rawUrl = pair?.[2] ?? standalone?.[1];
+    const url = videoUrl(rawUrl?.replace(/[.,;)]$/, ''));
+    if (name && url && !/^https?:/i.test(name)) links.push({ page, name, url });
+    precedingLabel = /^(.{2,120}):$/.exec(line)?.[1]?.trim();
   }
   return links;
 }

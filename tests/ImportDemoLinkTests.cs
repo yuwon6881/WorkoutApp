@@ -63,6 +63,22 @@ public sealed class ImportDemoLinkTests
         Assert.Null(exercises.Single(exercise => exercise.SourceName == "Pec Deck").DemoUrl);
     }
 
+    [Fact]
+    public async Task A_linked_set_qualifier_and_superset_tag_reach_the_printed_exercise()
+    {
+        await using var harness = await Harness.Create(Configured());
+        await harness.SignIn();
+        var imports = Imports(harness);
+        var ready = await imports.Extract((await imports.Create(Source([
+            new ImportPageLink(1, "Machine Chest Press (Heavy)", "https://youtu.be/qTSTOVVr8rU"),
+            new ImportPageLink(1, "A1: Pec Deck (Back off)", "https://youtu.be/2Q1JrK21b4A")
+        ]), default)).Id, default);
+
+        var exercises = ready.Draft!.Workouts.SelectMany(day => day.Exercises).ToList();
+        Assert.Equal("https://youtu.be/qTSTOVVr8rU", exercises.Single(exercise => exercise.SourceName == "Machine Chest Press").DemoUrl);
+        Assert.Equal("https://youtu.be/2Q1JrK21b4A", exercises.Single(exercise => exercise.SourceName == "Pec Deck").DemoUrl);
+    }
+
     /// The annotation layer of those same PDFs also carries an affiliate shop and a journal
     /// article. A document is untrusted input and this is a place the app will offer to send
     /// someone, so anything that is not a video link is dropped rather than stored.
@@ -92,6 +108,44 @@ public sealed class ImportDemoLinkTests
             ImportDemoLinks.Video("https://www.youtube.com/watch?v=bEv6CCg2BC8"));
         Assert.Null(ImportDemoLinks.Video("https://vimeo.com/123"));
         Assert.Null(ImportDemoLinks.Video(null));
+    }
+
+    [Fact]
+    public void Known_exercise_reference_hosts_are_accepted_without_opening_arbitrary_sites()
+    {
+        Assert.Equal("https://exrx.net/WeightExercises/Quadriceps/BBSquat",
+            ImportDemoLinks.Video("https://exrx.net/WeightExercises/Quadriceps/BBSquat"));
+        Assert.Equal("https://www.roguefitness.com/learn/back-squat",
+            ImportDemoLinks.Video("https://www.roguefitness.com/learn/back-squat"));
+        Assert.Null(ImportDemoLinks.Video("https://shop.example.com/back-squat"));
+    }
+
+    [Fact]
+    public void Conflicting_qualified_demonstrations_do_not_choose_one_for_an_unqualified_name()
+    {
+        var draft = new ImportDraft("Program", [new DraftWorkout(Guid.NewGuid(), 1, "Day 1", null, null,
+            [new DraftExercise(Guid.NewGuid(), "Pec Deck", null, null, [new DraftSet(8, 10, 8, 90, null, null, null)])])]);
+        var attached = ImportDemoLinks.Attach(draft, [
+            new ImportPageLink(1, "Pec Deck (Heavy)", "https://youtu.be/aaa"),
+            new ImportPageLink(1, "Pec Deck (Back off)", "https://youtu.be/bbb")
+        ]);
+
+        Assert.Null(attached.Workouts[0].Exercises[0].DemoUrl);
+    }
+
+    [Fact]
+    public void Repeated_name_uses_the_video_on_its_source_page()
+    {
+        var days = new[] { 1, 2 }.Select(page => new DraftWorkout(Guid.NewGuid(), page, $"Day {page}", null, null,
+            [new DraftExercise(Guid.NewGuid(), "Back Squat", null, null,
+                [new DraftSet(8, 10, 8, 90, null, null, null)], SourcePage: page)], SourcePage: page)).ToList();
+        var attached = ImportDemoLinks.Attach(new ImportDraft("Program", days), [
+            new ImportPageLink(1, "Back Squat", "https://youtu.be/aaa"),
+            new ImportPageLink(2, "Back Squat", "https://youtu.be/bbb")
+        ]);
+
+        Assert.Equal("https://youtu.be/aaa", attached.Workouts[0].Exercises[0].DemoUrl);
+        Assert.Equal("https://youtu.be/bbb", attached.Workouts[1].Exercises[0].DemoUrl);
     }
 
     /// A document with no annotation layer is the common case and must be untouched by any of this.

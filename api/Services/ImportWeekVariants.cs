@@ -17,7 +17,7 @@ internal static class ImportWeekVariants
     /// A heading that names one lettered version and nothing else: a banner line, or one cell of
     /// a table header. Prose that mentions both versions ("choose either week 10A or week 10B")
     /// is not a heading and never decides which version a page holds.
-    private static readonly Regex Heading = new(@"^WEEK\s*(?<week>\d{1,3})(?<version>[A-Z])$",
+    private static readonly Regex Heading = new(@"^WEEK\s*(?<week>\d{1,3})(?:(?<compact>[A-Z])|\s*[-–]\s*(?:OPTION\s+)?(?<named>[A-Z]|TEST|MAX TEST)|\s*\(\s*(?:OPTION\s+)?(?<paren>[A-Z]|TEST|MAX TEST)\s*\))$",
         RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
     public sealed record Result(List<DraftWorkout> Workouts, List<ImportReviewIssue> Notices, HashSet<Guid> Moved);
@@ -88,7 +88,8 @@ internal static class ImportWeekVariants
                 .SelectMany(line => line.Split('|'))
                 .Select(cell => Heading.Match(Regex.Replace(cell.Trim(), @"\s+", " ")))
                 .Where(match => match.Success)
-                .Select(match => (Week: int.Parse(match.Groups["week"].Value), Version: match.Groups["version"].Value.ToUpperInvariant()))
+                .Select(match => (Week: int.Parse(match.Groups["week"].Value), Version:
+                    (match.Groups["compact"].Value + match.Groups["named"].Value + match.Groups["paren"].Value).ToUpperInvariant()))
                 .Distinct().ToList();
             if (headings.Count == 1) versions[page.Page] = headings[0];
         }

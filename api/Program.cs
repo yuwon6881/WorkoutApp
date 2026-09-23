@@ -16,7 +16,7 @@ if(int.TryParse(Environment.GetEnvironmentVariable("PORT"),out var cloudRunPort)
 builder.Configuration.AddJsonFile("appsettings.Local.json",optional:true,reloadOnChange:false);
 if(!builder.Environment.IsDevelopment()&&(!Uri.TryCreate(builder.Configuration["PublicOrigin"],UriKind.Absolute,out var publicOrigin)||publicOrigin.Scheme!="https"))
     throw new InvalidOperationException("PublicOrigin must be the exact public HTTPS origin in production.");
-// A program PDF is capped at 150 MiB; the margin covers multipart framing only.
+// Kept for legacy large requests; PDF imports now submit compressed extracted text, not PDF bytes.
 builder.WebHost.ConfigureKestrel(o=>o.Limits.MaxRequestBodySize=160 * 1024 * 1024);
 builder.Services.Configure<FormOptions>(o => o.MultipartBodyLengthLimit = 160 * 1024 * 1024);
 builder.Services.Configure<ForwardedHeadersOptions>(o=> { o.ForwardedHeaders=ForwardedHeaders.XForwardedProto; });

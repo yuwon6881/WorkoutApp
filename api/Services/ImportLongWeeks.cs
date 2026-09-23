@@ -12,7 +12,7 @@ internal static class ImportLongWeeks
     private static readonly Regex DayLabel = new(@"(?m)^\s*DAY LABEL:\s*(?<name>[^\r\n]+)",
         RegexOptions.Compiled | RegexOptions.IgnoreCase);
     private static readonly Regex TenDayCycle = new(
-        @"\basynchronous\s+(?:split|rotation|schedule)\b.{0,200}\b10[- ]day cycle\b|\b10[- ]day cycle\b.{0,200}\basynchronous\b",
+        @"\b10[- ]day\s+(?:cycle|rotation|split)\b|\basynchronous\b.{0,200}\b10[- ]day\b",
         RegexOptions.Compiled | RegexOptions.IgnoreCase | RegexOptions.Singleline);
     private static readonly Regex RestBand = new(
         @"^\s*\d\s*(?:[-–]\s*\d\s*)?REST DAYS?\s*$",
@@ -24,6 +24,42 @@ internal static class ImportLongWeeks
     /// Chunk reconciliation must leave its rest bands intact for the final page-ordered pass.
     public static bool IsTenDayCycleSource(IReadOnlyList<ImportPageText> pages)
         => pages.Any(page => TenDayCycle.IsMatch(page.Text ?? ""));
+
+    public static bool HasSourceLongWeek(IReadOnlyList<ImportPageText> pages)
+    {
+        var counts = new Dictionary<(int Run, int Week), int>();
+        int? currentWeek = null;
+        var currentBlock = "";
+        var run = 0;
+        foreach (var page in pages.OrderBy(page => page.Page))
+        {
+            var lines = (page.Text ?? "").ReplaceLineEndings("\n").Split('\n');
+            var blocks = lines.Select(line => ImportStructureHeadings.LeadingSegment(line))
+                .Select(line => ImportStructureHeadings.TryBlock(line, out var block) ? block : null)
+                .Where(block => block is not null).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+            if (blocks.Count == 1 && !blocks[0]!.Equals(currentBlock, StringComparison.OrdinalIgnoreCase))
+            {
+                currentBlock = blocks[0]!;
+                run++;
+            }
+            var headings = lines.Select(line => ImportStructureHeadings.LeadingSegment(line))
+                .Select(line => ImportStructureHeadings.TryWeek(line, out var week) ? (int?)week : null)
+                .OfType<int>().Distinct().ToList();
+            if (headings.Count > 1) { currentWeek = null; continue; }
+            if (headings.Count == 1)
+            {
+                if (currentWeek is { } prior && headings[0] < prior && blocks.Count == 0) run++;
+                currentWeek = headings[0];
+            }
+            if (currentWeek is not { } number) continue;
+            var key = (run, number);
+            counts[key] = counts.GetValueOrDefault(key) + lines.Count(line =>
+                DayLabel.IsMatch(line) || RestBand.IsMatch(line) ||
+                line.Trim().Equals("REST DAY", StringComparison.OrdinalIgnoreCase));
+            if (counts[key] > 7) return true;
+        }
+        return false;
+    }
 
     public static Result Reconcile(IReadOnlyList<DraftWorkout> workouts, IReadOnlyList<ImportPageText> pages)
     {
@@ -189,7 +225,10 @@ internal static class ImportLongWeeks
     {
         var sourceLabels = pages.GroupBy(page => page.Page).ToDictionary(group => group.Key,
             group => group.SelectMany(page => DayLabel.Matches(page.Text ?? "")
-                .Select(match => match.Groups["name"].Value.Trim())).ToHashSet(StringComparer.OrdinalIgnoreCase));
+                .Select(match => match.Groups["name"].Value.Trim())).ToList());
+        var sourceRests = pages.GroupBy(page => page.Page).ToDictionary(group => group.Key,
+            group => group.Sum(page => (page.Text ?? "").ReplaceLineEndings("\n").Split('\n')
+                .Count(line => RestBand.IsMatch(line) || line.Trim().Equals("REST DAY", StringComparison.OrdinalIgnoreCase))));
         var ordered = workouts.Select((day, index) => (Day: day, Index: index))
             .OrderBy(item => item.Day.Week).ThenBy(item => item.Index).Select(item => item.Day).ToList();
         var result = new List<DraftWorkout>(ordered.Count);
@@ -198,37 +237,52 @@ internal static class ImportLongWeeks
 
         foreach (var phase in ImportValidation.GroupDraftPhases(ordered))
         {
-            var weeks = phase.GroupBy(day => day.Week).ToList();
-            var longWeeks = weeks.Where(week => SourceConfirmsLongWeek(week.ToList(), sourceLabels)).ToList();
-            if (longWeeks.Count != weeks.Count ||
-                !weeks.Select((week, index) => week.Key == weeks[0].Key + index).All(value => value))
+            foreach (var week in phase.GroupBy(day => day.Week))
             {
-                result.AddRange(phase.Select(day => day with { Week = day.Week + offset }));
-                continue;
-            }
+                var days = week.ToList();
+                var firstWeek = week.Key + offset;
+                if (!SourceConfirmsLongWeek(days, sourceLabels, sourceRests))
+                {
+                    result.AddRange(days.Select(day => day with { Week = firstWeek }));
+                    continue;
+                }
 
-            var firstWeek = phase.Min(day => day.Week) + offset;
-            for (var index = 0; index < phase.Count; index++)
-                result.Add(phase[index] with { Week = firstWeek + index / 7, PhaseWeek = 1 + index / 7 });
-            var appWeeks = (phase.Count + 6) / 7;
-            offset += appWeeks - weeks.Count;
-            var first = longWeeks[0].First();
-            notices.Add(new ImportReviewIssue("long_source_week_reflowed",
-                $"This PDF prints more than seven distinct training days in a week. The {phase.Count} days in this section, including rest days, were kept in source order across {appWeeks} seven-day program weeks.",
-                "info", first.SourcePage, first.LineId, TargetField: "week"));
+                for (var index = 0; index < days.Count; index++)
+                    result.Add(days[index] with { Week = firstWeek + index / 7,
+                        PhaseWeek = days[index].PhaseWeek + index / 7 });
+                var appWeeks = (days.Count + 6) / 7;
+                offset += appWeeks - 1;
+                notices.Add(new ImportReviewIssue("long_source_week_reflowed",
+                    $"This PDF prints {days.Count} distinct slots in week {week.Key}. All training and rest slots were kept in source order across {appWeeks} app weeks.",
+                    "info", days[0].SourcePage, days[0].LineId, TargetField: "week"));
+            }
         }
 
         return new Result(result, notices);
     }
 
     private static bool SourceConfirmsLongWeek(IReadOnlyList<DraftWorkout> days,
-        IReadOnlyDictionary<int, HashSet<string>> sourceLabels)
+        IReadOnlyDictionary<int, List<string>> sourceLabels,
+        IReadOnlyDictionary<int, int> sourceRests)
     {
         if (days.Count <= 7) return false;
         var training = days.Where(day => !day.IsRestDay).ToList();
-        if (training.Select(day => (day.SourcePage, Name: day.Name.Trim().ToUpperInvariant())).Distinct().Count() <= 7)
-            return false;
-        return training.All(day => day.SourcePage is { } page &&
-            sourceLabels.TryGetValue(page, out var labels) && labels.Contains(day.Name.Trim()));
+        if (training.Count == 0 || training.Any(day => day.SourcePage is null) ||
+            days.Where(day => day.IsRestDay).Any(day => day.SourcePage is null)) return false;
+        foreach (var group in training.GroupBy(day => day.SourcePage!.Value))
+        {
+            if (!sourceLabels.TryGetValue(group.Key, out var labels)) return false;
+            var remaining = new List<string>(labels);
+            foreach (var day in group)
+            {
+                var index = remaining.FindIndex(label => label.Equals(day.Name.Trim(), StringComparison.OrdinalIgnoreCase));
+                if (index < 0) return false;
+                remaining.RemoveAt(index);
+            }
+            if (remaining.Count != 0) return false;
+        }
+        foreach (var group in days.Where(day => day.IsRestDay).GroupBy(day => day.SourcePage!.Value))
+            if (!sourceRests.TryGetValue(group.Key, out var count) || group.Count() > count) return false;
+        return true;
     }
 }
