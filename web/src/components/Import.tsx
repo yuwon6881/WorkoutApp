@@ -157,10 +157,28 @@ export function ImportReview({ exercises, imports, remaining, onBack, onChanged,
       <div className="upload-action-row">
         <Button variant="primary" disabled={busy} onClick={() => file.current?.click()}><Upload size={17} />Choose a PDF</Button>
       </div>
+      {/* Unified progress bar: covers PDF page reading, program detection, and server-side section
+          extraction in one continuous bar rather than splitting across two panels. */}
       {pipeline.uploadProgress && <Progress progress={pipeline.uploadProgress} action={
         pipeline.uploadProgress.label === 'Reading the PDF on this device'
           ? <Button variant="secondary" onClick={pipeline.cancelUpload}><X size={15} />Cancel PDF reading</Button>
           : undefined
+      } />}
+      {!pipeline.uploadProgress && selected && selected.status === 'pending' && selected.stage === 'extract' && selected.chunksTotal > 0 && <Progress progress={{
+        label: stageLabel(selected, busy),
+        detail: busy && selected.chunksTotal - selected.chunksDone > 1
+          ? 'Sections commit in order as they land.'
+          : selected.currentChunkLabel ?? '',
+        percent: Math.round((selected.chunksDone / selected.chunksTotal) * 100)
+      }} action={
+        <Button variant="destructive" onClick={() => void pipeline.cancel(selected)}><Trash2 size={15} />Cancel import</Button>
+      } />}
+      {!pipeline.uploadProgress && selected && selected.status === 'pending' && selected.stage === 'outline' && <Progress progress={{
+        label: 'Reading the outline',
+        detail: selected.fileName,
+        percent: null
+      }} action={
+        <Button variant="destructive" onClick={() => void pipeline.cancel(selected)}><Trash2 size={15} />Cancel import</Button>
       } />}
       {saver.pending && <p className="muted" role="status">Saving your changes…</p>}
       {pipeline.notice && <p className="muted" role="status">{pipeline.notice}</p>}
@@ -169,35 +187,26 @@ export function ImportReview({ exercises, imports, remaining, onBack, onChanged,
       <p className="muted small-copy">The text is read from the PDF on this device and only that text is sent; the file itself stays here. It becomes an editable draft before it can affect your workouts.</p>
     </section>
 
-    {selected && selected.status === 'pending' && <section className="panel import-reading-panel">
-      {selected.stage === 'select' && selected.alternatives?.length ? <div className="empty-message"><Wand2 size={24} /><h3>Choose a program</h3>
+    {selected && selected.status === 'pending' && selected.stage === 'select' && selected.alternatives?.length ? <section className="panel import-reading-panel">
+      <div className="empty-message"><Wand2 size={24} /><h3>Choose a program</h3>
         <p>This PDF contains several programs. Choose one before detailed extraction; its consecutive phases will stay together.</p>
         <div className="settings-actions">{selected.alternatives.map(alternative => <Button key={alternative.id} variant="primary" disabled={busy}
           onClick={() => void pipeline.chooseAlternative(selected, alternative.id)}>{alternative.name} · {alternative.dayCount} days</Button>)}</div>
-      </div> : <div className="import-reading-card">
+      </div>
+    </section> : null}
+    {selected && selected.status === 'pending' && selected.stage !== 'select' && selected.error && <section className="panel import-reading-panel">
+      <div className="import-reading-card">
         <div className="reading-card-header">
           <div className="reading-card-title">
-            {busy ? <Loader2 size={18} className="spin accent" /> : (selected.error ? <AlertTriangle size={18} className="red" /> : <Wand2 size={18} className="accent" />)}
-            <h3>{busy ? 'Reading PDF…' : (selected.error ? 'Reading stopped' : stageLabel(selected))}</h3>
+            <AlertTriangle size={18} className="red" />
+            <h3>Reading stopped</h3>
           </div>
         </div>
-        {/* The bar measures what has committed, which is the only part of a read that is finished.
-            While sections are in flight it names none of them: they are all being read, and they
-            commit in outline order as they land. */}
-        {selected.chunksTotal > 0 && <Progress progress={{
-          label: stageLabel(selected, busy),
-          detail: busy && selected.chunksTotal - selected.chunksDone > 1
-            ? 'Sections commit in order as they land.'
-            : selected.currentChunkLabel ?? '',
-          percent: Math.round((selected.chunksDone / selected.chunksTotal) * 100)
-        }} />}
-        {selected.error && <div className="error-banner" role="alert"><AlertTriangle size={16} /><span>{selected.error}</span></div>}
+        <div className="error-banner" role="alert"><AlertTriangle size={16} /><span>{selected.error}</span></div>
         <div className="reading-card-actions">
-          {/* Cancelling stays available while a read is out: that is exactly when someone realises
-              they picked the wrong file and wants a clean start. */}
           <Button variant="destructive" onClick={() => void pipeline.cancel(selected)}><Trash2 size={15} />Cancel import</Button>
         </div>
-      </div>}
+      </div>
     </section>}
 
     {selected && draft && selected.status === 'ready' && <>
