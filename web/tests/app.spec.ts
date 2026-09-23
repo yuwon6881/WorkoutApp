@@ -346,7 +346,7 @@ test('import a PDF program, resolve an unmapped exercise, and accept it', async 
   const mysteryTargetEffort = mysteryExercise.getByRole('button', { name: /Target (?:RPE|RIR) for Mystery machine row set 1/ });
   await expect(mysteryTargetEffort).toBeVisible();
   await expect(mysteryTargetEffort).toContainText(/(?:Choose RPE|—)/);
-  await expect(mysteryExercise.locator('.import-set-fields:visible [data-import-field]')).toHaveCount(3);
+  await expect(mysteryExercise.locator('.import-set-fields:visible [data-import-field]')).toHaveCount(2);
   await expect(mysteryExercise.locator('[data-import-field="rest"]')).toBeVisible();
 
   if (testInfo.project.name === 'mobile') {

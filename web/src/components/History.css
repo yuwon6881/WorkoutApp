@@ -175,6 +175,9 @@
   .history-row {
     gap: 8px;
   }
+  .history-row > .history-expand-icon {
+    display: inline-flex !important;
+  }
   .history-pr-pill {
     font-size: var(--font-secondary, 14px);
     padding: 2px 6px;

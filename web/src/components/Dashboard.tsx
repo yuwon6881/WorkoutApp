@@ -92,12 +92,6 @@ export function Dashboard({
       </div>
 
       <section className="next-workout quick-start-hero" aria-label="Today's workout quick start">
-        <div className="hero-art" aria-hidden="true">
-          <div className="orbit orbit-one" />
-          <div className="orbit orbit-two" />
-          <Dumbbell />
-        </div>
-
         <div className="hero-top">
           <span className="eyebrow">
             <span className="status-dot" />{' '}

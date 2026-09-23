@@ -2,6 +2,7 @@ import { Dumbbell, Link2, Unlink } from 'lucide-react';
 import { Modal } from './ui/Modal';
 import { Button } from './ui/Button';
 import { getSupersetGroup, isSuperset } from '../lib/supersets';
+import './Superset.css';
 
 export interface SupersetCandidate {
   id: string;

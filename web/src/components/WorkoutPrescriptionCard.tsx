@@ -14,6 +14,7 @@ import { SwipeableRow } from './ui/SwipeableRow';
 
 import { getSupersetGroup, isSuperset } from '../lib/supersets';
 import { SupersetModal } from './SupersetModal';
+import './Superset.css';
 
 export function WorkoutPrescriptionCard({
   exercise,

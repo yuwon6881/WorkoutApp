@@ -380,4 +380,15 @@
     grid-template-columns: repeat(4, minmax(44px, 1fr));
     gap: 4px;
   }
+  .calendar-day-cell {
+    padding: 6px 4px;
+    min-height: 56px;
+  }
+  .day-number {
+    font-size: 14px;
+  }
+  .calendar-today-btn {
+    padding: 6px 8px;
+    font-size: var(--font-secondary, 14px);
+  }
 }

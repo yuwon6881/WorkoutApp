@@ -1,0 +1,124 @@
+/* Superset management interface and modal styles
+   Obeying Ayu theme variables and accessibility standards. */
+.superset-control-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.superset-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 9px;
+  border-radius: 6px;
+  font-size: var(--font-secondary);
+  font-weight: 650;
+  letter-spacing: 0.3px;
+  color: var(--accent);
+  background: var(--accent-soft);
+  border: 1px solid var(--accent-border);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+  margin-left: -2px;
+}
+.superset-badge:hover {
+  background: var(--surface-hover);
+  border-color: var(--accent-border-strong);
+}
+.superset-trigger {
+  width: 100%;
+  min-height: 48px;
+  justify-content: flex-start;
+  gap: 8px;
+  text-align: left;
+  font-size: var(--font-secondary);
+  background: var(--surface-card);
+}
+.superset-trigger.paired {
+  color: var(--accent);
+  border-color: var(--accent-border);
+  background: var(--accent-soft);
+}
+.superset-trigger.paired:hover:not(:disabled) {
+  background: var(--surface-hover);
+  border-color: var(--accent-border-strong);
+}
+.superset-current-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--accent-border);
+  border-radius: 10px;
+  background: var(--accent-soft);
+}
+.superset-current-info {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+.superset-current-names {
+  font-size: var(--font-secondary);
+  color: var(--text);
+  margin: 0;
+}
+.superset-unlink-btn {
+  flex-shrink: 0;
+  min-height: 44px;
+  padding: 8px 14px;
+  font-size: var(--font-secondary);
+}
+.superset-picker-lead {
+  font-size: var(--font-secondary);
+  color: var(--muted);
+  margin: 0 0 10px;
+}
+.superset-picker-list {
+  display: grid;
+  gap: 8px;
+  margin-top: 8px;
+}
+.superset-picker-item {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 13px;
+  width: 100%;
+  text-align: left;
+  min-height: 50px;
+}
+.superset-picker-item.selected-partner {
+  border-color: var(--accent-border);
+  background: var(--accent-soft);
+}
+.superset-picker-icon {
+  color: var(--accent);
+  display: grid;
+  place-items: center;
+}
+.superset-picker-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.superset-picker-text strong {
+  font-size: var(--font-secondary);
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+.superset-candidate-muscle {
+  font-size: var(--font-secondary);
+  color: var(--muted);
+}
+.superset-picker-badge {
+  flex-shrink: 0;
+}
+.exercise-card-superset-active {
+  border-left: 3px solid var(--accent) !important;
+}
