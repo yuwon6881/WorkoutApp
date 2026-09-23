@@ -29,8 +29,8 @@
   display:inline-flex;
   align-items:center;
   flex:0 0 auto;
-  gap:2px;
-  padding-right:4px;
+  gap:0;
+  padding-right:2px;
   border:1px solid var(--border);
   border-radius:999px;
   background:var(--surface-raised);
@@ -38,7 +38,7 @@
 }
 .chip-group:hover{border-color:var(--border-hover)}
 .chip-group.active{border-color:var(--accent-border-strong);background:var(--accent-soft)}
-.chip-group>.filter-chip,.chip-group>.filter-chip.active{border:0;background:transparent;border-radius:999px;padding-right:4px}
+.chip-group>.filter-chip,.chip-group>.filter-chip.active{border:0;background:transparent;border-radius:999px;padding-left:12px;padding-right:2px}
 .chip-group.chip-group-lone,
 .chip-group:not(:has(.chip-icon-btn, .ui-menu)) {
   padding-right: 0;
@@ -47,11 +47,15 @@
 .chip-group.chip-group-lone > .filter-chip.active,
 .chip-group:not(:has(.chip-icon-btn, .ui-menu)) > .filter-chip,
 .chip-group:not(:has(.chip-icon-btn, .ui-menu)) > .filter-chip.active {
+  padding-left: 14px;
   padding-right: 14px;
 }
 .chip-group>.filter-chip:hover:not(:disabled){background:transparent}
 .chip-group.active>.filter-chip.active{color:var(--accent);font-weight:650}
 .chip-group>.filter-chip:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+.chip-group>.ui-menu{display:inline-flex;align-items:center}
+.chip-group>.chip-icon-btn,.chip-group>.ui-menu{margin-left:-8px}
+.chip-group>.ui-menu>.chip-icon-btn{margin-left:0}
 .chip-icon-btn{
   display:inline-grid;
   place-items:center;
@@ -271,6 +275,8 @@
   .ui-menu>.ui-menu-trigger{width:44px;height:44px;min-width:44px;min-height:44px}
   .ui-menu>.ui-menu-dropdown .ui-menu-item{min-height:44px}
   .chip-group>.chip-icon-btn,.chip-group>.ui-menu>.chip-icon-btn,.chip-add-btn{width:44px;height:44px;min-width:44px;min-height:44px}
+  .chip-group>.chip-icon-btn,.chip-group>.ui-menu{margin-left:-10px}
+  .chip-group>.ui-menu>.chip-icon-btn{margin-left:0}
   .program-day-entry .program-day-handle{width:44px;min-width:44px;height:44px}
 }
 @media(max-width:639px){

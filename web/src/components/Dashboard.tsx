@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ArrowRight, BicepsFlexed, Check, Dumbbell, FileText, Play } from 'lucide-react';
+import { ArrowRight, BicepsFlexed, Check, Dumbbell, Play, Sparkles } from 'lucide-react';
 import type { Bootstrap, ProgressSummary, Session } from '../types';
 import { ApiError, api } from '../lib/api';
 import { Button } from './ui/Button';
@@ -24,7 +24,6 @@ export function Dashboard({
   data,
   onStart,
   onProgram,
-  onImport,
   onResume,
   onSession,
   onExercise,
@@ -93,6 +92,12 @@ export function Dashboard({
       </div>
 
       <section className="next-workout quick-start-hero" aria-label="Today's workout quick start">
+        <div className="hero-art" aria-hidden="true">
+          <div className="orbit orbit-one" />
+          <div className="orbit orbit-two" />
+          <Dumbbell />
+        </div>
+
         <div className="hero-top">
           <span className="eyebrow">
             <span className="status-dot" />{' '}
@@ -127,7 +132,7 @@ export function Dashboard({
                   ? program
                     ? `${program.name} · week ${nextWeek}`
                     : nextFocus || 'Ready to start'
-                  : 'Import a program from a PDF, or build a workout in your library.'}
+                  : 'Select a routine from your library or start a program to begin training.'}
             </p>
             <div className="hero-facts">
               {(() => {
@@ -137,11 +142,26 @@ export function Dashboard({
                       0
                     )
                   : nextSets;
+                if (workingSetCount && workingSetCount > 0) {
+                  return (
+                    <span>
+                      <Dumbbell size={15} />
+                      {`${workingSetCount} working sets`}
+                    </span>
+                  );
+                }
+                const savedRoutines = data.templates.length;
                 return (
-                  <span>
-                    <Dumbbell size={15} />
-                    {workingSetCount && workingSetCount > 0 ? `${workingSetCount} working sets` : '—'}
-                  </span>
+                  <>
+                    <span>
+                      <Dumbbell size={15} />
+                      {savedRoutines > 0 ? `${savedRoutines} saved ${savedRoutines === 1 ? 'routine' : 'routines'}` : 'Workout library'}
+                    </span>
+                    <span>
+                      <Sparkles size={15} />
+                      Ready when you are
+                    </span>
+                  </>
                 );
               })()}
             </div>
@@ -162,10 +182,17 @@ export function Dashboard({
               <Check size={17} /> Open workouts <ArrowRight size={18} />
             </Button>
           ) : (
-            <Button variant="primary" onClick={onImport}>
-              <FileText size={17} /> Import a program <ArrowRight size={18} />
+            <Button variant="primary" onClick={onProgram}>
+              <Dumbbell size={17} /> Go to workouts <ArrowRight size={18} />
             </Button>
           )}
+          <span>
+            {activeWorkout
+              ? 'Session recoverable on this device'
+              : next
+                ? 'Ready to log sets & rest'
+                : 'Browse routines or active programs'}
+          </span>
         </div>
       </section>
 

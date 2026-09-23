@@ -150,7 +150,7 @@ export function SortableWeekChip({
           title={`Delete week ${week}`}
           onClick={onDelete}
         >
-          <X size={13} />
+          <X size={14} />
         </Button>
       )}
     </span>
