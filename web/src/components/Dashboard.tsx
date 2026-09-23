@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ArrowRight, BicepsFlexed, Check, Dumbbell, Play, Sparkles } from 'lucide-react';
+import { ArrowRight, BicepsFlexed, CalendarDays, Check, Dumbbell, Play } from 'lucide-react';
 import type { Bootstrap, ProgressSummary, Session } from '../types';
 import { ApiError, api } from '../lib/api';
 import { Button } from './ui/Button';
@@ -151,16 +151,19 @@ export function Dashboard({
                   );
                 }
                 const savedRoutines = data.templates.length;
+                const savedPrograms = data.programs.length;
                 return (
                   <>
                     <span>
                       <Dumbbell size={15} />
                       {savedRoutines > 0 ? `${savedRoutines} saved ${savedRoutines === 1 ? 'routine' : 'routines'}` : 'Workout library'}
                     </span>
-                    <span>
-                      <Sparkles size={15} />
-                      Ready when you are
-                    </span>
+                    {savedPrograms > 0 && (
+                      <span>
+                        <CalendarDays size={15} />
+                        {`${savedPrograms} ${savedPrograms === 1 ? 'program' : 'programs'}`}
+                      </span>
+                    )}
                   </>
                 );
               })()}

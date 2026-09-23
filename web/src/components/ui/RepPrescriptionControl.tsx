@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useId, useState } from 'react';
 
 export interface RepPrescriptionControlProps {
   repMin: number;
@@ -21,6 +21,7 @@ export function RepPrescriptionControl({
   dataImportIndex,
   disabled = false
 }: RepPrescriptionControlProps) {
+  const uniqueId = useId();
   const [isRange, setIsRange] = useState(() => repMin !== repMax);
 
   useEffect(() => {
@@ -72,7 +73,7 @@ export function RepPrescriptionControl({
       {isRange ? (
         <div className="rep-range-inputs">
           <input
-            id={nameMin}
+            id={`${uniqueId}-min`}
             name={nameMin}
             aria-label="Min reps"
             title="Min reps"
@@ -92,7 +93,7 @@ export function RepPrescriptionControl({
           />
           <span className="rep-range-sep" aria-hidden="true">–</span>
           <input
-            id={nameMax}
+            id={`${uniqueId}-max`}
             name={nameMax}
             aria-label="Max reps"
             title="Max reps"
@@ -114,7 +115,7 @@ export function RepPrescriptionControl({
       ) : (
         <div className="rep-single-input-wrap">
           <input
-            id={nameSingle}
+            id={`${uniqueId}-single`}
             name={nameSingle}
             aria-label="Reps"
             title="Target reps"

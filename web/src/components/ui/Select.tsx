@@ -143,7 +143,6 @@ export function Select<T extends string | number>({
             one thing that carries this field's accessible name, so a screen reader is offered one
             control rather than two identically named ones. */}
         <select
-          id={`${id}-native`}
           name={controlName}
           aria-hidden="true"
         value={String(value)}

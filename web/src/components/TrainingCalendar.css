@@ -245,60 +245,133 @@
 @media (max-width: 639px) {
   .training-calendar-card,
   .panel.training-calendar-card {
-    padding: 16px 8px;
+    padding: 16px 12px;
     margin-bottom: 20px;
   }
 
   .calendar-card-header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 10px;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 14px;
+  }
+
+  .calendar-title-wrap {
+    min-width: 0;
+  }
+
+  .calendar-title-row {
+    gap: 8px;
+  }
+
+  .calendar-title-row h3 {
+    font-size: 15px;
+  }
+
+  .calendar-icon-badge {
+    width: 28px;
+    height: 28px;
   }
 
   .calendar-range-label {
-    padding-left: 0;
+    padding-left: 36px;
   }
 
   .calendar-nav-controls {
-    width: 100%;
-    justify-content: space-between;
+    width: auto;
+    gap: 6px;
+  }
+
+  .calendar-nav-btn {
+    min-height: 44px;
+    min-width: 44px;
+    padding: 8px;
+  }
+
+  .calendar-today-btn {
+    min-height: 44px;
+    padding: 8px 12px;
   }
 
   .calendar-days-grid {
-    gap: 3px;
+    gap: 4px;
     margin-bottom: 14px;
   }
 
   .calendar-day-cell {
-    padding: 6px 1px 6px;
-    min-height: 56px;
+    padding: 8px 2px 6px;
+    min-height: 64px;
+    justify-content: space-between;
   }
 
   .day-weekday {
-    font-size: var(--font-secondary, 14px);
+    font-weight: 600;
+    letter-spacing: 0.3px;
   }
 
   .day-number {
-    font-size: 15px;
+    font-size: 16px;
+    font-weight: 700;
   }
 
-  .day-pill-status span {
+  .day-status-indicator {
+    min-height: 20px;
+  }
+
+  .day-pill-status > span:not(.status-dot) {
     display: none;
   }
 
   .day-pill-status {
-    padding: 2px 4px;
+    padding: 0;
+    min-width: 20px;
+    min-height: 20px;
+    justify-content: center;
+  }
+
+  .day-pill-status.done {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+  }
+
+  .day-pill-status.in-progress {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+  }
+
+  .day-pill-status.rest {
+    width: 20px;
+    height: 20px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .day-pill-status.rest::after {
+    content: "·";
     font-size: var(--font-secondary, 14px);
+    color: var(--muted);
+    line-height: 1;
   }
 
   .today-badge {
-    letter-spacing: 0;
+    letter-spacing: 0.2px;
+    line-height: 1;
+    margin-top: 1px;
   }
 
   .calendar-card-footer {
     flex-direction: column;
     align-items: flex-start;
     gap: 8px;
+  }
+
+  .calendar-legend-pills {
+    gap: 10px;
   }
 }
 
