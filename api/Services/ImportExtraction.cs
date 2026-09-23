@@ -205,7 +205,7 @@ public sealed partial class ImportService
                     ImportNormalization.Label(alternative.Name, 200, alternative.Id), absolute.Chunks.Count, absolute.Chunks.Sum(chunk => chunk.DayCount), absolute.Chunks);
             }).ToList());
             import.Stage = "select"; import.Status = ImportStatus.Pending; import.ChunksDone = 0; import.ChunksTotal = 0;
-            import.DraftJson = Json.Write(new ImportDraft(ProgramTitle(result.Outline!.ProgramTitle, import.FileName), []));
+            import.DraftJson = Json.Write(new ImportDraft(ProgramTitle(ImportProgramTitle.Grounded(result.Outline!.ProgramTitle, pages), import.FileName), []));
             return;
         }
         var selected = alternatives.Count == 1 ? alternatives[0] : null;
@@ -219,7 +219,7 @@ public sealed partial class ImportService
         ValidateChunkPages(chunks, import.PageCoverageJson);
         import.SelectedAlternativeId = selected?.Id ?? "";
         import.OutlineJson = Json.Write(chunks);
-        import.DraftJson = Json.Write(new ImportDraft(ProgramTitle(selected?.Name ?? result.Outline!.ProgramTitle, import.FileName), []));
+        import.DraftJson = Json.Write(new ImportDraft(ProgramTitle(selected?.Name ?? ImportProgramTitle.Grounded(result.Outline!.ProgramTitle, pages), import.FileName), []));
         import.Stage = "extract"; import.Status = ImportStatus.Pending; import.ChunksDone = 0; import.ChunksTotal = chunks.Count;
         import.UnresolvedCount = 0;
     }
