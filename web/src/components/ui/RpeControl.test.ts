@@ -17,10 +17,12 @@ describe('RpeControl', () => {
     expect(markup).toContain('aria-label="2 RIR"');
     expect(markup).not.toContain('aria-label="Decrease RIR"');
     expect(markup).not.toContain('aria-label="Increase RIR"');
-    expect(markup).toContain('class="rpe-control has-value"');
+    expect(markup).toContain('rpe-control');
+    expect(markup).toContain('has-value');
+    expect(markup).toContain('rir-tier-2');
   });
 
-  it('renders 5+ when value is 5 or higher', () => {
+  it('renders 5+ when value is 5 or higher with easy color tier', () => {
     const markup = renderToStaticMarkup(
       createElement(RpeControl, {
         value: 5,
@@ -31,6 +33,27 @@ describe('RpeControl', () => {
 
     expect(markup).toContain('5+');
     expect(markup).toContain('aria-label="5+ RIR"');
+    expect(markup).toContain('rir-tier-easy');
+  });
+
+  it('applies correct color tier for 0 and 1 RIR', () => {
+    const markup0 = renderToStaticMarkup(
+      createElement(RpeControl, {
+        value: 0,
+        onChange: () => {},
+        ariaLabel: 'Target RIR'
+      })
+    );
+    expect(markup0).toContain('rir-tier-0');
+
+    const markup1 = renderToStaticMarkup(
+      createElement(RpeControl, {
+        value: 1,
+        onChange: () => {},
+        ariaLabel: 'Target RIR'
+      })
+    );
+    expect(markup1).toContain('rir-tier-1');
   });
 
   it('renders effort icon when value is null', () => {

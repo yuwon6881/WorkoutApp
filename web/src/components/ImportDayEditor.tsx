@@ -240,6 +240,7 @@ function ExerciseEditor({ exercise, exercises, allDayExercises, onChange, onRemo
         )}
       </div>
       <div className="import-exercise-actions">
+        <DemoLink url={exercise.demoUrl} exerciseName={exercise.sourceName} />
         <div className="field import-rest-field" data-import-field="rest">
           <Select
             name={`exercise-rest-${exercise.lineId}`}
@@ -327,7 +328,6 @@ function ExerciseEditor({ exercise, exercises, allDayExercises, onChange, onRemo
           ) : (
             <span className="muted small-copy substitution-empty-state">No substitutions available.</span>
           )}
-          <DemoLink url={exercise.demoUrl} exerciseName={exercise.sourceName} />
         </div>
       </div>
     </div>

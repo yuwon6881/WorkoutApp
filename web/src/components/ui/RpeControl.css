@@ -94,6 +94,39 @@
   color: var(--accent);
 }
 
+/* Effort Color Tiers for RIR trigger control */
+.rpe-control.rir-tier-0 {
+  border-color: var(--red-border);
+  background: var(--red-soft);
+}
+.rpe-control.rir-tier-0 .rpe-value-text {
+  color: var(--red);
+}
+
+.rpe-control.rir-tier-1 {
+  border-color: rgba(251, 113, 133, 0.35);
+  background: rgba(251, 113, 133, 0.12);
+}
+.rpe-control.rir-tier-1 .rpe-value-text {
+  color: #fb7185;
+}
+
+.rpe-control.rir-tier-2 {
+  border-color: var(--accent-border);
+  background: var(--accent-soft);
+}
+.rpe-control.rir-tier-2 .rpe-value-text {
+  color: var(--accent);
+}
+
+.rpe-control.rir-tier-easy {
+  border-color: rgba(134, 239, 172, 0.35);
+  background: rgba(134, 239, 172, 0.12);
+}
+.rpe-control.rir-tier-easy .rpe-value-text {
+  color: var(--green);
+}
+
 /* RIR Selection Modal */
 .rir-modal-content {
   display: flex;
@@ -156,12 +189,6 @@
   border: 1px solid var(--border);
 }
 
-.rir-option-card.selected .rir-option-num {
-  background: var(--accent);
-  color: var(--on-accent);
-  border-color: var(--accent);
-}
-
 .rir-option-text {
   display: flex;
   flex-direction: column;
@@ -183,6 +210,75 @@
   font-size: 14px;
   color: var(--muted);
   line-height: 1.2;
+}
+
+/* Modal Tier Styles */
+.rir-option-card.rir-tier-0 .rir-option-num {
+  border-color: var(--red-border);
+  color: var(--red);
+}
+.rir-option-card.selected.rir-tier-0 {
+  background: var(--red-soft);
+  border-color: var(--red);
+}
+.rir-option-card.selected.rir-tier-0 .rir-option-num {
+  background: var(--red);
+  color: #fff;
+  border-color: var(--red);
+}
+.rir-option-card.selected.rir-tier-0 .rir-option-text strong {
+  color: var(--red);
+}
+
+.rir-option-card.rir-tier-1 .rir-option-num {
+  border-color: rgba(251, 113, 133, 0.35);
+  color: #fb7185;
+}
+.rir-option-card.selected.rir-tier-1 {
+  background: rgba(251, 113, 133, 0.12);
+  border-color: #fb7185;
+}
+.rir-option-card.selected.rir-tier-1 .rir-option-num {
+  background: #fb7185;
+  color: #fff;
+  border-color: #fb7185;
+}
+.rir-option-card.selected.rir-tier-1 .rir-option-text strong {
+  color: #fb7185;
+}
+
+.rir-option-card.rir-tier-2 .rir-option-num {
+  border-color: var(--accent-border);
+  color: var(--accent);
+}
+.rir-option-card.selected.rir-tier-2 {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+}
+.rir-option-card.selected.rir-tier-2 .rir-option-num {
+  background: var(--accent);
+  color: var(--on-accent);
+  border-color: var(--accent);
+}
+.rir-option-card.selected.rir-tier-2 .rir-option-text strong {
+  color: var(--accent);
+}
+
+.rir-option-card.rir-tier-easy .rir-option-num {
+  border-color: rgba(134, 239, 172, 0.35);
+  color: var(--green);
+}
+.rir-option-card.selected.rir-tier-easy {
+  background: rgba(134, 239, 172, 0.12);
+  border-color: var(--green);
+}
+.rir-option-card.selected.rir-tier-easy .rir-option-num {
+  background: var(--green);
+  color: #0b0e14;
+  border-color: var(--green);
+}
+.rir-option-card.selected.rir-tier-easy .rir-option-text strong {
+  color: var(--green);
 }
 
 .rir-modal-actions {

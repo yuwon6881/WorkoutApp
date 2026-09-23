@@ -1,4 +1,4 @@
-import { PlayCircle } from 'lucide-react';
+import { Play } from 'lucide-react';
 
 type Props = { url?: string | null; exerciseName: string };
 
@@ -13,14 +13,15 @@ export function DemoLink({ url, exerciseName }: Props) {
   if (!url) return null;
   return (
     <a
-      className="button tertiary"
+      className="button tertiary exercise-demo-pill"
       href={url}
       target="_blank"
       rel="noopener noreferrer"
+      title={`Watch demonstration of ${exerciseName} (opens in a new tab)`}
       aria-label={`Watch a demonstration of ${exerciseName} (opens in a new tab)`}
     >
-      <PlayCircle size={14} aria-hidden="true" />
-      Demo
+      <Play size={12} className="demo-play-icon" aria-hidden="true" fill="currentColor" />
+      <span>Demo</span>
     </a>
   );
 }

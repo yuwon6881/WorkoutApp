@@ -2,7 +2,7 @@
 @media (min-width: 1024px) {
   .picker-add-btn { min-height: 36px; }
 }
-.picker-add-btn:hover:not(:disabled) { background: var(--surface-hover); border-color: var(--accent-border-strong); color: var(--accent); }
+.picker-add-btn:hover:not(:disabled) { background: var(--surface-hover); border-color: var(--accent-border); color: var(--accent); }
 .picker-current-section { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
 .picker-card-current { border-color: var(--accent-border); background: var(--surface-raised); }
 .picker-card-current:hover { border-color: var(--accent-border); background: var(--surface-raised); }
@@ -19,10 +19,11 @@
 .picker-boundary-label { font-size: var(--font-secondary, 14px) !important; text-transform: uppercase; letter-spacing: .8px; color: var(--muted); }
 .picker-show-all-btn { min-height: 36px; font-size: var(--font-secondary, 14px) !important; }
 .pill-category { border-color: var(--border-hover); color: var(--text); }
-.exercise-card-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; margin-bottom: 14px; }
-.exercise-card-top .exercise-icon { flex-shrink: 0; align-self: flex-start; }
-.exercise-card-meta { flex: 1; min-width: 0; display: flex; align-items: center; flex-wrap: wrap; gap: 6px; }
-.exercise-card-top .pill-category { flex-shrink: 0; align-self: flex-start; margin-left: auto; border-color: var(--border-hover); color: var(--text); }
+.pill-equipment { border-color: var(--border); color: var(--muted); }
+.exercise-card-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
+.exercise-card-top .exercise-icon { flex-shrink: 0; }
+.exercise-card-badges { display: flex; align-items: center; gap: 6px; flex-shrink: 0; margin-left: auto; }
+.exercise-card-meta { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
 .pill-overflow { font-weight: 600; letter-spacing: .2px; }
 .exercise-minor-filters { display: flex; gap: 8px; align-items: center; flex-shrink: 0; }
 .exercise-filter-select.custom-select-wrap { min-width: 130px; max-width: 160px; width: auto; flex: 0 1 auto; }

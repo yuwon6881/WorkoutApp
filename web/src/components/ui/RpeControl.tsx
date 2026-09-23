@@ -16,6 +16,15 @@ export const RIR_OPTIONS = [
 export const RIR_STEPS = [0, 1, 2, 3, 4] as const;
 export const RPE_STEPS = RIR_STEPS;
 
+export function getRirColorClass(value: number | null): string {
+  if (value === null) return '';
+  const rounded = Math.round(value);
+  if (rounded <= 0) return 'rir-tier-0';
+  if (rounded === 1) return 'rir-tier-1';
+  if (rounded === 2) return 'rir-tier-2';
+  return 'rir-tier-easy';
+}
+
 export interface RpeControlProps {
   name?: string;
   value: number | null;
@@ -45,6 +54,7 @@ export function RpeControl({
         compact && 'compact',
         disabled && 'disabled',
         displayValue !== null ? 'has-value' : 'is-empty',
+        displayValue !== null && getRirColorClass(value),
         open && 'open'
       ].filter(Boolean).join(' ')}
     >
@@ -92,7 +102,7 @@ export function RpeControl({
                   <Button
                     key={opt.value}
                     presentation="plain"
-                    className={`rir-option-card ${isSelected ? 'selected' : ''}`}
+                    className={`rir-option-card ${getRirColorClass(opt.value)} ${isSelected ? 'selected' : ''}`}
                     onClick={() => {
                       onChange(opt.value);
                       setOpen(false);
