@@ -29,6 +29,31 @@ function overlaps(pieceStart: number, pieceEnd: number, rectStart: number, rectE
   return Math.min(pieceEnd, rectEnd) > Math.max(pieceStart, rectStart);
 }
 
+function joinedLinkRects(annotations: readonly LinkRect[]): LinkRect[] {
+  const groups: LinkRect[] = [];
+  const ordered = [...annotations].sort((a, b) =>
+    a.url.localeCompare(b.url) || Math.max(b.rect[1], b.rect[3]) - Math.max(a.rect[1], a.rect[3]));
+  for (const annotation of ordered) {
+    const url = videoUrl(annotation.url);
+    if (!url) continue;
+    const rect = annotation.rect;
+    const left = Math.min(rect[0], rect[2]);
+    const right = Math.max(rect[0], rect[2]);
+    const bottom = Math.min(rect[1], rect[3]);
+    const top = Math.max(rect[1], rect[3]);
+    const adjacent = groups.find(group => group.url === url &&
+      overlaps(left, right, group.rect[0], group.rect[2]) &&
+      bottom <= group.rect[3] + 4 && top >= group.rect[1] - 4);
+    if (adjacent) {
+      adjacent.rect = [Math.min(left, adjacent.rect[0]), Math.min(bottom, adjacent.rect[1]),
+        Math.max(right, adjacent.rect[2]), Math.max(top, adjacent.rect[3])];
+    } else {
+      groups.push({ url, rect: [left, bottom, right, top] });
+    }
+  }
+  return groups;
+}
+
 /// The phrase a link covers, rebuilt from the text under its rectangle. A name wrapped across two
 /// baselines — "Machine Chest" above "Press" — sits under one rectangle, so reading order restores
 /// it exactly as the cell prints it.
@@ -56,9 +81,8 @@ function coveredText(pieces: readonly TextPiece[], rect: LinkRect['rect']): stri
 export function pageLinks(page: number, pieces: readonly TextPiece[], annotations: readonly LinkRect[]): PdfLink[] {
   const seen = new Set<string>();
   const links: PdfLink[] = [];
-  for (const annotation of annotations) {
-    const url = videoUrl(annotation.url);
-    if (!url) continue;
+  for (const annotation of joinedLinkRects(annotations)) {
+    const url = annotation.url;
     const name = coveredText(pieces, annotation.rect).slice(0, MAX_LINK_NAME).trim();
     if (name.length === 0) continue;
     const key = `${name.toLowerCase()}${url}`;

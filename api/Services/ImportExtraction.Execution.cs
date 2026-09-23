@@ -260,6 +260,9 @@ public sealed partial class ImportService
                                     "Some phases continued the block's week numbering, so their weeks were numbered from one within each phase. The weeks themselves are unchanged.",
                                     "info", null));
                             }
+                            var longWeeks = ImportLongWeeks.Reconcile(merged.Workouts, sourcePages);
+                            merged = merged with { Workouts = longWeeks.Workouts };
+                            notices.AddRange(longWeeks.Notices);
                             // The whole draft is shaped again, not just this section's days: a day
                             // an earlier section committed before this ran is exactly the one that
                             // no retry of the last section could ever reach.

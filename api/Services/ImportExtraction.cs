@@ -164,12 +164,15 @@ public sealed partial class ImportService
             draft = named.Draft;
             var numbered = NormalizePhaseWeeks(draft.Workouts);
             if (numbered.Renumbered) draft = draft with { Workouts = numbered.Workouts };
+            var longWeeks = ImportLongWeeks.Reconcile(draft.Workouts, pages);
+            draft = draft with { Workouts = longWeeks.Workouts };
             // A whole-program answer holds the same days as a sectioned one and needs the same
             // reconciliation; it simply has no chunk to attribute a notice to.
             var shaped = ReconcileDayShape(draft.Workouts);
             var cited = ImportDayShape.ReconcilePages(draft with { Workouts = shaped.Workouts }, import.Pages);
-            draft = ImportValidation.NormalizeDraft(cited.Draft);
-            List<ImportReviewIssue> outlineNotices = [.. labeled.Notices, .. versions.Notices, .. blockRuns.Notices, .. named.Notices];
+            List<ImportPageLink> demoLinks = string.IsNullOrWhiteSpace(import.LinksJson) ? [] : Json.Read<List<ImportPageLink>>(import.LinksJson);
+            draft = ImportValidation.NormalizeDraft(ImportDemoLinks.Attach(cited.Draft, demoLinks));
+            List<ImportReviewIssue> outlineNotices = [.. labeled.Notices, .. versions.Notices, .. blockRuns.Notices, .. named.Notices, .. longWeeks.Notices];
             if (numbered.Renumbered)
             {
                 outlineNotices.Add(new ImportReviewIssue("phase_week_renumbered",

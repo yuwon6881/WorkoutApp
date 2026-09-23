@@ -2,11 +2,13 @@ import { useState } from 'react';
 import { AlertTriangle, ArrowLeftRight, Dumbbell, FileText, Link2, Plus, RefreshCw, RotateCcw, Timer, Trash2, X } from 'lucide-react';
 import type { Exercise, SetPrescription, TemplateExercise } from '../types';
 import { restOptions } from '../lib/training';
+import { demoUrlForName } from '../lib/demoLinks';
 import { Button } from './ui/Button';
 import { DemoLink } from './ui/DemoLink';
 import { Field, TextAreaField } from './ui/Field';
 import { Select } from './ui/Select';
 import { RpeControl } from './ui/RpeControl';
+import { WarmupRirNote } from './ui/WarmupRirNote';
 import { RepPrescriptionControl } from './ui/RepPrescriptionControl';
 import { SwipeableRow } from './ui/SwipeableRow';
 
@@ -58,7 +60,8 @@ export function WorkoutPrescriptionCard({
       sourceName: matched.name,
       exerciseId: matched.id,
       loadModel: matched.loadModel || exercise.loadModel,
-      substitutions: remainingSubs
+      substitutions: remainingSubs,
+      demoUrl: demoUrlForName(exercise.demoLinks, matched.name)
     });
   };
 
@@ -169,20 +172,21 @@ export function WorkoutPrescriptionCard({
             {validSubstitutions.length > 0 ? (
               <div className="substitution-chips-row" role="group" aria-label={`Substitutions for ${exercise.name}`}>
                 {validSubstitutions.map((sub, sIdx) => (
-                  <div
+                  <span
                     key={sIdx}
                     className="substitution-chip"
-                    title={`Swap ${exercise.name} with ${sub}`}
-                    onClick={() => applySubstitution(sub)}
                   >
-                    <ArrowLeftRight size={13} className="swap-icon" />
-                    <span>{sub}</span>
+                    <Button presentation="plain" className="substitution-swap-btn"
+                      aria-label={`Swap ${exercise.name} for ${sub}`}
+                      onClick={() => applySubstitution(sub)}>
+                      <ArrowLeftRight size={13} className="swap-icon" />
+                      <span>{sub}</span>
+                    </Button>
                     <Button
                       presentation="plain"
                       className="chip-remove-btn"
                       aria-label={`Remove substitution ${sub}`}
-                      onClick={e => {
-                        e.stopPropagation();
+                      onClick={() => {
                         onUpdateExercise({
                           substitutions: exercise.substitutions.filter(s => s.toLowerCase() !== sub.toLowerCase())
                         });
@@ -190,7 +194,7 @@ export function WorkoutPrescriptionCard({
                     >
                       <X size={12} />
                     </Button>
-                  </div>
+                  </span>
                 ))}
               </div>
             ) : (
@@ -252,7 +256,8 @@ export function WorkoutPrescriptionCard({
                         onChange={e =>
                           onUpdateSet(si, {
                             warmup: e.target.checked,
-                            targetRpe: e.target.checked ? null : set.targetRpe ?? 8
+                            targetRpe: e.target.checked ? null : set.targetRpe ?? 8,
+                            rir: e.target.checked ? null : set.rir
                           })
                         }
                       />
@@ -270,7 +275,7 @@ export function WorkoutPrescriptionCard({
                         onUpdateSet(si, { repMin, repMax })
                       }
                     />
-                    <div className="field rpe-field">
+                    {set.warmup ? <WarmupRirNote /> : <div className="field rpe-field">
                       <span>Target RIR</span>
                       <RpeControl
                         name={`target-rir-${exercise.id}-${si}`}
@@ -284,7 +289,6 @@ export function WorkoutPrescriptionCard({
                             ? Math.round(10 - set.targetRpe)
                             : null
                         }
-                        disabled={set.warmup}
                         onChange={val =>
                           onUpdateSet(si, {
                             targetRpe: val !== null ? (val >= 5 ? 6 : 10 - val) : null,
@@ -292,7 +296,7 @@ export function WorkoutPrescriptionCard({
                           })
                         }
                       />
-                    </div>
+                    </div>}
                     <Field
                       name={`workout-tempo-${exercise.id}-${si}`}
                       label="Tempo"

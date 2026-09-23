@@ -140,6 +140,11 @@ public class AiImportTests
         Assert.Equal(["Seated leg curl", "Nordic curl"], exercise.Substitutions);
         Assert.Equal(3, exercise.Sets.Count);
         Assert.All(exercise.Sets.Take(2), set => Assert.True(set.Warmup));
+        Assert.All(exercise.Sets.Take(2), set =>
+        {
+            Assert.Null(set.TargetRpe);
+            Assert.Null(set.Rir);
+        });
         Assert.False(exercise.Sets[2].Warmup);
         Assert.Equal("AMRAP", exercise.Sets[2].RepsText);
         Assert.Equal("3-5 min", exercise.Sets[2].RestText);

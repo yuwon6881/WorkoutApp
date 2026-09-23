@@ -59,7 +59,11 @@ internal static class ImportDayShape
             }
             duplicateIds.UnionWith(localDuplicateIds);
             var trimmedDays = new List<DraftWorkout>();
-            while (groupDays.Count > 7 && groupDays[^1].IsRestDay)
+            // A printed cycle can contain eight distinct training sessions plus rest days.
+            // Keep its rests for the whole-draft schedule reconciliation to place in app weeks.
+            var longTrainingCycle = groupDays.Where(day => !day.IsRestDay && !localDuplicateIds.Contains(day.LineId))
+                .Select(day => (day.SourcePage, Name: day.Name.Trim().ToUpperInvariant())).Distinct().Count() > 7;
+            while (!longTrainingCycle && groupDays.Count > 7 && groupDays[^1].IsRestDay)
             {
                 trimmedRestIds.Add(groupDays[^1].LineId);
                 trimmedDays.Add(groupDays[^1]);

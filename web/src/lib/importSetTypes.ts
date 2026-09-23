@@ -49,6 +49,7 @@ export function applySetType(set: DraftSet, newType: SetType): Partial<DraftSet>
       return {
         warmup: true,
         targetRpe: null,
+        rir: null,
         rpeSource: 'userEdited',
         notes: cleanTechniqueNotes(set.notes)
       };
@@ -62,6 +63,7 @@ export function applySetType(set: DraftSet, newType: SetType): Partial<DraftSet>
       return {
         warmup: false,
         targetRpe: 10,
+        rir: '0',
         notes: addTechniqueNote(set.notes, 'To failure / AMRAP'),
         rpeSource: 'userEdited'
       };

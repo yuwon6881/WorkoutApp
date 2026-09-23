@@ -128,4 +128,54 @@ public sealed class ImportDemoLinkTests
             exercises.Single(exercise => exercise.SourceName == "Machine Chest Press").DemoUrl);
         Assert.Null(exercises.Single(exercise => exercise.SourceName == "Pec Deck").DemoUrl);
     }
+
+    [Fact]
+    public async Task Printed_substitution_video_follows_template_swap_and_restore()
+    {
+        const string original = "Barbell bench press";
+        const string alternative = "Flat Smith Machine Bench Press";
+        const string originalUrl = "https://youtu.be/original";
+        const string alternativeUrl = "https://youtu.be/alternative";
+        var source = new ImportDraft("Linked block", [new DraftWorkout(Guid.NewGuid(), 1, "Push", null, null,
+            [new DraftExercise(Guid.NewGuid(), original, null, null,
+                [new DraftSet(8, 10, 8, 90, null, null, null)], Substitutions: [alternative])])]);
+        var attached = ImportDemoLinks.Attach(source, ImportDemoLinks.Normalize([
+            new ImportPageLink(1, original, originalUrl),
+            new ImportPageLink(1, alternative, alternativeUrl)
+        ], 1));
+        var linked = attached.Workouts.Single().Exercises.Single();
+        Assert.Equal(originalUrl, linked.DemoUrl);
+        Assert.Equal(alternativeUrl, ImportDemoLinks.ForName(linked.DemoLinks, alternative));
+
+        await using var harness = await Harness.Create();
+        await harness.SignIn();
+        await harness.Seed(
+            new SeedExercise("bench", original, "Chest", "Barbell", "", null),
+            new SeedExercise("smith", alternative, "Chest", "Machine", "", null));
+        var bench = await harness.ExerciseId("bench");
+        var smith = await harness.ExerciseId("smith");
+        var created = await harness.Templates.Create(new TemplateInput("Push", null, null,
+            [new TemplateExerciseInput(bench, original, null, [Harness.Set(8, 10)],
+                Substitutions: [alternative], DemoUrl: linked.DemoUrl, DemoLinks: linked.DemoLinks)], null, null),
+            null, 1, 0, default);
+        Assert.Equal(originalUrl, created.Exercises.Single().DemoUrl);
+
+        var swapped = await harness.Templates.Swap(created.Id, new TemplateSubstitutionInput(
+            created.Exercises.Single().Id, null, smith, alternative, Revision: created.Revision), default);
+        Assert.Equal(alternativeUrl, swapped.Template.Exercises.Single().DemoUrl);
+
+        var restored = await harness.Templates.RestoreSubstitution(created.Id,
+            new TemplateSubstitutionRestoreInput(swapped.Template.Exercises.Single().Id, null,
+                Revision: swapped.Template.Revision), default);
+        Assert.Equal(originalUrl, restored.Template.Exercises.Single().DemoUrl);
+
+        var session = await harness.Workouts.Start(created.Id, null, default);
+        Assert.Equal(originalUrl, session.Exercises.Single().DemoUrl);
+        var sessionSwap = await harness.Workouts.Swap(session.Id, new SessionSubstitutionInput(
+            session.Exercises.Single().Id, smith, alternative, session.Revision, null), default);
+        Assert.Equal(alternativeUrl, sessionSwap.Exercises.Single().DemoUrl);
+        var sessionRestore = await harness.Workouts.RestoreExercise(session.Id,
+            new SessionExerciseRestoreInput(sessionSwap.Exercises.Single().Id, sessionSwap.Revision), default);
+        Assert.Equal(originalUrl, sessionRestore.Exercises.Single().DemoUrl);
+    }
 }

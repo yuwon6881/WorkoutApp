@@ -14,7 +14,9 @@ public record TemplateExerciseBaseline(
     string SequenceGroup,
     string SubstitutionsJson,
     int? SourcePage = null,
-    int? RestSeconds = null);
+    int? RestSeconds = null,
+    string? DemoUrl = null,
+    string? DemoLinksJson = null);
 
 public record TemplateBaseline(
     string Name,
@@ -36,7 +38,8 @@ public sealed partial class TemplateService
     {
         var list = exercises.OrderBy(e => e.Position).Select(e => new TemplateExerciseBaseline(
             e.SlotKey, e.ExerciseId, e.SourceName, e.Note, e.Position,
-            e.SetsJson, e.SequenceGroup, e.SubstitutionsJson, e.SourcePage, e.RestSeconds)).ToList();
+            e.SetsJson, e.SequenceGroup, e.SubstitutionsJson, e.SourcePage, e.RestSeconds,
+            e.DemoUrl, e.DemoLinksJson)).ToList();
 
         return Json.Write(new TemplateBaseline(template.Name, template.Focus, template.Note, list, isLegacy));
     }
@@ -164,6 +167,9 @@ public sealed partial class TemplateService
             var slotBaseline = ResolveBaselineExercise(rowTemplate, row.SlotKey, row.Position) ?? targetBaseline;
             row.ExerciseId = slotBaseline.ExerciseId;
             row.SourceName = slotBaseline.SourceName;
+            row.DemoLinksJson = slotBaseline.DemoLinksJson ?? "{}";
+            row.DemoUrl = ImportDemoLinks.ForName(Json.Read<Dictionary<string, string>>(row.DemoLinksJson), row.SourceName)
+                ?? slotBaseline.DemoUrl ?? "";
             rowTemplate.Revision++;
             affected.Add(new SubstitutionAffectedSlot(rowTemplate.Id, row.Id, row.SlotKey, rowTemplate.Week, rowTemplate.Name));
         }
@@ -213,7 +219,9 @@ public sealed partial class TemplateService
                 SubstitutionsJson = bEx.SubstitutionsJson,
                 SourcePage = bEx.SourcePage,
                 SlotKey = bEx.SlotKey,
-                RestSeconds = bEx.RestSeconds
+                RestSeconds = bEx.RestSeconds,
+                DemoUrl = bEx.DemoUrl ?? "",
+                DemoLinksJson = bEx.DemoLinksJson ?? "{}"
             });
         }
 

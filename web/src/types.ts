@@ -15,7 +15,7 @@ export type SetPrescription = {
   loadText: string | null; notes: string | null; repsText: string | null; restText: string | null;
   rir: string | null; warmup: boolean; repsSource: Provenance; rpeSource: Provenance; restSource: Provenance; resistanceMode?: ResistanceMode; sourcePage?: number | null;
 };
-export type TemplateExercise = { id: string; exerciseId: string | null; sourceName: string; name: string; note: string; position: number; sets: SetPrescription[]; sequenceGroup: string; substitutions: string[]; loadModel?: LoadModel; sourcePage?: number | null; slotKey?: string | null; canRestore?: boolean; isModified?: boolean; restSeconds?: number | null; demoUrl?: string | null };
+export type TemplateExercise = { id: string; exerciseId: string | null; sourceName: string; name: string; note: string; position: number; sets: SetPrescription[]; sequenceGroup: string; substitutions: string[]; loadModel?: LoadModel; sourcePage?: number | null; slotKey?: string | null; canRestore?: boolean; isModified?: boolean; restSeconds?: number | null; demoUrl?: string | null; demoLinks?: Record<string, string> | null };
 export type Template = { id: string; programId: string | null; name: string; focus: string; note: string; week: number; position: number; revision: number; exercises: TemplateExercise[]; block: string; phase: string; phaseWeek: number; isRestDay: boolean; sourcePage?: number | null; phaseId?: string | null; canRestore?: boolean; isLegacyBaseline?: boolean };
 export type ProgramDayStatus = 'pending' | 'completed' | 'skipped' | 'rest_passed';
 export type ProgramProgressDay = { templateId: string; status: ProgramDayStatus; isRestDay: boolean; position: number };
@@ -76,7 +76,7 @@ export type DraftSet = {
   repsSource: Provenance; rpeSource: Provenance; restSource: Provenance; repsText: string | null; restText: string | null;
   rir: string | null; warmup: boolean; sourcePage?: number | null;
 };
-export type DraftExercise = { lineId: string; sourceName: string; exerciseId: string | null; notes: string | null; sets: DraftSet[]; sequenceGroup: string; substitutions: string[]; sourcePage?: number | null; slotKey?: string | null; restSeconds?: number | null; demoUrl?: string | null };
+export type DraftExercise = { lineId: string; sourceName: string; exerciseId: string | null; notes: string | null; sets: DraftSet[]; sequenceGroup: string; substitutions: string[]; sourcePage?: number | null; slotKey?: string | null; restSeconds?: number | null; demoUrl?: string | null; demoLinks?: Record<string, string> | null };
 export type DraftWorkout = { lineId: string; week: number; name: string; focus: string | null; notes: string | null; exercises: DraftExercise[]; block: string | null; phase: string | null; phaseWeek: number; isRestDay: boolean; sourcePage?: number | null; blockId?: string | null; weekId?: string | null };
 export type ImportDraft = { programName: string; workouts: DraftWorkout[] };
 /// Custom program drafts use the same editable workout document as PDF review, with stable

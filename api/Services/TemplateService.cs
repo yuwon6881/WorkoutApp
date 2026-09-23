@@ -6,12 +6,13 @@ namespace Workout.Api.Services;
 
 public record TemplateExerciseInput(Guid? ExerciseId, string SourceName, string? Note, List<SetPrescription> Sets,
     string? SequenceGroup = null, List<string>? Substitutions = null, int? SourcePage = null, Guid? SlotKey = null,
-    int? RestSeconds = null, string? DemoUrl = null);
+    int? RestSeconds = null, string? DemoUrl = null, Dictionary<string, string>? DemoLinks = null);
 public record TemplateInput(string Name, string? Focus, string? Note, List<TemplateExerciseInput> Exercises, int? Revision, Guid? IdempotencyId,
     string? Block = null, string? Phase = null, int PhaseWeek = 1, bool IsRestDay = false);
 public record TemplateExerciseView(Guid Id, Guid? ExerciseId, string SourceName, string Name, string Note, int Position, List<SetPrescription> Sets,
     string SequenceGroup = "", List<string>? Substitutions = null, string LoadModel = LoadModels.External, int? SourcePage = null, Guid? SlotKey = null,
-    bool CanRestore = false, bool IsModified = false, int? RestSeconds = null, string? DemoUrl = null);
+    bool CanRestore = false, bool IsModified = false, int? RestSeconds = null, string? DemoUrl = null,
+    Dictionary<string, string>? DemoLinks = null);
 public record TemplateView(Guid Id, Guid? ProgramId, string Name, string Focus, string Note, int Week, int Position, int Revision, List<TemplateExerciseView> Exercises,
     string Block = "", string Phase = "", int PhaseWeek = 1, bool IsRestDay = false, int? SourcePage = null, Guid? PhaseId = null,
     bool CanRestore = false, bool IsLegacyBaseline = false);
@@ -70,7 +71,8 @@ public sealed partial class TemplateService(AppDb db, CatalogService catalog)
                 var canRestore = bEx != null && isModified;
                 return new TemplateExerciseView(e.Id, e.ExerciseId, e.SourceName, resolvedName, e.Note, e.Position,
                     Json.Read<List<SetPrescription>>(e.SetsJson), e.SequenceGroup, Json.Read<List<string>>(e.SubstitutionsJson),
-                    model, e.SourcePage, e.SlotKey, canRestore, isModified, e.RestSeconds, e.DemoUrl is { Length: > 0 } demo ? demo : null);
+                    model, e.SourcePage, e.SlotKey, canRestore, isModified, e.RestSeconds, e.DemoUrl is { Length: > 0 } demo ? demo : null,
+                    Json.Read<Dictionary<string, string>>(e.DemoLinksJson));
             }).ToList();
 
             var templateModified = baseline != null && (
@@ -136,13 +138,21 @@ public sealed partial class TemplateService(AppDb db, CatalogService catalog)
                 : existing.ElementAtOrDefault(position);
             row ??= new TemplateExercise { UserId = db.CurrentUser!.Value, TemplateId = id };
             if (inputExercise.SlotKey is { } supplied) row.SlotKey = supplied;
+            var previousName = row.SourceName;
             row.ExerciseId = inputExercise.ExerciseId; row.SourceName = inputExercise.SourceName.Trim();
             row.Note = inputExercise.Note?.Trim() ?? ""; row.Position = position++;
             row.SetsJson = Json.Write(inputExercise.Sets); row.SequenceGroup = inputExercise.SequenceGroup?.Trim() ?? "";
             row.RestSeconds = inputExercise.RestSeconds;
             row.SubstitutionsJson = Json.Write((inputExercise.Substitutions ?? []).Where(s => !string.IsNullOrWhiteSpace(s)).Select(s => s.Trim()).Take(2).ToList());
             row.SourcePage = inputExercise.SourcePage;
-            row.DemoUrl = ImportDemoLinks.Video(inputExercise.DemoUrl) ?? "";
+            var demoLinks = inputExercise.DemoLinks is null
+                ? Json.Read<Dictionary<string, string>>(row.DemoLinksJson)
+                : ImportDemoLinks.NormalizeMap(inputExercise.DemoLinks);
+            row.DemoLinksJson = Json.Write(demoLinks);
+            row.DemoUrl = ImportDemoLinks.ForName(demoLinks, row.SourceName)
+                ?? (string.Equals(previousName, row.SourceName, StringComparison.OrdinalIgnoreCase)
+                    ? ImportDemoLinks.Video(inputExercise.DemoUrl) ?? row.DemoUrl
+                    : "");
             used.Add(row.Id);
             if (!existing.Contains(row)) db.TemplateExercises.Add(row);
         }
@@ -213,6 +223,7 @@ public sealed partial class TemplateService(AppDb db, CatalogService catalog)
                 (e.SlotKey == targetRow.SlotKey || (input.Scope == "phase" && e.Position == targetPosition)), ct);
             if (row is null) continue;
             row.ExerciseId = input.ReplacementExerciseId; row.SourceName = replacement;
+            row.DemoUrl = ImportDemoLinks.ForName(Json.Read<Dictionary<string, string>>(row.DemoLinksJson), replacement) ?? "";
             rowTemplate.Revision++;
             affected.Add(new SubstitutionAffectedSlot(rowTemplate.Id, row.Id, row.SlotKey, rowTemplate.Week, rowTemplate.Name));
         }
@@ -294,7 +305,9 @@ public sealed partial class TemplateService(AppDb db, CatalogService catalog)
                 RestSeconds = exercise.RestSeconds,
                 SubstitutionsJson = Json.Write((exercise.Substitutions ?? []).Where(s => !string.IsNullOrWhiteSpace(s)).Select(s => s.Trim()).Take(2).ToList()),
                 SourcePage = exercise.SourcePage, SlotKey = exercise.SlotKey ?? Guid.NewGuid(),
-                DemoUrl = ImportDemoLinks.Video(exercise.DemoUrl) ?? ""
+                DemoLinksJson = Json.Write(ImportDemoLinks.NormalizeMap(exercise.DemoLinks)),
+                DemoUrl = ImportDemoLinks.ForName(exercise.DemoLinks, exercise.SourceName)
+                    ?? ImportDemoLinks.Video(exercise.DemoUrl) ?? ""
             });
     }
 

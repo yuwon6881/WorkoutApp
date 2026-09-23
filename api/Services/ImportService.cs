@@ -182,7 +182,13 @@ public sealed partial class ImportService(AppDb db, WorkoutAi ai, CatalogService
                 if (warmups > 0 && working.Count > 0)
                 {
                     var seed = working[0];
-                    var warmup = seed with { Warmup = true, RepsSource = "inferred", RpeSource = seed.TargetRpe == null ? "inferred" : seed.RpeSource };
+                    // The table's RPE columns prescribe working sets. Warm-up Sets is only a
+                    // count, so inheriting the working row's effort invents a warm-up target.
+                    var warmup = seed with
+                    {
+                        Warmup = true, TargetRpe = null, Rir = null,
+                        RepsSource = "inferred", RpeSource = "inferred"
+                    };
                     working.InsertRange(0, Enumerable.Repeat(warmup, warmups));
                 }
                 var noteParts = new[] { ImportNormalization.Text(source.Notes, 1000), ImportNormalization.Text(source.CoachingNotes, 1000) }
@@ -422,7 +428,8 @@ public sealed partial class ImportService(AppDb db, WorkoutAi ai, CatalogService
         var input = new ProgramInput(draft.ProgramName,
             draft.Workouts.Select(w => new ProgramWorkoutInput(w.Week, w.Name, w.Focus, w.Notes,
                 w.Exercises.Select(e => new TemplateExerciseInput(e.ExerciseId, e.SourceName, e.Notes,
-                    e.Sets.Select(ToPrescription).ToList(), e.SequenceGroup, e.Substitutions, e.SourcePage, e.SlotKey, e.RestSeconds, e.DemoUrl)).ToList(),
+                    e.Sets.Select(ToPrescription).ToList(), e.SequenceGroup, e.Substitutions, e.SourcePage, e.SlotKey,
+                    e.RestSeconds, e.DemoUrl, e.DemoLinks)).ToList(),
                 w.Block, w.Phase, w.PhaseWeek, w.IsRestDay, w.SourcePage)).ToList(), null);
         await programs.Validate(input, ct, allowMissingWorkingRpe: true);
         // Imported drafts always enter Standby. Even a completed PDF must be explicitly

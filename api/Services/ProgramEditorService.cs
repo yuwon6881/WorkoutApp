@@ -22,7 +22,8 @@ public sealed class ProgramEditorService(ProgramService programs)
                 workout.Exercises.Select(exercise => new TemplateExerciseInput(exercise.ExerciseId,
                     exercise.SourceName, exercise.Notes,
                     exercise.Sets.Select(ToPrescription).ToList(), exercise.SequenceGroup,
-                    exercise.Substitutions, exercise.SourcePage, exercise.SlotKey, exercise.RestSeconds)).ToList(),
+                    exercise.Substitutions, exercise.SourcePage, exercise.SlotKey, exercise.RestSeconds,
+                    exercise.DemoUrl, exercise.DemoLinks)).ToList(),
                 workout.Block, workout.Phase, workout.PhaseWeek, workout.IsRestDay, workout.SourcePage)).ToList(),
             input.IdempotencyId);
 

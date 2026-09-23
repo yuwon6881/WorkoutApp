@@ -33,7 +33,9 @@ export function Programs({ data, exercises, onStart, onImport, onChanged }: {
     const input = {
       name: savedDraft.name.trim(), focus: savedDraft.focus.trim(), note: null, revision: savedDraft.revision, idempotencyId: crypto.randomUUID(),
       exercises: savedDraft.exercises.map(e => ({ exerciseId: e.exerciseId, sourceName: e.sourceName || e.name, note: e.note || null, sets: e.sets,
-        sequenceGroup: e.sequenceGroup || null, substitutions: e.substitutions ?? [], sourcePage: e.sourcePage ?? null, slotKey: e.slotKey ?? null }))
+        sequenceGroup: e.sequenceGroup || null, substitutions: e.substitutions ?? [], sourcePage: e.sourcePage ?? null,
+        slotKey: e.slotKey ?? null, restSeconds: e.restSeconds ?? null, demoUrl: e.demoUrl ?? null,
+        demoLinks: e.demoLinks ?? null }))
     };
     try {
       if (savedDraft.id) await api.updateTemplate(savedDraft.id, input); else await api.createTemplate(input);

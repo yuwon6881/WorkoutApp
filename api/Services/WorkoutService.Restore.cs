@@ -17,7 +17,8 @@ public record SessionExerciseBaseline(
     string ProgressionJson,
     List<BaselineSetSnapshot> PlannedSets,
     int? SourcePage = null,
-    int? RestSeconds = null);
+    int? RestSeconds = null,
+    string? DemoUrl = null);
 
 public record BaselineSetSnapshot(
     int Position,
@@ -41,7 +42,7 @@ public sealed partial class WorkoutService
         return Json.Write(new SessionExerciseBaseline(
             exercise.ExerciseId, exercise.NameSnapshot, exercise.Note, exercise.PrescriptionJson,
             exercise.SequenceGroup, exercise.SubstitutionsJson, exercise.LoadModel,
-            exercise.ProgressionJson, baselineSets, exercise.SourcePage, exercise.RestSeconds));
+            exercise.ProgressionJson, baselineSets, exercise.SourcePage, exercise.RestSeconds, exercise.DemoUrl));
     }
 
     public async Task<SessionView> RestoreExercise(Guid id, SessionExerciseRestoreInput input, CancellationToken ct)
@@ -84,6 +85,8 @@ public sealed partial class WorkoutService
         sourceRow.ProgressionJson = baseline.ProgressionJson;
         sourceRow.SourcePage = baseline.SourcePage;
         sourceRow.RestSeconds = baseline.RestSeconds;
+        sourceRow.DemoUrl = baseline.DemoUrl ?? ImportDemoLinks.ForName(
+            Json.Read<Dictionary<string, string>>(sourceRow.DemoLinksJson), baseline.NameSnapshot) ?? "";
         sourceRow.IsReplacement = false;
         sourceRow.OriginalExerciseId = null;
         sourceRow.OriginalNameSnapshot = "";

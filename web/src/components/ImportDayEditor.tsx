@@ -2,10 +2,12 @@ import { useEffect, useState } from 'react';
 import { AlertTriangle, ArrowLeftRight, Dumbbell, Link2, Loader2, Plus, RotateCcw, Timer, Trash2, X } from 'lucide-react';
 import type { DraftExercise, DraftSet, DraftWorkout, Exercise } from '../types';
 import { restOptions } from '../lib/training';
+import { demoUrlForName } from '../lib/demoLinks';
 import { Button } from './ui/Button';
 import { DemoLink } from './ui/DemoLink';
 import { Select } from './ui/Select';
 import { RpeControl } from './ui/RpeControl';
+import { WarmupRirNote } from './ui/WarmupRirNote';
 import { RepPrescriptionControl } from './ui/RepPrescriptionControl';
 import { Field, TextAreaField } from './ui/Field';
 import { Modal } from './ui/Modal';
@@ -130,7 +132,7 @@ function ExerciseEditor({ exercise, exercises, allDayExercises, onChange, onRemo
     const patch = applySetType(exercise.sets[index], newType);
     let newSets = exercise.sets.map((s, i) => i === index ? { ...s, ...patch } : s);
     if (newType === 'warmup') {
-      newSets = newSets.map((s, i) => i < index && !s.warmup ? { ...s, warmup: true, targetRpe: null, rpeSource: 'userEdited', notes: cleanTechniqueNotes(s.notes) } : s);
+      newSets = newSets.map((s, i) => i < index && !s.warmup ? { ...s, warmup: true, targetRpe: null, rir: null, rpeSource: 'userEdited', notes: cleanTechniqueNotes(s.notes) } : s);
     } else {
       newSets = newSets.map((s, i) => i > index && s.warmup ? { ...s, warmup: false, targetRpe: s.targetRpe ?? 8, notes: cleanTechniqueNotes(s.notes), rpeSource: 'userEdited' } : s);
     }
@@ -153,7 +155,8 @@ function ExerciseEditor({ exercise, exercises, allDayExercises, onChange, onRemo
       return;
     }
     const selectedExercise = exerciseId ? exercises.find(item => item.id === exerciseId) : undefined;
-    onChange({ ...exercise, exerciseId, sourceName: selectedExercise?.name ?? exercise.sourceName });
+    const sourceName = selectedExercise?.name ?? exercise.sourceName;
+    onChange({ ...exercise, exerciseId, sourceName, demoUrl: demoUrlForName(exercise.demoLinks, sourceName) });
     setPickerOpen(false);
   };
 
@@ -181,7 +184,8 @@ function ExerciseEditor({ exercise, exercises, allDayExercises, onChange, onRemo
       ...exercise,
       sourceName: matched.name,
       exerciseId: matched.id,
-      substitutions: remainingSubs
+      substitutions: remainingSubs,
+      demoUrl: demoUrlForName(exercise.demoLinks, matched.name)
     };
     if (onPropagateSubstitution) {
       void onPropagateSubstitution(currentName, matched.name, exercise.lineId);
@@ -299,7 +303,6 @@ function ExerciseEditor({ exercise, exercises, allDayExercises, onChange, onRemo
                   <Button
                     presentation="plain"
                     className="substitution-swap-btn"
-                    title={`Swap ${exercise.sourceName} for ${sub} across this block`}
                     aria-label={`Swap ${exercise.sourceName} for ${sub} across this block`}
                     disabled={isRestoring}
                     onClick={() => applySubstitution(sub)}
@@ -310,7 +313,6 @@ function ExerciseEditor({ exercise, exercises, allDayExercises, onChange, onRemo
                   <Button
                     presentation="plain"
                     className="chip-remove-btn"
-                    title={`Remove substitution ${sub}`}
                     aria-label={`Remove substitution ${sub}`}
                     disabled={isRestoring}
                     onClick={() => {
@@ -375,7 +377,7 @@ function ExerciseEditor({ exercise, exercises, allDayExercises, onChange, onRemo
                     editSet(index, { repMin, repMax, repsText: null, repsSource: 'userEdited' })
                   }
                 />
-                <div className="field rpe-field" data-import-field="targetRpe" data-import-set-index={index}>
+                {set.warmup ? <WarmupRirNote /> : <div className="field rpe-field" data-import-field="targetRpe" data-import-set-index={index}>
                   <span>Target RIR</span>
                   <RpeControl
                     name={`target-rir-${exercise.lineId}-${index}`}
@@ -389,14 +391,13 @@ function ExerciseEditor({ exercise, exercises, allDayExercises, onChange, onRemo
                         ? Math.round(10 - set.targetRpe)
                         : null
                     }
-                    disabled={set.warmup}
                     onChange={value => editSet(index, {
                       targetRpe: value !== null ? (value >= 5 ? 6 : 10 - value) : null,
                       rir: value !== null ? (value >= 5 ? '5+' : String(value)) : null,
                       rpeSource: 'userEdited'
                     })}
                   />
-                </div>
+                </div>}
               </div>
             </div>
           </SwipeableRow>
@@ -406,7 +407,9 @@ function ExerciseEditor({ exercise, exercises, allDayExercises, onChange, onRemo
     <div className="import-set-footer">
       <Button variant="secondary" className="import-add-set" disabled={exercise.sets.length >= 24} onClick={() => {
         const previous = exercise.sets.at(-1) ?? blankSet();
-        onChange({ ...exercise, sets: [...exercise.sets, { ...previous, warmup: false, repsSource: 'userEdited', rpeSource: 'userEdited', restSource: 'userEdited' }] });
+        onChange({ ...exercise, sets: [...exercise.sets, { ...previous, warmup: false,
+          targetRpe: previous.targetRpe ?? 8, rir: previous.warmup ? null : previous.rir,
+          repsSource: 'userEdited', rpeSource: 'userEdited', restSource: 'userEdited' }] });
       }}>
         <Plus size={15} />Add another set
       </Button>

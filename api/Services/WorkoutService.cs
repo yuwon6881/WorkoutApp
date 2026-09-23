@@ -149,7 +149,7 @@ public sealed partial class WorkoutService(
                     RestSeconds = plan.RestSeconds,
                     SubstitutionsJson = plan.SubstitutionsJson, LoadModel = loadModel,
                     SourceTemplateExerciseId = plan.Id, SourceSlotKey = plan.SlotKey, SourcePhaseId = template.ProgramPhaseId, SourcePage = plan.SourcePage,
-                    DemoUrl = plan.DemoUrl
+                    DemoUrl = plan.DemoUrl, DemoLinksJson = plan.DemoLinksJson
                 };
                 db.SessionExercises.Add(exercise);
 
@@ -448,6 +448,8 @@ public sealed partial class WorkoutService(
         if (string.IsNullOrWhiteSpace(sourceRow.OriginalNameSnapshot)) sourceRow.OriginalNameSnapshot = sourceRow.NameSnapshot;
         sourceRow.ExerciseId = input.ReplacementExerciseId;
         sourceRow.NameSnapshot = replacementName;
+        sourceRow.DemoUrl = ImportDemoLinks.ForName(
+            Json.Read<Dictionary<string, string>>(sourceRow.DemoLinksJson), replacementName) ?? "";
         sourceRow.LoadModel = replacementModel;
         sourceRow.ProgressionJson = "";
         sourceRow.IsReplacement = true;
@@ -585,6 +587,8 @@ public sealed partial class WorkoutService(
                     (e.SlotKey == swap.SourceSlotKey || (sourcePosition.HasValue && e.Position == sourcePosition.Value)), ct);
                 if (row is null) continue;
                 row.ExerciseId = swap.ReplacementExerciseId; row.SourceName = swap.ReplacementName;
+                row.DemoUrl = ImportDemoLinks.ForName(
+                    Json.Read<Dictionary<string, string>>(row.DemoLinksJson), swap.ReplacementName) ?? "";
                 template.Revision++;
             }
         }

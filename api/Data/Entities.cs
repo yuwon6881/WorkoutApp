@@ -197,6 +197,8 @@ public sealed class TemplateExercise : OwnedRecord
     /// Demonstration video the source document linked from this exercise name, if any. Kept with
     /// the exercise so it is still reachable mid-set, which is when it is actually wanted.
     public string DemoUrl { get; set; } = "";
+    /// Source-video links for this exercise and its printed substitutions.
+    public string DemoLinksJson { get; set; } = "{}";
     /// Stable identity for this logical exercise slot. Editing a template updates this row in
     /// place so active sessions and future substitutions keep their source link.
     public Guid SlotKey { get; set; } = Guid.NewGuid();
@@ -249,6 +251,7 @@ public sealed class SessionExercise : OwnedRecord
     public int? SourcePage { get; set; }
     /// Demonstration video carried from the program so it stays reachable mid-set.
     public string DemoUrl { get; set; } = "";
+    public string DemoLinksJson { get; set; } = "{}";
     /// Snapshot of the planned exercise and its initial sets when the workout begins.
     public string BaselineJson { get; set; } = "";
 }

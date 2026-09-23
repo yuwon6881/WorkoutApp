@@ -67,16 +67,38 @@ internal static class ImportDemoLinks
         {
             Workouts = draft.Workouts.Select(workout => workout with
             {
-                Exercises = workout.Exercises.Select(exercise => exercise.DemoUrl is { Length: > 0 }
-                    || !byName.TryGetValue(Key(exercise.SourceName), out var url)
-                    ? exercise
-                    : exercise with { DemoUrl = url }).ToList()
+                Exercises = workout.Exercises.Select(exercise =>
+                {
+                    var names = new[] { exercise.SourceName }.Concat(exercise.Substitutions ?? []);
+                    var available = new Dictionary<string, string>(StringComparer.Ordinal);
+                    foreach (var name in names)
+                        if (byName.TryGetValue(Key(name), out var link)) available[Key(name)] = link;
+                    var current = ForName(available, exercise.SourceName);
+                    return exercise with { DemoUrl = current, DemoLinks = available };
+                }).ToList()
             }).ToList()
         };
     }
 
     /// The same spelling both sides, so "DB Flye" in the annotation reaches "Dumbbell Flye" in the
     /// read and neither casing nor punctuation loses a link.
-    private static string Key(string? value)
+    public static string? ForName(IReadOnlyDictionary<string, string>? links, string? name)
+        => links is not null && links.TryGetValue(Key(name), out var url) ? Video(url) : null;
+
+    public static Dictionary<string, string> NormalizeMap(IReadOnlyDictionary<string, string>? links)
+    {
+        var result = new Dictionary<string, string>(StringComparer.Ordinal);
+        foreach (var (name, rawUrl) in links ?? new Dictionary<string, string>())
+        {
+            var key = Key(name);
+            var url = Video(rawUrl);
+            if (key.Length == 0 || key.Length > MaxNameChars || url is null) continue;
+            result.TryAdd(key, url);
+            if (result.Count >= 4) break;
+        }
+        return result;
+    }
+
+    public static string Key(string? value)
         => CatalogMatching.Expand(CatalogService.Normalize(value ?? ""));
 }

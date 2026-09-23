@@ -1,6 +1,7 @@
 import { forwardRef, useCallback, useImperativeHandle } from 'react';
 import { CalendarDays, Check, RotateCcw, Trash2 } from 'lucide-react';
 import type { DraftWorkout, Exercise, ImportDraft } from '../types';
+import { demoUrlForName } from '../lib/demoLinks';
 import { Button } from './ui/Button';
 import { Field } from './ui/Field';
 import { MenuButton, MenuItem } from './ui/MenuButton';
@@ -138,7 +139,8 @@ export const DraftOutline = forwardRef<DraftOutlineHandle, {
             ...ex,
             sourceName: replacementLibraryExercise ? replacementLibraryExercise.name : replacementName,
             exerciseId: replacementLibraryExercise ? replacementLibraryExercise.id : null,
-            substitutions: nextSubs
+            substitutions: nextSubs,
+            demoUrl: demoUrlForName(ex.demoLinks, replacementLibraryExercise?.name ?? replacementName)
           };
         }
         return ex;

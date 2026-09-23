@@ -329,6 +329,7 @@ public sealed class ProgramService(AppDb db, TemplateService templates, ProgramP
                     Position = exercise.Position, Note = exercise.Note, SetsJson = exercise.SetsJson,
                     SequenceGroup = exercise.SequenceGroup, RestSeconds = exercise.RestSeconds,
                     SubstitutionsJson = exercise.SubstitutionsJson, SourcePage = exercise.SourcePage,
+                    DemoUrl = exercise.DemoUrl, DemoLinksJson = exercise.DemoLinksJson,
                     SlotKey = Guid.NewGuid()
                 });
         }

@@ -15,7 +15,7 @@ public record DraftExercise(
     string SequenceGroup = "", List<string>? Substitutions = null, int? SourcePage = null,
     Guid? SlotKey = null, int? RestSeconds = null,
     /// A demonstration video the document links from this exercise name, when it carries one.
-    string? DemoUrl = null);
+    string? DemoUrl = null, Dictionary<string, string>? DemoLinks = null);
 
 public record DraftWorkout(
     Guid LineId, int Week, string Name, string? Focus, string? Notes, List<DraftExercise> Exercises,

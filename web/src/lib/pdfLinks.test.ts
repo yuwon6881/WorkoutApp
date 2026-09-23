@@ -30,6 +30,27 @@ describe('PDF exercise demo links', () => {
     ]);
   });
 
+  it('joins adjacent line links into one complete exercise name', () => {
+    const pieces = [
+      piece('Seated Super-', 202, 438, 93),
+      piece('Bayesian High', 202, 420, 100),
+      piece('Cable Curl', 214, 402, 68),
+      piece('Next exercise', 202, 320, 100)
+    ];
+    const url = 'https://youtu.be/example';
+    const annotations: LinkRect[] = [
+      { url, rect: [201, 416, 300, 433] },
+      { url, rect: [203, 315, 303, 332] },
+      { url, rect: [202, 434, 295, 451] },
+      { url, rect: [214, 398, 283, 415] }
+    ];
+
+    expect(pageLinks(6, pieces, annotations)).toEqual([
+      { page: 6, name: 'Seated Super- Bayesian High Cable Curl', url },
+      { page: 6, name: 'Next exercise', url }
+    ]);
+  });
+
   it('ignores a rectangle that covers no text and de-duplicates repeated links', () => {
     const pieces = [piece('Pec Deck', 40, 200)];
     const annotations: LinkRect[] = [
