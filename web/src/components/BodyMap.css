@@ -1,6 +1,8 @@
 :root{
-  --muscle-empty:var(--surface-hover);
-  --muscle-outline:var(--border-hover);
+  /* A plate at rest: clearly body against the card, in either theme. */
+  --muscle-empty:color-mix(in srgb,var(--muted) 42%,var(--surface));
+  /* The gap between two plates is the card showing through. */
+  --muscle-gap:var(--surface);
 }
 .body-map-pair{
   display:grid;
@@ -34,30 +36,23 @@
   overflow:visible;
 }
 
-/* Background body contour. It carries the same fill as an untrained muscle on purpose: the regions
-   tile the figure, but any sub-pixel seam left between two of them would otherwise read as a dark
-   hole in the body rather than as part of it. Head, hands and feet stay legible through the
-   stroke. */
-.body-map-silhouette{
+/* The figure is only plates. Each plate's stroke is drawn in the card colour, so the thin gaps
+   that separate muscles need no shared outline and cannot open into holes. Head, elbows, hands,
+   knees and feet are neutral plates that never fill. */
+.body-map-part{
   fill:var(--muscle-empty);
-  stroke:var(--border);
-  stroke-width:1;
+  stroke:var(--muscle-gap);
+  stroke-width:1.6;
   stroke-linejoin:round;
-  vector-effect:non-scaling-stroke;
 }
 
-/* Interactive muscle regions.  Untrained muscles get a lighter fill
-   with visible outlines so every muscle is distinct even at rest.
-   Trained muscles receive an accent-tinted fill whose depth reflects
-   how many sets that muscle accumulated. */
+/* One accent hue whose depth is the muscle's share of the busiest muscle; an untrained muscle is
+   the same neutral plate as the rest of the body. */
 .muscle-region{
-  fill:color-mix(in srgb,var(--accent) var(--muscle-shade,16%),var(--surface-raised));
-  /* The separation between two muscles is the only thing telling them apart when neither is
-     trained, so the outline is drawn against the hover border rather than the faint one. */
-  stroke:var(--border-hover);
-  stroke-width:1.25;
+  fill:color-mix(in srgb,var(--accent) var(--muscle-shade,16%),var(--muscle-empty));
+  stroke:var(--muscle-gap);
+  stroke-width:1.6;
   stroke-linejoin:round;
-  vector-effect:non-scaling-stroke;
   cursor:pointer;
   outline:none;
   transition:fill var(--motion-control) var(--motion-ease),stroke var(--motion-control) var(--motion-ease);
@@ -68,19 +63,6 @@
 .muscle-region.is-active{
   stroke:var(--accent);
   stroke-width:2.2;
-}
-
-/* Decorative anatomy detail lines (ab grid, spine) drawn on top of
-   muscle fills.  Non-interactive and invisible to assistive tech. */
-.muscle-anatomy-lines{
-  fill:none;
-  stroke:var(--border-hover);
-  stroke-width:0.9;
-  stroke-linecap:round;
-  stroke-linejoin:round;
-  vector-effect:non-scaling-stroke;
-  pointer-events:none;
-  opacity:0.75;
 }
 
 /* A reserved row: the readout never adds or removes height while a muscle is pointed at. */

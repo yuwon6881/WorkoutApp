@@ -2,10 +2,7 @@ import type { CSSProperties } from 'react';
 import type { MuscleBalanceRow } from '../types';
 import { formatSets, shadeFor } from '../lib/muscleBalance';
 import './BodyMap.css';
-import {
-  BACK_ANATOMY_LINES, BACK_REGIONS, BACK_SILHOUETTE, BODY_MAP_VIEW_BOX,
-  FRONT_ANATOMY_LINES, FRONT_REGIONS, FRONT_SILHOUETTE
-} from './bodyMapPaths';
+import { BACK_PARTS, BACK_REGIONS, BODY_MAP_VIEW_BOX, FRONT_PARTS, FRONT_REGIONS } from './bodyMapPaths';
 
 type BodyMapProps = {
   muscles: MuscleBalanceRow[];
@@ -37,11 +34,10 @@ function makeAccessibleLabel(view: string, regions: Record<string, string>, musc
   return `${view} body heat map. Most trained: ${top}. Not trained: ${untrained.join(', ') || 'none'}.`;
 }
 
-function BodyFigure({ view, regions, anatomyLines, silhouette, muscles, peak, activeMuscle, onHoverMuscle, onSelectMuscle }: {
+function BodyFigure({ view, regions, parts, muscles, peak, activeMuscle, onHoverMuscle, onSelectMuscle }: {
   view: 'Front' | 'Back';
   regions: Record<string, string>;
-  anatomyLines: string;
-  silhouette: string;
+  parts: string;
   muscles: MuscleBalanceRow[];
   peak: number;
   activeMuscle?: string | null;
@@ -60,7 +56,7 @@ function BodyFigure({ view, regions, anatomyLines, silhouette, muscles, peak, ac
         aria-label={makeAccessibleLabel(view, regions, muscles)}
         focusable="false"
       >
-        <path className="body-map-silhouette" d={silhouette} aria-hidden="true" />
+        <path className="body-map-part" d={parts} aria-hidden="true" />
         {Object.entries(regions).map(([muscle, path]) => {
           const sets = values.get(muscle) ?? 0;
           const isActive = activeMuscle === muscle;
@@ -88,7 +84,6 @@ function BodyFigure({ view, regions, anatomyLines, silhouette, muscles, peak, ac
             />
           );
         })}
-        <path className="muscle-anatomy-lines" d={anatomyLines} aria-hidden="true" />
       </svg>
     </figure>
   );
@@ -100,8 +95,7 @@ export function BodyMap({ muscles, peak, activeMuscle, onHoverMuscle, onSelectMu
       <BodyFigure
         view="Front"
         regions={FRONT_REGIONS}
-        anatomyLines={FRONT_ANATOMY_LINES}
-        silhouette={FRONT_SILHOUETTE}
+        parts={FRONT_PARTS}
         muscles={muscles}
         peak={peak}
         activeMuscle={activeMuscle}
@@ -111,8 +105,7 @@ export function BodyMap({ muscles, peak, activeMuscle, onHoverMuscle, onSelectMu
       <BodyFigure
         view="Back"
         regions={BACK_REGIONS}
-        anatomyLines={BACK_ANATOMY_LINES}
-        silhouette={BACK_SILHOUETTE}
+        parts={BACK_PARTS}
         muscles={muscles}
         peak={peak}
         activeMuscle={activeMuscle}

@@ -1,17 +1,7 @@
 /**
- * Anatomically detailed SVG paths for the muscle-coverage body map.
- * Re-exports front-view and back-view silhouettes, anatomy lines, and muscle regions.
+ * SVG plates for the muscle-coverage body map: front and back views, each a set of neutral body
+ * plates and one entry per canonical muscle.
  */
 
-export {
-  BODY_MAP_VIEW_BOX,
-  FRONT_SILHOUETTE,
-  FRONT_ANATOMY_LINES,
-  FRONT_REGIONS
-} from './bodyMapFrontPaths';
-
-export {
-  BACK_SILHOUETTE,
-  BACK_ANATOMY_LINES,
-  BACK_REGIONS
-} from './bodyMapBackPaths';
+export { BODY_MAP_VIEW_BOX, FRONT_PARTS, FRONT_REGIONS } from './bodyMapFrontPaths';
+export { BACK_PARTS, BACK_REGIONS } from './bodyMapBackPaths';

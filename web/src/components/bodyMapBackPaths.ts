@@ -1,193 +1,38 @@
 /**
- * Anatomically detailed SVG paths for the muscle-coverage body map (Back view).
- * Coordinate space: 200 × 420, figure centred at x = 100.
- *
- * The same rule as the front view applies here: a boundary two muscles share is written once and
- * both regions are composed from it, so the silhouette cannot show through a disagreement. See
- * `bodyMapFrontPaths.ts` for the reasoning, for `mirror`, and for the armpit gap.
+ * Back view of the muscle-coverage body map, in the front view's coordinate space. The arms hang
+ * where the front view hangs them, so the arm plates that are not muscles are shared.
  */
+import { ELBOW, FOREARM_INNER, FOREARM_OUTER, HAND, HEAD, pair } from './bodyMapFrontPaths';
 
-import { FRONT_SEAMS, FRONT_SILHOUETTE, mirror } from './bodyMapFrontPaths';
+const BACK_KNEE = 'M71 300 C77 298 86 298 92 300 C92 306 91 312 89 316 C82 318 76 318 72 314 C70 309 70 304 71 300 Z';
+const HEEL = 'M74 388 C72 394 72 402 74 408 C77 413 85 413 88 409 C90 403 90 395 87 388 Z';
 
-/// The body outline does not differ between views; only what is drawn on it does.
-export const BACK_SILHOUETTE = FRONT_SILHOUETTE;
+export const BACK_PARTS = [HEAD, pair(ELBOW, HAND, BACK_KNEE, HEEL)].join(' ');
 
-/* ────────────────────────────────────────────────
- * Shared seams (left side). The arm and leg edges are the front view's own, so a muscle cannot sit
- * in a different place depending on which way the figure is facing.
- * ──────────────────────────────────────────────── */
-
-/// Nape of the neck into the shoulder line: (90,66) → (100,73) → (110,66).
-const NECK_BASE = 'L92 70 C95 72 97 73 100 73 C103 73 105 72 108 70 L110 66';
-
-/// Lower edge of the trapezius kite on the left: (76,100) → (100,140).
-const TRAP_LAT = 'L100 140';
-
-const DELT_OUTER = FRONT_SEAMS.deltOuter;
-const DELT_ARM = FRONT_SEAMS.deltArm;
-const ARM_INNER_UPPER = FRONT_SEAMS.armInnerUpper;
-const ARM_MEDIAL = FRONT_SEAMS.armMedial;
-const KNEE_LEFT = FRONT_SEAMS.kneeLeft;
-
-const ARM_LATERAL_UPPER_REVERSED = FRONT_SEAMS.armLateralUpperReversed;
-
-const FOREARM_MEDIAL = FRONT_SEAMS.forearmMedial;
-const FOREARM_LATERAL_REVERSED = FRONT_SEAMS.forearmLateralReversed;
-const THIGH_OUTER = FRONT_SEAMS.thighOuter;
-const SHANK_OUTER_REVERSED = FRONT_SEAMS.shankOuterReversed;
-
-/// Iliac crest: where the lower back hands over to the gluteals. (100,202) → (79,205).
-const LAT_GLUTE = 'C90 201 84 201 78 200';
-
-/// Outer wall of the torso, walked upward from the crest to the trapezius: (79,205) → (76,100).
-const LAT_LATERAL_UPWARD = 'C81 192 83 182 82 170 C80 152 77 132 76 100';
-
-/// The hip and thigh outline from the crest down to the gluteal fold: (78,200) → (70,246).
-const HIP_OUTER = 'C72 214 69 230 70 246';
-
-/// Gluteal fold: where the gluteals hand over to the hamstrings. (75,246) → (97,246).
-const GLUTE_HAMSTRING = 'C74 254 82 258 89 258 C94 258 96 252 98 246';
-const GLUTE_HAMSTRING_REVERSED = 'C96 252 94 258 89 258 C82 258 74 254 70 246';
-
-/* ────────────────────────────────────────────────
- * Back-view muscle regions. Record order is paint order.
- * ──────────────────────────────────────────────── */
-const NECK = `
-  M92 55
-  C94 57 97 59 100 59
-  C103 59 106 57 108 55
-  L108 60
-  C108 62 108 64 110 66
-  L108 70
-  C105 72 103 73 100 73
-  C97 73 95 72 92 70
-  L90 66
-  C92 64 92 62 92 60 Z
-`;
-
-/// Full trapezius diamond, from the nape to mid-spine.
-const TRAPS = `
-  M90 66
-  ${NECK_BASE}
-  C118 68 128 72 136 78
-  L124 100
-  ${mirror(TRAP_LAT)}
-  L76 100
-  L62 78
-  C72 72 82 68 90 66 Z
-`;
-
-const SHOULDER_LEFT = `
-  M62 78
-  ${DELT_OUTER}
-  ${DELT_ARM}
-  ${ARM_INNER_UPPER}
-  Z
-`;
-
-/// Latissimus and lower back, reaching the torso's own outline so the flank is covered.
-const BACK_LEFT = `
-  M76 100
-  ${TRAP_LAT}
-  L100 202
-  ${LAT_GLUTE}
-  ${LAT_LATERAL_UPWARD}
-  Z
-`;
-
-const TRICEP_LEFT = `
-  M50 130
-  ${DELT_ARM}
-  ${ARM_MEDIAL}
-  L54 168
-  ${ARM_LATERAL_UPPER_REVERSED}
-  Z
-`;
-
-const FOREARM_LEFT = `
-  M54 168
-  L70 168
-  ${FOREARM_MEDIAL}
-  L56 224
-  ${FOREARM_LATERAL_REVERSED}
-  Z
-`;
-
-const GLUTE_LEFT = `
-  M100 202
-  ${LAT_GLUTE}
-  ${HIP_OUTER}
-  ${GLUTE_HAMSTRING}
-  C98 230 99 214 100 202
-  Z
-`;
-
-/// The hamstring runs down to the same knee line the calf starts from.
-const HAMSTRING_LEFT = `
-  M98 246
-  ${GLUTE_HAMSTRING_REVERSED}
-  C72 264 77 282 78 294
-  C78 297 79 300 79 302
-  ${KNEE_LEFT}
-  C93 296 94 290 94 284
-  C96 270 97 258 98 246
-  Z
-`;
-
-/// Gastrocnemius, sharing the knee line with the thigh above it.
-const CALF_LEFT = `
-  M79 302
-  ${KNEE_LEFT}
-  C94 316 95 330 95 344
-  C95 358 94 372 92 382
-  L80 382
-  ${SHANK_OUTER_REVERSED}
-  Z
-`;
-
-const pair = (left: string) => `${left}\n${mirror(left)}`;
-
+/// Drawn in this order, so a later plate's gap line crosses an earlier one where they overlap.
 export const BACK_REGIONS: Record<string, string> = {
-  Neck: NECK,
-  Traps: TRAPS,
-  Back: pair(BACK_LEFT),
-  Shoulders: pair(SHOULDER_LEFT),
-  Triceps: pair(TRICEP_LEFT),
-  Forearms: pair(FOREARM_LEFT),
-  Glutes: pair(GLUTE_LEFT),
-  Hamstrings: pair(HAMSTRING_LEFT),
-  Calves: pair(CALF_LEFT)
-};
-
-/// Definition drawn over the filled regions. Decoration only — never a fifteenth muscle.
-const BACK_DETAIL_LEFT = `
-  M83 98 L91 112 L83 130
-  M82 152 C87 170 93 186 98 197
-  M55 110 C59 103 63 96 66 90
-  M63 138 C66 145 67 152 67 159
-  M81 220 C87 228 93 232 98 234
-  M82 264 C86 280 88 292 87 300
-  M81 300 L90 300
-  M85 320 C87 340 87 360 86 378
-`;
-
-export const BACK_ANATOMY_LINES = `
-  M100 78 L100 200
-  ${BACK_DETAIL_LEFT}
-  ${mirror(BACK_DETAIL_LEFT)}
-`;
-
-/// Exported so the path tests can assert both regions on a seam meet at the same points.
-export const BACK_SEAMS = {
-  trapLat: TRAP_LAT,
-  deltOuter: DELT_OUTER,
-  deltArm: DELT_ARM,
-  armInnerUpper: ARM_INNER_UPPER,
-  armMedial: ARM_MEDIAL,
-  latLateralUpward: LAT_LATERAL_UPWARD,
-  latGlute: LAT_GLUTE,
-  hipOuter: HIP_OUTER,
-  thighOuter: THIGH_OUTER,
-  gluteHamstring: GLUTE_HAMSTRING,
-  kneeLeft: KNEE_LEFT
+  Triceps: pair(
+    'M48 114 C44 124 41 138 41 152 C41 159 42 165 44 170 L51 170 C50 160 50 150 52 138 C53 128 52 120 48 114 Z',
+    'M54 112 C60 114 65 122 66 130 C66 142 63 154 59 163 C58 167 56 169 53 170 C52 157 53 145 54 134 C55 126 55 118 54 112 Z'
+  ),
+  Forearms: pair(FOREARM_OUTER, FOREARM_INNER),
+  Traps: pair('M100 58 L92 58 C91 64 88 68 84 71 C79 74 73 76 68 78 C74 84 80 92 86 102 C92 114 96 126 100 138 Z'),
+  Shoulders: pair('M68 78 C57 76 48 82 45 94 C43 104 44 114 47 124 C52 116 57 108 61 102 C64 94 66 86 68 78 Z'),
+  Back: pair(
+    // Infraspinatus under the shoulder blade's spine, the lat, then the spinal erectors.
+    'M69 84 C75 90 81 98 85 106 C87 112 87 118 85 122 C80 124 74 125 69 124 C67 110 67 98 69 84 Z',
+    'M69 127 C75 126 81 123 86 118 C88 112 88 108 87 104 C92 116 96 128 99 144 L99 154 C97 160 94 166 90 174 C87 180 84 186 82 189 C80 178 78 166 76 156 C74 146 72 136 69 127 Z',
+    'M99 158 L99 200 C96 200 93 198 90 194 C89 186 90 178 92 172 C95 166 97 162 99 158 Z'
+  ),
+  Core: pair('M79 190 C83 186 86 182 89 180 C89 186 89 192 90 196 C86 196 82 194 79 192 Z'),
+  Glutes: pair('M80 196 C88 192 95 193 99 197 L99 240 C92 244 83 244 76 240 C70 234 67 224 68 214 C69 206 73 200 80 196 Z'),
+  Hamstrings: pair(
+    'M67 242 C73 246 80 248 85 248 C85 264 83 282 79 298 C74 296 70 292 68 286 C65 272 65 256 67 242 Z',
+    'M87 248 C92 248 96 246 98 244 C98 260 96 278 90 296 C88 298 85 299 81 299 C84 284 86 266 87 248 Z'
+  ),
+  Calves: pair(
+    'M70 316 C63 330 62 344 64 356 C66 364 72 366 80 362 L80 318 C77 318 73 317 70 316 Z',
+    'M82 318 C90 320 96 334 96 348 C96 358 91 366 85 368 L82 368 Z',
+    'M68 360 C72 370 75 380 77 386 L87 386 C89 380 91 372 93 364 C89 370 82 372 76 368 C72 366 70 363 68 360 Z'
+  )
 };
