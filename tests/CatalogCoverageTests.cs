@@ -85,7 +85,35 @@ public sealed class CatalogCoverageTests
         { "Pin Squat", "Pin Squat" },
         { "Face Pull", "Rope Face Pull" },
         { "Concentration Bicep Curl", "DB Concentration Curl" },
-        { "Egyptian Lateral Raise", "Egyptian Cable Lateral Raise" }
+        { "Egyptian Lateral Raise", "Egyptian Cable Lateral Raise" },
+        // The Pure Bodybuilding Program (Upper/Lower, Phase 2) and the Transformation System.
+        { "Machine Hip Adduction", "Machine Hip Adduction" },
+        { "Straight-Bar Lat Prayer", "Cable Lat Prayer" },
+        { "Assisted Pull-Up", "Assisted Pull-Up" },
+        { "Paused Assisted Dip", "Assisted Dip" },
+        { "Bottom-2/3 Constant Tension Preacher Curl", "EZ-Bar Preacher Curl" },
+        { "Dual-Cable Triceps Press", "Dual-Cable Triceps Press" },
+        { "Triceps Diverging Pressdown (Long Rope or 2 Ropes)", "Triceps Diverging Pressdown" },
+        { "DB Calf Jumps", "DB Calf Jumps" },
+        { "Smith Machine Reverse Lunge", "Smith Machine Reverse Lunge" },
+        { "Rear Delt 45° Cable Flye", "Rear Delt 45° Cable Flye" },
+        { "1-Arm 45° Cable Rear Delt Flye", "Rear Delt 45° Cable Flye" },
+        { "Chest-Supported T-Bar Row + Kelso Shrug", "Chest-Supported T-Bar Row" },
+        { "Katana Triceps Extension", "Katana Triceps Extension" },
+        { "Smith Machine Deficit Row", "Smith Machine Deficit Row" },
+        { "Ab Wheel Rollout", "Ab Wheel Rollout" },
+        { "Glute Kickback", "Glute Kickback" },
+        { "EZ-Bar Cheat Curl", "EZ-Bar Curl" },
+        // Fundamentals, the Intermediate/Advanced PPL and Upper/Lower 6x, which spell out what
+        // the catalog abbreviates and write "Tricep" where it writes "Triceps".
+        { "DUMBBELL PREACHER CURL", "DB Preacher Curl" },
+        { "CABLE TRICEP KICKBACK", "Cable Triceps Kickback" },
+        { "DUMBBELL SUPINATED CURL", "Supinated Dumbbell Curl" },
+        { "DUMBBELL SEATED SHOULDER PRESS", "Seated DB Shoulder Press" },
+        { "ASSISTED DIP", "Assisted Dip" },
+        { "CRUNCH", "Crunch" },
+        { "SEAL ROW", "Seal Row" },
+        { "MACHINE HIGH ROW", "Machine High Row" }
     };
 
     [Theory, MemberData(nameof(WrittenNames))]
@@ -106,6 +134,7 @@ public sealed class CatalogCoverageTests
     [Theory]
     [InlineData("UPPER BODY WEAK POINT 1")]
     [InlineData("Squat (Your Choice)")]
+    [InlineData("Weak Point Exercise 2 (optional)")]
     public async Task A_placeholder_still_stays_unresolved(string written)
     {
         await using var harness = await Harness.Create();

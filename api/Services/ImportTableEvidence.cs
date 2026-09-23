@@ -15,7 +15,11 @@ internal static class ImportTableEvidence
     private static readonly Regex Percentage = new(@"\b\d+(?:\.\d+)?\s*(?:[-–]\s*\d+(?:\.\d+)?\s*)?%\s*(?:1\s*rm)?", RegexOptions.Compiled | RegexOptions.IgnoreCase);
     private static readonly Regex PageRestMinutes = new(@"\brest\b.{0,45}\b(?:minutes?|mins?)\b|\b(?:minutes?|mins?)\b.{0,45}\brest\b", RegexOptions.Compiled | RegexOptions.IgnoreCase);
     private static readonly Regex PageRestSeconds = new(@"\brest\b.{0,45}\b(?:seconds?|secs?)\b|\b(?:seconds?|secs?)\b.{0,45}\brest\b", RegexOptions.Compiled | RegexOptions.IgnoreCase);
-    private static readonly Regex RestDay = new(@"^(?:(?:suggested|mandatory)\s+)?rest\s+days?$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+    private static readonly Regex RestDay = new(@"^(?:(?:suggested|mandatory|optional)\s+)?rest\s+days?$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+    /// A rep range, approximate RPE, rest time or percentage: what a row states and a header
+    /// never prints. A bare integer is not enough, because tracking columns are headed "1 | 2 | 3".
+    private static readonly Regex HeaderValue = new(@"^(?:[~≈]\s*\d.*|\d+(?:\.\d+)?\s*[-–]\s*\d+(?:\.\d+)?\s*(?:min|mins|minutes?|sec|secs|seconds?|s|m|reps?)?|\d+(?:\.\d+)?\s*(?:min|mins|minutes?|sec|secs|seconds?|%)|\d+\.\d+)$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+    private const int MaxHeaderLength = 48;
 
     private sealed record EvidenceRow(string? ExerciseName, int? WorkingSets, string? RepsText, int? RepMin, int? RepMax,
         string? LoadText, string? RirText, double? Rir, List<RirEvidence> RirBySet,
@@ -235,6 +239,10 @@ internal static class ImportTableEvidence
     private static bool TryColumns(string[] cells, out Columns columns)
     {
         columns = new Columns(null, null, null, null, null, [], null, null, null, null, null, false);
+        // A data row mentions the same words a header prints: "Myo-reps" in its technique cell
+        // and "sweep the weight up" in its note once read as a reps and a load column, and every
+        // later row on the page was then parsed against those. A header states no values.
+        if (cells.Any(cell => HeaderValue.IsMatch(cell))) return false;
         int? name = null, sets = null, reps = null, load = null, rir = null;
         var rirBySet = new Dictionary<int, int>();
         int? rpe = null, early = null, last = null, rest = null;
@@ -243,6 +251,8 @@ internal static class ImportTableEvidence
         for (var i = 0; i < cells.Length; i++)
         {
             var h = Regex.Replace(cells[i].ToLowerInvariant(), @"\s+", " ").Trim();
+            // A coaching note is a sentence, never a column label.
+            if (h.Length > MaxHeaderLength) continue;
             if (h is "exercise" or "movement" || h.Contains("exercise name") || h.Contains("movement name")) name = i;
             if ((h.Contains("working") && h.Contains("set")) || h is "sets" or "set count" || h.Contains("number of sets")) sets = i;
             if (!h.Contains("tracking") && (h.Contains("rep") || h.Contains("duration")) && !h.Contains("rir") && !h.Contains("rpe")) reps = i;
@@ -265,11 +275,16 @@ internal static class ImportTableEvidence
             else if (isRir) rir = i;
             if (isRpe && (h.Contains("early") || h.Contains("first"))) early = i;
             else if (isRpe && (h.Contains("last") || h.Contains("final"))) last = i;
-            else if (isRpe) rpe = i;
+            // The prescribed RPE comes first; an "LSRPE" column after it is where the lifter logs one.
+            else if (isRpe) rpe ??= i;
         }
         var recognized = new[] { name, sets, reps, load, rir, rpe, early, last, rest }.Count(value => value.HasValue)
             + rirBySet.Count;
         if (recognized < 2 || (!name.HasValue && !sets.HasValue && !reps.HasValue)) return false;
+        // Older tables print the day's title where the name column's label belongs
+        // ("FULL BODY #1 | SETS | REPS"); that leading column still holds the movements.
+        var assigned = new[] { sets, reps, load, rir, rpe, early, last, rest }.Concat(rirBySet.Values.Select(value => (int?)value));
+        if (name is null && (sets ?? reps) > 0 && !assigned.Contains(0)) name = 0;
         var indexedRir = rirBySet.Count == 0 ? [] : Enumerable.Range(1, rirBySet.Keys.Max())
             .Select(index => rirBySet.TryGetValue(index, out var column) ? (int?)column : null).ToArray();
         columns = new Columns(name, sets, reps, load, rir, indexedRir, rpe, early, last, rest, restUnit, loadIsPercent1Rm);
@@ -350,8 +365,14 @@ internal static class ImportTableEvidence
     private static string? Cell(string[] cells, int? index)
         => index is { } i && i >= 0 && i < cells.Length ? cells[i] : null;
 
+    /// "2 per leg" is two sets done on each side, so the count is still two.
     private static int? ParseSetCount(string? value)
-        => int.TryParse(CleanValue(value), NumberStyles.None, CultureInfo.InvariantCulture, out var count) && count > 0 ? count : null;
+    {
+        var clean = CleanValue(value);
+        if (clean is not null && Regex.Match(clean, @"^(?<count>\d{1,2})\s+per\s+(?:leg|arm|side)$", RegexOptions.IgnoreCase) is { Success: true } perSide)
+            clean = perSide.Groups["count"].Value;
+        return int.TryParse(clean, NumberStyles.None, CultureInfo.InvariantCulture, out var count) && count > 0 ? count : null;
+    }
 
     private static (int? min, int? max) ParseSimpleReps(string? value)
     {

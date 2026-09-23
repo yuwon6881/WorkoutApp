@@ -3,8 +3,9 @@ import {
   type DayLabel, type TableSpan
 } from './pdfDayLabels';
 import { findHeaderBands, renderRow, type HeaderBand } from './pdfHeaderColumns';
+import { anchorColumn, anchorsRow, renderHeaderTable } from './pdfTableRows';
 import {
-  columnIndex, estimateFallbackColumnGap, estimateTableRegionGap, groupRows, normalizedText, pieceCenter,
+  estimateFallbackColumnGap, estimateTableRegionGap, groupRows, normalizedText, pieceCenter,
   positionPieces, ROW_TOLERANCE, type PositionedPiece, type TextPiece, type TextRow
 } from './pdfGeometry';
 import { findTrackingTables, isInTrackingTable, renderTrackingTables, type TrackingTable } from './pdfTrackingTable';
@@ -25,7 +26,7 @@ export type PdfExtraction = {
 };
 
 function isScheduleLabel(value: string): boolean {
-  return /^(?:BLOCK\s+\d+(?:\s*:\s*.*)?|\(BLOCK\s+\d+\)|WEEK\s+\d+[A-Z]?|INTRO\s+WEEK|DELOAD\s+WEEK|(?:SUGGESTED\s+|MANDATORY\s+)?REST\s+DAY)$/i.test(normalizedText(value));
+  return /^(?:BLOCK\s+\d+(?:\s*:\s*.*)?|\(BLOCK\s+\d+\)|WEEK\s+\d+[A-Z]?|INTRO\s+WEEK|DELOAD\s+WEEK|(?:SUGGESTED\s+|MANDATORY\s+|OPTIONAL\s+)?REST\s+DAY)$/i.test(normalizedText(value));
 }
 
 function withoutLabels(rows: TextRow[], removed: Set<TextPiece>): TextRow[] {
@@ -42,12 +43,26 @@ function tableSpanForHeader(rows: TextRow[], band: HeaderBand, tableRegionGap: n
   let previousY = band.bottomY;
   const laterRows = rows.filter(row => row.y < band.bottomY && (nextBandTop === undefined || row.y > nextBandTop))
     .sort((a, b) => b.y - a.y);
+  const anchor = anchorColumn(band);
+  // Padded tables leave more space between two rows than between a cell's wrapped lines, so a
+  // wide gap ends the table only when the lines after it hold no further set count. A footer or
+  // a note below the table carries none and stays out.
+  const nextClusterAnchors = (start: number): boolean => {
+    if (anchor === undefined) return false;
+    for (let index = start; index < laterRows.length; index++) {
+      if (index > start && laterRows[index - 1].y - laterRows[index].y > tableRegionGap) return false;
+      if (anchorsRow(laterRows[index], band, anchor)) return true;
+    }
+    return false;
+  };
+  const wideGap = Math.max(tableRegionGap * 3, 80);
   let first = true;
-  for (const row of laterRows) {
-    const allowedGap = first ? Math.max(tableRegionGap * 3, 80) : tableRegionGap;
-    if (previousY - row.y > allowedGap) break;
-    bottom = row.y;
-    previousY = row.y;
+  for (let index = 0; index < laterRows.length; index++) {
+    const gap = previousY - laterRows[index].y;
+    const allowedGap = first ? wideGap : tableRegionGap;
+    if (gap > allowedGap && !(gap <= wideGap && nextClusterAnchors(index))) break;
+    bottom = laterRows[index].y;
+    previousY = bottom;
     first = false;
   }
   return { top: band.topY, bottom, left: band.centers[0], right: band.centers.at(-1) };
@@ -58,107 +73,22 @@ function scheduleLines(rows: TextRow[]): { y: number; x: number; text: string }[
     .map(item => ({ y: item.y, x: item.x, text: normalizedText(item.str) })));
 }
 
-function renderCellPieces(pieces: PositionedPiece[]): string {
-  let line = '';
-  let endX = Number.NaN;
-  let lastY = Number.NaN;
-  for (const item of pieces) {
-    const gap = Number.isNaN(endX) ? 0 : item.x - endX;
-    const isNewLine = !Number.isNaN(lastY) && Math.abs(lastY - item.y) > ROW_TOLERANCE;
-    const touching = line.length === 0 || /\s$/.test(line) || /^\s/.test(item.str);
-    const continuesWord = !isNewLine && gap > 0 && gap <= 0.5;
-    if (isNewLine) {
-      if (!touching) line += ' ';
-    } else if (!touching && !continuesWord) {
-      line += ' ';
-    }
-    line += item.str;
-    endX = item.endX;
-    lastY = item.y;
-  }
-  return line.replace(/[ \t]+/g, ' ').trim();
-}
-
-function renderHeaderTable(
-  band: HeaderBand,
-  tableRows: TextRow[],
-  bottom: number,
-  fallbackGap: number
-): { y: number; x: number; text: string }[] {
-  if (tableRows.length === 0) return [];
-
-  let anchorColIndex = -1;
-  if (band.columns) {
-    anchorColIndex = band.columns.findIndex(c => /^working(?: sets?)?$/i.test(c.label.trim()) || /^sets?$/i.test(c.label.trim()));
-    if (anchorColIndex === -1) {
-      anchorColIndex = band.columns.findIndex(c => /^(?:reps?|repetitions?)$/i.test(c.label.trim()));
-    }
-  }
-
-  const isWorkingAnchorText = (text: string) =>
-    // "1+" is a working-set count too: a top set followed by as many back-offs as it takes.
-    /^\d{1,2}(?:[-–+]\d{1,2}|\+)?$/.test(text) || /^amrap$/i.test(text) || /^n\/a$/i.test(text);
-
-  let anchorBaselines: number[] = [];
-  if (anchorColIndex >= 0) {
-    const candidatePieces = tableRows.flatMap(r => r.items).filter(item => {
-      const c = columnIndex(pieceCenter(item), band.centers);
-      return c === anchorColIndex && isWorkingAnchorText(normalizedText(item.str).trim());
-    });
-    const baselines: number[] = [];
-    for (const piece of candidatePieces.sort((a, b) => b.y - a.y)) {
-      if (!baselines.some(existing => Math.abs(existing - piece.y) <= ROW_TOLERANCE)) {
-        baselines.push(piece.y);
-      }
-    }
-    const filtered: number[] = [];
-    for (const y of baselines.sort((a, b) => b - a)) {
-      if (filtered.length === 0 || filtered.at(-1)! - y >= 10) {
-        filtered.push(y);
-      }
-    }
-    anchorBaselines = filtered;
-  }
-
-  if (anchorBaselines.length === 0) {
-    return tableRows.map(row => {
-      const text = renderRow(row, { centers: band.centers }, fallbackGap);
-      return { y: row.y, x: row.items[0]?.x ?? 0, text };
-    }).filter(line => line.text.length > 0);
-  }
-
-  const rendered: { y: number; x: number; text: string }[] = [];
-  const allItems = tableRows.flatMap(r => r.items);
-  for (let i = 0; i < anchorBaselines.length; i++) {
-    const anchorY = anchorBaselines[i];
-    const upper = i === 0 ? band.bottomY : (anchorBaselines[i - 1] + anchorY) / 2;
-    const lower = i === anchorBaselines.length - 1 ? bottom - 4 : (anchorY + anchorBaselines[i + 1]) / 2;
-
-    const rowItems = allItems.filter(p => p.y <= upper && p.y > lower);
-    rowItems.sort((a, b) => b.y - a.y || a.x - b.x);
-
-    const cells: PositionedPiece[][] = Array.from({ length: band.centers.length }, () => []);
-    for (const item of rowItems) {
-      const col = columnIndex(pieceCenter(item), band.centers);
-      cells[col].push(item);
-    }
-
-    const cellTexts = cells.map(cellPieces => {
-      if (cellPieces.length === 0) return '';
-      cellPieces.sort((a, b) => b.y - a.y || a.x - b.x);
-      return renderCellPieces(cellPieces);
-    });
-
-    while (cellTexts.length > 0 && cellTexts[cellTexts.length - 1] === '') {
-      cellTexts.pop();
-    }
-    const line = cellTexts.join(' | ');
-    if (line.replace(/[|\s]/g, '').length > 0) {
-      rendered.push({ y: anchorY, x: 0, text: line });
-    }
-  }
-
-  return rendered;
+/// Some tables print the day's title where the name column's label belongs ("PUSH #2 | SETS |
+/// REPS"). The title is read as the day's label, but its column still holds the movement names:
+/// without it every name fused with its set count ("CLOSE-GRIP BENCH PRESS 3 | 8").
+function withTitleColumn(band: HeaderBand, removed: Set<TextPiece>): HeaderBand {
+  const first = band.centers[0];
+  if (first === undefined || band.columns?.some(column => /^(?:exercises?|movement|(?:exercise )?name)$/i.test(column.label.trim()))) return band;
+  const title = [...removed].map(piece => piece as PositionedPiece).find(piece => !piece.rotated
+    && piece.endX !== undefined && band.skipYValues.some(y => Math.abs(piece.y - y) <= ROW_TOLERANCE) && piece.endX < first);
+  if (!title) return band;
+  const center = pieceCenter(title);
+  return {
+    ...band,
+    centers: [center, ...band.centers],
+    columns: [{ label: 'Exercise', center }, ...(band.columns ?? [])],
+    text: `Exercise | ${band.text}`
+  };
 }
 
 type TableLayout = {
@@ -170,7 +100,7 @@ type TableLayout = {
 /// Where a page's tables are once its day titles and schedule banners are set aside.
 function tableLayout(rows: TextRow[], trackingTables: TrackingTable[], removed: Set<TextPiece>, fallbackGap: number): TableLayout {
   const genericRows = withoutLabels(rows, removed).filter(row => !trackingTables.some(table => isInTrackingTable(row, table)));
-  const headerBands = findHeaderBands(genericRows, fallbackGap / 2.35);
+  const headerBands = findHeaderBands(genericRows, fallbackGap / 2.35).map(band => withTitleColumn(band, removed));
   const tableRegionGap = estimateTableRegionGap(genericRows);
   const headerTableSpans = headerBands.map((band, index) => ({
     band,
@@ -216,7 +146,9 @@ export function buildPageText(items: readonly TextPiece[]): string {
   const lines: { y: number; x: number; text: string }[] = [
     ...scheduleLines(rows),
     ...dayLabels.map(label => ({ y: label.y, x: label.x, text: dayLabelLine(label) })),
-    ...renderTrackingTables(rows, trackingTables)
+    // A rotated day tab beside a tracking table is its title, not the first word of a movement
+    // ("Upper 1 Pull-Up (Wide Grip)").
+    ...renderTrackingTables(withoutLabels(rows, new Set([...labelPieces(dayLabels) as Set<TextPiece>, ...schedulePieces])), trackingTables)
   ];
 
   for (let i = 0; i < headerTableSpans.length; i++) {

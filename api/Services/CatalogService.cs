@@ -184,12 +184,22 @@ public sealed class CatalogService(AppDb db)
         var built = new Dictionary<string, Guid>(StringComparer.Ordinal);
         // Later entries never displace earlier ones, so a curated alias keeps its exercise when a
         // custom name happens to normalise to the same words.
-        foreach (var exercise in await Shared(ct))
+        var shared = await Shared(ct);
+        foreach (var exercise in shared)
         {
             foreach (var alias in exercise.Aliases) built.TryAdd(Normalize(alias), exercise.Id);
             built.TryAdd(Normalize(exercise.Name), exercise.Id);
         }
-        foreach (var custom in await db.CustomExercises.AsNoTracking().Where(x => !x.Archived).ToListAsync(ct)) built.TryAdd(Normalize(custom.Name), custom.Id);
+        var customs = await db.CustomExercises.AsNoTracking().Where(x => !x.Archived).ToListAsync(ct);
+        foreach (var custom in customs) built.TryAdd(Normalize(custom.Name), custom.Id);
+        // Then the same names as a table may spell them: a library entry stored as "DB Preacher
+        // Curl" is what a document means by "Dumbbell Preacher Curl". These come after every
+        // literal key, so an exact name always keeps the exercise it names.
+        foreach (var exercise in shared)
+            foreach (var key in exercise.Aliases.Append(exercise.Name).SelectMany(name => CatalogMatching.LibraryKeys(Normalize(name))))
+                built.TryAdd(key, exercise.Id);
+        foreach (var custom in customs)
+            foreach (var key in CatalogMatching.LibraryKeys(Normalize(custom.Name))) built.TryAdd(key, custom.Id);
         return built;
     }
 

@@ -69,7 +69,19 @@ export function positionPiece(piece: TextPiece): PositionedPiece {
 }
 
 export function positionPieces(items: readonly TextPiece[]): PositionedPiece[] {
-  return items.filter(item => item.str.trim().length > 0).map(positionPiece);
+  // A run can carry its own line break ("Flat DB Press\n"); left in, it splits the table row it
+  // belongs to across two lines of the page text.
+  const positioned = items.filter(item => item.str.trim().length > 0)
+    .map(item => positionPiece(/[\r\n]/.test(item.str) ? { ...item, str: item.str.replace(/[\r\n]+/g, ' ') } : item));
+  // Some pages draw every word twice in the same place to fake a bold weight; read once, the
+  // copy doubled every name ("DEADLIFT DEADLIFT").
+  const seen = new Set<string>();
+  return positioned.filter(piece => {
+    const key = `${piece.str}\u0000${Math.round(piece.x * 2)}\u0000${Math.round(piece.y * 2)}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 }
 
 export function groupRows(items: readonly PositionedPiece[]): TextRow[] {

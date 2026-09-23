@@ -14,14 +14,18 @@ export type HeaderBand = {
 };
 
 const HEADER_BAND_GAP_FACTOR = 1.6;
+const MAX_HEADER_PIECE_LENGTH = 48;
 
 const HEADER_LABELS = [
   /^exercise(?:s)?$/i,
   /^(?:exercise )?name$/i,
   /^warm[ -]?ups?(?: sets?)?$/i,
   /^working(?: sets?)?$/i,
+  // High Frequency Full Body heads its count columns "# OF WARMUP / SETS" and "# OF WORKING / SETS".
+  /^# of (?:warm[ -]?up|working)(?: sets?)?$/i,
   /^sets?$/i,
   /^(?:reps?|repetitions?)$/i,
+  /^reps?\s*\/\s*(?:duration|time)$/i,
   /^early set rpe$/i,
   /^last set rpe$/i,
   /^rpe(?:\s*\/\s*%?1rm)?$/i,
@@ -143,8 +147,14 @@ export function findHeaderBands(rows: TextRow[], typicalWordGap: number): Header
     const previousBand = rowBands.at(-1);
     const previousRow = previousBand?.at(-1);
     const size = previousRow ? median([rowTextSize(previousRow), rowTextSize(row)]) : 0;
-    if (previousRow && previousRow.y - row.y <= size * HEADER_BAND_GAP_FACTOR) previousBand!.push(row);
-    else rowBands.push([row]);
+    // A header states labels. A coaching note printed just under it is a sentence, and joined
+    // to the band it merged every label above it into one cell, so the table went unrecognised.
+    const labelsOnly = (candidate: TextRow) => candidate.items.every(item => item.str.trim().length <= MAX_HEADER_PIECE_LENGTH);
+    if (previousRow && previousRow.y - row.y <= size * HEADER_BAND_GAP_FACTOR && labelsOnly(previousRow) && labelsOnly(row)) {
+      previousBand!.push(row);
+    } else {
+      rowBands.push([row]);
+    }
   }
 
   const output: HeaderBand[] = [];

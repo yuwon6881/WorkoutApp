@@ -149,6 +149,14 @@ internal static class CatalogMatching
         return string.Join(' ', output.Split(' ', StringSplitOptions.RemoveEmptyEntries));
     }
 
+    /// The spellings a library name is also filed under: abbreviations written out, and plurals
+    /// written singly ("Cable Triceps Kickback" is what "Cable Tricep Kickback" means).
+    internal static IEnumerable<string> LibraryKeys(string normalized)
+    {
+        var expanded = Expand(normalized);
+        return new[] { expanded, Singular(normalized), Singular(expanded) }.Where(key => key.Length > 0 && key != normalized).Distinct();
+    }
+
     /// The same words written singly. A table says "Curls" where the library says "Curl".
     private static string Singular(string normalized)
         => string.Join(' ', normalized.Split(' ', StringSplitOptions.RemoveEmptyEntries)

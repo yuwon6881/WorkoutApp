@@ -515,4 +515,74 @@ public sealed class ImportTableEvidenceTests
         Assert.Equal("3", exercise.WorkingSets);
         Assert.All(exercise.Sets, set => Assert.Null(set.TargetRpe));
     }
+
+    /// The Pure Bodybuilding Program prints a technique column ("Myo-reps") and a coaching note
+    /// ("sweep the weight up") on every row. Both name a header word, and the first row was taken
+    /// for a new header, so every later row lost its RPE and rest and one borrowed its neighbour.
+    [Fact]
+    public void A_data_row_that_mentions_header_words_is_not_read_as_a_new_header()
+    {
+        var program = new AiProgram("Pure Bodybuilding", [new AiDay("Block 1", null, 1, 1, "Upper #1", false, null, [
+            new AiExercise("Cuffed Behind-The-Back Lateral Raise", null, null, [new AiSet(10, 12, null, null, null, null, null)], SourcePage: 6),
+            new AiExercise("Leg Press", null, null, [new AiSet(8, 8, null, null, null, null, null)], SourcePage: 6)
+        ], 6)]);
+        const string text = """
+            === PAGE 6 ===
+            Exercise | Last-Set Intensity Technique | Warm-up Sets | WORKING SETS | Reps | SET 1 | Tracking Load and Reps SET 2 | Early Set RPE | Last Set RPE | Rest | Substitution Option 1 | NOTES
+            Cuffed Behind-The-Back Lateral Raise | Myo-reps | 1-2 | 3 | 10-12 |  |  | ~9 | 10 | ~1-2 min | DB Lateral Raise | Really try to connect with the middle delt fibers as you sweep the weight up and out.
+            Leg Press | Long-length Partials (on all reps of the last set) | 2-4 | 2 | 8 |  |  | ~7 | ~8 | ~3-4 min | Belt Squat | Rest the weight in the bottom for a second and keep your reps smooth.
+            """;
+
+        var exercises = Assert.Single(ImportTableEvidence.Enrich(program, text).Days!).Exercises;
+
+        Assert.Equal(["Cuffed Behind-The-Back Lateral Raise", "Leg Press"], exercises.Select(exercise => exercise.SourceName));
+        Assert.Equal([9d, 9d, 10d], exercises[0].Sets.Select(set => set.TargetRpe));
+        Assert.Equal([7d, 8d], exercises[1].Sets.Select(set => set.TargetRpe));
+        Assert.Equal(210, exercises[1].Sets[0].RestSeconds);
+    }
+
+    /// Fundamentals prints the day title where the name column is labelled. The rows still name
+    /// their movements there, so two workouts on one page each find their own rows by name.
+    [Fact]
+    public void A_day_title_in_the_name_column_header_still_names_the_movement_column()
+    {
+        var program = new AiProgram("Fundamentals", [
+            new AiDay(null, null, 4, 1, "Day 1", false, null, [
+                new AiExercise("Back Squat", null, null, [new AiSet(6, 6, null, null, null, null, null)], SourcePage: 40)], 40),
+            new AiDay(null, null, 4, 1, "Day 2", false, null, [
+                new AiExercise("Deadlift", null, null, [new AiSet(5, 5, null, null, null, null, null)], SourcePage: 40)], 40)
+        ]);
+        const string text = """
+            === PAGE 40 ===
+            DAY LABEL: DAY 1
+            FULL BODY #1 | SETS | REPS | RPE | REST | 1 | 2 | 3 | NOTES | LSRPE
+            BACK SQUAT | 3 | 6 | 7 | 3-4MIN |  |  |  | SIT BACK AND DOWN
+            DAY LABEL: DAY 2
+            FULL BODY #2 | SETS | REPS | RPE | REST | 1 | 2 | 3 | NOTES | LSRPE
+            DEADLIFT | 2 | 5 | 8 | 3-4MIN |  |  |  | BRACE YOUR LATS
+            """;
+
+        var days = ImportTableEvidence.Enrich(program, text).Days!;
+
+        Assert.Equal([7d, 7d, 7d], Assert.Single(days[0].Exercises).Sets.Select(set => set.TargetRpe));
+        Assert.Equal([8d, 8d], Assert.Single(days[1].Exercises).Sets.Select(set => set.TargetRpe));
+    }
+
+    [Fact]
+    public void A_per_side_set_count_is_still_the_working_set_count()
+    {
+        var program = new AiProgram("Pure Bodybuilding Phase 2", [new AiDay(null, null, 2, 1, "Legs #2", false, null, [
+            new AiExercise("Smith Machine Reverse Lunge", null, null, [new AiSet(10, 12, null, null, null, null, null)], SourcePage: 20)
+        ], 20)]);
+        const string text = """
+            === PAGE 20 ===
+            Exercise | Last-Set Intensity Technique | Warm-up Sets | WORKING SETS | Reps | Early Set RPE | Last Set RPE | Rest
+            Smith Machine Reverse Lunge | Quad Static Stretch (30 sec) | 2-3 | 2 per leg | 10-12 | ~8-9 | ~9-10 | ~2-3 min
+            """;
+
+        var exercise = Assert.Single(Assert.Single(ImportTableEvidence.Enrich(program, text).Days!).Exercises);
+
+        Assert.Equal("2", exercise.WorkingSets);
+        Assert.Equal(2, exercise.Sets.Count);
+    }
 }

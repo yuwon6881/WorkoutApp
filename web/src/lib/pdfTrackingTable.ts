@@ -130,6 +130,17 @@ function isRest(value: string | undefined): boolean {
   return !!value && /^\d+(?:\.\d+)?(?:\s*[-–]\s*\d+(?:\.\d+)?)?\s*(?:min|mins|minutes?|sec|secs|seconds?|s|m)$/i.test(normalizedText(value));
 }
 
+/// A row states its set count and rest beside its rep range or effort. A rep cell may wrap around
+/// the baseline ("10 per / leg"), so either is enough; and the first movement of a superset rests
+/// "-" before its partner, which still leaves the row its rep range.
+function hasRowPrescription(row: TextRow, columns: TrackingColumn[]): boolean {
+  const reps = hasRoleValue(row, 'repRange', columns, parseRepRange);
+  const effort = columns.some(column => column.role === 'effort' && hasRoleValue(row, 'effort', columns, parseEffort));
+  const rest = hasRoleValue(row, 'rest', columns, isRest);
+  const restsIntoPartner = reps && hasRoleValue(row, 'rest', columns, value => !!value && /^[-–]$/.test(normalizedText(value)));
+  return (reps || effort) && (rest || restsIntoPartner);
+}
+
 function hasRoleValue(row: TextRow, role: string, columns: TrackingColumn[], predicate: (value: string | undefined) => boolean): boolean {
   const centers = columns.map(column => column.center);
   return row.items.some(piece => {
@@ -218,9 +229,7 @@ function makeTable(parent: PositionedPiece, rows: TextRow[], lowerBound: number)
   const fontThreshold = layoutTextSize(band);
   const anchors = rows.filter(row => row.y < headerBottom - fontThreshold && row.y > lowerBound + ROW_TOLERANCE
     && hasRoleValue(row, 'working', columns, value => !!value && /^\d{1,2}$/.test(normalizedText(value)))
-    && hasRoleValue(row, 'repRange', columns, parseRepRange)
-    && columns.some(column => column.role === 'effort' && hasRoleValue(row, 'effort', columns, parseEffort))
-    && hasRoleValue(row, 'rest', columns, isRest))
+    && hasRowPrescription(row, columns))
     .sort((a, b) => b.y - a.y);
   if (anchors.length === 0) return undefined;
   const rowGaps = anchors.slice(1).map((row, index) => anchors[index].y - row.y).filter(gap => gap > 0);
@@ -261,12 +270,13 @@ export function renderTrackingTables(rows: TextRow[], tables: TrackingTable[]): 
       const upper = index === 0 ? (headerBottom + anchor.y) / 2 : (anchors[index - 1].y + anchor.y) / 2;
       const lower = index === anchors.length - 1 ? bottom : (anchor.y + anchors[index + 1].y) / 2;
       const cells = columns.map(() => [] as string[]);
-      for (const row of rows) {
-        if (row.y > upper || row.y < lower) continue;
-        for (const item of row.items) {
-          const column = tableColumnIndex(item, columns, tableSize);
-          cells[column].push(normalizedText(item.str));
-        }
+      const block = rows.filter(row => row.y <= upper && row.y >= lower).flatMap(row => row.items);
+      for (const item of block) {
+        // A left-aligned note's short closing line ("the pecs.") centers far left of its cell;
+        // it belongs to the column of the widest line that starts where it starts.
+        const widest = block.filter(other => Math.abs(other.x - item.x) <= 1)
+          .reduce((best, other) => other.endX - other.x > best.endX - best.x ? other : best, item);
+        cells[tableColumnIndex(widest, columns, tableSize)].push(normalizedText(item.str));
       }
       const line = cells.map(cell => cell.join(' ').replace(/\s+/g, ' ').trim()).join(' | ');
       if (line.replace(/[|\s]/g, '')) rendered.push({ y: anchor.y, x: 0, text: line });

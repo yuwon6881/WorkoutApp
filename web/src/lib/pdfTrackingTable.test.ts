@@ -102,4 +102,27 @@ describe('PDF tracking-table reconstruction', () => {
     expect(tables.map(table => table.anchors)).toHaveLength(2);
     expect(tables.every(table => table.anchors.length === 1)).toBe(true);
   });
+
+  /// Min-Max Phase 2 pairs supersets: the first movement rests "-" into its partner, and a walking
+  /// lunge wraps its reps ("10 per / leg") around the row. Both used to merge into the row above.
+  it("keeps superset partners and wrapped rep cells as their own rows", () => {
+    const p = (text: string, x: number, y: number, width = text.length * 5) => horizontalPiece(text, x, y, width);
+    const row = (name: string, y: number, reps: string, rest: string) => [
+      p(name, 100, y), p("1", 440, y, 10), p("2", 540, y, 10), p(reps, 560, y, 30), p("0", 877, y, 10), p(rest, 1100, y, 45)
+    ];
+    const pieces = [
+      ...trackingPage(1, 2, "rir"),
+      ...row("S1: Cheat Curl", 860, "4-6", "-"),
+      ...row("S2: Skull Crusher", 840, "6-8", "30-60 sec"),
+      p("DB Walking", 100, 820), p("10 per", 560, 820, 30),
+      p("1", 440, 811, 10), p("1", 540, 811, 10), p("1", 877, 811, 10), p("1-2 min", 1100, 811, 40),
+      p("Lunge", 100, 802), p("leg", 565, 802, 15)
+    ];
+    const rows = groupRows(positionPieces(pieces));
+    const lines = renderTrackingTables(rows, findTrackingTables(rows)).map(line => line.text);
+
+    expect(lines.find(line => line.startsWith("S1: Cheat Curl"))).toContain("| 4-6 |");
+    expect(lines.find(line => line.startsWith("S2: Skull Crusher"))).toContain("30-60 sec");
+    expect(lines.find(line => line.startsWith("DB Walking Lunge"))).toContain("10 per leg");
+  });
 });
