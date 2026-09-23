@@ -234,6 +234,25 @@ public class WorkoutSessionTests
         Assert.Equal(600, finished.VolumeKg);
     }
 
+    [Fact] public async Task An_amrap_set_with_no_printed_count_starts_with_no_reps_filled_in()
+    {
+        var h = await Harness.Create();
+        await using var _h = h;
+        await h.SignIn();
+        await h.Seed(new SeedExercise("ohp", "Barbell overhead press", "Shoulders", "Barbell", "Cue", null));
+        var pressId = await h.ExerciseId("ohp");
+        // The stored bounds are the import's 1-rep placeholder for a row that reads "AMRAP".
+        var template = await h.Templates.Create(Harness.Template("AMRAP test", Harness.Exercise(pressId, "Barbell overhead press",
+            new SetPrescription(1, 1, 10, 180, null, "90% 1RM", "To failure / AMRAP", "AMRAP", "3.0", "0"),
+            Harness.Set(8, 10))), null, 1, 0, default);
+
+        var sets = (await h.Workouts.Start(template.Id, null, default)).Exercises.Single().Sets;
+
+        Assert.Null(sets[0].Reps);
+        Assert.Contains("as many reps as possible", sets[0].Suggestion!.Reason, StringComparison.OrdinalIgnoreCase);
+        Assert.NotNull(sets[1].Reps);
+    }
+
     [Fact] public async Task Warmup_rows_are_snapshotted_and_excluded_from_working_volume()
     {
         var h = await Harness.Create();

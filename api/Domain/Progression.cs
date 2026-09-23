@@ -1,3 +1,5 @@
+using System.Text.RegularExpressions;
+
 namespace Workout.Api.Domain;
 
 /// One working set as it was actually performed. A null field is genuinely unknown and never
@@ -67,6 +69,19 @@ public record ProgressionPlan(double DeltaKg, int TargetReps, string Reason, dou
 /// uncompleted default load/repetition pair from the matching set's recent history.
 public static class Progression
 {
+    private static readonly Regex OpenReps = new(@"\b(?:amrap|max(?:imum)?\s+reps?|to\s+failure|failure)\b", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+
+    /// A set printed as "AMRAP" with no count. Its stored bounds are only the one-rep placeholder a
+    /// set must carry, so it has no rep target to suggest or prefill: the lifter logs what they get.
+    public static bool HasOpenReps(string? repsText)
+        => !string.IsNullOrWhiteSpace(repsText) && OpenReps.IsMatch(repsText) && !repsText.Any(char.IsDigit);
+
+    public static SetProgressionSuggestion ForPrescription(SetPrescription prescription, SetProgressionSuggestion suggestion)
+        => HasOpenReps(prescription.RepsText) ? suggestion with { Reason = "As many reps as possible: log the reps you get." } : suggestion;
+
+    public static int? PrefillReps(SetPrescription prescription, SetProgressionSuggestion suggestion)
+        => HasOpenReps(prescription.RepsText) ? null : suggestion.SuggestedReps;
+
     public const double DefaultStepKg = 2.5;
     public const int MaxEstimatedReps = 12;
     public const double MinEstimatedRpe = 6;

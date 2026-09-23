@@ -175,13 +175,13 @@ public sealed partial class WorkoutService(
                     workingOrdinal++;
                     var resistanceMode = ResolveResistanceMode(loadModel, planSet.ResistanceMode);
                     var exposures = previous.GetValueOrDefault(workingOrdinal) ?? [];
-                    var suggestion = MakeSuggestion(planSet, exposures, contextResult.Mode, step, contextResult, resistanceMode, loadModel, bodyWeight);
+                    var suggestion = Progression.ForPrescription(planSet, MakeSuggestion(planSet, exposures, contextResult.Mode, step, contextResult, resistanceMode, loadModel, bodyWeight));
                     firstSuggestion ??= suggestion;
                     db.Sets.Add(new CompletedSet
                     {
                         UserId = session.UserId, SessionExerciseId = exercise.Id, Position = index,
                         WorkingSetOrdinal = workingOrdinal, WeightKg = suggestion.SuggestedLoadKg,
-                        Reps = suggestion.SuggestedReps, Rpe = null, Done = false, Warmup = false,
+                        Reps = Progression.PrefillReps(planSet, suggestion), Rpe = null, Done = false, Warmup = false,
                         SuggestionJson = Json.Write(suggestion), ResistanceMode = resistanceMode,
                         SystemLoadKg = suggestion.SuggestedSystemLoadKg
                     });
@@ -494,7 +494,7 @@ public sealed partial class WorkoutService(
             var enteredReps = set.Reps;
             var enteredRpe = set.Rpe;
             var mode = ResolveResistanceMode(loadModel, prescription.ResistanceMode);
-            var suggestion = MakeSuggestion(prescription, histories.GetValueOrDefault(workingOrdinal) ?? [], result.Mode, step, result, mode, loadModel, bodyWeight);
+            var suggestion = Progression.ForPrescription(prescription, MakeSuggestion(prescription, histories.GetValueOrDefault(workingOrdinal) ?? [], result.Mode, step, result, mode, loadModel, bodyWeight));
             set.WeightKg = suggestion.SuggestedLoadKg; set.SystemLoadKg = suggestion.SuggestedSystemLoadKg;
             set.ResistanceMode = mode; set.SuggestionJson = Json.Write(suggestion); set.Reps = enteredReps; set.Rpe = enteredRpe; first ??= suggestion;
         }
