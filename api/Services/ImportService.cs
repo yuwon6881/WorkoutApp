@@ -35,8 +35,10 @@ public sealed partial class ImportService(AppDb db, WorkoutAi ai, CatalogService
         var import = await db.Imports.AsNoTracking().SingleOrDefaultAsync(i => i.Id == id, ct);
         Validation.Require(import != null, "That import no longer exists.", 404);
         var chunks = ReadChunks(import!.OutlineJson);
-        return new ImportStatusView(import.Id, import.Status, import.Stage, import.ChunksDone, import.ChunksTotal,
-            chunks.ElementAtOrDefault(import.ChunksDone)?.Label, import.Error, import.Revision, import.Retries,
+        var completedCount = ReadChunkResults(import.ChunkResultsJson).Count;
+        var done = import.Status == ImportStatus.Ready ? import.ChunksDone : Math.Max(import.ChunksDone, completedCount);
+        return new ImportStatusView(import.Id, import.Status, import.Stage, done, import.ChunksTotal,
+            chunks.ElementAtOrDefault(done)?.Label ?? chunks.ElementAtOrDefault(import.ChunksDone)?.Label, import.Error, import.Revision, import.Retries,
             import.UnresolvedCount);
     }
 
@@ -90,8 +92,10 @@ public sealed partial class ImportService(AppDb db, WorkoutAi ai, CatalogService
         var alternatives = string.IsNullOrWhiteSpace(import.AlternativesJson) ? [] : Json.Read<List<ImportAlternative>>(import.AlternativesJson);
         var acceptable = import.Status == ImportStatus.Ready && unresolved.Count == 0 && issues.All(i => i.Severity == "info");
         var (canRestoreDraft, restorableExerciseLineIds) = AnalyzeRestorability(import, draft);
+        var completedCount = ReadChunkResults(import.ChunkResultsJson).Count;
+        var done = import.Status == ImportStatus.Ready ? import.ChunksDone : Math.Max(import.ChunksDone, completedCount);
         return new ImportView(import.Id, import.Status, import.FileName, import.Pages, import.Error, import.Created, import.Model,
-            import.Stage, import.ChunksDone, import.ChunksTotal, chunks.ElementAtOrDefault(import.ChunksDone)?.Label, unresolvedCount, draft,
+            import.Stage, done, import.ChunksTotal, chunks.ElementAtOrDefault(done)?.Label ?? chunks.ElementAtOrDefault(import.ChunksDone)?.Label, unresolvedCount, draft,
             unresolved, acceptable, import.ProgramId, issues,
             import.InputTokens, import.OutputTokens, import.Retries, coverage, alternatives, import.SelectedAlternativeId,
             import.Revision, canRestoreDraft, restorableExerciseLineIds);

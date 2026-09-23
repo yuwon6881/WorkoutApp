@@ -98,6 +98,7 @@ public sealed partial class ImportService
         // longest of them. These are I/O waits, so widening the gate costs no extra CPU here and
         // no extra tokens — the real ceiling is the provider's per-minute allowance.
         using (var inFlight = new SemaphoreSlim(Math.Max(1, config?.GetValue("OpenAi:MaxConcurrentChunks", 8) ?? 8)))
+        using (var persistGate = new SemaphoreSlim(1, 1))
         {
             await Task.WhenAll(pending.Where(item => item.Text.Length > 0 && !results.ContainsKey(item.Index)).Select(async item =>
             {
@@ -110,6 +111,29 @@ public sealed partial class ImportService
                         results[item.Index] = result;
                         completedThisPass.Add(item.Index);
                     }
+
+                    await persistGate.WaitAsync(CancellationToken.None);
+                    try
+                    {
+                        await using var resultGate = await MutationLock.Acquire(db, db.CurrentUser, CancellationToken.None);
+                        var import = await db.Imports.SingleOrDefaultAsync(i => i.Id == id, CancellationToken.None);
+                        if (import is not null && import.Status == ImportStatus.Pending && OwnsLease(import, leaseId))
+                        {
+                            var stored = ReadChunkResults(import.ChunkResultsJson);
+                            stored[item.Index] = result;
+                            import.ChunkResultsJson = Json.Write(stored);
+                            import.Model = result.Model;
+                            import.InputTokens += result.InputTokens;
+                            import.CachedInputTokens += result.CachedInputTokens;
+                            import.OutputTokens += result.OutputTokens;
+                            RenewLease(import);
+                            import.Revision++;
+                            await db.SaveChangesAsync(CancellationToken.None);
+                        }
+                        else if (import is not null && !OwnsLease(import, leaseId)) leaseLost = true;
+                        await resultGate.Commit(CancellationToken.None);
+                    }
+                    finally { persistGate.Release(); }
                 }
                 catch (DomainException ex) { lock (failures) failures[item.Index] = ex; }
                 catch (Exception) when (!ct.IsCancellationRequested)
@@ -120,30 +144,36 @@ public sealed partial class ImportService
             }));
         }
 
-        // Persist successful provider responses before attempting ordered draft
+        // Persist any remaining successful provider responses before attempting ordered draft
         // assembly. If the first section failed, later paid sections are now
         // durable and can be reused on the next retry.
-        if (completedThisPass.Count > 0)
+        if (completedThisPass.Count > 0 && !leaseLost)
         {
             await using var resultGate = await MutationLock.Acquire(db, db.CurrentUser, CancellationToken.None);
             var import = await db.Imports.SingleOrDefaultAsync(i => i.Id == id, CancellationToken.None);
             if (import is not null && import.Status == ImportStatus.Pending && OwnsLease(import, leaseId))
             {
                 var stored = ReadChunkResults(import.ChunkResultsJson);
-                foreach (var index in completedThisPass)
-                    if (results.TryGetValue(index, out var result)) stored[index] = result;
-                import.ChunkResultsJson = Json.Write(stored);
+                var changed = false;
                 foreach (var index in completedThisPass)
                 {
-                    if (!results.TryGetValue(index, out var result)) continue;
-                    import.Model = result.Model;
-                    import.InputTokens += result.InputTokens;
-                    import.CachedInputTokens += result.CachedInputTokens;
-                    import.OutputTokens += result.OutputTokens;
+                    if (results.TryGetValue(index, out var result) && !stored.ContainsKey(index))
+                    {
+                        stored[index] = result;
+                        import.Model = result.Model;
+                        import.InputTokens += result.InputTokens;
+                        import.CachedInputTokens += result.CachedInputTokens;
+                        import.OutputTokens += result.OutputTokens;
+                        changed = true;
+                    }
                 }
-                RenewLease(import);
-                import.Revision++;
-                await db.SaveChangesAsync(CancellationToken.None);
+                if (changed)
+                {
+                    import.ChunkResultsJson = Json.Write(stored);
+                    RenewLease(import);
+                    import.Revision++;
+                    await db.SaveChangesAsync(CancellationToken.None);
+                }
             }
             else if (import is not null && !OwnsLease(import, leaseId)) leaseLost = true;
             await resultGate.Commit(CancellationToken.None);

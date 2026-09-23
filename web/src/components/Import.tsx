@@ -157,8 +157,8 @@ export function ImportReview({ exercises, imports, remaining, onBack, onChanged,
       <div className="upload-action-row">
         <Button variant="primary" disabled={busy} onClick={() => file.current?.click()}><Upload size={17} />Choose a PDF</Button>
       </div>
-      {pipeline.progress && <Progress progress={pipeline.progress} action={
-        pipeline.progress.label === 'Reading the PDF on this device'
+      {pipeline.uploadProgress && <Progress progress={pipeline.uploadProgress} action={
+        pipeline.uploadProgress.label === 'Reading the PDF on this device'
           ? <Button variant="secondary" onClick={pipeline.cancelUpload}><X size={15} />Cancel PDF reading</Button>
           : undefined
       } />}

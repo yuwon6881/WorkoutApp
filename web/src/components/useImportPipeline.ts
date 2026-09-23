@@ -14,6 +14,7 @@ const STALL_INTERVAL_MS = 90_000;
 
 export type ImportPipeline = {
   progress: ImportProgress | null;
+  uploadProgress: ImportProgress | null;
   failure: ImportFailure | null;
   notice: string;
   busy: boolean;
@@ -39,6 +40,7 @@ type Options = {
 /// polls persisted progress.
 export function useImportPipeline({ selected, setSelected, setDraft, onChanged, onComplete }: Options): ImportPipeline {
   const [progress, setProgress] = useState<ImportProgress | null>(null);
+  const [uploadProgress, setUploadProgress] = useState<ImportProgress | null>(null);
   const [failure, setFailure] = useState<ImportFailure | null>(null);
   const [notice, setNotice] = useState('');
   const running = useRef(false);
@@ -195,9 +197,9 @@ export function useImportPipeline({ selected, setSelected, setDraft, onChanged, 
       try {
         // Reading the text is the only step whose size this app knows, so it is the only step
         // that reports a real percentage.
-        setProgress({ label: 'Reading the PDF on this device', detail: chosen.name, percent: 0 });
+        setUploadProgress({ label: 'Reading the PDF on this device', detail: chosen.name, percent: 0 });
         source = await extractPdfText(chosen, (page, pageCount) => {
-          setProgress({ label: 'Reading the PDF on this device', detail: `Page ${page} of ${pageCount}`, percent: Math.round((page / pageCount) * 100) });
+          setUploadProgress({ label: 'Reading the PDF on this device', detail: `Page ${page} of ${pageCount}`, percent: Math.round((page / pageCount) * 100) });
         }, controller.signal);
       } catch (error) {
         if (controller.signal.aborted) setNotice('PDF reading was cancelled. Choose a PDF to start again.');
@@ -213,17 +215,21 @@ export function useImportPipeline({ selected, setSelected, setDraft, onChanged, 
       }
 
       try {
-        setProgress({
+        setUploadProgress({
           label: 'Finding the program',
           detail: `${source.pagesWithText} of ${source.pageCount} pages have selectable text`,
           percent: null
         });
         await advance(await api.createImport(source));
       } catch (error) { report(error, 'Could not read that PDF.'); }
+      finally { setUploadProgress(null); }
     });
   }, [advance, drive, report]);
 
-  const cancelUpload = useCallback(() => uploadAbort.current?.abort(), []);
+  const cancelUpload = useCallback(() => {
+    uploadAbort.current?.abort();
+    setUploadProgress(null);
+  }, []);
 
   const resume = useCallback(async (view: ImportView) => {
     await drive(async () => {
@@ -279,7 +285,7 @@ export function useImportPipeline({ selected, setSelected, setDraft, onChanged, 
   }, [drive, onChanged, report]);
 
   return {
-    progress, failure, notice, busy: progress !== null,
+    progress, uploadProgress, failure, notice, busy: progress !== null || uploadProgress !== null,
     clearFailure: useCallback(() => setFailure(null), []),
     upload, cancelUpload, resume, cancel, chooseAlternative, run
   };

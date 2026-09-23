@@ -117,24 +117,31 @@
   justify-content:space-between;
   gap:12px;
   flex-wrap:wrap;
-  padding:8px 12px;
+  padding:10px 14px;
   border:1px solid var(--border);
   border-radius:12px;
   background:var(--surface-raised);
   margin-top:10px;
 }
 .program-day-add-actions .muted{
-  font-size:14px;
-  padding:2px 8px;
+  font-size:var(--font-secondary);
+  padding:3px 10px;
   border-radius:999px;
   background:var(--surface);
   border:1px solid var(--border);
+  line-height:1.2;
 }
-.program-day-add-actions .settings-actions{
-  display:flex;
+.program-day-add-buttons{
+  display:inline-flex;
   align-items:center;
   gap:8px;
   flex-wrap:wrap;
+  margin:0;
+}
+.program-day-add-buttons .button{
+  min-height:36px;
+  padding:6px 12px;
+  font-size:var(--font-secondary);
 }
 
 .program-day-entry{
@@ -269,8 +276,8 @@
 @media(max-width:639px){
   .program-block-control-bar{gap:6px;padding:6px}
   .program-day-add-actions{align-items:stretch;flex-direction:column;gap:10px}
-  .program-day-add-actions .settings-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;width:100%}
-  .program-day-add-actions .settings-actions>.button{justify-content:center;min-width:0;padding-inline:8px}
+  .program-day-add-buttons{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;width:100%;margin:0}
+  .program-day-add-buttons>.button{justify-content:center;min-width:0;padding-inline:8px}
   .draft-day-row{gap:2px;padding:4px 4px 4px 2px}
   .draft-day .draft-day-summary{grid-template-columns:minmax(0,1fr) 24px;column-gap:6px}
   .draft-day-summary>.draft-day-disclosure{width:24px;height:24px;flex:0 0 24px}
