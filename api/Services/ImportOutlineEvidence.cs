@@ -218,7 +218,7 @@ internal static class ImportOutlineEvidence
         => !Regex.IsMatch(value, @"^(?:UPPER|LOWER)\s+\d+$|^ARMS\s*/\s*DELTS$|^(?:PUSH|PULL|LEGS)(?:\s+\d+)?$|^DAY\s+\d+$", RegexOptions.IgnoreCase)
            && !ImportStructureHeadings.TryDayLabel(value, out _)
            && !Regex.IsMatch(value, @"^(?:EXERCISE|MOVEMENT|SETS?|REPS?|RPE|RIR|REST|LOAD|WEIGHT|NOTES?|SUBSTITUTION|TRACKING)\b", RegexOptions.IgnoreCase)
-           && !Regex.IsMatch(value, @"^(?:SUGGESTED\s+|MANDATORY\s+|OPTIONAL\s+)?REST\s+DAY$", RegexOptions.IgnoreCase);
+           && !Regex.IsMatch(value, @"^(?:\d(?:\s*[-–]\s*\d)?\s+)?(?:SUGGESTED\s+|MANDATORY\s+|OPTIONAL\s+)?REST\s+DAYS?$", RegexOptions.IgnoreCase);
 
     private static string CanonicalPhase(string value)
     {

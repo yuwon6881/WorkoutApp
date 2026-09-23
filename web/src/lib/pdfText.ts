@@ -26,7 +26,7 @@ export type PdfExtraction = {
 };
 
 function isScheduleLabel(value: string): boolean {
-  return /^(?:BLOCK\s+\d+(?:\s*:\s*.*)?|\(BLOCK\s+\d+\)|WEEK\s+\d+[A-Z]?|INTRO\s+WEEK|DELOAD\s+WEEK|(?:SUGGESTED\s+|MANDATORY\s+|OPTIONAL\s+)?REST\s+DAY)$/i.test(normalizedText(value));
+  return /^(?:BLOCK\s+\d+(?:\s*:\s*.*)?|\(BLOCK\s+\d+\)|WEEK\s+\d+[A-Z]?|INTRO\s+WEEK|DELOAD\s+WEEK|(?:\d(?:\s*[-–]\s*\d)?\s+)?(?:SUGGESTED\s+|MANDATORY\s+|OPTIONAL\s+)?REST\s+DAYS?)$/i.test(normalizedText(value));
 }
 
 function withoutLabels(rows: TextRow[], removed: Set<TextPiece>): TextRow[] {

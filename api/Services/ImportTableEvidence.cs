@@ -5,7 +5,7 @@ namespace Workout.Api.Services;
 
 /// Recovers explicit source-table values the model omitted. Rows are matched by their printed
 /// movement name whenever possible; positional matching is reserved for one unambiguous table/day.
-internal static class ImportTableEvidence
+internal static partial class ImportTableEvidence
 {
     private static readonly Regex Page = new(@"(?m)^=== PAGE (?<page>\d+) ===\s*$", RegexOptions.Compiled);
     private static readonly Regex Day = new(@"^(?:LOWER|UPPER)\s+\d+$|^ARMS\s*/\s*DELTS$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
@@ -15,7 +15,8 @@ internal static class ImportTableEvidence
     private static readonly Regex Percentage = new(@"\b\d+(?:\.\d+)?\s*(?:[-–]\s*\d+(?:\.\d+)?\s*)?%\s*(?:1\s*rm)?", RegexOptions.Compiled | RegexOptions.IgnoreCase);
     private static readonly Regex PageRestMinutes = new(@"\brest\b.{0,45}\b(?:minutes?|mins?)\b|\b(?:minutes?|mins?)\b.{0,45}\brest\b", RegexOptions.Compiled | RegexOptions.IgnoreCase);
     private static readonly Regex PageRestSeconds = new(@"\brest\b.{0,45}\b(?:seconds?|secs?)\b|\b(?:seconds?|secs?)\b.{0,45}\brest\b", RegexOptions.Compiled | RegexOptions.IgnoreCase);
-    private static readonly Regex RestDay = new(@"^(?:(?:suggested|mandatory|optional)\s+)?rest\s+days?$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+    // Min-Max Phase 2 prints "1-2 Rest Days" between its sessions.
+    private static readonly Regex RestDay = new(@"^(?:\d(?:\s*[-–]\s*\d)?\s+)?(?:(?:suggested|mandatory|optional)\s+)?rest\s+days?$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
     /// A rep range, approximate RPE, rest time or percentage: what a row states and a header
     /// never prints. A bare integer is not enough, because tracking columns are headed "1 | 2 | 3".
     private static readonly Regex HeaderValue = new(@"^(?:[~≈]\s*\d.*|\d+(?:\.\d+)?\s*[-–]\s*\d+(?:\.\d+)?\s*(?:min|mins|minutes?|sec|secs|seconds?|s|m|reps?)?|\d+(?:\.\d+)?\s*(?:min|mins|minutes?|sec|secs|seconds?|%)|\d+\.\d+)$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
@@ -64,7 +65,28 @@ internal static class ImportTableEvidence
             return day with { Block = block, Phase = phase, DayName = dayName, WeekNumber = week, PhaseWeek = phaseWeek,
                 IsRestDay = isRestDay, Exercises = next };
         }).ToList();
-        return program with { Days = enriched };
+        return program with { Days = WithFooterRestDays(enriched, pages) };
+    }
+
+    /// A page that ends on a rest-day band ("1-2 Rest Days") schedules one after its session. The
+    /// read kept that rest day in some weeks and dropped it in others, so a band with no rest day
+    /// after its session gains one. One day is the least such a band asks for; a band whose rest
+    /// day the read already placed, on this page or the next, is left alone.
+    private static List<AiDay> WithFooterRestDays(List<AiDay> days, Dictionary<int, EvidencePage> pages)
+    {
+        var output = new List<AiDay>(days.Count);
+        for (var index = 0; index < days.Count; index++)
+        {
+            var day = days[index];
+            output.Add(day);
+            if (day.IsRestDay || day.SourcePage is not { } page || !pages.TryGetValue(page, out var evidence) || !evidence.HasRestDayFooter)
+                continue;
+            var laterOnPage = days.Skip(index + 1).Any(next => !next.IsRestDay && next.SourcePage == page);
+            var restFollows = index + 1 < days.Count && days[index + 1].IsRestDay;
+            if (laterOnPage || restFollows) continue;
+            output.Add(new AiDay(day.Block, day.Phase, day.WeekNumber, day.PhaseWeek, "Rest Day", true, null, [], page));
+        }
+        return output;
     }
 
     private static EvidenceRow? MatchRow(AiExercise exercise, int exerciseIndex, List<AiExercise> dayExercises, List<EvidenceRow> rows, bool positionalMatchIsSafe)
@@ -387,97 +409,4 @@ internal static class ImportTableEvidence
             clean = perSide.Groups["count"].Value;
         return int.TryParse(clean, NumberStyles.None, CultureInfo.InvariantCulture, out var count) && count > 0 ? count : null;
     }
-
-    private static (int? min, int? max) ParseSimpleReps(string? value)
-    {
-        if (value is null) return (null, null);
-        var match = SimpleReps.Match(value);
-        if (!match.Success || !int.TryParse(match.Groups["min"].Value, NumberStyles.None, CultureInfo.InvariantCulture, out var min)) return (null, null);
-        var max = match.Groups["max"].Success && int.TryParse(match.Groups["max"].Value, NumberStyles.None, CultureInfo.InvariantCulture, out var upper) ? upper : min;
-        return max >= min ? (min, max) : (null, null);
-    }
-
-    private static double? ParseRir(string? value)
-        => double.TryParse(CleanValue(value), NumberStyles.Float, CultureInfo.InvariantCulture, out var number) && number is >= 0 and <= 10 ? Math.Round(number, MidpointRounding.AwayFromZero) : null;
-
-    private static double? ParseRpe(string? value)
-    {
-        var clean = CleanValue(value);
-        if (clean is null) return null;
-        var rangeMatch = Regex.Match(clean, @"(?:RPE|APE|LSRPE)?\s*(?<min>\d+(?:\.\d+)?)\s*[-–]\s*(?<max>\d+(?:\.\d+)?)", RegexOptions.IgnoreCase);
-        if (rangeMatch.Success
-            && double.TryParse(rangeMatch.Groups["min"].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var minRpe)
-            && double.TryParse(rangeMatch.Groups["max"].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var maxRpe)
-            && minRpe is >= 6 and <= 10 && maxRpe is >= 6 and <= 10)
-        {
-            return Math.Round((minRpe + maxRpe) / 2, MidpointRounding.AwayFromZero);
-        }
-        var match = Regex.Match(clean, @"(?:RPE|APE|LSRPE)?\s*(?<value>\d+(?:\.\d+)?)", RegexOptions.IgnoreCase);
-        return match.Success && double.TryParse(match.Groups["value"].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var number)
-            && number is >= 6 and <= 10 ? Math.Round(number, MidpointRounding.AwayFromZero) : null;
-    }
-
-    private static (double? rpe, string? load) ParseMixedIntensity(string? value, bool percentByHeader, bool combinedIntensity)
-    {
-        if (string.IsNullOrWhiteSpace(value)) return (null, null);
-        var percent = Percentage.Match(value);
-        var load = percent.Success ? percent.Value.Trim() : null;
-        var remainder = percent.Success ? Percentage.Replace(value, " ").Trim(" /|,;()-".ToCharArray()) : value;
-        if (percent.Success) return (combinedIntensity ? ParseRpe(remainder) : null, load);
-        if (!percentByHeader) return (ParseRpe(remainder), null);
-        if (!combinedIntensity) return (null, null);
-
-        var numeric = Regex.Match(value.Trim(), @"^(?<first>\d+(?:\.\d+)?)(?:\s*[-–/]\s*(?<second>\d+(?:\.\d+)?))?$");
-        if (!numeric.Success || !double.TryParse(numeric.Groups["first"].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var first))
-            return (ParseRpe(value), null);
-        if (numeric.Groups["second"].Success && double.TryParse(numeric.Groups["second"].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var second))
-        {
-            if (first <= 10 && second > 10) return (first, $"{numeric.Groups["second"].Value}% 1RM");
-            if (first > 10 && second > 10) return (null, $"{numeric.Groups["first"].Value}-{numeric.Groups["second"].Value}% 1RM");
-            return (ParseRpe(value), null);
-        }
-        return first > 10 ? (null, $"{numeric.Groups["first"].Value}% 1RM") : (first, null);
-    }
-
-    private static string? NormalizeLoad(string? value, bool percentByHeader)
-    {
-        var clean = CleanValue(value);
-        if (clean is null || clean.Equals("See Notes", StringComparison.OrdinalIgnoreCase)
-            || Regex.IsMatch(clean, @"^(?:tracking|enter|record)\b", RegexOptions.IgnoreCase)) return null;
-        if (percentByHeader && !Percentage.IsMatch(clean))
-        {
-            var range = Regex.Match(clean, @"^(?<min>\d+(?:\.\d+)?)(?:\s*[-–]\s*(?<max>\d+(?:\.\d+)?))?$");
-            if (range.Success) return $"{clean}% 1RM";
-        }
-        return clean;
-    }
-
-    private static (string? Text, int? Seconds) ParseRest(string? value, string? hint)
-    {
-        var clean = CleanValue(value);
-        if (clean is null || IsUnavailable(clean)) return (null, null);
-        var match = RestValue.Match(clean);
-        if (!match.Success) return (null, null);
-        var unit = match.Groups["unit"].Value;
-        if (unit.Length == 0)
-        {
-            if (hint is null) return (null, null);
-            unit = hint;
-            clean = $"{clean} {unit}";
-        }
-        if (!double.TryParse(match.Groups["min"].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var min)) return (null, null);
-        var max = match.Groups["max"].Success && double.TryParse(match.Groups["max"].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var upper) ? upper : min;
-        var secondsMultiplier = unit.StartsWith("sec", StringComparison.OrdinalIgnoreCase) || unit.Equals("s", StringComparison.OrdinalIgnoreCase) ? 1 : 60;
-        return (clean, (int)Math.Round((min + max) / 2 * secondsMultiplier, MidpointRounding.AwayFromZero));
-    }
-
-    private static int? ParseRestSeconds(string? text)
-        => ParseRest(text, null).Seconds;
-
-    private static bool IsRirCell(string? value) => IsUnavailable(value) || ParseRir(value) is not null;
-    private static string? RirCellText(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
-    private static bool IsUnavailable(string? value) => string.IsNullOrWhiteSpace(value) || value.Equals("N/A", StringComparison.OrdinalIgnoreCase);
-    private static bool HasText(string? value) => !string.IsNullOrWhiteSpace(value);
-    private static string? CleanValue(string? value)
-        => string.IsNullOrWhiteSpace(value) || IsUnavailable(value) ? null : value.Trim();
 }

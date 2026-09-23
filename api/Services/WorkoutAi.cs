@@ -46,8 +46,9 @@ public sealed class WorkoutAi(HttpClient http, IConfiguration config)
     /// v14 requires printed schedule tables for named program versions and reconciles
     /// advertised-but-absent alternatives against printed page evidence; v15 reconciles
     /// multi-phase sequential schedule cycles into absolute program weeks, preserves RPE ranges
-    /// and ~ rest prefixes, and recovers table rows under header bands without movement fusion.
-    public const string PromptVersion = "workout-import-v15-ppl-cycles";
+    /// and ~ rest prefixes, and recovers table rows under header bands without movement fusion;
+    /// v16 names optional and counted ("1-2 REST DAYS") rest-day bands, one rest day per band.
+    public const string PromptVersion = "workout-import-v16-rest-bands";
 
     /// One cheap pass over a page-by-page view of the document. Most of a commercial training PDF
     /// is explanation and photography; this pass exists to find the few pages that actually carry

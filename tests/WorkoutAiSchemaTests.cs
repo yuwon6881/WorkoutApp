@@ -17,6 +17,7 @@ public sealed class WorkoutAiSchemaTests
         Assert.Equal(["string", "null"], types);
         Assert.Contains("dayName", required);
         Assert.Contains("DAY LABEL: <text>", WorkoutAiSchemas.Instructions);
-        Assert.Equal("workout-import-v15-ppl-cycles", WorkoutAi.PromptVersion);
+        Assert.Equal("workout-import-v16-rest-bands", WorkoutAi.PromptVersion);
+        Assert.Contains("1-2 REST DAYS", WorkoutAiSchemas.Instructions);
     }
 }

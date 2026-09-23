@@ -56,7 +56,10 @@ internal static partial class ImportValidation
                 WorkoutLineId: unrated[0].day.LineId, ExerciseLineId: unrated[0].exercise.LineId,
                 SetIndex: unrated[0].index, TargetField: "targetRpe"));
 
-        var unrested = working.Where(item => item.set.RestSeconds is null && string.IsNullOrWhiteSpace(item.set.RestText)).ToList();
+        // The first movement of a superset rests only after its partner, so a table prints "-" for
+        // it and a session skips that rest anyway; it is not a rest the document left out.
+        var unrested = working.Where(item => item.set.RestSeconds is null && string.IsNullOrWhiteSpace(item.set.RestText)
+            && !LeadsIntoPartner(item.day, item.exercise)).ToList();
         if (unrested.Count > 0)
             issues.Add(new ImportReviewIssue("rest_unspecified",
                 $"{Count(unrested.Count, "set has", "sets have")} no stated rest in the PDF; {(unrested.Count == 1 ? "it remains" : "they remain")} unspecified. {Naming(unrested.Select(item => item.day))}",
@@ -105,6 +108,13 @@ internal static partial class ImportValidation
                         "warning", phase[0].SourcePage, WorkoutLineId: phase[0].LineId, TargetField: "week"));
         }
         return issues;
+    }
+
+    private static bool LeadsIntoPartner(DraftWorkout day, DraftExercise exercise)
+    {
+        var index = day.Exercises.IndexOf(exercise);
+        return !string.IsNullOrWhiteSpace(exercise.SequenceGroup) && index >= 0 && index + 1 < day.Exercises.Count
+            && string.Equals(day.Exercises[index + 1].SequenceGroup, exercise.SequenceGroup, StringComparison.OrdinalIgnoreCase);
     }
 
     private static bool IsPercentageLoad(string? value)

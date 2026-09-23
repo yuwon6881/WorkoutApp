@@ -422,6 +422,7 @@ public sealed class ImportTableEvidenceTests
     [Theory]
     [InlineData("Suggested Rest Day")]
     [InlineData("Mandatory Rest Day")]
+    [InlineData("1-2 Rest Days")]
     public void Rest_day_footer_variants_are_recognized(string label)
     {
         var program = new AiProgram("Rest", [new AiDay(null, null, 1, 1, "", false, null, [], 41)]);
@@ -624,5 +625,32 @@ public sealed class ImportTableEvidenceTests
         var exercise = Assert.Single(Assert.Single(ImportTableEvidence.Enrich(program, text).Days!).Exercises);
 
         Assert.All(exercise.Sets, set => Assert.Equal((null, null), (set.RestSeconds, set.RestText)));
+    }
+
+    /// Min-Max Phase 2 prints "1-2 Rest Days" after Lower and Pull. The read kept that rest day in
+    /// some weeks and dropped it in others (weeks 5, 6 and 12 had none).
+    [Fact]
+    public void A_counted_rest_day_band_the_read_dropped_gains_one_rest_day()
+    {
+        static AiDay Training(string name, int page) => new(null, null, 5, 1, name, false, null, [
+            new AiExercise("Squat", null, null, [new AiSet(6, 8, null, null, null, null, null)], SourcePage: page)], page);
+        var program = new AiProgram("Min-Max Phase 2", [Training("Lower", 43), Training("Push", 44), Training("Pull", 45),
+            new AiDay(null, null, 5, 1, "Rest Day", true, null, [], 45)]);
+        const string text = """
+            === PAGE 43 ===
+            WEEK 5
+            1-2 Rest Days
+            === PAGE 44 ===
+            WEEK 5
+            === PAGE 45 ===
+            WEEK 5
+            1-2 REST DAYS
+            """;
+
+        var days = ImportTableEvidence.Enrich(program, text).Days!;
+
+        Assert.Equal(["Lower", "Rest Day", "Push", "Pull", "Rest Day"], days.Select(day => day.DayName));
+        Assert.True(days[1].IsRestDay);
+        Assert.Equal(5, days[1].WeekNumber);
     }
 }
