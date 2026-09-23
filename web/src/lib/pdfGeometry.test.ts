@@ -29,4 +29,16 @@ describe('PDF text geometry', () => {
     const positioned = positionPiece({ str: '45°', transform: [10, 0, 0, 10, 200, 500], width: 20 });
     expect(positioned).toMatchObject({ x: 200, y: 500, endX: 220, rotated: false });
   });
+
+  it('removes overlapping sliding glyph runs without changing adjacent text', () => {
+    const pieces = positionPieces([
+      { str: 'C', transform: [10, 0, 0, 10, 10, 100], width: 5 },
+      { str: 'CA', transform: [10, 0, 0, 10, 10, 100], width: 10 },
+      { str: 'AB', transform: [10, 0, 0, 10, 15, 100], width: 10 },
+      { str: 'BL', transform: [10, 0, 0, 10, 20, 100], width: 10 },
+      { str: 'ROW', transform: [10, 0, 0, 10, 40, 100], width: 18 }
+    ]);
+    expect(pieces.map(piece => piece.str)).toEqual(['CABL', 'ROW']);
+    expect(pieces.map(piece => piece.x)).toEqual([10, 40]);
+  });
 });

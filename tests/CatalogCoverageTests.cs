@@ -113,7 +113,23 @@ public sealed class CatalogCoverageTests
         { "ASSISTED DIP", "Assisted Dip" },
         { "CRUNCH", "Crunch" },
         { "SEAL ROW", "Seal Row" },
-        { "MACHINE HIGH ROW", "Machine High Row" }
+        { "MACHINE HIGH ROW", "Machine High Row" },
+        // Shoulder Hypertrophy: distinct printed movements are seeded; faithful equipment and
+        // handle spellings resolve to the existing movement.
+        { "Cable External Rotation", "Cable External Rotation" },
+        { "Standing Overhead Barbell Press", "Barbell Overhead Press" },
+        { "Standing Overhead Barbell Press (Warm Up)", "Barbell Overhead Press" },
+        { "Incline Dumbbell Lateral Hold", "Incline Dumbbell Lateral Hold" },
+        { "Banded Lateral Raise", "Banded Lateral Raise" },
+        { "Bent Over Dumbbell Reverse Flye", "Bent Over Dumbbell Reverse Flye" },
+        { "Standing Dumbbell Press", "Standing Dumbbell Press" },
+        { "Banded Front Y Raise", "Banded Front Y Raise" },
+        { "Rope Facepull", "Rope Face Pull" },
+        { "Rope Upright Row", "Cable Upright Row" },
+        { "Wide Grip Seated Cable Row", "Wide-Grip Cable Row" },
+        { "1-Arm DB Upright Row", "1-Arm Dumbbell Upright Row" },
+        { "Reverse Cable Crossover (High)", "Reverse Cable Crossover" },
+        { "Reverse Cable Crossover (Mid)", "Reverse Cable Crossover" }
     };
 
     [Theory, MemberData(nameof(WrittenNames))]

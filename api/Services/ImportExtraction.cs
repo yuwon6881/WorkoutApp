@@ -202,7 +202,7 @@ public sealed partial class ImportService
             import.AlternativesJson = Json.Write(alternatives.Select(alternative =>
             {
                 var chunks = ImportOutlineEvidence.NormalizeChunks(alternative.Chunks, sourceEvidence);
-                var runs = ImportBlockRuns.ReconcileChunks(chunks);
+                var runs = ImportBlockRuns.ReconcileChunks(ImportPageTemplateWeeks.Reconcile(chunks, pages));
                 var absolute = ImportAbsoluteWeeks.NormalizeChunks(runs.Chunks, sourceEvidence);
                 return new ImportAlternative(alternative.Id,
                     ImportNormalization.Label(alternative.Name, 200, alternative.Id), absolute.Chunks.Count, absolute.Chunks.Sum(chunk => chunk.DayCount), absolute.Chunks);
@@ -213,7 +213,7 @@ public sealed partial class ImportService
         }
         var selected = alternatives.Count == 1 ? alternatives[0] : null;
         var normalizedChunks = ImportOutlineEvidence.NormalizeChunks(selected?.Chunks ?? reconciled.Chunks, sourceEvidence);
-        var runs = ImportBlockRuns.ReconcileChunks(normalizedChunks);
+        var runs = ImportBlockRuns.ReconcileChunks(ImportPageTemplateWeeks.Reconcile(normalizedChunks, pages));
         var absolute = ImportAbsoluteWeeks.NormalizeChunks(runs.Chunks, sourceEvidence);
         var combinedNotices = runs.Notices.Concat(absolute.Notices).ToList();
         if (combinedNotices.Count > 0)

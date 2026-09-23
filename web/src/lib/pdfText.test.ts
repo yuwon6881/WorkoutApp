@@ -36,6 +36,16 @@ beforeEach(() => {
 });
 
 describe('buildPageText', () => {
+  it('pairs a block badge with its vertically printed number', () => {
+    const text = buildPageText([
+      piece('BLOCK', 40, 940, 45),
+      piece('Shoulder Hypertrophy', 140, 934, 120),
+      piece('2', 65, 885, 10)
+    ]);
+    expect(text).toContain('BLOCK 2');
+    expect(text.split('\n')).not.toContain('2');
+  });
+
   it('reads rows top to bottom and emits column separators for distinct table columns', () => {
     const text = buildPageText([
       piece('8-10', 300, 700),

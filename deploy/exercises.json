@@ -1703,7 +1703,9 @@
     "equipment": "Barbell",
     "category": "Free Weights",
     "cue": "",
-    "aliases": [],
+    "aliases": [
+      "Standing Overhead Barbell Press"
+    ],
     "secondaryMuscles": [
       "Triceps",
       "Core"
@@ -2958,7 +2960,8 @@
     "category": "Machine",
     "cue": "",
     "aliases": [
-      "Upright Row"
+      "Upright Row",
+      "Rope Upright Row"
     ],
     "secondaryMuscles": [
       "Traps"
@@ -3176,7 +3179,8 @@
     "cue": "",
     "aliases": [
       "Wide Grip Cable Row",
-      "Cable Wide-Grip Row"
+      "Cable Wide-Grip Row",
+      "Wide Grip Seated Cable Row"
     ],
     "secondaryMuscles": [
       "Biceps"
@@ -3530,6 +3534,71 @@
     "aliases": [
       "Barbell or Dumbbell Isometric Hold",
       "Barbell or Dumbbell Isometric Hold (Grip Work)"
+    ]
+  },
+  {
+    "slug": "cable-external-rotation",
+    "name": "Cable External Rotation",
+    "muscle": "Shoulders",
+    "equipment": "Cable",
+    "category": "Machine",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "incline-dumbbell-lateral-hold",
+    "name": "Incline Dumbbell Lateral Hold",
+    "muscle": "Shoulders",
+    "equipment": "Dumbbell",
+    "category": "Free Weights",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "banded-lateral-raise",
+    "name": "Banded Lateral Raise",
+    "muscle": "Shoulders",
+    "equipment": "Band",
+    "category": "Free Weights",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "bent-over-dumbbell-reverse-flye",
+    "name": "Bent Over Dumbbell Reverse Flye",
+    "muscle": "Shoulders",
+    "equipment": "Dumbbell",
+    "category": "Free Weights",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "standing-dumbbell-press",
+    "name": "Standing Dumbbell Press",
+    "muscle": "Shoulders",
+    "equipment": "Dumbbell",
+    "category": "Free Weights",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "banded-front-y-raise",
+    "name": "Banded Front Y Raise",
+    "muscle": "Shoulders",
+    "equipment": "Band",
+    "category": "Free Weights",
+    "cue": "",
+    "aliases": []
+  },
+  {
+    "slug": "1-arm-dumbbell-upright-row",
+    "name": "1-Arm Dumbbell Upright Row",
+    "muscle": "Shoulders",
+    "equipment": "Dumbbell",
+    "category": "Free Weights",
+    "cue": "",
+    "aliases": [
+      "1-Arm DB Upright Row"
     ]
   }
 ]

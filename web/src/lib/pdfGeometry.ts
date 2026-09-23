@@ -76,12 +76,48 @@ export function positionPieces(items: readonly TextPiece[]): PositionedPiece[] {
   // Some pages draw every word twice in the same place to fake a bold weight; read once, the
   // copy doubled every name ("DEADLIFT DEADLIFT").
   const seen = new Set<string>();
-  return positioned.filter(piece => {
+  const unique = positioned.filter(piece => {
     const key = `${piece.str}\u0000${Math.round(piece.x * 2)}\u0000${Math.round(piece.y * 2)}`;
     if (seen.has(key)) return false;
     seen.add(key);
     return true;
   });
+  // Some PDFs paint overlapping text runs rather than whole duplicated words: "CA" begins
+  // where "C" begins, then "AB" begins at the A, and so on. Keep each printed glyph once.
+  // Only trim when the overlap is supported by both the spelling and the same baseline.
+  const ordered = unique.sort((a, b) => b.y - a.y || a.x - b.x || b.endX - a.endX);
+  const result: PositionedPiece[] = [];
+  for (const piece of ordered) {
+    if (piece.rotated || !piece.str.trim()) { result.push(piece); continue; }
+    const candidates = result.slice(-16).reverse().filter(other => !other.rotated
+      && Math.abs(other.y - piece.y) < 0.25 && other.x <= piece.x + 0.25
+      && other.endX > piece.x + 0.25);
+    const sameStart = candidates.find(other => Math.abs(other.x - piece.x) < 0.25
+      && other.str.startsWith(piece.str));
+    if (sameStart) continue;
+    let match: { prior: PositionedPiece; shared: number } | undefined;
+    for (const prior of candidates) {
+      for (let length = Math.min(prior.str.length, piece.str.length); length > 0; length--) {
+        if (!prior.str.endsWith(piece.str.slice(0, length))) continue;
+        const overlapWidth = prior.endX - piece.x;
+        const expectedWidth = (piece.endX - piece.x) * length / piece.str.length;
+        if (Math.abs(overlapWidth - expectedWidth) <= Math.max(1, expectedWidth * 0.65)) {
+          match = { prior, shared: length };
+          break;
+        }
+      }
+      if (match) break;
+    }
+    if (!match) { result.push(piece); continue; }
+    const { prior, shared } = match;
+    if (prior.endX >= piece.endX + 0.25) continue;
+    const str = piece.str.slice(shared);
+    if (!str) continue;
+    prior.str += str;
+    prior.endX = piece.endX;
+    prior.width = prior.endX - prior.x;
+  }
+  return result;
 }
 
 export function groupRows(items: readonly PositionedPiece[]): TextRow[] {

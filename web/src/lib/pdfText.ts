@@ -171,6 +171,17 @@ export function buildPageText(items: readonly TextPiece[]): string {
     if (text) lines.push({ y: row.y, x: row.items[0]?.x ?? 0, text });
   }
 
+  // A vertical block badge may print BLOCK above its number, with a program title between them.
+  // Preserve the paired heading so the outline can distinguish successive page templates.
+  for (const heading of lines.filter(line => line.text === 'BLOCK')) {
+    const number = lines.find(line => /^[1-9]$/.test(line.text)
+      && line.y < heading.y - 20 && line.y > heading.y - 80
+      && line.x >= heading.x && line.x < heading.x + 100);
+    if (number) {
+      heading.text = `BLOCK ${number.text}`;
+      lines.splice(lines.indexOf(number), 1);
+    }
+  }
   return lines.sort((a, b) => b.y - a.y || a.x - b.x).map(line => line.text).join('\n');
 }
 /// Loads pdf.js only when an import actually starts. It is a large dependency and no other part
