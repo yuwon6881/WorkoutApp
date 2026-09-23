@@ -19,6 +19,12 @@ export function getSetType(set: DraftSet): SetType {
   return 'normal';
 }
 
+/// An AMRAP set the source printed without a rep count ("AMRAP", "Max reps"). Its stored rep
+/// bounds are only a placeholder, so the review shows no rep target for it.
+export function hasOpenReps(set: DraftSet): boolean {
+  return getSetType(set) === 'amrap' && !!set.repsText?.trim() && !/\d/.test(set.repsText);
+}
+
 export function getSetTypeLabel(set: DraftSet): string {
   const type = getSetType(set);
   switch (type) {
@@ -77,6 +83,8 @@ export function applySetType(set: DraftSet, newType: SetType): Partial<DraftSet>
     default:
       return {
         warmup: false,
+        // Leaving AMRAP asks for a rep target, so a printed "AMRAP" stops standing in for one.
+        ...(hasOpenReps(set) ? { repsText: null } : {}),
         targetRpe: set.targetRpe ?? 8,
         notes: cleanTechniqueNotes(set.notes),
         rpeSource: 'userEdited'

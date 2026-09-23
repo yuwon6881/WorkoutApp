@@ -24,12 +24,13 @@ internal static partial class ImportTableEvidence
 
     private sealed record EvidenceRow(string? ExerciseName, int? WorkingSets, string? RepsText, int? RepMin, int? RepMax,
         string? LoadText, string? RirText, double? Rir, List<RirEvidence> RirBySet,
-        double? Rpe, double? EarlyRpe, double? LastRpe, string? RestText, int? RestSeconds, bool RestNotStated = false);
+        double? Rpe, double? EarlyRpe, double? LastRpe, string? RestText, int? RestSeconds, bool RestNotStated = false,
+        bool WarmupCounted = true);
     private sealed record RirEvidence(string? Text, double? Value);
     private sealed record EvidencePage(int? Week, string? Block, string? Phase, string? DayName, bool HasRestDayFooter,
         List<EvidenceRow> Rows);
     private sealed record Columns(int? Name, int? Sets, int? Reps, int? Load, int? Rir, int?[] RirBySet,
-        int? Rpe, int? EarlyRpe, int? LastRpe, int? Rest, string? RestUnit, bool LoadIsPercent1Rm);
+        int? Rpe, int? EarlyRpe, int? LastRpe, int? Rest, string? RestUnit, bool LoadIsPercent1Rm, bool HasWarmup = false);
 
     public static AiProgram Enrich(AiProgram program, string sourceText)
     {
@@ -94,9 +95,16 @@ internal static partial class ImportTableEvidence
         var name = NormalizeName(exercise.SourceName);
         if (name.Length > 0)
         {
-            var matches = rows.Where(row => NormalizeName(row.ExerciseName ?? "") == name).Take(2).ToList();
+            var matches = rows.Where(row => NormalizeName(row.ExerciseName ?? "") == name).ToList();
             if (matches.Count == 1) return matches[0];
-            if (matches.Count > 1) return null;
+            if (matches.Count > 1)
+            {
+                // A movement printed on several rows ("Overhead Press (Warm Up)" at two loads) pairs
+                // with them in order, when the read kept the same number of rows by that name.
+                var total = dayExercises.Count(other => NormalizeName(other.SourceName) == name);
+                var before = dayExercises.Take(exerciseIndex).Count(other => NormalizeName(other.SourceName) == name);
+                return total == matches.Count ? matches[before] : null;
+            }
             // A read can drop a printed qualifier ("Weak Point Exercise 2" for "... 2 (optional)"),
             // which split one movement into two slots. The printed row still names it uniquely.
             var bare = NormalizeName(WithoutBrackets(exercise.SourceName));
@@ -153,6 +161,9 @@ internal static partial class ImportTableEvidence
             SourceName = HasText(evidence.ExerciseName) ? evidence.ExerciseName! : exercise.SourceName,
             WorkingSets = evidence.WorkingSets is { } stated
                 ? stated.ToString(CultureInfo.InvariantCulture) : exercise.WorkingSets,
+            // A table with no warm-up column states no warm-up count; one the read supplied was
+            // taken from a row's own set count and added sets the page never prints.
+            WarmupSets = evidence.WarmupCounted ? exercise.WarmupSets : null,
             Sets = repaired
         };
     }
@@ -286,11 +297,13 @@ internal static partial class ImportTableEvidence
         int? rpe = null, early = null, last = null, rest = null;
         string? restUnit = null;
         var loadIsPercent1Rm = false;
+        var hasWarmup = false;
         for (var i = 0; i < cells.Length; i++)
         {
             var h = Regex.Replace(cells[i].ToLowerInvariant(), @"\s+", " ").Trim();
             // A coaching note is a sentence, never a column label.
             if (h.Length > MaxHeaderLength) continue;
+            if (h.Contains("warm")) hasWarmup = true;
             if (h is "exercise" or "movement" || h.Contains("exercise name") || h.Contains("movement name")) name = i;
             if ((h.Contains("working") && h.Contains("set")) || h is "sets" or "set count" || h.Contains("number of sets")) sets = i;
             if (!h.Contains("tracking") && (h.Contains("rep") || h.Contains("duration")) && !h.Contains("rir") && !h.Contains("rpe")) reps = i;
@@ -325,7 +338,7 @@ internal static partial class ImportTableEvidence
         if (name is null && (sets ?? reps) > 0 && !assigned.Contains(0)) name = 0;
         var indexedRir = rirBySet.Count == 0 ? [] : Enumerable.Range(1, rirBySet.Keys.Max())
             .Select(index => rirBySet.TryGetValue(index, out var column) ? (int?)column : null).ToArray();
-        columns = new Columns(name, sets, reps, load, rir, indexedRir, rpe, early, last, rest, restUnit, loadIsPercent1Rm);
+        columns = new Columns(name, sets, reps, load, rir, indexedRir, rpe, early, last, rest, restUnit, loadIsPercent1Rm, hasWarmup);
         return true;
     }
 
@@ -359,7 +372,7 @@ internal static partial class ImportTableEvidence
                 && rirText is null && rirBySet.All(value => value.Text is null) && rest.Text is null) return false;
             row = new EvidenceRow(IsMovementName(name) ? StripSetTag(name!) : null, setCount, repsText, repMin, repMax,
                 loadText, rirText, rir, rirBySet, rpe, early, last, rest.Text, rest.Seconds,
-                RestNotStated: IsStatedAbsent(Cell(cells, map.Rest)));
+                RestNotStated: IsStatedAbsent(Cell(cells, map.Rest)), WarmupCounted: map.HasWarmup);
             return true;
         }
 

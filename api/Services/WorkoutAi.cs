@@ -52,7 +52,7 @@ public sealed class WorkoutAi(HttpClient http, IConfiguration config)
     /// in chunked imports; v18 re-reads source day coverage and printed or glossary exercise references
     /// instead of reusing an older ready draft without that evidence; v19 repairs overlapping
     /// PDF glyph runs and reads complete repeated weekly page templates one page at a time.
-    public const string PromptVersion = "workout-import-v19-page-template-text";
+    public const string PromptVersion = "workout-import-v20-warmup-amrap-rows";
 
     /// One cheap pass over a page-by-page view of the document. Most of a commercial training PDF
     /// is explanation and photography; this pass exists to find the few pages that actually carry

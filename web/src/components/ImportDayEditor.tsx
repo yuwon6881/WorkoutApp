@@ -24,7 +24,8 @@ import {
   getSetType,
   getSetTypeLabel,
   cleanTechniqueNotes,
-  applySetType
+  applySetType,
+  hasOpenReps
 } from '../lib/importSetTypes';
 
 export function DayEditor({ day, exercises, onChange, onPropagateSubstitution, onMapExerciseSlot, restorableExerciseLineIds, onRestoreExercise }: {
@@ -373,6 +374,7 @@ function ExerciseEditor({ exercise, exercises, allDayExercises, onChange, onRemo
                   nameMax={`rep-max-${exercise.lineId}-${index}`}
                   nameSingle={`rep-${exercise.lineId}-${index}`}
                   dataImportIndex={index}
+                  openReps={hasOpenReps(set)}
                   onChange={({ repMin, repMax }) =>
                     editSet(index, { repMin, repMax, repsText: null, repsSource: 'userEdited' })
                   }

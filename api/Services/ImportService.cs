@@ -168,7 +168,7 @@ public sealed partial class ImportService(AppDb db, WorkoutAi ai, CatalogService
                 Guid? id = Guid.TryParse(source.ExerciseId, out var parsed) && active.Contains(parsed) ? parsed : null;
                 id ??= CatalogMatching.Find(library, cleanName);
                 if (id == null && cleanName != rawName) id ??= CatalogMatching.Find(library, rawName);
-                var working = source.Sets.Select(ToDraftSet).ToList();
+                var working = source.Sets.Select(ToDraftSet).Select(ImportSetKinds.Tagged).ToList();
                 // A training table states its working sets as a count in its own column — "WORKING
                 // SETS: 2" — rather than as one row per set, and a read that returns a single row
                 // for it loses every set but one. The stated count is authoritative over the rows:
@@ -176,21 +176,7 @@ public sealed partial class ImportService(AppDb db, WorkoutAi ai, CatalogService
                 var stated = ParseSetCount(source.WorkingSets);
                 while (working.Count > 0 && working.Count < stated)
                     working.Add(working[^1] with { RepsSource = "inferred", RpeSource = "inferred", RestSource = "inferred" });
-                var warmups = ParseWarmupCount(source.WarmupSets);
-                // A movement can be listed with no prescription at all, and then there is nothing
-                // for a warm-up to be modelled on. The exercise is given its one set further on.
-                if (warmups > 0 && working.Count > 0)
-                {
-                    var seed = working[0];
-                    // The table's RPE columns prescribe working sets. Warm-up Sets is only a
-                    // count, so inheriting the working row's effort invents a warm-up target.
-                    var warmup = seed with
-                    {
-                        Warmup = true, TargetRpe = null, Rir = null,
-                        RepsSource = "inferred", RpeSource = "inferred"
-                    };
-                    working.InsertRange(0, Enumerable.Repeat(warmup, warmups));
-                }
+                working = ImportSetKinds.Compose(working, ParseWarmupCount(source.WarmupSets), rawName);
                 var noteParts = new[] { ImportNormalization.Text(source.Notes, 1000), ImportNormalization.Text(source.CoachingNotes, 1000) }
                     .Concat(extractedUrls)
                     .Where(value => value is not null).Select(value => value!).ToList();

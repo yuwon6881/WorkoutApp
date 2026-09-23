@@ -9,6 +9,8 @@ export interface RepPrescriptionControlProps {
   nameSingle: string;
   dataImportIndex?: number;
   disabled?: boolean;
+  /// The source printed no rep count (an AMRAP set): no target is shown or editable.
+  openReps?: boolean;
 }
 
 export function RepPrescriptionControl({
@@ -19,7 +21,8 @@ export function RepPrescriptionControl({
   nameMax,
   nameSingle,
   dataImportIndex,
-  disabled = false
+  disabled = false,
+  openReps = false
 }: RepPrescriptionControlProps) {
   const uniqueId = useId();
   const [isRange, setIsRange] = useState(() => repMin !== repMax);
@@ -43,6 +46,18 @@ export function RepPrescriptionControl({
       }
     }
   };
+
+  if (openReps) {
+    return (
+      <div className="field rep-prescription-field">
+        <div className="rep-prescription-header">
+          <span className="rep-prescription-label">Reps</span>
+        </div>
+        <output className="rep-open-value" data-import-field="repMin" data-import-set-index={dataImportIndex}
+          aria-label="Reps: as many as possible">AMRAP</output>
+      </div>
+    );
+  }
 
   return (
     <div className="field rep-prescription-field">

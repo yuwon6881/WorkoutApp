@@ -81,4 +81,22 @@ describe('RepPrescriptionControl', () => {
     expect(singleMarkup).toContain('aria-pressed="true">Rep</button>');
     expect(singleMarkup).toContain('aria-pressed="false">Range</button>');
   });
+
+  it('shows AMRAP instead of a placeholder count when the source printed none', () => {
+    const markup = renderToStaticMarkup(
+      createElement(RepPrescriptionControl, {
+        repMin: 1,
+        repMax: 1,
+        nameMin: 'rep-min-test',
+        nameMax: 'rep-max-test',
+        nameSingle: 'rep-single-test',
+        openReps: true,
+        onChange: () => {}
+      })
+    );
+
+    expect(markup).toContain('AMRAP');
+    expect(markup).not.toContain('value="1"');
+    expect(markup).not.toContain('Rep prescription mode');
+  });
 });
