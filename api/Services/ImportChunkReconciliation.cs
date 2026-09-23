@@ -35,13 +35,13 @@ internal static class ImportChunkReconciliation
     }
 
     public static ChunkMerge ReconcileChunkCoverage(ImportDraft existing, ImportDraft extracted, ImportChunk chunk,
-        IReadOnlyList<ImportPageText>? pages = null)
+        IReadOnlyList<ImportPageText>? pages = null, bool preserveTrailingRestDays = false)
     {
         var translated = ImportAbsoluteWeeks.TranslateDays(extracted.Workouts, chunk);
         // Lettered versions of one week are separated before the week is shaped: shaped together
         // they overflow it, and its trailing rest days would be trimmed as surplus.
         var versions = ImportWeekVariants.Separate(translated, pages ?? []);
-        var shaped = ImportDayShape.Reconcile(versions.Workouts);
+        var shaped = ImportDayShape.Reconcile(versions.Workouts, preserveTrailingRestDays);
         var notices = new List<ImportReviewIssue>(versions.Notices);
         notices.AddRange(shaped.Notices);
         var strayed = shaped.Workouts.Where(day => !versions.Moved.Contains(day.LineId)
@@ -95,9 +95,18 @@ internal static class ImportChunkReconciliation
                 $"'{chunk.Label}' lists {repeated} day{(repeated == 1 ? "" : "s")} that read identically. Both were kept — delete one in the review if the document only has it once.",
                 "warning", chunk.PageFrom));
 
-        if (sectionDayCount * 2 < chunk.DayCount)
+        var sourceTrainingDays = pages is null
+            ? 0
+            : ImportDayLabels.Read(pages).Values.Sum(labels => labels.Count);
+        var readTrainingDays = shaped.Workouts.Count(day => !day.IsRestDay);
+        var underRead = sourceTrainingDays > 0
+            ? readTrainingDays * 2 < sourceTrainingDays
+            : sectionDayCount * 2 < chunk.DayCount;
+        if (underRead)
             notices.Add(new ImportReviewIssue("chunk_day_count",
-                $"'{chunk.Label}' was outlined as about {chunk.DayCount} day{(chunk.DayCount == 1 ? "" : "s")} but reads as {sectionDayCount}. Check that section in the review.",
+                sourceTrainingDays > 0
+                    ? $"'{chunk.Label}' has {sourceTrainingDays} printed training-day title{(sourceTrainingDays == 1 ? "" : "s")} but reads as {readTrainingDays}. Check that section in the review."
+                    : $"'{chunk.Label}' was outlined as about {chunk.DayCount} day{(chunk.DayCount == 1 ? "" : "s")} but reads as {sectionDayCount}. Check that section in the review.",
                 "warning", chunk.PageFrom));
 
         return new ChunkMerge(workouts, notices);

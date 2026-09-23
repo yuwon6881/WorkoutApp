@@ -78,6 +78,37 @@ public sealed class ImportReconciliationTests
         Assert.False(ready.Acceptable);
     }
 
+    [Fact]
+    public void Page_46_outline_estimate_uses_its_one_printed_day_instead_of_warning_about_seven()
+    {
+        var extracted = new ImportDraft("Pure Bodybuilding", [ReconciliationDay(46) with
+        {
+            Week = 6,
+            Name = "Pull #1"
+        }]);
+        var pages = new[] { new ImportPageText(46, "BLOCK 2: 5-WEEK GRIND PHASE\nWEEK 6\nDAY LABEL: Pull #1") };
+        var chunk = new ImportChunk("BLOCK 2: 5-WEEK GRIND PHASE", "Block 2", "Grind", 6, 10, 46, 46, 7);
+
+        var merge = ImportChunkReconciliation.ReconcileChunkCoverage(new ImportDraft("Pure Bodybuilding", []), extracted, chunk, pages);
+
+        Assert.DoesNotContain(merge.Notices, issue => issue.Code == "chunk_day_count");
+    }
+
+    [Fact]
+    public void Chunk_with_many_printed_day_labels_still_warns_when_the_read_misses_most_of_them()
+    {
+        var pages = Enumerable.Range(46, 8)
+            .Select(page => new ImportPageText(page, $"WEEK 6\nDAY LABEL: Session {page}"))
+            .ToList();
+        var extracted = new ImportDraft("Pure Bodybuilding", [ReconciliationDay(46) with { Week = 6 }]);
+        var chunk = new ImportChunk("Week 6", "Block 2", "Grind", 6, 6, 46, 53, 7);
+
+        var merge = ImportChunkReconciliation.ReconcileChunkCoverage(new ImportDraft("Pure Bodybuilding", []), extracted, chunk, pages);
+
+        var warning = Assert.Single(merge.Notices, issue => issue.Code == "chunk_day_count");
+        Assert.Contains("8 printed training-day titles but reads as 1", warning.Message);
+    }
+
     /// The outline's week range is a claim made from page previews; the page the section actually
     /// read is the better authority. Refusing the section over the disagreement only produced the
     /// same answer on every retry, so the page is followed and the reviewer is told.

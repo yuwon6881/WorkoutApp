@@ -68,8 +68,12 @@ function coveredText(pieces: readonly TextPiece[], rect: LinkRect['rect']): stri
     const y = piece.transform[5];
     const width = piece.width ?? 0;
     const height = piece.height ?? 0;
+    // The sidebar day label can overlap a link rectangle by a few pixels while its text is
+    // centered outside the exercise column. Requiring the glyph run's center to sit under the
+    // annotation keeps that label out without dropping wrapped exercise-name lines.
+    const centerX = x + width / 2;
     // A baseline sits at the bottom of its glyphs, so the piece is grown upward before testing.
-    return overlaps(x, x + width, left, right) && overlaps(y, y + Math.max(height, 1), bottom, top);
+    return centerX >= left && centerX <= right && overlaps(y, y + Math.max(height, 1), bottom, top);
   });
   if (covered.length === 0) return '';
   const ordered = [...covered].sort((a, b) => b.transform[5] - a.transform[5] || a.transform[4] - b.transform[4]);

@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.RegularExpressions;
 using Workout.Api.Domain;
 
@@ -40,7 +41,8 @@ internal static partial class ImportValidation
 
         var working = training.SelectMany(day => day.Exercises.SelectMany(exercise =>
             exercise.Sets.Select((set, index) => (day, exercise, set, index)))).Where(item => !item.set.Warmup).ToList();
-        var loadSpecified = working.Where(item => item.set.TargetRpe is null && IsPercentageLoad(item.set.LoadText)).ToList();
+        var loadSpecified = working.Where(item => item.set.TargetRpe is null && !HasRirTarget(item.set.Rir)
+            && IsPercentageLoad(item.set.LoadText)).ToList();
         if (loadSpecified.Count > 0)
             issues.Add(new ImportReviewIssue("percentage_load_without_rpe",
                 $"{Count(loadSpecified.Count, "working set has", "working sets have")} a percentage load prescription and no RIR target; the load is preserved as source text. {Naming(loadSpecified.Select(item => item.day))}",
@@ -48,7 +50,8 @@ internal static partial class ImportValidation
                 WorkoutLineId: loadSpecified[0].day.LineId, ExerciseLineId: loadSpecified[0].exercise.LineId,
                 SetIndex: loadSpecified[0].index, TargetField: "targetRpe"));
 
-        var unrated = working.Where(item => item.set.TargetRpe is null && !IsPercentageLoad(item.set.LoadText)).ToList();
+        var unrated = working.Where(item => item.set.TargetRpe is null && !HasRirTarget(item.set.Rir)
+            && !IsPercentageLoad(item.set.LoadText)).ToList();
         if (unrated.Count > 0)
             issues.Add(new ImportReviewIssue("rpe_unspecified",
                 $"{Count(unrated.Count, "working set has", "working sets have")} no target RIR in the PDF; {(unrated.Count == 1 ? "it remains" : "they remain")} unspecified. {Naming(unrated.Select(item => item.day))}",
@@ -121,6 +124,9 @@ internal static partial class ImportValidation
         => !string.IsNullOrWhiteSpace(value) && Regex.IsMatch(value.Trim(),
             @"^\d+(?:\.\d+)?(?:\s*[-–]\s*\d+(?:\.\d+)?)?\s*%\s*(?:1\s*RM)?$",
             RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+
+    private static bool HasRirTarget(string? value)
+        => double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out var rir) && rir is >= 0 and <= 10;
 
     private static string Count(int count, string one, string many)
         => count == 1 ? $"1 {one}" : $"{count} {many}";

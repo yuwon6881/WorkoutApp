@@ -66,6 +66,76 @@ public class AiImportTests
     }
 
     [Fact]
+    public async Task A_ready_import_from_the_previous_processing_version_is_not_reused()
+    {
+        await using var h = await Harness.Create(Configured);
+        await h.SignIn();
+        var imports = h.Imports(StubHandler.Program(OneWorkout));
+        var source = Source("versioned.pdf");
+        var oldReady = await imports.Create(source, default);
+        var oldRow = await h.Db.Imports.SingleAsync(row => row.Id == oldReady.Id);
+        oldRow.PromptVersion = "workout-import-v16-rest-bands";
+        await h.Db.SaveChangesAsync();
+
+        var refreshed = await imports.Create(source, default);
+
+        Assert.NotEqual(oldReady.Id, refreshed.Id);
+        Assert.Equal("workout-import-v16-rest-bands", oldRow.PromptVersion);
+        Assert.Equal(ImportStatus.Ready, oldRow.Status);
+        Assert.Equal(WorkoutAi.PromptVersion, (await h.Db.Imports.SingleAsync(row => row.Id == refreshed.Id)).PromptVersion);
+    }
+
+    [Fact]
+    public async Task Chunked_import_recovers_printed_early_last_rpe_without_assigning_effort_to_warmups()
+    {
+        const string outline = """
+            {"programTitle":"Pure Bodybuilding Phase 2","chunks":[{"label":"Week 1","block":"Block 1","phase":"Build","weekFrom":1,"weekTo":1,"pageFrom":12,"pageTo":13,"dayCount":2}]}
+            """;
+        const string section = """
+            {"programTitle":"Pure Bodybuilding Phase 2","days":[
+              {"block":"Block 1","phase":"Build","weekNumber":1,"phaseWeek":1,"dayName":"Legs #2","isRestDay":false,"notes":null,"sourcePage":12,"exercises":[
+                {"sequenceGroup":null,"sourceName":"Seated Leg Curl","exerciseId":null,"warmupSets":"2","workingSets":"2","substitutions":[],"coachingNotes":null,"notes":null,"sourcePage":12,"sets":[{"repMin":10,"repMax":12,"repsText":"10-12","targetRpe":null,"rir":null,"restSeconds":null,"restText":null,"tempo":null,"loadText":null,"notes":null,"repsSource":"inferred","rpeSource":"inferred","restSource":"inferred","sourcePage":12}]},
+                {"sequenceGroup":null,"sourceName":"Barbell RDL","exerciseId":null,"warmupSets":"2","workingSets":"2","substitutions":[],"coachingNotes":null,"notes":null,"sourcePage":12,"sets":[{"repMin":6,"repMax":8,"repsText":"6-8","targetRpe":null,"rir":null,"restSeconds":null,"restText":null,"tempo":null,"loadText":null,"notes":null,"repsSource":"inferred","rpeSource":"inferred","restSource":"inferred","sourcePage":12}]}]},
+              {"block":"Block 1","phase":"Build","weekNumber":1,"phaseWeek":1,"dayName":"Arms & Weak Points #2","isRestDay":false,"notes":null,"sourcePage":13,"exercises":[
+                {"sequenceGroup":null,"sourceName":"Weak Point Exercise 1 (optional)","exerciseId":null,"warmupSets":"1","workingSets":"2","substitutions":[],"coachingNotes":null,"notes":null,"sourcePage":13,"sets":[{"repMin":10,"repMax":12,"repsText":"10-12","targetRpe":null,"rir":null,"restSeconds":null,"restText":null,"tempo":null,"loadText":null,"notes":null,"repsSource":"inferred","rpeSource":"inferred","restSource":"inferred","sourcePage":13}]}]}]}
+            """;
+        var responseIndex = 0;
+        var responses = new[] { outline, section };
+        var handler = new StubHandler(_ => new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent($$"""{"status":"completed","output":[{"content":[{"type":"output_text","text":{{JsonSerializer.Serialize(responses[Math.Min(responseIndex++, 1)])}}}]}]}""")
+        });
+
+        await using var harness = await Harness.Create(Configured);
+        await harness.SignIn();
+        var imports = harness.Imports(handler);
+        var source = new ImportSourceInput("pure-bodybuilding.pdf", 13, [
+            new ImportPageText(12, "WEEK 1\nDAY LABEL: Legs #2\nExercise | Warm-up Sets | Working Sets | Reps | Early Set RPE | Last Set RPE | Rest (min)\nSeated Leg Curl | 2 | 2 | 10-12 | 7 | 9 | 2\nBarbell RDL | 2 | 2 | 6-8 | 5 | 7 | 3"),
+            new ImportPageText(13, "WEEK 1\nDAY LABEL: Arms & Weak Points #2\nExercise | Warm-up Sets | Working Sets | Reps | Early Set RPE | Last Set RPE | Rest (min)\nWeak Point Exercise 1 (optional) | 1 | 2 | 10-12 | 7 | 9 | 2")
+        ]);
+
+        var pending = await imports.Create(source, default);
+        var ready = await imports.Extract(pending.Id, default);
+
+        var days = ready.Draft!.Workouts;
+        var legCurl = days.Single(day => day.Name == "Legs #2").Exercises.Single(exercise => exercise.SourceName == "Seated Leg Curl");
+        Assert.Equal(4, legCurl.Sets.Count);
+        Assert.All(legCurl.Sets.Take(2), set =>
+        {
+            Assert.True(set.Warmup);
+            Assert.Null(set.TargetRpe);
+            Assert.Null(set.Rir);
+        });
+        Assert.Equal([7d, 9d], legCurl.Sets.Skip(2).Select(set => set.TargetRpe));
+        Assert.Equal(["3", "1"], legCurl.Sets.Skip(2).Select(set => set.Rir));
+
+        var rdl = days.Single(day => day.Name == "Legs #2").Exercises.Single(exercise => exercise.SourceName == "Barbell RDL");
+        Assert.Equal([null, 7d], rdl.Sets.Skip(2).Select(set => set.TargetRpe));
+        Assert.Equal(["5", "3"], rdl.Sets.Skip(2).Select(set => set.Rir));
+        Assert.DoesNotContain(ready.ReviewIssues!, issue => issue.Code == "rpe_unspecified");
+    }
+
+    [Fact]
     public async Task A_nullable_model_day_name_is_replaced_by_the_printed_page_title()
     {
         const string outline = """

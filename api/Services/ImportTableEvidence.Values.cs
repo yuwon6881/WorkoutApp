@@ -26,13 +26,13 @@ internal static partial class ImportTableEvidence
         if (rangeMatch.Success
             && double.TryParse(rangeMatch.Groups["min"].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var minRpe)
             && double.TryParse(rangeMatch.Groups["max"].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var maxRpe)
-            && minRpe is >= 6 and <= 10 && maxRpe is >= 6 and <= 10)
+            && minRpe is >= 5 and <= 10 && maxRpe is >= 5 and <= 10)
         {
             return Math.Round((minRpe + maxRpe) / 2, MidpointRounding.AwayFromZero);
         }
         var match = Regex.Match(clean, @"(?:RPE|APE|LSRPE)?\s*(?<value>\d+(?:\.\d+)?)", RegexOptions.IgnoreCase);
         return match.Success && double.TryParse(match.Groups["value"].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var number)
-            && number is >= 6 and <= 10 ? Math.Round(number, MidpointRounding.AwayFromZero) : null;
+            && number is >= 5 and <= 10 ? Math.Round(number, MidpointRounding.AwayFromZero) : null;
     }
 
     private static (double? rpe, string? load) ParseMixedIntensity(string? value, bool percentByHeader, bool combinedIntensity)

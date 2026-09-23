@@ -12,43 +12,71 @@ public sealed class ImportLongWeekTests
     ];
 
     [Fact]
-    public void Source_confirmed_ten_day_cycles_keep_both_rest_days_and_fit_program_weeks()
+    public void Pure_bodybuilding_ten_day_cycles_keep_source_order_and_split_seven_plus_three()
     {
         var source = new List<DraftWorkout>();
-        var pages = new List<ImportPageText>();
+        var pages = new List<ImportPageText>
+        {
+            new(2, "This asynchronous split runs on a 10-day cycle instead of the usual 7-day cycle.")
+        };
         var page = 6;
         for (var printedWeek = 1; printedWeek <= 10; printedWeek++)
         {
             var block = printedWeek <= 5 ? "Block 1" : "Block 2";
+            var localWeek = printedWeek <= 5 ? printedWeek : printedWeek - 5;
             for (var index = 0; index < SessionNames.Length; index++)
             {
                 var name = SessionNames[index];
-                source.Add(Training(printedWeek, printedWeek <= 5 ? printedWeek : printedWeek - 5,
-                    block, name, page));
-                pages.Add(new ImportPageText(page, $"WEEK {printedWeek}\nDAY LABEL: {name}"));
+                // Block 2 restarts its model-local week count. A recycled Block 1 banner is
+                // present on a later Block 2 page, but printed week headings define the cycle.
+                var sourceBlock = printedWeek == 6 && index == 4 ? "Block 1" : block;
+                var banner = printedWeek == 6 && index == 4 ? "BLOCK 1\n" : "";
+                var restBand = index is 3 or 7 ? "\n1-2 Rest Days" : "";
+                source.Add(Training(localWeek, localWeek, sourceBlock, name, page));
+                pages.Add(new ImportPageText(page, $"{banner}WEEK {printedWeek}\nDAY LABEL: {name}{restBand}"));
                 if (index is 3 or 7)
-                    source.Add(new DraftWorkout(Guid.NewGuid(), printedWeek, "Rest Day", null, null, [],
-                        block, "Build", printedWeek <= 5 ? printedWeek : printedWeek - 5, true, page));
+                    source.Add(new DraftWorkout(Guid.NewGuid(), localWeek, "Rest Day", null, null, [],
+                        sourceBlock, "Build", localWeek, true, page));
                 page++;
             }
         }
 
-        var shaped = ImportDayShape.Reconcile(source);
-        Assert.Equal(100, shaped.Workouts.Count);
-        Assert.DoesNotContain(shaped.Notices, notice => notice.Code == "trailing_rest_day_trimmed");
-
-        var result = ImportLongWeeks.Reconcile(shaped.Workouts, pages);
+        var result = ImportLongWeeks.Reconcile(source, pages);
 
         Assert.Equal(100, result.Workouts.Count);
         Assert.Equal(20, result.Workouts.Count(day => day.IsRestDay));
-        Assert.Equal(16, result.Workouts.Max(day => day.Week));
+        Assert.Equal(20, result.Workouts.Select(day => day.Week).Distinct().Count());
+        Assert.Equal(20, result.Workouts.Max(day => day.Week));
         Assert.All(result.Workouts.GroupBy(day => day.Week), week => Assert.InRange(week.Count(), 1, 7));
-        Assert.Equal(source.Select(day => day.LineId), result.Workouts.Select(day => day.LineId));
-        Assert.Equal([1, 2, 3, 4, 5, 6, 7, 8], result.Workouts.Where(day => day.Block == "Block 1")
-            .Select(day => day.PhaseWeek).Distinct());
-        Assert.Equal(2, result.Notices.Count);
+        Assert.All(result.Workouts.GroupBy(day => day.Week), week =>
+            Assert.Equal(week.Key % 2 == 1 ? 7 : 3, week.Count()));
+        Assert.Equal(source.Select(day => day.SourcePage), result.Workouts.Select(day => day.SourcePage));
+        Assert.Equal(["Pull #1", "Push #1", "Legs #1", "Arms & Weak Points #1", "Rest Day", "Pull #2", "Push #2"],
+            result.Workouts.Where(day => day.Week == 1).Select(day => day.Name));
+        Assert.Equal(["Legs #2", "Arms & Weak Points #2", "Rest Day"],
+            result.Workouts.Where(day => day.Week == 2).Select(day => day.Name));
+
+        var block2Start = result.Workouts.Single(day => day.SourcePage == 46 && day.Name == "Pull #1");
+        Assert.Equal(11, block2Start.Week);
+        Assert.Equal("Legs #2", result.Workouts.First(day => day.Week == 12).Name);
+        Assert.Equal(2, result.Workouts.First(day => day.Week == 12).PhaseWeek);
+        Assert.Single(result.Notices, notice => notice.Code == "long_source_cycle_reflowed");
         Assert.DoesNotContain(ImportValidation.ReviewIssues(new ImportDraft("Pure Bodybuilding", result.Workouts)),
             issue => issue.Code == "week_day_overflow");
+    }
+
+    [Fact]
+    public void Chunk_cleanup_preserves_rest_rows_for_an_explicit_ten_day_cycle()
+    {
+        var days = Enumerable.Range(1, 8).Select(index => Training(1, 1, "Block 1", $"Day {index}", index)).ToList();
+        days.Insert(4, Rest(1, 4));
+        days.Add(Rest(1, 8));
+
+        var shaped = ImportDayShape.Reconcile(days, preserveTrailingRestDays: true);
+
+        Assert.Equal(10, shaped.Workouts.Count);
+        Assert.Equal(2, shaped.Workouts.Count(day => day.IsRestDay));
+        Assert.DoesNotContain(shaped.Notices, notice => notice.Code == "trailing_rest_day_trimmed");
     }
 
     [Fact]
@@ -72,12 +100,10 @@ public sealed class ImportLongWeekTests
     {
         var source = Enumerable.Range(1, 8).Select(index =>
             Training(1, 1, "Block 1", index % 2 == 0 ? "Lower" : "Upper", index)).ToList();
-        source.Insert(4, new DraftWorkout(Guid.NewGuid(), 1, "Rest Day", null, null, [],
-            "Block 1", "Build", 1, true, 4));
-        source.Add(new DraftWorkout(Guid.NewGuid(), 1, "Rest Day", null, null, [],
-            "Block 1", "Build", 1, true, 8));
+        source.Insert(4, Rest(1, 4));
+        source.Add(Rest(1, 8));
         var pages = Enumerable.Range(1, 8).Select(index => new ImportPageText(index,
-            $"WEEK 1\nDAY LABEL: {(index % 2 == 0 ? "Lower" : "Upper")}")).ToList();
+            $"WEEK 1\nDAY LABEL: {(index % 2 == 0 ? "Lower" : "Upper")}" + (index is 4 or 8 ? "\n1-2 Rest Days" : ""))).ToList();
 
         var shaped = ImportDayShape.Reconcile(source);
         var result = ImportLongWeeks.Reconcile(shaped.Workouts, pages);
@@ -107,4 +133,8 @@ public sealed class ImportLongWeekTests
             [new DraftExercise(Guid.NewGuid(), "Squat", null, null,
                 [new DraftSet(8, 10, 8, 90, null, null, null)], SourcePage: page)],
             block, "Build", phaseWeek, false, page);
+
+    private static DraftWorkout Rest(int week, int page)
+        => new(Guid.NewGuid(), week, "Rest Day", null, null, [],
+            "Block 1", "Build", 1, true, page);
 }

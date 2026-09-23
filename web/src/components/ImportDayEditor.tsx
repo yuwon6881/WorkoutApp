@@ -377,7 +377,7 @@ function ExerciseEditor({ exercise, exercises, allDayExercises, onChange, onRemo
                     editSet(index, { repMin, repMax, repsText: null, repsSource: 'userEdited' })
                   }
                 />
-                {set.warmup ? <WarmupRirNote /> : <div className="field rpe-field" data-import-field="targetRpe" data-import-set-index={index}>
+                {set.warmup ? <WarmupRirNote dataImportIndex={index} /> : <div className="field rpe-field" data-import-field="targetRpe" data-import-set-index={index}>
                   <span>Target RIR</span>
                   <RpeControl
                     name={`target-rir-${exercise.lineId}-${index}`}

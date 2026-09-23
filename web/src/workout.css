@@ -260,17 +260,7 @@
   border: 0;
   transition: color 0.14s ease, background 0.14s ease;
 }
-.warmup-rir-value {
-  display: flex;
-  align-items: center;
-  min-height: 44px;
-  padding: 6px 10px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  color: var(--muted);
-  background: var(--surface-raised);
-  box-sizing: border-box;
-}
+
 .substitution-chip .chip-remove-btn:hover:not(:disabled) {
   color: var(--red);
   background: var(--red-soft);

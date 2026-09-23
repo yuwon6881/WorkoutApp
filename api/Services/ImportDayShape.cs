@@ -22,7 +22,8 @@ internal static class ImportDayShape
     public const int MaxDayExercises = 40;
     public const int MaxExerciseSets = 24;
 
-    public static (List<DraftWorkout> Workouts, List<ImportReviewIssue> Notices) Reconcile(IEnumerable<DraftWorkout> days)
+    public static (List<DraftWorkout> Workouts, List<ImportReviewIssue> Notices) Reconcile(
+        IEnumerable<DraftWorkout> days, bool preserveTrailingRestDays = false)
     {
         var notices = new List<ImportReviewIssue>();
         var inputList = days.ToList();
@@ -63,7 +64,7 @@ internal static class ImportDayShape
             // Keep its rests for the whole-draft schedule reconciliation to place in app weeks.
             var longTrainingCycle = groupDays.Where(day => !day.IsRestDay && !localDuplicateIds.Contains(day.LineId))
                 .Select(day => (day.SourcePage, Name: day.Name.Trim().ToUpperInvariant())).Distinct().Count() > 7;
-            while (!longTrainingCycle && groupDays.Count > 7 && groupDays[^1].IsRestDay)
+            while (!preserveTrailingRestDays && !longTrainingCycle && groupDays.Count > 7 && groupDays[^1].IsRestDay)
             {
                 trimmedRestIds.Add(groupDays[^1].LineId);
                 trimmedDays.Add(groupDays[^1]);

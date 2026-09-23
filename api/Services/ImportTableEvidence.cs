@@ -169,8 +169,9 @@ internal static partial class ImportTableEvidence
         var inferredFromRir = rir is { } rirValue && rirValue is >= 0 and <= 4 ? 10 - Math.Round(rirValue, MidpointRounding.AwayFromZero) : (double?)null;
         var sourceRpe = last ? evidence.LastRpe ?? evidence.EarlyRpe ?? evidence.Rpe : evidence.EarlyRpe ?? evidence.Rpe;
         if (sourceRpe is { } sRpe) sourceRpe = Math.Round(sRpe, MidpointRounding.AwayFromZero);
+        var usableSourceRpe = sourceRpe is >= 6 and <= 10 ? sourceRpe : null;
         var targetRpe = rirText?.Equals("N/A", StringComparison.OrdinalIgnoreCase) == true && index > 0 && set.RpeSource == "inferred"
-            ? null : set.TargetRpe ?? inferredFromRir ?? sourceRpe;
+            ? null : set.TargetRpe ?? inferredFromRir ?? usableSourceRpe;
         if (targetRpe is { } tRpe) targetRpe = Math.Round(tRpe, MidpointRounding.AwayFromZero);
         var rpeSource = set.TargetRpe is null
             ? inferredFromRir is not null ? "inferred" : sourceRpe is not null ? "extracted" : set.RpeSource
@@ -182,7 +183,9 @@ internal static partial class ImportTableEvidence
                 ? (double.TryParse(set.Rir, NumberStyles.Float, CultureInfo.InvariantCulture, out var sRir) ? ((int)Math.Round(sRir)).ToString(CultureInfo.InvariantCulture) : set.Rir)
                 : HasText(rirText)
                     ? (double.TryParse(rirText, NumberStyles.Float, CultureInfo.InvariantCulture, out var eRir) ? ((int)Math.Round(eRir)).ToString(CultureInfo.InvariantCulture) : rirText)
-                    : targetRpe is { } tVal && tVal is >= 6 and <= 10
+                    : sourceRpe is { } lowSourceRpe && lowSourceRpe is >= 5 and < 6
+                        ? ((int)Math.Round(10 - lowSourceRpe, MidpointRounding.AwayFromZero)).ToString(CultureInfo.InvariantCulture)
+                        : targetRpe is { } tVal && tVal is >= 6 and <= 10
                         ? ((int)Math.Round(10 - tVal)).ToString(CultureInfo.InvariantCulture)
                         : null;
 

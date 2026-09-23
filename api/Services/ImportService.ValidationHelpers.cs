@@ -21,8 +21,8 @@ public sealed partial class ImportService
         => ImportValidation.NormalizePhaseWeeks(workouts);
 
     private static ImportChunkReconciliation.ChunkMerge ReconcileChunkCoverage(ImportDraft existing, ImportDraft extracted, ImportChunk chunk,
-        IReadOnlyList<ImportPageText>? pages = null)
-        => ImportChunkReconciliation.ReconcileChunkCoverage(existing, extracted, chunk, pages);
+        IReadOnlyList<ImportPageText>? pages = null, bool preserveTrailingRestDays = false)
+        => ImportChunkReconciliation.ReconcileChunkCoverage(existing, extracted, chunk, pages, preserveTrailingRestDays);
 
     private static (List<DraftWorkout> Workouts, List<ImportReviewIssue> Notices) ReconcileDayShape(List<DraftWorkout> days)
         => ImportDayShape.Reconcile(days);

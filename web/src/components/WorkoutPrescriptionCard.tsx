@@ -244,7 +244,7 @@ export function WorkoutPrescriptionCard({
               >
                 <div className="import-set-content">
                   <div className="import-set-heading">
-                    <span className="set-number">
+                    <span className={`set-number ${set.warmup ? 'set-badge-warmup' : ''}`}>
                       <span className="set-number-label">{set.warmup ? 'Warm-up' : 'Set'}</span>
                       <strong>{si + 1}</strong>
                     </span>

@@ -51,6 +51,23 @@ describe('PDF exercise demo links', () => {
     ]);
   });
 
+  it('does not absorb an overlapping sidebar day label into an exercise link', () => {
+    const pieces = [
+      piece('Pull #2', 131, 579, 115),
+      piece('Cable Rope', 211, 584, 76),
+      piece('Hammer Curl', 204, 566, 89)
+    ];
+    const url = 'https://youtu.be/TTgICSfj1hY?si=yOoxlJpIv6HqFkwW';
+    const annotations: LinkRect[] = [
+      { url, rect: [204, 579, 292, 596] },
+      { url, rect: [204, 562, 292, 578] }
+    ];
+
+    expect(pageLinks(50, pieces, annotations)).toEqual([
+      { page: 50, name: 'Cable Rope Hammer Curl', url }
+    ]);
+  });
+
   it('ignores a rectangle that covers no text and de-duplicates repeated links', () => {
     const pieces = [piece('Pec Deck', 40, 200)];
     const annotations: LinkRect[] = [

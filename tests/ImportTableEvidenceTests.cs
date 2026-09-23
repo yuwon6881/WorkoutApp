@@ -219,6 +219,56 @@ public sealed class ImportTableEvidenceTests
     }
 
     [Fact]
+    public void Pure_bodybuilding_pages_12_and_13_restore_missing_early_and_last_set_rpe()
+    {
+        var program = new AiProgram("Pure Bodybuilding Phase 2", [
+            new AiDay("Block 1", "Build", 1, 1, "Legs #2", false, null, [
+                NewExercise("Seated Leg Curl", 12),
+                NewExercise("Barbell RDL", 12)
+            ], 12),
+            new AiDay("Block 1", "Build", 1, 1, "Arms & Weak Points #2", false, null, [
+                NewExercise("Weak Point Exercise 1 (optional)", 13)
+            ], 13)
+        ]);
+        const string text = """
+            === PAGE 12 ===
+            WEEK 1
+            Exercise | Warm-up Sets | Working Sets | Reps | Early Set RPE | Last Set RPE | Rest (min)
+            Seated Leg Curl | 3 | 2 | 10-12 | 6 | 8 | 2
+            Barbell RDL | 2 | 2 | 6-8 | 5 | 7 | 3
+            === PAGE 13 ===
+            WEEK 1
+            Exercise | Warm-up Sets | Working Sets | Reps | Early Set RPE | Last Set RPE | Rest (min)
+            Weak Point Exercise 1 (optional) | 1 | 2 | 10-12 | 7 | 9 | 2
+            """;
+
+        var enriched = ImportTableEvidence.Enrich(program, text);
+        var exercises = enriched.Days!.SelectMany(day => day.Exercises).ToList();
+
+        Assert.Equal(3, exercises.Count);
+        Assert.Equal([6d, 8d], exercises[0].Sets.Select(set => set.TargetRpe));
+        Assert.Equal([null, 7d], exercises[1].Sets.Select(set => set.TargetRpe));
+        Assert.Equal([7d, 9d], exercises[2].Sets.Select(set => set.TargetRpe));
+        Assert.All(exercises.SelectMany(exercise => exercise.Sets), set => Assert.Equal("extracted", set.RpeSource));
+        Assert.Equal(["5", "3"], exercises[1].Sets.Select(set => set.Rir));
+        Assert.Equal(["2", "2", "2"], exercises.Select(exercise => exercise.WarmupSets));
+    }
+
+    [Fact]
+    public void Rpe_five_is_kept_as_five_rir_without_reporting_the_target_as_missing()
+    {
+        var draft = new ImportDraft("Pure Bodybuilding", [new DraftWorkout(Guid.NewGuid(), 1, "Legs #2", null, null, [
+            new DraftExercise(Guid.NewGuid(), "Barbell RDL", null, null, [
+                new DraftSet(6, 8, null, null, null, null, null, Rir: "5", RpeSource: "extracted")
+            ], SourcePage: 12)
+        ], SourcePage: 12)]);
+
+        var issues = ImportValidation.ReviewIssues(draft);
+
+        Assert.DoesNotContain(issues, issue => issue.Code == "rpe_unspecified");
+    }
+
+    [Fact]
     public void Legacy_combined_rpe_percent_load_and_compound_reps_are_recovered()
     {
         var program = new AiProgram("Legacy", [new AiDay(null, null, 1, 1, "Pull", false, null, [
@@ -246,6 +296,10 @@ public sealed class ImportTableEvidenceTests
             Assert.Equal(75, set.RestSeconds);
         });
     }
+
+    private static AiExercise NewExercise(string name, int page)
+        => new(name, null, null, [new AiSet(1, 1, null, null, null, null, null, SourcePage: page)],
+            WarmupSets: "2", WorkingSets: "2", SourcePage: page);
 
     [Theory]
     [InlineData("%1RM", "80", "80% 1RM", null)]

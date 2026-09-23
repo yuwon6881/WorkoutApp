@@ -87,6 +87,7 @@ public sealed partial class ImportService
         db.ChangeTracker.Clear();
         if (outlinePages is not null) return await ReadOutline(id, outlinePages, ct, leaseId);
         var sourceEvidence = ImportOutlineEvidence.Read(sourcePages);
+        var preserveTrailingRestDays = ImportLongWeeks.IsTenDayCycleSource(sourcePages);
 
         var results = persistedResults;
         var completedThisPass = new HashSet<int>();
@@ -213,10 +214,12 @@ public sealed partial class ImportService
                         {
                             var result = results[item.Index];
                             var chunkPages = sourcePages.Where(page => page.Page >= item.Chunk.PageFrom && page.Page <= item.Chunk.PageTo).ToList();
-                            var labeled = ImportDayLabels.Apply(await ToDraft(result.Program, settle), chunkPages);
+                            var sourceEnriched = ImportTableEvidence.Enrich(result.Program, item.Text);
+                            var labeled = ImportDayLabels.Apply(await ToDraft(sourceEnriched, settle), chunkPages);
                             notices.AddRange(labeled.Notices);
                             var extracted = ImportOutlineEvidence.NormalizeDraft(labeled.Draft, sourceEvidence);
-                            var reconciled = ReconcileChunkCoverage(draft, extracted, item.Chunk, chunkPages);
+                            var reconciled = ReconcileChunkCoverage(draft, extracted, item.Chunk, chunkPages,
+                                preserveTrailingRestDays);
                             notices.AddRange(reconciled.Notices);
                             // Checked per section rather than against the whole document: a name
                             // belongs to the pages it was read from, and a movement printed in a
