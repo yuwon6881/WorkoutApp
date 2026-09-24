@@ -27,6 +27,79 @@ describe('PDF day labels', () => {
     expect(findDayLabels(pieces).map(dayLabelLine)).toEqual(['DAY LABEL: Arms & Weak Points #1']);
   });
 
+  it('does not turn muscle labels beside weekly chart values into workout titles', () => {
+    const pieces = positionPieces([
+      horizontalPiece('WEEKLY VOLUMES', 20, 240),
+      horizontalPiece('CHEST', 20, 220), horizontalPiece('11', 180, 220, 12),
+      horizontalPiece('11', 230, 220, 12), horizontalPiece('12', 280, 220, 12),
+      horizontalPiece('13', 330, 220, 12), horizontalPiece('11', 380, 220, 12),
+      horizontalPiece('11', 430, 220, 12), horizontalPiece('Exercise', 20, 170, 50),
+      horizontalPiece('Chest Press', 20, 150, 60), horizontalPiece('8-10', 100, 150, 28)
+    ]);
+
+    expect(findDayLabels(pieces)).toEqual([]);
+  });
+
+  it('keeps a prose heading out of the workout title stream when the page has no schedule table', () => {
+    const text = buildPageText([
+      horizontalPiece('Chest', 36, 548, 30),
+      horizontalPiece('BODYPART VOLUME DEFINITIONS', 36, 520, 210),
+      horizontalPiece('Below is a list of exercises counted toward weekly volume metrics.', 36, 490, 330)
+    ]);
+
+    expect(text).not.toContain('DAY LABEL: Chest');
+    expect(text).toContain('Chest');
+  });
+
+  it('does not turn the generic warmup list heading into a workout title', () => {
+    const text = buildPageText([
+      horizontalPiece('THE GENERAL WARMUP', 36, 620, 160, 16),
+      horizontalPiece('BACK', 36, 580, 42, 15),
+      horizontalPiece('EXERCISE', 36, 560, 50, 9), horizontalPiece('SETS', 160, 560, 24, 9),
+      horizontalPiece('REPS/TIME', 220, 560, 46, 9), horizontalPiece('NOTES', 320, 560, 30, 9),
+      horizontalPiece('Low intensity cardio', 36, 540, 88, 8), horizontalPiece('N/A', 160, 540, 16, 8),
+      horizontalPiece('5-10min', 220, 540, 32, 8)
+    ]);
+
+    expect(text).not.toContain('DAY LABEL: BACK');
+    expect(text).toContain('THE GENERAL WARMUP');
+  });
+
+  it('uses a day number in the table header and ignores the distant program heading', () => {
+    const text = buildPageText([
+      horizontalPiece('ARM HYPERTROPHY', 40, 700, 100),
+      horizontalPiece('DAY 1', 40, 580, 35), horizontalPiece('SETS', 100, 580, 30),
+      horizontalPiece('REPS', 150, 580, 30), horizontalPiece('TEMPO', 200, 580, 35),
+      horizontalPiece('APE', 270, 580, 22), horizontalPiece('REST', 310, 580, 30),
+      horizontalPiece('Close Grip Bench Press', 40, 560, 120), horizontalPiece('3', 100, 560, 8),
+      horizontalPiece('6-8', 150, 560, 20), horizontalPiece('2:1:1:1', 200, 560, 35),
+      horizontalPiece('8', 270, 560, 8), horizontalPiece('3.0', 310, 560, 20)
+    ]);
+
+    expect(text).toContain('DAY LABEL: DAY 1');
+    expect(text).not.toContain('DAY LABEL: ARM HYPERTROPHY');
+  });
+
+  it('keeps a stacked workout title beside a leading WORKOUT column out of exercise names', () => {
+    const text = buildPageText([
+      horizontalPiece('WORKOUT', 38, 520, 36, 9), horizontalPiece('EXERCISE', 98, 520, 42, 9),
+      horizontalPiece('# OF WORKING SETS', 250, 520, 70, 9), horizontalPiece('REPS / DURATION', 330, 520, 65, 9),
+      horizontalPiece('REST', 420, 520, 20, 9),
+      horizontalPiece('DAY 1', 39, 500, 35, 15), horizontalPiece('LOWER', 36, 483, 47, 15),
+      horizontalPiece('FOCUSED', 29, 467, 53, 15), horizontalPiece('FULL', 42, 451, 28, 15),
+      horizontalPiece('BODY 2', 36, 435, 48, 15),
+      horizontalPiece('Back Squat', 98, 500, 48, 8), horizontalPiece('3', 270, 500, 5, 8),
+      horizontalPiece('6-8', 350, 500, 18, 8), horizontalPiece('2-3 min', 420, 500, 28, 8),
+      horizontalPiece('Leg Press', 98, 480, 38, 8), horizontalPiece('3', 270, 480, 5, 8),
+      horizontalPiece('10-12', 350, 480, 22, 8), horizontalPiece('2-3 min', 420, 480, 28, 8)
+    ]);
+
+    expect(text).toContain('DAY LABEL: DAY 1 LOWER FOCUSED FULL BODY 2');
+    expect(text).toContain('Back Squat | 3 | 6-8 | 2-3 min');
+    expect(text).toContain('Leg Press | 3 | 10-12 | 2-3 min');
+    expect(text).not.toMatch(/(?:FOCUSED|FULL|BODY) \| (?:Back Squat|Leg Press)/);
+  });
+
   it('prefers a descriptive table header over a margin tab that only counts the day', () => {
     // Jeff Nippard's Upper/Lower prints "DAY 1" down the page spine and "LOWER #1" as the table
     // header. Taking the spine tab renamed every session after its position and said nothing.
@@ -38,6 +111,21 @@ describe('PDF day labels', () => {
       horizontalPiece('Bench Press', 140, 90, 60)
     ]);
     expect(findDayLabels(pieces).map(dayLabelLine)).toEqual(['DAY LABEL: LOWER #1', 'DAY LABEL: UPPER #1']);
+  });
+
+  it('keeps an exercise-column muscle name out of the day-title stream', () => {
+    const text = buildPageText([
+      horizontalPiece('Exercise', 100, 530, 50), horizontalPiece('Sets', 200, 530, 24),
+      horizontalPiece('Reps', 260, 530, 28), horizontalPiece('Rest', 320, 530, 24),
+      horizontalPiece('LOWER #1', 20, 500, 62, 15),
+      horizontalPiece('BACK', 100, 500, 30), horizontalPiece('SQUAT', 132, 500, 38),
+      horizontalPiece('3', 200, 500, 5), horizontalPiece('8', 260, 500, 5),
+      horizontalPiece('3-4MIN', 320, 500, 30)
+    ]);
+
+    expect(text).toContain('DAY LABEL: LOWER #1');
+    expect(text).not.toContain('DAY LABEL: BACK');
+    expect(text).toContain('BACK SQUAT');
   });
 
   it('keeps a superseded spine tab out of the table text', () => {

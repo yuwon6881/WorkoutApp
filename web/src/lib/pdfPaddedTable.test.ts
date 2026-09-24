@@ -219,3 +219,87 @@ describe('pieces carrying their own line break', () => {
     expect(text.split('\n').at(-1)).toBe('Flat DB Press (Heavy) | 2-3 | 1 | 4-6');
   });
 });
+
+describe('compact section tables', () => {
+  it('keeps a nearby section title and tight first row out of a compact header band', () => {
+    const at = (text: string, x: number, y: number, width: number) => ({
+      ...piece(text, x, y, width), transform: [9.118, 0, 0, 9.118, x, y]
+    });
+    const text = buildPageText([
+      at('ARM DAY', 23, 588.6, 56), at('DAY 1', 36.8, 578.97, 38),
+      at('SETS', 82.16, 574.41, 19.5), at('REPS', 122.5, 574.41, 20.7),
+      at('TEMPO', 167.67, 574.41, 26.4), at('APE', 207.01, 574.41, 15.5),
+      at('REST', 232.05, 574.41, 19.7), at('1', 270.98, 574.41, 4.3),
+      at('2', 303.21, 574.41, 5.3), at('3', 336.23, 574.41, 5.3), at('4', 368.93, 574.41, 5.5),
+      at('NOTES', 477.89, 574.41, 25.6),
+      at('CLOSE GRIP BENCH', 22.4, 562.65, 57), at('3', 90.1, 562.65, 4.6),
+      at('6-8', 127.9, 562.65, 14), at('2:1:1:1', 172.8, 562.65, 28),
+      at('8', 213, 562.65, 4), at('3.0', 237.7, 562.65, 12),
+      at('SHOULDER WIDTH GRIP', 404.3, 562.65, 75),
+      at('PRESS', 39, 555.15, 20),
+      at('MACHINE', 35.5, 543.4, 38), at('2', 90.1, 543.4, 4.6),
+      at('12-15', 125.3, 543.4, 20), at('2:0:2:0', 171.7, 543.4, 28),
+      at('7', 213.2, 543.4, 4), at('1.0', 238, 543.4, 12),
+      at('PREACTIVATION AND CONTROLLED REPS', 391.7, 543.4, 130),
+      at('PREACHER CURL', 39, 535.2, 52)
+    ]);
+
+    const lines = text.split('\n');
+    expect(lines).toContain('DAY LABEL: DAY 1');
+    expect(lines).toContain('Exercise | SETS | REPS | TEMPO | APE | REST | 1 | 2 | 3 | 4 | NOTES');
+    expect(lines.find(line => line.startsWith('CLOSE GRIP BENCH PRESS |')))
+      .toMatch(/^CLOSE GRIP BENCH PRESS \| 3 \| 6-8 \| 2:1:1:1 \| 8 \| 3\.0 \|/);
+    expect(lines.find(line => line.startsWith('MACHINE PREACHER CURL |')))
+      .toMatch(/^MACHINE PREACHER CURL \| 2 \| 12-15 \| 2:0:2:0 \| 7 \| 1\.0 \|/);
+  });
+
+  it('joins grouped tracking headers and their leaf labels on a two-tier table', () => {
+    const at = (text: string, x: number, y: number, width: number) => ({
+      ...piece(text, x, y, width), transform: [15, 0, 0, 19.8999, x, y]
+    });
+    const text = buildPageText([
+      at('Last-Set Intensity', 338.22, 1016, 145.5), at('Warm-up', 514.24, 1015, 70.49),
+      at('WORKING', 610.77, 1015, 67.7), at('Reps', 723.11, 1008, 36.77),
+      at('Early', 1199.27, 1016, 43.43), at('Last Set', 1283.67, 1016, 67.01),
+      at('Rest', 1397.31, 1008, 36.36), at('Substitution', 1483.69, 1016, 104.57),
+      at('Substitution', 1626.69, 1016, 104.57), at('Exercise', 215.13, 1006, 67.68),
+      at('WEEK 1', 87.87, 1005, 62.24),
+      at('NOTES', 1999.81, 1006, 47.37), at('Technique', 370.13, 998, 81.69),
+      at('Sets', 531.48, 997, 36.04), at('SETS', 628.48, 997, 36.04),
+      at('SET 1', 818.03, 993, 38.93), at('SET 2', 914.03, 993, 38.93),
+      at('SET 3', 1010.03, 993, 38.94), at('SET 4', 1106.03, 993, 38.94),
+      at('Set RPE', 1192, 998, 57.97), at('RPE', 1303.19, 998, 27.61),
+      at('Option 1', 1502.61, 998, 66.75), at('Option 2', 1645.61, 998, 66.75),
+      at('45° Incline Barbell', 188.52, 929, 119.91), at('N/A', 397.66, 920, 26.67),
+      at('2-3', 537.99, 920, 21.01), at('1', 642.28, 920, 8.43),
+      at('6-8', 730.99, 920, 21.01), at('N/A', 1207.66, 920, 26.67),
+      at('~6', 1307.68, 920, 18.63), at('3-5 min', 1390.58, 920, 49.81),
+      at('45° Incline DB', 1489.06, 929, 92.84), at('45° Incline', 1643.51, 929, 69.93),
+      at('Press', 1516.57, 911, 37.84), at('Machine Press', 1629.08, 911, 98.81),
+      at('1 second pause while maintaining tension', 1778, 929, 300)
+    ]);
+
+    const lines = text.split('\n');
+    expect(lines).toContain('Exercise | Last-Set Intensity Technique | Warm-up Sets | WORKING SETS | Reps | SET 1 | SET 2 | SET 3 | SET 4 | Early Set RPE | Last Set RPE | Rest | Substitution Option 1 | Substitution Option 2 | NOTES');
+    expect(lines).toContain('45° Incline Barbell | N/A | 2-3 | 1 | 6-8 |  |  |  |  | N/A | ~6 | 3-5 min | 45° Incline DB Press | 45° Incline Machine Press | 1 second pause while maintaining tension');
+    expect(lines.join('\n')).not.toContain('6-8 1');
+    expect(lines.join('\n')).not.toContain('~6 3-5 min');
+  });
+
+  it('keeps session set volume summaries after the exercise rows', () => {
+    const at = (text: string, x: number, y: number, width: number) => ({
+      ...piece(text, x, y, width), transform: [9, 0, 0, 9, x, y]
+    });
+    const text = buildPageText([
+      at('EXERCISE', 40, 560, 36), at('SETS', 160, 560, 20), at('REPS', 230, 560, 20), at('REST', 300, 560, 18),
+      at('Back Squat', 40, 540, 45), at('3', 160, 540, 5), at('8', 230, 540, 5), at('2-3 min', 300, 540, 28),
+      at('SESSION SET VOLUME', 40, 520, 90), at('3', 160, 520, 5)
+    ]);
+
+    expect(text.split('\n')).toEqual([
+      'EXERCISE | SETS | REPS | REST',
+      'Back Squat | 3 | 8 | 2-3 min',
+      'SESSION SET VOLUME | 3'
+    ]);
+  });
+});

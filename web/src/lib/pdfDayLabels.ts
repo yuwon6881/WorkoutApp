@@ -1,4 +1,4 @@
-import { fontSize, isRotated, median, normalizedText, pieceCenter, type PositionedPiece } from './pdfGeometry';
+import { fontSize, isRotated, median, normalizedText, pieceCenter, ROW_TOLERANCE, type PositionedPiece } from './pdfGeometry';
 
 export type DayLabel = {
   text: string;
@@ -9,7 +9,7 @@ export type DayLabel = {
   pieces: PositionedPiece[];
 };
 
-export type TableSpan = { top: number; bottom: number; left?: number; right?: number };
+export type TableSpan = { top: number; headerBottom?: number; bottom: number; left?: number; right?: number };
 
 const STRUCTURAL_BANNER = /^(?:WEEK\b|BLOCK\b|INTRO\b|DELOAD\b|REST\s+DAY\b)/i;
 const DAY_VOCABULARY = /^(?:(?:DAY\s*\d{1,2}|(?:UPPER|LOWER|PUSH|PULL|LEGS?|ARMS?|CHEST|BACK|FULL\s+BODY)(?:\s+(?:#?\d{1,2}|STRENGTH|HYPERTROPHY|VOLUME|POWER))?|ARMS\s*[&/]\s*(?:DELTS|WEAK\s+POINTS))(?:\s*(?:#\d{1,2}|\([^()]{1,28}\)))?)$/i;
@@ -23,6 +23,12 @@ function usableLabel(value: string): boolean {
   const words = text.split(/\s+/).filter(Boolean);
   return text.length > 0 && text.length <= 60 && words.length <= 6
     && !STRUCTURAL_BANNER.test(text) && !CHART_AXIS_LABEL.test(text);
+}
+
+function usableStackedLabel(value: string): boolean {
+  const text = normalizedText(value).replace(/\|/g, '/');
+  const words = text.split(/\s+/).filter(Boolean);
+  return text.length > 0 && text.length <= 80 && words.length <= 10 && !STRUCTURAL_BANNER.test(text);
 }
 
 function overlaps(leftStart: number, leftEnd: number, rightStart: number, rightEnd: number): boolean {
@@ -78,8 +84,18 @@ function findRotatedLabels(pieces: PositionedPiece[]): DayLabel[] {
 
 function findHorizontalLabels(pieces: PositionedPiece[]): DayLabel[] {
   return pieces.filter(piece => !isRotated(piece) && DAY_VOCABULARY.test(normalizedText(piece.str)))
+    .filter(piece => !hasChartRowValues(piece, pieces))
     .filter(piece => usableLabel(piece.str))
     .map(piece => makeLabel([piece], piece.str));
+}
+
+/// Volume charts repeat a muscle name such as CHEST or BACK in the first column beside a run of
+/// weekly numeric values. Those row labels fit the day vocabulary, but they are not workout titles.
+function hasChartRowValues(label: PositionedPiece, pieces: PositionedPiece[]): boolean {
+  const cells = pieces.filter(piece => !isRotated(piece)
+    && Math.abs(piece.y - label.y) <= ROW_TOLERANCE
+    && piece.x >= label.endX - ROW_TOLERANCE);
+  return cells.length >= 3 && cells.every(piece => /^\d+(?:\.\d+)?$/.test(normalizedText(piece.str)));
 }
 
 /// Some layouts print the day title horizontally in the table's left margin, one word per line
@@ -106,7 +122,7 @@ export function findStackedLabels(pieces: PositionedPiece[], claimed: ReadonlySe
   }
   return groups.filter(group => group.length >= 2 && !hasHorizontalOverlap(group, others)).flatMap(group => {
     const text = group.map(piece => normalizedText(piece.str)).join(' ').replace(/:$/, '');
-    return usableLabel(text) ? [makeLabel(group, text)] : [];
+    return usableStackedLabel(text) ? [makeLabel(group, text)] : [];
   });
 }
 

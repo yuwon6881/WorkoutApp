@@ -28,7 +28,7 @@ const HEADER_LABELS = [
   /^reps?\s*\/\s*(?:duration|time)$/i,
   /^early set rpe$/i,
   /^last set rpe$/i,
-  /^rpe(?:\s*\/\s*%?1rm)?$/i,
+  /^(?:rpe|ape)(?:\s*\/\s*%?1rm)?$/i,
   /^rir$/i,
   /^set \d+ rir$/i,
   /^rest(?: time)?$/i,
@@ -43,6 +43,23 @@ const HEADER_LABELS = [
 
 function isHeaderLabel(value: string): boolean {
   return HEADER_LABELS.some(pattern => pattern.test(value.trim()));
+}
+
+/// Separate header rows can split compound labels vertically ("WORKING" / "SETS") or expand a
+/// parent cell into numbered children ("Substitution" / "Option 1"). A nearby section title or
+/// compact data row must not join that band just because its text is short.
+function isHeaderFragment(value: string): boolean {
+  return /^(?:working|early set|last set|warm[ -]?up|set\s*\d+|option\s*\d+|last set technique)$/i.test(value.trim());
+}
+
+function isHeaderCandidate(row: TextRow, typicalWordGap: number): boolean {
+  // Group headings can be spaced far enough apart that the adaptive cell splitter keeps
+  // several of them together. Inspect raw PDF runs as well so compound multi-row headers
+  // such as "Last-Set Intensity | Warm-up | Working" remain part of one header band.
+  return row.items.some(item => isHeaderLabel(item.str) || isHeaderFragment(item.str))
+    || splitHeaderCells(row, rowWordGap(row, typicalWordGap))
+      .map(groupLabel)
+      .some(label => isHeaderLabel(label) || isHeaderFragment(label));
 }
 
 function joinsOneHeaderLabel(left: string, right: string): boolean {
@@ -147,10 +164,12 @@ export function findHeaderBands(rows: TextRow[], typicalWordGap: number): Header
     const previousBand = rowBands.at(-1);
     const previousRow = previousBand?.at(-1);
     const size = previousRow ? median([rowTextSize(previousRow), rowTextSize(row)]) : 0;
-    // A header states labels. A coaching note printed just under it is a sentence, and joined
-    // to the band it merged every label above it into one cell, so the table went unrecognised.
+    // A header states labels. Nearby section titles and compact data rows can be just as short,
+    // so only adjoining baselines that each contain header labels or fragments join a band.
     const labelsOnly = (candidate: TextRow) => candidate.items.every(item => item.str.trim().length <= MAX_HEADER_PIECE_LENGTH);
-    if (previousRow && previousRow.y - row.y <= size * HEADER_BAND_GAP_FACTOR && labelsOnly(previousRow) && labelsOnly(row)) {
+    if (previousRow && previousRow.y - row.y <= size * HEADER_BAND_GAP_FACTOR
+      && labelsOnly(previousRow) && labelsOnly(row)
+      && isHeaderCandidate(previousRow, typicalWordGap) && isHeaderCandidate(row, typicalWordGap)) {
       previousBand!.push(row);
     } else {
       rowBands.push([row]);

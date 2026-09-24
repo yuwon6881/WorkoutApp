@@ -5,7 +5,7 @@ import {
 import { findHeaderBands, renderRow, type HeaderBand } from './pdfHeaderColumns';
 import { anchorColumn, anchorsRow, renderHeaderTable } from './pdfTableRows';
 import {
-  estimateFallbackColumnGap, estimateTableRegionGap, groupRows, normalizedText, pieceCenter,
+  estimateFallbackColumnGap, estimateTableRegionGap, fontSize, groupRows, normalizedText, pieceCenter,
   positionPieces, ROW_TOLERANCE, type PositionedPiece, type TextPiece, type TextRow
 } from './pdfGeometry';
 import { findTrackingTables, isInTrackingTable, renderTrackingTables, type TrackingTable } from './pdfTrackingTable';
@@ -34,7 +34,7 @@ function withoutLabels(rows: TextRow[], removed: Set<TextPiece>): TextRow[] {
 }
 
 function tableSpanForTracking(table: TrackingTable): TableSpan {
-  return { top: table.headerTop, bottom: table.bottom, left: table.columns[0]?.center,
+  return { top: table.headerTop, headerBottom: table.headerBottom, bottom: table.bottom, left: table.columns[0]?.center,
     right: table.columns.at(-1)?.center };
 }
 
@@ -65,7 +65,41 @@ function tableSpanForHeader(rows: TextRow[], band: HeaderBand, tableRegionGap: n
     previousY = bottom;
     first = false;
   }
-  return { top: band.topY, bottom, left: band.centers[0], right: band.centers.at(-1) };
+  const exerciseColumn = band.columns?.find(column => /^(?:exercises?|movement|(?:exercise )?name)$/i.test(column.label.trim()));
+  return { top: band.topY, headerBottom: band.bottomY, bottom,
+    left: exerciseColumn?.center ?? band.centers[0], right: band.centers.at(-1) };
+}
+
+function nearestTable(label: DayLabel, spans: TableSpan[]): { index: number; distance: number } {
+  return spans.map((span, index) => ({
+    index,
+    distance: label.bottom > span.top ? label.bottom - span.top
+      : label.top < span.bottom ? span.bottom - label.top : 0
+  })).sort((a, b) => a.distance - b.distance)[0] ?? { index: -1, distance: Number.POSITIVE_INFINITY };
+}
+
+function labelNearTable(label: DayLabel, labels: DayLabel[], spans: TableSpan[]): boolean {
+  const nearest = nearestTable(label, spans);
+  if (nearest.distance > 200) return false;
+  return !labels.some(other => other !== label && nearestTable(other, spans).index === nearest.index
+    && nearestTable(other, spans).distance < nearest.distance - ROW_TOLERANCE);
+}
+
+/// Vocabulary words such as BACK and CHEST can be the first word of an exercise name. A horizontal
+/// title can sit beside a table or above it, but a word inside its exercise column is row content.
+function labelIsInsideExerciseColumn(label: DayLabel, spans: TableSpan[]): boolean {
+  // The fallback vocabulary also accepts complete titles such as "Upper 2" or "Full Body 5".
+  // Only a lone word can be the first exercise-name cell this filter is meant to discard.
+  if (/\s/.test(label.text.trim())) return false;
+  const right = Math.max(...label.pieces.map(piece => piece.endX));
+  return spans.some(span => span.left !== undefined && span.headerBottom !== undefined
+    && label.top < span.headerBottom - ROW_TOLERANCE
+    && label.top > span.bottom + ROW_TOLERANCE && right >= span.left);
+}
+
+function isGeneralWarmupPage(rows: TextRow[]): boolean {
+  return rows.some(row => /^(?:THE\s+)?(?:GENERAL\s+WARM.?UP|WARM.?UP\s+PROTOCOL|SPECIFIC\s+PYRAMID\s+WARM.?UP)\b/i
+    .test(normalizedText(row.items.map(item => item.str).join(' '))));
 }
 
 function scheduleLines(rows: TextRow[]): { y: number; x: number; text: string }[] {
@@ -80,7 +114,8 @@ function withTitleColumn(band: HeaderBand, removed: Set<TextPiece>): HeaderBand 
   const first = band.centers[0];
   if (first === undefined || band.columns?.some(column => /^(?:exercises?|movement|(?:exercise )?name)$/i.test(column.label.trim()))) return band;
   const title = [...removed].map(piece => piece as PositionedPiece).find(piece => !piece.rotated
-    && piece.endX !== undefined && band.skipYValues.some(y => Math.abs(piece.y - y) <= ROW_TOLERANCE) && piece.endX < first);
+    && piece.endX !== undefined && band.skipYValues.some(y => Math.abs(piece.y - y) <= Math.max(ROW_TOLERANCE, fontSize(piece) * 0.75))
+    && piece.endX < first);
   if (!title) return band;
   const center = pieceCenter(title);
   return {
@@ -99,7 +134,8 @@ type TableLayout = {
 
 /// Where a page's tables are once its day titles and schedule banners are set aside.
 function tableLayout(rows: TextRow[], trackingTables: TrackingTable[], removed: Set<TextPiece>, fallbackGap: number): TableLayout {
-  const genericRows = withoutLabels(rows, removed).filter(row => !trackingTables.some(table => isInTrackingTable(row, table)));
+  const genericRows = withoutLabels(rows, removed).filter(row => row.items.length > 0
+    && !trackingTables.some(table => isInTrackingTable(row, table)));
   const headerBands = findHeaderBands(genericRows, fallbackGap / 2.35).map(band => withTitleColumn(band, removed));
   const tableRegionGap = estimateTableRegionGap(genericRows);
   const headerTableSpans = headerBands.map((band, index) => ({
@@ -118,6 +154,7 @@ function tableLayout(rows: TextRow[], trackingTables: TrackingTable[], removed: 
 export function buildPageText(items: readonly TextPiece[]): string {
   const positioned = positionPieces(items);
   const rows = groupRows(positioned);
+  const generalWarmupPage = isGeneralWarmupPage(rows);
   const fallbackGap = estimateFallbackColumnGap(rows);
   const trackingTables = findTrackingTables(rows);
   const { labels: markedDayLabels, superseded } = findDayTitles(positioned);
@@ -134,13 +171,48 @@ export function buildPageText(items: readonly TextPiece[]): string {
     const stackPieces = labelPieces(stacks);
     return [...markedDayLabels.filter(label => !label.pieces.some(piece => stackPieces.has(piece))), ...stacks];
   };
-  let layout = layoutWithout(withStacks(stacked));
-  const stackedTitles = stacked.filter(label => besideTable(label, layout.tableSpans));
-  if (stackedTitles.length < stacked.length) layout = layoutWithout(withStacks(stackedTitles));
-  const { genericRows, headerTableSpans, tableSpans } = layout;
+  let selectedLabels = withStacks(stacked);
+  let layout = layoutWithout(selectedLabels);
+  let stackedTitles = stacked.filter(label => besideTable(label, layout.tableSpans));
+  if (stackedTitles.length < stacked.length) {
+    selectedLabels = withStacks(stackedTitles);
+    layout = layoutWithout(selectedLabels);
+  }
+  if (generalWarmupPage) {
+    stackedTitles = [];
+    const explicit = selectedLabels.filter(label => label.pieces.some(piece => piece.rotated));
+    if (explicit.length !== selectedLabels.length) {
+      selectedLabels = explicit;
+      layout = layoutWithout(selectedLabels);
+    }
+  }
+  // Horizontal words like CHEST and BACK appear as volume-chart rows and prose headings. A
+  // workout title on those pages has no exercise table to anchor it, so keep horizontal labels
+  // only when this page contains a recognized schedule table. Rotated margin tabs remain explicit
+  // source evidence even on layouts whose table headers are not readable.
+  if (layout.headerTableSpans.length === 0 && trackingTables.length === 0) {
+    const anchored = selectedLabels.filter(label => label.pieces.some(piece => piece.rotated));
+    if (anchored.length !== selectedLabels.length) {
+      selectedLabels = anchored;
+      layout = layoutWithout(selectedLabels);
+    }
+  }
   const stackPieces = labelPieces(stackedTitles);
+  const outsideExerciseColumn = selectedLabels.filter(label => label.pieces.some(piece => piece.rotated)
+    || label.pieces.some(piece => stackPieces.has(piece)) || !labelIsInsideExerciseColumn(label, layout.tableSpans));
+  if (outsideExerciseColumn.length !== selectedLabels.length) {
+    selectedLabels = outsideExerciseColumn;
+    layout = layoutWithout(selectedLabels);
+  }
+  const nearTable = selectedLabels.filter(label => label.pieces.some(piece => piece.rotated)
+    || label.pieces.some(piece => stackPieces.has(piece)) || labelNearTable(label, selectedLabels, layout.tableSpans));
+  if (nearTable.length !== selectedLabels.length) {
+    selectedLabels = nearTable;
+    layout = layoutWithout(selectedLabels);
+  }
+  const { genericRows, headerTableSpans, tableSpans } = layout;
   const dayLabels = [
-    ...associateDayLabels(markedDayLabels.filter(label => !label.pieces.some(piece => stackPieces.has(piece))), tableSpans),
+    ...associateDayLabels(selectedLabels.filter(label => !label.pieces.some(piece => stackPieces.has(piece))), tableSpans),
     ...placeStackedLabels(stackedTitles, tableSpans)
   ];
   const lines: { y: number; x: number; text: string }[] = [

@@ -7,7 +7,7 @@ import {
 /// every piece around it is placed in the column and row it belongs to.
 /// The column each table row anchors on: its working-set count, or its reps where a table prints
 /// no set column. Undefined for a header that names neither.
-const TABLE_TALLY = /^TOTAL\s+(?:SET\s+VOLUME|TRAINING\s+TIME)\b/i;
+const TABLE_TALLY = /^(?:(?:SESSION|TOTAL|WEEKLY)\s+SET\s+VOLUME|TOTAL\s+TRAINING\s+TIME)\b/i;
 
 export function anchorColumn(band: HeaderBand): number | undefined {
   if (!band.columns) return undefined;
@@ -118,8 +118,11 @@ export function renderHeaderTable(
     upper: i === 0 ? band.bottomY : (anchorBaselines[i - 1] + anchorY) / 2,
     lower: i === last ? tableLower : (anchorY + anchorBaselines[i + 1]) / 2
   }));
-  // A table's own tally ("TOTAL SET VOLUME: 18") is printed under its last row, not in it.
-  const inTable = allItems.filter(item => item.y <= band.bottomY && item.y > tableLower && !TABLE_TALLY.test(item.str.trim()));
+  // A table's own tally ("SESSION SET VOLUME: 18") is printed under its last row, not in it.
+  const tallyRows = new Set(tableRows.filter(row => row.items.some(item => TABLE_TALLY.test(item.str.trim())))
+    .map(row => row.y));
+  const inTable = allItems.filter(item => item.y <= band.bottomY && item.y > tableLower
+    && !tallyRows.has(item.y) && !TABLE_TALLY.test(item.str.trim()));
   const rowOf = wrappedRows(inTable, anchorBaselines, band);
   for (const item of inTable) {
     if (!rowOf.has(item)) rowOf.set(item, bounds.findIndex(row => item.y <= row.upper && item.y > row.lower));
