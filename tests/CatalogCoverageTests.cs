@@ -129,7 +129,10 @@ public sealed class CatalogCoverageTests
         { "Wide Grip Seated Cable Row", "Wide-Grip Cable Row" },
         { "1-Arm DB Upright Row", "1-Arm Dumbbell Upright Row" },
         { "Reverse Cable Crossover (High)", "Reverse Cable Crossover" },
-        { "Reverse Cable Crossover (Mid)", "Reverse Cable Crossover" }
+        { "Reverse Cable Crossover (Mid)", "Reverse Cable Crossover" },
+        // Forearm Hypertrophy prints both names in capitals, the curl with a footnote asterisk.
+        { "REVERSE GRIP BARBELL CURL*", "Barbell Reverse Curl" },
+        { "DUMBBELL BENCH-BRACED WRIST CURL", "Bench-Braced Wrist Curl" }
     };
 
     [Theory, MemberData(nameof(WrittenNames))]

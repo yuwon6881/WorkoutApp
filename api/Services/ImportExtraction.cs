@@ -197,7 +197,7 @@ public sealed partial class ImportService
             var shaped = ReconcileDayShape(draft.Workouts, draft.SourceWeekDays);
             var cited = ImportDayShape.ReconcilePages(draft with { Workouts = shaped.Workouts }, import.Pages);
             List<ImportPageLink> demoLinks = string.IsNullOrWhiteSpace(import.LinksJson) ? [] : Json.Read<List<ImportPageLink>>(import.LinksJson);
-            draft = ImportValidation.NormalizeDraft(ImportDemoLinks.Attach(cited.Draft, demoLinks));
+            draft = ImportValidation.NormalizeDraft(ImportDemoLinks.Attach(ImportNameSpelling.Standardize(cited.Draft, pages), demoLinks));
             List<ImportReviewIssue> outlineNotices = [.. labeled.Notices, .. versions.Notices, .. blockRuns.Notices, .. named.Notices, .. longWeeks.Notices];
             if (numbered.Renumbered)
             {

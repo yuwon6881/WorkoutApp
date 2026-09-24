@@ -313,7 +313,7 @@ public sealed partial class ImportService
                             // no retry of the last section could ever reach.
                             var shaped = ReconcileDayShape(merged.Workouts, merged.SourceWeekDays);
                             var cited = ImportDayShape.ReconcilePages(merged with { Workouts = shaped.Workouts }, import.Pages);
-                            merged = ImportValidation.NormalizeDraft(cited.Draft);
+                            merged = ImportValidation.NormalizeDraft(ImportNameSpelling.Standardize(cited.Draft, sourcePages));
                             notices.AddRange(shaped.Notices);
                             notices.AddRange(cited.Notices);
                             await ValidateDraft(merged, settle);

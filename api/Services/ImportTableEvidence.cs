@@ -28,7 +28,7 @@ internal static partial class ImportTableEvidence
         string? LoadText, string? RirText, double? Rir, List<RirEvidence> RirBySet,
         double? Rpe, double? EarlyRpe, double? LastRpe, string? RestText, int? RestSeconds, bool RestNotStated = false,
         bool WarmupCounted = true, bool EarlyEffortAbsent = false, bool LastEffortAbsent = false, bool RestStatedAbsent = false,
-        bool NotPerformed = false, string? WarmupText = null, string? CoachingNote = null);
+        bool NotPerformed = false, string? WarmupText = null, string? CoachingNote = null, string? DayLabel = null);
     private sealed record RirEvidence(string? Text, double? Value);
     private sealed record EvidencePage(int? Week, string? Block, string? Phase, string? DayName, bool HasRestDayFooter,
         List<EvidenceRow> Rows, bool RestBandFollowsTable = false);
@@ -71,7 +71,7 @@ internal static partial class ImportTableEvidence
                 ? RecoverPrintedRows(exercises, evidence.Rows, page)
                 : exercises.Select((exercise, exerciseIndex) =>
                 {
-                    var row = MatchRow(exercise, exerciseIndex, exercises, evidence.Rows, positionalMatchIsSafe);
+                    var row = MatchRow(exercise, exerciseIndex, exercises, evidence.Rows, positionalMatchIsSafe, dayName);
                     return (Row: row, Exercise: row is null ? exercise : Apply(exercise, row));
                 }).Where(item => item.Row?.NotPerformed != true).Select(item => item.Exercise).ToList();
             return day with { Block = block, Phase = phase, DayName = dayName, WeekNumber = week, PhaseWeek = phaseWeek,
@@ -104,12 +104,18 @@ internal static partial class ImportTableEvidence
         return result;
     }
 
-    private static EvidenceRow? MatchRow(AiExercise exercise, int exerciseIndex, List<AiExercise> dayExercises, List<EvidenceRow> rows, bool positionalMatchIsSafe)
+    private static EvidenceRow? MatchRow(AiExercise exercise, int exerciseIndex, List<AiExercise> dayExercises, List<EvidenceRow> rows,
+        bool positionalMatchIsSafe, string? dayName = null)
     {
         var name = NormalizeName(exercise.SourceName);
         if (name.Length > 0)
         {
             var matches = rows.Where(row => NormalizeName(row.ExerciseName ?? "") == name).ToList();
+            // A page that prints a whole week (Forearm Hypertrophy: Day 1, Day 2, Day 3) repeats a
+            // movement under several day labels; the row under this day's own label is its row.
+            var labelled = dayName is null ? [] : matches.Where(row => row.DayLabel is { } label
+                && NormalizeName(label) == NormalizeName(dayName)).ToList();
+            if (labelled.Count > 0) matches = labelled;
             if (matches.Count == 1) return matches[0];
             if (matches.Count > 1)
             {
@@ -282,9 +288,11 @@ internal static partial class ImportTableEvidence
             string? dayName = null;
             var hasRestDayFooter = false;
             var restBandFollowsTable = false;
+            string? dayLabel = null;
             foreach (var line in body.Split('\n'))
             {
                 var clean = line.Trim();
+                if (clean.StartsWith("DAY LABEL:", StringComparison.OrdinalIgnoreCase)) dayLabel = clean["DAY LABEL:".Length..].Trim();
                 var leading = ImportStructureHeadings.LeadingSegment(clean);
                 if (ImportStructureHeadings.TryWeek(leading, out var nextWeek))
                 {
@@ -307,7 +315,7 @@ internal static partial class ImportTableEvidence
                 if (TryRow(cells, columns, restHint, out var row))
                 {
                     if (string.IsNullOrWhiteSpace(row.ExerciseName) && !string.IsNullOrWhiteSpace(pendingName)) row = row with { ExerciseName = pendingName };
-                    rows.Add(row);
+                    rows.Add(row with { DayLabel = dayLabel });
                     pendingName = null;
                     continue;
                 }

@@ -3457,6 +3457,20 @@
     ]
   },
   {
+    "slug": "barbell-reverse-curl",
+    "name": "Barbell Reverse Curl",
+    "muscle": "Biceps and forearms",
+    "equipment": "Barbell",
+    "category": "Free Weights",
+    "cue": "",
+    "aliases": [
+      "Reverse Grip Barbell Curl",
+      "Reverse-Grip Barbell Curl",
+      "Reverse Barbell Curl",
+      "Barbell Pronated Curl"
+    ]
+  },
+  {
     "slug": "plate-shrug",
     "name": "Plate Shrug",
     "muscle": "Traps",
