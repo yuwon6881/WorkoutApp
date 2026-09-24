@@ -3,6 +3,7 @@ import { ArrowRight, Check, ChevronDown, ChevronUp, Dumbbell, FileText, Pencil, 
 import type { Bootstrap, Exercise, ProgramSummary, Template, TemplateExercise } from '../types';
 import { ApiError, api } from '../lib/api';
 import { getWorkoutMuscles } from '../lib/muscles';
+import { getPlannedMuscleCredits } from '../lib/programMuscles';
 import { showReps } from '../lib/training';
 import { createEmptyProgramDraft } from '../lib/importDraftWeeks';
 import { Button } from './ui/Button';
@@ -14,6 +15,7 @@ import { WorkoutEditorModal, type WorkoutDraft } from './WorkoutEditorModal';
 import { ProgramBuilderPage } from './ProgramBuilderPage';
 import { ProgramWeekChecklist } from './ProgramWeekChecklist';
 import { ActiveWorkoutStandby } from './ActiveWorkoutStandby';
+import { ProgramMusclePreview } from './ProgramMusclePreview';
 
 export function Programs({ data, exercises, onStart, onImport, onChanged }: {
   data: Bootstrap; exercises: Exercise[]; onStart: (templateId: string) => void; onImport: () => void; onChanged: () => Promise<void>;
@@ -258,7 +260,10 @@ function ProgramSlotRow({ day, full, complete, isSkipped, restPassed, isNext, ca
   onSwap: (exercise: TemplateExercise) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
-  const muscles = useMemo(() => full?.exercises ? getWorkoutMuscles(full.exercises, exercises) : [], [full, exercises]);
+  const muscleSummary = useMemo(
+    () => getPlannedMuscleCredits(full?.exercises ?? [], exercises),
+    [full, exercises]
+  );
   const preview = useMemo(() => {
     if (!full?.exercises?.length) return '';
     const names = full.exercises.map(e => e.name);
@@ -285,16 +290,15 @@ function ProgramSlotRow({ day, full, complete, isSkipped, restPassed, isNext, ca
       <div className="program-slot-controls">
         {complete && <span className="slot-complete-badge" title="Workout completed"><Check size={16} /></span>}
         {actionable && <Button variant="primary" className="slot-start-btn" aria-label={`Start ${day.name}`} onClick={() => onStart(day.id)}><Play size={14} fill="currentColor" /><span>Start</span></Button>}
-        {full && full.exercises.length > 0 && <Button variant="tertiary" aria-label={expanded ? `Hide exercises for ${day.name}` : `Swap exercises in ${day.name}`} onClick={() => setExpanded(e => !e)}>{expanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}</Button>}
+        {full && <Button variant="tertiary" aria-label={expanded ? `Hide details for ${day.name}` : `Show details for ${day.name}`} aria-expanded={expanded} onClick={() => setExpanded(e => !e)}>{expanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}</Button>}
       </div>
     </div>
     {preview && <p className="day-exercise-preview">{preview}</p>}
-    {muscles.length > 0 && <div className="day-muscles-row" aria-label="Targeted muscles">
-      {muscles.slice(0, 5).map(m => <span key={m} className="muscle-chip">{m}</span>)}
-      {muscles.length > 5 && <span className="muscle-chip muscle-chip-overflow" title={muscles.slice(5).join(', ')}>+{muscles.length - 5}</span>}
-    </div>}
-    {expanded && full && <div className="slot-exercises">
-      {full.exercises.map(exercise => <Button key={exercise.id} variant="tertiary" aria-label={`Swap ${exercise.name} in ${day.name}`} onClick={() => onSwap(exercise)}><RefreshCw size={14} />{exercise.name}{exercise.canRestore ? ' · Swapped' : ''}</Button>)}
-    </div>}
+    {expanded && full && <>
+      <ProgramMusclePreview summary={muscleSummary} />
+      {full.exercises.length > 0 && <div className="slot-exercises">
+        {full.exercises.map(exercise => <Button key={exercise.id} variant="tertiary" aria-label={`Swap ${exercise.name} in ${day.name}`} onClick={() => onSwap(exercise)}><RefreshCw size={14} />{exercise.name}{exercise.canRestore ? ' · Swapped' : ''}</Button>)}
+      </div>}
+    </>}
   </div>;
 }

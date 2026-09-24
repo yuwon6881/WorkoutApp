@@ -499,6 +499,48 @@ test('import a PDF program, resolve an unmapped exercise, and accept it', async 
   await expect(page.getByText('Week 1 Upper', { exact: true }).first()).toBeVisible();
   await expect(page.getByText('Week 2 Upper', { exact: true }).first()).toBeVisible();
   expect(await programCard.locator('.routine-row-static').evaluateAll(rows => rows.every(row => row.tagName !== 'BUTTON'))).toBe(true);
+  const upperDay = programCard.locator('.program-slot-card').filter({ hasText: 'Week 1 Upper' }).first();
+  await upperDay.getByRole('button', { name: /^Show details for / }).click();
+  await expect(upperDay.locator('.program-muscle-preview')).toBeVisible();
+  await expect(upperDay.locator('.program-muscle-tile').filter({ hasText: 'Chest' })).toBeVisible();
+  const pageTheme = page.locator('html');
+  const originalTheme = await pageTheme.getAttribute('data-theme');
+  for (const theme of ['dark', 'light'] as const) {
+    await pageTheme.evaluate((element, value) => element.setAttribute('data-theme', value), theme);
+    await page.screenshot({
+      path: join(screenshotsDirectory, `${testInfo.project.name}-program-day-muscles-${theme}.png`),
+      fullPage: true
+    });
+  }
+  await pageTheme.evaluate((element, value) => {
+    if (value) element.setAttribute('data-theme', value);
+    else element.removeAttribute('data-theme');
+  }, originalTheme);
+  const programId = await page.evaluate(async programName => {
+    const response = await fetch('/api/bootstrap', { headers: { 'X-Workout-Request': '1' }, cache: 'no-store' });
+    if (!response.ok) throw new Error('Could not read the imported program for the active-state preview check.');
+    const data = await response.json();
+    return data.programs.find((program: { name: string }) => program.name === programName)?.id ?? null;
+  }, programName);
+  expect(programId).toBeTruthy();
+  await page.route('**/api/bootstrap', async route => {
+    const response = await route.fetch();
+    const data = await response.json();
+    const program = data.programs.find((item: { id: string }) => item.id === programId);
+    if (!program) throw new Error('The imported program disappeared before the active-state preview check.');
+    Object.assign(program, { active: true, lifecycleStatus: 'active' });
+    data.activeProgram = program;
+    await route.fulfill({ response, json: data });
+  });
+  await page.reload();
+  await openTab(page, 'Workouts');
+  const activeCard = page.locator('.program-card').filter({ hasText: programName });
+  await expect(activeCard.getByText('Active', { exact: true })).toBeVisible();
+  await activeCard.getByRole('button', { name: 'Show details', exact: true }).click();
+  const activeUpperDay = activeCard.locator('.program-slot-card').filter({ hasText: 'Week 1 Upper' }).first();
+  await activeUpperDay.getByRole('button', { name: /^Show details for / }).click();
+  await expect(activeUpperDay.locator('.program-muscle-preview')).toBeVisible();
+  await page.unroute('**/api/bootstrap');
 });
 
 test('a discarded draft leaves no program behind, and reports itself while it reads', async ({ page }, testInfo) => {
@@ -814,6 +856,12 @@ test('create a custom multi-block program and cap each week at seven scheduled d
     await expect(createdCard).toBeVisible({ timeout: 30000 });
     await expect(createdCard.getByText(/3 weeks · 9 days/)).toBeVisible();
     await expect(createdCard.getByText('Standby', { exact: true })).toBeVisible();
+    await createdCard.getByRole('button', { name: 'Show details', exact: true }).click();
+    const firstWorkoutDay = createdCard.locator('.program-slot-card').first();
+    await firstWorkoutDay.getByRole('button', { name: /^Show details for / }).click();
+    await expect(firstWorkoutDay.locator('.program-muscle-preview')).toBeVisible();
+    await expect(firstWorkoutDay.locator('.program-muscle-tile').filter({ hasText: 'Chest' })).toBeVisible();
+    await expect(createdCard.locator('.rest-row').first().locator('.program-muscle-preview')).toHaveCount(0);
     await createdCard.getByRole('button', { name: 'Delete program', exact: true }).click();
     await expect(createdCard).toHaveCount(0);
   } finally {
