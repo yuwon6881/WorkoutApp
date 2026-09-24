@@ -221,7 +221,7 @@ export function ExerciseLibrary({ exercises, onSelect, exclude = [], onOpen, onC
           onChange={val => setCategory(val as 'all' | ExerciseCategory)}
           className="exercise-filter-select"
           options={[
-            { value: 'all', label: 'All categories' },
+            { value: 'all', label: 'All' },
             { value: 'Free Weights', label: 'Free Weights' },
             { value: 'Machine', label: 'Machine' },
             { value: 'Body Weight', label: 'Body Weight' }

@@ -42,8 +42,14 @@
 .muscle-balance-range-control{display:flex;align-items:center;gap:10px;min-width:0}
 .muscle-balance-range-control .muted{font-size:14px}
 .muscle-balance-range-control .custom-select-wrap{min-width:160px}
-.muscle-balance-map-body{display:flex;flex-direction:column;min-width:0}
-.muscle-balance-empty-note{padding:11px 13px;border:1px solid var(--border);border-radius:9px;background:var(--surface-raised);color:var(--muted)}
+.muscle-balance-empty-note{padding:11px 13px;border:1px solid var(--border);border-radius:999px;background:var(--surface-raised);color:var(--muted)}
+.muscle-balance-legend{display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:10px 18px;margin-top:12px;font-size:14px;color:var(--muted)}
+.muscle-legend-item{display:inline-flex;align-items:center;gap:6px;font-size:14px;font-weight:500}
+.legend-swatch{display:inline-block;width:12px;height:12px;border-radius:3px;flex-shrink:0}
+.legend-swatch.empty{background:var(--muscle-empty);border:1px solid var(--border)}
+.legend-swatch.low{background:color-mix(in srgb,var(--accent) 35%,var(--muscle-empty));border:1px solid var(--accent-border)}
+.legend-swatch.mid{background:color-mix(in srgb,var(--accent) 65%,var(--muscle-empty));border:1px solid var(--accent-border)}
+.legend-swatch.peak{background:var(--accent);border:1px solid var(--accent)}
 
 .muscle-balance-method>summary,.muscle-balance-untrained>summary{
   display:flex;

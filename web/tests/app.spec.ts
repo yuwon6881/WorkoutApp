@@ -232,7 +232,7 @@ test('build a workout, log a set against the server, and see it in history', asy
   expect(progressHeadings).not.toContain('Personal bests');
   expect(progressHeadings).toContain('Workout history');
 
-  await page.getByRole('button', { name: 'See muscle coverage', exact: true }).click();
+  await openTab(page, 'Muscles');
   await expect(page.getByRole('heading', { name: 'Muscle coverage', exact: true })).toBeVisible();
   const rangeSelect = page.getByRole('button', { name: 'Muscle coverage period', exact: true });
   await expect(rangeSelect).toContainText('Last week');

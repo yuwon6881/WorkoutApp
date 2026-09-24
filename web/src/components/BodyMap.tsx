@@ -15,7 +15,7 @@ type BodyMapProps = {
 /// The fill is one accent hue at a depth proportional to the muscle's share of the busiest muscle,
 /// so a deeper region simply means more credited sets.
 function fillStyle(shade: number): CSSProperties {
-  const depth = Math.round(25 + 65 * shade);
+  const depth = Math.round(35 + 60 * shade);
   return { '--muscle-shade': `${depth}%` } as CSSProperties;
 }
 

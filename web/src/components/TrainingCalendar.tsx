@@ -150,7 +150,6 @@ export function TrainingCalendar({ onSession }: TrainingCalendarProps) {
                   {status === 'completed' ? '✓' : status === 'in_progress' ? '…' : isToday ? <span className="status-dot" /> : '·'}
                 </span>
               </div>
-              {isToday && <span className="today-badge">Today</span>}
             </Button>
           );
         })}

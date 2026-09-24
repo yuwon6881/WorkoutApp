@@ -1,44 +1,25 @@
-.dashboard-heading {
+.page-heading.dashboard-heading {
   display: flex;
-  justify-content: space-between;
-  align-items: flex-end;
-  flex-wrap: wrap;
-  gap: 16px;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: flex-start;
+  gap: 4px;
   margin-bottom: 24px;
+  text-align: left;
+}
+
+.page-heading.dashboard-heading > div {
+  text-align: left;
+  width: 100%;
 }
 
 .dashboard-date-subtitle {
   font-size: var(--font-secondary, 14px);
   color: var(--muted);
   margin-top: 4px;
-}
-
-.overview-muscles-link {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  min-height: 40px;
+  text-align: left;
 }
 
 .quick-start-hero {
   margin-bottom: 24px;
-}
-
-@media (max-width: 1023px) {
-  .overview-muscles-link {
-    min-height: 44px;
-  }
-}
-
-@media (max-width: 639px) {
-  .dashboard-heading {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 14px;
-  }
-
-  .overview-muscles-link {
-    width: 100%;
-    justify-content: center;
-  }
 }

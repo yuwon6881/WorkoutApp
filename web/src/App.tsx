@@ -363,7 +363,7 @@ export default function App() {
         <MotionScene sceneKey={tab === 'history' ? 'overview' : tab}>
         {(tab === 'overview' || tab === 'history') && <Dashboard data={data} onStart={start} onProgram={() => setTab('program')}
             onImport={openImport} onSession={setDetail} onResume={() => setTraining(true)} onChanged={app.reload}
-            onExercise={id => { void openExercise(id); }} onMuscles={() => setTab('body')} />}
+            onExercise={id => { void openExercise(id); }} />}
         {tab === 'program' && <Programs data={data} exercises={data.exercises} onStart={start} onImport={openImport} onChanged={app.reload} />}
         {tab === 'import' && <ImportReview exercises={data.exercises} imports={data.imports} remaining={data.aiImportsRemaining}
           onBack={() => setTab('program')} onChanged={app.reload} notify={setToast} />}

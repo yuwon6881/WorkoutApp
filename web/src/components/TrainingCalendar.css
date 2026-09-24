@@ -173,15 +173,6 @@
   color: var(--accent);
 }
 
-.today-badge {
-  font-size: var(--font-secondary, 14px);
-  font-weight: 700;
-  color: var(--accent);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  margin-top: 2px;
-}
-
 .calendar-card-footer {
   display: flex;
   justify-content: space-between;
@@ -245,8 +236,9 @@
 @media (max-width: 639px) {
   .training-calendar-card,
   .panel.training-calendar-card {
-    padding: 16px 12px;
+    padding: 16px 8px;
     margin-bottom: 20px;
+    overflow: hidden;
   }
 
   .calendar-card-header {
@@ -296,19 +288,24 @@
   }
 
   .calendar-days-grid {
-    gap: 4px;
+    gap: 3px;
     margin-bottom: 14px;
+    width: 100%;
+    min-width: 0;
   }
 
   .calendar-day-cell {
-    padding: 8px 2px 6px;
-    min-height: 64px;
+    padding: 8px 1px 6px;
+    min-height: 56px;
     justify-content: space-between;
+    min-width: 0;
   }
 
   .day-weekday {
     font-weight: 600;
-    letter-spacing: 0.3px;
+    letter-spacing: 0;
+    white-space: nowrap;
+    overflow: hidden;
   }
 
   .day-number {
@@ -356,12 +353,6 @@
     font-size: var(--font-secondary, 14px);
     color: var(--muted);
     line-height: 1;
-  }
-
-  .today-badge {
-    letter-spacing: 0.2px;
-    line-height: 1;
-    margin-top: 1px;
   }
 
   .calendar-card-footer {

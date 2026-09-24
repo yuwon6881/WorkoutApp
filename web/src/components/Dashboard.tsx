@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ArrowRight, BicepsFlexed, CalendarDays, Check, Dumbbell, Play } from 'lucide-react';
+import { ArrowRight, CalendarDays, Check, Dumbbell, Play } from 'lucide-react';
 import type { Bootstrap, ProgressSummary, Session } from '../types';
 import { ApiError, api } from '../lib/api';
 import { Button } from './ui/Button';
@@ -17,7 +17,6 @@ interface DashboardProps {
   onSession: (s: Session) => void;
   onChanged: () => Promise<void>;
   onExercise?: (id: string) => void;
-  onMuscles?: () => void;
 }
 
 export function Dashboard({
@@ -26,8 +25,7 @@ export function Dashboard({
   onProgram,
   onResume,
   onSession,
-  onExercise,
-  onMuscles
+  onExercise
 }: DashboardProps) {
   const [progress, setProgress] = useState<ProgressSummary | null>(data.progress ?? null);
   const [progressError, setProgressError] = useState('');
@@ -74,7 +72,7 @@ export function Dashboard({
     <>
       <div className="page-heading dashboard-heading">
         <div>
-          <h1>Overview</h1>
+          <h1 data-page-heading tabIndex={-1}>Overview</h1>
           <p className="dashboard-date-subtitle">
             {new Date().toLocaleDateString('en', {
               weekday: 'long',
@@ -84,11 +82,6 @@ export function Dashboard({
             })}
           </p>
         </div>
-        {onMuscles && (
-          <Button variant="secondary" className="overview-muscles-link" onClick={onMuscles}>
-            <BicepsFlexed size={16} /> See muscle coverage
-          </Button>
-        )}
       </div>
 
       <section className="next-workout quick-start-hero" aria-label="Today's workout quick start">

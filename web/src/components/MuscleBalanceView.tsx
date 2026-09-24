@@ -142,6 +142,12 @@ export function MuscleBalanceView({ timeZone }: { timeZone: string }) {
               />
               <MuscleDetail muscle={detail} dateLabel={dateLabel} />
             </MotionPanel>
+            <div className="muscle-balance-legend" aria-label="Coverage frequency scale">
+              <span className="muscle-legend-item"><i className="legend-swatch empty" />Untrained</span>
+              <span className="muscle-legend-item"><i className="legend-swatch low" />Less frequent</span>
+              <span className="muscle-legend-item"><i className="legend-swatch mid" />Frequent</span>
+              <span className="muscle-legend-item"><i className="legend-swatch peak" />Most frequent</span>
+            </div>
             {!hasCompletedSets && <p className="muscle-balance-empty-note" role="status">No completed sets in this window.</p>}
             <details className="muscle-balance-method">
               <summary>How coverage is counted</summary>

@@ -49,7 +49,7 @@
 /* One accent hue whose depth is the muscle's share of the busiest muscle; an untrained muscle is
    the same neutral plate as the rest of the body. */
 .muscle-region{
-  fill:color-mix(in srgb,var(--accent) var(--muscle-shade,16%),var(--muscle-empty));
+  fill:color-mix(in srgb,var(--accent) var(--muscle-shade,35%),var(--muscle-empty));
   stroke:var(--muscle-gap);
   stroke-width:1.6;
   stroke-linejoin:round;
