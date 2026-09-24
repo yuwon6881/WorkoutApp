@@ -151,6 +151,32 @@ public sealed partial class ImportService
         var sourceEvidence = ImportOutlineEvidence.Read(pages);
         import.Model = result.Model; import.InputTokens += result.InputTokens; import.CachedInputTokens += result.CachedInputTokens; import.OutputTokens += result.OutputTokens;
         import.Error = "";
+        // This edition prints a complete 6 + 4 + 3 week schedule with one cited table per page.
+        // Its source page map is authoritative even if the outline describes a shorter program.
+        if (ImportPrintedPhaseWeeks.Read(pages) is { } printedWeeks)
+        {
+            var sourceChunks = SplitChunks(printedWeeks.Chunks);
+            ValidateChunkPages(sourceChunks, import.PageCoverageJson);
+            import.SelectedAlternativeId = "";
+            import.OutlineJson = Json.Write(sourceChunks);
+            import.DraftJson = Json.Write(new ImportDraft(ImportPrintedPhaseWeeks.Title, []));
+            import.Stage = "extract"; import.Status = ImportStatus.Pending;
+            import.ChunksDone = 0; import.ChunksTotal = sourceChunks.Count;
+            import.UnresolvedCount = 0;
+            return;
+        }
+        if (ImportBeginnerTransformation.Read(pages, import.FileName) is { } beginner)
+        {
+            var sourceChunks = SplitChunks(beginner.Chunks);
+            ValidateChunkPages(sourceChunks, import.PageCoverageJson);
+            import.SelectedAlternativeId = "";
+            import.OutlineJson = Json.Write(sourceChunks);
+            import.DraftJson = Json.Write(new ImportDraft(ImportBeginnerTransformation.Title, []));
+            import.Stage = "extract"; import.Status = ImportStatus.Pending;
+            import.ChunksDone = 0; import.ChunksTotal = sourceChunks.Count;
+            import.UnresolvedCount = 0;
+            return;
+        }
         if (result.LegacyProgram is { } legacy)
         {
             var sourceText = ImportSourceText.Slice(pages, 1, ImportSourceText.MaxPages);
@@ -165,10 +191,10 @@ public sealed partial class ImportService
             var numbered = NormalizePhaseWeeks(draft.Workouts);
             if (numbered.Renumbered) draft = draft with { Workouts = numbered.Workouts };
             var longWeeks = ImportLongWeeks.Reconcile(draft.Workouts, pages);
-            draft = draft with { Workouts = longWeeks.Workouts };
+            draft = draft with { Workouts = longWeeks.Workouts, SourceWeekDays = longWeeks.SourceWeekDays };
             // A whole-program answer holds the same days as a sectioned one and needs the same
             // reconciliation; it simply has no chunk to attribute a notice to.
-            var shaped = ReconcileDayShape(draft.Workouts);
+            var shaped = ReconcileDayShape(draft.Workouts, draft.SourceWeekDays);
             var cited = ImportDayShape.ReconcilePages(draft with { Workouts = shaped.Workouts }, import.Pages);
             List<ImportPageLink> demoLinks = string.IsNullOrWhiteSpace(import.LinksJson) ? [] : Json.Read<List<ImportPageLink>>(import.LinksJson);
             draft = ImportValidation.NormalizeDraft(ImportDemoLinks.Attach(cited.Draft, demoLinks));

@@ -767,7 +767,7 @@ test('overview calendar displays matching markers and details for completed, in-
   await expect(emptyModal).toBeHidden();
 });
 
-test('create a custom multi-block program and cap each week at seven scheduled days', async ({ page }) => {
+test('create a custom multi-block program and cap each week at fourteen scheduled days', async ({ page }) => {
   await signIn(page);
   await clearActiveWorkout(page);
   await openTab(page, 'Workouts');
@@ -809,10 +809,10 @@ test('create a custom multi-block program and cap each week at seven scheduled d
     await expect(page.getByRole('tab', { name: 'Week 4', exact: true })).toHaveCount(0);
 
     await page.getByRole('tab', { name: 'Block 1', exact: true }).click();
-    for (let index = 0; index < 6; index++) {
+    for (let index = 0; index < 13; index++) {
       await page.getByRole('button', { name: 'Add rest day', exact: true }).click();
     }
-    await expect(page.getByText('7 of 7 days', { exact: true })).toBeVisible();
+    await expect(page.getByText('14 days', { exact: true })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Add rest day', exact: true })).toBeDisabled();
     await expect(page.getByRole('button', { name: 'Add workout day', exact: true })).toBeDisabled();
 
@@ -854,7 +854,7 @@ test('create a custom multi-block program and cap each week at seven scheduled d
     await page.getByRole('button', { name: 'Create program', exact: true }).click();
     const createdCard = page.locator('.program-card').filter({ hasText: name });
     await expect(createdCard).toBeVisible({ timeout: 30000 });
-    await expect(createdCard.getByText(/3 weeks · 9 days/)).toBeVisible();
+    await expect(createdCard.getByText(/3 weeks · 16 days/)).toBeVisible();
     await expect(createdCard.getByText('Standby', { exact: true })).toBeVisible();
     await createdCard.getByRole('button', { name: 'Show details', exact: true }).click();
     const firstWorkoutDay = createdCard.locator('.program-slot-card').first();

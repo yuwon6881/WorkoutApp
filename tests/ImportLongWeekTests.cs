@@ -12,7 +12,7 @@ public sealed class ImportLongWeekTests
     ];
 
     [Fact]
-    public void Pure_bodybuilding_ten_day_cycles_keep_source_order_and_split_seven_plus_three()
+    public void Pure_bodybuilding_ten_day_cycles_keep_their_printed_weeks_and_source_order()
     {
         var source = new List<DraftWorkout>();
         var pages = new List<ImportPageText>
@@ -45,23 +45,22 @@ public sealed class ImportLongWeekTests
 
         Assert.Equal(100, result.Workouts.Count);
         Assert.Equal(20, result.Workouts.Count(day => day.IsRestDay));
-        Assert.Equal(20, result.Workouts.Select(day => day.Week).Distinct().Count());
-        Assert.Equal(20, result.Workouts.Max(day => day.Week));
-        Assert.All(result.Workouts.GroupBy(day => day.Week), week => Assert.InRange(week.Count(), 1, 7));
-        Assert.All(result.Workouts.GroupBy(day => day.Week), week =>
-            Assert.Equal(week.Key % 2 == 1 ? 7 : 3, week.Count()));
+        Assert.Equal(Enumerable.Range(1, 10), result.Workouts.Select(day => day.Week).Distinct().Order());
+        Assert.All(result.Workouts.GroupBy(day => day.Week), week => Assert.Equal(10, week.Count()));
+        Assert.Equal(10, result.SourceWeekDays);
         Assert.Equal(source.Select(day => day.SourcePage), result.Workouts.Select(day => day.SourcePage));
-        Assert.Equal(["Pull #1", "Push #1", "Legs #1", "Arms & Weak Points #1", "Rest Day", "Pull #2", "Push #2"],
+        Assert.Equal(["Pull #1", "Push #1", "Legs #1", "Arms & Weak Points #1", "Rest Day",
+                "Pull #2", "Push #2", "Legs #2", "Arms & Weak Points #2", "Rest Day"],
             result.Workouts.Where(day => day.Week == 1).Select(day => day.Name));
-        Assert.Equal(["Legs #2", "Arms & Weak Points #2", "Rest Day"],
-            result.Workouts.Where(day => day.Week == 2).Select(day => day.Name));
 
         var block2Start = result.Workouts.Single(day => day.SourcePage == 46 && day.Name == "Pull #1");
-        Assert.Equal(11, block2Start.Week);
-        Assert.Equal("Legs #2", result.Workouts.First(day => day.Week == 12).Name);
-        Assert.Equal(2, result.Workouts.First(day => day.Week == 12).PhaseWeek);
+        Assert.Equal(6, block2Start.Week);
+        Assert.Equal(1, block2Start.PhaseWeek);
         Assert.Single(result.Notices, notice => notice.Code == "long_source_cycle_reflowed");
-        Assert.DoesNotContain(ImportValidation.ReviewIssues(new ImportDraft("Pure Bodybuilding", result.Workouts)),
+        Assert.DoesNotContain(ImportValidation.ReviewIssues(new ImportDraft("Pure Bodybuilding", result.Workouts, result.SourceWeekDays)),
+            issue => issue.Code == "week_day_overflow");
+        // Without the source's confirmation, a ten-day week is still reported.
+        Assert.Contains(ImportValidation.ReviewIssues(new ImportDraft("Pure Bodybuilding", result.Workouts)),
             issue => issue.Code == "week_day_overflow");
     }
 
@@ -131,7 +130,8 @@ public sealed class ImportLongWeekTests
 
         Assert.Equal(10, result.Workouts.Count);
         Assert.Equal(2, result.Workouts.Count(day => day.IsRestDay));
-        Assert.Equal(2, result.Workouts.Max(day => day.Week));
+        Assert.All(result.Workouts, day => Assert.Equal(1, day.Week));
+        Assert.Equal(10, result.SourceWeekDays);
         Assert.Single(result.Notices);
     }
 
@@ -145,8 +145,8 @@ public sealed class ImportLongWeekTests
 
         var result = ImportLongWeeks.Reconcile(source, pages);
 
-        Assert.Equal([1, 1, 1, 1, 1, 1, 1, 2, 3], result.Workouts.Select(day => day.Week));
-        Assert.Single(result.Notices, issue => issue.Code == "long_source_week_reflowed");
+        Assert.Equal([1, 1, 1, 1, 1, 1, 1, 1, 2], result.Workouts.Select(day => day.Week));
+        Assert.Single(result.Notices, issue => issue.Code == "long_source_week_kept");
     }
 
     [Fact]
@@ -175,8 +175,9 @@ public sealed class ImportLongWeekTests
 
         Assert.Equal(days.Count, result.Workouts.Count);
         Assert.Equal(3, result.Workouts.Count(day => day.IsRestDay));
-        Assert.Equal([1, 1, 1, 1, 1, 1, 1, 2, 3], result.Workouts.Select(day => day.Week));
-        Assert.Contains(result.Notices, issue => issue.Code == "long_source_week_reflowed");
+        Assert.Equal([1, 1, 1, 1, 1, 1, 1, 1, 2], result.Workouts.Select(day => day.Week));
+        Assert.Equal(8, result.SourceWeekDays);
+        Assert.Contains(result.Notices, issue => issue.Code == "long_source_week_kept");
     }
 
     [Fact]
@@ -198,9 +199,9 @@ public sealed class ImportLongWeekTests
 
         Assert.Equal(12, result.Workouts.Count);
         Assert.Equal(4, result.Workouts.Count(day => day.IsRestDay));
-        Assert.Equal(2, result.Workouts.Max(day => day.Week));
-        Assert.Equal([7, 5], result.Workouts.GroupBy(day => day.Week).OrderBy(group => group.Key).Select(group => group.Count()));
-        Assert.Single(result.Notices, issue => issue.Code == "long_source_week_reflowed");
+        Assert.All(result.Workouts, day => Assert.Equal(1, day.Week));
+        Assert.Equal(12, result.SourceWeekDays);
+        Assert.Single(result.Notices, issue => issue.Code == "long_source_week_kept");
     }
 
     private static DraftWorkout Training(int week, int phaseWeek, string block, string name, int page)

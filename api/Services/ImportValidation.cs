@@ -27,15 +27,17 @@ internal static partial class ImportValidation
         var issues = new List<ImportReviewIssue>();
         var training = draft.Workouts.Where(w => !w.IsRestDay).ToList();
 
+        var weekLimit = Math.Clamp(draft.SourceWeekDays ?? ProgramLimits.StandardDaysPerWeek,
+            ProgramLimits.StandardDaysPerWeek, ProgramLimits.MaxDaysPerWeek);
         var overflowRows = draft.Workouts
             .GroupBy(day => day.Week)
-            .SelectMany(group => group.Skip(7))
+            .SelectMany(group => group.Skip(weekLimit))
             .ToList();
         if (overflowRows.Count > 0)
         {
             var first = overflowRows[0];
             issues.Add(new ImportReviewIssue("week_day_overflow",
-                $"{Count(overflowRows.Count, "day exceeds", "days exceed")} the 7-day limit for a week. Delete {(overflowRows.Count == 1 ? "it" : "them")} or change {(overflowRows.Count == 1 ? "its" : "their")} week in the review. {Naming(overflowRows)}",
+                $"{Count(overflowRows.Count, "day exceeds", "days exceed")} the {weekLimit}-day limit for a week{(weekLimit > ProgramLimits.StandardDaysPerWeek ? " this PDF prints" : "")}. Delete {(overflowRows.Count == 1 ? "it" : "them")} or change {(overflowRows.Count == 1 ? "its" : "their")} week in the review. {Naming(overflowRows)}",
                 "warning", first.SourcePage, WorkoutLineId: first.LineId, TargetField: "week"));
         }
 

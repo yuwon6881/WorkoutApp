@@ -38,16 +38,20 @@ public class ProgramTests
                 [new SetInput(60, 8, 8, true)])], session.Revision, null), default);
         await h.Workouts.Finish(session.Id, null, default);
     }
-    [Fact] public async Task Program_creation_rejects_more_than_seven_days_in_a_week()
+    /// A ten-day asynchronous cycle keeps the week its PDF prints; only a week beyond two weeks'
+    /// worth of days is refused.
+    [Fact] public async Task Program_creation_accepts_a_ten_day_week_and_rejects_more_than_fourteen()
     {
         var (h, benchId) = await Ready();
         await using var _h = h;
-        var workouts = Enumerable.Range(1, 8).Select(index => new ProgramWorkoutInput(1, $"Day {index}", null, null,
+        List<ProgramWorkoutInput> Week(int days) => Enumerable.Range(1, days).Select(index => new ProgramWorkoutInput(1, $"Day {index}", null, null,
             [Harness.Exercise(benchId, "Bench press", Harness.Set(8, 10))])).ToList();
 
+        var created = await h.Programs.Create(new ProgramInput("Ten day cycle", Week(10)), false, null, default);
         var error = await Assert.ThrowsAsync<DomainException>(() =>
-            h.Programs.Create(new ProgramInput("Eight day week", workouts), false, null, default));
+            h.Programs.Create(new ProgramInput("Fifteen day week", Week(15)), false, null, default));
 
+        Assert.NotNull(created);
         Assert.Equal(422, error.Status);
     }
     [Fact] public async Task Program_creation_rejects_missing_weeks_between_phases()

@@ -46,8 +46,8 @@ public sealed class ProgramEditorService(ProgramService programs)
         Validation.Require(workouts.All(workout => workout is not null), "A workout day is missing.");
         Validation.Require(workouts.All(workout => workout.Week is > 0 and <= 104),
             "Draft weeks must be between 1 and 104.");
-        Validation.Require(workouts.GroupBy(workout => workout.Week).All(week => week.Count() <= 7),
-            "A week can contain at most 7 workout days.");
+        Validation.Require(workouts.GroupBy(workout => workout.Week).All(week => week.Count() <= ProgramLimits.MaxDaysPerWeek),
+            $"A week can contain at most {ProgramLimits.MaxDaysPerWeek} workout days.");
         Validation.Require(workouts.All(workout => workout.PhaseWeek is > 0 and <= 104),
             "Phase weeks must be between 1 and 104.");
 

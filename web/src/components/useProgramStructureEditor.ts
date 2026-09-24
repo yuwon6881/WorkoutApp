@@ -14,6 +14,7 @@ import {
   type Week
 } from '../lib/importDraftWeeks';
 import type { AddWeekMode } from './AddWeekModal';
+import { MAX_DAYS_PER_WEEK } from '../lib/programLimits';
 
 type Options = {
   draft: ImportDraft;
@@ -73,7 +74,7 @@ export function useProgramStructureEditor({ draft, onDraftChange, onDayChange }:
   const selectedBlockIndex = week ? blocks.findIndex(block => block.id === week.blockId) : -1;
   const selectedBlockWeeks = blocks[selectedBlockIndex]?.weeks ?? [];
   const totalDayCount = normalizedDraft.workouts.length;
-  const canAddDay = !!week && totalDayCount < 400 && week.days.length < 7;
+  const canAddDay = !!week && totalDayCount < 400 && week.days.length < MAX_DAYS_PER_WEEK;
 
   const reorderWeeks = useCallback((from: number, to: number, side: 'before' | 'after' = 'before') => {
     if (from === to && side === 'before') {
@@ -190,7 +191,7 @@ export function useProgramStructureEditor({ draft, onDraftChange, onDayChange }:
   }, [normalizedDraft, onDraftChange, weeks]);
 
   const addDay = useCallback((restDay: boolean) => {
-    if (!week || week.days.length >= 7 || totalDayCount >= 400) return;
+    if (!week || week.days.length >= MAX_DAYS_PER_WEEK || totalDayCount >= 400) return;
     const created = restDay ? emptyRestDay(week.week, week) : emptyWeekDay(week.week, week);
     const days = [...week.days, { ...created, block: week.block, blockId: week.blockId, weekId: week.weekId }];
     void onDraftChange(renumberDraft(normalizedDraft, weeks.map(entry =>
@@ -198,7 +199,7 @@ export function useProgramStructureEditor({ draft, onDraftChange, onDayChange }:
   }, [normalizedDraft, onDraftChange, totalDayCount, week, weeks]);
 
   const duplicateDay = useCallback((lineId: string) => {
-    if (!week || week.days.length >= 7 || totalDayCount >= 400) return;
+    if (!week || week.days.length >= MAX_DAYS_PER_WEEK || totalDayCount >= 400) return;
     const sourceIndex = week.days.findIndex(day => day.lineId === lineId);
     if (sourceIndex < 0) return;
     const source = week.days[sourceIndex];
@@ -260,7 +261,7 @@ export function useProgramStructureEditor({ draft, onDraftChange, onDayChange }:
     const targetWeek = weeks.find(entry => entry.weekId === targetWeekId);
     const day = sourceWeek?.days.find(entry => entry.lineId === lineId);
     if (!sourceWeek || !targetWeek || !day || sourceWeek.weekId === targetWeek.weekId
-      || sourceWeek.days.length <= 1 || targetWeek.days.length >= 7) return;
+      || sourceWeek.days.length <= 1 || targetWeek.days.length >= MAX_DAYS_PER_WEEK) return;
     const moved: DraftWorkout = {
       ...day,
       week: targetWeek.week,

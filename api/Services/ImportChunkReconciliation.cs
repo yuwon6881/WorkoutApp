@@ -35,9 +35,15 @@ internal static class ImportChunkReconciliation
     }
 
     public static ChunkMerge ReconcileChunkCoverage(ImportDraft existing, ImportDraft extracted, ImportChunk chunk,
-        IReadOnlyList<ImportPageText>? pages = null, bool preserveTrailingRestDays = false)
+        IReadOnlyList<ImportPageText>? pages = null, bool preserveTrailingRestDays = false,
+        bool sourcePageWeekIsAuthoritative = false)
     {
-        var translated = ImportAbsoluteWeeks.TranslateDays(extracted.Workouts, chunk);
+        var pageAnchored = sourcePageWeekIsAuthoritative
+            ? extracted.Workouts.Select(day => day.SourcePage is { } page &&
+                page >= chunk.PageFrom && page <= chunk.PageTo
+                    ? day with { Week = chunk.WeekFrom } : day).ToList()
+            : extracted.Workouts;
+        var translated = ImportAbsoluteWeeks.TranslateDays(pageAnchored, chunk);
         // Lettered versions of one week are separated before the week is shaped: shaped together
         // they overflow it, and its trailing rest days would be trimmed as surplus.
         var versions = ImportWeekVariants.Separate(translated, pages ?? []);

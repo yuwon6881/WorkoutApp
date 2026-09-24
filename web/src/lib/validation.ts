@@ -1,4 +1,5 @@
 import type { DraftWorkout, ImportDraft, LoggedSet, Session, SetPrescription, TemplateExercise } from '../types';
+import { MAX_DAYS_PER_WEEK } from './programLimits';
 
 export function validateName(value: string | null | undefined, label: string, max = 120): string | undefined {
   if (!value?.trim()) return `${label} is required.`;
@@ -140,7 +141,7 @@ export function validateProgramEditorDocument(document: ImportDraft, requireCata
   if (weeks.size > 104) return 'A program can have at most 104 weeks.';
   const orderedWeeks = [...weeks.entries()].sort(([left], [right]) => left - right);
   if (orderedWeeks.some(([week], index) => week !== index + 1)) return 'Program weeks must be in order without gaps.';
-  if (orderedWeeks.some(([, weekDays]) => weekDays.length > 7)) return 'A week can contain at most 7 days.';
+  if (orderedWeeks.some(([, weekDays]) => weekDays.length > MAX_DAYS_PER_WEEK)) return `A week can contain at most ${MAX_DAYS_PER_WEEK} days.`;
   if (orderedWeeks.some(([, weekDays]) => weekDays.some(day => day.blockId !== weekDays[0].blockId || day.weekId !== weekDays[0].weekId))) {
     return 'Every week must belong to one block and have one identity.';
   }

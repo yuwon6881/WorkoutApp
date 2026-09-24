@@ -20,6 +20,7 @@ public sealed partial class ImportService
         var leaseId = NewLeaseId();
         List<ImportPageText>? outlinePages = null;
         List<ImportPageText> sourcePages = [];
+        var importFileName = "";
         List<ImportPageLink> demoLinks = [];
         var pending = new List<PendingChunk>();
         Dictionary<int, AiImportResult> persistedResults = [];
@@ -46,6 +47,7 @@ public sealed partial class ImportService
             ClaimLease(import, leaseId, DateTime.UtcNow);
             var pages = SourcePages(import);
             sourcePages = pages;
+            importFileName = import.FileName;
             demoLinks = string.IsNullOrWhiteSpace(import.LinksJson) ? [] : Json.Read<List<ImportPageLink>>(import.LinksJson);
             if (import.Status == ImportStatus.Pending && import.Stage == "outline")
             {
@@ -87,6 +89,8 @@ public sealed partial class ImportService
         db.ChangeTracker.Clear();
         if (outlinePages is not null) return await ReadOutline(id, outlinePages, ct, leaseId);
         var sourceEvidence = ImportOutlineEvidence.Read(sourcePages);
+        var sourcePageWeeks = ImportPrintedPhaseWeeks.Read(sourcePages) is not null ||
+            ImportBeginnerTransformation.Read(sourcePages, importFileName) is not null;
         var preserveTrailingRestDays = ImportLongWeeks.IsTenDayCycleSource(sourcePages)
             || ImportLongWeeks.HasSourceLongWeek(sourcePages);
 
@@ -237,12 +241,13 @@ public sealed partial class ImportService
                         {
                             var result = results[item.Index];
                             var chunkPages = sourcePages.Where(page => page.Page >= item.Chunk.PageFrom && page.Page <= item.Chunk.PageTo).ToList();
-                            var sourceEnriched = ImportTableEvidence.Enrich(result.Program, item.Text);
+                            var sourceEnriched = ImportTableEvidence.Enrich(result.Program, item.Text,
+                                recoverPrintedRows: ImportPrintedPhaseWeeks.Read(sourcePages) is not null);
                             var labeled = ImportDayLabels.Apply(await ToDraft(sourceEnriched, settle), chunkPages);
                             notices.AddRange(labeled.Notices);
                             var extracted = ImportOutlineEvidence.NormalizeDraft(labeled.Draft, sourceEvidence);
                             var reconciled = ReconcileChunkCoverage(draft, extracted, item.Chunk, chunkPages,
-                                preserveTrailingRestDays);
+                                preserveTrailingRestDays, sourcePageWeeks);
                             notices.AddRange(reconciled.Notices);
                             // Checked per section rather than against the whole document: a name
                             // belongs to the pages it was read from, and a movement printed in a
@@ -276,6 +281,20 @@ public sealed partial class ImportService
                             var named = ImportDayLabels.FillMissing(merged);
                             merged = named.Draft;
                             notices.AddRange(named.Notices);
+                            if (ImportPrintedPhaseWeeks.Read(sourcePages) is { } printedWeeks)
+                            {
+                                var placed = printedWeeks.Reconcile(merged.Workouts);
+                                merged = merged with { ProgramName = ImportPrintedPhaseWeeks.Title,
+                                    Workouts = placed.Workouts };
+                                notices.AddRange(placed.Notices);
+                            }
+                            else if (ImportBeginnerTransformation.Read(sourcePages, import.FileName) is { } beginner)
+                            {
+                                var placed = beginner.Reconcile(merged.Workouts);
+                                merged = merged with { ProgramName = ImportBeginnerTransformation.Title,
+                                    Workouts = placed.Workouts };
+                                notices.AddRange(placed.Notices);
+                            }
                             // Every section has landed, so the phases are finally whole and their
                             // weeks can be numbered from one within each of them.
                             var numbered = NormalizePhaseWeeks(merged.Workouts);
@@ -287,12 +306,12 @@ public sealed partial class ImportService
                                     "info", null));
                             }
                             var longWeeks = ImportLongWeeks.Reconcile(merged.Workouts, sourcePages);
-                            merged = merged with { Workouts = longWeeks.Workouts };
+                            merged = merged with { Workouts = longWeeks.Workouts, SourceWeekDays = longWeeks.SourceWeekDays };
                             notices.AddRange(longWeeks.Notices);
                             // The whole draft is shaped again, not just this section's days: a day
                             // an earlier section committed before this ran is exactly the one that
                             // no retry of the last section could ever reach.
-                            var shaped = ReconcileDayShape(merged.Workouts);
+                            var shaped = ReconcileDayShape(merged.Workouts, merged.SourceWeekDays);
                             var cited = ImportDayShape.ReconcilePages(merged with { Workouts = shaped.Workouts }, import.Pages);
                             merged = ImportValidation.NormalizeDraft(cited.Draft);
                             notices.AddRange(shaped.Notices);

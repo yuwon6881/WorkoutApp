@@ -32,11 +32,12 @@ describe('application-owned validation', () => {
     expect(validateLoggedSet({ id: 'set', position: 0, weightKg: null, reps: null, rpe: null, done: true, warmup: false })).toBe('A completed set needs its reps.');
   });
 
-  it('accepts a seven-day custom week and rejects an eighth day', () => {
+  it('accepts a ten-day cycle week and rejects a fifteenth day', () => {
     const draft = programDraft();
     expect(validateProgramEditorDocument(draft)).toBeUndefined();
-    const overflow = { ...draft, workouts: [...draft.workouts, { ...draft.workouts[6], lineId: 'day-8', weekId: 'week-1' }] };
-    expect(validateProgramEditorDocument(overflow)).toBe('A week can contain at most 7 days.');
+    const extra = (count: number) => Array.from({ length: count }, (_, index) => ({ ...draft.workouts[6], lineId: `extra-${index}`, weekId: 'week-1' }));
+    expect(validateProgramEditorDocument({ ...draft, workouts: [...draft.workouts, ...extra(3)] })).toBeUndefined();
+    expect(validateProgramEditorDocument({ ...draft, workouts: [...draft.workouts, ...extra(8)] })).toBe('A week can contain at most 14 days.');
   });
 
   it('requires mapped exercises and distinct block names when creating a custom program', () => {

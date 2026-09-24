@@ -381,8 +381,8 @@ public sealed class ProgramService(AppDb db, TemplateService templates, ProgramP
         Validation.Name(input.Name, "Program name");
         Validation.Require(input.Workouts is { Count: > 0 }, "A program needs at least one workout.");
         Validation.Require(input.Workouts.Count <= 400, "A program can have at most 400 workouts.");
-        Validation.Require(input.Workouts.GroupBy(workout => workout.Week).All(week => week.Count() <= 7),
-            "A program week can have at most 7 days.", 422);
+        Validation.Require(input.Workouts.GroupBy(workout => workout.Week).All(week => week.Count() <= ProgramLimits.MaxDaysPerWeek),
+            $"A program week can have at most {ProgramLimits.MaxDaysPerWeek} days.", 422);
         Validation.Require(input.Workouts.Any(workout => !workout.IsRestDay), "A program needs at least one training workout.");
         Validation.Require(input.Workouts.All(w => w.Week is > 0 and <= 104), "Program weeks must be between 1 and 104.");
         var programWeeks = input.Workouts.Select(workout => workout.Week).Distinct().Order().ToList();

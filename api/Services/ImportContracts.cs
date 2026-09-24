@@ -22,7 +22,9 @@ public record DraftWorkout(
     string? Block = null, string? Phase = null, int PhaseWeek = 1, bool IsRestDay = false,
     int? SourcePage = null, Guid? BlockId = null, Guid? WeekId = null);
 
-public record ImportDraft(string ProgramName, List<DraftWorkout> Workouts);
+/// SourceWeekDays is the longest week the PDF itself confirms (a ten-day cycle is 10); a week beyond
+/// seven days is only accepted without review when its source says so.
+public record ImportDraft(string ProgramName, List<DraftWorkout> Workouts, int? SourceWeekDays = null);
 public record ImportMetadata(string ProgramName);
 /// One unresolved recurring slot, represented once even when the source repeats it in every week.
 public record UnresolvedExercise(Guid LineId, string SourceName, Guid? SlotKey = null,

@@ -141,7 +141,7 @@ export function ProgramDayList({
       })}
     </div>
     <div className="program-day-add-actions">
-      <span className="muted">{days.length} of 7 days</span>
+      <span className="muted">{days.length} {days.length === 1 ? 'day' : 'days'}</span>
       <div className="program-day-add-buttons">
         <Button variant="secondary" aria-label="Add workout day" disabled={!canAddDay} onClick={() => addDay(false)}>
           <Plus size={15} />Workout day

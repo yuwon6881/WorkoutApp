@@ -21,11 +21,15 @@ public sealed partial class ImportService
         => ImportValidation.NormalizePhaseWeeks(workouts);
 
     private static ImportChunkReconciliation.ChunkMerge ReconcileChunkCoverage(ImportDraft existing, ImportDraft extracted, ImportChunk chunk,
-        IReadOnlyList<ImportPageText>? pages = null, bool preserveTrailingRestDays = false)
-        => ImportChunkReconciliation.ReconcileChunkCoverage(existing, extracted, chunk, pages, preserveTrailingRestDays);
+        IReadOnlyList<ImportPageText>? pages = null, bool preserveTrailingRestDays = false,
+        bool sourcePageWeekIsAuthoritative = false)
+        => ImportChunkReconciliation.ReconcileChunkCoverage(existing, extracted, chunk, pages,
+            preserveTrailingRestDays, sourcePageWeekIsAuthoritative);
 
-    private static (List<DraftWorkout> Workouts, List<ImportReviewIssue> Notices) ReconcileDayShape(List<DraftWorkout> days)
-        => ImportDayShape.Reconcile(days);
+    /// A week the source confirms as longer than seven days keeps its trailing rest days.
+    private static (List<DraftWorkout> Workouts, List<ImportReviewIssue> Notices) ReconcileDayShape(List<DraftWorkout> days,
+        int? sourceWeekDays = null)
+        => ImportDayShape.Reconcile(days, preserveTrailingRestDays: sourceWeekDays is > Workout.Api.Domain.ProgramLimits.StandardDaysPerWeek);
 
     private static List<ImportReviewIssue> ReadNotices(string json) => ImportValidation.ReadNotices(json);
 

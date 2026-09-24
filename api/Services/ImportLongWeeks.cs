@@ -3,22 +3,24 @@ using System.Text.RegularExpressions;
 namespace Workout.Api.Services;
 
 /// <summary>
-/// Reconciles source-confirmed long training cycles into the app's seven-day weeks. A printed
-/// ten-day rotation is divided as 7+3 in page order, so rests and block banners cannot move its
-/// sessions across cycle boundaries.
+/// Reconciles source-confirmed long training cycles. A week the PDF prints with more than seven
+/// days (an asynchronous ten-day rotation) keeps its printed week number and page order, so rests
+/// and block banners cannot move its sessions across cycle boundaries.
 /// </summary>
 internal static class ImportLongWeeks
 {
+    private const int MaxDays = Workout.Api.Domain.ProgramLimits.MaxDaysPerWeek;
     private static readonly Regex DayLabel = new(@"(?m)^\s*DAY LABEL:\s*(?<name>[^\r\n]+)",
         RegexOptions.Compiled | RegexOptions.IgnoreCase);
     private static readonly Regex TenDayCycle = new(
         @"\b10[- ]day\s+(?:cycle|rotation|split)\b|\basynchronous\b.{0,200}\b10[- ]day\b",
         RegexOptions.Compiled | RegexOptions.IgnoreCase | RegexOptions.Singleline);
     private static readonly Regex RestBand = new(
-        @"^\s*(?:\d\s*(?:[-–]\s*\d\s*)?\s*)?(?:(?:SUGGESTED|MANDATORY|OPTIONAL)\s+)?REST DAYS?\s*$",
+        @"^\s*(?:(?:SUGGESTED|MANDATORY|OPTIONAL)\s+)?(?:\d\s*(?:[-–]\s*\d\s*)?\s*)?REST DAYS?\s*$|^\s*\d\s*(?:[-–]\s*\d\s*)?\s*(?:SUGGESTED|MANDATORY|OPTIONAL)\s+REST DAYS?\s*$",
         RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
-    public sealed record Result(List<DraftWorkout> Workouts, List<ImportReviewIssue> Notices);
+    /// SourceWeekDays is the longest week the source confirms, when that is longer than seven days.
+    public sealed record Result(List<DraftWorkout> Workouts, List<ImportReviewIssue> Notices, int? SourceWeekDays = null);
 
     /// A source-confirmed asynchronous cycle may span chunks before the final schedule exists.
     /// Chunk reconciliation must leave its rest bands intact for the final page-ordered pass.
@@ -75,7 +77,7 @@ internal static class ImportLongWeeks
             notices.Add(new ImportReviewIssue("phase_week_renumbered",
                 "Phase week numbers were normalized after source-backed schedule placement; program weeks are unchanged.",
                 "info", optional.Notices.FirstOrDefault()?.SourcePage));
-        return new Result(numbered.Workouts, notices);
+        return new Result(numbered.Workouts, notices, weeks.SourceWeekDays);
     }
 
     private static bool TryReconcileTenDayCycles(IReadOnlyList<DraftWorkout> workouts,
@@ -117,34 +119,26 @@ internal static class ImportLongWeeks
             orderedCycles.Add(days);
         }
 
+        // Each printed cycle is one program week, as the PDF numbers it.
         var mapped = new List<DraftWorkout>(workouts.Count);
         for (var cycleIndex = 0; cycleIndex < orderedCycles.Count; cycleIndex++)
-        {
-            var cycleDays = orderedCycles[cycleIndex];
-            var firstAppWeek = cycleIndex * 2 + 1;
-            for (var dayIndex = 0; dayIndex < cycleDays.Count; dayIndex++)
-            {
-                var appWeek = firstAppWeek + (dayIndex >= 7 ? 1 : 0);
-                mapped.Add(cycleDays[dayIndex].Day with { Week = appWeek });
-            }
-        }
+            mapped.AddRange(orderedCycles[cycleIndex].Select(item => item.Day with { Week = cycleIndex + 1 }));
 
-        // Phase weeks count forward within each contiguous source block/phase. Using the newly
-        // assigned app week here keeps the 7-day and 3-day portions distinct even when a block's
+        // Phase weeks count forward within each contiguous source block/phase, even when a block's
         // printed phase-week counter restarts or a recycled banner interrupts it.
         mapped = NumberPhaseWeeks(mapped);
         var appWeeks = mapped.Select(day => day.Week).Distinct().Order().ToList();
-        if (!appWeeks.SequenceEqual(Enumerable.Range(1, cycles.Count * 2)) ||
-            mapped.GroupBy(day => day.Week).Any(week => week.Count() > 7))
+        if (!appWeeks.SequenceEqual(Enumerable.Range(1, cycles.Count)) ||
+            mapped.GroupBy(day => day.Week).Any(week => week.Count() > MaxDays))
             return false;
 
         var firstPage = mapped.Select(day => day.SourcePage).FirstOrDefault(page => page.HasValue);
         result = new Result(mapped,
         [
             new ImportReviewIssue("long_source_cycle_reflowed",
-                $"The PDF defines {cycles.Count} ten-day training cycles. Each was scheduled across two app weeks (7 days, then 3), preserving its printed order and rest days.",
+                $"The PDF runs on a ten-day cycle, so each of its {cycles.Count} printed weeks keeps all ten days in printed order, rest days included.",
                 "info", firstPage, TargetField: "week")
-        ]);
+        ], mapped.GroupBy(day => day.Week).Max(week => week.Count()));
         return true;
     }
 
@@ -243,6 +237,7 @@ internal static class ImportLongWeeks
         var result = new List<DraftWorkout>(ordered.Count);
         var notices = new List<ImportReviewIssue>();
         var offset = 0;
+        int? longest = null;
 
         foreach (var phase in ImportValidation.GroupDraftPhases(ordered))
         {
@@ -256,18 +251,31 @@ internal static class ImportLongWeeks
                     continue;
                 }
 
+                if (days.Count <= MaxDays)
+                {
+                    // The printed week is kept whole: its week number is the PDF's own.
+                    result.AddRange(days.Select(day => day with { Week = firstWeek }));
+                    longest = Math.Max(longest ?? 0, days.Count);
+                    notices.Add(new ImportReviewIssue("long_source_week_kept",
+                        $"This PDF prints {days.Count} days in week {week.Key}; the week was kept as printed, rest days included.",
+                        "info", days[0].SourcePage, days[0].LineId, TargetField: "week"));
+                    continue;
+                }
+
+                // Beyond two weeks' worth of days, the week cannot be stored whole and is split in order.
                 for (var index = 0; index < days.Count; index++)
-                    result.Add(days[index] with { Week = firstWeek + index / 7,
-                        PhaseWeek = days[index].PhaseWeek + index / 7 });
-                var appWeeks = (days.Count + 6) / 7;
+                    result.Add(days[index] with { Week = firstWeek + index / MaxDays,
+                        PhaseWeek = days[index].PhaseWeek + index / MaxDays });
+                var appWeeks = (days.Count + MaxDays - 1) / MaxDays;
                 offset += appWeeks - 1;
+                longest = MaxDays;
                 notices.Add(new ImportReviewIssue("long_source_week_reflowed",
                     $"This PDF prints {days.Count} distinct slots in week {week.Key}. All training and rest slots were kept in source order across {appWeeks} app weeks.",
                     "info", days[0].SourcePage, days[0].LineId, TargetField: "week"));
             }
         }
 
-        return new Result(result, notices);
+        return new Result(result, notices, longest);
     }
 
     private static bool SourceConfirmsLongWeek(IReadOnlyList<DraftWorkout> days,

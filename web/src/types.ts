@@ -78,7 +78,8 @@ export type DraftSet = {
 };
 export type DraftExercise = { lineId: string; sourceName: string; exerciseId: string | null; notes: string | null; sets: DraftSet[]; sequenceGroup: string; substitutions: string[]; sourcePage?: number | null; slotKey?: string | null; restSeconds?: number | null; demoUrl?: string | null; demoLinks?: Record<string, string> | null };
 export type DraftWorkout = { lineId: string; week: number; name: string; focus: string | null; notes: string | null; exercises: DraftExercise[]; block: string | null; phase: string | null; phaseWeek: number; isRestDay: boolean; sourcePage?: number | null; blockId?: string | null; weekId?: string | null };
-export type ImportDraft = { programName: string; workouts: DraftWorkout[] };
+/// sourceWeekDays is the longest week the PDF confirms (10 for a ten-day cycle); set by the server.
+export type ImportDraft = { programName: string; workouts: DraftWorkout[]; sourceWeekDays?: number | null };
 /// Custom program drafts use the same editable workout document as PDF review, with stable
 /// structural IDs where the editor has assigned them.
 export type ProgramEditorDocument = ImportDraft;
