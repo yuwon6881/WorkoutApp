@@ -7,7 +7,8 @@ import { restTimer } from './lib/restTimer';
 import { getWorkoutPushDeviceId } from './lib/push/firebaseMessaging';
 import { getRecovery, hasUnresolvedRecovery, sameWorkoutEdits, startRecovery } from './lib/workoutRecovery';
 import { Button } from './components/ui/Button';
-import { MotionScene } from './components/ui/Motion';
+import { MotionScene, SelectionIndicator } from './components/ui/Motion';
+import './components/BottomNav.css';
 import { Auth } from './components/Auth';
 import { Dashboard } from './components/Dashboard';
 import { Programs } from './components/Programs';
@@ -377,8 +378,25 @@ export default function App() {
 
     </div>
 
-    <nav className="bottom-nav" aria-label="Mobile navigation">{NAV.map(item => <Button key={item.id} variant="tertiary" className={tab === item.id ? 'selected' : ''}
-      aria-current={tab === item.id ? 'page' : undefined} onClick={() => setTab(item.id)}><item.icon size={20} /><span>{item.label}</span></Button>)}</nav>
+    <nav className="bottom-nav" aria-label="Mobile navigation">
+      <SelectionIndicator active={tab} className="bottom-nav-track">
+        {NAV.map(item => (
+          <Button
+            key={item.id}
+            data-selection-key={item.id}
+            variant="tertiary"
+            className={`bottom-nav-item ${tab === item.id ? 'selected' : ''}`}
+            aria-current={tab === item.id ? 'page' : undefined}
+            onClick={() => setTab(item.id)}
+          >
+            <span className="bottom-nav-icon-slot">
+              <item.icon size={20} />
+            </span>
+            <span className="bottom-nav-label">{item.label}</span>
+          </Button>
+        ))}
+      </SelectionIndicator>
+    </nav>
 
     {workoutSession?.active && !training && <Button className="resume-workout" variant="primary" onClick={() => setTraining(true)}>
       <span className="status-dot" />Resume {workoutSession.name}</Button>}

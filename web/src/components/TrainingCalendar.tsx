@@ -68,6 +68,17 @@ export function TrainingCalendar({ onSession }: TrainingCalendarProps) {
         </div>
 
         <div className="calendar-nav-controls">
+          {offset !== 0 && (
+            <Button
+              aria-label="Return to this week"
+              variant="secondary"
+              className="calendar-today-btn"
+              onClick={() => setOffset(0)}
+            >
+              <RotateCcw size={13} />
+              <span>Current week</span>
+            </Button>
+          )}
           <div className="calendar-nav-group" role="group" aria-label="Navigate weeks">
             <Button
               aria-label="Previous week"
@@ -86,17 +97,6 @@ export function TrainingCalendar({ onSession }: TrainingCalendarProps) {
               <ChevronRight size={16} />
             </Button>
           </div>
-          {offset !== 0 && (
-            <Button
-              aria-label="Return to this week"
-              variant="secondary"
-              className="calendar-today-btn"
-              onClick={() => setOffset(0)}
-            >
-              <RotateCcw size={12} />
-              <span>Current week</span>
-            </Button>
-          )}
         </div>
       </div>
 
@@ -132,22 +132,23 @@ export function TrainingCalendar({ onSession }: TrainingCalendarProps) {
               <strong className="day-number">{day.getDate()}</strong>
               <div className="day-status-indicator">
                 {status === 'completed' ? (
-                  <span className="day-pill-status done">
-                    <Check size={11} aria-hidden="true" />
-                    <span>Done</span>
+                  <span className="day-status-disc completed" title="Workout completed">
+                    <Check size={12} strokeWidth={2.8} aria-hidden="true" />
+                    <span className="day-status-label">Done</span>
                   </span>
                 ) : status === 'in_progress' ? (
-                  <span className="day-pill-status in-progress">
-                    <span className="status-dot" aria-hidden="true" />
-                    <span>Active</span>
+                  <span className="day-status-disc in-progress" title="Workout in progress">
+                    <span className="status-dot pulsing" aria-hidden="true" />
+                    <span className="day-status-label">Active</span>
                   </span>
                 ) : (
-                  <span className="day-pill-status rest">
-                    <span>Rest</span>
+                  <span className="day-status-disc rest" title="Rest day">
+                    <span className="rest-ring" aria-hidden="true" />
+                    <span className="day-status-label">Rest</span>
                   </span>
                 )}
-                <span className="day-marker">
-                  {status === 'completed' ? '✓' : status === 'in_progress' ? '…' : isToday ? <span className="status-dot" /> : '·'}
+                <span className="day-marker" aria-hidden="true">
+                  {status === 'completed' ? '✓' : status === 'in_progress' ? '…' : '·'}
                 </span>
               </div>
             </Button>

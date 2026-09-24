@@ -1,0 +1,114 @@
+/* Bottom Navigation Bar for Mobile Viewports */
+.bottom-nav {
+  position: fixed;
+  display: flex;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 10;
+  background: color-mix(in srgb, var(--surface) 88%, transparent);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border-top: 1px solid var(--border);
+  box-shadow: 0 -4px 20px var(--overlay), inset 0 1px 0 0 rgba(255, 255, 255, 0.04);
+  padding: 6px 8px calc(6px + env(safe-area-inset-bottom, 0px));
+  justify-content: center;
+}
+
+@media (min-width: 640px) {
+  .bottom-nav {
+    display: none !important;
+  }
+}
+
+.bottom-nav-track.selection-indicator {
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  width: 100%;
+  max-width: 480px;
+  position: relative;
+  border-radius: 12px;
+}
+
+.bottom-nav .selection-indicator-marker {
+  position: absolute;
+  top: 0;
+  left: 0;
+  border-radius: 12px;
+  background: var(--accent-soft);
+  border: 1px solid var(--accent-border);
+  box-shadow: 0 0 14px var(--accent-soft-glow);
+  pointer-events: none;
+  transition: transform var(--motion-panel) var(--motion-ease), width var(--motion-panel) var(--motion-ease), height var(--motion-panel) var(--motion-ease);
+}
+
+[data-motion-reduced] .bottom-nav .selection-indicator-marker {
+  transition: none !important;
+}
+
+.bottom-nav-item.button {
+  position: relative;
+  z-index: 1;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  min-height: 52px;
+  min-width: 44px;
+  padding: 6px 2px 4px;
+  border-radius: 12px;
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  color: var(--muted);
+  transition: color 0.16s ease, transform 0.14s ease;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.bottom-nav-item:hover:not(:disabled) {
+  color: var(--text);
+  background: transparent !important;
+}
+
+.bottom-nav-item.selected {
+  color: var(--accent);
+}
+
+.bottom-nav-item:active:not(:disabled) {
+  transform: scale(0.96);
+}
+
+.bottom-nav-icon-slot {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  color: inherit;
+  transition: transform 0.18s cubic-bezier(0.2, 0.8, 0.2, 1), color 0.16s ease;
+}
+
+.bottom-nav-item.selected .bottom-nav-icon-slot {
+  color: var(--accent);
+  transform: scale(1.08);
+}
+
+.bottom-nav-label {
+  font-size: var(--font-secondary, 14px) !important;
+  font-weight: 550;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+  color: inherit;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: clip;
+  transition: color 0.16s ease, font-weight 0.16s ease;
+}
+
+.bottom-nav-item.selected .bottom-nav-label {
+  color: var(--accent);
+  font-weight: 650;
+}
