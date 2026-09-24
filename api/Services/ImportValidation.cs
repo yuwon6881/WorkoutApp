@@ -52,23 +52,15 @@ internal static partial class ImportValidation
 
         var unrated = working.Where(item => item.set.TargetRpe is null && !HasRirTarget(item.set.Rir)
             && !IsPercentageLoad(item.set.LoadText)).ToList();
-        if (unrated.Count > 0)
-            issues.Add(new ImportReviewIssue("rpe_unspecified",
-                $"{Count(unrated.Count, "working set has", "working sets have")} no target RIR in the PDF; {(unrated.Count == 1 ? "it remains" : "they remain")} unspecified. {Naming(unrated.Select(item => item.day))}",
-                "info", unrated[0].set.SourcePage ?? unrated[0].day.SourcePage,
-                WorkoutLineId: unrated[0].day.LineId, ExerciseLineId: unrated[0].exercise.LineId,
-                SetIndex: unrated[0].index, TargetField: "targetRpe"));
+        AddUnspecified(issues, unrated, "rpe_unspecified", "rpe_unread", "targetRpe", item => item.set.RpeSource,
+            "working set has", "working sets have", "no target RIR");
 
         // The first movement of a superset rests only after its partner, so a table prints "-" for
         // it and a session skips that rest anyway; it is not a rest the document left out.
         var unrested = working.Where(item => item.set.RestSeconds is null && string.IsNullOrWhiteSpace(item.set.RestText)
             && !LeadsIntoPartner(item.day, item.exercise)).ToList();
-        if (unrested.Count > 0)
-            issues.Add(new ImportReviewIssue("rest_unspecified",
-                $"{Count(unrested.Count, "set has", "sets have")} no stated rest in the PDF; {(unrested.Count == 1 ? "it remains" : "they remain")} unspecified. {Naming(unrested.Select(item => item.day))}",
-                "info", unrested[0].set.SourcePage ?? unrested[0].day.SourcePage,
-                WorkoutLineId: unrested[0].day.LineId, ExerciseLineId: unrested[0].exercise.LineId,
-                SetIndex: unrested[0].index, TargetField: "rest"));
+        AddUnspecified(issues, unrested, "rest_unspecified", "rest_unread", "rest", item => item.set.RestSource,
+            "set has", "sets have", "no stated rest");
 
         var weeks = draft.Workouts.Select(day => day.Week).Distinct().Order().ToList();
         var missingWeeksBetweenPhases = new List<int>();
@@ -112,6 +104,29 @@ internal static partial class ImportValidation
         }
         return issues;
     }
+
+    /// A value the page leaves blank, "-" or N/A is its own statement and only noted. One the read
+    /// could not confirm against the printed table may be printed and lost, so review has to look.
+    private static void AddUnspecified(List<ImportReviewIssue> issues,
+        List<(DraftWorkout day, DraftExercise exercise, DraftSet set, int index)> items, string statedCode, string unreadCode,
+        string field, Func<(DraftWorkout day, DraftExercise exercise, DraftSet set, int index), string> source,
+        string one, string many, string missing)
+    {
+        var unread = items.Where(item => source(item) == "inferred").ToList();
+        var stated = items.Where(item => source(item) != "inferred").ToList();
+        if (stated.Count > 0)
+            issues.Add(Unspecified(statedCode, stated, field, "info",
+                $"{Count(stated.Count, one, many)} {missing} in the PDF; {(stated.Count == 1 ? "it remains" : "they remain")} unspecified. {Naming(stated.Select(item => item.day))}"));
+        if (unread.Count > 0)
+            issues.Add(Unspecified(unreadCode, unread, field, "warning",
+                $"{Count(unread.Count, one, many)} {missing}, and the PDF table does not show it as blank. Check {(unread.Count == 1 ? "it" : "them")} against the PDF and fill in or clear the value. {Naming(unread.Select(item => item.day))}"));
+    }
+
+    private static ImportReviewIssue Unspecified(string code,
+        List<(DraftWorkout day, DraftExercise exercise, DraftSet set, int index)> items, string field, string severity, string message)
+        => new(code, message, severity, items[0].set.SourcePage ?? items[0].day.SourcePage,
+            WorkoutLineId: items[0].day.LineId, ExerciseLineId: items[0].exercise.LineId,
+            SetIndex: items[0].index, TargetField: field);
 
     private static bool LeadsIntoPartner(DraftWorkout day, DraftExercise exercise)
     {

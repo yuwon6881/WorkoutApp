@@ -284,7 +284,9 @@ public class AiImportTests
         await using var h = await Harness.Create(Configured);
         await h.SignIn();
         await h.Seed(new SeedExercise("bench", "Barbell bench press", "Chest", "Barbell", "Cue", null));
-        var body = OneWorkout.Replace("\"targetRpe\":8", "\"targetRpe\":null").Replace("\"restSeconds\":120", "\"restSeconds\":null");
+        // The read reports the page states neither value.
+        var body = OneWorkout.Replace("\"targetRpe\":8", "\"targetRpe\":null").Replace("\"restSeconds\":120", "\"restSeconds\":null")
+            .Replace("\"rpeSource\":\"inferred\"", "\"rpeSource\":\"extracted\"");
         var imports = h.Imports(StubHandler.Program(body));
         var view = await imports.Create(Source("unspecified.pdf"), default);
 
@@ -297,6 +299,21 @@ public class AiImportTests
 
         var accepted = await imports.Accept(view.Id, default);
         Assert.Equal(ProgramLifecycle.Standby, accepted.LifecycleStatus);
+    }
+
+    [Fact] public async Task A_target_the_read_could_not_confirm_as_blank_blocks_until_reviewed()
+    {
+        await using var h = await Harness.Create(Configured);
+        await h.SignIn();
+        await h.Seed(new SeedExercise("bench", "Barbell bench press", "Chest", "Barbell", "Cue", null));
+        var body = OneWorkout.Replace("\"targetRpe\":8", "\"targetRpe\":null");
+        var imports = h.Imports(StubHandler.Program(body));
+        var view = await imports.Create(Source("unread.pdf"), default);
+
+        Assert.False(view.Acceptable);
+        Assert.Contains(view.ReviewIssues!, issue => issue.Code == "rpe_unread" && issue.Severity == "warning");
+        var failure = await Assert.ThrowsAsync<DomainException>(() => imports.Accept(view.Id, default));
+        Assert.Equal(409, failure.Status);
     }
 
     [Fact] public async Task An_exercise_already_in_the_library_is_matched_by_name()

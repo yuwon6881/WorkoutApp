@@ -64,7 +64,10 @@ function isHeaderCandidate(row: TextRow, typicalWordGap: number): boolean {
 
 function joinsOneHeaderLabel(left: string, right: string): boolean {
   const joined = `${left.trim()} ${right.trim()}`.replace(/\s+/g, ' ');
-  return /^(?:warm[ -]?up|working|early set|last set|set \d+|%?1rm|rest|last set technique)\s+(?:sets?|rpe|rir|techniques?|time)$/i.test(joined)
+  // "Rest" joins only "time": a "REST" label beside an "RPE" label is two columns, and read as one
+  // it fused every effort target into the rest cell beside it ("2-3 MIN 8").
+  return /^(?:warm[ -]?up|working|early set|last set|set \d+|%?1rm|last set technique)\s+(?:sets?|rpe|rir|techniques?|time)$/i.test(joined)
+    || /^rest\s+time$/i.test(joined)
     || /^(?:early|last|warm|working|set|set \d+)$/i.test(joined);
 }
 

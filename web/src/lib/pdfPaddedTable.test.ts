@@ -303,3 +303,22 @@ describe('compact section tables', () => {
     ]);
   });
 });
+
+describe('adjacent rest and effort columns', () => {
+  /// Upper/Lower 4x prints "REST" and "RPE" as neighbouring labels under a two-line warm-up label;
+  /// read as one "REST RPE" column, every effort target fused into its rest cell ("2-3 MIN 8").
+  it('keeps REST and RPE as separate columns', () => {
+    const text = buildPageText([
+      piece('warm-up', 142, 528, 37),
+      piece('LOWER #2', 58, 520.8, 39), piece('SETS', 195, 520.8, 18), piece('REPS', 223, 520.8, 19),
+      piece('%1RM', 260, 520.8, 22), piece('REST', 306, 520.8, 18), piece('RPE', 346, 520.8, 14), piece('NOTES', 654, 520.8, 24),
+      piece('sets', 152, 513.6, 18),
+      piece('Barbell Hip Thrust', 44, 441.8, 67), piece('2', 159, 441.8, 4), piece('4', 202, 441.8, 4),
+      piece('12', 229, 441.8, 7), piece('N/A', 264, 441.8, 13), piece('2-3 MIN', 301, 441.8, 27), piece('8', 351, 441.8, 4),
+      piece('Fully extend your hips', 626, 441.8, 79)
+    ]);
+
+    expect(text).toContain('| REST | RPE |');
+    expect(text).toContain('| 2-3 MIN | 8 |');
+  });
+});

@@ -175,7 +175,7 @@ public sealed partial class ImportService(AppDb db, WorkoutAi ai, CatalogService
                 // the last row is repeated up to it, marked as this app's own expansion.
                 var stated = ParseSetCount(source.WorkingSets);
                 while (working.Count > 0 && working.Count < stated)
-                    working.Add(working[^1] with { RepsSource = "inferred", RpeSource = "inferred", RestSource = "inferred" });
+                    working.Add(ImportSetKinds.Repeated(working[^1]));
                 working = ImportSetKinds.Compose(working, ParseWarmupCount(source.WarmupSets), rawName);
                 var noteParts = new[] { ImportNormalization.Text(source.Notes, 1000), ImportNormalization.Text(source.CoachingNotes, 1000) }
                     .Concat(extractedUrls)

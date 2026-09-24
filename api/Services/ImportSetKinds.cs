@@ -26,6 +26,15 @@ internal static class ImportSetKinds
         return set with { Notes = ImportNormalization.Text(tagged, 400) };
     }
 
+    /// A copy made to reach a row's stated set count. Its values are this app's expansion, but a
+    /// value the page states it leaves blank stays the page's statement rather than a guess.
+    public static DraftSet Repeated(DraftSet set) => set with
+    {
+        RepsSource = "inferred",
+        RpeSource = set.TargetRpe is null ? set.RpeSource : "inferred",
+        RestSource = set.RestSeconds is null ? set.RestSource : "inferred"
+    };
+
     /// The sets one printed row becomes. A warm-up row's own sets are its warm-ups, and nothing is
     /// added in front of them. Otherwise a stated warm-up count is modelled on the first working set.
     public static List<DraftSet> Compose(List<DraftSet> working, int warmups, string? rowName)

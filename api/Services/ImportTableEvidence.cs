@@ -26,7 +26,8 @@ internal static partial class ImportTableEvidence
     private sealed record EvidenceRow(string? ExerciseName, int? WorkingSets, string? RepsText, int? RepMin, int? RepMax,
         string? LoadText, string? RirText, double? Rir, List<RirEvidence> RirBySet,
         double? Rpe, double? EarlyRpe, double? LastRpe, string? RestText, int? RestSeconds, bool RestNotStated = false,
-        bool WarmupCounted = true);
+        bool WarmupCounted = true, bool EarlyEffortAbsent = false, bool LastEffortAbsent = false, bool RestStatedAbsent = false,
+        bool NotPerformed = false);
     private sealed record RirEvidence(string? Text, double? Value);
     private sealed record EvidencePage(int? Week, string? Block, string? Phase, string? DayName, bool HasRestDayFooter,
         List<EvidenceRow> Rows);
@@ -59,11 +60,13 @@ internal static partial class ImportTableEvidence
             // rows is a training page. Exact-name matches allow several workouts on one page.
             isRestDay = false;
             var positionalMatchIsSafe = assignedPages.GetValueOrDefault(page) == 1;
+            // A row printed with 0 sets and 0 reps is a movement that week leaves out; a read that
+            // gave it a set invented one the page never prescribes.
             var next = exercises.Select((exercise, exerciseIndex) =>
             {
                 var row = MatchRow(exercise, exerciseIndex, exercises, evidence.Rows, positionalMatchIsSafe);
-                return row is null ? exercise : Apply(exercise, row);
-            }).ToList();
+                return (Row: row, Exercise: row is null ? exercise : Apply(exercise, row));
+            }).Where(item => item.Row?.NotPerformed != true).Select(item => item.Exercise).ToList();
             return day with { Block = block, Phase = phase, DayName = dayName, WeekNumber = week, PhaseWeek = phaseWeek,
                 IsRestDay = isRestDay, Exercises = next };
         }).ToList();
@@ -118,6 +121,18 @@ internal static partial class ImportTableEvidence
     }
 
     private static string WithoutBrackets(string value) => Regex.Replace(value, @"\([^()]*\)|\[[^\[\]]*\]", " ");
+
+    /// Whether the cells a set reads its effort from are empty. An early- or last-set column is
+    /// that set's own; otherwise every RPE and RIR column on the row speaks for it.
+    private static bool EffortAbsent(string[] cells, Columns map, int? ownColumn)
+        => (ownColumn is not null ? new[] { ownColumn } : new[] { map.Rpe, map.Rir }.Concat(map.RirBySet).ToArray())
+            .Where(column => column is not null).All(column => NoValue(Cell(cells, column)));
+
+    private static bool IsZero(string? value) => value?.Trim() == "0";
+
+    private static bool NoValue(string? value) => string.IsNullOrWhiteSpace(value) || IsStatedAbsent(value)
+        // "See Notes" hands the target to the notes column rather than printing one to read.
+        || Regex.IsMatch(value.Trim(), @"^see\s+notes?$", RegexOptions.IgnoreCase);
 
     private static bool IsStatedAbsent(string? value)
         => value is not null && Regex.IsMatch(value.Trim(), @"^(?:N/?A|[-–—])$", RegexOptions.IgnoreCase);
@@ -204,7 +219,12 @@ internal static partial class ImportTableEvidence
         // A rest cell that reads "N/A" states that the row prescribes none. A time the model supplied
         // there came from somewhere else in the document, and would enter the program as printed.
         if (evidence.RestNotStated) set = set with { RestText = null, RestSeconds = null, RestSource = "extracted" };
+        // A target left empty is the page's own statement only when its cell is blank, "-" or N/A.
+        // Anything else in that cell was printed and not read, and review must say so.
+        if (targetRpe is null && !Regex.IsMatch(resolvedRir ?? "", @"\d"))
+            rpeSource = (last ? evidence.LastEffortAbsent : evidence.EarlyEffortAbsent) ? "extracted" : "inferred";
         var restText = HasText(set.RestText) ? set.RestText : evidence.RestText;
+        var restSeconds = set.RestSeconds ?? evidence.RestSeconds ?? ParseRestSeconds(restText);
         var repsText = HasText(set.RepsText) ? set.RepsText : evidence.RepsText;
         var hasModelRepBounds = set.RepMin > 0 && set.RepMax >= set.RepMin
             && (set.RepMin != 1 || set.RepMax != 1 || HasText(set.RepsText)
@@ -223,8 +243,10 @@ internal static partial class ImportTableEvidence
             Rir = resolvedRir,
             RpeSource = rpeSource,
             RestText = restText,
-            RestSeconds = set.RestSeconds ?? evidence.RestSeconds ?? ParseRestSeconds(restText),
-            RestSource = set.RestSeconds is null && (evidence.RestSeconds is not null || HasText(evidence.RestText)) ? "extracted" : set.RestSource
+            RestSeconds = restSeconds,
+            RestSource = restSeconds is null && !HasText(restText)
+                ? evidence.RestStatedAbsent || evidence.RestNotStated ? "extracted" : "inferred"
+                : set.RestSeconds is null && (evidence.RestSeconds is not null || HasText(evidence.RestText)) ? "extracted" : set.RestSource
         };
     }
 
@@ -308,7 +330,7 @@ internal static partial class ImportTableEvidence
             if (h is "exercise" or "movement" || h.Contains("exercise name") || h.Contains("movement name")) name = i;
             if ((h.Contains("working") && h.Contains("set")) || h is "sets" or "set count" || h.Contains("number of sets")) sets = i;
             if (!h.Contains("tracking") && (h.Contains("rep") || h.Contains("duration")) && !h.Contains("rir") && !h.Contains("rpe")) reps = i;
-            if (!h.Contains("tracking") && (h.Contains("load") || h.Contains("weight") || h.Contains("1rm")))
+            if (!h.Contains("tracking") && (h.Contains("load") || h.Contains("weight") || h.Contains("1rm") || h.Contains("%")))
             {
                 load = i;
                 loadIsPercent1Rm = h.Contains("1rm") || h.Contains("%");
@@ -373,7 +395,11 @@ internal static partial class ImportTableEvidence
                 && rirText is null && rirBySet.All(value => value.Text is null) && rest.Text is null) return false;
             row = new EvidenceRow(IsMovementName(name) ? StripSetTag(name!) : null, setCount, repsText, repMin, repMax,
                 loadText, rirText, rir, rirBySet, rpe, early, last, rest.Text, rest.Seconds,
-                RestNotStated: IsStatedAbsent(Cell(cells, map.Rest)), WarmupCounted: map.HasWarmup);
+                RestNotStated: IsStatedAbsent(Cell(cells, map.Rest)), WarmupCounted: map.HasWarmup,
+                EarlyEffortAbsent: EffortAbsent(cells, map, map.EarlyRpe),
+                LastEffortAbsent: EffortAbsent(cells, map, map.LastRpe),
+                RestStatedAbsent: map.Rest is null || NoValue(Cell(cells, map.Rest)),
+                NotPerformed: IsZero(Cell(cells, map.Sets)) && (IsZero(Cell(cells, map.Reps)) || NoValue(Cell(cells, map.Reps))));
             return true;
         }
 
@@ -393,7 +419,7 @@ internal static partial class ImportTableEvidence
             var name = cells.Length > 0 && i > 0 && IsMovementName(cells[0]) ? StripSetTag(cells[0]) : null;
             row = new EvidenceRow(name, setCount, IsUnavailable(repsText) ? null : repsText, min, max, null,
                 null, null, [new RirEvidence(rir1Text, ParseRir(rir1Text)), new RirEvidence(rir2Text, ParseRir(rir2Text))],
-                null, null, null, rest.Text, rest.Seconds);
+                null, null, null, rest.Text, rest.Seconds, EarlyEffortAbsent: NoValue(rir1Text), LastEffortAbsent: NoValue(rir2Text));
             return true;
         }
         return false;
