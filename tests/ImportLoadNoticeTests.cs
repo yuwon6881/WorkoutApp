@@ -22,11 +22,11 @@ public sealed class ImportLoadNoticeTests
     }
 
     [Fact]
-    public void A_non_percentage_load_does_not_silence_a_missing_rpe_warning()
+    public void A_non_percentage_load_keeps_a_missing_rpe_notice_informational()
     {
         var issues = ImportValidation.ReviewIssues(Draft("100 kg", targetRpe: null));
 
-        Assert.Contains(issues, issue => issue.Code == "rpe_unspecified" && issue.Severity == "warning");
+        Assert.Contains(issues, issue => issue.Code == "rpe_unspecified" && issue.Severity == "info");
         Assert.DoesNotContain(issues, issue => issue.Code == "percentage_load_without_rpe");
     }
 

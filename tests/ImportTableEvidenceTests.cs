@@ -641,6 +641,26 @@ public sealed class ImportTableEvidenceTests
         Assert.Equal(2, exercise.Sets.Count);
     }
 
+    [Fact]
+    public void Session_set_volume_summary_is_not_exercise_evidence()
+    {
+        var program = new AiProgram("Program", [new AiDay(null, null, 1, 1, "Day 1", false, null, [
+            new AiExercise("SESSION SET VOLUME", null, null, [new AiSet(1, 1, null, null, null, null, null)], SourcePage: 6)
+        ], 6)]);
+        const string text = """
+            === PAGE 6 ===
+            Exercise | Sets | Reps | RPE | Rest
+            SESSION SET VOLUME | 12 | - | - | -
+            """;
+
+        var exercise = Assert.Single(Assert.Single(ImportTableEvidence.Enrich(program, text).Days!).Exercises);
+
+        Assert.Null(exercise.WorkingSets);
+        Assert.Single(exercise.Sets);
+        Assert.Null(exercise.Sets[0].TargetRpe);
+        Assert.Null(exercise.Sets[0].RestText);
+    }
+
     /// Pure Bodybuilding prints "Weak Point Exercise 2 (optional)" every week; a read that dropped
     /// the qualifier on some days split the one movement into two slots to map.
     [Fact]

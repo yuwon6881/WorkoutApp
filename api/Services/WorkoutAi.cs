@@ -51,8 +51,10 @@ public sealed class WorkoutAi(HttpClient http, IConfiguration config)
     /// v17 reconciles source-confirmed ten-day cycles in page order and applies printed table evidence
     /// in chunked imports; v18 re-reads source day coverage and printed or glossary exercise references
     /// instead of reusing an older ready draft without that evidence; v19 repairs overlapping
-    /// PDF glyph runs and reads complete repeated weekly page templates one page at a time.
-    public const string PromptVersion = "workout-import-v20-warmup-amrap-rows";
+    /// PDF glyph runs and reads complete repeated weekly page templates one page at a time;
+    /// v20 keeps printed warmup and AMRAP rows intact; v21 joins grouped headers across empty schedule-marker rows;
+    /// v22 keeps stacked day titles beside leading workout columns and separates set-volume footers from exercises.
+    public const string PromptVersion = "workout-import-v23-exercise-column-label-filter";
 
     /// One cheap pass over a page-by-page view of the document. Most of a commercial training PDF
     /// is explanation and photography; this pass exists to find the few pages that actually carry

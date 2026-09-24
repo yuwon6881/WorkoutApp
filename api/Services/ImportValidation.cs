@@ -55,7 +55,7 @@ internal static partial class ImportValidation
         if (unrated.Count > 0)
             issues.Add(new ImportReviewIssue("rpe_unspecified",
                 $"{Count(unrated.Count, "working set has", "working sets have")} no target RIR in the PDF; {(unrated.Count == 1 ? "it remains" : "they remain")} unspecified. {Naming(unrated.Select(item => item.day))}",
-                "warning", unrated[0].set.SourcePage ?? unrated[0].day.SourcePage,
+                "info", unrated[0].set.SourcePage ?? unrated[0].day.SourcePage,
                 WorkoutLineId: unrated[0].day.LineId, ExerciseLineId: unrated[0].exercise.LineId,
                 SetIndex: unrated[0].index, TargetField: "targetRpe"));
 
@@ -66,7 +66,7 @@ internal static partial class ImportValidation
         if (unrested.Count > 0)
             issues.Add(new ImportReviewIssue("rest_unspecified",
                 $"{Count(unrested.Count, "set has", "sets have")} no stated rest in the PDF; {(unrested.Count == 1 ? "it remains" : "they remain")} unspecified. {Naming(unrested.Select(item => item.day))}",
-                "warning", unrested[0].set.SourcePage ?? unrested[0].day.SourcePage,
+                "info", unrested[0].set.SourcePage ?? unrested[0].day.SourcePage,
                 WorkoutLineId: unrested[0].day.LineId, ExerciseLineId: unrested[0].exercise.LineId,
                 SetIndex: unrested[0].index, TargetField: "rest"));
 

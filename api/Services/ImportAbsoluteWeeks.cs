@@ -103,7 +103,13 @@ internal static class ImportAbsoluteWeeks
             && !string.Equals(a.Phase.Trim(), b.Phase.Trim(), StringComparison.OrdinalIgnoreCase))
             return true;
 
-        if (IsDifferentOrdinal(a.Label, b.Label, PhaseOrdinal) || IsDifferentOrdinal(a.Label, b.Label, BlockOrdinal))
+        var phaseLabelChanged = string.IsNullOrWhiteSpace(a.Phase) || string.IsNullOrWhiteSpace(b.Phase)
+            ? IsDifferentOrdinal(a.Label, b.Label, PhaseOrdinal)
+            : false;
+        var blockLabelChanged = string.IsNullOrWhiteSpace(a.Block) || string.IsNullOrWhiteSpace(b.Block)
+            ? IsDifferentOrdinal(a.Label, b.Label, BlockOrdinal)
+            : false;
+        if (phaseLabelChanged || blockLabelChanged)
             return true;
 
         return false;

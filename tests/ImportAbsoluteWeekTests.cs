@@ -64,6 +64,25 @@ public sealed class ImportAbsoluteWeekTests
     }
 
     [Fact]
+    public void Relabeled_repeated_block_banner_does_not_offset_a_split_local_week_again()
+    {
+        var chunks = new List<ImportChunk>
+        {
+            new("Block 1, weeks 1-5", "Block 1", null, 1, 5, 1, 30, 25),
+            new("Block 2, week 6", "Block 2", null, 6, 6, 31, 31, 1),
+            new("Block 1, week 6", "Block 1", null, 6, 6, 32, 35, 4),
+            new("Block 1, week 7", "Block 1", null, 7, 7, 36, 40, 5)
+        };
+
+        var runs = ImportBlockRuns.ReconcileChunks(chunks);
+        var absolute = ImportAbsoluteWeeks.NormalizeChunks(runs.Chunks);
+
+        Assert.Equal(["Block 1", "Block 2", "Block 2", "Block 2"], runs.Chunks.Select(chunk => chunk.Block));
+        Assert.Equal([1, 6, 6, 7], absolute.Chunks.Select(chunk => chunk.WeekFrom));
+        Assert.DoesNotContain(absolute.Notices, notice => notice.Code == "sequential_cycle_offset");
+    }
+
+    [Fact]
     public void TranslateDays_maps_local_weeks_into_chunk_absolute_range_and_preserves_phase_week()
     {
         var chunk = new ImportChunk("Phase 2", null, "Phase 2", 7, 10, 71, 95, 24);

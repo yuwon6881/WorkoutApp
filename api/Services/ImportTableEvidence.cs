@@ -15,6 +15,7 @@ internal static partial class ImportTableEvidence
     private static readonly Regex Percentage = new(@"\b\d+(?:\.\d+)?\s*(?:[-–]\s*\d+(?:\.\d+)?\s*)?%\s*(?:1\s*rm)?", RegexOptions.Compiled | RegexOptions.IgnoreCase);
     private static readonly Regex PageRestMinutes = new(@"\brest\b.{0,45}\b(?:minutes?|mins?)\b|\b(?:minutes?|mins?)\b.{0,45}\brest\b", RegexOptions.Compiled | RegexOptions.IgnoreCase);
     private static readonly Regex PageRestSeconds = new(@"\brest\b.{0,45}\b(?:seconds?|secs?)\b|\b(?:seconds?|secs?)\b.{0,45}\brest\b", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+    private static readonly Regex TableSummary = new(@"^(?:(?:SESSION|TOTAL|WEEKLY)\s+SET\s+VOLUME|TOTAL\s+TRAINING\s+TIME)\b", RegexOptions.Compiled | RegexOptions.IgnoreCase);
     // Min-Max Phase 2 prints "1-2 Rest Days" between its sessions.
     private static readonly Regex RestDay = new(@"^(?:\d(?:\s*[-–]\s*\d)?\s+)?(?:(?:suggested|mandatory|optional)\s+)?rest\s+days?$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
     /// A rep range, approximate RPE, rest time or percentage: what a row states and a header
@@ -349,7 +350,7 @@ internal static partial class ImportTableEvidence
         {
             var map = columns;
             var name = Cell(cells, map.Name);
-            if (ImportStructureHeadings.TryDayLabel(name, out _)) return false;
+            if (ImportStructureHeadings.TryDayLabel(name, out _) || TableSummary.IsMatch(name?.Trim() ?? "")) return false;
             var setCount = ParseSetCount(Cell(cells, map.Sets));
             var repsText = CleanValue(Cell(cells, map.Reps));
             var (repMin, repMax) = ParseSimpleReps(repsText);
@@ -403,13 +404,15 @@ internal static partial class ImportTableEvidence
            && !TryColumns(cells, out _) && !IsHeaderOrScheduleWord(firstCell);
 
     private static bool IsHeaderOrScheduleWord(string value)
-        => Regex.IsMatch(value, @"\b(exercise|movement|sets?|reps?|rpe|rir|rest|load|warm.?up|substitutions?|notes?)\b", RegexOptions.IgnoreCase)
+        => TableSummary.IsMatch(value.Trim())
+           || Regex.IsMatch(value, @"\b(exercise|movement|sets?|reps?|rpe|rir|rest|load|warm.?up|substitutions?|notes?)\b", RegexOptions.IgnoreCase)
            || ImportStructureHeadings.TryWeek(value, out _) || ImportStructureHeadings.TryBlock(value, out _)
            || ImportStructureHeadings.TryDayLabel(value, out _) || Day.IsMatch(value) || RestDay.IsMatch(value);
 
     private static bool IsMovementName(string? value)
         => !string.IsNullOrWhiteSpace(value) && value.Length <= 100 && value.Any(char.IsLetter)
-           && !Numeric.IsMatch(value) && !value.Equals("N/A", StringComparison.OrdinalIgnoreCase);
+           && !Numeric.IsMatch(value) && !value.Equals("N/A", StringComparison.OrdinalIgnoreCase)
+           && !TableSummary.IsMatch(value.Trim());
 
     private static string StripSetTag(string value)
         => Regex.Replace(value.Trim(), @"^[A-Z]\d+(?::|\.|\s*[-–]\s+|\s+)\s*", "", RegexOptions.IgnoreCase);

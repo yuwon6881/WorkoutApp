@@ -17,8 +17,7 @@ internal static class ImportBlockRuns
     {
         var runs = BuildRuns(workouts.Select((workout, index) => (
                 Label: ImportValidation.CanonicalBlock(workout.Block),
-                FromWeek: workout.Week, ToWeek: workout.Week, Index: index))
-            .OrderBy(item => item.FromWeek).ThenBy(item => item.Index));
+                FromWeek: workout.Week, ToWeek: workout.Week, Page: index, Index: index)));
 
         var normalized = workouts.ToList();
         var notices = new List<ImportReviewIssue>();
@@ -36,8 +35,8 @@ internal static class ImportBlockRuns
     {
         var runs = BuildRuns(chunks.Select((chunk, index) => (
                 Label: ImportValidation.CanonicalBlock(chunk.Block),
-                FromWeek: chunk.WeekFrom, ToWeek: chunk.WeekTo, Index: index))
-            .OrderBy(item => item.FromWeek).ThenBy(item => item.Index));
+                FromWeek: chunk.WeekFrom, ToWeek: chunk.WeekTo, Page: chunk.PageFrom, Index: index))
+            .OrderBy(item => item.Page).ThenBy(item => item.Index));
 
         var normalized = chunks.ToList();
         var notices = new List<ImportReviewIssue>();
@@ -50,7 +49,7 @@ internal static class ImportBlockRuns
         return new ChunkResult(normalized, notices);
     }
 
-    private static List<Run> BuildRuns(IEnumerable<(string Label, int FromWeek, int ToWeek, int Index)> items)
+    private static List<Run> BuildRuns(IEnumerable<(string Label, int FromWeek, int ToWeek, int Page, int Index)> items)
     {
         var runs = new List<Run>();
         foreach (var item in items)

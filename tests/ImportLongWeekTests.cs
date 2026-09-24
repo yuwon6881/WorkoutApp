@@ -179,6 +179,30 @@ public sealed class ImportLongWeekTests
         Assert.Contains(result.Notices, issue => issue.Code == "long_source_week_reflowed");
     }
 
+    [Fact]
+    public void Optional_rest_day_bands_are_source_evidence_for_a_long_printed_week()
+    {
+        var days = new List<DraftWorkout>();
+        var pages = new List<ImportPageText>();
+        for (var page = 1; page <= 8; page++)
+        {
+            var name = $"Day {page}";
+            days.Add(Training(1, 1, "Block 1", name, page));
+            var restBand = page is 2 or 4 or 6 or 8 ? "\nOptional Rest Day" : "";
+            pages.Add(new ImportPageText(page, $"WEEK 1\nDAY LABEL: {name}{restBand}"));
+            if (restBand.Length > 0) days.Add(Rest(1, page));
+        }
+
+        Assert.True(ImportLongWeeks.HasSourceLongWeek(pages));
+        var result = ImportLongWeeks.Reconcile(days, pages);
+
+        Assert.Equal(12, result.Workouts.Count);
+        Assert.Equal(4, result.Workouts.Count(day => day.IsRestDay));
+        Assert.Equal(2, result.Workouts.Max(day => day.Week));
+        Assert.Equal([7, 5], result.Workouts.GroupBy(day => day.Week).OrderBy(group => group.Key).Select(group => group.Count()));
+        Assert.Single(result.Notices, issue => issue.Code == "long_source_week_reflowed");
+    }
+
     private static DraftWorkout Training(int week, int phaseWeek, string block, string name, int page)
         => new(Guid.NewGuid(), week, name, null, null,
             [new DraftExercise(Guid.NewGuid(), "Squat", null, null,

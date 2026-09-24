@@ -201,6 +201,46 @@ public sealed class ImportPhaseWeekTests
         Assert.Empty(result.Notices);
     }
 
+    [Fact]
+    public void Sequential_blocks_with_restarted_local_weeks_follow_printed_page_order()
+    {
+        var chunks = new[]
+        {
+            Chunk("Block 1 week 1", "Block 1", 1, 1, 32, 32),
+            Chunk("Block 1 week 2", "Block 1", 2, 2, 35, 35),
+            Chunk("Block 1 week 3", "Block 1", 3, 3, 38, 38),
+            Chunk("Block 2 week 1", "Block 2", 1, 1, 41, 41),
+            Chunk("Block 2 week 2", "Block 2", 2, 2, 44, 44),
+            Chunk("Block 2 week 3", "Block 2", 3, 3, 47, 47)
+        };
+
+        var reconciled = ImportBlockRuns.ReconcileChunks(chunks);
+        var absolute = ImportAbsoluteWeeks.NormalizeChunks(reconciled.Chunks);
+
+        Assert.Equal(chunks.Select(chunk => chunk.Block), reconciled.Chunks.Select(chunk => chunk.Block));
+        Assert.DoesNotContain(reconciled.Notices, notice => notice.Code == "block_label_repeated");
+        Assert.Equal([1, 2, 3, 4, 5, 6], absolute.Chunks.Select(chunk => chunk.WeekFrom));
+    }
+
+    [Fact]
+    public void Draft_block_reconciliation_keeps_consecutive_blocks_with_restarted_weeks()
+    {
+        var days = new[]
+        {
+            Day(1, 1, "Accumulation") with { Block = "Block 1", SourcePage = 32 },
+            Day(2, 2, "Accumulation") with { Block = "Block 1", SourcePage = 35 },
+            Day(3, 3, "Accumulation") with { Block = "Block 1", SourcePage = 38 },
+            Day(1, 1, "Deload Week") with { Block = "Block 2", SourcePage = 41 },
+            Day(2, 2, "Deload Week") with { Block = "Block 2", SourcePage = 44 },
+            Day(3, 3, "Deload Week") with { Block = "Block 2", SourcePage = 47 }
+        };
+
+        var result = ImportBlockRuns.Reconcile(days);
+
+        Assert.Equal(days.Select(day => day.Block), result.Workouts.Select(day => day.Block));
+        Assert.DoesNotContain(result.Notices, notice => notice.Code == "block_label_repeated");
+    }
+
     /// A phase legitimately split into page sections for the same weeks must not be read as a
     /// resumed block: the later run starts no later than the earlier one ended.
     [Fact]

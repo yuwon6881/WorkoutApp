@@ -15,7 +15,7 @@ internal static class ImportLongWeeks
         @"\b10[- ]day\s+(?:cycle|rotation|split)\b|\basynchronous\b.{0,200}\b10[- ]day\b",
         RegexOptions.Compiled | RegexOptions.IgnoreCase | RegexOptions.Singleline);
     private static readonly Regex RestBand = new(
-        @"^\s*\d\s*(?:[-–]\s*\d\s*)?REST DAYS?\s*$",
+        @"^\s*(?:\d\s*(?:[-–]\s*\d\s*)?\s*)?(?:(?:SUGGESTED|MANDATORY|OPTIONAL)\s+)?REST DAYS?\s*$",
         RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
     public sealed record Result(List<DraftWorkout> Workouts, List<ImportReviewIssue> Notices);
@@ -66,7 +66,16 @@ internal static class ImportLongWeeks
         if (IsTenDayCycleSource(pages) && TryReconcileTenDayCycles(workouts, pages, out var cycleResult))
             return cycleResult;
 
-        return ReconcileOtherLongWeeks(workouts, pages);
+        var optional = ImportOptionalScheduleDays.Reconcile(workouts, pages);
+        var weeks = ReconcileOtherLongWeeks(optional.Workouts, pages);
+        var numbered = ImportValidation.NormalizePhaseWeeks(weeks.Workouts);
+        var notices = new List<ImportReviewIssue>(optional.Notices);
+        notices.AddRange(weeks.Notices);
+        if (numbered.Renumbered)
+            notices.Add(new ImportReviewIssue("phase_week_renumbered",
+                "Phase week numbers were normalized after source-backed schedule placement; program weeks are unchanged.",
+                "info", optional.Notices.FirstOrDefault()?.SourcePage));
+        return new Result(numbered.Workouts, notices);
     }
 
     private static bool TryReconcileTenDayCycles(IReadOnlyList<DraftWorkout> workouts,

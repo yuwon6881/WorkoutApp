@@ -279,7 +279,7 @@ public class AiImportTests
         Assert.Empty(await h.Db.Programs.ToListAsync());
     }
 
-    [Fact] public async Task Missing_optional_rpe_or_rest_blocks_until_the_reviewer_fixes_each_field()
+    [Fact] public async Task Missing_optional_rpe_or_rest_remain_unspecified_without_blocking_acceptance()
     {
         await using var h = await Harness.Create(Configured);
         await h.SignIn();
@@ -288,22 +288,13 @@ public class AiImportTests
         var imports = h.Imports(StubHandler.Program(body));
         var view = await imports.Create(Source("unspecified.pdf"), default);
 
-        var failure = await Assert.ThrowsAsync<DomainException>(() => imports.Accept(view.Id, default));
-        Assert.Equal(409, failure.Status);
-        var workout = view.Draft!.Workouts.Single();
-        var exercise = workout.Exercises.Single();
-        var edited = view.Draft with
-        {
-            Workouts = [workout with
-            {
-                Exercises = [exercise with
-                {
-                    Sets = [exercise.Sets[0] with { TargetRpe = 8, RestSeconds = 120, RpeSource = "userEdited", RestSource = "userEdited" }]
-                }]
-            }]
-        };
-        var saved = await imports.Edit(view.Id, edited, default);
-        Assert.True(saved.Acceptable);
+        Assert.True(view.Acceptable);
+        var set = view.Draft!.Workouts.Single().Exercises.Single().Sets.Single();
+        Assert.Null(set.TargetRpe);
+        Assert.Null(set.RestSeconds);
+        Assert.Contains(view.ReviewIssues!, issue => issue.Code == "rpe_unspecified" && issue.Severity == "info");
+        Assert.Contains(view.ReviewIssues!, issue => issue.Code == "rest_unspecified" && issue.Severity == "info");
+
         var accepted = await imports.Accept(view.Id, default);
         Assert.Equal(ProgramLifecycle.Standby, accepted.LifecycleStatus);
     }

@@ -27,5 +27,6 @@ public sealed class ImportRestNoticeTests
 
         var issue = Assert.Single(ImportValidation.ReviewIssues(new ImportDraft("Pure Bodybuilding", [day])), issue => issue.Code == "rest_unspecified");
         Assert.StartsWith("2 sets have", issue.Message);
+        Assert.Equal("info", issue.Severity);
     }
 }
