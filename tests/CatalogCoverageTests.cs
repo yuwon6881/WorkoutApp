@@ -132,7 +132,20 @@ public sealed class CatalogCoverageTests
         { "Reverse Cable Crossover (Mid)", "Reverse Cable Crossover" },
         // Forearm Hypertrophy prints both names in capitals, the curl with a footnote asterisk.
         { "REVERSE GRIP BARBELL CURL*", "Barbell Reverse Curl" },
-        { "DUMBBELL BENCH-BRACED WRIST CURL", "Bench-Braced Wrist Curl" }
+        { "DUMBBELL BENCH-BRACED WRIST CURL", "Bench-Braced Wrist Curl" },
+        // A sweep of every table row in the 39-program library: spellings the catalog now reaches.
+        { "Hammer Preacher Curl", "Hammer Preacher Curl" },
+        { "Medicine Ball Russian Twists", "Russian Twist" },
+        { "Incline DB Stretch Curl", "Incline Dumbbell Curl" },
+        { "SEATED HIP ABDUCTION MACHINE", "Seated Hip Abduction" },
+        { "FARMERS WALKS", "Farmer's Walk" },
+        { "BENT OVER BARBELL ROW (7'S)", "Barbell Bent Over Row" },
+        { "OVERHEAD ROPE TRICEP EXTENSION", "Overhead Cable Triceps Extension (Rope)" },
+        { "MEDICINE BALL PUSHUPS", "Med-Ball Close Grip Push Up" },
+        { "RACK PULL (BELOW KNEE)", "Rack Pull" },
+        { "Smith Machine Incline Press", "Incline Smith Machine Press" },
+        { "BenCh press", "Bench Press" },
+        { "Banded Pushup", "Banded Push Up" }
     };
 
     [Theory, MemberData(nameof(WrittenNames))]

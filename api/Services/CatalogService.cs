@@ -32,7 +32,9 @@ public sealed class CatalogService(AppDb db)
     /// Normalizing on comparison keeps "Barbell Bench-Press" and "barbell bench press" the same key.
     public static string Normalize(string value)
     {
-        var cleaned = new string(value.Trim().ToLowerInvariant().Select(c => char.IsAsciiLetterOrDigit(c) ? c : ' ').ToArray());
+        // An apostrophe joins its word rather than splitting it: "Farmer's Walk" is "Farmers Walks" said once.
+        var joined = value.Trim().ToLowerInvariant().Replace("'", "").Replace("’", "");
+        var cleaned = new string(joined.Select(c => char.IsAsciiLetterOrDigit(c) ? c : ' ').ToArray());
         var words = string.Join(' ', cleaned.Split(' ', StringSplitOptions.RemoveEmptyEntries));
         return CompoundMovement.Replace(words, "$1$2");
     }

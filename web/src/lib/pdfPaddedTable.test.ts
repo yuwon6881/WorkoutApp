@@ -322,3 +322,19 @@ describe('adjacent rest and effort columns', () => {
     expect(text).toContain('| 2-3 MIN | 8 |');
   });
 });
+
+describe('small-caps glyph runs', () => {
+  /// Chest Hypertrophy draws its small caps as separate runs inside a word ("sl" "I" "ght"), each
+  /// starting exactly where the last ends. Spaced apart they read "B enC h press".
+  it('joins runs that touch into one word', () => {
+    const text = buildPageText([
+      piece('Exercise', 29, 500, 40), piece('SETS', 200, 500, 20), piece('REPS', 240, 500, 20), piece('RPE', 280, 500, 16),
+      piece('REST', 320, 500, 20), piece('NOTES', 462, 500, 30),
+      piece('B', 29, 470, 6), piece('enC', 35, 470, 15), piece('h press', 50, 470, 30),
+      piece('3', 204, 470, 4), piece('6', 244, 470, 4), piece('8', 284, 470, 4), piece('4.0', 322, 470, 12),
+      piece('sl', 462, 470, 9), piece('I', 471, 470, 2), piece('ght', 473, 470, 14), piece('pause', 489, 470, 24)
+    ]);
+
+    expect(text).toContain('BenCh press | 3 | 6 | 8 | 4.0 | slIght pause');
+  });
+});

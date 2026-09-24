@@ -66,14 +66,16 @@ internal static partial class ImportTableEvidence
             isRestDay = false;
             var positionalMatchIsSafe = assignedPages.GetValueOrDefault(page) == 1;
             // A row printed with 0 sets and 0 reps is a movement that week leaves out; a read that
-            // gave it a set invented one the page never prescribes.
+            // gave it a set invented one the page never prescribes. A nameless exercise no printed
+            // row accounts for is not on the page either (Pure Bodybuilding Full Body p.7).
             var next = recoverPrintedRows
                 ? RecoverPrintedRows(exercises, evidence.Rows, page)
                 : exercises.Select((exercise, exerciseIndex) =>
                 {
                     var row = MatchRow(exercise, exerciseIndex, exercises, evidence.Rows, positionalMatchIsSafe, dayName);
                     return (Row: row, Exercise: row is null ? exercise : Apply(exercise, row));
-                }).Where(item => item.Row?.NotPerformed != true).Select(item => item.Exercise).ToList();
+                }).Where(item => item.Row?.NotPerformed != true && (item.Row is not null || HasText(item.Exercise.SourceName)))
+                .Select(item => item.Exercise).ToList();
             return day with { Block = block, Phase = phase, DayName = dayName, WeekNumber = week, PhaseWeek = phaseWeek,
                 IsRestDay = isRestDay, Exercises = next };
         }).ToList();

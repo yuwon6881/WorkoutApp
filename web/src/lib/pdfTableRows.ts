@@ -37,7 +37,8 @@ function renderCellPieces(pieces: PositionedPiece[]): string {
     const gap = Number.isNaN(endX) ? 0 : item.x - endX;
     const isNewLine = !Number.isNaN(lastY) && Math.abs(lastY - item.y) > ROW_TOLERANCE;
     const touching = line.length === 0 || /\s$/.test(line) || /^\s/.test(item.str);
-    const continuesWord = !isNewLine && gap > 0 && gap <= 0.5;
+    // Runs that touch are one word, as in renderRow.
+    const continuesWord = !isNewLine && Math.abs(gap) <= 0.5;
     if (isNewLine) {
       // A compound wrapped at its hyphen ("Behind-" over "The-Back") is still one word.
       const wrapsAtHyphen = /[\p{L}\p{N}]-$/u.test(line) && /^[\p{L}\p{N}]/u.test(item.str);

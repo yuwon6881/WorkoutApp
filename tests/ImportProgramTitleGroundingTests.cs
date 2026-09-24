@@ -35,4 +35,15 @@ public sealed class ImportProgramTitleGroundingTests
 
         Assert.Equal("Strength Block", ImportProgramTitle.Grounded("Strength Block", pages));
     }
+
+    /// The Full Body edition's notes say "this Full Body version of the program"; a phrase inside a
+    /// sentence is not the book's name.
+    [Fact]
+    public void A_phrase_lifted_from_a_sentence_gives_way_to_the_running_footer()
+    {
+        var pages = Pages().Prepend(new ImportPageText(1,
+            "Note that for the first 2 weeks of this Full Body version of the program, most sets in the program are lighter.")).ToList();
+
+        Assert.Equal("The Pure Bodybuilding Program", ImportProgramTitle.Grounded("Full Body Version", pages));
+    }
 }

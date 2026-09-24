@@ -57,7 +57,28 @@ internal static class CatalogMatching
             if (library.TryGetValue(variant, out var id)) return id;
         foreach (var tail in HeadVariants(name))
             if (library.TryGetValue(tail, out var id)) return id;
+        // The same words in another order, or spelled another way ("Bent Over Barbell Row" is
+        // "Barbell Bent-Over Row"; "Tricep" is "Triceps"). Still a spelling of one name.
+        foreach (var variant in Variants(name))
+            if (library.TryGetValue(WordSetKey(variant), out var id)) return id;
         return null;
+    }
+
+    /// Words a table spells differently from the library, each mapped to the library's spelling.
+    private static readonly Dictionary<string, string> WordSpellings = new(StringComparer.Ordinal)
+    {
+        ["tricep"] = "triceps", ["bicep"] = "biceps", ["medicine"] = "med", ["dumbell"] = "dumbbell",
+        ["fly"] = "flye", ["flys"] = "flye", ["flies"] = "flye", ["flyes"] = "flye"
+    };
+
+    /// A name as its set of words, order-free and in the library's spelling. Prefixed so it can
+    /// never collide with a literal name key.
+    internal static string WordSetKey(string normalized)
+    {
+        var words = Singular(Expand(normalized)).Split(' ', StringSplitOptions.RemoveEmptyEntries)
+            .Select(word => WordSpellings.TryGetValue(word, out var spelled) ? spelled : word)
+            .Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).ToList();
+        return words.Count < 2 ? "" : "~" + string.Join(' ', words);
     }
 
     /// One name as several equally faithful spellings of itself, most literal first. Every one is
@@ -101,6 +122,16 @@ internal static class CatalogMatching
         yield return Singular(Expand(unbracketed));
         yield return Singular(unbracketedWithoutTechnique);
         yield return Singular(Expand(unbracketedWithoutTechnique));
+
+        // A trailing "Machine" restates the equipment of a movement the library names without it:
+        // "Seated Hip Abduction Machine" is "Seated Hip Abduction".
+        var words = unbracketedWithoutTechnique.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (words.Length >= 3 && words[^1] == "machine")
+        {
+            var withoutMachine = string.Join(' ', words[..^1]);
+            yield return withoutMachine;
+            yield return Singular(Expand(withoutMachine));
+        }
     }
 
     /// The tail of a written name, for a library entry the name ends with: "Smith Machine Incline
@@ -154,7 +185,8 @@ internal static class CatalogMatching
     internal static IEnumerable<string> LibraryKeys(string normalized)
     {
         var expanded = Expand(normalized);
-        return new[] { expanded, Singular(normalized), Singular(expanded) }.Where(key => key.Length > 0 && key != normalized).Distinct();
+        return new[] { expanded, Singular(normalized), Singular(expanded), WordSetKey(normalized) }
+            .Where(key => key.Length > 0 && key != normalized).Distinct();
     }
 
     /// The same words written singly. A table says "Curls" where the library says "Curl".

@@ -11,6 +11,7 @@ internal static class ImportNameSpelling
 {
     public static ImportDraft Standardize(ImportDraft draft, IReadOnlyList<ImportPageText> pages)
     {
+        draft = WithRepairedCase(draft);
         var text = string.Join("\n", pages.Select(page => page.Text));
         var spelling = draft.Workouts
             .SelectMany(workout => workout.Exercises.Select(exercise => exercise.SourceName.Trim()))
@@ -36,4 +37,23 @@ internal static class ImportNameSpelling
             }).ToList()
         };
     }
+
+    /// A small-caps font draws its capitals and small letters as separate runs, so a word reads
+    /// "BenCh" or "InClIne". A capital straight after a small letter inside one word is never how
+    /// a name is spelled, so that word is written in title case.
+    private static ImportDraft WithRepairedCase(ImportDraft draft) => draft with
+    {
+        Workouts = draft.Workouts.Select(workout => workout with
+        {
+            Exercises = workout.Exercises.Select(exercise => exercise with { SourceName = RepairCase(exercise.SourceName) }).ToList()
+        }).ToList()
+    };
+
+    internal static string RepairCase(string name)
+        => string.Join(' ', name.Split(' ').Select(word => MixedCaseWord.IsMatch(word)
+            ? char.ToUpperInvariant(word[0]) + word[1..].ToLowerInvariant()
+            : word));
+
+    private static readonly System.Text.RegularExpressions.Regex MixedCaseWord = new("[a-z][A-Z]",
+        System.Text.RegularExpressions.RegexOptions.Compiled);
 }

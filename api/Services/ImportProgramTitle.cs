@@ -17,8 +17,13 @@ internal static class ImportProgramTitle
     {
         var running = RunningTitle(pages);
         if (running is null) return title;
-        if (!string.IsNullOrWhiteSpace(title) && Printed(title, pages)) return title;
-        return running;
+        if (string.IsNullOrWhiteSpace(title)) return running;
+        var key = CatalogService.Normalize(title);
+        var footer = CatalogService.Normalize(running);
+        // A fuller or shorter form of the footer's own name is the same program.
+        if (key.Length > 0 && (key.Contains(footer, StringComparison.Ordinal) || footer.Contains(key, StringComparison.Ordinal)))
+            return title;
+        return PrintedAsHeading(key, pages) ? title : running;
     }
 
     /// The line a document prints at the top or bottom of most of its pages, less the page number.
@@ -50,9 +55,9 @@ internal static class ImportProgramTitle
            // A letter-spaced banner ("P OW E R B U I L D I N G") is artwork, not a name to show.
            && line.Split(' ', StringSplitOptions.RemoveEmptyEntries).Count(word => word.Length == 1 && char.IsLetter(word[0])) < 3;
 
-    private static bool Printed(string title, IReadOnlyList<ImportPageText> pages)
-    {
-        var key = CatalogService.Normalize(title);
-        return key.Length > 0 && pages.Any(page => CatalogService.Normalize(page.Text).Contains(key, StringComparison.Ordinal));
-    }
+    /// Printed as a heading or cover line, not lifted from a sentence: the Full Body edition's notes
+    /// say "this Full Body version of the program", and "Full Body Version" became its name.
+    private static bool PrintedAsHeading(string key, IReadOnlyList<ImportPageText> pages)
+        => key.Length > 0 && pages.Any(page => page.Text.Split('\n').Select(CatalogService.Normalize)
+            .Any(line => line.Contains(key, StringComparison.Ordinal) && line.Length <= key.Length * 2 + 10));
 }

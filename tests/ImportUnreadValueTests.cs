@@ -112,4 +112,17 @@ public sealed class ImportUnreadValueTests
         Assert.NotNull(exercises[0].Sets[1].TargetRpe);
         Assert.All(exercises[1].Sets, set => Assert.Equal("extracted", set.RpeSource));
     }
+
+    /// Pure Bodybuilding Full Body p.7 prints six exercises; the read returned a seventh with no
+    /// name and no sets, which became an "Unnamed exercise" slot and four review items.
+    [Fact]
+    public void A_nameless_exercise_no_printed_row_accounts_for_is_dropped()
+    {
+        var program = new AiProgram("Full Body", [new AiDay(null, null, 1, 1, "Full Body #2", false, null,
+            [Exercise("Farmers Walk"), new AiExercise("", null, null, [], SourcePage: 37)], 37)]);
+
+        var exercises = Assert.Single(ImportTableEvidence.Enrich(program, Page).Days!).Exercises;
+
+        Assert.Equal(["Farmers Walk"], exercises.Select(exercise => exercise.SourceName));
+    }
 }

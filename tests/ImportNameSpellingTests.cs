@@ -51,4 +51,17 @@ public sealed class ImportNameSpellingTests
         Assert.Equal(["DUMBBELL BENCH-BRACED WRIST CURL", "DUMBBELL BENCH-BRACED WRIST CURL", "DUMBBELL BENCH-BRACED WRIST CURL",
             "Behind-the-Back Dumbbell Wrist Curl"], standardized.Workouts.Select(workout => workout.Exercises[0].SourceName));
     }
+
+    /// Chest Hypertrophy's small-caps font reads "BenCh press" and "BayesIan CaBle Flye".
+    [Theory]
+    [InlineData("BenCh press", "Bench press")]
+    [InlineData("BayesIan CaBle Flye", "Bayesian Cable Flye")]
+    [InlineData("InClIne DB press", "Incline DB press")]
+    [InlineData("DUMBBELL BENCH-BRACED WRIST CURL", "DUMBBELL BENCH-BRACED WRIST CURL")]
+    [InlineData("N1-Style Cross-Body Triceps Extension", "N1-Style Cross-Body Triceps Extension")]
+    [InlineData("EZ-Bar Curl", "EZ-Bar Curl")]
+    public void A_word_split_by_small_caps_reads_in_title_case(string written, string expected)
+    {
+        Assert.Equal(expected, ImportNameSpelling.RepairCase(written));
+    }
 }

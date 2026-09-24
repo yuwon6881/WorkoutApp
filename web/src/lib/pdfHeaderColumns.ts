@@ -212,7 +212,9 @@ export function renderRow(row: TextRow, columns: HeaderColumns | undefined, fall
   for (const item of row.items) {
     const gap = Number.isNaN(endX) ? 0 : item.x - endX;
     const touching = line.length === 0 || /\s$/.test(line) || /^\s/.test(item.str);
-    const continuesWord = gap > 0 && gap <= 0.5;
+    // A run that starts where the last one ends is the same word: small caps are often drawn as
+    // separate runs inside one word ("sl" "I" "ght"), and spaced apart they read "sl I ght".
+    const continuesWord = !Number.isNaN(endX) && Math.abs(gap) <= 0.5;
     if (columns) {
       const center = item.x + (item.width ?? item.str.length * fontSize(item) * 0.5) / 2;
       let column = 0;
