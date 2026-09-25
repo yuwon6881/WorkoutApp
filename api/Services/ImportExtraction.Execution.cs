@@ -20,7 +20,6 @@ public sealed partial class ImportService
         var leaseId = NewLeaseId();
         List<ImportPageText>? outlinePages = null;
         List<ImportPageText> sourcePages = [];
-        var importFileName = "";
         List<ImportPageLink> demoLinks = [];
         var pending = new List<PendingChunk>();
         Dictionary<int, AiImportResult> persistedResults = [];
@@ -47,7 +46,6 @@ public sealed partial class ImportService
             ClaimLease(import, leaseId, DateTime.UtcNow);
             var pages = SourcePages(import);
             sourcePages = pages;
-            importFileName = import.FileName;
             demoLinks = string.IsNullOrWhiteSpace(import.LinksJson) ? [] : Json.Read<List<ImportPageLink>>(import.LinksJson);
             if (import.Status == ImportStatus.Pending && import.Stage == "outline")
             {
@@ -89,8 +87,7 @@ public sealed partial class ImportService
         db.ChangeTracker.Clear();
         if (outlinePages is not null) return await ReadOutline(id, outlinePages, ct, leaseId);
         var sourceEvidence = ImportOutlineEvidence.Read(sourcePages);
-        var sourcePageWeeks = ImportPrintedPhaseWeeks.Read(sourcePages) is not null ||
-            ImportBeginnerTransformation.Read(sourcePages, importFileName) is not null;
+        var printedWeeks = ImportPrintedSchedule.Read(sourcePages)?.WeekOfPage();
         var preserveTrailingRestDays = ImportLongWeeks.IsTenDayCycleSource(sourcePages)
             || ImportLongWeeks.HasSourceLongWeek(sourcePages);
 
@@ -246,7 +243,7 @@ public sealed partial class ImportService
                             notices.AddRange(labeled.Notices);
                             var extracted = ImportOutlineEvidence.NormalizeDraft(labeled.Draft, sourceEvidence);
                             var reconciled = ReconcileChunkCoverage(draft, extracted, item.Chunk, chunkPages,
-                                preserveTrailingRestDays, sourcePageWeeks);
+                                preserveTrailingRestDays, printedWeeks);
                             notices.AddRange(reconciled.Notices);
                             // Checked per section rather than against the whole document: a name
                             // belongs to the pages it was read from, and a movement printed in a

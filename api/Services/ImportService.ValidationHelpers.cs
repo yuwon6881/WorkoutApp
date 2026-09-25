@@ -22,9 +22,8 @@ public sealed partial class ImportService
 
     private static ImportChunkReconciliation.ChunkMerge ReconcileChunkCoverage(ImportDraft existing, ImportDraft extracted, ImportChunk chunk,
         IReadOnlyList<ImportPageText>? pages = null, bool preserveTrailingRestDays = false,
-        bool sourcePageWeekIsAuthoritative = false)
-        => ImportChunkReconciliation.ReconcileChunkCoverage(existing, extracted, chunk, pages,
-            preserveTrailingRestDays, sourcePageWeekIsAuthoritative);
+        IReadOnlyDictionary<int, int>? printedWeeks = null)
+        => ImportChunkReconciliation.ReconcileChunkCoverage(existing, extracted, chunk, pages, preserveTrailingRestDays, printedWeeks);
 
     /// A week the source confirms as longer than seven days keeps its trailing rest days.
     private static (List<DraftWorkout> Workouts, List<ImportReviewIssue> Notices) ReconcileDayShape(List<DraftWorkout> days,

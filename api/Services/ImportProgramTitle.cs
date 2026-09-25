@@ -23,27 +23,40 @@ internal static class ImportProgramTitle
         // A fuller or shorter form of the footer's own name is the same program.
         if (key.Length > 0 && (key.Contains(footer, StringComparison.Ordinal) || footer.Contains(key, StringComparison.Ordinal)))
             return title;
+        // A line printed on as many pages as the footer is a table header ("Tracking Load and Reps"), not a name.
+        if (pages.Count(page => page.Text.Split('\n').Any(line => CatalogService.Normalize(line) == key)) >= Threshold(pages))
+            return running;
         return PrintedAsHeading(key, pages) ? title : running;
     }
 
+    private static int Threshold(IReadOnlyList<ImportPageText> pages)
+        => Math.Max(4, pages.Count(page => !string.IsNullOrWhiteSpace(page.Text)) * 2 / 5);
+
     /// The line a document prints at the top or bottom of most of its pages, less the page number.
+    /// Of lines printed as often, one printed beside a page number is the footer: BTS Beginner heads
+    /// its tables "Tracking Load and Reps" on as many pages as it prints its footer.
     internal static string? RunningTitle(IReadOnlyList<ImportPageText> pages)
     {
         var withText = pages.Where(page => !string.IsNullOrWhiteSpace(page.Text)).ToList();
         if (withText.Count < 4) return null;
-        var counts = new Dictionary<string, (int Pages, string Text)>(StringComparer.Ordinal);
+        var counts = new Dictionary<string, (int Pages, int Numbered, string Text)>(StringComparer.Ordinal);
         foreach (var page in withText)
         {
             var lines = page.Text.Split('\n').Select(line => line.Trim()).Where(line => line.Length > 0).ToList();
             var edges = lines.Take(EdgeLines).Concat(lines.TakeLast(EdgeLines));
-            foreach (var candidate in edges.Where(line => !NotATitle.IsMatch(line)).Select(Clean).Where(IsTitleLike).Distinct(StringComparer.Ordinal))
+            foreach (var (candidate, numbered) in edges.Where(line => !NotATitle.IsMatch(line))
+                .Select(line => (Text: Clean(line), Numbered: PageNumber.IsMatch(line))).Where(item => IsTitleLike(item.Text))
+                .DistinctBy(item => item.Text, StringComparer.Ordinal))
             {
                 var key = CatalogService.Normalize(candidate);
-                counts[key] = counts.TryGetValue(key, out var seen) ? (seen.Pages + 1, seen.Text) : (1, candidate);
+                var number = numbered ? 1 : 0;
+                counts[key] = counts.TryGetValue(key, out var seen) ? (seen.Pages + 1, seen.Numbered + number, seen.Text) : (1, number, candidate);
             }
         }
-        var best = counts.Values.OrderByDescending(entry => entry.Pages).FirstOrDefault();
-        return best.Pages >= Math.Max(4, withText.Count * 2 / 5) ? best.Text : null;
+        var threshold = Threshold(withText);
+        var best = counts.Values.Where(entry => entry.Pages >= threshold)
+            .OrderByDescending(entry => entry.Numbered * 2 >= entry.Pages).ThenByDescending(entry => entry.Pages).FirstOrDefault();
+        return best.Text;
     }
 
     /// A footer carries its page number on one side ("The Pure Bodybuilding Program | 1"). Only that

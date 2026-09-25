@@ -36,21 +36,23 @@ internal static class ImportChunkReconciliation
 
     public static ChunkMerge ReconcileChunkCoverage(ImportDraft existing, ImportDraft extracted, ImportChunk chunk,
         IReadOnlyList<ImportPageText>? pages = null, bool preserveTrailingRestDays = false,
-        bool sourcePageWeekIsAuthoritative = false)
+        IReadOnlyDictionary<int, int>? printedWeeks = null)
     {
-        var pageAnchored = sourcePageWeekIsAuthoritative
-            ? extracted.Workouts.Select(day => day.SourcePage is { } page &&
-                page >= chunk.PageFrom && page <= chunk.PageTo
-                    ? day with { Week = chunk.WeekFrom } : day).ToList()
-            : extracted.Workouts;
-        var translated = ImportAbsoluteWeeks.TranslateDays(pageAnchored, chunk);
+        // A section whose every day sits on a page of the printed schedule takes that page's program
+        // week; a read's own week there is the phase's local count (Ultimate PPL restarts at one).
+        // The printed week then outranks the outline's range for the section, so it is not reported.
+        var printed = printedWeeks is not null && extracted.Workouts.Count > 0
+            && extracted.Workouts.All(day => day.SourcePage is { } page && printedWeeks.ContainsKey(page));
+        var translated = printed
+                ? extracted.Workouts.Select(day => day with { Week = printedWeeks![day.SourcePage!.Value] }).ToList()
+                : ImportAbsoluteWeeks.TranslateDays(extracted.Workouts, chunk);
         // Lettered versions of one week are separated before the week is shaped: shaped together
         // they overflow it, and its trailing rest days would be trimmed as surplus.
         var versions = ImportWeekVariants.Separate(translated, pages ?? []);
         var shaped = ImportDayShape.Reconcile(versions.Workouts, preserveTrailingRestDays);
         var notices = new List<ImportReviewIssue>(versions.Notices);
         notices.AddRange(shaped.Notices);
-        var strayed = shaped.Workouts.Where(day => !versions.Moved.Contains(day.LineId)
+        var strayed = printed ? [] : shaped.Workouts.Where(day => !versions.Moved.Contains(day.LineId)
             && (day.Week < chunk.WeekFrom || day.Week > chunk.WeekTo)).ToList();
         if (strayed.Count > 0)
             notices.Add(new ImportReviewIssue("day_outside_section_weeks",

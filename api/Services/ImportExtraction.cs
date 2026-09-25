@@ -151,32 +151,6 @@ public sealed partial class ImportService
         var sourceEvidence = ImportOutlineEvidence.Read(pages);
         import.Model = result.Model; import.InputTokens += result.InputTokens; import.CachedInputTokens += result.CachedInputTokens; import.OutputTokens += result.OutputTokens;
         import.Error = "";
-        // This edition prints a complete 6 + 4 + 3 week schedule with one cited table per page.
-        // Its source page map is authoritative even if the outline describes a shorter program.
-        if (ImportPrintedPhaseWeeks.Read(pages) is { } printedWeeks)
-        {
-            var sourceChunks = SplitChunks(printedWeeks.Chunks);
-            ValidateChunkPages(sourceChunks, import.PageCoverageJson);
-            import.SelectedAlternativeId = "";
-            import.OutlineJson = Json.Write(sourceChunks);
-            import.DraftJson = Json.Write(new ImportDraft(ImportPrintedPhaseWeeks.Title, []));
-            import.Stage = "extract"; import.Status = ImportStatus.Pending;
-            import.ChunksDone = 0; import.ChunksTotal = sourceChunks.Count;
-            import.UnresolvedCount = 0;
-            return;
-        }
-        if (ImportBeginnerTransformation.Read(pages, import.FileName) is { } beginner)
-        {
-            var sourceChunks = SplitChunks(beginner.Chunks);
-            ValidateChunkPages(sourceChunks, import.PageCoverageJson);
-            import.SelectedAlternativeId = "";
-            import.OutlineJson = Json.Write(sourceChunks);
-            import.DraftJson = Json.Write(new ImportDraft(ImportBeginnerTransformation.Title, []));
-            import.Stage = "extract"; import.Status = ImportStatus.Pending;
-            import.ChunksDone = 0; import.ChunksTotal = sourceChunks.Count;
-            import.UnresolvedCount = 0;
-            return;
-        }
         if (result.LegacyProgram is { } legacy)
         {
             var sourceText = ImportSourceText.Slice(pages, 1, ImportSourceText.MaxPages);
@@ -217,6 +191,20 @@ public sealed partial class ImportService
             import.DraftJson = Json.Write(draft); import.DraftBaselineJson = import.DraftJson; import.Stage = "done"; import.Status = ImportStatus.Ready;
             import.ChunksDone = 1; import.ChunksTotal = 1;
             UpdateCounters(import, draft);
+            return;
+        }
+        // A complete printed schedule is its own page map: when the outline leaves out pages it prints,
+        // its weeks are read section by section instead of the shorter program the outline describes.
+        if (ImportPrintedSchedule.Read(pages) is { } printed && !printed.CoveredBy(OutlinedChunks(result.Outline!)))
+        {
+            var sourceChunks = SplitChunks(printed.Chunks());
+            ValidateChunkPages(sourceChunks, import.PageCoverageJson);
+            import.SelectedAlternativeId = "";
+            import.OutlineJson = Json.Write(sourceChunks);
+            import.DraftJson = Json.Write(new ImportDraft(ProgramTitle(ImportProgramTitle.Grounded(result.Outline?.ProgramTitle, pages), import.FileName), []));
+            import.Stage = "extract"; import.Status = ImportStatus.Pending;
+            import.ChunksDone = 0; import.ChunksTotal = sourceChunks.Count;
+            import.UnresolvedCount = 0;
             return;
         }
         // Exercise matching is local and happens after each chunk is parsed. The catalog is
@@ -283,6 +271,9 @@ public sealed partial class ImportService
         db.ChangeTracker.Clear();
         return await Get(id, ct);
     }
+
+    private static IEnumerable<AiOutlineChunk> OutlinedChunks(AiOutline outline)
+        => outline.Chunks.Concat(outline.Alternatives?.SelectMany(alternative => alternative.Chunks) ?? []);
 
     /// A program always has something to call itself on the review screen; the document's own
     /// file name is a better stand-in than a blank field when the model returns no title.

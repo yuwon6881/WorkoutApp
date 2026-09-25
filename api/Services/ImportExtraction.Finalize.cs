@@ -20,20 +20,6 @@ public sealed partial class ImportService
         var named = ImportDayLabels.FillMissing(merged);
         merged = named.Draft;
         notices.AddRange(named.Notices);
-        if (ImportPrintedPhaseWeeks.Read(sourcePages) is { } printedWeeks)
-        {
-            var placed = printedWeeks.Reconcile(merged.Workouts);
-            merged = merged with { ProgramName = ImportPrintedPhaseWeeks.Title,
-                Workouts = placed.Workouts };
-            notices.AddRange(placed.Notices);
-        }
-        else if (ImportBeginnerTransformation.Read(sourcePages, import.FileName) is { } beginner)
-        {
-            var placed = beginner.Reconcile(merged.Workouts);
-            merged = merged with { ProgramName = ImportBeginnerTransformation.Title,
-                Workouts = placed.Workouts };
-            notices.AddRange(placed.Notices);
-        }
         // Every section has landed, so the phases are finally whole and their
         // weeks can be numbered from one within each of them.
         var numbered = NormalizePhaseWeeks(merged.Workouts);

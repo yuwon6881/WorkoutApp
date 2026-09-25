@@ -102,14 +102,16 @@ public sealed class ImportPrintedScheduleTests
     }
 
     [Fact]
-    public void A_warmup_day_before_the_schedule_keeps_its_place()
+    public void A_warmup_day_read_before_the_schedule_is_left_out_and_reported()
     {
         List<ImportPageText> pages = [Page(30, 1, "Upper"), Page(31, 1, "Lower")];
         var warmup = Day(1, "Week 1 day 1", 15);
 
-        var placed = ImportPrintedSchedule.Read(pages)!.Reconcile([warmup, Day(1, "Upper", 30), Day(1, "Lower", 31)]).Workouts!;
+        var placed = ImportPrintedSchedule.Read(pages)!.Reconcile([warmup, Day(1, "Upper", 30), Day(1, "Lower", 31)]);
 
-        Assert.Equal(["Week 1 day 1", "Upper", "Lower"], placed.Select(day => day.Name));
+        Assert.Equal(["Upper", "Lower"], placed.Workouts!.Select(day => day.Name));
+        var notice = Assert.Single(placed.Notices);
+        Assert.Equal(("printed_schedule_lead_left_out", "info", 15), (notice.Code, notice.Severity, notice.SourcePage));
     }
 
     [Fact]

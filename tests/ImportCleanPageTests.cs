@@ -140,4 +140,57 @@ public sealed class ImportCleanPageTests
         Assert.Equal(("printed_rows_used", "info"), (notice!.Code, notice.Severity));
         Assert.Contains("1 day was read", notice.Message);
     }
+
+    /// Ultimate PPL 4x p.37: a read that kept one of three printed rows, and a page whose footer rest was already read.
+    [Fact]
+    public void Printed_table_rows_restore_omitted_movements_and_targets()
+    {
+        var program = new AiProgram("wrong", [new AiDay(null, null, 1, 1, "Pull #1", false, null,
+            [new AiExercise("Lat Pulldown (Failure Set)", null, null,
+                [new AiSet(1, 1, null, null, null, null, null, RpeSource: "inferred")], SourcePage: 37)], 37)]);
+        const string source = """
+            === PAGE 37 ===
+            DAY LABEL: pull #1
+            Exercise | Warm-up Sets | WORKING SETS | Reps | Load | RPE | Rest | NOTES
+            Lat Pulldown (Feeder Sets) | 0 | 4 | 10 | | See Notes | ~2-3 min | Four feeder sets
+            Lat Pulldown (Failure Set) | 0 | 1 | 10+5 | | 10 | ~2-3 min | Dropset
+            Omni-Grip Machine Chest-Supported Row | 2 | 3 | 10-12 | | 8-9 | ~2-3 min | Three grips
+            Mandatory 1-2 Rest Days
+            """;
+
+        var enriched = ImportTableEvidence.Enrich(program, source);
+        var day = enriched.Days![0];
+        Assert.Equal(3, day.Exercises.Count);
+        Assert.Equal([4, 1, 3], day.Exercises.Select(exercise => exercise.Sets.Count));
+        Assert.Equal(["0", "0", "2"], day.Exercises.Select(exercise => exercise.WarmupSets));
+        Assert.All(day.Exercises[0].Sets, set => Assert.Null(set.TargetRpe));
+        Assert.All(day.Exercises[0].Sets, set => Assert.Equal("extracted", set.RpeSource));
+        Assert.Equal(10, day.Exercises[1].Sets[0].TargetRpe);
+        Assert.All(day.Exercises[2].Sets, set => Assert.Equal(9, set.TargetRpe));
+        Assert.All(day.Exercises.SelectMany(exercise => exercise.Sets), set => Assert.Equal(150, set.RestSeconds));
+        Assert.Equal(2, enriched.Days.Count);
+    }
+
+    [Fact]
+    public void An_already_read_footer_rest_is_not_turned_into_a_second_training_table()
+    {
+        var program = new AiProgram("sample", [
+            new AiDay(null, null, 1, 1, "Pull #1", false, null,
+                [new AiExercise("Squat", null, null, [new AiSet(8, 10, 9, 150, null, null, null)],
+                    SourcePage: 37)], 37),
+            new AiDay(null, null, 1, 1, "Rest Day", true, null, [], 37)
+        ]);
+        const string source = """
+            === PAGE 37 ===
+            DAY LABEL: pull #1
+            Exercise | Warm-up Sets | WORKING SETS | Reps | Load | RPE | Rest
+            Squat | 1 | 2 | 8-10 | | 8-9 | ~2-3 min
+            Mandatory 1-2 Rest Days
+            """;
+
+        var enriched = ImportTableEvidence.Enrich(program, source);
+        Assert.Equal(2, enriched.Days!.Count);
+        Assert.Single(enriched.Days, day => !day.IsRestDay);
+        Assert.Single(enriched.Days, day => day.IsRestDay);
+    }
 }

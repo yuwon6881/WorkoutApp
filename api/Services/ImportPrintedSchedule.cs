@@ -25,6 +25,44 @@ internal sealed class ImportPrintedSchedule
 
     public IReadOnlyList<SourceDay> Days => days;
 
+    /// Whether an outline's sections reach every page this schedule prints a day on.
+    public bool CoveredBy(IEnumerable<AiOutlineChunk> chunks)
+    {
+        var ranges = chunks.Select(chunk => (chunk.PageFrom, chunk.PageTo)).ToList();
+        return days.All(day => ranges.Any(range => day.Page >= range.PageFrom && day.Page <= range.PageTo));
+    }
+
+    /// Each printed training page's program week, for placing a section's days as they are read.
+    public Dictionary<int, int> WeekOfPage() => days.GroupBy(day => day.Page).ToDictionary(group => group.Key, group => group.First().Week);
+
+    /// About as many sessions as one read transcribes whole; see `ImportSections`.
+    private const int SessionsPerSection = 8;
+
+    /// The sections to read, from the printed page map rather than a model's outline: whole
+    /// printed weeks, joined within one block up to about eight sessions. Each section runs to the
+    /// page before the next one starts, so a table that runs onto an unlabelled page is still read.
+    public List<ImportChunk> Chunks()
+    {
+        var weeks = days.GroupBy(day => day.Week).Select(week => week.ToList()).ToList();
+        var groups = new List<List<List<SourceDay>>>();
+        foreach (var week in weeks)
+        {
+            var last = groups.LastOrDefault();
+            if (last is not null && last[0][0].Block == week[0].Block
+                && last.Sum(item => item.Count) + week.Count <= SessionsPerSection) last.Add(week);
+            else groups.Add([week]);
+        }
+        return groups.Select((group, index) =>
+        {
+            var first = group[0][0];
+            var lastWeek = group[^1][0].Week;
+            var pageTo = index + 1 < groups.Count ? groups[index + 1][0][0].Page - 1 : group[^1].Max(day => day.Page);
+            var weekLabel = first.Week == lastWeek ? $"week {first.Week}" : $"weeks {first.Week}-{lastWeek}";
+            return new ImportChunk(first.Block is null ? $"Printed {weekLabel}" : $"{first.Block}, {weekLabel}", first.Block, null,
+                first.Week, lastWeek, first.Page, pageTo, group.Sum(week => week.Count + week.Sum(day => day.RestsAfter)));
+        }).ToList();
+    }
+
     /// Null unless every page that prints a day label also prints exactly one week heading, the
     /// weeks run on without a gap, a return to week one comes only under a new phase or block
     /// banner (an appendix that reprints week one is not a phase), no week is printed in lettered
@@ -87,7 +125,8 @@ internal sealed class ImportPrintedSchedule
     /// Places the draft in printed order. Null workouts leave the draft as it was: when it holds a
     /// day on a page this schedule does not print, the schedule does not describe the whole draft,
     /// and when a page's days and labels cannot be paired review is told rather than guessed at.
-    /// Days read from pages before the schedule begins (a warm-up day) keep their place in front.
+    /// Days read from pages before the schedule begins print no day label and no week of the
+    /// program: a warm-up routine read as "Week 1 day 1" is left out, and review says so.
     public (List<DraftWorkout>? Workouts, List<ImportReviewIssue> Notices) Reconcile(IReadOnlyList<DraftWorkout> draft)
     {
         var pages = days.Select(day => day.Page).ToHashSet();
@@ -132,15 +171,17 @@ internal sealed class ImportPrintedSchedule
                     with { Week = source.Week, PhaseWeek = phaseWeek, Block = block, Phase = phase, Name = "Rest Day", Exercises = [], BlockId = null, WeekId = null });
             }
         }
-        placed.InsertRange(0, lead);
         if (days.All(day => day.Block is null)) placed = ImportValidation.NormalizePhaseWeeks(placed).Workouts;
 
-        var moved = placed.Count != draft.Count || placed.Where((day, index) => day.LineId != draft[index].LineId
-            || day.Week != draft[index].Week).Any();
-        return (placed, moved
-            ? [new ImportReviewIssue("printed_schedule_used",
-                $"{training.Count} days were placed in the weeks and slots the PDF prints, with a rest day wherever it prints a rest band.", "info")]
-            : []);
+        var notices = new List<ImportReviewIssue>();
+        if (placed.Count != workouts.Count || placed.Where((day, index) => day.LineId != workouts[index].LineId || day.Week != workouts[index].Week).Any())
+            notices.Add(new ImportReviewIssue("printed_schedule_used",
+                $"{training.Count} days were placed in the weeks and slots the PDF prints, with a rest day wherever it prints a rest band.", "info"));
+        if (lead.Count(day => !day.IsRestDay) is var left and > 0)
+            notices.Add(new ImportReviewIssue("printed_schedule_lead_left_out",
+                $"{left} day{(left == 1 ? " was" : "s were")} read from pages before the printed schedule, such as a warm-up routine, and left out of the program.",
+                "info", lead[0].SourcePage));
+        return (placed, notices);
     }
 
     private static List<int> Weeks(List<string> lines)
