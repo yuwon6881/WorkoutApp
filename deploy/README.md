@@ -21,6 +21,17 @@ Singapore. The FinancialApp and NutritionApp services and databases are independ
 | API URL | `https://workout-api-i47taxhzba-as.a.run.app` |
 | Image | `asia-southeast1-docker.pkg.dev/<project>/cloud-run-source-deploy/workout-api` |
 
+Grant the Workout API runtime identity access to the shared Google Health OAuth secret before
+deploying:
+
+```powershell
+$project = 'project-7eb1aec8-8636-4c86-b2a'
+gcloud secrets add-iam-policy-binding google-health-client-secret `
+  --project=$project `
+  --member="serviceAccount:workout-api@$project.iam.gserviceaccount.com" `
+  --role='roles/secretmanager.secretAccessor'
+```
+
 The API runs with 1 CPU, 2 GiB, a 3,600 second timeout, HTTP/1.1, concurrency 4, and minimum 0 /
 maximum 1 instances. PDF import needs nothing else: the browser reads the document's text on the
 device and posts it gzipped. The extract endpoint starts an in-process background pass and returns
