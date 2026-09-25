@@ -241,8 +241,7 @@ public sealed partial class ImportService
                         {
                             var result = results[item.Index];
                             var chunkPages = sourcePages.Where(page => page.Page >= item.Chunk.PageFrom && page.Page <= item.Chunk.PageTo).ToList();
-                            var sourceEnriched = ImportTableEvidence.Enrich(result.Program, item.Text,
-                                recoverPrintedRows: ImportPrintedPhaseWeeks.Read(sourcePages) is not null);
+                            var sourceEnriched = ImportTableEvidence.Enrich(result.Program, item.Text);
                             var labeled = ImportDayLabels.Apply(await ToDraft(sourceEnriched, settle), chunkPages);
                             notices.AddRange(labeled.Notices);
                             var extracted = ImportOutlineEvidence.NormalizeDraft(labeled.Draft, sourceEvidence);
@@ -314,6 +313,7 @@ public sealed partial class ImportService
                             var shaped = ReconcileDayShape(merged.Workouts, merged.SourceWeekDays);
                             var cited = ImportDayShape.ReconcilePages(merged with { Workouts = shaped.Workouts }, import.Pages);
                             merged = ImportValidation.NormalizeDraft(ImportNameSpelling.Standardize(cited.Draft, sourcePages));
+                            if (ImportTableEvidence.PrintedRowsNotice(merged.Workouts, ImportSourceText.Slice(sourcePages, 1, ImportSourceText.MaxPages)) is { } printedRows) notices.Add(printedRows);
                             notices.AddRange(shaped.Notices);
                             notices.AddRange(cited.Notices);
                             await ValidateDraft(merged, settle);

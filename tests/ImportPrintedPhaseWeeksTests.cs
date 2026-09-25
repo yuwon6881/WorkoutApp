@@ -90,7 +90,7 @@ public sealed class ImportPrintedPhaseWeeksTests
             Mandatory 1-2 Rest Days
             """;
 
-        var enriched = ImportTableEvidence.Enrich(program, source, recoverPrintedRows: true);
+        var enriched = ImportTableEvidence.Enrich(program, source);
         var day = enriched.Days![0];
         Assert.Equal(3, day.Exercises.Count);
         Assert.Equal([4, 1, 3], day.Exercises.Select(exercise => exercise.Sets.Count));
@@ -120,7 +120,7 @@ public sealed class ImportPrintedPhaseWeeksTests
             Mandatory 1-2 Rest Days
             """;
 
-        var enriched = ImportTableEvidence.Enrich(program, source, recoverPrintedRows: true);
+        var enriched = ImportTableEvidence.Enrich(program, source);
         Assert.Equal(2, enriched.Days!.Count);
         Assert.Single(enriched.Days, day => !day.IsRestDay);
         Assert.Single(enriched.Days, day => day.IsRestDay);

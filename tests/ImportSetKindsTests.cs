@@ -30,8 +30,10 @@ public sealed class ImportSetKindsTests
 
         var exercises = Assert.Single(ImportTableEvidence.Enrich(program, ShoulderPage).Days!).Exercises;
 
-        Assert.Equal([1, 2, 1], exercises.Select(exercise => exercise.Sets.Count));
-        Assert.Equal(["8-10", "4-6", "AMRAP"], exercises.Select(exercise => exercise.Sets[0].RepsText));
+        // The page is a clean table, so the cable row the read left out comes back first.
+        Assert.Equal("CABLE EXTERNAL ROTATION", exercises[0].SourceName);
+        Assert.Equal([2, 1, 2, 1], exercises.Select(exercise => exercise.Sets.Count));
+        Assert.Equal(["12-15", "8-10", "4-6", "AMRAP"], exercises.Select(exercise => exercise.Sets[0].RepsText));
         Assert.All(exercises, exercise => Assert.Null(exercise.WarmupSets));
     }
 

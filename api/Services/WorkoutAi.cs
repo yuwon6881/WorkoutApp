@@ -60,8 +60,9 @@ public sealed class WorkoutAi(HttpClient http, IConfiguration config)
     /// v27 keeps source-confirmed long weeks under their printed week number and places rest days by their bands;
     /// v28 matches repeated rows by their day label and gives one movement one printed spelling;
     /// v29 joins small-caps glyph runs, drops nameless unprinted rows, and names a book by its footer
-    /// unless the read's title is a heading the book prints.
-    public const string PromptVersion = "workout-import-v29-footer-titles";
+    /// unless the read's title is a heading the book prints;
+    /// v30 takes a day's exercises, sets and printed values from its table wherever the page is clean.
+    public const string PromptVersion = "workout-import-v30-printed-rows";
 
     /// One cheap pass over a page-by-page view of the document. Most of a commercial training PDF
     /// is explanation and photography; this pass exists to find the few pages that actually carry

@@ -63,6 +63,9 @@ public sealed class CorpusReport
 
         var output = new StringBuilder();
         var days = ready.Draft?.Workouts ?? [];
+        // WORKOUT_CORPUS_DUMP=1 keeps each draft beside the report, so two runs can be compared day by day.
+        if (Environment.GetEnvironmentVariable("WORKOUT_CORPUS_DUMP") == "1")
+            File.WriteAllText(Path.ChangeExtension(file, TableTranscriber.Drifting ? ".drift.draft" : ".draft"), Json.Write(ready.Draft));
         output.Append($"- Title: {ready.Draft?.ProgramName}\n- Status: {ready.Status} {ready.Error}\n");
         output.Append($"- Weeks: {days.Select(day => day.Week).Distinct().Count()}, days per week: " +
             $"{string.Join(" ", days.GroupBy(day => day.Week).Select(week => week.Count()))}\n");

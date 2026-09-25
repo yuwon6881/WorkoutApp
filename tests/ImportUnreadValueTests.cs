@@ -123,6 +123,7 @@ public sealed class ImportUnreadValueTests
 
         var exercises = Assert.Single(ImportTableEvidence.Enrich(program, Page).Days!).Exercises;
 
-        Assert.Equal(["Farmers Walk"], exercises.Select(exercise => exercise.SourceName));
+        // The page is a clean table, so the row the read dropped comes back from it.
+        Assert.Equal(["Farmers Walk", "Barbell Hip Thrust"], exercises.Select(exercise => exercise.SourceName));
     }
 }

@@ -676,10 +676,11 @@ public sealed class ImportTableEvidenceTests
             Weak Point Exercise 2 (optional) | N/A | 1-3 | 2 | 8-12 | ~9 | ~9-10 | ~1-3 min
             """;
 
-        var exercise = Assert.Single(Assert.Single(ImportTableEvidence.Enrich(program, text).Days!).Exercises);
+        var exercises = Assert.Single(ImportTableEvidence.Enrich(program, text).Days!).Exercises;
 
-        Assert.Equal("Weak Point Exercise 2 (optional)", exercise.SourceName);
-        Assert.Equal(2, exercise.Sets.Count);
+        // The page is a clean table, so Weak Point Exercise 1, which the read left out, comes back.
+        Assert.Equal(["Weak Point Exercise 1", "Weak Point Exercise 2 (optional)"], exercises.Select(exercise => exercise.SourceName));
+        Assert.Equal(2, exercises[1].Sets.Count);
     }
 
     /// Weeks 6-10 print "N/A" rest for both halves of the hip superset. A rest time the model
