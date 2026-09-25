@@ -138,10 +138,8 @@ for (const theme of ['dark', 'light']) {
 
     await navigate(page, 'Settings');
     await expect(page.locator('.nav-label, .breadcrumb, .profile, .page-footer')).toHaveCount(0);
-    // Driven the way someone actually uses it: the styled control, not the hidden value mirror.
-    await page.getByRole('button', { name: 'Appearance' }).click();
-    await page.getByRole('listbox', { name: 'Appearance' })
-      .getByRole('option', { name: theme === 'dark' ? 'Ayu dark' : 'Ayu light' }).click();
+    await page.getByRole('group', { name: 'Appearance' })
+      .getByRole('button', { name: theme === 'dark' ? 'Ayu dark' : 'Ayu light' }).click();
     await expect(page.locator('html')).toHaveAttribute('data-theme', theme);
     await expect(page).toHaveTitle('Workout');
     await expect(page.locator('body')).not.toContainText(/repwise/i);

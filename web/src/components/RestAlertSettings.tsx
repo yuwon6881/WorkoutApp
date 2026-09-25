@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Volume2 } from 'lucide-react';
+import { BellOff, BellRing, Volume2 } from 'lucide-react';
 import type { Preferences } from '../types';
 import { api } from '../lib/api';
 import { requestRestAlerts, testAlarmSound } from '../lib/restTimer';
@@ -7,8 +7,8 @@ import { deleteWorkoutPushToken, getWorkoutPushDeviceId, registerWorkoutPushDevi
 import { isFirebasePushConfigured } from '../lib/push/firebaseConfig';
 import type { DevicePreferences } from '../lib/workoutRecovery';
 import { Button } from './ui/Button';
-import { Select } from './ui/Select';
 import { SettingRow } from './ui/SettingRow';
+import { Switch } from './ui/Switch';
 
 type PushStatus = {
   configured: boolean;
@@ -16,11 +16,6 @@ type PushStatus = {
   currentGeneration: string | null;
   message: string;
 };
-
-const ON_OFF = [
-  { value: 'on', label: 'On' },
-  { value: 'off', label: 'Off' }
-];
 
 export function RestAlertSettings({ accountId, preferences, devicePreferences, onPreferences, onDevicePreferences, notify }: {
   accountId: string;
@@ -88,52 +83,65 @@ export function RestAlertSettings({ accountId, preferences, devicePreferences, o
     }
   }
 
-  return (
-    <section className="panel">
-      <div className="section-heading">
-        <h2>Rest timer &amp; alerts</h2>
-      </div>
+  const pushSetUp = Boolean(pushStatus?.registered);
 
+  return (
+    <>
       <SettingRow
         label={<strong>Rest notifications</strong>}
-        info={{
-          content: 'Local sound and the on-screen timer work without push. Closed-app alerts need this device set up and may be delayed or blocked by Focus, battery settings, or the browser.',
-          label: 'Rest notifications info'
-        }}
+        description="Alerts when a rest interval ends. The on-screen timer and sound work without them."
+        descriptionId="rest-alerts-description"
       >
-        <Select
-          name="rest-alerts"
+        <Switch
           label="Rest notifications"
-          value={preferences.restAlerts ? 'on' : 'off'}
-          onChange={async val => {
-            const wanted = val === 'on';
+          describedBy="rest-alerts-description"
+          checked={preferences.restAlerts}
+          onChange={async wanted => {
             if (wanted && (await requestRestAlerts()) !== 'granted') {
               notify('Workout notifications are not enabled. You can still use the on-screen timer and sound.');
             }
             onPreferences({ ...preferences, restAlerts: wanted });
           }}
-          options={ON_OFF}
         />
       </SettingRow>
 
       <SettingRow
-        className="setting-row-stacked"
-        label={<strong>Rest sound</strong>}
+        label={<strong>Closed-app rest alerts</strong>}
+        description={<>
+          <span className={`setting-status ${pushSetUp ? 'is-on' : ''}`}>
+            <span className="status-dot" aria-hidden="true" />
+            {pushSetUp ? 'Set up on this device' : 'Not set up on this device'}
+          </span>
+          <span>{closedAppAlertInfo}</span>
+        </>}
         info={{
-          content: 'Plays a soothing chime when your rest interval completes while Workout is open. Background alert sounds follow phone and browser settings.',
-          label: 'Rest sound info'
+          content: 'Closed-app alerts may be delayed or blocked by Focus, battery settings, or the browser.',
+          label: 'Closed-app rest alerts info'
         }}
       >
-        <div className="setting-sound-controls">
-          <Select
-            name="rest-sound"
-            label="Rest sound"
-            value={devicePreferences.sound ? 'on' : 'off'}
-            onChange={value => onDevicePreferences({ ...devicePreferences, sound: value === 'on' })}
-            options={ON_OFF}
-          />
+        {pushSetUp ? (
+          <Button variant="secondary" disabled={pushBusy} onClick={() => void disableOnThisDevice()}>
+            <BellOff size={15} aria-hidden="true" /> Disable on this device
+          </Button>
+        ) : (
           <Button
             variant="secondary"
+            disabled={pushBusy || !deviceId || !pushStatus?.configured || !isFirebasePushConfigured()}
+            onClick={() => void enableOnThisDevice()}
+          >
+            <BellRing size={15} aria-hidden="true" /> {pushBusy ? 'Setting up…' : 'Enable on this device'}
+          </Button>
+        )}
+      </SettingRow>
+
+      <SettingRow
+        label={<strong>Rest sound</strong>}
+        description="A soft two-note chime while Workout is open. Background alerts follow your phone and browser sound settings."
+        descriptionId="rest-sound-description"
+      >
+        <div className="setting-inline-controls">
+          <Button
+            variant="tertiary"
             onClick={() =>
               notify(
                 testAlarmSound()
@@ -142,64 +150,42 @@ export function RestAlertSettings({ accountId, preferences, devicePreferences, o
               )
             }
           >
-            <Volume2 size={15} /> Test sound
+            <Volume2 size={15} aria-hidden="true" /> Test sound
           </Button>
-        </div>
-      </SettingRow>
-
-      <SettingRow
-        className="setting-row-stacked"
-        label={<strong>Closed-app rest alerts</strong>}
-        info={{ content: closedAppAlertInfo, label: 'Closed-app rest alerts info' }}
-      >
-        <div className="setting-action-controls">
-          {pushStatus?.registered ? (
-            <Button variant="secondary" disabled={pushBusy} onClick={() => void disableOnThisDevice()}>
-              Disable on this device
-            </Button>
-          ) : (
-            <Button
-              variant="secondary"
-              disabled={pushBusy || !deviceId || !pushStatus?.configured || !isFirebasePushConfigured()}
-              onClick={() => void enableOnThisDevice()}
-            >
-              {pushBusy ? 'Setting up…' : 'Enable on this device'}
-            </Button>
-          )}
+          <Switch
+            label="Rest sound"
+            describedBy="rest-sound-description"
+            checked={devicePreferences.sound}
+            onChange={sound => onDevicePreferences({ ...devicePreferences, sound })}
+          />
         </div>
       </SettingRow>
 
       <SettingRow
         label={<strong>Vibration</strong>}
-        info={{
-          content: 'Uses device vibration only where the browser and device hardware support it.',
-          label: 'Vibration info'
-        }}
+        description="Only where this browser and device support vibration."
+        descriptionId="rest-vibration-description"
       >
-        <Select
-          name="rest-vibration"
+        <Switch
           label="Vibration"
-          value={devicePreferences.vibration ? 'on' : 'off'}
-          onChange={value => onDevicePreferences({ ...devicePreferences, vibration: value === 'on' })}
-          options={ON_OFF}
+          describedBy="rest-vibration-description"
+          checked={devicePreferences.vibration}
+          onChange={vibration => onDevicePreferences({ ...devicePreferences, vibration })}
         />
       </SettingRow>
 
       <SettingRow
         label={<strong>Keep screen awake during a workout</strong>}
-        info={{
-          content: 'Available while the workout is open and visible; the phone may still release it on low battery.',
-          label: 'Keep screen awake info'
-        }}
+        description="While the workout is open and visible. The phone may still release it on low battery."
+        descriptionId="rest-wake-description"
       >
-        <Select
-          name="workout-wake-lock"
+        <Switch
           label="Keep screen awake during a workout"
-          value={devicePreferences.keepAwake ? 'on' : 'off'}
-          onChange={value => onDevicePreferences({ ...devicePreferences, keepAwake: value === 'on' })}
-          options={ON_OFF}
+          describedBy="rest-wake-description"
+          checked={devicePreferences.keepAwake}
+          onChange={keepAwake => onDevicePreferences({ ...devicePreferences, keepAwake })}
         />
       </SettingRow>
-    </section>
+    </>
   );
 }

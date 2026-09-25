@@ -16,6 +16,7 @@ export function ProgramDayList({
   onDayChange,
   onPropagateSubstitution,
   onMapExerciseSlot,
+  onCustomExerciseCreated,
   restorableExerciseLineIds,
   onRestoreExercise
 }: {
@@ -26,6 +27,7 @@ export function ProgramDayList({
   onDayChange: (day: DraftWorkout) => Promise<void>;
   onPropagateSubstitution?: (currentName: string, replacementName: string, exerciseLineId?: string) => Promise<void>;
   onMapExerciseSlot?: (exerciseLineId: string, exerciseId: string | null) => Promise<void>;
+  onCustomExerciseCreated?: () => Promise<void>;
   restorableExerciseLineIds?: string[];
   onRestoreExercise?: (exerciseLineId: string) => Promise<void>;
 }) {
@@ -105,6 +107,7 @@ export function ProgramDayList({
             onChange={onDayChange}
             onPropagateSubstitution={onPropagateSubstitution}
             onMapExerciseSlot={onMapExerciseSlot}
+            onCustomExerciseCreated={onCustomExerciseCreated}
             restorableExerciseLineIds={restorableExerciseLineIds}
             onRestoreExercise={onRestoreExercise}
             handle={<Button

@@ -318,16 +318,6 @@ input::file-selector-button{font-size:var(--font-secondary)!important}
 .exercise-source-toggle{display:inline-flex;align-items:center;gap:6px;flex-shrink:0}
 .exercise-source-toggle .filter-chip{margin-bottom:0!important;min-height:44px}
 @media(max-width:639px){.exercise-source-toggle{width:100%;display:flex;gap:8px}.exercise-source-toggle .filter-chip{flex:1;text-align:center;justify-content:center}}
-.connected-app-item{min-width:0}
-.connected-app-info{display:flex;flex:1 1 auto;flex-direction:column;gap:5px;min-width:0;max-width:100%}
-.connected-app-title{display:flex;align-items:center;gap:10px;min-width:0;flex-wrap:wrap}
-.connected-app-title strong{min-width:0;font-size:14px;font-weight:600;color:var(--text);overflow-wrap:anywhere}
-.connected-badge{font-size:11px;gap:5px}
-.connected-badge .status-dot.online{background:var(--green)}
-.connected-badge{white-space:normal;overflow-wrap:anywhere}
-.connected-app-actions{display:flex;align-items:center;justify-content:flex-end;gap:10px;min-width:0;max-width:100%;flex-wrap:wrap}
-.connected-app-item .setting-controls-wrap{min-width:0;flex:0 1 auto}
-@media(max-width:639px){.connected-app-actions{justify-content:stretch;width:100%}.connected-app-actions .button{width:100%}}
 .import-progress-pill{position:fixed;right:28px;bottom:22px;z-index:8;width:min(360px,calc(100vw - 56px));box-shadow:0 8px 35px var(--overlay);white-space:normal;text-align:left;justify-content:stretch}
 .import-progress-pill.has-resume{bottom:84px}
 .import-progress-pill .import-progress{margin:0;width:100%;min-width:0}

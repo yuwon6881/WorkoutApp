@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Button } from './ui/Button';
 import { Modal } from './ui/Modal';
 import { SettingRow } from './ui/SettingRow';
+import { Switch } from './ui/Switch';
 import {
   recoverGoogleHealthWorkoutSync,
   setGoogleHealthWorkoutSync,
@@ -9,6 +10,7 @@ import {
 } from '../lib/googleHealth';
 import { GoogleHealthDisclosure } from './GoogleHealthDisclosure';
 import { Activity, AlertTriangle, CheckCircle2, RefreshCw, Unlink } from 'lucide-react';
+import './IntegrationCard.css';
 
 export function GoogleHealthSettings() {
   const { state, loading, error: syncError, refresh, connect, disconnect } = useGoogleHealth();
@@ -140,143 +142,105 @@ export function GoogleHealthSettings() {
   const isConnected = state.status === 'connected';
   const isReconnectRequired = state.status === 'reconnect_required';
 
+  const sync = state.workoutSync;
+  const statusLabel = isConnected ? 'Connected' : isReconnectRequired ? 'Reconnect required' : 'Not connected';
+  const statusTone = isConnected ? 'is-on' : isReconnectRequired ? 'is-warning' : '';
+
   return (
-    <section className="panel" aria-labelledby="google-health-title">
-      <div className="section-heading">
-        <h2 id="google-health-title">Google Health</h2>
-      </div>
+    <article className="panel integration-card" aria-labelledby="google-health-title">
+      <header className="integration-card-header">
+        <span className="integration-logo" aria-hidden="true"><Activity size={20} /></span>
+        <div className="integration-card-title">
+          <h3 id="google-health-title">Google Health</h3>
+          <span>Completed workouts, sets, and training volume.</span>
+        </div>
+        <span className={`integration-status ${statusTone}`.trim()} aria-live="polite">
+          <span className="status-dot" aria-hidden="true" />
+          {statusLabel}
+        </span>
+      </header>
 
       {bannerNotice && (
-        <div
-          className={bannerNotice.type === 'error' ? 'error-banner' : 'card-feedback card-feedback-success'}
-          role="alert"
-          style={{ marginBottom: '1rem' }}
-        >
-          {bannerNotice.type === 'error' ? <AlertTriangle size={17} /> : <CheckCircle2 size={17} />}
+        <div className={bannerNotice.type === 'error' ? 'error-banner' : 'success-banner'} role={bannerNotice.type === 'error' ? 'alert' : 'status'}>
+          {bannerNotice.type === 'error' ? <AlertTriangle size={17} aria-hidden="true" /> : <CheckCircle2 size={17} aria-hidden="true" />}
           <span>{bannerNotice.message}</span>
         </div>
       )}
-
       {actionError && (
-        <div className="error-banner" role="alert" style={{ marginBottom: '1rem' }}>
-          <AlertTriangle size={17} />
+        <div className="error-banner" role="alert">
+          <AlertTriangle size={17} aria-hidden="true" />
           <span>{actionError}</span>
         </div>
       )}
-
       {syncError && (
-        <div className="error-banner" role="alert" style={{ marginBottom: '1rem' }}>
-          <AlertTriangle size={17} />
+        <div className="error-banner" role="alert">
+          <AlertTriangle size={17} aria-hidden="true" />
           <span>{syncError}</span>
         </div>
       )}
 
-      <p className="muted" style={{ marginBottom: '1rem' }}>
-        Connect Google Health to sync your completed workouts, exercise sets, and training volume.
-      </p>
-
-      <SettingRow className="connected-app-item" label={
-        <div className="connected-app-info">
-          <div className="connected-app-title">
-            <Activity size={18} className="accent" />
-            <strong>Google Health Connection</strong>
-            <span
-              className={`pill connected-badge ${isConnected ? 'pill-accent' : ''}`}
-              aria-live="polite"
-            >
-              {isConnected && <span className="status-dot online" />}
-              {isConnected
-                ? 'Connected'
-                : isReconnectRequired
-                  ? 'Reconnect required'
-                  : 'Not connected'}
-            </span>
-          </div>
-          <small className="muted">
-            {isConnected
-              ? `Connected${state.connectedAt ? ` on ${new Date(state.connectedAt).toLocaleDateString()}` : ''}.`
-              : isReconnectRequired
-                ? 'Your Google authorization expired or permissions changed. Reconnect to resume sync.'
-                : 'Link your Google account to sync workout data to Google Health.'}
-          </small>
-        </div>
-      }>
-        <div className="setting-action-controls">
-          {!isConnected ? (
-            <Button variant="primary" onClick={openDisclosure} disabled={loading || connecting}>
-              {connecting ? 'Connecting…' : isReconnectRequired ? 'Reconnect Google Health' : 'Connect Google Health'}
-            </Button>
-          ) : (
-            <>
-              <Button
-                variant="secondary"
-                onClick={() => void refresh(true)}
-                disabled={loading}
-                aria-label="Refresh status"
-              >
-                <RefreshCw size={14} className={loading ? 'spinning' : ''} />
-                Refresh
-              </Button>
-              <Button
-                variant="destructive"
-                onClick={() => setDisconnectOpen(true)}
-                disabled={disconnecting}
-              >
-                <Unlink size={14} />
-                Disconnect
-              </Button>
-            </>
-          )}
-        </div>
-      </SettingRow>
+      <div className="integration-description">
+        {isConnected
+          ? `Connected${state.connectedAt ? ` since ${new Date(state.connectedAt).toLocaleDateString()}` : ''}. Workouts already saved to Google Health stay there if you disconnect.`
+          : isReconnectRequired
+            ? 'Your Google authorization expired or permissions changed. Reconnect to resume sync.'
+            : 'Link your Google account to send finished workouts to Google Health.'}
+      </div>
 
       {isConnected && (
-        <div className="google-health-stream">
-          <h3>Workout Synchronization</h3>
+        <div className="integration-stream">
           <SettingRow
-            label={
-              <>
-                <strong>Sync completed workouts</strong>
-                <small className="muted google-health-stream-status">
-                  Uploads finished sessions, sets, volume, and exercise notes.
-                </small>
-                {state.workoutSync.pendingCount > 0 && (
-                  <small className="google-health-stream-status is-pending">
-                    {state.workoutSync.pendingCount} workout{state.workoutSync.pendingCount === 1 ? '' : 's'} queued for upload
-                  </small>
-                )}
-                {state.workoutSync.state === 'failed' && (
-                  <small className="google-health-stream-status is-failed">
-                    {state.workoutSync.failureMessage ?? 'Workout upload failed.'}
-                  </small>
-                )}
-                {state.workoutSync.state === 'unknown' && (
-                  <small className="google-health-stream-status is-unknown">
-                    Upload status uncertain. Check Google Health before recovering.
-                  </small>
-                )}
-              </>
-            }
+            label={<strong>Sync completed workouts</strong>}
+            descriptionId="google-health-sync-description"
+            description={<>
+              <span>Uploads finished sessions, sets, volume, and exercise notes.</span>
+              {sync.pendingCount > 0 && (
+                <span className="setting-status is-pending">
+                  {sync.pendingCount} workout{sync.pendingCount === 1 ? '' : 's'} queued for upload
+                </span>
+              )}
+              {sync.state === 'failed' && (
+                <span className="setting-status is-failed">{sync.failureMessage ?? 'Workout upload failed.'}</span>
+              )}
+              {sync.state === 'unknown' && (
+                <span className="setting-status is-unknown">Upload status uncertain. Check Google Health before recovering.</span>
+              )}
+            </>}
           >
-            <div className="google-health-stream-controls">
-              {(state.workoutSync.state === 'failed' || state.workoutSync.state === 'unknown') && (
-                <Button variant="tertiary" onClick={handleWorkoutRecover} disabled={workoutActionLoading}>
+            <div className="setting-inline-controls">
+              {(sync.state === 'failed' || sync.state === 'unknown') && (
+                <Button variant="tertiary" onClick={() => void handleWorkoutRecover()} disabled={workoutActionLoading}>
                   Retry
                 </Button>
               )}
-              <label className="checkbox-row">
-                <input
-                  type="checkbox"
-                  checked={state.workoutSync.enabled}
-                  onChange={event => void handleWorkoutSyncToggle(event.target.checked)}
-                  disabled={workoutActionLoading}
-                />
-                <span className="muted">{state.workoutSync.enabled ? 'Enabled' : 'Disabled'}</span>
-              </label>
+              <Switch
+                label="Sync completed workouts"
+                describedBy="google-health-sync-description"
+                checked={sync.enabled}
+                disabled={workoutActionLoading}
+                onChange={enabled => void handleWorkoutSyncToggle(enabled)}
+              />
             </div>
           </SettingRow>
         </div>
       )}
+
+      <div className="integration-actions">
+        {isConnected ? (
+          <>
+            <Button variant="destructive" onClick={() => setDisconnectOpen(true)} disabled={disconnecting}>
+              <Unlink size={14} aria-hidden="true" /> Disconnect
+            </Button>
+            <Button variant="secondary" onClick={() => void refresh(true)} disabled={loading}>
+              <RefreshCw size={14} className={loading ? 'spinning' : ''} aria-hidden="true" /> Refresh status
+            </Button>
+          </>
+        ) : (
+          <Button variant="primary" onClick={openDisclosure} disabled={loading || connecting}>
+            {connecting ? 'Connecting…' : isReconnectRequired ? 'Reconnect Google Health' : 'Connect Google Health'}
+          </Button>
+        )}
+      </div>
 
       {disclosureOpen && (
         <GoogleHealthDisclosure
@@ -291,20 +255,19 @@ export function GoogleHealthSettings() {
 
       {disconnectOpen && (
         <Modal title="Disconnect Google Health?" onClose={() => setDisconnectOpen(false)}>
-          <p>
-            Disconnecting will stop syncing workouts.
-            Any workouts already saved to Google Health will remain there.
-          </p>
-          <div className="actions" style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '1.25rem' }}>
+          <div className="modal-body">
+            <p>Disconnecting stops syncing workouts. Workouts already saved to Google Health stay there.</p>
+          </div>
+          <div className="modal-actions">
             <Button variant="tertiary" onClick={() => setDisconnectOpen(false)} disabled={disconnecting}>
               Cancel
             </Button>
-            <Button variant="destructive" onClick={handleDisconnectConfirm} disabled={disconnecting}>
+            <Button variant="destructive" onClick={() => void handleDisconnectConfirm()} disabled={disconnecting}>
               {disconnecting ? 'Disconnecting…' : 'Disconnect'}
             </Button>
           </div>
         </Modal>
       )}
-    </section>
+    </article>
   );
 }

@@ -1,0 +1,101 @@
+/* Wear OS pairing */
+.watch-pairing {
+  padding: 18px 0;
+}
+
+.watch-pairing-help {
+  margin: 0 0 12px;
+  color: var(--muted);
+  font-size: var(--font-secondary);
+  line-height: 1.55;
+}
+
+.watch-pairing-inputs {
+  display: flex;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.watch-pairing-inputs .field {
+  flex: 1 1 220px;
+  margin: 0;
+}
+
+.watch-pairing-inputs input {
+  min-height: 44px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.watch-pairing-inputs > .button {
+  min-height: 44px;
+  margin-left: auto;
+}
+
+.watch-pairing-error {
+  margin: 12px 0 0;
+}
+
+.watch-device-list {
+  display: grid;
+  gap: 10px;
+  margin: 18px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.watch-device-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+}
+
+.watch-device-icon {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.watch-device-row > div {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.watch-device-row span {
+  color: var(--muted);
+  font-size: var(--font-secondary);
+}
+
+.watch-device-empty {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 16px 0 0;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px dashed var(--border-hover);
+  color: var(--muted);
+  font-size: var(--font-secondary);
+}
+
+@media (max-width: 639px) {
+  .watch-device-row {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .watch-device-row > .button {
+    grid-column: 1 / -1;
+    justify-self: end;
+  }
+}

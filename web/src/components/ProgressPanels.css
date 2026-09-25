@@ -3,8 +3,8 @@
 .progress-page-heading .progress-muscles-link{min-height:44px}
 .progress-record-panel+.progress-record-panel{margin-top:0}
 
-/* Redesigned Progress Stats Showcase */
-.progress-stats {
+/* Redesigned Progress Stats Showcase. The doubled class outranks the generic .stats-grid columns. */
+.stats-grid.progress-stats {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 12px;
@@ -116,10 +116,20 @@
   color: var(--muted);
 }
 
+/* Five tiles on six tracks: three across the first row and two wider ones across the second, so the
+   medium layout never leaves an empty cell. */
 @media (max-width: 1023px) {
   .stats-grid.progress-stats {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(6, minmax(0, 1fr));
     gap: 10px;
+  }
+
+  .stats-grid.progress-stats > * {
+    grid-column: span 2;
+  }
+
+  .stats-grid.progress-stats > :nth-child(n + 4) {
+    grid-column: span 3;
   }
 }
 
@@ -131,6 +141,13 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 8px;
     margin-bottom: 18px;
+  }
+  .stats-grid.progress-stats > *,
+  .stats-grid.progress-stats > :nth-child(n + 4) {
+    grid-column: auto;
+  }
+  .stats-grid.progress-stats > :last-child:nth-child(odd) {
+    grid-column: 1 / -1;
   }
   .progress-stat-card {
     padding: 12px 14px;
@@ -153,8 +170,5 @@
   .progress-stat-card strong,
   .stat-card-value > strong {
     font-size: 20px;
-  }
-  .progress-stat-card:last-child {
-    grid-column: 1 / -1;
   }
 }

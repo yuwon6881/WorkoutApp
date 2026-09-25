@@ -1,0 +1,170 @@
+/* Shared by the Nutrition and Google Health connection cards on the settings page. */
+/* Integration cards (Nutrition, Google Health): identity and status in the header, effect below. */
+.integration-card.panel {
+  padding: 22px 24px;
+  transition: border-color var(--motion-control) ease;
+}
+
+.integration-card.panel:hover {
+  border-color: var(--border-hover);
+}
+
+.integration-card-header {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 14px;
+}
+
+.integration-logo {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 13px;
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  color: var(--accent);
+}
+
+.integration-card-title {
+  min-width: 0;
+}
+
+.integration-card-title h3 {
+  margin: 0;
+}
+
+.integration-card-title span {
+  display: block;
+  margin-top: 3px;
+  font-size: var(--font-secondary);
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+.integration-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 10px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--border);
+  background: var(--surface-raised);
+  color: var(--muted);
+  font-size: var(--font-secondary);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.integration-status .status-dot {
+  background: var(--faint);
+}
+
+.integration-status.is-on {
+  color: var(--green);
+  border-color: color-mix(in srgb, var(--green) 35%, var(--border));
+  background: color-mix(in srgb, var(--green) 10%, var(--surface));
+}
+
+.integration-status.is-on .status-dot {
+  background: var(--green);
+}
+
+.integration-status.is-warning {
+  color: var(--amber);
+  border-color: color-mix(in srgb, var(--amber) 35%, var(--border));
+  background: color-mix(in srgb, var(--amber) 10%, var(--surface));
+}
+
+.integration-status.is-warning .status-dot {
+  background: var(--amber);
+}
+
+.integration-card .error-banner,
+.integration-card .success-banner {
+  margin-top: 16px;
+}
+
+.integration-description {
+  margin: 16px 0 0;
+  font-size: var(--font-secondary);
+  line-height: 1.6;
+  color: var(--muted);
+}
+
+.integration-stream {
+  margin-top: 16px;
+  padding: 0 16px;
+  border-radius: 12px;
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+}
+
+.integration-stream .setting-row {
+  padding: 14px 0;
+}
+
+.integration-actions {
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.integration-actions:empty {
+  display: none;
+}
+
+.integration-card > .error-text {
+  margin: 12px 0 0;
+}
+
+.success-banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 18px;
+  border-radius: var(--radius-control);
+  background: color-mix(in srgb, var(--green) 10%, var(--surface));
+  border: 1px solid color-mix(in srgb, var(--green) 35%, var(--border));
+  color: var(--text);
+  font-size: var(--font-secondary);
+}
+
+.success-banner svg {
+  flex-shrink: 0;
+  color: var(--green);
+}
+
+.spinning {
+  animation: settings-spin 0.9s linear infinite;
+}
+
+@keyframes settings-spin {
+  to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spinning { animation: none; }
+}
+
+@media (max-width: 639px) {
+  .integration-card.panel {
+    padding: 18px;
+  }
+
+  .integration-card-header {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .integration-card-header > .integration-status {
+    grid-column: 2;
+    justify-self: start;
+  }
+
+  .integration-stream {
+    padding: 0 14px;
+  }
+}

@@ -222,12 +222,16 @@ export function SelectionIndicator({
   className = '',
   style,
   id,
+  role,
+  ariaLabel,
   children
 }: {
   active: string;
   className?: string;
   style?: CSSProperties;
   id?: string;
+  role?: string;
+  ariaLabel?: string;
   children: ReactNode;
 }) {
   const root = useRef<HTMLDivElement>(null);
@@ -267,6 +271,8 @@ export function SelectionIndicator({
     <div
       ref={root}
       id={id}
+      role={role}
+      aria-label={ariaLabel}
       className={`selection-indicator ${className}`.trim()}
       data-motion-reduced={reduced || undefined}
       style={style}

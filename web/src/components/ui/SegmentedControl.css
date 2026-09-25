@@ -1,0 +1,44 @@
+/* Segmented choice: a sunken track with a raised marker that slides to the selected option. */
+.segmented {
+  display: inline-grid;
+  gap: 2px;
+  min-width: 180px;
+  padding: 3px;
+  border-radius: 12px;
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+}
+
+.segmented > .selection-indicator-marker {
+  border-radius: 9px;
+  background: var(--surface);
+  border: 1px solid var(--border-hover);
+  box-shadow: 0 1px 4px var(--overlay);
+}
+
+.segmented > .button {
+  position: relative;
+  z-index: 1;
+  gap: 6px;
+  min-height: 36px;
+  padding: 6px 14px;
+  border-radius: 9px;
+  font-size: var(--font-secondary);
+  font-weight: 550;
+  color: var(--muted);
+  background: transparent;
+}
+
+.segmented > .button:hover:not(:disabled) {
+  background: transparent;
+  color: var(--text);
+}
+
+.segmented > .button.is-selected {
+  color: var(--text);
+  font-weight: 650;
+}
+
+@media (max-width: 1023px) {
+  .segmented > .button { min-height: 44px; }
+}

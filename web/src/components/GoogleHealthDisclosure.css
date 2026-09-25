@@ -1,0 +1,54 @@
+/* Google Health connection disclosure */
+.google-health-disclosure .disclosure-points {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.google-health-disclosure .disclosure-points li {
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+}
+
+.google-health-disclosure .disclosure-points strong {
+  display: block;
+  font-size: 14px;
+  color: var(--text);
+}
+
+.google-health-disclosure .disclosure-points p {
+  margin: 4px 0 0;
+  font-size: var(--font-secondary);
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+.google-health-disclosure .disclosure-option {
+  padding: 4px 0;
+  border-bottom: 0;
+}
+
+.disclosure-data-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 0;
+  font-size: var(--font-secondary);
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+.disclosure-data-notice svg {
+  flex-shrink: 0;
+  margin-top: 1px;
+  color: var(--accent);
+}
+
+.disclosure-data-notice a svg {
+  display: inline;
+  margin: 0;
+}
