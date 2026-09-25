@@ -20,6 +20,17 @@ Singapore. The FinancialApp and NutritionApp services and databases are independ
 | API URL | `https://workout-api-i47taxhzba-as.a.run.app` |
 | Image | `asia-southeast1-docker.pkg.dev/<project>/cloud-run-source-deploy/workout-api` |
 
+Grant the Workout API runtime identity access to the shared Google Health OAuth secret before
+deploying:
+
+```powershell
+$project = 'project-7eb1aec8-8636-4c86-b2a'
+gcloud secrets add-iam-policy-binding google-health-client-secret `
+  --project=$project `
+  --member="serviceAccount:workout-api@$project.iam.gserviceaccount.com" `
+  --role='roles/secretmanager.secretAccessor'
+```
+
 The checked-in `cloudbuild.yaml` deploys 1 CPU, 2 GiB, a 3,600 second timeout, HTTP/1.1, concurrency
 4, revision minimum 0, and revision maximum 1. Read-only Cloud Run inspection on 2026-10-02 observed
 revision `workout-api-00121-rdf` with those settings, request-based CPU throttling enabled, 100% of
@@ -59,7 +70,7 @@ and coalesce signals into an awaited `sync-data` request; older clients retain t
 retries whatever remains. A temporary Google or network failure is first retried up to twice at once
 (about half a second, then one and a half; never a create whose outcome is unknown, since a duplicate
 could exist), so a failed upload waits until the next visit or the next day only when Google stays down
-longer than that, rather than an hour. `/internal/google-health-workout-sync` (same protected maintenance secret) remains for
+longer than that, rather than an hour. `/internal/google-health-workout-sync` (protected by the same identity-token gate) remains for
 a manual sweep. Do not add a frequent job for it: it would keep the API and database awake around
 the clock for a one-account app. Register
 `https://workout-one-mocha.vercel.app/api/integrations/google-health/callback` as an authorized
