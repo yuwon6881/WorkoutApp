@@ -101,7 +101,7 @@ internal static partial class ImportValidation
             for (var index = 1; index < phaseWeeks.Count; index++)
                 if (phaseWeeks[index] != phaseWeeks[index - 1] + 1)
                     issues.Add(new ImportReviewIssue("phase_week_gap",
-                        $"'{phase[0].Phase}' jumps from week {phaseWeeks[index - 1]} to week {phaseWeeks[index]}; check that nothing is missing.",
+                        $"{(string.IsNullOrWhiteSpace(phase[0].Phase) ? "This phase" : $"'{phase[0].Phase}'")} jumps from week {phaseWeeks[index - 1]} to week {phaseWeeks[index]}; check that nothing is missing.",
                         "warning", phase[0].SourcePage, WorkoutLineId: phase[0].LineId, TargetField: "week"));
         }
         return issues;

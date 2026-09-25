@@ -303,6 +303,23 @@ describe('buildPageText', () => {
 });
 
 describe('extractPdfText failures and cancellation', () => {
+  it('refuses an overlarge text page instead of submitting a truncated prefix', async () => {
+    const page = {
+      getTextContent: vi.fn().mockResolvedValue({ items: [piece('x'.repeat(40_001), 0, 500)] }),
+      getAnnotations: vi.fn().mockResolvedValue([]),
+      cleanup: vi.fn()
+    };
+    const document = {
+      numPages: 1,
+      getPage: vi.fn().mockResolvedValue(page),
+      destroy: vi.fn().mockResolvedValue(undefined)
+    };
+    loadDocument(document);
+
+    await expect(extractPdfText(pdfFile())).rejects.toThrow('PDF page 1 contains more than 40,000');
+    expect(document.destroy).toHaveBeenCalledOnce();
+  });
+
   it('surfaces unknown page extraction failures instead of reporting an image-only page', async () => {
     const document = {
       numPages: 1,

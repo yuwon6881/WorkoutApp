@@ -1,32 +1,19 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useState } from 'react';
 import { ArrowLeftRight, Dumbbell, Library, Link2, Plus, Search, X, Trash2, RotateCcw, TrendingUp } from 'lucide-react';
 import type { Exercise, ExerciseCategory, ExerciseClearPreview, ExerciseInsight, Session } from '../types';
 import { ApiError, api } from '../lib/api';
 import { showSetCount } from '../lib/training';
 import { Button } from './ui/Button';
-import { Field, TextAreaField } from './ui/Field';
 import { Modal } from './ui/Modal';
 import { Select } from './ui/Select';
+import { CustomExerciseModal } from './CustomExerciseModal';
+import { getExerciseCategory } from '../lib/exerciseCategory';
 import { ChipScroller } from './ui/ChipScroller';
 import './Exercises.css';
 
 /// The catalog is supplied by the server and is empty until a seed file is loaded, so the
 /// empty state explains that rather than implying the user should have added something.
 export type ExercisePickerAction = 'add' | 'swap' | 'map';
-
-export function getExerciseCategory(exercise: { category?: string; equipment?: string; loadModel?: string }): ExerciseCategory {
-  if (exercise.category === 'Free Weights' || exercise.category === 'Machine' || exercise.category === 'Body Weight') {
-    return exercise.category;
-  }
-  const eq = (exercise.equipment ?? '').trim().toLowerCase();
-  if (eq === 'bodyweight' || eq === 'band' || exercise.loadModel === 'full_bodyweight' || exercise.loadModel === 'bodyweight_context_only' || exercise.loadModel === 'reps_only') {
-    return 'Body Weight';
-  }
-  if (eq === 'machine' || eq === 'smith machine' || eq === 'cable') {
-    return 'Machine';
-  }
-  return 'Free Weights';
-}
 
 function normalized(value: string) {
   return value.trim().toLowerCase().replace(/[^a-z0-9]+/g, ' ').replace(/\s+/g, ' ');
@@ -316,36 +303,6 @@ function displayKg(value: number | null | undefined, unit: 'kg' | 'lb') {
 
 function dateLabel(value: string | null | undefined) {
   return value ? new Date(`${value.slice(0, 10)}T12:00:00`).toLocaleDateString('en', { month: 'short', day: 'numeric', year: 'numeric' }) : '—';
-}
-
-function CustomExerciseModal({ onClose, onCreated }: { onClose: () => void; onCreated: () => Promise<void> }) {
-  const [name, setName] = useState(''); const [muscle, setMuscle] = useState(''); const [equipment, setEquipment] = useState('');
-  const [category, setCategory] = useState<ExerciseCategory>('Free Weights');
-  const [secondaryMuscles, setSecondaryMuscles] = useState('');
-  const [cue, setCue] = useState(''); const [loadModel, setLoadModel] = useState('external'); const [loadStepKg, setLoadStepKg] = useState('2.5');
-  const [error, setError] = useState(''); const [busy, setBusy] = useState(false);
-  async function submit(event: FormEvent) {
-    event.preventDefault(); setError('');
-    if (!name.trim()) { setError('Exercise name is required.'); return; }
-    const step = Number(loadStepKg); if (!Number.isFinite(step) || step < 0 || step > 50) { setError('Load increment must be between 0 and 50 kg.'); return; }
-    setBusy(true);
-    const secondary = [...new Set(secondaryMuscles.split(',').map(value => value.trim()).filter(Boolean))];
-    try { await api.createCustomExercise({ name: name.trim(), muscle, secondaryMuscles: secondary, equipment, category, cue, loadStepKg: step, loadModel }); await onCreated(); }
-    catch (failure) { setError(failure instanceof ApiError ? failure.message : 'Could not create the exercise.'); }
-    finally { setBusy(false); }
-  }
-  return <Modal title="Create custom exercise" onClose={onClose}>
-    <form className="modal-body" noValidate onSubmit={submit}>
-      <Field name="custom-exercise-name" label="Name" value={name} onChange={e => setName(e.target.value)} maxLength={160} autoFocus />
-      <div className="form-grid-two"><Field name="custom-exercise-muscle" label="Primary muscle" value={muscle} onChange={e => setMuscle(e.target.value)} maxLength={80} /><Field name="custom-exercise-equipment" label="Equipment" value={equipment} onChange={e => { setEquipment(e.target.value); setCategory(getExerciseCategory({ equipment: e.target.value, loadModel })); }} maxLength={80} /></div>
-      <Field name="custom-exercise-secondary-muscles" label="Secondary muscles (comma-separated)" value={secondaryMuscles} onChange={e => setSecondaryMuscles(e.target.value)} maxLength={320} />
-      <TextAreaField name="custom-exercise-cue" label="Instructions (optional)" value={cue} onChange={e => setCue(e.target.value)} maxLength={1000} />
-      <div className="form-grid-two"><label className="field"><span>Category</span><Select name="custom-exercise-category" label="Category" value={category} onChange={val => setCategory(val as ExerciseCategory)} options={[{ value: 'Free Weights', label: 'Free Weights' }, { value: 'Machine', label: 'Machine' }, { value: 'Body Weight', label: 'Body Weight' }]} /></label><label className="field"><span>Load model</span><Select name="custom-exercise-load-model" label="Load model" value={loadModel} onChange={val => { setLoadModel(val as string); setCategory(getExerciseCategory({ equipment, loadModel: val as string })); }} options={[{ value: 'external', label: 'External load' }, { value: 'full_bodyweight', label: 'Full bodyweight' }, { value: 'bodyweight_context_only', label: 'Bodyweight context only' }, { value: 'reps_only', label: 'Reps only' }]} /></label></div>
-      <div className="form-grid-two"><Field name="custom-exercise-load-step" label="Load increment (kg)" type="number" min="0" max="50" step="0.5" value={loadStepKg} onChange={e => setLoadStepKg(e.target.value)} /></div>
-      {error && <div className="error-text" role="alert">{error}</div>}
-      <div className="modal-actions"><Button variant="tertiary" onClick={onClose}>Cancel</Button><Button variant="primary" type="submit" disabled={busy}>{busy ? 'Creating…' : 'Create exercise'}</Button></div>
-    </form>
-  </Modal>;
 }
 
 export function ExerciseDetailModal({ exercise, unit, onClose, onChanged, onSession }: { exercise: Exercise; unit: 'kg' | 'lb'; onClose: () => void; onChanged?: () => Promise<void> | void; onSession?: (session: Session) => void }) {

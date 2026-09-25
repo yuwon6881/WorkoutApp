@@ -1,0 +1,20 @@
+{
+  "Fundamentals_Hypertrophy_Program": {
+    "alternatives": [
+      { "id": "full-body-program", "name": "Full Body Program", "pageFrom": 34, "pageTo": 48, "weekCount": 8, "sessionsPerWeek": 3 },
+      { "id": "upper-lower-program", "name": "Upper/Lower Program", "pageFrom": 50, "pageTo": 64, "weekCount": 8, "sessionsPerWeek": 4 },
+      { "id": "bodypart-program", "name": "Bodypart Program", "pageFrom": 66, "pageTo": 80, "weekCount": 8, "sessionsPerWeek": 5 }
+    ]
+  },
+  "The_Min-Max_Program__4X": {
+    "exerciseCount": 324,
+    "setCount": 804
+  },
+  "The_Essentials_Program_-_3xweek": {
+    "expectedFailure": {
+      "code": "rpe_unread",
+      "page": 34,
+      "targetField": "targetRpe"
+    }
+  }
+}

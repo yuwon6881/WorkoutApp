@@ -137,7 +137,14 @@ public sealed class ImportAlternativeReconciliationTests
         });
 
         var imports = h.Imports(stub);
-        var pending = await imports.Create(Source("minmax5x.pdf", 6), default);
+        var source = Source("minmax5x.pdf", 6);
+        source = source with
+        {
+            Pages = source.Pages.Select(page => page.Page == 1
+                ? page with { Text = $"{page.Text}\nBarbell Incline Press 1 x 6-8" }
+                : page).ToList()
+        };
+        var pending = await imports.Create(source, default);
 
         Assert.Equal("extract", pending.Stage);
         Assert.Equal(1, pending.ChunksTotal);
@@ -254,7 +261,9 @@ public sealed class ImportAlternativeReconciliationTests
 
         Assert.Equal(422, ex.Status);
         Assert.Equal("This PDF names program versions but does not contain their schedules. Import the PDF that holds the schedule you want.", ex.Message);
-        Assert.Empty(await h.Db.Imports.AsNoTracking().ToListAsync());
+        var retained = Assert.Single(await h.Db.Imports.AsNoTracking().ToListAsync());
+        Assert.Equal(ImportStatus.Failed, retained.Status);
+        Assert.Contains("does not contain their schedules", retained.Error);
     }
 
     [Fact]

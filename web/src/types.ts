@@ -7,6 +7,11 @@ export type LoadModel = 'external' | 'full_bodyweight' | 'bodyweight_context_onl
 export type ResistanceMode = 'external' | 'bodyweight' | 'added' | 'assistance' | 'reps_only';
 export type ExerciseCategory = 'Free Weights' | 'Machine' | 'Body Weight';
 export type Exercise = { id: string; slug: string; name: string; muscle: string; secondaryMuscles?: string[]; equipment: string; category?: ExerciseCategory; cue: string; aliases: string[]; loadStepKg: number; loadModel?: LoadModel; movementPattern?: string; source?: 'catalog' | 'custom'; isCustom?: boolean; archived?: boolean };
+export type CustomExerciseCreated = {
+  id: string; name: string; muscle: string; equipment: string; cue: string; loadStepKg: number;
+  loadModel: LoadModel; movementPattern: string; archived: boolean; createdAt: string;
+  secondaryMuscles?: string[]; category?: ExerciseCategory;
+};
 export type Preferences = { unit: Unit; theme: Theme; restSeconds?: number; restAlerts: boolean };
 export type Account = { id: string; displayName: string };
 
@@ -86,9 +91,9 @@ export type ImportDraft = { programName: string; workouts: DraftWorkout[]; sourc
 export type ProgramEditorDocument = ImportDraft;
 export type ImportView = {
   id: string; status: 'pending' | 'ready' | 'failed' | 'accepted' | 'discarded';
-  fileName: string; pages: number; error: string; created: string; model: string; stage: 'outline' | 'select' | 'extract' | 'done'; chunksDone: number; chunksTotal: number; currentChunkLabel: string | null; unresolvedCount: number;
+  fileName: string; pages: number; error: string; created: string; model: string; stage: 'outline' | 'select' | 'extract' | 'verify' | 'recover' | 'done' | 'failed'; chunksDone: number; chunksTotal: number; currentChunkLabel: string | null; unresolvedCount: number;
   draft: ImportDraft | null; unresolved: { lineId: string; sourceName: string; slotKey?: string | null; block?: string | null; occurrences?: number }[]; acceptable: boolean; programId: string | null;
-  reviewIssues?: { code: string; message: string; severity: string; sourcePage?: number | null; workoutLineId?: string | null; exerciseLineId?: string | null; setIndex?: number | null; targetField?: string | null }[]; inputTokens?: number; outputTokens?: number; retries?: number; pageCoverage?: { page: number; hasText: boolean; characterCount: number }[]; alternatives?: { id: string; name: string; chunkCount: number; dayCount: number }[]; selectedAlternativeId?: string | null;
+  reviewIssues?: { code: string; message: string; severity: string; sourcePage?: number | null; workoutLineId?: string | null; exerciseLineId?: string | null; setIndex?: number | null; targetField?: string | null }[]; inputTokens?: number; outputTokens?: number; retries?: number; pageCoverage?: { page: number; hasText: boolean; characterCount: number }[]; alternatives?: { id: string; name: string; chunkCount: number; dayCount: number; weekCount?: number | null; sessionsPerWeek?: number | null }[]; selectedAlternativeId?: string | null;
   revision: number; canRestoreDraft?: boolean; restorableExerciseLineIds?: string[];
 };
 export type ImportStatusView = {

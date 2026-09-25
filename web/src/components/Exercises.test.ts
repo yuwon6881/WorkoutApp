@@ -2,7 +2,8 @@ import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import type { Exercise } from '../types';
-import { ExerciseLibrary, getExerciseCategory } from './Exercises';
+import { getExerciseCategory } from '../lib/exerciseCategory';
+import { ExerciseLibrary } from './Exercises';
 
 const sampleExercises: Exercise[] = [
   { id: 'ex-bench', slug: 'bench', name: 'Barbell bench press', muscle: 'Chest', equipment: 'Barbell', cue: '', aliases: [], loadStepKg: 2.5, category: 'Free Weights' },

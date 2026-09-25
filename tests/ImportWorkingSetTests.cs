@@ -34,7 +34,7 @@ public sealed class ImportWorkingSetTests
         ["OpenAi:Model"] = "gpt-5.4-mini"
     };
 
-    private static ImportSourceInput Source() => new("nippard.pdf", 1, [new ImportPageText(1, "WEEK 1\nBench 3x5")]);
+    private static ImportSourceInput Source() => new("nippard.pdf", 1, [new ImportPageText(1, "WEEK 1\nBarbell bench press 3x5")]);
 
     private static StubHandler Reading(params string[] bodies)
     {

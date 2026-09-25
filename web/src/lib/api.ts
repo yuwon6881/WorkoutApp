@@ -1,5 +1,5 @@
 import type { PdfExtraction } from './pdfText';
-import type { Bootstrap, DraftWorkout, ExerciseClearPreview, ExerciseInsight, HistoryPage, ImportDraft, ImportStatusView, ImportView, MuscleBalanceRange, MuscleBalanceView, Preferences, ProgressSummary, Program, ProgramDayActionInput, ProgramEditorDocument, ProgramSummary, ProgramWeekResetInput, Session, Template, SubstitutionCandidate, TemplateSubstitutionResult, WatchDevice, WorkoutActivityItem } from '../types';
+import type { Bootstrap, CustomExerciseCreated, DraftWorkout, ExerciseClearPreview, ExerciseInsight, HistoryPage, ImportDraft, ImportStatusView, ImportView, MuscleBalanceRange, MuscleBalanceView, Preferences, ProgressSummary, Program, ProgramDayActionInput, ProgramEditorDocument, ProgramSummary, ProgramWeekResetInput, Session, Template, SubstitutionCandidate, TemplateSubstitutionResult, WatchDevice, WorkoutActivityItem } from '../types';
 
 export class ApiError extends Error {
   constructor(message: string, readonly status: number) { super(message); }
@@ -101,7 +101,7 @@ export const api = {
     if (input.imported?.length) params.set('imported', input.imported.join('|')); if (input.query) params.set('q', input.query);
     return call<SubstitutionCandidate[]>(`/api/exercises/substitutions?${params.toString()}`);
   },
-  createCustomExercise: (input: { name: string; muscle?: string; secondaryMuscles?: string[]; equipment?: string; cue?: string; loadStepKg: number; loadModel: string; movementPattern?: string; category?: string }) => call<unknown>('/api/exercises/custom', 'POST', input),
+  createCustomExercise: (input: { name: string; muscle?: string; secondaryMuscles?: string[]; equipment?: string; cue?: string; loadStepKg: number; loadModel: string; movementPattern?: string; category?: string }) => call<CustomExerciseCreated>('/api/exercises/custom', 'POST', input),
   deleteCustomExercise: (id: string) => call<void>(`/api/exercises/custom/${id}`, 'DELETE'),
   exerciseInsight: (id: string, range = '3m', page = 0, size = 20, signal?: AbortSignal) => call<ExerciseInsight>(`/api/exercises/${id}/insight?range=${range}&page=${page}&size=${size}`, 'GET', undefined, signal),
   exerciseClearPreview: (id: string, signal?: AbortSignal) => call<ExerciseClearPreview>(`/api/exercises/${id}/clear-preview`, 'GET', undefined, signal),

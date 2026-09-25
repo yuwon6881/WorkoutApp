@@ -154,7 +154,7 @@ public sealed class AppDb(DbContextOptions<AppDb> options) : DbContext(options)
         m.Entity<AiImport>().ToTable("Imports", t =>
         {
             t.HasCheckConstraint("CK_Imports_Status", "\"Status\" IN ('pending','ready','failed','accepted','discarded')");
-            t.HasCheckConstraint("CK_Imports_Stage", "\"Stage\" IN ('outline','select','extract','done')");
+            t.HasCheckConstraint("CK_Imports_Stage", "\"Stage\" IN ('outline','select','extract','verify','recover','done','failed')");
         });
         m.Entity<CompletedSet>().ToTable("Sets", t =>
         {

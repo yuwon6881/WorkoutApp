@@ -30,15 +30,16 @@ public sealed class ImportPrintedSectionTests
     {
         var pages = Book();
         var program = ImportTableEvidence.ReadPrintedSection(ImportPrintedSchedule.Read(pages)!.Days, Text(pages))!;
+        var days = program.Days!;
 
-        Assert.Equal(["Upper", "Lower", "Rest Day", "Upper", "Lower", "Rest Day"], program.Days!.Select(day => day.DayName));
-        Assert.Equal([1, 1, 1, 2, 2, 2], program.Days.Select(day => day.WeekNumber));
-        var pulldown = program.Days[0].Exercises[0];
+        Assert.Equal(["Upper", "Lower", "Rest Day", "Upper", "Lower", "Rest Day"], days.Select(day => day.DayName));
+        Assert.Equal([1, 1, 1, 2, 2, 2], days.Select(day => day.WeekNumber));
+        var pulldown = days[0].Exercises[0];
         Assert.Equal(("Lat Pulldown", "A1", 3), (pulldown.SourceName, pulldown.SequenceGroup, pulldown.Sets.Count));
         Assert.Equal([8d, 8d, 9d], pulldown.Sets.Select(set => set.TargetRpe));
         Assert.Equal("Long-length Partials", pulldown.Sets[^1].Notes);
         Assert.Null(pulldown.Sets[0].Notes);
-        Assert.Null(program.Days[1].Exercises[0].Sets[^1].Notes);
+        Assert.Null(days[1].Exercises[0].Sets[^1].Notes);
     }
 
     [Fact]
@@ -56,7 +57,12 @@ public sealed class ImportPrintedSectionTests
         var pages = Book();
         pages[2] = pages[2] with { Text = pages[2].Text.Replace("Hack Squat | N/A | 2 | 2 |", "Hack Squat | N/A | 2 | 2 or 3 |") };
 
-        Assert.Null(ImportTableEvidence.ReadPrintedSection(ImportPrintedSchedule.Read(pages)!.Days, Text(pages)));
+        var program = ImportTableEvidence.ReadPrintedSection(ImportPrintedSchedule.Read(pages)!.Days, Text(pages));
+        Assert.NotNull(program);
+        var squat = Assert.Single(program!.Days!.Single(day => day.DayName == "Lower" && day.WeekNumber == 1).Exercises,
+            exercise => exercise.SourceName == "Hack Squat");
+        Assert.Equal(2, squat.Sets.Count);
+        Assert.Contains("Printed working-set prescription: 2 or 3", squat.CoachingNotes);
     }
 
     [Fact]

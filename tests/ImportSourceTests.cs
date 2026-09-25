@@ -49,6 +49,18 @@ public sealed class ImportSourceTests
     }
 
     [Fact]
+    public void A_page_over_the_text_limit_is_refused_without_truncating_its_tail()
+    {
+        var input = Input((1, new string('x', ImportSourceText.MaxPageChars + 1)));
+
+        var failure = Assert.Throws<DomainException>(() => ImportSourceText.Normalize(input));
+
+        Assert.Equal(413, failure.Status);
+        Assert.Contains("PDF page 1", failure.Message);
+        Assert.Contains("Split", failure.Message);
+    }
+
+    [Fact]
     public void The_same_text_hashes_the_same_way_so_a_second_submission_resumes_the_first_import()
     {
         var first = ImportSourceText.Normalize(Input((1, "WEEK 1\nSquat 3x5")));
@@ -86,6 +98,28 @@ public sealed class ImportSourceTests
     }
 
     [Fact]
+    public void An_outline_that_exceeds_its_bound_fails_instead_of_dropping_later_pages()
+    {
+        var pages = Enumerable.Range(1, 400).Select(number => new ImportPageText(number, new string('x', 700))).ToList();
+
+        var failure = Assert.Throws<DomainException>(() => ImportSourceText.Outline(pages));
+
+        Assert.Equal(413, failure.Status);
+        Assert.Contains("Split", failure.Message);
+    }
+
+    [Fact]
+    public void A_section_that_exceeds_its_bound_fails_instead_of_dropping_later_pages()
+    {
+        var pages = Enumerable.Range(1, 11).Select(number => new ImportPageText(number, new string('x', ImportSourceText.MaxPageChars))).ToList();
+
+        var failure = Assert.Throws<DomainException>(() => ImportSourceText.Slice(pages, 1, 11));
+
+        Assert.Equal(413, failure.Status);
+        Assert.Contains("Split", failure.Message);
+    }
+
+    [Fact]
     public void A_chunk_reads_only_its_own_pages_in_full()
     {
         var pages = ImportSourceText.Normalize(Input((1, "Front matter"), (2, "WEEK 1"), (3, "WEEK 2"), (4, "Appendix")));
@@ -95,5 +129,18 @@ public sealed class ImportSourceTests
         Assert.DoesNotContain("Front matter", slice);
         Assert.DoesNotContain("Appendix", slice);
         Assert.Equal("", ImportSourceText.Slice(pages, 9, 10));
+    }
+
+    [Fact]
+    public void Normalization_keeps_unicode_line_separators_inside_a_table_cell()
+    {
+        const string separator = "\u2028";
+        var source = "DAY LABEL: Arms\nExercise | Last-Set Intensity Technique | WORKING SETS | Reps | Rest\n"
+            + $"Pressdown | Static Stretch{separator}(30 sec) | 2 | 12-15 | ~1-2 min";
+
+        var normalized = Assert.Single(ImportSourceText.Normalize(Input((1, source))));
+
+        Assert.Contains($"Static Stretch{separator}(30 sec) | 2 | 12-15 | ~1-2 min", normalized.Text);
+        Assert.DoesNotContain("Static Stretch\n(30 sec)", normalized.Text);
     }
 }

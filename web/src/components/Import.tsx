@@ -8,6 +8,7 @@ import { Modal } from './ui/Modal';
 import { DraftOutline, type DraftOutlineHandle, type ImportIssueTarget } from './ImportDraftTree';
 import { useImportPipeline, type ImportFailure, type ImportProgress } from './useImportPipeline';
 import { useImportDraftSaver } from './useImportDraftSaver';
+import './Import.css';
 
 /// What the import is doing. A read in flight covers every section the import still owes, because
 /// they are sent together rather than one after another, so it says how many are being read; a
@@ -15,6 +16,8 @@ import { useImportDraftSaver } from './useImportDraftSaver';
 function stageLabel(view: ImportView, reading = false) {
   if (view.stage === 'outline') return 'Reading the outline';
   if (view.stage === 'select') return 'Waiting for your choice';
+  if (view.stage === 'verify') return 'Checking extracted details against the PDF';
+  if (view.stage === 'recover') return 'Repairing source discrepancies';
   if (view.stage !== 'extract') return 'Reading';
   const remaining = Math.max(0, view.chunksTotal - view.chunksDone);
   if (!reading) return `Section ${Math.min(view.chunksDone + 1, view.chunksTotal)} of ${view.chunksTotal}`;
@@ -63,6 +66,7 @@ export function ImportReview({ exercises, imports, remaining, onBack, onChanged,
   const [confirmRestoreDraft, setConfirmRestoreDraft] = useState(false);
   const [isRestoringDraft, setIsRestoringDraft] = useState(false);
   const [draftRestoreError, setDraftRestoreError] = useState<string | null>(null);
+  const [alternativeChoice, setAlternativeChoice] = useState<string | null>(null);
   const file = useRef<HTMLInputElement>(null);
   const reviewRef = useRef<HTMLElement>(null);
   const outlineRef = useRef<DraftOutlineHandle>(null);
@@ -96,6 +100,10 @@ export function ImportReview({ exercises, imports, remaining, onBack, onChanged,
     }).catch(failure => { if (!cancelled) setSaveError(failure instanceof ApiError ? failure.message : 'Could not load this import.'); });
     return () => { cancelled = true; };
   }, [selected?.id]);
+
+  useEffect(() => {
+    setAlternativeChoice(selected?.stage === 'select' ? selected.selectedAlternativeId ?? null : null);
+  }, [selected?.id, selected?.stage, selected?.selectedAlternativeId]);
 
   async function handleRestoreExercise(exerciseLineId: string) {
     await saver.mutate((view, revision) => api.restoreImportExercise(view.id, exerciseLineId, revision), 'Could not restore exercise.');
@@ -164,11 +172,15 @@ export function ImportReview({ exercises, imports, remaining, onBack, onChanged,
           ? <Button variant="secondary" onClick={pipeline.cancelUpload}><X size={15} />Cancel PDF reading</Button>
           : undefined
       } />}
-      {!pipeline.uploadProgress && selected && selected.status === 'pending' && selected.stage === 'extract' && selected.chunksTotal > 0 && <Progress progress={{
+      {!pipeline.uploadProgress && selected && selected.status === 'pending' && ['extract', 'verify', 'recover'].includes(selected.stage) && selected.chunksTotal > 0 && <Progress progress={{
         label: stageLabel(selected, busy),
-        detail: busy && selected.chunksTotal - selected.chunksDone > 1
-          ? 'Sections commit in order as they land.'
-          : selected.currentChunkLabel ?? '',
+        detail: selected.stage === 'verify'
+          ? 'Comparing extracted sessions, exercises, sets, and prescriptions with printed source evidence.'
+          : selected.stage === 'recover'
+            ? 'Re-reading a section with a source discrepancy. Only source-supported corrections are applied.'
+            : busy && selected.chunksTotal - selected.chunksDone > 1
+              ? 'Sections commit in order as they land.'
+              : selected.currentChunkLabel ?? '',
         percent: Math.round((selected.chunksDone / selected.chunksTotal) * 100)
       }} action={
         <Button variant="destructive" onClick={() => void pipeline.cancel(selected)}><Trash2 size={15} />Cancel import</Button>
@@ -190,8 +202,40 @@ export function ImportReview({ exercises, imports, remaining, onBack, onChanged,
     {selected && selected.status === 'pending' && selected.stage === 'select' && selected.alternatives?.length ? <section className="panel import-reading-panel">
       <div className="empty-message"><Wand2 size={24} /><h3>Choose a program</h3>
         <p>This PDF contains several programs. Choose one before detailed extraction; its consecutive phases will stay together.</p>
-        <div className="settings-actions">{selected.alternatives.map(alternative => <Button key={alternative.id} variant="primary" disabled={busy}
-          onClick={() => void pipeline.chooseAlternative(selected, alternative.id)}>{alternative.name} · {alternative.dayCount} days</Button>)}</div>
+        <div className="alternative-cards-grid" role="group" aria-label="Available program versions">
+          {selected.alternatives.map(alternative => {
+            const chosen = alternativeChoice === alternative.id;
+            return (
+              <article key={alternative.id} className={`alternative-card ${chosen ? 'selected' : ''}`}>
+                <div className="alternative-card-body">
+                  <h4 className="alternative-card-title">{alternative.name}</h4>
+                  <div className="alternative-card-meta">
+                    {alternative.weekCount != null && <span className="pill pill-accent">{alternative.weekCount} week{alternative.weekCount === 1 ? '' : 's'}</span>}
+                    {alternative.sessionsPerWeek != null && <span className="pill">{alternative.sessionsPerWeek} sessions / week</span>}
+                    <span className="pill pill-muted">{alternative.dayCount} estimated sessions</span>
+                  </div>
+                </div>
+                <div className="alternative-card-action">
+                  <Button
+                    variant={chosen ? 'primary' : 'secondary'}
+                    disabled={busy}
+                    className="alternative-select-btn"
+                    aria-pressed={chosen}
+                    onClick={() => setAlternativeChoice(alternative.id)}
+                  >
+                    {chosen ? 'Selected' : 'Choose this version'}
+                  </Button>
+                </div>
+              </article>
+            );
+          })}
+        </div>
+        <div className="settings-actions alternative-selection-actions">
+          <Button variant="primary" disabled={busy || !alternativeChoice}
+            onClick={() => alternativeChoice && void pipeline.chooseAlternative(selected, alternativeChoice)}>
+            Continue with selected version
+          </Button>
+        </div>
       </div>
     </section> : null}
     {selected && selected.status === 'pending' && selected.stage !== 'select' && selected.error && <section className="panel import-reading-panel">
@@ -204,6 +248,7 @@ export function ImportReview({ exercises, imports, remaining, onBack, onChanged,
         </div>
         <div className="error-banner" role="alert"><AlertTriangle size={16} /><span>{selected.error}</span></div>
         <div className="reading-card-actions">
+          <Button variant="primary" disabled={busy} onClick={() => void pipeline.resume(selected)}><RotateCcw size={15} />Retry reading</Button>
           <Button variant="destructive" onClick={() => void pipeline.cancel(selected)}><Trash2 size={15} />Cancel import</Button>
         </div>
       </div>
@@ -270,6 +315,7 @@ export function ImportReview({ exercises, imports, remaining, onBack, onChanged,
           onDayChange={saver.persistDay}
           onDraftChange={saver.persist}
           onMapExerciseSlot={mapExerciseSlot}
+          onCustomExerciseCreated={onChanged}
           restorableExerciseLineIds={selected.restorableExerciseLineIds}
           onRestoreExercise={handleRestoreExercise}
           canRestoreDraft={selected.canRestoreDraft || saver.localDirty}
@@ -317,7 +363,20 @@ export function ImportReview({ exercises, imports, remaining, onBack, onChanged,
       </Modal>}
     </>}
 
-    {selected && selected.status === 'failed' && <section className="panel"><div className="empty-message"><AlertTriangle size={30} /><h3>Import failed</h3><p>{selected.error}</p>
-      <div className="reading-card-actions"><Button variant="destructive" onClick={() => void pipeline.cancel(selected)}><Trash2 size={15} />Cancel import</Button></div></div></section>}
+    {selected && selected.status === 'failed' && <section className="panel import-reading-panel" aria-labelledby="import-failed-title">
+      <div className="import-reading-card">
+        <div className="reading-card-header">
+          <div className="reading-card-title"><AlertTriangle size={18} className="red" /><h3 id="import-failed-title">Import stopped</h3></div>
+        </div>
+        {selected.error && <div className="error-banner" role="alert"><AlertTriangle size={16} /><span>{selected.error}</span></div>}
+        {selected.reviewIssues?.filter(issue => issue.severity !== 'info').map((issue, index) => <div className="import-failed-issue" key={`${issue.code}-${issue.sourcePage ?? 'source'}-${index}`}>
+          <p>{issue.message}</p>
+          {(issue.sourcePage || issue.targetField) && <small>{[issue.sourcePage ? `PDF p.${issue.sourcePage}` : null, issue.targetField].filter(Boolean).join(' · ')}</small>}
+        </div>)}
+        <div className="reading-card-actions">
+          <Button variant="destructive" onClick={() => void pipeline.cancel(selected)}><Trash2 size={15} />Discard failed import</Button>
+        </div>
+      </div>
+    </section>}
   </>;
 }

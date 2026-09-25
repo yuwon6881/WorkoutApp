@@ -66,8 +66,12 @@ public sealed class WorkoutAi(HttpClient http, IConfiguration config)
     /// clean-table session the read missed; v32 retires the two book-specific schedules for that general
     /// path, which also reads a printed schedule's weeks when the outline leaves its pages out;
     /// v33 reads sections printed entirely as clean tables without a model request and keeps a
-    /// "Superset A1:" tag out of the movement name.
-    public const string PromptVersion = "workout-import-v33-printed-sections";
+    /// "Superset A1:" tag out of the movement name; v34 preserves rest-session week ownership,
+    /// refuses unexplained schedule truncation and malformed effort shortcuts, and keeps complete
+    /// source text within explicit per-page, outline, and section bounds;
+    /// v35 serializes verification scoring over the shared reader context, trusts a unique printed
+    /// week on a page over a conflicting model label, and requires source-verified completion.
+    public const string PromptVersion = "workout-import-v35-verified-recovery";
 
     /// One cheap pass over a page-by-page view of the document. Most of a commercial training PDF
     /// is explanation and photography; this pass exists to find the few pages that actually carry

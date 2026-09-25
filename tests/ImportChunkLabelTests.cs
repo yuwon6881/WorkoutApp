@@ -34,7 +34,7 @@ public sealed class ImportChunkLabelTests
     };
 
     private static ImportSourceInput Source() => new("nippard.pdf", 2,
-        Enumerable.Range(1, 2).Select(page => new ImportPageText(page, $"WEEK {page}\nBench 3x5")).ToList());
+        Enumerable.Range(1, 2).Select(page => new ImportPageText(page, $"WEEK {page}\nBarbell bench press 3x5")).ToList());
 
     /// Sections are read concurrently, so the stand-in answers by what a request asks for rather
     /// than by the order it arrives in.

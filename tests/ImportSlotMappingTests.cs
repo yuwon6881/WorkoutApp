@@ -14,7 +14,7 @@ public sealed class ImportSlotMappingTests
 
     private static ImportSourceInput Source() => new("min-max.pdf", 4,
         Enumerable.Range(1, 4).Select(page => new ImportPageText(page,
-            $"{(page <= 2 ? "BLOCK 1" : "BLOCK 2")}{(page == 3 ? "\nDELOAD WEEK" : "")}\nWEEK {page}\nSquat 2 x 6-8")).ToList());
+            $"{(page <= 2 ? "BLOCK 1" : "BLOCK 2")}{(page == 3 ? "\nDELOAD WEEK" : "")}\nWEEK {page}\nSquat (Your Choice) 2 x 6-8\nSmith Machine Leg Press Squat 2 x 6-8\nANDERSON SQUAT 2 x 6-8")).ToList());
 
     private static string Program => $$"""
         {"programName":"Min-Max","programTitle":"Min-Max","days":[
@@ -177,7 +177,11 @@ public sealed class ImportSlotMappingTests
         var facePull = await harness.ExerciseId("rear-fly");
         var imports = harness.Imports(StubHandler.Program(program));
         var source = new ImportSourceInput("pb3.pdf", 3,
-            Enumerable.Range(1, 3).Select(page => new ImportPageText(page, $"WEEK {page}\nSEATED FACE PULL | 0 | 3")).ToList());
+        [
+            new(1, "WEEK 1\nANDERSON SQUAT 1x8\nSEATED FACE PULL | 0 | 3"),
+            new(2, "WEEK 2\nBARBELL BOX SQUAT 1x8\nSEATED FACE PULL | 0 | 3"),
+            new(3, "WEEK 3\nSTRICT BENCH PRESS 1x1\nSeated Leg Curl 1x6-8\nSEATED FACE PULL | 0 | 3")
+        ]);
 
         var view = await imports.Create(source, default);
         var row = Assert.Single(view.Unresolved, item => item.SourceName.Equals("Seated Face Pull", StringComparison.OrdinalIgnoreCase));

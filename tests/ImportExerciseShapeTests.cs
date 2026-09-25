@@ -38,7 +38,8 @@ public sealed class ImportExerciseShapeTests
         ["OpenAi:Model"] = "gpt-5.4-mini"
     };
 
-    private static ImportSourceInput Source() => new("nippard.pdf", 1, [new ImportPageText(1, "WEEK 1\nBench 3x5")]);
+    private static ImportSourceInput Source() => new("nippard.pdf", 1,
+        [new ImportPageText(1, "WEEK 1\nBarbell bench press 3x5\nAssault bike finisher\nSmith Machine Leg Press Squat")]);
 
     private static StubHandler Reading(params string[] bodies)
     {
@@ -50,7 +51,7 @@ public sealed class ImportExerciseShapeTests
     }
 
     [Fact]
-    public async Task A_movement_listed_with_no_prescription_is_kept_with_one_unspecified_set()
+    public async Task A_movement_listed_with_no_prescription_fails_with_a_retained_explanation()
     {
         await using var h = await Harness.Create(Configured());
         await h.SignIn();
@@ -58,16 +59,13 @@ public sealed class ImportExerciseShapeTests
             Day($"{Exercise("Barbell bench press", OneSet)},{Exercise("Assault bike finisher", "")}")));
 
         var pending = await imports.Create(Source(), default);
-        var ready = await imports.Extract(pending.Id, default);
+        var failure = await Assert.ThrowsAsync<ImportVerificationException>(() => imports.Extract(pending.Id, default));
+        Assert.Contains("exercise_without_sets", failure.Message);
 
-        Assert.Equal(ImportStatus.Ready, ready.Status);
-        var finisher = ready.Draft!.Workouts.Single().Exercises.Single(e => e.SourceName == "Assault bike finisher");
-        var set = Assert.Single(finisher.Sets);
-        // Nothing is invented beyond the one bound a stored set must have, and it says so.
-        Assert.Equal("inferred", set.RepsSource);
-        Assert.Null(set.TargetRpe);
-        Assert.Null(set.RestSeconds);
-        Assert.Contains(ready.ReviewIssues!, issue => issue.Code == "exercise_without_sets" && issue.Message.Contains("Assault bike finisher"));
+        var failed = await imports.Get(pending.Id, default);
+        Assert.Equal(ImportStatus.Failed, failed.Status);
+        Assert.Contains(failed.ReviewIssues!, issue => issue.Code == "exercise_without_sets" && issue.Message.Contains("Assault bike finisher"));
+        Assert.Contains(failed.Draft!.Workouts.Single().Exercises, exercise => exercise.SourceName == "Assault bike finisher");
     }
 
     [Fact]

@@ -31,7 +31,7 @@ public sealed class ImportActiveWorkoutGateTests
     };
 
     private static ImportSourceInput Source() =>
-        new("nippard.pdf", 1, [new ImportPageText(1, "BLOCK 1\nINTRO\nWEEK 1\nBench 3x5")]);
+        new("nippard.pdf", 1, [new ImportPageText(1, "BLOCK 1\nINTRO\nWEEK 1\nBarbell bench press 3x5")]);
 
     private sealed class StubHandler : HttpMessageHandler
     {

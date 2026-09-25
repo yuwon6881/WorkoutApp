@@ -42,7 +42,9 @@ public record ImportReviewIssue(
     int? SourcePageTo = null,
     int? WeekFrom = null,
     int? WeekTo = null);
-public record ImportAlternative(string Id, string Name, int ChunkCount, int DayCount, List<ImportChunk>? Chunks = null);
+public record ImportAlternative(
+    string Id, string Name, int ChunkCount, int DayCount, List<ImportChunk>? Chunks = null,
+    int? WeekCount = null, int? SessionsPerWeek = null);
 public record ImportRestoreInput(int? Revision = null);
 public record ImportSlotMappingInput(Guid ExerciseLineId, Guid? ReplacementExerciseId, int? Revision = null);
 

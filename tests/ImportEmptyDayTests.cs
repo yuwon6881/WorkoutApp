@@ -42,7 +42,7 @@ public sealed class ImportEmptyDayTests
     };
 
     private static ImportSourceInput Source() => new("nippard.pdf", 2,
-        Enumerable.Range(1, 2).Select(page => new ImportPageText(page, $"WEEK {page}\nBench 3x5")).ToList());
+        Enumerable.Range(1, 2).Select(page => new ImportPageText(page, $"WEEK {page}\nBarbell bench press 3x5")).ToList());
 
     private sealed class SectionHandler(Func<string, HttpResponseMessage> respond) : HttpMessageHandler
     {
@@ -56,7 +56,7 @@ public sealed class ImportEmptyDayTests
     };
 
     [Fact]
-    public async Task A_day_read_with_no_exercises_becomes_the_rest_day_it_describes()
+    public async Task An_empty_training_day_fails_with_a_retained_source_verification_issue()
     {
         await using var h = await Harness.Create(Configured());
         await h.SignIn();
@@ -68,16 +68,18 @@ public sealed class ImportEmptyDayTests
             : Answer(Days(Training(2, "Main", 1)))));
 
         var pending = await imports.Create(Source(), default);
-        var ready = await imports.Extract(pending.Id, default);
+        var failure = await Assert.ThrowsAsync<ImportVerificationException>(() => imports.Extract(pending.Id, default));
+        Assert.Contains("day_without_exercises", failure.Message);
 
-        Assert.Equal(ImportStatus.Ready, ready.Status);
-        var rest = ready.Draft!.Workouts.Single(day => day.Name == "Week 1 Rest");
+        var failed = await imports.Get(pending.Id, default);
+        Assert.Equal(ImportStatus.Failed, failed.Status);
+        var rest = failed.Draft!.Workouts.Single(day => day.Name == "Week 1 Rest");
         Assert.True(rest.IsRestDay);
         Assert.Empty(rest.Exercises);
         // What the page said about the day is kept; only its shape changed.
         Assert.Equal("Walk if you feel like it", rest.Notes);
-        Assert.Contains(ready.ReviewIssues!, issue => issue.Code == "day_without_exercises");
-        Assert.Equal(2, ready.Draft.Workouts.Count(day => !day.IsRestDay));
+        Assert.Contains(failed.ReviewIssues!, issue => issue.Code == "day_without_exercises");
+        Assert.Equal(2, failed.Draft.Workouts.Count(day => !day.IsRestDay));
     }
 
     [Fact]

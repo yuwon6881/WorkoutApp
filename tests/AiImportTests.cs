@@ -189,7 +189,10 @@ public class AiImportTests
         await h.Seed(new SeedExercise("constant-curl", "Constant-Tension Lying Leg Curl", "Hamstrings", "Machine", "Control the eccentric", null));
         var source = Source("faithful.pdf") with
         {
-            Pages = Source("faithful.pdf").Pages.Select(page => page with { Text = $"BLOCK 1\nBASE HYPERTROPHY\nConstant-Tension Lying Leg Curl 3 x 8-12\n{page.Text}" }).ToList()
+            Pages = Source("faithful.pdf").Pages.Select(page => page with
+            {
+                Text = $"BLOCK 1\nBASE HYPERTROPHY\nWEEK 1\nConstant-Tension Lying Leg Curl 3 x 8-12\nBarbell bench press 3 x 8-10 @ RPE 8"
+            }).ToList()
         };
         var partial = await imports.Create(source, default);
 
@@ -301,19 +304,19 @@ public class AiImportTests
         Assert.Equal(ProgramLifecycle.Standby, accepted.LifecycleStatus);
     }
 
-    [Fact] public async Task A_target_the_read_could_not_confirm_as_blank_blocks_until_reviewed()
+    [Fact] public async Task A_target_the_read_could_not_confirm_as_blank_fails_with_a_specific_explanation()
     {
         await using var h = await Harness.Create(Configured);
         await h.SignIn();
         await h.Seed(new SeedExercise("bench", "Barbell bench press", "Chest", "Barbell", "Cue", null));
         var body = OneWorkout.Replace("\"targetRpe\":8", "\"targetRpe\":null");
         var imports = h.Imports(StubHandler.Program(body));
-        var view = await imports.Create(Source("unread.pdf"), default);
-
-        Assert.False(view.Acceptable);
-        Assert.Contains(view.ReviewIssues!, issue => issue.Code == "rpe_unread" && issue.Severity == "warning");
-        var failure = await Assert.ThrowsAsync<DomainException>(() => imports.Accept(view.Id, default));
-        Assert.Equal(409, failure.Status);
+        var failure = await Assert.ThrowsAsync<ImportVerificationException>(() => imports.Create(Source("unread.pdf"), default));
+        Assert.Contains("rpe_unread", failure.Message);
+        var failedImport = Assert.Single(await imports.List(default));
+        var failed = await imports.Get(failedImport.Id, default);
+        Assert.Equal(ImportStatus.Failed, failed.Status);
+        Assert.Contains(failed.ReviewIssues!, issue => issue.Code == "rpe_unread" && issue.Severity == "warning");
     }
 
     [Fact] public async Task An_exercise_already_in_the_library_is_matched_by_name()
@@ -386,9 +389,8 @@ public class AiImportTests
         Assert.Equal(1, stub.Calls);
     }
 
-    /// A failed import is removed outright. Its reason travels back in the response that reports
-    /// it, and nothing is kept for the user to find and clear later.
-    [Fact] public async Task A_failed_import_leaves_nothing_behind()
+    /// A provider failure is retryable and keeps source text so a retry does not need another PDF read.
+    [Fact] public async Task A_provider_failure_keeps_the_import_and_source_for_retry()
     {
         await using var h = await Harness.Create(Configured);
         await h.SignIn();
@@ -396,8 +398,11 @@ public class AiImportTests
         var failure = await Assert.ThrowsAsync<DomainException>(() => imports.Create(Source("block.pdf"), default));
 
         Assert.NotEmpty(failure.Message);
-        Assert.Empty(await h.Db.Imports.AsNoTracking().ToListAsync());
-        Assert.Empty(await imports.List(default));
+        var row = Assert.Single(await h.Db.Imports.AsNoTracking().ToListAsync());
+        Assert.Equal(ImportStatus.Pending, row.Status);
+        Assert.NotEmpty(row.SourceTextJson);
+        Assert.NotEmpty(row.Error);
+        Assert.Single(await imports.List(default));
     }
 
     [Fact] public async Task A_refusal_is_reported_rather_than_salvaged()
@@ -563,7 +568,15 @@ public class AiImportTests
             };
         });
         var imports = h.Imports(stub);
-        var pending = await imports.Create(Source("choices.pdf"), default);
+        var source = Source("choices.pdf");
+        source = source with
+        {
+            Pages = source.Pages.Select(page => page with
+            {
+                Text = $"WEEK 1\nConstant-Tension Lying Leg Curl 3 x 8-12\n{page.Text}"
+            }).ToList()
+        };
+        var pending = await imports.Create(source, default);
         Assert.Equal("select", pending.Stage);
         Assert.Equal(["Full Body", "Upper/Lower", "Body Part Split"], pending.Alternatives!.Select(option => option.Name));
         var selected = await imports.SelectAlternative(pending.Id, "upper-lower", default);

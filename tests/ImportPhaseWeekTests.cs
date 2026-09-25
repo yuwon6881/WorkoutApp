@@ -86,7 +86,7 @@ public sealed class ImportPhaseWeekTests
     }
 
     [Fact]
-    public async Task A_phase_that_skips_a_week_is_flagged_for_review_rather_than_refused()
+    public async Task A_phase_that_skips_a_week_fails_with_a_specific_retained_explanation()
     {
         await using var h = await Harness.Create(Configured());
         await h.SignIn();
@@ -94,13 +94,15 @@ public sealed class ImportPhaseWeekTests
         var imports = h.Imports(Reading(Outline, Days((1, 1, "Accumulation"), (3, 2, "Accumulation"))));
 
         var pending = await imports.Create(Source(), default);
-        var ready = await imports.Extract(pending.Id, default);
+        var failure = await Assert.ThrowsAsync<ImportVerificationException>(() => imports.Extract(pending.Id, default));
+        Assert.Contains("phase_week_gap", failure.Message);
 
-        Assert.Equal(ImportStatus.Ready, ready.Status);
-        var issue = Assert.Single(ready.ReviewIssues!, issue => issue.Code == "phase_week_gap");
+        var failed = await imports.Get(pending.Id, default);
+        Assert.Equal(ImportStatus.Failed, failed.Status);
+        var issue = Assert.Single(failed.ReviewIssues!, issue => issue.Code == "phase_week_gap");
         Assert.Contains("jumps from week 1 to week 3", issue.Message);
         Assert.Equal("warning", issue.Severity);
-        Assert.False(ready.Acceptable);
+        Assert.Equal(2, failed.Draft!.Workouts.Count);
     }
 
     [Fact]

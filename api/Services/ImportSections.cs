@@ -22,7 +22,7 @@ internal static class ImportSections
     /// an estimate made from page previews and is regularly wrong in both directions, so a section
     /// that claims to be small is still divided when it covers a stretch of the document too long
     /// to answer in one go.
-    public const int MaxSectionPages = 12;
+    public const int MaxSectionPages = 9;
 
     /// A divided outline holds more sections than the model drew, so the ceiling on how many an
     /// import may hold is its own, well above what any document has needed.

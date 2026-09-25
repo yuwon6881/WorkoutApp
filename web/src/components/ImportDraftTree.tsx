@@ -31,6 +31,7 @@ export const DraftOutline = forwardRef<DraftOutlineHandle, {
   onDayChange: (day: DraftWorkout) => Promise<void>;
   onDraftChange: (draft: ImportDraft) => Promise<void>;
   onMapExerciseSlot?: (exerciseLineId: string, exerciseId: string | null) => Promise<void>;
+  onCustomExerciseCreated?: () => Promise<void>;
   restorableExerciseLineIds?: string[];
   onRestoreExercise?: (exerciseLineId: string) => Promise<void>;
   canRestoreDraft?: boolean;
@@ -52,6 +53,7 @@ export const DraftOutline = forwardRef<DraftOutlineHandle, {
   onDayChange,
   onDraftChange,
   onMapExerciseSlot,
+  onCustomExerciseCreated,
   restorableExerciseLineIds,
   onRestoreExercise,
   canRestoreDraft,
@@ -204,6 +206,7 @@ export const DraftOutline = forwardRef<DraftOutlineHandle, {
         onDayChange={onDayChange}
         onPropagateSubstitution={propagateSubstitution}
         onMapExerciseSlot={onMapExerciseSlot}
+        onCustomExerciseCreated={onCustomExerciseCreated}
         restorableExerciseLineIds={restorableExerciseLineIds}
         onRestoreExercise={onRestoreExercise}
       />

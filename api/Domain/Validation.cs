@@ -3,7 +3,7 @@ using Workout.Api.Services;
 
 namespace Workout.Api.Domain;
 
-public sealed class DomainException(string message, int status = 400) : Exception(message)
+public class DomainException(string message, int status = 400) : Exception(message)
 {
     public int Status { get; } = status;
 }

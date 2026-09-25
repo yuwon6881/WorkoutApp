@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Collections.Concurrent;
 using Microsoft.EntityFrameworkCore;
 using Workout.Api.Data;
 using Workout.Api.Domain;
@@ -58,7 +59,11 @@ public sealed partial class ImportService
             }
             else
             {
-                Validation.Require(import.Status == ImportStatus.Pending && import.Stage == "extract", "This import is not waiting for another extraction pass.", 409);
+                Validation.Require(import.Status == ImportStatus.Pending && import.Stage is "extract" or "verify" or "recover", "This import is not waiting for another extraction pass.", 409);
+                // A process may have stopped during verification or a corrective read. Its
+                // persisted chunk responses are either already complete or are replayed below;
+                // restart the visible phase from the work still owed.
+                import.Stage = "extract";
                 import.Error = "";
                 import.Revision++;
                 var chunks = ReadChunks(import.OutlineJson);
@@ -102,6 +107,9 @@ public sealed partial class ImportService
         var completedThisPass = new HashSet<int>();
         var failures = new Dictionary<int, DomainException>();
         var leaseLost = false;
+        var chunkStages = new ConcurrentDictionary<int, string>(pending
+            .Where(item => item.Text.Length > 0 && !results.ContainsKey(item.Index))
+            .Select(item => new KeyValuePair<int, string>(item.Index, "extract")));
         var identifier = AuthService.Hash(user.ToString())[..32];
         // Concurrency is bounded so one import cannot open an unlimited number of provider
         // requests at once; a handful in flight is what turns the sum of the sections into the
@@ -110,34 +118,66 @@ public sealed partial class ImportService
         using (var inFlight = new SemaphoreSlim(Math.Max(1, config?.GetValue("OpenAi:MaxConcurrentChunks", 8) ?? 8)))
         using (var persistGate = new SemaphoreSlim(1, 1))
         {
+            async Task UpdateChunkStage(int index, string? stage)
+            {
+                if (stage is null) chunkStages.TryRemove(index, out _);
+                else chunkStages[index] = stage;
+                var persisted = await PersistProgressStage(id, leaseId, persistGate,
+                    () => chunkStages.Values.Contains("extract") ? "extract"
+                        : chunkStages.Values.Contains("recover") ? "recover"
+                        : chunkStages.Values.Contains("verify") ? "verify" : "extract", CancellationToken.None);
+                if (!persisted) leaseLost = true;
+            }
+
             await Task.WhenAll(pending.Where(item => item.Text.Length > 0 && !results.ContainsKey(item.Index)).Select(async item =>
             {
                 await inFlight.WaitAsync(ct);
                 try
                 {
                     var result = await ai.ExtractChunk(item.Text, [], identifier, Directive(item.Chunk), ct);
+                    await UpdateChunkStage(item.Index, "verify");
                     var chunkPages = sourcePages.Where(page => page.Page >= item.Chunk.PageFrom &&
                         page.Page <= item.Chunk.PageTo).ToList();
                     var printedDays = ImportDayLabels.Read(chunkPages).Values.Sum(labels => labels.Count);
-                    var firstDays = result.Program.Days?.Count(day => !day.IsRestDay) ?? 0;
-                    if (printedDays > firstDays && await TryReserveRecoveryRead(id, leaseId, persistGate, ct))
+                    var bestProgram = result.Program;
+                    var bestModel = result.Model;
+                    var totalInputTokens = result.InputTokens;
+                    var totalOutputTokens = result.OutputTokens;
+                    var totalCachedInputTokens = result.CachedInputTokens;
+                    int bestScore;
+                    await persistGate.WaitAsync(ct);
+                    try { bestScore = await RecoveryScore(result, chunkPages, printedDays, ct); }
+                    finally { persistGate.Release(); }
+                    for (var attempt = 1; attempt <= 2 && bestScore > 0; attempt++)
                     {
+                        if (!await TryReserveRecoveryRead(id, leaseId, persistGate, ct)) break;
+                        await UpdateChunkStage(item.Index, "recover");
                         try
                         {
                             var recovered = await ai.ExtractChunk(item.Text, [], identifier,
-                                Directive(item.Chunk) + $" A prior read returned {firstDays} training days, but these pages print {printedDays} DAY LABEL titles. Re-read every table and return the complete section, including the missing titled days.", ct);
-                            var recoveredDays = recovered.Program.Days?.Count(day => !day.IsRestDay) ?? 0;
-                            result = new AiImportResult(recoveredDays > firstDays ? recovered.Program : result.Program,
-                                recovered.Model, result.InputTokens + recovered.InputTokens,
-                                result.OutputTokens + recovered.OutputTokens,
-                                result.CachedInputTokens + recovered.CachedInputTokens);
+                                Directive(item.Chunk) + $" Verification pass {attempt} of 2: compare every printed day label, exercise row, set row, and prescription cell on these pages with the prior extraction. Resolve missing or extra rows and values only from the printed source; preserve any source ambiguity instead of guessing.", ct);
+                            await UpdateChunkStage(item.Index, "verify");
+                            totalInputTokens += recovered.InputTokens;
+                            totalOutputTokens += recovered.OutputTokens;
+                            totalCachedInputTokens += recovered.CachedInputTokens;
+                            int recoveredScore;
+                            await persistGate.WaitAsync(ct);
+                            try { recoveredScore = await RecoveryScore(recovered, chunkPages, printedDays, ct); }
+                            finally { persistGate.Release(); }
+                            if (recoveredScore < bestScore)
+                            {
+                                bestProgram = recovered.Program;
+                                bestModel = recovered.Model;
+                                bestScore = recoveredScore;
+                            }
                         }
                         catch (DomainException)
                         {
-                            // The first valid read is still useful. Its missing printed days are
-                            // reported by chunk reconciliation rather than hiding the omission.
+                            // Keep the best valid response. Final source verification below decides
+                            // whether a remaining discrepancy can be exposed as a draft.
                         }
                     }
+                    result = new AiImportResult(bestProgram, bestModel, totalInputTokens, totalOutputTokens, totalCachedInputTokens);
                     lock (results)
                     {
                         results[item.Index] = result;
@@ -172,8 +212,20 @@ public sealed partial class ImportService
                 {
                     lock (failures) failures[item.Index] = new DomainException("That extraction chunk did not finish. Try again.", 503);
                 }
-                finally { inFlight.Release(); }
+                finally
+                {
+                    chunkStages.TryRemove(item.Index, out _);
+                    inFlight.Release();
+                }
             }));
+        }
+
+        // All provider work for this pass has settled. Ordered reconciliation and persistence
+        // are a separate phase, so the status must stop claiming that a read is still underway.
+        if (!leaseLost)
+        {
+            using var progressGate = new SemaphoreSlim(1, 1);
+            await PersistProgressStage(id, leaseId, progressGate, () => "extract", CancellationToken.None);
         }
 
         // Persist any remaining successful provider responses before attempting ordered draft
@@ -242,7 +294,7 @@ public sealed partial class ImportService
                         {
                             notices.Add(new ImportReviewIssue("section_without_text",
                                 $"'{item.Chunk.Label}' (PDF pages {item.Chunk.PageFrom}-{item.Chunk.PageTo}) has no selectable text and was skipped.",
-                                "warning", item.Chunk.PageFrom));
+                                "info", item.Chunk.PageFrom));
                         }
                         else
                         {
@@ -279,6 +331,11 @@ public sealed partial class ImportService
                             merged = FinalizeDraft(merged, sourcePages, import, notices);
                             await ValidateDraft(merged, settle);
                             ValidateDraftPages(merged, import.PageCoverageJson);
+                            // Keep the full source-reconciled draft available if final verification
+                            // finds an irreducible source ambiguity. The import still fails closed,
+                            // but its terminal explanation can show the material the reader did resolve.
+                            draft = merged;
+                            RequireVerifiedDraft(merged, import, notices);
                         }
                         draft = merged;
                         AdvanceChunk(import, item.Index, notices);
@@ -300,7 +357,10 @@ public sealed partial class ImportService
         }
         if (stopped is not null)
         {
-            await RecordRetryableFailure(id, stopped.Message, leaseId);
+            if (stopped is ImportVerificationException verification)
+                await FailImport(id, stopped.Message, leaseId, "source_verification_failed",
+                    verification.Issue);
+            else await RecordRetryableFailure(id, stopped.Message, leaseId);
             throw stopped;
         }
         return await Get(id, ct);
@@ -323,41 +383,6 @@ public sealed partial class ImportService
             await RecordBackgroundFailure(id, "That extraction did not finish. Try again.");
         }
     }
-
-    /// What one section asks the model for. The outline's day count travels with it as an estimate
-    /// rather than an instruction, because the pages themselves are the authority on how many days
-    /// they document.
-    private static string Directive(ImportChunk chunk)
-        => $"Extract only chunk '{chunk.Label}', covering block '{chunk.Block}', phase '{chunk.Phase}', absolute weeks {chunk.WeekFrom}-{chunk.WeekTo}, pages {chunk.PageFrom}-{chunk.PageTo}. " +
-           $"The outline estimated about {chunk.DayCount} days; return every day these pages actually document, and no days from other chunks.";
-
-    private async Task<bool> TryReserveRecoveryRead(Guid id, string leaseId, SemaphoreSlim persistGate, CancellationToken ct)
-    {
-        await persistGate.WaitAsync(ct);
-        try
-        {
-            await using var gate = await MutationLock.Acquire(db, db.CurrentUser, ct);
-            var import = await db.Imports.SingleOrDefaultAsync(row => row.Id == id, ct);
-            if (import is null || import.Status != ImportStatus.Pending || !OwnsLease(import, leaseId))
-            {
-                await gate.Commit(ct);
-                return false;
-            }
-            try { await Meter(import, ct); }
-            catch (DomainException)
-            {
-                await gate.Commit(ct);
-                return false;
-            }
-            RenewLease(import);
-            import.Revision++;
-            await db.SaveChangesAsync(ct);
-            await gate.Commit(ct);
-            return true;
-        }
-        finally { persistGate.Release(); }
-    }
-
     /// One section waiting to be read, with the page text it covers. An empty text means the
     /// section's pages carry none, and Printed a section read from its clean tables; neither
     /// needs a model call.
@@ -400,16 +425,27 @@ public sealed partial class ImportService
         catch (DomainException) { return []; }
     }
 
-    private async Task FailImport(Guid importId, string message, string? leaseId = null)
+    private async Task FailImport(Guid importId, string message, string? leaseId = null, string code = "import_failed",
+        ImportReviewIssue? terminalIssue = null)
     {
         var settle = CancellationToken.None;
         db.ChangeTracker.Clear();
         await using var gate = await MutationLock.Acquire(db, db.CurrentUser, settle);
         var import = await db.Imports.SingleOrDefaultAsync(i => i.Id == importId, settle);
         if (import is null || import.Status != ImportStatus.Pending || (leaseId is not null && !OwnsLease(import, leaseId))) { await gate.Commit(settle); return; }
-        // A failed import leaves nothing worth keeping. The reason travels back in the response
-        // that reports it, so the row is removed instead of lingering in the list forever.
-        db.Imports.Remove(import);
+        // Keep the terminal explanation available to the polling UI, but clear document text and
+        // intermediate model responses at the terminal boundary.
+        import.Status = ImportStatus.Failed;
+        // The import stage is constrained to the reader's persisted stages. Status carries the
+        // terminal failure state; keeping the last reader stage lets existing clients continue
+        // rendering their stage-specific progress and review data.
+        import.Stage = "failed";
+        import.Error = message;
+        import.NoticesJson = Json.Write(ImportReviewNotices.Merge(ReadNotices(import.NoticesJson),
+            [terminalIssue ?? new ImportReviewIssue(code, message, "warning")]));
+        ClearSource(import);
+        ReleaseLease(import);
+        import.Revision++;
         await db.SaveChangesAsync(settle);
         await gate.Commit(settle);
     }

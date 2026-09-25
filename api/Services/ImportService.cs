@@ -16,7 +16,7 @@ public sealed partial class ImportService(AppDb db, WorkoutAi ai, CatalogService
     public async Task<List<ImportView>> List(CancellationToken ct)
     {
         var rows = await db.Imports.AsNoTracking()
-            .Where(i => i.Status == ImportStatus.Pending || i.Status == ImportStatus.Ready)
+            .Where(i => i.Status == ImportStatus.Pending || i.Status == ImportStatus.Ready || i.Status == ImportStatus.Failed)
             .OrderByDescending(i => i.Created).Take(10).ToListAsync(ct);
         var views = new List<ImportView>();
         foreach (var row in rows) views.Add(await View(row, includeDraft: false, ct));
@@ -88,6 +88,7 @@ public sealed partial class ImportService(AppDb db, WorkoutAi ai, CatalogService
         // Reading notes are recorded as the import runs and are as much a part of the review as
         // the issues derived from the draft, so both reach the panel through one list.
         issues = [.. FilterNotices(ReadNotices(import.NoticesJson), draft), .. issues];
+        issues = issues.Distinct().ToList();
         var coverage = string.IsNullOrWhiteSpace(import.PageCoverageJson) ? [] : Json.Read<List<PdfPageCoverage>>(import.PageCoverageJson);
         var alternatives = string.IsNullOrWhiteSpace(import.AlternativesJson) ? [] : Json.Read<List<ImportAlternative>>(import.AlternativesJson);
         var acceptable = import.Status == ImportStatus.Ready && unresolved.Count == 0 && issues.All(i => i.Severity == "info");
@@ -167,7 +168,7 @@ public sealed partial class ImportService(AppDb db, WorkoutAi ai, CatalogService
                 Guid? id = Guid.TryParse(source.ExerciseId, out var parsed) && active.Contains(parsed) ? parsed : null;
                 id ??= CatalogMatching.Find(library, cleanName);
                 if (id == null && cleanName != rawName) id ??= CatalogMatching.Find(library, rawName);
-                var working = source.Sets.Select(ToDraftSet).Select(ImportSetKinds.Tagged).ToList();
+                var working = source.Sets.Select(set => ToDraftSet(set, source.SourcePage)).Select(ImportSetKinds.Tagged).ToList();
                 // A training table states its working sets as a count in its own column — "WORKING
                 // SETS: 2" — rather than as one row per set, and a read that returns a single row
                 // for it loses every set but one. The stated count is authoritative over the rows:
@@ -238,7 +239,7 @@ public sealed partial class ImportService(AppDb db, WorkoutAi ai, CatalogService
             .Key;
     }
 
-    private static DraftSet ToDraftSet(AiSet set)
+    private static DraftSet ToDraftSet(AiSet set, int? exerciseSourcePage)
     {
         // A stored set needs rep bounds, an RPE on the 6-10 half-point scale, and a rest inside
         // an hour. A row written as a timed hold, an AMRAP finisher, or a high-to-low range gives
@@ -274,7 +275,7 @@ public sealed partial class ImportService(AppDb db, WorkoutAi ai, CatalogService
             ImportNormalization.Text(set.Tempo, 24), ImportNormalization.Text(set.LoadText, 60), ImportNormalization.Text(set.Notes, 400),
             repsSource, rpeSource, restValue.Adjusted ? "inferred" : ImportNormalization.Provenance(set.RestSource),
             ImportNormalization.Text(set.RepsText, 40), ImportNormalization.Text(set.RestText, 24),
-            rirText, false, ImportNormalization.Page(set.SourcePage));
+            rirText, false, ImportNormalization.Page(set.SourcePage ?? exerciseSourcePage));
     }
 
     private static int? DeriveRest(string? text, int? fallback)

@@ -3,6 +3,19 @@ using Workout.Api.Domain;
 
 namespace Workout.Api.Services;
 
+internal sealed class ImportVerificationException(ImportReviewIssue issue)
+    : DomainException(Describe(issue), 422)
+{
+    public ImportReviewIssue Issue { get; } = issue;
+
+    private static string Describe(ImportReviewIssue issue)
+    {
+        var location = issue.SourcePage is { } page ? $" on PDF page {page}" : "";
+        var field = string.IsNullOrWhiteSpace(issue.TargetField) ? "" : $" (field: {issue.TargetField})";
+        return $"The PDF could not be verified completely [{issue.Code}]{location}{field}: {issue.Message}";
+    }
+}
+
 public sealed partial class ImportService
 {
     public Task ValidateDraft(ImportDraft draft, CancellationToken ct) => ImportValidation.ValidateDraft(draft, catalog, ct);
@@ -31,6 +44,14 @@ public sealed partial class ImportService
         => ImportDayShape.Reconcile(days, preserveTrailingRestDays: sourceWeekDays is > Workout.Api.Domain.ProgramLimits.StandardDaysPerWeek);
 
     private static List<ImportReviewIssue> ReadNotices(string json) => ImportValidation.ReadNotices(json);
+
+    private static void RequireVerifiedDraft(ImportDraft draft, AiImport import, IEnumerable<ImportReviewIssue> currentNotices)
+    {
+        var notices = ImportReviewNotices.Merge(ReadNotices(import.NoticesJson), currentNotices);
+        var unresolved = FilterNotices(notices, draft).Concat(ReviewIssues(draft))
+            .FirstOrDefault(issue => issue.Severity != "info");
+        if (unresolved is not null) throw new ImportVerificationException(unresolved);
+    }
 
     private static List<ImportReviewIssue> FilterNotices(IEnumerable<ImportReviewIssue> notices, ImportDraft? draft)
     {

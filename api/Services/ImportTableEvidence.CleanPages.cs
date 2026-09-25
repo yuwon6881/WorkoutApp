@@ -28,10 +28,17 @@ internal static partial class ImportTableEvidence
 
     /// Every row was read against a header naming its exercise, set and rep columns, and every row
     /// states a name, a working-set count (or prints zero sets as left out) and its reps.
-    private static bool IsClean(EvidencePage page)
-        => TableRows(page) is { Count: > 0 } rows && rows.All(row => row.FullHeader && HasText(row.ExerciseName)
+    private static bool IsUsableRow(EvidenceRow row)
+        => row.FullHeader && HasText(row.ExerciseName)
             && !TableSummary.IsMatch(row.ExerciseName!.Trim())
-            && (row.NotPerformed || row.WorkingSets is > 0 && HasText(row.RepsText)));
+            && (row.NotPerformed
+                || row.WorkingSets is > 0 && (HasText(row.RepsText) || row.RepsStatedAbsent)
+                || row.WorkingSetsStatedAbsent && HasText(row.RepsText));
+
+    private static bool IsClean(IReadOnlyCollection<EvidenceRow> rows)
+        => rows.Count > 0 && rows.All(IsUsableRow);
+
+    private static bool IsClean(EvidencePage page) => IsClean(TableRows(page));
 
     /// The rows one day owns: all of them when it is the page's only day and the page prints at
     /// most one day label, otherwise those under its own label. They must sit under one header: a
@@ -57,13 +64,27 @@ internal static partial class ImportTableEvidence
     /// wrong page or fused its rows, and pairing it with this table would guess.
     private static List<EvidenceRow> PrintedRowsFor(List<AiExercise> extracted, string? dayName, EvidencePage page, int daysOnPage, int dayIndex)
     {
-        if (!IsClean(page)) return [];
-        var rows = RowsFor(dayName, page, daysOnPage, dayIndex);
+        var rows = RowsFor(dayName, page, daysOnPage, dayIndex).Where(IsUsableRow).ToList();
+        if (rows.Count == 0) return [];
         var printed = rows.SelectMany(row => new[] { NormalizeName(row.ExerciseName!), NormalizeName(WithoutBrackets(row.ExerciseName!)) }).ToHashSet();
         var named = extracted.Where(exercise => HasText(exercise.SourceName)).ToList();
         var found = named.Count(exercise => printed.Contains(NormalizeName(exercise.SourceName))
-            || printed.Contains(NormalizeName(WithoutBrackets(exercise.SourceName))));
+            || printed.Contains(NormalizeName(WithoutBrackets(exercise.SourceName)))
+            || IsFusedNameOfAdjacentRows(exercise.SourceName, rows));
         return found * 2 >= named.Count ? rows : [];
+    }
+
+    private static bool IsFusedNameOfAdjacentRows(string sourceName, IReadOnlyList<EvidenceRow> rows)
+    {
+        var withoutGroup = Regex.Replace(sourceName, @"\s+[A-Z]\d{1,2}\s*:\s*", " ", RegexOptions.IgnoreCase);
+        var composite = NormalizeName(withoutGroup);
+        for (var index = 0; index + 1 < rows.Count; index++)
+        {
+            var first = NormalizeName(rows[index].ExerciseName ?? "");
+            var second = NormalizeName(rows[index + 1].ExerciseName ?? "");
+            if (first.Length > 0 && second.Length > 0 && first + second == composite) return true;
+        }
+        return false;
     }
 
     /// Rebuilds a day from its printed rows. Each row keeps the read's exercise when one matches it
@@ -93,7 +114,9 @@ internal static partial class ImportTableEvidence
                 RepsSource: "inferred", RpeSource: "inferred", RestSource: "inferred", SourcePage: pageNumber);
             var source = previous is null
                 ? new AiExercise(row.ExerciseName!, null, null, [seed], SourcePage: pageNumber)
-                : previous with { Sets = previous.Sets is { Count: > 0 } sets ? sets.Select(set => WithoutPrinted(set, row)).ToList() : [seed] };
+                : previous with { Sets = NamesCorrespond(previous.SourceName, row.ExerciseName)
+                    ? previous.Sets is { Count: > 0 } sets ? sets.Select(set => WithoutPrinted(set, row)).ToList() : [seed]
+                    : previous.Sets };
             result.Add(Apply(source with
             {
                 SequenceGroup = HasText(source.SequenceGroup) ? source.SequenceGroup : row.SequenceGroup,
@@ -105,11 +128,26 @@ internal static partial class ImportTableEvidence
 
         var printedSubstitutions = rows.SelectMany(row => row.Substitutions ?? []).Select(NormalizeName).ToHashSet();
         // Row names are taken out first: a read that shortened a row's name is that row, not a second movement.
-        var body = TableRows(page).Aggregate(NormalizeName(page.Body), (text, row) => text.Replace(NormalizeName(row.ExerciseName ?? ""), " "));
-        result.AddRange(extracted.Where((exercise, index) => !used.Contains(index) && HasText(exercise.SourceName)
-            && (exercise.SourcePage is { } cited && cited != pageNumber
-                || NormalizeName(exercise.SourceName) is { Length: >= MinPrintedNameLength } name
-                    && body.Contains(name, StringComparison.Ordinal) && !printedSubstitutions.Contains(name))));
+        var body = rows.Aggregate(NormalizeName(page.Body), (text, row) => text.Replace(NormalizeName(row.ExerciseName ?? ""), " "));
+        foreach (var (exercise, index) in extracted.Select((exercise, index) => (exercise, index)))
+        {
+            if (used.Contains(index) || !HasText(exercise.SourceName)) continue;
+            var otherPage = exercise.SourcePage is { } cited && cited != pageNumber;
+            var name = NormalizeName(exercise.SourceName);
+            var remainsInBody = name.Length >= MinPrintedNameLength
+                && body.Contains(name, StringComparison.Ordinal) && !printedSubstitutions.Contains(name);
+            if (!otherPage && !remainsInBody) continue;
+
+            // A row can be too malformed to replace an entire table, but still print a clear
+            // prescription for an exact movement match. Apply those cells without positional
+            // guesses so one bad row does not preserve a drifting rest or effort value.
+            var partialRow = otherPage ? null : MatchRow(exercise, index, extracted, TableRows(page),
+                positionalMatchIsSafe: false, dayName);
+            var recovered = exercise;
+            if (partialRow is not null && NamesCorrespond(exercise.SourceName, partialRow.ExerciseName))
+                recovered = Apply(exercise with { Sets = exercise.Sets.Select(set => WithoutPrinted(set, partialRow)).ToList() }, partialRow);
+            result.Add(recovered);
+        }
         return result;
     }
 
@@ -129,6 +167,14 @@ internal static partial class ImportTableEvidence
             RestText = row.RestText is null ? set.RestText : null,
             RestSeconds = row.RestText is null ? set.RestSeconds : null
         };
+    }
+
+    private static bool NamesCorrespond(string? extracted, string? printed)
+    {
+        if (!HasText(extracted) || !HasText(printed)) return false;
+        var left = NormalizeName(extracted!);
+        var right = NormalizeName(printed!);
+        return left == right || NormalizeName(WithoutBrackets(extracted!)) == NormalizeName(WithoutBrackets(printed!));
     }
 
     /// Reps a row prints as more than a plain range ("30 sec", "10+5", "8 + 8") still lead with the
@@ -157,9 +203,9 @@ internal static partial class ImportTableEvidence
     {
         var pages = Read(sourceText);
         var training = workouts.Where(day => !day.IsRestDay && day.SourcePage.HasValue).ToList();
-        return training.Where((day, index) => pages.TryGetValue(day.SourcePage!.Value, out var evidence) && IsClean(evidence)
+        return training.Where((day, index) => pages.TryGetValue(day.SourcePage!.Value, out var evidence)
             && RowsFor(day.Name, evidence, training.Count(other => other.SourcePage == day.SourcePage),
-                training.Take(index).Count(other => other.SourcePage == day.SourcePage)).Count > 0).Count();
+                training.Take(index).Count(other => other.SourcePage == day.SourcePage)).Any(IsUsableRow)).Count();
     }
 
     /// How many training days the read places on a page, rest days aside.

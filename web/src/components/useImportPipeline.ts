@@ -100,8 +100,16 @@ export function useImportPipeline({ selected, setSelected, setDraft, onChanged, 
       setProgress({
         label: view.stage === 'outline'
           ? 'Reading the outline'
-          : remaining > 1 ? `Reading ${remaining} sections` : 'Reading the last section',
-        detail: remaining > 1 ? 'Sections commit in order as they land.' : view.currentChunkLabel ?? '',
+          : view.stage === 'verify'
+            ? 'Checking extracted details against the PDF'
+            : view.stage === 'recover'
+              ? 'Repairing source discrepancies'
+              : remaining > 1 ? `Reading ${remaining} sections` : 'Reading the last section',
+        detail: view.stage === 'verify'
+          ? 'Comparing sessions, exercises, sets, and prescriptions with printed source evidence.'
+          : view.stage === 'recover'
+            ? 'Re-reading a section using only evidence from the PDF.'
+            : remaining > 1 ? 'Sections commit in order as they land.' : view.currentChunkLabel ?? '',
         percent: view.chunksTotal > 0 ? Math.round((view.chunksDone / view.chunksTotal) * 100) : null
       });
     };

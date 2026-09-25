@@ -25,10 +25,10 @@ internal static partial class ImportTableEvidence
         var rangeMatch = Regex.Match(clean, @"(?:RPE|APE|LSRPE)?\s*(?<min>\d+(?:\.\d+)?)\s*[-–]\s*(?<max>\d+(?:\.\d+)?)", RegexOptions.IgnoreCase);
         if (rangeMatch.Success
             && double.TryParse(rangeMatch.Groups["min"].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var minRpe)
-            && double.TryParse(rangeMatch.Groups["max"].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var maxRpe)
-            && minRpe is >= 5 and <= 10 && maxRpe is >= 5 and <= 10)
+            && double.TryParse(rangeMatch.Groups["max"].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var maxRpe))
         {
-            return Math.Round((minRpe + maxRpe) / 2, MidpointRounding.AwayFromZero);
+            if (minRpe is >= 5 and <= 10 && maxRpe is >= 5 and <= 10)
+                return Math.Round((minRpe + maxRpe) / 2, MidpointRounding.AwayFromZero);
         }
         var match = Regex.Match(clean, @"(?:RPE|APE|LSRPE)?\s*(?<value>\d+(?:\.\d+)?)", RegexOptions.IgnoreCase);
         return match.Success && double.TryParse(match.Groups["value"].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var number)
@@ -75,6 +75,22 @@ internal static partial class ImportTableEvidence
         var clean = CleanValue(value);
         if (clean is null || IsUnavailable(clean)) return (null, null);
         var match = RestValue.Match(clean);
+        if (!match.Success && RepeatedRestValues(clean) is { } repeated)
+        {
+            clean = repeated;
+            match = RestValue.Match(clean);
+        }
+        // Some source PDFs drop the I in "min" ("1-2 MN"). Treat that as minutes only
+        // when the same printed page or column independently establishes minute units.
+        if (!match.Success && string.Equals(hint, "min", StringComparison.OrdinalIgnoreCase)
+            && Regex.Match(clean, @"^(?<min>\d+(?:\.\d+)?)(?:\s*[-–]\s*(?<max>\d+(?:\.\d+)?))?\s*mn$", RegexOptions.IgnoreCase) is { Success: true } abbreviated
+            && double.TryParse(abbreviated.Groups["min"].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var hintedMin))
+        {
+            var hintedMax = abbreviated.Groups["max"].Success
+                && double.TryParse(abbreviated.Groups["max"].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var parsedMax)
+                    ? parsedMax : hintedMin;
+            return (clean, (int)Math.Round((hintedMin + hintedMax) / 2 * 60, MidpointRounding.AwayFromZero));
+        }
         if (!match.Success) return (null, null);
         var unit = match.Groups["unit"].Value;
         if (unit.Length == 0)
@@ -87,6 +103,18 @@ internal static partial class ImportTableEvidence
         var max = match.Groups["max"].Success && double.TryParse(match.Groups["max"].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var upper) ? upper : min;
         var secondsMultiplier = unit.StartsWith("sec", StringComparison.OrdinalIgnoreCase) || unit.Equals("s", StringComparison.OrdinalIgnoreCase) ? 1 : 60;
         return (clean, (int)Math.Round((min + max) / 2 * secondsMultiplier, MidpointRounding.AwayFromZero));
+    }
+
+    /// A fused row can repeat one prescription for two side-by-side movements. Recover only when
+    /// every complete time expression is identical; differing values stay unresolved.
+    private static string? RepeatedRestValues(string value)
+    {
+        const string expression = @"(?:[~≈]\s*|\bapprox(?:\.|\b)\s*)?\d+(?:\.\d+)?\s*(?:[-–]\s*\d+(?:\.\d+)?\s*)?(?:min|mins|minutes?|sec|secs|seconds?|s|m)";
+        var matches = Regex.Matches(value, expression, RegexOptions.IgnoreCase);
+        if (matches.Count < 2 || Regex.Replace(value, expression, "", RegexOptions.IgnoreCase).Trim().Length > 0)
+            return null;
+        return matches.Cast<Match>().Select(match => match.Value.Trim()).Distinct(StringComparer.OrdinalIgnoreCase).Count() == 1
+            ? matches[0].Value.Trim() : null;
     }
 
     private static int? ParseRestSeconds(string? text)

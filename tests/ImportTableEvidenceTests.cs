@@ -7,6 +7,295 @@ namespace Workout.Tests;
 public sealed class ImportTableEvidenceTests
 {
     [Fact]
+    public async Task Clean_multi_session_percent_RPE_table_keeps_its_printed_rest_values()
+    {
+        const string text = """
+            JEFF NIPPARD’S - POWERBUILDING SYSTEM
+            WEEK 1
+            DAY LABEL: FULL BODY 1: SQUAT, OHP
+            WORKOUT | EXERCISE | WARM-UP SETS | WORKING SETS | REPS | %1RM RPE | REST | SET 1 | SET 2 | SET 3 | SET 4 | NOTES
+             | BACK SQUAT | 4 | 1 | 5 | 75-80% 7.5 | 3-4 MIN |  |  |  |  | FOCUS ON TECHNIQUE AND EXPLOSIVE POWER!
+             | BACK SQUAT | 0 | 2 | 8 | 70% N/A | 3-4 MIN |  |  |  |  | KEEP BACK ANGLE AND FORM CONSISTENT ACROSS ALL REPS
+             | OVERHEAD PRESS | 2 | 3 | 8 | 70% N/A | 2-3 MIN |  |  |  |  | RESET EACH REP (DON'T TOUCH-AND-PRESS)
+             | GLUTE HAM RAISE | 1 | 3 | 8-10 | N/A 7 | 1-2 MIN |  |  |  |  | KEEP YOUR HIPS STRAIGHT, DO NORDIC HAM CURLS IF NO GHR MACHINE
+             | HELMS ROW | 1 | 3 | 12-15 | N/A 9 | 1-2 MIN |  |  |  |  | STRICT FORM. DRIVE ELBOWS OUT AND BACK AT 45 DEGREE ANGLE
+             | HAMMER CURL | 0 | 3 | 20-25 | N/A 10 | 1-2 MIN |  |  |  |  | KEEP ELBOWS LOCKED IN PLACE, SQUEEZE THE DUMBBELL HANDLE HARD!
+            DAY LABEL: FULL BODY 2: DEADLIFT, BENCH PRESS
+            WORKOUT | EXERCISE | WARM-UP SETS | WORKING SETS | REPS | %1RM RPE | REST | SET 1 | SET 2 | SET 3 | SET 4 | NOTES
+             | DEADLIFT | 4 | 3 | 4 | 80% N/A | 3-5 MIN |  |  |  |  | CONVENTIONAL OR SUMO: USE WHATEVER STANCE YOU ARE STRONGER WITH
+             | BARBELL BENCH PRESS | 4 | 1 | 3 | 82.5-87.5% 8.5 | 4-5 MIN |  |  |  |  | TOP SET. LEAVE 1 (MAYBE 2) REPS IN THE TANK. HARD SET.
+             | BARBELL BENCH PRESS | 0 | 2 | 10 | 67.5% N/A | 2-3 MIN |  |  |  |  | QUICK 1 SECOND PAUSE ON THE CHEST ON EACH REP
+             | HIP ABDUCTION | 0 | 3 | 15-20 | N/A 9 | 1-2 MIN |  |  |  |  | MACHINE, BAND OR WEIGHTED, 1 SECOND ISOMETRIC HOLD AT THE TOP OF EACH REP
+             | WEIGHTED PULL-UP | 1 | 3 | 5-8 | N/A 8 | 3-4 MIN |  |  |  |  | 1.5X SHOULDER WIDTH GRIP, PULL YOUR CHEST TO THE BAR
+             | STANDING CALF RAISE | 1 | 3 | 8-10 | N/A 9 | 2-3 MIN |  |  |  |  | 1-2 SECOND PAUSE AT THE BOTTOM OF EACH REP, FULL ROM
+            SUGGESTED REST DAY
+            DAY LABEL: FULL BODY 3: SQUAT, DIP
+            WORKOUT | EXERCISE | WARM-UP SETS | WORKING SETS | REPS | %1RM RPE | REST | SET 1 | SET 2 | SET 3 | SET 4 | NOTES
+             | BACK SQUAT | 4 | 3 | 4 | 80% N/A | 3-4 MIN |  |  |  |  | MAINTAIN TIGHT PRESSURE IN YOUR UPPER BACK AGAINST THE BAR
+             | WEIGHTED DIP | 2 | 3 | 8 | N/A 8 | 2-3 MIN |  |  |  |  | DO DUMBBELL FLOOR PRESS IF NO ACCESS TO DIP HANDLES
+             | HANGING LEG RAISE | 0 | 3 | 10-12 | N/A 9 | 1-2 MIN |  |  |  |  | KNEES TO CHEST, CONTROLLED REPS, STRAIGHTEN LEGS MORE TO INCREASE DIFFICULTY
+             | LAT PULL-OVER | 1 | 3 | 12-15 | N/A 8 | 1-2 MIN |  |  |  |  | CAN USE A DB, CABLE/ROPE OR BAND, STRETCH AND SQUEEZE LATS!
+             | INCLINE DUMBBELL CURL | 1 | 3 | 12-15 | N/A 9 | 1-2 MIN |  |  |  |  | DO EACH ARM ONE AT A TIME RATHER THAN ALTERNATING, START WITH YOUR WEAK ARM
+             | FACE PULL | 0 | 4 | 15-20 | N/A 9 | 1-2 MIN |  |  |  |  | CAN USE CABLE/ROPE OR BAND, RETRACT YOUR SHOULDER BLADES AS YOU PULL
+            """;
+        var pages = new List<ImportPageText> { new(36, text) };
+        var schedule = ImportPrintedSchedule.Read(pages);
+        Assert.NotNull(schedule);
+        var printed = ImportTableEvidence.ReadPrintedSection(schedule!.Days, $"=== PAGE 36 ===\n{text}");
+        Assert.NotNull(printed);
+
+        await using var harness = await Harness.Create();
+        await harness.SignIn();
+        var draft = await harness.Imports(StubHandler.Program("{}")).ToDraft(printed!, default);
+        var workouts = draft.Workouts.Where(workout => !workout.IsRestDay).ToList();
+        Assert.Equal(3, workouts.Count);
+        Assert.Equal(18, workouts.Sum(workout => workout.Exercises.Count));
+        Assert.All(workouts.SelectMany(workout => workout.Exercises).SelectMany(exercise => exercise.Sets), set =>
+        {
+            Assert.NotNull(set.RestSeconds);
+            Assert.False(string.IsNullOrWhiteSpace(set.RestText));
+        });
+        Assert.DoesNotContain(ImportValidation.ReviewIssues(draft), issue => issue.Code == "rest_unread");
+    }
+
+    [Fact]
+    public void Minute_typo_is_recovered_only_when_the_table_header_establishes_minutes()
+    {
+        var program = new AiProgram("Rest", [new AiDay(null, null, 1, 1, "Day 1", false, null, [
+            new AiExercise("Hamstring Curl", null, null, [new AiSet(8, 10, 8, null, null, null, null)], SourcePage: 1)
+        ], 1)]);
+        const string text = """
+            === PAGE 1 ===
+            Exercise | Working Sets | Reps | Rest (min)
+            Hamstring Curl | 2 | 8-10 | 1-2 MN
+            """;
+
+        var set = Assert.Single(Assert.Single(ImportTableEvidence.Enrich(program, text).Days!).Exercises).Sets[0];
+
+        Assert.Equal("1-2 MN", set.RestText);
+        Assert.Equal(90, set.RestSeconds);
+    }
+
+    [Fact]
+    public void A_matched_row_overrides_drifted_values_even_when_another_row_makes_the_page_unclean()
+    {
+        var program = new AiProgram("Source", [new AiDay(null, null, 1, 1, "Day 1", false, null, [
+            new AiExercise("Squat", null, null, [new AiSet(8, 10, 9, 90, null, null, null,
+                RestText: "90 sec", RestSource: "extracted")], SourcePage: 3),
+            new AiExercise("Dead Hang", null, null, [new AiSet(1, 1, 8, 90, null, null, null,
+                RestText: "90 sec", RestSource: "extracted")], SourcePage: 3)
+        ], 3)]);
+        const string text = """
+            === PAGE 3 ===
+            Exercise | Working Sets | Reps | RIR | Rest
+            Squat | 1 | 8-10 | 1 | 1-2 min
+            Dead Hang | 2 | N/A | 0 | 1-2 min
+            """;
+
+        var exercises = Assert.Single(ImportTableEvidence.Enrich(program, text).Days!).Exercises;
+
+        Assert.Equal("1-2 min", exercises[0].Sets[0].RestText);
+        Assert.Equal(90, exercises[0].Sets[0].RestSeconds);
+    }
+
+    [Fact]
+    public void Dropped_last_exercise_is_recovered_from_the_matching_day_table()
+    {
+        var program = new AiProgram("Powerbuilding", [new AiDay(null, null, 11, 1, "Squat Test", false, null, [
+            new AiExercise("Back Squat", null, null, [new AiSet(1, 1, 10, 270, null, "100-105% 1RM", null)], SourcePage: 66),
+            new AiExercise("Single-Arm Lat Pulldown", null, null, [new AiSet(12, 12, 8, 150, null, null, null)], SourcePage: 66),
+            new AiExercise("Incline Dumbbell Curl", null, null, [new AiSet(12, 12, 8, 90, null, null, null)], SourcePage: 66)
+        ], 66)]);
+        const string text = """
+            === PAGE 66 ===
+            WEEK 10B
+            DAY LABEL: SQUAT TEST
+            WORKOUT | EXERCISE | WARM-UP SETS | WORKING SETS | REPS | %1RM RPE | REST | SET 1 | SET 2 | SET 3 | SET 4 | NOTES
+             | BACK SQUAT | 5 | 1-3 | 1 | 100-105% 9.5 | 4-5 MIN |  |  |  |  | AIM FOR A NEW PR. USE GOOD FORM!
+             | SINGLE-ARM LAT PULLDOWN | 1 | 2 | 12 | N/A 8 | 2-3 MIN |  |  |  |  | DRIVE ELBOWS DOWN AND IN
+             | INCLINE DUMBBELL CURL | 0 | 4 | 12 | N/A 8 | 1-2 MIN |  |  |  |  | FOCUS ON THE MIND-MUSCLE CONNECTION
+             | STANDING CALF RAISE | 1 | 3 | 12 | N/A 8 | 1-2 MIN |  |  |  |  | FULL SQUEEZE AT THE TOP
+            """;
+
+        var exercises = Assert.Single(ImportTableEvidence.Enrich(program, text).Days!).Exercises;
+
+        Assert.Equal(["BACK SQUAT", "SINGLE-ARM LAT PULLDOWN", "INCLINE DUMBBELL CURL", "STANDING CALF RAISE"],
+            exercises.Select(exercise => exercise.SourceName));
+        Assert.Contains("Printed working-set prescription: 1-3.", exercises[0].CoachingNotes);
+        Assert.Equal("1", exercises[0].WorkingSets);
+        Assert.Equal(3, exercises[^1].Sets.Count);
+        Assert.All(exercises[^1].Sets, set => Assert.Equal(90, set.RestSeconds));
+    }
+
+    [Fact]
+    public void Variable_working_set_counts_keep_the_printed_prescription_and_recover_dropped_rows()
+    {
+        var program = new AiProgram("Variable sets", [new AiDay(null, null, 1, 1, "Day 1", false, null, [
+            new AiExercise("Squat", null, null, [new AiSet(1, 1, null, null, null, null, null)], SourcePage: 15)
+        ], 15)]);
+        const string text = """
+            === PAGE 15 ===
+            Exercise | Working Sets | Reps | RPE | Rest
+            Squat | 1+ | 1 | 9 | 3-5 min
+            Calf Raise | 2 or 3 | 12 | 8 | 60 sec
+            """;
+
+        var exercises = Assert.Single(ImportTableEvidence.Enrich(program, text).Days!).Exercises;
+
+        Assert.Equal(["Squat", "Calf Raise"], exercises.Select(exercise => exercise.SourceName));
+        Assert.Contains("Printed working-set prescription: 1+.", exercises[0].CoachingNotes);
+        Assert.Contains("Printed working-set prescription: 2 or 3.", exercises[1].CoachingNotes);
+        Assert.Equal("2", exercises[1].WorkingSets);
+        Assert.Equal(2, exercises[1].Sets.Count);
+    }
+
+    [Fact]
+    public void Clean_warmup_tables_recover_absent_and_fused_set_repetition_cells()
+    {
+        var program = new AiProgram("Warmup", [new AiDay(null, null, 1, 1, "Day 1", false, null, [
+            new AiExercise("Low intensity cardio", null, null, [new AiSet(5, 10, null, null, null, null, null)], SourcePage: 16)
+        ], 16)]);
+        const string text = """
+            === PAGE 16 ===
+            Exercise | Sets | Reps/Time | Notes
+            Low intensity cardio | N/A | 5-10min | Warm up until breathing increases
+            Front/back leg swing | 1 12 | | 12 each leg
+            (Optional) Overhead shrug | 1 15 | | Squeeze traps lightly
+            """;
+
+        var exercises = Assert.Single(ImportTableEvidence.Enrich(program, text).Days!).Exercises;
+
+        Assert.Equal(["Low intensity cardio", "Front/back leg swing", "(Optional) Overhead shrug"],
+            exercises.Select(exercise => exercise.SourceName));
+        Assert.Equal("12", exercises[1].Sets[0].RepsText);
+        Assert.Equal("15", exercises[2].Sets[0].RepsText);
+    }
+
+    [Fact]
+    public void Approximate_minute_ranges_replace_drifted_rest_values()
+    {
+        var program = new AiProgram("Rest", [new AiDay(null, null, 4, 1, "Arms & Weak Points #2", false, null, [
+            new AiExercise("Single-Arm Triceps Pressdown", null, null,
+                [new AiSet(12, 15, 9, 90, null, null, null, RestText: "90 sec", SourcePage: 37)], SourcePage: 37)
+        ], 37)]);
+        const string text = """
+            === PAGE 37 ===
+            DAY LABEL: Arms & Weak Points #2
+            Exercise | Warm-up Sets | Working Sets | Reps | Early Set RPE | Last Set RPE | Rest
+            Single-Arm Triceps Pressdown | 1 | 2 | 12-15 | 9 | 10 | ~1-2 min
+            """;
+
+        var exercise = Assert.Single(Assert.Single(ImportTableEvidence.Enrich(program, text).Days!).Exercises);
+
+        Assert.All(exercise.Sets, set => Assert.Equal(("~1-2 min", 90), (set.RestText, set.RestSeconds)));
+    }
+
+    [Fact]
+    public void Identical_repeated_rest_values_from_fused_cells_are_recovered()
+    {
+        var program = new AiProgram("Repeated rest", [new AiDay(null, null, 1, 1, "Day 1", false, null, [
+            new AiExercise("Cable Row", null, null,
+                [new AiSet(8, 10, 8, 90, null, null, null, RestText: "90 sec", SourcePage: 18)], SourcePage: 18)
+        ], 18)]);
+        const string text = """
+            === PAGE 18 ===
+            Exercise | Working Sets | Reps | RPE | Rest
+            Cable Row | 2 | 8-10 | 8 | 2-3 min 2-3 min
+            """;
+
+        var exercise = Assert.Single(Assert.Single(ImportTableEvidence.Enrich(program, text).Days!).Exercises);
+
+        Assert.All(exercise.Sets, set => Assert.Equal(("2-3 min", 150), (set.RestText, set.RestSeconds)));
+    }
+
+    [Fact]
+    public void Printed_prescription_is_recovered_from_a_full_day_table_with_adjacent_notes_and_options()
+    {
+        var program = new AiProgram("Source", [new AiDay("Block 1", "5-week climb phase", 4, 4,
+            "Arms & Weak Points #2", false, null, [
+                new AiExercise("Single-Arm Triceps Pressdown", null, null,
+                    [new AiSet(12, 15, null, 90, null, null, null, RestText: "90 sec", SourcePage: 37)], SourcePage: 37)
+            ], 37)]);
+        const string text = """
+            === PAGE 37 ===
+            BLOCK 1: 5-WEEK CLIMB PHASE
+            DAY LABEL: Arms & Weak Points #2
+            Exercise | Last-Set Intensity Technique | Warm-up Sets | WORKING SETS | Reps | SET 1 | SET 2 | SET 3 | SET 4 | Early Set RPE | Last Set RPE | Rest | Substitution Option 1 | Substitution Option 2 | NOTES
+            Weak Point Exercise 1 (optional) | N/A | 1-3 | 3 | 8-12 | | | | | ~9 | ~9-10 | ~1-3 min | | | Perform one exercise from the weak point table.
+            Weak Point Exercise 2 (optional) | N/A | 1-3 | 3 | 8-12 | | | | | ~9 | ~9-10 | ~1-3 min | | | This second exercise is optional.
+            DB Hammer Curl | Failure | 1 | 3 | 10-12 | | | | | ~9 | 10 | ~1-2 min | Hammer Preacher Curl | Reverse-Grip EZ-Bar Curl | Squeeze the handle hard.
+            Smith Machine JM Press | Failure | 1 | 3 | 10-12 | | | | | ~9 | 10 | ~1-2 min | Barbell JM Press | Close-Grip Bench Press | Lower the bar to your chin.
+            DB Scott Curl | Biceps Static Stretch (30 sec) | 1 | 2 | 12-15 | | | | | ~9 | 10 | ~1-2 min | EZ-Bar Preacher Curl | DB Preacher Curl | Pause at the bottom.
+            Single-Arm Triceps Pressdown | Triceps Static Stretch (30 sec) | 1 | 2 | 12-15 | | | | | ~9 | 10 | ~1-2 min | Triceps Pressdown (Bar) | DB Triceps Kickback | Squeeze your triceps.
+            Decline Weighted Crunch | Failure | 1 | 3 | 12-15 | | | | | ~9 | 10 | ~1-2 min | Ab Wheel Rollout | Swiss Ball Rollout | Maintain a mind muscle connection.
+            """;
+
+        var exercise = Assert.Single(ImportTableEvidence.Enrich(program, text).Days![0].Exercises,
+            exercise => exercise.SourceName == "Single-Arm Triceps Pressdown");
+
+        Assert.All(exercise.Sets, set => Assert.Equal(("~1-2 min", 90), (set.RestText, set.RestSeconds)));
+    }
+
+    [Fact]
+    public void Source_recovery_uses_rows_with_unicode_wrapped_cells_after_normalization()
+    {
+        const string separator = "\u2028";
+        var source = "DAY LABEL: Arms\nExercise | Last-Set Intensity Technique | WORKING SETS | Reps | Rest\n"
+            + $"Pressdown | Static Stretch{separator}(30 sec) | 2 | 12-15 | ~1-2 min";
+        var page = Assert.Single(ImportSourceText.Normalize(new ImportSourceInput("source.pdf", 1,
+            [new ImportPageText(1, source)])));
+        var program = new AiProgram("Source", [new AiDay(null, null, 1, 1, "Arms", false, null, [
+            new AiExercise("Pressdown", null, null,
+                [new AiSet(12, 15, null, 90, null, null, null, RestText: "90 sec", SourcePage: 1)], SourcePage: 1)
+        ], 1)]);
+
+        var text = ImportSourceText.Slice([page], 1, 1);
+        var exercise = Assert.Single(ImportTableEvidence.Enrich(program, text).Days![0].Exercises);
+
+        Assert.All(exercise.Sets, set => Assert.Equal(("~1-2 min", 90), (set.RestText, set.RestSeconds)));
+    }
+
+    [Fact]
+    public async Task A_set_without_a_page_inherits_its_exercise_source_page()
+    {
+        await using var harness = await Harness.Create();
+        await harness.SignIn();
+        var program = new AiProgram("Source", [new AiDay(null, null, 1, 1, "Arms", false, null, [
+            new AiExercise("Pressdown", null, null,
+                [new AiSet(12, 15, 9, 90, null, null, null)], SourcePage: 12)
+        ], 12)]);
+
+        var draft = await harness.Imports(StubHandler.Program("{}")).ToDraft(program, default);
+
+        Assert.Equal(12, Assert.Single(Assert.Single(draft.Workouts).Exercises).Sets.Single().SourcePage);
+    }
+
+    [Fact]
+    public void Explicit_superset_tag_splits_fused_names_and_paired_prescriptions()
+    {
+        var program = new AiProgram("Pair", [new AiDay(null, null, 2, 1, "Lower 2", false, null, [
+            new AiExercise("Single-Leg Hip Thrust A1: Glute-Ham Raise [OR Nordic Ham Curl]", null, null,
+                [new AiSet(8, 10, 9, 90, null, null, null, SourcePage: 43)], SourcePage: 43)
+        ], 43)]);
+        const string text = """
+            === PAGE 43 ===
+            DAY LABEL: LOWER 2
+            EXERCISE | WARM-UP SETS | WORKING SETS | REPS | %1RM RPE | REST | NOTES
+            SINGLE-LEG HIP THRUST A1: GLUTE-HAM RAISE [OR NORDIC HAM CURL] | 2 0 | 2 EACH 3 | 10-12 6-8 | N/A 9 N/A 9 | 2-3 MIN 0 MIN | CONTRACT GLUTES AND KEEP HIPS STRAIGHT
+            """;
+
+        var exercises = Assert.Single(ImportTableEvidence.Enrich(program, text).Days!).Exercises;
+
+        Assert.Equal(["SINGLE-LEG HIP THRUST", "GLUTE-HAM RAISE [OR NORDIC HAM CURL]"],
+            exercises.Select(exercise => exercise.SourceName));
+        Assert.Equal(["2", "3"], exercises.Select(exercise => exercise.WorkingSets));
+        Assert.Equal(["10-12", "6-8"], exercises.Select(exercise => exercise.Sets[0].RepsText));
+        Assert.Equal([150, 0], exercises.Select(exercise => exercise.Sets[0].RestSeconds));
+        Assert.Null(exercises[0].SequenceGroup);
+        Assert.Equal("A1", exercises[1].SequenceGroup);
+    }
+
+    [Fact]
     public void Coordinate_columns_restore_both_rir_values_and_working_set_count()
     {
         var program = new AiProgram("Min-Max", [new AiDay("Block 1", "Base", 1, 1, "Lower 1", false, null, [
@@ -216,6 +505,43 @@ public sealed class ImportTableEvidenceTests
         Assert.Equal([7d, 7d, 9d], exercise.Sets.Select(set => set.TargetRpe));
         Assert.All(exercise.Sets, set => Assert.Equal("extracted", set.RpeSource));
         Assert.All(exercise.Sets, set => Assert.Equal("2-3 min", set.RestText));
+    }
+
+    [Fact]
+    public void Amrap_in_the_technique_column_is_preserved_as_a_last_set_technique()
+    {
+        var program = new AiProgram("Technique", [new AiDay(null, null, 1, 1, "Day 1", false, null, [
+            new AiExercise("Cable Curl", null, null, [new AiSet(8, 12, null, null, null, null, null)], SourcePage: 12)
+        ], 12)]);
+        const string text = """
+            === PAGE 12 ===
+            Exercise | Working Sets | Reps | RPE | Last-Set Intensity Technique | Rest
+            Cable Curl | 3 | 8-12 | 8 | AMRAP | 60 sec
+            """;
+
+        var exercise = Assert.Single(Assert.Single(ImportTableEvidence.Enrich(program, text).Days!).Exercises);
+
+        Assert.Equal(3, exercise.Sets.Count);
+        Assert.Equal("AMRAP", exercise.Sets[^1].Notes);
+        Assert.All(exercise.Sets, set => Assert.Equal(8, set.TargetRpe));
+    }
+
+    [Fact]
+    public void An_effort_range_outside_the_rpe_scale_stays_unresolved()
+    {
+        var program = new AiProgram("Invalid effort", [new AiDay(null, null, 1, 1, "Day 1", false, null, [
+            new AiExercise("Bench Press", null, null, [new AiSet(8, 10, null, null, null, null, null, RpeSource: "inferred")], SourcePage: 14)
+        ], 14)]);
+        const string text = """
+            === PAGE 14 ===
+            Exercise | Sets | Reps | RPE | Rest
+            Bench Press | 3 | 8-10 | 1-9 | 90 sec
+            """;
+
+        var set = Assert.Single(Assert.Single(ImportTableEvidence.Enrich(program, text).Days!).Exercises).Sets[0];
+
+        Assert.Null(set.TargetRpe);
+        Assert.Equal("inferred", set.RpeSource);
     }
 
     [Fact]

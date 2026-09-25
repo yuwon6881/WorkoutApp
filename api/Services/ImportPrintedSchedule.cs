@@ -15,10 +15,13 @@ internal sealed class ImportPrintedSchedule
     private static readonly Regex NamedBlock = new(@"^(?:Phase\s+\d{1,2}|[A-Z][A-Za-z]+\s+Block)$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
     private static readonly Regex BareNumber = new(@"^\d{1,2}$", RegexOptions.Compiled);
     private static readonly Regex LetteredWeek = new(@"^WEEK\s+\d+[A-Z]\b", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+    private static readonly Regex AppendixHeading = new(
+        @"^(?:PROGRAM EXPLAINED|WEEKLY VOLUMES?|EXERCISE VIDEO LINKS|REFERENCES|DISCLAIMER)$",
+        RegexOptions.Compiled | RegexOptions.IgnoreCase);
     /// A week heading after a running title: "PROGRAM: WEEK 1", "... | WEEK 1 (BLOCK 1)".
-    private static readonly Regex TitledWeek = new(@"(?:^|[:|/]\s*)WEEK\s+0?(?<week>\d{1,2})(?=\s*(?:$|\(|\|))", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+    private static readonly Regex TitledWeek = new(@"(?:^|[:|/]\s*)WEEK\s+0?(?<week>\d{1,2})(?<letter>[A-Z])?(?=\s*(?:$|\(|\||:|-|\b))", RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
-    internal sealed record SourceDay(int Page, int Week, int PhaseWeek, string? Block, string Label, int RestsAfter);
+    internal sealed record SourceDay(int Page, int Week, int PhaseWeek, string? Block, string Label, int RestsAfter, bool IsRestDay = false);
 
     private readonly List<SourceDay> days;
     private ImportPrintedSchedule(List<SourceDay> days) => this.days = days;
@@ -34,6 +37,24 @@ internal sealed class ImportPrintedSchedule
 
     /// Each printed training page's program week, for placing a section's days as they are read.
     public Dictionary<int, int> WeekOfPage() => days.GroupBy(day => day.Page).ToDictionary(group => group.Key, group => group.First().Week);
+
+    /// Returns only metadata supported by every printed session in the alternative's page ranges.
+    public static (int? WeekCount, int? SessionsPerWeek) DescribeAlternative(
+        IReadOnlyList<ImportChunk> chunks, IReadOnlyList<ImportPageText> pages)
+    {
+        if (chunks.Count == 0) return (null, null);
+        var ranges = chunks.Select(chunk => (chunk.PageFrom, chunk.PageTo)).ToList();
+        var alternativePages = pages.Where(page => ranges.Any(range => page.Page >= range.PageFrom && page.Page <= range.PageTo)).ToList();
+        var schedule = Read(alternativePages);
+        if (schedule is null) return (null, null);
+
+        var printedSessions = ImportDayLabels.Read(alternativePages).Values.Sum(labels => labels.Count);
+        var weekGroups = schedule.Days.GroupBy(day => day.Week).ToList();
+        if (weekGroups.Sum(week => week.Count()) != printedSessions || weekGroups.Count == 0) return (null, null);
+
+        var counts = weekGroups.Select(week => week.Count()).Distinct().ToList();
+        return (weekGroups.Count, counts.Count == 1 ? counts[0] : null);
+    }
 
     /// About as many sessions as one read transcribes whole; see `ImportSections`.
     private const int SessionsPerSection = 8;
@@ -76,12 +97,13 @@ internal sealed class ImportPrintedSchedule
         var bannerSinceLast = false;
         var passedBlocks = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         int? lastPrinted = null;
+        string? lastLetter = null;
         var offset = 0;
         var phaseStart = 1;
         foreach (var page in pages.OrderBy(page => page.Page))
         {
             var lines = (page.Text ?? "").ReplaceLineEndings("\n").Split('\n').Select(line => line.Trim()).ToList();
-            if (lines.Any(line => LetteredWeek.IsMatch(line))) return null;
+            if (output.Count > 0 && lines.Any(line => AppendixHeading.IsMatch(line))) break;
             var banner = lines.Select(Banner).FirstOrDefault(value => value is not null);
             // Blocks only move forward: a banner naming one already left is a running header the
             // book never updated (Pure Bodybuilding Phase 2 keeps "BLOCK 1" atop block 2's pages).
@@ -97,15 +119,23 @@ internal sealed class ImportPrintedSchedule
                 .Where(item => item.Found).ToList();
             if (labels.Count == 0) continue;
 
-            var weeks = Weeks(lines);
+            var (weeks, letter) = WeeksWithLetter(lines);
             if (weeks.Count != 1) return null;
             var printed = weeks[0];
             if (lastPrinted is null)
             {
                 if (printed != 1) return null;
             }
+            else if (printed == lastPrinted && letter is not null && lastLetter is not null && !string.Equals(letter, lastLetter, StringComparison.OrdinalIgnoreCase))
+            {
+                // Lettered version of same week (e.g. WEEK 10A followed by WEEK 10B): advance to a new week
+                offset++;
+            }
             else if (printed < lastPrinted)
             {
+                // A restart is not evidence that the remaining pages are an appendix. Only a
+                // source heading above can positively establish that boundary; otherwise leave
+                // schedule discovery unresolved so the outline/read can explain the structure.
                 if (printed != 1 || !bannerSinceLast) return null;
                 offset = output[^1].Week;
                 phaseStart = offset + 1;
@@ -115,14 +145,26 @@ internal sealed class ImportPrintedSchedule
             if (bannerSinceLast && output.Count > 0) phaseStart = week;
             bannerSinceLast = false;
             lastPrinted = printed;
+            lastLetter = letter;
 
             foreach (var (index, _, label) in labels)
             {
+                var next = labels.Where(other => other.Index > index).Select(other => other.Index).DefaultIfEmpty(lines.Count).Min();
+                var segment = lines.Skip(index + 1).Take(next - index - 1).ToList();
+                var isRestSession = segment.Any(line => line.StartsWith("REST |", StringComparison.OrdinalIgnoreCase)
+                    || line.Trim().Equals("NO PHYSICAL ACTIVITY", StringComparison.OrdinalIgnoreCase))
+                    || Regex.IsMatch(label, @"^(?:REST|REST DAY|NO PHYSICAL ACTIVITY)$", RegexOptions.IgnoreCase);
+                var rests = segment.Sum(RestCount);
+                if (isRestSession)
+                {
+                    var restLabel = ImportDayLabels.TidyLabel(label.Replace('|', '/'));
+                    output.Add(new SourceDay(page.Page, week, week - phaseStart + 1, block,
+                        restLabel.Length == 0 ? "Rest Day" : restLabel, rests, IsRestDay: true));
+                    continue;
+                }
+
                 var name = ImportDayLabels.TidyLabel(label.Replace('|', '/'));
                 if (output.Any(day => day.Page == page.Page && Same(day.Label, name))) return null;
-                // A band belongs to the session it is printed under: after this label and before the next.
-                var next = labels.Where(other => other.Index > index).Select(other => other.Index).DefaultIfEmpty(lines.Count).Min();
-                var rests = lines.Skip(index + 1).Take(next - index - 1).Count(line => ImportLongWeeks.RestBand.IsMatch(line));
                 output.Add(new SourceDay(page.Page, week, week - phaseStart + 1, block, name, rests));
             }
         }
@@ -147,7 +189,7 @@ internal sealed class ImportPrintedSchedule
             return (null, []);
 
         var paired = new Dictionary<SourceDay, DraftWorkout>();
-        foreach (var page in days.GroupBy(day => day.Page))
+        foreach (var page in days.Where(day => !day.IsRestDay).GroupBy(day => day.Page))
         {
             var printed = page.ToList();
             var read = training.Where(day => day.SourcePage == page.Key).ToList();
@@ -168,11 +210,18 @@ internal sealed class ImportPrintedSchedule
         var placed = new List<DraftWorkout>(workouts.Count);
         foreach (var source in days)
         {
-            var day = paired[source];
+            DraftWorkout? readRest = null;
+            if (source.IsRestDay && restsByPage.TryGetValue(source.Page, out var sourceQueue) && sourceQueue.Count > 0)
+                readRest = sourceQueue.Dequeue();
+            var day = source.IsRestDay
+                ? readRest ?? new DraftWorkout(Guid.NewGuid(), source.Week, "Rest Day", null, null, [], IsRestDay: true, SourcePage: source.Page)
+                : paired[source];
             var block = source.Block ?? day.Block;
             var phase = source.Block is null ? day.Phase : null;
             var phaseWeek = source.Block is null ? day.PhaseWeek : source.PhaseWeek;
-            placed.Add(day with { Week = source.Week, PhaseWeek = phaseWeek, Block = block, Phase = phase, BlockId = null, WeekId = null });
+            placed.Add(day with { Week = source.Week, PhaseWeek = phaseWeek, Block = block, Phase = phase,
+                Name = source.IsRestDay ? "Rest Day" : day.Name, Exercises = source.IsRestDay ? [] : day.Exercises,
+                IsRestDay = source.IsRestDay, SourcePage = source.Page, BlockId = null, WeekId = null });
             for (var rest = 0; rest < source.RestsAfter; rest++)
             {
                 var read = restsByPage.TryGetValue(source.Page, out var queue) && queue.Count > 0 ? queue.Dequeue() : null;
@@ -180,6 +229,11 @@ internal sealed class ImportPrintedSchedule
                     with { Week = source.Week, PhaseWeek = phaseWeek, Block = block, Phase = phase, Name = "Rest Day", Exercises = [], BlockId = null, WeekId = null });
             }
         }
+        var unmatchedRest = restsByPage.Values.FirstOrDefault(queue => queue.Count > 0);
+        if (unmatchedRest is not null)
+            return (null, [new ImportReviewIssue("printed_schedule_mismatch",
+                "The extraction found more rest sessions than the PDF schedule prints. Check the rest-day ordering in review.",
+                "warning", unmatchedRest.Peek().SourcePage)]);
         if (days.All(day => day.Block is null)) placed = ImportValidation.NormalizePhaseWeeks(placed).Workouts;
 
         var notices = new List<ImportReviewIssue>();
@@ -193,18 +247,34 @@ internal sealed class ImportPrintedSchedule
         return (placed, notices);
     }
 
-    private static List<int> Weeks(List<string> lines)
+    private static int RestCount(string line)
+    {
+        var match = Regex.Match(line.Trim(), @"^(?:(?:SUGGESTED|MANDATORY|OPTIONAL)\s+)?(?<count>\d)\s*(?:[-–]\s*(?<max>\d)\s*)?\s*REST DAYS?", RegexOptions.IgnoreCase);
+        if (match.Success && int.TryParse(match.Groups["count"].Value, out var n) && n > 0) return n;
+        return ImportLongWeeks.RestBand.IsMatch(line) ? 1 : 0;
+    }
+
+    private static (List<int> Weeks, string? Letter) WeeksWithLetter(List<string> lines)
     {
         var weeks = new HashSet<int>();
+        string? letter = null;
         for (var index = 0; index < lines.Count; index++)
         {
-            if (ImportStructureHeadings.TryWeek(ImportStructureHeadings.LeadingSegment(lines[index]), out var week)) weeks.Add(week);
-            else if (TitledWeek.Match(lines[index]) is { Success: true } titled) weeks.Add(int.Parse(titled.Groups["week"].Value));
+            var line = lines[index];
+            var letMatch = Regex.Match(line, @"\bWEEK\s+\d+([A-Z])\b", RegexOptions.IgnoreCase);
+            if (letMatch.Success) letter ??= letMatch.Groups[1].Value.ToUpperInvariant();
+
+            if (ImportStructureHeadings.TryWeek(ImportStructureHeadings.LeadingSegment(line), out var week)) weeks.Add(week);
+            else if (TitledWeek.Match(line) is { Success: true } titled)
+            {
+                weeks.Add(int.Parse(titled.Groups["week"].Value));
+                if (titled.Groups["letter"].Success) letter ??= titled.Groups["letter"].Value.ToUpperInvariant();
+            }
             // "WEEK" and its number printed as two stacked lines (Chest Hypertrophy's "WEEK / 01").
-            else if (lines[index].Equals("WEEK", StringComparison.OrdinalIgnoreCase) && index + 1 < lines.Count
+            else if (line.Equals("WEEK", StringComparison.OrdinalIgnoreCase) && index + 1 < lines.Count
                 && BareNumber.IsMatch(lines[index + 1]) && int.Parse(lines[index + 1]) > 0) weeks.Add(int.Parse(lines[index + 1]));
         }
-        return [.. weeks];
+        return ([.. weeks], letter);
     }
 
     private static string? Banner(string line)

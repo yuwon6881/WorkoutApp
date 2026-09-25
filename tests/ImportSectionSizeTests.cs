@@ -26,7 +26,7 @@ public sealed class ImportSectionSizeTests
     };
 
     private static ImportSourceInput Source() => new("nippard.pdf", 60,
-        Enumerable.Range(1, 60).Select(page => new ImportPageText(page, $"PAGE {page}\nBench 3x5")).ToList());
+        Enumerable.Range(1, 60).Select(page => new ImportPageText(page, $"PAGE {page}\nBarbell bench press 3x5")).ToList());
 
     private sealed class SectionHandler(Func<string, HttpResponseMessage> respond) : HttpMessageHandler
     {
@@ -123,7 +123,7 @@ public sealed class ImportSectionSizeTests
             new AiOutlineChunk("Front matter and program", "Block 1", "Main", 1, 6, 1, 30, 4)
         ]);
 
-        Assert.Equal(3, chunks.Count);
+        Assert.Equal(4, chunks.Count);
         Assert.All(chunks, chunk => Assert.True(chunk.PageTo - chunk.PageFrom + 1 <= ImportSections.MaxSectionPages));
         Assert.Equal(1, chunks[0].PageFrom);
         Assert.Equal(30, chunks[^1].PageTo);

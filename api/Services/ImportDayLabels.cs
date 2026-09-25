@@ -17,14 +17,34 @@ internal static class ImportDayLabels
         var labels = new Dictionary<int, List<string>>();
         foreach (var page in pages.OrderBy(page => page.Page))
         {
-            foreach (var raw in (page.Text ?? "").ReplaceLineEndings("\n").Split('\n'))
+            var lines = (page.Text ?? "").ReplaceLineEndings("\n").Split('\n');
+            for (var i = 0; i < lines.Length; i++)
             {
+                var raw = lines[i];
                 if (!ImportStructureHeadings.TryDayLabel(raw, out var label)) continue;
+                if (IsRestSession(lines, i, label)) continue;
                 if (!labels.TryGetValue(page.Page, out var pageLabels)) labels[page.Page] = pageLabels = [];
                 pageLabels.Add(label.Replace('|', '/'));
             }
         }
         return labels;
+    }
+
+    private static bool IsRestSession(string[] lines, int index, string label)
+    {
+        if (label.Equals("REST", StringComparison.OrdinalIgnoreCase) || label.StartsWith("REST ", StringComparison.OrdinalIgnoreCase))
+            return true;
+        var nonHeadersChecked = 0;
+        for (var j = index + 1; j < lines.Length && nonHeadersChecked < 3; j++)
+        {
+            var line = lines[j].Trim();
+            if (string.IsNullOrEmpty(line)) continue;
+            if (ImportStructureHeadings.TryDayLabel(line, out _)) break;
+            if (Regex.IsMatch(line, @"^(?:REST\s*\||N/A\b.*NO PHYSICAL ACTIVITY|TOTAL SET VOLUME:\s*0\b)", RegexOptions.IgnoreCase))
+                return true;
+            nonHeadersChecked++;
+        }
+        return false;
     }
 
     public static Result Apply(ImportDraft draft, IReadOnlyList<ImportPageText> pages)

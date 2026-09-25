@@ -89,6 +89,31 @@ public sealed class ImportPrintedScheduleTests
     }
 
     [Fact]
+    public void An_unbannered_week_restart_does_not_discard_later_schedule_pages()
+    {
+        List<ImportPageText> pages = [Page(30, 1, "Upper"), Page(31, 2, "Lower"), Page(32, 1, "Example")];
+
+        Assert.Null(ImportPrintedSchedule.Read(pages));
+    }
+
+    [Fact]
+    public void A_standalone_rest_session_keeps_the_week_printed_on_its_own_page()
+    {
+        List<ImportPageText> pages = [
+            Page(30, 1, "Upper"),
+            new(31, "WEEK 2\nDAY LABEL: Rest Day\nNO PHYSICAL ACTIVITY"),
+            Page(32, 2, "Lower")
+        ];
+        var draft = new List<DraftWorkout> { Day(1, "Upper", 30), Rest(2, 31), Day(2, "Lower", 32) };
+
+        var placed = ImportPrintedSchedule.Read(pages)!.Reconcile(draft).Workouts!;
+
+        Assert.Equal([1, 2, 2], placed.Select(day => day.Week));
+        Assert.True(placed[1].IsRestDay);
+        Assert.Equal(31, placed[1].SourcePage);
+    }
+
+    [Fact]
     public void A_ten_day_printed_cycle_stays_in_its_printed_week()
     {
         var pages = Enumerable.Range(0, 8).Select(index => Page(20 + index, 1, $"Day {index + 1}", rest: index is 3 or 7)).ToList();

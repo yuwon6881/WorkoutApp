@@ -101,7 +101,7 @@ internal static class ImportChunkReconciliation
         if (repeated > 0)
             notices.Add(new ImportReviewIssue("repeated_day",
                 $"'{chunk.Label}' lists {repeated} day{(repeated == 1 ? "" : "s")} that read identically. Both were kept — delete one in the review if the document only has it once.",
-                "warning", chunk.PageFrom));
+                "info", chunk.PageFrom));
 
         var sourceTrainingDays = pages is null
             ? 0
@@ -115,7 +115,7 @@ internal static class ImportChunkReconciliation
                 sourceTrainingDays > 0
                     ? $"'{chunk.Label}' has {sourceTrainingDays} printed training-day title{(sourceTrainingDays == 1 ? "" : "s")} but reads as {readTrainingDays}. Check that section in the review."
                     : $"'{chunk.Label}' was outlined as about {chunk.DayCount} day{(chunk.DayCount == 1 ? "" : "s")} but reads as {sectionDayCount}. Check that section in the review.",
-                "warning", chunk.PageFrom, TargetField: "week",
+                "info", chunk.PageFrom, TargetField: "week",
                 ExpectedTrainingDays: sourceTrainingDays > 0 ? sourceTrainingDays : null,
                 SourcePageTo: sourceTrainingDays > 0 ? chunk.PageTo : null,
                 WeekFrom: sourceTrainingDays > 0 ? chunk.WeekFrom : null,

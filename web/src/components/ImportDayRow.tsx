@@ -17,6 +17,7 @@ export function DayRow({
   onChange,
   onPropagateSubstitution,
   onMapExerciseSlot,
+  onCustomExerciseCreated,
   restorableExerciseLineIds,
   onRestoreExercise,
   handle,
@@ -30,6 +31,7 @@ export function DayRow({
   onChange: (day: DraftWorkout) => Promise<void>;
   onPropagateSubstitution?: (currentName: string, replacementName: string, exerciseLineId?: string) => Promise<void>;
   onMapExerciseSlot?: (exerciseLineId: string, exerciseId: string | null) => Promise<void>;
+  onCustomExerciseCreated?: () => Promise<void>;
   restorableExerciseLineIds?: string[];
   onRestoreExercise?: (exerciseLineId: string) => Promise<void>;
   handle?: ReactNode;
@@ -99,6 +101,7 @@ export function DayRow({
           onChange={onChange}
           onPropagateSubstitution={onPropagateSubstitution}
           onMapExerciseSlot={onMapExerciseSlot}
+          onCustomExerciseCreated={onCustomExerciseCreated}
           restorableExerciseLineIds={restorableExerciseLineIds}
           onRestoreExercise={onRestoreExercise}
         />

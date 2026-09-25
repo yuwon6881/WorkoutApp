@@ -101,7 +101,10 @@ public sealed partial class ImportService
         }
         catch (DomainException ex)
         {
-            await FailImport(importId, ex.Message, leaseId);
+            if (ex.Status == 429 || ex.Status >= 500)
+                await RecordRetryableFailure(importId, ex.Message, leaseId);
+            else
+                await FailImport(importId, ex.Message, leaseId);
             throw;
         }
         catch (Exception) when (!ct.IsCancellationRequested)
@@ -132,6 +135,8 @@ public sealed partial class ImportService
                 {
                     // The account lock is not reentrant, so the outcome is recorded once this
                     // gate has closed rather than from inside it.
+                    if (ex is ImportVerificationException)
+                        await db.SaveChangesAsync(settle);
                     db.ChangeTracker.Clear();
                     rejected = ex;
                 }
@@ -140,7 +145,8 @@ public sealed partial class ImportService
         }
         if (rejected is not null)
         {
-            await FailImport(importId, rejected.Message, leaseId);
+            await FailImport(importId, rejected.Message, leaseId, "import_failed",
+                (rejected as ImportVerificationException)?.Issue);
             throw rejected;
         }
         return await Get(importId, ct);
@@ -184,11 +190,15 @@ public sealed partial class ImportService
             }
             outlineNotices.AddRange(shaped.Notices);
             outlineNotices.AddRange(cited.Notices);
+            outlineNotices.AddRange(ImportNameEvidence.Unsupported(draft, pages));
+            outlineNotices.AddRange(ImportNameEvidence.OverCounted(draft, pages));
             if (outlineNotices.Count > 0)
                 import.NoticesJson = Json.Write(ImportReviewNotices.Merge(ReadNotices(import.NoticesJson), outlineNotices));
             await ValidateDraft(draft, ct);
             ValidateDraftPages(draft, import.PageCoverageJson);
-            import.DraftJson = Json.Write(draft); import.DraftBaselineJson = import.DraftJson; import.Stage = "done"; import.Status = ImportStatus.Ready;
+            import.DraftJson = Json.Write(draft);
+            RequireVerifiedDraft(draft, import, outlineNotices);
+            import.DraftBaselineJson = import.DraftJson; import.Stage = "done"; import.Status = ImportStatus.Ready;
             import.ChunksDone = 1; import.ChunksTotal = 1;
             UpdateCounters(import, draft);
             return;
@@ -197,7 +207,8 @@ public sealed partial class ImportService
         // its weeks are read section by section instead of the shorter program the outline describes.
         // A schedule printed entirely as clean tables is divided the same way, so every section is
         // read from its tables and none waits on a model read.
-        if (ImportPrintedSchedule.Read(pages) is { } printed && (!printed.CoveredBy(OutlinedChunks(result.Outline!))
+        if (result.Outline?.Alternatives is not { Count: > 1 }
+            && ImportPrintedSchedule.Read(pages) is { } printed && (!printed.CoveredBy(OutlinedChunks(result.Outline!))
             || ImportTableEvidence.ReadPrintedSection(printed.Days, ImportSourceText.Slice(pages, printed.Days[0].Page, printed.Days[^1].Page)) is not null))
         {
             var sourceChunks = SplitChunks(printed.Chunks());
@@ -224,8 +235,10 @@ public sealed partial class ImportService
                 var chunks = ImportOutlineEvidence.NormalizeChunks(alternative.Chunks, sourceEvidence);
                 var runs = ImportBlockRuns.ReconcileChunks(ImportPageTemplateWeeks.Reconcile(chunks, pages));
                 var absolute = ImportAbsoluteWeeks.NormalizeChunks(runs.Chunks, sourceEvidence);
+                var (weekCount, sessionsPerWeek) = ImportPrintedSchedule.DescribeAlternative(absolute.Chunks, pages);
                 return new ImportAlternative(alternative.Id,
-                    ImportNormalization.Label(alternative.Name, 200, alternative.Id), absolute.Chunks.Count, absolute.Chunks.Sum(chunk => chunk.DayCount), absolute.Chunks);
+                    ImportNormalization.Label(alternative.Name, 200, alternative.Id), absolute.Chunks.Count,
+                    absolute.Chunks.Sum(chunk => chunk.DayCount), absolute.Chunks, weekCount, sessionsPerWeek);
             }).ToList());
             import.Stage = "select"; import.Status = ImportStatus.Pending; import.ChunksDone = 0; import.ChunksTotal = 0;
             import.DraftJson = Json.Write(new ImportDraft(ProgramTitle(ImportProgramTitle.Grounded(result.Outline!.ProgramTitle, pages), import.FileName), []));

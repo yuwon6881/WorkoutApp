@@ -47,7 +47,8 @@ public static class ImportSourceText
             Validation.Require(seen.Add(page.Page), "The same page was submitted twice.", 422);
             var text = Collapse(page.Text);
             if (text.Length == 0) continue;
-            if (text.Length > MaxPageChars) text = text[..MaxPageChars];
+            Validation.Require(text.Length <= MaxPageChars,
+                $"PDF page {page.Page} contains more than {MaxPageChars:N0} selectable text characters. Split the PDF into smaller files and retry.", 413);
             total += text.Length;
             Validation.Require(total <= MaxTotalChars, "That PDF holds more text than the importer supports. Split it into smaller files.", 413);
             pages.Add(new ImportPageText(page.Page, text));
@@ -85,11 +86,12 @@ public static class ImportSourceText
             var text = total <= WholeDocumentOutlineChars || page.Text.Length <= OutlinePagePreviewChars
                 ? page.Text
                 : page.Text[..OutlinePagePreviewChars] + " …";
-            builder.Append("=== PAGE ").Append(page.Page).Append(" ===\n").Append(text).Append("\n\n");
-            if (builder.Length >= MaxOutlineChars) break;
+            var section = $"=== PAGE {page.Page} ===\n{text}\n\n";
+            Validation.Require(builder.Length + section.Length <= MaxOutlineChars,
+                $"This PDF has more page previews than the importer can outline at once ({MaxOutlineChars:N0} characters). Split it into smaller files and retry.", 413);
+            builder.Append(section);
         }
-        var result = builder.ToString().TrimEnd();
-        return result.Length > MaxOutlineChars ? result[..MaxOutlineChars] : result;
+        return builder.ToString().TrimEnd();
     }
 
     /// The full text of one chunk's pages. This is the only place a page's complete content is
@@ -99,11 +101,12 @@ public static class ImportSourceText
         var builder = new StringBuilder();
         foreach (var page in pages.Where(page => page.Page >= pageFrom && page.Page <= pageTo))
         {
-            builder.Append("=== PAGE ").Append(page.Page).Append(" ===\n").Append(page.Text).Append("\n\n");
-            if (builder.Length >= MaxChunkChars) break;
+            var section = $"=== PAGE {page.Page} ===\n{page.Text}\n\n";
+            Validation.Require(builder.Length + section.Length <= MaxChunkChars,
+                $"PDF pages {pageFrom}-{pageTo} exceed the import section limit. Split this program into smaller PDF files and retry.", 413);
+            builder.Append(section);
         }
-        var result = builder.ToString().TrimEnd();
-        return result.Length > MaxChunkChars ? result[..MaxChunkChars] : result;
+        return builder.ToString().TrimEnd();
     }
 
     /// Normalizes whitespace without touching the line structure the browser reconstructed from
@@ -112,7 +115,10 @@ public static class ImportSourceText
     {
         if (string.IsNullOrWhiteSpace(text)) return "";
         var builder = new StringBuilder(text.Length);
-        foreach (var line in text.ReplaceLineEndings("\n").Split('\n'))
+        // PDF extraction can use U+2028/U+2029 inside a table cell when a value wraps visually.
+        // Only normalize transport-level CR/LF characters; turning every Unicode separator into
+        // a row boundary detaches the movement name from its prescription cells.
+        foreach (var line in text.Replace("\r\n", "\n", StringComparison.Ordinal).Replace('\r', '\n').Split('\n'))
         {
             var trimmed = line.Trim();
             if (trimmed.Length == 0) continue;

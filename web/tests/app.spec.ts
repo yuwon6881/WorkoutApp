@@ -291,6 +291,12 @@ test('build a workout, log a set against the server, and see it in history', asy
 });
 
 test('import a PDF program, resolve an unmapped exercise, and accept it', async ({ page }, testInfo) => {
+  const customExerciseName = `Import custom ${testInfo.project.name} ${Date.now()}`;
+  let importedProgramName = '';
+  let customCreateRequests = 0;
+  let mappingAttempts = 0;
+  let failNextMapping = false;
+  try {
   await signIn(page);
   await openTab(page, 'Workouts');
   await openNewMenu(page, 'Import a PDF program');
@@ -384,12 +390,53 @@ test('import a PDF program, resolve an unmapped exercise, and accept it', async 
   // An unresolved mapping keeps the server-authoritative create action disabled.
   const accept = page.getByRole('button', { name: 'Accept and create program', exact: true });
   await expect(accept).toBeDisabled();
+  await page.route('**/api/exercises/custom', async route => {
+    if (route.request().method() === 'POST') customCreateRequests++;
+    await route.continue();
+  });
+  await page.route('**/api/imports/*/exercises/*/mapping', async route => {
+    if (route.request().method() !== 'POST') return route.continue();
+    mappingAttempts++;
+    if (failNextMapping) {
+      failNextMapping = false;
+      return route.fulfill({ status: 500, contentType: 'application/json', body: JSON.stringify({ error: 'Temporary mapping failure.' }) });
+    }
+    await route.continue();
+  });
   await mapping.click();
   await expect(picker).toBeVisible();
-  await picker.getByRole('textbox', { name: 'Search exercises', exact: true }).fill('bench press');
-  await picker.getByRole('button', { name: 'Map Barbell bench press', exact: true }).click();
-  await expect(accept).toBeEnabled({ timeout: 30000 });
+  await picker.getByRole('button', { name: 'Create custom exercise', exact: true }).click();
+  const createExerciseDialog = page.getByRole('dialog', { name: 'Create custom exercise', exact: true });
+  await createExerciseDialog.getByLabel('Name', { exact: true }).fill(customExerciseName);
+  failNextMapping = true;
+  await createExerciseDialog.getByRole('button', { name: 'Create and map exercise', exact: true }).click();
+  const retryMappingDialog = page.getByRole('dialog', { name: 'Finish mapping exercise', exact: true });
+  await expect(retryMappingDialog.getByRole('alert')).toContainText('The exercise was created, but the import could not map it.');
+  await expect(retryMappingDialog.getByRole('button', { name: 'Retry mapping', exact: true })).toBeVisible();
+  const themeElement = page.locator('html');
+  const retryDialogTheme = await themeElement.getAttribute('data-theme');
+  for (const theme of ['dark', 'light'] as const) {
+    await themeElement.evaluate((element, value) => element.setAttribute('data-theme', value), theme);
+    await expect(retryMappingDialog).toBeVisible();
+    const modalBox = await retryMappingDialog.boundingBox();
+    expect(modalBox).not.toBeNull();
+    expect(modalBox!.x).toBeGreaterThanOrEqual(0);
+    expect(modalBox!.x + modalBox!.width).toBeLessThanOrEqual(page.viewportSize()!.width + 1);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    await page.screenshot({ path: join(screenshotsDirectory, `${testInfo.project.name}-import-custom-retry-${theme}.png`), fullPage: true });
+  }
+  await themeElement.evaluate((element, value) => {
+    if (value) element.setAttribute('data-theme', value);
+    else element.removeAttribute('data-theme');
+  }, retryDialogTheme);
+  expect(customCreateRequests).toBe(1);
+  expect(mappingAttempts).toBe(1);
+  await retryMappingDialog.getByRole('button', { name: 'Retry mapping', exact: true }).click();
+  await expect(retryMappingDialog).toBeHidden();
   await expect(picker).toBeHidden();
+  await expect.poll(() => customCreateRequests).toBe(1);
+  await expect.poll(() => mappingAttempts).toBe(2);
+  await expect(accept).toBeEnabled({ timeout: 30000 });
   const activeAcceptColors = await accept.evaluate(element => {
     const probe = document.createElement('span');
     probe.style.color = 'var(--on-accent)';
@@ -437,6 +484,7 @@ test('import a PDF program, resolve an unmapped exercise, and accept it', async 
   });
 
   const programName = `Imported block ${testInfo.project.name} ${Date.now()}`;
+  importedProgramName = programName;
   await page.getByLabel('Program name').fill(programName);
   await page.getByLabel('Program name').blur();
   await firstDraftWrite;
@@ -541,6 +589,100 @@ test('import a PDF program, resolve an unmapped exercise, and accept it', async 
   await activeUpperDay.getByRole('button', { name: /^Show details for / }).click();
   await expect(activeUpperDay.locator('.program-muscle-preview')).toBeVisible();
   await page.unroute('**/api/bootstrap');
+  } finally {
+    await page.evaluate(async ({ programName, exerciseName }) => {
+      const headers = { 'X-Workout-Request': '1' };
+      if (programName) {
+        const bootstrap = await fetch('/api/bootstrap', { headers, cache: 'no-store' });
+        if (bootstrap.ok) {
+          const data = await bootstrap.json();
+          for (const program of data.programs.filter((item: { name: string }) => item.name === programName)) {
+            await fetch(`/api/programs/${program.id}`, { method: 'DELETE', headers });
+          }
+        }
+      }
+      const exerciseResponse = await fetch('/api/exercises', { headers, cache: 'no-store' });
+      if (exerciseResponse.ok) {
+        const exercises = await exerciseResponse.json();
+        const customExercise = exercises.find((exercise: { name: string; isCustom?: boolean; archived?: boolean }) =>
+          exercise.name === exerciseName && exercise.isCustom !== false && !exercise.archived);
+        if (customExercise) await fetch(`/api/exercises/custom/${customExercise.id}`, { method: 'DELETE', headers });
+      }
+    }, { programName: importedProgramName, exerciseName: customExerciseName }).catch(() => {});
+  }
+});
+
+test('program version chooser uses the source schedule metadata and one explicit continue action', async ({ page }, testInfo) => {
+  await signIn(page);
+  await clearActiveWorkout(page);
+  await openTab(page, 'Workouts');
+  await openNewMenu(page, 'Import a PDF program');
+
+  const importId = 'c1940000-0000-4000-8000-000000000001';
+  const alternatives = [
+    { id: 'full-body-program', name: 'Full Body Program', chunkCount: 2, dayCount: 24, weekCount: 8, sessionsPerWeek: 3 },
+    { id: 'upper-lower-program', name: 'Upper/Lower Program', chunkCount: 4, dayCount: 32, weekCount: 8, sessionsPerWeek: 4 },
+    { id: 'bodypart-program', name: 'Bodypart Program', chunkCount: 8, dayCount: 40, weekCount: 8, sessionsPerWeek: 5 }
+  ];
+  let selectedAlternativeId: string | null = null;
+  await page.route('**/api/imports', async route => {
+    if (route.request().method() !== 'POST') return route.continue();
+    await route.fulfill({ json: {
+      id: importId, status: 'pending', fileName: 'fundamentals.pdf', pages: 80, error: '', created: new Date().toISOString(),
+      model: 'local fixture', stage: 'select', chunksDone: 0, chunksTotal: 0, currentChunkLabel: null, unresolvedCount: 0,
+      draft: { programName: 'Fundamentals', workouts: [] }, unresolved: [], acceptable: false, programId: null,
+      alternatives, selectedAlternativeId: null, revision: 1
+    } });
+  });
+  await page.route(`**/api/imports/${importId}/alternative`, async route => {
+    if (route.request().method() !== 'POST') return route.continue();
+    selectedAlternativeId = route.request().postDataJSON().alternativeId;
+    await route.fulfill({ json: {
+      id: importId, status: 'ready', fileName: 'fundamentals.pdf', pages: 80, error: '', created: new Date().toISOString(),
+      model: 'local fixture', stage: 'done', chunksDone: 1, chunksTotal: 1, currentChunkLabel: null, unresolvedCount: 0,
+      draft: { programName: 'Full Body Program', workouts: [] }, unresolved: [], acceptable: true, programId: null,
+      alternatives, selectedAlternativeId, revision: 2
+    } });
+  });
+
+  await page.getByLabel('Program PDF').setInputFiles({
+    name: `fundamentals-${testInfo.project.name}.pdf`, mimeType: 'application/pdf', buffer: pdf(4, `fundamentals-${Date.now()}`)
+  });
+  const chooser = page.getByRole('group', { name: 'Available program versions', exact: true });
+  await expect(chooser.getByRole('article')).toHaveCount(3);
+  const fullBody = chooser.locator('.alternative-card').filter({ hasText: 'Full Body Program' });
+  await expect(fullBody).toContainText('8 weeks');
+  await expect(fullBody).toContainText('3 sessions / week');
+  await expect(fullBody).toContainText('24 estimated sessions');
+  await expect(fullBody).not.toContainText('2 weeks');
+
+  const themeElement = page.locator('html');
+  const originalTheme = await themeElement.getAttribute('data-theme');
+  for (const theme of ['dark', 'light'] as const) {
+    await themeElement.evaluate((element, value) => element.setAttribute('data-theme', value), theme);
+    await expect(chooser).toBeVisible();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    for (const card of await chooser.locator('.alternative-card').all()) {
+      const box = await card.boundingBox();
+      expect(box).not.toBeNull();
+      expect(box!.x).toBeGreaterThanOrEqual(0);
+      expect(box!.x + box!.width).toBeLessThanOrEqual(page.viewportSize()!.width + 1);
+    }
+    await page.screenshot({ path: join(screenshotsDirectory, `${testInfo.project.name}-import-versions-${theme}.png`), fullPage: true });
+  }
+  await themeElement.evaluate((element, value) => {
+    if (value) element.setAttribute('data-theme', value);
+    else element.removeAttribute('data-theme');
+  }, originalTheme);
+
+  const selectedButton = fullBody.getByRole('button', { name: 'Choose this version', exact: true });
+  await selectedButton.click();
+  await expect(fullBody.getByRole('button', { name: 'Selected', exact: true })).toHaveAttribute('aria-pressed', 'true');
+  await page.getByRole('button', { name: 'Continue with selected version', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Review', exact: true })).toBeVisible();
+  expect(selectedAlternativeId).toBe('full-body-program');
+  await page.unroute('**/api/imports');
+  await page.unroute(`**/api/imports/${importId}/alternative`);
 });
 
 test('a discarded draft leaves no program behind, and reports itself while it reads', async ({ page }, testInfo) => {

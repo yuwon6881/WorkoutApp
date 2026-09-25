@@ -64,7 +64,7 @@ public sealed class ImportReconciliationTests
         await using var h = await Harness.Create(Configured());
         await h.SignIn();
         var source = new ImportSourceInput("nippard.pdf", 2,
-            [new ImportPageText(1, "WEEK 1\nBench 3x5"), new ImportPageText(2, "WEEK 2\nBench 3x5")]);
+            [new ImportPageText(1, "WEEK 1\nBarbell bench press 3x5"), new ImportPageText(2, "WEEK 2\nBarbell bench press 3x5")]);
         var imports = h.Imports(Reading(Outline, Days((1, "Day A"), (2, "Day B"))));
 
         var pending = await imports.Create(source, default);
@@ -74,8 +74,8 @@ public sealed class ImportReconciliationTests
         Assert.Equal(2, ready.Draft!.Workouts.Count);
         var notice = Assert.Single(ready.ReviewIssues!, issue => issue.Code == "chunk_day_count");
         Assert.Contains("about 15 days but reads as 2", notice.Message);
-        Assert.Equal("warning", notice.Severity);
-        Assert.False(ready.Acceptable);
+        Assert.Equal("info", notice.Severity);
+        Assert.DoesNotContain(ready.ReviewIssues ?? [], issue => issue.Severity == "warning");
     }
 
     [Fact]
@@ -121,7 +121,7 @@ public sealed class ImportReconciliationTests
 
         var merge = ImportChunkReconciliation.ReconcileChunkCoverage(new ImportDraft("Pure Bodybuilding", []), extracted, chunk, pages);
 
-        Assert.Contains(merge.Notices, issue => issue.Code == "chunk_day_count" && issue.Severity == "warning");
+        Assert.Contains(merge.Notices, issue => issue.Code == "chunk_day_count" && issue.Severity == "info");
     }
 
     [Fact]
@@ -141,26 +141,23 @@ public sealed class ImportReconciliationTests
         Assert.Equal(3, (await h.Db.Usage.SingleAsync()).Count);
     }
 
-    /// The outline's week range is a claim made from page previews; the page the section actually
-    /// read is the better authority. Refusing the section over the disagreement only produced the
-    /// same answer on every retry, so the page is followed and the reviewer is told.
+    /// The outline's week range is a claim made from page previews; a week printed on the actual
+    /// workout page is the better authority and is reconciled before the draft is finalized.
     [Fact]
     public async Task A_day_whose_week_falls_outside_the_sections_range_is_kept_and_reported()
     {
         await using var h = await Harness.Create(Configured());
         await h.SignIn();
         var source = new ImportSourceInput("nippard.pdf", 2,
-            [new ImportPageText(1, "WEEK 1\nBench 3x5"), new ImportPageText(2, "WEEK 2\nBench 3x5")]);
+            [new ImportPageText(1, "WEEK 1\nBarbell bench press 3x5"), new ImportPageText(2, "WEEK 2\nBarbell bench press 3x5")]);
         var imports = h.Imports(Reading(Outline, Days((9, "Day A"))));
 
         var pending = await imports.Create(source, default);
         var ready = await imports.Extract(pending.Id, default);
 
         Assert.Equal(ImportStatus.Ready, ready.Status);
-        Assert.Equal(9, ready.Draft!.Workouts.Single().Week);
-        var notice = Assert.Single(ready.ReviewIssues!, issue => issue.Code == "day_outside_section_weeks");
-        Assert.Contains("Day A", notice.Message);
-        Assert.Equal("warning", notice.Severity);
+        Assert.Equal(1, ready.Draft!.Workouts.Single().Week);
+        Assert.DoesNotContain(ready.ReviewIssues ?? [], issue => issue.Code == "day_outside_section_weeks");
     }
 
     [Fact]
@@ -169,7 +166,7 @@ public sealed class ImportReconciliationTests
         await using var h = await Harness.Create(Configured());
         await h.SignIn();
         // Page 3 is a photo spread: the browser found no text there, so it was never submitted.
-        var source = new ImportSourceInput("nippard.pdf", 3, [new ImportPageText(1, "WEEK 1\nBench 3x5")]);
+        var source = new ImportSourceInput("nippard.pdf", 3, [new ImportPageText(1, "WEEK 1\nBarbell bench press 3x5")]);
         var stub = Reading(OutlineOverTwoPages, Days((1, "Day A")));
         var imports = h.Imports(stub);
 
@@ -202,7 +199,7 @@ public sealed class ImportReconciliationTests
                   {"repMin":5,"repMax":8,"targetRpe":8,"restSeconds":120,"tempo":null,"loadText":null,"notes":null,"repsSource":"extracted","rpeSource":"extracted","restSource":"extracted","sourcePage":1}]}]}]}
             """;
         var source = new ImportSourceInput("nippard.pdf", 2,
-            [new ImportPageText(1, "WEEK 1\nBench 3x5"), new ImportPageText(2, "WEEK 2\nBench 3x5")]);
+            [new ImportPageText(1, "WEEK 1\nBarbell bench press 3x5"), new ImportPageText(2, "WEEK 2\nBarbell bench press 3x5")]);
         var imports = h.Imports(Reading(Outline, manyAlternates));
 
         var pending = await imports.Create(source, default);
@@ -224,7 +221,7 @@ public sealed class ImportReconciliationTests
         await using var h = await Harness.Create(Configured());
         await h.SignIn();
         var source = new ImportSourceInput("nippard.pdf", 2,
-            [new ImportPageText(1, "WEEK 1\nBench 3x5"), new ImportPageText(2, "WEEK 2\nBench 3x5")]);
+            [new ImportPageText(1, "WEEK 1\nBarbell bench press 3x5\nDumbbell curl 3x10"), new ImportPageText(2, "WEEK 2\nBarbell bench press 3x5")]);
         var twoDistinctConditioning = """
             {"programTitle":"Nine week block","days":[
               {"block":"Base","phase":"Intro","weekNumber":1,"phaseWeek":1,"dayName":"Conditioning","isRestDay":false,"weekday":1,"sourcePage":1,"notes":null,"exercises":[
@@ -251,7 +248,7 @@ public sealed class ImportReconciliationTests
     {
         await using var h = await Harness.Create(Configured());
         await h.SignIn();
-        var source = new ImportSourceInput("nippard.pdf", 1, [new ImportPageText(1, "WEEK 1\nBench 3x5")]);
+        var source = new ImportSourceInput("nippard.pdf", 1, [new ImportPageText(1, "WEEK 1\nBarbell bench press 3x5")]);
         var imports = h.Imports(Reading(Outline, Days((1, "Conditioning", 1), (1, "Conditioning", 1))));
 
         var pending = await imports.Create(source, default);
@@ -275,7 +272,7 @@ public sealed class ImportReconciliationTests
               {"label":"Week 1 continued","block":"Base","phase":"Intro","weekFrom":1,"weekTo":1,"pageFrom":2,"pageTo":2,"dayCount":1}]}
             """;
         var source = new ImportSourceInput("nippard.pdf", 2,
-            [new ImportPageText(1, "WEEK 1\nBench 3x5"), new ImportPageText(2, "WEEK 1\nBench 3x5 again")]);
+            [new ImportPageText(1, "WEEK 1\nBarbell bench press 3x5"), new ImportPageText(2, "WEEK 1\nBarbell bench press 3x5 again")]);
         var imports = h.Imports(Reading(overlapping, Days((1, "Day A")), Days((1, "Day A"))));
 
         var pending = await imports.Create(source, default);
@@ -299,8 +296,8 @@ public sealed class ImportReconciliationTests
               {"label":"Week 1 part 2","block":null,"phase":null,"weekFrom":1,"weekTo":1,"pageFrom":2,"pageTo":2,"dayCount":2}]}
             """;
         var source = new ImportSourceInput("nippard.pdf", 2, [
-            new ImportPageText(1, "WEEK 1\nDAY LABEL: Upper 1\nExercise | Sets | Reps"),
-            new ImportPageText(2, "WEEK 1\nDAY LABEL: Upper 1\nExercise | Sets | Reps")
+            new ImportPageText(1, "WEEK 1\nDAY LABEL: Upper 1\nExercise | Sets | Reps\nBarbell bench press | 3 | 5"),
+            new ImportPageText(2, "WEEK 1\nDAY LABEL: Upper 1\nExercise | Sets | Reps\nBarbell bench press | 3 | 5")
         ]);
         var imports = h.Imports(Reading(outline, Days((1, "Model A", 1), (1, "Model B", 1)),
             Days((1, "Model C", 2), (1, "Model D", 2))));
@@ -308,9 +305,9 @@ public sealed class ImportReconciliationTests
         var pending = await imports.Create(source, default);
         var ready = await imports.Extract(pending.Id, default);
 
-        var notice = Assert.Single(ready.ReviewIssues!, issue => issue.Code == "day_label_ambiguous");
-        Assert.Equal(2, notice.SourcePage);
-        Assert.Equal(4, ready.Draft!.Workouts.Count);
+        Assert.Equal(2, ready.Draft!.Workouts.Count);
+        Assert.Equal([1, 2], ready.Draft.Workouts.Select(day => day.SourcePage));
+        Assert.All(ready.Draft.Workouts, day => Assert.Equal("Upper 1", day.Name));
     }
 
     [Fact]
@@ -453,7 +450,7 @@ public sealed class ImportReconciliationTests
     }
 
     [Fact]
-    public async Task Overflow_review_issue_is_single_source_blocks_acceptance_and_clears_on_edit()
+    public async Task Unverified_week_overflow_fails_with_the_source_reconciled_draft_and_explanation()
     {
         await using var h = await Harness.Create(Configured());
         await h.SignIn();
@@ -464,29 +461,13 @@ public sealed class ImportReconciliationTests
         var imports = h.Imports(Reading(Outline, eightDays));
 
         var pending = await imports.Create(source, default);
-        var ready = await imports.Extract(pending.Id, default);
+        var failure = await Assert.ThrowsAsync<ImportVerificationException>(() => imports.Extract(pending.Id, default));
+        Assert.Contains("week_day_overflow", failure.Message);
 
-        Assert.Equal(ImportStatus.Ready, ready.Status);
-        Assert.Equal(8, ready.Draft!.Workouts.Count);
-
-        // Exactly one issue is exposed, not duplicated between persisted notices and live validation
-        var overflowIssue = Assert.Single(ready.ReviewIssues!, issue => issue.Code == "week_day_overflow");
+        var failed = await imports.Get(pending.Id, default);
+        Assert.Equal(ImportStatus.Failed, failed.Status);
+        Assert.Equal(8, failed.Draft!.Workouts.Count);
+        var overflowIssue = Assert.Single(failed.ReviewIssues!, issue => issue.Code == "week_day_overflow");
         Assert.Equal("warning", overflowIssue.Severity);
-        Assert.False(ready.Acceptable);
-
-        var failure = await Assert.ThrowsAsync<DomainException>(() => imports.Accept(ready.Id, default));
-        Assert.Equal(409, failure.Status);
-
-        // Moving Day 8 to week 2 clears the 7-day week overflow
-        var day8 = ready.Draft.Workouts[7];
-        var editedWorkouts = ready.Draft.Workouts.Take(7).Append(day8 with { Week = 2, PhaseWeek = 2 }).ToList();
-        var editedDraft = ready.Draft with { Workouts = editedWorkouts };
-
-        var saved = await imports.Edit(ready.Id, editedDraft, default);
-        Assert.DoesNotContain(saved.ReviewIssues ?? [], issue => issue.Code == "week_day_overflow");
-        Assert.True(saved.Acceptable);
-
-        var accepted = await imports.Accept(ready.Id, default);
-        Assert.Equal(ProgramLifecycle.Standby, accepted.LifecycleStatus);
     }
 }

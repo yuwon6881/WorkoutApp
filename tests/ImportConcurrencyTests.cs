@@ -35,7 +35,7 @@ public sealed class ImportConcurrencyTests
 
     private static ImportSourceInput Source() => new("nippard.pdf", 3,
         Enumerable.Range(1, 3).Select(page => new ImportPageText(page,
-            $"{(page == 1 ? "BLOCK 1\n" : "")}{page switch { 1 => "INTRO", 2 => "MAIN", _ => "PEAK" }}\nWEEK {page}\nBench 3x5")).ToList());
+            $"{(page == 1 ? "BLOCK 1\n" : "")}{page switch { 1 => "INTRO", 2 => "MAIN", _ => "PEAK" }}\nWEEK {page}\nBarbell bench press 3x5")).ToList());
 
     /// Answers by what a request asks for rather than by the order it arrives in, because with
     /// sections in flight together that order is no longer fixed.
@@ -72,6 +72,75 @@ public sealed class ImportConcurrencyTests
         : request.Contains("=== PAGE 1 ===") ? Answer(Day(1, "Intro"))
         : request.Contains("=== PAGE 2 ===") ? Answer(Day(2, "Main"))
         : Answer(Day(3, "Peak"));
+
+    private sealed class BlockingRecoveryHandler : HttpMessageHandler
+    {
+        public TaskCompletionSource RecoveryStarted { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public TaskCompletionSource ReleaseRecovery { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken ct)
+        {
+            var body = request.Content is null ? "" : await request.Content.ReadAsStringAsync(ct);
+            if (body.Contains("training_program_outline"))
+                return Answer("""{"programTitle":"One phase","chunks":[{"label":"Week 1","block":"Base","phase":"Intro","weekFrom":1,"weekTo":1,"pageFrom":1,"pageTo":1,"dayCount":1}]}""");
+            if (body.Contains("Verification pass"))
+            {
+                RecoveryStarted.TrySetResult();
+                await ReleaseRecovery.Task.WaitAsync(ct);
+                return Answer(Day(1, "Intro"));
+            }
+            return Answer("""{"programTitle":"One phase","days":[]}""");
+        }
+    }
+
+    private static ImportSourceInput RecoverySource() => new("one-phase.pdf", 1,
+        [new ImportPageText(1, "WEEK 1\nDAY LABEL: Upper\nBarbell bench press 3 x 5")]);
+
+    [Fact]
+    public async Task Source_recovery_progress_is_persisted_and_returns_to_extraction_after_completion()
+    {
+        await using var h = await Harness.Create(Configured());
+        await h.SignIn();
+        var handler = new BlockingRecoveryHandler();
+        var imports = h.Imports(handler);
+        var pending = await imports.Create(RecoverySource(), default);
+        var extraction = imports.Extract(pending.Id, default);
+
+        try
+        {
+            await handler.RecoveryStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            var recovering = await h.Db.Imports.AsNoTracking().SingleAsync(row => row.Id == pending.Id);
+            Assert.Equal("recover", recovering.Stage);
+        }
+        finally
+        {
+            handler.ReleaseRecovery.TrySetResult();
+        }
+
+        var ready = await extraction;
+        Assert.Equal(ImportStatus.Ready, ready.Status);
+        Assert.Equal("done", ready.Stage);
+        Assert.Single(ready.Draft!.Workouts);
+    }
+
+    [Fact]
+    public async Task An_expired_import_can_resume_from_a_persisted_verification_stage()
+    {
+        await using var h = await Harness.Create(Configured());
+        await h.SignIn();
+        var handler = new BlockingRecoveryHandler();
+        handler.ReleaseRecovery.TrySetResult();
+        var imports = h.Imports(handler);
+        var pending = await imports.Create(RecoverySource(), default);
+        var row = await h.Db.Imports.SingleAsync(item => item.Id == pending.Id);
+        row.Stage = "verify";
+        await h.Db.SaveChangesAsync();
+
+        var ready = await imports.Retry(pending.Id, default);
+
+        Assert.Equal(ImportStatus.Ready, ready.Status);
+        Assert.Single(ready.Draft!.Workouts);
+    }
 
     [Fact]
     public async Task Every_remaining_section_is_read_in_one_pass_and_merged_in_outline_order()

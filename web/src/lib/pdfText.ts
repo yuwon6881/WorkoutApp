@@ -337,7 +337,9 @@ export async function extractPdfText(
         throw new PdfTextError(`Page ${number} could not be read. Re-save or export the PDF, then try again.`);
       }
       if (text.length === 0) continue;
-      if (text.length > MAX_PAGE_CHARS) text = text.slice(0, MAX_PAGE_CHARS);
+      if (text.length > MAX_PAGE_CHARS) {
+        throw new PdfTextError(`PDF page ${number} contains more than ${MAX_PAGE_CHARS.toLocaleString()} selectable text characters. Split the PDF into smaller files and retry.`);
+      }
       total += text.length;
       if (total > MAX_TOTAL_CHARS) {
         throw new PdfTextError('That PDF holds more text than the importer supports. Split it into smaller files.');
