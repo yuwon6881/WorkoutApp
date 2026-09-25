@@ -146,12 +146,11 @@ public sealed partial class ImportService(AppDb db, WorkoutAi ai, CatalogService
                 // A table cell often embeds a superset tag like "A1: Seated Calf Raise". Strip the
                 // tag from the movement name and adopt it as sequenceGroup if none was stated.
                 var cleanName = rawName;
-                var prefix = Regex.Match(rawName, @"^(?<group>[A-Za-z]\d+)(?::|\.|\s*[-–]\s+|\s+)\s*(?<name>.+)$");
-                if (prefix.Success)
+                if (ImportSetTags.Find(rawName) is { } tag && ImportSetTags.Strip(rawName) is { Length: > 0 } untagged)
                 {
                     if (string.IsNullOrEmpty(sequenceGroup))
-                        sequenceGroup = ImportNormalization.Text(prefix.Groups["group"].Value, 8) ?? "";
-                    cleanName = prefix.Groups["name"].Value.Trim();
+                        sequenceGroup = ImportNormalization.Text(tag, 8) ?? "";
+                    cleanName = untagged;
                 }
 
                 // Exercise cells can carry embedded video hyperlinks from PDF design layers.

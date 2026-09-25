@@ -74,6 +74,7 @@ internal sealed class ImportPrintedSchedule
         var output = new List<SourceDay>();
         string? block = null;
         var bannerSinceLast = false;
+        var passedBlocks = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         int? lastPrinted = null;
         var offset = 0;
         var phaseStart = 1;
@@ -82,8 +83,16 @@ internal sealed class ImportPrintedSchedule
             var lines = (page.Text ?? "").ReplaceLineEndings("\n").Split('\n').Select(line => line.Trim()).ToList();
             if (lines.Any(line => LetteredWeek.IsMatch(line))) return null;
             var banner = lines.Select(Banner).FirstOrDefault(value => value is not null);
-            var blockChanged = banner is not null && !string.Equals(banner, block, StringComparison.OrdinalIgnoreCase);
-            if (blockChanged) { block = banner; bannerSinceLast = true; }
+            // Blocks only move forward: a banner naming one already left is a running header the
+            // book never updated (Pure Bodybuilding Phase 2 keeps "BLOCK 1" atop block 2's pages).
+            var blockChanged = banner is not null && !string.Equals(banner, block, StringComparison.OrdinalIgnoreCase)
+                && !passedBlocks.Contains(banner);
+            if (blockChanged)
+            {
+                if (block is not null) passedBlocks.Add(block);
+                block = banner;
+                bannerSinceLast = true;
+            }
             var labels = lines.Select((line, index) => (Index: index, Found: ImportStructureHeadings.TryDayLabel(line, out var label), Label: label))
                 .Where(item => item.Found).ToList();
             if (labels.Count == 0) continue;

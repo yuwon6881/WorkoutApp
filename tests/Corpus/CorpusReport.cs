@@ -70,7 +70,9 @@ public sealed class CorpusReport
         output.Append($"- Weeks: {days.Select(day => day.Week).Distinct().Count()}, days per week: " +
             $"{string.Join(" ", days.GroupBy(day => day.Week).Select(week => week.Count()))}\n");
         output.Append(Digest(days));
-        output.Append($"- Notes: {string.Join(", ", (ready.ReviewIssues ?? []).Where(issue => issue.Severity == "info").Select(issue => issue.Code).Distinct().Order())}\n");
+        // The stand-in reports one input token per call, so this counts model reads, outline included.
+        output.Append($"- Model reads: {ready.InputTokens}\n");
+        output.Append($"- Notes:{string.Join(", ", (ready.ReviewIssues ?? []).Where(issue => issue.Severity == "info").Select(issue => issue.Code).Distinct().Order())}\n");
         foreach (var slot in ready.Unresolved)
             output.Append($"- Map: {slot.SourceName} ({slot.Occurrences}x)\n");
         foreach (var issue in (ready.ReviewIssues ?? []).Where(issue => issue.Severity != "info"))

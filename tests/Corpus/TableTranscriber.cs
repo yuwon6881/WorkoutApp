@@ -132,7 +132,8 @@ internal static class TableTranscriber
                         .Select(i => cells[i]).FirstOrDefault(v => v.Length > 0);
                     var written = Cell(k => k is "exercise" or "exercises" or "movement") ?? "";
                     if (!Regex.IsMatch(written, "[A-Za-z]") || Regex.IsMatch(written, @"^(?:TOTAL|SESSION|WEEKLY)\b", RegexOptions.IgnoreCase)) continue;
-                    var group = Regex.Match(written, @"^([A-Z])\d+[:.]\s*");
+                    // Like the model, a superset tag ("A1:", "Superset A1:") leaves the name for sequenceGroup.
+                    var group = Regex.Match(written, @"^(?:(?:super|tri|giant|compound)[\s-]?sets?\s*|circuit\s*)?([A-Z]\d+)[:.]\s*", RegexOptions.IgnoreCase);
                     var sourceName = group.Success ? written[group.Length..] : written;
                     var setsText = Cell(k => k.Contains("working") || Regex.IsMatch(k, @"^sets?$"));
                     var count = int.TryParse(Regex.Match(setsText ?? "", @"\d+").Value, out var n) && n > 0 ? Math.Min(n, 10) : 1;

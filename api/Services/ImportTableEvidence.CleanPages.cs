@@ -9,7 +9,6 @@ namespace Workout.Api.Services;
 /// substitution or superset tag the row leaves out.
 internal static partial class ImportTableEvidence
 {
-    private static readonly Regex SetTag = new(@"^(?<tag>[A-Z]\d+)(?::|\.|\s*[-–]\s+|\s+)\s*", RegexOptions.Compiled | RegexOptions.IgnoreCase);
     /// A name shorter than this letter run is too common to prove a page prints it outside a row.
     private const int MinPrintedNameLength = 6;
 
@@ -150,9 +149,8 @@ internal static partial class ImportTableEvidence
         return options.Count > 0 ? options : null;
     }
 
-    /// "A1." or "B2:" before a movement is its superset tag.
-    private static string? PrintedSetTag(string? name)
-        => name is not null && SetTag.Match(name.Trim()) is { Success: true } match ? match.Groups["tag"].Value.ToUpperInvariant() : null;
+    /// "A1." or "Superset B2:" before a movement is its superset tag.
+    private static string? PrintedSetTag(string? name) => ImportSetTags.Find(name);
 
     /// How many training days the draft took from clean printed tables, for the review notice.
     public static int PrintedRowDays(IReadOnlyList<DraftWorkout> workouts, string sourceText)

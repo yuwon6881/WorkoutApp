@@ -31,22 +31,18 @@ internal static partial class ImportTableEvidence
         bool WarmupCounted = true, bool EarlyEffortAbsent = false, bool LastEffortAbsent = false, bool RestStatedAbsent = false,
         bool NotPerformed = false, string? WarmupText = null, string? CoachingNote = null, string? DayLabel = null,
         bool FullHeader = false, string? SequenceGroup = null, List<string>? Substitutions = null, bool Prose = false,
-        int Table = 0);
+        int Table = 0, string? Technique = null, string? Tempo = null);
     private sealed record RirEvidence(string? Text, double? Value);
     private sealed record EvidencePage(int? Week, string? Block, string? Phase, string? DayName, bool HasRestDayFooter,
         List<EvidenceRow> Rows, bool RestBandFollowsTable = false, string Body = "");
     private sealed record Columns(int? Name, int? Sets, int? Reps, int? Load, int? Rir, int?[] RirBySet,
         int? Rpe, int? EarlyRpe, int? LastRpe, int? Rest, string? RestUnit, bool LoadIsPercent1Rm,
-        bool HasWarmup = false, int? Warmup = null, int? Notes = null, int[]? Substitutions = null);
+        bool HasWarmup = false, int? Warmup = null, int? Notes = null, int[]? Substitutions = null, int? Technique = null, int? Tempo = null);
 
     public static AiProgram Enrich(AiProgram program, string sourceText)
     {
         var pages = Read(sourceText);
         if (pages.Count == 0 || program.Days is not { } days) return program;
-        var assignedPages = days.Select(day => (Day: day, Page: day.SourcePage ?? UniqueSourcePage(day.Exercises)))
-            .Where(item => item.Page.HasValue)
-            .GroupBy(item => item.Page!.Value)
-            .ToDictionary(group => group.Key, group => group.Count());
         var enriched = days.Select((day, index) =>
         {
             var sourcePage = day.SourcePage ?? UniqueSourcePage(day.Exercises);
@@ -61,7 +57,8 @@ internal static partial class ImportTableEvidence
             if (day.IsRestDay)
                 return day with { Block = block, Phase = phase, DayName = dayName,
                     WeekNumber = week, PhaseWeek = phaseWeek };
-            var positionalMatchIsSafe = assignedPages.GetValueOrDefault(page) == 1;
+            // A rest day read from the same page is no second table to pair a row with.
+            var positionalMatchIsSafe = TrainingDaysOn(days, page) == 1;
             var printed = PrintedRowsFor(exercises, dayName, evidence, TrainingDaysOn(days, page), TrainingDaysOn(days.Take(index), page));
             if (evidence.Rows.Count == 0 || exercises.Count == 0 && printed.Count == 0)
                 return day with { Block = block, Phase = phase, DayName = dayName, WeekNumber = week, PhaseWeek = phaseWeek, IsRestDay = isRestDay };
@@ -137,7 +134,7 @@ internal static partial class ImportTableEvidence
 
     private static string NormalizeName(string value)
     {
-        var clean = Regex.Replace(value.Trim(), @"^[A-Z]\d+(?::|\.|\s*[-–]\s+|\s+)\s*", "", RegexOptions.IgnoreCase);
+        var clean = ImportSetTags.Strip(value);
         return Regex.Replace(clean, @"[^\p{L}\p{N}]", "").ToLowerInvariant();
     }
 
@@ -238,6 +235,8 @@ internal static partial class ImportTableEvidence
             RepsText = repsText,
             RepsSource = !HasText(set.RepsText) && HasText(evidence.RepsText) ? "extracted" : set.RepsSource,
             LoadText = HasText(set.LoadText) ? set.LoadText : evidence.LoadText,
+            Tempo = HasText(set.Tempo) ? set.Tempo : evidence.Tempo,
+            Notes = last && !HasText(set.Notes) ? evidence.Technique ?? set.Notes : set.Notes,
             TargetRpe = targetRpe,
             Rir = resolvedRir,
             RpeSource = rpeSource,
@@ -320,7 +319,7 @@ internal static partial class ImportTableEvidence
         // and "sweep the weight up" in its note once read as a reps and a load column, and every
         // later row on the page was then parsed against those. A header states no values.
         if (cells.Any(cell => HeaderValue.IsMatch(cell))) return false;
-        int? name = null, sets = null, reps = null, load = null, rir = null, warmup = null, notes = null;
+        int? name = null, sets = null, reps = null, load = null, rir = null, warmup = null, notes = null, technique = null, tempo = null;
         var rirBySet = new Dictionary<int, int>();
         var substitutions = new List<int>();
         int? rpe = null, early = null, last = null, rest = null;
@@ -334,6 +333,9 @@ internal static partial class ImportTableEvidence
             if (h.Length > MaxHeaderLength) continue;
             if (h.Contains("warm")) { hasWarmup = true; warmup = i; }
             if (h is "notes" or "coaching notes") notes = i;
+            // "Last-Set Intensity Technique" is how the final working set is done; the model puts it in that set's notes.
+            if (h.Contains("technique")) technique = i;
+            if (h == "tempo") tempo = i;
             if (h.Contains("substitut") || Regex.IsMatch(h, @"^option\s*\d$")) substitutions.Add(i);
             if (h is "exercise" or "movement" || h.Contains("exercise name") || h.Contains("movement name")) name = i;
             if ((h.Contains("working") && h.Contains("set")) || h is "sets" or "set count" || h.Contains("number of sets")) sets = i;
@@ -370,7 +372,7 @@ internal static partial class ImportTableEvidence
         var indexedRir = rirBySet.Count == 0 ? [] : Enumerable.Range(1, rirBySet.Keys.Max())
             .Select(index => rirBySet.TryGetValue(index, out var column) ? (int?)column : null).ToArray();
         columns = new Columns(name, sets, reps, load, rir, indexedRir, rpe, early, last, rest,
-            restUnit, loadIsPercent1Rm, hasWarmup, warmup, notes, [.. substitutions]);
+            restUnit, loadIsPercent1Rm, hasWarmup, warmup, notes, [.. substitutions], technique, tempo);
         return true;
     }
 
@@ -414,7 +416,9 @@ internal static partial class ImportTableEvidence
                 FullHeader: map.Name is not null && map.Sets is not null && map.Reps is not null,
                 SequenceGroup: PrintedSetTag(name), Substitutions: PrintedSubstitutions(cells, map),
                 Prose: (setCount is null || cells.Length <= 2) && repsText is null && loadText is null && rest.Text is null && rpe is null && early is null && last is null
-                    && rirText is null && rirBySet.All(value => value.Text is null));
+                    && rirText is null && rirBySet.All(value => value.Text is null),
+                Technique: NoValue(Cell(cells, map.Technique)) ? null : Cell(cells, map.Technique)!.Trim(),
+                Tempo: NoValue(Cell(cells, map.Tempo)) ? null : Cell(cells, map.Tempo)!.Trim());
             return true;
         }
 
@@ -456,7 +460,7 @@ internal static partial class ImportTableEvidence
            && !TableSummary.IsMatch(value.Trim());
 
     private static string StripSetTag(string value)
-        => Regex.Replace(value.Trim(), @"^[A-Z]\d+(?::|\.|\s*[-–]\s+|\s+)\s*", "", RegexOptions.IgnoreCase);
+        => ImportSetTags.Strip(value);
 
     private static string? Cell(string[] cells, int? index)
         => index is { } i && i >= 0 && i < cells.Length ? cells[i] : null;

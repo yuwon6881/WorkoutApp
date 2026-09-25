@@ -73,7 +73,7 @@ internal static class ImportDemoLinks
         var pageFallback = new Dictionary<(int Page, string Name), string?>();
         foreach (var link in links)
         {
-            var name = Regex.Replace(link.Name, @"^\s*[A-Z]\d+\s*:\s*", "", RegexOptions.IgnoreCase);
+            var name = ImportSetTags.Strip(link.Name);
             name = Regex.Replace(name, @"\s*\(\s*(?:HEAVY|BACK[- ]?OFF)\s*\)\s*$", "", RegexOptions.IgnoreCase);
             var key = Key(name);
             if (key.Length == 0 || key == Key(link.Name)) continue;

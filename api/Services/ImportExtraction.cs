@@ -195,7 +195,10 @@ public sealed partial class ImportService
         }
         // A complete printed schedule is its own page map: when the outline leaves out pages it prints,
         // its weeks are read section by section instead of the shorter program the outline describes.
-        if (ImportPrintedSchedule.Read(pages) is { } printed && !printed.CoveredBy(OutlinedChunks(result.Outline!)))
+        // A schedule printed entirely as clean tables is divided the same way, so every section is
+        // read from its tables and none waits on a model read.
+        if (ImportPrintedSchedule.Read(pages) is { } printed && (!printed.CoveredBy(OutlinedChunks(result.Outline!))
+            || ImportTableEvidence.ReadPrintedSection(printed.Days, ImportSourceText.Slice(pages, printed.Days[0].Page, printed.Days[^1].Page)) is not null))
         {
             var sourceChunks = SplitChunks(printed.Chunks());
             ValidateChunkPages(sourceChunks, import.PageCoverageJson);

@@ -64,8 +64,10 @@ public sealed class WorkoutAi(HttpClient http, IConfiguration config)
     /// v30 takes a day's exercises, sets and printed values from its table wherever the page is clean;
     /// v31 places days by the printed schedule (week headings, day labels, rest bands) and recovers a
     /// clean-table session the read missed; v32 retires the two book-specific schedules for that general
-    /// path, which also reads a printed schedule's weeks when the outline leaves its pages out.
-    public const string PromptVersion = "workout-import-v32-general-schedule";
+    /// path, which also reads a printed schedule's weeks when the outline leaves its pages out;
+    /// v33 reads sections printed entirely as clean tables without a model request and keeps a
+    /// "Superset A1:" tag out of the movement name.
+    public const string PromptVersion = "workout-import-v33-printed-sections";
 
     /// One cheap pass over a page-by-page view of the document. Most of a commercial training PDF
     /// is explanation and photography; this pass exists to find the few pages that actually carry

@@ -193,4 +193,32 @@ public sealed class ImportCleanPageTests
         Assert.Single(enriched.Days, day => !day.IsRestDay);
         Assert.Single(enriched.Days, day => day.IsRestDay);
     }
+
+    /// Pure Bodybuilding Full Body p.8 prints "Superset A1: Assisted Pull-Up". The model returns
+    /// "Assisted Pull-Up" in group A1 with no effort, and a rest day from the same page's band; the
+    /// four superset rows must still be paired, or 14 working sets are left without their RPE.
+    [Fact]
+    public void A_superset_word_before_the_tag_does_not_keep_a_row_from_its_movement()
+    {
+        const string text = """
+            === PAGE 8 ===
+            DAY LABEL: Full Body #3
+            Exercise | Last-Set Intensity Technique | Warm-up Sets | WORKING SETS | Reps | Early Set RPE | Last Set RPE | Rest
+            Superset A1: Assisted Pull-Up | N/A | 1-2 | 4 | 8-10 | ~7-8 | ~8-9 | ~1 min
+            Superset A2: Paused Assisted Dip | N/A | 1-2 | 4 | 8-10 | ~7-8 | ~8-9 | ~1 min
+            Cable Paused Shrug-In | N/A | 1 | 3 | 10-12 | ~7-8 | ~8-9 | ~0.5-1 min
+            1-2 Rest Days
+            """;
+        AiExercise Read(string name, string? group, int sets) => new(name, null, null,
+            Enumerable.Range(0, sets).Select(_ => new AiSet(8, 10, null, null, null, null, null, SourcePage: 8)).ToList(), SequenceGroup: group, SourcePage: 8);
+        var program = new AiProgram("Full Body", [
+            new AiDay(null, null, 1, 1, "Full Body #3", false, null, [Read("Assisted Pull-Up", "A1", 4), Read("Paused Assisted Dip", "A2", 4), Read("Cable Paused Shrug-In", null, 3)], 8),
+            new AiDay(null, null, 1, 1, "Rest Day", true, null, [], 8)]);
+
+        var exercises = ImportTableEvidence.Enrich(program, text).Days![0].Exercises;
+
+        Assert.Equal(["Assisted Pull-Up", "Paused Assisted Dip", "Cable Paused Shrug-In"], exercises.Select(exercise => exercise.SourceName));
+        Assert.Equal(["A1", "A2", null], exercises.Select(exercise => exercise.SequenceGroup));
+        Assert.All(exercises.SelectMany(exercise => exercise.Sets), set => Assert.NotNull(set.TargetRpe));
+    }
 }

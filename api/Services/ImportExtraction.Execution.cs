@@ -64,12 +64,17 @@ public sealed partial class ImportService
                 var chunks = ReadChunks(import.OutlineJson);
                 Validation.Require(import.ChunksDone < chunks.Count, "This import has already finished extracting.", 409);
                 ValidateChunkPages(chunks.Skip(import.ChunksDone), import.PageCoverageJson);
+                var schedule = ImportPrintedSchedule.Read(pages);
                 for (var index = import.ChunksDone; index < chunks.Count; index++)
                 {
                     var chunk = chunks[index];
                     // A section the outline pointed at pages that carry no text — a photo spread, a
                     // scanned insert — has nothing to transcribe, so it costs no read and no budget.
                     var text = ImportSourceText.Slice(pages, chunk.PageFrom, chunk.PageTo);
+                    // A section of clean printed tables is read here, so it costs no model read either.
+                    var printed = schedule is null || string.IsNullOrWhiteSpace(text) ? null
+                        : ImportTableEvidence.ReadPrintedSection(schedule.Days, text);
+                    if (printed is not null) { pending.Add(new PendingChunk(index, chunk, text, printed)); continue; }
                     if (!string.IsNullOrWhiteSpace(text) && !persistedResults.ContainsKey(index))
                     {
                         // Every read is paid for up front. When the day's budget runs out partway,
@@ -92,6 +97,8 @@ public sealed partial class ImportService
             || ImportLongWeeks.HasSourceLongWeek(sourcePages);
 
         var results = persistedResults;
+        foreach (var item in pending.Where(item => item.Printed is not null))
+            results[item.Index] = new AiImportResult(item.Printed!, PrintedTableReader, 0, 0);
         var completedThisPass = new HashSet<int>();
         var failures = new Dictionary<int, DomainException>();
         var leaseLost = false;
@@ -227,6 +234,9 @@ public sealed partial class ImportService
                         // Everything that can reject a section runs before the row is touched, so a
                         // rejected section stays retryable instead of committing half of itself.
                         var notices = new List<ImportReviewIssue>();
+                        if (item.Index == pending[0].Index && pending.Count(other => other.Printed is not null) is var local and > 0)
+                            notices.Add(new ImportReviewIssue("printed_sections_read",
+                                $"{local} of {pending.Count} section{(pending.Count == 1 ? " was" : "s were")} read straight from clean printed tables, without a model read.", "info"));
                         var merged = draft;
                         if (item.Text.Length == 0)
                         {
@@ -349,8 +359,12 @@ public sealed partial class ImportService
     }
 
     /// One section waiting to be read, with the page text it covers. An empty text means the
-    /// section's pages carry none, which is settled without a model call.
-    private sealed record PendingChunk(int Index, ImportChunk Chunk, string Text);
+    /// section's pages carry none, and Printed a section read from its clean tables; neither
+    /// needs a model call.
+    private sealed record PendingChunk(int Index, ImportChunk Chunk, string Text, AiProgram? Printed = null);
+
+    /// The model name a section read from its printed tables records in place of a provider model.
+    private const string PrintedTableReader = "printed-tables";
 
     /// Retry is an explicit idempotent operation for a pending import; the stored text is reused
     /// while it is inside its retention window.
