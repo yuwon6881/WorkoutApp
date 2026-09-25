@@ -192,6 +192,8 @@ public sealed partial class ImportService
             if (numbered.Renumbered) draft = draft with { Workouts = numbered.Workouts };
             var longWeeks = ImportLongWeeks.Reconcile(draft.Workouts, pages);
             draft = draft with { Workouts = longWeeks.Workouts, SourceWeekDays = longWeeks.SourceWeekDays };
+            var scheduleNotices = new List<ImportReviewIssue>();
+            draft = ApplyPrintedSchedule(draft, pages, scheduleNotices);
             // A whole-program answer holds the same days as a sectioned one and needs the same
             // reconciliation; it simply has no chunk to attribute a notice to.
             var shaped = ReconcileDayShape(draft.Workouts, draft.SourceWeekDays);
@@ -199,7 +201,7 @@ public sealed partial class ImportService
             List<ImportPageLink> demoLinks = string.IsNullOrWhiteSpace(import.LinksJson) ? [] : Json.Read<List<ImportPageLink>>(import.LinksJson);
             draft = ImportValidation.NormalizeDraft(ImportDemoLinks.Attach(ImportNameSpelling.Standardize(cited.Draft, pages), demoLinks));
             if (ImportTableEvidence.PrintedRowsNotice(draft.Workouts, sourceText) is { } printedRows) cited.Notices.Add(printedRows);
-            List<ImportReviewIssue> outlineNotices = [.. labeled.Notices, .. versions.Notices, .. blockRuns.Notices, .. named.Notices, .. longWeeks.Notices];
+            List<ImportReviewIssue> outlineNotices = [.. labeled.Notices, .. versions.Notices, .. blockRuns.Notices, .. named.Notices, .. longWeeks.Notices, .. scheduleNotices];
             if (numbered.Renumbered)
             {
                 outlineNotices.Add(new ImportReviewIssue("phase_week_renumbered",

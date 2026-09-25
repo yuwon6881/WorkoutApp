@@ -83,7 +83,7 @@ internal static partial class ImportTableEvidence
             return day with { Block = block, Phase = phase, DayName = dayName, WeekNumber = week, PhaseWeek = phaseWeek,
                 IsRestDay = isRestDay, Exercises = next };
         }).ToList();
-        return program with { Days = WithFooterRestDays(enriched, pages) };
+        return program with { Days = WithFooterRestDays(WithMissingDays(enriched, pages), pages) };
     }
 
     private static EvidenceRow? MatchRow(AiExercise exercise, int exerciseIndex, List<AiExercise> dayExercises, List<EvidenceRow> rows,

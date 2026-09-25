@@ -15,7 +15,7 @@ internal static class ImportLongWeeks
     private static readonly Regex TenDayCycle = new(
         @"\b10[- ]day\s+(?:cycle|rotation|split)\b|\basynchronous\b.{0,200}\b10[- ]day\b",
         RegexOptions.Compiled | RegexOptions.IgnoreCase | RegexOptions.Singleline);
-    private static readonly Regex RestBand = new(
+    internal static readonly Regex RestBand = new(
         @"^\s*(?:(?:SUGGESTED|MANDATORY|OPTIONAL)\s+)?(?:\d\s*(?:[-–]\s*\d\s*)?\s*)?REST DAYS?\s*$|^\s*\d\s*(?:[-–]\s*\d\s*)?\s*(?:SUGGESTED|MANDATORY|OPTIONAL)\s+REST DAYS?\s*$",
         RegexOptions.Compiled | RegexOptions.IgnoreCase);
 

@@ -269,53 +269,7 @@ public sealed partial class ImportService
                         }
                         if (complete)
                         {
-                            // A week whose lettered versions landed in different sections is
-                            // only whole now, so it is separated again over the whole draft.
-                            var versions = ImportWeekVariants.Separate(merged.Workouts, sourcePages);
-                            merged = merged with { Workouts = versions.Workouts };
-                            notices.AddRange(versions.Notices);
-                            var blockRuns = ImportBlockRuns.Reconcile(merged.Workouts);
-                            merged = merged with { Workouts = blockRuns.Workouts };
-                            notices.AddRange(blockRuns.Notices);
-                            var named = ImportDayLabels.FillMissing(merged);
-                            merged = named.Draft;
-                            notices.AddRange(named.Notices);
-                            if (ImportPrintedPhaseWeeks.Read(sourcePages) is { } printedWeeks)
-                            {
-                                var placed = printedWeeks.Reconcile(merged.Workouts);
-                                merged = merged with { ProgramName = ImportPrintedPhaseWeeks.Title,
-                                    Workouts = placed.Workouts };
-                                notices.AddRange(placed.Notices);
-                            }
-                            else if (ImportBeginnerTransformation.Read(sourcePages, import.FileName) is { } beginner)
-                            {
-                                var placed = beginner.Reconcile(merged.Workouts);
-                                merged = merged with { ProgramName = ImportBeginnerTransformation.Title,
-                                    Workouts = placed.Workouts };
-                                notices.AddRange(placed.Notices);
-                            }
-                            // Every section has landed, so the phases are finally whole and their
-                            // weeks can be numbered from one within each of them.
-                            var numbered = NormalizePhaseWeeks(merged.Workouts);
-                            if (numbered.Renumbered)
-                            {
-                                merged = merged with { Workouts = numbered.Workouts };
-                                notices.Add(new ImportReviewIssue("phase_week_renumbered",
-                                    "Some phases continued the block's week numbering, so their weeks were numbered from one within each phase. The weeks themselves are unchanged.",
-                                    "info", null));
-                            }
-                            var longWeeks = ImportLongWeeks.Reconcile(merged.Workouts, sourcePages);
-                            merged = merged with { Workouts = longWeeks.Workouts, SourceWeekDays = longWeeks.SourceWeekDays };
-                            notices.AddRange(longWeeks.Notices);
-                            // The whole draft is shaped again, not just this section's days: a day
-                            // an earlier section committed before this ran is exactly the one that
-                            // no retry of the last section could ever reach.
-                            var shaped = ReconcileDayShape(merged.Workouts, merged.SourceWeekDays);
-                            var cited = ImportDayShape.ReconcilePages(merged with { Workouts = shaped.Workouts }, import.Pages);
-                            merged = ImportValidation.NormalizeDraft(ImportNameSpelling.Standardize(cited.Draft, sourcePages));
-                            if (ImportTableEvidence.PrintedRowsNotice(merged.Workouts, ImportSourceText.Slice(sourcePages, 1, ImportSourceText.MaxPages)) is { } printedRows) notices.Add(printedRows);
-                            notices.AddRange(shaped.Notices);
-                            notices.AddRange(cited.Notices);
+                            merged = FinalizeDraft(merged, sourcePages, import, notices);
                             await ValidateDraft(merged, settle);
                             ValidateDraftPages(merged, import.PageCoverageJson);
                         }
