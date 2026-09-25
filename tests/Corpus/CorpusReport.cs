@@ -19,6 +19,10 @@ namespace Workout.Tests.Corpus;
 /// slot left to map, every review item above a note, and every printed exercise name the catalog
 /// cannot place. The read is the TableTranscriber stand-in, so what it reports is the reader,
 /// the reconciliation and the catalog, not the model.
+///
+/// With WORKOUT_CORPUS_DRIFT=1 the stand-in makes a real model's mistakes and the report goes to
+/// report.drift.md. Each program's Digest and Order lines let the two reports be diffed: where the
+/// printed tables are authoritative, a drifting read must end up where a faithful one does.
 public sealed class CorpusReport
 {
     /// Slots a program leaves for the lifter to choose are mapped in review, not seeded.
@@ -37,7 +41,7 @@ public sealed class CorpusReport
             try { report.Append(await Replay(file, catalog)); }
             catch (Exception error) { report.Append($"Import failed: {error.Message}\n"); }
         }
-        File.WriteAllText(Path.Combine(folder, "report.md"), report.ToString());
+        File.WriteAllText(Path.Combine(folder, TableTranscriber.Drifting ? "report.drift.md" : "report.md"), report.ToString());
     }
 
     private static async Task<string> Replay(string file, List<SeedExercise> catalog)
@@ -62,6 +66,7 @@ public sealed class CorpusReport
         output.Append($"- Title: {ready.Draft?.ProgramName}\n- Status: {ready.Status} {ready.Error}\n");
         output.Append($"- Weeks: {days.Select(day => day.Week).Distinct().Count()}, days per week: " +
             $"{string.Join(" ", days.GroupBy(day => day.Week).Select(week => week.Count()))}\n");
+        output.Append(Digest(days));
         foreach (var slot in ready.Unresolved)
             output.Append($"- Map: {slot.SourceName} ({slot.Occurrences}x)\n");
         foreach (var issue in (ready.ReviewIssues ?? []).Where(issue => issue.Severity != "info"))
@@ -70,6 +75,19 @@ public sealed class CorpusReport
         foreach (var name in PrintedNames(pages).Where(name => !Placeholder.IsMatch(name) && CatalogMatching.Find(library, name) is null))
             output.Append($"- Not in catalog: {name}\n");
         return output.ToString();
+    }
+
+    /// What two reports are compared on: how many exercises and sets the program holds, a checksum
+    /// of every exercise's name and first-set reps, RPE and rest, and each week's day order.
+    private static string Digest(List<DraftWorkout> days)
+    {
+        var exercises = days.SelectMany(day => day.Exercises).ToList();
+        var values = string.Join("\n", exercises.Select(exercise => exercise.Sets.FirstOrDefault() is { } set
+            ? $"{exercise.SourceName}|{set.RepMin}-{set.RepMax}|{set.TargetRpe}|{set.RestSeconds}" : exercise.SourceName));
+        var checksum = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(Encoding.UTF8.GetBytes(values)))[..8];
+        var order = string.Join(" | ", days.GroupBy(day => day.Week)
+            .Select(week => $"W{week.Key}: {string.Join(", ", week.Select(day => day.IsRestDay ? "Rest" : day.Name))}"));
+        return $"- Digest: {exercises.Count} exercises, {exercises.Sum(exercise => exercise.Sets.Count)} sets, values {checksum}\n- Order: {order}\n";
     }
 
     /// Every name printed in a table's exercise or substitution column.
