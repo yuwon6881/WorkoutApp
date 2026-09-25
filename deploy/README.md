@@ -15,6 +15,7 @@ Singapore. The FinancialApp and NutritionApp services and databases are independ
 | Cloud Run service | `workout-api`, `asia-southeast1` |
 | Maintenance scheduler | `workout-import-maintenance` (daily, `X-Workout-Maintenance-Secret`) |
 | Secret (maintenance) | `workout-maintenance-secret` (Google Secret Manager) |
+| Secret (Google Health OAuth) | `google-health-client-secret` (Google Secret Manager; shared OAuth client with NutritionApp) |
 | Service account | `workout-api@project-7eb1aec8-8636-4c86-b2a.iam.gserviceaccount.com` |
 | Rest-alert task caller | `workout-rest-task@project-7eb1aec8-8636-4c86-b2a.iam.gserviceaccount.com` (must be provisioned before enabling push) |
 | API URL | `https://workout-api-i47taxhzba-as.a.run.app` |
@@ -38,6 +39,15 @@ and `OpenAi:MaxConcurrentChunks`, neither of which costs Cloud Run anything.
 Request-based billing scales to zero when idle. A daily maintenance request runs the retention sweep; because the API is reachable
 without Cloud Run IAM, `/internal/import-maintenance` exists only when `Maintenance__Secret` is
 configured and answers 404 unless the request presents it in `X-Workout-Maintenance-Secret`.
+
+Google Health workout upload uses the same protected maintenance secret on
+`/internal/google-health-workout-sync`. After deploying the OAuth environment settings, run
+`deploy/setup-google-health-workout-sync.ps1 -ApiOrigin https://workout-api-i47taxhzba-as.a.run.app`
+with `WORKOUT_MAINTENANCE_SECRET` loaded from Secret Manager. The script creates or updates the
+hourly Cloud Scheduler job; a finished workout reaches Google Health within the hour. A per-minute
+job would keep the API and database awake around the clock for a two-user app. Register
+`https://workout-one-mocha.vercel.app/api/integrations/google-health/callback` as an authorized
+redirect URI on the Google OAuth client before users connect; repository deployment cannot do that.
 
 Each import pass claims a five-minute database lease with a fencing token before calling OpenAI.
 Successful section responses are committed independently, and a stale process cannot commit after

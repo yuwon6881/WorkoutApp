@@ -18,10 +18,12 @@ import { drainWorkoutOutbox, sessionPayload } from '../lib/workoutOutbox';
 import { Modal } from './ui/Modal';
 import { WorkoutFooter } from './WorkoutFooter';
 import { WorkoutTopBar } from './WorkoutTopBar';
+import { WorkoutSyncLine } from './WorkoutSyncLine';
 import { WorkoutEditor } from './WorkoutEditor';
 import { WorkoutRecoveryConflict } from './WorkoutRecoveryConflict';
 import { useWorkoutOnlineFallback } from './useWorkoutOnlineFallback';
 import { WorkoutConfirmModal } from './WorkoutConfirmModal';
+import './ActiveWorkout.css';
 
 export function Workout({
   session,
@@ -426,27 +428,30 @@ export function Workout({
         done={done}
         planned={plannedSets(draft)}
         viewMode={viewMode}
-        remaining={remaining}
-        totalSeconds={rest.totalSeconds}
+        paused={paused}
+        pauseDisabled={busy || Boolean(finishIntentAt) || recoveryConflict}
         onClose={onClose}
+        onTogglePause={() => void togglePause()}
         onToggleViewMode={() => selectViewMode(viewMode === 'focus' ? 'all' : 'focus')}
       />
 
       {recoveryConflict && recovery && <WorkoutRecoveryConflict recovery={recovery} online={online} onResolve={choice => void resolveConflict(choice)} />}
 
-      {finishIntentAt && <div className="device-status" role="status">
-        Finished on this device at {new Date(finishIntentAt).toLocaleTimeString()}. {online ? 'Waiting to sync.' : 'Reconnect to save it.'}
-      </div>}
-      {localStatus && !finishIntentAt && <div className="device-status" role="status">{localStatus}</div>}
+      <WorkoutSyncLine
+        message={finishIntentAt
+          ? `Finished on this device at ${new Date(finishIntentAt).toLocaleTimeString()}. ${online ? 'Waiting to sync.' : 'Reconnect to save it.'}`
+          : localStatus}
+        online={online}
+      />
 
       <WorkoutEditor draft={draft} unit={unit} exercises={exercises} activeIndex={activeIndex} viewMode={viewMode} online={online}
-        paused={paused} finishIntentAt={finishIntentAt} recoveryConflict={recoveryConflict} busy={busy} error={error}
+        paused={paused} finishIntentAt={finishIntentAt} recoveryConflict={recoveryConflict}
         picker={picker} onPicker={setPicker}
         onAddExercise={() => online && !paused && !finishIntentAt ? setPicker(true) : setError('Connect and resume before adding an exercise.')}
-        onChange={change} onEditSet={editSet} onToggleSet={toggle} onSelectExercise={selectExercise} onTogglePause={togglePause}
+        onChange={change} onEditSet={editSet} onToggleSet={toggle} onSelectExercise={selectExercise}
         onSwap={swapExercise} onRestore={restoreExercise} onRemoveExercise={removeExercise} />
 
-      <WorkoutFooter remaining={remaining} totalSeconds={rest.totalSeconds}
+      <WorkoutFooter error={error} remaining={remaining} totalSeconds={rest.totalSeconds}
         restEndedAt={rest.announced && rest.endsAt > 0 ? rest.endsAt : null} defaultRestSeconds={defaultRestSeconds}
         busy={busy || Boolean(finishIntentAt) || recoveryConflict} restDisabled={paused || Boolean(finishIntentAt) || recoveryConflict}
         onDiscard={() => setConfirm('discard')} onMinimize={onClose}

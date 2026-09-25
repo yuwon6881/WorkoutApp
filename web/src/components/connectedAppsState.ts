@@ -8,8 +8,10 @@ export function parseConnectionState(value: string | undefined): Exclude<Connect
     : 'temporary_unavailable';
 }
 
-export function connectedAppActions(state: ConnectionState, canDisconnect: boolean): ConnectedAppActions {
+export function connectedAppActions(state: ConnectionState, canDisconnect: boolean, syncWarning = false): ConnectedAppActions {
   if (state === 'loading') return 'checking';
+  // A confirmed connection whose last data refresh failed stays connected; retry re-fetches.
+  if (state === 'connected' && syncWarning) return canDisconnect ? 'retry_disconnect' : 'retry';
   if (state === 'temporary_unavailable') return canDisconnect ? 'retry_disconnect' : 'retry';
   if (state === 'upgrade_required' || state === 'reconnect_required')
     return canDisconnect ? 'reconnect_disconnect' : 'reconnect';

@@ -5,7 +5,7 @@ using Workout.Api.Domain;
 namespace Workout.Api.Services;
 
 public record SetInput(double? WeightKg, int? Reps, double? Rpe, bool Done, bool Warmup = false,
-    string? ResistanceMode = null, Guid? Id = null);
+    string? ResistanceMode = null, Guid? Id = null, string? Rir = null);
 public record SessionExerciseInput(Guid? ExerciseId, string NameSnapshot, string? Note, List<SetPrescription> Prescription, List<SetInput> Sets,
     string? SequenceGroup = null, List<string>? Substitutions = null, string? LoadModel = null, Guid? Id = null,
     Guid? SourceTemplateExerciseId = null, Guid? SourceSlotKey = null, Guid? SourcePhaseId = null, int? SourcePage = null,
@@ -13,7 +13,7 @@ public record SessionExerciseInput(Guid? ExerciseId, string NameSnapshot, string
 public record SessionInput(string? Note, List<SessionExerciseInput> Exercises, int? Revision, Guid? IdempotencyId);
 public record SetView(Guid Id, int Position, double? WeightKg, int? Reps, double? Rpe, bool Done, bool Warmup = false,
     int? WorkingSetOrdinal = null, string ResistanceMode = ResistanceModes.External, double? SystemLoadKg = null,
-    SetProgressionSuggestion? Suggestion = null, bool IsPr = false, double? Estimated1RmKg = null);
+    SetProgressionSuggestion? Suggestion = null, bool IsPr = false, double? Estimated1RmKg = null, string? Rir = null);
 public record SessionExerciseView(Guid Id, Guid? ExerciseId, string Name, int Position, string Note, List<SetPrescription> Prescription, List<SetView> Sets,
     string SequenceGroup = "", List<string>? Substitutions = null, ProgressionView? Progression = null,
     string LoadModel = LoadModels.External, Guid? SourceTemplateExerciseId = null, Guid? SourceSlotKey = null, Guid? SourcePhaseId = null,
@@ -330,6 +330,7 @@ public sealed partial class WorkoutService(
             foreach (var set in exercise.Sets)
             {
                 Validation.LoggedSet(set.WeightKg, set.Reps, set.Rpe, set.Done, set.Warmup);
+                ValidateActualRir(set.Rir, set.Rpe);
                 Validation.Require(set.ResistanceMode is null || ResistanceModes.All.Contains(set.ResistanceMode), "Unknown resistance mode.");
             }
             await catalog.RequireActive(exercise.ExerciseId, ct);
@@ -395,7 +396,7 @@ public sealed partial class WorkoutService(
                 var enteredLoad = NormalizeEnteredLoad(loadModel, resistanceMode, set.WeightKg, step);
                 var updated = old ?? new CompletedSet { UserId = sessionRow.UserId, SessionExerciseId = row.Id, SuggestionJson = "" };
                 updated.SessionExerciseId = row.Id; updated.Position = setPosition++; updated.WeightKg = enteredLoad;
-                updated.Reps = set.Reps; updated.Rpe = set.Rpe; updated.Done = set.Done; updated.Warmup = set.Warmup;
+                updated.Reps = set.Reps; updated.Rpe = set.Rpe; updated.Rir = set.Rir; updated.Done = set.Done; updated.Warmup = set.Warmup;
                 updated.WorkingSetOrdinal = ordinal;
                 updated.ResistanceMode = resistanceMode;
                 updated.SystemLoadKg = ComputeSystemLoad(sessionRow, loadModel, resistanceMode, enteredLoad);

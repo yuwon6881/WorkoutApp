@@ -1,0 +1,41 @@
+/* Motion. Dialogs lift into place and phone sheets rise from the bottom edge they are anchored
+   to. Every animation here is decorative and short, and the global reduced-motion rule turns
+   all of them off. */
+@keyframes dialog-lift {
+  from { opacity: 0; transform: translateY(10px) scale(.985); }
+}
+
+@keyframes sheet-rise {
+  from { opacity: .4; transform: translateY(32px); }
+}
+
+.modal[open] {
+  animation: dialog-lift var(--motion-panel) var(--motion-ease);
+}
+
+@media (max-width: 639px) {
+  .modal[open] {
+    animation-name: sheet-rise;
+  }
+}
+
+/* A logged set answers the tap: the check pops and the row glows once. */
+@keyframes set-check-pop {
+  0% { transform: scale(.82); }
+  60% { transform: scale(1.08); }
+  100% { transform: scale(1); }
+}
+
+@keyframes set-row-logged {
+  0% { box-shadow: 0 0 0 0 var(--accent-soft-glow); }
+  40% { box-shadow: 0 0 0 5px var(--accent-soft-glow); }
+  100% { box-shadow: 0 0 0 0 transparent; }
+}
+
+.just-logged .set-log-checkbox.checked {
+  animation: set-check-pop var(--motion-panel) var(--motion-ease);
+}
+
+.workout-set-row.done.just-logged {
+  animation: set-row-logged 520ms var(--motion-ease);
+}

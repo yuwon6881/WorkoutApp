@@ -164,14 +164,14 @@ export function MotionScene({
   );
 }
 
+/// Content that is replaced in place (a new period, a new filter) settles upward into position.
+/// The motion is vertical so a full-width panel never extends past the screen edge while it moves.
 export function MotionPanel({
   motionKey,
-  direction = 1,
   children,
   className = ''
 }: {
   motionKey: string;
-  direction?: 1 | -1;
   children: ReactNode;
   className?: string;
 }) {
@@ -192,8 +192,8 @@ export function MotionPanel({
 
     const animation = node.animate(
       [
-        { opacity: 0, transform: `translateX(${direction * 20}px)` },
-        { opacity: 1, transform: 'translateX(0)' }
+        { opacity: 0, transform: 'translateY(8px)' },
+        { opacity: 1, transform: 'translateY(0)' }
       ],
       motionTiming('--motion-exit', 180)
     );
@@ -208,7 +208,7 @@ export function MotionPanel({
       node.style.removeProperty('opacity');
       node.style.removeProperty('transform');
     };
-  }, [motionKey, direction, reduced]);
+  }, [motionKey, reduced]);
 
   return (
     <div ref={panel} className={`motion-panel ${className}`.trim()} data-motion-panel={motionKey}>

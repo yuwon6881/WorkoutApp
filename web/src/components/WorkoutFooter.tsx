@@ -4,6 +4,7 @@ import { restTimer } from '../lib/restTimer';
 import { Button } from './ui/Button';
 
 export function WorkoutFooter({
+  error,
   remaining,
   totalSeconds,
   restEndedAt,
@@ -14,6 +15,7 @@ export function WorkoutFooter({
   onMinimize,
   onFinish
 }: {
+  error: string;
   remaining: number;
   totalSeconds: number;
   restEndedAt: number | null;
@@ -66,6 +68,7 @@ export function WorkoutFooter({
       </div>
 
       <div className="modal-actions">
+        {error && <p className="error-text modal-actions-error" role="alert">{error}</p>}
         <Button variant="destructive" disabled={busy} onClick={onDiscard}>
           Discard
         </Button>

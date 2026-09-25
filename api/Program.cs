@@ -57,6 +57,7 @@ builder.Services.AddHttpClient<GoogleHealthService>(c => c.Timeout = TimeSpan.Fr
 builder.Services.AddHttpClient<GoogleHealthWorkoutSyncService>(c => c.Timeout = TimeSpan.FromSeconds(30)).AddHttpMessageHandler<ExternalCallMetricsHandler>();
 builder.Services.AddScoped<IntegrationTokenService>();
 builder.Services.AddScoped<WorkoutService>();
+builder.Services.AddScoped<WatchPairingService>();
 builder.Services.AddSingleton<IGoogleAccessTokenProvider, GoogleAdcAccessTokenProvider>();
 builder.Services.AddHttpClient<IWorkoutPushSender, WorkoutFcmPushSender>(c => c.Timeout = TimeSpan.FromSeconds(15));
 builder.Services.AddHttpClient<IWorkoutRestTaskQueue, CloudTasksRestAlertQueue>(c => c.Timeout = TimeSpan.FromSeconds(10));
@@ -80,7 +81,7 @@ builder.Services.AddOpenIddict().AddValidation(options =>
     options.UseAspNetCore();
 });
 builder.Services.AddHttpClient<WorkoutAi>(c=>c.Timeout=TimeSpan.FromSeconds(150)).AddHttpMessageHandler<ExternalCallMetricsHandler>();
-builder.Services.AddHttpClient("nutrition", c => c.Timeout = TimeSpan.FromSeconds(2)).AddHttpMessageHandler<ExternalCallMetricsHandler>();
+builder.Services.AddHttpClient("nutrition", c => c.Timeout = TimeSpan.FromSeconds(10)).AddHttpMessageHandler<ExternalCallMetricsHandler>();
 builder.Services.AddHttpClient("fitness-account", c => c.Timeout = TimeSpan.FromSeconds(10)).AddHttpMessageHandler<ExternalCallMetricsHandler>();
 builder.Services.AddRateLimiter(o=>
 {
@@ -99,6 +100,15 @@ builder.Services.AddRateLimiter(o=>
     o.AddPolicy("ai-extract",http=>RateLimitPartition.GetFixedWindowLimiter(
         string.IsNullOrEmpty(http.Request.Cookies[AuthService.Cookie])?"unauthenticated":AuthService.Hash(http.Request.Cookies[AuthService.Cookie]!),
         _=>new FixedWindowRateLimiterOptions { PermitLimit=40,Window=TimeSpan.FromMinutes(5),QueueLimit=0 }));
+    o.AddPolicy("watch-pair-start",http=>RateLimitPartition.GetFixedWindowLimiter(
+        http.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+        _=>new FixedWindowRateLimiterOptions { PermitLimit=5,Window=TimeSpan.FromMinutes(15),QueueLimit=0 }));
+    o.AddPolicy("watch-pair-status",http=>RateLimitPartition.GetFixedWindowLimiter(
+        http.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+        _=>new FixedWindowRateLimiterOptions { PermitLimit=40,Window=TimeSpan.FromMinutes(2),QueueLimit=0 }));
+    o.AddPolicy("watch-pair-approve",http=>RateLimitPartition.GetFixedWindowLimiter(
+        http.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+        _=>new FixedWindowRateLimiterOptions { PermitLimit=10,Window=TimeSpan.FromMinutes(5),QueueLimit=0 }));
 });
 var app=builder.Build();
 var requestMeter=new Meter("Fitness.Workout.Api","1.0");
@@ -130,20 +140,46 @@ app.Use(async(http,next)=>
     IAsyncDisposable? readGate=null;
     try
     {
-        if(!HttpMethods.IsGet(http.Request.Method)&&!HttpMethods.IsHead(http.Request.Method)&&http.Request.Path.StartsWithSegments("/api"))
-        {
-            var origin=http.Request.Headers.Origin.ToString();
-            var allowed=builder.Configuration["PublicOrigin"]??$"{http.Request.Scheme}://{http.Request.Host}";
-            Validation.Require(origin==allowed&&http.Request.Headers["X-Workout-Request"]=="1","Request origin is not allowed.",403);
-        }
-        if(http.Request.Path.StartsWithSegments("/api") && !http.Request.Path.StartsWithSegments("/api/integrations/v1") && http.Request.Path.Value is not ("/api/auth/dev-reset" or "/api/auth/central/start" or "/api/auth/central/callback" or "/api/integrations/google-health/callback"))
+        var isApi = http.Request.Path.StartsWithSegments("/api");
+        var isWatchPairingBootstrap = isApi && WatchAuthentication.IsPairingBootstrap(http.Request);
+        var isWatchAuthenticated = false;
+        var isUnprotectedApiPath = http.Request.Path.Value is "/api/auth/dev-reset" or "/api/auth/central/start" or "/api/auth/central/callback" or "/api/integrations/google-health/callback";
+        if(isApi && !http.Request.Path.StartsWithSegments("/api/integrations/v1") && !isUnprotectedApiPath && !isWatchPairingBootstrap)
         {
             var db=http.RequestServices.GetRequiredService<AppDb>();
-            var token=http.Request.Cookies[AuthService.Cookie];
-            Validation.Require(!string.IsNullOrEmpty(token),"Sign in to load your training.",401);
-            var hash=AuthService.Hash(token!);
-            var session=await db.Sessions.AsNoTracking().SingleOrDefaultAsync(s=>s.Hash==hash&&s.Expires>DateTime.UtcNow,http.RequestAborted);
-            Validation.Require(session!=null,"Your session expired. Sign in again to continue.",401);db.CurrentUser=session!.UserId;
+            var deviceToken=http.Request.Headers[WatchAuthentication.DeviceTokenHeader].ToString();
+            if(!string.IsNullOrWhiteSpace(deviceToken))
+            {
+                Validation.Require(WatchAuthentication.CanUseDeviceSession(http.Request),"This watch session cannot access that resource.",403);
+                var watchUser=await WatchAuthentication.FindAccountForDeviceToken(db,deviceToken,http.RequestAborted);
+                Validation.Require(watchUser is not null,"This watch is no longer connected. Pair it with WorkoutApp again.",401);
+                db.CurrentUser=watchUser!.Value;
+                isWatchAuthenticated=true;
+            }
+            else
+            {
+                var token=http.Request.Cookies[AuthService.Cookie];
+                Validation.Require(!string.IsNullOrEmpty(token),"Sign in to load your training.",401);
+                var hash=AuthService.Hash(token!);
+                var session=await db.Sessions.AsNoTracking().SingleOrDefaultAsync(s=>s.Hash==hash&&s.Expires>DateTime.UtcNow,http.RequestAborted);
+                Validation.Require(session!=null,"Your session expired. Sign in again to continue.",401);db.CurrentUser=session!.UserId;
+            }
+        }
+        if(!HttpMethods.IsGet(http.Request.Method)&&!HttpMethods.IsHead(http.Request.Method)&&isApi)
+        {
+            if(isWatchAuthenticated) { /* Device-token requests do not use browser origin checks. */ }
+            else if(isWatchPairingBootstrap)
+            {
+                Validation.Require(string.IsNullOrEmpty(http.Request.Headers.Origin) &&
+                    http.Request.Headers[WatchAuthentication.WearClientHeader]=="1",
+                    "Watch pairing requests must come from the Wear OS app.",403);
+            }
+            else
+            {
+                var origin=http.Request.Headers.Origin.ToString();
+                var allowed=builder.Configuration["PublicOrigin"]??$"{http.Request.Scheme}://{http.Request.Host}";
+                Validation.Require(origin==allowed&&http.Request.Headers["X-Workout-Request"]=="1","Request origin is not allowed.",403);
+            }
         }
         if(HttpMethods.IsGet(http.Request.Method)&&http.Request.Path.StartsWithSegments("/api"))
             readGate=await MutationLock.AcquireRead(http.RequestServices.GetRequiredService<AppDb>(),http.RequestAborted);
@@ -157,7 +193,7 @@ app.Use(async(http,next)=>
 });
 app.UseRateLimiter();
 app.UseDefaultFiles();app.UseStaticFiles(new StaticFileOptions { OnPrepareResponse=c=> { if(c.File.Name=="sw.js"||c.File.Name=="index.html") c.Context.Response.Headers.CacheControl="no-cache"; } });
-app.MapAuth();app.MapCentralAuth();app.MapBootstrap();app.MapRevisions();app.MapCatalog();app.MapTemplates();app.MapPrograms();app.MapProgramEditor();app.MapWorkouts();app.MapImports();app.MapIntegrations();app.MapGoogleHealth();app.MapRestAlerts();
+app.MapAuth();app.MapCentralAuth();app.MapBootstrap();app.MapRevisions();app.MapCatalog();app.MapTemplates();app.MapPrograms();app.MapProgramEditor();app.MapWorkouts();app.MapImports();app.MapIntegrations();app.MapGoogleHealth();app.MapRestAlerts();app.MapWatch();
 app.MapGet("/health",()=>new { status="ok" });
 app.MapFallback(async http=>
 {

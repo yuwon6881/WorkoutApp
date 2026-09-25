@@ -1,5 +1,7 @@
 node_modules/
 web/dist/
+wear/.gradle/
+wear/**/build/
 **/bin/
 **/obj/
 **/wwwroot/

@@ -66,7 +66,7 @@ export function RpeControl({
         type="button"
         disabled={disabled}
         className="rpe-value-btn"
-        aria-label={displayValue !== null ? `${displayValue} RIR` : ariaLabel}
+        aria-label={displayValue !== null ? `${ariaLabel}: ${displayValue}` : ariaLabel}
         aria-haspopup="dialog"
         aria-expanded={open}
         onClick={() => setOpen(true)}

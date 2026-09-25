@@ -1,14 +1,19 @@
-import { useEffect, useId, useState } from 'react';
+import { useId } from 'react';
 
 export interface RepPrescriptionControlProps {
   repMin: number;
   repMax: number;
+  /// Exact reps or a range. The mode belongs to the exercise, so the caller owns it and offers
+  /// one RepModeToggle for all of its sets.
+  range: boolean;
   onChange: (patch: { repMin: number; repMax: number }) => void;
   nameMin: string;
   nameMax: string;
   nameSingle: string;
   dataImportIndex?: number;
   disabled?: boolean;
+  /// Names which set these inputs belong to, so each one is distinct to assistive technology.
+  labelPrefix?: string;
   /// The source printed no rep count (an AMRAP set): no target is shown or editable.
   openReps?: boolean;
 }
@@ -16,36 +21,18 @@ export interface RepPrescriptionControlProps {
 export function RepPrescriptionControl({
   repMin,
   repMax,
+  range,
   onChange,
   nameMin,
   nameMax,
   nameSingle,
   dataImportIndex,
   disabled = false,
-  openReps = false
+  openReps = false,
+  labelPrefix
 }: RepPrescriptionControlProps) {
   const uniqueId = useId();
-  const [isRange, setIsRange] = useState(() => repMin !== repMax);
-
-  useEffect(() => {
-    if (repMin !== repMax && !isRange) {
-      setIsRange(true);
-    }
-  }, [repMin, repMax, isRange]);
-
-  const handleToggle = (nextIsRange: boolean) => {
-    if (nextIsRange === isRange) return;
-    setIsRange(nextIsRange);
-    if (!nextIsRange) {
-      // Switching from range to exact rep target: unify repMax to repMin
-      onChange({ repMin, repMax: repMin });
-    } else {
-      // Switching from exact rep target to range: if equal, expand slightly
-      if (repMin === repMax) {
-        onChange({ repMin, repMax: Math.max(repMin, repMin + 2) });
-      }
-    }
-  };
+  const label = (name: string) => labelPrefix ? `${labelPrefix} ${name.toLowerCase()}` : name;
 
   if (openReps) {
     return (
@@ -62,35 +49,15 @@ export function RepPrescriptionControl({
   return (
     <div className="field rep-prescription-field">
       <div className="rep-prescription-header">
-        <span className="rep-prescription-label">{isRange ? 'Rep range' : 'Reps'}</span>
-        <div className="rep-mode-toggle" role="group" aria-label="Rep prescription mode">
-          <button
-            type="button"
-            className={`rep-mode-btn ${!isRange ? 'active' : ''}`}
-            aria-pressed={!isRange}
-            disabled={disabled}
-            onClick={() => handleToggle(false)}
-          >
-            Rep
-          </button>
-          <button
-            type="button"
-            className={`rep-mode-btn ${isRange ? 'active' : ''}`}
-            aria-pressed={isRange}
-            disabled={disabled}
-            onClick={() => handleToggle(true)}
-          >
-            Range
-          </button>
-        </div>
+        <span className="rep-prescription-label">{range ? 'Rep range' : 'Reps'}</span>
       </div>
 
-      {isRange ? (
+      {range ? (
         <div className="rep-range-inputs">
           <input
             id={`${uniqueId}-min`}
             name={nameMin}
-            aria-label="Min reps"
+            aria-label={label('Min reps')}
             title="Min reps"
             placeholder="Min"
             type="number"
@@ -110,7 +77,7 @@ export function RepPrescriptionControl({
           <input
             id={`${uniqueId}-max`}
             name={nameMax}
-            aria-label="Max reps"
+            aria-label={label('Max reps')}
             title="Max reps"
             placeholder="Max"
             type="number"
@@ -132,7 +99,7 @@ export function RepPrescriptionControl({
           <input
             id={`${uniqueId}-single`}
             name={nameSingle}
-            aria-label="Reps"
+            aria-label={label('Reps')}
             title="Target reps"
             placeholder="Reps"
             type="number"
@@ -157,6 +124,42 @@ export function RepPrescriptionControl({
           />
         </div>
       )}
+    </div>
+  );
+}
+
+/// One segmented choice between exact reps and a rep range for every set of an exercise.
+export function RepModeToggle({
+  range,
+  onChange,
+  label,
+  disabled = false
+}: {
+  range: boolean;
+  onChange: (range: boolean) => void;
+  label: string;
+  disabled?: boolean;
+}) {
+  return (
+    <div className="rep-mode-toggle" role="group" aria-label={label}>
+      <button
+        type="button"
+        className={`rep-mode-btn ${!range ? 'active' : ''}`}
+        aria-pressed={!range}
+        disabled={disabled}
+        onClick={() => { if (range) onChange(false); }}
+      >
+        Exact
+      </button>
+      <button
+        type="button"
+        className={`rep-mode-btn ${range ? 'active' : ''}`}
+        aria-pressed={range}
+        disabled={disabled}
+        onClick={() => { if (!range) onChange(true); }}
+      >
+        Range
+      </button>
     </div>
   );
 }

@@ -1,0 +1,6 @@
+<resources>
+    <!-- Matches the Compose background so launch and recreation never flash a different colour. -->
+    <style name="Theme.WorkoutWear" parent="@android:style/Theme.DeviceDefault.NoActionBar">
+        <item name="android:windowBackground">@color/ayu_background</item>
+    </style>
+</resources>

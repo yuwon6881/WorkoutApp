@@ -44,11 +44,17 @@ public sealed partial class WorkoutService
         var weight = set.WeightKg;
         var reps = set.Reps;
         var rpe = set.Rpe;
+        var rir = set.Rir;
         var done = set.Done;
         var warmup = set.Warmup;
         if (payload.TryGetProperty("weightKg", out var weightElement)) weight = NullableDouble(weightElement, "Weight");
         if (payload.TryGetProperty("reps", out var repsElement)) reps = NullableInt(repsElement, "Reps");
         if (payload.TryGetProperty("rpe", out var rpeElement)) rpe = NullableDouble(rpeElement, "RPE");
+        if (payload.TryGetProperty("rir", out var rirElement))
+        {
+            Validation.Require(rirElement.ValueKind is JsonValueKind.Null or JsonValueKind.String, "RIR is invalid.");
+            rir = rirElement.ValueKind == JsonValueKind.Null ? null : rirElement.GetString();
+        }
         if (payload.TryGetProperty("done", out var doneElement))
             Validation.Require(doneElement.ValueKind is JsonValueKind.True or JsonValueKind.False, "Done must be true or false.");
         if (doneElement.ValueKind is JsonValueKind.True or JsonValueKind.False) done = doneElement.GetBoolean();
@@ -62,6 +68,7 @@ public sealed partial class WorkoutService
         }
         resistanceMode = ResolveResistanceMode(loadModel, resistanceMode);
         Validation.LoggedSet(weight, reps, rpe, done, warmup);
+        ValidateActualRir(rir, rpe);
         var warmupChanged = warmup != set.Warmup;
         var step = Progression.DefaultStepKg;
         if (exercise.ExerciseId is { } exerciseId)
@@ -70,11 +77,11 @@ public sealed partial class WorkoutService
             if (info.TryGetValue(exerciseId, out var found)) step = found.StepKg;
         }
         weight = NormalizeEnteredLoad(loadModel, resistanceMode, weight, step);
-        var changed = weight != set.WeightKg || reps != set.Reps || rpe != set.Rpe || done != set.Done ||
+        var changed = weight != set.WeightKg || reps != set.Reps || rpe != set.Rpe || rir != set.Rir || done != set.Done ||
             warmup != set.Warmup || !string.Equals(resistanceMode, set.ResistanceMode, StringComparison.Ordinal);
         if (changed)
         {
-            set.WeightKg = weight; set.Reps = reps; set.Rpe = rpe; set.Done = done; set.Warmup = warmup;
+            set.WeightKg = weight; set.Reps = reps; set.Rpe = rpe; set.Rir = rir; set.Done = done; set.Warmup = warmup;
             set.ResistanceMode = resistanceMode; set.SystemLoadKg = ComputeSystemLoad(session, loadModel, resistanceMode, weight);
             if (warmupChanged)
             {
@@ -105,5 +112,18 @@ public sealed partial class WorkoutService
         if (value.ValueKind == JsonValueKind.Null) return null;
         Validation.Require(value.TryGetInt32(out var number), $"{label} is invalid.");
         return number;
+    }
+
+    private static void ValidateActualRir(string? rir, double? rpe)
+    {
+        Validation.Require(rir is null or "0" or "1" or "2" or "3" or "4" or "5+", "RIR must be between 0 and 4, 5+, or unknown.");
+        if (rir is null) return;
+        if (rir == "5+")
+        {
+            Validation.Require(rpe is null, "5+ RIR cannot be paired with a precise RPE.");
+            return;
+        }
+        Validation.Require(rpe is not null && Math.Abs(rpe.Value - (10 - int.Parse(rir))) < 0.001,
+            "RIR and RPE must describe the same effort.");
     }
 }

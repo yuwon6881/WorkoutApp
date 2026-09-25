@@ -13,7 +13,8 @@ import { Auth } from './components/Auth';
 import { Dashboard } from './components/Dashboard';
 import { Programs } from './components/Programs';
 const Workout = lazy(() => import('./components/Workout').then(module => ({ default: module.Workout })));
-import { clearHistoryViewCache, SessionDetail } from './components/History';
+import { clearHistoryViewCache } from './components/History';
+import { SessionDetail } from './components/SessionDetail';
 import { clearWorkoutHistoryCache } from './components/WorkoutHistory';
 import { SettingsView } from './components/Settings';
 import { ExerciseDetailModal, ExerciseLibrary } from './components/Exercises';
@@ -22,6 +23,7 @@ import { StartPreview } from './components/StartPreview';
 import { MuscleBalanceView } from './components/MuscleBalanceView';
 import { ImportProgressPill } from './components/ImportProgressPill';
 import { useImportWatch } from './components/useImportWatch';
+import { AppLoading } from './components/AppLoading';
 
 /// Matches the server's refusal in ImportService.Create, so both sides say the same thing.
 const IMPORT_BLOCKED_MESSAGE = 'Finish or discard the active workout before importing a program.';
@@ -41,6 +43,8 @@ export default function App() {
   const [training, setTraining] = useState(false);
   const [reviewRecovery, setReviewRecovery] = useState(false);
   const [detail, setDetail] = useState<Session | null>(null);
+  // The session just finished, so its summary opens as a result rather than a history entry.
+  const [finishedId, setFinishedId] = useState<string | null>(null);
   const [exerciseDetail, setExerciseDetail] = useState<import('./types').Exercise | null>(null);
   const [toast, setToast] = useState('');
   const [starting, setStarting] = useState(false);
@@ -227,8 +231,7 @@ export default function App() {
 
   if (signedOut) return <Auth />;
 
-  if (loading && !data) return <div className="auth-screen"><div className="panel auth-card"><Loader2 className="spin" size={26} /><h1>Loading your training…</h1>
-    <p className="muted">Your workouts live on the server, so this needs a connection.</p></div></div>;
+  if (loading && !data) return <AppLoading />;
 
   if (!data && recovery) return <div className="app-shell recovery-shell">
     <main className="recovery-main">
@@ -407,11 +410,12 @@ export default function App() {
     {training && workoutSession && <Suspense fallback={<div className="panel recovery-card" role="status">Opening your workout…</div>}><Workout session={workoutSession} accountId={data.account.id} preferences={recovery?.sessionId === workoutSession.id ? recovery.preferences : data.preferences}
       exercises={data.exercises} queue={app.queue} online={online} recovery={recovery?.sessionId === workoutSession.id ? recovery : null} onRecoveryChange={record => { app.setRecovery(record); if (!record) setReviewRecovery(false); }}
       onSaved={app.setActiveWorkout} onClose={() => setTraining(false)}
-      onFinish={async session => { app.queue.clear(); app.setActiveWorkout(null); setTraining(false); setDetail(session); setToast('Workout saved.'); await app.reload(); }}
+      onFinish={async session => { app.queue.clear(); app.setActiveWorkout(null); setTraining(false); setDetail(session); setFinishedId(session.id); setToast('Workout saved.'); await app.reload(); }}
       onDiscard={async () => { app.queue.clear(); app.setActiveWorkout(null); setTraining(false); await app.reload(); }} /></Suspense>}
 
     {preview && <StartPreview template={preview} busy={starting} onCancel={() => setPreview(null)} onConfirm={confirmStart} />}
-    {detail && <SessionDetail session={detail} preferences={data.preferences} exercises={data.exercises} onClose={() => setDetail(null)} onDeleted={app.reload} />}
+    {detail && <SessionDetail session={detail} preferences={data.preferences} exercises={data.exercises} justFinished={detail.id === finishedId}
+      onClose={() => { setDetail(null); setFinishedId(null); }} onDeleted={app.reload} />}
     {exerciseDetail && <ExerciseDetailModal exercise={exerciseDetail} unit={data.preferences.unit} onClose={() => setExerciseDetail(null)} onChanged={async () => { clearHistoryViewCache(); clearWorkoutHistoryCache(); await app.reload(); }}
       onSession={session => { setExerciseDetail(null); setDetail(session); }} />}
     {toast && <div className="toast" role="status"><Plus size={17} />{toast}</div>}

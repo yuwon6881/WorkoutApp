@@ -1,0 +1,266 @@
+/* Set prescriptions as a grid shared by the workout builder and the program/import day editor.
+   The wrappers inside a row use display:contents so every control is a direct grid item and can
+   be placed by area. The layout follows the width of the editor itself (a phone sheet, a wide
+   dialog, or a program page), not the window, so it is a container query. */
+
+.set-grid-wrap {
+  container: set-grid / inline-size;
+  margin-top: 16px;
+}
+
+.set-grid-list.import-sets {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.set-grid-wrap .import-set-swipe-row,
+.set-grid-wrap .import-set.warmup-row .import-set-swipe-row {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  transition: border-color var(--motion-control) var(--motion-ease);
+}
+
+.set-grid-wrap .import-set-swipe-row:focus-within {
+  border-color: var(--border-hover);
+}
+
+.set-grid-wrap .import-set-content.set-grid-row {
+  display: grid;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+  border: 0;
+}
+
+/* The badge and set type share one meta cell; the fields unwrap into the grid. */
+.set-grid-wrap .set-grid-row .import-set-heading {
+  grid-area: meta;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+}
+
+.set-grid-wrap .set-grid-row .import-set-fields,
+.set-grid-wrap .set-grid-row .rep-prescription-field {
+  display: contents;
+}
+
+.set-grid-wrap .set-grid-row .rep-prescription-header {
+  display: none;
+}
+
+/* Column labels are printed once in the head; each control keeps its own accessible name. */
+.set-grid-row .rep-prescription-label,
+.set-grid-row .rpe-field > span:first-child,
+.set-grid-row .set-tempo-field > span:first-child,
+.set-grid-row .set-type-field > span:first-child {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+}
+
+.set-grid-row .set-type-field {
+  margin: 0;
+}
+
+.set-grid-row .rep-range-inputs,
+.set-grid-row .rep-single-input-wrap,
+.set-grid-row .rep-open-value {
+  grid-area: reps;
+  min-width: 0;
+}
+
+.set-grid-row .rpe-field {
+  grid-area: rir;
+  margin: 0;
+  justify-self: center;
+}
+
+.set-grid-row .set-tempo-field {
+  grid-area: tempo;
+  margin: 0;
+  min-width: 0;
+}
+
+.set-grid-row input {
+  width: 100%;
+  min-width: 0;
+  min-height: 44px;
+  height: 44px;
+  padding: 8px 2px;
+  text-align: center;
+  background: var(--surface-raised);
+}
+
+.set-grid-row .set-type-field .custom-select-trigger {
+  min-width: 132px;
+}
+
+/* One segmented control: the outline is an inset shadow so each half keeps a full-size box. */
+.set-grid-head .rep-mode-toggle {
+  gap: 0;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-control);
+  background: var(--surface-raised);
+  box-shadow: inset 0 0 0 1px var(--border);
+  overflow: hidden;
+}
+
+.set-grid-head .rep-mode-btn {
+  min-width: 56px;
+  min-height: 44px;
+  padding: 0 10px;
+  border-radius: var(--radius-control);
+  font-size: var(--font-secondary);
+}
+
+.set-warmup-chip.button {
+  min-height: 44px;
+  padding: 0 12px;
+  border: 1px dashed var(--border-hover);
+  border-radius: var(--radius-pill);
+  color: var(--muted);
+  font-size: var(--font-secondary);
+  font-weight: 600;
+}
+
+.set-warmup-chip.button.active {
+  border-style: solid;
+  border-color: var(--blue);
+  background: color-mix(in srgb, var(--blue) 12%, transparent);
+  color: var(--blue);
+}
+
+.set-grid-wrap .import-set-remove {
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0;
+}
+
+.set-grid-wrap .swipeable-row-desktop-actions {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  padding: 0 8px 0 0;
+}
+
+.set-grid-head {
+  display: grid;
+  align-items: end;
+  gap: 0 10px;
+  /* Rows outside the phone swipe layout end in a delete button; reserve its width. */
+  padding: 0 60px 8px 8px;
+  color: var(--muted);
+  font-size: var(--font-secondary);
+  font-weight: 600;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+
+.set-grid-head-reps {
+  grid-area: reps;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 12px;
+  min-width: 0;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.set-grid-head-reps > span:first-child {
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+
+.set-grid-head-rir { grid-area: rir; text-align: center; }
+.set-grid-head-tempo { grid-area: tempo; text-align: center; }
+
+/* Compact: the set badge and type on one line, the prescription on the next. */
+.set-grid-wrap .set-grid-row {
+  grid-template-columns: minmax(0, 1fr) 48px 64px;
+  grid-template-areas:
+    "meta meta meta"
+    "reps rir tempo";
+}
+
+/* The rep mode is wider than a phone's reps column, so it takes its own head line there. */
+.set-grid-wrap .set-grid-head {
+  grid-template-columns: minmax(0, 1fr) 48px 64px;
+  grid-template-areas:
+    "reps reps reps"
+    ". rir tempo";
+  row-gap: 8px;
+}
+
+.set-grid-typed.set-grid-wrap .set-grid-row {
+  grid-template-columns: minmax(0, 1fr) 48px;
+  grid-template-areas:
+    "meta meta"
+    "reps rir";
+}
+
+.set-grid-typed.set-grid-wrap .set-grid-head {
+  grid-template-columns: minmax(0, 1fr) 48px;
+  grid-template-areas:
+    "reps reps"
+    ". rir";
+}
+
+.set-grid-typed .set-grid-head-tempo { display: none; }
+
+/* Wide: one line per set. The meta column is fixed so the head lines up with the rows. */
+@container set-grid (min-width: 600px) {
+  .set-grid-wrap .set-grid-row {
+    grid-template-columns: 176px minmax(170px, 1fr) 52px 76px;
+    grid-template-areas: "meta reps rir tempo";
+  }
+
+  .set-grid-wrap .set-grid-head {
+    grid-template-columns: 176px minmax(170px, 1fr) 52px 76px;
+    grid-template-areas: ". reps rir tempo";
+    align-items: center;
+  }
+
+  .set-grid-typed.set-grid-wrap .set-grid-row {
+    grid-template-columns: 236px minmax(170px, 1fr) 52px;
+    grid-template-areas: "meta reps rir";
+  }
+
+  .set-grid-typed.set-grid-wrap .set-grid-head {
+    grid-template-columns: 236px minmax(170px, 1fr) 52px;
+    grid-template-areas: ". reps rir";
+    align-items: center;
+  }
+}
+
+/* Phone rows keep delete behind the swipe, so the head needs no gutter there. */
+@media (max-width: 639px) {
+  .set-grid-head {
+    padding-right: 8px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .set-grid-row input,
+  .set-grid-head .rep-mode-btn,
+  .set-warmup-chip.button,
+  .set-grid-wrap .import-set-remove {
+    min-height: 40px;
+    height: 40px;
+  }
+}

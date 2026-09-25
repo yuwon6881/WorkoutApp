@@ -17,10 +17,14 @@ public sealed record NutritionContextResult(
 /// only the confirmed mode and bodyweight context are reused, and only for seven calendar days.
 public sealed class NutritionContextService(AppDb db, IHttpClientFactory clients, IConfiguration config, IntegrationTokenService? peerTokens = null)
 {
-    private static readonly TimeSpan FetchTimeout = TimeSpan.FromSeconds(2);
+    /// Workout start waits on this read, so it keeps a short bound and falls back to the cache.
+    public static readonly TimeSpan StartDeadline = TimeSpan.FromSeconds(2);
+    /// Explicit refreshes may wait out a scale-to-zero cold start of Nutrition, whose handler
+    /// also validates the connection with Fitness Account before answering.
+    public static readonly TimeSpan RefreshDeadline = TimeSpan.FromSeconds(8);
     private static readonly TimeSpan CacheWindow = TimeSpan.FromDays(7);
 
-    public async Task<NutritionContextResult> Get(CancellationToken ct)
+    public async Task<NutritionContextResult> Get(CancellationToken ct, TimeSpan? deadline = null)
     {
         var cached = await db.NutritionContexts.AsNoTracking().SingleOrDefaultAsync(ct);
         var now = DateTime.UtcNow;
@@ -38,7 +42,7 @@ public sealed class NutritionContextService(AppDb db, IHttpClientFactory clients
                 if (peerTokens is not null && string.IsNullOrWhiteSpace(token))
                     throw new InvalidOperationException("Nutrition access is not available.");
                 using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
-                timeout.CancelAfter(FetchTimeout);
+                timeout.CancelAfter(deadline ?? StartDeadline);
                 using var request = new HttpRequestMessage(HttpMethod.Get, url);
                 if (!string.IsNullOrWhiteSpace(token)) request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
                 var subject = await db.Users.AsNoTracking().Where(u => u.Id == db.CurrentUser).Select(u => u.IdentitySubject).SingleOrDefaultAsync(ct);
@@ -63,7 +67,9 @@ public sealed class NutritionContextService(AppDb db, IHttpClientFactory clients
                 return FromCache(cached, now, warning);
             }
         }
-        return FromCache(cached, now, null);
+        // The cache is a fallback for a Nutrition outage, not a substitute for consent. Once the
+        // connection is inactive, a cached goal must not keep steering progression.
+        return connected ? FromCache(cached, now, null) : new(null, ProgressionModes.Normal, false, false, null);
     }
 
     public static string Mode(NutritionTrainingContext? context, DateTime nowUtc)

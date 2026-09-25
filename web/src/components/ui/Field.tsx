@@ -1,6 +1,7 @@
 import {
   useId,
   type InputHTMLAttributes,
+  type Ref,
   type ReactNode,
   type SelectHTMLAttributes,
   type TextareaHTMLAttributes
@@ -18,7 +19,7 @@ function fieldIds(id: string | undefined, generated: string, error: string | und
   return { controlId, controlName, errorId: error ? `${controlId}-error` : undefined };
 }
 
-export function Field({ label, error, className = '', id, name, ...props }: FieldChrome & InputHTMLAttributes<HTMLInputElement>) {
+export function Field({ label, error, className = '', id, name, ...props }: FieldChrome & InputHTMLAttributes<HTMLInputElement> & { ref?: Ref<HTMLInputElement> }) {
   const generated = useId();
   const { controlId, controlName, errorId } = fieldIds(id, generated, error, name, label);
   return <label className={`field ${className}`.trim()} htmlFor={controlId}>

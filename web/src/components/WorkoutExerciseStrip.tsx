@@ -1,7 +1,10 @@
-import { useRef } from 'react';
-import { Check, Dumbbell, Plus } from 'lucide-react';
+import { useEffect, useRef } from 'react';
+import { Check, Plus } from 'lucide-react';
 import type { SessionExercise } from '../types';
 import { Button } from './ui/Button';
+import { useReducedMotion } from './ui/Motion';
+
+const RING = 2 * Math.PI * 11;
 
 export function WorkoutExerciseStrip({
   exercises,
@@ -15,16 +18,33 @@ export function WorkoutExerciseStrip({
   onAdd: () => void;
 }) {
   const scrollerRef = useRef<HTMLDivElement>(null);
+  const reduced = useReducedMotion();
+
+  // Keep the current exercise in view as the lifter moves through the session, including when
+  // the next exercise is chosen from the set list rather than the strip itself.
+  useEffect(() => {
+    // Scroll the strip alone: scrollIntoView would also move the dialog when the strip is offscreen.
+    const scroller = scrollerRef.current;
+    const active = scroller?.querySelector<HTMLElement>('[aria-selected="true"]');
+    if (!scroller || !active) return;
+    const start = active.offsetLeft;
+    const end = start + active.offsetWidth;
+    const left = start < scroller.scrollLeft
+      ? start - 16
+      : end > scroller.scrollLeft + scroller.clientWidth ? end - scroller.clientWidth + 16 : null;
+    if (left !== null) scroller.scrollTo({ left, behavior: reduced ? 'auto' : 'smooth' });
+  }, [activeIndex, reduced]);
 
   return (
     <nav className="workout-exercise-strip-container" aria-label="Workout exercises">
       <div className="workout-exercise-strip" role="tablist" ref={scrollerRef}>
         {exercises.map((exercise, index) => {
           const isSelected = index === activeIndex;
-          const completed = exercise.sets.length > 0 && exercise.sets.every(s => s.done);
-          const hasLoggedSets = exercise.sets.some(s => s.done);
-          const workingSetsDone = exercise.sets.filter(s => s.done && !s.warmup).length;
-          const totalWorkingSets = exercise.sets.filter(s => !s.warmup).length || exercise.sets.length;
+          const working = exercise.sets.filter(s => !s.warmup);
+          const counted = working.length ? working : exercise.sets;
+          const doneCount = counted.filter(s => s.done).length;
+          const completed = counted.length > 0 && doneCount === counted.length;
+          const progress = counted.length ? doneCount / counted.length : 0;
 
           return (
             <Button
@@ -32,44 +52,40 @@ export function WorkoutExerciseStrip({
               presentation="plain"
               role="tab"
               aria-selected={isSelected}
-              aria-label={`${exercise.name}, ${workingSetsDone} of ${totalWorkingSets} sets completed`}
+              aria-label={`${exercise.name}, ${doneCount} of ${counted.length} sets completed`}
               className={`workout-strip-item ${isSelected ? 'active' : ''} ${completed ? 'completed' : ''}`}
               onClick={() => onSelect(index)}
             >
-              <div className="workout-strip-thumb">
-                <span className="workout-strip-icon" aria-hidden="true">
-                  <Dumbbell size={18} />
-                </span>
-                <span className="workout-strip-name" title={exercise.name}>
-                  {exercise.name}
-                </span>
-
-                {completed && (
-                  <div className="workout-strip-badge completed" title="Exercise completed">
-                    <Check size={16} strokeWidth={3} />
-                  </div>
-                )}
-                {!completed && hasLoggedSets && (
-                  <div className="workout-strip-progress-ring" title={`${workingSetsDone}/${totalWorkingSets} sets`}>
-                    <span>{workingSetsDone}/{totalWorkingSets}</span>
-                  </div>
-                )}
-              </div>
-              <div className="workout-strip-indicator" aria-hidden="true" />
+              <span className="workout-strip-ring" aria-hidden="true">
+                <svg viewBox="0 0 28 28">
+                  <circle className="ring-track" cx="14" cy="14" r="11" />
+                  <circle
+                    className="ring-value"
+                    cx="14"
+                    cy="14"
+                    r="11"
+                    strokeDasharray={RING}
+                    strokeDashoffset={RING * (1 - progress)}
+                  />
+                </svg>
+                {completed ? <Check size={13} strokeWidth={3} /> : <span>{index + 1}</span>}
+              </span>
+              <span className="workout-strip-text">
+                <span className="workout-strip-name">{exercise.name}</span>
+                <span className="workout-strip-count">{doneCount}/{counted.length} sets</span>
+              </span>
             </Button>
           );
         })}
 
         <Button
-          presentation="plain"
+          variant="tertiary"
           className="workout-strip-add-item"
           aria-label="Add another exercise to this workout"
           onClick={onAdd}
         >
-          <div className="workout-strip-thumb add-thumb">
-            <Plus size={20} />
-          </div>
-          <div className="workout-strip-indicator" aria-hidden="true" />
+          <Plus size={18} />
+          <span>Add</span>
         </Button>
       </div>
     </nav>

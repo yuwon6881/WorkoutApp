@@ -15,7 +15,7 @@ public static class IntegrationEndpoints
     {
         app.MapPost("/api/integrations/refresh", async (NutritionContextService context, CancellationToken ct) =>
         {
-            var result = await context.Get(ct);
+            var result = await context.Get(ct, NutritionContextService.RefreshDeadline);
             return Results.Ok(new { mode = result.Mode, cached = result.Cached, confirmed = result.Confirmed, error = result.Error });
         });
 
@@ -35,9 +35,10 @@ public static class IntegrationEndpoints
             var grant = await db.IntegrationGrants.AsNoTracking().SingleOrDefaultAsync(x => x.Peer == "nutrition", ct);
             var connectionState = await peerTokens.ConnectionState("nutrition", ct);
             var context = await db.NutritionContexts.AsNoTracking().SingleOrDefaultAsync(ct);
+            // A failed data refresh is reported as a sync warning on a connection that Fitness
+            // Account still confirms. It must not read as the connection itself being unavailable.
             var syncWarning = connectionState == "temporary_unavailable"
                 || (context?.LastErrorAt is { } errorAt && (context.LastSuccessAt is null || errorAt > context.LastSuccessAt));
-            if (connectionState == "connected" && syncWarning) connectionState = "temporary_unavailable";
             return Results.Ok(new[] { new
             {
                 peer = "nutrition",

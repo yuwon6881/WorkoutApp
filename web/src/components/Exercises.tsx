@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { ArrowLeftRight, Dumbbell, Library, Link2, Plus, Search, X, Trash2, RotateCcw, TrendingUp } from 'lucide-react';
 import type { Exercise, ExerciseCategory, ExerciseClearPreview, ExerciseInsight, Session } from '../types';
 import { ApiError, api } from '../lib/api';
+import { showSetCount } from '../lib/training';
 import { Button } from './ui/Button';
 import { Field, TextAreaField } from './ui/Field';
 import { Modal } from './ui/Modal';
@@ -184,7 +185,7 @@ export function ExerciseLibrary({ exercises, onSelect, exclude = [], onOpen, onC
   }
 
   if (!exercises.length) return <>
-    {!onSelect && <div className="page-heading"><h1>Exercises</h1><Button variant="primary" onClick={() => setCreateOpen(true)}><Plus size={16} />Create exercise</Button></div>}
+    {!onSelect && <div className="page-heading"><h1 data-page-heading tabIndex={-1}>Exercises</h1><Button variant="primary" onClick={() => setCreateOpen(true)}><Plus size={16} />Create exercise</Button></div>}
     <div className="empty-message">
       <Library size={32} />
       <h3>No exercises available</h3>
@@ -194,7 +195,7 @@ export function ExerciseLibrary({ exercises, onSelect, exclude = [], onOpen, onC
   </>;
 
   return <div>
-    {!onSelect && <div className="page-heading"><h1>Exercises</h1><Button variant="primary" onClick={() => setCreateOpen(true)}><Plus size={16} />Create exercise</Button></div>}
+    {!onSelect && <div className="page-heading"><h1 data-page-heading tabIndex={-1}>Exercises</h1><Button variant="primary" onClick={() => setCreateOpen(true)}><Plus size={16} />Create exercise</Button></div>}
     <div className="search-row">
       <label className="search-box">
         <Search size={18} />
@@ -221,7 +222,7 @@ export function ExerciseLibrary({ exercises, onSelect, exclude = [], onOpen, onC
           onChange={val => setCategory(val as 'all' | ExerciseCategory)}
           className="exercise-filter-select"
           options={[
-            { value: 'all', label: 'All' },
+            { value: 'all', label: 'All equipment' },
             { value: 'Free Weights', label: 'Free Weights' },
             { value: 'Machine', label: 'Machine' },
             { value: 'Body Weight', label: 'Body Weight' }
@@ -383,9 +384,9 @@ export function ExerciseDetailModal({ exercise, unit, onClose, onChanged, onSess
           </div>
           <div className="detail-resistance-records" aria-label="Resistance records">{insight.externalLoadPrKg != null && <span>External load PR <strong>{displayKg(insight.externalLoadPrKg, unit)}</strong></span>}{insight.addedLoadPrKg != null && <span>Added load PR <strong>{displayKg(insight.addedLoadPrKg, unit)}</strong></span>}{insight.assistanceReductionPrKg != null && <span>Lowest assistance <strong>{displayKg(insight.assistanceReductionPrKg, unit)}</strong></span>}{insight.systemLoadPrKg != null && <span>System load PR <strong>{displayKg(insight.systemLoadPrKg, unit)}</strong></span>}</div>
           <div className="section-heading"><h3>History</h3><span className="muted">{insight.totalHistoryRows} workouts</span></div>
-          {insight.history.map(row => <Button variant="tertiary" className="history-row" key={row.sessionId} onClick={async () => { const session = await api.getWorkout(row.sessionId); onSession?.(session); }}><span className="row-title"><strong>{row.sessionName}</strong><small>{dateLabel(row.date)} · {row.setCount} sets</small></span><span>{displayKg(row.volumeKg, unit)}{row.partial ? ' *' : ''}</span><TrendingUp size={15} /></Button>)}
+          {insight.history.map(row => <Button variant="tertiary" className="history-row" key={row.sessionId} onClick={async () => { const session = await api.getWorkout(row.sessionId); onSession?.(session); }}><span className="row-title"><strong>{row.sessionName}</strong><small>{dateLabel(row.date)} · {showSetCount(row.setCount)}</small></span><span>{displayKg(row.volumeKg, unit)}{row.partial ? ' *' : ''}</span><TrendingUp size={15} /></Button>)}
           {insight.history.length < insight.totalHistoryRows && <Button variant="tertiary" className="full-width" onClick={() => void moreHistory()} disabled={historyBusy}>{historyBusy ? 'Loading…' : 'Load more history'}</Button>}
-          {insight.historyClears?.map(clear => <div className="exercise-history-cleared" role="status" key={clear.clearedAt}>Exercise history cleared on {dateLabel(clear.clearedAt)} · {clear.removedSets} sets removed</div>)}
+          {insight.historyClears?.map(clear => <div className="exercise-history-cleared" role="status" key={clear.clearedAt}>Exercise history cleared on {dateLabel(clear.clearedAt)} · {showSetCount(clear.removedSets)} removed</div>)}
           {!insight.history.length && !insight.historyClears?.length && <p className="muted">No workout history for this exercise yet.</p>}
         </>}
       </div>

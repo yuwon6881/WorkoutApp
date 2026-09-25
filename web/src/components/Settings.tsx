@@ -11,6 +11,7 @@ import { InfoTooltip } from './ui/InfoTooltip';
 import { ConnectedApps } from './ConnectedApps';
 import { GoogleHealthSettings } from './GoogleHealthSettings';
 import { RestAlertSettings } from './RestAlertSettings';
+import { WatchPairingSettings } from './WatchPairingSettings';
 import './Settings.css';
 
 type SettingsViewProps = {
@@ -78,6 +79,8 @@ export function SettingsView(props: SettingsViewProps) {
           onPreferences={onPreferences}
           notify={notify}
         />
+
+        <WatchPairingSettings accountId={account.id} notify={notify} />
 
         <ConnectedApps />
         <GoogleHealthSettings />

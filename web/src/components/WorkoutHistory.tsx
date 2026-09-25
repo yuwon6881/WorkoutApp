@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { ArrowRight, ChevronDown, Dumbbell, Trophy } from 'lucide-react';
 import type { HistoryPage, Session, Unit } from '../types';
 import { ApiError, api } from '../lib/api';
-import { duration, showRpe, showVolume, toDisplay } from '../lib/training';
+import { duration, showActualRir, showSetCount, showVolume, toDisplay } from '../lib/training';
 import { Button } from './ui/Button';
 import './History.css';
 
@@ -109,7 +109,7 @@ export function WorkoutHistory({
               <span className="row-title">
                 <strong>{session.name}</strong>
                 <small>
-                  {new Date(session.startedAt).toLocaleDateString('en', { month: 'short', day: 'numeric', year: 'numeric' })} · {duration(session)} min · {session.completedSets} sets
+                  {new Date(session.startedAt).toLocaleDateString('en', { month: 'short', day: 'numeric', year: 'numeric' })} · {duration(session)} min · {showSetCount(session.completedSets)}
                 </small>
               </span>
               {prCount > 0 && (
@@ -153,7 +153,7 @@ export function WorkoutHistory({
                             <div key={set.id} className={`history-set-item ${set.isPr ? 'pr-set' : ''}`}>
                               <span className="muted">{set.warmup ? `W${warmupNumber}` : `Set ${workingNumber}`}</span>
                               <strong>{set.weightKg === null ? `${set.reps} reps` : `${toDisplay(set.weightKg, unit)} ${unit} × ${set.reps}`}</strong>
-                              <span className="muted">{showRpe(set.rpe)}</span>
+                              <span className="muted">{showActualRir(set.rir, set.rpe)}</span>
                               {set.isPr && <span className="pill pill-accent pr-set-tag"><Trophy size={10} /> PR</span>}
                             </div>
                           );

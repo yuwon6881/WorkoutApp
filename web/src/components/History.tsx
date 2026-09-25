@@ -1,11 +1,9 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ArrowRight, ChevronDown, Dumbbell, Trophy } from 'lucide-react';
-import type { Exercise, HistoryPage, Preferences, ProgressSummary, Session } from '../types';
+import type { HistoryPage, Preferences, ProgressSummary, Session } from '../types';
 import { ApiError, api } from '../lib/api';
-import { getWorkoutMuscles } from '../lib/muscles';
-import { completedSets, duration, showRpe, showVolume, toDisplay } from '../lib/training';
+import { duration, showActualRir, showSetCount, showVolume, toDisplay } from '../lib/training';
 import { Button } from './ui/Button';
-import { Modal } from './ui/Modal';
 import { BodyweightRecords, ProgressStats } from './ProgressPanels';
 import './History.css';
 
@@ -122,7 +120,7 @@ export function HistoryView({ initial, initialProgress, preferences, onSession, 
               <span className="exercise-icon"><Dumbbell size={20} /></span>
               <span className="row-title">
                 <strong>{session.name}</strong>
-                <small>{new Date(session.startedAt).toLocaleDateString('en', { month: 'short', day: 'numeric', year: 'numeric' })} · {duration(session)} min · {session.completedSets} sets</small>
+                <small>{new Date(session.startedAt).toLocaleDateString('en', { month: 'short', day: 'numeric', year: 'numeric' })} · {duration(session)} min · {showSetCount(session.completedSets)}</small>
               </span>
               {prCount > 0 && (
                 <span className="pill pill-accent history-pr-pill">
@@ -159,7 +157,7 @@ export function HistoryView({ initial, initialProgress, preferences, onSession, 
                             <div key={set.id} className={`history-set-item ${set.isPr ? 'pr-set' : ''}`}>
                               <span className="muted">{set.warmup ? `W${warmupNumber}` : `Set ${workingNumber}`}</span>
                               <span>{set.weightKg === null ? `${set.reps} reps` : `${toDisplay(set.weightKg, unit)} ${unit} × ${set.reps}`}</span>
-                              {set.rpe !== null && <span className="muted">{showRpe(set.rpe)}</span>}
+                              {showActualRir(set.rir, set.rpe) !== '—' && <span className="muted">{showActualRir(set.rir, set.rpe)}</span>}
                               {set.isPr && <span className="pill pill-accent pr-set-tag"><Trophy size={10} /> PR</span>}
                             </div>
                           );
@@ -188,63 +186,4 @@ export function HistoryView({ initial, initialProgress, preferences, onSession, 
     </section>
 
   </>;
-}
-
-export function SessionDetail({ session, preferences, exercises = [], onClose, onDeleted }: {
-  session: Session; preferences: Preferences; exercises?: Exercise[]; onClose: () => void; onDeleted?: () => Promise<void>;
-}) {
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState('');
-  const unit = preferences.unit;
-  const muscles = useMemo(() => getWorkoutMuscles(session.exercises, exercises), [session.exercises, exercises]);
-
-  return <Modal title={session.name} onClose={onClose}>
-    <div className="modal-body">
-      <div className="saved-badge"><Trophy size={19} />Workout complete</div>
-      {session.prCount != null && session.prCount > 0 && (
-        <div className="saved-badge pr-summary-badge">
-          <Trophy size={16} /> {session.prCount} personal best{session.prCount === 1 ? '' : 's'} achieved
-        </div>
-      )}
-      <p>{new Date(session.startedAt).toLocaleString()} · {duration(session)} min</p>
-      {muscles.length > 0 && <div className="day-muscles-row" aria-label="Targeted muscles">
-        {muscles.map(m => <span key={m} className="muscle-chip">{m}</span>)}
-      </div>}
-      <div className="detail-stats">
-        <strong>{completedSets(session).length}<small>working sets</small></strong>
-        <strong>{showVolume(session.volumeKg, unit)}<small>total volume</small></strong>
-      </div>
-      {session.exercises.map(exercise => <section className="detail-exercise" key={exercise.id}>
-        <div className="detail-exercise-header">
-          <h3>{exercise.name}</h3>
-          {exercise.isPr && (
-            <span className="pill pill-accent pr-exercise-badge">
-              <Trophy size={12} /> PR{exercise.prE1rmKg != null ? ` · ${toDisplay(exercise.prE1rmKg, unit)} ${unit} e1RM` : ''}
-            </span>
-          )}
-        </div>
-        {exercise.sets.filter(s => s.done).map((set, i, completed) => {
-          const warmupNumber = completed.slice(0, i + 1).filter(item => item.warmup).length;
-          const workingNumber = completed.slice(0, i + 1).filter(item => !item.warmup).length;
-          return <div key={set.id} className={set.isPr ? 'pr-set-row' : ''}>
-          <span>{set.warmup ? `Warm-up ${warmupNumber}` : `Set ${workingNumber}`}</span>
-          <strong>{set.weightKg === null ? `${set.reps} reps` : `${toDisplay(set.weightKg, unit)} ${unit} × ${set.reps}`}</strong>
-          <span>{showRpe(set.rpe)}</span>
-          {set.isPr && <span className="pill pill-accent pr-set-tag"><Trophy size={10} /> PR</span>}
-        </div>;
-        })}
-        {exercise.note && <p>{exercise.note}</p>}
-      </section>)}
-      {session.note && <p className="note-block">{session.note}</p>}
-      {error && <p className="error-text" role="alert">{error}</p>}
-    </div>
-    <div className="modal-actions">
-      {onDeleted && <Button variant="destructive" disabled={busy} onClick={async () => {
-        setBusy(true);
-        try { await api.deleteWorkout(session.id); await onDeleted(); onClose(); }
-        catch (failure) { setError(failure instanceof ApiError ? failure.message : 'Could not delete this workout.'); setBusy(false); }
-      }}>Delete from history</Button>}
-      <Button variant="primary" onClick={onClose}>Done</Button>
-    </div>
-  </Modal>;
 }

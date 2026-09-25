@@ -1,0 +1,188 @@
+/* Finished-workout summary. Phone first: the result reads at a glance, then the sets follow. */
+
+.session-summary {
+  display: grid;
+  gap: 16px;
+}
+
+.session-summary-hero {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.session-summary-icon {
+  display: grid;
+  flex: 0 0 48px;
+  width: 48px;
+  height: 48px;
+  place-items: center;
+  border: 1px solid var(--accent-border);
+  border-radius: 50%;
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.session-summary-heading {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.session-summary-kicker {
+  margin: 0;
+  color: var(--accent);
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.session-summary-when {
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--font-secondary);
+  line-height: 1.4;
+}
+
+.session-summary-pr {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid var(--accent-border);
+  border-radius: var(--radius-control);
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: var(--font-secondary);
+  font-weight: 650;
+}
+
+.session-summary-stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0;
+}
+
+.session-summary-stats > div {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  background: var(--surface-raised);
+}
+
+.session-summary-stats dt {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+  font-size: var(--font-secondary);
+}
+
+.session-summary-stats dd {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  margin: 0;
+  color: var(--text);
+  font-size: 20px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+  overflow-wrap: anywhere;
+}
+
+.session-summary-stats dd small {
+  color: var(--muted);
+  font-size: var(--font-secondary);
+  font-weight: 500;
+}
+
+.session-summary-exercises {
+  display: grid;
+  gap: 10px;
+}
+
+.session-summary-exercise {
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  background: var(--surface);
+}
+
+.session-summary-exercise .detail-exercise-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.session-summary-exercise h3 {
+  margin: 0;
+  font-size: 15px;
+}
+
+.session-summary-sets {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.session-summary-sets > li {
+  display: grid;
+  grid-template-columns: minmax(84px, auto) minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 10px;
+  min-height: 36px;
+  padding: 4px 8px;
+  border-radius: 8px;
+  font-variant-numeric: tabular-nums;
+}
+
+.session-summary-sets > li.pr-set-row { background: var(--accent-soft); }
+
+.session-set-label,
+.session-set-effort {
+  color: var(--muted);
+  font-size: var(--font-secondary);
+}
+
+.session-summary-note,
+.session-summary-skipped {
+  margin: 8px 0 0;
+  color: var(--muted);
+  font-size: var(--font-secondary);
+}
+
+.session-summary-skipped { margin: 0; }
+
+@media (min-width: 640px) {
+  .session-summary-stats { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+
+/* Straight after Finish, the result lands with one small flourish. Reduced motion removes it. */
+@keyframes session-trophy {
+  0% { transform: scale(.6) rotate(-12deg); opacity: 0; }
+  60% { transform: scale(1.12) rotate(4deg); opacity: 1; }
+  100% { transform: scale(1) rotate(0); }
+}
+
+@keyframes session-glow {
+  0% { box-shadow: 0 0 0 0 var(--accent-soft-glow); }
+  50% { box-shadow: 0 0 0 10px var(--accent-soft-glow); }
+  100% { box-shadow: 0 0 0 0 transparent; }
+}
+
+.session-summary-hero.celebrate .session-summary-icon {
+  animation:
+    session-trophy 520ms var(--motion-ease) both,
+    session-glow 900ms 240ms var(--motion-ease);
+}

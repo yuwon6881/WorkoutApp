@@ -1,9 +1,9 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { Dumbbell, Plus, RotateCcw } from 'lucide-react';
 import type { Exercise, SetPrescription, TemplateExercise } from '../types';
 import { ApiError, api } from '../lib/api';
 import { getWorkoutMuscles } from '../lib/muscles';
-import { validateTemplateDraft } from '../lib/validation';
+import { validateName, validateTemplateDraft } from '../lib/validation';
 import { pairExercises, unlinkExercise } from '../lib/supersets';
 import { Button } from './ui/Button';
 import { Field } from './ui/Field';
@@ -63,6 +63,8 @@ export function WorkoutEditorModal({
   const [swapIndex, setSwapIndex] = useState<number | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState('');
+  const [nameError, setNameError] = useState('');
+  const nameInput = useRef<HTMLInputElement>(null);
 
   const muscles = useMemo(
     () => getWorkoutMuscles(draft.exercises, exercises),
@@ -164,6 +166,13 @@ export function WorkoutEditorModal({
   }
 
   async function handleSave() {
+    const nameProblem = validateName(draft.name, 'Workout name');
+    if (nameProblem) {
+      setNameError(nameProblem);
+      setError('');
+      nameInput.current?.focus();
+      return;
+    }
     const validationError = validateTemplateDraft(draft.name, draft.focus, draft.exercises);
     if (validationError) {
       setError(validationError);
@@ -183,10 +192,15 @@ export function WorkoutEditorModal({
         <div className="modal-body workout-builder-body">
           <div className="workout-builder-meta">
             <Field
+              ref={nameInput}
               label="Workout name"
               value={draft.name}
               placeholder="e.g. Full Body Power or Push A"
-              onChange={e => setDraft({ ...draft, name: e.target.value })}
+              error={nameError || undefined}
+              onChange={e => {
+                setDraft({ ...draft, name: e.target.value });
+                if (nameError) setNameError('');
+              }}
             />
             <Field
               label="Focus"
@@ -293,15 +307,14 @@ export function WorkoutEditorModal({
               ))
             )}
           </div>
-
-          {error && (
-            <p role="alert" className="error-text">
-              {error}
-            </p>
-          )}
         </div>
 
         <div className="modal-actions">
+          {error && (
+            <p role="alert" className="error-text modal-actions-error">
+              {error}
+            </p>
+          )}
           {draft.id && draft.canRestore && (
             <Button variant="tertiary" disabled={busy} onClick={() => void handleRestoreWorkout()}>
               <RotateCcw size={15} />

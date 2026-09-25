@@ -30,6 +30,18 @@ export function ConnectedApps() {
     }
   }, []);
 
+  // Retry must re-fetch Nutrition data: status alone reports the last refresh result, so
+  // re-reading it could never clear a stale sync warning.
+  const retry = useCallback(async () => {
+    setBusy(true);
+    try {
+      await api.refreshNutritionContext().catch(() => { /* the status read below reports the outcome */ });
+      await loadStatus();
+    } finally {
+      setBusy(false);
+    }
+  }, [loadStatus]);
+
   useEffect(() => {
     void loadStatus();
     if (typeof window !== 'undefined') {
@@ -71,7 +83,7 @@ export function ConnectedApps() {
     upgrade_required: 'Reconnect to upgrade',
     disconnected: 'Not connected'
   };
-  const actions = connectedAppActions(connectionState, canRevoke);
+  const actions = connectedAppActions(connectionState, canRevoke, syncWarning);
 
   return (
     <section className="panel" aria-labelledby="connected-apps-title">
@@ -96,7 +108,9 @@ export function ConnectedApps() {
             </div>
             <small className="muted">
               {connectionState === 'loading' && 'Checking Fitness Account…'}
-              {connectionState === 'connected' && 'Nutrition access is granted.'}
+              {connectionState === 'connected' && (syncWarning
+                ? 'Connected, but Workout could not refresh Nutrition data recently. Try again to refresh it.'
+                : 'Nutrition access is granted.')}
               {connectionState === 'temporary_unavailable' && (syncWarning
                 ? 'Workout could not refresh Nutrition data. The connection has not been removed.'
                 : 'Workout could not confirm this connection. Try checking again.')}
@@ -112,7 +126,7 @@ export function ConnectedApps() {
             <Button variant="tertiary" disabled>Checking…</Button>
           ) : actions === 'retry' || actions === 'retry_disconnect' ? (
             <>
-              <Button variant="tertiary" disabled={busy} onClick={() => void loadStatus()}>
+              <Button variant="tertiary" disabled={busy} onClick={() => void retry()}>
                 <RefreshCw size={16} /> Try again
               </Button>
               {actions === 'retry_disconnect' && <Button variant="destructive" disabled={busy} onClick={() => void revoke()}>Disconnect</Button>}

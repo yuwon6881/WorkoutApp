@@ -1,20 +1,14 @@
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
-import { RepPrescriptionControl } from './RepPrescriptionControl';
+import { RepModeToggle, RepPrescriptionControl } from './RepPrescriptionControl';
+
+const names = { nameMin: 'rep-min-test', nameMax: 'rep-max-test', nameSingle: 'rep-single-test' };
 
 describe('RepPrescriptionControl', () => {
-  it('renders range mode with min and max inputs when repMin and repMax differ', () => {
+  it('renders min and max inputs in range mode', () => {
     const markup = renderToStaticMarkup(
-      createElement(RepPrescriptionControl, {
-        repMin: 8,
-        repMax: 12,
-        nameMin: 'rep-min-test',
-        nameMax: 'rep-max-test',
-        nameSingle: 'rep-single-test',
-        dataImportIndex: 0,
-        onChange: () => {}
-      })
+      createElement(RepPrescriptionControl, { ...names, repMin: 8, repMax: 12, range: true, dataImportIndex: 0, onChange: () => {} })
     );
 
     expect(markup).toContain('Rep range');
@@ -27,76 +21,45 @@ describe('RepPrescriptionControl', () => {
     expect(markup).toContain('–');
   });
 
-  it('renders single rep mode with one visible input when repMin and repMax are equal', () => {
+  it('renders one visible input in exact mode and keeps the max for forms', () => {
     const markup = renderToStaticMarkup(
-      createElement(RepPrescriptionControl, {
-        repMin: 10,
-        repMax: 10,
-        nameMin: 'rep-min-test',
-        nameMax: 'rep-max-test',
-        nameSingle: 'rep-single-test',
-        dataImportIndex: 1,
-        onChange: () => {}
-      })
+      createElement(RepPrescriptionControl, { ...names, repMin: 10, repMax: 10, range: false, dataImportIndex: 1, onChange: () => {} })
     );
 
-    expect(markup).toContain('Reps');
     expect(markup).toContain('aria-label="Reps"');
     expect(markup).toContain('value="10"');
-    expect(markup).toContain('data-import-field="repMin"');
-    // Hidden input preserves data-import-field="repMax" for forms and SSR validation
     expect(markup).toContain('type="hidden"');
     expect(markup).toContain('data-import-field="repMax"');
     expect(markup).not.toContain('aria-label="Min reps"');
-    expect(markup).not.toContain('aria-label="Max reps"');
   });
 
-  it('provides accessible toggle buttons for Rep and Range modes', () => {
-    const rangeMarkup = renderToStaticMarkup(
-      createElement(RepPrescriptionControl, {
-        repMin: 6,
-        repMax: 8,
-        nameMin: 'rep-min-test',
-        nameMax: 'rep-max-test',
-        nameSingle: 'rep-single-test',
-        onChange: () => {}
-      })
+  it('names each input after its set when a prefix is given', () => {
+    const markup = renderToStaticMarkup(
+      createElement(RepPrescriptionControl, { ...names, repMin: 8, repMax: 12, range: true, labelPrefix: 'Squat set 2', onChange: () => {} })
     );
 
-    expect(rangeMarkup).toContain('aria-label="Rep prescription mode"');
-    expect(rangeMarkup).toContain('aria-pressed="false">Rep</button>');
-    expect(rangeMarkup).toContain('aria-pressed="true">Range</button>');
-
-    const singleMarkup = renderToStaticMarkup(
-      createElement(RepPrescriptionControl, {
-        repMin: 5,
-        repMax: 5,
-        nameMin: 'rep-min-test',
-        nameMax: 'rep-max-test',
-        nameSingle: 'rep-single-test',
-        onChange: () => {}
-      })
-    );
-
-    expect(singleMarkup).toContain('aria-pressed="true">Rep</button>');
-    expect(singleMarkup).toContain('aria-pressed="false">Range</button>');
+    expect(markup).toContain('aria-label="Squat set 2 min reps"');
+    expect(markup).toContain('aria-label="Squat set 2 max reps"');
   });
 
   it('shows AMRAP instead of a placeholder count when the source printed none', () => {
     const markup = renderToStaticMarkup(
-      createElement(RepPrescriptionControl, {
-        repMin: 1,
-        repMax: 1,
-        nameMin: 'rep-min-test',
-        nameMax: 'rep-max-test',
-        nameSingle: 'rep-single-test',
-        openReps: true,
-        onChange: () => {}
-      })
+      createElement(RepPrescriptionControl, { ...names, repMin: 1, repMax: 1, range: false, openReps: true, onChange: () => {} })
     );
 
     expect(markup).toContain('AMRAP');
     expect(markup).not.toContain('value="1"');
-    expect(markup).not.toContain('Rep prescription mode');
+  });
+});
+
+describe('RepModeToggle', () => {
+  it('marks the active mode as pressed under an accessible group name', () => {
+    const range = renderToStaticMarkup(createElement(RepModeToggle, { range: true, label: 'Rep target for Squat', onChange: () => {} }));
+    expect(range).toContain('aria-label="Rep target for Squat"');
+    expect(range).toContain('aria-pressed="false">Exact</button>');
+    expect(range).toContain('aria-pressed="true">Range</button>');
+
+    const exact = renderToStaticMarkup(createElement(RepModeToggle, { range: false, label: 'Rep target for Squat', onChange: () => {} }));
+    expect(exact).toContain('aria-pressed="true">Exact</button>');
   });
 });

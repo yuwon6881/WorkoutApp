@@ -1,0 +1,57 @@
+/* Shared layout rules added after the base stylesheet. They override index.css by order, so keep
+   this file imported directly after it. */
+
+/* A form error pinned in a dialog footer, directly above the action that raised it, so it is
+   never scrolled out of sight at the bottom of a long form. */
+.modal-actions-error.error-text {
+  flex: 1 0 100%;
+  margin: 0 0 4px;
+  color: var(--red);
+  font-size: var(--font-secondary);
+  text-align: right;
+}
+
+/* A page title with its own action keeps both on one line: the action sits on the trailing edge
+   instead of dropping below the title on phones. */
+.page-heading:has(> .heading-actions, > .button) > h1 {
+  flex: 1 1 auto;
+  width: auto;
+  min-width: 0;
+}
+
+/* The standalone page-title button (Exercises) follows the same trailing placement. */
+@media (max-width: 639px) {
+  .page-heading > h1 + .button {
+    width: auto;
+    margin-left: auto;
+    margin-top: 0;
+  }
+}
+
+/* One title action stays compact beside the title; only a row of several actions spans the width. */
+@media (max-width: 639px) {
+  .heading-actions:has(> :only-child) {
+    width: auto;
+  }
+}
+
+/* The first-load skeleton in components/AppLoading.tsx. */
+.app-loading {
+  display: grid;
+  gap: 16px;
+  width: min(760px, 100%);
+  margin: 0 auto;
+  padding: 24px 16px;
+}
+
+.app-loading .skeleton-title { width: 46%; height: 36px; border-radius: 10px; }
+.app-loading .skeleton-subtitle { width: 32%; height: 16px; border-radius: 8px; }
+.app-loading .skeleton-hero { height: 190px; border-radius: var(--radius); }
+.app-loading .skeleton-week { height: 124px; border-radius: var(--radius); }
+.app-loading .skeleton-stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.app-loading .skeleton-stats > .skeleton { height: 78px; border-radius: var(--radius); }
+
+@media (min-width: 1024px) {
+  .app-loading { padding-top: 48px; }
+  .app-loading .skeleton-stats { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}

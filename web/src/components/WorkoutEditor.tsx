@@ -1,4 +1,4 @@
-import { Dumbbell, Pause, Play, Plus } from 'lucide-react';
+import { Dumbbell, Plus } from 'lucide-react';
 import type { Exercise, LoggedSet, Session, SessionExercise, Unit } from '../types';
 import { showVolume, showWeight } from '../lib/training';
 import { blankLoggedSet, blankPrescription } from '../lib/workoutDraft';
@@ -11,34 +11,31 @@ import { WorkoutActiveExercise } from './WorkoutActiveExercise';
 type SetChange = { setId: string; patch: Partial<LoggedSet> };
 
 export function WorkoutEditor({
-  draft, unit, exercises, activeIndex, viewMode, paused, finishIntentAt, recoveryConflict, busy, online,
-  error, picker, onPicker, onAddExercise, onChange, onEditSet, onToggleSet, onSelectExercise, onTogglePause,
+  draft, unit, exercises, activeIndex, viewMode, paused, finishIntentAt, recoveryConflict, online,
+  picker, onPicker, onAddExercise, onChange, onEditSet, onToggleSet, onSelectExercise,
   onSwap, onRestore, onRemoveExercise
 }: {
   draft: Session; unit: Unit; exercises: Exercise[]; activeIndex: number; viewMode: 'focus' | 'all'; online: boolean;
-  paused: boolean; finishIntentAt: string | null; recoveryConflict: boolean; busy: boolean; error: string;
+  paused: boolean; finishIntentAt: string | null; recoveryConflict: boolean;
   picker: boolean; onPicker: (open: boolean) => void; onAddExercise: () => void; onChange: (next: Session, setChange?: SetChange) => void;
   onEditSet: (exerciseIndex: number, setIndex: number, patch: Partial<LoggedSet>) => void;
   onToggleSet: (exerciseIndex: number, setIndex: number) => void; onSelectExercise: (index: number) => void;
-  onTogglePause: () => void; onSwap: (sessionExerciseId: string, replacementExerciseId: string | null, replacementName: string) => Promise<void>;
+  onSwap: (sessionExerciseId: string, replacementExerciseId: string | null, replacementName: string) => Promise<void>;
   onRestore: (sessionExerciseId: string) => Promise<void>; onRemoveExercise: (index: number) => void;
 }) {
   const currentExercise = draft.exercises[activeIndex] ?? draft.exercises[0];
+  // Volume is only worth a chip once something has been lifted; an unknown load stays unknown
+  // rather than reading as zero, so the chip is simply absent until a load is recorded.
+  const liftedKg = draft.volumeKg ?? 0;
+  const withBodyweightKg = draft.systemVolumeKg ?? null;
 
   return <>
-    <div className="workout-summary">
-      <span><Dumbbell size={16} />{showVolume(draft.volumeKg, unit)} external</span>
-      {draft.systemVolumeKg !== null && draft.systemVolumeKg !== undefined && <span><Dumbbell size={16} />{showVolume(draft.systemVolumeKg, unit)} system</span>}
-      {draft.bodyWeight && <span title="Frozen when this workout started">Bodyweight {showWeight(draft.bodyWeight.referenceKg, unit)}</span>}
-      {draft.nutritionContext?.cached && <span title="Nutrition was unavailable when this workout started">Nutrition context cached</span>}
-      <span className="workout-pause-action">
-        <Button variant={paused ? 'primary' : 'tertiary'} disabled={busy || Boolean(finishIntentAt) || recoveryConflict}
-          aria-label={paused ? 'Resume workout' : 'Pause workout'} onClick={onTogglePause}>
-          {paused ? <Play size={15} /> : <Pause size={15} />}{paused ? 'Resume' : 'Pause'}
-        </Button>
-      </span>
-      {paused && <span role="status">Paused</span>}
-    </div>
+    {(liftedKg > 0 || draft.bodyWeight || draft.nutritionContext?.cached) && <div className="workout-summary">
+      {liftedKg > 0 && <span title="Load lifted in completed working sets"><Dumbbell size={15} aria-hidden="true" />{showVolume(liftedKg, unit)} lifted</span>}
+      {withBodyweightKg !== null && withBodyweightKg > liftedKg && <span title="Including your bodyweight on bodyweight movements">{showVolume(withBodyweightKg, unit)} with bodyweight</span>}
+      {draft.bodyWeight && <span title="Recorded when this workout started">Bodyweight {showWeight(draft.bodyWeight.referenceKg, unit)}</span>}
+      {draft.nutritionContext?.cached && <span title="Nutrition was unavailable when this workout started">Using saved nutrition data</span>}
+    </div>}
 
     <WorkoutExerciseStrip exercises={draft.exercises} activeIndex={activeIndex} onSelect={onSelectExercise} onAdd={onAddExercise} />
 
@@ -63,7 +60,6 @@ export function WorkoutEditor({
         <textarea name="workout-note" placeholder="How did the session feel? Overall fatigue, grip, energy…" value={draft.note}
           onChange={event => onChange({ ...draft, note: event.target.value })} />
       </label>}
-      {error && <p className="error-text" role="alert">{error}</p>}
     </div>
 
     {picker && <Modal title="Add an exercise" onClose={() => onPicker(false)}>

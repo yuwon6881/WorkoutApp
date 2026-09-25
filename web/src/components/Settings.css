@@ -126,6 +126,74 @@
   max-width: 260px;
 }
 
+.watch-pairing-panel .section-heading h2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.watch-pairing-help,
+.watch-device-empty {
+  margin: 0 0 14px;
+  color: var(--muted);
+  font-size: var(--font-secondary);
+}
+
+.watch-pairing-form {
+  display: flex;
+  align-items: end;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+/* The code and its submit read as one control; when they wrap on a phone the action keeps to the
+   trailing edge. */
+.watch-pairing-form .field {
+  flex: 1 1 220px;
+  margin: 0;
+}
+
+.watch-pairing-form input {
+  min-height: 44px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.watch-pairing-error {
+  margin: 10px 0 0;
+  color: var(--red);
+  font-size: var(--font-secondary);
+}
+
+.watch-device-list {
+  display: grid;
+  gap: 10px;
+  margin: 16px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.watch-device-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.watch-device-row > div {
+  display: grid;
+  gap: 3px;
+}
+
+.watch-device-row span {
+  color: var(--muted);
+  font-size: var(--font-secondary);
+}
+
 .setting-action-controls {
   display: flex;
   align-items: center;

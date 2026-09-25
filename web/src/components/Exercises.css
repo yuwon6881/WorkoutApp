@@ -38,9 +38,10 @@
 }
 @media (max-width: 767px) {
   .search-row { flex-direction: column; align-items: stretch; gap: 10px; }
+  .search-row > .search-box { align-self: stretch; width: 100%; flex: 0 0 auto; }
   .exercise-minor-filters { width: 100%; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
   .exercise-minor-filters .exercise-filter-select.custom-select-wrap { min-width: 0; max-width: 100%; width: 100%; }
 }
-@media (max-width: 380px) {
+@media (max-width: 339px) {
   .exercise-minor-filters { grid-template-columns: 1fr; }
 }

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Session } from '../types';
-import { calculateEstimated1Rm, canComplete, completedSets, duration, estimate1Rm, normalizeExerciseName, plannedSets, showClock, showReps, showRpe, showTarget, showVolume, showWeight, toDisplay, toKg, validReps, validRpe } from './training';
+import { calculateEstimated1Rm, canComplete, completedSets, duration, estimate1Rm, normalizeExerciseName, plannedSets, showActualRir, showClock, showDuration, showReps, showRpe, showRir, showTarget, showVolume, showWeight, toDisplay, toKg, validReps, validRpe } from './training';
 
 const set = (overrides: Partial<Session['exercises'][number]['sets'][number]> = {}) =>
   ({ id: 'set', position: 0, weightKg: 60, reps: 10, rpe: 8, done: true, warmup: false, ...overrides });
@@ -46,6 +46,10 @@ describe('prescriptions', () => {
   it('renders a missing RPE honestly', () => {
     expect(showRpe(null)).toBe('—');
     expect(showRpe(8)).toBe('2 RIR');
+    expect(showActualRir('5+', null)).toBe('5+ RIR');
+    expect(showActualRir('3', 6)).toBe('3 RIR');
+    expect(showActualRir(null, 8)).toBe('2 RIR');
+    expect(showRir('5+')).toBe('5+ RIR');
   });
 
   it('prefers verbatim targets and keeps the machine fallback', () => {
@@ -143,5 +147,15 @@ describe('strength estimate', () => {
     expect(showClock(90)).toBe('1:30');
     expect(showClock(5)).toBe('0:05');
     expect(showClock(0)).toBe('0:00');
+  });
+});
+
+describe('workout duration clock', () => {
+  it('shows minutes and seconds, adding hours only past an hour', () => {
+    expect(showDuration(0)).toBe('0:00');
+    expect(showDuration(754)).toBe('12:34');
+    expect(showDuration(3600)).toBe('1:00:00');
+    expect(showDuration(4523)).toBe('1:15:23');
+    expect(showDuration(-5)).toBe('0:00');
   });
 });

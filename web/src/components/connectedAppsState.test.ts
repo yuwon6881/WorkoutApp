@@ -14,4 +14,9 @@ describe('connected app settings state', () => {
   it('offers retry and disconnect when central status is temporarily unavailable', () => {
     expect(connectedAppActions('temporary_unavailable', true)).toBe('retry_disconnect');
   });
+
+  it('keeps a confirmed connection connected while offering a retry for a failed data refresh', () => {
+    expect(connectedAppActions('connected', true, true)).toBe('retry_disconnect');
+    expect(connectedAppActions('connected', true, false)).toBe('disconnect');
+  });
 });

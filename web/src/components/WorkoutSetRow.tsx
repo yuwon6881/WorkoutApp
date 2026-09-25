@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Check, Minus } from 'lucide-react';
 import type { LoggedSet, Preferences, SessionExercise, SetPrescription } from '../types';
 import { showTarget, showWeight, toDisplay, toKg } from '../lib/training';
@@ -36,6 +37,8 @@ export function WorkoutSetRow({
   toggle: (ei: number, si: number) => void;
   onRemoveSet: (si: number) => void;
 }) {
+  // Set only by the tap that logs a set, so rows already done do not replay it when shown again.
+  const [justLogged, setJustLogged] = useState(false);
   const shown = toDisplay(set.weightKg, unit);
   const warmup = set.warmup || plan?.warmup;
   const loadModel = exercise.loadModel ?? 'external';
@@ -47,7 +50,8 @@ export function WorkoutSetRow({
     <div
       className={`workout-set-row ${set.done ? 'done' : ''} ${warmup ? 'warmup-row' : ''} ${
         set.suggestion ? 'has-suggestion' : ''
-      }`}
+      } ${justLogged ? 'just-logged' : ''}`}
+      onAnimationEnd={event => { if (event.target === event.currentTarget) setJustLogged(false); }}
     >
       <span className="set-badge-circle" title={warmup ? 'Warm-up set' : 'Working set'}>
         {warmup ? `W${warmupNumber}` : workingNumber}
@@ -136,7 +140,10 @@ export function WorkoutSetRow({
           className={`set-log-checkbox ${set.done ? 'checked' : ''}`}
           aria-label={`${set.done ? 'Unlog' : 'Log'} ${exercise.name} set ${si + 1}`}
           aria-pressed={set.done}
-          onClick={() => toggle(ei, si)}
+          onClick={() => {
+            setJustLogged(!set.done);
+            toggle(ei, si);
+          }}
         >
           <Check size={18} strokeWidth={set.done ? 3 : 2} />
         </Button>

@@ -1,116 +1,85 @@
 .active-workout-standby {
-  padding: 26px 28px;
-  background: var(--surface);
+  margin-bottom: 24px;
+  padding: 22px 24px;
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
-  margin-bottom: 24px;
+  background: var(--surface);
 }
 
-.standby-header {
+/* With a library below, standby is a single status line. */
+.active-workout-standby.compact {
   display: flex;
   align-items: center;
-  margin-bottom: 16px;
-}
-
-.standby-eyebrow {
-  margin: 0;
-  color: var(--accent);
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  font-size: var(--font-secondary, 14px);
-  letter-spacing: 1.5px;
-  font-weight: 600;
-  text-transform: uppercase;
-}
-
-.standby-dot {
-  width: 6px;
-  height: 6px;
-  background: var(--accent);
-  border-radius: 50%;
-  box-shadow: 0 0 8px var(--accent);
+  gap: 14px;
+  padding: 14px 18px;
 }
 
 .standby-content {
   display: flex;
   align-items: flex-start;
-  gap: 18px;
-  margin-bottom: 22px;
+  gap: 16px;
+  margin-bottom: 18px;
 }
 
 .standby-icon-wrap {
-  width: 48px;
-  height: 48px;
+  display: grid;
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  place-items: center;
+  border: 1px solid var(--accent-border);
   border-radius: 12px;
   background: var(--accent-soft);
-  border: 1px solid var(--accent-border);
+}
+
+.compact .standby-icon-wrap {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+}
+
+.standby-info {
   display: grid;
-  place-items: center;
-  flex-shrink: 0;
+  gap: 4px;
+  min-width: 0;
 }
 
 .standby-info h3 {
-  font-size: 17px;
-  font-weight: 650;
+  margin: 0;
   color: var(--text);
-  margin: 0 0 6px;
+  font-size: 16px;
+  font-weight: 650;
 }
 
 .standby-info p {
-  font-size: var(--font-secondary, 14px);
-  color: var(--muted);
-  line-height: 1.6;
-  margin: 0;
   max-width: 580px;
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--font-secondary, 14px);
+  line-height: 1.5;
 }
 
 .standby-actions {
   display: flex;
-  gap: 12px;
   flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
+  padding-top: 16px;
   border-top: 1px solid var(--border);
-  padding-top: 18px;
 }
 
 @media (max-width: 1023px) {
-  .standby-actions .button {
-    min-height: 44px;
-  }
+  .standby-actions .button { min-height: 44px; }
 }
 
 @media (max-width: 639px) {
-  .active-workout-standby {
-    padding: 20px 18px;
-  }
-
-  .standby-content {
-    flex-direction: column;
-    gap: 14px;
-  }
-
-  .standby-icon-wrap {
-    width: 40px;
-    height: 40px;
-    border-radius: 10px;
-  }
-
-  .standby-info h3 {
-    font-size: 16px;
-  }
-
-  .standby-info p {
-    font-size: var(--font-secondary, 14px);
-  }
+  .active-workout-standby { padding: 18px 16px; }
+  .active-workout-standby.compact { padding: 12px 14px; }
 
   .standby-actions {
-    flex-direction: column;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .standby-actions .button {
-    width: 100%;
-    min-height: 44px;
-    justify-content: center;
-  }
+  .standby-actions .button { justify-content: center; }
 }

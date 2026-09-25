@@ -53,6 +53,7 @@ export function WorkoutActiveExercise({
   const [candidates, setCandidates] = useState<SubstitutionCandidate[]>([]);
   const [showTargets, setShowTargets] = useState(false);
   const [showNote, setShowNote] = useState(Boolean(exercise.note));
+  const [confirmRemove, setConfirmRemove] = useState(false);
 
   const prescription = exercise.prescription;
 
@@ -173,7 +174,7 @@ export function WorkoutActiveExercise({
           variant="tertiary"
           className="action-pill remove-pill"
           aria-label={`Remove ${exercise.name} from workout`}
-          onClick={() => onRemoveExercise(index)}
+          onClick={() => setConfirmRemove(true)}
         >
           <Trash2 size={15} />
         </Button>
@@ -332,6 +333,24 @@ export function WorkoutActiveExercise({
           </Button>
         </div>
       </div>
+
+      {confirmRemove && (
+        <Modal title={`Remove ${exercise.name}?`} onClose={() => setConfirmRemove(false)}>
+          <div className="modal-body">
+            <p>
+              {hasCompletedSets
+                ? `The ${exercise.sets.filter(s => s.done).length === 1 ? 'set' : 'sets'} you logged for it in this workout will be removed too.`
+                : 'It will be taken out of this workout only; the saved routine stays as it is.'}
+            </p>
+          </div>
+          <div className="modal-actions">
+            <Button onClick={() => setConfirmRemove(false)}>Keep exercise</Button>
+            <Button variant="destructive" onClick={() => { setConfirmRemove(false); onRemoveExercise(index); }}>
+              Remove exercise
+            </Button>
+          </div>
+        </Modal>
+      )}
 
       {swapOpen && (
         <Modal title={`Swap ${exercise.name}`} onClose={() => setSwapOpen(false)}>

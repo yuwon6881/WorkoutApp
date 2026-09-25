@@ -41,7 +41,7 @@ export function sameWorkoutEdits(left: Session, right: Session): boolean {
       prescription: exercise.prescription, sequenceGroup: exercise.sequenceGroup, substitutions: exercise.substitutions,
       loadModel: exercise.loadModel, sourceTemplateExerciseId: exercise.sourceTemplateExerciseId,
       sourceSlotKey: exercise.sourceSlotKey, sourcePhaseId: exercise.sourcePhaseId, sourcePage: exercise.sourcePage,
-      sets: exercise.sets.map(set => ({ id: set.id, weightKg: set.weightKg, reps: set.reps, rpe: set.rpe, done: set.done, warmup: set.warmup, resistanceMode: set.resistanceMode }))
+      sets: exercise.sets.map(set => ({ id: set.id, weightKg: set.weightKg, reps: set.reps, rpe: set.rpe, rir: set.rir ?? null, done: set.done, warmup: set.warmup, resistanceMode: set.resistanceMode }))
     }))
   });
   return JSON.stringify(comparable(left)) === JSON.stringify(comparable(right));

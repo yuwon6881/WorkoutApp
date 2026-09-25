@@ -1,5 +1,5 @@
 import type { PdfExtraction } from './pdfText';
-import type { Bootstrap, DraftWorkout, ExerciseClearPreview, ExerciseInsight, HistoryPage, ImportDraft, ImportStatusView, ImportView, MuscleBalanceRange, MuscleBalanceView, Preferences, ProgressSummary, Program, ProgramDayActionInput, ProgramEditorDocument, ProgramSummary, ProgramWeekResetInput, Session, Template, SubstitutionCandidate, TemplateSubstitutionResult, WorkoutActivityItem } from '../types';
+import type { Bootstrap, DraftWorkout, ExerciseClearPreview, ExerciseInsight, HistoryPage, ImportDraft, ImportStatusView, ImportView, MuscleBalanceRange, MuscleBalanceView, Preferences, ProgressSummary, Program, ProgramDayActionInput, ProgramEditorDocument, ProgramSummary, ProgramWeekResetInput, Session, Template, SubstitutionCandidate, TemplateSubstitutionResult, WatchDevice, WorkoutActivityItem } from '../types';
 
 export class ApiError extends Error {
   constructor(message: string, readonly status: number) { super(message); }
@@ -76,6 +76,10 @@ function safeParse(text: string): { message?: string } & Record<string, unknown>
 export const api = {
   logout: () => call<void>('/api/auth/logout', 'POST'),
 
+  watchDevices: () => call<WatchDevice[]>('/api/watch/devices'),
+  approveWatchPairing: (code: string) => call<WatchDevice>('/api/watch/pairing/approve', 'POST', { code }),
+  revokeWatchDevice: (id: string) => call<void>(`/api/watch/devices/${encodeURIComponent(id)}`, 'DELETE'),
+
   bootstrap: (signal?: AbortSignal) => call<Bootstrap>('/api/bootstrap', 'GET', undefined, signal),
   activity: (from: string, to: string, timeZoneOrSignal?: string | AbortSignal, signal?: AbortSignal) => {
     const timeZone = typeof timeZoneOrSignal === 'string' ? timeZoneOrSignal : Intl.DateTimeFormat().resolvedOptions().timeZone;
@@ -129,7 +133,7 @@ export const api = {
   getWorkout: (id: string) => call<Session>(`/api/workouts/${id}`),
   startWorkout: (templateId: string | null, name?: string) => call<Session>('/api/workouts', 'POST', { templateId, name }),
   saveWorkout: (id: string, input: unknown) => call<Session>(`/api/workouts/${id}`, 'PUT', input),
-  patchWorkoutSet: (sessionId: string, setId: string, input: { revision: number; mutationId: string; weightKg?: number | null; reps?: number | null; rpe?: number | null; done?: boolean; warmup?: boolean; resistanceMode?: string }) => call<Session>(`/api/workouts/${sessionId}/sets/${setId}`, 'PATCH', input),
+  patchWorkoutSet: (sessionId: string, setId: string, input: { revision: number; mutationId: string; weightKg?: number | null; reps?: number | null; rpe?: number | null; rir?: string | null; done?: boolean; warmup?: boolean; resistanceMode?: string }) => call<Session>(`/api/workouts/${sessionId}/sets/${setId}`, 'PATCH', input),
   substituteSessionExercise: (id: string, input: { sessionExerciseId: string; replacementExerciseId?: string | null; replacementName: string; revision?: number; idempotencyId?: string }) => call<Session>(`/api/workouts/${id}/substitution`, 'POST', input),
   restoreSessionExercise: (id: string, input: { sessionExerciseId: string; revision?: number; idempotencyId?: string }) => call<Session>(`/api/workouts/${id}/exercises/${input.sessionExerciseId}/restore`, 'POST', input),
   pauseWorkout: (id: string, input: { revision: number; mutationId: string; occurredAt: string }) => call<Session>(`/api/workouts/${id}/pause`, 'POST', input),

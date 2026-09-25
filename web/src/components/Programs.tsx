@@ -1,10 +1,8 @@
 import { useMemo, useState } from 'react';
-import { ArrowRight, Check, ChevronDown, ChevronUp, Dumbbell, FileText, Pencil, Play, Plus, RefreshCw, RotateCcw } from 'lucide-react';
+import { ArrowRight, Check, ChevronDown, ChevronUp, Dumbbell, FileText, Play, Plus, RefreshCw, RotateCcw } from 'lucide-react';
 import type { Bootstrap, Exercise, ProgramSummary, Template, TemplateExercise } from '../types';
 import { ApiError, api } from '../lib/api';
-import { getWorkoutMuscles } from '../lib/muscles';
 import { getPlannedMuscleCredits } from '../lib/programMuscles';
-import { showReps } from '../lib/training';
 import { createEmptyProgramDraft } from '../lib/importDraftWeeks';
 import { Button } from './ui/Button';
 import { Modal } from './ui/Modal';
@@ -16,6 +14,7 @@ import { ProgramBuilderPage } from './ProgramBuilderPage';
 import { ProgramWeekChecklist } from './ProgramWeekChecklist';
 import { ActiveWorkoutStandby } from './ActiveWorkoutStandby';
 import { ProgramMusclePreview } from './ProgramMusclePreview';
+import { RoutineCard } from './RoutineCard';
 
 export function Programs({ data, exercises, onStart, onImport, onChanged }: {
   data: Bootstrap; exercises: Exercise[]; onStart: (templateId: string) => void; onImport: () => void; onChanged: () => Promise<void>;
@@ -27,7 +26,7 @@ export function Programs({ data, exercises, onStart, onImport, onChanged }: {
   const open = (template?: Template) => {
     setDraft(template
       ? { id: template.id, name: template.name, focus: template.focus, revision: template.revision, exercises: structuredClone(template.exercises), canRestore: template.canRestore, isLegacyBaseline: template.isLegacyBaseline }
-      : { id: null, name: '', focus: 'Custom workout', revision: null, exercises: [] });
+      : { id: null, name: '', focus: '', revision: null, exercises: [] });
   };
 
   async function save(savedDraft: WorkoutDraft) {
@@ -65,7 +64,7 @@ export function Programs({ data, exercises, onStart, onImport, onChanged }: {
 
   return <>
     <div className="page-heading">
-      <h1>Workouts</h1>
+      <h1 data-page-heading tabIndex={-1}>Workouts</h1>
       <div className="heading-actions">
         <MenuButton label="Add a workout or program" text="New" variant="primary" icon={<Plus size={17} />}>
           <MenuItem onClick={() => open()}><Dumbbell size={14} />New workout</MenuItem>
@@ -85,20 +84,16 @@ export function Programs({ data, exercises, onStart, onImport, onChanged }: {
             hasTemplates={Boolean(libraryPrograms.length || data.templates.length)}
             onNewWorkout={() => open()}
             onImport={onImport}
-            onBrowseLibrary={() => {
-              const el = document.getElementById('workout-library-section');
-              if (el) el.scrollIntoView({ behavior: 'smooth' });
-            }}
           />}
     </section>
 
-    <section className="program-section" id="workout-library-section">
+    <section className="program-section">
       <div className="section-heading"><h2>Workout library</h2>
         <span className="muted">{libraryPrograms.length + data.templates.length} saved</span></div>
       {libraryPrograms.map(program => <ProgramCard key={program.id} program={program} exercises={exercises}
         onStart={onStart} onChanged={onChanged} hasActiveWorkout={hasActiveWorkout} />)}
-      {data.templates.length ? <div className="program-grid">{data.templates.map((template, i) => (
-        <StandaloneWorkoutCard key={template.id} template={template} index={i} exercises={exercises} onEdit={() => open(template)} onStart={() => onStart(template.id)} />
+      {data.templates.length ? <div className="program-grid">{data.templates.map(template => (
+        <RoutineCard key={template.id} template={template} exercises={exercises} onEdit={() => open(template)} onStart={() => onStart(template.id)} />
       ))}</div>
         : libraryPrograms.length === 0 && <section className="panel"><div className="empty-message"><Dumbbell size={30} /><h3>Your library is empty</h3>
           <p>{exercises.length ? 'Build a workout or a program by hand, or import one from a PDF.' : 'The exercise library is still empty, so a workout cannot be built yet. Importing a PDF will still create a reviewable draft.'}</p></div></section>}
@@ -106,36 +101,6 @@ export function Programs({ data, exercises, onStart, onImport, onChanged }: {
 
     {draft && <WorkoutEditorModal initialDraft={draft} exercises={exercises} busy={busy} onSave={save} onDelete={remove} onClose={() => setDraft(null)} />}
   </>;
-}
-
-function StandaloneWorkoutCard({ template, index, exercises, onEdit, onStart }: {
-  template: Template; index: number; exercises: Exercise[]; onEdit: () => void; onStart: () => void;
-}) {
-  const muscles = useMemo(() => getWorkoutMuscles(template.exercises, exercises), [template.exercises, exercises]);
-  const preview = useMemo(() => {
-    if (!template.exercises.length) return '';
-    const names = template.exercises.map(e => e.name);
-    if (names.length <= 3) return names.join(', ');
-    return `${names.slice(0, 3).join(', ')}, and ${names.length - 3} more`;
-  }, [template.exercises]);
-
-  return <section className="panel routine-card">
-    <div className="section-heading">
-      <span className="routine-number">Workout {String(index + 1).padStart(2, '0')}</span>
-      <Button variant="tertiary" aria-label={`Edit ${template.name}`} onClick={onEdit}><Pencil size={17} /></Button>
-    </div>
-    <h2>{template.name}</h2>
-    <p>{template.focus}</p>
-    {preview && <p className="day-exercise-preview">{preview}</p>}
-    {muscles.length > 0 && <div className="day-muscles-row" aria-label="Targeted muscles">
-      {muscles.slice(0, 5).map(m => <span key={m} className="muscle-chip">{m}</span>)}
-      {muscles.length > 5 && <span className="muscle-chip muscle-chip-overflow" title={muscles.slice(5).join(', ')}>+{muscles.length - 5}</span>}
-    </div>}
-    <div className="routine-exercises">{template.exercises.slice(0, 4).map(e => <div key={e.id}>
-      <span><Dumbbell size={16} />{e.name}</span><small>{e.sets.length} × {showReps(e.sets[0])}</small>
-    </div>)}</div>
-    <Button className="full-width" onClick={onStart}>Start workout<ArrowRight size={17} /></Button>
-  </section>;
 }
 
 function ProgramCard({ program, exercises, onStart, onChanged, hasActiveWorkout }: { program: ProgramSummary; exercises: Exercise[]; onStart: (id: string) => void; onChanged: () => Promise<void>; hasActiveWorkout: boolean }) {

@@ -134,6 +134,7 @@ export function sessionPayload(session: Session, revision: number, idempotencyId
         weightKg: set.weightKg,
         reps: set.reps,
         rpe: set.rpe,
+        rir: set.rir ?? null,
         done: set.done,
         warmup: set.warmup,
         resistanceMode: set.resistanceMode

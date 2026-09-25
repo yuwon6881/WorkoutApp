@@ -32,10 +32,14 @@ export const showRpe = (rpe: number | null): string => {
 
 export const showRir = (rir: number | string | null): string => {
   if (rir === null || rir === undefined || rir === '') return '—';
+  if (String(rir).trim() === '5+') return '5+ RIR';
   const parsed = typeof rir === 'number' ? rir : Number(rir);
   if (!Number.isFinite(parsed)) return String(rir);
   return `${Math.round(parsed)} RIR`;
 };
+
+export const showActualRir = (rir: string | null | undefined, rpe: number | null): string =>
+  rir === null || rir === undefined || rir === '' ? showRpe(rpe) : showRir(rir);
 
 /// Mirrors the server's estimate so the app can show one for a set the user is typing, before
 /// anything is saved. Epley extended with reps in reserve: the set is rated as if it had been
@@ -66,6 +70,17 @@ export const calculateEstimated1Rm = (weightKg: number | null, reps: number | nu
 
 /// Minutes and seconds, for a clock the user is watching rather than reading.
 export const showClock = (seconds: number): string => `${Math.floor(seconds / 60)}:${String(Math.max(0, seconds) % 60).padStart(2, '0')}`;
+
+/// "1 set", "3 sets": a count that reads correctly at one.
+export const showSetCount = (count: number): string => `${count} set${count === 1 ? '' : 's'}`;
+
+/// Workout length: minutes and seconds, gaining an hour field once a session runs past an hour.
+export const showDuration = (seconds: number): string => {
+  const total = Math.max(0, Math.floor(seconds));
+  const hours = Math.floor(total / 3600);
+  const clock = `${String(Math.floor(total / 60) % 60).padStart(hours ? 2 : 1, '0')}:${String(total % 60).padStart(2, '0')}`;
+  return hours ? `${hours}:${clock}` : clock;
+};
 
 export const completedSets = (session: Session): LoggedSet[] => session.exercises.flatMap(e => e.sets).filter(s => s.done && !s.warmup);
 

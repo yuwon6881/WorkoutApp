@@ -9,19 +9,48 @@ sibling NutritionApp.
 | `web/` | React 19 + Vite + TypeScript PWA, deployed to Vercel |
 | `api/` | ASP.NET Core 10 minimal API on PostgreSQL (Neon), deployed to Cloud Run |
 | `tests/` | xUnit tests for the API |
+| `wear/` | Kotlin + Compose standalone Wear OS companion |
 | `deploy/` | Deployment, seeding, and recovery notes |
 
 ## Run it locally
 
-Requires Node 24 and .NET 10.
+Requires Node 24 and .NET 10. Building the watch app also requires JDK 17 and Android SDK 36.
 
 ```powershell
 cd api;  dotnet run                       # http://localhost:5183 with a local SQLite file
 cd web;  npm ci;  npm run dev             # http://localhost:5182, proxying /api to the API
+cd wear; .\gradlew.bat :app:assembleDebug # Wear OS debug APK
 ```
 
 In development the API falls back to SQLite when no connection string is configured, so nothing
 external is needed to work on the app. Point `WORKOUT_API` at another origin to proxy elsewhere.
+
+## Test Wear OS without a physical watch
+
+Use a Wear OS virtual device, not a phone AVD: in Android Studio Device Manager, create and start
+a **Wear OS Small Round, API 36** device. The same Wear APK and watch screens run in this AVD.
+
+Start the API and web app in separate terminals using the local-development commands above. Then,
+from `wear/`, install and launch the emulator build:
+
+```powershell
+.\scripts\install-on-emulator.ps1
+```
+
+The script points the debug APK to `http://10.0.2.2:5183`, which reaches the API on the development
+host from the emulator. Debug builds allow HTTP only when this local origin is selected; release
+builds keep cleartext traffic disabled. If more than one emulator is running, pass its ADB serial:
+
+```powershell
+.\scripts\install-on-emulator.ps1 -Serial emulator-5556
+```
+
+Sign in to the local web app, approve the code under **Settings → Wear OS**, and start a workout
+from the web app. A paired watch checks for a workout when it opens or resumes, and checks again
+every 15 seconds while its no-workout screen is open. A future Capacitor client can start through
+the same account-backed workout API; the watch reads the server's active workout regardless of
+which client started it. The virtual device uses the same app behavior and layout, while physical
+vibration strength, battery use, and manufacturer-specific screen behavior still require a watch.
 
 ## UI text and type
 
@@ -40,6 +69,7 @@ decision. Passive status rows are regular content; only rows with an available a
 - Workouts built by hand, or imported from a training PDF by AI and corrected in a review screen
   before anything becomes a program.
 - Set logging with weight, reps, and RPE; the next session is prefilled but never pre-logged.
+- A standalone Wear OS companion joins an active workout after short-code approval in WorkoutApp settings. It logs reps, load, and RIR; manages rest, pause/resume, and confirmed finish; and queues watch changes locally for ordered, revision-aware replay after network gaps. Same-set and finish conflicts remain available for review. An ongoing activity returns to the workout from the watch face, and rest completion vibrates once. Pairing codes expire after five minutes; the revocable device link renews while in use and expires after a year idle. Pairing secrets are encrypted with Android Keystore; the server remains authoritative for workout state.
 - Progression: reps climb through the prescribed range, then the load moves and the reps reset.
   RPE decides the pace, a hard or missed session holds, and a lift that has not moved for two
   sessions is offered a lighter week. Strength is estimated with Epley extended by reps in
@@ -68,13 +98,13 @@ decision. Passive status rows are regular content; only rows with an available a
 
 ## Data boundaries
 
-Training data lives in the database and reaches the browser over HTTPS. Nothing about a workout
-is written to `localStorage`, `sessionStorage`, IndexedDB, or a service-worker cache, so the app
-needs a connection to log a set and says so plainly when it does not have one. The single
-exception is the rest deadline, which is a device-local clock reading and carries no training
-data. The service worker
+The API remains authoritative for training data. The web client keeps an account-scoped active
+workout recovery record and ordered edits in IndexedDB, and the Wear OS app keeps its active
+session snapshot, ordered operation outbox, and rest deadline in its private SQLite database so
+the user can continue logging through network gaps. Both clients reconcile through server
+revisions; the watch holds same-set or finish conflicts for explicit review. The service worker
 precaches the static shell only; API responses are `no-store` and never fall back to the SPA
-document.
+document. The watch stores its revocable device token encrypted with Android Keystore.
 
 The exercise catalog is global and read-only to users: only the seed command writes it. The
 production default catalog is checked in at `deploy/exercises.json`; a fresh schema remains empty
@@ -95,6 +125,7 @@ cd web;  npm test              # unit: unit conversion, prescriptions, the save 
 cd web;  npm run build         # strict TypeScript and the production PWA build
 cd web;  npm run test:visual   # end-to-end on Chrome at 1440px, 768px, and an emulated iPhone 13
 cd web;  npm run test:responsive  # every view and dialog at 320-1920px in both themes
+cd wear; .\gradlew.bat testDebugUnitTest :app:assembleDebug
 ```
 
 The end-to-end suites run the real API against a disposable SQLite database and replace the AI

@@ -35,6 +35,13 @@ public sealed class AppDb(DbContextOptions<AppDb> options) : DbContext(options)
     public DbSet<GoogleHealthWorkoutSyncWork> GoogleHealthWorkoutSyncWork => Set<GoogleHealthWorkoutSyncWork>();
     public DbSet<WorkoutPushDevice> WorkoutPushDevices => Set<WorkoutPushDevice>();
     public DbSet<WorkoutRestAlertSchedule> WorkoutRestAlertSchedules => Set<WorkoutRestAlertSchedule>();
+    public DbSet<WatchDevice> WatchDevices => Set<WatchDevice>();
+    public DbSet<WatchPairing> WatchPairings => Set<WatchPairing>();
+
+    protected override void ConfigureConventions(ModelConfigurationBuilder conventions)
+    {
+        if (Database.IsSqlite()) SqliteUtcDateTimes.Apply(conventions);
+    }
 
     protected override void OnModelCreating(ModelBuilder m)
     {
@@ -89,6 +96,20 @@ public sealed class AppDb(DbContextOptions<AppDb> options) : DbContext(options)
         Configure<TrainingProgram>(m); Configure<ProgramPhase>(m); Configure<ProgramSkip>(m); Configure<ProgramRun>(m);
         Configure<ProgramDayProgress>(m); Configure<WorkoutTemplate>(m); Configure<TemplateExercise>(m);
         Configure<WorkoutSession>(m); Configure<SessionExercise>(m); Configure<CompletedSet>(m); Configure<ExerciseSubstitution>(m); Configure<AiImport>(m);
+        Configure<WatchDevice>(m);
+        m.Entity<WatchDevice>().Property(x => x.DeviceId).HasMaxLength(200);
+        m.Entity<WatchDevice>().Property(x => x.DeviceName).HasMaxLength(120);
+        m.Entity<WatchDevice>().Property(x => x.TokenHash).HasMaxLength(64);
+        m.Entity<WatchDevice>().HasIndex(x => x.TokenHash).IsUnique();
+        m.Entity<WatchDevice>().HasIndex(x => x.DeviceId).IsUnique();
+        m.Entity<WatchDevice>().HasIndex(x => new { x.UserId, x.RevokedAt, x.ExpiresAt });
+        m.Entity<WatchPairing>().HasKey(x => x.Id);
+        m.Entity<WatchPairing>().Property(x => x.DeviceId).HasMaxLength(200);
+        m.Entity<WatchPairing>().Property(x => x.DeviceName).HasMaxLength(120);
+        m.Entity<WatchPairing>().Property(x => x.PairingCodeHash).HasMaxLength(64);
+        m.Entity<WatchPairing>().Property(x => x.DeviceTokenHash).HasMaxLength(64);
+        m.Entity<WatchPairing>().HasIndex(x => x.ExpiresAt);
+        m.Entity<WatchPairing>().HasIndex(x => x.PairingCodeHash);
         m.Entity<WorkoutSession>().Property(x => x.PausedSeconds).HasDefaultValue(0L);
         Configure<ExerciseProgress>(m); Configure<ExerciseHistoryClear>(m); Configure<NutritionContextCache>(m); Configure<IntegrationGrant>(m);
         m.Entity<ExerciseHistoryClear>().HasIndex(x => new { x.UserId, x.ExerciseId, x.ClearedAt });
@@ -97,6 +118,7 @@ public sealed class AppDb(DbContextOptions<AppDb> options) : DbContext(options)
         m.Entity<NutritionContextCache>().HasIndex(x => x.UserId).IsUnique();
         m.Entity<SessionExercise>().Property(x => x.LoadModel).HasDefaultValue(LoadModels.External);
         m.Entity<CompletedSet>().Property(x => x.ResistanceMode).HasDefaultValue(ResistanceModes.External);
+        m.Entity<CompletedSet>().Property(x => x.Rir).HasMaxLength(2);
 
         // One active program and one active workout per user, enforced by the database.
         m.Entity<TrainingProgram>().HasIndex(x => x.UserId).IsUnique().HasFilter("\"Active\"").HasDatabaseName("IX_Programs_ActivePerUser");

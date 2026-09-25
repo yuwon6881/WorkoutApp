@@ -14,7 +14,7 @@ describe('RpeControl', () => {
     );
 
     expect(markup).toContain('2');
-    expect(markup).toContain('aria-label="2 RIR"');
+    expect(markup).toContain('aria-label="Target RIR: 2"');
     expect(markup).not.toContain('aria-label="Decrease RIR"');
     expect(markup).not.toContain('aria-label="Increase RIR"');
     expect(markup).toContain('rpe-control');
@@ -32,7 +32,7 @@ describe('RpeControl', () => {
     );
 
     expect(markup).toContain('5+');
-    expect(markup).toContain('aria-label="5+ RIR"');
+    expect(markup).toContain('aria-label="Target RIR: 5+"');
     expect(markup).toContain('rir-tier-easy');
   });
 

@@ -1,76 +1,77 @@
-import { Check, Clock3, LayoutGrid, Maximize2, Menu, Timer } from 'lucide-react';
-import { showClock } from '../lib/training';
+import { Check, ChevronDown, Clock3, LayoutGrid, Maximize2, Pause, Play } from 'lucide-react';
+import { showDuration } from '../lib/training';
 import { Button } from './ui/Button';
 
+/// The session's always-visible controls. Everything here fits one line at 320 px: the rest
+/// countdown lives in the footer, beside the actions that start and skip it.
 export function WorkoutTopBar({
   elapsed,
   done,
   planned,
   viewMode,
-  remaining,
-  totalSeconds,
+  paused,
+  pauseDisabled,
   onClose,
+  onTogglePause,
   onToggleViewMode
 }: {
   elapsed: number;
   done: number;
   planned: number;
   viewMode: 'focus' | 'all';
-  remaining: number;
-  totalSeconds: number;
+  paused: boolean;
+  pauseDisabled: boolean;
   onClose: () => void;
+  onTogglePause: () => void;
   onToggleViewMode: () => void;
 }) {
   return (
-    <div className="workout-top-status-bar">
-      <div className="status-bar-left">
+    <div className={`workout-top-status-bar ${paused ? 'paused' : ''}`}>
+      <Button
+        variant="tertiary"
+        className="workout-top-icon"
+        aria-label="Minimize workout"
+        title="Minimize"
+        onClick={onClose}
+      >
+        <ChevronDown size={20} />
+      </Button>
+
+      <div className="workout-top-summary">
+        <span className="workout-elapsed-clock" role="timer" aria-label={`Active time ${showDuration(elapsed)}`} title="Active workout time">
+          <Clock3 size={15} aria-hidden="true" />
+          {showDuration(elapsed)}
+        </span>
+        {paused ? (
+          <span className="workout-paused-label" role="status">Paused</span>
+        ) : (
+          <span className="workout-sets-badge">
+            <Check size={14} aria-hidden="true" />
+            {done} / {planned} sets
+          </span>
+        )}
+      </div>
+
+      <div className="workout-top-actions">
         <Button
-          variant="tertiary"
-          className="workout-nav-menu-btn"
-          aria-label="Minimize workout"
-          onClick={onClose}
+          variant={paused ? 'primary' : 'tertiary'}
+          className="workout-top-icon"
+          disabled={pauseDisabled}
+          aria-label={paused ? 'Resume workout' : 'Pause workout'}
+          title={paused ? 'Resume' : 'Pause'}
+          onClick={onTogglePause}
         >
-          <Menu size={18} />
+          {paused ? <Play size={18} /> : <Pause size={18} />}
         </Button>
-        <span className="workout-elapsed-clock" title="Workout duration">
-          <Clock3 size={15} />
-          {Math.floor(elapsed / 60)}:{String(elapsed % 60).padStart(2, '0')}
-        </span>
-      </div>
-
-      <div className="status-bar-center">
-        <span className="workout-sets-badge">
-          <Check size={14} />
-          {done} / {planned} sets
-        </span>
-      </div>
-
-      <div className="status-bar-right">
         <Button
           variant="tertiary"
-          className="workout-view-toggle"
+          className="workout-top-icon"
           aria-label={viewMode === 'focus' ? 'View all exercises' : 'Focus on active exercise'}
+          title={viewMode === 'focus' ? 'All exercises' : 'One exercise'}
           onClick={onToggleViewMode}
         >
-          {viewMode === 'focus' ? <LayoutGrid size={16} /> : <Maximize2 size={16} />}
-          <span>{viewMode === 'focus' ? 'All' : 'Focus'}</span>
+          {viewMode === 'focus' ? <LayoutGrid size={18} /> : <Maximize2 size={18} />}
         </Button>
-
-        {remaining > 0 && (
-          <div className="header-rest-indicator resting" title="Rest timer counting down">
-            <Timer size={14} />
-            <span>{showClock(remaining)}</span>
-            <span className="header-rest-track" aria-hidden="true">
-              <span
-                style={{
-                  width: `${
-                    totalSeconds > 0 ? Math.min(100, (remaining / totalSeconds) * 100) : 0
-                  }%`
-                }}
-              />
-            </span>
-          </div>
-        )}
       </div>
     </div>
   );

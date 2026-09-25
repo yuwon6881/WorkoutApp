@@ -108,8 +108,8 @@ steps:
       # changing the billing shape.
       - '--concurrency=4'
       - '--service-account=workout-api@$PROJECT_ID.iam.gserviceaccount.com'
-      - '--set-env-vars=PublicOrigin=${_PUBLIC_ORIGIN},Auth__MaxUsers=2,Database__MigrateOnStartup=false,Identity__Authority=${_FITNESS_ACCOUNT_AUTHORITY},Identity__Issuer=${_FITNESS_ACCOUNT_ISSUER},Identity__ClientId=workout-api,Identity__RedirectUri=${_WORKOUT_REDIRECT_URI},Identity__ReturnUrl=/,Identity__ConnectReturnUrl=/settings,Identity__WorkoutAudience=workout-api,Identity__NutritionAudience=nutrition-api,Integrations__NutritionTrainingContextUrl=${_NUTRITION_CONTEXT_URL},Integrations__KmsKeyName=projects/$PROJECT_ID/locations/asia-southeast1/keyRings/fitness/cryptoKeys/integration-tokens,OpenAi__Model=gpt-5.4-mini,OpenAi__MaxConcurrentChunks=8,OpenAi__ReasoningEffort=low,CloudTasks__ProjectId=$PROJECT_ID,CloudTasks__Location=asia-southeast1,CloudTasks__Queue=workout-rest-alerts,CloudTasks__TargetUrl=${_WORKOUT_API_ORIGIN}/internal/rest-alerts/dispatch,CloudTasks__CallerServiceAccountEmail=${_REST_TASK_SERVICE_ACCOUNT},CloudTasks__Audience=${_WORKOUT_API_ORIGIN},Fcm__ProjectId=${_FIREBASE_PROJECT_ID}'
-      - '--set-secrets=ConnectionStrings__Database=workout-neon-database:${_WORKOUT_DATABASE_SECRET_VERSION},Identity__ClientSecret=fitness-workout-client-secret:latest,OpenAi__ApiKey=financialapp-openai-api-key:latest,Maintenance__Secret=workout-maintenance-secret:latest'
+      - '--set-env-vars=PublicOrigin=${_PUBLIC_ORIGIN},Auth__MaxUsers=2,Database__MigrateOnStartup=false,Identity__Authority=${_FITNESS_ACCOUNT_AUTHORITY},Identity__Issuer=${_FITNESS_ACCOUNT_ISSUER},Identity__ClientId=workout-api,Identity__RedirectUri=${_WORKOUT_REDIRECT_URI},Identity__ReturnUrl=/,Identity__ConnectReturnUrl=/settings,Identity__WorkoutAudience=workout-api,Identity__NutritionAudience=nutrition-api,Integrations__NutritionTrainingContextUrl=${_NUTRITION_CONTEXT_URL},Integrations__KmsKeyName=projects/$PROJECT_ID/locations/asia-southeast1/keyRings/fitness/cryptoKeys/integration-tokens,GoogleHealth__ClientId=${_GOOGLE_HEALTH_CLIENT_ID},OpenAi__Model=gpt-5.4-mini,OpenAi__MaxConcurrentChunks=8,OpenAi__ReasoningEffort=low,CloudTasks__ProjectId=$PROJECT_ID,CloudTasks__Location=asia-southeast1,CloudTasks__Queue=workout-rest-alerts,CloudTasks__TargetUrl=${_WORKOUT_API_ORIGIN}/internal/rest-alerts/dispatch,CloudTasks__CallerServiceAccountEmail=${_REST_TASK_SERVICE_ACCOUNT},CloudTasks__Audience=${_WORKOUT_API_ORIGIN},Fcm__ProjectId=${_FIREBASE_PROJECT_ID}'
+      - '--set-secrets=ConnectionStrings__Database=workout-neon-database:${_WORKOUT_DATABASE_SECRET_VERSION},Identity__ClientSecret=fitness-workout-client-secret:latest,GoogleHealth__ClientSecret=google-health-client-secret:latest,OpenAi__ApiKey=financialapp-openai-api-key:latest,Maintenance__Secret=workout-maintenance-secret:latest'
     id: Deploy
     waitFor:
       - SeedCatalogExecute
@@ -120,6 +120,7 @@ substitutions:
   _FITNESS_ACCOUNT_AUTHORITY: 'https://fitness-account-i47taxhzba-as.a.run.app'
   _FITNESS_ACCOUNT_ISSUER: 'https://fitness-account-i47taxhzba-as.a.run.app'
   _WORKOUT_REDIRECT_URI: 'https://workout-one-mocha.vercel.app/api/auth/central/callback'
+  _GOOGLE_HEALTH_CLIENT_ID: '396431756440-f05klmtoc05mktbgk39i5jbfqgd0sn03.apps.googleusercontent.com'
   _NUTRITION_CONTEXT_URL: 'https://nutrition-api-396431756440.asia-southeast1.run.app/api/integrations/v1/training-context'
   _WORKOUT_API_ORIGIN: 'https://workout-api-i47taxhzba-as.a.run.app'
   _REST_TASK_SERVICE_ACCOUNT: 'workout-rest-task@project-7eb1aec8-8636-4c86-b2a.iam.gserviceaccount.com'

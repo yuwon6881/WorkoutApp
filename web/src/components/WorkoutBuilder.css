@@ -1,0 +1,120 @@
+/* Workout builder exercise cards. The card reuses the import editor's shell; these rules give the
+   builder its own header and settings strip so a phone shows the name in full and one card fits
+   in roughly a screen. */
+
+.builder-exercise-heading {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+}
+
+.builder-exercise-heading .import-exercise-title {
+  flex-wrap: nowrap;
+  min-width: 0;
+}
+
+.builder-exercise-heading .topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.builder-exercise-name.inline-input {
+  flex: 1 1 auto;
+  width: 100%;
+  min-width: 0;
+  min-height: 44px;
+  height: 44px;
+  padding: 0 10px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-control);
+  background: transparent;
+  color: var(--text);
+  font-size: 16px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  text-overflow: ellipsis;
+}
+
+.builder-exercise-name.inline-input:hover {
+  border-color: var(--border);
+  background: var(--surface-raised);
+}
+
+.builder-exercise-name.inline-input:focus {
+  border-color: var(--accent);
+  background: var(--surface-raised);
+}
+
+.builder-exercise-badges {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: -4px 0 12px;
+}
+
+.builder-exercise-badges .superset-badge.button {
+  min-height: 36px;
+}
+
+.builder-exercise-fields.import-fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(108px, 1fr));
+  align-items: end;
+  gap: 10px 12px;
+  margin-bottom: 0;
+}
+
+.builder-exercise-fields .import-library-field,
+.builder-exercise-fields .import-substitutions-field {
+  grid-column: 1 / -1;
+}
+
+.builder-exercise-fields .field > span:first-child {
+  color: var(--muted);
+  font-size: var(--font-secondary);
+}
+
+.builder-exercise-fields .button,
+.builder-exercise-fields .custom-select-trigger {
+  width: 100%;
+  justify-content: flex-start;
+}
+
+.workout-builder-exercise-card .import-exercise-notes {
+  margin-top: 14px;
+}
+
+.workout-builder-exercise-card .import-set-footer {
+  margin-top: 10px;
+}
+
+@media (max-width: 639px) {
+  .workout-builder-exercise-card.import-exercise {
+    padding: 12px;
+  }
+
+  .builder-exercise-heading {
+    margin-bottom: 12px;
+    padding-bottom: 10px;
+  }
+
+  .builder-exercise-heading .import-exercise-icon {
+    display: none;
+  }
+
+  .builder-exercise-name.inline-input {
+    padding: 0 8px;
+  }
+
+  .workout-builder-exercise-card .import-set-footer {
+    flex-direction: row;
+    justify-content: flex-end;
+  }
+
+  .workout-builder-exercise-card .import-add-set {
+    width: auto;
+  }
+}

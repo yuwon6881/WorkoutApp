@@ -266,6 +266,8 @@ public sealed class CompletedSet : OwnedRecord
     /// have no actual RPE so that the exposure repeats without advancing progression.
     public int? Reps { get; set; }
     public double? Rpe { get; set; }
+    /// Exact effort selection retained for 5+ RIR, which cannot be represented by a precise RPE.
+    public string? Rir { get; set; }
     public bool Done { get; set; }
     public bool Warmup { get; set; }
     /// Ordinal among working sets only; warm-ups have no ordinal and never enter progression.

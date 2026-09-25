@@ -132,8 +132,6 @@ export async function fetchGoogleHealthStatus(force = false): Promise<GoogleHeal
       lastFetchTime = Date.now();
       notify();
       return memoryState;
-    } catch {
-      return memoryState;
     } finally {
       inFlightPromise = null;
     }

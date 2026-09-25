@@ -153,7 +153,7 @@ public static class WorkoutViewBuilder
                         var (isSetPr, setE1rmKg) = setPrs.GetValueOrDefault(s.Id, (false, null));
                         return new SetView(s.Id, s.Position, s.WeightKg, s.Reps, s.Rpe, s.Done, s.Warmup,
                             s.WorkingSetOrdinal, s.ResistanceMode, s.SystemLoadKg, ReadOptional<SetProgressionSuggestion>(s.SuggestionJson),
-                            isSetPr, setE1rmKg);
+                            isSetPr, setE1rmKg, s.Rir);
                     }).ToList(),
                     e.SequenceGroup, Json.Read<List<string>>(e.SubstitutionsJson),
                     ReadOptional<ProgressionView>(e.ProgressionJson), e.LoadModel, e.SourceTemplateExerciseId, e.SourceSlotKey, e.SourcePhaseId,

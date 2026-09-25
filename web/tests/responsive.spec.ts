@@ -171,7 +171,7 @@ for (const theme of ['dark', 'light']) {
     await screenshot('workout-picker');
     await builderPicker.getByRole('button', { name: 'Add Barbell back squat', exact: true }).click();
     // The picker collapsing changes the dialog's height; let it settle before aiming at Save.
-    await expect(editor.getByText('Barbell back squat', { exact: true })).toBeVisible();
+    await expect(editor.getByRole('textbox', { name: 'Name for exercise 1' })).toHaveValue('Barbell back squat');
     await expect(builderPicker).toBeHidden();
     await editor.getByRole('button', { name: 'Save workout', exact: true }).click();
     await expect(editor).toBeHidden();

@@ -8,11 +8,13 @@ import { DemoLink } from './ui/DemoLink';
 import { Select } from './ui/Select';
 import { RpeControl } from './ui/RpeControl';
 import { WarmupRirNote } from './ui/WarmupRirNote';
-import { RepPrescriptionControl } from './ui/RepPrescriptionControl';
+import { RepModeToggle, RepPrescriptionControl } from './ui/RepPrescriptionControl';
 import { Field, TextAreaField } from './ui/Field';
 import { Modal } from './ui/Modal';
 import { ExerciseLibrary } from './Exercises';
 import { SwipeableRow } from './ui/SwipeableRow';
+import { usesRepRange, withRepMode } from '../lib/repMode';
+import './SetPrescriptionGrid.css';
 import { MenuButton, MenuItem } from './ui/MenuButton';
 
 import { getSupersetGroup, isSuperset, pairExercises, unlinkExercise } from '../lib/supersets';
@@ -141,6 +143,7 @@ function ExerciseEditor({ exercise, exercises, allDayExercises, onChange, onRemo
   };
 
   const selected = exercises.find(option => option.id === exercise.exerciseId);
+  const repRange = usesRepRange(exercise.sets.filter(set => !hasOpenReps(set)));
   const select = async (exerciseId: string | null) => {
     if (onMapExerciseSlot) {
       setIsMapping(true);
@@ -338,18 +341,35 @@ function ExerciseEditor({ exercise, exercises, allDayExercises, onChange, onRemo
       value={exercise.notes ?? ''} placeholder="Cues, tempo or coaching notes"
       onChange={event => onChange({ ...exercise, notes: event.target.value })} />
 
-    <ol className="import-sets" aria-label={`Set prescriptions for ${exercise.sourceName}`} data-import-field="sets">
+    <div className="set-grid-wrap set-grid-typed">
+    <div className="set-grid-head">
+      <span className="set-grid-head-reps">
+        <span aria-hidden="true">Reps</span>
+        <RepModeToggle
+          range={repRange}
+          label={`Rep target for ${exercise.sourceName}`}
+          onChange={range => onChange({
+            ...exercise,
+            sets: exercise.sets.map(set => hasOpenReps(set)
+              ? set
+              : { ...set, ...withRepMode(set, range), repsText: null, repsSource: 'userEdited' })
+          })}
+        />
+      </span>
+      <span className="set-grid-head-rir" aria-hidden="true">RIR</span>
+    </div>
+    <ol className="import-sets set-grid-list" aria-label={`Set prescriptions for ${exercise.sourceName}`} data-import-field="sets">
       {exercise.sets.map((set, index) => {
         const setDisplayNumber = exercise.sets
           .slice(0, index + 1)
           .filter(s => !!s.warmup === !!set.warmup).length;
         const setTypeLabel = getSetTypeLabel(set);
         const remove = <Button variant="destructive" className="import-set-remove" aria-label={`Remove ${set.warmup ? 'warm-up' : 'set'} ${setDisplayNumber}`} onClick={() => onChange({ ...exercise, sets: exercise.sets.filter((_, current) => current !== index) })}>
-          <Trash2 size={15} /><span>Delete</span>
+          <Trash2 size={15} /><span className="sr-only">Delete</span>
         </Button>;
         return <li className={`import-set ${set.warmup ? 'warmup-row' : ''}`} key={index}>
-          <SwipeableRow className="import-set-swipe-row" actions={remove} desktopActions={remove} actionsWidth={88} actionsLabel={`Actions for ${set.warmup ? 'warm-up' : 'set'} ${setDisplayNumber}`}>
-            <div className="import-set-content" data-import-set-index={index}>
+          <SwipeableRow className="import-set-swipe-row" actions={remove} desktopActions={remove} actionsWidth={72} actionsLabel={`Actions for ${set.warmup ? 'warm-up' : 'set'} ${setDisplayNumber}`}>
+            <div className="import-set-content set-grid-row" data-import-set-index={index}>
               <div className="import-set-heading">
                 <span className={`set-number set-badge-${getSetType(set)}`}>
                   <span className="set-number-label">{setTypeLabel}</span>
@@ -370,10 +390,12 @@ function ExerciseEditor({ exercise, exercises, allDayExercises, onChange, onRemo
                 <RepPrescriptionControl
                   repMin={set.repMin}
                   repMax={set.repMax}
+                  range={repRange}
                   nameMin={`rep-min-${exercise.lineId}-${index}`}
                   nameMax={`rep-max-${exercise.lineId}-${index}`}
                   nameSingle={`rep-${exercise.lineId}-${index}`}
                   dataImportIndex={index}
+                  labelPrefix={`${exercise.sourceName} ${set.warmup ? 'warm-up' : 'set'} ${setDisplayNumber}`}
                   openReps={hasOpenReps(set)}
                   onChange={({ repMin, repMax }) =>
                     editSet(index, { repMin, repMax, repsText: null, repsSource: 'userEdited' })
@@ -406,6 +428,7 @@ function ExerciseEditor({ exercise, exercises, allDayExercises, onChange, onRemo
         </li>;
       })}
     </ol>
+    </div>
     <div className="import-set-footer">
       <Button variant="secondary" className="import-add-set" disabled={exercise.sets.length >= 24} onClick={() => {
         const previous = exercise.sets.at(-1) ?? blankSet();
