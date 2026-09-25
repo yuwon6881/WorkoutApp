@@ -1,4 +1,3 @@
-using System.Globalization;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Workout.Api.Data;
@@ -20,7 +19,7 @@ public sealed record GoogleHealthWorkoutSyncProcessResult(int Processed, int Suc
 
 public sealed record GoogleHealthWorkoutSyncRecoveryInput(Guid? WorkoutSessionId = null);
 
-public sealed class GoogleHealthWorkoutSyncService(
+public sealed partial class GoogleHealthWorkoutSyncService(
     AppDb db,
     GoogleHealthService google,
     HttpClient http,
@@ -28,40 +27,6 @@ public sealed class GoogleHealthWorkoutSyncService(
 {
     public const string WorkoutScope = "https://www.googleapis.com/auth/googlehealth.activity_and_fitness.writeonly";
     private static readonly TimeSpan LeaseDuration = TimeSpan.FromMinutes(2);
-
-    public static DateTimeOffset FormatTimestamp(DateTime time, string? timeZone)
-    {
-        TimeZoneInfo zone;
-        try
-        {
-            zone = string.IsNullOrWhiteSpace(timeZone)
-                ? TimeZoneInfo.Utc
-                : TimeZoneInfo.FindSystemTimeZoneById(timeZone);
-        }
-        catch (Exception ex) when (ex is TimeZoneNotFoundException or InvalidTimeZoneException)
-        {
-            zone = TimeZoneInfo.Utc;
-        }
-
-        var utcTime = DateTime.SpecifyKind(time, DateTimeKind.Utc);
-        return TimeZoneInfo.ConvertTime(new DateTimeOffset(utcTime), zone);
-    }
-
-    public static GoogleHealthWorkoutDataPoint BuildDataPoint(
-        DateTime startedAt, DateTime? finishedAt, string name, string notes, string? timeZone)
-    {
-        var start = FormatTimestamp(startedAt, timeZone);
-        var finish = finishedAt.HasValue
-            ? FormatTimestamp(finishedAt.Value, timeZone)
-            : start.AddMinutes(45);
-
-        return new GoogleHealthWorkoutDataPoint(
-            start.ToString("yyyy-MM-dd'T'HH:mm:sszzz", CultureInfo.InvariantCulture),
-            finish.ToString("yyyy-MM-dd'T'HH:mm:sszzz", CultureInfo.InvariantCulture),
-            string.IsNullOrWhiteSpace(name) ? "Workout" : name.Trim(),
-            "WEIGHTLIFTING",
-            notes ?? "");
-    }
 
     public Task<string> BuildSummaryNotesAsync(Guid sessionId, CancellationToken ct)
         => summary.BuildSummaryNotesAsync(sessionId, ct);
@@ -210,7 +175,7 @@ public sealed class GoogleHealthWorkoutSyncService(
     {
         var started = DateTime.UtcNow;
         var candidates = await db.GoogleHealthWorkoutSyncWork.IgnoreQueryFilters()
-            .Where(x => new[] { "pending", "awaiting_operation" }.Contains(x.ProcessingState)
+            .Where(x => new[] { "pending", "processing", "awaiting_operation" }.Contains(x.ProcessingState)
                 && x.NextAttemptAt <= started
                 && (x.LeaseUntil == null || x.LeaseUntil < started))
             .OrderBy(x => x.NextAttemptAt)
@@ -225,21 +190,30 @@ public sealed class GoogleHealthWorkoutSyncService(
         var failed = 0;
         var unknown = 0;
 
+        var originalCurrentUser = db.CurrentUser;
         foreach (var item in candidates)
         {
             if (ct.IsCancellationRequested) break;
-            var leaseId = Guid.NewGuid().ToString("N");
-            var leased = await LeaseWorkAsync(item.UserId, item.Id, leaseId, started, ct);
-            if (leased is null) continue;
-
-            processed++;
-            var result = await ProcessLeasedAsync(leased, ct);
-            switch (result)
+            db.CurrentUser = item.UserId;
+            try
             {
-                case "succeeded": succeeded++; break;
-                case "retried": retried++; break;
-                case "failed": failed++; break;
-                case "unknown": unknown++; break;
+                var leaseId = Guid.NewGuid().ToString("N");
+                var leased = await LeaseWorkAsync(item.UserId, item.Id, leaseId, started, ct);
+                if (leased is null) continue;
+
+                processed++;
+                var result = await ProcessLeasedAsync(leased, ct);
+                switch (result)
+                {
+                    case "succeeded": succeeded++; break;
+                    case "retried": retried++; break;
+                    case "failed": failed++; break;
+                    case "unknown": unknown++; break;
+                }
+            }
+            finally
+            {
+                db.CurrentUser = originalCurrentUser;
             }
         }
 
@@ -251,9 +225,25 @@ public sealed class GoogleHealthWorkoutSyncService(
         await using var gate = await MutationLock.Acquire(db, userId, ct);
         var work = await db.GoogleHealthWorkoutSyncWork.IgnoreQueryFilters()
             .SingleOrDefaultAsync(x => x.UserId == userId && x.Id == workId, ct);
-        if (work is null || !new[] { "pending", "awaiting_operation" }.Contains(work.ProcessingState)
+        if (work is null || !new[] { "pending", "processing", "awaiting_operation" }.Contains(work.ProcessingState)
             || work.NextAttemptAt > now || (work.LeaseUntil != null && work.LeaseUntil >= now))
             return null;
+
+        // A crashed create may have reached Google even when its response was never saved.
+        if (work.ProcessingState == "processing" && !work.DesiredDeleted
+            && string.IsNullOrEmpty(work.GoogleResourceName) && string.IsNullOrEmpty(work.GoogleOperationName))
+        {
+            work.ProcessingState = "unknown";
+            work.NextAttemptAt = DateTime.MaxValue;
+            work.LeaseUntil = null;
+            work.LeaseId = "";
+            work.LastErrorCategory = "upload_status_unknown";
+            work.LastErrorMessage = "The previous create may have reached Google Health. Check for a copy before retrying.";
+            work.UpdatedAt = now;
+            await db.SaveChangesAsync(ct);
+            await gate.Commit(ct);
+            return null;
+        }
 
         work.LeaseId = leaseId;
         work.LeaseUntil = now.Add(LeaseDuration);
@@ -280,15 +270,27 @@ public sealed class GoogleHealthWorkoutSyncService(
 
     private async Task<string> ProcessLeasedAsync(WorkoutWorkLease lease, CancellationToken ct)
     {
-        var token = await google.GetAccessTokenAsync(lease.UserId, WorkoutScope, ct);
-        if (string.IsNullOrWhiteSpace(token))
-        {
-            await FailLeaseAsync(lease.UserId, lease.WorkId, lease.LeaseId, "reconnect_required", "Google Health authorization expired. Reconnect to resume uploads.", ct);
-            return "failed";
-        }
-
+        var createMayHaveBeenSent = false;
         try
         {
+            var connection = await db.GoogleHealthConnections.SingleOrDefaultAsync(ct);
+            var identityMatches = connection is not null
+                && connection.ConnectionGeneration == lease.ConnectionGeneration
+                && connection.GoogleIdHash == lease.GoogleIdHash;
+            var submittedOperation = !string.IsNullOrWhiteSpace(lease.OperationName);
+            if (!identityMatches || (!CanDispatch(connection!) && !submittedOperation))
+            {
+                await CancelLeaseAsync(lease.UserId, lease.WorkId, lease.LeaseId, ct);
+                return "failed";
+            }
+
+            var token = await google.GetAccessTokenAsync(lease.UserId, WorkoutScope, ct);
+            if (string.IsNullOrWhiteSpace(token))
+            {
+                await FailLeaseAsync(lease.UserId, lease.WorkId, lease.LeaseId, "reconnect_required", "Google Health authorization expired. Reconnect to resume uploads.", ct);
+                return "failed";
+            }
+
             GoogleHealthOperationResult op;
             if (!string.IsNullOrEmpty(lease.OperationName))
             {
@@ -301,9 +303,18 @@ public sealed class GoogleHealthWorkoutSyncService(
             else
             {
                 var payload = BuildDataPoint(lease.StartedAt, lease.FinishedAt, lease.Name, lease.Notes, null);
+                createMayHaveBeenSent = string.IsNullOrEmpty(lease.ResourceName);
                 op = string.IsNullOrEmpty(lease.ResourceName)
                     ? await GoogleHealthWorkoutProvider.CreateAsync(http, token, payload, ct)
                     : await GoogleHealthWorkoutProvider.UpdateAsync(http, token, lease.ResourceName, payload, ct);
+            }
+
+            if (!string.IsNullOrEmpty(op.ErrorCategory))
+            {
+                if (op.ErrorCategory == "reconnect_required")
+                    await google.MarkReconnectRequiredAsync(lease.UserId, ct);
+                await FailLeaseAsync(lease.UserId, lease.WorkId, lease.LeaseId, op.ErrorCategory, op.ErrorMessage ?? "Google Health rejected the workout.", ct);
+                return "failed";
             }
 
             if (op.Done)
@@ -329,8 +340,20 @@ public sealed class GoogleHealthWorkoutSyncService(
         }
         catch (GoogleHealthWorkoutProviderException ex)
         {
+            if (ex.AuthenticationFailure)
+                await google.MarkReconnectRequiredAsync(lease.UserId, ct);
             await FailLeaseAsync(lease.UserId, lease.WorkId, lease.LeaseId, ex.Category, ex.Message, ct);
             return "failed";
+        }
+        catch (Exception) when (!ct.IsCancellationRequested)
+        {
+            if (createMayHaveBeenSent)
+            {
+                await MarkUnknownAsync(lease.UserId, lease.WorkId, lease.LeaseId, ct);
+                return "unknown";
+            }
+            await RetryLeaseAsync(lease.UserId, lease.WorkId, lease.LeaseId, null, ct);
+            return "retried";
         }
     }
 
@@ -427,6 +450,17 @@ public sealed class GoogleHealthWorkoutSyncService(
         await gate.Commit(ct);
     }
 
+    private async Task CancelLeaseAsync(Guid userId, Guid workId, string leaseId, CancellationToken ct)
+    {
+        await using var gate = await MutationLock.Acquire(db, userId, ct);
+        var work = await db.GoogleHealthWorkoutSyncWork.IgnoreQueryFilters()
+            .SingleOrDefaultAsync(x => x.UserId == userId && x.Id == workId && x.LeaseId == leaseId, ct);
+        if (work is null) return;
+        CancelWork(work);
+        await db.SaveChangesAsync(ct);
+        await gate.Commit(ct);
+    }
+
     private async Task MarkUnknownAsync(Guid userId, Guid workId, string leaseId, CancellationToken ct)
     {
         await using var gate = await MutationLock.Acquire(db, userId, ct);
@@ -445,47 +479,4 @@ public sealed class GoogleHealthWorkoutSyncService(
         await gate.Commit(ct);
     }
 
-    private static void CancelWork(GoogleHealthWorkoutSyncWork work)
-    {
-        work.ProcessingState = "pending";
-        work.LeaseUntil = null;
-        work.LeaseId = "";
-        work.NextAttemptAt = DateTime.MaxValue;
-        work.GoogleOperationName = "";
-        work.RetryCount = 0;
-        work.LastErrorCategory = "";
-        work.LastErrorMessage = "";
-        work.UpdatedAt = DateTime.UtcNow;
-    }
-
-    private static bool CanDispatch(GoogleHealthConnection connection)
-        => connection.Status == "connected" && connection.WorkoutSyncEnabled && HasWorkoutScope(connection);
-
-    private static bool HasWorkoutScope(GoogleHealthConnection connection)
-    {
-        try
-        {
-            var scopes = JsonSerializer.Deserialize<string[]>(connection.GrantedScopesJson, Json.Options) ?? [];
-            return scopes.Contains(WorkoutScope, StringComparer.Ordinal);
-        }
-        catch (JsonException)
-        {
-            return false;
-        }
-    }
-
-    private sealed record WorkoutWorkLease(
-        Guid UserId,
-        Guid WorkId,
-        string LeaseId,
-        long DesiredRevision,
-        DateTime StartedAt,
-        DateTime FinishedAt,
-        string Name,
-        string Notes,
-        bool Deleted,
-        string ResourceName,
-        string OperationName,
-        long ConnectionGeneration,
-        string GoogleIdHash);
 }

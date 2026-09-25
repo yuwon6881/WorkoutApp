@@ -1,5 +1,4 @@
 using System.Collections.Concurrent;
-using System.Net;
 using System.Net.Http.Headers;
 using System.Security.Cryptography;
 using System.Text;
@@ -287,6 +286,15 @@ public class GoogleHealthService(
         return await RefreshAccessTokenAsync(conn, ct);
     }
 
+    public async Task MarkReconnectRequiredAsync(Guid userId, CancellationToken ct)
+    {
+        var conn = await db.GoogleHealthConnections.SingleOrDefaultAsync(c => c.UserId == userId, ct);
+        if (conn is null || conn.Status == "reconnect_required") return;
+        conn.Status = "reconnect_required";
+        await db.SaveChangesAsync(ct);
+        SyncCache.Remove(userId);
+    }
+
     private async Task<string?> RefreshAccessTokenAsync(GoogleHealthConnection conn, CancellationToken ct)
     {
         if (string.IsNullOrEmpty(conn.EncryptedRefreshToken)) return null;
@@ -309,12 +317,20 @@ public class GoogleHealthService(
         using var res = await http.SendAsync(req, ct);
         if (!res.IsSuccessStatusCode)
         {
-            if (res.StatusCode == HttpStatusCode.BadRequest || res.StatusCode == HttpStatusCode.Unauthorized)
+            var response = await res.Content.ReadAsStringAsync(ct);
+            string? error = null;
+            try
             {
-                conn.Status = "reconnect_required";
-                await db.SaveChangesAsync(ct);
+                using var errorDoc = JsonDocument.Parse(response);
+                error = errorDoc.RootElement.TryGetProperty("error", out var value) ? value.GetString() : null;
             }
-            return null;
+            catch (JsonException) { }
+            if (error is "invalid_grant" or "unauthorized_client")
+            {
+                await MarkReconnectRequiredAsync(conn.UserId, ct);
+                return null;
+            }
+            throw new HttpRequestException($"Google Health token refresh failed: {res.StatusCode} ({error ?? "unknown_error"}).");
         }
 
         using var doc = JsonDocument.Parse(await res.Content.ReadAsStringAsync(ct));

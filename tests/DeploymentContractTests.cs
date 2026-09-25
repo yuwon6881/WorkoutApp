@@ -5,6 +5,19 @@ namespace Workout.Tests;
 public sealed class DeploymentContractTests
 {
     [Fact]
+    public void Google_health_oauth_and_scheduler_configuration_are_deployed()
+    {
+        var root = RepositoryRoot();
+        var build = File.ReadAllText(Path.Combine(root, "cloudbuild.yaml"));
+        var endpoint = File.ReadAllText(Path.Combine(root, "api", "Endpoints", "GoogleHealthEndpoints.cs"));
+        Assert.Contains("GoogleHealth__ClientId=${_GOOGLE_HEALTH_CLIENT_ID}", build);
+        Assert.Contains("GoogleHealth__ClientSecret=google-health-client-secret:latest", build);
+        Assert.Contains("_GOOGLE_HEALTH_CLIENT_ID:", build);
+        Assert.Contains("X-Workout-Maintenance-Secret", endpoint);
+        Assert.True(File.Exists(Path.Combine(root, "deploy", "setup-google-health-workout-sync.ps1")));
+    }
+
+    [Fact]
     public void Cloud_Run_deployments_use_http1_until_h2c_is_explicitly_configured()
     {
         var build = File.ReadAllText(Path.Combine(RepositoryRoot(), "cloudbuild.yaml"));

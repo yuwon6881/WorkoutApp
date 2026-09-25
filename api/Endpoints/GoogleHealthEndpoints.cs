@@ -1,6 +1,9 @@
+using System.Security.Cryptography;
+using System.Text;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Workout.Api.Data;
+using Workout.Api.Domain;
 using Workout.Api.Services;
 
 namespace Workout.Api.Endpoints;
@@ -71,7 +74,14 @@ public static class GoogleHealthEndpoints
         app.MapPost("/api/integrations/google-health/workout-sync/recover", async (GoogleHealthWorkoutSyncRecoveryInput input, GoogleHealthWorkoutSyncService service, CancellationToken ct) =>
             Results.Ok(await service.RecoverAsync(input.WorkoutSessionId, ct)));
 
-        app.MapPost("/internal/google-health-workout-sync", async (GoogleHealthWorkoutSyncService service, CancellationToken ct) =>
-            Results.Ok(await service.ProcessDueAsync(ct)));
+        app.MapPost("/internal/google-health-workout-sync", async (HttpRequest request, IConfiguration config, GoogleHealthWorkoutSyncService service, CancellationToken ct) =>
+        {
+            var expected = config["Maintenance:Secret"]?.Trim() ?? "";
+            var presented = request.Headers["X-Workout-Maintenance-Secret"].ToString();
+            Validation.Require(!string.IsNullOrWhiteSpace(expected) &&
+                CryptographicOperations.FixedTimeEquals(Encoding.UTF8.GetBytes(expected), Encoding.UTF8.GetBytes(presented)),
+                "Maintenance is not available.", 404);
+            return Results.Ok(await service.ProcessDueAsync(ct));
+        }).DisableAntiforgery();
     }
 }

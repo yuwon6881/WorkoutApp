@@ -64,6 +64,12 @@ describe('Workout Google Health lib', () => {
     expect(state.days[0].count).toBe(8500);
   });
 
+  it('reports status request failures to the caller', async () => {
+    vi.mocked(api.googleHealthStatus).mockRejectedValueOnce(new Error('Service unavailable'));
+
+    await expect(fetchGoogleHealthStatus(true)).rejects.toThrow('Service unavailable');
+  });
+
   it('sets workout sync preference and updates state', async () => {
     vi.mocked(api.setGoogleHealthWorkoutSyncPreference).mockResolvedValueOnce({
       enabled: true,
