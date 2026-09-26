@@ -546,11 +546,10 @@ test('import a PDF program, resolve an unmapped exercise, and accept it', async 
   await expect(descriptionFrame).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
   await expect(descriptionFrame).toHaveCSS('padding', '0px');
   const setRow = mysteryExercise.locator('.import-set-swipe-row:visible').first();
-  const setBorders = await setRow.evaluate(element => {
-    const style = getComputedStyle(element);
-    return { leftWidth: style.borderLeftWidth, leftColor: style.borderLeftColor, borderColor: style.borderTopColor };
-  });
-  expect(setBorders).toEqual({ leftWidth: '1px', leftColor: setBorders.borderColor, borderColor: setBorders.borderColor });
+  // Sets share one outer surface; rows use separators rather than nested card borders.
+  await expect(mysteryExercise.locator('.set-grid-list')).toHaveCSS('border-left-width', '1px');
+  await expect(setRow).toHaveCSS('border-left-width', '0px');
+  await expect(setRow).toHaveCSS('border-top-width', '0px');
 
   // Hold a normal draft save while substituting a mapped exercise. The substitution must be
   // serialized behind that save and stay selected after the older response arrives.

@@ -13,6 +13,7 @@ import { SupersetModal } from './SupersetModal';
 import { WorkoutPrescriptionSets } from './WorkoutPrescriptionSets';
 import './Superset.css';
 import './WorkoutBuilder.css';
+import './PrescriptionCardLayout.css';
 
 export function WorkoutPrescriptionCard({
   exercise,

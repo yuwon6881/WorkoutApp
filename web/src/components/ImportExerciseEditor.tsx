@@ -17,6 +17,7 @@ import { CustomExerciseModal } from './CustomExerciseModal';
 import { SwipeableRow } from './ui/SwipeableRow';
 import { usesRepRange, withRepMode } from '../lib/repMode';
 import './SetPrescriptionGrid.css';
+import './PrescriptionCardLayout.css';
 import { MenuButton, MenuItem } from './ui/MenuButton';
 import { getSupersetGroup, isSuperset } from '../lib/supersets';
 import { SupersetModal } from './SupersetModal';
@@ -152,6 +153,8 @@ export function ExerciseEditor({ exercise, exercises, allDayExercises, onChange,
             onChange={event => onChange({ ...exercise, sourceName: event.target.value })}
           />
         </div>
+      </div>
+      <div className="prescription-context-row">
         {isPaired && (
           <span
             className="superset-badge"
@@ -159,7 +162,7 @@ export function ExerciseEditor({ exercise, exercises, allDayExercises, onChange,
             aria-label={`Superset ${currentGroup} with ${partnerNames}`}
           >
             <Link2 size={12} />
-            <span>Superset {currentGroup}</span>
+            <span>Pair {currentGroup}</span>
             <Button
               presentation="plain"
               className="superset-unlink-chip-btn"
@@ -177,41 +180,41 @@ export function ExerciseEditor({ exercise, exercises, allDayExercises, onChange,
         {!exercise.exerciseId && (
           <span className="tiny-label warn"><AlertTriangle size={12} /> Unmapped</span>
         )}
-      </div>
-      <div className="import-exercise-actions">
-        <DemoLink url={exercise.demoUrl} exerciseName={exercise.sourceName} />
-        <div className="field import-rest-field" data-import-field="rest">
-          <Select
-            name={`exercise-rest-${exercise.lineId}`}
-            ariaLabel={`Rest timer for ${exercise.sourceName}`}
-            title="Rest timer"
-            icon={<Timer size={14} className="rest-timer-icon" />}
-            value={exercise.restSeconds ?? 90}
-            options={restOptions(exercise.restSeconds)}
-            onChange={val => onChange({ ...exercise, restSeconds: Number(val) })}
-          />
+        <div className="import-exercise-actions">
+          <DemoLink url={exercise.demoUrl} exerciseName={exercise.sourceName} />
+          <div className="field import-rest-field" data-import-field="rest">
+            <Select
+              name={`exercise-rest-${exercise.lineId}`}
+              ariaLabel={`Rest timer for ${exercise.sourceName}`}
+              title="Rest timer"
+              icon={<Timer size={14} className="rest-timer-icon" />}
+              value={exercise.restSeconds ?? 90}
+              options={restOptions(exercise.restSeconds)}
+              onChange={val => onChange({ ...exercise, restSeconds: Number(val) })}
+            />
+          </div>
+          <MenuButton
+            label={`Actions for ${exercise.sourceName}`}
+            icon={isRestoring ? <Loader2 size={16} className="spin" /> : undefined}
+          >
+            <MenuItem onClick={() => setSupersetModalOpen(true)}>
+              <Link2 size={14} />
+              <span>{isPaired ? `Superset options (Group ${currentGroup})` : 'Pair into superset'}</span>
+            </MenuItem>
+            {canRestore && onRestore && (
+              <MenuItem disabled={isRestoring} onClick={() => void handleRestore()}>
+                <RotateCcw size={14} />
+                <span>Restore default</span>
+              </MenuItem>
+            )}
+            {onRemove && (
+              <MenuItem destructive disabled={allDayExercises.length <= 1 || isRestoring} onClick={onRemove}>
+                <Trash2 size={14} />
+                <span>Delete exercise</span>
+              </MenuItem>
+            )}
+          </MenuButton>
         </div>
-        <MenuButton
-          label={`Actions for ${exercise.sourceName}`}
-          icon={isRestoring ? <Loader2 size={16} className="spin" /> : undefined}
-        >
-          <MenuItem onClick={() => setSupersetModalOpen(true)}>
-            <Link2 size={14} />
-            <span>{isPaired ? `Superset options (Group ${currentGroup})` : 'Pair into superset'}</span>
-          </MenuItem>
-          {canRestore && onRestore && (
-            <MenuItem disabled={isRestoring} onClick={() => void handleRestore()}>
-              <RotateCcw size={14} />
-              <span>Restore default</span>
-            </MenuItem>
-          )}
-          {onRemove && (
-            <MenuItem destructive disabled={allDayExercises.length <= 1 || isRestoring} onClick={onRemove}>
-              <Trash2 size={14} />
-              <span>Delete exercise</span>
-            </MenuItem>
-          )}
-        </MenuButton>
       </div>
     </div>
     {restoreError && (
@@ -272,7 +275,7 @@ export function ExerciseEditor({ exercise, exercises, allDayExercises, onChange,
       value={exercise.notes ?? ''} placeholder="Cues, tempo or coaching notes"
       onChange={event => onChange({ ...exercise, notes: event.target.value })} />
 
-    <div className="set-grid-wrap set-grid-typed">
+    <div className={`set-grid-wrap set-grid-typed ${repRange ? 'set-grid-range' : 'set-grid-exact'}`}>
     <div className="set-grid-head">
       <span className="set-grid-head-reps">
         <span aria-hidden="true">Reps</span>
@@ -325,7 +328,7 @@ export function ExerciseEditor({ exercise, exercises, allDayExercises, onChange,
                   }
                 />
                 {set.warmup ? <WarmupRirNote dataImportIndex={index} /> : <div className="field rpe-field" data-import-field="targetRpe" data-import-set-index={index}>
-                  <span>Target RIR</span>
+                  <span>RIR</span>
                   <RpeControl
                     name={`target-rir-${exercise.lineId}-${index}`}
                     ariaLabel={`Target RIR for ${exercise.sourceName} set ${setDisplayNumber}`}

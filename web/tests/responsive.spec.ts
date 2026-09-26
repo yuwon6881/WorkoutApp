@@ -1,8 +1,11 @@
 import { expect, test } from '@playwright/test';
-import type { Page } from '@playwright/test';
+import type { Locator, Page } from '@playwright/test';
 import { join } from 'node:path';
 import { signIn as auth } from './signIn';
 import { pdf } from './pdfFixture';
+
+// Geometry checks use reduced motion so the swipe discovery animation cannot shift controls.
+test.use({ reducedMotion: 'reduce' });
 
 const USER = 'e2e-responsive';
 const screenshotsDirectory = process.env.WORKOUT_TEST_SCREENSHOTS || 'artifacts';
@@ -82,6 +85,22 @@ async function checkLayout(page: Page, label: string) {
     }).map(el => el.getAttribute('aria-label') || el.textContent?.slice(0, 70));
   });
   expect(smallTargets, `${label}: controls have usable touch targets`).toEqual([]);
+  if (page.viewportSize()!.width < 640) {
+    const overlappingHeaders = await page.locator('.prescription-context-row:visible').evaluateAll(contexts => contexts.some(context => {
+      const title = context.previousElementSibling;
+      return title && title.getBoundingClientRect().bottom > context.getBoundingClientRect().top + 1;
+    }));
+    expect(overlappingHeaders, `${label}: exercise title stays above its context controls`).toBe(false);
+  }
+  const clippedPrescriptions = await page.locator('.set-grid-row:visible').evaluateAll(rows => rows.flatMap(row => {
+    const bounds = row.getBoundingClientRect();
+    return [...row.querySelectorAll('input, button')].filter(field => {
+      const box = field.getBoundingClientRect();
+      return box.width > 0 && (box.left < bounds.left - 1 || box.right > bounds.right + 1);
+    }).map(field => field.getAttribute('aria-label'));
+  }));
+  expect(clippedPrescriptions, `${label}: prescription fields fit their own rows`).toEqual([]);
+
 
   const smallText = await page.evaluate(() => [...document.querySelectorAll('body *')].filter(el => {
     const box = el.getBoundingClientRect();
@@ -201,6 +220,15 @@ for (const theme of ['dark', 'light']) {
       await checkLayout(page, label);
       await page.screenshot({ animations: 'disabled', path: join(screenshotsDirectory, 'responsive', `${info.project.name}-${theme}-${label}.png`) });
     };
+    const cardScreenshot = async (card: Locator, label: string) => {
+      // Give the isolated artifact enough vertical space to keep sticky shell controls outside it.
+      // All layout assertions above still run at the project's original screen dimensions.
+      const viewport = page.viewportSize()!;
+      const height = await card.evaluate(element => element.getBoundingClientRect().height);
+      await page.setViewportSize({ width: viewport.width, height: Math.max(viewport.height, Math.ceil(height) + 300) });
+      await card.screenshot({ animations: 'disabled', style: '.bottom-nav, .toast, .modal > header, .modal-actions { visibility: hidden !important; }', path: join(screenshotsDirectory, 'responsive', `${info.project.name}-${theme}-${label}.png`) });
+      await page.setViewportSize(viewport);
+    };
     await screenshot('settings');
 
     await navigate(page, 'Overview');
@@ -241,6 +269,11 @@ for (const theme of ['dark', 'light']) {
     // The picker collapsing changes the dialog's height; let it settle before aiming at Save.
     await expect(editor.getByRole('textbox', { name: 'Name for exercise 1' })).toHaveValue('Barbell back squat');
     await expect(builderPicker).toBeHidden();
+    await screenshot('populated-workout-editor');
+    await cardScreenshot(editor.locator('.workout-builder-exercise-card').first(), 'builder-card');
+    await editor.getByRole('button', { name: 'Range', exact: true }).click();
+    await screenshot('builder-range-prescriptions');
+    await editor.getByRole('button', { name: 'Exact', exact: true }).click();
     await editor.getByRole('button', { name: 'Save workout', exact: true }).click();
     await expect(editor).toBeHidden();
 
@@ -289,7 +322,7 @@ for (const theme of ['dark', 'light']) {
     }));
     expect(fieldsFit, 'expanded prescription controls fit inside their rows').toBe(true);
     await screenshot('expanded-import-day');
-    await page.locator('.draft-day .import-exercise').first().screenshot({ animations: 'disabled', path: join(screenshotsDirectory, 'responsive', `${info.project.name}-${theme}-prescription-card.png`) });
+    await cardScreenshot(page.locator('.draft-day .import-exercise').first(), 'prescription-card');
     const prescriptionCard = page.locator('.draft-day .import-exercise').first();
     await prescriptionCard.getByRole('button', { name: 'Range', exact: true }).click();
     await screenshot('expanded-import-range');

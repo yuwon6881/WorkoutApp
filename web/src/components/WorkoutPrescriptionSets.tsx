@@ -29,7 +29,7 @@ export function WorkoutPrescriptionSets({
   let working = 0;
 
   return (
-    <div className="set-grid-wrap">
+    <div className={`set-grid-wrap ${range ? 'set-grid-range' : 'set-grid-exact'}`}>
       <div className="set-grid-head">
         <span className="set-grid-head-reps">
           <span aria-hidden="true">Reps</span>
@@ -101,7 +101,7 @@ export function WorkoutPrescriptionSets({
                     />
                     {set.warmup ? <WarmupRirNote compact /> : (
                       <div className="field rpe-field">
-                        <span>Target RIR</span>
+                        <span>RIR</span>
                         <RpeControl
                           name={`target-rir-${exercise.id}-${si}`}
                           ariaLabel={`${exercise.name} set ${si + 1} target RIR`}

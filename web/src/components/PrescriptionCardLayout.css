@@ -1,0 +1,53 @@
+/* The whole card shares one header and one quiet control surface. */
+.import-exercise .import-exercise-heading { align-items: start; }
+.prescription-context-row { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 8px; }
+.prescription-context-row .import-exercise-actions { width: auto; }
+.prescription-context-row .superset-badge { gap: 4px; padding: 0 4px 0 8px; min-height: 44px; }
+.prescription-context-row .superset-unlink-chip-btn { margin-left: 0; width: 36px; height: 44px; min-width: 44px; }
+.import-exercise .import-fields { border: 0; background: transparent; padding: 0; gap: 8px; }
+.import-exercise .import-exercise-notes { border: 0; background: transparent; padding: 0; margin: 0; }
+.import-exercise .import-exercise-notes textarea { min-height: 76px; background: var(--surface); }
+.import-exercise .set-grid-wrap { margin-top: 14px; }
+.import-exercise .import-set-footer { max-width: none; margin-top: 10px; }
+.import-exercise .import-library-trigger { min-height: 44px; }
+.import-exercise .substitution-chip { border-radius: var(--radius-control); }
+@media (max-width: 639px) {
+  .import-exercise .import-exercise-heading { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; padding-bottom: 10px; margin-bottom: 12px; }
+  .import-exercise .import-exercise-title { display: flex; flex-wrap: nowrap; gap: 6px; }
+  .import-exercise .builder-exercise-heading { grid-template-columns: minmax(0, 1fr) auto; }
+  .builder-exercise-heading .topbar-actions { justify-content: flex-end; }
+  .import-exercise .builder-exercise-heading:has(.exercise-demo-pill) { grid-template-columns: minmax(0, 1fr); }
+  .import-exercise-title .inline-input-wrap { flex: 1; min-width: 0; }
+  .prescription-context-row { justify-content: space-between; gap: 4px; }
+  .prescription-context-row .import-exercise-actions { margin-left: auto; gap: 4px; }
+  .prescription-context-row .import-rest-field .custom-select-trigger { padding-inline: 6px; }
+  .import-exercise .import-add-set { background: transparent; border-style: dashed; }
+  .import-exercise .import-fields { margin-bottom: 12px; }
+}
+/* Notes and settings occupy the left column; prescriptions use the right column's width. */
+@media (min-width: 1200px) {
+  .import-exercise:not(.workout-builder-exercise-card) {
+    display: grid;
+    grid-template-columns: minmax(0, .9fr) minmax(0, 1.1fr);
+    column-gap: 24px;
+    row-gap: 12px;
+    align-items: start;
+  }
+  .import-exercise > .import-exercise-heading { grid-column: 1 / -1; margin-bottom: 0; }
+  .import-exercise > .import-fields { grid-column: 1; grid-row: 2; margin: 0; }
+  .import-exercise > .import-exercise-notes { grid-column: 1; grid-row: 3 / span 2; }
+  .import-exercise > .set-grid-wrap { grid-column: 2; grid-row: 2 / span 2; margin: 0; }
+  .import-exercise > .import-set-footer { grid-column: 2; grid-row: 4; margin: 0; }
+
+  .import-exercise .import-exercise-notes textarea { min-height: 130px; }
+  .import-exercise > .inline-error { grid-column: 1 / -1; }
+  .workout-builder-exercise-card > .set-grid-wrap { margin-top: 14px; }
+  .workout-builder-exercise-card > .import-set-footer { margin-top: 10px; }
+  .workout-builder-exercise-card > .import-exercise-notes { margin-top: 14px; }
+  .import-exercise.workout-builder-exercise-card .import-exercise-notes textarea { min-height: 76px; }
+}
+
+@media (max-width: 1023px) {
+  .import-exercise .import-exercise-title .inline-input { min-height: 44px; height: 44px; }
+  .import-exercise-title .inline-input-wrap { min-width: 44px; min-height: 44px; }
+}

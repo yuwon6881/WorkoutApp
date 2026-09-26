@@ -337,8 +337,3 @@ html[data-keyboard='open'] .workout-footer .rest-bar { display: none; }
   .import-fields .import-library-field,
   .import-fields .import-substitutions-field { flex: 1 1 100%; min-width: 0; }
 }
-
-@media (min-width: 1024px) {
-  .import-exercise .import-set-footer { max-width: 570px; }
-  .import-exercise:has(.set-grid-typed) .import-set-footer { max-width: 486px; }
-}

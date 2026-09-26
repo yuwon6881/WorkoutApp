@@ -39,7 +39,7 @@
 
 .set-grid-wrap .import-set-content.set-grid-row {
   display: grid;
-  align-items: center;
+  align-items: end;
   gap: 8px;
   padding: 8px;
   border: 0;
@@ -198,117 +198,113 @@
 .set-grid-head-rir { grid-area: rir; text-align: center; }
 .set-grid-head-tempo { grid-area: tempo; text-align: center; }
 
-/* Compact: the set badge and type on one line, the prescription on the next. The head is one
-   line with the same columns, so the RIR label is printed once, directly over its column. */
-.set-grid-wrap .set-grid-row {
-  grid-template-columns: minmax(0, 1fr) 48px 64px;
-  grid-template-areas:
-    "meta meta meta"
-    "reps rir tempo";
-}
 
+/* The mode switch belongs to the exercise, separate from the numeric column labels. */
 .set-grid-wrap .set-grid-head {
-  grid-template-columns: minmax(0, 1fr) 48px 64px;
-  grid-template-areas: "reps rir tempo";
+  display: flex;
+  justify-content: space-between;
+  padding: 0 0 10px;
+  gap: 8px;
 }
-
-.set-grid-typed.set-grid-wrap .set-grid-row {
-  grid-template-columns: minmax(0, 1fr) 48px;
-  grid-template-areas:
-    "meta meta"
-    "reps rir";
-}
-
-.set-grid-typed.set-grid-wrap .set-grid-head {
-  grid-template-columns: minmax(0, 1fr) 48px;
-  grid-template-areas: "reps rir";
-}
-
-/* On the narrowest editors the toggle already says what the column holds. */
-@container set-grid (max-width: 260px) {
-  .set-grid-head-reps > span:first-child { display: none; }
-}
-
-.set-grid-typed .set-grid-head-tempo { display: none; }
-
-/* Wide: one line per set. The meta column is fixed so the head lines up with the rows. */
-@container set-grid (min-width: 600px) {
-  .set-grid-wrap .set-grid-row {
-    grid-template-columns: 176px 172px 52px 76px;
-    grid-template-areas: "meta reps rir tempo";
-  }
-
-  .set-grid-wrap .set-grid-head {
-    grid-template-columns: 176px 172px 52px 76px;
-    grid-template-areas: ". reps rir tempo";
-  }
-
-  .set-grid-typed.set-grid-wrap .set-grid-row {
-    grid-template-columns: 176px 172px 52px;
-    grid-template-areas: "meta reps rir";
-  }
-
-  .set-grid-typed.set-grid-wrap .set-grid-head {
-    grid-template-columns: 176px 172px 52px;
-    grid-template-areas: ". reps rir";
-  }
-}
-
-/* Phone rows keep delete behind the swipe, so the head needs no gutter there. */
+.set-grid-head-reps { gap: 8px; }
+.set-grid-head-rir { display: block; padding-right: 70px; }
 @media (max-width: 639px) {
-  .set-grid-head {
-    padding-right: 9px;
+  .set-grid-head-rir { padding-right: 18px; }
+}
+.set-grid-head-tempo { display: none; }
+.set-grid-wrap .set-grid-row {
+  grid-template-columns: 132px minmax(0, 1fr) 44px;
+  grid-template-areas: "meta reps rir" "tempo tempo tempo";
+  gap: 8px;
+}
+.set-grid-typed.set-grid-wrap .set-grid-row {
+  grid-template-areas: "meta reps rir";
+}
+.set-grid-row .rep-single-input-wrap,
+.set-grid-row .rep-range-inputs,
+.set-grid-row .rep-open-value { width: 100%; }
+.set-grid-row .rpe-field { justify-self: end; }
+.set-grid-row .set-tempo-field { max-width: 160px; }
+.set-grid-row .set-tempo-field > span:first-child {
+  position: static;
+  width: auto;
+  height: auto;
+  margin: 0;
+  clip: auto;
+}
+.set-grid-list.import-sets { gap: 0; border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+.set-grid-wrap .import-set-swipe-row,
+.set-grid-wrap .import-set.warmup-row .import-set-swipe-row {
+  border: 0;
+  border-radius: 0;
+  border-top: 1px solid var(--border);
+  background: transparent;
+}
+.set-grid-list .import-set:first-child .import-set-swipe-row { border-top: 0; }
+.set-grid-list .import-set { opacity: 1; background: transparent; }
+.set-grid-wrap .import-set-content.set-grid-row { padding: 10px; }
+.set-grid-wrap .set-grid-row .set-type-select .custom-select-trigger {
+  background: transparent;
+  border-color: transparent;
+  padding-inline: 4px;
+}
+.set-grid-wrap .set-grid-row .set-type-select.set-type-warmup .custom-select-trigger { color: var(--blue); }
+.set-grid-wrap .set-grid-row .set-type-select.set-type-myoreps .custom-select-trigger,
+.set-grid-wrap .set-grid-row .set-type-select.set-type-dropset .custom-select-trigger { color: var(--accent); }
+
+@container set-grid (max-width: 359px) {
+  .set-grid-wrap .set-grid-head-rir { display: none; }
+  .set-grid-wrap .set-grid-row .rpe-field > span:first-child {
+    position: static; width: auto; height: auto; margin: 0; clip: auto;
   }
-}
-
-@media (min-width: 1024px) {
-  .set-grid-row input,
-  .set-grid-wrap .swipeable-row-desktop-actions .import-set-remove {
-    min-height: 40px;
-    height: 40px;
+  .set-grid-wrap .set-grid-row {
+    grid-template-columns: minmax(0, 1fr) 44px;
+    grid-template-areas: "meta meta" "reps rir" "tempo tempo";
+    align-items: end;
+    gap: 6px;
   }
-
-  .set-grid-wrap .swipeable-row-desktop-actions .import-set-remove {
-    width: 40px;
-    min-width: 40px;
-  }
-
-  .set-grid-head .rep-mode-btn::after { inset: 0; }
-}
-
-/* Phone rows keep delete behind a swipe. A drawer handle on the trailing edge shows that the row
-   moves, and stays visible for anyone who turned motion off and never sees the first-use peek. */
-.set-grid-wrap .swipeable-row-surface::after {
-  content: "";
-  position: absolute;
-  top: 50%;
-  right: 3px;
-  width: 3px;
-  height: 24px;
-  margin-top: -12px;
-  border-radius: var(--radius-pill);
-  background: var(--border-hover);
-  pointer-events: none;
-}
-
-/* Keep desktop deletion beside the prescription rather than at the card's far edge. */
-@container set-grid (min-width: 600px) {
-  .set-grid-wrap .import-set-swipe-row { max-width: 570px; }
-  .set-grid-typed.set-grid-wrap .import-set-swipe-row { max-width: 486px; }
-}
-@container set-grid (max-width: 260px) {
-  .set-grid-wrap:not(.set-grid-typed) .set-grid-row {
-    grid-template-columns: minmax(0, 1fr) 48px;
+  .set-grid-typed.set-grid-wrap .set-grid-row { grid-template-areas: "meta meta" "reps rir"; }
+  .set-grid-wrap .set-grid-row .set-type-select { width: 112px; min-width: 112px; max-width: 112px; }
+  .set-grid-wrap .set-grid-row .set-type-select .custom-select-trigger { gap: 2px; padding-inline: 0; }
+  .set-grid-wrap .set-grid-row .set-type-select .custom-select-text { font-size: 14px; }
+  .set-grid-wrap.set-grid-range .set-grid-row {
+    grid-template-columns: minmax(0, 1fr) 44px;
     grid-template-areas: "meta meta" "reps rir" "tempo tempo";
   }
-  .set-grid-wrap:not(.set-grid-typed) .set-grid-head {
-    grid-template-columns: minmax(0, 1fr) 48px;
-    grid-template-areas: "reps rir";
+  .set-grid-typed.set-grid-wrap.set-grid-range .set-grid-row { grid-template-areas: "meta meta" "reps rir"; }
+}
+@container set-grid (max-width: 249px) {
+  .set-grid-wrap .set-grid-row {
+    grid-template-columns: minmax(0, 1fr) 44px;
+    grid-template-areas: "meta meta" "reps rir" "tempo tempo";
   }
-  .set-grid-head-tempo { display: none; }
-  .set-grid-row .set-tempo-field { justify-self: start; width: 100%; }
+  .set-grid-typed.set-grid-wrap .set-grid-row { grid-template-areas: "meta meta" "reps rir"; }
+}
+@container set-grid (min-width: 600px) {
+  .set-grid-wrap .set-grid-row {
+    grid-template-columns: 132px minmax(0, 1fr) 44px minmax(64px, .7fr);
+    align-items: end;
+    grid-template-areas: "meta reps rir tempo";
+  }
+  .set-grid-typed.set-grid-wrap .set-grid-row { grid-template-columns: 132px minmax(0, 1fr) 44px; grid-template-areas: "meta reps rir"; }
+}
+@media (max-width: 1023px) {
+  .set-grid-head .rep-mode-btn { min-height: 44px; height: 44px; padding-inline: 10px; }
 }
 
-@media (max-width: 1023px) {
-  .set-grid-head .rep-mode-btn { min-height: 44px; height: 44px; padding-inline: 8px; }
+@container set-grid (min-width: 250px) and (max-width: 599px) {
+  .set-grid-wrap:not(.set-grid-typed) .set-grid-row {
+    grid-template-columns: minmax(112px, 1fr) 88px;
+    grid-template-areas: "meta tempo" "reps rir";
+    align-items: end;
+  }
+  .set-grid-wrap:not(.set-grid-typed) .set-grid-head-rir { display: none; }
+  .set-grid-wrap:not(.set-grid-typed) .set-grid-row .rpe-field > span:first-child {
+    position: static; width: auto; height: auto; margin: 0; clip: auto;
+  }
+}
+
+.set-grid-wrap:not(.set-grid-typed) .set-grid-head-rir { display: none; }
+.set-grid-wrap:not(.set-grid-typed) .set-grid-row .rpe-field > span:first-child {
+  position: static; width: auto; height: auto; margin: 0; clip: auto;
 }

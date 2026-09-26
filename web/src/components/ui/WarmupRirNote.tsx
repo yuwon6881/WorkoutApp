@@ -86,7 +86,7 @@ export function WarmupRirNote({ compact = false, dataImportIndex }: WarmupRirNot
       data-import-field="targetRpe"
       data-import-set-index={dataImportIndex}
     >
-      <span>Target RIR</span>
+      <span>RIR</span>
       <Button
         ref={triggerRef}
         presentation="plain"
