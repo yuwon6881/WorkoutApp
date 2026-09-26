@@ -161,4 +161,55 @@ public sealed class AdaptiveProgressionTests
         Assert.Equal(ProgressionModes.Conservative, NutritionContextService.Mode(Context(.5, null, null, now.AddDays(-6).AddHours(-23)), now));
         Assert.Equal(ProgressionModes.Normal, NutritionContextService.Mode(Context(.5, null, null, now.AddDays(-8)), now));
     }
+
+    [Fact]
+    public void One_hard_exposure_retains_achieved_reps_clamped_to_range()
+    {
+        var result = Progression.SuggestSet(8, 12, 8, [Exposure(50, 11, 9)], ProgressionModes.Normal, 2.5);
+        Assert.Equal(50, result.SuggestedLoadKg);
+        Assert.Equal(11, result.SuggestedReps);
+        Assert.Contains("intended effort", result.Reason);
+    }
+
+    [Fact]
+    public void Preservation_holds_reps_after_one_qualifying_exposure_and_increases_after_two()
+    {
+        var one = Progression.SuggestSet(8, 12, 8, [Exposure(50, 10, 7)], ProgressionModes.Preservation, 2.5);
+        Assert.Equal(50, one.SuggestedLoadKg);
+        Assert.Equal(10, one.SuggestedReps);
+        Assert.Contains("Preservation heuristic", one.Reason);
+
+        var two = Progression.SuggestSet(8, 12, 8, [Exposure(50, 10, 7), Exposure(50, 10, 7, 7)], ProgressionModes.Preservation, 2.5);
+        Assert.Equal(50, two.SuggestedLoadKg);
+        Assert.Equal(11, two.SuggestedReps);
+        Assert.Contains("two consecutive exposures", two.Reason);
+    }
+
+    [Fact]
+    public void Preservation_missing_effort_or_unspecified_target_holds_reps()
+    {
+        var missingEffort = Progression.SuggestSet(8, 12, 8,
+            [Exposure(50, 10, null), Exposure(50, 10, 7, 7)], ProgressionModes.Preservation, 2.5);
+        Assert.Equal(50, missingEffort.SuggestedLoadKg);
+        Assert.Equal(10, missingEffort.SuggestedReps);
+
+        var unspecifiedTarget = Progression.SuggestSet(8, 12, null,
+            [Exposure(50, 10, 7), Exposure(50, 10, 7, 7)], ProgressionModes.Preservation, 2.5);
+        Assert.Equal(50, unspecifiedTarget.SuggestedLoadKg);
+        Assert.Equal(10, unspecifiedTarget.SuggestedReps);
+    }
+
+    [Fact]
+    public void Preservation_prescription_or_load_change_breaks_continuity()
+    {
+        var loadChanged = Progression.SuggestSet(8, 12, 8,
+            [Exposure(50, 10, 7), Exposure(52.5, 10, 7, 7)], ProgressionModes.Preservation, 2.5);
+        Assert.Equal(50, loadChanged.SuggestedLoadKg);
+        Assert.Equal(10, loadChanged.SuggestedReps);
+
+        var prescChanged = Progression.SuggestSet(8, 12, 8,
+            [Exposure(50, 10, 7), Exposure(50, 10, 7, 7) with { RepMin = 10, HasPrescription = true }], ProgressionModes.Preservation, 2.5);
+        Assert.Equal(50, prescChanged.SuggestedLoadKg);
+        Assert.Equal(10, prescChanged.SuggestedReps);
+    }
 }

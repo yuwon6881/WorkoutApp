@@ -53,6 +53,9 @@ every 15 seconds while its no-workout screen is open. The Android app (`web/andr
 workouts through the same account-backed workout API; the watch reads the server's active workout regardless of
 which client started it. The virtual device uses the same app behavior and layout, while physical
 vibration strength, battery use, and manufacturer-specific screen behavior still require a watch.
+Android foreground-service classification also needs release review; Play approval and physical-watch
+power/timing measurements are not claimed. See `wear/README.md` for the documented manual-logging
+use case, permission prerequisites, and reproducible 20-set measurement protocol.
 
 ## UI text and type
 
@@ -71,8 +74,11 @@ decision. Passive status rows are regular content; only rows with an available a
 - Workouts built by hand, or imported from a training PDF by AI and corrected in a review screen
   before anything becomes a program.
 - Set logging with weight, reps, and RPE; the next session is prefilled but never pre-logged.
-- A standalone Wear OS companion joins an active workout after short-code approval in WorkoutApp settings. Its device session reads only the live workout and changes only logged values (reps, load, RIR, done); starting, restructuring, and discarding workouts stay on the phone. It logs reps, load, and RIR with undo of its last logged set; manages rest, pause/resume, and confirmed finish; and queues watch changes locally for ordered, revision-aware replay after network gaps. Same-set and finish conflicts remain available for review; edits WorkoutApp refuses, or that target a workout already finished or discarded on the phone, are released with a notice instead of retrying forever. An ongoing activity returns to the workout from the watch face, and rest completion vibrates once. Pairing codes expire after five minutes; the revocable device link renews while in use and expires after a year idle. Pairing secrets are encrypted with Android Keystore; the server remains authoritative for workout state.
+- A standalone Wear OS companion joins an active workout after short-code approval in WorkoutApp settings. Its device session reads only the live workout and changes only logged values (reps, load, RIR, done); starting, restructuring, and discarding workouts stay on the phone. It logs reps, load, and RIR with undo of its last logged set; manages rest, pause/resume, and confirmed finish; and queues watch changes locally for ordered, revision-aware replay after network gaps. Revision-only server bumps rebase cleanly; same-set and finish conflicts remain available for review; edits WorkoutApp refuses, or that target a workout already finished or discarded on the phone, are released with a notice instead of retrying forever. An ongoing activity returns to the workout from the watch face, and rest completion vibrates once via a bounded rest wake lock. Pairing codes expire after five minutes; the revocable device link renews while in use and expires after a year idle. Pairing secrets are encrypted with Android Keystore; the server remains authoritative for workout state.
 - Progression uses each completed working set's history, prescribed reps and effort, and the exercise's load increment. Reps build at the same load; reaching the range ceiling at suitable effort earns the next available weight with an estimated rep goal. An exact target one rep above the last result is a normal progression attempt, not an automatic failed session.
+  - An initial hard exposure retains achieved reps (clamped to the prescribed range) to match intended effort rather than dropping to the prescription minimum.
+  - For a confirmed Nutrition loss goal, the product's preservation heuristic requires 2 consecutive exposures at the same load and prescription, each reaching the latest rep result with at least one extra rep in reserve beyond the target effort, before advancing ordinary in-range reps. Missing effort or a missing target holds reps; changed prescriptions or loads break evidence continuity. This is a product heuristic, not a scientifically mandated threshold. Gain goals remain on standard progression; a goal label alone does not establish a calorie surplus.
+  - Active workouts display an accessible progression summary with the stored mode, recorded Nutrition goal when fresh at workout start, and its reason. It uses the frozen session context and stored suggestions; stale or unconfirmed Nutrition data is identified rather than re-evaluated from current data.
   - Changed rep/RIR prescriptions reselect a suitable load. Missing target RIR does not silently become RIR 2, and recorded 5+ RIR remains useful effort evidence. Without recorded effort, repeated top-range results are required before a cautious increase.
   - A large minimum weight step may temporarily suggest fewer reps only after the top of a range is earned: at least 60% of the lower bound and never below six reps. The saved transition rebuilds toward the original range without overwriting the prescription or treating fewer reps alone as failure. Impractical jumps stay at the current weight. A modest step may aim one rep above its estimate while staying inside the prescription.
   - Unspecified/AMRAP rep targets remain empty. Load increases require repeated improving performance at the same load (at least two sessions with effort, three without); the engine never treats these sets as having a one-rep ceiling. Recovery suggestions cannot exceed the current load.
@@ -80,8 +86,14 @@ decision. Passive status rows are regular content; only rows with an available a
   - `api/Domain/LoadOptions.cs` supplies fixed increments, uneven available-weight lists, bounds, and next/previous weights independently of progression. The service resolves account-specific exercise settings with the catalog/custom increment as the default. Edit these in the exercise library under **Weight settings**; the existing logged-weight convention is preserved.
   RPE decides the pace, a hard or missed session holds, and a lift that has not moved for two
   sessions is offered a lighter week. Strength is estimated with Epley extended by reps in
-  reserve — a set is rated as if it had been carried to failure — and a set outside the range
-  that equation holds produces no estimate rather than a misleading one. Every suggestion says
+  reserve (up to 12 effective reps) — a set is rated as if it had been carried to failure — and a set outside the range
+  that equation holds produces no estimate rather than a misleading one. Separate rep PRs compare
+  completed working sets by exercise, load model, resistance mode, and canonical comparable load; full-bodyweight
+  records require the workout's frozen system load, loadless movements compare reps without weight, and unknown
+  weighted loads are ineligible. A first exposure establishes a baseline, ties do not win, and high-rep sets can earn
+  rep PRs without an e1RM. Live celebrations, set markers (`pr-set-tag`), and exercise history badges
+  (`pr-exercise-badge`) distinguish "Rep best", "Estimated strength best", and combined records, while counting
+  each exercise once in session PR summaries. Every suggestion says
   in words why it changed, and a program's own reps and RPE are never overwritten.
 - The Body tab shows completed working-set coverage by muscle for the last week, month, or three
   months. Each set credits its primary muscle fully and secondary muscles at half weight; fixed
@@ -101,6 +113,12 @@ decision. Passive status rows are regular content; only rows with an available a
   with no selectable text contribute nothing and are reported rather than guessed at; a scanned
   document has to be re-saved as a text PDF. The extracted text is held for 24 hours so an
   interrupted read continues, and is dropped as soon as the draft is complete.
+- Imported prescriptions retain per-set techniques such as partial reps, lengthened partials, and
+  integrated partials. Row instructions for top- or bottom-half ROM work are recognized too, including
+  compound sequences such as 7/7/7; their printed rep notation stays intact. Printed set qualifiers
+  determine the working sets that receive a technique, and the active workout labels those sets while
+  keeping the source cues. When a counted ROM sequence conflicts with the printed rep target, import
+  review flags the source page and rep field for a choice instead of silently changing either value.
 - Kilograms are canonical; pounds are a display conversion.
 
 ## Data boundaries

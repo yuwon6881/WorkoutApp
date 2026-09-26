@@ -43,9 +43,9 @@ function merge(left: Bounds | null, right: Bounds | null): Bounds | null {
   };
 }
 
-function regionBounds(muscle: string, path: string): Bounds | null {
+function regionBounds(muscle: string, path: string, centered = false): Bounds | null {
   const subpaths = path.split('M').slice(1).map(part => `M${part}`);
-  const limb = ONE_LIMB.has(muscle);
+  const limb = centered ? false : ONE_LIMB.has(muscle);
   let bounds: Bounds | null = null;
   for (const subpath of subpaths) {
     const part = boundsOf(subpath);
@@ -59,12 +59,22 @@ function regionBounds(muscle: string, path: string): Bounds | null {
 /**
  * A view box around the muscle with breathing room, widened to `aspect` (width / height) and never
  * smaller than `minSize` on its short edge, so small plates are shown with enough surrounding body
- * to be recognisable.
+ * to be recognisable. When `centered` is true, frames the full horizontal body width centered at
+ * the midline, showing both limbs and ~1/3 to 1/2 of the body height.
  */
 export function focusViewBox(muscle: string, path: string, aspect: number, frame: ViewBox,
-  { padding = 0.35, minSize = 64 }: { padding?: number; minSize?: number } = {}): ViewBox {
-  const bounds = regionBounds(muscle, path);
+  { padding = 0.35, minSize = 64, centered = false }: { padding?: number; minSize?: number; centered?: boolean } = {}): ViewBox {
+  const bounds = regionBounds(muscle, path, centered);
   if (!bounds) return frame;
+
+  if (centered) {
+    const width = frame.width;
+    const height = Math.min(frame.height, Math.max(minSize, width / aspect));
+    const centreY = (bounds.minY + bounds.maxY) / 2;
+    const y = Math.min(Math.max(centreY - height / 2, frame.y), frame.y + frame.height - height);
+    return { x: frame.x, y: round(y), width: round(width), height: round(height) };
+  }
+
   const centreX = (bounds.minX + bounds.maxX) / 2;
   const centreY = (bounds.minY + bounds.maxY) / 2;
   let width = (bounds.maxX - bounds.minX) * (1 + padding * 2);

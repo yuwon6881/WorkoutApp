@@ -27,6 +27,7 @@ internal static partial class ImportTableEvidence
     /// never prints. A bare integer is not enough, because tracking columns are headed "1 | 2 | 3".
     private static readonly Regex HeaderValue = new(@"^(?:[~≈]\s*\d.*|\d+(?:\.\d+)?\s*[-–]\s*\d+(?:\.\d+)?\s*(?:min|mins|minutes?|sec|secs|seconds?|s|m|reps?)?|\d+(?:\.\d+)?\s*(?:min|mins|minutes?|sec|secs|seconds?|%)|\d+\.\d+)$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
     private const int MaxHeaderLength = 48;
+    private const string PartialRangePhrase = @"(?:partials?(?:\s+reps?)?(?:\s+rom)?|half[- ]?rom|half\s+reps?|(?:(?:top|bottom)[- ]?)?half(?:\s+of)?\s+(?:the\s+)?rom)";
 
     private sealed record EvidenceRow(string? ExerciseName, int? WorkingSets, string? RepsText, int? RepMin, int? RepMax,
         string? LoadText, string? RirText, double? Rir, List<RirEvidence> RirBySet,
@@ -244,6 +245,14 @@ internal static partial class ImportTableEvidence
         if (targetRpe is null && !Regex.IsMatch(resolvedRir ?? "", @"\d"))
             rpeSource = (last ? evidence.LastEffortAbsent : evidence.EarlyEffortAbsent) ? "extracted" : "inferred";
         var restText = HasText(set.RestText) ? set.RestText : evidence.RestText;
+        // A font-extraction loss may omit the I in a printed "min". When the page or the
+        // column has already proved the source unit and supplied the repaired text, prefer that
+        // spelling over the matching malformed model transcription without rewriting other
+        // valid model prescriptions on a positional-only match.
+        if (HasText(evidence.RestText)
+            && Regex.IsMatch(set.RestText ?? "", @"\bmn$", RegexOptions.IgnoreCase)
+            && Regex.IsMatch(evidence.RestText!, @"\bmin$", RegexOptions.IgnoreCase))
+            restText = evidence.RestText;
         var restSeconds = set.RestSeconds ?? evidence.RestSeconds ?? ParseRestSeconds(restText);
         var repsText = HasText(set.RepsText) ? set.RepsText : evidence.RepsText;
         var hasModelRepBounds = set.RepMin > 0 && set.RepMax >= set.RepMin
@@ -263,7 +272,7 @@ internal static partial class ImportTableEvidence
             RepsSource = !HasText(set.RepsText) && HasText(evidence.RepsText) ? "extracted" : set.RepsSource,
             LoadText = HasText(set.LoadText) ? set.LoadText : evidence.LoadText,
             Tempo = HasText(set.Tempo) ? set.Tempo : evidence.Tempo,
-            Notes = last && !HasText(set.Notes) ? evidence.Technique ?? set.Notes : set.Notes,
+            Notes = TechniqueNotes(set.Notes, evidence, index, count),
             TargetRpe = targetRpe,
             Rir = resolvedRir,
             RpeSource = rpeSource,
@@ -273,5 +282,134 @@ internal static partial class ImportTableEvidence
                 ? evidence.RestStatedAbsent || evidence.RestNotStated ? "extracted" : "inferred"
                 : set.RestSeconds is null && (evidence.RestSeconds is not null || HasText(evidence.RestText)) ? "extracted" : set.RestSource
         };
+    }
+
+    /// A dedicated intensity-technique column defaults to the final working set. Explicit set
+    /// qualifiers in the cell can widen or narrow that scope. Row-level coaching notes apply to
+    /// the exercise's working sets unless they name a narrower set.
+    private static string? TechniqueNotes(string? existing, EvidenceRow evidence, int index, int count)
+    {
+        var technique = evidence.Technique;
+        var applies = HasText(technique) && TechniqueApplies(technique!, index, count, defaultAll: false);
+
+        var partialFromNotes = PrescribedPartialTechnique(evidence.CoachingNote);
+        if (partialFromNotes is not null
+            && !string.Equals(PartialTechnique(technique), partialFromNotes, StringComparison.OrdinalIgnoreCase)
+            && TechniqueApplies(evidence.CoachingNote!, index, count, defaultAll: true))
+        {
+            if (applies) return MergeTechnique(existing, technique!, partialFromNotes);
+            return MergeTechnique(existing, partialFromNotes);
+        }
+
+        return applies ? MergeTechnique(existing, technique!) : existing;
+    }
+
+    private static bool TechniqueApplies(string source, int index, int count, bool defaultAll)
+    {
+        if (Regex.IsMatch(source,
+            @"\b(?:all|each|every)\s+(?:(?:of|the)\s+)*(?:(?:one|two|three|\d+)\s+)?(?:working\s+)?sets?\b",
+            RegexOptions.IgnoreCase))
+            return true;
+
+        var selected = new HashSet<int>();
+        foreach (Match range in Regex.Matches(source,
+            @"\bsets?\s+(?<first>\d+)\s*[-–]\s*(?<last>\d+)\b", RegexOptions.IgnoreCase))
+        {
+            if (!int.TryParse(range.Groups["first"].Value, out var first)
+                || !int.TryParse(range.Groups["last"].Value, out var last)) continue;
+            for (var number = Math.Min(first, last); number <= Math.Max(first, last) && number <= count; number++)
+                selected.Add(number);
+        }
+        foreach (Match set in Regex.Matches(source, @"\bset\s*(?<number>\d+)\b", RegexOptions.IgnoreCase))
+            if (int.TryParse(set.Groups["number"].Value, out var number)) selected.Add(number);
+
+        foreach (Match setList in Regex.Matches(source,
+            @"\bsets\s+(?<numbers>\d+(?:\s*(?:,|and|&)\s*\d+)+)\b", RegexOptions.IgnoreCase))
+            foreach (Match number in Regex.Matches(setList.Groups["numbers"].Value, @"\d+"))
+                if (int.TryParse(number.Value, out var selectedNumber)) selected.Add(selectedNumber);
+
+        var lastCount = Regex.Match(source, @"\b(?:last|final)\s+(?<count>one|two|three|\d+)\s+(?:working\s+)?sets?\b", RegexOptions.IgnoreCase);
+        if (lastCount.Success)
+        {
+            var amount = lastCount.Groups["count"].Value.ToLowerInvariant() switch
+            {
+                "one" => 1, "two" => 2, "three" => 3,
+                var number when int.TryParse(number, out var parsed) => parsed,
+                _ => 0
+            };
+            for (var number = Math.Max(1, count - amount + 1); number <= count; number++) selected.Add(number);
+        }
+        else if (Regex.IsMatch(source, @"\b(?:last|final)\s+(?:working\s+)?set\b", RegexOptions.IgnoreCase))
+        {
+            selected.Add(count);
+        }
+
+        var firstCount = Regex.Match(source, @"\bfirst\s+(?<count>one|two|three|\d+)\s+(?:working\s+)?sets?\b", RegexOptions.IgnoreCase);
+        if (firstCount.Success)
+        {
+            var amount = firstCount.Groups["count"].Value.ToLowerInvariant() switch
+            {
+                "one" => 1, "two" => 2, "three" => 3,
+                var number when int.TryParse(number, out var parsed) => parsed,
+                _ => 0
+            };
+            for (var number = 1; number <= Math.Min(count, amount); number++) selected.Add(number);
+        }
+
+        if (selected.Count > 0) return selected.Contains(index + 1);
+        if (Regex.IsMatch(source, @"\b(?:last|final)\s+(?:working\s+)?set\b", RegexOptions.IgnoreCase))
+            return index == count - 1;
+        if (Regex.IsMatch(source, @"\bfirst\s+(?:working\s+)?set\b", RegexOptions.IgnoreCase))
+            return index == 0;
+        return defaultAll || index == count - 1;
+    }
+
+    private static string? PartialTechnique(string? source)
+    {
+        if (!HasText(source) || !Regex.IsMatch(source!, $@"\b{PartialRangePhrase}\b", RegexOptions.IgnoreCase)) return null;
+        if (Regex.IsMatch(source!, @"\b(?:lengthened|long[- ]length)\s+partials?\b", RegexOptions.IgnoreCase))
+            return "Lengthened partials";
+        if (Regex.IsMatch(source!, @"\bintegrated\s+partials?\b", RegexOptions.IgnoreCase))
+            return "Integrated partials";
+        return "Partial reps";
+    }
+
+    private static string? PrescribedPartialTechnique(string? source)
+    {
+        var technique = PartialTechnique(source);
+        if (technique is null || Regex.IsMatch(source!,
+            $@"\b(?:avoid|don't|do\s+not|never|without)\b[^.!?]{{0,60}}\b{PartialRangePhrase}\b|\b(?:no|not)\s+(?:using\s+)?{PartialRangePhrase}\b",
+            RegexOptions.IgnoreCase)) return null;
+        if (Regex.IsMatch(source!, @"\b\d+\s+(?:reps?\s+)?(?:in\s+)?(?:the\s+)?(?:top|bottom)[- ]?half(?:\s+of)?\s+(?:the\s+)?rom\b", RegexOptions.IgnoreCase))
+            return technique;
+        return Regex.IsMatch(source!,
+            $@"\b(?:use|using|perform|continue|follow|switch|alternate|add|finish|end|include|do|swing)\b[^.!?]{{0,70}}\b{PartialRangePhrase}\b|\b{PartialRangePhrase}\b[^.!?]{{0,70}}\b(?:on|during|for)\s+(?:the\s+)?(?:(?:all|each|every|first|last|final)\s+)?(?:(?:one|two|three|\d+)\s+)?(?:(?:working\s+)?sets?|reps?|rom)(?:\s+\d+)?\b",
+            RegexOptions.IgnoreCase) ? technique : null;
+    }
+
+    private static string? MergeTechnique(string? existing, params string[] techniques)
+    {
+        var result = existing?.Trim();
+        foreach (var technique in techniques)
+        {
+            if (string.IsNullOrWhiteSpace(technique)) continue;
+            var currentPartial = PartialTechnique(result);
+            var nextPartial = PartialTechnique(technique);
+            if (currentPartial is not null && nextPartial is not null)
+            {
+                // Printed wording and qualifiers are the source of truth when the model also
+                // returned a generic or shorter version of a partial-rep technique.
+                var currentIsGeneric = string.Equals(currentPartial, "Partial reps", StringComparison.OrdinalIgnoreCase);
+                var nextIsGeneric = string.Equals(nextPartial, "Partial reps", StringComparison.OrdinalIgnoreCase);
+                if (currentIsGeneric && !nextIsGeneric
+                    || !currentIsGeneric && !nextIsGeneric
+                    && string.Equals(currentPartial, nextPartial, StringComparison.OrdinalIgnoreCase))
+                    result = technique;
+                continue;
+            }
+            if (result is null) result = technique;
+            else if (!result.Contains(technique, StringComparison.OrdinalIgnoreCase)) result = $"{result} — {technique}";
+        }
+        return result;
     }
 }

@@ -16,5 +16,19 @@
       "page": 34,
       "targetField": "targetRpe"
     }
+  },
+  "High_Frequency_Full_Body_Program_5xweek": {
+    "expectedFailures": [
+      { "code": "rep_technique_conflict", "page": 57, "targetField": "repMin" },
+      { "code": "rep_technique_conflict", "page": 60, "targetField": "repMin" },
+      { "code": "rep_technique_conflict", "page": 63, "targetField": "repMin" }
+    ]
+  },
+  "Upper_Lower_Program_6xweek": {
+    "expectedFailure": {
+      "code": "rep_technique_conflict",
+      "page": 49,
+      "targetField": "repMin"
+    }
   }
 }

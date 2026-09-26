@@ -6,6 +6,174 @@ namespace Workout.Tests;
 
 public sealed class ImportTableEvidenceTests
 {
+    [Theory]
+    [InlineData("Integrated Partials (All Sets)", 3)]
+    [InlineData("Integrated Partials (on all reps of the last set)", 1)]
+    [InlineData("Lengthened Partials (Extend Set)", 1)]
+    public void Intensity_technique_qualifiers_control_the_working_sets_that_receive_it(string technique, int taggedSets)
+    {
+        var program = new AiProgram("Partial technique", [new AiDay(null, null, 1, 1, "Day 1", false, null, [
+            new AiExercise("Lat Pulldown", null, null, [
+                new AiSet(8, 10, null, null, null, null, null),
+                new AiSet(8, 10, null, null, null, null, null),
+                new AiSet(8, 10, null, null, null, null, null)
+            ], SourcePage: 9, WorkingSets: "3")
+        ], 9)]);
+        var source = $"""
+            === PAGE 9 ===
+            WEEK 1
+            DAY LABEL: DAY 1
+            EXERCISE | LAST-SET INTENSITY TECHNIQUE | WORKING SETS | REPS | REST
+            LAT PULLDOWN | {technique} | 3 | 8-10 | 2-3 MIN
+            """;
+
+        var sets = Assert.Single(Assert.Single(ImportTableEvidence.Enrich(program, source).Days!).Exercises).Sets;
+
+        Assert.Equal(taggedSets, sets.Count(set => set.Notes is not null));
+        Assert.All(sets.Where(set => set.Notes is not null), set => Assert.Contains(technique, set.Notes, StringComparison.OrdinalIgnoreCase));
+        Assert.Equal("8-10", sets[0].RepsText);
+    }
+
+    [Fact]
+    public void Printed_specific_partial_technique_replaces_a_generic_model_label()
+    {
+        var program = new AiProgram("Integrated partials", [new AiDay(null, null, 1, 1, "Day 1", false, null, [
+            new AiExercise("Neutral-Grip Lat Pulldown", null, null, [
+                new AiSet(8, 10, null, null, null, null, "Partial reps"),
+                new AiSet(8, 10, null, null, null, null, "Partial reps")
+            ], CoachingNotes: "Alternate full-ROM reps and partial reps; partial reps count toward the target reps.", SourcePage: 9, WorkingSets: "2")
+        ], 9)]);
+        const string source = """
+            === PAGE 9 ===
+            WEEK 1
+            DAY LABEL: DAY 1
+            EXERCISE | LAST-SET INTENSITY TECHNIQUE | WORKING SETS | REPS | NOTES
+            NEUTRAL-GRIP LAT PULLDOWN | Integrated Partials (All Sets) | 2 | 8-10 | Alternate full-ROM reps and partial reps; partial reps count toward the target reps.
+            """;
+
+        var sets = Assert.Single(Assert.Single(ImportTableEvidence.Enrich(program, source).Days!).Exercises).Sets;
+
+        Assert.All(sets, set => Assert.Equal("Integrated Partials (All Sets)", set.Notes));
+        Assert.All(sets, set => Assert.Equal((8, 10, "8-10"), (set.RepMin, set.RepMax, set.RepsText)));
+    }
+
+    [Theory]
+    [InlineData("Use a partial ROM throughout each set.", 3)]
+    [InlineData("Swing the weight with a partial ROM.", 3)]
+    [InlineData("After full-ROM reps, continue with partial reps on the last set.", 1)]
+    [InlineData("Use partial reps on the final working set.", 1)]
+    [InlineData("Use partial reps during the first two working sets.", 2)]
+    [InlineData("Use partial reps on sets 1 and 3.", 2)]
+    public void Exercise_row_partial_rep_instructions_are_attached_with_their_scope(string note, int taggedSets)
+    {
+        var program = new AiProgram("Partial notes", [new AiDay(null, null, 1, 1, "Day 1", false, null, [
+            new AiExercise("Lateral Raise", null, null, [
+                new AiSet(12, 15, null, null, null, null, null),
+                new AiSet(12, 15, null, null, null, null, null),
+                new AiSet(12, 15, null, null, null, null, null)
+            ], SourcePage: 4, WorkingSets: "3")
+        ], 4)]);
+        var source = $"""
+            === PAGE 4 ===
+            WEEK 1
+            DAY LABEL: DAY 1
+            EXERCISE | WORKING SETS | REPS | NOTES
+            LATERAL RAISE | 3 | 12-15 | {note}
+            """;
+
+        var exercise = Assert.Single(Assert.Single(ImportTableEvidence.Enrich(program, source).Days!).Exercises);
+
+        Assert.Equal(note, exercise.CoachingNotes);
+        Assert.Equal(taggedSets, exercise.Sets.Count(set => set.Notes is not null));
+        Assert.All(exercise.Sets.Where(set => set.Notes is not null), set => Assert.Equal("Partial reps", set.Notes));
+    }
+
+    [Theory]
+    [InlineData("7 reps top half of ROM, 7 reps bottom half ROM, 7 reps full ROM", "7/7/7")]
+    [InlineData("USE THUMBLESS GRIP, DO 10 FULL ROM, 5 TOP HALF ROM TO FINISH EACH SET", "10+5")]
+    public void Half_range_rep_instructions_are_techniques_without_rewriting_compound_reps(string note, string reps)
+    {
+        var program = new AiProgram("Half-range reps", [new AiDay(null, null, 1, 1, "Day 1", false, null, [
+            new AiExercise("Cable Flye 21s", null, null, [
+                new AiSet(7, 7, null, null, null, null, null, RepsText: reps),
+                new AiSet(7, 7, null, null, null, null, null, RepsText: reps),
+                new AiSet(7, 7, null, null, null, null, null, RepsText: reps)
+            ], CoachingNotes: note, SourcePage: 34, WorkingSets: "3")
+        ], 34)]);
+        var source = $"""
+            === PAGE 34 ===
+            WEEK 1
+            DAY LABEL: DAY 1
+            EXERCISE | WORKING SETS | REPS | RIR | REST | NOTES
+            CABLE FLYE 21S | 3 | {reps} | N/A | 0 MIN | {note}
+            """;
+
+        var exercise = Assert.Single(Assert.Single(ImportTableEvidence.Enrich(program, source).Days!).Exercises);
+
+        Assert.Equal(3, exercise.Sets.Count);
+        Assert.All(exercise.Sets, set => Assert.Equal("Partial reps", set.Notes));
+        Assert.All(exercise.Sets, set => Assert.Equal(reps, set.RepsText));
+        Assert.Equal(note, exercise.CoachingNotes);
+    }
+
+    [Fact]
+    public void General_partial_range_discussion_does_not_tag_an_exercise_set()
+    {
+        var program = new AiProgram("Partial discussion", [new AiDay(null, null, 1, 1, "Day 1", false, null, [
+            new AiExercise("Lateral Raise", null, null, [new AiSet(12, 15, null, null, null, null, null)], SourcePage: 4)
+        ], 4)]);
+        const string source = """
+            === PAGE 4 ===
+            WEEK 1
+            Partial-range training is discussed in the introduction.
+            DAY LABEL: DAY 1
+            EXERCISE | WORKING SETS | REPS | NOTES
+            LATERAL RAISE | 1 | 12-15 | Keep the torso still.
+            """;
+
+        var exercise = Assert.Single(Assert.Single(ImportTableEvidence.Enrich(program, source).Days!).Exercises);
+
+        Assert.Null(Assert.Single(exercise.Sets).Notes);
+    }
+
+    [Fact]
+    public void Negative_partial_rep_coaching_does_not_become_a_set_technique()
+    {
+        var program = new AiProgram("Partial cue", [new AiDay(null, null, 1, 1, "Day 1", false, null, [
+            new AiExercise("Lateral Raise", null, null, [new AiSet(12, 15, null, null, null, null, null)], SourcePage: 4)
+        ], 4)]);
+        const string source = """
+            === PAGE 4 ===
+            WEEK 1
+            DAY LABEL: DAY 1
+            EXERCISE | WORKING SETS | REPS | NOTES
+            LATERAL RAISE | 1 | 12-15 | Avoid partial reps and control the full range.
+            """;
+
+        var exercise = Assert.Single(Assert.Single(ImportTableEvidence.Enrich(program, source).Days!).Exercises);
+
+        Assert.Null(Assert.Single(exercise.Sets).Notes);
+    }
+
+    [Fact]
+    public void An_explicit_no_partials_instruction_does_not_become_a_set_technique()
+    {
+        var program = new AiProgram("Partial cue", [new AiDay(null, null, 1, 1, "Day 1", false, null, [
+            new AiExercise("Lateral Raise", null, null, [new AiSet(12, 15, null, null, null, null, null)], SourcePage: 4)
+        ], 4)]);
+        const string source = """
+            === PAGE 4 ===
+            WEEK 1
+            DAY LABEL: DAY 1
+            EXERCISE | WORKING SETS | REPS | NOTES
+            LATERAL RAISE | 1 | 12-15 | No partial reps; maintain a full range of motion.
+            """;
+
+        var exercise = Assert.Single(Assert.Single(ImportTableEvidence.Enrich(program, source).Days!).Exercises);
+
+        Assert.Null(Assert.Single(exercise.Sets).Notes);
+    }
+
     [Fact]
     public async Task Clean_multi_session_percent_RPE_table_keeps_its_printed_rest_values()
     {
@@ -62,7 +230,8 @@ public sealed class ImportTableEvidenceTests
     public void Minute_typo_is_recovered_only_when_the_table_header_establishes_minutes()
     {
         var program = new AiProgram("Rest", [new AiDay(null, null, 1, 1, "Day 1", false, null, [
-            new AiExercise("Hamstring Curl", null, null, [new AiSet(8, 10, 8, null, null, null, null)], SourcePage: 1)
+            new AiExercise("Hamstring Curl", null, null, [new AiSet(8, 10, 8, 90, null, null, null,
+                RestText: "1-2 MN", SourcePage: 1)], SourcePage: 1)
         ], 1)]);
         const string text = """
             === PAGE 1 ===
@@ -72,8 +241,27 @@ public sealed class ImportTableEvidenceTests
 
         var set = Assert.Single(Assert.Single(ImportTableEvidence.Enrich(program, text).Days!).Exercises).Sets[0];
 
-        Assert.Equal("1-2 MN", set.RestText);
+        Assert.Equal("1-2 MIN", set.RestText);
         Assert.Equal(90, set.RestSeconds);
+    }
+
+    [Fact]
+    public void A_minute_header_keeps_fractional_rest_values_in_minutes_and_seconds()
+    {
+        var program = new AiProgram("Rest units", [new AiDay(null, null, 1, 1, "Day 1", false, null, [
+            new AiExercise("Wide Grip Cable Row", null, null, [new AiSet(3, 3, 9, null, null, null, null,
+                SourcePage: 14)], SourcePage: 14)
+        ], 14)]);
+        const string source = """
+            === PAGE 14 ===
+            Exercise | Working Sets | Reps | RIR | Rest (min)
+            Wide Grip Cable Row | 1 | 3 | 1 | 0.5
+            """;
+
+        var set = Assert.Single(Assert.Single(ImportTableEvidence.Enrich(program, source).Days!).Exercises).Sets[0];
+
+        Assert.Equal("0.5 min", set.RestText);
+        Assert.Equal(30, set.RestSeconds);
     }
 
     [Fact]

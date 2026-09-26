@@ -72,7 +72,7 @@ public class ProgressionFormulaTests
     {
         var plan = Plan(3, 5, 8, new PreviousSet(60, 4, 9.5));
         Assert.Equal(0, plan.DeltaKg);
-        Assert.Equal(3, plan.TargetReps);
+        Assert.Equal(4, plan.TargetReps);
         Assert.Contains("Repeat", plan.Reason);
     }
 

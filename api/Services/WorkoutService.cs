@@ -6,6 +6,7 @@ namespace Workout.Api.Services;
 
 public record SetInput(double? WeightKg, int? Reps, double? Rpe, bool Done, bool Warmup = false,
     string? ResistanceMode = null, Guid? Id = null, string? Rir = null);
+public record PreviousRepRecord(string LoadModel, string ResistanceMode, double? LoadKg, int Reps);
 public record SessionExerciseInput(Guid? ExerciseId, string NameSnapshot, string? Note, List<SetPrescription> Prescription, List<SetInput> Sets,
     string? SequenceGroup = null, List<string>? Substitutions = null, string? LoadModel = null, Guid? Id = null,
     Guid? SourceTemplateExerciseId = null, Guid? SourceSlotKey = null, Guid? SourcePhaseId = null, int? SourcePage = null,
@@ -13,13 +14,15 @@ public record SessionExerciseInput(Guid? ExerciseId, string NameSnapshot, string
 public record SessionInput(string? Note, List<SessionExerciseInput> Exercises, int? Revision, Guid? IdempotencyId);
 public record SetView(Guid Id, int Position, double? WeightKg, int? Reps, double? Rpe, bool Done, bool Warmup = false,
     int? WorkingSetOrdinal = null, string ResistanceMode = ResistanceModes.External, double? SystemLoadKg = null,
-    SetProgressionSuggestion? Suggestion = null, bool IsPr = false, double? Estimated1RmKg = null, string? Rir = null);
+    SetProgressionSuggestion? Suggestion = null, bool IsPr = false, double? Estimated1RmKg = null, string? Rir = null,
+    string? PrKind = null, int? PrReps = null);
 public record SessionExerciseView(Guid Id, Guid? ExerciseId, string Name, int Position, string Note, List<SetPrescription> Prescription, List<SetView> Sets,
     string SequenceGroup = "", List<string>? Substitutions = null, ProgressionView? Progression = null,
     string LoadModel = LoadModels.External, Guid? SourceTemplateExerciseId = null, Guid? SourceSlotKey = null, Guid? SourcePhaseId = null,
     Guid? SwapGroupKey = null, bool IsReplacement = false, Guid? OriginalExerciseId = null, string OriginalName = "", int? SourcePage = null,
     bool CanRestore = false, int? RestSeconds = null, string? DemoUrl = null, bool IsPr = false, double? PrE1rmKg = null,
-    double? PreviousBestE1rmKg = null);
+    double? PreviousBestE1rmKg = null, string? PrKind = null, int? PrReps = null,
+    IReadOnlyDictionary<string, int>? PreviousRepBests = null, IReadOnlyList<PreviousRepRecord>? PreviousRepRecords = null);
 public record SessionView(Guid Id, Guid? TemplateId, Guid? ProgramId, string Name, string Note, bool Active, DateTime StartedAt, DateTime? FinishedAt, int Revision,
     List<SessionExerciseView> Exercises, double? VolumeKg, int CompletedSets, int WarmupSets = 0,
     BodyWeightSnapshot? BodyWeight = null, NutritionTrainingContext? NutritionContext = null,

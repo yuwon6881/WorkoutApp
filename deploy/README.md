@@ -225,6 +225,25 @@ the app are local notifications scheduled for each rest deadline (`POST_NOTIFICA
 `SCHEDULE_EXACT_ALARM`), not web push. Opening app links in the app instead of the browser needs
 a `/.well-known/assetlinks.json` with the release signing certificate, which is not published yet.
 
+## Wear OS companion and Play Store deployment
+
+`wear/` is a standalone Kotlin/Compose companion for Wear OS devices.
+
+```powershell
+cd wear
+$env:JAVA_HOME = '<JDK 17 or 21>'
+.\gradlew.bat assembleDebug # or assembleRelease with a signing config
+```
+
+### Manual logging vs Health sensors
+The Wear OS companion is strictly an interactive manual logger and interval timer: the user logs reps, load, and RIR, and times rest intervals between sets. It does not read optical heart rate, step sensors, or GPS location, and does not stream sensor telemetry.
+
+### Google Play Foreground Service declaration (`specialUse` vs `health`)
+On Android 14+ (API 34+), foreground services must declare a specific `foregroundServiceType`.
+- **`health` (`FOREGROUND_SERVICE_HEALTH`)**: Intended strictly for continuous biometric sensor collection (e.g. continuous heart rate monitoring). Because WorkoutApp does not collect sensor data, declaring `health` would violate Play Store policy requiring active sensor usage.
+- **`specialUse` (`FOREGROUND_SERVICE_SPECIAL_USE`)**: WorkoutApp declares `specialUse` in `wear/app/src/main/AndroidManifest.xml` with `PROPERTY_SPECIAL_USE_FGS_SUBTYPE` set to `"Active strength workout logging and rest timer"`.
+- **Play Console Submission**: Under Policy and Programs → Foreground Services, declare `specialUse`, provide the subtype string above, explain that the service maintains the ongoing activity notification on the watch face and keeps rest alert vibration on time without reading health sensors, and attach a demo video showing the ongoing activity chip and rest alert countdown.
+
 ## Automatic deployment
 
 The private GitHub repository `yuwon6881/WorkoutApp` is connected to the Vercel `workout` project.

@@ -72,7 +72,16 @@ export function Modal({ title, children, onClose, wide = false, headless = false
 
   return <dialog ref={ref} tabIndex={-1} className={`modal ${wide ? 'wide' : ''} ${headless ? 'headless' : ''} ${className}`.trim()}
     onPointerDown={handlePointerDown} onPointerMove={drag.onPointerMove} onPointerUp={drag.onPointerUp} onPointerCancel={drag.onPointerCancel}
-    onClick={handleClick} onCancel={e => { e.preventDefault(); close(); }} aria-label={title}>
+    onClick={handleClick} onCancel={e => {
+      e.preventDefault();
+      if (e.currentTarget.dataset.tooltipEscapeHandled === 'true') {
+        delete e.currentTarget.dataset.tooltipEscapeHandled;
+        const help = e.currentTarget.querySelector<HTMLButtonElement>('.info-tooltip-trigger');
+        window.requestAnimationFrame(() => help?.focus());
+        return;
+      }
+      close();
+    }} aria-label={title}>
     {!headless && <header><h2 title={title}>{title}</h2><Button variant="tertiary" aria-label="Close dialog" onClick={close}><X size={20} /></Button></header>}
     {children}
   </dialog>;

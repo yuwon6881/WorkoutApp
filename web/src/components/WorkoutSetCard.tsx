@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Disc3, Minus, TrendingUp } from 'lucide-react';
 import type { LoggedSet, Preferences, SessionExercise, SetPrescription } from '../types';
 import { showTarget, showWeight, toDisplay, toKg } from '../lib/training';
+import { partialTechniqueLabel } from '../lib/importSetTypes';
 import { effortPatch, effortValue, loadIsEditable, setNumberLabel } from '../lib/workoutDraft';
 import { Button } from './ui/Button';
 import { NumberStepper } from './ui/NumberStepper';
@@ -41,6 +42,7 @@ export function WorkoutSetCard({
   const { label, warmup } = setNumberLabel(exercise, si);
   const loadEditable = loadIsEditable(exercise, set);
   const displayStep = toDisplay(loadStepKg, unit) ?? loadStepKg;
+  const partialTechnique = plan ? partialTechniqueLabel(plan) : null;
   const [platesOpen, setPlatesOpen] = useState(false);
 
   return (
@@ -50,6 +52,7 @@ export function WorkoutSetCard({
         <div className="set-card-target">
           <span className="set-card-title">{warmup ? `Warm-up ${label.slice(1)}` : `Set ${label}`}</span>
           <span className="target-text">{plan ? showTarget(plan) : 'No target'}</span>
+          {partialTechnique && <small className="set-technique-note">{partialTechnique}</small>}
         </div>
         <Button
           variant="tertiary"

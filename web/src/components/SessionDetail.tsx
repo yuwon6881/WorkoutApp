@@ -4,6 +4,7 @@ import type { Exercise, Preferences, Session } from '../types';
 import { ApiError, api } from '../lib/api';
 import { getWorkoutMuscles } from '../lib/muscles';
 import { completedSets, duration, showActualRir, showVolume, toDisplay } from '../lib/training';
+import { formatExercisePrBadge, formatSetPrTag } from '../lib/livePr';
 import { Button } from './ui/Button';
 import { Modal } from './ui/Modal';
 import './SessionDetail.css';
@@ -60,7 +61,7 @@ export function SessionDetail({ session, preferences, exercises = [], justFinish
           <div className="detail-exercise-header">
             <h3>{exercise.name}</h3>
             {exercise.isPr && <span className="pill pill-accent pr-exercise-badge">
-              <Trophy size={12} /> PR{exercise.prE1rmKg != null ? ` · ${toDisplay(exercise.prE1rmKg, unit)} ${unit} e1RM` : ''}
+              <Trophy size={12} /> {formatExercisePrBadge(exercise, unit)}
             </span>}
           </div>
           <ol className="session-summary-sets">
@@ -70,7 +71,7 @@ export function SessionDetail({ session, preferences, exercises = [], justFinish
                 <span className="session-set-label">{set.warmup ? `Warm-up ${number}` : `Set ${number}`}</span>
                 <strong>{set.weightKg === null ? `${set.reps} reps` : `${toDisplay(set.weightKg, unit)} ${unit} × ${set.reps}`}</strong>
                 <span className="session-set-effort">{showActualRir(set.rir, set.rpe)}</span>
-                {set.isPr && <span className="pill pill-accent pr-set-tag"><Trophy size={10} /> PR</span>}
+                {set.isPr && <span className="pill pill-accent pr-set-tag"><Trophy size={10} /> {formatSetPrTag(set)}</span>}
               </li>;
             })}
           </ol>

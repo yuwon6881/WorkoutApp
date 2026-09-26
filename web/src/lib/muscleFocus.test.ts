@@ -42,6 +42,14 @@ describe('muscle focus crop', () => {
     expect(contains(box, 128, 100)).toBe(true);
   });
 
+  it('frames both limbs centered at the midline when centered is true', () => {
+    const box = focusViewBox('Shoulders', FRONT_REGIONS.Shoulders, 4 / 3, frame, { centered: true });
+    expect(box.x).toBe(0);
+    expect(box.width).toBe(frame.width);
+    expect(contains(box, 56, 100)).toBe(true);
+    expect(contains(box, 144, 100)).toBe(true);
+  });
+
   it('falls back to the whole figure for a missing plate', () => {
     expect(focusViewBox('Unknown', '', 4 / 3, frame)).toEqual(frame);
   });

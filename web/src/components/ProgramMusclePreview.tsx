@@ -6,7 +6,6 @@ import {
 import type { PlannedMuscleSummary } from '../lib/programMuscles';
 import './ProgramMusclePreview.css';
 import { BACK_PARTS, BACK_REGIONS, BODY_MAP_VIEW_BOX, FRONT_PARTS, FRONT_REGIONS } from './bodyMapPaths';
-import { Button } from './ui/Button';
 import { useReducedMotion } from './ui/Motion';
 
 const FRAME = parseViewBox(BODY_MAP_VIEW_BOX);
@@ -21,7 +20,7 @@ const figureFor = (side: BodySide) => side === 'front'
 function cropFor(muscle: string, aspect: number): { side: BodySide; box: ViewBox } {
   const side = MUSCLE_SIDE[muscle] ?? 'front';
   const path = figureFor(side).regions[muscle];
-  return { side, box: path ? focusViewBox(muscle, path, aspect, FRAME) : FRAME };
+  return { side, box: path ? focusViewBox(muscle, path, aspect, FRAME, { centered: true }) : FRAME };
 }
 
 /// One accent hue at a depth proportional to the muscle's share of the day's busiest muscle.
@@ -82,8 +81,7 @@ function MuscleFigure({ side, viewBox, focus, shades, className }: {
  */
 export function ProgramMusclePreview({ summary }: { summary: PlannedMuscleSummary }) {
   const peak = summary.muscles[0]?.sets ?? 0;
-  const [chosen, setChosen] = useState<string | null>(null);
-  const focus = summary.muscles.find(item => item.muscle === chosen) ?? summary.muscles[0] ?? null;
+  const focus = summary.muscles[0] ?? null;
   const reduced = useReducedMotion();
   const shades = useMemo(
     () => new Map(summary.muscles.map(item => [item.muscle, shadeFor(item.sets, peak)])),
@@ -111,14 +109,12 @@ export function ProgramMusclePreview({ summary }: { summary: PlannedMuscleSummar
             {focus !== summary.muscles[0] && <span>{share}% of {summary.muscles[0].muscle}</span>}
           </div>
         </div>
-        <ul className="program-muscle-grid">
+        <ul className="program-muscle-grid" role="list" aria-label="Planned target muscles list">
           {summary.muscles.map(({ muscle, sets }) => {
             const thumb = cropFor(muscle, THUMB_ASPECT);
-            const selected = muscle === focus.muscle;
             return (
               <li key={muscle}>
-                <Button presentation="plain" className={`program-muscle-tile${selected ? ' is-selected' : ''}`}
-                  aria-pressed={selected} onClick={() => setChosen(muscle)}
+                <div className="program-muscle-tile"
                   aria-label={`${muscle}, ${formatSets(sets)} planned set ${sets === 1 ? 'credit' : 'credits'}`}>
                   <MuscleFigure side={thumb.side} viewBox={formatViewBox(thumb.box)} focus={muscle}
                     shades={new Map([[muscle, shades.get(muscle) ?? 0]])} className="program-muscle-figure" />
@@ -126,7 +122,7 @@ export function ProgramMusclePreview({ summary }: { summary: PlannedMuscleSummar
                     <strong>{muscle}</strong>
                     <span>{formatSets(sets)} planned set {sets === 1 ? 'credit' : 'credits'}</span>
                   </span>
-                </Button>
+                </div>
               </li>
             );
           })}

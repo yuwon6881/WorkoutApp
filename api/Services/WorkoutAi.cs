@@ -70,8 +70,11 @@ public sealed class WorkoutAi(HttpClient http, IConfiguration config)
     /// refuses unexplained schedule truncation and malformed effort shortcuts, and keeps complete
     /// source text within explicit per-page, outline, and section bounds;
     /// v35 serializes verification scoring over the shared reader context, trusts a unique printed
-    /// week on a page over a conflicting model label, and requires source-verified completion.
-    public const string PromptVersion = "workout-import-v36-unstated-reps";
+    /// week on a page over a conflicting model label, and requires source-verified completion;
+    /// v36 leaves unstated rep targets empty; v37 honors explicit set scope and reads row-level
+    /// partial-rep instructions; v38 treats top/bottom-half ROM reps as a technique without
+    /// changing their printed compound rep notation.
+    public const string PromptVersion = "workout-import-v38-partial-rom-technique";
 
     /// One cheap pass over a page-by-page view of the document. Most of a commercial training PDF
     /// is explanation and photography; this pass exists to find the few pages that actually carry

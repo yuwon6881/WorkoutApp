@@ -7,6 +7,7 @@ import { Button } from './ui/Button';
 import { Select } from './ui/Select';
 import { RpeControl } from './ui/RpeControl';
 import { nextAvailableLoad } from '../lib/exerciseLoads';
+import { partialTechniqueLabel } from '../lib/importSetTypes';
 
 export const resistanceModeOptions: Array<{ value: NonNullable<LoggedSet['resistanceMode']>; label: string }> = [
   { value: 'bodyweight', label: 'BW' },
@@ -45,6 +46,7 @@ export function WorkoutSetRow({
   const { label, warmup } = setNumberLabel(exercise, si);
   const loadModel = exercise.loadModel ?? 'external';
   const loadEditable = loadIsEditable(exercise, set);
+  const partialTechnique = plan ? partialTechniqueLabel(plan) : null;
 
   return (
     <div
@@ -59,6 +61,7 @@ export function WorkoutSetRow({
 
       <div className="set-target-cell">
         <span className="target-text">{plan ? showTarget(plan) : '—'}</span>
+        {partialTechnique && <small className="set-technique-note">{partialTechnique}</small>}
         {set.suggestion && (
           <small className="suggestion-text" title={set.suggestion.reason}>
             {set.suggestion.suggestedLoadKg != null

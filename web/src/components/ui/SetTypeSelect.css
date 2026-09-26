@@ -27,7 +27,10 @@
 }
 
 .set-type-select.set-type-dropset .custom-select-trigger,
-.set-type-select.set-type-myoreps .custom-select-trigger {
+.set-type-select.set-type-myoreps .custom-select-trigger,
+.set-type-select.set-type-partials .custom-select-trigger,
+.set-type-select.set-type-lengthenedPartials .custom-select-trigger,
+.set-type-select.set-type-integratedPartials .custom-select-trigger {
   border-color: var(--accent-border);
   background: var(--accent-soft);
   color: var(--accent);

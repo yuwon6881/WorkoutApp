@@ -414,12 +414,163 @@ public class WorkoutSessionTests
         Assert.All(history.Sessions, session => Assert.Null(session.Exercises.Single().PreviousBestE1rmKg));
     }
 
-    private static async Task Complete(Harness h, SessionView session, double weight, int reps, double rpe)
+    [Fact] public async Task History_marks_separate_rep_prs_for_high_reps_and_different_loads()
+    {
+        var (h, templateId, _) = await Ready();
+        await using var _h = h;
+
+        // Session 1: 60 kg x 10 @ RPE 8 -> first exposure establishes baseline of 10 reps at 60 kg (no PR)
+        var s1 = await h.Workouts.Start(templateId, null, default);
+        await Complete(h, s1, 60, 10, 8);
+        await h.Workouts.Finish(s1.Id, null, default);
+
+        var history1 = await h.Workouts.History(0, 10, default);
+        var hSession1 = history1.Sessions.Single(s => s.Id == s1.Id);
+        Assert.Equal(0, hSession1.PrCount);
+        Assert.False(hSession1.Exercises.Single().IsPr);
+
+        // Session 2: 60 kg x 12 @ RPE 8 -> effective reps = 14 > 12, e1RM is null, but 12 > 10 reps at 60 kg -> Rep PR!
+        var s2 = await h.Workouts.Start(templateId, null, default);
+        await Complete(h, s2, 60, 12, 8);
+        await h.Workouts.Finish(s2.Id, null, default);
+
+        var history2 = await h.Workouts.History(0, 10, default);
+        var hSession2 = history2.Sessions.Single(s => s.Id == s2.Id);
+        Assert.Equal(1, hSession2.PrCount);
+        var hEx2 = hSession2.Exercises.Single();
+        Assert.True(hEx2.IsPr);
+        Assert.Equal("reps", hEx2.PrKind);
+        Assert.Equal(12, hEx2.PrReps);
+        Assert.Contains(hEx2.Sets, s => s.IsPr && s.PrKind == "reps");
+
+        // Session 3: 40 kg x 20 reps (15-30 rep range) -> first exposure at 40 kg establishes baseline (no PR)
+        var s3 = await h.Workouts.Start(templateId, null, default);
+        await Complete(h, s3, 40, 20, 8);
+        await h.Workouts.Finish(s3.Id, null, default);
+
+        var history3 = await h.Workouts.History(0, 10, default);
+        var hSession3 = history3.Sessions.Single(s => s.Id == s3.Id);
+        Assert.Equal(0, hSession3.PrCount);
+
+        // Session 4: 40 kg x 25 reps -> 25 > 20 reps -> Rep PR!
+        var s4 = await h.Workouts.Start(templateId, null, default);
+        await Complete(h, s4, 40, 25, 8);
+        await h.Workouts.Finish(s4.Id, null, default);
+
+        var history4 = await h.Workouts.History(0, 10, default);
+        var hSession4 = history4.Sessions.Single(s => s.Id == s4.Id);
+        Assert.Equal(1, hSession4.PrCount);
+        var hEx4 = hSession4.Exercises.Single();
+        Assert.True(hEx4.IsPr);
+        Assert.Equal("reps", hEx4.PrKind);
+        Assert.Equal(25, hEx4.PrReps);
+
+        // Session 5: 60 kg x 12 reps -> ties previous best of 12 at 60 kg -> ties do not win, no PR
+        var s5 = await h.Workouts.Start(templateId, null, default);
+        await Complete(h, s5, 60, 12, 8);
+        await h.Workouts.Finish(s5.Id, null, default);
+
+        var history5 = await h.Workouts.History(0, 10, default);
+        var hSession5 = history5.Sessions.Single(s => s.Id == s5.Id);
+        Assert.Equal(0, hSession5.PrCount);
+        Assert.False(hSession5.Exercises.Single().IsPr);
+    }
+
+    [Fact] public async Task Rep_pr_rules_warmups_unknown_load_and_account_isolation()
+    {
+        var (h, templateId, _) = await Ready();
+        await using var _h = h;
+
+        // Baseline: 50 kg x 8 reps
+        var s1 = await h.Workouts.Start(templateId, null, default);
+        await Complete(h, s1, 50, 8, 8);
+        await h.Workouts.Finish(s1.Id, null, default);
+
+        // Active workout carries PreviousRepBests
+        var active = await h.Workouts.Start(templateId, null, default);
+        var activeEx = active.Exercises.Single();
+        Assert.NotNull(activeEx.PreviousRepBests);
+        Assert.Equal(8, activeEx.PreviousRepBests!["50"]);
+        var structuredBaseline = Assert.Single(activeEx.PreviousRepRecords!);
+        Assert.Equal(LoadModels.External, structuredBaseline.LoadModel);
+        Assert.Equal(ResistanceModes.External, structuredBaseline.ResistanceMode);
+        Assert.Equal(50, structuredBaseline.LoadKg);
+        Assert.Equal(8, structuredBaseline.Reps);
+        await h.Workouts.Discard(active.Id, default);
+
+        // Warmup: warm-up set doing 15 reps at 50 kg does not earn PR
+        var s2 = await h.Workouts.Start(templateId, null, default);
+        await Complete(h, s2, 50, 15, 8, warmup: true);
+        await h.Workouts.Finish(s2.Id, null, default);
+
+        var history2 = await h.Workouts.History(0, 10, default);
+        var hSession2 = history2.Sessions.Single(s => s.Id == s2.Id);
+        Assert.Equal(0, hSession2.PrCount);
+
+        // Unknown load: null weight on external exercise does not earn PR
+        var s3 = await h.Workouts.Start(templateId, null, default);
+        await Complete(h, s3, null, 20, 8);
+        await h.Workouts.Finish(s3.Id, null, default);
+
+        var history3 = await h.Workouts.History(0, 10, default);
+        var hSession3 = history3.Sessions.Single(s => s.Id == s3.Id);
+        Assert.Equal(0, hSession3.PrCount);
+    }
+
+    [Fact] public async Task A_set_can_earn_both_strength_and_rep_bests_but_counts_once()
+    {
+        var (h, templateId, _) = await Ready();
+        await using var _h = h;
+
+        var baseline = await h.Workouts.Start(templateId, null, default);
+        await Complete(h, baseline, 65, 8, 8);
+        await h.Workouts.Finish(baseline.Id, null, default);
+
+        var improved = await h.Workouts.Start(templateId, null, default);
+        await Complete(h, improved, 65, 10, 8);
+        await h.Workouts.Finish(improved.Id, null, default);
+
+        var history = await h.Workouts.History(0, 10, default);
+        var current = history.Sessions.Single(session => session.Id == improved.Id);
+        var exercise = Assert.Single(current.Exercises);
+        Assert.Equal(1, current.PrCount);
+        Assert.True(exercise.IsPr);
+        Assert.Equal("both", exercise.PrKind);
+        Assert.Equal(10, exercise.PrReps);
+        Assert.Contains(exercise.Sets, set => set.IsPr && set.PrKind == "both");
+    }
+
+    [Fact] public async Task Rep_best_baselines_are_scoped_to_the_active_account()
+    {
+        var (h, templateId, benchId) = await Ready();
+        await using var _h = h;
+
+        var aliceWorkout = await h.Workouts.Start(templateId, null, default);
+        await Complete(h, aliceWorkout, 50, 8, 8);
+        await h.Workouts.Finish(aliceWorkout.Id, null, default);
+
+        var bob = await h.CreateUser("bob");
+        h.Db.CurrentUser = bob.Id;
+        var bobTemplate = await h.Templates.Create(
+            Harness.Template("Bob's Push", Harness.Exercise(benchId, "Bench press", Harness.Set(8, 10))), null, 1, 0, default);
+        var bobWorkout = await h.Workouts.Start(bobTemplate.Id, null, default);
+
+        Assert.Empty(Assert.Single(bobWorkout.Exercises).PreviousRepRecords ?? []);
+        await Complete(h, bobWorkout, 50, 10, 8);
+        await h.Workouts.Finish(bobWorkout.Id, null, default);
+
+        var bobHistory = await h.Workouts.History(0, 10, default);
+        var bobCompleted = Assert.Single(bobHistory.Sessions);
+        Assert.Equal(0, bobCompleted.PrCount);
+        Assert.False(Assert.Single(bobCompleted.Exercises).IsPr);
+    }
+
+    private static async Task Complete(Harness h, SessionView session, double? weight, int reps, double? rpe, bool warmup = false)
     {
         var exercise = session.Exercises.Single();
         await h.Workouts.Save(session.Id, new SessionInput(null,
             [new SessionExerciseInput(exercise.ExerciseId, exercise.Name, null, exercise.Prescription,
-                exercise.Sets.Select(_ => new SetInput(weight, reps, rpe, true)).ToList())], session.Revision, null), default);
+                exercise.Sets.Select(_ => new SetInput(weight, reps, rpe, true, warmup)).ToList())], session.Revision, null), default);
     }
 
     [Fact] public async Task Activity_marks_completed_sessions_on_finish_date_and_active_sessions_on_start_date()

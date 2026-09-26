@@ -223,147 +223,153 @@ export function ExerciseEditor({ exercise, exercises, allDayExercises, onChange,
         <Button variant="tertiary" onClick={() => void handleRestore()}>Retry</Button>
       </div>
     )}
-    <div className="import-fields">
-      <div className="field import-library-field">
-        <Button variant="secondary" className="import-library-trigger" aria-haspopup="dialog" data-import-field="library"
-          disabled={isRestoring || isMapping}
-          aria-label={`Library exercise for ${exercise.sourceName}`} onClick={() => { setMappingError(null); setPickerOpen(true); }}>
-          <Dumbbell size={15} />
-          {selected?.name ?? (exercise.exerciseId ? 'Swap exercise' : 'Map exercise')}
-        </Button>
-      </div>
-      <div className="field import-substitutions-field">
-        <div className="substitution-chips-wrap">
-          {validSubstitutions.length > 0 ? (
-            <div className="substitution-chips-row" role="group" aria-label={`Substitutions for ${exercise.sourceName}`}>
-              {validSubstitutions.map((sub, sIdx) => (
-                <span key={sIdx} className="substitution-chip">
-                  <Button
-                    presentation="plain"
-                    className="substitution-swap-btn"
-                    aria-label={`Swap ${exercise.sourceName} for ${sub} across this block`}
-                    disabled={isRestoring}
-                    onClick={() => applySubstitution(sub)}
-                  >
-                    <ArrowLeftRight size={13} className="swap-icon" />
-                    <span>{sub}</span>
-                  </Button>
-                  <Button
-                    presentation="plain"
-                    className="chip-remove-btn"
-                    aria-label={`Remove substitution ${sub}`}
-                    disabled={isRestoring}
-                    onClick={() => {
-                      onChange({
-                        ...exercise,
-                        substitutions: exercise.substitutions.filter(s => s.toLowerCase() !== sub.toLowerCase())
-                      });
-                    }}
-                  >
-                    <X size={12} />
-                  </Button>
-                </span>
-              ))}
+    <div className="import-exercise-body">
+      <div className="import-exercise-col import-exercise-details-col">
+        <div className="import-fields">
+          <div className="field import-library-field">
+            <Button variant="secondary" className="import-library-trigger" aria-haspopup="dialog" data-import-field="library"
+              disabled={isRestoring || isMapping}
+              aria-label={`Library exercise for ${exercise.sourceName}`} onClick={() => { setMappingError(null); setPickerOpen(true); }}>
+              <Dumbbell size={15} />
+              {selected?.name ?? (exercise.exerciseId ? 'Swap exercise' : 'Map exercise')}
+            </Button>
+          </div>
+          <div className="field import-substitutions-field">
+            <div className="substitution-chips-wrap">
+              {validSubstitutions.length > 0 ? (
+                <div className="substitution-chips-row" role="group" aria-label={`Substitutions for ${exercise.sourceName}`}>
+                  {validSubstitutions.map((sub, sIdx) => (
+                    <span key={sIdx} className="substitution-chip">
+                      <Button
+                        presentation="plain"
+                        className="substitution-swap-btn"
+                        aria-label={`Swap ${exercise.sourceName} for ${sub} across this block`}
+                        disabled={isRestoring}
+                        onClick={() => applySubstitution(sub)}
+                      >
+                        <ArrowLeftRight size={13} className="swap-icon" />
+                        <span>{sub}</span>
+                      </Button>
+                      <Button
+                        presentation="plain"
+                        className="chip-remove-btn"
+                        aria-label={`Remove substitution ${sub}`}
+                        disabled={isRestoring}
+                        onClick={() => {
+                          onChange({
+                            ...exercise,
+                            substitutions: exercise.substitutions.filter(s => s.toLowerCase() !== sub.toLowerCase())
+                          });
+                        }}
+                      >
+                        <X size={12} />
+                      </Button>
+                    </span>
+                  ))}
+                </div>
+              ) : (
+                <span className="muted small-copy substitution-empty-state">No substitutions available.</span>
+              )}
             </div>
-          ) : (
-            <span className="muted small-copy substitution-empty-state">No substitutions available.</span>
-          )}
+          </div>
+        </div>
+        <TextAreaField name={`exercise-notes-${exercise.lineId}`} className="import-exercise-notes" label="Description"
+          value={exercise.notes ?? ''} placeholder="Cues, tempo or coaching notes"
+          onChange={event => onChange({ ...exercise, notes: event.target.value })} />
+      </div>
+
+      <div className="import-exercise-col import-exercise-sets-col">
+        <div className={`set-grid-wrap set-grid-typed ${repRange ? 'set-grid-range' : 'set-grid-exact'}`}>
+        <div className="set-grid-head">
+          <span className="set-grid-head-reps">
+            <span aria-hidden="true">Reps</span>
+            <RepModeToggle
+              range={repRange}
+              label={`Rep target for ${exercise.sourceName}`}
+              onChange={range => onChange({
+                ...exercise,
+                sets: exercise.sets.map(set => hasOpenReps(set)
+                  ? set
+                  : { ...set, ...withRepMode(set, range), repsText: null, repsSource: 'userEdited' })
+              })}
+            />
+          </span>
+          <span className="set-grid-head-rir" aria-hidden="true">RIR</span>
+        </div>
+        <ol className="import-sets set-grid-list" aria-label={`Set prescriptions for ${exercise.sourceName}`} data-import-field="sets">
+          {exercise.sets.map((set, index) => {
+            const setDisplayNumber = exercise.sets
+              .slice(0, index + 1)
+              .filter(s => !!s.warmup === !!set.warmup).length;
+            const remove = <Button variant="destructive" className="import-set-remove" aria-label={`Remove ${set.warmup ? 'warm-up' : 'set'} ${setDisplayNumber}`} onClick={() => onChange({ ...exercise, sets: exercise.sets.filter((_, current) => current !== index) })}>
+              <Trash2 size={15} /><span className="sr-only">Delete</span>
+            </Button>;
+            return <li className={`import-set ${set.warmup ? 'warmup-row' : ''}`} key={index}>
+              <SwipeableRow className="import-set-swipe-row" actions={remove} desktopActions={remove} actionsWidth={72} peek={index === 0} actionsLabel={`Actions for ${set.warmup ? 'warm-up' : 'set'} ${setDisplayNumber}`}>
+                <div className="import-set-content set-grid-row" data-import-set-index={index}>
+                  <div className="import-set-heading">
+                    <SetTypeSelect
+                      name={`set-type-${exercise.lineId}-${index}`}
+                      ariaLabel={`Set ${setDisplayNumber} type for ${exercise.sourceName}`}
+                      type={getSetType(set)}
+                      number={setDisplayNumber}
+                      onChange={type => changeSetType(index, type)}
+                    />
+                  </div>
+                  <div className="import-set-fields">
+                    <RepPrescriptionControl
+                      repMin={set.repMin}
+                      repMax={set.repMax}
+                      range={repRange}
+                      nameMin={`rep-min-${exercise.lineId}-${index}`}
+                      nameMax={`rep-max-${exercise.lineId}-${index}`}
+                      nameSingle={`rep-${exercise.lineId}-${index}`}
+                      dataImportIndex={index}
+                      labelPrefix={`${exercise.sourceName} ${set.warmup ? 'warm-up' : 'set'} ${setDisplayNumber}`}
+                      openReps={hasOpenReps(set)}
+                      onChange={({ repMin, repMax }) =>
+                        editSet(index, { repMin, repMax, repsText: null, repsSource: 'userEdited' })
+                      }
+                    />
+                    {set.warmup ? <WarmupRirNote dataImportIndex={index} /> : <div className="field rpe-field" data-import-field="targetRpe" data-import-set-index={index}>
+                      <span>RIR</span>
+                      <RpeControl
+                        name={`target-rir-${exercise.lineId}-${index}`}
+                        ariaLabel={`Target RIR for ${exercise.sourceName} set ${setDisplayNumber}`}
+                        value={
+                          set.rir === '5+' || (set.rir && Number(set.rir) >= 5)
+                            ? 5
+                            : set.rir && Number.isFinite(Number(set.rir))
+                            ? Math.round(Number(set.rir))
+                            : set.targetRpe !== null
+                            ? Math.round(10 - set.targetRpe)
+                            : null
+                        }
+                        onChange={value => editSet(index, {
+                          targetRpe: value !== null ? (value >= 5 ? 6 : 10 - value) : null,
+                          rir: value !== null ? (value >= 5 ? '5+' : String(value)) : null,
+                          rpeSource: 'userEdited'
+                        })}
+                      />
+                    </div>}
+                  </div>
+                </div>
+              </SwipeableRow>
+            </li>;
+          })}
+        </ol>
+        </div>
+        <div className="import-set-footer">
+          <Button variant="secondary" className="import-add-set" disabled={exercise.sets.length >= 24} onClick={() => {
+            const previous = exercise.sets.at(-1) ?? blankSet();
+            onChange({ ...exercise, sets: [...exercise.sets, { ...previous, warmup: false,
+              targetRpe: previous.targetRpe ?? 8, rir: previous.warmup ? null : previous.rir,
+              repsSource: 'userEdited', rpeSource: 'userEdited', restSource: 'userEdited' }] });
+          }}>
+            <Plus size={15} />Add another set
+          </Button>
         </div>
       </div>
-    </div>
-    <TextAreaField name={`exercise-notes-${exercise.lineId}`} className="import-exercise-notes" label="Description"
-      value={exercise.notes ?? ''} placeholder="Cues, tempo or coaching notes"
-      onChange={event => onChange({ ...exercise, notes: event.target.value })} />
-
-    <div className={`set-grid-wrap set-grid-typed ${repRange ? 'set-grid-range' : 'set-grid-exact'}`}>
-    <div className="set-grid-head">
-      <span className="set-grid-head-reps">
-        <span aria-hidden="true">Reps</span>
-        <RepModeToggle
-          range={repRange}
-          label={`Rep target for ${exercise.sourceName}`}
-          onChange={range => onChange({
-            ...exercise,
-            sets: exercise.sets.map(set => hasOpenReps(set)
-              ? set
-              : { ...set, ...withRepMode(set, range), repsText: null, repsSource: 'userEdited' })
-          })}
-        />
-      </span>
-      <span className="set-grid-head-rir" aria-hidden="true">RIR</span>
-    </div>
-    <ol className="import-sets set-grid-list" aria-label={`Set prescriptions for ${exercise.sourceName}`} data-import-field="sets">
-      {exercise.sets.map((set, index) => {
-        const setDisplayNumber = exercise.sets
-          .slice(0, index + 1)
-          .filter(s => !!s.warmup === !!set.warmup).length;
-        const remove = <Button variant="destructive" className="import-set-remove" aria-label={`Remove ${set.warmup ? 'warm-up' : 'set'} ${setDisplayNumber}`} onClick={() => onChange({ ...exercise, sets: exercise.sets.filter((_, current) => current !== index) })}>
-          <Trash2 size={15} /><span className="sr-only">Delete</span>
-        </Button>;
-        return <li className={`import-set ${set.warmup ? 'warmup-row' : ''}`} key={index}>
-          <SwipeableRow className="import-set-swipe-row" actions={remove} desktopActions={remove} actionsWidth={72} peek={index === 0} actionsLabel={`Actions for ${set.warmup ? 'warm-up' : 'set'} ${setDisplayNumber}`}>
-            <div className="import-set-content set-grid-row" data-import-set-index={index}>
-              <div className="import-set-heading">
-                <SetTypeSelect
-                  name={`set-type-${exercise.lineId}-${index}`}
-                  ariaLabel={`Set ${setDisplayNumber} type for ${exercise.sourceName}`}
-                  type={getSetType(set)}
-                  number={setDisplayNumber}
-                  onChange={type => changeSetType(index, type)}
-                />
-              </div>
-              <div className="import-set-fields">
-                <RepPrescriptionControl
-                  repMin={set.repMin}
-                  repMax={set.repMax}
-                  range={repRange}
-                  nameMin={`rep-min-${exercise.lineId}-${index}`}
-                  nameMax={`rep-max-${exercise.lineId}-${index}`}
-                  nameSingle={`rep-${exercise.lineId}-${index}`}
-                  dataImportIndex={index}
-                  labelPrefix={`${exercise.sourceName} ${set.warmup ? 'warm-up' : 'set'} ${setDisplayNumber}`}
-                  openReps={hasOpenReps(set)}
-                  onChange={({ repMin, repMax }) =>
-                    editSet(index, { repMin, repMax, repsText: null, repsSource: 'userEdited' })
-                  }
-                />
-                {set.warmup ? <WarmupRirNote dataImportIndex={index} /> : <div className="field rpe-field" data-import-field="targetRpe" data-import-set-index={index}>
-                  <span>RIR</span>
-                  <RpeControl
-                    name={`target-rir-${exercise.lineId}-${index}`}
-                    ariaLabel={`Target RIR for ${exercise.sourceName} set ${setDisplayNumber}`}
-                    value={
-                      set.rir === '5+' || (set.rir && Number(set.rir) >= 5)
-                        ? 5
-                        : set.rir && Number.isFinite(Number(set.rir))
-                        ? Math.round(Number(set.rir))
-                        : set.targetRpe !== null
-                        ? Math.round(10 - set.targetRpe)
-                        : null
-                    }
-                    onChange={value => editSet(index, {
-                      targetRpe: value !== null ? (value >= 5 ? 6 : 10 - value) : null,
-                      rir: value !== null ? (value >= 5 ? '5+' : String(value)) : null,
-                      rpeSource: 'userEdited'
-                    })}
-                  />
-                </div>}
-              </div>
-            </div>
-          </SwipeableRow>
-        </li>;
-      })}
-    </ol>
-    </div>
-    <div className="import-set-footer">
-      <Button variant="secondary" className="import-add-set" disabled={exercise.sets.length >= 24} onClick={() => {
-        const previous = exercise.sets.at(-1) ?? blankSet();
-        onChange({ ...exercise, sets: [...exercise.sets, { ...previous, warmup: false,
-          targetRpe: previous.targetRpe ?? 8, rir: previous.warmup ? null : previous.rir,
-          repsSource: 'userEdited', rpeSource: 'userEdited', restSource: 'userEdited' }] });
-      }}>
-        <Plus size={15} />Add another set
-      </Button>
     </div>
 
     {pickerOpen && <Modal title={`Choose exercise for ${exercise.sourceName.length > 32 ? `${exercise.sourceName.slice(0, 30)}…` : exercise.sourceName}`} wide onClose={() => setPickerOpen(false)}>

@@ -38,6 +38,7 @@
 .set-badge-circle { width: 28px; height: 28px; border-radius: 50%; background: var(--surface-hover); border: 1px solid var(--border); display: grid; place-items: center; font-size: var(--font-secondary, 14px); font-weight: 700; color: var(--text); }
 .workout-set-row.done .set-badge-circle { background: var(--accent-soft); border-color: var(--accent-border); color: var(--accent); }
 .set-target-cell { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.set-technique-note { color: var(--accent); font-size: var(--font-micro, 12px); font-weight: 600; }
 .target-text { font-size: var(--font-secondary, 13px); color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .suggestion-text { font-size: var(--font-secondary, 14px); color: var(--accent); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .set-input-cell .custom-select-wrap { width: 100%; min-width: 0; max-width: 100%; }

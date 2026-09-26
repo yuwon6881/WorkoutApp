@@ -79,7 +79,15 @@ export function InfoTooltip({
 
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
+        event.preventDefault();
         event.stopPropagation();
+        const dialog = triggerRef.current?.closest('dialog') as HTMLDialogElement | null;
+        if (dialog) {
+          dialog.dataset.tooltipEscapeHandled = 'true';
+          window.setTimeout(() => {
+            if (dialog.dataset.tooltipEscapeHandled === 'true') delete dialog.dataset.tooltipEscapeHandled;
+          }, 0);
+        }
         setOpen(false);
         triggerRef.current?.focus();
       }
@@ -109,7 +117,8 @@ export function InfoTooltip({
         aria-describedby={open ? tooltipId : undefined}
         onClick={e => {
           e.stopPropagation();
-          setOpen(prev => !prev);
+          const keyboardActivation = e.detail === 0 && e.currentTarget.matches(':focus-visible');
+          setOpen(prev => keyboardActivation ? true : !prev);
         }}
         // A touch fires emulated hover and focus before its click, which would open the tip and
         // then toggle it shut in one tap. Hover opens it only for a mouse, focus only from the

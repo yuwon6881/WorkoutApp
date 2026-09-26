@@ -27,6 +27,20 @@ class SyncMergePolicyTest {
     }
 
     @Test
+    fun `a revision-only bump with identical sets can be rebased`() {
+        val baseline = session()
+        val remote = baseline.copy(revision = 5)
+
+        val merged = SyncMergePolicy.rebaseSet(setOperation(baseline), remote)
+
+        assertNotNull(merged)
+        // rebaseSet preserves the queued request; WorkoutSyncCoordinator assigns the remote revision.
+        assertEquals(4, merged!!["revision"].asInt)
+        assertEquals(65.0, merged["weightKg"].asDouble, 0.001)
+        assertEquals(9, merged["reps"].asInt)
+    }
+
+    @Test
     fun `any concurrent change to the same set is held for review`() {
         val baseline = session()
         val changedSet = baseline.exercises.single().sets[0].copy(reps = 11)
@@ -53,6 +67,7 @@ class SyncMergePolicyTest {
         )
 
         assertNotNull(SyncMergePolicy.rebaseFinish(operation, baseline.copy(revision = 5)))
+        assertNull(SyncMergePolicy.rebaseFinish(operation, baseline.copy(revision = 5, pausedAt = "2026-09-25T10:01:00Z")))
         val externalChange = baseline.copy(
             revision = 5,
             exercises = listOf(baseline.exercises.single().copy(

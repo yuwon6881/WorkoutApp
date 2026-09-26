@@ -30,6 +30,7 @@
 .set-card-target { display: grid; gap: 1px; min-width: 0; }
 .set-card-title { color: var(--text); font-size: 16px; font-weight: 700; }
 .set-card-target .target-text { color: var(--muted); white-space: normal; overflow-wrap: anywhere; }
+.set-technique-note { color: var(--accent); font-size: var(--font-micro, 12px); font-weight: 600; }
 
 .set-card-suggestion {
   display: flex;

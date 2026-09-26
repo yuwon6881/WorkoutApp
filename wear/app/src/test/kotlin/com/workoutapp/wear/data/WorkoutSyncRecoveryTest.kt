@@ -2,6 +2,7 @@ package com.workoutapp.wear.data
 
 import android.content.Context
 import com.google.gson.GsonBuilder
+import com.google.gson.JsonParser
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -15,6 +16,8 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
 import org.robolectric.annotation.Config
+import java.io.IOException
+import kotlin.coroutines.cancellation.CancellationException
 
 /** Each case is a way the queue used to wedge, loop, or overwrite watch-only state. */
 @RunWith(RobolectricTestRunner::class)
@@ -50,6 +53,112 @@ class WorkoutSyncRecoveryTest {
         assertTrue(outcome.conflict)
         assertEquals(1, gateway.sends)
         assertEquals("pause-1", store.readSnapshot()?.conflictOperationId)
+    }
+
+    @Test
+    fun `revision-only bumps rebase the queued request and coordinator assigns the remote revision`() = runBlocking {
+        val baseline = session(revision = 4)
+        val remote = baseline.copy(revision = 5)
+        store.enqueue(snapshot(baseline), setOperation("revision-only", baseline, "s1"))
+        var gatewaySends = 0
+        val gateway = ScriptedGateway(remote) { operation ->
+            if (gatewaySends++ == 0) throw ApiFailure(409, "revision changed")
+            val request = JsonParser.parseString(operation.requestJson).asJsonObject
+            assertEquals(5, operation.revision)
+            assertEquals(5, request["revision"].asInt)
+            remote.copy(revision = 6)
+        }
+
+        val outcome = WorkoutSyncCoordinator(context, store, gateway).syncPending()
+
+        assertFalse(outcome.pending)
+        assertFalse(outcome.conflict)
+        assertTrue(store.pendingOperations().isEmpty())
+        assertEquals(2, gateway.sends)
+    }
+
+    @Test
+    fun `timeout after server acceptance keeps the mutation id for duplicate-safe replay`() = runBlocking {
+        val baseline = session(revision = 4)
+        store.enqueue(snapshot(baseline), setOperation("accepted-timeout", baseline, "s1"))
+        var remote = baseline
+        val accepted = mutableSetOf<String>()
+        val gateway = ScriptedGateway(baseline) { operation ->
+            if (operation.id !in accepted) {
+                accepted.add(operation.id)
+                val request = JsonParser.parseString(operation.requestJson).asJsonObject
+                remote = remote.copy(
+                    revision = remote.revision + 1,
+                    exercises = remote.exercises.map { exercise -> exercise.copy(sets = exercise.sets.map { set ->
+                        if (set.id == operation.setId) set.copy(reps = request["reps"].asInt, done = true) else set
+                    }) }
+                )
+                throw IOException("response timed out after acceptance")
+            }
+            remote
+        }
+        val coordinator = WorkoutSyncCoordinator(context, store, gateway)
+
+        val timedOut = coordinator.syncPending()
+        assertTrue(timedOut.pending)
+        assertEquals("accepted-timeout", store.pendingOperations().single().id)
+
+        val replayed = coordinator.syncPending()
+
+        assertFalse(replayed.pending)
+        assertTrue(store.pendingOperations().isEmpty())
+        assertEquals(listOf("accepted-timeout", "accepted-timeout"), gateway.sentIds)
+        assertEquals(1, accepted.size)
+        assertEquals(8, store.readSnapshot()?.session?.exercises?.single()?.sets?.first()?.reps)
+    }
+
+    @Test
+    fun `cancellation leaves the ordered outbox operation available for retry`() = runBlocking {
+        val baseline = session(revision = 4)
+        store.enqueue(snapshot(baseline), setOperation("cancelled", baseline, "s1"))
+        val gateway = ScriptedGateway(baseline) { throw CancellationException("worker stopped") }
+
+        val failure = runCatching { WorkoutSyncCoordinator(context, store, gateway).syncPending() }.exceptionOrNull()
+
+        assertTrue(failure is CancellationException)
+        assertEquals("cancelled", store.pendingOperations().single().id)
+        assertTrue(store.pendingOperations().single().attempted)
+    }
+
+    @Test
+    fun `authentication expiry and repeated transient failures retain the queue head`() = runBlocking {
+        val baseline = session(revision = 4)
+        store.enqueue(snapshot(baseline), setOperation("auth-expired", baseline, "s1"))
+        val expiredGateway = ScriptedGateway(baseline) { throw ApiFailure(401, "Sign in again.") }
+
+        val expired = WorkoutSyncCoordinator(context, store, expiredGateway).syncPending()
+
+        assertTrue(expired.sessionExpired)
+        assertTrue(expired.pending)
+        assertEquals("auth-expired", store.pendingOperations().single().id)
+
+        val transientGateway = ScriptedGateway(baseline) { throw ApiFailure(503, "temporarily unavailable") }
+        repeat(3) {
+            val retry = WorkoutSyncCoordinator(context, store, transientGateway).syncPending()
+            assertTrue(retry.pending)
+            assertEquals("auth-expired", store.pendingOperations().single().id)
+        }
+        assertEquals(3, transientGateway.sends)
+    }
+
+    @Test
+    fun `finish conflicts after a remote resume rather than discarding the timing change`() = runBlocking {
+        val pausedBaseline = session(revision = 4).copy(pausedAt = "2026-09-25T10:00:00Z", pausedSeconds = 0)
+        val resumedRemote = pausedBaseline.copy(revision = 5, pausedAt = null, pausedSeconds = 60)
+        store.enqueue(snapshot(pausedBaseline).copy(pendingFinish = true), finishOperation(pausedBaseline))
+        val gateway = ScriptedGateway(resumedRemote) { throw ApiFailure(409, "Workout changed") }
+
+        val outcome = WorkoutSyncCoordinator(context, store, gateway).syncPending()
+
+        assertTrue(outcome.conflict)
+        assertTrue(outcome.pending)
+        assertEquals("finish-while-paused", store.readSnapshot()?.conflictOperationId)
+        assertEquals(1, gateway.sends)
     }
 
     @Test
@@ -186,6 +295,13 @@ class WorkoutSyncRecoveryTest {
         sequence = 0, id = id, type = "pause", sessionId = baseline.id, revision = baseline.revision,
         requestJson = """{"revision":${baseline.revision},"mutationId":"$id","occurredAt":"2026-09-25T10:00:00Z"}""",
         baselineJson = gson.toJson(baseline), createdAt = "2026-09-25T10:00:00Z", attempted = false
+    )
+
+    private fun finishOperation(baseline: WorkoutSession) = PendingOperation(
+        sequence = 0, id = "finish-while-paused", type = "finish", sessionId = baseline.id,
+        revision = baseline.revision,
+        requestJson = """{"revision":${baseline.revision},"mutationId":"finish-while-paused","finishedAt":"2026-09-25T10:10:00Z"}""",
+        baselineJson = gson.toJson(baseline), createdAt = "2026-09-25T10:10:00Z", attempted = false
     )
 
     private class ScriptedGateway(

@@ -155,14 +155,23 @@ export function TrainingCalendar({ onSession }: TrainingCalendarProps) {
       </div>
 
       <div className="calendar-card-footer">
-        <span className="calendar-week-summary">
-          <span className="status-dot" />{' '}
-          {offset === 0 ? 'This week: ' : 'Selected week: '}
-          <strong>{completedCount}</strong> {completedCount === 1 ? 'workout' : 'workouts'} completed
-        </span>
+        <div className="calendar-week-summary">
+          <span className="calendar-week-badge">
+            {offset === 0 ? 'This week' : 'Selected week'}
+          </span>
+          <span className="calendar-week-count">
+            <strong>{completedCount}</strong> {completedCount === 1 ? 'workout' : 'workouts'} completed
+          </span>
+        </div>
         <div className="calendar-legend-pills" aria-label="Calendar status legend">
-          <span><i className="legend-dot completed" />Completed</span>
-          <span><i className="legend-dot in-progress" />In progress</span>
+          <span className="calendar-legend-pill">
+            <i className="legend-dot completed" aria-hidden="true" />
+            <span>Completed</span>
+          </span>
+          <span className="calendar-legend-pill">
+            <i className="legend-dot in-progress" aria-hidden="true" />
+            <span>In progress</span>
+          </span>
         </div>
       </div>
 

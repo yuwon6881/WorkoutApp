@@ -301,7 +301,6 @@ html[data-keyboard='open'] .workout-footer .rest-bar { display: none; }
   background: var(--accent-soft);
 }
 .ui-menu-item-destructive > svg:first-child { color: var(--red); background: var(--red-soft); }
-.modal > header { background: var(--surface-raised); border-bottom: 1px solid var(--border); }
 .modal > header h2 { color: var(--text); }
 .modal > header .button { color: var(--muted); }
 .import-review-issues { padding: 12px; gap: 10px; }

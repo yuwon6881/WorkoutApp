@@ -58,9 +58,9 @@ internal static class PrescriptionProgression
             if (!loads.Adjustable || repsOnly)
                 return Result(load, repeatReps, "No adjustable load: repeat the reps and use an easier variation if needed to match the intended effort.", rebuilding);
             if (hardStreak == 1)
-                return Result(load, rebuilding ? actual : lower, rebuilding
+                return Result(load, repeatReps, rebuilding
                     ? "Hold the transition reps after a hard exposure; match the intended effort before rebuilding."
-                    : "Repeat the prescribed minimum after a hard exposure.", rebuilding);
+                    : "Repeat the reps after a hard exposure; match the intended effort before progressing.", rebuilding);
             if (hardStreak == 2)
                 return Result(load is { } weight ? loads.Previous(weight) : null, lower,
                     "One equipment step lighter after two hard exposures.");
@@ -87,6 +87,10 @@ internal static class PrescriptionProgression
 
         if (!open && reserve is null && qualified < required)
         {
+            if (mode == ProgressionModes.Preservation && actual >= lower && actual < upper)
+                return Result(load, repeatReps,
+                    "Preservation heuristic: an in-range rep increase needs a target effort and two consecutive high-reserve exposures. Actual effort is unknown.", rebuilding);
+
             var consistent = ProgressionEvidence.Streak(history, exposure =>
                 ProgressionEvidence.Reserve(exposure) is null && exposure.Reps >= actual &&
                 ProgressionEvidence.SameLoad(load, selector(exposure)) &&
@@ -126,11 +130,33 @@ internal static class PrescriptionProgression
                 }
                 return Result(load, lower, "Aim for the prescribed minimum; adjust the load to match actual effort.");
             }
+
+            if (mode == ProgressionModes.Preservation && !(source.IsRepRangeTransition && !changed))
+            {
+                if (goal is null)
+                    return Result(load, repeatReps,
+                        "Preservation heuristic: an unspecified effort target cannot earn an in-range rep increase. Repeat the load and reps.", rebuilding);
+
+                bool PreservationQualifies(SetExposure exposure)
+                    => exposure.Reps >= actual &&
+                       ProgressionEvidence.SameLoad(load, selector(exposure)) &&
+                       !ProgressionEvidence.Changed(exposure, min, max, goal) &&
+                       ProgressionEvidence.Reserve(exposure) is { } expReserve &&
+                       expReserve >= goal.Value + 1;
+
+                var qualifyingStreak = ProgressionEvidence.Streak(history, PreservationQualifies);
+                if (qualifyingStreak < 2)
+                    return Result(load, repeatReps,
+                        "Preservation heuristic: hold reps until two consecutive exposures at this load show reserve at least one rep above target effort.", rebuilding);
+            }
+
             var nextReps = Math.Min(upper, actual + 1);
             var transition = source.IsRepRangeTransition && !changed && nextReps < lower;
             return Result(load, nextReps, transition
                 ? $"Rebuild after the large equipment step: aim for {nextReps} reps, then work back into the prescribed range."
-                : $"Same load, one more rep: {nextReps}.", transition);
+                : mode == ProgressionModes.Preservation
+                    ? $"Preservation heuristic: two consecutive exposures showed reserve above target effort; aim for {nextReps} reps."
+                    : $"Same load, one more rep: {nextReps}.", transition);
         }
 
         if (!loads.Adjustable || repsOnly || load is null)

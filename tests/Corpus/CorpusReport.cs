@@ -128,7 +128,7 @@ public sealed class CorpusReport
     }
 
     private sealed record CorpusExpectation(List<ExpectedAlternative>? Alternatives = null, int? ExerciseCount = null,
-        int? SetCount = null, ExpectedFailure? ExpectedFailure = null);
+        int? SetCount = null, ExpectedFailure? ExpectedFailure = null, List<ExpectedFailure>? ExpectedFailures = null);
     private sealed record ExpectedAlternative(string Id, string Name, int PageFrom, int PageTo, int WeekCount, int SessionsPerWeek);
     private sealed record ExpectedFailure(string Code, int Page, string TargetField);
     private sealed record ReplayResult(ImportView View, List<ImportPageText> Pages, Dictionary<string, Guid> Library,
@@ -206,7 +206,8 @@ public sealed class CorpusReport
             File.WriteAllText(Path.ChangeExtension(file, suffix), Json.Write(ready.Draft));
         }
 
-        output.Append($"- Title: {ready.Draft?.ProgramName}\n- Status: {ready.Status} {ready.Error}\n");
+        var status = string.IsNullOrWhiteSpace(ready.Error) ? ready.Status : $"{ready.Status} {ready.Error}";
+        output.Append($"- Title: {ready.Draft?.ProgramName}\n- Status: {status}\n");
         output.Append($"- Weeks: {days.Select(day => day.Week).Distinct().Count()}, days per week: " +
             $"{string.Join(" ", days.GroupBy(day => day.Week).Select(week => week.Count()))}\n");
         output.Append(Digest(days));
@@ -219,15 +220,25 @@ public sealed class CorpusReport
         foreach (var name in PrintedNames(pages).Where(name => !Placeholder.IsMatch(name) && CatalogMatching.Find(library, name) is null))
             output.Append($"- Not in catalog: {name}\n");
 
-        if (expected?.ExpectedFailure is { } expectedFailure)
+        var expectedFailures = expected?.ExpectedFailures
+            ?? (expected?.ExpectedFailure is { } single ? [single] : []);
+        if (expectedFailures.Count > 0)
         {
             if (ready.Status != "failed")
                 failures.Add($"{label}: Expected a structured source failure, received status '{ready.Status}'.");
-            var matchingIssues = (ready.ReviewIssues ?? []).Where(issue => issue.Code == expectedFailure.Code
-                && issue.SourcePage == expectedFailure.Page && issue.TargetField == expectedFailure.TargetField).ToList();
-            if (matchingIssues.Count != 1)
-                failures.Add($"{label}: Expected exactly one {expectedFailure.Code} issue on page {expectedFailure.Page} " +
-                    $"for {expectedFailure.TargetField}, received {matchingIssues.Count}.");
+            foreach (var expectedFailure in expectedFailures)
+            {
+                var matchingIssues = (ready.ReviewIssues ?? []).Where(issue => issue.Code == expectedFailure.Code
+                    && issue.SourcePage == expectedFailure.Page && issue.TargetField == expectedFailure.TargetField).ToList();
+                if (matchingIssues.Count != 1)
+                    failures.Add($"{label}: Expected exactly one {expectedFailure.Code} issue on page {expectedFailure.Page} " +
+                        $"for {expectedFailure.TargetField}, received {matchingIssues.Count}.");
+            }
+            var issueKeys = expectedFailures.Select(issue => (issue.Code, issue.Page, issue.TargetField)).ToHashSet();
+            var actualIssues = (ready.ReviewIssues ?? []).Where(issue => issue.Severity != "info").ToList();
+            if (actualIssues.Count != issueKeys.Count || actualIssues.Any(issue =>
+                    !issueKeys.Contains((issue.Code, issue.SourcePage ?? 0, issue.TargetField ?? ""))))
+                failures.Add($"{label}: Actionable review issues did not match the independently expected source locations.");
             if (ready.Draft is not { Workouts.Count: > 0 })
                 failures.Add($"{label}: The unresolved import did not retain its source-reconciled draft for review.");
             return;

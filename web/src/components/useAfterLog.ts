@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { Session, Unit } from '../types';
 import { haptic } from '../lib/platform';
-import { newBestAfterLogging } from '../lib/livePr';
+import { checkLivePr } from '../lib/livePr';
 import { advanceTarget } from '../lib/workoutLogging';
 import { showWeight } from '../lib/training';
 
@@ -32,9 +32,19 @@ export function useAfterLog({ unit, autoAdvance, focused, onAdvance }: {
       })
     };
     const exercise = logged.exercises[exerciseIndex];
-    const best = newBestAfterLogging(exercise, setIndex);
-    if (best !== null) setCelebration(`New personal best on ${exercise.name}: e1RM ${showWeight(best, unit)}`);
-    haptic(best !== null || exercise.sets.every(set => set.done) ? 'success' : 'log');
+    const pr = checkLivePr(exercise, setIndex);
+    if (pr !== null) {
+      if (pr.kind === 'both') {
+        const loadStr = pr.isRepsOnly || pr.loadKg === null ? '' : ` at ${showWeight(pr.loadKg, unit)}`;
+        setCelebration(`New strength and rep best on ${exercise.name}: e1RM ${showWeight(pr.e1rm, unit)} · ${pr.reps} reps${loadStr}`);
+      } else if (pr.kind === 'e1rm') {
+        setCelebration(`New estimated strength best on ${exercise.name}: e1RM ${showWeight(pr.e1rm, unit)}`);
+      } else {
+        const loadStr = pr.isRepsOnly || pr.loadKg === null ? '' : ` at ${showWeight(pr.loadKg, unit)}`;
+        setCelebration(`New rep best on ${exercise.name}: ${pr.reps} reps${loadStr}`);
+      }
+    }
+    haptic(pr !== null || exercise.sets.every(set => set.done) ? 'success' : 'log');
     if (!autoAdvance || !focused) return;
     const target = advanceTarget(logged, exerciseIndex, setIndex);
     if (target !== null) onAdvance(target);

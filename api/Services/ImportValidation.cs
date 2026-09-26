@@ -6,6 +6,15 @@ namespace Workout.Api.Services;
 
 internal static partial class ImportValidation
 {
+    private const string PartialRepReviewCode = "rep_technique_conflict";
+    private static readonly Regex RomRepSegment = new(
+        @"(?<count>\d{1,3})\s*(?:reps?\s+)?(?:(?:top|bottom)\s+half(?:\s+of)?\s+(?:the\s+)?rom|(?:full|complete)\s+rom)\b",
+        RegexOptions.Compiled | RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+    private static readonly Regex CompoundRepTarget = new(@"^\s*\d+(?:\s*[/+]\s*\d+)+\s*$",
+        RegexOptions.Compiled | RegexOptions.CultureInvariant);
+    private static readonly Regex RepTarget = new(@"^\s*(?<min>\d+)(?:\s*(?:[-–]|to)\s*(?<max>\d+))?\s*$",
+        RegexOptions.Compiled | RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+
     public static string CanonicalBlock(string? block)
     {
         var value = Collapse(block);
@@ -64,6 +73,8 @@ internal static partial class ImportValidation
         AddUnspecified(issues, unrested, "rest_unspecified", "rest_unread", "rest", item => item.set.RestSource,
             "set has", "sets have", "no stated rest");
 
+        issues.AddRange(PartialRepConflicts(training));
+
         var weeks = draft.Workouts.Select(day => day.Week).Distinct().Order().ToList();
         var missingWeeksBetweenPhases = new List<int>();
         var phases = GroupDraftPhases(draft.Workouts);
@@ -105,6 +116,63 @@ internal static partial class ImportValidation
                         "warning", phase[0].SourcePage, WorkoutLineId: phase[0].LineId, TargetField: "week"));
         }
         return issues;
+    }
+
+    /// Instructions can prescribe a compound partial-rep sequence that conflicts with a set's
+    /// printed reps cell. Keep both source values and require the reviewer to resolve the conflict.
+    private static List<ImportReviewIssue> PartialRepConflicts(IEnumerable<DraftWorkout> training)
+    {
+        var issues = new List<ImportReviewIssue>();
+        foreach (var day in training)
+        foreach (var exercise in day.Exercises)
+        {
+            var segments = RomRepSegment.Matches(exercise.Notes ?? "").Cast<Match>().ToList();
+            if (segments.Count < 2) continue;
+            var segmentCounts = segments.Select(match => int.TryParse(match.Groups["count"].Value,
+                NumberStyles.None, CultureInfo.InvariantCulture, out var count) ? count : 0).ToList();
+            var total = segmentCounts.Sum();
+            if (total <= 0) continue;
+
+            var conflicts = exercise.Sets.Select((set, index) => (Set: set, Index: index))
+                .Where(item => !item.Set.Warmup && RepTargetConflicts(item.Set, total)).ToList();
+            if (conflicts.Count == 0) continue;
+
+            var targets = conflicts.Select(item => item.Set.RepsText?.Trim())
+                .Where(value => !string.IsNullOrWhiteSpace(value)).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+            var printedTargets = targets.Count == 0 ? "the printed rep target"
+                : $"printed target{(targets.Count == 1 ? "" : "s")} {string.Join(", ", targets)}";
+            var sequence = string.Join("+", segmentCounts);
+            var dayName = string.IsNullOrWhiteSpace(day.Name) ? "the printed day" : day.Name;
+            issues.Add(new ImportReviewIssue(PartialRepReviewCode,
+                $"{Count(conflicts.Count, "working set has", "working sets have")} {printedTargets}, which conflicts with the ROM instructions ({sequence} = {total} reps). Check the rep prescription. On {dayName}.",
+                "warning", conflicts[0].Set.SourcePage ?? exercise.SourcePage ?? day.SourcePage,
+                ExerciseLineId: exercise.LineId, SetIndex: conflicts[0].Index, TargetField: "repMin"));
+        }
+        return issues;
+    }
+
+    private static bool RepTargetConflicts(DraftSet set, int instructedTotal)
+    {
+        var text = set.RepsText?.Trim();
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            if (set.RepMin is not { } min || set.RepMax is not { } max || min <= 0 || max < min) return false;
+            return instructedTotal < min || instructedTotal > max;
+        }
+
+        if (CompoundRepTarget.IsMatch(text))
+        {
+            var total = Regex.Matches(text, @"\d+").Cast<Match>()
+                .Sum(match => int.TryParse(match.Value, NumberStyles.None, CultureInfo.InvariantCulture, out var count) ? count : 0);
+            return total != instructedTotal;
+        }
+
+        var match = RepTarget.Match(text);
+        if (!match.Success || !int.TryParse(match.Groups["min"].Value, NumberStyles.None, CultureInfo.InvariantCulture, out var low))
+            return false;
+        var high = match.Groups["max"].Success
+            && int.TryParse(match.Groups["max"].Value, NumberStyles.None, CultureInfo.InvariantCulture, out var upper) ? upper : low;
+        return instructedTotal < low || instructedTotal > high;
     }
 
     /// A value the page leaves blank, "-" or N/A is its own statement and only noted. One the read

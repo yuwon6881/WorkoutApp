@@ -8,7 +8,10 @@ const SHORT_LABELS: Record<SetType, string> = {
   warmup: 'Warm-up',
   dropset: 'Drop set',
   amrap: 'AMRAP',
-  myoreps: 'Myo-reps'
+  myoreps: 'Myo-reps',
+  partials: 'Partial',
+  lengthenedPartials: 'Lengthened',
+  integratedPartials: 'Integrated'
 };
 
 /// A set's label and its type in one control: the trigger reads "Set 2" or "Warm-up 1", and

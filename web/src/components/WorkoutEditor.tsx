@@ -1,8 +1,10 @@
-import { Dumbbell, Plus } from 'lucide-react';
+import { Dumbbell, Plus, TrendingUp } from 'lucide-react';
 import type { Exercise, LoggedSet, Session, SessionExercise, Unit } from '../types';
 import { showVolume, showWeight } from '../lib/training';
+import { getProgressionSummary } from '../lib/progressionSummary';
 import { blankLoggedSet, blankPrescription } from '../lib/workoutDraft';
 import { Button } from './ui/Button';
+import { InfoTooltip } from './ui/InfoTooltip';
 import { Modal } from './ui/Modal';
 import { ExerciseLibrary } from './Exercises';
 import { WorkoutExerciseStrip } from './WorkoutExerciseStrip';
@@ -36,13 +38,18 @@ export function WorkoutEditor({
   // rather than reading as zero, so the chip is simply absent until a load is recorded.
   const liftedKg = draft.volumeKg ?? 0;
   const withBodyweightKg = draft.systemVolumeKg ?? null;
+  const progression = getProgressionSummary(draft);
 
   return <>
-    {(liftedKg > 0 || draft.bodyWeight || draft.nutritionContext?.cached) && <div className="workout-summary">
+    {(liftedKg > 0 || draft.bodyWeight || draft.nutritionContext?.cached || progression) && <div className="workout-summary">
       {liftedKg > 0 && <span title="Load lifted in completed working sets"><Dumbbell size={15} aria-hidden="true" />{showVolume(liftedKg, unit)} lifted</span>}
       {withBodyweightKg !== null && withBodyweightKg > liftedKg && <span title="Including your bodyweight on bodyweight movements">{showVolume(withBodyweightKg, unit)} with bodyweight</span>}
       {draft.bodyWeight && <span title="Recorded when this workout started">Bodyweight {showWeight(draft.bodyWeight.referenceKg, unit)}</span>}
-      {draft.nutritionContext?.cached && <span title="Nutrition was unavailable when this workout started">Using saved nutrition data</span>}
+      {progression && <span><TrendingUp size={15} aria-hidden="true" />{progression.label}
+        <InfoTooltip label="Progression details" content={<div><strong>{progression.label}</strong><p>{progression.reason}</p>
+          {progression.nutritionStatus === 'cached' && <p>This decision used the saved Nutrition snapshot available when the workout started.</p>}
+        </div>} />
+      </span>}
     </div>}
 
     <WorkoutExerciseStrip exercises={draft.exercises} activeIndex={activeIndex} onSelect={onSelectExercise} onAdd={onAddExercise} />

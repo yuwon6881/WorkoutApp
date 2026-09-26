@@ -61,6 +61,18 @@ public sealed class ImportSetKindsTests
         Assert.Null(sets[0].Notes);
     }
 
+    [Fact]
+    public void A_set_technique_is_not_copied_to_an_inferred_warmup()
+    {
+        var working = new DraftSet(8, 10, 8, 120, null, null, "Integrated Partials (All Sets)");
+
+        var sets = ImportSetKinds.Compose([working, working], warmups: 1, "Lat Pulldown");
+
+        Assert.True(sets[0].Warmup);
+        Assert.Null(sets[0].Notes);
+        Assert.All(sets.Skip(1), set => Assert.Equal("Integrated Partials (All Sets)", set.Notes));
+    }
+
     [Theory]
     [InlineData("AMRAP")]
     [InlineData("Max reps")]

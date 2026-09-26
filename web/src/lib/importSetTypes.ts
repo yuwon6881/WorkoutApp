@@ -1,14 +1,23 @@
 import type { DraftSet } from '../types';
 
-export type SetType = 'normal' | 'warmup' | 'dropset' | 'amrap' | 'myoreps';
+export type SetType = 'normal' | 'warmup' | 'dropset' | 'amrap' | 'myoreps' | 'partials' | 'lengthenedPartials' | 'integratedPartials';
 
 export const setTypeOptions = [
   { value: 'normal', label: 'Normal set' },
   { value: 'warmup', label: 'Warm-up' },
   { value: 'dropset', label: 'Drop set' },
   { value: 'amrap', label: 'Failure / AMRAP' },
-  { value: 'myoreps', label: 'Myo-reps' }
+  { value: 'myoreps', label: 'Myo-reps' },
+  { value: 'partials', label: 'Partial reps' },
+  { value: 'lengthenedPartials', label: 'Lengthened partials' },
+  { value: 'integratedPartials', label: 'Integrated partials' }
 ];
+
+const PARTIAL_TECHNIQUE_LABELS: Partial<Record<SetType, string>> = {
+  partials: 'Partial reps',
+  lengthenedPartials: 'Lengthened partials',
+  integratedPartials: 'Integrated partials'
+};
 
 export function getSetType(set: DraftSet): SetType {
   if (set.warmup) return 'warmup';
@@ -16,7 +25,19 @@ export function getSetType(set: DraftSet): SetType {
   if (notes.includes('dropset') || notes.includes('drop set')) return 'dropset';
   if (notes.includes('amrap') || notes.includes('failure')) return 'amrap';
   if (notes.includes('myo-rep') || notes.includes('myorep')) return 'myoreps';
+  if (/\b(?:lengthened|long[- ]length)\s+partials?\b/.test(notes)) return 'lengthenedPartials';
+  if (/\bintegrated\s+partials?\b/.test(notes)) return 'integratedPartials';
+  if (/\b(?:partials?(?:\s+reps?)?|half[- ]?rom|half\s+reps?)\b/.test(notes)) return 'partials';
   return 'normal';
+}
+
+export function partialTechniqueLabel(set: DraftSet): string | null {
+  const label = PARTIAL_TECHNIQUE_LABELS[getSetType(set)];
+  if (!label) return null;
+  const notes = set.notes ?? '';
+  const technique = /(?:lengthened|long[- ]length|integrated)?\s*partials?(?:\s+reps?)?|half[- ]?rom|half\s+reps?/i.exec(notes);
+  const qualifier = technique && notes.slice(technique.index + technique[0].length).match(/^\s*(\([^)]{1,120}\))/)?.[1];
+  return qualifier ? `${label} ${qualifier}` : label;
 }
 
 /// An AMRAP set the source printed without a rep count ("AMRAP", "Max reps"). Its stored rep
@@ -28,7 +49,7 @@ export function hasOpenReps(set: DraftSet): boolean {
 export function cleanTechniqueNotes(notes: string | null): string | null {
   if (!notes) return null;
   const cleaned = notes
-    .replace(/(?:^|\s*—\s*|\s*,\s*)(?:Dropset|Drop set|To failure \/ AMRAP|AMRAP|Failure|Myo-reps|Myoreps)(?:\s*—\s*|\s*,\s*|$)/gi, '')
+    .replace(/(?:^|\s*—\s*|\s*,\s*)(?:Dropset|Drop set|To failure \/ AMRAP|AMRAP|Failure|Myo-reps|Myoreps|(?:(?:lengthened|long[- ]length|integrated)\s+)?partials?(?:\s+reps?)?|half[- ]?rom|half\s+reps?)(?:\s*\([^)]{0,120}\))?(?:\s*—\s*|\s*,\s*|$)/gi, '')
     .trim();
   return cleaned || null;
 }
@@ -66,6 +87,14 @@ export function applySetType(set: DraftSet, newType: SetType): Partial<DraftSet>
       return {
         warmup: false,
         notes: addTechniqueNote(set.notes, 'Myo-reps'),
+        rpeSource: 'userEdited'
+      };
+    case 'partials':
+    case 'lengthenedPartials':
+    case 'integratedPartials':
+      return {
+        warmup: false,
+        notes: addTechniqueNote(set.notes, PARTIAL_TECHNIQUE_LABELS[newType]!),
         rpeSource: 'userEdited'
       };
     case 'normal':

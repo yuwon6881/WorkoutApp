@@ -210,6 +210,8 @@
 .set-grid-head-rir { display: block; padding-right: 70px; }
 @media (max-width: 639px) {
   .set-grid-head-rir { padding-right: 18px; }
+  .set-grid-wrap .set-grid-head { justify-content: flex-end; }
+  .set-grid-head-reps { margin-left: auto; }
 }
 .set-grid-head-tempo { display: none; }
 .set-grid-wrap .set-grid-row {
@@ -253,23 +255,31 @@
 .set-grid-wrap .set-grid-row .set-type-select.set-type-dropset .custom-select-trigger { color: var(--accent); }
 
 @container set-grid (max-width: 359px) {
+  .set-grid-wrap .set-grid-head { justify-content: flex-end; }
+  .set-grid-head-reps { margin-left: auto; }
   .set-grid-wrap .set-grid-head-rir { display: none; }
   .set-grid-wrap .set-grid-row .rpe-field > span:first-child {
     position: static; width: auto; height: auto; margin: 0; clip: auto;
+    font-size: 14px; line-height: 1.2; min-height: 17px; margin-bottom: 2px;
   }
   .set-grid-wrap .set-grid-row {
     grid-template-columns: minmax(0, 1fr) 44px;
     grid-template-areas: "meta meta" "reps rir" "tempo tempo";
     align-items: end;
-    gap: 6px;
+    gap: 3px 6px;
+    row-gap: 2px;
   }
   .set-grid-typed.set-grid-wrap .set-grid-row { grid-template-areas: "meta meta" "reps rir"; }
   .set-grid-wrap .set-grid-row .set-type-select { width: 112px; min-width: 112px; max-width: 112px; }
-  .set-grid-wrap .set-grid-row .set-type-select .custom-select-trigger { gap: 2px; padding-inline: 0; }
-  .set-grid-wrap .set-grid-row .set-type-select .custom-select-text { font-size: 14px; }
+  .set-grid-wrap .set-grid-row .set-type-select .custom-select-trigger {
+    gap: 2px; padding-inline: 0; min-height: 44px; height: 44px;
+  }
+  .set-grid-wrap .set-grid-row .set-type-select .custom-select-text { font-size: 14px; line-height: 1.2; }
+  .set-grid-wrap .import-set-content.set-grid-row { padding: 6px 10px; }
   .set-grid-wrap.set-grid-range .set-grid-row {
     grid-template-columns: minmax(0, 1fr) 44px;
     grid-template-areas: "meta meta" "reps rir" "tempo tempo";
+    row-gap: 2px;
   }
   .set-grid-typed.set-grid-wrap.set-grid-range .set-grid-row { grid-template-areas: "meta meta" "reps rir"; }
 }
@@ -300,11 +310,11 @@
   }
   .set-grid-wrap:not(.set-grid-typed) .set-grid-head-rir { display: none; }
   .set-grid-wrap:not(.set-grid-typed) .set-grid-row .rpe-field > span:first-child {
-    position: static; width: auto; height: auto; margin: 0; clip: auto;
+    position: static; width: auto; height: auto; margin: 0; clip: auto; font-size: 14px;
   }
 }
 
 .set-grid-wrap:not(.set-grid-typed) .set-grid-head-rir { display: none; }
 .set-grid-wrap:not(.set-grid-typed) .set-grid-row .rpe-field > span:first-child {
-  position: static; width: auto; height: auto; margin: 0; clip: auto;
+  position: static; width: auto; height: auto; margin: 0; clip: auto; font-size: 14px;
 }

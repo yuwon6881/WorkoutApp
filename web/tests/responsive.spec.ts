@@ -142,6 +142,12 @@ async function navigate(page: Page, name: string) {
 
 const signIn = (page: Page) => auth(page, USER);
 
+test.afterEach(async ({ page }) => {
+  // Some responsive cases transform API responses; ignore requests still in their route
+  // callbacks when the page closes so they cannot fail the following case during teardown.
+  await page.unrouteAll({ behavior: 'ignoreErrors' });
+});
+
 for (const theme of ['dark', 'light']) {
   test(`active logger layout in ${theme} theme`, async ({ page }, info) => {
     await signIn(page);
@@ -154,6 +160,41 @@ for (const theme of ['dark', 'light']) {
         const request = indexedDB.deleteDatabase('workout-recovery');
         request.onsuccess = request.onerror = request.onblocked = resolve;
       });
+    });
+    const widths = [320, 390, 640, 768, 1024, 1440, 1920];
+    const width = Number(info.project.name.match(/\d+/)?.[0] ?? 320);
+    const summaries = [
+      { mode: 'normal', goal: 'gain', rate: null, label: 'Gain goal · Normal progression', reason: 'does not verify a calorie surplus' },
+      { mode: 'conservative', goal: 'lose', rate: 0.5, label: 'Loss goal · Conservative progression', reason: 'recorded rate below 0.75% per week' },
+      { mode: 'preservation', goal: 'lose', rate: 0.9, label: 'Loss goal · Preservation progression', reason: 'recorded rate of 0.90% per week' }
+    ] as const;
+    const summary = summaries[(widths.indexOf(width) + (theme === 'light' ? 1 : 0)) % summaries.length];
+    const applySummaryFixture = (session: Record<string, unknown>) => {
+      if (session.active !== true) return session;
+      session.nutritionContext = {
+        subject: 'responsive-fixture', revision: 1, timeZone: 'UTC', effectiveGoal: summary.goal,
+        phaseComplete: false, targetRatePercent: summary.rate, observedLossRatePercent: null,
+        observedWindowDays: null, scaleWeightKg: null, scaleWeightDate: null, trendWeightKg: null,
+        trendWeightDate: null, retrievedAt: session.startedAt, confirmed: true, cached: false, error: null
+      };
+      return session;
+    };
+    await page.route('**/api/**', async route => {
+      const pathname = new URL(route.request().url()).pathname;
+      if (pathname !== '/api/bootstrap' && !pathname.startsWith('/api/workouts')) return route.continue();
+      const response = await route.fetch();
+      if (!response.ok || !response.headers()['content-type']?.includes('application/json'))
+        return route.fulfill({ response });
+      const payload = await response.json() as Record<string, unknown>;
+      const headers = { ...response.headers() };
+      delete headers['content-length'];
+      delete headers['content-encoding'];
+      if (pathname === '/api/bootstrap') {
+        if (typeof payload.activeWorkout === 'object' && payload.activeWorkout !== null)
+          payload.activeWorkout = applySummaryFixture(payload.activeWorkout as Record<string, unknown>);
+        return route.fulfill({ status: response.status(), headers, json: payload });
+      }
+      return route.fulfill({ status: response.status(), headers, json: applySummaryFixture(payload) });
     });
     await page.reload();
     await navigate(page, 'Settings');
@@ -173,6 +214,26 @@ for (const theme of ['dark', 'light']) {
     const picker = page.getByRole('dialog', { name: 'Add an exercise', exact: true });
     await picker.getByRole('textbox', { name: 'Search exercises' }).fill('bench');
     await picker.getByRole('button', { name: 'Add Barbell bench press', exact: true }).click();
+    await page.reload();
+    const activeLogger = page.getByRole('dialog', { name: 'Active layout check', exact: true });
+    const summaryRow = activeLogger.locator('.workout-summary');
+    await expect(summaryRow).toContainText(summary.label);
+    const progressionHelp = activeLogger.getByRole('button', { name: 'Progression details', exact: true });
+    await expect(progressionHelp).toHaveAttribute('aria-expanded', 'false');
+    if (width < 1024) await progressionHelp.tap();
+    else {
+      await progressionHelp.focus();
+      await page.keyboard.press('Enter');
+    }
+    const progressionTooltip = page.getByRole('tooltip');
+    await expect(progressionTooltip).toContainText(summary.reason);
+    await page.keyboard.press('Escape');
+    await expect(progressionHelp).toHaveAttribute('aria-expanded', 'false');
+    await progressionHelp.focus();
+    await expect(progressionHelp).toBeFocused();
+    await page.keyboard.press('Enter');
+    await expect(progressionTooltip).toBeVisible();
+    await page.keyboard.press('Escape');
     await logger.getByRole('button', { name: 'Add set', exact: true }).click();
     await logger.getByRole('spinbutton', { name: 'Barbell bench press set 1 reps', exact: true }).fill('8');
     await logger.getByRole('spinbutton', { name: 'Barbell bench press set 1 weight', exact: true }).fill('60');
@@ -385,16 +446,25 @@ for (const theme of ['dark', 'light'] as const) {
     const session = (id: string) => ({
       id, name: 'Full body strength with a deliberately long workout title',
       startedAt: '2026-09-25T08:00:00Z', finishedAt: '2026-09-25T09:00:00Z',
-      completedSets: 2, volumeKg: 600, prCount: 1, note: 'A completed workout note.',
-      exercises: [{
-        id: 'history-exercise', name: 'Long exercise name with bodyweight and loaded working sets',
-        exerciseId: null, isPr: true, prE1rmKg: 75,
-        note: 'Keep a controlled tempo throughout each repetition and pause briefly before starting the next set.',
-        sets: [
-          { id: 'unknown-load', done: true, warmup: false, weightKg: null, reps: 12, rir: '3', rpe: 7, isPr: false },
-          { id: 'record-load', done: true, warmup: false, weightKg: 60, reps: 10, rir: '1', rpe: 9, isPr: true }
-        ]
-      }]
+      completedSets: 3, volumeKg: 600, prCount: 3, note: 'A completed workout note.',
+      exercises: [
+        {
+          id: 'history-rep-exercise', name: 'Long exercise name with a high repetition record',
+          exerciseId: null, isPr: true, prKind: 'reps', prReps: 15,
+          note: 'Keep a controlled tempo throughout each repetition and pause briefly before starting the next set.',
+          sets: [{ id: 'rep-record', done: true, warmup: false, weightKg: 60, reps: 15, rir: null, rpe: null, isPr: true, prKind: 'reps', prReps: 15 }]
+        },
+        {
+          id: 'history-strength-exercise', name: 'Estimated strength best exercise',
+          exerciseId: null, isPr: true, prKind: 'e1rm', prE1rmKg: 75,
+          note: '', sets: [{ id: 'strength-record', done: true, warmup: false, weightKg: 60, reps: 10, rir: '1', rpe: 9, isPr: true, prKind: 'e1rm', estimated1RmKg: 75 }]
+        },
+        {
+          id: 'history-both-exercise', name: 'Combined strength and rep record exercise',
+          exerciseId: null, isPr: true, prKind: 'both', prE1rmKg: 80, prReps: 20,
+          note: '', sets: [{ id: 'combined-record', done: true, warmup: false, weightKg: 70, reps: 20, rir: '1', rpe: 9, isPr: true, prKind: 'both', prReps: 20, estimated1RmKg: 80 }]
+        }
+      ]
     });
     await page.route('**/api/history?*', async route => {
       const index = Number(new URL(route.request().url()).searchParams.get('page'));
@@ -407,8 +477,12 @@ for (const theme of ['dark', 'light'] as const) {
     const history = page.getByRole('region', { name: 'Workout history' });
     await expect(history.locator('.history-row').first()).toBeVisible();
     await history.locator('.history-row').first().click();
-    await expect(history.getByText('12 reps', { exact: true })).toBeVisible();
-    await expect(history.locator('.pr-exercise-badge')).toBeVisible();
+    await expect(history.getByText('Rep best · 15 reps', { exact: true })).toBeVisible();
+    await expect(history.getByText('Estimated strength best · 75 kg e1RM', { exact: true })).toBeVisible();
+    await expect(history.getByText('Strength & rep best · 80 kg e1RM · 20 reps', { exact: true })).toBeVisible();
+    await expect(history.getByText('Rep best', { exact: true }).first()).toBeVisible();
+    await expect(history.getByText('Estimated strength best', { exact: true }).last()).toBeVisible();
+    await expect(history.getByText('Strength & rep best', { exact: true }).last()).toBeVisible();
     await history.locator('.history-expanded-actions').scrollIntoViewIfNeeded();
     await expect(history.locator('.history-row')).toHaveCount(2);
     await checkLayout(page, 'populated history');

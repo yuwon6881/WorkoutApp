@@ -3,6 +3,7 @@ import { ArrowRight, ChevronDown, Dumbbell, Trophy } from 'lucide-react';
 import type { HistoryPage, Session, Unit } from '../types';
 import { ApiError, api } from '../lib/api';
 import { duration, showActualRir, showSetCount, showVolume, toDisplay } from '../lib/training';
+import { formatExercisePrBadge, formatSetPrTag } from '../lib/livePr';
 import { MotionPanel } from './ui/Motion';
 import { Button } from './ui/Button';
 import { useLoadMoreOnScroll } from './ui/useLoadMoreOnScroll';
@@ -145,7 +146,7 @@ export function WorkoutHistory({
                         )}
                         {exercise.isPr && (
                           <span className="pill pill-accent pr-exercise-badge">
-                            <Trophy size={12} /> PR{exercise.prE1rmKg != null ? ` · ${toDisplay(exercise.prE1rmKg, unit)} ${unit} e1RM` : ''}
+                            <Trophy size={12} /> {formatExercisePrBadge(exercise, unit)}
                           </span>
                         )}
                       </div>
@@ -158,7 +159,7 @@ export function WorkoutHistory({
                               <span className="muted">{set.warmup ? `W${warmupNumber}` : `Set ${workingNumber}`}</span>
                               <strong>{set.weightKg === null ? `${set.reps} reps` : `${toDisplay(set.weightKg, unit)} ${unit} × ${set.reps}`}</strong>
                               <span className="muted">{showActualRir(set.rir, set.rpe)}</span>
-                              {set.isPr && <span className="pill pill-accent pr-set-tag"><Trophy size={10} /> PR</span>}
+                              {set.isPr && <span className="pill pill-accent pr-set-tag"><Trophy size={10} /> {formatSetPrTag(set)}</span>}
                             </div>
                           );
                         })}
