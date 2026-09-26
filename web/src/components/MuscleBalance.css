@@ -59,6 +59,11 @@
   font-size:14px;
   font-weight:550;
   cursor:pointer;
+  transition:color var(--motion-control) var(--motion-ease);
+}
+.muscle-balance-method>summary:hover,.muscle-balance-untrained>summary:hover,
+.muscle-balance-method[open]>summary,.muscle-balance-untrained[open]>summary{
+  color:var(--text);
 }
 /* The summaries are flex rows, which drops the native marker, so draw the open/closed chevron here. */
 .muscle-balance-method>summary::-webkit-details-marker,.muscle-balance-untrained>summary::-webkit-details-marker{display:none}
@@ -67,7 +72,7 @@
 @media(max-width:1023px){.muscle-balance-method>summary,.muscle-balance-untrained>summary{min-height:44px}}
 @media(prefers-reduced-motion:reduce){.muscle-balance-method>summary::after,.muscle-balance-untrained>summary::after{transition:none}}
 .muscle-balance-method>summary:focus-visible,.muscle-balance-untrained>summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:6px}
-.muscle-balance-method>p{max-width:76ch;margin:4px 0 0;color:var(--muted)}
+.muscle-balance-method>p{max-width:76ch;margin:6px 0 0;font-size:12px!important;line-height:1.6;color:var(--muted)}
 .muscle-balance-untrained-chips{display:flex;flex-wrap:wrap;gap:6px;padding:6px 0 2px}
 
 .muscle-balance-table{position:relative;min-width:0;width:100%;overflow:hidden;border:1px solid var(--border);border-radius:10px;background:var(--surface-raised)}

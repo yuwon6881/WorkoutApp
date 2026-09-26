@@ -77,9 +77,14 @@
   .active-workout-standby.compact { padding: 12px 14px; }
 
   .standby-actions {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    width: 100%;
   }
 
-  .standby-actions .button { justify-content: center; }
+  .standby-actions .button {
+    width: 100%;
+    justify-content: center;
+  }
 }

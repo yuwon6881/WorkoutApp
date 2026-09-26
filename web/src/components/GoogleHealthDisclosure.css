@@ -22,8 +22,8 @@
 
 .google-health-disclosure .disclosure-points p {
   margin: 4px 0 0;
-  font-size: var(--font-secondary);
-  line-height: 1.5;
+  font-size: 12px !important;
+  line-height: 1.55;
   color: var(--muted);
 }
 

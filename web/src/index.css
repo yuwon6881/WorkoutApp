@@ -173,7 +173,10 @@ input::file-selector-button{font-size:var(--font-secondary)!important}
 .workout-help summary::-webkit-details-marker{display:none}
 .workout-help summary svg{transition:transform .18s ease}
 .workout-help[open] summary svg{transform:rotate(180deg)}
-.workout-help p{padding:4px 0 2px}
+.workout-help p{padding:4px 0 2px;font-size:12px!important;line-height:1.55;color:var(--muted)}
+details summary{cursor:pointer;transition:color var(--motion-control) var(--motion-ease)}
+details summary:hover,details[open]>summary{color:var(--text)}
+details>p{font-size:12px!important;line-height:1.6;color:var(--muted);margin-top:6px}
 .upload-action-row{margin-bottom:14px}.import-progress{display:grid;gap:6px;margin:14px 0 4px;width:100%}
 .import-progress-line{display:flex;align-items:baseline;justify-content:space-between;gap:12px;font-size:var(--font-secondary)}
 .import-progress-label{color:var(--text);font-weight:600}
@@ -225,7 +228,7 @@ input::file-selector-button{font-size:var(--font-secondary)!important}
 .progression-details summary::-webkit-details-marker{display:none}
 .progression-details summary svg{transition:transform .18s ease}
 .progression-details[open] summary svg{transform:rotate(180deg)}
-.progression-details p{margin:2px 0 5px;font-size:var(--font-secondary)!important;line-height:1.5}
+.progression-details p{margin:2px 0 5px;font-size:12px!important;line-height:1.5;color:var(--muted)}
 .logging-exercise details summary{min-height:44px}
 .set-table-head{letter-spacing:0}
 .set-row input,.set-row select{font-size:var(--font-body)!important}

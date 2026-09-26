@@ -152,19 +152,49 @@
 
 @media (max-width: 639px) {
   .integration-card.panel {
-    padding: 18px;
+    padding: 16px 14px;
   }
 
   .integration-card-header {
     grid-template-columns: auto minmax(0, 1fr);
+    gap: 10px;
+  }
+
+  .integration-logo {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+  }
+
+  .integration-card-title h3 {
+    font-size: 15px;
   }
 
   .integration-card-header > .integration-status {
     grid-column: 2;
     justify-self: start;
+    margin-top: 4px;
+    padding: 3px 8px;
+    font-size: var(--font-secondary, 14px);
+  }
+
+  .integration-description {
+    margin-top: 10px;
+    font-size: var(--font-secondary, 14px);
+    line-height: 1.5;
   }
 
   .integration-stream {
-    padding: 0 14px;
+    padding: 0 12px;
+    margin-top: 12px;
+  }
+
+  .integration-actions {
+    margin-top: 12px;
+    gap: 8px;
+  }
+
+  .integration-actions .button {
+    min-height: 44px;
   }
 }

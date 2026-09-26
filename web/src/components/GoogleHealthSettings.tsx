@@ -152,7 +152,7 @@ export function GoogleHealthSettings() {
         <span className="integration-logo" aria-hidden="true"><Activity size={20} /></span>
         <div className="integration-card-title">
           <h3 id="google-health-title">Google Health</h3>
-          <span>Completed workouts, sets, and training volume.</span>
+          <span>Syncs completed workouts and volume.</span>
         </div>
         <span className={`integration-status ${statusTone}`.trim()} aria-live="polite">
           <span className="status-dot" aria-hidden="true" />
@@ -181,10 +181,10 @@ export function GoogleHealthSettings() {
 
       <div className="integration-description">
         {isConnected
-          ? `Connected${state.connectedAt ? ` since ${new Date(state.connectedAt).toLocaleDateString()}` : ''}. Workouts already saved to Google Health stay there if you disconnect.`
+          ? `Connected${state.connectedAt ? ` since ${new Date(state.connectedAt).toLocaleDateString()}` : ''}. Saved workouts remain in Google Health.`
           : isReconnectRequired
-            ? 'Your Google authorization expired or permissions changed. Reconnect to resume sync.'
-            : 'Link your Google account to send finished workouts to Google Health.'}
+            ? 'Authorization expired or permissions changed. Reconnect to resume sync.'
+            : 'Link your Google account to export completed workouts.'}
       </div>
 
       {isConnected && (
@@ -193,7 +193,7 @@ export function GoogleHealthSettings() {
             label={<strong>Sync completed workouts</strong>}
             descriptionId="google-health-sync-description"
             description={<>
-              <span>Uploads finished sessions, sets, volume, and exercise notes.</span>
+              <span>Upload finished sessions and exercise notes.</span>
               {sync.pendingCount > 0 && (
                 <span className="setting-status is-pending">
                   {sync.pendingCount} workout{sync.pendingCount === 1 ? '' : 's'} queued for upload

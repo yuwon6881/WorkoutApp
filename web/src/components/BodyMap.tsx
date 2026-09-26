@@ -134,7 +134,7 @@ export function MuscleDetail({ muscle, dateLabel }: {
           {formatSets(muscle.primarySets)} primary · {formatSets(muscle.secondarySets)} indirect
         </span>
         <span className="body-map-detail-last">
-          {muscle.sets > 0 ? `Last trained ${dateLabel(muscle.lastTrainedDate)}` : 'Not trained in this window'}
+          {muscle.sets > 0 ? `Last trained ${dateLabel(muscle.lastTrainedDate)}` : 'Not trained'}
         </span>
       </> : <span className="body-map-detail-hint">Select a muscle to see its sets</span>}
     </div>

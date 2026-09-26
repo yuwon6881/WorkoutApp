@@ -59,7 +59,7 @@ export function WatchPairingSettings({ accountId, notify }: { accountId: string;
     <div className="watch-pairing">
       <form className="watch-pairing-form" onSubmit={event => void approve(event)}>
         <p id="watch-pairing-help" className="watch-pairing-help">
-          Open Workout on your watch and enter the eight-character code it shows. Codes expire after five minutes.
+          Enter the 8-character code shown on your watch (expires in 5 min).
         </p>
         <div className="watch-pairing-inputs">
           <Field label="Watch pairing code" name="watch-pairing-code" value={code} maxLength={9} autoComplete="off"
@@ -77,7 +77,7 @@ export function WatchPairingSettings({ accountId, notify }: { accountId: string;
             <span className="watch-device-icon" aria-hidden="true"><Watch size={18} /></span>
             <div>
               <strong>{device.deviceName}</strong>
-              <span>Connected · expires after one year without use</span>
+              <span>Connected · Active</span>
             </div>
             <Button variant="destructive" disabled={busy} onClick={() => void revoke(device)}>Disconnect</Button>
           </li>

@@ -70,7 +70,7 @@ export function SettingsView(props: SettingsViewProps) {
         <div className="settings-account-copy">
           <span className="settings-account-kicker">Fitness Account</span>
           <h2 id="settings-account-title" className="settings-account-name">{account.displayName}</h2>
-          <span className="settings-account-note">Your training syncs to every device you sign in on. Sign-in and security are managed by Fitness Account.</span>
+          <span className="settings-account-note">Synced across your devices.</span>
         </div>
         <Button variant="secondary" className="account-signout-btn" onClick={() => void signOut()}>
           <LogOut size={16} aria-hidden="true" /> Sign out
@@ -80,8 +80,8 @@ export function SettingsView(props: SettingsViewProps) {
       <div className="settings-shell">
         <SettingsNav links={sections} />
         <div className="settings-sections">
-          <SettingsSection {...general} title="General" description="Applies to this account on every device.">
-            <SettingRow label={<strong>Appearance</strong>} description="Both themes use the Ayu palette.">
+          <SettingsSection {...general} title="General" description="Applies to all devices.">
+            <SettingRow label={<strong>Appearance</strong>} description="Ayu theme palette.">
               <SegmentedControl
                 label="Appearance"
                 value={preferences.theme}
@@ -92,7 +92,7 @@ export function SettingsView(props: SettingsViewProps) {
                 ]}
               />
             </SettingRow>
-            <SettingRow label={<strong>Weight unit</strong>} description="Loads are stored in kilograms; pounds are shown by conversion.">
+            <SettingRow label={<strong>Weight unit</strong>} description="Stored in kg, converted for display.">
               <SegmentedControl
                 label="Weight unit"
                 value={preferences.unit}
@@ -105,7 +105,7 @@ export function SettingsView(props: SettingsViewProps) {
             </SettingRow>
           </SettingsSection>
 
-          <SettingsSection {...rest} title="Rest timer & alerts" description="How Workout tells you a rest interval has ended.">
+          <SettingsSection {...rest} title="Rest timer & alerts" description="Timer and notification preferences.">
             <RestAlertSettings
               accountId={account.id}
               preferences={preferences}
@@ -116,11 +116,11 @@ export function SettingsView(props: SettingsViewProps) {
             />
           </SettingsSection>
 
-          <SettingsSection {...watch} title="Wear OS" description="Log sets and manage rest from your watch.">
+          <SettingsSection {...watch} title="Wear OS" description="Pair your watch companion.">
             <WatchPairingSettings accountId={account.id} notify={notify} />
           </SettingsSection>
 
-          <SettingsSection {...connections} layout="plain" title="Connected apps" description="Connected services add context. Nutrition never changes your workout targets.">
+          <SettingsSection {...connections} layout="plain" title="Connected apps" description="Data sharing with connected apps.">
             <ConnectedApps />
             <GoogleHealthSettings />
           </SettingsSection>

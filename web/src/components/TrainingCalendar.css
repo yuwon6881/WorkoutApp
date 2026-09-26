@@ -342,7 +342,7 @@
 @media (max-width: 639px) {
   .training-calendar-card,
   .panel.training-calendar-card {
-    padding: 16px 14px;
+    padding: 16px 8px;
     margin-bottom: 20px;
     overflow: hidden;
   }
@@ -353,6 +353,7 @@
     justify-content: space-between;
     gap: 8px;
     margin-bottom: 14px;
+    padding: 0 4px;
   }
   .calendar-title-wrap {
     display: flex;
@@ -378,8 +379,7 @@
   .calendar-today-btn { min-height: 44px; padding: 8px 12px; font-size: var(--font-secondary, 14px); }
 
   /* Strip layout: single horizontal row */
-  /* Seven days share the row; below about 375 px they cannot all keep a 44 px target, so the
-     strip scrolls sideways instead of shrinking the cells under a thumb. */
+  /* Seven days fit cleanly on modern mobile screens; narrow viewports scroll smoothly with snap */
   .calendar-days-grid {
     display: flex;
     gap: 0;
@@ -389,14 +389,15 @@
     overflow-x: auto;
     scroll-snap-type: x proximity;
     scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
   }
 
   .calendar-day-cell {
-    flex: 1 0 44px;
-    min-width: 44px;
+    flex: 1 0 43px;
+    min-width: 43px;
     scroll-snap-align: start;
-    padding: 10px 0 8px;
-    min-height: unset;
+    padding: 10px 1px 8px;
+    min-height: 48px;
     border-radius: 10px;
     border: 1px solid transparent;
     background: transparent;

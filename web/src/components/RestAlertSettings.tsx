@@ -39,8 +39,8 @@ export function RestAlertSettings({ accountId, preferences, devicePreferences, o
   }, [accountId, deviceId]);
 
   const closedAppAlertInfo = pushStatus?.message ?? (isFirebasePushConfigured()
-    ? 'Checking server and browser push availability.'
-    : 'Push delivery is not configured for this Workout build yet. The foreground timer remains available.');
+    ? 'Checking push availability…'
+    : 'Push delivery is not configured for this build.');
 
   async function disableOnThisDevice() {
     if (!deviceId || !pushStatus) return;
@@ -51,7 +51,7 @@ export function RestAlertSettings({ accountId, preferences, devicePreferences, o
         ...pushStatus,
         registered: false,
         currentGeneration: null,
-        message: 'Closed-app rest alerts are disabled on this device.'
+        message: 'Disabled on this device.'
       });
       await deleteWorkoutPushToken();
       window.dispatchEvent(new Event('workout-rest-push-changed'));
@@ -97,7 +97,7 @@ export function RestAlertSettings({ accountId, preferences, devicePreferences, o
     <>
       <SettingRow
         label={<strong>Rest notifications</strong>}
-        description="Alerts when a rest interval ends. The on-screen timer and sound work without them."
+        description="Alert when a rest interval ends."
         descriptionId="rest-alerts-description"
       >
         <Switch
@@ -144,7 +144,7 @@ export function RestAlertSettings({ accountId, preferences, devicePreferences, o
 
       <SettingRow
         label={<strong>Rest sound</strong>}
-        description="A soft two-note chime while Workout is open. Background alerts follow your phone and browser sound settings."
+        description="Chime when rest ends while app is open."
         descriptionId="rest-sound-description"
       >
         <div className="setting-inline-controls">
@@ -171,7 +171,7 @@ export function RestAlertSettings({ accountId, preferences, devicePreferences, o
 
       <SettingRow
         label={<strong>Vibration</strong>}
-        description="Rest alerts and a short pulse when a set is logged, where this device supports vibration."
+        description="Vibrate on rest end and logged sets."
         descriptionId="rest-vibration-description"
       >
         <Switch
@@ -184,7 +184,7 @@ export function RestAlertSettings({ accountId, preferences, devicePreferences, o
 
       <SettingRow
         label={<strong>Keep screen awake during a workout</strong>}
-        description="While the workout is open and visible. The phone may still release it on low battery."
+        description="Keep display on while training."
         descriptionId="rest-wake-description"
       >
         <Switch
@@ -197,7 +197,7 @@ export function RestAlertSettings({ accountId, preferences, devicePreferences, o
 
       <SettingRow
         label={<strong>Move to the next exercise automatically</strong>}
-        description="After the last set of an exercise, or to the partner exercise in a superset."
+        description="Advance after completing all sets."
         descriptionId="auto-advance-description"
       >
         <Switch

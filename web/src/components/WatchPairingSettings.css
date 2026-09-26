@@ -90,6 +90,31 @@
 }
 
 @media (max-width: 639px) {
+  .watch-pairing {
+    padding: 8px 0;
+  }
+
+  .watch-pairing-help {
+    margin-bottom: 10px;
+  }
+
+  .watch-pairing-inputs {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+
+  .watch-pairing-inputs .field {
+    flex: 1 1 auto;
+    width: 100%;
+  }
+
+  .watch-pairing-inputs > .button {
+    width: 100%;
+    margin-left: 0;
+    justify-content: center;
+  }
+
   .watch-device-row {
     grid-template-columns: auto minmax(0, 1fr);
   }
@@ -97,5 +122,9 @@
   .watch-device-row > .button {
     grid-column: 1 / -1;
     justify-self: end;
+  }
+
+  .watch-device-empty {
+    display: none;
   }
 }

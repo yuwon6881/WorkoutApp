@@ -94,7 +94,7 @@ export function ConnectedApps() {
         <span className="integration-logo" aria-hidden="true"><Salad size={20} /></span>
         <div className="integration-card-title">
           <h3 id="connected-apps-title">Nutrition</h3>
-          <span>Confirmed goal, trend weight, and bodyweight context.</span>
+          <span>Syncs goal and trend weight context.</span>
         </div>
         <span className={`integration-status ${statusTone}`.trim()} aria-live="polite">
           <span className="status-dot" aria-hidden="true" />
@@ -110,13 +110,13 @@ export function ConnectedApps() {
       <div className="integration-description">
         {connectionState === 'loading' && 'Checking Fitness Account…'}
         {connectionState === 'connected' && (syncWarning
-          ? 'Connected, but Workout could not refresh Nutrition data recently. Try again to refresh it.'
-          : 'Nutrition access is granted. Workout reads it to tune suggestions; it never changes Nutrition.')}
+          ? 'Connected, but Workout could not refresh Nutrition data recently. Try again.'
+          : 'Tunes workout suggestions. Never modifies Nutrition.')}
         {connectionState === 'temporary_unavailable' && (syncWarning
-          ? 'Workout could not refresh Nutrition data. The connection has not been removed.'
-          : 'Workout could not confirm this connection. Try checking again.')}
-        {connectionState === 'reconnect_required' && 'Fitness Account no longer recognizes this connection. Connect again to share data.'}
-        {connectionState === 'upgrade_required' && 'Reconnect once to move this older connection to durable consent.'}
+          ? 'Could not refresh Nutrition data. Connection remains.'
+          : 'Could not confirm this connection. Try checking again.')}
+        {connectionState === 'reconnect_required' && 'Connection expired. Reconnect to resume sharing.'}
+        {connectionState === 'upgrade_required' && 'Reconnect once to upgrade to durable consent.'}
         {connectionState === 'disconnected' && 'Link your account to share weight trends and goals.'}
       </div>
       <div className="integration-actions">
