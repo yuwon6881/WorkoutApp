@@ -1,0 +1,31 @@
+.training-calendar-card { container: training-calendar / inline-size; }
+
+/* Navigation follows the week it controls, with a stable reset action. */
+.training-calendar-card .calendar-nav-controls {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) 44px;
+  gap: 8px;
+  margin: 0 0 16px;
+  padding: 6px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  background: var(--surface-raised);
+}
+.calendar-nav-controls .button { min-height: 44px; }
+.calendar-today-btn { justify-content: center; }
+.calendar-today-btn:disabled { opacity: 1; color: var(--muted); background: transparent; border-color: transparent; }
+.calendar-week-summary { flex-wrap: wrap; }
+@media (max-width: 639px) {
+  .training-calendar-card .calendar-days-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(44px, 1fr));
+    gap: 4px;
+    overflow: visible;
+    container: calendar-days / inline-size;
+  }
+  .calendar-days-grid .calendar-day-cell { min-width: 0; width: 100%; }
+  .training-calendar-card .calendar-nav-controls { margin-inline: 4px; }
+}
+@container training-calendar (min-width: 308px) {
+  .training-calendar-card .calendar-days-grid { grid-template-columns: repeat(7, minmax(44px, 1fr)); gap: 0; }
+}

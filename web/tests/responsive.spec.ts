@@ -160,12 +160,12 @@ for (const theme of ['dark', 'light']) {
     await logger.getByRole('button', { name: 'Log Barbell bench press set 1', exact: true }).click();
     await expect(logger.locator('.rest-bar.resting')).toBeVisible();
     await checkLayout(page, 'active logger');
-    await page.screenshot({ path: join(screenshotsDirectory, 'responsive', `${info.project.name}-${theme}-active-logger.png`) });
+    await page.screenshot({ animations: 'disabled', path: join(screenshotsDirectory, 'responsive', `${info.project.name}-${theme}-active-logger.png`) });
     const exerciseNotes = logger.getByRole('textbox', { name: 'Exercise notes', exact: true });
     await exerciseNotes.fill('Keep a steady tempo.');
     await expect(exerciseNotes).toBeInViewport({ ratio: 0.9 });
     await checkLayout(page, 'active logger notes');
-    await page.screenshot({ path: join(screenshotsDirectory, 'responsive', `${info.project.name}-${theme}-active-notes.png`) });
+    await page.screenshot({ animations: 'disabled', path: join(screenshotsDirectory, 'responsive', `${info.project.name}-${theme}-active-notes.png`) });
     await logger.getByRole('button', { name: 'Workout options', exact: true }).click();
     await page.getByRole('menuitem', { name: 'Discard workout', exact: true }).click();
     await page.getByRole('button', { name: 'Discard workout', exact: true }).click();
@@ -199,16 +199,33 @@ for (const theme of ['dark', 'light']) {
 
     const screenshot = async (label: string) => {
       await checkLayout(page, label);
-      await page.screenshot({ path: join(screenshotsDirectory, 'responsive', `${info.project.name}-${theme}-${label}.png`) });
+      await page.screenshot({ animations: 'disabled', path: join(screenshotsDirectory, 'responsive', `${info.project.name}-${theme}-${label}.png`) });
     };
     await screenshot('settings');
 
     await navigate(page, 'Overview');
     await screenshot('overview');
+    const calendar = page.getByRole('region', { name: 'Training calendar' });
+    const days = calendar.locator('.calendar-day-cell');
+    await expect(days).toHaveCount(7);
+    const dayFit = await days.evaluateAll(elements => elements.every(element => {
+      const box = element.getBoundingClientRect();
+      const grid = element.parentElement!.getBoundingClientRect();
+      return box.left >= grid.left - 1 && box.right <= grid.right + 1 && box.width >= 44 && box.height >= 44;
+    }));
+    expect(dayFit, 'all seven days fit their calendar and retain touch targets').toBe(true);
+    await expect(calendar.getByRole('button', { name: 'Return to this week' })).toBeDisabled();
+    await calendar.getByRole('button', { name: 'Previous week' }).click();
+    await expect(calendar.getByRole('button', { name: 'Return to this week' })).toBeEnabled();
+    await calendar.getByRole('button', { name: 'Return to this week' }).click();
+    await expect(calendar.getByRole('button', { name: 'Return to this week' })).toBeDisabled();
 
     await navigate(page, 'Workouts');
     await expect(page.getByRole('heading', { name: 'Workouts', exact: true })).toBeVisible();
     await screenshot('workouts');
+    await page.getByRole('button', { name: 'New', exact: true }).filter({ visible: true }).first().click();
+    await screenshot('new-action-menu');
+    await page.keyboard.press('Escape');
 
     await openNewMenu(page, 'New workout');
     const editor = page.getByRole('dialog', { name: 'Build a workout' });
@@ -259,6 +276,24 @@ for (const theme of ['dark', 'light']) {
     else await page.getByLabel('Program PDF').setInputFiles({ name: 'responsive.pdf', mimeType: 'application/pdf', buffer: pdf() });
     await expect(page.getByRole('heading', { name: 'Review' })).toBeVisible({ timeout: 60000 });
     await screenshot('import-review');
+    const dayToggle = page.locator('.draft-day-summary').first();
+    await dayToggle.click();
+    const setRows = page.locator('.draft-day .set-grid-row:visible');
+    await expect(setRows.first()).toBeVisible();
+    const fieldsFit = await setRows.evaluateAll(rows => rows.every(row => {
+      const bounds = row.getBoundingClientRect();
+      return [...row.querySelectorAll('input, button')].filter(field => field.getBoundingClientRect().width > 0).every(field => {
+        const box = field.getBoundingClientRect();
+        return box.left >= bounds.left - 1 && box.right <= bounds.right + 1;
+      });
+    }));
+    expect(fieldsFit, 'expanded prescription controls fit inside their rows').toBe(true);
+    await screenshot('expanded-import-day');
+    await page.locator('.draft-day .import-exercise').first().screenshot({ animations: 'disabled', path: join(screenshotsDirectory, 'responsive', `${info.project.name}-${theme}-prescription-card.png`) });
+    const prescriptionCard = page.locator('.draft-day .import-exercise').first();
+    await prescriptionCard.getByRole('button', { name: 'Range', exact: true }).click();
+    await screenshot('expanded-import-range');
+    await prescriptionCard.getByRole('button', { name: 'Exact', exact: true }).click();
 
 
     await navigate(page, 'Overview');
@@ -268,6 +303,10 @@ for (const theme of ['dark', 'light']) {
     await expect(page.getByRole('heading', { name: 'Muscle coverage', exact: true })).toBeVisible();
     await expect(page.locator('.body-map-detail')).toBeVisible();
     await screenshot('body');
+    await page.getByText('How coverage is counted', { exact: true }).click();
+    await screenshot('coverage-explanation');
+    await page.locator('.muscle-balance-untrained summary').click();
+    await screenshot('untrained-muscles');
 
     await navigate(page, 'Workouts');
     await page.locator('.routine-card').filter({ hasText: workoutName }).getByRole('button', { name: 'Start workout', exact: true }).first().click();
@@ -305,5 +344,41 @@ for (const theme of ['dark', 'light']) {
     await expect(page.locator('dialog[open]')).toHaveCount(0);
     await expect(resume).toBeHidden();
     expect(errors).toEqual([]);
+  });
+}
+
+for (const theme of ['dark', 'light'] as const) {
+  test(`populated history fits in ${theme} theme`, async ({ page }, info) => {
+    const session = (id: string) => ({
+      id, name: 'Full body strength with a deliberately long workout title',
+      startedAt: '2026-09-25T08:00:00Z', finishedAt: '2026-09-25T09:00:00Z',
+      completedSets: 2, volumeKg: 600, prCount: 1, note: 'A completed workout note.',
+      exercises: [{
+        id: 'history-exercise', name: 'Long exercise name with bodyweight and loaded working sets',
+        exerciseId: null, isPr: true, prE1rmKg: 75,
+        note: 'Keep a controlled tempo throughout each repetition and pause briefly before starting the next set.',
+        sets: [
+          { id: 'unknown-load', done: true, warmup: false, weightKg: null, reps: 12, rir: '3', rpe: 7, isPr: false },
+          { id: 'record-load', done: true, warmup: false, weightKg: 60, reps: 10, rir: '1', rpe: 9, isPr: true }
+        ]
+      }]
+    });
+    await page.route('**/api/history?*', async route => {
+      const index = Number(new URL(route.request().url()).searchParams.get('page'));
+      await route.fulfill({ json: { page: index, size: 1, total: 2, sessions: [session(`history-polish-${index}`)] } });
+    });
+    await signIn(page);
+    await navigate(page, 'Settings');
+    await page.getByRole('group', { name: 'Appearance' }).getByRole('button', { name: theme === 'dark' ? 'Ayu dark' : 'Ayu light' }).click();
+    await navigate(page, 'Overview');
+    const history = page.getByRole('region', { name: 'Workout history' });
+    await expect(history.locator('.history-row').first()).toBeVisible();
+    await history.locator('.history-row').first().click();
+    await expect(history.getByText('12 reps', { exact: true })).toBeVisible();
+    await expect(history.locator('.pr-exercise-badge')).toBeVisible();
+    await history.locator('.history-expanded-actions').scrollIntoViewIfNeeded();
+    await expect(history.locator('.history-row')).toHaveCount(2);
+    await checkLayout(page, 'populated history');
+    await page.screenshot({ animations: 'disabled', path: join(screenshotsDirectory, 'responsive', `${info.project.name}-${theme}-populated-history.png`) });
   });
 }

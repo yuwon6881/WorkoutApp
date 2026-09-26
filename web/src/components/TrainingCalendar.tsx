@@ -6,6 +6,7 @@ import { weekDays } from '../lib/training';
 import { Button } from './ui/Button';
 import { Modal } from './ui/Modal';
 import './TrainingCalendar.css';
+import './TrainingCalendarLayout.css';
 
 interface TrainingCalendarProps {
   onSession: (s: Session) => void;
@@ -66,38 +67,6 @@ export function TrainingCalendar({ onSession }: TrainingCalendarProps) {
           </div>
           <span className="calendar-range-label">{monthYearLabel}</span>
         </div>
-
-        <div className="calendar-nav-controls">
-          {offset !== 0 && (
-            <Button
-              aria-label="Return to this week"
-              variant="secondary"
-              className="calendar-today-btn"
-              onClick={() => setOffset(0)}
-            >
-              <RotateCcw size={13} />
-              <span>Current week</span>
-            </Button>
-          )}
-          <div className="calendar-nav-group" role="group" aria-label="Navigate weeks">
-            <Button
-              aria-label="Previous week"
-              variant="secondary"
-              className="calendar-nav-btn"
-              onClick={() => setOffset(o => o - 1)}
-            >
-              <ChevronLeft size={16} />
-            </Button>
-            <Button
-              aria-label="Next week"
-              variant="secondary"
-              className="calendar-nav-btn"
-              onClick={() => setOffset(o => o + 1)}
-            >
-              <ChevronRight size={16} />
-            </Button>
-          </div>
-        </div>
       </div>
 
       <div className="calendar-days-grid" role="grid" aria-label="Days of the week">
@@ -154,6 +123,35 @@ export function TrainingCalendar({ onSession }: TrainingCalendarProps) {
             </Button>
           );
         })}
+      </div>
+
+      <div className="calendar-nav-controls" role="group" aria-label="Navigate weeks">
+        <Button
+          aria-label="Previous week"
+          variant="secondary"
+          className="calendar-nav-btn"
+          onClick={() => setOffset(o => o - 1)}
+        >
+          <ChevronLeft size={18} />
+        </Button>
+        <Button
+          aria-label="Return to this week"
+          variant="secondary"
+          className="calendar-today-btn"
+          disabled={offset === 0}
+          onClick={() => setOffset(0)}
+        >
+          <RotateCcw size={15} />
+          <span>Current week</span>
+        </Button>
+        <Button
+          aria-label="Next week"
+          variant="secondary"
+          className="calendar-nav-btn"
+          onClick={() => setOffset(o => o + 1)}
+        >
+          <ChevronRight size={18} />
+        </Button>
       </div>
 
       <div className="calendar-card-footer">

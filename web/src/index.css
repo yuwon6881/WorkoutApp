@@ -176,7 +176,7 @@ input::file-selector-button{font-size:var(--font-secondary)!important}
 .workout-help p{padding:4px 0 2px;font-size:12px!important;line-height:1.55;color:var(--muted)}
 details summary{cursor:pointer;transition:color var(--motion-control) var(--motion-ease)}
 details summary:hover,details[open]>summary{color:var(--text)}
-details>p{font-size:12px!important;line-height:1.6;color:var(--muted);margin-top:6px}
+details>p{font-size:14px!important;line-height:1.5;color:var(--muted);margin-top:6px}
 .upload-action-row{margin-bottom:14px}.import-progress{display:grid;gap:6px;margin:14px 0 4px;width:100%}
 .import-progress-line{display:flex;align-items:baseline;justify-content:space-between;gap:12px;font-size:var(--font-secondary)}
 .import-progress-label{color:var(--text);font-weight:600}

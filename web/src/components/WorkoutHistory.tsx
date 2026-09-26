@@ -3,6 +3,7 @@ import { ArrowRight, ChevronDown, Dumbbell, Trophy } from 'lucide-react';
 import type { HistoryPage, Session, Unit } from '../types';
 import { ApiError, api } from '../lib/api';
 import { duration, showActualRir, showSetCount, showVolume, toDisplay } from '../lib/training';
+import { MotionPanel } from './ui/Motion';
 import { Button } from './ui/Button';
 import { useLoadMoreOnScroll } from './ui/useLoadMoreOnScroll';
 import './History.css';
@@ -126,7 +127,7 @@ export function WorkoutHistory({
 
             {isExpanded && (
               <div className="history-expanded-content" id={`history-detail-${session.id}`}>
-                <div className="history-expanded-exercises">
+                <MotionPanel motionKey={session.id} animateOnMount className="history-expanded-exercises">
                   {session.exercises.map(exercise => (
                     <div className="history-exercise-row" key={exercise.id}>
                       <div className="history-exercise-head">
@@ -165,7 +166,7 @@ export function WorkoutHistory({
                       {exercise.note && <p className="history-exercise-note">{exercise.note}</p>}
                     </div>
                   ))}
-                </div>
+                </MotionPanel>
                 {session.note && <p className="note-block">{session.note}</p>}
                 <div className="history-expanded-actions">
                   <Button variant="secondary" onClick={() => onSession(session)}>

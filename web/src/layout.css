@@ -261,7 +261,7 @@ html[data-keyboard='open'] .workout-footer .rest-bar { display: none; }
 @media (max-width: 639px) {
   .exercise-grid > .exercise-card { min-height: 0; padding: 14px 16px; }
   .exercise-card-top { margin-bottom: 8px; }
-  .exercise-card-meta { margin-bottom: 4px; }
+  .exercise-card-meta { margin-bottom: 12px; }
   .exercise-grid > .exercise-card .exercise-icon { display: none; }
   .exercise-grid > .exercise-card .exercise-card-badges { margin-left: 0; }
 }
@@ -288,4 +288,57 @@ html[data-keyboard='open'] .workout-footer .rest-bar { display: none; }
    and medium layouts, like menus rendered in place. */
 @media (max-width: 1023px) {
   .ui-menu-dropdown .ui-menu-item { min-height: 44px; }
+}
+
+/* Shared action surfaces use the same semantic accents as feature cards. */
+.ui-menu-item { min-height: 44px; gap: 12px; padding: 9px 12px; font-size: var(--font-secondary); }
+.ui-menu-item > svg:first-child {
+  box-sizing: content-box;
+  flex-shrink: 0;
+  padding: 8px;
+  border-radius: 9px;
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+.ui-menu-item-destructive > svg:first-child { color: var(--red); background: var(--red-soft); }
+.modal > header { background: var(--surface-raised); border-bottom: 1px solid var(--border); }
+.modal > header h2 { color: var(--text); }
+.modal > header .button { color: var(--muted); }
+.import-review-issues { padding: 12px; gap: 10px; }
+.import-review-issues-heading > .pill { flex-shrink: 0; white-space: nowrap; }
+.import-program-card, .import-week-days, .draft-day, .day-editor, .day-editor > *, .set-grid-wrap { min-width: 0; }
+@media (max-width: 639px) {
+  .day-editor { padding: 10px; gap: 12px; }
+  .import-program-card { padding: 14px 10px; }
+  .import-review-issues { padding: 10px; background: transparent; }
+  .import-issue-table-row { grid-template-columns: minmax(0, 1fr); padding: 12px; }
+  .import-issue-table-detail { grid-column: 1; }
+  .import-issue-table-action { grid-column: 1; grid-row: auto; justify-self: end; }
+  .import-fields { padding: 10px; margin-bottom: 12px; }
+  .import-exercise { padding: 10px; }
+  .set-grid-wrap .rep-mode-btn { font-size: 14px; }
+}
+
+.superset-unlink-chip-btn { width: 36px; height: 36px; }
+@media (max-width: 1023px) {
+  .superset-unlink-chip-btn { width: 44px; height: 44px; min-width: 44px; min-height: 44px; }
+}
+
+.rep-range-sep { font-size: var(--font-secondary); }
+
+.substitution-chip .substitution-swap-btn { min-height: 36px; }
+@media (max-width: 1023px) {
+  .substitution-chip .substitution-swap-btn { min-height: 44px; }
+  .import-exercise-title .inline-input { min-height: 44px; height: 44px; }
+  .inline-input-mirror { min-height: 44px; height: 44px; }
+}
+
+@media (max-width: 639px) {
+  .import-fields .import-library-field,
+  .import-fields .import-substitutions-field { flex: 1 1 100%; min-width: 0; }
+}
+
+@media (min-width: 1024px) {
+  .import-exercise .import-set-footer { max-width: 570px; }
+  .import-exercise:has(.set-grid-typed) .import-set-footer { max-width: 486px; }
 }

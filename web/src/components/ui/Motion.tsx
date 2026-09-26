@@ -169,11 +169,13 @@ export function MotionScene({
 export function MotionPanel({
   motionKey,
   children,
-  className = ''
+  className = '',
+  animateOnMount = false
 }: {
   motionKey: string;
   children: ReactNode;
   className?: string;
+  animateOnMount?: boolean;
 }) {
   const panel = useRef<HTMLDivElement>(null);
   const reduced = useReducedMotion();
@@ -185,7 +187,7 @@ export function MotionPanel({
 
     if (first.current) {
       first.current = false;
-      return;
+      if (!animateOnMount) return;
     }
 
     if (reduced) return;
@@ -208,7 +210,7 @@ export function MotionPanel({
       node.style.removeProperty('opacity');
       node.style.removeProperty('transform');
     };
-  }, [motionKey, reduced]);
+  }, [motionKey, reduced, animateOnMount]);
 
   return (
     <div ref={panel} className={`motion-panel ${className}`.trim()} data-motion-panel={motionKey}>

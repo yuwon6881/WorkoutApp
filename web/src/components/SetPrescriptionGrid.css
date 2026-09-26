@@ -18,6 +18,9 @@
 
 /* The list item is only a wrapper; the swipe row draws the card, so the head can align with it. */
 .set-grid-list .import-set {
+  display: block;
+  min-width: 0;
+  width: 100%;
   padding: 0;
   border: 0;
 }
@@ -71,6 +74,8 @@
   position: absolute;
   width: 1px;
   height: 1px;
+  min-height: 0;
+  min-width: 0;
   margin: -1px;
   overflow: hidden;
   clip: rect(0, 0, 0, 0);
@@ -116,8 +121,7 @@
   background: var(--surface-raised);
 }
 
-/* A small segmented pill: it labels the column, so it stays visually lighter than the inputs.
-   Each half keeps a 44px touch target through an invisible hit area above and below it. */
+/* The column toggle keeps a full touch target on phones and tablets. */
 .set-grid-head .rep-mode-toggle {
   gap: 2px;
   padding: 2px;
@@ -129,18 +133,18 @@
 .set-grid-head .rep-mode-btn {
   position: relative;
   min-width: 0;
-  min-height: 26px;
-  height: 26px;
+  min-height: 36px;
+  height: 36px;
   padding: 0 10px;
   border-radius: var(--radius-pill);
-  font-size: 12px;
+  font-size: 14px;
   line-height: 1;
 }
 
 .set-grid-head .rep-mode-btn::after {
   content: "";
   position: absolute;
-  inset: -9px 0;
+  inset: 0;
 }
 
 /* The delete action is one square icon button, so its icon sits in the middle of its own box. */
@@ -240,12 +244,12 @@
   }
 
   .set-grid-typed.set-grid-wrap .set-grid-row {
-    grid-template-columns: 236px 172px 52px;
+    grid-template-columns: 176px 172px 52px;
     grid-template-areas: "meta reps rir";
   }
 
   .set-grid-typed.set-grid-wrap .set-grid-head {
-    grid-template-columns: 236px 172px 52px;
+    grid-template-columns: 176px 172px 52px;
     grid-template-areas: ". reps rir";
   }
 }
@@ -269,7 +273,7 @@
     min-width: 40px;
   }
 
-  .set-grid-head .rep-mode-btn::after { inset: -4px 0; }
+  .set-grid-head .rep-mode-btn::after { inset: 0; }
 }
 
 /* Phone rows keep delete behind a swipe. A drawer handle on the trailing edge shows that the row
@@ -285,4 +289,26 @@
   border-radius: var(--radius-pill);
   background: var(--border-hover);
   pointer-events: none;
+}
+
+/* Keep desktop deletion beside the prescription rather than at the card's far edge. */
+@container set-grid (min-width: 600px) {
+  .set-grid-wrap .import-set-swipe-row { max-width: 570px; }
+  .set-grid-typed.set-grid-wrap .import-set-swipe-row { max-width: 486px; }
+}
+@container set-grid (max-width: 260px) {
+  .set-grid-wrap:not(.set-grid-typed) .set-grid-row {
+    grid-template-columns: minmax(0, 1fr) 48px;
+    grid-template-areas: "meta meta" "reps rir" "tempo tempo";
+  }
+  .set-grid-wrap:not(.set-grid-typed) .set-grid-head {
+    grid-template-columns: minmax(0, 1fr) 48px;
+    grid-template-areas: "reps rir";
+  }
+  .set-grid-head-tempo { display: none; }
+  .set-grid-row .set-tempo-field { justify-self: start; width: 100%; }
+}
+
+@media (max-width: 1023px) {
+  .set-grid-head .rep-mode-btn { min-height: 44px; height: 44px; padding-inline: 8px; }
 }
