@@ -32,7 +32,7 @@
   100% { box-shadow: 0 0 0 0 transparent; }
 }
 
-.just-logged .set-log-checkbox.checked {
+.just-logged .set-log-checkbox.checked svg {
   animation: set-check-pop var(--motion-panel) var(--motion-ease);
 }
 
