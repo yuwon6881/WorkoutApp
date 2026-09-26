@@ -205,7 +205,7 @@ public sealed partial class WorkoutService(
     {
         if (loadModel == LoadModels.FullBodyweight)
         {
-            var baseSuggestion = Progression.SuggestSet(prescription.RepMin, prescription.RepMax, prescription.TargetRpe,
+            var baseSuggestion = Progression.SuggestSet(Progression.LoadRuleReps(prescription).Min, Progression.LoadRuleReps(prescription).Max, prescription.TargetRpe,
                 exposures, mode, step, context.Context?.Revision, resistanceMode,
                 // A historical full-bodyweight set without a frozen snapshot cannot support a
                 // system-load calculation. Never reinterpret its entered added/assistance load
@@ -228,7 +228,7 @@ public sealed partial class WorkoutService(
         }
 
         var policyMode = loadModel is LoadModels.BodyweightContextOnly or LoadModels.RepsOnly ? ResistanceModes.RepsOnly : resistanceMode;
-        return Progression.SuggestSet(prescription.RepMin, prescription.RepMax, prescription.TargetRpe, exposures, mode, step,
+        return Progression.SuggestSet(Progression.LoadRuleReps(prescription).Min, Progression.LoadRuleReps(prescription).Max, prescription.TargetRpe, exposures, mode, step,
             context.Context?.Revision, policyMode) with { ResistanceMode = resistanceMode };
     }
 

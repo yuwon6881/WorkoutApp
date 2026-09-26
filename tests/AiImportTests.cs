@@ -220,10 +220,11 @@ public class AiImportTests
         });
         Assert.False(exercise.Sets[2].Warmup);
         Assert.Equal("AMRAP", exercise.Sets[2].RepsText);
+        Assert.Null(exercise.Sets[2].RepMin);
         Assert.Equal("3-5 min", exercise.Sets[2].RestText);
         Assert.Equal("2", exercise.Sets[2].Rir);
         Assert.Equal(8, exercise.Sets[2].TargetRpe);
-        Assert.Equal("inferred", exercise.Sets[2].RepsSource);
+        Assert.Equal("extracted", exercise.Sets[2].RepsSource);
         // Two AI reads: one outline pass and one chunk. Counted before accepting, because
         // accepting removes the import row.
         Assert.Equal(2, (await h.Db.Imports.AsNoTracking().SingleAsync()).Calls);

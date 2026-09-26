@@ -6,7 +6,7 @@ using Workout.Api.Domain;
 namespace Workout.Api.Services;
 
 public record AiSet(
-    int RepMin, int RepMax, double? TargetRpe, int? RestSeconds, string? Tempo, string? LoadText, string? Notes,
+    int? RepMin, int? RepMax, double? TargetRpe, int? RestSeconds, string? Tempo, string? LoadText, string? Notes,
     string? RepsText = null, string? RestText = null, string? Rir = null,
     string RepsSource = "extracted", string RpeSource = "extracted", string RestSource = "extracted", int? SourcePage = null);
 public record AiExercise(string SourceName, string? ExerciseId, string? Notes, List<AiSet> Sets,
@@ -71,7 +71,7 @@ public sealed class WorkoutAi(HttpClient http, IConfiguration config)
     /// source text within explicit per-page, outline, and section bounds;
     /// v35 serializes verification scoring over the shared reader context, trusts a unique printed
     /// week on a page over a conflicting model label, and requires source-verified completion.
-    public const string PromptVersion = "workout-import-v35-verified-recovery";
+    public const string PromptVersion = "workout-import-v36-unstated-reps";
 
     /// One cheap pass over a page-by-page view of the document. Most of a commercial training PDF
     /// is explanation and photography; this pass exists to find the few pages that actually carry

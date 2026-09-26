@@ -41,10 +41,22 @@ internal static class ImportNormalization
     public static string Provenance(string? source)
         => source is "extracted" or "userEdited" ? source : "inferred";
 
-    /// Rep bounds for a row that may not state reps at all. A stored set needs 1-1000 with the low
+    /// Rep bounds for a row that may not state reps at all. Stated bounds are 1-1000 with the low
     /// bound first; when the source gives a simple single number or range, that notation is the
-    /// authority over the model's duplicate numeric fields. `Adjusted` reports any change.
-    public static (int Min, int Max, bool Adjusted) Reps(int min, int max, string? text = null)
+    /// authority over the model's duplicate numeric fields. A row whose reps cell holds no number
+    /// ("AMRAP", "N/A", a blank) has no rep target, and none is invented. `Adjusted` reports any change.
+    public static (int? Min, int? Max, bool Adjusted) Reps(int? min, int? max, string? text = null)
+    {
+        if (!string.IsNullOrWhiteSpace(text) && !text.Any(char.IsDigit)) return (null, null, false);
+        if (min is not { } statedMin || max is not { } statedMax || statedMin <= 0 && statedMax <= 0)
+        {
+            if (!TrySimpleReps(text, out _, out _)) return (null, null, false);
+            statedMin = statedMax = 0;
+        }
+        return Stated(statedMin, statedMax, text);
+    }
+
+    private static (int? Min, int? Max, bool Adjusted) Stated(int min, int max, string? text)
     {
         if (TrySimpleReps(text, out var parsedMin, out var parsedMax))
         {
@@ -60,6 +72,15 @@ internal static class ImportNormalization
         var high = Math.Max(min, max);
         var adjusted = min > max || low < 1 || high > 1000;
         return (Math.Clamp(low, 1, 1000), Math.Clamp(high, 1, 1000), adjusted);
+    }
+
+    /// A reps cell that states nothing: blank, a dash, N/A, or a column word such as "NOTES" that a
+    /// table prints to point elsewhere. It is not kept as the set's rep text.
+    public static string? RepsText(string? text)
+    {
+        var clean = Text(text, 40);
+        return clean is null || Regex.IsMatch(clean, @"^(?:[-–—]+|n/?a|none|notes?|see\s+notes?)$", RegexOptions.IgnoreCase)
+            ? null : clean;
     }
 
     private static bool TrySimpleReps(string? text, out int min, out int max)

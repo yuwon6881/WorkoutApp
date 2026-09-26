@@ -200,8 +200,11 @@ export function ImportReview({ exercises, imports, remaining, onBack, onChanged,
     </section>
 
     {selected && selected.status === 'pending' && selected.stage === 'select' && selected.alternatives?.length ? <section className="panel import-reading-panel">
-      <div className="empty-message"><Wand2 size={24} /><h3>Choose a program</h3>
-        <p>This PDF contains several programs. Choose one before detailed extraction; its consecutive phases will stay together.</p>
+      <div className="empty-message"><Wand2 size={24} />{selected.alternatives.every(alternative => alternative.kind === 'week')
+        ? <><h3>Choose a week version</h3>
+          <p>This program prints a week in versions and asks you to run only one. Choose the version to import; the program is kept in order around it.</p></>
+        : <><h3>Choose a program</h3>
+          <p>This PDF contains several programs. Choose one before detailed extraction; its consecutive phases will stay together.</p></>}
         <div className="alternative-cards-grid" role="group" aria-label="Available program versions">
           {selected.alternatives.map(alternative => {
             const chosen = alternativeChoice === alternative.id;
@@ -209,10 +212,13 @@ export function ImportReview({ exercises, imports, remaining, onBack, onChanged,
               <article key={alternative.id} className={`alternative-card ${chosen ? 'selected' : ''}`}>
                 <div className="alternative-card-body">
                   <h4 className="alternative-card-title">{alternative.name}</h4>
+                  {alternative.description && <p className="alternative-card-description">{alternative.description}</p>}
                   <div className="alternative-card-meta">
                     {alternative.weekCount != null && <span className="pill pill-accent">{alternative.weekCount} week{alternative.weekCount === 1 ? '' : 's'}</span>}
                     {alternative.sessionsPerWeek != null && <span className="pill">{alternative.sessionsPerWeek} sessions / week</span>}
-                    <span className="pill pill-muted">{alternative.dayCount} estimated sessions</span>
+                    <span className="pill pill-muted">{alternative.kind === 'week'
+                      ? `${alternative.dayCount} session${alternative.dayCount === 1 ? '' : 's'} in this version`
+                      : `${alternative.dayCount} estimated sessions`}</span>
                   </div>
                 </div>
                 <div className="alternative-card-action">

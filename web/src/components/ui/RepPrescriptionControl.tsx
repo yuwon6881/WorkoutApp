@@ -1,12 +1,13 @@
 import { useId } from 'react';
 
 export interface RepPrescriptionControlProps {
-  repMin: number;
-  repMax: number;
+  /// Empty bounds are a set the program gives no rep target; clearing the input empties it.
+  repMin: number | null;
+  repMax: number | null;
   /// Exact reps or a range. The mode belongs to the exercise, so the caller owns it and offers
   /// one RepModeToggle for all of its sets.
   range: boolean;
-  onChange: (patch: { repMin: number; repMax: number }) => void;
+  onChange: (patch: { repMin: number | null; repMax: number | null }) => void;
   nameMin: string;
   nameMax: string;
   nameSingle: string;
@@ -17,6 +18,8 @@ export interface RepPrescriptionControlProps {
   /// The source printed no rep count (an AMRAP set): no target is shown or editable.
   openReps?: boolean;
 }
+
+const repValue = (text: string): number | null => (text.trim() === '' ? null : Number(text));
 
 export function RepPrescriptionControl({
   repMin,
@@ -64,13 +67,13 @@ export function RepPrescriptionControl({
             inputMode="numeric"
             min="1"
             max="1000"
-            value={repMin}
+            value={repMin ?? ''}
             data-import-field="repMin"
             data-import-set-index={dataImportIndex}
             disabled={disabled}
             onChange={e => {
-              const val = Number(e.target.value);
-              onChange({ repMin: val, repMax: Math.max(val, repMax) });
+              const val = repValue(e.target.value);
+              onChange({ repMin: val, repMax: val === null ? repMax : Math.max(val, repMax ?? val) });
             }}
           />
           <span className="rep-range-sep" aria-hidden="true">–</span>
@@ -84,13 +87,12 @@ export function RepPrescriptionControl({
             inputMode="numeric"
             min="1"
             max="1000"
-            value={repMax}
+            value={repMax ?? ''}
             data-import-field="repMax"
             data-import-set-index={dataImportIndex}
             disabled={disabled}
             onChange={e => {
-              const val = Number(e.target.value);
-              onChange({ repMin, repMax: val });
+              onChange({ repMin, repMax: repValue(e.target.value) });
             }}
           />
         </div>
@@ -106,19 +108,19 @@ export function RepPrescriptionControl({
             inputMode="numeric"
             min="1"
             max="1000"
-            value={repMin}
+            value={repMin ?? ''}
             data-import-field="repMin"
             data-import-set-index={dataImportIndex}
             disabled={disabled}
             onChange={e => {
-              const val = Number(e.target.value);
+              const val = repValue(e.target.value);
               onChange({ repMin: val, repMax: val });
             }}
           />
           <input
             type="hidden"
             name={nameMax}
-            value={repMax}
+            value={repMax ?? ''}
             data-import-field="repMax"
             data-import-set-index={dataImportIndex}
           />

@@ -14,6 +14,113 @@ public sealed class ImportSourceFidelityTests
         => new(Guid.NewGuid(), name, null, null, [Set(8, 10, page: page)], Substitutions: [.. substitutions], SourcePage: page);
 
     [Theory]
+    [InlineData("N/A")]
+    [InlineData("-")]
+    [InlineData("NOTES")]
+    [InlineData("")]
+    public void A_reps_cell_that_states_nothing_leaves_the_target_empty(string printed)
+    {
+        var text = ImportNormalization.RepsText(printed);
+        Assert.Null(text);
+        Assert.Equal(((int?)null, (int?)null, false), ImportNormalization.Reps(0, 0, text));
+    }
+
+    [Fact]
+    public void An_open_reps_cell_keeps_its_words_but_no_count()
+    {
+        Assert.Equal("AMRAP", ImportNormalization.RepsText("AMRAP"));
+        Assert.Equal(((int?)null, (int?)null, false), ImportNormalization.Reps(1, 1, "AMRAP"));
+        Assert.Equal(((int?)8, (int?)10, false), ImportNormalization.Reps(8, 10, "8-10"));
+    }
+
+    [Fact]
+    public void A_set_with_no_rep_target_is_valid_but_a_half_empty_range_is_not()
+    {
+        Workout.Api.Domain.Validation.Prescriptions([new(null, null, 8, 90, null, null, null)]);
+        var error = Assert.Throws<Workout.Api.Domain.DomainException>(() =>
+            Workout.Api.Domain.Validation.Prescriptions([new(8, null, 8, 90, null, null, null)]));
+        Assert.Equal("Give both rep bounds or leave both empty.", error.Message);
+    }
+
+    [Fact]
+    public void A_set_with_no_rep_target_is_never_prefilled_with_a_count()
+    {
+        var prescription = new Workout.Api.Domain.SetPrescription(null, null, 8, 90, null, null, null);
+        var (min, max) = Workout.Api.Domain.Progression.LoadRuleReps(prescription);
+        var suggestion = Workout.Api.Domain.Progression.SuggestSet(min, max, 8, [], "normal", 2.5);
+
+        Assert.Null(Workout.Api.Domain.Progression.PrefillReps(prescription, suggestion));
+        Assert.Equal("No rep target is set: log the reps you do.",
+            Workout.Api.Domain.Progression.ForPrescription(prescription, suggestion).Reason);
+    }
+
+    private static DraftWorkout Day(int week, string name, int page, bool rest = false)
+        => new(Guid.NewGuid(), week, name, null, null, rest ? [] : [Exercise(name, page)], null, null, week, rest, page);
+
+    private static List<ImportPageText> VersionPages() =>
+    [
+        new(64, "WHAT WEEK TO RUN?\n• RUN WEEK 10A ONLY IF YOU HAVE COMPETITIVE POWERLIFTING GOALS\n• RUN WEEK 10B IF YOU HAVE MOSTLY BODYBUILDING AND GENERAL STRENGTH GOALS"),
+        new(63, "WEEK 9\nDAY LABEL: FULL BODY 1"),
+        new(66, "WEEK 10A\nMAX TESTING OPTION A: CHOOSE EITHER WEEK 10A OR WEEK 10B. DO NOT RUN BOTH WEEKS.\nDAY LABEL: SQUAT TEST"),
+        new(68, "WEEK 10B\nMAX TESTING OPTION B: CHOOSE EITHER WEEK 10A OR WEEK 10B. DO NOT RUN BOTH WEEKS.\nDAY LABEL: SQUAT TEST"),
+        new(70, "WEEK 11\nDAY LABEL: FULL BODY 1")
+    ];
+
+    /// The versions read as consecutive weeks, the way both are kept before a choice is made.
+    private static ImportDraft VersionDraft() => new("Powerbuilding",
+    [
+        Day(9, "Full Body 1", 63), Day(9, "Rest", 63, rest: true),
+        Day(10, "Squat Test", 66), Day(10, "Rest", 66, rest: true),
+        Day(11, "Squat Test", 68), Day(11, "Rest", 68, rest: true),
+        Day(12, "Full Body 1", 70)
+    ]);
+
+    [Fact]
+    public void A_week_printed_in_versions_is_offered_as_a_choice_with_the_documents_advice()
+    {
+        var choices = ImportWeekChoice.Offer(VersionDraft(), VersionPages());
+
+        Assert.Equal(["week-a", "week-b"], choices.Select(choice => choice.Id));
+        Assert.Equal(["Week 10A", "Week 10B"], choices.Select(choice => choice.Name));
+        Assert.All(choices, choice => Assert.Equal(ImportAlternativeKinds.Week, choice.Kind));
+        Assert.Equal("Run week 10A only if you have competitive powerlifting goals", choices[0].Description);
+        Assert.Equal(3, choices[0].WeekCount);
+        Assert.Equal(2, choices[0].DayLineIds!.Count);
+    }
+
+    [Fact]
+    public void Choosing_a_week_version_keeps_only_its_days_in_the_week_the_document_numbers()
+    {
+        var draft = VersionDraft();
+        var choices = ImportWeekChoice.Offer(draft, VersionPages());
+
+        var chosen = ImportWeekChoice.Apply(draft, choices[1], choices);
+
+        Assert.Equal([9, 9, 10, 10, 11], chosen.Workouts.Select(day => day.Week));
+        Assert.Equal(68, chosen.Workouts.Single(day => day.Week == 10 && !day.IsRestDay).SourcePage);
+        Assert.Equal(11, chosen.Workouts[^1].PhaseWeek);
+    }
+
+    [Fact]
+    public void A_program_without_lettered_weeks_offers_no_choice()
+        => Assert.Empty(ImportWeekChoice.Offer(VersionDraft(), [new(63, "WEEK 9"), new(66, "WEEK 10")]));
+
+    /// Min-Max's introduction says "Block 2 introduces:" before the schedule prints "BLOCK 1". Read
+    /// as a banner, that marked block 2 as already left, so its real banner was ignored.
+    [Fact]
+    public void An_introduction_that_names_a_later_block_does_not_hide_that_blocks_banner()
+    {
+        var pages = new List<ImportPageText> { new(1, "Block 1 includes no intensity techniques.\nBlock 2 introduces:") };
+        for (var week = 1; week <= 4; week++)
+            pages.Add(new(week + 1, $"{(week == 1 ? "BLOCK 1\n" : week == 3 ? "Block 2\n" : "")}DAY LABEL: Full Body\n" +
+                "Exercise | Warm-up Sets | Working Sets | Reps | Rest\n" + $"WEEK {week}\nSquat | 1 | 2 | 6-8 | 2 min"));
+
+        var schedule = ImportPrintedSchedule.Read(pages)!;
+
+        Assert.Equal(["Block 1", "Block 1", "Block 2", "Block 2"], schedule.Days.Select(day => day.Block));
+    }
+
+    [Theory]
     [InlineData("SUGGESTED REST DAY (1-2 DAYS OFF DEPENDING ON YOUR SCHEDULE)")]
     [InlineData("MANDATORY REST DAY")]
     [InlineData("2 REST DAYS")]

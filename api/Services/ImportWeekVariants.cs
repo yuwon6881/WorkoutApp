@@ -79,7 +79,7 @@ internal static class ImportWeekVariants
     }
 
     /// Pages whose headings name exactly one lettered version of one week.
-    private static Dictionary<int, (int Week, string Version)> PageVersions(IReadOnlyList<ImportPageText> pages)
+    internal static Dictionary<int, (int Week, string Version)> PageVersions(IReadOnlyList<ImportPageText> pages)
     {
         var versions = new Dictionary<int, (int Week, string Version)>();
         foreach (var page in pages)

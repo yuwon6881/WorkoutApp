@@ -17,11 +17,20 @@ export function anchorColumn(band: HeaderBand): number | undefined {
   return reps >= 0 ? reps : undefined;
 }
 
-function isWorkingAnchorText(text: string): boolean {
+/// A stray glyph a layout left in front of a count ("` 1") is not part of it.
+const STRAY_LEAD = /^[`´'’"*•·]+\s*(?=\d)/;
+
+export function withoutStrayGlyph(text: string): string {
+  return text.replace(STRAY_LEAD, '');
+}
+
+function isWorkingAnchorText(raw: string): boolean {
+  const text = withoutStrayGlyph(raw);
   // "1+" is a working-set count too: a top set followed by as many back-offs as it takes.
-  // A count can also be per side ("2 per leg") or a choice ("2 or 3").
+  // A count can also be per side ("2 per leg", "2 EACH", "2/side") or a choice ("2 or 3").
   return /^\d{1,2}(?:[-–+]\d{1,2}|\+)?$/.test(text) || /^amrap$/i.test(text) || /^n\/a$/i.test(text)
-    || /^\d{1,2}\s+(?:per\s+(?:leg|arm|side)|or\s+\d{1,2})$/i.test(text);
+    || /^\d{1,2}\s+(?:per\s+(?:leg|arm|side)|or\s+\d{1,2})$/i.test(text)
+    || /^\d{1,2}\s*(?:each(?:\s+(?:leg|arm|side))?|\/\s*(?:leg|arm|side))$/i.test(text);
 }
 
 export function anchorsRow(row: TextRow, band: HeaderBand, column: number): boolean {
@@ -141,10 +150,11 @@ export function renderHeaderTable(
     const cells: PositionedPiece[][] = Array.from({ length: band.centers.length }, () => []);
     for (const item of rowItems) cells[cellColumn(item, rowItems, band)].push(item);
 
-    const cellTexts = cells.map(cellPieces => {
+    const cellTexts = cells.map((cellPieces, column) => {
       if (cellPieces.length === 0) return '';
       cellPieces.sort((a, b) => b.y - a.y || a.x - b.x);
-      return renderCellPieces(cellPieces);
+      const text = renderCellPieces(cellPieces);
+      return column === anchorColIndex ? withoutStrayGlyph(text) : text;
     });
 
     while (cellTexts.length > 0 && cellTexts[cellTexts.length - 1] === '') {

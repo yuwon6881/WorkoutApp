@@ -21,8 +21,11 @@ export const showVolume = (kg: number | null, unit: Unit): string => {
 };
 
 /// The rep target as the program wrote it: a single number or a range, never flattened.
-export const showReps = (set: SetPrescription | { repMin: number; repMax: number }): string =>
-  'repsText' in set && set.repsText?.trim() ? set.repsText : set.repMin === set.repMax ? String(set.repMin) : `${set.repMin}–${set.repMax}`;
+/// A dash stands for a set the program gives no rep target, never an invented count.
+export const showReps = (set: SetPrescription | { repMin: number | null; repMax: number | null }): string =>
+  'repsText' in set && set.repsText?.trim() ? set.repsText
+    : set.repMin === null ? '—'
+      : set.repMin === set.repMax || set.repMax === null ? String(set.repMin) : `${set.repMin}–${set.repMax}`;
 
 export const showRpe = (rpe: number | null): string => {
   if (rpe === null) return '—';

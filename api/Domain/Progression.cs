@@ -77,10 +77,18 @@ public static class Progression
         => !string.IsNullOrWhiteSpace(repsText) && OpenReps.IsMatch(repsText) && !repsText.Any(char.IsDigit);
 
     public static SetProgressionSuggestion ForPrescription(SetPrescription prescription, SetProgressionSuggestion suggestion)
-        => HasOpenReps(prescription.RepsText) ? suggestion with { Reason = "As many reps as possible: log the reps you get." } : suggestion;
+        => HasOpenReps(prescription.RepsText) ? suggestion with { Reason = "As many reps as possible: log the reps you get." }
+            : prescription.RepMin is null ? suggestion with { Reason = "No rep target is set: log the reps you do." }
+            : suggestion;
 
+    /// Neither an open set nor one with no rep target is prefilled with a count it never asked for.
     public static int? PrefillReps(SetPrescription prescription, SetProgressionSuggestion suggestion)
-        => HasOpenReps(prescription.RepsText) ? null : suggestion.SuggestedReps;
+        => HasOpenReps(prescription.RepsText) || prescription.RepMin is null ? null : suggestion.SuggestedReps;
+
+    /// The rep range the load rules work within. An unstated target keeps the one-rep floor those
+    /// rules have always used for open sets, so load progression is unchanged; it is never shown.
+    public static (int Min, int Max) LoadRuleReps(SetPrescription prescription)
+        => (prescription.RepMin ?? 1, prescription.RepMax ?? prescription.RepMin ?? 1);
 
     public const double DefaultStepKg = 2.5;
     public const int MaxEstimatedReps = 12;

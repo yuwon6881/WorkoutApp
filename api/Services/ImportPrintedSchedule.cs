@@ -94,6 +94,7 @@ internal sealed class ImportPrintedSchedule
     {
         var output = new List<SourceDay>();
         string? block = null;
+        string? leadBanner = null;
         var bannerSinceLast = false;
         var passedBlocks = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         int? lastPrinted = null;
@@ -104,7 +105,19 @@ internal sealed class ImportPrintedSchedule
         {
             var lines = (page.Text ?? "").ReplaceLineEndings("\n").Split('\n').Select(line => line.Trim()).ToList();
             if (output.Count > 0 && lines.Any(line => AppendixHeading.IsMatch(line))) break;
+            var labels = lines.Select((line, index) => (Index: index, Found: ImportStructureHeadings.TryDayLabel(line, out var label), Label: label))
+                .Where(item => item.Found).ToList();
             var banner = lines.Select(Banner).FirstOrDefault(value => value is not null);
+            // Before the schedule starts, a banner only says which block comes first: a title
+            // page ("Phase 1") does, and so can an introduction that explains the blocks. None of
+            // them marks a block as already left, or the book's real banner for it is later
+            // taken for a stale running header.
+            if (output.Count == 0 && labels.Count == 0)
+            {
+                leadBanner = banner ?? leadBanner;
+                continue;
+            }
+            if (output.Count == 0) banner ??= leadBanner;
             // Blocks only move forward: a banner naming one already left is a running header the
             // book never updated (Pure Bodybuilding Phase 2 keeps "BLOCK 1" atop block 2's pages).
             var blockChanged = banner is not null && !string.Equals(banner, block, StringComparison.OrdinalIgnoreCase)
@@ -115,8 +128,6 @@ internal sealed class ImportPrintedSchedule
                 block = banner;
                 bannerSinceLast = true;
             }
-            var labels = lines.Select((line, index) => (Index: index, Found: ImportStructureHeadings.TryDayLabel(line, out var label), Label: label))
-                .Where(item => item.Found).ToList();
             if (labels.Count == 0) continue;
 
             var (weeks, letter) = WeeksWithLetter(lines);
@@ -279,6 +290,8 @@ internal sealed class ImportPrintedSchedule
 
     private static string? Banner(string line)
     {
+        // A line ending in a colon introduces what follows ("Block 2 introduces:"); it is not a banner.
+        if (line.EndsWith(':')) return null;
         if (ImportStructureHeadings.TryBlock(line, out var label) && line.Length < 40) return $"Block {label}";
         return NamedBlock.IsMatch(line) ? ImportDayLabels.TidyLabel(line) : null;
     }

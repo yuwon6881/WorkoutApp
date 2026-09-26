@@ -249,9 +249,12 @@ internal static partial class ImportTableEvidence
         var hasModelRepBounds = set.RepMin > 0 && set.RepMax >= set.RepMin
             && (set.RepMin != 1 || set.RepMax != 1 || HasText(set.RepsText)
                 || evidence.RepMin == 1 && evidence.RepMax == 1);
-        var (repMin, repMax) = hasModelRepBounds
+        (int? Min, int? Max) reps = hasModelRepBounds
             ? (set.RepMin, set.RepMax)
             : evidence.RepMin is { } min && evidence.RepMax is { } max ? (min, max) : (set.RepMin, set.RepMax);
+        // The printed cell is blank, "-" or N/A: the page sets no rep target, whatever the read guessed.
+        if (evidence.RepsStatedAbsent && !HasText(set.RepsText)) reps = (null, null);
+        var (repMin, repMax) = reps;
         return set with
         {
             RepMin = repMin,

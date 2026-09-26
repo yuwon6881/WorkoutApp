@@ -205,6 +205,41 @@ describe('doubled and per-side counts', () => {
       'Smith Machine Reverse Lunge | 2 per leg | 10-12 | ~2-3 min'
     ]);
   });
+
+  /// Powerbuilding 2.0 prints "2 EACH" for a unilateral movement. Unrecognised, the row had no
+  /// anchor and was read into the row below it: "BULGARIAN SPLIT SQUAT MEADOWS ROW | 1 1 | 2 EACH 4".
+  it('keeps a row whose count is written "2 EACH" apart from the next row', () => {
+    const size = 9;
+    const at = (text: string, x: number, y: number, width = text.length * 4) =>
+      ({ str: text, transform: [size, 0, 0, size, x, y], width });
+    const text = buildPageText([
+      at('EXERCISE', 100, 400), at('WARM-UP SETS', 200, 400, 50), at('WORKING SETS', 265, 400, 50), at('REPS', 330, 400),
+      at('BULGARIAN SPLIT SQUAT', 90, 344.7, 90), at('1', 210, 344.7, 4), at('2 EACH', 271, 344.7, 26), at('8-10', 332, 344.7),
+      at('MEADOWS ROW', 100, 326.7, 50), at('1', 210, 326.7, 4), at('4', 278, 326.7, 4), at('12-15', 331, 326.7)
+    ]);
+
+    expect(text.split('\n').slice(1)).toEqual([
+      'BULGARIAN SPLIT SQUAT | 1 | 2 EACH | 8-10',
+      'MEADOWS ROW | 1 | 4 | 12-15'
+    ]);
+  });
+
+  /// A stray backtick drawn before a set count ("` 1") fused a deadlift with the squat below it.
+  it('anchors a set count printed after a stray glyph and drops the glyph', () => {
+    const size = 7;
+    const at = (text: string, x: number, y: number, width = text.length * 3.5) =>
+      ({ str: text, transform: [size, 0, 0, size, x, y], width });
+    const text = buildPageText([
+      at('EXERCISE', 55, 669), at('SETS', 120, 669), at('REPS', 151, 669), at('REST', 228, 669),
+      at('DEADLIFT', 56, 656.8), at('` 1', 124, 656.8, 8), at('RPE 9 TEST', 147, 656.8), at('3-4MIN', 227, 656.8),
+      at('TEMPO BACK SQUAT', 43, 636.9), at('2', 125.5, 636.9, 4), at('6', 157.7, 636.9, 4), at('3-4MIN', 227, 636.9)
+    ]);
+
+    expect(text.split('\n').slice(1)).toEqual([
+      'DEADLIFT | 1 | RPE 9 TEST | 3-4MIN',
+      'TEMPO BACK SQUAT | 2 | 6 | 3-4MIN'
+    ]);
+  });
 });
 
 describe('pieces carrying their own line break', () => {

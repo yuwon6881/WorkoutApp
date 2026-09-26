@@ -2,9 +2,9 @@ using System.Text.RegularExpressions;
 
 namespace Workout.Api.Services;
 
-/// What kind of set a printed row describes, beyond its numbers. A stored set always carries rep
-/// bounds, so a row whose reps read "AMRAP" is stored as one rep; without its technique tag the
-/// review showed a one-rep target the page never wrote. A row the table itself names a warm-up
+/// What kind of set a printed row describes, beyond its numbers. A row whose reps read "AMRAP"
+/// has no rep target, so the technique tag is what tells review and logging to go to failure. A
+/// row the table itself names a warm-up
 /// ("Overhead Press (Warm Up)") is the warm-up, not a movement to warm up for.
 internal static class ImportSetKinds
 {

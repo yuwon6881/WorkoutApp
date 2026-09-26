@@ -11,7 +11,7 @@ public class DomainException(string message, int status = 400) : Exception(messa
 /// One prescribed set. Rep ranges and per-set differences are preserved exactly as written,
 /// so a program that asks for 8-10 on set one and 12 on set three stays that way.
 public record SetPrescription(
-    int RepMin, int RepMax, double? TargetRpe, int? RestSeconds, string? Tempo, string? LoadText, string? Notes,
+    int? RepMin, int? RepMax, double? TargetRpe, int? RestSeconds, string? Tempo, string? LoadText, string? Notes,
     string? RepsText = null, string? RestText = null, string? Rir = null,
     bool Warmup = false, string RepsSource = "extracted", string RpeSource = "extracted", string RestSource = "extracted",
     string ResistanceMode = ResistanceModes.External, int? SourcePage = null);
@@ -73,8 +73,13 @@ public static class Validation
         foreach (var set in sets)
         {
             Require(set is not null, "A set is missing its details.");
-            Require(set!.RepMin is > 0 and <= 1000 && set.RepMax is > 0 and <= 1000, "Reps must be between 1 and 1000.");
-            Require(set.RepMin <= set.RepMax, "The lowest rep target cannot exceed the highest.");
+            // A program may leave reps unstated ("AMRAP", a blank cell); then both bounds are empty.
+            Require(set!.RepMin is null == set.RepMax is null, "Give both rep bounds or leave both empty.");
+            if (set.RepMin is { } repMin && set.RepMax is { } repMax)
+            {
+                Require(repMin is > 0 and <= 1000 && repMax is > 0 and <= 1000, "Reps must be between 1 and 1000.");
+                Require(repMin <= repMax, "The lowest rep target cannot exceed the highest.");
+            }
             if (set.TargetRpe is { } target)
             {
                 Number(target, 6, 10, "Target RPE");

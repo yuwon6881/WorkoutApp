@@ -89,11 +89,25 @@ public sealed class CorpusReport
                     if (expected?.Alternatives is { Count: > 0 })
                         failures.Add($"{programName}: expected a version chooser, received stage '{discovered.View.Stage}'.");
                     var normal = await Replay(file, catalog, drifting: false, selectedAlternativeId: null);
-                    var drift = await Replay(file, catalog, drifting: true, selectedAlternativeId: null);
-                    AppendViewReport(report, normal.View, normal.Pages, normal.Library, file, null, programName, failures, drifting: false, expected);
-                    AppendViewReport(report, drift.View, drift.Pages, drift.Library, file, null, $"{programName} (drifting)", failures, drifting: true, expected);
-                    CompareSemantics(normal.View.Draft, normal.CanonicalNames,
-                        drift.View.Draft, drift.CanonicalNames, programName, failures);
+                    // A program that prints a week in versions to run only one of is imported once
+                    // per version, each checked like a program of its own.
+                    var choices = normal.WeekChoices;
+                    List<(string? Id, string Label)> versions = choices.Count > 1
+                        ? [.. choices.Select(choice => ((string?)choice.Id, $"{programName} ({choice.Name})"))]
+                        : [(null, programName)];
+                    foreach (var (choiceId, label) in versions)
+                    {
+                        if (choiceId is not null) report.Append($"### Week version: {label}\n\n");
+                        var chosen = choiceId is null || choiceId == choices[0].Id ? normal
+                            : await Replay(file, catalog, drifting: false, selectedAlternativeId: null, weekChoiceId: choiceId);
+                        var drift = await Replay(file, catalog, drifting: true, selectedAlternativeId: null, weekChoiceId: choiceId);
+                        var suffix = choiceId is null ? null : choiceId;
+                        AppendViewReport(report, chosen.View, chosen.Pages, chosen.Library, file, suffix, label, failures, drifting: false, expected);
+                        AppendViewReport(report, drift.View, drift.Pages, drift.Library, file, suffix, $"{label} (drifting)", failures, drifting: true, expected);
+                        CompareSemantics(chosen.View.Draft, chosen.CanonicalNames, drift.View.Draft, drift.CanonicalNames, label, failures);
+                        if (choiceId is not null && !(chosen.View.ReviewIssues ?? []).Any(issue => issue.Code == ImportWeekChoice.ChosenCode))
+                            failures.Add($"{label}: the chosen week version was not recorded in the review notes.");
+                    }
                     if (expected?.ExerciseCount is { } exercises && normal.View.Draft is { } draft)
                     {
                         var actualExercises = draft.Workouts.Sum(day => day.Exercises.Count);
@@ -118,10 +132,10 @@ public sealed class CorpusReport
     private sealed record ExpectedAlternative(string Id, string Name, int PageFrom, int PageTo, int WeekCount, int SessionsPerWeek);
     private sealed record ExpectedFailure(string Code, int Page, string TargetField);
     private sealed record ReplayResult(ImportView View, List<ImportPageText> Pages, Dictionary<string, Guid> Library,
-        Dictionary<Guid, string> CanonicalNames);
+        Dictionary<Guid, string> CanonicalNames, List<ImportAlternative> WeekChoices);
 
     private static async Task<ReplayResult> Replay(string file, List<SeedExercise> catalog, bool drifting,
-        string? selectedAlternativeId, bool stopAtChoice = false)
+        string? selectedAlternativeId, bool stopAtChoice = false, string? weekChoiceId = null)
     {
         var extracted = JsonDocument.Parse(File.ReadAllText(file)).RootElement;
         var pages = extracted.GetProperty("pages").EnumerateArray()
@@ -141,7 +155,7 @@ public sealed class CorpusReport
         if (stopAtChoice)
         {
             var choiceLibrary = await harness.Catalog.MatchIndex(default);
-            return new ReplayResult(ready, pages, choiceLibrary, CanonicalNames(await harness.Catalog.All(default)));
+            return new ReplayResult(ready, pages, choiceLibrary, CanonicalNames(await harness.Catalog.All(default)), []);
         }
         if (selectedAlternativeId is not null)
         {
@@ -167,7 +181,15 @@ public sealed class CorpusReport
                 && ready.ChunksDone <= previous.ChunksDone && ready.Revision <= previous.Revision)
                 throw new InvalidOperationException("Extraction made no observable progress.");
         }
-        return new ReplayResult(ready, pages, library, CanonicalNames(await harness.Catalog.All(default)));
+        // A week printed in versions waits for a choice once the program is read.
+        List<ImportAlternative> weekChoices = ready.Stage == "select"
+            ? [.. (ready.Alternatives ?? []).Where(alternative => alternative.Kind == ImportAlternativeKinds.Week)] : [];
+        if (weekChoices.Count > 0)
+        {
+            var choice = weekChoices.FirstOrDefault(alternative => alternative.Id == weekChoiceId) ?? weekChoices[0];
+            ready = await imports.SelectAlternative(created.Id, choice.Id, default);
+        }
+        return new ReplayResult(ready, pages, library, CanonicalNames(await harness.Catalog.All(default)), weekChoices);
     }
 
     private static Dictionary<Guid, string> CanonicalNames(List<CatalogExercise> catalog)

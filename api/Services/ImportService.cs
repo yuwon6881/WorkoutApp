@@ -247,16 +247,18 @@ public sealed partial class ImportService(AppDb db, WorkoutAi ai, CatalogService
 
     private static DraftSet ToDraftSet(AiSet set, int? exerciseSourcePage)
     {
-        // A stored set needs rep bounds, an RPE on the 6-10 half-point scale, and a rest inside
-        // an hour. A row written as a timed hold, an AMRAP finisher, or a high-to-low range gives
-        // none of those cleanly, so each value is brought into range and marked inferred when it
-        // had to move. What the page actually said stays verbatim in the text fields below.
-        var reps = ImportNormalization.Reps(set.RepMin, set.RepMax, set.RepsText);
+        // A stored set has an RPE on the 6-10 scale and a rest inside an hour. A row written as a
+        // timed hold or a high-to-low range gives those unclearly, so each value is brought into
+        // range and marked inferred when it had to move. Reps a row never states stay empty
+        // rather than becoming a one-rep target. What the page said stays in the text fields.
+        var repsText = ImportNormalization.RepsText(set.RepsText);
+        var reps = ImportNormalization.Reps(set.RepMin, set.RepMax, repsText);
         var rpeValue = ImportNormalization.Rpe(set.TargetRpe);
         var restValue = ImportNormalization.Rest(DeriveRest(set.RestText, set.RestSeconds));
         var repsSource = ImportNormalization.Provenance(set.RepsSource);
         if (reps.Adjusted) repsSource = "inferred";
-        if (!string.IsNullOrWhiteSpace(set.RepsText) && !Regex.IsMatch(set.RepsText.Trim(), @"^\d+\s*(?:(?:[-–]|to)\s*\d+)?\s*(?:reps?)?$", RegexOptions.IgnoreCase)) repsSource = "inferred";
+        if (reps.Min is not null && !string.IsNullOrWhiteSpace(repsText)
+            && !Regex.IsMatch(repsText.Trim(), @"^\d+\s*(?:(?:[-–]|to)\s*\d+)?\s*(?:reps?)?$", RegexOptions.IgnoreCase)) repsSource = "inferred";
         var rpe = rpeValue.Value;
         var rpeSource = rpeValue.Adjusted ? "inferred" : ImportNormalization.Provenance(set.RpeSource);
         if (rpe == null && TryFirstNumber(set.Rir, out var rir))
@@ -280,7 +282,7 @@ public sealed partial class ImportService(AppDb db, WorkoutAi ai, CatalogService
         return new DraftSet(reps.Min, reps.Max, rpe, restValue.Value,
             ImportNormalization.Text(set.Tempo, 24), ImportNormalization.Text(set.LoadText, 60), ImportNormalization.Text(set.Notes, 400),
             repsSource, rpeSource, restValue.Adjusted ? "inferred" : ImportNormalization.Provenance(set.RestSource),
-            ImportNormalization.Text(set.RepsText, 40), ImportNormalization.Text(set.RestText, 24),
+            repsText, ImportNormalization.Text(set.RestText, 24),
             rirText, false, ImportNormalization.Page(set.SourcePage ?? exerciseSourcePage));
     }
 

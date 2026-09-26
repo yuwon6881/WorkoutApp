@@ -47,11 +47,13 @@ function validateSubstitutions(substitutions: string[] | null | undefined): stri
 type ValidatablePrescription = Pick<SetPrescription, 'repMin' | 'repMax' | 'targetRpe' | 'restSeconds' | 'tempo' | 'loadText' | 'notes' | 'repsText' | 'restText' | 'rir' | 'warmup'>;
 
 export function validatePrescription(set: ValidatablePrescription, requireWorkingRpe = false): string | undefined {
+  // Both bounds empty is a set with no rep target; one empty bound is an unfinished range.
+  if ((set.repMin === null) !== (set.repMax === null)) return 'Give both rep bounds or leave both empty.';
   const reps = validateInteger(set.repMin, 1, 1000, 'Reps');
   if (reps) return reps;
   const maxReps = validateInteger(set.repMax, 1, 1000, 'Reps');
   if (maxReps) return maxReps;
-  if (set.repMin > set.repMax) return 'The lowest rep target cannot exceed the highest.';
+  if (set.repMin !== null && set.repMax !== null && set.repMin > set.repMax) return 'The lowest rep target cannot exceed the highest.';
   const targetRpe = validateRpe(set.targetRpe, 'Target RPE');
   if (targetRpe) return targetRpe;
   if (requireWorkingRpe) {

@@ -199,9 +199,8 @@ public sealed partial class ImportService
             ValidateDraftPages(draft, import.PageCoverageJson);
             import.DraftJson = Json.Write(draft);
             RequireVerifiedDraft(draft, import, outlineNotices);
-            import.DraftBaselineJson = import.DraftJson; import.Stage = "done"; import.Status = ImportStatus.Ready;
             import.ChunksDone = 1; import.ChunksTotal = 1;
-            UpdateCounters(import, draft);
+            CompleteRead(import, draft, pages);
             return;
         }
         // A complete printed schedule is its own page map: when the outline leaves out pages it prints,
@@ -268,11 +267,20 @@ public sealed partial class ImportService
             var import = await db.Imports.SingleOrDefaultAsync(i => i.Id == id, ct);
             Validation.Require(import != null, "That import no longer exists.", 404);
             Validation.Require(import!.Status == ImportStatus.Pending && import.Stage == "select", "This import is not waiting for an alternative selection.", 409);
-            Validation.Require(import.PromptVersion == WorkoutAi.PromptVersion,
-                "This PDF outline was created by an older importer. Upload the PDF again to continue with the updated reader.", 409);
             var alternatives = string.IsNullOrWhiteSpace(import.AlternativesJson) ? [] : Json.Read<List<ImportAlternative>>(import.AlternativesJson);
             var selected = alternatives.SingleOrDefault(a => string.Equals(a.Id, alternativeId, StringComparison.OrdinalIgnoreCase));
             Validation.Require(selected is not null, "That alternative is no longer available. Read the outline again.", 409);
+            if (selected!.Kind == ImportAlternativeKinds.Week)
+            {
+                // The program is already read; the choice only decides which version's days stay.
+                ChooseWeekVersion(import, selected, alternatives);
+                import.Revision++;
+                await db.SaveChangesAsync(ct); await gate.Commit(ct);
+                db.ChangeTracker.Clear();
+                return await Get(id, ct);
+            }
+            Validation.Require(import.PromptVersion == WorkoutAi.PromptVersion,
+                "This PDF outline was created by an older importer. Upload the PDF again to continue with the updated reader.", 409);
             var runs = ImportBlockRuns.ReconcileChunks(selected!.Chunks ?? []);
             var absolute = ImportAbsoluteWeeks.NormalizeChunks(runs.Chunks);
             var combinedNotices = runs.Notices.Concat(absolute.Notices).ToList();

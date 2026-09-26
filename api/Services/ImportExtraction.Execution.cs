@@ -341,9 +341,7 @@ public sealed partial class ImportService
                         AdvanceChunk(import, item.Index, notices);
                         if (complete)
                         {
-                            import.Status = ImportStatus.Ready; import.Stage = "done";
-                            import.DraftBaselineJson = Json.Write(draft);
-                            UpdateCounters(import, draft);
+                            CompleteRead(import, draft, sourcePages);
                             ClearSource(import);
                         }
                     }

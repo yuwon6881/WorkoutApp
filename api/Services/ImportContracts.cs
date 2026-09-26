@@ -5,7 +5,7 @@ namespace Workout.Api.Services;
 public record ImportChunk(string Label, string? Block, string? Phase, int WeekFrom, int WeekTo, int PageFrom, int PageTo, int DayCount);
 
 public record DraftSet(
-    int RepMin, int RepMax, double? TargetRpe, int? RestSeconds, string? Tempo, string? LoadText, string? Notes,
+    int? RepMin, int? RepMax, double? TargetRpe, int? RestSeconds, string? Tempo, string? LoadText, string? Notes,
     string RepsSource = "extracted", string RpeSource = "extracted", string RestSource = "extracted",
     string? RepsText = null, string? RestText = null, string? Rir = null,
     bool Warmup = false, int? SourcePage = null);
@@ -42,9 +42,20 @@ public record ImportReviewIssue(
     int? SourcePageTo = null,
     int? WeekFrom = null,
     int? WeekTo = null);
+/// One version a document asks the lifter to choose between. A "program" version is one of
+/// several programs in one PDF and is chosen before its pages are read; a "week" version is one
+/// lettered week ("WEEK 10A" or "WEEK 10B") of a program that says to run only one, chosen once
+/// the program has been read, and it names the draft days that belong to it.
 public record ImportAlternative(
     string Id, string Name, int ChunkCount, int DayCount, List<ImportChunk>? Chunks = null,
-    int? WeekCount = null, int? SessionsPerWeek = null);
+    int? WeekCount = null, int? SessionsPerWeek = null, string Kind = ImportAlternativeKinds.Program,
+    string? Description = null, List<Guid>? DayLineIds = null);
+
+public static class ImportAlternativeKinds
+{
+    public const string Program = "program";
+    public const string Week = "week";
+}
 public record ImportRestoreInput(int? Revision = null);
 public record ImportSlotMappingInput(Guid ExerciseLineId, Guid? ReplacementExerciseId, int? Revision = null);
 

@@ -65,7 +65,7 @@ public sealed class ImportNormalizationTests
     }
 
     [Fact]
-    public async Task A_timed_or_amrap_row_with_no_rep_count_is_read_and_labelled_inferred()
+    public async Task A_timed_row_with_no_rep_count_keeps_its_reps_empty()
     {
         await using var h = await Harness.Create(Configured());
         await h.SignIn();
@@ -73,10 +73,10 @@ public sealed class ImportNormalizationTests
             "repMin":0,"repMax":0,"repsText":"30 sec hold"
             """.Replace("\n", " ")));
 
-        Assert.Equal(1, set.RepMin);
-        Assert.Equal(1, set.RepMax);
-        Assert.Equal("inferred", set.RepsSource);
-        // What the page said is preserved exactly; only the planning bound was invented.
+        Assert.Null(set.RepMin);
+        Assert.Null(set.RepMax);
+        Assert.Equal("extracted", set.RepsSource);
+        // What the page said is preserved exactly, and no rep count is invented beside it.
         Assert.Equal("30 sec hold", set.RepsText);
     }
 
@@ -257,7 +257,9 @@ public sealed class ImportNormalizationTests
     {
         Assert.Equal((5, 8, false), ImportNormalization.Reps(5, 8));
         Assert.Equal((8, 12, true), ImportNormalization.Reps(12, 8));
-        Assert.Equal((1, 1, true), ImportNormalization.Reps(0, 0));
+        Assert.Equal(((int?)null, (int?)null, false), ImportNormalization.Reps(0, 0));
+        Assert.Equal(((int?)null, (int?)null, false), ImportNormalization.Reps(1, 1, "AMRAP"));
+        Assert.Equal(((int?)null, (int?)null, false), ImportNormalization.Reps(null, null));
         Assert.Equal((1000, 1000, true), ImportNormalization.Reps(5000, 5000));
         Assert.Equal((6, 6, true), ImportNormalization.Reps(6, 8, "6"));
         Assert.Equal((6, 8, true), ImportNormalization.Reps(8, 6, "6-8"));

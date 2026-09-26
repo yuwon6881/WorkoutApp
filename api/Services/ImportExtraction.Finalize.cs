@@ -1,9 +1,44 @@
 using Workout.Api.Data;
+using Workout.Api.Domain;
 
 namespace Workout.Api.Services;
 
 public sealed partial class ImportService
 {
+    /// A fully read draft is ready for review, unless the document prints a week in versions to
+    /// run only one of: then it waits for that choice, with every version's days still held.
+    private void CompleteRead(AiImport import, ImportDraft draft, IReadOnlyList<ImportPageText> pages)
+    {
+        var choices = ImportWeekChoice.Offer(draft, pages);
+        if (choices.Count > 1)
+        {
+            import.AlternativesJson = Json.Write(choices);
+            import.SelectedAlternativeId = "";
+            import.Stage = "select"; import.Status = ImportStatus.Pending;
+        }
+        else
+        {
+            import.Status = ImportStatus.Ready; import.Stage = "done";
+            import.DraftBaselineJson = Json.Write(draft);
+        }
+        UpdateCounters(import, draft);
+    }
+
+    /// Keeps the chosen week version and makes the draft ready for review.
+    private void ChooseWeekVersion(AiImport import, ImportAlternative chosen, IReadOnlyList<ImportAlternative> offered)
+    {
+        Validation.Require(!string.IsNullOrWhiteSpace(import.DraftJson), "This import has no draft to choose from. Read the PDF again.", 409);
+        var draft = ImportValidation.NormalizeDraft(ImportWeekChoice.Apply(Json.Read<ImportDraft>(import.DraftJson), chosen, offered));
+        // The notice that both versions were kept as weeks of their own no longer describes the draft.
+        var notices = ReadNotices(import.NoticesJson).Where(notice => notice.Code != ImportWeekVariants.Code).ToList();
+        import.NoticesJson = Json.Write(ImportReviewNotices.Merge(notices, [ImportWeekChoice.ChosenNotice(chosen, offered)]));
+        import.DraftJson = Json.Write(draft);
+        import.DraftBaselineJson = import.DraftJson;
+        import.SelectedAlternativeId = chosen.Id;
+        import.Status = ImportStatus.Ready; import.Stage = "done";
+        UpdateCounters(import, draft);
+    }
+
     /// The passes that need every section: a week, phase or printed schedule is only whole once
     /// the last section has landed, so they run over the whole draft rather than one section.
     private static ImportDraft FinalizeDraft(ImportDraft merged, List<ImportPageText> sourcePages, AiImport import,
