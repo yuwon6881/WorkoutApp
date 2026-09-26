@@ -21,9 +21,8 @@ internal static partial class ImportTableEvidence
     private static readonly Regex TableSummary = new(@"^(?:(?:SESSION|TOTAL|WEEKLY)\s+(?:[A-Z]+\s+)?(?:SET\s+)?VOLUME|TOTAL\s+TRAINING\s+TIME)\b", RegexOptions.Compiled | RegexOptions.IgnoreCase);
     // Trailing volume summaries fused to exercise names across layout columns.
     private static readonly Regex TrailingVolume = new(@"\s+(?:\d+\s+)?(?:WEEKLY|SESSION|TOTAL)\s+.*VOLUME.*$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
-    // Min-Max Phase 2 prints "1-2 Rest Days" between its sessions.
-    private static readonly Regex RestDay = new(@"^(?:(?:suggested|mandatory|optional)\s+)?(?:\d(?:\s*[-–]\s*\d)?\s+)?rest\s+days?$|^(?:\d(?:\s*[-–]\s*\d)?\s+)(?:(?:suggested|mandatory|optional)\s+)rest\s+days?$",
-        RegexOptions.Compiled | RegexOptions.IgnoreCase);
+    // "1-2 Rest Days", "SUGGESTED REST DAY (1-2 DAYS OFF …)": one band grammar for every reader.
+    private static Regex RestDay => ImportLongWeeks.RestBand;
     /// A rep range, approximate RPE, rest time or percentage: what a row states and a header
     /// never prints. A bare integer is not enough, because tracking columns are headed "1 | 2 | 3".
     private static readonly Regex HeaderValue = new(@"^(?:[~≈]\s*\d.*|\d+(?:\.\d+)?\s*[-–]\s*\d+(?:\.\d+)?\s*(?:min|mins|minutes?|sec|secs|seconds?|s|m|reps?)?|\d+(?:\.\d+)?\s*(?:min|mins|minutes?|sec|secs|seconds?|%)|\d+\.\d+)$", RegexOptions.Compiled | RegexOptions.IgnoreCase);

@@ -42,7 +42,14 @@ internal static class CatalogMatching
     /// The library entry a written name means, or none. Steps are tried in order of how much they
     /// assume and stop at the first hit; the tail of a name is considered only once nothing spells
     /// the whole of it.
-    public static Guid? Find(Dictionary<string, Guid> library, string name)
+    public static Guid? Find(Dictionary<string, Guid> library, string name) => Find(library, name, allowTail: true);
+
+    /// A library entry that spells the whole written name, never one it merely ends with. A
+    /// printed alternative is renamed only to this, because its wording is otherwise lost:
+    /// "Seated Smith Machine Shoulder Press" ends with, but is not, "Machine Shoulder Press".
+    public static Guid? FindWhole(Dictionary<string, Guid> library, string name) => Find(library, name, allowTail: false);
+
+    private static Guid? Find(Dictionary<string, Guid> library, string name, bool allowTail)
     {
         var norm = CatalogService.Normalize(name);
         if (norm.Length == 0) return null;
@@ -55,8 +62,9 @@ internal static class CatalogMatching
             norm.Contains("choose one", StringComparison.Ordinal)) return null;
         foreach (var variant in Variants(name))
             if (library.TryGetValue(variant, out var id)) return id;
-        foreach (var tail in HeadVariants(name))
-            if (library.TryGetValue(tail, out var id)) return id;
+        if (allowTail)
+            foreach (var tail in HeadVariants(name))
+                if (library.TryGetValue(tail, out var id)) return id;
         // The same words in another order, or spelled another way ("Bent Over Barbell Row" is
         // "Barbell Bent-Over Row"; "Tricep" is "Triceps"). Still a spelling of one name.
         foreach (var variant in Variants(name))

@@ -58,7 +58,6 @@
 /* Workout builder modal */
 .workout-builder-body { display: flex; flex-direction: column; gap: 16px; }
 .workout-builder-meta { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
-.workout-builder-muscles { display: flex; flex-direction: column; gap: 6px; padding: 10px 14px; border-radius: 10px; background: var(--surface-hover); border: 1px solid var(--border); }
 .workout-builder-exercises { display: flex; flex-direction: column; gap: 14px; }
 .workout-builder-exercise-card { border: 1px solid var(--border); border-radius: 12px; padding: 14px; background: var(--surface); }
 .set-warmup-toggle { margin-left: auto; font-size: var(--font-secondary, 12px); color: var(--muted); }

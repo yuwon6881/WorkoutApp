@@ -68,7 +68,7 @@ describe('PDF exercise demo links', () => {
     ];
 
     expect(pageLinks(50, pieces, annotations)).toEqual([
-      { page: 50, name: 'Cable Rope Hammer Curl', url }
+      { page: 50, name: 'Cable Rope Hammer Curl', url: 'https://youtu.be/TTgICSfj1hY' }
     ]);
   });
 
@@ -115,6 +115,40 @@ describe('PDF exercise demo links', () => {
       'BENCH PRESS:\nhttps://youtu.be/aaa\nUnrelated https://example.com')).toEqual([
       { page: 12, name: 'BACK SQUAT', url: 'https://exrx.net/WeightExercises/Quadriceps/BBSquat' },
       { page: 12, name: 'BENCH PRESS', url: 'https://youtu.be/aaa' }
+    ]);
+  });
+
+  it('refuses a channel page and drops the per-share token of a video', () => {
+    expect(videoUrl('http://youtube.com/jeffnippard')).toBeUndefined();
+    expect(videoUrl('https://www.youtube.com/')).toBeUndefined();
+    expect(videoUrl('https://youtu.be/ijsSiWSzYw0?si=hClxWcLkjz1SkZUG')).toBe('https://youtu.be/ijsSiWSzYw0');
+    expect(videoUrl('https://youtu.be/qVek72z3F1U?t=683&si=abc')).toBe('https://youtu.be/qVek72z3F1U?t=683');
+    expect(videoUrl('https://www.youtube.com/shorts/abcdef')).toBe('https://www.youtube.com/shorts/abcdef');
+  });
+
+  /// Bench Press and Squat Specialization draw one rectangle over the whole glossary line.
+  it('names a link by the label when one rectangle covers the label and its address', () => {
+    const pieces = [piece('Cable flye: https://www.youtube.com/watch?v=kZJZWtfNpVI', 40, 200, 320)];
+    expect(pageLinks(68, pieces, [{ url: 'https://www.youtube.com/watch?v=kZJZWtfNpVI', rect: [38, 195, 362, 211] }]))
+      .toEqual([{ page: 68, name: 'Cable flye', url: 'https://www.youtube.com/watch?v=kZJZWtfNpVI' }]);
+  });
+
+  it('joins a printed address that wraps onto the next line', () => {
+    expect(printedLinks(104, 'SWISS BALL LEG CURL: https://www.youtube.com/\nwatch?v=abcdef12345\nNEXT: note')).toEqual([
+      { page: 104, name: 'SWISS BALL LEG CURL', url: 'https://www.youtube.com/watch?v=abcdef12345' }
+    ]);
+    // The wrap can fall inside the eleven-character video id, or split the address twice.
+    expect(printedLinks(102, 'STANDING CALF RAISE: https://www.youtube.com/watch?v=-qsRtp_\nPbVM\n' +
+      'TRICEPS PRESSDOWN: https://www.youtube.com/\nwatch\n?v=2-LAMcpzODU')).toEqual([
+      { page: 102, name: 'STANDING CALF RAISE', url: 'https://www.youtube.com/watch?v=-qsRtp_PbVM' },
+      { page: 102, name: 'TRICEPS PRESSDOWN', url: 'https://www.youtube.com/watch?v=2-LAMcpzODU' }
+    ]);
+    // A complete address is never extended by an unrelated following word.
+    expect(printedLinks(1, 'BACK SQUAT: https://youtu.be/dW5-C1fsMjk\nnotes')).toEqual([
+      { page: 1, name: 'BACK SQUAT', url: 'https://youtu.be/dW5-C1fsMjk' }
+    ]);
+    expect(printedLinks(1, 'BACK SQUAT: https://youtu.be/aaa\nnotes')).toEqual([
+      { page: 1, name: 'BACK SQUAT', url: 'https://youtu.be/aaa' }
     ]);
   });
 });

@@ -325,7 +325,7 @@ test('import a PDF program, resolve an unmapped exercise, and accept it', async 
   await day.click();
   await expect(day).toHaveAttribute('aria-expanded', 'false');
   // A collapsed day stays one compact row: the muscles it trains appear once it is opened.
-  await expect(page.locator('.day-muscles-row')).toHaveCount(0);
+  await expect(page.locator('.draft-day-muscles')).toHaveCount(0);
   if ((page.viewportSize()?.width ?? 0) >= 640) {
     const dayActions = page.getByRole('button', { name: 'Actions for Week 1 Upper', exact: true });
     await day.focus();
@@ -338,7 +338,8 @@ test('import a PDF program, resolve an unmapped exercise, and accept it', async 
   }
   await day.click();
   await expect(day).toHaveAttribute('aria-expanded', 'true');
-  await expect(page.locator('.day-muscles-row')).toBeVisible();
+  await expect(page.locator('.draft-day-muscles .program-muscle-preview')).toBeVisible();
+  await expect(page.locator('.draft-day-muscles .program-muscle-focus-figure')).toBeVisible();
   const issue = page.getByRole('button', { name: 'Fix unmapped exercise Mystery machine row', exact: true });
   await issue.click();
   await expect(page.getByRole('button', { name: 'Library exercise for Mystery machine row', exact: true })).toBeFocused();

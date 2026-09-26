@@ -6,7 +6,7 @@ import { mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { basename, join } from 'node:path';
 import * as pdfjs from 'pdfjs-dist/legacy/build/pdf.mjs';
 import { buildPageText } from '../src/lib/pdfText';
-import { pageLinks, type LinkRect } from '../src/lib/pdfLinks';
+import { pageLinks, printedLinks, type LinkRect } from '../src/lib/pdfLinks';
 import type { TextPiece } from '../src/lib/pdfGeometry';
 
 const [input, output] = process.argv.slice(2);
@@ -27,6 +27,8 @@ for (const file of readdirSync(input).filter(name => name.toLowerCase().endsWith
         ? [{ url: annotation.url as string, rect: annotation.rect as LinkRect['rect'] }] : []);
     links.push(...pageLinks(number, pieces, annotations));
     const text = buildPageText(pieces);
+    // The browser submits printed addresses beside annotations (pdfText.ts), so the corpus must too.
+    links.push(...printedLinks(number, text));
     if (text.length > 0) pages.push({ page: number, text });
     page.cleanup();
   }

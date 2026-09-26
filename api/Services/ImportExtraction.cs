@@ -162,7 +162,8 @@ public sealed partial class ImportService
             var sourceText = ImportSourceText.Slice(pages, 1, ImportSourceText.MaxPages);
             var reconciledLegacy = ImportTableEvidence.Enrich(legacy, sourceText);
             var labeled = ImportDayLabels.Apply(await ToDraft(reconciledLegacy, ct), pages);
-            var versions = ImportWeekVariants.Separate(labeled.Draft.Workouts, pages);
+            var routine = ImportWarmupRoutine.LeaveOut(labeled.Draft.Workouts, pages);
+            var versions = ImportWeekVariants.Separate(routine.Workouts, pages);
             var draft = ImportOutlineEvidence.NormalizeDraft(labeled.Draft with { Workouts = versions.Workouts }, sourceEvidence);
             var blockRuns = ImportBlockRuns.Reconcile(draft.Workouts);
             draft = draft with { Workouts = blockRuns.Workouts };
@@ -181,7 +182,7 @@ public sealed partial class ImportService
             List<ImportPageLink> demoLinks = string.IsNullOrWhiteSpace(import.LinksJson) ? [] : Json.Read<List<ImportPageLink>>(import.LinksJson);
             draft = ImportValidation.NormalizeDraft(ImportDemoLinks.Attach(ImportNameSpelling.Standardize(cited.Draft, pages), demoLinks));
             if (ImportTableEvidence.PrintedRowsNotice(draft.Workouts, sourceText) is { } printedRows) cited.Notices.Add(printedRows);
-            List<ImportReviewIssue> outlineNotices = [.. labeled.Notices, .. versions.Notices, .. blockRuns.Notices, .. named.Notices, .. longWeeks.Notices, .. scheduleNotices];
+            List<ImportReviewIssue> outlineNotices = [.. labeled.Notices, .. routine.Notices, .. versions.Notices, .. blockRuns.Notices, .. named.Notices, .. longWeeks.Notices, .. scheduleNotices];
             if (numbered.Renumbered)
             {
                 outlineNotices.Add(new ImportReviewIssue("phase_week_renumbered",

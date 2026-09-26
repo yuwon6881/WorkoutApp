@@ -35,6 +35,25 @@ internal static class ImportSetKinds
         RestSource = set.RestSeconds is null ? set.RestSource : "inferred"
     };
 
+    private static readonly Regex RepList = new(@"^\s*\d{1,3}(?:\s*,\s*\d{1,3}){1,9}\s*$", RegexOptions.Compiled);
+
+    /// A reverse pyramid prints one rep target per working set in one cell ("4, 6, 8"). When the
+    /// list has exactly one value per working set, each set takes its own; otherwise ("5, 15"
+    /// inside a single set) the row is left as printed.
+    public static List<DraftSet> PerSetReps(List<DraftSet> working)
+    {
+        if (working.Count < 2 || working[0].RepsText is not { } text || !RepList.IsMatch(text)
+            || working.Any(set => set.RepsText != text)) return working;
+        var values = text.Split(',').Select(value => int.Parse(value.Trim(), System.Globalization.CultureInfo.InvariantCulture)).ToList();
+        if (values.Count != working.Count) return working;
+        return working.Select((set, index) => set with
+        {
+            RepMin = values[index], RepMax = values[index],
+            RepsText = values[index].ToString(System.Globalization.CultureInfo.InvariantCulture),
+            RepsSource = "extracted"
+        }).ToList();
+    }
+
     /// The sets one printed row becomes. A warm-up row's own sets are its warm-ups, and nothing is
     /// added in front of them. Otherwise a stated warm-up count is modelled on the first working set.
     public static List<DraftSet> Compose(List<DraftSet> working, int warmups, string? rowName)
@@ -47,11 +66,23 @@ internal static class ImportSetKinds
         if (warmups <= 0 || working.Count == 0) return working;
         // The table's RPE columns prescribe working sets. Warm-up Sets is only a count, so
         // inheriting the working row's effort invents a warm-up target.
+        // Nor is the working load or technique a warm-up's: "AMRAP @90%" or "12-15 (dropset)"
+        // describes the hard set. Only the plain rep count the working set starts from is kept.
         var warmup = working[0] with
         {
-            Warmup = true, TargetRpe = null, Rir = null, Notes = null,
+            Warmup = true, TargetRpe = null, Rir = null, Notes = null, LoadText = null,
+            RepsText = PlainReps(working[0].RepsText),
             RepsSource = "inferred", RpeSource = "inferred"
         };
         return [.. Enumerable.Repeat(warmup, warmups), .. working];
+    }
+
+    private static readonly Regex LeadingReps = new(@"^\s*(\d{1,3}(?:\s*[-–]\s*\d{1,3})?)(?=\s|$)", RegexOptions.Compiled);
+
+    private static string? PlainReps(string? repsText)
+    {
+        if (string.IsNullOrWhiteSpace(repsText) || OpenReps.IsMatch(repsText)) return null;
+        var match = LeadingReps.Match(repsText);
+        return match.Success ? Regex.Replace(match.Groups[1].Value, @"\s+", "") : null;
     }
 }

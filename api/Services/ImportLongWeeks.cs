@@ -15,8 +15,10 @@ internal static class ImportLongWeeks
     private static readonly Regex TenDayCycle = new(
         @"\b10[- ]day\s+(?:cycle|rotation|split)\b|\basynchronous\b.{0,200}\b10[- ]day\b",
         RegexOptions.Compiled | RegexOptions.IgnoreCase | RegexOptions.Singleline);
+    /// A band may carry a short parenthetical such as "(1-2 DAYS OFF DEPENDING ON YOUR SCHEDULE)";
+    /// the count is still the band's own, so that reads as one rest day.
     internal static readonly Regex RestBand = new(
-        @"^\s*(?:(?:SUGGESTED|MANDATORY|OPTIONAL)\s+)?(?:\d\s*(?:[-–]\s*\d\s*)?\s*)?REST DAYS?\s*$|^\s*\d\s*(?:[-–]\s*\d\s*)?\s*(?:SUGGESTED|MANDATORY|OPTIONAL)\s+REST DAYS?\s*$",
+        @"^\s*(?:(?:SUGGESTED|MANDATORY|OPTIONAL)\s+)?(?:\d\s*(?:[-–]\s*\d\s*)?\s*)?REST DAYS?(?:\s*\([^)]{0,80}\))?\s*$|^\s*\d\s*(?:[-–]\s*\d\s*)?\s*(?:SUGGESTED|MANDATORY|OPTIONAL)\s+REST DAYS?(?:\s*\([^)]{0,80}\))?\s*$",
         RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
     /// SourceWeekDays is the longest week the source confirms, when that is longer than seven days.

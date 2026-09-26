@@ -2,13 +2,14 @@ import { useMemo, useRef, useState } from 'react';
 import { Dumbbell, Plus, RotateCcw } from 'lucide-react';
 import type { Exercise, SetPrescription, TemplateExercise } from '../types';
 import { ApiError, api } from '../lib/api';
-import { getWorkoutMuscles } from '../lib/muscles';
+import { getPlannedMuscleCredits } from '../lib/programMuscles';
 import { validateName, validateTemplateDraft } from '../lib/validation';
 import { pairExercises, unlinkExercise } from '../lib/supersets';
 import { Button } from './ui/Button';
 import { Field } from './ui/Field';
 import { Modal } from './ui/Modal';
 import { ExerciseLibrary } from './Exercises';
+import { ProgramMusclePreview } from './ProgramMusclePreview';
 import { WorkoutPrescriptionCard } from './WorkoutPrescriptionCard';
 
 export type WorkoutDraft = {
@@ -66,8 +67,8 @@ export function WorkoutEditorModal({
   const [nameError, setNameError] = useState('');
   const nameInput = useRef<HTMLInputElement>(null);
 
-  const muscles = useMemo(
-    () => getWorkoutMuscles(draft.exercises, exercises),
+  const muscleSummary = useMemo(
+    () => getPlannedMuscleCredits(draft.exercises, exercises),
     [draft.exercises, exercises]
   );
 
@@ -215,18 +216,7 @@ export function WorkoutEditorModal({
             )}
           </div>
 
-          {muscles.length > 0 && (
-            <div className="workout-builder-muscles" aria-label="Targeted muscles in this workout">
-              <span className="tiny-label">Targeted muscles</span>
-              <div className="day-muscles-row">
-                {muscles.map(m => (
-                  <span key={m} className="muscle-chip">
-                    {m}
-                  </span>
-                ))}
-              </div>
-            </div>
-          )}
+          {draft.exercises.length > 0 && <ProgramMusclePreview summary={muscleSummary} />}
 
           <div className="workout-builder-exercises">
             <div className="section-heading">

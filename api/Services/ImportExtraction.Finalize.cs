@@ -9,6 +9,9 @@ public sealed partial class ImportService
     private static ImportDraft FinalizeDraft(ImportDraft merged, List<ImportPageText> sourcePages, AiImport import,
         List<ImportReviewIssue> notices)
     {
+        var routine = ImportWarmupRoutine.LeaveOut(merged.Workouts, sourcePages);
+        merged = merged with { Workouts = routine.Workouts };
+        notices.AddRange(routine.Notices);
         // A week whose lettered versions landed in different sections is
         // only whole now, so it is separated again over the whole draft.
         var versions = ImportWeekVariants.Separate(merged.Workouts, sourcePages);

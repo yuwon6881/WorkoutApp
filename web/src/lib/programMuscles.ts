@@ -1,5 +1,8 @@
-import type { Exercise, SetPrescription, TemplateExercise } from '../types';
+import type { Exercise } from '../types';
 
+/// A program day, import-review day or editor draft exercise: only the catalog link, the written
+/// name and which sets are warm-ups decide its credits.
+export type PlannedExercise = { exerciseId: string | null; sourceName: string; name?: string; sets: { warmup: boolean }[] };
 export type PlannedMuscleCredit = { muscle: string; sets: number };
 export type PlannedMuscleSummary = {
   muscles: PlannedMuscleCredit[];
@@ -121,13 +124,13 @@ function exerciseCredits(name: string, exercise: Exercise | undefined): Map<stri
   return credits;
 }
 
-function plannedSetCount(sets: SetPrescription[]): number {
+function plannedSetCount(sets: PlannedExercise['sets']): number {
   return sets.filter(set => !set.warmup).length;
 }
 
 /** Mirrors the server's muscle attribution so planned day previews use the same region weights. */
 export function getPlannedMuscleCredits(
-  items: TemplateExercise[],
+  items: PlannedExercise[],
   catalog: Exercise[]
 ): PlannedMuscleSummary {
   const catalogById = new Map(catalog.map(exercise => [exercise.id, exercise]));

@@ -176,25 +176,11 @@ public sealed partial class ImportService(AppDb db, WorkoutAi ai, CatalogService
                 var stated = ParseSetCount(source.WorkingSets);
                 while (working.Count > 0 && working.Count < stated)
                     working.Add(ImportSetKinds.Repeated(working[^1]));
-                working = ImportSetKinds.Compose(working, ParseWarmupCount(source.WarmupSets), rawName);
+                working = ImportSetKinds.Compose(ImportSetKinds.PerSetReps(working), ParseWarmupCount(source.WarmupSets), rawName);
                 var noteParts = new[] { ImportNormalization.Text(source.Notes, 1000), ImportNormalization.Text(source.CoachingNotes, 1000) }
                     .Concat(extractedUrls)
                     .Where(value => value is not null).Select(value => value!).ToList();
-                var alternates = (source.Substitutions ?? [])
-                    .Where(s => !CatalogService.IsPlaceholder(s))
-                    .Select(s =>
-                    {
-                        var clean = ImportNormalization.Text(s, 160);
-                        if (clean == null) return null;
-                        var matchId = CatalogMatching.Find(library, clean);
-                        if (matchId is { } mId && canonicalNames.TryGetValue(mId, out var canonicalName))
-                            return canonicalName;
-                        return clean;
-                    })
-                    .Where(s => s is not null)
-                    .Select(s => s!)
-                    .Distinct(StringComparer.OrdinalIgnoreCase)
-                    .ToList();
+                var alternates = PrintedAlternates(source.Substitutions, id, library, canonicalNames);
                 var substitutions = alternates.Take(2).ToList();
                 if (alternates.Count > 2) noteParts.Add($"Other alternates: {string.Join(", ", alternates.Skip(2))}");
                 exercises.Add(new DraftExercise(Guid.NewGuid(), ImportNormalization.Label(cleanName.Length > 0 ? cleanName : rawName, 160, "Unnamed exercise"), id, Note(noteParts), working,
@@ -209,6 +195,26 @@ public sealed partial class ImportService(AppDb db, WorkoutAi ai, CatalogService
             ImportNormalization.Text(focus, 120), ImportNormalization.Text(notes, 2000), exercises,
             ImportNormalization.Text(block, 80), ImportNormalization.Text(phase, 120), ImportNormalization.Week(phaseWeek), restDay,
             ImportNormalization.Page(sourcePage));
+    }
+
+    /// The printed alternatives in order. One takes the library's spelling only when the library
+    /// spells the whole of it, so a quick swap finds it; otherwise the printed words stand. An
+    /// alternative is never renamed into the exercise it replaces, and two printed options that
+    /// reach the same entry stay two options.
+    private static List<string> PrintedAlternates(List<string>? printed, Guid? primaryId,
+        Dictionary<string, Guid> library, Dictionary<Guid, string> canonicalNames)
+    {
+        var alternates = new List<string>();
+        var claimed = new HashSet<Guid>();
+        if (primaryId is { } primary) claimed.Add(primary);
+        foreach (var option in printed ?? [])
+        {
+            if (CatalogService.IsPlaceholder(option) || ImportNormalization.Text(option, 160) is not { } clean) continue;
+            var name = CatalogMatching.FindWhole(library, clean) is { } match && claimed.Add(match)
+                && canonicalNames.TryGetValue(match, out var canonical) ? canonical : clean;
+            if (!alternates.Contains(name, StringComparer.OrdinalIgnoreCase)) alternates.Add(name);
+        }
+        return alternates;
     }
 
     /// Joins what an exercise's note is made of, within the length a note can hold. Trimming the

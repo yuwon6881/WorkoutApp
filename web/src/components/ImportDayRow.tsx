@@ -1,9 +1,10 @@
 import { useMemo, type ReactNode } from 'react';
 import { ChevronDown } from 'lucide-react';
 import type { DraftWorkout, Exercise } from '../types';
-import { getWorkoutMuscles } from '../lib/muscles';
+import { getPlannedMuscleCredits } from '../lib/programMuscles';
 import { Button } from './ui/Button';
 import { DayEditor } from './ImportDayEditor';
+import { ProgramMusclePreview } from './ProgramMusclePreview';
 
 /// One line per day when collapsed: what it is called, how much is in it and which exercises it
 /// holds. Everything else — muscles, prescriptions, editing — waits until the day is opened, so a
@@ -37,7 +38,7 @@ export function DayRow({
   handle?: ReactNode;
   menu?: ReactNode;
 }) {
-  const muscles = useMemo(() => getWorkoutMuscles(day.exercises, exercises), [day.exercises, exercises]);
+  const muscleSummary = useMemo(() => getPlannedMuscleCredits(day.exercises, exercises), [day.exercises, exercises]);
   const exercisePreview = useMemo(() => {
     if (day.isRestDay || !day.exercises.length) return '';
     const names = day.exercises.map(exercise => exercise.sourceName);
@@ -92,9 +93,7 @@ export function DayRow({
       </div>
 
       {expanded && !day.isRestDay && <>
-        {muscles.length > 0 && <div className="day-muscles-row" aria-label="Targeted muscles">
-          {muscles.map(muscle => <span key={muscle} className="muscle-chip">{muscle}</span>)}
-        </div>}
+        {day.exercises.length > 0 && <div className="draft-day-muscles"><ProgramMusclePreview summary={muscleSummary} /></div>}
         <DayEditor
           day={day}
           exercises={exercises}
