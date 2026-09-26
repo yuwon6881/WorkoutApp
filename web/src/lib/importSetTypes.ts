@@ -25,17 +25,6 @@ export function hasOpenReps(set: DraftSet): boolean {
   return getSetType(set) === 'amrap' && !!set.repsText?.trim() && !/\d/.test(set.repsText);
 }
 
-export function getSetTypeLabel(set: DraftSet): string {
-  const type = getSetType(set);
-  switch (type) {
-    case 'warmup': return 'Warm-up';
-    case 'dropset': return 'Drop set';
-    case 'amrap': return 'AMRAP';
-    case 'myoreps': return 'Myo-reps';
-    default: return 'Set';
-  }
-}
-
 export function cleanTechniqueNotes(notes: string | null): string | null {
   if (!notes) return null;
   const cleaned = notes

@@ -2,11 +2,13 @@ import { useState } from 'react';
 import { Check, Minus } from 'lucide-react';
 import type { LoggedSet, Preferences, SessionExercise, SetPrescription } from '../types';
 import { showTarget, showWeight, toDisplay, toKg } from '../lib/training';
+import { effortPatch, effortValue, loadIsEditable, setNumberLabel } from '../lib/workoutDraft';
 import { Button } from './ui/Button';
 import { Select } from './ui/Select';
 import { RpeControl } from './ui/RpeControl';
+import { nextAvailableLoad } from '../lib/exerciseLoads';
 
-const resistanceModeOptions: Array<{ value: NonNullable<LoggedSet['resistanceMode']>; label: string }> = [
+export const resistanceModeOptions: Array<{ value: NonNullable<LoggedSet['resistanceMode']>; label: string }> = [
   { value: 'bodyweight', label: 'BW' },
   { value: 'added', label: '+Load' },
   { value: 'assistance', label: 'Assist' }
@@ -19,8 +21,8 @@ export function WorkoutSetRow({
   exercise,
   plan,
   unit,
-  warmupNumber,
-  workingNumber,
+  loadStepKg = 2.5,
+  availableLoadsKg,
   editSet,
   toggle,
   onRemoveSet
@@ -31,8 +33,8 @@ export function WorkoutSetRow({
   exercise: SessionExercise;
   plan: SetPrescription | undefined;
   unit: Preferences['unit'];
-  warmupNumber: number;
-  workingNumber: number;
+  loadStepKg?: number;
+  availableLoadsKg?: number[] | null;
   editSet: (ei: number, si: number, patch: Partial<LoggedSet>) => void;
   toggle: (ei: number, si: number) => void;
   onRemoveSet: (si: number) => void;
@@ -40,11 +42,9 @@ export function WorkoutSetRow({
   // Set only by the tap that logs a set, so rows already done do not replay it when shown again.
   const [justLogged, setJustLogged] = useState(false);
   const shown = toDisplay(set.weightKg, unit);
-  const warmup = set.warmup || plan?.warmup;
+  const { label, warmup } = setNumberLabel(exercise, si);
   const loadModel = exercise.loadModel ?? 'external';
-  const loadEditable =
-    loadModel === 'external' ||
-    (loadModel === 'full_bodyweight' && (set.resistanceMode ?? 'bodyweight') !== 'bodyweight');
+  const loadEditable = loadIsEditable(exercise, set);
 
   return (
     <div
@@ -54,7 +54,7 @@ export function WorkoutSetRow({
       onAnimationEnd={event => { if (event.target === event.currentTarget) setJustLogged(false); }}
     >
       <span className="set-badge-circle" title={warmup ? 'Warm-up set' : 'Working set'}>
-        {warmup ? `W${warmupNumber}` : workingNumber}
+        {label}
       </span>
 
       <div className="set-target-cell">
@@ -74,14 +74,23 @@ export function WorkoutSetRow({
           aria-label={`${exercise.name} set ${si + 1} weight`}
           inputMode="decimal"
           type="number"
+          min="0"
+          step={availableLoadsKg?.length || loadStepKg <= 0 ? 'any' : toDisplay(loadStepKg, unit) ?? 'any'}
+          onKeyDown={event => {
+            if (event.key !== 'ArrowUp' && event.key !== 'ArrowDown') return;
+            event.preventDefault();
+            const direction = event.key === 'ArrowUp' ? 1 : -1;
+            const next = availableLoadsKg?.length
+              ? nextAvailableLoad(set.weightKg, availableLoadsKg, direction)
+              : Math.max(0, (set.weightKg ?? 0) + direction * loadStepKg);
+            editSet(ei, si, { weightKg: next });
+          }}
           placeholder="—"
           value={shown === null ? '' : shown}
           disabled={!loadEditable}
+          // Correcting a logged set keeps it logged; only the log button unlogs a set.
           onChange={e =>
-            editSet(ei, si, {
-              weightKg: e.target.value === '' ? null : toKg(Number(e.target.value), unit),
-              done: false
-            })
+            editSet(ei, si, { weightKg: e.target.value === '' ? null : toKg(Number(e.target.value), unit) })
           }
         />
         {loadModel === 'full_bodyweight' && (
@@ -90,12 +99,7 @@ export function WorkoutSetRow({
             ariaLabel="Resistance mode"
             value={set.resistanceMode ?? 'bodyweight'}
             options={resistanceModeOptions}
-            onChange={val =>
-              editSet(ei, si, {
-                resistanceMode: val,
-                done: false
-              })
-            }
+            onChange={val => editSet(ei, si, { resistanceMode: val })}
           />
         )}
       </div>
@@ -108,12 +112,7 @@ export function WorkoutSetRow({
           type="number"
           placeholder="—"
           value={set.reps ?? ''}
-          onChange={e =>
-            editSet(ei, si, {
-              reps: e.target.value === '' ? null : Number(e.target.value),
-              done: false
-            })
-          }
+          onChange={e => editSet(ei, si, { reps: e.target.value === '' ? null : Number(e.target.value) })}
         />
       </div>
 
@@ -122,15 +121,8 @@ export function WorkoutSetRow({
           compact
           name={`rir-${exercise.id}-${si}`}
           ariaLabel={`${exercise.name} set ${si + 1} RIR`}
-          value={set.rir === '5+' ? 5 : (set.rpe !== null ? Math.round(10 - set.rpe) : null)}
-          disabled={set.done}
-          onChange={value =>
-            editSet(ei, si, {
-              rpe: value !== null ? (value >= 5 ? null : 10 - value) : null,
-              rir: value !== null ? (value >= 5 ? '5+' : String(value)) : null,
-              done: false
-            })
-          }
+          value={effortValue(set)}
+          onChange={value => editSet(ei, si, effortPatch(value))}
         />
       </div>
 

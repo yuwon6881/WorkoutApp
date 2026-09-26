@@ -46,11 +46,10 @@ public sealed class ImportSourceFidelityTests
     public void A_set_with_no_rep_target_is_never_prefilled_with_a_count()
     {
         var prescription = new Workout.Api.Domain.SetPrescription(null, null, 8, 90, null, null, null);
-        var (min, max) = Workout.Api.Domain.Progression.LoadRuleReps(prescription);
-        var suggestion = Workout.Api.Domain.Progression.SuggestSet(min, max, 8, [], "normal", 2.5);
+        var suggestion = Workout.Api.Domain.Progression.Suggest(prescription, [], "normal", new Workout.Api.Domain.LoadOptions(2.5));
 
         Assert.Null(Workout.Api.Domain.Progression.PrefillReps(prescription, suggestion));
-        Assert.Equal("No rep target is set: log the reps you do.",
+        Assert.StartsWith("No rep target is set: log the reps you do.",
             Workout.Api.Domain.Progression.ForPrescription(prescription, suggestion).Reason);
     }
 

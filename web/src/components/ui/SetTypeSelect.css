@@ -1,0 +1,44 @@
+/* ui/SetTypeSelect.tsx: one width and shape for every set type; only the tint says which it is. */
+.set-type-select.custom-select-wrap {
+  width: 132px;
+  min-width: 132px;
+  max-width: 132px;
+  flex: 0 0 auto;
+}
+
+.set-type-select .custom-select-trigger {
+  width: 100%;
+  min-height: 44px;
+  padding: 0 10px 0 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control, 8px);
+  background: var(--surface-raised);
+  color: var(--text);
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+
+.set-type-select .custom-select-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.set-type-select.set-type-warmup .custom-select-trigger {
+  border-color: color-mix(in srgb, var(--blue) 45%, var(--border));
+  background: color-mix(in srgb, var(--blue) 10%, var(--surface-raised));
+  color: var(--blue);
+}
+
+.set-type-select.set-type-dropset .custom-select-trigger,
+.set-type-select.set-type-myoreps .custom-select-trigger {
+  border-color: var(--accent-border);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.set-type-select.set-type-amrap .custom-select-trigger {
+  border-color: var(--red-border);
+  background: var(--red-soft);
+  color: var(--red);
+}
+
+@media (min-width: 1024px) {
+  .set-type-select .custom-select-trigger { min-height: 40px; }
+}

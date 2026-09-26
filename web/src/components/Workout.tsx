@@ -3,7 +3,9 @@ import type { Exercise, LoggedSet, Preferences, Session } from '../types';
 import { ApiError, api } from '../lib/api';
 import type { SaveQueue } from '../lib/queue';
 import { completedSets, plannedSets } from '../lib/training';
-import { structuralChanges } from '../lib/workoutDraft';
+import { exerciseListChanged } from '../lib/workoutDraft';
+import { nextLog, nextUpText } from '../lib/workoutLogging';
+import { useAfterLog } from './useAfterLog';
 import { validateLoggedSet, validateSessionDraft } from '../lib/validation';
 import { restTimer } from '../lib/restTimer';
 import { findNextStep, restAppliesAfter } from '../lib/restRules';
@@ -18,7 +20,6 @@ import { drainWorkoutOutbox, sessionPayload } from '../lib/workoutOutbox';
 import { Modal } from './ui/Modal';
 import { WorkoutFooter } from './WorkoutFooter';
 import { WorkoutTopBar } from './WorkoutTopBar';
-import { WorkoutSyncLine } from './WorkoutSyncLine';
 import { WorkoutEditor } from './WorkoutEditor';
 import { WorkoutRecoveryConflict } from './WorkoutRecoveryConflict';
 import { useWorkoutOnlineFallback } from './useWorkoutOnlineFallback';
@@ -37,7 +38,8 @@ export function Workout({
   onSaved,
   onClose,
   onFinish,
-  onDiscard
+  onDiscard,
+  autoAdvance = true
 }: {
   session: Session;
   accountId: string;
@@ -51,6 +53,7 @@ export function Workout({
   onClose: () => void;
   onFinish: (s: Session) => void;
   onDiscard: () => void;
+  autoAdvance?: boolean;
 }) {
   const [draft, setDraft] = useState(recovery?.sessionId === session.id ? recovery.draft : session);
   const [now, setNow] = useState(Date.now());
@@ -72,6 +75,9 @@ export function Workout({
   const serverSession = useRef(recovery?.serverSession ?? session);
   const revision = useRef(serverSession.current.revision);
   const setToggleGenerations = useRef(new Map<string, number>());
+  const { celebration, afterLog } = useAfterLog({
+    unit: preferences.unit, autoAdvance, focused: viewMode === 'focus', onAdvance: index => selectExercise(index)
+  });
   const onlineFallback = useWorkoutOnlineFallback({
     sessionId: session.id, accountId, online, queue, preferences, recovery, revision,
     serverSession, onSaved, onRecoveryChange, setDraft, setBusy, setError, setLocalStatus
@@ -142,8 +148,8 @@ export function Workout({
   async function change(next: Session, changedSet?: { setId: string; patch: Partial<LoggedSet> }): Promise<boolean> {
     if (finishIntentAt) { setError('This workout is finished on this device and is waiting to sync.'); return false; }
     if (onlineFallback.hasPendingFinish()) { setError('A finish request needs confirmation. Retry the same finish before making more changes.'); return false; }
-    if (!online && structuralChanges(draft, next)) {
-      setError('Adding, removing, or replacing exercises needs a connection. Set logging and notes are saved on this device.');
+    if (!online && exerciseListChanged(draft, next)) {
+      setError('Adding, removing, or replacing exercises needs a connection. Sets and notes are saved on this device.');
       return false;
     }
     setDraft(next);
@@ -227,12 +233,20 @@ export function Workout({
     const restSeconds = exercise.restSeconds ?? preferences.restSeconds ?? 90;
     const nextStep = findNextStep(draft.exercises, ei, si);
     const shouldRest = !set.done && restSeconds > 0 && !draft.pausedAt && restAppliesAfter({ exercise, setIndex: si, set, prescription: plan }, nextStep);
+    const logging = !set.done;
+    let saved: boolean;
     if (shouldRest) {
       restTimer.primeSound();
-      await startRestAfterSetIsDurable(persist, () => {
+      saved = await startRestAfterSetIsDurable(persist, () => {
         if (setGeneration.get(set.id) === generation) restTimer.start(restSeconds);
       });
-    } else await persist();
+    } else {
+      saved = await persist();
+      // An early completion replaces the previous rest too: an immediate handoff
+      // must not leave an older countdown running over the superset partner.
+      if (logging && saved && setGeneration.get(set.id) === generation) restTimer.skip();
+    }
+    if (logging && saved && setGeneration.get(set.id) === generation) afterLog(draft, ei, si);
   }
 
   async function togglePause() {
@@ -311,35 +325,29 @@ export function Workout({
     }
   }
 
-  async function swapExercise(sessionExerciseId: string, replacementExerciseId: string | null, replacementName: string) {
+  // Exercise-list changes go straight to the server: they need its catalog and swap rules.
+  async function changeExerciseList(key: string, request: (revision: number) => Promise<Session>, failureMessage: string) {
     if (!online || finishIntentAt || draft.pausedAt) { setError('Connect and resume the workout before changing its exercise list.'); return; }
     setBusy(true); setError('');
     try {
-      await queue.push(`workout-swap-${sessionExerciseId}`, async () => {
-        const saved = await api.substituteSessionExercise(draft.id, {
-          sessionExerciseId, replacementExerciseId, replacementName, revision: revision.current, idempotencyId: crypto.randomUUID()
-        });
+      await queue.push(key, async () => {
+        const saved = await request(revision.current);
         revision.current = saved.revision; setDraft(saved); onSaved(saved);
       });
     } catch (failure) {
-      setError(failure instanceof ApiError ? failure.message : 'Could not swap this exercise.');
+      setError(failure instanceof ApiError ? failure.message : failureMessage);
     } finally { setBusy(false); }
   }
 
-  async function restoreExercise(sessionExerciseId: string) {
-    if (!online || finishIntentAt || draft.pausedAt) { setError('Connect and resume the workout before changing its exercise list.'); return; }
-    setBusy(true); setError('');
-    try {
-      await queue.push(`workout-restore-${sessionExerciseId}`, async () => {
-        const saved = await api.restoreSessionExercise(draft.id, {
-          sessionExerciseId, revision: revision.current, idempotencyId: crypto.randomUUID()
-        });
-        revision.current = saved.revision; setDraft(saved); onSaved(saved);
-      });
-    } catch (failure) {
-      setError(failure instanceof ApiError ? failure.message : 'Could not restore this exercise.');
-    } finally { setBusy(false); }
-  }
+  const swapExercise = (sessionExerciseId: string, replacementExerciseId: string | null, replacementName: string) =>
+    changeExerciseList(`workout-swap-${sessionExerciseId}`, current => api.substituteSessionExercise(draft.id, {
+      sessionExerciseId, replacementExerciseId, replacementName, revision: current, idempotencyId: crypto.randomUUID()
+    }), 'Could not swap this exercise.');
+
+  const restoreExercise = (sessionExerciseId: string) =>
+    changeExerciseList(`workout-restore-${sessionExerciseId}`, current => api.restoreSessionExercise(draft.id, {
+      sessionExerciseId, revision: current, idempotencyId: crypto.randomUUID()
+    }), 'Could not restore this exercise.');
 
   async function discard() {
     if (!online) { setError('Reconnect before discarding this workout. Your on-device recovery copy is still saved.'); return; }
@@ -419,11 +427,23 @@ export function Workout({
   }
 
   const currentExercise = draft.exercises[activeIndex] ?? draft.exercises[0];
+  const pendingLog = viewMode === 'focus' && !paused && !finishIntentAt && !recoveryConflict ? nextLog(draft, activeIndex, unit) : null;
+  const logAction = pendingLog && {
+    ...pendingLog,
+    onLog: () => void toggle(pendingLog.exerciseIndex, pendingLog.setIndex)
+  };
   const defaultRestSeconds = currentExercise?.restSeconds ?? preferences.restSeconds ?? 90;
 
   return (
-    <Modal title={draft.name} onClose={onClose} wide>
+    <Modal title={draft.name} onClose={onClose} wide headless className="workout-sheet">
       <WorkoutTopBar
+        name={draft.name}
+        syncMessage={finishIntentAt
+          ? `Finished on this device at ${new Date(finishIntentAt).toLocaleTimeString()}. ${online ? 'Waiting to sync.' : 'Reconnect to save it.'}`
+          : localStatus}
+        online={online}
+        discardDisabled={busy || !online}
+        onDiscard={() => setConfirm('discard')}
         elapsed={elapsed}
         done={done}
         planned={plannedSets(draft)}
@@ -437,13 +457,6 @@ export function Workout({
 
       {recoveryConflict && recovery && <WorkoutRecoveryConflict recovery={recovery} online={online} onResolve={choice => void resolveConflict(choice)} />}
 
-      <WorkoutSyncLine
-        message={finishIntentAt
-          ? `Finished on this device at ${new Date(finishIntentAt).toLocaleTimeString()}. ${online ? 'Waiting to sync.' : 'Reconnect to save it.'}`
-          : localStatus}
-        online={online}
-      />
-
       <WorkoutEditor draft={draft} unit={unit} exercises={exercises} activeIndex={activeIndex} viewMode={viewMode} online={online}
         paused={paused} finishIntentAt={finishIntentAt} recoveryConflict={recoveryConflict}
         picker={picker} onPicker={setPicker}
@@ -454,7 +467,9 @@ export function Workout({
       <WorkoutFooter error={error} remaining={remaining} totalSeconds={rest.totalSeconds}
         restEndedAt={rest.announced && rest.endsAt > 0 ? rest.endsAt : null} defaultRestSeconds={defaultRestSeconds}
         busy={busy || Boolean(finishIntentAt) || recoveryConflict} restDisabled={paused || Boolean(finishIntentAt) || recoveryConflict}
-        onDiscard={() => setConfirm('discard')} onMinimize={onClose}
+        nextUp={remaining > 0 ? nextUpText(draft, activeIndex, unit) : null}
+        logAction={logAction}
+        celebration={celebration}
         onFinish={() => {
           if (!done) { setError('Complete at least one working set before finishing.'); return; }
           setConfirm('finish');

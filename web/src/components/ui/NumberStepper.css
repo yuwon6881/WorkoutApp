@@ -1,0 +1,66 @@
+/* ui/NumberStepper.tsx: − value + in one bordered control. Every part keeps a 44 px target on
+   compact and medium layouts; expanded layouts tighten to 36 px. */
+.number-stepper {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) 44px;
+  align-items: stretch;
+  min-height: 48px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control, 8px);
+  background: var(--surface-hover);
+  overflow: hidden;
+}
+
+.number-stepper:focus-within {
+  border-color: var(--accent-border-strong);
+  box-shadow: 0 0 0 3px var(--accent-soft-glow);
+}
+
+.number-stepper.disabled { opacity: 0.55; }
+
+.number-stepper .number-stepper-button.button {
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--muted);
+  display: grid;
+  place-items: center;
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.number-stepper .number-stepper-button.button:hover:not(:disabled) {
+  background: var(--surface-raised);
+  color: var(--text);
+}
+
+.number-stepper .number-stepper-button.button:active:not(:disabled) { color: var(--accent); }
+
+.number-stepper input {
+  width: 100%;
+  min-width: 0;
+  min-height: 44px;
+  padding: 0 2px;
+  border: 0;
+  border-inline: 1px solid var(--border);
+  border-radius: 0;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 18px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+.number-stepper input:focus { outline: none; }
+.number-stepper input::placeholder { color: var(--faint); }
+
+@media (min-width: 1024px) {
+  .number-stepper { grid-template-columns: 36px minmax(0, 1fr) 36px; min-height: 40px; }
+  .number-stepper .number-stepper-button.button { min-width: 36px; min-height: 36px; }
+  .number-stepper input { min-height: 38px; font-size: 16px; }
+}

@@ -8,7 +8,8 @@ namespace Workout.Api.Services;
 
 public record CatalogExercise(Guid Id, string Slug, string Name, string Muscle, string Equipment, string Cue, List<string> Aliases, double LoadStepKg,
     string LoadModel = LoadModels.External, string MovementPattern = "", string Source = "catalog", bool IsCustom = false, bool Archived = false,
-    List<string>? SecondaryMuscles = null, string Category = ExerciseCategories.FreeWeights);
+    List<string>? SecondaryMuscles = null, string Category = ExerciseCategories.FreeWeights,
+    List<double>? AvailableLoadsKg = null);
 
 public record SubstitutionCandidate(Guid ExerciseId, string Name, string Muscle, string Equipment, string Cue,
     string Source, int Rank, bool IsCatalog, string MovementPattern = "", List<string>? SecondaryMuscles = null);
@@ -75,7 +76,13 @@ public sealed class CatalogService(AppDb db)
         output.AddRange(custom.Select(x => new CatalogExercise(x.Id, $"custom-{x.Id:N}", x.Name, x.Muscle, x.Equipment, x.Cue, [], x.LoadStepKg,
             LoadModels.All.Contains(x.LoadModel) ? x.LoadModel : LoadModels.External, x.MovementPattern, "custom", true, false,
             ReadMuscles(x.SecondaryMusclesJson, x.Muscle), ExerciseCategories.Normalize(x.Category, x.Equipment, x.LoadModel))));
-        return output;
+        var settings = await db.ExerciseLoadSettings.AsNoTracking().ToDictionaryAsync(x => x.Id, ct);
+        return output.Select(exercise => settings.TryGetValue(exercise.Id, out var setting)
+            ? exercise with
+            {
+                LoadStepKg = setting.LoadStepKg ?? exercise.LoadStepKg,
+                AvailableLoadsKg = setting.AvailableLoadsJson is { } json ? Json.Read<List<double>>(json) : null
+            } : exercise).ToList();
     }
 
     private async Task<List<CatalogExercise>> Shared(CancellationToken ct)

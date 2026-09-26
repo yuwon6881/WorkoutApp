@@ -8,6 +8,7 @@ import { isFirebasePushConfigured } from '../lib/push/firebaseConfig';
 import type { DevicePreferences } from '../lib/workoutRecovery';
 import { Button } from './ui/Button';
 import { SettingRow } from './ui/SettingRow';
+import { isNative } from '../lib/platform';
 import { Switch } from './ui/Switch';
 
 type PushStatus = {
@@ -68,6 +69,13 @@ export function RestAlertSettings({ accountId, preferences, devicePreferences, o
       const permission = await requestRestAlerts();
       if (permission !== 'granted') {
         notify('Allow notifications in your browser settings to enable closed-app rest alerts.');
+        return;
+      }
+      // The Android app schedules its own local notification for each rest, so it needs only the
+      // permission, not a registered push device.
+      if (isNative()) {
+        if (!preferences.restAlerts) onPreferences({ ...preferences, restAlerts: true });
+        notify('Rest alerts will arrive as notifications from the Workout app, even with the screen off.');
         return;
       }
       const registration = await registerWorkoutPushDevice();
@@ -163,7 +171,7 @@ export function RestAlertSettings({ accountId, preferences, devicePreferences, o
 
       <SettingRow
         label={<strong>Vibration</strong>}
-        description="Only where this browser and device support vibration."
+        description="Rest alerts and a short pulse when a set is logged, where this device supports vibration."
         descriptionId="rest-vibration-description"
       >
         <Switch
@@ -184,6 +192,19 @@ export function RestAlertSettings({ accountId, preferences, devicePreferences, o
           describedBy="rest-wake-description"
           checked={devicePreferences.keepAwake}
           onChange={keepAwake => onDevicePreferences({ ...devicePreferences, keepAwake })}
+        />
+      </SettingRow>
+
+      <SettingRow
+        label={<strong>Move to the next exercise automatically</strong>}
+        description="After the last set of an exercise, or to the partner exercise in a superset."
+        descriptionId="auto-advance-description"
+      >
+        <Switch
+          label="Move to the next exercise automatically"
+          describedBy="auto-advance-description"
+          checked={devicePreferences.autoAdvance}
+          onChange={autoAdvance => onDevicePreferences({ ...devicePreferences, autoAdvance })}
         />
       </SettingRow>
     </>

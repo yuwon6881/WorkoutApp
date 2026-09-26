@@ -23,12 +23,14 @@ import org.robolectric.Shadows.shadowOf
 import org.robolectric.shadows.ShadowDialog
 
 /** A watch form factor as Robolectric resource qualifiers. */
-data class WatchDevice(val id: String, val qualifiers: String)
+data class WatchDevice(val id: String, val qualifiers: String, val fontScale: Float = 1f)
 
 val WATCH_DEVICES = listOf(
     WatchDevice("small-round", "w192dp-h192dp-round-watch-xhdpi"),
     WatchDevice("large-round", "w227dp-h227dp-round-watch-xhdpi"),
     WatchDevice("square", "w180dp-h180dp-notround-watch-xhdpi"),
+    // Accessibility text size on the smallest face: values and actions must stay legible and on screen.
+    WatchDevice("small-round-large-text", "w192dp-h192dp-round-watch-xhdpi", fontScale = 1.3f),
     // Not a real watch: a tall canvas that shows every list item at once for layout review.
     WatchDevice("tall-review", "w192dp-h560dp-notround-watch-xhdpi")
 )
@@ -40,6 +42,7 @@ val WATCH_DEVICES = listOf(
  */
 fun renderScreen(device: WatchDevice, name: String, settleMs: Long = 2_000, content: @Composable () -> Unit): File {
     RuntimeEnvironment.setQualifiers(device.qualifiers)
+    RuntimeEnvironment.setFontScale(device.fontScale)
     val controller = Robolectric.buildActivity(ComponentActivity::class.java).setup()
     val activity = controller.get()
     activity.setContent {

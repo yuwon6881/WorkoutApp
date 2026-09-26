@@ -1,34 +1,41 @@
-import { lazy, Suspense, useEffect, useRef, useState } from 'react';
+// Every view's stylesheet loads with the shell, ahead of index.css (main.tsx imports App first), as
+// it did before views were split into lazy chunks. index.css and layout.css override some of
+// these rules, so a view's CSS arriving later with its chunk would flip the cascade.
+import.meta.glob('./components/**/*.css', { eager: true });
+import { Suspense, useEffect, useRef, useState } from 'react';
 import { AlertTriangle, BicepsFlexed, CheckCircle2, Cloud, Dumbbell, LayoutDashboard, Library, Loader2, Plus, RefreshCw, Settings, WifiOff } from 'lucide-react';
 import type { Exercise, Session, Template } from './types';
 import { ApiError, api } from './lib/api';
 import { useApp } from './app/useApp';
-import { restTimer } from './lib/restTimer';
-import { getWorkoutPushDeviceId } from './lib/push/firebaseMessaging';
+import { useShellRestTimer } from './app/useShellRestTimer';
+import { useTabNavigation } from './app/useTabNavigation';
+import { useSaveIndicator } from './app/useSaveIndicator';
+import { useKeyboardInset } from './app/useKeyboardInset';
+import { nextWorkout } from './lib/nextWorkout';
+import { useAppUpdate } from './app/useAppUpdate';
+import { usePullToRefresh } from './app/usePullToRefresh';
+import { useWindowTier } from './lib/breakpoints';
+import { installNativeShell, isStandalone, setNativeStatusBar } from './lib/platform';
+import type { Tab } from './app/useTabNavigation';
 import { getRecovery, hasUnresolvedRecovery, sameWorkoutEdits, startRecovery } from './lib/workoutRecovery';
 import { Button } from './components/ui/Button';
 import { MotionScene, SelectionIndicator } from './components/ui/Motion';
 import './components/BottomNav.css';
 import { Auth } from './components/Auth';
 import { Dashboard } from './components/Dashboard';
-import { Programs } from './components/Programs';
-const Workout = lazy(() => import('./components/Workout').then(module => ({ default: module.Workout })));
-import { clearHistoryViewCache } from './components/History';
-import { SessionDetail } from './components/SessionDetail';
 import { clearWorkoutHistoryCache } from './components/WorkoutHistory';
-import { SettingsView } from './components/Settings';
-import { ExerciseDetailModal, ExerciseLibrary } from './components/Exercises';
-import { ImportReview } from './components/Import';
-import { StartPreview } from './components/StartPreview';
-import { MuscleBalanceView } from './components/MuscleBalanceView';
 import { ImportProgressPill } from './components/ImportProgressPill';
 import { useImportWatch } from './components/useImportWatch';
 import { AppLoading } from './components/AppLoading';
+import { ViewSkeleton } from './components/ViewSkeleton';
+import { ExerciseDetailModal, ExerciseLibrary, ImportReview, MuscleBalanceView, Programs, SessionDetail, SettingsView, StartPreview, Workout, prefetchViews } from './app/lazyViews';
+import { ResumeWorkoutButton } from './components/ResumeWorkoutButton';
+import { InstallAppCard } from './components/InstallAppCard';
 
 /// Matches the server's refusal in ImportService.Create, so both sides say the same thing.
 const IMPORT_BLOCKED_MESSAGE = 'Finish or discard the active workout before importing a program.';
 
-const NAV = [
+const NAV: Array<{ id: Tab; label: string; icon: typeof LayoutDashboard }> = [
   { id: 'overview', label: 'Overview', icon: LayoutDashboard },
   { id: 'program', label: 'Workouts', icon: Dumbbell },
   { id: 'body', label: 'Muscles', icon: BicepsFlexed },
@@ -38,9 +45,18 @@ const NAV = [
 export default function App() {
   const app = useApp();
   const { data, status, loading, signedOut, online } = app;
-  const initialTab = typeof window !== 'undefined' && (window.location.pathname === '/settings' || window.location.search.includes('central_error') || window.location.search.includes('error')) ? 'settings' : 'overview';
-  const [tab, setTab] = useState(initialTab);
+  const { tab, setTab } = useTabNavigation();
+  useKeyboardInset();
+  useEffect(() => installNativeShell(), []);
+  const appUpdate = useAppUpdate();
+  // Offline has its own banner, so the top bar only reports saves while connected.
+  const saveIndicator = useSaveIndicator(status);
+  // Once the first screen has data, the other views' code is fetched while the app is idle.
+  useEffect(() => { if (data) prefetchViews(); }, [Boolean(data)]);
+  const showSaveStatus = online && saveIndicator !== 'hidden';
   const [training, setTraining] = useState(false);
+  // A browser tab already has its own pull-to-refresh; the installed and Android apps do not.
+  const pullToRefresh = usePullToRefresh(app.reload, useWindowTier() === 'compact' && isStandalone() && !training && online);
   const [reviewRecovery, setReviewRecovery] = useState(false);
   const [detail, setDetail] = useState<Session | null>(null);
   // The session just finished, so its summary opens as a result rather than a history entry.
@@ -66,143 +82,18 @@ export default function App() {
   useEffect(() => {
     const theme = data?.preferences.theme ?? 'dark';
     document.documentElement.dataset.theme = theme;
-    const metaTheme = document.querySelector('meta[name="theme-color"]');
-    if (metaTheme) {
-      const bg = getComputedStyle(document.documentElement).getPropertyValue('--bg').trim();
-      if (bg) metaTheme.setAttribute('content', bg);
+    // index.html follows the system scheme until the account's own theme is known; from then on
+    // one unconditional colour matches the chosen theme.
+    const metas = [...document.querySelectorAll('meta[name="theme-color"]')];
+    const bg = getComputedStyle(document.documentElement).getPropertyValue('--bg').trim();
+    if (bg && metas[0]) {
+      metas[0].removeAttribute('media');
+      metas[0].setAttribute('content', bg);
+      metas.slice(1).forEach(meta => meta.remove());
     }
+    if (bg) setNativeStatusBar(theme === 'light' ? 'light' : 'dark', bg);
   }, [data?.preferences.theme]);
-  // The timer belongs to the shell so minimizing the workout does not stop its deadline. The
-  // saved timer is account and session scoped and the notification content stays generic.
-  const timerAccountId = data?.account.id ?? recovery?.accountId ?? null;
-  const timerSessionId = recovery?.conflict && !recovery.serverSession.active
-    ? null : recoverySession?.id ?? data?.activeWorkout?.id ?? null;
-  const timerNotifications = data?.preferences.restAlerts ?? recovery?.preferences.restAlerts ?? false;
-  const [restState, setRestState] = useState(restTimer.current);
-  const [pushWakeVersion, setPushWakeVersion] = useState(0);
-  const pushDesired = useRef<{ accountId: string; sessionId: string; generation: string; deviceId: string } | null>(null);
-  const pushAttempt = useRef<{ key: string; inFlight: boolean; confirmed: boolean } | null>(null);
-  const pushWork = useRef<Promise<void>>(Promise.resolve());
-  useEffect(() => {
-    restTimer.setScope(timerAccountId, timerSessionId, {
-      notifications: timerNotifications,
-      sound: app.devicePreferences.sound,
-      vibration: app.devicePreferences.vibration,
-      keepAwake: app.devicePreferences.keepAwake
-    });
-    return restTimer.attach();
-  }, [timerAccountId, timerSessionId, timerNotifications, app.devicePreferences]);
-  useEffect(() => {
-    setRestState(restTimer.current);
-    return restTimer.subscribe(setRestState);
-  }, []);
-  useEffect(() => {
-    const retry = () => setPushWakeVersion(version => version + 1);
-    window.addEventListener('online', retry);
-    window.addEventListener('focus', retry);
-    document.addEventListener('visibilitychange', retry);
-    window.addEventListener('workout-rest-push-changed', retry);
-    return () => {
-      window.removeEventListener('online', retry);
-      window.removeEventListener('focus', retry);
-      document.removeEventListener('visibilitychange', retry);
-      window.removeEventListener('workout-rest-push-changed', retry);
-    };
-  }, []);
-  useEffect(() => {
-    if (!('serviceWorker' in navigator)) return;
-    const handleMessage = (event: MessageEvent) => {
-      const query = event.data;
-      const port = event.ports[0];
-      if (!port || query?.type !== 'workout-rest-alert-owner-query' ||
-        typeof query.sessionId !== 'string' || typeof query.generation !== 'string') return;
-      void (async () => {
-        const ownsTimer = document.visibilityState === 'visible' && Boolean(timerAccountId) &&
-          timerSessionId === query.sessionId &&
-          await restTimer.claimBackgroundAlert(timerAccountId!, query.sessionId, query.generation);
-        port.postMessage({
-          type: 'workout-rest-alert-owner-response',
-          sessionId: query.sessionId,
-          generation: query.generation,
-          ownsTimer
-        });
-      })().catch(() => {
-        port.postMessage({
-          type: 'workout-rest-alert-owner-response',
-          sessionId: query.sessionId,
-          generation: query.generation,
-          ownsTimer: false
-        });
-      });
-    };
-    navigator.serviceWorker.addEventListener('message', handleMessage);
-    return () => navigator.serviceWorker.removeEventListener('message', handleMessage);
-  }, [timerAccountId, timerSessionId, restState.generation]);
-  useEffect(() => {
-    const enqueue = (work: () => Promise<void>) => {
-      const next = pushWork.current.then(work, work);
-      pushWork.current = next.catch(() => undefined);
-      return next;
-    };
-    const deviceId = getWorkoutPushDeviceId();
-    const running = timerNotifications && Boolean(timerAccountId) && Boolean(timerSessionId) &&
-      Boolean(deviceId) && typeof Notification !== 'undefined' && Notification.permission === 'granted' &&
-      restState.endsAt > Date.now() && !restState.announced && Boolean(restState.generation) && navigator.onLine;
-
-    if (!running || !deviceId || !timerAccountId || !timerSessionId) {
-      const previous = pushDesired.current;
-      pushDesired.current = null;
-      pushAttempt.current = null;
-      if (previous && previous.accountId === timerAccountId) {
-        void enqueue(async () => {
-          try { await api.cancelRestAlert(previous.sessionId, { deviceId: previous.deviceId, generation: previous.generation }); }
-          catch { /* Expiring server-side tasks are safe if cancellation cannot reach the server. */ }
-        });
-      }
-      return;
-    }
-
-    const next = { accountId: timerAccountId, sessionId: timerSessionId, generation: restState.generation, deviceId };
-    const key = `${next.accountId}:${next.sessionId}:${next.generation}`;
-    const previous = pushDesired.current;
-    if (previous && previous.accountId === next.accountId && previous.sessionId !== next.sessionId) {
-      void enqueue(async () => {
-        try { await api.cancelRestAlert(previous.sessionId, { deviceId: previous.deviceId, generation: previous.generation }); }
-        catch { /* The old task expires shortly and cannot affect the new workout. */ }
-      });
-    }
-    pushDesired.current = next;
-    if (pushAttempt.current?.key === key && (pushAttempt.current.inFlight || pushAttempt.current.confirmed)) return;
-    if (pushAttempt.current?.key !== key) pushAttempt.current = { key, inFlight: false, confirmed: false };
-    pushAttempt.current = { key, inFlight: true, confirmed: false };
-    void enqueue(async () => {
-      try {
-        if (pushDesired.current?.accountId !== next.accountId || pushDesired.current.sessionId !== next.sessionId ||
-          pushDesired.current.generation !== next.generation) return;
-        const status = await api.restAlertStatus(deviceId, timerSessionId);
-        if (!status.configured || !status.registered) {
-          pushAttempt.current = { key, inFlight: false, confirmed: false };
-          return;
-        }
-        if (pushDesired.current?.generation !== next.generation) return;
-        const result = await api.scheduleRestAlert(timerSessionId, {
-          deviceId, generation: restState.generation, deadline: new Date(restState.endsAt).toISOString(),
-          expectedGeneration: status.currentGeneration
-        });
-        const stillCurrent = pushDesired.current?.accountId === next.accountId && pushDesired.current.sessionId === next.sessionId &&
-          pushDesired.current.generation === next.generation;
-        if (!stillCurrent) {
-          try { await api.cancelRestAlert(next.sessionId, { deviceId, generation: next.generation }); } catch { /* The task expires quickly. */ }
-          return;
-        }
-        pushAttempt.current = { key, inFlight: false, confirmed: result.scheduled };
-        if (!result.scheduled) setToast(result.message);
-      } catch (failure) {
-        pushAttempt.current = { key, inFlight: false, confirmed: false };
-        if (failure instanceof ApiError && failure.status === 409) setToast(failure.message);
-      }
-    });
-  }, [data?.preferences.restAlerts, pushWakeVersion, restState, timerAccountId, timerNotifications, timerSessionId]);
+  const restState = useShellRestTimer({ data, recovery, recoverySession, devicePreferences: app.devicePreferences, setToast });
   useEffect(() => {
     if (recovery && (!data || data.account.id === recovery.accountId) &&
       (!data?.activeWorkout?.active || data.activeWorkout.id === recovery.sessionId || recovery.operations.some(operation => operation.type === 'finish')) &&
@@ -226,8 +117,20 @@ export default function App() {
     else return;
     const url = new URL(window.location.href);
     url.searchParams.delete('workout');
-    window.history.replaceState(null, '', `${url.pathname}${url.search}${url.hash}`);
+    window.history.replaceState(window.history.state, '', `${url.pathname}${url.search}${url.hash}`);
   }, [recovery?.sessionId, data?.account.id, data?.activeWorkout?.id, loading]);
+
+  // The home-screen shortcut opens /?start=today: resume what is open, or start today's workout.
+  useEffect(() => {
+    if (!data || loading || new URLSearchParams(window.location.search).get('start') !== 'today') return;
+    const url = new URL(window.location.href);
+    url.searchParams.delete('start');
+    window.history.replaceState(window.history.state, '', `${url.pathname}${url.search}${url.hash}`);
+    if (data.activeWorkout?.active) { setTraining(true); return; }
+    const today = nextWorkout(data);
+    if (today) void quickStart(today.id);
+    else setToast('No workout is queued yet. Choose one from Workouts.');
+  }, [data?.account.id, loading]);
 
   if (signedOut) return <Auth />;
 
@@ -272,8 +175,17 @@ export default function App() {
     finally { if (previewRequest.current === templateId) previewRequest.current = null; }
   }
 
-  async function confirmStart() {
-    if (starting || !preview || !data) return;
+  /// Today's workout from the Overview starts in one tap: its content is already on the card, so
+  /// the preview adds nothing to decide. Anything unresolved on this device still comes first.
+  async function quickStart(templateId: string) {
+    setActionError('');
+    if (recovery && recovery.accountId === data!.account.id && hasUnresolvedRecovery(recovery)) { void start(templateId); return; }
+    if (data!.activeWorkout?.active) { setTraining(true); return; }
+    await confirmStart(templateId);
+  }
+
+  async function confirmStart(templateId = preview?.id) {
+    if (starting || !templateId || !data) return;
     const currentData = data;
     setStarting(true); setActionError('');
     try {
@@ -288,7 +200,7 @@ export default function App() {
           return;
         }
       } catch { /* server-backed training remains available when local recovery storage is unavailable */ }
-      const session = await api.startWorkout(preview.id);
+      const session = await api.startWorkout(templateId);
       let initialRecovery = null;
       try {
         await startRecovery({
@@ -343,10 +255,17 @@ export default function App() {
     </aside>
 
     <div className="workspace">
+      {(pullToRefresh.pull > 0 || pullToRefresh.refreshing) && <div className={`pull-refresh ${pullToRefresh.ready || pullToRefresh.refreshing ? 'ready' : ''}`.trim()}
+        style={{ height: pullToRefresh.refreshing ? 48 : pullToRefresh.pull }} role="status" aria-label={pullToRefresh.refreshing ? 'Refreshing' : 'Pull to refresh'}>
+        <RefreshCw size={18} className={pullToRefresh.refreshing ? 'spin' : undefined} style={{ transform: `rotate(${pullToRefresh.pull * 3}deg)` }} />
+      </div>}
       <header className="topbar">
         <a className="brand mobile-brand" href="#" onClick={e => { e.preventDefault(); setTab('overview'); }}><img src="/favicon.svg" alt="" />Workout</a>
         <div className="topbar-actions">
-          {online && status.state !== 'idle' && <span className="device-status" role="status"><StatusIcon state={status.state} online={online} /> {statusTitle(status.state, online)}</span>}
+          {/* A fixed slot: the status fades in and out without moving anything around it. */}
+          <span className={`device-status save-indicator ${showSaveStatus ? 'visible' : ''}`.trim()} role="status">
+            {showSaveStatus && <><StatusIcon state={status.state} online={online} /> {statusTitle(status.state, online)}</>}
+          </span>
           <Button variant="tertiary" className="settings-icon" aria-label="Settings" onClick={() => setTab('settings')}><Settings size={19} /></Button>
         </div>
       </header>
@@ -363,9 +282,11 @@ export default function App() {
         </div>}
         {!online && <div className="error-banner" role="status"><WifiOff size={17} />Offline. Set logging, notes, pause, and finish are saved on this device; exercise-list changes and discard need a connection.<Button variant="tertiary" onClick={() => void app.reload()}><RefreshCw size={15} />Retry</Button></div>}
         {actionError && <div className="error-banner" role="alert">{actionError}</div>}
+        {tab === 'overview' && <InstallAppCard />}
 
-        <MotionScene sceneKey={tab === 'history' ? 'overview' : tab}>
-        {(tab === 'overview' || tab === 'history') && <Dashboard data={data} onStart={start} onProgram={() => setTab('program')}
+        <MotionScene sceneKey={tab}>
+        <Suspense fallback={<ViewSkeleton label={NAV.find(item => item.id === tab)?.label ?? (tab === 'import' ? 'Import' : 'Settings')} />}>
+        {tab === 'overview' && <Dashboard data={data} onStart={start} onQuickStart={quickStart} onProgram={() => setTab('program')}
             onImport={openImport} onSession={setDetail} onResume={() => setTraining(true)} onChanged={app.reload}
             onExercise={id => { void openExercise(id); }} />}
         {tab === 'program' && <Programs data={data} exercises={data.exercises} onStart={start} onImport={openImport} onChanged={app.reload} />}
@@ -375,7 +296,8 @@ export default function App() {
         {tab === 'exercises' && <ExerciseLibrary exercises={data.exercises} onOpen={setExerciseDetail} onChanged={app.reload} />}
         {tab === 'settings' && <SettingsView account={data.account} preferences={data.preferences} devicePreferences={app.devicePreferences}
           version={__APP_VERSION__}
-          onDevicePreferences={app.setDevicePreferences} onPreferences={app.savePreferences} notify={setToast} onSignOut={async () => { clearHistoryViewCache(); clearWorkoutHistoryCache(); await app.signOut(); }} />}
+          onDevicePreferences={app.setDevicePreferences} onPreferences={app.savePreferences} notify={setToast} onSignOut={async () => { clearWorkoutHistoryCache(); await app.signOut(); }} />}
+        </Suspense>
         </MotionScene>
       </main>
 
@@ -401,23 +323,28 @@ export default function App() {
       </SelectionIndicator>
     </nav>
 
-    {workoutSession?.active && !training && <Button className="resume-workout" variant="primary" onClick={() => setTraining(true)}>
-      <span className="status-dot" />Resume {workoutSession.name}</Button>}
+    {workoutSession?.active && !training && <ResumeWorkoutButton name={workoutSession.name} rest={restState} onResume={() => setTraining(true)} />}
 
     {importWatch && !training && <ImportProgressPill progress={importWatch.progress}
       withResume={Boolean(workoutSession?.active)} onOpen={openImport} />}
 
     {training && workoutSession && <Suspense fallback={<div className="panel recovery-card" role="status">Opening your workout…</div>}><Workout session={workoutSession} accountId={data.account.id} preferences={recovery?.sessionId === workoutSession.id ? recovery.preferences : data.preferences}
       exercises={data.exercises} queue={app.queue} online={online} recovery={recovery?.sessionId === workoutSession.id ? recovery : null} onRecoveryChange={record => { app.setRecovery(record); if (!record) setReviewRecovery(false); }}
-      onSaved={app.setActiveWorkout} onClose={() => setTraining(false)}
+      onSaved={app.setActiveWorkout} onClose={() => setTraining(false)} autoAdvance={app.devicePreferences.autoAdvance}
       onFinish={async session => { app.queue.clear(); app.setActiveWorkout(null); setTraining(false); setDetail(session); setFinishedId(session.id); setToast('Workout saved.'); await app.reload(); }}
       onDiscard={async () => { app.queue.clear(); app.setActiveWorkout(null); setTraining(false); await app.reload(); }} /></Suspense>}
 
-    {preview && <StartPreview template={preview} busy={starting} onCancel={() => setPreview(null)} onConfirm={confirmStart} />}
+    <Suspense fallback={null}>
+    {preview && <StartPreview template={preview} busy={starting} onCancel={() => setPreview(null)} onConfirm={() => void confirmStart()} />}
     {detail && <SessionDetail session={detail} preferences={data.preferences} exercises={data.exercises} justFinished={detail.id === finishedId}
       onClose={() => { setDetail(null); setFinishedId(null); }} onDeleted={app.reload} />}
-    {exerciseDetail && <ExerciseDetailModal exercise={exerciseDetail} unit={data.preferences.unit} onClose={() => setExerciseDetail(null)} onChanged={async () => { clearHistoryViewCache(); clearWorkoutHistoryCache(); await app.reload(); }}
+    {exerciseDetail && <ExerciseDetailModal exercise={exerciseDetail} unit={data.preferences.unit} onClose={() => setExerciseDetail(null)} onChanged={async () => { clearWorkoutHistoryCache(); await app.reload(); }}
       onSession={session => { setExerciseDetail(null); setDetail(session); }} />}
+    {appUpdate.ready && !training && !workoutSession?.active && <div className="update-banner" role="status">
+      <span>A new version of Workout is ready.</span>
+      <Button variant="primary" onClick={appUpdate.apply}>Reload</Button>
+    </div>}
+    </Suspense>
     {toast && <div className="toast" role="status"><Plus size={17} />{toast}</div>}
   </div>;
 }

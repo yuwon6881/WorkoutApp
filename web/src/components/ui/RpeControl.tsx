@@ -137,3 +137,40 @@ export function RpeControl({
     </div>
   );
 }
+
+/// The same RIR choice as a row of chips, for the set being logged: one tap sets the effort and a
+/// second tap on the chosen chip clears it. Tiers keep the same colours as the dialog cards.
+export function RirChips({
+  value,
+  onChange,
+  ariaLabel,
+  disabled = false
+}: {
+  value: number | null;
+  onChange: (value: number | null) => void;
+  ariaLabel: string;
+  disabled?: boolean;
+}) {
+  const selected = value === null ? null : value >= 5 ? 5 : Math.round(value);
+  return (
+    <div className="rir-chips" role="radiogroup" aria-label={ariaLabel}>
+      {RIR_OPTIONS.map(option => {
+        const checked = selected === option.value;
+        return (
+          <Button
+            key={option.value}
+            presentation="plain"
+            role="radio"
+            aria-checked={checked}
+            aria-label={`${option.label}, ${option.sub}`}
+            disabled={disabled}
+            className={`rir-chip ${getRirColorClass(option.value)} ${checked ? 'selected' : ''}`.trim()}
+            onClick={() => onChange(checked ? null : option.value)}
+          >
+            {option.value === 5 ? '5+' : option.value}
+          </Button>
+        );
+      })}
+    </div>
+  );
+}

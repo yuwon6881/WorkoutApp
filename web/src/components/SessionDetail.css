@@ -186,3 +186,13 @@
     session-trophy 520ms var(--motion-ease) both,
     session-glow 900ms 240ms var(--motion-ease);
 }
+
+/* The narrowest phones: the set label takes its own line so load, effort and the PR tag keep
+   their full width instead of squeezing four columns into 320 px. */
+@media (max-width: 360px) {
+  .session-summary-sets > li {
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    row-gap: 2px;
+  }
+  .session-summary-sets > li > .session-set-label { grid-column: 1 / -1; }
+}

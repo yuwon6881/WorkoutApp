@@ -1,9 +1,11 @@
-import { useEffect, useState } from 'react';
+import { ExerciseLoadSettings } from './ExerciseLoadSettings';
+import { useDeferredValue, useEffect, useState } from 'react';
 import { ArrowLeftRight, Dumbbell, Library, Link2, Plus, Search, X, Trash2, RotateCcw, TrendingUp } from 'lucide-react';
 import type { Exercise, ExerciseCategory, ExerciseClearPreview, ExerciseInsight, Session } from '../types';
 import { ApiError, api } from '../lib/api';
 import { showSetCount } from '../lib/training';
 import { Button } from './ui/Button';
+import { ExerciseProgressChart } from './ExerciseProgressChart';
 import { Modal } from './ui/Modal';
 import { Select } from './ui/Select';
 import { CustomExerciseModal } from './CustomExerciseModal';
@@ -57,6 +59,9 @@ export function ExerciseLibrary({ exercises, onSelect, exclude = [], onOpen, onC
     setShowAllMuscles(false);
   }, [muscle, category, source, currentExerciseId]);
 
+  // Filtering the whole catalog on every keystroke can stall typing on a phone; the list follows
+  // the query a moment later while the field itself stays instant.
+  const search = useDeferredValue(query);
   const muscles = ['All muscles', ...new Map(exercises.flatMap(e => [e.muscle, ...(e.secondaryMuscles ?? [])])
     .filter(Boolean).map(value => [value.toLowerCase(), value] as const)).values()];
   const current = currentExerciseId ? exercises.find(e => e.id === currentExerciseId) : undefined;
@@ -68,7 +73,7 @@ export function ExerciseLibrary({ exercises, onSelect, exclude = [], onOpen, onC
     && (source === 'all' || (source === 'custom' ? e.isCustom : !e.isCustom))
     && (category === 'all' || getExerciseCategory(e) === category)
     && (muscle === 'All muscles' || [e.muscle, ...(e.secondaryMuscles ?? [])].some(value => value.toLowerCase() === muscle.toLowerCase()))
-    && `${e.name} ${e.equipment} ${e.muscle} ${(e.secondaryMuscles ?? []).join(' ')} ${e.movementPattern ?? ''} ${e.aliases.join(' ')}`.toLowerCase().includes(query.toLowerCase()));
+    && `${e.name} ${e.equipment} ${e.muscle} ${(e.secondaryMuscles ?? []).join(' ')} ${e.movementPattern ?? ''} ${e.aliases.join(' ')}`.toLowerCase().includes(search.toLowerCase()));
   const ordered = [...filtered].sort((a, b) => exerciseRank(a, current, preferredNames) - exerciseRank(b, current, preferredNames)
     || a.name.localeCompare(b.name));
   const actionLabel = action === 'swap' ? 'Swap' : action === 'map' ? 'Map' : 'Add';
@@ -186,7 +191,8 @@ export function ExerciseLibrary({ exercises, onSelect, exclude = [], onOpen, onC
     <div className="search-row">
       <label className="search-box">
         <Search size={18} />
-        <input name="exercise-search" aria-label="Search exercises" placeholder="Search exercises or equipment…" value={query} onChange={e => setQuery(e.target.value)} />
+        <input name="exercise-search" aria-label="Search exercises" placeholder="Search exercises or equipment…" value={query} onChange={e => setQuery(e.target.value)}
+          inputMode="search" enterKeyHint="search" autoComplete="off" autoCorrect="off" spellCheck={false} />
         {query && <Button presentation="plain" className="search-clear-btn" aria-label="Clear search" onClick={() => setQuery('')}><X size={16} /></Button>}
       </label>
       <div className="exercise-minor-filters" role="group" aria-label="Filter exercises">
@@ -312,7 +318,6 @@ export function ExerciseDetailModal({ exercise, unit, onClose, onChanged, onSess
   async function confirmClear() { setBusy(true); try { await api.clearExerciseHistory(exercise.id); setClearPreview(null); setInsight(null); await onChanged?.(); setInsight(await api.exerciseInsight(exercise.id, range, 0, 20)); } catch (failure) { setError(failure instanceof ApiError ? failure.message : 'Could not clear this exercise history.'); } finally { setBusy(false); } }
   async function deleteExercise() { setBusy(true); try { await api.deleteCustomExercise(exercise.id); setDeleteConfirm(false); await onChanged?.(); onClose(); } catch (failure) { setError(failure instanceof ApiError ? failure.message : 'Could not delete this custom exercise.'); } finally { setBusy(false); } }
   async function moreHistory() { if (!insight || historyBusy || insight.history.length >= insight.totalHistoryRows) return; setHistoryBusy(true); try { const next = await api.exerciseInsight(exercise.id, range, insight.page + 1, insight.size); setInsight(current => current ? { ...current, history: [...current.history, ...next.history], page: next.page } : next); } catch (failure) { setError(failure instanceof ApiError ? failure.message : 'Could not load more exercise history.'); } finally { setHistoryBusy(false); } }
-  const chartMax = insight ? Math.max(1, ...insight.points.map(point => metricValue(point, metric) ?? 0)) : 1;
   return <>
     <Modal title={exercise.name} onClose={onClose} wide>
       <div className="modal-body exercise-detail-modal">
@@ -323,11 +328,12 @@ export function ExerciseDetailModal({ exercise, unit, onClose, onChanged, onSess
           <span className="pill pill-category">{getExerciseCategory(exercise)}</span>
         </div>
         {exercise.cue && <p className="muted">{exercise.cue}</p>}
+        {!exercise.archived && <ExerciseLoadSettings key={exercise.id} exerciseId={exercise.id} unit={unit} onChanged={onChanged} />}
         {error && <div className="error-banner" role="alert">{error}</div>}
         {!insight && !error && <div className="skeleton detail-loading" aria-label="Loading exercise details" />}
         {insight && <>
           <div className="section-heading"><h3>Progress</h3><div className="detail-selectors"><label className="field"><span>Metric</span><Select name="progress-metric-select" label="Progress metric" value={metric} onChange={val => setMetric(val as ChartMetric)} options={[{ value: 'estimated1rm', label: 'Estimated 1RM' }, { value: 'load', label: 'Heaviest load' }, { value: 'volume', label: 'Session volume' }, { value: 'reps', label: 'Reps' }]} /></label><label className="field"><span>Range</span><Select name="progress-range-select" label="Progress range" value={range} onChange={val => setRange(val as string)} options={[{ value: '1m', label: 'Last month' }, { value: '3m', label: 'Last 3 months' }, { value: '6m', label: 'Last 6 months' }, { value: 'all', label: 'All time' }]} /></label></div></div>
-          <div className="exercise-chart" role="img" aria-label={`${chartMetricLabel(metric)} progress chart`}><div className="exercise-chart-bars">{insight.points.length ? insight.points.map(point => { const value = metricValue(point, metric); return <div className="exercise-chart-point" key={`${point.sessionId}-${point.date}`} aria-label={`${dateLabel(point.date)}: ${formatMetricValue(value, metric, unit)}`}><i style={{ height: `${Math.max(4, Math.min(100, ((value ?? 0) / chartMax) * 100))}%` }} /><small>{dateLabel(point.date)}</small></div>; }) : <span className="muted">No completed working sets in this range.</span>}</div></div>
+          <ExerciseProgressChart label={`${chartMetricLabel(metric)} progress`} format={value => formatMetricValue(value, metric, unit)} points={insight.points.map(point => ({ key: `${point.sessionId}-${point.date}`, date: dateLabel(point.date), value: metricValue(point, metric) }))} />
           <div className="chart-table" role="table" aria-label="Exercise progress table"><div className="chart-table-row chart-table-head" role="row"><span>Date</span><span>1RM</span><span>Load</span><span>Volume</span><span>Reps</span></div>{insight.points.map(point => <div className="chart-table-row" role="row" key={`row-${point.sessionId}-${point.date}`}><span>{dateLabel(point.date)}</span><span>{displayKg(point.estimated1RmKg, unit)}</span><span>{displayKg(point.loadKg, unit)}</span><span>{displayKg(point.volumeKg, unit)}{point.partial ? ' *' : ''}</span><span>{point.reps ?? '—'}</span></div>)}</div>
           {insight.partialVolume && <p className="muted detail-note">* Volume is partial because one or more logged loads were unknown.</p>}
           <div className="detail-record-grid">

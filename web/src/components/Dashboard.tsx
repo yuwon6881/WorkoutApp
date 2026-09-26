@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { ArrowRight, CalendarDays, Check, Dumbbell, Play } from 'lucide-react';
 import type { Bootstrap, ProgressSummary, Session } from '../types';
 import { ApiError, api } from '../lib/api';
+import { nextWorkout } from '../lib/nextWorkout';
 import { Button } from './ui/Button';
 import { TrainingCalendar } from './TrainingCalendar';
 import { BodyweightRecords, ProgressStats } from './ProgressPanels';
@@ -11,6 +12,8 @@ import './Dashboard.css';
 interface DashboardProps {
   data: Bootstrap;
   onStart: (templateId: string) => void;
+  /** Starts straight away; the preview stays one tap further for anyone who wants it. */
+  onQuickStart: (templateId: string) => void;
   onProgram: () => void;
   onImport: () => void;
   onResume: () => void;
@@ -22,6 +25,7 @@ interface DashboardProps {
 export function Dashboard({
   data,
   onStart,
+  onQuickStart,
   onProgram,
   onResume,
   onSession,
@@ -52,9 +56,7 @@ export function Dashboard({
   }, [progressRetry]);
 
   const program = data.activeProgram;
-  const next = program
-    ? program.days.find(w => w.id === program.nextTemplateId) ?? null
-    : data.templates[0] ?? null;
+  const next = nextWorkout(data);
   const nextName = next ? next.name : null;
   const nextFocus = next && 'focus' in next ? next.focus : null;
   const nextWeek = next?.week ?? 1;
@@ -164,9 +166,12 @@ export function Dashboard({
               <Play size={17} fill="currentColor" /> Resume workout <ArrowRight size={18} />
             </Button>
           ) : next ? (
-            <Button variant="primary" onClick={() => onStart(next.id)}>
-              <Play size={17} fill="currentColor" /> Start workout <ArrowRight size={18} />
-            </Button>
+            <>
+              <Button variant="primary" onClick={() => onQuickStart(next.id)}>
+                <Play size={17} fill="currentColor" /> Start workout <ArrowRight size={18} />
+              </Button>
+              <Button variant="secondary" onClick={() => onStart(next.id)}>Preview</Button>
+            </>
           ) : program ? (
             <Button variant="primary" onClick={onProgram}>
               <Check size={17} /> Open workouts <ArrowRight size={18} />

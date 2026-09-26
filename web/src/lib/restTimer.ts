@@ -1,4 +1,5 @@
 import { cancelAlarm, primeAlarm, releaseAlarm, scheduleAlarm, soundNow, testAlarmSound } from './alarm';
+import { isNative, nativeKeepAwake, notificationPermission, scheduleNativeRestAlert } from './platform';
 
 /// Rest uses a deadline so its display stays accurate when the browser suspends the page. The
 /// local record is scoped to the signed-in account and active workout; it is never an authority
@@ -30,6 +31,7 @@ export class RestTimer {
   private sessionId: string | null = null;
   private storageKey: string | null = null;
   private workoutVisible = false;
+  private nativeAwake = false;
 
   get current(): RestState { return this.state; }
   get remainingMs(): number {
@@ -107,6 +109,16 @@ export class RestTimer {
     this.arm();
   }
 
+  /// Takes time off a running or paused rest. Cutting past the end finishes the rest quietly
+  /// rather than announcing it, because the lifter chose to go early.
+  shorten(seconds: number): void {
+    if (seconds <= 0) return;
+    const next = shortenedRest(this.state, seconds, Date.now());
+    if (!next) { this.skip(); return; }
+    this.write({ ...next, generation: newGeneration() });
+    if (next.endsAt > 0) this.arm();
+  }
+
   pause(): void {
     if (this.state.endsAt <= 0) return;
     const remaining = this.remainingMs;
@@ -140,12 +152,16 @@ export class RestTimer {
     if (this.remainingMs <= 0 || this.state.endsAt === 0) return;
     if (this.options.sound) scheduleAlarm(this.state.endsAt);
     this.timeout = setTimeout(() => { void this.announce('ended'); }, this.remainingMs);
+    // Inside the Android app the alert is a scheduled local notification, so it still arrives
+    // with the screen off or the app closed.
+    if (this.options.notifications) scheduleNativeRestAlert(this.state.endsAt, this.sessionId);
     if (this.shouldHoldScreen()) void this.holdScreen();
   }
 
   private disarm(): void {
     if (this.timeout !== null) { clearTimeout(this.timeout); this.timeout = null; }
     cancelAlarm();
+    scheduleNativeRestAlert(null, null);
     if (!this.shouldHoldScreen()) void this.releaseScreen();
   }
 
@@ -154,6 +170,12 @@ export class RestTimer {
   }
 
   private async holdScreen(): Promise<void> {
+    if (isNative()) {
+      if (!this.shouldHoldScreen() || this.nativeAwake) return;
+      this.nativeAwake = true;
+      await nativeKeepAwake(true);
+      return;
+    }
     if (!this.shouldHoldScreen() || this.wakeLock || !('wakeLock' in navigator)) return;
     try {
       this.wakeLock = await navigator.wakeLock.request('screen');
@@ -165,6 +187,7 @@ export class RestTimer {
   }
 
   private async releaseScreen(): Promise<void> {
+    if (this.nativeAwake) { this.nativeAwake = false; await nativeKeepAwake(false); }
     const held = this.wakeLock;
     this.wakeLock = null;
     if (held) { try { await held.release(); } catch { /* already released by the browser */ } }
@@ -241,6 +264,16 @@ function showLate(seconds: number): string {
   return seconds < 60 ? `${seconds} seconds` : `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
 }
 
+export function shortenedRest(state: RestState, seconds: number, now: number): RestState | null {
+  if (state.endsAt === 0) {
+    if (state.pausedRemainingMs <= 0) return null;
+    const pausedRemainingMs = state.pausedRemainingMs - seconds * 1000;
+    return pausedRemainingMs > 0 ? { ...state, pausedRemainingMs, announced: false } : null;
+  }
+  const endsAt = state.endsAt - seconds * 1000;
+  return endsAt > now ? { ...state, endsAt, announced: false } : null;
+}
+
 export function isRestAlertOwner(
   owner: { accountId: string | null; sessionId: string | null; generation: string; endsAt: number; visible: boolean },
   alert: { sessionId: string; generation: string },
@@ -251,6 +284,7 @@ export function isRestAlertOwner(
 }
 
 export async function requestRestAlerts(): Promise<NotificationPermission> {
+  if (isNative()) return notificationPermission(true);
   if (!('Notification' in window)) return 'denied';
   if (Notification.permission !== 'default') return Notification.permission;
   try { return await Notification.requestPermission(); } catch { return 'denied'; }

@@ -1,0 +1,92 @@
+/* WorkoutSetCard.tsx: the set about to be logged. It replaces that set's table row, so it spans
+   the table and sets its own layout on every tier. */
+.workout-set-card {
+  display: grid;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid var(--accent-border-strong);
+  border-radius: 12px;
+  background: var(--surface);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.workout-set-card.warmup-row { border-style: dashed; opacity: 1; }
+
+.set-card-head {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+}
+
+.workout-set-card .set-badge-circle {
+  width: 32px;
+  height: 32px;
+  background: var(--accent-soft);
+  border-color: var(--accent-border);
+  color: var(--accent);
+}
+
+.set-card-target { display: grid; gap: 1px; min-width: 0; }
+.set-card-title { color: var(--text); font-size: 16px; font-weight: 700; }
+.set-card-target .target-text { color: var(--muted); white-space: normal; overflow-wrap: anywhere; }
+
+.set-card-suggestion {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 0;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: var(--accent-soft);
+  color: var(--text);
+  font-size: var(--font-secondary);
+  line-height: 1.4;
+}
+
+.set-card-suggestion svg { flex: 0 0 auto; margin-top: 2px; color: var(--accent); }
+.set-card-suggestion strong { color: var(--accent); }
+
+.set-card-inputs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.set-card-field { display: grid; gap: 6px; min-width: 0; }
+
+.set-card-label {
+  color: var(--muted);
+  font-size: var(--font-secondary);
+  font-weight: 600;
+}
+
+.set-card-field .mode-mini-select.custom-select-wrap { width: 100%; max-width: none; }
+
+@media (min-width: 640px) {
+  .workout-set-card { padding: 14px 16px; }
+}
+
+.set-card-label-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 24px; }
+.set-card-plates.button { min-height: 32px; padding: 0 8px; gap: 4px; font-size: var(--font-secondary); }
+@media (max-width: 1023px) { .set-card-plates.button { min-height: 44px; margin-block: -10px; } }
+
+/* PlateCalculator.tsx */
+.plate-calculator { gap: 14px; }
+.plate-total { margin: 0; color: var(--muted); }
+.plate-total strong { color: var(--text); font-size: 22px; font-variant-numeric: tabular-nums; }
+.plate-stack { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.plate-chip {
+  display: grid;
+  place-items: center;
+  min-width: 52px;
+  height: 52px;
+  padding: 0 8px;
+  border: 2px solid var(--accent-border-strong);
+  border-radius: 50%;
+  background: var(--accent-soft);
+  color: var(--text);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.plate-remainder { margin: 0; color: var(--amber); font-size: var(--font-secondary); }

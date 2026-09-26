@@ -1,0 +1,39 @@
+.workout-exercise-history {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+  font-size: var(--font-secondary);
+}
+.workout-history-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+}
+.workout-history-heading h3 { margin: 0; font-size: 16px; }
+.workout-history-loading { height: 100px; margin-top: 12px; }
+.workout-exercise-history summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 44px;
+  cursor: pointer;
+  color: var(--muted);
+}
+.workout-exercise-history summary span:last-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.workout-history-sets { list-style: none; margin: 0 0 12px; padding: 0; }
+.workout-history-sets li {
+  display: grid;
+  grid-template-columns: 70px minmax(0, 1fr) auto;
+  gap: 8px;
+  padding: 8px 0;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.workout-history-sets strong { color: var(--text); font-weight: 550; overflow-wrap: anywhere; }

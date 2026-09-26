@@ -19,10 +19,16 @@ import type {
 } from '../types';
 import { api } from '../lib/api';
 import { showTarget, showWeight } from '../lib/training';
+import { withSetAdded, withSetRemoved, withSetRestored } from '../lib/workoutDraft';
+import type { RemovedSet } from '../lib/workoutDraft';
 import { Button } from './ui/Button';
 import { Modal } from './ui/Modal';
 import { ExerciseLibrary } from './Exercises';
 import { WorkoutSetRow } from './WorkoutSetRow';
+import { WorkoutExerciseHistory } from './WorkoutExerciseHistory';
+import { DemoLink } from './ui/DemoLink';
+
+const UNDO_WINDOW_MS = 6000;
 
 export function WorkoutActiveExercise({
   exercise,
@@ -35,7 +41,8 @@ export function WorkoutActiveExercise({
   toggle,
   onSwap,
   onRestore,
-  onRemoveExercise
+  onRemoveExercise,
+  focused = false
 }: {
   exercise: SessionExercise;
   index: number;
@@ -48,14 +55,38 @@ export function WorkoutActiveExercise({
   onSwap: (sessionExerciseId: string, replacementExerciseId: string | null, replacementName: string) => Promise<void>;
   onRestore?: (sessionExerciseId: string) => Promise<void>;
   onRemoveExercise: (index: number) => void;
+  /** One exercise is on screen with freely editable set rows. */
+  focused?: boolean;
 }) {
   const [swapOpen, setSwapOpen] = useState(false);
   const [candidates, setCandidates] = useState<SubstitutionCandidate[]>([]);
   const [showTargets, setShowTargets] = useState(false);
-  const [showNote, setShowNote] = useState(Boolean(exercise.note));
+  const [showNote, setShowNote] = useState(true);
   const [confirmRemove, setConfirmRemove] = useState(false);
 
+  const [removedSet, setRemovedSet] = useState<RemovedSet | null>(null);
+
   const prescription = exercise.prescription;
+
+  // A removed set can be put back for a few seconds, so a mis-tap never costs a logged set.
+  useEffect(() => {
+    if (!removedSet) return;
+    const timer = setTimeout(() => setRemovedSet(null), UNDO_WINDOW_MS);
+    return () => clearTimeout(timer);
+  }, [removedSet]);
+
+  function removeSet(setIndex: number) {
+    const removal = withSetRemoved(draft, index, setIndex);
+    if (!removal) return;
+    change(removal.next);
+    setRemovedSet(removal.removed);
+  }
+
+  function undoRemoveSet() {
+    const restored = removedSet && withSetRestored(draft, removedSet);
+    setRemovedSet(null);
+    if (restored) change(restored);
+  }
 
   useEffect(() => {
     if (!swapOpen) return;
@@ -77,6 +108,7 @@ export function WorkoutActiveExercise({
     };
   }, [swapOpen, exercise.exerciseId, exercise.name, exercise.substitutions]);
 
+  const lastSourceDate = exercise.sets.find(set => set.suggestion?.sourceDate)?.suggestion?.sourceDate ?? null;
   const workingSets = exercise.sets.filter(s => !s.warmup);
   const hasCompletedSets = exercise.sets.some(s => s.done);
   const nextUnloggedWorkingIndex = workingSets.findIndex(s => !s.done);
@@ -98,7 +130,7 @@ export function WorkoutActiveExercise({
   ) : null;
 
   return (
-    <section className={`workout-active-exercise ${exercise.isReplacement ? 'swap-continuation' : ''}`}>
+    <section className={`workout-active-exercise ${focused ? 'workout-focused' : ''} ${exercise.isReplacement ? 'swap-continuation' : ''}`}>
       <div className="workout-active-header">
         <div className="workout-active-title-group">
           <h2>
@@ -112,7 +144,14 @@ export function WorkoutActiveExercise({
               <span className="tiny-label">Swapped · {exercise.originalName}</span>
             )}
             {!exercise.exerciseId && <span className="tiny-label warn">Not in library</span>}
+            <DemoLink url={exercise.demoUrl} exerciseName={exercise.name} />
           </div>
+          {exercise.progression?.lastE1rmKg != null && (
+            <p className="workout-last-time">
+              Last time: e1RM {showWeight(exercise.progression.lastE1rmKg, unit)}
+              {lastSourceDate && ` · ${new Date(lastSourceDate.length === 10 ? `${lastSourceDate}T00:00` : lastSourceDate).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}`}
+            </p>
+          )}
         </div>
 
         {progressionBadge}
@@ -200,11 +239,65 @@ export function WorkoutActiveExercise({
         </div>
       )}
 
+      <div className="workout-set-table-container">
+        <div className="workout-set-table-head">
+          <span className="col-set">Set</span>
+          <span className="col-target">Target ↔</span>
+          <span className="col-load">{unit.toUpperCase()}</span>
+          <span className="col-reps">Reps</span>
+          <span className="col-rpe">RIR</span>
+          <span className="col-log">Done</span>
+          <span className="col-del" />
+        </div>
+
+        <div className="workout-set-rows">
+          {exercise.sets.map((set, si) => {
+            const plan = prescription[si] ?? prescription.at(-1);
+            return (
+              <WorkoutSetRow
+                key={set.id}
+                set={set}
+                si={si}
+                ei={index}
+                exercise={exercise}
+                plan={plan}
+                unit={unit}
+                loadStepKg={exercises.find(item => item.id === exercise.exerciseId)?.loadStepKg}
+                availableLoadsKg={exercises.find(item => item.id === exercise.exerciseId)?.availableLoadsKg}
+                editSet={editSet}
+                toggle={toggle}
+                onRemoveSet={sidx => removeSet(sidx)}
+              />
+            );
+          })}
+        </div>
+
+        <div className="workout-set-table-footer">
+          {removedSet && (
+            <div className="workout-set-undo" role="status">
+              <span>Set {removedSet.index + 1} removed.</span>
+              <Button variant="tertiary" onClick={undoRemoveSet}>Undo</Button>
+            </div>
+          )}
+          <Button
+            variant="secondary"
+            className="add-set-btn"
+            disabled={exercise.sets.length >= 24}
+            onClick={() => change(withSetAdded(draft, index))}
+          >
+            <Plus size={16} />
+            Add set
+          </Button>
+        </div>
+      </div>
+
+      <WorkoutExerciseHistory key={exercise.exerciseId ?? exercise.name} exercise={exercise} unit={unit} />
+
       {showNote && (
         <div className="workout-note-drawer">
           <label className="field">
             Exercise notes
-            <input
+            <textarea
               name={`note-${exercise.id}`}
               placeholder="Form cues, machine pin setup, seat height…"
               value={exercise.note}
@@ -220,119 +313,6 @@ export function WorkoutActiveExercise({
           </label>
         </div>
       )}
-
-      <div className="workout-set-table-container">
-        <div className="workout-set-table-head">
-          <span className="col-set">Set</span>
-          <span className="col-target">Target ↔</span>
-          <span className="col-load">{unit.toUpperCase()}</span>
-          <span className="col-reps">Reps</span>
-          <span className="col-rpe">RIR</span>
-          <span className="col-log">Done</span>
-          <span className="col-del" />
-        </div>
-
-        <div className="workout-set-rows">
-          {exercise.sets.map((set, si) => {
-            const plan = prescription[si] ?? prescription.at(-1);
-            const warmupNumber = exercise.sets
-              .slice(0, si + 1)
-              .filter((item, i) => item.warmup || prescription[i]?.warmup).length;
-            const workingNumber = exercise.sets
-              .slice(0, si + 1)
-              .filter((item, i) => !(item.warmup || prescription[i]?.warmup)).length;
-
-            return (
-              <WorkoutSetRow
-                key={set.id}
-                set={set}
-                si={si}
-                ei={index}
-                exercise={exercise}
-                plan={plan}
-                unit={unit}
-                warmupNumber={warmupNumber}
-                workingNumber={workingNumber}
-                editSet={editSet}
-                toggle={toggle}
-                onRemoveSet={sidx =>
-                  change({
-                    ...draft,
-                    exercises: draft.exercises.map((item, i) =>
-                      i === index
-                        ? {
-                            ...item,
-                            sets: item.sets.filter((_, j) => j !== sidx),
-                            prescription: item.prescription.filter((_, j) => j !== sidx)
-                          }
-                        : item
-                    )
-                  })
-                }
-              />
-            );
-          })}
-        </div>
-
-        <div className="workout-set-table-footer">
-          <Button
-            variant="secondary"
-            className="add-set-btn"
-            disabled={exercise.sets.length >= 24}
-            onClick={() =>
-              change({
-                ...draft,
-                exercises: draft.exercises.map((item, i) => {
-                  if (i !== index) return item;
-                  const prevSet = item.sets.at(-1);
-                  const prevPlan = item.prescription.at(-1);
-                  const mode = prevSet?.resistanceMode ?? prevPlan?.resistanceMode;
-                  return {
-                    ...item,
-                    sets: [
-                      ...item.sets,
-                      {
-                        id: crypto.randomUUID(),
-                        position: item.sets.length,
-                        weightKg: prevSet?.weightKg ?? null,
-                        reps: prevSet?.reps ?? null,
-                        rpe: null,
-                        done: false,
-                        warmup: false,
-                        resistanceMode: mode
-                      }
-                    ],
-                    prescription: [
-                      ...item.prescription,
-                      {
-                        ...prevPlan,
-                        repMin: prevPlan?.repMin ?? 8,
-                        repMax: prevPlan?.repMax ?? 12,
-                        targetRpe: prevPlan?.targetRpe ?? 8,
-                        restSeconds: prevPlan?.restSeconds ?? 90,
-                        tempo: null,
-                        loadText: null,
-                        notes: null,
-                        repsText: null,
-                        restText: null,
-                        rir: null,
-                        warmup: false,
-                        repsSource: 'userEdited',
-                        rpeSource: 'userEdited',
-                        restSource: 'userEdited',
-                        resistanceMode: mode
-                      }
-                    ]
-                  };
-                })
-              })
-            }
-          >
-            <Plus size={16} />
-            Add set
-          </Button>
-        </div>
-      </div>
 
       {confirmRemove && (
         <Modal title={`Remove ${exercise.name}?`} onClose={() => setConfirmRemove(false)}>

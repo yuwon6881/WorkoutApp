@@ -543,6 +543,32 @@ namespace Workout.Api.Data.Migrations
                     b.ToTable("ExerciseHistoryClears");
                 });
 
+            modelBuilder.Entity("Workout.Api.Data.ExerciseLoadSetting", b =>
+                {
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("AvailableLoadsJson")
+                        .HasColumnType("text");
+
+                    b.Property<double?>("LoadStepKg")
+                        .HasColumnType("double precision");
+
+                    b.Property<int>("Revision")
+                        .IsConcurrencyToken()
+                        .HasColumnType("integer");
+
+                    b.HasKey("UserId", "Id");
+
+                    b.ToTable("ExerciseLoadSettings", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_ExerciseLoadSettings_Step", "\"LoadStepKg\" IS NULL OR (\"LoadStepKg\" >= 0 AND \"LoadStepKg\" <= 50)");
+                        });
+                });
+
             modelBuilder.Entity("Workout.Api.Data.ExerciseProgress", b =>
                 {
                     b.Property<Guid>("UserId")
@@ -1364,10 +1390,10 @@ namespace Workout.Api.Data.Migrations
 
                     b.HasKey("UserId", "Id");
 
-                    b.HasIndex("TokenHash")
+                    b.HasIndex("DeviceId")
                         .IsUnique();
 
-                    b.HasIndex("DeviceId")
+                    b.HasIndex("TokenHash")
                         .IsUnique();
 
                     b.HasIndex("UserId", "RevokedAt", "ExpiresAt");
@@ -1722,6 +1748,15 @@ namespace Workout.Api.Data.Migrations
                 });
 
             modelBuilder.Entity("Workout.Api.Data.ExerciseHistoryClear", b =>
+                {
+                    b.HasOne("Workout.Api.Data.AppUser", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Workout.Api.Data.ExerciseLoadSetting", b =>
                 {
                     b.HasOne("Workout.Api.Data.AppUser", null)
                         .WithMany()

@@ -29,7 +29,7 @@ export function Field({ label, error, className = '', id, name, ...props }: Fiel
   </label>;
 }
 
-export function TextAreaField({ label, error, className = '', id, name, ...props }: FieldChrome & TextareaHTMLAttributes<HTMLTextAreaElement>) {
+export function TextAreaField({ label, error, className = '', id, name, ...props }: FieldChrome & TextareaHTMLAttributes<HTMLTextAreaElement> & { ref?: Ref<HTMLTextAreaElement> }) {
   const generated = useId();
   const { controlId, controlName, errorId } = fieldIds(id, generated, error, name, label);
   return <label className={`field ${className}`.trim()} htmlFor={controlId}>

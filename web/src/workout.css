@@ -7,6 +7,8 @@
 .workout-active-title-group h2 { font-size: 20px; font-weight: 700; color: var(--text); margin: 0; line-height: 1.25; }
 .workout-active-meta { display: flex; align-items: center; gap: 8px; margin-top: 4px; }
 .workout-set-progress { font-size: var(--font-secondary, 13px); color: var(--muted); font-weight: 500; }
+.workout-active-meta { flex-wrap: wrap; }
+.workout-last-time { margin: 4px 0 0; color: var(--muted); font-size: var(--font-secondary); font-variant-numeric: tabular-nums; }
 .workout-progression-badge { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 20px; background: var(--accent-soft); border: 1px solid var(--accent-border); color: var(--accent); flex-shrink: 0; }
 .workout-progression-badge .badge-weight { font-weight: 700; font-size: var(--font-secondary, 13px); }
 .workout-progression-badge .badge-sub { font-size: var(--font-secondary, 14px); color: var(--muted); border-left: 1px solid var(--accent-border); padding-left: 6px; }
@@ -50,7 +52,9 @@
 .set-log-checkbox.checked { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
 .set-del-btn { width: 44px; height: 44px; min-width: 44px; min-height: 44px; padding: 0; display: grid; place-items: center; color: var(--muted); }
 .set-del-btn:hover { color: var(--red); }
-.workout-set-table-footer { margin-top: 6px; }
+.workout-set-table-footer { margin-top: 6px; display: grid; gap: 6px; }
+.workout-set-undo { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 4px 4px 4px 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); color: var(--muted); }
+.workout-set-undo .button { min-height: 44px; }
 .add-set-btn { width: 100%; min-height: 42px; border: 1px dashed var(--accent-border); color: var(--accent); background: var(--accent-soft); border-radius: 8px; display: flex; align-items: center; justify-content: center; gap: 6px; font-weight: 600; }
 .add-set-btn:hover:not(:disabled) { background: var(--surface-hover); border-color: var(--accent-border-strong); }
 .workout-global-notes { margin-top: 10px; }
@@ -196,22 +200,6 @@
   }
   .workout-builder-meta { grid-template-columns: minmax(0, 1fr); }
 
-  /* Sticky footer single-row actions */
-  .workout-footer .modal-actions {
-    display: grid;
-    grid-template-columns: auto auto 1fr;
-    gap: 8px;
-    align-items: center;
-    padding: 10px 14px calc(10px + env(safe-area-inset-bottom));
-  }
-  .workout-footer .modal-actions .button {
-    min-height: 44px;
-    justify-content: center;
-  }
-  .workout-footer .modal-actions .button.primary {
-    margin-left: 0;
-    width: 100%;
-  }
 }
 
 @media (max-width: 1023px) {

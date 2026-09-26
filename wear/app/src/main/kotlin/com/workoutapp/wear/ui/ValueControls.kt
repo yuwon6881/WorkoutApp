@@ -22,6 +22,8 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.rotary.onRotaryScrollEvent
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -67,6 +69,11 @@ fun ValueAdjuster(
     valueColor: Color = Ayu.Text
 ) {
     val haptics = LocalHapticFeedback.current
+    val context = LocalContext.current
+    val stepPx = with(LocalDensity.current) { ROTARY_STEP.toPx() }
+    // Rotating bezels (Galaxy Watch) report one large event per click; stepping once per event keeps
+    // one click equal to one increment instead of skipping values.
+    val lowResolutionInput = remember(context) { context.packageManager.hasSystemFeature(LOW_RES_ROTARY_FEATURE) }
     val focusRequester = remember { FocusRequester() }
     val accumulated = remember { floatArrayOf(0f) }
     BackHandler(onBack = onDone)
@@ -76,10 +83,19 @@ fun ValueAdjuster(
             .fillMaxSize()
             .background(Ayu.Background)
             .onRotaryScrollEvent { event ->
-                accumulated[0] += event.verticalScrollPixels
-                while (accumulated[0] >= ROTARY_STEP_PX || accumulated[0] <= -ROTARY_STEP_PX) {
+                val pixels = event.verticalScrollPixels
+                if (lowResolutionInput) {
+                    val increase = pixels > 0
+                    if (pixels != 0f && (increase || canDecrease)) {
+                        onStep(increase)
+                        haptics.performHapticFeedback(HapticFeedbackType.SegmentTick)
+                    }
+                    return@onRotaryScrollEvent true
+                }
+                accumulated[0] += pixels
+                while (accumulated[0] >= stepPx || accumulated[0] <= -stepPx) {
                     val increase = accumulated[0] > 0
-                    accumulated[0] += if (increase) -ROTARY_STEP_PX else ROTARY_STEP_PX
+                    accumulated[0] += if (increase) -stepPx else stepPx
                     if (increase || canDecrease) {
                         onStep(increase)
                         haptics.performHapticFeedback(HapticFeedbackType.SegmentFrequentTick)
@@ -132,4 +148,5 @@ fun ValueAdjuster(
     }
 }
 
-private const val ROTARY_STEP_PX = 36f
+private val ROTARY_STEP = 18.dp
+private const val LOW_RES_ROTARY_FEATURE = "android.hardware.rotaryencoder.lowres"

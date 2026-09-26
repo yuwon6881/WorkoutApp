@@ -74,7 +74,7 @@ public sealed partial class WorkoutService
         if (exercise.ExerciseId is { } exerciseId)
         {
             var info = await progression.LoadInfo([exerciseId], ct);
-            if (info.TryGetValue(exerciseId, out var found)) step = found.StepKg;
+            if (info.TryGetValue(exerciseId, out var found)) step = found.AvailableLoadsKg is null ? found.StepKg : 0;
         }
         weight = NormalizeEnteredLoad(loadModel, resistanceMode, weight, step);
         var changed = weight != set.WeightKg || reps != set.Reps || rpe != set.Rpe || rir != set.Rir || done != set.Done ||

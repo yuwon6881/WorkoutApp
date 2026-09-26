@@ -1,6 +1,5 @@
 import type { LoggedSet, SessionExercise, SetPrescription } from '../types';
 import { getSupersetGroup } from './supersets';
-import { getSetType } from './importSetTypes';
 
 export type WorkoutStep = {
   exercise: SessionExercise;
@@ -21,31 +20,12 @@ export function restAppliesAfter(
   currentStep: WorkoutStep,
   nextStep: WorkoutStep | null | undefined
 ): boolean {
-  if (!nextStep) return false;
-
-  // Next step set type check: skip rest if next set is a warmup, dropset, or myoreps
-  const warmup = Boolean(nextStep.prescription?.warmup ?? nextStep.set?.warmup);
-  const notes = nextStep.prescription?.notes ?? null;
-  const type = getSetType({
-    warmup,
-    notes,
-    repMin: 0,
-    repMax: 0,
-    targetRpe: null,
-    restSeconds: null,
-    tempo: null,
-    loadText: null,
-    repsSource: 'extracted',
-    rpeSource: 'extracted',
-    restSource: 'extracted',
-    repsText: null,
-    restText: null,
-    rir: null
-  });
-
-  if (type === 'warmup' || type === 'dropset' || type === 'myoreps') {
-    return false;
-  }
+  const currentWarmup = Boolean(currentStep.set?.warmup ?? currentStep.prescription?.warmup);
+  const nextWarmup = Boolean(nextStep?.set?.warmup ?? nextStep?.prescription?.warmup);
+  // Only the final warm-up before working sets needs recovery. Working sets, including
+  // myo-reps and the final set, always rest except for the immediate superset handoff.
+  if (currentWarmup) return Boolean(nextStep) && !nextWarmup;
+  if (!nextStep) return true;
 
   // Superset transition check:
   // If both exercises share a non-empty superset group and are different exercises:
@@ -92,12 +72,15 @@ export function findNextStep(exercises: SessionExercise[], currentEi: number, cu
       // Last partner in round: next step is first partner for next set index
       const firstPartner = sortedPartners[0];
       const nextSi = currentSi + 1;
-      if (nextSi < firstPartner.sets.length && !firstPartner.sets[nextSi].done) {
+      const targetSi = firstPartner.sets[nextSi] && !firstPartner.sets[nextSi].done
+        ? nextSi
+        : firstPartner.sets.findIndex((set, index) => !set.done && (firstPartner.id !== currentEx.id || index !== currentSi));
+      if (targetSi >= 0) {
         return {
           exercise: firstPartner,
-          setIndex: nextSi,
-          set: firstPartner.sets[nextSi],
-          prescription: firstPartner.prescription[nextSi]
+          setIndex: targetSi,
+          set: firstPartner.sets[targetSi],
+          prescription: firstPartner.prescription[targetSi]
         };
       }
     }

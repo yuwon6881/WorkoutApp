@@ -48,7 +48,8 @@ public static class TrainingEndpoints
             var imports = await db.Imports.Select(x => (int?)x.Revision).MaxAsync(ct) ?? 0;
             var progress = await db.Progress.Select(x => (int?)x.Revision).MaxAsync(ct) ?? 0;
             var customExercises = await db.CustomExercises.Select(x => (int?)x.Revision).MaxAsync(ct) ?? 0;
-            var etag = $"\"revisions:{user.Id:N}:{programs}:{templates}:{sessions}:{imports}:{progress}:{customExercises}\"";
+            var exerciseLoads = await db.ExerciseLoadSettings.Select(x => (long)x.Revision).SumAsync(ct);
+            var etag = $"\"revisions:{user.Id:N}:{programs}:{templates}:{sessions}:{imports}:{progress}:{customExercises}:{exerciseLoads}\"";
             if (http.Request.Headers.IfNoneMatch == etag)
             {
                 http.Response.Headers.ETag = etag;
@@ -63,13 +64,18 @@ public static class TrainingEndpoints
                 sessions,
                 imports,
                 progress,
-                customExercises
+                customExercises,
+                exerciseLoads
             });
         });
 
     public static void MapCatalog(this WebApplication app)
     {
         app.MapGet("/api/exercises", async (CatalogService catalog, CancellationToken ct) => await catalog.All(ct));
+        app.MapGet("/api/exercises/{exerciseId:guid}/load-settings", async (Guid exerciseId, ExerciseLoadSettingsService settings, CancellationToken ct)
+            => await settings.Get(exerciseId, ct));
+        app.MapPut("/api/exercises/{exerciseId:guid}/load-settings", async (Guid exerciseId, ExerciseLoadSettingsInput input, ExerciseLoadSettingsService settings, CancellationToken ct)
+            => await settings.Save(exerciseId, input, ct));
         app.MapPost("/api/exercises/custom", async (CustomExerciseInput input, ExerciseService exercises, CancellationToken ct)
             => await exercises.Create(input, ct));
         app.MapDelete("/api/exercises/custom/{exerciseId:guid}", async (Guid exerciseId, ExerciseService exercises, CancellationToken ct)

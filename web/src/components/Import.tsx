@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { AlertTriangle, ArrowLeft, ChevronDown, ChevronRight, Loader2, RotateCcw, Trash2, Upload, Wand2, X } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, ChevronRight, Loader2, RotateCcw, Trash2, Upload, Wand2, X } from 'lucide-react';
 import type { Exercise, ImportDraft, ImportView } from '../types';
 import { ApiError, api } from '../lib/api';
 import { Button } from './ui/Button';
@@ -115,7 +115,6 @@ export function ImportReview({ exercises, imports, remaining, onBack, onChanged,
   }
 
   const reviewIssues = selected?.reviewIssues ?? [];
-  const informationalIssues = reviewIssues.filter(issue => issue.severity === 'info');
   const unresolved = selected?.unresolved ?? [];
 
   const attentionRows = [
@@ -292,24 +291,6 @@ export function ImportReview({ exercises, imports, remaining, onBack, onChanged,
             <Button variant="tertiary" onClick={() => setShowAllIssues(value => !value)}>{showAllIssues ? 'Show fewer' : `Show all ${attentionRows.length}`}</Button>
           </div>}
         </section>}
-        {informationalIssues.length > 0 && <details className="import-details import-reading-notes">
-          <summary>Reading notes ({informationalIssues.length}) <ChevronDown size={14} /></summary>
-          <div className="import-details-body import-reading-notes-body">
-            {informationalIssues.map((issue, index) => <p key={`${issue.code}-${issue.sourcePage ?? 'source'}-${index}`}>
-              <span>{issue.message}</span>
-              {issue.sourcePage && <small>PDF p.{issue.sourcePage}</small>}
-            </p>)}
-          </div>
-        </details>}
-        {(selected.model || selected.inputTokens || selected.outputTokens || selected.pageCoverage?.length || selected.retries) ? <details className="import-details">
-          <summary>Import details <ChevronDown size={14} /></summary>
-          <div className="import-details-body">
-            {selected.model && <p>Model: {selected.model}</p>}
-            {selected.pageCoverage?.length ? <p>{selected.pageCoverage.filter(page => page.hasText).length} of {selected.pageCoverage.length} pages have selectable text.</p> : null}
-            {(selected.inputTokens || selected.outputTokens) ? <p>Usage: {selected.inputTokens ?? 0} input · {selected.outputTokens ?? 0} output tokens.</p> : null}
-            {selected.retries ? <p>{selected.retries} retr{selected.retries === 1 ? 'y' : 'ies'} recorded.</p> : null}
-          </div>
-        </details> : null}
       </section>
       {draft.workouts.length > 0 ? (
         <DraftOutline

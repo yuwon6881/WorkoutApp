@@ -26,3 +26,8 @@ web/tests/.e2e.db-wal
 playwright-report/
 .vercel
 *.log
+# Per-run browser-test output and sessions, whatever directory a run was pointed at.
+web/tests/.auth*/
+web/test-results*/
+# Kotlin compiler daemon session markers.
+**/.kotlin/

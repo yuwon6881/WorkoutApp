@@ -8,6 +8,7 @@ import { DemoLink } from './ui/DemoLink';
 import { Select } from './ui/Select';
 import { RpeControl } from './ui/RpeControl';
 import { WarmupRirNote } from './ui/WarmupRirNote';
+import { SetTypeSelect } from './ui/SetTypeSelect';
 import { RepModeToggle, RepPrescriptionControl } from './ui/RepPrescriptionControl';
 import { TextAreaField } from './ui/Field';
 import { Modal } from './ui/Modal';
@@ -21,9 +22,7 @@ import { getSupersetGroup, isSuperset } from '../lib/supersets';
 import { SupersetModal } from './SupersetModal';
 import {
   type SetType,
-  setTypeOptions,
   getSetType,
-  getSetTypeLabel,
   cleanTechniqueNotes,
   applySetType,
   hasOpenReps
@@ -295,28 +294,20 @@ export function ExerciseEditor({ exercise, exercises, allDayExercises, onChange,
         const setDisplayNumber = exercise.sets
           .slice(0, index + 1)
           .filter(s => !!s.warmup === !!set.warmup).length;
-        const setTypeLabel = getSetTypeLabel(set);
         const remove = <Button variant="destructive" className="import-set-remove" aria-label={`Remove ${set.warmup ? 'warm-up' : 'set'} ${setDisplayNumber}`} onClick={() => onChange({ ...exercise, sets: exercise.sets.filter((_, current) => current !== index) })}>
           <Trash2 size={15} /><span className="sr-only">Delete</span>
         </Button>;
         return <li className={`import-set ${set.warmup ? 'warmup-row' : ''}`} key={index}>
-          <SwipeableRow className="import-set-swipe-row" actions={remove} desktopActions={remove} actionsWidth={72} actionsLabel={`Actions for ${set.warmup ? 'warm-up' : 'set'} ${setDisplayNumber}`}>
+          <SwipeableRow className="import-set-swipe-row" actions={remove} desktopActions={remove} actionsWidth={72} peek={index === 0} actionsLabel={`Actions for ${set.warmup ? 'warm-up' : 'set'} ${setDisplayNumber}`}>
             <div className="import-set-content set-grid-row" data-import-set-index={index}>
               <div className="import-set-heading">
-                <span className={`set-number set-badge-${getSetType(set)}`}>
-                  <span className="set-number-label">{setTypeLabel}</span>
-                  <strong>{setDisplayNumber}</strong>
-                </span>
-                <label className="field set-type-field">
-                  <span>Type</span>
-                  <Select
-                    name={`set-type-${exercise.lineId}-${index}`}
-                    ariaLabel={`Set ${setDisplayNumber} type for ${exercise.sourceName}`}
-                    value={getSetType(set)}
-                    options={setTypeOptions}
-                    onChange={val => changeSetType(index, val as SetType)}
-                  />
-                </label>
+                <SetTypeSelect
+                  name={`set-type-${exercise.lineId}-${index}`}
+                  ariaLabel={`Set ${setDisplayNumber} type for ${exercise.sourceName}`}
+                  type={getSetType(set)}
+                  number={setDisplayNumber}
+                  onChange={type => changeSetType(index, type)}
+                />
               </div>
               <div className="import-set-fields">
                 <RepPrescriptionControl

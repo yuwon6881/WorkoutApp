@@ -35,23 +35,257 @@
   }
 }
 
-/* The first-load skeleton in components/AppLoading.tsx. */
-.app-loading {
-  display: grid;
-  gap: 16px;
-  width: min(760px, 100%);
-  margin: 0 auto;
-  padding: 24px 16px;
+/* The first-load skeleton in components/AppLoading.tsx. It sits inside the real shell, so only
+   the placeholders' own sizes live here; spacing and columns come from the page's own classes. */
+.app-loading { display: grid; gap: var(--space-section, 20px); }
+.app-loading-nav { display: grid; gap: 8px; margin-top: 24px; }
+.app-loading .skeleton,
+.app-loading-shell .skeleton { border-radius: var(--radius-control, 8px); }
+.skeleton-nav-item { height: 40px; }
+.skeleton-topbar-action { width: 44px; height: 44px; margin-left: auto; border-radius: 50% !important; }
+.app-loading .skeleton-title { width: 180px; max-width: 60%; height: 32px; }
+.app-loading .skeleton-subtitle { width: 220px; max-width: 70%; height: 16px; margin-top: 10px; }
+.app-loading-hero { display: grid; gap: 12px; }
+.app-loading-hero .hero-top { display: flex; justify-content: space-between; gap: 12px; }
+.skeleton-pill { width: 120px; height: 24px; border-radius: 999px !important; }
+.skeleton-pill.short { width: 88px; }
+.skeleton-hero-title { width: 62%; height: 30px; }
+.skeleton-hero-line { width: 44%; height: 16px; }
+.skeleton-hero-button { width: 180px; height: 48px; margin-top: 8px; }
+.skeleton-section-title { width: 140px; height: 20px; margin-bottom: 14px; }
+.app-loading-week .skeleton-day { min-height: 64px; border-radius: 12px !important; }
+.skeleton-stat { min-height: 96px; border-radius: var(--radius, 12px) !important; }
+.app-loading-bottom-nav { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; padding: 8px 12px; }
+.skeleton-bottom-item { height: 44px; border-radius: 14px !important; }
+
+/* Dialogs: the page behind an open dialog does not scroll, and a sheet's own scroll never chains
+   into it. The dialog takes focus on open, which needs no ring; its controls keep theirs. */
+html.dialog-open { overflow: hidden; }
+.modal { overscroll-behavior: contain; }
+.modal:focus { outline: none; }
+
+@media (max-width: 639px) {
+  /* The header is the sheet's drag handle (components/ui/useSheetDrag.ts). */
+  .modal > header,
+  .modal [data-sheet-handle] { touch-action: none; }
+  .modal.headless::before { margin-bottom: 0; }
 }
 
-.app-loading .skeleton-title { width: 46%; height: 36px; border-radius: 10px; }
-.app-loading .skeleton-subtitle { width: 32%; height: 16px; border-radius: 8px; }
-.app-loading .skeleton-hero { height: 190px; border-radius: var(--radius); }
-.app-loading .skeleton-week { height: 124px; border-radius: var(--radius); }
-.app-loading .skeleton-stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
-.app-loading .skeleton-stats > .skeleton { height: 78px; border-radius: var(--radius); }
+/* The top bar's save status (app/useSaveIndicator.ts) has a reserved slot and only fades, so a
+   save never pushes the page down or shifts the controls beside it. */
+.topbar-actions { flex-wrap: nowrap; }
+.save-indicator {
+  min-width: 0;
+  max-width: 40vw;
+  opacity: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: opacity var(--motion-control, 160ms) ease;
+  pointer-events: none;
+}
+.save-indicator.visible { opacity: 1; }
+@media (prefers-reduced-motion: reduce) { .save-indicator { transition: none; } }
 
-@media (min-width: 1024px) {
-  .app-loading { padding-top: 48px; }
-  .app-loading .skeleton-stats { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+/* Option lists and menus on phones (ui/usePickerSheet.ts): a bottom sheet with full-width rows. */
+@media (max-width: 639px) {
+  .picker-sheet-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 999;
+    background: var(--overlay);
+    animation: backdrop-fade var(--motion-control) ease;
+  }
+
+  .custom-select-dropdown.picker-sheet,
+  .ui-menu-dropdown.picker-sheet {
+    /* workout.css caps every dropdown with !important; a phone sheet spans the screen. */
+    position: fixed !important;
+    inset: auto 0 0 0 !important;
+    z-index: 1000;
+    width: 100%;
+    min-width: 0 !important;
+    max-width: none !important;
+    max-height: min(70dvh, 520px);
+    margin: 0;
+    padding: 8px 8px calc(12px + env(safe-area-inset-bottom));
+    border: 1px solid var(--border);
+    border-bottom: 0;
+    border-radius: 20px 20px 0 0;
+    box-shadow: 0 -10px 40px var(--overlay);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    animation: sheet-rise var(--motion-panel, 220ms) var(--motion-ease, ease-out);
+  }
+
+  .picker-sheet::before {
+    content: '';
+    display: block;
+    width: 36px;
+    height: 4px;
+    margin: 0 auto 8px;
+    border-radius: 2px;
+    background: var(--border);
+  }
+
+  .picker-sheet .custom-select-item,
+  .picker-sheet .ui-menu-item {
+    min-height: 52px;
+    padding: 0 16px;
+    font-size: 16px;
+    border-radius: 10px;
+  }
+}
+
+@media (max-width: 639px) and (prefers-reduced-motion: reduce) {
+  .picker-sheet-backdrop,
+  .custom-select-dropdown.picker-sheet,
+  .ui-menu-dropdown.picker-sheet { animation: none; }
+}
+
+/* Viewport and safe areas. The shell fills the dynamic viewport, and with viewport-fit=cover the
+   notch and rounded corners are kept clear on every edge, not only the bottom. */
+.app-shell { min-height: 100dvh; }
+.topbar {
+  height: calc(74px + env(safe-area-inset-top, 0px));
+  padding-top: env(safe-area-inset-top, 0px);
+}
+/* Without the sidebar, the top bar is the way to Settings and the save status, so it stays put. */
+@media (max-width: 1023px) {
+  .topbar { position: sticky; top: 0; z-index: 9; background: var(--bg); }
+}
+.app-shell { padding-inline: env(safe-area-inset-left, 0px) env(safe-area-inset-right, 0px); }
+.bottom-nav { padding-left: max(8px, env(safe-area-inset-left, 0px)); padding-right: max(8px, env(safe-area-inset-right, 0px)); }
+.modal { padding-left: env(safe-area-inset-left, 0px); padding-right: env(safe-area-inset-right, 0px); }
+
+@media (max-width: 639px) {
+  .topbar { height: calc(68px + env(safe-area-inset-top, 0px)); }
+  .modal, .modal.wide { max-height: calc(94dvh - env(safe-area-inset-top, 0px)); }
+}
+
+/* While the on-screen keyboard is open (app/useKeyboardInset.ts), chrome pinned to the bottom
+   would sit on top of it, so it steps aside until typing is done. */
+html[data-keyboard='open'] .bottom-nav,
+html[data-keyboard='open'] .resume-workout,
+html[data-keyboard='open'] .import-progress-pill,
+html[data-keyboard='open'] .workout-footer .rest-bar { display: none; }
+
+/* Floating bottom items stack instead of overlapping: a toast rises above the resume button and
+   the import progress pill when they are showing. */
+.resume-rest {
+  margin-left: 8px;
+  padding-left: 8px;
+  border-left: 1px solid color-mix(in srgb, var(--on-accent) 35%, transparent);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.resume-workout ~ .toast { bottom: 84px; }
+@media (max-width: 639px) {
+  .resume-workout ~ .toast { bottom: calc(138px + env(safe-area-inset-bottom)); }
+  .import-progress-pill ~ .toast { bottom: calc(138px + env(safe-area-inset-bottom)); }
+  .import-progress-pill.has-resume ~ .toast { bottom: calc(192px + env(safe-area-inset-bottom)); }
+}
+
+/* A waiting app update (app/useAppUpdate.ts), offered above the bottom navigation. */
+.update-banner {
+  position: fixed;
+  right: 28px;
+  bottom: 22px;
+  z-index: 11;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  max-width: min(420px, calc(100vw - 32px));
+  padding: 10px 10px 10px 16px;
+  border: 1px solid var(--accent-border);
+  border-radius: 12px;
+  background: var(--surface-raised);
+  box-shadow: 0 8px 30px var(--overlay);
+  font-size: var(--font-secondary);
+}
+@media (max-width: 639px) {
+  .update-banner { left: 16px; right: 16px; bottom: calc(78px + env(safe-area-inset-bottom)); max-width: none; justify-content: space-between; }
+}
+
+.install-app-card {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 18px;
+  padding: 14px 14px 14px 18px;
+}
+.install-app-card > svg { color: var(--accent); }
+.install-app-card h2 { margin: 0 0 2px; font-size: 16px; }
+.install-app-card p { margin: 0; }
+.install-app-actions { display: flex; align-items: center; gap: 6px; }
+@media (max-width: 639px) {
+  .install-app-card { grid-template-columns: auto minmax(0, 1fr); }
+  .install-app-actions { grid-column: 1 / -1; justify-content: flex-end; }
+}
+
+/* The Overview hero's actions: Start, then Preview, trailing, wrapping on the narrowest phones. */
+.hero-bottom { flex-wrap: wrap; }
+
+/* components/ExerciseProgressChart.tsx: bars share the width, a readout names the chosen one. */
+.exercise-chart { display: grid; gap: 8px; padding: 12px 0; border-bottom: 1px solid var(--border); }
+.exercise-chart-readout { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin: 0; }
+.exercise-chart-readout strong { font-size: 20px; font-variant-numeric: tabular-nums; }
+.exercise-chart-readout span { color: var(--muted); font-size: var(--font-secondary); }
+.exercise-chart-bars {
+  display: flex;
+  align-items: flex-end;
+  gap: 3px;
+  height: 140px;
+  padding: 0 2px;
+  border-radius: var(--radius-control, 8px);
+  cursor: crosshair;
+  touch-action: pan-y;
+}
+.exercise-chart-bars:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
+.exercise-chart-point { display: flex; flex: 1 1 0; align-items: flex-end; justify-content: center; min-width: 0; height: 100%; }
+.exercise-chart-point i {
+  display: block;
+  width: min(100%, 22px);
+  min-height: 4px;
+  border-radius: 4px 4px 0 0;
+  background: color-mix(in srgb, var(--accent) 55%, transparent);
+}
+.exercise-chart-point.selected i { background: var(--accent); }
+.exercise-chart-axis { display: flex; justify-content: space-between; color: var(--muted); font-size: var(--font-secondary); }
+
+/* Exercise library: rows off screen skip layout and paint until scrolled near, which keeps a long
+   catalog smooth without a virtual list. Phones get denser cards, about four rows to a screen. */
+.exercise-grid > .exercise-card,
+.picker-list > .picker-card { content-visibility: auto; contain-intrinsic-size: auto 120px; }
+@media (max-width: 639px) {
+  .exercise-grid > .exercise-card { min-height: 0; padding: 14px 16px; }
+  .exercise-card-top { margin-bottom: 8px; }
+  .exercise-card-meta { margin-bottom: 4px; }
+  .exercise-grid > .exercise-card .exercise-icon { display: none; }
+  .exercise-grid > .exercise-card .exercise-card-badges { margin-left: 0; }
+}
+
+
+/* app/usePullToRefresh.ts: the indicator grows with the pull and turns accent once far enough. */
+.pull-refresh {
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  color: var(--muted);
+  transition: color var(--motion-control, 160ms) ease;
+}
+.pull-refresh.ready { color: var(--accent); }
+@media (display-mode: standalone) { html, body { overscroll-behavior-y: contain; } }
+
+/* components/ViewSkeleton.tsx, the fallback while a view's code loads for the first time. */
+.view-skeleton { display: grid; gap: 16px; }
+.view-skeleton .skeleton-title { width: 200px; max-width: 60%; height: 32px; }
+.view-skeleton .skeleton-panel { height: 120px; border-radius: var(--radius, 12px); }
+.view-skeleton .skeleton-panel.tall { height: 200px; }
+
+/* Menus portaled out of their trigger (MenuButton portal) keep the 44 px item target on compact
+   and medium layouts, like menus rendered in place. */
+@media (max-width: 1023px) {
+  .ui-menu-dropdown .ui-menu-item { min-height: 44px; }
 }

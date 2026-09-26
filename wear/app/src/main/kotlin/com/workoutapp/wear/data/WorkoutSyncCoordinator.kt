@@ -3,10 +3,19 @@ package com.workoutapp.wear.data
 import android.content.Context
 import com.google.gson.GsonBuilder
 import com.google.gson.JsonObject
+import com.workoutapp.wear.service.WorkoutOngoingService
 import java.time.Instant
 import java.util.UUID
-import com.workoutapp.wear.service.WorkoutOngoingService
+import kotlin.coroutines.cancellation.CancellationException
 
+/**
+ * Replays the watch's queued edits in order. Callers must serialize calls (the repository holds one
+ * process-wide gate), because a replay reads the queue head, sends it, then acknowledges it.
+ *
+ * Failures are classified so the queue never wedges: revision races are rebased, a workout closed
+ * on the phone releases its edits, edits WorkoutApp refuses are dropped with a notice, and only
+ * transient failures (network, 408, 429, 5xx) are left for a retry.
+ */
 class WorkoutSyncCoordinator(
     private val context: Context,
     private val store: WorkoutStore,
@@ -15,62 +24,35 @@ class WorkoutSyncCoordinator(
     private val gson = GsonBuilder().serializeNulls().create()
 
     suspend fun syncPending(): SyncOutcome {
+        var rebases = 0
         while (true) {
-            val snapshot = store.readSnapshot() ?: return SyncOutcome()
-            if (snapshot.conflictOperationId != null) return SyncOutcome(conflict = true, pending = store.pendingOperations().isNotEmpty())
-            val operation = store.pendingOperations().firstOrNull() ?: return SyncOutcome(pending = false)
+            val snapshot = store.readSnapshot()
+            val operation = store.pendingOperations().firstOrNull() ?: return SyncOutcome()
+            if (snapshot?.conflictOperationId != null) return SyncOutcome(conflict = true, pending = true)
             store.markAttempted(operation.sequence)
-            val current = store.pendingOperations().firstOrNull() ?: return SyncOutcome()
-            try {
-                val server = api.send(current)
-                if (current.type == "finish") {
-                    store.clearAll()
-                    WorkoutOngoingService.stop(context)
-                    return SyncOutcome(finished = true)
-                }
-                val restOfQueue = store.pendingOperations().filterNot { it.sequence == current.sequence }
-                val local = project(server, restOfQueue)
-                val next = snapshot.copy(session = local, pendingFinish = restOfQueue.any { it.type == "finish" })
-                store.acknowledge(current.sequence, next)
+            val server = try {
+                api.send(operation)
+            } catch (cancelled: CancellationException) {
+                throw cancelled
             } catch (failure: ApiFailure) {
-                if (failure.statusCode == 401) {
-                    return SyncOutcome(pending = true, sessionExpired = true, message = failure.message)
+                when (val next = recover(operation, failure, rebases)) {
+                    Step.Retry -> { rebases++; continue }
+                    Step.Next -> continue
+                    is Step.Stop -> return next.outcome
                 }
-                if (failure.statusCode == 409) {
-                    val remote = runCatching { api.workout(current.sessionId) }.getOrNull()
-                        ?: return SyncOutcome(pending = true, message = failure.message)
-                    if (current.type == "set" && !remote.active || current.type == "finish" && !remote.active) {
-                        store.setConflict(current.id, remote)
-                        return SyncOutcome(conflict = true, pending = true, message = failure.message)
-                    }
-                    val rebased = when (current.type) {
-                        "set" -> SyncMergePolicy.rebaseSet(current, remote)
-                        "pause", "resume" -> SyncMergePolicy.rebaseTiming(current, remote)
-                        "finish" -> SyncMergePolicy.rebaseFinish(current, remote)
-                        else -> null
-                    }
-                    if (current.type == "set" && rebased == null) {
-                        store.setConflict(current.id, remote)
-                        return SyncOutcome(conflict = true, pending = true, message = "WorkoutApp changed this same set. Review both values before syncing.")
-                    }
-                    if (rebased == null) {
-                        store.setConflict(current.id, remote)
-                        val message = if (current.type == "finish")
-                            "WorkoutApp changed the workout before the watch finished it. Review both versions before syncing."
-                        else "WorkoutApp changed the workout timing. Review both versions before syncing."
-                        return SyncOutcome(conflict = true, pending = true, message = message)
-                    }
-                    val request = rebased
-                    val mutationId = UUID.randomUUID().toString()
-                    request.addProperty("revision", remote.revision)
-                    request.addProperty("mutationId", mutationId)
-                    store.rewriteOperation(current.sequence, mutationId, remote.revision, request.toString(), gson.toJson(remote))
-                    store.saveSnapshot(snapshot.copy(session = project(remote, store.pendingOperations()), conflictOperationId = null, conflictSession = null))
-                    continue
-                }
-                return SyncOutcome(pending = true, message = failure.message)
             } catch (failure: Exception) {
-                return SyncOutcome(pending = true, message = failure.message ?: "Waiting for a connection to sync this workout.")
+                return SyncOutcome(pending = true, message = OFFLINE_MESSAGE)
+            }
+            if (operation.type == "finish") {
+                store.clearAll()
+                WorkoutOngoingService.stop(context)
+                return SyncOutcome(finished = true)
+            }
+            store.acknowledge(operation.sequence) { current, remaining ->
+                current.copy(
+                    session = SessionProjection.project(server, remaining),
+                    pendingFinish = remaining.any { it.type == "finish" }
+                )
             }
         }
     }
@@ -79,74 +61,142 @@ class WorkoutSyncCoordinator(
         val snapshot = store.readSnapshot() ?: return
         val operationId = snapshot.conflictOperationId ?: return
         val remote = snapshot.conflictSession ?: return
-        val operation = store.pendingOperations().firstOrNull { it.id == operationId } ?: return
+        val operation = store.pendingOperations().firstOrNull { it.id == operationId } ?: run {
+            store.update { current, _ -> current?.copy(conflictOperationId = null, conflictSession = null) }
+            return
+        }
 
-        if (keepWatchValue && (operation.type != "finish" || remote.active)) {
+        if (keepWatchValue) {
             val id = UUID.randomUUID().toString()
             val request = gson.fromJson(operation.requestJson, JsonObject::class.java)
             request.addProperty("revision", remote.revision)
             request.addProperty("mutationId", id)
             if (operation.type == "pause" || operation.type == "resume") request.addProperty("occurredAt", Instant.now().toString())
+            // A same-revision refusal is about the timestamp itself (it no longer follows the last
+            // pause or resume), so keeping the watch's finish means finishing now.
+            if (operation.type == "finish" && remote.revision == operation.revision) request.addProperty("finishedAt", Instant.now().toString())
             store.rewriteOperation(operation.sequence, id, remote.revision, request.toString(), gson.toJson(remote))
-            val projected = project(remote, store.pendingOperations())
-            store.clearConflict(snapshot.copy(session = projected, pendingFinish = operation.type == "finish"))
         } else {
             store.removeOperation(operation.sequence)
-            val remaining = store.pendingOperations()
-            val projected = project(remote, remaining)
-            store.clearConflict(snapshot.copy(session = projected, pendingFinish = remaining.any { it.type == "finish" }))
+        }
+        store.update { current, remaining ->
+            current?.copy(
+                session = SessionProjection.project(remote, remaining),
+                pendingFinish = remaining.any { it.type == "finish" },
+                conflictOperationId = null,
+                conflictSession = null
+            )
         }
     }
 
-    private fun project(remote: WorkoutSession, operations: List<PendingOperation>): WorkoutSession {
-        var session = remote
-        for (operation in operations.sortedBy { it.sequence }) {
-            when (operation.type) {
-                "set" -> {
-                    val request = runCatching { gson.fromJson(operation.requestJson, JsonObject::class.java) }.getOrNull() ?: continue
-                    val exercise = session.exercises.firstOrNull { row -> row.sets.any { it.id == operation.setId } } ?: continue
-                    val set = exercise.sets.firstOrNull { it.id == operation.setId } ?: continue
-                    val patched = set.copy(
-                        weightKg = nullableDouble(request, "weightKg", set.weightKg),
-                        reps = nullableInt(request, "reps", set.reps),
-                        rpe = nullableDouble(request, "rpe", set.rpe),
-                        rir = nullableString(request, "rir", set.rir),
-                        done = request.get("done")?.asBoolean ?: set.done,
-                        warmup = request.get("warmup")?.asBoolean ?: set.warmup,
-                        resistanceMode = request.get("resistanceMode")?.asString ?: set.resistanceMode
-                    )
-                    val exercises = session.exercises.map { row ->
-                        if (row.id == exercise.id) row.copy(sets = row.sets.map { if (it.id == set.id) patched else it }) else row
-                    }
-                    session = withCounts(session.copy(exercises = exercises))
-                }
-                "pause" -> {
-                    val request = gson.fromJson(operation.requestJson, JsonObject::class.java)
-                    session = session.copy(pausedAt = request.get("occurredAt")?.asString)
-                }
-                "resume" -> session = session.copy(pausedAt = null)
-                "finish" -> {
-                    val request = gson.fromJson(operation.requestJson, JsonObject::class.java)
-                    session = session.copy(active = false, finishedAt = request.get("finishedAt")?.asString)
-                }
+    private sealed interface Step {
+        data object Retry : Step
+        data object Next : Step
+        data class Stop(val outcome: SyncOutcome) : Step
+    }
+
+    private suspend fun recover(operation: PendingOperation, failure: ApiFailure, rebases: Int): Step = when (failure.statusCode) {
+        401 -> Step.Stop(SyncOutcome(pending = true, sessionExpired = true, message = failure.message))
+        404, 409 -> reconcile(operation, failure, rebases)
+        400, 403, 422 -> {
+            reject(operation, failure.message ?: "WorkoutApp could not accept a change from the watch.")
+            Step.Next
+        }
+        else -> Step.Stop(SyncOutcome(pending = true, message = failure.message ?: OFFLINE_MESSAGE))
+    }
+
+    /** Reads the live workout to learn why an edit was refused, then rebases, reviews, or releases it. */
+    private suspend fun reconcile(operation: PendingOperation, failure: ApiFailure, rebases: Int): Step {
+        val remote = try {
+            api.workout(operation.sessionId)
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (lookup: ApiFailure) {
+            return when (lookup.statusCode) {
+                404 -> { closeSession(operation.sessionId); Step.Next }
+                401 -> Step.Stop(SyncOutcome(pending = true, sessionExpired = true, message = lookup.message))
+                else -> Step.Stop(SyncOutcome(pending = true, message = failure.message))
             }
+        } catch (lookup: Exception) {
+            return Step.Stop(SyncOutcome(pending = true, message = OFFLINE_MESSAGE))
         }
-        return session
+
+        if (operation.type == "set" && remote.exercises.none { exercise -> exercise.sets.any { it.id == operation.setId } }) {
+            reject(operation, "A set logged on the watch was removed in WorkoutApp, so it was not saved.", remote)
+            return Step.Next
+        }
+        // The same revision means the refusal was not a race another device won; resending the same
+        // request would be refused again, so the lifter decides instead of the loop.
+        if (remote.revision == operation.revision || rebases >= MAX_REBASES_PER_SYNC) {
+            store.setConflict(operation.id, remote)
+            return Step.Stop(SyncOutcome(conflict = true, pending = true, message = failure.message))
+        }
+        val rebased = when (operation.type) {
+            "set" -> SyncMergePolicy.rebaseSet(operation, remote)
+            "pause", "resume" -> SyncMergePolicy.rebaseTiming(operation, remote)
+            "finish" -> SyncMergePolicy.rebaseFinish(operation, remote)
+            else -> null
+        }
+        if (rebased == null) {
+            store.setConflict(operation.id, remote)
+            val message = when (operation.type) {
+                "set" -> "WorkoutApp changed this same set. Review both values before syncing."
+                "finish" -> "WorkoutApp changed the workout before the watch finished it. Review both versions before syncing."
+                else -> "WorkoutApp changed the workout timing. Review both versions before syncing."
+            }
+            return Step.Stop(SyncOutcome(conflict = true, pending = true, message = message))
+        }
+        val mutationId = UUID.randomUUID().toString()
+        rebased.addProperty("revision", remote.revision)
+        rebased.addProperty("mutationId", mutationId)
+        store.rewriteOperation(operation.sequence, mutationId, remote.revision, rebased.toString(), gson.toJson(remote))
+        store.update { current, remaining -> current?.copy(session = SessionProjection.project(remote, remaining)) }
+        return Step.Retry
     }
 
-    private fun withCounts(session: WorkoutSession) = session.copy(
-        completedSets = session.exercises.sumOf { exercise -> exercise.sets.count { it.done && !it.warmup } },
-        warmupSets = session.exercises.sumOf { exercise -> exercise.sets.count { it.done && it.warmup } }
-    )
+    /** Drops one edit WorkoutApp will never accept and re-reads the workout so the screen matches it. */
+    private suspend fun reject(operation: PendingOperation, reason: String, knownRemote: WorkoutSession? = null) {
+        store.removeOperation(operation.sequence)
+        store.postNotice(reason)
+        val remote = knownRemote ?: try {
+            api.workout(operation.sessionId)
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (lookup: ApiFailure) {
+            if (lookup.statusCode == 404) closeSession(operation.sessionId)
+            null
+        } catch (lookup: Exception) {
+            null
+        } ?: return
+        store.update { current, remaining ->
+            if (current?.session?.id != remote.id) current
+            else current.copy(session = SessionProjection.project(remote, remaining), pendingFinish = remaining.any { it.type == "finish" })
+        }
+    }
 
-    private fun nullableDouble(json: JsonObject, key: String, fallback: Double?): Double?
-        = if (!json.has(key) || json.get(key).isJsonNull) fallback else json.get(key).asDouble
+    /**
+     * The workout was finished or discarded in WorkoutApp. Its saved history belongs to the phone, so
+     * the watch releases its queued edits for it and says how many were not added.
+     */
+    private fun closeSession(sessionId: String) {
+        val released = store.pendingOperations().filter { it.sessionId == sessionId }
+        released.forEach { store.removeOperation(it.sequence) }
+        val cleared = store.update { current, _ -> if (current?.session?.id == sessionId) null else current } == null
+        if (cleared) WorkoutOngoingService.stop(context)
+        val lostEdits = released.count { it.type != "finish" }
+        store.postNotice(when {
+            lostEdits > 0 -> "This workout was closed in WorkoutApp, so ${countLabel(lostEdits, "change")} from the watch could not be added."
+            released.any { it.type == "finish" } -> "WorkoutApp had already saved this workout."
+            else -> "This workout was closed in WorkoutApp."
+        })
+    }
 
-    private fun nullableInt(json: JsonObject, key: String, fallback: Int?): Int?
-        = if (!json.has(key) || json.get(key).isJsonNull) fallback else json.get(key).asInt
+    private fun countLabel(count: Int, noun: String) = "$count ${if (count == 1) noun else "${noun}s"}"
 
-    private fun nullableString(json: JsonObject, key: String, fallback: String?): String?
-        = if (!json.has(key) || json.get(key).isJsonNull) fallback else json.get(key).asString
+    companion object {
+        private const val MAX_REBASES_PER_SYNC = 3
+        const val OFFLINE_MESSAGE = "Waiting for a connection to sync this workout."
+    }
 }
 
 data class SyncOutcome(

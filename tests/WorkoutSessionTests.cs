@@ -391,6 +391,29 @@ public class WorkoutSessionTests
         Assert.False(hSession3.Exercises.Single().IsPr);
     }
 
+    [Fact] public async Task An_active_workout_carries_each_movements_previous_best_for_live_pr_feedback()
+    {
+        var (h, templateId, _) = await Ready();
+        await using var _h = h;
+
+        // With no finished history there is no bar to clear, so nothing can be called a PR yet.
+        var first = await h.Workouts.Start(templateId, null, default);
+        Assert.Null(first.Exercises.Single().PreviousBestE1rmKg);
+        await Complete(h, first, 60, 5, 8);
+        await h.Workouts.Finish(first.Id, null, default);
+
+        // 60 kg x 5 @ RPE 8 -> 60 * (1 + 7/30) = 74 kg, the estimate the saved PR rule compares with.
+        var second = await h.Workouts.Start(templateId, null, default);
+        Assert.Equal(74, second.Exercises.Single().PreviousBestE1rmKg!.Value, 3);
+        Assert.Equal(74, (await h.Workouts.Active(default))!.Exercises.Single().PreviousBestE1rmKg!.Value, 3);
+
+        // Finished sessions report their own PRs instead; the live bar is only for the active one.
+        await Complete(h, second, 65, 5, 8);
+        await h.Workouts.Finish(second.Id, null, default);
+        var history = await h.Workouts.History(0, 10, default);
+        Assert.All(history.Sessions, session => Assert.Null(session.Exercises.Single().PreviousBestE1rmKg));
+    }
+
     private static async Task Complete(Harness h, SessionView session, double weight, int reps, double rpe)
     {
         var exercise = session.Exercises.Single();

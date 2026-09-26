@@ -18,7 +18,8 @@ public record SessionExerciseView(Guid Id, Guid? ExerciseId, string Name, int Po
     string SequenceGroup = "", List<string>? Substitutions = null, ProgressionView? Progression = null,
     string LoadModel = LoadModels.External, Guid? SourceTemplateExerciseId = null, Guid? SourceSlotKey = null, Guid? SourcePhaseId = null,
     Guid? SwapGroupKey = null, bool IsReplacement = false, Guid? OriginalExerciseId = null, string OriginalName = "", int? SourcePage = null,
-    bool CanRestore = false, int? RestSeconds = null, string? DemoUrl = null, bool IsPr = false, double? PrE1rmKg = null);
+    bool CanRestore = false, int? RestSeconds = null, string? DemoUrl = null, bool IsPr = false, double? PrE1rmKg = null,
+    double? PreviousBestE1rmKg = null);
 public record SessionView(Guid Id, Guid? TemplateId, Guid? ProgramId, string Name, string Note, bool Active, DateTime StartedAt, DateTime? FinishedAt, int Revision,
     List<SessionExerciseView> Exercises, double? VolumeKg, int CompletedSets, int WarmupSets = 0,
     BodyWeightSnapshot? BodyWeight = null, NutritionTrainingContext? NutritionContext = null,
@@ -175,7 +176,8 @@ public sealed partial class WorkoutService(
                     workingOrdinal++;
                     var resistanceMode = ResolveResistanceMode(loadModel, planSet.ResistanceMode);
                     var exposures = previous.GetValueOrDefault(workingOrdinal) ?? [];
-                    var suggestion = Progression.ForPrescription(planSet, MakeSuggestion(planSet, exposures, contextResult.Mode, step, contextResult, resistanceMode, loadModel, bodyWeight));
+                    var suggestion = Progression.ForPrescription(planSet, MakeSuggestion(planSet, exposures, contextResult.Mode, step, contextResult, resistanceMode, loadModel, bodyWeight,
+                        plan.ExerciseId is { } loadId ? info.GetValueOrDefault(loadId)?.AvailableLoadsKg : null));
                     firstSuggestion ??= suggestion;
                     db.Sets.Add(new CompletedSet
                     {
@@ -197,62 +199,6 @@ public sealed partial class WorkoutService(
         await db.SaveChangesAsync(ct);
         await gate.Commit(ct);
         return await Get(session.Id, ct);
-    }
-
-    private SetProgressionSuggestion MakeSuggestion(SetPrescription prescription, IReadOnlyList<SetExposure> exposures,
-        string mode, double step, NutritionContextResult context, string resistanceMode, string loadModel,
-        BodyWeightSnapshot? bodyWeight)
-    {
-        if (loadModel == LoadModels.FullBodyweight)
-        {
-            var baseSuggestion = Progression.SuggestSet(Progression.LoadRuleReps(prescription).Min, Progression.LoadRuleReps(prescription).Max, prescription.TargetRpe,
-                exposures, mode, step, context.Context?.Revision, resistanceMode,
-                // A historical full-bodyweight set without a frozen snapshot cannot support a
-                // system-load calculation. Never reinterpret its entered added/assistance load
-                // as kilograms of total resistance.
-                exposure => exposure.SystemLoadKg);
-            var system = baseSuggestion.SuggestedLoadKg;
-            var input = ToInputLoad(system, bodyWeight?.ReferenceKg, resistanceMode, step);
-            var actualSystem = RecomputeSystemLoad(input, bodyWeight?.ReferenceKg, resistanceMode) ?? system;
-            var adjusted = actualSystem is not null && exposures.FirstOrDefault()?.SystemLoadKg is { } previousSystem &&
-                Math.Abs(previousSystem - actualSystem.Value) < .0001 && bodyWeight?.ReferenceKg is not null;
-            var reason = adjusted ? "Bodyweight adjustment: keep the previous system-load target at your current reference bodyweight." : baseSuggestion.Reason;
-            return baseSuggestion with
-            {
-                SuggestedLoadKg = input,
-                SuggestedSystemLoadKg = actualSystem,
-                Reason = reason,
-                IsBodyweightAdjustment = adjusted,
-                ResistanceMode = resistanceMode
-            };
-        }
-
-        var policyMode = loadModel is LoadModels.BodyweightContextOnly or LoadModels.RepsOnly ? ResistanceModes.RepsOnly : resistanceMode;
-        return Progression.SuggestSet(Progression.LoadRuleReps(prescription).Min, Progression.LoadRuleReps(prescription).Max, prescription.TargetRpe, exposures, mode, step,
-            context.Context?.Revision, policyMode) with { ResistanceMode = resistanceMode };
-    }
-
-    private static double? ToInputLoad(double? systemLoad, double? reference, string resistanceMode, double step)
-    {
-        if (systemLoad is null || reference is null) return null;
-        return resistanceMode switch
-        {
-            ResistanceModes.Added => Progression.RoundToStep(Math.Max(0, systemLoad.Value - reference.Value), step),
-            ResistanceModes.Assistance => Progression.RoundToStep(Math.Max(0, reference.Value - systemLoad.Value), step),
-            _ => null
-        };
-    }
-
-    private static double? RecomputeSystemLoad(double? input, double? reference, string resistanceMode)
-    {
-        if (reference is not { } bodyweight) return null;
-        return resistanceMode switch
-        {
-            ResistanceModes.Bodyweight => bodyweight,
-            ResistanceModes.Added when input is { } added => bodyweight + added,
-            ResistanceModes.Assistance when input is { } assistance => Math.Max(0, bodyweight - assistance),
-            _ => null
-        };
     }
 
     private static string ResolveResistanceMode(string loadModel, string requested)
@@ -358,7 +304,7 @@ public sealed partial class WorkoutService(
         {
             var loadModel = exercise.ExerciseId is { } catalogId ? catalogModels.GetValueOrDefault(catalogId, LoadModels.External) : LoadModels.External;
             var step = exercise.ExerciseId is { } stepId && catalogInfo.TryGetValue(stepId, out var exerciseInfo)
-                ? exerciseInfo.StepKg : Progression.DefaultStepKg;
+                ? exerciseInfo.AvailableLoadsKg is null ? exerciseInfo.StepKg : 0 : Progression.DefaultStepKg;
             var key = ProgressionService.Key(exercise.ExerciseId, exercise.NameSnapshot.Trim());
             var row = exercise.Id is { } exerciseId && existingById.TryGetValue(exerciseId, out var stableExercise)
                 ? stableExercise
@@ -495,7 +441,8 @@ public sealed partial class WorkoutService(
             var enteredReps = set.Reps;
             var enteredRpe = set.Rpe;
             var mode = ResolveResistanceMode(loadModel, prescription.ResistanceMode);
-            var suggestion = Progression.ForPrescription(prescription, MakeSuggestion(prescription, histories.GetValueOrDefault(workingOrdinal) ?? [], result.Mode, step, result, mode, loadModel, bodyWeight));
+            var suggestion = Progression.ForPrescription(prescription, MakeSuggestion(prescription, histories.GetValueOrDefault(workingOrdinal) ?? [], result.Mode, step, result, mode, loadModel, bodyWeight,
+                exercise.ExerciseId is { } loadId ? info.GetValueOrDefault(loadId)?.AvailableLoadsKg : null));
             set.WeightKg = suggestion.SuggestedLoadKg; set.SystemLoadKg = suggestion.SuggestedSystemLoadKg;
             set.ResistanceMode = mode; set.SuggestionJson = Json.Write(suggestion); set.Reps = enteredReps; set.Rpe = enteredRpe; first ??= suggestion;
         }

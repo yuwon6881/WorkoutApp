@@ -45,6 +45,29 @@ export function ProgramDayList({
     setDragState(next);
   }, []);
 
+  // A long week does not fit one screen, so holding a dragged day near the top or bottom edge
+  // scrolls the page, faster the closer it gets, until the finger moves away or lets go.
+  const edgeScroll = useRef<{ frame: number; speed: number }>({ frame: 0, speed: 0 });
+  const stopEdgeScroll = useCallback(() => {
+    cancelAnimationFrame(edgeScroll.current.frame);
+    edgeScroll.current = { frame: 0, speed: 0 };
+  }, []);
+  const updateEdgeScroll = useCallback((clientY: number) => {
+    const zone = 88;
+    const bottomChrome = window.matchMedia('(max-width: 639px)').matches ? 76 : 0;
+    const bottomEdge = window.innerHeight - bottomChrome;
+    const speed = clientY < zone ? -(zone - clientY) / 6 : clientY > bottomEdge - zone ? (clientY - (bottomEdge - zone)) / 6 : 0;
+    edgeScroll.current.speed = speed;
+    if (!speed) { stopEdgeScroll(); return; }
+    if (edgeScroll.current.frame) return;
+    const tick = () => {
+      if (!edgeScroll.current.speed) { edgeScroll.current.frame = 0; return; }
+      window.scrollBy(0, edgeScroll.current.speed);
+      edgeScroll.current.frame = requestAnimationFrame(tick);
+    };
+    edgeScroll.current.frame = requestAnimationFrame(tick);
+  }, [stopEdgeScroll]);
+
   const handlePointerMove = useCallback((event: ReactPointerEvent<HTMLButtonElement>) => {
     const current = pointer.current;
     if (!current || current.id !== event.pointerId) return;
@@ -59,6 +82,7 @@ export function ProgramDayList({
       setDrag({ lineId: current.lineId, overIndex: current.index, side: 'before' });
     }
     event.preventDefault();
+    updateEdgeScroll(event.clientY);
     const target = document.elementFromPoint(event.clientX, event.clientY)?.closest<HTMLElement>('[data-day-index]');
     const raw = target?.dataset.dayIndex;
     if (!target || raw == null) return;
@@ -69,12 +93,13 @@ export function ProgramDayList({
     const state = dragRef.current;
     if (!state || (state.overIndex === index && state.side === side)) return;
     setDrag({ ...state, overIndex: index, side });
-  }, [setDrag]);
+  }, [setDrag, updateEdgeScroll]);
 
   const endPointer = useCallback((event: ReactPointerEvent<HTMLButtonElement>, commit: boolean) => {
     const current = pointer.current;
     const state = dragRef.current;
     pointer.current = null;
+    stopEdgeScroll();
     if (!current || current.id !== event.pointerId) return;
     setDrag(null);
     if (!commit || !current.active || !state) return;

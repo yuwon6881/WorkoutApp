@@ -25,6 +25,7 @@ import androidx.wear.compose.foundation.pager.rememberPagerState
 import androidx.wear.compose.material3.AnimatedPage
 import androidx.wear.compose.material3.HorizontalPagerScaffold
 import androidx.wear.compose.material3.PagerScaffoldDefaults
+import com.workoutapp.wear.data.WorkoutRepository
 import com.workoutapp.wear.data.WorkoutSnapshot
 import com.workoutapp.wear.ui.theme.rirColor
 import kotlinx.coroutines.launch
@@ -46,6 +47,7 @@ fun ActiveWorkoutScreen(
     message: String?,
     error: String?,
     onCompleteSet: (reps: Int, load: Double?, rir: String?) -> Unit,
+    onUndoLastSet: () -> Unit,
     onExtendRest: () -> Unit,
     onSkipRest: () -> Unit,
     onPauseResume: () -> Unit,
@@ -70,6 +72,8 @@ fun ActiveWorkoutScreen(
     val haptics = LocalHapticFeedback.current
     val sync = syncStatus(queuedCount, pairingRequired, busy && queuedCount > 0)
     val restEndsAt = snapshot.restEndsAtEpochMs
+    val undoableSet = if (paused) null else undoableSet(snapshot)
+    val canFinish = WorkoutRepository.hasLoggedSet(session)
 
     val onSetAction: (SetAction) -> Unit = { action ->
         when (action) {
@@ -138,7 +142,10 @@ fun ActiveWorkoutScreen(
                             notificationsAllowed = notificationsAllowed,
                             message = message,
                             error = error,
+                            undoableSet = undoableSet,
+                            onUndoLastSet = onUndoLastSet,
                             onPauseResume = onPauseResume,
+                            canFinish = canFinish,
                             onFinishRequest = { confirmFinish = true },
                             onSelectExercise = { id ->
                                 onSelectExercise(id)

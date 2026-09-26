@@ -5,8 +5,13 @@ import { RepModeToggle, RepPrescriptionControl } from './ui/RepPrescriptionContr
 import { RpeControl } from './ui/RpeControl';
 import { SwipeableRow } from './ui/SwipeableRow';
 import { WarmupRirNote } from './ui/WarmupRirNote';
+import { SetTypeSelect } from './ui/SetTypeSelect';
+import type { SetType } from '../lib/importSetTypes';
 import { usesRepRange, withRepMode } from '../lib/repMode';
 import './SetPrescriptionGrid.css';
+
+// A saved workout's sets are working sets or warm-ups; techniques belong to imported programs.
+const BUILDER_SET_TYPES: SetType[] = ['normal', 'warmup'];
 
 /// The builder's sets as one grid: the column labels are printed once above the rows so each
 /// set is a single line on wide screens and two short lines on a phone.
@@ -61,29 +66,27 @@ export function WorkoutPrescriptionSets({
                 actions={removeAction}
                 desktopActions={removeAction}
                 actionsWidth={72}
+                peek={si === 0}
                 actionsLabel={`Actions for ${setLabel.toLowerCase()}`}
               >
                 <div className="import-set-content set-grid-row">
                   <div className="import-set-heading">
-                    <span className={`set-number ${set.warmup ? 'set-badge-warmup' : ''}`}>
-                      <span className="set-number-label">{set.warmup ? 'Warm-up' : 'Set'}</span>
-                      <strong>{number}</strong>
-                    </span>
-                    <Button
-                      variant="tertiary"
-                      className={`set-warmup-chip ${set.warmup ? 'active' : ''}`}
-                      aria-pressed={set.warmup}
-                      aria-label={`Warm-up for ${exercise.name} set ${si + 1}`}
-                      onClick={() =>
+                    <SetTypeSelect
+                      name={`workout-set-type-${exercise.id}-${si}`}
+                      ariaLabel={`Set type for ${exercise.name} set ${si + 1}`}
+                      type={set.warmup ? 'warmup' : 'normal'}
+                      number={number}
+                      types={BUILDER_SET_TYPES}
+                      onChange={type => {
+                        const warmup = type === 'warmup';
+                        if (warmup === set.warmup) return;
                         onUpdateSet(si, {
-                          warmup: !set.warmup,
-                          targetRpe: set.warmup ? set.targetRpe ?? 8 : null,
-                          rir: set.warmup ? set.rir : null
-                        })
-                      }
-                    >
-                      <span>Warm-up</span>
-                    </Button>
+                          warmup,
+                          targetRpe: warmup ? null : set.targetRpe ?? 8,
+                          rir: warmup ? null : set.rir
+                        });
+                      }}
+                    />
                   </div>
                   <div className="import-set-fields">
                     <RepPrescriptionControl

@@ -40,6 +40,9 @@ fun OverviewPage(
     notificationsAllowed: Boolean,
     message: String?,
     error: String?,
+    undoableSet: UndoableSet?,
+    canFinish: Boolean,
+    onUndoLastSet: () -> Unit,
     onPauseResume: () -> Unit,
     onFinishRequest: () -> Unit,
     onSelectExercise: (String) -> Unit,
@@ -55,8 +58,12 @@ fun OverviewPage(
             PrimaryEdgeButton(
                 if (pendingFinish) "Pending" else "Finish",
                 onFinishRequest,
-                enabled = !busy && !pendingFinish && session.active,
-                description = if (pendingFinish) "Finish pending sync" else "Finish workout"
+                enabled = !busy && !pendingFinish && session.active && canFinish,
+                description = when {
+                    pendingFinish -> "Finish pending sync"
+                    !canFinish -> "Finish workout, available after the first logged set"
+                    else -> "Finish workout"
+                }
             )
         }
     ) { spec ->
@@ -97,7 +104,30 @@ fun OverviewPage(
                     modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
                     colors = ProgressIndicatorDefaults.colors(indicatorColor = Ayu.Accent, trackColor = Ayu.SurfaceRaised)
                 )
+                if (!canFinish && !pendingFinish) {
+                    Text(
+                        "Log a set to enable Finish",
+                        modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Ayu.Muted,
+                        textAlign = TextAlign.Center
+                    )
+                }
             }
+        }
+        // A mis-tap on Log is the commonest watch mistake, so taking it back sits on the first screen.
+        if (undoableSet != null) item {
+            FilledTonalButton(
+                onClick = onUndoLastSet,
+                enabled = !busy,
+                modifier = Modifier.fillMaxWidth().listRow(this, spec),
+                transformation = SurfaceTransformation(spec),
+                icon = { WearIcon(R.drawable.ic_undo, null, Modifier.size(ButtonDefaults.IconSize), tint = Ayu.Accent) },
+                label = { Text("Undo last set", maxLines = 1) },
+                secondaryLabel = {
+                    Text("${undoableSet.exerciseName} · ${undoableSet.summary}", maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
+            )
         }
         item {
             FilledTonalButton(

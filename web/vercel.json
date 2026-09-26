@@ -24,9 +24,9 @@
       "dest": "https://workout-api-i47taxhzba-as.a.run.app/health",
       "headers": { "Cache-Control": "no-store" }
     },
-    { "src": "/(?:sw\\.js|index\\.html|manifest\\.webmanifest|settings/?|)", "headers": { "Cache-Control": "no-cache" }, "continue": true },
+    { "src": "/(?:sw\\.js|index\\.html|manifest\\.webmanifest|(?:settings|workouts|muscles|exercises|import)/?|)", "headers": { "Cache-Control": "no-cache" }, "continue": true },
     { "handle": "filesystem" },
-    { "src": "/settings/?", "dest": "/index.html" },
+    { "src": "/(?:settings|workouts|muscles|exercises|import)/?", "dest": "/index.html" },
     { "src": "/", "dest": "/index.html" },
     { "src": "/(.*)", "status": 404 }
   ]

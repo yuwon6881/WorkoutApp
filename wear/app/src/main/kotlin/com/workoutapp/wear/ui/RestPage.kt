@@ -16,6 +16,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
@@ -72,7 +73,8 @@ fun RestPage(
             ) {
                 Text(
                     formatClock(seconds),
-                    style = MaterialTheme.typography.numeralLarge,
+                    style = if (LocalConfiguration.current.screenWidthDp < COMPACT_WATCH_DP) MaterialTheme.typography.numeralMedium
+                    else MaterialTheme.typography.numeralLarge,
                     color = if (finished) Ayu.Green else Ayu.Text
                 )
                 if (nextUp != null) {
@@ -111,3 +113,6 @@ fun RestPage(
         }
     }
 }
+
+// Below this width (for example 40 mm faces) the large numerals push the rest controls into the bezel.
+private const val COMPACT_WATCH_DP = 200

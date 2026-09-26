@@ -7,6 +7,7 @@ import { Modal } from './ui/Modal';
 import { ExerciseLibrary } from './Exercises';
 import { WorkoutExerciseStrip } from './WorkoutExerciseStrip';
 import { WorkoutActiveExercise } from './WorkoutActiveExercise';
+import { useHorizontalSwipe } from './ui/useHorizontalSwipe';
 
 type SetChange = { setId: string; patch: Partial<LoggedSet> };
 
@@ -24,6 +25,13 @@ export function WorkoutEditor({
   onRestore: (sessionExerciseId: string) => Promise<void>; onRemoveExercise: (index: number) => void;
 }) {
   const currentExercise = draft.exercises[activeIndex] ?? draft.exercises[0];
+  const currentIndex = currentExercise ? draft.exercises.indexOf(currentExercise) : -1;
+  // In the focus view a sideways swipe moves between exercises, like pages.
+  const swipe = useHorizontalSwipe({
+    enabled: viewMode === 'focus' && draft.exercises.length > 1,
+    onPrevious: () => { if (currentIndex > 0) onSelectExercise(currentIndex - 1); },
+    onNext: () => { if (currentIndex >= 0 && currentIndex < draft.exercises.length - 1) onSelectExercise(currentIndex + 1); }
+  });
   // Volume is only worth a chip once something has been lifted; an unknown load stays unknown
   // rather than reading as zero, so the chip is simply absent until a load is recorded.
   const liftedKg = draft.volumeKg ?? 0;
@@ -41,9 +49,9 @@ export function WorkoutEditor({
 
     <div className="modal-body workout-body">
       {recoveryConflict ? <div className="empty-message"><h3>Review the saved versions</h3><p>Choose the server workout or apply this device’s copy after considering the changes.</p></div> : finishIntentAt ? <div className="empty-message"><h3>Workout finished</h3><p>Your completion time and workout are saved on this device. They will sync when the server is reachable.</p></div> : paused ? <div className="empty-message"><h3>Workout paused</h3><p>Your active duration and rest timer are paused. Resume when you are ready.</p></div> : viewMode === 'focus' ? (
-        currentExercise ? <WorkoutActiveExercise key={currentExercise.id} exercise={currentExercise} index={draft.exercises.indexOf(currentExercise)}
+        currentExercise ? <div className="workout-focus-swipe" {...swipe}><WorkoutActiveExercise key={currentExercise.id} focused exercise={currentExercise} index={currentIndex}
           unit={unit} draft={draft} exercises={exercises} change={onChange} editSet={onEditSet} toggle={onToggleSet}
-          onSwap={onSwap} onRestore={onRestore} onRemoveExercise={onRemoveExercise} /> :
+          onSwap={onSwap} onRestore={onRestore} onRemoveExercise={onRemoveExercise} /></div> :
           <div className="empty-message"><Dumbbell size={30} /><h3>No exercises in this workout</h3>
             <Button variant="primary" disabled={!online || paused || Boolean(finishIntentAt)} onClick={() => onPicker(true)}><Plus size={16} />Add an exercise</Button>
           </div>

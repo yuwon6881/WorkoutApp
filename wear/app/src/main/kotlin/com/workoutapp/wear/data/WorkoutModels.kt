@@ -72,7 +72,15 @@ data class WorkoutSnapshot(
     val alertedRestGeneration: String? = null,
     val conflictOperationId: String? = null,
     val conflictSession: WorkoutSession? = null,
-    val pendingFinish: Boolean = false
+    val pendingFinish: Boolean = false,
+    /** The set most recently logged on this watch, so a mis-tap can be taken back from the wrist. */
+    val lastLoggedSetId: String? = null
+)
+
+/** Everything the store persists, published as one value so screens never pair a snapshot with a stale queue. */
+data class StoreState(
+    val snapshot: WorkoutSnapshot? = null,
+    val pending: List<PendingOperation> = emptyList()
 )
 
 data class PendingOperation(
@@ -107,13 +115,3 @@ data class PairingStart(
 data class PairingStatus(val status: String, val expiresAt: String)
 
 data class ApiErrorBody(val message: String? = null)
-
-data class WorkoutUiState(
-    val loading: Boolean = false,
-    val pairing: Boolean = false,
-    val pairingCode: String? = null,
-    val message: String? = null,
-    val error: String? = null,
-    val snapshot: WorkoutSnapshot? = null,
-    val syncing: Boolean = false
-)

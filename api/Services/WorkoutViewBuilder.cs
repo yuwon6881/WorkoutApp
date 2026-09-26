@@ -18,16 +18,17 @@ public static class WorkoutViewBuilder
         var exercisesBySession = exercises.GroupBy(e => e.SessionId).ToDictionary(g => g.Key, g => g.ToList());
         var setsByExercise = sets.GroupBy(s => s.SessionExerciseId).ToDictionary(g => g.Key, g => g.ToList());
 
-        var (exercisePrs, setPrs, sessionPrCounts) = await ComputePrs(db, sessions, ct);
+        var (exercisePrs, setPrs, sessionPrCounts, bests) = await ComputePrs(db, sessions, ct);
 
         return sessions.ToDictionary(session => session.Id, session => BuildView(session,
             exercisesBySession.GetValueOrDefault(session.Id) ?? [], setsByExercise, exercisePrs, setPrs,
-            sessionPrCounts.GetValueOrDefault(session.Id, 0)));
+            sessionPrCounts.GetValueOrDefault(session.Id, 0), session.Active ? bests : null));
     }
 
     public static async Task<(Dictionary<Guid, (bool IsPr, double? PrE1rmKg)> ExercisePrs,
         Dictionary<Guid, (bool IsPr, double? Estimated1RmKg)> SetPrs,
-        Dictionary<Guid, int> SessionPrCounts)> ComputePrs(
+        Dictionary<Guid, int> SessionPrCounts,
+        Dictionary<(Guid, string), double> Bests)> ComputePrs(
         AppDb db,
         IReadOnlyList<WorkoutSession> requestedSessions,
         CancellationToken ct)
@@ -37,8 +38,9 @@ public static class WorkoutViewBuilder
         var sessionPrCounts = new Dictionary<Guid, int>();
 
         var user = db.CurrentUser;
+        var runningBest = new Dictionary<(Guid, string), double>();
         if (user == null || requestedSessions.Count == 0)
-            return (exercisePrs, setPrs, sessionPrCounts);
+            return (exercisePrs, setPrs, sessionPrCounts, runningBest);
 
         var allDoneSets = await (from s in db.Sets.AsNoTracking()
                                  join e in db.SessionExercises.AsNoTracking() on s.SessionExerciseId equals e.Id
@@ -66,14 +68,12 @@ public static class WorkoutViewBuilder
             .ThenBy(g => g.Key.StartedAt)
             .ToList();
 
-        var runningBest = new Dictionary<(Guid, string), double>();
-
         foreach (var sessionGroup in sessionsChronological)
         {
             var sId = sessionGroup.Key.SessionId;
             var prCount = 0;
 
-            var exerciseGroups = sessionGroup.GroupBy(x => (x.ExerciseId ?? Guid.Empty, CatalogService.Normalize(x.NameSnapshot)));
+            var exerciseGroups = sessionGroup.GroupBy(x => PrKey(x.ExerciseId, x.NameSnapshot));
             foreach (var exGroup in exerciseGroups)
             {
                 var key = exGroup.Key;
@@ -118,8 +118,12 @@ public static class WorkoutViewBuilder
             sessionPrCounts[sId] = prCount;
         }
 
-        return (exercisePrs, setPrs, sessionPrCounts);
+        // After every finished session, runningBest holds each movement's best estimate: the bar an
+        // active workout's set has to clear to be reported as a personal best when it is saved.
+        return (exercisePrs, setPrs, sessionPrCounts, runningBest);
     }
+
+    public static (Guid, string) PrKey(Guid? exerciseId, string nameSnapshot) => (exerciseId ?? Guid.Empty, CatalogService.Normalize(nameSnapshot));
 
     public static SessionView BuildView(
         WorkoutSession session,
@@ -127,7 +131,8 @@ public static class WorkoutViewBuilder
         IReadOnlyDictionary<Guid, List<CompletedSet>> setsByExercise,
         IReadOnlyDictionary<Guid, (bool IsPr, double? PrE1rmKg)> exercisePrs,
         IReadOnlyDictionary<Guid, (bool IsPr, double? Estimated1RmKg)> setPrs,
-        int sessionPrCount = 0)
+        int sessionPrCount = 0,
+        IReadOnlyDictionary<(Guid, string), double>? previousBests = null)
     {
         var sets = exercises.SelectMany(e => setsByExercise.GetValueOrDefault(e.Id) ?? []).ToList();
         var done = sets.Where(s => s.Done).ToList();
@@ -159,7 +164,8 @@ public static class WorkoutViewBuilder
                     ReadOptional<ProgressionView>(e.ProgressionJson), e.LoadModel, e.SourceTemplateExerciseId, e.SourceSlotKey, e.SourcePhaseId,
                     e.SwapGroupKey, e.IsReplacement, e.OriginalExerciseId, e.OriginalNameSnapshot, e.SourcePage, canRestore, e.RestSeconds,
                     e.DemoUrl is { Length: > 0 } demoUrl ? demoUrl : null,
-                    isExPr, prE1rmKg);
+                    isExPr, prE1rmKg,
+                    previousBests != null && previousBests.TryGetValue(PrKey(e.ExerciseId, e.NameSnapshot), out var previousBest) ? previousBest : null);
             }).ToList(),
             external.Count == 0 ? null : external.Sum(s => s.WeightKg!.Value * s.Reps!.Value),
             workingDone.Count, warmupDone.Count, bodyWeight, context,

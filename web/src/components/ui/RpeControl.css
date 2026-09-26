@@ -311,3 +311,48 @@
     padding: 10px 12px;
   }
 }
+
+/* Inline chips (RirChips): six equal targets across the row, coloured only once chosen. */
+.rir-chips {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(44px, 1fr));
+  gap: 4px;
+}
+
+.rir-chip {
+  min-height: 44px;
+  min-width: 44px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control, 8px);
+  background: var(--surface);
+  color: var(--muted);
+  font-size: var(--font-secondary, 14px);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+  user-select: none;
+  touch-action: manipulation;
+  transition: border-color 0.15s ease, background-color 0.15s ease, color 0.15s ease;
+}
+
+.rir-chip:hover:not(:disabled) { border-color: var(--border-hover); color: var(--text); }
+.rir-chip:disabled { opacity: 0.55; cursor: not-allowed; }
+.rir-chip.selected { color: var(--text); }
+.rir-chip.selected.rir-tier-0 { border-color: var(--red); background: var(--red-soft); color: var(--red); }
+.rir-chip.selected.rir-tier-1 {
+  border-color: color-mix(in srgb, var(--red) 60%, var(--accent));
+  background: color-mix(in srgb, var(--red) 12%, transparent);
+  color: color-mix(in srgb, var(--red) 60%, var(--accent));
+}
+.rir-chip.selected.rir-tier-2 { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
+.rir-chip.selected.rir-tier-easy {
+  border-color: var(--green);
+  background: color-mix(in srgb, var(--green) 12%, transparent);
+  color: var(--green);
+}
+
+@media (min-width: 1024px) {
+  .rir-chips { grid-template-columns: repeat(6, minmax(36px, 1fr)); }
+  .rir-chip { min-height: 36px; min-width: 36px; }
+}

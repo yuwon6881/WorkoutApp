@@ -73,7 +73,10 @@ async function checkLayout(page: Page, label: string) {
   const smallTargets = await page.evaluate(() => {
     const scope = [...document.querySelectorAll('dialog[open]')].at(-1) || document;
     const minimum = innerWidth < 1024 ? 44 : 36;
-    return [...scope.querySelectorAll('button,input:not([hidden]),select,textarea,summary')].filter(el => {
+    // Role-only controls count too. Body-map muscle shapes are excluded because the muscle list
+    // beside the figure is the full-size way to pick the same muscle.
+    const controls = 'button,input:not([hidden]),select,textarea,summary,[role=button]:not(svg *),[role=option],[role=tab]';
+    return [...scope.querySelectorAll(controls)].filter(el => {
       const box = el.getBoundingClientRect();
       return box.width > 0 && box.height > 0 && (box.width < minimum - 1 || box.height < minimum - 1);
     }).map(el => el.getAttribute('aria-label') || el.textContent?.slice(0, 70));
@@ -96,6 +99,8 @@ async function checkLayout(page: Page, label: string) {
     const box = el.getBoundingClientRect();
     const style = getComputedStyle(el);
     return box.width > 0 && box.height > 0 && el.textContent?.trim() && !el.closest('[aria-hidden="true"]')
+      && !(style.position === 'absolute' && box.width <= 1 && box.height <= 1
+        && (style.clip !== 'auto' || style.clipPath !== 'none'))
       && (style.overflowX === 'hidden' || style.overflowY === 'hidden' || style.textOverflow === 'ellipsis')
       && (el.scrollWidth > el.clientWidth + 1 || el.scrollHeight > el.clientHeight + 1);
   }).map(el => ({ tag: el.tagName, className: String(el.className).slice(0, 40), text: el.textContent?.trim().slice(0, 60) })));
@@ -119,6 +124,54 @@ async function navigate(page: Page, name: string) {
 const signIn = (page: Page) => auth(page, USER);
 
 for (const theme of ['dark', 'light']) {
+  test(`active logger layout in ${theme} theme`, async ({ page }, info) => {
+    await signIn(page);
+    await page.evaluate(async () => {
+      const headers = { 'X-Workout-Request': '1' };
+      const response = await fetch('/api/workouts/active', { headers });
+      const active = await response.json();
+      if (active) await fetch(`/api/workouts/${active.id}/discard`, { method: 'POST', headers });
+      await new Promise(resolve => {
+        const request = indexedDB.deleteDatabase('workout-recovery');
+        request.onsuccess = request.onerror = request.onblocked = resolve;
+      });
+    });
+    await page.reload();
+    await navigate(page, 'Settings');
+    await page.getByRole('group', { name: 'Appearance' })
+      .getByRole('button', { name: theme === 'dark' ? 'Ayu dark' : 'Ayu light' }).click();
+    await navigate(page, 'Workouts');
+    await page.evaluate(async () => {
+      const response = await fetch('/api/workouts', {
+        method: 'POST', headers: { 'X-Workout-Request': '1', 'content-type': 'application/json' },
+        body: JSON.stringify({ templateId: null, name: 'Active layout check' })
+      });
+      if (!response.ok) throw new Error(await response.text());
+    });
+    await page.reload();
+    const logger = page.getByRole('dialog', { name: 'Active layout check', exact: true });
+    await logger.getByRole('button', { name: 'Add another exercise to this workout' }).click();
+    const picker = page.getByRole('dialog', { name: 'Add an exercise', exact: true });
+    await picker.getByRole('textbox', { name: 'Search exercises' }).fill('bench');
+    await picker.getByRole('button', { name: 'Add Barbell bench press', exact: true }).click();
+    await logger.getByRole('button', { name: 'Add set', exact: true }).click();
+    await logger.getByRole('spinbutton', { name: 'Barbell bench press set 1 reps', exact: true }).fill('8');
+    await logger.getByRole('spinbutton', { name: 'Barbell bench press set 1 weight', exact: true }).fill('60');
+    await logger.getByRole('button', { name: 'Log Barbell bench press set 1', exact: true }).click();
+    await expect(logger.locator('.rest-bar.resting')).toBeVisible();
+    await checkLayout(page, 'active logger');
+    await page.screenshot({ path: join(screenshotsDirectory, 'responsive', `${info.project.name}-${theme}-active-logger.png`) });
+    const exerciseNotes = logger.getByRole('textbox', { name: 'Exercise notes', exact: true });
+    await exerciseNotes.fill('Keep a steady tempo.');
+    await expect(exerciseNotes).toBeInViewport({ ratio: 0.9 });
+    await checkLayout(page, 'active logger notes');
+    await page.screenshot({ path: join(screenshotsDirectory, 'responsive', `${info.project.name}-${theme}-active-notes.png`) });
+    await logger.getByRole('button', { name: 'Workout options', exact: true }).click();
+    await page.getByRole('menuitem', { name: 'Discard workout', exact: true }).click();
+    await page.getByRole('button', { name: 'Discard workout', exact: true }).click();
+    await expect(logger).toBeHidden();
+  });
+
   test(`all views and dialogs in ${theme} theme`, async ({ page }, info) => {
     const errors: string[] = [];
     page.on('pageerror', e => errors.push(e.message));
@@ -180,6 +233,21 @@ for (const theme of ['dark', 'light']) {
     await expect(page.getByRole('heading', { name: 'Barbell bench press' })).toBeVisible();
     await screenshot('exercises');
 
+    // The detail sheet and its progress chart were never measured before; small chart labels and
+    // sideways-scrolling bars hid there.
+    await page.getByRole('button', { name: 'View Barbell bench press details' }).first().click();
+    const detail = page.getByRole('dialog', { name: /Barbell bench press/ });
+    await expect(detail).toBeVisible();
+    await expect(detail.getByRole('heading', { name: 'Progress' })).toBeVisible();
+    await screenshot('exercise-detail');
+    await detail.getByRole('button', { name: 'Edit weights', exact: true }).click();
+    await detail.getByRole('button', { name: 'Weight list', exact: true }).click();
+    await detail.getByRole('textbox', { name: /Available weights/ }).fill('5, 7.5, 12.5, 20, 27.5');
+    await screenshot('exercise-weight-settings');
+    await detail.getByRole('button', { name: 'Cancel', exact: true }).click();
+    await page.keyboard.press('Escape');
+    await expect(detail).toBeHidden();
+
     await navigate(page, 'Workouts');
     await openNewMenu(page, 'Import a PDF program');
     await screenshot('import-upload');
@@ -192,15 +260,6 @@ for (const theme of ['dark', 'light']) {
     await expect(page.getByRole('heading', { name: 'Review' })).toBeVisible({ timeout: 60000 });
     await screenshot('import-review');
 
-    const importDetails = page.locator('details.import-details').filter({ has: page.getByText('Import details', { exact: true }) });
-    if (await importDetails.count()) {
-      const summary = importDetails.locator('summary');
-      await summary.focus();
-      await page.keyboard.press('Enter');
-      await expect(importDetails).toHaveAttribute('open', '');
-      await page.keyboard.press('Enter');
-      await expect(importDetails).not.toHaveAttribute('open', '');
-    }
 
     await navigate(page, 'Overview');
     await screenshot('progress');
@@ -211,7 +270,7 @@ for (const theme of ['dark', 'light']) {
     await screenshot('body');
 
     await navigate(page, 'Workouts');
-    await page.locator('.routine-card').filter({ hasText: workoutName }).getByRole('button', { name: 'Start workout', exact: true }).click();
+    await page.locator('.routine-card').filter({ hasText: workoutName }).getByRole('button', { name: 'Start workout', exact: true }).first().click();
     const preview = page.getByRole('dialog', { name: `Start ${workoutName}?`, exact: true });
     await expect(preview).toBeVisible();
     await screenshot('start-preview');
@@ -222,10 +281,12 @@ for (const theme of ['dark', 'light']) {
     await page.getByRole('button', { name: 'Add another exercise to this workout', exact: true }).click();
     await screenshot('logger-picker');
     await page.getByRole('dialog', { name: 'Add an exercise' }).getByRole('button', { name: 'Close dialog' }).click();
-    await page.getByRole('button', { name: 'Discard', exact: true }).click();
+    await page.getByRole('button', { name: 'Workout options', exact: true }).click();
+    await screenshot('workout-options');
+    await page.getByRole('menuitem', { name: 'Discard workout', exact: true }).click();
     await screenshot('discard-confirmation');
     await page.getByRole('button', { name: 'Keep training' }).click();
-    await page.getByRole('button', { name: 'Minimize', exact: true }).click();
+    await page.getByRole('button', { name: 'Minimize workout', exact: true }).click();
     await screenshot('resume-banner');
 
     const resume = page.getByRole('button', { name: `Resume ${workoutName}`, exact: true });
@@ -236,7 +297,8 @@ for (const theme of ['dark', 'light']) {
     })).toBe(true);
 
     await resume.click();
-    await page.getByRole('button', { name: 'Discard', exact: true }).click();
+    await page.getByRole('button', { name: 'Workout options', exact: true }).click();
+    await page.getByRole('menuitem', { name: 'Discard workout', exact: true }).click();
     await page.getByRole('button', { name: 'Discard workout', exact: true }).click();
     // Wait for the discard to land: ending the test here would abort the request in flight and
     // leave an active workout behind for the next viewport to trip over.

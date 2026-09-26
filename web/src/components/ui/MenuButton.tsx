@@ -12,6 +12,7 @@ import { createPortal } from 'react-dom';
 import { ChevronDown, MoreVertical } from 'lucide-react';
 import { Button, type ButtonVariant } from './Button';
 import { useAnchoredLayer } from './useAnchoredLayer';
+import { usePickerSheet } from './usePickerSheet';
 
 const MenuCloseContext = createContext<() => void>(() => {});
 
@@ -46,8 +47,11 @@ export function MenuButton({
   const menuRef = useRef<HTMLDivElement>(null);
   const menuId = useId();
 
+  const sheet = usePickerSheet(open, () => setOpen(false));
+  // A phone sheet is always portaled so no scroller or card can clip it.
+  const portaled = portal || sheet;
   const { portalTarget, style } = useAnchoredLayer({
-    open: open && portal,
+    open: open && portaled,
     triggerRef,
     layerRef: menuRef,
     align,
@@ -64,7 +68,7 @@ export function MenuButton({
 
   useEffect(() => {
     if (!open) return;
-    const onPointerDown = (event: MouseEvent) => {
+    const onPointerDown = (event: PointerEvent) => {
       const target = event.target as Node;
       if (!wrapRef.current?.contains(target) && !menuRef.current?.contains(target)) {
         setOpen(false);
@@ -76,10 +80,10 @@ export function MenuButton({
         close(true);
       }
     };
-    document.addEventListener('mousedown', onPointerDown);
+    document.addEventListener('pointerdown', onPointerDown);
     document.addEventListener('keydown', onKeyDown);
     return () => {
-      document.removeEventListener('mousedown', onPointerDown);
+      document.removeEventListener('pointerdown', onPointerDown);
       document.removeEventListener('keydown', onKeyDown);
     };
   }, [close, open]);
@@ -101,7 +105,7 @@ export function MenuButton({
       {text}
       {text && <ChevronDown size={15} />}
     </Button>
-    {open && !portal && (
+    {open && !portaled && (
       <div
         ref={menuRef}
         id={menuId}
@@ -112,14 +116,15 @@ export function MenuButton({
         <MenuCloseContext.Provider value={close}>{children}</MenuCloseContext.Provider>
       </div>
     )}
-    {open && portal && portalTarget && createPortal(
+    {open && portaled && portalTarget && sheet && createPortal(<div className="picker-sheet-backdrop" aria-hidden="true" />, portalTarget)}
+    {open && portaled && portalTarget && createPortal(
       <div
         ref={menuRef}
         id={menuId}
         role="menu"
         aria-label={label}
-        style={style ?? { visibility: 'hidden' }}
-        className={`ui-menu-dropdown ${menuClassName}`.trim()}
+        style={sheet ? undefined : style ?? { visibility: 'hidden' }}
+        className={`ui-menu-dropdown ${sheet ? 'picker-sheet' : ''} ${menuClassName}`.trim()}
       >
         <MenuCloseContext.Provider value={close}>{children}</MenuCloseContext.Provider>
       </div>,

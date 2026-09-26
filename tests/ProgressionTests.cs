@@ -65,7 +65,7 @@ public class ProgressionFormulaTests
     {
         var plan = Plan(3, 5, 8, new PreviousSet(60, 5, 6.5));
         Assert.Equal(2.5, plan.DeltaKg);
-        Assert.Equal(3, plan.TargetReps);
+        Assert.Equal(4, plan.TargetReps);
     }
 
     [Fact] public void A_set_harder_than_the_target_repeats_instead_of_progressing()
@@ -319,10 +319,10 @@ public class ProgressionSessionTests
         await h.SignIn();
         var template = await h.Templates.Create(
             Harness.Template("Push", Harness.Exercise(null, "Reverse Nordic Curl", Harness.Set(3, 5))), null, 1, 0, default);
-        await Log(h, await h.Workouts.Start(template.Id, null, default), 20, 5, 8);
+        await Log(h, await h.Workouts.Start(template.Id, null, default), 60, 5, 8);
 
         var sets = (await h.Workouts.Start(template.Id, null, default)).Exercises.Single().Sets;
-        Assert.Equal(22.5, sets[0].WeightKg);
+        Assert.Equal(62.5, sets[0].WeightKg);
         var stored = await h.Db.Progress.AsNoTracking().SingleAsync();
         Assert.Equal(Guid.Empty, stored.ExerciseId);
         Assert.Equal("reverse nordic curl", stored.NameKey);

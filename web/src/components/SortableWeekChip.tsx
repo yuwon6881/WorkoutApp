@@ -25,7 +25,7 @@ export function SortableWeekChip({
   onDrop,
   onDelete
 }: SortableWeekChipProps) {
-  const pointer = useRef<{ id: number; startX: number; startY: number; armed: boolean; moved: boolean; timer?: number } | null>(null);
+  const pointer = useRef<{ id: number; startX: number; startY: number; armed: boolean; moved: boolean; timer?: number; scroller: HTMLElement | null; scrollStart: number; scrolling: boolean } | null>(null);
   const chipRef = useRef<HTMLButtonElement>(null);
   const suppressClick = useRef(false);
 
@@ -89,7 +89,12 @@ export function SortableWeekChip({
             startY: event.clientY,
             armed: false,
             moved: false,
-            timer: undefined as number | undefined
+            timer: undefined as number | undefined,
+            // The chip keeps its own horizontal gestures (touch-action: pan-y) so a long press can
+            // drag it; until it does, a sideways move scrolls the week strip by hand instead.
+            scroller: chipRef.current?.closest<HTMLElement>('.filter-chips') ?? null,
+            scrollStart: chipRef.current?.closest<HTMLElement>('.filter-chips')?.scrollLeft ?? 0,
+            scrolling: false
           };
           current.timer = window.setTimeout(() => {
             if (pointer.current?.id !== current.id || current.moved) return;
@@ -109,10 +114,15 @@ export function SortableWeekChip({
           const dx = event.clientX - current.startX;
           const dy = event.clientY - current.startY;
           if (!current.armed) {
+            if (current.scrolling && current.scroller) {
+              current.scroller.scrollLeft = current.scrollStart - dx;
+              return;
+            }
             if (Math.max(Math.abs(dx), Math.abs(dy)) > 8) {
               current.moved = true;
               if (current.timer != null) window.clearTimeout(current.timer);
-              if (Math.abs(dy) >= Math.abs(dx)) clearPointer();
+              if (Math.abs(dy) >= Math.abs(dx) || event.pointerType === 'mouse') clearPointer();
+              else current.scrolling = true;
             }
             return;
           }
@@ -126,6 +136,7 @@ export function SortableWeekChip({
         onPointerUp={event => {
           const current = pointer.current;
           if (!current || current.id !== event.pointerId) return;
+          if (current.scrolling) suppressClick.current = true;
           if (current.armed) {
             suppressClick.current = true;
             const target = document.elementFromPoint(event.clientX, event.clientY)?.closest<HTMLElement>('[data-import-week-chip]');

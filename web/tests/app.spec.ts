@@ -5,6 +5,68 @@ import { signIn as auth } from './signIn';
 import { pdf } from './pdfFixture';
 
 const USER = 'e2e-lifter';
+
+test('personal exercise weights support uneven lists and kg/lb switching', async ({ page }, testInfo) => {
+  await signIn(page);
+  const originalPreferences = (await (await page.request.get('/api/bootstrap')).json()).preferences;
+  const name = `Weight settings ${testInfo.project.name} ${Date.now()}`;
+  const headers = { 'X-Workout-Request': '1', Origin: new URL(page.url()).origin };
+  const created = await page.request.post('/api/exercises/custom', {
+    headers,
+    data: { name, muscle: 'Biceps', equipment: 'Cable', cue: '', loadStepKg: 2.5, loadModel: 'external' }
+  });
+  expect(created.ok(), await created.text()).toBeTruthy();
+  const exercise = await created.json();
+  async function preference(label: string) {
+    const saved = page.waitForResponse(response => response.url().endsWith('/api/preferences') && response.request().method() === 'PUT');
+    await page.getByRole('button', { name: label, exact: true }).click();
+    expect((await saved).ok()).toBeTruthy();
+  }
+  try {
+    for (const theme of ['dark', 'light']) {
+      await page.goto('/settings');
+      await preference('Kilograms (kg)');
+      await preference(`Ayu ${theme}`);
+      await page.goto('/exercises');
+      await page.getByRole('textbox', { name: 'Search exercises', exact: true }).fill(name);
+      await page.getByRole('button', { name: `View ${name} details`, exact: true }).click();
+      const dialog = page.getByRole('dialog', { name, exact: true });
+      await dialog.getByRole('button', { name: 'Edit weights', exact: true }).click();
+      await dialog.getByRole('button', { name: 'Weight list', exact: true }).click();
+      await dialog.getByRole('textbox', { name: 'Available weights (kg)', exact: true }).fill('20, 5, 12.5, 5');
+      await dialog.getByRole('button', { name: 'Save weights', exact: true }).click();
+      await expect(dialog.getByText('5, 12.5, 20 kg', { exact: true })).toBeVisible();
+      await dialog.getByRole('button', { name: 'Edit weights', exact: true }).click();
+      await expect(dialog.getByRole('textbox', { name: 'Available weights (kg)', exact: true })).toHaveValue('5, 12.5, 20');
+      await expect.poll(() => dialog.evaluate(element => element.scrollWidth <= element.clientWidth + 1)).toBeTruthy();
+      await page.screenshot({ path: `${screenshotsDirectory}/exercise-weights-${testInfo.project.name}-${theme}.png` });
+      await dialog.getByRole('button', { name: 'Cancel', exact: true }).click();
+      await dialog.getByRole('button', { name: 'Close dialog', exact: true }).click();
+    }
+    await page.goto('/settings');
+    await preference('Pounds (lb)');
+    await page.goto('/exercises');
+    await page.getByRole('textbox', { name: 'Search exercises', exact: true }).fill(name);
+    await page.getByRole('button', { name: `View ${name} details`, exact: true }).click();
+    const dialog = page.getByRole('dialog', { name, exact: true });
+    await expect(dialog.getByText('11.02, 27.56, 44.09 lb', { exact: true })).toBeVisible();
+    await dialog.getByRole('button', { name: 'Edit weights', exact: true }).click();
+    await dialog.getByRole('button', { name: 'Increment', exact: true }).click();
+    await dialog.getByLabel('Weight increment (lb)', { exact: true }).fill('5');
+    await dialog.getByRole('button', { name: 'Save weights', exact: true }).click();
+    await expect(dialog.getByText('5 lb increment', { exact: true })).toBeVisible();
+    const saved = await (await page.request.get(`/api/exercises/${exercise.id}/load-settings`)).json();
+    expect(saved.loadStepKg).toBeCloseTo(5 / 2.2046226218, 8);
+    await dialog.getByRole('button', { name: 'Edit weights', exact: true }).click();
+    await dialog.getByRole('button', { name: 'Default', exact: true }).click();
+    await dialog.getByRole('button', { name: 'Save weights', exact: true }).click();
+    await expect(dialog.getByText('5.51 lb increment · Default', { exact: true })).toBeVisible();
+  } finally {
+    await page.request.delete(`/api/exercises/custom/${exercise.id}`, { headers });
+    const restored = await page.request.put('/api/preferences', { headers, data: originalPreferences });
+    expect(restored.ok()).toBeTruthy();
+  }
+});
 const screenshotsDirectory = process.env.WORKOUT_TEST_SCREENSHOTS || 'artifacts';
 
 
@@ -58,7 +120,8 @@ async function clearActiveWorkout(page: Page) {
         if (key.startsWith(`workout.rest.v2:${account.id}:`)) localStorage.removeItem(key);
     } catch { /* Test cleanup remains valid if the browser blocks optional timer storage. */ }
   });
-  await page.reload();
+  // A reload keeps the current tab now that tabs have addresses, so cleanup returns to Overview.
+  await page.goto('/');
   await expect(page.getByRole('heading', { name: 'Overview', exact: true })).toBeVisible();
   await expect(page.getByRole('dialog')).toBeHidden();
   await expect(page.getByRole('button', { name: /^Resume / })).toBeHidden();
@@ -170,7 +233,10 @@ test('build a workout, log a set against the server, and see it in history', asy
 
   // Suggested reps are available immediately; load and actual RPE may remain blank until recorded.
   await logButton.click();
+  const logged = page.getByRole('button', { name: 'Unlog Barbell bench press set 1', exact: true });
+  await expect(logged).toHaveAttribute('aria-pressed', 'true');
 
+  // Correcting a logged set's values keeps it logged rather than silently unlogging it.
   await logger.getByRole('spinbutton', { name: 'Barbell bench press set 1 weight', exact: true }).fill('60');
   await logger.getByRole('spinbutton', { name: 'Barbell bench press set 1 reps', exact: true }).fill('8');
   const rpeTrigger = logger.getByRole('button', { name: /Barbell bench press set 1 (?:RPE|RIR)/ });
@@ -182,8 +248,6 @@ test('build a workout, log a set against the server, and see it in history', asy
     await logger.getByRole('listbox', { name: /Barbell bench press set 1 (?:RPE|RIR)/ })
       .getByRole('option', { name: /(?:8|2)/ }).click();
   }
-  await logButton.click();
-  const logged = page.getByRole('button', { name: 'Unlog Barbell bench press set 1', exact: true });
   await expect(logged).toHaveAttribute('aria-pressed', 'true');
   // A completed set has to read as finished, not just change a label.
   await expect(logger.locator('.workout-set-row.done')).toHaveCount(1);
@@ -214,6 +278,19 @@ test('build a workout, log a set against the server, and see it in history', asy
   const resumed = await restSeconds(page.locator('.rest-clock'));
   expect(resumed).toBeLessThan(started);
   expect(resumed).toBeGreaterThan(0);
+
+  // Removing a set can be undone, and the same set comes back where it was.
+  const weights = activeLogger.getByRole('spinbutton', { name: /^Barbell bench press set \d+ weight$/ });
+  const setCount = await weights.count();
+  expect(setCount).toBeGreaterThan(1);
+  const secondWeight = activeLogger.getByRole('spinbutton', { name: 'Barbell bench press set 2 weight', exact: true });
+  await secondWeight.fill('55');
+  await activeLogger.getByRole('button', { name: 'Remove Barbell bench press set 2', exact: true }).click();
+  await expect(weights).toHaveCount(setCount - 1);
+  await expect(activeLogger.getByRole('status').filter({ hasText: 'Set 2 removed.' })).toBeVisible();
+  await activeLogger.getByRole('button', { name: 'Undo', exact: true }).click();
+  await expect(weights).toHaveCount(setCount);
+  await expect(secondWeight).toHaveValue('55');
 
   await page.getByRole('button', { name: 'Finish workout', exact: true }).click();
   await page.getByRole('button', { name: 'Save workout', exact: true }).click();
@@ -262,7 +339,7 @@ test('build a workout, log a set against the server, and see it in history', asy
   expect((await longerRange).ok()).toBe(true);
   const chest = page.locator('.muscle-balance-table-row[data-muscle="Chest"]');
   await expect(chest).toBeVisible();
-  await expect(chest).not.toContainText(/0(?:\.0)? sets/);
+  await expect(chest).not.toContainText(/\b0(?:\.0)? sets/);
 
   // Starting the same plan again has to carry the last session forward: 8 reps at RPE 8 against
   // a target of 8-12 leaves effort in the tank, so the app asks for one more rep at the same
@@ -280,10 +357,16 @@ test('build a workout, log a set against the server, and see it in history', asy
   await openStartPreview(page, againStartBtn, againPreview);
   await againPreview.getByRole('button', { name: 'Start workout', exact: true }).click();
   const again = page.getByRole('dialog', { name, exact: true });
+  const pastSets = again.getByRole('region', { name: 'Past sets for Barbell bench press' });
+  await expect(pastSets.getByRole('heading', { name: 'Past sets' })).toBeVisible();
+  await expect(pastSets.locator('li').filter({ hasText: '2 RIR' }).first()).toBeVisible();
+  await expect(again.getByRole('textbox', { name: 'Exercise notes', exact: true })).toBeVisible();
   await expect(again.locator('.suggestion-text').first()).toBeVisible();
   await expect(again.getByRole('spinbutton', { name: 'Barbell bench press set 1 weight', exact: true })).toHaveValue('60');
   await expect(again.getByRole('spinbutton', { name: 'Barbell bench press set 1 reps', exact: true })).toHaveValue('9');
-  await again.getByRole('button', { name: 'Discard', exact: true }).click();
+  // Discard lives in the workout's options menu, away from the thumb zone's primary actions.
+  await again.getByRole('button', { name: 'Workout options', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'Discard workout', exact: true }).click();
   await page.getByRole('button', { name: 'Discard workout', exact: true }).click();
   await expect(again).toBeHidden();
 
@@ -494,6 +577,9 @@ test('import a PDF program, resolve an unmapped exercise, and accept it', async 
   const restoreDraft = page.getByRole('menuitem', { name: 'Restore default draft', exact: true });
   await expect(restoreDraft).toBeVisible();
   await expect(restoreDraft).toBeEnabled();
+  // Mobile menus use a backdrop; dismiss the menu before editing the draft behind it.
+  await page.keyboard.press('Escape');
+  await expect(restoreDraft).toBeHidden();
 
   const substitutionCard = page.locator('.import-exercise').filter({
     has: page.locator('.substitution-chip').filter({ hasText: 'DB Incline Press' })
@@ -1020,4 +1106,58 @@ test('create a custom multi-block program and cap each week at fourteen schedule
       }
     }, name).catch(() => {});
   }
+});
+
+test('settings section links keep the chosen section current, even one near the page end', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== 'desktop', 'The section links appear only on expanded layouts.');
+  await signIn(page);
+  await page.getByRole('button', { name: 'Settings', exact: true }).filter({ visible: true }).first().click();
+  const nav = page.getByRole('navigation', { name: 'Settings sections' });
+  for (const label of ['Wear OS', 'Rest timer', 'Connected apps', 'General']) {
+    await nav.getByRole('button', { name: label, exact: true }).click();
+    // Sample through the smooth scroll: the highlight must never pass through another section.
+    for (let sample = 0; sample < 12; sample++) {
+      await expect(nav.locator('[aria-current="true"]')).toHaveText(label);
+      await page.waitForTimeout(80);
+    }
+  }
+});
+
+test('Back closes the open sheet first, then walks back through tabs, and a reload keeps the tab', async ({ page }) => {
+  await signIn(page);
+  await clearActiveWorkout(page);
+  await page.goto('/');
+  await expect(page.getByRole('heading', { name: 'Overview', exact: true })).toBeVisible();
+
+  await openTab(page, 'Workouts');
+  await expect(page).toHaveURL(/\/workouts$/);
+  await openTab(page, 'Exercises');
+  await expect(page).toHaveURL(/\/exercises$/);
+
+  // A reload lands on the same tab, because the address names it.
+  await page.reload();
+  await expect(page.getByRole('heading', { name: 'Exercises', exact: true })).toBeVisible();
+
+  await openTab(page, 'Workouts');
+  await openNewMenu(page, 'New workout');
+  const editor = page.getByRole('dialog', { name: 'Build a workout' });
+  await expect(editor).toBeVisible();
+
+  // Back (the Android gesture) closes the sheet and stays on the tab beneath it.
+  await page.goBack();
+  await expect(editor).toBeHidden();
+  await expect(page.getByRole('heading', { name: 'Workouts', exact: true })).toBeVisible();
+
+  // The next Back returns to the previous tab rather than leaving the app.
+  await page.goBack();
+  await expect(page.getByRole('heading', { name: 'Exercises', exact: true })).toBeVisible();
+  await expect(page).toHaveURL(/\/exercises$/);
+
+  // Closing a sheet from its own button gives its history entry back, so Back is not wasted.
+  await openTab(page, 'Workouts');
+  await openNewMenu(page, 'New workout');
+  await editor.getByRole('button', { name: 'Close dialog' }).click();
+  await expect(editor).toBeHidden();
+  await page.goBack();
+  await expect(page.getByRole('heading', { name: 'Exercises', exact: true })).toBeVisible();
 });

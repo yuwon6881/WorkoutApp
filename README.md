@@ -1,5 +1,7 @@
 # Workout
 
+During a workout, swipe between exercises or select one from the top strip. Each set has editable weight, reps, RIR, and a completion tick; add or remove sets from the same screen. Past sets show the last three completed sessions for the library exercise, including recorded RIR. Exercise notes and available demo links remain accessible. Swaps use the exercise library and are available before completing any sets for that exercise. Automatic rest runs after working sets (including myo-reps and the final set) and after the last warm-up; intermediate warm-ups and immediate superset handoffs skip rest.
+
 A workout tracker with an account-backed database and an AI program importer. One repository
 holds the React PWA (`web/`) and the ASP.NET Core API (`api/`), following the same layout as the
 sibling NutritionApp.
@@ -47,8 +49,8 @@ builds keep cleartext traffic disabled. If more than one emulator is running, pa
 
 Sign in to the local web app, approve the code under **Settings → Wear OS**, and start a workout
 from the web app. A paired watch checks for a workout when it opens or resumes, and checks again
-every 15 seconds while its no-workout screen is open. A future Capacitor client can start through
-the same account-backed workout API; the watch reads the server's active workout regardless of
+every 15 seconds while its no-workout screen is open. The Android app (`web/android/`, Capacitor) starts
+workouts through the same account-backed workout API; the watch reads the server's active workout regardless of
 which client started it. The virtual device uses the same app behavior and layout, while physical
 vibration strength, battery use, and manufacturer-specific screen behavior still require a watch.
 
@@ -69,8 +71,13 @@ decision. Passive status rows are regular content; only rows with an available a
 - Workouts built by hand, or imported from a training PDF by AI and corrected in a review screen
   before anything becomes a program.
 - Set logging with weight, reps, and RPE; the next session is prefilled but never pre-logged.
-- A standalone Wear OS companion joins an active workout after short-code approval in WorkoutApp settings. It logs reps, load, and RIR; manages rest, pause/resume, and confirmed finish; and queues watch changes locally for ordered, revision-aware replay after network gaps. Same-set and finish conflicts remain available for review. An ongoing activity returns to the workout from the watch face, and rest completion vibrates once. Pairing codes expire after five minutes; the revocable device link renews while in use and expires after a year idle. Pairing secrets are encrypted with Android Keystore; the server remains authoritative for workout state.
-- Progression: reps climb through the prescribed range, then the load moves and the reps reset.
+- A standalone Wear OS companion joins an active workout after short-code approval in WorkoutApp settings. Its device session reads only the live workout and changes only logged values (reps, load, RIR, done); starting, restructuring, and discarding workouts stay on the phone. It logs reps, load, and RIR with undo of its last logged set; manages rest, pause/resume, and confirmed finish; and queues watch changes locally for ordered, revision-aware replay after network gaps. Same-set and finish conflicts remain available for review; edits WorkoutApp refuses, or that target a workout already finished or discarded on the phone, are released with a notice instead of retrying forever. An ongoing activity returns to the workout from the watch face, and rest completion vibrates once. Pairing codes expire after five minutes; the revocable device link renews while in use and expires after a year idle. Pairing secrets are encrypted with Android Keystore; the server remains authoritative for workout state.
+- Progression uses each completed working set's history, prescribed reps and effort, and the exercise's load increment. Reps build at the same load; reaching the range ceiling at suitable effort earns the next available weight with an estimated rep goal. An exact target one rep above the last result is a normal progression attempt, not an automatic failed session.
+  - Changed rep/RIR prescriptions reselect a suitable load. Missing target RIR does not silently become RIR 2, and recorded 5+ RIR remains useful effort evidence. Without recorded effort, repeated top-range results are required before a cautious increase.
+  - A large minimum weight step may temporarily suggest fewer reps only after the top of a range is earned: at least 60% of the lower bound and never below six reps. The saved transition rebuilds toward the original range without overwriting the prescription or treating fewer reps alone as failure. Impractical jumps stay at the current weight. A modest step may aim one rep above its estimate while staying inside the prescription.
+  - Unspecified/AMRAP rep targets remain empty. Load increases require repeated improving performance at the same load (at least two sessions with effort, three without); the engine never treats these sets as having a one-rep ceiling. Recovery suggestions cannot exceed the current load.
+  - Load/reps calculations are approximate starting points, bounded to 30 effective reps; they do not change PR calculations or guarantee an RIR. Suggestions remain frozen for the session, never pre-log a set, and preserve account-scoped history and bodyweight context.
+  - `api/Domain/LoadOptions.cs` supplies fixed increments, uneven available-weight lists, bounds, and next/previous weights independently of progression. The service resolves account-specific exercise settings with the catalog/custom increment as the default. Edit these in the exercise library under **Weight settings**; the existing logged-weight convention is preserved.
   RPE decides the pace, a hard or missed session holds, and a lift that has not moved for two
   sessions is offered a lighter week. Strength is estimated with Epley extended by reps in
   reserve — a set is rated as if it had been carried to failure — and a set outside the range
@@ -136,3 +143,9 @@ installed Google Chrome; screenshots are written to the ignored `web/artifacts/`
 
 See [deploy/README.md](deploy/README.md) for the Neon, Cloud Run, and Vercel setup, the exact
 resource names, and how to load the exercise catalog.
+
+### Personal exercise weights
+
+Open an exercise in the library and choose **Edit weights**. Keep the default, set a fixed increment (0 means no load progression), or enter an uneven list of available weights. Settings belong to your account and follow that exercise across programs; they do not edit the shared catalog. Use the same load convention as your logs: per dumbbell, or total barbell/machine load.
+
+**Settings → Weight unit** switches between kg and lb. Exercise settings use that unit and are stored in canonical kilograms. Saved weights are converted when the unit changes, not reinterpreted. Available-weight lists are sorted and deduplicated; manual logging remains free to record the actual load. New workouts and exercise swaps use these settings for progression, including added load and assistance; changing settings leaves existing workout drafts and completed history untouched. Choose **Default** and save to restore the exercise default. Concurrent edits are rejected with a reload action.

@@ -268,6 +268,7 @@
   overflow-wrap:anywhere;
 }
 .draft-day-summary-static>.day-exercise-preview{grid-column:1}
+.day-exercise-preview-compact{display:none}
 .program-day-entry .day-muscles-row{padding:0 14px 10px}
 .program-day-entry .day-editor{padding-top:0}
 
@@ -278,6 +279,7 @@
   .chip-group>.chip-icon-btn,.chip-group>.ui-menu{margin-left:-10px}
   .chip-group>.ui-menu>.chip-icon-btn{margin-left:0}
   .program-day-entry .program-day-handle{width:44px;min-width:44px;height:44px}
+  .program-day-add-buttons .button{min-height:44px}
 }
 @media(max-width:639px){
   .program-block-control-bar{gap:6px;padding:6px}
@@ -288,7 +290,10 @@
   .draft-day .draft-day-summary{grid-template-columns:minmax(0,1fr) 24px;column-gap:6px}
   .draft-day-summary>.draft-day-disclosure{width:24px;height:24px;flex:0 0 24px}
   [data-editor-mode="custom"] .import-program-heading{flex-direction:column;align-items:stretch}
-  [data-editor-mode="custom"] .import-program-title{max-width:100%}
+  /* In a column the flex basis would become a 300px height, so the title keeps its own height. */
+  [data-editor-mode="custom"] .import-program-title{flex:0 0 auto;max-width:100%}
+  .day-exercise-preview-full{display:none}
+  .day-exercise-preview-compact{display:inline}
   [data-editor-mode="custom"] .import-program-actions{width:100%}
   [data-editor-mode="custom"] .import-program-actions .button.primary{flex:1 1 auto;justify-content:center}
 }

@@ -16,6 +16,12 @@
   list-style: none;
 }
 
+/* The list item is only a wrapper; the swipe row draws the card, so the head can align with it. */
+.set-grid-list .import-set {
+  padding: 0;
+  border: 0;
+}
+
 .set-grid-wrap .import-set-swipe-row,
 .set-grid-wrap .import-set.warmup-row .import-set-swipe-row {
   border: 1px solid var(--border);
@@ -61,8 +67,7 @@
 /* Column labels are printed once in the head; each control keeps its own accessible name. */
 .set-grid-row .rep-prescription-label,
 .set-grid-row .rpe-field > span:first-child,
-.set-grid-row .set-tempo-field > span:first-child,
-.set-grid-row .set-type-field > span:first-child {
+.set-grid-row .set-tempo-field > span:first-child {
   position: absolute;
   width: 1px;
   height: 1px;
@@ -72,19 +77,25 @@
   white-space: nowrap;
 }
 
-.set-grid-row .set-type-field {
-  margin: 0;
-}
-
+/* A rep count is two or three digits, so the inputs keep a fixed width instead of stretching
+   across whatever the row leaves over. */
 .set-grid-row .rep-range-inputs,
 .set-grid-row .rep-single-input-wrap,
 .set-grid-row .rep-open-value {
   grid-area: reps;
+  justify-self: start;
   min-width: 0;
+  max-width: 100%;
 }
+
+.set-grid-row .rep-range-inputs,
+.set-grid-row .rep-open-value { width: 156px; }
+.set-grid-row .rep-single-input-wrap { width: 72px; }
 
 .set-grid-row .rpe-field {
   grid-area: rir;
+  align-items: center;
+  min-width: 0;
   margin: 0;
   justify-self: center;
 }
@@ -105,65 +116,58 @@
   background: var(--surface-raised);
 }
 
-.set-grid-row .set-type-field .custom-select-trigger {
-  min-width: 132px;
-}
-
-/* One segmented control: the outline is an inset shadow so each half keeps a full-size box. */
+/* A small segmented pill: it labels the column, so it stays visually lighter than the inputs.
+   Each half keeps a 44px touch target through an invisible hit area above and below it. */
 .set-grid-head .rep-mode-toggle {
-  gap: 0;
-  padding: 0;
-  border: 0;
-  border-radius: var(--radius-control);
+  gap: 2px;
+  padding: 2px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
   background: var(--surface-raised);
-  box-shadow: inset 0 0 0 1px var(--border);
-  overflow: hidden;
 }
 
 .set-grid-head .rep-mode-btn {
-  min-width: 56px;
-  min-height: 44px;
+  position: relative;
+  min-width: 0;
+  min-height: 26px;
+  height: 26px;
   padding: 0 10px;
-  border-radius: var(--radius-control);
-  font-size: var(--font-secondary);
-}
-
-.set-warmup-chip.button {
-  min-height: 44px;
-  padding: 0 12px;
-  border: 1px dashed var(--border-hover);
   border-radius: var(--radius-pill);
-  color: var(--muted);
-  font-size: var(--font-secondary);
-  font-weight: 600;
+  font-size: 12px;
+  line-height: 1;
 }
 
-.set-warmup-chip.button.active {
-  border-style: solid;
-  border-color: var(--blue);
-  background: color-mix(in srgb, var(--blue) 12%, transparent);
-  color: var(--blue);
+.set-grid-head .rep-mode-btn::after {
+  content: "";
+  position: absolute;
+  inset: -9px 0;
 }
 
-.set-grid-wrap .import-set-remove {
-  min-width: 44px;
-  min-height: 44px;
-  padding: 0;
-}
-
+/* The delete action is one square icon button, so its icon sits in the middle of its own box. */
 .set-grid-wrap .swipeable-row-desktop-actions {
   display: flex;
   align-items: center;
-  min-width: 0;
+  justify-content: center;
+  width: 52px;
+  min-width: 52px;
   padding: 0 8px 0 0;
 }
 
+.set-grid-wrap .swipeable-row-desktop-actions .import-set-remove {
+  width: 44px;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0;
+  justify-content: center;
+}
+
+/* The head repeats the row's box model: 1px border and 8px padding on the leading side, and on
+   the trailing side the same plus the 52px delete column, so every label sits over its column. */
 .set-grid-head {
   display: grid;
-  align-items: end;
-  gap: 0 10px;
-  /* Rows outside the phone swipe layout end in a delete button; reserve its width. */
-  padding: 0 60px 8px 8px;
+  align-items: center;
+  gap: 0 8px;
+  padding: 0 61px 8px 9px;
   color: var(--muted);
   font-size: var(--font-secondary);
   font-weight: 600;
@@ -190,7 +194,8 @@
 .set-grid-head-rir { grid-area: rir; text-align: center; }
 .set-grid-head-tempo { grid-area: tempo; text-align: center; }
 
-/* Compact: the set badge and type on one line, the prescription on the next. */
+/* Compact: the set badge and type on one line, the prescription on the next. The head is one
+   line with the same columns, so the RIR label is printed once, directly over its column. */
 .set-grid-wrap .set-grid-row {
   grid-template-columns: minmax(0, 1fr) 48px 64px;
   grid-template-areas:
@@ -198,13 +203,9 @@
     "reps rir tempo";
 }
 
-/* The rep mode is wider than a phone's reps column, so it takes its own head line there. */
 .set-grid-wrap .set-grid-head {
   grid-template-columns: minmax(0, 1fr) 48px 64px;
-  grid-template-areas:
-    "reps reps reps"
-    ". rir tempo";
-  row-gap: 8px;
+  grid-template-areas: "reps rir tempo";
 }
 
 .set-grid-typed.set-grid-wrap .set-grid-row {
@@ -216,9 +217,12 @@
 
 .set-grid-typed.set-grid-wrap .set-grid-head {
   grid-template-columns: minmax(0, 1fr) 48px;
-  grid-template-areas:
-    "reps reps"
-    ". rir";
+  grid-template-areas: "reps rir";
+}
+
+/* On the narrowest editors the toggle already says what the column holds. */
+@container set-grid (max-width: 260px) {
+  .set-grid-head-reps > span:first-child { display: none; }
 }
 
 .set-grid-typed .set-grid-head-tempo { display: none; }
@@ -226,41 +230,59 @@
 /* Wide: one line per set. The meta column is fixed so the head lines up with the rows. */
 @container set-grid (min-width: 600px) {
   .set-grid-wrap .set-grid-row {
-    grid-template-columns: 176px minmax(170px, 1fr) 52px 76px;
+    grid-template-columns: 176px 172px 52px 76px;
     grid-template-areas: "meta reps rir tempo";
   }
 
   .set-grid-wrap .set-grid-head {
-    grid-template-columns: 176px minmax(170px, 1fr) 52px 76px;
+    grid-template-columns: 176px 172px 52px 76px;
     grid-template-areas: ". reps rir tempo";
-    align-items: center;
   }
 
   .set-grid-typed.set-grid-wrap .set-grid-row {
-    grid-template-columns: 236px minmax(170px, 1fr) 52px;
+    grid-template-columns: 236px 172px 52px;
     grid-template-areas: "meta reps rir";
   }
 
   .set-grid-typed.set-grid-wrap .set-grid-head {
-    grid-template-columns: 236px minmax(170px, 1fr) 52px;
+    grid-template-columns: 236px 172px 52px;
     grid-template-areas: ". reps rir";
-    align-items: center;
   }
 }
 
 /* Phone rows keep delete behind the swipe, so the head needs no gutter there. */
 @media (max-width: 639px) {
   .set-grid-head {
-    padding-right: 8px;
+    padding-right: 9px;
   }
 }
 
 @media (min-width: 1024px) {
   .set-grid-row input,
-  .set-grid-head .rep-mode-btn,
-  .set-warmup-chip.button,
-  .set-grid-wrap .import-set-remove {
+  .set-grid-wrap .swipeable-row-desktop-actions .import-set-remove {
     min-height: 40px;
     height: 40px;
   }
+
+  .set-grid-wrap .swipeable-row-desktop-actions .import-set-remove {
+    width: 40px;
+    min-width: 40px;
+  }
+
+  .set-grid-head .rep-mode-btn::after { inset: -4px 0; }
+}
+
+/* Phone rows keep delete behind a swipe. A drawer handle on the trailing edge shows that the row
+   moves, and stays visible for anyone who turned motion off and never sees the first-use peek. */
+.set-grid-wrap .swipeable-row-surface::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  right: 3px;
+  width: 3px;
+  height: 24px;
+  margin-top: -12px;
+  border-radius: var(--radius-pill);
+  background: var(--border-hover);
+  pointer-events: none;
 }

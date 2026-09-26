@@ -29,11 +29,12 @@ public sealed class AdaptiveProgressionTests
     }
 
     [Fact]
-    public void Progression_stays_inside_a_narrow_imported_rep_range()
+    public void A_modest_step_can_aim_one_rep_above_the_estimate_within_a_narrow_range()
     {
         var result = Progression.SuggestSet(6, 8, 8, [Exposure(40, 8, 8)], ProgressionModes.Normal, 2.5);
 
         Assert.Equal(6, result.SuggestedReps);
+        Assert.False(result.IsRepRangeTransition);
         Assert.Equal(42.5, result.SuggestedLoadKg);
     }
 
@@ -49,7 +50,7 @@ public sealed class AdaptiveProgressionTests
         var result = Progression.SuggestSet(8, 12, 8, history, mode, 2.5);
 
         Assert.Equal(42.5, result.SuggestedLoadKg);
-        Assert.Equal(8, result.SuggestedReps);
+        Assert.Equal(9, result.SuggestedReps);
         Assert.Contains($"{required} qualified", result.Reason);
     }
 
@@ -120,12 +121,12 @@ public sealed class AdaptiveProgressionTests
     }
 
     [Fact]
-    public void Third_hard_exposure_uses_success_before_the_three_row_window()
+    public void An_older_heavier_success_never_increases_the_deload_weight()
     {
         var result = Progression.SuggestSet(8, 12, 8,
             [Exposure(42.5, 7, 9), Exposure(42.5, 7, 9, 7), Exposure(42.5, 7, 9, 14), Exposure(50, 12, 8, 21)],
             ProgressionModes.Normal, 2.5);
-        Assert.Equal(45, result.SuggestedLoadKg);
+        Assert.Equal(37.5, result.SuggestedLoadKg);
     }
 
     [Fact]

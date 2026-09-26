@@ -6,7 +6,7 @@ namespace Workout.Api.Services;
 
 public sealed partial class WorkoutService
 {
-    /// Return the latest three completed exposures plus the most recent successful exposure per
+    /// Return up to thirty completed exposures per
     /// working-set ordinal, matching catalog id or normalized unresolved name. Warm-ups are
     /// excluded before legacy ordinals are assigned.
     public async Task<Dictionary<int, List<SetExposure>>> PreviousExposures(Guid? exerciseId, string name, CancellationToken ct)
@@ -26,7 +26,7 @@ public sealed partial class WorkoutService
         var ids = requests.Where(x => x.ExerciseId is not null).Select(x => x.ExerciseId!.Value).Distinct().ToList();
         var names = requests.Where(x => x.ExerciseId is null).Select(x => x.NameKey).ToHashSet(StringComparer.Ordinal);
         var query = db.SessionExercises.AsNoTracking().Join(db.Workouts.AsNoTracking().Where(w => w.FinishedAt != null),
-            e => e.SessionId, w => w.Id, (e, w) => new { e.Id, e.ExerciseId, e.NameSnapshot, w.FinishedAt });
+            e => e.SessionId, w => w.Id, (e, w) => new { e.Id, e.SessionId, e.ExerciseId, e.NameSnapshot, e.PrescriptionJson, w.FinishedAt });
         var matches = new List<PreviousExposureMatch>();
         if (ids.Count > 0)
         {
@@ -43,7 +43,7 @@ public sealed partial class WorkoutService
                 {
                     selected = await query.Where(x => x.ExerciseId == id).OrderByDescending(x => x.FinishedAt).Take(30).ToListAsync(ct);
                 }
-                matches.AddRange(selected.Select(x => new PreviousExposureMatch(x.Id, x.ExerciseId, x.NameSnapshot, x.FinishedAt)));
+                matches.AddRange(selected.Select(x => new PreviousExposureMatch(x.Id, x.SessionId, x.ExerciseId, x.NameSnapshot, x.PrescriptionJson, x.FinishedAt)));
             }
         }
         if (names.Count > 0)
@@ -51,7 +51,7 @@ public sealed partial class WorkoutService
             var unresolvedMatches = await query.Where(x => x.ExerciseId == null).OrderByDescending(x => x.FinishedAt)
                 .Take(Math.Min(600, Math.Max(60, names.Count * 60))).ToListAsync(ct);
             matches.AddRange(unresolvedMatches.Where(x => names.Contains(CatalogService.Normalize(x.NameSnapshot)))
-                .Select(x => new PreviousExposureMatch(x.Id, x.ExerciseId, x.NameSnapshot, x.FinishedAt)));
+                .Select(x => new PreviousExposureMatch(x.Id, x.SessionId, x.ExerciseId, x.NameSnapshot, x.PrescriptionJson, x.FinishedAt)));
         }
         var matchIds = matches.Select(x => (Guid)x.Id).ToList();
         if (matchIds.Count == 0) return [];
@@ -65,14 +65,22 @@ public sealed partial class WorkoutService
                 var key = (match.ExerciseId, match.ExerciseId is null ? CatalogService.Normalize(match.NameSnapshot) : "");
                 if (!output.TryGetValue(key, out var exposures)) { exposures = []; output[key] = exposures; }
                 var legacyOrdinal = 0;
+                var prescriptions = Json.Read<List<SetPrescription>>(match.PrescriptionJson);
                 foreach (var set in sets.Where(s => s.SessionExerciseId == match.Id).OrderBy(s => s.Position))
                 {
                     var ordinal = set.WorkingSetOrdinal ?? ++legacyOrdinal;
                     if (set.WorkingSetOrdinal is not null) legacyOrdinal = Math.Max(legacyOrdinal, ordinal);
                     var list = exposures.GetValueOrDefault(ordinal);
                     if (list is null) { list = []; exposures[ordinal] = list; }
-                    if (list.Count < 4)
-                        list.Add(new SetExposure(match.Id, match.FinishedAt!.Value, set.WeightKg, set.Reps, set.Rpe, set.SystemLoadKg, set.ResistanceMode));
+                    if (list.Count >= 30 || list.Any(exposure => exposure.SessionId == match.SessionId)) continue;
+                    var prescription = prescriptions.ElementAtOrDefault(set.Position);
+                    var suggestion = ReadOptional<SetProgressionSuggestion>(set.SuggestionJson);
+                    var open = prescription is not null && Progression.HasOpenReps(prescription.RepsText);
+                    list.Add(new SetExposure(match.SessionId, match.FinishedAt!.Value, set.WeightKg, set.Reps, set.Rpe,
+                        set.SystemLoadKg, set.ResistanceMode, set.Rir,
+                        open ? null : prescription?.RepMin, open ? null : prescription?.RepMax,
+                        prescription?.TargetRpe, prescription?.Rir, suggestion?.IsRepRangeTransition == true,
+                        prescription is not null));
                 }
             }
         }
@@ -91,5 +99,6 @@ public sealed partial class WorkoutService
         })).ToList();
     }
 
-    private sealed record PreviousExposureMatch(Guid Id, Guid? ExerciseId, string NameSnapshot, DateTime? FinishedAt);
+    private sealed record PreviousExposureMatch(Guid Id, Guid SessionId, Guid? ExerciseId, string NameSnapshot,
+        string PrescriptionJson, DateTime? FinishedAt);
 }

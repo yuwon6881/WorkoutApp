@@ -11,6 +11,7 @@ public sealed class AppDb(DbContextOptions<AppDb> options) : DbContext(options)
     public DbSet<AuthSession> Sessions => Set<AuthSession>();
     public DbSet<Exercise> Exercises => Set<Exercise>();
     public DbSet<CustomExercise> CustomExercises => Set<CustomExercise>();
+    public DbSet<ExerciseLoadSetting> ExerciseLoadSettings => Set<ExerciseLoadSetting>();
     public DbSet<ExerciseAlias> Aliases => Set<ExerciseAlias>();
     public DbSet<TrainingProgram> Programs => Set<TrainingProgram>();
     public DbSet<ProgramPhase> ProgramPhases => Set<ProgramPhase>();
@@ -78,6 +79,9 @@ public sealed class AppDb(DbContextOptions<AppDb> options) : DbContext(options)
             t.HasCheckConstraint("CK_Exercises_Category", "\"Category\" IN ('Free Weights','Machine','Body Weight')");
         });
         Configure<CustomExercise>(m);
+        Configure<ExerciseLoadSetting>(m);
+        m.Entity<ExerciseLoadSetting>().ToTable("ExerciseLoadSettings", t =>
+            t.HasCheckConstraint("CK_ExerciseLoadSettings_Step", "\"LoadStepKg\" IS NULL OR (\"LoadStepKg\" >= 0 AND \"LoadStepKg\" <= 50)"));
         m.Entity<CustomExercise>().Property(x => x.Name).HasMaxLength(160);
         m.Entity<CustomExercise>().Property(x => x.LoadStepKg).HasDefaultValue(2.5);
         m.Entity<CustomExercise>().Property(x => x.LoadModel).HasDefaultValue("external");

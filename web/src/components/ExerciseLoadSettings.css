@@ -1,0 +1,22 @@
+.exercise-load-settings {
+  min-width: 0;
+  padding-block: 16px;
+  border-block: 1px solid var(--border);
+}
+
+.exercise-load-settings form {
+  display: grid;
+  gap: 12px;
+}
+
+.exercise-load-settings p {
+  overflow-wrap: anywhere;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.exercise-load-settings .modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}

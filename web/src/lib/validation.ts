@@ -23,6 +23,16 @@ export function validateInteger(value: number | null, min: number, max: number, 
     : undefined;
 }
 
+export function validateExerciseLoads(raw: string, kilograms: number[], list: boolean): string | undefined {
+  if (!raw.trim() || kilograms.some(value => !Number.isFinite(value) || value < 0))
+    return 'Enter valid, non-negative weights.';
+  if (list && (kilograms.length > 200 || new Set(kilograms).size < 2))
+    return 'Enter between 2 and 200 different available weights.';
+  if (kilograms.some(value => value > (list ? 1000 : 50) + 1e-9))
+    return list ? 'Each available weight must be at most 1,000 kg (2,204.62 lb).' : 'The increment must be at most 50 kg (110.23 lb).';
+  return undefined;
+}
+
 export function validateRpe(value: number | null, label = 'RPE'): string | undefined {
   if (value === null) return undefined;
   if (!Number.isFinite(value) || value < 6 || value > 10) return `${label} must be between 6 and 10.`;

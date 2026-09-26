@@ -111,9 +111,12 @@ export function InfoTooltip({
           e.stopPropagation();
           setOpen(prev => !prev);
         }}
-        onMouseEnter={handleOpen}
-        onMouseLeave={handleDelayedClose}
-        onFocus={handleOpen}
+        // A touch fires emulated hover and focus before its click, which would open the tip and
+        // then toggle it shut in one tap. Hover opens it only for a mouse, focus only from the
+        // keyboard, and a tap simply toggles it.
+        onPointerEnter={event => { if (event.pointerType === 'mouse') handleOpen(); }}
+        onPointerLeave={event => { if (event.pointerType === 'mouse') handleDelayedClose(); }}
+        onFocus={event => { if (event.currentTarget.matches(':focus-visible')) handleOpen(); }}
         onBlur={handleClose}
       >
         <HelpCircle size={15} aria-hidden="true" />

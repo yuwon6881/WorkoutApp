@@ -62,16 +62,21 @@
 .settings-shell {
   display: grid;
   gap: 40px;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .settings-sections {
   display: grid;
   gap: 40px;
   min-width: 0;
+  max-width: 100%;
 }
 
 .settings-nav {
   display: none;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .settings-nav-list {
@@ -383,4 +388,45 @@
     min-height: 44px;
     justify-content: center;
   }
+}
+
+/* Below the expanded layout: the section links become one row of chips that stays under
+   the top bar, so a long settings page is one tap from any section. */
+@media (max-width: 1023px) {
+  .settings-nav {
+    display: block;
+    position: sticky;
+    top: calc(68px + env(safe-area-inset-top, 0px));
+    z-index: 8;
+    margin: 0 -4px 16px;
+    padding: 6px 4px;
+    background: var(--bg);
+    min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
+  }
+  .settings-nav-list {
+    display: flex;
+    gap: 6px;
+    overflow-x: auto;
+    scrollbar-width: none;
+    overscroll-behavior-x: contain;
+    min-width: 0;
+    max-width: 100%;
+  }
+  .settings-nav-list::-webkit-scrollbar { display: none; }
+  .settings-nav-list > .button {
+    flex: 0 0 auto;
+    min-height: 44px;
+    padding: 0 14px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-pill, 999px);
+    white-space: nowrap;
+  }
+  .settings-nav-list > .button.is-current { border-color: var(--accent-border-strong); background: var(--accent-soft); }
+  .settings-nav-list > .selection-indicator-marker { display: none; }
+  .settings-section { scroll-margin-top: calc(136px + env(safe-area-inset-top, 0px)); }
+}
+@media (min-width: 640px) and (max-width: 1023px) {
+  .settings-nav { top: calc(74px + env(safe-area-inset-top, 0px)); }
 }

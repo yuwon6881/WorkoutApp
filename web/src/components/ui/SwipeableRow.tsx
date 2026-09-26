@@ -1,4 +1,5 @@
-import { useCallback, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
+import { useCallback, useEffect, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
+import { useReducedMotion } from './Motion';
 
 type SwipeableRowProps = {
   children: ReactNode;
@@ -7,7 +8,14 @@ type SwipeableRowProps = {
   actionsWidth?: number;
   actionsLabel?: string;
   className?: string;
+  /// Slides this row part-way open and back once, the first time any peeking row scrolls into view
+  /// on a touch layout, so the hidden action is discoverable without reading instructions.
+  peek?: boolean;
 };
+
+const PEEK_OFFSET = 44;
+const PEEK_HOLD_MS = 520;
+let peekShown = false;
 
 function clampOffset(value: number, actionsWidth: number) {
   return Math.max(-actionsWidth, Math.min(0, value));
@@ -21,13 +29,37 @@ export function SwipeableRow({
   desktopActions,
   actionsWidth = 92,
   actionsLabel = 'Row actions',
-  className = ''
+  className = '',
+  peek = false
 }: SwipeableRowProps) {
   const [open, setOpen] = useState(false);
   const [offset, setOffset] = useState(0);
   const [dragging, setDragging] = useState(false);
   const pointer = useRef<{ id: number; startX: number; startY: number; tracking: boolean } | null>(null);
   const suppressClick = useRef(false);
+  const mobileRef = useRef<HTMLDivElement>(null);
+  const reducedMotion = useReducedMotion();
+
+  useEffect(() => {
+    const node = mobileRef.current;
+    if (!peek || peekShown || reducedMotion || !node || typeof IntersectionObserver === 'undefined') return;
+    let timer: number | undefined;
+    const observer = new IntersectionObserver(entries => {
+      // The mobile variant is display:none on wider layouts, so it never intersects there.
+      if (peekShown || !entries.some(entry => entry.isIntersecting && entry.intersectionRatio >= 0.9)) return;
+      peekShown = true;
+      observer.disconnect();
+      setOffset(-Math.min(PEEK_OFFSET, actionsWidth));
+      timer = window.setTimeout(() => {
+        if (!pointer.current) setOffset(current => current === -Math.min(PEEK_OFFSET, actionsWidth) ? 0 : current);
+      }, PEEK_HOLD_MS);
+    }, { threshold: 0.9 });
+    observer.observe(node);
+    return () => {
+      observer.disconnect();
+      if (timer !== undefined) window.clearTimeout(timer);
+    };
+  }, [actionsWidth, peek, reducedMotion]);
 
   const close = useCallback(() => {
     setOpen(false);
@@ -87,7 +119,7 @@ export function SwipeableRow({
       <div className="swipeable-row-desktop-content">{children}</div>
       <div className="swipeable-row-desktop-actions">{desktopActions ?? actions}</div>
     </div>
-    <div className={`swipeable-row-mobile ${className}`.trim()} style={{ '--swipe-actions-width': `${actionsWidth}px` } as CSSProperties}>
+    <div ref={mobileRef} className={`swipeable-row-mobile ${className}`.trim()} style={{ '--swipe-actions-width': `${actionsWidth}px` } as CSSProperties}>
       <div className="swipeable-row-actions" role="group" aria-label={actionsLabel} aria-hidden={!open} inert={!open}>
         {actions}
       </div>

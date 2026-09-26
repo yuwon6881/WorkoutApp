@@ -4,6 +4,7 @@ import type { HistoryPage, Session, Unit } from '../types';
 import { ApiError, api } from '../lib/api';
 import { duration, showActualRir, showSetCount, showVolume, toDisplay } from '../lib/training';
 import { Button } from './ui/Button';
+import { useLoadMoreOnScroll } from './ui/useLoadMoreOnScroll';
 import './History.css';
 
 let historyCache: HistoryPage | null = null;
@@ -67,6 +68,8 @@ export function WorkoutHistory({
       });
     return () => { cancelled = true; controller.abort(); };
   }, []);
+
+  const loadMoreRef = useLoadMoreOnScroll(!loading && page.sessions.length < page.total, () => void more());
 
   async function more() {
     setLoading(true);
@@ -191,7 +194,7 @@ export function WorkoutHistory({
       )}
 
       {sessions.length < page.total && (
-        <Button className="full-width" disabled={loading} onClick={more}>
+        <Button ref={loadMoreRef} className="full-width" disabled={loading} onClick={more}>
           {loading ? 'Loading…' : 'Load more'}
         </Button>
       )}

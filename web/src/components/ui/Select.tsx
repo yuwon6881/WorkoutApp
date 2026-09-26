@@ -3,6 +3,7 @@ import { useEffect, useId, useRef, useState, type KeyboardEvent as ReactKeyboard
 import { Check, ChevronDown } from 'lucide-react';
 import { Button } from './Button';
 import { useAnchoredLayer } from './useAnchoredLayer';
+import { usePickerSheet } from './usePickerSheet';
 
 export type SelectOption<T extends string | number> = {
   value: T;
@@ -19,7 +20,8 @@ export function Select<T extends string | number>({
   onChange,
   options,
   className = '',
-  disabled = false
+  disabled = false,
+  displayLabel
 }: {
   name?: string;
   label?: string;
@@ -31,6 +33,8 @@ export function Select<T extends string | number>({
   options: SelectOption<T>[];
   className?: string;
   disabled?: boolean;
+  /** Trigger text when it should say more than the option does, such as "Warm-up 2". */
+  displayLabel?: string;
 }) {
   const accessibleLabel = label ?? ariaLabel ?? '';
   const [open, setOpen] = useState(false);
@@ -59,9 +63,9 @@ export function Select<T extends string | number>({
         setOpen(false);
       }
     };
-    document.addEventListener('mousedown', handleClick);
+    document.addEventListener('pointerdown', handleClick);
     return () => {
-      document.removeEventListener('mousedown', handleClick);
+      document.removeEventListener('pointerdown', handleClick);
     };
   }, [open]);
 
@@ -84,6 +88,7 @@ export function Select<T extends string | number>({
     dependencies: [options.length]
   });
 
+  const sheet = usePickerSheet(open, () => setOpen(false));
   const selectedOption = options.find(o => o.value === value) ?? options[0];
 
   const handleKeyDown = (e: ReactKeyboardEvent) => {
@@ -176,13 +181,14 @@ export function Select<T extends string | number>({
       >
         <div className="custom-select-content">
           {icon && <span className="custom-select-icon" aria-hidden="true">{icon}</span>}
-          <span className="custom-select-text">{selectedOption?.label}</span>
+          <span className="custom-select-text">{displayLabel ?? selectedOption?.label}</span>
         </div>
         <ChevronDown size={16} className={`custom-select-chevron ${open ? 'rotated' : ''}`} />
       </Button>
 
+      {open && portalTarget && sheet && createPortal(<div className="picker-sheet-backdrop" aria-hidden="true" />, portalTarget)}
       {open && portalTarget && createPortal(
-        <ul ref={listboxRef} className="custom-select-dropdown" style={dropdownStyle ?? { visibility: 'hidden' }} role="listbox" aria-label={accessibleLabel}>
+        <ul ref={listboxRef} className={`custom-select-dropdown ${sheet ? 'picker-sheet' : ''}`.trim()} style={sheet ? undefined : dropdownStyle ?? { visibility: 'hidden' }} role="listbox" aria-label={accessibleLabel}>
           {options.map((o, idx) => {
             const isSelected = o.value === value;
             const isHighlighted = idx === highlightedIndex;

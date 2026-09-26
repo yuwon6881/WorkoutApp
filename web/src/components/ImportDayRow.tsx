@@ -40,10 +40,13 @@ export function DayRow({
 }) {
   const muscleSummary = useMemo(() => getPlannedMuscleCredits(day.exercises, exercises), [day.exercises, exercises]);
   const exercisePreview = useMemo(() => {
-    if (day.isRestDay || !day.exercises.length) return '';
+    if (day.isRestDay || !day.exercises.length) return null;
     const names = day.exercises.map(exercise => exercise.sourceName);
-    if (names.length <= 4) return names.join(', ');
-    return `${names.slice(0, 4).join(', ')}, and ${names.length - 4} more`;
+    const list = (shown: number) => names.length <= shown
+      ? names.join(', ')
+      : `${names.slice(0, shown).join(', ')} and ${names.length - shown} more`;
+    // A phone row has room for one name before it wraps, so it leads with the first exercise.
+    return { full: list(4), compact: list(1) };
   }, [day.exercises, day.isRestDay]);
 
   const isGenericDay = !day.name
@@ -86,7 +89,10 @@ export function DayRow({
           : <Button presentation="plain" className="draft-day-summary" aria-expanded={expanded}
             aria-label={day.name} onClick={onToggle}>
             <span className="draft-day-heading">{meta}</span>
-            {!expanded && exercisePreview && <span className="day-exercise-preview">{exercisePreview}</span>}
+            {!expanded && exercisePreview && <span className="day-exercise-preview">
+              <span className="day-exercise-preview-full">{exercisePreview.full}</span>
+              <span className="day-exercise-preview-compact">{exercisePreview.compact}</span>
+            </span>}
             <span className={`draft-day-disclosure ${expanded ? 'open' : ''}`} aria-hidden="true"><ChevronDown size={16} /></span>
           </Button>}
         {menu}

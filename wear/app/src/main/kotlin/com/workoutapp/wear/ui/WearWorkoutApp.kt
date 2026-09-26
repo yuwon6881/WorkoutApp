@@ -7,6 +7,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -27,29 +28,33 @@ import kotlinx.coroutines.launch
 fun WearWorkoutApp(notificationsAllowed: Boolean, onEnableNotifications: () -> Unit) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
-    val repository = remember(context) { WorkoutRepository(context) }
+    val repository = remember(context) { WorkoutRepository.get(context) }
+    val storeState by repository.state.collectAsState()
+    val notice by repository.notice.collectAsState()
     val pendingPairing = remember { repository.secureStore.pendingPairing() }
-    var snapshot by remember { mutableStateOf(repository.cached()) }
     var pairingCode by remember { mutableStateOf(pendingPairing?.second) }
     var pairingExpiry by remember { mutableStateOf(pendingPairing?.third) }
     var pairingChecking by remember { mutableStateOf(false) }
+    var paired by remember { mutableStateOf(repository.isPaired()) }
     var busy by remember { mutableStateOf(false) }
     var message by remember { mutableStateOf<String?>(null) }
     var error by remember { mutableStateOf<String?>(null) }
     var nowEpochMs by remember { mutableStateOf(System.currentTimeMillis()) }
     val scope = rememberCoroutineScope()
 
+    // busy flips before the coroutine starts, so a second tap in the same frame is ignored rather
+    // than logging the set twice.
     fun runAction(action: suspend () -> Unit) {
+        if (busy) return
+        busy = true
+        error = null
         scope.launch {
-            busy = true
-            error = null
             try {
                 action()
-                snapshot = repository.cached()
             } catch (failure: Exception) {
                 error = failure.message ?: "WorkoutApp could not complete that action."
-                snapshot = repository.cached()
             } finally {
+                paired = repository.isPaired()
                 busy = false
             }
         }
@@ -64,30 +69,27 @@ fun WearWorkoutApp(notificationsAllowed: Boolean, onEnableNotifications: () -> U
 
     LaunchedEffect(Unit) { repository.resumeBackgroundTracking() }
 
+    // Clocks tick locally; the server is asked on resume and then on a slow cadence, faster while a
+    // workout is live so sets logged or exercises changed on the phone reach the wrist.
     LaunchedEffect(lifecycleOwner) {
         lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
-            var refreshOnResume = true
-            var nextIdleRefreshAt = 0L
+            var nextRefreshAt = 0L
             while (true) {
                 val now = System.currentTimeMillis()
                 nowEpochMs = now
-                val cached = repository.cached()
-                val paired = repository.secureStore.isDevicePaired() && repository.secureStore.pendingPairing() == null
-                val idle = cached?.session?.active != true && cached?.pendingFinish != true
-                if (paired && (refreshOnResume || idle && now >= nextIdleRefreshAt)) {
+                paired = repository.isPaired()
+                if (paired && now >= nextRefreshAt && !busy) {
                     try {
-                        snapshot = repository.refresh()
+                        val refreshed = repository.refresh()
                         error = null
-                        if (snapshot?.session?.active == true) message = null
+                        if (refreshed?.session?.active == true) message = null
                     } catch (failure: Exception) {
                         error = failure.message ?: "Could not refresh. Showing saved workout data."
-                        snapshot = repository.cached()
                     }
-                    nextIdleRefreshAt = now + IDLE_WORKOUT_REFRESH_INTERVAL_MS
-                } else {
-                    snapshot = cached
+                    paired = repository.isPaired()
+                    val live = repository.cached()?.session?.active == true
+                    nextRefreshAt = System.currentTimeMillis() + if (live) ACTIVE_REFRESH_INTERVAL_MS else IDLE_REFRESH_INTERVAL_MS
                 }
-                refreshOnResume = false
                 delay(1_000)
             }
         }
@@ -97,20 +99,23 @@ fun WearWorkoutApp(notificationsAllowed: Boolean, onEnableNotifications: () -> U
         if (pairingCode == null) return@LaunchedEffect
         lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
             while (true) {
-                delay(3_000)
+                // The API allows one status check every three seconds per address; stay under it.
+                delay(PAIRING_POLL_MS)
                 pairingChecking = true
                 try {
                     val status = repository.pollPairing()
                     if (status.status == "approved") {
                         pairingCode = null
                         pairingExpiry = null
+                        paired = true
                         message = "Watch connected. Looking for an active workout."
-                        snapshot = repository.refresh()
+                        repository.refresh()
                         return@repeatOnLifecycle
                     }
                     if (status.status == "expired") {
                         pairingCode = null
                         pairingExpiry = null
+                        paired = false
                         message = "The code expired. Request a new one to pair this watch."
                         return@repeatOnLifecycle
                     }
@@ -131,10 +136,20 @@ fun WearWorkoutApp(notificationsAllowed: Boolean, onEnableNotifications: () -> U
         }
     }
 
-    val isPaired = repository.secureStore.isDevicePaired() && repository.secureStore.pendingPairing() == null
-    val current = snapshot
+    // A sync notice explains something that happened out of sight, so it stays until it has been on screen.
+    LaunchedEffect(notice, lifecycleOwner) {
+        if (notice == null) return@LaunchedEffect
+        lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
+            delay(NOTICE_VISIBLE_MS)
+            repository.clearNotice()
+        }
+    }
+
+    val current = storeState.snapshot
+    val queuedCount = storeState.pending.size
+    val shownMessage = notice ?: message
     val route = when {
-        (current?.session?.active != true && current?.pendingFinish != true) && (!isPaired || pairingCode != null) -> Route.Pairing
+        (current?.session?.active != true && current?.pendingFinish != true) && (!paired || pairingCode != null) -> Route.Pairing
         current?.conflictOperationId != null -> Route.Conflict(current)
         current?.pendingFinish == true -> Route.FinishPending
         current == null || !current.session.active -> Route.NoWorkout
@@ -155,15 +170,15 @@ fun WearWorkoutApp(notificationsAllowed: Boolean, onEnableNotifications: () -> U
                         expiresAt = pairingExpiry,
                         nowEpochMs = nowEpochMs,
                         busy = busy || pairingChecking,
-                        message = message,
+                        message = shownMessage,
                         error = error,
                         onStartPairing = { startPairing("Waiting for approval in WorkoutApp.") }
                     )
                     is Route.Conflict -> ConflictReview(
                         snapshot = screen.snapshot,
-                        operation = repository.store.pendingOperations().firstOrNull { it.id == screen.snapshot.conflictOperationId },
+                        operation = storeState.pending.firstOrNull { it.id == screen.snapshot.conflictOperationId },
                         unit = screen.snapshot.unit,
-                        pairingRequired = !isPaired,
+                        pairingRequired = !paired,
                         pairingCode = pairingCode,
                         pairingChecking = pairingChecking,
                         busy = busy,
@@ -172,12 +187,12 @@ fun WearWorkoutApp(notificationsAllowed: Boolean, onEnableNotifications: () -> U
                         onStartPairing = { startPairing(null) }
                     )
                     Route.FinishPending -> FinishPendingScreen(
-                        queuedCount = repository.store.pendingOperations().size,
-                        pairingRequired = !isPaired,
+                        queuedCount = queuedCount,
+                        pairingRequired = !paired,
                         pairingCode = pairingCode,
                         pairingChecking = pairingChecking,
                         busy = busy,
-                        message = message,
+                        message = shownMessage,
                         error = error,
                         onSync = { runAction { repository.syncPending() } },
                         onStartPairing = { startPairing(null) },
@@ -185,12 +200,12 @@ fun WearWorkoutApp(notificationsAllowed: Boolean, onEnableNotifications: () -> U
                     )
                     Route.NoWorkout -> NoWorkoutScreen(
                         busy = busy,
-                        message = message,
+                        message = shownMessage,
                         error = error,
                         onJoin = {
                             runAction {
-                                snapshot = repository.refresh()
-                                message = if (snapshot == null) "No active workout found. Start one in WorkoutApp first." else null
+                                val joined = repository.refresh()
+                                message = if (joined == null) "No active workout found. Start one in WorkoutApp first." else null
                             }
                         },
                         onDisconnect = { runAction { repository.disconnect(); message = "Watch disconnected." } }
@@ -199,16 +214,16 @@ fun WearWorkoutApp(notificationsAllowed: Boolean, onEnableNotifications: () -> U
                         active = screen.snapshot,
                         repository = repository,
                         nowEpochMs = nowEpochMs,
-                        isPaired = isPaired,
+                        queuedCount = queuedCount,
+                        isPaired = paired,
                         pairingCode = pairingCode,
                         pairingChecking = pairingChecking,
                         busy = busy,
                         notificationsAllowed = notificationsAllowed,
-                        message = message,
+                        message = shownMessage,
                         error = error,
                         runAction = ::runAction,
                         setMessage = { message = it },
-                        setSnapshot = { snapshot = it },
                         onStartPairing = { startPairing("Waiting for approval in WorkoutApp.") },
                         onEnableNotifications = onEnableNotifications
                     )
@@ -223,6 +238,7 @@ private fun ActiveRoute(
     active: WorkoutSnapshot,
     repository: WorkoutRepository,
     nowEpochMs: Long,
+    queuedCount: Int,
     isPaired: Boolean,
     pairingCode: String?,
     pairingChecking: Boolean,
@@ -232,14 +248,13 @@ private fun ActiveRoute(
     error: String?,
     runAction: (suspend () -> Unit) -> Unit,
     setMessage: (String?) -> Unit,
-    setSnapshot: (WorkoutSnapshot?) -> Unit,
     onStartPairing: () -> Unit,
     onEnableNotifications: () -> Unit
 ) {
     ActiveWorkoutScreen(
         snapshot = active,
         nowEpochMs = nowEpochMs,
-        queuedCount = repository.store.pendingOperations().size,
+        queuedCount = queuedCount,
         pairingRequired = !isPaired,
         pairingCode = pairingCode,
         pairingChecking = pairingChecking,
@@ -253,20 +268,18 @@ private fun ActiveRoute(
                 runAction { repository.logSet(model.exercise.id, set.id, reps, load, rir); setMessage("Set saved on this watch.") }
             }
         },
-        onExtendRest = { runAction { setSnapshot(repository.extendRest()) } },
-        onSkipRest = { runAction { setSnapshot(repository.skipRest()) } },
+        onUndoLastSet = { runAction { repository.undoLastSet(); setMessage("Set undone. Log it again when ready.") } },
+        onExtendRest = { repository.extendRest() },
+        onSkipRest = { repository.skipRest() },
         onPauseResume = {
+            val pausing = active.session.pausedAt == null
             runAction {
-                if (active.session.pausedAt == null) repository.pause() else repository.resume()
-                setMessage(if (active.session.pausedAt == null) "Workout paused on this watch." else "Workout resumed on this watch.")
+                if (pausing) repository.pause() else repository.resume()
+                setMessage(if (pausing) "Workout paused on this watch." else "Workout resumed on this watch.")
             }
         },
         onFinish = { runAction { repository.finish(); setMessage("Workout finished on the watch; waiting for WorkoutApp to confirm.") } },
-        onSelectExercise = { id ->
-            val next = active.copy(activeExerciseId = id)
-            repository.store.saveSnapshot(next)
-            setSnapshot(next)
-        },
+        onSelectExercise = repository::selectExercise,
         onRetrySync = { runAction { repository.syncPending(); setMessage("Sync checked.") } },
         onStartPairing = onStartPairing,
         onDisconnect = { runAction { repository.disconnect(); setMessage("Watch disconnected.") } },
@@ -283,6 +296,9 @@ private sealed interface Route {
     data class Active(val snapshot: WorkoutSnapshot) : Route
 }
 
-private const val IDLE_WORKOUT_REFRESH_INTERVAL_MS = 15_000L
+private const val ACTIVE_REFRESH_INTERVAL_MS = 15_000L
+private const val IDLE_REFRESH_INTERVAL_MS = 30_000L
+private const val PAIRING_POLL_MS = 4_000L
 private const val MESSAGE_VISIBLE_MS = 5_000L
+private const val NOTICE_VISIBLE_MS = 8_000L
 private const val ROUTE_FADE_MS = 240

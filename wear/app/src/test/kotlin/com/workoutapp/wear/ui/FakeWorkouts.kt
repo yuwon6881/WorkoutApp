@@ -83,6 +83,9 @@ object FakeWorkouts {
 
     val allDone = session.copy(exercises = session.exercises.map { exercise -> exercise.copy(sets = exercise.sets.map { it.copy(done = true, reps = 10, weightKg = it.weightKg ?: 20.0) }) })
 
+    val nothingLogged = session.copy(completedSets = 0, warmupSets = 0,
+        exercises = session.exercises.map { exercise -> exercise.copy(sets = exercise.sets.map { it.copy(done = false) }) })
+
     fun operation(type: String, setId: String? = null) = PendingOperation(
         sequence = 1, id = "op-1", type = type, sessionId = session.id, setId = setId, revision = 7,
         requestJson = "{}", baselineJson = "{}", createdAt = STARTED, attempted = true

@@ -39,6 +39,7 @@ builder.Services.AddDbContext<AppDb>((services,o)=>
 builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<CatalogService>();
 builder.Services.AddScoped<ExerciseService>();
+builder.Services.AddScoped<ExerciseLoadSettingsService>();
 builder.Services.AddScoped<TemplateService>();
 builder.Services.AddScoped<ProgramProgressService>();
 builder.Services.AddScoped<ProgramLifecycleService>();

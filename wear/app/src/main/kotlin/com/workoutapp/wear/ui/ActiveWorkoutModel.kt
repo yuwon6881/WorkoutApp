@@ -57,7 +57,8 @@ fun activeSetModel(snapshot: WorkoutSnapshot): ActiveSetModel {
         warmup = set?.warmup == true,
         targetReps = targetRepsText(prescription),
         targetRir = prescription?.rir?.takeIf { it.isNotBlank() },
-        startingReps = (set?.reps ?: prescription?.repMin?.takeIf { it > 0 } ?: MIN_REPS).coerceIn(MIN_REPS, MAX_REPS),
+        startingReps = (set?.reps ?: prescription?.repMin?.takeIf { it > 0 } ?: MIN_REPS)
+            .coerceIn(MIN_REPS, MAX_REPS),
         startingLoad = (set?.weightKg ?: set?.suggestion?.suggestedLoadKg)?.let { roundedDisplay(it, unit) },
         suggestedLoad = set?.suggestion?.suggestedLoadKg?.takeIf { set.weightKg == null }?.let { roundedDisplay(it, unit) },
         loadStep = kgToDisplay(stepKg, unit),
@@ -102,3 +103,17 @@ private fun roundedDisplay(kg: Double, unit: String): Double = Math.round(kgToDi
 
 private const val DEFAULT_STEP_KG = 2.5
 private val EDITABLE_LOAD_MODES = setOf("external", "added", "assistance")
+
+/** The set the lifter can take back from the overview: the last one this watch logged, while it is still logged. */
+data class UndoableSet(val exerciseName: String, val summary: String)
+
+fun undoableSet(snapshot: WorkoutSnapshot): UndoableSet? {
+    val setId = snapshot.lastLoggedSetId ?: return null
+    if (!snapshot.session.active || snapshot.pendingFinish) return null
+    val exercise = snapshot.session.exercises.firstOrNull { row -> row.sets.any { it.id == setId } } ?: return null
+    val set = exercise.sets.first { it.id == setId }
+    if (!set.done) return null
+    val load = set.weightKg?.let { "${formatLoad(kgToDisplay(it, snapshot.unit))} ${snapshot.unit}" }
+    val summary = listOfNotNull(set.reps?.let { plural(it, "rep") }, load).joinToString(" · ").ifEmpty { "Logged set" }
+    return UndoableSet(exercise.name, summary)
+}

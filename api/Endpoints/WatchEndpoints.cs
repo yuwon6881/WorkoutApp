@@ -38,9 +38,10 @@ public static class WatchEndpoints
             return Results.Ok(new { unit = user.Unit, restSeconds = user.RestSeconds, session = await workouts.Active(ct) });
         });
         app.MapGet("/api/watch/workouts/{id:guid}", async (Guid id, WorkoutService workouts, CancellationToken ct)
-            => Results.Ok(await workouts.Get(id, ct)));
+            => Results.Ok(await WatchWorkoutAccess.ActiveSession(workouts, id, ct)));
         app.MapPatch("/api/watch/workouts/{id:guid}/sets/{setId:guid}", async (Guid id, Guid setId, JsonElement payload,
-            WorkoutService workouts, CancellationToken ct) => Results.Ok(await workouts.PatchSet(id, setId, payload, ct)));
+            WorkoutService workouts, CancellationToken ct)
+            => Results.Ok(await workouts.PatchSet(id, setId, WatchWorkoutAccess.SetPatch(payload), ct)));
         app.MapPost("/api/watch/workouts/{id:guid}/pause", async (Guid id, WorkoutTimingInput input, WorkoutService workouts, CancellationToken ct)
             => Results.Ok(await workouts.Pause(id, input, ct)));
         app.MapPost("/api/watch/workouts/{id:guid}/resume", async (Guid id, WorkoutTimingInput input, WorkoutService workouts, CancellationToken ct)

@@ -49,11 +49,24 @@ function makeExercise(id: string, name: string, sequenceGroup = '', setsCount = 
 }
 
 describe('restAppliesAfter', () => {
-  it('returns false if there is no next step (end of workout)', () => {
+  it('rests after the last warm-up before a working set', () => {
+    const ex = makeExercise('ex1', 'Bench Press', '', 2, { warmupFirst: true });
+    expect(restAppliesAfter(
+      { exercise: ex, setIndex: 0, set: ex.sets[0], prescription: ex.prescription[0] },
+      { exercise: ex, setIndex: 1, set: ex.sets[1], prescription: ex.prescription[1] }
+    )).toBe(true);
+  });
+
+  it('rests after myo-reps even when they finish the exercise', () => {
+    const ex = makeExercise('ex1', 'Curl', '', 2, { myorepsLast: true });
+    expect(restAppliesAfter({ exercise: ex, setIndex: 1, set: ex.sets[1], prescription: ex.prescription[1] }, null)).toBe(true);
+  });
+
+  it('rests after the final working set too', () => {
     const ex = makeExercise('ex1', 'Bench Press');
     const current: WorkoutStep = { exercise: ex, setIndex: 2, set: ex.sets[2], prescription: ex.prescription[2] };
-    expect(restAppliesAfter(current, null)).toBe(false);
-    expect(restAppliesAfter(current, undefined)).toBe(false);
+    expect(restAppliesAfter(current, null)).toBe(true);
+    expect(restAppliesAfter(current, undefined)).toBe(true);
   });
 
   it('returns true between normal working sets of the same exercise', () => {
@@ -76,18 +89,18 @@ describe('restAppliesAfter', () => {
     expect(restAppliesAfter(current, warmupNext)).toBe(false);
   });
 
-  it('returns false when next step is a dropset', () => {
+  it('rests before a drop set', () => {
     const ex = makeExercise('ex1', 'Cable Row', '', 2, { dropsetLast: true });
     const current: WorkoutStep = { exercise: ex, setIndex: 0, set: ex.sets[0], prescription: ex.prescription[0] };
     const next: WorkoutStep = { exercise: ex, setIndex: 1, set: ex.sets[1], prescription: ex.prescription[1] };
-    expect(restAppliesAfter(current, next)).toBe(false);
+    expect(restAppliesAfter(current, next)).toBe(true);
   });
 
-  it('returns false when next step is myoreps', () => {
+  it('rests before myo-reps', () => {
     const ex = makeExercise('ex1', 'Bicep Curl', '', 2, { myorepsLast: true });
     const current: WorkoutStep = { exercise: ex, setIndex: 0, set: ex.sets[0], prescription: ex.prescription[0] };
     const next: WorkoutStep = { exercise: ex, setIndex: 1, set: ex.sets[1], prescription: ex.prescription[1] };
-    expect(restAppliesAfter(current, next)).toBe(false);
+    expect(restAppliesAfter(current, next)).toBe(true);
   });
 
   it('returns false when transitioning from superset partner A to partner B', () => {
@@ -116,6 +129,14 @@ describe('restAppliesAfter', () => {
 });
 
 describe('findNextStep', () => {
+  it('returns to an unfinished partner after sets were removed or logged out of order', () => {
+    const a = makeExercise('a', 'Curl', 'A1', 1);
+    const b = makeExercise('b', 'Pushdown', 'A2', 2);
+    const step = findNextStep([a, b], 1, 1);
+    expect(step?.exercise.id).toBe('a');
+    expect(step?.setIndex).toBe(0);
+  });
+
   it('finds next uncompleted set in same exercise for straight sets', () => {
     const ex = makeExercise('ex1', 'Bench Press', '', 3);
     const step = findNextStep([ex], 0, 0);

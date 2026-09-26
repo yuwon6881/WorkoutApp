@@ -203,6 +203,28 @@ rather than the SPA document, and no authenticated API response is cached.
 The project's **Root Directory must be set to `web`**, since the repository root now holds the
 API. Set the exact Cloud Run origin in `web/vercel.json` before deploying.
 
+## Android app
+
+`web/android/` is a Capacitor shell around the deployed web origin (`web/capacitor.config.ts`), so
+it needs no separate web build of its own: a Vercel deploy updates the app's content, and the
+service worker keeps it usable offline. Rebuild the APK only for native changes (plugins,
+icons, manifest, the origin). The shell keeps FitnessAccount sign-in inside the app by allowing
+navigation to the sign-in host; no extra redirect URI is required because the callback returns to
+the same web origin.
+
+```powershell
+cd web
+$env:JAVA_HOME = '<JDK 21>'            # Capacitor 8 requires JDK 21
+$env:ANDROID_HOME = "$env:LOCALAPPDATAAndroidSdk"
+npm.cmd run android:sync               # build dist/ (offline fallback page) and copy native config
+cd android; .gradlew.bat assembleDebug # or bundleRelease with a signing config for Play
+```
+
+`WORKOUT_APP_ORIGIN` and `WORKOUT_SIGN_IN_HOST` point a build at a staging origin. Rest alerts in
+the app are local notifications scheduled for each rest deadline (`POST_NOTIFICATIONS` and
+`SCHEDULE_EXACT_ALARM`), not web push. Opening app links in the app instead of the browser needs
+a `/.well-known/assetlinks.json` with the release signing certificate, which is not published yet.
+
 ## Automatic deployment
 
 The private GitHub repository `yuwon6881/WorkoutApp` is connected to the Vercel `workout` project.

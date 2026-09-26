@@ -7,8 +7,7 @@ namespace Workout.Api.Domain;
 public record PreviousSet(double? WeightKg, int? Reps, double? Rpe);
 
 /// A historical exposure for one working-set ordinal. The list supplied to the policy is newest
-/// first and contains the latest hard exposures plus the most recent successful exposure when it
-/// is older than those hard exposures.
+/// first, bounded to thirty completed sessions, with each session's prescription and effort.
 public sealed record SetExposure(
     Guid SessionId,
     DateTime CompletedAt,
@@ -16,7 +15,14 @@ public sealed record SetExposure(
     int? Reps,
     double? Rpe,
     double? SystemLoadKg = null,
-    string ResistanceMode = ResistanceModes.External);
+    string ResistanceMode = ResistanceModes.External,
+    string? Rir = null,
+    int? RepMin = null,
+    int? RepMax = null,
+    double? TargetRpe = null,
+    string? TargetRir = null,
+    bool IsRepRangeTransition = false,
+    bool HasPrescription = false);
 
 public static class ProgressionModes
 {
@@ -55,7 +61,8 @@ public sealed record SetProgressionSuggestion(
     long? NutritionContextRevision,
     bool IsBodyweightAdjustment = false,
     double? SuggestedSystemLoadKg = null,
-    string ResistanceMode = ResistanceModes.External);
+    string ResistanceMode = ResistanceModes.External,
+    bool IsRepRangeTransition = false);
 
 /// The old exercise estimate is retained for historical exports and strength charts. It is not
 /// used to make a set suggestion: adaptive progression is keyed by exercise and working ordinal.
@@ -77,18 +84,13 @@ public static class Progression
         => !string.IsNullOrWhiteSpace(repsText) && OpenReps.IsMatch(repsText) && !repsText.Any(char.IsDigit);
 
     public static SetProgressionSuggestion ForPrescription(SetPrescription prescription, SetProgressionSuggestion suggestion)
-        => HasOpenReps(prescription.RepsText) ? suggestion with { Reason = "As many reps as possible: log the reps you get." }
-            : prescription.RepMin is null ? suggestion with { Reason = "No rep target is set: log the reps you do." }
+        => HasOpenReps(prescription.RepsText) ? suggestion with { Reason = "As many reps as possible: log the reps you get. " + suggestion.Reason }
+            : prescription.RepMin is null ? suggestion with { Reason = "No rep target is set: log the reps you do. " + suggestion.Reason }
             : suggestion;
 
     /// Neither an open set nor one with no rep target is prefilled with a count it never asked for.
     public static int? PrefillReps(SetPrescription prescription, SetProgressionSuggestion suggestion)
         => HasOpenReps(prescription.RepsText) || prescription.RepMin is null ? null : suggestion.SuggestedReps;
-
-    /// The rep range the load rules work within. An unstated target keeps the one-rep floor those
-    /// rules have always used for open sets, so load progression is unchanged; it is never shown.
-    public static (int Min, int Max) LoadRuleReps(SetPrescription prescription)
-        => (prescription.RepMin ?? 1, prescription.RepMax ?? prescription.RepMin ?? 1);
 
     public const double DefaultStepKg = 2.5;
     public const int MaxEstimatedReps = 12;
@@ -170,90 +172,19 @@ public static class Progression
         return new ProgressionState(trend, sessionE1rmKg, stalls);
     }
 
-    /// Make the suggestion for one working-set ordinal from newest-first history.
+    public static SetProgressionSuggestion Suggest(
+        SetPrescription prescription, IReadOnlyList<SetExposure> history, string mode, LoadOptions loads,
+        long? revision = null, string resistanceMode = ResistanceModes.External,
+        Func<SetExposure, double?>? selectLoad = null)
+        => PrescriptionProgression.Suggest(prescription, history, mode, loads, revision, resistanceMode, selectLoad);
+
+    /// Compatibility entry point for callers with explicit rep bounds.
     public static SetProgressionSuggestion SuggestSet(
-        int repMin,
-        int repMax,
-        double? targetRpe,
-        IReadOnlyList<SetExposure> latestExposures,
-        string progressionMode,
-        double stepKg,
-        long? nutritionContextRevision = null,
-        string resistanceMode = ResistanceModes.External,
-        Func<SetExposure, double?>? suggestedLoad = null)
-    {
-        var goal = targetRpe ?? 8;
-        var source = latestExposures.FirstOrDefault();
-        var mode = ProgressionModes.All.Contains(progressionMode) ? progressionMode : ProgressionModes.Normal;
-        var required = ProgressionModes.QualifiedExposures(mode);
-        var loadSelector = suggestedLoad ?? (exposure => exposure.LoadKg);
-        double? outputLoad(double? value) => resistanceMode == ResistanceModes.RepsOnly ? null : value;
-        var sourceLoad = source is null ? null : loadSelector(source);
-
-        if (source is null || source.Reps is not { } sourceReps || sourceLoad is null && resistanceMode != ResistanceModes.RepsOnly)
-            return New(null, repMin, "First time through. Enter the load you actually use.", null, mode, nutritionContextRevision, resistanceMode);
-
-        if (source.Rpe is null)
-            return New(outputLoad(loadSelector(source)), ClampReps(sourceReps, repMin, repMax),
-                "Repeat the last load and reps. No actual RPE was recorded, so progression is on hold.", source, mode,
-                nutritionContextRevision, resistanceMode);
-
-        if (IsHard(source, repMin, goal))
-        {
-            var hardStreak = Consecutive(latestExposures, exposure => IsHard(exposure, repMin, goal));
-            var load = loadSelector(source);
-            if (hardStreak == 1)
-                return New(outputLoad(load), repMin, "Repeat the prescribed minimum after a hard exposure.", source, mode,
-                    nutritionContextRevision, resistanceMode);
-            if (hardStreak == 2)
-                return New(outputLoad(Reduce(load, stepKg)), repMin, "One equipment step lighter after two hard exposures.", source, mode,
-                    nutritionContextRevision, resistanceMode);
-
-            if (hardStreak == 3)
-            {
-                var successful = latestExposures.FirstOrDefault(exposure => IsSuccessful(exposure, repMin, goal) && loadSelector(exposure) is not null);
-                var deloadFrom = loadSelector(successful ?? source);
-                var deload = deloadFrom is { } value ? (double?)RoundDownToStep(Math.Max(0, value * DeloadFactor), stepKg) : null;
-                return New(outputLoad(deload), repMin, "Three hard exposures in a row. Deload 7.5% from the last successful load and rebuild.", source,
-                    mode, nutritionContextRevision, resistanceMode);
-            }
-            else
-            {
-                var deloadFrom = loadSelector(source);
-                var deload = deloadFrom is { } value ? (double?)RoundDownToStep(Math.Max(0, value * DeloadFactor), stepKg) : null;
-                return New(outputLoad(deload), repMin, "Continued difficulty after deload. Reducing another 7.5% from the current load.", source,
-                    mode, nutritionContextRevision, resistanceMode);
-            }
-        }
-
-        // A missing/neutral effort resets both streaks. Only a real success may advance reps.
-        if (!IsSuccessful(source, repMin, goal))
-            return New(outputLoad(loadSelector(source)), ClampReps(sourceReps, repMin, repMax),
-                "Repeat the last load and reps. The exposure was not within the target effort range.", source, mode,
-                nutritionContextRevision, resistanceMode);
-
-        if (sourceReps < repMax)
-        {
-            var nextReps = Math.Min(repMax, sourceReps + 1);
-            return New(outputLoad(loadSelector(source)), nextReps, $"Same load, one more rep: {nextReps}.", source, mode,
-                nutritionContextRevision, resistanceMode);
-        }
-
-        var qualifiedStreak = ConsecutiveQualified(latestExposures, repMax, goal, loadSelector);
-        if (stepKg <= 0 || resistanceMode == ResistanceModes.RepsOnly)
-            return New(outputLoad(loadSelector(source)), repMax, "Top of the range with no adjustable load. Keep building reps or control the tempo.", source,
-                mode, nutritionContextRevision, resistanceMode);
-        if (qualifiedStreak < required)
-            return New(outputLoad(loadSelector(source)), repMax,
-                required == 1 ? "Top of the range reached. The next load step is earned." :
-                $"Top of the range reached. Earn {required - qualifiedStreak} more qualified exposure{(required - qualifiedStreak == 1 ? "" : "s")} at this load before increasing it.",
-                source, mode, nutritionContextRevision, resistanceMode);
-
-        var increased = loadSelector(source) is { } current ? Math.Max(0, RoundToStep(current + stepKg, stepKg)) : (double?)null;
-        return New(outputLoad(increased), repMin, $"Increase one equipment step after {required} qualified exposure{(required == 1 ? "" : "s")}.", source,
-            mode, nutritionContextRevision, resistanceMode);
-    }
-
+        int repMin, int repMax, double? targetRpe, IReadOnlyList<SetExposure> latestExposures,
+        string progressionMode, double stepKg, long? nutritionContextRevision = null,
+        string resistanceMode = ResistanceModes.External, Func<SetExposure, double?>? suggestedLoad = null)
+        => Suggest(new SetPrescription(repMin, repMax, targetRpe, null, null, null, null), latestExposures,
+            progressionMode, new LoadOptions(stepKg), nutritionContextRevision, resistanceMode, suggestedLoad);
     /// Kept for the old export/chart contract. It now follows the same one-step policy as the
     /// per-set engine and never performs an easy-session double jump.
     public static ProgressionPlan Next(int repMin, int repMax, double? targetRpe, List<PreviousSet> previous,
@@ -266,54 +197,4 @@ public static class Progression
         return new ProgressionPlan(delta, suggestion.SuggestedReps, suggestion.Reason, suggestion.SuggestedLoadKg);
     }
 
-    private static SetProgressionSuggestion New(double? load, int reps, string reason, SetExposure? source, string mode,
-        long? revision, string resistanceMode)
-        => new(load, reps, reason, source?.SessionId == Guid.Empty ? null : source?.SessionId,
-            source?.CompletedAt == DateTime.MinValue ? null : source?.CompletedAt, mode, revision,
-            false, source?.SystemLoadKg, resistanceMode);
-
-    private static double? Reduce(double? load, double step)
-        => load is { } value ? Math.Max(0, RoundDownToStep(value - step, step)) : null;
-
-    private static int ClampReps(int reps, int repMin, int repMax)
-        => Math.Clamp(reps, repMin, repMax);
-
-    private static bool IsHard(SetExposure exposure, int repMin, double targetRpe)
-        => exposure.Reps is { } reps && reps < repMin || exposure.Rpe is { } rpe && rpe >= targetRpe + 1;
-
-    private static bool IsSuccessful(SetExposure exposure, int repMin, double targetRpe)
-        => exposure.Reps is { } reps && reps >= repMin && exposure.Rpe is { } rpe && rpe <= targetRpe;
-
-    private static int Consecutive(IEnumerable<SetExposure> exposures, Func<SetExposure, bool> predicate)
-    {
-        var count = 0;
-        foreach (var exposure in exposures)
-        {
-            if (!predicate(exposure)) break;
-            count++;
-        }
-        return count;
-    }
-
-    private static int ConsecutiveQualified(IReadOnlyList<SetExposure> exposures, int repMax, double targetRpe,
-        Func<SetExposure, double?> loadSelector)
-    {
-        var first = exposures.FirstOrDefault();
-        if (first is null || !IsQualified(first, repMax, targetRpe)) return 0;
-        var firstLoad = loadSelector(first);
-        var count = 0;
-        foreach (var exposure in exposures)
-        {
-            var load = loadSelector(exposure);
-            if (!IsQualified(exposure, repMax, targetRpe) || !SameLoad(firstLoad, load)) break;
-            count++;
-        }
-        return count;
-    }
-
-    private static bool IsQualified(SetExposure exposure, int repMax, double targetRpe)
-        => exposure.Reps is { } reps && reps >= repMax && exposure.Rpe is { } rpe && rpe <= targetRpe;
-
-    private static bool SameLoad(double? left, double? right)
-        => left is null && right is null || left is { } l && right is { } r && Math.Abs(l - r) < .0001;
 }

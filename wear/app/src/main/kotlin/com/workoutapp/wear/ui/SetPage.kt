@@ -6,7 +6,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
-import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
@@ -18,6 +18,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -85,7 +86,8 @@ fun SetPage(
                     modifier = Modifier.padding(top = 3.dp),
                     style = MaterialTheme.typography.titleSmall,
                     textAlign = TextAlign.Center,
-                    maxLines = 2,
+                    // Enlarged text would push the Log action below the fold; the overview keeps the full name.
+                    maxLines = if (LocalDensity.current.fontScale > LARGE_TEXT_SCALE) 1 else 2,
                     overflow = TextOverflow.Ellipsis
                 )
             }
@@ -128,7 +130,7 @@ private fun RowScope.MetricTile(
     Column(
         modifier = Modifier
             .weight(1f)
-            .height(50.dp)
+            .heightIn(min = 50.dp)
             .clip(RoundedCornerShape(18.dp))
             .background(Ayu.SurfaceRaised)
             .then(
@@ -230,3 +232,5 @@ fun loadCaption(model: ActiveSetModel, load: Double?, unit: String): String = wh
     model.suggestedLoad != null && load == model.suggestedLoad -> "$unit · suggested"
     else -> unit
 }
+
+private const val LARGE_TEXT_SCALE = 1.1f
