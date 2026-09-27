@@ -83,7 +83,9 @@ export default defineConfig({
       // The rest-timer notification needs a click handler in the worker itself. It is imported
       // rather than hand-written as a whole worker so Workbox keeps owning the precache.
       importScripts: ['rest-alert-sw.js'],
-      cleanupOutdatedCaches: true
+      cleanupOutdatedCaches: true,
+      // The registration helper reloads only after the requested worker takes control.
+      clientsClaim: true
     }
   })]
 });

@@ -96,6 +96,7 @@ export function DayDetailContent({
   restorableExerciseLineIds,
   onRestoreExercise,
   DayEditorComponent,
+  getRepRangeMemory,
   selectedMuscle,
   onMuscleSelect
 }: {
@@ -107,6 +108,7 @@ export function DayDetailContent({
   onCustomExerciseCreated?: () => Promise<void>;
   restorableExerciseLineIds?: string[];
   onRestoreExercise?: (exerciseLineId: string) => Promise<void>;
+  getRepRangeMemory: (exerciseLineId: string) => Map<number, number>;
   DayEditorComponent: typeof import('./ImportDayEditor').DayEditor;
   selectedMuscle: string | null;
   onMuscleSelect: (muscle: string | null) => void;
@@ -128,6 +130,7 @@ export function DayDetailContent({
       onCustomExerciseCreated={onCustomExerciseCreated}
       restorableExerciseLineIds={restorableExerciseLineIds}
       onRestoreExercise={onRestoreExercise}
+      getRepRangeMemory={getRepRangeMemory}
       selectedMuscle={selectedMuscle}
     />
   </>;

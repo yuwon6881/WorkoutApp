@@ -1,5 +1,8 @@
 import {
+  useCallback,
   useId,
+  useLayoutEffect,
+  useRef,
   type InputHTMLAttributes,
   type Ref,
   type ReactNode,
@@ -29,12 +32,60 @@ export function Field({ label, error, className = '', id, name, ...props }: Fiel
   </label>;
 }
 
-export function TextAreaField({ label, error, className = '', id, name, ...props }: FieldChrome & TextareaHTMLAttributes<HTMLTextAreaElement> & { ref?: Ref<HTMLTextAreaElement> }) {
+export function TextAreaField({
+  label,
+  error,
+  className = '',
+  id,
+  name,
+  autoGrow = false,
+  ref: forwardedRef,
+  onInput,
+  style,
+  ...props
+}: FieldChrome & TextareaHTMLAttributes<HTMLTextAreaElement> & {
+  ref?: Ref<HTMLTextAreaElement>;
+  autoGrow?: boolean;
+}) {
   const generated = useId();
   const { controlId, controlName, errorId } = fieldIds(id, generated, error, name, label);
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const resize = useCallback(() => {
+    const textarea = textareaRef.current;
+    if (!textarea || !autoGrow) return;
+    textarea.style.height = 'auto';
+    const computed = window.getComputedStyle(textarea);
+    const borders = Number.parseFloat(computed.borderTopWidth) + Number.parseFloat(computed.borderBottomWidth);
+    const height = `${textarea.scrollHeight + (Number.isFinite(borders) ? borders : 0)}px`;
+    if (textarea.style.height !== height) textarea.style.height = height;
+  }, [autoGrow]);
+
+  useLayoutEffect(() => {
+    resize();
+  }, [resize, props.value, props.defaultValue]);
+
+  useLayoutEffect(() => {
+    if (!autoGrow) return;
+    window.addEventListener('resize', resize);
+    return () => window.removeEventListener('resize', resize);
+  }, [autoGrow, resize]);
+
+  const setRef = useCallback((node: HTMLTextAreaElement | null) => {
+    textareaRef.current = node;
+    if (typeof forwardedRef === 'function') forwardedRef(node);
+    else if (forwardedRef) forwardedRef.current = node;
+  }, [forwardedRef]);
+
+  const handleInput: TextareaHTMLAttributes<HTMLTextAreaElement>['onInput'] = event => {
+    onInput?.(event);
+    resize();
+  };
+
   return <label className={`field ${className}`.trim()} htmlFor={controlId}>
     <span>{label}</span>
-    <textarea id={controlId} name={controlName} aria-invalid={error ? true : undefined} aria-describedby={errorId} {...props} />
+    <textarea id={controlId} name={controlName} ref={setRef} className={autoGrow ? 'auto-grow-textarea' : undefined}
+      aria-invalid={error ? true : undefined} aria-describedby={errorId} onInput={handleInput}
+      style={style} {...props} />
     {error && <span id={errorId} className="field-error" role="alert">{error}</span>}
   </label>;
 }

@@ -23,6 +23,26 @@ public sealed class ImportTableEvidenceTests
         Assert.Equal("RPE 8 TEST", set.RepsText);
         Assert.Equal((null, null, false), ImportNormalization.Reps(set.RepMin, set.RepMax, set.RepsText));
     }
+
+    [Fact]
+    public void A_single_number_in_the_printed_reps_column_remains_an_exact_target()
+    {
+        var program = new AiProgram("Exact reps", [new AiDay(null, null, 1, 1, "Upper", false, null, [
+            new AiExercise("Barbell Bench Press", null, null, [new AiSet(8, 10, null, null, null, null, null, RepsText: "8-10")],
+                SourcePage: 3, WorkingSets: "3")
+        ], 3)]);
+        const string source = """
+            === PAGE 3 ===
+            DAY LABEL: UPPER
+            Exercise | Sets | Reps | Rest
+            Barbell Bench Press | 3 | 8 | 120 sec
+            """;
+
+        var set = Assert.Single(Assert.Single(ImportTableEvidence.Enrich(program, source).Days!).Exercises).Sets[0];
+
+        Assert.Equal((8, 8, "8"), (set.RepMin, set.RepMax, set.RepsText));
+    }
+
     [Fact]
     public void A_final_set_failure_footer_applies_only_to_its_table_and_working_rows()
     {

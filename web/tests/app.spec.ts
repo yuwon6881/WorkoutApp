@@ -400,14 +400,6 @@ test('import a PDF program, resolve an unmapped exercise, and accept it', async 
   await expect(page.getByText('Description', { exact: true })).toHaveCount(0);
   const accept = page.getByRole('button', { name: 'Accept and create program', exact: true });
   const draftActions = page.getByRole('button', { name: 'Draft actions', exact: true });
-  if (testInfo.project.name === 'mobile') {
-    const acceptBox = await accept.boundingBox();
-    const actionsBox = await draftActions.boundingBox();
-    expect(acceptBox).not.toBeNull();
-    expect(actionsBox).not.toBeNull();
-    expect(Math.abs((acceptBox!.y + acceptBox!.height / 2) - (actionsBox!.y + actionsBox!.height / 2))).toBeLessThanOrEqual(3);
-    expect(actionsBox!.x).toBeGreaterThan(acceptBox!.x);
-  }
   await page.screenshot({ path: join(screenshotsDirectory, `${testInfo.project.name}-import-review.png`), fullPage: true });
 
   // The day reads as what it prescribes before it is opened.
@@ -463,7 +455,46 @@ test('import a PDF program, resolve an unmapped exercise, and accept it', async 
 
   // Opening it is for editing, and the rep range from the PDF is preserved as explicit bounds.
   await expect(page.getByLabel('Barbell bench press set 1 min reps').first()).toHaveValue('8');
-  await expect(page.getByLabel('Barbell bench press set 1 max reps').first()).toHaveValue('10');
+  await expect(page.getByLabel('Barbell bench press set 1 max reps').first()).toHaveValue('12');
+  const benchExercise = dayModal.locator('.import-exercise').filter({
+    has: page.locator('input[aria-label="Exercise name"][value="Barbell bench press"]')
+  });
+  const benchRepMode = benchExercise.getByRole('group', { name: 'Rep target for Barbell bench press', exact: true });
+  await benchRepMode.getByRole('button', { name: 'Exact', exact: true }).click();
+  await expect(benchRepMode.getByRole('button', { name: 'Exact', exact: true })).toHaveAttribute('aria-pressed', 'true');
+  await dayModal.getByRole('button', { name: 'Close dialog', exact: true }).click();
+  await expect(dayModal).not.toBeVisible();
+  await day.locator('.day-exercise-preview').click();
+  await expect(dayModal).toBeVisible();
+  await expect(benchRepMode.getByRole('button', { name: 'Exact', exact: true })).toHaveAttribute('aria-pressed', 'true');
+  await benchRepMode.getByRole('button', { name: 'Exact', exact: true }).click();
+  await benchRepMode.getByRole('button', { name: 'Range', exact: true }).click();
+  await expect(benchExercise.getByLabel('Barbell bench press set 1 min reps').first()).toHaveValue('8');
+  await expect(benchExercise.getByLabel('Barbell bench press set 1 max reps').first()).toHaveValue('12');
+
+  const description = benchExercise.getByRole('textbox', { name: 'Description', exact: true }).first();
+  const initialDescriptionHeight = await description.evaluate(element => element.getBoundingClientRect().height);
+  await description.fill('Coaching cue. '.repeat(24));
+  const descriptionSizing = await description.evaluate(element => ({
+    height: element.getBoundingClientRect().height,
+    clientHeight: element.clientHeight,
+    scrollHeight: element.scrollHeight,
+    overflowY: getComputedStyle(element).overflowY,
+    maxLength: (element as HTMLTextAreaElement).maxLength
+  }));
+  expect(descriptionSizing.height).toBeGreaterThan(initialDescriptionHeight);
+  expect(descriptionSizing.scrollHeight).toBeLessThanOrEqual(descriptionSizing.clientHeight + 1);
+  expect(descriptionSizing.overflowY).toBe('hidden');
+  expect(descriptionSizing.maxLength).toBe(1000);
+  await description.fill('');
+  if (testInfo.project.name === 'mobile') {
+    const acceptBox = await accept.boundingBox();
+    const actionsBox = await draftActions.boundingBox();
+    expect(acceptBox).not.toBeNull();
+    expect(actionsBox).not.toBeNull();
+    expect(Math.abs((acceptBox!.y + acceptBox!.height / 2) - (actionsBox!.y + actionsBox!.height / 2))).toBeLessThanOrEqual(3);
+    expect(actionsBox!.x).toBeGreaterThan(acceptBox!.x);
+  }
   const mysteryExercise = page.locator('.import-exercise').filter({
     has: page.locator('input[aria-label="Exercise name"][value="Mystery machine row"]')
   });

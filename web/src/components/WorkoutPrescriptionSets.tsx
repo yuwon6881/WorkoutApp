@@ -1,3 +1,4 @@
+import { useRef } from 'react';
 import { Trash2 } from 'lucide-react';
 import type { SetPrescription, TemplateExercise } from '../types';
 import { Button } from './ui/Button';
@@ -7,7 +8,7 @@ import { SwipeableRow } from './ui/SwipeableRow';
 import { WarmupRirNote } from './ui/WarmupRirNote';
 import { SetTypeSelect } from './ui/SetTypeSelect';
 import type { SetType } from '../lib/importSetTypes';
-import { usesRepRange, withRepMode } from '../lib/repMode';
+import { toggleRepMode, usesRepRange } from '../lib/repMode';
 import './SetPrescriptionGrid.css';
 
 // A saved workout's sets are working sets or warm-ups; techniques belong to imported programs.
@@ -25,6 +26,7 @@ export function WorkoutPrescriptionSets({
   onRemoveSet: (setIndex: number) => void;
 }) {
   const range = usesRepRange(exercise.sets);
+  const rememberedRepWidths = useRef(new Map<number, number>());
   let warmups = 0;
   let working = 0;
 
@@ -36,7 +38,8 @@ export function WorkoutPrescriptionSets({
           <RepModeToggle
             range={range}
             label={`Rep target for ${exercise.name}`}
-            onChange={next => exercise.sets.forEach((set, si) => onUpdateSet(si, withRepMode(set, next)))}
+            onChange={next => toggleRepMode(exercise.sets, next, rememberedRepWidths.current)
+              .forEach((set, si) => onUpdateSet(si, set))}
           />
         </span>
         <span className="set-grid-head-rir" aria-hidden="true">RIR</span>

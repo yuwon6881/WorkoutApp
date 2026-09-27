@@ -40,6 +40,16 @@ export function ProgramDayList({
   const dragRef = useRef<DragState | null>(null);
   const pointer = useRef<{ id: number; startY: number; lineId: string; index: number; active: boolean } | null>(null);
   const [selectedMuscle, setSelectedMuscle] = useState<string | null>(null);
+  const repRangeMemories = useRef(new Map<string, Map<number, number>>());
+
+  const getRepRangeMemory = useCallback((exerciseLineId: string) => {
+    let memory = repRangeMemories.current.get(exerciseLineId);
+    if (!memory) {
+      memory = new Map<number, number>();
+      repRangeMemories.current.set(exerciseLineId, memory);
+    }
+    return memory;
+  }, []);
 
   const days = week?.days ?? [];
   const openDayData = openDay ? days.find(d => d.lineId === openDay) : null;
@@ -199,6 +209,7 @@ export function ProgramDayList({
             restorableExerciseLineIds={restorableExerciseLineIds}
             onRestoreExercise={onRestoreExercise}
             DayEditorComponent={DayEditor}
+            getRepRangeMemory={getRepRangeMemory}
             selectedMuscle={selectedMuscle}
             onMuscleSelect={setSelectedMuscle}
           />

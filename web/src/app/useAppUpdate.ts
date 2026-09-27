@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { applyAppUpdate } from '../lib/appUpdate';
 
 // A new deployment waits instead of taking over: reloading on its own could interrupt a set being
 // typed. The shell offers the update when no workout is open, and the lifter chooses when.
@@ -21,5 +22,17 @@ export function useAppUpdate() {
     return () => { cancelled = true; };
   }, []);
 
-  return { ready, apply: () => void apply.current(true) };
+  return { ready, apply: () => {
+    void applyAppUpdate(
+      () => navigator.serviceWorker.getRegistration(),
+      async () => {
+        // Workbox classifies updates installed by a sibling tab as external; those
+        // do not always trigger its automatic reload. A requested takeover must reload
+        // this tab regardless of which tab installed the worker.
+        navigator.serviceWorker.addEventListener('controllerchange', () => window.location.reload(), { once: true });
+        await apply.current(true);
+      },
+      () => window.location.reload()
+    );
+  } };
 }

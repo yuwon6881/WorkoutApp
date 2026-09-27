@@ -7,7 +7,7 @@ import { Field } from './ui/Field';
 import { pairExercises, unlinkExercise } from '../lib/supersets';
 import { ExerciseEditor, blankExercise } from './ImportExerciseEditor';
 
-export function DayEditor({ day, exercises, onChange, onPropagateSubstitution, onMapExerciseSlot, onCustomExerciseCreated, restorableExerciseLineIds, onRestoreExercise, selectedMuscle }: {
+export function DayEditor({ day, exercises, onChange, onPropagateSubstitution, onMapExerciseSlot, onCustomExerciseCreated, restorableExerciseLineIds, onRestoreExercise, getRepRangeMemory, selectedMuscle }: {
   day: DraftWorkout;
   exercises: Exercise[];
   onChange: (day: DraftWorkout) => Promise<void>;
@@ -16,6 +16,7 @@ export function DayEditor({ day, exercises, onChange, onPropagateSubstitution, o
   onCustomExerciseCreated?: () => Promise<void>;
   restorableExerciseLineIds?: string[];
   onRestoreExercise?: (exerciseLineId: string) => Promise<void>;
+  getRepRangeMemory: (exerciseLineId: string) => Map<number, number>;
   selectedMuscle?: string | null;
 }) {
   const [draft, setDraft] = useState(day);
@@ -88,6 +89,7 @@ export function DayEditor({ day, exercises, onChange, onPropagateSubstitution, o
         {group.map(exercise => <div key={exercise.lineId}
           className={dimSet?.has(exercise.lineId) ? 'import-exercise-dim-wrap exercise-dimmed' : ''}>
           <ExerciseEditor exercise={exercise} exercises={exercises} allDayExercises={draft.exercises}
+            rememberedRepWidths={getRepRangeMemory(exercise.lineId)}
             onChange={next => save({ ...draft, exercises: draft.exercises.map(item => item.lineId === next.lineId ? next : item) })}
             onRemove={() => handleRemoveExercise(exercise.lineId)}
             onPairExercises={targetLineId => handlePairExercises(exercise.lineId, targetLineId)}

@@ -23,7 +23,7 @@ const chunks = [
           sequenceGroup: 'A1', sourceName: 'Barbell bench press', exerciseId: null, warmupSets: '2-3', substitutions: ['Incline dumbbell press', 'Push-up'],
           coachingNotes: null, notes: null,
           sets: [
-            { repMin: 8, repMax: 10, repsText: '8–10', targetRpe: 8, rir: null, restSeconds: 120, restText: '2 min', tempo: null, loadText: null, notes: null, repsSource: 'extracted', rpeSource: 'inferred', restSource: 'extracted' },
+            { repMin: 8, repMax: 12, repsText: '8–12', targetRpe: 8, rir: null, restSeconds: 120, restText: '2 min', tempo: null, loadText: null, notes: null, repsSource: 'extracted', rpeSource: 'inferred', restSource: 'extracted' },
             { repMin: 8, repMax: 10, repsText: '8–10', targetRpe: 8, rir: null, restSeconds: 120, restText: '2 min', tempo: null, loadText: null, notes: null, repsSource: 'extracted', rpeSource: 'inferred', restSource: 'extracted' }
           ]
         },

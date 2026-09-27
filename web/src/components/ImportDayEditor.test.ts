@@ -34,7 +34,7 @@ function renderEditor(warmup = false) {
   };
 
   return renderToStaticMarkup(createElement(DayEditor, {
-    day, exercises: [], onChange: async () => {}
+    day, exercises: [], onChange: async () => {}, getRepRangeMemory: () => new Map()
   }));
 }
 
@@ -84,7 +84,7 @@ describe('PDF import set review fields', () => {
     ];
 
     const markup = renderToStaticMarkup(createElement(DayEditor, {
-      day, exercises, onChange: async () => {}
+      day, exercises, onChange: async () => {}, getRepRangeMemory: () => new Map()
     }));
 
     expect(markup).toContain('import-exercise-muscles');
@@ -125,13 +125,13 @@ describe('PDF import set review fields', () => {
     ];
 
     const markupBefore = renderToStaticMarkup(createElement(DayEditor, {
-      day: dayBefore, exercises, onChange: async () => {}
+      day: dayBefore, exercises, onChange: async () => {}, getRepRangeMemory: () => new Map()
     }));
     expect(markupBefore).toContain('pill pill-accent">Chest</span>');
     expect(markupBefore).toContain('pill pill-muted">Triceps</span>');
 
     const markupAfter = renderToStaticMarkup(createElement(DayEditor, {
-      day: dayAfter, exercises, onChange: async () => {}
+      day: dayAfter, exercises, onChange: async () => {}, getRepRangeMemory: () => new Map()
     }));
     expect(markupAfter).toContain('pill pill-accent">Shoulders</span>');
     expect(markupAfter).toContain('pill pill-muted">Chest</span>');

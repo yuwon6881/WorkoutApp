@@ -15,7 +15,7 @@ import { Modal } from './ui/Modal';
 import { ExerciseLibrary } from './Exercises';
 import { CustomExerciseModal } from './CustomExerciseModal';
 import { SwipeableRow } from './ui/SwipeableRow';
-import { usesRepRange, withRepMode } from '../lib/repMode';
+import { toggleRepMode, usesRepRange } from '../lib/repMode';
 import './SetPrescriptionGrid.css';
 import './PrescriptionCardLayout.css';
 import { MenuButton, MenuItem } from './ui/MenuButton';
@@ -37,10 +37,11 @@ export function blankExercise(): DraftExercise {
   return { lineId: crypto.randomUUID(), sourceName: 'New exercise', exerciseId: null, restSeconds: 90, notes: null, sequenceGroup: '', substitutions: [], sets: [blankSet()] };
 }
 
-export function ExerciseEditor({ exercise, exercises, allDayExercises, onChange, onRemove, onPairExercises, onUnlinkExercise, onPropagateSubstitution, onMapExerciseSlot, onCustomExerciseCreated, canRestore, onRestore }: {
+export function ExerciseEditor({ exercise, exercises, allDayExercises, rememberedRepWidths, onChange, onRemove, onPairExercises, onUnlinkExercise, onPropagateSubstitution, onMapExerciseSlot, onCustomExerciseCreated, canRestore, onRestore }: {
   exercise: DraftExercise;
   exercises: Exercise[];
   allDayExercises: DraftExercise[];
+  rememberedRepWidths: Map<number, number>;
   onChange: (exercise: DraftExercise) => void;
   onRemove?: () => void;
   onPairExercises: (targetLineId: string) => void;
@@ -58,9 +59,17 @@ export function ExerciseEditor({ exercise, exercises, allDayExercises, onChange,
   const [restoreError, setRestoreError] = useState<string | null>(null);
   const [isMapping, setIsMapping] = useState(false);
   const [mappingError, setMappingError] = useState<string | null>(null);
-
   const editSet = (index: number, patch: Partial<DraftSet>) =>
     onChange({ ...exercise, sets: exercise.sets.map((set, current) => current === index ? { ...set, ...patch } : set) });
+
+  const removeSet = (index: number) => {
+    const shiftedWidths = [...rememberedRepWidths.entries()]
+      .filter(([setIndex]) => setIndex !== index)
+      .map(([setIndex, width]) => [setIndex > index ? setIndex - 1 : setIndex, width] as const);
+    rememberedRepWidths.clear();
+    for (const [setIndex, width] of shiftedWidths) rememberedRepWidths.set(setIndex, width);
+    onChange({ ...exercise, sets: exercise.sets.filter((_, current) => current !== index) });
+  };
 
   const changeSetType = (index: number, newType: SetType) => {
     const patch = applySetType(exercise.sets[index], newType);
@@ -289,6 +298,7 @@ export function ExerciseEditor({ exercise, exercises, allDayExercises, onChange,
         </div>
         <TextAreaField name={`exercise-notes-${exercise.lineId}`} className="import-exercise-notes" label="Description"
           value={exercise.notes ?? ''} placeholder="Cues, tempo or coaching notes"
+          autoGrow maxLength={1000}
           onChange={event => onChange({ ...exercise, notes: event.target.value })} />
       </div>
 
@@ -302,9 +312,10 @@ export function ExerciseEditor({ exercise, exercises, allDayExercises, onChange,
               label={`Rep target for ${exercise.sourceName}`}
               onChange={range => onChange({
                 ...exercise,
-                sets: exercise.sets.map(set => hasOpenReps(set)
-                  ? set
-                  : { ...set, ...withRepMode(set, range), repsText: null, repsSource: 'userEdited' })
+                sets: toggleRepMode(exercise.sets, range, rememberedRepWidths)
+                  .map(set => hasOpenReps(set)
+                    ? set
+                    : { ...set, repsText: null, repsSource: 'userEdited' })
               })}
             />
           </span>
@@ -315,7 +326,7 @@ export function ExerciseEditor({ exercise, exercises, allDayExercises, onChange,
             const setDisplayNumber = exercise.sets
               .slice(0, index + 1)
               .filter(s => !!s.warmup === !!set.warmup).length;
-            const remove = <Button variant="destructive" className="import-set-remove" aria-label={`Remove ${set.warmup ? 'warm-up' : 'set'} ${setDisplayNumber}`} onClick={() => onChange({ ...exercise, sets: exercise.sets.filter((_, current) => current !== index) })}>
+            const remove = <Button variant="destructive" className="import-set-remove" aria-label={`Remove ${set.warmup ? 'warm-up' : 'set'} ${setDisplayNumber}`} onClick={() => removeSet(index)}>
               <Trash2 size={15} /><span className="sr-only">Delete</span>
             </Button>;
             return <li className={`import-set ${set.warmup ? 'warmup-row' : ''}`} key={index}>
@@ -376,6 +387,8 @@ export function ExerciseEditor({ exercise, exercises, allDayExercises, onChange,
         <div className="import-set-footer">
           <Button variant="secondary" className="import-add-set" disabled={exercise.sets.length >= 24} onClick={() => {
             const previous = exercise.sets.at(-1) ?? blankSet();
+            const previousWidth = rememberedRepWidths.get(exercise.sets.length - 1);
+            if (previousWidth !== undefined && previousWidth > 0) rememberedRepWidths.set(exercise.sets.length, previousWidth);
             onChange({ ...exercise, sets: [...exercise.sets, { ...previous, warmup: false,
               targetRpe: previous.targetRpe ?? 8, rir: previous.warmup ? null : previous.rir,
               repsSource: 'userEdited', rpeSource: 'userEdited', restSource: 'userEdited' }] });
