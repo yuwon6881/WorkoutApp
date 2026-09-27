@@ -103,6 +103,30 @@ public sealed class CentralAuthTests : IAsyncLifetime
         Assert.Contains("secret is not configured", ex.Message);
     }
 
+    [Theory]
+    [InlineData("light", "light")]
+    [InlineData("dark", "dark")]
+    [InlineData("ultraviolet", null)]
+    public async Task Central_start_forwards_only_supported_presentation_themes(string requestedTheme, string? expectedTheme)
+    {
+        var tempDb = Path.Combine(Path.GetTempPath(), $"workout-theme-test-{Guid.NewGuid():N}.db");
+        try
+        {
+            using var factory = new TestAppFactory(tempDb);
+            var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+            var response = await client.GetAsync($"/api/auth/central/start?theme={Uri.EscapeDataString(requestedTheme)}");
+            Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
+            var query = Microsoft.AspNetCore.WebUtilities.QueryHelpers.ParseQuery(response.Headers.Location!.Query);
+            Assert.Equal(expectedTheme, query.TryGetValue("theme", out var forwarded) ? forwarded.ToString() : null);
+            Assert.Equal("S256", query["code_challenge_method"].ToString());
+        }
+        finally
+        {
+            SqliteConnection.ClearAllPools();
+            try { if (File.Exists(tempDb)) File.Delete(tempDb); } catch { /* best-effort cleanup */ }
+        }
+    }
+
     [Fact]
     public async Task Legacy_auth_routes_return_404()
     {
@@ -165,12 +189,14 @@ public sealed class CentralAuthTests : IAsyncLifetime
 
             client.DefaultRequestHeaders.Add("Cookie", $"{AuthService.Cookie}={token}");
 
-            var connectRes = await client.GetAsync("/api/auth/central/connect");
+            var connectRes = await client.GetAsync("/api/auth/central/connect?theme=dark");
             Assert.Equal(HttpStatusCode.Redirect, connectRes.StatusCode);
             var authorizeLocation = connectRes.Headers.Location!.ToString();
             var query = Microsoft.AspNetCore.WebUtilities.QueryHelpers.ParseQuery(new Uri(authorizeLocation).Query);
             var state = query["state"].ToString();
             Assert.False(string.IsNullOrWhiteSpace(state));
+            Assert.Equal("dark", query["theme"].ToString());
+            Assert.Equal("S256", query["code_challenge_method"].ToString());
 
             var setCookie = connectRes.Headers.GetValues("Set-Cookie").FirstOrDefault(c => c.StartsWith("workout-oidc-connect-state="));
             Assert.NotNull(setCookie);

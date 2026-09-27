@@ -11,6 +11,7 @@ export default defineConfig({
   use: { baseURL: process.env.WORKOUT_BASE_URL || `http://localhost:${webPort}`, headless: true, channel: 'chrome', reducedMotion: 'reduce' },
   projects: [
     { name: 'setup', testMatch: 'auth.setup.ts' },
+    { name: 'auth-view', testMatch: 'auth.spec.ts', use: { ...devices['Desktop Chrome'] } },
     { name: 'desktop', testMatch: 'app.spec.ts', dependencies: ['setup'], use: { ...devices['Desktop Chrome'], storageState: join(authDirectory, 'lifter.json'), viewport: { width: 1440, height: 1000 } } },
     { name: 'mobile', testMatch: 'app.spec.ts', dependencies: ['setup'], use: { ...devices['iPhone 13'], storageState: join(authDirectory, 'lifter.json'), defaultBrowserType: 'chromium' } },
     { name: 'tablet', testMatch: 'app.spec.ts', dependencies: ['setup'], use: { ...devices['Desktop Chrome'], storageState: join(authDirectory, 'lifter.json'), viewport: { width: 768, height: 1024 } } },

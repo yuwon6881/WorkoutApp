@@ -27,7 +27,8 @@ internal static partial class ImportTableEvidence
     /// never prints. A bare integer is not enough, because tracking columns are headed "1 | 2 | 3".
     private static readonly Regex HeaderValue = new(@"^(?:[~≈]\s*\d.*|\d+(?:\.\d+)?\s*[-–]\s*\d+(?:\.\d+)?\s*(?:min|mins|minutes?|sec|secs|seconds?|s|m|reps?)?|\d+(?:\.\d+)?\s*(?:min|mins|minutes?|sec|secs|seconds?|%)|\d+\.\d+)$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
     private const int MaxHeaderLength = 48;
-    private const string PartialRangePhrase = @"(?:partials?(?:\s+reps?)?(?:\s+rom)?|half[- ]?rom|half\s+reps?|(?:(?:top|bottom)[- ]?)?half(?:\s+of)?\s+(?:the\s+)?rom)";
+    private const string PartialRangePhrase = @"(?:partials?(?:\s+reps?)?(?:\s+rom)?|(?:short|reduced)[- ]?(?:rom|range\s+of\s+motion)|half[- ]?rom|half\s+reps?|(?:(?:top|bottom)[- ]?)?" + ImportRomPrescription.Range + ")";
+    private const string PartialRangeToken = @"(?<!\w)" + PartialRangePhrase + @"(?!\w)";
 
     private sealed record EvidenceRow(string? ExerciseName, int? WorkingSets, string? RepsText, int? RepMin, int? RepMax,
         string? LoadText, string? RirText, double? Rir, List<RirEvidence> RirBySet,
@@ -366,7 +367,7 @@ internal static partial class ImportTableEvidence
 
     private static string? PartialTechnique(string? source)
     {
-        if (!HasText(source) || !Regex.IsMatch(source!, $@"\b{PartialRangePhrase}\b", RegexOptions.IgnoreCase)) return null;
+        if (!HasText(source) || !Regex.IsMatch(source!, PartialRangeToken, RegexOptions.IgnoreCase)) return null;
         if (Regex.IsMatch(source!, @"\b(?:lengthened|long[- ]length)\s+partials?\b", RegexOptions.IgnoreCase))
             return "Lengthened partials";
         if (Regex.IsMatch(source!, @"\bintegrated\s+partials?\b", RegexOptions.IgnoreCase))
@@ -378,12 +379,12 @@ internal static partial class ImportTableEvidence
     {
         var technique = PartialTechnique(source);
         if (technique is null || Regex.IsMatch(source!,
-            $@"\b(?:avoid|don't|do\s+not|never|without)\b[^.!?]{{0,60}}\b{PartialRangePhrase}\b|\b(?:no|not)\s+(?:using\s+)?{PartialRangePhrase}\b",
+            $@"\b(?:avoid|don't|do\s+not|never|without|no|not)\b(?:\s+(?:using|use|performing|perform|doing|do|any|the|all|these|those|lengthened|integrated|long[- ]length))*\s+{PartialRangeToken}",
             RegexOptions.IgnoreCase)) return null;
-        if (Regex.IsMatch(source!, @"\b\d+\s+(?:reps?\s+)?(?:in\s+)?(?:the\s+)?(?:top|bottom)[- ]?half(?:\s+of)?\s+(?:the\s+)?rom\b", RegexOptions.IgnoreCase))
+        if (Regex.IsMatch(source!, @"\b\d+\s+(?:reps?\s*:?\s*)?(?:in\s+)?(?:the\s+)?(?:top|bottom)[- ]?" + ImportRomPrescription.Range + @"\b", RegexOptions.IgnoreCase))
             return technique;
         return Regex.IsMatch(source!,
-            $@"\b(?:use|using|perform|continue|follow|switch|alternate|add|finish|end|include|do|swing)\b[^.!?]{{0,70}}\b{PartialRangePhrase}\b|\b{PartialRangePhrase}\b[^.!?]{{0,70}}\b(?:on|during|for)\s+(?:the\s+)?(?:(?:all|each|every|first|last|final)\s+)?(?:(?:one|two|three|\d+)\s+)?(?:(?:working\s+)?sets?|reps?|rom)(?:\s+\d+)?\b",
+            $@"\b(?:use|using|perform(?:ed|ing)?|continue|follow|switch|alternate|add|finish|end|include|do|swing|stay|keep|kept|set)\b[^.!?]{{0,70}}{PartialRangeToken}|{PartialRangeToken}[^.!?]{{0,70}}\b(?:on|during|for)\s+(?:the\s+)?(?:(?:all|each|every|first|last|final)\s+)?(?:(?:one|two|three|\d+)\s+)?(?:(?:working\s+)?sets?|reps?|rom)(?:\s+\d+)?\b",
             RegexOptions.IgnoreCase) ? technique : null;
     }
 

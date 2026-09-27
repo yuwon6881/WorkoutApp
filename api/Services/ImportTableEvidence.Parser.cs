@@ -47,6 +47,19 @@ internal static partial class ImportTableEvidence
                 else if (Day.IsMatch(clean)) dayName = clean;
 
                 var cells = clean.Split('|').Select(cell => cell.Trim()).ToArray();
+                if (Regex.IsMatch(clean, @"^take\s+the\s+(?:final|last)\s+set\s+of\s+each\s+exercise\s+to\s+failure[.!]?$", RegexOptions.IgnoreCase))
+                {
+                    for (var rowIndex = 0; rowIndex < rows.Count; rowIndex++)
+                    {
+                        var stated = rows[rowIndex];
+                        if (stated.Table != table || stated.WorkingSets is null || ImportSetKinds.IsWarmupRow(stated.ExerciseName)) continue;
+                        var note = HasText(stated.CoachingNote) ? $"{stated.CoachingNote} {clean}" : clean;
+                        var avoidsFailure = Regex.IsMatch(stated.CoachingNote ?? "", @"\bavoid\s+failure\b|\bdo\s+not\s+(?:go|train|take.{0,30})\s+to\s+failure\b", RegexOptions.IgnoreCase);
+                        rows[rowIndex] = stated with { LastRpe = avoidsFailure ? stated.LastRpe : 10,
+                            LastEffortAbsent = avoidsFailure && stated.LastEffortAbsent, CoachingNote = note };
+                    }
+                    continue;
+                }
                 if (TryColumns(cells, out var detected))
                 {
                     columns = detected;
@@ -193,6 +206,8 @@ internal static partial class ImportTableEvidence
             var combinedIntensity = map.Load is { } loadIndex && map.Rpe == loadIndex;
             var (mixedRpe, mixedLoad) = ParseMixedIntensity(loadCell, map.LoadIsPercent1Rm, combinedIntensity);
             var rpe = ParseRpe(Cell(cells, map.Rpe)) ?? mixedRpe;
+            if (Regex.IsMatch(repsText ?? "", @"^RPE\s*\d+(?:\.\d+)?\s*TEST$", RegexOptions.IgnoreCase))
+                rpe ??= ParseRpe(repsText);
             var early = ParseRpe(Cell(cells, map.EarlyRpe));
             var last = ParseRpe(Cell(cells, map.LastRpe));
             var rirText = RirCellText(Cell(cells, map.Rir));
@@ -216,7 +231,7 @@ internal static partial class ImportTableEvidence
                 WarmupText: map.Warmup is { } warmupIndex ? CleanValue(Cell(cells, warmupIndex)) : null,
                 CoachingNote: map.Notes is { } notesIndex ? ImportNormalization.Text(Cell(cells, notesIndex), 1000) : null,
                 FullHeader: map.Name is not null && map.Sets is not null && map.Reps is not null,
-                RepsStatedAbsent: IsStatedAbsent(Cell(cells, map.Reps)),
+                RepsStatedAbsent: map.Reps is not null && NoValue(Cell(cells, map.Reps)),
                 WorkingSetPrescriptionText: SetPrescriptionText(setCell),
                 WorkingSetsStatedAbsent: IsStatedAbsent(setCell),
                 SequenceGroup: PrintedSetTag(name), Substitutions: PrintedSubstitutions(cells, map),

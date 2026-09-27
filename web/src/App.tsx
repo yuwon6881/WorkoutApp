@@ -31,6 +31,7 @@ import { ViewSkeleton } from './components/ViewSkeleton';
 import { ExerciseDetailModal, ExerciseLibrary, ImportReview, MuscleBalanceView, Programs, SessionDetail, SettingsView, StartPreview, Workout, prefetchViews } from './app/lazyViews';
 import { ResumeWorkoutButton } from './components/ResumeWorkoutButton';
 import { InstallAppCard } from './components/InstallAppCard';
+import {applyTheme, initialTheme, rememberTheme} from './lib/theme';
 
 /// Matches the server's refusal in ImportService.Create, so both sides say the same thing.
 const IMPORT_BLOCKED_MESSAGE = 'Finish or discard the active workout before importing a program.';
@@ -80,17 +81,10 @@ export default function App() {
   });
 
   useEffect(() => {
-    const theme = data?.preferences.theme ?? 'dark';
-    document.documentElement.dataset.theme = theme;
-    // index.html follows the system scheme until the account's own theme is known; from then on
-    // one unconditional colour matches the chosen theme.
-    const metas = [...document.querySelectorAll('meta[name="theme-color"]')];
+    const theme = data?.preferences.theme ?? initialTheme();
+    applyTheme(theme);
+    if (data?.preferences.theme) rememberTheme(theme);
     const bg = getComputedStyle(document.documentElement).getPropertyValue('--bg').trim();
-    if (bg && metas[0]) {
-      metas[0].removeAttribute('media');
-      metas[0].setAttribute('content', bg);
-      metas.slice(1).forEach(meta => meta.remove());
-    }
     if (bg) setNativeStatusBar(theme === 'light' ? 'light' : 'dark', bg);
   }, [data?.preferences.theme]);
   const restState = useShellRestTimer({ data, recovery, recoverySession, devicePreferences: app.devicePreferences, setToast });

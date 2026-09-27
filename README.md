@@ -101,7 +101,8 @@ decision. Passive status rows are regular content; only rows with an available a
 - A rest timer that survives a locked phone: it is stored as a deadline rather than a countdown,
   the screen is held awake while it runs, and the end tone is queued on the audio clock ahead of
   time so it still sounds with the screen off. If the browser closes the app outright, the timer
-  is still correct on return and reports what was missed.
+  is still correct on return and reports what was missed. The displayed remainder never exceeds
+  the configured duration, including immediately after starting or extending rest.
 - Programs run in phase order: finishing or explicitly skipping every training slot completes a
   phase, and the next Monday starts the following phase. The final phase moves the program to
   Completed; imported programs wait in Standby until scheduled and activated.
@@ -115,10 +116,24 @@ decision. Passive status rows are regular content; only rows with an available a
   interrupted read continues, and is dropped as soon as the draft is complete.
 - Imported prescriptions retain per-set techniques such as partial reps, lengthened partials, and
   integrated partials. Row instructions for top- or bottom-half ROM work are recognized too, including
+  fractions such as `1/2`, `½`, and `3/4` of the range of motion, affirmative short-ROM cues, and
   compound sequences such as 7/7/7; their printed rep notation stays intact. Printed set qualifiers
   determine the working sets that receive a technique, and the active workout labels those sets while
   keeping the source cues. When a counted ROM sequence conflicts with the printed rep target, import
   review flags the source page and rep field for a choice instead of silently changing either value.
+  Count-only warm-ups retain the printed count without copying working-set rep or tempo targets;
+  separately printed warm-up rows keep their own prescriptions. Timed holds retain duration text
+  without treating seconds as repetitions. An open-ended base such as `AMRAP/2` keeps its
+  notation without treating the forced negatives as the base rep target. Tables with an unlabeled
+  exercise column retain that column from the printed geometry, keeping counts out of wrapped names.
+  Instructions referring to a working set beyond the
+  stated count also require review, preserving both the count and the original instructions.
+  An explicit final-set failure instruction beneath a table applies to that session's working
+  sets; conflicting exercise-specific instructions remain visible for review. An `RPE 9 TEST`
+  rep cell prescribes effort without inventing a repetition count. Coaching text printed beneath
+  blank tracking columns stays in the exercise notes. Demonstration annotations retain their
+  original destination casing, wrapped addresses retain their continuation and start time, and
+  repeated links retain page ownership when another page offers a different demonstration.
 - Kilograms are canonical; pounds are a display conversion.
 
 ## Data boundaries
@@ -156,6 +171,8 @@ cd wear; .\gradlew.bat testDebugUnitTest :app:assembleDebug
 The end-to-end suites run the real API against a disposable SQLite database and replace the AI
 provider with a local stand-in, so an import can be exercised without a paid call. Playwright uses
 installed Google Chrome; screenshots are written to the ignored `web/artifacts/` directory.
+
+PDF prescription verification uses independently extracted and reviewed expectations for all 39 local PDFs and 45 program/week choices in [tests/Corpus/SourceExpected](tests/Corpus/SourceExpected/README.md). After a fresh browser-equivalent extraction, run `CorpusReport` with `WORKOUT_PDF_CORPUS` and `WORKOUT_CORPUS_DUMP=1`; it replays normal and drift readers. Run `scripts/pdf-audit-gate.py` with the saved source fixtures to enforce hashes, choice/page coverage, exercise order, set prescriptions, technique scope, rest midpoints, and demonstration ownership. Missing expectations and field mismatches fail with source locations. This verifies the local reader and reconciliation; it does not certify a live model provider.
 
 ## Deployment
 

@@ -1,44 +1,26 @@
 import { useMemo, type ReactNode } from 'react';
-import { ChevronDown } from 'lucide-react';
 import type { DraftWorkout, Exercise } from '../types';
 import { getPlannedMuscleCredits } from '../lib/programMuscles';
 import { Button } from './ui/Button';
-import { DayEditor } from './ImportDayEditor';
 import { ProgramMusclePreview } from './ProgramMusclePreview';
 
 /// One line per day when collapsed: what it is called, how much is in it and which exercises it
-/// holds. Everything else — muscles, prescriptions, editing — waits until the day is opened, so a
-/// full week stays readable on one screen.
+/// holds. Clicking a workout day opens a modal with the full details.
 export function DayRow({
   day,
   index,
-  expanded,
-  onToggle,
-  exercises,
-  onChange,
-  onPropagateSubstitution,
-  onMapExerciseSlot,
-  onCustomExerciseCreated,
-  restorableExerciseLineIds,
-  onRestoreExercise,
+  onOpen,
+  exercises: _exercises,
   handle,
   menu
 }: {
   day: DraftWorkout;
   index: number;
-  expanded: boolean;
-  onToggle: () => void;
-  exercises: Exercise[];
-  onChange: (day: DraftWorkout) => Promise<void>;
-  onPropagateSubstitution?: (currentName: string, replacementName: string, exerciseLineId?: string) => Promise<void>;
-  onMapExerciseSlot?: (exerciseLineId: string, exerciseId: string | null) => Promise<void>;
-  onCustomExerciseCreated?: () => Promise<void>;
-  restorableExerciseLineIds?: string[];
-  onRestoreExercise?: (exerciseLineId: string) => Promise<void>;
+  onOpen: () => void;
+  exercises?: Exercise[];
   handle?: ReactNode;
   menu?: ReactNode;
 }) {
-  const muscleSummary = useMemo(() => getPlannedMuscleCredits(day.exercises, exercises), [day.exercises, exercises]);
   const exercisePreview = useMemo(() => {
     if (day.isRestDay || !day.exercises.length) return null;
     const names = day.exercises.map(exercise => exercise.sourceName);
@@ -86,31 +68,67 @@ export function DayRow({
           ? <div className="draft-day-summary draft-day-summary-static">
             <span className="draft-day-heading">{meta}</span>
           </div>
-          : <Button presentation="plain" className="draft-day-summary" aria-expanded={expanded}
-            aria-label={day.name} onClick={onToggle}>
+          : <Button presentation="plain" className="draft-day-summary"
+            aria-label={day.name} onClick={onOpen}>
             <span className="draft-day-heading">{meta}</span>
-            {!expanded && exercisePreview && <span className="day-exercise-preview">
+            {exercisePreview && <span className="day-exercise-preview">
               <span className="day-exercise-preview-full">{exercisePreview.full}</span>
               <span className="day-exercise-preview-compact">{exercisePreview.compact}</span>
             </span>}
-            <span className={`draft-day-disclosure ${expanded ? 'open' : ''}`} aria-hidden="true"><ChevronDown size={16} /></span>
           </Button>}
         {menu}
       </div>
-
-      {expanded && !day.isRestDay && <>
-        {day.exercises.length > 0 && <div className="draft-day-muscles"><ProgramMusclePreview summary={muscleSummary} /></div>}
-        <DayEditor
-          day={day}
-          exercises={exercises}
-          onChange={onChange}
-          onPropagateSubstitution={onPropagateSubstitution}
-          onMapExerciseSlot={onMapExerciseSlot}
-          onCustomExerciseCreated={onCustomExerciseCreated}
-          restorableExerciseLineIds={restorableExerciseLineIds}
-          onRestoreExercise={onRestoreExercise}
-        />
-      </>}
     </section>
   );
+}
+
+/**
+ * The content that was previously shown inline when a day row was expanded.
+ * Now shown inside a modal, including muscle tiles and the day editor.
+ */
+export function DayDetailContent({
+  day,
+  exercises,
+  onChange,
+  onPropagateSubstitution,
+  onMapExerciseSlot,
+  onCustomExerciseCreated,
+  restorableExerciseLineIds,
+  onRestoreExercise,
+  DayEditorComponent,
+  selectedMuscle,
+  onMuscleSelect
+}: {
+  day: DraftWorkout;
+  exercises: Exercise[];
+  onChange: (day: DraftWorkout) => Promise<void>;
+  onPropagateSubstitution?: (currentName: string, replacementName: string, exerciseLineId?: string) => Promise<void>;
+  onMapExerciseSlot?: (exerciseLineId: string, exerciseId: string | null) => Promise<void>;
+  onCustomExerciseCreated?: () => Promise<void>;
+  restorableExerciseLineIds?: string[];
+  onRestoreExercise?: (exerciseLineId: string) => Promise<void>;
+  DayEditorComponent: typeof import('./ImportDayEditor').DayEditor;
+  selectedMuscle: string | null;
+  onMuscleSelect: (muscle: string | null) => void;
+}) {
+  const muscleSummary = useMemo(() => getPlannedMuscleCredits(day.exercises, exercises), [day.exercises, exercises]);
+
+  return <>
+    {day.exercises.length > 0 && (
+      <div className="draft-day-muscles">
+        <ProgramMusclePreview summary={muscleSummary} selectedMuscle={selectedMuscle} onMuscleSelect={onMuscleSelect} />
+      </div>
+    )}
+    <DayEditorComponent
+      day={day}
+      exercises={exercises}
+      onChange={onChange}
+      onPropagateSubstitution={onPropagateSubstitution}
+      onMapExerciseSlot={onMapExerciseSlot}
+      onCustomExerciseCreated={onCustomExerciseCreated}
+      restorableExerciseLineIds={restorableExerciseLineIds}
+      onRestoreExercise={onRestoreExercise}
+      selectedMuscle={selectedMuscle}
+    />
+  </>;
 }

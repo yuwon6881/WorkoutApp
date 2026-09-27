@@ -55,7 +55,7 @@ internal static class ImportSetKinds
     }
 
     /// The sets one printed row becomes. A warm-up row's own sets are its warm-ups, and nothing is
-    /// added in front of them. Otherwise a stated warm-up count is modelled on the first working set.
+    /// added in front of them. Otherwise a stated warm-up count supplies no rep or tempo target.
     public static List<DraftSet> Compose(List<DraftSet> working, int warmups, string? rowName)
     {
         if (IsWarmupRow(rowName))
@@ -66,23 +66,15 @@ internal static class ImportSetKinds
         if (warmups <= 0 || working.Count == 0) return working;
         // The table's RPE columns prescribe working sets. Warm-up Sets is only a count, so
         // inheriting the working row's effort invents a warm-up target.
-        // Nor is the working load or technique a warm-up's: "AMRAP @90%" or "12-15 (dropset)"
-        // describes the hard set. Only the plain rep count the working set starts from is kept.
+        // Nor are the working reps, tempo, load or technique a warm-up's. The exercise's printed
+        // rest still supplies its timer, but a count-only warm-up has no stated rep prescription.
         var warmup = working[0] with
         {
             Warmup = true, TargetRpe = null, Rir = null, Notes = null, LoadText = null,
-            RepsText = PlainReps(working[0].RepsText),
-            RepsSource = "inferred", RpeSource = "inferred"
+            RepMin = null, RepMax = null, RepsText = null, Tempo = null,
+            RepsSource = "extracted", RpeSource = "extracted"
         };
         return [.. Enumerable.Repeat(warmup, warmups), .. working];
     }
 
-    private static readonly Regex LeadingReps = new(@"^\s*(\d{1,3}(?:\s*[-–]\s*\d{1,3})?)(?=\s|$)", RegexOptions.Compiled);
-
-    private static string? PlainReps(string? repsText)
-    {
-        if (string.IsNullOrWhiteSpace(repsText) || OpenReps.IsMatch(repsText)) return null;
-        var match = LeadingReps.Match(repsText);
-        return match.Success ? Regex.Replace(match.Groups[1].Value, @"\s+", "") : null;
-    }
 }

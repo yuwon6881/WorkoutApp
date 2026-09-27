@@ -6,6 +6,47 @@ namespace Workout.Tests;
 
 public sealed class ImportTableEvidenceTests
 {
+    [Fact]
+    public void An_effort_test_in_the_rep_cell_supplies_effort_without_a_rep_count()
+    {
+        var program = new AiProgram("Variant", [new AiDay(null, null, 1, 1, "Day 1", false, null, [
+            new AiExercise("Trap Bar Pull", null, null, [new AiSet(8, 8, null, null, null, null, null)], SourcePage: 3)
+        ], 3)]);
+        const string text = """
+            === PAGE 3 ===
+            Exercise | Sets | Reps | RPE/%1RM | Rest
+            Trap Bar Pull | 1 | RPE 8 TEST | 85% | 2-4 min
+            """;
+        var set = Assert.Single(Assert.Single(Assert.Single(ImportTableEvidence.Enrich(program, text).Days!).Exercises).Sets);
+        Assert.Equal(8d, set.TargetRpe);
+        Assert.Equal("2", set.Rir);
+        Assert.Equal("RPE 8 TEST", set.RepsText);
+        Assert.Equal((null, null, false), ImportNormalization.Reps(set.RepMin, set.RepMax, set.RepsText));
+    }
+    [Fact]
+    public void A_final_set_failure_footer_applies_only_to_its_table_and_working_rows()
+    {
+        var program = new AiProgram("Changed title", [new AiDay(null, null, 1, 1, "Day 1", false, null, [
+            new AiExercise("Cable Row", null, null, [new AiSet(8, 10, 7, null, null, null, null)], SourcePage: 3)
+        ], 3)]);
+        const string text = """
+            === PAGE 3 ===
+            DAY LABEL: DAY 1
+            Exercise | Sets | Reps | RPE | Rest
+            Cable Row | 3 | 8-10 | 7 | 1 min
+            Press (Warm Up) | 1 | 5 | 5 | 1 min
+            TAKE THE FINAL SET OF EACH EXERCISE TO FAILURE
+            DAY LABEL: DAY 2
+            Exercise | Sets | Reps | RPE | Rest
+            Curl | 2 | 12 | 8 | 1 min
+            """;
+        var days = ImportTableEvidence.Enrich(program, text).Days!;
+        var row = days.SelectMany(day => day.Exercises).Single(exercise => exercise.SourceName == "Cable Row");
+        Assert.Equal([7d, 7d, 10d], row.Sets.Select(set => set.TargetRpe));
+        Assert.Contains("FINAL SET", row.CoachingNotes);
+        Assert.All(days.SelectMany(day => day.Exercises).Where(exercise => exercise.SourceName == "Curl")
+            .SelectMany(exercise => exercise.Sets), set => Assert.Equal(8d, set.TargetRpe));
+    }
     [Theory]
     [InlineData("Integrated Partials (All Sets)", 3)]
     [InlineData("Integrated Partials (on all reps of the last set)", 1)]
@@ -59,11 +100,22 @@ public sealed class ImportTableEvidenceTests
 
     [Theory]
     [InlineData("Use a partial ROM throughout each set.", 3)]
+    [InlineData("Avoid failure, keep elbow tucked in, short ROM.", 3)]
+    [InlineData("Avoid failure; perform partial reps on the final working set.", 1)]
+    [InlineData("Keep the movement in a reduced range of motion.", 3)]
+    [InlineData("Set the pins high, short ROM, use a low bar position.", 3)]
     [InlineData("Swing the weight with a partial ROM.", 3)]
     [InlineData("After full-ROM reps, continue with partial reps on the last set.", 1)]
     [InlineData("Use partial reps on the final working set.", 1)]
     [InlineData("Use partial reps during the first two working sets.", 2)]
     [InlineData("Use partial reps on sets 1 and 3.", 2)]
+    [InlineData("Perform the final set in the bottom 1/2 ROM.", 1)]
+    [InlineData("Use the bottom 3/4 of the range of motion on each rep.", 3)]
+    [InlineData("Stay in the bottom 3/4 of the range of motion.", 3)]
+    [InlineData("Keep the dumbbells in the bottom ~3/4 of the range of motion.", 3)]
+    [InlineData("Use ½ ROM on the first working set.", 1)]
+    [InlineData("All reps and sets are to be performed in the bottom half of the ROM.", 3)]
+    [InlineData("All sets are performed in the bottom half of ROM.", 3)]
     public void Exercise_row_partial_rep_instructions_are_attached_with_their_scope(string note, int taggedSets)
     {
         var program = new AiProgram("Partial notes", [new AiDay(null, null, 1, 1, "Day 1", false, null, [
@@ -90,7 +142,10 @@ public sealed class ImportTableEvidenceTests
 
     [Theory]
     [InlineData("7 reps top half of ROM, 7 reps bottom half ROM, 7 reps full ROM", "7/7/7")]
+    [InlineData("FIRST 5 REPS: TOP HALF OF ROM, MIDDLE 5 REPS: FULL ROM, LAST 5 REPS: BOTTOM HALF OF ROM", "5/5/5")]
     [InlineData("USE THUMBLESS GRIP, DO 10 FULL ROM, 5 TOP HALF ROM TO FINISH EACH SET", "10+5")]
+    [InlineData("PERFORM BOTH ARMS AT ONCE, 7 REPS BOTTOM 1/2 ROM, 7 REPS TOP 1/2 ROM, 7 REPS FULL ROM", "7+7+7")]
+    [InlineData("DO 6 REPS BOTTOM ½ ROM, 6 REPS TOP ½ ROM, 6 REPS FULL ROM", "6/6/6")]
     public void Half_range_rep_instructions_are_techniques_without_rewriting_compound_reps(string note, string reps)
     {
         var program = new AiProgram("Half-range reps", [new AiDay(null, null, 1, 1, "Day 1", false, null, [

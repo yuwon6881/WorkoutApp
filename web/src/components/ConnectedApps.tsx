@@ -4,6 +4,7 @@ import { ApiError, api } from '../lib/api';
 import { consumeCentralAuthError } from '../lib/centralAuthError';
 import { Button } from './ui/Button';
 import { connectedAppActions, parseConnectionState, type ConnectionState } from './connectedAppsState';
+import {initialTheme} from '../lib/theme';
 import './IntegrationCard.css';
 
 export function ConnectedApps() {
@@ -57,7 +58,7 @@ export function ConnectedApps() {
   function connect() {
     setBusy(true);
     setError('');
-    window.location.href = '/api/auth/central/connect';
+    window.location.href = `/api/auth/central/connect?theme=${initialTheme()}`;
   }
 
   async function revoke() {

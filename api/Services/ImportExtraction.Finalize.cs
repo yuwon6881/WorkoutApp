@@ -77,7 +77,11 @@ public sealed partial class ImportService
         // no retry of the last section could ever reach.
         var shaped = ReconcileDayShape(merged.Workouts, merged.SourceWeekDays);
         var cited = ImportDayShape.ReconcilePages(merged with { Workouts = shaped.Workouts }, import.Pages);
-        merged = ImportValidation.NormalizeDraft(ImportNameSpelling.Standardize(cited.Draft, sourcePages));
+        // Schedule reconciliation can recover a source row after its section attached
+        // demonstrations. Pair the final source-grounded rows before saving the baseline.
+        List<ImportPageLink> demoLinks = string.IsNullOrWhiteSpace(import.LinksJson) ? [] : Json.Read<List<ImportPageLink>>(import.LinksJson);
+        merged = ImportValidation.NormalizeDraft(ImportDemoLinks.Attach(
+            ImportNameSpelling.Standardize(cited.Draft, sourcePages), demoLinks));
         if (ImportTableEvidence.PrintedRowsNotice(merged.Workouts, ImportSourceText.Slice(sourcePages, 1, ImportSourceText.MaxPages)) is { } printedRows)
             notices.Add(printedRows);
         notices.AddRange(shaped.Notices);

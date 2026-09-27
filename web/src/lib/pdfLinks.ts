@@ -1,4 +1,5 @@
-import { normalizedText, type TextPiece } from './pdfGeometry';
+import { groupRows, isRotated, normalizedText, positionPieces, type TextPiece } from './pdfGeometry';
+import { renderRow } from './pdfHeaderColumns';
 
 /// A demonstration link a document attaches to the exercise it names.
 export type PdfLink = { page: number; name: string; url: string };
@@ -88,8 +89,13 @@ function coveredText(pieces: readonly TextPiece[], rect: LinkRect['rect']): stri
     return centerX >= left && centerX <= right && overlaps(y, y + Math.max(height, 1), bottom, top);
   });
   if (covered.length === 0) return '';
-  const ordered = [...covered].sort((a, b) => b.transform[5] - a.transform[5] || a.transform[4] - b.transform[4]);
-  return normalizedText(ordered.map(piece => piece.str).join(' '));
+  const horizontal = covered.filter(piece => !isRotated(piece));
+  return captionText(horizontal.length > 0 ? horizontal : covered);
+}
+
+function captionText(pieces: readonly TextPiece[]): string {
+  return normalizedText(groupRows(positionPieces(pieces))
+    .map(row => renderRow(row, undefined, Number.POSITIVE_INFINITY)).join(' '));
 }
 
 function glossaryLabel(pieces: readonly TextPiece[], rect: LinkRect['rect']): string | undefined {
@@ -99,17 +105,17 @@ function glossaryLabel(pieces: readonly TextPiece[], rect: LinkRect['rect']): st
   const candidates = pieces.filter(piece => {
     const right = piece.transform[4] + (piece.width ?? 0);
     const y = piece.transform[5];
-    return right <= left + 2 && left - right < 250 && overlaps(y, y + Math.max(piece.height ?? 0, 1), bottom, top)
+    return right <= left + 2 && overlaps(y, y + Math.max(piece.height ?? 0, 1), bottom, top)
       && /:\s*$/.test(piece.str) && !/^https?:/i.test(piece.str);
   }).sort((a, b) => b.transform[4] - a.transform[4]);
   const anchor = candidates[0];
   if (!anchor) return undefined;
-  const label = normalizedText(pieces.filter(piece => {
+  const label = captionText(pieces.filter(piece => {
     const x = piece.transform[4];
     const right = x + (piece.width ?? 0);
-    return x >= left - 250 && right <= left + 2 && Math.abs(piece.transform[5] - anchor.transform[5]) <= 3
+    return x >= 0 && right <= left + 2 && Math.abs(piece.transform[5] - anchor.transform[5]) <= 3
       && !/^https?:/i.test(piece.str);
-  }).sort((a, b) => a.transform[4] - b.transform[4]).map(piece => piece.str).join(' '))
+  }))
     .replace(/:\s*$/, '').replace(/^\d+[.)]\s*/, '').trim();
   return label && label.length <= MAX_LINK_NAME ? label : undefined;
 }
@@ -134,7 +140,10 @@ export function pageLinks(page: number, pieces: readonly TextPiece[], annotation
     seen.add(key);
     links.push({ page, name, url });
   }
-  return links;
+  // A wrapped glossary address can have a separate annotation over its URL tail. Once
+  // that destination has an explicit exercise label, the tail is not another movement.
+  return links.filter(link => !(link.url.endsWith(link.name) &&
+    links.some(other => other !== link && other.url === link.url && !other.url.endsWith(other.name))));
 }
 
 /// Earlier guides print exercise references instead of attaching annotations. Only an explicit
@@ -156,6 +165,14 @@ export function printedLinks(page: number, text: string): PdfLink[] {
     precedingLabel = /^(.{2,120}):$/.exec(line)?.[1]?.trim();
   }
   return links;
+}
+
+/// The annotation carries the destination bytes. A small-caps text layer can change URL casing;
+/// its printed copy must not replace or conflict with the link attached to the same source label.
+export function preferredPageLinks(annotations: PdfLink[], printed: PdfLink[]): PdfLink[] {
+  const labelKey = (name: string) => name.toLowerCase().replace(/[^a-z0-9]/g, '');
+  const annotated = new Set(annotations.map(link => labelKey(link.name)));
+  return [...annotations, ...printed.filter(link => !annotated.has(labelKey(link.name)))];
 }
 
 const YOUTUBE_ID_LENGTH = 11;
@@ -182,7 +199,8 @@ function wrappedUrl(head: string, following: string[]): { url: string; lines: nu
   let joined = head;
   for (let taken = 0; taken < following.length; taken++) {
     if (!isCutShort(videoUrl(clean(joined)))) break;
-    const next = following[taken];
+    // A wrapped URL tail can be followed by a parenthesized coaching instruction.
+    const next = following[taken].replace(/\s+\(.*$/, '');
     if (!/^[\w\-?=&.%/#]+$/.test(next) || /^https?:/i.test(next)) break;
     joined += next;
     const url = videoUrl(clean(joined));

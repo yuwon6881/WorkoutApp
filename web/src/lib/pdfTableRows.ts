@@ -67,7 +67,23 @@ function renderCellPieces(pieces: PositionedPiece[]): string {
 function cellColumn(item: PositionedPiece, rowItems: PositionedPiece[], band: HeaderBand): number {
   const widest = rowItems.filter(other => Math.abs(other.x - item.x) <= 1)
     .reduce((best, other) => other.endX - other.x > best.endX - best.x ? other : best, item);
-  return columnIndex(pieceCenter(widest), band.centers);
+  const index = columnIndex(pieceCenter(widest), band.centers);
+    const notes = band.columns?.findIndex(column => /^(?:coaching\s+)?notes$/i.test(column.label.trim())) ?? -1;
+    // Short left-aligned instructions can end before the midpoint between a
+    // substitution heading and a much wider notes heading. An independently
+    // printed movement to their left establishes the substitution's ownership.
+    if (notes === index + 1 && /substitution|alternative/i.test(band.columns?.[index]?.label ?? '')
+      && /^(?:slow|smooth|controlled|keep|focus|avoid|squeeze|pause|hold)\b/i.test(item.str.trim())
+      && rowItems.some(other => Math.abs(other.y - item.y) <= ROW_TOLERANCE
+        && other.endX + 12 < item.x && columnIndex(pieceCenter(other), band.centers) === index)) return notes;
+  // Left-aligned coaching text can begin under the last blank numeric tracking header.
+  // Alphabetic runs are not recorded set loads; keep those runs with the notes column.
+  if (notes > index && /^[1-8]$/.test(band.columns?.[index]?.label.trim() ?? '') && /[a-z]/i.test(item.str)) return notes;
+  // A trailing last-set tracking box can overlap the end of a printed coaching
+  // word. Its blank LSRPE column is for recorded effort, not instruction fragments.
+  if (notes >= 0 && index > notes && /^LSRPE$/i.test(band.columns?.[index]?.label.trim() ?? '')
+    && /[a-z]/i.test(item.str) && !/^(?:N\/?A|RPE\s*\d+(?:\.\d+)?)$/i.test(item.str.trim())) return notes;
+  return index;
 }
 
 export function renderHeaderTable(
@@ -148,12 +164,17 @@ export function renderHeaderTable(
     rowItems.sort((a, b) => b.y - a.y || a.x - b.x);
 
     const cells: PositionedPiece[][] = Array.from({ length: band.centers.length }, () => []);
-    for (const item of rowItems) cells[cellColumn(item, rowItems, band)].push(item);
+    // Column ownership must use the same table-wide alignment evidence as wrapping.
+    // A short note can otherwise move into the preceding substitution column merely
+    // because this row has no longer line at the same printed left edge.
+    for (const item of rowItems) cells[cellColumn(item, inTable, band)].push(item);
 
     const cellTexts = cells.map((cellPieces, column) => {
       if (cellPieces.length === 0) return '';
       cellPieces.sort((a, b) => b.y - a.y || a.x - b.x);
-      const text = renderCellPieces(cellPieces);
+      // A printed vertical separator inside a coaching sentence is content,
+      // while ASCII pipes delimit the serialized table's columns.
+      const text = renderCellPieces(cellPieces).replace(/\|/g, '—');
       return column === anchorColIndex ? withoutStrayGlyph(text) : text;
     });
 

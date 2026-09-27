@@ -257,10 +257,10 @@ public sealed class ImportSourceFidelityTests
     }
 
     [Theory]
-    [InlineData("AMRAP", null)]
-    [InlineData("12-15 (dropset)", "12-15")]
-    [InlineData("3-5", "3-5")]
-    public void A_modelled_warmup_keeps_only_the_plain_rep_count(string workingReps, string? warmupReps)
+    [InlineData("AMRAP")]
+    [InlineData("12-15 (dropset)")]
+    [InlineData("3-5")]
+    public void A_count_only_warmup_does_not_copy_the_working_rep_target(string workingReps)
     {
         var sets = ImportSetKinds.Compose([Set(3, 5, workingReps, load: "87.5%")], 2, "Back Squat");
 
@@ -270,9 +270,12 @@ public sealed class ImportSourceFidelityTests
             Assert.True(warmup.Warmup);
             Assert.Null(warmup.LoadText);
             Assert.Null(warmup.TargetRpe);
-            Assert.Equal(warmupReps, warmup.RepsText);
+            Assert.Null(warmup.RepMin);
+            Assert.Null(warmup.RepMax);
+            Assert.Null(warmup.RepsText);
         });
         Assert.Equal("87.5%", sets[2].LoadText);
+        Assert.Equal(workingReps, sets[2].RepsText);
     }
 
     [Fact]

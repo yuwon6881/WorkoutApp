@@ -1,17 +1,15 @@
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
+import { useMemo, type CSSProperties } from 'react';
 import { formatSets, shadeFor } from '../lib/muscleBalance';
 import {
-  blendViewBox, focusViewBox, formatViewBox, MUSCLE_SIDE, parseViewBox, type BodySide, type ViewBox
+  focusViewBox, formatViewBox, MUSCLE_SIDE, parseViewBox, type BodySide, type ViewBox
 } from '../lib/muscleFocus';
 import type { PlannedMuscleSummary } from '../lib/programMuscles';
 import './ProgramMusclePreview.css';
 import { BACK_PARTS, BACK_REGIONS, BODY_MAP_VIEW_BOX, FRONT_PARTS, FRONT_REGIONS } from './bodyMapPaths';
-import { useReducedMotion } from './ui/Motion';
+import { Button } from './ui/Button';
 
 const FRAME = parseViewBox(BODY_MAP_VIEW_BOX);
-const FOCUS_ASPECT = 4 / 3;
 const THUMB_ASPECT = 76 / 64;
-const ZOOM_MS = 260;
 
 const figureFor = (side: BodySide) => side === 'front'
   ? { regions: FRONT_REGIONS, parts: FRONT_PARTS }
@@ -25,34 +23,6 @@ function cropFor(muscle: string, aspect: number): { side: BodySide; box: ViewBox
 
 /// One accent hue at a depth proportional to the muscle's share of the day's busiest muscle.
 const shadeStyle = (shade: number) => ({ '--muscle-shade': `${Math.round(35 + 60 * shade)}%` } as CSSProperties);
-
-/// Glides the view box between crops so the eye follows the zoom; reduced motion jumps straight there.
-function useGlidingViewBox(target: ViewBox, reduced: boolean): ViewBox {
-  const [box, setBox] = useState(target);
-  const current = useRef(target);
-
-  useEffect(() => {
-    const from = current.current;
-    if (reduced || typeof requestAnimationFrame === 'undefined') {
-      current.current = target;
-      setBox(target);
-      return;
-    }
-    const started = performance.now();
-    let frame = 0;
-    const step = (now: number) => {
-      const linear = Math.min(1, (now - started) / ZOOM_MS);
-      const eased = 1 - (1 - linear) ** 3;
-      current.current = blendViewBox(from, target, eased);
-      setBox(current.current);
-      if (linear < 1) frame = requestAnimationFrame(step);
-    };
-    frame = requestAnimationFrame(step);
-    return () => cancelAnimationFrame(frame);
-  }, [target, reduced]);
-
-  return box;
-}
 
 function MuscleFigure({ side, viewBox, focus, shades, className }: {
   side: BodySide;
@@ -76,58 +46,48 @@ function MuscleFigure({ side, viewBox, focus, shades, className }: {
 }
 
 /**
- * The day's planned muscles: a zoomed figure centred on the selected muscle, with the day's other
- * trained muscles on that side shaded around it, above a ranked list whose entries choose the focus.
+ * Ranked muscle tiles for a program day. Clicking a tile notifies the parent via `onMuscleSelect`
+ * so the surrounding exercise list can highlight which exercises contribute to that muscle.
  */
-export function ProgramMusclePreview({ summary }: { summary: PlannedMuscleSummary }) {
+export function ProgramMusclePreview({ summary, selectedMuscle, onMuscleSelect }: {
+  summary: PlannedMuscleSummary;
+  selectedMuscle?: string | null;
+  onMuscleSelect?: (muscle: string | null) => void;
+}) {
   const peak = summary.muscles[0]?.sets ?? 0;
-  const focus = summary.muscles[0] ?? null;
-  const reduced = useReducedMotion();
   const shades = useMemo(
     () => new Map(summary.muscles.map(item => [item.muscle, shadeFor(item.sets, peak)])),
     [summary.muscles, peak]
   );
-  const focusMuscle = focus?.muscle ?? null;
-  const crop = useMemo(
-    () => (focusMuscle ? cropFor(focusMuscle, FOCUS_ASPECT) : { side: 'front' as const, box: FRAME }),
-    [focusMuscle]
-  );
-  const glidingBox = useGlidingViewBox(crop.box, reduced);
-  const share = focus && peak > 0 ? Math.round((focus.sets / peak) * 100) : 0;
 
   return (
     <section className="program-muscle-preview" aria-label="Planned target muscles">
-      <h3>Planned target muscles</h3>
-      {focus ? <>
-        <div className="program-muscle-focus">
-          <MuscleFigure side={crop.side} viewBox={formatViewBox(glidingBox)} focus={focus.muscle}
-            shades={shades} className="program-muscle-focus-figure" />
-          <div className="program-muscle-focus-copy" role="status" aria-live="polite">
-            <span className="tiny-label">{crop.side === 'front' ? 'Front view' : 'Back view'}</span>
-            <strong>{focus.muscle}</strong>
-            <span>{formatSets(focus.sets)} planned set {focus.sets === 1 ? 'credit' : 'credits'}</span>
-            {focus !== summary.muscles[0] && <span>{share}% of {summary.muscles[0].muscle}</span>}
-          </div>
-        </div>
+      {summary.muscles.length > 0 ? (
         <ul className="program-muscle-grid" role="list" aria-label="Planned target muscles list">
           {summary.muscles.map(({ muscle, sets }) => {
             const thumb = cropFor(muscle, THUMB_ASPECT);
+            const isSelected = selectedMuscle === muscle;
             return (
               <li key={muscle}>
-                <div className="program-muscle-tile"
-                  aria-label={`${muscle}, ${formatSets(sets)} planned set ${sets === 1 ? 'credit' : 'credits'}`}>
+                <Button
+                  presentation="plain"
+                  className={`program-muscle-tile${isSelected ? ' is-selected' : ''}`}
+                  aria-label={`${muscle}, ${formatSets(sets)} planned set ${sets === 1 ? 'credit' : 'credits'}`}
+                  aria-pressed={isSelected}
+                  onClick={() => onMuscleSelect?.(isSelected ? null : muscle)}
+                >
                   <MuscleFigure side={thumb.side} viewBox={formatViewBox(thumb.box)} focus={muscle}
                     shades={new Map([[muscle, shades.get(muscle) ?? 0]])} className="program-muscle-figure" />
                   <span className="program-muscle-copy">
                     <strong>{muscle}</strong>
                     <span>{formatSets(sets)} planned set {sets === 1 ? 'credit' : 'credits'}</span>
                   </span>
-                </div>
+                </Button>
               </li>
             );
           })}
         </ul>
-      </> : (
+      ) : (
         <p className="program-muscle-empty" role="status">
           {summary.unattributedExercises > 0
             ? 'No planned sets could be mapped to a muscle for this day.'

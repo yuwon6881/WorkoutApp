@@ -264,6 +264,7 @@ export function renderTrackingTables(rows: TextRow[], tables: TrackingTable[]): 
   for (const table of tables) {
     const { columns, headerTop, headerBottom, anchors, bottom } = table;
     const tableSize = layoutTextSize(rows.flatMap(row => row.items));
+    const body = rows.filter(row => row.y < headerBottom && row.y >= bottom).flatMap(row => row.items);
     rendered.push({ y: headerTop, x: 0, text: columns.map(column => column.label).join(' | ') });
     for (let index = 0; index < anchors.length; index++) {
       const anchor = anchors[index];
@@ -274,7 +275,7 @@ export function renderTrackingTables(rows: TextRow[], tables: TrackingTable[]): 
       for (const item of block) {
         // A left-aligned note's short closing line ("the pecs.") centers far left of its cell;
         // it belongs to the column of the widest line that starts where it starts.
-        const widest = block.filter(other => Math.abs(other.x - item.x) <= 1)
+        const widest = body.filter(other => Math.abs(other.x - item.x) <= 1)
           .reduce((best, other) => other.endX - other.x > best.endX - best.x ? other : best, item);
         cells[tableColumnIndex(widest, columns, tableSize)].push(normalizedText(item.str));
       }

@@ -12,6 +12,23 @@ namespace Workout.Tests;
 /// server is willing to accept from that, and where the link ends up.
 public sealed class ImportDemoLinkTests
 {
+    [Fact]
+    public void Repeated_demonstrations_retain_page_ownership_when_another_page_has_a_different_video()
+    {
+        var draft = new ImportDraft("Changed title", [new DraftWorkout(Guid.NewGuid(), 3, "Training", null, null,
+            [new DraftExercise(Guid.NewGuid(), "[TOPSET] Goblet Squat", null, null,
+                [new DraftSet(5, 5, 9, 120, null, null, null)], SourcePage: 3)])]);
+        var links = ImportDemoLinks.Normalize([
+            new ImportPageLink(1, "Goblet Squat", "https://youtu.be/AbCdEfGhIjK?t=45"),
+            new ImportPageLink(2, "Goblet Squat", "https://youtu.be/LmNoPqRsTuV?t=90"),
+            new ImportPageLink(3, "Goblet Squat", "https://youtu.be/AbCdEfGhIjK?t=45"),
+            new ImportPageLink(3, "Goblet Squat", "https://youtu.be/AbCdEfGhIjK?t=45")
+        ], 3);
+        Assert.Equal(3, links.Count);
+        var attached = ImportDemoLinks.Attach(draft, links);
+        Assert.Equal("https://youtu.be/AbCdEfGhIjK?t=45", attached.Workouts.Single().Exercises.Single().DemoUrl);
+    }
+
     private const string Outline = """
         {"programTitle":"Linked block","chunks":[
           {"label":"Week 1","block":null,"phase":null,"weekFrom":1,"weekTo":1,"pageFrom":1,"pageTo":1,"dayCount":1}]}

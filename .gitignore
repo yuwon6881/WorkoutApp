@@ -31,3 +31,5 @@ web/tests/.auth*/
 web/test-results*/
 # Kotlin compiler daemon session markers.
 **/.kotlin/
+__pycache__/
+*.pyc

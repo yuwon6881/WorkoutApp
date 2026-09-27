@@ -34,7 +34,9 @@ internal static class ImportDemoLinks
             var name = ImportNormalization.Text(link.Name, MaxNameChars);
             var url = Video(link.Url);
             if (name is null || url is null) continue;
-            if (!seen.Add($"{Key(name)}{url}")) continue;
+            // Repeated annotations establish page ownership even when their destination
+            // matches. Another page can prescribe a different demonstration for this name.
+            if (!seen.Add($"{link.Page}{Key(name)}{url}")) continue;
             output.Add(new ImportPageLink(link.Page, name, url));
             if (output.Count >= MaxLinks) break;
         }

@@ -43,7 +43,7 @@ export function Modal({ title, children, onClose, wide = false, headless = false
     el?.showModal();
     // The close button is the first focusable control; landing there reads as "close" before the
     // content. Focus the dialog itself so its name is announced and nothing is pressed by accident.
-    if (el && document.activeElement?.closest('dialog > header') && !el.querySelector('[autofocus]')) el.focus();
+    if (el && document.activeElement?.closest('dialog > header') && !el.querySelector('[autofocus], .issue-focus')) el.focus();
     const unlock = lockPageScroll();
     // Back (the Android gesture, or the browser button) closes the top dialog first.
     const leaveBackStack = backStack()?.openOverlay(() => latestClose.current());

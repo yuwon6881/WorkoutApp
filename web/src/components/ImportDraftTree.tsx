@@ -84,37 +84,59 @@ export const DraftOutline = forwardRef<DraftOutlineHandle, {
     setSelectedWeek(displayWeek);
     setExpandedDay(day.isRestDay ? null : day.lineId);
 
-    const reveal = () => window.requestAnimationFrame(() => window.requestAnimationFrame(() => {
-      const dayNode = [...document.querySelectorAll<HTMLElement>('[data-import-day]')]
-        .find(node => node.dataset.importDay === day.lineId);
-      if (!dayNode) return;
-      const weekNode = [...document.querySelectorAll<HTMLElement>('[data-import-week-chip]')]
-        .find(node => node.dataset.importWeekChip === String(displayWeek));
-      const exerciseNode = target.exerciseLineId
-        ? [...dayNode.querySelectorAll<HTMLElement>('[data-import-exercise]')]
-          .find(node => node.dataset.importExercise === target.exerciseLineId)
-        : null;
-      const scope = exerciseNode ?? dayNode;
-      const fields = [...scope.querySelectorAll<HTMLElement>('[data-import-field]')]
-        .filter(node => !target.targetField || node.dataset.importField === target.targetField)
-        .filter(node => target.setIndex == null || node.dataset.importSetIndex === String(target.setIndex));
-      const field = fields[0];
-      const control = field?.matches('input,button,textarea,[tabindex]')
-        ? field
-        : field?.querySelector<HTMLElement>('input,button,textarea,[tabindex]');
-      const destination = target.targetField === 'week' ? weekNode ?? scope : control ?? field ?? scope;
-      destination.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
-      control?.focus({ preventScroll: true });
-      const highlight = target.targetField === 'week' ? weekNode ?? dayNode : field ?? exerciseNode ?? dayNode;
-      highlight.classList.add('issue-focus');
-      window.setTimeout(() => highlight.classList.remove('issue-focus'), 1800);
-    }));
+    const reveal = () => {
+      let attempts = 0;
+      const tryFocus = () => {
+        const modalNode = document.querySelector<HTMLElement>(`[data-import-day="${day.lineId}"].day-detail-modal-body`);
+        const rowNode = [...document.querySelectorAll<HTMLElement>('[data-import-day]')]
+          .find(node => node.dataset.importDay === day.lineId);
+        const dayNode = modalNode ?? rowNode;
+        if (!dayNode) {
+          if (++attempts < 30) window.setTimeout(tryFocus, 20);
+          return;
+        }
+        const weekNode = [...document.querySelectorAll<HTMLElement>('[data-import-week-chip]')]
+          .find(node => node.dataset.importWeekChip === String(displayWeek));
+        const exerciseNode = target.exerciseLineId
+          ? (document.querySelector<HTMLElement>(`[data-import-exercise="${target.exerciseLineId}"]`)
+            ?? dayNode.querySelector<HTMLElement>(`[data-import-exercise="${target.exerciseLineId}"]`))
+          : null;
+        if (target.exerciseLineId && !exerciseNode) {
+          if (++attempts < 30) window.setTimeout(tryFocus, 20);
+          return;
+        }
+        const scope = exerciseNode ?? dayNode;
+        const fields = [...scope.querySelectorAll<HTMLElement>('[data-import-field]')]
+          .filter(node => !target.targetField || node.dataset.importField === target.targetField)
+          .filter(node => target.setIndex == null || node.dataset.importSetIndex === String(target.setIndex));
+        const field = fields[0];
+        const control = field?.matches('input,button,textarea,[tabindex]')
+          ? field
+          : field?.querySelector<HTMLElement>('input,button,textarea,[tabindex]');
+        if (target.targetField && !control) {
+          if (++attempts < 30) window.setTimeout(tryFocus, 20);
+          return;
+        }
+        const destination = target.targetField === 'week' ? weekNode ?? scope : control ?? field ?? scope;
+        destination.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
+        control?.focus();
+        const highlight = target.targetField === 'week' ? weekNode ?? dayNode : field ?? exerciseNode ?? dayNode;
+        highlight.classList.add('issue-focus');
+        window.setTimeout(() => highlight.classList.remove('issue-focus'), 1800);
+        if (control && attempts < 15) {
+          attempts++;
+          window.setTimeout(tryFocus, 25);
+        }
+      };
+      window.setTimeout(tryFocus, 25);
+    };
     reveal();
   }, [draft.workouts, setExpandedDay, setSelectedWeek, weeks]);
 
   useImperativeHandle(ref, () => ({ focusIssue }), [focusIssue]);
 
   const propagateSubstitution = useCallback(async (currentName: string, replacementName: string, exerciseLineId?: string) => {
+    const catalog = new Map(exercises.map(e => [e.id, e]));
     const replacementLibraryExercise = exercises.find(
       e => e.name.toLowerCase() === replacementName.toLowerCase() || e.aliases.some(a => a.toLowerCase() === replacementName.toLowerCase())
     );
@@ -136,7 +158,9 @@ export const DraftOutline = forwardRef<DraftOutlineHandle, {
             || ex.sourceName.toLowerCase() === currentName.toLowerCase()
             || (ex.exerciseId && exercises.find(e => e.id === ex.exerciseId)?.name.toLowerCase() === currentName.toLowerCase());
         if (matches) {
-          const nextSubs = [ex.sourceName, ...ex.substitutions.filter(s => s.toLowerCase() !== replacementName.toLowerCase())].slice(0, 2);
+          const currentLibraryExercise = ex.exerciseId ? catalog.get(ex.exerciseId) : undefined;
+          const currentLibraryName = currentLibraryExercise?.name ?? ex.sourceName;
+          const nextSubs = [currentLibraryName, ...ex.substitutions.filter(s => s.toLowerCase() !== replacementName.toLowerCase())].slice(0, 2);
           return {
             ...ex,
             sourceName: replacementLibraryExercise ? replacementLibraryExercise.name : replacementName,
@@ -201,8 +225,8 @@ export const DraftOutline = forwardRef<DraftOutlineHandle, {
       <ProgramDayList
         structure={structure}
         exercises={exercises}
-        expandedDay={expandedDay}
-        setExpandedDay={setExpandedDay}
+        openDay={expandedDay}
+        setOpenDay={setExpandedDay}
         onDayChange={onDayChange}
         onPropagateSubstitution={propagateSubstitution}
         onMapExerciseSlot={onMapExerciseSlot}

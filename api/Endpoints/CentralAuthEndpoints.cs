@@ -21,17 +21,17 @@ public static class CentralAuthEndpoints
 
     public static void MapCentralAuth(this WebApplication app)
     {
-        app.MapGet("/api/auth/central/start", (HttpResponse response, IConfiguration config, [FromServices] IDataProtectionProvider protection, IHostEnvironment environment) =>
+        app.MapGet("/api/auth/central/start", (HttpRequest request, HttpResponse response, IConfiguration config, [FromServices] IDataProtectionProvider protection, IHostEnvironment environment) =>
         {
             var settings = Settings(config, environment);
             var state = NewState(settings.ReturnUrl, false, null);
             var protector = protection.CreateProtector("workout-fitness-account-oidc-state-v1");
             response.Cookies.Append(StateCookie, protector.Protect(JsonSerializer.Serialize(state)), CookieOptions(environment, TimeSpan.FromMinutes(10)));
-            return Results.Redirect(AuthorizeUrl(settings, state, IdentityScope));
+            return Results.Redirect(AuthorizeUrl(settings, state, IdentityScope, NormalizePresentationTheme(request.Query["theme"])));
         });
 
         // Consent is a separate backend flow. Shared login above requests identity claims only.
-        app.MapGet("/api/auth/central/connect", async (HttpResponse response, IConfiguration config, [FromServices] IDataProtectionProvider protection,
+        app.MapGet("/api/auth/central/connect", async (HttpRequest request, HttpResponse response, IConfiguration config, [FromServices] IDataProtectionProvider protection,
             IHostEnvironment environment, AppDb db, IntegrationTokenService peerTokens, CancellationToken ct) =>
         {
             Validation.Require(db.CurrentUser is not null, "Sign in before connecting Nutrition.", 401);
@@ -41,7 +41,7 @@ public static class CentralAuthEndpoints
             var state = NewState(settings.ConnectReturnUrl, true, localUser, revision);
             var protector = protection.CreateProtector("workout-fitness-account-oidc-connect-v1");
             response.Cookies.Append(ConnectStateCookie, protector.Protect(JsonSerializer.Serialize(state)), CookieOptions(environment, TimeSpan.FromMinutes(10)));
-            return Results.Redirect(AuthorizeUrl(settings, state, IntegrationScope));
+            return Results.Redirect(AuthorizeUrl(settings, state, IntegrationScope, NormalizePresentationTheme(request.Query["theme"])));
         });
 
         app.MapGet("/api/auth/central/callback", async (HttpRequest request, HttpResponse response, [FromServices] IDataProtectionProvider protection,
@@ -101,7 +101,10 @@ public static class CentralAuthEndpoints
     private static LoginState NewState(string returnUrl, bool connect, Guid? localUserId, int? connectionRevision = null)
         => new(RandomString(32), RandomString(32), RandomString(64), returnUrl, connect, localUserId, connectionRevision);
 
-    private static string AuthorizeUrl(OidcSettings settings, LoginState state, string scope)
+    internal static string? NormalizePresentationTheme(string? theme)
+        => theme is "light" or "dark" ? theme : null;
+
+    private static string AuthorizeUrl(OidcSettings settings, LoginState state, string scope, string? theme)
     {
         var challenge = Convert.ToBase64String(SHA256.HashData(Encoding.ASCII.GetBytes(state.Verifier)))
             .Replace('+', '-').Replace('/', '_').TrimEnd('=');
@@ -109,6 +112,7 @@ public static class CentralAuthEndpoints
             $"redirect_uri={Uri.EscapeDataString(settings.RedirectUri)}", $"scope={Uri.EscapeDataString(scope)}",
             $"state={Uri.EscapeDataString(state.State)}", $"nonce={Uri.EscapeDataString(state.Nonce)}",
             $"code_challenge={Uri.EscapeDataString(challenge)}", "code_challenge_method=S256",
+            theme is null ? "" : $"theme={Uri.EscapeDataString(theme)}",
             state.Connect ? "prompt=consent" : "");
         return $"{settings.Authority.TrimEnd('/')}/connect/authorize?{query}";
     }

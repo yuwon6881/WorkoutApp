@@ -45,7 +45,8 @@ export function WorkoutPrescriptionCard({
   onRestoreExercise?: () => void;
 }) {
   const [supersetModalOpen, setSupersetModalOpen] = useState(false);
-  const linked = exercises.find(item => item.id === exercise.exerciseId);
+  const linked = exercises.find(item => item.id === exercise.exerciseId)
+    || (exercise.name ? exercises.find(option => option.name.toLowerCase() === exercise.name.toLowerCase() || option.aliases.some(a => a.toLowerCase() === exercise.name.toLowerCase())) : undefined);
 
   const applySubstitution = (subName: string) => {
     const matched = exercises.find(
@@ -148,6 +149,19 @@ export function WorkoutPrescriptionCard({
             >
               {linked?.name ?? 'Map to library'}
             </Button>
+          </div>
+        )}
+        {linked && (
+          <div className="import-exercise-muscles" aria-label={`Target muscles: ${[linked.muscle, ...(linked.secondaryMuscles ?? [])].filter(Boolean).join(', ')}`}>
+            <span className="pill pill-accent">{linked.muscle || 'Full body'}</span>
+            {linked.secondaryMuscles && linked.secondaryMuscles.length > 0 && (
+              <span className="pill pill-muted">{linked.secondaryMuscles[0]}</span>
+            )}
+            {linked.secondaryMuscles && linked.secondaryMuscles.length > 1 && (
+              <span className="pill pill-muted pill-overflow" title={linked.secondaryMuscles.slice(1).join(', ')}>
+                +{linked.secondaryMuscles.length - 1}
+              </span>
+            )}
           </div>
         )}
         <div className="field import-superset-field">

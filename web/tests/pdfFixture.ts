@@ -2,7 +2,7 @@
 /// rebuilds each page's lines, and sends only that text — so a hand-waved fixture with a PDF
 /// header and nothing else no longer imports at all. Four pages is the minimum the end-to-end
 /// stand-in's outline points at.
-export function pdf(pages = 4, marker = ''): Buffer {
+export function pdf(pages = 4, marker = '', demoUrl?: string): Buffer {
   const fontId = 3 + pages * 2;
   const objects: string[] = [
     '<< /Type /Catalog /Pages 2 0 R >>',
@@ -17,7 +17,8 @@ export function pdf(pages = 4, marker = ''): Buffer {
   for (let index = 0; index < pages; index++) {
     const pageId = 3 + index * 2;
     const text = pageTexts[index] ?? `WEEK ${index + 1} Upper ${marker}`;
-    const content = `BT /F1 12 Tf 72 720 Td (${text}) Tj ET`;
+    const demo = index === 0 && demoUrl ? `\nBT /F1 12 Tf 72 690 Td (Barbell bench press: ${demoUrl}) Tj ET` : '';
+    const content = `BT /F1 12 Tf 72 720 Td (${text}) Tj ET${demo}`;
     objects.push(`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 ${fontId} 0 R >> >> /Contents ${pageId + 1} 0 R >>`);
     objects.push(`<< /Length ${Buffer.byteLength(content, 'latin1')} >>\nstream\n${content}\nendstream`);
   }

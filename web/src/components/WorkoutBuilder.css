@@ -68,7 +68,8 @@
 }
 
 .builder-exercise-fields .import-library-field,
-.builder-exercise-fields .import-substitutions-field {
+.builder-exercise-fields .import-substitutions-field,
+.builder-exercise-fields .import-exercise-muscles {
   grid-column: 1 / -1;
 }
 

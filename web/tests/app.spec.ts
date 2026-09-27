@@ -374,6 +374,7 @@ test('build a workout, log a set against the server, and see it in history', asy
 });
 
 test('import a PDF program, resolve an unmapped exercise, and accept it', async ({ page }, testInfo) => {
+  test.setTimeout(240000);
   const customExerciseName = `Import custom ${testInfo.project.name} ${Date.now()}`;
   let importedProgramName = '';
   let customCreateRequests = 0;
@@ -393,7 +394,7 @@ test('import a PDF program, resolve an unmapped exercise, and accept it', async 
     await route.continue();
   });
 
-  await page.getByLabel('Program PDF').setInputFiles({ name: 'block.pdf', mimeType: 'application/pdf', buffer: pdf(4, testInfo.project.name) });
+  await page.getByLabel('Program PDF').setInputFiles({ name: 'block.pdf', mimeType: 'application/pdf', buffer: pdf(4, testInfo.project.name, 'https://youtu.be/qTSTOVVr8rU') });
   await expect.poll(() => posted, { timeout: 60000 }).toEqual(['gzip']);
   await expect(page.getByRole('heading', { name: 'Review' })).toBeVisible({ timeout: 60000 });
   await expect(page.getByText('Description', { exact: true })).toHaveCount(0);
@@ -404,9 +405,10 @@ test('import a PDF program, resolve an unmapped exercise, and accept it', async 
   await expect(day).toBeVisible();
   await expect(page.locator('.day-action-button')).toHaveCount(0);
   await day.locator('.day-exercise-preview').click();
-  await expect(day).toHaveAttribute('aria-expanded', 'true');
-  await day.click();
-  await expect(day).toHaveAttribute('aria-expanded', 'false');
+  const dayModal = page.locator('dialog.modal.day-detail-modal');
+  await expect(dayModal).toBeVisible();
+  await dayModal.getByRole('button', { name: 'Close dialog', exact: true }).click();
+  await expect(dayModal).not.toBeVisible();
   // A collapsed day stays one compact row: the muscles it trains appear once it is opened.
   await expect(page.locator('.draft-day-muscles')).toHaveCount(0);
   if ((page.viewportSize()?.width ?? 0) >= 640) {
@@ -419,17 +421,16 @@ test('import a PDF program, resolve an unmapped exercise, and accept it', async 
     await expect(day).toHaveCSS('outline-style', 'solid');
     await expect(day).toHaveCSS('outline-width', '2px');
   }
-  await day.click();
-  await expect(day).toHaveAttribute('aria-expanded', 'true');
-  await expect(page.locator('.draft-day-muscles .program-muscle-preview')).toBeVisible();
-  await expect(page.locator('.draft-day-muscles .program-muscle-focus-figure')).toBeVisible();
   const issue = page.getByRole('button', { name: 'Fix unmapped exercise Mystery machine row', exact: true });
   await issue.click();
+  await expect(dayModal).toBeVisible();
   await expect(page.getByRole('button', { name: 'Library exercise for Mystery machine row', exact: true })).toBeFocused();
+  await expect(page.locator('.draft-day-muscles .program-muscle-preview')).toBeVisible();
+  await expect(page.locator('.draft-day-muscles .program-muscle-tile').first()).toBeVisible();
 
   // Opening it is for editing, and the rep range from the PDF is preserved as explicit bounds.
-  await expect(page.getByLabel('Min reps').first()).toHaveValue('8');
-  await expect(page.getByLabel('Max reps').first()).toHaveValue('10');
+  await expect(page.getByLabel('Barbell bench press set 1 min reps').first()).toHaveValue('8');
+  await expect(page.getByLabel('Barbell bench press set 1 max reps').first()).toHaveValue('10');
   const mysteryExercise = page.locator('.import-exercise').filter({
     has: page.locator('input[aria-label="Exercise name"][value="Mystery machine row"]')
   });
@@ -539,6 +540,12 @@ test('import a PDF program, resolve an unmapped exercise, and accept it', async 
   expect(substitutionsBox).not.toBeNull();
   if ((page.viewportSize()?.width ?? 0) < 640 || Math.abs(libraryBox!.x - substitutionsBox!.x) <= 2) {
     expect(Math.abs(libraryBox!.x - substitutionsBox!.x)).toBeLessThanOrEqual(2);
+  } else if (substitutionsBox!.y >= libraryBox!.y + libraryBox!.height) {
+    // The source mapping, muscle tags, and substitutions share a wrapping metadata row.
+    const fieldsBox = await mysteryExercise.locator('.import-fields').boundingBox();
+    expect(fieldsBox).not.toBeNull();
+    expect(substitutionsBox!.x).toBeGreaterThanOrEqual(fieldsBox!.x);
+    expect(substitutionsBox!.x + substitutionsBox!.width).toBeLessThanOrEqual(fieldsBox!.x + fieldsBox!.width + 1);
   } else {
     expect(Math.abs((libraryBox!.y + libraryBox!.height / 2) - (substitutionsBox!.y + substitutionsBox!.height / 2))).toBeLessThanOrEqual(2);
   }
@@ -568,6 +575,8 @@ test('import a PDF program, resolve an unmapped exercise, and accept it', async 
 
   const programName = `Imported block ${testInfo.project.name} ${Date.now()}`;
   importedProgramName = programName;
+  await dayModal.getByRole('button', { name: 'Close dialog', exact: true }).click();
+  await expect(dayModal).toBeHidden();
   await page.getByLabel('Program name').fill(programName);
   await page.getByLabel('Program name').blur();
   await firstDraftWrite;
@@ -579,6 +588,8 @@ test('import a PDF program, resolve an unmapped exercise, and accept it', async 
   // Mobile menus use a backdrop; dismiss the menu before editing the draft behind it.
   await page.keyboard.press('Escape');
   await expect(restoreDraft).toBeHidden();
+  await day.click();
+  await expect(dayModal).toBeVisible();
 
   const substitutionCard = page.locator('.import-exercise').filter({
     has: page.locator('.substitution-chip').filter({ hasText: 'DB Incline Press' })
@@ -609,6 +620,8 @@ test('import a PDF program, resolve an unmapped exercise, and accept it', async 
       .find((exercise: { lineId: string }) => exercise.lineId === lineId)?.sourceName ?? '';
   }, substitutionLineId), { timeout: 20000 }).toBe('DB Incline Press');
 
+  await dayModal.getByRole('button', { name: 'Close dialog', exact: true }).click();
+  await expect(dayModal).toBeHidden();
   await draftActions.click();
   await restoreDraft.click();
   const restoreDialog = page.getByRole('dialog', { name: 'Restore default draft', exact: true });
@@ -616,12 +629,18 @@ test('import a PDF program, resolve an unmapped exercise, and accept it', async 
   await restoreDialog.getByRole('button', { name: 'Restore default draft', exact: true }).click();
   await expect(restoreDialog).toBeHidden({ timeout: 30000 });
   // Whole-draft restore also removes the earlier mapping/name edits; make the row resolvable again.
+  await issue.click();
+  await expect(dayModal).toBeVisible();
   const restoredMapping = page.getByRole('button', { name: 'Library exercise for Mystery machine row', exact: true });
   await restoredMapping.click();
   const restoredPicker = page.getByRole('dialog', { name: /Choose (?:a library )?exercise for Mystery machine row/ });
   await restoredPicker.getByRole('textbox', { name: 'Search exercises', exact: true }).fill('bench press');
   await restoredPicker.getByRole('button', { name: 'Map Barbell bench press', exact: true }).click();
   await expect(accept).toBeEnabled({ timeout: 30000 });
+  await dayModal.getByRole('button', { name: 'Set 1 type for Barbell bench press: Set 1', exact: true }).first().click();
+  await page.getByRole('option', { name: 'Integrated partials', exact: true }).click();
+  await dayModal.getByRole('button', { name: 'Close dialog', exact: true }).click();
+  await expect(dayModal).toBeHidden();
   await page.getByLabel('Program name').fill(programName);
   await page.getByLabel('Program name').blur();
 
@@ -674,8 +693,41 @@ test('import a PDF program, resolve an unmapped exercise, and accept it', async 
   const activeUpperDay = activeCard.locator('.program-slot-card').filter({ hasText: 'Week 1 Upper' }).first();
   await activeUpperDay.getByRole('button', { name: /^Show details for / }).click();
   await expect(activeUpperDay.locator('.program-muscle-preview')).toBeVisible();
-  await page.unroute('**/api/bootstrap');
+  await page.unrouteAll({ behavior: 'wait' });
+  // Review edits must reach the real program prescription and its active-workout label.
+  const requestHeaders = { 'X-Workout-Request': '1', Origin: new URL(page.url()).origin };
+  const programResponse = await page.request.get(`/api/programs/${programId}`);
+  expect(programResponse.ok()).toBeTruthy();
+  const savedProgram = await programResponse.json();
+  const activated = await page.request.post(`/api/programs/${programId}/active`, {
+    headers: requestHeaders, data: { active: true, revision: savedProgram.revision }
+  });
+  expect(activated.ok(), await activated.text()).toBeTruthy();
+  const startedWorkout = await page.request.post('/api/workouts', {
+    headers: requestHeaders, data: { templateId: savedProgram.workouts[0].id }
+  });
+  expect(startedWorkout.ok(), await startedWorkout.text()).toBeTruthy();
+  const activeWorkout = await startedWorkout.json();
+  await page.goto('/');
+  const importedLogger = page.locator('dialog.workout-sheet');
+  await page.getByRole('button', { name: /^Resume / }).filter({ visible: true }).first().click();
+  await expect(importedLogger).toBeVisible();
+  await expect(importedLogger.locator('.set-technique-note').filter({ hasText: 'Integrated partials' }).first()).toBeVisible();
+  await expect(importedLogger.getByRole('link', { name: /demo.*Barbell bench press|Barbell bench press.*demo/i }).first()).toHaveAttribute('href', 'https://youtu.be/qTSTOVVr8rU');
+  const bench = activeWorkout.exercises.find((exercise: { name: string }) => exercise.name === 'Barbell bench press');
+  const workingIndex = bench.prescription.findIndex((set: { warmup: boolean }) => !set.warmup);
+  // This imported day pairs supersets, so automatic handoffs can legitimately
+  // omit rest. Verify the timer's explicit action uses the imported prescription.
+  const prescribedRest = bench.prescription[workingIndex].restSeconds;
+  await importedLogger.getByRole('button', { name: `Start a ${prescribedRest} second rest`, exact: true }).click();
+  const importedRest = importedLogger.locator('.rest-bar.resting .rest-clock');
+  await expect(importedRest).toBeVisible();
+  await expect.poll(() => restSeconds(importedRest)).toBeGreaterThan(prescribedRest - 10);
+  expect(await restSeconds(importedRest)).toBeLessThanOrEqual(prescribedRest);
+  await page.screenshot({ path: join(screenshotsDirectory, `${testInfo.project.name}-imported-partials-active.png`), fullPage: true });
+  await clearActiveWorkout(page);
   } finally {
+    await clearActiveWorkout(page);
     await page.evaluate(async ({ programName, exerciseName }) => {
       const headers = { 'X-Workout-Request': '1' };
       if (programName) {
@@ -844,9 +896,9 @@ test('offline and server failures are reported instead of faked', async ({ page,
   await expect(page.getByRole('heading', { name: 'Could not reach the server', exact: true })).toBeVisible({ timeout: 30000 });
   expect(await page.evaluate(() => navigator.serviceWorker.controller !== null)).toBe(true);
   const localEntries = await page.evaluate(() => Object.entries(localStorage));
-  expect(localEntries).toHaveLength(1); // Only the opaque per-device push identifier is kept here.
-  expect(localEntries[0][0]).toBe('workout.push-device.v1');
-  expect(localEntries[0][1]).toMatch(/^[a-f0-9-]{36}$/i);
+  expect(localEntries.map(([key]) => key).sort()).toEqual(['workout-theme', 'workout.push-device.v1']);
+  expect(localEntries.find(([key]) => key === 'workout-theme')?.[1]).toMatch(/^(dark|light)$/);
+  expect(localEntries.find(([key]) => key === 'workout.push-device.v1')?.[1]).toMatch(/^[a-f0-9-]{36}$/i);
 
   await context.setOffline(false);
   // Returning online retries bootstrap automatically; the error screen can disappear before a
@@ -1078,6 +1130,7 @@ test('create a custom multi-block program and cap each week at fourteen schedule
     await picker.getByRole('button', { name: 'Map Barbell bench press', exact: true }).click();
     await expect(picker).toBeHidden();
     await expect(page.getByRole('button', { name: 'Library exercise for Barbell bench press', exact: true })).toBeVisible();
+    await page.getByRole('button', { name: 'Done', exact: true }).click();
 
     await page.getByRole('button', { name: 'Create program', exact: true }).click();
     const createdCard = page.locator('.program-card').filter({ hasText: name });

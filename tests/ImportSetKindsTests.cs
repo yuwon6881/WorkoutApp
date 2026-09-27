@@ -73,6 +73,31 @@ public sealed class ImportSetKindsTests
         Assert.All(sets.Skip(1), set => Assert.Equal("Integrated Partials (All Sets)", set.Notes));
     }
 
+    [Fact]
+    public void A_warmup_count_does_not_invent_reps_or_tempo_from_the_working_set()
+    {
+        var working = new DraftSet(8, 10, 8, 150, "3:1:1:0", "75% 1RM", "Lengthened partials",
+            RepsText: "8-10", Rir: "2");
+
+        var sets = ImportSetKinds.Compose([working], warmups: 2, "Row");
+
+        Assert.Equal(3, sets.Count);
+        Assert.All(sets.Take(2), warmup =>
+        {
+            Assert.True(warmup.Warmup);
+            Assert.Null(warmup.RepMin);
+            Assert.Null(warmup.RepMax);
+            Assert.Null(warmup.RepsText);
+            Assert.Null(warmup.Tempo);
+            Assert.Null(warmup.LoadText);
+            Assert.Null(warmup.TargetRpe);
+            Assert.Null(warmup.Rir);
+            Assert.Null(warmup.Notes);
+            Assert.Equal(150, warmup.RestSeconds);
+        });
+        Assert.Equal(working, sets[2]);
+    }
+
     [Theory]
     [InlineData("AMRAP")]
     [InlineData("Max reps")]

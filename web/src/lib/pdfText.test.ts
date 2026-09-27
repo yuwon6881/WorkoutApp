@@ -36,6 +36,29 @@ beforeEach(() => {
 });
 
 describe('buildPageText', () => {
+  it.each([
+    ['Wide Grip Pull Up (Cluster Sets)', 'Wide Grip Seated Cable Row (Cluster', 4, 8],
+    ['Assisted Chin Up (Cluster Sets)', 'Neutral Grip Machine Row (Cluster', 5, 7]
+  ])('keeps unlabeled wrapped names apart from set counts: %s', (firstName, secondName, firstSets, secondSets) => {
+    const text = buildPageText([
+      piece('SETS', 205, 640, 20), piece('REPS', 240, 640, 20),
+      piece('TEMPO', 280, 640, 30), piece('RPE', 330, 640, 20),
+      piece('REST', 370, 640, 25), piece('NOTES', 430, 640, 35),
+      piece(firstName, 35, 615, 170), piece(String(firstSets), 212, 615, 6),
+      piece('3', 247, 615, 6), piece('2:1:1:1', 280, 615, 35),
+      piece('8', 337, 615, 6), piece('0.5', 375, 615, 16), piece('Controlled reps', 430, 615, 80),
+      piece(secondName, 35, 580, 180), piece('Sets)', 105, 568, 30),
+      piece(String(secondSets), 212, 580, 6), piece('3', 247, 580, 6),
+      piece('1:0:1:0', 280, 580, 35), piece('8.5', 337, 580, 15),
+      piece('0.5', 375, 580, 16), piece('Keep form', 430, 580, 50)
+    ]);
+
+    expect(text).toContain('Exercise | SETS | REPS | TEMPO | RPE | REST | NOTES');
+    expect(text).toContain(`${firstName} | ${firstSets} | 3`);
+    expect(text).toContain(`${secondName} Sets) | ${secondSets} | 3`);
+    expect(text).not.toContain(`(Cluster ${secondSets} Sets)`);
+  });
+
   it('pairs a block badge with its vertically printed number', () => {
     const text = buildPageText([
       piece('BLOCK', 40, 940, 45),

@@ -7,7 +7,7 @@ import { exerciseListChanged } from '../lib/workoutDraft';
 import { nextLog, nextUpText } from '../lib/workoutLogging';
 import { useAfterLog } from './useAfterLog';
 import { validateLoggedSet, validateSessionDraft } from '../lib/validation';
-import { restTimer } from '../lib/restTimer';
+import { remainingRestSeconds, restTimer } from '../lib/restTimer';
 import { findNextStep, restAppliesAfter } from '../lib/restRules';
 import {
   clearRecovery, enqueueFinish, enqueueSave, enqueueSetEdits, enqueueTiming, getRecovery,
@@ -378,7 +378,7 @@ export function Workout({
   const elapsedAt = finishIntentAt ? Date.parse(finishIntentAt) : draft.pausedAt ? Date.parse(draft.pausedAt) : now;
   const openPauseSeconds = draft.pausedAt ? Math.max(0, Math.floor((elapsedAt - Date.parse(draft.pausedAt)) / 1000)) : 0;
   const elapsed = Math.max(0, Math.floor((elapsedAt - Date.parse(draft.startedAt)) / 1000) - (draft.pausedSeconds ?? 0) - openPauseSeconds);
-  const remaining = rest.endsAt === 0 ? Math.max(0, Math.ceil(rest.pausedRemainingMs / 1000)) : Math.max(0, Math.ceil((rest.endsAt - now) / 1000));
+  const remaining = remainingRestSeconds(rest, now);
   const done = completedSets(draft).length;
   const unit = preferences.unit;
 

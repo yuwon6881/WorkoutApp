@@ -11,6 +11,13 @@
 .import-exercise .import-set-footer { max-width: none; margin-top: 10px; }
 .import-exercise .import-library-trigger { min-height: 44px; }
 .import-exercise .substitution-chip { border-radius: var(--radius-control); }
+.import-exercise-muscles {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  align-self: center;
+}
 .import-exercise-body {
   display: flex;
   flex-direction: column;

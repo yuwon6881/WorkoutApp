@@ -64,20 +64,43 @@ public sealed class ImportNormalizationTests
         return ready.Draft!.Workouts.Single().Exercises.Single().Sets.Single();
     }
 
-    [Fact]
-    public async Task A_timed_row_with_no_rep_count_keeps_its_reps_empty()
+    [Theory]
+    [InlineData("30 sec hold", 0)]
+    [InlineData("30 sec hold", 30)]
+    [InlineData(":30", 30)]
+    [InlineData("30s HOLD", 30)]
+    [InlineData("10-20 SEC", 10)]
+    [InlineData("10-SEC", 10)]
+    [InlineData("1:00", 1)]
+    public async Task A_timed_row_keeps_its_reps_empty_even_when_the_model_mistakes_seconds_for_reps(string text, int modelCount)
     {
         await using var h = await Harness.Create(Configured());
         await h.SignIn();
-        var set = await ReadSet(h, Set("""
-            "repMin":0,"repMax":0,"repsText":"30 sec hold"
+        var set = await ReadSet(h, Set($$"""
+            "repMin":{{modelCount}},"repMax":{{modelCount}},"repsText":"{{text}}"
             """.Replace("\n", " ")));
 
         Assert.Null(set.RepMin);
         Assert.Null(set.RepMax);
         Assert.Equal("extracted", set.RepsSource);
         // What the page said is preserved exactly, and no rep count is invented beside it.
-        Assert.Equal("30 sec hold", set.RepsText);
+        Assert.Equal(text, set.RepsText);
+    }
+
+    [Theory]
+    [InlineData("AMRAP/2")]
+    [InlineData("AMRAP + 5")]
+    public async Task An_open_ended_base_does_not_take_its_rep_target_from_extension_reps(string text)
+    {
+        await using var h = await Harness.Create(Configured());
+        await h.SignIn();
+        var set = await ReadSet(h, Set($$"""
+            "repMin":2,"repMax":2,"repsText":"{{text}}"
+            """.Replace("\n", " ")));
+
+        Assert.Null(set.RepMin);
+        Assert.Null(set.RepMax);
+        Assert.Equal(text, set.RepsText);
     }
 
     [Fact]

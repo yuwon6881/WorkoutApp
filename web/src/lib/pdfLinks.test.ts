@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { pageLinks, printedLinks, videoUrl, type LinkRect } from './pdfLinks';
+import { pageLinks, preferredPageLinks, printedLinks, videoUrl, type LinkRect } from './pdfLinks';
 import type { TextPiece } from './pdfGeometry';
 
 function piece(str: string, x: number, y: number, width = str.length * 6, height = 10): TextPiece {
@@ -7,6 +7,33 @@ function piece(str: string, x: number, y: number, width = str.length * 6, height
 }
 
 describe('PDF exercise demo links', () => {
+  it('excludes a rotated day spine even when its reported width overlaps the annotation', () => {
+    const spine: TextPiece = { str: 'Full Body #3', transform: [0, 10, -10, 0, 35, 195], width: 100, height: 10 };
+    expect(pageLinks(13, [spine, piece('Cable Lateral Raise', 40, 200)], [
+      { url: 'https://youtu.be/AbCdEfGhIjK', rect: [38, 190, 165, 212] }
+    ])).toEqual([{ page: 13, name: 'Cable Lateral Raise', url: 'https://youtu.be/AbCdEfGhIjK' }]);
+  });
+
+  it('keeps a long explicit glossary label and joins a URL tail followed by coaching text', () => {
+    const name = 'ECCENTRIC-ACCENTUATED STANDING CALF RAISE';
+    expect(pageLinks(93, [piece(name + ':', 40, 200, 310), piece('https://youtu.be/-qsRtp_', 360, 200, 130),
+      piece('PbVM?t=310', 40, 180, 70)], [
+      { url: 'https://youtu.be/-qsRtp_PbVM?t=310', rect: [358, 195, 492, 212] },
+      { url: 'https://youtu.be/-qsRtp_PbVM?t=310', rect: [38, 176, 112, 192] }
+    ])).toEqual([{ page: 93, name, url: 'https://youtu.be/-qsRtp_PbVM?t=310' }]);
+    expect(printedLinks(93, name + ': https://youtu.be/-qsRtp_\nPbVM?t=310 (except slow the negative more)'))
+      .toEqual([{ page: 93, name, url: 'https://youtu.be/-qsRtp_PbVM?t=310' }]);
+  });
+  it('joins small-caps name runs and retains the annotation destination over a recased printed URL', () => {
+    const pieces = [piece('Ban', 40, 200, 18), piece('D', 58, 200, 6),
+      piece('e', 64, 200, 6), piece('D', 70, 200, 6), piece('Pushup', 80, 200, 36)];
+    const links = pageLinks(5, pieces, [{ url: 'https://youtu.be/4FLFzOUqPk4', rect: [38, 196, 118, 212] }]);
+    expect(links).toEqual([{ page: 5, name: 'BanDeD Pushup', url: 'https://youtu.be/4FLFzOUqPk4' }]);
+    expect(preferredPageLinks(links, [
+      { page: 5, name: 'Banded Pushup', url: 'https://youtu.be/4FlFzoUqpk4' },
+      { page: 5, name: 'Cable Flye', url: 'https://youtu.be/AbCdEfGhIjK?t=90' }
+    ])).toEqual([...links, { page: 5, name: 'Cable Flye', url: 'https://youtu.be/AbCdEfGhIjK?t=90' }]);
+  });
   it('accepts only video hosts and normalises them to https', () => {
     expect(videoUrl('https://youtu.be/qTSTOVVr8rU')).toBe('https://youtu.be/qTSTOVVr8rU');
     expect(videoUrl('http://youtu.be/qTSTOVVr8rU')).toBe('https://youtu.be/qTSTOVVr8rU');

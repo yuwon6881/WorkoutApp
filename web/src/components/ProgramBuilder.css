@@ -210,7 +210,7 @@
   flex:1 1 auto;
   min-width:0;
   display:grid;
-  grid-template-columns:minmax(0,1fr) 24px;
+  grid-template-columns:minmax(0,1fr);
   align-items:center;
   column-gap:8px;
   row-gap:1px;
@@ -223,18 +223,8 @@
   color:var(--text);
   cursor:pointer;
 }
-.draft-day .draft-day-summary-static{cursor:default;grid-template-columns:minmax(0,1fr)}
+.draft-day .draft-day-summary-static{cursor:default}
 .draft-day .draft-day-summary:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
-.draft-day-summary>.draft-day-disclosure{
-  grid-column:2;
-  grid-row:1 / span 2;
-  display:grid;
-  place-items:center;
-  width:24px;
-  height:24px;
-  flex:0 0 24px;
-  margin-left:auto;
-}
 .draft-day-heading{
   grid-column:1;
   grid-row:1;
@@ -272,6 +262,13 @@
 .program-day-entry .day-muscles-row{padding:0 14px 10px}
 .program-day-entry .day-editor{padding-top:0}
 
+/* Day detail modal — replaces inline expansion with a full dialog overlay. */
+.day-detail-modal-body{overflow-y:auto;max-height:calc(85vh - 80px)}
+.day-detail-modal-body .draft-day-muscles{padding:0 0 12px}
+.day-detail-modal-body .day-editor{padding-top:0}
+.import-exercise-dim-wrap{transition:opacity .18s ease}
+.import-exercise-dim-wrap.exercise-dimmed{opacity:.35}
+
 @media(max-width:1023px){
   .ui-menu>.ui-menu-trigger{width:44px;height:44px;min-width:44px;min-height:44px}
   .ui-menu>.ui-menu-dropdown .ui-menu-item{min-height:44px}
@@ -287,8 +284,6 @@
   .program-day-add-buttons{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;width:100%;margin:0}
   .program-day-add-buttons>.button{justify-content:center;min-width:0;padding-inline:8px}
   .draft-day-row{gap:2px;padding:4px 4px 4px 2px}
-  .draft-day .draft-day-summary{grid-template-columns:minmax(0,1fr) 24px;column-gap:6px}
-  .draft-day-summary>.draft-day-disclosure{width:24px;height:24px;flex:0 0 24px}
   [data-editor-mode="custom"] .import-program-heading{flex-direction:column;align-items:stretch}
   /* In a column the flex basis would become a 300px height, so the title keeps its own height. */
   [data-editor-mode="custom"] .import-program-title{flex:0 0 auto;max-width:100%}

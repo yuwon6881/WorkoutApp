@@ -7,6 +7,29 @@ namespace Workout.Tests;
 /// Each read below makes a mistake real reads have made on pages that print the answer plainly.
 public sealed class ImportCleanPageTests
 {
+    [Fact]
+    public void A_blank_rep_cell_keeps_its_printed_order_without_inventing_reps_from_notes()
+    {
+        const string source = """
+            === PAGE 20 ===
+            DAY LABEL: Day 3
+            Exercise | Working Sets | Reps | RPE | Rest | Notes
+            Cable row | 2 | 9-11 | 8 | 2 min |
+            Lateral raise (myo-rep) | 3 | | 10 | 1 min | Perform 15 reps, rest 5 seconds, then another 5 reps.
+            Reverse flye | 2 | 12 | 9 | 1 min |
+            """;
+        var read = new AiProgram("Changed title", [Day("Day 3", [
+            new AiExercise("Cable row", null, null, [Set(9, 11, 8, 120, "2 min")], SourcePage: 20),
+            new AiExercise("Reverse flye", null, null, [Set(12, 12, 9, 60, "1 min")], SourcePage: 20),
+            new AiExercise("Lateral raise (myo-rep)", null, null, [Set(15, 15, 10, 60, "1 min")], SourcePage: 20)
+        ])]);
+        var exercises = Assert.Single(ImportTableEvidence.Enrich(read, source).Days!).Exercises;
+        Assert.Equal(["Cable row", "Lateral raise (myo-rep)", "Reverse flye"], exercises.Select(exercise => exercise.SourceName));
+        Assert.Equal(3, exercises[1].Sets.Count);
+        Assert.All(exercises[1].Sets, set => Assert.Null(set.RepMin));
+        Assert.All(exercises[1].Sets, set => Assert.Null(set.RepMax));
+        Assert.Contains("Perform 15 reps", exercises[1].CoachingNotes);
+    }
     private const string Page = """
         === PAGE 20 ===
         DAY LABEL: Day 3
@@ -99,7 +122,7 @@ public sealed class ImportCleanPageTests
     }
 
     [Fact]
-    public void The_reads_catalog_id_notes_and_substitutions_survive_the_printed_rows()
+    public void Printed_substitutions_override_the_read_while_catalog_id_and_extra_notes_survive()
     {
         var read = Day("Day 3", [
             new AiExercise("Reverse Barbell Curl", "reverse-curl", "Keep elbows pinned", [Set(10, 12, 9, 60, "1 min")],
@@ -110,7 +133,7 @@ public sealed class ImportCleanPageTests
 
         Assert.Equal(("reverse-curl", "Keep elbows pinned", "B1", "Slow eccentric"),
             (exercise.ExerciseId, exercise.Notes, exercise.SequenceGroup, exercise.CoachingNotes));
-        Assert.Equal(["Hammer Curl"], exercise.Substitutions);
+        Assert.Equal(["EZ-Bar Reverse Curl", "Cable Reverse Curl"], exercise.Substitutions);
     }
 
     [Fact]

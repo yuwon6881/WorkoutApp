@@ -47,6 +47,10 @@ internal static class ImportNormalization
     /// ("AMRAP", "N/A", a blank) has no rep target, and none is invented. `Adjusted` reports any change.
     public static (int? Min, int? Max, bool Adjusted) Reps(int? min, int? max, string? text = null)
     {
+        // A duration has a number, but that number is not a repetition count. Keep the written
+        // duration in repsText without allowing a model's duplicate numeric field to turn it into reps.
+        if (IsDuration(text) || HasOpenEndedBase(text)
+            || Regex.IsMatch(text?.Trim() ?? "", @"^RPE\s*\d+(?:\.\d+)?\s*TEST$", RegexOptions.IgnoreCase)) return (null, null, false);
         if (!string.IsNullOrWhiteSpace(text) && !text.Any(char.IsDigit)) return (null, null, false);
         if (min is not { } statedMin || max is not { } statedMax || statedMin <= 0 && statedMax <= 0)
         {
@@ -55,6 +59,16 @@ internal static class ImportNormalization
         }
         return Stated(statedMin, statedMax, text);
     }
+
+    private static bool IsDuration(string? text)
+        => !string.IsNullOrWhiteSpace(text) && Regex.IsMatch(text.Trim(),
+            @"^(?:[~≈]\s*)?(?:(?:\d{1,2})?:\d{2}|\d+(?:\.\d+)?(?:\s*[-–]\s*\d+(?:\.\d+)?)?\s*[- ]?\s*(?:s|secs?|seconds?|mins?|minutes?))(?:\s+(?:hold|each|per\s+(?:leg|side)))?$",
+            RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+
+    private static bool HasOpenEndedBase(string? text)
+        => !string.IsNullOrWhiteSpace(text) && Regex.IsMatch(text.Trim(),
+            @"^(?:amrap|max(?:imum)?\s+reps?|to\s+failure|failure)(?:\s*[/+].*)?$",
+            RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
 
     private static (int? Min, int? Max, bool Adjusted) Stated(int min, int max, string? text)
     {

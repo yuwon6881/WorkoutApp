@@ -388,7 +388,7 @@ for (const theme of ['dark', 'light']) {
     await prescriptionCard.getByRole('button', { name: 'Range', exact: true }).click();
     await screenshot('expanded-import-range');
     await prescriptionCard.getByRole('button', { name: 'Exact', exact: true }).click();
-
+    await page.getByRole('button', { name: 'Close dialog', exact: true }).click();
 
     await navigate(page, 'Overview');
     await screenshot('progress');

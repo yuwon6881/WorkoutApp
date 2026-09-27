@@ -3,7 +3,9 @@ import { Copy, GripVertical, Plus, Trash2 } from 'lucide-react';
 import type { DraftWorkout, Exercise } from '../types';
 import { Button } from './ui/Button';
 import { MenuButton, MenuItem } from './ui/MenuButton';
-import { DayRow } from './ImportDayRow';
+import { Modal } from './ui/Modal';
+import { DayRow, DayDetailContent } from './ImportDayRow';
+import { DayEditor } from './ImportDayEditor';
 import type { ProgramStructureEditor } from './useProgramStructureEditor';
 
 type DragState = { lineId: string; overIndex: number; side: 'before' | 'after' };
@@ -11,8 +13,8 @@ type DragState = { lineId: string; overIndex: number; side: 'before' | 'after' }
 export function ProgramDayList({
   structure,
   exercises,
-  expandedDay,
-  setExpandedDay,
+  openDay,
+  setOpenDay,
   onDayChange,
   onPropagateSubstitution,
   onMapExerciseSlot,
@@ -22,8 +24,8 @@ export function ProgramDayList({
 }: {
   structure: ProgramStructureEditor;
   exercises: Exercise[];
-  expandedDay: string | null;
-  setExpandedDay: (id: string | null) => void;
+  openDay: string | null;
+  setOpenDay: (id: string | null) => void;
   onDayChange: (day: DraftWorkout) => Promise<void>;
   onPropagateSubstitution?: (currentName: string, replacementName: string, exerciseLineId?: string) => Promise<void>;
   onMapExerciseSlot?: (exerciseLineId: string, exerciseId: string | null) => Promise<void>;
@@ -37,8 +39,10 @@ export function ProgramDayList({
   const [drag, setDragState] = useState<DragState | null>(null);
   const dragRef = useRef<DragState | null>(null);
   const pointer = useRef<{ id: number; startY: number; lineId: string; index: number; active: boolean } | null>(null);
+  const [selectedMuscle, setSelectedMuscle] = useState<string | null>(null);
 
   const days = week?.days ?? [];
+  const openDayData = openDay ? days.find(d => d.lineId === openDay) : null;
 
   const setDrag = useCallback((next: DragState | null) => {
     dragRef.current = next;
@@ -110,7 +114,17 @@ export function ProgramDayList({
     moveDayTo(state.lineId, insertAt);
   }, [days, moveDayTo, setDrag]);
 
+  const closeModal = useCallback(() => {
+    setOpenDay(null);
+    setSelectedMuscle(null);
+  }, [setOpenDay]);
+
   if (!week) return null;
+
+  const openDayIndex = openDayData ? days.indexOf(openDayData) : -1;
+  const modalTitle = openDayData
+    ? `Day ${openDayIndex + 1}${openDayData.name && !/^day\s*\d+$/i.test(openDayData.name.trim()) ? ` · ${openDayData.name}` : ''}`
+    : '';
 
   return <>
     <div className="import-week-days" role="tabpanel" aria-label={`Week ${week.week}`}>
@@ -126,15 +140,8 @@ export function ProgramDayList({
           <DayRow
             day={day}
             index={dayIndex}
-            expanded={expandedDay === day.lineId}
-            onToggle={() => setExpandedDay(expandedDay === day.lineId ? null : day.lineId)}
+            onOpen={() => setOpenDay(day.lineId)}
             exercises={exercises}
-            onChange={onDayChange}
-            onPropagateSubstitution={onPropagateSubstitution}
-            onMapExerciseSlot={onMapExerciseSlot}
-            onCustomExerciseCreated={onCustomExerciseCreated}
-            restorableExerciseLineIds={restorableExerciseLineIds}
-            onRestoreExercise={onRestoreExercise}
             handle={<Button
               presentation="plain"
               className="program-day-handle"
@@ -179,5 +186,28 @@ export function ProgramDayList({
         </Button>
       </div>
     </div>
+
+    {openDayData && !openDayData.isRestDay && (
+      <Modal title={modalTitle} wide onClose={closeModal} className="day-detail-modal">
+        <div className="modal-body day-detail-modal-body draft-day" data-import-day={openDayData.lineId}>
+          <DayDetailContent
+            day={openDayData}
+            exercises={exercises}
+            onChange={onDayChange}
+            onPropagateSubstitution={onPropagateSubstitution}
+            onMapExerciseSlot={onMapExerciseSlot}
+            onCustomExerciseCreated={onCustomExerciseCreated}
+            restorableExerciseLineIds={restorableExerciseLineIds}
+            onRestoreExercise={onRestoreExercise}
+            DayEditorComponent={DayEditor}
+            selectedMuscle={selectedMuscle}
+            onMuscleSelect={setSelectedMuscle}
+          />
+        </div>
+        <div className="modal-actions">
+          <Button variant="primary" onClick={closeModal}>Done</Button>
+        </div>
+      </Modal>
+    )}
   </>;
 }

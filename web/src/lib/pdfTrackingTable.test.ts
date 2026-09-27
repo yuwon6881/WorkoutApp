@@ -4,6 +4,20 @@ import { horizontalPiece, trackingPage } from './pdfPieces.fixtures';
 import { findTrackingTables, renderTrackingTables } from './pdfTrackingTable';
 
 describe('PDF tracking-table reconstruction', () => {
+  it('uses the table notes alignment for short instructions beside a printed alternative', () => {
+    const p = horizontalPiece;
+    const pieces = [
+      ...trackingPage(),
+      p('Keep the entire movement slow and controlled throughout each repetition', 1450, 900, 340),
+      p('Cable Curl', 100, 850), p('1', 440, 850, 10), p('2', 540, 850, 10),
+      p('9-11', 560, 850, 30), p('1', 877, 850, 10), p('0', 925, 850, 10),
+      p('1-2 min', 1100, 850, 40), p('EZ-Bar Curl', 1345, 850, 65),
+      p('Slow, controlled reps!', 1450, 850, 105)
+    ];
+    const rows = groupRows(positionPieces(pieces));
+    const line = renderTrackingTables(rows, findTrackingTables(rows)).find(value => value.text.startsWith('Cable Curl'));
+    expect(line?.text).toContain('| EZ-Bar Curl | Slow, controlled reps!');
+  });
   it.each([0.5, 1])('keeps the strict tracking signature at page scale %i', scale => {
     const rows = groupRows(positionPieces(trackingPage(scale, 2, 'rir')));
     expect(findTrackingTables(rows)).toHaveLength(1);

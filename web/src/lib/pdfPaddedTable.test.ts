@@ -30,6 +30,53 @@ function paddedRow(top: number, first: string, second: string, sets: string) {
 }
 
 describe('padded training tables', () => {
+  it('keeps both instructions when a printed notes cell contains a vertical separator', () => {
+    const text = buildPageText([
+      piece('Exercise', 30, 500, 50), piece('Sets', 180, 500, 20), piece('Reps', 230, 500, 20),
+      piece('Notes', 420, 500, 25), piece('LSRPE', 700, 500, 30),
+      piece('Press', 30, 475, 40), piece('1', 185, 475, 5), piece('AMRAP', 230, 475, 35),
+      piece('AMRAP | determine estimated 1RM', 380, 475, 230)
+    ]);
+    expect(text).toContain('Press | 1 | AMRAP | AMRAP — determine estimated 1RM');
+  });
+  it('separates a short coaching instruction from the preceding printed alternative', () => {
+    const text = buildPageText([
+      piece('Exercise', 30, 500, 50), piece('Sets', 180, 500, 20), piece('Reps', 230, 500, 20),
+      piece('Substitution Option 1', 290, 500, 85), piece('Notes', 520, 500, 25),
+      piece('Cable Curl', 30, 475, 65), piece('3', 185, 475, 5), piece('9', 235, 475, 5),
+      piece('EZ-Bar Curl', 290, 475, 65), piece('Slow, controlled reps!', 385, 475, 80)
+    ]);
+    expect(text).toContain('Cable Curl | 3 | 9 | EZ-Bar Curl | Slow, controlled reps!');
+  });
+  it('places a short note using the shared left edge of the table notes rather than its center', () => {
+    const text = buildPageText([
+      piece('Exercise', 30, 500, 50), piece('Sets', 180, 500, 20), piece('Reps', 230, 500, 20),
+      piece('Substitution Option 1', 290, 500, 85), piece('Notes', 480, 500, 25),
+      piece('Cable Row', 30, 475, 65), piece('2', 185, 475, 5), piece('12', 235, 475, 10),
+      piece('Dumbbell Row', 290, 475, 65), piece('Keep the whole movement smooth and controlled', 400, 475, 220),
+      piece('Cable Curl', 30, 450, 65), piece('3', 185, 450, 5), piece('8', 235, 450, 5),
+      piece('DB Curl', 290, 450, 40), piece('Slow reps!', 400, 450, 45)
+    ]);
+    expect(text).toContain('Cable Curl | 3 | 8 | DB Curl | Slow reps!');
+  });
+  it('keeps coaching-word tails that overlap a blank last-set effort tracking box', () => {
+    const text = buildPageText([
+      piece('Exercise', 30, 500, 50), piece('Sets', 180, 500, 20), piece('Reps', 230, 500, 20),
+      piece('Rest', 280, 500, 20), piece('Notes', 380, 500, 25), piece('LSRPE', 510, 500, 35),
+      piece('Cable Row', 30, 475, 65), piece('2', 185, 475, 5), piece('12', 235, 475, 10),
+      piece('1 min', 280, 475, 30), piece('Keep elbows tucked', 340, 475, 130), piece('in', 470, 475, 10)
+    ]);
+    expect(text).toContain('Cable Row | 2 | 12 | 1 min | Keep elbows tuckedin');
+  });
+  it('keeps coaching text that starts under a blank tracking column', () => {
+    const text = buildPageText([
+      piece('Exercise', 30, 500, 50), piece('Sets', 180, 500, 20), piece('Reps', 230, 500, 20),
+      piece('Rest', 280, 500, 20), piece('1', 340, 500, 5), piece('2', 380, 500, 5), piece('Notes', 455, 500, 25),
+      piece('Cable Row', 30, 475, 65), piece('2', 185, 475, 5), piece('12', 235, 475, 10),
+      piece('1 min', 280, 475, 30), piece('KEEP', 375, 475, 20), piece('ELBOWS LOW', 400, 475, 70)
+    ]);
+    expect(text).toContain('Cable Row | 2 | 12 | 1 min |  |  | KEEP ELBOWS LOW');
+  });
   it('keeps every row of a padded table whole and moves its day title to the top', () => {
     const text = buildPageText([
       ...header,

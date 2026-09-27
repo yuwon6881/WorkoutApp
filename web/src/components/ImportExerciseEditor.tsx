@@ -73,7 +73,8 @@ export function ExerciseEditor({ exercise, exercises, allDayExercises, onChange,
     onChange({ ...exercise, sets: newSets });
   };
 
-  const selected = exercises.find(option => option.id === exercise.exerciseId);
+  const selected = exercises.find(option => option.id === exercise.exerciseId)
+    || (exercise.sourceName ? exercises.find(option => option.name.toLowerCase() === exercise.sourceName.toLowerCase() || option.aliases.some(a => a.toLowerCase() === exercise.sourceName.toLowerCase())) : undefined);
   const repRange = usesRepRange(exercise.sets.filter(set => !hasOpenReps(set)));
   const select = async (exerciseId: string | null) => {
     if (onMapExerciseSlot) {
@@ -115,7 +116,8 @@ export function ExerciseEditor({ exercise, exercises, allDayExercises, onChange,
     );
     if (!matched) return;
     const currentName = exercise.sourceName;
-    const remainingSubs = [currentName, ...exercise.substitutions.filter(s => s.toLowerCase() !== subName.toLowerCase())].slice(0, 2);
+    const currentLibraryName = exercises.find(e => e.id === exercise.exerciseId)?.name ?? currentName;
+    const remainingSubs = [currentLibraryName, ...exercise.substitutions.filter(s => s.toLowerCase() !== subName.toLowerCase())].slice(0, 2);
     const nextExercise: DraftExercise = {
       ...exercise,
       sourceName: matched.name,
@@ -123,10 +125,9 @@ export function ExerciseEditor({ exercise, exercises, allDayExercises, onChange,
       substitutions: remainingSubs,
       demoUrl: demoUrlForName(exercise.demoLinks, matched.name)
     };
+    onChange(nextExercise);
     if (onPropagateSubstitution) {
       void onPropagateSubstitution(currentName, matched.name, exercise.lineId);
-    } else {
-      onChange(nextExercise);
     }
   };
 
@@ -234,6 +235,19 @@ export function ExerciseEditor({ exercise, exercises, allDayExercises, onChange,
               {selected?.name ?? (exercise.exerciseId ? 'Swap exercise' : 'Map exercise')}
             </Button>
           </div>
+          {selected && (
+            <div className="import-exercise-muscles" aria-label={`Target muscles: ${[selected.muscle, ...(selected.secondaryMuscles ?? [])].filter(Boolean).join(', ')}`}>
+              <span className="pill pill-accent">{selected.muscle || 'Full body'}</span>
+              {selected.secondaryMuscles && selected.secondaryMuscles.length > 0 && (
+                <span className="pill pill-muted">{selected.secondaryMuscles[0]}</span>
+              )}
+              {selected.secondaryMuscles && selected.secondaryMuscles.length > 1 && (
+                <span className="pill pill-muted pill-overflow" title={selected.secondaryMuscles.slice(1).join(', ')}>
+                  +{selected.secondaryMuscles.length - 1}
+                </span>
+              )}
+            </div>
+          )}
           <div className="field import-substitutions-field">
             <div className="substitution-chips-wrap">
               {validSubstitutions.length > 0 ? (

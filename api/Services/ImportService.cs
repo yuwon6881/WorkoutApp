@@ -211,7 +211,9 @@ public sealed partial class ImportService(AppDb db, WorkoutAi ai, CatalogService
         {
             if (CatalogService.IsPlaceholder(option) || ImportNormalization.Text(option, 160) is not { } clean) continue;
             var name = CatalogMatching.FindWhole(library, clean) is { } match && claimed.Add(match)
-                && canonicalNames.TryGetValue(match, out var canonical) ? canonical : clean;
+                && canonicalNames.TryGetValue(match, out var canonical)
+                && CatalogMatching.WordSetKey(CatalogService.Normalize(clean)) == CatalogMatching.WordSetKey(CatalogService.Normalize(canonical))
+                ? canonical : clean;
             if (!alternates.Contains(name, StringComparer.OrdinalIgnoreCase)) alternates.Add(name);
         }
         return alternates;

@@ -1,11 +1,24 @@
 import { describe, expect, it } from 'vitest';
-import { isRestAlertOwner, shortenedRest } from './restTimer';
+import { isRestAlertOwner, remainingRestSeconds, shortenedRest } from './restTimer';
 
 const alert = { sessionId: 'session-a', generation: 'generation-a' };
 const owner = {
   accountId: 'account-a', sessionId: 'session-a', generation: 'generation-a',
   endsAt: 100, visible: true
 };
+
+describe('remaining rest duration', () => {
+  it('never displays more than the prescribed duration when the screen tick predates a new deadline', () => {
+    expect(remainingRestSeconds({ endsAt: 220_000, totalSeconds: 120, pausedRemainingMs: 0 }, 99_500)).toBe(120);
+  });
+
+  it('counts down from the deadline and preserves paused and extended durations', () => {
+    expect(remainingRestSeconds({ endsAt: 220_000, totalSeconds: 120, pausedRemainingMs: 0 }, 115_100)).toBe(105);
+    expect(remainingRestSeconds({ endsAt: 0, totalSeconds: 120, pausedRemainingMs: 30_100 }, 300_000)).toBe(31);
+    expect(remainingRestSeconds({ endsAt: 250_000, totalSeconds: 150, pausedRemainingMs: 0 }, 100_000)).toBe(150);
+    expect(remainingRestSeconds({ endsAt: 220_000, totalSeconds: 120, pausedRemainingMs: 0 }, 221_000)).toBe(0);
+  });
+});
 
 describe('rest alert ownership', () => {
   it('matches only a visible, authenticated account timer for the same expired session and generation', () => {

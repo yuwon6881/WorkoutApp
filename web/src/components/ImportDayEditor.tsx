@@ -1,12 +1,13 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Plus } from 'lucide-react';
 import type { DraftExercise, DraftWorkout, Exercise } from '../types';
+import { exerciseCredits } from '../lib/programMuscles';
 import { Button } from './ui/Button';
 import { Field } from './ui/Field';
 import { pairExercises, unlinkExercise } from '../lib/supersets';
 import { ExerciseEditor, blankExercise } from './ImportExerciseEditor';
 
-export function DayEditor({ day, exercises, onChange, onPropagateSubstitution, onMapExerciseSlot, onCustomExerciseCreated, restorableExerciseLineIds, onRestoreExercise }: {
+export function DayEditor({ day, exercises, onChange, onPropagateSubstitution, onMapExerciseSlot, onCustomExerciseCreated, restorableExerciseLineIds, onRestoreExercise, selectedMuscle }: {
   day: DraftWorkout;
   exercises: Exercise[];
   onChange: (day: DraftWorkout) => Promise<void>;
@@ -15,6 +16,7 @@ export function DayEditor({ day, exercises, onChange, onPropagateSubstitution, o
   onCustomExerciseCreated?: () => Promise<void>;
   restorableExerciseLineIds?: string[];
   onRestoreExercise?: (exerciseLineId: string) => Promise<void>;
+  selectedMuscle?: string | null;
 }) {
   const [draft, setDraft] = useState(day);
   useEffect(() => setDraft(day), [day]);
@@ -59,6 +61,20 @@ export function DayEditor({ day, exercises, onChange, onPropagateSubstitution, o
     save({ ...draft, exercises: remaining });
   };
 
+  // When a muscle tile is selected, compute which exercises contribute to it so non-contributing
+  // exercises are visually dimmed.
+  const catalogById = useMemo(() => new Map(exercises.map(e => [e.id, e])), [exercises]);
+  const dimSet = useMemo(() => {
+    if (!selectedMuscle) return null;
+    const dimmed = new Set<string>();
+    for (const ex of draft.exercises) {
+      const catalogExercise = ex.exerciseId ? catalogById.get(ex.exerciseId) : undefined;
+      const credits = exerciseCredits(ex.sourceName, catalogExercise);
+      if (!credits.has(selectedMuscle)) dimmed.add(ex.lineId);
+    }
+    return dimmed;
+  }, [selectedMuscle, draft.exercises, catalogById]);
+
   return <div className="day-editor">
     <div className="day-editor-fields">
       <Field name={`day-name-${draft.lineId}`} className="day-name-field" label="Day name" value={draft.name} data-import-field="name"
@@ -69,16 +85,19 @@ export function DayEditor({ day, exercises, onChange, onPropagateSubstitution, o
       ? <div className="rest-callout"><span className="tiny-label">Rest day</span><p>No exercises are scheduled for this slot.</p></div>
       : groups.map((group, groupIndex) => <div className={group.length > 1 ? 'superset-block' : ''} key={groupIndex}>
         {group.length > 1 && <div className="superset-heading">Superset {group[0].sequenceGroup.match(/^[A-Za-z]+/)?.[0] ?? ''}</div>}
-        {group.map(exercise => <ExerciseEditor key={exercise.lineId} exercise={exercise} exercises={exercises} allDayExercises={draft.exercises}
-          onChange={next => save({ ...draft, exercises: draft.exercises.map(item => item.lineId === next.lineId ? next : item) })}
-          onRemove={() => handleRemoveExercise(exercise.lineId)}
-          onPairExercises={targetLineId => handlePairExercises(exercise.lineId, targetLineId)}
-          onUnlinkExercise={() => handleUnlinkExercise(exercise.lineId)}
-          onPropagateSubstitution={onPropagateSubstitution}
-          onMapExerciseSlot={onMapExerciseSlot}
-          onCustomExerciseCreated={onCustomExerciseCreated}
-          canRestore={restorableExerciseLineIds?.includes(exercise.lineId)}
-          onRestore={onRestoreExercise ? () => onRestoreExercise(exercise.lineId) : undefined} />)}
+        {group.map(exercise => <div key={exercise.lineId}
+          className={dimSet?.has(exercise.lineId) ? 'import-exercise-dim-wrap exercise-dimmed' : ''}>
+          <ExerciseEditor exercise={exercise} exercises={exercises} allDayExercises={draft.exercises}
+            onChange={next => save({ ...draft, exercises: draft.exercises.map(item => item.lineId === next.lineId ? next : item) })}
+            onRemove={() => handleRemoveExercise(exercise.lineId)}
+            onPairExercises={targetLineId => handlePairExercises(exercise.lineId, targetLineId)}
+            onUnlinkExercise={() => handleUnlinkExercise(exercise.lineId)}
+            onPropagateSubstitution={onPropagateSubstitution}
+            onMapExerciseSlot={onMapExerciseSlot}
+            onCustomExerciseCreated={onCustomExerciseCreated}
+            canRestore={restorableExerciseLineIds?.includes(exercise.lineId)}
+            onRestore={onRestoreExercise ? () => onRestoreExercise(exercise.lineId) : undefined} />
+        </div>)}
       </div>)}
     {!draft.isRestDay && <Button variant="tertiary" className="day-add-exercise-button" onClick={() => save({ ...draft, exercises: [...draft.exercises, blankExercise()] })}>
       <Plus size={16} />Add exercise

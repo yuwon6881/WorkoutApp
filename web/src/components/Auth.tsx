@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { ArrowRight, Dumbbell } from 'lucide-react';
 import { Button } from './ui/Button';
 import { centralAuthError } from '../lib/centralAuthError';
+import {initialTheme} from '../lib/theme';
 
 export function Auth() {
   const [error, setError] = useState('');
@@ -19,7 +20,7 @@ export function Auth() {
         <h1>Welcome</h1>
         <p className="muted">Your training is stored on the server, so it follows you to every device you sign in on.</p>
         {error && <p className="error-text" role="alert">{error}</p>}
-        <Button className="full-width" variant="primary" type="button" onClick={() => { window.location.href = '/api/auth/central/start'; }}>
+        <Button className="full-width" variant="primary" type="button" onClick={() => { window.location.href = `/api/auth/central/start?theme=${initialTheme()}`; }}>
           Sign in with Fitness Account<ArrowRight size={16} />
         </Button>
       </div>

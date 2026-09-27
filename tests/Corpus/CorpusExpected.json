@@ -1,4 +1,12 @@
 {
+  "Shoulder_Hypertrophy_Program": {
+    "expectedFailures": [
+      { "code": "effort_instruction_conflict", "page": 12, "targetField": "targetRpe" },
+      { "code": "effort_instruction_conflict", "page": 13, "targetField": "targetRpe" },
+      { "code": "effort_instruction_conflict", "page": 14, "targetField": "targetRpe" },
+      { "code": "effort_instruction_conflict", "page": 15, "targetField": "targetRpe" }
+    ]
+  },
   "Fundamentals_Hypertrophy_Program": {
     "alternatives": [
       { "id": "full-body-program", "name": "Full Body Program", "pageFrom": 34, "pageTo": 48, "weekCount": 8, "sessionsPerWeek": 3 },
@@ -30,5 +38,14 @@
       "page": 49,
       "targetField": "repMin"
     }
+  },
+  "The_Pure_Bodybuilding_Program_-_Full_Body-1": {
+    "expectedFailure": { "code": "working_set_instruction_conflict", "page": 29, "targetField": "sets" }
+  },
+  "The_Pure_Bodybuilding_Program_-_PPL": {
+    "expectedFailure": { "code": "working_set_instruction_conflict", "page": 40, "targetField": "sets" }
+  },
+  "The_Pure_Bodybuilding_Program_-_UpperLower": {
+    "expectedFailure": { "code": "working_set_instruction_conflict", "page": 27, "targetField": "sets" }
   }
 }

@@ -1,17 +1,13 @@
 .program-muscle-preview{display:grid;gap:9px;margin:2px 0 1px;min-width:0}
-.program-muscle-preview>h3{font-size:14px;font-weight:600;color:var(--text)}
-.program-muscle-focus{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);align-items:center;gap:14px;padding:10px 14px;border:1px solid var(--border);border-radius:12px;background:var(--surface-raised);min-width:0}
-.program-muscle-focus-figure{display:block;width:100%;height:auto;aspect-ratio:4/3;max-height:220px;pointer-events:none}
-.program-muscle-focus-copy{display:grid;gap:4px;align-content:center;min-width:0}
-.program-muscle-focus-copy>strong{font-size:18px;font-weight:650;line-height:1.2;overflow-wrap:anywhere}
-.program-muscle-focus-copy>span:not(.tiny-label){color:var(--muted);font-size:14px;line-height:1.4;font-variant-numeric:tabular-nums}
 .program-muscle-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,210px),1fr));gap:8px;margin:0;padding:0;list-style:none;min-width:0}
 .program-muscle-grid>li{min-width:0}
-.program-muscle-tile{display:grid;grid-template-columns:76px minmax(0,1fr);align-items:center;gap:10px;width:100%;min-width:0;min-height:78px;padding:6px 10px;border:1px solid var(--border);border-radius:9px;background:var(--surface-raised);color:var(--text);text-align:left;cursor:default;transition:border-color .16s ease,background-color .16s ease}
+.program-muscle-tile{display:grid;grid-template-columns:76px minmax(0,1fr);align-items:center;gap:10px;width:100%;min-width:0;min-height:78px;padding:6px 10px;border:1px solid var(--border);border-radius:9px;background:var(--surface-raised);color:var(--text);text-align:left;cursor:pointer;transition:border-color .16s ease,background-color .16s ease}
 .program-muscle-tile:hover{border-color:var(--border-hover)}
+.program-muscle-tile.is-selected{border-color:var(--accent-border-strong);background:var(--accent-soft)}
+.program-muscle-tile.is-selected:hover{border-color:var(--accent)}
+.program-muscle-tile:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
 .program-muscle-figure{display:block;width:76px;height:64px;overflow:hidden;pointer-events:none}
 .program-muscle-part,.program-muscle-region{fill:color-mix(in srgb,var(--muted) 42%,var(--surface));stroke:var(--surface-raised);stroke-width:1.6;stroke-linejoin:round}
-.program-muscle-focus-figure .program-muscle-part,.program-muscle-focus-figure .program-muscle-region{stroke-width:1.2}
 /* The day's other trained muscles stay visible around the focus at 40% of their own depth. */
 .program-muscle-region.is-context{fill:color-mix(in srgb,var(--accent) calc(var(--muscle-shade,35%) * .4),color-mix(in srgb,var(--muted) 42%,var(--surface)))}
 .program-muscle-region.is-highlighted{fill:color-mix(in srgb,var(--accent) var(--muscle-shade,35%),color-mix(in srgb,var(--muted) 42%,var(--surface)))}
@@ -22,9 +18,11 @@
 .program-muscle-empty{padding:9px 11px;border:1px solid var(--border);border-radius:8px;background:var(--surface-raised)}
 .program-muscle-unattributed{color:var(--muted)}
 
+/* Exercise highlight state: when a muscle tile is selected, exercises that don't contribute are dimmed. */
+.import-exercise.exercise-dimmed{opacity:.35;transition:opacity .18s ease}
+.import-exercise:not(.exercise-dimmed){transition:opacity .18s ease}
+
 @media(max-width:639px){
-  .program-muscle-focus{grid-template-columns:minmax(0,1fr);gap:8px}
-  .program-muscle-focus-figure{max-height:200px}
   .program-muscle-grid{
     display:flex;
     flex-wrap:nowrap;
@@ -39,10 +37,10 @@
   }
   .program-muscle-grid::-webkit-scrollbar{display:none}
   .program-muscle-grid>li{flex:0 0 auto;width:180px;min-width:180px}
-  .program-muscle-tile{grid-template-columns:52px minmax(0,1fr);gap:8px;min-height:60px;height:100%;padding:6px 10px;cursor:default}
+  .program-muscle-tile{grid-template-columns:52px minmax(0,1fr);gap:8px;min-height:60px;height:100%;padding:6px 10px;cursor:pointer}
   .program-muscle-figure{width:52px;height:44px}
   .program-muscle-copy>strong{font-size:14px;overflow-wrap:anywhere}
   .program-muscle-copy>span{font-size:14px;white-space:normal;overflow-wrap:anywhere}
 }
-@media(prefers-reduced-motion:reduce){.program-muscle-tile{transition:none}}
+@media(prefers-reduced-motion:reduce){.program-muscle-tile{transition:none}.import-exercise.exercise-dimmed,.import-exercise:not(.exercise-dimmed){transition:none}}
 .draft-day-muscles{padding:0 14px 12px;min-width:0}

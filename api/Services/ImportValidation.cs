@@ -8,7 +8,7 @@ internal static partial class ImportValidation
 {
     private const string PartialRepReviewCode = "rep_technique_conflict";
     private static readonly Regex RomRepSegment = new(
-        @"(?<count>\d{1,3})\s*(?:reps?\s+)?(?:(?:top|bottom)\s+half(?:\s+of)?\s+(?:the\s+)?rom|(?:full|complete)\s+rom)\b",
+        @"(?<count>\d{1,3})\s*(?:reps?\s+)?(?:(?:top|bottom)\s+" + ImportRomPrescription.Range + @"|(?:full|complete)\s+rom)\b",
         RegexOptions.Compiled | RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
     private static readonly Regex CompoundRepTarget = new(@"^\s*\d+(?:\s*[/+]\s*\d+)+\s*$",
         RegexOptions.Compiled | RegexOptions.CultureInvariant);
@@ -74,6 +74,7 @@ internal static partial class ImportValidation
             "set has", "sets have", "no stated rest");
 
         issues.AddRange(PartialRepConflicts(training));
+        issues.AddRange(ImportSetInstructionReview.Issues(training));
 
         var weeks = draft.Workouts.Select(day => day.Week).Distinct().Order().ToList();
         var missingWeeksBetweenPhases = new List<int>();

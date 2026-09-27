@@ -95,7 +95,8 @@ function movementSecondaries(name: string): string[] {
   return [...regions];
 }
 
-function exerciseCredits(name: string, exercise: Exercise | undefined): Map<string, number> {
+/** Returns a map of muscle region → credit weight for a single exercise. */
+export function exerciseCredits(name: string, exercise: Exercise | undefined): Map<string, number> {
   const normalizedName = normalize(name);
   const primary = normalize(exercise?.muscle ?? '');
   const credits = new Map<string, number>();

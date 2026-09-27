@@ -4,12 +4,13 @@ import {
 } from './pdfDayLabels';
 import { findHeaderBands, renderRow, type HeaderBand } from './pdfHeaderColumns';
 import { anchorColumn, anchorsRow, renderHeaderTable } from './pdfTableRows';
+import { withExerciseColumn } from './pdfExerciseColumn';
 import {
-  estimateFallbackColumnGap, estimateTableRegionGap, fontSize, groupRows, normalizedText, pieceCenter,
-  positionPieces, ROW_TOLERANCE, type PositionedPiece, type TextPiece, type TextRow
+  estimateFallbackColumnGap, estimateTableRegionGap, groupRows, normalizedText,
+  positionPieces, ROW_TOLERANCE, type TextPiece, type TextRow
 } from './pdfGeometry';
 import { findTrackingTables, isInTrackingTable, renderTrackingTables, type TrackingTable } from './pdfTrackingTable';
-import { MAX_PDF_LINKS, pageLinks, printedLinks, type LinkRect, type PdfLink } from './pdfLinks';
+import { MAX_PDF_LINKS, pageLinks, preferredPageLinks, printedLinks, type LinkRect, type PdfLink } from './pdfLinks';
 
 /// Mirrors the server's bounds in `ImportSourceText`, so a document the browser accepts is a
 /// document the API accepts.
@@ -107,25 +108,6 @@ function scheduleLines(rows: TextRow[]): { y: number; x: number; text: string }[
     .map(item => ({ y: item.y, x: item.x, text: normalizedText(item.str) })));
 }
 
-/// Some tables print the day's title where the name column's label belongs ("PUSH #2 | SETS |
-/// REPS"). The title is read as the day's label, but its column still holds the movement names:
-/// without it every name fused with its set count ("CLOSE-GRIP BENCH PRESS 3 | 8").
-function withTitleColumn(band: HeaderBand, removed: Set<TextPiece>): HeaderBand {
-  const first = band.centers[0];
-  if (first === undefined || band.columns?.some(column => /^(?:exercises?|movement|(?:exercise )?name)$/i.test(column.label.trim()))) return band;
-  const title = [...removed].map(piece => piece as PositionedPiece).find(piece => !piece.rotated
-    && piece.endX !== undefined && band.skipYValues.some(y => Math.abs(piece.y - y) <= Math.max(ROW_TOLERANCE, fontSize(piece) * 0.75))
-    && piece.endX < first);
-  if (!title) return band;
-  const center = pieceCenter(title);
-  return {
-    ...band,
-    centers: [center, ...band.centers],
-    columns: [{ label: 'Exercise', center }, ...(band.columns ?? [])],
-    text: `Exercise | ${band.text}`
-  };
-}
-
 type TableLayout = {
   genericRows: TextRow[];
   headerTableSpans: { band: HeaderBand; span: TableSpan }[];
@@ -136,7 +118,8 @@ type TableLayout = {
 function tableLayout(rows: TextRow[], trackingTables: TrackingTable[], removed: Set<TextPiece>, fallbackGap: number): TableLayout {
   const genericRows = withoutLabels(rows, removed).filter(row => row.items.length > 0
     && !trackingTables.some(table => isInTrackingTable(row, table)));
-  const headerBands = findHeaderBands(genericRows, fallbackGap / 2.35).map(band => withTitleColumn(band, removed));
+  const bands = findHeaderBands(genericRows, fallbackGap / 2.35);
+  const headerBands = bands.map((band, index) => withExerciseColumn(band, genericRows, removed, bands[index + 1]?.topY));
   const tableRegionGap = estimateTableRegionGap(genericRows);
   const headerTableSpans = headerBands.map((band, index) => ({
     band,
@@ -327,8 +310,10 @@ export async function extractPdfText(
           const pieces = content.items.flatMap(item =>
             'str' in item ? [{ str: item.str, transform: item.transform, width: item.width, height: item.height }] : []);
           text = buildPageText(pieces);
-          if (links.length < MAX_PDF_LINKS) links.push(...await readPageLinks(page, number, pieces));
-          if (links.length < MAX_PDF_LINKS) links.push(...printedLinks(number, text));
+          if (links.length < MAX_PDF_LINKS) {
+            const annotations = await readPageLinks(page, number, pieces);
+            links.push(...preferredPageLinks(annotations, printedLinks(number, text)).slice(0, MAX_PDF_LINKS - links.length));
+          }
         } finally { page.cleanup(); }
       } catch (error) {
         if (signal?.aborted) throw cancelledError();

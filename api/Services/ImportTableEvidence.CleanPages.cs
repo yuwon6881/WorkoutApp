@@ -121,7 +121,7 @@ internal static partial class ImportTableEvidence
             {
                 SequenceGroup = HasText(source.SequenceGroup) ? source.SequenceGroup : row.SequenceGroup,
                 WarmupSets = source.WarmupSets ?? row.WarmupText,
-                Substitutions = source.Substitutions is { Count: > 0 } ? source.Substitutions : row.Substitutions,
+                Substitutions = row.Substitutions ?? source.Substitutions,
                 SourcePage = source.SourcePage ?? pageNumber
             }, row));
         }
@@ -158,9 +158,9 @@ internal static partial class ImportTableEvidence
             || row.Rir is not null || row.RirBySet.Any(value => value.Value is not null);
         return set with
         {
-            RepsText = row.RepsText is null ? set.RepsText : null,
-            RepMin = row.RepMin is null ? set.RepMin : 0,
-            RepMax = row.RepMax is null ? set.RepMax : 0,
+            RepsText = row.RepsStatedAbsent || row.RepsText is not null ? null : set.RepsText,
+            RepMin = row.RepsStatedAbsent ? null : row.RepMin is null ? set.RepMin : 0,
+            RepMax = row.RepsStatedAbsent ? null : row.RepMax is null ? set.RepMax : 0,
             LoadText = row.LoadText is null ? set.LoadText : null,
             TargetRpe = effortPrinted ? null : set.TargetRpe,
             Rir = effortPrinted ? null : set.Rir,

@@ -274,6 +274,14 @@ export function shortenedRest(state: RestState, seconds: number, now: number): R
   return endsAt > now ? { ...state, endsAt, announced: false } : null;
 }
 
+export function remainingRestSeconds(state: Pick<RestState, 'endsAt' | 'pausedRemainingMs' | 'totalSeconds'>, now: number): number {
+  const milliseconds = state.endsAt === 0 ? state.pausedRemainingMs : state.endsAt - now;
+  const remaining = Math.max(0, Math.ceil(milliseconds / 1000));
+  // A newly started timer can render before the screen's next one-second tick.
+  // That older tick must not add a second to the configured rest duration.
+  return state.totalSeconds > 0 ? Math.min(state.totalSeconds, remaining) : remaining;
+}
+
 export function isRestAlertOwner(
   owner: { accountId: string | null; sessionId: string | null; generation: string; endsAt: number; visible: boolean },
   alert: { sessionId: string; generation: string },
