@@ -110,10 +110,20 @@ decision. Passive status rows are regular content; only rows with an available a
   only that text, gzipped, so a 70 MB illustrated training book never leaves the phone or laptop
   and no page image is ever sent to a model. Up to 1,000 pages are accepted. A first cheap pass
   reads a page-by-page view to find the pages that actually carry the schedule — commonly ten
-  pages out of a hundred — and only those pages are read in full, one section at a time. Pages
+  pages out of a hundred — and only those pages are read in full. Clean table pages can be read
+  locally even when the surrounding section still needs interpretation; unresolved pages keep
+  their schedule headings and footnotes when sent for a model read. Sections run concurrently (up
+  to eight) and commit in outline order. Pages decode two at a time on desktop and one at a time
+  on phones and low-resource devices. Pages
   with no selectable text contribute nothing and are reported rather than guessed at; a scanned
   document has to be re-saved as a text PDF. The extracted text is held for 24 hours so an
-  interrupted read continues, and is dropped as soon as the draft is complete.
+  interrupted read continues, and is dropped as soon as the draft is complete. Source analysis is
+  reused through transcription and verification. A corrective read targets up to two complete
+  affected page groups when their source ownership is unambiguous, and completed responses and
+  metered retry reservations survive a server restart. A printed week choice is reconciled before
+  week-gap checks run; the chosen branch is checked again before it is ready. Progress distinguishes
+  saved section responses from committed sections and stays indeterminate during verification. The
+  model, reasoning effort, request limit, and per-read budget are unchanged.
 - Imported prescriptions retain per-set techniques such as partial reps, lengthened partials, and
   integrated partials. Row instructions for top- or bottom-half ROM work are recognized too, including
   fractions such as `1/2`, `½`, and `3/4` of the range of motion, affirmative short-ROM cues, and

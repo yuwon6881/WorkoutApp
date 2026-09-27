@@ -201,7 +201,12 @@ internal static partial class ImportTableEvidence
     /// How many training days the draft took from clean printed tables, for the review notice.
     public static int PrintedRowDays(IReadOnlyList<DraftWorkout> workouts, string sourceText)
     {
-        var pages = Read(sourceText);
+        return PrintedRowDays(workouts, Analyze(sourceText));
+    }
+
+    public static int PrintedRowDays(IReadOnlyList<DraftWorkout> workouts, SourceRead source)
+    {
+        var pages = source.Pages;
         var training = workouts.Where(day => !day.IsRestDay && day.SourcePage.HasValue).ToList();
         return training.Where((day, index) => pages.TryGetValue(day.SourcePage!.Value, out var evidence)
             && RowsFor(day.Name, evidence, training.Count(other => other.SourcePage == day.SourcePage),
@@ -214,6 +219,12 @@ internal static partial class ImportTableEvidence
 
     public static ImportReviewIssue? PrintedRowsNotice(IReadOnlyList<DraftWorkout> workouts, string sourceText)
         => PrintedRowDays(workouts, sourceText) is var count and > 0
+            ? new ImportReviewIssue("printed_rows_used",
+                $"{count} day{(count == 1 ? " was" : "s were")} read straight from {(count == 1 ? "its" : "their")} printed table{(count == 1 ? "" : "s")}.", "info")
+            : null;
+
+    public static ImportReviewIssue? PrintedRowsNotice(IReadOnlyList<DraftWorkout> workouts, SourceRead source)
+        => PrintedRowDays(workouts, source) is var count and > 0
             ? new ImportReviewIssue("printed_rows_used",
                 $"{count} day{(count == 1 ? " was" : "s were")} read straight from {(count == 1 ? "its" : "their")} printed table{(count == 1 ? "" : "s")}.", "info")
             : null;

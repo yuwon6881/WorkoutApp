@@ -66,7 +66,12 @@ public record ImportView(
     long InputTokens = 0, long OutputTokens = 0, int Retries = 0,
     List<PdfPageCoverage>? PageCoverage = null,
     List<ImportAlternative>? Alternatives = null, string? SelectedAlternativeId = null,
-    int Revision = 0, bool CanRestoreDraft = false, List<Guid>? RestorableExerciseLineIds = null);
+    int Revision = 0, bool CanRestoreDraft = false, List<Guid>? RestorableExerciseLineIds = null,
+    ImportProgressDetails? Progress = null);
+
+public record ImportProgressDetails(
+    int SectionsCompleted, int SectionsQueued, int SectionsReading, int SectionsVerifying, int SectionsRepairing,
+    int SectionsWithResponses, DateTime? StartedAtUtc, DateTime? LastProgressAtUtc);
 
 /// Lightweight polling contract.  Extraction progress must not repeatedly serialize the
 /// potentially large draft, page coverage, and review metadata; the full view is fetched only
@@ -74,4 +79,4 @@ public record ImportView(
 public record ImportStatusView(
     Guid Id, string Status, string Stage, int ChunksDone, int ChunksTotal,
     string? CurrentChunkLabel, string Error, int Revision, int Retries,
-    int UnresolvedCount);
+    int UnresolvedCount, ImportProgressDetails? Progress = null);

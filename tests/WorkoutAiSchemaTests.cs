@@ -19,7 +19,7 @@ public sealed class WorkoutAiSchemaTests
         Assert.Contains("DAY LABEL: <text>", WorkoutAiSchemas.Instructions);
         Assert.Contains("explicit qualifier such as All Sets", WorkoutAiSchemas.Instructions);
         Assert.Contains("Do not turn general discussion", WorkoutAiSchemas.Instructions);
-        Assert.Equal("workout-import-v39-prescription-fidelity", WorkoutAi.PromptVersion);
+        Assert.Equal("workout-import-v40-source-verified-speed", WorkoutAi.PromptVersion);
         Assert.Contains("1-2 REST DAYS", WorkoutAiSchemas.Instructions);
     }
 }

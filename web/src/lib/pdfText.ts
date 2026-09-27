@@ -17,6 +17,18 @@ import { MAX_PDF_LINKS, pageLinks, preferredPageLinks, printedLinks, type LinkRe
 export const MAX_PDF_PAGES = 1000;
 const MAX_PAGE_CHARS = 40_000;
 const MAX_TOTAL_CHARS = 2_000_000;
+const PDF_PAGE_BATCH_SIZE = 2;
+
+/// Keep page decoding sequential on phones and low-resource devices. Desktop reads can overlap
+/// two pages to hide pdf.js page-loading waits without creating a large canvas/text memory spike.
+function pdfPageBatchSize() {
+  if (typeof navigator === 'undefined') return 1;
+  const nav = navigator as Navigator & { deviceMemory?: number };
+  const mobile = /Android|iPhone|iPad|iPod|Mobile/i.test(nav.userAgent);
+  const lowMemory = nav.deviceMemory !== undefined && nav.deviceMemory <= 4;
+  const fewCores = nav.hardwareConcurrency > 0 && nav.hardwareConcurrency <= 4;
+  return mobile || lowMemory || fewCores ? 1 : PDF_PAGE_BATCH_SIZE;
+}
 
 export type PdfPageText = { page: number; text: string };
 export type PdfExtraction = {
@@ -297,23 +309,18 @@ export async function extractPdfText(
     const pages: PdfPageText[] = [];
     const links: PdfLink[] = [];
     let total = 0;
-    for (let number = 1; number <= pageCount; number++) {
+    const readPage = async (number: number): Promise<{ page: number; text: string; links: PdfLink[] }> => {
       assertNotAborted(signal);
-      onProgress?.(number, pageCount);
-      assertNotAborted(signal);
-      let text = '';
       try {
-        const page = await document.getPage(number);
+        const page = await document!.getPage(number);
         try {
           const content = await page.getTextContent();
           // Marked-content entries carry no text of their own and are dropped here.
           const pieces = content.items.flatMap(item =>
             'str' in item ? [{ str: item.str, transform: item.transform, width: item.width, height: item.height }] : []);
-          text = buildPageText(pieces);
-          if (links.length < MAX_PDF_LINKS) {
-            const annotations = await readPageLinks(page, number, pieces);
-            links.push(...preferredPageLinks(annotations, printedLinks(number, text)).slice(0, MAX_PDF_LINKS - links.length));
-          }
+          const text = buildPageText(pieces);
+          const annotations = links.length < MAX_PDF_LINKS ? await readPageLinks(page, number, pieces) : [];
+          return { page: number, text, links: preferredPageLinks(annotations, printedLinks(number, text)) };
         } finally { page.cleanup(); }
       } catch (error) {
         if (signal?.aborted) throw cancelledError();
@@ -321,15 +328,31 @@ export async function extractPdfText(
         if (actionable) throw actionable;
         throw new PdfTextError(`Page ${number} could not be read. Re-save or export the PDF, then try again.`);
       }
-      if (text.length === 0) continue;
-      if (text.length > MAX_PAGE_CHARS) {
-        throw new PdfTextError(`PDF page ${number} contains more than ${MAX_PAGE_CHARS.toLocaleString()} selectable text characters. Split the PDF into smaller files and retry.`);
+    };
+
+    const batchSize = pdfPageBatchSize();
+    for (let first = 1; first <= pageCount; first += batchSize) {
+      assertNotAborted(signal);
+      const numbers = Array.from({ length: Math.min(batchSize, pageCount - first + 1) }, (_, index) => first + index);
+      // Wait for both pages to settle before destroying the document on an error or cancellation.
+      // Apply results in page order so link selection, limits, and progress stay deterministic.
+      const settled = await Promise.allSettled(numbers.map(readPage));
+      const failure = settled.find((item): item is PromiseRejectedResult => item.status === 'rejected');
+      if (failure) throw failure.reason;
+      for (const item of settled as PromiseFulfilledResult<{ page: number; text: string; links: PdfLink[] }>[]) {
+        assertNotAborted(signal);
+        const result = item.value;
+        if (result.text.length > MAX_PAGE_CHARS) {
+          throw new PdfTextError(`PDF page ${result.page} contains more than ${MAX_PAGE_CHARS.toLocaleString()} selectable text characters. Split the PDF into smaller files and retry.`);
+        }
+        total += result.text.length;
+        if (total > MAX_TOTAL_CHARS) {
+          throw new PdfTextError('That PDF holds more text than the importer supports. Split it into smaller files.');
+        }
+        if (result.text.length > 0) pages.push({ page: result.page, text: result.text });
+        links.push(...result.links.slice(0, Math.max(0, MAX_PDF_LINKS - links.length)));
+        onProgress?.(result.page, pageCount);
       }
-      total += text.length;
-      if (total > MAX_TOTAL_CHARS) {
-        throw new PdfTextError('That PDF holds more text than the importer supports. Split it into smaller files.');
-      }
-      pages.push({ page: number, text });
     }
     assertNotAborted(signal);
     if (pages.length === 0) {

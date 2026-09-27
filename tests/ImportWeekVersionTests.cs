@@ -41,6 +41,48 @@ public sealed class ImportWeekVersionTests
     }
 
     [Fact]
+    public void Reconciliation_is_idempotent_after_the_options_have_been_separated()
+    {
+        List<DraftWorkout> days =
+        [
+            Training(9, "Full Body 1", 63),
+            .. TestingWeek(10, 66), .. TestingWeek(10, 68),
+            Training(11, "Deload", 70)
+        ];
+
+        var first = ImportWeekVariants.Separate(days, Pages);
+        var repeated = ImportWeekVariants.Separate(first.Workouts, Pages);
+
+        Assert.Equal(first.Workouts.Select(day => (day.LineId, day.Week)),
+            repeated.Workouts.Select(day => (day.LineId, day.Week)));
+        Assert.Empty(repeated.Notices);
+    }
+
+    [Fact]
+    public void Either_selected_option_keeps_the_printed_week_eleven_deload_in_week_eleven()
+    {
+        List<DraftWorkout> days =
+        [
+            Training(9, "Full Body 1", 63),
+            .. TestingWeek(10, 66), .. TestingWeek(10, 68),
+            Training(11, "Deload", 70)
+        ];
+        var separated = ImportWeekVariants.Separate(days, Pages);
+        var draft = new ImportDraft("Powerbuilding 3.0", separated.Workouts);
+        var choices = ImportWeekChoice.Offer(draft, Pages);
+
+        Assert.Equal(["week-a", "week-b"], choices.Select(choice => choice.Id));
+        foreach (var choice in choices)
+        {
+            var selected = ImportWeekChoice.Apply(draft, choice, choices);
+            Assert.Equal([9, 10, 11], selected.Workouts.Select(day => day.Week).Distinct().Order());
+            Assert.Contains(selected.Workouts, day => day.SourcePage == 70 && day.Week == 11);
+            Assert.DoesNotContain(ImportValidation.ReviewIssues(selected),
+                issue => issue.Code is "phase_week_gap" or "program_week_gap");
+        }
+    }
+
+    [Fact]
     public void A_week_printed_once_is_left_alone_even_when_prose_names_both_versions()
     {
         var pages = new List<ImportPageText>

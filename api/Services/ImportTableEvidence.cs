@@ -30,7 +30,7 @@ internal static partial class ImportTableEvidence
     private const string PartialRangePhrase = @"(?:partials?(?:\s+reps?)?(?:\s+rom)?|(?:short|reduced)[- ]?(?:rom|range\s+of\s+motion)|half[- ]?rom|half\s+reps?|(?:(?:top|bottom)[- ]?)?" + ImportRomPrescription.Range + ")";
     private const string PartialRangeToken = @"(?<!\w)" + PartialRangePhrase + @"(?!\w)";
 
-    private sealed record EvidenceRow(string? ExerciseName, int? WorkingSets, string? RepsText, int? RepMin, int? RepMax,
+    internal sealed record EvidenceRow(string? ExerciseName, int? WorkingSets, string? RepsText, int? RepMin, int? RepMax,
         string? LoadText, string? RirText, double? Rir, List<RirEvidence> RirBySet,
         double? Rpe, double? EarlyRpe, double? LastRpe, string? RestText, int? RestSeconds, bool RestNotStated = false,
         bool WarmupCounted = true, bool EarlyEffortAbsent = false, bool LastEffortAbsent = false, bool RestStatedAbsent = false,
@@ -38,16 +38,26 @@ internal static partial class ImportTableEvidence
         bool FullHeader = false, string? SequenceGroup = null, List<string>? Substitutions = null, bool Prose = false,
         int Table = 0, string? Technique = null, string? Tempo = null, bool RepsStatedAbsent = false,
         string? WorkingSetPrescriptionText = null, bool WorkingSetsStatedAbsent = false);
-    private sealed record RirEvidence(string? Text, double? Value);
-    private sealed record EvidencePage(int? Week, string? Block, string? Phase, string? DayName, bool HasRestDayFooter,
+    internal sealed record RirEvidence(string? Text, double? Value);
+    internal sealed record EvidencePage(int? Week, string? Block, string? Phase, string? DayName, bool HasRestDayFooter,
         List<EvidenceRow> Rows, bool RestBandFollowsTable = false, string Body = "");
+    internal sealed record SourceRead(Dictionary<int, EvidencePage> Pages);
     private sealed record Columns(int? Name, int? Sets, int? Reps, int? Load, int? Rir, int?[] RirBySet,
         int? Rpe, int? EarlyRpe, int? LastRpe, int? Rest, string? RestUnit, bool LoadIsPercent1Rm,
         bool HasWarmup = false, int? Warmup = null, int? Notes = null, int[]? Substitutions = null, int? Technique = null, int? Tempo = null);
 
     public static AiProgram Enrich(AiProgram program, string sourceText)
     {
-        var pages = Read(sourceText);
+        return Enrich(program, Analyze(sourceText));
+    }
+
+    public static SourceRead Analyze(string sourceText) => new(Read(sourceText));
+
+    public static AiProgram Enrich(AiProgram program, SourceRead source, IReadOnlySet<int>? onlyPages = null)
+    {
+        var pages = onlyPages is null
+            ? source.Pages
+            : source.Pages.Where(item => onlyPages.Contains(item.Key)).ToDictionary(item => item.Key, item => item.Value);
         if (pages.Count == 0 || program.Days is not { } days) return program;
         var enriched = days.Select((day, index) =>
         {

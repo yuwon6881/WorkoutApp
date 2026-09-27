@@ -14,8 +14,11 @@ internal static class ImportWeekChoice
 
     /// The versions a lifter chooses between, or none when the document prints no lettered week.
     public static List<ImportAlternative> Offer(ImportDraft draft, IReadOnlyList<ImportPageText> pages)
+        => Offer(draft, pages, ImportWeekVariants.PageVersions(pages));
+
+    internal static List<ImportAlternative> Offer(ImportDraft draft, IReadOnlyList<ImportPageText> pages,
+        Dictionary<int, (int Week, string Version)> versions)
     {
-        var versions = ImportWeekVariants.PageVersions(pages);
         if (versions.Count == 0) return [];
         var labelled = Label(draft.Workouts, versions);
         var groups = labelled.Where(item => item.Version is not null)

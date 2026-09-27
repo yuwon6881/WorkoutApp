@@ -66,20 +66,56 @@ public sealed class ImportPrintedSectionTests
     }
 
     [Fact]
-    public async Task A_book_printed_entirely_as_clean_tables_imports_with_only_the_outline_read()
+    public void A_mixed_section_keeps_complete_clean_pages_local_and_leaves_the_ambiguous_page_for_reading()
+    {
+        var pages = Book();
+        pages[2] = pages[2] with
+        {
+            Text = pages[2].Text.Replace("Hack Squat | N/A | 2 | 2 | 6-8", "Hack Squat | N/A | 2 | two-ish | 6-8", StringComparison.Ordinal)
+        };
+        var schedule = ImportPrintedSchedule.Read(pages)!;
+        var evidence = ImportTableEvidence.Analyze(Text(pages));
+
+        var local = ImportTableEvidence.ReadPrintedPages(schedule.Days, evidence, 1, 7);
+
+        Assert.NotNull(local);
+        Assert.Equal([4, 6, 7], local!.Pages.Order());
+        Assert.Equal(["Upper", "Upper", "Lower"],
+            local.Program.Days!.Where(day => !day.IsRestDay).Select(day => day.DayName));
+        Assert.DoesNotContain(local.Program.Days!, day => day.SourcePage == 5);
+        Assert.Contains(evidence.Pages[5].Rows, row => !row.Prose);
+    }
+
+    [Fact]
+    public void Incidental_instructions_to_run_a_program_do_not_force_an_outline_read()
+    {
+        var pages = Book();
+        pages[0] = pages[0] with { Text = "You can run the rest of the program as is.\n" + pages[0].Text };
+
+        var outline = ImportSourceAnalysis.Create(pages).ReadLocalOutline();
+
+        Assert.NotNull(outline);
+        Assert.Single(outline!.Chunks);
+    }
+
+    [Fact]
+    public void Explicit_choice_between_programs_keeps_the_outline_read()
+    {
+        var pages = Book();
+        pages[0] = pages[0] with { Text = "Choose between the upper/lower program and the full-body split.\n" + pages[0].Text };
+
+        Assert.Null(ImportSourceAnalysis.Create(pages).ReadLocalOutline());
+    }
+
+    [Fact]
+    public async Task A_book_printed_entirely_as_clean_tables_skips_the_outline_and_section_reads()
     {
         var pages = Book();
         var calls = 0;
         var handler = new StubHandler(_ =>
         {
-            // Only the outline should be asked for; a section answer would be empty and wrong.
-            var answer = Interlocked.Increment(ref calls) == 1
-                ? """{"programTitle":"The Pure Bodybuilding Program","chunks":[{"label":"All","block":null,"phase":null,"weekFrom":1,"weekTo":2,"pageFrom":4,"pageTo":7,"dayCount":6}]}"""
-                : """{"programTitle":null,"days":[]}""";
-            return new HttpResponseMessage(HttpStatusCode.OK)
-            {
-                Content = new StringContent($$"""{"status":"completed","output":[{"content":[{"type":"output_text","text":{{JsonSerializer.Serialize(answer)}}}]}]}""")
-            };
+            Interlocked.Increment(ref calls);
+            return new HttpResponseMessage(HttpStatusCode.InternalServerError);
         });
         await using var harness = await Harness.Create(new Dictionary<string, string?> { ["OpenAi:ApiKey"] = "test-key", ["OpenAi:Model"] = "gpt-5.4-mini" });
         await harness.SignIn();
@@ -90,7 +126,7 @@ public sealed class ImportPrintedSectionTests
         var ready = await imports.Extract(pending.Id, default);
 
         Assert.Equal(ImportStatus.Ready, ready.Status);
-        Assert.Equal(1, calls);
+        Assert.Equal(0, calls);
         Assert.Equal(6, ready.Draft!.Workouts.Count);
         Assert.Equal(4, ready.Draft.Workouts.Count(day => !day.IsRestDay && day.Exercises.Count == 2));
         Assert.Contains(ready.ReviewIssues!, issue => issue.Code == "printed_sections_read");

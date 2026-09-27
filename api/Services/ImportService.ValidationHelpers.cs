@@ -45,10 +45,14 @@ public sealed partial class ImportService
 
     private static List<ImportReviewIssue> ReadNotices(string json) => ImportValidation.ReadNotices(json);
 
-    private static void RequireVerifiedDraft(ImportDraft draft, AiImport import, IEnumerable<ImportReviewIssue> currentNotices)
+    private static void RequireVerifiedDraft(ImportDraft draft, AiImport import, IEnumerable<ImportReviewIssue> currentNotices,
+        bool weekVersionChoicePending = false)
     {
         var notices = ImportReviewNotices.Merge(ReadNotices(import.NoticesJson), currentNotices);
-        var unresolved = FilterNotices(notices, draft).Concat(ReviewIssues(draft))
+        var reviewIssues = ReviewIssues(draft);
+        if (weekVersionChoicePending)
+            reviewIssues = reviewIssues.Where(issue => issue.Code is not ("phase_week_gap" or "program_week_gap")).ToList();
+        var unresolved = FilterNotices(notices, draft).Concat(reviewIssues)
             .FirstOrDefault(issue => issue.Severity != "info");
         if (unresolved is not null) throw new ImportVerificationException(unresolved);
     }

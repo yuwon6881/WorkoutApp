@@ -118,7 +118,7 @@
 .program-day-add-actions{
   display:flex;
   align-items:center;
-  justify-content:space-between;
+  justify-content:flex-end;
   gap:12px;
   flex-wrap:wrap;
   padding:10px 14px;
@@ -262,12 +262,53 @@
 .program-day-entry .day-muscles-row{padding:0 14px 10px}
 .program-day-entry .day-editor{padding-top:0}
 
-/* Day detail modal — replaces inline expansion with a full dialog overlay. */
-.day-detail-modal-body{overflow-y:auto;max-height:calc(85vh - 80px)}
+/* Keep the day editor's chrome in place while its full exercise list scrolls in one area. */
+.modal.day-detail-modal{
+  display:flex;
+  flex-direction:column;
+  height:min(90dvh, 900px);
+  max-height:90dvh;
+  overflow:hidden;
+}
+.day-detail-modal>header,.day-detail-modal>.modal-actions{flex:0 0 auto}
+.day-detail-modal .day-detail-modal-body{
+  flex:1 1 auto;
+  min-height:0;
+  max-height:none;
+  overflow-x:hidden;
+  overflow-y:auto;
+  overscroll-behavior:contain;
+  -webkit-overflow-scrolling:touch;
+}
 .day-detail-modal-body .draft-day-muscles{padding:0 0 12px}
 .day-detail-modal-body .day-editor{padding-top:0}
 .import-exercise-dim-wrap{transition:opacity .18s ease}
 .import-exercise-dim-wrap.exercise-dimmed{opacity:.35}
+
+@media(max-width:639px){
+  .modal.day-detail-modal{height:calc(94dvh - env(safe-area-inset-top, 0px));max-height:calc(94dvh - env(safe-area-inset-top, 0px))}
+  .day-detail-modal .import-exercise-actions{
+    display:grid;
+    grid-template-columns:minmax(0,1fr) 44px;
+    align-items:center;
+    gap:6px;
+    width:100%;
+    max-width:100%;
+    min-width:0;
+    flex-shrink:1;
+  }
+  .day-detail-modal .import-exercise-actions:has(.exercise-demo-pill){grid-template-columns:minmax(0,1fr) auto 44px}
+  .day-detail-modal .import-exercise-actions .import-rest-field{width:100%;max-width:100%;min-width:0;flex:0 1 auto}
+  .day-detail-modal .import-exercise-actions .import-rest-field .custom-select-wrap{width:100%;max-width:100%;min-width:0}
+  .day-detail-modal .import-exercise-actions .import-rest-field .custom-select-trigger{
+    width:100%;
+    max-width:100%;
+    min-width:0;
+    box-sizing:border-box;
+    justify-content:space-between;
+  }
+  .day-detail-modal .import-exercise-actions .exercise-demo-pill{width:100%;max-width:100%;min-width:0;padding-inline:8px;justify-content:center}
+}
 
 @media(max-width:1023px){
   .ui-menu>.ui-menu-trigger{width:44px;height:44px;min-width:44px;min-height:44px}
@@ -289,6 +330,15 @@
   [data-editor-mode="custom"] .import-program-title{flex:0 0 auto;max-width:100%}
   .day-exercise-preview-full{display:none}
   .day-exercise-preview-compact{display:inline}
-  [data-editor-mode="custom"] .import-program-actions{width:100%}
-  [data-editor-mode="custom"] .import-program-actions .button.primary{flex:1 1 auto;justify-content:center}
+  .import-program-card .import-program-actions{
+    width:100%;
+    display:flex;
+    flex-direction:row;
+    align-items:center;
+    justify-content:flex-end;
+    gap:8px;
+  }
+  .import-program-card .import-program-actions>.ui-menu{order:2;flex:0 0 auto}
+  .import-program-card .import-program-actions>.ui-menu>.program-actions-trigger{width:44px;height:44px}
+  .import-program-card .import-program-actions>.button.primary{order:1;flex:1 1 auto;width:auto;min-width:0;justify-content:center}
 }

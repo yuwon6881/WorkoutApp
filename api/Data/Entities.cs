@@ -372,6 +372,9 @@ public sealed class AiImport : OwnedRecord
     /// Exercise demonstration links read from the document's annotation layer, held only until the
     /// sections are assembled and cleared with the source text.
     public string LinksJson { get; set; } = "";
+    /// Transient section progress and bounded corrective-read reservations for resumable imports.
+    /// Cleared with the PDF text when the import reaches a terminal state.
+    public string WorkStateJson { get; set; } = "";
     public DateTime? SourceExpiresAt { get; set; }
 }
 

@@ -1,15 +1,21 @@
 .alternative-cards-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: stretch;
   gap: 16px;
   margin-top: 16px;
   width: 100%;
+  min-width: 0;
 }
 
 .alternative-card {
   display: flex;
   flex-direction: column;
   justify-content: space-between;
+  flex: 1 1 280px;
+  min-width: 0;
+  max-width: 420px;
   padding: 18px;
   background: var(--surface);
   border: 1px solid var(--border);
@@ -102,10 +108,14 @@
 
 @media (max-width: 639px) {
   .alternative-cards-grid {
-    grid-template-columns: 1fr;
+    flex-direction: column;
+    align-items: stretch;
     gap: 12px;
   }
   .alternative-card {
+    flex: 1 1 auto;
+    width: 100%;
+    max-width: none;
     padding: 14px;
   }
 }

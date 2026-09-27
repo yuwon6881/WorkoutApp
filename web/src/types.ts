@@ -95,11 +95,17 @@ export type ImportView = {
   fileName: string; pages: number; error: string; created: string; model: string; stage: 'outline' | 'select' | 'extract' | 'verify' | 'recover' | 'done' | 'failed'; chunksDone: number; chunksTotal: number; currentChunkLabel: string | null; unresolvedCount: number;
   draft: ImportDraft | null; unresolved: { lineId: string; sourceName: string; slotKey?: string | null; block?: string | null; occurrences?: number }[]; acceptable: boolean; programId: string | null;
   reviewIssues?: { code: string; message: string; severity: string; sourcePage?: number | null; workoutLineId?: string | null; exerciseLineId?: string | null; setIndex?: number | null; targetField?: string | null }[]; inputTokens?: number; outputTokens?: number; retries?: number; pageCoverage?: { page: number; hasText: boolean; characterCount: number }[]; alternatives?: { id: string; name: string; chunkCount: number; dayCount: number; weekCount?: number | null; sessionsPerWeek?: number | null; kind?: 'program' | 'week'; description?: string | null }[]; selectedAlternativeId?: string | null;
-  revision: number; canRestoreDraft?: boolean; restorableExerciseLineIds?: string[];
+  revision: number; canRestoreDraft?: boolean; restorableExerciseLineIds?: string[]; progress?: ImportProgressDetails | null;
+};
+export type ImportProgressDetails = {
+  sectionsCompleted: number; sectionsQueued: number; sectionsReading: number; sectionsVerifying: number; sectionsRepairing: number;
+  sectionsWithResponses: number;
+  startedAtUtc: string | null; lastProgressAtUtc: string | null;
 };
 export type ImportStatusView = {
   id: string; status: ImportView['status']; stage: ImportView['stage']; chunksDone: number; chunksTotal: number;
   currentChunkLabel: string | null; error: string; revision: number; retries: number; unresolvedCount: number;
+  progress?: ImportProgressDetails | null;
 };
 
 export type Bootstrap = {

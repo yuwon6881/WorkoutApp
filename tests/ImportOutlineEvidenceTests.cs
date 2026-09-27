@@ -76,6 +76,27 @@ public sealed class ImportOutlineEvidenceTests
     }
 
     [Fact]
+    public void Bracketed_deload_heading_inherits_across_week_pages_and_resets_the_phase_week()
+    {
+        var evidence = ImportOutlineEvidence.Read([
+            new ImportPageText(10, "WEEK 10\nDAY LABEL: Max"),
+            new ImportPageText(11, "WEEK 11 | POWERBUILDING | SYSTEM | [DELOAD]"),
+            new ImportPageText(12, "RUNNING HEADER | WEEK 11\nDAY LABEL: Lower"),
+            new ImportPageText(13, "WEEK 12\nDAY LABEL: Full Body")
+        ]);
+        var draft = new ImportDraft("Powerbuilding", [
+            Workout(11, "Lower", null, "Invented", 12, phaseWeek: 4),
+            Workout(12, "Full Body", null, "Invented", 13, phaseWeek: 2)
+        ]);
+
+        var normalized = ImportOutlineEvidence.NormalizeDraft(draft, evidence);
+
+        Assert.Equal(("Deload Week", 1), (normalized.Workouts[0].Phase, normalized.Workouts[0].PhaseWeek));
+        Assert.Null(normalized.Workouts[1].Phase);
+        Assert.Equal(2, normalized.Workouts[1].PhaseWeek);
+    }
+
+    [Fact]
     public void Structural_headings_accept_subtitles_parentheses_and_fused_table_headers()
     {
         var evidence = ImportOutlineEvidence.Read([
@@ -137,6 +158,6 @@ public sealed class ImportOutlineEvidenceTests
         Assert.Contains(evidence.Pages[1], context => context.Week == 1 && context.Block == "Block 1");
     }
 
-    private static DraftWorkout Workout(int week, string name, string? block, string? phase, int page)
-        => new(Guid.NewGuid(), week, name, null, null, [], block, phase, 1, SourcePage: page);
+    private static DraftWorkout Workout(int week, string name, string? block, string? phase, int page, int phaseWeek = 1)
+        => new(Guid.NewGuid(), week, name, null, null, [], block, phase, phaseWeek, SourcePage: page);
 }

@@ -1,6 +1,8 @@
 using System.Net.Http.Headers;
+using System.Diagnostics;
 using System.Text;
 using System.Text.Json;
+using Microsoft.Extensions.Logging;
 using Workout.Api.Domain;
 
 namespace Workout.Api.Services;
@@ -28,7 +30,7 @@ public record AiImportResult(AiProgram Program, string Model, long InputTokens, 
 /// The model-facing half of the importer. It only ever sees text: the browser extracts the PDF's
 /// text layer on the device, so no document bytes, page images, or scanned pages reach a provider.
 /// That keeps a 70 MB illustrated training book inside an ordinary JSON request.
-public sealed class WorkoutAi(HttpClient http, IConfiguration config)
+public sealed class WorkoutAi(HttpClient http, IConfiguration config, ILogger<WorkoutAi>? logger = null)
 {
     /// Bumped when a change here would make a stored import inconsistent with a new read, so the
     /// same document read again starts afresh rather than continuing under the older shape. v4
@@ -75,8 +77,10 @@ public sealed class WorkoutAi(HttpClient http, IConfiguration config)
     /// partial-rep instructions; v38 treats top/bottom-half ROM reps as a technique without
     /// changing their printed compound rep notation; v39 recognizes fractional ROM notation,
     /// leaves count-only warm-ups, durations, and effort tests without rep targets, preserves
-    /// table footers and coaching text, and reviews conflicting source instructions.
-    public const string PromptVersion = "workout-import-v39-prescription-fidelity";
+    /// table footers and coaching text, and reviews conflicting source instructions; v40 shares
+    /// source analysis within a pass, reads clean mixed-section pages locally, defers gap checks
+    /// until week choices are reconciled, and persists bounded targeted repairs.
+    public const string PromptVersion = "workout-import-v40-source-verified-speed";
 
     /// One cheap pass over a page-by-page view of the document. Most of a commercial training PDF
     /// is explanation and photography; this pass exists to find the few pages that actually carry
@@ -115,8 +119,9 @@ public sealed class WorkoutAi(HttpClient http, IConfiguration config)
         return new AiOutlineResult(outline, null, result.Model, result.InputTokens, result.OutputTokens, result.CachedInputTokens);
     }
 
-    public async Task<AiImportResult> ExtractChunk(string chunkText, IReadOnlyList<CatalogExercise> catalog,
-        string safetyIdentifier, string chunkDirective, CancellationToken ct)
+    internal async Task<AiImportResult> ExtractChunk(string chunkText, IReadOnlyList<CatalogExercise> catalog,
+        string safetyIdentifier, string chunkDirective, CancellationToken ct,
+        ImportTableEvidence.SourceRead? sourceAnalysis = null)
     {
         Validation.Require(!string.IsNullOrWhiteSpace(chunkText),
             "Those pages hold no readable text, so there is nothing to extract from them. Review the outline and retry.", 422);
@@ -132,7 +137,7 @@ public sealed class WorkoutAi(HttpClient http, IConfiguration config)
         // The coordinate-preserving text contains authoritative numeric table cells. Recovering
         // those values here closes the gap where a model omitted a second RIR column or working
         // set count even though the source page stated it explicitly.
-        program = ImportTableEvidence.Enrich(program, chunkText);
+        program = ImportTableEvidence.Enrich(program, sourceAnalysis ?? ImportTableEvidence.Analyze(chunkText));
         return new AiImportResult(program, result.Model, result.InputTokens, result.OutputTokens, result.CachedInputTokens);
     }
 
@@ -173,15 +178,37 @@ public sealed class WorkoutAi(HttpClient http, IConfiguration config)
         using var request = new HttpRequestMessage(HttpMethod.Post, endpoint);
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", key);
         request.Content = new StringContent(Json.Write(body), Encoding.UTF8, "application/json");
+        var timer = Stopwatch.StartNew();
         HttpResponseMessage response;
         try { response = await http.SendAsync(request, ct); }
-        catch (TaskCanceledException) when (!ct.IsCancellationRequested) { throw new DomainException("The AI import timed out. Try a smaller or clearer PDF.", 504); }
+        catch (TaskCanceledException) when (!ct.IsCancellationRequested)
+        {
+            logger?.LogWarning("Import provider call timed out for {SchemaName} after {ElapsedMilliseconds} ms ({InputCharacters} input characters).",
+                schemaName, timer.ElapsedMilliseconds, sourceText.Length);
+            throw new DomainException("The AI import timed out. Try a smaller or clearer PDF.", 504);
+        }
+        catch (Exception error) when (!ct.IsCancellationRequested)
+        {
+            logger?.LogWarning("Import provider call failed for {SchemaName} after {ElapsedMilliseconds} ms ({FailureType}).",
+                schemaName, timer.ElapsedMilliseconds, error.GetType().Name);
+            throw;
+        }
         using (response)
         {
-            Validation.Require(response.IsSuccessStatusCode, "AI could not read this program right now. Try again later.", 503);
+            if (!response.IsSuccessStatusCode)
+            {
+                logger?.LogWarning("Import provider call returned {StatusCode} for {SchemaName} after {ElapsedMilliseconds} ms.",
+                    (int)response.StatusCode, schemaName, timer.ElapsedMilliseconds);
+                throw new DomainException("AI could not read this program right now. Try again later.", 503);
+            }
             using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync(ct));
             var responseRoot = document.RootElement;
-            Validation.Require(responseRoot.TryGetProperty("status", out var status) && status.GetString() == "completed", "AI did not finish reading this PDF. Try a clearer document.", 422);
+            if (!responseRoot.TryGetProperty("status", out var status) || status.GetString() != "completed")
+            {
+                logger?.LogWarning("Import provider call did not complete for {SchemaName} after {ElapsedMilliseconds} ms.",
+                    schemaName, timer.ElapsedMilliseconds);
+                throw new DomainException("AI did not finish reading this PDF. Try a clearer document.", 422);
+            }
             var output = new StringBuilder();
             Validation.Require(responseRoot.TryGetProperty("output", out var items) && items.ValueKind == JsonValueKind.Array, "AI did not return a program.", 422);
             foreach (var item in items.EnumerateArray())
@@ -206,6 +233,8 @@ public sealed class WorkoutAi(HttpClient http, IConfiguration config)
             if (usage.ValueKind == JsonValueKind.Object && usage.TryGetProperty("input_tokens_details", out var details)
                 && details.ValueKind == JsonValueKind.Object && details.TryGetProperty("cached_tokens", out var cachedElement)
                 && cachedElement.TryGetInt64(out var cached)) cachedTokens = cached;
+            logger?.LogInformation("Import provider call completed for {SchemaName} using {Model} in {ElapsedMilliseconds} ms; input {InputTokens}, cached input {CachedInputTokens}, output {OutputTokens} tokens.",
+                schemaName, model, timer.ElapsedMilliseconds, input, cachedTokens, outputTokens);
             return new AiResponse(payload, model, input, outputTokens, cachedTokens);
         }
     }

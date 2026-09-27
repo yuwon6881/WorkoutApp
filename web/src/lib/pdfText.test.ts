@@ -379,9 +379,14 @@ describe('extractPdfText failures and cancellation', () => {
   });
 
   it('cancels between pages and destroys the active document', async () => {
+    const page = {
+      getTextContent: vi.fn().mockResolvedValue({ items: [piece('A readable training plan.', 0, 500)] }),
+      getAnnotations: vi.fn().mockResolvedValue([]),
+      cleanup: vi.fn()
+    };
     const document = {
       numPages: 2,
-      getPage: vi.fn(),
+      getPage: vi.fn().mockResolvedValue(page),
       destroy: vi.fn().mockResolvedValue(undefined)
     };
     loadDocument(document);
@@ -390,14 +395,61 @@ describe('extractPdfText failures and cancellation', () => {
     await expect(extractPdfText(pdfFile(), page => {
       if (page === 1) controller.abort();
     }, controller.signal)).rejects.toThrow('PDF import cancelled');
-    expect(document.getPage).not.toHaveBeenCalled();
+    // The desktop batch has already loaded both pages, but cancellation prevents the second
+    // result from being committed or any later batch from starting.
+    expect(document.getPage).toHaveBeenCalledTimes(2);
     expect(document.destroy).toHaveBeenCalledOnce();
   });
 
+  it.each([
+    ['desktop', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)', 2],
+    ['mobile', 'Mozilla/5.0 (Linux; Android 14; Mobile)', 1]
+  ])('reads up to the safe page limit in order on %s', async (_label, userAgent, safeLimit) => {
+    const previous = Object.getOwnPropertyDescriptor(globalThis, 'navigator');
+    Object.defineProperty(globalThis, 'navigator', {
+      configurable: true,
+      value: { userAgent, hardwareConcurrency: 8, deviceMemory: 8 }
+    });
+    let active = 0;
+    let maximum = 0;
+    const document = {
+      numPages: 4,
+      getPage: vi.fn().mockResolvedValue({
+        getTextContent: vi.fn(async () => {
+          active++;
+          maximum = Math.max(maximum, active);
+          await new Promise(resolve => setTimeout(resolve, 1));
+          active--;
+          return { items: [piece('Day 1: Squat 3 x 8.', 0, 500)] };
+        }),
+        getAnnotations: vi.fn().mockResolvedValue([]),
+        cleanup: vi.fn()
+      }),
+      destroy: vi.fn().mockResolvedValue(undefined)
+    };
+    loadDocument(document);
+    const reported: number[] = [];
+
+    try {
+      const result = await extractPdfText(pdfFile(), page => reported.push(page));
+      expect(maximum).toBe(safeLimit);
+      expect(reported).toEqual([1, 2, 3, 4]);
+      expect(result.pages.map(page => page.page)).toEqual([1, 2, 3, 4]);
+    } finally {
+      if (previous) Object.defineProperty(globalThis, 'navigator', previous);
+      else Reflect.deleteProperty(globalThis, 'navigator');
+    }
+  });
+
   it('cancels cleanly and throws PDF import cancelled even if document destroy rejects', async () => {
+    const page = {
+      getTextContent: vi.fn().mockResolvedValue({ items: [piece('A readable training plan.', 0, 500)] }),
+      getAnnotations: vi.fn().mockResolvedValue([]),
+      cleanup: vi.fn()
+    };
     const document = {
       numPages: 2,
-      getPage: vi.fn(),
+      getPage: vi.fn().mockResolvedValue(page),
       destroy: vi.fn().mockRejectedValue(new Error('Worker already terminated'))
     };
     loadDocument(document);

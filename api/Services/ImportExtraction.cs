@@ -47,7 +47,8 @@ public sealed partial class ImportService
                     UserId = db.CurrentUser!.Value, DocumentHash = hash, PromptVersion = WorkoutAi.PromptVersion,
                     FileName = input.FileName.Trim(), Pages = input.PageCount,
                     Status = ImportStatus.Pending, Stage = "outline",
-                    PageCoverageJson = Json.Write(ImportSourceText.Coverage(pages, input.PageCount))
+                    PageCoverageJson = Json.Write(ImportSourceText.Coverage(pages, input.PageCount)),
+                    WorkStateJson = Json.Write(new ImportWorkState(DateTime.UtcNow, DateTime.UtcNow))
                 };
                 db.Imports.Add(import);
             }
@@ -72,10 +73,13 @@ public sealed partial class ImportService
     /// One outline pass. It reads a page-by-page view of the document, which for a large book is
     /// only the opening lines of each page: enough to locate the schedule, cheap enough that a
     /// hundred pages of coaching prose cost almost nothing.
-    private async Task<ImportView> ReadOutline(Guid importId, List<ImportPageText> pages, CancellationToken ct, string? existingLeaseId = null)
+    private async Task<ImportView> ReadOutline(Guid importId, List<ImportPageText> pages, CancellationToken ct,
+        string? existingLeaseId = null, ImportSourceAnalysis? sourceAnalysis = null)
     {
         var user = db.CurrentUser!.Value;
         var leaseId = existingLeaseId ?? NewLeaseId();
+        var analysis = sourceAnalysis ?? ImportSourceAnalysis.Create(pages);
+        var localOutline = analysis.ReadLocalOutline();
         await using (var claim = await MutationLock.Acquire(db, db.CurrentUser, ct))
         {
             var import = await db.Imports.SingleOrDefaultAsync(i => i.Id == importId, ct);
@@ -88,7 +92,7 @@ public sealed partial class ImportService
                 return await Get(importId, ct);
             }
             ClaimLease(import, leaseId, DateTime.UtcNow);
-            await Meter(import, ct);
+            if (localOutline is null) await Meter(import, ct);
             await db.SaveChangesAsync(ct);
             await claim.Commit(ct);
         }
@@ -97,7 +101,9 @@ public sealed partial class ImportService
         AiOutlineResult result;
         try
         {
-            result = await ai.Outline(ImportSourceText.Outline(pages), [], AuthService.Hash(user.ToString())[..32], ct);
+            result = localOutline is null
+                ? await ai.Outline(ImportSourceText.Outline(pages), [], AuthService.Hash(user.ToString())[..32], ct)
+                : new AiOutlineResult(localOutline, null, "printed-schedule", 0, 0, 0);
         }
         catch (DomainException ex)
         {
@@ -125,7 +131,7 @@ public sealed partial class ImportService
             {
                 try
                 {
-                    await ApplyOutline(import, result, pages, settle);
+                    await ApplyOutline(import, result, pages, analysis, settle);
                     if (import.Status == ImportStatus.Ready) ClearSource(import);
                     ReleaseLease(import);
                     import.Revision++;
@@ -152,18 +158,19 @@ public sealed partial class ImportService
         return await Get(importId, ct);
     }
 
-    private async Task ApplyOutline(AiImport import, AiOutlineResult result, List<ImportPageText> pages, CancellationToken ct)
+    private async Task ApplyOutline(AiImport import, AiOutlineResult result, IReadOnlyList<ImportPageText> pages,
+        ImportSourceAnalysis analysis, CancellationToken ct)
     {
-        var sourceEvidence = ImportOutlineEvidence.Read(pages);
+        var sourceEvidence = analysis.Outline;
         import.Model = result.Model; import.InputTokens += result.InputTokens; import.CachedInputTokens += result.CachedInputTokens; import.OutputTokens += result.OutputTokens;
         import.Error = "";
         if (result.LegacyProgram is { } legacy)
         {
-            var sourceText = ImportSourceText.Slice(pages, 1, ImportSourceText.MaxPages);
-            var reconciledLegacy = ImportTableEvidence.Enrich(legacy, sourceText);
+            var reconciledLegacy = ImportTableEvidence.Enrich(legacy, analysis.Tables);
             var labeled = ImportDayLabels.Apply(await ToDraft(reconciledLegacy, ct), pages);
             var routine = ImportWarmupRoutine.LeaveOut(labeled.Draft.Workouts, pages);
-            var versions = ImportWeekVariants.Separate(routine.Workouts, pages);
+            var versions = ImportWeekVariants.Separate(routine.Workouts,
+                analysis.WeekVersions.ToDictionary(item => item.Key, item => item.Value));
             var draft = ImportOutlineEvidence.NormalizeDraft(labeled.Draft with { Workouts = versions.Workouts }, sourceEvidence);
             var blockRuns = ImportBlockRuns.Reconcile(draft.Workouts);
             draft = draft with { Workouts = blockRuns.Workouts };
@@ -174,14 +181,14 @@ public sealed partial class ImportService
             var longWeeks = ImportLongWeeks.Reconcile(draft.Workouts, pages);
             draft = draft with { Workouts = longWeeks.Workouts, SourceWeekDays = longWeeks.SourceWeekDays };
             var scheduleNotices = new List<ImportReviewIssue>();
-            draft = ApplyPrintedSchedule(draft, pages, scheduleNotices);
+            draft = ApplyPrintedSchedule(draft, analysis, scheduleNotices);
             // A whole-program answer holds the same days as a sectioned one and needs the same
             // reconciliation; it simply has no chunk to attribute a notice to.
             var shaped = ReconcileDayShape(draft.Workouts, draft.SourceWeekDays);
             var cited = ImportDayShape.ReconcilePages(draft with { Workouts = shaped.Workouts }, import.Pages);
             List<ImportPageLink> demoLinks = string.IsNullOrWhiteSpace(import.LinksJson) ? [] : Json.Read<List<ImportPageLink>>(import.LinksJson);
             draft = ImportValidation.NormalizeDraft(ImportDemoLinks.Attach(ImportNameSpelling.Standardize(cited.Draft, pages), demoLinks));
-            if (ImportTableEvidence.PrintedRowsNotice(draft.Workouts, sourceText) is { } printedRows) cited.Notices.Add(printedRows);
+            if (ImportTableEvidence.PrintedRowsNotice(draft.Workouts, analysis.Tables) is { } printedRows) cited.Notices.Add(printedRows);
             List<ImportReviewIssue> outlineNotices = [.. labeled.Notices, .. routine.Notices, .. versions.Notices, .. blockRuns.Notices, .. named.Notices, .. longWeeks.Notices, .. scheduleNotices];
             if (numbered.Renumbered)
             {
@@ -198,9 +205,12 @@ public sealed partial class ImportService
             await ValidateDraft(draft, ct);
             ValidateDraftPages(draft, import.PageCoverageJson);
             import.DraftJson = Json.Write(draft);
-            RequireVerifiedDraft(draft, import, outlineNotices);
+            var weekVersionChoicePending = ImportWeekChoice.Offer(draft, pages,
+                analysis.WeekVersions.ToDictionary(item => item.Key, item => item.Value)).Count > 1;
+            RequireVerifiedDraft(draft, import, outlineNotices, weekVersionChoicePending);
             import.ChunksDone = 1; import.ChunksTotal = 1;
-            CompleteRead(import, draft, pages);
+            CompleteRead(import, draft, pages,
+                analysis.WeekVersions.ToDictionary(item => item.Key, item => item.Value));
             return;
         }
         // A complete printed schedule is its own page map: when the outline leaves out pages it prints,
@@ -208,8 +218,9 @@ public sealed partial class ImportService
         // A schedule printed entirely as clean tables is divided the same way, so every section is
         // read from its tables and none waits on a model read.
         if (result.Outline?.Alternatives is not { Count: > 1 }
-            && ImportPrintedSchedule.Read(pages) is { } printed && (!printed.CoveredBy(OutlinedChunks(result.Outline!))
-            || ImportTableEvidence.ReadPrintedSection(printed.Days, ImportSourceText.Slice(pages, printed.Days[0].Page, printed.Days[^1].Page)) is not null))
+            && analysis.Schedule is { } printed && (!printed.CoveredBy(OutlinedChunks(result.Outline!))
+            || ImportTableEvidence.ReadPrintedSection(printed.Days, analysis.Tables,
+                printed.Days[0].Page, printed.Days[^1].Page) is not null))
         {
             var sourceChunks = SplitChunks(printed.Chunks());
             ValidateChunkPages(sourceChunks, import.PageCoverageJson);
@@ -273,7 +284,26 @@ public sealed partial class ImportService
             if (selected!.Kind == ImportAlternativeKinds.Week)
             {
                 // The program is already read; the choice only decides which version's days stay.
-                ChooseWeekVersion(import, selected, alternatives);
+                try
+                {
+                    var sourcePages = SourcePages(import);
+                    ChooseWeekVersion(import, selected, alternatives);
+                    var chosenDraft = Json.Read<ImportDraft>(import.DraftJson);
+                    Validation.Require(ImportWeekChoice.Offer(chosenDraft, sourcePages).Count == 0,
+                        "The selected week version could not be separated from the other printed version. Read the PDF again.", 422);
+                    await ValidateDraft(chosenDraft, ct);
+                    ValidateDraftPages(chosenDraft, import.PageCoverageJson);
+                    RequireVerifiedDraft(chosenDraft, import, []);
+                    ClearSource(import);
+                }
+                catch (ImportVerificationException verification)
+                {
+                    import.Status = ImportStatus.Failed;
+                    import.Stage = "failed";
+                    import.Error = verification.Message;
+                    import.NoticesJson = Json.Write(ImportReviewNotices.Merge(ReadNotices(import.NoticesJson), [verification.Issue]));
+                    ClearSource(import);
+                }
                 import.Revision++;
                 await db.SaveChangesAsync(ct); await gate.Commit(ct);
                 db.ChangeTracker.Clear();

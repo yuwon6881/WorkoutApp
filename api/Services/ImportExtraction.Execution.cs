@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Collections.Concurrent;
+using System.Diagnostics;
 using Microsoft.EntityFrameworkCore;
 using Workout.Api.Data;
 using Workout.Api.Domain;
@@ -19,11 +20,18 @@ public sealed partial class ImportService
     {
         var user = db.CurrentUser!.Value;
         var leaseId = NewLeaseId();
-        List<ImportPageText>? outlinePages = null;
         List<ImportPageText> sourcePages = [];
+        var sourceTextJson = "";
+        var outlinePending = false;
+        var totalChunks = 0;
+        List<ImportChunk>? extractionChunks = null;
+        var firstChunk = 0;
+        var pageCoverageJson = "";
         List<ImportPageLink> demoLinks = [];
         var pending = new List<PendingChunk>();
         Dictionary<int, AiImportResult> persistedResults = [];
+        Dictionary<int, int> persistedRecoveryReads = [];
+        Dictionary<int, List<ImportRecoveryCandidate>> persistedRecoveryCandidates = [];
         await using (var claim = await MutationLock.Acquire(db, db.CurrentUser, ct))
         {
             var import = await db.Imports.SingleOrDefaultAsync(i => i.Id == id, ct);
@@ -38,6 +46,7 @@ public sealed partial class ImportService
             }
             Validation.Require(import.Status != ImportStatus.Pending || import.PromptVersion == WorkoutAi.PromptVersion,
                 "This PDF import was created by an older importer. Upload the PDF again to continue with the updated reader.", 409);
+            totalChunks = import.ChunksTotal;
             if (LeaseHeldByAnother(import, leaseId, DateTime.UtcNow))
             {
                 await claim.Commit(ct);
@@ -45,14 +54,21 @@ public sealed partial class ImportService
                 return await Get(id, ct);
             }
             ClaimLease(import, leaseId, DateTime.UtcNow);
-            var pages = SourcePages(import);
-            sourcePages = pages;
+            Validation.Require(!string.IsNullOrWhiteSpace(import.SourceTextJson),
+                "The text read from this PDF is no longer available.", 410);
+            sourceTextJson = import.SourceTextJson;
             demoLinks = string.IsNullOrWhiteSpace(import.LinksJson) ? [] : Json.Read<List<ImportPageLink>>(import.LinksJson);
             if (import.Status == ImportStatus.Pending && import.Stage == "outline")
             {
                 // The account lock is not reentrant, so the outline pass starts after this closes.
-                outlinePages = pages;
+                outlinePending = true;
                 import.Error = "";
+                var outlineState = ImportWorkState.Read(import.WorkStateJson);
+                import.WorkStateJson = Json.Write(outlineState with
+                {
+                    StartedAtUtc = outlineState.StartedAtUtc ?? DateTime.UtcNow,
+                    LastProgressAtUtc = DateTime.UtcNow
+                });
                 import.Revision++;
                 await db.SaveChangesAsync(ct);
                 await claim.Commit(ct);
@@ -66,50 +82,84 @@ public sealed partial class ImportService
                 import.Stage = "extract";
                 import.Error = "";
                 import.Revision++;
+                var workState = ImportWorkState.Read(import.WorkStateJson);
+                persistedRecoveryReads = workState.RecoveryReads ?? [];
+                persistedRecoveryCandidates = workState.RecoveryCandidates ?? [];
+                import.WorkStateJson = Json.Write(workState with
+                {
+                    StartedAtUtc = workState.StartedAtUtc ?? DateTime.UtcNow,
+                    LastProgressAtUtc = DateTime.UtcNow,
+                    SectionStages = []
+                });
                 var chunks = ReadChunks(import.OutlineJson);
                 Validation.Require(import.ChunksDone < chunks.Count, "This import has already finished extracting.", 409);
-                ValidateChunkPages(chunks.Skip(import.ChunksDone), import.PageCoverageJson);
-                var schedule = ImportPrintedSchedule.Read(pages);
-                for (var index = import.ChunksDone; index < chunks.Count; index++)
-                {
-                    var chunk = chunks[index];
-                    // A section the outline pointed at pages that carry no text — a photo spread, a
-                    // scanned insert — has nothing to transcribe, so it costs no read and no budget.
-                    var text = ImportSourceText.Slice(pages, chunk.PageFrom, chunk.PageTo);
-                    // A section of clean printed tables is read here, so it costs no model read either.
-                    var printed = schedule is null || string.IsNullOrWhiteSpace(text) ? null
-                        : ImportTableEvidence.ReadPrintedSection(schedule.Days, text);
-                    if (printed is not null) { pending.Add(new PendingChunk(index, chunk, text, printed)); continue; }
-                    if (!string.IsNullOrWhiteSpace(text) && !persistedResults.ContainsKey(index))
-                    {
-                        // Every read is paid for up front. When the day's budget runs out partway,
-                        // the sections already covered still run and the rest wait for tomorrow;
-                        // only an import that can afford nothing at all is refused outright.
-                        try { await Meter(import, ct); }
-                        catch (DomainException) when (pending.Any(item => item.Text.Length > 0)) { break; }
-                    }
-                    pending.Add(new PendingChunk(index, chunk, text));
-                }
+                firstChunk = import.ChunksDone;
+                pageCoverageJson = import.PageCoverageJson;
+                extractionChunks = chunks;
                 await db.SaveChangesAsync(ct);
                 await claim.Commit(ct);
             }
         }
         db.ChangeTracker.Clear();
-        if (outlinePages is not null) return await ReadOutline(id, outlinePages, ct, leaseId);
-        var sourceEvidence = ImportOutlineEvidence.Read(sourcePages);
-        var printedWeeks = ImportPrintedSchedule.Read(sourcePages)?.WeekOfPage();
-        var preserveTrailingRestDays = ImportLongWeeks.IsTenDayCycleSource(sourcePages)
-            || ImportLongWeeks.HasSourceLongWeek(sourcePages);
+        sourcePages = Json.Read<List<ImportPageText>>(sourceTextJson);
+        if (outlinePending) return await ReadOutline(id, sourcePages, ct, leaseId);
+        var analysisTimer = Stopwatch.StartNew();
+        var analysis = ImportSourceAnalysis.Create(sourcePages);
+        logger?.LogInformation("Import source analysis completed in {ElapsedMilliseconds} ms for {PageCount} pages ({SourceCharacters} characters).",
+            analysisTimer.ElapsedMilliseconds, analysis.Pages.Count, analysis.Pages.Sum(page => page.Text.Length));
+        if (extractionChunks is not null)
+        {
+            ValidateChunkPages(extractionChunks.Skip(firstChunk), pageCoverageJson);
+            var schedule = analysis.Schedule;
+            var localReadTimer = Stopwatch.StartNew();
+            var locallyReadPages = 0;
+            for (var index = firstChunk; index < extractionChunks.Count; index++)
+            {
+                var chunk = extractionChunks[index];
+                // A section the outline pointed at pages that carry no text — a photo spread, a
+                // scanned insert — has nothing to transcribe, so it costs no read and no budget.
+                var allText = analysis.Slice(chunk);
+                var printed = schedule is null || string.IsNullOrWhiteSpace(allText) ? null
+                    : ImportTableEvidence.ReadPrintedPages(schedule.Days, analysis.Tables, chunk.PageFrom, chunk.PageTo);
+                var sectionPages = analysis.For(chunk).Select(page => page.Page).ToHashSet();
+                var remainingPages = printed is null ? sectionPages : sectionPages.Except(printed.Pages).ToHashSet();
+                var scheduledTrainingPages = schedule?.Days.Where(day => !day.IsRestDay
+                        && day.Page >= chunk.PageFrom && day.Page <= chunk.PageTo)
+                    .Select(day => day.Page).Distinct().ToHashSet() ?? [];
+                // Divider-only pages add no transcription evidence when every complete printed
+                // training page in this section was read locally.
+                var text = printed is not null && scheduledTrainingPages.IsSubsetOf(printed.Pages)
+                    ? ""
+                    : printed is null ? allText : analysis.Slice(chunk, remainingPages);
+                if (printed is not null)
+                {
+                    locallyReadPages += printed.Pages.Count;
+                    pending.Add(new PendingChunk(index, chunk, text, printed.Program, printed.Pages));
+                    continue;
+                }
+                if (!string.IsNullOrWhiteSpace(text) && !persistedResults.ContainsKey(index))
+                {
+                    // Every read is reserved before its request. If the daily budget runs out
+                    // partway through, the covered sections still run and the rest wait for tomorrow.
+                    try { await MeterInitialChunk(id, leaseId, ct); }
+                    catch (DomainException) when (pending.Any(item => item.Text.Length > 0)) { break; }
+                }
+                pending.Add(new PendingChunk(index, chunk, text));
+            }
+            logger?.LogInformation("Import section preparation completed in {ElapsedMilliseconds} ms: {LocalPageCount} pages read locally, {ProviderSectionCount} sections need a provider read.",
+                localReadTimer.ElapsedMilliseconds, locallyReadPages, pending.Count(item => item.Text.Length > 0 && !persistedResults.ContainsKey(item.Index)));
+        }
+        var sourceEvidence = analysis.Outline;
+        var printedWeeks = analysis.PrintedWeeks;
+        var preserveTrailingRestDays = analysis.PreserveTrailingRestDays;
 
         var results = persistedResults;
-        foreach (var item in pending.Where(item => item.Printed is not null))
+        foreach (var item in pending.Where(item => item.Printed is not null && item.Text.Length == 0))
             results[item.Index] = new AiImportResult(item.Printed!, PrintedTableReader, 0, 0);
         var completedThisPass = new HashSet<int>();
         var failures = new Dictionary<int, DomainException>();
         var leaseLost = false;
-        var chunkStages = new ConcurrentDictionary<int, string>(pending
-            .Where(item => item.Text.Length > 0 && !results.ContainsKey(item.Index))
-            .Select(item => new KeyValuePair<int, string>(item.Index, "extract")));
+        var chunkStages = new ConcurrentDictionary<int, string>();
         var identifier = AuthService.Hash(user.ToString())[..32];
         // Concurrency is bounded so one import cannot open an unlimited number of provider
         // requests at once; a handful in flight is what turns the sum of the sections into the
@@ -125,87 +175,127 @@ public sealed partial class ImportService
                 var persisted = await PersistProgressStage(id, leaseId, persistGate,
                     () => chunkStages.Values.Contains("extract") ? "extract"
                         : chunkStages.Values.Contains("recover") ? "recover"
-                        : chunkStages.Values.Contains("verify") ? "verify" : "extract", CancellationToken.None);
+                        : chunkStages.Values.Contains("verify") ? "verify" : "extract", chunkStages, CancellationToken.None);
                 if (!persisted) leaseLost = true;
             }
 
-            await Task.WhenAll(pending.Where(item => item.Text.Length > 0 && !results.ContainsKey(item.Index)).Select(async item =>
+            await Task.WhenAll(pending.Where(item => item.Text.Length > 0
+                    && (!results.ContainsKey(item.Index) || persistedRecoveryCandidates.ContainsKey(item.Index)))
+                .Select(async item =>
             {
                 await inFlight.WaitAsync(ct);
                 try
                 {
-                    var result = await ai.ExtractChunk(item.Text, [], identifier, Directive(item.Chunk), ct);
-                    await UpdateChunkStage(item.Index, "verify");
-                    var chunkPages = sourcePages.Where(page => page.Page >= item.Chunk.PageFrom &&
-                        page.Page <= item.Chunk.PageTo).ToList();
-                    var printedDays = ImportDayLabels.Read(chunkPages).Values.Sum(labels => labels.Count);
-                    var bestProgram = result.Program;
-                    var bestModel = result.Model;
-                    var totalInputTokens = result.InputTokens;
-                    var totalOutputTokens = result.OutputTokens;
-                    var totalCachedInputTokens = result.CachedInputTokens;
-                    int bestScore;
-                    await persistGate.WaitAsync(ct);
-                    try { bestScore = await RecoveryScore(result, chunkPages, printedDays, ct); }
-                    finally { persistGate.Release(); }
-                    for (var attempt = 1; attempt <= 2 && bestScore > 0; attempt++)
+                    var candidates = persistedRecoveryCandidates.GetValueOrDefault(item.Index)?.ToList() ?? [];
+                    var chunkPages = analysis.For(item.Chunk).ToList();
+                    var printedDays = analysis.DayLabels.Where(label => label.Key >= item.Chunk.PageFrom && label.Key <= item.Chunk.PageTo)
+                        .Sum(label => label.Value.Count);
+                    var scored = new List<(ImportRecoveryCandidate Candidate, ImportVerificationFinding Finding)>();
+                    async Task ScoreAndRecord(ImportRecoveryCandidate candidate)
                     {
-                        if (!await TryReserveRecoveryRead(id, leaseId, persistGate, ct)) break;
+                        ImportVerificationFinding finding;
+                        var verificationTimer = Stopwatch.StartNew();
+                        await persistGate.WaitAsync(ct);
+                        try { finding = await RecoveryScore(candidate.Response, chunkPages, printedDays, analysis, ct); }
+                        finally { persistGate.Release(); }
+                        logger?.LogInformation("Import section verification completed in {ElapsedMilliseconds} ms for section {SectionIndex}, attempt {Attempt}: score {Score}, repair reasons {RepairReasons}, targeted {Targeted}.",
+                            verificationTimer.ElapsedMilliseconds, item.Index + 1, candidate.Attempt,
+                            finding.Score, string.Join(",", finding.RepairReasons), finding.TargetedRepair);
+                        if (!await PersistRecoveryReasons(id, item.Index, leaseId, candidate.Attempt,
+                            finding.RepairReasons, persistGate, CancellationToken.None))
+                            leaseLost = true;
+                        scored.Add((candidate, finding));
+                    }
+
+                    if (candidates.Count == 0)
+                    {
+                        await UpdateChunkStage(item.Index, "extract");
+                        var extracted = await ai.ExtractChunk(item.Text, [], identifier, Directive(item.Chunk), ct, analysis.Tables);
+                        var response = extracted with { Program = MergePrintedPages(extracted.Program, item.Printed, item.PrintedPages) };
+                        var candidate = new ImportRecoveryCandidate(0, response, DateTime.UtcNow);
+                        if (!await PersistRecoveryCandidate(id, item.Index, leaseId, 0, response, persistGate, CancellationToken.None))
+                        {
+                            leaseLost = true;
+                            return;
+                        }
+                        candidates.Add(candidate);
+                        await UpdateChunkStage(item.Index, "verify");
+                        await ScoreAndRecord(candidate);
+                    }
+                    else
+                    {
+                        await UpdateChunkStage(item.Index, "verify");
+                        foreach (var candidate in candidates.OrderBy(candidate => candidate.Attempt))
+                            await ScoreAndRecord(candidate);
+                    }
+
+                    if (leaseLost) return;
+                    var best = scored.OrderBy(item => item.Finding.Score).ThenBy(item => item.Candidate.Attempt).First();
+                    var last = scored.OrderBy(item => item.Candidate.Attempt).Last();
+                    var alreadyRead = persistedRecoveryReads.GetValueOrDefault(item.Index);
+                    var mayRepair = candidates.Count == 1 || last.Finding.Score < best.Finding.Score;
+                    while (alreadyRead < 2 && best.Finding.CanRecover && mayRepair)
+                    {
+                        var attempt = await TryReserveRecoveryRead(id, item.Index, leaseId, persistGate, ct);
+                        if (attempt is null) break;
+                        alreadyRead = attempt.Value;
                         await UpdateChunkStage(item.Index, "recover");
                         try
                         {
-                            var recovered = await ai.ExtractChunk(item.Text, [], identifier,
-                                Directive(item.Chunk) + $" Verification pass {attempt} of 2: compare every printed day label, exercise row, set row, and prescription cell on these pages with the prior extraction. Resolve missing or extra rows and values only from the printed source; preserve any source ambiguity instead of guessing.", ct);
-                            await UpdateChunkStage(item.Index, "verify");
-                            totalInputTokens += recovered.InputTokens;
-                            totalOutputTokens += recovered.OutputTokens;
-                            totalCachedInputTokens += recovered.CachedInputTokens;
-                            int recoveredScore;
-                            await persistGate.WaitAsync(ct);
-                            try { recoveredScore = await RecoveryScore(recovered, chunkPages, printedDays, ct); }
-                            finally { persistGate.Release(); }
-                            if (recoveredScore < bestScore)
+                            var scopePages = best.Finding.TargetedRepair
+                                ? best.Finding.RepairPages.ToHashSet() : null;
+                            var repairText = scopePages is { Count: > 0 }
+                                ? analysis.Slice(item.Chunk, scopePages)
+                                : item.Text;
+                            var repairDirective = scopePages is { Count: > 0 }
+                                ? $"Correct only the complete printed day groups on PDF page{(scopePages.Count == 1 ? "" : "s")} {string.Join(", ", scopePages.Order())}. Return complete replacement days for those pages only, with a sourcePage on every day. Preserve every exercise row, set count, prescription, note, alternative, and rest exactly as printed; do not return days from other pages. If the source is ambiguous, preserve the ambiguity instead of guessing."
+                                : Directive(item.Chunk) + " Compare every printed day label, exercise row, set row, and prescription cell with the prior extraction. Resolve source-supported omissions and extras only from the printed source; preserve ambiguity instead of guessing.";
+                            var recovered = await ai.ExtractChunk(repairText, [], identifier,
+                                repairDirective + $" Verification pass {attempt} of 2.", ct, analysis.Tables);
+                            var repairedProgram = scopePages is { Count: > 0 }
+                                ? ReplacePageScope(best.Candidate.Response.Program, recovered.Program, scopePages)
+                                : MergePrintedPages(recovered.Program, item.Printed, item.PrintedPages);
+                            recovered = recovered with { Program = repairedProgram };
+                            var candidate = new ImportRecoveryCandidate(attempt.Value, recovered, DateTime.UtcNow);
+                            if (!await PersistRecoveryCandidate(id, item.Index, leaseId, attempt.Value, recovered, persistGate, CancellationToken.None))
                             {
-                                bestProgram = recovered.Program;
-                                bestModel = recovered.Model;
-                                bestScore = recoveredScore;
+                                leaseLost = true;
+                                return;
                             }
+                            candidates.Add(candidate);
+                            await UpdateChunkStage(item.Index, "verify");
+                            await ScoreAndRecord(candidate);
+                            var recoveredFinding = scored[^1].Finding;
+                            if (recoveredFinding.Score < best.Finding.Score)
+                            {
+                                best = (candidate, recoveredFinding);
+                                mayRepair = true;
+                            }
+                            else { mayRepair = false; break; }
                         }
                         catch (DomainException)
                         {
-                            // Keep the best valid response. Final source verification below decides
-                            // whether a remaining discrepancy can be exposed as a draft.
+                            // A reserved but failed call consumes one of the two durable attempts.
+                            mayRepair = false;
+                            break;
                         }
                     }
-                    result = new AiImportResult(bestProgram, bestModel, totalInputTokens, totalOutputTokens, totalCachedInputTokens);
+                    if (leaseLost) return;
+                    var totalInputTokens = candidates.Sum(candidate => candidate.Response.InputTokens);
+                    var totalOutputTokens = candidates.Sum(candidate => candidate.Response.OutputTokens);
+                    var totalCachedInputTokens = candidates.Sum(candidate => candidate.Response.CachedInputTokens);
+                    var result = new AiImportResult(best.Candidate.Response.Program, best.Candidate.Response.Model,
+                        totalInputTokens, totalOutputTokens, totalCachedInputTokens);
+                    if (!await PersistFinalChunkResult(id, item.Index, leaseId, result, persistGate, CancellationToken.None))
+                    {
+                        leaseLost = true;
+                        return;
+                    }
                     lock (results)
                     {
                         results[item.Index] = result;
                         completedThisPass.Add(item.Index);
                     }
-
-                    await persistGate.WaitAsync(CancellationToken.None);
-                    try
-                    {
-                        await using var resultGate = await MutationLock.Acquire(db, db.CurrentUser, CancellationToken.None);
-                        var import = await db.Imports.SingleOrDefaultAsync(i => i.Id == id, CancellationToken.None);
-                        if (import is not null && import.Status == ImportStatus.Pending && OwnsLease(import, leaseId))
-                        {
-                            var stored = ReadChunkResults(import.ChunkResultsJson);
-                            stored[item.Index] = result;
-                            import.ChunkResultsJson = Json.Write(stored);
-                            import.Model = result.Model;
-                            import.InputTokens += result.InputTokens;
-                            import.CachedInputTokens += result.CachedInputTokens;
-                            import.OutputTokens += result.OutputTokens;
-                            RenewLease(import);
-                            import.Revision++;
-                            await db.SaveChangesAsync(CancellationToken.None);
-                        }
-                        else if (import is not null && !OwnsLease(import, leaseId)) leaseLost = true;
-                        await resultGate.Commit(CancellationToken.None);
-                    }
-                    finally { persistGate.Release(); }
                 }
                 catch (DomainException ex) { lock (failures) failures[item.Index] = ex; }
                 catch (Exception) when (!ct.IsCancellationRequested)
@@ -214,8 +304,8 @@ public sealed partial class ImportService
                 }
                 finally
                 {
-                    chunkStages.TryRemove(item.Index, out _);
-                    inFlight.Release();
+                    try { await UpdateChunkStage(item.Index, null); }
+                    finally { inFlight.Release(); }
                 }
             }));
         }
@@ -225,7 +315,9 @@ public sealed partial class ImportService
         if (!leaseLost)
         {
             using var progressGate = new SemaphoreSlim(1, 1);
-            await PersistProgressStage(id, leaseId, progressGate, () => "extract", CancellationToken.None);
+            var reachedEnd = pending.Count > 0 && pending[^1].Index == totalChunks - 1 && failures.Count == 0;
+            await PersistProgressStage(id, leaseId, progressGate, () => reachedEnd ? "verify" : "extract",
+                chunkStages, CancellationToken.None);
         }
 
         // Persist any remaining successful provider responses before attempting ordered draft
@@ -271,7 +363,8 @@ public sealed partial class ImportService
         await using (var gate = await MutationLock.Acquire(db, db.CurrentUser, settle))
         {
             var import = await db.Imports.SingleOrDefaultAsync(i => i.Id == id, settle);
-            if (import is not null && import.Status == ImportStatus.Pending && import.Stage == "extract" && OwnsLease(import, leaseId) && !leaseLost)
+            if (import is not null && import.Status == ImportStatus.Pending && (import.Stage is "extract" or "verify")
+                && OwnsLease(import, leaseId) && !leaseLost)
             {
                 var draft = Json.Read<ImportDraft>(import.DraftJson);
                 foreach (var item in pending.OrderBy(item => item.Index))
@@ -286,11 +379,19 @@ public sealed partial class ImportService
                         // Everything that can reject a section runs before the row is touched, so a
                         // rejected section stays retryable instead of committing half of itself.
                         var notices = new List<ImportReviewIssue>();
-                        if (item.Index == pending[0].Index && pending.Count(other => other.Printed is not null) is var local and > 0)
+                        if (item.Index == pending[0].Index && pending.Count(other => other.Printed is not null && other.Text.Length == 0) is var local and > 0)
                             notices.Add(new ImportReviewIssue("printed_sections_read",
                                 $"{local} of {pending.Count} section{(pending.Count == 1 ? " was" : "s were")} read straight from clean printed tables, without a model read.", "info"));
+                        if (item.Index == pending[0].Index)
+                        {
+                            var localPages = pending.SelectMany(other => other.PrintedPages ?? []).Distinct().Order().ToList();
+                            if (localPages.Count > 0)
+                                notices.Add(new ImportReviewIssue("printed_pages_read",
+                                    $"{localPages.Count} complete page group{(localPages.Count == 1 ? " was" : "s were")} read from clean printed tables on PDF pages {string.Join(", ", localPages)}.",
+                                    "info", localPages[0]));
+                        }
                         var merged = draft;
-                        if (item.Text.Length == 0)
+                        if (item.Text.Length == 0 && item.Printed is null)
                         {
                             notices.Add(new ImportReviewIssue("section_without_text",
                                 $"'{item.Chunk.Label}' (PDF pages {item.Chunk.PageFrom}-{item.Chunk.PageTo}) has no selectable text and was skipped.",
@@ -300,7 +401,7 @@ public sealed partial class ImportService
                         {
                             var result = results[item.Index];
                             var chunkPages = sourcePages.Where(page => page.Page >= item.Chunk.PageFrom && page.Page <= item.Chunk.PageTo).ToList();
-                            var sourceEnriched = ImportTableEvidence.Enrich(result.Program, item.Text);
+                            var sourceEnriched = ImportTableEvidence.Enrich(result.Program, analysis.Tables);
                             var labeled = ImportDayLabels.Apply(await ToDraft(sourceEnriched, settle), chunkPages);
                             notices.AddRange(labeled.Notices);
                             var extracted = ImportOutlineEvidence.NormalizeDraft(labeled.Draft, sourceEvidence);
@@ -328,21 +429,32 @@ public sealed partial class ImportService
                         }
                         if (complete)
                         {
-                            merged = FinalizeDraft(merged, sourcePages, import, notices);
+                            var finalizationTimer = Stopwatch.StartNew();
+                            merged = FinalizeDraft(merged, analysis, import, notices);
                             await ValidateDraft(merged, settle);
                             ValidateDraftPages(merged, import.PageCoverageJson);
+                            logger?.LogInformation("Import final source reconciliation completed in {ElapsedMilliseconds} ms across {WorkoutCount} workouts.",
+                                finalizationTimer.ElapsedMilliseconds, merged.Workouts.Count);
                             // Keep the full source-reconciled draft available if final verification
                             // finds an irreducible source ambiguity. The import still fails closed,
                             // but its terminal explanation can show the material the reader did resolve.
                             draft = merged;
-                            RequireVerifiedDraft(merged, import, notices);
+                            // Week variants are held as adjacent temporary weeks so either can be
+                            // selected after the full read. Gaps across those temporary slots are
+                            // checked on the selected branch, where they have their real numbering.
+                            var weekVersionChoicePending = ImportWeekChoice.Offer(merged, sourcePages,
+                                analysis.WeekVersions.ToDictionary(item => item.Key, item => item.Value)).Count > 1;
+                            RequireVerifiedDraft(merged, import, notices, weekVersionChoicePending);
                         }
                         draft = merged;
                         AdvanceChunk(import, item.Index, notices);
                         if (complete)
                         {
-                            CompleteRead(import, draft, sourcePages);
-                            ClearSource(import);
+                            CompleteRead(import, draft, sourcePages,
+                                analysis.WeekVersions.ToDictionary(item => item.Key, item => item.Value));
+                            // Week-version selection is part of verification. Keep its source
+                            // evidence until the selected branch has passed the final checks.
+                            if (import.Status != ImportStatus.Pending || import.Stage != "select") ClearSource(import);
                         }
                     }
                     catch (DomainException ex) { stopped = ex; break; }
@@ -364,126 +476,4 @@ public sealed partial class ImportService
         return await Get(id, ct);
     }
 
-    /// Runs the synchronous extraction path from an owned background scope. HTTP callers use the
-    /// runner, while direct callers and tests can still await Extract deterministically.
-    public async Task RunExtract(Guid id, CancellationToken ct)
-    {
-        try
-        {
-            await Extract(id, ct);
-        }
-        catch (DomainException ex)
-        {
-            await RecordBackgroundFailure(id, ex.Message);
-        }
-        catch (Exception) when (!ct.IsCancellationRequested)
-        {
-            await RecordBackgroundFailure(id, "That extraction did not finish. Try again.");
-        }
-    }
-    /// One section waiting to be read, with the page text it covers. An empty text means the
-    /// section's pages carry none, and Printed a section read from its clean tables; neither
-    /// needs a model call.
-    private sealed record PendingChunk(int Index, ImportChunk Chunk, string Text, AiProgram? Printed = null);
-
-    /// The model name a section read from its printed tables records in place of a provider model.
-    private const string PrintedTableReader = "printed-tables";
-
-    /// Retry is an explicit idempotent operation for a pending import; the stored text is reused
-    /// while it is inside its retention window.
-    public Task<ImportView> Retry(Guid id, CancellationToken ct) => Extract(id, ct);
-
-    private static void AdvanceChunk(AiImport import, int chunkIndex, IReadOnlyList<ImportReviewIssue> recorded)
-    {
-        import.ChunksDone = chunkIndex + 1; import.Error = ""; import.Revision++;
-        if (recorded.Count == 0) return;
-        var notices = ImportReviewNotices.Merge(ReadNotices(import.NoticesJson), recorded);
-        import.NoticesJson = Json.Write(notices);
-    }
-
-    private static List<ImportPageText> SourcePages(AiImport import)
-    {
-        Validation.Require(!string.IsNullOrWhiteSpace(import.SourceTextJson),
-            "The text read from this PDF is no longer available.", 410);
-        return Json.Read<List<ImportPageText>>(import.SourceTextJson);
-    }
-
-    /// The extracted text exists only to finish the read. Once the draft is complete it has
-    /// nothing left to say and is dropped rather than kept next to the draft it produced.
-    private static void ClearSource(AiImport import)
-    {
-        import.SourceTextJson = ""; import.LinksJson = ""; import.SourceExpiresAt = null; import.ChunkResultsJson = "";
-    }
-
-    private static Dictionary<int, AiImportResult> ReadChunkResults(string? json)
-    {
-        if (string.IsNullOrWhiteSpace(json)) return [];
-        try { return Json.Read<Dictionary<int, AiImportResult>>(json); }
-        catch (JsonException) { return []; }
-        catch (DomainException) { return []; }
-    }
-
-    private async Task FailImport(Guid importId, string message, string? leaseId = null, string code = "import_failed",
-        ImportReviewIssue? terminalIssue = null)
-    {
-        var settle = CancellationToken.None;
-        db.ChangeTracker.Clear();
-        await using var gate = await MutationLock.Acquire(db, db.CurrentUser, settle);
-        var import = await db.Imports.SingleOrDefaultAsync(i => i.Id == importId, settle);
-        if (import is null || import.Status != ImportStatus.Pending || (leaseId is not null && !OwnsLease(import, leaseId))) { await gate.Commit(settle); return; }
-        // Keep the terminal explanation available to the polling UI, but clear document text and
-        // intermediate model responses at the terminal boundary.
-        import.Status = ImportStatus.Failed;
-        // The import stage is constrained to the reader's persisted stages. Status carries the
-        // terminal failure state; keeping the last reader stage lets existing clients continue
-        // rendering their stage-specific progress and review data.
-        import.Stage = "failed";
-        import.Error = message;
-        import.NoticesJson = Json.Write(ImportReviewNotices.Merge(ReadNotices(import.NoticesJson),
-            [terminalIssue ?? new ImportReviewIssue(code, message, "warning")]));
-        ClearSource(import);
-        ReleaseLease(import);
-        import.Revision++;
-        await db.SaveChangesAsync(settle);
-        await gate.Commit(settle);
-    }
-
-    /// Records a failure the same import can still recover from. The stored text stays, so the
-    /// next attempt costs one model call rather than another read of the document.
-    private async Task RecordRetryableFailure(Guid importId, string message, string? leaseId = null)
-    {
-        var settle = CancellationToken.None;
-        db.ChangeTracker.Clear();
-        await using var gate = await MutationLock.Acquire(db, db.CurrentUser, settle);
-        var import = await db.Imports.SingleOrDefaultAsync(i => i.Id == importId, settle);
-        if (import is null || import.Status != ImportStatus.Pending || (leaseId is not null && !OwnsLease(import, leaseId))) { await gate.Commit(settle); return; }
-        import.Error = message; import.Retries++; import.Revision++; ReleaseLease(import);
-        await db.SaveChangesAsync(settle);
-        await gate.Commit(settle);
-    }
-
-    private async Task RecordBackgroundFailure(Guid importId, string message)
-    {
-        var settle = CancellationToken.None;
-        db.ChangeTracker.Clear();
-        await using var gate = await MutationLock.Acquire(db, db.CurrentUser, settle);
-        var import = await db.Imports.SingleOrDefaultAsync(i => i.Id == importId, settle);
-        if (import is not null && import.Status == ImportStatus.Pending && string.IsNullOrWhiteSpace(import.Error))
-        {
-            import.Error = message; import.Retries++; import.Revision++;
-            await db.SaveChangesAsync(settle);
-        }
-        await gate.Commit(settle);
-    }
-
-    /// The daily read budget. Every model call an import makes is metered, including retries.
-    private async Task Meter(AiImport import, CancellationToken ct)
-    {
-        var today = DateOnly.FromDateTime(DateTime.UtcNow);
-        var usage = await db.Usage.SingleOrDefaultAsync(u => u.Date == today, ct);
-        if (usage == null) { usage = new AiUsage { UserId = db.CurrentUser!.Value, Date = today, Count = 0 }; db.Usage.Add(usage); }
-        Validation.Require(usage.Count < DailyLimit, $"You have used all {DailyLimit} AI reads for today. Manual program building remains available.", 429);
-        usage.Count++; import.Calls++;
-        await db.SaveChangesAsync(ct);
-    }
 }

@@ -109,6 +109,30 @@ public static class ImportSourceText
         return builder.ToString().TrimEnd();
     }
 
+    /// The full text for selected pages in source order. Used when complete printed page groups
+    /// have already been recovered locally and only the remaining groups need a model read.
+    public static string SlicePages(IReadOnlyList<ImportPageText> pages, int pageFrom, int pageTo,
+        IReadOnlySet<int> selectedPages)
+    {
+        var builder = new StringBuilder();
+        foreach (var page in pages.Where(page => page.Page >= pageFrom && page.Page <= pageTo && selectedPages.Contains(page.Page)))
+        {
+            var section = $"=== PAGE {page.Page} ===\n{page.Text}\n\n";
+            Validation.Require(builder.Length + section.Length <= MaxChunkChars,
+                $"PDF pages {pageFrom}-{pageTo} exceed the import section limit. Split this program into smaller PDF files and retry.", 413);
+            builder.Append(section);
+        }
+        return builder.ToString().TrimEnd();
+    }
+
+    public static string AllPages(IReadOnlyList<ImportPageText> pages)
+    {
+        var builder = new StringBuilder();
+        foreach (var page in pages.OrderBy(page => page.Page))
+            builder.Append("=== PAGE ").Append(page.Page).Append(" ===\n").Append(page.Text).Append("\n\n");
+        return builder.ToString().TrimEnd();
+    }
+
     /// Normalizes whitespace without touching the line structure the browser reconstructed from
     /// the page's word positions: those line breaks are what keep a training table readable.
     private static string Collapse(string? text)

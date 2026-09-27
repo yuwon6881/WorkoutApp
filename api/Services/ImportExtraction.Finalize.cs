@@ -7,9 +7,12 @@ public sealed partial class ImportService
 {
     /// A fully read draft is ready for review, unless the document prints a week in versions to
     /// run only one of: then it waits for that choice, with every version's days still held.
-    private void CompleteRead(AiImport import, ImportDraft draft, IReadOnlyList<ImportPageText> pages)
+    private void CompleteRead(AiImport import, ImportDraft draft, IReadOnlyList<ImportPageText> pages,
+        Dictionary<int, (int Week, string Version)>? weekVersions = null)
     {
-        var choices = ImportWeekChoice.Offer(draft, pages);
+        var choices = weekVersions is null
+            ? ImportWeekChoice.Offer(draft, pages)
+            : ImportWeekChoice.Offer(draft, pages, weekVersions);
         if (choices.Count > 1)
         {
             import.AlternativesJson = Json.Write(choices);
@@ -41,15 +44,17 @@ public sealed partial class ImportService
 
     /// The passes that need every section: a week, phase or printed schedule is only whole once
     /// the last section has landed, so they run over the whole draft rather than one section.
-    private static ImportDraft FinalizeDraft(ImportDraft merged, List<ImportPageText> sourcePages, AiImport import,
+    private static ImportDraft FinalizeDraft(ImportDraft merged, ImportSourceAnalysis source, AiImport import,
         List<ImportReviewIssue> notices)
     {
+        var sourcePages = source.Pages;
         var routine = ImportWarmupRoutine.LeaveOut(merged.Workouts, sourcePages);
         merged = merged with { Workouts = routine.Workouts };
         notices.AddRange(routine.Notices);
         // A week whose lettered versions landed in different sections is
         // only whole now, so it is separated again over the whole draft.
-        var versions = ImportWeekVariants.Separate(merged.Workouts, sourcePages);
+        var versions = ImportWeekVariants.Separate(merged.Workouts,
+            source.WeekVersions.ToDictionary(item => item.Key, item => item.Value));
         merged = merged with { Workouts = versions.Workouts };
         notices.AddRange(versions.Notices);
         var blockRuns = ImportBlockRuns.Reconcile(merged.Workouts);
@@ -71,7 +76,7 @@ public sealed partial class ImportService
         var longWeeks = ImportLongWeeks.Reconcile(merged.Workouts, sourcePages);
         merged = merged with { Workouts = longWeeks.Workouts, SourceWeekDays = longWeeks.SourceWeekDays };
         notices.AddRange(longWeeks.Notices);
-        merged = ApplyPrintedSchedule(merged, sourcePages, notices);
+        merged = ApplyPrintedSchedule(merged, source, notices);
         // The whole draft is shaped again, not just this section's days: a day
         // an earlier section committed before this ran is exactly the one that
         // no retry of the last section could ever reach.
@@ -82,7 +87,7 @@ public sealed partial class ImportService
         List<ImportPageLink> demoLinks = string.IsNullOrWhiteSpace(import.LinksJson) ? [] : Json.Read<List<ImportPageLink>>(import.LinksJson);
         merged = ImportValidation.NormalizeDraft(ImportDemoLinks.Attach(
             ImportNameSpelling.Standardize(cited.Draft, sourcePages), demoLinks));
-        if (ImportTableEvidence.PrintedRowsNotice(merged.Workouts, ImportSourceText.Slice(sourcePages, 1, ImportSourceText.MaxPages)) is { } printedRows)
+        if (ImportTableEvidence.PrintedRowsNotice(merged.Workouts, source.Tables) is { } printedRows)
             notices.Add(printedRows);
         notices.AddRange(shaped.Notices);
         notices.AddRange(cited.Notices);
@@ -91,9 +96,9 @@ public sealed partial class ImportService
 
     /// A complete printed schedule places every day in its printed week and slot, and a rest day
     /// wherever a band prints one. A long printed week keeps its length as the confirmed one.
-    private static ImportDraft ApplyPrintedSchedule(ImportDraft draft, IReadOnlyList<ImportPageText> pages, List<ImportReviewIssue> notices)
+    private static ImportDraft ApplyPrintedSchedule(ImportDraft draft, ImportSourceAnalysis source, List<ImportReviewIssue> notices)
     {
-        if (ImportPrintedSchedule.Read(pages) is not { } schedule) return draft;
+        if (source.Schedule is not { } schedule) return draft;
         var placed = schedule.Reconcile(draft.Workouts);
         notices.AddRange(placed.Notices);
         if (placed.Workouts is not { } workouts) return draft;

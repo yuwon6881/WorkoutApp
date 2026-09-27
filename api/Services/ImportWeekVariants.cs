@@ -23,8 +23,11 @@ internal static class ImportWeekVariants
     public sealed record Result(List<DraftWorkout> Workouts, List<ImportReviewIssue> Notices, HashSet<Guid> Moved);
 
     public static Result Separate(IReadOnlyList<DraftWorkout> days, IReadOnlyList<ImportPageText> pages)
+        => Separate(days, PageVersions(pages));
+
+    internal static Result Separate(IReadOnlyList<DraftWorkout> days,
+        Dictionary<int, (int Week, string Version)> versions)
     {
-        var versions = PageVersions(pages);
         var workouts = days.ToList();
         var notices = new List<ImportReviewIssue>();
         var moved = new HashSet<Guid>();

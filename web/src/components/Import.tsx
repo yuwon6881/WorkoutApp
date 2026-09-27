@@ -10,12 +10,16 @@ import { useImportPipeline, type ImportFailure, type ImportProgress } from './us
 import { useImportDraftSaver } from './useImportDraftSaver';
 import './Import.css';
 
+type ImportIssue = NonNullable<ImportView['reviewIssues']>[number];
+
 /// What the import is doing. A read in flight covers every section the import still owes, because
 /// they are sent together rather than one after another, so it says how many are being read; a
 /// resting import names the section that commits next instead.
 function stageLabel(view: ImportView, reading = false) {
   if (view.stage === 'outline') return 'Reading the outline';
   if (view.stage === 'select') return 'Waiting for your choice';
+  if ((view.progress?.sectionsRepairing ?? 0) > 0) return `Repairing ${view.progress!.sectionsRepairing} section${view.progress!.sectionsRepairing === 1 ? '' : 's'}`;
+  if ((view.progress?.sectionsVerifying ?? 0) > 0) return `Checking ${view.progress!.sectionsVerifying} section${view.progress!.sectionsVerifying === 1 ? '' : 's'} against the PDF`;
   if (view.stage === 'verify') return 'Checking extracted details against the PDF';
   if (view.stage === 'recover') return 'Repairing source discrepancies';
   if (view.stage !== 'extract') return 'Reading';
@@ -53,6 +57,33 @@ function Failure({ failure, onDismiss }: { failure: ImportFailure; onDismiss: ()
       <Button variant="tertiary" aria-label="Dismiss this message" onClick={onDismiss}><X size={15} /></Button>
     </div>
   </div>;
+}
+
+function friendlyImportFailure(message: string) {
+  if (/\[(?:phase_week_gap|program_week_gap)\]/i.test(message)) {
+    const jump = message.match(/jumps from week\s+(\d+)\s+to week\s+(\d+)/i);
+    if (jump) {
+      const firstMissing = Number(jump[1]) + 1;
+      const lastMissing = Number(jump[2]) - 1;
+      const weeks = firstMissing === lastMissing ? `${firstMissing}` : `${firstMissing}–${lastMissing}`;
+      return `Week${firstMissing === lastMissing ? '' : 's'} ${weeks} could not be reconciled.`;
+    }
+    const absent = message.match(/program weeks?\s+([\d, ]+)\s+(?:has|have) no days/i);
+    if (absent) return `Week${absent[1].includes(',') ? 's' : ''} ${absent[1].trim()} could not be reconciled.`;
+    return 'The program’s week sequence could not be verified.';
+  }
+  if (/\[printed_schedule_mismatch\]/i.test(message))
+    return 'The printed schedule and extracted workouts do not line up.';
+  return message.replace(/\s*\[[a-z0-9_]+\](?=\s|$)/i, '').trim();
+}
+
+function friendlyIssueSummary(issue: ImportIssue) {
+  if (issue.code === 'phase_week_gap' || issue.code === 'program_week_gap') return friendlyImportFailure(`[${issue.code}] ${issue.message}`);
+  return issue.code.replaceAll('_', ' ');
+}
+
+function hasStructuredTerminalError(view: ImportView | null) {
+  return Boolean(view?.error && view.reviewIssues?.some(issue => view.error.includes(`[${issue.code}]`)));
 }
 
 export function ImportReview({ exercises, imports, remaining, onBack, onChanged, notify }: {
@@ -173,14 +204,14 @@ export function ImportReview({ exercises, imports, remaining, onBack, onChanged,
       } />}
       {!pipeline.uploadProgress && selected && selected.status === 'pending' && ['extract', 'verify', 'recover'].includes(selected.stage) && selected.chunksTotal > 0 && <Progress progress={{
         label: stageLabel(selected, busy),
-        detail: selected.stage === 'verify'
-          ? 'Comparing extracted sessions, exercises, sets, and prescriptions with printed source evidence.'
-          : selected.stage === 'recover'
-            ? 'Re-reading a section with a source discrepancy. Only source-supported corrections are applied.'
-            : busy && selected.chunksTotal - selected.chunksDone > 1
-              ? 'Sections commit in order as they land.'
-              : selected.currentChunkLabel ?? '',
-        percent: Math.round((selected.chunksDone / selected.chunksTotal) * 100)
+        detail: (selected.stage === 'verify' || selected.stage === 'recover')
+          ? `${selected.progress?.sectionsCompleted ?? selected.chunksDone} committed · ${selected.progress?.sectionsWithResponses ?? 0} responses saved · ${selected.progress?.sectionsQueued ?? 0} queued · ${selected.progress?.sectionsReading ?? 0} reading · ${selected.progress?.sectionsVerifying ?? 0} checking · ${selected.progress?.sectionsRepairing ?? 0} repairing`
+          : busy && selected.chunksTotal - selected.chunksDone > 1
+            ? 'Sections commit in order as they land.'
+            : selected.currentChunkLabel ?? '',
+        percent: selected.stage === 'verify' || selected.stage === 'recover'
+          ? null
+          : Math.min(99, Math.round((selected.chunksDone / selected.chunksTotal) * 100))
       }} action={
         <Button variant="destructive" onClick={() => void pipeline.cancel(selected)}><Trash2 size={15} />Cancel import</Button>
       } />}
@@ -193,7 +224,9 @@ export function ImportReview({ exercises, imports, remaining, onBack, onChanged,
       } />}
       {saver.pending && <p className="muted" role="status">Saving your changes…</p>}
       {pipeline.notice && <p className="muted" role="status">{pipeline.notice}</p>}
-      {pipeline.failure && <Failure failure={pipeline.failure} onDismiss={pipeline.clearFailure} />}
+      {pipeline.failure && selected?.status !== 'failed'
+        && !hasStructuredTerminalError(selected)
+        && <Failure failure={pipeline.failure} onDismiss={pipeline.clearFailure} />}
       {saveError && <p className="error-text" role="alert">{saveError}</p>}
       <p className="muted small-copy">The text is read from the PDF on this device and only that text is sent; the file itself stays here. It becomes an editable draft before it can affect your workouts.</p>
     </section>
@@ -355,11 +388,12 @@ export function ImportReview({ exercises, imports, remaining, onBack, onChanged,
         <div className="reading-card-header">
           <div className="reading-card-title"><AlertTriangle size={18} className="red" /><h3 id="import-failed-title">Import stopped</h3></div>
         </div>
-        {selected.error && <div className="error-banner" role="alert"><AlertTriangle size={16} /><span>{selected.error}</span></div>}
-        {selected.reviewIssues?.filter(issue => issue.severity !== 'info').map((issue, index) => <div className="import-failed-issue" key={`${issue.code}-${issue.sourcePage ?? 'source'}-${index}`}>
+        {selected.error && <div className="error-banner" role="alert"><AlertTriangle size={16} /><span>{friendlyImportFailure(selected.error)}</span></div>}
+        {selected.reviewIssues?.filter(issue => issue.severity !== 'info').map((issue, index) => <details className="import-failed-issue" key={`${issue.code}-${issue.sourcePage ?? 'source'}-${index}`}>
+          <summary>{friendlyIssueSummary(issue)}</summary>
           <p>{issue.message}</p>
-          {(issue.sourcePage || issue.targetField) && <small>{[issue.sourcePage ? `PDF p.${issue.sourcePage}` : null, issue.targetField].filter(Boolean).join(' · ')}</small>}
-        </div>)}
+          <small>{[issue.sourcePage ? `PDF p.${issue.sourcePage}` : null, issue.targetField, `[${issue.code}]`].filter(Boolean).join(' · ')}</small>
+        </details>)}
         <div className="reading-card-actions">
           <Button variant="destructive" onClick={() => void pipeline.cancel(selected)}><Trash2 size={15} />Discard failed import</Button>
         </div>

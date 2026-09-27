@@ -155,6 +155,7 @@ public sealed class AppDb(DbContextOptions<AppDb> options) : DbContext(options)
         m.Entity<AiImport>().HasIndex(x => new { x.UserId, x.DocumentHash, x.PromptVersion });
         m.Entity<AiImport>().HasIndex(x => x.Created);
         m.Entity<AiImport>().HasIndex(x => x.SourceExpiresAt);
+        m.Entity<AiImport>().Property(x => x.WorkStateJson).HasColumnType("text");
         m.Entity<AiImport>().ToTable("Imports", t =>
         {
             t.HasCheckConstraint("CK_Imports_Status", "\"Status\" IN ('pending','ready','failed','accepted','discarded')");

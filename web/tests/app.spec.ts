@@ -398,6 +398,16 @@ test('import a PDF program, resolve an unmapped exercise, and accept it', async 
   await expect.poll(() => posted, { timeout: 60000 }).toEqual(['gzip']);
   await expect(page.getByRole('heading', { name: 'Review' })).toBeVisible({ timeout: 60000 });
   await expect(page.getByText('Description', { exact: true })).toHaveCount(0);
+  const accept = page.getByRole('button', { name: 'Accept and create program', exact: true });
+  const draftActions = page.getByRole('button', { name: 'Draft actions', exact: true });
+  if (testInfo.project.name === 'mobile') {
+    const acceptBox = await accept.boundingBox();
+    const actionsBox = await draftActions.boundingBox();
+    expect(acceptBox).not.toBeNull();
+    expect(actionsBox).not.toBeNull();
+    expect(Math.abs((acceptBox!.y + acceptBox!.height / 2) - (actionsBox!.y + actionsBox!.height / 2))).toBeLessThanOrEqual(3);
+    expect(actionsBox!.x).toBeGreaterThan(acceptBox!.x);
+  }
   await page.screenshot({ path: join(screenshotsDirectory, `${testInfo.project.name}-import-review.png`), fullPage: true });
 
   // The day reads as what it prescribes before it is opened.
@@ -407,6 +417,29 @@ test('import a PDF program, resolve an unmapped exercise, and accept it', async 
   await day.locator('.day-exercise-preview').click();
   const dayModal = page.locator('dialog.modal.day-detail-modal');
   await expect(dayModal).toBeVisible();
+  const detailBody = dayModal.locator('.day-detail-modal-body');
+  const detailScroll = await detailBody.evaluate(element => ({
+    overflowY: getComputedStyle(element).overflowY,
+    clientHeight: element.clientHeight,
+    scrollHeight: element.scrollHeight
+  }));
+  expect(detailScroll.overflowY).toBe('auto');
+  await expect(dayModal).toHaveCSS('overflow-y', 'hidden');
+  expect(detailScroll.scrollHeight).toBeGreaterThan(detailScroll.clientHeight);
+  await detailBody.evaluate(element => { element.scrollTop = element.scrollHeight; });
+  await expect.poll(() => detailBody.evaluate(element => element.scrollTop)).toBeGreaterThan(0);
+  if (testInfo.project.name === 'mobile') {
+    const firstExercise = dayModal.locator('.import-exercise').first();
+    const restTimer = firstExercise.locator('[data-import-field="rest"] .custom-select-trigger');
+    const restBounds = await restTimer.evaluate(element => {
+      const control = element.getBoundingClientRect();
+      const card = element.closest('.import-exercise')!.getBoundingClientRect();
+      return { left: control.left, right: control.right, cardLeft: card.left, cardRight: card.right };
+    });
+    expect(restBounds.left).toBeGreaterThanOrEqual(restBounds.cardLeft - 1);
+    expect(restBounds.right).toBeLessThanOrEqual(restBounds.cardRight + 1);
+  }
+  await detailBody.evaluate(element => { element.scrollTop = 0; });
   await dayModal.getByRole('button', { name: 'Close dialog', exact: true }).click();
   await expect(dayModal).not.toBeVisible();
   // A collapsed day stays one compact row: the muscles it trains appear once it is opened.
@@ -473,7 +506,6 @@ test('import a PDF program, resolve an unmapped exercise, and accept it', async 
   await picker.getByRole('button', { name: 'Done', exact: true }).click();
 
   // An unresolved mapping keeps the server-authoritative create action disabled.
-  const accept = page.getByRole('button', { name: 'Accept and create program', exact: true });
   await expect(accept).toBeDisabled();
   await page.route('**/api/exercises/custom', async route => {
     if (route.request().method() === 'POST') customCreateRequests++;
@@ -580,7 +612,6 @@ test('import a PDF program, resolve an unmapped exercise, and accept it', async 
   await page.getByLabel('Program name').fill(programName);
   await page.getByLabel('Program name').blur();
   await firstDraftWrite;
-  const draftActions = page.getByRole('button', { name: 'Draft actions', exact: true });
   await draftActions.click();
   const restoreDraft = page.getByRole('menuitem', { name: 'Restore default draft', exact: true });
   await expect(restoreDraft).toBeVisible();
@@ -759,8 +790,7 @@ test('program version chooser uses the source schedule metadata and one explicit
   const importId = 'c1940000-0000-4000-8000-000000000001';
   const alternatives = [
     { id: 'full-body-program', name: 'Full Body Program', chunkCount: 2, dayCount: 24, weekCount: 8, sessionsPerWeek: 3 },
-    { id: 'upper-lower-program', name: 'Upper/Lower Program', chunkCount: 4, dayCount: 32, weekCount: 8, sessionsPerWeek: 4 },
-    { id: 'bodypart-program', name: 'Bodypart Program', chunkCount: 8, dayCount: 40, weekCount: 8, sessionsPerWeek: 5 }
+    { id: 'upper-lower-program', name: 'Upper/Lower Program', chunkCount: 4, dayCount: 32, weekCount: 8, sessionsPerWeek: 4 }
   ];
   let selectedAlternativeId: string | null = null;
   await page.route('**/api/imports', async route => {
@@ -787,7 +817,7 @@ test('program version chooser uses the source schedule metadata and one explicit
     name: `fundamentals-${testInfo.project.name}.pdf`, mimeType: 'application/pdf', buffer: pdf(4, `fundamentals-${Date.now()}`)
   });
   const chooser = page.getByRole('group', { name: 'Available program versions', exact: true });
-  await expect(chooser.getByRole('article')).toHaveCount(3);
+  await expect(chooser.getByRole('article')).toHaveCount(2);
   const fullBody = chooser.locator('.alternative-card').filter({ hasText: 'Full Body Program' });
   await expect(fullBody).toContainText('8 weeks');
   await expect(fullBody).toContainText('3 sessions / week');
@@ -805,6 +835,18 @@ test('program version chooser uses the source schedule metadata and one explicit
       expect(box).not.toBeNull();
       expect(box!.x).toBeGreaterThanOrEqual(0);
       expect(box!.x + box!.width).toBeLessThanOrEqual(page.viewportSize()!.width + 1);
+    }
+    const chooserGrid = chooser;
+    const gridBox = await chooserGrid.boundingBox();
+    expect(gridBox).not.toBeNull();
+    if (gridBox!.width >= 576) {
+      const cardBoxes = await chooserGrid.locator('.alternative-card').evaluateAll(cards => cards.map(card => {
+        const box = card.getBoundingClientRect();
+        return { x: box.x, y: box.y, width: box.width };
+      }));
+      expect(Math.abs(cardBoxes[0].y - cardBoxes[1].y)).toBeLessThanOrEqual(2);
+      const cardsCenter = (cardBoxes[0].x + cardBoxes[1].x + cardBoxes[1].width) / 2;
+      expect(Math.abs(cardsCenter - (gridBox!.x + gridBox!.width / 2))).toBeLessThanOrEqual(2);
     }
     await page.screenshot({ path: join(screenshotsDirectory, `${testInfo.project.name}-import-versions-${theme}.png`), fullPage: true });
   }
@@ -1092,7 +1134,8 @@ test('create a custom multi-block program and cap each week at fourteen schedule
     for (let index = 0; index < 13; index++) {
       await page.getByRole('button', { name: 'Add rest day', exact: true }).click();
     }
-    await expect(page.getByText('14 days', { exact: true })).toBeVisible();
+    await expect(page.getByText('14 days', { exact: true })).toHaveCount(0);
+    await expect(page.locator('.program-day-entry')).toHaveCount(14);
     await expect(page.getByRole('button', { name: 'Add rest day', exact: true })).toBeDisabled();
     await expect(page.getByRole('button', { name: 'Add workout day', exact: true })).toBeDisabled();
 

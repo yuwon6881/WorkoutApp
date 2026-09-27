@@ -92,7 +92,7 @@ export function useImportPipeline({ selected, setSelected, setDraft, onChanged, 
   const extractAll = useCallback(async (start: ImportView) => {
     let current = start;
     let lastDone = current.chunksDone;
-    let lastStage = current.stage;
+    let lastServerProgress = current.progress?.lastProgressAtUtc ?? null;
     let lastProgressAt = Date.now();
 
     const showProgress = (view: ImportView) => {
@@ -106,11 +106,13 @@ export function useImportPipeline({ selected, setSelected, setDraft, onChanged, 
               ? 'Repairing source discrepancies'
               : remaining > 1 ? `Reading ${remaining} sections` : 'Reading the last section',
         detail: view.stage === 'verify'
-          ? 'Comparing sessions, exercises, sets, and prescriptions with printed source evidence.'
+          ? `${view.progress?.sectionsWithResponses ?? 0} section responses saved; comparing sessions, exercises, sets, and prescriptions with printed evidence.`
           : view.stage === 'recover'
-            ? 'Re-reading a section using only evidence from the PDF.'
+            ? `${view.progress?.sectionsWithResponses ?? 0} section responses saved; re-reading only source discrepancies.`
             : remaining > 1 ? 'Sections commit in order as they land.' : view.currentChunkLabel ?? '',
-        percent: view.chunksTotal > 0 ? Math.round((view.chunksDone / view.chunksTotal) * 100) : null
+        percent: view.stage === 'verify' || view.stage === 'recover'
+          ? null
+          : view.chunksTotal > 0 ? Math.min(99, Math.round((view.chunksDone / view.chunksTotal) * 100)) : null
       });
     };
 
@@ -137,8 +139,9 @@ export function useImportPipeline({ selected, setSelected, setDraft, onChanged, 
         apply(current);
         showProgress(current);
 
-        if (current.stage !== lastStage || current.chunksDone > lastDone) {
-          lastStage = current.stage;
+        if ((current.progress?.lastProgressAtUtc && current.progress.lastProgressAtUtc !== lastServerProgress)
+          || current.chunksDone > lastDone) {
+          lastServerProgress = current.progress?.lastProgressAtUtc ?? lastServerProgress;
           lastDone = current.chunksDone;
           lastProgressAt = Date.now();
         }

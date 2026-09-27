@@ -11,6 +11,7 @@ internal static class ImportOutlineEvidence
     private static readonly Regex PhaseHeading = new(
         @"^(?:INTRO\s+WEEK|DELOAD\s+WEEK|INTRO|MAIN|PEAK|PHASE\s+[A-Z0-9]+(?:\s*[:\-–]\s*[A-Z0-9 &/()\-]+)?|(?:BASE|ACCUMULATION|INTENSIFICATION|HYPERTROPHY|STRENGTH|VOLUME|PEAKING|DELOAD)(?:\s+(?:PHASE|BLOCK|HYPERTROPHY|STRENGTH|VOLUME|INTENSIFICATION|ACCUMULATION|PEAKING))?(?:\s+\d+)?)$",
         RegexOptions.Compiled | RegexOptions.IgnoreCase);
+    private static readonly Regex BracketedHeading = new(@"\[(?<heading>[A-Z][A-Z0-9 ]{1,30})\]", RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
     internal sealed record SourceContext(int? Week, string? Block, string? Phase);
     internal sealed record Evidence(
@@ -21,7 +22,7 @@ internal static class ImportOutlineEvidence
 
     public static Evidence Read(IReadOnlyList<ImportPageText> pages)
     {
-        var lines = pages.SelectMany(page => Lines(page.Text)).ToList();
+        var lines = pages.SelectMany(page => Lines(page.Text).Concat(BracketedPhaseHeadings(page.Text))).ToList();
         var contextLines = pages.SelectMany(page => ContextLines(page.Text)).ToList();
         var sourceLines = lines.Select(Key).Where(value => value.Length > 0).ToHashSet(StringComparer.OrdinalIgnoreCase);
         var blocks = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
@@ -153,7 +154,8 @@ internal static class ImportOutlineEvidence
                 return workout with
                 {
                     Block = sourceBlock ?? SupportedBlock(workout.Block, evidence),
-                    Phase = sourcePhase
+                    Phase = sourcePhase,
+                    PhaseWeek = IsWeekSpecific(sourcePhase) ? 1 : workout.PhaseWeek
                 };
             }
 
@@ -240,6 +242,16 @@ internal static class ImportOutlineEvidence
             .Select(line => Regex.Replace(line.Trim(), @"\s+", " "))
             .Where(line => line.Length > 0 && !line.Contains('|'));
 
+    private static IEnumerable<string> BracketedPhaseHeadings(string? text)
+    {
+        foreach (Match match in BracketedHeading.Matches(text ?? ""))
+        {
+            var heading = Regex.Replace(match.Groups["heading"].Value.Trim(), @"\s+", " ");
+            if (heading.Equals("DELOAD", StringComparison.OrdinalIgnoreCase)) heading = "DELOAD WEEK";
+            if (PhaseHeading.IsMatch(heading)) yield return heading;
+        }
+    }
+
     /// Context scanning sees ordinary banner lines plus the first table cell only when that cell
     /// starts with a recognized block or week heading. Other table cells never enter the phase
     /// vocabulary, because many of their words also happen to be valid phase names.
@@ -252,12 +264,14 @@ internal static class ImportOutlineEvidence
             if (!line.Contains('|'))
             {
                 yield return line;
+                foreach (var heading in BracketedPhaseHeadings(line)) yield return heading;
                 continue;
             }
 
             var leading = ImportStructureHeadings.LeadingSegment(line);
             if (ImportStructureHeadings.TryBlock(leading, out _) || ImportStructureHeadings.TryWeek(leading, out _))
                 yield return leading;
+            foreach (var heading in BracketedPhaseHeadings(line)) yield return heading;
         }
     }
 
