@@ -119,6 +119,52 @@ public sealed class ImportSourceFidelityTests
         Assert.Equal(["Block 1", "Block 1", "Block 2", "Block 2"], schedule.Days.Select(day => day.Block));
     }
 
+    private static ImportDraft PyramidDraft(string note, params (int Reps, string Text)[] working)
+    {
+        List<DraftSet> sets = [new(4, 4, null, 180, null, null, null, RepsText: "4", Warmup: true, SourcePage: 29),
+            .. working.Select(set => new DraftSet(set.Reps, set.Reps, 7, 240, null, null, null, RepsText: set.Text, SourcePage: 29))];
+        return new ImportDraft("Pure Bodybuilding", [new DraftWorkout(Guid.NewGuid(), 5, "Full Body #2", null, null,
+            [new DraftExercise(Guid.NewGuid(), "Hack Squat", null, note, sets, SourcePage: 29)], SourcePage: 29)]);
+    }
+
+    private const string ThreeSetPyramidNote = "We're using a reverse pyramid on this exercise. This first set will be your heaviest set. " +
+        "Then for set 2, drop the weight back ~10-15% and do 6 reps. Then for set 3, drop the weight back another 10-15% and do 8 reps.";
+
+    /// Pure Bodybuilding's lighter week prints the pyramid over two sets ("4, 6") but keeps the
+    /// three-set note. The table is whole and states each set, so the note is only noted.
+    [Fact]
+    public void A_note_naming_a_later_set_beside_a_table_that_states_each_set_is_informational()
+    {
+        var issue = Assert.Single(ImportValidation.ReviewIssues(PyramidDraft(ThreeSetPyramidNote, (4, "4"), (6, "6"))),
+            issue => issue.Code == "working_set_instruction_conflict");
+
+        Assert.Equal("info", issue.Severity);
+        Assert.Contains("The table was used", issue.Message);
+    }
+
+    [Fact]
+    public void A_note_naming_a_later_set_beside_a_table_that_does_not_fit_is_left_for_review()
+    {
+        var issue = Assert.Single(ImportValidation.ReviewIssues(PyramidDraft(ThreeSetPyramidNote, (4, "4, 6, 8"), (4, "4, 6, 8"))),
+            issue => issue.Code == "working_set_instruction_conflict");
+
+        Assert.Equal("warning", issue.Severity);
+    }
+
+    /// The document disagreeing with itself is for review to settle; it never costs the whole read.
+    [Theory]
+    [InlineData("working_set_instruction_conflict", false)]
+    [InlineData("effort_instruction_conflict", false)]
+    [InlineData("rep_technique_conflict", false)]
+    [InlineData("program_week_gap", true)]
+    [InlineData("printed_schedule_mismatch", true)]
+    [InlineData("rpe_unread", true)]
+    public void Only_a_doubtful_read_stops_an_import(string code, bool stops)
+    {
+        Assert.Equal(stops, ImportReviewPolicy.StopsRead(new ImportReviewIssue(code, "", "warning")));
+        Assert.False(ImportReviewPolicy.StopsRead(new ImportReviewIssue(code, "", "info")));
+    }
+
     [Theory]
     [InlineData("SUGGESTED REST DAY (1-2 DAYS OFF DEPENDING ON YOUR SCHEDULE)")]
     [InlineData("MANDATORY REST DAY")]

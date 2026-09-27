@@ -39,13 +39,7 @@
       "targetField": "repMin"
     }
   },
-  "The_Pure_Bodybuilding_Program_-_Full_Body-1": {
-    "expectedFailure": { "code": "working_set_instruction_conflict", "page": 29, "targetField": "sets" }
-  },
   "The_Pure_Bodybuilding_Program_-_PPL": {
     "expectedFailure": { "code": "working_set_instruction_conflict", "page": 40, "targetField": "sets" }
-  },
-  "The_Pure_Bodybuilding_Program_-_UpperLower": {
-    "expectedFailure": { "code": "working_set_instruction_conflict", "page": 27, "targetField": "sets" }
   }
 }

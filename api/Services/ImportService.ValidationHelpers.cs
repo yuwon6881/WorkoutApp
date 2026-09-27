@@ -53,7 +53,7 @@ public sealed partial class ImportService
         if (weekVersionChoicePending)
             reviewIssues = reviewIssues.Where(issue => issue.Code is not ("phase_week_gap" or "program_week_gap")).ToList();
         var unresolved = FilterNotices(notices, draft).Concat(reviewIssues)
-            .FirstOrDefault(issue => issue.Severity != "info");
+            .FirstOrDefault(ImportReviewPolicy.StopsRead);
         if (unresolved is not null) throw new ImportVerificationException(unresolved);
     }
 

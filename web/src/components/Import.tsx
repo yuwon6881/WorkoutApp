@@ -8,9 +8,10 @@ import { Modal } from './ui/Modal';
 import { DraftOutline, type DraftOutlineHandle, type ImportIssueTarget } from './ImportDraftTree';
 import { useImportPipeline, type ImportFailure, type ImportProgress } from './useImportPipeline';
 import { useImportDraftSaver } from './useImportDraftSaver';
+import { ImportFailedPanel } from './ImportFailedPanel';
+import { importIssueCopy } from '../lib/importIssueCopy';
 import './Import.css';
 
-type ImportIssue = NonNullable<ImportView['reviewIssues']>[number];
 
 /// What the import is doing. A read in flight covers every section the import still owes, because
 /// they are sent together rather than one after another, so it says how many are being read; a
@@ -57,29 +58,6 @@ function Failure({ failure, onDismiss }: { failure: ImportFailure; onDismiss: ()
       <Button variant="tertiary" aria-label="Dismiss this message" onClick={onDismiss}><X size={15} /></Button>
     </div>
   </div>;
-}
-
-function friendlyImportFailure(message: string) {
-  if (/\[(?:phase_week_gap|program_week_gap)\]/i.test(message)) {
-    const jump = message.match(/jumps from week\s+(\d+)\s+to week\s+(\d+)/i);
-    if (jump) {
-      const firstMissing = Number(jump[1]) + 1;
-      const lastMissing = Number(jump[2]) - 1;
-      const weeks = firstMissing === lastMissing ? `${firstMissing}` : `${firstMissing}–${lastMissing}`;
-      return `Week${firstMissing === lastMissing ? '' : 's'} ${weeks} could not be reconciled.`;
-    }
-    const absent = message.match(/program weeks?\s+([\d, ]+)\s+(?:has|have) no days/i);
-    if (absent) return `Week${absent[1].includes(',') ? 's' : ''} ${absent[1].trim()} could not be reconciled.`;
-    return 'The program’s week sequence could not be verified.';
-  }
-  if (/\[printed_schedule_mismatch\]/i.test(message))
-    return 'The printed schedule and extracted workouts do not line up.';
-  return message.replace(/\s*\[[a-z0-9_]+\](?=\s|$)/i, '').trim();
-}
-
-function friendlyIssueSummary(issue: ImportIssue) {
-  if (issue.code === 'phase_week_gap' || issue.code === 'program_week_gap') return friendlyImportFailure(`[${issue.code}] ${issue.message}`);
-  return issue.code.replaceAll('_', ' ');
 }
 
 function hasStructuredTerminalError(view: ImportView | null) {
@@ -152,6 +130,7 @@ export function ImportReview({ exercises, imports, remaining, onBack, onChanged,
     ...unresolved.map(item => ({
       key: `unresolved-${item.lineId}`,
       title: `Map ${item.sourceName} slot`,
+      message: null as string | null,
       detail: `${item.block ? `${item.block} · ` : ''}${item.occurrences && item.occurrences > 1 ? `${item.occurrences} occurrences · ` : ''}Choose a library exercise for this slot.`,
       action: 'Map',
       ariaLabel: `Fix unmapped exercise ${item.sourceName}`,
@@ -159,8 +138,9 @@ export function ImportReview({ exercises, imports, remaining, onBack, onChanged,
     })),
     ...reviewIssues.filter(issue => issue.severity !== 'info').map((issue, index) => ({
       key: `${issue.code}-${index}`,
-      title: issue.message,
-      detail: issue.sourcePage ? `PDF p.${issue.sourcePage} · Open the related editor field.` : 'Open the related editor field.',
+      title: importIssueCopy(issue.code, issue.message).title,
+      message: issue.message,
+      detail: `${issue.sourcePage ? `PDF p.${issue.sourcePage} · ` : ''}${importIssueCopy(issue.code, issue.message).hint}`,
       action: 'Fix',
       ariaLabel: `Fix issue: ${issue.message}`,
       target: { sourcePage: issue.sourcePage, workoutLineId: issue.workoutLineId, exerciseLineId: issue.exerciseLineId, setIndex: issue.setIndex, targetField: issue.targetField } as ImportIssueTarget
@@ -312,7 +292,7 @@ export function ImportReview({ exercises, imports, remaining, onBack, onChanged,
               <span role="columnheader">Issue</span><span role="columnheader">Source</span><span role="columnheader">Action</span>
             </div>
             {visibleAttentionRows.map(row => <div className="import-issue-table-row" role="row" key={row.key}>
-              <span className="import-issue-table-description" role="cell"><AlertTriangle size={15} /><strong>{row.title}</strong></span>
+              <span className="import-issue-table-description" role="cell"><AlertTriangle size={15} /><span className="import-issue-copy"><strong>{row.title}</strong>{row.message && <span className="import-issue-message">{row.message}</span>}</span></span>
               <span className="import-issue-table-detail" role="cell">{row.detail}</span>
               <Button variant="secondary" className="import-issue-action-btn" aria-label={row.ariaLabel} onClick={() => focusReviewIssue(row.target)}>
                 {row.action}<ChevronRight size={14} />
@@ -383,21 +363,7 @@ export function ImportReview({ exercises, imports, remaining, onBack, onChanged,
       </Modal>}
     </>}
 
-    {selected && selected.status === 'failed' && <section className="panel import-reading-panel" aria-labelledby="import-failed-title">
-      <div className="import-reading-card">
-        <div className="reading-card-header">
-          <div className="reading-card-title"><AlertTriangle size={18} className="red" /><h3 id="import-failed-title">Import stopped</h3></div>
-        </div>
-        {selected.error && <div className="error-banner" role="alert"><AlertTriangle size={16} /><span>{friendlyImportFailure(selected.error)}</span></div>}
-        {selected.reviewIssues?.filter(issue => issue.severity !== 'info').map((issue, index) => <details className="import-failed-issue" key={`${issue.code}-${issue.sourcePage ?? 'source'}-${index}`}>
-          <summary>{friendlyIssueSummary(issue)}</summary>
-          <p>{issue.message}</p>
-          <small>{[issue.sourcePage ? `PDF p.${issue.sourcePage}` : null, issue.targetField, `[${issue.code}]`].filter(Boolean).join(' · ')}</small>
-        </details>)}
-        <div className="reading-card-actions">
-          <Button variant="destructive" onClick={() => void pipeline.cancel(selected)}><Trash2 size={15} />Discard failed import</Button>
-        </div>
-      </div>
-    </section>}
+    {selected && selected.status === 'failed' && <ImportFailedPanel view={selected} busy={busy}
+      onChooseFile={() => file.current?.click()} onDiscard={() => void pipeline.cancel(selected)} />}
   </>;
 }

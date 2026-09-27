@@ -28,11 +28,27 @@ internal static class ImportSetInstructionReview
                 .Select(match => int.Parse(match.Groups["number"].Value, CultureInfo.InvariantCulture))
                 .DefaultIfEmpty(0).Max();
             if (stated <= count) continue;
+            // A table that prints its own rep target for each of these sets ("4, 6" over two
+            // sets) settles the prescription; a note naming a later set was carried over from a
+            // week that ran more of them. Only a table that does not fit its sets needs review.
+            var settled = TablePrintsEachSet(exercise);
             issues.Add(new ImportReviewIssue("working_set_instruction_conflict",
-                $"The instructions refer to working set {stated}, but this exercise has {count} working sets. Check the printed set count and instructions before creating the program.",
-                "warning", exercise.SourcePage ?? day.SourcePage,
+                settled
+                    ? $"The note describes working set {stated}, but this week's table prints {count} working sets, each with its own rep target. The table was used."
+                    : $"The note describes working set {stated}, but the table prints {count} working sets. Edit the note or the set count so they agree.",
+                settled ? "info" : "warning", exercise.SourcePage ?? day.SourcePage,
                 WorkoutLineId: day.LineId, ExerciseLineId: exercise.LineId, TargetField: "sets"));
         }
         return issues;
+    }
+
+    /// Every working set carries a printed, distinct rep target: the table itself states the
+    /// progression across exactly these sets.
+    private static bool TablePrintsEachSet(DraftExercise exercise)
+    {
+        var working = exercise.Sets.Where(set => !set.Warmup).ToList();
+        return working.Count > 1
+            && working.All(set => set.RepMin is not null && set.RepsSource == "extracted")
+            && working.Select(set => (set.RepMin, set.RepMax)).Distinct().Count() == working.Count;
     }
 }

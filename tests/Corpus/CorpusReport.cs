@@ -224,8 +224,12 @@ public sealed class CorpusReport
             ?? (expected?.ExpectedFailure is { } single ? [single] : []);
         if (expectedFailures.Count > 0)
         {
-            if (ready.Status != "failed")
-                failures.Add($"{label}: Expected a structured source failure, received status '{ready.Status}'.");
+            // The expected items are what review must hold. The read itself stops only when one
+            // of them doubts the read; a document contradicting itself is settled in review.
+            var stops = expectedFailures.Any(item => ImportReviewPolicy.StopsRead(new ImportReviewIssue(item.Code, "", "warning")));
+            var expectedStatus = stops ? "failed" : "ready";
+            if (ready.Status != expectedStatus)
+                failures.Add($"{label}: Expected status '{expectedStatus}' with its review items, received '{ready.Status}'.");
             foreach (var expectedFailure in expectedFailures)
             {
                 var matchingIssues = (ready.ReviewIssues ?? []).Where(issue => issue.Code == expectedFailure.Code
