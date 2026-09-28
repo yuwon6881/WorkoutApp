@@ -220,10 +220,16 @@ npm.cmd run android:sync               # build dist/ (offline fallback page) and
 cd android; .gradlew.bat assembleDebug # or bundleRelease with a signing config for Play
 ```
 
-`WORKOUT_APP_ORIGIN` and `WORKOUT_SIGN_IN_HOST` point a build at a staging origin. Rest alerts in
-the app are local notifications scheduled for each rest deadline (`POST_NOTIFICATIONS` and
-`SCHEDULE_EXACT_ALARM`), not web push. Opening app links in the app instead of the browser needs
-a `/.well-known/assetlinks.json` with the release signing certificate, which is not published yet.
+`WORKOUT_APP_ORIGIN` and `WORKOUT_SIGN_IN_HOST` point a build at a staging origin.
+
+### Android workout service and rest alerts
+
+- **Foreground service**: `WorkoutForegroundService` (`specialUse`, subtype declared in the manifest) starts from the app when a workout is open and stops when it finishes, is discarded, or the account signs out. It holds no state of its own: every start reads the rest snapshot the app stored, so a restart after process loss shows the same workout, and an out-of-order update from the app is ignored. A Play Console declaration for the `specialUse` type is still needed before distribution.
+- **Notification**: one ongoing notification counts the workout's elapsed time, the rest countdown, or the paused state with the system chronometer. Lock-screen content is generic (no exercise names or logged values). Its only action is Return to workout. On Android 16 it requests Live Update promotion (`POST_PROMOTED_NOTIFICATIONS`); where promotion is unavailable or turned off it stays a standard ongoing notification. Both notifications are `setLocalOnly` so the watch does not mirror them next to its own alert.
+- **Rest alert**: a deadline alarm tied to the stored rest generation (exact when the user allows precise timing, otherwise inexact) posts the bundled two-note chime on its own channel, which follows Do Not Disturb, silent mode, the channel's user settings, and the app's sound and vibration preferences. The page, the service callback, and the alarm claim each rest once, so it sounds once per device. After a reboot or app update only a rest whose deadline is still ahead is re-armed; one that ended meanwhile is never replayed. Force stop cancels alarms until the app is reopened.
+- **Recovery**: workout recovery lives in native SQLite under `noBackupFilesDir` when the installed app has the workout plugin; apps installed before it keep browser storage and the earlier scheduled notification. A bundled screen shows the saved sets, pending sync count, workout time, and rest countdown when the app's pages cannot load offline; it never changes or discards saved work.
+- **Not yet released**: Xiaomi HyperOS Super Island is not implemented; it needs Xiaomi's documented focus-notification integration, developer access, and scenario approval. The service, alarms, and Live Updates have JVM unit tests and build checks only: physical Pixel, Xiaomi, and Wear OS acceptance (the plan's lifecycle, permission, audio, and 30-cycle short-rest matrix) has not been run. Do not publish an APK built from this as release-ready until it has.
+- **Links**: opening app links in the app instead of the browser needs a `/.well-known/assetlinks.json` with the release signing certificate, which is not published yet.
 
 ## Wear OS companion and Play Store deployment
 
