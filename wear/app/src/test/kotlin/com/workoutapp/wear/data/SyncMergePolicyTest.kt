@@ -96,6 +96,40 @@ class SyncMergePolicyTest {
         assertNull(SyncMergePolicy.rebaseTiming(operation, baseline.copy(revision = 5, pausedAt = "2026-09-25T10:01:00Z")))
     }
 
+    @Test
+    fun `a rest change rebases over unrelated edits but not over a rest that changed`() {
+        val running = SessionRest(generation = "gen-a", status = "running", deadlineUtc = "2026-09-25T10:02:00Z")
+        val baseline = session().copy(rest = running)
+        val operation = PendingOperation(
+            sequence = 4,
+            id = "rest-id",
+            type = "rest",
+            sessionId = baseline.id,
+            revision = baseline.revision,
+            requestJson = """{"revision":4,"mutationId":"rest-id","action":"extend","seconds":30,"generation":"gen-b"}""",
+            baselineJson = gson.toJson(baseline),
+            createdAt = "2026-09-25T10:00:00Z",
+            attempted = true
+        )
+
+        val rebased = SyncMergePolicy.rebaseRest(operation, baseline.copy(revision = 5))
+        assertNotNull(rebased)
+        assertEquals("gen-a", rebased!!["expectedGeneration"].asString)
+        assertNull(SyncMergePolicy.rebaseRest(operation, baseline.copy(revision = 5, rest = running.copy(generation = "gen-phone"))))
+        assertNull(SyncMergePolicy.rebaseRest(operation, baseline.copy(revision = 5, active = false)))
+    }
+
+    @Test
+    fun `a server rest reads as a deadline, a paused remainder, or nothing once it ended`() {
+        val now = java.time.Instant.parse("2026-09-25T10:00:00Z").toEpochMilli()
+        val running = SessionRest(generation = "gen-a", status = "running", deadlineUtc = "2026-09-25T10:01:30Z")
+        assertEquals(Triple(now + 90_000L, "gen-a", null), RestSync.fromServer(running, now))
+        assertEquals(Triple(null, null, null), RestSync.fromServer(running.copy(deadlineUtc = "2026-09-25T09:59:00Z"), now))
+        assertEquals(Triple(null, "gen-p", 40_000L), RestSync.fromServer(SessionRest(generation = "gen-p", status = "paused", pausedRemainingMs = 40_000L), now))
+        assertEquals(Triple(null, null, null), RestSync.fromServer(SessionRest(generation = null, status = "idle"), now))
+        assertEquals(Triple(null, null, null), RestSync.fromServer(null, now))
+    }
+
     private fun setOperation(baseline: WorkoutSession) = PendingOperation(
         sequence = 1,
         id = "set-id",

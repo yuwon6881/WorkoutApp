@@ -17,7 +17,18 @@ data class WorkoutSession(
     val revision: Int = 0,
     val exercises: List<WorkoutExercise> = emptyList(),
     val completedSets: Int = 0,
-    val warmupSets: Int = 0
+    val warmupSets: Int = 0,
+    val rest: SessionRest? = null
+)
+
+data class SessionRest(
+    // The server sends null when no rest has started; Gson would otherwise store null in a String.
+    val generation: String? = null,
+    val status: String = "idle",
+    val deadlineUtc: String? = null,
+    val pausedRemainingMs: Long? = null,
+    val durationMs: Long? = null,
+    val originDeviceId: String? = null
 )
 
 data class WorkoutExercise(

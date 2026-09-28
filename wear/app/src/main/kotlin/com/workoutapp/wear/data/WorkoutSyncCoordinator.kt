@@ -125,6 +125,11 @@ class WorkoutSyncCoordinator(
             reject(operation, "A set logged on the watch was removed in WorkoutApp, so it was not saved.", remote)
             return Step.Next
         }
+        // A finished or discarded workout is authoritative: a rest change for it is simply dropped.
+        if (operation.type == "rest" && !remote.active) {
+            reject(operation, "The workout ended in WorkoutApp, so the watch's rest change was not saved.", remote)
+            return Step.Next
+        }
         // The same revision means the refusal was not a race another device won; resending the same
         // request would be refused again, so the lifter decides instead of the loop.
         if (remote.revision == operation.revision || rebases >= MAX_REBASES_PER_SYNC) {
@@ -135,6 +140,7 @@ class WorkoutSyncCoordinator(
             "set" -> SyncMergePolicy.rebaseSet(operation, remote)
             "pause", "resume" -> SyncMergePolicy.rebaseTiming(operation, remote)
             "finish" -> SyncMergePolicy.rebaseFinish(operation, remote)
+            "rest" -> SyncMergePolicy.rebaseRest(operation, remote)
             else -> null
         }
         if (rebased == null) {
@@ -142,6 +148,7 @@ class WorkoutSyncCoordinator(
             val message = when (operation.type) {
                 "set" -> "WorkoutApp changed this same set. Review both values before syncing."
                 "finish" -> "WorkoutApp changed the workout before the watch finished it. Review both versions before syncing."
+                "rest" -> "WorkoutApp changed the workout rest. Review both versions before syncing."
                 else -> "WorkoutApp changed the workout timing. Review both versions before syncing."
             }
             return Step.Stop(SyncOutcome(conflict = true, pending = true, message = message))

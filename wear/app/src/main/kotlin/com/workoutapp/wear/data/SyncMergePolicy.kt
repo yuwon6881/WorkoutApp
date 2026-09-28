@@ -36,6 +36,20 @@ object SyncMergePolicy {
         return readRequest(operation)
     }
 
+    /** A rest change rebases over unrelated edits, never over a rest that changed meanwhile. */
+    fun rebaseRest(operation: PendingOperation, remote: WorkoutSession): JsonObject? {
+        if (!remote.active) return null
+        val baseline = readBaseline(operation) ?: return null
+        if (baseline.rest?.generation != remote.rest?.generation) return null
+        return readRequest(operation)?.apply { addExpectedGeneration(this, remote.rest?.generation) }
+    }
+
+    /** Names the rest a request replaces, so the server can refuse it if that rest has changed. */
+    fun addExpectedGeneration(request: JsonObject, generation: String?) {
+        if (generation == null) request.add("expectedGeneration", JsonNull.INSTANCE)
+        else request.addProperty("expectedGeneration", generation)
+    }
+
     private fun readBaseline(operation: PendingOperation): WorkoutSession? =
         runCatching { gson.fromJson(operation.baselineJson, WorkoutSession::class.java) }.getOrNull()
 

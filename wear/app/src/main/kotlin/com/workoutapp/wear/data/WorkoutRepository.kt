@@ -69,18 +69,47 @@ class WorkoutRepository private constructor(context: Context) {
                 // Edits that could not be sent stay visible until a later sync settles them.
                 ownEdits && remote?.id != local?.session?.id -> local
                 remote == null -> null
-                local?.session?.id == remote.id -> local.copy(
-                    session = SessionProjection.project(remote, pending),
-                    unit = active.unit,
-                    defaultRestSeconds = active.restSeconds,
-                    activeExerciseId = local.activeExerciseId?.takeIf { id -> remote.exercises.any { it.id == id } }
-                        ?: firstIncomplete(remote)
-                )
-                else -> WorkoutSnapshot(remote, active.unit, active.restSeconds, activeExerciseId = firstIncomplete(remote))
+                local?.session?.id == remote.id -> {
+                    // The watch's own unsent rest change, or a read older than what the watch
+                    // already holds, never replaces the rest the watch is showing.
+                    val keepLocal = pending.any { it.type == "set" || it.type == "rest" } || remote.revision < local.session.revision
+                    val (restEndsAt, restGen, pausedRest) = if (keepLocal) {
+                        Triple(local.restEndsAtEpochMs, local.restGeneration, local.pausedRestRemainingMs)
+                    } else {
+                        remoteRestState(remote.rest)
+                    }
+
+                    local.copy(
+                        session = SessionProjection.project(remote, pending),
+                        unit = active.unit,
+                        defaultRestSeconds = active.restSeconds,
+                        activeExerciseId = local.activeExerciseId?.takeIf { id -> remote.exercises.any { it.id == id } }
+                            ?: firstIncomplete(remote),
+                        restEndsAtEpochMs = restEndsAt,
+                        restGeneration = restGen,
+                        pausedRestRemainingMs = pausedRest
+                    )
+                }
+                else -> {
+                    val (restEndsAt, restGen, pausedRest) = remoteRestState(remote.rest)
+
+                    WorkoutSnapshot(
+                        session = remote,
+                        unit = active.unit,
+                        defaultRestSeconds = active.restSeconds,
+                        activeExerciseId = firstIncomplete(remote),
+                        restEndsAtEpochMs = restEndsAt,
+                        restGeneration = restGen,
+                        pausedRestRemainingMs = pausedRest
+                    )
+                }
             }
         }
         if (next == null) WorkoutOngoingService.stop(application)
-        else if (next.session.active || next.pendingFinish) WorkoutOngoingService.start(application, next.session.name)
+        else if (next.session.active || next.pendingFinish) {
+            if (next.restEndsAtEpochMs != null) WorkoutOngoingService.startRest(application, next.session.name)
+            else WorkoutOngoingService.start(application, next.session.name)
+        }
         return next
     }
 
@@ -175,28 +204,59 @@ class WorkoutRepository private constructor(context: Context) {
         scheduleSync()
     }
 
+    /** The server's rest as the watch holds it; an ended or idle rest leaves nothing to count. */
+    private fun remoteRestState(rest: SessionRest?): Triple<Long?, String?, Long?> = RestSync.fromServer(rest, System.currentTimeMillis())
+
     fun extendRest(seconds: Int = 30): WorkoutSnapshot? {
-        val next = store.update { snapshot, _ ->
-            if (snapshot == null || !snapshot.session.active || snapshot.session.pausedAt != null || snapshot.pendingFinish || seconds <= 0) snapshot
-            else {
-                val now = System.currentTimeMillis()
-                snapshot.copy(
-                    restEndsAtEpochMs = (snapshot.restEndsAtEpochMs?.coerceAtLeast(now) ?: now) + seconds * 1_000L,
-                    restGeneration = UUID.randomUUID().toString(),
-                    alertedRestGeneration = null,
-                    pausedRestRemainingMs = null
-                )
-            }
+        val snapshot = store.readSnapshot() ?: return null
+        if (!snapshot.session.active || snapshot.session.pausedAt != null || snapshot.pendingFinish || seconds <= 0) return snapshot
+        val now = System.currentTimeMillis()
+        val gen = UUID.randomUUID().toString()
+        val mutationId = UUID.randomUUID().toString()
+        val request = JsonObject().apply {
+            addProperty("revision", snapshot.session.revision)
+            addProperty("mutationId", mutationId)
+            addProperty("action", "extend")
+            addProperty("seconds", seconds)
+            addProperty("generation", gen)
+            addProperty("originDeviceId", secureStore.deviceId())
+            addProperty("occurredAt", Instant.ofEpochMilli(now).toString())
+            SyncMergePolicy.addExpectedGeneration(this, snapshot.session.rest?.generation)
         }
-        next?.let { WorkoutOngoingService.startRest(application, it.session.name) }
+        val next = snapshot.copy(
+            restEndsAtEpochMs = (snapshot.restEndsAtEpochMs?.coerceAtLeast(now) ?: now) + seconds * 1_000L,
+            restGeneration = gen,
+            alertedRestGeneration = null,
+            pausedRestRemainingMs = null
+        )
+        store.enqueue(next, PendingOperation(0, mutationId, "rest", snapshot.session.id, null, snapshot.session.revision,
+            request.toString(), gson.toJson(snapshot.session), Instant.now().toString(), false))
+        WorkoutOngoingService.startRest(application, next.session.name)
+        scheduleSync()
         return next
     }
 
     fun skipRest(): WorkoutSnapshot? {
-        val next = store.update { snapshot, _ ->
-            snapshot?.copy(restEndsAtEpochMs = null, restGeneration = null, pausedRestRemainingMs = null, alertedRestGeneration = null)
+        val snapshot = store.readSnapshot() ?: return null
+        if (!snapshot.session.active || snapshot.pendingFinish) return snapshot
+        // Nothing to skip: sending one would only move the workout's revision.
+        if (snapshot.restEndsAtEpochMs == null && snapshot.pausedRestRemainingMs == null) return snapshot
+        val gen = UUID.randomUUID().toString()
+        val mutationId = UUID.randomUUID().toString()
+        val request = JsonObject().apply {
+            addProperty("revision", snapshot.session.revision)
+            addProperty("mutationId", mutationId)
+            addProperty("action", "skip")
+            addProperty("generation", gen)
+            addProperty("originDeviceId", secureStore.deviceId())
+            addProperty("occurredAt", Instant.now().toString())
+            SyncMergePolicy.addExpectedGeneration(this, snapshot.session.rest?.generation)
         }
-        next?.let { WorkoutOngoingService.update(application, it.session.name) }
+        val next = snapshot.copy(restEndsAtEpochMs = null, restGeneration = null, pausedRestRemainingMs = null, alertedRestGeneration = null)
+        store.enqueue(next, PendingOperation(0, mutationId, "rest", snapshot.session.id, null, snapshot.session.revision,
+            request.toString(), gson.toJson(snapshot.session), Instant.now().toString(), false))
+        WorkoutOngoingService.update(application, next.session.name)
+        scheduleSync()
         return next
     }
 
@@ -296,6 +356,23 @@ class WorkoutRepository private constructor(context: Context) {
         val restSeconds = exercise.restSeconds ?: snapshot.defaultRestSeconds
         val restGeneration = if (shouldRest && restSeconds > 0) UUID.randomUUID().toString() else null
         val restDeadline = if (restGeneration != null) System.currentTimeMillis() + restSeconds * 1_000L else null
+        if (shouldRest && restGeneration != null) {
+            val restObj = JsonObject().apply {
+                addProperty("action", "start")
+                addProperty("seconds", restSeconds)
+                addProperty("generation", restGeneration)
+                addProperty("originDeviceId", secureStore.deviceId())
+                addProperty("occurredAt", Instant.now().toString())
+            }
+            request.add("rest", restObj)
+        } else if (!patch.done && snapshot.restEndsAtEpochMs != null) {
+            val restObj = JsonObject().apply {
+                addProperty("action", "skip")
+                addProperty("generation", UUID.randomUUID().toString())
+                addProperty("originDeviceId", secureStore.deviceId())
+            }
+            request.add("rest", restObj)
+        }
         val nextSnapshot = snapshot.copy(
             session = nextSession,
             activeExerciseId = if (patch.done) RestPolicy.nextExerciseId(nextSession, exercise.id, set.id) else exercise.id,

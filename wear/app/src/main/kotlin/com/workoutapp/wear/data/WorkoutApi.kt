@@ -41,6 +41,7 @@ class WorkoutApi(private val baseUrl: String, private val secureStore: SecureTok
             "pause" -> "/watch/workouts/${operation.sessionId}/pause"
             "resume" -> "/watch/workouts/${operation.sessionId}/resume"
             "finish" -> "/watch/workouts/${operation.sessionId}/finish"
+            "rest" -> "/watch/workouts/${operation.sessionId}/rest"
             else -> throw IllegalArgumentException("Unknown watch operation")
         }
         return request(path, if (operation.type == "set") "PATCH" else "POST", operation.requestJson)
