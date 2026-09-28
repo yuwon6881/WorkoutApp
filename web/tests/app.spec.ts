@@ -845,11 +845,15 @@ test('program version chooser uses the source schedule metadata and one explicit
     } });
   });
 
+  const created = page.waitForResponse(response =>
+    response.request().method() === 'POST' && new URL(response.url()).pathname === '/api/imports',
+  { timeout: 30000 });
   await page.getByLabel('Program PDF').setInputFiles({
     name: `fundamentals-${testInfo.project.name}.pdf`, mimeType: 'application/pdf', buffer: pdf(4, `fundamentals-${Date.now()}`)
   });
+  expect((await created).ok()).toBeTruthy();
   const chooser = page.getByRole('group', { name: 'Available program versions', exact: true });
-  await expect(chooser.getByRole('article')).toHaveCount(2);
+  await expect(chooser.getByRole('article')).toHaveCount(2, { timeout: 15000 });
   const fullBody = chooser.locator('.alternative-card').filter({ hasText: 'Full Body Program' });
   await expect(fullBody).toContainText('8 weeks');
   await expect(fullBody).toContainText('3 sessions / week');

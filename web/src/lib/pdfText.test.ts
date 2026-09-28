@@ -379,6 +379,15 @@ describe('extractPdfText failures and cancellation', () => {
   });
 
   it('cancels between pages and destroys the active document', async () => {
+    const previousNavigator = Object.getOwnPropertyDescriptor(globalThis, 'navigator');
+    Object.defineProperty(globalThis, 'navigator', {
+      configurable: true,
+      value: {
+        userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
+        hardwareConcurrency: 8,
+        deviceMemory: 8
+      }
+    });
     const page = {
       getTextContent: vi.fn().mockResolvedValue({ items: [piece('A readable training plan.', 0, 500)] }),
       getAnnotations: vi.fn().mockResolvedValue([]),
@@ -392,13 +401,18 @@ describe('extractPdfText failures and cancellation', () => {
     loadDocument(document);
     const controller = new AbortController();
 
-    await expect(extractPdfText(pdfFile(), page => {
-      if (page === 1) controller.abort();
-    }, controller.signal)).rejects.toThrow('PDF import cancelled');
-    // The desktop batch has already loaded both pages, but cancellation prevents the second
-    // result from being committed or any later batch from starting.
-    expect(document.getPage).toHaveBeenCalledTimes(2);
-    expect(document.destroy).toHaveBeenCalledOnce();
+    try {
+      await expect(extractPdfText(pdfFile(), page => {
+        if (page === 1) controller.abort();
+      }, controller.signal)).rejects.toThrow('PDF import cancelled');
+      // The desktop batch has already loaded both pages, but cancellation prevents the second
+      // result from being committed or any later batch from starting.
+      expect(document.getPage).toHaveBeenCalledTimes(2);
+      expect(document.destroy).toHaveBeenCalledOnce();
+    } finally {
+      if (previousNavigator) Object.defineProperty(globalThis, 'navigator', previousNavigator);
+      else Reflect.deleteProperty(globalThis, 'navigator');
+    }
   });
 
   it.each([
