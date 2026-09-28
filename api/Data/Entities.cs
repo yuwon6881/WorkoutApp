@@ -220,6 +220,21 @@ public sealed class WorkoutSession : OwnedRecord
     public string BodyWeightSnapshotJson { get; set; } = "";
     public string NutritionContextJson { get; set; } = "";
     public long? NutritionContextRevision { get; set; }
+    public string? RestGeneration { get; set; }
+    public string RestStatus { get; set; } = WorkoutRestStatus.Idle;
+    public DateTime? RestDeadlineUtc { get; set; }
+    public long? RestPausedRemainingMs { get; set; }
+    public long? RestDurationMs { get; set; }
+    public string? RestOriginDeviceId { get; set; }
+}
+
+public static class WorkoutRestStatus
+{
+    public const string Idle = "idle";
+    public const string Running = "running";
+    public const string Paused = "paused";
+    public const string Elapsed = "elapsed";
+    public static readonly string[] All = [Idle, Running, Paused, Elapsed];
 }
 
 /// Names and prescriptions are snapshotted so a later catalog edit cannot rewrite history.

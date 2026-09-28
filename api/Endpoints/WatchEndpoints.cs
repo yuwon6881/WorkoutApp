@@ -46,6 +46,8 @@ public static class WatchEndpoints
             => Results.Ok(await workouts.Pause(id, input, ct)));
         app.MapPost("/api/watch/workouts/{id:guid}/resume", async (Guid id, WorkoutTimingInput input, WorkoutService workouts, CancellationToken ct)
             => Results.Ok(await workouts.Resume(id, input, ct)));
+        app.MapPost("/api/watch/workouts/{id:guid}/rest", async (Guid id, WorkoutRestMutationInput input, WorkoutService workouts, CancellationToken ct)
+            => Results.Ok(await workouts.MutateRest(id, input, ct)));
         app.MapPost("/api/watch/workouts/{id:guid}/finish", async (Guid id, WatchFinishInput input,
             WorkoutService workouts, CancellationToken ct) => Results.Ok(await workouts.Finish(id, input.Revision, ct,
                 retainExerciseSwaps: false, mutationId: input.MutationId, finishedAt: input.FinishedAt)));

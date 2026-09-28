@@ -123,6 +123,9 @@ public sealed class AppDb(DbContextOptions<AppDb> options) : DbContext(options)
         m.Entity<WatchPairing>().HasIndex(x => x.ExpiresAt);
         m.Entity<WatchPairing>().HasIndex(x => x.PairingCodeHash);
         m.Entity<WorkoutSession>().Property(x => x.PausedSeconds).HasDefaultValue(0L);
+        m.Entity<WorkoutSession>().Property(x => x.RestStatus).HasDefaultValue(WorkoutRestStatus.Idle);
+        m.Entity<WorkoutSession>().ToTable("Workouts", t =>
+            t.HasCheckConstraint("CK_Workouts_RestStatus", "\"RestStatus\" IN ('idle','running','paused','elapsed')"));
         Configure<ExerciseProgress>(m); Configure<ExerciseHistoryClear>(m); Configure<NutritionContextCache>(m); Configure<IntegrationGrant>(m);
         m.Entity<ExerciseHistoryClear>().HasIndex(x => new { x.UserId, x.ExerciseId, x.ClearedAt });
         m.Entity<ExerciseHistoryClear>().Property(x => x.NameSnapshot).HasMaxLength(160);

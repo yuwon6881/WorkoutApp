@@ -91,7 +91,23 @@ public sealed partial class WorkoutService
             }
             set.Revision++; session.Revision++;
         }
-        if (changed || mutationId is not null)
+        // A completed set and the rest it starts commit together, as one revision.
+        var restChanged = false;
+        if (payload.TryGetProperty("rest", out var rest) && rest.ValueKind == JsonValueKind.Object)
+        {
+            var restAction = OptionalString(rest, "action")?.Trim().ToLowerInvariant();
+            if (!string.IsNullOrWhiteSpace(restAction))
+            {
+                Validation.Require(RestActions.Contains(restAction), "Rest action must be start, extend, shorten, skip, pause, or resume.");
+                int? restSeconds = rest.TryGetProperty("seconds", out var seconds) && seconds.TryGetInt32(out var value) ? value : null;
+                DateTimeOffset? restAt = rest.TryGetProperty("occurredAt", out var at) && at.ValueKind == JsonValueKind.String && at.TryGetDateTimeOffset(out var parsed)
+                    ? parsed : null;
+                restChanged = ApplyRestTransition(session, restAction, restSeconds, OptionalString(rest, "generation"),
+                    OptionalString(rest, "originDeviceId"), RestTime(restAt, session));
+                if (restChanged && !changed) session.Revision++;
+            }
+        }
+        if (changed || restChanged || mutationId is not null)
         {
             await RecordWorkoutMutation(mutationId, sessionId, "workout.set.patch", requestHash, ct);
             await db.SaveChangesAsync(ct);
@@ -126,4 +142,7 @@ public sealed partial class WorkoutService
         Validation.Require(rpe is not null && Math.Abs(rpe.Value - (10 - int.Parse(rir))) < 0.001,
             "RIR and RPE must describe the same effort.");
     }
+
+    private static string? OptionalString(JsonElement element, string name)
+        => element.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.String ? value.GetString() : null;
 }

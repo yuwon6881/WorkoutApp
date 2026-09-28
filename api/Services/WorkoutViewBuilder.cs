@@ -187,6 +187,19 @@ public static class WorkoutViewBuilder
         var system = workingDone.Where(s => s.SystemLoadKg != null).ToList();
         var bodyWeight = ReadOptional<BodyWeightSnapshot>(session.BodyWeightSnapshotJson);
         var context = ReadOptional<NutritionTrainingContext>(session.NutritionContextJson);
+        var restStatus = session.RestStatus switch
+        {
+            WorkoutRestStatus.Running when session.RestDeadlineUtc <= DateTime.UtcNow => WorkoutRestStatus.Elapsed,
+            var status when !string.IsNullOrWhiteSpace(status) => status,
+            _ => WorkoutRestStatus.Idle
+        };
+        var restView = new SessionRestView(
+            session.RestGeneration,
+            restStatus,
+            session.RestDeadlineUtc,
+            session.RestPausedRemainingMs,
+            session.RestDurationMs,
+            session.RestOriginDeviceId);
         return new SessionView(session.Id, session.TemplateId, session.ProgramId, session.Name, session.Note, session.Active,
             session.StartedAt, session.FinishedAt, session.Revision,
             exercises.Select(e =>
@@ -218,7 +231,7 @@ public static class WorkoutViewBuilder
             external.Count == 0 ? null : external.Sum(s => s.WeightKg!.Value * s.Reps!.Value),
             workingDone.Count, warmupDone.Count, bodyWeight, context,
             system.Count == 0 ? null : system.Sum(s => s.SystemLoadKg!.Value * s.Reps!.Value), session.PausedAt, session.PausedSeconds,
-            sessionPrCount);
+            sessionPrCount, restView);
     }
 
     private static Dictionary<string, int> LegacyRepBests(IEnumerable<PreviousRepRecord> records)

@@ -184,6 +184,7 @@ public static class TrainingEndpoints
         });
         app.MapPost("/api/workouts/{id:guid}/pause", async (Guid id, WorkoutTimingInput input, WorkoutService workouts, CancellationToken ct) => await workouts.Pause(id, input, ct));
         app.MapPost("/api/workouts/{id:guid}/resume", async (Guid id, WorkoutTimingInput input, WorkoutService workouts, CancellationToken ct) => await workouts.Resume(id, input, ct));
+        app.MapPost("/api/workouts/{id:guid}/rest", async (Guid id, WorkoutRestMutationInput input, WorkoutService workouts, CancellationToken ct) => await workouts.MutateRest(id, input, ct));
         app.MapPost("/api/workouts/{id:guid}/finish", async (Guid id, FinishInput input, WorkoutService workouts, CancellationToken ct) => await workouts.Finish(id, input.Revision, ct, input.RetainExerciseSwaps, input.MutationId, input.FinishedAt));
         app.MapPost("/api/workouts/{id:guid}/discard", async (Guid id, WorkoutService workouts, CancellationToken ct) =>
         { await workouts.Discard(id, ct); return Results.NoContent(); });

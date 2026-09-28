@@ -44,6 +44,8 @@ public sealed partial class WorkoutService
         {
             Validation.Require(session.PausedAt is null, "This workout is already paused.", 409);
             session.PausedAt = occurredAt;
+            // The rest stops with the workout, at the moment the workout stopped.
+            ApplyRestTransition(session, "pause", null, null, null, occurredAt);
         }
         else
         {
@@ -52,6 +54,7 @@ public sealed partial class WorkoutService
             Validation.Require(occurredAt >= pausedAt!.Value, "The resume time must follow the pause start.", 409);
             session.PausedSeconds += RoundedSeconds(occurredAt - pausedAt.Value);
             session.PausedAt = null;
+            ApplyRestTransition(session, "resume", null, null, null, occurredAt);
         }
 
         session.LastTimingEventAt = occurredAt;

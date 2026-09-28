@@ -23,10 +23,18 @@ public record SessionExerciseView(Guid Id, Guid? ExerciseId, string Name, int Po
     bool CanRestore = false, int? RestSeconds = null, string? DemoUrl = null, bool IsPr = false, double? PrE1rmKg = null,
     double? PreviousBestE1rmKg = null, string? PrKind = null, int? PrReps = null,
     IReadOnlyDictionary<string, int>? PreviousRepBests = null, IReadOnlyList<PreviousRepRecord>? PreviousRepRecords = null);
+public sealed record SessionRestView(
+    string? Generation,
+    string Status,
+    DateTime? DeadlineUtc,
+    long? PausedRemainingMs,
+    long? DurationMs,
+    string? OriginDeviceId);
+
 public record SessionView(Guid Id, Guid? TemplateId, Guid? ProgramId, string Name, string Note, bool Active, DateTime StartedAt, DateTime? FinishedAt, int Revision,
     List<SessionExerciseView> Exercises, double? VolumeKg, int CompletedSets, int WarmupSets = 0,
     BodyWeightSnapshot? BodyWeight = null, NutritionTrainingContext? NutritionContext = null,
-    double? SystemVolumeKg = null, DateTime? PausedAt = null, long PausedSeconds = 0, int PrCount = 0);
+    double? SystemVolumeKg = null, DateTime? PausedAt = null, long PausedSeconds = 0, int PrCount = 0, SessionRestView? Rest = null);
 
 public sealed record WorkoutActivityItem(Guid Id, string Name, string Status, DateOnly Date);
 
