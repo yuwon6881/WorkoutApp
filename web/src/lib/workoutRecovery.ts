@@ -1,19 +1,15 @@
-import type { LoggedSet, Preferences, Session } from '../types';
+import type { LoggedSet, Preferences, RestMutationInput, Session, SessionRest } from '../types';
 import { reconcileSetPatchOperation, sameWorkoutEdits, sameWorkoutNonSetEdits } from './workoutRecoveryComparison';
+import { getRecoveryStorage } from './recoveryStorage';
 
 export { reconcileSetPatchOperation, sameWorkoutEdits };
 export { defaultDevicePreferences, loadDevicePreferences, saveDevicePreferences } from './workoutDevicePreferences';
 export type { DevicePreferences } from './workoutDevicePreferences';
 
-const DB_NAME = 'workout-recovery';
-const DB_VERSION = 1;
-const STORE_NAME = 'active-sessions';
-const META_STORE = 'metadata';
-const LAST_ACCOUNT_KEY = 'last-account';
-
 export type WorkoutOperation =
   | { id: string; type: 'save'; draft: Session; revision: number | null; createdAt: string }
-  | { id: string; type: 'setPatch'; setId: string; patch: SetPatch; revision: number | null; createdAt: string }
+  | { id: string; type: 'setPatch'; setId: string; patch: SetPatch; rest?: RestMutationInput | null; revision: number | null; createdAt: string }
+  | { id: string; type: 'rest'; rest: RestMutationInput; revision: number | null; createdAt: string }
   | { id: string; type: 'pause' | 'resume'; occurredAt: string; revision: number | null; createdAt: string }
   | { id: string; type: 'finish'; finishedAt: string; retainExerciseSwaps: boolean; revision: number | null; createdAt: string };
 
@@ -32,47 +28,11 @@ export type WorkoutRecoveryRecord = {
   operations: WorkoutOperation[];
   conflict: boolean;
   updatedAt: string;
+  rest?: SessionRest | null;
 };
 
-let database: Promise<IDBDatabase> | null = null;
-
-function openDatabase(): Promise<IDBDatabase> {
-  if (database) return database;
-  database = new Promise<IDBDatabase>((resolve, reject) => {
-    if (!('indexedDB' in window)) { reject(new Error('This browser does not provide local workout storage.')); return; }
-    const request = indexedDB.open(DB_NAME, DB_VERSION);
-    request.onupgradeneeded = () => {
-      const db = request.result;
-      if (!db.objectStoreNames.contains(STORE_NAME)) db.createObjectStore(STORE_NAME, { keyPath: 'accountId' });
-      if (!db.objectStoreNames.contains(META_STORE)) db.createObjectStore(META_STORE);
-    };
-    request.onsuccess = () => resolve(request.result);
-    request.onerror = () => reject(request.error ?? new Error('Could not open local workout storage.'));
-    request.onblocked = () => reject(new Error('Local workout storage is busy in another tab.'));
-  }).catch(error => { database = null; throw error; });
-  return database!;
-}
-
-function transactionDone(transaction: IDBTransaction): Promise<void> {
-  return new Promise((resolve, reject) => {
-    transaction.oncomplete = () => resolve();
-    transaction.onerror = () => reject(transaction.error ?? new Error('Could not save this workout on the device.'));
-    transaction.onabort = () => reject(transaction.error ?? new Error('Local workout save was interrupted.'));
-  });
-}
-
 export async function getRecovery(accountId: string): Promise<WorkoutRecoveryRecord | null> {
-  const db = await openDatabase();
-  const tx = db.transaction(STORE_NAME, 'readonly');
-  const done = transactionDone(tx);
-  void done.catch(() => undefined);
-  const result = await new Promise<WorkoutRecoveryRecord | null>((resolve, reject) => {
-    const request = tx.objectStore(STORE_NAME).get(accountId);
-    request.onsuccess = () => resolve(validateRecord(request.result, accountId));
-    request.onerror = () => reject(request.error ?? new Error('Could not read the saved workout.'));
-  });
-  await done;
-  return result;
+  return getRecoveryStorage().get(accountId);
 }
 
 export async function getLastRecovery(): Promise<WorkoutRecoveryRecord | null> {
@@ -81,26 +41,11 @@ export async function getLastRecovery(): Promise<WorkoutRecoveryRecord | null> {
 }
 
 export async function getLastAccountId(): Promise<string | null> {
-  const db = await openDatabase();
-  const tx = db.transaction(META_STORE, 'readonly');
-  const done = transactionDone(tx);
-  void done.catch(() => undefined);
-  const accountId = await new Promise<string | null>((resolve, reject) => {
-    const request = tx.objectStore(META_STORE).get(LAST_ACCOUNT_KEY);
-    request.onsuccess = () => resolve(typeof request.result === 'string' ? request.result : null);
-    request.onerror = () => reject(request.error ?? new Error('Could not read the saved workout account.'));
-  });
-  await done;
-  return accountId;
+  return getRecoveryStorage().getLastAccountId();
 }
 
 export async function setLastAccount(accountId: string | null): Promise<void> {
-  const db = await openDatabase();
-  const tx = db.transaction(META_STORE, 'readwrite');
-  const store = tx.objectStore(META_STORE);
-  if (accountId) store.put(accountId, LAST_ACCOUNT_KEY);
-  else store.delete(LAST_ACCOUNT_KEY);
-  await transactionDone(tx);
+  return getRecoveryStorage().setLastAccountId(accountId);
 }
 
 export async function startRecovery(record: Omit<WorkoutRecoveryRecord, 'schemaVersion' | 'operations' | 'conflict' | 'updatedAt'>): Promise<void> {
@@ -108,13 +53,19 @@ export async function startRecovery(record: Omit<WorkoutRecoveryRecord, 'schemaV
     const existing = await getRecovery(record.accountId);
     if (existing && existing.sessionId !== record.sessionId && hasUnresolvedRecovery(existing))
       throw new Error('An earlier workout still has changes that need review. Resolve it before starting another workout.');
-    const db = await openDatabase();
-    const tx = db.transaction([STORE_NAME, META_STORE], 'readwrite');
-    const complete = transactionDone(tx);
-    tx.objectStore(STORE_NAME).put({ ...record, schemaVersion: 1, operations: [], conflict: false, updatedAt: new Date().toISOString() });
-    tx.objectStore(META_STORE).put(record.accountId, LAST_ACCOUNT_KEY);
-    await complete;
-    if (navigator.storage?.persist) { try { await navigator.storage.persist(); } catch { /* best effort */ } }
+    const fullRecord: WorkoutRecoveryRecord = {
+      ...record,
+      schemaVersion: 1,
+      operations: [],
+      conflict: false,
+      updatedAt: new Date().toISOString(),
+      rest: record.rest ?? null
+    };
+    await putRecord(fullRecord);
+    await setLastAccount(record.accountId);
+    if (typeof navigator !== 'undefined' && navigator.storage?.persist) {
+      try { await navigator.storage.persist(); } catch { /* best effort */ }
+    }
   });
 }
 
@@ -125,6 +76,7 @@ export async function refreshRecovery(accountId: string, displayName: string, se
     record.displayName = displayName;
     record.serverSession = serverSession;
     record.preferences = preferences;
+    if (serverSession.rest !== undefined) record.rest = serverSession.rest;
     if (sameWorkoutEdits(record.draft, serverSession)) {
       record.draft = serverSession;
       record.operations = record.operations.filter(operation => operation.type !== 'save');
@@ -148,6 +100,7 @@ export async function reconcileDirectTiming(accountId: string, serverSession: Se
     }
     record.serverSession = serverSession;
     record.preferences = preferences;
+    if (serverSession.rest !== undefined) record.rest = serverSession.rest;
     record.draft = {
       ...record.draft,
       revision: serverSession.revision,
@@ -179,7 +132,13 @@ export async function enqueueSave(accountId: string, draft: Session, navigation:
   });
 }
 
-export async function enqueueSetEdits(accountId: string, draft: Session, navigation: { activeIndex: number; viewMode: 'focus' | 'all' }): Promise<WorkoutRecoveryRecord> {
+export async function enqueueSetEdits(
+  accountId: string,
+  draft: Session,
+  navigation: { activeIndex: number; viewMode: 'focus' | 'all' },
+  restMutation?: RestMutationInput | null,
+  restState?: SessionRest | null
+): Promise<WorkoutRecoveryRecord> {
   return serializeWrite(accountId, async () => {
     const record = await requireRecovery(accountId, draft.id);
     if (record.conflict) throw new Error('This workout changed on the server. Review both versions before saving.');
@@ -188,6 +147,7 @@ export async function enqueueSetEdits(accountId: string, draft: Session, navigat
     record.viewMode = navigation.viewMode;
     record.updatedAt = new Date().toISOString();
     record.conflict = false;
+    if (restState !== undefined) record.rest = restState;
 
     // Set-only edits use PATCH, so a delayed client cannot replace unrelated server state. If a
     // note or exercise edit is also waiting in a draft, the full-save operation carries it too.
@@ -197,6 +157,9 @@ export async function enqueueSetEdits(accountId: string, draft: Session, navigat
       const tail = record.operations.at(-1);
       if (tail?.type === 'save' && tail.revision === null) tail.draft = draft;
       else record.operations.push({ id: crypto.randomUUID(), type: 'save', draft, revision: null, createdAt: record.updatedAt });
+      if (restMutation) {
+        record.operations.push({ id: crypto.randomUUID(), type: 'rest', rest: restMutation, revision: null, createdAt: record.updatedAt });
+      }
       await putRecord(record);
       return record;
     }
@@ -217,6 +180,40 @@ export async function enqueueSetEdits(accountId: string, draft: Session, navigat
         reconcileSetPatchOperation(record.operations, set.id, patch, baselinePatch, record.updatedAt);
       }
     }
+    if (restMutation) {
+      const lastOp = record.operations.at(-1);
+      if (lastOp && lastOp.type === 'setPatch' && lastOp.revision === null) {
+        lastOp.rest = restMutation;
+      } else {
+        record.operations.push({ id: crypto.randomUUID(), type: 'rest', rest: restMutation, revision: null, createdAt: record.updatedAt });
+      }
+    }
+    await putRecord(record);
+    return record;
+  });
+}
+
+export async function enqueueRest(
+  accountId: string,
+  sessionId: string,
+  restMutation: RestMutationInput,
+  draft?: Session,
+  restState?: SessionRest | null
+): Promise<WorkoutRecoveryRecord> {
+  return serializeWrite(accountId, async () => {
+    const record = await requireRecovery(accountId, sessionId);
+    if (record.conflict) throw new Error('This workout changed on the server. Review both versions before saving.');
+    if (draft) record.draft = draft;
+    if (restState !== undefined) record.rest = restState;
+    record.updatedAt = new Date().toISOString();
+    record.conflict = false;
+    record.operations.push({
+      id: crypto.randomUUID(),
+      type: 'rest',
+      rest: restMutation,
+      revision: null,
+      createdAt: record.updatedAt
+    });
     await putRecord(record);
     return record;
   });
@@ -304,10 +301,7 @@ export async function setConflict(accountId: string, conflict: boolean, serverSe
 
 export async function clearRecovery(accountId: string): Promise<void> {
   await serializeWrite(accountId, async () => {
-    const db = await openDatabase();
-    const tx = db.transaction(STORE_NAME, 'readwrite');
-    tx.objectStore(STORE_NAME).delete(accountId);
-    await transactionDone(tx);
+    await getRecoveryStorage().delete(accountId);
   });
 }
 
@@ -366,17 +360,7 @@ async function requireRecovery(accountId: string, sessionId?: string): Promise<W
 }
 
 async function putRecord(record: WorkoutRecoveryRecord): Promise<void> {
-  const db = await openDatabase();
-  const tx = db.transaction(STORE_NAME, 'readwrite');
-  tx.objectStore(STORE_NAME).put(record);
-  await transactionDone(tx);
-}
-
-function validateRecord(value: unknown, accountId: string): WorkoutRecoveryRecord | null {
-  if (!value || typeof value !== 'object') return null;
-  const record = value as WorkoutRecoveryRecord;
-  if (record.schemaVersion !== 1 || record.accountId !== accountId || !record.sessionId || record.draft?.id !== record.sessionId || record.serverSession?.id !== record.sessionId || !Array.isArray(record.operations)) return null;
-  return record;
+  await getRecoveryStorage().put(record);
 }
 
 function serializeWrite<T>(key: string, operation: () => Promise<T>): Promise<T> {

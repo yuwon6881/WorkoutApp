@@ -41,7 +41,27 @@ export type BodyWeightSnapshot = { scaleWeightKg: number | null; scaleDate: stri
 export type NutritionTrainingContext = { subject: string; revision: number; timeZone: string; effectiveGoal: string; phaseComplete: boolean; targetRatePercent: number | null; observedLossRatePercent: number | null; observedWindowDays: number | null; scaleWeightKg: number | null; scaleWeightDate: string | null; trendWeightKg: number | null; trendWeightDate: string | null; retrievedAt?: string; confirmed: boolean; cached?: boolean; error?: string | null };
 export type PreviousRepRecord = { loadModel: LoadModel; resistanceMode: ResistanceMode; loadKg: number | null; reps: number };
 export type SessionExercise = { id: string; exerciseId: string | null; name: string; position: number; note: string; prescription: SetPrescription[]; sets: LoggedSet[]; sequenceGroup: string; substitutions: string[]; progression: Progression | null; loadModel?: LoadModel; sourceTemplateExerciseId?: string | null; sourceSlotKey?: string | null; sourcePhaseId?: string | null; swapGroupKey?: string | null; isReplacement?: boolean; originalExerciseId?: string | null; originalName?: string; sourcePage?: number | null; canRestore?: boolean; restSeconds?: number | null; isPr?: boolean; prE1rmKg?: number | null; demoUrl?: string | null; previousBestE1rmKg?: number | null; prKind?: 'e1rm' | 'reps' | 'both' | null; prReps?: number | null; previousRepBests?: Record<string, number> | null; previousRepRecords?: PreviousRepRecord[] | null };
-export type Session = { id: string; templateId: string | null; programId: string | null; name: string; note: string; active: boolean; startedAt: string; finishedAt: string | null; pausedAt?: string | null; pausedSeconds?: number; revision: number; exercises: SessionExercise[]; volumeKg: number | null; completedSets: number; warmupSets: number; bodyWeight?: BodyWeightSnapshot | null; nutritionContext?: NutritionTrainingContext | null; systemVolumeKg?: number | null; prCount?: number };
+export type RestStatus = 'idle' | 'running' | 'paused' | 'elapsed';
+export type RestAction = 'start' | 'extend' | 'shorten' | 'skip' | 'pause' | 'resume';
+export type RestMutationInput = {
+  revision: number;
+  mutationId?: string;
+  action: RestAction;
+  seconds?: number | null;
+  generation?: string | null;
+  originDeviceId?: string | null;
+  occurredAt?: string | null;
+  expectedGeneration?: string | null;
+};
+export type SessionRest = {
+  generation: string | null;
+  status: RestStatus;
+  deadlineUtc: string | null;
+  pausedRemainingMs: number | null;
+  durationMs: number | null;
+  originDeviceId: string | null;
+};
+export type Session = { id: string; templateId: string | null; programId: string | null; name: string; note: string; active: boolean; startedAt: string; finishedAt: string | null; pausedAt?: string | null; pausedSeconds?: number; revision: number; exercises: SessionExercise[]; volumeKg: number | null; completedSets: number; warmupSets: number; bodyWeight?: BodyWeightSnapshot | null; nutritionContext?: NutritionTrainingContext | null; systemVolumeKg?: number | null; prCount?: number; rest?: SessionRest | null };
 export type WatchDevice = { id: string; deviceId: string; deviceName: string; createdAt: string; expiresAt: string };
 export type HistoryPage = { total: number; page: number; size: number; sessions: Session[] };
 export type HistorySummaryPage = { total: number; sessions: Session[]; nextBeforeAt: string | null; nextBeforeId: string | null; summaryOnly: boolean };

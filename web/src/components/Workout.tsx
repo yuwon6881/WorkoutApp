@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { Exercise, LoggedSet, Preferences, Session } from '../types';
+import type { Exercise, LoggedSet, Preferences, RestMutationInput, Session, SessionRest } from '../types';
 import { ApiError, api } from '../lib/api';
 import type { SaveQueue } from '../lib/queue';
 import { completedSets, plannedSets } from '../lib/training';
@@ -11,10 +11,10 @@ import { restTimer } from '../lib/restTimer';
 import { findNextStep, restAppliesAfter } from '../lib/restRules';
 import {
   clearRecovery, enqueueFinish, enqueueSave, enqueueSetEdits, enqueueTiming, getRecovery,
-  isStorageFailure, keepLocalWorkout, persistDraftOnly, saveNavigation,
-  startRecovery, useServerWorkout
+  isStorageFailure, persistDraftOnly, saveNavigation,
+  startRecovery
 } from '../lib/workoutRecovery';
-import { startRestAfterSetIsDurable, workoutServerBaseline } from '../lib/workoutRecoveryActions';
+import { startRestAfterSetIsDurable } from '../lib/workoutRecoveryActions';
 import type { WorkoutRecoveryRecord } from '../lib/workoutRecovery';
 import { drainWorkoutOutbox, sessionPayload } from '../lib/workoutOutbox';
 import { Modal } from './ui/Modal';
@@ -23,6 +23,8 @@ import { WorkoutTopBar } from './WorkoutTopBar';
 import { WorkoutEditor } from './WorkoutEditor';
 import { WorkoutRecoveryConflict } from './WorkoutRecoveryConflict';
 import { useWorkoutOnlineFallback } from './useWorkoutOnlineFallback';
+import { useWorkoutRest } from './useWorkoutRest';
+import { useWorkoutConflictResolution } from './useWorkoutConflictResolution';
 import { WorkoutConfirmModal } from './WorkoutConfirmModal';
 import './ActiveWorkout.css';
 
@@ -56,7 +58,6 @@ export function Workout({
   autoAdvance?: boolean;
 }) {
   const [draft, setDraft] = useState(recovery?.sessionId === session.id ? recovery.draft : session);
-  const [rest, setRest] = useState(restTimer.current);
   const [picker, setPicker] = useState(false);
   const [confirm, setConfirm] = useState<'finish' | 'discard' | null>(null);
   const [retainSwaps, setRetainSwaps] = useState(false);
@@ -81,15 +82,6 @@ export function Workout({
     sessionId: session.id, accountId, online, queue, preferences, recovery, revision,
     serverSession, onSaved, onRecoveryChange, setDraft, setBusy, setError, setLocalStatus
   });
-
-
-  // The timer outlives this component: minimizing does not cancel a rest deadline. Its record is
-  // separately scoped to this account and workout by the app shell.
-  useEffect(() => {
-    restTimer.setWorkoutVisible(true);
-    const unsubscribe = restTimer.subscribe(setRest);
-    return () => { unsubscribe(); restTimer.setWorkoutVisible(false); };
-  }, []);
 
   useEffect(() => {
     if (recovery) {
@@ -140,7 +132,12 @@ export function Workout({
     if (status.state === 'offline' && recovery?.operations.length) setLocalStatus('Saved on this device. Waiting for a connection to sync.');
   }), [queue, recovery?.operations.length]);
 
-  async function change(next: Session, changedSet?: { setId: string; patch: Partial<LoggedSet> }): Promise<boolean> {
+  async function change(
+    next: Session,
+    changedSet?: { setId: string; patch: Partial<LoggedSet> },
+    restMutation?: RestMutationInput | null,
+    restState?: SessionRest | null
+  ): Promise<boolean> {
     if (finishIntentAt) { setError('This workout is finished on this device and is waiting to sync.'); return false; }
     if (onlineFallback.hasPendingFinish()) { setError('A finish request needs confirmation. Retry the same finish before making more changes.'); return false; }
     if (!online && exerciseListChanged(draft, next)) {
@@ -158,7 +155,7 @@ export function Workout({
     setError('');
     setLocalStatus('Saving on this device…');
     const persist = changedSet
-      ? enqueueSetEdits(accountId, next, { activeIndex, viewMode })
+      ? enqueueSetEdits(accountId, next, { activeIndex, viewMode }, restMutation, restState)
       : enqueueSave(accountId, next, { activeIndex, viewMode });
     try {
       const record = await persist;
@@ -180,16 +177,24 @@ export function Workout({
           await queue.whenIdle();
           return true;
         } catch (fallbackFailure) {
+          setDraft(draft);
           setError(fallbackFailure instanceof Error ? fallbackFailure.message : 'Could not save this workout to the server.');
           return false;
         }
       }
+      setDraft(draft);
       setError(failure instanceof Error ? failure.message : 'Could not save this workout on the device.');
       return false;
     }
   }
 
-  async function editSet(ei: number, si: number, patch: Partial<LoggedSet>): Promise<boolean> {
+  async function editSet(
+    ei: number,
+    si: number,
+    patch: Partial<LoggedSet>,
+    restMutation?: RestMutationInput | null,
+    restState?: SessionRest | null
+  ): Promise<boolean> {
     const exercise = draft.exercises[ei];
     const loadModel = exercise?.loadModel ?? 'external';
     const resistanceMode = exercise?.sets[si]?.resistanceMode ?? 'bodyweight';
@@ -206,7 +211,7 @@ export function Workout({
         i === ei ? { ...e, sets: e.sets.map((s, j) => (j === si ? { ...s, ...patch } : s)) } : e
       )
     };
-    return change(next, { setId: exercise.sets[si].id, patch });
+    return change(next, { setId: exercise.sets[si].id, patch }, restMutation, restState);
   }
 
   async function toggle(ei: number, si: number) {
@@ -222,18 +227,43 @@ export function Workout({
     const setGeneration = setToggleGenerations.current;
     const generation = (setGeneration.get(set.id) ?? 0) + 1;
     setGeneration.set(set.id, generation);
-    const persist = () => editSet(ei, si, { done: !set.done });
     const exercise = draft.exercises[ei];
     const plan = exercise.prescription[si];
     const restSeconds = exercise.restSeconds ?? preferences.restSeconds ?? 90;
     const nextStep = findNextStep(draft.exercises, ei, si);
     const shouldRest = !set.done && restSeconds > 0 && !draft.pausedAt && restAppliesAfter({ exercise, setIndex: si, set, prescription: plan }, nextStep);
     const logging = !set.done;
+
+    let restMutation: RestMutationInput | null = null;
+    let restState: SessionRest | null = null;
+    let plannedGen: string | undefined;
+
+    if (shouldRest) {
+      plannedGen = crypto.randomUUID();
+      const deadlineUtc = new Date(Date.now() + restSeconds * 1000).toISOString();
+      restMutation = {
+        revision: revision.current,
+        action: 'start',
+        seconds: restSeconds,
+        generation: plannedGen,
+        occurredAt: new Date().toISOString()
+      };
+      restState = {
+        generation: plannedGen,
+        status: 'running',
+        deadlineUtc,
+        pausedRemainingMs: null,
+        durationMs: restSeconds * 1000,
+        originDeviceId: null
+      };
+    }
+
+    const persist = () => editSet(ei, si, { done: !set.done }, restMutation, restState);
     let saved: boolean;
     if (shouldRest) {
       restTimer.primeSound();
       saved = await startRestAfterSetIsDurable(persist, () => {
-        if (setGeneration.get(set.id) === generation) restTimer.start(restSeconds);
+        if (setGeneration.get(set.id) === generation) restTimer.start(restSeconds, plannedGen);
       });
     } else {
       saved = await persist();
@@ -385,37 +415,10 @@ export function Workout({
     void saveNavigation(accountId, draft.id, { activeIndex, viewMode: next }).catch(() => undefined);
   }
 
-  async function resolveConflict(choice: 'server' | 'local') {
-    if (!recovery) return;
-    try {
-      if (choice === 'server') {
-        if (!recovery.serverSession.active) {
-          await clearRecovery(accountId);
-          setFinishIntentAt(null);
-          setRecoveryConflict(false);
-          onRecoveryChange(null);
-          restTimer.skip();
-          onClose();
-          return;
-        }
-        const next = await useServerWorkout(accountId, recovery.serverSession);
-        setDraft(recovery.serverSession);
-        serverSession.current = recovery.serverSession;
-        revision.current = recovery.serverSession.revision;
-        setFinishIntentAt(null);
-        setRecoveryConflict(false); onRecoveryChange(next); setError('');
-      } else {
-        if (!online) { setError('Reconnect before applying the on-device version.'); return; }
-        if (!recovery.serverSession.active) { setError('This workout is already finished on the server. Use the server copy to return to training.'); return; }
-        const next = await keepLocalWorkout(accountId, recovery.serverSession);
-        const baseline = workoutServerBaseline(next.serverSession);
-        serverSession.current = baseline.session;
-        revision.current = baseline.revision;
-        setFinishIntentAt(next.operations.find(operation => operation.type === 'finish')?.finishedAt ?? null);
-        setRecoveryConflict(false); onRecoveryChange(next); setError('');
-      }
-    } catch (failure) { setError(failure instanceof Error ? failure.message : 'Could not resolve this workout conflict.'); }
-  }
+  const resolveConflict = useWorkoutConflictResolution({
+    accountId, online, recovery, revision, serverSession,
+    setDraft, setFinishIntentAt, setRecoveryConflict, setError, onRecoveryChange, onClose
+  });
 
   const currentExercise = draft.exercises[activeIndex] ?? draft.exercises[0];
   const pendingLog = viewMode === 'focus' && !paused && !finishIntentAt && !recoveryConflict ? nextLog(draft, activeIndex, unit) : null;
@@ -424,6 +427,11 @@ export function Workout({
     onLog: () => void toggle(pendingLog.exerciseIndex, pendingLog.setIndex)
   };
   const defaultRestSeconds = currentExercise?.restSeconds ?? preferences.restSeconds ?? 90;
+
+  const { rest, handleRestMutate } = useWorkoutRest({
+    accountId, draft, revision, paused, finishIntentAt, recoveryConflict, recovery, defaultRestSeconds, onRecoveryChange,
+    onError: setError
+  });
 
   return (
     <Modal title={draft.name} onClose={onClose} wide headless className="workout-sheet">
@@ -464,7 +472,8 @@ export function Workout({
         onFinish={() => {
           if (!done) { setError('Complete at least one working set before finishing.'); return; }
           setConfirm('finish');
-        }} />
+        }}
+        onRestMutate={handleRestMutate} />
 
       {confirm && (
         <WorkoutConfirmModal

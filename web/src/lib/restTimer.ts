@@ -1,5 +1,6 @@
 import { cancelAlarm, primeAlarm, releaseAlarm, scheduleAlarm, soundNow, testAlarmSound } from './alarm';
-import { isNative, nativeKeepAwake, notificationPermission, scheduleNativeRestAlert } from './platform';
+import type { SessionRest } from '../types';
+import { claimNativeRestAlert, hasNativeWorkoutStore, isNative, nativeKeepAwake, notificationPermission, syncNativeWorkout } from './platform';
 
 /// Rest uses a deadline so its display stays accurate when the browser suspends the page. The
 /// local record is scoped to the signed-in account and active workout; it is never an authority
@@ -16,6 +17,8 @@ export type RestState = {
 };
 
 export type RestTimerOptions = { notifications: boolean; sound: boolean; vibration: boolean; keepAwake: boolean };
+/// When the workout started and how long it has been paused, for the Android workout notification.
+export type WorkoutClock = { startedAtMs: number; pausedAtMs: number | null; pausedSeconds: number };
 type Announcement = 'ended' | 'missed';
 
 const idle = (): RestState => ({ endsAt: 0, totalSeconds: 0, announced: true, generation: '', pausedRemainingMs: 0 });
@@ -32,6 +35,9 @@ export class RestTimer {
   private storageKey: string | null = null;
   private workoutVisible = false;
   private nativeAwake = false;
+  private clock: WorkoutClock | null = null;
+  // The last rest the server confirmed, so a skip made on another device can end the same rest here.
+  private serverGeneration: string | null = null;
 
   get current(): RestState { return this.state; }
   get remainingMs(): number {
@@ -41,21 +47,52 @@ export class RestTimer {
   setScope(accountId: string | null, sessionId: string | null, options: RestTimerOptions = defaults): void {
     const changed = accountId !== this.accountId || sessionId !== this.sessionId;
     this.options = options;
-    if (!changed) { this.syncAlarm(); return; }
+    if (!changed) { this.syncAlarm(); this.syncNative(); return; }
     this.disarm();
     void this.releaseScreen();
     releaseAlarm();
     this.accountId = accountId;
     this.sessionId = sessionId;
+    this.serverGeneration = null;
     this.storageKey = accountId && sessionId ? `${STORAGE_PREFIX}:${accountId}:${sessionId}` : null;
     this.state = this.storageKey ? read(this.storageKey) ?? idle() : idle();
     try { localStorage.removeItem(LEGACY_STORAGE_KEY); } catch { /* the old record is ignored */ }
     if (this.state.endsAt > 0 && this.remainingMs === 0) this.state = { ...this.state, announced: true };
     this.emit();
     this.syncAlarm();
+    this.syncNative();
   }
 
-  setOptions(options: RestTimerOptions): void { this.options = options; this.syncAlarm(); }
+  setOptions(options: RestTimerOptions): void { this.options = options; this.syncAlarm(); this.syncNative(); }
+
+  /// Takes over the rest the server holds when it is newer than this device's: a rest started or
+  /// changed on the watch counts down and alerts here too. The caller skips this while this
+  /// device still has its own rest change waiting to sync, so an unsent change is never replaced.
+  adoptServerRest(rest: SessionRest | null | undefined): void {
+    if (!rest || !this.sessionId) return;
+    const previous = this.serverGeneration;
+    this.serverGeneration = rest.generation;
+    if (rest.generation && rest.generation === this.state.generation) return;
+    if (rest.status === 'running' && rest.generation && rest.deadlineUtc) {
+      const endsAt = Date.parse(rest.deadlineUtc);
+      if (!Number.isFinite(endsAt) || endsAt <= Date.now()) return;
+      this.write({ endsAt, totalSeconds: Math.round((rest.durationMs ?? endsAt - Date.now()) / 1000), announced: false, generation: rest.generation, pausedRemainingMs: 0 });
+      this.arm();
+    } else if (rest.status === 'paused' && rest.generation && (rest.pausedRemainingMs ?? 0) > 0) {
+      this.disarm();
+      this.write({ endsAt: 0, totalSeconds: Math.round((rest.durationMs ?? 0) / 1000), announced: false, generation: rest.generation, pausedRemainingMs: rest.pausedRemainingMs! });
+    } else if (!rest.generation && previous && previous === this.state.generation) {
+      // The rest this device took from the server was skipped elsewhere.
+      this.skip();
+    }
+  }
+
+  setWorkoutClock(clock: WorkoutClock | null): void {
+    const same = clock?.startedAtMs === this.clock?.startedAtMs && clock?.pausedAtMs === this.clock?.pausedAtMs &&
+      clock?.pausedSeconds === this.clock?.pausedSeconds;
+    this.clock = clock;
+    if (!same) this.syncNative();
+  }
 
   primeSound(): boolean { return this.options.sound && primeAlarm(); }
 
@@ -89,33 +126,33 @@ export class RestTimer {
     return true;
   }
 
-  start(seconds: number): void {
+  start(seconds: number, customGeneration?: string): void {
     if (seconds <= 0) { this.skip(); return; }
     if (this.options.sound) primeAlarm();
-    this.write({ endsAt: Date.now() + seconds * 1000, totalSeconds: seconds, announced: false, generation: newGeneration(), pausedRemainingMs: 0 });
+    this.write({ endsAt: Date.now() + seconds * 1000, totalSeconds: seconds, announced: false, generation: customGeneration || newGeneration(), pausedRemainingMs: 0 });
     this.arm();
   }
 
-  extend(seconds: number): void {
+  extend(seconds: number, generation = newGeneration()): void {
     if (seconds <= 0) return;
     if (this.options.sound) primeAlarm();
     if (this.state.endsAt === 0 && this.state.pausedRemainingMs > 0) {
-      this.write({ ...this.state, totalSeconds: this.state.totalSeconds + seconds, pausedRemainingMs: this.state.pausedRemainingMs + seconds * 1000, generation: newGeneration(), announced: false });
+      this.write({ ...this.state, totalSeconds: this.state.totalSeconds + seconds, pausedRemainingMs: this.state.pausedRemainingMs + seconds * 1000, generation, announced: false });
       return;
     }
     const from = Math.max(Date.now(), this.state.endsAt);
     const totalSeconds = this.state.totalSeconds + seconds;
-    this.write({ endsAt: from + seconds * 1000, totalSeconds, announced: false, generation: newGeneration(), pausedRemainingMs: 0 });
+    this.write({ endsAt: from + seconds * 1000, totalSeconds, announced: false, generation, pausedRemainingMs: 0 });
     this.arm();
   }
 
   /// Takes time off a running or paused rest. Cutting past the end finishes the rest quietly
   /// rather than announcing it, because the lifter chose to go early.
-  shorten(seconds: number): void {
+  shorten(seconds: number, generation = newGeneration()): void {
     if (seconds <= 0) return;
     const next = shortenedRest(this.state, seconds, Date.now());
     if (!next) { this.skip(); return; }
-    this.write({ ...next, generation: newGeneration() });
+    this.write({ ...next, generation });
     if (next.endsAt > 0) this.arm();
   }
 
@@ -150,18 +187,15 @@ export class RestTimer {
   private arm(): void {
     this.disarm();
     if (this.remainingMs <= 0 || this.state.endsAt === 0) return;
-    if (this.options.sound) scheduleAlarm(this.state.endsAt);
+    // The Android service owns the timed chime; a pre-scheduled page chime would be a second one.
+    if (this.options.sound && !hasNativeWorkoutStore()) scheduleAlarm(this.state.endsAt);
     this.timeout = setTimeout(() => { void this.announce('ended'); }, this.remainingMs);
-    // Inside the Android app the alert is a scheduled local notification, so it still arrives
-    // with the screen off or the app closed.
-    if (this.options.notifications) scheduleNativeRestAlert(this.state.endsAt, this.sessionId);
     if (this.shouldHoldScreen()) void this.holdScreen();
   }
 
   private disarm(): void {
     if (this.timeout !== null) { clearTimeout(this.timeout); this.timeout = null; }
     cancelAlarm();
-    scheduleNativeRestAlert(null, null);
     if (!this.shouldHoldScreen()) void this.releaseScreen();
   }
 
@@ -207,13 +241,44 @@ export class RestTimer {
     this.write({ ...state, announced: true });
     if (this.shouldHoldScreen()) void this.holdScreen();
     else void this.releaseScreen();
-    if (this.options.sound && kind === 'missed') soundNow();
+    if (hasNativeWorkoutStore()) {
+      // In the Android app the service alerts while the page is hidden; in view, whichever of the
+      // two claims this rest first is the only one that sounds.
+      if (document.visibilityState !== 'visible' || !this.sessionId ||
+        !await claimNativeRestAlert(this.sessionId, state.generation)) return;
+      if (this.options.sound) soundNow();
+    } else if (this.options.sound && kind === 'missed') soundNow();
     if (this.options.vibration && navigator.vibrate) { try { navigator.vibrate([200, 100, 200]); } catch { /* unsupported */ } }
     if (this.options.notifications) await notify({ lateSeconds: late, sessionId: this.sessionId });
   }
 
+  /// The Android service shows the same rest from one snapshot. A rest stays "running" after its
+  /// deadline until it is skipped or replaced, so the service can still alert for it while the
+  /// page is hidden; the service itself treats a long-past deadline as already finished.
+  private syncNative(): void {
+    if (!this.sessionId) { syncNativeWorkout(null); return; }
+    const running = this.state.endsAt > 0;
+    const paused = !running && this.state.pausedRemainingMs > 0;
+    syncNativeWorkout({
+      sessionId: this.sessionId,
+      generation: this.state.generation,
+      status: running ? 'running' : paused ? 'paused' : 'idle',
+      deadlineMs: running ? this.state.endsAt : 0,
+      pausedRemainingMs: paused ? this.state.pausedRemainingMs : 0,
+      startedAtMs: this.clock?.startedAtMs ?? null,
+      pausedAtMs: this.clock?.pausedAtMs ?? null,
+      pausedSeconds: this.clock?.pausedSeconds ?? 0,
+      alert: this.options.notifications,
+      sound: this.options.sound,
+      vibrate: this.options.vibration
+    });
+  }
+
   private write(state: RestState): void {
+    const native = state.endsAt !== this.state.endsAt || state.generation !== this.state.generation ||
+      state.pausedRemainingMs !== this.state.pausedRemainingMs;
     this.state = state;
+    if (native) this.syncNative();
     try {
       if (!this.storageKey || state.endsAt === 0 && state.pausedRemainingMs === 0) {
         if (this.storageKey) localStorage.removeItem(this.storageKey);

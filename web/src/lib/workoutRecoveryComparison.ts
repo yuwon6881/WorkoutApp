@@ -1,4 +1,4 @@
-import type { Session } from '../types';
+import type { LoggedSet, RestMutationInput, Session } from '../types';
 import type { SetPatch, WorkoutOperation } from './workoutRecovery';
 
 /// Coalesce only operations that have not been bound to a request. An already-bound operation
@@ -60,6 +60,41 @@ export function sameWorkoutNonSetEdits(left: Session, right: Session): boolean {
     }))
   });
   return JSON.stringify(comparable(left)) === JSON.stringify(comparable(right));
+}
+
+export function findSetInSession(session: Session, setId: string): LoggedSet | null {
+  for (const exercise of session.exercises) {
+    for (const set of exercise.sets) {
+      if (set.id === setId) return set;
+    }
+  }
+  return null;
+}
+
+export function sameSetContent(left: LoggedSet | null, right: LoggedSet | null): boolean {
+  if (!left || !right) return left === right;
+  return left.weightKg === right.weightKg &&
+    left.reps === right.reps &&
+    left.rpe === right.rpe &&
+    (left.rir ?? null) === (right.rir ?? null) &&
+    left.done === right.done &&
+    left.warmup === right.warmup &&
+    left.resistanceMode === right.resistanceMode;
+}
+
+export function canRebaseSetPatch(currentServer: Session, baselineServer: Session, setId: string): boolean {
+  if (!sameWorkoutNonSetEdits(currentServer, baselineServer)) return false;
+  const currentSet = findSetInSession(currentServer, setId);
+  const baselineSet = findSetInSession(baselineServer, setId);
+  return Boolean(currentSet && baselineSet && sameSetContent(currentSet, baselineSet));
+}
+
+export function canRebaseRestOperation(currentServer: Session, baselineServer: Session, restInput: RestMutationInput): boolean {
+  if (!restInput.generation) return true;
+  const serverGen = currentServer.rest?.generation;
+  const baselineGen = baselineServer.rest?.generation;
+  if (!serverGen || serverGen === baselineGen || serverGen === restInput.generation) return true;
+  return false;
 }
 
 function findLastIndex<T>(values: T[], predicate: (value: T) => boolean): number {

@@ -2,7 +2,7 @@ import type { ExerciseLoadSettings } from './exerciseLoads';
 import type { PdfExtraction } from './pdfText';
 import { sharedReads } from './readCoordinator';
 import type { Exercise, HistorySummaryPage, ShellBootstrap } from '../types';
-import type { Bootstrap, CustomExerciseCreated, DraftWorkout, ExerciseClearPreview, ExerciseInsight, HistoryPage, ImportDraft, ImportStatusView, ImportView, MuscleBalanceRange, MuscleBalanceView, Preferences, ProgressSummary, Program, ProgramDayActionInput, ProgramEditorDocument, ProgramSummary, ProgramWeekResetInput, Session, Template, SubstitutionCandidate, TemplateSubstitutionResult, WatchDevice, WorkoutActivityItem } from '../types';
+import type { Bootstrap, CustomExerciseCreated, DraftWorkout, ExerciseClearPreview, ExerciseInsight, HistoryPage, ImportDraft, ImportStatusView, ImportView, MuscleBalanceRange, MuscleBalanceView, Preferences, ProgressSummary, Program, ProgramDayActionInput, ProgramEditorDocument, ProgramSummary, ProgramWeekResetInput, RestMutationInput, Session, Template, SubstitutionCandidate, TemplateSubstitutionResult, WatchDevice, WorkoutActivityItem } from '../types';
 
 export class ApiError extends Error {
   constructor(message: string, readonly status: number) { super(message); }
@@ -155,7 +155,8 @@ export const api = {
   getWorkout: (id: string, signal?: AbortSignal) => call<Session>(`/api/workouts/${id}`, 'GET', undefined, signal),
   startWorkout: (templateId: string | null, name?: string) => call<Session>('/api/workouts', 'POST', { templateId, name }),
   saveWorkout: (id: string, input: unknown) => call<Session>(`/api/workouts/${id}`, 'PUT', input),
-  patchWorkoutSet: (sessionId: string, setId: string, input: { revision: number; mutationId: string; weightKg?: number | null; reps?: number | null; rpe?: number | null; rir?: string | null; done?: boolean; warmup?: boolean; resistanceMode?: string }) => call<Session>(`/api/workouts/${sessionId}/sets/${setId}`, 'PATCH', input),
+  patchWorkoutSet: (sessionId: string, setId: string, input: { revision: number; mutationId: string; weightKg?: number | null; reps?: number | null; rpe?: number | null; rir?: string | null; done?: boolean; warmup?: boolean; resistanceMode?: string; rest?: RestMutationInput | null }) => call<Session>(`/api/workouts/${sessionId}/sets/${setId}`, 'PATCH', input),
+  mutateWorkoutRest: (sessionId: string, input: RestMutationInput) => call<Session>(`/api/workouts/${sessionId}/rest`, 'POST', input),
   substituteSessionExercise: (id: string, input: { sessionExerciseId: string; replacementExerciseId?: string | null; replacementName: string; revision?: number; idempotencyId?: string }) => call<Session>(`/api/workouts/${id}/substitution`, 'POST', input),
   restoreSessionExercise: (id: string, input: { sessionExerciseId: string; revision?: number; idempotencyId?: string }) => call<Session>(`/api/workouts/${id}/exercises/${input.sessionExerciseId}/restore`, 'POST', input),
   pauseWorkout: (id: string, input: { revision: number; mutationId: string; occurredAt: string }) => call<Session>(`/api/workouts/${id}/pause`, 'POST', input),

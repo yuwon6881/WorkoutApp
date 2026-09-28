@@ -37,6 +37,24 @@ export function useShellRestTimer({ data, recovery, recoverySession, devicePrefe
     setHapticsEnabled(devicePreferences.vibration);
     return restTimer.attach();
   }, [timerAccountId, timerSessionId, timerNotifications, devicePreferences]);
+  // The Android workout notification counts the workout's own elapsed time while training.
+  const clockSession = recoverySession?.id === timerSessionId ? recoverySession
+    : data?.activeWorkout?.id === timerSessionId ? data?.activeWorkout ?? null : null;
+  const startedAtMs = clockSession ? Date.parse(clockSession.startedAt) : NaN;
+  const pausedAtMs = clockSession?.pausedAt ? Date.parse(clockSession.pausedAt) : null;
+  const pausedSeconds = clockSession?.pausedSeconds ?? 0;
+  useEffect(() => {
+    restTimer.setWorkoutClock(Number.isFinite(startedAtMs) ? { startedAtMs, pausedAtMs, pausedSeconds } : null);
+  }, [startedAtMs, pausedAtMs, pausedSeconds]);
+  // A rest the server holds from another device (the watch) is taken over whenever this device
+  // reads the workout, unless this device still has its own rest change to send.
+  const serverRest = recovery?.serverSession.id === timerSessionId ? recovery?.serverSession.rest
+    : data?.activeWorkout?.id === timerSessionId ? data?.activeWorkout?.rest : undefined;
+  const localRestPending = recovery?.operations.some(operation =>
+    operation.type === 'rest' || (operation.type === 'setPatch' && Boolean(operation.rest))) ?? false;
+  useEffect(() => {
+    if (!localRestPending) restTimer.adoptServerRest(serverRest);
+  }, [serverRest, localRestPending, timerSessionId]);
   useEffect(() => {
     setRestState(restTimer.current);
     return restTimer.subscribe(setRestState);

@@ -8,7 +8,8 @@ import { isFirebasePushConfigured } from '../lib/push/firebaseConfig';
 import type { DevicePreferences } from '../lib/workoutRecovery';
 import { Button } from './ui/Button';
 import { SettingRow } from './ui/SettingRow';
-import { isNative } from '../lib/platform';
+import { getAlertCapabilities, hasNativeWorkoutStore, isNative, openNativeSettings, testNativeAlert } from '../lib/platform';
+import type { AlertCapabilities } from '../lib/platform';
 import { Switch } from './ui/Switch';
 
 type PushStatus = {
@@ -28,15 +29,27 @@ export function RestAlertSettings({ accountId, preferences, devicePreferences, o
 }) {
   const [pushStatus, setPushStatus] = useState<PushStatus | null>(null);
   const [pushBusy, setPushBusy] = useState(false);
+  const [capabilities, setCapabilities] = useState<AlertCapabilities | null>(null);
+  const nativeAlerts = hasNativeWorkoutStore();
   const deviceId = getWorkoutPushDeviceId();
 
+  // Permissions change in system settings, so they are read again whenever the app returns.
   useEffect(() => {
+    if (!nativeAlerts) return;
+    const refresh = () => { if (document.visibilityState === 'visible') void getAlertCapabilities().then(setCapabilities); };
+    refresh();
+    document.addEventListener('visibilitychange', refresh);
+    return () => document.removeEventListener('visibilitychange', refresh);
+  }, [nativeAlerts]);
+
+  useEffect(() => {
+    if (nativeAlerts) return;
     if (!deviceId) return;
     let current = true;
     void api.restAlertStatus(deviceId).then(status => { if (current) setPushStatus(status); })
       .catch(() => { if (current) setPushStatus(null); });
     return () => { current = false; };
-  }, [accountId, deviceId]);
+  }, [accountId, deviceId, nativeAlerts]);
 
   const closedAppAlertInfo = pushStatus?.message ?? (isFirebasePushConfigured()
     ? 'Checking push availability…'
@@ -92,6 +105,141 @@ export function RestAlertSettings({ accountId, preferences, devicePreferences, o
   }
 
   const pushSetUp = Boolean(pushStatus?.registered);
+
+  if (nativeAlerts) {
+    return (
+      <>
+        <SettingRow
+          label={<strong>Rest notifications</strong>}
+          description="Alert when a rest ends, with the countdown on the lock screen."
+          descriptionId="rest-alerts-description"
+        >
+          <Switch
+            label="Rest notifications"
+            describedBy="rest-alerts-description"
+            checked={preferences.restAlerts}
+            onChange={async wanted => {
+              if (wanted && (await requestRestAlerts()) !== 'granted') {
+                notify('Workout notifications are not enabled. You can still use the on-screen timer and sound.');
+              }
+              onPreferences({ ...preferences, restAlerts: wanted });
+              void getAlertCapabilities().then(setCapabilities);
+            }}
+          />
+        </SettingRow>
+
+        <SettingRow
+          label={<strong>Workout alerts on this phone</strong>}
+          description={<>
+            <span className={`setting-status ${capabilities?.notifications ? 'is-on' : ''}`}>
+              <span className="status-dot" aria-hidden="true" />
+              {!capabilities ? 'Checking…' : capabilities.notifications ? 'Notifications allowed' : 'Notifications are off'}
+            </span>
+            {capabilities && <span>{capabilities.exactAlarm
+              ? 'Precise timing allowed.'
+              : 'Precise timing is off, so an alert can arrive late while the phone sleeps.'}</span>}
+            {capabilities?.serviceError && <span role="alert">{capabilities.serviceError}</span>}
+          </>}
+          info={{
+            content: 'Alerts need notifications and precise timing. Scheduling an alert does not prove it arrives: use Test alert with the screen locked. Force stop, Do Not Disturb, and a muted phone can still silence it.',
+            label: 'Workout alerts info'
+          }}
+        >
+          <div className="setting-inline-controls">
+            {capabilities && !capabilities.notifications && (
+              <Button variant="secondary" onClick={() => void openNativeSettings('notifications').catch(() => notify('Could not open notification settings.'))}>
+                Notification settings
+              </Button>
+            )}
+            {capabilities && !capabilities.exactAlarm && (
+              <Button variant="secondary" onClick={() => void openNativeSettings('exact_alarm').catch(() => notify('Could not open alarm settings.'))}>
+                Alarm settings
+              </Button>
+            )}
+            <Button
+              variant="tertiary"
+              onClick={async () => {
+                try {
+                  await testNativeAlert(devicePreferences.sound, devicePreferences.vibration);
+                  notify('A test alert will arrive in 5 seconds. Lock the screen now to check it.');
+                } catch (failure) {
+                  notify(failure instanceof Error ? failure.message : 'Could not schedule a test alert.');
+                }
+              }}
+            >
+              Test alert
+            </Button>
+          </div>
+        </SettingRow>
+
+        <SettingRow
+          label={<strong>Rest sound</strong>}
+          description="Two-note chime when rest ends."
+          descriptionId="rest-sound-description"
+        >
+          <div className="setting-inline-controls">
+            <Button
+              variant="tertiary"
+              onClick={() =>
+                notify(
+                  testAlarmSound()
+                    ? 'Sound test played.'
+                    : 'Could not play sound. Check device media/alarm volume.'
+                )
+              }
+            >
+              <Volume2 size={15} aria-hidden="true" /> Test sound
+            </Button>
+            <Switch
+              label="Rest sound"
+              describedBy="rest-sound-description"
+              checked={devicePreferences.sound}
+              onChange={sound => onDevicePreferences({ ...devicePreferences, sound })}
+            />
+          </div>
+        </SettingRow>
+
+        <SettingRow
+          label={<strong>Vibration</strong>}
+          description="Vibrate on rest end and logged sets."
+          descriptionId="rest-vibration-description"
+        >
+          <Switch
+            label="Vibration"
+            describedBy="rest-vibration-description"
+            checked={devicePreferences.vibration}
+            onChange={vibration => onDevicePreferences({ ...devicePreferences, vibration })}
+          />
+        </SettingRow>
+
+        <SettingRow
+          label={<strong>Keep screen awake during a workout</strong>}
+          description="Keep display on while training."
+          descriptionId="rest-wake-description"
+        >
+          <Switch
+            label="Keep screen awake during a workout"
+            describedBy="rest-wake-description"
+            checked={devicePreferences.keepAwake}
+            onChange={keepAwake => onDevicePreferences({ ...devicePreferences, keepAwake })}
+          />
+        </SettingRow>
+
+        <SettingRow
+          label={<strong>Move to the next exercise automatically</strong>}
+          description="Advance after completing all sets."
+          descriptionId="auto-advance-description"
+        >
+          <Switch
+            label="Move to the next exercise automatically"
+            describedBy="auto-advance-description"
+            checked={devicePreferences.autoAdvance}
+            onChange={autoAdvance => onDevicePreferences({ ...devicePreferences, autoAdvance })}
+          />
+        </SettingRow>
+      </>
+    );
+  }
 
   return (
     <>

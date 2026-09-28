@@ -3,6 +3,7 @@ import {
   acknowledgeOperation, bindOperation, clearRecovery, getRecovery, sameWorkoutEdits,
   setConflict, withRecoveryLock
 } from './workoutRecovery';
+import { canRebaseSetPatch, canRebaseRestOperation, findSetInSession } from './workoutRecoveryComparison';
 import type { WorkoutRecoveryRecord } from './workoutRecovery';
 import type { Session } from '../types';
 
@@ -45,7 +46,16 @@ export async function drainWorkoutOutbox(
       const currentServer = getServerSession();
 
       if (operation.revision === null) {
-        if (!sameWorkoutEdits(currentServer, recovery.serverSession)) {
+        let rebasable = false;
+        if (sameWorkoutEdits(currentServer, recovery.serverSession)) {
+          rebasable = true;
+        } else if (operation.type === 'setPatch') {
+          rebasable = canRebaseSetPatch(currentServer, recovery.serverSession, operation.setId);
+        } else if (operation.type === 'rest') {
+          rebasable = canRebaseRestOperation(currentServer, recovery.serverSession, operation.rest);
+        }
+
+        if (!rebasable) {
           recovery = await setConflict(accountId, true, currentServer) ?? recovery;
           handlers.onConflict(recovery, currentServer);
           throw new ApiError('This workout changed on another device. Your local changes are safe; review both versions.', 409);
@@ -64,7 +74,19 @@ export async function drainWorkoutOutbox(
             break;
           case 'setPatch':
             saved = await api.patchWorkoutSet(sessionId, operation.setId, {
-              ...operation.patch, revision: operation.revision!, mutationId: operation.id
+              ...operation.patch,
+              ...(operation.rest ? { rest: operation.rest } : {}),
+              revision: operation.revision!,
+              mutationId: operation.id
+            });
+            break;
+          case 'rest':
+            // The rest this request replaces is the one the rebase check just compared against.
+            saved = await api.mutateWorkoutRest(sessionId, {
+              ...operation.rest,
+              expectedGeneration: currentServer.rest?.generation ?? null,
+              revision: operation.revision!,
+              mutationId: operation.id
             });
             break;
           case 'pause':
@@ -94,9 +116,22 @@ export async function drainWorkoutOutbox(
       const expectedRevision = operation.revision! + 1;
       if (operation.type !== 'finish' && saved.revision > expectedRevision &&
         !sameWorkoutEdits(saved, operation.type === 'save' ? operation.draft : currentServer)) {
-        recovery = await setConflict(accountId, true, saved) ?? recovery;
-        handlers.onConflict(recovery, saved);
-        throw new ApiError('Another device changed this workout while it was syncing. Your local changes are safe for review.', 409);
+        let applied = false;
+        if (operation.type === 'setPatch') {
+          const appliedSet = findSetInSession(saved, operation.setId);
+          if (appliedSet) {
+            applied = (operation.patch.weightKg === undefined || appliedSet.weightKg === operation.patch.weightKg) &&
+              (operation.patch.reps === undefined || appliedSet.reps === operation.patch.reps) &&
+              (operation.patch.done === undefined || appliedSet.done === operation.patch.done);
+          }
+        } else if (operation.type === 'rest') {
+          applied = true;
+        }
+        if (!applied) {
+          recovery = await setConflict(accountId, true, saved) ?? recovery;
+          handlers.onConflict(recovery, saved);
+          throw new ApiError('Another device changed this workout while it was syncing. Your local changes are safe for review.', 409);
+        }
       }
 
       recovery = await acknowledgeOperation(accountId, operation.id, saved) ?? recovery;

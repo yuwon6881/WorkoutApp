@@ -4,6 +4,8 @@ import { remainingRestSeconds, restTimer, type RestState } from '../lib/restTime
 import { useVisibleClock } from '../lib/useVisibleClock';
 import { Button } from './ui/Button';
 
+import type { RestAction } from '../types';
+
 export type LogAction = { label: string; detail: string; ariaLabel: string; onLog: () => void };
 
 /// The thumb zone. While resting it is the rest bar: a large countdown, quick adjustments, and
@@ -18,7 +20,8 @@ export function WorkoutFooter({
   nextUp,
   logAction,
   celebration = '',
-  onFinish
+  onFinish,
+  onRestMutate
 }: {
   error: string;
   rest: RestState;
@@ -29,6 +32,7 @@ export function WorkoutFooter({
   logAction: LogAction | null;
   celebration?: string;
   onFinish: () => void;
+  onRestMutate?: (action: RestAction, seconds?: number) => void;
 }) {
   const now = useVisibleClock(rest.endsAt > Date.now());
   const remaining = remainingRestSeconds(rest, now);
@@ -40,7 +44,7 @@ export function WorkoutFooter({
 
   return (
     <div className="workout-footer">
-      {celebration && <p className="workout-celebration" role="status"><Trophy size={17} aria-hidden="true" />{celebration}</p>}
+      {celebration && <p className="workout-celebration" role="status"><Trophy size={17} aria-hidden="true" /><span className="celebration-text">{celebration}</span></p>}
       {resting ? (
         <div className="rest-bar resting">
           <div className="rest-bar-head">
@@ -52,10 +56,10 @@ export function WorkoutFooter({
             </span>
           </div>
           <div className="rest-bar-actions" role="group" aria-label="Adjust rest">
-            <Button variant="tertiary" disabled={restAdjustDisabled} aria-label="Take 15 seconds off the rest" onClick={() => restTimer.shorten(15)}>−15s</Button>
-            <Button variant="tertiary" disabled={restAdjustDisabled} aria-label="Add 15 seconds of rest" onClick={() => restTimer.extend(15)}>+15s</Button>
-            <Button variant="tertiary" disabled={restAdjustDisabled} aria-label="Add 30 seconds of rest" onClick={() => restTimer.extend(30)}>+30s</Button>
-            <Button variant="secondary" disabled={restAdjustDisabled} onClick={() => restTimer.skip()}>Skip</Button>
+            <Button variant="tertiary" disabled={restAdjustDisabled} aria-label="Take 15 seconds off the rest" onClick={() => onRestMutate ? onRestMutate('shorten', 15) : restTimer.shorten(15)}>−15s</Button>
+            <Button variant="tertiary" disabled={restAdjustDisabled} aria-label="Add 15 seconds of rest" onClick={() => onRestMutate ? onRestMutate('extend', 15) : restTimer.extend(15)}>+15s</Button>
+            <Button variant="tertiary" disabled={restAdjustDisabled} aria-label="Add 30 seconds of rest" onClick={() => onRestMutate ? onRestMutate('extend', 30) : restTimer.extend(30)}>+30s</Button>
+            <Button variant="secondary" disabled={restAdjustDisabled} onClick={() => onRestMutate ? onRestMutate('skip') : restTimer.skip()}>Skip</Button>
           </div>
           {nextUp && <p className="rest-next">Next: {nextUp}</p>}
         </div>
@@ -65,7 +69,7 @@ export function WorkoutFooter({
           <span className="rest-clock" role="timer" aria-live="off">
             {restEndedAt !== null ? `Rest ended ${new Date(restEndedAt).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}` : 'Rest timer'}
           </span>
-          <Button variant="tertiary" disabled={restAdjustDisabled} aria-label={`Start a ${defaultRest} second rest`} onClick={() => restTimer.start(defaultRest)}>
+          <Button variant="tertiary" disabled={restAdjustDisabled} aria-label={`Start a ${defaultRest} second rest`} onClick={() => onRestMutate ? onRestMutate('start', defaultRest) : restTimer.start(defaultRest)}>
             +{defaultRest}s
           </Button>
         </div>

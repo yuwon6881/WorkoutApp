@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Session } from '../types';
 
 const mocks = vi.hoisted(() => ({
-  api: { patchWorkoutSet: vi.fn() },
+  api: { patchWorkoutSet: vi.fn(), mutateWorkoutRest: vi.fn() },
   record: null as unknown
 }));
 
@@ -62,6 +62,56 @@ describe('durable workout operation replay', () => {
 
     await drainWorkoutOutbox('account-1', session.id, () => session, handlers);
     expect(api.patchWorkoutSet).toHaveBeenNthCalledWith(2, session.id, 'set-1', { done: true, revision: 12, mutationId: 'mutation-1' });
+    expect((mocks.record as { operations: unknown[] }).operations).toHaveLength(0);
+    expect(handlers.onSaved).toHaveBeenCalledOnce();
+  });
+
+  it('replays setPatch with attached rest mutation', async () => {
+    (mocks.record as { operations: unknown[] }).operations = [{
+      id: 'mutation-rest-1',
+      type: 'setPatch',
+      setId: 'set-1',
+      patch: { done: true },
+      rest: { revision: 12, action: 'start', seconds: 90, generation: 'gen-1' },
+      revision: null,
+      createdAt: '2026-09-21T08:01:00.000Z'
+    }];
+    vi.mocked(api.patchWorkoutSet).mockResolvedValueOnce({ ...session, revision: 13 });
+    const handlers = { onSaved: vi.fn(), onFinished: vi.fn(), onConflict: vi.fn() };
+
+    await drainWorkoutOutbox('account-1', session.id, () => session, handlers);
+    expect(api.patchWorkoutSet).toHaveBeenCalledWith(session.id, 'set-1', {
+      done: true,
+      rest: { revision: 12, action: 'start', seconds: 90, generation: 'gen-1' },
+      revision: 12,
+      mutationId: 'mutation-rest-1'
+    });
+    expect((mocks.record as { operations: unknown[] }).operations).toHaveLength(0);
+    expect(handlers.onSaved).toHaveBeenCalledOnce();
+  });
+
+  it('replays standalone rest mutation against the rest the server holds', async () => {
+    const withRest: Session = { ...session, rest: { generation: 'gen-0', status: 'running', deadlineUtc: '2026-09-21T08:03:00.000Z', pausedRemainingMs: null, durationMs: 90000, originDeviceId: null } };
+    (mocks.record as { operations: unknown[] }).operations = [{
+      id: 'mutation-rest-2',
+      type: 'rest',
+      rest: { revision: 12, action: 'extend', seconds: 30, generation: 'gen-1' },
+      revision: null,
+      createdAt: '2026-09-21T08:02:00.000Z'
+    }];
+    vi.mocked(api.mutateWorkoutRest).mockResolvedValueOnce({ ...withRest, revision: 13 });
+    (mocks.record as { serverSession: Session }).serverSession = withRest;
+    const handlers = { onSaved: vi.fn(), onFinished: vi.fn(), onConflict: vi.fn() };
+
+    await drainWorkoutOutbox('account-1', session.id, () => withRest, handlers);
+    expect(api.mutateWorkoutRest).toHaveBeenCalledWith(session.id, {
+      revision: 12,
+      action: 'extend',
+      seconds: 30,
+      generation: 'gen-1',
+      expectedGeneration: 'gen-0',
+      mutationId: 'mutation-rest-2'
+    });
     expect((mocks.record as { operations: unknown[] }).operations).toHaveLength(0);
     expect(handlers.onSaved).toHaveBeenCalledOnce();
   });

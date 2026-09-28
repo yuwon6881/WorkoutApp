@@ -5,7 +5,9 @@ describe('short workout sync status', () => {
   it('reduces each saving sentence to one word with a tone', () => {
     expect(shortSyncStatus('Saved on this device. Syncing…', true)).toEqual({ label: 'Saving', tone: 'saving' });
     expect(shortSyncStatus('Synced.', true)).toEqual({ label: 'Synced', tone: 'saved' });
-    expect(shortSyncStatus('Saved on this device. Waiting for a connection to sync.', false)).toEqual({ label: 'Saved offline', tone: 'offline' });
+    expect(shortSyncStatus('Saved on this device.', true)).toEqual({ label: 'Saved on device', tone: 'saved' });
+    expect(shortSyncStatus('Saved on this device. Waiting for a connection to sync.', false)).toEqual({ label: 'Saved on device', tone: 'offline' });
+    expect(shortSyncStatus('This workout changed on another device. Review both versions before saving.', true)).toEqual({ label: 'Needs review', tone: 'warning' });
     expect(shortSyncStatus('This unfinished edit could not be saved on the device.', true)).toEqual({ label: 'Not saved', tone: 'warning' });
   });
 

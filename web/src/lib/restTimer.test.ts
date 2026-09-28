@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { isRestAlertOwner, remainingRestSeconds, shortenedRest } from './restTimer';
+import { RestTimer, isRestAlertOwner, remainingRestSeconds, shortenedRest } from './restTimer';
 
 const alert = { sessionId: 'session-a', generation: 'generation-a' };
 const owner = {
@@ -47,5 +47,52 @@ describe('shortening a rest', () => {
     const paused = { ...running, endsAt: 0, pausedRemainingMs: 40_000 };
     expect(shortenedRest(paused, 15, 0)).toEqual({ ...paused, pausedRemainingMs: 25_000 });
     expect(shortenedRest({ ...paused, pausedRemainingMs: 10_000 }, 15, 0)).toBeNull();
+  });
+});
+
+describe('taking over a rest from another device', () => {
+  const quiet = { notifications: false, sound: false, vibration: false, keepAwake: false };
+  const timer = () => {
+    const created = new RestTimer();
+    created.setScope('account-a', 'session-a', quiet);
+    return created;
+  };
+  const inTwoMinutes = () => new Date(Date.now() + 120_000).toISOString();
+
+  it('counts down a newer rest started on the watch', () => {
+    const rest = timer();
+    const deadline = inTwoMinutes();
+    rest.adoptServerRest({ generation: 'watch-1', status: 'running', deadlineUtc: deadline, pausedRemainingMs: null, durationMs: 120_000, originDeviceId: 'watch' });
+    expect(rest.current.generation).toBe('watch-1');
+    expect(rest.current.endsAt).toBe(Date.parse(deadline));
+    expect(rest.current.totalSeconds).toBe(120);
+    rest.skip();
+  });
+
+  it('leaves its own rest and an already ended one alone', () => {
+    const rest = timer();
+    rest.start(90, 'phone-1');
+    const endsAt = rest.current.endsAt;
+    rest.adoptServerRest({ generation: 'phone-1', status: 'running', deadlineUtc: inTwoMinutes(), pausedRemainingMs: null, durationMs: 120_000, originDeviceId: null });
+    expect(rest.current.endsAt).toBe(endsAt);
+    rest.adoptServerRest({ generation: 'watch-old', status: 'running', deadlineUtc: new Date(Date.now() - 1000).toISOString(), pausedRemainingMs: null, durationMs: 60_000, originDeviceId: 'watch' });
+    expect(rest.current.generation).toBe('phone-1');
+    rest.skip();
+  });
+
+  it('ends a rest it took from the server once another device skips it', () => {
+    const rest = timer();
+    rest.adoptServerRest({ generation: 'watch-1', status: 'running', deadlineUtc: inTwoMinutes(), pausedRemainingMs: null, durationMs: 120_000, originDeviceId: 'watch' });
+    rest.adoptServerRest({ generation: null, status: 'idle', deadlineUtc: null, pausedRemainingMs: 0, durationMs: 0, originDeviceId: null });
+    expect(rest.current.endsAt).toBe(0);
+    expect(rest.current.generation).toBe('');
+  });
+
+  it('keeps a local rest the server has never seen when the server reads idle', () => {
+    const rest = timer();
+    rest.start(90, 'phone-unsent');
+    rest.adoptServerRest({ generation: null, status: 'idle', deadlineUtc: null, pausedRemainingMs: 0, durationMs: 0, originDeviceId: null });
+    expect(rest.current.generation).toBe('phone-unsent');
+    rest.skip();
   });
 });
