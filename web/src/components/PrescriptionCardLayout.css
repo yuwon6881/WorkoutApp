@@ -4,7 +4,61 @@
 .prescription-context-row .import-exercise-actions { width: auto; }
 .prescription-context-row .superset-badge { gap: 4px; padding: 0 4px 0 8px; min-height: 44px; }
 .prescription-context-row .superset-unlink-chip-btn { margin-left: 0; width: 36px; height: 44px; min-width: 44px; }
-.import-exercise .import-fields { border: 0; background: transparent; padding: 0; gap: 8px; }
+.import-exercise .import-fields {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  gap: 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  width: 100%;
+}
+.import-library-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
+  flex-wrap: nowrap;
+}
+.import-library-row .import-library-field {
+  flex: 0 1 auto;
+  min-width: 0;
+  margin: 0;
+}
+.import-library-row .import-library-trigger {
+  max-width: 100%;
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.import-library-row .import-library-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+.import-library-row .import-exercise-muscles {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: nowrap;
+  flex-shrink: 0;
+  align-self: center;
+}
+.import-exercise .import-substitutions-field {
+  width: 100%;
+  min-width: 0;
+  margin: 0;
+}
+.import-exercise .substitution-chips-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  width: 100%;
+}
 .import-exercise .import-exercise-notes { border: 0; background: transparent; padding: 0; margin: 0; }
 .import-exercise .import-exercise-notes textarea { min-height: 76px; background: var(--surface); }
 .import-exercise .import-exercise-notes textarea.auto-grow-textarea { max-height: none; overflow-y: hidden; resize: none; }

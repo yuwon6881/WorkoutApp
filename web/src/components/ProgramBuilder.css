@@ -72,8 +72,31 @@
   cursor:pointer;
   transition:color .14s ease,background .14s ease;
 }
-.chip-icon-btn:hover:not(:disabled),.chip-icon-btn[aria-expanded="true"]{color:var(--text);background:var(--surface-hover)}
-.chip-group.active .chip-icon-btn{color:var(--accent)}
+.chip-icon-btn:hover:not(:disabled),
+.chip-icon-btn[aria-expanded="true"],
+.chip-group .chip-icon-btn:hover:not(:disabled),
+.chip-group .chip-icon-btn[aria-expanded="true"],
+.chip-group .ui-menu-trigger.chip-icon-btn:hover:not(:disabled),
+.chip-group .ui-menu-trigger.chip-icon-btn[aria-expanded="true"],
+.chip-group .ui-menu .ui-menu-trigger:hover:not(:disabled),
+.chip-group .ui-menu .ui-menu-trigger[aria-expanded="true"] {
+  color: var(--text);
+  background: transparent !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+}
+.chip-group.active .chip-icon-btn { color: var(--accent); }
+.chip-group.active .chip-icon-btn:hover:not(:disabled),
+.chip-group.active .chip-icon-btn[aria-expanded="true"],
+.chip-group.active .ui-menu-trigger.chip-icon-btn:hover:not(:disabled),
+.chip-group.active .ui-menu-trigger.chip-icon-btn[aria-expanded="true"],
+.chip-group.active .ui-menu .ui-menu-trigger:hover:not(:disabled),
+.chip-group.active .ui-menu .ui-menu-trigger[aria-expanded="true"] {
+  color: var(--text);
+  background: transparent !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+}
 .chip-icon-btn:focus-visible,.chip-add-btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .chip-add-btn{
   display:inline-grid;

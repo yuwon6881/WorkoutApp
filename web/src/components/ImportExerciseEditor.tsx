@@ -236,27 +236,31 @@ export function ExerciseEditor({ exercise, exercises, allDayExercises, remembere
     <div className="import-exercise-body">
       <div className="import-exercise-col import-exercise-details-col">
         <div className="import-fields">
-          <div className="field import-library-field">
-            <Button variant="secondary" className="import-library-trigger" aria-haspopup="dialog" data-import-field="library"
-              disabled={isRestoring || isMapping}
-              aria-label={`Library exercise for ${exercise.sourceName}`} onClick={() => { setMappingError(null); setPickerOpen(true); }}>
-              <Dumbbell size={15} />
-              {selected?.name ?? (exercise.exerciseId ? 'Swap exercise' : 'Map exercise')}
-            </Button>
-          </div>
-          {selected && (
-            <div className="import-exercise-muscles" aria-label={`Target muscles: ${[selected.muscle, ...(selected.secondaryMuscles ?? [])].filter(Boolean).join(', ')}`}>
-              <span className="pill pill-accent">{selected.muscle || 'Full body'}</span>
-              {selected.secondaryMuscles && selected.secondaryMuscles.length > 0 && (
-                <span className="pill pill-muted">{selected.secondaryMuscles[0]}</span>
-              )}
-              {selected.secondaryMuscles && selected.secondaryMuscles.length > 1 && (
-                <span className="pill pill-muted pill-overflow" title={selected.secondaryMuscles.slice(1).join(', ')}>
-                  +{selected.secondaryMuscles.length - 1}
+          <div className="import-library-row">
+            <div className="field import-library-field">
+              <Button variant="secondary" className="import-library-trigger" aria-haspopup="dialog" data-import-field="library"
+                disabled={isRestoring || isMapping}
+                aria-label={`Library exercise for ${exercise.sourceName}`} onClick={() => { setMappingError(null); setPickerOpen(true); }}>
+                <Dumbbell size={15} />
+                <span className="import-library-name">
+                  {selected?.name ?? (exercise.exerciseId ? 'Swap exercise' : 'Map exercise')}
                 </span>
-              )}
+              </Button>
             </div>
-          )}
+            {selected && (
+              <div className="import-exercise-muscles" aria-label={`Target muscles: ${[selected.muscle, ...(selected.secondaryMuscles ?? [])].filter(Boolean).join(', ')}`}>
+                <span className="pill pill-accent">{selected.muscle || 'Full body'}</span>
+                {selected.secondaryMuscles && selected.secondaryMuscles.length > 0 && (
+                  <span className="pill pill-muted">{selected.secondaryMuscles[0]}</span>
+                )}
+                {selected.secondaryMuscles && selected.secondaryMuscles.length > 1 && (
+                  <span className="pill pill-muted pill-overflow" title={selected.secondaryMuscles.slice(1).join(', ')}>
+                    +{selected.secondaryMuscles.length - 1}
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
           <div className="field import-substitutions-field">
             <div className="substitution-chips-wrap">
               {validSubstitutions.length > 0 ? (
