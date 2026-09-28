@@ -30,7 +30,15 @@ public sealed class MutationLock : IAsyncDisposable
         }
         catch { await result.DisposeAsync(); throw; }
     }
-    public async Task Commit(CancellationToken ct) => await transaction!.CommitAsync(ct);
+    public async Task Commit(CancellationToken ct)
+    {
+        await transaction!.CommitAsync(ct);
+        await transaction.DisposeAsync();
+        transaction = null;
+        // Callers build their response after commit. That read may rebuild derived records;
+        // it must not wait on a SQLite gate still owned by this completed transaction.
+        if (local) { local = false; LocalGate.Release(); }
+    }
     public async ValueTask DisposeAsync()
     {
         if (transaction != null) await transaction.DisposeAsync();

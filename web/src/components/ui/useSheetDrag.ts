@@ -1,4 +1,4 @@
-import { useCallback, useRef } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import type { PointerEvent as ReactPointerEvent, RefObject } from 'react';
 import { windowTier } from '../../lib/breakpoints';
 
@@ -18,6 +18,10 @@ function reducedMotion() {
 // the close button does; a shorter drag springs back. Controls inside the handle keep their taps.
 export function useSheetDrag(ref: RefObject<HTMLDialogElement | null>, onDismiss: () => void) {
   const drag = useRef<Drag | null>(null);
+  const frame = useRef(0);
+  const dismissTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const dragOffset = useRef(0);
+  useEffect(() => () => { cancelAnimationFrame(frame.current); clearTimeout(dismissTimer.current); }, []);
 
   const reset = useCallback((element: HTMLDialogElement, animate: boolean) => {
     element.style.transition = animate && !reducedMotion() ? `transform ${SETTLE_MS}ms ease-out` : '';
@@ -49,14 +53,19 @@ export function useSheetDrag(ref: RefObject<HTMLDialogElement | null>, onDismiss
     current.velocity = (event.clientY - current.lastY) / elapsed;
     current.lastY = event.clientY;
     current.lastAt = event.timeStamp;
-    element.style.transition = '';
-    element.style.transform = `translateY(${offset}px)`;
+    dragOffset.current = offset;
+    if (!frame.current) frame.current = requestAnimationFrame(() => {
+      frame.current = 0;
+      element.style.transition = '';
+      element.style.transform = `translateY(${dragOffset.current}px)`;
+    });
   }, [ref]);
 
   const finish = useCallback((event: ReactPointerEvent<HTMLDialogElement>) => {
     const element = ref.current;
     const current = drag.current;
     drag.current = null;
+    cancelAnimationFrame(frame.current); frame.current = 0;
     if (!element || !current || current.pointerId !== event.pointerId || !current.moved) return;
     const offset = Math.max(0, event.clientY - current.startY);
     const dismiss = event.type === 'pointerup' && (offset > Math.min(DISMISS_DISTANCE, element.offsetHeight * 0.3) || current.velocity > DISMISS_VELOCITY);
@@ -64,7 +73,7 @@ export function useSheetDrag(ref: RefObject<HTMLDialogElement | null>, onDismiss
     if (reducedMotion()) { onDismiss(); return; }
     element.style.transition = `transform ${SETTLE_MS}ms ease-in`;
     element.style.transform = 'translateY(100%)';
-    window.setTimeout(onDismiss, SETTLE_MS);
+    dismissTimer.current = setTimeout(onDismiss, SETTLE_MS);
   }, [ref, onDismiss, reset]);
 
   return { onPointerDown, onPointerMove, onPointerUp: finish, onPointerCancel: finish };

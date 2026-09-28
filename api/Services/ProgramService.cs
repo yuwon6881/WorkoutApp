@@ -26,15 +26,15 @@ public record ProgramWeekResetInput(int? Revision, Guid? RunId, int? Week, int? 
 
 public sealed class ProgramService(AppDb db, TemplateService templates, ProgramProgressService progress, ProgramLifecycleService lifecycle)
 {
-    public async Task<List<ProgramSummaryView>> List(CancellationToken ct)
+    public async Task<List<ProgramSummaryView>> List(CancellationToken ct, bool activeOnly = false)
     {
-        var programs = await db.Programs.AsNoTracking().OrderByDescending(p => p.Active).ThenByDescending(p => p.Created).ToListAsync(ct);
+        var programs = await db.Programs.AsNoTracking().Where(p => !activeOnly || p.Active).OrderByDescending(p => p.Active).ThenByDescending(p => p.Created).ToListAsync(ct);
         if (programs.Count == 0) return [];
 
         // Older active programs have no run rows yet. Repair that single slot under the account
         // lock, then build the bootstrap view from persisted run state.
         foreach (var active in programs.Where(program => program.Active)) await lifecycle.EnsureActiveRun(active.Id, ct);
-        programs = await db.Programs.AsNoTracking().OrderByDescending(p => p.Active).ThenByDescending(p => p.Created).ToListAsync(ct);
+        programs = await db.Programs.AsNoTracking().Where(p => !activeOnly || p.Active).OrderByDescending(p => p.Active).ThenByDescending(p => p.Created).ToListAsync(ct);
 
         // The bootstrap used to call Summary once per program, which in turn loaded templates,
         // counts, completion, skips, and phases independently. These bounded set queries keep

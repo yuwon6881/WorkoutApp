@@ -194,3 +194,30 @@ resource names, and how to load the exercise catalog.
 Open an exercise in the library and choose **Edit weights**. Keep the default, set a fixed increment (0 means no load progression), or enter an uneven list of available weights. Settings belong to your account and follow that exercise across programs; they do not edit the shared catalog. Use the same load convention as your logs: per dumbbell, or total barbell/machine load.
 
 **Settings → Weight unit** switches between kg and lb. Exercise settings use that unit and are stored in canonical kilograms. Saved weights are converted when the unit changes, not reinterpreted. Available-weight lists are sorted and deduplicated; manual logging remains free to record the actual load. New workouts and exercise swaps use these settings for progression, including added load and assistance; changing settings leaves existing workout drafts and completed history untouched. Choose **Default** and save to restore the exercise default. Concurrent edits are rejected with a reload action.
+
+## Mobile performance architecture
+
+The web/Android shell uses `/api/bootstrap/shell` for account/preferences, the active workout,
+next workout, active program, navigation counts, and unfinished import summaries. The original
+`/api/bootstrap` and workout mutation response contracts remain available to older clients and Wear.
+Catalog/program/template reads load on demand; account-scoped in-flight reads share a bounded
+three-request pipeline. Committed resource generations retain unchanged resources across refreshes.
+Pending preferences and workout recovery updates take precedence over older shell responses.
+
+PR attribution and completed-history baselines use rebuildable, versioned database read models.
+Ordinary set patches reuse those baselines. A chronological completion can append; a deletion,
+backdated completion, or historical edit rebuilds attribution in bounded source batches. Progress
+uses a daily, generation-keyed durable aggregate and a bounded memory cache; cold rebuilds load
+64 sessions at a time. Neither cache changes the source of truth. History lists use deterministic
+cursor summaries and fetch full exercise/set detail only when expanded.
+
+Elapsed/rest displays tick in their own visible components. Sheet pointer writes and navigation
+indicator geometry updates are coalesced into animation frames. Optional feature CSS loads before
+the shell stylesheet in a stable order, preserving themes and motion values. Prefetching responds
+to navigation intent and warms one likely workout view while idle, respecting constrained connections.
+The offline precache retains workout/recovery dependencies and defers optional import/settings/chart
+assets. PDF page reconstruction runs in a device-local worker with the existing one/two-page memory
+limits; PDF bytes remain on the device. Import polling retains its successful two-second cadence,
+shares in-flight status reads, aborts obsolete watchers, and backs off transport failures.
+
+See [PERFORMANCE.md](PERFORMANCE.md) for local measurements, repeatable checks, and release limits.

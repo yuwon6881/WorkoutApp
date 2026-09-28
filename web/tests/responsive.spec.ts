@@ -181,7 +181,7 @@ for (const theme of ['dark', 'light']) {
     };
     await page.route('**/api/**', async route => {
       const pathname = new URL(route.request().url()).pathname;
-      if (pathname !== '/api/bootstrap' && !pathname.startsWith('/api/workouts')) return route.continue();
+      if (pathname !== '/api/bootstrap/shell' && !pathname.startsWith('/api/workouts')) return route.continue();
       const response = await route.fetch();
       if (!response.ok || !response.headers()['content-type']?.includes('application/json'))
         return route.fulfill({ response });
@@ -189,7 +189,7 @@ for (const theme of ['dark', 'light']) {
       const headers = { ...response.headers() };
       delete headers['content-length'];
       delete headers['content-encoding'];
-      if (pathname === '/api/bootstrap') {
+      if (pathname === '/api/bootstrap/shell') {
         if (typeof payload.activeWorkout === 'object' && payload.activeWorkout !== null)
           payload.activeWorkout = applySummaryFixture(payload.activeWorkout as Record<string, unknown>);
         return route.fulfill({ status: response.status(), headers, json: payload });
@@ -466,9 +466,16 @@ for (const theme of ['dark', 'light'] as const) {
         }
       ]
     });
-    await page.route('**/api/history?*', async route => {
-      const index = Number(new URL(route.request().url()).searchParams.get('page'));
-      await route.fulfill({ json: { page: index, size: 1, total: 2, sessions: [session(`history-polish-${index}`)] } });
+    await page.route('**/api/history/summaries?*', async route => {
+      const index = new URL(route.request().url()).searchParams.has('beforeAt') ? 1 : 0;
+      const full = session(`history-polish-${index}`);
+      await route.fulfill({ json: { total: 2, sessions: [{ ...full, exercises: [] }],
+        nextBeforeAt: index === 0 ? full.finishedAt : null,
+        nextBeforeId: index === 0 ? full.id : null, summaryOnly: true } });
+    });
+    await page.route('**/api/workouts/history-polish-*', async route => {
+      const id = new URL(route.request().url()).pathname.split('/').at(-1)!;
+      await route.fulfill({ json: session(id) });
     });
     await signIn(page);
     await navigate(page, 'Settings');

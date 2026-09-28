@@ -52,6 +52,7 @@ let shellInstalled = false;
 export async function installNativeShell() {
   if (shellInstalled) return;
   shellInstalled = true;
+  await App.addListener('resume', () => window.dispatchEvent(new Event('workout:resume')));
   await App.addListener('backButton', ({ canGoBack }) => {
     if (canGoBack) window.history.back();
     else void App.exitApp();

@@ -44,6 +44,7 @@ export function useImportPipeline({ selected, setSelected, setDraft, onChanged, 
   const [failure, setFailure] = useState<ImportFailure | null>(null);
   const [notice, setNotice] = useState('');
   const running = useRef(false);
+  const idleWaiters = useRef<Array<() => void>>([]);
   /// An import someone cancelled while a pass was still out. Whatever that pass answers belongs to
   /// something the user has already thrown away, so it must not reappear on screen.
   const cancelled = useRef<string | null>(null);
@@ -51,9 +52,10 @@ export function useImportPipeline({ selected, setSelected, setDraft, onChanged, 
   /// retried forever without anyone asking.
   const resumed = useRef(new Set<string>());
   const statusEtags = useRef(new Map<string, string>());
+  const pollAbort = useRef<AbortController | null>(null);
   const uploadAbort = useRef<AbortController | null>(null);
 
-  useEffect(() => () => uploadAbort.current?.abort(), []);
+  useEffect(() => () => { uploadAbort.current?.abort(); pollAbort.current?.abort(); }, []);
   const apply = useCallback((view: ImportView) => {
     if (cancelled.current === view.id) return;
     setSelected(view); setDraft(view.draft);
@@ -76,7 +78,7 @@ export function useImportPipeline({ selected, setSelected, setDraft, onChanged, 
   }, [apply]);
 
   const poll = useCallback(async (current: ImportView): Promise<ImportView> => {
-    const meta = await api.getImportStatusMeta(current.id, statusEtags.current.get(current.id));
+    const meta = await api.getImportStatusMeta(current.id, statusEtags.current.get(current.id), pollAbort.current?.signal);
     if (meta.etag) statusEtags.current.set(current.id, meta.etag);
     if (meta.notModified || !meta.data) return current;
     const status = meta.data;
@@ -90,7 +92,10 @@ export function useImportPipeline({ selected, setSelected, setDraft, onChanged, 
   }, []);
 
   const extractAll = useCallback(async (start: ImportView) => {
+    pollAbort.current?.abort();
+    const controller = new AbortController(); pollAbort.current = controller;
     let current = start;
+    let transportFailures = 0;
     let lastDone = current.chunksDone;
     let lastServerProgress = current.progress?.lastProgressAtUtc ?? null;
     let lastProgressAt = Date.now();
@@ -124,13 +129,16 @@ export function useImportPipeline({ selected, setSelected, setDraft, onChanged, 
       apply(current);
       showProgress(current);
 
-      while (current.status === 'pending' && current.stage !== 'select') {
-        if (cancelled.current === current.id) return;
-        await new Promise(resolve => window.setTimeout(resolve, POLL_INTERVAL_MS));
-        if (cancelled.current === current.id) return;
+      while (!controller.signal.aborted && current.status === 'pending' && current.stage !== 'select') {
+        if (controller.signal.aborted || cancelled.current === current.id) return;
+        await new Promise(resolve => window.setTimeout(resolve, Math.min(16_000, POLL_INTERVAL_MS * 2 ** transportFailures)));
+        if (controller.signal.aborted || cancelled.current === current.id) return;
         try {
           current = await poll(current);
+          transportFailures = 0;
         } catch (error) {
+          if (controller.signal.aborted) return;
+          if (error instanceof ApiError && (error.offline || error.status >= 500) && ++transportFailures <= 4) continue;
           reportFor(current.id, error, 'The import progress could not be loaded. Try again.');
           if (cancelled.current !== current.id) await refresh(current.id);
           return;
@@ -167,6 +175,7 @@ export function useImportPipeline({ selected, setSelected, setDraft, onChanged, 
         }
       }
     } catch (error) {
+      if (controller.signal.aborted) return;
       reportFor(current.id, error, 'That import could not be started. Try again.');
       if (cancelled.current !== current.id) await refresh(current.id);
       return;
@@ -196,7 +205,10 @@ export function useImportPipeline({ selected, setSelected, setDraft, onChanged, 
     running.current = true;
     setFailure(null); setNotice('');
     try { await action(); }
-    finally { running.current = false; setProgress(null); }
+    finally {
+      running.current = false; setProgress(null);
+      for (const resume of idleWaiters.current.splice(0)) resume();
+    }
   }, []);
 
   const upload = useCallback(async (chosen: File) => {
@@ -258,6 +270,7 @@ export function useImportPipeline({ selected, setSelected, setDraft, onChanged, 
   /// the pass in flight: the server finds no row to commit to and the draft never appears.
   const cancel = useCallback(async (view: ImportView) => {
     cancelled.current = view.id;
+    pollAbort.current?.abort();
     resumed.current.delete(view.id);
     setFailure(null); setNotice(''); setProgress(null);
     try {

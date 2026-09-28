@@ -7,7 +7,7 @@ import { exerciseListChanged } from '../lib/workoutDraft';
 import { nextLog, nextUpText } from '../lib/workoutLogging';
 import { useAfterLog } from './useAfterLog';
 import { validateLoggedSet, validateSessionDraft } from '../lib/validation';
-import { remainingRestSeconds, restTimer } from '../lib/restTimer';
+import { restTimer } from '../lib/restTimer';
 import { findNextStep, restAppliesAfter } from '../lib/restRules';
 import {
   clearRecovery, enqueueFinish, enqueueSave, enqueueSetEdits, enqueueTiming, getRecovery,
@@ -56,7 +56,6 @@ export function Workout({
   autoAdvance?: boolean;
 }) {
   const [draft, setDraft] = useState(recovery?.sessionId === session.id ? recovery.draft : session);
-  const [now, setNow] = useState(Date.now());
   const [rest, setRest] = useState(restTimer.current);
   const [picker, setPicker] = useState(false);
   const [confirm, setConfirm] = useState<'finish' | 'discard' | null>(null);
@@ -83,10 +82,6 @@ export function Workout({
     serverSession, onSaved, onRecoveryChange, setDraft, setBusy, setError, setLocalStatus
   });
 
-  useEffect(() => {
-    const timer = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(timer);
-  }, []);
 
   // The timer outlives this component: minimizing does not cancel a rest deadline. Its record is
   // separately scoped to this account and workout by the app shell.
@@ -375,10 +370,6 @@ export function Workout({
   }
 
   const paused = Boolean(draft.pausedAt);
-  const elapsedAt = finishIntentAt ? Date.parse(finishIntentAt) : draft.pausedAt ? Date.parse(draft.pausedAt) : now;
-  const openPauseSeconds = draft.pausedAt ? Math.max(0, Math.floor((elapsedAt - Date.parse(draft.pausedAt)) / 1000)) : 0;
-  const elapsed = Math.max(0, Math.floor((elapsedAt - Date.parse(draft.startedAt)) / 1000) - (draft.pausedSeconds ?? 0) - openPauseSeconds);
-  const remaining = remainingRestSeconds(rest, now);
   const done = completedSets(draft).length;
   const unit = preferences.unit;
 
@@ -444,7 +435,8 @@ export function Workout({
         online={online}
         discardDisabled={busy || !online}
         onDiscard={() => setConfirm('discard')}
-        elapsed={elapsed}
+        session={draft}
+        finishedAt={finishIntentAt}
         done={done}
         planned={plannedSets(draft)}
         viewMode={viewMode}
@@ -464,10 +456,9 @@ export function Workout({
         onChange={change} onEditSet={editSet} onToggleSet={toggle} onSelectExercise={selectExercise}
         onSwap={swapExercise} onRestore={restoreExercise} onRemoveExercise={removeExercise} />
 
-      <WorkoutFooter error={error} remaining={remaining} totalSeconds={rest.totalSeconds}
-        restEndedAt={rest.announced && rest.endsAt > 0 ? rest.endsAt : null} defaultRestSeconds={defaultRestSeconds}
+      <WorkoutFooter error={error} rest={rest} defaultRestSeconds={defaultRestSeconds}
         busy={busy || Boolean(finishIntentAt) || recoveryConflict} restDisabled={paused || Boolean(finishIntentAt) || recoveryConflict}
-        nextUp={remaining > 0 ? nextUpText(draft, activeIndex, unit) : null}
+        nextUp={nextUpText(draft, activeIndex, unit)}
         logAction={logAction}
         celebration={celebration}
         onFinish={() => {

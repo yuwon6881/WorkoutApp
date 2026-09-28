@@ -253,19 +253,28 @@ export function SelectionIndicator({
       indicator.hidden = !selected;
       if (!selected) return;
 
-      indicator.style.width = `${selected.offsetWidth}px`;
-      indicator.style.height = `${selected.offsetHeight}px`;
-      indicator.style.transform = `translate(${selected.offsetLeft}px, ${selected.offsetTop}px)`;
+      const width = selected.offsetWidth;
+      const height = selected.offsetHeight;
+      const left = selected.offsetLeft;
+      const top = selected.offsetTop;
+      indicator.style.width = `${width}px`;
+      indicator.style.height = `${height}px`;
+      indicator.style.transform = `translate(${left}px, ${top}px)`;
     };
 
     measure();
-    const observer = new ResizeObserver(measure);
+    let frame = 0;
+    const scheduleMeasure = () => {
+      if (!frame) frame = requestAnimationFrame(() => { frame = 0; measure(); });
+    };
+    const observer = new ResizeObserver(scheduleMeasure);
     observer.observe(container);
-    window.addEventListener('resize', measure);
+    window.addEventListener('resize', scheduleMeasure);
 
     return () => {
       observer.disconnect();
-      window.removeEventListener('resize', measure);
+      cancelAnimationFrame(frame);
+      window.removeEventListener('resize', scheduleMeasure);
     };
   }, [active]);
 

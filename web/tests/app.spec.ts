@@ -90,7 +90,8 @@ async function clearActiveWorkout(page: Page) {
     if (importsRes.ok) {
       const existingImports = await importsRes.json();
       for (const item of existingImports) {
-        await fetch(`/api/imports/${item.id}/discard`, { method: 'POST', headers });
+        const discardedImport = await fetch(`/api/imports/${item.id}/discard`, { method: 'POST', headers });
+        if (!discardedImport.ok) throw new Error(`Could not discard E2E import: ${discardedImport.status}`);
       }
     }
 
@@ -420,7 +421,7 @@ test('import a PDF program, resolve an unmapped exercise, and accept it', async 
   expect(detailScroll.scrollHeight).toBeGreaterThan(detailScroll.clientHeight);
   await detailBody.evaluate(element => { element.scrollTop = element.scrollHeight; });
   await expect.poll(() => detailBody.evaluate(element => element.scrollTop)).toBeGreaterThan(0);
-  if (testInfo.project.name === 'mobile') {
+  if (testInfo.project.use.isMobile) {
     const firstExercise = dayModal.locator('.import-exercise').first();
     const restTimer = firstExercise.locator('[data-import-field="rest"] .custom-select-trigger');
     const restBounds = await restTimer.evaluate(element => {
@@ -487,7 +488,7 @@ test('import a PDF program, resolve an unmapped exercise, and accept it', async 
   expect(descriptionSizing.overflowY).toBe('hidden');
   expect(descriptionSizing.maxLength).toBe(1000);
   await description.fill('');
-  if (testInfo.project.name === 'mobile') {
+  if (testInfo.project.use.isMobile) {
     const acceptBox = await accept.boundingBox();
     const actionsBox = await draftActions.boundingBox();
     expect(acceptBox).not.toBeNull();
@@ -504,7 +505,7 @@ test('import a PDF program, resolve an unmapped exercise, and accept it', async 
   await expect(mysteryExercise.locator('.import-set-fields:visible [data-import-field]')).toHaveCount(2);
   await expect(mysteryExercise.locator('[data-import-field="rest"]')).toBeVisible();
 
-  if (testInfo.project.name === 'mobile') {
+  if (testInfo.project.use.isMobile) {
     const swipeRow = page.locator('.swipeable-row-mobile.import-set-swipe-row').first();
     const surface = swipeRow.locator('.swipeable-row-surface');
     await surface.scrollIntoViewIfNeeded();
@@ -585,6 +586,7 @@ test('import a PDF program, resolve an unmapped exercise, and accept it', async 
   await expect.poll(() => customCreateRequests).toBe(1);
   await expect.poll(() => mappingAttempts).toBe(2);
   await expect(accept).toBeEnabled({ timeout: 30000 });
+  await expect(accept).toHaveCSS('background-color', 'rgb(230, 180, 80)');
   const activeAcceptColors = await accept.evaluate(element => {
     const probe = document.createElement('span');
     probe.style.color = 'var(--on-accent)';
@@ -738,14 +740,13 @@ test('import a PDF program, resolve an unmapped exercise, and accept it', async 
     return data.programs.find((program: { name: string }) => program.name === programName)?.id ?? null;
   }, programName);
   expect(programId).toBeTruthy();
-  await page.route('**/api/bootstrap', async route => {
+  await page.route('**/api/programs', async route => {
     const response = await route.fetch();
-    const data = await response.json();
-    const program = data.programs.find((item: { id: string }) => item.id === programId);
+    const programs = await response.json();
+    const program = programs.find((item: { id: string }) => item.id === programId);
     if (!program) throw new Error('The imported program disappeared before the active-state preview check.');
     Object.assign(program, { active: true, lifecycleStatus: 'active' });
-    data.activeProgram = program;
-    await route.fulfill({ response, json: data });
+    await route.fulfill({ response, json: programs });
   });
   await page.reload();
   await openTab(page, 'Workouts');
@@ -1043,11 +1044,10 @@ test('overview calendar displays matching markers and details for completed, in-
     });
   });
 
-  await page.route('**/api/bootstrap', async route => {
+  await page.route('**/api/history/summaries*', async route => {
     const response = await route.fetch();
     const json = await response.json();
-    json.history = json.history || { sessions: [] };
-    json.history.sessions = [
+    json.sessions = [
       {
         id: 'activity-completed-today',
         name: 'Evening Bench & Arms',
@@ -1060,7 +1060,7 @@ test('overview calendar displays matching markers and details for completed, in-
         volumeKg: 1000,
         totalReps: 50,
       },
-      ...(json.history.sessions || []),
+      ...(json.sessions || []),
     ];
     await route.fulfill({ response, json });
   });

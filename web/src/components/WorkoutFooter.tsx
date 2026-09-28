@@ -1,6 +1,7 @@
 import { Check, Timer, Trophy } from 'lucide-react';
 import { showClock } from '../lib/training';
-import { restTimer } from '../lib/restTimer';
+import { remainingRestSeconds, restTimer, type RestState } from '../lib/restTimer';
+import { useVisibleClock } from '../lib/useVisibleClock';
 import { Button } from './ui/Button';
 
 export type LogAction = { label: string; detail: string; ariaLabel: string; onLog: () => void };
@@ -10,9 +11,7 @@ export type LogAction = { label: string; detail: string; ariaLabel: string; onLo
 /// for every set, and Finish once there is something to save.
 export function WorkoutFooter({
   error,
-  remaining,
-  totalSeconds,
-  restEndedAt,
+  rest,
   defaultRestSeconds,
   busy,
   restDisabled = false,
@@ -22,9 +21,7 @@ export function WorkoutFooter({
   onFinish
 }: {
   error: string;
-  remaining: number;
-  totalSeconds: number;
-  restEndedAt: number | null;
+  rest: RestState;
   defaultRestSeconds?: number | null;
   busy: boolean;
   restDisabled?: boolean;
@@ -33,6 +30,10 @@ export function WorkoutFooter({
   celebration?: string;
   onFinish: () => void;
 }) {
+  const now = useVisibleClock(rest.endsAt > Date.now());
+  const remaining = remainingRestSeconds(rest, now);
+  const totalSeconds = rest.totalSeconds;
+  const restEndedAt = rest.announced && rest.endsAt > 0 ? rest.endsAt : null;
   const defaultRest = defaultRestSeconds && defaultRestSeconds > 0 ? defaultRestSeconds : 90;
   const resting = remaining > 0;
   const restAdjustDisabled = busy || restDisabled;

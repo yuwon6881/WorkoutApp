@@ -35,14 +35,13 @@ public sealed class NutritionContextService(AppDb db, IHttpClientFactory clients
         {
             try
             {
-                // Token renewal has its own ten-second bound. A short peer-data deadline must not
-                // cancel the durable connection's server-to-server token exchange.
-                var token = peerTokens is null ? null
-                    : await peerTokens.AccessToken("nutrition", "nutrition.training_context.read", ct);
-                if (peerTokens is not null && string.IsNullOrWhiteSpace(token))
-                    throw new InvalidOperationException("Nutrition access is not available.");
+                // The user-visible bound covers optional token acquisition as well as the peer read.
                 using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
                 timeout.CancelAfter(deadline ?? StartDeadline);
+                var token = peerTokens is null ? null
+                    : await peerTokens.AccessToken("nutrition", "nutrition.training_context.read", timeout.Token);
+                if (peerTokens is not null && string.IsNullOrWhiteSpace(token))
+                    throw new InvalidOperationException("Nutrition access is not available.");
                 using var request = new HttpRequestMessage(HttpMethod.Get, url);
                 if (!string.IsNullOrWhiteSpace(token)) request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
                 var subject = await db.Users.AsNoTracking().Where(u => u.Id == db.CurrentUser).Select(u => u.IdentitySubject).SingleOrDefaultAsync(ct);

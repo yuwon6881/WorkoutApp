@@ -44,15 +44,20 @@ internal static class WorkoutRepPrBuilder
         return new(loadModel, resistanceMode, canonicalWeight.ToString("0.####", CultureInfo.InvariantCulture), canonicalWeight);
     }
 
-    public static WorkoutRepPrResult Build(IEnumerable<WorkoutRepExposure> exposures)
+    public static WorkoutRepPrResult Build(IEnumerable<WorkoutRepExposure> exposures, IReadOnlyList<WorkoutRepBaseline>? baseline = null)
     {
         var exercises = new Dictionary<Guid, (bool IsPr, string? Kind, int? Reps)>();
         var sets = new Dictionary<Guid, (bool IsPr, string? Kind, int? Reps)>();
         var sessionCounts = new Dictionary<Guid, int>();
         var running = new Dictionary<((Guid, string) Exercise, string LoadModel, string ResistanceMode, string Load), int>();
 
+        foreach (var item in baseline ?? [])
+            foreach (var record in item.Records)
+                if (LoadKey(record.LoadModel, record.ResistanceMode, record.LoadKg, record.LoadKg) is { } load)
+                    running[((item.ExerciseId, item.Name), load.LoadModel, load.ResistanceMode, load.Value)] = record.Reps;
+
         var sessions = exposures.GroupBy(x => new { x.SessionId, x.FinishedAt, x.StartedAt })
-            .OrderBy(x => x.Key.FinishedAt).ThenBy(x => x.Key.StartedAt);
+            .OrderBy(x => x.Key.FinishedAt).ThenBy(x => x.Key.StartedAt).ThenBy(x => x.Key.SessionId);
         foreach (var session in sessions)
         {
             var sessionCount = 0;

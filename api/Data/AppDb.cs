@@ -7,6 +7,8 @@ public sealed class AppDb(DbContextOptions<AppDb> options) : DbContext(options)
 {
     public Guid? CurrentUser { get; set; }
     public bool MaintenanceAccess { get; set; }
+    public DbSet<ResourceGeneration> ResourceGenerations => Set<ResourceGeneration>();
+    public DbSet<TrainingReadModel> TrainingReadModels => Set<TrainingReadModel>();
     public DbSet<AppUser> Users => Set<AppUser>();
     public DbSet<AuthSession> Sessions => Set<AuthSession>();
     public DbSet<Exercise> Exercises => Set<Exercise>();
@@ -46,6 +48,12 @@ public sealed class AppDb(DbContextOptions<AppDb> options) : DbContext(options)
 
     protected override void OnModelCreating(ModelBuilder m)
     {
+        m.Entity<ResourceGeneration>().HasKey(x => x.UserId);
+        m.Entity<ResourceGeneration>().HasQueryFilter(x => x.UserId == CurrentUser);
+        m.Entity<ResourceGeneration>().HasOne<AppUser>().WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
+        m.Entity<TrainingReadModel>().HasKey(x => new { x.UserId, x.Kind, x.SourceId });
+        m.Entity<TrainingReadModel>().HasQueryFilter(x => x.UserId == CurrentUser);
+        m.Entity<TrainingReadModel>().HasOne<AppUser>().WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
         m.Entity<AppUser>().Property(x => x.DisplayName).HasMaxLength(120);
         m.Entity<AppUser>().Property(x => x.Unit).HasDefaultValue("kg");
         m.Entity<AppUser>().Property(x => x.Theme).HasDefaultValue("dark");
@@ -225,7 +233,7 @@ public sealed class AppDb(DbContextOptions<AppDb> options) : DbContext(options)
         m.Entity<T>().HasOne<AppUser>().WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
     }
 
-    public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+    public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {
         foreach (var entry in ChangeTracker.Entries<OwnedRecord>().Where(e => e.State is EntityState.Added or EntityState.Modified or EntityState.Deleted))
         {
@@ -247,6 +255,18 @@ public sealed class AppDb(DbContextOptions<AppDb> options) : DbContext(options)
             if (!MaintenanceAccess) throw new InvalidOperationException("The exercise catalog is read-only.");
         foreach (var entry in ChangeTracker.Entries<ExerciseAlias>().Where(e => e.State != EntityState.Unchanged))
             if (!MaintenanceAccess) throw new InvalidOperationException("The exercise catalog is read-only.");
-        return base.SaveChangesAsync(cancellationToken);
+        foreach (var entry in ChangeTracker.Entries<TrainingReadModel>().Where(e => e.State is EntityState.Added or EntityState.Modified or EntityState.Deleted))
+            if (!MaintenanceAccess && (CurrentUser == null || entry.Entity.UserId != CurrentUser))
+                throw new InvalidOperationException("Read model ownership violation.");
+        foreach (var entry in ChangeTracker.Entries<ResourceGeneration>().Where(e => e.State is EntityState.Added or EntityState.Modified or EntityState.Deleted))
+            if (!MaintenanceAccess && (CurrentUser == null || entry.Entity.UserId != CurrentUser))
+                throw new InvalidOperationException("Generation ownership violation.");
+        var generations = await ResourceGenerationWriter.Changes(this, cancellationToken);
+        await using var transaction = generations.Count > 0 && Database.CurrentTransaction == null
+            ? await Database.BeginTransactionAsync(cancellationToken) : null;
+        var saved = await base.SaveChangesAsync(cancellationToken);
+        foreach (var generation in generations) await ResourceGenerationWriter.Write(this, generation, cancellationToken);
+        if (transaction != null) await transaction.CommitAsync(cancellationToken);
+        return saved;
     }
 }

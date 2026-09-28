@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
 import { ArrowRight, CalendarDays, Check, Dumbbell, Play } from 'lucide-react';
 import type { Bootstrap, ProgressSummary, Session } from '../types';
 import { ApiError, api } from '../lib/api';
@@ -6,7 +6,7 @@ import { nextWorkout } from '../lib/nextWorkout';
 import { Button } from './ui/Button';
 import { TrainingCalendar } from './TrainingCalendar';
 import { BodyweightRecords, ProgressStats } from './ProgressPanels';
-import { WorkoutHistory } from './WorkoutHistory';
+const WorkoutHistory = lazy(() => import('./WorkoutHistory').then(module => ({ default: module.WorkoutHistory })));
 import './Dashboard.css';
 
 interface DashboardProps {
@@ -36,6 +36,7 @@ export function Dashboard({
   const [progressRetry, setProgressRetry] = useState(0);
 
   useEffect(() => {
+    if (data.progress && progressRetry === 0) { setProgress(data.progress); return; }
     let cancelled = false;
     const controller = new AbortController();
     setProgressError('');
@@ -53,7 +54,7 @@ export function Dashboard({
       cancelled = true;
       controller.abort();
     };
-  }, [progressRetry]);
+  }, [progressRetry, data.progress, data.history]);
 
   const program = data.activeProgram;
   const next = nextWorkout(data);
@@ -139,8 +140,8 @@ export function Dashboard({
                     </span>
                   );
                 }
-                const savedRoutines = data.templates.length;
-                const savedPrograms = data.programs.length;
+                const savedRoutines = data.navigationCounts?.templates ?? data.templates.length;
+                const savedPrograms = data.navigationCounts?.programs ?? data.programs.length;
                 return (
                   <>
                     <span>
@@ -206,13 +207,17 @@ export function Dashboard({
 
       <BodyweightRecords progress={progress} unit={unit} />
 
+      <Suspense fallback={<div className="panel"><div className="skeleton history-row-skeleton" aria-label="Loading workout history" /></div>}>
       <WorkoutHistory
-        initial={data.history}
+        initial={data.historyDeferred ? undefined : data.history}
+        accountId={data.account.id}
+        refreshKey={data.history}
         unit={unit}
         onSession={onSession}
         onStart={onProgram}
         onExercise={onExercise}
       />
+      </Suspense>
     </>
   );
 }

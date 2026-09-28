@@ -1,5 +1,7 @@
 import type { ExerciseLoadSettings } from './exerciseLoads';
 import type { PdfExtraction } from './pdfText';
+import { sharedReads } from './readCoordinator';
+import type { Exercise, HistorySummaryPage, ShellBootstrap } from '../types';
 import type { Bootstrap, CustomExerciseCreated, DraftWorkout, ExerciseClearPreview, ExerciseInsight, HistoryPage, ImportDraft, ImportStatusView, ImportView, MuscleBalanceRange, MuscleBalanceView, Preferences, ProgressSummary, Program, ProgramDayActionInput, ProgramEditorDocument, ProgramSummary, ProgramWeekResetInput, Session, Template, SubstitutionCandidate, TemplateSubstitutionResult, WatchDevice, WorkoutActivityItem } from '../types';
 
 export class ApiError extends Error {
@@ -12,6 +14,11 @@ export class ApiError extends Error {
 }
 
 async function call<T>(path: string, method = 'GET', body?: unknown, signal?: AbortSignal, extraHeaders?: Record<string, string>): Promise<T> {
+  if (method === 'GET') return sharedReads.run(path, signal, sharedSignal => request<T>(path, method, body, sharedSignal, extraHeaders));
+  return request<T>(path, method, body, signal, extraHeaders);
+}
+
+async function request<T>(path: string, method: string, body?: unknown, signal?: AbortSignal, extraHeaders?: Record<string, string>): Promise<T> {
   let response: Response;
   try {
     response = await fetch(path, {
@@ -25,7 +32,8 @@ async function call<T>(path: string, method = 'GET', body?: unknown, signal?: Ab
       },
       body: body === undefined ? undefined : body instanceof FormData ? body : body instanceof Uint8Array ? body as BodyInit : JSON.stringify(body)
     });
-  } catch {
+  } catch (error) {
+    if (signal?.aborted) throw error;
     throw new ApiError('No connection to the server. Your workout needs a connection to save.', 0);
   }
   if (response.status === 204) return undefined as T;
@@ -36,6 +44,13 @@ async function call<T>(path: string, method = 'GET', body?: unknown, signal?: Ab
 }
 
 async function callWithMeta<T>(path: string, method = 'GET', body?: unknown, signal?: AbortSignal,
+  extraHeaders?: Record<string, string>): Promise<{ data: T | null; notModified: boolean; etag: string | null }> {
+  if (method === 'GET') return sharedReads.run(path + ':' + (extraHeaders?.['If-None-Match'] ?? ''), signal,
+    sharedSignal => requestWithMeta<T>(path, method, body, sharedSignal, extraHeaders));
+  return requestWithMeta<T>(path, method, body, signal, extraHeaders);
+}
+
+async function requestWithMeta<T>(path: string, method: string, body?: unknown, signal?: AbortSignal,
   extraHeaders?: Record<string, string>): Promise<{ data: T | null; notModified: boolean; etag: string | null }> {
   let response: Response;
   try {
@@ -82,6 +97,10 @@ export const api = {
   revokeWatchDevice: (id: string) => call<void>(`/api/watch/devices/${encodeURIComponent(id)}`, 'DELETE'),
 
   bootstrap: (signal?: AbortSignal) => call<Bootstrap>('/api/bootstrap', 'GET', undefined, signal),
+  shell: (signal?: AbortSignal) => call<ShellBootstrap>('/api/bootstrap/shell', 'GET', undefined, signal),
+  exercises: (signal?: AbortSignal) => call<Exercise[]>('/api/exercises', 'GET', undefined, signal),
+  historySummaries: (beforeAt?: string | null, beforeId?: string | null, signal?: AbortSignal) =>
+    call<HistorySummaryPage>(`/api/history/summaries?size=20${beforeAt && beforeId ? `&beforeAt=${encodeURIComponent(beforeAt)}&beforeId=${encodeURIComponent(beforeId)}` : ''}`, 'GET', undefined, signal),
   activity: (from: string, to: string, timeZoneOrSignal?: string | AbortSignal, signal?: AbortSignal) => {
     const timeZone = typeof timeZoneOrSignal === 'string' ? timeZoneOrSignal : Intl.DateTimeFormat().resolvedOptions().timeZone;
     const sig = timeZoneOrSignal instanceof AbortSignal ? timeZoneOrSignal : signal;
@@ -133,7 +152,7 @@ export const api = {
   deleteProgram: (id: string) => call<void>(`/api/programs/${id}`, 'DELETE'),
 
   activeWorkout: () => call<Session | null>('/api/workouts/active'),
-  getWorkout: (id: string) => call<Session>(`/api/workouts/${id}`),
+  getWorkout: (id: string, signal?: AbortSignal) => call<Session>(`/api/workouts/${id}`, 'GET', undefined, signal),
   startWorkout: (templateId: string | null, name?: string) => call<Session>('/api/workouts', 'POST', { templateId, name }),
   saveWorkout: (id: string, input: unknown) => call<Session>(`/api/workouts/${id}`, 'PUT', input),
   patchWorkoutSet: (sessionId: string, setId: string, input: { revision: number; mutationId: string; weightKg?: number | null; reps?: number | null; rpe?: number | null; rir?: string | null; done?: boolean; warmup?: boolean; resistanceMode?: string }) => call<Session>(`/api/workouts/${sessionId}/sets/${setId}`, 'PATCH', input),

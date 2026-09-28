@@ -18,7 +18,7 @@ public static class WorkoutViewBuilder
         var exercisesBySession = exercises.GroupBy(e => e.SessionId).ToDictionary(g => g.Key, g => g.ToList());
         var setsByExercise = sets.GroupBy(s => s.SessionExerciseId).ToDictionary(g => g.Key, g => g.ToList());
 
-        var (exercisePrs, setPrs, sessionPrCounts, bests, repBests) = await ComputePrs(db, sessions, ct);
+        var (exercisePrs, setPrs, sessionPrCounts, bests, repBests) = await WorkoutPrReadService.Get(db, sessions, ct);
 
         return sessions.ToDictionary(session => session.Id, session => BuildView(session,
             exercisesBySession.GetValueOrDefault(session.Id) ?? [], setsByExercise, exercisePrs, setPrs,
@@ -33,22 +33,25 @@ public static class WorkoutViewBuilder
         WorkoutRepPrResult RepBests)> ComputePrs(
         AppDb db,
         IReadOnlyList<WorkoutSession> requestedSessions,
-        CancellationToken ct)
+        CancellationToken ct, WorkoutPrBaseline? baseline = null)
     {
         var exercisePrs = new Dictionary<Guid, (bool IsPr, double? PrE1rmKg, string? PrKind, int? PrReps)>();
         var setPrs = new Dictionary<Guid, (bool IsPr, double? Estimated1RmKg, string? PrKind, int? PrReps)>();
         var sessionPrCounts = new Dictionary<Guid, int>();
 
         var user = db.CurrentUser;
-        var runningBest = new Dictionary<(Guid, string), double>();
+        var runningBest = baseline?.Strength.ToDictionary(x => (x.ExerciseId, x.Name), x => x.Value) ?? new Dictionary<(Guid, string), double>();
         var emptyRepBests = WorkoutRepPrBuilder.Build([]);
         if (user == null || requestedSessions.Count == 0)
             return (exercisePrs, setPrs, sessionPrCounts, runningBest, emptyRepBests);
 
+        var requestedIds = requestedSessions.Select(x => x.Id).ToList();
+        var useBatch = baseline != null;
         var allDoneSets = await (from s in db.Sets.AsNoTracking()
                                  join e in db.SessionExercises.AsNoTracking() on s.SessionExerciseId equals e.Id
                                  join w in db.Workouts.AsNoTracking() on e.SessionId equals w.Id
                                  where w.UserId == user && w.FinishedAt != null && s.Done && !s.Warmup
+                                     && (!useBatch || requestedIds.Contains(w.Id))
                                  select new
                                  {
                                      SessionId = w.Id,
@@ -69,11 +72,12 @@ public static class WorkoutViewBuilder
 
         var repBests = WorkoutRepPrBuilder.Build(allDoneSets.Select(x => new WorkoutRepExposure(
             x.SessionId, x.FinishedAt!.Value, x.StartedAt, PrKey(x.ExerciseId, x.NameSnapshot), x.SessionExerciseId,
-            x.SetId, x.Position, x.LoadModel, x.ResistanceMode, x.WeightKg, x.SystemLoadKg, x.Reps)));
+            x.SetId, x.Position, x.LoadModel, x.ResistanceMode, x.WeightKg, x.SystemLoadKg, x.Reps)), baseline?.Reps);
         var sessionsChronological = allDoneSets
             .GroupBy(x => new { x.SessionId, x.FinishedAt, x.StartedAt })
             .OrderBy(g => g.Key.FinishedAt)
             .ThenBy(g => g.Key.StartedAt)
+            .ThenBy(g => g.Key.SessionId)
             .ToList();
 
         foreach (var sessionGroup in sessionsChronological)

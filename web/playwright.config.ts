@@ -8,7 +8,7 @@ const webPort = process.env.WORKOUT_TEST_WEB_PORT || '5182';
 export default defineConfig({
   testDir: './tests', fullyParallel: false, workers: 1, timeout: 120000,
   outputDir: process.env.WORKOUT_TEST_RESULTS_DIRECTORY || 'test-results',
-  use: { baseURL: process.env.WORKOUT_BASE_URL || `http://localhost:${webPort}`, headless: true, channel: 'chrome', reducedMotion: 'reduce' },
+  use: { baseURL: process.env.WORKOUT_BASE_URL || `http://localhost:${webPort}`, headless: true, trace: 'retain-on-failure', channel: 'chrome', reducedMotion: 'reduce' },
   projects: [
     { name: 'setup', testMatch: 'auth.setup.ts' },
     { name: 'auth-view', testMatch: 'auth.spec.ts', use: { ...devices['Desktop Chrome'] } },

@@ -1,10 +1,8 @@
-// Every view's stylesheet loads with the shell, ahead of index.css (main.tsx imports App first), as
-// it did before views were split into lazy chunks. index.css and layout.css override some of
-// these rules, so a view's CSS arriving later with its chunk would flip the cascade.
-import.meta.glob('./components/**/*.css', { eager: true });
+// First-screen styles stay eager. Optional feature CSS loads before the shell stylesheet through
+// featureCss, so navigating later cannot invert the existing cascade.
 import { Suspense, useEffect, useRef, useState } from 'react';
 import { AlertTriangle, BicepsFlexed, CheckCircle2, Cloud, Dumbbell, LayoutDashboard, Library, Loader2, Plus, RefreshCw, Settings, WifiOff } from 'lucide-react';
-import type { Exercise, Session, Template } from './types';
+import type { AppResource, Exercise, Session, Template } from './types';
 import { ApiError, api } from './lib/api';
 import { useApp } from './app/useApp';
 import { useShellRestTimer } from './app/useShellRestTimer';
@@ -21,14 +19,12 @@ import { getRecovery, hasUnresolvedRecovery, sameWorkoutEdits, startRecovery } f
 import { Button } from './components/ui/Button';
 import { MotionScene, SelectionIndicator } from './components/ui/Motion';
 import './components/BottomNav.css';
-import { Auth } from './components/Auth';
 import { Dashboard } from './components/Dashboard';
-import { clearWorkoutHistoryCache } from './components/WorkoutHistory';
 import { ImportProgressPill } from './components/ImportProgressPill';
 import { useImportWatch } from './components/useImportWatch';
 import { AppLoading } from './components/AppLoading';
 import { ViewSkeleton } from './components/ViewSkeleton';
-import { ExerciseDetailModal, ExerciseLibrary, ImportReview, MuscleBalanceView, Programs, SessionDetail, SettingsView, StartPreview, Workout, prefetchViews } from './app/lazyViews';
+import { Auth, ExerciseDetailModal, ExerciseLibrary, ImportReview, MuscleBalanceView, Programs, SessionDetail, SettingsView, StartPreview, Workout, prefetchView, prefetchViews } from './app/lazyViews';
 import { ResumeWorkoutButton } from './components/ResumeWorkoutButton';
 import { InstallAppCard } from './components/InstallAppCard';
 import {applyTheme, initialTheme, rememberTheme} from './lib/theme';
@@ -53,9 +49,16 @@ export default function App() {
   // Offline has its own banner, so the top bar only reports saves while connected.
   const saveIndicator = useSaveIndicator(status);
   // Once the first screen has data, the other views' code is fetched while the app is idle.
-  useEffect(() => { if (data) prefetchViews(); }, [Boolean(data)]);
+  useEffect(() => { if (data) return prefetchViews(); }, [Boolean(data)]);
   const showSaveStatus = online && saveIndicator !== 'hidden';
   const [training, setTraining] = useState(false);
+  const neededResources: AppResource[] = tab === 'program' ? ['catalog', 'programs', 'templates']
+    : tab === 'exercises' || tab === 'import' || training ? ['catalog'] : [];
+  const resourcesReady = neededResources.every(resource => (data?.resources?.[resource] || data?.loadedResources?.[resource]));
+  useEffect(() => {
+    if (data && neededResources.some(resource => !data.resources?.[resource])) void app.ensureResources(neededResources);
+  }, [tab, data?.account.id, data?.resources, resourcesReady, training]);
+
   // A browser tab already has its own pull-to-refresh; the installed and Android apps do not.
   const pullToRefresh = usePullToRefresh(app.reload, useWindowTier() === 'compact' && isStandalone() && !training && online);
   const [reviewRecovery, setReviewRecovery] = useState(false);
@@ -126,7 +129,7 @@ export default function App() {
     else setToast('No workout is queued yet. Choose one from Workouts.');
   }, [data?.account.id, loading]);
 
-  if (signedOut) return <Auth />;
+  if (signedOut) return <Suspense fallback={<AppLoading />}><Auth /></Suspense>;
 
   if (loading && !data) return <AppLoading />;
 
@@ -278,19 +281,21 @@ export default function App() {
         {actionError && <div className="error-banner" role="alert">{actionError}</div>}
         {tab === 'overview' && <InstallAppCard />}
 
+        {app.resourceError && <div className="error-banner" role="alert">{app.resourceError}<Button variant="secondary" onClick={() => void app.ensureResources(neededResources)}>Retry</Button></div>}
         <MotionScene sceneKey={tab}>
         <Suspense fallback={<ViewSkeleton label={NAV.find(item => item.id === tab)?.label ?? (tab === 'import' ? 'Import' : 'Settings')} />}>
         {tab === 'overview' && <Dashboard data={data} onStart={start} onQuickStart={quickStart} onProgram={() => setTab('program')}
             onImport={openImport} onSession={setDetail} onResume={() => setTraining(true)} onChanged={app.reload}
             onExercise={id => { void openExercise(id); }} />}
-        {tab === 'program' && <Programs data={data} exercises={data.exercises} onStart={start} onImport={openImport} onChanged={app.reload} />}
-        {tab === 'import' && <ImportReview exercises={data.exercises} imports={data.imports} remaining={data.aiImportsRemaining}
+        {!resourcesReady && <ViewSkeleton label={NAV.find(item => item.id === tab)?.label ?? 'Loading'} />}
+        {resourcesReady && tab === 'program' && <Programs data={data} exercises={data.exercises} onStart={start} onImport={openImport} onChanged={app.reload} />}
+        {resourcesReady && tab === 'import' && <ImportReview exercises={data.exercises} imports={data.imports} remaining={data.aiImportsRemaining}
           onBack={() => setTab('program')} onChanged={app.reload} notify={setToast} />}
         {tab === 'body' && <MuscleBalanceView timeZone={Intl.DateTimeFormat().resolvedOptions().timeZone} />}
-        {tab === 'exercises' && <ExerciseLibrary exercises={data.exercises} onOpen={setExerciseDetail} onChanged={app.reload} />}
+        {resourcesReady && tab === 'exercises' && <ExerciseLibrary exercises={data.exercises} onOpen={setExerciseDetail} onChanged={app.reload} />}
         {tab === 'settings' && <SettingsView account={data.account} preferences={data.preferences} devicePreferences={app.devicePreferences}
           version={__APP_VERSION__}
-          onDevicePreferences={app.setDevicePreferences} onPreferences={app.savePreferences} notify={setToast} onSignOut={async () => { clearWorkoutHistoryCache(); await app.signOut(); }} />}
+          onDevicePreferences={app.setDevicePreferences} onPreferences={app.savePreferences} notify={setToast} onSignOut={async () => { await app.signOut(); }} />}
         </Suspense>
         </MotionScene>
       </main>
@@ -303,6 +308,8 @@ export default function App() {
           <Button
             key={item.id}
             data-selection-key={item.id}
+            onPointerEnter={() => prefetchView(item.id === 'program' ? 'programs' : item.id === 'body' ? 'muscles' : item.id === 'exercises' ? 'exercises' : 'workout')}
+            onFocus={() => prefetchView(item.id === 'program' ? 'programs' : item.id === 'body' ? 'muscles' : item.id === 'exercises' ? 'exercises' : 'workout')}
             variant="tertiary"
             className={`bottom-nav-item ${tab === item.id ? 'selected' : ''}`}
             aria-current={tab === item.id ? 'page' : undefined}
@@ -332,7 +339,7 @@ export default function App() {
     {preview && <StartPreview template={preview} busy={starting} onCancel={() => setPreview(null)} onConfirm={() => void confirmStart()} />}
     {detail && <SessionDetail session={detail} preferences={data.preferences} exercises={data.exercises} justFinished={detail.id === finishedId}
       onClose={() => { setDetail(null); setFinishedId(null); }} onDeleted={app.reload} />}
-    {exerciseDetail && <ExerciseDetailModal exercise={exerciseDetail} unit={data.preferences.unit} onClose={() => setExerciseDetail(null)} onChanged={async () => { clearWorkoutHistoryCache(); await app.reload(); }}
+    {exerciseDetail && <ExerciseDetailModal exercise={exerciseDetail} unit={data.preferences.unit} onClose={() => setExerciseDetail(null)} onChanged={async () => { await app.reload(); }}
       onSession={session => { setExerciseDetail(null); setDetail(session); }} />}
     {appUpdate.ready && !training && !workoutSession?.active && <div className="update-banner" role="status">
       <span>A new version of Workout is ready.</span>

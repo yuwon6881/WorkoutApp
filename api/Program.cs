@@ -194,7 +194,7 @@ app.Use(async(http,next)=>
 });
 app.UseRateLimiter();
 app.UseDefaultFiles();app.UseStaticFiles(new StaticFileOptions { OnPrepareResponse=c=> { if(c.File.Name=="sw.js"||c.File.Name=="index.html") c.Context.Response.Headers.CacheControl="no-cache"; } });
-app.MapAuth();app.MapCentralAuth();app.MapBootstrap();app.MapRevisions();app.MapCatalog();app.MapTemplates();app.MapPrograms();app.MapProgramEditor();app.MapWorkouts();app.MapImports();app.MapIntegrations();app.MapGoogleHealth();app.MapRestAlerts();app.MapWatch();
+app.MapAuth();app.MapCentralAuth();app.MapBootstrap();app.MapPerformanceReads();app.MapRevisions();app.MapCatalog();app.MapTemplates();app.MapPrograms();app.MapProgramEditor();app.MapWorkouts();app.MapImports();app.MapIntegrations();app.MapGoogleHealth();app.MapRestAlerts();app.MapWatch();
 app.MapGet("/health",()=>new { status="ok" });
 app.MapFallback(async http=>
 {
@@ -226,5 +226,10 @@ await using(var scope=app.Services.CreateAsyncScope())
     }
 }
 if(args.Contains("--migrate-only")) return;
+if(args.Contains("--backfill-read-models"))
+{
+    await ReadModelMaintenance.Backfill(app.Services, CancellationToken.None);
+    return;
+}
 app.Run();
 public partial class Program;

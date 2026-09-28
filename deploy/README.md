@@ -273,3 +273,21 @@ not a restore format. Use `pg_dump --format=custom --no-owner` against the direc
 with credentials injected securely, store the result outside Neon, and restore into an isolated
 empty database with `pg_restore --no-owner` before trusting it. Neon time-travel retention is
 finite and does not replace these backups.
+
+## Rebuildable training read models
+
+The additive `PerformanceReadModels` migration creates account resource generations and disposable
+PR/progress read models. Existing accounts have a correct on-demand fallback; no full-account
+backfill runs during web-service startup. Before a release, optionally run the maintenance command
+against the intended database using the existing environment/secrets:
+
+```powershell
+dotnet run --project api/Workout.Api.csproj -- --backfill-read-models
+```
+
+It visits accounts in batches of 20 and processes PR/progress sources in batches of 64 sessions.
+Only a complete account generation is published. Stop/restart is safe; source training records are
+unchanged. This command acquires the same account mutation lock while rebuilding, so schedule
+migration/backfill separately from interactive peak use. Do not add a keep-alive scheduler or
+always-on instance for caches. Hosting tiers, instance limits, request-time billing, model selection,
+and active-import polling cadence are unchanged by this performance implementation.

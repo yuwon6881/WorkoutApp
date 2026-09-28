@@ -18,3 +18,7 @@ Source review: 2026-09-16, including substantial pre-existing uncommitted UI/imp
 3. Run the checks in `CLAUDE.md`, including `test:visual` and `test:responsive` for shared UI changes. Keep test databases disposable and AI mocked. This plan does not implement, commit, or deploy those changes.
 
 The app already has semantic theme tokens, shared modal/motion/skeleton components, application validation, reduced-motion handling, and a broad responsive suite. Preserve these foundations. No browser, live provider, production, or import-dispatch verification was performed for this documentation review.
+
+## Mobile performance follow-up
+
+The implemented September 2026 changes and measured evidence are documented in [PERFORMANCE.md](PERFORMANCE.md). Remaining work includes large-list/editor virtualization and render profiling, physical Android/Wear measurements, PostgreSQL query-plan review, complete journey memory/lock metrics, and deployed latency/cost verification. Preserve visual effects, training semantics, recovery durability, existing infrastructure limits, and provider configuration while completing those checks.

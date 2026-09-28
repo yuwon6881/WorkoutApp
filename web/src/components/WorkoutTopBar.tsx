@@ -1,5 +1,6 @@
-import { Check, ChevronDown, Clock3, Cloud, CloudOff, LayoutGrid, Maximize2, Pause, Play, Trash2 } from 'lucide-react';
-import { showDuration } from '../lib/training';
+import { Check, ChevronDown, Cloud, CloudOff, LayoutGrid, Maximize2, Pause, Play, Trash2 } from 'lucide-react';
+import type { Session } from '../types';
+import { WorkoutElapsed } from './WorkoutElapsed';
 import { shortSyncStatus } from '../lib/workoutSyncStatus';
 import { Button } from './ui/Button';
 import { MenuButton, MenuItem } from './ui/MenuButton';
@@ -9,7 +10,8 @@ import { MenuButton, MenuItem } from './ui/MenuButton';
 /// full sentence read to assistive technology, so it never takes a line of its own.
 export function WorkoutTopBar({
   name,
-  elapsed,
+  session,
+  finishedAt,
   done,
   planned,
   viewMode,
@@ -24,7 +26,8 @@ export function WorkoutTopBar({
   onDiscard
 }: {
   name: string;
-  elapsed: number;
+  session: Pick<Session, 'startedAt' | 'pausedAt' | 'pausedSeconds'>;
+  finishedAt: string | null;
   done: number;
   planned: number;
   viewMode: 'focus' | 'all';
@@ -48,10 +51,7 @@ export function WorkoutTopBar({
       <div className="workout-top-summary">
         <h2 className="workout-top-title">{name}</h2>
         <div className="workout-top-meta">
-          <span className="workout-elapsed-clock" role="timer" aria-label={`Active time ${showDuration(elapsed)}`}>
-            <Clock3 size={14} aria-hidden="true" />
-            {showDuration(elapsed)}
-          </span>
+          <WorkoutElapsed session={session} finishedAt={finishedAt} />
           {paused ? (
             <span className="workout-paused-label" role="status">Paused</span>
           ) : (

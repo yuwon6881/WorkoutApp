@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ApiError, api } from '../lib/api';
+import { sharedReads } from '../lib/readCoordinator';
 import { SaveQueue } from '../lib/queue';
 import type { QueueStatus } from '../lib/queue';
-import type { Bootstrap, Preferences, Session } from '../types';
+import type { AppResource, Bootstrap, Preferences, Session } from '../types';
 import { deleteWorkoutPushToken, getWorkoutPushDeviceId } from '../lib/push/firebaseMessaging';
 import { retireWorkoutPushAfterAccountSwitch, retireWorkoutPushDevice } from '../lib/push/cleanup';
 import { defaultDevicePreferences, getLastAccountId, getLastRecovery, getRecovery, loadDevicePreferences, refreshRecovery, sameWorkoutEdits, saveDevicePreferences as persistDevicePreferences, setConflict, setLastAccount, startRecovery } from '../lib/workoutRecovery';
@@ -18,6 +19,8 @@ export type AppState = {
   recovery: WorkoutRecoveryRecord | null;
   devicePreferences: DevicePreferences;
   reload: () => Promise<void>;
+  ensureResources: (resources: AppResource[]) => Promise<void>;
+  resourceError: string;
   queue: SaveQueue;
   setData: (update: (current: Bootstrap) => Bootstrap) => void;
   savePreferences: (preferences: Preferences) => void;
@@ -40,6 +43,15 @@ export function useApp(): AppState {
   const queue = useMemo(() => new SaveQueue(), []);
   const [status, setStatus] = useState<QueueStatus>(queue.current);
   const wasOnline = useRef(online);
+  const lastRefreshAt = useRef(0);
+  const currentData = useRef(data);
+  currentData.current = data;
+  const reloadFlight = useRef<Promise<void> | null>(null);
+  const loadEpoch = useRef(0);
+  const preferenceVersion = useRef(0);
+  const workoutVersion = useRef(0);
+  const resourcesInFlight = useRef(new Map<AppResource, Promise<void>>());
+  const [resourceError, setResourceError] = useState('');
 
   useEffect(() => queue.subscribe(next => {
     setStatus(next);
@@ -47,17 +59,39 @@ export function useApp(): AppState {
       void retireCurrentPushDevice();
       void setLastAccount(null).catch(() => undefined);
       setRecovery(null);
+      loadEpoch.current++; sharedReads.reset(); resourcesInFlight.current.clear();
       setSignedOut(true);
       setData(null);
     }
   }), [queue]);
 
-  const reload = useCallback(async () => {
+  const load = useCallback(async () => {
+    const epoch = ++loadEpoch.current;
+    const preferenceAtStart = preferenceVersion.current;
+    const workoutAtStart = workoutVersion.current;
+    resourcesInFlight.current.clear();
     setLoading(true);
-    queue.set('connecting');
+    if (!queue.unsaved) queue.set('connecting');
     try {
-      const previousAccountId = await getLastAccountId().catch(() => null);
-      const next = await api.bootstrap();
+      const [previousAccountId, shell] = await Promise.all([getLastAccountId().catch(() => null), api.shell()]);
+      if (epoch !== loadEpoch.current) return;
+      const next: Bootstrap = { ...shell, exercises: [], templates: [], programs: [],
+        history: { total: 0, page: 0, size: 20, sessions: [] }, resources: {}, historyDeferred: true };
+      const previous = currentData.current;
+      if (previous?.account.id === next.account.id) {
+        next.exercises = previous.exercises; next.programs = previous.programs; next.templates = previous.templates;
+        next.loadedResources = Object.fromEntries((['catalog', 'programs', 'templates'] as const)
+          .map(resource => [resource, previous.resources?.[resource] || previous.loadedResources?.[resource]]));
+        for (const resource of ['catalog', 'programs', 'templates'] as const) {
+          if (previous.resources?.[resource] && previous.resourceVersions?.[resource] === next.resourceVersions?.[resource]) {
+            if (resource === 'catalog') next.exercises = previous.exercises;
+            else if (resource === 'programs') next.programs = previous.programs;
+            else next.templates = previous.templates;
+            next.resources![resource] = true;
+          }
+        }
+      }
+      if (previousAccountId && previousAccountId !== next.account.id) sharedReads.reset();
       const deviceId = getWorkoutPushDeviceId();
       await retireWorkoutPushAfterAccountSwitch(previousAccountId, next.account.id, deviceId,
         deviceId ? () => api.unregisterRestAlertDevice(deviceId) : undefined, deleteWorkoutPushToken);
@@ -100,11 +134,20 @@ export function useApp(): AppState {
           local = await getRecovery(next.account.id);
         } catch { local = null; /* storage failure must not block online training */ }
       }
-      setRecovery(local);
-      setDevicePreferencesState(await loadDevicePreferences(next.account.id));
-      setData(next); setError(''); setSignedOut(false);
-      queue.clear();
+      const devicePreferences = await loadDevicePreferences(next.account.id);
+      if (epoch !== loadEpoch.current) return;
+      if (workoutVersion.current === workoutAtStart) setRecovery(local);
+      setDevicePreferencesState(devicePreferences);
+      const current = currentData.current;
+      if (current?.account.id === next.account.id) {
+        if (preferenceVersion.current !== preferenceAtStart) next.preferences = current.preferences;
+        if (workoutVersion.current !== workoutAtStart) next.activeWorkout = current.activeWorkout;
+      }
+      lastRefreshAt.current = Date.now();
+      setData(next); setResourceError(''); setError(''); setSignedOut(false);
+      if (!queue.unsaved) queue.clear();
     } catch (failure) {
+      if (epoch !== loadEpoch.current) return;
       const problem = failure instanceof ApiError ? failure : new ApiError('Could not load your training.', -1);
       if (problem.signedOut) { await setLastAccount(null).catch(() => undefined); setRecovery(null); setSignedOut(true); setData(null); setError(''); queue.set('signed-out'); }
       else {
@@ -118,8 +161,41 @@ export function useApp(): AppState {
         }
         queue.set(problem.offline ? 'offline' : 'failed', problem.message);
       }
-    } finally { setLoading(false); }
+    } finally { if (epoch === loadEpoch.current) setLoading(false); }
   }, [queue]);
+
+  const reload = useCallback(() => {
+    if (reloadFlight.current) return reloadFlight.current;
+    const flight = load().finally(() => { if (reloadFlight.current === flight) reloadFlight.current = null; });
+    reloadFlight.current = flight;
+    return flight;
+  }, [load]);
+
+  const ensureResources = useCallback(async (requested: AppResource[]) => {
+    const accountId = currentData.current?.account.id;
+    const epoch = loadEpoch.current;
+    if (!accountId) return;
+    setResourceError('');
+    try {
+      await Promise.all(requested.map(resource => {
+        if (currentData.current?.resources?.[resource]) return;
+        const existing = resourcesInFlight.current.get(resource);
+        if (existing) return existing;
+        const flight = (async () => {
+          const value = resource === 'catalog' ? await api.exercises()
+            : resource === 'programs' ? await api.programs() : await api.templates();
+          if (epoch !== loadEpoch.current || currentData.current?.account.id !== accountId) return;
+          setData(current => current?.account.id === accountId ? { ...current,
+            [resource === 'catalog' ? 'exercises' : resource]: value,
+            resources: { ...current.resources, [resource]: true } } : current);
+        })().finally(() => { if (resourcesInFlight.current.get(resource) === flight) resourcesInFlight.current.delete(resource); });
+        resourcesInFlight.current.set(resource, flight);
+        return flight;
+      }));
+    } catch (failure) {
+      if (epoch === loadEpoch.current) setResourceError(failure instanceof Error ? failure.message : 'This view could not be loaded.');
+    }
+  }, []);
 
   useEffect(() => { void reload(); }, [reload]);
 
@@ -135,6 +211,26 @@ export function useApp(): AppState {
     if (returnedOnline && !data && !signedOut && !loading) void reload();
   }, [online, data, signedOut, loading, reload]);
 
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const schedule = () => {
+      clearTimeout(timer);
+      timer = setTimeout(() => {
+        if (document.visibilityState === 'visible' && navigator.onLine && currentData.current
+          && !queue.unsaved && Date.now() - lastRefreshAt.current >= 30_000) void reload();
+      }, 250);
+    };
+    window.addEventListener('online', schedule);
+    window.addEventListener('workout:resume', schedule);
+    document.addEventListener('visibilitychange', schedule);
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener('online', schedule);
+      window.removeEventListener('workout:resume', schedule);
+      document.removeEventListener('visibilitychange', schedule);
+    };
+  }, [queue, reload]);
+
   // Leaving with work still queued would lose it: there is no local copy to come back to.
   useEffect(() => {
     const guard = (event: BeforeUnloadEvent) => { if (queue.unsaved) event.preventDefault(); };
@@ -146,15 +242,25 @@ export function useApp(): AppState {
     setData(current => current ? update(current) : current), []);
 
   const savePreferences = useCallback((preferences: Preferences) => {
+    preferenceVersion.current++;
     patch(current => ({ ...current, preferences }));
+    const version = preferenceVersion.current;
+    const accountId = currentData.current?.account.id;
     queue.push('preferences', async () => {
       const saved = await api.preferences(preferences);
-      patch(current => ({ ...current, preferences: saved }));
+      if (preferenceVersion.current === version && currentData.current?.account.id === accountId) patch(current => ({ ...current, preferences: saved }));
     });
   }, [patch, queue]);
 
-  const setActiveWorkout = useCallback((session: Session | null) =>
-    patch(current => ({ ...current, activeWorkout: session?.active ? session : null })), [patch]);
+  const setActiveWorkout = useCallback((session: Session | null) => {
+    workoutVersion.current++;
+    patch(current => ({ ...current, activeWorkout: session?.active ? session : null }));
+  }, [patch]);
+
+  const updateRecovery = useCallback((record: WorkoutRecoveryRecord | null) => {
+    workoutVersion.current++;
+    setRecovery(record);
+  }, []);
 
   const setDevicePreferences = useCallback((preferences: DevicePreferences) => {
     setDevicePreferencesState(preferences);
@@ -163,11 +269,12 @@ export function useApp(): AppState {
   }, [data?.account.id, recovery?.accountId]);
 
   const signOut = useCallback(async () => {
+    loadEpoch.current++; sharedReads.reset(); resourcesInFlight.current.clear();
     await retireCurrentPushDevice();
     try { await api.logout(); } finally { await setLastAccount(null).catch(() => undefined); queue.clear(); setData(null); setRecovery(null); setSignedOut(true); }
   }, [queue]);
 
-  return { data, status, loading, error, signedOut, online, recovery, devicePreferences, reload, queue, setData: patch, savePreferences, setActiveWorkout, setRecovery, setDevicePreferences, signOut };
+  return { data, status, loading, error, signedOut, online, recovery, devicePreferences, reload, ensureResources, resourceError, queue, setData: patch, savePreferences, setActiveWorkout, setRecovery: updateRecovery, setDevicePreferences, signOut };
 }
 
 async function retireCurrentPushDevice(): Promise<void> {

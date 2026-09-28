@@ -1138,6 +1138,46 @@ namespace Workout.Api.Data.Migrations
                     b.ToTable("ProgramSkips");
                 });
 
+            modelBuilder.Entity("Workout.Api.Data.ResourceGeneration", b =>
+                {
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<long>("CustomExercises")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("ExerciseLoads")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("History")
+                        .HasColumnType("bigint");
+
+                    b.Property<Guid?>("HistoryAppendId")
+                        .HasColumnType("uuid");
+
+                    b.Property<long>("Imports")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("Preferences")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("Programs")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("Progress")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("Sessions")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("Templates")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("UserId");
+
+                    b.ToTable("ResourceGenerations");
+                });
+
             modelBuilder.Entity("Workout.Api.Data.SessionExercise", b =>
                 {
                     b.Property<Guid>("UserId")
@@ -1354,6 +1394,32 @@ namespace Workout.Api.Data.Migrations
                         {
                             t.HasCheckConstraint("CK_Programs_Lifecycle", "\"LifecycleStatus\" IN ('standby','active','completed')");
                         });
+                });
+
+            modelBuilder.Entity("Workout.Api.Data.TrainingReadModel", b =>
+                {
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Kind")
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("SourceId")
+                        .HasColumnType("uuid");
+
+                    b.Property<long>("Generation")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("Json")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<int>("Version")
+                        .HasColumnType("integer");
+
+                    b.HasKey("UserId", "Kind", "SourceId");
+
+                    b.ToTable("TrainingReadModels");
                 });
 
             modelBuilder.Entity("Workout.Api.Data.WatchDevice", b =>
@@ -1877,6 +1943,15 @@ namespace Workout.Api.Data.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("Workout.Api.Data.ResourceGeneration", b =>
+                {
+                    b.HasOne("Workout.Api.Data.AppUser", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("Workout.Api.Data.SessionExercise", b =>
                 {
                     b.HasOne("Workout.Api.Data.AppUser", null)
@@ -1896,6 +1971,15 @@ namespace Workout.Api.Data.Migrations
                 });
 
             modelBuilder.Entity("Workout.Api.Data.TrainingProgram", b =>
+                {
+                    b.HasOne("Workout.Api.Data.AppUser", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Workout.Api.Data.TrainingReadModel", b =>
                 {
                     b.HasOne("Workout.Api.Data.AppUser", null)
                         .WithMany()

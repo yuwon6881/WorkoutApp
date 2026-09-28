@@ -1,5 +1,5 @@
 import { ExerciseLoadSettings } from './ExerciseLoadSettings';
-import { useDeferredValue, useEffect, useState } from 'react';
+import { useDeferredValue, useEffect, useMemo, useState } from 'react';
 import { ArrowLeftRight, Dumbbell, Library, Link2, Plus, Search, X, Trash2, RotateCcw, TrendingUp } from 'lucide-react';
 import type { Exercise, ExerciseCategory, ExerciseClearPreview, ExerciseInsight, Session } from '../types';
 import { ApiError, api } from '../lib/api';
@@ -15,6 +15,8 @@ import './Exercises.css';
 
 /// The catalog is supplied by the server and is empty until a seed file is loaded, so the
 /// empty state explains that rather than implying the user should have added something.
+const emptyIds: string[] = [];
+
 export type ExercisePickerAction = 'add' | 'swap' | 'map';
 
 function normalized(value: string) {
@@ -37,7 +39,7 @@ function exerciseRank(candidate: Exercise, current: Exercise | undefined, prefer
   return 4;
 }
 
-export function ExerciseLibrary({ exercises, onSelect, exclude = [], onOpen, onChanged, action = 'add', currentExerciseId, preferredNames = [], disabled = false }: {
+export function ExerciseLibrary({ exercises, onSelect, exclude = emptyIds, onOpen, onChanged, action = 'add', currentExerciseId, preferredNames = emptyIds, disabled = false }: {
   exercises: Exercise[];
   onSelect?: (id: string) => void;
   exclude?: string[];
@@ -62,20 +64,23 @@ export function ExerciseLibrary({ exercises, onSelect, exclude = [], onOpen, onC
   // Filtering the whole catalog on every keystroke can stall typing on a phone; the list follows
   // the query a moment later while the field itself stays instant.
   const search = useDeferredValue(query);
-  const muscles = ['All muscles', ...new Map(exercises.flatMap(e => [e.muscle, ...(e.secondaryMuscles ?? [])])
-    .filter(Boolean).map(value => [value.toLowerCase(), value] as const)).values()];
+  const searchText = useMemo(() => new Map(exercises.map(e => [e.id,
+    `${e.name} ${e.equipment} ${e.muscle} ${(e.secondaryMuscles ?? []).join(' ')} ${e.movementPattern ?? ''} ${e.aliases.join(' ')}`.toLowerCase()
+  ])), [exercises]);
+  const muscles = useMemo(() => ['All muscles', ...new Map(exercises.flatMap(e => [e.muscle, ...(e.secondaryMuscles ?? [])])
+    .filter(Boolean).map(value => [value.toLowerCase(), value] as const)).values()], [exercises]);
   const current = currentExerciseId ? exercises.find(e => e.id === currentExerciseId) : undefined;
   const isSwapping = action === 'swap' && !!current;
 
   // Candidate replacement exercises exclude existing exclusions and the current exercise being swapped
   const excluded = new Set([...exclude, ...(currentExerciseId ? [currentExerciseId] : [])]);
-  const filtered = exercises.filter(e => !excluded.has(e.id)
+  const filtered = useMemo(() => exercises.filter(e => !excluded.has(e.id)
     && (source === 'all' || (source === 'custom' ? e.isCustom : !e.isCustom))
     && (category === 'all' || getExerciseCategory(e) === category)
     && (muscle === 'All muscles' || [e.muscle, ...(e.secondaryMuscles ?? [])].some(value => value.toLowerCase() === muscle.toLowerCase()))
-    && `${e.name} ${e.equipment} ${e.muscle} ${(e.secondaryMuscles ?? []).join(' ')} ${e.movementPattern ?? ''} ${e.aliases.join(' ')}`.toLowerCase().includes(search.toLowerCase()));
-  const ordered = [...filtered].sort((a, b) => exerciseRank(a, current, preferredNames) - exerciseRank(b, current, preferredNames)
-    || a.name.localeCompare(b.name));
+    && searchText.get(e.id)?.includes(search.toLowerCase())), [exercises, exclude, currentExerciseId, source, category, muscle, search, searchText]);
+  const ordered = useMemo(() => [...filtered].sort((a, b) => exerciseRank(a, current, preferredNames) - exerciseRank(b, current, preferredNames)
+    || a.name.localeCompare(b.name)), [filtered, current, preferredNames]);
   const actionLabel = action === 'swap' ? 'Swap' : action === 'map' ? 'Map' : 'Add';
   const ActionIcon = action === 'add' ? Plus : action === 'swap' ? ArrowLeftRight : Link2;
 

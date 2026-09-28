@@ -3,6 +3,7 @@ import type { Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
 import { readFileSync } from 'node:fs';
+import { featureCss } from './scripts/feature-css';
 
 const packageVersion = (JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8')) as { version: string }).version;
 const buildRevision = process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 7) ?? process.env.GITHUB_SHA?.slice(0, 7) ?? 'local';
@@ -33,6 +34,7 @@ export default defineConfig({
   server: { proxy },
   preview: { proxy },
   build: {
+    target: 'es2022',
     rollupOptions: {
       output: {
         manualChunks(id) {
@@ -43,7 +45,7 @@ export default defineConfig({
       }
     }
   },
-  plugins: [react(), tabShell, VitePWA({
+  plugins: [featureCss(), react(), tabShell, VitePWA({
     // The app registers the worker itself (app/useAppUpdate.ts) and offers updates when idle.
     registerType: 'prompt',
     injectRegister: false,
@@ -79,7 +81,9 @@ export default defineConfig({
       globIgnores: ['**/assets/*pdf*', '**/assets/*PDF*', '**/assets/firebase-push-*.js',
         // Inter's Cyrillic, Greek and Vietnamese subsets load only for text that needs them, so they
         // are fetched on demand rather than installed with the shell.
-        '**/assets/inter-cyrillic*', '**/assets/inter-greek*', '**/assets/inter-vietnamese*'],
+        '**/assets/inter-cyrillic*', '**/assets/inter-greek*', '**/assets/inter-vietnamese*',
+        '**/assets/Settings-*', '**/assets/Programs-*', '**/assets/Import-*', '**/assets/ImportDraftTree-*',
+        '**/assets/MuscleBalanceView-*', '**/assets/bodyMap*', '**/assets/pdfPageText*'],
       // The rest-timer notification needs a click handler in the worker itself. It is imported
       // rather than hand-written as a whole worker so Workbox keeps owning the precache.
       importScripts: ['rest-alert-sw.js'],

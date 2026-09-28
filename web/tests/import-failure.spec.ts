@@ -20,7 +20,7 @@ const failedImport = {
 
 test('a stopped import explains what was doubted, where, and what to do next', async ({ page }, testInfo) => {
   // Imports arrive with the app's bootstrap; everything else in it stays the account's own.
-  await page.route('**/api/bootstrap', async route => {
+  await page.route('**/api/bootstrap/shell', async route => {
     const response = await route.fetch();
     route.fulfill({ response, json: { ...(await response.json()), imports: [failedImport] } });
   });

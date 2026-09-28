@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ArrowRight, ChevronDown, Dumbbell, Trophy } from 'lucide-react';
 import type { HistoryPage, Session, Unit } from '../types';
 import { ApiError, api } from '../lib/api';
@@ -9,23 +9,10 @@ import { Button } from './ui/Button';
 import { useLoadMoreOnScroll } from './ui/useLoadMoreOnScroll';
 import './History.css';
 
-let historyCache: HistoryPage | null = null;
-export function clearWorkoutHistoryCache() { historyCache = null; }
-
-function isSameHistory(a: HistoryPage, b: HistoryPage): boolean {
-  if (a.total !== b.total || a.page !== b.page || a.sessions.length !== b.sessions.length) return false;
-  for (let i = 0; i < a.sessions.length; i++) {
-    const s1 = a.sessions[i];
-    const s2 = b.sessions[i];
-    if (s1.id !== s2.id || s1.startedAt !== s2.startedAt || s1.finishedAt !== s2.finishedAt || s1.completedSets !== s2.completedSets || s1.volumeKg !== s2.volumeKg || s1.prCount !== s2.prCount) {
-      return false;
-    }
-  }
-  return true;
-}
-
 interface WorkoutHistoryProps {
-  initial: HistoryPage;
+  initial?: HistoryPage;
+  accountId?: string;
+  refreshKey?: object;
   unit: Unit;
   onSession: (s: Session) => void;
   onStart: () => void;
@@ -34,60 +21,80 @@ interface WorkoutHistoryProps {
 
 export function WorkoutHistory({
   initial,
+  accountId,
+  refreshKey,
   unit,
   onSession,
   onStart,
   onExercise
 }: WorkoutHistoryProps) {
-  if (!historyCache && initial) historyCache = initial;
-  const [page, setPage] = useState<HistoryPage>(historyCache ?? initial);
-  const [loading, setLoading] = useState(false);
+  const [page, setPage] = useState<HistoryPage>(initial ?? { total: 0, page: 0, size: 20, sessions: [] });
+  const [cursor, setCursor] = useState<{ at: string | null; id: string | null }>({ at: null, id: null });
+  const [loading, setLoading] = useState(!initial);
   const [error, setError] = useState('');
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [details, setDetails] = useState<Record<string, Session>>({});
+  const controller = useRef<AbortController | null>(null);
+  const detailController = useRef<AbortController | null>(null);
+  const busy = useRef(false);
+  const epoch = useRef(0);
 
   useEffect(() => {
+    const generation = ++epoch.current;
+    controller.current?.abort(); detailController.current?.abort();
+    const active = new AbortController(); controller.current = active;
+    busy.current = false;
+    setDetails({}); setExpandedId(null); setError('');
     if (initial) {
-      historyCache = initial;
-      setPage(current => (isSameHistory(current, initial) ? current : initial));
+      setPage(initial); setLoading(false);
+      const last = initial.sessions.at(-1);
+      setCursor({ at: last?.finishedAt ?? null, id: last?.id ?? null });
+    } else {
+      setLoading(true);
+      api.historySummaries(null, null, active.signal).then(next => {
+        if (generation !== epoch.current) return;
+        setPage({ total: next.total, page: 0, size: 20, sessions: next.sessions });
+        setCursor({ at: next.nextBeforeAt, id: next.nextBeforeId });
+      }).catch(failure => {
+        if (!active.signal.aborted) setError(failure instanceof ApiError ? failure.message : 'Could not load your history.');
+      }).finally(() => { if (generation === epoch.current) setLoading(false); });
     }
-  }, [initial]);
+    return () => { active.abort(); detailController.current?.abort(); };
+  }, [initial, accountId, refreshKey]);
 
-  useEffect(() => {
-    let cancelled = false;
-    const controller = new AbortController();
-    api.history(0, 20, controller.signal)
-      .then(next => {
-        if (!cancelled) {
-          historyCache = next;
-          setPage(current => (isSameHistory(current, next) ? current : next));
-          setError('');
-        }
-      })
-      .catch(failure => {
-        if (!cancelled && !page.sessions.length && !error) {
-          setError(failure instanceof ApiError ? failure.message : 'Could not load your history.');
-        }
-      });
-    return () => { cancelled = true; controller.abort(); };
-  }, []);
-
-  const loadMoreRef = useLoadMoreOnScroll(!loading && page.sessions.length < page.total, () => void more());
+  const hasMore = page.sessions.length < page.total && Boolean(cursor.at && cursor.id);
+  const loadMoreRef = useLoadMoreOnScroll(!loading && hasMore && !error, () => void more());
 
   async function more() {
-    setLoading(true);
+    if (busy.current || !hasMore) return;
+    busy.current = true; setLoading(true); setError('');
+    const generation = epoch.current;
     try {
-      const next = await api.history(page.page + 1, page.size);
-      const merged = { ...next, sessions: [...page.sessions, ...next.sessions] };
-      historyCache = merged;
-      setPage(merged);
+      const next = await api.historySummaries(cursor.at, cursor.id, controller.current?.signal);
+      if (generation !== epoch.current) return;
+      setPage(current => ({ ...current, total: next.total, page: current.page + 1,
+        sessions: [...new Map([...current.sessions, ...next.sessions].map(session => [session.id, session])).values()] }));
+      setCursor({ at: next.nextBeforeAt, id: next.nextBeforeId });
     } catch (failure) {
-      setError(failure instanceof ApiError ? failure.message : 'Could not load more history.');
-    } finally {
-      setLoading(false);
+      if (!controller.current?.signal.aborted) setError(failure instanceof ApiError ? failure.message : 'Could not load more history.');
+    } finally { if (generation === epoch.current) { busy.current = false; setLoading(false); } }
+  }
+
+  async function expand(session: Session) {
+    detailController.current?.abort();
+    if (expandedId === session.id) { setExpandedId(null); return; }
+    setExpandedId(session.id); setError('');
+    if (session.exercises.length || details[session.id]) return;
+    const active = new AbortController(); detailController.current = active;
+    try {
+      const detail = await api.getWorkout(session.id, active.signal);
+      if (!active.signal.aborted) setDetails(current => ({ ...current, [session.id]: detail }));
+    } catch (failure) {
+      if (!active.signal.aborted) setError(failure instanceof ApiError ? failure.message : 'Could not load workout details.');
     }
   }
 
-  const sessions = page.sessions;
+  const sessions = page.sessions.map(session => details[session.id] ?? session);
 
   return (
     <section className="panel" aria-label="Workout history">
@@ -108,7 +115,7 @@ export function WorkoutHistory({
               variant="tertiary"
               aria-expanded={isExpanded}
               aria-controls={`history-detail-${session.id}`}
-              onClick={() => setExpandedId(current => (current === session.id ? null : session.id))}
+              onClick={() => void expand(session)}
             >
               <span className="exercise-icon"><Dumbbell size={20} /></span>
               <span className="row-title">
@@ -128,6 +135,7 @@ export function WorkoutHistory({
 
             {isExpanded && (
               <div className="history-expanded-content" id={`history-detail-${session.id}`}>
+                {!session.exercises.length && <div className="skeleton history-row-skeleton" aria-label="Loading workout details" />}
                 <MotionPanel motionKey={session.id} animateOnMount className="history-expanded-exercises">
                   {session.exercises.map(exercise => (
                     <div className="history-exercise-row" key={exercise.id}>
@@ -170,7 +178,7 @@ export function WorkoutHistory({
                 </MotionPanel>
                 {session.note && <p className="note-block">{session.note}</p>}
                 <div className="history-expanded-actions">
-                  <Button variant="secondary" onClick={() => onSession(session)}>
+                  <Button variant="secondary" disabled={!session.exercises.length && !details[session.id]} onClick={() => onSession(session)}>
                     Full workout details <ArrowRight size={14} />
                   </Button>
                 </div>
@@ -195,7 +203,7 @@ export function WorkoutHistory({
         </div>
       )}
 
-      {sessions.length < page.total && (
+      {hasMore && (
         <Button ref={loadMoreRef} className="full-width" disabled={loading} onClick={more}>
           {loading ? 'Loading…' : 'Load more'}
         </Button>

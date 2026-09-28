@@ -1,5 +1,6 @@
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.DependencyInjection;
@@ -43,11 +44,13 @@ public sealed class Harness : IAsyncDisposable
             new NutritionContextService(db, new TestHttpClientFactory(), config), Programs);
     }
 
-    public static async Task<Harness> Create(Dictionary<string, string?>? settings = null)
+    public static async Task<Harness> Create(Dictionary<string, string?>? settings = null, DbCommandInterceptor? observer = null)
     {
         var connection = new SqliteConnection("Data Source=:memory:");
         await connection.OpenAsync();
-        var db = new AppDb(new DbContextOptionsBuilder<AppDb>().UseSqlite(connection).Options);
+        var options = new DbContextOptionsBuilder<AppDb>().UseSqlite(connection);
+        if (observer != null) options.AddInterceptors(observer);
+        var db = new AppDb(options.Options);
         await db.Database.EnsureCreatedAsync();
         var config = new ConfigurationBuilder().AddInMemoryCollection(settings ?? []).Build();
         return new Harness(connection, db, config);

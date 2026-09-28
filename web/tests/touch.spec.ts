@@ -16,6 +16,12 @@ async function drag(page: Page, cdp: CDPSession, from: { x: number; y: number },
 }
 
 async function centre(locator: Locator) {
+  // Measure after entrance/spring transitions finish; normal-motion coordinates change
+  // while a sheet settles. This preserves and exercises the real animation.
+  await locator.evaluate(async element => {
+    const dialog = element.closest('dialog');
+    await Promise.all((dialog?.getAnimations() ?? []).map(animation => animation.finished.catch(() => undefined)));
+  });
   const box = (await locator.boundingBox())!;
   return { x: box.x + box.width / 2, y: box.y + box.height / 2 };
 }
@@ -37,7 +43,8 @@ test('a bottom sheet closes when its header is dragged down', async ({ page }) =
   const start = await centre(header);
   await drag(page, cdp, { x: start.x - 60, y: start.y }, { x: start.x - 60, y: start.y + 40 });
   await expect(editor).toBeVisible();
-  await drag(page, cdp, { x: start.x - 60, y: start.y }, { x: start.x - 60, y: start.y + 320 });
+  const settled = await centre(header);
+  await drag(page, cdp, { x: settled.x - 60, y: settled.y }, { x: settled.x - 60, y: settled.y + 320 });
   await expect(editor).toBeHidden();
 });
 

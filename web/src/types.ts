@@ -44,6 +44,12 @@ export type SessionExercise = { id: string; exerciseId: string | null; name: str
 export type Session = { id: string; templateId: string | null; programId: string | null; name: string; note: string; active: boolean; startedAt: string; finishedAt: string | null; pausedAt?: string | null; pausedSeconds?: number; revision: number; exercises: SessionExercise[]; volumeKg: number | null; completedSets: number; warmupSets: number; bodyWeight?: BodyWeightSnapshot | null; nutritionContext?: NutritionTrainingContext | null; systemVolumeKg?: number | null; prCount?: number };
 export type WatchDevice = { id: string; deviceId: string; deviceName: string; createdAt: string; expiresAt: string };
 export type HistoryPage = { total: number; page: number; size: number; sessions: Session[] };
+export type HistorySummaryPage = { total: number; sessions: Session[]; nextBeforeAt: string | null; nextBeforeId: string | null; summaryOnly: boolean };
+export type AppResource = 'catalog' | 'programs' | 'templates';
+export type NextWorkoutSummary = Pick<ProgramDay, 'id' | 'name' | 'focus' | 'week' | 'position' | 'exerciseCount'>;
+export type ShellBootstrap = Pick<Bootstrap, 'account' | 'preferences' | 'activeWorkout' | 'activeProgram' | 'imports' | 'aiImportsRemaining' | 'resourceVersions'> & {
+  nextWorkout: NextWorkoutSummary | null; navigationCounts: { programs: number; templates: number };
+};
 export type ProgressExercise = {
   exerciseId: string | null; exercise: string; sessions: number; heaviestKg: number | null; heaviestReps: number | null; volumeKg: number | null;
   estimatedMaxKg: number | null; lastEstimatedMaxKg: number | null; externalLoadPrKg: number | null; addedLoadPrKg: number | null;
@@ -112,6 +118,12 @@ export type Bootstrap = {
   account: Account; preferences: Preferences; exercises: Exercise[]; templates: Template[];
   programs: ProgramSummary[]; activeProgram: ProgramSummary | null; activeWorkout: Session | null;
   imports: ImportView[]; history: HistoryPage; progress?: ProgressSummary; aiImportsRemaining: number;
+  nextWorkout?: NextWorkoutSummary | null;
+  navigationCounts?: { programs: number; templates: number };
+  resources?: Partial<Record<AppResource, boolean>>;
+  loadedResources?: Partial<Record<AppResource, boolean>>;
+  resourceVersions?: Record<AppResource, string>;
+  historyDeferred?: boolean;
 };
 
 /// What the shell reports about the connection to the server. Nothing about workout data is

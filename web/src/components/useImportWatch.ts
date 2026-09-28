@@ -39,6 +39,8 @@ export function useImportWatch({ imports, active, onFinished }: {
     if (!importId) { setWatch(null); return; }
 
     let stopped = false;
+    const controller = new AbortController();
+    let failures = 0;
     let etag: string | undefined;
     let lastStage: string = initialStage;
     let lastDone = initialDone;
@@ -46,7 +48,8 @@ export function useImportWatch({ imports, active, onFinished }: {
 
     const show = (stage: string, done: number, total: number, label: string | null) => {
       const remaining = Math.max(0, total - done);
-      setWatch({
+      setWatch(previous => {
+        const next = {
         importId,
         progress: {
           label: stage === 'outline'
@@ -55,6 +58,8 @@ export function useImportWatch({ imports, active, onFinished }: {
           detail: remaining > 1 ? fileName : label ?? fileName,
           percent: total > 0 ? Math.round((done / total) * 100) : null
         }
+      };
+        return previous?.progress.label === next.progress.label && previous.progress.detail === next.progress.detail && previous.progress.percent === next.progress.percent ? previous : next;
       });
     };
 
@@ -62,12 +67,13 @@ export function useImportWatch({ imports, active, onFinished }: {
 
     void (async () => {
       while (!stopped) {
-        await new Promise(resolve => window.setTimeout(resolve, POLL_INTERVAL_MS));
+        await new Promise(resolve => window.setTimeout(resolve, Math.min(16000, POLL_INTERVAL_MS * 2 ** failures)));
         if (stopped) return;
 
         let status: ImportStatusView;
         try {
-          const meta = await api.getImportStatusMeta(importId, etag);
+          const meta = await api.getImportStatusMeta(importId, etag, controller.signal);
+          failures = 0;
           if (meta.etag) etag = meta.etag;
           if (meta.notModified || !meta.data) {
             // An unchanged row is still a reason to consider the pass stalled.
@@ -79,6 +85,7 @@ export function useImportWatch({ imports, active, onFinished }: {
           }
           status = meta.data;
         } catch {
+          failures = Math.min(failures + 1, 3);
           // A failed poll is not worth surfacing from a background pill; the import screen reports
           // properly when it is opened. Keep the last figures and try again.
           continue;
@@ -107,7 +114,7 @@ export function useImportWatch({ imports, active, onFinished }: {
       }
     })();
 
-    return () => { stopped = true; };
+    return () => { stopped = true; controller.abort(); };
     // The initial figures only seed the first paint; re-running on each of their changes would
     // restart the loop every poll.
     // eslint-disable-next-line react-hooks/exhaustive-deps
