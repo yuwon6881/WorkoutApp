@@ -303,8 +303,11 @@
   overscroll-behavior:contain;
   -webkit-overflow-scrolling:touch;
 }
+/* The body shares the day row's hooks, not its frame; the dialog is already the surface. */
+.day-detail-modal .day-detail-modal-body.draft-day,
+.day-detail-modal .day-detail-modal-body.draft-day:hover{margin:0;border:0;border-radius:0;background:transparent}
 .day-detail-modal-body .draft-day-muscles{padding:0 0 12px}
-.day-detail-modal-body .day-editor{padding-top:0}
+.day-detail-modal-body .day-editor{padding:0;border-top:0;background:transparent}
 .import-exercise-dim-wrap{transition:opacity .18s ease}
 .import-exercise-dim-wrap.exercise-dimmed{opacity:.35}
 

@@ -225,7 +225,9 @@ html[data-keyboard='open'] .workout-footer .rest-bar { display: none; }
 }
 
 /* The Overview hero's actions: Start, then Preview, trailing, wrapping on the narrowest phones. */
-.hero-bottom { flex-wrap: wrap; }
+.hero-bottom { flex-wrap: wrap; justify-content: flex-start; }
+/* Start and Preview stay together; the readiness note takes the trailing edge. */
+.hero-bottom > span { margin-left: auto; }
 
 /* components/ExerciseProgressChart.tsx: bars share the width, a readout names the chosen one. */
 .exercise-chart { display: grid; gap: 8px; padding: 12px 0; border-bottom: 1px solid var(--border); }
@@ -336,4 +338,12 @@ html[data-keyboard='open'] .workout-footer .rest-bar { display: none; }
   .import-fields .import-library-field,
   .import-fields .import-substitutions-field { flex: 1 1 100%; min-width: 0; }
   .import-fields .import-exercise-muscles { flex: 0 0 auto; width: 100%; }
+}
+
+/* A control focused by a pointer keeps its pointer look until a real key is pressed, even when a
+   lone modifier (a screenshot or window shortcut) makes the browser report it as keyboard focus.
+   See lib/inputModality.ts. Text fields keep their editing ring, and open controls their state. */
+:root[data-input-modality="pointer"] :focus-visible:not(input, textarea, select, [contenteditable="true"], .issue-focus, [aria-expanded="true"]) {
+  outline: none !important;
+  box-shadow: none !important;
 }

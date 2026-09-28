@@ -132,7 +132,6 @@ export function ExerciseLibrary({ exercises, onSelect, exclude = emptyIds, onOpe
                         </span>
                       )}
                       <span className="pill pill-equipment">{e.equipment || 'General'}</span>
-                      <span className="pill pill-category">{cat}</span>
                     </div>
                   </div>
                   <Button

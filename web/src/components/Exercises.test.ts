@@ -122,6 +122,17 @@ describe('ExerciseLibrary UI and grouping', () => {
     expect(libraryMarkup).toContain('Body Weight');
   });
 
+  it('leaves the category to the group heading on picker cards', () => {
+    const pickerMarkup = renderToStaticMarkup(createElement(ExerciseLibrary, {
+      exercises: sampleExercises,
+      action: 'map',
+      onSelect: () => {}
+    }));
+
+    expect(pickerMarkup).toContain('category-group-title');
+    expect(pickerMarkup).not.toContain('pill pill-category');
+  });
+
   it('renders minor source and category filter selects in both library and picker modes', () => {
     const libraryMarkup = renderToStaticMarkup(createElement(ExerciseLibrary, {
       exercises: sampleExercises
