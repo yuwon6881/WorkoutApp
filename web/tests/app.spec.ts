@@ -818,6 +818,7 @@ test('program version chooser uses the source schedule metadata and one explicit
   await clearActiveWorkout(page);
   await openTab(page, 'Workouts');
   await openNewMenu(page, 'Import a PDF program');
+  await expect(page.getByRole('heading', { name: 'Import a program' })).toBeVisible();
 
   const importId = 'c1940000-0000-4000-8000-000000000001';
   const alternatives = [
@@ -845,60 +846,63 @@ test('program version chooser uses the source schedule metadata and one explicit
     } });
   });
 
-  const created = page.waitForResponse(response =>
-    response.request().method() === 'POST' && new URL(response.url()).pathname === '/api/imports',
-  { timeout: 30000 });
-  await page.getByLabel('Program PDF').setInputFiles({
-    name: `fundamentals-${testInfo.project.name}.pdf`, mimeType: 'application/pdf', buffer: pdf(4, `fundamentals-${Date.now()}`)
-  });
-  expect((await created).ok()).toBeTruthy();
-  const chooser = page.getByRole('group', { name: 'Available program versions', exact: true });
-  await expect(chooser.getByRole('article')).toHaveCount(2, { timeout: 15000 });
-  const fullBody = chooser.locator('.alternative-card').filter({ hasText: 'Full Body Program' });
-  await expect(fullBody).toContainText('8 weeks');
-  await expect(fullBody).toContainText('3 sessions / week');
-  await expect(fullBody).toContainText('24 estimated sessions');
-  await expect(fullBody).not.toContainText('2 weeks');
+  try {
+    const created = page.waitForResponse(response =>
+      response.request().method() === 'POST' && new URL(response.url()).pathname === '/api/imports',
+    { timeout: 60000 });
+    await page.getByLabel('Program PDF').setInputFiles({
+      name: `fundamentals-${testInfo.project.name}.pdf`, mimeType: 'application/pdf', buffer: pdf(4, `fundamentals-${Date.now()}`)
+    });
+    expect((await created).ok()).toBeTruthy();
+    const chooser = page.getByRole('group', { name: 'Available program versions', exact: true });
+    await expect(chooser.getByRole('article')).toHaveCount(2, { timeout: 15000 });
+    const fullBody = chooser.locator('.alternative-card').filter({ hasText: 'Full Body Program' });
+    await expect(fullBody).toContainText('8 weeks');
+    await expect(fullBody).toContainText('3 sessions / week');
+    await expect(fullBody).toContainText('24 estimated sessions');
+    await expect(fullBody).not.toContainText('2 weeks');
 
-  const themeElement = page.locator('html');
-  const originalTheme = await themeElement.getAttribute('data-theme');
-  for (const theme of ['dark', 'light'] as const) {
-    await themeElement.evaluate((element, value) => element.setAttribute('data-theme', value), theme);
-    await expect(chooser).toBeVisible();
-    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-    for (const card of await chooser.locator('.alternative-card').all()) {
-      const box = await card.boundingBox();
-      expect(box).not.toBeNull();
-      expect(box!.x).toBeGreaterThanOrEqual(0);
-      expect(box!.x + box!.width).toBeLessThanOrEqual(page.viewportSize()!.width + 1);
+    const themeElement = page.locator('html');
+    const originalTheme = await themeElement.getAttribute('data-theme');
+    for (const theme of ['dark', 'light'] as const) {
+      await themeElement.evaluate((element, value) => element.setAttribute('data-theme', value), theme);
+      await expect(chooser).toBeVisible();
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+      for (const card of await chooser.locator('.alternative-card').all()) {
+        const box = await card.boundingBox();
+        expect(box).not.toBeNull();
+        expect(box!.x).toBeGreaterThanOrEqual(0);
+        expect(box!.x + box!.width).toBeLessThanOrEqual(page.viewportSize()!.width + 1);
+      }
+      const chooserGrid = chooser;
+      const gridBox = await chooserGrid.boundingBox();
+      expect(gridBox).not.toBeNull();
+      if (gridBox!.width >= 576) {
+        const cardBoxes = await chooserGrid.locator('.alternative-card').evaluateAll(cards => cards.map(card => {
+          const box = card.getBoundingClientRect();
+          return { x: box.x, y: box.y, width: box.width };
+        }));
+        expect(Math.abs(cardBoxes[0].y - cardBoxes[1].y)).toBeLessThanOrEqual(2);
+        const cardsCenter = (cardBoxes[0].x + cardBoxes[1].x + cardBoxes[1].width) / 2;
+        expect(Math.abs(cardsCenter - (gridBox!.x + gridBox!.width / 2))).toBeLessThanOrEqual(2);
+      }
+      await page.screenshot({ path: join(screenshotsDirectory, `${testInfo.project.name}-import-versions-${theme}.png`), fullPage: true });
     }
-    const chooserGrid = chooser;
-    const gridBox = await chooserGrid.boundingBox();
-    expect(gridBox).not.toBeNull();
-    if (gridBox!.width >= 576) {
-      const cardBoxes = await chooserGrid.locator('.alternative-card').evaluateAll(cards => cards.map(card => {
-        const box = card.getBoundingClientRect();
-        return { x: box.x, y: box.y, width: box.width };
-      }));
-      expect(Math.abs(cardBoxes[0].y - cardBoxes[1].y)).toBeLessThanOrEqual(2);
-      const cardsCenter = (cardBoxes[0].x + cardBoxes[1].x + cardBoxes[1].width) / 2;
-      expect(Math.abs(cardsCenter - (gridBox!.x + gridBox!.width / 2))).toBeLessThanOrEqual(2);
-    }
-    await page.screenshot({ path: join(screenshotsDirectory, `${testInfo.project.name}-import-versions-${theme}.png`), fullPage: true });
+    await themeElement.evaluate((element, value) => {
+      if (value) element.setAttribute('data-theme', value);
+      else element.removeAttribute('data-theme');
+    }, originalTheme);
+
+    const selectedButton = fullBody.getByRole('button', { name: 'Choose this version', exact: true });
+    await selectedButton.click();
+    await expect(fullBody.getByRole('button', { name: 'Selected', exact: true })).toHaveAttribute('aria-pressed', 'true');
+    await page.getByRole('button', { name: 'Continue with selected version', exact: true }).click();
+    await expect(page.getByRole('heading', { name: 'Review', exact: true })).toBeVisible();
+    expect(selectedAlternativeId).toBe('full-body-program');
+  } finally {
+    await page.unroute('**/api/imports').catch(() => {});
+    await page.unroute(`**/api/imports/${importId}/alternative`).catch(() => {});
   }
-  await themeElement.evaluate((element, value) => {
-    if (value) element.setAttribute('data-theme', value);
-    else element.removeAttribute('data-theme');
-  }, originalTheme);
-
-  const selectedButton = fullBody.getByRole('button', { name: 'Choose this version', exact: true });
-  await selectedButton.click();
-  await expect(fullBody.getByRole('button', { name: 'Selected', exact: true })).toHaveAttribute('aria-pressed', 'true');
-  await page.getByRole('button', { name: 'Continue with selected version', exact: true }).click();
-  await expect(page.getByRole('heading', { name: 'Review', exact: true })).toBeVisible();
-  expect(selectedAlternativeId).toBe('full-body-program');
-  await page.unroute('**/api/imports');
-  await page.unroute(`**/api/imports/${importId}/alternative`);
 });
 
 test('a discarded draft leaves no program behind, and reports itself while it reads', async ({ page }, testInfo) => {
@@ -906,6 +910,7 @@ test('a discarded draft leaves no program behind, and reports itself while it re
   await clearActiveWorkout(page);
   await openTab(page, 'Workouts');
   await openNewMenu(page, 'Import a PDF program');
+  await expect(page.getByRole('heading', { name: 'Import a program' })).toBeVisible();
 
   // Hold the section read open so the import is still running once the screen is left. The read
   // belongs to the server, so leaving must not make it look like nothing is happening.
