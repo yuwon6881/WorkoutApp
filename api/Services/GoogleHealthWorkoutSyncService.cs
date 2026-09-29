@@ -171,11 +171,15 @@ public sealed partial class GoogleHealthWorkoutSyncService(
             problem?.LastErrorMessage);
     }
 
-    public async Task<GoogleHealthWorkoutSyncProcessResult> ProcessDueAsync(CancellationToken ct)
+    /// Processes due uploads for every account (the daily sweep), or for one account while its user
+    /// is active. A budget stops the pass between records; an unfinished record stays queued.
+    public async Task<GoogleHealthWorkoutSyncProcessResult> ProcessDueAsync(CancellationToken ct, Guid? userId = null, TimeSpan? budget = null)
     {
         var started = DateTime.UtcNow;
+        var deadline = budget is { } limit ? started.Add(limit) : DateTime.MaxValue;
         var candidates = await db.GoogleHealthWorkoutSyncWork.IgnoreQueryFilters()
-            .Where(x => new[] { "pending", "processing", "awaiting_operation" }.Contains(x.ProcessingState)
+            .Where(x => (userId == null || x.UserId == userId)
+                && new[] { "pending", "processing", "awaiting_operation" }.Contains(x.ProcessingState)
                 && x.NextAttemptAt <= started
                 && (x.LeaseUntil == null || x.LeaseUntil < started))
             .OrderBy(x => x.NextAttemptAt)
@@ -193,7 +197,7 @@ public sealed partial class GoogleHealthWorkoutSyncService(
         var originalCurrentUser = db.CurrentUser;
         foreach (var item in candidates)
         {
-            if (ct.IsCancellationRequested) break;
+            if (ct.IsCancellationRequested || DateTime.UtcNow >= deadline) break;
             db.CurrentUser = item.UserId;
             try
             {

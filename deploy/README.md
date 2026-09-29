@@ -40,12 +40,13 @@ Request-based billing scales to zero when idle. A daily maintenance request runs
 without Cloud Run IAM, `/internal/import-maintenance` exists only when `Maintenance__Secret` is
 configured and answers 404 unless the request presents it in `X-Workout-Maintenance-Secret`.
 
-Google Health workout upload uses the same protected maintenance secret on
-`/internal/google-health-workout-sync`. After deploying the OAuth environment settings, run
-`deploy/setup-google-health-workout-sync.ps1 -ApiOrigin https://workout-api-i47taxhzba-as.a.run.app`
-with `WORKOUT_MAINTENANCE_SECRET` loaded from Secret Manager. The script creates or updates the
-hourly Cloud Scheduler job; a finished workout reaches Google Health within the hour. A per-minute
-job would keep the API and database awake around the clock for a two-user app. Register
+Google Health workout upload has no scheduler job of its own. Finishing or deleting a workout queues
+the upload and then sends it before the response returns (bounded to six seconds, never failing the
+request); opening the app sends anything still queued; and the daily maintenance request above
+retries whatever remains, so a failed upload waits until the next visit or the next day rather
+than an hour. `/internal/google-health-workout-sync` (same protected maintenance secret) remains for
+a manual sweep. Do not add a frequent job for it: it would keep the API and database awake around
+the clock for a two-user app. Register
 `https://workout-one-mocha.vercel.app/api/integrations/google-health/callback` as an authorized
 redirect URI on the Google OAuth client before users connect; repository deployment cannot do that.
 

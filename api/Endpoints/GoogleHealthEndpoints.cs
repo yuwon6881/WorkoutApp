@@ -15,8 +15,10 @@ public static class GoogleHealthEndpoints
 
     public static void MapGoogleHealth(this WebApplication app)
     {
-        app.MapGet("/api/integrations/google-health", async (GoogleHealthService service, AppDb db, CancellationToken ct) =>
+        app.MapGet("/api/integrations/google-health", async (GoogleHealthService service, AppDb db, IServiceScopeFactory scopes, ILogger<GoogleHealthService> logger, CancellationToken ct) =>
         {
+            // Opening the app is the retry point for uploads an earlier flush left queued.
+            await GoogleHealthWorkoutFlush.ForActiveUserAsync(scopes, db.CurrentUser, logger, ct);
             var result = await service.GetStatusAsync(db.CurrentUser!.Value, ct);
             return Results.Ok(result);
         });

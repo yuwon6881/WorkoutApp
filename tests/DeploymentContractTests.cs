@@ -5,7 +5,7 @@ namespace Workout.Tests;
 public sealed class DeploymentContractTests
 {
     [Fact]
-    public void Google_health_oauth_and_scheduler_configuration_are_deployed()
+    public void Google_health_oauth_is_deployed_and_uploads_need_no_scheduler_job_of_their_own()
     {
         var root = RepositoryRoot();
         var build = File.ReadAllText(Path.Combine(root, "cloudbuild.yaml"));
@@ -14,7 +14,10 @@ public sealed class DeploymentContractTests
         Assert.Contains("GoogleHealth__ClientSecret=google-health-client-secret:latest", build);
         Assert.Contains("_GOOGLE_HEALTH_CLIENT_ID:", build);
         Assert.Contains("X-Workout-Maintenance-Secret", endpoint);
-        Assert.True(File.Exists(Path.Combine(root, "deploy", "setup-google-health-workout-sync.ps1")));
+        // Uploads ride on the user's own requests and the daily maintenance sweep; an hourly job would keep the API and database awake.
+        Assert.False(File.Exists(Path.Combine(root, "deploy", "setup-google-health-workout-sync.ps1")));
+        Assert.Contains("GoogleHealthWorkoutFlush.ForActiveUserAsync", endpoint);
+        Assert.Contains("workoutSync.ProcessDueAsync", File.ReadAllText(Path.Combine(root, "api", "Endpoints", "ImportEndpoints.cs")));
     }
 
     [Fact]

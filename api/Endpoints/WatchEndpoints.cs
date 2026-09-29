@@ -49,8 +49,13 @@ public static class WatchEndpoints
         app.MapPost("/api/watch/workouts/{id:guid}/rest", async (Guid id, WorkoutRestMutationInput input, WorkoutService workouts, CancellationToken ct)
             => Results.Ok(await workouts.MutateRest(id, input, ct)));
         app.MapPost("/api/watch/workouts/{id:guid}/finish", async (Guid id, WatchFinishInput input,
-            WorkoutService workouts, CancellationToken ct) => Results.Ok(await workouts.Finish(id, input.Revision, ct,
-                retainExerciseSwaps: false, mutationId: input.MutationId, finishedAt: input.FinishedAt)));
+            WorkoutService workouts, AppDb db, IServiceScopeFactory scopes, ILogger<WorkoutService> logger, CancellationToken ct) =>
+        {
+            var finished = await workouts.Finish(id, input.Revision, ct,
+                retainExerciseSwaps: false, mutationId: input.MutationId, finishedAt: input.FinishedAt);
+            await GoogleHealthWorkoutFlush.ForActiveUserAsync(scopes, db.CurrentUser, logger, ct);
+            return Results.Ok(finished);
+        });
         app.MapPost("/api/watch/session/revoke", async (HttpContext http, WatchPairingService pairings, CancellationToken ct) =>
         {
             var token = http.Request.Headers[WatchAuthentication.DeviceTokenHeader].ToString();
