@@ -1,0 +1,120 @@
+name: Android
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    working-directory: web
+
+jobs:
+  debug-apk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
+        with:
+          node-version: '24'
+          cache: 'npm'
+          cache-dependency-path: web/package-lock.json
+      - uses: actions/setup-java@dded0888837ed1f317902acf8a20df0ad188d165 # v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
+      - name: Install pinned Android SDK components
+        run: sdkmanager "platforms;android-36" "build-tools;36.0.0" "platform-tools"
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Prepare stable device-test signing key
+        if: github.event_name != 'pull_request'
+        env:
+          ANDROID_DEBUG_KEYSTORE_BASE64: ${{ secrets.ANDROID_DEBUG_KEYSTORE_BASE64 }}
+          ANDROID_DEBUG_KEY_ALIAS: ${{ secrets.ANDROID_DEBUG_KEY_ALIAS }}
+          ANDROID_DEBUG_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_DEBUG_KEYSTORE_PASSWORD }}
+          ANDROID_DEBUG_KEY_PASSWORD: ${{ secrets.ANDROID_DEBUG_KEY_PASSWORD }}
+        run: |
+          test -n "$ANDROID_DEBUG_KEYSTORE_BASE64"
+          test -n "$ANDROID_DEBUG_KEY_ALIAS"
+          test -n "$ANDROID_DEBUG_KEYSTORE_PASSWORD"
+          test -n "$ANDROID_DEBUG_KEY_PASSWORD"
+          keystore="$RUNNER_TEMP/workout-device-test.p12"
+          printf '%s' "$ANDROID_DEBUG_KEYSTORE_BASE64" | base64 --decode > "$keystore"
+          chmod 600 "$keystore"
+          echo "ANDROID_DEBUG_KEYSTORE_PATH=$keystore" >> "$GITHUB_ENV"
+          echo "ANDROID_DEBUG_KEY_ALIAS=$ANDROID_DEBUG_KEY_ALIAS" >> "$GITHUB_ENV"
+          echo "ANDROID_DEBUG_KEYSTORE_PASSWORD=$ANDROID_DEBUG_KEYSTORE_PASSWORD" >> "$GITHUB_ENV"
+          echo "ANDROID_DEBUG_KEY_PASSWORD=$ANDROID_DEBUG_KEY_PASSWORD" >> "$GITHUB_ENV"
+      - run: npm ci
+      - name: Build web app and sync Capacitor Android project
+        run: npm run android:sync
+      - name: Build and verify Android debug APK
+        working-directory: web/android
+        run: ./gradlew --no-daemon testDebugUnitTest assembleDebug
+      - name: Verify stable device-test APK certificate
+        if: github.event_name != 'pull_request'
+        env:
+          ANDROID_DEBUG_SIGNING_CERT_SHA256: ${{ vars.ANDROID_DEBUG_SIGNING_CERT_SHA256 }}
+        run: |
+          test -n "$ANDROID_DEBUG_SIGNING_CERT_SHA256"
+          apk="android/app/build/outputs/apk/debug/app-debug.apk"
+          actual="$("$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --print-certs "$apk" | awk -F ': ' '/Signer #1 certificate SHA-256 digest:/ {gsub(":", "", $2); print toupper($2); exit}')"
+          expected="$(printf '%s' "$ANDROID_DEBUG_SIGNING_CERT_SHA256" | tr -d ':' | tr '[:lower:]' '[:upper:]')"
+          test "$actual" = "$expected"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: workout-android-debug-${{ github.event_name == 'pull_request' && 'pull-request' || 'device-test' }}
+          path: web/android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+
+  signed-release-aab:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    env:
+      ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+      ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+      ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
+        with:
+          node-version: '24'
+          cache: 'npm'
+          cache-dependency-path: web/package-lock.json
+      - uses: actions/setup-java@dded0888837ed1f317902acf8a20df0ad188d165 # v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: android-actions/setup-android@v3
+      - name: Install pinned Android SDK components
+        run: sdkmanager "platforms;android-36" "build-tools;36.0.0" "platform-tools"
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Install dependencies and prepare signing key
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          test -n "$ANDROID_KEY_ALIAS"
+          test -n "$ANDROID_KEYSTORE_PASSWORD"
+          test -n "$ANDROID_KEY_PASSWORD"
+          test -n "$ANDROID_KEYSTORE_BASE64"
+          npm ci
+          printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/workout-release.jks"
+          echo "ANDROID_KEYSTORE_PATH=$RUNNER_TEMP/workout-release.jks" >> "$GITHUB_ENV"
+      - name: Build web app and sync Capacitor Android project
+        run: npm run android:sync
+      - name: Build signed Android App Bundle
+        working-directory: web/android
+        run: ./gradlew --no-daemon bundleRelease
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: workout-android-release-aab
+          path: web/android/app/build/outputs/bundle/release/app-release.aab
+          if-no-files-found: error
