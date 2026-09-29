@@ -23,7 +23,8 @@ public sealed partial class GoogleHealthWorkoutSyncService(
     AppDb db,
     GoogleHealthService google,
     HttpClient http,
-    GoogleHealthWorkoutSummaryService summary)
+    GoogleHealthWorkoutSummaryService summary,
+    Func<TimeSpan, CancellationToken, Task>? retryDelay = null)
 {
     public const string WorkoutScope = "https://www.googleapis.com/auth/googlehealth.activity_and_fitness.writeonly";
     private static readonly TimeSpan LeaseDuration = TimeSpan.FromMinutes(2);
@@ -295,22 +296,27 @@ public sealed partial class GoogleHealthWorkoutSyncService(
                 return "failed";
             }
 
+            // A transient Google or network failure is retried at once (bounded); see GoogleHealthImmediateRetry.
             GoogleHealthOperationResult op;
             if (!string.IsNullOrEmpty(lease.OperationName))
             {
-                op = await GoogleHealthWorkoutProvider.PollAsync(http, token, lease.OperationName, ct);
+                op = await GoogleHealthImmediateRetry.RunAsync(
+                    () => GoogleHealthWorkoutProvider.PollAsync(http, token, lease.OperationName, ct), ct, retryDelay);
             }
             else if (lease.Deleted)
             {
-                op = await GoogleHealthWorkoutProvider.DeleteAsync(http, token, lease.ResourceName, ct);
+                op = await GoogleHealthImmediateRetry.RunAsync(
+                    () => GoogleHealthWorkoutProvider.DeleteAsync(http, token, lease.ResourceName, ct), ct, retryDelay);
             }
             else
             {
                 var payload = BuildDataPoint(lease.StartedAt, lease.FinishedAt, lease.Name, lease.Notes, null);
                 createMayHaveBeenSent = string.IsNullOrEmpty(lease.ResourceName);
-                op = string.IsNullOrEmpty(lease.ResourceName)
-                    ? await GoogleHealthWorkoutProvider.CreateAsync(http, token, payload, ct)
-                    : await GoogleHealthWorkoutProvider.UpdateAsync(http, token, lease.ResourceName, payload, ct);
+                op = await GoogleHealthImmediateRetry.RunAsync(
+                    () => string.IsNullOrEmpty(lease.ResourceName)
+                        ? GoogleHealthWorkoutProvider.CreateAsync(http, token, payload, ct)
+                        : GoogleHealthWorkoutProvider.UpdateAsync(http, token, lease.ResourceName, payload, ct),
+                    ct, retryDelay);
             }
 
             if (!string.IsNullOrEmpty(op.ErrorCategory))

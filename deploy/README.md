@@ -43,8 +43,10 @@ configured and answers 404 unless the request presents it in `X-Workout-Maintena
 Google Health workout upload has no scheduler job of its own. Finishing or deleting a workout queues
 the upload and then sends it before the response returns (bounded to six seconds, never failing the
 request); opening the app sends anything still queued; and the daily maintenance request above
-retries whatever remains, so a failed upload waits until the next visit or the next day rather
-than an hour. `/internal/google-health-workout-sync` (same protected maintenance secret) remains for
+retries whatever remains. A temporary Google or network failure is first retried up to twice at once
+(about half a second, then one and a half; never a create whose outcome is unknown, since a duplicate
+could exist), so a failed upload waits until the next visit or the next day only when Google stays down
+longer than that, rather than an hour. `/internal/google-health-workout-sync` (same protected maintenance secret) remains for
 a manual sweep. Do not add a frequent job for it: it would keep the API and database awake around
 the clock for a two-user app. Register
 `https://workout-one-mocha.vercel.app/api/integrations/google-health/callback` as an authorized
