@@ -5,8 +5,10 @@ describe('requested app update', () => {
   it('activates a waiting worker before allowing the registration helper to reload', async () => {
     const activate = vi.fn(async () => undefined);
     const reload = vi.fn();
-    await applyAppUpdate(async () => ({ waiting: {} } as ServiceWorkerRegistration), activate, reload);
+    const postMessage = vi.fn(() => expect(activate).toHaveBeenCalledOnce());
+    await applyAppUpdate(async () => ({ waiting: {postMessage} } as unknown as ServiceWorkerRegistration), activate, reload);
     expect(activate).toHaveBeenCalledOnce();
+    expect(postMessage).toHaveBeenCalledWith({type: 'SKIP_WAITING'});
     expect(reload).not.toHaveBeenCalled();
   });
 
