@@ -43,7 +43,7 @@ public sealed class LoadSettingsService(AppDb db, CatalogService catalog)
         var stackViews = stacks.Select(stack => new LoadStackView(stack.Id, stack.Name, stack.LoadStepKg,
             LoadRuleReader.Loads(stack.AvailableLoadsJson), stack.Revision,
             settings.Count(x => x.StackId == stack.Id && names.ContainsKey(x.Id)),
-            defaults.Values.Where(x => x.StackId == stack.Id).Select(x => x.Equipment).Order().ToList())).ToList();
+            defaults.Values.Where(x => x.StackId == stack.Id && EquipmentGroups.IsKnown(x.Equipment)).Select(x => x.Equipment).Order().ToList())).ToList();
         var stackNames = stacks.ToDictionary(x => x.Id, x => x.Name);
         var overrides = settings.Where(x => names.ContainsKey(x.Id)).Select(x => new LoadOverrideView(x.Id, names[x.Id].Name,
                 names[x.Id].Equipment, x.LoadStepKg, LoadRuleReader.Loads(x.AvailableLoadsJson), x.StackId,

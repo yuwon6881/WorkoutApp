@@ -38,6 +38,12 @@
 
 .load-rule-editor .modal-actions {
   display: flex;
+  flex-wrap: wrap;
   justify-content: flex-end;
   gap: 8px;
+}
+
+/* The reset stays at the leading edge so it is not mistaken for a way to confirm. */
+.load-rule-editor .load-rule-reset {
+  margin-right: auto;
 }

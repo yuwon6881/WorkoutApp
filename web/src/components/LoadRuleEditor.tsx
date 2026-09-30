@@ -10,20 +10,21 @@ import { SegmentedControl } from './ui/SegmentedControl';
 import { Select } from './ui/Select';
 import './LoadRuleEditor.css';
 
-type Mode = 'inherit' | 'increment' | 'weights' | 'stack';
+type Mode = 'increment' | 'weights';
 type Entry = 'total' | 'side';
 
-const modeLabels: Record<Mode, string> = { inherit: 'Default', increment: 'Increment', weights: 'Weight list', stack: 'Weight stack' };
+const modeLabels: Record<Mode, string> = { increment: 'Increment', weights: 'Weight list' };
+const TYPED = '';
 
-function initialMode(rule: LoadRule, allowInherit: boolean, preferList: boolean): Mode {
-  if (rule.stackId) return 'stack';
-  if (rule.availableLoadsKg) return 'weights';
+function initialMode(rule: LoadRule, preferList: boolean): Mode {
+  if (rule.stackId || rule.availableLoadsKg) return 'weights';
   if (rule.loadStepKg !== null) return 'increment';
-  return allowInherit ? 'inherit' : preferList ? 'weights' : 'increment';
+  return preferList ? 'weights' : 'increment';
 }
 
-/// Edits one load rule: inherit, a fixed step (entered as a total or per side), a list of the
-/// weights that exist (typed or filled from a start, step and count), or a shared stack.
+/// Edits one load rule as one of two choices: a fixed increment (entered as a total or per side) or
+/// a list of the weights that exist (typed, filled from a start, step and count, or taken from a
+/// saved stack). Where a default exists, "Use default" clears the rule instead of being a third tab.
 /// Values are entered in the lifter's unit and saved in kilograms at full precision.
 export function LoadRuleEditor({
   unit, rule, name, inheritText, allowInherit = true, stacks, perSide = false, preferList = false,
@@ -45,23 +46,20 @@ export function LoadRuleEditor({
   onSubmit: (rule: LoadRule) => void;
   onCancel: () => void;
 }) {
-  const [mode, setMode] = useState<Mode>(() => initialMode(rule, allowInherit, preferList));
+  const [mode, setMode] = useState<Mode>(() => initialMode(rule, preferList));
   const [entry, setEntry] = useState<Entry>('total');
   const initialStep = rule.loadStepKg === null ? '' : displayLoadSetting(rule.loadStepKg, unit);
   const initialList = rule.availableLoadsKg ? formatAvailableLoads(rule.availableLoadsKg, unit) : '';
   const [step, setStep] = useState(initialStep);
   const [list, setList] = useState(initialList);
-  const [stackId, setStackId] = useState(rule.stackId ?? stacks?.[0]?.id ?? '');
+  const [stackId, setStackId] = useState(rule.stackId ?? TYPED);
   const [generator, setGenerator] = useState({ start: '', step: '', count: '' });
   const [fieldError, setFieldError] = useState('');
   const stepField = useRef<HTMLInputElement | null>(null);
   const listField = useRef<HTMLTextAreaElement | null>(null);
 
-  const modes: Mode[] = [
-    ...(allowInherit ? ['inherit' as const] : []),
-    'increment', 'weights',
-    ...(stacks?.length ? ['stack' as const] : [])
-  ];
+  const modes: Mode[] = ['increment', 'weights'];
+  const hasOwnRule = rule.loadStepKg !== null || rule.availableLoadsKg !== null || !!rule.stackId;
 
   function fillList() {
     const values = generateLoads(Number(generator.start), Number(generator.step), Number(generator.count));
@@ -72,8 +70,7 @@ export function LoadRuleEditor({
 
   function submit() {
     if (validateExtra && !validateExtra()) return;
-    if (mode === 'inherit') { onSubmit({ loadStepKg: null, availableLoadsKg: null, stackId: null }); return; }
-    if (mode === 'stack') { onSubmit({ loadStepKg: null, availableLoadsKg: null, stackId: stackId || null }); return; }
+    if (mode === 'weights' && stackId) { onSubmit({ loadStepKg: null, availableLoadsKg: null, stackId }); return; }
     const weights = mode === 'weights';
     const raw = weights ? list : step;
     const unchanged = entry === 'total' && raw === (weights ? initialList : initialStep) && raw !== '';
@@ -97,13 +94,9 @@ export function LoadRuleEditor({
 
   return <form className="load-rule-editor" noValidate onSubmit={event => { event.preventDefault(); submit(); }}>
     {children}
-    {modes.length > 3
-      ? <Select<Mode> label="Weight rule" name={`${name}-mode`} value={mode} disabled={busy} onChange={chooseMode}
-          options={modes.map(value => ({ value, label: modeLabels[value] }))} />
-      : <SegmentedControl<Mode> label="Weight rule" value={mode} disabled={busy} onChange={chooseMode}
-          options={modes.map(value => ({ value, label: modeLabels[value] }))} />}
-
-    {mode === 'inherit' && <p className="muted">{inheritText ?? 'Uses the default.'}</p>}
+    {allowInherit && <p className="muted">{hasOwnRule ? 'Replace the default with your own weights.' : inheritText ?? 'Uses the default.'}</p>}
+    <SegmentedControl<Mode> label="Weights change by" value={mode} disabled={busy} onChange={chooseMode}
+      options={modes.map(value => ({ value, label: modeLabels[value] }))} />
 
     {mode === 'increment' && <>
       {perSide && <SegmentedControl<Entry> label="Enter the increment as" value={entry} disabled={busy}
@@ -117,7 +110,11 @@ export function LoadRuleEditor({
         : allowZeroStep ? 'Set 0 for a fixed load with progression through reps.' : 'The smallest change you can make.'}</p>
     </>}
 
-    {mode === 'weights' && <>
+    {mode === 'weights' && !!stacks?.length && <Select<string> label="Weights from" name={`${name}-stack`} value={stackId} disabled={busy}
+      onChange={value => { setStackId(value); setFieldError(''); }}
+      options={[{ value: TYPED, label: 'Typed below' }, ...stacks.map(stack => ({ value: stack.id, label: `Saved stack: ${stack.name}` }))]} />}
+
+    {mode === 'weights' && !stackId && <>
       <TextAreaField ref={listField} name={`${name}-weights`} label={`Available weights (${unit})`} rows={3}
         value={list} error={fieldError} disabled={busy} placeholder="2.5, 5, 7.5, 10, 15, 20"
         onChange={event => { setList(event.target.value); setFieldError(''); }} />
@@ -134,10 +131,9 @@ export function LoadRuleEditor({
       <p className="muted">Separate weights with commas or spaces, or fill them evenly and then edit any that differ.</p>
     </>}
 
-    {mode === 'stack' && stacks && <Select<string> label="Weight stack" name={`${name}-stack`} value={stackId} disabled={busy}
-      onChange={setStackId} options={stacks.map(stack => ({ value: stack.id, label: stack.name }))} />}
-
     <div className="modal-actions">
+      {allowInherit && hasOwnRule && <Button variant="tertiary" disabled={busy} className="load-rule-reset"
+        onClick={() => onSubmit({ loadStepKg: null, availableLoadsKg: null, stackId: null })}>Use default</Button>}
       <Button variant="secondary" disabled={busy} onClick={onCancel}>Cancel</Button>
       <Button type="submit" disabled={busy}>{busy ? 'Saving…' : submitLabel}</Button>
     </div>

@@ -64,7 +64,7 @@ export function LoadIncrementSettings({ unit, notify, onChanged }: {
 
     <article className="panel settings-card load-settings-group" aria-labelledby="load-equipment-title">
       <h3 id="load-equipment-title">Equipment defaults</h3>
-      <p className="muted">Applies to every exercise of that equipment unless the exercise has its own setting.</p>
+      <p className="muted">Applies to every exercise of that equipment unless the exercise has its own setting. Machines are not listed because each one has different weights: set them from the exercise's details or during a workout.</p>
       {groups.map(item => {
         const info = equipmentGroupInfo(item.group);
         return <SettingRow key={item.group} label={<strong>{info.label}</strong>} descriptionId={`load-${item.group}-description`}

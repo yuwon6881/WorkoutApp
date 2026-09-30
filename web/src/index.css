@@ -15,6 +15,10 @@
 h1,h2,h3,p{overflow-wrap:anywhere}.row-title{min-width:0;white-space:normal;overflow-wrap:anywhere}.routine-row>span:nth-child(2){min-width:0;white-space:normal;overflow-wrap:anywhere}.resume-workout{white-space:normal;overflow-wrap:anywhere;min-width:0;text-align:left}
 @media(max-width:1023px){.modal>header .button{min-width:44px}}
 .auth-screen{min-height:100dvh;display:grid;place-items:center;padding:24px;background:var(--bg)}
+.recovery-card{width:100%;max-width:400px;display:flex;flex-direction:column;gap:12px;padding:24px;text-align:left}
+.recovery-card h1{margin:0;font-size:24px;line-height:1.2}
+.recovery-card p{margin:0;color:var(--muted);line-height:1.5}
+.recovery-card .modal-actions{justify-content:flex-end;gap:8px;margin-top:4px;padding:0;border-top:0;background:transparent}
 .auth-card{width:100%;max-width:400px;display:flex;flex-direction:column;gap:14px;text-align:left}
 .auth-card h1{font-size:26px}
 .auth-card .field{display:flex;flex-direction:column;gap:6px;font-size:11px;color:var(--muted)}

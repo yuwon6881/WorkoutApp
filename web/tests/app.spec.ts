@@ -58,8 +58,7 @@ test('personal exercise weights support uneven lists and kg/lb switching', async
     const saved = await (await page.request.get(`/api/exercises/${exercise.id}/load-settings`)).json();
     expect(saved.loadStepKg).toBeCloseTo(5 / 2.2046226218, 8);
     await dialog.getByRole('button', { name: 'Edit weights', exact: true }).click();
-    await dialog.getByRole('button', { name: 'Default', exact: true }).click();
-    await dialog.getByRole('button', { name: 'Save weights', exact: true }).click();
+    await dialog.getByRole('button', { name: 'Use default', exact: true }).click();
     await expect(dialog.getByText('5.51 lb steps · App default', { exact: true })).toBeVisible();
   } finally {
     await page.request.delete(`/api/exercises/custom/${exercise.id}`, { headers });

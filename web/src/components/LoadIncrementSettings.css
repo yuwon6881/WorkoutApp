@@ -1,5 +1,6 @@
-.load-settings-group {
-  padding-block: 16px 4px;
+/* Chained with .panel.settings-card, whose own padding would otherwise win on specificity. */
+.panel.settings-card.load-settings-group {
+  padding-block: 20px 6px;
 }
 
 .load-settings-group h3 {
@@ -21,6 +22,10 @@
 
 .load-settings-empty {
   padding-block: 12px;
+}
+
+.load-settings-group .setting-row:last-child {
+  padding-bottom: 20px;
 }
 
 .load-stack-delete {

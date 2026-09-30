@@ -11,8 +11,12 @@ describe('equipment groups', () => {
 
   it('offers per-side entry only where plates load both sides', () => {
     expect(equipmentGroupInfo('barbell').perSide).toBe(true);
-    expect(equipmentGroupInfo('plate-loaded-machine').perSide).toBe(true);
     expect(equipmentGroupInfo('cable').perSide).toBe(false);
-    expect(equipmentGroupInfo('weight-stack-machine').preferList).toBe(true);
+    expect(equipmentGroupInfo('cable').preferList).toBe(true);
+  });
+
+  it('gives machines no shared group', () => {
+    expect(equipmentGroups).not.toContain('machine');
+    expect(equipmentGroupInfo('barbell').label).toBe('Plate-loaded');
   });
 });
