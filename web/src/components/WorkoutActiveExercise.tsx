@@ -75,6 +75,19 @@ export function WorkoutActiveExercise({
   const [showNote, setShowNote] = useState(true);
   const [confirmRemove, setConfirmRemove] = useState(false);
   const actionToolbar = useRef<HTMLDivElement>(null);
+  const restoreWeightFocus = useRef(false);
+
+  useEffect(() => {
+    if (weightsOpen || !restoreWeightFocus.current) return;
+    // Wait for the nested dialog to unmount before focusing the underlying workout.
+    actionToolbar.current?.querySelector<HTMLButtonElement>('.ui-menu-trigger')?.focus();
+    restoreWeightFocus.current = false;
+  }, [weightsOpen]);
+
+  function closeWeights() {
+    restoreWeightFocus.current = true;
+    setWeightsOpen(false);
+  }
 
   const [removedSet, setRemovedSet] = useState<RemovedSet | null>(null);
 
@@ -352,13 +365,10 @@ export function WorkoutActiveExercise({
       )}
 
       {weightsOpen && libraryExercise && (
-        <Modal title={`${exercise.name} weights`} onClose={() => {
-          setWeightsOpen(false);
-          // The menu item unmounts before the dialog opens, so restore its persistent trigger.
-          actionToolbar.current?.querySelector<HTMLButtonElement>('.ui-menu-trigger')?.focus();
-        }}>
+        <Modal title={`${exercise.name} weights`} onClose={closeWeights}>
           <div className="modal-body">
-            <ExerciseLoadSettings exerciseId={libraryExercise.id} unit={unit} perSide={canEnterPerSide(libraryExercise)} onChanged={onCatalogChanged} />
+            <ExerciseLoadSettings exerciseId={libraryExercise.id} exerciseName={exercise.name} unit={unit} editor
+              perSide={canEnterPerSide(libraryExercise)} onClose={closeWeights} onChanged={onCatalogChanged} />
           </div>
         </Modal>
       )}

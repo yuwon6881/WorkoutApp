@@ -1,11 +1,18 @@
 .exercise-load-settings {
   min-width: 0;
-  padding-block: 16px;
+  padding-block: 4px;
   border-block: 1px solid var(--border);
 }
 
-.exercise-load-settings p {
-  overflow-wrap: anywhere;
-  font-size: 13px;
-  line-height: 1.5;
+.exercise-load-settings .setting-row {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px 16px;
+  padding: 12px 0;
+  border-bottom: 0;
+}
+
+.exercise-load-settings .setting-controls-wrap,
+.exercise-load-settings .setting-controls-wrap > .button {
+  width: auto;
 }

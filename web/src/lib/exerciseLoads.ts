@@ -46,7 +46,9 @@ export function formatAvailableLoads(values: number[], unit: Unit): string {
 
 /// "2.5 kg steps" or "5, 10, 15 kg": the rule in the words a lifter reads on a gym card.
 export function describeLoad(stepKg: number | null, loadsKg: number[] | null, unit: Unit): string {
-  if (loadsKg?.length) return `${formatAvailableLoads(loadsKg, unit)} ${unit}`;
+  if (loadsKg?.length) return loadsKg.length > 4
+    ? `${loadsKg.length} weights · ${displayLoadSetting(loadsKg[0], unit)}–${displayLoadSetting(loadsKg[loadsKg.length - 1], unit)} ${unit}`
+    : `${formatAvailableLoads(loadsKg, unit)} ${unit}`;
   if (stepKg === null) return 'Not set';
   return stepKg === 0 ? 'Fixed load, progress by reps' : `${displayLoadSetting(stepKg, unit)} ${unit} steps`;
 }

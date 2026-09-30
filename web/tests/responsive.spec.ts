@@ -250,7 +250,6 @@ for (const theme of ['dark', 'light']) {
     await exerciseActions.click();
     await page.getByRole('menuitem', { name: 'Weight settings', exact: true }).click();
     const weights = page.getByRole('dialog', { name: 'Barbell bench press weights', exact: true });
-    await weights.getByRole('button', { name: 'Edit weights', exact: true }).click();
     await checkLayout(page, 'active exercise weight settings');
     await page.screenshot({ animations: 'disabled', path: join(screenshotsDirectory, 'responsive', `${info.project.name}-${theme}-active-weight-settings.png`) });
     await page.keyboard.press('Escape');
@@ -309,6 +308,11 @@ for (const theme of ['dark', 'light']) {
     await plateEditor.getByRole('button', { name: 'Per side', exact: true }).click();
     await plateEditor.getByRole('spinbutton', { name: 'Smallest plate per side (kg)', exact: true }).fill('1.25');
     await screenshot('plate-loaded-weights');
+    await plateEditor.getByRole('button', { name: 'Weight list', exact: true }).click();
+    await plateEditor.getByRole('textbox', { name: 'Available weights (kg)', exact: true }).fill('2.5, 5, 7.5, 10');
+    await screenshot('equipment-weight-list');
+    await plateEditor.getByRole('button', { name: 'Create a sequence', exact: true }).click();
+    await screenshot('equipment-weight-sequence');
     await plateEditor.getByRole('button', { name: 'Cancel', exact: true }).click();
     await expect(plateWeights).toBeFocused();
 
@@ -367,15 +371,21 @@ for (const theme of ['dark', 'light']) {
     // The detail sheet and its progress chart were never measured before; small chart labels and
     // sideways-scrolling bars hid there.
     await page.getByRole('button', { name: 'View Barbell bench press details' }).first().click();
-    const detail = page.getByRole('dialog', { name: /Barbell bench press/ });
+    const detail = page.getByRole('dialog', { name: 'Barbell bench press', exact: true });
     await expect(detail).toBeVisible();
-    await expect(detail.getByRole('heading', { name: 'Progress' })).toBeVisible();
+    await expect(detail.getByText('No workout history yet. Complete a workout to see progress here.', { exact: true })).toBeVisible();
+    await expect(detail.locator('.detail-record-grid, .chart-table, .detail-selectors')).toHaveCount(0);
     await screenshot('exercise-detail');
     await detail.getByRole('button', { name: 'Edit weights', exact: true }).click();
-    await detail.getByRole('button', { name: 'Weight list', exact: true }).click();
-    await detail.getByRole('textbox', { name: /Available weights/ }).fill('5, 7.5, 12.5, 20, 27.5');
+    const exerciseWeights = page.getByRole('dialog', { name: 'Barbell bench press weights', exact: true });
+    await exerciseWeights.getByRole('button', { name: 'Weight list', exact: true }).click();
+    await exerciseWeights.getByRole('textbox', { name: /Available weights/ }).fill('5, 7.5, 12.5, 20, 27.5');
+    await expect(exerciseWeights.getByRole('button', { name: 'Fill list', exact: true })).toHaveCount(0);
     await screenshot('exercise-weight-settings');
-    await detail.getByRole('button', { name: 'Cancel', exact: true }).click();
+    await exerciseWeights.getByRole('button', { name: 'Create a sequence', exact: true }).click();
+    await screenshot('exercise-weight-sequence');
+    await exerciseWeights.getByRole('button', { name: 'Cancel', exact: true }).click();
+    await expect(detail.getByRole('button', { name: 'Edit weights', exact: true })).toBeFocused();
     await page.keyboard.press('Escape');
     await expect(detail).toBeHidden();
 

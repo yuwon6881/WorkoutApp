@@ -70,11 +70,11 @@ export function LoadIncrementSettings({ unit, notify, onChanged }: {
 
     <article className="panel settings-card load-settings-group" aria-labelledby="load-equipment-title">
       <h3 id="load-equipment-title">Equipment defaults</h3>
-      <p className="muted">Equipment defaults apply unless an exercise has its own rule. Plate-loaded covers bars, plate-loaded machines, held plates and weighted bodyweight exercises. Set other machines individually from exercise details or during a workout.</p>
+      <p className="muted">Used unless an exercise has its own weights. Set individual machine weights from Exercises.</p>
       {groups.map(item => {
         const info = equipmentGroupInfo(item.group);
         return <SettingRow key={item.group} label={<strong>{info.label}</strong>} descriptionId={`load-${item.group}-description`}
-          description={`${describeLoad(item.stepKg, item.availableLoadsKg, unit)} · ${describeSource(item.source, item.group)} · ${item.exerciseCount} exercises`}>
+          description={`${describeLoad(item.stepKg, item.availableLoadsKg, unit)} · ${describeSource(item.source, item.group)}`}>
           <Button variant="secondary" disabled={busy} aria-label={`Edit ${info.label} weights`} aria-describedby={`load-${item.group}-description`}
             onClick={event => {
               editingTrigger.current = event.currentTarget;
@@ -88,7 +88,6 @@ export function LoadIncrementSettings({ unit, notify, onChanged }: {
 
     {editing && <Modal title={`${equipmentGroupInfo(editing.group).label} weights`} onClose={() => !busy && setEditing(null)}>
       <div className="modal-body">
-        <p className="muted">{equipmentGroupInfo(editing.group).hint}</p>
         <LoadRuleEditor unit={unit} name={`equipment-${editing.group}`} busy={busy}
           rule={{ loadStepKg: editing.ownStepKg, availableLoadsKg: editing.ownAvailableLoadsKg }}
           perSide={equipmentGroupInfo(editing.group).perSide} preferList={equipmentGroupInfo(editing.group).preferList}

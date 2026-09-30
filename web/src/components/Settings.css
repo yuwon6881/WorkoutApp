@@ -169,75 +169,6 @@
   margin: 0;
 }
 
-.setting-row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 12px 24px;
-  min-width: 0;
-  padding: 18px 0;
-  border-bottom: 1px solid var(--border);
-}
-
-.setting-row:last-child {
-  border-bottom: 0;
-}
-
-.setting-row-stacked {
-  grid-template-columns: minmax(0, 1fr);
-  align-items: start;
-}
-
-.setting-text {
-  display: grid;
-  gap: 4px;
-  min-width: 0;
-}
-
-.setting-label-wrap {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  min-width: 0;
-  max-width: 100%;
-  overflow-wrap: anywhere;
-}
-
-.setting-label-content {
-  min-width: 0;
-  overflow-wrap: anywhere;
-}
-
-.setting-label-content strong {
-  display: block;
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--text);
-  overflow-wrap: anywhere;
-}
-
-.setting-description {
-  display: grid;
-  gap: 4px;
-  font-size: var(--font-secondary);
-  line-height: 1.5;
-  color: var(--muted);
-}
-
-.setting-controls-wrap {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 10px;
-  min-width: 0;
-  max-width: 100%;
-}
-
-.setting-row-stacked .setting-controls-wrap {
-  justify-content: flex-start;
-  width: 100%;
-}
-
 .setting-inline-controls {
   display: flex;
   align-items: center;
@@ -355,34 +286,6 @@
 
   .panel.settings-card {
     padding: 2px 18px;
-  }
-
-  .setting-row {
-    grid-template-columns: minmax(0, 1fr);
-    align-items: stretch;
-    gap: 12px;
-    padding: 16px 0;
-  }
-
-  /* A lone switch stays beside its label; wider controls take their own line. */
-  .setting-row:has(> .setting-controls-wrap > .switch:only-child) {
-    grid-template-columns: minmax(0, 1fr) auto;
-    align-items: center;
-  }
-
-  .setting-controls-wrap,
-  .setting-row-stacked .setting-controls-wrap {
-    width: 100%;
-    justify-content: stretch;
-  }
-
-  .setting-row:has(> .setting-controls-wrap > .switch:only-child) .setting-controls-wrap {
-    width: auto;
-  }
-
-  .setting-controls-wrap > .segmented,
-  .setting-controls-wrap > .button {
-    width: 100%;
   }
 
   .setting-inline-controls {

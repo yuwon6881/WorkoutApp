@@ -11,7 +11,7 @@
   line-height: 1.5;
 }
 
-/* Start, step and count sit in one row with the fill action trailing; on a phone they wrap. */
+/* The optional sequence helper wraps its fields on phones. */
 .load-rule-generator {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr)) auto;
@@ -30,6 +30,8 @@
   font-size: var(--font-secondary, 14px);
   font-weight: 600;
 }
+
+.load-rule-sequence-toggle { justify-self: start; }
 
 @media (max-width: 639px) {
   .load-rule-generator { grid-template-columns: repeat(3, minmax(0, 1fr)); }

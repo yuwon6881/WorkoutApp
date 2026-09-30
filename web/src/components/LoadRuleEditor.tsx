@@ -1,12 +1,13 @@
 import { useRef, useState } from 'react';
 import type { Unit } from '../types';
 import {
-  displayLoadSetting, formatAvailableLoads, generateLoads, loadSettingToKg, type LoadRule
+  displayLoadSetting, formatAvailableLoads, loadSettingToKg, type LoadRule
 } from '../lib/exerciseLoads';
 import { validateExerciseLoads } from '../lib/validation';
 import { Button } from './ui/Button';
 import { Field, TextAreaField } from './ui/Field';
 import { SegmentedControl } from './ui/SegmentedControl';
+import { LoadSequenceBuilder } from './LoadSequenceBuilder';
 import './LoadRuleEditor.css';
 
 type Mode = 'increment' | 'weights';
@@ -43,20 +44,13 @@ export function LoadRuleEditor({
   const initialList = rule.availableLoadsKg ? formatAvailableLoads(rule.availableLoadsKg, unit) : '';
   const [step, setStep] = useState(initialStep);
   const [list, setList] = useState(initialList);
-  const [generator, setGenerator] = useState({ start: '', step: '', count: '' });
+  const [sequenceOpen, setSequenceOpen] = useState(false);
   const [fieldError, setFieldError] = useState('');
   const stepField = useRef<HTMLInputElement | null>(null);
   const listField = useRef<HTMLTextAreaElement | null>(null);
 
   const modes: Mode[] = ['increment', 'weights'];
   const hasOwnRule = rule.loadStepKg !== null || rule.availableLoadsKg !== null;
-
-  function fillList() {
-    const values = generateLoads(Number(generator.start), Number(generator.step), Number(generator.count));
-    if (!values.length) { setFieldError('Enter a start weight, a step above 0 and a count of 1 to 200.'); return; }
-    setList(values.map(value => String(value)).join(', '));
-    setFieldError('');
-  }
 
   function submit() {
     const weights = mode === 'weights';
@@ -80,7 +74,7 @@ export function LoadRuleEditor({
   const chooseMode = (next: Mode) => { setMode(next); setFieldError(''); };
 
   return <form className="load-rule-editor" noValidate onSubmit={event => { event.preventDefault(); submit(); }}>
-    <p className="muted">{hasOwnRule ? 'Replace the default with your own weights.' : inheritText ?? 'Uses the default.'}</p>
+    {!hasOwnRule && inheritText && <p className="muted">{inheritText}</p>}
     <SegmentedControl<Mode> label="Weights change by" value={mode} disabled={busy} onChange={chooseMode}
       options={modes.map(value => ({ value, label: modeLabels[value] }))} />
 
@@ -92,25 +86,26 @@ export function LoadRuleEditor({
         label={entry === 'side' ? `Smallest plate per side (${unit})` : `Weight increment (${unit})`}
         value={step} error={fieldError} disabled={busy} onChange={event => { setStep(event.target.value); setFieldError(''); }} />
       <p className="muted">{entry === 'side'
-        ? 'Saved as the total change: 1.25 per side is a 2.5 step.'
-        : 'Set 0 for a fixed load with progression through reps.'}</p>
+        ? '1.25 per side = a 2.5 total step.'
+        : 'Use 0 to progress through reps only.'}</p>
     </>}
 
     {mode === 'weights' && <>
-      <TextAreaField ref={listField} name={`${name}-weights`} label={`Available weights (${unit})`} rows={3}
+      <TextAreaField ref={listField} name={`${name}-weights`} label={`Available weights (${unit})`} rows={2}
         value={list} error={fieldError} disabled={busy} placeholder="2.5, 5, 7.5, 10, 15, 20"
         onChange={event => { setList(event.target.value); setFieldError(''); }} />
-      <fieldset className="load-rule-generator" disabled={busy}>
-        <legend>Fill evenly</legend>
-        <Field name={`${name}-start`} label={`Start (${unit})`} type="number" step="any" min="0" inputMode="decimal"
-          value={generator.start} onChange={event => setGenerator(current => ({ ...current, start: event.target.value }))} />
-        <Field name={`${name}-step`} label={`Step (${unit})`} type="number" step="any" min="0" inputMode="decimal"
-          value={generator.step} onChange={event => setGenerator(current => ({ ...current, step: event.target.value }))} />
-        <Field name={`${name}-count`} label="Count" type="number" step="1" min="1" max="200" inputMode="numeric"
-          value={generator.count} onChange={event => setGenerator(current => ({ ...current, count: event.target.value }))} />
-        <Button variant="secondary" onClick={fillList}>Fill list</Button>
-      </fieldset>
-      <p className="muted">Separate weights with commas or spaces, or fill them evenly and then edit any that differ.</p>
+      <p className="muted">Enter the weights you use, separated by commas or spaces.</p>
+      <Button variant="tertiary" className="load-rule-sequence-toggle" disabled={busy} aria-expanded={sequenceOpen}
+        aria-controls={`${name}-sequence`} onClick={() => setSequenceOpen(current => !current)}>
+        {sequenceOpen ? 'Hide sequence helper' : 'Create a sequence'}
+      </Button>
+      {sequenceOpen && <div id={`${name}-sequence`}><LoadSequenceBuilder unit={unit} name={name} busy={busy}
+        onFill={values => {
+          setList(values.join(', '));
+          setFieldError('');
+          setSequenceOpen(false);
+          listField.current?.focus();
+        }} /></div>}
     </>}
 
     <div className="modal-actions">

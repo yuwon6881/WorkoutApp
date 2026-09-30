@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { InfoTooltip } from './InfoTooltip';
+import './SettingRow.css';
 
 export type SettingRowInfo = {
   content: ReactNode;
