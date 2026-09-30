@@ -151,7 +151,7 @@ public static class Progression
         "band" => 0,
         "dumbbell" => 2,
         "kettlebell" => 4,
-        "plate" => 1.25,
+        "medicine ball" => 1,
         _ => DefaultStepKg
     };
 

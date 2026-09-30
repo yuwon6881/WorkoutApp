@@ -4,17 +4,17 @@ using Workout.Api.Domain;
 
 namespace Workout.Api.Services;
 
-public record ExerciseLoadSettingsInput(double? LoadStepKg, List<double>? AvailableLoadsKg, int Revision, Guid? StackId = null);
+public record ExerciseLoadSettingsInput(double? LoadStepKg, List<double>? AvailableLoadsKg, int Revision);
 
 /// The rule the exercise would use without its own setting: the account's equipment rule or the app default.
-public record InheritedLoadView(double StepKg, List<double>? AvailableLoadsKg, string Source, string? EquipmentGroup, string? StackName);
+public record InheritedLoadView(double StepKg, List<double>? AvailableLoadsKg, string Source, string? EquipmentGroup);
 
 /// LoadStepKg and AvailableLoadsKg are what progression uses now. The exercise's own rule is
-/// OwnStepKg, OwnAvailableLoadsKg or StackId; none of them means it inherits.
+/// OwnStepKg or OwnAvailableLoadsKg; none of them means it inherits.
 public record ExerciseLoadSettingsView(double LoadStepKg, List<double>? AvailableLoadsKg,
     double DefaultStepKg, bool IsCustomized, int Revision,
-    double? OwnStepKg = null, List<double>? OwnAvailableLoadsKg = null, Guid? StackId = null,
-    string Source = LoadSources.App, string? StackName = null, InheritedLoadView? Inherited = null);
+    double? OwnStepKg = null, List<double>? OwnAvailableLoadsKg = null,
+    string Source = LoadSources.App, InheritedLoadView? Inherited = null);
 
 public sealed class ExerciseLoadSettingsService(AppDb db)
 {
@@ -27,10 +27,9 @@ public sealed class ExerciseLoadSettingsService(AppDb db)
 
     public async Task<ExerciseLoadSettingsView> Save(Guid id, ExerciseLoadSettingsInput input, CancellationToken ct)
     {
-        var (step, loadsJson, stackId) = LoadRuleValidation.Normalize(input.LoadStepKg, input.AvailableLoadsKg, input.StackId);
+        var (step, loadsJson) = LoadRuleValidation.Normalize(input.LoadStepKg, input.AvailableLoadsKg);
         await using var gate = await MutationLock.Acquire(db, db.CurrentUser, ct);
         var exercise = await Exercise(id, ct);
-        await LoadRuleValidation.RequireStack(db, stackId, ct);
         var row = await db.ExerciseLoadSettings.SingleOrDefaultAsync(x => x.Id == id, ct);
         Validation.Require(input.Revision == (row?.Revision ?? 0),
             "These weight settings changed elsewhere. Reload them before saving again.", 409);
@@ -41,7 +40,6 @@ public sealed class ExerciseLoadSettingsService(AppDb db)
         }
         row.LoadStepKg = step;
         row.AvailableLoadsJson = loadsJson;
-        row.StackId = stackId;
         row.Revision++;
         await db.SaveChangesAsync(ct);
         await gate.Commit(ct);
@@ -66,14 +64,14 @@ public sealed class ExerciseLoadSettingsService(AppDb db)
         var effective = rules.Resolve(id, exercise.AppStepKg, exercise.Equipment, exercise.LoadModel);
         var group = EquipmentGroups.For(exercise.Equipment, exercise.LoadModel);
         var equipmentRule = group is null ? null : await db.EquipmentLoadDefaults.AsNoTracking()
-            .Where(x => x.Equipment == group).Select(x => new { x.LoadStepKg, x.AvailableLoadsJson, x.StackId }).SingleOrDefaultAsync(ct);
-        var inherited = LoadResolution.Resolve(exercise.AppStepKg, group, null,
-            equipmentRule is null ? null : LoadRuleReader.Rule(equipmentRule.LoadStepKg, equipmentRule.AvailableLoadsJson, equipmentRule.StackId),
-            rules.Stacks);
-        var customized = row is not null && (row.LoadStepKg is not null || row.AvailableLoadsJson is not null || row.StackId is not null);
+            .Where(x => x.Equipment == group).Select(x => new { x.LoadStepKg, x.AvailableLoadsJson }).SingleOrDefaultAsync(ct);
+        var appStepKg = EquipmentGroups.ExerciseAppDefault(exercise.AppStepKg, exercise.Equipment, exercise.LoadModel);
+        var inherited = LoadResolution.Resolve(appStepKg, group, null,
+            equipmentRule is null ? null : LoadRuleReader.Rule(equipmentRule.LoadStepKg, equipmentRule.AvailableLoadsJson));
+        var customized = row is not null && (row.LoadStepKg is not null || row.AvailableLoadsJson is not null);
         return new ExerciseLoadSettingsView(effective.StepKg, effective.AvailableLoadsKg?.ToList(), inherited.StepKg, customized,
-            row?.Revision ?? 0, row?.LoadStepKg, LoadRuleReader.Loads(row?.AvailableLoadsJson), row?.StackId,
-            effective.Source, effective.StackName,
-            new InheritedLoadView(inherited.StepKg, inherited.AvailableLoadsKg?.ToList(), inherited.Source, inherited.EquipmentGroup, inherited.StackName));
+            row?.Revision ?? 0, row?.LoadStepKg, LoadRuleReader.Loads(row?.AvailableLoadsJson),
+            effective.Source,
+            new InheritedLoadView(inherited.StepKg, inherited.AvailableLoadsKg?.ToList(), inherited.Source, inherited.EquipmentGroup));
     }
 }

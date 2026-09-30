@@ -1,4 +1,5 @@
 import { ExerciseLoadSettings } from './ExerciseLoadSettings';
+import { canEnterPerSide } from '../lib/equipmentGroups';
 import { useDeferredValue, useEffect, useMemo, useState } from 'react';
 import { ArrowLeftRight, Dumbbell, Library, Link2, Plus, Search, X, Trash2, RotateCcw, TrendingUp } from 'lucide-react';
 import type { Exercise, ExerciseCategory, ExerciseClearPreview, ExerciseInsight, Session } from '../types';
@@ -332,7 +333,7 @@ export function ExerciseDetailModal({ exercise, unit, onClose, onChanged, onSess
           <span className="pill pill-category">{getExerciseCategory(exercise)}</span>
         </div>
         {exercise.cue && <p className="muted">{exercise.cue}</p>}
-        {!exercise.archived && <ExerciseLoadSettings key={exercise.id} exerciseId={exercise.id} unit={unit} onChanged={onChanged} />}
+        {!exercise.archived && <ExerciseLoadSettings key={exercise.id} exerciseId={exercise.id} unit={unit} perSide={canEnterPerSide(exercise)} onChanged={onChanged} />}
         {error && <div className="error-banner" role="alert">{error}</div>}
         {!insight && !error && <div className="skeleton detail-loading" aria-label="Loading exercise details" />}
         {insight && <>

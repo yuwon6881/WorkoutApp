@@ -40,8 +40,8 @@ describe('shared weight rules', () => {
     expect(describeLoad(2.5, null, 'kg')).toBe('2.5 kg steps');
     expect(describeLoad(0, null, 'kg')).toBe('Fixed load, progress by reps');
     expect(describeLoad(null, [5, 10], 'kg')).toBe('5, 10 kg');
-    expect(describeSource('equipment', 'cable', 'Gym B')).toBe('Cable default · stack “Gym B”');
-    expect(describeSource('exercise', null, null)).toBe("This exercise's setting");
-    expect(describeSource('app', 'cable', null)).toBe('App default');
+    expect(describeSource('equipment', 'cable')).toBe('Cable default');
+    expect(describeSource('exercise', null)).toBe("This exercise's setting");
+    expect(describeSource('app', 'cable')).toBe('App default');
   });
 });

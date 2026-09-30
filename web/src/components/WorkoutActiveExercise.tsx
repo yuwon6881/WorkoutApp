@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   FileText,
   Layers,
@@ -24,6 +24,7 @@ import { withSetAdded, withSetRemoved, withSetRestored } from '../lib/workoutDra
 import type { RemovedSet } from '../lib/workoutDraft';
 import { Button } from './ui/Button';
 import { Modal } from './ui/Modal';
+import { MenuButton, MenuItem } from './ui/MenuButton';
 import { ExerciseLibrary } from './Exercises';
 import { WorkoutSetRow } from './WorkoutSetRow';
 import { WorkoutExerciseHistory } from './WorkoutExerciseHistory';
@@ -32,6 +33,7 @@ import { isTimedExercise } from '../lib/setDuration';
 import { useTrackRir } from '../lib/trackRir';
 import { ExerciseLoadSettings } from './ExerciseLoadSettings';
 import { loadAdjustable } from '../lib/exerciseLoads';
+import { canEnterPerSide } from '../lib/equipmentGroups';
 
 const UNDO_WINDOW_MS = 6000;
 
@@ -72,6 +74,7 @@ export function WorkoutActiveExercise({
   const [showTargets, setShowTargets] = useState(false);
   const [showNote, setShowNote] = useState(true);
   const [confirmRemove, setConfirmRemove] = useState(false);
+  const actionToolbar = useRef<HTMLDivElement>(null);
 
   const [removedSet, setRemovedSet] = useState<RemovedSet | null>(null);
 
@@ -167,7 +170,7 @@ export function WorkoutActiveExercise({
         {progressionBadge}
       </div>
 
-      <div className="workout-action-pills" role="toolbar" aria-label="Exercise actions">
+      <div ref={actionToolbar} className="workout-action-pills" role="toolbar" aria-label="Exercise actions">
         <Button
           variant="tertiary"
           className={`action-pill ${showTargets ? 'active' : ''}`}
@@ -212,18 +215,6 @@ export function WorkoutActiveExercise({
           <span>Note</span>
         </Button>
 
-        {libraryExercise && loadAdjustable(libraryExercise) && (
-          <Button
-            variant="tertiary"
-            className="action-pill"
-            aria-label={`Weight increments for ${exercise.name}`}
-            onClick={() => setWeightsOpen(true)}
-          >
-            <Weight size={15} />
-            <span>Weights</span>
-          </Button>
-        )}
-
         {exercise.sequenceGroup && (
           <div className="action-pill pill-static" title="Superset group">
             <Layers size={15} />
@@ -231,14 +222,14 @@ export function WorkoutActiveExercise({
           </div>
         )}
 
-        <Button
-          variant="tertiary"
-          className="action-pill remove-pill"
-          aria-label={`Remove ${exercise.name} from workout`}
-          onClick={() => setConfirmRemove(true)}
-        >
-          <Trash2 size={15} />
-        </Button>
+        <MenuButton label={`Actions for ${exercise.name}`} variant="tertiary" portal>
+          {libraryExercise && loadAdjustable(libraryExercise) && <MenuItem onClick={() => setWeightsOpen(true)}>
+            <Weight size={15} /> Weight settings
+          </MenuItem>}
+          <MenuItem destructive onClick={() => setConfirmRemove(true)}>
+            <Trash2 size={15} /> Remove exercise
+          </MenuItem>
+        </MenuButton>
       </div>
 
       {showTargets && (
@@ -361,9 +352,13 @@ export function WorkoutActiveExercise({
       )}
 
       {weightsOpen && libraryExercise && (
-        <Modal title={`${exercise.name} weights`} onClose={() => setWeightsOpen(false)}>
+        <Modal title={`${exercise.name} weights`} onClose={() => {
+          setWeightsOpen(false);
+          // The menu item unmounts before the dialog opens, so restore its persistent trigger.
+          actionToolbar.current?.querySelector<HTMLButtonElement>('.ui-menu-trigger')?.focus();
+        }}>
           <div className="modal-body">
-            <ExerciseLoadSettings exerciseId={libraryExercise.id} unit={unit} onChanged={onCatalogChanged} />
+            <ExerciseLoadSettings exerciseId={libraryExercise.id} unit={unit} perSide={canEnterPerSide(libraryExercise)} onChanged={onCatalogChanged} />
           </div>
         </Modal>
       )}

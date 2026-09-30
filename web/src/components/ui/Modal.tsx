@@ -74,6 +74,8 @@ export function Modal({ title, children, onClose, wide = false, headless = false
     onPointerDown={handlePointerDown} onPointerMove={drag.onPointerMove} onPointerUp={drag.onPointerUp} onPointerCancel={drag.onPointerCancel}
     onClick={handleClick} onCancel={e => {
       e.preventDefault();
+      // React bubbles cancel events through nested dialogs; Escape belongs to the top dialog.
+      e.stopPropagation();
       if (e.currentTarget.dataset.tooltipEscapeHandled === 'true') {
         delete e.currentTarget.dataset.tooltipEscapeHandled;
         const help = e.currentTarget.querySelector<HTMLButtonElement>('.info-tooltip-trigger');

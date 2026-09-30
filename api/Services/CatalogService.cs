@@ -10,7 +10,7 @@ public record CatalogExercise(Guid Id, string Slug, string Name, string Muscle, 
     string LoadModel = LoadModels.External, string MovementPattern = "", string Source = "catalog", bool IsCustom = false, bool Archived = false,
     List<string>? SecondaryMuscles = null, string Category = ExerciseCategories.FreeWeights,
     List<double>? AvailableLoadsKg = null, string TrackingMode = TrackingModes.Reps,
-    string LoadSource = LoadSources.App, string? LoadEquipmentGroup = null, string? LoadStackName = null);
+    string LoadSource = LoadSources.App, string? LoadEquipmentGroup = null);
 
 public record SubstitutionCandidate(Guid ExerciseId, string Name, string Muscle, string Equipment, string Cue,
     string Source, int Rank, bool IsCatalog, string MovementPattern = "", List<string>? SecondaryMuscles = null);
@@ -87,8 +87,7 @@ public sealed class CatalogService(AppDb db)
                 LoadStepKg = resolved.StepKg,
                 AvailableLoadsKg = resolved.AvailableLoadsKg?.ToList(),
                 LoadSource = resolved.Source,
-                LoadEquipmentGroup = resolved.EquipmentGroup,
-                LoadStackName = resolved.StackName
+                LoadEquipmentGroup = resolved.EquipmentGroup
             };
         }).ToList();
     }

@@ -126,9 +126,6 @@ export const api = {
   loadSettings: (signal?: AbortSignal) => call<LoadSettingsOverview>('/api/load-settings', 'GET', undefined, signal),
   saveEquipmentLoad: (group: string, input: LoadRule & { revision: number }) =>
     call<LoadSettingsOverview>(`/api/load-settings/equipment/${encodeURIComponent(group)}`, 'PUT', input),
-  saveLoadStack: (id: string | null, input: { name: string; loadStepKg: number | null; availableLoadsKg: number[] | null; revision: number }) =>
-    call<LoadSettingsOverview>(id ? `/api/load-stacks/${id}` : '/api/load-stacks', id ? 'PUT' : 'POST', input),
-  deleteLoadStack: (id: string) => call<LoadSettingsOverview>(`/api/load-stacks/${id}`, 'DELETE'),
   createCustomExercise: (input: { name: string; muscle?: string; secondaryMuscles?: string[]; equipment?: string; cue?: string; loadStepKg?: number; loadModel: string; movementPattern?: string; category?: string; trackingMode?: TrackingMode }) => call<CustomExerciseCreated>('/api/exercises/custom', 'POST', input),
   deleteCustomExercise: (id: string) => call<void>(`/api/exercises/custom/${id}`, 'DELETE'),
   exerciseInsight: (id: string, range = '3m', page = 0, size = 20, signal?: AbortSignal) => call<ExerciseInsight>(`/api/exercises/${id}/insight?range=${range}&page=${page}&size=${size}`, 'GET', undefined, signal),

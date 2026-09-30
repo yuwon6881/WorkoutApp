@@ -9,7 +9,6 @@ export type InheritedLoad = {
   availableLoadsKg: number[] | null;
   source: LoadSource;
   equipmentGroup: string | null;
-  stackName: string | null;
 };
 
 /// loadStepKg and availableLoadsKg are what progression uses now; the own fields are the exercise's
@@ -22,28 +21,18 @@ export type ExerciseLoadSettings = {
   revision: number;
   ownStepKg?: number | null;
   ownAvailableLoadsKg?: number[] | null;
-  stackId?: string | null;
   source?: LoadSource;
-  stackName?: string | null;
   inherited?: InheritedLoad | null;
 };
 
-/// One stored rule: a step, a weight list, or a stack. All null restores the inherited rule.
-export type LoadRule = { loadStepKg: number | null; availableLoadsKg: number[] | null; stackId: string | null };
+/// One stored rule: a step or a weight list. All null restores the inherited rule.
+export type LoadRule = { loadStepKg: number | null; availableLoadsKg: number[] | null };
 
 export type EquipmentLoad = {
-  group: string; appDefaultStepKg: number; ownStepKg: number | null; ownAvailableLoadsKg: number[] | null; stackId: string | null;
-  stepKg: number; availableLoadsKg: number[] | null; source: LoadSource; stackName: string | null; revision: number; exerciseCount: number;
+  group: string; appDefaultStepKg: number; ownStepKg: number | null; ownAvailableLoadsKg: number[] | null;
+  stepKg: number; availableLoadsKg: number[] | null; source: LoadSource; revision: number; exerciseCount: number;
 };
-export type LoadStack = {
-  id: string; name: string; loadStepKg: number | null; availableLoadsKg: number[] | null; revision: number;
-  exerciseCount: number; equipmentGroups: string[];
-};
-export type LoadOverride = {
-  exerciseId: string; name: string; equipment: string; ownStepKg: number | null; ownAvailableLoadsKg: number[] | null;
-  stackId: string | null; stackName: string | null; revision: number;
-};
-export type LoadSettingsOverview = { equipment: EquipmentLoad[]; stacks: LoadStack[]; overrides: LoadOverride[] };
+export type LoadSettingsOverview = { equipment: EquipmentLoad[] };
 
 // Keep full precision when saving pound-based equipment. Repeated unit switches must
 // not change which loads exist on the machine.
@@ -63,10 +52,9 @@ export function describeLoad(stepKg: number | null, loadsKg: number[] | null, un
 }
 
 /// Where the rule in use comes from, so "Default" never hides which default.
-export function describeSource(source: LoadSource | undefined, group: string | null | undefined, stackName: string | null | undefined): string {
-  const via = stackName ? ` · stack “${stackName}”` : '';
-  if (source === 'exercise') return `This exercise's setting${via}`;
-  if (source === 'equipment') return `${group ? equipmentGroupInfo(group).label : 'Equipment'} default${via}`;
+export function describeSource(source: LoadSource | undefined, group: string | null | undefined): string {
+  if (source === 'exercise') return "This exercise's setting";
+  if (source === 'equipment') return `${group ? equipmentGroupInfo(group).label : 'Equipment'} default`;
   return 'App default';
 }
 

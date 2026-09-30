@@ -15,7 +15,6 @@ public sealed class AppDb(DbContextOptions<AppDb> options) : DbContext(options)
     public DbSet<CustomExercise> CustomExercises => Set<CustomExercise>();
     public DbSet<ExerciseLoadSetting> ExerciseLoadSettings => Set<ExerciseLoadSetting>();
     public DbSet<EquipmentLoadDefault> EquipmentLoadDefaults => Set<EquipmentLoadDefault>();
-    public DbSet<LoadStack> LoadStacks => Set<LoadStack>();
     public DbSet<ExerciseAlias> Aliases => Set<ExerciseAlias>();
     public DbSet<TrainingProgram> Programs => Set<TrainingProgram>();
     public DbSet<ProgramPhase> ProgramPhases => Set<ProgramPhase>();
@@ -98,7 +97,7 @@ public sealed class AppDb(DbContextOptions<AppDb> options) : DbContext(options)
         m.Entity<ExerciseLoadSetting>().ToTable("ExerciseLoadSettings", t =>
         {
             t.HasCheckConstraint("CK_ExerciseLoadSettings_Step", "\"LoadStepKg\" IS NULL OR (\"LoadStepKg\" >= 0 AND \"LoadStepKg\" <= 50)");
-            t.HasCheckConstraint("CK_ExerciseLoadSettings_OneRule", OneRule(3));
+            t.HasCheckConstraint("CK_ExerciseLoadSettings_OneRule", OneRule());
         });
         Configure<EquipmentLoadDefault>(m);
         m.Entity<EquipmentLoadDefault>().Property(x => x.Equipment).HasMaxLength(40);
@@ -106,15 +105,7 @@ public sealed class AppDb(DbContextOptions<AppDb> options) : DbContext(options)
         m.Entity<EquipmentLoadDefault>().ToTable("EquipmentLoadDefaults", t =>
         {
             t.HasCheckConstraint("CK_EquipmentLoadDefaults_Step", "\"LoadStepKg\" IS NULL OR (\"LoadStepKg\" >= 0 AND \"LoadStepKg\" <= 50)");
-            t.HasCheckConstraint("CK_EquipmentLoadDefaults_OneRule", OneRule(3));
-        });
-        Configure<LoadStack>(m);
-        m.Entity<LoadStack>().Property(x => x.Name).HasMaxLength(60);
-        m.Entity<LoadStack>().HasIndex(x => new { x.UserId, x.Name }).IsUnique();
-        m.Entity<LoadStack>().ToTable("LoadStacks", t =>
-        {
-            t.HasCheckConstraint("CK_LoadStacks_Step", "\"LoadStepKg\" IS NULL OR (\"LoadStepKg\" > 0 AND \"LoadStepKg\" <= 50)");
-            t.HasCheckConstraint("CK_LoadStacks_OneRule", OneRule(2, exactlyOne: true));
+            t.HasCheckConstraint("CK_EquipmentLoadDefaults_OneRule", OneRule());
         });
         m.Entity<CustomExercise>().Property(x => x.Name).HasMaxLength(160);
         m.Entity<CustomExercise>().Property(x => x.LoadStepKg).HasDefaultValue(2.5);
@@ -272,14 +263,9 @@ public sealed class AppDb(DbContextOptions<AppDb> options) : DbContext(options)
         m.Entity<AiConversationTurn>().HasOne<AppUser>().WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
     }
 
-    /// Portable check that a load rule sets at most (or exactly) one of its step, weight list and,
-    /// when it has one, stack.
-    private static string OneRule(int columns, bool exactlyOne = false)
-    {
-        string[] names = ["LoadStepKg", "AvailableLoadsJson", "StackId"];
-        var sum = string.Join(" + ", names.Take(columns).Select(name => $"(CASE WHEN \"{name}\" IS NULL THEN 0 ELSE 1 END)"));
-        return exactlyOne ? $"{sum} = 1" : $"{sum} <= 1";
-    }
+    /// Portable check that a rule sets at most one of its increment and weight list.
+    private static string OneRule()
+        => "\"LoadStepKg\" IS NULL OR \"AvailableLoadsJson\" IS NULL";
 
     private void Configure<T>(ModelBuilder m) where T : OwnedRecord
     {

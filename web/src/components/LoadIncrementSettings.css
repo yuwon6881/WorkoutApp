@@ -13,37 +13,8 @@
   font-size: var(--font-secondary, 14px);
 }
 
-.load-settings-heading {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.load-settings-empty {
-  padding-block: 12px;
-}
-
 .load-settings-group .setting-row:last-child {
   padding-bottom: 20px;
-}
-
-.load-stack-delete {
-  display: grid;
-  gap: 12px;
-}
-
-.load-stack-delete .modal-actions,
-.load-stack-delete-row {
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-}
-
-.load-stack-delete-row {
-  margin-top: 12px;
-  padding-top: 12px;
-  border-top: 1px solid var(--border);
 }
 
 .load-settings-skeleton {

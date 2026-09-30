@@ -8,7 +8,7 @@ export type LoadModel = 'external' | 'full_bodyweight' | 'bodyweight_context_onl
 export type TrackingMode = 'reps' | 'duration';
 export type ResistanceMode = 'external' | 'bodyweight' | 'added' | 'assistance' | 'reps_only';
 export type ExerciseCategory = 'Free Weights' | 'Machine' | 'Body Weight';
-export type Exercise = { id: string; slug: string; name: string; trackingMode?: TrackingMode; muscle: string; secondaryMuscles?: string[]; equipment: string; category?: ExerciseCategory; cue: string; aliases: string[]; loadStepKg: number; availableLoadsKg?: number[] | null; loadSource?: 'exercise' | 'equipment' | 'app'; loadEquipmentGroup?: string | null; loadStackName?: string | null; loadModel?: LoadModel; movementPattern?: string; source?: 'catalog' | 'custom'; isCustom?: boolean; archived?: boolean };
+export type Exercise = { id: string; slug: string; name: string; trackingMode?: TrackingMode; muscle: string; secondaryMuscles?: string[]; equipment: string; category?: ExerciseCategory; cue: string; aliases: string[]; loadStepKg: number; availableLoadsKg?: number[] | null; loadSource?: 'exercise' | 'equipment' | 'app'; loadEquipmentGroup?: string | null; loadModel?: LoadModel; movementPattern?: string; source?: 'catalog' | 'custom'; isCustom?: boolean; archived?: boolean };
 export type CustomExerciseCreated = {
   id: string; name: string; muscle: string; equipment: string; cue: string; loadStepKg: number;
   loadModel: LoadModel; movementPattern: string; archived: boolean; createdAt: string;

@@ -246,6 +246,16 @@ for (const theme of ['dark', 'light']) {
     await expect(exerciseNotes).toBeInViewport({ ratio: 0.9 });
     await checkLayout(page, 'active logger notes');
     await page.screenshot({ animations: 'disabled', path: join(screenshotsDirectory, 'responsive', `${info.project.name}-${theme}-active-notes.png`) });
+    const exerciseActions = logger.getByRole('button', { name: 'Actions for Barbell bench press', exact: true });
+    await exerciseActions.click();
+    await page.getByRole('menuitem', { name: 'Weight settings', exact: true }).click();
+    const weights = page.getByRole('dialog', { name: 'Barbell bench press weights', exact: true });
+    await weights.getByRole('button', { name: 'Edit weights', exact: true }).click();
+    await checkLayout(page, 'active exercise weight settings');
+    await page.screenshot({ animations: 'disabled', path: join(screenshotsDirectory, 'responsive', `${info.project.name}-${theme}-active-weight-settings.png`) });
+    await page.keyboard.press('Escape');
+    await expect(weights).toBeHidden();
+    await expect(exerciseActions).toBeFocused();
     await logger.getByRole('button', { name: 'Workout options', exact: true }).click();
     await page.getByRole('menuitem', { name: 'Discard workout', exact: true }).click();
     await page.getByRole('button', { name: 'Discard workout', exact: true }).click();
@@ -291,6 +301,16 @@ for (const theme of ['dark', 'light']) {
       await page.setViewportSize(viewport);
     };
     await screenshot('settings');
+    await expect(page.getByRole('heading', { name: 'Weight stacks', exact: true })).toHaveCount(0);
+    await expect(page.getByRole('heading', { name: 'Exercises with their own weights', exact: true })).toHaveCount(0);
+    const plateWeights = page.getByRole('button', { name: 'Edit Plate-loaded weights', exact: true });
+    await plateWeights.click();
+    const plateEditor = page.getByRole('dialog', { name: 'Plate-loaded weights', exact: true });
+    await plateEditor.getByRole('button', { name: 'Per side', exact: true }).click();
+    await plateEditor.getByRole('spinbutton', { name: 'Smallest plate per side (kg)', exact: true }).fill('1.25');
+    await screenshot('plate-loaded-weights');
+    await plateEditor.getByRole('button', { name: 'Cancel', exact: true }).click();
+    await expect(plateWeights).toBeFocused();
 
     await navigate(page, 'Overview');
     await screenshot('overview');

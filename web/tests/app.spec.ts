@@ -6,6 +6,90 @@ import { pdf } from './pdfFixture';
 
 const USER = 'e2e-lifter';
 
+test('unified plate defaults and active exercise menu keep weight editing available', async ({ page }, info) => {
+  await signIn(page);
+  await clearActiveWorkout(page);
+  const headers = { 'X-Workout-Request': '1', Origin: new URL(page.url()).origin };
+  const originalPreferences = (await (await page.request.get('/api/bootstrap')).json()).preferences;
+  const overview = await (await page.request.get('/api/load-settings')).json();
+  const originalPlate = overview.equipment.find((item: { group: string }) => item.group === 'barbell');
+  const created: { id: string; name: string }[] = [];
+  let templateId: string | null = null;
+  try {
+    for (const [equipment, loadModel] of [['Plate', 'external'], ['Bodyweight', 'full_bodyweight'], ['Medicine Ball', 'external']]) {
+      const name = `Load rule ${equipment} ${info.project.name} ${Date.now()}`;
+      const response = await page.request.post('/api/exercises/custom', { headers, data: { name, muscle: 'Back', equipment, loadModel } });
+      expect(response.ok(), await response.text()).toBeTruthy();
+      created.push(await response.json());
+    }
+    const medicine = await (await page.request.get(`/api/exercises/${created[2].id}/load-settings`)).json();
+    expect(medicine.loadStepKg).toBe(1);
+
+    for (const theme of ['dark', 'light']) {
+      const preferences = await page.request.put('/api/preferences', { headers, data: { ...originalPreferences, unit: 'kg', theme } });
+      expect(preferences.ok()).toBeTruthy();
+      await page.goto('/settings');
+      await expect(page.locator('html')).toHaveAttribute('data-theme', theme);
+      const panel = page.locator('article').filter({ has: page.getByRole('heading', { name: 'Equipment defaults', exact: true }) });
+      await expect(panel.getByRole('button', { name: 'Edit Plate-loaded weights', exact: true })).toBeVisible();
+      await expect(page.getByRole('button', { name: 'Edit Plate weights', exact: true })).toHaveCount(0);
+      await expect(page.getByRole('button', { name: 'Edit Added load weights', exact: true })).toHaveCount(0);
+      await expect(page.getByRole('heading', { name: 'Weight stacks', exact: true })).toHaveCount(0);
+      await expect(page.getByRole('heading', { name: 'Exercises with their own weights', exact: true })).toHaveCount(0);
+      await panel.screenshot({ path: join(screenshotsDirectory, `load-defaults-${info.project.name}-${theme}.png`) });
+      await panel.getByRole('button', { name: 'Edit Plate-loaded weights', exact: true }).click();
+      const dialog = page.getByRole('dialog', { name: 'Plate-loaded weights', exact: true });
+      await dialog.getByRole('button', { name: 'Increment', exact: true }).click();
+      await dialog.getByRole('button', { name: 'Per side', exact: true }).click();
+      await dialog.getByRole('spinbutton', { name: 'Smallest plate per side (kg)', exact: true }).fill('1.25');
+      await expect.poll(() => dialog.evaluate(element => element.scrollWidth <= element.clientWidth + 1)).toBeTruthy();
+      await page.screenshot({ path: join(screenshotsDirectory, `plate-editor-${info.project.name}-${theme}.png`) });
+      await dialog.getByRole('button', { name: 'Save weights', exact: true }).click();
+      await expect(dialog).toBeHidden();
+    }
+    for (const exercise of created.slice(0, 2)) {
+      const rule = await (await page.request.get(`/api/exercises/${exercise.id}/load-settings`)).json();
+      expect(rule.loadStepKg).toBe(2.5);
+      expect(rule.source).toBe('equipment');
+      expect(rule.inherited.equipmentGroup).toBe('barbell');
+    }
+
+    const templateResponse = await page.request.post('/api/templates', { headers, data: {
+      name: `Weight menu ${info.project.name}`, exercises: [{ exerciseId: created[1].id, sourceName: created[1].name,
+        sets: [{ repMin: 8, repMax: 12, targetRpe: 8, restSeconds: 90 }] }]
+    } });
+    expect(templateResponse.ok(), await templateResponse.text()).toBeTruthy();
+    templateId = (await templateResponse.json()).id;
+    const started = await page.request.post('/api/workouts', { headers, data: { templateId } });
+    expect(started.ok(), await started.text()).toBeTruthy();
+    await page.reload();
+    await page.getByRole('button', { name: `Actions for ${created[1].name}`, exact: true }).click();
+    await page.getByRole('menuitem', { name: 'Weight settings', exact: true }).click();
+    const weights = page.getByRole('dialog', { name: `${created[1].name} weights`, exact: true });
+    await weights.getByRole('button', { name: 'Edit weights', exact: true }).click();
+    await expect(weights.getByRole('button', { name: 'Per side', exact: true })).toHaveCount(0);
+    await weights.getByRole('spinbutton', { name: 'Weight increment (kg)', exact: true }).fill('1');
+    await weights.getByRole('button', { name: 'Save weights', exact: true }).click();
+    await expect(weights.getByText("1 kg steps · This exercise's setting", { exact: true })).toBeVisible();
+    await page.screenshot({ path: join(screenshotsDirectory, `active-weight-menu-${info.project.name}.png`) });
+    await weights.getByRole('button', { name: 'Edit weights', exact: true }).click();
+    await weights.getByRole('button', { name: 'Use default', exact: true }).click();
+    await expect(weights.getByText('2.5 kg steps · Plate-loaded default', { exact: true })).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(weights).toBeHidden();
+    await expect(page.getByRole('button', { name: `Actions for ${created[1].name}`, exact: true })).toBeFocused();
+  } finally {
+    await clearActiveWorkout(page);
+    if (templateId) await page.request.delete(`/api/templates/${templateId}`, { headers });
+    for (const exercise of created) await page.request.delete(`/api/exercises/custom/${exercise.id}`, { headers });
+    const current = (await (await page.request.get('/api/load-settings')).json()).equipment.find((item: { group: string }) => item.group === 'barbell');
+    await page.request.put('/api/load-settings/equipment/barbell', { headers, data: {
+      loadStepKg: originalPlate.ownStepKg, availableLoadsKg: originalPlate.ownAvailableLoadsKg, revision: current.revision
+    } });
+    await page.request.put('/api/preferences', { headers, data: originalPreferences });
+  }
+});
+
 test('personal exercise weights support uneven lists and kg/lb switching', async ({ page }, testInfo) => {
   await signIn(page);
   const originalPreferences = (await (await page.request.get('/api/bootstrap')).json()).preferences;

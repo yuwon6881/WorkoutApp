@@ -14,12 +14,11 @@
 .workout-progression-badge .badge-sub { font-size: var(--font-secondary, 14px); color: var(--muted); border-left: 1px solid var(--accent-border); padding-left: 6px; }
 
 /* Action pills row */
+.workout-action-pills > .ui-menu { margin-left: auto; }
 .workout-action-pills { display: flex; align-items: center; gap: 8px; overflow-x: auto; padding-bottom: 2px; }
 .action-pill { display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 6px 14px; border-radius: 18px; font-size: var(--font-secondary, 13px); font-weight: 550; border: 1px solid var(--border); background: var(--surface-hover); color: var(--text); white-space: nowrap; }
 .action-pill.active { border-color: var(--accent-border-strong); background: var(--accent-soft); color: var(--accent); }
 .pill-static { cursor: default; color: var(--muted); }
-.remove-pill { min-width: 36px; padding: 6px 10px; margin-left: auto; color: var(--muted); }
-.remove-pill:hover { color: var(--red); }
 
 /* Targets details card and note drawer */
 .workout-plan-detail-card, .workout-note-drawer { padding: 12px 14px; border-radius: 10px; background: var(--surface-hover); border: 1px solid var(--border); }
@@ -226,7 +225,6 @@
   .add-set-btn,
   .set-input-cell .rpe-control,
   .set-input-cell .rpe-value-btn { min-height: 44px; min-width: 44px; }
-  .remove-pill { min-width: 44px; }
 }
 
 /* Custom select dropdown sizing & theme obedience */
