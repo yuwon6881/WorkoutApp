@@ -88,7 +88,7 @@ export function RestAlertSettings({ accountId, preferences, devicePreferences, o
       // permission, not a registered push device.
       if (isNative()) {
         if (!preferences.restAlerts) onPreferences({ ...preferences, restAlerts: true });
-        notify('Rest alerts will arrive as notifications from the Workout app, even with the screen off.');
+        notify('Rest notifications are enabled. Delivery depends on Android notification settings.');
         return;
       }
       const registration = await registerWorkoutPushDevice();
@@ -119,10 +119,11 @@ export function RestAlertSettings({ accountId, preferences, devicePreferences, o
             describedBy="rest-alerts-description"
             checked={preferences.restAlerts}
             onChange={async wanted => {
-              if (wanted && (await requestRestAlerts()) !== 'granted') {
+              const allowed = !wanted || (await requestRestAlerts()) === 'granted';
+              if (!allowed) {
                 notify('Workout notifications are not enabled. You can still use the on-screen timer and sound.');
               }
-              onPreferences({ ...preferences, restAlerts: wanted });
+              onPreferences({ ...preferences, restAlerts: wanted && allowed });
               void getAlertCapabilities().then(setCapabilities);
             }}
           />
@@ -138,6 +139,10 @@ export function RestAlertSettings({ accountId, preferences, devicePreferences, o
             {capabilities && <span>{capabilities.exactAlarm
               ? 'Precise timing allowed.'
               : 'Precise timing is off, so an alert can arrive late while the phone sleeps.'}</span>}
+            {capabilities?.notifications && capabilities.restChannelEnabled === false &&
+              <span role="status">The rest notification channel is off.</span>}
+            {capabilities?.restChannelEnabled && capabilities.restSoundEnabled === false && devicePreferences.sound &&
+              <span role="status">Rest sound is muted in Android channel settings.</span>}
             {capabilities?.serviceError && <span role="alert">{capabilities.serviceError}</span>}
           </>}
           info={{
@@ -146,6 +151,11 @@ export function RestAlertSettings({ accountId, preferences, devicePreferences, o
           }}
         >
           <div className="setting-inline-controls">
+            {capabilities && (capabilities.restChannelEnabled === false || capabilities.restSoundEnabled === false) && (
+              <Button variant="secondary" onClick={() => void openNativeSettings('rest_channel').catch(() => notify('Could not open rest notification settings.'))}>
+                Rest channel settings
+              </Button>
+            )}
             {capabilities && !capabilities.notifications && (
               <Button variant="secondary" onClick={() => void openNativeSettings('notifications').catch(() => notify('Could not open notification settings.'))}>
                 Notification settings
@@ -161,7 +171,7 @@ export function RestAlertSettings({ accountId, preferences, devicePreferences, o
               onClick={async () => {
                 try {
                   await testNativeAlert(devicePreferences.sound, devicePreferences.vibration);
-                  notify('A test alert will arrive in 5 seconds. Lock the screen now to check it.');
+                  notify('A test alert is scheduled in 5 seconds. Lock the screen to check delivery.');
                 } catch (failure) {
                   notify(failure instanceof Error ? failure.message : 'Could not schedule a test alert.');
                 }

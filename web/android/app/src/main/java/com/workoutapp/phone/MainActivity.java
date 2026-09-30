@@ -11,6 +11,7 @@ import org.json.JSONObject;
 
 public class MainActivity extends BridgeActivity {
     static final String EXTRA_WORKOUT_ID = "workout_id";
+    static final String EXTRA_RETRY = "retry_webview";
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -35,6 +36,10 @@ public class MainActivity extends BridgeActivity {
     @Override
     protected void onNewIntent(Intent intent) {
         super.onNewIntent(intent);
+        if (getBridge() != null && intent.getBooleanExtra(EXTRA_RETRY, false)) {
+            getBridge().getWebView().post(() -> getBridge().getWebView().reload());
+            return;
+        }
         String workoutId = intent.getStringExtra(EXTRA_WORKOUT_ID);
         if (workoutId == null || workoutId.isEmpty() || getBridge() == null) return;
         String script = "window.location.assign('/?workout=' + encodeURIComponent(" + JSONObject.quote(workoutId) + "))";

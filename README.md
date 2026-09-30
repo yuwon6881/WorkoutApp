@@ -27,6 +27,14 @@ cd wear; .\gradlew.bat :app:assembleDebug # Wear OS debug APK
 In development the API falls back to SQLite when no connection string is configured, so nothing
 external is needed to work on the app. Point `WORKOUT_API` at another origin to proxy elsewhere.
 
+## Android phone builds
+
+From `web/`, run `npm.cmd run android:sync`, then from `web/android/` run `.\gradlew.bat lintDebug testDebugUnitTest assembleDebug` with JDK 21 and Android SDK 36. Settings shows both the web version and the installed Android version/build. Native changes require a newer APK signed with the same key; install it in place to preserve saved work. Local builds use version 1.0.1/build 2. CI uses `1000 + GITHUB_RUN_NUMBER`; release tooling may override `ANDROID_VERSION_CODE` with a code greater than the last distributed build. Preserve the workflow counter or supply a higher code if replacing it.
+
+Recovery writes reject failed SQLite inserts. A future running rest is rearmed after reboot, package update, or an exact-alarm permission grant. Notification-enabled rests use the native rest channel in both foreground and background; Settings reports a blocked channel or muted channel sound and links to its Android settings. Local-only foreground sound remains available when rest notifications are turned off. The bundled offline recovery view remains read-only; Retry explicitly reloads the failed WebView. Full cold-start offline logging and Xiaomi Super Island are not implemented, and physical-device delivery is not certified by these checks.
+
+Google Health consent opens Settings in the system browser. Sign in there with the same FitnessAccount account, connect Google Health there, then return to the app. The browser uses its own session; no native cookie is transferred. The app refreshes connection status on return.
+
 ## Test Wear OS without a physical watch
 
 Use a Wear OS virtual device, not a phone AVD: in Android Studio Device Manager, create and start

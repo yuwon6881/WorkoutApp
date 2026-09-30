@@ -58,7 +58,7 @@ jobs:
         run: npm run android:sync
       - name: Build and verify Android debug APK
         working-directory: web/android
-        run: ./gradlew --no-daemon testDebugUnitTest assembleDebug
+        run: ./gradlew --no-daemon lintDebug testDebugUnitTest assembleDebug
       - name: Verify stable device-test APK certificate
         if: github.event_name != 'pull_request'
         env:

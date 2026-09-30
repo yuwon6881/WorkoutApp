@@ -55,6 +55,23 @@ final class RestAlerts {
         return androidx.core.app.NotificationManagerCompat.from(context).areNotificationsEnabled();
     }
 
+    static boolean restChannelEnabled(Context context) {
+        if (!notificationsEnabled(context)) return false;
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return true;
+        NotificationManager manager = context.getSystemService(NotificationManager.class);
+        NotificationChannel channel = manager == null ? null : manager.getNotificationChannel(CHANNEL_ALERT);
+        return channel != null && channel.getImportance() != NotificationManager.IMPORTANCE_NONE;
+    }
+
+    static boolean restSoundEnabled(Context context) {
+        if (!restChannelEnabled(context)) return false;
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return true;
+        NotificationManager manager = context.getSystemService(NotificationManager.class);
+        NotificationChannel channel = manager == null ? null : manager.getNotificationChannel(CHANNEL_ALERT);
+        return channel != null && channel.getImportance() >= NotificationManager.IMPORTANCE_DEFAULT
+                && channel.getSound() != null;
+    }
+
     /// Posts the alert. With sound turned off in the app it is silent; vibration is separate.
     static void post(Context context, String sessionId, boolean sound, boolean vibrate) {
         createChannels(context);
@@ -72,8 +89,8 @@ final class RestAlerts {
                 .setSilent(!sound);
         if (sound && Build.VERSION.SDK_INT < Build.VERSION_CODES.O) builder.setSound(chime(context));
         NotificationManager manager = context.getSystemService(NotificationManager.class);
-        if (manager != null && notificationsEnabled(context)) manager.notify(NOTIFICATION_ID_ALERT, builder.build());
-        if (vibrate) vibrate(context);
+        if (manager != null && restChannelEnabled(context)) manager.notify(NOTIFICATION_ID_ALERT, builder.build());
+        if (vibrate && restChannelEnabled(context)) vibrate(context);
     }
 
     static PendingIntent openWorkout(Context context, String sessionId, int requestCode) {

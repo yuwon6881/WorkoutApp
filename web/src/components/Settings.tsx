@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { NativeBuildInfo } from './NativeBuildInfo';
 import { Dumbbell, Link2, LogOut, Moon, SlidersHorizontal, Sun, Timer, Watch, Weight } from 'lucide-react';
 import type { Account, Preferences } from '../types';
 import { api } from '../lib/api';
@@ -153,6 +154,7 @@ export function SettingsView(props: SettingsViewProps) {
           </SettingsSection>
 
           <div className="app-version-meta">Workout version {version}</div>
+          <NativeBuildInfo />
         </div>
       </div>
     </div>

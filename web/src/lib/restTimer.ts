@@ -248,8 +248,10 @@ export class RestTimer {
     if (this.shouldHoldScreen()) void this.holdScreen();
     else void this.releaseScreen();
     if (hasNativeWorkoutStore()) {
-      // In the Android app the service alerts while the page is hidden; in view, whichever of the
-      // two claims this rest first is the only one that sounds.
+      // Notification alerts always use the native channel, including while this page is visible.
+      // Claiming here would silence the service and bypass the channel's mute/sound policy.
+      if (this.options.notifications) return;
+      // A local-only sound remains available while the page is visible when notifications are off.
       if (document.visibilityState !== 'visible' || !this.sessionId ||
         !await claimNativeRestAlert(this.sessionId, state.generation)) return;
       if (this.options.sound) soundNow();

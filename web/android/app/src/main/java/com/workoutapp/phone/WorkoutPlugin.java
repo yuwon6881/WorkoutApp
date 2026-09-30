@@ -35,14 +35,12 @@ public class WorkoutPlugin extends Plugin {
         String accountId = call.getString("accountId");
         String recordJson = call.getString("recordJson");
         if (accountId == null || recordJson == null) { call.reject("A saved workout needs an account and a record.", "invalid_record"); return; }
-        store().saveRecovery(accountId, call.getString("sessionId"), recordJson);
-        call.resolve();
+        persist(call, () -> store().saveRecovery(accountId, call.getString("sessionId"), recordJson));
     }
 
     @PluginMethod
     public void deleteRecoveryRecord(PluginCall call) {
-        store().deleteRecovery(call.getString("accountId"));
-        call.resolve();
+        persist(call, () -> store().deleteRecovery(call.getString("accountId")));
     }
 
     @PluginMethod
@@ -55,8 +53,7 @@ public class WorkoutPlugin extends Plugin {
 
     @PluginMethod
     public void setLastAccountId(PluginCall call) {
-        store().setLastAccountId(call.getString("accountId"));
-        call.resolve();
+        persist(call, () -> store().setLastAccountId(call.getString("accountId")));
     }
 
     @PluginMethod
@@ -85,7 +82,12 @@ public class WorkoutPlugin extends Plugin {
                 call.getString("epoch", ""),
                 longOf(call, "sequence"));
         // An older write from this page arrived after a newer one: the newer intent stands.
-        if (!store().saveRestSnapshotIfNewer(snapshot)) { call.resolve(); return; }
+        try {
+            if (!store().saveRestSnapshotIfNewer(snapshot)) { call.resolve(); return; }
+        } catch (RuntimeException failure) {
+            call.reject("Workout timing could not be saved. Try again.", "recovery_save_failed", failure);
+            return;
+        }
         // The alarm does not depend on the service, so a rest alerts even if the service is refused.
         RestSchedule.apply(getContext(), snapshot);
         try {
@@ -103,21 +105,25 @@ public class WorkoutPlugin extends Plugin {
 
     @PluginMethod
     public void stopWorkout(PluginCall call) {
-        store().clearRestSnapshot();
-        RestSchedule.cancel(getContext());
-        WorkoutForegroundService.stop(getContext());
-        call.resolve();
+        persist(call, () -> {
+            store().clearRestSnapshot();
+            RestSchedule.cancel(getContext());
+            WorkoutForegroundService.stop(getContext());
+        });
     }
 
     @PluginMethod
     public void getAlertCapabilities(PluginCall call) {
         Context context = getContext();
+        RestAlerts.createChannels(context);
         boolean batteryExempt = false;
         PowerManager power = context.getSystemService(PowerManager.class);
         if (power != null) batteryExempt = power.isIgnoringBatteryOptimizations(context.getPackageName());
         JSObject result = new JSObject();
         result.put("exactAlarm", RestSchedule.canScheduleExact(context));
         result.put("notifications", RestAlerts.notificationsEnabled(context));
+        result.put("restChannelEnabled", RestAlerts.restChannelEnabled(context));
+        result.put("restSoundEnabled", RestAlerts.restSoundEnabled(context));
         result.put("batteryExempt", batteryExempt);
         result.put("liveUpdates", LiveUpdateNotificationAdapter.canPromote(context));
         result.put("serviceError", lastServiceError == null ? JSONObject.NULL : lastServiceError);
@@ -133,6 +139,10 @@ public class WorkoutPlugin extends Plugin {
             intent.setAction(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM).setData(Uri.parse("package:" + context.getPackageName()));
         } else if ("notifications".equals(type) && Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             intent.setAction(Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE, context.getPackageName());
+        } else if ("rest_channel".equals(type) && Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            intent.setAction(Settings.ACTION_CHANNEL_NOTIFICATION_SETTINGS)
+                    .putExtra(Settings.EXTRA_APP_PACKAGE, context.getPackageName())
+                    .putExtra(Settings.EXTRA_CHANNEL_ID, RestAlerts.CHANNEL_ALERT);
         } else if ("battery".equals(type)) {
             intent.setAction(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS);
         } else {
@@ -156,6 +166,15 @@ public class WorkoutPlugin extends Plugin {
 
     private WorkoutRecoveryStore store() {
         return WorkoutRecoveryStore.get(getContext());
+    }
+
+    private void persist(PluginCall call, Runnable mutation) {
+        try {
+            mutation.run();
+            call.resolve();
+        } catch (RuntimeException failure) {
+            call.reject("Workout recovery could not be saved. Try again.", "recovery_save_failed", failure);
+        }
     }
 
     private static long longOf(PluginCall call, String key) {

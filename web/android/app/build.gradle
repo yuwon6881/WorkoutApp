@@ -17,8 +17,9 @@ android {
         applicationId "com.workoutapp.phone"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1
-        versionName "1.0"
+        versionCode System.getenv('ANDROID_VERSION_CODE') ? Integer.parseInt(System.getenv('ANDROID_VERSION_CODE')) :
+                (System.getenv('GITHUB_RUN_NUMBER') ? 1000 + Integer.parseInt(System.getenv('GITHUB_RUN_NUMBER')) : 2)
+        versionName "1.0.1"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
@@ -59,6 +60,9 @@ android {
             }
         }
     }
+    testOptions {
+        unitTests.includeAndroidResources = true
+    }
 }
 
 repositories {
@@ -76,6 +80,7 @@ dependencies {
     testImplementation "junit:junit:$junitVersion"
     // Android's org.json is a stub in local unit tests; the real library runs the snapshot tests.
     testImplementation "org.json:json:20240303"
+    testImplementation "org.robolectric:robolectric:4.16.1"
     androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"
     androidTestImplementation "androidx.test.espresso:espresso-core:$androidxEspressoCoreVersion"
     implementation project(':capacitor-cordova-android-plugins')

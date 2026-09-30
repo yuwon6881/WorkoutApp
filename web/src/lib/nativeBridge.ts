@@ -14,6 +14,8 @@ const LEGACY_REST_NOTIFICATION_ID = 7201;
 export interface AlertCapabilities {
   exactAlarm: boolean;
   notifications: boolean;
+  restChannelEnabled?: boolean;
+  restSoundEnabled?: boolean;
   batteryExempt: boolean;
   liveUpdates: boolean;
   serviceError: string | null;
@@ -45,7 +47,7 @@ export interface WorkoutPluginInterface {
   syncWorkout(options: NativeWorkoutState & { epoch: string; sequence: number }): Promise<void>;
   stopWorkout(): Promise<void>;
   getAlertCapabilities(): Promise<AlertCapabilities>;
-  openSettings(options: { type: 'exact_alarm' | 'notifications' | 'battery' | 'app' }): Promise<void>;
+  openSettings(options: { type: 'exact_alarm' | 'notifications' | 'rest_channel' | 'battery' | 'app' }): Promise<void>;
   testAlert(options: { sound: boolean; vibrate: boolean }): Promise<void>;
 }
 
@@ -129,7 +131,7 @@ export async function nativeGetAlertCapabilities(): Promise<AlertCapabilities> {
   return WorkoutNative.getAlertCapabilities();
 }
 
-export async function nativeOpenSettings(type: 'exact_alarm' | 'notifications' | 'battery' | 'app'): Promise<void> {
+export async function nativeOpenSettings(type: 'exact_alarm' | 'notifications' | 'rest_channel' | 'battery' | 'app'): Promise<void> {
   await WorkoutNative.openSettings({ type });
 }
 

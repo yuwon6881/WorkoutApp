@@ -56,7 +56,8 @@ public class WorkoutOfflineRecoveryActivity extends AppCompatActivity {
         retry.setBackgroundColor(ContextCompat.getColor(this, R.color.ayu_accent));
         retry.setMinHeight(Math.round(48 * getResources().getDisplayMetrics().density));
         retry.setOnClickListener(view -> {
-            startActivity(new Intent(this, MainActivity.class).setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NEW_TASK));
+            startActivity(new Intent(this, MainActivity.class).putExtra(MainActivity.EXTRA_RETRY, true)
+                    .setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NEW_TASK));
             finish();
         });
         layout.addView(retry);

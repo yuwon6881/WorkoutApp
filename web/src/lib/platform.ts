@@ -120,7 +120,7 @@ export async function getAlertCapabilities(): Promise<AlertCapabilities | null> 
   }
 }
 
-export async function openNativeSettings(type: 'exact_alarm' | 'notifications' | 'battery' | 'app'): Promise<void> {
+export async function openNativeSettings(type: 'exact_alarm' | 'notifications' | 'rest_channel' | 'battery' | 'app'): Promise<void> {
   if (!hasNativeWorkoutStore()) return;
   await (await bridge()).nativeOpenSettings(type);
 }

@@ -4,6 +4,7 @@ import android.content.ContentValues;
 import android.content.Context;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
+import android.database.sqlite.SQLiteException;
 import android.database.sqlite.SQLiteOpenHelper;
 import java.io.File;
 
@@ -68,7 +69,7 @@ public class WorkoutRecoveryStore {
         values.put(COL_SESSION_ID, sessionId);
         values.put(COL_RECORD_JSON, recordJson);
         values.put(COL_UPDATED_AT, System.currentTimeMillis());
-        db.insertWithOnConflict(TABLE_RECOVERY, null, values, SQLiteDatabase.CONFLICT_REPLACE);
+        insertOrFail(db, TABLE_RECOVERY, values);
     }
 
     public synchronized void deleteRecovery(String accountId) {
@@ -96,7 +97,7 @@ public class WorkoutRecoveryStore {
             ContentValues values = new ContentValues();
             values.put(COL_KEY, KEY_LAST_ACCOUNT);
             values.put(COL_VALUE, accountId);
-            db.insertWithOnConflict(TABLE_META, null, values, SQLiteDatabase.CONFLICT_REPLACE);
+            insertOrFail(db, TABLE_META, values);
         }
     }
 
@@ -115,7 +116,7 @@ public class WorkoutRecoveryStore {
         ContentValues values = new ContentValues();
         values.put(COL_KEY, KEY_REST_STATE);
         values.put(COL_VALUE, json);
-        helper.getWritableDatabase().insertWithOnConflict(TABLE_META, null, values, SQLiteDatabase.CONFLICT_REPLACE);
+        insertOrFail(helper.getWritableDatabase(), TABLE_META, values);
         return true;
     }
 
@@ -130,7 +131,6 @@ public class WorkoutRecoveryStore {
         try {
             db.delete(TABLE_ALERTS, COL_ALERT_CLAIMED_AT + " < ?",
                     new String[]{String.valueOf(System.currentTimeMillis() - CLAIM_RETENTION_MS)});
-            int updated = 0;
             try (Cursor cursor = db.query(TABLE_ALERTS, new String[]{COL_ALERT_CLAIMED},
                     COL_ALERT_SESSION_ID + " = ? AND " + COL_ALERT_GENERATION + " = ?",
                     new String[]{sessionId, generation}, null, null, null)) {
@@ -152,6 +152,12 @@ public class WorkoutRecoveryStore {
             return rowId != -1;
         } finally {
             db.endTransaction();
+        }
+    }
+
+    private static void insertOrFail(SQLiteDatabase db, String table, ContentValues values) {
+        if (db.insertWithOnConflict(table, null, values, SQLiteDatabase.CONFLICT_REPLACE) == -1) {
+            throw new SQLiteException("Workout recovery could not be saved.");
         }
     }
 
