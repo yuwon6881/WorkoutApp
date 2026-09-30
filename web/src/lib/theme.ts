@@ -15,6 +15,15 @@ export function rememberTheme(theme: Theme): void {
   try { localStorage.setItem(themeKey, theme); } catch { /* The current page still uses the selected theme. */ }
 }
 
+export function forgetTheme(): void {
+  try { localStorage.removeItem(themeKey); } catch { /* Nothing was saved when browser storage is unavailable. */ }
+}
+
+/** The browser or OS appearance. */
+export function systemTheme(): Theme {
+  return typeof window !== 'undefined' && window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+}
+
 export function applyTheme(theme: Theme): void {
   document.documentElement.dataset.theme = theme;
   const metas = [...document.querySelectorAll('meta[name="theme-color"]')];
@@ -27,4 +36,5 @@ export function applyTheme(theme: Theme): void {
   }
 }
 
-export const initialTheme = (): Theme => storedTheme() ?? 'dark';
+/** The saved account theme, else the browser or OS appearance. */
+export const initialTheme = (): Theme => storedTheme() ?? systemTheme();

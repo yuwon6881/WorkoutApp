@@ -28,7 +28,7 @@ import { Auth, ExerciseDetailModal, ExerciseLibrary, ImportReview, MuscleBalance
 import { ResumeWorkoutButton } from './components/ResumeWorkoutButton';
 import { InstallAppCard } from './components/InstallAppCard';
 import { TrackRirContext, tracksRir } from './lib/trackRir';
-import {applyTheme, initialTheme, rememberTheme} from './lib/theme';
+import {applyTheme, forgetTheme, initialTheme, rememberTheme} from './lib/theme';
 const AiAssistantPanel = lazy(() => import('./components/AiAssistantPanel').then(module => ({ default: module.AiAssistantPanel })));
 import type { AiUiAction } from './lib/api/ai';
 import type { AiInvocationRequest } from './components/useAiConversation';
@@ -90,12 +90,22 @@ export default function App() {
   });
 
   useEffect(() => {
-    const theme = data?.preferences.theme ?? initialTheme();
-    applyTheme(theme);
-    if (data?.preferences.theme) rememberTheme(theme);
-    const bg = getComputedStyle(document.documentElement).getPropertyValue('--bg').trim();
-    if (bg) setNativeStatusBar(theme === 'light' ? 'light' : 'dark', bg);
-  }, [data?.preferences.theme]);
+    const saved = data?.preferences.theme;
+    // Signing out drops the device copy so the sign-in screen follows the browser or OS.
+    if (signedOut) forgetTheme();
+    const sync = () => {
+      const theme = saved ?? initialTheme();
+      applyTheme(theme);
+      const bg = getComputedStyle(document.documentElement).getPropertyValue('--bg').trim();
+      if (bg) setNativeStatusBar(theme === 'light' ? 'light' : 'dark', bg);
+    };
+    if (saved) rememberTheme(saved);
+    sync();
+    if (saved) return undefined;
+    const media = window.matchMedia?.('(prefers-color-scheme: dark)');
+    media?.addEventListener('change', sync);
+    return () => media?.removeEventListener('change', sync);
+  }, [data?.preferences.theme, signedOut]);
   const restState = useShellRestTimer({ data, recovery, recoverySession, devicePreferences: app.devicePreferences, setToast });
   useEffect(() => {
     if (recovery && (!data || data.account.id === recovery.accountId) &&
