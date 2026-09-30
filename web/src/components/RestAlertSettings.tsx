@@ -224,19 +224,6 @@ export function RestAlertSettings({ accountId, preferences, devicePreferences, o
             onChange={keepAwake => onDevicePreferences({ ...devicePreferences, keepAwake })}
           />
         </SettingRow>
-
-        <SettingRow
-          label={<strong>Move to the next exercise automatically</strong>}
-          description="Advance after completing all sets."
-          descriptionId="auto-advance-description"
-        >
-          <Switch
-            label="Move to the next exercise automatically"
-            describedBy="auto-advance-description"
-            checked={devicePreferences.autoAdvance}
-            onChange={autoAdvance => onDevicePreferences({ ...devicePreferences, autoAdvance })}
-          />
-        </SettingRow>
       </>
     );
   }
@@ -340,19 +327,6 @@ export function RestAlertSettings({ accountId, preferences, devicePreferences, o
           describedBy="rest-wake-description"
           checked={devicePreferences.keepAwake}
           onChange={keepAwake => onDevicePreferences({ ...devicePreferences, keepAwake })}
-        />
-      </SettingRow>
-
-      <SettingRow
-        label={<strong>Move to the next exercise automatically</strong>}
-        description="Advance after completing all sets."
-        descriptionId="auto-advance-description"
-      >
-        <Switch
-          label="Move to the next exercise automatically"
-          describedBy="auto-advance-description"
-          checked={devicePreferences.autoAdvance}
-          onChange={autoAdvance => onDevicePreferences({ ...devicePreferences, autoAdvance })}
         />
       </SettingRow>
     </>

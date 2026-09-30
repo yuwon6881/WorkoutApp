@@ -2,8 +2,7 @@
 .import-exercise .import-exercise-heading { align-items: start; }
 .prescription-context-row { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 8px; }
 .prescription-context-row .import-exercise-actions { width: auto; }
-.prescription-context-row .superset-badge { gap: 4px; padding: 0 4px 0 8px; min-height: 44px; }
-.prescription-context-row .superset-unlink-chip-btn { margin-left: 0; width: 36px; height: 44px; min-width: 44px; }
+.prescription-superset-chip .prescription-superset-label { display: inline-flex; align-items: center; gap: 4px; cursor: default; }
 .import-exercise .import-fields {
   border: 0;
   background: transparent;
@@ -14,15 +13,14 @@
   align-items: stretch;
   width: 100%;
 }
-/* The muscle pills follow the library exercise while they fit and drop beneath it otherwise, so
-   they never cover the trigger or spill into the neighbouring sets column. */
+/* Keep muscle metadata on its own row, independent of name length or substitutions. */
 .import-library-row {
   display: flex;
-  align-items: center;
+  flex-direction: column;
+  align-items: flex-start;
   gap: 8px;
   width: 100%;
   min-width: 0;
-  flex-wrap: wrap;
 }
 .import-exercise .import-library-row .import-library-field {
   flex: 0 1 auto;
@@ -51,7 +49,7 @@
   flex-wrap: wrap;
   flex: 0 1 auto;
   min-width: 0;
-  align-self: center;
+  align-self: flex-start;
 }
 .import-exercise .import-substitutions-field {
   width: 100%;

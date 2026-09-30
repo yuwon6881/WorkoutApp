@@ -7,7 +7,8 @@ import {
   RotateCcw,
   Target,
   Trash2,
-  TrendingUp
+  TrendingUp,
+  Weight
 } from 'lucide-react';
 import type {
   Exercise,
@@ -27,6 +28,10 @@ import { ExerciseLibrary } from './Exercises';
 import { WorkoutSetRow } from './WorkoutSetRow';
 import { WorkoutExerciseHistory } from './WorkoutExerciseHistory';
 import { DemoLink } from './ui/DemoLink';
+import { isTimedExercise } from '../lib/setDuration';
+import { useTrackRir } from '../lib/trackRir';
+import { ExerciseLoadSettings } from './ExerciseLoadSettings';
+import { loadAdjustable } from '../lib/exerciseLoads';
 
 const UNDO_WINDOW_MS = 6000;
 
@@ -42,6 +47,7 @@ export function WorkoutActiveExercise({
   onSwap,
   onRestore,
   onRemoveExercise,
+  onCatalogChanged,
   focused = false
 }: {
   exercise: SessionExercise;
@@ -55,10 +61,13 @@ export function WorkoutActiveExercise({
   onSwap: (sessionExerciseId: string, replacementExerciseId: string | null, replacementName: string) => Promise<void>;
   onRestore?: (sessionExerciseId: string) => Promise<void>;
   onRemoveExercise: (index: number) => void;
+  onCatalogChanged?: () => void | Promise<void>;
   /** One exercise is on screen with freely editable set rows. */
   focused?: boolean;
 }) {
+  const trackRir = useTrackRir();
   const [swapOpen, setSwapOpen] = useState(false);
+  const [weightsOpen, setWeightsOpen] = useState(false);
   const [candidates, setCandidates] = useState<SubstitutionCandidate[]>([]);
   const [showTargets, setShowTargets] = useState(false);
   const [showNote, setShowNote] = useState(true);
@@ -111,6 +120,7 @@ export function WorkoutActiveExercise({
   const lastSourceDate = exercise.sets.find(set => set.suggestion?.sourceDate)?.suggestion?.sourceDate ?? null;
   const workingSets = exercise.sets.filter(s => !s.warmup);
   const hasCompletedSets = exercise.sets.some(s => s.done);
+  const libraryExercise = exercises.find(item => item.id === exercise.exerciseId);
   const nextUnloggedWorkingIndex = workingSets.findIndex(s => !s.done);
   const currentSetDisplay =
     nextUnloggedWorkingIndex >= 0
@@ -202,6 +212,18 @@ export function WorkoutActiveExercise({
           <span>Note</span>
         </Button>
 
+        {libraryExercise && loadAdjustable(libraryExercise) && (
+          <Button
+            variant="tertiary"
+            className="action-pill"
+            aria-label={`Weight increments for ${exercise.name}`}
+            onClick={() => setWeightsOpen(true)}
+          >
+            <Weight size={15} />
+            <span>Weights</span>
+          </Button>
+        )}
+
         {exercise.sequenceGroup && (
           <div className="action-pill pill-static" title="Superset group">
             <Layers size={15} />
@@ -229,7 +251,7 @@ export function WorkoutActiveExercise({
             {prescription.map((p, pi) => (
               <li key={pi}>
                 <span className="plan-set-number">{p.warmup ? `Warm-up ${pi + 1}` : `Set ${pi + 1}`}:</span>
-                <span className="plan-set-target">{showTarget(p)}</span>
+                <span className="plan-set-target">{showTarget(p, trackRir)}</span>
                 {p.loadText && <span className="plan-set-load">· {p.loadText}</span>}
                 {p.tempo && <span className="plan-set-tempo">· tempo {p.tempo}</span>}
                 {p.notes && <span className="plan-set-notes">— {p.notes}</span>}
@@ -239,13 +261,19 @@ export function WorkoutActiveExercise({
         </div>
       )}
 
-      <div className="workout-set-table-container">
+      <div className={`workout-set-table-container ${trackRir ? '' : 'no-rir'}`.trim()}>
         <div className="workout-set-table-head">
           <span className="col-set">Set</span>
           <span className="col-target">Target ↔</span>
           <span className="col-load">{unit.toUpperCase()}</span>
-          <span className="col-reps">Reps</span>
-          <span className="col-rpe">RIR</span>
+          {isTimedExercise(exercise) ? (
+            <span className="col-reps col-time">Time</span>
+          ) : (
+            <>
+              <span className="col-reps">Reps</span>
+              {trackRir && <span className="col-rpe">RIR</span>}
+            </>
+          )}
           <span className="col-log">Done</span>
           <span className="col-del" />
         </div>
@@ -262,8 +290,8 @@ export function WorkoutActiveExercise({
                 exercise={exercise}
                 plan={plan}
                 unit={unit}
-                loadStepKg={exercises.find(item => item.id === exercise.exerciseId)?.loadStepKg}
-                availableLoadsKg={exercises.find(item => item.id === exercise.exerciseId)?.availableLoadsKg}
+                loadStepKg={libraryExercise?.loadStepKg}
+                availableLoadsKg={libraryExercise?.availableLoadsKg}
                 editSet={editSet}
                 toggle={toggle}
                 onRemoveSet={sidx => removeSet(sidx)}
@@ -328,6 +356,14 @@ export function WorkoutActiveExercise({
             <Button variant="destructive" onClick={() => { setConfirmRemove(false); onRemoveExercise(index); }}>
               Remove exercise
             </Button>
+          </div>
+        </Modal>
+      )}
+
+      {weightsOpen && libraryExercise && (
+        <Modal title={`${exercise.name} weights`} onClose={() => setWeightsOpen(false)}>
+          <div className="modal-body">
+            <ExerciseLoadSettings exerciseId={libraryExercise.id} unit={unit} onChanged={onCatalogChanged} />
           </div>
         </Modal>
       )}

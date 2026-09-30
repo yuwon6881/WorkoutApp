@@ -50,6 +50,38 @@ describe('moving on after a set', () => {
     expect(advanceTarget(draft, 0, 0)).toBe(1);
   });
 
+  it('switches superset jumps and exercise moves separately', () => {
+    const superset = workout([
+      exercise('a', 'Curl', [set('a1', { done: true }), set('a2')], 'A1'),
+      exercise('b', 'Pushdown', [set('b1'), set('b2')], 'A2')
+    ]);
+    expect(advanceTarget(superset, 0, 0, { nextExercise: true, supersetPartner: false })).toBeNull();
+    expect(advanceTarget(superset, 0, 0, { nextExercise: false, supersetPartner: true })).toBe(1);
+
+    const finished = workout([exercise('a', 'Bench', [set('a1', { done: true })]), exercise('b', 'Row', [set('b1')])]);
+    expect(advanceTarget(finished, 0, 0, { nextExercise: false, supersetPartner: true })).toBeNull();
+    expect(advanceTarget(finished, 0, 0, { nextExercise: true, supersetPartner: false })).toBe(1);
+  });
+
+  it('wraps from the last partner back to the first for the next round', () => {
+    const draft = workout([
+      exercise('a', 'Curl', [set('a1', { done: true }), set('a2')], 'A1'),
+      exercise('b', 'Pushdown', [set('b1', { done: true }), set('b2')], 'A2')
+    ]);
+    expect(advanceTarget(draft, 1, 0, { nextExercise: false, supersetPartner: true })).toBe(0);
+    expect(advanceTarget(draft, 1, 0, { nextExercise: true, supersetPartner: false })).toBeNull();
+  });
+
+  it('moves past a finished superset as an exercise move, not a partner jump', () => {
+    const draft = workout([
+      exercise('a', 'Curl', [set('a1', { done: true })], 'A1'),
+      exercise('b', 'Pushdown', [set('b1', { done: true })], 'A2'),
+      exercise('c', 'Row', [set('c1')])
+    ]);
+    expect(advanceTarget(draft, 1, 0, { nextExercise: true, supersetPartner: false })).toBe(2);
+    expect(advanceTarget(draft, 1, 0, { nextExercise: false, supersetPartner: true })).toBeNull();
+  });
+
   it('describes what comes next for the rest bar', () => {
     const draft = workout([exercise('a', 'Bench', [set('a1', { done: true })]), exercise('b', 'Row', [set('b1', { weightKg: 50, reps: 10 })])]);
     expect(nextUpText(draft, 0, 'kg')).toBe('Row · set 1 · 50 kg × 10');

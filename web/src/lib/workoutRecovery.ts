@@ -13,7 +13,7 @@ export type WorkoutOperation =
   | { id: string; type: 'pause' | 'resume'; occurredAt: string; revision: number | null; createdAt: string }
   | { id: string; type: 'finish'; finishedAt: string; retainExerciseSwaps: boolean; revision: number | null; createdAt: string };
 
-export type SetPatch = Partial<Pick<LoggedSet, 'weightKg' | 'reps' | 'rpe' | 'rir' | 'done' | 'warmup' | 'resistanceMode'>>;
+export type SetPatch = Partial<Pick<LoggedSet, 'weightKg' | 'reps' | 'durationSeconds' | 'rpe' | 'rir' | 'done' | 'warmup' | 'resistanceMode'>>;
 
 export type WorkoutRecoveryRecord = {
   schemaVersion: 1;
@@ -170,11 +170,11 @@ export async function enqueueSetEdits(
         const baseline = baselineSets.get(set.id);
         if (!baseline) continue;
         const patch: SetPatch = {
-          weightKg: set.weightKg, reps: set.reps, rpe: set.rpe, rir: set.rir ?? null, done: set.done,
+          weightKg: set.weightKg, reps: set.reps, durationSeconds: set.durationSeconds ?? null, rpe: set.rpe, rir: set.rir ?? null, done: set.done,
           warmup: set.warmup, resistanceMode: set.resistanceMode
         };
         const baselinePatch: SetPatch = {
-          weightKg: baseline.weightKg, reps: baseline.reps, rpe: baseline.rpe, rir: baseline.rir ?? null, done: baseline.done,
+          weightKg: baseline.weightKg, reps: baseline.reps, durationSeconds: baseline.durationSeconds ?? null, rpe: baseline.rpe, rir: baseline.rir ?? null, done: baseline.done,
           warmup: baseline.warmup, resistanceMode: baseline.resistanceMode
         };
         reconcileSetPatchOperation(record.operations, set.id, patch, baselinePatch, record.updatedAt);

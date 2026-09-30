@@ -52,7 +52,7 @@ internal static class ResourceGenerationWriter
                 History = history ? 1 : 0,
                 HistoryAppendId = appendId,
                 CustomExercises = Has<CustomExercise>() ? 1 : 0,
-                ExerciseLoads = Has<ExerciseLoadSetting>() ? 1 : 0,
+                ExerciseLoads = Has<ExerciseLoadSetting>() || Has<EquipmentLoadDefault>() || Has<LoadStack>() ? 1 : 0,
                 Preferences = Has<AppUser>() ? 1 : 0
             };
             if (generation.Programs + generation.Templates + generation.Sessions + generation.Imports + generation.Progress

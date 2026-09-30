@@ -13,7 +13,7 @@ object SyncMergePolicy {
         val baselineSession = runCatching { gson.fromJson(operation.baselineJson, WorkoutSession::class.java) }.getOrNull() ?: return null
         val baselineSet = findSet(baselineSession, operation.setId) ?: return null
         val remoteSet = findSet(remote, operation.setId) ?: return null
-        val fields = listOf("weightKg", "reps", "rpe", "rir", "done", "warmup", "resistanceMode")
+        val fields = listOf("weightKg", "reps", "durationSeconds", "rpe", "rir", "done", "warmup", "resistanceMode")
         for (field in fields) {
             val baseValue = gson.toJsonTree(readField(baselineSet, field)) ?: JsonNull.INSTANCE
             val remoteValue = gson.toJsonTree(readField(remoteSet, field)) ?: JsonNull.INSTANCE
@@ -67,6 +67,7 @@ object SyncMergePolicy {
     private fun readField(set: WorkoutSet, field: String): Any? = when (field) {
         "weightKg" -> set.weightKg
         "reps" -> set.reps
+        "durationSeconds" -> set.durationSeconds
         "rpe" -> set.rpe
         "rir" -> set.rir
         "done" -> set.done

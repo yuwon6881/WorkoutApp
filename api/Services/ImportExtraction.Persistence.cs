@@ -172,7 +172,6 @@ public sealed partial class ImportService
         var today = DateOnly.FromDateTime(DateTime.UtcNow);
         var usage = await db.Usage.SingleOrDefaultAsync(u => u.Date == today, ct);
         if (usage == null) { usage = new AiUsage { UserId = db.CurrentUser!.Value, Date = today, Count = 0 }; db.Usage.Add(usage); }
-        Validation.Require(usage.Count < DailyLimit, $"You have used all {DailyLimit} AI reads for today. Manual program building remains available.", 429);
         usage.Count++; import.Calls++;
         await db.SaveChangesAsync(ct);
     }

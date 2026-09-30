@@ -16,7 +16,6 @@ namespace Workout.Api.Services;
 /// because the read has been paid for either way.
 public sealed partial class ImportService
 {
-    public const int DailyLimit = 150;
 
     /// Accepts the extracted text and reads its outline. Submitting the same document again while
     /// an unfinished import exists continues that import rather than starting a second one.

@@ -1,5 +1,6 @@
 import type { DraftWorkout, ImportDraft, LoggedSet, Session, SetPrescription, TemplateExercise } from '../types';
 import { MAX_DAYS_PER_WEEK } from './programLimits';
+import { MAX_SET_SECONDS } from './setDuration';
 
 export function validateName(value: string | null | undefined, label: string, max = 120): string | undefined {
   if (!value?.trim()) return `${label} is required.`;
@@ -198,7 +199,9 @@ export function validateLoggedSet(set: LoggedSet): string | undefined {
   if (reps) return reps;
   const rpe = validateRpe(set.rpe);
   if (rpe) return rpe;
-  if (set.done && set.reps === null) return 'A completed set needs its reps.';
+  const seconds = validateInteger(set.durationSeconds ?? null, 1, MAX_SET_SECONDS, 'Time');
+  if (seconds) return seconds;
+  if (set.done && set.reps === null && (set.durationSeconds ?? null) === null) return 'A completed set needs its reps or time.';
   return undefined;
 }
 

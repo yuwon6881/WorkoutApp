@@ -1,0 +1,47 @@
+.load-settings-group {
+  padding-block: 16px 4px;
+}
+
+.load-settings-group h3 {
+  margin: 0;
+  font-size: 16px;
+}
+
+.load-settings-group > .muted {
+  margin: 4px 0 8px;
+  font-size: var(--font-secondary, 14px);
+}
+
+.load-settings-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.load-settings-empty {
+  padding-block: 12px;
+}
+
+.load-stack-delete {
+  display: grid;
+  gap: 12px;
+}
+
+.load-stack-delete .modal-actions,
+.load-stack-delete-row {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.load-stack-delete-row {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.load-settings-skeleton {
+  height: 180px;
+  margin-block: 16px;
+}

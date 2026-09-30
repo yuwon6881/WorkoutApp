@@ -55,6 +55,11 @@ describe('prescriptions', () => {
   it('prefers verbatim targets and keeps the machine fallback', () => {
     expect(showTarget({ repMin: 8, repMax: 12, repsText: 'AMRAP', targetRpe: 8, rir: '2' } as never)).toBe('AMRAP · 2 RIR');
   });
+
+  it('shows only the reps when RIR is not tracked, including the app default', () => {
+    expect(showTarget({ repMin: 8, repMax: 12, repsText: null, targetRpe: 8, rir: '2' } as never, false)).toBe('8–12');
+    expect(showTarget({ repMin: 8, repMax: 8, repsText: null, targetRpe: null, rir: null, warmup: false } as never, false)).toBe('8');
+  });
 });
 
 describe('catalog name parity', () => {

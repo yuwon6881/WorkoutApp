@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
@@ -27,19 +28,65 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.wear.compose.material3.ButtonDefaults
+import androidx.wear.compose.material3.FilledTonalButton
 import androidx.wear.compose.material3.MaterialTheme
 import androidx.wear.compose.material3.Text
+import com.workoutapp.wear.R
 import com.workoutapp.wear.ui.theme.Ayu
 import com.workoutapp.wear.ui.theme.rirColor
 
-enum class SetField { Reps, Load, Rir }
+enum class SetField { Reps, Load, Rir, Time }
 
 /** The values being edited for the current set; they reset whenever the set or display unit changes. */
 @Stable
-class SetDraft(reps: Int, load: Double?, rir: String?) {
+class SetDraft(reps: Int, load: Double?, rir: String?, seconds: Int? = null) {
     var reps by mutableIntStateOf(reps)
     var load by mutableStateOf(load)
     var rir by mutableStateOf(rir)
+    var seconds by mutableStateOf(seconds)
+    /** When the set's stopwatch started; the count is derived from it so a dimmed screen loses nothing. */
+    var timerStartedAt by mutableStateOf<Long?>(null)
+        private set
+    /** Seconds a countdown runs to; null counts up until stopped. */
+    var timerTarget by mutableStateOf<Int?>(null)
+        private set
+    private var timerBase = 0
+    val timing: Boolean get() = timerStartedAt != null
+
+    fun secondsAt(nowEpochMs: Long): Int? = timerStartedAt?.let { stopwatchSeconds(timerBase, it, nowEpochMs, timerTarget) } ?: seconds
+
+    /** Time left on a running countdown, or null when counting up or stopped. */
+    fun remainingAt(nowEpochMs: Long): Int? = timerTarget?.let { target -> secondsAt(nowEpochMs)?.let { target - it } }?.takeIf { timing }
+
+    /**
+     * Counts down to a target, or up without one. A partial hold continues; a set already at its
+     * target starts a fresh attempt.
+     */
+    fun startTimer(nowEpochMs: Long, targetSeconds: Int? = null) {
+        val entered = seconds ?: 0
+        timerBase = if (targetSeconds != null && entered >= targetSeconds) 0 else entered
+        timerTarget = targetSeconds
+        timerStartedAt = nowEpochMs
+    }
+
+    /** When a running countdown reaches its target. */
+    fun countdownEndsAt(): Long? = timerStartedAt?.let { started -> timerTarget?.let { started + (it - timerBase) * 1_000L } }
+
+    /** A countdown reached its target: it stops with the target recorded. */
+    fun finishCountdown() {
+        val target = timerTarget ?: return
+        if (!timing) return
+        timerStartedAt = null
+        seconds = target
+    }
+
+    fun stopTimer(nowEpochMs: Long): Int? {
+        val reached = secondsAt(nowEpochMs)
+        timerStartedAt = null
+        seconds = reached?.takeIf { it > 0 }
+        return seconds
+    }
 }
 
 sealed interface SetAction {
@@ -73,11 +120,14 @@ fun SetPage(
     busy: Boolean,
     message: String?,
     error: String?,
+    nowEpochMs: Long,
     onAdjust: (SetField) -> Unit,
+    onToggleTimer: () -> Unit,
     onAction: (SetAction) -> Unit
 ) {
     val editable = model.set != null && !paused && !busy
-    WearListScreen(edgeButton = { SetEdgeButton(action, busy) { onAction(action) } }) { spec ->
+    val timerState = if (model.timed) TimerState(draft.timing, draft.secondsAt(nowEpochMs) != null) else null
+    WearListScreen(edgeButton = { SetEdgeButton(action, busy, timerState) { onAction(action) } }) { spec ->
         item {
             Column(Modifier.listRow(this, spec).padding(horizontal = topRowInset()), horizontalAlignment = Alignment.CenterHorizontally) {
                 SetBadgeRow(model, paused, pausedRestSeconds, restComplete, sync)
@@ -97,7 +147,24 @@ fun SetPage(
         } else {
             item {
                 Row(Modifier.listRow(this, spec).padding(top = 4.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    MetricTile("reps", draft.reps.toString(), "reps", editable) { onAdjust(SetField.Reps) }
+                    if (model.timed) {
+                        val remaining = draft.remainingAt(nowEpochMs)
+                        val shown = remaining ?: draft.secondsAt(nowEpochMs)
+                        MetricTile(
+                            "time",
+                            formatSetSeconds(shown ?: model.targetSeconds),
+                            when {
+                                remaining != null -> "left"
+                                draft.timing -> "timing"
+                                shown == null && model.targetSeconds != null -> "target"
+                                else -> "time"
+                            },
+                            editable && !draft.timing,
+                            valueColor = if (draft.timing) Ayu.Accent else if (shown == null) Ayu.Muted else Ayu.Text
+                        ) { onAdjust(SetField.Time) }
+                    } else {
+                        MetricTile("reps", draft.reps.toString(), "reps", editable) { onAdjust(SetField.Reps) }
+                    }
                     if (model.loadEditable) {
                         MetricTile("load", draft.load?.let(::formatLoad) ?: "—", loadUnitCaption(model, unit), editable) {
                             onAdjust(SetField.Load)
@@ -105,13 +172,16 @@ fun SetPage(
                     } else if (model.resistanceMode == "bodyweight") {
                         MetricTile("bodyweight load", "BW", "body", enabled = true, onClick = null)
                     }
-                    if (!model.warmup) {
+                    if (!model.warmup && !model.timed && model.trackRir) {
                         MetricTile("RIR", draft.rir ?: "—", "RIR", editable, valueColor = rirColor(draft.rir)) {
                             onAdjust(SetField.Rir)
                         }
                     }
                 }
             }
+        }
+        if (model.timed && model.set != null) {
+            item { TimerToggle(draft.timing, enabled = editable, Modifier.listRow(this, spec), onToggleTimer) }
         }
         if (hasFeedback(message, error)) item { Feedback(message, error, Modifier.listRow(this, spec)) }
     }
@@ -152,10 +222,18 @@ private fun RowScope.MetricTile(
     }
 }
 
+/** Where a timed set stands, so the one edge button can start the hold, then stop and log it. */
+data class TimerState(val running: Boolean, val hasTime: Boolean)
+
 @Composable
-private fun SetEdgeButton(action: SetAction, busy: Boolean, onClick: () -> Unit) {
+private fun SetEdgeButton(action: SetAction, busy: Boolean, timer: TimerState?, onClick: () -> Unit) {
     val label = when (action) {
-        SetAction.Log -> if (busy) "Saving" else "Log set"
+        SetAction.Log -> when {
+            busy -> "Saving"
+            timer?.running == true -> "Stop & log"
+            timer != null && !timer.hasTime -> "Start timer"
+            else -> "Log set"
+        }
         SetAction.Resume -> "Resume"
         SetAction.Finish -> "Finish"
         SetAction.NextExercise -> "Next"
@@ -194,6 +272,18 @@ private fun SetBadgeRow(model: ActiveSetModel, paused: Boolean, pausedRestSecond
             }
         }
     }
+}
+
+/** Starts or stops a timed set without logging it, for a hold taken in parts or timed before logging. */
+@Composable
+private fun TimerToggle(running: Boolean, enabled: Boolean, modifier: Modifier, onClick: () -> Unit) {
+    FilledTonalButton(
+        onClick = onClick,
+        enabled = enabled,
+        modifier = modifier,
+        icon = { WearIcon(if (running) R.drawable.ic_pause else R.drawable.ic_play, null, Modifier.size(ButtonDefaults.IconSize)) },
+        label = { Text(if (running) "Stop timer" else "Start timer", maxLines = 1) }
+    )
 }
 
 @Composable

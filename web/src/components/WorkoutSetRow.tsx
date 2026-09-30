@@ -8,6 +8,10 @@ import { Select } from './ui/Select';
 import { RpeControl } from './ui/RpeControl';
 import { nextAvailableLoad } from '../lib/exerciseLoads';
 import { partialTechniqueLabel } from '../lib/importSetTypes';
+import { isTimedExercise, showTimedTarget, timedTargetSeconds } from '../lib/setDuration';
+import { discardStopwatch } from '../lib/setStopwatch';
+import { WorkoutSetTimeCell } from './WorkoutSetTimeCell';
+import { useTrackRir } from '../lib/trackRir';
 
 export const resistanceModeOptions: Array<{ value: NonNullable<LoggedSet['resistanceMode']>; label: string }> = [
   { value: 'bodyweight', label: 'BW' },
@@ -41,18 +45,20 @@ export function WorkoutSetRow({
   onRemoveSet: (si: number) => void;
 }) {
   // Set only by the tap that logs a set, so rows already done do not replay it when shown again.
+  const trackRir = useTrackRir();
   const [justLogged, setJustLogged] = useState(false);
   const shown = toDisplay(set.weightKg, unit);
   const { label, warmup } = setNumberLabel(exercise, si);
   const loadModel = exercise.loadModel ?? 'external';
   const loadEditable = loadIsEditable(exercise, set);
   const partialTechnique = plan ? partialTechniqueLabel(plan) : null;
+  const timed = isTimedExercise(exercise);
 
   return (
     <div
       className={`workout-set-row ${set.done ? 'done' : ''} ${warmup ? 'warmup-row' : ''} ${
         set.suggestion ? 'has-suggestion' : ''
-      } ${justLogged ? 'just-logged' : ''}`}
+      } ${justLogged ? 'just-logged' : ''} ${timed ? 'timed-row' : ''}`}
       onAnimationEnd={event => { if (event.target === event.currentTarget) setJustLogged(false); }}
     >
       <span className="set-badge-circle" title={warmup ? 'Warm-up set' : 'Working set'}>
@@ -60,7 +66,7 @@ export function WorkoutSetRow({
       </span>
 
       <div className="set-target-cell">
-        <span className="target-text">{plan ? showTarget(plan) : '—'}</span>
+        <span className="target-text">{plan ? (timed ? showTimedTarget(plan) : showTarget(plan, trackRir)) : '—'}</span>
         {partialTechnique && <small className="set-technique-note">{partialTechnique}</small>}
         {set.suggestion && (
           <small className="suggestion-text" title={set.suggestion.reason}>
@@ -107,27 +113,39 @@ export function WorkoutSetRow({
         )}
       </div>
 
-      <div className="set-input-cell reps-cell">
-        <input
-          name={`reps-${exercise.id}-${si}`}
-          aria-label={`${exercise.name} set ${si + 1} reps`}
-          inputMode="numeric"
-          type="number"
-          placeholder="—"
-          value={set.reps ?? ''}
-          onChange={e => editSet(ei, si, { reps: e.target.value === '' ? null : Number(e.target.value) })}
+      {timed ? (
+        // Reps in reserve has no meaning for a hold, so the time spans the reps and RIR columns.
+        <WorkoutSetTimeCell
+          set={set}
+          label={`${exercise.name} set ${si + 1}`}
+          targetSeconds={timedTargetSeconds(plan)}
+          onChange={durationSeconds => editSet(ei, si, { durationSeconds })}
         />
-      </div>
+      ) : (
+        <>
+          <div className="set-input-cell reps-cell">
+            <input
+              name={`reps-${exercise.id}-${si}`}
+              aria-label={`${exercise.name} set ${si + 1} reps`}
+              inputMode="numeric"
+              type="number"
+              placeholder="—"
+              value={set.reps ?? ''}
+              onChange={e => editSet(ei, si, { reps: e.target.value === '' ? null : Number(e.target.value) })}
+            />
+          </div>
 
-      <div className="set-input-cell rpe-cell">
-        <RpeControl
-          compact
-          name={`rir-${exercise.id}-${si}`}
-          ariaLabel={`${exercise.name} set ${si + 1} RIR`}
-          value={effortValue(set)}
-          onChange={value => editSet(ei, si, effortPatch(value))}
-        />
-      </div>
+          {trackRir && <div className="set-input-cell rpe-cell">
+            <RpeControl
+              compact
+              name={`rir-${exercise.id}-${si}`}
+              ariaLabel={`${exercise.name} set ${si + 1} RIR`}
+              value={effortValue(set)}
+              onChange={value => editSet(ei, si, effortPatch(value))}
+            />
+          </div>}
+        </>
+      )}
 
       <div className="set-action-cell log-cell">
         <Button
@@ -150,7 +168,10 @@ export function WorkoutSetRow({
           className="set-del-btn"
           aria-label={`Remove ${exercise.name} set ${si + 1}`}
           disabled={exercise.sets.length <= 1}
-          onClick={() => onRemoveSet(si)}
+          onClick={() => {
+            discardStopwatch(set.id);
+            onRemoveSet(si);
+          }}
         >
           <Minus size={14} />
         </Button>

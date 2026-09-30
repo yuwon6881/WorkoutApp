@@ -27,8 +27,26 @@ internal static class ProgressionEvidence
         => left is null && right is null || left is { } l && right is { } r && Math.Abs(l - r) < .0001;
 
     public static bool Changed(SetExposure source, int? min, int? max, double? goal)
-        => source.HasPrescription && (source.RepMin != min || source.RepMax != max ||
-            Reserve(source.TargetRir, source.TargetRpe) != goal);
+        => source.HasPrescription && (source.RepMin != min || source.RepMax != max || EffortTargetChanged(source, goal));
+
+    /// The most a weekly RIR taper (for example 3 to 2 to 1) may move before the prescription counts as
+    /// a different one whose history no longer applies.
+    public const double TaperReserve = 2;
+
+    // A routine taper is the same progression: the set already met the new, harder target, so its
+    // reps and reserve remain valid evidence. Anything larger or unmet is a real change.
+    private static bool EffortTargetChanged(SetExposure source, double? goal)
+    {
+        var own = Reserve(source.TargetRir, source.TargetRpe);
+        if (own == goal) return false;
+        return !(own is { } previous && goal is { } current && Math.Abs(previous - current) <= TaperReserve &&
+                 Reserve(source) is { } reserve && reserve >= current);
+    }
+
+    /// A planned deload is far easier than the current target and says nothing about working capacity.
+    public static bool IsDeload(SetExposure exposure, double? goal)
+        => exposure.HasPrescription && goal is { } target && Reserve(exposure.TargetRir, exposure.TargetRpe) is { } own &&
+           own >= target + TaperReserve + 1;
 
     // A local load/reps heuristic, deliberately separate from PR/e1RM reporting. It is used
     // only up to 30 effective reps, and never claimed to guarantee the prescribed effort.

@@ -19,6 +19,9 @@ public sealed class AppUser
     public int RestSeconds { get; set; } = 90;
     /// Whether the rest timer is allowed to make a sound and raise a notification when it ends.
     public bool RestAlerts { get; set; } = true;
+    /// Whether reps in reserve is shown and asked for. Turning it off hides RIR everywhere but keeps
+    /// every stored target and logged value, so turning it back on restores them unchanged.
+    public bool TrackRir { get; set; } = true;
     /// Central Fitness Account subject.
     public string IdentitySubject { get; set; } = "";
 }
@@ -52,6 +55,7 @@ public sealed class Exercise
     /// Curated movement pattern used to rank safe substitution candidates. It is optional for
     /// legacy catalog rows; an empty value simply falls back to muscle/equipment matching.
     public string MovementPattern { get; set; } = "";
+    public string TrackingMode { get; set; } = "reps";
 }
 
 /// Account-owned exercises extend the shared seed catalog without allowing one user to mutate
@@ -68,6 +72,7 @@ public sealed class CustomExercise : OwnedRecord
     public double LoadStepKg { get; set; } = 2.5;
     public string LoadModel { get; set; } = "external";
     public string MovementPattern { get; set; } = "";
+    public string TrackingMode { get; set; } = "reps";
     public bool Archived { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime? ArchivedAt { get; set; }
@@ -228,15 +233,6 @@ public sealed class WorkoutSession : OwnedRecord
     public string? RestOriginDeviceId { get; set; }
 }
 
-public static class WorkoutRestStatus
-{
-    public const string Idle = "idle";
-    public const string Running = "running";
-    public const string Paused = "paused";
-    public const string Elapsed = "elapsed";
-    public static readonly string[] All = [Idle, Running, Paused, Elapsed];
-}
-
 /// Names and prescriptions are snapshotted so a later catalog edit cannot rewrite history.
 public sealed class SessionExercise : OwnedRecord
 {
@@ -280,6 +276,8 @@ public sealed class CompletedSet : OwnedRecord
     /// Reps and RPE stay null while a set is planned or still being typed; a completed set may
     /// have no actual RPE so that the exposure repeats without advancing progression.
     public int? Reps { get; set; }
+    /// Seconds for a timed set, kept on the set so history reads correctly if the exercise changes.
+    public int? DurationSeconds { get; set; }
     public double? Rpe { get; set; }
     /// Exact effort selection retained for 5+ RIR, which cannot be represented by a precise RPE.
     public string? Rir { get; set; }
@@ -401,13 +399,6 @@ public static class ImportStatus
     public const string Accepted = "accepted";
     public const string Discarded = "discarded";
     public static readonly string[] All = [Pending, Ready, Failed, Accepted, Discarded];
-}
-
-public sealed class AiUsage
-{
-    public Guid UserId { get; set; }
-    public DateOnly Date { get; set; }
-    public int Count { get; set; }
 }
 
 public sealed class MutationReceipt

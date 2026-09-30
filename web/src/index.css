@@ -257,7 +257,7 @@ details>p{font-size:14px!important;line-height:1.5;color:var(--muted);margin-top
 .pill-muted{background:var(--surface-raised);border:1px solid var(--border);color:var(--muted)}
 @media(max-width:639px){
   .topbar{min-width:0;padding-left:12px;padding-right:12px;gap:8px;justify-content:space-between}
-  .mobile-brand{min-width:0;flex-shrink:1;white-space:nowrap}
+  .mobile-brand{min-width:0;flex-shrink:1;white-space:nowrap;font-size:clamp(20px,6vw,24px)}
   .topbar-actions{min-width:0;flex-shrink:1;gap:4px}
   .device-status{min-width:0;white-space:normal;overflow-wrap:anywhere;line-height:1.2}
   .bottom-nav{left:0;right:auto;width:100dvw;max-width:100dvw;overflow:hidden}

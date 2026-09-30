@@ -1,11 +1,12 @@
 import { useRef, useState, type FormEvent } from 'react';
-import type { CustomExerciseCreated, ExerciseCategory } from '../types';
+import type { CustomExerciseCreated, ExerciseCategory, TrackingMode } from '../types';
 import { ApiError, api } from '../lib/api';
 import { getExerciseCategory } from '../lib/exerciseCategory';
 import { Button } from './ui/Button';
 import { Field, TextAreaField } from './ui/Field';
 import { Modal } from './ui/Modal';
 import { Select } from './ui/Select';
+import { SegmentedControl } from './ui/SegmentedControl';
 
 export function CustomExerciseModal({ onClose, onCreated, initialName = '', onExerciseCreated }: {
   onClose: () => void;
@@ -20,7 +21,7 @@ export function CustomExerciseModal({ onClose, onCreated, initialName = '', onEx
   const [secondaryMuscles, setSecondaryMuscles] = useState('');
   const [cue, setCue] = useState('');
   const [loadModel, setLoadModel] = useState('external');
-  const [loadStepKg, setLoadStepKg] = useState('2.5');
+  const [trackingMode, setTrackingMode] = useState<TrackingMode>('reps');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [createdExercise, setCreatedExercise] = useState<CustomExerciseCreated | null>(null);
@@ -34,11 +35,6 @@ export function CustomExerciseModal({ onClose, onCreated, initialName = '', onEx
       setError('Exercise name is required.');
       return;
     }
-    const step = Number(loadStepKg);
-    if (!createdExercise && (!Number.isFinite(step) || step < 0 || step > 50)) {
-      setError('Load increment must be between 0 and 50 kg.');
-      return;
-    }
     submitting.current = true;
     setBusy(true);
     const secondary = [...new Set(secondaryMuscles.split(',').map(value => value.trim()).filter(Boolean))];
@@ -46,7 +42,7 @@ export function CustomExerciseModal({ onClose, onCreated, initialName = '', onEx
     try {
       const created = createdExercise ?? await api.createCustomExercise({
         name: name.trim(), muscle, secondaryMuscles: secondary, equipment, category, cue,
-        loadStepKg: step, loadModel
+        loadModel, trackingMode
       });
       if (!createdExercise) {
         setCreatedExercise(created);
@@ -92,7 +88,12 @@ export function CustomExerciseModal({ onClose, onCreated, initialName = '', onEx
           { value: 'bodyweight_context_only', label: 'Bodyweight context only' }, { value: 'reps_only', label: 'Reps only' }
         ]} /></label>
       </div>
-      <Field name="custom-exercise-load-step" label="Load increment (kg)" type="number" min="0" max="50" step="0.5" value={loadStepKg} onChange={event => setLoadStepKg(event.target.value)} disabled={!!createdExercise} />
+      <div className="field">
+        <span>Measured by</span>
+        <SegmentedControl<TrackingMode> label="Measured by" value={trackingMode} onChange={setTrackingMode} disabled={!!createdExercise}
+          options={[{ value: 'reps', label: 'Reps' }, { value: 'duration', label: 'Time (holds, carries)' }]} />
+      </div>
+      <p className="muted">Weights follow the default for its equipment. Give it its own from the exercise details or Settings.</p>
       {error && <div className="error-text" role="alert">{error}</div>}
       <div className="modal-actions">
         <Button variant="tertiary" type="button" onClick={onClose} disabled={busy}>Cancel</Button>

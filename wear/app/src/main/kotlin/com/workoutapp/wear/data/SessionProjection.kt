@@ -39,6 +39,7 @@ object SessionProjection {
                 if (set.id != setId) set else set.copy(
                     weightKg = nullableDouble(request, "weightKg", set.weightKg),
                     reps = nullableInt(request, "reps", set.reps),
+                    durationSeconds = nullableInt(request, "durationSeconds", set.durationSeconds),
                     rpe = nullableDouble(request, "rpe", set.rpe),
                     rir = nullableString(request, "rir", set.rir),
                     done = request.get("done")?.asBoolean ?: set.done

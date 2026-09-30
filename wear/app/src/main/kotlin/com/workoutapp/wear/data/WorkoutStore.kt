@@ -40,7 +40,8 @@ class WorkoutStore(context: Context) : SQLiteOpenHelper(context.applicationConte
             id INTEGER PRIMARY KEY CHECK (id = 1), session_json TEXT NOT NULL, unit TEXT NOT NULL,
             default_rest_seconds INTEGER NOT NULL, active_exercise_id TEXT, rest_ends_at INTEGER,
             paused_rest_remaining_ms INTEGER, rest_generation TEXT, alerted_rest_generation TEXT, conflict_operation_id TEXT,
-            conflict_session_json TEXT, pending_finish INTEGER NOT NULL DEFAULT 0, last_logged_set_id TEXT
+            conflict_session_json TEXT, pending_finish INTEGER NOT NULL DEFAULT 0, last_logged_set_id TEXT,
+            track_rir INTEGER NOT NULL DEFAULT 1
         )""".trimIndent())
         db.execSQL("""CREATE TABLE workout_operations (
             sequence INTEGER PRIMARY KEY AUTOINCREMENT, id TEXT NOT NULL UNIQUE, type TEXT NOT NULL,
@@ -56,6 +57,9 @@ class WorkoutStore(context: Context) : SQLiteOpenHelper(context.applicationConte
         }
         if (oldVersion < 4 && !hasColumn(db, "workout_state", "last_logged_set_id")) {
             db.execSQL("ALTER TABLE workout_state ADD COLUMN last_logged_set_id TEXT")
+        }
+        if (oldVersion < 5 && !hasColumn(db, "workout_state", "track_rir")) {
+            db.execSQL("ALTER TABLE workout_state ADD COLUMN track_rir INTEGER NOT NULL DEFAULT 1")
         }
     }
 
@@ -76,7 +80,8 @@ class WorkoutStore(context: Context) : SQLiteOpenHelper(context.applicationConte
             conflictOperationId = cursor.stringOrNull("conflict_operation_id"),
             conflictSession = cursor.stringOrNull("conflict_session_json")?.let { gson.fromJson(it, WorkoutSession::class.java) },
             pendingFinish = cursor.getInt(cursor.getColumnIndexOrThrow("pending_finish")) != 0,
-            lastLoggedSetId = cursor.stringOrNull("last_logged_set_id")
+            lastLoggedSetId = cursor.stringOrNull("last_logged_set_id"),
+            trackRir = cursor.getInt(cursor.getColumnIndexOrThrow("track_rir")) != 0
         )
     }
 
@@ -246,6 +251,7 @@ class WorkoutStore(context: Context) : SQLiteOpenHelper(context.applicationConte
         put("conflict_session_json", snapshot.conflictSession?.let(gson::toJson))
         put("pending_finish", if (snapshot.pendingFinish) 1 else 0)
         put("last_logged_set_id", snapshot.lastLoggedSetId)
+        put("track_rir", if (snapshot.trackRir) 1 else 0)
     }
 
     private fun operationValues(operation: PendingOperation) = ContentValues().apply {
@@ -279,7 +285,7 @@ class WorkoutStore(context: Context) : SQLiteOpenHelper(context.applicationConte
 
     companion object {
         private const val DATABASE_NAME = "workout-wear.db"
-        private const val DATABASE_VERSION = 4
+        private const val DATABASE_VERSION = 5
         private const val NOTICE_PREFERENCES = "workout-wear-notices"
         private const val NOTICE_KEY = "sync-notice"
 

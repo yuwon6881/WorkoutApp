@@ -6,12 +6,15 @@ import { effortValue } from '../lib/workoutDraft';
 import { Button } from './ui/Button';
 import { Skeleton } from './ui/Skeleton';
 import './WorkoutExerciseHistory.css';
+import { showTimedSet } from '../lib/setDuration';
+import { useTrackRir } from '../lib/trackRir';
 
 /** History stays in component memory and is fetched from the account-authorized API. */
 export function WorkoutExerciseHistory({ exercise, unit }: { exercise: SessionExercise; unit: Unit }) {
   const [sessions, setSessions] = useState<Session[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const trackRir = useTrackRir();
   const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
@@ -54,8 +57,8 @@ export function WorkoutExerciseHistory({ exercise, unit }: { exercise: SessionEx
           const rir = set.rir ?? effortValue(set);
           return <li key={set.id}>
             <span>{set.warmup ? 'Warm-up' : `Set ${index + 1}`}</span>
-            <strong>{set.weightKg === null ? 'Load —' : showWeight(set.weightKg, unit)} × {set.reps ?? '—'}</strong>
-            <span>{!set.warmup && rir !== null ? `${rir} RIR` : 'RIR —'}</span>
+            <strong>{set.durationSeconds != null ? showTimedSet(set, unit) : <>{set.weightKg === null ? 'Load —' : showWeight(set.weightKg, unit)} × {set.reps ?? '—'}</>}</strong>
+            {trackRir && <span>{!set.warmup && rir !== null ? `${rir} RIR` : 'RIR —'}</span>}
           </li>;
         }))}
       </ul>

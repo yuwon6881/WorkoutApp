@@ -1,5 +1,8 @@
 package com.workoutapp.wear.ui
 
+import kotlinx.coroutines.delay
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
@@ -46,9 +49,10 @@ fun ActiveWorkoutScreen(
     notificationsAllowed: Boolean,
     message: String?,
     error: String?,
-    onCompleteSet: (reps: Int, load: Double?, rir: String?) -> Unit,
+    onCompleteSet: (reps: Int?, load: Double?, rir: String?, durationSeconds: Int?) -> Unit,
     onUndoLastSet: () -> Unit,
     onExtendRest: () -> Unit,
+    onShortenRest: () -> Unit,
     onSkipRest: () -> Unit,
     onPauseResume: () -> Unit,
     onFinish: () -> Unit,
@@ -63,7 +67,7 @@ fun ActiveWorkoutScreen(
     val model = activeSetModel(snapshot)
     val unit = snapshot.unit
     val paused = session.pausedAt != null
-    val draft = remember(model.set?.id, unit) { SetDraft(model.startingReps, model.startingLoad, model.startingRir) }
+    val draft = remember(model.set?.id, unit) { SetDraft(model.startingReps, model.startingLoad, model.startingRir, model.startingSeconds) }
     var adjusting by rememberSaveable(model.set?.id) { mutableStateOf<SetField?>(null) }
     var confirmFinish by rememberSaveable(session.id) { mutableStateOf(false) }
     var confirmDisconnect by rememberSaveable { mutableStateOf(false) }
@@ -75,12 +79,37 @@ fun ActiveWorkoutScreen(
     val undoableSet = if (paused) null else undoableSet(snapshot)
     val canFinish = WorkoutRepository.hasLoggedSet(session)
 
+    val context = LocalContext.current
+    // A countdown finishes itself at its target with the rest-end pulse; the draft keeps the time.
+    LaunchedEffect(draft, draft.timerStartedAt, draft.timerTarget) {
+        val target = draft.timerTarget ?: return@LaunchedEffect
+        val endsAt = draft.countdownEndsAt() ?: return@LaunchedEffect
+        delay((endsAt - System.currentTimeMillis()).coerceAtLeast(0))
+        if (draft.timing && draft.timerTarget == target) {
+            draft.finishCountdown()
+            vibrateTimerDone(context)
+        }
+    }
+
     val onSetAction: (SetAction) -> Unit = { action ->
         when (action) {
             SetAction.Log -> {
-                haptics.performHapticFeedback(HapticFeedbackType.Confirm)
+                val now = System.currentTimeMillis()
                 val load = if (model.loadEditable) draft.load else passthroughLoad(model.set, unit)
-                onCompleteSet(draft.reps, load, if (model.warmup) null else draft.rir)
+                if (!model.timed) {
+                    haptics.performHapticFeedback(HapticFeedbackType.Confirm)
+                    onCompleteSet(draft.reps, load, if (model.warmup) null else draft.rir, null)
+                } else if (!draft.timing && draft.seconds == null) {
+                    // A timed set with no time yet: the edge button starts the hold.
+                    haptics.performHapticFeedback(HapticFeedbackType.SegmentTick)
+                    draft.startTimer(now, model.targetSeconds)
+                } else {
+                    val seconds = if (draft.timing) draft.stopTimer(now) else draft.seconds
+                    if (seconds != null) {
+                        haptics.performHapticFeedback(HapticFeedbackType.Confirm)
+                        onCompleteSet(null, load, null, seconds)
+                    }
+                }
             }
             SetAction.Resume -> onPauseResume()
             SetAction.Finish -> confirmFinish = true
@@ -107,6 +136,7 @@ fun ActiveWorkoutScreen(
                                     nextUp = nextUp(snapshot),
                                     busy = busy,
                                     onExtend = onExtendRest,
+                                    onShorten = onShortenRest,
                                     onSkip = onSkipRest
                                 )
                             } else {
@@ -122,7 +152,13 @@ fun ActiveWorkoutScreen(
                                     busy = busy,
                                     message = message,
                                     error = error,
+                                    nowEpochMs = nowEpochMs,
                                     onAdjust = { adjusting = it },
+                                    onToggleTimer = {
+                                        val now = System.currentTimeMillis()
+                                        haptics.performHapticFeedback(HapticFeedbackType.SegmentTick)
+                                        if (draft.timing) draft.stopTimer(now) else draft.startTimer(now, model.targetSeconds)
+                                    },
                                     onAction = onSetAction
                                 )
                             }
@@ -211,6 +247,14 @@ private fun SetFieldAdjuster(field: SetField, model: ActiveSetModel, draft: SetD
             onStep = { up -> draft.rir = stepRir(draft.rir, up, model.targetRir) },
             onDone = onDone,
             valueColor = rirColor(draft.rir)
+        )
+        SetField.Time -> ValueAdjuster(
+            title = "Time",
+            value = formatSetSeconds(draft.seconds),
+            caption = model.targetReps?.let { "Target $it" } ?: "min:sec",
+            canDecrease = draft.seconds != null,
+            onStep = { up -> draft.seconds = stepSeconds(draft.seconds, up) },
+            onDone = onDone
         )
     }
 }

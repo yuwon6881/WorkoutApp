@@ -68,6 +68,24 @@ describe('getProgressionSummary', () => {
     expect(summary?.reason).toContain('maintenance goal');
   });
 
+  it.each([
+    ['maintain', 0.6, 14, 'conservative'],
+    ['gain', 0.5, 21, 'conservative'],
+    ['gain', 0.49, 21, 'normal'],
+    ['maintain', 0.6, 7, 'normal'],
+    ['maintain', -0.4, 21, 'normal'],
+    ['maintain', null, null, 'normal']
+  ] as const)('mirrors the server guard for an unplanned loss on a %s goal (%s%%/wk over %s days)', (goal, rate, days, mode) => {
+    const summary = getProgressionSummary(makeSession({
+      nutritionContext: makeNutrition({ effectiveGoal: goal, observedLossRatePercent: rate, observedWindowDays: days })
+    }));
+    expect(summary?.mode).toBe(mode);
+    if (mode === 'conservative') {
+      expect(summary?.reason).toContain('recorded weigh-ins show a loss');
+      expect(summary?.reason).toContain('conservative progression');
+    }
+  });
+
   it('formats loss goal with conservative progression for a moderate recorded rate', () => {
     const session = makeSession({
       nutritionContext: makeNutrition({

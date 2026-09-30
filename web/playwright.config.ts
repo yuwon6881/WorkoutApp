@@ -12,7 +12,7 @@ export default defineConfig({
   projects: [
     { name: 'setup', testMatch: 'auth.setup.ts' },
     { name: 'auth-view', testMatch: 'auth.spec.ts', use: { ...devices['Desktop Chrome'] } },
-    { name: 'desktop', testMatch: ['app.spec.ts', 'app-update.spec.ts'], dependencies: ['setup'], use: { ...devices['Desktop Chrome'], storageState: join(authDirectory, 'lifter.json'), viewport: { width: 1440, height: 1000 } } },
+    { name: 'desktop', testMatch: ['app.spec.ts', 'app-update.spec.ts', 'ask-ai.spec.ts'], dependencies: ['setup'], use: { ...devices['Desktop Chrome'], storageState: join(authDirectory, 'lifter.json'), viewport: { width: 1440, height: 1000 } } },
     { name: 'mobile', testMatch: ['app.spec.ts', 'app-update.spec.ts'], dependencies: ['setup'], use: { ...devices['iPhone 13'], storageState: join(authDirectory, 'lifter.json'), defaultBrowserType: 'chromium' } },
     { name: 'tablet', testMatch: ['app.spec.ts', 'app-update.spec.ts'], dependencies: ['setup'], use: { ...devices['Desktop Chrome'], storageState: join(authDirectory, 'lifter.json'), viewport: { width: 768, height: 1024 } } },
     // The stopped-import screen, served from a mocked import list, at a phone and a desktop size.

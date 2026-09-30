@@ -14,6 +14,8 @@ public sealed class AppDb(DbContextOptions<AppDb> options) : DbContext(options)
     public DbSet<Exercise> Exercises => Set<Exercise>();
     public DbSet<CustomExercise> CustomExercises => Set<CustomExercise>();
     public DbSet<ExerciseLoadSetting> ExerciseLoadSettings => Set<ExerciseLoadSetting>();
+    public DbSet<EquipmentLoadDefault> EquipmentLoadDefaults => Set<EquipmentLoadDefault>();
+    public DbSet<LoadStack> LoadStacks => Set<LoadStack>();
     public DbSet<ExerciseAlias> Aliases => Set<ExerciseAlias>();
     public DbSet<TrainingProgram> Programs => Set<TrainingProgram>();
     public DbSet<ProgramPhase> ProgramPhases => Set<ProgramPhase>();
@@ -40,6 +42,8 @@ public sealed class AppDb(DbContextOptions<AppDb> options) : DbContext(options)
     public DbSet<WorkoutRestAlertSchedule> WorkoutRestAlertSchedules => Set<WorkoutRestAlertSchedule>();
     public DbSet<WatchDevice> WatchDevices => Set<WatchDevice>();
     public DbSet<WatchPairing> WatchPairings => Set<WatchPairing>();
+    public DbSet<AiConversation> AiConversations => Set<AiConversation>();
+    public DbSet<AiConversationTurn> AiConversationTurns => Set<AiConversationTurn>();
 
     protected override void ConfigureConventions(ModelConfigurationBuilder conventions)
     {
@@ -59,6 +63,7 @@ public sealed class AppDb(DbContextOptions<AppDb> options) : DbContext(options)
         m.Entity<AppUser>().Property(x => x.Theme).HasDefaultValue("dark");
         m.Entity<AppUser>().Property(x => x.RestSeconds).HasDefaultValue(90);
         m.Entity<AppUser>().Property(x => x.RestAlerts).HasDefaultValue(true);
+        m.Entity<AppUser>().Property(x => x.TrackRir).HasDefaultValue(true);
         m.Entity<AppUser>().HasIndex(x => x.IdentitySubject).IsUnique();
         m.Entity<AppUser>().ToTable("Users", t =>
         {
@@ -80,8 +85,10 @@ public sealed class AppDb(DbContextOptions<AppDb> options) : DbContext(options)
         m.Entity<Exercise>().Property(x => x.Category).HasDefaultValue(ExerciseCategories.FreeWeights);
         m.Entity<Exercise>().Property(x => x.SecondaryMusclesJson).HasDefaultValue("[]");
         m.Entity<Exercise>().Property(x => x.MovementPattern).HasDefaultValue("");
+        m.Entity<Exercise>().Property(x => x.TrackingMode).HasMaxLength(16).HasDefaultValue(TrackingModes.Reps);
         m.Entity<Exercise>().ToTable("Exercises", t =>
         {
+            t.HasCheckConstraint("CK_Exercises_TrackingMode", "\"TrackingMode\" IN ('reps','duration')");
             t.HasCheckConstraint("CK_Exercises_LoadStep", "\"LoadStepKg\" >= 0 AND \"LoadStepKg\" <= 50");
             t.HasCheckConstraint("CK_Exercises_LoadModel", "\"LoadModel\" IN ('external','full_bodyweight','bodyweight_context_only','reps_only')");
             t.HasCheckConstraint("CK_Exercises_Category", "\"Category\" IN ('Free Weights','Machine','Body Weight')");
@@ -89,14 +96,35 @@ public sealed class AppDb(DbContextOptions<AppDb> options) : DbContext(options)
         Configure<CustomExercise>(m);
         Configure<ExerciseLoadSetting>(m);
         m.Entity<ExerciseLoadSetting>().ToTable("ExerciseLoadSettings", t =>
-            t.HasCheckConstraint("CK_ExerciseLoadSettings_Step", "\"LoadStepKg\" IS NULL OR (\"LoadStepKg\" >= 0 AND \"LoadStepKg\" <= 50)"));
+        {
+            t.HasCheckConstraint("CK_ExerciseLoadSettings_Step", "\"LoadStepKg\" IS NULL OR (\"LoadStepKg\" >= 0 AND \"LoadStepKg\" <= 50)");
+            t.HasCheckConstraint("CK_ExerciseLoadSettings_OneRule", OneRule(3));
+        });
+        Configure<EquipmentLoadDefault>(m);
+        m.Entity<EquipmentLoadDefault>().Property(x => x.Equipment).HasMaxLength(40);
+        m.Entity<EquipmentLoadDefault>().HasIndex(x => new { x.UserId, x.Equipment }).IsUnique();
+        m.Entity<EquipmentLoadDefault>().ToTable("EquipmentLoadDefaults", t =>
+        {
+            t.HasCheckConstraint("CK_EquipmentLoadDefaults_Step", "\"LoadStepKg\" IS NULL OR (\"LoadStepKg\" >= 0 AND \"LoadStepKg\" <= 50)");
+            t.HasCheckConstraint("CK_EquipmentLoadDefaults_OneRule", OneRule(3));
+        });
+        Configure<LoadStack>(m);
+        m.Entity<LoadStack>().Property(x => x.Name).HasMaxLength(60);
+        m.Entity<LoadStack>().HasIndex(x => new { x.UserId, x.Name }).IsUnique();
+        m.Entity<LoadStack>().ToTable("LoadStacks", t =>
+        {
+            t.HasCheckConstraint("CK_LoadStacks_Step", "\"LoadStepKg\" IS NULL OR (\"LoadStepKg\" > 0 AND \"LoadStepKg\" <= 50)");
+            t.HasCheckConstraint("CK_LoadStacks_OneRule", OneRule(2, exactlyOne: true));
+        });
         m.Entity<CustomExercise>().Property(x => x.Name).HasMaxLength(160);
         m.Entity<CustomExercise>().Property(x => x.LoadStepKg).HasDefaultValue(2.5);
         m.Entity<CustomExercise>().Property(x => x.LoadModel).HasDefaultValue("external");
         m.Entity<CustomExercise>().Property(x => x.Category).HasDefaultValue(ExerciseCategories.FreeWeights);
         m.Entity<CustomExercise>().Property(x => x.SecondaryMusclesJson).HasDefaultValue("[]");
+        m.Entity<CustomExercise>().Property(x => x.TrackingMode).HasMaxLength(16).HasDefaultValue(TrackingModes.Reps);
         m.Entity<CustomExercise>().ToTable("CustomExercises", t =>
         {
+            t.HasCheckConstraint("CK_CustomExercises_TrackingMode", "\"TrackingMode\" IN ('reps','duration')");
             t.HasCheckConstraint("CK_CustomExercises_LoadStep", "\"LoadStepKg\" >= 0 AND \"LoadStepKg\" <= 50");
             t.HasCheckConstraint("CK_CustomExercises_LoadModel", "\"LoadModel\" IN ('external','full_bodyweight','bodyweight_context_only','reps_only')");
             t.HasCheckConstraint("CK_CustomExercises_Category", "\"Category\" IN ('Free Weights','Machine','Body Weight')");
@@ -179,7 +207,9 @@ public sealed class AppDb(DbContextOptions<AppDb> options) : DbContext(options)
             // RPE is 1-10 in half-point steps; doubling must land on a whole number.
             t.HasCheckConstraint("CK_Sets_Rpe", "\"Rpe\" IS NULL OR (\"Rpe\" >= 1 AND \"Rpe\" <= 10 AND \"Rpe\" * 2 = FLOOR(\"Rpe\" * 2))");
             // RPE may be intentionally missing; that exposure repeats without advancing.
-            t.HasCheckConstraint("CK_Sets_Done", "NOT \"Done\" OR \"Reps\" IS NOT NULL");
+            t.HasCheckConstraint("CK_Sets_Duration", "\"DurationSeconds\" IS NULL OR (\"DurationSeconds\" > 0 AND \"DurationSeconds\" <= 7200)");
+            // A completed timed set records seconds instead of reps.
+            t.HasCheckConstraint("CK_Sets_Done", "NOT \"Done\" OR \"Reps\" IS NOT NULL OR \"DurationSeconds\" IS NOT NULL");
             t.HasCheckConstraint("CK_Sets_ResistanceMode", "\"ResistanceMode\" IN ('external','bodyweight','added','assistance','reps_only')");
             t.HasCheckConstraint("CK_Sets_SystemLoad", "\"SystemLoadKg\" IS NULL OR (\"SystemLoadKg\" >= 0 AND \"SystemLoadKg\" <= 1000)");
         });
@@ -225,6 +255,30 @@ public sealed class AppDb(DbContextOptions<AppDb> options) : DbContext(options)
             .HasForeignKey(x => new { x.UserId, x.SessionId }).OnDelete(DeleteBehavior.Cascade);
         m.Entity<WorkoutRestAlertSchedule>().ToTable("WorkoutRestAlertSchedules", t =>
             t.HasCheckConstraint("CK_WorkoutRestAlertSchedules_Status", "\"Status\" IN ('pending','scheduled','dispatching','accepted','cancelled','disabled','expired','failed')"));
+
+        m.Entity<AiConversation>().HasKey(x => x.Id);
+        m.Entity<AiConversation>().Property(x => x.Version).IsConcurrencyToken();
+        m.Entity<AiConversation>().HasQueryFilter(x => x.UserId == CurrentUser);
+        m.Entity<AiConversation>().HasIndex(x => x.UserId).IsUnique();
+        m.Entity<AiConversation>().HasOne<AppUser>().WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
+
+        m.Entity<AiConversationTurn>().HasKey(x => x.Id);
+        m.Entity<AiConversationTurn>().HasIndex(x => x.CreatedAt);
+        m.Entity<AiUsage>().HasIndex(x => x.Date);
+        m.Entity<AiConversationTurn>().HasQueryFilter(x => x.UserId == CurrentUser);
+        m.Entity<AiConversationTurn>().HasIndex(x => new { x.ConversationId, x.ClientTurnId }).IsUnique();
+        m.Entity<AiConversationTurn>().HasIndex(x => new { x.ConversationId, x.CreatedAt });
+        m.Entity<AiConversationTurn>().HasOne(x => x.Conversation).WithMany(x => x.Turns).HasForeignKey(x => x.ConversationId).OnDelete(DeleteBehavior.Cascade);
+        m.Entity<AiConversationTurn>().HasOne<AppUser>().WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
+    }
+
+    /// Portable check that a load rule sets at most (or exactly) one of its step, weight list and,
+    /// when it has one, stack.
+    private static string OneRule(int columns, bool exactlyOne = false)
+    {
+        string[] names = ["LoadStepKg", "AvailableLoadsJson", "StackId"];
+        var sum = string.Join(" + ", names.Take(columns).Select(name => $"(CASE WHEN \"{name}\" IS NULL THEN 0 ELSE 1 END)"));
+        return exactlyOne ? $"{sum} = 1" : $"{sum} <= 1";
     }
 
     private void Configure<T>(ModelBuilder m) where T : OwnedRecord
@@ -249,6 +303,10 @@ public sealed class AppDb(DbContextOptions<AppDb> options) : DbContext(options)
             if (entry.Entity.UserId != CurrentUser) throw new InvalidOperationException("Receipt ownership violation.");
         foreach (var entry in ChangeTracker.Entries<AiUsage>().Where(e => e.State is EntityState.Added or EntityState.Modified))
             if (!MaintenanceAccess && entry.Entity.UserId != CurrentUser) throw new InvalidOperationException("Usage ownership violation.");
+        foreach (var entry in ChangeTracker.Entries<AiConversation>().Where(e => e.State is EntityState.Added or EntityState.Modified or EntityState.Deleted))
+            if (!MaintenanceAccess && (CurrentUser == null || entry.Entity.UserId != CurrentUser)) throw new InvalidOperationException("Conversation ownership violation.");
+        foreach (var entry in ChangeTracker.Entries<AiConversationTurn>().Where(e => e.State is EntityState.Added or EntityState.Modified or EntityState.Deleted))
+            if (!MaintenanceAccess && (CurrentUser == null || entry.Entity.UserId != CurrentUser)) throw new InvalidOperationException("Turn ownership violation.");
         foreach (var entry in ChangeTracker.Entries<GoogleHealthConnection>().Where(e => e.State is EntityState.Added or EntityState.Modified or EntityState.Deleted))
             if (!MaintenanceAccess && (CurrentUser == null || entry.Entity.UserId != CurrentUser)) throw new InvalidOperationException("Connection ownership violation.");
         foreach (var entry in ChangeTracker.Entries<GoogleHealthOAuthState>().Where(e => e.State is EntityState.Added or EntityState.Modified or EntityState.Deleted))

@@ -99,6 +99,7 @@ public sealed partial class ImportService(AppDb db, WorkoutAi ai, CatalogService
         // the issues derived from the draft, so both reach the panel through one list.
         issues = [.. FilterNotices(ReadNotices(import.NoticesJson), draft), .. issues];
         issues = issues.Distinct().ToList();
+        if (issues.Count > 0) issues = ImportReviewPolicy.ForReview(issues, await TracksRir(ct));
         var coverage = string.IsNullOrWhiteSpace(import.PageCoverageJson) ? [] : Json.Read<List<PdfPageCoverage>>(import.PageCoverageJson);
         var alternatives = string.IsNullOrWhiteSpace(import.AlternativesJson) ? [] : Json.Read<List<ImportAlternative>>(import.AlternativesJson);
         var acceptable = import.Status == ImportStatus.Ready && unresolved.Count == 0 && issues.All(i => i.Severity == "info");
@@ -118,6 +119,9 @@ public sealed partial class ImportService(AppDb db, WorkoutAi ai, CatalogService
     public static List<UnresolvedExercise> Unresolved(ImportDraft draft) => ImportValidation.Unresolved(draft);
 
     private static List<ImportReviewIssue> ReviewIssues(ImportDraft draft) => ImportValidation.ReviewIssues(draft);
+
+    private Task<bool> TracksRir(CancellationToken ct)
+        => db.Users.AsNoTracking().Where(u => u.Id == db.CurrentUser).Select(u => u.TrackRir).SingleAsync(ct);
 
     private async Task<ImportView> SaveDraft(Guid id, ImportDraft draft, int? revision, CancellationToken ct)
     {
@@ -196,7 +200,7 @@ public sealed partial class ImportService(AppDb db, WorkoutAi ai, CatalogService
         ValidateDraftPages(draft, import.PageCoverageJson);
         var unresolved = Unresolved(draft);
         List<ImportReviewIssue> issues = [.. FilterNotices(ReadNotices(import.NoticesJson), draft), .. ReviewIssues(draft)];
-        var actionable = issues.Where(i => i.Severity != "info").ToList();
+        var actionable = ImportReviewPolicy.ForReview(issues, await TracksRir(ct)).Where(i => i.Severity != "info").ToList();
         Validation.Require(unresolved.Count == 0 && actionable.Count == 0,
             "Resolve every exercise mapping and review issue before creating this program.", 409);
         var input = new ProgramInput(draft.ProgramName,
@@ -256,6 +260,11 @@ public sealed partial class ImportService(AppDb db, WorkoutAi ai, CatalogService
         var receiptCutoff = now.AddDays(-receiptDays);
         await db.Receipts.IgnoreQueryFilters().Where(r => r.Created < receiptCutoff).ExecuteDeleteAsync(ct);
 
+        var aiTurnCutoff = now.AddDays(-Math.Max(1, config?.GetValue("Retention:AiTurnRetentionDays", 90) ?? 90));
+        var pendingCutoffAi = now.AddMinutes(-10);
+        await db.AiConversationTurns.IgnoreQueryFilters()
+            .Where(t => t.CreatedAt < aiTurnCutoff || (t.Status == "Pending" && t.CreatedAt < pendingCutoffAi))
+            .ExecuteDeleteAsync(ct);
         var aiUsageMonths = Math.Max(1, config?.GetValue("Retention:AiUsageMonths", 2) ?? 2);
         var usageCutoff = DateOnly.FromDateTime(now.AddMonths(-aiUsageMonths));
         await db.Usage.IgnoreQueryFilters().Where(u => u.Date < usageCutoff).ExecuteDeleteAsync(ct);

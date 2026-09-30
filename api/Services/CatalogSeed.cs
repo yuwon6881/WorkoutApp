@@ -6,7 +6,7 @@ namespace Workout.Api.Services;
 
 public record SeedExercise(string Slug, string Name, string Muscle, string Equipment, string Cue, List<string>? Aliases,
     double? LoadStepKg = null, string LoadModel = LoadModels.External, string? MovementPattern = null,
-    List<string>? SecondaryMuscles = null, string? Category = null);
+    List<string>? SecondaryMuscles = null, string? Category = null, string? TrackingMode = null);
 
 /// The catalog changes only here. Seeding is keyed by slug, so re-running the same file
 /// updates rows in place instead of creating duplicates, and leaves omitted exercises alone.
@@ -33,6 +33,7 @@ public static class CatalogSeed
             foreach (var secondary in row.SecondaryMuscles ?? []) Validation.Text(secondary, 80, "Secondary muscle");
             if (row.LoadStepKg is { } step) Validation.Number(step, 0, 50, "Load step");
             Validation.Require(LoadModels.All.Contains(row.LoadModel), "Unknown exercise load model.");
+            Validation.Require(row.TrackingMode is null || TrackingModes.All.Contains(row.TrackingMode), "Unknown exercise tracking mode.");
         }
         Validation.Require(input.Select(r => r.Slug).Distinct(StringComparer.OrdinalIgnoreCase).Count() == input.Count, "The seed file repeats a slug.");
 
@@ -54,6 +55,7 @@ public static class CatalogSeed
                 ? Progression.DefaultStepKg
                 : Progression.StepForEquipment(row.Equipment));
             exercise.LoadModel = row.LoadModel;
+            exercise.TrackingMode = TrackingModes.Normalize(row.TrackingMode);
             exercise.MovementPattern = row.MovementPattern?.Trim() ?? CuratedMovementPattern(row.Slug);
         }
         var deactivated = 0;

@@ -19,17 +19,15 @@ public static class PerformanceEndpoints
             if (active == null && standalone != null)
                 next = new { standalone.Id, standalone.Name, standalone.Focus, standalone.Week, standalone.Position,
                     exerciseCount = await db.TemplateExercises.CountAsync(x => x.TemplateId == standalone.Id, ct) };
-            var today = DateOnly.FromDateTime(DateTime.UtcNow);
-            var used = await db.Usage.AsNoTracking().Where(x => x.Date == today).Select(x => (int?)x.Count).SingleOrDefaultAsync(ct) ?? 0;
             var generation = await db.ResourceGenerations.AsNoTracking().SingleOrDefaultAsync(ct) ?? new ResourceGeneration();
             return new
             {
                 resourceVersions = new { catalog = $"{generation.CustomExercises}:{generation.ExerciseLoads}",
                     programs = $"{generation.Programs}:{generation.Templates}", templates = $"{generation.Templates}:{generation.ExerciseLoads}" },
                 account = new { user.Id, displayName = user.DisplayName },
-                preferences = new { user.Unit, user.Theme, user.RestSeconds, user.RestAlerts },
+                preferences = new { user.Unit, user.Theme, user.RestSeconds, user.RestAlerts, user.TrackRir },
                 activeWorkout = await workouts.Active(ct), activeProgram = active, nextWorkout = next,
-                imports = await imports.List(ct), aiImportsRemaining = Math.Max(0, ImportService.DailyLimit - used),
+                imports = await imports.List(ct),
                 navigationCounts = new { programs = await db.Programs.CountAsync(ct), templates = await db.Templates.CountAsync(x => x.ProgramId == null, ct) }
             };
         });

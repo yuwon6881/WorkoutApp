@@ -262,14 +262,15 @@ private fun ActiveRoute(
         notificationsAllowed = notificationsAllowed,
         message = message,
         error = error,
-        onCompleteSet = { reps, load, rir ->
+        onCompleteSet = { reps, load, rir, durationSeconds ->
             val model = activeSetModel(active)
             model.set?.let { set ->
-                runAction { repository.logSet(model.exercise.id, set.id, reps, load, rir); setMessage("Set saved on this watch.") }
+                runAction { repository.logSet(model.exercise.id, set.id, reps, load, rir, durationSeconds); setMessage("Set saved on this watch.") }
             }
         },
         onUndoLastSet = { runAction { repository.undoLastSet(); setMessage("Set undone. Log it again when ready.") } },
-        onExtendRest = { repository.extendRest() },
+        onExtendRest = { repository.extendRest(REST_ADJUST_SECONDS) },
+        onShortenRest = { repository.shortenRest(REST_ADJUST_SECONDS) },
         onSkipRest = { repository.skipRest() },
         onPauseResume = {
             val pausing = active.session.pausedAt == null
@@ -296,6 +297,8 @@ private sealed interface Route {
     data class Active(val snapshot: WorkoutSnapshot) : Route
 }
 
+/** Each rest tap moves the countdown by this much, matching the phone. */
+private const val REST_ADJUST_SECONDS = 15
 private const val ACTIVE_REFRESH_INTERVAL_MS = 15_000L
 private const val IDLE_REFRESH_INTERVAL_MS = 30_000L
 private const val PAIRING_POLL_MS = 4_000L

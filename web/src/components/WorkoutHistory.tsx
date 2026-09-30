@@ -8,6 +8,8 @@ import { MotionPanel } from './ui/Motion';
 import { Button } from './ui/Button';
 import { useLoadMoreOnScroll } from './ui/useLoadMoreOnScroll';
 import './History.css';
+import { showTimedSet } from '../lib/setDuration';
+import { useTrackRir } from '../lib/trackRir';
 
 interface WorkoutHistoryProps {
   initial?: HistoryPage;
@@ -32,6 +34,7 @@ export function WorkoutHistory({
   const [cursor, setCursor] = useState<{ at: string | null; id: string | null }>({ at: null, id: null });
   const [loading, setLoading] = useState(!initial);
   const [error, setError] = useState('');
+  const trackRir = useTrackRir();
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [details, setDetails] = useState<Record<string, Session>>({});
   const controller = useRef<AbortController | null>(null);
@@ -165,8 +168,8 @@ export function WorkoutHistory({
                           return (
                             <div key={set.id} className={`history-set-item ${set.isPr ? 'pr-set' : ''}`}>
                               <span className="muted">{set.warmup ? `W${warmupNumber}` : `Set ${workingNumber}`}</span>
-                              <strong>{set.weightKg === null ? `${set.reps} reps` : `${toDisplay(set.weightKg, unit)} ${unit} × ${set.reps}`}</strong>
-                              <span className="muted">{showActualRir(set.rir, set.rpe)}</span>
+                              <strong>{set.durationSeconds != null ? showTimedSet(set, unit) : set.weightKg === null ? `${set.reps} reps` : `${toDisplay(set.weightKg, unit)} ${unit} × ${set.reps}`}</strong>
+                              {trackRir && <span className="muted">{showActualRir(set.rir, set.rpe)}</span>}
                               {set.isPr && <span className="pill pill-accent pr-set-tag"><Trophy size={10} /> {formatSetPrTag(set)}</span>}
                             </div>
                           );

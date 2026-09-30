@@ -91,8 +91,9 @@ export const plannedSets = (session: Session): number => session.exercises.reduc
 
 export const normalizeExerciseName = (value: string): string => value.trim().toLowerCase().replace(/[^a-z0-9]/g, ' ').split(/\s+/).filter(Boolean).join(' ');
 
-export const showTarget = (set: SetPrescription): string => {
+export const showTarget = (set: SetPrescription, trackRir = true): string => {
   const parts = [showReps(set)];
+  if (!trackRir) return parts[0];
   if (set.rir && Number.isFinite(Number(set.rir))) {
     parts.push(`${Math.round(Number(set.rir))} RIR`);
   } else if (set.targetRpe !== null) {

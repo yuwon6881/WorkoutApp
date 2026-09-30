@@ -43,6 +43,8 @@
 .app-loading-shell .skeleton { border-radius: var(--radius-control, 8px); }
 .skeleton-nav-item { height: 40px; }
 .skeleton-topbar-action { width: 44px; height: 44px; margin-left: auto; border-radius: 50% !important; }
+.skeleton-topbar-ai { display: none; }
+@media (max-width: 639px) { .skeleton-topbar-ai { display: block; } }
 .app-loading .skeleton-title { width: 180px; max-width: 60%; height: 32px; }
 .app-loading .skeleton-subtitle { width: 220px; max-width: 70%; height: 16px; margin-top: 10px; }
 .app-loading-hero { display: grid; gap: 12px; }

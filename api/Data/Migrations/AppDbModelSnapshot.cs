@@ -22,6 +22,120 @@ namespace Workout.Api.Data.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("Workout.Api.Data.AiConversation", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("StateJson")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId")
+                        .IsUnique();
+
+                    b.ToTable("AiConversations");
+                });
+
+            modelBuilder.Entity("Workout.Api.Data.AiConversationTurn", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("ActionsDismissedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ActionsJson")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("ActionsResolvedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("AssistantReply")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("ClientTurnId")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<bool>("CloseChat")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTime?>("CompletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("ConversationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("ConversationVersion")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("FacetsJson")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Intent")
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)");
+
+                    b.Property<string>("KeywordsJson")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.Property<string>("ToolTraceJson")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Topic")
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("UserMessage")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedAt");
+
+                    b.HasIndex("UserId");
+
+                    b.HasIndex("ConversationId", "ClientTurnId")
+                        .IsUnique();
+
+                    b.HasIndex("ConversationId", "CreatedAt");
+
+                    b.ToTable("AiConversationTurns");
+                });
+
             modelBuilder.Entity("Workout.Api.Data.AiImport", b =>
                 {
                     b.Property<Guid>("UserId")
@@ -176,10 +290,30 @@ namespace Workout.Api.Data.Migrations
                     b.Property<DateOnly>("Date")
                         .HasColumnType("date");
 
+                    b.Property<long>("ChatCachedTokens")
+                        .HasColumnType("bigint");
+
+                    b.Property<int>("ChatCalls")
+                        .HasColumnType("integer");
+
+                    b.Property<long>("ChatInputTokens")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("ChatOutputTokens")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("ChatReasoningTokens")
+                        .HasColumnType("bigint");
+
                     b.Property<int>("Count")
                         .HasColumnType("integer");
 
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
                     b.HasKey("UserId", "Date");
+
+                    b.HasIndex("Date");
 
                     b.ToTable("Usage");
                 });
@@ -214,6 +348,11 @@ namespace Workout.Api.Data.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("text")
                         .HasDefaultValue("dark");
+
+                    b.Property<bool>("TrackRir")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(true);
 
                     b.Property<string>("Unit")
                         .IsRequired()
@@ -267,6 +406,9 @@ namespace Workout.Api.Data.Migrations
                     b.Property<bool>("Done")
                         .HasColumnType("boolean");
 
+                    b.Property<int?>("DurationSeconds")
+                        .HasColumnType("integer");
+
                     b.Property<int>("Position")
                         .HasColumnType("integer");
 
@@ -315,7 +457,9 @@ namespace Workout.Api.Data.Migrations
 
                     b.ToTable("Sets", null, t =>
                         {
-                            t.HasCheckConstraint("CK_Sets_Done", "NOT \"Done\" OR \"Reps\" IS NOT NULL");
+                            t.HasCheckConstraint("CK_Sets_Done", "NOT \"Done\" OR \"Reps\" IS NOT NULL OR \"DurationSeconds\" IS NOT NULL");
+
+                            t.HasCheckConstraint("CK_Sets_Duration", "\"DurationSeconds\" IS NULL OR (\"DurationSeconds\" > 0 AND \"DurationSeconds\" <= 7200)");
 
                             t.HasCheckConstraint("CK_Sets_Reps", "\"Reps\" IS NULL OR (\"Reps\" > 0 AND \"Reps\" <= 1000)");
 
@@ -394,6 +538,13 @@ namespace Workout.Api.Data.Migrations
                         .HasColumnType("text")
                         .HasDefaultValue("[]");
 
+                    b.Property<string>("TrackingMode")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)")
+                        .HasDefaultValue("reps");
+
                     b.HasKey("UserId", "Id");
 
                     b.HasIndex("UserId", "Name")
@@ -406,6 +557,47 @@ namespace Workout.Api.Data.Migrations
                             t.HasCheckConstraint("CK_CustomExercises_LoadModel", "\"LoadModel\" IN ('external','full_bodyweight','bodyweight_context_only','reps_only')");
 
                             t.HasCheckConstraint("CK_CustomExercises_LoadStep", "\"LoadStepKg\" >= 0 AND \"LoadStepKg\" <= 50");
+
+                            t.HasCheckConstraint("CK_CustomExercises_TrackingMode", "\"TrackingMode\" IN ('reps','duration')");
+                        });
+                });
+
+            modelBuilder.Entity("Workout.Api.Data.EquipmentLoadDefault", b =>
+                {
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("AvailableLoadsJson")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Equipment")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)");
+
+                    b.Property<double?>("LoadStepKg")
+                        .HasColumnType("double precision");
+
+                    b.Property<int>("Revision")
+                        .IsConcurrencyToken()
+                        .HasColumnType("integer");
+
+                    b.Property<Guid?>("StackId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("UserId", "Id");
+
+                    b.HasIndex("UserId", "Equipment")
+                        .IsUnique();
+
+                    b.ToTable("EquipmentLoadDefaults", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_EquipmentLoadDefaults_OneRule", "(CASE WHEN \"LoadStepKg\" IS NULL THEN 0 ELSE 1 END) + (CASE WHEN \"AvailableLoadsJson\" IS NULL THEN 0 ELSE 1 END) + (CASE WHEN \"StackId\" IS NULL THEN 0 ELSE 1 END) <= 1");
+
+                            t.HasCheckConstraint("CK_EquipmentLoadDefaults_Step", "\"LoadStepKg\" IS NULL OR (\"LoadStepKg\" >= 0 AND \"LoadStepKg\" <= 50)");
                         });
                 });
 
@@ -469,6 +661,13 @@ namespace Workout.Api.Data.Migrations
                         .HasMaxLength(120)
                         .HasColumnType("character varying(120)");
 
+                    b.Property<string>("TrackingMode")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)")
+                        .HasDefaultValue("reps");
+
                     b.HasKey("Id");
 
                     b.HasIndex("Slug")
@@ -481,6 +680,8 @@ namespace Workout.Api.Data.Migrations
                             t.HasCheckConstraint("CK_Exercises_LoadModel", "\"LoadModel\" IN ('external','full_bodyweight','bodyweight_context_only','reps_only')");
 
                             t.HasCheckConstraint("CK_Exercises_LoadStep", "\"LoadStepKg\" >= 0 AND \"LoadStepKg\" <= 50");
+
+                            t.HasCheckConstraint("CK_Exercises_TrackingMode", "\"TrackingMode\" IN ('reps','duration')");
                         });
                 });
 
@@ -565,10 +766,15 @@ namespace Workout.Api.Data.Migrations
                         .IsConcurrencyToken()
                         .HasColumnType("integer");
 
+                    b.Property<Guid?>("StackId")
+                        .HasColumnType("uuid");
+
                     b.HasKey("UserId", "Id");
 
                     b.ToTable("ExerciseLoadSettings", null, t =>
                         {
+                            t.HasCheckConstraint("CK_ExerciseLoadSettings_OneRule", "(CASE WHEN \"LoadStepKg\" IS NULL THEN 0 ELSE 1 END) + (CASE WHEN \"AvailableLoadsJson\" IS NULL THEN 0 ELSE 1 END) + (CASE WHEN \"StackId\" IS NULL THEN 0 ELSE 1 END) <= 1");
+
                             t.HasCheckConstraint("CK_ExerciseLoadSettings_Step", "\"LoadStepKg\" IS NULL OR (\"LoadStepKg\" >= 0 AND \"LoadStepKg\" <= 50)");
                         });
                 });
@@ -909,6 +1115,42 @@ namespace Workout.Api.Data.Migrations
                         .IsUnique();
 
                     b.ToTable("IntegrationGrants");
+                });
+
+            modelBuilder.Entity("Workout.Api.Data.LoadStack", b =>
+                {
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("AvailableLoadsJson")
+                        .HasColumnType("text");
+
+                    b.Property<double?>("LoadStepKg")
+                        .HasColumnType("double precision");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(60)
+                        .HasColumnType("character varying(60)");
+
+                    b.Property<int>("Revision")
+                        .IsConcurrencyToken()
+                        .HasColumnType("integer");
+
+                    b.HasKey("UserId", "Id");
+
+                    b.HasIndex("UserId", "Name")
+                        .IsUnique();
+
+                    b.ToTable("LoadStacks", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_LoadStacks_OneRule", "(CASE WHEN \"LoadStepKg\" IS NULL THEN 0 ELSE 1 END) + (CASE WHEN \"AvailableLoadsJson\" IS NULL THEN 0 ELSE 1 END) = 1");
+
+                            t.HasCheckConstraint("CK_LoadStacks_Step", "\"LoadStepKg\" IS NULL OR (\"LoadStepKg\" > 0 AND \"LoadStepKg\" <= 50)");
+                        });
                 });
 
             modelBuilder.Entity("Workout.Api.Data.MutationReceipt", b =>
@@ -1787,6 +2029,32 @@ namespace Workout.Api.Data.Migrations
                     b.ToTable("Templates");
                 });
 
+            modelBuilder.Entity("Workout.Api.Data.AiConversation", b =>
+                {
+                    b.HasOne("Workout.Api.Data.AppUser", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Workout.Api.Data.AiConversationTurn", b =>
+                {
+                    b.HasOne("Workout.Api.Data.AiConversation", "Conversation")
+                        .WithMany("Turns")
+                        .HasForeignKey("ConversationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Workout.Api.Data.AppUser", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Conversation");
+                });
+
             modelBuilder.Entity("Workout.Api.Data.AiImport", b =>
                 {
                     b.HasOne("Workout.Api.Data.AppUser", null)
@@ -1824,6 +2092,15 @@ namespace Workout.Api.Data.Migrations
                 });
 
             modelBuilder.Entity("Workout.Api.Data.CustomExercise", b =>
+                {
+                    b.HasOne("Workout.Api.Data.AppUser", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Workout.Api.Data.EquipmentLoadDefault", b =>
                 {
                     b.HasOne("Workout.Api.Data.AppUser", null)
                         .WithMany()
@@ -1905,6 +2182,15 @@ namespace Workout.Api.Data.Migrations
                 });
 
             modelBuilder.Entity("Workout.Api.Data.IntegrationGrant", b =>
+                {
+                    b.HasOne("Workout.Api.Data.AppUser", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Workout.Api.Data.LoadStack", b =>
                 {
                     b.HasOne("Workout.Api.Data.AppUser", null)
                         .WithMany()
@@ -2061,6 +2347,11 @@ namespace Workout.Api.Data.Migrations
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("Workout.Api.Data.AiConversation", b =>
+                {
+                    b.Navigation("Turns");
                 });
 #pragma warning restore 612, 618
         }

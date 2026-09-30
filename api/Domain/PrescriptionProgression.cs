@@ -4,16 +4,18 @@ internal static class PrescriptionProgression
 {
     public static SetProgressionSuggestion Suggest(
         SetPrescription prescription, IReadOnlyList<SetExposure> history, string progressionMode,
-        LoadOptions loads, long? revision, string resistanceMode, Func<SetExposure, double?>? selectLoad)
+        LoadOptions loads, long? revision, string resistanceMode, Func<SetExposure, double?>? selectLoad, DateTime? now = null)
     {
         var mode = ProgressionModes.All.Contains(progressionMode) ? progressionMode : ProgressionModes.Normal;
         var selector = selectLoad ?? (exposure => exposure.LoadKg);
-        var source = history.FirstOrDefault();
-        var load = source is null ? null : selector(source);
         var open = Progression.HasOpenReps(prescription.RepsText) || prescription.RepMin is null;
         var min = open ? (int?)null : prescription.RepMin;
         var max = open ? (int?)null : prescription.RepMax ?? min;
         var goal = ProgressionEvidence.Reserve(prescription.Rir, prescription.TargetRpe);
+        var away = ProgressionLayoff.Days(history, now);
+        history = ProgressionHistory.Prepare(history, min, max, goal);
+        var source = history.FirstOrDefault();
+        var load = source is null ? null : selector(source);
         var repsOnly = resistanceMode == ResistanceModes.RepsOnly;
 
         SetProgressionSuggestion Result(double? weight, int reps, string reason, bool transition = false)
@@ -31,6 +33,15 @@ internal static class PrescriptionProgression
         var changed = ProgressionEvidence.Changed(source, min, max, goal);
         var rebuilding = source.IsRepRangeTransition && !changed && actual < lower;
         var repeatReps = rebuilding ? actual : Math.Clamp(actual, lower, upper);
+
+        if (away is >= ProgressionLayoff.HoldDays)
+        {
+            if (away < ProgressionLayoff.ReduceDays)
+                return Result(load, repeatReps, $"Back after {away} days away: repeat your last session before progressing.", rebuilding);
+            var factor = ProgressionLayoff.Factor(away.Value);
+            var eased = load is { } current && loads.Adjustable && !repsOnly ? Math.Min(current, loads.AtMost(current * factor)) : load;
+            return Result(eased, lower, $"Back after {away} days away: about {(int)Math.Round((1 - factor) * 100)}% lighter to rebuild.");
+        }
 
         // Changing the program's targets is not a failed exposure. Re-select a suitable load
         // before evaluating streaks against the new prescription.
@@ -75,6 +86,17 @@ internal static class PrescriptionProgression
             return Result(reduced, lower, hardStreak == 3
                 ? "Three hard exposures in a row. Deload 7.5% from the lower of current and last successful load and rebuild."
                 : "Continued difficulty after deload. Reducing another 7.5% from the current load.");
+        }
+
+        if (!open && !changed && loads.Adjustable && !repsOnly && load is > 0 && actual < upper &&
+            ProgressionCalibration.Plateaued(history, load, goal, selector))
+        {
+            if (mode != ProgressionModes.Normal)
+                return Result(load, repeatReps, "Holding performance during a calorie deficit is expected. Repeat the load and reps rather than forcing progress.", rebuilding);
+            var reset = ProgressionCalibration.ResetLoad(load.Value, loads);
+            var reps = ProgressionEvidence.RepsAt(source, load, reset, goal) ?? upper;
+            return Result(reset, Math.Clamp(reps, lower, upper),
+                $"No progress in {ProgressionCalibration.PlateauSessions} sessions at this load: reset about 5% and rebuild.");
         }
 
         var required = ProgressionModes.QualifiedExposures(mode);
@@ -150,7 +172,8 @@ internal static class PrescriptionProgression
                         "Preservation heuristic: hold reps until two consecutive exposures at this load show reserve at least one rep above target effort.", rebuilding);
             }
 
-            var nextReps = Math.Min(upper, actual + 1);
+            var easy = ProgressionCalibration.Applies(mode, source, goal, repsOnly);
+            var nextReps = Math.Min(upper, actual + (easy ? ProgressionCalibration.RepGain(reserve!.Value, goal!.Value) : 1));
             var transition = source.IsRepRangeTransition && !changed && nextReps < lower;
             return Result(load, nextReps, transition
                 ? $"Rebuild after the large equipment step: aim for {nextReps} reps, then work back into the prescribed range."
@@ -165,6 +188,13 @@ internal static class PrescriptionProgression
             return Result(load, upper, $"Top of the range reached. Earn {required - qualified} more qualified exposures at this load before increasing it.");
 
         var increased = loads.Next(load.Value);
+        if (!open && ProgressionCalibration.Applies(mode, source, goal, repsOnly) &&
+            ProgressionCalibration.Load(source, load.Value, goal!.Value, lower, loads) is { } jump && jump > increased)
+        {
+            var calibrated = ProgressionEvidence.RepsAt(source, load, jump, goal) ?? lower;
+            return Result(jump, Math.Clamp(calibrated, lower, upper),
+                "That set was well within reach of the target effort: a larger, capped step to reach it. Reps are estimated; adjust from actual effort.");
+        }
         var predictedReps = ProgressionEvidence.RepsAt(source, load, increased, goal);
         if (increased <= load || predictedReps is null)
             return Result(load, upper, "Hold the load: the next available step cannot be estimated reliably from this set.");

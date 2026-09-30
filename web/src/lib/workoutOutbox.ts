@@ -122,6 +122,7 @@ export async function drainWorkoutOutbox(
           if (appliedSet) {
             applied = (operation.patch.weightKg === undefined || appliedSet.weightKg === operation.patch.weightKg) &&
               (operation.patch.reps === undefined || appliedSet.reps === operation.patch.reps) &&
+              (operation.patch.durationSeconds === undefined || (appliedSet.durationSeconds ?? null) === operation.patch.durationSeconds) &&
               (operation.patch.done === undefined || appliedSet.done === operation.patch.done);
           }
         } else if (operation.type === 'rest') {
@@ -168,6 +169,7 @@ export function sessionPayload(session: Session, revision: number, idempotencyId
         id: set.id,
         weightKg: set.weightKg,
         reps: set.reps,
+        durationSeconds: set.durationSeconds ?? null,
         rpe: set.rpe,
         rir: set.rir ?? null,
         done: set.done,

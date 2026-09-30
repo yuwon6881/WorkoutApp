@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { Link2, LogOut, Moon, SlidersHorizontal, Sun, Timer, Watch } from 'lucide-react';
+import { Dumbbell, Link2, LogOut, Moon, SlidersHorizontal, Sun, Timer, Watch, Weight } from 'lucide-react';
 import type { Account, Preferences } from '../types';
 import { api } from '../lib/api';
 import { deleteWorkoutPushToken, getWorkoutPushDeviceId } from '../lib/push/firebaseMessaging';
@@ -7,10 +7,14 @@ import type { DevicePreferences } from '../lib/workoutRecovery';
 import { Button } from './ui/Button';
 import { SegmentedControl } from './ui/SegmentedControl';
 import { SettingRow } from './ui/SettingRow';
+import { Switch } from './ui/Switch';
+import { tracksRir } from '../lib/trackRir';
 import { ConnectedApps } from './ConnectedApps';
 import { GoogleHealthSettings } from './GoogleHealthSettings';
 import { RestAlertSettings } from './RestAlertSettings';
 import { WatchPairingSettings } from './WatchPairingSettings';
+import { WorkoutFlowSettings } from './WorkoutFlowSettings';
+import { LoadIncrementSettings } from './LoadIncrementSettings';
 import { SettingsNav, SettingsSection, type SettingsSectionLink } from './SettingsLayout';
 import './Settings.css';
 
@@ -23,10 +27,13 @@ type SettingsViewProps = {
   notify: (message: string) => void;
   onSignOut: () => Promise<void>;
   version: string;
+  onCatalogChanged?: () => void | Promise<void>;
 };
 
 const sections: SettingsSectionLink[] = [
   { id: 'settings-general', label: 'General', icon: SlidersHorizontal },
+  { id: 'settings-training', label: 'Training', icon: Dumbbell },
+  { id: 'settings-weights', label: 'Weight increments', icon: Weight },
   { id: 'settings-rest', label: 'Rest timer', icon: Timer },
   { id: 'settings-watch', label: 'Wear OS', icon: Watch },
   { id: 'settings-connections', label: 'Connected apps', icon: Link2 }
@@ -39,9 +46,9 @@ function initials(name: string) {
 }
 
 export function SettingsView(props: SettingsViewProps) {
-  const { account, preferences, devicePreferences, onDevicePreferences, onPreferences, notify, onSignOut, version } = props;
+  const { account, preferences, devicePreferences, onDevicePreferences, onPreferences, notify, onSignOut, version, onCatalogChanged } = props;
   const deviceId = getWorkoutPushDeviceId();
-  const [general, rest, watch, connections] = sections;
+  const [general, training, weights, rest, watch, connections] = sections;
 
   useEffect(() => {
     void api.refreshNutritionContext().catch(() => { /* Nutrition is optional and may be offline. */ });
@@ -103,6 +110,26 @@ export function SettingsView(props: SettingsViewProps) {
                 ]}
               />
             </SettingRow>
+          </SettingsSection>
+
+          <SettingsSection {...training} title="Training" description="How workouts are tracked and move between exercises.">
+            <SettingRow
+              label={<strong>Track reps in reserve (RIR)</strong>}
+              description="Hide RIR in programs, imports and workouts on every device. Existing targets are kept."
+              descriptionId="track-rir-description"
+            >
+              <Switch
+                label="Track reps in reserve (RIR)"
+                describedBy="track-rir-description"
+                checked={tracksRir(preferences)}
+                onChange={trackRir => onPreferences({ ...preferences, trackRir })}
+              />
+            </SettingRow>
+            <WorkoutFlowSettings devicePreferences={devicePreferences} onDevicePreferences={onDevicePreferences} />
+          </SettingsSection>
+
+          <SettingsSection {...weights} layout="plain" title="Weight increments" description="The weights your equipment offers, used for suggestions.">
+            <LoadIncrementSettings unit={preferences.unit} notify={notify} onChanged={onCatalogChanged} />
           </SettingsSection>
 
           <SettingsSection {...rest} title="Rest timer & alerts" description="Timer and notification preferences.">

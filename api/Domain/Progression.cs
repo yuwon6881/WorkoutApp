@@ -164,6 +164,12 @@ public static class Progression
         return best;
     }
 
+    /// A logged reps-in-reserve count converted to the RPE scale the strength trend uses. Only a
+    /// number from 0 to 4 converts: "5+" is a lower bound and cannot support an estimate.
+    public static double? RpeFromRir(string? rir)
+        => double.TryParse(rir, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var value)
+           && value is >= 0 and <= 4 ? 10 - Math.Round(value, MidpointRounding.AwayFromZero) : null;
+
     public static ProgressionState Advance(ProgressionState? current, double sessionE1rmKg)
     {
         if (current is null) return new ProgressionState(sessionE1rmKg, sessionE1rmKg, 0);
@@ -175,8 +181,8 @@ public static class Progression
     public static SetProgressionSuggestion Suggest(
         SetPrescription prescription, IReadOnlyList<SetExposure> history, string mode, LoadOptions loads,
         long? revision = null, string resistanceMode = ResistanceModes.External,
-        Func<SetExposure, double?>? selectLoad = null)
-        => PrescriptionProgression.Suggest(prescription, history, mode, loads, revision, resistanceMode, selectLoad);
+        Func<SetExposure, double?>? selectLoad = null, DateTime? now = null)
+        => PrescriptionProgression.Suggest(prescription, history, mode, loads, revision, resistanceMode, selectLoad, now);
 
     /// Compatibility entry point for callers with explicit rep bounds.
     public static SetProgressionSuggestion SuggestSet(

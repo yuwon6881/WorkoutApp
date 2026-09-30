@@ -43,12 +43,14 @@ public sealed partial class WorkoutService
         var resistanceMode = set!.ResistanceMode;
         var weight = set.WeightKg;
         var reps = set.Reps;
+        var durationSeconds = set.DurationSeconds;
         var rpe = set.Rpe;
         var rir = set.Rir;
         var done = set.Done;
         var warmup = set.Warmup;
         if (payload.TryGetProperty("weightKg", out var weightElement)) weight = NullableDouble(weightElement, "Weight");
         if (payload.TryGetProperty("reps", out var repsElement)) reps = NullableInt(repsElement, "Reps");
+        if (payload.TryGetProperty("durationSeconds", out var durationElement)) durationSeconds = NullableInt(durationElement, "Duration");
         if (payload.TryGetProperty("rpe", out var rpeElement)) rpe = NullableDouble(rpeElement, "RPE");
         if (payload.TryGetProperty("rir", out var rirElement))
         {
@@ -67,7 +69,7 @@ public sealed partial class WorkoutService
             resistanceMode = modeElement.GetString() ?? "";
         }
         resistanceMode = ResolveResistanceMode(loadModel, resistanceMode);
-        Validation.LoggedSet(weight, reps, rpe, done, warmup);
+        Validation.LoggedSet(weight, reps, rpe, done, warmup, durationSeconds);
         ValidateActualRir(rir, rpe);
         var warmupChanged = warmup != set.Warmup;
         var step = Progression.DefaultStepKg;
@@ -77,11 +79,11 @@ public sealed partial class WorkoutService
             if (info.TryGetValue(exerciseId, out var found)) step = found.AvailableLoadsKg is null ? found.StepKg : 0;
         }
         weight = NormalizeEnteredLoad(loadModel, resistanceMode, weight, step);
-        var changed = weight != set.WeightKg || reps != set.Reps || rpe != set.Rpe || rir != set.Rir || done != set.Done ||
+        var changed = weight != set.WeightKg || reps != set.Reps || durationSeconds != set.DurationSeconds || rpe != set.Rpe || rir != set.Rir || done != set.Done ||
             warmup != set.Warmup || !string.Equals(resistanceMode, set.ResistanceMode, StringComparison.Ordinal);
         if (changed)
         {
-            set.WeightKg = weight; set.Reps = reps; set.Rpe = rpe; set.Rir = rir; set.Done = done; set.Warmup = warmup;
+            set.WeightKg = weight; set.Reps = reps; set.DurationSeconds = durationSeconds; set.Rpe = rpe; set.Rir = rir; set.Done = done; set.Warmup = warmup;
             set.ResistanceMode = resistanceMode; set.SystemLoadKg = ComputeSystemLoad(session, loadModel, resistanceMode, weight);
             if (warmupChanged)
             {

@@ -41,6 +41,8 @@ public sealed class GoogleHealthWorkoutSummaryService(AppDb db)
                     setSummaries.Add($"{set.WeightKg.Value:0.#}kg x {set.Reps.Value}");
                 else if (set.Reps.HasValue)
                     setSummaries.Add($"{set.Reps.Value} reps");
+                else if (set.DurationSeconds is { } seconds)
+                    setSummaries.Add(set.WeightKg.HasValue ? $"{set.WeightKg.Value:0.#}kg for {seconds}s" : $"{seconds}s");
                 else
                     setSummaries.Add("1 set");
             }

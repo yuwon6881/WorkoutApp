@@ -8,6 +8,8 @@ import { formatExercisePrBadge, formatSetPrTag } from '../lib/livePr';
 import { Button } from './ui/Button';
 import { Modal } from './ui/Modal';
 import './SessionDetail.css';
+import { showTimedSet } from '../lib/setDuration';
+import { useTrackRir } from '../lib/trackRir';
 
 /// A finished workout. Straight after Finish it opens as the session's result; from history it is
 /// the same summary without the celebration.
@@ -19,6 +21,7 @@ export function SessionDetail({ session, preferences, exercises = [], justFinish
   onClose: () => void;
   onDeleted?: () => Promise<void>;
 }) {
+  const trackRir = useTrackRir();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const unit = preferences.unit;
@@ -69,8 +72,8 @@ export function SessionDetail({ session, preferences, exercises = [], justFinish
               const number = done.slice(0, i + 1).filter(item => item.warmup === set.warmup).length;
               return <li key={set.id} className={set.isPr ? 'pr-set-row' : ''}>
                 <span className="session-set-label">{set.warmup ? `Warm-up ${number}` : `Set ${number}`}</span>
-                <strong>{set.weightKg === null ? `${set.reps} reps` : `${toDisplay(set.weightKg, unit)} ${unit} × ${set.reps}`}</strong>
-                <span className="session-set-effort">{showActualRir(set.rir, set.rpe)}</span>
+                <strong>{set.durationSeconds != null ? showTimedSet(set, unit) : set.weightKg === null ? `${set.reps} reps` : `${toDisplay(set.weightKg, unit)} ${unit} × ${set.reps}`}</strong>
+                {trackRir && <span className="session-set-effort">{showActualRir(set.rir, set.rpe)}</span>}
                 {set.isPr && <span className="pill pill-accent pr-set-tag"><Trophy size={10} /> {formatSetPrTag(set)}</span>}
               </li>;
             })}

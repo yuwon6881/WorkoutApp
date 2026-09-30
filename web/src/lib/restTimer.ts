@@ -96,6 +96,12 @@ export class RestTimer {
 
   primeSound(): boolean { return this.options.sound && primeAlarm(); }
 
+  /** A timed set reached its target: the same chime and vibration as a rest, under the same preferences. */
+  announceSetTimer(): void {
+    if (this.options.sound) soundNow();
+    if (this.options.vibration && navigator.vibrate) { try { navigator.vibrate([200, 100, 200]); } catch { /* unsupported */ } }
+  }
+
   setWorkoutVisible(visible: boolean): void {
     this.workoutVisible = visible;
     this.syncAlarm();

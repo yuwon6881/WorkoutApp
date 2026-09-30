@@ -47,13 +47,16 @@ public static class Validation
     /// A logged set: null weight stays unknown, zero is a real bodyweight set. Reps and RPE
     /// may be blank while the set is being typed; a completed set needs reps, while missing RPE
     /// remains a valid recorded exposure that deliberately pauses progression.
-    public static void LoggedSet(double? weightKg, int? reps, double? rpe, bool done, bool warmup = false)
+    public static void LoggedSet(double? weightKg, int? reps, double? rpe, bool done, bool warmup = false, int? durationSeconds = null)
     {
         if (weightKg is { } weight) Number(weight, 0, 1000, "Weight");
         if (reps is { } count) Require(count is > 0 and <= 1000, "Reps must be between 1 and 1000.");
+        if (durationSeconds is { } seconds) Require(seconds is > 0 and <= MaxSetSeconds, "A timed set must last between 1 second and 2 hours.");
         if (rpe is { } effort) Rpe(effort);
-        if (done) Require(reps != null, "A completed set needs its reps.");
+        if (done) Require(reps != null || durationSeconds != null, "A completed set needs its reps or time.");
     }
+
+    public const int MaxSetSeconds = 7200;
 
     public static List<SetPrescription> Prescriptions(string json)
     {

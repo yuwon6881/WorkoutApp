@@ -29,7 +29,7 @@ public sealed partial class WorkoutService
                 // A historical full-bodyweight set without a frozen snapshot cannot support a
                 // system-load calculation. Never reinterpret its entered added/assistance load
                 // as kilograms of total resistance.
-                exposure => exposure.SystemLoadKg);
+                exposure => exposure.SystemLoadKg, DateTime.UtcNow);
             var system = baseSuggestion.SuggestedLoadKg;
             var input = ToInputLoad(system, bodyWeight?.ReferenceKg, resistanceMode, availableLoads is null ? step : 0);
             var actualSystem = RecomputeSystemLoad(input, bodyWeight?.ReferenceKg, resistanceMode) ?? system;
@@ -48,7 +48,7 @@ public sealed partial class WorkoutService
 
         var policyMode = loadModel is LoadModels.BodyweightContextOnly or LoadModels.RepsOnly ? ResistanceModes.RepsOnly : resistanceMode;
         return Progression.Suggest(prescription, exposures, mode, new LoadOptions(step, AvailableLoadsKg: availableLoads),
-            context.Context?.Revision, policyMode) with { ResistanceMode = resistanceMode };
+            context.Context?.Revision, policyMode, now: DateTime.UtcNow) with { ResistanceMode = resistanceMode };
     }
 
     private static double? ToInputLoad(double? systemLoad, double? reference, string resistanceMode, double step)

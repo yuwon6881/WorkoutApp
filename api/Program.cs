@@ -10,6 +10,9 @@ using Workout.Api.Endpoints;
 using Workout.Api.Services;
 using OpenIddict.Validation.AspNetCore;
 using Workout.Api.Services.RestAlerts;
+using Workout.Api.Services.AI;
+using Workout.Api.Services.AI.Agent;
+using Workout.Api.Services.AI.Tools;
 
 var builder=WebApplication.CreateBuilder(args);
 if(int.TryParse(Environment.GetEnvironmentVariable("PORT"),out var cloudRunPort))builder.WebHost.UseUrls($"http://0.0.0.0:{cloudRunPort}");
@@ -40,6 +43,7 @@ builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<CatalogService>();
 builder.Services.AddScoped<ExerciseService>();
 builder.Services.AddScoped<ExerciseLoadSettingsService>();
+builder.Services.AddScoped<LoadSettingsService>();
 builder.Services.AddScoped<TemplateService>();
 builder.Services.AddScoped<ProgramProgressService>();
 builder.Services.AddScoped<ProgramLifecycleService>();
@@ -82,6 +86,23 @@ builder.Services.AddOpenIddict().AddValidation(options =>
     options.UseAspNetCore();
 });
 builder.Services.AddHttpClient<WorkoutAi>(c=>c.Timeout=TimeSpan.FromSeconds(150)).AddHttpMessageHandler<ExternalCallMetricsHandler>();
+builder.Services.AddHttpClient<AiChatClient>(c=>c.Timeout=TimeSpan.FromSeconds(45)).AddHttpMessageHandler<ExternalCallMetricsHandler>();
+builder.Services.AddScoped<IAiTool, GetWorkoutHistoryTool>();
+builder.Services.AddScoped<IAiTool, GetWorkoutDetailTool>();
+builder.Services.AddScoped<IAiTool, GetExerciseProgressTool>();
+builder.Services.AddScoped<IAiTool, GetExerciseCatalogTool>();
+builder.Services.AddScoped<IAiTool, GetProgramOverviewTool>();
+builder.Services.AddScoped<IAiTool, GetMuscleBalanceTool>();
+builder.Services.AddScoped<IAiTool, GetActiveWorkoutTool>();
+builder.Services.AddScoped<IAiTool, GetNutritionSummaryTool>();
+builder.Services.AddScoped<AiToolRegistry>();
+builder.Services.AddScoped<AiToolExecutor>();
+builder.Services.AddScoped<AiBaselineSnapshotBuilder>();
+builder.Services.AddScoped<AiAgentEngine>();
+builder.Services.AddScoped<AiChatUsageMeter>();
+builder.Services.AddScoped<AiAgentServices>();
+builder.Services.AddScoped<AiConversationMemoryService>();
+builder.Services.AddScoped<AiAssistantService>();
 builder.Services.AddHttpClient("nutrition", c => c.Timeout = TimeSpan.FromSeconds(10)).AddHttpMessageHandler<ExternalCallMetricsHandler>();
 builder.Services.AddHttpClient("fitness-account", c => c.Timeout = TimeSpan.FromSeconds(10)).AddHttpMessageHandler<ExternalCallMetricsHandler>();
 builder.Services.AddRateLimiter(o=>
@@ -95,6 +116,9 @@ builder.Services.AddRateLimiter(o=>
         context.HttpContext.Response.Headers.CacheControl="no-store";
         await context.HttpContext.Response.WriteAsJsonAsync(new { message="That was a lot of requests in a short time. Wait a minute and try again." },token);
     };
+    o.AddPolicy("ai-chat",http=>RateLimitPartition.GetFixedWindowLimiter(
+        string.IsNullOrEmpty(http.Request.Cookies[AuthService.Cookie])?"unauthenticated":AuthService.Hash(http.Request.Cookies[AuthService.Cookie]!),
+        _=>new FixedWindowRateLimiterOptions { PermitLimit=20,Window=TimeSpan.FromMinutes(1),QueueLimit=0 }));
     o.AddPolicy("ai",http=>RateLimitPartition.GetFixedWindowLimiter(
         string.IsNullOrEmpty(http.Request.Cookies[AuthService.Cookie])?"unauthenticated":AuthService.Hash(http.Request.Cookies[AuthService.Cookie]!),
         _=>new FixedWindowRateLimiterOptions { PermitLimit=6,Window=TimeSpan.FromMinutes(5),QueueLimit=0 }));
@@ -194,7 +218,7 @@ app.Use(async(http,next)=>
 });
 app.UseRateLimiter();
 app.UseDefaultFiles();app.UseStaticFiles(new StaticFileOptions { OnPrepareResponse=c=> { if(c.File.Name=="sw.js"||c.File.Name=="index.html") c.Context.Response.Headers.CacheControl="no-cache"; } });
-app.MapAuth();app.MapCentralAuth();app.MapBootstrap();app.MapPerformanceReads();app.MapRevisions();app.MapCatalog();app.MapTemplates();app.MapPrograms();app.MapProgramEditor();app.MapWorkouts();app.MapImports();app.MapIntegrations();app.MapGoogleHealth();app.MapRestAlerts();app.MapWatch();
+app.MapAuth();app.MapCentralAuth();app.MapBootstrap();app.MapPerformanceReads();app.MapRevisions();app.MapCatalog();app.MapLoadSettings();app.MapTemplates();app.MapPrograms();app.MapProgramEditor();app.MapWorkouts();app.MapImports();app.MapIntegrations();app.MapGoogleHealth();app.MapRestAlerts();app.MapWatch();app.MapAi();
 app.MapGet("/health",()=>new { status="ok" });
 app.MapFallback(async http=>
 {

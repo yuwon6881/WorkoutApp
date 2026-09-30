@@ -23,6 +23,8 @@ public sealed class NutritionContextService(AppDb db, IHttpClientFactory clients
     /// also validates the connection with Fitness Account before answering.
     public static readonly TimeSpan RefreshDeadline = TimeSpan.FromSeconds(8);
     private static readonly TimeSpan CacheWindow = TimeSpan.FromDays(7);
+    /// Weekly bodyweight loss, as a percent, that a non-cutting goal treats as a real deficit.
+    public const double UnplannedLossPercent = .5;
 
     public async Task<NutritionContextResult> Get(CancellationToken ct, TimeSpan? deadline = null)
     {
@@ -73,12 +75,17 @@ public sealed class NutritionContextService(AppDb db, IHttpClientFactory clients
 
     public static string Mode(NutritionTrainingContext? context, DateTime nowUtc)
     {
-        if (context is null || !context.Confirmed || context.EffectiveGoal != "lose" || context.PhaseComplete) return ProgressionModes.Normal;
+        if (context is null || !context.Confirmed) return ProgressionModes.Normal;
         if (nowUtc - context.RetrievedAt > CacheWindow) return ProgressionModes.Normal;
         // A numeric observed rate is only qualified when Nutrition supplied its required
         // three-weigh-in, fourteen-day window. An unqualified cached number must not move a
         // workout into preservation mode.
         var observed = context.ObservedWindowDays is >= 14 ? context.ObservedLossRatePercent : null;
+        // A maintenance, bulk or finished-phase goal that is nonetheless losing weight quickly is an
+        // unplanned deficit: protect performance the same way a planned cut does, but never escalate
+        // to preservation, since the goal itself did not ask for a deficit.
+        if (context.EffectiveGoal != "lose" || context.PhaseComplete)
+            return observed is >= UnplannedLossPercent ? ProgressionModes.Conservative : ProgressionModes.Normal;
         var validRates = new[] { context.TargetRatePercent, observed }
             .Where(rate => rate is >= 0).Select(rate => Math.Abs(rate!.Value)).ToList();
         if (validRates.Count == 0) return ProgressionModes.Normal;

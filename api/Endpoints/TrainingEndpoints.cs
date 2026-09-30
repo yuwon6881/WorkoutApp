@@ -7,7 +7,19 @@ using Workout.Api.Services;
 
 namespace Workout.Api.Endpoints;
 
-public record PreferencesInput(string Unit, string Theme, int? RestSeconds = null, bool? RestAlerts = null);
+public record PreferencesInput(string Unit, string Theme, int? RestSeconds = null, bool? RestAlerts = null, bool? TrackRir = null)
+{
+    public void ApplyTo(AppUser user)
+    {
+        Validation.Unit(Unit); Validation.Theme(Theme);
+        if (RestSeconds is { } rest) Validation.RestSeconds(rest);
+        user.Unit = Unit; user.Theme = Theme;
+        if (RestSeconds is { } restValue) user.RestSeconds = restValue;
+        user.RestAlerts = RestAlerts ?? true;
+        // An older client omits the field; that must not switch RIR tracking back on.
+        if (TrackRir is { } trackRir) user.TrackRir = trackRir;
+    }
+}
 public record StartInput(Guid? TemplateId, string? Name);
 public record FinishInput(int? Revision, bool RetainExerciseSwaps = false, Guid? MutationId = null, DateTimeOffset? FinishedAt = null);
 public record ActivateInput(bool Active, int? Revision);
@@ -25,7 +37,7 @@ public static class TrainingEndpoints
             return new
             {
                 account = new { user.Id, displayName = user.DisplayName },
-                preferences = new { user.Unit, user.Theme, user.RestSeconds, user.RestAlerts },
+                preferences = new { user.Unit, user.Theme, user.RestSeconds, user.RestAlerts, user.TrackRir },
                 exercises = await catalog.All(ct),
                 templates = await templates.List(null, standaloneOnly: true, ct),
                 programs = programList,
@@ -33,8 +45,7 @@ public static class TrainingEndpoints
                 activeWorkout = await workouts.Active(ct),
                 imports = await imports.List(ct),
                 history = await workouts.History(0, 20, ct),
-                progress = await ProgressReadService.Get(db, cache, ct),
-                aiImportsRemaining = await Remaining(db, ct)
+                progress = await ProgressReadService.Get(db, cache, ct)
             };
         });
 
@@ -105,14 +116,10 @@ public static class TrainingEndpoints
 
         app.MapPut("/api/preferences", async (PreferencesInput input, AppDb db, CancellationToken ct) =>
         {
-            Validation.Unit(input.Unit); Validation.Theme(input.Theme);
-            if (input.RestSeconds is { } rest) Validation.RestSeconds(rest);
             var user = await db.Users.SingleAsync(u => u.Id == db.CurrentUser, ct);
-            user.Unit = input.Unit; user.Theme = input.Theme;
-            if (input.RestSeconds is { } restVal) user.RestSeconds = restVal;
-            user.RestAlerts = input.RestAlerts ?? true;
+            input.ApplyTo(user);
             await db.SaveChangesAsync(ct);
-            return new { user.Unit, user.Theme, user.RestSeconds, user.RestAlerts };
+            return new { user.Unit, user.Theme, user.RestSeconds, user.RestAlerts, user.TrackRir };
         });
     }
 
@@ -208,12 +215,5 @@ public static class TrainingEndpoints
             => await balance.Balance(range, timeZone, ct));
         app.MapGet("/api/workouts/activity", async (DateOnly? from, DateOnly? to, string? timeZone, WorkoutService workouts, CancellationToken ct)
             => await workouts.Activity(from, to, timeZone, ct));
-    }
-
-    private static async Task<int> Remaining(AppDb db, CancellationToken ct)
-    {
-        var today = DateOnly.FromDateTime(DateTime.UtcNow);
-        var usage = await db.Usage.AsNoTracking().SingleOrDefaultAsync(u => u.Date == today, ct);
-        return Math.Max(0, ImportService.DailyLimit - (usage?.Count ?? 0));
     }
 }

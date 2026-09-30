@@ -4,10 +4,11 @@ import { ApiError, api } from '../lib/api';
 import type { SaveQueue } from '../lib/queue';
 import { completedSets, plannedSets } from '../lib/training';
 import { exerciseListChanged } from '../lib/workoutDraft';
-import { nextLog, nextUpText } from '../lib/workoutLogging';
+import { firstOpenExercise, nextLog, nextUpText, type AdvanceOptions } from '../lib/workoutLogging';
 import { useAfterLog } from './useAfterLog';
 import { validateLoggedSet, validateSessionDraft } from '../lib/validation';
 import { restTimer } from '../lib/restTimer';
+import { stopStopwatch } from '../lib/setStopwatch';
 import { findNextStep, restAppliesAfter } from '../lib/restRules';
 import {
   clearRecovery, enqueueFinish, enqueueSave, enqueueSetEdits, enqueueTiming, getRecovery,
@@ -41,7 +42,8 @@ export function Workout({
   onClose,
   onFinish,
   onDiscard,
-  autoAdvance = true
+  advance,
+  onCatalogChanged
 }: {
   session: Session;
   accountId: string;
@@ -55,7 +57,9 @@ export function Workout({
   onClose: () => void;
   onFinish: (s: Session) => void;
   onDiscard: () => void;
-  autoAdvance?: boolean;
+  advance?: AdvanceOptions;
+  /** Weight settings changed mid-workout, so the exercise catalog is read again. */
+  onCatalogChanged?: () => void | Promise<void>;
 }) {
   const [draft, setDraft] = useState(recovery?.sessionId === session.id ? recovery.draft : session);
   const [picker, setPicker] = useState(false);
@@ -64,10 +68,7 @@ export function Workout({
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [viewMode, setViewMode] = useState<'focus' | 'all'>(recovery?.viewMode ?? 'focus');
-  const [activeIndex, setActiveIndex] = useState(() => recovery?.activeIndex ?? (() => {
-    const firstUnfinished = session.exercises.findIndex(e => e.sets.some(s => !s.done));
-    return firstUnfinished >= 0 ? firstUnfinished : 0;
-  })());
+  const [activeIndex, setActiveIndex] = useState(() => recovery?.activeIndex ?? firstOpenExercise(session));
   const [finishIntentAt, setFinishIntentAt] = useState(() => recovery?.operations.find(operation => operation.type === 'finish')?.finishedAt ?? null);
   const [localStatus, setLocalStatus] = useState('');
   const [recoveryConflict, setRecoveryConflict] = useState(recovery?.conflict ?? false);
@@ -76,7 +77,7 @@ export function Workout({
   const revision = useRef(serverSession.current.revision);
   const setToggleGenerations = useRef(new Map<string, number>());
   const { celebration, afterLog } = useAfterLog({
-    unit: preferences.unit, autoAdvance, focused: viewMode === 'focus', onAdvance: index => selectExercise(index)
+    unit: preferences.unit, advance, focused: viewMode === 'focus', onAdvance: index => selectExercise(index)
   });
   const onlineFallback = useWorkoutOnlineFallback({
     sessionId: session.id, accountId, online, queue, preferences, recovery, revision,
@@ -215,7 +216,9 @@ export function Workout({
   }
 
   async function toggle(ei: number, si: number) {
-    const set = draft.exercises[ei].sets[si];
+    const stored = draft.exercises[ei].sets[si];
+    const timed = (stored.done ? null : stopStopwatch(stored.id)) || null;
+    const set = timed === null ? stored : { ...stored, durationSeconds: timed };
     if (!set.done) {
       const validationError = validateLoggedSet({ ...set, done: true });
       if (validationError) {
@@ -258,7 +261,8 @@ export function Workout({
       };
     }
 
-    const persist = () => editSet(ei, si, { done: !set.done }, restMutation, restState);
+    const patch: Partial<LoggedSet> = timed === null ? { done: !set.done } : { done: true, durationSeconds: timed };
+    const persist = () => editSet(ei, si, patch, restMutation, restState);
     let saved: boolean;
     if (shouldRest) {
       restTimer.primeSound();
@@ -462,7 +466,7 @@ export function Workout({
         picker={picker} onPicker={setPicker}
         onAddExercise={() => online && !paused && !finishIntentAt ? setPicker(true) : setError('Connect and resume before adding an exercise.')}
         onChange={change} onEditSet={editSet} onToggleSet={toggle} onSelectExercise={selectExercise}
-        onSwap={swapExercise} onRestore={restoreExercise} onRemoveExercise={removeExercise} />
+        onSwap={swapExercise} onRestore={restoreExercise} onRemoveExercise={removeExercise} onCatalogChanged={onCatalogChanged} />
 
       <WorkoutFooter error={error} rest={rest} defaultRestSeconds={defaultRestSeconds}
         busy={busy || Boolean(finishIntentAt) || recoveryConflict} restDisabled={paused || Boolean(finishIntentAt) || recoveryConflict}

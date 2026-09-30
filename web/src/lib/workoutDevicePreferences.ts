@@ -1,15 +1,33 @@
-export type DevicePreferences = { sound: boolean; vibration: boolean; keepAwake: boolean; autoAdvance: boolean };
+export type DevicePreferences = {
+  sound: boolean;
+  vibration: boolean;
+  keepAwake: boolean;
+  // Moves on once every set of an exercise is logged.
+  autoAdvance: boolean;
+  // Jumps to the linked partner after each superset set.
+  supersetAdvance: boolean;
+};
 
 // A phone in the gym is the common case: feedback you can feel, a screen that stays on during the
-// workout, and moving to the next exercise once one is done. Each can be switched off per device.
-export const defaultDevicePreferences: DevicePreferences = { sound: true, vibration: true, keepAwake: true, autoAdvance: true };
+// workout, and moving to the next exercise or superset partner once a set there is done. Each can
+// be switched off per device.
+export const defaultDevicePreferences: DevicePreferences = {
+  sound: true, vibration: true, keepAwake: true, autoAdvance: true, supersetAdvance: true
+};
 
 export async function loadDevicePreferences(accountId: string): Promise<DevicePreferences> {
   try {
     const raw = localStorage.getItem(`workout.device-preferences.v1:${accountId}`);
     if (!raw) return defaultDevicePreferences;
     const value = JSON.parse(raw) as Partial<DevicePreferences>;
-    return { sound: value.sound !== false, vibration: value.vibration !== false, keepAwake: value.keepAwake !== false, autoAdvance: value.autoAdvance !== false };
+    // A switch missing from an older save keeps its default, so new switches arrive on.
+    return {
+      sound: value.sound !== false,
+      vibration: value.vibration !== false,
+      keepAwake: value.keepAwake !== false,
+      autoAdvance: value.autoAdvance !== false,
+      supersetAdvance: value.supersetAdvance !== false
+    };
   } catch { return defaultDevicePreferences; }
 }
 

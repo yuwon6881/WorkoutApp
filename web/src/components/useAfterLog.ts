@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import type { Session, Unit } from '../types';
 import { haptic } from '../lib/platform';
 import { checkLivePr } from '../lib/livePr';
-import { advanceTarget } from '../lib/workoutLogging';
+import { advanceTarget, type AdvanceOptions } from '../lib/workoutLogging';
 import { showWeight } from '../lib/training';
 
 const CELEBRATION_MS = 4500;
@@ -10,9 +10,10 @@ const CELEBRATION_MS = 4500;
 /// What happens the moment a set is logged: a pulse the lifter can feel (stronger once the
 /// exercise is complete), a personal-best note when the set beats every finished session, and a
 /// move to the next exercise, or the superset partner, when the next step is elsewhere.
-export function useAfterLog({ unit, autoAdvance, focused, onAdvance }: {
+export function useAfterLog({ unit, advance, focused, onAdvance }: {
   unit: Unit;
-  autoAdvance: boolean;
+  /** Which moves happen by themselves; both are on unless a device setting turns one off. */
+  advance?: AdvanceOptions;
   focused: boolean;
   onAdvance: (exerciseIndex: number) => void;
 }) {
@@ -45,8 +46,8 @@ export function useAfterLog({ unit, autoAdvance, focused, onAdvance }: {
       }
     }
     haptic(pr !== null || exercise.sets.every(set => set.done) ? 'success' : 'log');
-    if (!autoAdvance || !focused) return;
-    const target = advanceTarget(logged, exerciseIndex, setIndex);
+    if (!focused) return;
+    const target = advanceTarget(logged, exerciseIndex, setIndex, advance);
     if (target !== null) onAdvance(target);
   }
 

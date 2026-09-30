@@ -60,6 +60,12 @@ object RestPolicy {
         return null
     }
 
+    /** A rest deadline with time taken off; null when the cut reaches the present, which ends the rest. */
+    fun shortenedDeadline(endsAtEpochMs: Long, seconds: Int, nowEpochMs: Long): Long? {
+        val shortened = endsAtEpochMs - seconds * 1_000L
+        return if (shortened <= nowEpochMs) null else shortened
+    }
+
     /** Where the set page should go next: the next set in order, else anything skipped earlier. */
     fun nextExerciseId(session: WorkoutSession, exerciseId: String, setId: String): String =
         nextSet(session, exerciseId, setId)?.exercise?.id

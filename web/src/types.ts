@@ -4,15 +4,17 @@ export type Theme = 'dark' | 'light';
 export type Provenance = 'extracted' | 'inferred' | 'userEdited';
 
 export type LoadModel = 'external' | 'full_bodyweight' | 'bodyweight_context_only' | 'reps_only';
+/** A timed exercise (plank, dead hang) records seconds instead of reps. */
+export type TrackingMode = 'reps' | 'duration';
 export type ResistanceMode = 'external' | 'bodyweight' | 'added' | 'assistance' | 'reps_only';
 export type ExerciseCategory = 'Free Weights' | 'Machine' | 'Body Weight';
-export type Exercise = { id: string; slug: string; name: string; muscle: string; secondaryMuscles?: string[]; equipment: string; category?: ExerciseCategory; cue: string; aliases: string[]; loadStepKg: number; availableLoadsKg?: number[] | null; loadModel?: LoadModel; movementPattern?: string; source?: 'catalog' | 'custom'; isCustom?: boolean; archived?: boolean };
+export type Exercise = { id: string; slug: string; name: string; trackingMode?: TrackingMode; muscle: string; secondaryMuscles?: string[]; equipment: string; category?: ExerciseCategory; cue: string; aliases: string[]; loadStepKg: number; availableLoadsKg?: number[] | null; loadSource?: 'exercise' | 'equipment' | 'app'; loadEquipmentGroup?: string | null; loadStackName?: string | null; loadModel?: LoadModel; movementPattern?: string; source?: 'catalog' | 'custom'; isCustom?: boolean; archived?: boolean };
 export type CustomExerciseCreated = {
   id: string; name: string; muscle: string; equipment: string; cue: string; loadStepKg: number;
   loadModel: LoadModel; movementPattern: string; archived: boolean; createdAt: string;
   secondaryMuscles?: string[]; category?: ExerciseCategory;
 };
-export type Preferences = { unit: Unit; theme: Theme; restSeconds?: number; restAlerts: boolean };
+export type Preferences = { unit: Unit; theme: Theme; restSeconds?: number; restAlerts: boolean; trackRir?: boolean };
 export type Account = { id: string; displayName: string };
 
 export type SetPrescription = {
@@ -33,14 +35,14 @@ export type ProgramSummary = { id: string; name: string; weeks: number; active: 
 export type Program = ProgramSummary & { workouts: Template[] };
 
 export type SetProgressionSuggestion = { suggestedLoadKg: number | null; suggestedReps: number; reason: string; sourceSessionId: string | null; sourceDate: string | null; progressionMode: string; nutritionContextRevision: number | null; isBodyweightAdjustment: boolean; suggestedSystemLoadKg: number | null; resistanceMode: ResistanceMode };
-export type LoggedSet = { id: string; position: number; weightKg: number | null; reps: number | null; rpe: number | null; done: boolean; warmup: boolean; workingSetOrdinal?: number | null; resistanceMode?: ResistanceMode; systemLoadKg?: number | null; suggestion?: SetProgressionSuggestion | null; isPr?: boolean; estimated1RmKg?: number | null; rir?: string | null; prKind?: 'e1rm' | 'reps' | 'both' | null; prReps?: number | null };
+export type LoggedSet = { id: string; position: number; weightKg: number | null; reps: number | null; durationSeconds?: number | null; rpe: number | null; done: boolean; warmup: boolean; workingSetOrdinal?: number | null; resistanceMode?: ResistanceMode; systemLoadKg?: number | null; suggestion?: SetProgressionSuggestion | null; isPr?: boolean; estimated1RmKg?: number | null; rir?: string | null; prKind?: 'e1rm' | 'reps' | 'both' | null; prReps?: number | null };
 /// What the server suggested for this exercise when the workout started, and why. Every figure
 /// is optional: a first session has nothing to go on, and that is shown rather than filled in.
 export type Progression = { suggestedKg: number | null; targetReps: number; reason: string; lastE1rmKg: number | null; trendE1rmKg: number | null; stepKg: number; mode?: string; progressionMode?: string; nutritionContextRevision?: number | null };
 export type BodyWeightSnapshot = { scaleWeightKg: number | null; scaleDate: string | null; trendWeightKg: number | null; trendDate: string | null; referenceKg: number; referenceSource: string; referenceDate: string | null; calculationVersion: string; nutritionRevision: number | null; capturedAt: string };
 export type NutritionTrainingContext = { subject: string; revision: number; timeZone: string; effectiveGoal: string; phaseComplete: boolean; targetRatePercent: number | null; observedLossRatePercent: number | null; observedWindowDays: number | null; scaleWeightKg: number | null; scaleWeightDate: string | null; trendWeightKg: number | null; trendWeightDate: string | null; retrievedAt?: string; confirmed: boolean; cached?: boolean; error?: string | null };
 export type PreviousRepRecord = { loadModel: LoadModel; resistanceMode: ResistanceMode; loadKg: number | null; reps: number };
-export type SessionExercise = { id: string; exerciseId: string | null; name: string; position: number; note: string; prescription: SetPrescription[]; sets: LoggedSet[]; sequenceGroup: string; substitutions: string[]; progression: Progression | null; loadModel?: LoadModel; sourceTemplateExerciseId?: string | null; sourceSlotKey?: string | null; sourcePhaseId?: string | null; swapGroupKey?: string | null; isReplacement?: boolean; originalExerciseId?: string | null; originalName?: string; sourcePage?: number | null; canRestore?: boolean; restSeconds?: number | null; isPr?: boolean; prE1rmKg?: number | null; demoUrl?: string | null; previousBestE1rmKg?: number | null; prKind?: 'e1rm' | 'reps' | 'both' | null; prReps?: number | null; previousRepBests?: Record<string, number> | null; previousRepRecords?: PreviousRepRecord[] | null };
+export type SessionExercise = { id: string; exerciseId: string | null; name: string; trackingMode?: TrackingMode; position: number; note: string; prescription: SetPrescription[]; sets: LoggedSet[]; sequenceGroup: string; substitutions: string[]; progression: Progression | null; loadModel?: LoadModel; sourceTemplateExerciseId?: string | null; sourceSlotKey?: string | null; sourcePhaseId?: string | null; swapGroupKey?: string | null; isReplacement?: boolean; originalExerciseId?: string | null; originalName?: string; sourcePage?: number | null; canRestore?: boolean; restSeconds?: number | null; isPr?: boolean; prE1rmKg?: number | null; demoUrl?: string | null; previousBestE1rmKg?: number | null; prKind?: 'e1rm' | 'reps' | 'both' | null; prReps?: number | null; previousRepBests?: Record<string, number> | null; previousRepRecords?: PreviousRepRecord[] | null };
 export type RestStatus = 'idle' | 'running' | 'paused' | 'elapsed';
 export type RestAction = 'start' | 'extend' | 'shorten' | 'skip' | 'pause' | 'resume';
 export type RestMutationInput = {
@@ -67,7 +69,7 @@ export type HistoryPage = { total: number; page: number; size: number; sessions:
 export type HistorySummaryPage = { total: number; sessions: Session[]; nextBeforeAt: string | null; nextBeforeId: string | null; summaryOnly: boolean };
 export type AppResource = 'catalog' | 'programs' | 'templates';
 export type NextWorkoutSummary = Pick<ProgramDay, 'id' | 'name' | 'focus' | 'week' | 'position' | 'exerciseCount'>;
-export type ShellBootstrap = Pick<Bootstrap, 'account' | 'preferences' | 'activeWorkout' | 'activeProgram' | 'imports' | 'aiImportsRemaining' | 'resourceVersions'> & {
+export type ShellBootstrap = Pick<Bootstrap, 'account' | 'preferences' | 'activeWorkout' | 'activeProgram' | 'imports' | 'resourceVersions'> & {
   nextWorkout: NextWorkoutSummary | null; navigationCounts: { programs: number; templates: number };
 };
 export type ProgressExercise = {
@@ -137,7 +139,7 @@ export type ImportStatusView = {
 export type Bootstrap = {
   account: Account; preferences: Preferences; exercises: Exercise[]; templates: Template[];
   programs: ProgramSummary[]; activeProgram: ProgramSummary | null; activeWorkout: Session | null;
-  imports: ImportView[]; history: HistoryPage; progress?: ProgressSummary; aiImportsRemaining: number;
+  imports: ImportView[]; history: HistoryPage; progress?: ProgressSummary;
   nextWorkout?: NextWorkoutSummary | null;
   navigationCounts?: { programs: number; templates: number };
   resources?: Partial<Record<AppResource, boolean>>;

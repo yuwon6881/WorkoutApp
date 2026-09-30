@@ -19,11 +19,12 @@ public static class WorkoutViewBuilder
         var setsByExercise = sets.GroupBy(s => s.SessionExerciseId).ToDictionary(g => g.Key, g => g.ToList());
 
         var (exercisePrs, setPrs, sessionPrCounts, bests, repBests) = await WorkoutPrReadService.Get(db, sessions, ct);
+        var trackingModes = await CatalogService.TrackingModesFor(db, exercises.Select(e => e.ExerciseId), ct);
 
         return sessions.ToDictionary(session => session.Id, session => BuildView(session,
             exercisesBySession.GetValueOrDefault(session.Id) ?? [], setsByExercise, exercisePrs, setPrs,
             sessionPrCounts.GetValueOrDefault(session.Id, 0), session.Active ? bests : null,
-            session.Active ? repBests.PreviousByExercise : null));
+            session.Active ? repBests.PreviousByExercise : null, trackingModes));
     }
 
     public static async Task<(Dictionary<Guid, (bool IsPr, double? PrE1rmKg, string? PrKind, int? PrReps)> ExercisePrs,
@@ -175,16 +176,18 @@ public static class WorkoutViewBuilder
         IReadOnlyDictionary<Guid, (bool IsPr, double? Estimated1RmKg, string? PrKind, int? PrReps)> setPrs,
         int sessionPrCount = 0,
         IReadOnlyDictionary<(Guid, string), double>? previousBests = null,
-        IReadOnlyDictionary<(Guid, string), List<PreviousRepRecord>>? previousRepRecords = null)
+        IReadOnlyDictionary<(Guid, string), List<PreviousRepRecord>>? previousRepRecords = null,
+        IReadOnlyDictionary<Guid, string>? trackingModes = null)
     {
         var sets = exercises.SelectMany(e => setsByExercise.GetValueOrDefault(e.Id) ?? []).ToList();
         var done = sets.Where(s => s.Done).ToList();
         var workingDone = done.Where(s => !s.Warmup).ToList();
         var warmupDone = done.Where(s => s.Warmup).ToList();
         var loadModels = exercises.ToDictionary(e => e.Id, e => e.LoadModel);
-        var external = workingDone.Where(s => s.WeightKg != null && s.SystemLoadKg == null &&
+        // Timed sets carry no reps, so they have no volume; a weighted hold must not break the sum.
+        var external = workingDone.Where(s => s.WeightKg != null && s.Reps != null && s.SystemLoadKg == null &&
             loadModels.GetValueOrDefault(s.SessionExerciseId, LoadModels.External) == LoadModels.External).ToList();
-        var system = workingDone.Where(s => s.SystemLoadKg != null).ToList();
+        var system = workingDone.Where(s => s.SystemLoadKg != null && s.Reps != null).ToList();
         var bodyWeight = ReadOptional<BodyWeightSnapshot>(session.BodyWeightSnapshotJson);
         var context = ReadOptional<NutritionTrainingContext>(session.NutritionContextJson);
         var restStatus = session.RestStatus switch
@@ -217,7 +220,7 @@ public static class WorkoutViewBuilder
                         var (isSetPr, setE1rmKg, setPrKind, setPrReps) = setPrs.GetValueOrDefault(s.Id, (false, null, null, null));
                         return new SetView(s.Id, s.Position, s.WeightKg, s.Reps, s.Rpe, s.Done, s.Warmup,
                             s.WorkingSetOrdinal, s.ResistanceMode, s.SystemLoadKg, ReadOptional<SetProgressionSuggestion>(s.SuggestionJson),
-                            isSetPr, setE1rmKg, s.Rir, setPrKind, setPrReps);
+                            isSetPr, setE1rmKg, s.Rir, setPrKind, setPrReps, s.DurationSeconds);
                     }).ToList(),
                     e.SequenceGroup, Json.Read<List<string>>(e.SubstitutionsJson),
                     ReadOptional<ProgressionView>(e.ProgressionJson), e.LoadModel, e.SourceTemplateExerciseId, e.SourceSlotKey, e.SourcePhaseId,
@@ -226,7 +229,8 @@ public static class WorkoutViewBuilder
                     isExPr, prE1rmKg,
                     previousBests != null && previousBests.TryGetValue(key, out var previousBest) ? previousBest : null,
                     exPrKind, exPrReps,
-                    repRecords is null ? null : LegacyRepBests(repRecords), repRecords);
+                    repRecords is null ? null : LegacyRepBests(repRecords), repRecords,
+                    e.ExerciseId is { } trackedId && trackingModes?.GetValueOrDefault(trackedId) is { } mode ? mode : TrackingModes.Reps);
             }).ToList(),
             external.Count == 0 ? null : external.Sum(s => s.WeightKg!.Value * s.Reps!.Value),
             workingDone.Count, warmupDone.Count, bodyWeight, context,

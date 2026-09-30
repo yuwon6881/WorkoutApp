@@ -9,6 +9,7 @@ namespace Workout.Api.Services;
 public record ProgressionView(double? SuggestedKg, int TargetReps, string Reason, double? LastE1rmKg, double? TrendE1rmKg, double StepKg,
     string Mode = ProgressionModes.Normal, long? NutritionContextRevision = null);
 
+/// With a weight list, the list decides every load and StepKg is zero.
 public record ExerciseLoadInfo(string LoadModel, double StepKg, IReadOnlyList<double>? AvailableLoadsKg = null);
 
 /// Reads and writes the running strength estimate. Suggestions are derived by Progression;
@@ -30,37 +31,23 @@ public sealed class ProgressionService(AppDb db)
             .ToDictionary(r => (r.ExerciseId, r.NameKey), r => new ProgressionState(r.TrendE1rmKg, r.LastE1rmKg, r.Stalls));
     }
 
-    /// Account overrides take precedence over the seed-owned or custom exercise default.
-    /// Call LoadInfo when selecting loads so uneven lists are also respected.
-    public async Task<Dictionary<Guid, double>> Steps(IEnumerable<Guid?> exerciseIds, CancellationToken ct)
-    {
-        var ids = exerciseIds.Where(id => id != null).Select(id => id!.Value).Distinct().ToList();
-        if (ids.Count == 0) return [];
-        var output = await db.Exercises.AsNoTracking().Where(x => ids.Contains(x.Id)).ToDictionaryAsync(x => x.Id, x => x.LoadStepKg, ct);
-        var custom = await db.CustomExercises.AsNoTracking().Where(x => ids.Contains(x.Id)).ToListAsync(ct);
-        foreach (var row in custom) output[row.Id] = row.LoadStepKg;
-        var settings = await db.ExerciseLoadSettings.AsNoTracking().Where(x => ids.Contains(x.Id)).ToListAsync(ct);
-        foreach (var row in settings)
-            if (output.ContainsKey(row.Id) && row.LoadStepKg is { } step) output[row.Id] = step;
-        return output;
-    }
-
+    /// The load rule each exercise is progressed with: its own setting, then the account's rule
+    /// for its equipment, then the seed-owned or custom exercise default.
     public async Task<Dictionary<Guid, ExerciseLoadInfo>> LoadInfo(IEnumerable<Guid?> exerciseIds, CancellationToken ct)
     {
         var ids = exerciseIds.Where(id => id != null).Select(id => id!.Value).Distinct().ToList();
         if (ids.Count == 0) return [];
-        var output = await db.Exercises.AsNoTracking().Where(x => ids.Contains(x.Id))
-            .ToDictionaryAsync(x => x.Id, x => new ExerciseLoadInfo(x.LoadModel, x.LoadStepKg), ct);
-        var custom = await db.CustomExercises.AsNoTracking().Where(x => ids.Contains(x.Id)).ToListAsync(ct);
-        foreach (var row in custom) output[row.Id] = new ExerciseLoadInfo(row.LoadModel, row.LoadStepKg);
-        var settings = await db.ExerciseLoadSettings.AsNoTracking().Where(x => ids.Contains(x.Id)).ToListAsync(ct);
-        foreach (var row in settings)
-            if (output.TryGetValue(row.Id, out var info))
-                output[row.Id] = info with
-                {
-                    StepKg = row.LoadStepKg ?? info.StepKg,
-                    AvailableLoadsKg = row.AvailableLoadsJson is { } json ? Json.Read<List<double>>(json) : null
-                };
+        var rows = await db.Exercises.AsNoTracking().Where(x => ids.Contains(x.Id))
+            .Select(x => new { x.Id, x.LoadModel, x.LoadStepKg, x.Equipment }).ToListAsync(ct);
+        var custom = await db.CustomExercises.AsNoTracking().Where(x => ids.Contains(x.Id))
+            .Select(x => new { x.Id, x.LoadModel, x.LoadStepKg, x.Equipment }).ToListAsync(ct);
+        var rules = await LoadRuleReader.Read(db, ids, ct);
+        var output = new Dictionary<Guid, ExerciseLoadInfo>();
+        foreach (var row in rows.Concat(custom))
+        {
+            var resolved = rules.Resolve(row.Id, row.LoadStepKg, row.Equipment, row.LoadModel);
+            output[row.Id] = new ExerciseLoadInfo(row.LoadModel, resolved.StepKg, resolved.AvailableLoadsKg);
+        }
         return output;
     }
 

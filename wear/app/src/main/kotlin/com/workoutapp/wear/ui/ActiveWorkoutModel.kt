@@ -24,7 +24,14 @@ data class ActiveSetModel(
     val loadEditable: Boolean,
     val resistanceMode: String,
     val loadLabel: String,
-    val startingRir: String?
+    val startingRir: String?,
+    /** A timed hold logs seconds and has no reps or reps in reserve. */
+    val timed: Boolean = false,
+    val startingSeconds: Int? = null,
+    /** Seconds the timed set counts down to; null counts up until stopped. */
+    val targetSeconds: Int? = null,
+    /** False when the account hides reps in reserve: no RIR target or editor is shown. */
+    val trackRir: Boolean = true
 )
 
 data class NextUp(val exerciseName: String, val detail: String)
@@ -49,14 +56,15 @@ fun activeSetModel(snapshot: WorkoutSnapshot): ActiveSetModel {
     val stepKg = exercise.progression?.stepKg?.takeIf { it > 0 } ?: DEFAULT_STEP_KG
     val mode = set?.resistanceMode ?: "external"
     val loadEditable = mode in EDITABLE_LOAD_MODES
+    val timed = exercise.trackingMode == "duration"
     return ActiveSetModel(
         exercise = exercise,
         set = set,
         setNumber = (set?.position ?: exercise.sets.size - 1) + 1,
         setCount = exercise.sets.size,
         warmup = set?.warmup == true,
-        targetReps = targetRepsText(prescription),
-        targetRir = prescription?.rir?.takeIf { it.isNotBlank() },
+        targetReps = if (timed) timedTargetText(prescription) else targetRepsText(prescription),
+        targetRir = prescription?.rir?.takeIf { it.isNotBlank() && snapshot.trackRir },
         startingReps = (set?.reps ?: prescription?.repMin?.takeIf { it > 0 } ?: MIN_REPS)
             .coerceIn(MIN_REPS, MAX_REPS),
         startingLoad = (set?.weightKg ?: set?.suggestion?.suggestedLoadKg)?.let { roundedDisplay(it, unit) },
@@ -71,7 +79,11 @@ fun activeSetModel(snapshot: WorkoutSnapshot): ActiveSetModel {
             "reps_only" -> "Reps only"
             else -> "Load"
         },
-        startingRir = set?.rir?.takeIf { it in RirPolicy.choices }
+        startingRir = set?.rir?.takeIf { it in RirPolicy.choices },
+        timed = timed,
+        startingSeconds = set?.durationSeconds,
+        targetSeconds = if (timed) timedTargetSeconds(prescription) else null,
+        trackRir = snapshot.trackRir
     )
 }
 
@@ -114,6 +126,6 @@ fun undoableSet(snapshot: WorkoutSnapshot): UndoableSet? {
     val set = exercise.sets.first { it.id == setId }
     if (!set.done) return null
     val load = set.weightKg?.let { "${formatLoad(kgToDisplay(it, snapshot.unit))} ${snapshot.unit}" }
-    val summary = listOfNotNull(set.reps?.let { plural(it, "rep") }, load).joinToString(" · ").ifEmpty { "Logged set" }
+    val summary = listOfNotNull(set.reps?.let { plural(it, "rep") }, set.durationSeconds?.let(::formatSetSeconds), load).joinToString(" · ").ifEmpty { "Logged set" }
     return UndoableSet(exercise.name, summary)
 }

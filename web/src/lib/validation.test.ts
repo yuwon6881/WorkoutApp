@@ -29,7 +29,7 @@ describe('application-owned validation', () => {
   it('allows incomplete sets while rejecting invalid values and completed reps blanks', () => {
     expect(validateLoggedSet({ id: 'set', position: 0, weightKg: null, reps: null, rpe: null, done: false, warmup: false })).toBeUndefined();
     expect(validateLoggedSet({ id: 'set', position: 0, weightKg: 1001, reps: 8, rpe: 8, done: false, warmup: false })).toBe('Weight must be between 0 and 1,000 kg.');
-    expect(validateLoggedSet({ id: 'set', position: 0, weightKg: null, reps: null, rpe: null, done: true, warmup: false })).toBe('A completed set needs its reps.');
+    expect(validateLoggedSet({ id: 'set', position: 0, weightKg: null, reps: null, rpe: null, done: true, warmup: false })).toBe('A completed set needs its reps or time.');
   });
 
   it('accepts a ten-day cycle week and rejects a fifteenth day', () => {

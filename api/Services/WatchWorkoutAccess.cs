@@ -9,7 +9,7 @@ namespace Workout.Api.Services;
 public static class WatchWorkoutAccess
 {
     private static readonly HashSet<string> SetPatchFields =
-        ["revision", "mutationId", "weightKg", "reps", "rpe", "rir", "done", "rest"];
+        ["revision", "mutationId", "weightKg", "reps", "durationSeconds", "rpe", "rir", "done", "rest"];
 
     /// A finished or discarded workout reads as gone, which tells the watch to drop edits that
     /// can no longer apply instead of retrying them against saved history.

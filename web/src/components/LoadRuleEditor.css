@@ -1,0 +1,43 @@
+.load-rule-editor {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+
+.load-rule-editor p {
+  margin: 0;
+  overflow-wrap: anywhere;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+/* Start, step and count sit in one row with the fill action trailing; on a phone they wrap. */
+.load-rule-generator {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) auto;
+  align-items: end;
+  gap: 8px;
+  min-width: 0;
+  margin: 0;
+  padding: 10px 12px 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+
+.load-rule-generator legend {
+  padding: 0 4px;
+  color: var(--muted);
+  font-size: var(--font-secondary, 14px);
+  font-weight: 600;
+}
+
+@media (max-width: 639px) {
+  .load-rule-generator { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .load-rule-generator > .button { grid-column: 1 / -1; justify-self: end; }
+}
+
+.load-rule-editor .modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}

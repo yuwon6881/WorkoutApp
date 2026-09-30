@@ -16,7 +16,7 @@ public sealed class CatalogCoverageTests
     public static TheoryData<string, string> WrittenNames => new()
     {
         { "Deficit Deadlift", "Deficit Deadlift" },
-        { "Leg Curl", "Leg Curl" },
+        { "Leg Curl", "Plate-Loaded Leg Curl" },
         { "Dumbbell Row", "Dumbbell Row" },
         { "Barbell Supinated Row", "Barbell Supinated Row" },
         { "Cable Upright Row", "Cable Upright Row" },
@@ -38,7 +38,7 @@ public sealed class CatalogCoverageTests
         { "High-Incline Smith Machine Press", "Incline Smith Machine Press" },
         { "Dumbbell RDL", "DB Romanian Deadlift" },
         { "Hammer Cheat Curl", "Hammer Curl" },
-        { "Reverse Pec Deck", "Reverse Pec Deck" },
+        { "Reverse Pec Deck", "Plate-Loaded Reverse Pec Deck" },
         { "Egyptian Cable Lateral Raise", "Egyptian Cable Lateral Raise" },
         { "Diamond Push Up", "Diamond Push Up" },
         { "Med-Ball Close Grip Push Up", "Med-Ball Close Grip Push Up" },
@@ -46,7 +46,7 @@ public sealed class CatalogCoverageTests
         { "LLPT Plank", "LLPT Plank" },
         { "Roman Chair Leg Raise", "Roman Chair Leg Raise" },
         { "Plate Front Raise", "Plate Front Raise" },
-        { "Machine Low Row", "Machine Low Row" },
+        { "Machine Low Row", "Plate-Loaded Machine Low Row" },
         { "Wide-Grip Cable Row", "Wide-Grip Cable Row" },
         { "Omni-Grip Lat Pulldown", "Omni-Grip Lat Pulldown" },
         { "N1-Style Cross-Body Cable Bicep Curl", "N1-Style Cross-Body Cable Bicep Curl" },
@@ -58,8 +58,8 @@ public sealed class CatalogCoverageTests
         // The Essentials Program: each of these is printed verbatim in that PDF.
         { "Spider Curl", "Spider Curl" },
         { "Cable Shoulder Press", "Cable Shoulder Press" },
-        { "Machine Squat (Heavy)", "Machine Squat" },
-        { "Machine Squat (Back off)", "Machine Squat" },
+        { "Machine Squat (Heavy)", "Plate-Loaded Machine Squat" },
+        { "Machine Squat (Back off)", "Plate-Loaded Machine Squat" },
         { "Two-Arms Two-Legs Dead Bug", "Dead Bug" },
         { "Inverse Zottman Curl", "Zottman Curl" },
         // Written "Pullup" where the catalog spells it "Pull-up".
@@ -102,7 +102,7 @@ public sealed class CatalogCoverageTests
         { "Katana Triceps Extension", "Katana Triceps Extension" },
         { "Smith Machine Deficit Row", "Smith Machine Deficit Row" },
         { "Ab Wheel Rollout", "Ab Wheel Rollout" },
-        { "Glute Kickback", "Glute Kickback" },
+        { "Glute Kickback", "Plate-Loaded Glute Kickback" },
         { "EZ-Bar Cheat Curl", "EZ-Bar Curl" },
         // Fundamentals, the Intermediate/Advanced PPL and Upper/Lower 6x, which spell out what
         // the catalog abbreviates and write "Tricep" where it writes "Triceps".
@@ -113,7 +113,7 @@ public sealed class CatalogCoverageTests
         { "ASSISTED DIP", "Assisted Dip" },
         { "CRUNCH", "Crunch" },
         { "SEAL ROW", "Seal Row" },
-        { "MACHINE HIGH ROW", "Machine High Row" },
+        { "MACHINE HIGH ROW", "Plate-Loaded Machine High Row" },
         // Shoulder Hypertrophy: distinct printed movements are seeded; faithful equipment and
         // handle spellings resolve to the existing movement.
         { "Cable External Rotation", "Cable External Rotation" },

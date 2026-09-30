@@ -35,7 +35,7 @@ test('personal exercise weights support uneven lists and kg/lb switching', async
       await dialog.getByRole('button', { name: 'Weight list', exact: true }).click();
       await dialog.getByRole('textbox', { name: 'Available weights (kg)', exact: true }).fill('20, 5, 12.5, 5');
       await dialog.getByRole('button', { name: 'Save weights', exact: true }).click();
-      await expect(dialog.getByText('5, 12.5, 20 kg', { exact: true })).toBeVisible();
+      await expect(dialog.getByText("5, 12.5, 20 kg · This exercise's setting", { exact: true })).toBeVisible();
       await dialog.getByRole('button', { name: 'Edit weights', exact: true }).click();
       await expect(dialog.getByRole('textbox', { name: 'Available weights (kg)', exact: true })).toHaveValue('5, 12.5, 20');
       await expect.poll(() => dialog.evaluate(element => element.scrollWidth <= element.clientWidth + 1)).toBeTruthy();
@@ -49,18 +49,18 @@ test('personal exercise weights support uneven lists and kg/lb switching', async
     await page.getByRole('textbox', { name: 'Search exercises', exact: true }).fill(name);
     await page.getByRole('button', { name: `View ${name} details`, exact: true }).click();
     const dialog = page.getByRole('dialog', { name, exact: true });
-    await expect(dialog.getByText('11.02, 27.56, 44.09 lb', { exact: true })).toBeVisible();
+    await expect(dialog.getByText("11.02, 27.56, 44.09 lb · This exercise's setting", { exact: true })).toBeVisible();
     await dialog.getByRole('button', { name: 'Edit weights', exact: true }).click();
     await dialog.getByRole('button', { name: 'Increment', exact: true }).click();
     await dialog.getByLabel('Weight increment (lb)', { exact: true }).fill('5');
     await dialog.getByRole('button', { name: 'Save weights', exact: true }).click();
-    await expect(dialog.getByText('5 lb increment', { exact: true })).toBeVisible();
+    await expect(dialog.getByText("5 lb steps · This exercise's setting", { exact: true })).toBeVisible();
     const saved = await (await page.request.get(`/api/exercises/${exercise.id}/load-settings`)).json();
     expect(saved.loadStepKg).toBeCloseTo(5 / 2.2046226218, 8);
     await dialog.getByRole('button', { name: 'Edit weights', exact: true }).click();
     await dialog.getByRole('button', { name: 'Default', exact: true }).click();
     await dialog.getByRole('button', { name: 'Save weights', exact: true }).click();
-    await expect(dialog.getByText('5.51 lb increment · Default', { exact: true })).toBeVisible();
+    await expect(dialog.getByText('5.51 lb steps · App default', { exact: true })).toBeVisible();
   } finally {
     await page.request.delete(`/api/exercises/custom/${exercise.id}`, { headers });
     const restored = await page.request.put('/api/preferences', { headers, data: originalPreferences });

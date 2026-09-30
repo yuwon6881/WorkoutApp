@@ -20,7 +20,10 @@ export function AppLoading() {
       <div className="workspace">
         <header className="topbar" aria-hidden="true">
           <div className="brand mobile-brand"><img src="/favicon.svg" alt="" />Workout</div>
-          <Skeleton className="skeleton-topbar-action" />
+          <div className="topbar-actions">
+            <Skeleton className="skeleton-topbar-action skeleton-topbar-ai" />
+            <Skeleton className="skeleton-topbar-action" />
+          </div>
         </header>
 
         <main className="app-loading" role="status">

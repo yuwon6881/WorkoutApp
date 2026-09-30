@@ -3,6 +3,8 @@ package com.workoutapp.wear.data
 data class ActiveWorkoutResponse(
     val unit: String = "kg",
     val restSeconds: Int = 90,
+    /** Null from a server that predates the setting, which means RIR is tracked. */
+    val trackRir: Boolean? = null,
     val session: WorkoutSession? = null
 )
 
@@ -40,7 +42,9 @@ data class WorkoutExercise(
     val sequenceGroup: String = "",
     val loadModel: String = "external",
     val progression: Progression? = null,
-    val restSeconds: Int? = null
+    val restSeconds: Int? = null,
+    /** "duration" for timed holds, which log seconds instead of reps. */
+    val trackingMode: String = "reps"
 )
 
 data class SetPrescription(
@@ -64,6 +68,7 @@ data class WorkoutSet(
     val position: Int = 0,
     val weightKg: Double? = null,
     val reps: Int? = null,
+    val durationSeconds: Int? = null,
     val rpe: Double? = null,
     val rir: String? = null,
     val done: Boolean = false,
@@ -85,7 +90,9 @@ data class WorkoutSnapshot(
     val conflictSession: WorkoutSession? = null,
     val pendingFinish: Boolean = false,
     /** The set most recently logged on this watch, so a mis-tap can be taken back from the wrist. */
-    val lastLoggedSetId: String? = null
+    val lastLoggedSetId: String? = null,
+    /** The account hides reps in reserve; logged values pass through untouched. */
+    val trackRir: Boolean = true
 )
 
 /** Everything the store persists, published as one value so screens never pair a snapshot with a stale queue. */
@@ -110,6 +117,7 @@ data class PendingOperation(
 data class SetPatch(
     val weightKg: Double?,
     val reps: Int?,
+    val durationSeconds: Int?,
     val rpe: Double?,
     val rir: String?,
     val done: Boolean,

@@ -9,6 +9,13 @@ export type ProgressionSummary = {
 };
 
 const CACHE_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
+// Mirrors NutritionContextService.UnplannedLossPercent: a maintenance or gain goal that is losing
+// weight this fast has an unplanned deficit and gets the same protection as a planned cut.
+const UNPLANNED_LOSS_PERCENT = 0.5;
+
+function isUnplannedLoss(observed: number | null | undefined): observed is number {
+  return observed != null && Number.isFinite(observed) && observed >= UNPLANNED_LOSS_PERCENT;
+}
 type ProgressionMode = ProgressionSummary['mode'];
 
 function knownMode(value: string | null | undefined): ProgressionMode | null {
@@ -48,11 +55,14 @@ function nutritionFreshAtWorkoutStart(session: Session): boolean {
 
 function nutritionMode(session: Session): ProgressionMode {
   const context = session.nutritionContext;
-  if (!context?.confirmed || context.phaseComplete || context.effectiveGoal !== 'lose') return 'normal';
+  if (!context?.confirmed) return 'normal';
 
   const observed = context.observedWindowDays != null && context.observedWindowDays >= 14
     ? context.observedLossRatePercent
     : null;
+  if (context.phaseComplete || context.effectiveGoal !== 'lose') {
+    return isUnplannedLoss(observed) ? 'conservative' : 'normal';
+  }
   const rates = [context.targetRatePercent, observed]
     .filter((rate): rate is number => rate != null && Number.isFinite(rate) && rate >= 0)
     .map(Math.abs);
@@ -103,7 +113,9 @@ function makeReason(
 
   const source = status === 'cached' ? 'The saved Nutrition snapshot' : 'Nutrition';
   let contextReason: string;
-  if (goal === 'Gain') {
+  if (goal !== 'Loss' && mode === 'conservative' && rates.length > 0) {
+    contextReason = `${source} reports a ${goal?.toLowerCase() ?? 'non-cutting'} goal, but recorded weigh-ins show a loss of ${Math.max(...rates).toFixed(2)}% per week; conservative progression applies.`;
+  } else if (goal === 'Gain') {
     contextReason = `${source} reports a gain goal. The goal alone does not verify a calorie surplus.`;
   } else if (goal === 'Maintenance') {
     contextReason = `${source} reports a maintenance goal.`;

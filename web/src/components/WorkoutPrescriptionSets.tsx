@@ -9,6 +9,7 @@ import { WarmupRirNote } from './ui/WarmupRirNote';
 import { SetTypeSelect } from './ui/SetTypeSelect';
 import type { SetType } from '../lib/importSetTypes';
 import { toggleRepMode, usesRepRange } from '../lib/repMode';
+import { useTrackRir } from '../lib/trackRir';
 import './SetPrescriptionGrid.css';
 
 // A saved workout's sets are working sets or warm-ups; techniques belong to imported programs.
@@ -18,15 +19,19 @@ const BUILDER_SET_TYPES: SetType[] = ['normal', 'warmup'];
 /// set is a single line on wide screens and two short lines on a phone.
 export function WorkoutPrescriptionSets({
   exercise,
+  timed = false,
   onUpdateSet,
   onRemoveSet
 }: {
   exercise: TemplateExercise;
+  /** A timed exercise's target is seconds held, counted down in the workout. */
+  timed?: boolean;
   onUpdateSet: (setIndex: number, patch: Partial<SetPrescription>) => void;
   onRemoveSet: (setIndex: number) => void;
 }) {
   const range = usesRepRange(exercise.sets);
   const rememberedRepWidths = useRef(new Map<number, number>());
+  const trackRir = useTrackRir();
   let warmups = 0;
   let working = 0;
 
@@ -34,15 +39,15 @@ export function WorkoutPrescriptionSets({
     <div className={`set-grid-wrap ${range ? 'set-grid-range' : 'set-grid-exact'}`}>
       <div className="set-grid-head">
         <span className="set-grid-head-reps">
-          <span aria-hidden="true">Reps</span>
+          <span aria-hidden="true">{timed ? 'Seconds' : 'Reps'}</span>
           <RepModeToggle
             range={range}
-            label={`Rep target for ${exercise.name}`}
+            label={`${timed ? 'Time' : 'Rep'} target for ${exercise.name}`}
             onChange={next => toggleRepMode(exercise.sets, next, rememberedRepWidths.current)
               .forEach((set, si) => onUpdateSet(si, set))}
           />
         </span>
-        <span className="set-grid-head-rir" aria-hidden="true">RIR</span>
+        {trackRir && <span className="set-grid-head-rir" aria-hidden="true">RIR</span>}
         <span className="set-grid-head-tempo" aria-hidden="true">Tempo</span>
       </div>
       <ol className="import-sets set-grid-list" aria-label={`Prescription sets for ${exercise.name}`}>
@@ -100,9 +105,10 @@ export function WorkoutPrescriptionSets({
                       nameMax={`workout-rep-max-${exercise.id}-${si}`}
                       nameSingle={`workout-rep-${exercise.id}-${si}`}
                       labelPrefix={`${exercise.name} set ${si + 1}`}
+                      seconds={timed}
                       onChange={({ repMin, repMax }) => onUpdateSet(si, { repMin, repMax })}
                     />
-                    {set.warmup ? <WarmupRirNote compact /> : (
+                    {!trackRir ? null : set.warmup ? <WarmupRirNote compact /> : (
                       <div className="field rpe-field">
                         <span>RIR</span>
                         <RpeControl

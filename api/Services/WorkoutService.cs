@@ -5,7 +5,7 @@ using Workout.Api.Domain;
 namespace Workout.Api.Services;
 
 public record SetInput(double? WeightKg, int? Reps, double? Rpe, bool Done, bool Warmup = false,
-    string? ResistanceMode = null, Guid? Id = null, string? Rir = null);
+    string? ResistanceMode = null, Guid? Id = null, string? Rir = null, int? DurationSeconds = null);
 public record PreviousRepRecord(string LoadModel, string ResistanceMode, double? LoadKg, int Reps);
 public record SessionExerciseInput(Guid? ExerciseId, string NameSnapshot, string? Note, List<SetPrescription> Prescription, List<SetInput> Sets,
     string? SequenceGroup = null, List<string>? Substitutions = null, string? LoadModel = null, Guid? Id = null,
@@ -15,14 +15,15 @@ public record SessionInput(string? Note, List<SessionExerciseInput> Exercises, i
 public record SetView(Guid Id, int Position, double? WeightKg, int? Reps, double? Rpe, bool Done, bool Warmup = false,
     int? WorkingSetOrdinal = null, string ResistanceMode = ResistanceModes.External, double? SystemLoadKg = null,
     SetProgressionSuggestion? Suggestion = null, bool IsPr = false, double? Estimated1RmKg = null, string? Rir = null,
-    string? PrKind = null, int? PrReps = null);
+    string? PrKind = null, int? PrReps = null, int? DurationSeconds = null);
 public record SessionExerciseView(Guid Id, Guid? ExerciseId, string Name, int Position, string Note, List<SetPrescription> Prescription, List<SetView> Sets,
     string SequenceGroup = "", List<string>? Substitutions = null, ProgressionView? Progression = null,
     string LoadModel = LoadModels.External, Guid? SourceTemplateExerciseId = null, Guid? SourceSlotKey = null, Guid? SourcePhaseId = null,
     Guid? SwapGroupKey = null, bool IsReplacement = false, Guid? OriginalExerciseId = null, string OriginalName = "", int? SourcePage = null,
     bool CanRestore = false, int? RestSeconds = null, string? DemoUrl = null, bool IsPr = false, double? PrE1rmKg = null,
     double? PreviousBestE1rmKg = null, string? PrKind = null, int? PrReps = null,
-    IReadOnlyDictionary<string, int>? PreviousRepBests = null, IReadOnlyList<PreviousRepRecord>? PreviousRepRecords = null);
+    IReadOnlyDictionary<string, int>? PreviousRepBests = null, IReadOnlyList<PreviousRepRecord>? PreviousRepRecords = null,
+    string TrackingMode = TrackingModes.Reps);
 public sealed record SessionRestView(
     string? Generation,
     string Status,
@@ -148,6 +149,7 @@ public sealed partial class WorkoutService(
             var info = await progression.LoadInfo(planned.Select(p => p.ExerciseId), ct);
             var models = await catalog.LoadModelsFor(planned.Select(p => p.ExerciseId), ct);
             var histories = await PreviousExposuresBatch(planned.Select(p => (p.ExerciseId, p.SourceName)), ct);
+            var timed = await CatalogService.TrackingModesFor(db, planned.Select(p => p.ExerciseId), ct);
             foreach (var plan in planned)
             {
                 var prescription = Json.Read<List<SetPrescription>>(plan.SetsJson);
@@ -169,6 +171,8 @@ public sealed partial class WorkoutService(
                 var previous = histories.GetValueOrDefault(historyKey) ?? [];
                 var step = plan.ExerciseId is { } id2 && info.TryGetValue(id2, out var found) ? found.StepKg : Progression.DefaultStepKg;
                 var workingOrdinal = 0;
+                // Timed holds are measured in seconds; the rep-based progression has nothing honest to suggest.
+                var isTimed = plan.ExerciseId is { } timedId && timed.ContainsKey(timedId);
                 var firstSuggestion = (SetProgressionSuggestion?)null;
                 for (var index = 0; index < prescription.Count; index++)
                 {
@@ -178,7 +182,7 @@ public sealed partial class WorkoutService(
                         db.Sets.Add(new CompletedSet
                         {
                             UserId = session.UserId, SessionExerciseId = exercise.Id, Position = index,
-                            Reps = planSet.RepMin, Rpe = null, Done = false, Warmup = true,
+                            Reps = isTimed ? null : planSet.RepMin, Rpe = null, Done = false, Warmup = true,
                             ResistanceMode = ResistanceModes.Bodyweight
                         });
                         continue;
@@ -186,6 +190,16 @@ public sealed partial class WorkoutService(
 
                     workingOrdinal++;
                     var resistanceMode = ResolveResistanceMode(loadModel, planSet.ResistanceMode);
+                    if (isTimed)
+                    {
+                        db.Sets.Add(new CompletedSet
+                        {
+                            UserId = session.UserId, SessionExerciseId = exercise.Id, Position = index,
+                            WorkingSetOrdinal = workingOrdinal, Done = false, Warmup = false, SuggestionJson = "",
+                            ResistanceMode = resistanceMode
+                        });
+                        continue;
+                    }
                     var exposures = previous.GetValueOrDefault(workingOrdinal) ?? [];
                     var suggestion = Progression.ForPrescription(planSet, MakeSuggestion(planSet, exposures, contextResult.Mode, step, contextResult, resistanceMode, loadModel, bodyWeight,
                         plan.ExerciseId is { } loadId ? info.GetValueOrDefault(loadId)?.AvailableLoadsKg : null));
@@ -286,7 +300,7 @@ public sealed partial class WorkoutService(
             Validation.Substitutions(exercise.Substitutions);
             foreach (var set in exercise.Sets)
             {
-                Validation.LoggedSet(set.WeightKg, set.Reps, set.Rpe, set.Done, set.Warmup);
+                Validation.LoggedSet(set.WeightKg, set.Reps, set.Rpe, set.Done, set.Warmup, set.DurationSeconds);
                 ValidateActualRir(set.Rir, set.Rpe);
                 Validation.Require(set.ResistanceMode is null || ResistanceModes.All.Contains(set.ResistanceMode), "Unknown resistance mode.");
             }
@@ -353,7 +367,7 @@ public sealed partial class WorkoutService(
                 var enteredLoad = NormalizeEnteredLoad(loadModel, resistanceMode, set.WeightKg, step);
                 var updated = old ?? new CompletedSet { UserId = sessionRow.UserId, SessionExerciseId = row.Id, SuggestionJson = "" };
                 updated.SessionExerciseId = row.Id; updated.Position = setPosition++; updated.WeightKg = enteredLoad;
-                updated.Reps = set.Reps; updated.Rpe = set.Rpe; updated.Rir = set.Rir; updated.Done = set.Done; updated.Warmup = set.Warmup;
+                updated.Reps = set.Reps; updated.DurationSeconds = set.DurationSeconds; updated.Rpe = set.Rpe; updated.Rir = set.Rir; updated.Done = set.Done; updated.Warmup = set.Warmup;
                 updated.WorkingSetOrdinal = ordinal;
                 updated.ResistanceMode = resistanceMode;
                 updated.SystemLoadKg = ComputeSystemLoad(sessionRow, loadModel, resistanceMode, enteredLoad);
@@ -435,6 +449,14 @@ public sealed partial class WorkoutService(
     private async Task RefreshReplacementSuggestions(WorkoutSession session, SessionExercise exercise, List<CompletedSet> sets,
         string loadModel, CancellationToken ct)
     {
+        // Reps and seconds never carry across a timed/reps swap; a timed replacement gets no rep suggestion.
+        var timed = exercise.ExerciseId is { } timedId && (await CatalogService.TrackingModesFor(db, [timedId], ct)).ContainsKey(timedId);
+        foreach (var set in sets)
+        {
+            if (timed) set.Reps = null;
+            else set.DurationSeconds = null;
+        }
+        if (timed) return;
         var prescriptions = Json.Read<List<SetPrescription>>(exercise.PrescriptionJson);
         var context = ReadOptional<NutritionTrainingContext>(session.NutritionContextJson);
         var result = new NutritionContextResult(context, NutritionContextService.Mode(context, DateTime.UtcNow), context is not null, context?.Confirmed == true, null);
@@ -504,7 +526,7 @@ public sealed partial class WorkoutService(
         // bodyweight set and entered load for external/reps-only work.
         await progression.Record(exercises.Select(e => (e.ExerciseId, e.NameSnapshot,
             sets.Where(s => s.SessionExerciseId == e.Id && s.Done && !s.Warmup).OrderBy(s => s.Position)
-                .Select(s => new PreviousSet(e.LoadModel == LoadModels.FullBodyweight ? s.SystemLoadKg : s.WeightKg, s.Reps, s.Rpe)).ToList())).ToList(), ct);
+                .Select(s => new PreviousSet(e.LoadModel == LoadModels.FullBodyweight ? s.SystemLoadKg : s.WeightKg, s.Reps, s.Rpe ?? Progression.RpeFromRir(s.Rir))).ToList())).ToList(), ct);
 
         if (session.PausedAt is { } pauseStart)
         {

@@ -97,33 +97,78 @@
   },
   {
     "slug": "leg-press",
-    "name": "Leg Press",
+    "name": "Plate-Loaded Leg Press",
     "muscle": "Quads",
     "equipment": "Machine",
     "category": "Machine",
     "cue": "",
-    "aliases": [],
+    "aliases": [
+      "Leg Press"
+    ],
+    "secondaryMuscles": [
+      "Glutes"
+    ]
+  },
+  {
+    "slug": "weight-stack-leg-press",
+    "name": "Weight-Stack Leg Press",
+    "muscle": "Quads",
+    "equipment": "Machine",
+    "category": "Machine",
+    "cue": "",
+    "aliases": [
+      "Selectorized Leg Press",
+      "Selectorised Leg Press"
+    ],
     "secondaryMuscles": [
       "Glutes"
     ]
   },
   {
     "slug": "constant-tension-leg-press",
-    "name": "Constant-Tension Leg Press",
+    "name": "Plate-Loaded Constant-Tension Leg Press",
     "muscle": "Quads",
     "equipment": "Machine",
     "category": "Machine",
     "cue": "",
-    "aliases": []
+    "aliases": [
+      "Constant-Tension Leg Press"
+    ]
+  },
+  {
+    "slug": "weight-stack-constant-tension-leg-press",
+    "name": "Weight-Stack Constant-Tension Leg Press",
+    "muscle": "Quads",
+    "equipment": "Machine",
+    "category": "Machine",
+    "cue": "",
+    "aliases": [
+      "Selectorized Constant-Tension Leg Press",
+      "Selectorised Constant-Tension Leg Press"
+    ]
   },
   {
     "slug": "single-leg-leg-press",
-    "name": "Single-Leg Leg Press",
+    "name": "Plate-Loaded Single-Leg Leg Press",
     "muscle": "Quads",
     "equipment": "Machine",
     "category": "Machine",
     "cue": "",
-    "aliases": []
+    "aliases": [
+      "Single-Leg Leg Press"
+    ]
+  },
+  {
+    "slug": "weight-stack-single-leg-leg-press",
+    "name": "Weight-Stack Single-Leg Leg Press",
+    "muscle": "Quads",
+    "equipment": "Machine",
+    "category": "Machine",
+    "cue": "",
+    "aliases": [
+      "Selectorized Single-Leg Leg Press",
+      "Selectorised Single-Leg Leg Press"
+    ]
   },
   {
     "slug": "smith-machine-squat",
@@ -243,13 +288,26 @@
   },
   {
     "slug": "leg-extension",
-    "name": "Leg Extension",
+    "name": "Plate-Loaded Leg Extension",
     "muscle": "Quads",
     "equipment": "Machine",
     "category": "Machine",
     "cue": "",
     "aliases": [
-      "Slow-Eccentric Leg Extension"
+      "Slow-Eccentric Leg Extension",
+      "Leg Extension"
+    ]
+  },
+  {
+    "slug": "weight-stack-leg-extension",
+    "name": "Weight-Stack Leg Extension",
+    "muscle": "Quads",
+    "equipment": "Machine",
+    "category": "Machine",
+    "cue": "",
+    "aliases": [
+      "Selectorized Leg Extension",
+      "Selectorised Leg Extension"
     ]
   },
   {
@@ -415,12 +473,26 @@
   },
   {
     "slug": "machine-hip-thrust",
-    "name": "Machine Hip Thrust",
+    "name": "Plate-Loaded Machine Hip Thrust",
     "muscle": "Posterior chain",
     "equipment": "Machine",
     "category": "Machine",
     "cue": "",
-    "aliases": []
+    "aliases": [
+      "Machine Hip Thrust"
+    ]
+  },
+  {
+    "slug": "weight-stack-machine-hip-thrust",
+    "name": "Weight-Stack Machine Hip Thrust",
+    "muscle": "Posterior chain",
+    "equipment": "Machine",
+    "category": "Machine",
+    "cue": "",
+    "aliases": [
+      "Selectorized Machine Hip Thrust",
+      "Selectorised Machine Hip Thrust"
+    ]
   },
   {
     "slug": "single-leg-db-hip-thrust",
@@ -451,30 +523,72 @@
   },
   {
     "slug": "seated-hamstring-curl",
-    "name": "Seated Hamstring Curl",
+    "name": "Plate-Loaded Seated Hamstring Curl",
     "muscle": "Posterior chain",
     "equipment": "Machine",
     "category": "Machine",
     "cue": "",
-    "aliases": []
+    "aliases": [
+      "Seated Hamstring Curl"
+    ]
+  },
+  {
+    "slug": "weight-stack-seated-hamstring-curl",
+    "name": "Weight-Stack Seated Hamstring Curl",
+    "muscle": "Posterior chain",
+    "equipment": "Machine",
+    "category": "Machine",
+    "cue": "",
+    "aliases": [
+      "Selectorized Seated Hamstring Curl",
+      "Selectorised Seated Hamstring Curl"
+    ]
   },
   {
     "slug": "lying-leg-curl",
-    "name": "Lying Leg Curl",
+    "name": "Plate-Loaded Lying Leg Curl",
     "muscle": "Posterior chain",
     "equipment": "Machine",
     "category": "Machine",
     "cue": "",
-    "aliases": []
+    "aliases": [
+      "Lying Leg Curl"
+    ]
+  },
+  {
+    "slug": "weight-stack-lying-leg-curl",
+    "name": "Weight-Stack Lying Leg Curl",
+    "muscle": "Posterior chain",
+    "equipment": "Machine",
+    "category": "Machine",
+    "cue": "",
+    "aliases": [
+      "Selectorized Lying Leg Curl",
+      "Selectorised Lying Leg Curl"
+    ]
   },
   {
     "slug": "constant-tension-lying-leg-curl",
-    "name": "Constant-Tension Lying Leg Curl",
+    "name": "Plate-Loaded Constant-Tension Lying Leg Curl",
     "muscle": "Posterior chain",
     "equipment": "Machine",
     "category": "Machine",
     "cue": "",
-    "aliases": []
+    "aliases": [
+      "Constant-Tension Lying Leg Curl"
+    ]
+  },
+  {
+    "slug": "weight-stack-constant-tension-lying-leg-curl",
+    "name": "Weight-Stack Constant-Tension Lying Leg Curl",
+    "muscle": "Posterior chain",
+    "equipment": "Machine",
+    "category": "Machine",
+    "cue": "",
+    "aliases": [
+      "Selectorized Constant-Tension Lying Leg Curl",
+      "Selectorised Constant-Tension Lying Leg Curl"
+    ]
   },
   {
     "slug": "swiss-ball-leg-curl",
@@ -523,14 +637,27 @@
   },
   {
     "slug": "seated-leg-curl",
-    "name": "Seated Leg Curl",
+    "name": "Plate-Loaded Seated Leg Curl",
     "muscle": "Posterior chain",
     "equipment": "Machine",
     "category": "Machine",
     "cue": "",
     "aliases": [
       "Slow Seated Leg Curl (3 up, 3 down)",
-      "Slow Seated Leg Curl"
+      "Slow Seated Leg Curl",
+      "Seated Leg Curl"
+    ]
+  },
+  {
+    "slug": "weight-stack-seated-leg-curl",
+    "name": "Weight-Stack Seated Leg Curl",
+    "muscle": "Posterior chain",
+    "equipment": "Machine",
+    "category": "Machine",
+    "cue": "",
+    "aliases": [
+      "Selectorized Seated Leg Curl",
+      "Selectorised Seated Leg Curl"
     ]
   },
   {
@@ -548,14 +675,27 @@
   },
   {
     "slug": "glute-kickback",
-    "name": "Glute Kickback",
+    "name": "Plate-Loaded Glute Kickback",
     "muscle": "Posterior chain",
     "equipment": "Machine",
     "category": "Machine",
     "cue": "",
     "aliases": [
       "Machine Glute Kickback",
-      "Cable Glute Kickback"
+      "Cable Glute Kickback",
+      "Glute Kickback"
+    ]
+  },
+  {
+    "slug": "weight-stack-glute-kickback",
+    "name": "Weight-Stack Glute Kickback",
+    "muscle": "Posterior chain",
+    "equipment": "Machine",
+    "category": "Machine",
+    "cue": "",
+    "aliases": [
+      "Selectorized Glute Kickback",
+      "Selectorised Glute Kickback"
     ]
   },
   {
@@ -581,31 +721,72 @@
   },
   {
     "slug": "flat-machine-chest-press",
-    "name": "Flat Machine Chest Press",
-    "muscle": "Chest",
-    "equipment": "Machine",
-    "category": "Machine",
-    "cue": "",
-    "aliases": []
-  },
-  {
-    "slug": "seated-chest-press",
-    "name": "Seated Chest Press",
-    "muscle": "Chest",
-    "equipment": "Machine",
-    "category": "Machine",
-    "cue": "",
-    "aliases": []
-  },
-  {
-    "slug": "incline-machine-press",
-    "name": "Incline Machine Press",
+    "name": "Plate-Loaded Flat Machine Chest Press",
     "muscle": "Chest",
     "equipment": "Machine",
     "category": "Machine",
     "cue": "",
     "aliases": [
-      "Machine Incline Chest Press"
+      "Flat Machine Chest Press"
+    ]
+  },
+  {
+    "slug": "weight-stack-flat-machine-chest-press",
+    "name": "Weight-Stack Flat Machine Chest Press",
+    "muscle": "Chest",
+    "equipment": "Machine",
+    "category": "Machine",
+    "cue": "",
+    "aliases": [
+      "Selectorized Flat Machine Chest Press",
+      "Selectorised Flat Machine Chest Press"
+    ]
+  },
+  {
+    "slug": "seated-chest-press",
+    "name": "Plate-Loaded Seated Chest Press",
+    "muscle": "Chest",
+    "equipment": "Machine",
+    "category": "Machine",
+    "cue": "",
+    "aliases": [
+      "Seated Chest Press"
+    ]
+  },
+  {
+    "slug": "weight-stack-seated-chest-press",
+    "name": "Weight-Stack Seated Chest Press",
+    "muscle": "Chest",
+    "equipment": "Machine",
+    "category": "Machine",
+    "cue": "",
+    "aliases": [
+      "Selectorized Seated Chest Press",
+      "Selectorised Seated Chest Press"
+    ]
+  },
+  {
+    "slug": "incline-machine-press",
+    "name": "Plate-Loaded Incline Machine Press",
+    "muscle": "Chest",
+    "equipment": "Machine",
+    "category": "Machine",
+    "cue": "",
+    "aliases": [
+      "Machine Incline Chest Press",
+      "Incline Machine Press"
+    ]
+  },
+  {
+    "slug": "weight-stack-incline-machine-press",
+    "name": "Weight-Stack Incline Machine Press",
+    "muscle": "Chest",
+    "equipment": "Machine",
+    "category": "Machine",
+    "cue": "",
+    "aliases": [
+      "Selectorized Incline Machine Press",
+      "Selectorised Incline Machine Press"
     ]
   },
   {
@@ -675,12 +856,26 @@
   },
   {
     "slug": "machine-chest-press",
-    "name": "Machine Chest Press",
+    "name": "Plate-Loaded Machine Chest Press",
     "muscle": "Chest",
     "equipment": "Machine",
     "category": "Machine",
     "cue": "",
-    "aliases": []
+    "aliases": [
+      "Machine Chest Press"
+    ]
+  },
+  {
+    "slug": "weight-stack-machine-chest-press",
+    "name": "Weight-Stack Machine Chest Press",
+    "muscle": "Chest",
+    "equipment": "Machine",
+    "category": "Machine",
+    "cue": "",
+    "aliases": [
+      "Selectorized Machine Chest Press",
+      "Selectorised Machine Chest Press"
+    ]
   },
   {
     "slug": "close-grip-barbell-incline-press",
@@ -702,12 +897,26 @@
   },
   {
     "slug": "close-grip-machine-press",
-    "name": "Close-Grip Machine Press",
+    "name": "Plate-Loaded Close-Grip Machine Press",
     "muscle": "Chest",
     "equipment": "Machine",
     "category": "Machine",
     "cue": "",
-    "aliases": []
+    "aliases": [
+      "Close-Grip Machine Press"
+    ]
+  },
+  {
+    "slug": "weight-stack-close-grip-machine-press",
+    "name": "Weight-Stack Close-Grip Machine Press",
+    "muscle": "Chest",
+    "equipment": "Machine",
+    "category": "Machine",
+    "cue": "",
+    "aliases": [
+      "Selectorized Close-Grip Machine Press",
+      "Selectorised Close-Grip Machine Press"
+    ]
   },
   {
     "slug": "press-around",
@@ -748,13 +957,26 @@
   },
   {
     "slug": "low-incline-machine-press",
-    "name": "Low Incline Machine Press",
+    "name": "Plate-Loaded Low Incline Machine Press",
     "muscle": "Chest",
     "equipment": "Machine",
     "category": "Machine",
     "cue": "",
     "aliases": [
-      "Low Incline Chest Machine Press"
+      "Low Incline Chest Machine Press",
+      "Low Incline Machine Press"
+    ]
+  },
+  {
+    "slug": "weight-stack-low-incline-machine-press",
+    "name": "Weight-Stack Low Incline Machine Press",
+    "muscle": "Chest",
+    "equipment": "Machine",
+    "category": "Machine",
+    "cue": "",
+    "aliases": [
+      "Selectorized Low Incline Machine Press",
+      "Selectorised Low Incline Machine Press"
     ]
   },
   {
@@ -768,12 +990,26 @@
   },
   {
     "slug": "chest-press-machine",
-    "name": "Chest Press Machine",
+    "name": "Plate-Loaded Chest Press Machine",
     "muscle": "Chest",
     "equipment": "Machine",
     "category": "Machine",
     "cue": "",
-    "aliases": []
+    "aliases": [
+      "Chest Press Machine"
+    ]
+  },
+  {
+    "slug": "weight-stack-chest-press-machine",
+    "name": "Weight-Stack Chest Press Machine",
+    "muscle": "Chest",
+    "equipment": "Machine",
+    "category": "Machine",
+    "cue": "",
+    "aliases": [
+      "Selectorized Chest Press Machine",
+      "Selectorised Chest Press Machine"
+    ]
   },
   {
     "slug": "dumbbell-chest-press",
@@ -893,12 +1129,26 @@
   },
   {
     "slug": "45-incline-machine-press",
-    "name": "45° Incline Machine Press",
+    "name": "Plate-Loaded 45° Incline Machine Press",
     "muscle": "Chest",
     "equipment": "Machine",
     "category": "Machine",
     "cue": "",
-    "aliases": []
+    "aliases": [
+      "45° Incline Machine Press"
+    ]
+  },
+  {
+    "slug": "weight-stack-45-incline-machine-press",
+    "name": "Weight-Stack 45° Incline Machine Press",
+    "muscle": "Chest",
+    "equipment": "Machine",
+    "category": "Machine",
+    "cue": "",
+    "aliases": [
+      "Selectorized 45° Incline Machine Press",
+      "Selectorised 45° Incline Machine Press"
+    ]
   },
   {
     "slug": "dumbbell-floor-press",
@@ -992,12 +1242,26 @@
   },
   {
     "slug": "pec-deck",
-    "name": "Pec Deck",
+    "name": "Plate-Loaded Pec Deck",
     "muscle": "Chest",
     "equipment": "Machine",
     "category": "Machine",
     "cue": "",
-    "aliases": []
+    "aliases": [
+      "Pec Deck"
+    ]
+  },
+  {
+    "slug": "weight-stack-pec-deck",
+    "name": "Weight-Stack Pec Deck",
+    "muscle": "Chest",
+    "equipment": "Machine",
+    "category": "Machine",
+    "cue": "",
+    "aliases": [
+      "Selectorized Pec Deck",
+      "Selectorised Pec Deck"
+    ]
   },
   {
     "slug": "bent-over-cable-pec-flye",
@@ -1067,12 +1331,26 @@
   },
   {
     "slug": "machine-pulldown",
-    "name": "Machine Pulldown",
+    "name": "Plate-Loaded Machine Pulldown",
     "muscle": "Back",
     "equipment": "Machine",
     "category": "Machine",
     "cue": "",
-    "aliases": []
+    "aliases": [
+      "Machine Pulldown"
+    ]
+  },
+  {
+    "slug": "weight-stack-machine-pulldown",
+    "name": "Weight-Stack Machine Pulldown",
+    "muscle": "Back",
+    "equipment": "Machine",
+    "category": "Machine",
+    "cue": "",
+    "aliases": [
+      "Selectorized Machine Pulldown",
+      "Selectorised Machine Pulldown"
+    ]
   },
   {
     "slug": "t-bar-row",
@@ -1096,12 +1374,26 @@
   },
   {
     "slug": "machine-high-row",
-    "name": "Machine High Row",
+    "name": "Plate-Loaded Machine High Row",
     "muscle": "Back",
     "equipment": "Machine",
     "category": "Machine",
     "cue": "",
-    "aliases": []
+    "aliases": [
+      "Machine High Row"
+    ]
+  },
+  {
+    "slug": "weight-stack-machine-high-row",
+    "name": "Weight-Stack Machine High Row",
+    "muscle": "Back",
+    "equipment": "Machine",
+    "category": "Machine",
+    "cue": "",
+    "aliases": [
+      "Selectorized Machine High Row",
+      "Selectorised Machine High Row"
+    ]
   },
   {
     "slug": "seal-row",
@@ -1125,13 +1417,26 @@
   },
   {
     "slug": "chest-supported-machine-row",
-    "name": "Chest-Supported Machine Row",
+    "name": "Plate-Loaded Chest-Supported Machine Row",
     "muscle": "Back",
     "equipment": "Machine",
     "category": "Machine",
     "cue": "",
     "aliases": [
-      "Machine \"Strict Form\" Row"
+      "Machine \"Strict Form\" Row",
+      "Chest-Supported Machine Row"
+    ]
+  },
+  {
+    "slug": "weight-stack-chest-supported-machine-row",
+    "name": "Weight-Stack Chest-Supported Machine Row",
+    "muscle": "Back",
+    "equipment": "Machine",
+    "category": "Machine",
+    "cue": "",
+    "aliases": [
+      "Selectorized Chest-Supported Machine Row",
+      "Selectorised Chest-Supported Machine Row"
     ]
   },
   {
@@ -1284,12 +1589,26 @@
   },
   {
     "slug": "omni-grip-machine-chest-supported-row",
-    "name": "Omni-Grip Machine Chest-Supported Row",
+    "name": "Plate-Loaded Omni-Grip Machine Chest-Supported Row",
     "muscle": "Back",
     "equipment": "Machine",
     "category": "Machine",
     "cue": "",
-    "aliases": []
+    "aliases": [
+      "Omni-Grip Machine Chest-Supported Row"
+    ]
+  },
+  {
+    "slug": "weight-stack-omni-grip-machine-chest-supported-row",
+    "name": "Weight-Stack Omni-Grip Machine Chest-Supported Row",
+    "muscle": "Back",
+    "equipment": "Machine",
+    "category": "Machine",
+    "cue": "",
+    "aliases": [
+      "Selectorized Omni-Grip Machine Chest-Supported Row",
+      "Selectorised Omni-Grip Machine Chest-Supported Row"
+    ]
   },
   {
     "slug": "cable-seated-row",
@@ -1373,12 +1692,26 @@
   },
   {
     "slug": "machine-chest-supported-row-w-band",
-    "name": "Machine Chest-Supported Row W/Band",
+    "name": "Plate-Loaded Machine Chest-Supported Row W/Band",
     "muscle": "Back",
     "equipment": "Machine",
     "category": "Machine",
     "cue": "",
-    "aliases": []
+    "aliases": [
+      "Machine Chest-Supported Row W/Band"
+    ]
+  },
+  {
+    "slug": "weight-stack-machine-chest-supported-row-w-band",
+    "name": "Weight-Stack Machine Chest-Supported Row W/Band",
+    "muscle": "Back",
+    "equipment": "Machine",
+    "category": "Machine",
+    "cue": "",
+    "aliases": [
+      "Selectorized Machine Chest-Supported Row W/Band",
+      "Selectorised Machine Chest-Supported Row W/Band"
+    ]
   },
   {
     "slug": "negative-neutral-grip-pull-up",
@@ -1448,12 +1781,26 @@
   },
   {
     "slug": "chest-supported-row",
-    "name": "Chest-Supported Row",
+    "name": "Plate-Loaded Chest-Supported Row",
     "muscle": "Back",
     "equipment": "Machine",
     "category": "Machine",
     "cue": "",
-    "aliases": []
+    "aliases": [
+      "Chest-Supported Row"
+    ]
+  },
+  {
+    "slug": "weight-stack-chest-supported-row",
+    "name": "Weight-Stack Chest-Supported Row",
+    "muscle": "Back",
+    "equipment": "Machine",
+    "category": "Machine",
+    "cue": "",
+    "aliases": [
+      "Selectorized Chest-Supported Row",
+      "Selectorised Chest-Supported Row"
+    ]
   },
   {
     "slug": "neutral-grip-pulldown",
@@ -1621,21 +1968,49 @@
   },
   {
     "slug": "machine-lat-pullover",
-    "name": "Machine Lat Pullover",
+    "name": "Plate-Loaded Machine Lat Pullover",
     "muscle": "Back",
     "equipment": "Machine",
     "category": "Machine",
     "cue": "",
-    "aliases": []
+    "aliases": [
+      "Machine Lat Pullover"
+    ]
+  },
+  {
+    "slug": "weight-stack-machine-lat-pullover",
+    "name": "Weight-Stack Machine Lat Pullover",
+    "muscle": "Back",
+    "equipment": "Machine",
+    "category": "Machine",
+    "cue": "",
+    "aliases": [
+      "Selectorized Machine Lat Pullover",
+      "Selectorised Machine Lat Pullover"
+    ]
   },
   {
     "slug": "machine-pullover",
-    "name": "Machine Pullover",
+    "name": "Plate-Loaded Machine Pullover",
     "muscle": "Back",
     "equipment": "Machine",
     "category": "Machine",
     "cue": "",
-    "aliases": []
+    "aliases": [
+      "Machine Pullover"
+    ]
+  },
+  {
+    "slug": "weight-stack-machine-pullover",
+    "name": "Weight-Stack Machine Pullover",
+    "muscle": "Back",
+    "equipment": "Machine",
+    "category": "Machine",
+    "cue": "",
+    "aliases": [
+      "Selectorized Machine Pullover",
+      "Selectorised Machine Pullover"
+    ]
   },
   {
     "slug": "db-pullover",
@@ -1648,13 +2023,26 @@
   },
   {
     "slug": "machine-shoulder-press",
-    "name": "Machine Shoulder Press",
+    "name": "Plate-Loaded Machine Shoulder Press",
     "muscle": "Shoulders",
     "equipment": "Machine",
     "category": "Machine",
     "cue": "",
     "aliases": [
-      "Machine Shoulders Press"
+      "Machine Shoulders Press",
+      "Machine Shoulder Press"
+    ]
+  },
+  {
+    "slug": "weight-stack-machine-shoulder-press",
+    "name": "Weight-Stack Machine Shoulder Press",
+    "muscle": "Shoulders",
+    "equipment": "Machine",
+    "category": "Machine",
+    "cue": "",
+    "aliases": [
+      "Selectorized Machine Shoulder Press",
+      "Selectorised Machine Shoulder Press"
     ]
   },
   {
@@ -1697,12 +2085,26 @@
   },
   {
     "slug": "constant-tension-machine-shoulder-press",
-    "name": "Constant-Tension Machine Shoulder Press",
+    "name": "Plate-Loaded Constant-Tension Machine Shoulder Press",
     "muscle": "Shoulders",
     "equipment": "Machine",
     "category": "Machine",
     "cue": "",
-    "aliases": []
+    "aliases": [
+      "Constant-Tension Machine Shoulder Press"
+    ]
+  },
+  {
+    "slug": "weight-stack-constant-tension-machine-shoulder-press",
+    "name": "Weight-Stack Constant-Tension Machine Shoulder Press",
+    "muscle": "Shoulders",
+    "equipment": "Machine",
+    "category": "Machine",
+    "cue": "",
+    "aliases": [
+      "Selectorized Constant-Tension Machine Shoulder Press",
+      "Selectorised Constant-Tension Machine Shoulder Press"
+    ]
   },
   {
     "slug": "arnold-press",
@@ -1906,12 +2308,26 @@
   },
   {
     "slug": "machine-preacher-curl",
-    "name": "Machine Preacher Curl",
+    "name": "Plate-Loaded Machine Preacher Curl",
     "muscle": "Biceps and forearms",
     "equipment": "Machine",
     "category": "Machine",
     "cue": "",
-    "aliases": []
+    "aliases": [
+      "Machine Preacher Curl"
+    ]
+  },
+  {
+    "slug": "weight-stack-machine-preacher-curl",
+    "name": "Weight-Stack Machine Preacher Curl",
+    "muscle": "Biceps and forearms",
+    "equipment": "Machine",
+    "category": "Machine",
+    "cue": "",
+    "aliases": [
+      "Selectorized Machine Preacher Curl",
+      "Selectorised Machine Preacher Curl"
+    ]
   },
   {
     "slug": "db-preacher-curl",
@@ -1934,7 +2350,8 @@
     "equipment": "Barbell",
     "category": "Free Weights",
     "cue": "",
-    "aliases": []
+    "aliases": [],
+    "trackingMode": "duration"
   },
   {
     "slug": "bench-braced-wrist-curl",
@@ -2014,7 +2431,8 @@
     "equipment": "Dumbbell",
     "category": "Free Weights",
     "cue": "",
-    "aliases": []
+    "aliases": [],
+    "trackingMode": "duration"
   },
   {
     "slug": "plate-pinch",
@@ -2290,12 +2708,26 @@
   },
   {
     "slug": "machine-lateral-raise",
-    "name": "Machine Lateral Raise",
+    "name": "Plate-Loaded Machine Lateral Raise",
     "muscle": "Shoulders",
     "equipment": "Machine",
     "category": "Machine",
     "cue": "",
-    "aliases": []
+    "aliases": [
+      "Machine Lateral Raise"
+    ]
+  },
+  {
+    "slug": "weight-stack-machine-lateral-raise",
+    "name": "Weight-Stack Machine Lateral Raise",
+    "muscle": "Shoulders",
+    "equipment": "Machine",
+    "category": "Machine",
+    "cue": "",
+    "aliases": [
+      "Selectorized Machine Lateral Raise",
+      "Selectorised Machine Lateral Raise"
+    ]
   },
   {
     "slug": "incline-db-y-raise",
@@ -2379,12 +2811,26 @@
   },
   {
     "slug": "1-arm-reverse-pec-deck",
-    "name": "1-Arm Reverse Pec Deck",
+    "name": "Plate-Loaded 1-Arm Reverse Pec Deck",
     "muscle": "Shoulders",
     "equipment": "Machine",
     "category": "Machine",
     "cue": "",
-    "aliases": []
+    "aliases": [
+      "1-Arm Reverse Pec Deck"
+    ]
+  },
+  {
+    "slug": "weight-stack-1-arm-reverse-pec-deck",
+    "name": "Weight-Stack 1-Arm Reverse Pec Deck",
+    "muscle": "Shoulders",
+    "equipment": "Machine",
+    "category": "Machine",
+    "cue": "",
+    "aliases": [
+      "Selectorized 1-Arm Reverse Pec Deck",
+      "Selectorised 1-Arm Reverse Pec Deck"
+    ]
   },
   {
     "slug": "lying-reverse-db-flye",
@@ -2494,50 +2940,119 @@
   },
   {
     "slug": "standing-calf-raise",
-    "name": "Standing Calf Raise",
+    "name": "Plate-Loaded Standing Calf Raise",
     "muscle": "Traps, calves, and hips",
     "equipment": "Machine",
     "category": "Machine",
     "cue": "",
     "aliases": [
-      "Enhanced-Eccentric Calf Raise"
+      "Enhanced-Eccentric Calf Raise",
+      "Standing Calf Raise"
+    ]
+  },
+  {
+    "slug": "weight-stack-standing-calf-raise",
+    "name": "Weight-Stack Standing Calf Raise",
+    "muscle": "Traps, calves, and hips",
+    "equipment": "Machine",
+    "category": "Machine",
+    "cue": "",
+    "aliases": [
+      "Selectorized Standing Calf Raise",
+      "Selectorised Standing Calf Raise"
     ]
   },
   {
     "slug": "seated-calf-raise",
-    "name": "Seated Calf Raise",
+    "name": "Plate-Loaded Seated Calf Raise",
     "muscle": "Traps, calves, and hips",
     "equipment": "Machine",
     "category": "Machine",
     "cue": "",
-    "aliases": []
+    "aliases": [
+      "Seated Calf Raise"
+    ]
+  },
+  {
+    "slug": "weight-stack-seated-calf-raise",
+    "name": "Weight-Stack Seated Calf Raise",
+    "muscle": "Traps, calves, and hips",
+    "equipment": "Machine",
+    "category": "Machine",
+    "cue": "",
+    "aliases": [
+      "Selectorized Seated Calf Raise",
+      "Selectorised Seated Calf Raise"
+    ]
   },
   {
     "slug": "leg-press-toe-press",
-    "name": "Leg Press Toe Press",
+    "name": "Plate-Loaded Leg Press Toe Press",
     "muscle": "Traps, calves, and hips",
     "equipment": "Machine",
     "category": "Machine",
     "cue": "",
-    "aliases": []
+    "aliases": [
+      "Leg Press Toe Press"
+    ]
+  },
+  {
+    "slug": "weight-stack-leg-press-toe-press",
+    "name": "Weight-Stack Leg Press Toe Press",
+    "muscle": "Traps, calves, and hips",
+    "equipment": "Machine",
+    "category": "Machine",
+    "cue": "",
+    "aliases": [
+      "Selectorized Leg Press Toe Press",
+      "Selectorised Leg Press Toe Press"
+    ]
   },
   {
     "slug": "leg-press-calf-press",
-    "name": "Leg Press Calf Press",
+    "name": "Plate-Loaded Leg Press Calf Press",
     "muscle": "Traps, calves, and hips",
     "equipment": "Machine",
     "category": "Machine",
     "cue": "",
-    "aliases": []
+    "aliases": [
+      "Leg Press Calf Press"
+    ]
+  },
+  {
+    "slug": "weight-stack-leg-press-calf-press",
+    "name": "Weight-Stack Leg Press Calf Press",
+    "muscle": "Traps, calves, and hips",
+    "equipment": "Machine",
+    "category": "Machine",
+    "cue": "",
+    "aliases": [
+      "Selectorized Leg Press Calf Press",
+      "Selectorised Leg Press Calf Press"
+    ]
   },
   {
     "slug": "leg-press-calf-jumps",
-    "name": "Leg Press Calf Jumps",
+    "name": "Plate-Loaded Leg Press Calf Jumps",
     "muscle": "Traps, calves, and hips",
     "equipment": "Machine",
     "category": "Machine",
     "cue": "",
-    "aliases": []
+    "aliases": [
+      "Leg Press Calf Jumps"
+    ]
+  },
+  {
+    "slug": "weight-stack-leg-press-calf-jumps",
+    "name": "Weight-Stack Leg Press Calf Jumps",
+    "muscle": "Traps, calves, and hips",
+    "equipment": "Machine",
+    "category": "Machine",
+    "cue": "",
+    "aliases": [
+      "Selectorized Leg Press Calf Jumps",
+      "Selectorised Leg Press Calf Jumps"
+    ]
   },
   {
     "slug": "db-calf-jumps",
@@ -2570,12 +3085,26 @@
   },
   {
     "slug": "calf-raise-machine",
-    "name": "Calf Raise Machine",
+    "name": "Plate-Loaded Calf Raise Machine",
     "muscle": "Traps, calves, and hips",
     "equipment": "Machine",
     "category": "Machine",
     "cue": "",
-    "aliases": []
+    "aliases": [
+      "Calf Raise Machine"
+    ]
+  },
+  {
+    "slug": "weight-stack-calf-raise-machine",
+    "name": "Weight-Stack Calf Raise Machine",
+    "muscle": "Traps, calves, and hips",
+    "equipment": "Machine",
+    "category": "Machine",
+    "cue": "",
+    "aliases": [
+      "Selectorized Calf Raise Machine",
+      "Selectorised Calf Raise Machine"
+    ]
   },
   {
     "slug": "seated-hip-abduction",
@@ -2680,13 +3209,26 @@
   },
   {
     "slug": "machine-shrug",
-    "name": "Machine Shrug",
+    "name": "Plate-Loaded Machine Shrug",
     "muscle": "Traps",
     "equipment": "Machine",
     "category": "Machine",
     "cue": "",
     "aliases": [
-      "Machine Cheat Shrug"
+      "Machine Cheat Shrug",
+      "Machine Shrug"
+    ]
+  },
+  {
+    "slug": "weight-stack-machine-shrug",
+    "name": "Weight-Stack Machine Shrug",
+    "muscle": "Traps",
+    "equipment": "Machine",
+    "category": "Machine",
+    "cue": "",
+    "aliases": [
+      "Selectorized Machine Shrug",
+      "Selectorised Machine Shrug"
     ]
   },
   {
@@ -2745,12 +3287,26 @@
   },
   {
     "slug": "machine-crunch",
-    "name": "Machine Crunch",
+    "name": "Plate-Loaded Machine Crunch",
     "muscle": "Core",
     "equipment": "Machine",
     "category": "Machine",
     "cue": "",
-    "aliases": []
+    "aliases": [
+      "Machine Crunch"
+    ]
+  },
+  {
+    "slug": "weight-stack-machine-crunch",
+    "name": "Weight-Stack Machine Crunch",
+    "muscle": "Core",
+    "equipment": "Machine",
+    "category": "Machine",
+    "cue": "",
+    "aliases": [
+      "Selectorized Machine Crunch",
+      "Selectorised Machine Crunch"
+    ]
   },
   {
     "slug": "plate-weighted-crunch",
@@ -2930,7 +3486,8 @@
     "secondaryMuscles": [
       "Forearms",
       "Shoulders"
-    ]
+    ],
+    "trackingMode": "duration"
   },
   {
     "slug": "db-incline-press",
@@ -2964,12 +3521,26 @@
   },
   {
     "slug": "leg-curl",
-    "name": "Leg Curl",
+    "name": "Plate-Loaded Leg Curl",
     "muscle": "Posterior chain",
     "equipment": "Machine",
     "category": "Machine",
     "cue": "",
-    "aliases": []
+    "aliases": [
+      "Leg Curl"
+    ]
+  },
+  {
+    "slug": "weight-stack-leg-curl",
+    "name": "Weight-Stack Leg Curl",
+    "muscle": "Posterior chain",
+    "equipment": "Machine",
+    "category": "Machine",
+    "cue": "",
+    "aliases": [
+      "Selectorized Leg Curl",
+      "Selectorised Leg Curl"
+    ]
   },
   {
     "slug": "dumbbell-row",
@@ -3072,7 +3643,8 @@
     "equipment": "Bodyweight",
     "category": "Body Weight",
     "cue": "",
-    "aliases": []
+    "aliases": [],
+    "trackingMode": "duration"
   },
   {
     "slug": "crunch",
@@ -3147,7 +3719,8 @@
       "Long-Lever Posterior-Tilt Plank",
       "Long Lever Posterior Tilt Plank",
       "Long-Lever Plank"
-    ]
+    ],
+    "trackingMode": "duration"
   },
   {
     "slug": "roman-chair-leg-raise",
@@ -3189,14 +3762,30 @@
   },
   {
     "slug": "reverse-pec-deck",
-    "name": "Reverse Pec Deck",
+    "name": "Plate-Loaded Reverse Pec Deck",
     "muscle": "Shoulders",
     "equipment": "Machine",
     "category": "Machine",
     "cue": "",
     "aliases": [
       "Reverse Pec Flye",
-      "Machine Reverse Flye"
+      "Machine Reverse Flye",
+      "Reverse Pec Deck"
+    ],
+    "secondaryMuscles": [
+      "Back"
+    ]
+  },
+  {
+    "slug": "weight-stack-reverse-pec-deck",
+    "name": "Weight-Stack Reverse Pec Deck",
+    "muscle": "Shoulders",
+    "equipment": "Machine",
+    "category": "Machine",
+    "cue": "",
+    "aliases": [
+      "Selectorized Reverse Pec Deck",
+      "Selectorised Reverse Pec Deck"
     ],
     "secondaryMuscles": [
       "Back"
@@ -3204,14 +3793,30 @@
   },
   {
     "slug": "machine-low-row",
-    "name": "Machine Low Row",
+    "name": "Plate-Loaded Machine Low Row",
     "muscle": "Back",
     "equipment": "Machine",
     "category": "Machine",
     "cue": "",
     "aliases": [
       "Low Row Machine",
-      "Low Machine Row"
+      "Low Machine Row",
+      "Machine Low Row"
+    ],
+    "secondaryMuscles": [
+      "Biceps"
+    ]
+  },
+  {
+    "slug": "weight-stack-machine-low-row",
+    "name": "Weight-Stack Machine Low Row",
+    "muscle": "Back",
+    "equipment": "Machine",
+    "category": "Machine",
+    "cue": "",
+    "aliases": [
+      "Selectorized Machine Low Row",
+      "Selectorised Machine Low Row"
     ],
     "secondaryMuscles": [
       "Biceps"
@@ -3270,7 +3875,8 @@
     "aliases": [
       "Chest Static Stretch",
       "Pec Static Stretch 30s"
-    ]
+    ],
+    "trackingMode": "duration"
   },
   {
     "slug": "lat-static-stretch",
@@ -3281,7 +3887,8 @@
     "cue": "",
     "aliases": [
       "Lat Static Stretch 30s"
-    ]
+    ],
+    "trackingMode": "duration"
   },
   {
     "slug": "side-delt-static-stretch",
@@ -3292,7 +3899,8 @@
     "cue": "",
     "aliases": [
       "Side Delt Static Stretch (30s)"
-    ]
+    ],
+    "trackingMode": "duration"
   },
   {
     "slug": "bicep-static-stretch",
@@ -3303,7 +3911,8 @@
     "cue": "",
     "aliases": [
       "Bicep Static Stretch (30s)"
-    ]
+    ],
+    "trackingMode": "duration"
   },
   {
     "slug": "spider-curl",
@@ -3326,11 +3935,27 @@
   },
   {
     "slug": "machine-squat",
-    "name": "Machine Squat",
+    "name": "Plate-Loaded Machine Squat",
     "muscle": "Quads",
     "equipment": "Machine",
     "cue": "",
-    "aliases": [],
+    "aliases": [
+      "Machine Squat"
+    ],
+    "secondaryMuscles": [
+      "Glutes"
+    ]
+  },
+  {
+    "slug": "weight-stack-machine-squat",
+    "name": "Weight-Stack Machine Squat",
+    "muscle": "Quads",
+    "equipment": "Machine",
+    "cue": "",
+    "aliases": [
+      "Selectorized Machine Squat",
+      "Selectorised Machine Squat"
+    ],
     "secondaryMuscles": [
       "Glutes"
     ]
@@ -3553,7 +4178,8 @@
     "equipment": "Bodyweight",
     "category": "Body Weight",
     "cue": "",
-    "aliases": []
+    "aliases": [],
+    "trackingMode": "duration"
   },
   {
     "slug": "wall-slide",
@@ -3597,7 +4223,8 @@
     "aliases": [
       "Barbell or Dumbbell Isometric Hold",
       "Barbell or Dumbbell Isometric Hold (Grip Work)"
-    ]
+    ],
+    "trackingMode": "duration"
   },
   {
     "slug": "cable-external-rotation",
@@ -3615,7 +4242,8 @@
     "equipment": "Dumbbell",
     "category": "Free Weights",
     "cue": "",
-    "aliases": []
+    "aliases": [],
+    "trackingMode": "duration"
   },
   {
     "slug": "banded-lateral-raise",
@@ -3804,14 +4432,27 @@
   },
   {
     "slug": "machine-row",
-    "name": "Machine Row",
+    "name": "Plate-Loaded Machine Row",
     "muscle": "Back",
     "equipment": "Machine",
     "category": "Machine",
     "cue": "",
     "aliases": [
       "Overhand Machine Row",
-      "Wide-Grip Machine Row"
+      "Wide-Grip Machine Row",
+      "Machine Row"
+    ]
+  },
+  {
+    "slug": "weight-stack-machine-row",
+    "name": "Weight-Stack Machine Row",
+    "muscle": "Back",
+    "equipment": "Machine",
+    "category": "Machine",
+    "cue": "",
+    "aliases": [
+      "Selectorized Machine Row",
+      "Selectorised Machine Row"
     ]
   },
   {
@@ -3959,13 +4600,26 @@
   },
   {
     "slug": "machine-dip",
-    "name": "Machine Dip",
+    "name": "Plate-Loaded Machine Dip",
     "muscle": "Triceps",
     "equipment": "Machine",
     "category": "Machine",
     "cue": "",
     "aliases": [
-      "Seated Dip Machine"
+      "Seated Dip Machine",
+      "Machine Dip"
+    ]
+  },
+  {
+    "slug": "weight-stack-machine-dip",
+    "name": "Weight-Stack Machine Dip",
+    "muscle": "Triceps",
+    "equipment": "Machine",
+    "category": "Machine",
+    "cue": "",
+    "aliases": [
+      "Selectorized Machine Dip",
+      "Selectorised Machine Dip"
     ]
   },
   {

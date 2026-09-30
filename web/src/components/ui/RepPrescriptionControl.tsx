@@ -17,6 +17,8 @@ export interface RepPrescriptionControlProps {
   labelPrefix?: string;
   /// The source printed no rep count (an AMRAP set): no target is shown or editable.
   openReps?: boolean;
+  /// A timed exercise's target is held seconds; the same bounds carry it.
+  seconds?: boolean;
 }
 
 const repValue = (text: string): number | null => (text.trim() === '' ? null : Number(text));
@@ -32,9 +34,12 @@ export function RepPrescriptionControl({
   dataImportIndex,
   disabled = false,
   openReps = false,
-  labelPrefix
+  labelPrefix,
+  seconds = false
 }: RepPrescriptionControlProps) {
   const uniqueId = useId();
+  const noun = seconds ? 'seconds' : 'reps';
+  const Noun = seconds ? 'Seconds' : 'Reps';
   const label = (name: string) => labelPrefix ? `${labelPrefix} ${name.toLowerCase()}` : name;
 
   if (openReps) {
@@ -52,7 +57,7 @@ export function RepPrescriptionControl({
   return (
     <div className="field rep-prescription-field">
       <div className="rep-prescription-header">
-        <span className="rep-prescription-label">{range ? 'Rep range' : 'Reps'}</span>
+        <span className="rep-prescription-label">{range ? (seconds ? 'Time range (s)' : 'Rep range') : Noun}</span>
       </div>
 
       {range ? (
@@ -60,8 +65,8 @@ export function RepPrescriptionControl({
           <input
             id={`${uniqueId}-min`}
             name={nameMin}
-            aria-label={label('Min reps')}
-            title="Min reps"
+            aria-label={label(`Min ${noun}`)}
+            title={`Min ${noun}`}
             placeholder="Min"
             type="number"
             inputMode="numeric"
@@ -80,8 +85,8 @@ export function RepPrescriptionControl({
           <input
             id={`${uniqueId}-max`}
             name={nameMax}
-            aria-label={label('Max reps')}
-            title="Max reps"
+            aria-label={label(`Max ${noun}`)}
+            title={`Max ${noun}`}
             placeholder="Max"
             type="number"
             inputMode="numeric"
@@ -101,9 +106,9 @@ export function RepPrescriptionControl({
           <input
             id={`${uniqueId}-single`}
             name={nameSingle}
-            aria-label={label('Reps')}
-            title="Target reps"
-            placeholder="Reps"
+            aria-label={label(Noun)}
+            title={`Target ${noun}`}
+            placeholder={seconds ? 'Sec' : 'Reps'}
             type="number"
             inputMode="numeric"
             min="1"

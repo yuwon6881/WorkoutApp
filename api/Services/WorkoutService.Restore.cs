@@ -111,6 +111,7 @@ public sealed partial class WorkoutService
             existing.WorkingSetOrdinal = bSet.WorkingSetOrdinal;
             existing.WeightKg = bSet.WeightKg;
             existing.Reps = bSet.Reps;
+            existing.DurationSeconds = null;
             existing.Rpe = bSet.Rpe;
             existing.Warmup = bSet.Warmup;
             existing.Done = false;

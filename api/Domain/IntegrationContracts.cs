@@ -58,6 +58,16 @@ public static class LoadModels
     public static readonly string[] All = [External, FullBodyweight, BodyweightContextOnly, RepsOnly];
 }
 
+/// How a set of an exercise is measured. Timed holds (planks, hangs, carries) record seconds
+/// instead of reps and never enter the rep-based progression or strength records.
+public static class TrackingModes
+{
+    public const string Reps = "reps";
+    public const string Duration = "duration";
+    public static readonly string[] All = [Reps, Duration];
+    public static string Normalize(string? value) => value == Duration ? Duration : Reps;
+}
+
 public static class ExerciseCategories
 {
     public const string FreeWeights = "Free Weights";

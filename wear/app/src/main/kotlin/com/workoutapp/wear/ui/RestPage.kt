@@ -35,7 +35,7 @@ import com.workoutapp.wear.ui.theme.Ayu
 
 /**
  * Full-screen rest countdown. The ring drains toward the deadline persisted in the snapshot, so it
- * stays correct across recreation; each restart or +30 s gets a new generation and a full ring.
+ * stays correct across recreation; each restart or ±15 s gets a new generation and a full ring.
  */
 @Composable
 fun RestPage(
@@ -45,6 +45,7 @@ fun RestPage(
     nextUp: NextUp?,
     busy: Boolean,
     onExtend: () -> Unit,
+    onShorten: () -> Unit,
     onSkip: () -> Unit
 ) {
     val remainingMs = (restEndsAtEpochMs - nowEpochMs).coerceAtLeast(0)
@@ -91,16 +92,10 @@ fun RestPage(
                 }
                 Row(
                     modifier = Modifier.padding(top = 8.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    FilledTonalIconButton(
-                        onClick = onExtend,
-                        enabled = !busy,
-                        modifier = Modifier.semantics { contentDescription = "Add 30 seconds of rest" },
-                        colors = IconButtonDefaults.filledTonalIconButtonColors(containerColor = Ayu.SurfaceHover, contentColor = Ayu.Text)
-                    ) {
-                        Text("+30", style = MaterialTheme.typography.labelMedium)
-                    }
+                    RestAdjustButton("−15", "Take 15 seconds off the rest", enabled = !busy && !finished, onClick = onShorten)
                     FilledIconButton(onClick = onSkip, enabled = !busy) {
                         WearIcon(
                             if (finished) R.drawable.ic_arrow_forward else R.drawable.ic_skip,
@@ -108,9 +103,22 @@ fun RestPage(
                             modifier = Modifier.size(IconButtonDefaults.DefaultIconSize)
                         )
                     }
+                    RestAdjustButton("+15", "Add 15 seconds of rest", enabled = !busy, onClick = onExtend)
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun RestAdjustButton(label: String, description: String, enabled: Boolean, onClick: () -> Unit) {
+    FilledTonalIconButton(
+        onClick = onClick,
+        enabled = enabled,
+        modifier = Modifier.semantics { contentDescription = description },
+        colors = IconButtonDefaults.filledTonalIconButtonColors(containerColor = Ayu.SurfaceHover, contentColor = Ayu.Text)
+    ) {
+        Text(label, style = MaterialTheme.typography.labelMedium)
     }
 }
 

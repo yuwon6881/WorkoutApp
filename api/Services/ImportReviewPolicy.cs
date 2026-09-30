@@ -18,7 +18,21 @@ internal static class ImportReviewPolicy
         "rep_technique_conflict"
     };
 
+    /// Review items that are only about a set's RIR target.
+    private static readonly HashSet<string> RirTargetCodes = new(StringComparer.Ordinal)
+    {
+        "rpe_unread",
+        "rpe_unspecified",
+        "percentage_load_without_rpe"
+    };
+
     public static bool StopsRead(ImportReviewIssue issue)
         => !issue.Severity.Equals("info", StringComparison.OrdinalIgnoreCase)
             && !SourceInstructionConflicts.Contains(issue.Code);
+
+    /// A lifter who does not track RIR is never asked to settle an RIR target before creating a
+    /// program. The read still records every printed target, so switching tracking back on shows
+    /// them; only the review stops asking.
+    public static List<ImportReviewIssue> ForReview(IEnumerable<ImportReviewIssue> issues, bool trackRir)
+        => trackRir ? issues.ToList() : issues.Where(issue => !RirTargetCodes.Contains(issue.Code)).ToList();
 }

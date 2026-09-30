@@ -60,7 +60,8 @@ public sealed class PrescriptionProgressionTests
     public void Five_plus_RIR_is_known_easy_effort()
     {
         var result = Progression.SuggestSet(10, 15, 8, [Exposure(50, 15, null, "5+")], "normal", 2.5);
-        Assert.Equal(52.5, result.SuggestedLoadKg);
+        // 5+ against RPE 8 is well past the target effort, so the capped calibration jump applies.
+        Assert.Equal(55, result.SuggestedLoadKg);
         Assert.DoesNotContain("No actual", result.Reason);
     }
 

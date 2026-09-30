@@ -467,14 +467,18 @@ public class AiImportTests
         Assert.Equal(0, stub.Calls);
     }
 
-    [Fact] public async Task The_daily_import_allowance_is_enforced_per_account()
+    [Fact] public async Task Imports_record_usage_without_daily_limits()
     {
         await using var h = await Harness.Create(Configured);
         await h.SignIn();
         var imports = h.Imports(StubHandler.Program(OneWorkout));
-        for (var i = 0; i < ImportService.DailyLimit; i++) await imports.Create(Source($"block{i}.pdf", marker: i), default);
-        var failure = await Assert.ThrowsAsync<DomainException>(() => imports.Create(Source("one-too-many.pdf", marker: 999), default));
-        Assert.Equal(429, failure.Status);
+        var first = await imports.Create(Source("block1.pdf", marker: 1), default);
+        var second = await imports.Create(Source("block2.pdf", marker: 2), default);
+        Assert.Equal(ImportStatus.Ready, first.Status);
+        Assert.Equal(ImportStatus.Ready, second.Status);
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var usage = await h.Db.Usage.SingleAsync(u => u.Date == today);
+        Assert.Equal(2, usage.Count);
     }
 
     [Fact] public async Task One_account_cannot_open_another_accounts_import()

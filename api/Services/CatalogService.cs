@@ -9,7 +9,8 @@ namespace Workout.Api.Services;
 public record CatalogExercise(Guid Id, string Slug, string Name, string Muscle, string Equipment, string Cue, List<string> Aliases, double LoadStepKg,
     string LoadModel = LoadModels.External, string MovementPattern = "", string Source = "catalog", bool IsCustom = false, bool Archived = false,
     List<string>? SecondaryMuscles = null, string Category = ExerciseCategories.FreeWeights,
-    List<double>? AvailableLoadsKg = null);
+    List<double>? AvailableLoadsKg = null, string TrackingMode = TrackingModes.Reps,
+    string LoadSource = LoadSources.App, string? LoadEquipmentGroup = null, string? LoadStackName = null);
 
 public record SubstitutionCandidate(Guid ExerciseId, string Name, string Muscle, string Equipment, string Cue,
     string Source, int Rank, bool IsCatalog, string MovementPattern = "", List<string>? SecondaryMuscles = null);
@@ -75,14 +76,21 @@ public sealed class CatalogService(AppDb db)
         var custom = await db.CustomExercises.AsNoTracking().Where(x => !x.Archived).OrderBy(x => x.Name).ToListAsync(ct);
         output.AddRange(custom.Select(x => new CatalogExercise(x.Id, $"custom-{x.Id:N}", x.Name, x.Muscle, x.Equipment, x.Cue, [], x.LoadStepKg,
             LoadModels.All.Contains(x.LoadModel) ? x.LoadModel : LoadModels.External, x.MovementPattern, "custom", true, false,
-            ReadMuscles(x.SecondaryMusclesJson, x.Muscle), ExerciseCategories.Normalize(x.Category, x.Equipment, x.LoadModel))));
-        var settings = await db.ExerciseLoadSettings.AsNoTracking().ToDictionaryAsync(x => x.Id, ct);
-        return output.Select(exercise => settings.TryGetValue(exercise.Id, out var setting)
-            ? exercise with
+            ReadMuscles(x.SecondaryMusclesJson, x.Muscle), ExerciseCategories.Normalize(x.Category, x.Equipment, x.LoadModel),
+            null, TrackingModes.Normalize(x.TrackingMode))));
+        var rules = await LoadRuleReader.Read(db, null, ct);
+        return output.Select(exercise =>
+        {
+            var resolved = rules.Resolve(exercise.Id, exercise.LoadStepKg, exercise.Equipment, exercise.LoadModel);
+            return exercise with
             {
-                LoadStepKg = setting.LoadStepKg ?? exercise.LoadStepKg,
-                AvailableLoadsKg = setting.AvailableLoadsJson is { } json ? Json.Read<List<double>>(json) : null
-            } : exercise).ToList();
+                LoadStepKg = resolved.StepKg,
+                AvailableLoadsKg = resolved.AvailableLoadsKg?.ToList(),
+                LoadSource = resolved.Source,
+                LoadEquipmentGroup = resolved.EquipmentGroup,
+                LoadStackName = resolved.StackName
+            };
+        }).ToList();
     }
 
     private async Task<List<CatalogExercise>> Shared(CancellationToken ct)
@@ -95,7 +103,7 @@ public sealed class CatalogService(AppDb db)
 
         var exercises = await db.Exercises.AsNoTracking().Where(x => x.Active)
             .OrderBy(x => x.Name)
-            .Select(x => new { x.Id, x.Slug, x.Name, x.Muscle, x.Equipment, x.Category, x.Cue, x.LoadStepKg, x.LoadModel, x.MovementPattern, x.SecondaryMusclesJson })
+            .Select(x => new { x.Id, x.Slug, x.Name, x.Muscle, x.Equipment, x.Category, x.Cue, x.LoadStepKg, x.LoadModel, x.MovementPattern, x.SecondaryMusclesJson, x.TrackingMode })
             .ToListAsync(ct);
         var ids = exercises.Select(x => x.Id).ToList();
         var aliases = ids.Count == 0 ? [] : await db.Aliases.AsNoTracking().Where(a => ids.Contains(a.ExerciseId)).ToListAsync(ct);
@@ -104,7 +112,8 @@ public sealed class CatalogService(AppDb db)
         var result = exercises.Select(x => new CatalogExercise(x.Id, x.Slug, x.Name, x.Muscle, x.Equipment, x.Cue,
             aliasesByExercise.GetValueOrDefault(x.Id) ?? [], x.LoadStepKg,
             LoadModels.All.Contains(x.LoadModel) ? x.LoadModel : LoadModels.External, x.MovementPattern, "catalog", false, false,
-            ReadMuscles(x.SecondaryMusclesJson, x.Muscle), ExerciseCategories.Normalize(x.Category, x.Equipment, x.LoadModel))).ToList();
+            ReadMuscles(x.SecondaryMusclesJson, x.Muscle), ExerciseCategories.Normalize(x.Category, x.Equipment, x.LoadModel),
+            null, TrackingModes.Normalize(x.TrackingMode))).ToList();
         if (!db.Database.IsSqlite())
             SharedCache.Set(SharedCatalogKey, result, new MemoryCacheEntryOptions
             {
@@ -241,6 +250,22 @@ public sealed class CatalogService(AppDb db)
         // when an existing prescription is opened.
         var custom = await db.CustomExercises.AsNoTracking().Where(x => wanted.Contains(x.Id)).ToListAsync(ct);
         foreach (var row in custom) output[row.Id] = LoadModels.All.Contains(row.LoadModel) ? row.LoadModel : LoadModels.External;
+        return output;
+    }
+
+    /// Only timed exercises are returned; anything absent is measured in reps. Archived custom
+    /// exercises stay included so an older workout still shows its timed sets as time.
+    public static async Task<Dictionary<Guid, string>> TrackingModesFor(AppDb db, IEnumerable<Guid?> ids, CancellationToken ct)
+    {
+        var wanted = ids.Where(id => id != null).Select(id => id!.Value).Distinct().ToList();
+        if (wanted.Count == 0) return [];
+        var output = await db.Exercises.AsNoTracking()
+            .Where(x => wanted.Contains(x.Id) && x.TrackingMode == TrackingModes.Duration)
+            .ToDictionaryAsync(x => x.Id, _ => TrackingModes.Duration, ct);
+        var custom = await db.CustomExercises.AsNoTracking()
+            .Where(x => wanted.Contains(x.Id) && x.TrackingMode == TrackingModes.Duration)
+            .Select(x => x.Id).ToListAsync(ct);
+        foreach (var id in custom) output[id] = TrackingModes.Duration;
         return output;
     }
 

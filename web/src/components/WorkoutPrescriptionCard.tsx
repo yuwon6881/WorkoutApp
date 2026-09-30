@@ -217,7 +217,7 @@ export function WorkoutPrescriptionCard({
         )}
       </div>
 
-      <WorkoutPrescriptionSets exercise={exercise} onUpdateSet={onUpdateSet} onRemoveSet={onRemoveSet} />
+      <WorkoutPrescriptionSets exercise={exercise} timed={linked?.trackingMode === 'duration'} onUpdateSet={onUpdateSet} onRemoveSet={onRemoveSet} />
 
       <div className="import-set-footer">
         <Button

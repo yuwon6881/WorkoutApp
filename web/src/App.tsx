@@ -1,7 +1,7 @@
 // First-screen styles stay eager. Optional feature CSS loads before the shell stylesheet through
 // featureCss, so navigating later cannot invert the existing cascade.
-import { Suspense, useEffect, useRef, useState } from 'react';
-import { AlertTriangle, BicepsFlexed, CheckCircle2, Cloud, Dumbbell, LayoutDashboard, Library, Loader2, Plus, RefreshCw, Settings, WifiOff } from 'lucide-react';
+import { lazy, Suspense, useEffect, useRef, useState } from 'react';
+import { AlertTriangle, BicepsFlexed, CheckCircle2, Cloud, Dumbbell, LayoutDashboard, Library, Loader2, Plus, RefreshCw, Settings, Sparkles, WifiOff } from 'lucide-react';
 import type { AppResource, Exercise, Session, Template } from './types';
 import { ApiError, api } from './lib/api';
 import { useApp } from './app/useApp';
@@ -27,7 +27,11 @@ import { ViewSkeleton } from './components/ViewSkeleton';
 import { Auth, ExerciseDetailModal, ExerciseLibrary, ImportReview, MuscleBalanceView, Programs, SessionDetail, SettingsView, StartPreview, Workout, prefetchView, prefetchViews } from './app/lazyViews';
 import { ResumeWorkoutButton } from './components/ResumeWorkoutButton';
 import { InstallAppCard } from './components/InstallAppCard';
+import { TrackRirContext, tracksRir } from './lib/trackRir';
 import {applyTheme, initialTheme, rememberTheme} from './lib/theme';
+const AiAssistantPanel = lazy(() => import('./components/AiAssistantPanel').then(module => ({ default: module.AiAssistantPanel })));
+import type { AiUiAction } from './lib/api/ai';
+import type { AiInvocationRequest } from './components/useAiConversation';
 
 /// Matches the server's refusal in ImportService.Create, so both sides say the same thing.
 const IMPORT_BLOCKED_MESSAGE = 'Finish or discard the active workout before importing a program.';
@@ -70,6 +74,8 @@ export default function App() {
   const [starting, setStarting] = useState(false);
   const [preview, setPreview] = useState<Template | null>(null);
   const [actionError, setActionError] = useState('');
+  const [isAiOpen, setIsAiOpen] = useState(false);
+  const [aiInvocation, setAiInvocation] = useState<AiInvocationRequest | null>(null);
   const previewRequest = useRef<string | null>(null);
   const recovery = app.recovery;
   const recoverySession = recovery && (!data || data.account.id === recovery.accountId) ? recovery.draft : null;
@@ -240,13 +246,58 @@ export default function App() {
     }
   }
 
-  return <div className="app-shell">
+  async function handleAiActions(actions: AiUiAction[]) {
+    for (const action of actions) {
+      switch (action.type) {
+        case 'openWorkout': {
+          const wid = action.payload.workoutId as string | undefined;
+          if (wid) {
+            try {
+              const session = await api.getWorkout(wid);
+              if (session) setDetail(session);
+            } catch {
+              setActionError("That workout is no longer available. Refresh and try again.");
+            }
+          }
+          break;
+        }
+        case 'openExercise': {
+          const slugOrId = (action.payload.slug ?? action.payload.exerciseId) as string | undefined;
+          if (slugOrId) {
+            const match = data?.exercises.find(e => e.slug === slugOrId || e.id === slugOrId);
+            if (match) await openExercise(match.id);
+            else if (typeof action.payload.exerciseId === 'string') await openExercise(action.payload.exerciseId);
+            else setTab('exercises');
+          }
+          break;
+        }
+        case 'openProgram':
+          setTab('program');
+          break;
+        case 'openHistory':
+          setTab('overview');
+          break;
+        case 'openActiveWorkout':
+          if (data?.activeWorkout?.active) setTraining(true);
+          break;
+        case 'openAddWorkoutDraft': {
+          const tid = (action.payload.templateId as string | undefined) ?? (data ? nextWorkout(data)?.id : null);
+          if (tid) await start(tid);
+          else setTab('program');
+          break;
+        }
+      }
+    }
+  }
+
+  return <TrackRirContext value={tracksRir(data.preferences)}><div className="app-shell">
     <aside className="sidebar">
       <a className="brand" href="#" onClick={e => { e.preventDefault(); setTab('overview'); }}><img src="/favicon.svg" alt="" /><span>Workout</span></a>
       <nav aria-label="Main navigation">{NAV.map(item => <Button key={item.id} variant="tertiary" className={`nav-item ${tab === item.id ? 'selected' : ''}`}
         aria-current={tab === item.id ? 'page' : undefined} onClick={() => setTab(item.id)}>
         <item.icon size={19} /><span>{item.label}</span>{tab === item.id && <span className="nav-dot" />}</Button>)}</nav>
       <div className="sidebar-bottom">
+        <Button variant="tertiary" className="nav-item" onClick={() => setIsAiOpen(true)}><Sparkles size={19} /><span>Ask AI</span></Button>
         <Button variant="tertiary" className={`nav-item ${tab === 'settings' ? 'selected' : ''}`} onClick={() => setTab('settings')}><Settings size={19} /> Settings</Button>
       </div>
     </aside>
@@ -263,6 +314,7 @@ export default function App() {
           <span className={`device-status save-indicator ${showSaveStatus ? 'visible' : ''}`.trim()} role="status">
             {showSaveStatus && <><StatusIcon state={status.state} online={online} /> {statusTitle(status.state, online)}</>}
           </span>
+          <Button variant="tertiary" className="settings-icon" aria-label="Ask AI" onClick={() => setIsAiOpen(true)}><Sparkles size={19} /></Button>
           <Button variant="tertiary" className="settings-icon" aria-label="Settings" onClick={() => setTab('settings')}><Settings size={19} /></Button>
         </div>
       </header>
@@ -289,11 +341,11 @@ export default function App() {
             onExercise={id => { void openExercise(id); }} />}
         {!resourcesReady && <ViewSkeleton label={NAV.find(item => item.id === tab)?.label ?? 'Loading'} />}
         {resourcesReady && tab === 'program' && <Programs data={data} exercises={data.exercises} onStart={start} onImport={openImport} onChanged={app.reload} />}
-        {resourcesReady && tab === 'import' && <ImportReview exercises={data.exercises} imports={data.imports} remaining={data.aiImportsRemaining}
+        {resourcesReady && tab === 'import' && <ImportReview exercises={data.exercises} imports={data.imports}
           onBack={() => setTab('program')} onChanged={app.reload} notify={setToast} />}
         {tab === 'body' && <MuscleBalanceView timeZone={Intl.DateTimeFormat().resolvedOptions().timeZone} />}
         {resourcesReady && tab === 'exercises' && <ExerciseLibrary exercises={data.exercises} onOpen={setExerciseDetail} onChanged={app.reload} />}
-        {tab === 'settings' && <SettingsView account={data.account} preferences={data.preferences} devicePreferences={app.devicePreferences}
+        {tab === 'settings' && <SettingsView account={data.account} preferences={data.preferences} devicePreferences={app.devicePreferences} onCatalogChanged={async () => { await app.reload(); }}
           version={__APP_VERSION__}
           onDevicePreferences={app.setDevicePreferences} onPreferences={app.savePreferences} notify={setToast} onSignOut={async () => { await app.signOut(); }} />}
         </Suspense>
@@ -331,7 +383,7 @@ export default function App() {
 
     {training && workoutSession && <Suspense fallback={<div className="panel recovery-card" role="status">Opening your workout…</div>}><Workout session={workoutSession} accountId={data.account.id} preferences={recovery?.sessionId === workoutSession.id ? recovery.preferences : data.preferences}
       exercises={data.exercises} queue={app.queue} online={online} recovery={recovery?.sessionId === workoutSession.id ? recovery : null} onRecoveryChange={record => { app.setRecovery(record); if (!record) setReviewRecovery(false); }}
-      onSaved={app.setActiveWorkout} onClose={() => setTraining(false)} autoAdvance={app.devicePreferences.autoAdvance}
+      onSaved={app.setActiveWorkout} onClose={() => setTraining(false)} advance={{ nextExercise: app.devicePreferences.autoAdvance, supersetPartner: app.devicePreferences.supersetAdvance }} onCatalogChanged={async () => { await app.reload(); }}
       onFinish={async session => { app.queue.clear(); app.setActiveWorkout(null); setTraining(false); setDetail(session); setFinishedId(session.id); setToast('Workout saved.'); await app.reload(); }}
       onDiscard={async () => { app.queue.clear(); app.setActiveWorkout(null); setTraining(false); await app.reload(); }} /></Suspense>}
 
@@ -347,7 +399,15 @@ export default function App() {
     </div>}
     </Suspense>
     {toast && <div className="toast" role="status"><Plus size={17} />{toast}</div>}
-  </div>;
+    {isAiOpen && <Suspense fallback={null}><AiAssistantPanel
+      isOpen={isAiOpen}
+      onClose={() => setIsAiOpen(false)}
+      onActions={handleAiActions}
+      invocation={aiInvocation}
+      onInvocationConsumed={() => setAiInvocation(null)}
+      surface={tab}
+    /></Suspense>}
+  </div></TrackRirContext>;
 }
 
 function StatusIcon({ state, online }: { state: string; online: boolean }) {

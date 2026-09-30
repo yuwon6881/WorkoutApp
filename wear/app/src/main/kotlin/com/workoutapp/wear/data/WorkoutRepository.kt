@@ -83,6 +83,7 @@ class WorkoutRepository private constructor(context: Context) {
                         session = SessionProjection.project(remote, pending),
                         unit = active.unit,
                         defaultRestSeconds = active.restSeconds,
+                        trackRir = active.trackRir != false,
                         activeExerciseId = local.activeExerciseId?.takeIf { id -> remote.exercises.any { it.id == id } }
                             ?: firstIncomplete(remote),
                         restEndsAtEpochMs = restEndsAt,
@@ -97,6 +98,7 @@ class WorkoutRepository private constructor(context: Context) {
                         session = remote,
                         unit = active.unit,
                         defaultRestSeconds = active.restSeconds,
+                        trackRir = active.trackRir != false,
                         activeExerciseId = firstIncomplete(remote),
                         restEndsAtEpochMs = restEndsAt,
                         restGeneration = restGen,
@@ -140,8 +142,10 @@ class WorkoutRepository private constructor(context: Context) {
         return status
     }
 
-    fun logSet(exerciseId: String, setId: String, reps: Int, displayWeight: Double?, rir: String?) {
-        require(reps > 0) { "Enter the reps you completed." }
+    /** Logs reps for an ordinary set, or seconds (and no reps) for a timed hold. */
+    fun logSet(exerciseId: String, setId: String, reps: Int?, displayWeight: Double?, rir: String?, durationSeconds: Int? = null) {
+        if (durationSeconds == null) require(reps != null && reps > 0) { "Enter the reps you completed." }
+        else require(durationSeconds in 1..MAX_SET_SECONDS) { "Enter a time between 1 second and 2 hours." }
         require(displayWeight == null || displayWeight >= 0) { "Load cannot be negative." }
         val snapshot = requireSnapshot()
         check(snapshot.session.active && snapshot.session.pausedAt == null && !snapshot.pendingFinish) { "Resume the workout before logging a set." }
@@ -149,7 +153,8 @@ class WorkoutRepository private constructor(context: Context) {
         val set = exercise.sets.firstOrNull { it.id == setId } ?: error("This set is no longer in the workout.")
         val weightKg = displayWeight?.let { if (snapshot.unit == "lb") it / LB_PER_KG else it }
         val actualRir = RirPolicy.normalize(rir, set.warmup)
-        val patch = SetPatch(weightKg, reps, RirPolicy.toRpe(actualRir), actualRir, true, set.warmup, set.resistanceMode)
+        val timed = durationSeconds != null
+        val patch = SetPatch(weightKg, if (timed) null else reps, durationSeconds, RirPolicy.toRpe(actualRir), actualRir, true, set.warmup, set.resistanceMode)
         queueSetPatch(snapshot, exercise, set, patch)
     }
 
@@ -162,7 +167,7 @@ class WorkoutRepository private constructor(context: Context) {
             ?: error("That set is no longer in the workout.")
         val set = exercise.sets.first { it.id == setId }
         check(set.done) { "That set is no longer logged." }
-        queueSetPatch(snapshot, exercise, set, SetPatch(set.weightKg, set.reps, set.rpe, set.rir, false, set.warmup, set.resistanceMode))
+        queueSetPatch(snapshot, exercise, set, SetPatch(set.weightKg, set.reps, set.durationSeconds, set.rpe, set.rir, false, set.warmup, set.resistanceMode))
     }
 
     fun pause() = changePauseState(true)
@@ -232,6 +237,40 @@ class WorkoutRepository private constructor(context: Context) {
         store.enqueue(next, PendingOperation(0, mutationId, "rest", snapshot.session.id, null, snapshot.session.revision,
             request.toString(), gson.toJson(snapshot.session), Instant.now().toString(), false))
         WorkoutOngoingService.startRest(application, next.session.name)
+        scheduleSync()
+        return next
+    }
+
+    /** Takes time off a running rest; cutting past zero ends the rest, as the server does. */
+    fun shortenRest(seconds: Int = 15): WorkoutSnapshot? {
+        val snapshot = store.readSnapshot() ?: return null
+        val endsAt = snapshot.restEndsAtEpochMs
+        if (!snapshot.session.active || snapshot.session.pausedAt != null || snapshot.pendingFinish || seconds <= 0 || endsAt == null) return snapshot
+        val now = System.currentTimeMillis()
+        val shortened = RestPolicy.shortenedDeadline(endsAt, seconds, now)
+        val gen = if (shortened == null) null else UUID.randomUUID().toString()
+        val mutationId = UUID.randomUUID().toString()
+        val request = JsonObject().apply {
+            addProperty("revision", snapshot.session.revision)
+            addProperty("mutationId", mutationId)
+            addProperty("action", "shorten")
+            addProperty("seconds", seconds)
+            // An ended rest carries no generation, matching the server clearing it.
+            addProperty("generation", gen ?: UUID.randomUUID().toString())
+            addProperty("originDeviceId", secureStore.deviceId())
+            addProperty("occurredAt", Instant.ofEpochMilli(now).toString())
+            SyncMergePolicy.addExpectedGeneration(this, snapshot.session.rest?.generation)
+        }
+        val next = snapshot.copy(
+            restEndsAtEpochMs = shortened,
+            restGeneration = gen,
+            alertedRestGeneration = null,
+            pausedRestRemainingMs = null
+        )
+        store.enqueue(next, PendingOperation(0, mutationId, "rest", snapshot.session.id, null, snapshot.session.revision,
+            request.toString(), gson.toJson(snapshot.session), Instant.now().toString(), false))
+        if (shortened != null) WorkoutOngoingService.startRest(application, next.session.name)
+        else WorkoutOngoingService.update(application, next.session.name)
         scheduleSync()
         return next
     }
@@ -337,7 +376,7 @@ class WorkoutRepository private constructor(context: Context) {
     private fun queueSetPatch(snapshot: WorkoutSnapshot, exercise: WorkoutExercise, set: WorkoutSet, patch: SetPatch) {
         val updated = snapshot.session.exercises.map { current ->
             if (current.id != exercise.id) current else current.copy(sets = current.sets.map { if (it.id == set.id) it.copy(
-                weightKg = patch.weightKg, reps = patch.reps, rpe = patch.rpe, rir = patch.rir, done = patch.done
+                weightKg = patch.weightKg, reps = patch.reps, durationSeconds = patch.durationSeconds, rpe = patch.rpe, rir = patch.rir, done = patch.done
             ) else it })
         }
         val nextSession = SessionProjection.withCounts(snapshot.session.copy(exercises = updated))
@@ -348,6 +387,7 @@ class WorkoutRepository private constructor(context: Context) {
             addProperty("mutationId", id)
             add("weightKg", gson.toJsonTree(patch.weightKg))
             add("reps", gson.toJsonTree(patch.reps))
+            add("durationSeconds", gson.toJsonTree(patch.durationSeconds))
             add("rpe", gson.toJsonTree(patch.rpe))
             add("rir", gson.toJsonTree(patch.rir))
             addProperty("done", patch.done)
@@ -407,6 +447,8 @@ class WorkoutRepository private constructor(context: Context) {
     companion object {
         const val SYNC_WORK = "workout-wear-sync"
         const val LB_PER_KG = 2.2046226218
+        /** Mirrors the API: one timed set lasts at most two hours. */
+        const val MAX_SET_SECONDS = 7_200
         private const val SYNC_BACKOFF_SECONDS = 15L
 
         @Volatile private var shared: WorkoutRepository? = null

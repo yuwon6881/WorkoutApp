@@ -64,8 +64,8 @@ function hasStructuredTerminalError(view: ImportView | null) {
   return Boolean(view?.error && view.reviewIssues?.some(issue => view.error.includes(`[${issue.code}]`)));
 }
 
-export function ImportReview({ exercises, imports, remaining, onBack, onChanged, notify }: {
-  exercises: Exercise[]; imports: ImportView[]; remaining: number; onBack: () => void; onChanged: () => Promise<void>; notify?: (message: string) => void;
+export function ImportReview({ exercises, imports, onBack, onChanged, notify }: {
+  exercises: Exercise[]; imports: ImportView[]; onBack: () => void; onChanged: () => Promise<void>; notify?: (message: string) => void;
 }) {
   const [selected, setSelected] = useState<ImportView | null>(imports.find(i => i.status === 'ready') ?? imports[0] ?? null);
   const [draft, setDraft] = useState<ImportDraft | null>(selected?.draft ?? null);
@@ -165,7 +165,6 @@ export function ImportReview({ exercises, imports, remaining, onBack, onChanged,
         </div>
         <h1>Import a program</h1>
       </div>
-      <span className="pill">{remaining} AI reads left today</span>
     </div>
 
     <section className="panel">

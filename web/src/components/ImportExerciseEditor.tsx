@@ -17,10 +17,12 @@ import { CustomExerciseModal } from './CustomExerciseModal';
 import { SwipeableRow } from './ui/SwipeableRow';
 import { toggleRepMode, usesRepRange } from '../lib/repMode';
 import './SetPrescriptionGrid.css';
+import './ProgramBuilder.css';
 import './PrescriptionCardLayout.css';
 import { MenuButton, MenuItem } from './ui/MenuButton';
 import { getSupersetGroup, isSuperset } from '../lib/supersets';
 import { SupersetModal } from './SupersetModal';
+import { useTrackRir } from '../lib/trackRir';
 import {
   type SetType,
   getSetType,
@@ -52,6 +54,7 @@ export function ExerciseEditor({ exercise, exercises, allDayExercises, remembere
   canRestore?: boolean;
   onRestore?: () => Promise<void>;
 }) {
+  const trackRir = useTrackRir();
   const [pickerOpen, setPickerOpen] = useState(false);
   const [customOpen, setCustomOpen] = useState(false);
   const [supersetModalOpen, setSupersetModalOpen] = useState(false);
@@ -167,15 +170,16 @@ export function ExerciseEditor({ exercise, exercises, allDayExercises, remembere
       <div className="prescription-context-row">
         {isPaired && (
           <span
-            className="superset-badge"
+            className="chip-group active prescription-superset-chip"
             title={partnerNames ? `Superset with ${partnerNames}` : 'Superset group'}
             aria-label={`Superset ${currentGroup} with ${partnerNames}`}
           >
-            <Link2 size={12} />
-            <span>Pair {currentGroup}</span>
+            <span className="filter-chip active prescription-superset-label">
+              <Link2 size={12} />Pair {currentGroup}
+            </span>
             <Button
               presentation="plain"
-              className="superset-unlink-chip-btn"
+              className="chip-icon-btn"
               aria-label={`Unlink ${exercise.sourceName} from superset`}
               title="Unlink from superset"
               onClick={e => {
@@ -323,7 +327,7 @@ export function ExerciseEditor({ exercise, exercises, allDayExercises, remembere
               })}
             />
           </span>
-          <span className="set-grid-head-rir" aria-hidden="true">RIR</span>
+          {trackRir && <span className="set-grid-head-rir" aria-hidden="true">RIR</span>}
         </div>
         <ol className="import-sets set-grid-list" aria-label={`Set prescriptions for ${exercise.sourceName}`} data-import-field="sets">
           {exercise.sets.map((set, index) => {
@@ -360,7 +364,7 @@ export function ExerciseEditor({ exercise, exercises, allDayExercises, remembere
                         editSet(index, { repMin, repMax, repsText: null, repsSource: 'userEdited' })
                       }
                     />
-                    {set.warmup ? <WarmupRirNote dataImportIndex={index} /> : <div className="field rpe-field" data-import-field="targetRpe" data-import-set-index={index}>
+                    {!trackRir ? null : set.warmup ? <WarmupRirNote dataImportIndex={index} /> : <div className="field rpe-field" data-import-field="targetRpe" data-import-set-index={index}>
                       <span>RIR</span>
                       <RpeControl
                         name={`target-rir-${exercise.lineId}-${index}`}

@@ -4,13 +4,14 @@ using Workout.Api.Domain;
 
 namespace Workout.Api.Services;
 
+/// LoadStepKg is optional: without one the exercise follows the account rule for its equipment.
 public record CustomExerciseInput(string Name, string? Muscle, string? Equipment, string? Cue,
-    double LoadStepKg = 2.5, string LoadModel = LoadModels.External, string? MovementPattern = null,
-    List<string>? SecondaryMuscles = null, string? Category = null);
+    double? LoadStepKg = null, string LoadModel = LoadModels.External, string? MovementPattern = null,
+    List<string>? SecondaryMuscles = null, string? Category = null, string? TrackingMode = null);
 
 public record CustomExerciseView(Guid Id, string Name, string Muscle, string Equipment, string Cue,
     double LoadStepKg, string LoadModel, string MovementPattern, bool Archived, DateTime CreatedAt,
-    List<string>? SecondaryMuscles = null, string Category = ExerciseCategories.FreeWeights);
+    List<string>? SecondaryMuscles = null, string Category = ExerciseCategories.FreeWeights, string TrackingMode = TrackingModes.Reps);
 
 public record ExerciseMetricPoint(DateOnly Date, Guid SessionId, string SessionName,
     double? Estimated1RmKg, double? LoadKg, double? VolumeKg, int? Reps, bool Partial);
@@ -49,7 +50,9 @@ public sealed class ExerciseService(AppDb db)
         Validation.Require((input.SecondaryMuscles ?? []).Count <= 8, "An exercise can have at most 8 secondary muscle groups.");
         foreach (var secondary in input.SecondaryMuscles ?? []) Validation.Text(secondary, 80, "Secondary muscle");
         Validation.Require(LoadModels.All.Contains(input.LoadModel), "Choose a valid load model.");
-        Validation.Number(input.LoadStepKg, 0, 50, "Load increment");
+        Validation.Require(input.TrackingMode is null || TrackingModes.All.Contains(input.TrackingMode), "Choose reps or time.");
+        if (input.LoadStepKg is { } typedStep) Validation.Number(typedStep, 0, 50, "Load increment");
+        var appStep = input.LoadModel == LoadModels.FullBodyweight ? Progression.DefaultStepKg : Progression.StepForEquipment(input.Equipment);
         await using var gate = await MutationLock.Acquire(db, db.CurrentUser, ct);
         var normalized = CatalogService.Normalize(input.Name);
         var sharedNames = await db.Exercises.AsNoTracking().Where(x => x.Active).Select(x => x.Name).ToListAsync(ct);
@@ -62,11 +65,15 @@ public sealed class ExerciseService(AppDb db)
         {
             UserId = db.CurrentUser!.Value, Name = input.Name.Trim(), Muscle = input.Muscle?.Trim() ?? "",
             Equipment = input.Equipment?.Trim() ?? "", Category = ExerciseCategories.Normalize(input.Category, input.Equipment, input.LoadModel),
-            Cue = input.Cue?.Trim() ?? "", LoadStepKg = input.LoadStepKg,
+            Cue = input.Cue?.Trim() ?? "", LoadStepKg = appStep,
             LoadModel = input.LoadModel, MovementPattern = input.MovementPattern?.Trim() ?? "",
+            TrackingMode = TrackingModes.Normalize(input.TrackingMode),
             SecondaryMusclesJson = Json.Write(CatalogService.NormalizeMuscles(input.Muscle, input.SecondaryMuscles))
         };
         db.CustomExercises.Add(row);
+        // A step typed for this exercise is its own rule, so an equipment default never overrides it.
+        if (input.LoadStepKg is { } own && Math.Abs(own - appStep) > 1e-9)
+            db.ExerciseLoadSettings.Add(new ExerciseLoadSetting { UserId = row.UserId, Id = row.Id, LoadStepKg = own, Revision = 1 });
         await db.SaveChangesAsync(ct);
         await gate.Commit(ct);
         return View(row);
@@ -217,5 +224,5 @@ public sealed class ExerciseService(AppDb db)
     private static CustomExerciseView View(CustomExercise row)
         => new(row.Id, row.Name, row.Muscle, row.Equipment, row.Cue, row.LoadStepKg, row.LoadModel, row.MovementPattern, row.Archived, row.CreatedAt,
             CatalogService.NormalizeMuscles(row.Muscle, string.IsNullOrWhiteSpace(row.SecondaryMusclesJson) ? [] : Json.Read<List<string>>(row.SecondaryMusclesJson)),
-            row.Category);
+            row.Category, TrackingModes.Normalize(row.TrackingMode));
 }

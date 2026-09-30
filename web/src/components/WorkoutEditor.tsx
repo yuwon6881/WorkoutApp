@@ -16,7 +16,7 @@ type SetChange = { setId: string; patch: Partial<LoggedSet> };
 export function WorkoutEditor({
   draft, unit, exercises, activeIndex, viewMode, paused, finishIntentAt, recoveryConflict, online,
   picker, onPicker, onAddExercise, onChange, onEditSet, onToggleSet, onSelectExercise,
-  onSwap, onRestore, onRemoveExercise
+  onSwap, onRestore, onRemoveExercise, onCatalogChanged
 }: {
   draft: Session; unit: Unit; exercises: Exercise[]; activeIndex: number; viewMode: 'focus' | 'all'; online: boolean;
   paused: boolean; finishIntentAt: string | null; recoveryConflict: boolean;
@@ -25,6 +25,7 @@ export function WorkoutEditor({
   onToggleSet: (exerciseIndex: number, setIndex: number) => void; onSelectExercise: (index: number) => void;
   onSwap: (sessionExerciseId: string, replacementExerciseId: string | null, replacementName: string) => Promise<void>;
   onRestore: (sessionExerciseId: string) => Promise<void>; onRemoveExercise: (index: number) => void;
+  onCatalogChanged?: () => void | Promise<void>;
 }) {
   const currentExercise = draft.exercises[activeIndex] ?? draft.exercises[0];
   const currentIndex = currentExercise ? draft.exercises.indexOf(currentExercise) : -1;
@@ -58,7 +59,7 @@ export function WorkoutEditor({
       {recoveryConflict ? <div className="empty-message"><h3>Review the saved versions</h3><p>Choose the server workout or apply this device’s copy after considering the changes.</p></div> : finishIntentAt ? <div className="empty-message"><h3>Workout finished</h3><p>Your completion time and workout are saved on this device. They will sync when the server is reachable.</p></div> : paused ? <div className="empty-message"><h3>Workout paused</h3><p>Your active duration and rest timer are paused. Resume when you are ready.</p></div> : viewMode === 'focus' ? (
         currentExercise ? <div className="workout-focus-swipe" {...swipe}><WorkoutActiveExercise key={currentExercise.id} focused exercise={currentExercise} index={currentIndex}
           unit={unit} draft={draft} exercises={exercises} change={onChange} editSet={onEditSet} toggle={onToggleSet}
-          onSwap={onSwap} onRestore={onRestore} onRemoveExercise={onRemoveExercise} /></div> :
+          onSwap={onSwap} onRestore={onRestore} onRemoveExercise={onRemoveExercise} onCatalogChanged={onCatalogChanged} /></div> :
           <div className="empty-message"><Dumbbell size={30} /><h3>No exercises in this workout</h3>
             <Button variant="primary" disabled={!online || paused || Boolean(finishIntentAt)} onClick={() => onPicker(true)}><Plus size={16} />Add an exercise</Button>
           </div>
@@ -66,7 +67,7 @@ export function WorkoutEditor({
         <div className="workout-all-exercises-list">
           {draft.exercises.map((exercise, index) => <WorkoutActiveExercise key={exercise.id} exercise={exercise} index={index}
             unit={unit} draft={draft} exercises={exercises} change={onChange} editSet={onEditSet} toggle={onToggleSet}
-            onSwap={onSwap} onRestore={onRestore} onRemoveExercise={onRemoveExercise} />)}
+            onSwap={onSwap} onRestore={onRestore} onRemoveExercise={onRemoveExercise} onCatalogChanged={onCatalogChanged} />)}
           <Button className="full-width" disabled={!online || paused || Boolean(finishIntentAt)} onClick={() => onPicker(true)}><Plus size={18} />Add exercise</Button>
         </div>
       )}

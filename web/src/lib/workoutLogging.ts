@@ -1,16 +1,29 @@
 import type { LoggedSet, Session, SessionExercise, Unit } from '../types';
 import { showWeight } from './training';
 import { findNextStep } from './restRules';
+import { getSupersetGroup } from './supersets';
 import { loadIsEditable, nextPendingSet, setNumberLabel } from './workoutDraft';
+import { isTimedExercise, showSetDuration } from './setDuration';
 
 export type NextLog = { exerciseIndex: number; setIndex: number; label: string; detail: string; ariaLabel: string };
 
 // "60 kg × 8", "BW × 12", or just the reps when the load is still unknown.
 export function setSummary(exercise: SessionExercise, set: LoggedSet, unit: Unit): string {
+  if (isTimedExercise(exercise)) {
+    const time = set.durationSeconds == null ? '' : showSetDuration(set.durationSeconds);
+    if (set.weightKg === null || !loadIsEditable(exercise, set)) return time;
+    return time ? `${showWeight(set.weightKg, unit)} · ${time}` : showWeight(set.weightKg, unit);
+  }
   const reps = set.reps === null ? '' : `× ${set.reps}`;
   if (!loadIsEditable(exercise, set)) return set.reps === null ? '' : `BW ${reps}`;
   if (set.weightKg === null) return set.reps === null ? '' : `${set.reps} reps`;
   return `${showWeight(set.weightKg, unit)} ${reps}`.trim();
+}
+
+// A workout opens on the first exercise with a set still to log, or the first one when all are done.
+export function firstOpenExercise(session: Session): number {
+  const open = session.exercises.findIndex(exercise => exercise.sets.some(set => !set.done));
+  return open >= 0 ? open : 0;
 }
 
 // The footer's primary action logs the first set still open in the exercise on screen.
@@ -29,13 +42,24 @@ export function nextLog(draft: Session, exerciseIndex: number, unit: Unit): Next
   };
 }
 
+export type AdvanceOptions = { nextExercise: boolean; supersetPartner: boolean };
+
 // After a set is logged, the view moves on when the next step belongs to another exercise: the
-// next exercise once this one is complete, or the partner in a superset after every set.
-export function advanceTarget(draft: Session, exerciseIndex: number, setIndex: number): number | null {
+// next exercise once this one is complete, or the partner in a superset after every set. Each
+// kind of move is its own device setting, so a lifter can keep one without the other.
+export function advanceTarget(
+  draft: Session,
+  exerciseIndex: number,
+  setIndex: number,
+  options: AdvanceOptions = { nextExercise: true, supersetPartner: true }
+): number | null {
   const step = findNextStep(draft.exercises, exerciseIndex, setIndex);
   if (!step) return null;
   const target = draft.exercises.findIndex(exercise => exercise.id === step.exercise.id);
-  return target >= 0 && target !== exerciseIndex ? target : null;
+  if (target < 0 || target === exerciseIndex) return null;
+  const group = getSupersetGroup(draft.exercises[exerciseIndex].sequenceGroup);
+  const partner = Boolean(group) && getSupersetGroup(step.exercise.sequenceGroup) === group;
+  return (partner ? options.supersetPartner : options.nextExercise) ? target : null;
 }
 
 // What the rest leads into, shown under the countdown so the next plate change can start early.

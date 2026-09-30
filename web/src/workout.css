@@ -53,6 +53,14 @@
 .set-log-checkbox.checked { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
 .set-del-btn { width: 44px; height: 44px; min-width: 44px; min-height: 44px; padding: 0; display: grid; place-items: center; color: var(--muted); }
 .set-del-btn:hover { color: var(--red); }
+/* Timed sets: the time and its stopwatch span the reps and RIR columns. */
+.workout-set-row > .time-cell, .workout-set-table-head .col-time { grid-column: 4 / 6; }
+/* Without RIR tracking, reps take the RIR column the same way. */
+.no-rir .workout-set-row > .reps-cell, .no-rir .workout-set-table-head .col-reps { grid-column: 4 / 6; }
+.time-cell { display: flex; gap: 6px; align-items: center; min-width: 0; }
+.time-cell input { flex: 1 1 auto; min-width: 0; }
+.time-cell.timing input { border-color: var(--accent-border-strong); color: var(--accent); }
+.set-stopwatch-btn { flex: 0 0 auto; width: 44px; height: 44px; min-width: 44px; min-height: 44px; padding: 0; display: grid; place-items: center; }
 .workout-set-table-footer { margin-top: 6px; display: grid; gap: 6px; }
 .workout-set-undo { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 4px 4px 4px 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); color: var(--muted); }
 .workout-set-undo .button { min-height: 44px; }
@@ -193,6 +201,14 @@
     align-self: center;
     justify-self: center;
   }
+  .workout-set-row > .time-cell,
+  .workout-set-table-head .col-time {
+    grid-column: 2 / 4;
+    grid-row: 2;
+  }
+  .workout-set-table-head .col-time { grid-row: 1; text-align: center; }
+  .no-rir .workout-set-row > .reps-cell,
+  .no-rir .workout-set-table-head .col-reps { grid-column: 2 / 4; }
   .workout-set-row .set-log-checkbox {
     width: 44px;
     height: 44px;

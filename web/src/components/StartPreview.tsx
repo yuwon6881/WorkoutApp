@@ -1,6 +1,7 @@
 import { Clock3, Dumbbell, ListChecks, Play } from 'lucide-react';
 import type { Template } from '../types';
 import { showTarget } from '../lib/training';
+import { useTrackRir } from '../lib/trackRir';
 import { Button } from './ui/Button';
 import { Modal } from './ui/Modal';
 
@@ -9,6 +10,7 @@ import { Modal } from './ui/Modal';
 export function StartPreview({ template, busy, onCancel, onConfirm }: {
   template: Template; busy: boolean; onCancel: () => void; onConfirm: () => void;
 }) {
+  const trackRir = useTrackRir();
   const totalSets = template.exercises.reduce((total, exercise) => total + exercise.sets.filter(set => !set.warmup).length, 0);
   const rest = template.exercises.flatMap(e => e.sets).map(s => s.restSeconds).filter((s): s is number => s !== null);
   const typicalRest = rest.length ? Math.round(rest.reduce((a, b) => a + b, 0) / rest.length) : null;
@@ -33,7 +35,7 @@ export function StartPreview({ template, busy, onCancel, onConfirm }: {
           </div>
           <div className="preview-sets">
             {exercise.sets.map((set, setIndex) => <span key={setIndex}>
-              {set.warmup ? 'Warm-up · ' : ''}{showTarget(set)}{set.loadText ? ` · ${set.loadText}` : ''}
+              {set.warmup ? 'Warm-up · ' : ''}{showTarget(set, trackRir)}{set.loadText ? ` · ${set.loadText}` : ''}
             </span>)}
           </div>
         </div>)}

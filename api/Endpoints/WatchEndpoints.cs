@@ -35,7 +35,7 @@ public static class WatchEndpoints
         app.MapGet("/api/watch/active", async (AppDb db, WorkoutService workouts, CancellationToken ct) =>
         {
             var user = await db.Users.AsNoTracking().SingleAsync(item => item.Id == db.CurrentUser, ct);
-            return Results.Ok(new { unit = user.Unit, restSeconds = user.RestSeconds, session = await workouts.Active(ct) });
+            return Results.Ok(new { unit = user.Unit, restSeconds = user.RestSeconds, trackRir = user.TrackRir, session = await workouts.Active(ct) });
         });
         app.MapGet("/api/watch/workouts/{id:guid}", async (Guid id, WorkoutService workouts, CancellationToken ct)
             => Results.Ok(await WatchWorkoutAccess.ActiveSession(workouts, id, ct)));

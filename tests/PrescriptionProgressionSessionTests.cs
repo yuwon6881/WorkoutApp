@@ -75,7 +75,7 @@ public sealed class PrescriptionProgressionSessionTests
             await Log(h, await h.Workouts.Start(template, null, default), 50, 15, null, "5+");
         var next = await h.Workouts.Start(template, null, default);
         var exercise = next.Exercises.Single();
-        Assert.Equal(52.5, exercise.Sets[0].WeightKg);
+        Assert.Equal(55, exercise.Sets[0].WeightKg); // "5+" is far easier than RPE 8: the capped calibration jump applies
         var history = await h.Workouts.PreviousExposures(exercise.ExerciseId, exercise.Name, default);
         Assert.Equal(5, history[1].Count);
         Assert.All(history[1], exposure => Assert.Equal("5+", exposure.Rir));
