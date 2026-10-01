@@ -6,7 +6,7 @@ import type { Exercise, HistorySummaryPage, ShellBootstrap, TrackingMode, Unit }
 import type { Bootstrap, CustomExerciseCreated, DraftWorkout, ExerciseClearPreview, ExerciseInsight, HistoryPage, ImportDraft, ImportStatusView, ImportView, MuscleBalanceRange, MuscleBalanceView, Preferences, ProgressSummary, Program, ProgramDayActionInput, ProgramEditorDocument, ProgramSummary, ProgramWeekResetInput, RestMutationInput, Session, Template, SubstitutionCandidate, TemplateSubstitutionResult, WatchDevice, WorkoutActivityItem } from '../types';
 
 export class ApiError extends Error {
-  constructor(message: string, readonly status: number) { super(message); }
+  constructor(message: string, readonly status: number, readonly retryAfterMs: number | null = null) { super(message); }
   /// A conflict means someone else's newer work is on the server; the caller must refresh
   /// rather than retry, so it is never swallowed into a generic failure.
   get conflict() { return this.status === 409; }
@@ -32,15 +32,25 @@ async function request<T>(path: string, method: string, body?: unknown, signal?:
         , ...extraHeaders
       },
       body: body === undefined ? undefined : body instanceof FormData ? body : body instanceof Uint8Array ? body as BodyInit : JSON.stringify(body)
-    }, method==='GET'&&['/api/bootstrap/shell','/api/bootstrap','/api/integrations/google-health'].includes(path), path==='/api/integrations/google-health'?20000:undefined);
+    }, (method==='GET'&&['/api/bootstrap/shell','/api/bootstrap','/api/integrations/google-health'].includes(path))
+      || (method==='POST'&&path==='/api/integrations/google-health/sync-data'),
+    path==='/api/integrations/google-health'?15000:path.startsWith('/api/bootstrap')||path==='/api/integrations/google-health/sync-data'?20000:undefined);
   } catch (error) {
     if (signal?.aborted) throw error;
+    if (error instanceof DOMException && error.name === 'TimeoutError') throw new ApiError(error.message, 0);
     throw new ApiError('No connection to the server. Your workout needs a connection to save.', 0);
   }
   if (response.status === 204) return undefined as T;
   const text = await response.text();
   const payload = text ? safeParse(text, response.status) : null;
-  if (!response.ok) throw new ApiError(payload?.message ?? 'Something went wrong. Try again.', response.status);
+  if (!response.ok) {
+    const raw = response.headers.get('Retry-After');
+    const seconds = raw !== null && /^\d+$/.test(raw) ? Number(raw) : null;
+    const date = raw !== null ? Date.parse(raw) : NaN;
+    const retryAfterMs = response.status === 429 ? (seconds !== null ? seconds * 1000
+      : Number.isFinite(date) ? Math.max(0, date - Date.now()) : 5000) : null;
+    throw new ApiError(payload?.message ?? 'Something went wrong. Try again.', response.status, retryAfterMs);
+  }
   return payload as T;
 }
 
@@ -177,7 +187,9 @@ export const api = {
   connectedApps: () => call<{ peer: string; status: string; connectionState: string; canDisconnect: boolean; syncWarning: boolean; scopes: string[]; grantedAt: string | null; revokedAt: string | null }[]>('/api/integrations/connected'),
   revokeApp: (peer: string) => call<void>(`/api/integrations/connected/${peer}`, 'DELETE'),
   refreshNutritionContext: (signal?: AbortSignal) => call<{ mode: string; cached: boolean; confirmed: boolean; error: string | null }>('/api/integrations/refresh', 'POST', undefined, signal),
-  googleHealthStatus: (signal?: AbortSignal) => call<import('./googleHealth').GoogleHealthSyncResult>('/api/integrations/google-health', 'GET', undefined, signal),
+  googleHealthStatus: (signal?: AbortSignal) => call<import('./googleHealth').GoogleHealthSyncResult>('/api/integrations/google-health', 'GET', undefined, signal,
+    {'X-Workout-Google-Health-Status-Only':'1'}),
+  googleHealthSyncData: (signal?: AbortSignal) => call<import('./googleHealth').GoogleHealthSyncResult>('/api/integrations/google-health/sync-data', 'POST', {}, signal),
   connectGoogleHealth: (input: { syncWorkout?: boolean }) => call<{ authUrl: string }>('/api/integrations/google-health/connect', 'POST', input),
   disconnectGoogleHealth: () => call<import('./googleHealth').GoogleHealthSyncResult>('/api/integrations/google-health/disconnect', 'POST'),
   setGoogleHealthWorkoutSyncPreference: (input: { enabled: boolean; revision: number }) => call<import('./googleHealth').GoogleHealthWorkoutSyncStatus>('/api/integrations/google-health/workout-sync/preference', 'POST', input),

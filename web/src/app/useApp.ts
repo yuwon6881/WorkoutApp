@@ -1,3 +1,4 @@
+import {resetGoogleHealthState} from '../lib/googleHealth';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ApiError, api } from '../lib/api';
 import { sharedReads } from '../lib/readCoordinator';
@@ -148,12 +149,13 @@ export function useApp(): AppState {
         if (workoutVersion.current !== workoutAtStart) next.activeWorkout = current.activeWorkout;
       }
       lastRefreshAt.current = Date.now();
+      if (currentData.current?.account.id !== next.account.id) resetGoogleHealthState();
       setData(next); setResourceError(''); setError(''); setSignedOut(false);
       if (!queue.unsaved) queue.clear();
     } catch (failure) {
       if (epoch !== loadEpoch.current) return;
       const problem = failure instanceof ApiError ? failure : new ApiError('Could not load your training.', -1);
-      if (problem.signedOut) { await setLastAccount(null).catch(() => undefined); setRecovery(null); setSignedOut(true); setData(null); setError(''); queue.set('signed-out'); }
+      if (problem.signedOut) { resetGoogleHealthState(); await setLastAccount(null).catch(() => undefined); setRecovery(null); setSignedOut(true); setData(null); setError(''); queue.set('signed-out'); }
       else {
         setError(problem.message);
         if (problem.offline) {
@@ -277,7 +279,7 @@ export function useApp(): AppState {
   const signOut = useCallback(async () => {
     loadEpoch.current++; sharedReads.reset(); resourcesInFlight.current.clear();
     await retireCurrentPushDevice();
-    try { await api.logout(); } finally { await setLastAccount(null).catch(() => undefined); queue.clear(); setData(null); setRecovery(null); setSignedOut(true); }
+    try { await api.logout(); } finally { resetGoogleHealthState(); await setLastAccount(null).catch(() => undefined); queue.clear(); setData(null); setRecovery(null); setSignedOut(true); }
   }, [queue]);
 
   return { data, status, loading, error, signedOut, online, recovery, devicePreferences, reload, ensureResources, resourceError, queue, setData: patch, savePreferences, setActiveWorkout, setRecovery: updateRecovery, setDevicePreferences, signOut };

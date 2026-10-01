@@ -173,9 +173,14 @@ public sealed partial class GoogleHealthWorkoutSyncService(
     }
 
     /// Processes due uploads for every account (the daily sweep), or for one account while its user
-    /// is active. A budget stops the pass between records; an unfinished record stays queued.
+    /// is active. A budget cancels in-progress work; an unfinished record retains its lease.
     public async Task<GoogleHealthWorkoutSyncProcessResult> ProcessDueAsync(CancellationToken ct, Guid? userId = null, TimeSpan? budget = null)
     {
+        ct.ThrowIfCancellationRequested();
+        if (budget <= TimeSpan.Zero) return new(0, 0, 0, 0, 0);
+        using var passDeadline = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        if (budget is { } passBudget) passDeadline.CancelAfter(passBudget);
+        ct = passDeadline.Token;
         var started = DateTime.UtcNow;
         var deadline = budget is { } limit ? started.Add(limit) : DateTime.MaxValue;
         var candidates = await db.GoogleHealthWorkoutSyncWork.IgnoreQueryFilters()

@@ -36,6 +36,13 @@ class ActiveWorkoutModelTest {
     fun poundsAreADisplayConversionOfCanonicalKilograms() {
         val model = activeSetModel(snapshot(unit = "lb"))
         assertEquals(181.9, model.startingLoad!!, 0.0)
+        // A server-resolved rule is authoritative, even when it is not the pound default.
+        assertEquals(2.5 * WorkoutRepository.LB_PER_KG, model.loadStep, 0.0001)
+    }
+
+    @Test
+    fun anUnresolvedPoundStepUsesThePoundDefault() {
+        val model = activeSetModel(snapshot(unit = "lb", activeExerciseId = "incline"))
         // Without a server-resolved step, a pound display steps by the 5 lb default, not 2.5 kg.
         assertEquals(5.0, model.loadStep, 0.0001)
     }

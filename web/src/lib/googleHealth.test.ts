@@ -1,10 +1,11 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   connectGoogleHealth,
   disconnectGoogleHealth,
   fetchGoogleHealthStatus,
   initialGoogleHealthState,
   recoverGoogleHealthWorkoutSync,
+  resetGoogleHealthState,
   setGoogleHealthWorkoutSync,
 } from './googleHealth';
 import { api } from './api';
@@ -12,6 +13,7 @@ import { api } from './api';
 vi.mock('./api', () => ({
   api: {
     googleHealthStatus: vi.fn(),
+    googleHealthSyncData: vi.fn(),
     connectGoogleHealth: vi.fn(),
     disconnectGoogleHealth: vi.fn(),
     setGoogleHealthWorkoutSyncPreference: vi.fn(),
@@ -21,7 +23,39 @@ vi.mock('./api', () => ({
 
 describe('Workout Google Health lib', () => {
   beforeEach(() => {
+    resetGoogleHealthState();
     vi.clearAllMocks();
+  });
+  afterEach(() => { resetGoogleHealthState(); vi.useRealTimers(); });
+
+  it('ignores a late response from an account that was reset', async () => {
+    let finishOld!: (value: typeof initialGoogleHealthState) => void;
+    vi.mocked(api.googleHealthStatus).mockReturnValueOnce(new Promise(resolve => {finishOld = resolve;}));
+    const old = fetchGoogleHealthStatus(true);
+    const rejected = expect(old).rejects.toMatchObject({name: 'AbortError'});
+    resetGoogleHealthState();
+    const current = {...initialGoogleHealthState, status: 'connected' as const, freshness: 'fresh' as const,
+      days: [{date: '2026-10-01', count: 9876}]};
+    vi.mocked(api.googleHealthStatus).mockResolvedValueOnce(current);
+    await fetchGoogleHealthStatus(true);
+    finishOld({...current, days: [{date: '2026-10-01', count: 1234}]});
+    await rejected;
+    expect((await fetchGoogleHealthStatus()).days[0].count).toBe(9876);
+  });
+
+  it('does not wait for uploads before returning connection status', async () => {
+    vi.useFakeTimers();
+    const saved = {...initialGoogleHealthState, status: 'connected' as const,
+      workoutSync: {...initialGoogleHealthState.workoutSync, pendingCount: 1}};
+    vi.mocked(api.googleHealthStatus).mockResolvedValueOnce(saved);
+    let finish!: (state: typeof saved) => void;
+    vi.mocked(api.googleHealthSyncData).mockReturnValueOnce(new Promise(resolve => { finish = resolve; }));
+    expect((await fetchGoogleHealthStatus()).status).toBe('connected');
+    await vi.advanceTimersByTimeAsync(250);
+    expect(api.googleHealthSyncData).toHaveBeenCalledTimes(1);
+    expect((await fetchGoogleHealthStatus()).status).toBe('connected');
+    finish(saved);
+    await vi.advanceTimersByTimeAsync(1);
   });
 
   it('has valid initial disconnected state', () => {

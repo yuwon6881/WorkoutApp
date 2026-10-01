@@ -4,6 +4,33 @@ import {fetchWithAvailabilityRecovery} from './availabilityRecovery';
 afterEach(()=>{vi.useRealTimers();vi.unstubAllGlobals();});
 
 describe('temporary service availability',()=>{
+  it('accepts empty success responses even when the browser exposes a body stream',async()=>{
+    const response=new Response(null,{status:204});
+    Object.defineProperty(response,'body',{value:{}});
+    vi.stubGlobal('fetch',vi.fn().mockResolvedValue(response));
+    expect((await fetchWithAvailabilityRecovery('/api/photos/delete',{method:'POST'},false,20000)).status).toBe(204);
+  });
+  it('uses one deadline across attempts rather than restarting the clock',async()=>{
+    vi.useFakeTimers();
+    const fetch=vi.fn().mockImplementation((_url:string,options:RequestInit)=>new Promise<Response>((resolve,reject)=>{
+      const timer=setTimeout(()=>resolve(new Response('',{status:429})),4000);
+      options.signal?.addEventListener('abort',()=>{clearTimeout(timer);reject(options.signal?.reason);},{once:true});
+    }));
+    vi.stubGlobal('fetch',fetch);
+    const result=fetchWithAvailabilityRecovery('/api/auth/me',{},true,12000);
+    const rejected=expect(result).rejects.toMatchObject({name:'TimeoutError'});
+    await vi.advanceTimersByTimeAsync(12000);
+    await rejected;
+    expect(fetch).toHaveBeenCalledTimes(2);
+  });
+  it('returns a cooldown immediately when Retry-After cannot fit the deadline',async()=>{
+    vi.useFakeTimers();
+    const fetch=vi.fn().mockResolvedValue(new Response('',{status:429,headers:{'Retry-After':'60'}}));
+    vi.stubGlobal('fetch',fetch);
+    expect((await fetchWithAvailabilityRecovery('/api/auth/me',{},true,15000)).status).toBe(429);
+    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(vi.getTimerCount()).toBe(0);
+  });
   it('retries gateway 429s on explicitly safe reads and sync passes',async()=>{
     vi.useFakeTimers();
     const fetch=vi.fn().mockResolvedValueOnce(new Response('No available instance',{status:429}))

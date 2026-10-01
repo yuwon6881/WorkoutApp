@@ -15,12 +15,22 @@ public static class GoogleHealthEndpoints
 
     public static void MapGoogleHealth(this WebApplication app)
     {
-        app.MapGet("/api/integrations/google-health", async (GoogleHealthService service, AppDb db, IServiceScopeFactory scopes, ILogger<GoogleHealthService> logger, CancellationToken ct) =>
+        app.MapGet("/api/integrations/google-health", async (HttpRequest request, GoogleHealthService service, AppDb db,
+            IServiceScopeFactory scopes, ILogger<GoogleHealthService> logger, CancellationToken ct) =>
         {
-            // Opening the app is the retry point for uploads an earlier flush left queued.
-            await GoogleHealthWorkoutFlush.ForActiveUserAsync(scopes, db.CurrentUser, logger, ct);
+            // Older deployed clients still use this read to dispatch queued work.
+            if (request.Headers["X-Workout-Google-Health-Status-Only"] != "1")
+                await GoogleHealthWorkoutFlush.ForActiveUserAsync(scopes, db.CurrentUser, logger, ct);
             var result = await service.GetStatusAsync(db.CurrentUser!.Value, ct);
             return Results.Ok(result);
+        });
+
+        app.MapPost("/api/integrations/google-health/sync-data", async (GoogleHealthService service, AppDb db,
+            IServiceScopeFactory scopes, ILogger<GoogleHealthService> logger, CancellationToken ct) =>
+        {
+            await GoogleHealthWorkoutFlush.ForActiveUserAsync(scopes, db.CurrentUser, logger, ct);
+            db.ChangeTracker.Clear();
+            return Results.Ok(await service.GetStatusAsync(db.CurrentUser!.Value, ct));
         });
 
         app.MapPost("/api/integrations/google-health/connect", async (ConnectInput? input, GoogleHealthService service, AppDb db, HttpContext http, CancellationToken ct) =>

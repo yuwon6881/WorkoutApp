@@ -1,5 +1,27 @@
 import {test,expect} from '@playwright/test';
 
+test('Google Health status appears while uploads are still pending',async({page})=>{
+  let releaseUploads!:()=>void;
+  const uploads=new Promise<void>(resolve=>{releaseUploads=resolve;});
+  let passes=0;
+  const status={status:'connected',connectedAt:'2026-09-20T10:00:00Z',freshness:'fresh',days:[],
+    workoutSync:{enabled:true,permissionGranted:true,state:'pending',pendingCount:1,revision:1,lastSuccessfulSyncAt:null}};
+  await page.route('**/api/integrations/google-health',async route=>{await route.fulfill({json:status});});
+  await page.route('**/api/integrations/google-health/sync-data',async route=>{
+    passes++;
+    await uploads;
+    await route.fulfill({json:{...status,workoutSync:{...status.workoutSync,state:'idle',pendingCount:0}}});
+  });
+  try{
+    await page.goto('/settings');
+    await expect(page.getByText(/Connected since/)).toBeVisible();
+    await expect.poll(()=>passes).toBe(1);
+    await page.evaluate(()=>{document.dispatchEvent(new Event('visibilitychange'));window.dispatchEvent(new Event('online'));});
+    await expect(page.getByText(/Connected since/)).toBeVisible();
+    expect(passes).toBe(1);
+  }finally{releaseUploads();}
+});
+
 for(const theme of ['light','dark']){
   test(`startup connection recovery is readable in ${theme}`,async({page},testInfo)=>{
     let available=false;
