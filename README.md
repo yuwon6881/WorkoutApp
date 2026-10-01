@@ -139,7 +139,9 @@ decision. Passive status rows are regular content; only rows with an available a
   saved section responses from committed sections and stays indeterminate during verification. The
   model, reasoning effort, request limit, and per-read budget are unchanged.
   Saved stopped imports stay in a collapsed list and open only when chosen. Reloading or discarding
-  a different draft does not select an older error; live reads and ready drafts resume newest first.
+  a different draft does not select an older error; live reads and ready drafts resume newest first,
+  including straight after a discard. A failed import is listed for one day and then swept, and a new
+  read of the same PDF replaces its earlier failed attempts.
   Choosing a new PDF clears the previous attempt's detail panel while the new file is read.
 - Imported prescriptions retain per-set techniques such as partial reps, lengthened partials, and
   integrated partials. Row instructions for top- or bottom-half ROM work are recognized too, including

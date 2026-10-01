@@ -5,7 +5,8 @@ export function isStoppedImport(view: ImportView): boolean {
 }
 
 /// The server lists newest first. Only live reads and ready drafts are resumed automatically;
-/// a retained failure belongs to a past attempt until the user chooses to open it.
-export function resumableImport(imports: readonly ImportView[]): ImportView | null {
-  return imports.find(view => (view.status === 'pending' || view.status === 'ready') && !view.error) ?? null;
+/// a retained failure belongs to a past attempt until the user chooses to open it. `discarded`
+/// covers imports thrown away on this screen that a list fetched before the discard still carries.
+export function resumableImport(imports: readonly ImportView[], discarded: ReadonlySet<string> = new Set()): ImportView | null {
+  return imports.find(view => (view.status === 'pending' || view.status === 'ready') && !view.error && !discarded.has(view.id)) ?? null;
 }

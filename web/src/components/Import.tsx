@@ -11,7 +11,7 @@ import { useImportDraftSaver } from './useImportDraftSaver';
 import { ImportFailedPanel } from './ImportFailedPanel';
 import { importIssueCopy } from '../lib/importIssueCopy';
 import { resumableImport } from '../lib/importSelection';
-import { localPdfRead } from '../lib/localPdfRead';
+import { localPdfRead, useLocalPdfRead } from '../lib/localPdfRead';
 import { StoppedImports } from './StoppedImports';
 import './Import.css';
 
@@ -102,6 +102,24 @@ export function ImportReview({ exercises, imports, onBack, onChanged, notify }: 
   const pipeline = useImportPipeline({ selected, setSelected, setDraft, onChanged, onComplete: handleComplete });
   const saver = useImportDraftSaver({ selected, setSelected, draft, setDraft, onChanged, setSaveError });
   const busy = pipeline.busy || saver.pending;
+  const localRead = useLocalPdfRead();
+  /// Imports thrown away on this screen. The list prop is refreshed after a discard, so until it
+  /// lands it can still carry the row that was just removed.
+  const discarded = useRef(new Set<string>());
+
+  // Discarding one import must not hide another that is still waiting for review: once the
+  // screen is idle with nothing selected, it returns to the next live read or ready draft, the
+  // same one it would open on a fresh visit.
+  useEffect(() => {
+    if (selected || busy || localRead) return;
+    const next = resumableImport(imports, discarded.current);
+    if (next) setSelected(next);
+  }, [busy, imports, localRead, selected]);
+
+  function discard(view: ImportView) {
+    discarded.current.add(view.id);
+    return pipeline.cancel(view);
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -195,14 +213,14 @@ export function ImportReview({ exercises, imports, onBack, onChanged, notify }: 
           ? null
           : Math.min(99, Math.round((selected.chunksDone / selected.chunksTotal) * 100))
       }} action={
-        <Button variant="destructive" onClick={() => void pipeline.cancel(selected)}><Trash2 size={15} />Cancel import</Button>
+        <Button variant="destructive" onClick={() => void discard(selected)}><Trash2 size={15} />Cancel import</Button>
       } />}
       {!pipeline.uploadProgress && selected && selected.status === 'pending' && selected.stage === 'outline' && <Progress progress={{
         label: 'Reading the outline',
         detail: selected.fileName,
         percent: null
       }} action={
-        <Button variant="destructive" onClick={() => void pipeline.cancel(selected)}><Trash2 size={15} />Cancel import</Button>
+        <Button variant="destructive" onClick={() => void discard(selected)}><Trash2 size={15} />Cancel import</Button>
       } />}
       {saver.pending && <p className="muted" role="status">Saving your changes…</p>}
       {pipeline.notice && <p className="muted" role="status">{pipeline.notice}</p>}
@@ -275,7 +293,7 @@ export function ImportReview({ exercises, imports, onBack, onChanged, notify }: 
         <div className="error-banner" role="alert"><AlertTriangle size={16} /><span>{selected.error}</span></div>
         <div className="reading-card-actions">
           <Button variant="primary" disabled={busy} onClick={() => void pipeline.resume(selected)}><RotateCcw size={15} />Retry reading</Button>
-          <Button variant="destructive" onClick={() => void pipeline.cancel(selected)}><Trash2 size={15} />Cancel import</Button>
+          <Button variant="destructive" onClick={() => void discard(selected)}><Trash2 size={15} />Cancel import</Button>
         </div>
       </div>
     </section>}
@@ -330,7 +348,7 @@ export function ImportReview({ exercises, imports, onBack, onChanged, notify }: 
           acceptable={selected.acceptable}
           busy={busy}
           onRestoreDraft={() => setConfirmRestoreDraft(true)}
-          onDiscardDraft={() => pipeline.run('Discarding this draft…', async () => { await api.discardImport(selected.id); setSelected(null); setDraft(null); })}
+          onDiscardDraft={() => pipeline.run('Discarding this draft…', async () => { discarded.current.add(selected.id); await api.discardImport(selected.id); setSelected(null); setDraft(null); })}
           onAcceptProgram={() => pipeline.run('Creating the program…', async () => { await api.acceptImport(selected.id); setSelected(null); setDraft(null); onBack(); })}
         />
       )
@@ -372,6 +390,6 @@ export function ImportReview({ exercises, imports, onBack, onChanged, notify }: 
     </>}
 
     {selected && selected.status === 'failed' && <ImportFailedPanel view={selected} busy={busy}
-      onChooseFile={() => file.current?.click()} onDiscard={() => void pipeline.cancel(selected)} />}
+      onChooseFile={() => file.current?.click()} onDiscard={() => void discard(selected)} />}
   </>;
 }

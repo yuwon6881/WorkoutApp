@@ -50,6 +50,10 @@ public sealed partial class ImportService
                     WorkStateJson = Json.Write(new ImportWorkState(DateTime.UtcNow, DateTime.UtcNow))
                 };
                 db.Imports.Add(import);
+                // A new read of the same document supersedes its earlier failed attempts, so the
+                // import screen never offers an old failure next to the attempt being made now.
+                db.Imports.RemoveRange(await db.Imports
+                    .Where(i => i.DocumentHash == hash && i.Status == ImportStatus.Failed).ToListAsync(ct));
             }
             if (import.Status == ImportStatus.Pending && string.IsNullOrEmpty(import.SourceTextJson))
             {

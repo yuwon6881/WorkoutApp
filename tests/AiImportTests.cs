@@ -540,7 +540,7 @@ public class AiImportTests
         row.Status = ImportStatus.Failed;
         row.Error = "This PDF is too large for one AI visual input and has no readable text.";
         await h.Db.SaveChangesAsync();
-        var unrelated = await imports.Create(Source("Unrelated workout.pdf"), default);
+        var unrelated = await imports.Create(Source("Unrelated workout.pdf", marker: 1), default);
 
         await imports.Discard(unrelated.Id, default);
 

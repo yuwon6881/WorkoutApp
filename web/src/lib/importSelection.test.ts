@@ -35,4 +35,12 @@ describe('saved import selection', () => {
     expect(resumableImport([view('done', 'accepted'), view('removed', 'discarded')])).toBeNull();
     expect(resumableImport([])).toBeNull();
   });
+
+  it('returns to the ready draft after another import is discarded, never to the discarded one', () => {
+    const draft = view('draft', 'ready');
+    const ghost = view('ghost', 'failed', 'The read could not be completed');
+    expect(resumableImport([ghost, draft], new Set(['ghost']))).toBe(draft);
+    // A list fetched before the discard landed still carries the discarded draft.
+    expect(resumableImport([draft], new Set(['draft']))).toBeNull();
+  });
 });

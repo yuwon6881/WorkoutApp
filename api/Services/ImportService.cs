@@ -18,12 +18,19 @@ public sealed partial class ImportService(AppDb db, WorkoutAi ai, CatalogService
     private sealed record ImportCatalogSnapshot(HashSet<Guid> Active, Dictionary<string, Guid> Matches,
         Dictionary<Guid, string> Names);
 
+    /// How long a failed attempt stays readable. Its explanation is only useful right after the
+    /// read; kept longer it reappears on the import screen as an attempt nobody is making anymore.
+    internal static readonly TimeSpan FailedImportRetention = TimeSpan.FromDays(1);
+
     /// Only work still in progress. A finished import is deleted rather than kept, so there is no
     /// import history to list: the program it produced is the lasting record.
     public async Task<List<ImportView>> List(CancellationToken ct)
     {
+        // Filtered here as well as swept, because the sweep runs on a schedule this request cannot see.
+        var failedCutoff = DateTime.UtcNow - FailedImportRetention;
         var rows = await db.Imports.AsNoTracking()
-            .Where(i => i.Status == ImportStatus.Pending || i.Status == ImportStatus.Ready || i.Status == ImportStatus.Failed)
+            .Where(i => i.Status == ImportStatus.Pending || i.Status == ImportStatus.Ready
+                || (i.Status == ImportStatus.Failed && i.Created >= failedCutoff))
             .OrderByDescending(i => i.Created).Take(10).ToListAsync(ct);
         var views = new List<ImportView>();
         foreach (var row in rows) views.Add(await View(row, includeDraft: false, ct));
@@ -172,17 +179,32 @@ public sealed partial class ImportService(AppDb db, WorkoutAi ai, CatalogService
 
     public async Task<ImportView> EditDay(Guid id, Guid lineId, DraftWorkout day, int? revision, CancellationToken ct)
     {
-        await using var gate = await MutationLock.Acquire(db, db.CurrentUser, ct);
         Validation.Require(day.LineId == lineId, "That day does not match the requested draft line.", 400);
+        return await EditDays(id, [day], revision, ct);
+    }
+
+    /// Replaces the named days and keeps every other day as stored. An exercise edit that reaches
+    /// several occurrences sends only the days it changed, so the request and its validation scale
+    /// with the edit rather than with the whole program.
+    public async Task<ImportView> EditDays(Guid id, IReadOnlyList<DraftWorkout> days, int? revision, CancellationToken ct)
+    {
+        Validation.Require(days.Count > 0, "Choose at least one day to save.", 400);
+        Validation.Require(days.Select(day => day.LineId).Distinct().Count() == days.Count, "Each day can be saved only once per request.", 400);
+        await using var gate = await MutationLock.Acquire(db, db.CurrentUser, ct);
         var import = await db.Imports.SingleOrDefaultAsync(i => i.Id == id, ct);
         Validation.Require(import != null, "That import no longer exists.", 404);
         Validation.Require(import!.Status == ImportStatus.Ready, "This import is no longer editable.", 409);
         TemplateService.RequireFresh(revision, import.Revision);
-        if (string.IsNullOrEmpty(import.DraftBaselineJson)) import.DraftBaselineJson = import.DraftJson;
         var draft = ImportValidation.NormalizeDraft(Json.Read<ImportDraft>(import.DraftJson));
-        Validation.Require(draft.Workouts.Any(w => w.LineId == lineId), "That day no longer exists.", 404);
-        await ValidateWorkout(day, ct);
-        var next = ImportValidation.NormalizeDraft(draft with { Workouts = draft.Workouts.Select(w => w.LineId == lineId ? day : w).ToList() });
+        var stored = draft.Workouts.Select(w => w.LineId).ToHashSet();
+        Validation.Require(days.All(day => stored.Contains(day.LineId)), "That day no longer exists.", 404);
+        foreach (var day in days) await ValidateWorkout(day, ct);
+        if (string.IsNullOrEmpty(import.DraftBaselineJson)) import.DraftBaselineJson = import.DraftJson;
+        var replacements = days.ToDictionary(day => day.LineId);
+        var next = ImportValidation.NormalizeDraft(draft with
+        {
+            Workouts = draft.Workouts.Select(w => replacements.GetValueOrDefault(w.LineId, w)).ToList()
+        });
         import.DraftJson = Json.Write(next); import.Revision++; UpdateCounters(import, next);
         await db.SaveChangesAsync(ct);
         await gate.Commit(ct);
@@ -246,6 +268,10 @@ public sealed partial class ImportService(AppDb db, WorkoutAi ai, CatalogService
         await db.Imports.IgnoreQueryFilters()
             .Where(i => i.Status == ImportStatus.Pending && i.Created < pendingCutoff &&
                 (i.LeaseUntil == null || i.LeaseUntil < now))
+            .ExecuteDeleteAsync(ct);
+        var failedCutoff = now - FailedImportRetention;
+        await db.Imports.IgnoreQueryFilters()
+            .Where(i => i.Status == ImportStatus.Failed && i.Created < failedCutoff)
             .ExecuteDeleteAsync(ct);
         await db.Imports.IgnoreQueryFilters()
             .Where(i => i.SourceExpiresAt != null && i.SourceExpiresAt < now)
