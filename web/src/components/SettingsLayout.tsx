@@ -98,7 +98,19 @@ function useActiveSection(ids: string[]) {
 /// compact and medium ones (layout.css).
 export function SettingsNav({ links }: { links: SettingsSectionLink[] }) {
   const [active, setActive] = useActiveSection(links.map(link => link.id));
+  const navRef = useRef<HTMLElement | null>(null);
   const reduced = useReducedMotion();
+
+  useEffect(() => {
+    const nav = navRef.current;
+    if (!nav) return;
+    const list = nav.querySelector<HTMLElement>('.settings-nav-list');
+    if (!list || list.scrollWidth <= list.clientWidth) return;
+    const button = list.querySelector<HTMLElement>(`[data-selection-key="${active}"]`);
+    if (!button) return;
+    const targetLeft = Math.max(0, button.offsetLeft - (list.clientWidth - button.offsetWidth) / 2);
+    list.scrollTo({ left: targetLeft, behavior: reduced ? 'auto' : 'smooth' });
+  }, [active, reduced]);
 
   function go(id: string) {
     setActive(id);
@@ -107,7 +119,7 @@ export function SettingsNav({ links }: { links: SettingsSectionLink[] }) {
   }
 
   return (
-    <nav className="settings-nav" aria-label="Settings sections">
+    <nav ref={navRef} className="settings-nav" aria-label="Settings sections">
       <SelectionIndicator active={active} className="settings-nav-list">
         {links.map(({ id, label, icon: Icon }) => (
           <Button

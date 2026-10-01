@@ -86,13 +86,14 @@ export function LoadRuleEditor({
         label={entry === 'side' ? `Smallest plate per side (${unit})` : `Weight increment (${unit})`}
         value={step} error={fieldError} disabled={busy} onChange={event => { setStep(event.target.value); setFieldError(''); }} />
       <p className="muted">{entry === 'side'
-        ? '1.25 per side = a 2.5 total step.'
+        ? (unit === 'lb' ? '2.5 per side = a 5 total step.' : '1.25 per side = a 2.5 total step.')
         : 'Use 0 to progress through reps only.'}</p>
     </>}
 
     {mode === 'weights' && <>
       <TextAreaField ref={listField} name={`${name}-weights`} label={`Available weights (${unit})`} rows={2}
-        value={list} error={fieldError} disabled={busy} placeholder="2.5, 5, 7.5, 10, 15, 20"
+        value={list} error={fieldError} disabled={busy}
+        placeholder={unit === 'lb' ? '5, 10, 15, 20, 25, 30' : '2.5, 5, 7.5, 10, 15, 20'}
         onChange={event => { setList(event.target.value); setFieldError(''); }} />
       <p className="muted">Enter the weights you use, separated by commas or spaces.</p>
       <Button variant="tertiary" className="load-rule-sequence-toggle" disabled={busy} aria-expanded={sequenceOpen}

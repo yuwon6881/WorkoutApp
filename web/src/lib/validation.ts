@@ -30,7 +30,7 @@ export function validateExerciseLoads(raw: string, kilograms: number[], list: bo
   if (list && (kilograms.length > 200 || new Set(kilograms).size < 2))
     return 'Enter between 2 and 200 different available weights.';
   if (kilograms.some(value => value > (list ? 1000 : 50) + 1e-9))
-    return list ? 'Each available weight must be at most 1,000 kg (2,204.62 lb).' : 'The increment must be at most 50 kg (110.23 lb).';
+    return list ? 'Each available weight must be at most 1,000 kg (2,200 lb).' : 'The increment must be at most 50 kg (110 lb).';
   return undefined;
 }
 

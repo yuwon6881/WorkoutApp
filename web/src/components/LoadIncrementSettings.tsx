@@ -40,7 +40,7 @@ export function LoadIncrementSettings({ unit, notify, onChanged }: {
       if (!controller.signal.aborted) setError(failure instanceof Error ? failure.message : 'Could not load weight settings.');
     });
     return () => controller.abort();
-  }, [reload]);
+  }, [reload, unit]);
 
   async function run(action: () => Promise<LoadSettingsOverview>, done: string) {
     setBusy(true);

@@ -150,6 +150,8 @@ public sealed partial class WorkoutService(
             var models = await catalog.LoadModelsFor(planned.Select(p => p.ExerciseId), ct);
             var histories = await PreviousExposuresBatch(planned.Select(p => (p.ExerciseId, p.SourceName)), ct);
             var timed = await CatalogService.TrackingModesFor(db, planned.Select(p => p.ExerciseId), ct);
+            var user = db.CurrentUser is null ? null : await db.Users.AsNoTracking().SingleOrDefaultAsync(x => x.Id == db.CurrentUser, ct);
+            var userUnit = user?.Unit ?? "kg";
             foreach (var plan in planned)
             {
                 var prescription = Json.Read<List<SetPrescription>>(plan.SetsJson);
@@ -169,7 +171,7 @@ public sealed partial class WorkoutService(
 
                 var historyKey = (plan.ExerciseId, plan.ExerciseId is null ? CatalogService.Normalize(plan.SourceName) : "");
                 var previous = histories.GetValueOrDefault(historyKey) ?? [];
-                var step = plan.ExerciseId is { } id2 && info.TryGetValue(id2, out var found) ? found.StepKg : Progression.DefaultStepKg;
+                var step = plan.ExerciseId is { } id2 && info.TryGetValue(id2, out var found) ? found.StepKg : Progression.DefaultStep(userUnit);
                 var workingOrdinal = 0;
                 // Timed holds are measured in seconds; the rep-based progression has nothing honest to suggest.
                 var isTimed = plan.ExerciseId is { } timedId && timed.ContainsKey(timedId);
@@ -325,6 +327,8 @@ public sealed partial class WorkoutService(
         var usedExercises = new HashSet<Guid>();
         var usedSets = new HashSet<Guid>();
 
+        var user = db.CurrentUser is null ? null : await db.Users.AsNoTracking().SingleOrDefaultAsync(x => x.Id == db.CurrentUser, ct);
+        var userUnit = user?.Unit ?? "kg";
         var catalogModels = await catalog.LoadModelsFor(input.Exercises.Select(e => e.ExerciseId), ct);
         var catalogInfo = await progression.LoadInfo(input.Exercises.Select(e => e.ExerciseId), ct);
         var position = 0;
@@ -332,7 +336,7 @@ public sealed partial class WorkoutService(
         {
             var loadModel = exercise.ExerciseId is { } catalogId ? catalogModels.GetValueOrDefault(catalogId, LoadModels.External) : LoadModels.External;
             var step = exercise.ExerciseId is { } stepId && catalogInfo.TryGetValue(stepId, out var exerciseInfo)
-                ? exerciseInfo.AvailableLoadsKg is null ? exerciseInfo.StepKg : 0 : Progression.DefaultStepKg;
+                ? exerciseInfo.AvailableLoadsKg is null ? exerciseInfo.StepKg : 0 : Progression.DefaultStep(userUnit);
             var key = ProgressionService.Key(exercise.ExerciseId, exercise.NameSnapshot.Trim());
             var row = exercise.Id is { } exerciseId && existingById.TryGetValue(exerciseId, out var stableExercise)
                 ? stableExercise
@@ -464,8 +468,10 @@ public sealed partial class WorkoutService(
         var context = ReadOptional<NutritionTrainingContext>(session.NutritionContextJson);
         var result = new NutritionContextResult(context, NutritionContextService.Mode(context, DateTime.UtcNow), context is not null, context?.Confirmed == true, null);
         var bodyWeight = ReadOptional<BodyWeightSnapshot>(session.BodyWeightSnapshotJson);
+        var user = db.CurrentUser is null ? null : await db.Users.AsNoTracking().SingleOrDefaultAsync(x => x.Id == db.CurrentUser, ct);
+        var userUnit = user?.Unit ?? "kg";
         var info = await progression.LoadInfo([exercise.ExerciseId], ct);
-        var step = exercise.ExerciseId is { } id && info.TryGetValue(id, out var found) ? found.StepKg : Progression.DefaultStepKg;
+        var step = exercise.ExerciseId is { } id && info.TryGetValue(id, out var found) ? found.StepKg : Progression.DefaultStep(userUnit);
         var histories = await PreviousExposures(exercise.ExerciseId, exercise.NameSnapshot, ct);
         var workingOrdinal = 0; SetProgressionSuggestion? first = null; SetProgressionSuggestion? straight = null;
         foreach (var set in sets.OrderBy(s => s.Position))

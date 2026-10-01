@@ -51,18 +51,31 @@ public static class EquipmentGroups
     }
 
     /// The step an exercise in this group uses when nobody has set one.
-    public static double AppDefaultStep(string group)
-        => Progression.StepForEquipment(EquipmentByGroup.GetValueOrDefault(group));
+    public static double AppDefaultStep(string group, string unit = "kg")
+        => Progression.StepForEquipment(EquipmentByGroup.GetValueOrDefault(group), unit);
 
     /// Older stored catalog/custom defaults must follow the revised plate and medicine-ball steps.
     /// Explicit exercise rules still win when the load is resolved.
-    public static double ExerciseAppDefault(double storedStepKg, string? equipment, string? loadModel)
+    public static double ExerciseAppDefault(double storedStepKg, string? equipment, string? loadModel, string unit = "kg")
     {
         if (loadModel is LoadModels.BodyweightContextOnly or LoadModels.RepsOnly) return storedStepKg;
-        return (equipment ?? "").Trim().ToLowerInvariant() switch
+        var eq = (equipment ?? "").Trim().ToLowerInvariant();
+        if (unit == "lb")
         {
-            "plate" => AppDefaultStep(Barbell),
-            "medicine ball" when loadModel != LoadModels.FullBodyweight => AppDefaultStep(MedicineBall),
+            return eq switch
+            {
+                "medicine ball" when loadModel != LoadModels.FullBodyweight => AppDefaultStep(MedicineBall, unit),
+                "dumbbell" => AppDefaultStep(Dumbbell, unit),
+                "cable" => AppDefaultStep(Cable, unit),
+                "kettlebell" => AppDefaultStep(Kettlebell, unit),
+                "plate" or "barbell" or "ez-bar" or "trap bar" or "smith machine" or "plate-loaded machine" => AppDefaultStep(Barbell, unit),
+                _ => storedStepKg > 0 ? AppDefaultStep(Barbell, unit) : 0
+            };
+        }
+        return eq switch
+        {
+            "plate" => AppDefaultStep(Barbell, unit),
+            "medicine ball" when loadModel != LoadModels.FullBodyweight => AppDefaultStep(MedicineBall, unit),
             _ => storedStepKg
         };
     }

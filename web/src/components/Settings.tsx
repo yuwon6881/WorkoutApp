@@ -104,7 +104,10 @@ export function SettingsView(props: SettingsViewProps) {
               <SegmentedControl
                 label="Weight unit"
                 value={preferences.unit}
-                onChange={unit => onPreferences({ ...preferences, unit })}
+                onChange={async unit => {
+                  onPreferences({ ...preferences, unit });
+                  await onCatalogChanged?.();
+                }}
                 options={[
                   { value: 'kg', label: 'kg', ariaLabel: 'Kilograms (kg)' },
                   { value: 'lb', label: 'lb', ariaLabel: 'Pounds (lb)' }

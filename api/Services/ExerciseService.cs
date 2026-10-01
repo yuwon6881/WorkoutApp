@@ -51,8 +51,9 @@ public sealed class ExerciseService(AppDb db)
         foreach (var secondary in input.SecondaryMuscles ?? []) Validation.Text(secondary, 80, "Secondary muscle");
         Validation.Require(LoadModels.All.Contains(input.LoadModel), "Choose a valid load model.");
         Validation.Require(input.TrackingMode is null || TrackingModes.All.Contains(input.TrackingMode), "Choose reps or time.");
-        if (input.LoadStepKg is { } typedStep) Validation.Number(typedStep, 0, 50, "Load increment");
-        var appStep = input.LoadModel == LoadModels.FullBodyweight ? Progression.DefaultStepKg : Progression.StepForEquipment(input.Equipment);
+        var user = db.CurrentUser is null ? null : await db.Users.AsNoTracking().SingleOrDefaultAsync(x => x.Id == db.CurrentUser, ct);
+        var unit = user?.Unit ?? "kg";
+        var appStep = input.LoadModel == LoadModels.FullBodyweight ? Progression.DefaultStep(unit) : Progression.StepForEquipment(input.Equipment, unit);
         await using var gate = await MutationLock.Acquire(db, db.CurrentUser, ct);
         var normalized = CatalogService.Normalize(input.Name);
         var sharedNames = await db.Exercises.AsNoTracking().Where(x => x.Active).Select(x => x.Name).ToListAsync(ct);

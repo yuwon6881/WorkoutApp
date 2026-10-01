@@ -34,7 +34,7 @@ export function ExerciseLoadSettings({ exerciseId, exerciseName, unit, perSide =
       if (!controller.signal.aborted) setError(failure instanceof Error ? failure.message : 'Could not load weight settings.');
     });
     return () => controller.abort();
-  }, [exerciseId, reload]);
+  }, [exerciseId, reload, unit]);
 
   useEffect(() => { setEditing(false); }, [unit, exerciseId]);
   useEffect(() => {

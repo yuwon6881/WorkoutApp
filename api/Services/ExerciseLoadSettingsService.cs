@@ -65,7 +65,7 @@ public sealed class ExerciseLoadSettingsService(AppDb db)
         var group = EquipmentGroups.For(exercise.Equipment, exercise.LoadModel);
         var equipmentRule = group is null ? null : await db.EquipmentLoadDefaults.AsNoTracking()
             .Where(x => x.Equipment == group).Select(x => new { x.LoadStepKg, x.AvailableLoadsJson }).SingleOrDefaultAsync(ct);
-        var appStepKg = EquipmentGroups.ExerciseAppDefault(exercise.AppStepKg, exercise.Equipment, exercise.LoadModel);
+        var appStepKg = EquipmentGroups.ExerciseAppDefault(exercise.AppStepKg, exercise.Equipment, exercise.LoadModel, rules.Unit);
         var inherited = LoadResolution.Resolve(appStepKg, group, null,
             equipmentRule is null ? null : LoadRuleReader.Rule(equipmentRule.LoadStepKg, equipmentRule.AvailableLoadsJson));
         var customized = row is not null && (row.LoadStepKg is not null || row.AvailableLoadsJson is not null);

@@ -72,7 +72,8 @@ public sealed partial class WorkoutService
         Validation.LoggedSet(weight, reps, rpe, done, warmup, durationSeconds);
         ValidateActualRir(rir, rpe);
         var warmupChanged = warmup != set.Warmup;
-        var step = Progression.DefaultStepKg;
+        var user = db.CurrentUser is null ? null : await db.Users.AsNoTracking().SingleOrDefaultAsync(x => x.Id == db.CurrentUser, ct);
+        var step = Progression.DefaultStep(user?.Unit ?? "kg");
         if (exercise.ExerciseId is { } exerciseId)
         {
             var info = await progression.LoadInfo([exerciseId], ct);

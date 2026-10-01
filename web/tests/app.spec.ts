@@ -175,7 +175,7 @@ test('personal exercise weights support uneven lists and kg/lb switching', async
     expect(saved.loadStepKg).toBeCloseTo(5 / 2.2046226218, 8);
     await dialog.getByRole('button', { name: 'Edit weights', exact: true }).click();
     await weights.getByRole('button', { name: 'Use default', exact: true }).click();
-    await expect(dialog.getByText('5.51 lb steps · App default', { exact: true })).toBeVisible();
+    await expect(dialog.getByText('5 lb steps · App default', { exact: true })).toBeVisible();
     // Old history remains usable even when the chosen chart range contains no points.
     const insight = await (await page.request.get(`/api/exercises/${exercise.id}/insight?range=3m&page=0&size=20`)).json();
     await dialog.getByRole('button', { name: 'Close dialog', exact: true }).click();

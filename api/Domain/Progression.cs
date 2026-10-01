@@ -95,6 +95,8 @@ public static class Progression
         => HasOpenReps(prescription.RepsText) || prescription.RepMin is null ? null : suggestion.SuggestedReps;
 
     public const double DefaultStepKg = 2.5;
+    public const double DefaultStepLb = 5.0;
+    public static double DefaultStep(string unit = "kg") => unit == "lb" ? DefaultStepLb / UnitStepConversion.PoundsPerKg : DefaultStepKg;
     public const int MaxEstimatedReps = 12;
     public const double MinEstimatedRpe = 6;
 
@@ -147,15 +149,26 @@ public static class Progression
         return Math.Floor((value + 1e-9) / stepKg) * stepKg;
     }
 
-    public static double StepForEquipment(string? equipment) => (equipment ?? "").Trim().ToLowerInvariant() switch
+    public static double StepForEquipment(string? equipment, string unit = "kg")
     {
-        "bodyweight" => 0,
-        "band" => 0,
-        "dumbbell" => 2,
-        "kettlebell" => 4,
-        "medicine ball" => 1,
-        _ => DefaultStepKg
-    };
+        var eq = (equipment ?? "").Trim().ToLowerInvariant();
+        if (eq is "bodyweight" or "band") return 0;
+        if (unit == "lb")
+        {
+            return eq switch
+            {
+                "medicine ball" => 2.0 / UnitStepConversion.PoundsPerKg,
+                _ => DefaultStepLb / UnitStepConversion.PoundsPerKg
+            };
+        }
+        return eq switch
+        {
+            "dumbbell" => 2,
+            "kettlebell" => 4,
+            "medicine ball" => 1,
+            _ => DefaultStepKg
+        };
+    }
 
     /// The strongest honest estimate a session produced for one exercise.
     public static double? SessionE1rm(IEnumerable<PreviousSet> sets)

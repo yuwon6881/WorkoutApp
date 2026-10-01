@@ -23,7 +23,7 @@ public sealed class LoadSettingsService(AppDb db, CatalogService catalog)
         {
             defaults.TryGetValue(group, out var row);
             var resolved = rules.ResolveGroup(group);
-            return new EquipmentLoadView(group, EquipmentGroups.AppDefaultStep(group), row?.LoadStepKg,
+            return new EquipmentLoadView(group, EquipmentGroups.AppDefaultStep(group, rules.Unit), row?.LoadStepKg,
                 LoadRuleReader.Loads(row?.AvailableLoadsJson), resolved.StepKg, resolved.AvailableLoadsKg?.ToList(),
                 resolved.Source, row?.Revision ?? 0, groupSizes.GetValueOrDefault(group));
         }).ToList();

@@ -117,7 +117,12 @@ public static class TrainingEndpoints
         app.MapPut("/api/preferences", async (PreferencesInput input, AppDb db, CancellationToken ct) =>
         {
             var user = await db.Users.SingleAsync(u => u.Id == db.CurrentUser, ct);
+            var oldUnit = user.Unit;
             input.ApplyTo(user);
+            if (!string.Equals(oldUnit, user.Unit, StringComparison.OrdinalIgnoreCase))
+            {
+                await UnitStepConversion.ConvertCustomSteps(db, user.Id, oldUnit, user.Unit, ct);
+            }
             await db.SaveChangesAsync(ct);
             return new { user.Unit, user.Theme, user.RestSeconds, user.RestAlerts, user.TrackRir };
         });
