@@ -29,6 +29,8 @@ public record DraftWorkout(
 /// seven days is only accepted without review when its source says so.
 public record ImportDraft(string ProgramName, List<DraftWorkout> Workouts, int? SourceWeekDays = null);
 public record ImportMetadata(string ProgramName);
+/// Days replaced together by one exercise edit; every day not named keeps its stored content.
+public record ImportDaysInput(List<DraftWorkout>? Days, int? Revision);
 /// One unresolved recurring slot, represented once even when the source repeats it in every week.
 public record UnresolvedExercise(Guid LineId, string SourceName, Guid? SlotKey = null,
     string? Block = null, int Occurrences = 1);

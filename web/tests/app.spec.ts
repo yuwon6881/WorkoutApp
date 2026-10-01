@@ -667,7 +667,8 @@ test('import a PDF program, resolve an unmapped exercise, and accept it', async 
   await expect(dayModal).toBeVisible();
   await expect(benchExercise.locator('[data-import-save-bar]')).toBeVisible();
   let failExerciseSave = true;
-  const saveRoute = '**/api/imports/*';
+  // Exercise saves send only the days they changed, so both draft-save routes count.
+  const saveRoute = /\/api\/imports\/[^/]+(\/days)?$/;
   await page.route(saveRoute, async route => {
     if (route.request().method() === 'PUT' && failExerciseSave) {
       failExerciseSave = false;

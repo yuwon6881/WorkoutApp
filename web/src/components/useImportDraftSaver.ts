@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { DraftWorkout, ImportDraft, ImportView } from '../types';
 import { ApiError, api } from '../lib/api';
 import { validateDraftWorkout, validateName } from '../lib/validation';
+import { changedDraftDays } from '../lib/importDraftDiff';
 
 type Options = {
   selected: ImportView | null;
@@ -57,7 +58,9 @@ export function useImportDraftSaver({ selected, setSelected, draft, setDraft, on
         } else {
           setSelected({ ...saved, draft: draftRef.current });
         }
-        await onChanged();
+        // The app-wide refresh only updates the import list beside this screen; the saved view is
+        // already applied, so the next queued save and the editor never wait on it.
+        void onChanged();
       } catch (failure) {
         setSaveError(failure instanceof ApiError ? failure.message : failureMessage);
       } finally {
@@ -116,7 +119,7 @@ export function useImportDraftSaver({ selected, setSelected, draft, setDraft, on
         if (!view) return;
         const saved = await request(view, view.revision);
         applyView(saved);
-        await onChanged();
+        void onChanged();
       } catch (failure) {
         setSaveError(failure instanceof ApiError ? failure.message : failureMessage);
         throw failure;
@@ -133,8 +136,16 @@ export function useImportDraftSaver({ selected, setSelected, draft, setDraft, on
   const revision = useCallback(() => selectedRef.current?.revision, []);
 
   // Explicit exercise saves must reject failures so the editor retains its held edits for retry.
-  const persistExercise = useCallback((next: ImportDraft) =>
-    mutate((view, revision) => api.editImport(view.id, next, revision), 'Could not save this exercise.'), [mutate]);
+  // An edit applied to every occurrence touches a handful of days in a program that can run to
+  // hundreds, so only those days are sent; a whole-draft save would upload the entire program.
+  const persistExercise = useCallback((next: ImportDraft) => {
+    const current = draftRef.current;
+    const days = current ? changedDraftDays(current, next) : null;
+    if (days?.length === 0) return Promise.resolve();
+    return mutate((view, revision) => days
+      ? api.editImportDays(view.id, days, revision)
+      : api.editImport(view.id, next, revision), 'Could not save this exercise.');
+  }, [mutate]);
 
   return { persist, persistDay, persistExercise, flush, mutate, revision, applyView, pending: pending > 0, localDirty };
 }

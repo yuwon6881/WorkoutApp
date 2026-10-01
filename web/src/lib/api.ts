@@ -206,6 +206,7 @@ export const api = {
   retryImport: (id: string) => call<ImportView>(`/api/imports/${id}/retry`, 'POST'),
   editImport: (id: string, draft: Pick<ImportDraft, 'programName'> | ImportDraft, revision?: number) => call<ImportView>(`/api/imports/${id}`, 'PUT', revision == null ? draft : { ...draft, revision }),
   editImportDay: (id: string, day: DraftWorkout, revision?: number) => call<ImportView>(`/api/imports/${id}/days/${day.lineId}`, 'PUT', revision == null ? day : { ...day, revision }),
+  editImportDays: (id: string, days: DraftWorkout[], revision?: number) => call<ImportView>(`/api/imports/${id}/days`, 'PUT', { days, revision }),
   restoreImport: (id: string, revision?: number) => call<ImportView>(`/api/imports/${id}/restore`, 'POST', { revision }),
   restoreImportExercise: (id: string, exerciseLineId: string, revision?: number) => call<ImportView>(`/api/imports/${id}/exercises/${exerciseLineId}/restore`, 'POST', { revision }),
   selectImportAlternative: (id: string, alternativeId: string) => call<ImportView>(`/api/imports/${id}/alternative`, 'POST', { alternativeId }),

@@ -90,6 +90,8 @@ public static class ImportEndpoints
             var day = Json.Read<DraftWorkout>(payload.GetRawText());
             return await imports.EditDay(id, lineId, day, revision, ct);
         });
+        app.MapPut("/api/imports/{id:guid}/days", async (Guid id, ImportDaysInput input, ImportService imports, CancellationToken ct)
+            => await imports.EditDays(id, input.Days ?? [], input.Revision, ct));
         app.MapPost("/api/imports/{id:guid}/restore", async (Guid id, ImportRestoreInput? input, ImportService imports, CancellationToken ct)
             => await imports.RestoreDraft(id, input?.Revision, ct));
         app.MapPost("/api/imports/{id:guid}/exercises/{exerciseLineId:guid}/restore", async (Guid id, Guid exerciseLineId, ImportRestoreInput? input, ImportService imports, CancellationToken ct)
