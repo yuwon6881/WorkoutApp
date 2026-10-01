@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Check, Minus } from 'lucide-react';
 import type { LoggedSet, Preferences, SessionExercise, SetPrescription } from '../types';
-import { showTarget, showWeight, toDisplay, toKg } from '../lib/training';
+import { defaultLoadStepKg, showTarget, showWeight, toDisplay, toKg } from '../lib/training';
 import { effortPatch, effortValue, loadIsEditable, setNumberLabel } from '../lib/workoutDraft';
 import { Button } from './ui/Button';
 import { Select } from './ui/Select';
@@ -26,7 +26,7 @@ export function WorkoutSetRow({
   exercise,
   plan,
   unit,
-  loadStepKg = 2.5,
+  loadStepKg: resolvedStepKg,
   availableLoadsKg,
   editSet,
   toggle,
@@ -48,6 +48,7 @@ export function WorkoutSetRow({
   const trackRir = useTrackRir();
   const [justLogged, setJustLogged] = useState(false);
   const shown = toDisplay(set.weightKg, unit);
+  const stepKg = resolvedStepKg ?? defaultLoadStepKg(unit);
   const { label, warmup } = setNumberLabel(exercise, si);
   const loadModel = exercise.loadModel ?? 'external';
   const loadEditable = loadIsEditable(exercise, set);
@@ -84,14 +85,14 @@ export function WorkoutSetRow({
           inputMode="decimal"
           type="number"
           min="0"
-          step={availableLoadsKg?.length || loadStepKg <= 0 ? 'any' : toDisplay(loadStepKg, unit) ?? 'any'}
+          step={availableLoadsKg?.length || stepKg <= 0 ? 'any' : toDisplay(stepKg, unit) ?? 'any'}
           onKeyDown={event => {
             if (event.key !== 'ArrowUp' && event.key !== 'ArrowDown') return;
             event.preventDefault();
             const direction = event.key === 'ArrowUp' ? 1 : -1;
             const next = availableLoadsKg?.length
               ? nextAvailableLoad(set.weightKg, availableLoadsKg, direction)
-              : Math.max(0, (set.weightKg ?? 0) + direction * loadStepKg);
+              : Math.max(0, (set.weightKg ?? 0) + direction * stepKg);
             editSet(ei, si, { weightKg: next });
           }}
           placeholder="—"

@@ -79,9 +79,11 @@ public sealed class CatalogService(AppDb db)
             ReadMuscles(x.SecondaryMusclesJson, x.Muscle), ExerciseCategories.Normalize(x.Category, x.Equipment, x.LoadModel),
             null, TrackingModes.Normalize(x.TrackingMode))));
         var rules = await LoadRuleReader.Read(db, null, ct);
+        var customUnits = custom.ToDictionary(x => x.Id, x => x.LoadStepUnit);
         return output.Select(exercise =>
         {
-            var resolved = rules.Resolve(exercise.Id, exercise.LoadStepKg, exercise.Equipment, exercise.LoadModel);
+            var resolved = rules.Resolve(exercise.Id, exercise.LoadStepKg, exercise.Equipment, exercise.LoadModel,
+                customUnits.GetValueOrDefault(exercise.Id, WeightUnits.Kg));
             return exercise with
             {
                 LoadStepKg = resolved.StepKg,

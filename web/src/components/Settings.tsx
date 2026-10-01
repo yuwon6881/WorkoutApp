@@ -24,7 +24,7 @@ type SettingsViewProps = {
   preferences: Preferences;
   devicePreferences: DevicePreferences;
   onDevicePreferences: (preferences: DevicePreferences) => void;
-  onPreferences: (preferences: Preferences) => void;
+  onPreferences: (preferences: Preferences) => void | Promise<void>;
   notify: (message: string) => void;
   onSignOut: () => Promise<void>;
   version: string;
@@ -105,7 +105,9 @@ export function SettingsView(props: SettingsViewProps) {
                 label="Weight unit"
                 value={preferences.unit}
                 onChange={async unit => {
-                  onPreferences({ ...preferences, unit });
+                  // Exercise steps are resolved in the saved unit, so refresh them only once the
+                  // server has it; refreshing sooner reads the old unit back over the new choice.
+                  await onPreferences({ ...preferences, unit });
                   await onCatalogChanged?.();
                 }}
                 options={[

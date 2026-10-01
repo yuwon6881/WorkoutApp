@@ -84,8 +84,8 @@ public static class TrainingEndpoints
     public static void MapCatalog(this WebApplication app)
     {
         app.MapGet("/api/exercises", async (CatalogService catalog, CancellationToken ct) => await catalog.All(ct));
-        app.MapGet("/api/exercises/{exerciseId:guid}/load-settings", async (Guid exerciseId, ExerciseLoadSettingsService settings, CancellationToken ct)
-            => await settings.Get(exerciseId, ct));
+        app.MapGet("/api/exercises/{exerciseId:guid}/load-settings", async (Guid exerciseId, string? unit, ExerciseLoadSettingsService settings, CancellationToken ct)
+            => await settings.Get(exerciseId, ct, unit));
         app.MapPut("/api/exercises/{exerciseId:guid}/load-settings", async (Guid exerciseId, ExerciseLoadSettingsInput input, ExerciseLoadSettingsService settings, CancellationToken ct)
             => await settings.Save(exerciseId, input, ct));
         app.MapPost("/api/exercises/custom", async (CustomExerciseInput input, ExerciseService exercises, CancellationToken ct)
@@ -116,13 +116,10 @@ public static class TrainingEndpoints
 
         app.MapPut("/api/preferences", async (PreferencesInput input, AppDb db, CancellationToken ct) =>
         {
+            // Load rules keep the unit they were typed in and are mapped when read, so a unit
+            // switch rewrites nothing and switching back restores every rule exactly.
             var user = await db.Users.SingleAsync(u => u.Id == db.CurrentUser, ct);
-            var oldUnit = user.Unit;
             input.ApplyTo(user);
-            if (!string.Equals(oldUnit, user.Unit, StringComparison.OrdinalIgnoreCase))
-            {
-                await UnitStepConversion.ConvertCustomSteps(db, user.Id, oldUnit, user.Unit, ct);
-            }
             await db.SaveChangesAsync(ct);
             return new { user.Unit, user.Theme, user.RestSeconds, user.RestAlerts, user.TrackRir };
         });

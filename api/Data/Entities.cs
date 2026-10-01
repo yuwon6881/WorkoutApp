@@ -70,6 +70,8 @@ public sealed class CustomExercise : OwnedRecord
     public string Category { get; set; } = ExerciseCategories.FreeWeights;
     public string Cue { get; set; } = "";
     public double LoadStepKg { get; set; } = 2.5;
+    /// The account unit when the exercise was created; LoadStepKg is that unit's default step.
+    public string LoadStepUnit { get; set; } = WeightUnits.Kg;
     public string LoadModel { get; set; } = "external";
     public string MovementPattern { get; set; } = "";
     public string TrackingMode { get; set; } = "reps";

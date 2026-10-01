@@ -1,6 +1,4 @@
-using Microsoft.EntityFrameworkCore;
 using Workout.Api.Domain;
-using Workout.Api.Services;
 using Xunit;
 
 namespace Workout.Tests;
@@ -76,56 +74,27 @@ public sealed class UnitStepConversionTests
         Assert.Equal(140.0, suggestedLb, 2);
     }
 
-    [Fact]
-    public async Task ConvertCustomSteps_migrates_equipment_defaults_and_exercises()
-    {
-        await using var h = await Harness.Create();
-        var user = await h.SignIn();
+    [Theory]
+    [InlineData(1.5, null, 2.5)]
+    [InlineData(3.0, "Medicine ball", 5.0)]
+    [InlineData(4.0, "Machine", 10.0)]
+    [InlineData(20.0, "Machine", 45.0)]
+    public void ConvertKgToLbStep_picks_the_nearest_pound_step(double stepKg, string? equipment, double expectedLb)
+        => Assert.Equal(expectedLb, UnitStepConversion.ConvertKgToLbStep(stepKg, equipment) * UnitStepConversion.PoundsPerKg, 6);
 
-        // 1. Set equipment default in kg (2.5 kg)
-        var loadSettings = new LoadSettingsService(h.Db, h.Catalog);
-        await loadSettings.SaveEquipment(EquipmentGroups.Barbell, new LoadRuleInput(2.5, null, 0), default);
+    [Theory]
+    [InlineData(3.0, "Machine", 1.25)]
+    [InlineData(15.0, "Machine", 7.5)]
+    [InlineData(10.0, "kettlebell", 4.0)]
+    [InlineData(5.0, "dumbbell", 2.0)]
+    public void ConvertLbToKgStep_picks_the_nearest_kilogram_step(double stepLb, string? equipment, double expectedKg)
+        => Assert.Equal(expectedKg, UnitStepConversion.ConvertLbToKgStep(stepLb / UnitStepConversion.PoundsPerKg, equipment), 6);
 
-        // 2. Create custom exercise with default step (2.5 kg)
-        var exerciseService = new ExerciseService(h.Db);
-        var custom = await exerciseService.Create(new CustomExerciseInput("Heavy Squat", "Legs", "Barbell", "Squat deep", 2.5), default);
-
-        // 3. Set custom exercise load setting (2.5 kg)
-        var exerciseLoadSettings = new ExerciseLoadSettingsService(h.Db);
-        await exerciseLoadSettings.Save(custom.Id, new ExerciseLoadSettingsInput(2.5, null, 0), default);
-
-        // Convert kg -> lb
-        await UnitStepConversion.ConvertCustomSteps(h.Db, user.Id, "kg", "lb", default);
-        await h.Db.SaveChangesAsync(default);
-
-        // Verify equipment default converted to 5 lb
-        var updatedEq = await h.Db.EquipmentLoadDefaults.SingleAsync(x => x.Equipment == EquipmentGroups.Barbell);
-        Assert.NotNull(updatedEq.LoadStepKg);
-        Assert.Equal(5.0, updatedEq.LoadStepKg.Value * UnitStepConversion.PoundsPerKg, 2);
-
-        // Verify custom exercise step converted to 5 lb
-        var updatedCustom = await h.Db.CustomExercises.SingleAsync(x => x.Id == custom.Id);
-        Assert.Equal(5.0, updatedCustom.LoadStepKg * UnitStepConversion.PoundsPerKg, 2);
-
-        // Verify exercise load setting converted to 5 lb
-        var updatedExSetting = await h.Db.ExerciseLoadSettings.SingleAsync(x => x.Id == custom.Id);
-        Assert.NotNull(updatedExSetting.LoadStepKg);
-        Assert.Equal(5.0, updatedExSetting.LoadStepKg.Value * UnitStepConversion.PoundsPerKg, 2);
-
-        // Convert back lb -> kg
-        await UnitStepConversion.ConvertCustomSteps(h.Db, user.Id, "lb", "kg", default);
-        await h.Db.SaveChangesAsync(default);
-
-        // Verify equipment default converted back to 2.5 kg
-        updatedEq = await h.Db.EquipmentLoadDefaults.SingleAsync(x => x.Equipment == EquipmentGroups.Barbell);
-        Assert.Equal(2.5, updatedEq.LoadStepKg!.Value, 2);
-
-        // Verify custom exercise step converted back to 2.5 kg
-        updatedCustom = await h.Db.CustomExercises.SingleAsync(x => x.Id == custom.Id);
-        Assert.Equal(2.5, updatedCustom.LoadStepKg, 2);
-
-        // Verify exercise load setting converted back to 2.5 kg
-        updatedExSetting = await h.Db.ExerciseLoadSettings.SingleAsync(x => x.Id == custom.Id);
-        Assert.Equal(2.5, updatedExSetting.LoadStepKg!.Value, 2);
-    }
+    [Theory]
+    [InlineData(1.7, WeightUnits.Kg, WeightUnits.Kg)]
+    [InlineData(1.7, WeightUnits.Lb, WeightUnits.Lb)]
+    [InlineData(0, WeightUnits.Kg, WeightUnits.Lb)]
+    [InlineData(0, WeightUnits.Lb, WeightUnits.Kg)]
+    public void InUnit_leaves_a_step_alone_when_nothing_needs_mapping(double stepKg, string from, string to)
+        => Assert.Equal(stepKg, UnitStepConversion.InUnit(stepKg, from, to, "Cable"));
 }

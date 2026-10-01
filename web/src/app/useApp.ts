@@ -23,7 +23,8 @@ export type AppState = {
   resourceError: string;
   queue: SaveQueue;
   setData: (update: (current: Bootstrap) => Bootstrap) => void;
-  savePreferences: (preferences: Preferences) => void;
+  /** Shows the preferences at once; settles when the save has reached the server or failed. */
+  savePreferences: (preferences: Preferences) => Promise<void>;
   setActiveWorkout: (session: Session | null) => void;
   setRecovery: (record: WorkoutRecoveryRecord | null) => void;
   setDevicePreferences: (preferences: DevicePreferences) => void;
@@ -68,6 +69,9 @@ export function useApp(): AppState {
   const load = useCallback(async () => {
     const epoch = ++loadEpoch.current;
     const preferenceAtStart = preferenceVersion.current;
+    // A read that starts while a preference save is queued or in flight can carry the previous
+    // preferences, so it must not replace the ones on screen.
+    const preferenceSavingAtStart = queue.pending('preferences');
     const workoutAtStart = workoutVersion.current;
     resourcesInFlight.current.clear();
     setLoading(true);
@@ -140,7 +144,7 @@ export function useApp(): AppState {
       setDevicePreferencesState(devicePreferences);
       const current = currentData.current;
       if (current?.account.id === next.account.id) {
-        if (preferenceVersion.current !== preferenceAtStart) next.preferences = current.preferences;
+        if (preferenceVersion.current !== preferenceAtStart || preferenceSavingAtStart) next.preferences = current.preferences;
         if (workoutVersion.current !== workoutAtStart) next.activeWorkout = current.activeWorkout;
       }
       lastRefreshAt.current = Date.now();
@@ -250,6 +254,8 @@ export function useApp(): AppState {
       const saved = await api.preferences(preferences);
       if (preferenceVersion.current === version && currentData.current?.account.id === accountId) patch(current => ({ ...current, preferences: saved }));
     });
+    // A failed save is reported by the queue status; callers only need to know it is over.
+    return queue.whenIdle().catch(() => undefined);
   }, [patch, queue]);
 
   const setActiveWorkout = useCallback((session: Session | null) => {

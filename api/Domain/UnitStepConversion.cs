@@ -1,111 +1,48 @@
-using Microsoft.EntityFrameworkCore;
-using Workout.Api.Data;
-
 namespace Workout.Api.Domain;
 
+/// Maps a load step typed in one unit to the nearest increment a gym in the other unit actually
+/// has. Stored steps are never rewritten with this: it runs when a rule is read, so switching the
+/// account unit back always shows the step exactly as it was typed.
 public static class UnitStepConversion
 {
     public const double PoundsPerKg = 2.2046226218;
 
-    /// Converts a step from kg to a sensible pound step (returned in canonical kg).
-    public static double ConvertKgToLbStep(double stepKg, string? equipment = null)
-    {
-        if (stepKg <= 0) return 0;
-        var rawLb = stepKg * PoundsPerKg;
-        var eq = (equipment ?? "").Trim().ToLowerInvariant();
-        double sensibleLb;
-        if (eq == "medicine ball" || Math.Abs(rawLb - 2.2046) < 0.25)
-        {
-            sensibleLb = 2.0;
-        }
-        else if (rawLb < 0.75) sensibleLb = 0.5;
-        else if (rawLb < 1.15) sensibleLb = 1.0;
-        else if (rawLb < 1.75) sensibleLb = 1.25;
-        else if (rawLb < 3.2) sensibleLb = 2.5;
-        else if (rawLb < 7.5) sensibleLb = 5.0;
-        else if (rawLb < 12.5) sensibleLb = 10.0;
-        else sensibleLb = Math.Round(rawLb / 5.0) * 5.0;
+    // Increments that exist on pound and kilogram equipment, smallest plates first.
+    private static readonly double[] PoundSteps = [0.5, 1, 1.25, 2, 2.5, .. Enumerable.Range(1, 22).Select(i => i * 5.0)];
+    private static readonly double[] KilogramSteps = [0.25, 0.5, 1, 1.25, 2, 2.5, 4, .. Enumerable.Range(2, 19).Select(i => i * 2.5)];
 
-        return sensibleLb / PoundsPerKg;
+    /// The step in the reading unit, in canonical kg. Unchanged when the units match.
+    public static double InUnit(double stepKg, string storedUnit, string unit, string? equipment)
+    {
+        if (stepKg <= 0 || storedUnit == unit) return stepKg;
+        return unit == WeightUnits.Lb ? ConvertKgToLbStep(stepKg, equipment) : ConvertLbToKgStep(stepKg, equipment);
     }
 
-    /// Converts a step from lb (stored in canonical kg) to a sensible kg step (returned in canonical kg).
+    /// A kilogram step as the nearest pound step, returned in canonical kg.
+    public static double ConvertKgToLbStep(double stepKg, string? equipment = null)
+        => stepKg <= 0 ? 0 : Nearest(stepKg * PoundsPerKg, PoundSteps) / PoundsPerKg;
+
+    /// A pound step (in canonical kg) as the nearest kilogram step.
     public static double ConvertLbToKgStep(double stepKg, string? equipment = null)
     {
         if (stepKg <= 0) return 0;
-        var rawLb = stepKg * PoundsPerKg;
-        var eq = (equipment ?? "").Trim().ToLowerInvariant();
-        if (eq == "dumbbell" && Math.Abs(rawLb - 5.0) < 0.5)
-            return 2.0;
-        if (eq == "medicine ball" && Math.Abs(rawLb - 2.0) < 0.5)
-            return 1.0;
-        if (eq == "kettlebell" && (Math.Abs(rawLb - 5.0) < 0.5 || Math.Abs(rawLb - 10.0) < 0.5))
-            return 4.0;
-
-        double rawKg = rawLb / PoundsPerKg;
-        if (rawKg < 0.35) return 0.25;
-        if (rawKg < 0.75) return 0.5;
-        if (rawKg < 1.05) return 1.0;
-        if (rawKg < 1.6) return 1.25;
-        if (rawKg < 2.2) return 2.0;
-        if (rawKg < 3.75) return 2.5;
-        if (rawKg < 6.25) return 5.0;
-        return Math.Round(rawKg / 2.5) * 2.5;
+        var pounds = stepKg * PoundsPerKg;
+        // Fixed kilogram dumbbells and kettlebells come in 2 kg and 4 kg jumps.
+        switch (Equipment(equipment))
+        {
+            case "dumbbell" when Math.Abs(pounds - 5) < 0.5:
+                return 2;
+            case "kettlebell" when Math.Abs(pounds - 5) < 0.5 || Math.Abs(pounds - 10) < 0.5:
+                return 4;
+        }
+        return Nearest(stepKg, KilogramSteps);
     }
 
-    /// When the user changes weight unit in preferences, converts any custom increments
-    /// across equipment defaults, exercise settings, and custom exercises.
-    public static async Task ConvertCustomSteps(AppDb db, Guid userId, string fromUnit, string toUnit, CancellationToken ct)
-    {
-        if (fromUnit == toUnit) return;
-        var toLb = toUnit == "lb";
+    // Steps scale, so "nearest" is by ratio: 3.3 lb is closer to 2.5 than to 5.
+    private static double Nearest(double value, double[] steps)
+        => steps.MinBy(step => Math.Abs(Math.Log(value / step)));
 
-        // 1. Equipment defaults
-        var equipmentDefaults = await db.EquipmentLoadDefaults.Where(x => x.UserId == userId).ToListAsync(ct);
-        foreach (var row in equipmentDefaults)
-        {
-            if (row.LoadStepKg is { } step)
-            {
-                row.LoadStepKg = toLb
-                    ? ConvertKgToLbStep(step, row.Equipment)
-                    : ConvertLbToKgStep(step, row.Equipment);
-                row.Revision++;
-            }
-        }
-
-        // 2. Exercise load settings
-        var exerciseSettings = await db.ExerciseLoadSettings.Where(x => x.UserId == userId).ToListAsync(ct);
-        if (exerciseSettings.Count > 0)
-        {
-            var exerciseIds = exerciseSettings.Select(x => x.Id).ToList();
-            var catalogEquip = await db.Exercises.AsNoTracking().Where(x => exerciseIds.Contains(x.Id))
-                .Select(x => new { x.Id, x.Equipment }).ToDictionaryAsync(x => x.Id, x => x.Equipment, ct);
-            var customEquip = await db.CustomExercises.AsNoTracking().Where(x => exerciseIds.Contains(x.Id))
-                .Select(x => new { x.Id, x.Equipment }).ToDictionaryAsync(x => x.Id, x => x.Equipment, ct);
-
-            foreach (var row in exerciseSettings)
-            {
-                if (row.LoadStepKg is { } step)
-                {
-                    var equip = catalogEquip.GetValueOrDefault(row.Id) ?? customEquip.GetValueOrDefault(row.Id);
-                    row.LoadStepKg = toLb
-                        ? ConvertKgToLbStep(step, equip)
-                        : ConvertLbToKgStep(step, equip);
-                    row.Revision++;
-                }
-            }
-        }
-
-        // 3. Custom exercises
-        var customExercises = await db.CustomExercises.Where(x => x.UserId == userId && !x.Archived).ToListAsync(ct);
-        foreach (var custom in customExercises)
-        {
-            if (custom.LoadStepKg > 0)
-            {
-                custom.LoadStepKg = toLb
-                    ? ConvertKgToLbStep(custom.LoadStepKg, custom.Equipment)
-                    : ConvertLbToKgStep(custom.LoadStepKg, custom.Equipment);
-            }
-        }
-    }
+    // Accepts catalog equipment names and EquipmentGroups keys alike.
+    private static string Equipment(string? equipment)
+        => (equipment ?? "").Trim().Replace('-', ' ').ToLowerInvariant();
 }

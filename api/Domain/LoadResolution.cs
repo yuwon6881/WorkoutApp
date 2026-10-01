@@ -1,9 +1,15 @@
 namespace Workout.Api.Domain;
 
 /// One stored load rule: a fixed step or the weights that exist. Neither means inherit.
-public sealed record LoadRule(double? StepKg, IReadOnlyList<double>? LoadsKg)
+/// Unit is the one the step was typed in; available weights are physical and never mapped.
+public sealed record LoadRule(double? StepKg, IReadOnlyList<double>? LoadsKg, string Unit = WeightUnits.Kg)
 {
     public static readonly LoadRule Empty = new(null, null);
+
+    /// The rule as read by an account using unit: its step becomes that unit's nearest gym step.
+    public LoadRule In(string unit, string? equipment) => StepKg is { } step && Unit != unit
+        ? this with { StepKg = UnitStepConversion.InUnit(step, Unit, unit, equipment), Unit = unit }
+        : this;
 }
 
 public static class LoadSources

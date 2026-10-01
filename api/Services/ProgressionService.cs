@@ -38,14 +38,14 @@ public sealed class ProgressionService(AppDb db)
         var ids = exerciseIds.Where(id => id != null).Select(id => id!.Value).Distinct().ToList();
         if (ids.Count == 0) return [];
         var rows = await db.Exercises.AsNoTracking().Where(x => ids.Contains(x.Id))
-            .Select(x => new { x.Id, x.LoadModel, x.LoadStepKg, x.Equipment }).ToListAsync(ct);
+            .Select(x => new { x.Id, x.LoadModel, x.LoadStepKg, LoadStepUnit = WeightUnits.Kg, x.Equipment }).ToListAsync(ct);
         var custom = await db.CustomExercises.AsNoTracking().Where(x => ids.Contains(x.Id))
-            .Select(x => new { x.Id, x.LoadModel, x.LoadStepKg, x.Equipment }).ToListAsync(ct);
+            .Select(x => new { x.Id, x.LoadModel, x.LoadStepKg, x.LoadStepUnit, x.Equipment }).ToListAsync(ct);
         var rules = await LoadRuleReader.Read(db, ids, ct);
         var output = new Dictionary<Guid, ExerciseLoadInfo>();
         foreach (var row in rows.Concat(custom))
         {
-            var resolved = rules.Resolve(row.Id, row.LoadStepKg, row.Equipment, row.LoadModel);
+            var resolved = rules.Resolve(row.Id, row.LoadStepKg, row.Equipment, row.LoadModel, row.LoadStepUnit);
             output[row.Id] = new ExerciseLoadInfo(row.LoadModel, resolved.StepKg, resolved.AvailableLoadsKg);
         }
         return output;

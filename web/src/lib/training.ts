@@ -7,6 +7,9 @@ const PER_KG = 2.2046226218;
 export const toDisplay = (kg: number | null, unit: Unit): number | null =>
   kg === null ? null : unit === 'lb' ? Math.round(kg * PER_KG * 100) / 100 : kg;
 
+/// The step for an exercise with no resolved rule, matching the server's Progression.DefaultStep.
+export const defaultLoadStepKg = (unit: Unit): number => unit === 'lb' ? 5 / PER_KG : 2.5;
+
 export const toKg = (value: number | null, unit: Unit): number | null =>
   value === null ? null : unit === 'lb' ? Math.round((value / PER_KG) * 1000) / 1000 : value;
 

@@ -51,16 +51,19 @@ public static class EquipmentGroups
     }
 
     /// The step an exercise in this group uses when nobody has set one.
-    public static double AppDefaultStep(string group, string unit = "kg")
+    public static double AppDefaultStep(string group, string unit = WeightUnits.Kg)
         => Progression.StepForEquipment(EquipmentByGroup.GetValueOrDefault(group), unit);
 
     /// Older stored catalog/custom defaults must follow the revised plate and medicine-ball steps.
-    /// Explicit exercise rules still win when the load is resolved.
-    public static double ExerciseAppDefault(double storedStepKg, string? equipment, string? loadModel, string unit = "kg")
+    /// A custom exercise stores its default in the unit it was created in; it is read in the
+    /// account's unit. Explicit exercise rules still win when the load is resolved.
+    public static double ExerciseAppDefault(double storedStepKg, string? equipment, string? loadModel,
+        string unit = WeightUnits.Kg, string storedUnit = WeightUnits.Kg)
     {
-        if (loadModel is LoadModels.BodyweightContextOnly or LoadModels.RepsOnly) return storedStepKg;
+        var stored = UnitStepConversion.InUnit(storedStepKg, storedUnit, unit, equipment);
+        if (loadModel is LoadModels.BodyweightContextOnly or LoadModels.RepsOnly) return stored;
         var eq = (equipment ?? "").Trim().ToLowerInvariant();
-        if (unit == "lb")
+        if (unit == WeightUnits.Lb)
         {
             return eq switch
             {
@@ -69,14 +72,14 @@ public static class EquipmentGroups
                 "cable" => AppDefaultStep(Cable, unit),
                 "kettlebell" => AppDefaultStep(Kettlebell, unit),
                 "plate" or "barbell" or "ez-bar" or "trap bar" or "smith machine" or "plate-loaded machine" => AppDefaultStep(Barbell, unit),
-                _ => storedStepKg > 0 ? AppDefaultStep(Barbell, unit) : 0
+                _ => stored
             };
         }
         return eq switch
         {
             "plate" => AppDefaultStep(Barbell, unit),
             "medicine ball" when loadModel != LoadModels.FullBodyweight => AppDefaultStep(MedicineBall, unit),
-            _ => storedStepKg
+            _ => stored
         };
     }
 }

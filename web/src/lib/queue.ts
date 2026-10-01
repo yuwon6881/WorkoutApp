@@ -11,6 +11,7 @@ export type QueueStatus = { state: SaveState; message: string; pending: number }
 export class SaveQueue {
   private queue: Task[] = [];
   private running = false;
+  private activeKey: string | null = null;
   private listeners = new Set<(status: QueueStatus) => void>();
   private idleWaiters = new Set<() => void>();
   private status: QueueStatus = { state: 'idle', message: '', pending: 0 };
@@ -24,6 +25,8 @@ export class SaveQueue {
   get current() { return this.status; }
   /// True while work the user can see has not reached the server yet.
   get unsaved() { return this.running || this.queue.length > 0 || this.status.state === 'failed'; }
+  /// True while a write with this key is waiting or on its way to the server.
+  pending(key: string) { return this.activeKey === key || this.queue.some(task => task.key === key); }
 
   set(state: SaveState, message = '') {
     this.status = { state, message, pending: this.queue.length };
@@ -43,6 +46,7 @@ export class SaveQueue {
     this.running = true;
     while (this.queue.length) {
       const task = this.queue.shift()!;
+      this.activeKey = task.key;
       this.set('saving');
       try {
         await task.run();
@@ -51,6 +55,7 @@ export class SaveQueue {
         // has now rejected, so replaying them would save something the user never saw.
         this.queue = [];
         this.running = false;
+        this.activeKey = null;
         const failure = error instanceof ApiError ? error : new ApiError('Something went wrong. Try again.', -1);
         this.set(failure.signedOut ? 'signed-out' : failure.offline ? 'offline' : 'failed', failure.message);
         this.resolveIdleWaiters();
@@ -58,6 +63,7 @@ export class SaveQueue {
       }
     }
     this.running = false;
+    this.activeKey = null;
     this.set('saved');
     this.resolveIdleWaiters();
   }
@@ -76,5 +82,5 @@ export class SaveQueue {
     this.idleWaiters.clear();
   }
 
-  clear() { this.queue = []; this.running = false; this.set('idle'); this.resolveIdleWaiters(); }
+  clear() { this.queue = []; this.running = false; this.activeKey = null; this.set('idle'); this.resolveIdleWaiters(); }
 }

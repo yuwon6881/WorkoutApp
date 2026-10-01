@@ -105,4 +105,26 @@ describe('the save pipeline', () => {
     expect(states).toContain('saving');
     expect(states.at(-1)).toBe('saved');
   });
+  it('knows whether a write with a key is waiting or in flight', async () => {
+    const queue = new SaveQueue();
+    let release!: () => void;
+    queue.push('preferences', () => new Promise<void>(resolve => { release = resolve; }));
+    queue.push('workout', async () => { await settle(); });
+    expect(queue.pending('preferences')).toBe(true);
+    expect(queue.pending('workout')).toBe(true);
+    release();
+    await settle();
+    expect(queue.pending('preferences')).toBe(false);
+    while (queue.unsaved) await settle();
+    expect(queue.pending('workout')).toBe(false);
+  });
+
+  it('forgets a write a failure dropped', async () => {
+    const queue = new SaveQueue();
+    queue.push('workout', async () => { throw new ApiError('Rejected.', 409); });
+    queue.push('preferences', async () => undefined);
+    await settle(); await settle();
+    expect(queue.current.state).toBe('failed');
+    expect(queue.pending('preferences')).toBe(false);
+  });
 });

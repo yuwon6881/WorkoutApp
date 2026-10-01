@@ -197,6 +197,60 @@ test('personal exercise weights support uneven lists and kg/lb switching', async
     expect(restored.ok()).toBeTruthy();
   }
 });
+
+test('one weight unit switch sticks and shows that unit\'s gym steps', async ({ page }) => {
+  await signIn(page);
+  const headers = { 'X-Workout-Request': '1', Origin: new URL(page.url()).origin };
+  const originalPreferences = (await (await page.request.get('/api/bootstrap')).json()).preferences;
+  const dumbbellRule = async () => (await (await page.request.get('/api/load-settings?unit=kg')).json()).equipment
+    .find((item: { group: string }) => item.group === 'dumbbell');
+  const original = await dumbbellRule();
+  async function saveDumbbell(loadStepKg: number | null, availableLoadsKg: number[] | null) {
+    const response = await page.request.put('/api/load-settings/equipment/dumbbell', {
+      headers, data: { loadStepKg, availableLoadsKg, revision: (await dumbbellRule()).revision, unit: 'kg' } });
+    expect(response.ok(), await response.text()).toBeTruthy();
+  }
+  try {
+    expect((await page.request.put('/api/preferences', { headers, data: { ...originalPreferences, unit: 'kg' } })).ok()).toBeTruthy();
+    await saveDumbbell(2, null);
+    await page.goto('/settings');
+    const dumbbell = page.locator('#load-dumbbell-description');
+    await expect(dumbbell).toHaveText('2 kg steps · Dumbbell default');
+
+    // Hold the save so any read that races it would bring the old unit back.
+    const order: string[] = [];
+    page.on('request', request => {
+      if (request.url().includes('/api/bootstrap/shell')) order.push('shell');
+    });
+    await page.route('**/api/preferences', async route => {
+      if (route.request().method() === 'PUT') await new Promise(resolve => setTimeout(resolve, 1500));
+      await route.continue();
+      order.push(`saved ${route.request().postDataJSON().unit}`);
+    });
+    const pounds = page.getByRole('button', { name: 'Pounds (lb)', exact: true });
+    const kilograms = page.getByRole('button', { name: 'Kilograms (kg)', exact: true });
+    const reloaded = page.waitForResponse(response => response.url().includes('/api/bootstrap/shell'));
+    await pounds.click();
+    await expect(dumbbell).toHaveText('5 lb steps · Dumbbell default');
+    await reloaded;
+    await expect(pounds).toHaveAttribute('aria-pressed', 'true');
+    await expect(dumbbell).toHaveText('5 lb steps · Dumbbell default');
+    await expect(page.getByText(/4\.41 lb/)).toHaveCount(0);
+    expect(order.indexOf('saved lb')).toBeGreaterThanOrEqual(0);
+    expect(order.indexOf('shell')).toBeGreaterThan(order.indexOf('saved lb'));
+
+    const reloadedAgain = page.waitForResponse(response => response.url().includes('/api/bootstrap/shell'));
+    await kilograms.click();
+    await reloadedAgain;
+    await expect(kilograms).toHaveAttribute('aria-pressed', 'true');
+    await expect(dumbbell).toHaveText('2 kg steps · Dumbbell default');
+  } finally {
+    await page.unrouteAll({ behavior: 'ignoreErrors' });
+    await saveDumbbell(original.ownStepKg, original.ownAvailableLoadsKg);
+    expect((await page.request.put('/api/preferences', { headers, data: originalPreferences })).ok()).toBeTruthy();
+  }
+});
+
 /// Saves an exercise's held edits. When the movement appears elsewhere the editor asks where the
 /// change should go; the default (the same block) is what a mapping always did before.
 async function saveExerciseChanges(page: Page, within: Locator, shot?: string) {

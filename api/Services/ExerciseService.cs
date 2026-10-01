@@ -51,8 +51,8 @@ public sealed class ExerciseService(AppDb db)
         foreach (var secondary in input.SecondaryMuscles ?? []) Validation.Text(secondary, 80, "Secondary muscle");
         Validation.Require(LoadModels.All.Contains(input.LoadModel), "Choose a valid load model.");
         Validation.Require(input.TrackingMode is null || TrackingModes.All.Contains(input.TrackingMode), "Choose reps or time.");
-        var user = db.CurrentUser is null ? null : await db.Users.AsNoTracking().SingleOrDefaultAsync(x => x.Id == db.CurrentUser, ct);
-        var unit = user?.Unit ?? "kg";
+        if (input.LoadStepKg is { } typedStep) Validation.Number(typedStep, 0, 50, "Load increment");
+        var unit = await LoadRuleReader.AccountUnit(db, ct);
         var appStep = input.LoadModel == LoadModels.FullBodyweight ? Progression.DefaultStep(unit) : Progression.StepForEquipment(input.Equipment, unit);
         await using var gate = await MutationLock.Acquire(db, db.CurrentUser, ct);
         var normalized = CatalogService.Normalize(input.Name);
@@ -66,7 +66,7 @@ public sealed class ExerciseService(AppDb db)
         {
             UserId = db.CurrentUser!.Value, Name = input.Name.Trim(), Muscle = input.Muscle?.Trim() ?? "",
             Equipment = input.Equipment?.Trim() ?? "", Category = ExerciseCategories.Normalize(input.Category, input.Equipment, input.LoadModel),
-            Cue = input.Cue?.Trim() ?? "", LoadStepKg = appStep,
+            Cue = input.Cue?.Trim() ?? "", LoadStepKg = appStep, LoadStepUnit = unit,
             LoadModel = input.LoadModel, MovementPattern = input.MovementPattern?.Trim() ?? "",
             TrackingMode = TrackingModes.Normalize(input.TrackingMode),
             SecondaryMusclesJson = Json.Write(CatalogService.NormalizeMuscles(input.Muscle, input.SecondaryMuscles))
@@ -74,7 +74,7 @@ public sealed class ExerciseService(AppDb db)
         db.CustomExercises.Add(row);
         // A step typed for this exercise is its own rule, so an equipment default never overrides it.
         if (input.LoadStepKg is { } own && Math.Abs(own - appStep) > 1e-9)
-            db.ExerciseLoadSettings.Add(new ExerciseLoadSetting { UserId = row.UserId, Id = row.Id, LoadStepKg = own, Revision = 1 });
+            db.ExerciseLoadSettings.Add(new ExerciseLoadSetting { UserId = row.UserId, Id = row.Id, LoadStepKg = own, LoadStepUnit = unit, Revision = 1 });
         await db.SaveChangesAsync(ct);
         await gate.Commit(ct);
         return View(row);

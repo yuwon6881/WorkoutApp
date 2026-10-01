@@ -96,7 +96,7 @@ public static class Progression
 
     public const double DefaultStepKg = 2.5;
     public const double DefaultStepLb = 5.0;
-    public static double DefaultStep(string unit = "kg") => unit == "lb" ? DefaultStepLb / UnitStepConversion.PoundsPerKg : DefaultStepKg;
+    public static double DefaultStep(string unit = WeightUnits.Kg) => unit == WeightUnits.Lb ? DefaultStepLb / UnitStepConversion.PoundsPerKg : DefaultStepKg;
     public const int MaxEstimatedReps = 12;
     public const double MinEstimatedRpe = 6;
 
@@ -149,11 +149,11 @@ public static class Progression
         return Math.Floor((value + 1e-9) / stepKg) * stepKg;
     }
 
-    public static double StepForEquipment(string? equipment, string unit = "kg")
+    public static double StepForEquipment(string? equipment, string unit = WeightUnits.Kg)
     {
         var eq = (equipment ?? "").Trim().ToLowerInvariant();
         if (eq is "bodyweight" or "band") return 0;
-        if (unit == "lb")
+        if (unit == WeightUnits.Lb)
         {
             return eq switch
             {

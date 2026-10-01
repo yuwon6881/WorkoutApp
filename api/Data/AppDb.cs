@@ -98,6 +98,7 @@ public sealed class AppDb(DbContextOptions<AppDb> options) : DbContext(options)
         {
             t.HasCheckConstraint("CK_ExerciseLoadSettings_Step", "\"LoadStepKg\" IS NULL OR (\"LoadStepKg\" >= 0 AND \"LoadStepKg\" <= 50)");
             t.HasCheckConstraint("CK_ExerciseLoadSettings_OneRule", OneRule());
+            t.HasCheckConstraint("CK_ExerciseLoadSettings_LoadStepUnit", StepUnit());
         });
         Configure<EquipmentLoadDefault>(m);
         m.Entity<EquipmentLoadDefault>().Property(x => x.Equipment).HasMaxLength(40);
@@ -106,9 +107,13 @@ public sealed class AppDb(DbContextOptions<AppDb> options) : DbContext(options)
         {
             t.HasCheckConstraint("CK_EquipmentLoadDefaults_Step", "\"LoadStepKg\" IS NULL OR (\"LoadStepKg\" >= 0 AND \"LoadStepKg\" <= 50)");
             t.HasCheckConstraint("CK_EquipmentLoadDefaults_OneRule", OneRule());
+            t.HasCheckConstraint("CK_EquipmentLoadDefaults_LoadStepUnit", StepUnit());
         });
         m.Entity<CustomExercise>().Property(x => x.Name).HasMaxLength(160);
         m.Entity<CustomExercise>().Property(x => x.LoadStepKg).HasDefaultValue(2.5);
+        m.Entity<CustomExercise>().Property(x => x.LoadStepUnit).HasDefaultValue(WeightUnits.Kg);
+        m.Entity<ExerciseLoadSetting>().Property(x => x.LoadStepUnit).HasDefaultValue(WeightUnits.Kg);
+        m.Entity<EquipmentLoadDefault>().Property(x => x.LoadStepUnit).HasDefaultValue(WeightUnits.Kg);
         m.Entity<CustomExercise>().Property(x => x.LoadModel).HasDefaultValue("external");
         m.Entity<CustomExercise>().Property(x => x.Category).HasDefaultValue(ExerciseCategories.FreeWeights);
         m.Entity<CustomExercise>().Property(x => x.SecondaryMusclesJson).HasDefaultValue("[]");
@@ -117,6 +122,7 @@ public sealed class AppDb(DbContextOptions<AppDb> options) : DbContext(options)
         {
             t.HasCheckConstraint("CK_CustomExercises_TrackingMode", "\"TrackingMode\" IN ('reps','duration')");
             t.HasCheckConstraint("CK_CustomExercises_LoadStep", "\"LoadStepKg\" >= 0 AND \"LoadStepKg\" <= 50");
+            t.HasCheckConstraint("CK_CustomExercises_LoadStepUnit", StepUnit());
             t.HasCheckConstraint("CK_CustomExercises_LoadModel", "\"LoadModel\" IN ('external','full_bodyweight','bodyweight_context_only','reps_only')");
             t.HasCheckConstraint("CK_CustomExercises_Category", "\"Category\" IN ('Free Weights','Machine','Body Weight')");
         });
@@ -266,6 +272,8 @@ public sealed class AppDb(DbContextOptions<AppDb> options) : DbContext(options)
     /// Portable check that a rule sets at most one of its increment and weight list.
     private static string OneRule()
         => "\"LoadStepKg\" IS NULL OR \"AvailableLoadsJson\" IS NULL";
+
+    private static string StepUnit() => "\"LoadStepUnit\" IN ('kg','lb')";
 
     private void Configure<T>(ModelBuilder m) where T : OwnedRecord
     {

@@ -30,7 +30,7 @@ public static class Validation
         Require(Math.Abs(value * 2 - Math.Round(value * 2)) < 1e-9, $"{name} must use whole or half points.");
     }
 
-    public static void Unit(string unit) => Require(unit is "kg" or "lb", "Choose kilograms or pounds.");
+    public static void Unit(string unit) => Require(WeightUnits.IsKnown(unit), "Choose kilograms or pounds.");
     public static void Theme(string theme) => Require(theme is "dark" or "light", "Choose the dark or light theme.");
     public static void RestSeconds(int seconds) => Require(seconds is >= 0 and <= 600, "Rest must be between 0 and 600 seconds.");
     public static void ExerciseRestSeconds(int? seconds)

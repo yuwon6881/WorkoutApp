@@ -19,7 +19,9 @@ export function LoadIncrementSettings({ unit, notify, onChanged }: {
   notify: (message: string) => void;
   onChanged?: () => void | Promise<void>;
 }) {
-  const [overview, setOverview] = useState<LoadSettingsOverview | null>(null);
+  // Steps are resolved for one unit, so they are kept and drawn with the unit they were read in
+  // until the next unit's read arrives; a pound label never shows a kilogram step.
+  const [loaded, setLoaded] = useState<{ unit: Unit; overview: LoadSettingsOverview } | null>(null);
   const [editing, setEditing] = useState<Editing>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -36,17 +38,17 @@ export function LoadIncrementSettings({ unit, notify, onChanged }: {
   useEffect(() => {
     const controller = new AbortController();
     setError('');
-    api.loadSettings(controller.signal).then(setOverview).catch(failure => {
+    api.loadSettings(unit, controller.signal).then(overview => setLoaded({ unit, overview })).catch(failure => {
       if (!controller.signal.aborted) setError(failure instanceof Error ? failure.message : 'Could not load weight settings.');
     });
     return () => controller.abort();
   }, [reload, unit]);
 
-  async function run(action: () => Promise<LoadSettingsOverview>, done: string) {
+  async function run(actionUnit: Unit, action: () => Promise<LoadSettingsOverview>, done: string) {
     setBusy(true);
     setError('');
     try {
-      setOverview(await action());
+      setLoaded({ unit: actionUnit, overview: await action() });
       setEditing(null);
       notify(done);
       await onChanged?.();
@@ -55,12 +57,13 @@ export function LoadIncrementSettings({ unit, notify, onChanged }: {
     } finally { setBusy(false); }
   }
 
-  const saveEquipment = (item: EquipmentLoad, rule: LoadRule) =>
-    run(() => api.saveEquipmentLoad(item.group, { ...rule, revision: item.revision }), `${equipmentGroupInfo(item.group).label} weights saved.`);
-
-  if (!overview) return error
+  if (!loaded) return error
     ? <div className="error-banner" role="alert">{error} <Button variant="secondary" onClick={() => setReload(value => value + 1)}>Retry</Button></div>
     : <div className="panel settings-card" role="status" aria-label="Loading weight settings"><Skeleton className="load-settings-skeleton" /></div>;
+
+  const { overview, unit: shown } = loaded;
+  const saveEquipment = (item: EquipmentLoad, rule: LoadRule) =>
+    run(shown, () => api.saveEquipmentLoad(item.group, { ...rule, revision: item.revision, unit: shown }), `${equipmentGroupInfo(item.group).label} weights saved.`);
 
   // Types with no exercises and no rule of their own would only be noise.
   const groups = overview.equipment.filter(item => item.exerciseCount > 0 || item.source === 'equipment');
@@ -74,7 +77,7 @@ export function LoadIncrementSettings({ unit, notify, onChanged }: {
       {groups.map(item => {
         const info = equipmentGroupInfo(item.group);
         return <SettingRow key={item.group} label={<strong>{info.label}</strong>} descriptionId={`load-${item.group}-description`}
-          description={`${describeLoad(item.stepKg, item.availableLoadsKg, unit)} · ${describeSource(item.source, item.group)}`}>
+          description={`${describeLoad(item.stepKg, item.availableLoadsKg, shown)} · ${describeSource(item.source, item.group)}`}>
           <Button variant="secondary" disabled={busy} aria-label={`Edit ${info.label} weights`} aria-describedby={`load-${item.group}-description`}
             onClick={event => {
               editingTrigger.current = event.currentTarget;
@@ -88,10 +91,10 @@ export function LoadIncrementSettings({ unit, notify, onChanged }: {
 
     {editing && <Modal title={`${equipmentGroupInfo(editing.group).label} weights`} onClose={() => !busy && setEditing(null)}>
       <div className="modal-body">
-        <LoadRuleEditor unit={unit} name={`equipment-${editing.group}`} busy={busy}
+        <LoadRuleEditor unit={shown} name={`equipment-${editing.group}`} busy={busy}
           rule={{ loadStepKg: editing.ownStepKg, availableLoadsKg: editing.ownAvailableLoadsKg }}
           perSide={equipmentGroupInfo(editing.group).perSide} preferList={equipmentGroupInfo(editing.group).preferList}
-          inheritText={`Uses the app default: ${describeLoad(editing.appDefaultStepKg, null, unit)}.`}
+          inheritText={`Uses the app default: ${describeLoad(editing.appDefaultStepKg, null, shown)}.`}
           onSubmit={rule => void saveEquipment(editing, rule)} onCancel={() => setEditing(null)} />
       </div>
     </Modal>}

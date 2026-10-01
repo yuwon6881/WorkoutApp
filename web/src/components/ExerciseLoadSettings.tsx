@@ -19,7 +19,9 @@ export function ExerciseLoadSettings({ exerciseId, exerciseName, unit, perSide =
   onClose?: () => void;
   onChanged?: () => void | Promise<void>;
 }) {
-  const [settings, setSettings] = useState<Settings | null>(null);
+  // Steps are resolved for one unit; settings read for another unit are not shown under this one.
+  const [loaded, setLoaded] = useState<{ unit: Unit; settings: Settings } | null>(null);
+  const settings = loaded?.unit === unit ? loaded.settings : null;
   const [editing, setEditing] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -28,9 +30,9 @@ export function ExerciseLoadSettings({ exerciseId, exerciseName, unit, perSide =
 
   useEffect(() => {
     const controller = new AbortController();
-    setSettings(null);
+    setLoaded(null);
     setError('');
-    api.exerciseLoadSettings(exerciseId, controller.signal).then(setSettings).catch(failure => {
+    api.exerciseLoadSettings(exerciseId, unit, controller.signal).then(next => setLoaded({ unit, settings: next })).catch(failure => {
       if (!controller.signal.aborted) setError(failure instanceof Error ? failure.message : 'Could not load weight settings.');
     });
     return () => controller.abort();
@@ -53,7 +55,7 @@ export function ExerciseLoadSettings({ exerciseId, exerciseName, unit, perSide =
     setBusy(true);
     setError('');
     try {
-      setSettings(await api.saveExerciseLoadSettings(exerciseId, { ...rule, revision: settings.revision }));
+      setLoaded({ unit, settings: await api.saveExerciseLoadSettings(exerciseId, { ...rule, revision: settings.revision, unit }) });
       await onChanged?.();
       setEditing(false);
       if (editor) onClose?.();

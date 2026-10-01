@@ -2,7 +2,7 @@ import {fetchWithAvailabilityRecovery} from './availabilityRecovery';
 import type { ExerciseLoadSettings, LoadRule, LoadSettingsOverview } from './exerciseLoads';
 import type { PdfExtraction } from './pdfText';
 import { sharedReads } from './readCoordinator';
-import type { Exercise, HistorySummaryPage, ShellBootstrap, TrackingMode } from '../types';
+import type { Exercise, HistorySummaryPage, ShellBootstrap, TrackingMode, Unit } from '../types';
 import type { Bootstrap, CustomExerciseCreated, DraftWorkout, ExerciseClearPreview, ExerciseInsight, HistoryPage, ImportDraft, ImportStatusView, ImportView, MuscleBalanceRange, MuscleBalanceView, Preferences, ProgressSummary, Program, ProgramDayActionInput, ProgramEditorDocument, ProgramSummary, ProgramWeekResetInput, RestMutationInput, Session, Template, SubstitutionCandidate, TemplateSubstitutionResult, WatchDevice, WorkoutActivityItem } from '../types';
 
 export class ApiError extends Error {
@@ -122,10 +122,12 @@ export const api = {
     if (input.imported?.length) params.set('imported', input.imported.join('|')); if (input.query) params.set('q', input.query);
     return call<SubstitutionCandidate[]>(`/api/exercises/substitutions?${params.toString()}`);
   },
-  exerciseLoadSettings: (id: string, signal?: AbortSignal) => call<ExerciseLoadSettings>(`/api/exercises/${id}/load-settings`, 'GET', undefined, signal),
-  saveExerciseLoadSettings: (id: string, input: LoadRule & { revision: number }) => call<ExerciseLoadSettings>(`/api/exercises/${id}/load-settings`, 'PUT', input),
-  loadSettings: (signal?: AbortSignal) => call<LoadSettingsOverview>('/api/load-settings', 'GET', undefined, signal),
-  saveEquipmentLoad: (group: string, input: LoadRule & { revision: number }) =>
+  // Load rules are read and typed in the unit on screen, which can be ahead of a unit switch still being saved.
+  exerciseLoadSettings: (id: string, unit: Unit, signal?: AbortSignal) =>
+    call<ExerciseLoadSettings>(`/api/exercises/${id}/load-settings?unit=${unit}`, 'GET', undefined, signal),
+  saveExerciseLoadSettings: (id: string, input: LoadRule & { revision: number; unit: Unit }) => call<ExerciseLoadSettings>(`/api/exercises/${id}/load-settings`, 'PUT', input),
+  loadSettings: (unit: Unit, signal?: AbortSignal) => call<LoadSettingsOverview>(`/api/load-settings?unit=${unit}`, 'GET', undefined, signal),
+  saveEquipmentLoad: (group: string, input: LoadRule & { revision: number; unit: Unit }) =>
     call<LoadSettingsOverview>(`/api/load-settings/equipment/${encodeURIComponent(group)}`, 'PUT', input),
   createCustomExercise: (input: { name: string; muscle?: string; secondaryMuscles?: string[]; equipment?: string; cue?: string; loadStepKg?: number; loadModel: string; movementPattern?: string; category?: string; trackingMode?: TrackingMode }) => call<CustomExerciseCreated>('/api/exercises/custom', 'POST', input),
   deleteCustomExercise: (id: string) => call<void>(`/api/exercises/custom/${id}`, 'DELETE'),

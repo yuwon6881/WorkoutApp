@@ -2,6 +2,7 @@ package com.workoutapp.wear.ui
 
 import com.workoutapp.wear.data.RirPolicy
 import com.workoutapp.wear.data.WorkoutExercise
+import com.workoutapp.wear.data.WorkoutRepository
 import com.workoutapp.wear.data.WorkoutSession
 import com.workoutapp.wear.data.WorkoutSet
 import com.workoutapp.wear.data.WorkoutSnapshot
@@ -53,7 +54,7 @@ fun activeSetModel(snapshot: WorkoutSnapshot): ActiveSetModel {
     val set = exercise.sets.firstOrNull { !it.done }
     val prescription = set?.let { exercise.prescription.getOrNull(it.position) }
     val unit = snapshot.unit
-    val stepKg = exercise.progression?.stepKg?.takeIf { it > 0 } ?: DEFAULT_STEP_KG
+    val stepKg = exercise.progression?.stepKg?.takeIf { it > 0 } ?: defaultStepKg(unit)
     val mode = set?.resistanceMode ?: "external"
     val loadEditable = mode in EDITABLE_LOAD_MODES
     val timed = exercise.trackingMode == "duration"
@@ -113,7 +114,8 @@ fun nextIncompleteExercise(session: WorkoutSession, afterId: String): WorkoutExe
 
 private fun roundedDisplay(kg: Double, unit: String): Double = Math.round(kgToDisplay(kg, unit) * 10) / 10.0
 
-private const val DEFAULT_STEP_KG = 2.5
+/** The step for an exercise with no resolved rule, matching the server's Progression.DefaultStep. */
+private fun defaultStepKg(unit: String): Double = if (unit == "lb") 5 / WorkoutRepository.LB_PER_KG else 2.5
 private val EDITABLE_LOAD_MODES = setOf("external", "added", "assistance")
 
 /** The set the lifter can take back from the overview: the last one this watch logged, while it is still logged. */

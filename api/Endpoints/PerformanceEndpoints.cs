@@ -22,8 +22,7 @@ public static class PerformanceEndpoints
             var generation = await db.ResourceGenerations.AsNoTracking().SingleOrDefaultAsync(ct) ?? new ResourceGeneration();
             return new
             {
-                resourceVersions = new { catalog = $"{generation.CustomExercises}:{generation.ExerciseLoads}",
-                    programs = $"{generation.Programs}:{generation.Templates}", templates = $"{generation.Templates}:{generation.ExerciseLoads}" },
+                resourceVersions = ResourceVersions.For(generation, user.Unit),
                 account = new { user.Id, displayName = user.DisplayName },
                 preferences = new { user.Unit, user.Theme, user.RestSeconds, user.RestAlerts, user.TrackRir },
                 activeWorkout = await workouts.Active(ct), activeProgram = active, nextWorkout = next,
