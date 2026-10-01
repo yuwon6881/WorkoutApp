@@ -45,3 +45,9 @@
 @media (min-width: 1024px) {
   .set-type-select .custom-select-trigger { min-height: 40px; }
 }
+
+/* Open by pointer, the label keeps its own shape: the menu beside it already shows the choice,
+   and the shared open-select ring or a fill drew a stray box around a label that has no border of
+   its own. The flipped chevron says it is open. Keyboard focus keeps its ring. */
+.set-type-select .custom-select-trigger.active:not(:focus-visible) { box-shadow: none; }
+.set-grid-wrap .set-grid-row .set-type-select .custom-select-trigger.active:not(:focus-visible) { background: transparent; }

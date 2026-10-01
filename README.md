@@ -104,7 +104,10 @@ decision. Passive status rows are regular content; only rows with an available a
   weighted loads are ineligible. A first exposure establishes a baseline, ties do not win, and high-rep sets can earn
   rep PRs without an e1RM. Live celebrations, set markers (`pr-set-tag`), and exercise history badges
   (`pr-exercise-badge`) distinguish "Rep best", "Estimated strength best", and combined records, while counting
-  each exercise once in session PR summaries. Every suggestion says
+  each exercise once in session PR summaries. Technique sets (partials, lengthened and integrated partials,
+  myo-reps, drop sets) count as sets and volume but never as strength: they set no records, raise no bar
+  a later set must beat, and leave the strength trend alone. Their progression learns only from the
+  same technique, and one that follows straight sets starts at the straight-set load. Every suggestion says
   in words why it changed, and a program's own reps and RPE are never overwritten.
 - The Body tab shows completed working-set coverage by muscle for the last week, month, or three
   months. Each set credits its primary muscle fully and secondary muscles at half weight; fixed
@@ -135,10 +138,14 @@ decision. Passive status rows are regular content; only rows with an available a
   week-gap checks run; the chosen branch is checked again before it is ready. Progress distinguishes
   saved section responses from committed sections and stays indeterminate during verification. The
   model, reasoning effort, request limit, and per-read budget are unchanged.
+  Saved stopped imports stay in a collapsed list and open only when chosen. Reloading or discarding
+  a different draft does not select an older error; live reads and ready drafts resume newest first.
+  Choosing a new PDF clears the previous attempt's detail panel while the new file is read.
 - Imported prescriptions retain per-set techniques such as partial reps, lengthened partials, and
   integrated partials. Row instructions for top- or bottom-half ROM work are recognized too, including
   fractions such as `1/2`, `½`, and `3/4` of the range of motion, affirmative short-ROM cues, and
-  compound sequences such as 7/7/7; their printed rep notation stays intact. Printed set qualifiers
+  compound sequences such as 7/7/7; their printed rep notation stays intact, and when the note spells
+  out the same segments inside one set the rep target is their total (21 for 7/7/7). Printed set qualifiers
   determine the working sets that receive a technique, and the active workout labels those sets while
   keeping the source cues. When a counted ROM sequence conflicts with the printed rep target, import
   review flags the source page and rep field for a choice instead of silently changing either value.

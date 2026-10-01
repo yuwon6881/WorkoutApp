@@ -228,3 +228,30 @@ describe('PR badge and tag formatting', () => {
     expect(formatSetPrTag(set({ isPr: true }))).toBe('PR');
   });
 });
+
+describe('technique sets and live records', () => {
+  const plan = (notes: string | null) => ({
+    repMin: 8, repMax: 10, targetRpe: 8, restSeconds: 90, tempo: null, loadText: null, notes, repsText: null,
+    restText: null, rir: null, warmup: false, repsSource: 'extracted' as const, rpeSource: 'extracted' as const, restSource: 'extracted' as const
+  });
+
+  it('never announces a record for partials, myo-reps or drop sets', () => {
+    for (const notes of ['Lengthened partials', 'Myo-reps', 'Dropset', 'Partial reps']) {
+      const ex = { ...exercise([set({ weightKg: 60, reps: 30, rpe: 10 })], 50, { '60': 10 }), prescription: [plan(notes)] };
+      expect(checkLivePr(ex, 0)).toBeNull();
+    }
+  });
+
+  it('keeps announcing records for straight and failure sets', () => {
+    const ex = { ...exercise([set({ weightKg: 60, reps: 12, rpe: 10 })], null, { '60': 10 }), prescription: [plan('To failure / AMRAP')] };
+    expect(checkLivePr(ex, 0)?.kind).toBe('reps');
+  });
+
+  it('does not let an earlier technique set hide a straight-set record', () => {
+    const ex = {
+      ...exercise([set({ position: 0, weightKg: 60, reps: 30, rpe: 10 }), set({ position: 1, weightKg: 60, reps: 12, rpe: 10 })], null, { '60': 10 }),
+      prescription: [plan('Myo-reps'), plan(null)]
+    };
+    expect(checkLivePr(ex, 1)?.kind).toBe('reps');
+  });
+});

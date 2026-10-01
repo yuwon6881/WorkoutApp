@@ -7,6 +7,8 @@ namespace Workout.Api.Services;
 
 public static class RebuildableReadCache
 {
+    // Progress now keeps technique volume while excluding its strength evidence.
+    private const int ProgressVersion = 2;
     private static readonly SemaphoreSlim[] Gates = Enumerable.Range(0, 32).Select(_ => new SemaphoreSlim(1)).ToArray();
     private sealed record Snapshot(string Date, JsonElement Value);
 
@@ -21,10 +23,10 @@ public static class RebuildableReadCache
         {
             var generation = await db.ResourceGenerations.AsNoTracking().Where(x => x.UserId == user).Select(x => (long?)x.Progress).SingleOrDefaultAsync(ct) ?? 0;
             var date = DateTime.UtcNow.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture);
-            var key = $"progress:{user:N}:{generation}:{date}";
+            var key = $"progress:{ProgressVersion}:{user:N}:{generation}:{date}";
             if (coordinated && cache.TryGetValue(key, out object? value) && value != null) return value;
             var row = await db.TrainingReadModels.AsNoTracking().SingleOrDefaultAsync(x => x.Kind == "progress" && x.SourceId == Guid.Empty, ct);
-            if (row?.Generation == generation && row.Version == 1)
+            if (row?.Generation == generation && row.Version == ProgressVersion)
             {
                 var snapshot = Json.Read<Snapshot>(row.Json);
                 if (snapshot.Date == date)
@@ -37,7 +39,7 @@ public static class RebuildableReadCache
             generation = await db.ResourceGenerations.AsNoTracking().Select(x => (long?)x.Progress).SingleOrDefaultAsync(ct) ?? 0;
             // Another instance may have published while this request waited for the account lock.
             row = await db.TrainingReadModels.AsNoTracking().SingleOrDefaultAsync(x => x.Kind == "progress" && x.SourceId == Guid.Empty, ct);
-            if (row?.Generation == generation && row.Version == 1)
+            if (row?.Generation == generation && row.Version == ProgressVersion)
             {
                 var snapshot = Json.Read<Snapshot>(row.Json);
                 if (snapshot.Date == date)
@@ -50,13 +52,13 @@ public static class RebuildableReadCache
             var json = Json.Write(new Snapshot(date, JsonSerializer.SerializeToElement(result, Json.Options)));
             await db.Database.ExecuteSqlInterpolatedAsync($"""
                 INSERT INTO "TrainingReadModels" ("UserId", "Kind", "SourceId", "Generation", "Version", "Json")
-                VALUES ({user}, {"progress"}, {Guid.Empty}, {generation}, {1}, {json})
+                VALUES ({user}, {"progress"}, {Guid.Empty}, {generation}, {ProgressVersion}, {json})
                 ON CONFLICT ("UserId", "Kind", "SourceId") DO UPDATE SET
-                "Generation" = {generation}, "Version" = {1}, "Json" = {json}
+                "Generation" = {generation}, "Version" = {ProgressVersion}, "Json" = {json}
                 """, ct);
             if (mutation != null) await mutation.Commit(ct);
             // Never publish data from somebody else's still-open transaction into process memory.
-            if (coordinated) cache.Set($"progress:{user:N}:{generation}:{date}", result,
+            if (coordinated) cache.Set($"progress:{ProgressVersion}:{user:N}:{generation}:{date}", result,
                 new MemoryCacheEntryOptions { Size = 1, AbsoluteExpirationRelativeToNow = TimeSpan.FromSeconds(30) });
             return result;
         }

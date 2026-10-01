@@ -85,8 +85,8 @@ public sealed partial class ImportService
         // Schedule reconciliation can recover a source row after its section attached
         // demonstrations. Pair the final source-grounded rows before saving the baseline.
         List<ImportPageLink> demoLinks = string.IsNullOrWhiteSpace(import.LinksJson) ? [] : Json.Read<List<ImportPageLink>>(import.LinksJson);
-        merged = ImportValidation.NormalizeDraft(ImportDemoLinks.Attach(
-            ImportNameSpelling.Standardize(cited.Draft, sourcePages), demoLinks));
+        merged = ImportValidation.NormalizeDraft(ImportRomRepTotals.Apply(ImportDemoLinks.Attach(
+            ImportNameSpelling.Standardize(cited.Draft, sourcePages), demoLinks)));
         if (ImportTableEvidence.PrintedRowsNotice(merged.Workouts, source.Tables) is { } printedRows)
             notices.Add(printedRows);
         notices.AddRange(shaped.Notices);

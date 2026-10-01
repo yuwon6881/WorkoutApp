@@ -31,7 +31,11 @@ internal static partial class ImportValidation
     /// What the reviewer must resolve before the draft can become a program. Each kind is counted
     /// once and names the first few days it applies to, so the review reads as a summary rather
     /// than a log while the target points back to a concrete editor field.
-    public static List<ImportReviewIssue> ReviewIssues(ImportDraft draft)
+    public static List<ImportReviewIssue> ReviewIssues(ImportDraft draft) => ReviewIssues(draft, ImportReviewEdits.None);
+
+    /// The same review with the reviewer's edits applied: an exercise they have changed since the
+    /// read is one they have checked, so it no longer counts toward an item or blocks by itself.
+    public static List<ImportReviewIssue> ReviewIssues(ImportDraft draft, ImportReviewEdits edits)
     {
         var issues = new List<ImportReviewIssue>();
         var training = draft.Workouts.Where(w => !w.IsRestDay).ToList();
@@ -63,14 +67,14 @@ internal static partial class ImportValidation
 
         var unrated = working.Where(item => item.set.TargetRpe is null && !HasRirTarget(item.set.Rir)
             && !IsPercentageLoad(item.set.LoadText)).ToList();
-        AddUnspecified(issues, unrated, "rpe_unspecified", "rpe_unread", "targetRpe", item => item.set.RpeSource,
+        AddUnspecified(issues, edits, unrated, "rpe_unspecified", "rpe_unread", "targetRpe", item => item.set.RpeSource,
             "working set has", "working sets have", "no target RIR");
 
         // The first movement of a superset rests only after its partner, so a table prints "-" for
         // it and a session skips that rest anyway; it is not a rest the document left out.
         var unrested = working.Where(item => item.set.RestSeconds is null && string.IsNullOrWhiteSpace(item.set.RestText)
             && !LeadsIntoPartner(item.day, item.exercise)).ToList();
-        AddUnspecified(issues, unrested, "rest_unspecified", "rest_unread", "rest", item => item.set.RestSource,
+        AddUnspecified(issues, edits, unrested, "rest_unspecified", "rest_unread", "rest", item => item.set.RestSource,
             "set has", "sets have", "no stated rest");
 
         issues.AddRange(PartialRepConflicts(training));
@@ -116,8 +120,15 @@ internal static partial class ImportValidation
                         $"{(string.IsNullOrWhiteSpace(phase[0].Phase) ? "This phase" : $"'{phase[0].Phase}'")} jumps from week {phaseWeeks[index - 1]} to week {phaseWeeks[index]}; check that nothing is missing.",
                         "warning", phase[0].SourcePage, WorkoutLineId: phase[0].LineId, TargetField: "week"));
         }
-        return issues;
+        return issues.Where(issue => !edits.Reviewed(issue)).ToList();
     }
+
+    /// The rep count of each range-of-motion segment an exercise note prescribes, in order
+    /// ("first 7 reps bottom half of ROM, next 7 top half, last 7 full ROM" is 7, 7, 7).
+    internal static List<int> RomSegmentCounts(string? notes)
+        => RomRepSegment.Matches(notes ?? "").Cast<Match>()
+            .Select(match => int.TryParse(match.Groups["count"].Value, NumberStyles.None, CultureInfo.InvariantCulture, out var count) ? count : 0)
+            .ToList();
 
     /// Instructions can prescribe a compound partial-rep sequence that conflicts with a set's
     /// printed reps cell. Keep both source values and require the reviewer to resolve the conflict.
@@ -127,10 +138,8 @@ internal static partial class ImportValidation
         foreach (var day in training)
         foreach (var exercise in day.Exercises)
         {
-            var segments = RomRepSegment.Matches(exercise.Notes ?? "").Cast<Match>().ToList();
-            if (segments.Count < 2) continue;
-            var segmentCounts = segments.Select(match => int.TryParse(match.Groups["count"].Value,
-                NumberStyles.None, CultureInfo.InvariantCulture, out var count) ? count : 0).ToList();
+            var segmentCounts = RomSegmentCounts(exercise.Notes);
+            if (segmentCounts.Count < 2) continue;
             var total = segmentCounts.Sum();
             if (total <= 0) continue;
 
@@ -178,12 +187,14 @@ internal static partial class ImportValidation
 
     /// A value the page leaves blank, "-" or N/A is its own statement and only noted. One the read
     /// could not confirm against the printed table may be printed and lost, so review has to look.
-    private static void AddUnspecified(List<ImportReviewIssue> issues,
+    private static void AddUnspecified(List<ImportReviewIssue> issues, ImportReviewEdits edits,
         List<(DraftWorkout day, DraftExercise exercise, DraftSet set, int index)> items, string statedCode, string unreadCode,
         string field, Func<(DraftWorkout day, DraftExercise exercise, DraftSet set, int index), string> source,
         string one, string many, string missing)
     {
-        var unread = items.Where(item => source(item) == "inferred").ToList();
+        // An unread value on an exercise the reviewer has since edited has been looked at, so it
+        // no longer counts and the item moves on to the next exercise still waiting for a check.
+        var unread = items.Where(item => source(item) == "inferred" && !edits.ExerciseEdited(item.exercise.LineId)).ToList();
         var stated = items.Where(item => source(item) != "inferred").ToList();
         if (stated.Count > 0)
             issues.Add(Unspecified(statedCode, stated, field, "info",

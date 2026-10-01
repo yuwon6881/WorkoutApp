@@ -12,6 +12,10 @@ internal static class PrescriptionProgression
         var min = open ? (int?)null : prescription.RepMin;
         var max = open ? (int?)null : prescription.RepMax ?? min;
         var goal = ProgressionEvidence.Reserve(prescription.Rir, prescription.TargetRpe);
+        // A set only learns from sets done the same way: a partial or myo-rep set says nothing
+        // about the straight set in its slot, and the reverse.
+        var technique = SetTechniques.Of(prescription);
+        history = history.Where(exposure => exposure.Technique == technique).ToList();
         var away = ProgressionLayoff.Days(history, now);
         history = ProgressionHistory.Prepare(history, min, max, goal);
         var source = history.FirstOrDefault();

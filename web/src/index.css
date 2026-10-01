@@ -214,6 +214,7 @@ details>p{font-size:14px!important;line-height:1.5;color:var(--muted);margin-top
 .custom-select-item{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 12px;border-radius:6px;font-size:13px;color:var(--text);cursor:pointer;transition:background .14s ease;user-select:none}
 .custom-select-item:hover,.custom-select-item.highlighted{background:var(--surface-hover)}
 .custom-select-item.selected{background:var(--surface-hover);color:var(--accent);font-weight:600}
+.custom-select-dropdown.fit-options .custom-select-item{white-space:nowrap}
 .custom-select-check{flex-shrink:0}
 .field .custom-select-wrap{min-width:100%;max-width:100%;width:100%}
 @media(max-width:639px){.custom-select-wrap{min-width:100%;max-width:100%;width:100%}}

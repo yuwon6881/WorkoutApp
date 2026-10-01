@@ -70,6 +70,15 @@ public static class WorkoutViewBuilder
                                      s.Reps,
                                      s.Rpe
                                  }).ToListAsync(ct);
+        // Records are straight-set strength. A technique set (partials, myo-reps, drop sets) keeps
+        // its place in history but can neither set a record nor raise the bar a later set must beat.
+        var prescriptions = await (from e in db.SessionExercises.AsNoTracking()
+                                   join w in db.Workouts.AsNoTracking() on e.SessionId equals w.Id
+                                   where w.UserId == user && w.FinishedAt != null && (!useBatch || requestedIds.Contains(w.Id))
+                                   select new { e.Id, e.PrescriptionJson }).ToListAsync(ct);
+        var techniques = prescriptions.ToDictionary(x => x.Id, x => SetTechniques.ByPosition(x.PrescriptionJson));
+        allDoneSets = allDoneSets.Where(x => SetTechniques.IsStrengthEvidence(
+            techniques.GetValueOrDefault(x.SessionExerciseId) ?? [], x.Position)).ToList();
 
         var repBests = WorkoutRepPrBuilder.Build(allDoneSets.Select(x => new WorkoutRepExposure(
             x.SessionId, x.FinishedAt!.Value, x.StartedAt, PrKey(x.ExerciseId, x.NameSnapshot), x.SessionExerciseId,

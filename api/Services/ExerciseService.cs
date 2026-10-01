@@ -144,6 +144,11 @@ public sealed class ExerciseService(AppDb db)
         var allSets = rows.Count == 0 ? [] : await db.Sets.AsNoTracking().Where(x => rows.Select(r => r.Id).Contains(x.SessionExerciseId)).ToListAsync(ct);
         var sets = allSets.Where(x => x.Done && !x.Warmup).ToList();
         var byExercise = rows.ToDictionary(x => x.Id);
+        // Technique sets (partials, myo-reps, drop sets) count as work and volume, but their load
+        // and reps are not straight-set strength, so estimates and records read straight sets only.
+        var techniques = rows.ToDictionary(x => x.Id, x => SetTechniques.ByPosition(x.PrescriptionJson));
+        var strengthSets = sets.Where(x => SetTechniques.IsStrengthEvidence(techniques[x.SessionExerciseId], x.Position)).ToList();
+        var strengthIds = strengthSets.Select(x => x.Id).ToHashSet();
         var records = new List<(Guid SessionId, DateOnly Date, string Name, double? E1rm, double? Load, double? Volume, int? Reps, bool Partial)>();
         foreach (var group in rows.GroupBy(x => x.SessionId))
         {
@@ -154,9 +159,10 @@ public sealed class ExerciseService(AppDb db)
             var partial = loadExpected && groupSets.Any(x => EffectiveLoad(x, meta.LoadModel) is null);
             var volume = groupSets.Select(x => (Load: EffectiveLoad(x, meta.LoadModel), x.Reps)).Where(x => x.Load is not null && x.Reps is not null)
                 .Select(x => x.Load!.Value * x.Reps!.Value).ToList();
-            var estimates = groupSets.Select(x => Progression.E1rm(EffectiveLoad(x, meta.LoadModel), x.Reps, x.Rpe)).Where(x => x is not null).Select(x => x!.Value).ToList();
-            var best = groupSets.Where(x => EffectiveLoad(x, meta.LoadModel) is not null).OrderByDescending(x => EffectiveLoad(x, meta.LoadModel)).FirstOrDefault();
-            var rep = groupSets.Where(x => x.Reps is not null).OrderByDescending(x => x.Reps).FirstOrDefault();
+            var groupStrength = groupSets.Where(x => strengthIds.Contains(x.Id)).ToList();
+            var estimates = groupStrength.Select(x => Progression.E1rm(EffectiveLoad(x, meta.LoadModel), x.Reps, x.Rpe)).Where(x => x is not null).Select(x => x!.Value).ToList();
+            var best = groupStrength.Where(x => EffectiveLoad(x, meta.LoadModel) is not null).OrderByDescending(x => EffectiveLoad(x, meta.LoadModel)).FirstOrDefault();
+            var rep = groupStrength.Where(x => x.Reps is not null).OrderByDescending(x => x.Reps).FirstOrDefault();
             records.Add((group.Key, DateOnly.FromDateTime(session.FinishedAt!.Value), session.Name,
                 estimates.Count == 0 ? null : estimates.Max(), best == null ? null : EffectiveLoad(best, meta.LoadModel),
                 volume.Count == 0 ? null : volume.Sum(), rep?.Reps, partial));
@@ -175,15 +181,15 @@ public sealed class ExerciseService(AppDb db)
         var paged = historyRows.Skip(page * size).Take(size).ToList();
         var bestE = records.Where(x => x.E1rm is not null).OrderByDescending(x => x.E1rm).FirstOrDefault();
         var heavy = records.Where(x => x.Load is not null).OrderByDescending(x => x.Load).FirstOrDefault();
-        var setRecords = sets.Select(x => (Set: x, Session: sessions[byExercise[x.SessionExerciseId].SessionId], Load: EffectiveLoad(x, meta.LoadModel)))
+        var setRecords = strengthSets.Select(x => (Set: x, Session: sessions[byExercise[x.SessionExerciseId].SessionId], Load: EffectiveLoad(x, meta.LoadModel)))
             .Where(x => x.Load is not null && x.Set.Reps is not null).ToList();
         var largestSet = setRecords.OrderByDescending(x => x.Load!.Value * x.Set.Reps!.Value).FirstOrDefault();
         var largestSession = records.Where(x => x.Volume is not null).OrderByDescending(x => x.Volume).FirstOrDefault();
         var reps = setRecords.OrderByDescending(x => x.Set.Reps).FirstOrDefault();
         var last = records.OrderByDescending(x => x.Date).FirstOrDefault();
         var points = filtered.Select(x => new ExerciseMetricPoint(x.Date, x.SessionId, x.Name, x.E1rm, x.Load, x.Volume, x.Reps, x.Partial)).ToList();
-        var externalLoads = sets.Where(x => meta.LoadModel == LoadModels.External && x.WeightKg is not null).Select(x => x.WeightKg!.Value).ToList();
-        var bodyweightSets = sets.Where(x => meta.LoadModel == LoadModels.FullBodyweight).ToList();
+        var externalLoads = strengthSets.Where(x => meta.LoadModel == LoadModels.External && x.WeightKg is not null).Select(x => x.WeightKg!.Value).ToList();
+        var bodyweightSets = strengthSets.Where(x => meta.LoadModel == LoadModels.FullBodyweight).ToList();
         var addedLoads = bodyweightSets.Where(x => x.ResistanceMode == ResistanceModes.Added && x.WeightKg is not null).Select(x => x.WeightKg!.Value).ToList();
         var assistanceLoads = bodyweightSets.Where(x => x.ResistanceMode == ResistanceModes.Assistance && x.WeightKg is not null).Select(x => x.WeightKg!.Value).ToList();
         var systemLoads = bodyweightSets.Where(x => x.SystemLoadKg is not null).Select(x => x.SystemLoadKg!.Value).ToList();

@@ -225,6 +225,41 @@
   overflow-wrap: anywhere;
 }
 
+.import-stopped-imports {
+  border-top: 1px solid var(--border);
+  padding-top: 8px;
+}
+
+.import-stopped-imports summary {
+  min-height: 44px;
+  align-content: center;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.import-stopped-imports ul {
+  display: grid;
+  gap: 4px;
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+}
+
+.import-stopped-imports .button {
+  width: 100%;
+  justify-content: space-between;
+  text-align: left;
+}
+
+.import-stopped-imports .button span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.import-stopped-imports .button svg {
+  flex-shrink: 0;
+}
+
 /* A review row's plain title above the document's own explanation. */
 .import-issue-copy {
   display: grid;

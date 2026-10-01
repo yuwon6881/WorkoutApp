@@ -30,6 +30,7 @@ internal sealed class ProgressAccumulator(IReadOnlyList<ExerciseProgress> states
             aggregate.Sessions += group.Select(x => x.SessionId).Distinct().Count();
             foreach (var exercise in group)
             {
+                var techniques = SetTechniques.ByPosition(exercise.PrescriptionJson);
                 var session = sessionsById[exercise.SessionId];
                 var recent = session.FinishedAt >= recentCutoff;
                 BodyWeightSnapshot? bodyweight = null;
@@ -48,7 +49,12 @@ internal sealed class ProgressAccumulator(IReadOnlyList<ExerciseProgress> states
                         totalVolume += volume;
                         if (recent) { hasWeekVolume = true; weekVolume += volume; }
                     }
-                    aggregate.Add(exercise, set, session.FinishedAt!.Value, bodyweight);
+                    // A technique set is real work, so it stays in the set and volume totals above,
+                    // but its load and reps are not straight-set strength.
+                    if (SetTechniques.IsStrengthEvidence(techniques, set.Position))
+                        aggregate.Add(exercise, set, session.FinishedAt!.Value, bodyweight);
+                    else
+                        aggregate.AddVolume(exercise, set);
                 }
             }
         }
@@ -73,6 +79,16 @@ internal sealed class ProgressAccumulator(IReadOnlyList<ExerciseProgress> states
         private int? heaviestReps, repPr, bodyweightReps;
         private double? bodyweightKg;
         private DateTime? latestEstimateAt;
+
+        public void AddVolume(SessionExercise exercise, CompletedSet set)
+        {
+            if (exercise.LoadModel == LoadModels.External && set.WeightKg is { } load)
+            {
+                externalCount++;
+                externalVolume += load * set.Reps.GetValueOrDefault();
+            }
+            if (exercise.LoadModel == LoadModels.FullBodyweight) bodyweightCount++;
+        }
 
         public void Add(SessionExercise exercise, CompletedSet set, DateTime finished, BodyWeightSnapshot? snapshot)
         {

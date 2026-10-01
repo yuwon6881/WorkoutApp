@@ -2,11 +2,13 @@ import { useEffect, useRef, useState } from 'react';
 import type { ImportStatusView, ImportView } from '../types';
 import { api } from '../lib/api';
 import type { ProgressValue } from './ui/Progress';
+import { isLocalPdfReadActive, takeLocalPdfResult, useLocalPdfRead } from '../lib/localPdfRead';
 
 const POLL_INTERVAL_MS = 2_000;
 const STALL_INTERVAL_MS = 90_000;
 
-export type ImportWatch = { importId: string; progress: ProgressValue } | null;
+/// `importId` is null while the PDF is still being read on this device and no server row exists yet.
+export type ImportWatch = { importId: string | null; progress: ProgressValue } | null;
 
 /// An import is a server-owned background job: the runner keeps reading after the import screen is
 /// closed. Without this the only client that knows a read is happening is that screen, so leaving
@@ -16,15 +18,35 @@ export type ImportWatch = { importId: string; progress: ProgressValue } | null;
 /// and keeps the stall kick alive; it never applies a draft or decides an import is finished. The
 /// import screen remains the one place that owns the read, and this stands down whenever that
 /// screen is open so the two never poll the same row at once.
-export function useImportWatch({ imports, active, onFinished }: {
+export function useImportWatch({ imports, active, onFinished, onLocalFailure }: {
   imports: ImportView[];
   /// False while the import screen is mounted, since it does its own polling and shows its own bar.
   active: boolean;
   onFinished: () => void;
+  /// A PDF that could not be read on this device while the import screen was closed.
+  onLocalFailure: (message: string) => void;
 }): ImportWatch {
   const [watch, setWatch] = useState<ImportWatch>(null);
   const finished = useRef(onFinished);
   finished.current = onFinished;
+  const localFailure = useRef(onLocalFailure);
+  localFailure.current = onLocalFailure;
+  const localRead = useLocalPdfRead();
+
+  /// A read that finished on this device while the import screen was closed has nobody to continue
+  /// it, so the shell starts the server read and reloads, which puts the new row in front of the
+  /// server watcher below. Opening the import screen later resumes it like any unfinished read.
+  useEffect(() => {
+    if (!active || !localRead || isLocalPdfReadActive(localRead)) return;
+    const settled = takeLocalPdfResult();
+    if (!settled) return;
+    if (settled.status === 'failed') localFailure.current(settled.message);
+    if (settled.status !== 'created') return;
+    void (async () => {
+      try { await api.extractImport(settled.view.id); } catch { /* the watcher's stall kick retries */ }
+      finished.current();
+    })();
+  }, [active, localRead]);
 
   /// The row worth following is one the server is actively reading. `select` is a question waiting
   /// on the user, not work in flight, so it belongs on the import screen rather than in a pill.
@@ -120,5 +142,6 @@ export function useImportWatch({ imports, active, onFinished }: {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [importId, fileName]);
 
+  if (active && isLocalPdfReadActive(localRead)) return { importId: null, progress: localRead.progress };
   return watch;
 }

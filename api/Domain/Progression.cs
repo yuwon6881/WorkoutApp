@@ -22,7 +22,9 @@ public sealed record SetExposure(
     double? TargetRpe = null,
     string? TargetRir = null,
     bool IsRepRangeTransition = false,
-    bool HasPrescription = false);
+    bool HasPrescription = false,
+    /// The technique the set was prescribed with (see SetTechniques); null for a straight set.
+    string? Technique = null);
 
 public static class ProgressionModes
 {

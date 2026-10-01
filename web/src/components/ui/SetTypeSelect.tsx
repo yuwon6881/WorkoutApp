@@ -42,6 +42,8 @@ export function SetTypeSelect({
       value={type}
       options={options}
       displayLabel={`${SHORT_LABELS[type]} ${number}`}
+      // The trigger is a fixed-width label; the menu names each type in full on one line.
+      fitMenuToOptions
       onChange={onChange}
     />
   );

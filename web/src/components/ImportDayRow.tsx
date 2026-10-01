@@ -1,6 +1,7 @@
 import { useMemo, type ReactNode } from 'react';
 import type { DraftWorkout, Exercise } from '../types';
 import { getPlannedMuscleCredits } from '../lib/programMuscles';
+import { dayTitle, isGenericDayTitle } from '../lib/dayTitle';
 import { Button } from './ui/Button';
 import { ProgramMusclePreview } from './ProgramMusclePreview';
 
@@ -31,17 +32,16 @@ export function DayRow({
     return { full: list(4), compact: list(1) };
   }, [day.exercises, day.isRestDay]);
 
-  const isGenericDay = !day.name
-    || day.name.trim().toLowerCase() === `day ${index + 1}`.toLowerCase()
-    || /^(day\s*\d+)$/i.test(day.name.trim());
-  const isGenericRest = day.isRestDay && (isGenericDay || day.name.trim().toLowerCase() === 'rest day');
+  const title = dayTitle(day.name, index + 1);
+  const isGenericDay = isGenericDayTitle(title);
+  const isGenericRest = day.isRestDay && (isGenericDay || title.toLowerCase() === 'rest day');
 
   const meta = <>
     {!day.isRestDay && (isGenericDay
-      ? <strong>{day.name || `Day ${index + 1}`}</strong>
+      ? <strong>{day.name?.trim() || `Day ${index + 1}`}</strong>
       : <>
         <span className="draft-day-index">Day {index + 1}</span>
-        <strong>{day.name}</strong>
+        <strong>{title}</strong>
       </>)}
     {day.isRestDay && (isGenericRest
       ? <>
@@ -50,7 +50,7 @@ export function DayRow({
       </>
       : <>
         <span className="draft-day-index">Day {index + 1}</span>
-        <strong>{day.name}</strong>
+        <strong>{title}</strong>
         <span className="tiny-label rest-badge">Rest day</span>
       </>)}
     {!day.isRestDay && (

@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ImportDraft, ImportView } from '../types';
 import { ApiError, api } from '../lib/api';
-import { PdfTextError, extractPdfText, type PdfExtraction } from '../lib/pdfText';
+import { PdfTextError } from '../lib/pdfText';
+import { cancelLocalPdfRead, isLocalPdfReadActive, startLocalPdfRead, takeLocalPdfResult, useLocalPdfRead } from '../lib/localPdfRead';
 
 /// `percent` is null while the step has no measurable size, so the bar can stay indeterminate
 /// instead of inventing a number.
@@ -40,7 +41,6 @@ type Options = {
 /// polls persisted progress.
 export function useImportPipeline({ selected, setSelected, setDraft, onChanged, onComplete }: Options): ImportPipeline {
   const [progress, setProgress] = useState<ImportProgress | null>(null);
-  const [uploadProgress, setUploadProgress] = useState<ImportProgress | null>(null);
   const [failure, setFailure] = useState<ImportFailure | null>(null);
   const [notice, setNotice] = useState('');
   const running = useRef(false);
@@ -53,9 +53,12 @@ export function useImportPipeline({ selected, setSelected, setDraft, onChanged, 
   const resumed = useRef(new Set<string>());
   const statusEtags = useRef(new Map<string, string>());
   const pollAbort = useRef<AbortController | null>(null);
-  const uploadAbort = useRef<AbortController | null>(null);
+  const localRead = useLocalPdfRead();
+  const uploadProgress = isLocalPdfReadActive(localRead) ? localRead.progress : null;
 
-  useEffect(() => () => { uploadAbort.current?.abort(); pollAbort.current?.abort(); }, []);
+  // Leaving the screen stops only this screen's polling. The on-device read belongs to the app
+  // shell and keeps going, and the server keeps reading a submitted import either way.
+  useEffect(() => () => { pollAbort.current?.abort(); }, []);
   const apply = useCallback((view: ImportView) => {
     if (cancelled.current === view.id) return;
     setSelected(view); setDraft(view.draft);
@@ -212,47 +215,26 @@ export function useImportPipeline({ selected, setSelected, setDraft, onChanged, 
   }, []);
 
   const upload = useCallback(async (chosen: File) => {
+    if (running.current) return;
+    setFailure(null); setNotice('');
+    setSelected(null); setDraft(null);
     if (!/\.pdf$/i.test(chosen.name)) { setFailure({ message: 'Choose a PDF file.' }); return; }
-    await drive(async () => {
-      let source: PdfExtraction;
-      const controller = new AbortController();
-      uploadAbort.current = controller;
-      try {
-        // Reading the text is the only step whose size this app knows, so it is the only step
-        // that reports a real percentage.
-        setUploadProgress({ label: 'Reading the PDF on this device', detail: chosen.name, percent: 0 });
-        source = await extractPdfText(chosen, (page, pageCount) => {
-          setUploadProgress({ label: 'Reading the PDF on this device', detail: `Page ${page} of ${pageCount}`, percent: Math.round((page / pageCount) * 100) });
-        }, controller.signal);
-      } catch (error) {
-        if (controller.signal.aborted) setNotice('PDF reading was cancelled. Choose a PDF to start again.');
-        else report(error, 'The text in that PDF could not be read on this device.');
-        return;
-      } finally {
-        if (uploadAbort.current === controller) uploadAbort.current = null;
-      }
+    await startLocalPdfRead(chosen);
+  }, [setDraft, setSelected]);
 
-      if (controller.signal.aborted) {
-        setNotice('PDF reading was cancelled. Choose a PDF to start again.');
-        return;
-      }
+  /// A read that finished while this screen is open continues here; one that finished while it was
+  /// closed was already handed to the shell's watcher and arrives through the import list instead.
+  useEffect(() => {
+    if (!localRead || isLocalPdfReadActive(localRead) || running.current) return;
+    const settled = takeLocalPdfResult();
+    if (!settled) return;
+    if (settled.status === 'cancelled') setNotice('PDF reading was cancelled. Choose a PDF to start again.');
+    else if (settled.status === 'failed') setFailure({ message: settled.message });
+    else void drive(() => advance(settled.view));
+  // `progress` re-runs this once a pass that was already running lets go of the screen.
+  }, [advance, drive, localRead, progress]);
 
-      try {
-        setUploadProgress({
-          label: 'Finding the program',
-          detail: `${source.pagesWithText} of ${source.pageCount} pages have selectable text`,
-          percent: null
-        });
-        await advance(await api.createImport(source));
-      } catch (error) { report(error, 'Could not read that PDF.'); }
-      finally { setUploadProgress(null); }
-    });
-  }, [advance, drive, report]);
-
-  const cancelUpload = useCallback(() => {
-    uploadAbort.current?.abort();
-    setUploadProgress(null);
-  }, []);
+  const cancelUpload = useCallback(() => { cancelLocalPdfRead(); }, []);
 
   const resume = useCallback(async (view: ImportView) => {
     await drive(async () => {

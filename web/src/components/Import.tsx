@@ -10,6 +10,9 @@ import { useImportPipeline, type ImportFailure, type ImportProgress } from './us
 import { useImportDraftSaver } from './useImportDraftSaver';
 import { ImportFailedPanel } from './ImportFailedPanel';
 import { importIssueCopy } from '../lib/importIssueCopy';
+import { resumableImport } from '../lib/importSelection';
+import { localPdfRead } from '../lib/localPdfRead';
+import { StoppedImports } from './StoppedImports';
 import './Import.css';
 
 
@@ -67,7 +70,7 @@ function hasStructuredTerminalError(view: ImportView | null) {
 export function ImportReview({ exercises, imports, onBack, onChanged, notify }: {
   exercises: Exercise[]; imports: ImportView[]; onBack: () => void; onChanged: () => Promise<void>; notify?: (message: string) => void;
 }) {
-  const [selected, setSelected] = useState<ImportView | null>(imports.find(i => i.status === 'ready') ?? imports[0] ?? null);
+  const [selected, setSelected] = useState<ImportView | null>(() => localPdfRead() ? null : resumableImport(imports));
   const [draft, setDraft] = useState<ImportDraft | null>(selected?.draft ?? null);
   const [expandedDay, setExpandedDay] = useState<string | null>(null);
   const [saveError, setSaveError] = useState('');
@@ -170,7 +173,11 @@ export function ImportReview({ exercises, imports, onBack, onChanged, notify }: 
     <section className="panel">
       <div className="section-heading"><h2>Upload</h2><span className="muted">PDF · read on this device · up to 1,000 pages</span></div>
       <input name="program-pdf" ref={file} type="file" accept="application/pdf,.pdf" hidden aria-label="Program PDF"
-        onChange={e => { const chosen = e.target.files?.[0]; e.target.value = ''; if (chosen) void pipeline.upload(chosen); }} />
+        onChange={e => {
+          const chosen = e.target.files?.[0];
+          e.target.value = '';
+          if (chosen) { setSaveError(''); void pipeline.upload(chosen); }
+        }} />
       <div className="upload-action-row">
         <Button variant="primary" disabled={busy} onClick={() => file.current?.click()}><Upload size={17} />Choose a PDF</Button>
       </div>
@@ -208,6 +215,12 @@ export function ImportReview({ exercises, imports, onBack, onChanged, notify }: 
         && <Failure failure={pipeline.failure} onDismiss={pipeline.clearFailure} />}
       {saveError && <p className="error-text" role="alert">{saveError}</p>}
       <p className="muted small-copy">The text is read from the PDF on this device and only that text is sent; the file itself stays here. It becomes an editable draft before it can affect your workouts.</p>
+      <StoppedImports imports={imports} busy={busy} onSelect={view => {
+        pipeline.clearFailure();
+        setSaveError('');
+        setSelected(view);
+        setDraft(view.draft);
+      }} />
     </section>
 
     {selected && selected.status === 'pending' && selected.stage === 'select' && selected.alternatives?.length ? <section className="panel import-reading-panel">
@@ -283,7 +296,7 @@ export function ImportReview({ exercises, imports, onBack, onChanged, notify }: 
         </div>}
         {attentionRows.length > 0 && <section className="import-review-issues" aria-labelledby="import-review-issues-title">
           <div className="import-review-issues-heading">
-            <div><h3 id="import-review-issues-title">Needs attention</h3><p className="muted">Resolve each item before creating the program.</p></div>
+            <div><h3 id="import-review-issues-title">Needs attention</h3><p className="muted">Resolve each item before creating the program. Editing what an item points to marks it reviewed; undoing the edit or restoring the draft brings it back.</p></div>
             <span className="pill pill-accent">{attentionRows.length} {attentionRows.length === 1 ? 'item' : 'items'}</span>
           </div>
           <div className="import-issue-table" role="table" aria-label="Import issues">

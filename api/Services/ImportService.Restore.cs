@@ -119,7 +119,7 @@ public sealed partial class ImportService
         return false;
     }
 
-    private static bool ExerciseDiffers(DraftExercise current, DraftExercise baseline)
+    internal static bool ExerciseDiffers(DraftExercise current, DraftExercise baseline)
     {
         if (current.ExerciseId != baseline.ExerciseId) return true;
         if (!string.Equals(current.SourceName?.Trim(), baseline.SourceName?.Trim(), StringComparison.OrdinalIgnoreCase)) return true;

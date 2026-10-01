@@ -13,7 +13,8 @@ public sealed record WorkoutSessionPrSummary(int Count, List<WorkoutPrMark> Exer
 
 public static class WorkoutPrReadService
 {
-    private const int Version = 1;
+    // Technique sets no longer contribute strength records; rebuild pre-change snapshots.
+    private const int Version = 2;
     // Fixed stripes bound coordination memory independently of account count.
     private static readonly SemaphoreSlim[] Gates = Enumerable.Range(0, 32).Select(_ => new SemaphoreSlim(1)).ToArray();
 

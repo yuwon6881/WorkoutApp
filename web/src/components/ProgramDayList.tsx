@@ -6,6 +6,7 @@ import { MenuButton, MenuItem } from './ui/MenuButton';
 import { Modal } from './ui/Modal';
 import { DayRow, DayDetailContent } from './ImportDayRow';
 import { DayEditor } from './ImportDayEditor';
+import { dayTitle, isGenericDayTitle } from '../lib/dayTitle';
 import type { ProgramStructureEditor } from './useProgramStructureEditor';
 
 type DragState = { lineId: string; overIndex: number; side: 'before' | 'after' };
@@ -132,8 +133,9 @@ export function ProgramDayList({
   if (!week) return null;
 
   const openDayIndex = openDayData ? days.indexOf(openDayData) : -1;
+  const openDayTitle = openDayData ? dayTitle(openDayData.name, openDayIndex + 1) : '';
   const modalTitle = openDayData
-    ? `Day ${openDayIndex + 1}${openDayData.name && !/^day\s*\d+$/i.test(openDayData.name.trim()) ? ` · ${openDayData.name}` : ''}`
+    ? `Day ${openDayIndex + 1}${isGenericDayTitle(openDayTitle) ? '' : ` · ${openDayTitle}`}`
     : '';
 
   return <>

@@ -529,6 +529,28 @@ public class AiImportTests
         Assert.Empty(await h.Db.Imports.AsNoTracking().ToListAsync());
     }
 
+    [Fact] public async Task Discarding_a_new_draft_leaves_an_older_failed_import_unchanged()
+    {
+        await using var h = await Harness.Create(Configured);
+        await h.SignIn();
+        await h.Seed(new SeedExercise("bench", "Barbell bench press", "Chest", "Barbell", "Cue", null));
+        var imports = h.Imports(StubHandler.Program(OneWorkout));
+        var older = await imports.Create(Source("The_Min-Max_Program__5X.pdf"), default);
+        var row = await h.Db.Imports.SingleAsync(import => import.Id == older.Id);
+        row.Status = ImportStatus.Failed;
+        row.Error = "This PDF is too large for one AI visual input and has no readable text.";
+        await h.Db.SaveChangesAsync();
+        var unrelated = await imports.Create(Source("Unrelated workout.pdf"), default);
+
+        await imports.Discard(unrelated.Id, default);
+
+        var retained = Assert.Single(await imports.List(default));
+        Assert.Equal(older.Id, retained.Id);
+        Assert.Equal("The_Min-Max_Program__5X.pdf", retained.FileName);
+        Assert.Equal(ImportStatus.Failed, retained.Status);
+        Assert.Equal(row.Error, retained.Error);
+    }
+
     [Fact] public async Task The_request_carries_page_text_the_schema_and_no_document()
     {
         await using var h = await Harness.Create(Configured);
@@ -641,6 +663,36 @@ public class AiImportTests
 
         var ex = await Assert.ThrowsAsync<DomainException>(() => imports.RestoreDraft(ready.Id, 1, default));
         Assert.Equal(409, ex.Status);
+    }
+
+    [Fact] public async Task Editing_a_flagged_exercise_unblocks_the_program_and_restoring_the_draft_blocks_it_again()
+    {
+        await using var h = await Harness.Create(Configured);
+        await h.SignIn();
+        // The note prescribes 7+7+7 = 21 reps while the table prints 10: the document contradicts
+        // itself, so the read keeps both values and asks the reviewer to settle them.
+        var conflicting = OneWorkout.Replace("\"exerciseId\":null,\"notes\":null",
+            "\"exerciseId\":null,\"notes\":\"FIRST 7 REPS BOTTOM HALF OF ROM, NEXT 7 REPS TOP HALF OF ROM, LAST 7 REPS FULL ROM\"")
+            .Replace("\"repMin\":8,\"repMax\":10", "\"repMin\":10,\"repMax\":10");
+        var imports = h.Imports(StubHandler.Program(conflicting));
+        var ready = await imports.Create(Source("block.pdf"), default);
+        Assert.Equal(ImportStatus.Ready, ready.Status);
+        Assert.Contains(ready.ReviewIssues!, issue => issue.Code == "rep_technique_conflict");
+        Assert.False(ready.Acceptable);
+
+        var exercise = ready.Draft!.Workouts.Single().Exercises.Single();
+        var edited = await imports.Edit(ready.Id, ready.Draft with
+        {
+            Workouts = [ready.Draft.Workouts.Single() with
+            {
+                Exercises = [exercise with { Sets = [exercise.Sets[0] with { TargetRpe = 9, RpeSource = "userEdited" }] }]
+            }]
+        }, ready.Revision, default);
+        Assert.DoesNotContain(edited.ReviewIssues!, issue => issue.Code == "rep_technique_conflict");
+
+        var restored = await imports.RestoreDraft(ready.Id, edited.Revision, default);
+        Assert.Contains(restored.ReviewIssues!, issue => issue.Code == "rep_technique_conflict");
+        Assert.False(restored.Acceptable);
     }
 
     [Fact] public async Task Import_week_sorting_and_structural_changes_trigger_draft_restorability()

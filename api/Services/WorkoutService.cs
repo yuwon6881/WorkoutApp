@@ -174,6 +174,7 @@ public sealed partial class WorkoutService(
                 // Timed holds are measured in seconds; the rep-based progression has nothing honest to suggest.
                 var isTimed = plan.ExerciseId is { } timedId && timed.ContainsKey(timedId);
                 var firstSuggestion = (SetProgressionSuggestion?)null;
+                var straightSuggestion = (SetProgressionSuggestion?)null;
                 for (var index = 0; index < prescription.Count; index++)
                 {
                     var planSet = prescription[index];
@@ -201,8 +202,10 @@ public sealed partial class WorkoutService(
                         continue;
                     }
                     var exposures = previous.GetValueOrDefault(workingOrdinal) ?? [];
-                    var suggestion = Progression.ForPrescription(planSet, MakeSuggestion(planSet, exposures, contextResult.Mode, step, contextResult, resistanceMode, loadModel, bodyWeight,
-                        plan.ExerciseId is { } loadId ? info.GetValueOrDefault(loadId)?.AvailableLoadsKg : null));
+                    var suggestion = Progression.ForPrescription(planSet, FollowStraightSets(planSet, straightSuggestion,
+                        MakeSuggestion(planSet, exposures, contextResult.Mode, step, contextResult, resistanceMode, loadModel, bodyWeight,
+                            plan.ExerciseId is { } loadId ? info.GetValueOrDefault(loadId)?.AvailableLoadsKg : null)));
+                    if (SetTechniques.Of(planSet) is null) straightSuggestion = suggestion;
                     firstSuggestion ??= suggestion;
                     db.Sets.Add(new CompletedSet
                     {
@@ -464,7 +467,7 @@ public sealed partial class WorkoutService(
         var info = await progression.LoadInfo([exercise.ExerciseId], ct);
         var step = exercise.ExerciseId is { } id && info.TryGetValue(id, out var found) ? found.StepKg : Progression.DefaultStepKg;
         var histories = await PreviousExposures(exercise.ExerciseId, exercise.NameSnapshot, ct);
-        var workingOrdinal = 0; SetProgressionSuggestion? first = null;
+        var workingOrdinal = 0; SetProgressionSuggestion? first = null; SetProgressionSuggestion? straight = null;
         foreach (var set in sets.OrderBy(s => s.Position))
         {
             if (set.Warmup) continue;
@@ -474,8 +477,10 @@ public sealed partial class WorkoutService(
             var enteredReps = set.Reps;
             var enteredRpe = set.Rpe;
             var mode = ResolveResistanceMode(loadModel, prescription.ResistanceMode);
-            var suggestion = Progression.ForPrescription(prescription, MakeSuggestion(prescription, histories.GetValueOrDefault(workingOrdinal) ?? [], result.Mode, step, result, mode, loadModel, bodyWeight,
-                exercise.ExerciseId is { } loadId ? info.GetValueOrDefault(loadId)?.AvailableLoadsKg : null));
+            var suggestion = Progression.ForPrescription(prescription, FollowStraightSets(prescription, straight,
+                MakeSuggestion(prescription, histories.GetValueOrDefault(workingOrdinal) ?? [], result.Mode, step, result, mode, loadModel, bodyWeight,
+                    exercise.ExerciseId is { } loadId ? info.GetValueOrDefault(loadId)?.AvailableLoadsKg : null)));
+            if (SetTechniques.Of(prescription) is null) straight = suggestion;
             set.WeightKg = suggestion.SuggestedLoadKg; set.SystemLoadKg = suggestion.SuggestedSystemLoadKg;
             set.ResistanceMode = mode; set.SuggestionJson = Json.Write(suggestion); set.Reps = enteredReps; set.Rpe = enteredRpe; first ??= suggestion;
         }
@@ -523,10 +528,16 @@ public sealed partial class WorkoutService(
         }
 
         // The legacy estimate remains useful for charts; use effective system load for a full
-        // bodyweight set and entered load for external/reps-only work.
-        await progression.Record(exercises.Select(e => (e.ExerciseId, e.NameSnapshot,
-            sets.Where(s => s.SessionExerciseId == e.Id && s.Done && !s.Warmup).OrderBy(s => s.Position)
-                .Select(s => new PreviousSet(e.LoadModel == LoadModels.FullBodyweight ? s.SystemLoadKg : s.WeightKg, s.Reps, s.Rpe ?? Progression.RpeFromRir(s.Rir))).ToList())).ToList(), ct);
+        // bodyweight set and entered load for external/reps-only work. Technique sets are not
+        // straight-set strength, so they never move the trend.
+        await progression.Record(exercises.Select(e =>
+        {
+            var techniques = SetTechniques.ByPosition(e.PrescriptionJson);
+            return (e.ExerciseId, e.NameSnapshot,
+                sets.Where(s => s.SessionExerciseId == e.Id && s.Done && !s.Warmup && SetTechniques.IsStrengthEvidence(techniques, s.Position))
+                    .OrderBy(s => s.Position)
+                    .Select(s => new PreviousSet(e.LoadModel == LoadModels.FullBodyweight ? s.SystemLoadKg : s.WeightKg, s.Reps, s.Rpe ?? Progression.RpeFromRir(s.Rir))).ToList());
+        }).ToList(), ct);
 
         if (session.PausedAt is { } pauseStart)
         {

@@ -57,13 +57,16 @@ public sealed partial class ImportService
         if (unresolved is not null) throw new ImportVerificationException(unresolved);
     }
 
-    private static List<ImportReviewIssue> FilterNotices(IEnumerable<ImportReviewIssue> notices, ImportDraft? draft)
+    private static List<ImportReviewIssue> FilterNotices(IEnumerable<ImportReviewIssue> notices, ImportDraft? draft,
+        ImportReviewEdits? edits = null)
     {
         if (draft is null) return notices.ToList();
+        var reviewed = edits ?? ImportReviewEdits.None;
         var workoutIds = draft.Workouts.Select(w => w.LineId).ToHashSet();
         var exerciseIds = draft.Workouts.SelectMany(w => w.Exercises).Select(e => e.LineId).ToHashSet();
         return notices.Where(n =>
             !ImportReviewNotices.IsResolved(n, draft) &&
+            !reviewed.Reviewed(n) &&
             (n.WorkoutLineId == null || workoutIds.Contains(n.WorkoutLineId.Value)) &&
             (n.ExerciseLineId == null || exerciseIds.Contains(n.ExerciseLineId.Value))).ToList();
     }

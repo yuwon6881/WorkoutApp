@@ -22,6 +22,7 @@ import './components/BottomNav.css';
 import { Dashboard } from './components/Dashboard';
 import { ImportProgressPill } from './components/ImportProgressPill';
 import { useImportWatch } from './components/useImportWatch';
+import { resetLocalPdfRead } from './lib/localPdfRead';
 import { AppLoading } from './components/AppLoading';
 import { ViewSkeleton } from './components/ViewSkeleton';
 import { Auth, ExerciseDetailModal, ExerciseLibrary, ImportReview, MuscleBalanceView, Programs, SessionDetail, SettingsView, StartPreview, Workout, prefetchView, prefetchViews } from './app/lazyViews';
@@ -86,8 +87,10 @@ export default function App() {
   const importWatch = useImportWatch({
     imports: data?.imports ?? [],
     active: tab !== 'import',
-    onFinished: app.reload
+    onFinished: app.reload,
+    onLocalFailure: setToast
   });
+  useEffect(() => { if (signedOut) resetLocalPdfRead(); }, [signedOut]);
 
   useEffect(() => {
     const saved = data?.preferences.theme;

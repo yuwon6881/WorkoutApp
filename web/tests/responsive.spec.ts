@@ -3,6 +3,7 @@ import type { Locator, Page } from '@playwright/test';
 import { join } from 'node:path';
 import { signIn as auth } from './signIn';
 import { pdf } from './pdfFixture';
+import type { ImportView } from '../src/types';
 
 // Geometry checks use reduced motion so the swipe discovery animation cannot shift controls.
 test.use({ reducedMotion: 'reduce' });
@@ -395,9 +396,15 @@ for (const theme of ['dark', 'light']) {
     // Uploading is rate limited per session, as it should be, and every viewport shares one
     // account here. The review screen is what this suite checks, so the first run creates the
     // draft and the rest open the one that already exists.
-    const existing = page.locator('.history-row').filter({ hasText: 'responsive.pdf' }).first();
-    if (await existing.isVisible().catch(() => false)) await existing.click();
-    else await page.getByLabel('Program PDF').setInputFiles({ name: 'responsive.pdf', mimeType: 'application/pdf', buffer: pdf() });
+    // The list resumes a ready draft before its detail request has finished. Checking the heading
+    // immediately races that request and mistakes a saved draft for a missing one.
+    const importsResponse = await page.request.get('/api/imports');
+    expect(importsResponse.ok()).toBe(true);
+    const savedImports: ImportView[] = await importsResponse.json();
+    const savedDraft = savedImports.some(view => view.fileName === 'responsive.pdf'
+      && (view.status === 'ready' || view.status === 'pending') && !view.error);
+    if (!savedDraft)
+      await page.getByLabel('Program PDF').setInputFiles({ name: 'responsive.pdf', mimeType: 'application/pdf', buffer: pdf() });
     await expect(page.getByRole('heading', { name: 'Review' })).toBeVisible({ timeout: 60000 });
     await screenshot('import-review');
     const dayToggle = page.locator('.draft-day-summary').first();

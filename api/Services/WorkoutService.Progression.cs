@@ -51,6 +51,23 @@ public sealed partial class WorkoutService
             context.Context?.Revision, policyMode, now: DateTime.UtcNow) with { ResistanceMode = resistanceMode };
     }
 
+    /// A technique set that comes after straight sets in the same exercise (a last-set myo-rep,
+    /// partial or drop set) is started with the load those sets just used, so it follows their
+    /// progression instead of running its own. Its reps come from the prescription alone: a rep
+    /// count inflated by the technique must never read as a reason to add load.
+    private static SetProgressionSuggestion FollowStraightSets(SetPrescription prescription,
+        SetProgressionSuggestion? straight, SetProgressionSuggestion own)
+    {
+        if (SetTechniques.Of(prescription) is null || straight is null || straight.ResistanceMode != own.ResistanceMode)
+            return own;
+        return straight with
+        {
+            SuggestedReps = prescription.RepMin ?? 0,
+            Reason = "Technique set: start with your straight-set load and log the reps you get. It counts toward volume, not strength records or load progression.",
+            IsRepRangeTransition = false
+        };
+    }
+
     private static double? ToInputLoad(double? systemLoad, double? reference, string resistanceMode, double step)
     {
         if (systemLoad is null || reference is null) return null;

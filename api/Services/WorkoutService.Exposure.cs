@@ -80,7 +80,7 @@ public sealed partial class WorkoutService
                         set.SystemLoadKg, set.ResistanceMode, set.Rir,
                         open ? null : prescription?.RepMin, open ? null : prescription?.RepMax,
                         prescription?.TargetRpe, prescription?.Rir, suggestion?.IsRepRangeTransition == true,
-                        prescription is not null));
+                        prescription is not null, SetTechniques.Of(prescription)));
                 }
             }
         }

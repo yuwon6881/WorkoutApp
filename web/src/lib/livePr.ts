@@ -1,5 +1,6 @@
 import type { LoggedSet, PreviousRepRecord, SessionExercise, Unit } from '../types';
 import { calculateEstimated1Rm, toDisplay } from './training';
+import { isStrengthSet } from './setTechnique';
 
 export type LivePrResult = {
   kind: 'e1rm' | 'reps' | 'both';
@@ -13,8 +14,10 @@ export type LivePrResult = {
 // working set's estimated 1RM, on system load for full-bodyweight movements, has to beat the
 // best of every finished session. Here it must also beat the sets already logged today, so the
 // lifter hears about each improvement once. Without finished history there is nothing to beat.
+// Technique sets (partials, myo-reps, drop sets) are not straight-set strength, so they neither
+// announce a record nor count as one, matching the server.
 export function setEstimate(exercise: SessionExercise, set: LoggedSet): number | null {
-  if (set.warmup) return null;
+  if (!isStrengthSet(exercise, set)) return null;
   const load = exercise.loadModel === 'full_bodyweight' ? set.systemLoadKg ?? set.weightKg : set.weightKg;
   return calculateEstimated1Rm(load, set.reps, set.rpe);
 }
@@ -47,7 +50,7 @@ function previousRepBest(exercise: SessionExercise, current: NonNullable<ReturnT
 
 export function checkLivePr(exercise: SessionExercise, setIndex: number): LivePrResult | null {
   const set = exercise.sets[setIndex];
-  if (!set || set.warmup || !set.done) return null;
+  if (!set || !set.done || !isStrengthSet(exercise, set)) return null;
 
   // 1. Check e1RM PR
   let isE1rmPr = false;
@@ -68,7 +71,7 @@ export function checkLivePr(exercise: SessionExercise, setIndex: number): LivePr
     const prevRepBest = previousRepBest(exercise, loadInfo);
     if (prevRepBest !== undefined && set.reps > prevRepBest) {
       const earlierRepsAtLoad = exercise.sets
-        .filter((other, idx) => idx !== setIndex && other.done && !other.warmup)
+        .filter((other, idx) => idx !== setIndex && other.done && isStrengthSet(exercise, other))
         .filter(other => {
           const otherInfo = getLoadKey(exercise, other);
           return otherInfo !== null && otherInfo.loadKey === loadInfo.loadKey;

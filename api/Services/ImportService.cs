@@ -94,10 +94,11 @@ public sealed partial class ImportService(AppDb db, WorkoutAi ai, CatalogService
         }
         var chunks = ReadChunks(import.OutlineJson);
         var unresolvedCount = includeDraft ? unresolved.Count : import.UnresolvedCount;
-        var issues = includeDraft && draft is not null ? ReviewIssues(draft) : [];
+        var edits = import.Status == ImportStatus.Ready ? ImportReviewEdits.Compare(import.DraftBaselineJson, draft) : ImportReviewEdits.None;
+        var issues = includeDraft && draft is not null ? ImportValidation.ReviewIssues(draft, edits) : [];
         // Reading notes are recorded as the import runs and are as much a part of the review as
         // the issues derived from the draft, so both reach the panel through one list.
-        issues = [.. FilterNotices(ReadNotices(import.NoticesJson), draft), .. issues];
+        issues = [.. FilterNotices(ReadNotices(import.NoticesJson), draft, edits), .. issues];
         issues = issues.Distinct().ToList();
         if (issues.Count > 0) issues = ImportReviewPolicy.ForReview(issues, await TracksRir(ct));
         var coverage = string.IsNullOrWhiteSpace(import.PageCoverageJson) ? [] : Json.Read<List<PdfPageCoverage>>(import.PageCoverageJson);
@@ -199,7 +200,9 @@ public sealed partial class ImportService(AppDb db, WorkoutAi ai, CatalogService
         await ValidateDraft(draft, ct);
         ValidateDraftPages(draft, import.PageCoverageJson);
         var unresolved = Unresolved(draft);
-        List<ImportReviewIssue> issues = [.. FilterNotices(ReadNotices(import.NoticesJson), draft), .. ReviewIssues(draft)];
+        var edits = ImportReviewEdits.Compare(import.DraftBaselineJson, draft);
+        List<ImportReviewIssue> issues = [.. FilterNotices(ReadNotices(import.NoticesJson), draft, edits),
+            .. ImportValidation.ReviewIssues(draft, edits)];
         var actionable = ImportReviewPolicy.ForReview(issues, await TracksRir(ct)).Where(i => i.Severity != "info").ToList();
         Validation.Require(unresolved.Count == 0 && actionable.Count == 0,
             "Resolve every exercise mapping and review issue before creating this program.", 409);

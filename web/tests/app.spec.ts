@@ -831,7 +831,18 @@ test('import a PDF program, resolve an unmapped exercise, and accept it', async 
   await restoredPicker.getByRole('textbox', { name: 'Search exercises', exact: true }).fill('bench press');
   await restoredPicker.getByRole('button', { name: 'Map Barbell bench press', exact: true }).click();
   await expect(accept).toBeEnabled({ timeout: 30000 });
-  await dayModal.getByRole('button', { name: 'Set 1 type for Barbell bench press: Set 1', exact: true }).first().click();
+  const setTypeTrigger = dayModal.getByRole('button', { name: 'Set 1 type for Barbell bench press: Set 1', exact: true }).first();
+  await setTypeTrigger.click();
+  // Every type reads on one line, and an open set label keeps its own shape rather than drawing
+  // the shared open-select ring around a label that has no border.
+  const setTypeOptions = page.getByRole('option');
+  await expect(setTypeOptions.first()).toBeVisible();
+  const optionHeights = await setTypeOptions.evaluateAll(items => items.map(item => item.getBoundingClientRect().height));
+  expect(Math.max(...optionHeights) - Math.min(...optionHeights)).toBeLessThan(2);
+  if (testInfo.project.name === 'desktop') {
+    expect(await setTypeTrigger.evaluate(element => getComputedStyle(element).boxShadow)).toBe('none');
+    await page.screenshot({ path: join(screenshotsDirectory, `${testInfo.project.name}-set-type-menu.png`) });
+  }
   await page.getByRole('option', { name: 'Integrated partials', exact: true }).click();
   await dayModal.getByRole('button', { name: 'Close dialog', exact: true }).click();
   await expect(dayModal).toBeHidden();

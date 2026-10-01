@@ -21,7 +21,8 @@ export function Select<T extends string | number>({
   options,
   className = '',
   disabled = false,
-  displayLabel
+  displayLabel,
+  fitMenuToOptions = false
 }: {
   name?: string;
   label?: string;
@@ -35,6 +36,8 @@ export function Select<T extends string | number>({
   disabled?: boolean;
   /** Trigger text when it should say more than the option does, such as "Warm-up 2". */
   displayLabel?: string;
+  /** Sizes the menu to its longest option on one line instead of to a trigger narrower than it. */
+  fitMenuToOptions?: boolean;
 }) {
   const accessibleLabel = label ?? ariaLabel ?? '';
   const [open, setOpen] = useState(false);
@@ -80,8 +83,8 @@ export function Select<T extends string | number>({
     open,
     triggerRef,
     layerRef: listboxRef,
-    matchTriggerWidth: true,
-    minWidth: 120,
+    matchTriggerWidth: !fitMenuToOptions,
+    minWidth: fitMenuToOptions ? 140 : 120,
     maxWidth: 260,
     maxHeight: 260,
     offset: 5,
@@ -188,7 +191,7 @@ export function Select<T extends string | number>({
 
       {open && portalTarget && sheet && createPortal(<div className="picker-sheet-backdrop" aria-hidden="true" />, portalTarget)}
       {open && portalTarget && createPortal(
-        <ul ref={listboxRef} className={`custom-select-dropdown ${sheet ? 'picker-sheet' : ''}`.trim()} style={sheet ? undefined : dropdownStyle ?? { visibility: 'hidden' }} role="listbox" aria-label={accessibleLabel}>
+        <ul ref={listboxRef} className={['custom-select-dropdown', sheet && 'picker-sheet', fitMenuToOptions && 'fit-options'].filter(Boolean).join(' ')} style={sheet ? undefined : dropdownStyle ?? { visibility: 'hidden' }} role="listbox" aria-label={accessibleLabel}>
           {options.map((o, idx) => {
             const isSelected = o.value === value;
             const isHighlighted = idx === highlightedIndex;
