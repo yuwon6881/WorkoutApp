@@ -13,14 +13,17 @@ export function AiEmptyState({ disabled, onPick }: { disabled: boolean; onPick: 
       <h3>Ask about your training</h3>
       <p>Answers come from your logged workouts, exercise history, and programs. Nothing changes without your confirmation.</p>
     </div>
-    <ul className="ai-chat-prompts" aria-label="Suggested questions">
-      {prompts.map(({ text, icon: Icon }) => <li key={text}>
-        <Button disabled={disabled} onClick={() => onPick(text)}>
-          <span className="ai-chat-prompt-icon" aria-hidden="true"><Icon size={17} /></span>
-          <span className="ai-chat-prompt-copy">{text}</span>
-          <ChevronRight size={16} className="ai-chat-prompt-go" aria-hidden="true" />
-        </Button>
-      </li>)}
-    </ul>
+    <div>
+      <p className="ai-chat-prompts-label" id="ai-chat-prompts-label">Try asking</p>
+      <ul className="ai-chat-prompts" aria-labelledby="ai-chat-prompts-label">
+        {prompts.map(({ text, icon: Icon }) => <li key={text}>
+          <Button disabled={disabled} onClick={() => onPick(text)}>
+            <span className="ai-chat-prompt-icon" aria-hidden="true"><Icon size={15} /></span>
+            <span className="ai-chat-prompt-copy">{text}</span>
+            <ChevronRight size={15} className="ai-chat-prompt-go" aria-hidden="true" />
+          </Button>
+        </li>)}
+      </ul>
+    </div>
   </div>;
 }

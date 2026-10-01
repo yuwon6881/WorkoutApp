@@ -219,35 +219,46 @@
   }
 }
 
-/* Empty state */
+/* Empty state: a quiet invitation rather than a banner. One 16px heading; everything else is 14px secondary. */
 .ai-chat-empty {
   display: grid;
-  gap: 16px;
-  margin: auto 0;
+  gap: 20px;
+  width: 100%;
+  max-width: 520px;
+  margin: auto;
 }
 
 .ai-chat-empty-intro {
-  padding: 18px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background:
-    linear-gradient(var(--grid) 1px, transparent 1px) 0 0 / 22px 22px,
-    linear-gradient(90deg, var(--grid) 1px, transparent 1px) 0 0 / 22px 22px,
-    var(--surface-card);
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  text-align: center;
 }
 
 .ai-chat-empty-intro h3 {
-  margin: 0 0 6px;
+  margin: 0;
+  font-weight: 600;
 }
 
+/* The global paragraph rule pins body size with !important; this copy is deliberately secondary. */
 .ai-chat-empty-intro p {
+  max-width: 42ch;
   margin: 0;
   color: var(--muted);
+  font-size: var(--font-secondary) !important;
+  line-height: 1.5;
+}
+
+.ai-chat-prompts-label {
+  margin: 0 0 8px;
+  color: var(--muted);
+  font-size: var(--font-secondary) !important;
+  font-weight: 500;
 }
 
 .ai-chat-prompts {
   display: grid;
-  gap: 8px;
+  gap: 6px;
   margin: 0;
   padding: 0;
   list-style: none;
@@ -256,10 +267,11 @@
 .ai-chat-prompts .button {
   width: 100%;
   justify-content: flex-start;
-  gap: 12px;
-  padding: 10px 14px;
+  gap: 10px;
+  padding: 8px 12px 8px 8px;
   background: var(--surface-card);
   border-color: var(--border);
+  font-weight: 500;
   line-height: 1.4;
   text-align: start;
   white-space: normal;
@@ -269,8 +281,8 @@
   display: grid;
   flex-shrink: 0;
   place-items: center;
-  width: 32px;
-  height: 32px;
+  width: 28px;
+  height: 28px;
   border-radius: 8px;
   background: var(--accent-soft);
   color: var(--accent);
