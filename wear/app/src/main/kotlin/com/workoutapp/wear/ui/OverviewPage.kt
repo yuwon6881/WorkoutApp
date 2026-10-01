@@ -61,7 +61,7 @@ fun OverviewPage(
                 enabled = !busy && !pendingFinish && session.active && canFinish,
                 description = when {
                     pendingFinish -> "Finish pending sync"
-                    !canFinish -> "Finish workout, available after the first logged set"
+                    !canFinish -> "Finish workout, available after the first logged working set"
                     else -> "Finish workout"
                 }
             )
@@ -106,7 +106,7 @@ fun OverviewPage(
                 )
                 if (!canFinish && !pendingFinish) {
                     Text(
-                        "Log a set to enable Finish",
+                        "Log a working set to enable Finish",
                         modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
                         style = MaterialTheme.typography.labelSmall,
                         color = Ayu.Muted,

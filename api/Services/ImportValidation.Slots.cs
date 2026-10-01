@@ -35,8 +35,15 @@ internal static partial class ImportValidation
     /// position in another week along with it.
     public static string MappingKey(DraftWorkout workout, string? sourceName)
         => IsRecurringChoice(sourceName)
+            ? MovementKey(sourceName)
+            : $"{CanonicalBlock(workout.Block).ToUpperInvariant()}\u001f{MovementKey(sourceName)}";
+
+    /// The movement alone, without the block that scopes a mapping. A placeholder is already
+    /// program-wide, so its key is the same either way.
+    public static string MovementKey(string? sourceName)
+        => IsRecurringChoice(sourceName)
             ? $"choice\u001f{ChoiceIdentity(sourceName)}"
-            : $"{CanonicalBlock(workout.Block).ToUpperInvariant()}\u001f{MovementIdentity(sourceName)}";
+            : MovementIdentity(sourceName);
 
     private static string MovementIdentity(string? sourceName)
         => CatalogMatching.Expand(CatalogService.Normalize(sourceName ?? ""));
@@ -66,7 +73,7 @@ internal static partial class ImportValidation
                     signaturesBySlot[slot] = signature;
                 }
 
-                return exercise with { SlotKey = slot };
+                return exercise with { SlotKey = slot, MovementKey = MovementKey(exercise.SourceName) };
             }).ToList();
             return workout with { Block = block, Exercises = exercises };
         }).ToList();

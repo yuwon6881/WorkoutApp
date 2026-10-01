@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Session } from '../types';
-import { calculateEstimated1Rm, canComplete, completedSets, duration, estimate1Rm, normalizeExerciseName, plannedSets, showActualRir, showClock, showDuration, showReps, showRpe, showRir, showTarget, showVolume, showWeight, toDisplay, toKg, validReps, validRpe } from './training';
+import { calculateEstimated1Rm, canComplete, completedSets, duration, finishBlocker, estimate1Rm, normalizeExerciseName, plannedSets, showActualRir, showClock, showDuration, showReps, showRpe, showRir, showTarget, showVolume, showWeight, toDisplay, toKg, validReps, validRpe } from './training';
 
 const set = (overrides: Partial<Session['exercises'][number]['sets'][number]> = {}) =>
   ({ id: 'set', position: 0, weightKg: 60, reps: 10, rpe: 8, done: true, warmup: false, ...overrides });
@@ -162,5 +162,22 @@ describe('workout duration clock', () => {
     expect(showDuration(3600)).toBe('1:00:00');
     expect(showDuration(4523)).toBe('1:15:23');
     expect(showDuration(-5)).toBe('0:00');
+  });
+});
+
+describe('finishBlocker', () => {
+  const withSets = (...sets: ReturnType<typeof set>[]) => session({ active: true, exercises: [{ ...session().exercises[0], sets }] });
+
+  it('lets a partly logged workout finish, leaving the unlogged sets out', () => {
+    const partly = withSets(set(), set({ done: false, reps: null }), set({ done: false, reps: null }));
+
+    expect(finishBlocker(partly)).toBeNull();
+    expect(completedSets(partly)).toHaveLength(1);
+    expect(plannedSets(partly)).toBe(3);
+  });
+
+  it('needs a logged working set, so warm-ups alone and an untouched workout cannot finish', () => {
+    expect(finishBlocker(withSets(set({ warmup: true }), set({ done: false })))).toMatch(/working set/);
+    expect(finishBlocker(withSets(set({ done: false }), set({ done: false })))).toMatch(/working set/);
   });
 });

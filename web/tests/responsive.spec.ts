@@ -81,7 +81,10 @@ async function checkLayout(page: Page, label: string) {
     // beside the figure is the full-size way to pick the same muscle.
     const controls = 'button,input:not([hidden]),select,textarea,summary,[role=button]:not(svg *),[role=option],[role=tab]';
     return [...scope.querySelectorAll(controls)].filter(el => {
-      const box = el.getBoundingClientRect();
+      // A wrapped radio's whole label selects it; measure that actual target, not its small dot.
+      const target = el instanceof HTMLInputElement && el.type === 'radio' && el.labels?.length
+        ? el.labels[0] : el;
+      const box = target.getBoundingClientRect();
       return box.width > 0 && box.height > 0 && (box.width < minimum - 1 || box.height < minimum - 1);
     }).map(el => el.getAttribute('aria-label') || el.textContent?.slice(0, 70));
   });
@@ -425,6 +428,18 @@ for (const theme of ['dark', 'light']) {
     await prescriptionCard.getByRole('button', { name: 'Range', exact: true }).click();
     await screenshot('expanded-import-range');
     await prescriptionCard.getByRole('button', { name: 'Exact', exact: true }).click();
+    await prescriptionCard.getByRole('textbox', { name: 'Description', exact: true }).fill('Responsive exercise edit preview');
+    await expect(prescriptionCard.locator('[data-import-save-bar]')).toBeVisible();
+    await screenshot('exercise-save-controls');
+    await prescriptionCard.getByRole('button', { name: 'Save changes', exact: true }).click();
+    const exerciseScope = page.getByRole('dialog', { name: 'Apply these changes to', exact: true });
+    await expect(exerciseScope).toBeVisible();
+    await exerciseScope.locator('.exercise-scope-option').first().click();
+    await expect(exerciseScope.getByRole('radio', { name: /This occurrence only/ })).toBeChecked();
+    await screenshot('exercise-edit-scope');
+    await exerciseScope.getByRole('button', { name: 'Back', exact: true }).click();
+    await prescriptionCard.getByRole('button', { name: 'Cancel', exact: true }).click();
+    await expect(prescriptionCard.locator('[data-import-save-bar]')).toBeHidden();
     await page.getByRole('button', { name: 'Close dialog', exact: true }).click();
 
     await navigate(page, 'Overview');

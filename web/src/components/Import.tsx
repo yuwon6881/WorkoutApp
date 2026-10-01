@@ -122,10 +122,6 @@ export function ImportReview({ exercises, imports, onBack, onChanged, notify }: 
     notify?.('Exercise restored to default.');
   }
 
-  async function mapExerciseSlot(exerciseLineId: string, exerciseId: string | null) {
-    await saver.mutate((view, revision) => api.mapImportExerciseSlot(view.id, exerciseLineId, exerciseId, revision), 'Could not map this exercise slot.');
-  }
-
   const reviewIssues = selected?.reviewIssues ?? [];
   const unresolved = selected?.unresolved ?? [];
 
@@ -326,7 +322,7 @@ export function ImportReview({ exercises, imports, onBack, onChanged, notify }: 
           exercises={exercises}
           onDayChange={saver.persistDay}
           onDraftChange={saver.persist}
-          onMapExerciseSlot={mapExerciseSlot}
+          onExerciseChange={saver.persistExercise}
           onCustomExerciseCreated={onChanged}
           restorableExerciseLineIds={selected.restorableExerciseLineIds}
           onRestoreExercise={handleRestoreExercise}

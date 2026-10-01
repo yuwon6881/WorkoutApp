@@ -1,7 +1,7 @@
-import { forwardRef, useCallback, useImperativeHandle } from 'react';
+import { forwardRef, useCallback, useImperativeHandle, useMemo } from 'react';
 import { CalendarDays, Check, RotateCcw, Trash2 } from 'lucide-react';
 import type { DraftWorkout, Exercise, ImportDraft } from '../types';
-import { demoUrlForName } from '../lib/demoLinks';
+import { applyExerciseEdit, countOccurrences, type ExerciseEditing } from '../lib/exerciseEditScope';
 import { Button } from './ui/Button';
 import { Field } from './ui/Field';
 import { MenuButton, MenuItem } from './ui/MenuButton';
@@ -30,7 +30,7 @@ export const DraftOutline = forwardRef<DraftOutlineHandle, {
   exercises: Exercise[];
   onDayChange: (day: DraftWorkout) => Promise<void>;
   onDraftChange: (draft: ImportDraft) => Promise<void>;
-  onMapExerciseSlot?: (exerciseLineId: string, exerciseId: string | null) => Promise<void>;
+  onExerciseChange?: (draft: ImportDraft) => Promise<void>;
   onCustomExerciseCreated?: () => Promise<void>;
   restorableExerciseLineIds?: string[];
   onRestoreExercise?: (exerciseLineId: string) => Promise<void>;
@@ -52,7 +52,7 @@ export const DraftOutline = forwardRef<DraftOutlineHandle, {
   exercises,
   onDayChange,
   onDraftChange,
-  onMapExerciseSlot,
+  onExerciseChange,
   onCustomExerciseCreated,
   restorableExerciseLineIds,
   onRestoreExercise,
@@ -135,48 +135,13 @@ export const DraftOutline = forwardRef<DraftOutlineHandle, {
 
   useImperativeHandle(ref, () => ({ focusIssue }), [focusIssue]);
 
-  const propagateSubstitution = useCallback(async (currentName: string, replacementName: string, exerciseLineId?: string) => {
-    const catalog = new Map(exercises.map(e => [e.id, e]));
-    const replacementLibraryExercise = exercises.find(
-      e => e.name.toLowerCase() === replacementName.toLowerCase() || e.aliases.some(a => a.toLowerCase() === replacementName.toLowerCase())
-    );
-    const target = exerciseLineId
-      ? normalizedDraft.workouts.flatMap(workout => workout.exercises.map(exercise => ({ workout, exercise }))).find(item => item.exercise.lineId === exerciseLineId)
-      : undefined;
-    if (!target && !week) return;
-    const targetSlot = target?.exercise.slotKey;
-    const targetBlock = target?.workout.blockId ?? week?.blockId;
-    if (!targetBlock) return;
-    const updatedWorkouts = normalizedDraft.workouts.map(workout => {
-      const inSameBlock = workout.blockId === targetBlock;
-      if (!inSameBlock) return workout;
-
-      const updatedExercises = workout.exercises.map(ex => {
-        const matches = targetSlot
-          ? ex.slotKey === targetSlot
-          : (exerciseLineId && ex.lineId === exerciseLineId)
-            || ex.sourceName.toLowerCase() === currentName.toLowerCase()
-            || (ex.exerciseId && exercises.find(e => e.id === ex.exerciseId)?.name.toLowerCase() === currentName.toLowerCase());
-        if (matches) {
-          const currentLibraryExercise = ex.exerciseId ? catalog.get(ex.exerciseId) : undefined;
-          const currentLibraryName = currentLibraryExercise?.name ?? ex.sourceName;
-          const nextSubs = [currentLibraryName, ...ex.substitutions.filter(s => s.toLowerCase() !== replacementName.toLowerCase())].slice(0, 2);
-          return {
-            ...ex,
-            sourceName: replacementLibraryExercise ? replacementLibraryExercise.name : replacementName,
-            exerciseId: replacementLibraryExercise ? replacementLibraryExercise.id : null,
-            substitutions: nextSubs,
-            demoUrl: demoUrlForName(ex.demoLinks, replacementLibraryExercise?.name ?? replacementName)
-          };
-        }
-        return ex;
-      });
-
-      return { ...workout, exercises: updatedExercises };
-    });
-
-    await onDraftChange({ ...normalizedDraft, workouts: updatedWorkouts });
-  }, [normalizedDraft, onDraftChange, week, exercises]);
+  // A saved exercise edit rewrites the whole draft, so the other occurrences it reaches change in
+  // the same revision-checked write as the exercise itself.
+  const editing = useMemo<Omit<ExerciseEditing, 'unsaved'>>(() => ({
+    save: (base, edited, scope) => (onExerciseChange ?? onDraftChange)(applyExerciseEdit(normalizedDraft, base, edited, scope, exercises)),
+    count: base => countOccurrences(normalizedDraft, base),
+    keepWrittenName: editorMode === 'import'
+  }), [editorMode, exercises, normalizedDraft, onDraftChange, onExerciseChange]);
 
   if (!week) return null;
 
@@ -228,8 +193,7 @@ export const DraftOutline = forwardRef<DraftOutlineHandle, {
         openDay={expandedDay}
         setOpenDay={setExpandedDay}
         onDayChange={onDayChange}
-        onPropagateSubstitution={propagateSubstitution}
-        onMapExerciseSlot={onMapExerciseSlot}
+        editing={editing}
         onCustomExerciseCreated={onCustomExerciseCreated}
         restorableExerciseLineIds={restorableExerciseLineIds}
         onRestoreExercise={onRestoreExercise}

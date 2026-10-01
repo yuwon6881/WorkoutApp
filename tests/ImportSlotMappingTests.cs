@@ -197,6 +197,33 @@ public sealed class ImportSlotMappingTests
         Assert.DoesNotContain(mapped.Unresolved, item => item.SourceName.Equals("Seated Face Pull", StringComparison.OrdinalIgnoreCase));
     }
 
+    /// The editor offers to apply an edit to the other occurrences of a movement. It must group
+    /// them exactly as a mapping does, so the server publishes that grouping rather than leaving the
+    /// client to re-derive it: one key per written movement, independent of the block, which the
+    /// client scopes separately.
+    [Fact]
+    public void Every_exercise_carries_the_key_of_the_movement_it_names()
+    {
+        var draft = ImportValidation.NormalizeDraft(new ImportDraft("Keys",
+        [
+            DayInBlock("Block 1", 1, "Week 1 day 2", Exercise("STRICT BENCH PRESS"), Exercise("UPPER BODY WEAK POINT 1")),
+            DayInBlock("Block 2", 5, "Week 5 day 3", Exercise("Seated Face Pull"), Exercise("Strict bench press"), Exercise("Upper Body Weak Point"))
+        ]));
+
+        var all = draft.Workouts.SelectMany(day => day.Exercises).ToList();
+        var bench = all.Where(exercise => exercise.SourceName.Contains("bench", StringComparison.OrdinalIgnoreCase)).ToList();
+        Assert.Equal(2, bench.Count);
+        Assert.All(bench, exercise => Assert.False(string.IsNullOrEmpty(exercise.MovementKey)));
+        Assert.Single(bench.Select(exercise => exercise.MovementKey).Distinct());
+        Assert.NotEqual(bench[0].MovementKey, all.Single(exercise => exercise.SourceName == "Seated Face Pull").MovementKey);
+
+        var placeholders = all.Where(exercise => exercise.SourceName.Contains("WEAK POINT", StringComparison.OrdinalIgnoreCase)).ToList();
+        Assert.Single(placeholders.Select(exercise => exercise.MovementKey).Distinct());
+    }
+
+    private static DraftWorkout DayInBlock(string block, int week, string name, params DraftExercise[] exercises)
+        => new(Guid.NewGuid(), week, name, null, null, [.. exercises], block);
+
     private static DraftWorkout Day(int week, string name, params DraftExercise[] exercises)
         => new(Guid.NewGuid(), week, name, null, null, [.. exercises]);
 

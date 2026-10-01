@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import type { Page } from '@playwright/test';
+import type { Locator, Page } from '@playwright/test';
 import { join } from 'node:path';
 import { signIn as auth } from './signIn';
 import { pdf } from './pdfFixture';
@@ -197,6 +197,19 @@ test('personal exercise weights support uneven lists and kg/lb switching', async
     expect(restored.ok()).toBeTruthy();
   }
 });
+/// Saves an exercise's held edits. When the movement appears elsewhere the editor asks where the
+/// change should go; the default (the same block) is what a mapping always did before.
+async function saveExerciseChanges(page: Page, within: Locator, shot?: string) {
+  await within.getByRole('button', { name: 'Save changes', exact: true }).click();
+  const scope = page.getByRole('dialog', { name: 'Apply these changes to', exact: true });
+  const asked = await scope.waitFor({ state: 'visible', timeout: 2000 }).then(() => true, () => false);
+  if (asked) {
+    if (shot) await page.screenshot({ path: join(screenshotsDirectory, shot) });
+    await scope.getByRole('button', { name: 'Save changes', exact: true }).click();
+    await expect(scope).toBeHidden({ timeout: 30000 });
+  }
+}
+
 const screenshotsDirectory = process.env.WORKOUT_TEST_SCREENSHOTS || 'artifacts';
 
 
@@ -509,8 +522,6 @@ test('import a PDF program, resolve an unmapped exercise, and accept it', async 
   const customExerciseName = `Import custom ${testInfo.project.name} ${Date.now()}`;
   let importedProgramName = '';
   let customCreateRequests = 0;
-  let mappingAttempts = 0;
-  let failNextMapping = false;
   try {
   await signIn(page);
   await openTab(page, 'Workouts');
@@ -593,6 +604,55 @@ test('import a PDF program, resolve an unmapped exercise, and accept it', async 
   const benchRepMode = benchExercise.getByRole('group', { name: 'Rep target for Barbell bench press', exact: true });
   await benchRepMode.getByRole('button', { name: 'Exact', exact: true }).click();
   await expect(benchRepMode.getByRole('button', { name: 'Exact', exact: true })).toHaveAttribute('aria-pressed', 'true');
+  // An edit is held until it is saved: closing with it unsaved asks first, and keeps the edit.
+  await dayModal.getByRole('button', { name: 'Close dialog', exact: true }).click();
+  const discardPrompt = page.getByRole('dialog', { name: 'Discard unsaved changes?', exact: true });
+  await expect(discardPrompt).toBeVisible();
+  await discardPrompt.getByRole('button', { name: 'Keep editing', exact: true }).click();
+  await expect(discardPrompt).toBeHidden();
+  await expect(dayModal).toBeVisible();
+  await expect(benchExercise.locator('[data-import-save-bar]')).toBeVisible();
+  let failExerciseSave = true;
+  const saveRoute = '**/api/imports/*';
+  await page.route(saveRoute, async route => {
+    if (route.request().method() === 'PUT' && failExerciseSave) {
+      failExerciseSave = false;
+      return route.fulfill({ status: 500, contentType: 'application/json', body: JSON.stringify({ message: 'Temporary exercise save failure.' }) });
+    }
+    await route.continue();
+  });
+  await benchExercise.getByRole('button', { name: 'Save changes', exact: true }).click();
+  const failedScope = page.getByRole('dialog', { name: 'Apply these changes to', exact: true });
+  await failedScope.getByRole('radio', { name: /This occurrence only/ }).check();
+  await failedScope.getByRole('button', { name: 'Save changes', exact: true }).click();
+  await expect(failedScope.getByRole('alert')).toContainText('Temporary exercise save failure.');
+  await expect(failedScope.getByRole('button', { name: 'Save changes', exact: true })).toBeEnabled();
+  await failedScope.getByRole('button', { name: 'Back', exact: true }).click();
+  await expect(benchExercise.locator('[data-import-save-bar]')).toBeVisible();
+  await page.unroute(saveRoute);
+  // A response may arrive after the lifter has typed another edit. Clear only the version sent.
+  let releaseSave!: () => void;
+  let requestStarted!: () => void;
+  const heldSave = new Promise<void>(resolve => { releaseSave = resolve; });
+  const startedSave = new Promise<void>(resolve => { requestStarted = resolve; });
+  await page.route(saveRoute, async route => {
+    if (route.request().method() === 'PUT') { requestStarted(); await heldSave; }
+    await route.continue();
+  });
+  await benchExercise.getByRole('button', { name: 'Save changes', exact: true }).click();
+  const pendingScope = page.getByRole('dialog', { name: 'Apply these changes to', exact: true });
+  await pendingScope.getByRole('button', { name: 'Save changes', exact: true }).click();
+  await startedSave;
+  await page.keyboard.press('Escape');
+  await expect(pendingScope).toBeHidden();
+  await benchExercise.getByRole('textbox', { name: 'Description', exact: true }).fill('Cue typed while saving.');
+  releaseSave();
+  await expect(benchExercise.getByRole('button', { name: 'Save changes', exact: true })).toBeEnabled();
+  await expect(benchExercise.getByRole('textbox', { name: 'Description', exact: true })).toHaveValue('Cue typed while saving.');
+  await expect(benchExercise.locator('[data-import-save-bar]')).toBeVisible();
+  await page.unroute(saveRoute);
+  await saveExerciseChanges(page, benchExercise, `${testInfo.project.name}-exercise-scope.png`);
+  await expect(benchExercise.locator('[data-import-save-bar]')).toBeHidden({ timeout: 30000 });
   await dayModal.getByRole('button', { name: 'Close dialog', exact: true }).click();
   await expect(dayModal).not.toBeVisible();
   await day.locator('.day-exercise-preview').click();
@@ -673,48 +733,21 @@ test('import a PDF program, resolve an unmapped exercise, and accept it', async 
     if (route.request().method() === 'POST') customCreateRequests++;
     await route.continue();
   });
-  await page.route('**/api/imports/*/exercises/*/mapping', async route => {
-    if (route.request().method() !== 'POST') return route.continue();
-    mappingAttempts++;
-    if (failNextMapping) {
-      failNextMapping = false;
-      return route.fulfill({ status: 500, contentType: 'application/json', body: JSON.stringify({ error: 'Temporary mapping failure.' }) });
-    }
-    await route.continue();
-  });
   await mapping.click();
   await expect(picker).toBeVisible();
   await picker.getByRole('button', { name: 'Create custom exercise', exact: true }).click();
   const createExerciseDialog = page.getByRole('dialog', { name: 'Create custom exercise', exact: true });
   await createExerciseDialog.getByLabel('Name', { exact: true }).fill(customExerciseName);
-  failNextMapping = true;
   await createExerciseDialog.getByRole('button', { name: 'Create and map exercise', exact: true }).click();
-  const retryMappingDialog = page.getByRole('dialog', { name: 'Finish mapping exercise', exact: true });
-  await expect(retryMappingDialog.getByRole('alert')).toContainText('The exercise was created, but the import could not map it.');
-  await expect(retryMappingDialog.getByRole('button', { name: 'Retry mapping', exact: true })).toBeVisible();
-  const themeElement = page.locator('html');
-  const retryDialogTheme = await themeElement.getAttribute('data-theme');
-  for (const theme of ['dark', 'light'] as const) {
-    await themeElement.evaluate((element, value) => element.setAttribute('data-theme', value), theme);
-    await expect(retryMappingDialog).toBeVisible();
-    const modalBox = await retryMappingDialog.boundingBox();
-    expect(modalBox).not.toBeNull();
-    expect(modalBox!.x).toBeGreaterThanOrEqual(0);
-    expect(modalBox!.x + modalBox!.width).toBeLessThanOrEqual(page.viewportSize()!.width + 1);
-    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-    await page.screenshot({ path: join(screenshotsDirectory, `${testInfo.project.name}-import-custom-retry-${theme}.png`), fullPage: true });
-  }
-  await themeElement.evaluate((element, value) => {
-    if (value) element.setAttribute('data-theme', value);
-    else element.removeAttribute('data-theme');
-  }, retryDialogTheme);
-  expect(customCreateRequests).toBe(1);
-  expect(mappingAttempts).toBe(1);
-  await retryMappingDialog.getByRole('button', { name: 'Retry mapping', exact: true }).click();
-  await expect(retryMappingDialog).toBeHidden();
   await expect(picker).toBeHidden();
-  await expect.poll(() => customCreateRequests).toBe(1);
-  await expect.poll(() => mappingAttempts).toBe(2);
+  expect(customCreateRequests).toBe(1);
+  // Picking an exercise is an edit like any other: it waits for Save, and the create action stays
+  // disabled until the mapping is saved.
+  const saveBar = mysteryExercise.locator('[data-import-save-bar]');
+  await expect(saveBar).toBeVisible();
+  await expect(accept).toBeDisabled();
+  await saveExerciseChanges(page, mysteryExercise);
+  await expect(saveBar).toBeHidden({ timeout: 30000 });
   await expect(accept).toBeEnabled({ timeout: 30000 });
   await expect(accept).toHaveCSS('background-color', 'rgb(230, 180, 80)');
   const activeAcceptColors = await accept.evaluate(element => {
@@ -770,6 +803,7 @@ test('import a PDF program, resolve an unmapped exercise, and accept it', async 
 
   const programName = `Imported block ${testInfo.project.name} ${Date.now()}`;
   importedProgramName = programName;
+  await saveExerciseChanges(page, benchExercise);
   await dayModal.getByRole('button', { name: 'Close dialog', exact: true }).click();
   await expect(dayModal).toBeHidden();
   await page.getByLabel('Program name').fill(programName);
@@ -793,6 +827,7 @@ test('import a PDF program, resolve an unmapped exercise, and accept it', async 
   const substitutedExercise = page.locator(`[data-import-exercise="${substitutionLineId}"]`);
   await substitutionCard.locator('.substitution-chip').filter({ hasText: 'DB Incline Press' }).click();
   await expect(substitutedExercise.getByRole('textbox', { name: 'Exercise name' })).toHaveValue('DB Incline Press');
+  await saveExerciseChanges(page, substitutedExercise);
   await page.waitForTimeout(2000);
   await expect(substitutedExercise.getByRole('textbox', { name: 'Exercise name' })).toHaveValue('DB Incline Press');
   await expect.poll(async () => page.evaluate(async () => {
@@ -830,6 +865,7 @@ test('import a PDF program, resolve an unmapped exercise, and accept it', async 
   const restoredPicker = page.getByRole('dialog', { name: /Choose (?:a library )?exercise for Mystery machine row/ });
   await restoredPicker.getByRole('textbox', { name: 'Search exercises', exact: true }).fill('bench press');
   await restoredPicker.getByRole('button', { name: 'Map Barbell bench press', exact: true }).click();
+  await saveExerciseChanges(page, mysteryExercise);
   await expect(accept).toBeEnabled({ timeout: 30000 });
   const setTypeTrigger = dayModal.getByRole('button', { name: 'Set 1 type for Barbell bench press: Set 1', exact: true }).first();
   await setTypeTrigger.click();
@@ -844,6 +880,7 @@ test('import a PDF program, resolve an unmapped exercise, and accept it', async 
     await page.screenshot({ path: join(screenshotsDirectory, `${testInfo.project.name}-set-type-menu.png`) });
   }
   await page.getByRole('option', { name: 'Integrated partials', exact: true }).click();
+  await saveExerciseChanges(page, benchExercise);
   await dayModal.getByRole('button', { name: 'Close dialog', exact: true }).click();
   await expect(dayModal).toBeHidden();
   await page.getByLabel('Program name').fill(programName);
@@ -1353,6 +1390,10 @@ test('create a custom multi-block program and cap each week at fourteen schedule
     const picker = page.getByRole('dialog', { name: /Choose (?:a library )?exercise for New exercise/ });
     await picker.getByRole('button', { name: 'Map Barbell bench press', exact: true }).click();
     await expect(picker).toBeHidden();
+    // The pick is held until saved, so the day stays unmapped as far as the program is concerned.
+    await expect(page.locator('[data-import-save-bar]')).toBeVisible();
+    await saveExerciseChanges(page, page.locator('.day-detail-modal'));
+    await expect(page.locator('[data-import-save-bar]')).toBeHidden();
     await expect(page.getByRole('button', { name: 'Library exercise for Barbell bench press', exact: true })).toBeVisible();
     await page.getByRole('button', { name: 'Done', exact: true }).click();
 

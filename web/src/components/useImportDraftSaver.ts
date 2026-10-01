@@ -132,5 +132,9 @@ export function useImportDraftSaver({ selected, setSelected, draft, setDraft, on
 
   const revision = useCallback(() => selectedRef.current?.revision, []);
 
-  return { persist, persistDay, flush, mutate, revision, applyView, pending: pending > 0, localDirty };
+  // Explicit exercise saves must reject failures so the editor retains its held edits for retry.
+  const persistExercise = useCallback((next: ImportDraft) =>
+    mutate((view, revision) => api.editImport(view.id, next, revision), 'Could not save this exercise.'), [mutate]);
+
+  return { persist, persistDay, persistExercise, flush, mutate, revision, applyView, pending: pending > 0, localDirty };
 }

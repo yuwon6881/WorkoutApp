@@ -111,7 +111,7 @@ export type DraftSet = {
   repsSource: Provenance; rpeSource: Provenance; restSource: Provenance; repsText: string | null; restText: string | null;
   rir: string | null; warmup: boolean; sourcePage?: number | null;
 };
-export type DraftExercise = { lineId: string; sourceName: string; exerciseId: string | null; notes: string | null; sets: DraftSet[]; sequenceGroup: string; substitutions: string[]; sourcePage?: number | null; slotKey?: string | null; restSeconds?: number | null; demoUrl?: string | null; demoLinks?: Record<string, string> | null };
+export type DraftExercise = { lineId: string; sourceName: string; exerciseId: string | null; notes: string | null; sets: DraftSet[]; sequenceGroup: string; substitutions: string[]; sourcePage?: number | null; slotKey?: string | null; restSeconds?: number | null; demoUrl?: string | null; demoLinks?: Record<string, string> | null; movementKey?: string | null };
 export type DraftWorkout = { lineId: string; week: number; name: string; focus: string | null; notes: string | null; exercises: DraftExercise[]; block: string | null; phase: string | null; phaseWeek: number; isRestDay: boolean; sourcePage?: number | null; blockId?: string | null; weekId?: string | null };
 /// sourceWeekDays is the longest week the PDF confirms (10 for a ten-day cycle); set by the server.
 export type ImportDraft = { programName: string; workouts: DraftWorkout[]; sourceWeekDays?: number | null };

@@ -176,9 +176,9 @@ class WorkoutRepository private constructor(context: Context) {
     fun finish() {
         val snapshot = requireSnapshot()
         check(snapshot.session.active && !snapshot.pendingFinish) { "This workout is already finished on the watch." }
-        // WorkoutApp only saves a workout with at least one completed set; queueing one without
-        // would sit unsendable on the watch.
-        check(hasLoggedSet(snapshot.session)) { "Log at least one set before finishing." }
+        // WorkoutApp only saves a workout with at least one completed working set; queueing one
+        // without would sit unsendable on the watch. Unlogged sets are simply left out.
+        check(hasLoggedWorkingSet(snapshot.session)) { "Log at least one working set before finishing." }
         val finishedAt = Instant.now().toString()
         val mutationId = UUID.randomUUID().toString()
         val request = JsonObject().apply {
@@ -457,7 +457,8 @@ class WorkoutRepository private constructor(context: Context) {
             shared ?: WorkoutRepository(context.applicationContext).also { shared = it }
         }
 
-        fun hasLoggedSet(session: WorkoutSession): Boolean = session.exercises.any { exercise -> exercise.sets.any { it.done } }
+        fun hasLoggedWorkingSet(session: WorkoutSession): Boolean =
+            session.exercises.any { exercise -> exercise.sets.any { it.done && !it.warmup } }
 
         private fun firstIncomplete(session: WorkoutSession): String? =
             session.exercises.firstOrNull { exercise -> exercise.sets.any { !it.done } }?.id

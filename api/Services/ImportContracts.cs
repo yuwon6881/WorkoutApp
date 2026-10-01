@@ -15,7 +15,10 @@ public record DraftExercise(
     string SequenceGroup = "", List<string>? Substitutions = null, int? SourcePage = null,
     Guid? SlotKey = null, int? RestSeconds = null,
     /// A demonstration video the document links from this exercise name, when it carries one.
-    string? DemoUrl = null, Dictionary<string, string>? DemoLinks = null);
+    string? DemoUrl = null, Dictionary<string, string>? DemoLinks = null,
+    /// The written movement this row names, shared by every occurrence however a page cased or placed it.
+    /// Derived on every save so the editor can offer an edit to the other occurrences without re-deriving it.
+    string? MovementKey = null);
 
 public record DraftWorkout(
     Guid LineId, int Week, string Name, string? Focus, string? Notes, List<DraftExercise> Exercises,

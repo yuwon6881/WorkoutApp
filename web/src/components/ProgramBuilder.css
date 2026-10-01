@@ -368,3 +368,53 @@
   .import-program-card .import-program-actions>.ui-menu>.program-actions-trigger{width:44px;height:44px}
   .import-program-card .import-program-actions>.button.primary{order:1;flex:1 1 auto;width:auto;min-width:0;justify-content:center}
 }
+
+/* Edits to an exercise are held until saved; the bar sits under the card's fields, trailing-aligned. */
+.import-exercise-save-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.import-exercise-save-state {
+  margin-right: auto;
+  font-size: var(--font-secondary, 12px);
+  color: var(--muted);
+}
+
+.exercise-scope-options {
+  display: grid;
+  gap: 10px;
+  margin: 12px 0 0;
+  padding: 0;
+  border: 0;
+}
+
+.exercise-scope-option {
+  align-items: center;
+  min-height: 44px;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  background: var(--surface-raised);
+  color: var(--text);
+}
+
+.exercise-scope-option:has(input:checked) {
+  border-color: var(--accent-border-strong);
+  background: var(--accent-soft);
+}
+
+.exercise-scope-option span {
+  display: grid;
+  gap: 2px;
+}
+
+.exercise-scope-option small {
+  color: var(--muted);
+}

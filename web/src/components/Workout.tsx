@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Exercise, LoggedSet, Preferences, RestMutationInput, Session, SessionRest } from '../types';
 import { ApiError, api } from '../lib/api';
 import type { SaveQueue } from '../lib/queue';
-import { completedSets, plannedSets } from '../lib/training';
+import { completedSets, finishBlocker, plannedSets } from '../lib/training';
 import { exerciseListChanged } from '../lib/workoutDraft';
 import { firstOpenExercise, nextLog, nextUpText, type AdvanceOptions } from '../lib/workoutLogging';
 import { useAfterLog } from './useAfterLog';
@@ -313,10 +313,8 @@ export function Workout({
       setError(validationError);
       return;
     }
-    if (!done) {
-      setError('Complete at least one working set before finishing.');
-      return;
-    }
+    const blocker = finishBlocker(draft);
+    if (blocker) { setError(blocker); return; }
     if (recoveryConflict) { setError('Resolve the workout version conflict before finishing.'); return; }
     setBusy(true);
     try {
@@ -474,7 +472,8 @@ export function Workout({
         logAction={logAction}
         celebration={celebration}
         onFinish={() => {
-          if (!done) { setError('Complete at least one working set before finishing.'); return; }
+          const blocker = finishBlocker(draft);
+          if (blocker) { setError(blocker); return; }
           setConfirm('finish');
         }}
         onRestMutate={handleRestMutate} />
@@ -483,6 +482,7 @@ export function Workout({
         <WorkoutConfirmModal
           confirm={confirm}
           done={done}
+          unlogged={plannedSets(draft) - done}
           busy={busy}
           draft={draft}
           retainSwaps={retainSwaps}

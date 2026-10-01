@@ -77,7 +77,7 @@ fun ActiveWorkoutScreen(
     val sync = syncStatus(queuedCount, pairingRequired, busy && queuedCount > 0)
     val restEndsAt = snapshot.restEndsAtEpochMs
     val undoableSet = if (paused) null else undoableSet(snapshot)
-    val canFinish = WorkoutRepository.hasLoggedSet(session)
+    val canFinish = WorkoutRepository.hasLoggedWorkingSet(session)
 
     val context = LocalContext.current
     // A countdown finishes itself at its target with the rest-end pulse; the draft keeps the time.
@@ -209,7 +209,7 @@ fun ActiveWorkoutScreen(
     ConfirmDialog(
         visible = confirmFinish,
         title = "Finish workout?",
-        text = "${progress.doneSets} of ${plural(progress.plannedSets, "set")} logged. WorkoutApp confirms the finish when the watch syncs.",
+        text = "${progress.doneSets} of ${plural(progress.plannedSets, "set")} logged. Unlogged sets are left out. WorkoutApp confirms the finish when the watch syncs.",
         destructive = false,
         onConfirm = { confirmFinish = false; onFinish() },
         onDismiss = { confirmFinish = false }

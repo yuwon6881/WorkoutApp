@@ -212,6 +212,59 @@ public class WorkoutSessionTests
         Assert.False(finished.Active);
     }
 
+    [Fact] public async Task A_partly_logged_workout_saves_only_what_was_logged_and_drops_exercises_left_untouched()
+    {
+        var h = await Harness.Create();
+        await using var _h = h;
+        await h.SignIn();
+        await h.Seed(new SeedExercise("bench", "Bench press", "Chest", "Barbell", "Cue", null));
+        await h.Seed(new SeedExercise("row", "Row", "Back", "Barbell", "Cue", null));
+        var benchId = await h.ExerciseId("bench");
+        var rowId = await h.ExerciseId("row");
+        var template = await h.Templates.Create(Harness.Template("Upper",
+            Harness.Exercise(benchId, "Bench press", Harness.Set(8, 10), Harness.Set(8, 10), Harness.Set(8, 10)),
+            Harness.Exercise(rowId, "Row", Harness.Set(8, 10), Harness.Set(8, 10))), null, 1, 0, default);
+        var session = await h.Workouts.Start(template.Id, null, default);
+        await h.Workouts.Save(session.Id, new SessionInput(null,
+        [
+            new SessionExerciseInput(benchId, "Bench press", null, [Harness.Set(8, 10), Harness.Set(8, 10), Harness.Set(8, 10)],
+                [new SetInput(60, 10, 8, true), new SetInput(60, 9, 8, true), new SetInput(60, null, null, false)]),
+            new SessionExerciseInput(rowId, "Row", null, [Harness.Set(8, 10), Harness.Set(8, 10)],
+                [new SetInput(40, null, null, false), new SetInput(40, null, null, false)])
+        ], session.Revision, null), default);
+
+        var finished = await h.Workouts.Finish(session.Id, null, default);
+
+        var only = Assert.Single(finished.Exercises);
+        Assert.Equal("Bench press", only.Name);
+        Assert.Equal(2, only.Sets.Count);
+        Assert.All(only.Sets, set => Assert.True(set.Done));
+        Assert.Equal(2, finished.CompletedSets);
+        var recorded = Assert.Single((await h.Workouts.History(0, 10, default)).Sessions);
+        Assert.Equal(2, recorded.CompletedSets);
+        Assert.Equal(1140, finished.VolumeKg);
+    }
+
+    [Fact] public async Task A_workout_of_logged_warmups_alone_cannot_be_saved()
+    {
+        var h = await Harness.Create();
+        await using var _h = h;
+        await h.SignIn();
+        await h.Seed(new SeedExercise("bench", "Bench press", "Chest", "Barbell", "Cue", null));
+        var benchId = await h.ExerciseId("bench");
+        var template = await h.Templates.Create(Harness.Template("Warm-up only", Harness.Exercise(benchId, "Bench press",
+            new SetPrescription(10, 10, null, 60, null, null, null, "10", "1 min", null, true, "inferred", "inferred", "extracted"),
+            Harness.Set(8, 10))), null, 1, 0, default);
+        var session = await h.Workouts.Start(template.Id, null, default);
+        await h.Workouts.Save(session.Id, new SessionInput(null,
+            [new SessionExerciseInput(benchId, "Bench press", null, session.Exercises.Single().Prescription,
+                [new SetInput(20, 10, 7, true, true), new SetInput(null, null, null, false, false)])], session.Revision, null), default);
+
+        var failure = await Assert.ThrowsAsync<DomainException>(() => h.Workouts.Finish(session.Id, null, default));
+        Assert.Contains("working set", failure.Message);
+        Assert.True((await h.Workouts.Get(session.Id, default)).Active);
+    }
+
     [Fact] public async Task A_workout_with_no_completed_set_cannot_be_saved()
     {
         var (h, templateId, _) = await Ready();
@@ -500,7 +553,11 @@ public class WorkoutSessionTests
 
         // Warmup: warm-up set doing 15 reps at 50 kg does not earn PR
         var s2 = await h.Workouts.Start(templateId, null, default);
-        await Complete(h, s2, 50, 15, 8, warmup: true);
+        // A workout needs a working set to be saved, so a lighter one rides along; it beats nothing.
+        var s2Exercise = s2.Exercises.Single();
+        await h.Workouts.Save(s2.Id, new SessionInput(null,
+            [new SessionExerciseInput(s2Exercise.ExerciseId, s2Exercise.Name, null, s2Exercise.Prescription,
+                [new SetInput(50, 15, 8, true, true), new SetInput(50, 3, 8, true, false)])], s2.Revision, null), default);
         await h.Workouts.Finish(s2.Id, null, default);
 
         var history2 = await h.Workouts.History(0, 10, default);

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { AlertTriangle, ArrowLeftRight, Dumbbell, Link2, Loader2, Plus, RotateCcw, Timer, Trash2, X } from 'lucide-react';
+import { AlertTriangle, ArrowLeftRight, Check, Dumbbell, Link2, Loader2, Plus, RotateCcw, Timer, Trash2, X } from 'lucide-react';
 import type { CustomExerciseCreated, DraftExercise, DraftSet, Exercise } from '../types';
 import { restOptions } from '../lib/training';
 import { demoUrlForName } from '../lib/demoLinks';
@@ -23,6 +23,10 @@ import { MenuButton, MenuItem } from './ui/MenuButton';
 import { getSupersetGroup, isSuperset } from '../lib/supersets';
 import { SupersetModal } from './SupersetModal';
 import { useTrackRir } from '../lib/trackRir';
+import type { ExerciseEditing } from '../lib/exerciseEditScope';
+import { ExerciseScopeModal } from './ExerciseScopeModal';
+import { useExerciseDraft } from './useExerciseDraft';
+import { useExerciseSave } from './useExerciseSave';
 import {
   type SetType,
   getSetType,
@@ -39,29 +43,28 @@ export function blankExercise(): DraftExercise {
   return { lineId: crypto.randomUUID(), sourceName: 'New exercise', exerciseId: null, restSeconds: 90, notes: null, sequenceGroup: '', substitutions: [], sets: [blankSet()] };
 }
 
-export function ExerciseEditor({ exercise, exercises, allDayExercises, rememberedRepWidths, onChange, onRemove, onPairExercises, onUnlinkExercise, onPropagateSubstitution, onMapExerciseSlot, onCustomExerciseCreated, canRestore, onRestore }: {
+export function ExerciseEditor({ exercise: saved, exercises, allDayExercises, rememberedRepWidths, editing, onRemove, onPairExercises, onUnlinkExercise, onCustomExerciseCreated, canRestore, onRestore }: {
+  /// The exercise as last saved. Edits are held here until Save, then committed with a scope.
   exercise: DraftExercise;
   exercises: Exercise[];
   allDayExercises: DraftExercise[];
   rememberedRepWidths: Map<number, number>;
-  onChange: (exercise: DraftExercise) => void;
+  editing: ExerciseEditing;
   onRemove?: () => void;
   onPairExercises: (targetLineId: string) => void;
   onUnlinkExercise: () => void;
-  onPropagateSubstitution?: (currentName: string, replacementName: string, exerciseLineId?: string) => Promise<void>;
-  onMapExerciseSlot?: (exerciseLineId: string, exerciseId: string | null) => Promise<void>;
   onCustomExerciseCreated?: () => Promise<void>;
   canRestore?: boolean;
   onRestore?: () => Promise<void>;
 }) {
   const trackRir = useTrackRir();
+  const { exercise, setExercise: onChange, dirty, discard, acknowledgeSave } = useExerciseDraft(saved, editing.unsaved);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [customOpen, setCustomOpen] = useState(false);
   const [supersetModalOpen, setSupersetModalOpen] = useState(false);
   const [isRestoring, setIsRestoring] = useState(false);
   const [restoreError, setRestoreError] = useState<string | null>(null);
-  const [isMapping, setIsMapping] = useState(false);
-  const [mappingError, setMappingError] = useState<string | null>(null);
+  const { isSaving, saveError, setSaveError, scopeRequest, setScopeRequest, requestSave, commit } = useExerciseSave(saved, exercise, editing, () => acknowledgeSave(exercise));
   const editSet = (index: number, patch: Partial<DraftSet>) =>
     onChange({ ...exercise, sets: exercise.sets.map((set, current) => current === index ? { ...set, ...patch } : set) });
 
@@ -88,24 +91,14 @@ export function ExerciseEditor({ exercise, exercises, allDayExercises, remembere
   const selected = exercises.find(option => option.id === exercise.exerciseId)
     || (exercise.sourceName ? exercises.find(option => option.name.toLowerCase() === exercise.sourceName.toLowerCase() || option.aliases.some(a => a.toLowerCase() === exercise.sourceName.toLowerCase())) : undefined);
   const repRange = usesRepRange(exercise.sets.filter(set => !hasOpenReps(set)));
-  const select = async (exerciseId: string | null) => {
-    if (onMapExerciseSlot) {
-      setIsMapping(true);
-      setMappingError(null);
-      setRestoreError(null);
-      try {
-        await onMapExerciseSlot(exercise.lineId, exerciseId);
-        setPickerOpen(false);
-      } catch (err) {
-        setMappingError(err instanceof Error ? err.message : 'Could not map this exercise slot.');
-        throw err;
-      }
-      finally { setIsMapping(false); }
-      return;
-    }
+  const select = (exerciseId: string | null) => {
     const selectedExercise = exerciseId ? exercises.find(item => item.id === exerciseId) : undefined;
-    const sourceName = selectedExercise?.name ?? exercise.sourceName;
-    onChange({ ...exercise, exerciseId, sourceName, demoUrl: demoUrlForName(exercise.demoLinks, sourceName) });
+    if (editing.keepWrittenName) {
+      onChange({ ...exercise, exerciseId });
+    } else {
+      const sourceName = selectedExercise?.name ?? exercise.sourceName;
+      onChange({ ...exercise, exerciseId, sourceName, demoUrl: demoUrlForName(exercise.demoLinks, sourceName) });
+    }
     setPickerOpen(false);
   };
 
@@ -127,8 +120,7 @@ export function ExerciseEditor({ exercise, exercises, allDayExercises, remembere
       e => e.name.toLowerCase() === subName.toLowerCase() || e.aliases.some(a => a.toLowerCase() === subName.toLowerCase())
     );
     if (!matched) return;
-    const currentName = exercise.sourceName;
-    const currentLibraryName = exercises.find(e => e.id === exercise.exerciseId)?.name ?? currentName;
+    const currentLibraryName = exercises.find(e => e.id === exercise.exerciseId)?.name ?? exercise.sourceName;
     const remainingSubs = [currentLibraryName, ...exercise.substitutions.filter(s => s.toLowerCase() !== subName.toLowerCase())].slice(0, 2);
     const nextExercise: DraftExercise = {
       ...exercise,
@@ -138,9 +130,6 @@ export function ExerciseEditor({ exercise, exercises, allDayExercises, remembere
       demoUrl: demoUrlForName(exercise.demoLinks, matched.name)
     };
     onChange(nextExercise);
-    if (onPropagateSubstitution) {
-      void onPropagateSubstitution(currentName, matched.name, exercise.lineId);
-    }
   };
 
   const validSubstitutions = exercise.substitutions.filter(sub =>
@@ -243,8 +232,8 @@ export function ExerciseEditor({ exercise, exercises, allDayExercises, remembere
           <div className="import-library-row">
             <div className="field import-library-field">
               <Button variant="secondary" className="import-library-trigger" aria-haspopup="dialog" data-import-field="library"
-                disabled={isRestoring || isMapping}
-                aria-label={`Library exercise for ${exercise.sourceName}`} onClick={() => { setMappingError(null); setPickerOpen(true); }}>
+                disabled={isRestoring || isSaving}
+                aria-label={`Library exercise for ${exercise.sourceName}`} onClick={() => setPickerOpen(true)}>
                 <Dumbbell size={15} />
                 <span className="import-library-name">
                   {selected?.name ?? (exercise.exerciseId ? 'Swap exercise' : 'Map exercise')}
@@ -407,24 +396,44 @@ export function ExerciseEditor({ exercise, exercises, allDayExercises, remembere
       </div>
     </div>
 
+    {(dirty || saveError) && !scopeRequest && (
+      <div className="import-exercise-save-bar" data-import-save-bar={exercise.lineId}>
+        <span className="import-exercise-save-state" role="status">
+          {saveError ?? 'Unsaved changes'}
+        </span>
+        <Button variant="tertiary" disabled={isSaving} onClick={() => { setSaveError(null); discard(); }}>Cancel</Button>
+        <Button variant="primary" disabled={isSaving || !dirty} onClick={requestSave}>
+          {isSaving ? <Loader2 size={15} className="spin" /> : <Check size={15} />}Save changes
+        </Button>
+      </div>
+    )}
+
+    {scopeRequest && <ExerciseScopeModal
+      exerciseName={saved.sourceName}
+      changes={scopeRequest.changes}
+      counts={scopeRequest.counts}
+      busy={isSaving}
+      error={saveError}
+      onConfirm={scope => void commit(scope)}
+      onCancel={() => setScopeRequest(null)}
+    />}
+
     {pickerOpen && <Modal title={`Choose exercise for ${exercise.sourceName.length > 32 ? `${exercise.sourceName.slice(0, 30)}…` : exercise.sourceName}`} wide onClose={() => setPickerOpen(false)}>
       <div className="modal-body import-library-picker">
         <p>Search the catalog by exercise, equipment, muscle, movement pattern, or alias.</p>
-        {mappingError && <div className="inline-error" role="alert">{mappingError}</div>}
         <ExerciseLibrary
           exercises={exercises}
           action={exercise.exerciseId ? 'swap' : 'map'}
           currentExerciseId={exercise.exerciseId}
           preferredNames={exercise.substitutions}
-          disabled={isMapping}
           onSelect={id => select(id)}
         />
       </div>
       <div className="modal-actions">
-        <Button variant="secondary" onClick={() => setCustomOpen(true)} disabled={isMapping}>
+        <Button variant="secondary" onClick={() => setCustomOpen(true)}>
           <Plus size={15} />Create custom exercise
         </Button>
-        <Button variant="primary" disabled={isMapping} onClick={() => setPickerOpen(false)}>Done</Button>
+        <Button variant="primary" onClick={() => setPickerOpen(false)}>Done</Button>
       </div>
     </Modal>}
 
@@ -437,7 +446,7 @@ export function ExerciseEditor({ exercise, exercises, allDayExercises, remembere
           // endpoint both observe the server-created row. A failed map is retried by the modal
           // with the same ID; it never submits a second create request.
           await onCustomExerciseCreated?.();
-          await select(newExercise.id);
+          select(newExercise.id);
           setCustomOpen(false);
           setPickerOpen(false);
         }}

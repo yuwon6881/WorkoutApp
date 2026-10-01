@@ -194,7 +194,6 @@ export const api = {
   editImportDay: (id: string, day: DraftWorkout, revision?: number) => call<ImportView>(`/api/imports/${id}/days/${day.lineId}`, 'PUT', revision == null ? day : { ...day, revision }),
   restoreImport: (id: string, revision?: number) => call<ImportView>(`/api/imports/${id}/restore`, 'POST', { revision }),
   restoreImportExercise: (id: string, exerciseLineId: string, revision?: number) => call<ImportView>(`/api/imports/${id}/exercises/${exerciseLineId}/restore`, 'POST', { revision }),
-  mapImportExerciseSlot: (id: string, exerciseLineId: string, replacementExerciseId: string | null, revision?: number) => call<ImportView>(`/api/imports/${id}/exercises/${exerciseLineId}/mapping`, 'POST', { replacementExerciseId, revision }),
   selectImportAlternative: (id: string, alternativeId: string) => call<ImportView>(`/api/imports/${id}/alternative`, 'POST', { alternativeId }),
   acceptImport: (id: string) => call<Program>(`/api/imports/${id}/accept`, 'POST'),
   discardImport: (id: string) => call<void>(`/api/imports/${id}/discard`, 'POST')

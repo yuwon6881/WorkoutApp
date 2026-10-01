@@ -520,7 +520,8 @@ public sealed partial class WorkoutService(
         var exercises = await db.SessionExercises.Where(e => e.SessionId == id).ToListAsync(ct);
         var ids = exercises.Select(e => e.Id).ToList();
         var sets = await db.Sets.Where(s => ids.Contains(s.SessionExerciseId)).ToListAsync(ct);
-        Validation.Require(sets.Any(s => s.Done), "Complete at least one set to save this workout.");
+        // A workout of warm-ups alone records no training, and the phone and watch refuse it too.
+        Validation.Require(sets.Any(s => s.Done && !s.Warmup), "Complete at least one working set to save this workout.");
         db.Sets.RemoveRange(sets.Where(s => !s.Done));
         foreach (var exercise in exercises.Where(e => !sets.Any(s => s.Done && s.SessionExerciseId == e.Id))) db.SessionExercises.Remove(exercise);
 

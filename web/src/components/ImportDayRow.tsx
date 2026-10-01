@@ -1,6 +1,7 @@
 import { useMemo, type ReactNode } from 'react';
 import type { DraftWorkout, Exercise } from '../types';
 import { getPlannedMuscleCredits } from '../lib/programMuscles';
+import type { ExerciseEditing } from '../lib/exerciseEditScope';
 import { dayTitle, isGenericDayTitle } from '../lib/dayTitle';
 import { Button } from './ui/Button';
 import { ProgramMusclePreview } from './ProgramMusclePreview';
@@ -90,8 +91,7 @@ export function DayDetailContent({
   day,
   exercises,
   onChange,
-  onPropagateSubstitution,
-  onMapExerciseSlot,
+  editing,
   onCustomExerciseCreated,
   restorableExerciseLineIds,
   onRestoreExercise,
@@ -103,8 +103,7 @@ export function DayDetailContent({
   day: DraftWorkout;
   exercises: Exercise[];
   onChange: (day: DraftWorkout) => Promise<void>;
-  onPropagateSubstitution?: (currentName: string, replacementName: string, exerciseLineId?: string) => Promise<void>;
-  onMapExerciseSlot?: (exerciseLineId: string, exerciseId: string | null) => Promise<void>;
+  editing: ExerciseEditing;
   onCustomExerciseCreated?: () => Promise<void>;
   restorableExerciseLineIds?: string[];
   onRestoreExercise?: (exerciseLineId: string) => Promise<void>;
@@ -125,8 +124,7 @@ export function DayDetailContent({
       day={day}
       exercises={exercises}
       onChange={onChange}
-      onPropagateSubstitution={onPropagateSubstitution}
-      onMapExerciseSlot={onMapExerciseSlot}
+      editing={editing}
       onCustomExerciseCreated={onCustomExerciseCreated}
       restorableExerciseLineIds={restorableExerciseLineIds}
       onRestoreExercise={onRestoreExercise}

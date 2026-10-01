@@ -6,13 +6,13 @@ import { Button } from './ui/Button';
 import { Field } from './ui/Field';
 import { pairExercises, unlinkExercise } from '../lib/supersets';
 import { ExerciseEditor, blankExercise } from './ImportExerciseEditor';
+import type { ExerciseEditing } from '../lib/exerciseEditScope';
 
-export function DayEditor({ day, exercises, onChange, onPropagateSubstitution, onMapExerciseSlot, onCustomExerciseCreated, restorableExerciseLineIds, onRestoreExercise, getRepRangeMemory, selectedMuscle }: {
+export function DayEditor({ day, exercises, onChange, editing, onCustomExerciseCreated, restorableExerciseLineIds, onRestoreExercise, getRepRangeMemory, selectedMuscle }: {
   day: DraftWorkout;
   exercises: Exercise[];
   onChange: (day: DraftWorkout) => Promise<void>;
-  onPropagateSubstitution?: (currentName: string, replacementName: string, exerciseLineId?: string) => Promise<void>;
-  onMapExerciseSlot?: (exerciseLineId: string, exerciseId: string | null) => Promise<void>;
+  editing: ExerciseEditing;
   onCustomExerciseCreated?: () => Promise<void>;
   restorableExerciseLineIds?: string[];
   onRestoreExercise?: (exerciseLineId: string) => Promise<void>;
@@ -90,12 +90,10 @@ export function DayEditor({ day, exercises, onChange, onPropagateSubstitution, o
           className={dimSet?.has(exercise.lineId) ? 'import-exercise-dim-wrap exercise-dimmed' : ''}>
           <ExerciseEditor exercise={exercise} exercises={exercises} allDayExercises={draft.exercises}
             rememberedRepWidths={getRepRangeMemory(exercise.lineId)}
-            onChange={next => save({ ...draft, exercises: draft.exercises.map(item => item.lineId === next.lineId ? next : item) })}
+            editing={editing}
             onRemove={() => handleRemoveExercise(exercise.lineId)}
             onPairExercises={targetLineId => handlePairExercises(exercise.lineId, targetLineId)}
             onUnlinkExercise={() => handleUnlinkExercise(exercise.lineId)}
-            onPropagateSubstitution={onPropagateSubstitution}
-            onMapExerciseSlot={onMapExerciseSlot}
             onCustomExerciseCreated={onCustomExerciseCreated}
             canRestore={restorableExerciseLineIds?.includes(exercise.lineId)}
             onRestore={onRestoreExercise ? () => onRestoreExercise(exercise.lineId) : undefined} />

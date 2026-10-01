@@ -1,4 +1,5 @@
 import { useCallback, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
+import type { ExerciseEditing, UnsavedExercise } from '../lib/exerciseEditScope';
 import { Copy, GripVertical, Plus, Trash2 } from 'lucide-react';
 import type { DraftWorkout, Exercise } from '../types';
 import { Button } from './ui/Button';
@@ -17,8 +18,7 @@ export function ProgramDayList({
   openDay,
   setOpenDay,
   onDayChange,
-  onPropagateSubstitution,
-  onMapExerciseSlot,
+  editing,
   onCustomExerciseCreated,
   restorableExerciseLineIds,
   onRestoreExercise
@@ -28,8 +28,7 @@ export function ProgramDayList({
   openDay: string | null;
   setOpenDay: (id: string | null) => void;
   onDayChange: (day: DraftWorkout) => Promise<void>;
-  onPropagateSubstitution?: (currentName: string, replacementName: string, exerciseLineId?: string) => Promise<void>;
-  onMapExerciseSlot?: (exerciseLineId: string, exerciseId: string | null) => Promise<void>;
+  editing: Omit<ExerciseEditing, 'unsaved'>;
   onCustomExerciseCreated?: () => Promise<void>;
   restorableExerciseLineIds?: string[];
   onRestoreExercise?: (exerciseLineId: string) => Promise<void>;
@@ -42,6 +41,9 @@ export function ProgramDayList({
   const pointer = useRef<{ id: number; startY: number; lineId: string; index: number; active: boolean } | null>(null);
   const [selectedMuscle, setSelectedMuscle] = useState<string | null>(null);
   const repRangeMemories = useRef(new Map<string, Map<number, number>>());
+  // Edits no one has saved yet. They outlive the day dialog so closing it asks before discarding.
+  const unsaved = useRef(new Map<string, UnsavedExercise>());
+  const [discardPrompt, setDiscardPrompt] = useState<string | null>(null);
 
   const getRepRangeMemory = useCallback((exerciseLineId: string) => {
     let memory = repRangeMemories.current.get(exerciseLineId);
@@ -126,9 +128,10 @@ export function ProgramDayList({
   }, [days, moveDayTo, setDrag]);
 
   const closeModal = useCallback(() => {
+    if (unsaved.current.size > 0 && openDay) setDiscardPrompt(openDay);
     setOpenDay(null);
     setSelectedMuscle(null);
-  }, [setOpenDay]);
+  }, [openDay, setOpenDay]);
 
   if (!week) return null;
 
@@ -198,6 +201,18 @@ export function ProgramDayList({
       </div>
     </div>
 
+    {discardPrompt && (
+      <Modal title="Discard unsaved changes?" onClose={() => { setOpenDay(discardPrompt); setDiscardPrompt(null); }}>
+        <div className="modal-body">
+          <p>{unsaved.current.size === 1 ? 'An exercise on this day has' : `${unsaved.current.size} exercises have`} changes that were not saved.</p>
+        </div>
+        <div className="modal-actions">
+          <Button variant="destructive" onClick={() => { unsaved.current.clear(); setDiscardPrompt(null); }}>Discard changes</Button>
+          <Button variant="primary" onClick={() => { setOpenDay(discardPrompt); setDiscardPrompt(null); }}>Keep editing</Button>
+        </div>
+      </Modal>
+    )}
+
     {openDayData && !openDayData.isRestDay && (
       <Modal title={modalTitle} wide onClose={closeModal} className="day-detail-modal">
         <div className="modal-body day-detail-modal-body draft-day" data-import-day={openDayData.lineId}>
@@ -205,8 +220,7 @@ export function ProgramDayList({
             day={openDayData}
             exercises={exercises}
             onChange={onDayChange}
-            onPropagateSubstitution={onPropagateSubstitution}
-            onMapExerciseSlot={onMapExerciseSlot}
+            editing={{ ...editing, unsaved: unsaved.current }}
             onCustomExerciseCreated={onCustomExerciseCreated}
             restorableExerciseLineIds={restorableExerciseLineIds}
             onRestoreExercise={onRestoreExercise}

@@ -1,5 +1,6 @@
 package com.workoutapp.wear.ui
 
+import com.workoutapp.wear.data.WorkoutRepository
 import com.workoutapp.wear.ui.FakeWorkouts.snapshot
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -79,6 +80,22 @@ class ActiveWorkoutModelTest {
         val done = activeSetModel(snapshot(session = FakeWorkouts.allDone))
         assertEquals(SetAction.Finish, setAction(done, paused = false, allLogged = allSetsLogged(FakeWorkouts.allDone)))
         assertEquals(SetAction.NextExercise, setAction(done, paused = false, allLogged = false))
+    }
+
+    @Test
+    fun finishNeedsALoggedWorkingSetButNotACompletedWorkout() {
+        // Partly logged: the unfinished sets are left out, so finishing is allowed.
+        assertTrue(WorkoutRepository.hasLoggedWorkingSet(FakeWorkouts.session))
+        assertFalse(allSetsLogged(FakeWorkouts.session))
+
+        // Only a warm-up is logged, which records no training, so finishing stays unavailable.
+        val warmupOnly = FakeWorkouts.session.copy(
+            exercises = FakeWorkouts.session.exercises.map { exercise ->
+                exercise.copy(sets = exercise.sets.map { it.copy(done = it.warmup) })
+            }
+        )
+        assertFalse(WorkoutRepository.hasLoggedWorkingSet(warmupOnly))
+        assertTrue(warmupOnly.exercises.any { exercise -> exercise.sets.any { it.done } })
     }
 
     @Test

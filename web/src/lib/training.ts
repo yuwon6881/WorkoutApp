@@ -87,6 +87,10 @@ export const showDuration = (seconds: number): string => {
 
 export const completedSets = (session: Session): LoggedSet[] => session.exercises.flatMap(e => e.sets).filter(s => s.done && !s.warmup);
 
+/// Why a workout cannot be saved yet, or null. Unfinished sets never block it: they are left out.
+export const finishBlocker = (session: Session): string | null =>
+  completedSets(session).length > 0 ? null : 'Complete at least one working set before finishing.';
+
 export const plannedSets = (session: Session): number => session.exercises.reduce((total, e) => total + e.sets.filter(s => !s.warmup).length, 0);
 
 export const normalizeExerciseName = (value: string): string => value.trim().toLowerCase().replace(/[^a-z0-9]/g, ' ').split(/\s+/).filter(Boolean).join(' ');

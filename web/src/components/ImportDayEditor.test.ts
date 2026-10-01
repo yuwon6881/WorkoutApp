@@ -2,7 +2,12 @@ import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import type { DraftWorkout, Exercise } from '../types';
+import type { ExerciseEditing } from '../lib/exerciseEditScope';
 import { DayEditor } from './ImportDayEditor';
+
+const editing: ExerciseEditing = {
+  save: async () => {}, count: () => ({ block: 0, program: 0 }), keepWrittenName: true, unsaved: new Map()
+};
 
 function makeExercise(override: Partial<Exercise> & { id: string; name: string; muscle: string }): Exercise {
   return {
@@ -34,7 +39,7 @@ function renderEditor(warmup = false) {
   };
 
   return renderToStaticMarkup(createElement(DayEditor, {
-    day, exercises: [], onChange: async () => {}, getRepRangeMemory: () => new Map()
+    day, exercises: [], onChange: async () => {}, editing, getRepRangeMemory: () => new Map()
   }));
 }
 
@@ -84,7 +89,7 @@ describe('PDF import set review fields', () => {
     ];
 
     const markup = renderToStaticMarkup(createElement(DayEditor, {
-      day, exercises, onChange: async () => {}, getRepRangeMemory: () => new Map()
+      day, exercises, onChange: async () => {}, editing, getRepRangeMemory: () => new Map()
     }));
 
     expect(markup).toContain('import-exercise-muscles');
@@ -125,13 +130,13 @@ describe('PDF import set review fields', () => {
     ];
 
     const markupBefore = renderToStaticMarkup(createElement(DayEditor, {
-      day: dayBefore, exercises, onChange: async () => {}, getRepRangeMemory: () => new Map()
+      day: dayBefore, exercises, onChange: async () => {}, editing, getRepRangeMemory: () => new Map()
     }));
     expect(markupBefore).toContain('pill pill-accent">Chest</span>');
     expect(markupBefore).toContain('pill pill-muted">Triceps</span>');
 
     const markupAfter = renderToStaticMarkup(createElement(DayEditor, {
-      day: dayAfter, exercises, onChange: async () => {}, getRepRangeMemory: () => new Map()
+      day: dayAfter, exercises, onChange: async () => {}, editing, getRepRangeMemory: () => new Map()
     }));
     expect(markupAfter).toContain('pill pill-accent">Shoulders</span>');
     expect(markupAfter).toContain('pill pill-muted">Chest</span>');

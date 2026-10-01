@@ -5,6 +5,7 @@ import { Modal } from './ui/Modal';
 export function WorkoutConfirmModal({
   confirm,
   done,
+  unlogged,
   busy,
   draft,
   retainSwaps,
@@ -15,6 +16,8 @@ export function WorkoutConfirmModal({
 }: {
   confirm: 'finish' | 'discard';
   done: number;
+  /** Working sets planned but not logged; they are left out of the saved workout. */
+  unlogged: number;
   busy: boolean;
   draft: Session;
   retainSwaps: boolean;
@@ -31,7 +34,7 @@ export function WorkoutConfirmModal({
       <div className="modal-body">
         <p>
           {confirm === 'finish'
-            ? `${done} completed working ${done === 1 ? 'set' : 'sets'} will be saved. Unlogged sets will be left out.`
+            ? `${done} completed working ${done === 1 ? 'set' : 'sets'} will be saved.${unlogged > 0 ? ` ${unlogged} unlogged ${unlogged === 1 ? 'set' : 'sets'} will be left out.` : ''}`
             : 'This removes the session in progress. Your completed history stays as it is.'}
         </p>
         {confirm === 'finish' &&
