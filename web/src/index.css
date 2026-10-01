@@ -160,7 +160,7 @@ input::file-selector-button{font-size:var(--font-secondary)!important}
 .sidebar-bottom{display:flex;flex-direction:column;gap:10px}
 .sidebar-bottom .nav-item{margin-top:0}
 .page-footer{display:none}
-.error-banner{display:flex;flex-wrap:wrap;align-items:center;gap:14px;padding:16px 20px;background:var(--red-soft);border:1px solid var(--red-border);border-radius:var(--radius-control);color:var(--red);margin-bottom:20px;font-size:var(--font-secondary)}
+.error-banner{display:flex;flex-wrap:wrap;align-items:center;gap:14px;padding:16px 20px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-control);color:var(--text);margin-bottom:20px;font-size:var(--font-secondary);line-height:1.6;overflow-wrap:anywhere}
 .error-banner:not(:first-child){margin-top:16px}
 .error-banner svg{flex-shrink:0}
 .error-banner>.button{margin-left:auto;flex-shrink:0}

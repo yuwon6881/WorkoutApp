@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Button } from './ui/Button';
+import {CardFeedback} from './ui/CardFeedback';
 import { Modal } from './ui/Modal';
 import { SettingRow } from './ui/SettingRow';
 import { Switch } from './ui/Switch';
@@ -9,7 +10,7 @@ import {
   useGoogleHealth,
 } from '../lib/googleHealth';
 import { GoogleHealthDisclosure } from './GoogleHealthDisclosure';
-import { Activity, AlertTriangle, CheckCircle2, RefreshCw, Unlink } from 'lucide-react';
+import { Activity, RefreshCw, Unlink } from 'lucide-react';
 import './IntegrationCard.css';
 import {openGoogleHealthSettingsInBrowser} from '../lib/googleHealthBrowser';
 import {isNative} from '../lib/platform';
@@ -138,7 +139,7 @@ export function GoogleHealthSettings() {
     setActionError('');
     try {
       await recoverGoogleHealthWorkoutSync();
-      void refresh(true);
+      await refresh(true);
     } catch (err: unknown) {
       setActionError(err instanceof Error ? err.message : 'Failed to recover workout synchronization.');
     } finally {
@@ -150,7 +151,7 @@ export function GoogleHealthSettings() {
   const isReconnectRequired = state.status === 'reconnect_required';
 
   const sync = state.workoutSync;
-  const statusLabel = isConnected ? 'Connected' : isReconnectRequired ? 'Reconnect required' : 'Not connected';
+  const statusLabel = isConnected ? 'Connected' : isReconnectRequired ? 'Reconnect required' : loading ? 'Checking…' : syncError ? 'Unavailable' : 'Not connected';
   const statusTone = isConnected ? 'is-on' : isReconnectRequired ? 'is-warning' : '';
 
   return (
@@ -168,31 +169,16 @@ export function GoogleHealthSettings() {
       </header>
 
       {isNative()&&<p className="description">Connect in your browser using the same FitnessAccount account, then return here. Google consent cannot run inside this app.</p>}
-      {bannerNotice && (
-        <div className={bannerNotice.type === 'error' ? 'error-banner' : 'success-banner'} role={bannerNotice.type === 'error' ? 'alert' : 'status'}>
-          {bannerNotice.type === 'error' ? <AlertTriangle size={17} aria-hidden="true" /> : <CheckCircle2 size={17} aria-hidden="true" />}
-          <span>{bannerNotice.message}</span>
-        </div>
-      )}
-      {actionError && (
-        <div className="error-banner" role="alert">
-          <AlertTriangle size={17} aria-hidden="true" />
-          <span>{actionError}</span>
-        </div>
-      )}
-      {syncError && (
-        <div className="error-banner" role="alert">
-          <AlertTriangle size={17} aria-hidden="true" />
-          <span>{syncError}</span>
-        </div>
-      )}
-
+      {bannerNotice && <CardFeedback tone={bannerNotice.type} title={bannerNotice.type==='error'?'Connection needs attention':'Google Health connected'} message={bannerNotice.message}/>}
+      {actionError && <CardFeedback title="Google Health action failed" message={actionError}/>}
+      {syncError && <CardFeedback tone="warning" title="Google Health sync paused" message={syncError}
+        action={{label:loading?'Updating…':'Retry sync',onClick:()=>void refresh(true),disabled:loading}}/>}
       <div className="integration-description">
         {isConnected
           ? `Connected${state.connectedAt ? ` since ${new Date(state.connectedAt).toLocaleDateString()}` : ''}. Saved workouts remain in Google Health.`
           : isReconnectRequired
             ? 'Authorization expired or permissions changed. Reconnect to resume sync.'
-            : 'Link your Google account to export completed workouts.'}
+            : syncError ? 'Connection status could not be checked. Retry to check your existing connection.' : 'Link your Google account to export completed workouts.'}
       </div>
 
       {isConnected && (
@@ -240,14 +226,14 @@ export function GoogleHealthSettings() {
               <Unlink size={14} aria-hidden="true" /> Disconnect
             </Button>
             <Button variant="secondary" onClick={() => void refresh(true)} disabled={loading}>
-              <RefreshCw size={14} className={loading ? 'spinning' : ''} aria-hidden="true" /> Refresh status
+              <RefreshCw size={14} className={loading ? 'spinning' : ''} aria-hidden="true" /> {loading?'Updating…':'Refresh status'}
             </Button>
           </>
-        ) : (
+        ) : !syncError && !loading ? (
           <Button variant="primary" onClick={openDisclosure} disabled={loading || connecting}>
             {connecting ? 'Connecting…' : isReconnectRequired ? 'Reconnect Google Health' : 'Connect Google Health'}
           </Button>
-        )}
+        ) : null}
       </div>
 
       {disclosureOpen && (

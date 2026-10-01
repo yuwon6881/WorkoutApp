@@ -1117,7 +1117,7 @@ test('offline and server failures are reported instead of faked', async ({ page,
   await context.setOffline(true);
   await page.reload();
   // The shell still loads from the precache, but it must not pretend to have training data.
-  await expect(page.getByRole('heading', { name: 'Could not reach the server', exact: true })).toBeVisible({ timeout: 30000 });
+  await expect(page.getByRole('heading', { name: 'Connection paused', exact: true })).toBeVisible({ timeout: 30000 });
   expect(await page.evaluate(() => navigator.serviceWorker.controller !== null)).toBe(true);
   const localEntries = await page.evaluate(() => Object.entries(localStorage));
   expect(localEntries.map(([key]) => key).sort()).toEqual(['workout-theme', 'workout.push-device.v1']);

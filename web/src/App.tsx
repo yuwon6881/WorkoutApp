@@ -17,6 +17,8 @@ import { installNativeShell, isStandalone, setNativeStatusBar } from './lib/plat
 import type { Tab } from './app/useTabNavigation';
 import { getRecovery, hasUnresolvedRecovery, sameWorkoutEdits, startRecovery } from './lib/workoutRecovery';
 import { Button } from './components/ui/Button';
+import {CardFeedback} from './components/ui/CardFeedback';
+import {ConnectionRecovery} from './components/ui/ConnectionRecovery';
 import { MotionScene, SelectionIndicator } from './components/ui/Motion';
 import './components/BottomNav.css';
 import { Dashboard } from './components/Dashboard';
@@ -167,11 +169,7 @@ export default function App() {
     </main>
   </div>;
 
-  if (!data) return <div className="auth-screen"><div className="panel auth-card">
-    <AlertTriangle size={26} /><h1>Could not reach the server</h1>
-    <p className="muted">{app.error || 'Check your connection and try again. Nothing has been lost: your training is saved on the server.'}</p>
-    <Button variant="primary" onClick={() => void app.reload()}><RefreshCw size={17} />Try again</Button>
-  </div></div>;
+  if (!data) return <ConnectionRecovery message={app.error} onRetry={app.reload}/>;
 
   /// Opening a plan shows what it contains first. A session is only created on the server once
   /// the preview is confirmed, so backing out leaves nothing behind.
@@ -343,10 +341,11 @@ export default function App() {
           <Button variant="secondary" onClick={() => { setReviewRecovery(true); setTraining(true); }}>Review saved workout</Button>
         </div>}
         {!online && <div className="error-banner" role="status"><WifiOff size={17} />Offline. Set logging, notes, pause, and finish are saved on this device; exercise-list changes and discard need a connection.<Button variant="tertiary" onClick={() => void app.reload()}><RefreshCw size={15} />Retry</Button></div>}
-        {actionError && <div className="error-banner" role="alert">{actionError}</div>}
+        {actionError && <CardFeedback title="Could not complete this action" message={actionError}/>}
         {tab === 'overview' && <InstallAppCard />}
 
-        {app.resourceError && <div className="error-banner" role="alert">{app.resourceError}<Button variant="secondary" onClick={() => void app.ensureResources(neededResources)}>Retry</Button></div>}
+        {app.resourceError && <CardFeedback tone="warning" title="Could not load this view" message={app.resourceError}
+          action={{label:'Retry',onClick:()=>void app.ensureResources(neededResources),disabled:loading}}/>}
         <MotionScene sceneKey={tab}>
         <Suspense fallback={<ViewSkeleton label={NAV.find(item => item.id === tab)?.label ?? (tab === 'import' ? 'Import' : 'Settings')} />}>
         {tab === 'overview' && <Dashboard data={data} onStart={start} onQuickStart={quickStart} onProgram={() => setTab('program')}

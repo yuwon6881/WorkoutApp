@@ -1,0 +1,19 @@
+/* Feedback keeps the page's surface and typography; only the compact icon carries the tone. */
+.card-feedback{display:flex;align-items:flex-start;gap:12px;padding:16px;margin:16px 0;border:1px solid var(--border);border-radius:var(--radius-control);background:var(--surface);color:var(--red);overflow-wrap:anywhere}
+.card-feedback.warning{color:var(--amber)}
+.card-feedback.success{color:var(--green)}
+.card-feedback.info{color:var(--blue)}
+.card-feedback-icon{display:grid;place-items:center;width:34px;height:34px;flex:0 0 34px;border-radius:10px;background:color-mix(in srgb,currentColor 10%,transparent)}
+.card-feedback-content{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:16px;min-width:0;flex:1}
+.card-feedback-copy{display:grid;gap:5px;min-width:0}
+.card-feedback strong{color:var(--text);font-size:var(--font-secondary);font-weight:650}
+.card-feedback p{margin:0;color:var(--muted);font-size:var(--font-secondary);line-height:1.6}
+.card-feedback .button{justify-self:end;margin:0;white-space:normal;text-align:center}
+
+.error-banner>svg{color:var(--red)}
+.error-banner[role=status]>svg{color:var(--blue)}
+.recovery-error-icon{display:grid;place-items:center;width:52px;height:52px;border-radius:14px;background:var(--accent-soft);color:var(--accent);margin-bottom:4px}
+.connection-recovery{max-width:440px;gap:14px;padding:28px}
+.connection-recovery h1{font-size:24px;line-height:1.25;letter-spacing:-.025em}
+.connection-recovery .eyebrow{margin:0}
+@media(max-width:639px){.card-feedback-content{grid-template-columns:minmax(0,1fr);gap:12px}.card-feedback .button{justify-self:end;min-height:44px}.connection-recovery{padding:24px}}

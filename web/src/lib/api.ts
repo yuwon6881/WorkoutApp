@@ -1,3 +1,4 @@
+import {fetchWithAvailabilityRecovery} from './availabilityRecovery';
 import type { ExerciseLoadSettings, LoadRule, LoadSettingsOverview } from './exerciseLoads';
 import type { PdfExtraction } from './pdfText';
 import { sharedReads } from './readCoordinator';
@@ -21,7 +22,7 @@ async function call<T>(path: string, method = 'GET', body?: unknown, signal?: Ab
 async function request<T>(path: string, method: string, body?: unknown, signal?: AbortSignal, extraHeaders?: Record<string, string>): Promise<T> {
   let response: Response;
   try {
-    response = await fetch(path, {
+    response = await fetchWithAvailabilityRecovery(path, {
       method, signal, credentials: 'same-origin', cache: 'no-store',
       headers: {
         // The custom header is what the server checks alongside Origin, so a cross-site form
@@ -31,14 +32,14 @@ async function request<T>(path: string, method: string, body?: unknown, signal?:
         , ...extraHeaders
       },
       body: body === undefined ? undefined : body instanceof FormData ? body : body instanceof Uint8Array ? body as BodyInit : JSON.stringify(body)
-    });
+    }, method==='GET'&&['/api/bootstrap/shell','/api/bootstrap','/api/integrations/google-health'].includes(path), path==='/api/integrations/google-health'?20000:undefined);
   } catch (error) {
     if (signal?.aborted) throw error;
     throw new ApiError('No connection to the server. Your workout needs a connection to save.', 0);
   }
   if (response.status === 204) return undefined as T;
   const text = await response.text();
-  const payload = text ? safeParse(text) : null;
+  const payload = text ? safeParse(text, response.status) : null;
   if (!response.ok) throw new ApiError(payload?.message ?? 'Something went wrong. Try again.', response.status);
   return payload as T;
 }
@@ -69,7 +70,7 @@ async function requestWithMeta<T>(path: string, method: string, body?: unknown, 
   const etag = response.headers.get('ETag');
   if (response.status === 304) return { data: null, notModified: true, etag };
   const text = await response.text();
-  const payload = text ? safeParse(text) : null;
+  const payload = text ? safeParse(text, response.status) : null;
   if (!response.ok) throw new ApiError(payload?.message ?? 'Something went wrong. Try again.', response.status);
   return { data: payload as T, notModified: false, etag };
 }
@@ -85,8 +86,8 @@ async function callCompressed<T>(path: string, body: unknown): Promise<T> {
   return call<T>(path, 'POST', compressed, undefined, { 'Content-Type': 'application/json', 'Content-Encoding': 'gzip' });
 }
 
-function safeParse(text: string): { message?: string } & Record<string, unknown> {
-  try { return JSON.parse(text); } catch { return { message: 'The server sent a response this app could not read.' }; }
+function safeParse(text: string, status: number): { message?: string } & Record<string, unknown> {
+  try { return JSON.parse(text); } catch { return { message: [429,502,503,504].includes(status)?'The service is temporarily unavailable. Try again shortly.':'The server sent a response this app could not read.' }; }
 }
 
 export const api = {

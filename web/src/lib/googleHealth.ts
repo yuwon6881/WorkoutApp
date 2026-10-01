@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useState, useSyncExternalStore } from 'react';
 import { api } from './api';
-import { isNative } from './platform';
 import { consumeGoogleHealthHandoff } from './googleHealthBrowser';
 
 export type GoogleHealthStatus = 'disconnected' | 'connected' | 'reconnect_required';
@@ -169,10 +168,15 @@ export function useGoogleHealth() {
   useEffect(() => {
     void refresh(false);
     const resume = () => {
-      if (isNative() && document.visibilityState === 'visible' && consumeGoogleHealthHandoff()) void refresh(true);
+      if (document.visibilityState === 'visible') void refresh(consumeGoogleHealthHandoff());
     };
+    const online = () => { void refresh(true); };
     document.addEventListener('visibilitychange', resume);
-    return () => document.removeEventListener('visibilitychange', resume);
+    window.addEventListener('online', online);
+    return () => {
+      document.removeEventListener('visibilitychange', resume);
+      window.removeEventListener('online', online);
+    };
   }, [refresh]);
 
   return {

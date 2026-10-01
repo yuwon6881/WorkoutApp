@@ -2,6 +2,7 @@ import { Component, type ErrorInfo, type ReactNode } from 'react';
 import { AlertTriangle } from 'lucide-react';
 import { reloadWithFreshShell } from '../../lib/freshShell';
 import { Button } from './Button';
+import './CardFeedback.css';
 
 const RELOAD_FLAG = 'workout-chunk-reload';
 const CHUNK_FAILURE = /dynamically imported module|Importing a module script failed|ChunkLoadError|Loading chunk/i;
@@ -43,8 +44,8 @@ export class ErrorBoundary extends Component<{ children: ReactNode }, { failed: 
     return (
       <main className="auth-screen" role="alert">
         <section className="panel recovery-card">
-          <AlertTriangle size={24} aria-hidden="true" />
-          <h1>Something went wrong</h1>
+          <span className="recovery-error-icon" aria-hidden="true"><AlertTriangle size={24}/></span>
+          <h1>This view needs a reload</h1>
           <p>An active workout stays saved on this device. Reload to continue where you left off.</p>
           <div className="modal-actions">
             <Button variant="primary" disabled={this.state.reloading} onClick={this.reload}>{this.state.reloading ? 'Reloading…' : 'Reload'}</Button>
