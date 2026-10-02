@@ -126,7 +126,7 @@ test('personal exercise weights support uneven lists and kg/lb switching', async
     for (const theme of ['dark', 'light']) {
       await page.goto('/settings');
       await preference('Kilograms (kg)');
-      await preference(`Ayu ${theme}`);
+      await preference(theme === 'dark' ? 'Dark' : 'Light');
       await page.goto('/exercises');
       await page.getByRole('textbox', { name: 'Search exercises', exact: true }).fill(name);
       await page.getByRole('button', { name: `View ${name} details`, exact: true }).click();
@@ -220,7 +220,7 @@ test('one weight unit switch sticks and shows that unit\'s gym steps', async ({ 
     // Hold the save so any read that races it would bring the old unit back.
     const order: string[] = [];
     page.on('request', request => {
-      if (request.url().includes('/api/bootstrap/shell')) order.push('shell');
+      if (request.url().includes('/api/bootstrap/launch')) order.push('shell');
     });
     await page.route('**/api/preferences', async route => {
       if (route.request().method() === 'PUT') await new Promise(resolve => setTimeout(resolve, 1500));
@@ -229,7 +229,7 @@ test('one weight unit switch sticks and shows that unit\'s gym steps', async ({ 
     });
     const pounds = page.getByRole('button', { name: 'Pounds (lb)', exact: true });
     const kilograms = page.getByRole('button', { name: 'Kilograms (kg)', exact: true });
-    const reloaded = page.waitForResponse(response => response.url().includes('/api/bootstrap/shell'));
+    const reloaded = page.waitForResponse(response => response.url().includes('/api/bootstrap/launch'));
     await pounds.click();
     await expect(dumbbell).toHaveText('5 lb steps · Dumbbell default');
     await reloaded;
@@ -239,7 +239,7 @@ test('one weight unit switch sticks and shows that unit\'s gym steps', async ({ 
     expect(order.indexOf('saved lb')).toBeGreaterThanOrEqual(0);
     expect(order.indexOf('shell')).toBeGreaterThan(order.indexOf('saved lb'));
 
-    const reloadedAgain = page.waitForResponse(response => response.url().includes('/api/bootstrap/shell'));
+    const reloadedAgain = page.waitForResponse(response => response.url().includes('/api/bootstrap/launch'));
     await kilograms.click();
     await reloadedAgain;
     await expect(kilograms).toHaveAttribute('aria-pressed', 'true');
@@ -880,6 +880,8 @@ test('import a PDF program, resolve an unmapped exercise, and accept it', async 
   const substitutionLineId = await substitutionCard.getAttribute('data-import-exercise');
   expect(substitutionLineId).toBeTruthy();
   const substitutedExercise = page.locator(`[data-import-exercise="${substitutionLineId}"]`);
+  const defaultSubstitutionName = await substitutedExercise.getByRole('textbox', { name: 'Exercise name' }).inputValue();
+  const defaultLibraryName = (await substitutedExercise.locator('.import-library-name').textContent()) ?? '';
   await substitutionCard.locator('.substitution-chip').filter({ hasText: 'DB Incline Press' }).click();
   await expect(substitutedExercise.getByRole('textbox', { name: 'Exercise name' })).toHaveValue('DB Incline Press');
   await saveExerciseChanges(page, substitutedExercise);
@@ -903,6 +905,20 @@ test('import a PDF program, resolve an unmapped exercise, and accept it', async 
     return view.draft?.workouts.flatMap((day: { exercises: { lineId: string; sourceName: string }[] }) => day.exercises)
       .find((exercise: { lineId: string }) => exercise.lineId === lineId)?.sourceName ?? '';
   }, substitutionLineId), { timeout: 20000 }).toBe('DB Incline Press');
+
+  // A library swap is held in the card until Save. Restore default must drop that held swap as
+  // well as restoring the saved row; otherwise the held swap masks the restore and nothing changes.
+  await substitutedExercise.getByRole('button', { name: 'Library exercise for DB Incline Press', exact: true }).click();
+  const swapPicker = page.getByRole('dialog', { name: 'Choose exercise for DB Incline Press', exact: true });
+  await swapPicker.getByRole('textbox', { name: 'Search exercises', exact: true }).fill('bench press');
+  await swapPicker.getByRole('button', { name: 'Swap Barbell bench press', exact: true }).click();
+  const libraryName = substitutedExercise.locator('.import-library-name');
+  await expect(libraryName).toHaveText('Barbell bench press');
+  await substitutedExercise.getByRole('button', { name: 'Actions for DB Incline Press', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'Restore default', exact: true }).click();
+  await expect(substitutedExercise.getByRole('textbox', { name: 'Exercise name' })).toHaveValue(defaultSubstitutionName, { timeout: 30000 });
+  await expect(libraryName).toHaveText(defaultLibraryName);
+  await expect(substitutedExercise.locator('[data-import-save-bar]')).toBeHidden();
 
   await dayModal.getByRole('button', { name: 'Close dialog', exact: true }).click();
   await expect(dayModal).toBeHidden();
@@ -1006,7 +1022,7 @@ test('import a PDF program, resolve an unmapped exercise, and accept it', async 
   const activeWorkout = await startedWorkout.json();
   await page.goto('/');
   const importedLogger = page.locator('dialog.workout-sheet');
-  await page.getByRole('button', { name: /^Resume / }).filter({ visible: true }).first().click();
+  // Account-scoped active recovery opens the logger after launch reconciliation.
   await expect(importedLogger).toBeVisible();
   await expect(importedLogger.locator('.set-technique-note').filter({ hasText: 'Integrated partials' }).first()).toBeVisible();
   await expect(importedLogger.getByRole('link', { name: /demo.*Barbell bench press|Barbell bench press.*demo/i }).first()).toHaveAttribute('href', 'https://youtu.be/qTSTOVVr8rU');

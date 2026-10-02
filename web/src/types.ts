@@ -65,6 +65,9 @@ export type SessionRest = {
 };
 export type Session = { id: string; templateId: string | null; programId: string | null; name: string; note: string; active: boolean; startedAt: string; finishedAt: string | null; pausedAt?: string | null; pausedSeconds?: number; revision: number; exercises: SessionExercise[]; volumeKg: number | null; completedSets: number; warmupSets: number; bodyWeight?: BodyWeightSnapshot | null; nutritionContext?: NutritionTrainingContext | null; systemVolumeKg?: number | null; prCount?: number; rest?: SessionRest | null };
 export type WatchDevice = { id: string; deviceId: string; deviceName: string; createdAt: string; expiresAt: string };
+export type RecentExerciseSession = Pick<Session, 'id' | 'name' | 'startedAt' | 'finishedAt'> & {
+  exercises: Pick<SessionExercise, 'id' | 'exerciseId' | 'sets'>[];
+};
 export type HistoryPage = { total: number; page: number; size: number; sessions: Session[] };
 export type HistorySummaryPage = { total: number; sessions: Session[]; nextBeforeAt: string | null; nextBeforeId: string | null; summaryOnly: boolean };
 export type AppResource = 'catalog' | 'programs' | 'templates';
@@ -144,7 +147,7 @@ export type Bootstrap = {
   navigationCounts?: { programs: number; templates: number };
   resources?: Partial<Record<AppResource, boolean>>;
   loadedResources?: Partial<Record<AppResource, boolean>>;
-  resourceVersions?: Record<AppResource, string>;
+  resourceVersions?: Record<AppResource, string> & { history?: string };
   historyDeferred?: boolean;
 };
 

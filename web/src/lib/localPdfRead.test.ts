@@ -34,7 +34,7 @@ describe('local PDF read', () => {
     vi.mocked(api.createImport).mockResolvedValue(view);
 
     const run = startLocalPdfRead(file);
-    expect(localPdfRead()).toMatchObject({ status: 'reading', progress: { detail: 'Page 1 of 2', percent: 50 } });
+    await vi.waitFor(() => expect(localPdfRead()).toMatchObject({ status: 'reading', progress: { detail: 'Page 1 of 2', percent: 50 } }));
     // A second choice while one is being read does not start another.
     await startLocalPdfRead(file);
     expect(extractPdfText).toHaveBeenCalledTimes(1);

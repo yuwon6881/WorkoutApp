@@ -50,7 +50,7 @@ export function WorkoutActiveExercise({
   onRestore,
   onRemoveExercise,
   onCatalogChanged,
-  focused = false
+  onCatalogNeeded
 }: {
   exercise: SessionExercise;
   index: number;
@@ -64,12 +64,17 @@ export function WorkoutActiveExercise({
   onRestore?: (sessionExerciseId: string) => Promise<void>;
   onRemoveExercise: (index: number) => void;
   onCatalogChanged?: () => void | Promise<void>;
-  /** One exercise is on screen with freely editable set rows. */
-  focused?: boolean;
+  onCatalogNeeded?: () => Promise<void>;
 }) {
   const trackRir = useTrackRir();
   const [swapOpen, setSwapOpen] = useState(false);
   const [weightsOpen, setWeightsOpen] = useState(false);
+  const [catalogError, setCatalogError] = useState('');
+  const [focusedLoads, setFocusedLoads] = useState<Pick<Exercise, 'loadStepKg' | 'availableLoadsKg'> | null>(null);
+  const loadCatalog = () => {
+    setCatalogError('');
+    void onCatalogNeeded?.().catch(failure => setCatalogError(failure instanceof Error ? failure.message : 'Exercises could not be loaded.'));
+  };
   const [candidates, setCandidates] = useState<SubstitutionCandidate[]>([]);
   const [showTargets, setShowTargets] = useState(false);
   const [showNote, setShowNote] = useState(true);
@@ -115,6 +120,7 @@ export function WorkoutActiveExercise({
 
   useEffect(() => {
     if (!swapOpen) return;
+    loadCatalog();
     let alive = true;
     void api
       .substitutionCandidates({
@@ -137,6 +143,16 @@ export function WorkoutActiveExercise({
   const workingSets = exercise.sets.filter(s => !s.warmup);
   const hasCompletedSets = exercise.sets.some(s => s.done);
   const libraryExercise = exercises.find(item => item.id === exercise.exerciseId);
+  useEffect(() => {
+    setFocusedLoads(null);
+    if (libraryExercise || !exercise.exerciseId || !loadAdjustable(exercise)) return;
+    const controller = new AbortController();
+    void api.exerciseLoadSettings(exercise.exerciseId, unit, controller.signal).then(settings => {
+      if (!controller.signal.aborted) setFocusedLoads(settings);
+    }).catch(() => { /* Explicit load entry and durable offline logging remain available. */ });
+    return () => controller.abort();
+  }, [exercise.exerciseId, exercise.loadModel, libraryExercise, unit]);
+  const resolvedLoads = libraryExercise ?? focusedLoads;
   const nextUnloggedWorkingIndex = workingSets.findIndex(s => !s.done);
   const currentSetDisplay =
     nextUnloggedWorkingIndex >= 0
@@ -156,7 +172,7 @@ export function WorkoutActiveExercise({
   ) : null;
 
   return (
-    <section className={`workout-active-exercise ${focused ? 'workout-focused' : ''} ${exercise.isReplacement ? 'swap-continuation' : ''}`}>
+    <section className={`workout-active-exercise ${exercise.isReplacement ? 'swap-continuation' : ''}`}>
       <div className="workout-active-header">
         <div className="workout-active-title-group">
           <h2>
@@ -236,7 +252,7 @@ export function WorkoutActiveExercise({
         )}
 
         <MenuButton label={`Actions for ${exercise.name}`} variant="tertiary" portal>
-          {libraryExercise && loadAdjustable(libraryExercise) && <MenuItem onClick={() => setWeightsOpen(true)}>
+          {exercise.exerciseId && loadAdjustable(exercise) && <MenuItem onClick={() => { setWeightsOpen(true); loadCatalog(); }}>
             <Weight size={15} /> Weight settings
           </MenuItem>}
           <MenuItem destructive onClick={() => setConfirmRemove(true)}>
@@ -294,8 +310,8 @@ export function WorkoutActiveExercise({
                 exercise={exercise}
                 plan={plan}
                 unit={unit}
-                loadStepKg={libraryExercise?.loadStepKg}
-                availableLoadsKg={libraryExercise?.availableLoadsKg}
+                loadStepKg={resolvedLoads?.loadStepKg}
+                availableLoadsKg={resolvedLoads?.availableLoadsKg}
                 editSet={editSet}
                 toggle={toggle}
                 onRemoveSet={sidx => removeSet(sidx)}
@@ -364,11 +380,14 @@ export function WorkoutActiveExercise({
         </Modal>
       )}
 
-      {weightsOpen && libraryExercise && (
+      {weightsOpen && (
         <Modal title={`${exercise.name} weights`} onClose={closeWeights}>
           <div className="modal-body">
-            <ExerciseLoadSettings exerciseId={libraryExercise.id} exerciseName={exercise.name} unit={unit} editor
-              perSide={canEnterPerSide(libraryExercise)} onClose={closeWeights} onChanged={onCatalogChanged} />
+            {libraryExercise ? <ExerciseLoadSettings exerciseId={libraryExercise.id} exerciseName={exercise.name} unit={unit} editor
+              perSide={canEnterPerSide(libraryExercise)} onClose={closeWeights} onChanged={onCatalogChanged} /> : <div role="status">
+              <p>{catalogError || 'Loading weight settings…'}</p>
+              {catalogError && <Button variant="secondary" onClick={loadCatalog}>Retry</Button>}
+            </div>}
           </div>
         </Modal>
       )}
@@ -376,6 +395,7 @@ export function WorkoutActiveExercise({
       {swapOpen && (
         <Modal title={`Swap ${exercise.name}`} onClose={() => setSwapOpen(false)}>
           <div className="modal-body">
+            {catalogError && <div role="status"><p>{catalogError}</p><Button variant="secondary" onClick={loadCatalog}>Retry exercises</Button></div>}
             <p className="source">
               Prescribed sets, reps, and targets stay with the slot. Swapping is only available before any sets are completed.
             </p>

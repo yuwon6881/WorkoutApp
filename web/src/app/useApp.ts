@@ -1,4 +1,4 @@
-import {resetGoogleHealthState} from '../lib/googleHealth';
+import {resetGoogleHealthState} from '../lib/googleHealthAccount';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ApiError, api } from '../lib/api';
 import { sharedReads } from '../lib/readCoordinator';
@@ -20,7 +20,7 @@ export type AppState = {
   recovery: WorkoutRecoveryRecord | null;
   devicePreferences: DevicePreferences;
   reload: () => Promise<void>;
-  ensureResources: (resources: AppResource[]) => Promise<void>;
+  ensureResources: (resources: AppResource[], throwOnError?: boolean) => Promise<void>;
   resourceError: string;
   queue: SaveQueue;
   setData: (update: (current: Bootstrap) => Bootstrap) => void;
@@ -77,13 +77,28 @@ export function useApp(): AppState {
     resourcesInFlight.current.clear();
     setLoading(true);
     if (!queue.unsaved) queue.set('connecting');
+    let validatedAccountId: string | null | undefined;
+    const cachedRecovery = (currentData.current ? Promise.resolve(null) : getLastRecovery()).then(async local => {
+      if (!local) return;
+      const preferences = await loadDevicePreferences(local.accountId);
+      if (epoch !== loadEpoch.current || currentData.current || workoutVersion.current !== workoutAtStart
+          || validatedAccountId !== undefined && validatedAccountId !== local.accountId) return;
+      setDevicePreferencesState(preferences);
+      setRecovery(local);
+    }).catch(() => undefined);
     try {
-      const [previousAccountId, shell] = await Promise.all([getLastAccountId().catch(() => null), api.shell()]);
+      const [previousAccountId, shell] = await Promise.all([getLastAccountId().catch(() => null), api.launch()]);
       if (epoch !== loadEpoch.current) return;
+      validatedAccountId = shell.account.id;
       const next: Bootstrap = { ...shell, exercises: [], templates: [], programs: [],
         history: { total: 0, page: 0, size: 20, sessions: [] }, resources: {}, historyDeferred: true };
       const previous = currentData.current;
+      if (previousAccountId && previousAccountId !== next.account.id) setRecovery(null);
       if (previous?.account.id === next.account.id) {
+        if (previous.resourceVersions?.history && previous.resourceVersions.history === next.resourceVersions?.history) {
+          next.history = previous.history;
+          next.progress = previous.progress;
+        }
         next.exercises = previous.exercises; next.programs = previous.programs; next.templates = previous.templates;
         next.loadedResources = Object.fromEntries((['catalog', 'programs', 'templates'] as const)
           .map(resource => [resource, previous.resources?.[resource] || previous.loadedResources?.[resource]]));
@@ -100,6 +115,7 @@ export function useApp(): AppState {
       const deviceId = getWorkoutPushDeviceId();
       await retireWorkoutPushAfterAccountSwitch(previousAccountId, next.account.id, deviceId,
         deviceId ? () => api.unregisterRestAlertDevice(deviceId) : undefined, deleteWorkoutPushToken);
+      await cachedRecovery;
       let local: WorkoutRecoveryRecord | null = null;
       try {
         await setLastAccount(next.account.id);
@@ -134,7 +150,7 @@ export function useApp(): AppState {
           await startRecovery({
             accountId: next.account.id, displayName: next.account.displayName, sessionId: next.activeWorkout.id,
             draft: next.activeWorkout, serverSession: next.activeWorkout, preferences: next.preferences,
-            activeIndex: 0, viewMode: 'focus'
+            activeIndex: 0
           });
           local = await getRecovery(next.account.id);
         } catch { local = null; /* storage failure must not block online training */ }
@@ -155,7 +171,7 @@ export function useApp(): AppState {
     } catch (failure) {
       if (epoch !== loadEpoch.current) return;
       const problem = failure instanceof ApiError ? failure : new ApiError('Could not load your training.', -1);
-      if (problem.signedOut) { resetGoogleHealthState(); await setLastAccount(null).catch(() => undefined); setRecovery(null); setSignedOut(true); setData(null); setError(''); queue.set('signed-out'); }
+      if (problem.signedOut) { validatedAccountId = null; resetGoogleHealthState(); await setLastAccount(null).catch(() => undefined); setRecovery(null); setSignedOut(true); setData(null); setError(''); queue.set('signed-out'); }
       else {
         setError(problem.message);
         if (problem.offline) {
@@ -177,7 +193,7 @@ export function useApp(): AppState {
     return flight;
   }, [load]);
 
-  const ensureResources = useCallback(async (requested: AppResource[]) => {
+  const ensureResources = useCallback(async (requested: AppResource[], throwOnError = false) => {
     const accountId = currentData.current?.account.id;
     const epoch = loadEpoch.current;
     if (!accountId) return;
@@ -200,6 +216,7 @@ export function useApp(): AppState {
       }));
     } catch (failure) {
       if (epoch === loadEpoch.current) setResourceError(failure instanceof Error ? failure.message : 'This view could not be loaded.');
+      if (throwOnError) throw failure;
     }
   }, []);
 

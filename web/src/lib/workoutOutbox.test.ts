@@ -46,7 +46,7 @@ describe('durable workout operation replay', () => {
     mocks.record = {
       schemaVersion: 1, accountId: 'account-1', displayName: 'User', sessionId: session.id,
       draft: session, serverSession: session, preferences: { unit: 'kg', theme: 'dark', restAlerts: false },
-      activeIndex: 0, viewMode: 'focus', conflict: false,
+      activeIndex: 0, conflict: false,
       operations: [{ id: 'mutation-1', type: 'setPatch', setId: 'set-1', patch: { done: true }, revision: null, createdAt: '2026-09-21T08:01:00.000Z' }]
     };
   });

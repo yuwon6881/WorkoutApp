@@ -24,7 +24,6 @@ export type WorkoutRecoveryRecord = {
   serverSession: Session;
   preferences: Preferences;
   activeIndex: number;
-  viewMode: 'focus' | 'all';
   operations: WorkoutOperation[];
   conflict: boolean;
   updatedAt: string;
@@ -115,13 +114,12 @@ export async function reconcileDirectTiming(accountId: string, serverSession: Se
   });
 }
 
-export async function enqueueSave(accountId: string, draft: Session, navigation: { activeIndex: number; viewMode: 'focus' | 'all' }): Promise<WorkoutRecoveryRecord> {
+export async function enqueueSave(accountId: string, draft: Session, navigation: { activeIndex: number }): Promise<WorkoutRecoveryRecord> {
   return serializeWrite(accountId, async () => {
     const record = await requireRecovery(accountId, draft.id);
     if (record.conflict) throw new Error('This workout changed on the server. Review both versions before saving.');
     record.draft = draft;
     record.activeIndex = navigation.activeIndex;
-    record.viewMode = navigation.viewMode;
     record.updatedAt = new Date().toISOString();
     record.conflict = false;
     const tail = record.operations.at(-1);
@@ -135,7 +133,7 @@ export async function enqueueSave(accountId: string, draft: Session, navigation:
 export async function enqueueSetEdits(
   accountId: string,
   draft: Session,
-  navigation: { activeIndex: number; viewMode: 'focus' | 'all' },
+  navigation: { activeIndex: number },
   restMutation?: RestMutationInput | null,
   restState?: SessionRest | null
 ): Promise<WorkoutRecoveryRecord> {
@@ -144,7 +142,6 @@ export async function enqueueSetEdits(
     if (record.conflict) throw new Error('This workout changed on the server. Review both versions before saving.');
     record.draft = draft;
     record.activeIndex = navigation.activeIndex;
-    record.viewMode = navigation.viewMode;
     record.updatedAt = new Date().toISOString();
     record.conflict = false;
     if (restState !== undefined) record.rest = restState;
@@ -219,23 +216,21 @@ export async function enqueueRest(
   });
 }
 
-export async function persistDraftOnly(accountId: string, draft: Session, navigation: { activeIndex: number; viewMode: 'focus' | 'all' }): Promise<WorkoutRecoveryRecord> {
+export async function persistDraftOnly(accountId: string, draft: Session, navigation: { activeIndex: number }): Promise<WorkoutRecoveryRecord> {
   return serializeWrite(accountId, async () => {
     const record = await requireRecovery(accountId, draft.id);
     record.draft = draft;
     record.activeIndex = navigation.activeIndex;
-    record.viewMode = navigation.viewMode;
     record.updatedAt = new Date().toISOString();
     await putRecord(record);
     return record;
   });
 }
 
-export async function saveNavigation(accountId: string, sessionId: string, navigation: { activeIndex: number; viewMode: 'focus' | 'all' }): Promise<void> {
+export async function saveNavigation(accountId: string, sessionId: string, navigation: { activeIndex: number }): Promise<void> {
   await serializeWrite(accountId, async () => {
     const record = await requireRecovery(accountId, sessionId);
     record.activeIndex = navigation.activeIndex;
-    record.viewMode = navigation.viewMode;
     record.updatedAt = new Date().toISOString();
     await putRecord(record);
   });

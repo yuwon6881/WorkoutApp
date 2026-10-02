@@ -10,6 +10,7 @@ import { useTabNavigation } from './app/useTabNavigation';
 import { useSaveIndicator } from './app/useSaveIndicator';
 import { useKeyboardInset } from './app/useKeyboardInset';
 import { nextWorkout } from './lib/nextWorkout';
+import { acknowledgeTemplate } from './lib/templateAcknowledgement';
 import { useAppUpdate } from './app/useAppUpdate';
 import { usePullToRefresh } from './app/usePullToRefresh';
 import { useWindowTier } from './lib/breakpoints';
@@ -21,18 +22,15 @@ import {CardFeedback} from './components/ui/CardFeedback';
 import {ConnectionRecovery} from './components/ui/ConnectionRecovery';
 import { MotionScene, SelectionIndicator } from './components/ui/Motion';
 import './components/BottomNav.css';
-import { Dashboard } from './components/Dashboard';
-import { ImportProgressPill } from './components/ImportProgressPill';
-import { useImportWatch } from './components/useImportWatch';
-import { resetLocalPdfRead } from './lib/localPdfRead';
 import { AppLoading } from './components/AppLoading';
 import { ViewSkeleton } from './components/ViewSkeleton';
-import { Auth, ExerciseDetailModal, ExerciseLibrary, ImportReview, MuscleBalanceView, Programs, SessionDetail, SettingsView, StartPreview, Workout, prefetchView, prefetchViews } from './app/lazyViews';
+import { Auth, Dashboard, ExerciseDetailModal, ExerciseLibrary, ImportReview, MuscleBalanceView, Programs, SessionDetail, SettingsView, StartPreview, Workout, prefetchView } from './app/lazyViews';
 import { ResumeWorkoutButton } from './components/ResumeWorkoutButton';
-import { InstallAppCard } from './components/InstallAppCard';
 import { TrackRirContext, tracksRir } from './lib/trackRir';
 import {applyTheme, forgetTheme, initialTheme, rememberTheme} from './lib/theme';
 const AiAssistantPanel = lazy(() => import('./components/AiAssistantPanel').then(module => ({ default: module.AiAssistantPanel })));
+const ImportWatchBridge = lazy(() => import('./components/ImportWatchBridge').then(module => ({ default: module.ImportWatchBridge })));
+const InstallAppCard = lazy(() => import('./components/InstallAppCard').then(module => ({ default: module.InstallAppCard })));
 import type { AiUiAction } from './lib/api/ai';
 import type { AiInvocationRequest } from './components/useAiConversation';
 
@@ -51,16 +49,15 @@ export default function App() {
   const { data, status, loading, signedOut, online } = app;
   const { tab, setTab } = useTabNavigation();
   useKeyboardInset();
+  useEffect(() => prefetchView('overview'), []);
   useEffect(() => installNativeShell(), []);
   const appUpdate = useAppUpdate();
   // Offline has its own banner, so the top bar only reports saves while connected.
   const saveIndicator = useSaveIndicator(status);
-  // Once the first screen has data, the other views' code is fetched while the app is idle.
-  useEffect(() => { if (data) return prefetchViews(); }, [Boolean(data)]);
   const showSaveStatus = online && saveIndicator !== 'hidden';
   const [training, setTraining] = useState(false);
   const neededResources: AppResource[] = tab === 'program' ? ['catalog', 'programs', 'templates']
-    : tab === 'exercises' || tab === 'import' || training ? ['catalog'] : [];
+    : tab === 'exercises' || tab === 'import' ? ['catalog'] : [];
   const resourcesReady = neededResources.every(resource => (data?.resources?.[resource] || data?.loadedResources?.[resource]));
   useEffect(() => {
     if (data && neededResources.some(resource => !data.resources?.[resource])) void app.ensureResources(neededResources);
@@ -86,13 +83,7 @@ export default function App() {
   const workoutSession = recoverySession && (reviewRecovery || !hasServerWorkout || data?.activeWorkout?.id === recoverySession.id)
     ? recoverySession : data?.activeWorkout ?? null;
   const importBlocked = Boolean(workoutSession?.active);
-  const importWatch = useImportWatch({
-    imports: data?.imports ?? [],
-    active: tab !== 'import',
-    onFinished: app.reload,
-    onLocalFailure: setToast
-  });
-  useEffect(() => { if (signedOut) resetLocalPdfRead(); }, [signedOut]);
+  useEffect(() => { if (signedOut) void import('./lib/localPdfRead').then(module => module.resetLocalPdfRead()); }, [signedOut]);
 
   useEffect(() => {
     const saved = data?.preferences.theme;
@@ -152,11 +143,11 @@ export default function App() {
 
   if (signedOut) return <Suspense fallback={<AppLoading />}><Auth /></Suspense>;
 
-  if (loading && !data) return <AppLoading />;
+  if (loading && !data && !recovery) return <AppLoading />;
 
   if (!data && recovery) return <div className="app-shell recovery-shell">
     <main className="recovery-main">
-      <div className="error-banner" role="status"><WifiOff size={17} />Offline recovery. This is the active workout previously saved on this device. Changes stay here until you reconnect and the server can confirm them.</div>
+      <div className="error-banner" role="status"><WifiOff size={17} />{loading ? 'Checking your connection. Your saved workout is available; changes stay on this device until your account is confirmed.' : 'Offline recovery. This is the active workout previously saved on this device. Changes stay here until you reconnect and the server can confirm them.'}</div>
       {training && workoutSession ? <Suspense fallback={<div className="panel recovery-card" role="status">Opening your saved workout…</div>}><Workout session={workoutSession} accountId={recovery.accountId} preferences={recovery.preferences}
         exercises={[]} queue={app.queue} online={false} recovery={recovery} onRecoveryChange={app.setRecovery}
         onSaved={() => undefined} onClose={() => setTraining(false)}
@@ -219,7 +210,7 @@ export default function App() {
       try {
         await startRecovery({
           accountId: currentData.account.id, displayName: currentData.account.displayName, sessionId: session.id,
-          draft: session, serverSession: session, preferences: currentData.preferences, activeIndex: 0, viewMode: 'focus'
+          draft: session, serverSession: session, preferences: currentData.preferences, activeIndex: 0
         });
         initialRecovery = await getRecovery(currentData.account.id);
       } catch { /* online training can proceed while the UI reports that device recovery is unavailable */ }
@@ -342,7 +333,7 @@ export default function App() {
         </div>}
         {!online && <div className="error-banner" role="status"><WifiOff size={17} />Offline. Set logging, notes, pause, and finish are saved on this device; exercise-list changes and discard need a connection.<Button variant="tertiary" onClick={() => void app.reload()}><RefreshCw size={15} />Retry</Button></div>}
         {actionError && <CardFeedback title="Could not complete this action" message={actionError}/>}
-        {tab === 'overview' && <InstallAppCard />}
+        {tab === 'overview' && <Suspense fallback={null}><InstallAppCard /></Suspense>}
 
         {app.resourceError && <CardFeedback tone="warning" title="Could not load this view" message={app.resourceError}
           action={{label:'Retry',onClick:()=>void app.ensureResources(neededResources),disabled:loading}}/>}
@@ -352,7 +343,9 @@ export default function App() {
             onImport={openImport} onSession={setDetail} onResume={() => setTraining(true)} onChanged={app.reload}
             onExercise={id => { void openExercise(id); }} />}
         {!resourcesReady && <ViewSkeleton label={NAV.find(item => item.id === tab)?.label ?? 'Loading'} />}
-        {resourcesReady && tab === 'program' && <Programs data={data} exercises={data.exercises} onStart={start} onImport={openImport} onChanged={app.reload} />}
+        {resourcesReady && tab === 'program' && <Programs data={data} exercises={data.exercises} onStart={start} onImport={openImport} onChanged={app.reload}
+          onTemplateSaved={saved => app.setData(current => acknowledgeTemplate(current, saved.id, saved))}
+          onTemplateDeleted={id => app.setData(current => acknowledgeTemplate(current, id, null))} />}
         {resourcesReady && tab === 'import' && <ImportReview exercises={data.exercises} imports={data.imports}
           onBack={() => setTab('program')} onChanged={app.reload} notify={setToast} />}
         {tab === 'body' && <MuscleBalanceView timeZone={Intl.DateTimeFormat().resolvedOptions().timeZone} />}
@@ -390,12 +383,12 @@ export default function App() {
 
     {workoutSession?.active && !training && <ResumeWorkoutButton name={workoutSession.name} rest={restState} onResume={() => setTraining(true)} />}
 
-    {importWatch && !training && <ImportProgressPill progress={importWatch.progress}
-      withResume={Boolean(workoutSession?.active)} onOpen={openImport} />}
+    <Suspense fallback={null}><ImportWatchBridge imports={data.imports} active={tab !== 'import'} training={training}
+      withResume={Boolean(workoutSession?.active)} onOpen={openImport} onFinished={app.reload} onLocalFailure={setToast} /></Suspense>
 
     {training && workoutSession && <Suspense fallback={<div className="panel recovery-card" role="status">Opening your workout…</div>}><Workout session={workoutSession} accountId={data.account.id} preferences={recovery?.sessionId === workoutSession.id ? recovery.preferences : data.preferences}
-      exercises={data.exercises} queue={app.queue} online={online} recovery={recovery?.sessionId === workoutSession.id ? recovery : null} onRecoveryChange={record => { app.setRecovery(record); if (!record) setReviewRecovery(false); }}
-      onSaved={app.setActiveWorkout} onClose={() => setTraining(false)} advance={{ nextExercise: app.devicePreferences.autoAdvance, supersetPartner: app.devicePreferences.supersetAdvance }} onCatalogChanged={async () => { await app.reload(); }}
+      onCatalogNeeded={() => app.ensureResources(['catalog'], true)} exercises={data.exercises} queue={app.queue} online={online} recovery={recovery?.sessionId === workoutSession.id ? recovery : null} onRecoveryChange={record => { app.setRecovery(record); if (!record) setReviewRecovery(false); }}
+      onSaved={app.setActiveWorkout} onClose={() => setTraining(false)} advance={{ nextExercise: app.devicePreferences.autoAdvance, supersetPartner: app.devicePreferences.supersetAdvance }} onCatalogChanged={async () => { await app.reload(); await app.ensureResources(['catalog'], true); }}
       onFinish={async session => { app.queue.clear(); app.setActiveWorkout(null); setTraining(false); setDetail(session); setFinishedId(session.id); setToast('Workout saved.'); await app.reload(); }}
       onDiscard={async () => { app.queue.clear(); app.setActiveWorkout(null); setTraining(false); await app.reload(); }} /></Suspense>}
 

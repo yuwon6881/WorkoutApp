@@ -11,6 +11,7 @@ import kotlinx.coroutines.withContext
 class ApiFailure(val statusCode: Int, message: String) : Exception(message)
 
 class WorkoutApi(private val baseUrl: String, private val secureStore: SecureTokenStore) : WorkoutGateway {
+    private var integrationPending = false
     private val gson: Gson = GsonBuilder().serializeNulls().create()
 
     override suspend fun startPairing(): PairingStart {
@@ -51,6 +52,12 @@ class WorkoutApi(private val baseUrl: String, private val secureStore: SecureTok
         request<Unit>("/watch/session/revoke", "POST", JsonObject())
     }
 
+    override suspend fun flushPendingIntegration() {
+        if (!integrationPending) return
+        request<Unit>("/watch/integrations/google-health/sync-data", "POST", JsonObject())
+        integrationPending = false
+    }
+
     private suspend inline fun <reified T> request(
         path: String,
         method: String,
@@ -63,6 +70,7 @@ class WorkoutApi(private val baseUrl: String, private val secureStore: SecureTok
             readTimeout = 12_000
             useCaches = false
             setRequestProperty("Accept", "application/json")
+            if (path.endsWith("/finish")) setRequestProperty("X-Fitness-Integration-Dispatch", "deferred")
             if (pairingBootstrap) setRequestProperty("X-Workout-Wear-Client", "1")
             else secureStore.deviceToken().takeIf { secureStore.pendingPairing() == null || !path.endsWith("/status") }
                 ?.let { setRequestProperty(DEVICE_TOKEN_HEADER, it) }
@@ -87,6 +95,7 @@ class WorkoutApi(private val baseUrl: String, private val secureStore: SecureTok
                 val error = runCatching { gson.fromJson(responseText, ApiErrorBody::class.java)?.message }.getOrNull()
                 throw ApiFailure(status, error ?: "WorkoutApp could not complete that request.")
             }
+            if (connection.getHeaderField("X-Fitness-Integration-Pending") == "1") integrationPending = true
             if (T::class.java == Unit::class.java || responseText.isBlank()) Unit as T
             else gson.fromJson(responseText, T::class.java)
         } finally {

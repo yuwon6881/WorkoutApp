@@ -30,7 +30,7 @@ const legacyFailure: ImportView = {
 
 async function savedImports(page: Page, views: ImportView[]) {
   let imports = views;
-  await page.route('**/api/bootstrap/shell', async route => {
+  await page.route('**/api/bootstrap/launch', async route => {
     const response = await route.fetch();
     await route.fulfill({ response, json: { ...(await response.json()), imports } });
   });
@@ -147,7 +147,7 @@ test('a new PDF clears the selected old failure and shows only its own terminal 
 
 test('a stopped import explains what was doubted, where, and what to do next', async ({ page }, testInfo) => {
   // Imports arrive with the app's bootstrap; everything else in it stays the account's own.
-  await page.route('**/api/bootstrap/shell', async route => {
+  await page.route('**/api/bootstrap/launch', async route => {
     const response = await route.fetch();
     route.fulfill({ response, json: { ...(await response.json()), imports: [failedImport] } });
   });

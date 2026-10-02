@@ -87,6 +87,24 @@ public sealed class CentralAuthTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task One_account_limit_blocks_new_subjects_but_preserves_existing_sign_in()
+    {
+        var config = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            ["Auth:MaxUsers"] = "1"
+        }).Build();
+        var existing = await CentralAuthEndpoints.ProvisionOrGetUser(db, config, "owner", "Owner", default);
+        var denied = await Assert.ThrowsAsync<DomainException>(() =>
+            CentralAuthEndpoints.ProvisionOrGetUser(db, config, "another", "Another", default));
+        Assert.Equal(403, denied.Status);
+        Assert.Contains("Registration is closed", denied.Message);
+        var returning = await CentralAuthEndpoints.ProvisionOrGetUser(db, config, "owner", "Updated owner", default);
+        Assert.Equal(existing.Id, returning.Id);
+        Assert.Equal("Updated owner", returning.DisplayName);
+        Assert.Equal(1, await db.Users.CountAsync());
+    }
+
+    [Fact]
     public void Settings_throws_503_when_client_secret_is_placeholder_outside_development()
     {
         var config = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>

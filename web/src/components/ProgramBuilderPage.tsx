@@ -66,7 +66,7 @@ export function ProgramBuilderPage({ initialDraft, exercises, onBack, onCreated 
     setCreating(true);
     try {
       await api.createProgramFromEditor(draft, requestId.current);
-      await onCreated();
+      void onCreated();
       onBack();
     } catch (failure) {
       setValidationError(failure instanceof ApiError ? failure.message : 'Could not create this program.');

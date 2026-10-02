@@ -1,4 +1,4 @@
-import { Check, ChevronDown, Cloud, CloudOff, LayoutGrid, Maximize2, Pause, Play, Trash2 } from 'lucide-react';
+import { Check, ChevronDown, Cloud, CloudOff, Pause, Play, Trash2 } from 'lucide-react';
 import type { Session } from '../types';
 import { WorkoutElapsed } from './WorkoutElapsed';
 import { shortSyncStatus } from '../lib/workoutSyncStatus';
@@ -14,7 +14,6 @@ export function WorkoutTopBar({
   finishedAt,
   done,
   planned,
-  viewMode,
   paused,
   pauseDisabled,
   syncMessage,
@@ -22,7 +21,6 @@ export function WorkoutTopBar({
   discardDisabled,
   onClose,
   onTogglePause,
-  onToggleViewMode,
   onDiscard
 }: {
   name: string;
@@ -30,7 +28,6 @@ export function WorkoutTopBar({
   finishedAt: string | null;
   done: number;
   planned: number;
-  viewMode: 'focus' | 'all';
   paused: boolean;
   pauseDisabled: boolean;
   syncMessage: string;
@@ -38,7 +35,6 @@ export function WorkoutTopBar({
   discardDisabled: boolean;
   onClose: () => void;
   onTogglePause: () => void;
-  onToggleViewMode: () => void;
   onDiscard: () => void;
 }) {
   const sync = shortSyncStatus(syncMessage, online);
@@ -82,10 +78,6 @@ export function WorkoutTopBar({
           {paused ? <Play size={18} /> : <Pause size={18} />}
         </Button>
         <MenuButton label="Workout options" triggerClassName="workout-top-icon" portal>
-          <MenuItem onClick={onToggleViewMode}>
-            {viewMode === 'focus' ? <LayoutGrid size={16} /> : <Maximize2 size={16} />}
-            {viewMode === 'focus' ? 'View all exercises' : 'Focus on active exercise'}
-          </MenuItem>
           <MenuItem destructive disabled={discardDisabled} onClick={onDiscard}>
             <Trash2 size={16} />
             Discard workout

@@ -14,6 +14,7 @@ import { CustomExerciseModal } from './CustomExerciseModal';
 import { getExerciseCategory } from '../lib/exerciseCategory';
 import { ChipScroller } from './ui/ChipScroller';
 import './Exercises.css';
+import './RenderWindow.css';
 
 /// The catalog is supplied by the server and is empty until a seed file is loaded, so the
 /// empty state explains that rather than implying the user should have added something.
@@ -113,7 +114,7 @@ export function ExerciseLibrary({ exercises, onSelect, exclude = emptyIds, onOpe
             <h4 className="category-group-title">{cat}</h4>
             <span className="tiny-label category-group-count">{catItems.length}</span>
           </div>
-          <div className={onSelect ? 'picker-list' : 'exercise-grid'}>
+          <div className={`${onSelect ? 'picker-list' : 'exercise-grid'}${items.length > 100 ? ' render-windowed' : ''}`}>
             {catItems.map(e => (
               onSelect ? (
                 <article className="panel picker-card" key={e.id}>

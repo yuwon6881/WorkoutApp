@@ -400,8 +400,11 @@
 @keyframes celebration-in { from { opacity: 0; transform: translateY(6px); } }
 @media (prefers-reduced-motion: reduce) { .workout-celebration { animation: none; } }
 
-/* The focus view can be swiped sideways between exercises (ui/useHorizontalSwipe.ts). */
-.workout-focus-swipe { touch-action: pan-y; }
+/* Each exercise is a page; a sideways swipe anywhere on the workout turns it (ui/useHorizontalSwipe.ts).
+   The wrapper adds no box, so the pan rule sits on the regions it groups. */
+.workout-swipe-surface { display: contents; }
+.workout-swipe-surface > .workout-summary,
+.workout-swipe-surface > .workout-body { touch-action: pan-y; }
 
 /* Phones: the strip is an overview and a jump list, so it gives its height to the sets. */
 @media (max-width: 639px) {

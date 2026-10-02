@@ -185,7 +185,7 @@ for (const theme of ['dark', 'light']) {
     };
     await page.route('**/api/**', async route => {
       const pathname = new URL(route.request().url()).pathname;
-      if (pathname !== '/api/bootstrap/shell' && !pathname.startsWith('/api/workouts')) return route.continue();
+      if (pathname !== '/api/bootstrap/launch' && !pathname.startsWith('/api/workouts')) return route.continue();
       const response = await route.fetch();
       if (!response.ok || !response.headers()['content-type']?.includes('application/json'))
         return route.fulfill({ response });
@@ -193,7 +193,7 @@ for (const theme of ['dark', 'light']) {
       const headers = { ...response.headers() };
       delete headers['content-length'];
       delete headers['content-encoding'];
-      if (pathname === '/api/bootstrap/shell') {
+      if (pathname === '/api/bootstrap/launch') {
         if (typeof payload.activeWorkout === 'object' && payload.activeWorkout !== null)
           payload.activeWorkout = applySummaryFixture(payload.activeWorkout as Record<string, unknown>);
         return route.fulfill({ status: response.status(), headers, json: payload });
@@ -203,7 +203,7 @@ for (const theme of ['dark', 'light']) {
     await page.reload();
     await navigate(page, 'Settings');
     await page.getByRole('group', { name: 'Appearance' })
-      .getByRole('button', { name: theme === 'dark' ? 'Ayu dark' : 'Ayu light' }).click();
+      .getByRole('button', { name: theme === 'dark' ? 'Dark' : 'Light' }).click();
     await navigate(page, 'Workouts');
     await page.evaluate(async () => {
       const response = await fetch('/api/workouts', {
@@ -285,7 +285,7 @@ for (const theme of ['dark', 'light']) {
     await navigate(page, 'Settings');
     await expect(page.locator('.nav-label, .breadcrumb, .profile, .page-footer')).toHaveCount(0);
     await page.getByRole('group', { name: 'Appearance' })
-      .getByRole('button', { name: theme === 'dark' ? 'Ayu dark' : 'Ayu light' }).click();
+      .getByRole('button', { name: theme === 'dark' ? 'Dark' : 'Light' }).click();
     await expect(page.locator('html')).toHaveAttribute('data-theme', theme);
     await expect(page).toHaveTitle('Workout');
     await expect(page.locator('body')).not.toContainText(/repwise/i);
@@ -531,7 +531,7 @@ for (const theme of ['dark', 'light'] as const) {
     });
     await signIn(page);
     await navigate(page, 'Settings');
-    await page.getByRole('group', { name: 'Appearance' }).getByRole('button', { name: theme === 'dark' ? 'Ayu dark' : 'Ayu light' }).click();
+    await page.getByRole('group', { name: 'Appearance' }).getByRole('button', { name: theme === 'dark' ? 'Dark' : 'Light' }).click();
     await navigate(page, 'Overview');
     const history = page.getByRole('region', { name: 'Workout history' });
     await expect(history.locator('.history-row').first()).toBeVisible();

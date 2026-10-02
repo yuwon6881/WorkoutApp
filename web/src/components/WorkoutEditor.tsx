@@ -14,11 +14,12 @@ import { useHorizontalSwipe } from './ui/useHorizontalSwipe';
 type SetChange = { setId: string; patch: Partial<LoggedSet> };
 
 export function WorkoutEditor({
-  draft, unit, exercises, activeIndex, viewMode, paused, finishIntentAt, recoveryConflict, online,
+  draft, unit, exercises, activeIndex, paused, finishIntentAt, recoveryConflict, online,
   picker, onPicker, onAddExercise, onChange, onEditSet, onToggleSet, onSelectExercise,
-  onSwap, onRestore, onRemoveExercise, onCatalogChanged
+  onSwap, onRestore, onRemoveExercise, onCatalogChanged,
+  onCatalogNeeded
 }: {
-  draft: Session; unit: Unit; exercises: Exercise[]; activeIndex: number; viewMode: 'focus' | 'all'; online: boolean;
+  draft: Session; unit: Unit; exercises: Exercise[]; activeIndex: number; online: boolean;
   paused: boolean; finishIntentAt: string | null; recoveryConflict: boolean;
   picker: boolean; onPicker: (open: boolean) => void; onAddExercise: () => void; onChange: (next: Session, setChange?: SetChange) => void;
   onEditSet: (exerciseIndex: number, setIndex: number, patch: Partial<LoggedSet>) => void;
@@ -26,12 +27,14 @@ export function WorkoutEditor({
   onSwap: (sessionExerciseId: string, replacementExerciseId: string | null, replacementName: string) => Promise<void>;
   onRestore: (sessionExerciseId: string) => Promise<void>; onRemoveExercise: (index: number) => void;
   onCatalogChanged?: () => void | Promise<void>;
+  onCatalogNeeded?: () => Promise<void>;
 }) {
   const currentExercise = draft.exercises[activeIndex] ?? draft.exercises[0];
   const currentIndex = currentExercise ? draft.exercises.indexOf(currentExercise) : -1;
-  // In the focus view a sideways swipe moves between exercises, like pages.
+  const showingExercise = !recoveryConflict && !finishIntentAt && !paused && Boolean(currentExercise);
+  // One exercise is a page: a sideways swipe anywhere on the workout moves to the neighbouring one.
   const swipe = useHorizontalSwipe({
-    enabled: viewMode === 'focus' && draft.exercises.length > 1,
+    enabled: showingExercise && draft.exercises.length > 1,
     onPrevious: () => { if (currentIndex > 0) onSelectExercise(currentIndex - 1); },
     onNext: () => { if (currentIndex >= 0 && currentIndex < draft.exercises.length - 1) onSelectExercise(currentIndex + 1); }
   });
@@ -41,7 +44,7 @@ export function WorkoutEditor({
   const withBodyweightKg = draft.systemVolumeKg ?? null;
   const progression = getProgressionSummary(draft);
 
-  return <>
+  return <div className="workout-swipe-surface" {...swipe}>
     {(liftedKg > 0 || draft.bodyWeight || draft.nutritionContext?.cached || progression) && <div className="workout-summary">
       {liftedKg > 0 && <span title="Load lifted in completed working sets"><Dumbbell size={15} aria-hidden="true" />{showVolume(liftedKg, unit)} lifted</span>}
       {withBodyweightKg !== null && withBodyweightKg > liftedKg && <span title="Including your bodyweight on bodyweight movements">{showVolume(withBodyweightKg, unit)} with bodyweight</span>}
@@ -56,19 +59,13 @@ export function WorkoutEditor({
     <WorkoutExerciseStrip exercises={draft.exercises} activeIndex={activeIndex} onSelect={onSelectExercise} onAdd={onAddExercise} />
 
     <div className="modal-body workout-body">
-      {recoveryConflict ? <div className="empty-message"><h3>Review the saved versions</h3><p>Choose the server workout or apply this device’s copy after considering the changes.</p></div> : finishIntentAt ? <div className="empty-message"><h3>Workout finished</h3><p>Your completion time and workout are saved on this device. They will sync when the server is reachable.</p></div> : paused ? <div className="empty-message"><h3>Workout paused</h3><p>Your active duration and rest timer are paused. Resume when you are ready.</p></div> : viewMode === 'focus' ? (
-        currentExercise ? <div className="workout-focus-swipe" {...swipe}><WorkoutActiveExercise key={currentExercise.id} focused exercise={currentExercise} index={currentIndex}
+      {recoveryConflict ? <div className="empty-message"><h3>Review the saved versions</h3><p>Choose the server workout or apply this device’s copy after considering the changes.</p></div> : finishIntentAt ? <div className="empty-message"><h3>Workout finished</h3><p>Your completion time and workout are saved on this device. They will sync when the server is reachable.</p></div> : paused ? <div className="empty-message"><h3>Workout paused</h3><p>Your active duration and rest timer are paused. Resume when you are ready.</p></div> : currentExercise ? (
+        <WorkoutActiveExercise key={currentExercise.id} exercise={currentExercise} index={currentIndex}
           unit={unit} draft={draft} exercises={exercises} change={onChange} editSet={onEditSet} toggle={onToggleSet}
-          onSwap={onSwap} onRestore={onRestore} onRemoveExercise={onRemoveExercise} onCatalogChanged={onCatalogChanged} /></div> :
-          <div className="empty-message"><Dumbbell size={30} /><h3>No exercises in this workout</h3>
-            <Button variant="primary" disabled={!online || paused || Boolean(finishIntentAt)} onClick={() => onPicker(true)}><Plus size={16} />Add an exercise</Button>
-          </div>
+          onSwap={onSwap} onRestore={onRestore} onRemoveExercise={onRemoveExercise} onCatalogChanged={onCatalogChanged} onCatalogNeeded={onCatalogNeeded} />
       ) : (
-        <div className="workout-all-exercises-list">
-          {draft.exercises.map((exercise, index) => <WorkoutActiveExercise key={exercise.id} exercise={exercise} index={index}
-            unit={unit} draft={draft} exercises={exercises} change={onChange} editSet={onEditSet} toggle={onToggleSet}
-            onSwap={onSwap} onRestore={onRestore} onRemoveExercise={onRemoveExercise} onCatalogChanged={onCatalogChanged} />)}
-          <Button className="full-width" disabled={!online || paused || Boolean(finishIntentAt)} onClick={() => onPicker(true)}><Plus size={18} />Add exercise</Button>
+        <div className="empty-message"><Dumbbell size={30} /><h3>No exercises in this workout</h3>
+          <Button variant="primary" disabled={!online || paused || Boolean(finishIntentAt)} onClick={() => onPicker(true)}><Plus size={16} />Add an exercise</Button>
         </div>
       )}
 
@@ -94,5 +91,5 @@ export function WorkoutEditor({
         }} />
       </div>
     </Modal>}
-  </>;
+  </div>;
 }

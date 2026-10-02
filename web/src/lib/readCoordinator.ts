@@ -1,10 +1,12 @@
 type Read = { controller: AbortController; promise: Promise<unknown>; subscribers: number };
+type Waiting = { priority: number; signal: AbortSignal; start: () => void; cancel: () => void };
 
 /** Shares in-flight reads only. No training responses survive in this coordinator. */
 export class ReadCoordinator {
   private reads = new Map<string, Read>();
   private active = 0;
-  private waiting: Array<() => void> = [];
+  private optionalActive = 0;
+  private waiting: Waiting[] = [];
 
   constructor(private readonly concurrency = 3) {}
 
@@ -13,13 +15,13 @@ export class ReadCoordinator {
     this.reads.clear();
   }
 
-  run<T>(key: string, signal: AbortSignal | undefined, load: (signal: AbortSignal) => Promise<T>): Promise<T> {
+  run<T>(key: string, signal: AbortSignal | undefined, load: (signal: AbortSignal) => Promise<T>, priority = 1): Promise<T> {
     if (signal?.aborted) return Promise.reject(new DOMException('Read cancelled.', 'AbortError'));
     let read = this.reads.get(key);
     if (!read) {
       const controller = new AbortController();
       const next: Read = { controller, subscribers: 0, promise: Promise.resolve() };
-      next.promise = this.schedule(controller.signal, () => load(controller.signal)).finally(() => {
+      next.promise = this.schedule(controller.signal, () => load(controller.signal), priority).finally(() => {
         if (this.reads.get(key) === next) this.reads.delete(key);
       });
       read = next;
@@ -47,17 +49,40 @@ export class ReadCoordinator {
     });
   }
 
-  private async schedule<T>(signal: AbortSignal, load: () => Promise<T>): Promise<T> {
-    if (this.active >= this.concurrency) await new Promise<void>(resolve => this.waiting.push(resolve));
-    else this.active++;
+  private async schedule<T>(signal: AbortSignal, load: () => Promise<T>, priority: number): Promise<T> {
+    if (!this.canStart(priority)) await new Promise<void>((resolve, reject) => {
+      const waiting: Waiting = { priority, signal, start: () => { this.admit(priority); resolve(); }, cancel: () => {
+        this.waiting = this.waiting.filter(item => item !== waiting);
+        reject(new DOMException('Read cancelled.', 'AbortError'));
+      } };
+      this.waiting.push(waiting);
+      signal.addEventListener('abort', waiting.cancel, { once: true });
+    });
+    else this.admit(priority);
     try {
       if (signal.aborted) throw new DOMException('Read cancelled.', 'AbortError');
       return await load();
     } finally {
-      const next = this.waiting.shift();
-      if (next) next();
-      else this.active--;
+      this.active--;
+      if (priority >= 2) this.optionalActive--;
+      this.waiting.sort((left, right) => left.priority - right.priority);
+      // Reserve each admitted slot before its async continuation resumes.
+      const next = this.waiting.find(item => !item.signal.aborted && this.canStart(item.priority));
+      if (next) {
+        this.waiting = this.waiting.filter(item => item !== next);
+        next.signal.removeEventListener('abort', next.cancel);
+        next.start();
+      }
     }
+  }
+
+  private canStart(priority: number) {
+    return this.active < this.concurrency && (priority < 2 || this.optionalActive === 0);
+  }
+
+  private admit(priority: number) {
+    this.active++;
+    if (priority >= 2) this.optionalActive++;
   }
 }
 

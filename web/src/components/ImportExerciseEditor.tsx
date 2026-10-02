@@ -102,12 +102,21 @@ export function ExerciseEditor({ exercise: saved, exercises, allDayExercises, re
     setPickerOpen(false);
   };
 
+  // Edits are held in this card until Save, so the default is reached by restoring the saved row
+  // (when it differs) and dropping the held edits; otherwise they would keep masking the restore.
+  const savedRestorable = Boolean(canRestore && onRestore);
+  const restoreAvailable = savedRestorable || dirty;
   const handleRestore = async () => {
-    if (!onRestore || isRestoring) return;
+    if (isRestoring || isSaving) return;
+    if (!savedRestorable || !onRestore) {
+      discard();
+      return;
+    }
     setIsRestoring(true);
     setRestoreError(null);
     try {
       await onRestore();
+      discard();
     } catch (err) {
       setRestoreError(err instanceof Error ? err.message : 'Could not restore exercise.');
     } finally {
@@ -204,8 +213,8 @@ export function ExerciseEditor({ exercise: saved, exercises, allDayExercises, re
               <Link2 size={14} />
               <span>{isPaired ? `Superset options (Group ${currentGroup})` : 'Pair into superset'}</span>
             </MenuItem>
-            {canRestore && onRestore && (
-              <MenuItem disabled={isRestoring} onClick={() => void handleRestore()}>
+            {restoreAvailable && (
+              <MenuItem disabled={isRestoring || isSaving} onClick={() => void handleRestore()}>
                 <RotateCcw size={14} />
                 <span>Restore default</span>
               </MenuItem>

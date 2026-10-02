@@ -1,4 +1,5 @@
 import {fetchWithAvailabilityRecovery} from './availabilityRecovery';
+import { integrationGeneration, signalIntegrationPending } from './integrationDispatch';
 import type { ExerciseLoadSettings, LoadRule, LoadSettingsOverview } from './exerciseLoads';
 import type { PdfExtraction } from './pdfText';
 import { sharedReads } from './readCoordinator';
@@ -14,34 +15,56 @@ export class ApiError extends Error {
   get offline() { return this.status === 0; }
 }
 
-async function call<T>(path: string, method = 'GET', body?: unknown, signal?: AbortSignal, extraHeaders?: Record<string, string>): Promise<T> {
-  if (method === 'GET') return sharedReads.run(path, signal, sharedSignal => request<T>(path, method, body, sharedSignal, extraHeaders));
-  return request<T>(path, method, body, signal, extraHeaders);
+const requestTimeout = (path: string) => path.startsWith('/api/ai/') || path.startsWith('/api/imports') ? 120000 : path === '/api/integrations/google-health' ? 15000 : 20000;
+const readPriority = (path: string) => path.startsWith('/api/bootstrap') || path.startsWith('/api/auth/') ? 0
+  : path.startsWith('/api/integrations/') || path.startsWith('/api/notifications/') ? 2 : 1;
+
+async function coordinateRead<T>(key: string, path: string, signal: AbortSignal | undefined, load: (signal: AbortSignal) => Promise<T>): Promise<T> {
+  const deadline = new AbortController();
+  const timer = setTimeout(() => deadline.abort(new DOMException('The service is taking longer than expected. Try again shortly.', 'TimeoutError')), requestTimeout(path));
+  const combined = signal ? AbortSignal.any([signal, deadline.signal]) : deadline.signal;
+  try { return await sharedReads.run(key, combined, load, readPriority(path)); }
+  catch (error) {
+    if (deadline.signal.aborted && !signal?.aborted) throw new ApiError(deadline.signal.reason.message, 0);
+    throw error;
+  } finally { clearTimeout(timer); }
 }
 
-async function request<T>(path: string, method: string, body?: unknown, signal?: AbortSignal, extraHeaders?: Record<string, string>): Promise<T> {
+async function call<T>(path: string, method = 'GET', body?: unknown, signal?: AbortSignal, extraHeaders?: Record<string, string>): Promise<T> {
+  const load = async (sharedSignal?: AbortSignal) => (await requestWithMeta<T>(path, method, body, sharedSignal, extraHeaders)).data as T;
+  return method === 'GET' ? coordinateRead(path + ':' + JSON.stringify(extraHeaders ?? {}), path, signal, load) : load(signal);
+}
+
+async function callWithMeta<T>(path: string, method = 'GET', body?: unknown, signal?: AbortSignal,
+  extraHeaders?: Record<string, string>): Promise<{ data: T | null; notModified: boolean; etag: string | null }> {
+  const load = (sharedSignal?: AbortSignal) => requestWithMeta<T>(path, method, body, sharedSignal, extraHeaders);
+  return method === 'GET' ? coordinateRead(path + ':' + JSON.stringify(extraHeaders ?? {}), path, signal, load) : load(signal);
+}
+
+async function requestWithMeta<T>(path: string, method: string, body?: unknown, signal?: AbortSignal,
+  extraHeaders?: Record<string, string>): Promise<{ data: T | null; notModified: boolean; etag: string | null }> {
   let response: Response;
+  const integrationEpoch = integrationGeneration();
   try {
     response = await fetchWithAvailabilityRecovery(path, {
       method, signal, credentials: 'same-origin', cache: 'no-store',
       headers: {
-        // The custom header is what the server checks alongside Origin, so a cross-site form
-        // post cannot reach a mutating endpoint.
         'X-Workout-Request': '1',
-        ...(body instanceof FormData ? {} : body instanceof Uint8Array ? { 'Content-Type': 'application/octet-stream' } : body !== undefined ? { 'Content-Type': 'application/json' } : {})
-        , ...extraHeaders
+        ...(method === 'GET' ? {} : { 'X-Fitness-Integration-Dispatch': 'deferred' }),
+        ...(body instanceof FormData ? {} : body instanceof Uint8Array ? { 'Content-Type': 'application/octet-stream' } : body !== undefined ? { 'Content-Type': 'application/json' } : {}),
+        ...extraHeaders
       },
       body: body === undefined ? undefined : body instanceof FormData ? body : body instanceof Uint8Array ? body as BodyInit : JSON.stringify(body)
-    }, (method==='GET'&&['/api/bootstrap/shell','/api/bootstrap','/api/integrations/google-health'].includes(path))
-      || (method==='POST'&&path==='/api/integrations/google-health/sync-data'),
-    path==='/api/integrations/google-health'?15000:path.startsWith('/api/bootstrap')||path==='/api/integrations/google-health/sync-data'?20000:undefined);
+    }, method === 'GET' && (path.startsWith('/api/bootstrap') || path === '/api/integrations/google-health')
+      || method === 'POST' && path === '/api/integrations/google-health/sync-data', requestTimeout(path));
   } catch (error) {
     if (signal?.aborted) throw error;
     if (error instanceof DOMException && error.name === 'TimeoutError') throw new ApiError(error.message, 0);
     throw new ApiError('No connection to the server. Your workout needs a connection to save.', 0);
   }
-  if (response.status === 204) return undefined as T;
-  const text = await response.text();
+  const etag = response.headers.get('ETag');
+  if (response.status === 304) return { data: null, notModified: true, etag };
+  const text = response.status === 204 ? '' : await response.text();
   const payload = text ? safeParse(text, response.status) : null;
   if (!response.ok) {
     const raw = response.headers.get('Retry-After');
@@ -51,38 +74,8 @@ async function request<T>(path: string, method: string, body?: unknown, signal?:
       : Number.isFinite(date) ? Math.max(0, date - Date.now()) : 5000) : null;
     throw new ApiError(payload?.message ?? 'Something went wrong. Try again.', response.status, retryAfterMs);
   }
-  return payload as T;
-}
-
-async function callWithMeta<T>(path: string, method = 'GET', body?: unknown, signal?: AbortSignal,
-  extraHeaders?: Record<string, string>): Promise<{ data: T | null; notModified: boolean; etag: string | null }> {
-  if (method === 'GET') return sharedReads.run(path + ':' + (extraHeaders?.['If-None-Match'] ?? ''), signal,
-    sharedSignal => requestWithMeta<T>(path, method, body, sharedSignal, extraHeaders));
-  return requestWithMeta<T>(path, method, body, signal, extraHeaders);
-}
-
-async function requestWithMeta<T>(path: string, method: string, body?: unknown, signal?: AbortSignal,
-  extraHeaders?: Record<string, string>): Promise<{ data: T | null; notModified: boolean; etag: string | null }> {
-  let response: Response;
-  try {
-    response = await fetch(path, {
-      method, signal, credentials: 'same-origin', cache: 'no-store',
-      headers: {
-        'X-Workout-Request': '1',
-        ...(body instanceof FormData ? {} : body instanceof Uint8Array ? { 'Content-Type': 'application/octet-stream' } : body !== undefined ? { 'Content-Type': 'application/json' } : {}),
-        ...extraHeaders
-      },
-      body: body === undefined ? undefined : body instanceof FormData ? body : body instanceof Uint8Array ? body as BodyInit : JSON.stringify(body)
-    });
-  } catch {
-    throw new ApiError('No connection to the server. Your workout needs a connection to save.', 0);
-  }
-  const etag = response.headers.get('ETag');
-  if (response.status === 304) return { data: null, notModified: true, etag };
-  const text = await response.text();
-  const payload = text ? safeParse(text, response.status) : null;
-  if (!response.ok) throw new ApiError(payload?.message ?? 'Something went wrong. Try again.', response.status);
-  return { data: payload as T, notModified: false, etag };
+  if (response.headers.get('X-Fitness-Integration-Pending') === '1') signalIntegrationPending(integrationEpoch);
+  return { data: (response.status === 204 ? undefined : payload) as T, notModified: false, etag };
 }
 
 /// Posts JSON gzipped where the browser can compress a stream, and as plain JSON where it
@@ -101,6 +94,13 @@ function safeParse(text: string, status: number): { message?: string } & Record<
 }
 
 export const api = {
+  recentExerciseSets: async (id: string, signal?: AbortSignal): Promise<import('../types').RecentExerciseSession[]> => {
+    try { return await call(`/api/exercises/${encodeURIComponent(id)}/recent-sets?limit=3`, 'GET', undefined, signal); }
+    catch (error) {
+      if (!(error instanceof ApiError) || error.status !== 404) throw error;
+      return (await import('./readCompatibility')).recentSets(id, signal);
+    }
+  },
   logout: () => call<void>('/api/auth/logout', 'POST'),
 
   watchDevices: () => call<WatchDevice[]>('/api/watch/devices'),
@@ -109,6 +109,16 @@ export const api = {
 
   bootstrap: (signal?: AbortSignal) => call<Bootstrap>('/api/bootstrap', 'GET', undefined, signal),
   shell: (signal?: AbortSignal) => call<ShellBootstrap>('/api/bootstrap/shell', 'GET', undefined, signal),
+  launch: async (signal?: AbortSignal): Promise<ShellBootstrap> => {
+    let launch: ShellBootstrap;
+    try { launch = await call<ShellBootstrap>('/api/bootstrap/launch', 'GET', undefined, signal); }
+    catch (error) {
+      if (!(error instanceof ApiError) || error.status !== 404) throw error;
+      return api.shell(signal);
+    }
+    return { ...launch, activeProgram: launch.activeProgram ? { ...launch.activeProgram, days: [], completedTemplateIds: [] } : null,
+      imports: launch.imports.map(row => ({ ...row, draft: null, unresolved: [], acceptable: false, currentChunkLabel: null })) };
+  },
   exercises: (signal?: AbortSignal) => call<Exercise[]>('/api/exercises', 'GET', undefined, signal),
   historySummaries: (beforeAt?: string | null, beforeId?: string | null, signal?: AbortSignal) =>
     call<HistorySummaryPage>(`/api/history/summaries?size=20${beforeAt && beforeId ? `&beforeAt=${encodeURIComponent(beforeAt)}&beforeId=${encodeURIComponent(beforeId)}` : ''}`, 'GET', undefined, signal),

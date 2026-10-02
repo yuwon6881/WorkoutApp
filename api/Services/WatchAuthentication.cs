@@ -21,6 +21,7 @@ public static class WatchAuthentication
         var path = request.Path.Value ?? "";
         if (HttpMethods.IsGet(request.Method) && path is "/api/watch/active") return true;
         if (HttpMethods.IsPost(request.Method) && path is "/api/watch/session/revoke") return true;
+        if (HttpMethods.IsPost(request.Method) && path is "/api/watch/integrations/google-health/sync-data") return true;
 
         var segments = path.Split('/', StringSplitOptions.RemoveEmptyEntries);
         if (segments.Length == 4 && segments[0] == "api" && segments[1] == "watch" && segments[2] == "workouts" && Guid.TryParse(segments[3], out _))

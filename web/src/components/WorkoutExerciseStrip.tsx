@@ -36,7 +36,7 @@ export function WorkoutExerciseStrip({
   }, [activeIndex, reduced]);
 
   return (
-    <nav className="workout-exercise-strip-container" aria-label="Workout exercises">
+    <nav className="workout-exercise-strip-container" aria-label="Workout exercises" data-swipe-ignore="">
       <div className="workout-exercise-strip" role="tablist" ref={scrollerRef}>
         {exercises.map((exercise, index) => {
           const isSelected = index === activeIndex;

@@ -10,6 +10,27 @@ namespace Workout.Tests;
 /// request with a NullReferenceException, taking the history and the chart down with it.
 public sealed class ExerciseInsightTests
 {
+    [Fact]
+    public async Task Cached_full_history_insights_invalidate_after_completion_and_deletion()
+    {
+        var (h, templateId, benchId) = await Ready();
+        await using var owned = h;
+        using var cache = new Microsoft.Extensions.Caching.Memory.MemoryCache(new Microsoft.Extensions.Caching.Memory.MemoryCacheOptions { SizeLimit = 256 });
+        var service = new ExerciseService(h.Db, cache);
+        var empty = await service.Insight(benchId, "all", 0, 20, default);
+        Assert.Same(empty, await service.Insight(benchId, "all", 0, 20, default));
+        var session = await h.Workouts.Start(templateId, null, default);
+        await h.Workouts.Save(session.Id, new SessionInput(null,
+            [new SessionExerciseInput(benchId, "Bench press", null, [Harness.Set(8, 10)], [new SetInput(60, 10, 8, true)])], session.Revision, null), default);
+        await h.Workouts.Finish(session.Id, null, default);
+        var completed = await service.Insight(benchId, "all", 0, 20, default);
+        Assert.Equal(1, completed.Sessions);
+        Assert.NotSame(empty, completed);
+        Assert.Equal(Json.Write(await new ExerciseService(h.Db).Insight(benchId, "all", 0, 20, default)), Json.Write(completed));
+        await h.Workouts.DeleteFromHistory(session.Id, default);
+        Assert.Equal(0, (await service.Insight(benchId, "all", 0, 20, default)).Sessions);
+    }
+
     private static async Task<(Harness h, Guid templateId, Guid benchId)> Ready()
     {
         var h = await Harness.Create();

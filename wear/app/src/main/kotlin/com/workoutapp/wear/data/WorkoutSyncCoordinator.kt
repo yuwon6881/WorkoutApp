@@ -46,6 +46,9 @@ class WorkoutSyncCoordinator(
             if (operation.type == "finish") {
                 store.clearAll()
                 WorkoutOngoingService.stop(context)
+                try { api.flushPendingIntegration() }
+                catch (cancelled: CancellationException) { throw cancelled }
+                catch (_: Exception) { /* Saved workout and durable server queue remain authoritative. */ }
                 return SyncOutcome(finished = true)
             }
             store.acknowledge(operation.sequence) { current, remaining ->

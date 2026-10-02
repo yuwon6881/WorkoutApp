@@ -164,7 +164,7 @@ public static class CentralAuthEndpoints
         var user = await db.Users.IgnoreQueryFilters().SingleOrDefaultAsync(item => item.IdentitySubject == identitySubject, ct);
         if (user is null)
         {
-            var maxUsers = config.GetValue("Auth:MaxUsers", 2);
+            var maxUsers = config.GetValue("Auth:MaxUsers", 1);
             var count = await db.Users.IgnoreQueryFilters().CountAsync(ct);
             Validation.Require(count < maxUsers, "Registration is closed: the maximum number of accounts has been reached.", 403);
             user = new AppUser

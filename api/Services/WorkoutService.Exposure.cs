@@ -57,6 +57,7 @@ public sealed partial class WorkoutService
         if (matchIds.Count == 0) return [];
         var sets = await db.Sets.AsNoTracking().Where(s => matchIds.Contains(s.SessionExerciseId) && s.Done && !s.Warmup)
             .OrderBy(s => s.Position).ToListAsync(ct);
+        var setsByExercise = sets.ToLookup(set => set.SessionExerciseId);
         var output = new Dictionary<(Guid? ExerciseId, string NameKey), Dictionary<int, List<SetExposure>>>();
         foreach (var group in matches.GroupBy(x => x.ExerciseId is { } id ? (Guid?)(id) : null))
         {
@@ -66,7 +67,7 @@ public sealed partial class WorkoutService
                 if (!output.TryGetValue(key, out var exposures)) { exposures = []; output[key] = exposures; }
                 var legacyOrdinal = 0;
                 var prescriptions = Json.Read<List<SetPrescription>>(match.PrescriptionJson);
-                foreach (var set in sets.Where(s => s.SessionExerciseId == match.Id).OrderBy(s => s.Position))
+                foreach (var set in setsByExercise[match.Id])
                 {
                     var ordinal = set.WorkingSetOrdinal ?? ++legacyOrdinal;
                     if (set.WorkingSetOrdinal is not null) legacyOrdinal = Math.Max(legacyOrdinal, ordinal);

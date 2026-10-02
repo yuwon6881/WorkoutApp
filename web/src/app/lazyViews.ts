@@ -1,8 +1,8 @@
 import { lazy } from 'react';
 
-// Overview is the first screen, so it ships in the main bundle; every other view loads when it is
-// first opened. Only the likely next workout view is warmed while the screen is idle.
+// Overview warms alongside authentication; optional screens load on intent.
 const loaders = {
+  overview: () => import('../components/Dashboard'),
   auth: () => import('../components/Auth'),
   programs: () => import('../components/Programs'),
   settings: () => import('../components/Settings'),
@@ -13,6 +13,7 @@ const loaders = {
   sessionDetail: () => import('../components/SessionDetail'),
   workout: () => import('../components/Workout')
 };
+export const Dashboard = lazy(() => loaders.overview().then(module => ({ default: module.Dashboard })));
 export const Auth = lazy(() => loaders.auth().then(module => ({ default: module.Auth })));
 
 export const Programs = lazy(() => loaders.programs().then(module => ({ default: module.Programs })));
@@ -27,16 +28,3 @@ export const Workout = lazy(() => loaders.workout().then(module => ({ default: m
 
 type View = keyof typeof loaders;
 export function prefetchView(view: View) { void loaders[view]().catch(() => undefined); }
-
-export function prefetchViews() {
-  const connection = (navigator as Navigator & { connection?: { saveData?: boolean; effectiveType?: string } }).connection;
-  if (connection?.saveData || /(^|-)2g$/.test(connection?.effectiveType ?? '')) return () => undefined;
-  const warm = () => { if (document.visibilityState === 'visible') prefetchView('workout'); };
-  const idle = window as Window & { requestIdleCallback?: (callback: () => void) => number; cancelIdleCallback?: (id: number) => void };
-  if (idle.requestIdleCallback) {
-    const id = idle.requestIdleCallback(warm);
-    return () => idle.cancelIdleCallback?.(id);
-  }
-  const id = setTimeout(warm, 1500);
-  return () => clearTimeout(id);
-}

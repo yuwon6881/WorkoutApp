@@ -29,7 +29,7 @@ describe('workout recovery comparison', () => {
       schemaVersion: 1 as const, accountId: 'account-1', displayName: 'User', sessionId: session.id,
       draft: { ...session, pausedAt: '2026-09-21T08:10:00.000Z' }, serverSession: session,
       preferences: { unit: 'kg' as const, theme: 'dark' as const, restAlerts: false },
-      activeIndex: 0, viewMode: 'focus' as const, conflict: false,
+      activeIndex: 0, conflict: false,
       operations: [{ id: 'pause-1', type: 'pause' as const, occurredAt: '2026-09-21T08:10:00.000Z', revision: null, createdAt: '2026-09-21T08:10:00.000Z' }],
       updatedAt: '2026-09-21T08:10:00.000Z'
     };

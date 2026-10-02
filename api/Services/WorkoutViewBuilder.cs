@@ -192,11 +192,7 @@ public static class WorkoutViewBuilder
         var done = sets.Where(s => s.Done).ToList();
         var workingDone = done.Where(s => !s.Warmup).ToList();
         var warmupDone = done.Where(s => s.Warmup).ToList();
-        var loadModels = exercises.ToDictionary(e => e.Id, e => e.LoadModel);
-        // Timed sets carry no reps, so they have no volume; a weighted hold must not break the sum.
-        var external = workingDone.Where(s => s.WeightKg != null && s.Reps != null && s.SystemLoadKg == null &&
-            loadModels.GetValueOrDefault(s.SessionExerciseId, LoadModels.External) == LoadModels.External).ToList();
-        var system = workingDone.Where(s => s.SystemLoadKg != null && s.Reps != null).ToList();
+        var volume = WorkoutAccounting.Volume(exercises, sets);
         var bodyWeight = ReadOptional<BodyWeightSnapshot>(session.BodyWeightSnapshotJson);
         var context = ReadOptional<NutritionTrainingContext>(session.NutritionContextJson);
         var restStatus = session.RestStatus switch
@@ -241,9 +237,9 @@ public static class WorkoutViewBuilder
                     repRecords is null ? null : LegacyRepBests(repRecords), repRecords,
                     e.ExerciseId is { } trackedId && trackingModes?.GetValueOrDefault(trackedId) is { } mode ? mode : TrackingModes.Reps);
             }).ToList(),
-            external.Count == 0 ? null : external.Sum(s => s.WeightKg!.Value * s.Reps!.Value),
+            volume.External,
             workingDone.Count, warmupDone.Count, bodyWeight, context,
-            system.Count == 0 ? null : system.Sum(s => s.SystemLoadKg!.Value * s.Reps!.Value), session.PausedAt, session.PausedSeconds,
+            volume.System, session.PausedAt, session.PausedSeconds,
             sessionPrCount, restView);
     }
 

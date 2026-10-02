@@ -10,11 +10,10 @@ const CELEBRATION_MS = 4500;
 /// What happens the moment a set is logged: a pulse the lifter can feel (stronger once the
 /// exercise is complete), a personal-best note when the set beats every finished session, and a
 /// move to the next exercise, or the superset partner, when the next step is elsewhere.
-export function useAfterLog({ unit, advance, focused, onAdvance }: {
+export function useAfterLog({ unit, advance, onAdvance }: {
   unit: Unit;
   /** Which moves happen by themselves; both are on unless a device setting turns one off. */
   advance?: AdvanceOptions;
-  focused: boolean;
   onAdvance: (exerciseIndex: number) => void;
 }) {
   const [celebration, setCelebration] = useState('');
@@ -46,7 +45,6 @@ export function useAfterLog({ unit, advance, focused, onAdvance }: {
       }
     }
     haptic(pr !== null || exercise.sets.every(set => set.done) ? 'success' : 'log');
-    if (!focused) return;
     const target = advanceTarget(logged, exerciseIndex, setIndex, advance);
     if (target !== null) onAdvance(target);
   }

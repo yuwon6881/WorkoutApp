@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import type { Session, SessionExercise, Unit } from '../types';
+import type { RecentExerciseSession, SessionExercise, Unit } from '../types';
 import { api } from '../lib/api';
 import { showWeight } from '../lib/training';
 import { effortValue } from '../lib/workoutDraft';
@@ -11,7 +11,7 @@ import { useTrackRir } from '../lib/trackRir';
 
 /** History stays in component memory and is fetched from the account-authorized API. */
 export function WorkoutExerciseHistory({ exercise, unit }: { exercise: SessionExercise; unit: Unit }) {
-  const [sessions, setSessions] = useState<Session[]>([]);
+  const [sessions, setSessions] = useState<RecentExerciseSession[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const trackRir = useTrackRir();
@@ -24,12 +24,10 @@ export function WorkoutExerciseHistory({ exercise, unit }: { exercise: SessionEx
     setError('');
     async function read() {
       if (!exercise.exerciseId) return [];
-      const insight = await api.exerciseInsight(exercise.exerciseId, 'all', 0, 3, controller.signal);
-      const rows = insight.history.filter(row => row.finishedAt);
-      return Promise.all(rows.map(row => api.getWorkout(row.sessionId)));
+      return api.recentExerciseSets(exercise.exerciseId, controller.signal);
     }
     void read().then(rows => {
-      if (alive) setSessions(rows.filter(row => !row.active && row.finishedAt));
+      if (alive) setSessions(rows);
     }).catch(() => {
       if (alive) setError('Past sets could not be loaded. Reconnect and try again.');
     }).finally(() => {

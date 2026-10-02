@@ -56,7 +56,6 @@ const sampleRecord: WorkoutRecoveryRecord = {
   serverSession: session,
   preferences: { unit: 'kg', theme: 'dark', restAlerts: false },
   activeIndex: 0,
-  viewMode: 'focus',
   conflict: false,
   operations: [],
   rest: null,

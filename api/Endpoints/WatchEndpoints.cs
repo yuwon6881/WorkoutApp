@@ -14,6 +14,12 @@ public static class WatchEndpoints
 {
     public static void MapWatch(this WebApplication app)
     {
+        app.MapPost("/api/watch/integrations/google-health/sync-data", async (AppDb db,
+            IServiceScopeFactory scopes, ILogger<WorkoutService> logger, CancellationToken ct) =>
+        {
+            await GoogleHealthWorkoutFlush.ForActiveUserAsync(scopes, db.CurrentUser, logger, ct);
+            return Results.NoContent();
+        });
         app.MapPost("/api/watch/pairing/start", async (WatchPairingStartInput input, WatchPairingService pairings, CancellationToken ct)
             => Results.Ok(await pairings.Start(input.DeviceId, input.DeviceName, input.DeviceToken, ct)))
             .RequireRateLimiting("watch-pair-start");
@@ -49,11 +55,14 @@ public static class WatchEndpoints
         app.MapPost("/api/watch/workouts/{id:guid}/rest", async (Guid id, WorkoutRestMutationInput input, WorkoutService workouts, CancellationToken ct)
             => Results.Ok(await workouts.MutateRest(id, input, ct)));
         app.MapPost("/api/watch/workouts/{id:guid}/finish", async (Guid id, WatchFinishInput input,
-            WorkoutService workouts, AppDb db, IServiceScopeFactory scopes, ILogger<WorkoutService> logger, CancellationToken ct) =>
+            WorkoutService workouts, AppDb db, IServiceScopeFactory scopes, ILogger<WorkoutService> logger, HttpContext http, CancellationToken ct) =>
         {
             var finished = await workouts.Finish(id, input.Revision, ct,
                 retainExerciseSwaps: false, mutationId: input.MutationId, finishedAt: input.FinishedAt);
-            await GoogleHealthWorkoutFlush.ForActiveUserAsync(scopes, db.CurrentUser, logger, ct);
+            await IntegrationDispatch.AfterCommit(http,
+                () => db.GoogleHealthWorkoutSyncWork.AsNoTracking().AnyAsync(work =>
+                    work.ProcessingState == "pending" || work.ProcessingState == "processing" || work.ProcessingState == "awaiting_operation", ct),
+                () => GoogleHealthWorkoutFlush.ForActiveUserAsync(scopes, db.CurrentUser, logger, ct));
             return Results.Ok(finished);
         });
         app.MapPost("/api/watch/session/revoke", async (HttpContext http, WatchPairingService pairings, CancellationToken ct) =>

@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 using Workout.Api.Data;
 using Workout.Api.Domain;
 
@@ -38,7 +39,7 @@ public record ExerciseClearPreview(Guid ExerciseId, string Name, int AffectedWor
 
 /// Account-owned exercise creation and server-authoritative exercise analytics. The service keeps
 /// the shared catalog read-only and uses stable exercise ids for every historical query.
-public sealed class ExerciseService(AppDb db)
+public sealed partial class ExerciseService(AppDb db, IMemoryCache? cache = null)
 {
     public async Task<CustomExerciseView> Create(CustomExerciseInput input, CancellationToken ct)
     {
@@ -135,7 +136,7 @@ public sealed class ExerciseService(AppDb db)
         return new ExerciseClearPreview(id, meta.Name, rows.Select(x => x.SessionId).Distinct().Count(), sets.Count, false, false);
     }
 
-    public async Task<ExerciseInsight> Insight(Guid id, string? range, int page, int size, CancellationToken ct)
+    private async Task<ExerciseInsight> BuildInsight(Guid id, string? range, int page, int size, CancellationToken ct)
     {
         Validation.Require(page >= 0 && size is > 0 and <= 100, "Invalid exercise history page.");
         var meta = await Metadata(id, ct);

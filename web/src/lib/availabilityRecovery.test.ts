@@ -4,6 +4,17 @@ import {fetchWithAvailabilityRecovery} from './availabilityRecovery';
 afterEach(()=>{vi.useRealTimers();vi.unstubAllGlobals();});
 
 describe('temporary service availability',()=>{
+  it('keeps the deadline active while consuming a stalled response body',async()=>{
+    vi.useFakeTimers();
+    vi.stubGlobal('fetch',vi.fn().mockImplementation((_url:string,options:RequestInit)=>Promise.resolve(new Response(new ReadableStream({
+      start(controller){ options.signal?.addEventListener('abort',()=>controller.error(options.signal?.reason),{once:true}); }
+    })))));
+    const result=fetchWithAvailabilityRecovery('/api/templates',{},false,20000);
+    const rejected=expect(result).rejects.toMatchObject({name:'TimeoutError'});
+    await vi.advanceTimersByTimeAsync(20000);
+    await rejected;
+    expect(vi.getTimerCount()).toBe(0);
+  });
   it('accepts empty success responses even when the browser exposes a body stream',async()=>{
     const response=new Response(null,{status:204});
     Object.defineProperty(response,'body',{value:{}});

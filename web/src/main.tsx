@@ -9,6 +9,12 @@ import './index.css';
 import './layout.css';
 import './motion.css';
 import './workout.css';
+import { prepareNativeShell } from './lib/nativeShellMigration';
 applyTheme(initialTheme());
 trackInputModality();
-ReactDOM.createRoot(document.getElementById('root')!).render(<React.StrictMode><ErrorBoundary><App /></ErrorBoundary></React.StrictMode>);
+void prepareNativeShell().then(ready => {
+  if (ready) ReactDOM.createRoot(document.getElementById('root')!).render(<React.StrictMode><ErrorBoundary><App /></ErrorBoundary></React.StrictMode>);
+}).catch(() => {
+  // A WebView with unavailable worker storage still has its bundled assets and native recovery.
+  ReactDOM.createRoot(document.getElementById('root')!).render(<React.StrictMode><ErrorBoundary><App /></ErrorBoundary></React.StrictMode>);
+});

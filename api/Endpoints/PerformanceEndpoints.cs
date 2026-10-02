@@ -8,6 +8,26 @@ public static class PerformanceEndpoints
 {
     public static void MapPerformanceReads(this WebApplication app)
     {
+        app.MapGet("/api/bootstrap/launch", async (AppDb db, ProgramService programs, WorkoutService workouts,
+            ImportService imports, CancellationToken ct) =>
+        {
+            var user = await db.Users.AsNoTracking().SingleAsync(row => row.Id == db.CurrentUser, ct);
+            var (program, next) = await programs.Launch(ct);
+            if (program is null)
+                next = await db.Templates.AsNoTracking().Where(day => day.ProgramId == null)
+                    .OrderBy(day => day.Position).ThenBy(day => day.Id).Select(day => new NextWorkoutView(day.Id,
+                        day.Name, day.Focus, day.Week, day.Position, db.TemplateExercises.Count(exercise => exercise.TemplateId == day.Id)))
+                    .FirstOrDefaultAsync(ct);
+            var generation = await db.ResourceGenerations.AsNoTracking().SingleOrDefaultAsync(ct) ?? new ResourceGeneration();
+            return new {
+                resourceVersions = ResourceVersions.For(generation, user.Unit),
+                account = new { user.Id, displayName = user.DisplayName },
+                preferences = new { user.Unit, user.Theme, user.RestSeconds, user.RestAlerts, user.TrackRir },
+                activeWorkout = await workouts.Active(ct), activeProgram = program, nextWorkout = next,
+                imports = await imports.LaunchSummaries(ct),
+                navigationCounts = new { programs = await db.Programs.CountAsync(ct), templates = await db.Templates.CountAsync(day => day.ProgramId == null, ct) }
+            };
+        });
         app.MapGet("/api/bootstrap/shell", async (AppDb db, ProgramService programs, WorkoutService workouts,
             ImportService imports, CancellationToken ct) =>
         {

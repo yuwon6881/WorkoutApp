@@ -29,11 +29,13 @@ builder.Services.AddResponseCompression(o=>
     o.MimeTypes=["application/json","text/plain","text/css","application/javascript"];
 });
 builder.Services.AddSingleton<DatabaseMetricsInterceptor>();
+builder.Services.AddSingleton<DatabaseConnectionMetricsInterceptor>();
 builder.Services.AddMemoryCache(o => o.SizeLimit = 256);
 builder.Services.AddTransient<ExternalCallMetricsHandler>();
 builder.Services.AddDbContext<AppDb>((services,o)=>
 {
     o.AddInterceptors(services.GetRequiredService<DatabaseMetricsInterceptor>());
+    o.AddInterceptors(services.GetRequiredService<DatabaseConnectionMetricsInterceptor>());
     var connection=builder.Configuration.GetConnectionString("Database");
     if(!string.IsNullOrWhiteSpace(connection)) o.UseNpgsql(ConnectionSettings.Normalize(connection));
     else if(builder.Environment.IsDevelopment()) o.UseSqlite("Data Source="+(builder.Configuration["Database:SqlitePath"]??"workout.db"));
@@ -53,7 +55,7 @@ builder.Services.AddScoped<ProgressionService>();
 builder.Services.AddScoped<MuscleBalanceService>();
 builder.Services.AddScoped<GoogleHealthWorkoutSummaryService>();
 builder.Services.AddScoped<NutritionContextService>();
-builder.Services.AddScoped<SharedAccessTokenService>();
+builder.Services.AddSingleton<SharedAccessTokenService>();
 builder.Services.AddScoped<OpenIddictAccessTokenService>();
 builder.Services.AddScoped<ISharedAccessTokenValidator>(services => services.GetRequiredService<OpenIddictAccessTokenService>());
 builder.Services.AddScoped<FitnessConnectionClient>();

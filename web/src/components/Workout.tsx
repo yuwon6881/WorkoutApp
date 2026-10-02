@@ -43,7 +43,8 @@ export function Workout({
   onFinish,
   onDiscard,
   advance,
-  onCatalogChanged
+  onCatalogChanged,
+  onCatalogNeeded
 }: {
   session: Session;
   accountId: string;
@@ -60,14 +61,15 @@ export function Workout({
   advance?: AdvanceOptions;
   /** Weight settings changed mid-workout, so the exercise catalog is read again. */
   onCatalogChanged?: () => void | Promise<void>;
+  onCatalogNeeded?: () => Promise<void>;
 }) {
   const [draft, setDraft] = useState(recovery?.sessionId === session.id ? recovery.draft : session);
   const [picker, setPicker] = useState(false);
   const [confirm, setConfirm] = useState<'finish' | 'discard' | null>(null);
   const [retainSwaps, setRetainSwaps] = useState(false);
   const [error, setError] = useState('');
+  const loadCatalog = () => { void onCatalogNeeded?.().catch(failure => setError(failure instanceof Error ? failure.message : 'Exercises could not be loaded. Try again.')); };
   const [busy, setBusy] = useState(false);
-  const [viewMode, setViewMode] = useState<'focus' | 'all'>(recovery?.viewMode ?? 'focus');
   const [activeIndex, setActiveIndex] = useState(() => recovery?.activeIndex ?? firstOpenExercise(session));
   const [finishIntentAt, setFinishIntentAt] = useState(() => recovery?.operations.find(operation => operation.type === 'finish')?.finishedAt ?? null);
   const [localStatus, setLocalStatus] = useState('');
@@ -77,7 +79,7 @@ export function Workout({
   const revision = useRef(serverSession.current.revision);
   const setToggleGenerations = useRef(new Map<string, number>());
   const { celebration, afterLog } = useAfterLog({
-    unit: preferences.unit, advance, focused: viewMode === 'focus', onAdvance: index => selectExercise(index)
+    unit: preferences.unit, advance, onAdvance: index => selectExercise(index)
   });
   const onlineFallback = useWorkoutOnlineFallback({
     sessionId: session.id, accountId, online, queue, preferences, recovery, revision,
@@ -93,12 +95,11 @@ export function Workout({
       setFinishIntentAt(pendingFinish?.type === 'finish' ? pendingFinish.finishedAt : null);
       setDraft(recovery.draft);
       setActiveIndex(recovery.activeIndex);
-      setViewMode(recovery.viewMode);
       return;
     }
     void startRecovery({
       accountId, displayName: '', sessionId: session.id, draft: session, serverSession: session,
-      preferences, activeIndex, viewMode
+      preferences, activeIndex
     }).then(async () => onRecoveryChange(await getRecovery(accountId)))
       .catch(() => setLocalStatus('This workout is not recoverable on this device.'));
   }, [accountId, session.id]);
@@ -149,15 +150,15 @@ export function Workout({
     const validationError = validateSessionDraft(next);
     if (validationError) {
       setError(validationError);
-      try { onRecoveryChange(await persistDraftOnly(accountId, next, { activeIndex, viewMode })); }
+      try { onRecoveryChange(await persistDraftOnly(accountId, next, { activeIndex })); }
       catch { setLocalStatus('This unfinished edit could not be saved on the device.'); }
       return false;
     }
     setError('');
     setLocalStatus('Saving on this device…');
     const persist = changedSet
-      ? enqueueSetEdits(accountId, next, { activeIndex, viewMode }, restMutation, restState)
-      : enqueueSave(accountId, next, { activeIndex, viewMode });
+      ? enqueueSetEdits(accountId, next, { activeIndex }, restMutation, restState)
+      : enqueueSave(accountId, next, { activeIndex });
     try {
       const record = await persist;
       onRecoveryChange(record);
@@ -332,7 +333,7 @@ export function Workout({
         onFinish(saved);
         return;
       }
-      await enqueueSave(accountId, draft, { activeIndex, viewMode });
+      await enqueueSave(accountId, draft, { activeIndex });
       const withFinish = await enqueueFinish(accountId, finishedAt, retainSwaps, draft);
       onRecoveryChange(withFinish);
       setFinishIntentAt(finishedAt);
@@ -407,14 +408,7 @@ export function Workout({
 
   function selectExercise(index: number) {
     setActiveIndex(index);
-    const nextView = viewMode === 'all' ? 'focus' : viewMode;
-    if (nextView !== viewMode) setViewMode(nextView);
-    void saveNavigation(accountId, draft.id, { activeIndex: index, viewMode: nextView }).catch(() => undefined);
-  }
-
-  function selectViewMode(next: 'focus' | 'all') {
-    setViewMode(next);
-    void saveNavigation(accountId, draft.id, { activeIndex, viewMode: next }).catch(() => undefined);
+    void saveNavigation(accountId, draft.id, { activeIndex: index }).catch(() => undefined);
   }
 
   const resolveConflict = useWorkoutConflictResolution({
@@ -423,7 +417,7 @@ export function Workout({
   });
 
   const currentExercise = draft.exercises[activeIndex] ?? draft.exercises[0];
-  const pendingLog = viewMode === 'focus' && !paused && !finishIntentAt && !recoveryConflict ? nextLog(draft, activeIndex, unit) : null;
+  const pendingLog = !paused && !finishIntentAt && !recoveryConflict ? nextLog(draft, activeIndex, unit) : null;
   const logAction = pendingLog && {
     ...pendingLog,
     onLog: () => void toggle(pendingLog.exerciseIndex, pendingLog.setIndex)
@@ -449,22 +443,20 @@ export function Workout({
         finishedAt={finishIntentAt}
         done={done}
         planned={plannedSets(draft)}
-        viewMode={viewMode}
         paused={paused}
         pauseDisabled={busy || Boolean(finishIntentAt) || recoveryConflict}
         onClose={onClose}
         onTogglePause={() => void togglePause()}
-        onToggleViewMode={() => selectViewMode(viewMode === 'focus' ? 'all' : 'focus')}
       />
 
       {recoveryConflict && recovery && <WorkoutRecoveryConflict recovery={recovery} online={online} onResolve={choice => void resolveConflict(choice)} />}
 
-      <WorkoutEditor draft={draft} unit={unit} exercises={exercises} activeIndex={activeIndex} viewMode={viewMode} online={online}
+      <WorkoutEditor draft={draft} unit={unit} exercises={exercises} activeIndex={activeIndex} online={online}
         paused={paused} finishIntentAt={finishIntentAt} recoveryConflict={recoveryConflict}
-        picker={picker} onPicker={setPicker}
-        onAddExercise={() => online && !paused && !finishIntentAt ? setPicker(true) : setError('Connect and resume before adding an exercise.')}
+        picker={picker} onPicker={open => { setPicker(open); if (open) loadCatalog(); }}
+        onAddExercise={() => online && !paused && !finishIntentAt ? (setPicker(true), loadCatalog()) : setError('Connect and resume before adding an exercise.')}
         onChange={change} onEditSet={editSet} onToggleSet={toggle} onSelectExercise={selectExercise}
-        onSwap={swapExercise} onRestore={restoreExercise} onRemoveExercise={removeExercise} onCatalogChanged={onCatalogChanged} />
+        onSwap={swapExercise} onRestore={restoreExercise} onRemoveExercise={removeExercise} onCatalogChanged={onCatalogChanged} onCatalogNeeded={onCatalogNeeded} />
 
       <WorkoutFooter error={error} rest={rest} defaultRestSeconds={defaultRestSeconds}
         busy={busy || Boolean(finishIntentAt) || recoveryConflict} restDisabled={paused || Boolean(finishIntentAt) || recoveryConflict}

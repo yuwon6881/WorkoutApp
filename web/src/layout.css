@@ -47,7 +47,7 @@
 @media (max-width: 639px) { .skeleton-topbar-ai { display: block; } }
 .app-loading .skeleton-title { width: 180px; max-width: 60%; height: 32px; }
 .app-loading .skeleton-subtitle { width: 220px; max-width: 70%; height: 16px; margin-top: 10px; }
-.app-loading-hero { display: grid; gap: 12px; }
+.app-loading-hero { display: grid; gap: 12px; margin-bottom: 24px; }
 .app-loading-hero .hero-top { display: flex; justify-content: space-between; gap: 12px; }
 .skeleton-pill { width: 120px; height: 24px; border-radius: 999px !important; }
 .skeleton-pill.short { width: 88px; }
@@ -55,7 +55,12 @@
 .skeleton-hero-line { width: 44%; height: 16px; }
 .skeleton-hero-button { width: 180px; height: 48px; margin-top: 8px; }
 .skeleton-section-title { width: 140px; height: 20px; margin-bottom: 14px; }
+/* Reserve rows before the lazy calendar/stat styles arrive; otherwise seven days stack. */
+.app-loading .app-loading-week { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; margin-bottom: 20px; }
 .app-loading-week .skeleton-day { min-height: 64px; border-radius: 12px !important; }
+.app-loading .progress-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.app-loading .progress-stats > * { grid-column: auto; }
+@media (max-width: 1023px) { .app-loading .progress-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; } }
 .skeleton-stat { min-height: 96px; border-radius: var(--radius, 12px) !important; }
 .app-loading-bottom-nav { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; padding: 8px 12px; }
 .skeleton-bottom-item { height: 44px; border-radius: 14px !important; }

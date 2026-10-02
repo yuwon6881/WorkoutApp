@@ -4,6 +4,8 @@ import type { PointerEvent as ReactPointerEvent } from 'react';
 const SLOP = 10;
 const TRIGGER = 72;
 const TEXT_ENTRY = 'input, textarea, select, [contenteditable=true], [role=slider]';
+/// Content that scrolls sideways itself keeps the gesture.
+const OWN_SCROLL = '[data-swipe-ignore]';
 
 /// A left or right swipe across a surface, for moving between pages of the same kind (the
 /// exercises of a workout). Vertical scrolling keeps working: the gesture only locks once the
@@ -17,7 +19,10 @@ export function useHorizontalSwipe({ onPrevious, onNext, enabled = true }: {
   const start = useRef<{ id: number; x: number; y: number; locked: 'x' | 'y' | null } | null>(null);
 
   function onPointerDown(event: ReactPointerEvent<HTMLElement>) {
-    if (!enabled || event.pointerType === 'mouse' || (event.target as HTMLElement).closest(TEXT_ENTRY)) return;
+    const target = event.target as HTMLElement;
+    if (!enabled || event.pointerType === 'mouse' || target.closest(TEXT_ENTRY) || target.closest(OWN_SCROLL)) return;
+    // React bubbles events out of portals, so a dialog opened from the surface is not part of it.
+    if (!event.currentTarget.contains(target)) return;
     start.current = { id: event.pointerId, x: event.clientX, y: event.clientY, locked: null };
   }
 

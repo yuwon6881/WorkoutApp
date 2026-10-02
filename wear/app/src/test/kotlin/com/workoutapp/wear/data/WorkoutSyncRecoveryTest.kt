@@ -272,6 +272,27 @@ class WorkoutSyncRecoveryTest {
         assertNull(store.state.value.snapshot)
     }
 
+    @Test
+    fun `committed finish clears local work before provider dispatch and a dispatch failure cannot replay finish`() = runBlocking {
+        val baseline = session(revision = 4)
+        store.enqueue(snapshot(baseline).copy(pendingFinish = true), finishOperation(baseline))
+        val sender = ScriptedGateway(baseline) { baseline.copy(active = false, finishedAt = "2026-09-25T10:10:00Z") }
+        var passes = 0
+        val gateway = object : WorkoutGateway by sender {
+            override suspend fun flushPendingIntegration() {
+                passes++
+                assertNull(store.state.value.snapshot)
+                assertTrue(store.state.value.pending.isEmpty())
+                throw IOException("Provider unavailable")
+            }
+        }
+        val coordinator = WorkoutSyncCoordinator(context, store, gateway)
+        assertTrue(coordinator.syncPending().finished)
+        assertFalse(coordinator.syncPending().pending)
+        assertEquals(1, sender.sends)
+        assertEquals(1, passes)
+    }
+
     private fun session(revision: Int) = WorkoutSession(
         id = "workout-1",
         revision = revision,

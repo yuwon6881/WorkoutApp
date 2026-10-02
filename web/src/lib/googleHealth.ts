@@ -1,3 +1,4 @@
+import { resetIntegrationDispatch } from './integrationDispatch';
 import { useCallback, useEffect, useState, useSyncExternalStore } from 'react';
 import { api, ApiError } from './api';
 import { consumeGoogleHealthHandoff } from './googleHealthBrowser';
@@ -70,6 +71,7 @@ let inFlightPromise: Promise<GoogleHealthSyncState> | null = null;
 let generation = 0;
 let dataSyncTimer: ReturnType<typeof setTimeout> | undefined;
 let dataSyncFlight: Promise<void> | null = null;
+let dataSyncAgain = false;
 let lastDataSync = 0;
 const recovery = new IntegrationRecovery();
 const listeners = new Set<() => void>();
@@ -162,21 +164,24 @@ export async function disconnectGoogleHealth(): Promise<void> {
 }
 
 export function resetGoogleHealthState() {
+  resetIntegrationDispatch();
   generation++;
   recovery.reset();
   clearTimeout(dataSyncTimer);
   dataSyncTimer = undefined;
   dataSyncFlight = null;
   lastDataSync = 0;
+  dataSyncAgain = false;
   inFlightPromise = null;
   memoryState = initialGoogleHealthState;
   lastFetchTime = 0;
   notify();
 }
 
-function scheduleDataSync(force: boolean) {
-  if (memoryState.status !== 'connected' || !memoryState.workoutSync.pendingCount || dataSyncFlight
-    || dataSyncTimer !== undefined || (!force && Date.now() - lastDataSync < 60000)) return;
+function scheduleDataSync(force: boolean, committedWork = false) {
+  if (committedWork && dataSyncFlight) { dataSyncAgain = true; return; }
+  if ((!committedWork && (memoryState.status !== 'connected' || !memoryState.workoutSync.pendingCount)) || dataSyncFlight
+    || dataSyncTimer !== undefined || (!committedWork && !force && Date.now() - lastDataSync < 60000)) return;
   const epoch = generation;
   dataSyncTimer = setTimeout(() => {
     dataSyncTimer = undefined;
@@ -187,7 +192,11 @@ function scheduleDataSync(force: boolean) {
       memoryState = {...memoryState, workoutSync: result.workoutSync};
       notify();
     }).catch(() => { /* Durable uploads stay queued for a later active pass or the daily sweep. */ })
-      .finally(() => { if (epoch === generation) dataSyncFlight = null; });
+      .finally(() => {
+        if (epoch !== generation) return;
+        dataSyncFlight = null;
+        if (dataSyncAgain) { dataSyncAgain = false; scheduleDataSync(false, true); }
+      });
   }, 250);
 }
 
@@ -232,3 +241,6 @@ export function useGoogleHealth() {
     disconnect: disconnectGoogleHealth,
   };
 }
+
+export function dispatchCommittedGoogleHealthWork() { scheduleDataSync(false, true); }
+if (typeof window !== 'undefined') window.addEventListener('workout:google-health-reset', resetGoogleHealthState);

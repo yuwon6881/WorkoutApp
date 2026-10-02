@@ -2,11 +2,14 @@ package com.workoutapp.phone;
 
 import android.content.Intent;
 import android.os.Bundle;
+import android.net.Uri;
+import android.webkit.WebResourceResponse;
 import android.webkit.WebResourceError;
 import android.webkit.WebResourceRequest;
 import android.webkit.WebView;
 import com.getcapacitor.BridgeActivity;
 import com.getcapacitor.BridgeWebViewClient;
+import com.getcapacitor.CapConfig;
 import org.json.JSONObject;
 
 public class MainActivity extends BridgeActivity {
@@ -14,13 +17,28 @@ public class MainActivity extends BridgeActivity {
     static final String EXTRA_RETRY = "retry_webview";
 
     @Override
+    protected void load() {
+        CapConfig nativeConfig = CapConfig.loadDefault(this);
+        WebView view = findViewById(com.getcapacitor.android.R.id.webview);
+        NativeShellUpgrade.install(this, view, nativeConfig.getAndroidScheme() + "://" + nativeConfig.getHostname());
+        super.load();
+    }
+
+    @Override
     public void onCreate(Bundle savedInstanceState) {
         registerPlugin(WorkoutPlugin.class);
         super.onCreate(savedInstanceState);
-        // The app loads its pages from the web origin. Without a connection the page cannot load,
-        // so a workout saved on this phone opens in the bundled recovery screen instead of an
-        // error page; nothing there changes or discards the saved work.
+        // Match the configured origin so APIs bypass the APK asset server, as in Nutrition.
+        final String appHost = Uri.parse(getBridge().getLocalUrl()).getHost();
         getBridge().setWebViewClient(new BridgeWebViewClient(getBridge()) {
+            @Override
+            public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest request) {
+                Uri uri = request.getUrl();
+                String path = uri.getPath();
+                if ("https".equalsIgnoreCase(uri.getScheme()) && appHost.equalsIgnoreCase(uri.getHost()) &&
+                    path != null && (path.equals("/api") || path.startsWith("/api/") || path.equals("/health"))) return null;
+                return super.shouldInterceptRequest(view, request);
+            }
             @Override
             public void onReceivedError(WebView view, WebResourceRequest request, WebResourceError error) {
                 super.onReceivedError(view, request, error);

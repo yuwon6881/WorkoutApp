@@ -24,7 +24,7 @@ public record ProgramSummaryView(Guid Id, string Name, int Weeks, bool Active, i
 public record ProgramDayActionInput(int? Revision, Guid? RunId, int? Week, int? Attempt, Guid? IdempotencyId = null);
 public record ProgramWeekResetInput(int? Revision, Guid? RunId, int? Week, int? Attempt, string Confirmation, Guid? IdempotencyId = null);
 
-public sealed class ProgramService(AppDb db, TemplateService templates, ProgramProgressService progress, ProgramLifecycleService lifecycle)
+public sealed partial class ProgramService(AppDb db, TemplateService templates, ProgramProgressService progress, ProgramLifecycleService lifecycle)
 {
     public async Task<List<ProgramSummaryView>> List(CancellationToken ct, bool activeOnly = false)
     {
@@ -47,10 +47,12 @@ public sealed class ProgramService(AppDb db, TemplateService templates, ProgramP
             .Where(e => templateIds.Contains(e.TemplateId)).GroupBy(e => e.TemplateId)
             .Select(g => new { g.Key, Count = g.Count() }).ToDictionaryAsync(x => x.Key, x => x.Count, ct);
         var phases = await db.ProgramPhases.AsNoTracking().Where(p => ids.Contains(p.ProgramId)).OrderBy(p => p.Position).ToListAsync(ct);
-        var runs = await db.ProgramRuns.AsNoTracking().Where(run => ids.Contains(run.ProgramId)).OrderBy(run => run.Number).ToListAsync(ct);
+        var runs = await db.ProgramRuns.AsNoTracking().Where(run => ids.Contains(run.ProgramId) &&
+            !db.ProgramRuns.Any(newer => newer.ProgramId == run.ProgramId && newer.Number > run.Number)).ToListAsync(ct);
         var runIds = runs.Select(run => run.Id).ToList();
         var dayProgress = runIds.Count == 0 ? [] : await db.ProgramDayProgresses.AsNoTracking()
-            .Where(day => runIds.Contains(day.RunId)).ToListAsync(ct);
+            .Where(day => runIds.Contains(day.RunId) && db.ProgramRuns.Any(run => run.Id == day.RunId &&
+                (day.Week < run.CurrentWeek && day.Attempt == 1 || day.Week == run.CurrentWeek && day.Attempt == run.CurrentAttempt))).ToListAsync(ct);
         var views = new List<ProgramSummaryView>(programs.Count);
         foreach (var program in programs)
         {

@@ -94,6 +94,8 @@ public static class TrainingEndpoints
             => { await exercises.ArchiveCustom(exerciseId, ct); return Results.NoContent(); });
         app.MapGet("/api/exercises/{exerciseId:guid}/insight", async (Guid exerciseId, string? range, int? page, int? size, ExerciseService exercises, CancellationToken ct)
             => await exercises.Insight(exerciseId, range, page ?? 0, size ?? 20, ct));
+        app.MapGet("/api/exercises/{exerciseId:guid}/recent-sets", async (Guid exerciseId, int? limit, ExerciseService exercises, CancellationToken ct)
+            => await exercises.RecentSets(exerciseId, limit ?? 3, ct));
         app.MapGet("/api/exercises/{exerciseId:guid}/clear-preview", async (Guid exerciseId, ExerciseService exercises, CancellationToken ct)
             => await exercises.ClearPreview(exerciseId, ct));
         app.MapPost("/api/exercises/{exerciseId:guid}/clear-history", async (Guid exerciseId, ExerciseService exercises, CancellationToken ct)
@@ -194,19 +196,25 @@ public static class TrainingEndpoints
         app.MapPost("/api/workouts/{id:guid}/pause", async (Guid id, WorkoutTimingInput input, WorkoutService workouts, CancellationToken ct) => await workouts.Pause(id, input, ct));
         app.MapPost("/api/workouts/{id:guid}/resume", async (Guid id, WorkoutTimingInput input, WorkoutService workouts, CancellationToken ct) => await workouts.Resume(id, input, ct));
         app.MapPost("/api/workouts/{id:guid}/rest", async (Guid id, WorkoutRestMutationInput input, WorkoutService workouts, CancellationToken ct) => await workouts.MutateRest(id, input, ct));
-        app.MapPost("/api/workouts/{id:guid}/finish", async (Guid id, FinishInput input, WorkoutService workouts, AppDb db, IServiceScopeFactory scopes, ILogger<WorkoutService> logger, CancellationToken ct) =>
+        app.MapPost("/api/workouts/{id:guid}/finish", async (Guid id, FinishInput input, WorkoutService workouts, AppDb db, IServiceScopeFactory scopes, ILogger<WorkoutService> logger, HttpContext http, CancellationToken ct) =>
         {
             var finished = await workouts.Finish(id, input.Revision, ct, input.RetainExerciseSwaps, input.MutationId, input.FinishedAt);
-            await GoogleHealthWorkoutFlush.ForActiveUserAsync(scopes, db.CurrentUser, logger, ct);
+            await IntegrationDispatch.AfterCommit(http,
+                () => db.GoogleHealthWorkoutSyncWork.AsNoTracking().AnyAsync(work =>
+                    work.ProcessingState == "pending" || work.ProcessingState == "processing" || work.ProcessingState == "awaiting_operation", ct),
+                () => GoogleHealthWorkoutFlush.ForActiveUserAsync(scopes, db.CurrentUser, logger, ct));
             return finished;
         });
         app.MapPost("/api/workouts/{id:guid}/discard", async (Guid id, WorkoutService workouts, CancellationToken ct) =>
         { await workouts.Discard(id, ct); return Results.NoContent(); });
         app.MapGet("/api/workouts/{id:guid}", async (Guid id, WorkoutService workouts, CancellationToken ct) => await workouts.Get(id, ct));
-        app.MapDelete("/api/workouts/{id:guid}", async (Guid id, WorkoutService workouts, AppDb db, IServiceScopeFactory scopes, ILogger<WorkoutService> logger, CancellationToken ct) =>
+        app.MapDelete("/api/workouts/{id:guid}", async (Guid id, WorkoutService workouts, AppDb db, IServiceScopeFactory scopes, ILogger<WorkoutService> logger, HttpContext http, CancellationToken ct) =>
         {
             await workouts.DeleteFromHistory(id, ct);
-            await GoogleHealthWorkoutFlush.ForActiveUserAsync(scopes, db.CurrentUser, logger, ct);
+            await IntegrationDispatch.AfterCommit(http,
+                () => db.GoogleHealthWorkoutSyncWork.AsNoTracking().AnyAsync(work =>
+                    work.ProcessingState == "pending" || work.ProcessingState == "processing" || work.ProcessingState == "awaiting_operation", ct),
+                () => GoogleHealthWorkoutFlush.ForActiveUserAsync(scopes, db.CurrentUser, logger, ct));
             return Results.NoContent();
         });
         app.MapGet("/api/history", async (int? page, int? size, WorkoutService workouts, CancellationToken ct) => await workouts.History(page ?? 0, size ?? 20, ct));

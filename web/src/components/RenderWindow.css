@@ -1,0 +1,17 @@
+/* Native browser render windowing retains DOM order, find, selection, and focus.
+   The browser keeps overscan and reveals focused offscreen content automatically. */
+.exercise-grid.render-windowed > article,
+.picker-list.render-windowed > article {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 180px;
+}
+.history-windowed .history-item-wrap,
+.import-windowed > li {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 72px;
+}
+.render-windowed > article:focus-within,
+.history-windowed .history-item-wrap:focus-within,
+.import-windowed > li:focus-within {
+  content-visibility: visible;
+}

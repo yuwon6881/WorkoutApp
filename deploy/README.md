@@ -41,14 +41,15 @@ without Cloud Run IAM, `/internal/import-maintenance` exists only when `Maintena
 configured and answers 404 unless the request presents it in `X-Workout-Maintenance-Secret`.
 
 Google Health workout upload has no scheduler job of its own. Finishing or deleting a workout queues
-the upload and then sends it before the response returns (bounded to six seconds, never failing the
-request); opening the app sends anything still queued; and the daily maintenance request above
+the upload atomically. Updated clients opt into deferred dispatch, acknowledge the committed save,
+and coalesce signals into an awaited `sync-data` request; older clients retain the inline pass
+(bounded to six seconds, never failing the committed save). Opening the app sends anything still queued; and the daily maintenance request above
 retries whatever remains. A temporary Google or network failure is first retried up to twice at once
 (about half a second, then one and a half; never a create whose outcome is unknown, since a duplicate
 could exist), so a failed upload waits until the next visit or the next day only when Google stays down
 longer than that, rather than an hour. `/internal/google-health-workout-sync` (same protected maintenance secret) remains for
 a manual sweep. Do not add a frequent job for it: it would keep the API and database awake around
-the clock for a two-user app. Register
+the clock for a one-account app. Register
 `https://workout-one-mocha.vercel.app/api/integrations/google-health/callback` as an authorized
 redirect URI on the Google OAuth client before users connect; repository deployment cannot do that.
 
@@ -208,12 +209,7 @@ API. Set the exact Cloud Run origin in `web/vercel.json` before deploying.
 
 ## Android app
 
-`web/android/` is a Capacitor shell around the deployed web origin (`web/capacitor.config.ts`), so
-it needs no separate web build of its own: a Vercel deploy updates the app's content, and the
-service worker keeps it usable offline. Rebuild the APK only for native changes (plugins,
-icons, manifest, the origin). The shell keeps FitnessAccount sign-in inside the app by allowing
-navigation to the sign-in host; no extra redirect URI is required because the callback returns to
-the same web origin.
+`web/android/` bundles the production UI, lazy chunks, fonts, and workers from `web/dist` in the APK. Run the production build and Capacitor sync before building Android. UI changes require an APK update; browser/PWA changes continue through Vercel. The WebView retains the existing HTTPS origin and sends `/api` and `/health` requests over the network. Native startup retires the former origin-owned PWA worker and precache without clearing cookies or account/recovery stores. Browser/PWA worker behavior is unchanged. FitnessAccount navigation and callback use the existing origin.
 
 ```powershell
 cd web
@@ -270,7 +266,7 @@ migrations remain an explicit pre-deployment operation; the runtime keeps
 
 ```powershell
 curl https://<origin>/health                 # 200 {"status":"ok"}
-curl https://<origin>/api/auth/status        # 200 {"registrationOpen":true} until two accounts exist
+curl https://<origin>/api/auth/me            # 401 before sign-in; 200 for an existing session
 curl https://<origin>/api/bootstrap          # 401 without a session
 curl -X POST https://<origin>/api/auth/login # 403 without the app's origin and X-Workout-Request header
 ```

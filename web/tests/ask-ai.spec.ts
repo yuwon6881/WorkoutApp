@@ -84,6 +84,10 @@ test('Ask AI keeps action review until requested and preserves chat when reset f
 });
 
 test('Ask AI opens a workout preview without starting a session', async ({ page }) => {
+  await page.route('**/api/bootstrap/launch', async route => {
+    const response = await route.fetch();
+    await route.fulfill({ json: { ...await response.json(), activeWorkout: null } });
+  });
   const templateId = '33333333-3333-3333-3333-333333333333';
   let starts = 0;
   const actions = [{ type: 'openAddWorkoutDraft', payload: { templateId } }];

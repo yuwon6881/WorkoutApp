@@ -16,8 +16,10 @@ import { ActiveWorkoutStandby } from './ActiveWorkoutStandby';
 import { ProgramMusclePreview } from './ProgramMusclePreview';
 import { RoutineCard } from './RoutineCard';
 
-export function Programs({ data, exercises, onStart, onImport, onChanged }: {
+export function Programs({ data, exercises, onStart, onImport, onChanged, onTemplateSaved, onTemplateDeleted }: {
   data: Bootstrap; exercises: Exercise[]; onStart: (templateId: string) => void; onImport: () => void; onChanged: () => Promise<void>;
+  onTemplateSaved?: (template: Template) => void;
+  onTemplateDeleted?: (id: string) => void;
 }) {
   const [draft, setDraft] = useState<WorkoutDraft | null>(null);
   const [busy, setBusy] = useState(false);
@@ -39,15 +41,16 @@ export function Programs({ data, exercises, onStart, onImport, onChanged }: {
         demoLinks: e.demoLinks ?? null }))
     };
     try {
-      if (savedDraft.id) await api.updateTemplate(savedDraft.id, input); else await api.createTemplate(input);
-      await onChanged();
+      const saved = savedDraft.id ? await api.updateTemplate(savedDraft.id, input) : await api.createTemplate(input);
+      onTemplateSaved?.(saved);
       setDraft(null);
+      if (!onTemplateSaved) void onChanged();
     } finally { setBusy(false); }
   }
 
   async function remove(id: string) {
     setBusy(true);
-    try { await api.deleteTemplate(id); await onChanged(); setDraft(null); }
+    try { await api.deleteTemplate(id); onTemplateDeleted?.(id); setDraft(null); if (!onTemplateDeleted) void onChanged(); }
     finally { setBusy(false); }
   }
 

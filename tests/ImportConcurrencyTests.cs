@@ -39,12 +39,14 @@ public sealed class ImportConcurrencyTests
 
     /// Answers by what a request asks for rather than by the order it arrives in, because with
     /// sections in flight together that order is no longer fixed.
-    private sealed class SectionHandler(Func<string, HttpResponseMessage> respond) : HttpMessageHandler
+    private sealed class SectionHandler(Func<string, HttpResponseMessage> respond, int requiredSections = 0) : HttpMessageHandler
     {
         public int Calls { get; private set; }
         public int PeakInFlight { get; private set; }
         private int inFlight;
         private readonly Lock guard = new();
+        private int sectionsStarted;
+        private readonly TaskCompletionSource sectionsReady = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
         protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken ct)
         {
@@ -54,9 +56,19 @@ public sealed class ImportConcurrencyTests
                 Calls++;
                 inFlight++;
                 PeakInFlight = Math.Max(PeakInFlight, inFlight);
+                if (requiredSections > 0 && !body.Contains("training_program_outline") && ++sectionsStarted >= requiredSections)
+                    sectionsReady.TrySetResult();
             }
             // A real read takes time; the pause is what makes overlap observable at all.
-            try { await Task.Delay(120, ct); return respond(body); }
+            try
+            {
+                // Hold section responses until all requests arrive: CPU contention must not
+                // turn an arbitrary delay into a false serialization finding.
+                if (requiredSections > 0 && !body.Contains("training_program_outline"))
+                    await sectionsReady.Task.WaitAsync(TimeSpan.FromSeconds(15), ct);
+                else await Task.Delay(120, ct);
+                return respond(body);
+            }
             finally { lock (guard) inFlight--; }
         }
     }
@@ -167,7 +179,7 @@ public sealed class ImportConcurrencyTests
     {
         await using var h = await Harness.Create(Configured());
         await h.SignIn();
-        var handler = new SectionHandler(BySection);
+        var handler = new SectionHandler(BySection, requiredSections: 3);
         var imports = h.Imports(handler);
 
         var pending = await imports.Create(Source(), default);

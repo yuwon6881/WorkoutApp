@@ -89,14 +89,14 @@ export function SettingsView(props: SettingsViewProps) {
         <SettingsNav links={sections} />
         <div className="settings-sections">
           <SettingsSection {...general} title="General" description="Applies to all devices.">
-            <SettingRow label={<strong>Appearance</strong>} description="Ayu theme palette.">
+            <SettingRow label={<strong>Appearance</strong>} description="Color theme.">
               <SegmentedControl
                 label="Appearance"
                 value={preferences.theme}
                 onChange={theme => onPreferences({ ...preferences, theme })}
                 options={[
-                  { value: 'dark', label: <><Moon size={15} aria-hidden="true" />Ayu dark</> },
-                  { value: 'light', label: <><Sun size={15} aria-hidden="true" />Ayu light</> }
+                  { value: 'dark', label: <><Moon size={15} aria-hidden="true" />Dark</> },
+                  { value: 'light', label: <><Sun size={15} aria-hidden="true" />Light</> }
                 ]}
               />
             </SettingRow>

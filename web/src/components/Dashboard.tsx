@@ -4,10 +4,12 @@ import type { Bootstrap, ProgressSummary, Session } from '../types';
 import { ApiError, api } from '../lib/api';
 import { nextWorkout } from '../lib/nextWorkout';
 import { Button } from './ui/Button';
-import { TrainingCalendar } from './TrainingCalendar';
-import { BodyweightRecords, ProgressStats } from './ProgressPanels';
+const TrainingCalendar = lazy(() => import('./TrainingCalendar').then(module => ({ default: module.TrainingCalendar })));
+const BodyweightRecords = lazy(() => import('./ProgressPanels').then(module => ({ default: module.BodyweightRecords })));
+const ProgressStats = lazy(() => import('./ProgressPanels').then(module => ({ default: module.ProgressStats })));
 const WorkoutHistory = lazy(() => import('./WorkoutHistory').then(module => ({ default: module.WorkoutHistory })));
 import './Dashboard.css';
+import { CalendarSkeleton, ProgressStatsSkeleton } from './DashboardTrainingSkeleton';
 
 interface DashboardProps {
   data: Bootstrap;
@@ -54,7 +56,7 @@ export function Dashboard({
       cancelled = true;
       controller.abort();
     };
-  }, [progressRetry, data.progress, data.history]);
+  }, [progressRetry, data.progress, data.account.id, data.resourceVersions?.history ?? data.history]);
 
   const program = data.activeProgram;
   const next = nextWorkout(data);
@@ -192,9 +194,12 @@ export function Dashboard({
         </div>
       </section>
 
-      <TrainingCalendar onSession={onSession} />
-
-      <ProgressStats progress={progress} unit={unit} />
+      <Suspense fallback={<CalendarSkeleton />}>
+        <TrainingCalendar onSession={onSession} />
+      </Suspense>
+      <Suspense fallback={<ProgressStatsSkeleton />}>
+        <ProgressStats progress={progress} unit={unit} />
+      </Suspense>
 
       {progressError && (
         <div className="error-banner" role="alert">
@@ -205,7 +210,9 @@ export function Dashboard({
         </div>
       )}
 
-      <BodyweightRecords progress={progress} unit={unit} />
+      <Suspense fallback={<div className="panel skeleton" aria-label="Loading bodyweight records" />}>
+        <BodyweightRecords progress={progress} unit={unit} />
+      </Suspense>
 
       <Suspense fallback={<div className="panel"><div className="skeleton history-row-skeleton" aria-label="Loading workout history" /></div>}>
       <WorkoutHistory

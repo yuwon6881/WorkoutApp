@@ -8,6 +8,7 @@ import { MotionPanel } from './ui/Motion';
 import { Button } from './ui/Button';
 import { useLoadMoreOnScroll } from './ui/useLoadMoreOnScroll';
 import './History.css';
+import './RenderWindow.css';
 import { showTimedSet } from '../lib/setDuration';
 import { useTrackRir } from '../lib/trackRir';
 
@@ -100,7 +101,7 @@ export function WorkoutHistory({
   const sessions = page.sessions.map(session => details[session.id] ?? session);
 
   return (
-    <section className="panel" aria-label="Workout history">
+    <section className={`panel${sessions.length > 100 ? ' history-windowed' : ''}`} aria-label="Workout history">
       <div className="section-heading">
         <h2>Workout history</h2>
         <span className="muted">{sessions.length} of {page.total}</span>

@@ -19,7 +19,7 @@ function schedule() {
 export async function coordinateLaunchRequest<T>(url: string, method: string, signal: AbortSignal | null | undefined,
   run: () => Promise<T>): Promise<T> {
   const path = url.split('?')[0];
-  const primary = method === 'GET' && ['/api/auth/me', '/api/bootstrap', '/api/bootstrap/shell'].includes(path);
+  const primary = method === 'GET' && ['/api/auth/me', '/api/bootstrap', '/api/bootstrap/shell', '/api/bootstrap/launch'].includes(path);
   if (primary) {
     primaryReads++;
     try { return await run(); }

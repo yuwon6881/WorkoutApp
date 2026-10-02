@@ -6,5 +6,6 @@ interface WorkoutGateway {
     suspend fun active(): ActiveWorkoutResponse
     suspend fun workout(sessionId: String): WorkoutSession
     suspend fun send(operation: PendingOperation): WorkoutSession
+    suspend fun flushPendingIntegration() {}
     suspend fun revoke()
 }

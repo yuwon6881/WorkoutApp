@@ -26,7 +26,7 @@ for(const theme of ['light','dark']){
   test(`startup connection recovery is readable in ${theme}`,async({page},testInfo)=>{
     let available=false;
     let reads=0;
-    await page.route('**/api/bootstrap/shell',async route=>{
+    await page.route('**/api/bootstrap/launch',async route=>{
       reads++;
       if(available)await route.continue();
       else await route.fulfill({status:503,body:'Service unavailable'});

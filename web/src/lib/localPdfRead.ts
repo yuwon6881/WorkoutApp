@@ -1,7 +1,6 @@
 import { useSyncExternalStore } from 'react';
 import type { ImportView } from '../types';
 import { ApiError, api } from './api';
-import { PdfTextError, extractPdfText } from './pdfText';
 
 export type LocalPdfProgress = { label: string; detail: string; percent: number | null };
 
@@ -20,6 +19,7 @@ export const LOCAL_READ_LABEL = 'Reading the PDF on this device';
 
 let state: LocalPdfRead = null;
 let controller: AbortController | null = null;
+let pdfErrorType: typeof import('./pdfText').PdfTextError | undefined;
 const listeners = new Set<() => void>();
 
 function set(next: LocalPdfRead) {
@@ -45,7 +45,7 @@ export function isLocalPdfReadActive(read: LocalPdfRead): read is Extract<NonNul
 }
 
 function failure(error: unknown, fallback: string) {
-  return error instanceof ApiError || error instanceof PdfTextError ? error.message : fallback;
+  return error instanceof ApiError || (pdfErrorType && error instanceof pdfErrorType) ? error.message : fallback;
 }
 
 /// Starts reading a PDF unless one is already being read. The outcome stays here until whoever is
@@ -62,6 +62,10 @@ export async function startLocalPdfRead(file: File): Promise<void> {
   try {
     // Reading the text is the only step whose size this app knows, so it is the only step that
     // reports a real percentage.
+    const { extractPdfText, PdfTextError } = await import('./pdfText');
+    pdfErrorType = PdfTextError;
+    if (!current()) return;
+    if (reading.signal.aborted) { set({ status: 'cancelled', fileName }); return; }
     const source = await extractPdfText(file, (page, pageCount) => {
       if (!current() || reading.signal.aborted) return;
       set({ status: 'reading', fileName, progress: {
