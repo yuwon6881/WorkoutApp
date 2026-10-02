@@ -22,7 +22,7 @@ export function useSaveIndicator(status: QueueStatus): SaveIndicator {
       setShown('attention');
       return;
     }
-    if (status.state === 'saving' || status.state === 'connecting') {
+    if (status.state === 'saving') {
       const timer = setTimeout(() => { announcedSaving.current = true; setShown('saving'); }, SLOW_SAVE_MS);
       return () => clearTimeout(timer);
     }

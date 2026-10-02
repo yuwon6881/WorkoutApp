@@ -13,6 +13,11 @@ export type SlotConfirmation = {
   run: () => Promise<unknown>;
 };
 
+export type SlotOptimisticState =
+  | { type: 'set-active'; item: SlotItem }
+  | { type: 'set-library'; item: SlotItem }
+  | null;
+
 /// Every way a workout enters or leaves the active slot — drag, card menu, or the finished-card
 /// buttons — goes through here, so the progress confirmation is asked the same way each time.
 export function useWorkoutSlotActions({ holder, onChanged, onTemplateDeleted }: {
@@ -23,6 +28,7 @@ export function useWorkoutSlotActions({ holder, onChanged, onTemplateDeleted }: 
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [confirmation, setConfirmation] = useState<SlotConfirmation | null>(null);
+  const [optimistic, setOptimistic] = useState<SlotOptimisticState>(null);
 
   const perform = useCallback(async (run: () => Promise<unknown>) => {
     setBusy(true);
@@ -31,9 +37,11 @@ export function useWorkoutSlotActions({ holder, onChanged, onTemplateDeleted }: 
       await run();
       await onChanged();
     } catch (failure) {
+      setOptimistic(null);
       setError(failure instanceof ApiError ? failure.message : 'Could not update your workouts. Try again.');
     } finally {
       setBusy(false);
+      setOptimistic(null);
     }
   }, [onChanged]);
 
@@ -49,10 +57,14 @@ export function useWorkoutSlotActions({ holder, onChanged, onTemplateDeleted }: 
         body: `${slotItemName(item)} becomes your active workout. The progress in ${slotItemName(holder)} will be forgotten, though finished sessions stay in your history.`,
         action: 'Replace and forget progress',
         movingId: null,
-        run
+        run: async () => {
+          setOptimistic({ type: 'set-active', item });
+          await run();
+        }
       });
       return;
     }
+    setOptimistic({ type: 'set-active', item });
     void perform(run);
   }, [holder, perform, setActive]);
 
@@ -64,10 +76,14 @@ export function useWorkoutSlotActions({ holder, onChanged, onTemplateDeleted }: 
         body: 'Its progress will be forgotten. Activating it again starts from the beginning; finished sessions stay in your history.',
         action: 'Move and forget progress',
         movingId: slotItemId(item),
-        run
+        run: async () => {
+          setOptimistic({ type: 'set-library', item });
+          await run();
+        }
       });
       return;
     }
+    setOptimistic({ type: 'set-library', item });
     void perform(run);
   }, [perform, setActive]);
 
@@ -116,5 +132,5 @@ export function useWorkoutSlotActions({ holder, onChanged, onTemplateDeleted }: 
     void perform(run);
   }, [confirmation, perform]);
 
-  return { busy, error, confirmation, cancel: () => setConfirmation(null), confirm, activate, moveToLibrary, restart, remove, drop };
+  return { busy, error, confirmation, cancel: () => { setConfirmation(null); setOptimistic(null); }, confirm, activate, moveToLibrary, restart, remove, drop, optimistic };
 }

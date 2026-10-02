@@ -76,7 +76,7 @@ export function useApp(): AppState {
     const workoutAtStart = workoutVersion.current;
     resourcesInFlight.current.clear();
     setLoading(true);
-    if (!queue.unsaved) queue.set('connecting');
+    if (!currentData.current && !queue.unsaved) queue.set('connecting');
     let validatedAccountId: string | null | undefined;
     const cachedRecovery = (currentData.current ? Promise.resolve(null) : getLastRecovery()).then(async local => {
       if (!local) return;

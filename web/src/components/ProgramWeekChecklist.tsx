@@ -1,25 +1,44 @@
-import { useState } from 'react';
-import type { FormEvent } from 'react';
-import { Check, Play, RotateCcw, SkipForward } from 'lucide-react';
-import type { ProgramSummary, ProgramProgressDay } from '../types';
+import { useEffect, useMemo, useState } from 'react';
+import { Check, ChevronRight, Play, SkipForward } from 'lucide-react';
+import type { Exercise, ImportDraft, ProgramProgressDay, ProgramSummary } from '../types';
 import { ApiError, api } from '../lib/api';
+import { dayTitle, isGenericDayTitle } from '../lib/dayTitle';
 import { Button } from './ui/Button';
 import { Modal } from './ui/Modal';
+import { MenuButton, MenuItem } from './ui/MenuButton';
+import { ReadOnlyDay } from './ReadOnlyDay';
 import './ProgramWeekChecklist.css';
 
-export function ProgramWeekChecklist({ program, onStart, onChanged, hasActiveWorkout }: {
+export function ProgramWeekChecklist({ program, draft, exercises, onStart, onChanged, hasActiveWorkout }: {
   program: ProgramSummary;
+  draft?: ImportDraft | null;
+  exercises: Exercise[];
   onStart: (templateId: string) => void;
   onChanged: () => Promise<void>;
   hasActiveWorkout: boolean;
 }) {
   const [busyDay, setBusyDay] = useState<string | null>(null);
-  const [resetOpen, setResetOpen] = useState(false);
-  const [resetPhrase, setResetPhrase] = useState('');
   const [error, setError] = useState('');
+  const [optimisticPassed, setOptimisticPassed] = useState<Set<string>>(() => new Set());
+  const [openDay, setOpenDay] = useState<ProgramProgressDay | null>(null);
+  const [selectedMuscle, setSelectedMuscle] = useState<string | null>(null);
+
   const progress = program.progress;
   const days = progress?.days ?? [];
-  const canReset = program.active && (progress?.passedDays ?? 0) > 0;
+  const dayDetails = useMemo(() => new Map(program.days.map(day => [day.id, day])), [program.days]);
+  const currentDays = useMemo(() => progress ? program.days.filter(day => day.week === progress.currentWeek) : program.days, [program.days, progress]);
+
+  useEffect(() => {
+    setOptimisticPassed(prev => {
+      if (prev.size === 0) return prev;
+      const next = new Set(prev);
+      for (const id of prev) {
+        const d = program.progress?.days.find(x => x.templateId === id);
+        if (d && d.status !== 'pending') next.delete(id);
+      }
+      return next.size === prev.size ? prev : next;
+    });
+  }, [program.progress]);
 
   function actionInput() {
     if (!progress) throw new Error('The current program week is not available. Refresh and try again.');
@@ -34,12 +53,18 @@ export function ProgramWeekChecklist({ program, onStart, onChanged, hasActiveWor
 
   async function passRest(day: ProgramProgressDay) {
     if (!progress || !day.isRestDay || !program.active || day.status !== 'pending' || hasActiveWorkout) return;
+    setOptimisticPassed(prev => new Set(prev).add(day.templateId));
     setBusyDay(day.templateId);
     setError('');
     try {
       await api.passProgramRestDay(program.id, day.templateId, actionInput());
       await onChanged();
     } catch (failure) {
+      setOptimisticPassed(prev => {
+        const next = new Set(prev);
+        next.delete(day.templateId);
+        return next;
+      });
       setError(failure instanceof ApiError ? failure.message : failure instanceof Error ? failure.message : 'Could not update this rest day.');
     } finally { setBusyDay(null); }
   }
@@ -56,22 +81,14 @@ export function ProgramWeekChecklist({ program, onStart, onChanged, hasActiveWor
     } finally { setBusyDay(null); }
   }
 
-  async function resetWeek(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!progress || !canReset || resetPhrase !== 'RESET' || hasActiveWorkout) return;
-    setBusyDay('reset');
-    setError('');
-    try {
-      await api.resetProgramWeek(program.id, { ...actionInput(), confirmation: resetPhrase });
-      await onChanged();
-      setResetOpen(false);
-      setResetPhrase('');
-    } catch (failure) {
-      setError(failure instanceof ApiError ? failure.message : failure instanceof Error ? failure.message : 'Could not reset this week.');
-    } finally { setBusyDay(null); }
-  }
+  const openDayWorkout = openDay ? draft?.workouts.find(w => w.lineId === openDay.templateId) : null;
+  const openDayIndex = openDay ? currentDays.findIndex(d => d.id === openDay.templateId) : -1;
+  const openDayInfo = openDay ? dayDetails.get(openDay.templateId) : null;
+  const openDayTitle = openDayInfo ? dayTitle(openDayInfo.name, openDayIndex + 1) : '';
+  const modalTitle = openDayInfo
+    ? `Day ${openDayIndex + 1}${isGenericDayTitle(openDayTitle) ? '' : ` · ${openDayTitle}`}`
+    : '';
 
-  const dayDetails = new Map(program.days.map(day => [day.id, day]));
   return <section className="program-week-checklist" aria-labelledby={`program-week-title-${program.id}`}>
     <div className="program-week-heading">
       <div>
@@ -88,60 +105,133 @@ export function ProgramWeekChecklist({ program, onStart, onChanged, hasActiveWor
         {days.map(day => {
           const info = dayDetails.get(day.templateId);
           if (!info) return null;
-          const passed = day.status !== 'pending';
-          const statusLabel = day.status === 'completed' ? 'Completed' : day.status === 'skipped' ? 'Skipped' : day.status === 'rest_passed' ? 'Rest day passed' : day.isRestDay ? 'Rest day' : 'Not passed';
-          return <div className={`program-week-day ${passed ? 'passed' : ''} ${day.isRestDay ? 'rest' : ''}`} key={day.templateId} role="listitem">
-            <label className="program-week-check">
+          const isRest = day.isRestDay;
+          const passed = day.status !== 'pending' || optimisticPassed.has(day.templateId);
+
+          if (isRest) {
+            return <div className={`program-week-day rest ${passed ? 'passed' : ''}`} key={day.templateId} role="listitem">
+              <label className="program-week-check">
+                <input
+                  type="checkbox"
+                  checked={passed}
+                  disabled={!program.active || passed || busyDay !== null || hasActiveWorkout}
+                  aria-label={`${info.name}: ${passed ? 'Rest day passed' : 'Rest day'}${!passed ? ', mark rest day passed' : ''}`}
+                  onChange={() => void passRest(day)}
+                />
+                <div className="program-week-info">
+                  <span className="program-week-name">{info.name}</span>
+                </div>
+              </label>
+              <div className="program-week-status-col">
+                <span className="tiny-label rest-badge">Rest</span>
+              </div>
+            </div>;
+          }
+
+          const draftWorkout = draft?.workouts.find(w => w.lineId === day.templateId);
+          const setCount = draftWorkout ? draftWorkout.exercises.reduce((sum, ex) => sum + ex.sets.length, 0) : null;
+          const dayMeta = [
+            `${info.exerciseCount} ${info.exerciseCount === 1 ? 'exercise' : 'exercises'}`,
+            setCount !== null ? `${setCount} sets` : null,
+            info.focus || null
+          ].filter(Boolean).join(' · ');
+
+          return <div
+            className={`program-week-day exercise-day ${passed ? 'passed' : ''}`}
+            key={day.templateId}
+            role="button"
+            tabIndex={0}
+            aria-label={`View ${info.name}`}
+            onClick={() => { setSelectedMuscle(null); setOpenDay(day); }}
+            onKeyDown={e => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                setSelectedMuscle(null);
+                setOpenDay(day);
+              }
+            }}
+          >
+            <div className="program-week-check">
               <input
                 type="checkbox"
                 checked={passed}
-                disabled={!day.isRestDay || !program.active || passed || busyDay !== null || hasActiveWorkout}
-                aria-label={`${info.name}: ${statusLabel}${day.isRestDay && !passed ? ', mark rest day passed' : ''}`}
-                onChange={() => void passRest(day)}
+                readOnly
+                tabIndex={-1}
+                aria-hidden="true"
+                onClick={e => {
+                  e.stopPropagation();
+                  e.preventDefault();
+                  setSelectedMuscle(null);
+                  setOpenDay(day);
+                }}
               />
-              <span className="program-week-name">{info.name}</span>
-            </label>
-            <span className="program-week-status">{statusLabel}</span>
-            {!day.isRestDay && day.status === 'pending' && <div className="program-week-actions">
-              {program.active && <>
-                <Button variant="primary" disabled={busyDay !== null || hasActiveWorkout} aria-label={`Start ${info.name}`} onClick={() => onStart(info.id)}>
-                  <Play size={14} fill="currentColor" />Start
-                </Button>
-                <Button variant="tertiary" disabled={busyDay !== null || hasActiveWorkout} aria-label={`Skip ${info.name}`} onClick={() => void skipWorkout(day)}>
-                  <SkipForward size={15} />Skip
-                </Button>
-              </>}
-            </div>}
-            {day.status === 'completed' && <Check className="program-week-complete-icon" size={16} aria-hidden="true" />}
+              <div className="program-week-info">
+                <span className="program-week-name">{info.name}</span>
+                <span className="program-week-meta">{dayMeta}</span>
+              </div>
+            </div>
+            <div className="program-week-status-col">
+              {day.status === 'completed' && <Check className="program-week-complete-icon" size={18} aria-label="Completed" />}
+              {day.status === 'skipped' && <span className="program-week-skipped-indicator" title="Skipped"><SkipForward size={14} className="muted" /></span>}
+              {day.status === 'pending' && <ChevronRight className="program-week-chevron muted" size={16} aria-hidden="true" />}
+            </div>
           </div>;
         })}
       </div>
       {!program.active && progress.passedDays === progress.totalDays && <p className="program-week-note">All weeks are complete. Activate this program to start a fresh run.</p>}
-      {program.active && <p className="program-week-note">Finish or skip each workout. Tick rest days to pass them. Passed days stay locked until you reset this week.</p>}
       {hasActiveWorkout && program.active && <p className="program-week-note">Finish or discard the active workout before starting, skipping, or resetting a day.</p>}
-      {canReset && <Button className="program-week-reset" variant="destructive" disabled={Boolean(busyDay) || hasActiveWorkout} onClick={() => { setError(''); setResetPhrase(''); setResetOpen(true); }}>
-        <RotateCcw size={15} />Reset this week
-      </Button>}
     </> : <p className="program-week-note">Activate this program to begin its first week.</p>}
 
     {error && <p className="error-text program-week-error" role="alert">{error}</p>}
-    {resetOpen && <Modal title="Reset this week?" onClose={() => { setResetOpen(false); setResetPhrase(''); }}>
-      <form className="modal-body program-week-reset-form" noValidate onSubmit={event => void resetWeek(event)}>
-        <p>This clears the checkmarks for Week {progress?.currentWeek}. Completed workout history stays saved.</p>
-        <label className="field" htmlFor={`reset-program-week-${program.id}`}>
-          Type <strong>RESET</strong> to confirm
-          <input id={`reset-program-week-${program.id}`} autoComplete="off" value={resetPhrase} onChange={event => setResetPhrase(event.target.value)} aria-describedby={`reset-program-week-hint-${program.id}`} />
-        </label>
-        <small id={`reset-program-week-hint-${program.id}`}>This cannot be undone. The current week will start again at day one.</small>
-        {hasActiveWorkout && <p className="error-text" role="alert">Finish or discard the active workout first.</p>}
-        {error && <p className="error-text" role="alert">{error}</p>}
-        <div className="modal-actions">
-          <Button type="button" disabled={busyDay === 'reset'} onClick={() => { setResetOpen(false); setResetPhrase(''); }}>Cancel</Button>
-          <Button type="submit" variant="destructive" disabled={resetPhrase !== 'RESET' || busyDay === 'reset' || hasActiveWorkout}>
-            <RotateCcw size={15} />{busyDay === 'reset' ? 'Resetting…' : 'Reset week'}
-          </Button>
+
+    {openDay && (
+      <Modal
+        title={modalTitle}
+        wide
+        onClose={() => { setOpenDay(null); setSelectedMuscle(null); }}
+        className="day-detail-modal"
+        headerActions={
+          openDay.status === 'pending' && program.active ? (
+            <MenuButton label={`Actions for ${openDayInfo?.name ?? 'workout'}`} portal>
+              <MenuItem disabled={hasActiveWorkout || busyDay !== null} onClick={() => {
+                const target = openDay;
+                setOpenDay(null);
+                setSelectedMuscle(null);
+                void skipWorkout(target);
+              }}>
+                <SkipForward size={14} />Skip this workout day
+              </MenuItem>
+            </MenuButton>
+          ) : undefined
+        }
+      >
+        <div className="modal-body day-detail-modal-body draft-day" data-import-day={openDay.templateId}>
+          {openDayWorkout ? (
+            <ReadOnlyDay
+              day={openDayWorkout}
+              exercises={exercises}
+              selectedMuscle={selectedMuscle}
+              onMuscleSelect={setSelectedMuscle}
+            />
+          ) : (
+            <p className="muted small-copy" role="status">Loading workout details…</p>
+          )}
         </div>
-      </form>
-    </Modal>}
+        <div className="modal-actions">
+          {openDay.status === 'pending' ? (
+            <Button variant="primary" disabled={hasActiveWorkout} onClick={() => {
+              const targetId = openDay.templateId;
+              setOpenDay(null);
+              setSelectedMuscle(null);
+              onStart(targetId);
+            }}>
+              <Play size={14} fill="currentColor" />Start workout
+            </Button>
+          ) : (
+            <Button variant="primary" onClick={() => { setOpenDay(null); setSelectedMuscle(null); }}>Done</Button>
+          )}
+        </div>
+      </Modal>
+    )}
   </section>;
 }

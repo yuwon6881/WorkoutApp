@@ -15,7 +15,16 @@ export function SlotCardHeader({ title, meta, badge, expanded, onToggle, menuLab
   menuLabel: string;
   menu: ReactNode;
 }) {
-  return <div className="slot-card-header">
+  const handleHeaderClick = (e: React.MouseEvent) => {
+    if (!onToggle) return;
+    const target = e.target as HTMLElement;
+    if (target.closest('.slot-card-grip, .slot-card-controls, button, [role="button"], [role="menu"]')) {
+      return;
+    }
+    onToggle();
+  };
+
+  return <div className={`slot-card-header ${onToggle ? 'is-clickable' : ''}`} onClick={handleHeaderClick}>
     <span className="slot-card-grip" data-slot-grip aria-hidden="true"><GripVertical size={16} /></span>
     <div className="slot-card-title">
       <h3>{title}</h3>
@@ -24,7 +33,7 @@ export function SlotCardHeader({ title, meta, badge, expanded, onToggle, menuLab
     {badge}
     <div className="slot-card-controls">
       {onToggle && <Button variant="tertiary" className="slot-card-toggle" aria-expanded={expanded}
-        aria-label={expanded ? `Collapse ${title}` : `Expand ${title}`} onClick={onToggle}>
+        aria-label={expanded ? `Collapse ${title}` : `Expand ${title}`} onClick={e => { e.stopPropagation(); onToggle(); }}>
         <ChevronDown size={18} />
       </Button>}
       <MenuButton label={menuLabel} triggerClassName="slot-card-menu-trigger" portal>{menu}</MenuButton>

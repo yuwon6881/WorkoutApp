@@ -18,7 +18,7 @@ function lockPageScroll() {
   };
 }
 
-export function Modal({ title, children, onClose, wide = false, headless = false, className = '' }: {
+export function Modal({ title, children, onClose, wide = false, headless = false, className = '', headerActions }: {
   title: string;
   children: ReactNode;
   onClose: () => void;
@@ -26,6 +26,7 @@ export function Modal({ title, children, onClose, wide = false, headless = false
   /** The content supplies its own header, including a way to close. The title stays the dialog's name. */
   headless?: boolean;
   className?: string;
+  headerActions?: ReactNode;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
   const pointerStartedOnBackdrop = useRef(false);
@@ -84,7 +85,13 @@ export function Modal({ title, children, onClose, wide = false, headless = false
       }
       close();
     }} aria-label={title}>
-    {!headless && <header><h2 title={title}>{title}</h2><Button variant="tertiary" aria-label="Close dialog" onClick={close}><X size={20} /></Button></header>}
+    {!headless && <header>
+      <h2 title={title}>{title}</h2>
+      <div className="modal-header-actions">
+        {headerActions}
+        <Button variant="tertiary" aria-label="Close dialog" onClick={close}><X size={20} /></Button>
+      </div>
+    </header>}
     {children}
   </dialog>;
 }

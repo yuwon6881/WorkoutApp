@@ -5,6 +5,8 @@
   display: grid;
   gap: 12px;
   padding: 18px;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .routine-card-head {

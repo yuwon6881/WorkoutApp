@@ -36,7 +36,12 @@ export function LibraryProgramCard({ program, exercises, busy, onActivate, onDel
     setExpanded(value => !value);
   }
 
-  return <section {...dragProps} className={`panel slot-card library-program-card ${expanded ? 'expanded' : ''}`} aria-busy={loading}>
+  return <section {...dragProps} className={`panel slot-card library-program-card ${expanded ? 'expanded' : 'is-collapsed-card'}`} aria-busy={loading}
+    onClick={!expanded ? (e) => {
+      const target = e.target as HTMLElement;
+      if (target.closest('.slot-card-grip, .slot-card-controls, button, [role="button"], [role="menu"]')) return;
+      void toggle();
+    } : undefined}>
     <SlotCardHeader title={program.name}
       meta={`${weekCount} ${weekCount === 1 ? 'week' : 'weeks'} · ${workoutDays} workout ${workoutDays === 1 ? 'day' : 'days'}`}
       expanded={expanded} onToggle={() => void toggle()}

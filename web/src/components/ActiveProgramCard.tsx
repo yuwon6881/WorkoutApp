@@ -1,9 +1,10 @@
-import { useState, type HTMLAttributes } from 'react';
+import { useEffect, useState, type FormEvent, type HTMLAttributes } from 'react';
 import { ArrowRight, Library, PartyPopper, RotateCcw, Trash2 } from 'lucide-react';
-import type { Exercise, ProgramSummary, Template, TemplateExercise } from '../types';
+import type { Exercise, ImportDraft, ProgramSummary, Template, TemplateExercise } from '../types';
 import { ApiError, api } from '../lib/api';
-import { isProgramFinished } from '../lib/activeSlot';
+import { isProgramFinished, programToDraft } from '../lib/activeSlot';
 import { Button } from './ui/Button';
+import { Modal } from './ui/Modal';
 import { MenuItem } from './ui/MenuButton';
 import { ProgramWeekChecklist } from './ProgramWeekChecklist';
 import { ProgramDayTree } from './ProgramDayTree';
@@ -32,8 +33,13 @@ export function ActiveProgramCard({ program, exercises, onStart, onChanged, hasA
 }) {
   const [expanded, setExpanded] = useState(false);
   const [detail, setDetail] = useState<Template[] | null>(null);
+  const [draft, setDraft] = useState<ImportDraft | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [resetOpen, setResetOpen] = useState(false);
+  const [resetPhrase, setResetPhrase] = useState('');
+  const [resetBusy, setResetBusy] = useState(false);
+  const [resetError, setResetError] = useState('');
   const [swapTarget, setSwapTarget] = useState<{ template: Template; exercise: TemplateExercise } | null>(null);
   const finished = isProgramFinished(program);
   const next = program.days.find(day => day.id === program.nextTemplateId);
@@ -41,17 +47,54 @@ export function ActiveProgramCard({ program, exercises, onStart, onChanged, hasA
   const currentDays = progress ? program.days.filter(day => day.week === progress.currentWeek) : program.days;
   const weekCount = new Set(program.days.map(day => day.week)).size;
   const weekIndex = progress ? [...new Set(program.days.map(day => day.week))].sort((a, b) => a - b).indexOf(progress.currentWeek) + 1 : 1;
+  const canReset = Boolean(program.active && (progress?.passedDays ?? 0) > 0);
 
   async function loadDetail() {
     setLoading(true); setError('');
-    try { setDetail((await api.getProgram(program.id)).workouts); }
+    try {
+      const full = await api.getProgram(program.id);
+      setDetail(full.workouts);
+      setDraft(programToDraft(full));
+    }
     catch (failure) { setError(failure instanceof ApiError ? failure.message : 'Could not load this program.'); }
     finally { setLoading(false); }
   }
 
+  useEffect(() => {
+    if (!finished && program.id) {
+      void loadDetail();
+    }
+  }, [program.id, program.revision, finished]);
+
   function toggle() {
     if (!expanded && detail === null) void loadDetail();
     setExpanded(value => !value);
+  }
+
+  function resetActionInput() {
+    if (!progress) throw new Error('The current program week is not available. Refresh and try again.');
+    return {
+      revision: program.revision,
+      runId: progress.runId,
+      week: progress.currentWeek,
+      attempt: progress.currentAttempt,
+      idempotencyId: crypto.randomUUID()
+    };
+  }
+
+  async function handleResetWeek(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!progress || !canReset || resetPhrase !== 'RESET' || hasActiveWorkout) return;
+    setResetBusy(true);
+    setResetError('');
+    try {
+      await api.resetProgramWeek(program.id, { ...resetActionInput(), confirmation: resetPhrase });
+      await onChanged();
+      setResetOpen(false);
+      setResetPhrase('');
+    } catch (failure) {
+      setResetError(failure instanceof ApiError ? failure.message : failure instanceof Error ? failure.message : 'Could not reset this week.');
+    } finally { setResetBusy(false); }
   }
 
   const meta = finished
@@ -67,19 +110,20 @@ export function ActiveProgramCard({ program, exercises, onStart, onChanged, hasA
       menu={<>
         <MenuItem disabled={actions.busy} onClick={actions.onMoveToLibrary}><Library size={14} />Move to library</MenuItem>
         <MenuItem disabled={actions.busy} onClick={actions.onRestart}><RotateCcw size={14} />Restart from the beginning</MenuItem>
+        {canReset && <MenuItem disabled={actions.busy || hasActiveWorkout} onClick={() => { setResetOpen(true); setResetPhrase(''); setResetError(''); }}><RotateCcw size={14} />Reset this week</MenuItem>}
         <MenuItem destructive disabled={actions.busy} onClick={actions.onDelete}><Trash2 size={14} />Delete program</MenuItem>
       </>} />
 
     {finished
       ? <SlotFinished name={program.name} description="You passed every week of this program." actions={actions} />
       : <>
-        {progress && <ProgramWeekChecklist program={program} onStart={onStart} onChanged={onChanged} hasActiveWorkout={hasActiveWorkout} />}
+        {progress && <ProgramWeekChecklist program={program} draft={draft} exercises={exercises} onStart={onStart} onChanged={onChanged} hasActiveWorkout={hasActiveWorkout} />}
         {expanded && (detail
           ? <ProgramDayTree days={currentDays} completed={program.completedTemplateIds} skipped={program.skippedTemplateIds ?? []}
             nextId={program.nextTemplateId} detail={detail} exercises={exercises} onStart={onStart} canStart
             onSwap={template => exercise => setSwapTarget({ template, exercise })} />
           : loading && <p className="muted small-copy" role="status">Loading this week…</p>)}
-        {next && <div className="slot-card-actions">
+        {!progress && next && <div className="slot-card-actions">
           <Button variant="primary" disabled={hasActiveWorkout} onClick={() => onStart(next.id)}>Start {next.name}<ArrowRight size={16} /></Button>
         </div>}
       </>}
@@ -88,6 +132,25 @@ export function ActiveProgramCard({ program, exercises, onStart, onChanged, hasA
     {swapTarget && <ProgramSwapModal program={program} target={swapTarget} detail={detail} exercises={exercises}
       onClose={() => setSwapTarget(null)}
       onApplied={async () => { await onChanged(); await loadDetail(); setSwapTarget(null); }} />}
+
+    {resetOpen && <Modal title="Reset this week?" onClose={() => { setResetOpen(false); setResetPhrase(''); }}>
+      <form className="modal-body program-week-reset-form" noValidate onSubmit={event => void handleResetWeek(event)}>
+        <p>This clears the checkmarks for Week {progress?.currentWeek}. Completed workout history stays saved.</p>
+        <label className="field" htmlFor={`reset-program-week-${program.id}`}>
+          Type <strong>RESET</strong> to confirm
+          <input id={`reset-program-week-${program.id}`} autoComplete="off" value={resetPhrase} onChange={event => setResetPhrase(event.target.value)} aria-describedby={`reset-program-week-hint-${program.id}`} />
+        </label>
+        <small id={`reset-program-week-hint-${program.id}`}>This cannot be undone. The current week will start again at day one.</small>
+        {hasActiveWorkout && <p className="error-text" role="alert">Finish or discard the active workout first.</p>}
+        {resetError && <p className="error-text" role="alert">{resetError}</p>}
+        <div className="modal-actions">
+          <Button type="button" disabled={resetBusy} onClick={() => { setResetOpen(false); setResetPhrase(''); }}>Cancel</Button>
+          <Button type="submit" variant="destructive" disabled={resetPhrase !== 'RESET' || resetBusy || hasActiveWorkout}>
+            <RotateCcw size={15} />{resetBusy ? 'Resetting…' : 'Reset week'}
+          </Button>
+        </div>
+      </form>
+    </Modal>}
   </section>;
 }
 

@@ -27,12 +27,35 @@ export function Programs({ data, exercises, onStart, onImport, onChanged, onTemp
   const [busy, setBusy] = useState(false);
   const [building, setBuilding] = useState(false);
 
-  const activeProgram = data.programs.find(program => program.active) ?? null;
-  const activeTemplate = data.templates.find(template => template.active) ?? null;
-  const holder = useMemo<SlotItem | null>(() => activeProgram ? { kind: 'program', program: activeProgram }
-    : activeTemplate ? { kind: 'template', template: activeTemplate } : null, [activeProgram, activeTemplate]);
+  const rawActiveProgram = data.programs.find(program => program.active) ?? null;
+  const rawActiveTemplate = data.templates.find(template => template.active) ?? null;
+  const holder = useMemo<SlotItem | null>(() => rawActiveProgram ? { kind: 'program', program: rawActiveProgram }
+    : rawActiveTemplate ? { kind: 'template', template: rawActiveTemplate } : null, [rawActiveProgram, rawActiveTemplate]);
   const slot = useWorkoutSlotActions({ holder, onChanged, onTemplateDeleted });
   const { drag, handlers } = useWorkoutSlotDrag(slot.drop);
+
+  const activeProgram = useMemo(() => {
+    if (slot.optimistic?.type === 'set-active') {
+      return slot.optimistic.item.kind === 'program' ? slot.optimistic.item.program : null;
+    }
+    if (slot.optimistic?.type === 'set-library' && holder?.kind === 'program') {
+      return null;
+    }
+    return rawActiveProgram;
+  }, [slot.optimistic, rawActiveProgram, holder]);
+
+  const activeTemplate = useMemo(() => {
+    if (slot.optimistic?.type === 'set-active') {
+      return slot.optimistic.item.kind === 'template' ? slot.optimistic.item.template : null;
+    }
+    if (slot.optimistic?.type === 'set-library' && holder?.kind === 'template') {
+      return null;
+    }
+    return rawActiveTemplate;
+  }, [slot.optimistic, rawActiveTemplate, holder]);
+
+  const displayHolder = useMemo<SlotItem | null>(() => activeProgram ? { kind: 'program', program: activeProgram }
+    : activeTemplate ? { kind: 'template', template: activeTemplate } : null, [activeProgram, activeTemplate]);
 
   const open = (template?: Template) => {
     setDraft(template
@@ -70,8 +93,41 @@ export function Programs({ data, exercises, onStart, onImport, onChanged, onTemp
   }
 
   const hasActiveWorkout = Boolean(data.activeWorkout?.active);
-  const libraryPrograms = data.programs.filter(program => !program.active);
-  const libraryTemplates = data.templates.filter(template => !template.active);
+
+  const libraryPrograms = useMemo(() => {
+    let list = data.programs.filter(program => !program.active);
+    if (slot.optimistic?.type === 'set-active' && slot.optimistic.item.kind === 'program') {
+      const activeId = slot.optimistic.item.program.id;
+      list = list.filter(p => p.id !== activeId);
+      if (holder?.kind === 'program' && holder.program.id !== activeId) {
+        list = [holder.program, ...list];
+      }
+    } else if (slot.optimistic?.type === 'set-library' && slot.optimistic.item.kind === 'program') {
+      const returning = slot.optimistic.item.program;
+      if (!list.some(p => p.id === returning.id)) {
+        list = [returning, ...list];
+      }
+    }
+    return list;
+  }, [data.programs, slot.optimistic, holder]);
+
+  const libraryTemplates = useMemo(() => {
+    let list = data.templates.filter(template => !template.active);
+    if (slot.optimistic?.type === 'set-active' && slot.optimistic.item.kind === 'template') {
+      const activeId = slot.optimistic.item.template.id;
+      list = list.filter(t => t.id !== activeId);
+      if (holder?.kind === 'template' && holder.template.id !== activeId) {
+        list = [holder.template, ...list];
+      }
+    } else if (slot.optimistic?.type === 'set-library' && slot.optimistic.item.kind === 'template') {
+      const returning = slot.optimistic.item.template;
+      if (!list.some(t => t.id === returning.id)) {
+        list = [returning, ...list];
+      }
+    }
+    return list;
+  }, [data.templates, slot.optimistic, holder]);
+
   const libraryCount = libraryPrograms.length + libraryTemplates.length;
   const readyImport = data.imports.find(view => view.status === 'ready' && !view.error);
   const movingId = slot.confirmation?.movingId ?? null;
@@ -117,14 +173,14 @@ export function Programs({ data, exercises, onStart, onImport, onChanged, onTemp
 
     <section className="program-section">
       <div className="section-heading"><h2>Active workout</h2></div>
-      <ActiveSlotDropZone over={drag?.overZone === 'active' && drag.from === 'library'} occupied={Boolean(holder)}
+      <ActiveSlotDropZone over={drag?.overZone === 'active' && drag.from === 'library'} occupied={Boolean(displayHolder)}
         hasLibrary={libraryCount > 0} onNewWorkout={() => open()} onImport={onImport}>
-        {holder?.kind === 'program' && <ActiveProgramCard program={holder.program} exercises={exercises} onStart={onStart} onChanged={onChanged}
-          hasActiveWorkout={hasActiveWorkout} actions={cardActions(holder)} dragProps={dragProps(holder, 'active')}
-          moving={movingId === holder.program.id} />}
-        {holder?.kind === 'template' && <ActiveTemplateCard template={holder.template} onStart={() => onStart(holder.template.id)}
-          onEdit={() => open(holder.template)} hasActiveWorkout={hasActiveWorkout} actions={cardActions(holder)}
-          dragProps={dragProps(holder, 'active')} moving={movingId === holder.template.id} />}
+        {displayHolder?.kind === 'program' && <ActiveProgramCard program={displayHolder.program} exercises={exercises} onStart={onStart} onChanged={onChanged}
+          hasActiveWorkout={hasActiveWorkout} actions={cardActions(displayHolder)} dragProps={dragProps(displayHolder, 'active')}
+          moving={movingId === displayHolder.program.id} />}
+        {displayHolder?.kind === 'template' && <ActiveTemplateCard template={displayHolder.template} onStart={() => onStart(displayHolder.template.id)}
+          onEdit={() => open(displayHolder.template)} hasActiveWorkout={hasActiveWorkout} actions={cardActions(displayHolder)}
+          dragProps={dragProps(displayHolder, 'active')} moving={movingId === displayHolder.template.id} />}
       </ActiveSlotDropZone>
     </section>
 
