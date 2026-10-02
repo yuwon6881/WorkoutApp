@@ -109,11 +109,20 @@ export function ImportReview({ exercises, imports, onBack, onChanged, notify }: 
 
   // Discarding one import must not hide another that is still waiting for review: once the
   // screen is idle with nothing selected, it returns to the next live read or ready draft, the
-  // same one it would open on a fresh visit.
+  // same one it would open on a fresh visit. When imports update in the background, keep
+  // the selected row in sync with its latest status and draft.
   useEffect(() => {
-    if (selected || busy || localRead) return;
-    const next = resumableImport(imports, discarded.current);
-    if (next) setSelected(next);
+    if (busy || localRead) return;
+    if (!selected) {
+      const next = resumableImport(imports, discarded.current);
+      if (next) setSelected(next);
+      return;
+    }
+    const matching = imports.find(item => item.id === selected.id);
+    if (matching && (matching.status !== selected.status || matching.stage !== selected.stage || matching.revision !== selected.revision)) {
+      setSelected(matching);
+      if (matching.draft) setDraft(matching.draft);
+    }
   }, [busy, imports, localRead, selected]);
 
   function discard(view: ImportView) {
@@ -125,11 +134,13 @@ export function ImportReview({ exercises, imports, onBack, onChanged, notify }: 
     let cancelled = false;
     if (!selected) { setDraft(null); return; }
     if (selected.draft) { setDraft(selected.draft); return; }
-    api.getImport(selected.id).then(view => {
-      if (!cancelled) { setSelected(view); setDraft(view.draft); }
-    }).catch(failure => { if (!cancelled) setSaveError(failure instanceof ApiError ? failure.message : 'Could not load this import.'); });
+    if (selected.status === 'ready') {
+      api.getImport(selected.id).then(view => {
+        if (!cancelled) { setSelected(view); setDraft(view.draft); }
+      }).catch(failure => { if (!cancelled) setSaveError(failure instanceof ApiError ? failure.message : 'Could not load this import.'); });
+    }
     return () => { cancelled = true; };
-  }, [selected?.id]);
+  }, [selected?.id, selected?.status, selected?.draft]);
 
   useEffect(() => {
     setAlternativeChoice(selected?.stage === 'select' ? selected.selectedAlternativeId ?? null : null);
@@ -298,6 +309,16 @@ export function ImportReview({ exercises, imports, onBack, onChanged, notify }: 
       </div>
     </section>}
 
+    {selected && !draft && selected.status === 'ready' && !selected.error && (
+      <section className="panel" role="status">
+        <div className="empty-message">
+          <Loader2 size={24} className="spin" />
+          <h3>Loading program draft…</h3>
+          <p>Preparing the extracted days and exercises for review.</p>
+        </div>
+      </section>
+    )}
+
     {selected && draft && selected.status === 'ready' && <>
       <section className="panel" ref={reviewRef}>
         <div className="section-heading import-review-heading">
@@ -349,7 +370,7 @@ export function ImportReview({ exercises, imports, onBack, onChanged, notify }: 
           busy={busy}
           onRestoreDraft={() => setConfirmRestoreDraft(true)}
           onDiscardDraft={() => pipeline.run('Discarding this draft…', async () => { discarded.current.add(selected.id); await api.discardImport(selected.id); setSelected(null); setDraft(null); })}
-          onAcceptProgram={() => pipeline.run('Creating the program…', async () => { await api.acceptImport(selected.id); setSelected(null); setDraft(null); onBack(); })}
+          onAcceptProgram={() => pipeline.run('Creating the program…', async () => { await api.acceptImport(selected.id); await onChanged(); setSelected(null); setDraft(null); onBack(); })}
         />
       )
         : <section className="panel"><div className="empty-message"><AlertTriangle size={30} /><h3>No extracted days</h3><p>The draft needs at least one training or rest day.</p></div></section>}

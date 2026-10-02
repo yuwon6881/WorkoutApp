@@ -15,7 +15,7 @@ public record TemplateExerciseView(Guid Id, Guid? ExerciseId, string SourceName,
     Dictionary<string, string>? DemoLinks = null);
 public record TemplateView(Guid Id, Guid? ProgramId, string Name, string Focus, string Note, int Week, int Position, int Revision, List<TemplateExerciseView> Exercises,
     string Block = "", string Phase = "", int PhaseWeek = 1, bool IsRestDay = false, int? SourcePage = null, Guid? PhaseId = null,
-    bool CanRestore = false, bool IsLegacyBaseline = false);
+    bool CanRestore = false, bool IsLegacyBaseline = false, bool Active = false, DateTime? ActiveCompletedAt = null);
 public static class SubstitutionScope
 {
     public const string Slot = "slot";
@@ -82,7 +82,7 @@ public sealed partial class TemplateService(AppDb db, CatalogService catalog)
 
             return new TemplateView(t.Id, t.ProgramId, t.Name, t.Focus, t.Note, t.Week, t.Position, t.Revision,
                 exerciseViews, t.Block, t.Phase, t.PhaseWeek, t.IsRestDay, t.SourcePage, t.ProgramPhaseId,
-                canRestoreTemplate, isLegacy);
+                canRestoreTemplate, isLegacy, t.Active, t.ActiveCompletedAt);
         }).ToList();
     }
 

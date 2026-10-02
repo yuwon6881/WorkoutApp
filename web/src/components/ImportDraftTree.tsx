@@ -45,6 +45,7 @@ export const DraftOutline = forwardRef<DraftOutlineHandle, {
   onRestoreDraft?: () => void;
   onDiscardDraft?: () => void;
   onAcceptProgram?: () => void;
+  readOnly?: boolean;
 }>(function DraftOutline({
   draft,
   expandedDay,
@@ -66,7 +67,8 @@ export const DraftOutline = forwardRef<DraftOutlineHandle, {
   busy,
   onRestoreDraft,
   onDiscardDraft,
-  onAcceptProgram
+  onAcceptProgram,
+  readOnly = false
 }, ref) {
   const structure = useProgramStructureEditor({ draft, onDraftChange, onDayChange });
   const { normalizedDraft, weeks, week, setSelectedWeek } = structure;
@@ -144,6 +146,16 @@ export const DraftOutline = forwardRef<DraftOutlineHandle, {
   }), [editorMode, exercises, normalizedDraft, onDraftChange, onExerciseChange]);
 
   if (!week) return null;
+
+  // The library shows a saved program inside its own card, so the view-only timeline carries no
+  // heading, actions, or editing dialogs of its own.
+  if (readOnly) {
+    return <section className="import-program-card readonly-program-timeline" data-editor-mode="readonly">
+      <ProgramStructureBar structure={structure} readOnly />
+      <ProgramDayList structure={structure} exercises={exercises} openDay={expandedDay} setOpenDay={setExpandedDay}
+        onDayChange={onDayChange} editing={editing} readOnly />
+    </section>;
+  }
 
   return <>
     <section className="panel import-program-card" data-editor-mode={editorMode}>

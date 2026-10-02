@@ -12,5 +12,5 @@ export function ImportWatchBridge({ imports, active, training, withResume, onFin
   onOpen: () => void;
 }) {
   const watch = useImportWatch({ imports, active, onFinished, onLocalFailure });
-  return watch && !training ? <ImportProgressPill progress={watch.progress} withResume={withResume} onOpen={onOpen} /> : null;
+  return watch && !training ? <ImportProgressPill progress={watch.progress} finished={watch.finished} withResume={withResume} onOpen={onOpen} /> : null;
 }

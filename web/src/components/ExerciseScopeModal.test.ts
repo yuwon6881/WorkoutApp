@@ -37,4 +37,10 @@ describe('ExerciseScopeModal', () => {
   it('uses the singular for a single other occurrence', () => {
     expect(render({ block: 1, program: 1 })).toContain('1 other occurrence<');
   });
+
+  it('renders radio options without unwanted structure', () => {
+    const markup = render({ block: 1, program: 2 });
+    expect(markup).toContain('class="checkbox-row exercise-scope-option"');
+    expect(markup).toContain('type="radio"');
+  });
 });

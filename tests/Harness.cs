@@ -27,6 +27,7 @@ public sealed class Harness : IAsyncDisposable
     public ProgressionService Progression { get; }
     public WorkoutService Workouts { get; }
     public MuscleBalanceService MuscleBalance { get; }
+    public ActiveSlotService ActiveSlot { get; }
 
     private Harness(SqliteConnection connection, AppDb db, IConfiguration config)
     {
@@ -38,6 +39,7 @@ public sealed class Harness : IAsyncDisposable
         ProgramProgress = new ProgramProgressService(db);
         var lifecycle = new ProgramLifecycleService(db, Templates, ProgramProgress);
         Programs = new ProgramService(db, Templates, ProgramProgress, lifecycle);
+        ActiveSlot = new ActiveSlotService(db, Templates, lifecycle);
         ProgramEditor = new ProgramEditorService(Programs);
         Progression = new ProgressionService(db);
         Workouts = new WorkoutService(db, Catalog, Templates, Progression,

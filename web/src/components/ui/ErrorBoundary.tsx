@@ -1,5 +1,5 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react';
-import { AlertTriangle } from 'lucide-react';
+import { AlertTriangle, RotateCcw } from 'lucide-react';
 import { reloadWithFreshShell } from '../../lib/freshShell';
 import { Button } from './Button';
 import './CardFeedback.css';
@@ -39,16 +39,27 @@ export class ErrorBoundary extends Component<{ children: ReactNode }, { failed: 
     void reloadWithFreshShell();
   };
 
+  private reset = () => {
+    this.setState({ failed: false, reloading: false });
+  };
+
   render() {
     if (!this.state.failed) return this.props.children;
     return (
       <main className="auth-screen" role="alert">
-        <section className="panel recovery-card">
+        <section className="panel recovery-card reload-recovery" aria-labelledby="reload-heading">
           <span className="recovery-error-icon" aria-hidden="true"><AlertTriangle size={24}/></span>
-          <h1>This view needs a reload</h1>
+          <p className="eyebrow">WORKOUT</p>
+          <h1 id="reload-heading">This view needs a reload</h1>
           <p>An active workout stays saved on this device. Reload to continue where you left off.</p>
-          <div className="modal-actions">
-            <Button variant="primary" disabled={this.state.reloading} onClick={this.reload}>{this.state.reloading ? 'Reloading…' : 'Reload'}</Button>
+          <div className="recovery-actions">
+            <Button variant="primary" className="full-width" disabled={this.state.reloading} onClick={this.reload}>
+              <RotateCcw size={16} />
+              {this.state.reloading ? 'Reloading…' : 'Reload workout app'}
+            </Button>
+            <Button variant="secondary" className="full-width" disabled={this.state.reloading} onClick={this.reset}>
+              Try again
+            </Button>
           </div>
         </section>
       </main>

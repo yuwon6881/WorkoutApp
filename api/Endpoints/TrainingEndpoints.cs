@@ -23,6 +23,7 @@ public record PreferencesInput(string Unit, string Theme, int? RestSeconds = nul
 public record StartInput(Guid? TemplateId, string? Name);
 public record FinishInput(int? Revision, bool RetainExerciseSwaps = false, Guid? MutationId = null, DateTimeOffset? FinishedAt = null);
 public record ActivateInput(bool Active, int? Revision);
+public record RevisionInput(int? Revision);
 public record TemplateRestoreInput(int? Revision = null, Guid? IdempotencyId = null);
 
 public static class TrainingEndpoints
@@ -151,6 +152,10 @@ public static class TrainingEndpoints
             => await templates.RestoreSubstitution(id, input, ct));
         app.MapPost("/api/templates/{id:guid}/exercise-substitution/restore", async (Guid id, TemplateSubstitutionRestoreInput input, TemplateService templates, CancellationToken ct)
             => await templates.RestoreSubstitution(id, input, ct));
+        app.MapPost("/api/templates/{id:guid}/active", async (Guid id, ActivateInput input, ActiveSlotService slot, CancellationToken ct)
+            => await slot.SetTemplateActive(id, input.Active, input.Revision, ct));
+        app.MapPost("/api/templates/{id:guid}/restart", async (Guid id, RevisionInput input, ActiveSlotService slot, CancellationToken ct)
+            => await slot.RestartTemplate(id, input.Revision, ct));
         app.MapDelete("/api/templates/{id:guid}", async (Guid id, TemplateService templates, CancellationToken ct) =>
         { await templates.Delete(id, ct); return Results.NoContent(); });
     }
@@ -169,8 +174,8 @@ public static class TrainingEndpoints
             => await programs.AcknowledgeRest(id, templateId, input, ct));
         app.MapPost("/api/programs/{id:guid}/week/reset", async (Guid id, ProgramWeekResetInput input, ProgramService programs, CancellationToken ct)
             => await programs.ResetWeek(id, input, ct));
-        app.MapPost("/api/programs/{id:guid}/repeat", async (Guid id, ProgramService programs, CancellationToken ct)
-            => await programs.Repeat(id, ct));
+        app.MapPost("/api/programs/{id:guid}/restart", async (Guid id, RevisionInput input, ProgramService programs, CancellationToken ct)
+            => await programs.Restart(id, input.Revision, ct));
         app.MapDelete("/api/programs/{id:guid}", async (Guid id, ProgramService programs, CancellationToken ct) =>
         { await programs.Delete(id, ct); return Results.NoContent(); });
     }

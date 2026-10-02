@@ -7,6 +7,8 @@ import { MenuButton, MenuItem } from './ui/MenuButton';
 import { Modal } from './ui/Modal';
 import { DayRow, DayDetailContent } from './ImportDayRow';
 import { DayEditor } from './ImportDayEditor';
+import { ReadOnlyDay } from './ReadOnlyDay';
+import { useEdgeAutoScroll } from './useEdgeAutoScroll';
 import { dayTitle, isGenericDayTitle } from '../lib/dayTitle';
 import type { ProgramStructureEditor } from './useProgramStructureEditor';
 
@@ -21,7 +23,8 @@ export function ProgramDayList({
   editing,
   onCustomExerciseCreated,
   restorableExerciseLineIds,
-  onRestoreExercise
+  onRestoreExercise,
+  readOnly = false
 }: {
   structure: ProgramStructureEditor;
   exercises: Exercise[];
@@ -32,6 +35,7 @@ export function ProgramDayList({
   onCustomExerciseCreated?: () => Promise<void>;
   restorableExerciseLineIds?: string[];
   onRestoreExercise?: (exerciseLineId: string) => Promise<void>;
+  readOnly?: boolean;
 }) {
   const {
     week, canAddDay, duplicateDay, reorderDay, moveDayTo, setDeleteConfirmDay, addDay
@@ -62,28 +66,8 @@ export function ProgramDayList({
     setDragState(next);
   }, []);
 
-  // A long week does not fit one screen, so holding a dragged day near the top or bottom edge
-  // scrolls the page, faster the closer it gets, until the finger moves away or lets go.
-  const edgeScroll = useRef<{ frame: number; speed: number }>({ frame: 0, speed: 0 });
-  const stopEdgeScroll = useCallback(() => {
-    cancelAnimationFrame(edgeScroll.current.frame);
-    edgeScroll.current = { frame: 0, speed: 0 };
-  }, []);
-  const updateEdgeScroll = useCallback((clientY: number) => {
-    const zone = 88;
-    const bottomChrome = window.matchMedia('(max-width: 639px)').matches ? 76 : 0;
-    const bottomEdge = window.innerHeight - bottomChrome;
-    const speed = clientY < zone ? -(zone - clientY) / 6 : clientY > bottomEdge - zone ? (clientY - (bottomEdge - zone)) / 6 : 0;
-    edgeScroll.current.speed = speed;
-    if (!speed) { stopEdgeScroll(); return; }
-    if (edgeScroll.current.frame) return;
-    const tick = () => {
-      if (!edgeScroll.current.speed) { edgeScroll.current.frame = 0; return; }
-      window.scrollBy(0, edgeScroll.current.speed);
-      edgeScroll.current.frame = requestAnimationFrame(tick);
-    };
-    edgeScroll.current.frame = requestAnimationFrame(tick);
-  }, [stopEdgeScroll]);
+  // A long week does not fit one screen, so holding a dragged day near an edge scrolls the page.
+  const { update: updateEdgeScroll, stop: stopEdgeScroll } = useEdgeAutoScroll();
 
   const handlePointerMove = useCallback((event: ReactPointerEvent<HTMLButtonElement>) => {
     const current = pointer.current;
@@ -127,11 +111,47 @@ export function ProgramDayList({
     moveDayTo(state.lineId, insertAt);
   }, [days, moveDayTo, setDrag]);
 
+  const lastUnsavedLineId = useRef<string | null>(null);
+  const lastScrollTop = useRef<number>(0);
+
   const closeModal = useCallback(() => {
-    if (unsaved.current.size > 0 && openDay) setDiscardPrompt(openDay);
+    if (unsaved.current.size > 0 && openDay) {
+      const keys = Array.from(unsaved.current.keys());
+      lastUnsavedLineId.current = keys[keys.length - 1] ?? null;
+      const modalBody = document.querySelector('.day-detail-modal-body');
+      if (modalBody) {
+        lastScrollTop.current = modalBody.scrollTop;
+      }
+      setDiscardPrompt(openDay);
+      return;
+    }
     setOpenDay(null);
     setSelectedMuscle(null);
   }, [openDay, setOpenDay]);
+
+  const handleKeepEditing = useCallback(() => {
+    setDiscardPrompt(null);
+    requestAnimationFrame(() => {
+      if (lastUnsavedLineId.current) {
+        const target = document.querySelector(`[data-exercise-line="${lastUnsavedLineId.current}"]`);
+        if (target) {
+          target.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+          return;
+        }
+      }
+      const modalBody = document.querySelector('.day-detail-modal-body');
+      if (modalBody && lastScrollTop.current > 0) {
+        modalBody.scrollTop = lastScrollTop.current;
+      }
+    });
+  }, []);
+
+  const handleDiscardChanges = useCallback(() => {
+    unsaved.current.clear();
+    setDiscardPrompt(null);
+    setOpenDay(null);
+    setSelectedMuscle(null);
+  }, [setOpenDay]);
 
   if (!week) return null;
 
@@ -157,7 +177,7 @@ export function ProgramDayList({
             index={dayIndex}
             onOpen={() => setOpenDay(day.lineId)}
             exercises={exercises}
-            handle={<Button
+            handle={readOnly ? undefined : <Button
               presentation="plain"
               className="program-day-handle"
               aria-label={`Reorder ${day.name}, day ${dayIndex + 1} of ${days.length}. Press the up or down arrow key to move it.`}
@@ -178,7 +198,7 @@ export function ProgramDayList({
             >
               <GripVertical size={16} />
             </Button>}
-            menu={<MenuButton label={`Actions for ${day.name}`} triggerClassName="program-day-menu-trigger" portal>
+            menu={readOnly ? undefined : <MenuButton label={`Actions for ${day.name}`} triggerClassName="program-day-menu-trigger" portal>
               <MenuItem disabled={!canAddDay} onClick={() => duplicateDay(day.lineId)}>
                 <Copy size={14} />Duplicate day
               </MenuItem>
@@ -190,7 +210,7 @@ export function ProgramDayList({
         </div>;
       })}
     </div>
-    <div className="program-day-add-actions">
+    {!readOnly && <div className="program-day-add-actions">
       <div className="program-day-add-buttons">
         <Button variant="secondary" aria-label="Add workout day" disabled={!canAddDay} onClick={() => addDay(false)}>
           <Plus size={15} />Workout day
@@ -199,16 +219,16 @@ export function ProgramDayList({
           <Plus size={15} />Rest day
         </Button>
       </div>
-    </div>
+    </div>}
 
     {discardPrompt && (
-      <Modal title="Discard unsaved changes?" onClose={() => { setOpenDay(discardPrompt); setDiscardPrompt(null); }}>
+      <Modal title="Discard unsaved changes?" onClose={handleKeepEditing}>
         <div className="modal-body">
           <p>{unsaved.current.size === 1 ? 'An exercise on this day has' : `${unsaved.current.size} exercises have`} changes that were not saved.</p>
         </div>
         <div className="modal-actions">
-          <Button variant="destructive" onClick={() => { unsaved.current.clear(); setDiscardPrompt(null); }}>Discard changes</Button>
-          <Button variant="primary" onClick={() => { setOpenDay(discardPrompt); setDiscardPrompt(null); }}>Keep editing</Button>
+          <Button variant="destructive" onClick={handleDiscardChanges}>Discard changes</Button>
+          <Button variant="primary" onClick={handleKeepEditing}>Keep editing</Button>
         </div>
       </Modal>
     )}
@@ -216,7 +236,9 @@ export function ProgramDayList({
     {openDayData && !openDayData.isRestDay && (
       <Modal title={modalTitle} wide onClose={closeModal} className="day-detail-modal">
         <div className="modal-body day-detail-modal-body draft-day" data-import-day={openDayData.lineId}>
-          <DayDetailContent
+          {readOnly
+            ? <ReadOnlyDay day={openDayData} exercises={exercises} selectedMuscle={selectedMuscle} onMuscleSelect={setSelectedMuscle} />
+            : <DayDetailContent
             day={openDayData}
             exercises={exercises}
             onChange={onDayChange}
@@ -228,7 +250,7 @@ export function ProgramDayList({
             getRepRangeMemory={getRepRangeMemory}
             selectedMuscle={selectedMuscle}
             onMuscleSelect={setSelectedMuscle}
-          />
+          />}
         </div>
         <div className="modal-actions">
           <Button variant="primary" onClick={closeModal}>Done</Button>

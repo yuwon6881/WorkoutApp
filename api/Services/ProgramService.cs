@@ -155,7 +155,7 @@ public sealed partial class ProgramService(AppDb db, TemplateService templates, 
     public async Task<TrainingProgram> Materialize(ProgramInput input, bool activate, Guid? sourceImportId, CancellationToken ct)
     {
         // A new program only becomes active when nothing else holds that slot.
-        var active = activate && !await db.Programs.AnyAsync(p => p.Active, ct);
+        var active = activate && !await db.Programs.AnyAsync(p => p.Active, ct) && !await db.Templates.AnyAsync(t => t.Active, ct);
         var program = new TrainingProgram
         {
             UserId = db.CurrentUser!.Value, Name = input.Name.Trim(),
@@ -292,68 +292,11 @@ public sealed partial class ProgramService(AppDb db, TemplateService templates, 
 
     public Task CompleteWorkout(WorkoutSession session, CancellationToken ct)
         => lifecycle.CompleteWorkout(session, ct);
-    /// Repeating is an explicit fresh instance. Template and phase IDs are deliberately new so
-    /// the new run cannot merge its completion history into the completed source program.
-    public async Task<ProgramView> Repeat(Guid id, CancellationToken ct)
+
+    public async Task<ProgramView> Restart(Guid id, int? revision, CancellationToken ct)
     {
-        await using var gate = await MutationLock.Acquire(db, db.CurrentUser, ct);
-        var source = await db.Programs.SingleOrDefaultAsync(p => p.Id == id, ct);
-        Validation.Require(source != null, "That program no longer exists.", 404);
-        var latestRun = await progress.LatestRun(id, ct);
-        Validation.Require(source!.LifecycleStatus == ProgramLifecycle.Completed || latestRun?.CompletedAt is not null,
-            "Only a completed program can be repeated.", 409);
-        var sourceTemplates = await db.Templates.Where(t => t.ProgramId == id).OrderBy(t => t.Week).ThenBy(t => t.Position).ToListAsync(ct);
-        var sourceIds = sourceTemplates.Select(t => t.Id).ToList();
-        var sourceExercises = await db.TemplateExercises.Where(e => sourceIds.Contains(e.TemplateId)).OrderBy(e => e.Position).ToListAsync(ct);
-        var fresh = new TrainingProgram
-        {
-            UserId = source.UserId, Name = source.Name, Weeks = source.Weeks,
-            Active = false, LifecycleStatus = ProgramLifecycle.Standby, SourceImportId = source.SourceImportId
-        };
-        db.Programs.Add(fresh);
-        var phases = await db.ProgramPhases.Where(p => p.ProgramId == id).OrderBy(p => p.Position).ToListAsync(ct);
-        var copiedTemplates = new List<(WorkoutTemplate Original, WorkoutTemplate Copy)>();
-        foreach (var original in sourceTemplates)
-        {
-            var copy = new WorkoutTemplate
-            {
-                UserId = fresh.UserId, ProgramId = fresh.Id, Name = original.Name, Focus = original.Focus, Note = original.Note,
-                Week = original.Week, Position = original.Position, Block = original.Block, Phase = original.Phase,
-                PhaseWeek = original.PhaseWeek, IsRestDay = original.IsRestDay, SourcePage = original.SourcePage,
-                BaselineJson = original.BaselineJson
-            };
-            db.Templates.Add(copy);
-            copiedTemplates.Add((original, copy));
-            foreach (var exercise in sourceExercises.Where(e => e.TemplateId == original.Id))
-                db.TemplateExercises.Add(new TemplateExercise
-                {
-                    UserId = fresh.UserId, TemplateId = copy.Id, ExerciseId = exercise.ExerciseId, SourceName = exercise.SourceName,
-                    Position = exercise.Position, Note = exercise.Note, SetsJson = exercise.SetsJson,
-                    SequenceGroup = exercise.SequenceGroup, RestSeconds = exercise.RestSeconds,
-                    SubstitutionsJson = exercise.SubstitutionsJson, SourcePage = exercise.SourcePage,
-                    DemoUrl = exercise.DemoUrl, DemoLinksJson = exercise.DemoLinksJson,
-                    SlotKey = Guid.NewGuid()
-                });
-        }
-        var newPhases = new List<ProgramPhase>();
-        foreach (var phase in phases)
-        {
-            var copy = new ProgramPhase
-            {
-                UserId = fresh.UserId, ProgramId = fresh.Id, Position = phase.Position, Name = phase.Name, Block = phase.Block,
-                WeekFrom = phase.WeekFrom, WeekTo = phase.WeekTo, DurationWeeks = phase.DurationWeeks,
-                SourcePageFrom = phase.SourcePageFrom, SourcePageTo = phase.SourcePageTo
-            };
-            db.ProgramPhases.Add(copy); newPhases.Add(copy);
-        }
-        foreach (var (original, copy) in copiedTemplates)
-        {
-            var sourcePhasePosition = phases.FirstOrDefault(p => p.Id == original.ProgramPhaseId)?.Position;
-            copy.ProgramPhaseId = sourcePhasePosition is { } phasePosition ? newPhases.FirstOrDefault(p => p.Position == phasePosition)?.Id :
-                newPhases.FirstOrDefault(p => copy.Week >= p.WeekFrom && copy.Week <= p.WeekTo)?.Id;
-        }
-        await db.SaveChangesAsync(ct); await gate.Commit(ct);
-        return await Get(fresh.Id, ct);
+        await lifecycle.Restart(id, revision, ct);
+        return await Get(id, ct);
     }
 
     public async Task Delete(Guid id, CancellationToken ct)

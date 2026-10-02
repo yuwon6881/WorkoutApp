@@ -12,7 +12,7 @@ function blockLabel(index: number): string {
 
 /// Block and week navigation. Every structural action for a block or a week lives on the chip it
 /// belongs to, so the bar carries the plan itself rather than a row of buttons beside it.
-export function ProgramStructureBar({ structure }: { structure: ProgramStructureEditor }) {
+export function ProgramStructureBar({ structure, readOnly = false }: { structure: ProgramStructureEditor; readOnly?: boolean }) {
   const {
     weeks, blocks, week, setSelectedWeek, selectedBlockIndex,
     totalDayCount, setWeekModalOpen, setDeleteConfirmWeek, setDeleteConfirmBlock, deleteBlock,
@@ -36,7 +36,7 @@ export function ProgramStructureBar({ structure }: { structure: ProgramStructure
               onClick={() => setSelectedWeek(block.weeks[0]?.week ?? week.week)}>
               {label}
             </Button>
-            {isSelected && <MenuButton label={`Actions for ${label}`} triggerClassName="chip-icon-btn" align="start" portal>
+            {isSelected && !readOnly && <MenuButton label={`Actions for ${label}`} triggerClassName="chip-icon-btn" align="start" portal>
               <MenuItem onClick={() => { setRenameValue(block.name); setRenameBlock({ id: block.id, name: block.name }); }}>
                 <Pencil size={14} />Rename block
               </MenuItem>
@@ -60,16 +60,24 @@ export function ProgramStructureBar({ structure }: { structure: ProgramStructure
             </MenuButton>}
           </span>;
         })}
-        <Button presentation="plain" className="chip-add-btn" aria-label="Add block" title="Add block"
+        {!readOnly && <Button presentation="plain" className="chip-add-btn" aria-label="Add block" title="Add block"
           disabled={atCapacity} onClick={addBlock}>
           <Plus size={16} />
-        </Button>
+        </Button>}
       </div>
     </div>
 
     <ChipScroller ariaLabel="Program weeks" role="tablist" resetKey={weeks.map(entry => entry.week).join('|')}
       leftLabel="Scroll program weeks left" rightLabel="Scroll program weeks right">
-      {weeks.map(entry => <SortableWeekChip key={entry.week} week={entry.week} selected={entry.week === week.week}
+      {readOnly && weeks.map(entry => <span key={entry.week} role="presentation" data-import-week-chip={entry.week}
+        className={`chip-group import-week-chip-group chip-group-lone ${entry.week === week.week ? 'active' : ''}`.trim()}>
+        <Button presentation="plain" role="tab" aria-selected={entry.week === week.week}
+          className={`filter-chip import-week-chip ${entry.week === week.week ? 'active' : ''}`.trim()}
+          onClick={() => setSelectedWeek(entry.week)}>
+          Week {entry.week}
+        </Button>
+      </span>)}
+      {!readOnly && weeks.map(entry => <SortableWeekChip key={entry.week} week={entry.week} selected={entry.week === week.week}
         dragging={draggedWeek === entry.week}
         dropSide={dropTarget?.week === entry.week && draggedWeek !== entry.week ? dropTarget.side : null}
         onSelect={() => setSelectedWeek(entry.week)}
@@ -79,10 +87,10 @@ export function ProgramStructureBar({ structure }: { structure: ProgramStructure
         onDragStart={() => { setDraggedWeek(entry.week); setDropTarget(null); }}
         onDragOver={(weekNumber, side) => setDropTarget({ week: weekNumber, side })}
         onDrop={(weekNumber, side) => reorderWeeks(draggedWeek ?? entry.week, weekNumber ?? dropTarget?.week ?? entry.week, side ?? dropTarget?.side ?? 'before')} />)}
-      <Button presentation="plain" className="chip-add-btn" aria-label="Add week" title="Add week"
+      {!readOnly && <Button presentation="plain" className="chip-add-btn" aria-label="Add week" title="Add week"
         disabled={atCapacity} onClick={() => setWeekModalOpen(true)}>
         <Plus size={16} />
-      </Button>
+      </Button>}
     </ChipScroller>
   </>;
 }

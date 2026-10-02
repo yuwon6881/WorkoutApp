@@ -186,6 +186,10 @@ public sealed class WorkoutTemplate : OwnedRecord
     public Guid? ProgramPhaseId { get; set; }
     /// Immutable snapshot of the template and its exercise slots when first saved or imported.
     public string BaselineJson { get; set; } = "";
+    /// A standalone workout can hold the account's single active slot instead of a program.
+    /// It is a one-day run: finishing a session from it stamps the completion until restart.
+    public bool Active { get; set; }
+    public DateTime? ActiveCompletedAt { get; set; }
 }
 
 public sealed class TemplateExercise : OwnedRecord

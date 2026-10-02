@@ -8,7 +8,8 @@ const POLL_INTERVAL_MS = 2_000;
 const STALL_INTERVAL_MS = 90_000;
 
 /// `importId` is null while the PDF is still being read on this device and no server row exists yet.
-export type ImportWatch = { importId: string | null; progress: ProgressValue } | null;
+export type ImportWatch = { importId: string | null; progress: ProgressValue; finished?: boolean } | null;
+
 
 /// An import is a server-owned background job: the runner keeps reading after the import screen is
 /// closed. Without this the only client that knows a read is happening is that screen, so leaving
@@ -115,7 +116,42 @@ export function useImportWatch({ imports, active, onFinished, onLocalFailure }: 
         if (stopped) return;
 
         if (status.status !== 'pending' || status.stage === 'select' || status.error) {
-          setWatch(null);
+          if (status.status === 'ready') {
+            setWatch({
+              importId,
+              finished: true,
+              progress: {
+                label: 'Import complete!',
+                detail: fileName ? `${fileName} · Tap to review program` : 'Review and accept your program',
+                percent: 100
+              }
+            });
+            window.setTimeout(() => { if (!stopped) setWatch(null); }, 15000);
+          } else if (status.stage === 'select') {
+            setWatch({
+              importId,
+              finished: true,
+              progress: {
+                label: 'Choice required',
+                detail: fileName ? `${fileName} · Tap to choose version` : 'Tap to choose version',
+                percent: null
+              }
+            });
+            window.setTimeout(() => { if (!stopped) setWatch(null); }, 15000);
+          } else if (status.error) {
+            setWatch({
+              importId,
+              finished: true,
+              progress: {
+                label: 'Import stopped',
+                detail: status.error,
+                percent: null
+              }
+            });
+            window.setTimeout(() => { if (!stopped) setWatch(null); }, 15000);
+          } else {
+            setWatch(null);
+          }
           finished.current();
           return;
         }

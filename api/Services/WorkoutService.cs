@@ -552,7 +552,7 @@ public sealed partial class WorkoutService(
         session.Active = false; session.FinishedAt = completedAt; session.LastTimingEventAt = completedAt; session.Revision++;
         await RecordWorkoutMutation(mutationId, id, "workout.finish", requestHash, ct);
         await db.SaveChangesAsync(ct);
-        if (session.ProgramId is not null) await programs.CompleteWorkout(session, ct);
+        if (session.ProgramId is not null || session.TemplateId is not null) await programs.CompleteWorkout(session, ct);
         if (workoutSync is not null) await workoutSync.QueueWorkoutAsync(id, isDelete: false, ct);
         await db.SaveChangesAsync(ct);
         await gate.Commit(ct);

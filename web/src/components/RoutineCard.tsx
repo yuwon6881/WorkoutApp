@@ -1,5 +1,5 @@
-import { Fragment, useMemo } from 'react';
-import { ArrowRight, Pencil } from 'lucide-react';
+import { Fragment, useMemo, type HTMLAttributes, type ReactNode } from 'react';
+import { ArrowRight, GripVertical, Pencil } from 'lucide-react';
 import type { Exercise, Template } from '../types';
 import { getWorkoutMuscles } from '../lib/muscles';
 import { showReps, showSetCount } from '../lib/training';
@@ -9,8 +9,9 @@ import './RoutineCard.css';
 const LISTED_EXERCISES = 4;
 
 /// A saved workout in the library: what it trains, what is in it, and one action to start it.
-export function RoutineCard({ template, exercises, onEdit, onStart }: {
+export function RoutineCard({ template, exercises, onEdit, onStart, dragProps, menu }: {
   template: Template; exercises: Exercise[]; onEdit: () => void; onStart: () => void;
+  dragProps?: HTMLAttributes<HTMLElement>; menu?: ReactNode;
 }) {
   const muscles = useMemo(() => getWorkoutMuscles(template.exercises, exercises), [template.exercises, exercises]);
   const setCount = template.exercises.reduce((total, exercise) => total + exercise.sets.filter(set => !set.warmup).length, 0);
@@ -22,13 +23,15 @@ export function RoutineCard({ template, exercises, onEdit, onStart }: {
   ].filter(Boolean);
   const hidden = exerciseCount - LISTED_EXERCISES;
 
-  return <section className="panel routine-card">
+  return <section {...dragProps} className="panel routine-card">
     <div className="routine-card-head">
+      {dragProps && <span className="slot-card-grip" data-slot-grip aria-hidden="true"><GripVertical size={16} /></span>}
       <div className="routine-card-title">
         <h2>{template.name}</h2>
         <p className="routine-card-meta">{meta.map((part, i) => <Fragment key={part}>{i > 0 && ' · '}<span>{part}</span></Fragment>)}</p>
       </div>
       <Button variant="tertiary" className="routine-card-edit" aria-label={`Edit ${template.name}`} onClick={onEdit}><Pencil size={17} /></Button>
+      {menu}
     </div>
     {muscles.length > 0 && <div className="day-muscles-row" aria-label="Targeted muscles">
       {muscles.slice(0, 5).map(m => <span key={m} className="muscle-chip">{m}</span>)}

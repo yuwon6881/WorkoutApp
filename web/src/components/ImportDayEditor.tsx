@@ -87,6 +87,7 @@ export function DayEditor({ day, exercises, onChange, editing, onCustomExerciseC
       : groups.map((group, groupIndex) => <div className={group.length > 1 ? 'superset-block' : ''} key={groupIndex}>
         {group.length > 1 && <div className="superset-heading">Superset {group[0].sequenceGroup.match(/^[A-Za-z]+/)?.[0] ?? ''}</div>}
         {group.map(exercise => <div key={exercise.lineId}
+          data-exercise-line={exercise.lineId}
           className={dimSet?.has(exercise.lineId) ? 'import-exercise-dim-wrap exercise-dimmed' : ''}>
           <ExerciseEditor exercise={exercise} exercises={exercises} allDayExercises={draft.exercises}
             rememberedRepWidths={getRepRangeMemory(exercise.lineId)}

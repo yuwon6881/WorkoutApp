@@ -30,7 +30,7 @@ async function coordinateRead<T>(key: string, path: string, signal: AbortSignal 
   } finally { clearTimeout(timer); }
 }
 
-async function call<T>(path: string, method = 'GET', body?: unknown, signal?: AbortSignal, extraHeaders?: Record<string, string>): Promise<T> {
+export async function call<T>(path: string, method = 'GET', body?: unknown, signal?: AbortSignal, extraHeaders?: Record<string, string>): Promise<T> {
   const load = async (sharedSignal?: AbortSignal) => (await requestWithMeta<T>(path, method, body, sharedSignal, extraHeaders)).data as T;
   return method === 'GET' ? coordinateRead(path + ':' + JSON.stringify(extraHeaders ?? {}), path, signal, load) : load(signal);
 }
@@ -174,7 +174,7 @@ export const api = {
   skipProgramWorkout: (id: string, templateId: string, input: ProgramDayActionInput) => call<Program>(`/api/programs/${id}/workouts/${templateId}/skip`, 'POST', input),
   passProgramRestDay: (id: string, templateId: string, input: ProgramDayActionInput) => call<Program>(`/api/programs/${id}/days/${templateId}/pass`, 'POST', input),
   resetProgramWeek: (id: string, input: ProgramWeekResetInput) => call<Program>(`/api/programs/${id}/week/reset`, 'POST', input),
-  repeatProgram: (id: string) => call<Program>(`/api/programs/${id}/repeat`, 'POST'),
+  repeatProgram: (id: string) => call<Program>(`/api/programs/${id}/repeat`, 'POST', { timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone }),
   deleteProgram: (id: string) => call<void>(`/api/programs/${id}`, 'DELETE'),
 
   activeWorkout: () => call<Session | null>('/api/workouts/active'),

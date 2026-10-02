@@ -95,7 +95,7 @@ public class ProgramWeekProgressTests
     }
 
     [Fact]
-    public async Task The_program_advances_only_after_all_seven_days_and_returns_to_standby_after_the_final_week()
+    public async Task The_program_advances_only_after_all_seven_days_and_stays_active_as_completed_after_the_final_week()
     {
         var (h, exerciseId) = await Ready();
         await using var _h = h;
@@ -129,8 +129,8 @@ public class ProgramWeekProgressTests
 
         await CompleteWorkout(h, weekTwoWorkout.Id);
         var finished = await h.Programs.Get(program.Id, default);
-        Assert.False(finished.Active);
-        Assert.Equal(ProgramLifecycle.Standby, finished.LifecycleStatus);
+        Assert.True(finished.Active);
+        Assert.Equal(ProgramLifecycle.Completed, finished.LifecycleStatus);
         Assert.Null(finished.NextTemplateId);
     }
 

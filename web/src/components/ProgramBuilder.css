@@ -396,13 +396,29 @@
 }
 
 .exercise-scope-option {
+  display: flex;
   align-items: center;
+  gap: 12px;
   min-height: 44px;
-  padding: 8px 12px;
+  padding: 10px 14px;
   border: 1px solid var(--border);
   border-radius: var(--radius-control);
   background: var(--surface-raised);
   color: var(--text);
+  cursor: pointer;
+}
+
+.exercise-scope-option input[type="radio"] {
+  min-height: 0;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  accent-color: var(--accent);
+  box-shadow: none !important;
+  flex: 0 0 18px;
+  margin: 0;
 }
 
 .exercise-scope-option:has(input:checked) {

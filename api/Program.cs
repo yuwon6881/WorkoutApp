@@ -50,6 +50,7 @@ builder.Services.AddScoped<TemplateService>();
 builder.Services.AddScoped<ProgramProgressService>();
 builder.Services.AddScoped<ProgramLifecycleService>();
 builder.Services.AddScoped<ProgramService>();
+builder.Services.AddScoped<ActiveSlotService>();
 builder.Services.AddScoped<ProgramEditorService>();
 builder.Services.AddScoped<ProgressionService>();
 builder.Services.AddScoped<MuscleBalanceService>();

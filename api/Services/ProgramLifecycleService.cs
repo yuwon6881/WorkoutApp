@@ -28,57 +28,114 @@ public sealed class ProgramLifecycleService(AppDb db, TemplateService templates,
         await gate.Commit(ct);
     }
 
+    /// Leaving the active slot forgets the run, so activation always starts from the first week.
+    /// Already being in the requested state is an idempotent no-op.
     public async Task SetActive(Guid id, bool active, int? revision, CancellationToken ct)
     {
         await using var gate = await MutationLock.Acquire(db, db.CurrentUser, ct);
         var program = await db.Programs.SingleOrDefaultAsync(candidate => candidate.Id == id, ct);
         Validation.Require(program is not null, "That program no longer exists.", 404);
-        if (program!.Active == active && ((active && program.LifecycleStatus == ProgramLifecycle.Active) ||
-            (!active && program.LifecycleStatus is ProgramLifecycle.Standby or ProgramLifecycle.Completed)))
+        if (program!.Active == active)
         {
-            if (active)
-            {
-                var rows = await db.Templates.Where(template => template.ProgramId == id).OrderBy(template => template.Week).ThenBy(template => template.Position).ToListAsync(ct);
-                var run = await progress.LatestRun(id, ct);
-                if (run is null)
-                {
-                    run = await progress.EnsureLegacyRun(program, rows, ct);
-                    await db.SaveChangesAsync(ct);
-                }
-                await progress.AdvanceIfWeekPassed(program, run, rows, ct);
-                await db.SaveChangesAsync(ct);
-            }
             await gate.Commit(ct);
+            if (active) await EnsureActiveRun(id, ct);
             return;
         }
         TemplateService.RequireFresh(revision, program.Revision);
         if (active)
         {
-            // The one-active-program index is checked per statement, so the outgoing program has
-            // to be written out before the incoming one claims the slot. Both writes share this
-            // transaction, so the swap is still atomic.
-            var current = await db.Programs.Where(candidate => candidate.Active && candidate.Id != id).ToListAsync(ct);
-            foreach (var other in current)
-            {
-                other.Active = false;
-                other.LifecycleStatus = other.CompletedAt is null ? ProgramLifecycle.Standby : ProgramLifecycle.Completed;
-                other.Revision++;
-            }
-            if (current.Count > 0) await db.SaveChangesAsync(ct);
-            var programTemplates = await db.Templates.Where(template => template.ProgramId == id)
-                .OrderBy(template => template.Week).ThenBy(template => template.Position).ToListAsync(ct);
-            var latestRun = await progress.LatestRun(id, ct);
-            if (latestRun is null && program.LifecycleStatus != ProgramLifecycle.Completed && program.CompletedAt is null)
-                await progress.EnsureLegacyRun(program, programTemplates, ct);
-            else if (latestRun is null || latestRun.CompletedAt is not null)
-                progress.CreateRun(program, programTemplates, (latestRun?.Number ?? 0) + 1);
+            await VacateSlot(ct);
+            await StartFreshRun(program, ct);
         }
-        program.Active = active;
-        program.LifecycleStatus = active ? ProgramLifecycle.Active : ProgramLifecycle.Standby;
-        program.CompletedAt = null;
+        else
+        {
+            await RequireNoWorkoutFrom(program.Id, ct);
+            await ForgetProgress(program.Id, ct);
+            program.Active = false;
+            program.LifecycleStatus = ProgramLifecycle.Standby;
+            program.CompletedAt = null;
+        }
         program.Revision++;
         await db.SaveChangesAsync(ct);
         await gate.Commit(ct);
+    }
+
+    /// Restart discards the current or finished run and opens week one again.
+    public async Task Restart(Guid id, int? revision, CancellationToken ct)
+    {
+        await using var gate = await MutationLock.Acquire(db, db.CurrentUser, ct);
+        var program = await db.Programs.SingleOrDefaultAsync(candidate => candidate.Id == id, ct);
+        Validation.Require(program is not null, "That program no longer exists.", 404);
+        Validation.Require(program!.Active, "Activate this program before restarting it.", 409);
+        TemplateService.RequireFresh(revision, program.Revision);
+        Validation.Require(revision == program.Revision, "Refresh the program before restarting it.", 409);
+        await RequireNoWorkoutFrom(program.Id, ct);
+        await StartFreshRun(program, ct);
+        program.Revision++;
+        await db.SaveChangesAsync(ct);
+        await gate.Commit(ct);
+    }
+
+    /// Releases whatever program or standalone workout holds the active slot, forgetting its
+    /// progress. The caller owns the account mutation lock.
+    public async Task VacateSlot(CancellationToken ct)
+    {
+        // The one-active index is checked per statement, so the outgoing holder is written out
+        // before the incoming one claims the slot. Both writes share the caller's transaction.
+        var programs = await db.Programs.Where(candidate => candidate.Active).ToListAsync(ct);
+        foreach (var other in programs)
+        {
+            await RequireNoWorkoutFrom(other.Id, ct);
+            await ForgetProgress(other.Id, ct);
+            other.Active = false;
+            other.LifecycleStatus = ProgramLifecycle.Standby;
+            other.CompletedAt = null;
+            other.Revision++;
+        }
+        var templates = await db.Templates.Where(candidate => candidate.Active).ToListAsync(ct);
+        foreach (var template in templates)
+        {
+            Validation.Require(!await db.Workouts.AnyAsync(workout => workout.Active && workout.TemplateId == template.Id, ct),
+                "Finish or discard the active workout before changing what is active.", 409);
+            template.Active = false;
+            template.ActiveCompletedAt = null;
+            template.Revision++;
+        }
+        if (programs.Count > 0 || templates.Count > 0) await db.SaveChangesAsync(ct);
+    }
+
+    private async Task StartFreshRun(TrainingProgram program, CancellationToken ct)
+    {
+        await ForgetProgress(program.Id, ct);
+        await db.SaveChangesAsync(ct);
+        var rows = await db.Templates.Where(template => template.ProgramId == program.Id)
+            .OrderBy(template => template.Week).ThenBy(template => template.Position).ToListAsync(ct);
+        progress.CreateRun(program, rows, 1);
+        program.Active = true;
+        program.LifecycleStatus = ProgramLifecycle.Active;
+        program.CompletedAt = null;
+    }
+
+    private async Task RequireNoWorkoutFrom(Guid programId, CancellationToken ct)
+        => Validation.Require(!await db.Workouts.AnyAsync(workout => workout.Active && workout.ProgramId == programId, ct),
+            "Finish or discard the active workout from this program first.", 409);
+
+    /// Run state is derived bookkeeping. Finished sessions keep their own snapshots and program
+    /// link, so history survives; only the link to a forgotten day row is cleared.
+    private async Task ForgetProgress(Guid programId, CancellationToken ct)
+    {
+        var runIds = await db.ProgramRuns.Where(run => run.ProgramId == programId).Select(run => run.Id).ToListAsync(ct);
+        var days = await db.ProgramDayProgresses.Where(day => day.ProgramId == programId || runIds.Contains(day.RunId)).ToListAsync(ct);
+        var dayIds = days.Select(day => day.Id).ToList();
+        foreach (var session in await db.Workouts.Where(workout => workout.ProgramDayProgressId != null &&
+            dayIds.Contains(workout.ProgramDayProgressId.Value)).ToListAsync(ct))
+        {
+            session.ProgramDayProgressId = null;
+            session.Revision++;
+        }
+        db.ProgramDayProgresses.RemoveRange(days);
+        db.ProgramSkips.RemoveRange(await db.ProgramSkips.Where(skip => skip.ProgramId == programId).ToListAsync(ct));
+        db.ProgramRuns.RemoveRange(await db.ProgramRuns.Where(run => run.ProgramId == programId).ToListAsync(ct));
     }
 
     public async Task Reconcile(Guid programId, CancellationToken ct)
@@ -218,6 +275,16 @@ public sealed class ProgramLifecycleService(AppDb db, TemplateService templates,
 
     public async Task CompleteWorkout(WorkoutSession session, CancellationToken ct)
     {
+        if (session.ProgramId is null && session.TemplateId is { } standaloneId)
+        {
+            var standalone = await db.Templates.SingleOrDefaultAsync(template => template.Id == standaloneId && template.Active, ct);
+            if (standalone is not null && standalone.ActiveCompletedAt is null)
+            {
+                standalone.ActiveCompletedAt = session.FinishedAt ?? DateTime.UtcNow;
+                standalone.Revision++;
+            }
+            return;
+        }
         if (session.ProgramId is not { } programId || session.ProgramDayProgressId is not { } dayId || session.TemplateId is not { } templateId) return;
         var day = await db.ProgramDayProgresses.SingleOrDefaultAsync(candidate => candidate.Id == dayId &&
             candidate.ProgramId == programId && candidate.TemplateId == templateId, ct);

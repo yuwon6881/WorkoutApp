@@ -21,8 +21,17 @@ Singapore. The FinancialApp and NutritionApp services and databases are independ
 | API URL | `https://workout-api-i47taxhzba-as.a.run.app` |
 | Image | `asia-southeast1-docker.pkg.dev/<project>/cloud-run-source-deploy/workout-api` |
 
-The API runs with 1 CPU, 2 GiB, a 3,600 second timeout, HTTP/1.1, concurrency 4, and minimum 0 /
-maximum 1 instances. PDF import needs nothing else: the browser reads the document's text on the
+The checked-in `cloudbuild.yaml` deploys 1 CPU, 2 GiB, a 3,600 second timeout, HTTP/1.1, concurrency
+4, revision minimum 0, and revision maximum 1. Read-only Cloud Run inspection on 2026-10-02 observed
+revision `workout-api-00121-rdf` with those settings, request-based CPU throttling enabled, 100% of
+traffic on the latest revision, a service-level maximum of 20, and no minimum-instance annotation.
+The revision cap of 1 is the effective cap for the active revision; the service cap is an upper bound
+across revisions and does not mean 20 instances are running. Preserve both caps and CPU throttling.
+September 2026 five-minute memory windows reached a maximum aligned p99 of 0.675 GiB on the current
+2 GiB service. This is production observation, not a representative 1 GiB capacity trial; keep 2 GiB
+until an authorized isolated trial passes the workload and recovery gates in [`COST_FINDINGS.md`](../COST_FINDINGS.md).
+
+PDF import needs nothing else: the browser reads the document's text on the
 device and posts it gzipped. The extract endpoint starts an in-process background pass and returns
 immediately; the browser polls the import row while the runner reads sections and commits them in
 outline order. Concurrency is 4 rather than 1 so those two-second polls do not queue behind each
@@ -81,10 +90,11 @@ object-store copy exists on the server, so there is no import bucket, task queue
 service to provision.
 
 The former `workout-import-worker` Cloud Run service and `workout-imports` Cloud Tasks queue were
-retired after the client-side extraction cutover and removed from the project on 2026-09-18. The
-`workout-imports-396431756440` bucket is no longer used by deployed code, but still contains five
-active PDFs and five retained generations; its application access bindings have been removed.
-Delete the bucket only after the retained objects are explicitly approved for deletion.
+retired after the client-side extraction cutover and removed from the project on 2026-09-18. A
+read-only inventory on 2026-10-02 found zero live objects, zero object generations, and zero
+soft-deleted objects in `workout-imports-396431756440`; no Workout runtime IAM binding remains. The
+bucket still exists but has no current object-storage footprint. Do not delete the bucket or alter
+its policy without separate approval from the retention owner.
 
 ### Optional Workout rest-alert push
 

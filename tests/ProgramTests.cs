@@ -132,7 +132,7 @@ public class ProgramTests
         Assert.Equal(program.Workouts[1].Id, progressed.NextTemplateId);
     }
 
-    [Fact] public async Task Finishing_the_last_week_returns_the_program_to_standby()
+    [Fact] public async Task Finishing_the_last_week_keeps_the_program_active_as_completed()
     {
         var (h, benchId) = await Ready();
         await using var _h = h;
@@ -148,8 +148,8 @@ public class ProgramTests
         }
 
         var completed = await h.Programs.Get(program.Id, default);
-        Assert.False(completed.Active);
-        Assert.Equal(ProgramLifecycle.Standby, completed.LifecycleStatus);
+        Assert.True(completed.Active);
+        Assert.Equal(ProgramLifecycle.Completed, completed.LifecycleStatus);
         Assert.Null(completed.NextTemplateId);
         Assert.Equal(completed.Progress!.TotalDays, completed.Progress.PassedDays);
         Assert.All(completed.Phases!, phase => Assert.True(phase.Complete));
@@ -171,35 +171,13 @@ public class ProgramTests
 
         var completed = await h.Programs.Skip(program.Id, remaining[0].Id, default);
         completed = await h.Programs.Skip(program.Id, remaining[1].Id, default);
-        Assert.Equal(ProgramLifecycle.Standby, completed.LifecycleStatus);
+        Assert.Equal(ProgramLifecycle.Completed, completed.LifecycleStatus);
         Assert.Contains(remaining[0].Id, completed.SkippedTemplateIds!);
 
         var failure = await Assert.ThrowsAsync<DomainException>(() => h.Programs.Unskip(program.Id, remaining[1].Id, default));
         Assert.Equal(409, failure.Status);
         var stillPassed = await h.Programs.Get(program.Id, default);
         Assert.Contains(remaining[1].Id, stillPassed.SkippedTemplateIds!);
-    }
-
-    [Fact] public async Task A_completed_program_can_be_repeated_as_a_fresh_standby_instance()
-    {
-        var (h, benchId) = await Ready();
-        await using var _h = h;
-        var original = await h.Programs.Create(TwoWeeks(benchId), true, null, default);
-        foreach (var template in original.Workouts.Where(w => !w.IsRestDay))
-        {
-            var session = await h.Workouts.Start(template.Id, null, default);
-            var exercise = session.Exercises.Single();
-            await h.Workouts.Save(session.Id, new SessionInput(null,
-                [new SessionExerciseInput(exercise.ExerciseId, exercise.Name, null, exercise.Prescription,
-                    [new SetInput(60, 8, 8, true)])], session.Revision, null), default);
-            await h.Workouts.Finish(session.Id, null, default);
-        }
-        var repeated = await h.Programs.Repeat(original.Id, default);
-        Assert.NotEqual(original.Id, repeated.Id);
-        Assert.Equal(ProgramLifecycle.Standby, repeated.LifecycleStatus);
-        Assert.False(repeated.Active);
-        Assert.Equal(original.Workouts.Select(w => w.Name), repeated.Workouts.Select(w => w.Name));
-        Assert.Empty(repeated.CompletedTemplateIds);
     }
 
     [Fact] public async Task Deleting_a_program_leaves_its_finished_history_behind()

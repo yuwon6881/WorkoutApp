@@ -147,11 +147,12 @@ public sealed class ProgramProgressService(AppDb db)
             return;
         }
 
+        // A finished program keeps the active slot so the lifter can restart it or move it back to
+        // the library deliberately.
         run.CompletedAt = DateTime.UtcNow;
         run.Revision++;
-        program.Active = false;
-        program.LifecycleStatus = ProgramLifecycle.Standby;
-        program.CompletedAt = null;
+        program.LifecycleStatus = ProgramLifecycle.Completed;
+        program.CompletedAt = run.CompletedAt;
         program.Revision++;
     }
 

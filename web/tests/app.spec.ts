@@ -960,15 +960,21 @@ test('import a PDF program, resolve an unmapped exercise, and accept it', async 
   await accept.click();
   await expect(page.getByRole('heading', { name: 'Workouts', exact: true })).toBeVisible({ timeout: 30000 });
   await expect(page.getByRole('heading', { name: programName })).toBeVisible();
-  const programCard = page.locator('.program-card').filter({ hasText: programName });
-  await programCard.getByRole('button', { name: 'Show details', exact: true }).click();
-  await expect(page.getByText('Week 1 Upper', { exact: true }).first()).toBeVisible();
-  await expect(page.getByText('Week 2 Upper', { exact: true }).first()).toBeVisible();
-  expect(await programCard.locator('.routine-row-static').evaluateAll(rows => rows.every(row => row.tagName !== 'BUTTON'))).toBe(true);
-  const upperDay = programCard.locator('.program-slot-card').filter({ hasText: 'Week 1 Upper' }).first();
-  await upperDay.getByRole('button', { name: /^Show details for / }).click();
-  await expect(upperDay.locator('.program-muscle-preview')).toBeVisible();
-  await expect(upperDay.locator('.program-muscle-tile').filter({ hasText: 'Chest' })).toBeVisible();
+  // A library program is one line until expanded, then the builder's timeline, view-only.
+  const programCard = page.locator('.library-program-card').filter({ hasText: programName });
+  await programCard.getByRole('button', { name: `Expand ${programName}`, exact: true }).click();
+  await expect(programCard.getByRole('button', { name: 'Week 1 Upper', exact: true })).toBeVisible();
+  await expect(programCard.getByRole('button', { name: 'Add workout day' })).toHaveCount(0);
+  await expect(programCard.getByRole('button', { name: /^Reorder / })).toHaveCount(0);
+  await expect(programCard.getByRole('button', { name: 'Add week' })).toHaveCount(0);
+  await programCard.getByRole('tab', { name: 'Week 2', exact: true }).click();
+  await expect(programCard.getByRole('button', { name: 'Week 2 Upper', exact: true })).toBeVisible();
+  await programCard.getByRole('tab', { name: 'Week 1', exact: true }).click();
+  await programCard.getByRole('button', { name: 'Week 1 Upper', exact: true }).click();
+  const libraryDayModal = page.locator('.day-detail-modal');
+  await expect(libraryDayModal.locator('.program-muscle-preview')).toBeVisible();
+  await expect(libraryDayModal.locator('.program-muscle-tile').filter({ hasText: 'Chest' })).toBeVisible();
+  await expect(libraryDayModal.getByRole('textbox')).toHaveCount(0);
   const pageTheme = page.locator('html');
   const originalTheme = await pageTheme.getAttribute('data-theme');
   for (const theme of ['dark', 'light'] as const) {
@@ -982,6 +988,8 @@ test('import a PDF program, resolve an unmapped exercise, and accept it', async 
     if (value) element.setAttribute('data-theme', value);
     else element.removeAttribute('data-theme');
   }, originalTheme);
+  await libraryDayModal.getByRole('button', { name: 'Done', exact: true }).click();
+  await expect(libraryDayModal).toBeHidden();
   const programId = await page.evaluate(async programName => {
     const response = await fetch('/api/bootstrap', { headers: { 'X-Workout-Request': '1' }, cache: 'no-store' });
     if (!response.ok) throw new Error('Could not read the imported program for the active-state preview check.');
@@ -1001,7 +1009,7 @@ test('import a PDF program, resolve an unmapped exercise, and accept it', async 
   await openTab(page, 'Workouts');
   const activeCard = page.locator('.program-card').filter({ hasText: programName });
   await expect(activeCard.getByText('Active', { exact: true })).toBeVisible();
-  await activeCard.getByRole('button', { name: 'Show details', exact: true }).click();
+  await activeCard.getByRole('button', { name: `Expand ${programName}`, exact: true }).click();
   const activeUpperDay = activeCard.locator('.program-slot-card').filter({ hasText: 'Week 1 Upper' }).first();
   await activeUpperDay.getByRole('button', { name: /^Show details for / }).click();
   await expect(activeUpperDay.locator('.program-muscle-preview')).toBeVisible();
@@ -1469,17 +1477,19 @@ test('create a custom multi-block program and cap each week at fourteen schedule
     await page.getByRole('button', { name: 'Done', exact: true }).click();
 
     await page.getByRole('button', { name: 'Create program', exact: true }).click();
-    const createdCard = page.locator('.program-card').filter({ hasText: name });
+    const createdCard = page.locator('.library-program-card').filter({ hasText: name });
     await expect(createdCard).toBeVisible({ timeout: 30000 });
-    await expect(createdCard.getByText(/3 weeks · 16 days/)).toBeVisible();
-    await expect(createdCard.getByText('Standby', { exact: true })).toBeVisible();
-    await createdCard.getByRole('button', { name: 'Show details', exact: true }).click();
-    const firstWorkoutDay = createdCard.locator('.program-slot-card').first();
-    await firstWorkoutDay.getByRole('button', { name: /^Show details for / }).click();
-    await expect(firstWorkoutDay.locator('.program-muscle-preview')).toBeVisible();
-    await expect(firstWorkoutDay.locator('.program-muscle-tile').filter({ hasText: 'Chest' })).toBeVisible();
-    await expect(createdCard.locator('.rest-row').first().locator('.program-muscle-preview')).toHaveCount(0);
-    await createdCard.getByRole('button', { name: 'Delete program', exact: true }).click();
+    await expect(createdCard.getByText(/3 weeks · \d+ workout days?/)).toBeVisible();
+    await createdCard.getByRole('button', { name: `Expand ${name}`, exact: true }).click();
+    await createdCard.locator('.draft-day:not(.rest-day) .draft-day-summary').first().click();
+    const createdDayModal = page.locator('.day-detail-modal');
+    await expect(createdDayModal.locator('.program-muscle-preview')).toBeVisible();
+    await expect(createdDayModal.locator('.program-muscle-tile').filter({ hasText: 'Chest' })).toBeVisible();
+    await createdDayModal.getByRole('button', { name: 'Done', exact: true }).click();
+    await expect(createdCard.locator('.rest-day .program-muscle-preview')).toHaveCount(0);
+    await createdCard.getByRole('button', { name: `Actions for ${name}`, exact: true }).click();
+    await page.getByRole('menuitem', { name: 'Delete program', exact: true }).click();
+    await page.getByRole('dialog', { name: `Delete ${name}?` }).getByRole('button', { name: 'Delete', exact: true }).click();
     await expect(createdCard).toHaveCount(0);
   } finally {
     // Keep this shared test account clean even if an earlier assertion fails.

@@ -1,0 +1,427 @@
+/* The Workouts page: one active slot and the library, with cards dragged between them. */
+
+.active-slot-zone {
+  position: relative;
+  border-radius: var(--radius);
+  transition: background-color var(--motion-control) var(--motion-ease), border-color var(--motion-control) var(--motion-ease);
+}
+
+.active-slot-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  min-height: 140px;
+  padding: 24px 20px;
+  margin-bottom: 18px;
+  border: 2px dashed var(--border-hover);
+  background: transparent;
+  text-align: center;
+  color: var(--muted);
+}
+
+.active-slot-empty.first-run {
+  flex-direction: column;
+  border-style: dashed;
+}
+
+.active-slot-empty-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  flex: 0 0 auto;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.active-slot-empty-copy h3 {
+  margin: 0 0 4px;
+  color: var(--text);
+  font-size: 15px;
+  font-weight: 650;
+}
+
+.active-slot-empty-copy p {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.active-slot-zone.slot-zone-over,
+.slot-library-zone.slot-zone-over {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.active-slot-zone.occupied.slot-zone-over {
+  outline: 2px dashed var(--accent);
+  outline-offset: 4px;
+}
+
+.active-slot-replace,
+.slot-library-hint {
+  margin: 0 0 12px;
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 600;
+  text-align: center;
+}
+
+.slot-library-zone {
+  border: 2px dashed transparent;
+  border-radius: var(--radius);
+  transition: background-color var(--motion-control) var(--motion-ease), border-color var(--motion-control) var(--motion-ease);
+}
+
+.slot-library-zone.slot-zone-over {
+  padding: 8px;
+  margin: -10px;
+}
+
+.slot-library-list {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+/* Cards */
+
+.panel.slot-card {
+  display: grid;
+  gap: 14px;
+  padding: 16px 18px;
+  margin-bottom: 0;
+}
+
+.slot-library-list .panel.slot-card {
+  padding: 10px 14px;
+}
+
+.slot-library-list .panel.slot-card.expanded {
+  padding: 14px 18px 18px;
+}
+
+[data-slot-dragging='true'] {
+  opacity: .4;
+}
+
+.slot-card-moving {
+  opacity: .35;
+  transform: scale(.98);
+}
+
+.slot-card:not(.slot-card-moving) {
+  animation: slot-card-settle var(--motion-panel) var(--motion-ease);
+}
+
+@keyframes slot-card-settle {
+  from { opacity: .35; transform: scale(.98); }
+  to { opacity: 1; transform: none; }
+}
+
+.slot-card-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.slot-card-grip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  align-self: stretch;
+  width: 28px;
+  min-height: 44px;
+  margin-left: -6px;
+  flex: 0 0 auto;
+  color: var(--faint);
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
+.slot-card-grip:hover {
+  color: var(--muted);
+}
+
+.slot-card-title {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.slot-card-title h3 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 650;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.slot-card-meta {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.slot-card-controls {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: 0 0 auto;
+}
+
+.slot-card-toggle svg {
+  transition: transform var(--motion-control) var(--motion-ease);
+}
+
+.slot-card-toggle[aria-expanded='true'] svg {
+  transform: rotate(180deg);
+}
+
+.slot-card-actions {
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+/* Finished state */
+
+.panel.slot-card-finished {
+  border-color: var(--accent-border);
+  background: var(--accent-soft);
+}
+
+.tiny-label.slot-finished-label {
+  padding: 3px 8px;
+  border-radius: 6px;
+  color: var(--on-accent);
+  background: var(--accent);
+}
+
+.slot-finished {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 10px 12px;
+  align-items: start;
+}
+
+.slot-finished-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+.slot-finished-copy strong {
+  display: block;
+  font-size: 14px;
+}
+
+.slot-finished-copy p {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.slot-finished .slot-card-actions {
+  grid-column: 1 / -1;
+}
+
+/* A standalone workout in the active slot reads as a one-day program. */
+
+.template-slot-day {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+}
+
+.template-slot-day.completed-slot {
+  background: var(--surface-raised);
+}
+
+.template-slot-day-copy {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.template-slot-day-copy .small-copy {
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.template-slot-tick {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  flex: 0 0 auto;
+  border: 2px solid var(--border-hover);
+  border-radius: 6px;
+}
+
+.template-slot-tick.ticked {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+/* Library workout cards gain a grip and a menu beside the edit action. */
+
+.routine-card .routine-card-title {
+  flex: 1;
+}
+
+.routine-card .slot-card-grip {
+  min-height: 36px;
+}
+
+/* The view-only program timeline inside an expanded library card. */
+
+.readonly-program-timeline {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.readonly-day-exercises {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+}
+
+.readonly-exercise {
+  display: grid;
+  gap: 6px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-raised);
+}
+
+.superset-block .readonly-exercise + .readonly-exercise {
+  margin-top: 8px;
+}
+
+.readonly-exercise-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.readonly-exercise-sets {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 4px;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.readonly-exercise-sets li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.readonly-set-count {
+  min-width: 32px;
+  color: var(--muted);
+}
+
+.readonly-exercise-note {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* Drag ghost */
+
+.slot-drag-ghost {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 60;
+  display: grid;
+  gap: 2px;
+  padding: 14px 16px;
+  border: 1px solid var(--accent-border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: 0 16px 40px var(--overlay);
+  pointer-events: none;
+  cursor: grabbing;
+}
+
+.slot-drag-ghost.returning {
+  transition: transform 220ms var(--motion-ease), opacity 220ms var(--motion-ease);
+  opacity: .5;
+}
+
+.slot-drag-ghost strong {
+  font-size: 14px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.slot-drag-ghost span {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+@media (max-width: 1023px) {
+  .slot-card-toggle,
+  .slot-card-menu-trigger {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  .routine-card .slot-card-grip {
+    min-height: 44px;
+  }
+}
+
+@media (max-width: 639px) {
+  .active-slot-empty {
+    flex-direction: column;
+    min-height: 160px;
+  }
+
+  .slot-card-actions .button {
+    flex: 1 1 auto;
+    justify-content: center;
+    min-height: 44px;
+  }
+}

@@ -51,6 +51,7 @@ describe('PDF import set review fields', () => {
     expect(markup).toContain('data-import-field="repMax"');
     expect(markup).toContain('data-import-field="targetRpe"');
     expect(markup).toContain('data-import-field="rest"');
+    expect(markup).toContain('data-exercise-line="exercise-line"');
     expect(markup).not.toContain('Source reps (verbatim)');
     expect(markup).not.toContain('Source load');
   });

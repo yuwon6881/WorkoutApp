@@ -174,6 +174,9 @@ public sealed class AppDb(DbContextOptions<AppDb> options) : DbContext(options)
         m.Entity<WorkoutSession>().HasIndex(x => x.UserId).IsUnique().HasFilter("\"Active\"").HasDatabaseName("IX_Workouts_ActivePerUser");
         m.Entity<WorkoutSession>().HasIndex(x => new { x.UserId, x.ProgramDayProgressId });
         m.Entity<WorkoutTemplate>().HasIndex(x => new { x.UserId, x.ProgramId, x.Week, x.Position });
+        m.Entity<WorkoutTemplate>().HasIndex(x => x.UserId).IsUnique().HasFilter("\"Active\"").HasDatabaseName("IX_Templates_ActivePerUser");
+        m.Entity<WorkoutTemplate>().ToTable("Templates", t => t.HasCheckConstraint("CK_Templates_ActiveStandalone",
+            "NOT \"Active\" OR \"ProgramId\" IS NULL"));
         m.Entity<TemplateExercise>().HasIndex(x => new { x.UserId, x.TemplateId, x.Position });
         m.Entity<TemplateExercise>().HasIndex(x => new { x.UserId, x.TemplateId, x.SlotKey }).IsUnique();
         m.Entity<WorkoutTemplate>().HasIndex(x => new { x.UserId, x.ProgramId, x.ProgramPhaseId });
