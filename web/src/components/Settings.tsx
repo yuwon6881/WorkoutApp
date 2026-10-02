@@ -1,4 +1,3 @@
-import { useEffect } from 'react';
 import { NativeBuildInfo } from './NativeBuildInfo';
 import { Dumbbell, Link2, LogOut, Moon, SlidersHorizontal, Sun, Timer, Watch, Weight } from 'lucide-react';
 import type { Account, Preferences } from '../types';
@@ -50,10 +49,6 @@ export function SettingsView(props: SettingsViewProps) {
   const { account, preferences, devicePreferences, onDevicePreferences, onPreferences, notify, onSignOut, version, onCatalogChanged } = props;
   const deviceId = getWorkoutPushDeviceId();
   const [general, training, weights, rest, watch, connections] = sections;
-
-  useEffect(() => {
-    void api.refreshNutritionContext().catch(() => { /* Nutrition is optional and may be offline. */ });
-  }, []);
 
   async function signOut() {
     if (deviceId) {

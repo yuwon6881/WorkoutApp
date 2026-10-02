@@ -1,6 +1,6 @@
 .ready-import-card{display:flex;align-items:center;justify-content:space-between;gap:16px;border:1px solid var(--accent-border);background:var(--surface);border-radius:var(--radius);padding:20px 24px;margin-bottom:24px}
 .ready-import-info{display:flex;flex-direction:column;gap:6px;min-width:0}
-.ready-import-badge{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:600;color:var(--accent)}
+.ready-import-badge{display:inline-flex;align-items:center;gap:6px;font-size:14px;font-weight:600;color:var(--accent)}
 .ready-import-card h3{font-size:16px;margin:0;color:var(--text)}
-.ready-import-card p{font-size:12px;margin:0;color:var(--muted)}
+.ready-import-card p{font-size:14px;margin:0;color:var(--muted)}
 @media(max-width:639px){.ready-import-card{flex-direction:column;align-items:stretch}.ready-import-card .button{width:100%;justify-content:center;min-height:44px}}

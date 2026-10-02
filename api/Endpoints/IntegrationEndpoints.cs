@@ -15,7 +15,7 @@ public static class IntegrationEndpoints
     {
         app.MapPost("/api/integrations/refresh", async (NutritionContextService context, CancellationToken ct) =>
         {
-            var result = await context.Get(ct, NutritionContextService.RefreshDeadline);
+            var result = await context.Get(ct, NutritionContextService.RefreshDeadline, forceLive: true);
             return Results.Ok(new { mode = result.Mode, cached = result.Cached, confirmed = result.Confirmed, error = result.Error });
         });
 

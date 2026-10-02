@@ -26,13 +26,20 @@ public sealed class NutritionContextService(AppDb db, IHttpClientFactory clients
     /// Weekly bodyweight loss, as a percent, that a non-cutting goal treats as a real deficit.
     public const double UnplannedLossPercent = .5;
 
-    public async Task<NutritionContextResult> Get(CancellationToken ct, TimeSpan? deadline = null)
+    private TimeSpan FreshWindow => TimeSpan.FromHours(Math.Clamp(config.GetValue<double?>("Integrations:NutritionContextFreshHours") ?? 6, 0, 168));
+
+    public async Task<NutritionContextResult> Get(CancellationToken ct, TimeSpan? deadline = null, bool forceLive = false)
     {
         var cached = await db.NutritionContexts.AsNoTracking().SingleOrDefaultAsync(ct);
         var now = DateTime.UtcNow;
         var url = config["Integrations:NutritionTrainingContextUrl"];
         var connected = await db.IntegrationGrants.AsNoTracking().AnyAsync(x => x.Peer == "nutrition" && x.Status == "active"
             && x.CentralConnectionId != null && x.CentralConnectionGeneration != null, ct);
+        // Reuse recent success only while consent is active, before acquiring a token or waking the peer.
+        var freshWindow = FreshWindow;
+        if (connected && !forceLive && freshWindow > TimeSpan.Zero
+            && cached?.LastSuccessAt is { } success && now - success <= freshWindow)
+            return FromCache(cached, now, null);
         if (connected && !string.IsNullOrWhiteSpace(url))
         {
             try

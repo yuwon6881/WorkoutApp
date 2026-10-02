@@ -85,6 +85,92 @@ public sealed class NutritionConnectionStateTests
     }
 
     [Fact]
+    public async Task Fresh_cache_skips_the_nutrition_call()
+    {
+        await AssertCacheRead(cacheAgeHours: 1, expectedCalls: 0);
+    }
+
+    [Fact]
+    public async Task Stale_cache_reads_live()
+    {
+        await AssertCacheRead(cacheAgeHours: 8, expectedCalls: 1);
+    }
+
+    [Fact]
+    public async Task Explicit_refresh_bypasses_freshness()
+    {
+        await AssertCacheRead(cacheAgeHours: 1, expectedCalls: 1, forceLive: true);
+    }
+
+    [Theory]
+    [InlineData(8, true, ProgressionModes.Preservation)]
+    [InlineData(169, false, ProgressionModes.Normal)]
+    public async Task Stale_cache_falls_back_after_the_live_read_deadline(double cacheAgeHours, bool confirmed, string expectedMode)
+    {
+        await using var harness = await Harness.Create(new() { ["Integrations:NutritionTrainingContextUrl"] = ContextUrl });
+        var user = await harness.SignIn();
+        var successAt = DateTime.UtcNow.AddHours(-cacheAgeHours);
+        harness.Db.IntegrationGrants.Add(ActiveGrant(user.Id, 2));
+        harness.Db.NutritionContexts.Add(new NutritionContextCache
+        {
+            UserId = user.Id,
+            ContextJson = Json.Write(LosingContext(user.IdentitySubject, successAt)),
+            LastSuccessAt = successAt
+        });
+        await harness.Db.SaveChangesAsync();
+        var nutrition = new DelayedHandler(_ => throw new InvalidOperationException("The read should time out."), TimeSpan.FromSeconds(10));
+        var service = new NutritionContextService(harness.Db, new SingleClientFactory(nutrition), harness.Config);
+
+        var result = await service.Get(CancellationToken.None, TimeSpan.FromMilliseconds(30));
+
+        Assert.Equal(expectedMode, result.Mode);
+        Assert.Equal(confirmed, result.Confirmed);
+        Assert.True(result.Cached);
+        Assert.NotNull(result.Error);
+        Assert.Equal(1, nutrition.Calls);
+    }
+
+    [Theory]
+    [InlineData("0", 1, 1)]
+    [InlineData("-1", 1, 1)]
+    [InlineData("2", 3, 1)]
+    [InlineData("12", 8, 0)]
+    [InlineData("200", 169, 1)]
+    public async Task Configured_freshness_window_is_respected(string freshHours, double cacheAgeHours, int expectedCalls)
+    {
+        await AssertCacheRead(cacheAgeHours, expectedCalls, freshHours: freshHours);
+    }
+
+    private static async Task AssertCacheRead(double cacheAgeHours, int expectedCalls, bool forceLive = false, string? freshHours = null)
+    {
+        await using var harness = await Harness.Create(new()
+        {
+            ["Integrations:NutritionTrainingContextUrl"] = ContextUrl,
+            ["Integrations:NutritionContextFreshHours"] = freshHours
+        });
+        var user = await harness.SignIn();
+        var successAt = DateTime.UtcNow.AddHours(-cacheAgeHours);
+        var context = LosingContext(user.IdentitySubject, successAt);
+        harness.Db.IntegrationGrants.Add(ActiveGrant(user.Id, 2));
+        harness.Db.NutritionContexts.Add(new NutritionContextCache
+        {
+            UserId = user.Id,
+            ContextJson = Json.Write(context),
+            LastSuccessAt = successAt
+        });
+        await harness.Db.SaveChangesAsync();
+        var nutrition = new DelayedHandler(_ => JsonResponse(Json.Write(context)));
+        var service = new NutritionContextService(harness.Db, new SingleClientFactory(nutrition), harness.Config);
+
+        var result = await service.Get(CancellationToken.None, forceLive: forceLive);
+
+        Assert.Equal(ProgressionModes.Preservation, result.Mode);
+        Assert.Equal(expectedCalls == 0, result.Cached);
+        Assert.True(result.Confirmed);
+        Assert.Equal(expectedCalls, nutrition.Calls);
+    }
+
+    [Fact]
     public async Task Explicit_refresh_waits_out_a_cold_start_that_workout_start_does_not()
     {
         await using var harness = await Harness.Create(new() { ["Integrations:NutritionTrainingContextUrl"] = ContextUrl });
@@ -95,7 +181,7 @@ public sealed class NutritionConnectionStateTests
         var nutrition = new DelayedHandler(_ => JsonResponse(body), TimeSpan.FromMilliseconds(2300));
         var service = new NutritionContextService(harness.Db, new SingleClientFactory(nutrition), harness.Config);
 
-        var result = await service.Get(CancellationToken.None, NutritionContextService.RefreshDeadline);
+        var result = await service.Get(CancellationToken.None, NutritionContextService.RefreshDeadline, forceLive: true);
 
         Assert.Null(result.Error);
         Assert.False(result.Cached);
