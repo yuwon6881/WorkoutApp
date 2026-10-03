@@ -2,6 +2,7 @@ import { Component, type ErrorInfo, type ReactNode } from 'react';
 import { AlertTriangle, RotateCcw } from 'lucide-react';
 import { reloadWithFreshShell } from '../../lib/freshShell';
 import { Button } from './Button';
+import { StartupScreen } from './StartupScreen';
 import './CardFeedback.css';
 
 const RELOAD_FLAG = 'workout-chunk-reload';
@@ -46,23 +47,23 @@ export class ErrorBoundary extends Component<{ children: ReactNode }, { failed: 
   render() {
     if (!this.state.failed) return this.props.children;
     return (
-      <main className="auth-screen" role="alert">
-        <section className="panel recovery-card reload-recovery" aria-labelledby="reload-heading">
+      <StartupScreen className="startup-recovery reload-recovery" headingId="reload-heading">
+        <div role="alert" className="startup-recovery-copy">
           <span className="recovery-error-icon" aria-hidden="true"><AlertTriangle size={24}/></span>
-          <p className="eyebrow">WORKOUT</p>
+          <p className="eyebrow">VIEW RECOVERY</p>
           <h1 id="reload-heading">This view needs a reload</h1>
           <p>An active workout stays saved on this device. Reload to continue where you left off.</p>
-          <div className="recovery-actions">
-            <Button variant="primary" className="full-width" disabled={this.state.reloading} onClick={this.reload}>
-              <RotateCcw size={16} />
-              {this.state.reloading ? 'Reloading…' : 'Reload workout app'}
-            </Button>
-            <Button variant="secondary" className="full-width" disabled={this.state.reloading} onClick={this.reset}>
-              Try again
-            </Button>
-          </div>
-        </section>
-      </main>
+        </div>
+        <div className="recovery-actions">
+          <Button variant="primary" className="full-width" disabled={this.state.reloading} onClick={this.reload}>
+            <RotateCcw size={16} />
+            {this.state.reloading ? 'Reloading…' : 'Reload workout app'}
+          </Button>
+          <Button variant="secondary" className="full-width" disabled={this.state.reloading} onClick={this.reset}>
+            Try again
+          </Button>
+        </div>
+      </StartupScreen>
     );
   }
 }

@@ -12,6 +12,9 @@ import com.getcapacitor.Plugin;
 import com.getcapacitor.PluginCall;
 import com.getcapacitor.PluginMethod;
 import com.getcapacitor.annotation.CapacitorPlugin;
+import java.lang.ref.WeakReference;
+import org.json.JSONArray;
+import org.json.JSONException;
 import org.json.JSONObject;
 
 /// The web app's only route to the workout store and service (through lib/platform.ts). Every
@@ -19,7 +22,42 @@ import org.json.JSONObject;
 /// scheduled.
 @CapacitorPlugin(name = "WorkoutPlugin")
 public class WorkoutPlugin extends Plugin {
+    static final String EVENT_REST_ACTION = "restAction";
+    // The plugin of the page that is open, if any, so a notification tap can tell it at once.
+    private static volatile WeakReference<WorkoutPlugin> active = new WeakReference<>(null);
     private volatile String lastServiceError;
+
+    @Override
+    public void load() {
+        active = new WeakReference<>(this);
+    }
+
+    @Override
+    protected void handleOnDestroy() {
+        if (active.get() == this) active = new WeakReference<>(null);
+        super.handleOnDestroy();
+    }
+
+    /// Tells an open page that notification actions are waiting. Without a page they stay stored
+    /// and are taken when the workout next opens.
+    static void notifyRestAction() {
+        WorkoutPlugin plugin = active.get();
+        if (plugin != null) plugin.notifyListeners(EVENT_REST_ACTION, new JSObject(), true);
+    }
+
+    @PluginMethod
+    public void takeRestActions(PluginCall call) {
+        JSONArray actions = new JSONArray();
+        try {
+            for (RestAction action : store().takeRestActions()) actions.put(action.toJson());
+        } catch (JSONException | RuntimeException failure) {
+            call.reject("Rest changes from the notification could not be read.", "rest_actions_failed");
+            return;
+        }
+        JSObject result = new JSObject();
+        result.put("actions", actions);
+        call.resolve(result);
+    }
 
     @PluginMethod
     public void getRecoveryRecord(PluginCall call) {
@@ -80,16 +118,22 @@ public class WorkoutPlugin extends Plugin {
                 Boolean.TRUE.equals(call.getBoolean("sound", true)),
                 Boolean.TRUE.equals(call.getBoolean("vibrate", false)),
                 call.getString("epoch", ""),
-                longOf(call, "sequence"));
-        // An older write from this page arrived after a newer one: the newer intent stands.
+                longOf(call, "sequence"),
+                longOf(call, "totalMs"),
+                call.getString("nextUp"));
+        RestSnapshot stored;
         try {
-            if (!store().saveRestSnapshotIfNewer(snapshot)) { call.resolve(); return; }
+            stored = store().saveRestSnapshotIfNewer(snapshot);
         } catch (RuntimeException failure) {
             call.reject("Workout timing could not be saved. Try again.", "recovery_save_failed", failure);
             return;
         }
+        // An older write from this page arrived after a newer one: the newer intent stands.
+        if (stored == null) { call.resolve(); return; }
+        // A new rest makes the last "Rest finished" alert old news.
+        if (stored.isRunning() && stored.deadlineMs > System.currentTimeMillis()) RestAlerts.clearFinished(getContext());
         // The alarm does not depend on the service, so a rest alerts even if the service is refused.
-        RestSchedule.apply(getContext(), snapshot);
+        RestSchedule.apply(getContext(), stored);
         try {
             WorkoutForegroundService.start(getContext());
             lastServiceError = null;
@@ -126,6 +170,8 @@ public class WorkoutPlugin extends Plugin {
         result.put("restSoundEnabled", RestAlerts.restSoundEnabled(context));
         result.put("batteryExempt", batteryExempt);
         result.put("liveUpdates", LiveUpdateNotificationAdapter.canPromote(context));
+        result.put("liveUpdatesSupported", LiveUpdateNotificationAdapter.supportsPromotion());
+        result.put("xiaomiIsland", XiaomiFocus.status(context));
         result.put("serviceError", lastServiceError == null ? JSONObject.NULL : lastServiceError);
         call.resolve(result);
     }

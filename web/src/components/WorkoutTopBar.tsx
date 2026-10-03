@@ -1,4 +1,4 @@
-import { Check, ChevronDown, Cloud, CloudOff, Flag, Info, Pause, Play, Trash2 } from 'lucide-react';
+import { ChevronDown, Flag, Info, Pause, Play, RotateCcw, Trash2 } from 'lucide-react';
 import type { Session } from '../types';
 import { WorkoutElapsed } from './WorkoutElapsed';
 import { shortSyncStatus } from '../lib/workoutSyncStatus';
@@ -6,8 +6,9 @@ import { Button } from './ui/Button';
 import { MenuButton, MenuItem } from './ui/MenuButton';
 
 /// The workout's only header. It is also the sheet's drag handle on phones, so pulling it down
-/// minimizes the workout like the chevron at its trailing edge does. The save status is a short
-/// word here, with the full sentence read to assistive technology, so it never takes a line of its own.
+/// minimizes the workout like the chevron at its trailing edge does. Logged working sets fill the
+/// line along its bottom edge. Routine saving stays quiet: only a save problem (offline, not saved,
+/// needs review) shows a word, and the full sentence is always read to assistive technology.
 export function WorkoutTopBar({
   name,
   session,
@@ -21,10 +22,13 @@ export function WorkoutTopBar({
   discardDisabled,
   finishDisabled,
   hasDetails,
+  canRestore,
+  restoreDisabled,
   onClose,
   onTogglePause,
   onFinish,
   onDetails,
+  onRestore,
   onDiscard
 }: {
   name: string;
@@ -39,36 +43,41 @@ export function WorkoutTopBar({
   discardDisabled: boolean;
   finishDisabled: boolean;
   hasDetails: boolean;
+  /** Offered only for a workout started from a program day or saved workout. */
+  canRestore: boolean;
+  restoreDisabled: boolean;
   onClose: () => void;
   onTogglePause: () => void;
   onFinish: () => void;
   onDetails: () => void;
+  onRestore: () => void;
   onDiscard: () => void;
 }) {
   const sync = shortSyncStatus(syncMessage, online);
+  const problem = sync && (sync.tone === 'offline' || sync.tone === 'warning') ? sync : null;
+  const fraction = planned > 0 ? Math.min(1, done / planned) : 0;
   return (
     <div className={`workout-top-status-bar ${paused ? 'paused' : ''}`} data-sheet-handle="">
       <div className="workout-top-summary">
         <h2 className="workout-top-title">{name}</h2>
         <div className="workout-top-meta">
           <WorkoutElapsed session={session} finishedAt={finishedAt} />
-          {paused ? (
-            <span className="workout-paused-label" role="status">Paused</span>
-          ) : (
-            <span className="workout-sets-badge">
-              <Check size={13} aria-hidden="true" />
-              {done}/{planned}
-              <span className="sr-only"> sets</span>
-            </span>
-          )}
-          {sync && (
-            <span className={`workout-sync-status ${sync.tone}`} aria-hidden="true">
-              {sync.tone === 'offline' ? <CloudOff size={13} /> : <Cloud size={13} />}
-              {sync.label}
-            </span>
-          )}
+          {paused && <span className="workout-paused-label" role="status">Paused</span>}
+          {problem && <span className={`workout-sync-status ${problem.tone}`} aria-hidden="true">{problem.label}</span>}
         </div>
         <p className="sr-only workout-sync-announcement" role="status">{syncMessage}</p>
+      </div>
+
+      <div
+        className="workout-sets-progress"
+        role="progressbar"
+        aria-label="Working sets logged"
+        aria-valuemin={0}
+        aria-valuemax={planned}
+        aria-valuenow={Math.min(done, planned)}
+        aria-valuetext={`${done} of ${planned} working sets logged`}
+      >
+        <span style={{ transform: `scaleX(${fraction})` }} />
       </div>
 
       <div className="workout-top-actions">
@@ -85,6 +94,10 @@ export function WorkoutTopBar({
           {hasDetails && <MenuItem onClick={onDetails}>
             <Info size={16} />
             Workout details
+          </MenuItem>}
+          {canRestore && <MenuItem disabled={restoreDisabled} onClick={onRestore}>
+            <RotateCcw size={16} />
+            Restore program defaults
           </MenuItem>}
           <MenuItem disabled={finishDisabled} onClick={onFinish}>
             <Flag size={16} />

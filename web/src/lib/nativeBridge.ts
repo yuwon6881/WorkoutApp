@@ -5,7 +5,7 @@ import { Haptics, ImpactStyle, NotificationType } from '@capacitor/haptics';
 import { KeepAwake } from '@capacitor-community/keep-awake';
 import { LocalNotifications } from '@capacitor/local-notifications';
 import { StatusBar, Style } from '@capacitor/status-bar';
-import { registerPlugin } from '@capacitor/core';
+import { registerPlugin, type PluginListenerHandle } from '@capacitor/core';
 import type { Haptic } from './platform';
 
 // Kept apart from the ongoing workout notification so a legacy alert never replaces it.
@@ -18,6 +18,10 @@ export interface AlertCapabilities {
   restSoundEnabled?: boolean;
   batteryExempt: boolean;
   liveUpdates: boolean;
+  /// Android 16 and later, where the workout notification can be a Live Update at all.
+  liveUpdatesSupported?: boolean;
+  /// Xiaomi HyperOS focus notifications (the Super Island): absent on other phones, or off for this app.
+  xiaomiIsland?: 'unsupported' | 'off' | 'on';
   serviceError: string | null;
 }
 
@@ -35,6 +39,19 @@ export type NativeWorkoutState = {
   alert: boolean;
   sound: boolean;
   vibrate: boolean;
+  /// The rest's whole length, for the notification's progress bar; 0 when there is no rest.
+  totalMs: number;
+  /// The next set, shown only in the unlocked notification; never on the lock screen or Xiaomi's island.
+  nextUp: string | null;
+};
+
+/// A rest change made from the notification's buttons, waiting for the page to send it on.
+export type NativeRestAction = {
+  sessionId: string;
+  generation: string;
+  kind: 'extend' | 'shorten' | 'skip';
+  seconds: number;
+  atMs: number;
 };
 
 export interface WorkoutPluginInterface {
@@ -49,6 +66,8 @@ export interface WorkoutPluginInterface {
   getAlertCapabilities(): Promise<AlertCapabilities>;
   openSettings(options: { type: 'exact_alarm' | 'notifications' | 'rest_channel' | 'battery' | 'app' }): Promise<void>;
   testAlert(options: { sound: boolean; vibrate: boolean }): Promise<void>;
+  takeRestActions(): Promise<{ actions: NativeRestAction[] }>;
+  addListener(event: 'restAction', listener: () => void): Promise<PluginListenerHandle>;
 }
 
 export const WorkoutNative = registerPlugin<WorkoutPluginInterface>('WorkoutPlugin');
@@ -133,6 +152,16 @@ export async function nativeGetAlertCapabilities(): Promise<AlertCapabilities> {
 
 export async function nativeOpenSettings(type: 'exact_alarm' | 'notifications' | 'rest_channel' | 'battery' | 'app'): Promise<void> {
   await WorkoutNative.openSettings({ type });
+}
+
+/// Takes the notification's rest changes; once taken they are gone from the device store.
+export async function nativeTakeRestActions(): Promise<NativeRestAction[]> {
+  const result = await WorkoutNative.takeRestActions();
+  return result.actions ?? [];
+}
+
+export async function nativeOnRestAction(listener: () => void): Promise<PluginListenerHandle> {
+  return WorkoutNative.addListener('restAction', listener);
 }
 
 export async function nativeTestAlert(sound: boolean, vibrate: boolean): Promise<void> {

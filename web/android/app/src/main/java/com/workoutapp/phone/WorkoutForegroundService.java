@@ -27,6 +27,7 @@ public class WorkoutForegroundService extends Service {
 
     private final Handler handler = new Handler(Looper.getMainLooper());
     private final Runnable deadline = this::onDeadline;
+    private final Runnable progress = this::onProgress;
     private PowerManager.WakeLock wakeLock;
 
     static boolean isRunning() {
@@ -78,7 +79,11 @@ public class WorkoutForegroundService extends Service {
 
     private void apply(RestSnapshot snapshot) {
         handler.removeCallbacks(deadline);
+        handler.removeCallbacks(progress);
         releaseWakeLock();
+        if (LiveUpdateNotificationAdapter.needsProgressRefresh(snapshot, System.currentTimeMillis())) {
+            handler.postDelayed(progress, LiveUpdateNotificationAdapter.PROGRESS_REFRESH_MS);
+        }
         RestSchedule.apply(this, snapshot);
         long remaining = snapshot.deadlineMs - System.currentTimeMillis();
         if (snapshot.isRunning() && remaining > 0) {
@@ -98,6 +103,15 @@ public class WorkoutForegroundService extends Service {
         }
         releaseWakeLock();
         if (snapshot != null) promote(snapshot);
+    }
+
+    /// Moves the rest bar on. The countdown text needs no help; only the bar is redrawn, and only
+    /// while a rest with a known length is running.
+    private void onProgress() {
+        RestSnapshot snapshot = WorkoutRecoveryStore.get(this).getRestSnapshot();
+        if (!LiveUpdateNotificationAdapter.needsProgressRefresh(snapshot, System.currentTimeMillis())) return;
+        promote(snapshot);
+        handler.postDelayed(progress, LiveUpdateNotificationAdapter.PROGRESS_REFRESH_MS);
     }
 
     /// Alerts for the stored rest at most once on this device, whichever of the page, this
@@ -125,6 +139,7 @@ public class WorkoutForegroundService extends Service {
     @Override
     public void onDestroy() {
         handler.removeCallbacks(deadline);
+        handler.removeCallbacks(progress);
         releaseWakeLock();
         // An ended workout takes its alarm with it; a service the system reclaimed mid-rest leaves
         // the alarm armed so the rest still alerts.

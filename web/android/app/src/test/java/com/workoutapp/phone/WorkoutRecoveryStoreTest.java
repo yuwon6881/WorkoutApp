@@ -73,6 +73,44 @@ public class WorkoutRecoveryStoreTest {
         assertEquals("other-account", store.getRecovery("two"));
     }
 
+    private static RestSnapshot page(String generation, long deadlineMs, String epoch, long sequence) {
+        return new RestSnapshot("session", generation, RestSnapshot.RUNNING, deadlineMs, 0, 1000, 0, 0,
+                true, true, false, epoch, sequence, 90_000, null);
+    }
+
+    @Test public void aNotificationTapSurvivesThePageRestatingTheSameRest() {
+        long now = System.currentTimeMillis();
+        store.saveRestSnapshotIfNewer(page("gen-1", now + 40_000, "page-a", 1));
+        RestSnapshot tapped = store.applyRestAction(new RestAction("session", "gen-1", RestAction.EXTEND, 30, now));
+        assertEquals(now + 70_000, tapped.deadlineMs);
+        // A reloaded page restates the rest it remembers; the tap stays on top until the page takes it.
+        RestSnapshot restated = store.saveRestSnapshotIfNewer(page("gen-1", now + 40_000, "page-b", 1));
+        assertEquals(now + 70_000, restated.deadlineMs);
+        assertEquals(1, store.takeRestActions().size());
+        assertTrue(store.takeRestActions().isEmpty());
+        // Once the page has made the change itself, its own rest stands.
+        assertEquals(now + 70_000, store.saveRestSnapshotIfNewer(page("gen-2", now + 70_000, "page-b", 2)).deadlineMs);
+    }
+
+    @Test public void aTapForAReplacedRestIsDropped() {
+        long now = System.currentTimeMillis();
+        store.saveRestSnapshotIfNewer(page("gen-1", now + 40_000, "page-a", 1));
+        store.applyRestAction(new RestAction("session", "gen-1", RestAction.SKIP, 0, now));
+        RestSnapshot next = store.saveRestSnapshotIfNewer(page("gen-2", now + 90_000, "page-a", 2));
+        assertEquals(RestSnapshot.RUNNING, next.status);
+        assertTrue(store.takeRestActions().isEmpty());
+        assertNull(store.applyRestAction(new RestAction("session", "gen-1", RestAction.SKIP, 0, now)));
+    }
+
+    @Test public void endingTheWorkoutForgetsPendingTaps() {
+        long now = System.currentTimeMillis();
+        store.saveRestSnapshotIfNewer(page("gen-1", now + 40_000, "page-a", 1));
+        store.applyRestAction(new RestAction("session", "gen-1", RestAction.EXTEND, 30, now));
+        store.clearRestSnapshot();
+        assertNull(store.getRestSnapshot());
+        assertTrue(store.takeRestActions().isEmpty());
+    }
+
     @Test public void permissionGrantRearmsOnlyFutureRunningRests() {
         Context context = RuntimeEnvironment.getApplication();
         AlarmManager alarms = context.getSystemService(AlarmManager.class);

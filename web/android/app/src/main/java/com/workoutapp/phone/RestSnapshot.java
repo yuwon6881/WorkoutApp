@@ -24,10 +24,21 @@ final class RestSnapshot {
     final boolean vibrate;
     final String epoch;
     final long sequence;
+    // The rest's whole length, so the notification can show how much of it has passed; 0 when unknown.
+    final long totalMs;
+    // The next set to do, for the unlocked notification only; the lock screen never shows it.
+    final String nextUp;
 
     RestSnapshot(String sessionId, String generation, String status, long deadlineMs, long pausedRemainingMs,
                  long startedAtMs, long pausedAtMs, long pausedSeconds, boolean alert, boolean sound,
                  boolean vibrate, String epoch, long sequence) {
+        this(sessionId, generation, status, deadlineMs, pausedRemainingMs, startedAtMs, pausedAtMs, pausedSeconds,
+                alert, sound, vibrate, epoch, sequence, 0, null);
+    }
+
+    RestSnapshot(String sessionId, String generation, String status, long deadlineMs, long pausedRemainingMs,
+                 long startedAtMs, long pausedAtMs, long pausedSeconds, boolean alert, boolean sound,
+                 boolean vibrate, String epoch, long sequence, long totalMs, String nextUp) {
         this.sessionId = sessionId;
         this.generation = generation == null ? "" : generation;
         this.status = RUNNING.equals(status) || PAUSED.equals(status) ? status : IDLE;
@@ -41,6 +52,15 @@ final class RestSnapshot {
         this.vibrate = vibrate;
         this.epoch = epoch == null ? "" : epoch;
         this.sequence = sequence;
+        this.totalMs = Math.max(0, totalMs);
+        this.nextUp = nextUp == null || nextUp.isEmpty() ? null : nextUp;
+    }
+
+    /// The same workout with a different rest. Epoch and sequence are kept, so the page's next
+    /// write still supersedes a change made here.
+    RestSnapshot withRest(String restStatus, long restDeadlineMs, long restPausedRemainingMs, long restTotalMs) {
+        return new RestSnapshot(sessionId, generation, restStatus, restDeadlineMs, restPausedRemainingMs, startedAtMs,
+                pausedAtMs, pausedSeconds, alert, sound, vibrate, epoch, sequence, restTotalMs, nextUp);
     }
 
     boolean isRunning() {
@@ -77,6 +97,8 @@ final class RestSnapshot {
                     .put("vibrate", vibrate)
                     .put("epoch", epoch)
                     .put("sequence", sequence)
+                    .put("totalMs", totalMs)
+                    .put("nextUp", nextUp == null ? JSONObject.NULL : nextUp)
                     .toString();
         } catch (JSONException e) {
             return null;
@@ -93,7 +115,8 @@ final class RestSnapshot {
                     o.optLong("deadlineMs", 0), o.optLong("pausedRemainingMs", 0), o.optLong("startedAtMs", 0),
                     o.optLong("pausedAtMs", 0), o.optLong("pausedSeconds", 0), o.optBoolean("alert", false),
                     o.optBoolean("sound", true), o.optBoolean("vibrate", false), o.optString("epoch", ""),
-                    o.optLong("sequence", 0));
+                    o.optLong("sequence", 0), o.optLong("totalMs", 0),
+                    o.isNull("nextUp") ? null : o.optString("nextUp", null));
         } catch (JSONException e) {
             return null;
         }

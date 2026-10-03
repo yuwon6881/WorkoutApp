@@ -143,6 +143,10 @@ export function RestAlertSettings({ accountId, preferences, devicePreferences, o
               <span role="status">The rest notification channel is off.</span>}
             {capabilities?.restChannelEnabled && capabilities.restSoundEnabled === false && devicePreferences.sound &&
               <span role="status">Rest sound is muted in Android channel settings.</span>}
+            {capabilities?.notifications && capabilities.liveUpdatesSupported && !capabilities.liveUpdates &&
+              <span>Live Updates are off, so the rest countdown is not pinned to the status bar.</span>}
+            {capabilities?.notifications && capabilities.xiaomiIsland === 'off' &&
+              <span>Super Island is off for this app. Allow focus notifications in HyperOS notification settings.</span>}
             {capabilities?.serviceError && <span role="alert">{capabilities.serviceError}</span>}
           </>}
           info={{
@@ -156,7 +160,8 @@ export function RestAlertSettings({ accountId, preferences, devicePreferences, o
                 Rest channel settings
               </Button>
             )}
-            {capabilities && !capabilities.notifications && (
+            {capabilities && (!capabilities.notifications || capabilities.xiaomiIsland === 'off' ||
+              (capabilities.liveUpdatesSupported && !capabilities.liveUpdates)) && (
               <Button variant="secondary" onClick={() => void openNativeSettings('notifications').catch(() => notify('Could not open notification settings.'))}>
                 Notification settings
               </Button>

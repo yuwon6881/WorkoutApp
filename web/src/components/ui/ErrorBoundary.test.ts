@@ -19,7 +19,7 @@ describe('ErrorBoundary', () => {
     const html = renderToStaticMarkup(rendered as import('react').ReactElement);
 
     expect(html).toContain('role="alert"');
-    expect(html).toContain('WORKOUT');
+    expect(html).toContain('Workout');
     expect(html).toContain('This view needs a reload');
     expect(html).toContain('An active workout stays saved on this device. Reload to continue where you left off.');
     expect(html).toContain('Reload workout app');

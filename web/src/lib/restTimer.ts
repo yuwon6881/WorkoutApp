@@ -1,6 +1,7 @@
 import { cancelAlarm, primeAlarm, releaseAlarm, scheduleAlarm, soundNow, testAlarmSound } from './alarm';
 import type { SessionRest } from '../types';
 import { claimNativeRestAlert, hasNativeWorkoutStore, isNative, nativeKeepAwake, notificationPermission, syncNativeWorkout } from './platform';
+import type { NativeRestAction } from './platform';
 
 /// Rest uses a deadline so its display stays accurate when the browser suspends the page. The
 /// local record is scoped to the signed-in account and active workout; it is never an authority
@@ -36,6 +37,8 @@ export class RestTimer {
   private workoutVisible = false;
   private nativeAwake = false;
   private clock: WorkoutClock | null = null;
+  // Keyed by workout: the workout screen can report it before the shell scopes the timer.
+  private nextUp: { sessionId: string; text: string | null } | null = null;
   // The last rest the server confirmed, so a skip made on another device can end the same rest here.
   private serverGeneration: string | null = null;
 
@@ -93,6 +96,17 @@ export class RestTimer {
     this.clock = clock;
     if (!same) this.syncNative();
   }
+
+  /// The next set, for the unlocked Android notification. It stays on the device.
+  setNextUp(sessionId: string, text: string | null): void {
+    if (this.nextUp?.sessionId === sessionId && this.nextUp.text === text) return;
+    this.nextUp = { sessionId, text };
+    if (this.sessionId === sessionId) this.syncNative();
+  }
+
+  /// Tells the Android service this page's rest again, after notification actions it could not
+  /// apply, so the notification never keeps showing a change the page did not make.
+  restateNative(): void { this.syncNative(); }
 
   primeSound(): boolean { return this.options.sound && primeAlarm(); }
 
@@ -278,7 +292,9 @@ export class RestTimer {
       pausedSeconds: this.clock?.pausedSeconds ?? 0,
       alert: this.options.notifications,
       sound: this.options.sound,
-      vibrate: this.options.vibration
+      vibrate: this.options.vibration,
+      totalMs: running || paused ? this.state.totalSeconds * 1000 : 0,
+      nextUp: this.nextUp?.sessionId === this.sessionId ? this.nextUp.text : null
     });
   }
 
@@ -353,6 +369,13 @@ export function remainingRestSeconds(state: Pick<RestState, 'endsAt' | 'pausedRe
   // A newly started timer can render before the screen's next one-second tick.
   // That older tick must not add a second to the configured rest duration.
   return state.totalSeconds > 0 ? Math.min(state.totalSeconds, remaining) : remaining;
+}
+
+/// The notification's rest changes this workout should make. They were all made on one rest; if
+/// this page has since moved to a different rest, none of them apply to it.
+export function nativeRestActionsToApply(actions: NativeRestAction[], sessionId: string, generation: string): NativeRestAction[] {
+  const mine = actions.filter(action => action.sessionId === sessionId);
+  return mine.length > 0 && generation !== '' && mine[0].generation === generation ? mine : [];
 }
 
 export function isRestAlertOwner(

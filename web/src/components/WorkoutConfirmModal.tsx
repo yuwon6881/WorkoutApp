@@ -12,9 +12,10 @@ export function WorkoutConfirmModal({
   onRetainSwapsChange,
   onClose,
   onFinish,
-  onDiscard
+  onDiscard,
+  onRestore
 }: {
-  confirm: 'finish' | 'discard';
+  confirm: 'finish' | 'discard' | 'restore';
   done: number;
   /** Working sets planned but not logged; they are left out of the saved workout. */
   unlogged: number;
@@ -25,7 +26,19 @@ export function WorkoutConfirmModal({
   onClose: () => void;
   onFinish: () => void;
   onDiscard: () => void;
+  onRestore: () => void;
 }) {
+  if (confirm === 'restore') return (
+    <Modal title="Restore program defaults?" onClose={onClose}>
+      <div className="modal-body">
+        <p>Exercises, sets and set types go back to the program. Sets you have logged are kept.</p>
+      </div>
+      <div className="modal-actions">
+        <Button onClick={onClose}>Keep changes</Button>
+        <Button variant="primary" disabled={busy} onClick={onRestore}>Restore defaults</Button>
+      </div>
+    </Modal>
+  );
   return (
     <Modal
       title={confirm === 'finish' ? 'Finish your workout?' : 'Discard this workout?'}

@@ -213,7 +213,7 @@ public static class WorkoutViewBuilder
             exercises.Select(e =>
             {
                 var exerciseSets = setsByExercise.GetValueOrDefault(e.Id) ?? [];
-                var canRestore = e.IsReplacement && !string.IsNullOrEmpty(e.BaselineJson) && !exerciseSets.Any(s => s.Done);
+                var canRestore = session.Active && WorkoutService.CanRestore(e, exerciseSets);
                 var (isExPr, prE1rmKg, exPrKind, exPrReps) = exercisePrs.GetValueOrDefault(e.Id, (false, null, null, null));
                 var key = PrKey(e.ExerciseId, e.NameSnapshot);
                 var repRecords = previousRepRecords != null && previousRepRecords.TryGetValue(key, out var priorRecords)

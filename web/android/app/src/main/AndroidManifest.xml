@@ -64,6 +64,11 @@
             android:name=".RestAlarmReceiver"
             android:exported="false" />
 
+        <!-- The rest buttons on the workout notification. -->
+        <receiver
+            android:name=".RestActionReceiver"
+            android:exported="false" />
+
         <receiver
             android:name=".BootReceiver"
             android:exported="true">

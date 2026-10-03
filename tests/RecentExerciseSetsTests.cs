@@ -1,4 +1,5 @@
 using Workout.Api.Data;
+using Workout.Api.Domain;
 using Workout.Api.Services;
 using Xunit;
 
@@ -18,7 +19,10 @@ public sealed class RecentExerciseSetsTests
         {
             var session = new WorkoutSession { UserId = user.Id, Name = $"Session {i}", StartedAt = time.AddDays(i),
                 Active = i == 7, FinishedAt = i == 7 ? null : time.AddDays(i).AddHours(1) };
-            var exercise = new SessionExercise { UserId = user.Id, SessionId = session.Id, ExerciseId = id };
+            var exercise = new SessionExercise { UserId = user.Id, SessionId = session.Id, ExerciseId = id,
+                PrescriptionJson = Json.Write(new List<SetPrescription> {
+                    new(5, 5, null, null, null, null, null, Warmup: true),
+                    new(8, 10, 8, null, null, null, "Myo-reps") }) };
             h.Db.Workouts.Add(session);
             h.Db.SessionExercises.Add(exercise);
             h.Db.Sets.Add(new CompletedSet { UserId = user.Id, SessionExerciseId = exercise.Id, Position = 0, Done = true, Warmup = true, WeightKg = null, Reps = 5 });
@@ -34,6 +38,7 @@ public sealed class RecentExerciseSetsTests
             Assert.Null(row.Exercises[0].Sets[0].WeightKg);
             Assert.Equal(45, row.Exercises[0].Sets[1].DurationSeconds);
             Assert.Equal("3", row.Exercises[0].Sets[1].Rir);
+            Assert.Equal(new string?[] { null, SetTechniques.MyoReps }, row.Exercises[0].Techniques);
         });
     }
 }

@@ -29,11 +29,11 @@
 
 /* Modern set logging table */
 .workout-set-table-container { display: flex; flex-direction: column; gap: 6px; margin-top: 4px; }
-.workout-set-table-head { display: grid; grid-template-columns: 36px minmax(0, 1.2fr) minmax(84px, 1.2fr) minmax(56px, 0.8fr) minmax(64px, 0.8fr) 44px 44px; align-items: center; gap: 8px; padding: 4px 6px; font-size: var(--font-secondary, 14px); font-weight: 650; color: var(--muted); text-transform: uppercase; letter-spacing: 0.02em; }
+.workout-set-table-head { display: grid; grid-template-columns: 44px minmax(0, 1.2fr) minmax(84px, 1.2fr) minmax(56px, 0.8fr) minmax(64px, 0.8fr) 44px 44px; align-items: center; gap: 8px; padding: 4px 6px; font-size: var(--font-secondary, 14px); font-weight: 650; color: var(--muted); text-transform: uppercase; letter-spacing: 0.02em; }
 .workout-set-rows { display: flex; flex-direction: column; gap: 8px; }
-.workout-set-row { display: grid; grid-template-columns: 36px minmax(0, 1.2fr) minmax(84px, 1.2fr) minmax(56px, 0.8fr) minmax(64px, 0.8fr) 44px 44px; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 10px; background: var(--surface); border: 1px solid var(--border); transition: border-color 0.15s ease, background-color 0.15s ease; }
+.workout-set-row { display: grid; grid-template-columns: 44px minmax(0, 1.2fr) minmax(84px, 1.2fr) minmax(56px, 0.8fr) minmax(64px, 0.8fr) 44px 44px; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 10px; background: var(--surface); border: 1px solid var(--border); transition: border-color 0.15s ease, background-color 0.15s ease; }
 .workout-set-row.done { border-color: var(--accent-border); background: var(--surface-hover); }
-.workout-set-row.warmup-row { border-style: dashed; }
+.workout-set-row.warmup-row { border-style: dashed; opacity: 1; }
 .set-badge-circle { width: 28px; height: 28px; border-radius: 50%; background: var(--surface-hover); border: 1px solid var(--border); display: grid; place-items: center; font-size: var(--font-secondary, 14px); font-weight: 700; color: var(--text); }
 .workout-set-row.done .set-badge-circle { background: var(--accent-soft); border-color: var(--accent-border); color: var(--accent); }
 .set-target-cell { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
@@ -79,140 +79,51 @@
   .workout-active-header { flex-direction: column; align-items: flex-start; gap: 8px; }
   .workout-progression-badge { align-self: flex-start; }
 
-  /* Clean 4-column header aligned directly over inputs */
-  .workout-set-table-head {
-    grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr) minmax(0, 0.9fr) 44px;
-    grid-template-rows: auto;
-    gap: 6px;
-    padding: 6px 10px 2px;
-    font-size: var(--font-secondary, 14px);
-  }
-  .workout-set-table-head .col-set,
-  .workout-set-table-head .col-target,
-  .workout-set-table-head .col-del {
-    display: none;
-  }
-  .workout-set-table-head .col-load {
-    grid-column: 1;
-    grid-row: 1;
-    text-align: center;
-  }
-  .workout-set-table-head .col-reps {
-    grid-column: 2;
-    grid-row: 1;
-    text-align: center;
-  }
-  .workout-set-table-head .col-rpe {
-    grid-column: 3;
-    grid-row: 1;
-    text-align: center;
-  }
-  .workout-set-table-head .col-log {
-    grid-column: 4;
-    grid-row: 1;
-    text-align: center;
-  }
-
-  /* Compact premium 2-row set card */
+  /* One line per set: type, last time, load, reps (or time), RIR and the log tick. The load is
+     sized for three digits and a decimal, reps for two; the last-time text takes what is left
+     and wraps. Head and rows share one column list so the labels sit over their controls. */
+  .workout-set-table-container { --set-columns: 44px minmax(0, 1fr) 58px 46px 44px 44px; }
+  .workout-set-table-container.no-rir { --set-columns: 44px minmax(0, 1fr) 58px 46px 44px; }
+  .workout-set-table-container.timed { --set-columns: 44px minmax(0, 1fr) 58px 96px 44px; }
+  .workout-set-table-head,
   .workout-set-row {
-    grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr) minmax(0, 0.9fr) 44px;
-    grid-template-rows: auto auto;
-    padding: 8px 10px;
-    gap: 8px 6px;
+    grid-template-columns: var(--set-columns);
+    gap: 6px;
+  }
+  .workout-set-table-head {
+    padding: 4px 7px 0;
+    font-size: var(--font-secondary, 14px);
+    text-align: center;
+  }
+  .workout-set-table-head .col-target { text-align: left; }
+  .workout-set-table-head .col-del { display: none; }
+  .workout-set-row {
+    padding: 6px;
     border-radius: 12px;
   }
-  .workout-set-row > .set-badge-circle {
-    grid-column: 1;
-    grid-row: 1;
-    align-self: center;
-    width: 28px;
-    height: 28px;
-    font-size: var(--font-secondary, 14px);
-  }
-  .workout-set-row > .set-target-cell {
-    grid-column: 2 / 4;
-    grid-row: 1;
-    align-self: center;
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-    gap: 6px;
-    min-width: 0;
-  }
+  .workout-set-table-head > span,
+  .workout-set-row > *,
+  .workout-set-row > .time-cell,
+  .no-rir .workout-set-row > .reps-cell,
+  .workout-set-table-head .col-time,
+  .no-rir .workout-set-table-head .col-reps { grid-column: auto; }
   .workout-set-row .target-text {
     font-size: var(--font-secondary, 14px);
-    font-weight: 550;
     color: var(--muted);
     white-space: normal;
-    overflow: visible;
-    text-overflow: clip;
     overflow-wrap: anywhere;
   }
-  .workout-set-row .suggestion-text {
-    font-size: var(--font-secondary, 14px);
-    color: var(--accent);
-    font-weight: 600;
-    white-space: normal;
-    overflow: visible;
-    text-overflow: clip;
-    overflow-wrap: anywhere;
-  }
-  .workout-set-row > .del-cell {
-    grid-column: 4;
-    grid-row: 1;
-    justify-self: center;
-    align-self: center;
-  }
-  .workout-set-row .set-del-btn {
-    width: 44px;
-    height: 44px;
-    min-width: 44px;
-    min-height: 44px;
-  }
-  .workout-set-row > .load-cell {
-    grid-column: 1;
-    grid-row: 2;
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    min-width: 0;
-  }
-  .workout-set-row .load-cell .mode-mini-select.custom-select-wrap {
-    width: 100%;
-    min-width: 0;
-    max-width: 100%;
-  }
-  .workout-set-row > .reps-cell {
-    grid-column: 2;
-    grid-row: 2;
-    min-width: 0;
-  }
-  .workout-set-row > .rpe-cell {
-    display: block;
-    grid-column: 3;
-    grid-row: 2;
-    min-width: 0;
-  }
-  .workout-set-row > .log-cell {
-    grid-column: 4;
-    grid-row: 2;
-    align-self: center;
-    justify-self: center;
-  }
-  .workout-set-row > .time-cell,
-  .workout-set-table-head .col-time {
-    grid-column: 2 / 4;
-    grid-row: 2;
-  }
-  .workout-set-table-head .col-time { grid-row: 1; text-align: center; }
-  .no-rir .workout-set-row > .reps-cell,
-  .no-rir .workout-set-table-head .col-reps { grid-column: 2 / 4; }
-  .workout-set-row .set-log-checkbox {
-    width: 44px;
-    height: 44px;
-    min-width: 44px;
-    min-height: 44px;
-  }
+  .workout-set-row .suggestion-text { font-size: var(--font-secondary, 14px); white-space: normal; overflow-wrap: anywhere; }
+  .workout-set-row .set-input-cell input { padding: 6px 2px; }
+  .workout-set-row > .load-cell { flex-direction: column; align-items: stretch; }
+  .workout-set-row .load-cell .mode-mini-select.custom-select-wrap { width: 100%; min-width: 0; max-width: 100%; }
+  .workout-set-row > .rpe-cell,
+  .workout-set-row > .log-cell { justify-self: center; }
+
+  /* The swipe drawer clips to the row's shape, with Delete waiting behind it. */
+  .workout-set-swipe.swipeable-row-mobile { border-radius: 12px; }
+  .workout-set-swipe .swipeable-row-surface { background: var(--surface); }
+  .workout-set-swipe .swipeable-row-actions > .button { gap: 4px; flex-direction: column; font-size: var(--font-secondary, 14px); }
   .workout-builder-meta { grid-template-columns: minmax(0, 1fr); }
 
 }

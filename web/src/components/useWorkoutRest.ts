@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useEffectEvent, useState } from 'react';
 import type { RestAction, RestMutationInput, Session, SessionRest } from '../types';
-import { restTimer, type RestState } from '../lib/restTimer';
+import { hasNativeWorkoutStore, onNativeRestAction, takeNativeRestActions } from '../lib/platform';
+import { nativeRestActionsToApply, restTimer, type RestState } from '../lib/restTimer';
 import { enqueueRest, type WorkoutRecoveryRecord } from '../lib/workoutRecovery';
 
 export function useWorkoutRest({
@@ -95,6 +96,31 @@ export function useWorkoutRest({
       }
     }
   }
+
+  // The Android notification's −30 s, +30 s, and Skip already changed the rest on the device; they
+  // go through the same path as the rest bar so the server and the watch hear about them too.
+  // A change made on a rest this page has since replaced is dropped rather than applied to the new one.
+  const applyNativeRestActions = useEffectEvent(async () => {
+    const taken = await takeNativeRestActions();
+    if (taken.length === 0) return;
+    for (const action of nativeRestActionsToApply(taken, draft.id, restTimer.current.generation)) {
+      await handleRestMutate(action.kind, action.seconds || undefined);
+    }
+    // Whatever was applied, the notification now has to show this page's rest.
+    restTimer.restateNative();
+  });
+
+  useEffect(() => {
+    if (!hasNativeWorkoutStore()) return;
+    const take = () => { void applyNativeRestActions(); };
+    take();
+    const stopListening = onNativeRestAction(take);
+    window.addEventListener('workout:resume', take);
+    return () => {
+      stopListening();
+      window.removeEventListener('workout:resume', take);
+    };
+  }, []);
 
   return { rest, handleRestMutate };
 }

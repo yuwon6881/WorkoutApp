@@ -7,6 +7,8 @@ import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteException;
 import android.database.sqlite.SQLiteOpenHelper;
 import java.io.File;
+import java.util.ArrayList;
+import java.util.List;
 
 public class WorkoutRecoveryStore {
     private static final String DB_NAME = "workout_recovery.db";
@@ -30,6 +32,9 @@ public class WorkoutRecoveryStore {
 
     private static final String KEY_LAST_ACCOUNT = "last-account";
     private static final String KEY_REST_STATE = "rest-state";
+    private static final String KEY_REST_ACTIONS = "rest-actions";
+    // Taps beyond this many before the page takes them are dropped; a rest needs only a few.
+    private static final int MAX_REST_ACTIONS = 20;
     // A claim only has to outlive the rest it silences; older ones are removed as new ones arrive.
     private static final long CLAIM_RETENTION_MS = 24L * 60 * 60 * 1000;
 
@@ -109,19 +114,73 @@ public class WorkoutRecoveryStore {
         }
     }
 
-    /// Stores the snapshot unless it is older than the one already stored; reports whether it did.
-    public synchronized boolean saveRestSnapshotIfNewer(RestSnapshot snapshot) {
-        String json = snapshot.toJson();
-        if (json == null || !snapshot.supersedes(getRestSnapshot())) return false;
-        ContentValues values = new ContentValues();
-        values.put(COL_KEY, KEY_REST_STATE);
-        values.put(COL_VALUE, json);
-        insertOrFail(helper.getWritableDatabase(), TABLE_META, values);
-        return true;
+    /// Stores the page's snapshot unless it is older than the one already stored. Notification
+    /// actions the page has not taken yet are laid over it, so a page that restates an older view
+    /// of the same rest cannot undo a tap; actions for any other rest are dropped. Returns what was
+    /// stored, or null when the snapshot was older.
+    public synchronized RestSnapshot saveRestSnapshotIfNewer(RestSnapshot snapshot) {
+        if (!snapshot.supersedes(getRestSnapshot())) return null;
+        List<RestAction> pending = new ArrayList<>();
+        for (RestAction action : getRestActions()) if (action.belongsTo(snapshot)) pending.add(action);
+        RestSnapshot stored = RestAction.overlay(snapshot, pending);
+        putRest(stored, pending);
+        return stored;
+    }
+
+    /// Applies a notification action to the stored rest and keeps it for the page. Returns the new
+    /// rest, or null when the action is for a rest that is no longer stored.
+    public synchronized RestSnapshot applyRestAction(RestAction action) {
+        RestSnapshot current = getRestSnapshot();
+        if (!action.belongsTo(current)) return null;
+        List<RestAction> pending = getRestActions();
+        pending.add(action);
+        while (pending.size() > MAX_REST_ACTIONS) pending.remove(0);
+        RestSnapshot updated = action.applyTo(current);
+        putRest(updated, pending);
+        return updated;
+    }
+
+    /// Hands every pending notification action to the page and forgets them here.
+    public synchronized List<RestAction> takeRestActions() {
+        List<RestAction> pending = getRestActions();
+        helper.getWritableDatabase().delete(TABLE_META, COL_KEY + " = ?", new String[]{KEY_REST_ACTIONS});
+        return pending;
+    }
+
+    synchronized List<RestAction> getRestActions() {
+        return RestAction.listFromJson(getMeta(KEY_REST_ACTIONS));
     }
 
     public synchronized void clearRestSnapshot() {
-        helper.getWritableDatabase().delete(TABLE_META, COL_KEY + " = ?", new String[]{KEY_REST_STATE});
+        helper.getWritableDatabase().delete(TABLE_META, COL_KEY + " IN (?, ?)", new String[]{KEY_REST_STATE, KEY_REST_ACTIONS});
+    }
+
+    private String getMeta(String key) {
+        SQLiteDatabase db = helper.getReadableDatabase();
+        try (Cursor cursor = db.query(TABLE_META, new String[]{COL_VALUE}, COL_KEY + " = ?", new String[]{key}, null, null, null)) {
+            return cursor.moveToFirst() ? cursor.getString(0) : null;
+        }
+    }
+
+    /// The rest and the actions laid over it are written together, so neither is ever seen without the other.
+    private void putRest(RestSnapshot snapshot, List<RestAction> pending) {
+        SQLiteDatabase db = helper.getWritableDatabase();
+        db.beginTransaction();
+        try {
+            putMeta(db, KEY_REST_STATE, snapshot.toJson());
+            putMeta(db, KEY_REST_ACTIONS, RestAction.listToJson(pending));
+            db.setTransactionSuccessful();
+        } finally {
+            db.endTransaction();
+        }
+    }
+
+    private static void putMeta(SQLiteDatabase db, String key, String value) {
+        if (value == null) throw new SQLiteException("Workout recovery could not be saved.");
+        ContentValues values = new ContentValues();
+        values.put(COL_KEY, key);
+        values.put(COL_VALUE, value);
+        insertOrFail(db, TABLE_META, values);
     }
 
     public synchronized boolean claimRestAlert(String sessionId, String generation) {

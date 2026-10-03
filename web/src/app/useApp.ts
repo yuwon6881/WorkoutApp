@@ -38,7 +38,10 @@ export function useApp(): AppState {
   const [data, setData] = useState<Bootstrap | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [signedOut, setSignedOut] = useState(false);
+  // A failed sign-in callback already establishes the destination, even while the session
+  // check is pending. Integration-consent callbacks in Settings keep their authenticated flow.
+  const [signedOut, setSignedOut] = useState(() => window.location.pathname === '/' &&
+    Boolean(new URLSearchParams(window.location.search).get('central_error')));
   const [online, setOnline] = useState(() => navigator.onLine);
   const [recovery, setRecovery] = useState<WorkoutRecoveryRecord | null>(null);
   const [devicePreferences, setDevicePreferencesState] = useState<DevicePreferences>(defaultDevicePreferences);

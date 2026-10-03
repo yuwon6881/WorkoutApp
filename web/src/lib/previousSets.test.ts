@@ -42,6 +42,26 @@ describe('previous set summaries', () => {
     expect(previousSetSummaries(history, current([logged({ done: false })]), false)).toEqual(['7']);
   });
 
+  it('compares a technique set with the same technique and straight sets with straight sets', () => {
+    const history: RecentExerciseSession[] = [{
+      ...session('new', [logged({ position: 0, reps: 10 }), logged({ position: 1, reps: 15 }), logged({ position: 2, reps: 9 })]),
+      exercises: [{ id: 'new-e', exerciseId: 'bench', techniques: [null, 'myoreps', null],
+        sets: [logged({ position: 0, reps: 10 }), logged({ position: 1, reps: 15 }), logged({ position: 2, reps: 9 })] }]
+    }];
+    const sets = [logged({ done: false }), logged({ done: false }), logged({ done: false })];
+    const prescription = [plan(), { ...plan(), notes: 'Myo-reps' } as SetPrescription, plan()];
+    expect(previousSetSummaries(history, current(sets, prescription), false)).toEqual(['10', '15', '9']);
+    // Turning the last set into myo-reps leaves it without a counterpart from last time.
+    const changed = [plan(), plan(), { ...plan(), notes: 'Myo-reps' } as SetPrescription];
+    expect(previousSetSummaries(history, current(sets, changed), false)).toEqual(['10', '9', '15']);
+  });
+
+  it('treats history from a server without techniques as straight sets', () => {
+    const history = [session('new', [logged({ position: 0, reps: 10 })])];
+    const myo = [{ ...plan(), notes: 'Myo-reps' } as SetPrescription];
+    expect(previousSetSummaries(history, current([logged({ done: false })], myo), false)).toEqual([null]);
+  });
+
   it('reads a hold as its time', () => {
     const history = [session('new', [logged({ reps: null, durationSeconds: 45 })])];
     expect(previousSetSummaries(history, { ...current([logged({ done: false })]), trackingMode: 'duration' }, true)).toEqual(['0:45']);

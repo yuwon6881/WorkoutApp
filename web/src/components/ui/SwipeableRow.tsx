@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
 import { useReducedMotion } from './Motion';
+import { useWindowTier } from '../../lib/breakpoints';
 
 type SwipeableRowProps = {
   children: ReactNode;
@@ -11,6 +12,9 @@ type SwipeableRowProps = {
   /// Slides this row part-way open and back once, the first time any peeking row scrolls into view
   /// on a touch layout, so the hidden action is discoverable without reading instructions.
   peek?: boolean;
+  /// Renders only the variant for the current window tier instead of both copies hidden by CSS,
+  /// for rows whose children hold live state (inputs, timers) that must exist once.
+  adaptive?: boolean;
 };
 
 const PEEK_OFFSET = 44;
@@ -30,7 +34,8 @@ export function SwipeableRow({
   actionsWidth = 92,
   actionsLabel = 'Row actions',
   className = '',
-  peek = false
+  peek = false,
+  adaptive = false
 }: SwipeableRowProps) {
   const [open, setOpen] = useState(false);
   const [offset, setOffset] = useState(0);
@@ -114,17 +119,23 @@ export function SwipeableRow({
     close();
   }, [close]);
 
+  const tier = useWindowTier();
+  const showDesktop = !adaptive || tier !== 'compact';
+  const showMobile = !adaptive || tier === 'compact';
+
   return <>
-    <div className={`swipeable-row-desktop ${className}`.trim()}>
+    {showDesktop && <div className={`swipeable-row-desktop ${className}`.trim()}>
       <div className="swipeable-row-desktop-content">{children}</div>
       <div className="swipeable-row-desktop-actions">{desktopActions ?? actions}</div>
-    </div>
-    <div ref={mobileRef} className={`swipeable-row-mobile ${className}`.trim()} style={{ '--swipe-actions-width': `${actionsWidth}px` } as CSSProperties}>
+    </div>}
+    {showMobile && <div ref={mobileRef} className={`swipeable-row-mobile ${className}`.trim()} style={{ '--swipe-actions-width': `${actionsWidth}px` } as CSSProperties}>
       <div className="swipeable-row-actions" role="group" aria-label={actionsLabel} aria-hidden={!open} inert={!open}>
         {actions}
       </div>
+      {/* The row owns its sideways drag, so a surrounding page swipe (useHorizontalSwipe) leaves it alone. */}
       <div
         className="swipeable-row-surface"
+        data-swipe-ignore=""
         data-swipe-open={open ? 'true' : 'false'}
         style={{ transform: `translate3d(${offset}px, 0, 0)`, transition: dragging ? 'none' : undefined }}
         onPointerDown={handlePointerDown}
@@ -136,6 +147,6 @@ export function SwipeableRow({
       >
         {children}
       </div>
-    </div>
+    </div>}
   </>;
 }

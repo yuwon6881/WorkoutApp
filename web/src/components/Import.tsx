@@ -119,7 +119,10 @@ export function ImportReview({ exercises, imports, onBack, onChanged, notify }: 
       return;
     }
     const matching = imports.find(item => item.id === selected.id);
-    if (matching && (matching.status !== selected.status || matching.stage !== selected.stage || matching.revision !== selected.revision)) {
+    // A list refresh started before the latest save may finish afterward. It must not move the
+    // editor's revision backward or the next save will conflict with this device's own write.
+    if (matching && matching.revision >= selected.revision &&
+      (matching.status !== selected.status || matching.stage !== selected.stage || matching.revision !== selected.revision)) {
       setSelected(matching);
       if (matching.draft) setDraft(matching.draft);
     }

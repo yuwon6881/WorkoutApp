@@ -66,7 +66,8 @@ export type SessionRest = {
 export type Session = { id: string; templateId: string | null; programId: string | null; name: string; note: string; active: boolean; startedAt: string; finishedAt: string | null; pausedAt?: string | null; pausedSeconds?: number; revision: number; exercises: SessionExercise[]; volumeKg: number | null; completedSets: number; warmupSets: number; bodyWeight?: BodyWeightSnapshot | null; nutritionContext?: NutritionTrainingContext | null; systemVolumeKg?: number | null; prCount?: number; rest?: SessionRest | null };
 export type WatchDevice = { id: string; deviceId: string; deviceName: string; createdAt: string; expiresAt: string };
 export type RecentExerciseSession = Pick<Session, 'id' | 'name' | 'startedAt' | 'finishedAt'> & {
-  exercises: Pick<SessionExercise, 'id' | 'exerciseId' | 'sets'>[];
+  /** techniques: each set position's technique (null for straight sets); absent from older servers. */
+  exercises: (Pick<SessionExercise, 'id' | 'exerciseId' | 'sets'> & { techniques?: Array<string | null> })[];
 };
 export type HistoryPage = { total: number; page: number; size: number; sessions: Session[] };
 export type HistorySummaryPage = { total: number; sessions: Session[]; nextBeforeAt: string | null; nextBeforeId: string | null; summaryOnly: boolean };
@@ -156,6 +157,5 @@ export type Bootstrap = {
 export type SaveState = 'connecting' | 'idle' | 'saving' | 'saved' | 'failed' | 'signed-out' | 'offline';
 
 export type SubstitutionScope = 'slot' | 'phase';
-export type SubstitutionCandidate = { exerciseId: string; name: string; muscle: string; secondaryMuscles?: string[]; equipment: string; cue: string; source: 'imported' | 'similar' | 'library'; rank: number; isCatalog: boolean; movementPattern?: string };
 export type SubstitutionAffectedSlot = { templateId: string; templateExerciseId: string; slotKey: string; week: number; workoutName: string };
 export type TemplateSubstitutionResult = { template: Template; scope: SubstitutionScope; affectedSlots: SubstitutionAffectedSlot[] };

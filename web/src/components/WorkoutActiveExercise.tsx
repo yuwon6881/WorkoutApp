@@ -15,12 +15,12 @@ import type {
   LoggedSet,
   Preferences,
   Session,
-  SessionExercise,
-  SubstitutionCandidate
+  SessionExercise
 } from '../types';
 import { api } from '../lib/api';
 import { showTarget, showWeight } from '../lib/training';
 import { withSetAdded, withSetRemoved, withSetRestored } from '../lib/workoutDraft';
+import { allowedSetTypes, withSetType } from '../lib/workoutSetTypes';
 import type { RemovedSet } from '../lib/workoutDraft';
 import { Button } from './ui/Button';
 import { Modal } from './ui/Modal';
@@ -76,7 +76,6 @@ export function WorkoutActiveExercise({
     setCatalogError('');
     void onCatalogNeeded?.().catch(failure => setCatalogError(failure instanceof Error ? failure.message : 'Exercises could not be loaded.'));
   };
-  const [candidates, setCandidates] = useState<SubstitutionCandidate[]>([]);
   const [showTargets, setShowTargets] = useState(false);
   const [showNote, setShowNote] = useState(true);
   const [confirmRemove, setConfirmRemove] = useState(false);
@@ -119,26 +118,11 @@ export function WorkoutActiveExercise({
     if (restored) change(restored);
   }
 
+  // The library already ranks the program's alternatives and similar movements first, so it is
+  // the whole swap picker.
   useEffect(() => {
-    if (!swapOpen) return;
-    loadCatalog();
-    let alive = true;
-    void api
-      .substitutionCandidates({
-        exerciseId: exercise.exerciseId,
-        name: exercise.name,
-        imported: exercise.substitutions
-      })
-      .then(rows => {
-        if (alive) setCandidates(rows);
-      })
-      .catch(() => {
-        if (alive) setCandidates([]);
-      });
-    return () => {
-      alive = false;
-    };
-  }, [swapOpen, exercise.exerciseId, exercise.name, exercise.substitutions]);
+    if (swapOpen) loadCatalog();
+  }, [swapOpen]);
 
   const lastSourceDate = exercise.sets.find(set => set.suggestion?.sourceDate)?.suggestion?.sourceDate ?? null;
   const workingSets = exercise.sets.filter(s => !s.warmup);
@@ -223,7 +207,7 @@ export function WorkoutActiveExercise({
           <span>Swap</span>
         </Button>
 
-        {exercise.canRestore && !hasCompletedSets && (
+        {exercise.canRestore && (
           <Button
             variant="tertiary"
             className="action-pill"
@@ -256,6 +240,9 @@ export function WorkoutActiveExercise({
           {exercise.exerciseId && loadAdjustable(exercise) && <MenuItem onClick={() => { setWeightsOpen(true); loadCatalog(); }}>
             <Weight size={15} /> Weight settings
           </MenuItem>}
+          {exercise.sourceTemplateExerciseId && !exercise.canRestore && <MenuItem onClick={() => void onRestore?.(exercise.id)}>
+            <RotateCcw size={15} /> Restore default
+          </MenuItem>}
           <MenuItem destructive onClick={() => setConfirmRemove(true)}>
             <Trash2 size={15} /> Remove exercise
           </MenuItem>
@@ -281,7 +268,7 @@ export function WorkoutActiveExercise({
         </Modal>
       )}
 
-      <div className={`workout-set-table-container ${trackRir ? '' : 'no-rir'}`.trim()}>
+      <div className={`workout-set-table-container ${trackRir ? '' : 'no-rir'} ${isTimedExercise(exercise) ? 'timed' : ''}`.trim()}>
         <div className="workout-set-table-head">
           <span className="col-set">Set</span>
           <span className="col-target">Target ↔</span>
@@ -315,6 +302,8 @@ export function WorkoutActiveExercise({
                 availableLoadsKg={resolvedLoads?.availableLoadsKg}
                 editSet={editSet}
                 toggle={toggle}
+                setTypes={allowedSetTypes(exercise, si)}
+                onSetType={(sidx, type) => change(withSetType(draft, index, sidx, type))}
                 onRemoveSet={sidx => removeSet(sidx)}
               />
             );
@@ -398,52 +387,6 @@ export function WorkoutActiveExercise({
             <p className="source">
               Prescribed sets, reps, and targets stay with the slot. Swapping is only available before any sets are completed.
             </p>
-            {!!exercise.substitutions.length && !candidates.length && (
-              <div className="swap-menu" role="group" aria-label="Imported alternatives">
-                <span className="tiny-label">Imported alternatives</span>
-                {exercise.substitutions.map(name => (
-                  <Button
-                    key={name}
-                    variant="tertiary"
-                    onClick={() =>
-                      void onSwap(
-                        exercise.id,
-                        exercises.find(item => item.name.toLowerCase() === name.toLowerCase())
-                          ?.id ?? null,
-                        name
-                      ).then(() => setSwapOpen(false))
-                    }
-                  >
-                    {name}
-                  </Button>
-                ))}
-              </div>
-            )}
-            {!!candidates.length && (
-              <div className="swap-menu" role="group" aria-label="Suggested substitutions">
-                <span className="tiny-label">Suggested first</span>
-                {candidates.slice(0, 12).map(candidate => (
-                  <Button
-                    key={`${candidate.source}-${candidate.name}`}
-                    variant="tertiary"
-                    onClick={() =>
-                      void onSwap(exercise.id, candidate.exerciseId, candidate.name).then(() =>
-                        setSwapOpen(false)
-                      )
-                    }
-                  >
-                    {candidate.name}
-                    <small>
-                      {candidate.source === 'imported'
-                        ? 'Imported alternative'
-                        : candidate.source === 'similar'
-                          ? 'Similar movement'
-                          : 'Library'}
-                    </small>
-                  </Button>
-                ))}
-              </div>
-            )}
             <ExerciseLibrary
               exercises={exercises}
               action="swap"

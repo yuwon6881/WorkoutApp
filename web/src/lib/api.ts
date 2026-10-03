@@ -4,7 +4,7 @@ import type { ExerciseLoadSettings, LoadRule, LoadSettingsOverview } from './exe
 import type { PdfExtraction } from './pdfText';
 import { sharedReads } from './readCoordinator';
 import type { Exercise, HistorySummaryPage, ShellBootstrap, TrackingMode, Unit } from '../types';
-import type { Bootstrap, CustomExerciseCreated, DraftWorkout, ExerciseClearPreview, ExerciseInsight, HistoryPage, ImportDraft, ImportStatusView, ImportView, MuscleBalanceRange, MuscleBalanceView, Preferences, ProgressSummary, Program, ProgramDayActionInput, ProgramEditorDocument, ProgramSummary, ProgramWeekResetInput, RestMutationInput, Session, Template, SubstitutionCandidate, TemplateSubstitutionResult, WatchDevice, WorkoutActivityItem } from '../types';
+import type { Bootstrap, CustomExerciseCreated, DraftWorkout, ExerciseClearPreview, ExerciseInsight, HistoryPage, ImportDraft, ImportStatusView, ImportView, MuscleBalanceRange, MuscleBalanceView, Preferences, ProgressSummary, Program, ProgramDayActionInput, ProgramEditorDocument, ProgramSummary, ProgramWeekResetInput, RestMutationInput, Session, Template, TemplateSubstitutionResult, WatchDevice, WorkoutActivityItem } from '../types';
 
 export class ApiError extends Error {
   constructor(message: string, readonly status: number, readonly retryAfterMs: number | null = null) { super(message); }
@@ -137,11 +137,6 @@ export const api = {
     call<{ scheduled: boolean; generation: string | null; message: string }>(`/api/workouts/${encodeURIComponent(sessionId)}/rest-alert`, 'POST', input),
   cancelRestAlert: (sessionId: string, input: { deviceId: string; generation: string }) =>
     call<void>(`/api/workouts/${encodeURIComponent(sessionId)}/rest-alert`, 'DELETE', input),
-  substitutionCandidates: (input: { exerciseId?: string | null; name?: string; imported?: string[]; query?: string } = {}) => {
-    const params = new URLSearchParams(); if (input.exerciseId) params.set('exerciseId', input.exerciseId); if (input.name) params.set('name', input.name);
-    if (input.imported?.length) params.set('imported', input.imported.join('|')); if (input.query) params.set('q', input.query);
-    return call<SubstitutionCandidate[]>(`/api/exercises/substitutions?${params.toString()}`);
-  },
   // Load rules are read and typed in the unit on screen, which can be ahead of a unit switch still being saved.
   exerciseLoadSettings: (id: string, unit: Unit, signal?: AbortSignal) =>
     call<ExerciseLoadSettings>(`/api/exercises/${id}/load-settings?unit=${unit}`, 'GET', undefined, signal),
@@ -185,6 +180,7 @@ export const api = {
   mutateWorkoutRest: (sessionId: string, input: RestMutationInput) => call<Session>(`/api/workouts/${sessionId}/rest`, 'POST', input),
   substituteSessionExercise: (id: string, input: { sessionExerciseId: string; replacementExerciseId?: string | null; replacementName: string; revision?: number; idempotencyId?: string }) => call<Session>(`/api/workouts/${id}/substitution`, 'POST', input),
   restoreSessionExercise: (id: string, input: { sessionExerciseId: string; revision?: number; idempotencyId?: string }) => call<Session>(`/api/workouts/${id}/exercises/${input.sessionExerciseId}/restore`, 'POST', input),
+  restoreWorkout: (id: string, input: { revision?: number; idempotencyId?: string }) => call<Session>(`/api/workouts/${id}/restore`, 'POST', input),
   pauseWorkout: (id: string, input: { revision: number; mutationId: string; occurredAt: string }) => call<Session>(`/api/workouts/${id}/pause`, 'POST', input),
   resumeWorkout: (id: string, input: { revision: number; mutationId: string; occurredAt: string }) => call<Session>(`/api/workouts/${id}/resume`, 'POST', input),
   finishWorkout: (id: string, input: { revision: number; retainExerciseSwaps?: boolean; mutationId?: string; finishedAt?: string }) => call<Session>(`/api/workouts/${id}/finish`, 'POST', input),

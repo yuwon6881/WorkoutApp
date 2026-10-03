@@ -28,6 +28,7 @@ import { WorkoutRecoveryConflict } from './WorkoutRecoveryConflict';
 import { useWorkoutOnlineFallback } from './useWorkoutOnlineFallback';
 import { useWorkoutRest } from './useWorkoutRest';
 import { useWorkoutConflictResolution } from './useWorkoutConflictResolution';
+import { useWorkoutExerciseList } from './useWorkoutExerciseList';
 import { WorkoutConfirmModal } from './WorkoutConfirmModal';
 import './ActiveWorkout.css';
 
@@ -67,7 +68,7 @@ export function Workout({
 }) {
   const [draft, setDraft] = useState(recovery?.sessionId === session.id ? recovery.draft : session);
   const [picker, setPicker] = useState(false);
-  const [confirm, setConfirm] = useState<'finish' | 'discard' | null>(null);
+  const [confirm, setConfirm] = useState<'finish' | 'discard' | 'restore' | null>(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [retainSwaps, setRetainSwaps] = useState(false);
   const [error, setError] = useState('');
@@ -356,29 +357,9 @@ export function Workout({
     }
   }
 
-  // Exercise-list changes go straight to the server: they need its catalog and swap rules.
-  async function changeExerciseList(key: string, request: (revision: number) => Promise<Session>, failureMessage: string) {
-    if (!online || finishIntentAt || draft.pausedAt) { setError('Connect and resume the workout before changing its exercise list.'); return; }
-    setBusy(true); setError('');
-    try {
-      await queue.push(key, async () => {
-        const saved = await request(revision.current);
-        revision.current = saved.revision; setDraft(saved); onSaved(saved);
-      });
-    } catch (failure) {
-      setError(failure instanceof ApiError ? failure.message : failureMessage);
-    } finally { setBusy(false); }
-  }
-
-  const swapExercise = (sessionExerciseId: string, replacementExerciseId: string | null, replacementName: string) =>
-    changeExerciseList(`workout-swap-${sessionExerciseId}`, current => api.substituteSessionExercise(draft.id, {
-      sessionExerciseId, replacementExerciseId, replacementName, revision: current, idempotencyId: crypto.randomUUID()
-    }), 'Could not swap this exercise.');
-
-  const restoreExercise = (sessionExerciseId: string) =>
-    changeExerciseList(`workout-restore-${sessionExerciseId}`, current => api.restoreSessionExercise(draft.id, {
-      sessionExerciseId, revision: current, idempotencyId: crypto.randomUUID()
-    }), 'Could not restore this exercise.');
+  const { swapExercise, restoreExercise, restoreWorkout } = useWorkoutExerciseList({
+    draft, online, finishIntentAt, queue, revision, drain, setDraft, onSaved, setBusy, setError
+  });
 
   async function discard() {
     if (!online) { setError('Reconnect before discarding this workout. Your on-device recovery copy is still saved.'); return; }
@@ -433,6 +414,9 @@ export function Workout({
     accountId, draft, revision, paused, finishIntentAt, recoveryConflict, recovery, defaultRestSeconds, onRecoveryChange,
     onError: setError
   });
+  const nextUp = nextUpText(draft, activeIndex, unit);
+  // The Android notification shows the next set once the phone is unlocked.
+  useEffect(() => { restTimer.setNextUp(draft.id, nextUp); }, [draft.id, nextUp]);
 
   return (
     <Modal title={draft.name} onClose={onClose} wide headless className="workout-sheet">
@@ -445,6 +429,9 @@ export function Workout({
         discardDisabled={busy || !online}
         finishDisabled={busy || Boolean(finishIntentAt) || recoveryConflict}
         hasDetails={hasWorkoutDetails(draft)}
+        canRestore={Boolean(draft.templateId)}
+        restoreDisabled={busy || !online || paused || Boolean(finishIntentAt) || recoveryConflict}
+        onRestore={() => setConfirm('restore')}
         onFinish={requestFinish}
         onDetails={() => setDetailsOpen(true)}
         onDiscard={() => setConfirm('discard')}
@@ -458,7 +445,7 @@ export function Workout({
         onTogglePause={() => void togglePause()}
       />
 
-      <WorkoutRestBar rest={rest} nextUp={nextUpText(draft, activeIndex, unit)}
+      <WorkoutRestBar rest={rest} nextUp={nextUp}
         disabled={busy || Boolean(finishIntentAt) || recoveryConflict || paused} onRestMutate={handleRestMutate} />
 
       {recoveryConflict && recovery && <WorkoutRecoveryConflict recovery={recovery} online={online} onResolve={choice => void resolveConflict(choice)} />}
@@ -487,6 +474,7 @@ export function Workout({
           onClose={() => setConfirm(null)}
           onFinish={() => void finish()}
           onDiscard={() => void discard()}
+          onRestore={() => { setConfirm(null); void restoreWorkout(); }}
         />
       )}
     </Modal>

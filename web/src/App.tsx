@@ -19,10 +19,10 @@ import type { Tab } from './app/useTabNavigation';
 import { getRecovery, hasUnresolvedRecovery, sameWorkoutEdits, startRecovery } from './lib/workoutRecovery';
 import { Button } from './components/ui/Button';
 import {CardFeedback} from './components/ui/CardFeedback';
-import {ConnectionRecovery} from './components/ui/ConnectionRecovery';
 import { MotionScene, SelectionIndicator } from './components/ui/Motion';
 import './components/BottomNav.css';
 import { AppLoading } from './components/AppLoading';
+import { AuthLoading } from './components/AuthLoading';
 import { ViewSkeleton } from './components/ViewSkeleton';
 import { Auth, Dashboard, ExerciseDetailModal, ExerciseLibrary, ImportReview, MuscleBalanceView, Programs, SessionDetail, SettingsView, Workout, prefetchView } from './app/lazyViews';
 import { ResumeWorkoutButton } from './components/ResumeWorkoutButton';
@@ -31,6 +31,7 @@ import {applyTheme, forgetTheme, initialTheme, rememberTheme} from './lib/theme'
 const AiAssistantPanel = lazy(() => import('./components/AiAssistantPanel').then(module => ({ default: module.AiAssistantPanel })));
 const ImportWatchBridge = lazy(() => import('./components/ImportWatchBridge').then(module => ({ default: module.ImportWatchBridge })));
 const InstallAppCard = lazy(() => import('./components/InstallAppCard').then(module => ({ default: module.InstallAppCard })));
+const ConnectionRecovery = lazy(() => import('./components/ui/ConnectionRecovery').then(module => ({ default: module.ConnectionRecovery })));
 import type { AiUiAction } from './lib/api/ai';
 import type { AiInvocationRequest } from './components/useAiConversation';
 
@@ -139,7 +140,7 @@ export default function App() {
     else setToast('No workout is queued yet. Choose one from Workouts.');
   }, [data?.account.id, loading]);
 
-  if (signedOut) return <Suspense fallback={<AppLoading />}><Auth /></Suspense>;
+  if (signedOut) return <Suspense fallback={<AuthLoading />}><Auth /></Suspense>;
 
   if (loading && !data && !recovery) return <AppLoading />;
 
@@ -158,7 +159,7 @@ export default function App() {
     </main>
   </div>;
 
-  if (!data) return <ConnectionRecovery message={app.error} onRetry={app.reload}/>;
+  if (!data) return <Suspense fallback={<AppLoading />}><ConnectionRecovery message={app.error} onRetry={app.reload}/></Suspense>;
 
   /// Starting a plan creates the session at once: its content is already on the card that offered
   /// it. Anything unresolved on this device still comes first.

@@ -467,6 +467,16 @@ test('build a workout, log a set against the server, and see it in history', asy
   expect(setCount).toBeGreaterThan(1);
   const secondWeight = activeLogger.getByRole('spinbutton', { name: 'Barbell bench press set 2 weight', exact: true });
   await secondWeight.fill('55');
+  if ((page.viewportSize()?.width ?? 1440) < 640) {
+    // Phones keep each set on one line and hide Delete until the row is swiped sideways.
+    const surface = activeLogger.locator('.workout-set-swipe .swipeable-row-surface').nth(1);
+    const box = (await surface.boundingBox())!;
+    expect(box.height).toBeLessThan(64);
+    await page.mouse.move(box.x + 70, box.y + box.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(box.x - 60, box.y + box.height / 2, { steps: 8 });
+    await page.mouse.up();
+  }
   await activeLogger.getByRole('button', { name: 'Remove Barbell bench press set 2', exact: true }).click();
   await expect(weights).toHaveCount(setCount - 1);
   await expect(activeLogger.getByRole('status').filter({ hasText: 'Set 2 removed.' })).toBeVisible();
@@ -1023,6 +1033,14 @@ test('import a PDF program, resolve an unmapped exercise, and accept it', async 
   // Account-scoped active recovery opens the logger after launch reconciliation.
   await expect(importedLogger).toBeVisible();
   await expect(importedLogger.locator('.set-technique-note').filter({ hasText: 'Integrated partials' }).first()).toBeVisible();
+  if (testInfo.project.use.isMobile) {
+    // Closed warm-up rows must cover the swipe action beneath them, just like working sets.
+    const warmup = importedLogger.locator('.workout-set-row.warmup-row').first();
+    await expect(warmup).toHaveCSS('opacity', '1');
+    const surface = importedLogger.locator('.swipeable-row-surface').filter({ has: page.locator('.workout-set-row.warmup-row') }).first();
+    await expect(surface).toHaveAttribute('data-swipe-open', 'false');
+    expect(await surface.evaluate(element => getComputedStyle(element).backgroundColor)).not.toBe('rgba(0, 0, 0, 0)');
+  }
   await expect(importedLogger.getByRole('link', { name: /demo.*Barbell bench press|Barbell bench press.*demo/i }).first()).toHaveAttribute('href', 'https://youtu.be/qTSTOVVr8rU');
   const bench = activeWorkout.exercises.find((exercise: { name: string }) => exercise.name === 'Barbell bench press');
   const workingIndex = bench.prescription.findIndex((set: { warmup: boolean }) => !set.warmup);

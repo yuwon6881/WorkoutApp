@@ -18,6 +18,11 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* A set row's narrow label: the count and a type letter, centred, without the chevron. */
+.set-type-select.set-type-compact.custom-select-wrap { width: 44px; min-width: 44px; max-width: 44px; }
+.set-type-select.set-type-compact .custom-select-trigger { justify-content: center; padding: 0 4px; }
+.set-type-select.set-type-compact .custom-select-chevron { display: none; }
+
 .set-type-select .custom-select-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 .set-type-select.set-type-warmup .custom-select-trigger {

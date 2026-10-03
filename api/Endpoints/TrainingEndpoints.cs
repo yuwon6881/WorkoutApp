@@ -198,6 +198,8 @@ public static class TrainingEndpoints
             Validation.Require(input.SessionExerciseId == Guid.Empty || input.SessionExerciseId == sessionExerciseId, "Session exercise identifier mismatch.", 400);
             return await workouts.RestoreExercise(id, input with { SessionExerciseId = sessionExerciseId }, ct);
         });
+        app.MapPost("/api/workouts/{id:guid}/restore", async (Guid id, SessionRestoreInput input, WorkoutService workouts, CancellationToken ct)
+            => await workouts.RestoreWorkout(id, input, ct));
         app.MapPost("/api/workouts/{id:guid}/pause", async (Guid id, WorkoutTimingInput input, WorkoutService workouts, CancellationToken ct) => await workouts.Pause(id, input, ct));
         app.MapPost("/api/workouts/{id:guid}/resume", async (Guid id, WorkoutTimingInput input, WorkoutService workouts, CancellationToken ct) => await workouts.Resume(id, input, ct));
         app.MapPost("/api/workouts/{id:guid}/rest", async (Guid id, WorkoutRestMutationInput input, WorkoutService workouts, CancellationToken ct) => await workouts.MutateRest(id, input, ct));

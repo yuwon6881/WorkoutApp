@@ -3,7 +3,9 @@ using Workout.Api.Domain;
 
 namespace Workout.Api.Services;
 
-public sealed record RecentExerciseSets(Guid Id, Guid? ExerciseId, List<SetView> Sets);
+/// Techniques holds each set position's intensity technique (SetTechniques keys, null for a straight
+/// set or warm-up), so a client compares a myo-rep set with last time's myo-reps, not a straight set.
+public sealed record RecentExerciseSets(Guid Id, Guid? ExerciseId, List<SetView> Sets, IReadOnlyList<string?> Techniques);
 public sealed record RecentExerciseSession(Guid Id, string Name, DateTime StartedAt, DateTime? FinishedAt,
     List<RecentExerciseSets> Exercises);
 
@@ -23,7 +25,7 @@ public sealed partial class ExerciseService
         var sessionIds = sessions.Select(session => session.Id).ToList();
         var exercises = await db.SessionExercises.AsNoTracking()
             .Where(exercise => sessionIds.Contains(exercise.SessionId) && exercise.ExerciseId == id)
-            .OrderBy(exercise => exercise.Position).Select(exercise => new { exercise.Id, exercise.SessionId, exercise.ExerciseId })
+            .OrderBy(exercise => exercise.Position).Select(exercise => new { exercise.Id, exercise.SessionId, exercise.ExerciseId, exercise.PrescriptionJson })
             .ToListAsync(ct);
         var exerciseIds = exercises.Select(exercise => exercise.Id).ToList();
         var sets = await db.Sets.AsNoTracking().Where(set => exerciseIds.Contains(set.SessionExerciseId) && set.Done)
@@ -34,6 +36,6 @@ public sealed partial class ExerciseService
         var bySession = exercises.ToLookup(exercise => exercise.SessionId);
         return sessions.Select(session => new RecentExerciseSession(session.Id, session.Name, session.StartedAt,
             session.FinishedAt, bySession[session.Id].Select(exercise => new RecentExerciseSets(exercise.Id,
-                exercise.ExerciseId, byExercise[exercise.Id].ToList())).ToList())).ToList();
+                exercise.ExerciseId, byExercise[exercise.Id].ToList(), SetTechniques.ByPosition(exercise.PrescriptionJson))).ToList())).ToList();
     }
 }

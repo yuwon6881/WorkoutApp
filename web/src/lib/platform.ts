@@ -2,9 +2,9 @@
 // these calls reach native plugins through lib/nativeBridge.ts, loaded only there; in a browser
 // they fall back to web APIs or do nothing. Feature code imports only this module.
 
-import type { AlertCapabilities, NativeWorkoutState } from './nativeBridge';
+import type { AlertCapabilities, NativeRestAction, NativeWorkoutState } from './nativeBridge';
 
-export type { AlertCapabilities, NativeWorkoutState };
+export type { AlertCapabilities, NativeRestAction, NativeWorkoutState };
 
 type CapacitorGlobal = { isNativePlatform?: () => boolean; isPluginAvailable?: (name: string) => boolean };
 
@@ -107,6 +107,25 @@ export async function claimNativeRestAlert(sessionId: string, generation: string
   if (!hasNativeWorkoutStore()) return true;
   try { return await (await bridge()).nativeClaimRestAlert(sessionId, generation); }
   catch { return true; }
+}
+
+/// The rest buttons on the Android workout notification change the rest on the device at once;
+/// the page takes those changes here and sends them on like its own.
+export async function takeNativeRestActions(): Promise<NativeRestAction[]> {
+  if (!hasNativeWorkoutStore()) return [];
+  try { return await (await bridge()).nativeTakeRestActions(); } catch { return []; }
+}
+
+/// Calls `listener` whenever a notification button leaves a rest change for an open page.
+export function onNativeRestAction(listener: () => void): () => void {
+  if (!hasNativeWorkoutStore()) return () => undefined;
+  let removed = false;
+  let remove: (() => Promise<void>) | null = null;
+  void bridge()
+    .then(native => native.nativeOnRestAction(listener))
+    .then(handle => { if (removed) void handle.remove(); else remove = () => handle.remove(); })
+    .catch(() => undefined);
+  return () => { removed = true; void remove?.(); };
 }
 
 export async function getAlertCapabilities(): Promise<AlertCapabilities | null> {

@@ -4,6 +4,7 @@ import static org.junit.Assert.*;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.content.Context;
+import android.media.AudioManager;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -34,6 +35,28 @@ public class RestAlertsTest {
         assertFalse(RestAlerts.restChannelEnabled(context));
         assertFalse(RestAlerts.restSoundEnabled(context));
         RestAlerts.post(context, "session", true, false);
+        assertEquals(0, manager.getActiveNotifications().length);
+    }
+
+    @Test public void vibrationFollowsSilentModeAndDoNotDisturb() {
+        RestAlerts.createChannels(context);
+        AudioManager audio = context.getSystemService(AudioManager.class);
+        audio.setRingerMode(AudioManager.RINGER_MODE_NORMAL);
+        manager.setInterruptionFilter(NotificationManager.INTERRUPTION_FILTER_ALL);
+        assertTrue(RestAlerts.vibrationAllowed(context));
+        audio.setRingerMode(AudioManager.RINGER_MODE_SILENT);
+        assertFalse(RestAlerts.vibrationAllowed(context));
+        audio.setRingerMode(AudioManager.RINGER_MODE_VIBRATE);
+        assertTrue(RestAlerts.vibrationAllowed(context));
+        manager.setInterruptionFilter(NotificationManager.INTERRUPTION_FILTER_PRIORITY);
+        assertFalse(RestAlerts.vibrationAllowed(context));
+    }
+
+    @Test public void aNewRestClearsTheLastFinishedAlert() {
+        RestAlerts.createChannels(context);
+        RestAlerts.post(context, "session", true, false);
+        assertEquals(1, manager.getActiveNotifications().length);
+        RestAlerts.clearFinished(context);
         assertEquals(0, manager.getActiveNotifications().length);
     }
 

@@ -66,19 +66,38 @@ public sealed partial class WorkoutService
         var sourceRow = source!;
 
         var sets = await db.Sets.Where(s => s.SessionExerciseId == sourceRow.Id).OrderBy(s => s.Position).ToListAsync(ct);
-        Validation.Require(!sets.Any(s => s.Done), "Cannot restore an exercise after completing sets.", 409);
         Validation.Require(!string.IsNullOrEmpty(sourceRow.BaselineJson), "This exercise cannot be restored to its default.", 409);
 
+        // An exercise already matching its plan is left alone, so a repeated tap changes nothing.
+        if (!await RestoreToBaseline(targetSession, sourceRow, sets, ct))
+        {
+            await gate.Commit(ct);
+            return await Get(id, ct);
+        }
+
+        targetSession.Revision++;
+        await RecordWorkoutMutation(input.IdempotencyId, id, "workout.exercise.restore", requestHash, ct);
+        await db.SaveChangesAsync(ct);
+        await gate.Commit(ct);
+        return await Get(id, ct);
+    }
+
+    /// The exercise is swapped back only while nothing is logged on it (logged sets belong to the
+    /// movement actually lifted); its plan always returns. False when there was nothing to restore.
+    private async Task<bool> RestoreToBaseline(WorkoutSession session, SessionExercise sourceRow, List<CompletedSet> sets, CancellationToken ct)
+    {
         var baseline = Json.Read<SessionExerciseBaseline>(sourceRow.BaselineJson);
-        var hasRestorableChange = sourceRow.IsReplacement ||
-            sourceRow.ExerciseId != baseline.ExerciseId ||
-            sourceRow.NameSnapshot != baseline.NameSnapshot;
-        Validation.Require(hasRestorableChange, "No restorable change exists for this exercise.", 409);
+        var restoreIdentity = !sets.Any(s => s.Done) && IdentityDiffers(sourceRow, baseline);
+        if (!restoreIdentity && !SessionPlanRestore.PlanDiffers(baseline, sourceRow.PrescriptionJson, sets)) return false;
+
+        var plan = SessionPlanRestore.Apply(baseline, sets);
+        db.Sets.RemoveRange(plan.Removed);
+        SessionPlanRestore.ApplyTo(plan, session.UserId, sourceRow.Id, row => db.Sets.Add(row));
+        sourceRow.PrescriptionJson = Json.Write(plan.Prescription);
+        if (!restoreIdentity) return true;
 
         sourceRow.ExerciseId = baseline.ExerciseId;
         sourceRow.NameSnapshot = baseline.NameSnapshot;
-        sourceRow.Note = baseline.Note;
-        sourceRow.PrescriptionJson = baseline.PrescriptionJson;
         sourceRow.SequenceGroup = baseline.SequenceGroup;
         sourceRow.SubstitutionsJson = baseline.SubstitutionsJson;
         sourceRow.LoadModel = baseline.LoadModel;
@@ -92,44 +111,23 @@ public sealed partial class WorkoutService
         sourceRow.OriginalNameSnapshot = "";
         sourceRow.SwapGroupKey = null;
 
-        var baselinePositions = baseline.PlannedSets.Select(b => b.Position).ToHashSet();
-        db.Sets.RemoveRange(sets.Where(s => !baselinePositions.Contains(s.Position)));
-
-        foreach (var bSet in baseline.PlannedSets)
-        {
-            var existing = sets.FirstOrDefault(s => s.Position == bSet.Position);
-            if (existing == null)
-            {
-                existing = new CompletedSet
-                {
-                    UserId = targetSession.UserId,
-                    SessionExerciseId = sourceRow.Id,
-                    Position = bSet.Position
-                };
-                db.Sets.Add(existing);
-            }
-            existing.WorkingSetOrdinal = bSet.WorkingSetOrdinal;
-            existing.WeightKg = bSet.WeightKg;
-            existing.Reps = bSet.Reps;
-            existing.DurationSeconds = null;
-            existing.Rpe = bSet.Rpe;
-            existing.Warmup = bSet.Warmup;
-            existing.Done = false;
-            existing.SuggestionJson = bSet.SuggestionJson;
-            existing.ResistanceMode = bSet.ResistanceMode;
-            existing.SystemLoadKg = bSet.SystemLoadKg;
-        }
-
-        // Remove pending permanent-swap records for this slot
-        var pendingSubs = await db.ExerciseSubstitutions.Where(s => s.SessionId == id &&
+        // The swap is undone, so its pending permanent-swap record for this slot goes too.
+        var pendingSubs = await db.ExerciseSubstitutions.Where(s => s.SessionId == session.Id &&
             ((sourceRow.SourceSlotKey != null && s.SourceSlotKey == sourceRow.SourceSlotKey) ||
              (sourceRow.SourceTemplateExerciseId != null && s.SourceTemplateExerciseId == sourceRow.SourceTemplateExerciseId))).ToListAsync(ct);
         db.ExerciseSubstitutions.RemoveRange(pendingSubs);
+        return true;
+    }
 
-        targetSession.Revision++;
-        await RecordWorkoutMutation(input.IdempotencyId, id, "workout.exercise.restore", requestHash, ct);
-        await db.SaveChangesAsync(ct);
-        await gate.Commit(ct);
-        return await Get(id, ct);
+    internal static bool IdentityDiffers(SessionExercise row, SessionExerciseBaseline baseline)
+        => row.IsReplacement || row.ExerciseId != baseline.ExerciseId || row.NameSnapshot != baseline.NameSnapshot;
+
+    /// Whether Restore default would change anything: a swap still undoable, or a plan edited since the start.
+    internal static bool CanRestore(SessionExercise row, IReadOnlyCollection<CompletedSet> sets)
+    {
+        if (string.IsNullOrEmpty(row.BaselineJson)) return false;
+        var baseline = Json.Read<SessionExerciseBaseline>(row.BaselineJson);
+        return (!sets.Any(s => s.Done) && IdentityDiffers(row, baseline))
+            || SessionPlanRestore.PlanDiffers(baseline, row.PrescriptionJson, sets);
     }
 }

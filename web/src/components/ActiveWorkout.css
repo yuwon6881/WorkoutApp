@@ -1,7 +1,8 @@
-/* The in-progress workout's chrome: status bar, sync line, summary chips, exercise strip and rest
+/* The in-progress workout's chrome: status bar, set progress line, exercise strip and rest
    bar. Phone first; every row here must fit 320 px without wrapping or clipping. */
 
 .modal .workout-top-status-bar {
+  position: relative;
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
@@ -49,7 +50,6 @@
 
 .workout-top-status-bar.paused .workout-elapsed-clock { color: var(--muted); }
 
-.workout-sets-badge,
 .workout-paused-label {
   display: inline-flex;
   align-items: center;
@@ -72,7 +72,7 @@
   color: var(--accent);
 }
 
-/* Title and status share the header: the name on one line, then time, sets and save state. */
+/* Title and status share the header: the name on one line, then time and any save problem. */
 .workout-top-summary { flex-direction: column; gap: 2px; }
 
 .workout-top-title {
@@ -97,19 +97,33 @@
 
 .workout-top-meta .workout-elapsed-clock { font-size: var(--font-secondary); }
 
-.workout-top-meta .workout-sets-badge,
 .workout-top-meta .workout-paused-label { min-height: 24px; padding: 0 8px; }
 
 .workout-sync-status {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  color: var(--faint);
   font-size: var(--font-secondary);
+  font-weight: 600;
   white-space: nowrap;
 }
 
-.workout-sync-status.saved { color: var(--muted); }
+/* Logged working sets fill the header's bottom edge, sitting over its border. */
+.workout-sets-progress {
+  position: absolute;
+  right: 0;
+  bottom: -1px;
+  left: 0;
+  height: 3px;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.workout-sets-progress > span {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+  transform-origin: left center;
+  transition: transform var(--motion-panel) var(--motion-ease);
+}
+
 .workout-sync-status.offline { color: var(--amber); }
 .workout-sync-status.warning { color: var(--red); }
 
@@ -300,19 +314,7 @@
 .workout-footer-actions > .modal-actions-error { margin: 0; }
 .workout-footer-actions .button { min-height: 48px; justify-content: center; }
 
-/* Phone set rows: the RIR and done controls have fixed sizes, so they get fixed columns and the
-   head labels line up over the controls instead of over stretched, half-empty cells. */
 @media (max-width: 639px) {
-  .modal .workout-set-table-head,
-  .modal .workout-set-row {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 48px 48px;
-  }
-
-  .modal .workout-set-row > .rpe-cell,
-  .modal .workout-set-row > .log-cell {
-    justify-self: center;
-  }
-
   .workout-rest-bar { padding-inline: 16px; }
 }
 
@@ -327,6 +329,7 @@
 
 @media (prefers-reduced-motion: reduce) {
   .workout-strip-ring .ring-value,
+  .workout-sets-progress > span,
   .workout-rest-bar .rest-track > span {
     transition: none;
   }

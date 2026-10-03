@@ -1,0 +1,44 @@
+.startup-screen {
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: 48px 24px;
+  background: radial-gradient(ellipse at 50% 0%, var(--accent-soft), transparent 48rem), var(--bg);
+}
+
+.startup-shell { width: min(100%, 640px); }
+.startup-brand { display: flex; align-items: center; gap: 12px; margin-bottom: 24px; font-size: 26px; font-weight: 650; letter-spacing: -.04em; }
+.startup-brand img { width: 36px; height: 36px; }
+.startup-card.panel { width: 100%; max-width: none; padding: 40px; border-radius: 20px; display: flex; flex-direction: column; gap: 20px; text-align: left; }
+.startup-card.panel h1 { font-size: clamp(30px, 4vw, 40px); line-height: 1.15; }
+.startup-card p { font-size: 15px; line-height: 1.65; }
+.startup-card .eyebrow { color: var(--accent); font-size: 14px; margin: 0; letter-spacing: .1em; }
+.startup-description { max-width: 48ch; }
+.startup-card .card-feedback { margin: 0; }
+.startup-submit.button { width: 100%; min-height: 52px; justify-content: space-between; padding-inline: 18px; font-size: 15px; white-space: normal; text-align: left; }
+.startup-registration { padding-top: 20px; border-top: 1px solid var(--border); text-align: center; }
+.startup-card .startup-registration, .startup-card .startup-status { font-size: 14px; }
+.startup-status { text-align: center; }
+.startup-features { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin: 4px 0; padding: 0; list-style: none; }
+.startup-features li { display: flex; flex-direction: column; gap: 10px; padding: 16px 12px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface-raised); min-width: 0; }
+.startup-features svg { color: var(--accent); }
+.startup-features li > div { min-width: 0; }
+.startup-features strong { display: block; font-size: 14px; font-weight: 600; }
+.startup-features span { display: block; margin-top: 4px; color: var(--muted); font-size: 14px; line-height: 1.5; }
+.startup-card.startup-recovery { min-height: 360px; }
+.startup-recovery-copy { display: flex; flex-direction: column; gap: 20px; }
+.startup-card.startup-recovery .recovery-actions { margin-top: auto; padding-top: 12px; }
+.startup-recovery .recovery-error-icon { width: 56px; height: 56px; }
+
+@media (max-width: 639px) {
+  .startup-screen { padding: 28px 16px; }
+  .startup-brand { font-size: 24px; margin-bottom: 20px; }
+  .startup-card.panel { padding: 28px 24px; gap: 20px; }
+  .startup-features { grid-template-columns: 1fr; gap: 8px; }
+  .startup-features li { flex-direction: row; align-items: center; gap: 14px; padding: 12px; }
+  .startup-features span { margin-top: 2px; }
+}
+
+@media (max-height: 700px) {
+  .startup-screen { place-items: start center; padding-block: 24px; }
+}

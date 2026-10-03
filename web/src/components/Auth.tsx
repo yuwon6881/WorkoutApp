@@ -1,28 +1,46 @@
-import { useEffect, useState } from 'react';
-import { ArrowRight, Dumbbell } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { ArrowRight, ChartNoAxesCombined, Dumbbell, ListChecks } from 'lucide-react';
 import { Button } from './ui/Button';
+import { CardFeedback } from './ui/CardFeedback';
+import { StartupScreen } from './ui/StartupScreen';
 import { centralAuthError } from '../lib/centralAuthError';
 
 export function Auth() {
-  const [error, setError] = useState('');
+  const [errorCode] = useState(() => new URLSearchParams(window.location.search).get('central_error'));
+  const [starting, setStarting] = useState(false);
+  const navigationStarted = useRef(false);
 
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const centralError = params.get('central_error');
-    if (centralError) setError(centralAuthError(centralError));
+    const restore = () => { navigationStarted.current = false; setStarting(false); };
+    window.addEventListener('pageshow', restore);
+    return () => window.removeEventListener('pageshow', restore);
   }, []);
 
   return (
-    <div className="auth-screen">
-      <div className="panel auth-card">
-        <span className="exercise-icon"><Dumbbell size={26} /></span>
-        <h1>Welcome</h1>
-        <p className="muted">Your training is stored on the server, so it follows you to every device you sign in on.</p>
-        {error && <p className="error-text" role="alert">{error}</p>}
-        <Button className="full-width" variant="primary" type="button" onClick={() => { window.location.href = '/api/auth/central/start'; }}>
-          Sign in with Fitness Account<ArrowRight size={16} />
-        </Button>
-      </div>
-    </div>
+    <StartupScreen className="startup-login">
+      <p className="eyebrow">YOUR TRAINING SPACE</p>
+      <h1 id="startup-heading">Sign in to Workout</h1>
+      <p className="startup-description">Use your Fitness Account to access your programs, record your workouts, and follow your progress across devices.</p>
+      <ul className="startup-features" aria-label="Workout features">
+        <li><Dumbbell size={22} aria-hidden="true" /><div><strong>Programs</strong><span>Plan your training</span></div></li>
+        <li><ListChecks size={22} aria-hidden="true" /><div><strong>Training log</strong><span>Record every set</span></div></li>
+        <li><ChartNoAxesCombined size={22} aria-hidden="true" /><div><strong>Progress</strong><span>Review your history</span></div></li>
+      </ul>
+      {errorCode && <CardFeedback
+        tone={errorCode === 'access_denied' ? 'info' : 'error'}
+        title={errorCode === 'access_denied' ? 'Sign-in cancelled' : 'Sign-in could not be completed'}
+        message={errorCode === 'access_denied' ? 'You’re still signed out. Sign in again when you’re ready to allow access to Workout.' : centralAuthError(errorCode)}
+      />}
+      <Button className="startup-submit" variant="primary" type="button" disabled={starting} onClick={() => {
+        if (navigationStarted.current) return;
+        navigationStarted.current = true;
+        setStarting(true);
+        window.location.assign('/api/auth/central/start');
+      }}>
+        {starting ? 'Opening Fitness Account…' : 'Sign in with Fitness Account'}{!starting && <ArrowRight size={18} aria-hidden="true" />}
+      </Button>
+      {starting && <p className="startup-status" role="status">Starting secure sign-in…</p>}
+      <p className="startup-registration">New to Workout? You can create an account on the next screen.</p>
+    </StartupScreen>
   );
 }

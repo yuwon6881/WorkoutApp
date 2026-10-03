@@ -1,11 +1,16 @@
 import { useState } from 'react';
-import { Check, Minus } from 'lucide-react';
+import { Check, Trash2 } from 'lucide-react';
 import type { LoggedSet, Preferences, SessionExercise, SetPrescription } from '../types';
 import { defaultLoadStepKg, showTarget, showWeight, toDisplay, toKg } from '../lib/training';
 import { effortPatch, effortValue, loadIsEditable, setNumberLabel } from '../lib/workoutDraft';
 import { Button } from './ui/Button';
 import { Select } from './ui/Select';
 import { RpeControl } from './ui/RpeControl';
+import { SetTypeSelect } from './ui/SetTypeSelect';
+import { SwipeableRow } from './ui/SwipeableRow';
+import { useWindowTier } from '../lib/breakpoints';
+import type { SetType } from '../lib/importSetTypes';
+import { sessionSetType } from '../lib/workoutSetTypes';
 import { nextAvailableLoad } from '../lib/exerciseLoads';
 import { partialTechniqueLabel } from '../lib/importSetTypes';
 import { isTimedExercise, showTimedTarget, timedTargetSeconds } from '../lib/setDuration';
@@ -31,6 +36,8 @@ export function WorkoutSetRow({
   availableLoadsKg,
   editSet,
   toggle,
+  setTypes,
+  onSetType,
   onRemoveSet
 }: {
   set: LoggedSet;
@@ -45,6 +52,9 @@ export function WorkoutSetRow({
   availableLoadsKg?: number[] | null;
   editSet: (ei: number, si: number, patch: Partial<LoggedSet>) => void;
   toggle: (ei: number, si: number) => void;
+  /** The types this set may take here (warm-ups stay a leading block). */
+  setTypes: SetType[];
+  onSetType: (si: number, type: SetType) => void;
   onRemoveSet: (si: number) => void;
 }) {
   // Set only by the tap that logs a set, so rows already done do not replay it when shown again.
@@ -57,17 +67,32 @@ export function WorkoutSetRow({
   const loadEditable = loadIsEditable(exercise, set);
   const partialTechnique = plan ? partialTechniqueLabel(plan) : null;
   const timed = isTimedExercise(exercise);
+  const type = sessionSetType(set, plan);
+  // Phones hide delete behind a sideways swipe on the row; wider layouts keep it at the row's end.
+  const compact = useWindowTier() === 'compact';
+  const setName = `${exercise.name} set ${si + 1}`;
+  const removable = exercise.sets.length > 1;
+  const remove = () => {
+    discardStopwatch(set.id);
+    onRemoveSet(si);
+  };
 
-  return (
+  const row = (
     <div
       className={`workout-set-row ${set.done ? 'done' : ''} ${warmup ? 'warmup-row' : ''} ${
         set.suggestion ? 'has-suggestion' : ''
       } ${justLogged ? 'just-logged' : ''} ${timed ? 'timed-row' : ''}`}
       onAnimationEnd={event => { if (event.target === event.currentTarget) setJustLogged(false); }}
     >
-      <span className="set-badge-circle" title={warmup ? 'Warm-up set' : 'Working set'}>
-        {label}
-      </span>
+      <SetTypeSelect
+        compact
+        name={`set-type-${exercise.id}-${si}`}
+        ariaLabel={`Set type for ${setName}`}
+        type={type}
+        number={Number(label.replace(/\D/g, '')) || si + 1}
+        types={setTypes}
+        onChange={next => onSetType(si, next)}
+      />
 
       <div className="set-target-cell">
         <span className="target-text" title={previous ? 'The same set last time' : undefined}>{previous ?? (plan ? (timed ? showTimedTarget(plan) : showTarget(plan, trackRir)) : '—')}</span>
@@ -166,20 +191,37 @@ export function WorkoutSetRow({
         </Button>
       </div>
 
-      <div className="set-action-cell del-cell">
+      {!compact && <div className="set-action-cell del-cell">
         <Button
           variant="tertiary"
           className="set-del-btn"
-          aria-label={`Remove ${exercise.name} set ${si + 1}`}
-          disabled={exercise.sets.length <= 1}
-          onClick={() => {
-            discardStopwatch(set.id);
-            onRemoveSet(si);
-          }}
+          aria-label={`Remove ${setName}`}
+          title="Delete set"
+          disabled={!removable}
+          onClick={remove}
         >
-          <Minus size={14} />
+          <Trash2 size={16} />
         </Button>
-      </div>
+      </div>}
     </div>
+  );
+
+  if (!compact || !removable) return row;
+  return (
+    <SwipeableRow
+      adaptive
+      className="workout-set-swipe"
+      actionsWidth={80}
+      peek={si === 0}
+      actionsLabel={`Actions for ${setName}`}
+      actions={(
+        <Button variant="destructive" aria-label={`Remove ${setName}`} onClick={remove}>
+          <Trash2 size={16} />
+          <span>Delete</span>
+        </Button>
+      )}
+    >
+      {row}
+    </SwipeableRow>
   );
 }
