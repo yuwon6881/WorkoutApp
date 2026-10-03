@@ -30,10 +30,9 @@ export function WorkoutRestBar({ rest, disabled, nextUp, onRestMutate }: {
           <span className="rest-clock-value">{showClock(remaining)}</span> rest
         </span>
         <div className="rest-bar-actions" role="group" aria-label="Adjust rest">
-          <Button variant="tertiary" disabled={disabled} aria-label="Take 15 seconds off the rest" onClick={adjust('shorten', 15)}>−15s</Button>
-          <Button variant="tertiary" disabled={disabled} aria-label="Add 15 seconds of rest" onClick={adjust('extend', 15)}>+15s</Button>
-          <Button variant="tertiary" disabled={disabled} aria-label="Add 30 seconds of rest" onClick={adjust('extend', 30)}>+30s</Button>
-          <Button variant="secondary" disabled={disabled} onClick={adjust('skip')}>Skip</Button>
+          <Button variant="secondary" disabled={disabled} aria-label="Take 30 seconds off the rest" onClick={adjust('shorten', 30)}>−30s</Button>
+          <Button variant="secondary" disabled={disabled} aria-label="Add 30 seconds of rest" onClick={adjust('extend', 30)}>+30s</Button>
+          <Button variant="tertiary" disabled={disabled} onClick={adjust('skip')}>Skip</Button>
         </div>
       </div>
       <span className="rest-track" aria-hidden="true"><span style={{ width: `${share}%` }} /></span>

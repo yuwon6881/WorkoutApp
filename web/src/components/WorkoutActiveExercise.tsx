@@ -203,9 +203,9 @@ export function WorkoutActiveExercise({
       <div ref={actionToolbar} className="workout-action-pills" role="toolbar" aria-label="Exercise actions">
         <Button
           variant="tertiary"
-          className={`action-pill ${showTargets ? 'active' : ''}`}
-          aria-pressed={showTargets}
-          onClick={() => setShowTargets(s => !s)}
+          className="action-pill"
+          aria-haspopup="dialog"
+          onClick={() => setShowTargets(true)}
         >
           <ClipboardList size={15} />
           <span>Targets</span>
@@ -263,11 +263,9 @@ export function WorkoutActiveExercise({
       </div>
 
       {showTargets && (
-        <div className="workout-plan-detail-card">
-          <div className="plan-detail-heading">
-            <strong>Prescription & targets</strong>
-            {exercise.progression && <span className="muted">{exercise.progression.reason}</span>}
-          </div>
+        <Modal title={`${exercise.name} targets`} onClose={() => setShowTargets(false)}>
+          <div className="modal-body workout-plan-detail-card">
+          {exercise.progression && <p className="plan-detail-heading muted">{exercise.progression.reason}</p>}
           <ul className="plan-detail-list">
             {prescription.map((p, pi) => (
               <li key={pi}>
@@ -279,7 +277,8 @@ export function WorkoutActiveExercise({
               </li>
             ))}
           </ul>
-        </div>
+          </div>
+        </Modal>
       )}
 
       <div className={`workout-set-table-container ${trackRir ? '' : 'no-rir'}`.trim()}>

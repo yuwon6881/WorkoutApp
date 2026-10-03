@@ -6,7 +6,7 @@
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   gap: 8px;
-  padding: 6px 10px 6px 16px;
+  padding: 14px 14px 12px 20px;
   background: var(--surface);
   border-bottom: 1px solid var(--border);
 }
@@ -228,8 +228,8 @@
    the set that comes next. It is not rendered between rests. */
 .workout-rest-bar {
   display: grid;
-  gap: 6px;
-  padding: 8px 14px 10px;
+  gap: 10px;
+  padding: 16px 20px 14px;
   border-bottom: 1px solid var(--accent-border);
   background: var(--accent-soft);
   color: var(--accent);
@@ -256,9 +256,9 @@
   font-size: var(--font-secondary);
 }
 
-.rest-bar-actions { display: flex; align-items: center; gap: 2px; margin-left: auto; }
+.rest-bar-actions { display: flex; align-items: center; gap: 8px; margin-left: auto; }
 
-.workout-rest-bar .rest-bar-actions .button { min-width: 44px; padding: 0 8px; }
+.workout-rest-bar .rest-bar-actions .button { min-width: 56px; padding: 0 14px; }
 
 .rest-next {
   margin: 0;
@@ -272,7 +272,7 @@
 .workout-rest-bar .rest-track {
   display: block;
   max-width: none;
-  height: 4px;
+  height: 6px;
   border-radius: var(--radius-pill);
   background: var(--border);
   overflow: hidden;
@@ -313,7 +313,7 @@
     justify-self: center;
   }
 
-  .workout-rest-bar { padding-inline: 12px; }
+  .workout-rest-bar { padding-inline: 16px; }
 }
 
 @media (min-width: 1024px) {
@@ -363,7 +363,7 @@
   .workout-strip-name { display: block; white-space: normal; overflow-wrap: anywhere; }
   .workout-strip-count { display: none; }
   .workout-strip-add-item.button { min-height: 44px; }
-  .modal .workout-top-status-bar { padding: 4px 8px 4px 12px; }
+  .modal .workout-top-status-bar { padding: 12px 10px 10px 16px; }
 }
 
 /* The workout's details sheet: one icon-led line per figure, each with the plain reason beneath. */

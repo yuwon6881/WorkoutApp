@@ -19,9 +19,9 @@
 .action-pill { display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 6px 14px; border-radius: 18px; font-size: var(--font-secondary, 13px); font-weight: 550; border: 1px solid var(--border); background: var(--surface-hover); color: var(--text); white-space: nowrap; }
 .action-pill.active { border-color: var(--accent-border-strong); background: var(--accent-soft); color: var(--accent); }
 .pill-static { cursor: default; color: var(--muted); }
-
-/* Targets details card. The exercise note is a bare field: a tinted box around the textarea's own box buried it. */
-.workout-plan-detail-card { padding: 12px 14px; border-radius: 10px; background: var(--surface-hover); border: 1px solid var(--border); }
+/* Targets dialog. */
+/* Targets dialog. The exercise note is a bare field: a tinted box around the textarea's own box buried it. */
+.workout-plan-detail-card .plan-detail-heading { margin: 0 0 8px; }
 .plan-detail-heading { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: var(--font-secondary, 13px); }
 .plan-detail-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 4px; font-size: var(--font-secondary, 12px); }
 .plan-detail-list li { display: flex; gap: 6px; color: var(--muted); }
