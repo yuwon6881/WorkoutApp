@@ -11,7 +11,6 @@ import { CalendarSkeleton, ProgressStatsSkeleton } from './DashboardTrainingSkel
 
 interface DashboardProps {
   data: Bootstrap;
-  onStart: (templateId: string) => void;
   onProgram: () => void;
   onImport: () => void;
   onResume: () => void;
@@ -22,7 +21,6 @@ interface DashboardProps {
 
 export function Dashboard({
   data,
-  onStart,
   onProgram,
   onSession,
   onExercise

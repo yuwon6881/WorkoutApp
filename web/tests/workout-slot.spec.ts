@@ -131,7 +131,7 @@ test('workouts move between the library and the active slot, forgetting progress
     const activeCard = zone.locator('.program-card').filter({ hasText: programName });
     await expect(activeCard.getByText('Active', { exact: true })).toBeVisible();
     await expect(activeCard.getByRole('button', { name: `Collapse ${programName}`, exact: true })).toBeVisible();
-    await expect(activeCard.getByRole('button', { name: 'Upper A', exact: true })).toBeVisible();
+    await expect(activeCard.getByRole('button', { name: 'View Upper A', exact: true })).toBeVisible();
     await expect(library.locator('.library-program-card').filter({ hasText: programName })).toHaveCount(0);
 
     // Dragging an active program collapses it; releasing it on active workout expands it.

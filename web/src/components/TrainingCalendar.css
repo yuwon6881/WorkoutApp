@@ -359,3 +359,11 @@
 @media (max-width: 359px) {
   .calendar-week-rail { scroll-snap-type: none; }
 }
+
+/* Touch layouts browse weeks by swiping the rail; the arrows are a desktop affordance, and at
+   32 px they would also fall short of the 44 px compact and medium target. */
+@media (max-width: 1023px) {
+  .calendar-nav-btn {
+    display: none !important;
+  }
+}

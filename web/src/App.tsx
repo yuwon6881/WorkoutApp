@@ -338,7 +338,7 @@ export default function App() {
           action={{label:'Retry',onClick:()=>void app.ensureResources(neededResources),disabled:loading}}/>}
         <MotionScene sceneKey={tab}>
         <Suspense fallback={<ViewSkeleton label={NAV.find(item => item.id === tab)?.label ?? (tab === 'import' ? 'Import' : 'Settings')} />}>
-        {tab === 'overview' && <Dashboard data={data} onStart={start} onProgram={() => setTab('program')}
+        {tab === 'overview' && <Dashboard data={data} onProgram={() => setTab('program')}
             onImport={openImport} onSession={setDetail} onResume={() => setTraining(true)} onChanged={app.reload}
             onExercise={id => { void openExercise(id); }} />}
         {!resourcesReady && <ViewSkeleton label={NAV.find(item => item.id === tab)?.label ?? 'Loading'} />}
