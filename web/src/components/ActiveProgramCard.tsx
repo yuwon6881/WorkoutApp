@@ -2,11 +2,12 @@ import { useEffect, useState, type FormEvent, type HTMLAttributes } from 'react'
 import { ArrowRight, Library, PartyPopper, RotateCcw, Trash2 } from 'lucide-react';
 import type { DraftWorkout, Exercise, ImportDraft, ProgramSummary, Template } from '../types';
 import { ApiError, api } from '../lib/api';
-import { isProgramFinished, programToDraft } from '../lib/activeSlot';
+import { changedDayIds, dayTemplateInput, isProgramFinished, programToDraft } from '../lib/activeSlot';
 import { Button } from './ui/Button';
 import { Modal } from './ui/Modal';
 import { MenuItem } from './ui/MenuButton';
 import { ProgramWeekChecklist } from './ProgramWeekChecklist';
+import { ProgramWeekMeter } from './ProgramWeekMeter';
 import { SlotCardHeader } from './SlotCardHeader';
 
 export type SlotCardActions = {
@@ -104,91 +105,39 @@ export function ActiveProgramCard({ program, exercises, onStart, onChanged, hasA
     } finally { setResetBusy(false); }
   }
 
+  async function saveDay(day: DraftWorkout) {
+    const targetTemplate = detail?.find(t => t.id === day.lineId);
+    if (!targetTemplate) return;
+    try {
+      const saved = await api.updateTemplate(targetTemplate.id, dayTemplateInput(day, targetTemplate.revision));
+      setDetail(prev => prev?.map(t => t.id === saved.id ? saved : t) ?? null);
+    } catch (err) {
+      console.error('Failed to update template', err);
+    }
+  }
+
   async function handleDayChange(updatedDay: DraftWorkout) {
     setDraft(prev => prev ? {
       ...prev,
       workouts: prev.workouts.map(w => w.lineId === updatedDay.lineId ? updatedDay : w)
     } : null);
-
-    const targetTemplate = detail?.find(t => t.id === updatedDay.lineId);
-    if (targetTemplate) {
-      try {
-        const input = {
-          name: updatedDay.name.trim(),
-          focus: updatedDay.focus?.trim() || null,
-          note: updatedDay.notes || null,
-          block: updatedDay.block || null,
-          phase: updatedDay.phase || null,
-          phaseWeek: updatedDay.phaseWeek,
-          isRestDay: updatedDay.isRestDay,
-          revision: targetTemplate.revision,
-          idempotencyId: crypto.randomUUID(),
-          exercises: updatedDay.exercises.map(e => ({
-            exerciseId: e.exerciseId,
-            sourceName: e.sourceName,
-            note: e.notes || null,
-            sets: e.sets,
-            sequenceGroup: e.sequenceGroup || null,
-            substitutions: e.substitutions ?? [],
-            sourcePage: e.sourcePage ?? null,
-            slotKey: e.slotKey ?? null,
-            restSeconds: e.restSeconds ?? null,
-            demoUrl: e.demoUrl ?? null,
-            demoLinks: e.demoLinks ?? null
-          }))
-        };
-        const saved = await api.updateTemplate(targetTemplate.id, input);
-        setDetail(prev => prev?.map(t => t.id === saved.id ? saved : t) ?? null);
-        void onChanged();
-      } catch (err) {
-        console.error('Failed to update template', err);
-      }
-    }
+    await saveDay(updatedDay);
+    void onChanged();
   }
 
+  /// An edit can reach a block or the whole program; only the days it changed are saved.
   async function handleDraftChange(updatedDraft: ImportDraft) {
+    const changed = new Set(draft ? changedDayIds(draft, updatedDraft) : updatedDraft.workouts.map(day => day.lineId));
     setDraft(updatedDraft);
-    for (const updatedDay of updatedDraft.workouts) {
-      const targetTemplate = detail?.find(t => t.id === updatedDay.lineId);
-      if (targetTemplate) {
-        try {
-          const input = {
-            name: updatedDay.name.trim(),
-            focus: updatedDay.focus?.trim() || null,
-            note: updatedDay.notes || null,
-            block: updatedDay.block || null,
-            phase: updatedDay.phase || null,
-            phaseWeek: updatedDay.phaseWeek,
-            isRestDay: updatedDay.isRestDay,
-            revision: targetTemplate.revision,
-            idempotencyId: crypto.randomUUID(),
-            exercises: updatedDay.exercises.map(e => ({
-              exerciseId: e.exerciseId,
-              sourceName: e.sourceName,
-              note: e.notes || null,
-              sets: e.sets,
-              sequenceGroup: e.sequenceGroup || null,
-              substitutions: e.substitutions ?? [],
-              sourcePage: e.sourcePage ?? null,
-              slotKey: e.slotKey ?? null,
-              restSeconds: e.restSeconds ?? null,
-              demoUrl: e.demoUrl ?? null,
-              demoLinks: e.demoLinks ?? null
-            }))
-          };
-          const saved = await api.updateTemplate(targetTemplate.id, input);
-          setDetail(prev => prev?.map(t => t.id === saved.id ? saved : t) ?? null);
-        } catch (err) {
-          console.error('Failed to update template', err);
-        }
-      }
+    for (const day of updatedDraft.workouts) {
+      if (changed.has(day.lineId)) await saveDay(day);
     }
     void onChanged();
   }
 
   const meta = finished
     ? `${weekCount} ${weekCount === 1 ? 'week' : 'weeks'} completed`
-    : `Week ${weekIndex} of ${weekCount}${progress ? ` · ${progress.passedDays} of ${progress.totalDays} days passed` : ''}`;
+    : <ProgramWeekMeter week={weekIndex} weeks={weekCount} passedDays={progress?.passedDays ?? 0} totalDays={progress?.totalDays ?? 0} />;
 
   return <section {...dragProps} className={`panel slot-card program-card ${finished ? 'slot-card-finished' : ''} ${moving ? 'slot-card-moving' : ''}`}
     aria-busy={actions.busy || loading}>

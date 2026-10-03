@@ -1,6 +1,7 @@
 import type { LoggedSet, Preferences, RestMutationInput, Session, SessionRest } from '../types';
 import { reconcileSetPatchOperation, sameWorkoutEdits, sameWorkoutNonSetEdits } from './workoutRecoveryComparison';
 import { getRecoveryStorage } from './recoveryStorage';
+import type { RunningStopwatch } from './setStopwatch';
 
 export { reconcileSetPatchOperation, sameWorkoutEdits };
 export { defaultDevicePreferences, loadDevicePreferences, saveDevicePreferences } from './workoutDevicePreferences';
@@ -28,6 +29,8 @@ export type WorkoutRecoveryRecord = {
   conflict: boolean;
   updatedAt: string;
   rest?: SessionRest | null;
+  /** Timed sets still counting, so a hold survives the app closing or crashing mid-set. */
+  stopwatches?: Record<string, RunningStopwatch>;
 };
 
 export async function getRecovery(accountId: string): Promise<WorkoutRecoveryRecord | null> {
@@ -47,8 +50,9 @@ export async function setLastAccount(accountId: string | null): Promise<void> {
   return getRecoveryStorage().setLastAccountId(accountId);
 }
 
-export async function startRecovery(record: Omit<WorkoutRecoveryRecord, 'schemaVersion' | 'operations' | 'conflict' | 'updatedAt'>): Promise<void> {
-  await serializeWrite(record.accountId, async () => {
+/// Returns the stored record so a caller can show it without reading it straight back.
+export async function startRecovery(record: Omit<WorkoutRecoveryRecord, 'schemaVersion' | 'operations' | 'conflict' | 'updatedAt'>): Promise<WorkoutRecoveryRecord> {
+  return serializeWrite(record.accountId, async () => {
     const existing = await getRecovery(record.accountId);
     if (existing && existing.sessionId !== record.sessionId && hasUnresolvedRecovery(existing))
       throw new Error('An earlier workout still has changes that need review. Resolve it before starting another workout.');
@@ -62,9 +66,11 @@ export async function startRecovery(record: Omit<WorkoutRecoveryRecord, 'schemaV
     };
     await putRecord(fullRecord);
     await setLastAccount(record.accountId);
-    if (typeof navigator !== 'undefined' && navigator.storage?.persist) {
-      try { await navigator.storage.persist(); } catch { /* best effort */ }
-    }
+    // Durable storage is advisory and the browser may take its time to answer; the record is
+    // already written, so starting a workout does not wait for it.
+    if (typeof navigator !== 'undefined' && navigator.storage?.persist) void navigator.storage.persist().catch(() => undefined);
+    // A copy, as a read would give: draft and serverSession must not share one object.
+    return structuredClone(fullRecord);
   });
 }
 
@@ -398,4 +404,32 @@ export function hasPendingTimingOperations(record: WorkoutRecoveryRecord): boole
 
 export function isStorageFailure(failure: unknown): boolean {
   return failure instanceof Error && /device|storage|quota|indexeddb|transaction/i.test(failure.message);
+}
+
+/// Keeps the running timed-set stopwatches with the workout. Only this session's sets are kept.
+export async function saveStopwatches(accountId: string, sessionId: string, stopwatches: Record<string, RunningStopwatch>): Promise<void> {
+  await serializeWrite(accountId, async () => {
+    const record = await requireRecovery(accountId, sessionId);
+    const setIds = new Set(record.draft.exercises.flatMap(exercise => exercise.sets.map(set => set.id)));
+    const kept = Object.fromEntries(Object.entries(stopwatches).filter(([setId]) => setIds.has(setId)));
+    if (JSON.stringify(kept) === JSON.stringify(record.stopwatches ?? {})) return;
+    record.stopwatches = kept;
+    await putRecord(record);
+  });
+}
+
+/// Adopts a session the server just returned for a direct change (a swap or a restore). Those run
+/// only after this device's queued edits were sent, so the server's copy is the whole workout; the
+/// recovery copy takes it too, or a crash before the next edit would reopen the old exercise list.
+export async function adoptServerSession(accountId: string, saved: Session): Promise<WorkoutRecoveryRecord | null> {
+  return serializeWrite(accountId, async () => {
+    const record = await getRecovery(accountId);
+    if (!record || record.sessionId !== saved.id) return null;
+    record.serverSession = saved;
+    if (record.operations.length === 0) record.draft = saved;
+    if (saved.rest !== undefined) record.rest = saved.rest;
+    record.updatedAt = new Date().toISOString();
+    await putRecord(record);
+    return record;
+  });
 }

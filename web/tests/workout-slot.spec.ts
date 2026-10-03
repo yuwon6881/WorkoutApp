@@ -147,7 +147,7 @@ test('workouts move between the library and the active slot, forgetting progress
     // Passing a day is progress, so taking the program out now asks first; Cancel leaves it put.
     await finishWorkout(page.request, headers, created.workouts[0].id);
     await page.reload();
-    await expect(activeCard.getByText(/1 of 2 days passed/)).toBeVisible();
+    await expect(activeCard.getByRole('progressbar', { name: 'Program progress' })).toHaveAttribute('aria-valuenow', '50');
     await page.screenshot({ path: join(screenshotsDirectory, `${info.project.name}-workout-slot-active.png`), fullPage: true });
     await dragTo(page, activeCard, library);
     const forget = page.getByRole('dialog', { name: `Move ${programName} to the library?` });
@@ -156,7 +156,7 @@ test('workouts move between the library and the active slot, forgetting progress
     await forget.getByRole('button', { name: 'Cancel', exact: true }).click();
     await expect(forget).toBeHidden();
     await expect(activeCard).toBeVisible();
-    await expect(activeCard.getByText(/1 of 2 days passed/)).toBeVisible();
+    await expect(activeCard.getByRole('progressbar', { name: 'Program progress' })).toHaveAttribute('aria-valuenow', '50');
     await expect(activeCard.getByRole('button', { name: `Collapse ${programName}`, exact: true })).toBeVisible();
 
     await dragTo(page, activeCard, library);

@@ -110,6 +110,45 @@ public sealed class SessionRestoreTests
     }
 
     [Fact]
+    public async Task Restoring_the_plan_of_a_kept_swap_suggests_loads_for_the_replacement_not_the_original()
+    {
+        await using var h = await Harness.Create();
+        await h.SignIn();
+        await h.Seed(
+            new SeedExercise("bench", "Barbell bench press", "Chest", "Barbell", "", null),
+            new SeedExercise("incline", "Incline dumbbell press", "Chest", "Dumbbell", "", null));
+        var bench = await h.ExerciseId("bench"); var incline = await h.ExerciseId("incline");
+        var template = await h.Templates.Create(Harness.Template("Push",
+            Harness.Exercise(bench, "Barbell bench press", Harness.Set(8, 10), Harness.Set(8, 10))), null, 1, 0, default);
+
+        // A finished bench session gives the plan's start snapshot a heavy barbell suggestion.
+        var history = await h.Workouts.Start(template.Id, null, default);
+        var benchDone = history.Exercises.Single();
+        var heavy = await h.Workouts.Save(history.Id, new SessionInput(null, [Input(benchDone, benchDone.Prescription.ToList(), [
+            new SetInput(100, 10, 8, true, Id: benchDone.Sets[0].Id), new SetInput(100, 10, 8, true, Id: benchDone.Sets[1].Id)])], history.Revision, null), default);
+        await h.Workouts.Finish(history.Id, heavy.Revision, default);
+
+        var session = await h.Workouts.Start(template.Id, null, default);
+        var originalLoad = session.Exercises.Single().Sets[1].WeightKg;
+        Assert.NotNull(originalLoad);
+        var swapped = await h.Workouts.Swap(session.Id, new SessionSubstitutionInput(session.Exercises[0].Id, incline, "Incline dumbbell press", session.Revision, null), default);
+        var exercise = swapped.Exercises.Single();
+        var replacementLoad = exercise.Sets[1].WeightKg;
+
+        // One set logged on the dumbbells, then a set added: the plan differs, the swap stays.
+        var edited = await h.Workouts.Save(session.Id, new SessionInput(null, [Input(exercise, [.. exercise.Prescription, exercise.Prescription[0]], [
+            new SetInput(24, 9, null, true, Id: exercise.Sets[0].Id), Keep(exercise.Sets[1]), new SetInput(null, null, null, false)])], swapped.Revision, null), default);
+
+        var restored = await h.Workouts.RestoreExercise(session.Id, new SessionExerciseRestoreInput(exercise.Id, edited.Revision), default);
+        var result = restored.Exercises.Single();
+        Assert.Equal(incline, result.ExerciseId);
+        Assert.Equal(2, result.Sets.Count);
+        Assert.Equal(24, result.Sets[0].WeightKg);
+        Assert.NotEqual(originalLoad, result.Sets[1].WeightKg);
+        Assert.Equal(replacementLoad, result.Sets[1].WeightKg);
+    }
+
+    [Fact]
     public async Task Restore_program_defaults_brings_back_removed_exercises_and_drops_unlogged_additions()
     {
         await using var h = await Harness.Create();

@@ -1,0 +1,44 @@
+/* The stand-in sheet shown between the Start tap and the server's session. It mirrors the active
+   workout's header and first exercise so the real sheet lands without a jump. */
+.workout-starting-title {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  min-height: 44px;
+  align-content: center;
+}
+
+.workout-starting-title h2 {
+  margin: 0;
+  overflow: hidden;
+  font-size: 17px;
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.workout-starting-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+  font-size: var(--font-secondary);
+}
+
+.workout-starting-body {
+  display: grid;
+  align-content: start;
+  gap: 12px;
+  padding: 16px 20px;
+}
+
+.workout-starting-strip { height: 36px; }
+.workout-starting-heading { width: 60%; height: 24px; }
+.workout-starting-card { height: 88px; }
+.workout-starting-row { height: 44px; }
+
+/* The real sheet takes the stand-in's place; rising again would read as a second open. */
+.modal.workout-sheet-continued[open],
+.modal.workout-sheet-continued[open]::backdrop {
+  animation: none;
+}

@@ -169,16 +169,10 @@ export function ProgramWeekChecklist({
     ? `Day ${openDayIndex + 1}${isGenericDayTitle(openDayTitle) ? '' : ` · ${openDayTitle}`}`
     : '';
 
-  return <section className="program-week-checklist" aria-labelledby={`program-week-title-${program.id}`}>
-    <div className="program-week-heading">
-      <div>
-        <span className="program-week-kicker">{program.active ? 'Current week' : progress?.runId ? 'Last run' : 'Program week'}</span>
-        <h3 id={`program-week-title-${program.id}`}>{progress ? `Week ${progress.currentWeek} of ${program.weeks}` : 'Ready to start'}</h3>
-      </div>
-    </div>
-
+  // The week itself is named once, by the meter under the program name.
+  return <section className="program-week-checklist" aria-label={program.active ? 'This week' : 'Last run'}>
     {progress && days.length > 0 ? <>
-      <div className="program-week-days" role="list" aria-label={`Week ${progress.currentWeek} checklist`}>
+      <div className="program-week-days" role="list" aria-label="Days this week">
         {days.map(day => {
           const info = dayDetails.get(day.templateId);
           if (!info) return null;

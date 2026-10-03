@@ -135,3 +135,18 @@ export function loadIsEditable(exercise: SessionExercise, set: LoggedSet): boole
   const loadModel = exercise.loadModel ?? 'external';
   return loadModel === 'external' || (loadModel === 'full_bodyweight' && (set.resistanceMode ?? 'bodyweight') !== 'bodyweight');
 }
+
+/// What the server works out about each exercise (whether Restore default would change anything)
+/// follows its answers, while every value the lifter edits stays as this screen holds it.
+export function withServerFlags(draft: Session, saved: Session): Session {
+  if (draft.id !== saved.id) return draft;
+  const flags = new Map(saved.exercises.map(exercise => [exercise.id, Boolean(exercise.canRestore)]));
+  let changed = false;
+  const exercises = draft.exercises.map(exercise => {
+    const canRestore = flags.get(exercise.id);
+    if (canRestore === undefined || canRestore === Boolean(exercise.canRestore)) return exercise;
+    changed = true;
+    return { ...exercise, canRestore };
+  });
+  return changed ? { ...draft, exercises } : draft;
+}

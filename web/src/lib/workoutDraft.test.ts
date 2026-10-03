@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { LoggedSet, Session, SessionExercise } from '../types';
-import { blankPrescription, effortPatch, effortValue, exerciseListChanged, nextPendingSet, setNumberLabel, withSetAdded, withSetRemoved, withSetRestored } from './workoutDraft';
+import { blankPrescription, effortPatch, effortValue, exerciseListChanged, nextPendingSet, setNumberLabel, withSetAdded, withSetRemoved, withServerFlags, withSetRestored } from './workoutDraft';
 
 function loggedSet(id: string, patch: Partial<LoggedSet> = {}): LoggedSet {
   return { id, position: 0, weightKg: 60, reps: 8, rpe: null, done: false, warmup: false, resistanceMode: 'external', ...patch };
@@ -87,5 +87,27 @@ describe('effort values', () => {
     expect(effortValue(loggedSet('e', effortPatch(2)))).toBe(2);
     expect(effortValue(loggedSet('e', effortPatch(5)))).toBe(5);
     expect(effortValue(loggedSet('e'))).toBeNull();
+  });
+});
+
+describe('withServerFlags', () => {
+  const session = (canRestore: boolean, reps = 8): Session => ({
+    id: 'workout', templateId: 'day', programId: null, name: 'Push', note: '', active: true, startedAt: '2026-10-04T08:00:00Z',
+    finishedAt: null, revision: 1, volumeKg: null, completedSets: 0, warmupSets: 0,
+    exercises: [{ id: 'bench', exerciseId: 'bench-id', name: 'Bench', position: 0, note: '', prescription: [], sequenceGroup: '',
+      substitutions: [], progression: null, canRestore,
+      sets: [{ id: 'set', position: 0, weightKg: 60, reps, rpe: null, done: false, warmup: false }] }]
+  });
+
+  it('shows Restore default once the server reports a changed plan, keeping local values', () => {
+    const merged = withServerFlags(session(false, 10), session(true, 8));
+
+    expect(merged.exercises[0].canRestore).toBe(true);
+    expect(merged.exercises[0].sets[0].reps).toBe(10);
+  });
+
+  it('returns the same draft when nothing changed', () => {
+    const draft = session(false);
+    expect(withServerFlags(draft, session(false))).toBe(draft);
   });
 });

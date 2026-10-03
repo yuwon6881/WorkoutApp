@@ -3,7 +3,7 @@ import type { Exercise, LoggedSet, Preferences, RestMutationInput, Session, Sess
 import { ApiError, api } from '../lib/api';
 import type { SaveQueue } from '../lib/queue';
 import { completedSets, finishBlocker, plannedSets } from '../lib/training';
-import { exerciseListChanged } from '../lib/workoutDraft';
+import { exerciseListChanged, withServerFlags } from '../lib/workoutDraft';
 import { firstOpenExercise, nextUpText, type AdvanceOptions } from '../lib/workoutLogging';
 import { useAfterLog } from './useAfterLog';
 import { validateLoggedSet, validateSessionDraft } from '../lib/validation';
@@ -30,6 +30,8 @@ import { useWorkoutRest } from './useWorkoutRest';
 import { useWorkoutConflictResolution } from './useWorkoutConflictResolution';
 import { useWorkoutExerciseList } from './useWorkoutExerciseList';
 import { WorkoutConfirmModal } from './WorkoutConfirmModal';
+import { useFinishPlanUpdate } from './useFinishPlanUpdate';
+import { useStopwatchRecovery } from './useStopwatchRecovery';
 import './ActiveWorkout.css';
 
 export function Workout({
@@ -47,7 +49,8 @@ export function Workout({
   onDiscard,
   advance,
   onCatalogChanged,
-  onCatalogNeeded
+  onCatalogNeeded,
+  continues = false
 }: {
   session: Session;
   accountId: string;
@@ -65,12 +68,14 @@ export function Workout({
   /** Weight settings changed mid-workout, so the exercise catalog is read again. */
   onCatalogChanged?: () => void | Promise<void>;
   onCatalogNeeded?: () => Promise<void>;
+  /** Replaces the starting stand-in already on screen, so the sheet does not rise again. */
+  continues?: boolean;
 }) {
   const [draft, setDraft] = useState(recovery?.sessionId === session.id ? recovery.draft : session);
   const [picker, setPicker] = useState(false);
   const [confirm, setConfirm] = useState<'finish' | 'discard' | 'restore' | null>(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
-  const [retainSwaps, setRetainSwaps] = useState(false);
+  const planUpdate = useFinishPlanUpdate(draft, confirm === 'finish', online, exercises);
   const [error, setError] = useState('');
   const loadCatalog = () => { void onCatalogNeeded?.().catch(failure => setError(failure instanceof Error ? failure.message : 'Exercises could not be loaded. Try again.')); };
   const [busy, setBusy] = useState(false);
@@ -78,6 +83,7 @@ export function Workout({
   const [finishIntentAt, setFinishIntentAt] = useState(() => recovery?.operations.find(operation => operation.type === 'finish')?.finishedAt ?? null);
   const [localStatus, setLocalStatus] = useState('');
   const [recoveryConflict, setRecoveryConflict] = useState(recovery?.conflict ?? false);
+  useStopwatchRecovery(accountId, session.id, recovery);
 
   const serverSession = useRef(recovery?.serverSession ?? session);
   const revision = useRef(serverSession.current.revision);
@@ -116,6 +122,7 @@ export function Workout({
         serverSession.current = saved;
         revision.current = saved.revision;
         onSaved(saved);
+        setDraft(current => withServerFlags(current, saved));
         onRecoveryChange(nextRecovery);
         setLocalStatus(nextRecovery?.operations.length ? 'Saving…' : 'Synced.');
       },
@@ -178,6 +185,7 @@ export function Workout({
             serverSession.current = saved;
             revision.current = saved.revision;
             onSaved(saved);
+            setDraft(current => withServerFlags(current, saved));
             setLocalStatus('Saved to the server. Device recovery is unavailable on this browser.');
           });
           await queue.whenIdle();
@@ -329,16 +337,19 @@ export function Workout({
         if (!(failure instanceof ApiError && failure.offline)) throw failure;
       }
     }
+      // The program is updated first, while the dialog can still show a failure and offer to save
+      // without it; the workout itself is unaffected either way.
+      if (!(await planUpdate.apply())) { setBusy(false); return; }
       const finishedAt = new Date().toISOString();
       if (!recovery) {
         if (!online) throw new Error('This browser cannot save the workout locally. Reconnect before finishing.');
         setLocalStatus('Device recovery is unavailable. Finishing directly with the server…');
-        const saved = await onlineFallback.finish(draft, retainSwaps);
+        const saved = await onlineFallback.finish(draft, false);
         onFinish(saved);
         return;
       }
       await enqueueSave(accountId, draft, { activeIndex });
-      const withFinish = await enqueueFinish(accountId, finishedAt, retainSwaps, draft);
+      const withFinish = await enqueueFinish(accountId, finishedAt, false, draft);
       onRecoveryChange(withFinish);
       setFinishIntentAt(finishedAt);
       setLocalStatus(`Finished on this device at ${new Date(finishedAt).toLocaleTimeString()}. Waiting to sync.`);
@@ -358,7 +369,7 @@ export function Workout({
   }
 
   const { swapExercise, restoreExercise, restoreWorkout } = useWorkoutExerciseList({
-    draft, online, finishIntentAt, queue, revision, drain, setDraft, onSaved, setBusy, setError
+    accountId, draft, online, finishIntentAt, queue, revision, serverSession, drain, setDraft, onSaved, onRecoveryChange, setBusy, setError
   });
 
   async function discard() {
@@ -419,7 +430,7 @@ export function Workout({
   useEffect(() => { restTimer.setNextUp(draft.id, nextUp); }, [draft.id, nextUp]);
 
   return (
-    <Modal title={draft.name} onClose={onClose} wide headless className="workout-sheet">
+    <Modal title={draft.name} onClose={onClose} wide headless className={continues ? 'workout-sheet workout-sheet-continued' : 'workout-sheet'}>
       <WorkoutTopBar
         name={draft.name}
         syncMessage={finishIntentAt
@@ -468,9 +479,7 @@ export function Workout({
           done={done}
           unlogged={plannedSets(draft) - done}
           busy={busy}
-          draft={draft}
-          retainSwaps={retainSwaps}
-          onRetainSwapsChange={setRetainSwaps}
+          planUpdate={planUpdate}
           onClose={() => setConfirm(null)}
           onFinish={() => void finish()}
           onDiscard={() => void discard()}

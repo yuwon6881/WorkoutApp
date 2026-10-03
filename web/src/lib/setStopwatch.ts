@@ -80,3 +80,35 @@ export function discardStopwatch(setId: string) {
 export function useStopwatch(setId: string): RunningStopwatch | undefined {
   return useSyncExternalStore(subscribe, () => running.get(setId), () => undefined);
 }
+
+/** Every running stopwatch, for keeping a copy with the workout's device recovery. */
+export function runningStopwatches(): Record<string, RunningStopwatch> {
+  return Object.fromEntries(running);
+}
+
+export function subscribeStopwatches(listener: () => void): () => void {
+  return subscribe(listener);
+}
+
+/**
+ * Picks up stopwatches saved before the app was closed or crashed. A hold keeps its wall-clock
+ * start, so it reads as though it never stopped; a countdown whose target passed meanwhile is
+ * finished quietly (the chime would only confuse on reopening) and waits to be logged.
+ */
+export function restoreStopwatches(saved: Record<string, RunningStopwatch>, nowMs = Date.now()) {
+  let restored = false;
+  for (const [setId, entry] of Object.entries(saved)) {
+    if (running.has(setId) || !Number.isFinite(entry?.startedAtMs) || !Number.isFinite(entry?.baseSeconds)) continue;
+    const target = typeof entry.targetSeconds === 'number' ? entry.targetSeconds : null;
+    const next: RunningStopwatch = { startedAtMs: entry.startedAtMs, baseSeconds: entry.baseSeconds, targetSeconds: target };
+    if (typeof entry.finishedSeconds === 'number') next.finishedSeconds = entry.finishedSeconds;
+    if (target !== null && next.finishedSeconds === undefined) {
+      const remainingMs = (target - entry.baseSeconds) * 1000 - (nowMs - entry.startedAtMs);
+      if (remainingMs <= 0) next.finishedSeconds = target;
+      else deadlines.set(setId, setTimeout(() => finishCountdown(setId), remainingMs));
+    }
+    running.set(setId, next);
+    restored = true;
+  }
+  if (restored) emit();
+}

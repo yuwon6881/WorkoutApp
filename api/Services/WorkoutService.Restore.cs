@@ -92,9 +92,15 @@ public sealed partial class WorkoutService
 
         var plan = SessionPlanRestore.Apply(baseline, sets);
         db.Sets.RemoveRange(plan.Removed);
-        SessionPlanRestore.ApplyTo(plan, session.UserId, sourceRow.Id, row => db.Sets.Add(row));
+        var rows = SessionPlanRestore.ApplyTo(plan, session.UserId, sourceRow.Id, row => db.Sets.Add(row));
         sourceRow.PrescriptionJson = Json.Write(plan.Prescription);
-        if (!restoreIdentity) return true;
+        if (!restoreIdentity)
+        {
+            // A swap that stays (sets are logged on it) keeps its own loads: the start snapshot's
+            // suggestions were made for the exercise it replaced.
+            if (IdentityDiffers(sourceRow, baseline)) await RefreshReplacementSuggestions(session, sourceRow, rows, sourceRow.LoadModel, ct);
+            return true;
+        }
 
         sourceRow.ExerciseId = baseline.ExerciseId;
         sourceRow.NameSnapshot = baseline.NameSnapshot;

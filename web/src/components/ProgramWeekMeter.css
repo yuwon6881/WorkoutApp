@@ -1,0 +1,37 @@
+/* Active program meter: the week, then a slim track filled by the days already passed. */
+.program-week-meter {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.program-week-meter-label {
+  flex: 0 0 auto;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.program-week-meter-label strong {
+  color: var(--text);
+  font-weight: 650;
+}
+
+.program-week-meter-track {
+  position: relative;
+  flex: 0 1 96px;
+  min-width: 40px;
+  height: 4px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--border);
+}
+
+.program-week-meter-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: inherit;
+  background: var(--accent);
+  transition: width var(--motion-panel) var(--motion-ease);
+}
