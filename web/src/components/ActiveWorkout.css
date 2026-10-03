@@ -1,3 +1,22 @@
+
+/* Stable modal height for active workout so switching exercises does not shift height */
+.modal.workout-sheet {
+  display: flex;
+  flex-direction: column;
+  height: min(860px, 90dvh);
+  max-height: 90dvh;
+}
+.modal.workout-sheet .workout-body {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  min-height: 0;
+}
+@media (max-width: 639px) {
+  .modal.workout-sheet {
+    height: 92dvh;
+    max-height: 94dvh;
+  }
+}
 /* The in-progress workout's chrome: status bar, set progress line, exercise strip and rest
    bar. Phone first; every row here must fit 320 px without wrapping or clipping. */
 
@@ -316,6 +335,17 @@
 
 @media (max-width: 639px) {
   .workout-rest-bar { padding-inline: 12px; }
+  .workout-rest-bar .rest-bar-actions { gap: 6px; }
+  .workout-rest-bar .rest-bar-actions .button {
+    font-size: 14px;
+    font-weight: 600;
+    min-width: 48px;
+    min-height: 44px;
+    padding: 0 10px;
+    border-radius: 8px;
+    background: var(--surface-raised);
+    border: 1px solid var(--border);
+  }
 }
 
 @media (min-width: 1024px) {

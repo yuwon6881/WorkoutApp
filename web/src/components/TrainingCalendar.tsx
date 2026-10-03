@@ -23,7 +23,11 @@ export function TrainingCalendar({ onSession, program, refreshKey, activeWorkout
   const days = weekDays(offset);
   const rail = useRef<HTMLDivElement>(null);
   const scrollTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [calendar, setCalendar] = useState<WorkoutActivityItem[]>([]);
+  const [initialLoading, setInitialLoading] = useState(true);
+  const [calendarError, setCalendarError] = useState('');
+  const [selectedDay, setSelectedDay] = useState<Date | null>(null);
+  const [selectedDayError, setSelectedDayError] = useState('');
 
   useLayoutEffect(() => {
     const element = rail.current;
@@ -52,27 +56,27 @@ export function TrainingCalendar({ onSession, program, refreshKey, activeWorkout
       if (direction) setOffset(value => value + direction);
     }, 180);
   };
-  const [calendar, setCalendar] = useState<WorkoutActivityItem[]>([]);
-  const [calendarError, setCalendarError] = useState('');
-  const [selectedDay, setSelectedDay] = useState<Date | null>(null);
-  const [selectedDayError, setSelectedDayError] = useState('');
 
   useEffect(() => {
     const from = localDay(weekDays(offset - 1)[0]);
     const to = localDay(weekDays(offset + 1)[6]);
     const controller = new AbortController();
-    setLoading(true);
     api
       .activity(from, to, controller.signal)
       .then(next => {
         if (controller.signal.aborted) return;
-        setLoading(false);
-        setCalendar(next);
+        setInitialLoading(false);
+        setCalendar(prev => {
+          const map = new Map<string, WorkoutActivityItem>();
+          for (const item of prev) map.set(`${item.id}-${item.date}`, item);
+          for (const item of next) map.set(`${item.id}-${item.date}`, item);
+          return Array.from(map.values());
+        });
         setCalendarError('');
       })
       .catch(() => {
         if (!controller.signal.aborted) {
-          setLoading(false);
+          setInitialLoading(false);
           setCalendarError('Calendar could not be refreshed.');
         }
       });
@@ -96,7 +100,6 @@ export function TrainingCalendar({ onSession, program, refreshKey, activeWorkout
   const completed = calendar.filter(item => item.status === 'completed' &&
     item.date >= localDay(days[0]) && item.date <= localDay(days[6]));
   const completion = programWeekCompletion(program);
-  const unavailable = loading || !!calendarError;
 
   return (
     <section className="panel training-calendar-card" aria-label="Training calendar">
@@ -112,16 +115,48 @@ export function TrainingCalendar({ onSession, program, refreshKey, activeWorkout
           </svg>
           <div className="calendar-title-wrap">
             <h3>{completion ? `Program week ${completion.week}` : 'Your training week'}</h3>
-            <span className="calendar-ring-caption">{completion ? completion.total ? 'Workouts completed' : 'Rest week' : 'No active program'}</span>
-            {program && <span className="calendar-program-name">{program.name}</span>}
+            <span className="calendar-ring-caption">
+              {completion ? (completion.total ? `${completion.completed} of ${completion.total} workouts completed` : 'Rest week') : 'No active program'}
+              {program && ` · ${program.name}`}
+            </span>
           </div>
         </div>
-        <Button variant="tertiary" className="calendar-today-btn" aria-label="Return to this week"
-          disabled={offset === 0} onClick={() => setOffset(0)}><RotateCcw size={18} /><span>This week</span></Button>
+
+        <div className="calendar-nav-controls">
+          <div className="calendar-month-nav">
+            <Button
+              aria-label="Previous week"
+              variant="tertiary"
+              className="calendar-nav-btn"
+              onClick={() => setOffset(value => value - 1)}
+            >
+              <ChevronLeft size={18} />
+            </Button>
+            <span className="calendar-month-label">{monthYearLabel}</span>
+            <Button
+              aria-label="Next week"
+              variant="tertiary"
+              className="calendar-nav-btn"
+              onClick={() => setOffset(value => value + 1)}
+            >
+              <ChevronRight size={18} />
+            </Button>
+          </div>
+          {offset !== 0 && (
+            <Button
+              variant="tertiary"
+              className="calendar-today-btn"
+              aria-label="Return to this week"
+              onClick={() => setOffset(0)}
+            >
+              <RotateCcw size={15} />
+              <span>This week</span>
+            </Button>
+          )}
+        </div>
       </div>
+
       <div className="calendar-week-row">
-        <Button aria-label="Previous week" variant="tertiary" className="calendar-nav-btn"
-          onClick={() => setOffset(value => value - 1)}><ChevronLeft size={20} /></Button>
         <div className="calendar-week-rail" ref={rail} onScroll={settleWeek} aria-label="Swipe to browse weeks" tabIndex={0}
           onKeyDown={event => {
             if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
@@ -129,75 +164,86 @@ export function TrainingCalendar({ onSession, program, refreshKey, activeWorkout
               setOffset(value => value + (event.key === 'ArrowLeft' ? -1 : 1));
             }
           }}>
-          {[-1, 0, 1].map(relativeWeek => <div className="calendar-days-grid" key={relativeWeek}
-            inert={relativeWeek !== 0}
-            role="group" aria-label={relativeWeek === 0 ? 'Days of the week' : relativeWeek < 0 ? 'Previous week days' : 'Next week days'}>
-        {weekDays(offset + relativeWeek).map(day => {
-          const dayStr = localDay(day);
-          const entries = calendar.filter(item => item.date === dayStr);
-          const status = entries.some(e => e.status === 'in_progress')
-            ? 'in_progress'
-            : entries.some(e => e.status === 'completed')
-              ? 'completed'
-              : 'rest';
-          const isToday = dayStr === localDay(new Date());
-          const label =
-            status === 'completed'
-              ? 'workout completed'
-              : status === 'in_progress'
-                ? 'workout in progress'
-                : 'no workout recorded';
-
-          return (
-            <Button
-              presentation="plain"
-              key={day.toISOString()}
-              className={`calendar-day-cell day-${status} ${isToday ? 'today is-today' : ''}`}
-              aria-label={`${day.toDateString()}, ${label}${isToday ? ', today' : ''}`}
-              onClick={() => {
-                setSelectedDay(day);
-                setSelectedDayError('');
-              }}
+          {[-1, 0, 1].map(relativeWeek => (
+            <div
+              className="calendar-days-grid"
+              key={relativeWeek}
+              inert={relativeWeek !== 0}
+              role="group"
+              aria-label={relativeWeek === 0 ? 'Days of the week' : relativeWeek < 0 ? 'Previous week days' : 'Next week days'}
             >
-              <span className="day-weekday">{day.toLocaleDateString('en', { weekday: 'short' })}</span>
-              <strong className="day-number">{day.getDate()}</strong>
-              <div className="day-status-indicator">
-                {status === 'completed' ? (
-                  <span className="day-status-disc completed" title="Workout completed">
-                    <Check size={12} strokeWidth={2.8} aria-hidden="true" />
-                    <span className="day-status-label">Done</span>
-                  </span>
-                ) : status === 'in_progress' ? (
-                  <span className="day-status-disc in-progress" title="Workout in progress">
-                    <span className="status-dot" aria-hidden="true" />
-                    <span className="day-status-label">Active</span>
-                  </span>
-                ) : (
-                  <span className="day-status-disc rest" title="No workout recorded">
-                    <span className="rest-ring" aria-hidden="true" />
-                    <span className="day-status-label">No workout</span>
-                  </span>
-                )}
-                <span className="day-marker" aria-hidden="true">
-                  {status === 'completed' ? '✓' : status === 'in_progress' ? '…' : '·'}
-                </span>
-              </div>
-            </Button>
-          );
-        })}
-          </div>)}
+              {weekDays(offset + relativeWeek).map(day => {
+                const dayStr = localDay(day);
+                const entries = calendar.filter(item => item.date === dayStr);
+                const status = entries.some(e => e.status === 'in_progress')
+                  ? 'in_progress'
+                  : entries.some(e => e.status === 'completed')
+                    ? 'completed'
+                    : 'rest';
+                const isToday = dayStr === localDay(new Date());
+                const label =
+                  status === 'completed'
+                    ? 'workout completed'
+                    : status === 'in_progress'
+                      ? 'workout in progress'
+                      : 'no workout recorded';
+
+                return (
+                  <Button
+                    presentation="plain"
+                    key={day.toISOString()}
+                    className={`calendar-day-cell day-${status} ${isToday ? 'today is-today' : ''}`}
+                    aria-label={`${day.toDateString()}, ${label}${isToday ? ', today' : ''}`}
+                    onClick={() => {
+                      setSelectedDay(day);
+                      setSelectedDayError('');
+                    }}
+                  >
+                    <span className="day-weekday">{day.toLocaleDateString('en', { weekday: 'short' })}</span>
+                    <strong className="day-number">{day.getDate()}</strong>
+                    <div className="day-status-indicator">
+                      {status === 'completed' ? (
+                        <span className="day-status-disc completed" title="Workout completed">
+                          <Check size={13} strokeWidth={2.8} aria-hidden="true" />
+                          <span className="day-status-label">Done</span>
+                        </span>
+                      ) : status === 'in_progress' ? (
+                        <span className="day-status-disc in-progress" title="Workout in progress">
+                          <span className="status-dot" aria-hidden="true" />
+                          <span className="day-status-label">Active</span>
+                        </span>
+                      ) : (
+                        <span className="day-status-disc rest" title="No workout recorded">
+                          <span className="rest-ring" aria-hidden="true" />
+                          <span className="day-status-label">No workout</span>
+                        </span>
+                      )}
+                      <span className="day-marker" aria-hidden="true">
+                        {status === 'completed' ? '✓' : status === 'in_progress' ? '…' : '·'}
+                      </span>
+                    </div>
+                  </Button>
+                );
+              })}
+            </div>
+          ))}
         </div>
-        <Button aria-label="Next week" variant="tertiary" className="calendar-nav-btn"
-          onClick={() => setOffset(value => value + 1)}><ChevronRight size={20} /></Button>
       </div>
+
       <div className="calendar-card-footer">
-        <span>{monthYearLabel}</span>
+        <p className="calendar-week-count">
+          {initialLoading && calendar.length === 0
+            ? (calendarError || 'Loading activity')
+            : calendarError
+              ? 'Activity unavailable'
+              : `${completed.length} ${completed.length === 1 ? 'workout' : 'workouts'} completed in this calendar week`}
+        </p>
         <div className="calendar-legend-pills" aria-label="Calendar status legend">
           <span className="calendar-legend-pill"><i className="legend-dot completed" aria-hidden="true" />Completed</span>
           <span className="calendar-legend-pill"><i className="legend-dot in-progress" aria-hidden="true" />In progress</span>
+          <span className="calendar-legend-pill"><i className="legend-dot rest" aria-hidden="true" />Rest</span>
         </div>
       </div>
-      <p className="calendar-week-count">{unavailable ? calendarError ? 'Activity unavailable' : 'Loading activity' : `${completed.length} ${completed.length === 1 ? 'workout' : 'workouts'} completed in this calendar week`}</p>
 
       {calendarError && <p className="muted calendar-error">{calendarError}</p>}
 

@@ -227,8 +227,10 @@ export function Workout({
     if (!set.done) {
       const validationError = validateLoggedSet({ ...set, done: true });
       if (validationError) {
-        setError(validationError);
-        return;
+        if (validationError !== 'A completed set needs its reps or time.') {
+          setError(validationError);
+        }
+        return false;
       }
     }
     setError('');
@@ -281,6 +283,7 @@ export function Workout({
       if (logging && saved && setGeneration.get(set.id) === generation) restTimer.skip();
     }
     if (logging && saved && setGeneration.get(set.id) === generation) afterLog(draft, ei, si);
+    return saved;
   }
 
   async function togglePause() {

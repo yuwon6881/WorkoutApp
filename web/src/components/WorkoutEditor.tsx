@@ -20,7 +20,7 @@ export function WorkoutEditor({
   paused: boolean; finishIntentAt: string | null; recoveryConflict: boolean;
   picker: boolean; onPicker: (open: boolean) => void; onAddExercise: () => void; onChange: (next: Session, setChange?: SetChange) => void;
   onEditSet: (exerciseIndex: number, setIndex: number, patch: Partial<LoggedSet>) => void;
-  onToggleSet: (exerciseIndex: number, setIndex: number) => void; onSelectExercise: (index: number) => void;
+  onToggleSet: (exerciseIndex: number, setIndex: number) => void | boolean | Promise<void | boolean>; onSelectExercise: (index: number) => void;
   onSwap: (sessionExerciseId: string, replacementExerciseId: string | null, replacementName: string) => Promise<void>;
   onRestore: (sessionExerciseId: string) => Promise<void>; onRemoveExercise: (index: number) => void;
   onCatalogChanged?: () => void | Promise<void>;

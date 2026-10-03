@@ -50,6 +50,36 @@ export function useWorkoutSlotActions({ holder, onChanged, onTemplateDeleted }: 
     ? api.setProgramActive(item.program.id, active, item.program.revision)
     : activeSlotApi.setTemplateActive(item.template.id, active, item.template.revision), []);
 
+  const withActiveItem = useCallback((item: SlotItem): SlotItem => {
+    if (item.kind === 'program') {
+      const firstWeek = item.program.days.length > 0 ? Math.min(...item.program.days.map(d => d.week)) : 1;
+      return {
+        kind: 'program',
+        program: {
+          ...item.program,
+          active: true,
+          progress: item.program.progress ?? (item.program.days.length > 0 ? {
+            runId: 'optimistic',
+            currentWeek: firstWeek,
+            currentAttempt: 1,
+            passedDays: 0,
+            totalDays: item.program.days.length,
+            days: item.program.days.filter(d => d.week === firstWeek).map((d, idx) => ({
+              templateId: d.id,
+              status: 'pending',
+              isRestDay: d.isRestDay,
+              position: idx
+            }))
+          } : null)
+        }
+      };
+    }
+    return {
+      kind: 'template',
+      template: { ...item.template, active: true }
+    };
+  }, []);
+
   const activate = useCallback((item: SlotItem) => {
     const run = () => setActive(item, true);
     if (holder && hasSlotProgress(holder)) {
@@ -59,15 +89,15 @@ export function useWorkoutSlotActions({ holder, onChanged, onTemplateDeleted }: 
         action: 'Replace and forget progress',
         movingId: null,
         run: async () => {
-          setOptimistic({ type: 'set-active', item });
+          setOptimistic({ type: 'set-active', item: withActiveItem(item) });
           await run();
         }
       });
       return;
     }
-    setOptimistic({ type: 'set-active', item });
+    setOptimistic({ type: 'set-active', item: withActiveItem(item) });
     void perform(run);
-  }, [holder, perform, setActive]);
+  }, [holder, perform, setActive, withActiveItem]);
 
   const moveToLibrary = useCallback((item: SlotItem) => {
     const run = () => setActive(item, false);

@@ -20,16 +20,6 @@
   text-align: left;
 }
 
-.quick-start-hero {
-  margin-bottom: 24px;
-}
-
-.dashboard-quick-start { display: flex; align-items: center; justify-content: space-between; gap: 20px; margin-bottom: 24px; padding: 16px 20px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); }
-.dashboard-quick-start > div { display: grid; gap: 5px; min-width: 0; }
-.dashboard-quick-start strong { font-size: 18px; overflow-wrap: anywhere; }
-.dashboard-quick-start .button { flex: none; }
 @media (max-width: 639px) {
   .page-heading.dashboard-heading { margin-bottom: 16px; }
-  .dashboard-quick-start { flex-wrap: wrap; gap: 12px; padding: 16px; margin-bottom: 20px; }
-  .dashboard-quick-start .button { margin-left: auto; }
 }

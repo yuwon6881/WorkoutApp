@@ -41,7 +41,20 @@ export function ActiveProgramCard({ program, exercises, onStart, onChanged, hasA
   const [resetError, setResetError] = useState('');
   const finished = isProgramFinished(program);
   const next = program.days.find(day => day.id === program.nextTemplateId);
-  const progress = program.progress;
+  const firstWeek = program.days.length > 0 ? Math.min(...program.days.map(d => d.week)) : 1;
+  const progress = program.progress ?? (program.days.length > 0 ? {
+    runId: 'optimistic',
+    currentWeek: firstWeek,
+    currentAttempt: 1,
+    passedDays: 0,
+    totalDays: program.days.length,
+    days: program.days.filter(d => d.week === firstWeek).map((d, idx) => ({
+      templateId: d.id,
+      status: 'pending' as const,
+      isRestDay: d.isRestDay,
+      position: idx
+    }))
+  } : null);
   const weekCount = new Set(program.days.map(day => day.week)).size;
   const weekIndex = progress ? [...new Set(program.days.map(day => day.week))].sort((a, b) => a - b).indexOf(progress.currentWeek) + 1 : 1;
   const canReset = Boolean(program.active && (progress?.passedDays ?? 0) > 0);

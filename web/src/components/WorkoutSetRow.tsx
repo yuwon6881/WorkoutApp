@@ -51,7 +51,7 @@ export function WorkoutSetRow({
   loadStepKg?: number;
   availableLoadsKg?: number[] | null;
   editSet: (ei: number, si: number, patch: Partial<LoggedSet>) => void;
-  toggle: (ei: number, si: number) => void;
+  toggle: (ei: number, si: number) => void | boolean | Promise<void | boolean>;
   /** The types this set may take here (warm-ups stay a leading block). */
   setTypes: SetType[];
   onSetType: (si: number, type: SetType) => void;
@@ -60,6 +60,7 @@ export function WorkoutSetRow({
   // Set only by the tap that logs a set, so rows already done do not replay it when shown again.
   const trackRir = useTrackRir();
   const [justLogged, setJustLogged] = useState(false);
+  const [nudging, setNudging] = useState(false);
   const shown = toDisplay(set.weightKg, unit);
   const stepKg = resolvedStepKg ?? defaultLoadStepKg(unit);
   const { label, warmup } = setNumberLabel(exercise, si);
@@ -77,12 +78,19 @@ export function WorkoutSetRow({
     onRemoveSet(si);
   };
 
+  const triggerNudge = () => {
+    setNudging(false);
+    window.requestAnimationFrame(() => {
+      setNudging(true);
+    });
+  };
+
   const row = (
     <div
       className={`workout-set-row ${set.done ? 'done' : ''} ${warmup ? 'warmup-row' : ''} ${
         set.suggestion ? 'has-suggestion' : ''
-      } ${justLogged ? 'just-logged' : ''} ${timed ? 'timed-row' : ''}`}
-      onAnimationEnd={event => { if (event.target === event.currentTarget) setJustLogged(false); }}
+      } ${justLogged ? 'just-logged' : ''} ${nudging ? 'nudge' : ''} ${timed ? 'timed-row' : ''}`}
+      onAnimationEnd={event => { if (event.target === event.currentTarget) { setJustLogged(false); setNudging(false); } }}
     >
       <SetTypeSelect
         compact
@@ -162,9 +170,17 @@ export function WorkoutSetRow({
           className={`set-log-checkbox ${set.done ? 'checked' : ''}`}
           aria-label={`${set.done ? 'Unlog' : 'Log'} ${exercise.name} set ${si + 1}`}
           aria-pressed={set.done}
-          onClick={() => {
-            setJustLogged(!set.done);
-            toggle(ei, si);
+          onClick={async () => {
+            if (!set.done && set.reps === null && (set.durationSeconds ?? null) === null) {
+              triggerNudge();
+              return;
+            }
+            const res = await toggle(ei, si);
+            if (res === false && !set.done) {
+              triggerNudge();
+            } else if (res !== false && !set.done) {
+              setJustLogged(true);
+            }
           }}
         >
           <Check size={18} strokeWidth={set.done ? 3 : 2} />

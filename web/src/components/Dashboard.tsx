@@ -1,8 +1,6 @@
 import { lazy, Suspense, useEffect, useState } from 'react';
-import { ArrowRight, Dumbbell, Play } from 'lucide-react';
 import type { Bootstrap, ProgressSummary, Session } from '../types';
 import { ApiError, api } from '../lib/api';
-import { nextWorkout } from '../lib/nextWorkout';
 import { Button } from './ui/Button';
 const TrainingCalendar = lazy(() => import('./TrainingCalendar').then(module => ({ default: module.TrainingCalendar })));
 const BodyweightRecords = lazy(() => import('./ProgressPanels').then(module => ({ default: module.BodyweightRecords })));
@@ -55,11 +53,7 @@ export function Dashboard({
   }, [progressRetry, data.progress, data.account.id, data.resourceVersions?.history ?? data.history]);
 
   const program = data.activeProgram;
-  const next = nextWorkout(data);
-  const nextName = next ? next.name : null;
   const unit = data.preferences.unit;
-
-  const activeWorkout = data.activeWorkout?.active ? data.activeWorkout : null;
 
   return (
     <>
@@ -76,18 +70,6 @@ export function Dashboard({
           </p>
         </div>
       </div>
-
-      {!activeWorkout && <div className="dashboard-quick-start">
-        <div>
-          <span className="eyebrow">{next ? 'Up next' : 'Ready to train'}</span>
-          <strong>{nextName ?? 'Choose your next workout'}</strong>
-          <span className="muted">{program?.name ?? 'Your workout library'}</span>
-        </div>
-        <Button variant="primary" onClick={() => next ? onStart(next.id) : onProgram()}>
-          {next ? <Play size={17} /> : <Dumbbell size={17} />}
-          {next ? 'Start workout' : 'Go to workouts'} <ArrowRight size={17} />
-        </Button>
-      </div>}
 
       <Suspense fallback={<CalendarSkeleton />}>
         <TrainingCalendar onSession={onSession} program={program}

@@ -6,6 +6,7 @@ import {
   Plus,
   RefreshCw,
   RotateCcw,
+  Timer,
   Trash2,
   TrendingUp,
   Weight
@@ -18,7 +19,7 @@ import type {
   SessionExercise
 } from '../types';
 import { api } from '../lib/api';
-import { showTarget, showWeight } from '../lib/training';
+import { restOptions, showTarget, showWeight } from '../lib/training';
 import { withSetAdded, withSetRemoved, withSetRestored } from '../lib/workoutDraft';
 import { allowedSetTypes, withSetType } from '../lib/workoutSetTypes';
 import type { RemovedSet } from '../lib/workoutDraft';
@@ -26,6 +27,7 @@ import { Button } from './ui/Button';
 import { TextAreaField } from './ui/Field';
 import { Modal } from './ui/Modal';
 import { MenuButton, MenuItem } from './ui/MenuButton';
+import { Select } from './ui/Select';
 import { ExerciseLibrary } from './Exercises';
 import { WorkoutSetRow } from './WorkoutSetRow';
 import { useRecentExerciseSets } from './useRecentExerciseSets';
@@ -61,7 +63,7 @@ export function WorkoutActiveExercise({
   exercises: Exercise[];
   change: (s: Session) => void;
   editSet: (ei: number, si: number, patch: Partial<LoggedSet>) => void;
-  toggle: (ei: number, si: number) => void;
+  toggle: (ei: number, si: number) => void | boolean | Promise<void | boolean>;
   onSwap: (sessionExerciseId: string, replacementExerciseId: string | null, replacementName: string) => Promise<void>;
   onRestore?: (sessionExerciseId: string) => Promise<void>;
   onRemoveExercise: (index: number) => void;
@@ -71,6 +73,7 @@ export function WorkoutActiveExercise({
   const trackRir = useTrackRir();
   const [swapOpen, setSwapOpen] = useState(false);
   const [weightsOpen, setWeightsOpen] = useState(false);
+  const [restTimerOpen, setRestTimerOpen] = useState(false);
   const [catalogError, setCatalogError] = useState('');
   const [focusedLoads, setFocusedLoads] = useState<Pick<Exercise, 'loadStepKg' | 'availableLoadsKg'> | null>(null);
   const loadCatalog = () => {
@@ -238,6 +241,9 @@ export function WorkoutActiveExercise({
         )}
 
         <MenuButton label={`Actions for ${exercise.name}`} variant="tertiary" portal>
+          <MenuItem onClick={() => setRestTimerOpen(true)}>
+            <Timer size={15} /> Rest timer
+          </MenuItem>
           {exercise.exerciseId && loadAdjustable(exercise) && <MenuItem onClick={() => { setWeightsOpen(true); loadCatalog(); }}>
             <Weight size={15} /> Weight settings
           </MenuItem>}
@@ -255,9 +261,9 @@ export function WorkoutActiveExercise({
           <div className="modal-body workout-plan-detail-card">
           {exercise.progression && <p className="plan-detail-heading muted">{exercise.progression.reason}</p>}
           <ul className="plan-detail-list">
-            {prescription.map((p, pi) => (
+            {(prescription.some(p => !p.warmup) ? prescription.filter(p => !p.warmup) : prescription).map((p, pi) => (
               <li key={pi}>
-                <span className="plan-set-number">{p.warmup ? `Warm-up ${pi + 1}` : `Set ${pi + 1}`}</span>
+                <span className="plan-set-number">{`Set ${pi + 1}`}</span>
                 <div className="plan-set-prescription">
                   <span className="plan-set-target">{showTarget(p, trackRir)}</span>
                   {p.loadText && <span className="plan-set-load">{p.loadText}</span>}
@@ -274,7 +280,7 @@ export function WorkoutActiveExercise({
       <div className={`workout-set-table-container ${trackRir ? '' : 'no-rir'} ${isTimedExercise(exercise) ? 'timed' : ''}`.trim()}>
         <div className="workout-set-table-head">
           <span className="col-set">Set</span>
-          <span className="col-target">Target ↔</span>
+          <span className="col-target">Target</span>
           <span className="col-load">{unit.toUpperCase()}</span>
           {isTimedExercise(exercise) ? (
             <span className="col-reps col-time">Time</span>
@@ -375,6 +381,42 @@ export function WorkoutActiveExercise({
               <p>{catalogError || 'Loading weight settings…'}</p>
               {catalogError && <Button variant="secondary" onClick={loadCatalog}>Retry</Button>}
             </div>}
+          </div>
+        </Modal>
+      )}
+
+      {restTimerOpen && (
+        <Modal title={`${exercise.name} rest timer`} onClose={() => setRestTimerOpen(false)}>
+          <div className="modal-body">
+            <p className="muted" style={{ margin: 0 }}>
+              Adjust the rest interval between sets for this exercise.
+            </p>
+            <label className="field">
+              Rest duration
+              <Select
+                ariaLabel="Rest duration"
+                value={exercise.restSeconds ?? exercise.prescription[0]?.restSeconds ?? 90}
+                options={restOptions(exercise.restSeconds ?? exercise.prescription[0]?.restSeconds ?? 90)}
+                onChange={val => {
+                  const sec = Number(val);
+                  change({
+                    ...draft,
+                    exercises: draft.exercises.map((item, i) =>
+                      i === index
+                        ? {
+                            ...item,
+                            restSeconds: sec,
+                            prescription: item.prescription.map(p => ({ ...p, restSeconds: sec }))
+                          }
+                        : item
+                    )
+                  });
+                }}
+              />
+            </label>
+            <div className="modal-actions" style={{ padding: 0, border: 0, marginTop: 12 }}>
+              <Button variant="primary" onClick={() => setRestTimerOpen(false)}>Done</Button>
+            </div>
           </div>
         </Modal>
       )}
