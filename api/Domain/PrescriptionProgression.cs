@@ -65,8 +65,22 @@ internal static class PrescriptionProgression
             }
         }
 
+        // A dip caused by earlier sets being pushed too hard is not this set getting weaker: hold the
+        // load and aim for what the set managed the last time it started fresh.
+        var fatigue = changed ? FatigueReading.None : ProgressionFatigue.Read(history, min, goal, selector);
+        if (fatigue.Excused.Contains(source))
+        {
+            var freshReps = !rebuilding && fatigue.Fresh?.Reps is { } best &&
+                ProgressionEvidence.SameLoad(load, selector(fatigue.Fresh)) ? Math.Clamp(best, lower, upper) : repeatReps;
+            return Result(load, freshReps, fatigue.PastTarget
+                ? $"An earlier set went past its target effort last time, so this set's dip reflects carried-over fatigue, not lost strength. Repeat the load for {freshReps} reps and keep earlier sets at their target effort."
+                : $"Earlier sets were pushed closer to failure than the session before, so this set's dip reflects carried-over fatigue, not lost strength. Repeat the load for {freshReps} reps.",
+                rebuilding);
+        }
+
         var hardStreak = changed ? 0 : ProgressionEvidence.Streak(history,
             exposure => !ProgressionEvidence.Changed(exposure, min, max, goal) &&
+                !fatigue.Excused.Contains(exposure) &&
                 ProgressionEvidence.Hard(exposure, lower, goal));
         if (hardStreak > 0)
         {
@@ -93,7 +107,8 @@ internal static class PrescriptionProgression
         }
 
         if (!open && !changed && loads.Adjustable && !repsOnly && load is > 0 && actual < upper &&
-            ProgressionCalibration.Plateaued(history, load, goal, selector))
+            ProgressionCalibration.Plateaued(history.Where(exposure => !fatigue.Excused.Contains(exposure)).ToList(),
+                load, goal, selector))
         {
             if (mode != ProgressionModes.Normal)
                 return Result(load, repeatReps, "Holding performance during a calorie deficit is expected. Repeat the load and reps rather than forcing progress.", rebuilding);

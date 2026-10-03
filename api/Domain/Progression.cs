@@ -24,7 +24,11 @@ public sealed record SetExposure(
     bool IsRepRangeTransition = false,
     bool HasPrescription = false,
     /// The technique the set was prescribed with (see SetTechniques); null for a straight set.
-    string? Technique = null);
+    string? Technique = null,
+    /// How far the earlier working sets of the same exercise in that session went past their target
+    /// effort, and the lowest reserve they logged (see ProgressionFatigue). Null when unknown.
+    double? PriorOvershoot = null,
+    double? PriorReserve = null);
 
 public static class ProgressionModes
 {

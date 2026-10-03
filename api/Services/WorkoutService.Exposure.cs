@@ -67,21 +67,26 @@ public sealed partial class WorkoutService
                 if (!output.TryGetValue(key, out var exposures)) { exposures = []; output[key] = exposures; }
                 var legacyOrdinal = 0;
                 var prescriptions = Json.Read<List<SetPrescription>>(match.PrescriptionJson);
+                // Each set remembers how hard the sets before it were pushed, so a dip caused by an
+                // all-out earlier set is not read as this set getting weaker.
+                var earlier = new List<SetEffort>();
                 foreach (var set in setsByExercise[match.Id])
                 {
                     var ordinal = set.WorkingSetOrdinal ?? ++legacyOrdinal;
                     if (set.WorkingSetOrdinal is not null) legacyOrdinal = Math.Max(legacyOrdinal, ordinal);
+                    var prescription = prescriptions.ElementAtOrDefault(set.Position);
+                    var before = ProgressionFatigue.Before(earlier);
+                    earlier.Add(new SetEffort(set.Rir, set.Rpe, prescription?.Rir, prescription?.TargetRpe));
                     var list = exposures.GetValueOrDefault(ordinal);
                     if (list is null) { list = []; exposures[ordinal] = list; }
                     if (list.Count >= 30 || list.Any(exposure => exposure.SessionId == match.SessionId)) continue;
-                    var prescription = prescriptions.ElementAtOrDefault(set.Position);
                     var suggestion = ReadOptional<SetProgressionSuggestion>(set.SuggestionJson);
                     var open = prescription is not null && Progression.HasOpenReps(prescription.RepsText);
                     list.Add(new SetExposure(match.SessionId, match.FinishedAt!.Value, set.WeightKg, set.Reps, set.Rpe,
                         set.SystemLoadKg, set.ResistanceMode, set.Rir,
                         open ? null : prescription?.RepMin, open ? null : prescription?.RepMax,
                         prescription?.TargetRpe, prescription?.Rir, suggestion?.IsRepRangeTransition == true,
-                        prescription is not null, SetTechniques.Of(prescription)));
+                        prescription is not null, SetTechniques.Of(prescription), before.Overshoot, before.Reserve));
                 }
             }
         }

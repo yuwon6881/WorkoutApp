@@ -1,6 +1,7 @@
 using System.Text.Json.Nodes;
 using Microsoft.EntityFrameworkCore;
 using Workout.Api.Data;
+using Workout.Api.Domain;
 
 namespace Workout.Api.Services.AI.Tools;
 
@@ -71,14 +72,25 @@ public sealed class GetActiveWorkoutTool : IAiTool
                 name = e.NameSnapshot,
                 totalSets = exerciseSets.Count,
                 completedSets = doneCount,
-                sets = exerciseSets.Select(s => new
+                sets = exerciseSets.Select(s =>
                 {
-                    setNumber = s.Position + 1,
-                    done = s.Done,
-                    weight = ConvertWeight(s.WeightKg, context.WeightUnit),
-                    reps = s.Reps,
-                    rir = context.TrackRir ? s.Rir : null,
-                    durationSeconds = s.DurationSeconds
+                    // The suggestion fixed when the session started is the live recommendation for that set.
+                    var suggestion = string.IsNullOrWhiteSpace(s.SuggestionJson)
+                        ? null : Json.Read<SetProgressionSuggestion>(s.SuggestionJson);
+                    return new
+                    {
+                        setNumber = s.Position + 1,
+                        workingSet = s.WorkingSetOrdinal,
+                        warmup = s.Warmup,
+                        done = s.Done,
+                        weight = AiToolUnits.Weight(s.WeightKg, context.WeightUnit),
+                        reps = s.Reps,
+                        rir = context.TrackRir ? s.Rir : null,
+                        durationSeconds = s.DurationSeconds,
+                        suggestedWeight = AiToolUnits.Weight(suggestion?.SuggestedLoadKg, context.WeightUnit),
+                        suggestedReps = suggestion?.SuggestedReps,
+                        suggestionReason = suggestion?.Reason
+                    };
                 }).ToList()
             };
         }).ToList();
@@ -97,13 +109,5 @@ public sealed class GetActiveWorkoutTool : IAiTool
             restStatus = activeWorkout.RestStatus,
             exercises = exercisesOutput
         });
-    }
-
-    private static double? ConvertWeight(double? weightKg, string unit)
-    {
-        if (!weightKg.HasValue) return null;
-        if (unit.Equals("lb", StringComparison.OrdinalIgnoreCase))
-            return Math.Round(weightKg.Value * 2.20462, 1);
-        return Math.Round(weightKg.Value, 1);
     }
 }

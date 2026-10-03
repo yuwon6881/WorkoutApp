@@ -15,8 +15,22 @@ public sealed class GetExerciseProgressTool : IAiTool
         _db = db;
     }
 
+    private const int SessionLimit = 5;
+    private const int FocusedSessionLimit = 10;
+    private const int MaxSetNumber = 20;
+
+    private const string HowToRead =
+        "set is the working-set number; compare a set only with the same set in other sessions. " +
+        "suggestedWeight/suggestedReps are what the app recommended when that session started, and suggestionReason explains why. " +
+        "earlierSetsPastTargetBy is how many reps closer to failure than prescribed an earlier set of the same exercise went in that session; " +
+        "a lower result on a later set after that is carried-over fatigue, not lost strength. " +
+        "The next recommendation is calculated when the next workout starts.";
+
     public string Name => "get_exercise_progress";
-    public string Description => "Get strength progression, estimated 1RM trends, personal records, and recent performance history for an exercise.";
+    public string Description =>
+        "Get the progression of one exercise set by set: each working set's weight, reps, and RIR across recent sessions, " +
+        "its target, the app's suggestion and reason, effort carried over from earlier sets, the live suggestion in a workout " +
+        "in progress, and the estimated 1RM trend. Pass setNumber to focus on one working set across more sessions.";
 
     public JsonObject ParametersSchema => new()
     {
@@ -27,6 +41,13 @@ public sealed class GetExerciseProgressTool : IAiTool
             {
                 ["type"] = "string",
                 ["description"] = "The exercise name or slug (e.g., 'Bench Press', 'barbell-bench-press')."
+            },
+            ["setNumber"] = new JsonObject
+            {
+                ["type"] = "integer",
+                ["minimum"] = 1,
+                ["maximum"] = MaxSetNumber,
+                ["description"] = "Optional working-set number (1 = first working set) to follow one set across sessions."
             }
         },
         ["required"] = new JsonArray("exercise")
@@ -38,6 +59,7 @@ public sealed class GetExerciseProgressTool : IAiTool
     public async Task<AiToolResult> ExecuteAsync(AiToolArgs args, AiToolContext context, CancellationToken cancellationToken)
     {
         var input = args.RequiredString("exercise", 160).Trim();
+        var setNumber = args.OptionalInt("setNumber", 1, MaxSetNumber);
         var normalized = CatalogService.Normalize(input);
 
         // Try to match catalog exercise by slug or name
@@ -91,46 +113,12 @@ public sealed class GetExerciseProgressTool : IAiTool
                 .FirstOrDefaultAsync(p => p.ExerciseId == Guid.Empty && p.NameKey == normalized, cancellationToken);
         }
 
-        // Query recent session sets for this exercise (last 10 sessions where it was performed)
-        var completedSessions = _db.Workouts.AsNoTracking().Where(w => !w.Active && w.FinishedAt != null);
-        var recentSetsQuery = (from se in _db.SessionExercises.AsNoTracking()
-            join session in completedSessions on se.SessionId equals session.Id
-            where (exerciseId != null && se.ExerciseId == exerciseId) || se.NameSnapshot.ToLower() == exerciseName.ToLower()
-            orderby session.FinishedAt descending, session.Id descending, se.Position
-            select se).Take(10);
-
-        var recentSes = await recentSetsQuery.ToListAsync(cancellationToken);
-        var recentSeIds = recentSes.Select(se => se.Id).ToList();
-        var sessionIds = recentSes.Select(se => se.SessionId).Distinct().ToList();
-
-        var sessions = await _db.Workouts.AsNoTracking()
-            .Where(w => sessionIds.Contains(w.Id) && w.FinishedAt != null)
-            .ToDictionaryAsync(w => w.Id, w => w.FinishedAt!.Value, cancellationToken);
-
-        var doneSets = await _db.Sets.AsNoTracking()
-            .Where(s => recentSeIds.Contains(s.SessionExerciseId) && s.Done && !s.Warmup)
-            .OrderByDescending(s => s.WeightKg)
-            .ToListAsync(cancellationToken);
-
-        var historyBySession = recentSes
-            .Where(se => sessions.ContainsKey(se.SessionId))
-            .Select(se =>
-            {
-                var sets = doneSets.Where(s => s.SessionExerciseId == se.Id).ToList();
-                var bestSet = sets.OrderByDescending(s => (s.WeightKg ?? 0) * (s.Reps ?? 0)).FirstOrDefault();
-                return new
-                {
-                    date = context.LocalDate(sessions[se.SessionId]).ToString("yyyy-MM-dd"),
-                    completedSets = sets.Count,
-                    topWeight = bestSet == null ? null : ConvertWeight(bestSet.WeightKg, context.WeightUnit),
-                    topReps = bestSet?.Reps,
-                    topRir = context.TrackRir ? bestSet?.Rir : null,
-                    topDurationSeconds = bestSet?.DurationSeconds
-                };
-            })
-            .OrderByDescending(h => h.date)
-            .Take(5)
-            .ToList();
+        var history = new ExerciseSetHistory(_db, context);
+        var (sessions, more) = await history.Completed(exerciseId, exerciseName, setNumber,
+            setNumber is null ? SessionLimit : FocusedSessionLimit, cancellationToken);
+        var current = await history.Active(exerciseId, exerciseName, setNumber, cancellationToken);
+        context.Evidence.RecordAll(AiEvidenceLedger.Workout, sessions.Select(session => session.WorkoutId));
+        if (current != null) context.Evidence.Record(AiEvidenceLedger.Workout, current.WorkoutId);
 
         return AiToolResult.Of(new
         {
@@ -138,21 +126,17 @@ public sealed class GetExerciseProgressTool : IAiTool
             slug,
             muscle = catalogEx?.Muscle ?? customEx?.Muscle ?? "Unknown",
             weightUnit = context.WeightUnit,
+            rirTracked = context.TrackRir,
+            setNumber,
             progression = progress == null ? null : new
             {
-                trendE1rm = ConvertWeight(progress.TrendE1rmKg, context.WeightUnit),
-                lastE1rm = ConvertWeight(progress.LastE1rmKg, context.WeightUnit),
-                stalls = progress.Stalls
+                trendE1rm = AiToolUnits.Weight(progress.TrendE1rmKg, context.WeightUnit),
+                lastE1rm = AiToolUnits.Weight(progress.LastE1rmKg, context.WeightUnit),
+                sessionsBelowTrend = progress.Stalls
             },
-            recentExposures = historyBySession
-        });
-    }
-
-    private static double? ConvertWeight(double? weightKg, string unit)
-    {
-        if (!weightKg.HasValue) return null;
-        if (unit.Equals("lb", StringComparison.OrdinalIgnoreCase))
-            return Math.Round(weightKg.Value * 2.20462, 1);
-        return Math.Round(weightKg.Value, 1);
+            sessions,
+            currentWorkout = current,
+            howToRead = HowToRead
+        }, truncated: more);
     }
 }

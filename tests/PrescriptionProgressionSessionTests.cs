@@ -7,7 +7,7 @@ namespace Workout.Tests;
 
 public sealed class PrescriptionProgressionSessionTests
 {
-    private static async Task<Guid> Template(Harness h, SetPrescription prescription)
+    private static async Task<Guid> Template(Harness h, params SetPrescription[] prescription)
     {
         await h.Seed(new SeedExercise("curl", "Curl", "Biceps", "Dumbbell", "Curl", null, 2.5));
         var id = await h.ExerciseId("curl");
@@ -49,6 +49,38 @@ public sealed class PrescriptionProgressionSessionTests
         Assert.Equal(15, rebuilding.WeightKg);
         Assert.Equal(8, rebuilding.Reps);
         Assert.True(rebuilding.Suggestion!.IsRepRangeTransition);
+    }
+
+    private static async Task LogSets(Harness h, SessionView session, params (double Load, int Reps, string Rir)[] sets)
+    {
+        var exercise = Assert.Single(session.Exercises);
+        var inputs = sets.Select((set, index) =>
+            new SetInput(set.Load, set.Reps, Progression.RpeFromRir(set.Rir), true, Id: exercise.Sets[index].Id, Rir: set.Rir)).ToList();
+        await h.Workouts.Save(session.Id, new SessionInput(null,
+            [new SessionExerciseInput(exercise.ExerciseId, exercise.Name, null, exercise.Prescription, inputs, Id: exercise.Id)],
+            session.Revision, null), default);
+        await h.Workouts.Finish(session.Id, null, default);
+    }
+
+    [Fact]
+    public async Task A_second_set_dip_after_the_first_set_overshot_its_target_holds_the_load()
+    {
+        await using var h = await Harness.Create();
+        await h.SignIn();
+        var template = await Template(h, Harness.Set(8, 10), Harness.Set(8, 10));
+        await LogSets(h, await h.Workouts.Start(template, null, default), (20, 10, "2"), (20, 9, "2"));
+        // The first set went to failure against an RPE 8 (two in reserve) target; the second fell short.
+        await LogSets(h, await h.Workouts.Start(template, null, default), (20, 10, "0"), (20, 6, "2"));
+
+        var next = await h.Workouts.Start(template, null, default);
+        var second = next.Exercises.Single().Sets[1];
+        Assert.Equal(20, second.WeightKg);
+        Assert.Equal(9, second.Reps);
+        Assert.Contains("fatigue", second.Suggestion!.Reason);
+        var history = await h.Workouts.PreviousExposures(next.Exercises.Single().ExerciseId, "Curl", default);
+        Assert.Equal(2, history[2][0].PriorOvershoot);
+        Assert.Equal(0, history[2][0].PriorReserve);
+        Assert.Null(history[1][0].PriorOvershoot);
     }
 
     [Fact]
