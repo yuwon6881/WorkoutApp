@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { ArrowRight, CheckCircle2, Dumbbell, FileText, Plus, Trash2, Zap } from 'lucide-react';
 import type { Bootstrap, Exercise, Template } from '../types';
 import { api } from '../lib/api';
@@ -86,13 +86,24 @@ export function Programs({ data, exercises, onStart, onImport, onChanged, onTemp
     finally { setBusy(false); }
   }
 
-  if (building) {
-    return <ProgramBuilderPage initialDraft={createEmptyProgramDraft()} exercises={exercises}
-      onBack={() => setBuilding(false)}
-      onCreated={async () => { await onChanged(); }} />;
-  }
-
   const hasActiveWorkout = Boolean(data.activeWorkout?.active);
+
+  useEffect(() => {
+    if (!slot.optimistic) return;
+    if (slot.optimistic.type === 'set-active') {
+      if (slot.optimistic.item.kind === 'program' && rawActiveProgram?.id === slot.optimistic.item.program.id) {
+        slot.clearOptimistic();
+      } else if (slot.optimistic.item.kind === 'template' && rawActiveTemplate?.id === slot.optimistic.item.template.id) {
+        slot.clearOptimistic();
+      }
+    } else if (slot.optimistic.type === 'set-library') {
+      if (slot.optimistic.item.kind === 'program' && rawActiveProgram?.id !== slot.optimistic.item.program.id) {
+        slot.clearOptimistic();
+      } else if (slot.optimistic.item.kind === 'template' && rawActiveTemplate?.id !== slot.optimistic.item.template.id) {
+        slot.clearOptimistic();
+      }
+    }
+  }, [slot.optimistic, rawActiveProgram, rawActiveTemplate, slot]);
 
   const libraryPrograms = useMemo(() => {
     let list = data.programs.filter(program => !program.active);
@@ -142,6 +153,12 @@ export function Programs({ data, exercises, onStart, onImport, onChanged, onTemp
     ...handlers(item, from),
     'data-slot-dragging': draggingId === slotItemId(item) ? 'true' : undefined
   });
+
+  if (building) {
+    return <ProgramBuilderPage initialDraft={createEmptyProgramDraft()} exercises={exercises}
+      onBack={() => setBuilding(false)}
+      onCreated={async () => { await onChanged(); }} />;
+  }
 
   return <>
     <div className="page-heading">

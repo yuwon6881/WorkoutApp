@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent, type HTMLAttributes } from 'react';
 import { ArrowRight, Library, PartyPopper, RotateCcw, Trash2 } from 'lucide-react';
-import type { Exercise, ImportDraft, ProgramSummary, Template, TemplateExercise } from '../types';
+import type { DraftWorkout, Exercise, ImportDraft, ProgramSummary, Template, TemplateExercise } from '../types';
 import { ApiError, api } from '../lib/api';
 import { isProgramFinished, programToDraft } from '../lib/activeSlot';
 import { Button } from './ui/Button';
@@ -97,12 +97,99 @@ export function ActiveProgramCard({ program, exercises, onStart, onChanged, hasA
     } finally { setResetBusy(false); }
   }
 
+  async function handleDayChange(updatedDay: DraftWorkout) {
+    setDraft(prev => prev ? {
+      ...prev,
+      workouts: prev.workouts.map(w => w.lineId === updatedDay.lineId ? updatedDay : w)
+    } : null);
+
+    const targetTemplate = detail?.find(t => t.id === updatedDay.lineId);
+    if (targetTemplate) {
+      try {
+        const input = {
+          name: updatedDay.name.trim(),
+          focus: updatedDay.focus?.trim() || null,
+          note: updatedDay.notes || null,
+          block: updatedDay.block || null,
+          phase: updatedDay.phase || null,
+          phaseWeek: updatedDay.phaseWeek,
+          isRestDay: updatedDay.isRestDay,
+          revision: targetTemplate.revision,
+          idempotencyId: crypto.randomUUID(),
+          exercises: updatedDay.exercises.map(e => ({
+            exerciseId: e.exerciseId,
+            sourceName: e.sourceName,
+            note: e.notes || null,
+            sets: e.sets,
+            sequenceGroup: e.sequenceGroup || null,
+            substitutions: e.substitutions ?? [],
+            sourcePage: e.sourcePage ?? null,
+            slotKey: e.slotKey ?? null,
+            restSeconds: e.restSeconds ?? null,
+            demoUrl: e.demoUrl ?? null,
+            demoLinks: e.demoLinks ?? null
+          }))
+        };
+        const saved = await api.updateTemplate(targetTemplate.id, input);
+        setDetail(prev => prev?.map(t => t.id === saved.id ? saved : t) ?? null);
+        void onChanged();
+      } catch (err) {
+        console.error('Failed to update template', err);
+      }
+    }
+  }
+
+  async function handleDraftChange(updatedDraft: ImportDraft) {
+    setDraft(updatedDraft);
+    for (const updatedDay of updatedDraft.workouts) {
+      const targetTemplate = detail?.find(t => t.id === updatedDay.lineId);
+      if (targetTemplate) {
+        try {
+          const input = {
+            name: updatedDay.name.trim(),
+            focus: updatedDay.focus?.trim() || null,
+            note: updatedDay.notes || null,
+            block: updatedDay.block || null,
+            phase: updatedDay.phase || null,
+            phaseWeek: updatedDay.phaseWeek,
+            isRestDay: updatedDay.isRestDay,
+            revision: targetTemplate.revision,
+            idempotencyId: crypto.randomUUID(),
+            exercises: updatedDay.exercises.map(e => ({
+              exerciseId: e.exerciseId,
+              sourceName: e.sourceName,
+              note: e.notes || null,
+              sets: e.sets,
+              sequenceGroup: e.sequenceGroup || null,
+              substitutions: e.substitutions ?? [],
+              sourcePage: e.sourcePage ?? null,
+              slotKey: e.slotKey ?? null,
+              restSeconds: e.restSeconds ?? null,
+              demoUrl: e.demoUrl ?? null,
+              demoLinks: e.demoLinks ?? null
+            }))
+          };
+          const saved = await api.updateTemplate(targetTemplate.id, input);
+          setDetail(prev => prev?.map(t => t.id === saved.id ? saved : t) ?? null);
+        } catch (err) {
+          console.error('Failed to update template', err);
+        }
+      }
+    }
+    void onChanged();
+  }
+
   const meta = finished
     ? `${weekCount} ${weekCount === 1 ? 'week' : 'weeks'} completed`
     : `Week ${weekIndex} of ${weekCount}${progress ? ` · ${progress.passedDays} of ${progress.totalDays} days passed` : ''}`;
 
-  return <section {...dragProps} className={`panel slot-card program-card ${finished ? 'slot-card-finished' : ''} ${moving ? 'slot-card-moving' : ''}`}
-    aria-busy={actions.busy || loading}>
+  return <section {...dragProps} className={`panel slot-card program-card ${finished ? 'slot-card-finished' : ''} ${moving ? 'slot-card-moving' : ''} ${(!expanded && !finished) ? 'is-collapsed-card' : ''}`}
+    aria-busy={actions.busy || loading}
+    onClick={(!expanded && !finished) ? (e) => {
+      const target = e.target as HTMLElement;
+      if (target.closest('.slot-card-grip, .slot-card-controls, button, a, [role="button"], [role="menu"], input, select')) return;
+      toggle();
+    } : undefined}>
     <SlotCardHeader title={program.name} meta={meta}
       badge={<span className={`tiny-label ${finished ? 'slot-finished-label' : 'accent'}`}>{finished ? 'Finished' : 'Active'}</span>}
       expanded={finished ? undefined : expanded} onToggle={finished ? undefined : toggle}
@@ -117,7 +204,7 @@ export function ActiveProgramCard({ program, exercises, onStart, onChanged, hasA
     {finished
       ? <SlotFinished name={program.name} description="You passed every week of this program." actions={actions} />
       : <>
-        {progress && <ProgramWeekChecklist program={program} draft={draft} exercises={exercises} onStart={onStart} onChanged={onChanged} hasActiveWorkout={hasActiveWorkout} />}
+        {progress && <ProgramWeekChecklist program={program} draft={draft} exercises={exercises} onStart={onStart} onChanged={onChanged} hasActiveWorkout={hasActiveWorkout} onDayChange={handleDayChange} onDraftChange={handleDraftChange} />}
         {expanded && (detail
           ? <ProgramDayTree days={currentDays} completed={program.completedTemplateIds} skipped={program.skippedTemplateIds ?? []}
             nextId={program.nextTemplateId} detail={detail} exercises={exercises} onStart={onStart} canStart

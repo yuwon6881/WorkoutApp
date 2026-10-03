@@ -41,7 +41,8 @@ export function useWorkoutSlotActions({ holder, onChanged, onTemplateDeleted }: 
       setError(failure instanceof ApiError ? failure.message : 'Could not update your workouts. Try again.');
     } finally {
       setBusy(false);
-      setOptimistic(null);
+      // Keep optimistic state active until incoming data updates, with a fallback timeout
+      setTimeout(() => setOptimistic(null), 4000);
     }
   }, [onChanged]);
 
@@ -132,5 +133,5 @@ export function useWorkoutSlotActions({ holder, onChanged, onTemplateDeleted }: 
     void perform(run);
   }, [confirmation, perform]);
 
-  return { busy, error, confirmation, cancel: () => { setConfirmation(null); setOptimistic(null); }, confirm, activate, moveToLibrary, restart, remove, drop, optimistic };
+  return { busy, error, confirmation, cancel: () => { setConfirmation(null); setOptimistic(null); }, clearOptimistic: () => setOptimistic(null), confirm, activate, moveToLibrary, restart, remove, drop, optimistic };
 }

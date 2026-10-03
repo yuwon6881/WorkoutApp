@@ -98,10 +98,9 @@ export function useWorkoutSlotDrag(onDrop: (item: SlotItem, from: SlotZone, to: 
   const handlers = useCallback((item: SlotItem, from: SlotZone) => ({
     onPointerDown: (event: ReactPointerEvent<HTMLElement>) => {
       if (event.pointerType === 'mouse' && event.button !== 0) return;
-      const target = event.target as HTMLElement;
-      const onGrip = Boolean(target.closest('[data-slot-grip]'));
-      // A mouse may grab the card anywhere except its own controls; touch only by the grip.
-      if (event.pointerType === 'mouse' ? !onGrip && target.closest('button, a, input, textarea, [role="menu"], [role="dialog"]') : !onGrip) return;
+      const onGrip = Boolean((event.target as HTMLElement).closest('[data-slot-grip]'));
+      // Dragging is only started by holding the designated grip button for both mouse and touch.
+      if (!onGrip) return;
       window.clearTimeout(returnTimer.current);
       const card = event.currentTarget;
       const current: PendingPointer = {

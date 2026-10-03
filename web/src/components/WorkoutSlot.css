@@ -105,7 +105,8 @@
 }
 
 .slot-card-header.is-clickable,
-.library-program-card.is-collapsed-card {
+.library-program-card.is-collapsed-card,
+.program-card.is-collapsed-card {
   cursor: pointer;
 }
 

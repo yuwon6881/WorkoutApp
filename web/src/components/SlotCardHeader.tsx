@@ -18,7 +18,7 @@ export function SlotCardHeader({ title, meta, badge, expanded, onToggle, menuLab
   const handleHeaderClick = (e: React.MouseEvent) => {
     if (!onToggle) return;
     const target = e.target as HTMLElement;
-    if (target.closest('.slot-card-grip, .slot-card-controls, button, [role="button"], [role="menu"]')) {
+    if (target.closest('.slot-card-grip, button, a, [role="button"], [role="menu"], input, select')) {
       return;
     }
     onToggle();

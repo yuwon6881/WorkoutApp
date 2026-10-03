@@ -7,7 +7,7 @@ import type { QueueStatus } from '../lib/queue';
 import type { AppResource, Bootstrap, Preferences, Session } from '../types';
 import { deleteWorkoutPushToken, getWorkoutPushDeviceId } from '../lib/push/firebaseMessaging';
 import { retireWorkoutPushAfterAccountSwitch, retireWorkoutPushDevice } from '../lib/push/cleanup';
-import { defaultDevicePreferences, getLastAccountId, getLastRecovery, getRecovery, loadDevicePreferences, refreshRecovery, sameWorkoutEdits, saveDevicePreferences as persistDevicePreferences, setConflict, setLastAccount, startRecovery } from '../lib/workoutRecovery';
+import { clearRecovery, defaultDevicePreferences, getLastAccountId, getLastRecovery, getRecovery, loadDevicePreferences, refreshRecovery, sameWorkoutEdits, saveDevicePreferences as persistDevicePreferences, setConflict, setLastAccount, startRecovery } from '../lib/workoutRecovery';
 import type { DevicePreferences, WorkoutRecoveryRecord } from '../lib/workoutRecovery';
 
 export type AppState = {
@@ -127,7 +127,11 @@ export function useApp(): AppState {
         if (hasPending && !operationWasSent && local.serverSession.revision !== next.activeWorkout.revision && !sameWorkoutEdits(local.serverSession, next.activeWorkout)) {
           local = await setConflict(next.account.id, true, next.activeWorkout) ?? local;
         } else if (!hasPending && !sameWorkoutEdits(local.draft, next.activeWorkout) && local.serverSession.revision !== next.activeWorkout.revision) {
-          local = await setConflict(next.account.id, true, next.activeWorkout) ?? local;
+          if (!sameWorkoutEdits(local.draft, local.serverSession)) {
+            local = await setConflict(next.account.id, true, next.activeWorkout) ?? local;
+          } else {
+            local = await refreshRecovery(next.account.id, next.account.displayName, next.activeWorkout, next.preferences) ?? local;
+          }
         } else if (sameWorkoutEdits(local.draft, next.activeWorkout)) {
           local = await refreshRecovery(next.account.id, next.account.displayName, next.activeWorkout, next.preferences) ?? local;
         } else if (!operationWasSent && sameWorkoutEdits(local.serverSession, next.activeWorkout)) {
@@ -143,8 +147,13 @@ export function useApp(): AppState {
         const previous = await api.getWorkout(local.sessionId).catch(() => null);
         local = await setConflict(next.account.id, true, previous ?? undefined) ?? local;
       } else if (local && !next.activeWorkout?.active && !local.operations.some(operation => operation.type === 'finish')) {
-        const previous = await api.getWorkout(local.sessionId).catch(() => null);
-        local = await setConflict(next.account.id, true, previous ?? local.serverSession) ?? local;
+        if (!sameWorkoutEdits(local.draft, local.serverSession) || local.operations.length > 0) {
+          const previous = await api.getWorkout(local.sessionId).catch(() => null);
+          local = await setConflict(next.account.id, true, previous ?? local.serverSession) ?? local;
+        } else {
+          await clearRecovery(next.account.id).catch(() => undefined);
+          local = null;
+        }
       } else if (next.activeWorkout) {
         try {
           await startRecovery({

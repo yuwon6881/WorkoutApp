@@ -54,7 +54,18 @@ export function Modal({ title, children, onClose, wide = false, headless = false
   const drag = useSheetDrag(ref, close);
 
   const handlePointerDown = (e: React.PointerEvent<HTMLDialogElement>) => {
-    pointerStartedOnBackdrop.current = e.target === ref.current;
+    const el = ref.current;
+    if (el && e.target === el) {
+      const rect = el.getBoundingClientRect();
+      pointerStartedOnBackdrop.current = (
+        e.clientX < rect.left ||
+        e.clientX > rect.right ||
+        e.clientY < rect.top ||
+        e.clientY > rect.bottom
+      );
+    } else {
+      pointerStartedOnBackdrop.current = false;
+    }
     drag.onPointerDown(e);
   };
 

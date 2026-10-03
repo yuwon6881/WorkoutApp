@@ -33,7 +33,7 @@ export function useSheetDrag(ref: RefObject<HTMLDialogElement | null>, onDismiss
     const target = event.target as HTMLElement;
     if (!element || windowTier() !== 'compact' || event.button !== 0) return;
     const rect = element.getBoundingClientRect();
-    const onGrabStrip = event.clientY - rect.top < 24;
+    const onGrabStrip = event.clientY >= rect.top && event.clientY - rect.top < 24;
     const onHandle = Boolean(target.closest('dialog > header, [data-sheet-handle]'));
     if ((!onGrabStrip && !onHandle) || target.closest(INTERACTIVE)) return;
     drag.current = { pointerId: event.pointerId, startY: event.clientY, lastY: event.clientY, lastAt: event.timeStamp, velocity: 0, moved: false };
