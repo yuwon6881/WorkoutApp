@@ -238,19 +238,19 @@
   color: var(--accent);
 }
 
-/* Rest: pinned under the header while a rest runs, as a large countdown, quick adjustments, and
+/* Rest: pinned under the header while a rest runs, as a compact countdown, quick adjustments, and
    the set that comes next. It is not rendered between rests. */
 .workout-rest-bar {
   display: grid;
-  gap: 10px;
-  padding: 16px 20px 14px;
+  gap: 4px;
+  padding: 6px 12px 8px;
   border-bottom: 1px solid var(--accent-border);
-  background: var(--accent-soft);
+  background: var(--surface);
   color: var(--accent);
   font-size: var(--font-secondary);
 }
 
-.rest-bar-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 4px 10px; }
+.rest-bar-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 
 .workout-rest-bar .rest-clock { color: var(--text); font-size: var(--font-secondary); font-variant-numeric: tabular-nums; white-space: nowrap; }
 
@@ -258,7 +258,7 @@
   display: inline-block;
   min-width: 4ch;
   color: var(--text);
-  font-size: 28px;
+  font-size: 20px;
   font-weight: 750;
   letter-spacing: -0.02em;
   line-height: 1;
@@ -266,13 +266,13 @@
 
 .workout-rest-bar .button {
   min-height: 44px;
-  padding: 0 12px;
+  padding: 0 6px;
   font-size: var(--font-secondary);
 }
 
-.rest-bar-actions { display: flex; align-items: center; gap: 8px; margin-left: auto; }
+.rest-bar-actions { display: flex; align-items: center; gap: 2px; margin-left: auto; }
 
-.workout-rest-bar .rest-bar-actions .button { min-width: 56px; padding: 0 14px; }
+.workout-rest-bar .rest-bar-actions .button { min-width: 44px; padding: 0 6px; }
 
 .rest-next {
   margin: 0;
@@ -286,7 +286,7 @@
 .workout-rest-bar .rest-track {
   display: block;
   max-width: none;
-  height: 6px;
+  height: 2px;
   border-radius: var(--radius-pill);
   background: var(--border);
   overflow: hidden;
@@ -315,7 +315,7 @@
 .workout-footer-actions .button { min-height: 48px; justify-content: center; }
 
 @media (max-width: 639px) {
-  .workout-rest-bar { padding-inline: 16px; }
+  .workout-rest-bar { padding-inline: 12px; }
 }
 
 @media (min-width: 1024px) {
@@ -375,3 +375,12 @@
 .workout-details > p > svg { flex: 0 0 auto; margin-top: 2px; color: var(--muted); }
 .workout-details > p > span { display: grid; gap: 2px; min-width: 0; }
 .workout-details small { color: var(--muted); font-size: var(--font-secondary); }
+
+.workout-details-summary { display: grid; gap: 10px; padding: 18px; border-radius: 14px; border: 1px solid var(--accent-border); background: var(--accent-soft); }
+.workout-details-summary > strong { font-size: 20px; overflow-wrap: anywhere; }
+.workout-details-summary > span { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: var(--font-secondary); color: var(--muted); }
+.workout-details > p { padding: 16px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface-raised); }
+.workout-details > p > svg { color: var(--accent); }
+.workout-details strong { color: var(--text); }
+.workout-details small { line-height: 1.65; }
+.workout-details .workout-context-source { margin: 6px 0; color: var(--accent); text-transform: capitalize; }

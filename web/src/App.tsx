@@ -363,7 +363,7 @@ export default function App() {
       </SelectionIndicator>
     </nav>
 
-    {workoutSession?.active && !training && <ResumeWorkoutButton name={workoutSession.name} rest={restState} onResume={() => setTraining(true)} />}
+    {workoutSession?.active && !training && <ResumeWorkoutButton session={workoutSession} rest={restState} onResume={() => setTraining(true)} />}
 
     <Suspense fallback={null}><ImportWatchBridge imports={data.imports} active={tab !== 'import'} training={training}
       withResume={Boolean(workoutSession?.active)} onOpen={openImport} onFinished={app.reload} onLocalFailure={setToast} /></Suspense>

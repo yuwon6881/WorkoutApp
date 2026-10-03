@@ -421,15 +421,10 @@ test('build a workout, log a set against the server, and see it in history', asy
   // Correcting a logged set's values keeps it logged rather than silently unlogging it.
   await logger.getByRole('spinbutton', { name: 'Barbell bench press set 1 weight', exact: true }).fill('60');
   await logger.getByRole('spinbutton', { name: 'Barbell bench press set 1 reps', exact: true }).fill('8');
-  const rpeTrigger = logger.getByRole('button', { name: /Barbell bench press set 1 (?:RPE|RIR)/ });
-  await rpeTrigger.click();
-  const rirPopover = page.getByRole('dialog', { name: /Select (?:RPE|RIR)/ });
-  if (await rirPopover.isVisible()) {
-    await rirPopover.getByRole('button', { name: /^2\b/ }).click();
-  } else {
-    await logger.getByRole('listbox', { name: /Barbell bench press set 1 (?:RPE|RIR)/ })
-      .getByRole('option', { name: /(?:8|2)/ }).click();
-  }
+  await logger.getByRole('spinbutton', { name: 'Barbell bench press set 1 reps', exact: true }).click();
+  const entry = page.getByRole('dialog', { name: 'Reps & RIR', exact: true });
+  await entry.getByRole('radio', { name: '2 RIR, 2 reps in reserve', exact: true }).click();
+  await entry.getByRole('button', { name: 'Done', exact: true }).click();
   await expect(logged).toHaveAttribute('aria-pressed', 'true');
   // A completed set has to read as finished, not just change a label.
   await expect(logger.locator('.workout-set-row.done')).toHaveCount(1);
@@ -485,6 +480,12 @@ test('build a workout, log a set against the server, and see it in history', asy
   await expect(secondWeight).toHaveValue('55');
 
   // Finishing early lives in the options menu; the footer's own Finish only appears once every set is logged.
+  await activeLogger.getByRole('button', { name: 'Minimize workout', exact: true }).click();
+  await openTab(page, 'Overview');
+  const today = new Date().toDateString();
+  await expect(page.getByRole('button', { name: `${today}, workout in progress, today`, exact: true })).toBeVisible();
+  await expect(page.locator('.dashboard-quick-start')).toHaveCount(0);
+  await page.getByRole('button', { name: `Resume ${name}`, exact: true }).click();
   await expect(page.getByRole('button', { name: 'Finish workout', exact: true })).toHaveCount(0);
   await activeLogger.getByRole('button', { name: 'Workout options', exact: true }).click();
   await page.getByRole('menuitem', { name: 'Finish workout', exact: true }).click();
@@ -496,6 +497,7 @@ test('build a workout, log a set against the server, and see it in history', asy
 
   await openTab(page, 'Overview');
   await expect(page.getByRole('heading', { name: 'Overview' })).toBeVisible();
+  await expect(page.getByRole('button', { name: `${today}, workout completed, today`, exact: true })).toBeVisible();
   await expect(page.getByText(name, { exact: true }).first()).toBeVisible();
   const progressStats = page.locator('.progress-stats');
   const workoutHistoryHeading = page.getByRole('heading', { name: 'Workout history', exact: true });
@@ -1296,6 +1298,12 @@ test('overview calendar displays matching markers and details for completed, in-
       date: todayStr,
     },
     {
+      id: 'activity-completed-second-today',
+      name: 'Morning Mobility',
+      status: 'completed',
+      date: todayStr,
+    },
+    {
       id: 'activity-in-progress-yesterday',
       name: 'Late Night Squats',
       startedAt: `${yesterdayStr}T23:30:00.000Z`,
@@ -1336,6 +1344,9 @@ test('overview calendar displays matching markers and details for completed, in-
 
   await signIn(page);
 
+  await expect(page.locator('.weekly-completion-ring')).toBeVisible();
+  await expect(page.getByRole('region', { name: 'Training calendar' }).getByText('2 workouts completed in this calendar week', { exact: true })).toBeVisible();
+
   const todayButton = page.getByRole('button', { name: new RegExp(`^${today.toDateString()}, workout completed, today$`) });
   await expect(todayButton).toBeVisible();
   await expect(todayButton).toHaveClass(/day-completed/);
@@ -1347,12 +1358,13 @@ test('overview calendar displays matching markers and details for completed, in-
   const todayModal = page.getByRole('dialog', { name: todayTitle, exact: true });
   await expect(todayModal).toBeVisible();
   await expect(todayModal.getByText('Evening Bench & Arms', { exact: true })).toBeVisible();
-  await expect(todayModal.getByText('completed', { exact: true })).toBeVisible();
+  await expect(todayModal.getByText('completed', { exact: true })).toHaveCount(2);
   await todayModal.getByRole('button', { name: 'Close dialog', exact: true }).click();
   await expect(todayModal).toBeHidden();
 
   if (today.getDay() === 1) {
-    await page.getByRole('button', { name: 'Previous week', exact: true }).click();
+    await page.locator('.calendar-week-rail').focus();
+    await page.keyboard.press('ArrowLeft');
   }
 
   const yesterdayButton = page.getByRole('button', { name: new RegExp(`^${yesterday.toDateString()}, workout in progress$`) });
@@ -1387,6 +1399,39 @@ test('overview calendar displays matching markers and details for completed, in-
   await expect(emptyModal.getByText('No workout recorded for this day.', { exact: true })).toBeVisible();
   await emptyModal.getByRole('button', { name: 'Close dialog', exact: true }).click();
   await expect(emptyModal).toBeHidden();
+});
+
+test('overview completion follows the active program week rather than calendar activity or skipped days', async ({ page }, info) => {
+  await page.route('**/api/bootstrap/launch', async route => {
+    const response = await route.fetch();
+    const json = await response.json();
+    json.activeWorkout = null;
+    json.nextWorkout = null;
+    json.activeProgram = {
+      id: 'completion-program', name: 'Ten-day training cycle', active: true, revision: 1,
+      weeks: 3, sourceImportId: null, days: [], completedTemplateIds: ['old-attempt'], nextTemplateId: null,
+      progress: {
+        runId: 'run', currentWeek: 2, currentAttempt: 2, passedDays: 4, totalDays: 5,
+        days: [
+          { templateId: 'a', status: 'completed', isRestDay: false, position: 0 },
+          { templateId: 'b', status: 'completed', isRestDay: false, position: 1 },
+          { templateId: 'c', status: 'skipped', isRestDay: false, position: 2 },
+          { templateId: 'd', status: 'pending', isRestDay: false, position: 3 },
+          { templateId: 'rest', status: 'rest_passed', isRestDay: true, position: 4 }
+        ]
+      }
+    };
+    await route.fulfill({ response, json });
+  });
+  await signIn(page);
+  const ring = page.getByRole('img', { name: '2 of 4 workouts completed in program week 2', exact: true });
+  await expect(ring).toBeVisible();
+  await expect(ring.locator('.completion-fill')).toHaveAttribute('stroke-dasharray', '50 100');
+  await page.screenshot({ animations: 'disabled', path: join('artifacts', `overview-program-week-${info.project.name}.png`) });
+  await page.locator('.calendar-week-rail').focus();
+  await page.keyboard.press('ArrowLeft');
+  await expect(page.getByRole('button', { name: 'Return to this week' })).toBeEnabled();
+  await expect(ring).toBeVisible();
 });
 
 test('create a custom multi-block program and cap each week at fourteen scheduled days', async ({ page }) => {

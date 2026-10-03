@@ -1,0 +1,32 @@
+.reps-rir-badge {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  display: grid;
+  place-items: center;
+  min-width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--surface-raised);
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 650;
+  line-height: 1;
+  pointer-events: none;
+}
+.reps-rir-badge.rir-tier-0 { color: var(--red); background: var(--red-soft); }
+.reps-rir-badge.rir-tier-1 { color: color-mix(in srgb, var(--red) 60%, var(--accent)); }
+.reps-rir-badge.rir-tier-2 { color: var(--accent); background: var(--accent-soft); }
+.reps-rir-badge.rir-tier-easy { color: var(--green); background: color-mix(in srgb, var(--green) 12%, transparent); }
+.modal.reps-rir-modal { max-width: 420px; }
+.reps-rir-entry { display: grid; gap: 12px; }
+.reps-rir-entry > p { font-size: 14px; }
+.reps-entry-value { display: flex; justify-content: center; align-items: baseline; gap: 10px; padding: 4px; }
+.reps-entry-value strong { font-size: 36px; font-variant-numeric: tabular-nums; }
+.reps-entry-value > span { color: var(--muted); font-size: 14px; }
+.reps-entry-effort { display: grid; gap: 8px; }
+.reps-entry-effort-rail { overflow-x: auto; padding: 3px; }
+.reps-entry-effort .rir-chips { min-width: 284px; }
+.reps-entry-keypad { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; }
+.reps-entry-keypad .button { min-height: 48px; font-size: 22px !important; }
+.reps-entry-keypad .button:last-child { font-size: 14px !important; }

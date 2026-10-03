@@ -23,6 +23,7 @@ import { withSetAdded, withSetRemoved, withSetRestored } from '../lib/workoutDra
 import { allowedSetTypes, withSetType } from '../lib/workoutSetTypes';
 import type { RemovedSet } from '../lib/workoutDraft';
 import { Button } from './ui/Button';
+import { TextAreaField } from './ui/Field';
 import { Modal } from './ui/Modal';
 import { MenuButton, MenuItem } from './ui/MenuButton';
 import { ExerciseLibrary } from './Exercises';
@@ -256,11 +257,13 @@ export function WorkoutActiveExercise({
           <ul className="plan-detail-list">
             {prescription.map((p, pi) => (
               <li key={pi}>
-                <span className="plan-set-number">{p.warmup ? `Warm-up ${pi + 1}` : `Set ${pi + 1}`}:</span>
-                <span className="plan-set-target">{showTarget(p, trackRir)}</span>
-                {p.loadText && <span className="plan-set-load">· {p.loadText}</span>}
-                {p.tempo && <span className="plan-set-tempo">· tempo {p.tempo}</span>}
-                {p.notes && <span className="plan-set-notes">— {p.notes}</span>}
+                <span className="plan-set-number">{p.warmup ? `Warm-up ${pi + 1}` : `Set ${pi + 1}`}</span>
+                <div className="plan-set-prescription">
+                  <span className="plan-set-target">{showTarget(p, trackRir)}</span>
+                  {p.loadText && <span className="plan-set-load">{p.loadText}</span>}
+                  {p.tempo && <span className="plan-set-tempo">Tempo {p.tempo}</span>}
+                  {p.notes && <span className="plan-set-notes">{p.notes}</span>}
+                </div>
               </li>
             ))}
           </ul>
@@ -277,8 +280,7 @@ export function WorkoutActiveExercise({
             <span className="col-reps col-time">Time</span>
           ) : (
             <>
-              <span className="col-reps">Reps</span>
-              {trackRir && <span className="col-rpe">RIR</span>}
+              <span className="col-reps">{trackRir ? 'Reps / RIR' : 'Reps'}</span>
             </>
           )}
           <span className="col-log">Done</span>
@@ -331,22 +333,19 @@ export function WorkoutActiveExercise({
 
       {showNote && (
         <div className="workout-note-drawer">
-          <label className="field">
-            Exercise notes
-            <textarea
-              name={`note-${exercise.id}`}
-              placeholder="Form cues, machine pin setup, seat height…"
-              value={exercise.note}
-              onChange={e =>
-                change({
-                  ...draft,
-                  exercises: draft.exercises.map((item, i) =>
-                    i === index ? { ...item, note: e.target.value } : item
-                  )
-                })
-              }
-            />
-          </label>
+          <TextAreaField
+            label="Exercise notes"
+            autoGrow
+            name={`note-${exercise.id}`}
+            placeholder="Form cues, machine pin setup, seat height..."
+            value={exercise.note}
+            onChange={event => change({
+              ...draft,
+              exercises: draft.exercises.map((item, i) =>
+                i === index ? { ...item, note: event.target.value } : item
+              )
+            })}
+          />
         </div>
       )}
 
@@ -381,7 +380,7 @@ export function WorkoutActiveExercise({
       )}
 
       {swapOpen && (
-        <Modal title={`Swap ${exercise.name}`} onClose={() => setSwapOpen(false)}>
+        <Modal wide title={`Swap ${exercise.name}`} onClose={() => setSwapOpen(false)}>
           <div className="modal-body">
             {catalogError && <div role="status"><p>{catalogError}</p><Button variant="secondary" onClick={loadCatalog}>Retry exercises</Button></div>}
             <p className="source">

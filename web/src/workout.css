@@ -29,9 +29,9 @@
 
 /* Modern set logging table */
 .workout-set-table-container { display: flex; flex-direction: column; gap: 6px; margin-top: 4px; }
-.workout-set-table-head { display: grid; grid-template-columns: 44px minmax(0, 1.2fr) minmax(84px, 1.2fr) minmax(56px, 0.8fr) minmax(64px, 0.8fr) 44px 44px; align-items: center; gap: 8px; padding: 4px 6px; font-size: var(--font-secondary, 14px); font-weight: 650; color: var(--muted); text-transform: uppercase; letter-spacing: 0.02em; }
+.workout-set-table-head { display: grid; grid-template-columns: 44px minmax(0, 1.5fr) minmax(84px, 1.2fr) minmax(90px, 1fr) 44px 44px; align-items: center; gap: 8px; padding: 4px 6px; font-size: var(--font-secondary, 14px); font-weight: 650; color: var(--muted); text-transform: uppercase; letter-spacing: 0.02em; }
 .workout-set-rows { display: flex; flex-direction: column; gap: 8px; }
-.workout-set-row { display: grid; grid-template-columns: 44px minmax(0, 1.2fr) minmax(84px, 1.2fr) minmax(56px, 0.8fr) minmax(64px, 0.8fr) 44px 44px; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 10px; background: var(--surface); border: 1px solid var(--border); transition: border-color 0.15s ease, background-color 0.15s ease; }
+.workout-set-row { display: grid; grid-template-columns: 44px minmax(0, 1.5fr) minmax(84px, 1.2fr) minmax(90px, 1fr) 44px 44px; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 10px; background: var(--surface); border: 1px solid var(--border); transition: border-color 0.15s ease, background-color 0.15s ease; }
 .workout-set-row.done { border-color: var(--accent-border); background: var(--surface-hover); }
 .workout-set-row.warmup-row { border-style: dashed; opacity: 1; }
 .set-badge-circle { width: 28px; height: 28px; border-radius: 50%; background: var(--surface-hover); border: 1px solid var(--border); display: grid; place-items: center; font-size: var(--font-secondary, 14px); font-weight: 700; color: var(--text); }
@@ -52,10 +52,10 @@
 .set-log-checkbox.checked { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
 .set-del-btn { width: 44px; height: 44px; min-width: 44px; min-height: 44px; padding: 0; display: grid; place-items: center; color: var(--muted); }
 .set-del-btn:hover { color: var(--red); }
-/* Timed sets: the time and its stopwatch span the reps and RIR columns. */
-.workout-set-row > .time-cell, .workout-set-table-head .col-time { grid-column: 4 / 6; }
-/* Without RIR tracking, reps take the RIR column the same way. */
-.no-rir .workout-set-row > .reps-cell, .no-rir .workout-set-table-head .col-reps { grid-column: 4 / 6; }
+/* Time and combined reps/RIR occupy the same column. */
+.workout-set-row > .time-cell, .workout-set-table-head .col-time { grid-column: 4; }
+/* Keep the column aligned when RIR tracking is off. */
+.no-rir .workout-set-row > .reps-cell, .no-rir .workout-set-table-head .col-reps { grid-column: 4; }
 .time-cell { display: flex; gap: 6px; align-items: center; min-width: 0; }
 .time-cell input { flex: 1 1 auto; min-width: 0; }
 .time-cell.timing input { border-color: var(--accent-border-strong); color: var(--accent); }
@@ -79,16 +79,16 @@
   .workout-active-header { flex-direction: column; align-items: flex-start; gap: 8px; }
   .workout-progression-badge { align-self: flex-start; }
 
-  /* One line per set: type, last time, load, reps (or time), RIR and the log tick. The load is
+  /* One line per set: type, last time, load, combined reps/RIR (or time), and the log tick. The load is
      sized for three digits and a decimal, reps for two; the last-time text takes what is left
      and wraps. Head and rows share one column list so the labels sit over their controls. */
-  .workout-set-table-container { --set-columns: 44px minmax(0, 1fr) 58px 46px 44px 44px; }
+  .workout-set-table-container { --set-columns: 44px minmax(0, 1fr) 58px 90px 44px; }
   .workout-set-table-container.no-rir { --set-columns: 44px minmax(0, 1fr) 58px 46px 44px; }
   .workout-set-table-container.timed { --set-columns: 44px minmax(0, 1fr) 58px 96px 44px; }
   .workout-set-table-head,
   .workout-set-row {
     grid-template-columns: var(--set-columns);
-    gap: 6px;
+    gap: 4px;
   }
   .workout-set-table-head {
     padding: 4px 7px 0;
@@ -282,4 +282,25 @@
   min-height: 44px !important;
   padding: 6px 14px !important;
   font-size: var(--font-secondary) !important;
+}
+
+/* Reps and effort share one cell; the effort badge keeps a full touch target. */
+.combined-reps-cell { position: relative; min-width: 0; border: 1px solid var(--border); border-radius: 8px; background: var(--surface-hover); }
+.workout-set-row .combined-reps-cell input { width: 100%; min-height: 44px; height: 44px; padding: 6px 24px 6px 2px; border: 0; background: transparent; }
+.combined-reps-cell:focus-within { border-color: var(--accent); }
+.no-rir .combined-reps-cell input { padding-inline: 2px; }
+.workout-plan-detail-card .plan-detail-heading { padding: 14px; border-radius: 12px; background: var(--accent-soft); color: var(--text); font-size: var(--font-secondary); line-height: 1.6; margin-bottom: 16px; }
+.plan-detail-list { gap: 8px; }
+.plan-detail-list li { padding: 12px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface-raised); align-items: baseline; gap: 16px; }
+.plan-set-number { flex: 0 0 90px; }
+.plan-set-prescription { display: flex; flex-wrap: wrap; gap: 6px 12px; min-width: 0; }
+.plan-set-target { color: var(--text); font-weight: 600; }
+.plan-set-notes { flex-basis: 100%; line-height: 1.6; }
+.workout-note-drawer .auto-grow-textarea { resize: none; max-height: none; overflow-y: hidden; }
+@media (max-width: 639px) {
+  .plan-set-number { flex-basis: 80px; }
+}
+
+@media (max-width: 359px) {
+  .workout-set-table-head, .workout-set-row { gap: 2px; padding-inline: 0; }
 }

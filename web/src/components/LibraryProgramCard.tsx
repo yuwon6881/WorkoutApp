@@ -30,6 +30,11 @@ export function LibraryProgramCard({ program, exercises, busy, onActivate, onDel
   // A tall card is hard to carry across the page, so lifting it folds it down to its header.
   useEffect(() => { if (dragging) setExpanded(false); }, [dragging]);
 
+  // Saved programs waiting in the library are collapsed by default.
+  useEffect(() => {
+    setExpanded(false);
+  }, [program.id]);
+
   async function toggle() {
     if (!expanded && draft === null) {
       setLoading(true); setError('');

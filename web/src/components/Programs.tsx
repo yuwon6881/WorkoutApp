@@ -192,10 +192,10 @@ export function Programs({ data, exercises, onStart, onImport, onChanged, onTemp
       <div className="section-heading"><h2>Active workout</h2></div>
       <ActiveSlotDropZone over={drag?.overZone === 'active' && drag.from === 'library'} occupied={Boolean(displayHolder)}
         hasLibrary={libraryCount > 0} onNewWorkout={() => open()} onImport={onImport}>
-        {displayHolder?.kind === 'program' && <ActiveProgramCard program={displayHolder.program} exercises={exercises} onStart={onStart} onChanged={onChanged}
+        {displayHolder?.kind === 'program' && <ActiveProgramCard key={displayHolder.program.id} program={displayHolder.program} exercises={exercises} onStart={onStart} onChanged={onChanged}
           hasActiveWorkout={hasActiveWorkout} actions={cardActions(displayHolder)} dragProps={dragProps(displayHolder, 'active')}
           moving={movingId === displayHolder.program.id} dragging={draggingId === slotItemId(displayHolder)} />}
-        {displayHolder?.kind === 'template' && <ActiveTemplateCard template={displayHolder.template} onStart={() => onStart(displayHolder.template.id)}
+        {displayHolder?.kind === 'template' && <ActiveTemplateCard key={displayHolder.template.id} template={displayHolder.template} onStart={() => onStart(displayHolder.template.id)}
           onEdit={() => open(displayHolder.template)} hasActiveWorkout={hasActiveWorkout} actions={cardActions(displayHolder)}
           dragProps={dragProps(displayHolder, 'active')} moving={movingId === displayHolder.template.id} />}
       </ActiveSlotDropZone>

@@ -227,16 +227,60 @@ for (const theme of ['dark', 'light']) {
     const details = page.getByRole('dialog', { name: 'Workout details', exact: true });
     await expect(details).toContainText(summary.label);
     await expect(details).toContainText(summary.reason);
+    await checkLayout(page, 'workout details');
+    await page.screenshot({ animations: 'disabled', path: join(screenshotsDirectory, 'responsive', `${info.project.name}-${theme}-workout-details.png`) });
     await page.keyboard.press('Escape');
     await expect(details).toBeHidden();
+    await logger.getByRole('button', { name: 'Targets', exact: true }).click();
+    const targets = page.getByRole('dialog', { name: 'Barbell bench press targets', exact: true });
+    await checkLayout(page, 'workout targets');
+    await page.screenshot({ animations: 'disabled', path: join(screenshotsDirectory, 'responsive', `${info.project.name}-${theme}-targets.png`) });
+    await page.keyboard.press('Escape');
+    await expect(targets).toBeHidden();
+    await logger.getByRole('button', { name: 'Swap Barbell bench press', exact: true }).click();
+    const swap = page.getByRole('dialog', { name: 'Swap Barbell bench press', exact: true });
+    await checkLayout(page, 'workout swap');
+    await page.screenshot({ animations: 'disabled', path: join(screenshotsDirectory, 'responsive', `${info.project.name}-${theme}-swap.png`) });
+    await page.keyboard.press('Escape');
+    await logger.getByRole('button', { name: 'Pause workout', exact: true }).click();
+    await expect(logger.locator('.workout-active-exercise')).toBeVisible();
+    await expect(logger.locator('.workout-swipe-surface')).toHaveAttribute('inert', '');
+    expect(await logger.locator('input[name^=reps-]').first().evaluate(input => {
+      (input as HTMLInputElement).focus();
+      return document.activeElement === input;
+    })).toBe(false);
+    await logger.getByRole('button', { name: 'Resume workout', exact: true }).click();
+    await expect(logger.locator('.workout-swipe-surface')).not.toHaveAttribute('inert', '');
     await logger.getByRole('button', { name: 'Add set', exact: true }).click();
-    await logger.getByRole('spinbutton', { name: 'Barbell bench press set 1 reps', exact: true }).fill('8');
+    const repsInput = logger.getByRole('spinbutton', { name: 'Barbell bench press set 1 reps', exact: true });
     await logger.getByRole('spinbutton', { name: 'Barbell bench press set 1 weight', exact: true }).fill('60');
+    await repsInput.click();
+    const entry = page.getByRole('dialog', { name: 'Reps & RIR', exact: true });
+    await expect(entry).toBeVisible();
+    await checkLayout(page, 'reps and RIR keypad');
+    await page.screenshot({ animations: 'disabled', path: join(screenshotsDirectory, 'responsive', `${info.project.name}-${theme}-reps-rir-keypad.png`) });
+    await entry.getByRole('button', { name: '8', exact: true }).click();
+    await entry.getByRole('radio', { name: '2 RIR, 2 reps in reserve', exact: true }).click();
+    await entry.getByRole('button', { name: 'Done', exact: true }).click();
+    await expect(entry).toBeHidden();
+    await expect(repsInput).toBeFocused();
+    await expect(repsInput).toHaveValue('8');
+    await expect(logger.locator('.reps-rir-badge').first()).toHaveText('2');
+    await repsInput.click();
+    await entry.getByRole('button', { name: '9', exact: true }).click();
+    await entry.getByRole('radio', { name: '1 RIR, 1 rep in reserve', exact: true }).click();
+    await page.keyboard.press('Escape');
+    await expect(entry).toBeHidden();
+    await expect(repsInput).toHaveValue('8');
+    await expect(logger.locator('.reps-rir-badge').first()).toHaveText('2');
     await logger.getByRole('button', { name: 'Log Barbell bench press set 1', exact: true }).click();
     await expect(logger.locator('.workout-rest-bar')).toBeVisible();
+    expect(await logger.locator('.workout-rest-bar').evaluate(element => element.getBoundingClientRect().height)).toBeLessThan(100);
     await checkLayout(page, 'active logger');
     await page.screenshot({ animations: 'disabled', path: join(screenshotsDirectory, 'responsive', `${info.project.name}-${theme}-active-logger.png`) });
     const exerciseNotes = logger.getByRole('textbox', { name: 'Exercise notes', exact: true });
+    await exerciseNotes.fill('Keep a steady tempo. '.repeat(30));
+    expect(await exerciseNotes.evaluate(node => node.scrollHeight <= node.clientHeight + 2)).toBe(true);
     await exerciseNotes.fill('Keep a steady tempo.');
     await expect(exerciseNotes).toBeInViewport({ ratio: 0.9 });
     await checkLayout(page, 'active logger notes');
@@ -312,21 +356,35 @@ for (const theme of ['dark', 'light']) {
     await expect(plateWeights).toBeFocused();
 
     await navigate(page, 'Overview');
+    await expect(page.getByRole('region', { name: 'Training statistics' }).locator('.stat-label-text'))
+      .toHaveText(['Workouts', 'Working sets', 'Training time']);
     await screenshot('overview');
     const calendar = page.getByRole('region', { name: 'Training calendar' });
-    const days = calendar.locator('.calendar-day-cell');
+    const currentWeek = calendar.getByRole('group', { name: 'Days of the week', exact: true });
+    const days = currentWeek.locator('.calendar-day-cell');
     await expect(days).toHaveCount(7);
     const dayFit = await days.evaluateAll(elements => elements.every(element => {
       const box = element.getBoundingClientRect();
-      const grid = element.parentElement!.getBoundingClientRect();
-      return box.left >= grid.left - 1 && box.right <= grid.right + 1 && box.width >= 44 && box.height >= 44;
+      return box.width >= 44 && box.height >= 44;
     }));
-    expect(dayFit, 'all seven days fit their calendar and retain touch targets').toBe(true);
-    await expect(calendar.getByRole('button', { name: 'Return to this week' })).toBeDisabled();
-    await calendar.getByRole('button', { name: 'Previous week' }).click();
-    await expect(calendar.getByRole('button', { name: 'Return to this week' })).toBeEnabled();
-    await calendar.getByRole('button', { name: 'Return to this week' }).click();
-    await expect(calendar.getByRole('button', { name: 'Return to this week' })).toBeDisabled();
+    expect(dayFit, 'calendar days retain touch targets within a horizontal rail').toBe(true);
+    const rail = calendar.locator('.calendar-week-rail');
+    await expect(calendar.getByRole('button', { name: 'Return to this week', includeHidden: true })).toBeDisabled();
+    if (page.viewportSize()!.width >= 1024) {
+      await expect(calendar.getByRole('button', { name: 'Previous week' })).toBeVisible();
+      await calendar.getByRole('button', { name: 'Previous week' }).click();
+    } else {
+      await expect(calendar.getByRole('button', { name: 'Previous week' })).toBeHidden();
+      await expect(calendar.getByRole('button', { name: 'Next week' })).toBeHidden();
+      await rail.evaluate(element => { element.scrollLeft = 0; });
+    }
+    await expect(calendar.getByRole('button', { name: 'Return to this week', includeHidden: true })).toBeEnabled();
+    await calendar.getByRole('button', { name: 'Return to this week', includeHidden: true }).click();
+    await expect(calendar.getByRole('button', { name: 'Return to this week', includeHidden: true })).toBeDisabled();
+    await rail.focus();
+    await page.keyboard.press('ArrowRight');
+    await expect(calendar.getByRole('button', { name: 'Return to this week', includeHidden: true })).toBeEnabled();
+    await calendar.getByRole('button', { name: 'Return to this week', includeHidden: true }).click();
 
     await navigate(page, 'Workouts');
     await expect(page.getByRole('heading', { name: 'Workouts', exact: true })).toBeVisible();
@@ -458,6 +516,9 @@ for (const theme of ['dark', 'light']) {
     await screenshot('discard-confirmation');
     await page.getByRole('button', { name: 'Keep training' }).click();
     await page.getByRole('button', { name: 'Minimize workout', exact: true }).click();
+    await navigate(page, 'Overview');
+    await expect(page.locator('.quick-start-hero')).toHaveCount(0);
+    await expect(page.locator('.dashboard-quick-start')).toHaveCount(0);
     await screenshot('resume-banner');
 
     const resume = page.getByRole('button', { name: `Resume ${workoutName}`, exact: true });

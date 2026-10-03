@@ -4,7 +4,7 @@ import { useVisibleClock } from '../lib/useVisibleClock';
 import type { RestAction } from '../types';
 import { Button } from './ui/Button';
 
-/// The rest countdown, pinned under the workout's header while a rest runs: a large clock, quick
+/// The rest countdown, pinned under the workout's header while a rest runs: a compact clock, quick
 /// adjustments, and what comes next. It is absent between rests; the next logged set starts it.
 export function WorkoutRestBar({ rest, disabled, nextUp, onRestMutate }: {
   rest: RestState;
@@ -30,8 +30,8 @@ export function WorkoutRestBar({ rest, disabled, nextUp, onRestMutate }: {
           <span className="rest-clock-value">{showClock(remaining)}</span> rest
         </span>
         <div className="rest-bar-actions" role="group" aria-label="Adjust rest">
-          <Button variant="secondary" disabled={disabled} aria-label="Take 30 seconds off the rest" onClick={adjust('shorten', 30)}>−30s</Button>
-          <Button variant="secondary" disabled={disabled} aria-label="Add 30 seconds of rest" onClick={adjust('extend', 30)}>+30s</Button>
+          <Button variant="tertiary" disabled={disabled} aria-label="Take 30 seconds off the rest" onClick={adjust('shorten', 30)}>−30</Button>
+          <Button variant="tertiary" disabled={disabled} aria-label="Add 30 seconds of rest" onClick={adjust('extend', 30)}>+30</Button>
           <Button variant="tertiary" disabled={disabled} onClick={adjust('skip')}>Skip</Button>
         </div>
       </div>

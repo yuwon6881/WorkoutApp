@@ -2,7 +2,7 @@ import { Skeleton } from './ui/Skeleton';
 
 const NAV_ITEMS = 4;
 const WEEK_DAYS = 7;
-const STATS = 4;
+const STATS = 3;
 
 /// The first load draws the real shell (navigation, top bar) around the shape of the Overview it
 /// is about to show, using the same layout classes. When the data arrives nothing moves: the
@@ -35,18 +35,19 @@ export function AppLoading() {
             </div>
           </div>
 
-          <section className="next-workout quick-start-hero app-loading-hero" aria-hidden="true">
-            <div className="hero-top">
+          <section className="panel app-loading-quick-start" aria-hidden="true">
+            <div>
               <Skeleton className="skeleton-pill" />
-              <Skeleton className="skeleton-pill short" />
+              <Skeleton className="skeleton-hero-line" />
             </div>
-            <Skeleton className="skeleton-hero-title" />
-            <Skeleton className="skeleton-hero-line" />
             <Skeleton className="skeleton-hero-button" />
           </section>
 
           <section className="panel training-calendar-card" aria-hidden="true">
-            <Skeleton className="skeleton-section-title" />
+            <div className="app-loading-week-summary">
+              <Skeleton className="skeleton-week-ring" />
+              <div><Skeleton className="skeleton-section-title" /><Skeleton className="skeleton-subtitle" /></div>
+            </div>
             <div className="calendar-days-grid app-loading-week">
               {Array.from({ length: WEEK_DAYS }, (_, index) => <Skeleton key={index} className="skeleton-day" />)}
             </div>

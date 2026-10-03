@@ -1,10 +1,10 @@
-import { ArrowRight, CalendarDays, Clock, Dumbbell, TrendingUp, Trophy } from 'lucide-react';
+import { ArrowRight, Clock, Dumbbell, Trophy } from 'lucide-react';
 import type { ProgressSummary, Unit } from '../types';
-import { showVolume, showWeight, toDisplay } from '../lib/training';
+import { showWeight, toDisplay } from '../lib/training';
 import { Button } from './ui/Button';
 import './ProgressPanels.css';
 
-export function ProgressStats({ progress, unit }: { progress: ProgressSummary | null; unit: Unit }) {
+export function ProgressStats({ progress }: { progress: ProgressSummary | null }) {
   return (
     <div className="stats-grid progress-stats" role="region" aria-label="Training statistics">
       <div className="stat-card progress-stat-card">
@@ -14,27 +14,6 @@ export function ProgressStats({ progress, unit }: { progress: ProgressSummary | 
         </div>
         <div className="stat-card-value">
           <strong>{progress?.sessions ? progress.sessions.toLocaleString() : '—'}</strong>
-        </div>
-      </div>
-
-      <div className="stat-card progress-stat-card highlight">
-        <div className="stat-card-header">
-          <span className="stat-icon-wrap accent"><CalendarDays size={16} aria-hidden="true" /></span>
-          <span className="stat-label-text">This week</span>
-        </div>
-        <div className="stat-card-value">
-          <strong>{progress?.weekSessions ? progress.weekSessions.toLocaleString() : '—'}</strong>
-          {progress?.weekSessions ? <span className="stat-subtext">workouts</span> : null}
-        </div>
-      </div>
-
-      <div className="stat-card progress-stat-card highlight">
-        <div className="stat-card-header">
-          <span className="stat-icon-wrap accent"><TrendingUp size={16} aria-hidden="true" /></span>
-          <span className="stat-label-text">Weekly volume</span>
-        </div>
-        <div className="stat-card-value">
-          <strong>{progress?.weekVolumeKg ? showVolume(progress.weekVolumeKg, unit) : '—'}</strong>
         </div>
       </div>
 

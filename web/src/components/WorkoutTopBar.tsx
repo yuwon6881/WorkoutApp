@@ -90,7 +90,7 @@ export function WorkoutTopBar({
         >
           {paused ? <Play size={18} /> : <Pause size={18} />}
         </Button>
-        <MenuButton label="Workout options" triggerClassName="workout-top-icon" portal>
+        <MenuButton disabled={paused} label="Workout options" triggerClassName="workout-top-icon" portal>
           {hasDetails && <MenuItem onClick={onDetails}>
             <Info size={16} />
             Workout details

@@ -1,6 +1,6 @@
 # Workout
 
-During a workout, swipe between exercises or select one from the top strip. Each set has editable weight, reps, RIR, and a completion tick; add or remove sets from the same screen. Each set's target column shows the same set from the last finished session (reps and recorded RIR), falling back to the plan's target. Tick a set to log it; the rest timer appears under the header while resting, and Finish appears once every working set is logged (it is always in the options menu, beside the workout details). Exercise notes and available demo links remain accessible. Swaps use the exercise library and are available before completing any sets for that exercise. Automatic rest runs after working sets (including myo-reps and the final set) and after the last warm-up; intermediate warm-ups and immediate superset handoffs skip rest.
+During a workout, swipe between exercises or select one from the top strip. Each set has editable weight, reps, RIR, and a completion tick; add or remove sets from the same screen. Each set's target column shows the same set from the last finished session (reps and recorded RIR), falling back to the plan's target. Tick a set to log it; a compact rest timer appears under the header while resting, and Finish appears once every working set is logged (it is always in the options menu, beside the workout details). Reps and RIR share one input with a small corner RIR badge. Tapping it opens a numeric keypad with RIR choices above the keys; Done saves both values together, keeping more room for targets on phones. Exercise notes expand to show their full text, and available demo links remain accessible. Pausing keeps the workout visible with its controls locked until Resume. Minimized workouts show a prominent card with live elapsed time, remaining rest, and working-set progress. Targets and workout details use structured cards, including the frozen bodyweight and Nutrition context where available. Swaps use the exercise library and are available before completing any sets for that exercise. Automatic rest runs after working sets (including myo-reps and the final set) and after the last warm-up; intermediate warm-ups and immediate superset handoffs skip rest.
 
 A workout tracker with an account-backed database and an AI program importer. One repository
 holds the React PWA (`web/`) and the ASP.NET Core API (`api/`), following the same layout as the
@@ -110,6 +110,13 @@ decision. Passive status rows are regular content; only rows with an available a
   a later set must beat, and leave the strength trend alone. Their progression learns only from the
   same technique, and one that follows straight sets starts at the straight-set load. Every suggestion says
   in words why it changed, and a program's own reps and RPE are never overwritten.
+- Overview keeps the next-workout action compact and leaves ongoing workout recovery to the global
+  resume panel. Three summary cards show total workouts, working sets, and training time. Its weekly circle fills against the active program's current week and attempt:
+  completed training slots count, rest days are excluded, and skipped workouts do not count as
+  completed. Program weeks can span more than seven calendar days. Without an active program,
+  no weekly target is invented. The calendar separately reports recorded completed workouts for
+  the selected Monday-Sunday week. Swipe it horizontally, use arrow keys while it is focused,
+  or use the arrows beside the row on desktop. Day details, progress, bodyweight, and history remain.
 - The Body tab shows completed working-set coverage by muscle for the last week, month, or three
   months. Each set credits its primary muscle fully and secondary muscles at half weight; fixed
   weekly bands keep the map colors consistent, and unresolved exercises are listed as unattributed.

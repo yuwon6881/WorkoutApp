@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useState } from 'react';
-import { ArrowRight, CalendarDays, Check, Dumbbell, Play } from 'lucide-react';
+import { ArrowRight, Dumbbell, Play } from 'lucide-react';
 import type { Bootstrap, ProgressSummary, Session } from '../types';
 import { ApiError, api } from '../lib/api';
 import { nextWorkout } from '../lib/nextWorkout';
@@ -26,7 +26,6 @@ export function Dashboard({
   data,
   onStart,
   onProgram,
-  onResume,
   onSession,
   onExercise
 }: DashboardProps) {
@@ -58,14 +57,6 @@ export function Dashboard({
   const program = data.activeProgram;
   const next = nextWorkout(data);
   const nextName = next ? next.name : null;
-  const nextFocus = next && 'focus' in next ? next.focus : null;
-  const nextWeek = next?.week ?? 1;
-  const nextExerciseCount = next && 'exerciseCount' in next ? next.exerciseCount : next?.exercises.length ?? 0;
-  const nextSets =
-    next && 'exerciseCount' in next
-      ? null
-      : next?.exercises.reduce((total, e) => total + e.sets.filter(s => !s.warmup).length, 0) ?? 0;
-
   const unit = data.preferences.unit;
 
   const activeWorkout = data.activeWorkout?.active ? data.activeWorkout : null;
@@ -86,113 +77,25 @@ export function Dashboard({
         </div>
       </div>
 
-      <section className="next-workout quick-start-hero" aria-label="Today's workout quick start">
-        <div className="hero-top">
-          <span className="eyebrow">
-            <span className="status-dot" />{' '}
-            {activeWorkout
-              ? 'Workout in progress'
-              : next
-                ? program
-                  ? "Today's training"
-                  : 'Quick start'
-                : 'Ready to train'}
-          </span>
-          <span className="pill">
-            {activeWorkout
-              ? `${activeWorkout.exercises.length} exercises`
-              : next
-                ? `${nextExerciseCount} exercises`
-                : 'No workout queued'}
-          </span>
+      {!activeWorkout && <div className="dashboard-quick-start">
+        <div>
+          <span className="eyebrow">{next ? 'Up next' : 'Ready to train'}</span>
+          <strong>{nextName ?? 'Choose your next workout'}</strong>
+          <span className="muted">{program?.name ?? 'Your workout library'}</span>
         </div>
-
-        <div className="hero-content">
-          <div>
-            <h2>
-              {activeWorkout
-                ? activeWorkout.name
-                : nextName ?? 'Choose a workout'}
-            </h2>
-            <p>
-              {activeWorkout
-                ? 'In progress · pick up where you left off'
-                : next
-                  ? program
-                    ? `${program.name} · week ${nextWeek}`
-                    : nextFocus || 'Ready to start'
-                  : 'Select a routine from your library or start a program to begin training.'}
-            </p>
-            <div className="hero-facts">
-              {(() => {
-                const workingSetCount = activeWorkout
-                  ? activeWorkout.exercises.reduce(
-                      (total, e) => total + e.sets.filter(s => !s.warmup).length,
-                      0
-                    )
-                  : nextSets;
-                if (workingSetCount && workingSetCount > 0) {
-                  return (
-                    <span>
-                      <Dumbbell size={15} />
-                      {`${workingSetCount} working sets`}
-                    </span>
-                  );
-                }
-                const savedRoutines = data.navigationCounts?.templates ?? data.templates.length;
-                const savedPrograms = data.navigationCounts?.programs ?? data.programs.length;
-                return (
-                  <>
-                    <span>
-                      <Dumbbell size={15} />
-                      {savedRoutines > 0 ? `${savedRoutines} saved ${savedRoutines === 1 ? 'routine' : 'routines'}` : 'Workout library'}
-                    </span>
-                    {savedPrograms > 0 && (
-                      <span>
-                        <CalendarDays size={15} />
-                        {`${savedPrograms} ${savedPrograms === 1 ? 'program' : 'programs'}`}
-                      </span>
-                    )}
-                  </>
-                );
-              })()}
-            </div>
-          </div>
-        </div>
-
-        <div className="hero-bottom">
-          {activeWorkout ? (
-            <Button variant="primary" onClick={onResume}>
-              <Play size={17} fill="currentColor" /> Resume workout <ArrowRight size={18} />
-            </Button>
-          ) : next ? (
-            <Button variant="primary" onClick={() => onStart(next.id)}>
-              <Play size={17} fill="currentColor" /> Start workout <ArrowRight size={18} />
-            </Button>
-          ) : program ? (
-            <Button variant="primary" onClick={onProgram}>
-              <Check size={17} /> Open workouts <ArrowRight size={18} />
-            </Button>
-          ) : (
-            <Button variant="primary" onClick={onProgram}>
-              <Dumbbell size={17} /> Go to workouts <ArrowRight size={18} />
-            </Button>
-          )}
-          <span>
-            {activeWorkout
-              ? 'Session recoverable on this device'
-              : next
-                ? 'Ready to log sets & rest'
-                : 'Browse routines or active programs'}
-          </span>
-        </div>
-      </section>
+        <Button variant="primary" onClick={() => next ? onStart(next.id) : onProgram()}>
+          {next ? <Play size={17} /> : <Dumbbell size={17} />}
+          {next ? 'Start workout' : 'Go to workouts'} <ArrowRight size={17} />
+        </Button>
+      </div>}
 
       <Suspense fallback={<CalendarSkeleton />}>
-        <TrainingCalendar onSession={onSession} />
+        <TrainingCalendar onSession={onSession} program={program}
+          refreshKey={data.resourceVersions?.history ?? data.history}
+          activeWorkoutId={data.activeWorkout?.id ?? null} />
       </Suspense>
       <Suspense fallback={<ProgressStatsSkeleton />}>
-        <ProgressStats progress={progress} unit={unit} />
+        <ProgressStats progress={progress} />
       </Suspense>
 
       {progressError && (

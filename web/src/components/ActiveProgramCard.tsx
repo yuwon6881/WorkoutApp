@@ -64,7 +64,19 @@ export function ActiveProgramCard({ program, exercises, onStart, onChanged, hasA
   }, [program.id, program.revision, finished]);
 
   // A tall card is hard to carry across the page, so lifting it folds it down to its header.
-  useEffect(() => { if (dragging) setExpanded(false); }, [dragging]);
+  // When released on the active workout, it always expands automatically.
+  useEffect(() => {
+    if (dragging) {
+      setExpanded(false);
+    } else {
+      setExpanded(true);
+    }
+  }, [dragging]);
+
+  // Every program upon being placed onto the active workout is expanded automatically.
+  useEffect(() => {
+    setExpanded(true);
+  }, [program.id]);
 
   function resetActionInput() {
     if (!progress) throw new Error('The current program week is not available. Refresh and try again.');

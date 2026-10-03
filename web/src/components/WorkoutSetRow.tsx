@@ -5,7 +5,7 @@ import { defaultLoadStepKg, showTarget, showWeight, toDisplay, toKg } from '../l
 import { effortPatch, effortValue, loadIsEditable, setNumberLabel } from '../lib/workoutDraft';
 import { Button } from './ui/Button';
 import { Select } from './ui/Select';
-import { RpeControl } from './ui/RpeControl';
+import { RepsRirControl } from './ui/RepsRirControl';
 import { SetTypeSelect } from './ui/SetTypeSelect';
 import { SwipeableRow } from './ui/SwipeableRow';
 import { useWindowTier } from '../lib/breakpoints';
@@ -151,29 +151,9 @@ export function WorkoutSetRow({
           onChange={durationSeconds => editSet(ei, si, { durationSeconds })}
         />
       ) : (
-        <>
-          <div className="set-input-cell reps-cell">
-            <input
-              name={`reps-${exercise.id}-${si}`}
-              aria-label={`${exercise.name} set ${si + 1} reps`}
-              inputMode="numeric"
-              type="number"
-              placeholder="—"
-              value={set.reps ?? ''}
-              onChange={e => editSet(ei, si, { reps: e.target.value === '' ? null : Number(e.target.value) })}
-            />
-          </div>
-
-          {trackRir && <div className="set-input-cell rpe-cell">
-            <RpeControl
-              compact
-              name={`rir-${exercise.id}-${si}`}
-              ariaLabel={`${exercise.name} set ${si + 1} RIR`}
-              value={effortValue(set)}
-              onChange={value => editSet(ei, si, effortPatch(value))}
-            />
-          </div>}
-        </>
+        <RepsRirControl name={`reps-${exercise.id}-${si}`} label={`${exercise.name} set ${si + 1}`}
+          reps={set.reps} rir={effortValue(set)} trackRir={trackRir}
+          onChange={(reps, rir) => editSet(ei, si, { reps, ...(trackRir ? effortPatch(rir) : {}) })} />
       )}
 
       <div className="set-action-cell log-cell">

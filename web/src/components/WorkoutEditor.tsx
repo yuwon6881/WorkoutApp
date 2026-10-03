@@ -35,11 +35,11 @@ export function WorkoutEditor({
     onPrevious: () => { if (currentIndex > 0) onSelectExercise(currentIndex - 1); },
     onNext: () => { if (currentIndex >= 0 && currentIndex < draft.exercises.length - 1) onSelectExercise(currentIndex + 1); }
   });
-  return <div className="workout-swipe-surface" {...swipe}>
+  return <div className="workout-swipe-surface" inert={paused} {...swipe}>
     <WorkoutExerciseStrip exercises={draft.exercises} activeIndex={activeIndex} onSelect={onSelectExercise} onAdd={onAddExercise} />
 
     <div className="modal-body workout-body">
-      {recoveryConflict ? <div className="empty-message"><h3>Review the saved versions</h3><p>Choose the server workout or apply this device’s copy after considering the changes.</p></div> : finishIntentAt ? <div className="empty-message"><h3>Workout finished</h3><p>Your completion time and workout are saved on this device. They will sync when the server is reachable.</p></div> : paused ? <div className="empty-message"><h3>Workout paused</h3><p>Your active duration and rest timer are paused. Resume when you are ready.</p></div> : currentExercise ? (
+      {recoveryConflict ? <div className="empty-message"><h3>Review the saved versions</h3><p>Choose the server workout or apply this device’s copy after considering the changes.</p></div> : finishIntentAt ? <div className="empty-message"><h3>Workout finished</h3><p>Your completion time and workout are saved on this device. They will sync when the server is reachable.</p></div> : currentExercise ? (
         <WorkoutActiveExercise key={currentExercise.id} exercise={currentExercise} index={currentIndex}
           unit={unit} draft={draft} exercises={exercises} change={onChange} editSet={onEditSet} toggle={onToggleSet}
           onSwap={onSwap} onRestore={onRestore} onRemoveExercise={onRemoveExercise} onCatalogChanged={onCatalogChanged} onCatalogNeeded={onCatalogNeeded} />

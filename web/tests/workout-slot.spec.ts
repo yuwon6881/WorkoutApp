@@ -130,7 +130,19 @@ test('workouts move between the library and the active slot, forgetting progress
     await dragTo(page, libraryCard, zone);
     const activeCard = zone.locator('.program-card').filter({ hasText: programName });
     await expect(activeCard.getByText('Active', { exact: true })).toBeVisible();
+    await expect(activeCard.getByRole('button', { name: `Collapse ${programName}`, exact: true })).toBeVisible();
+    await expect(activeCard.getByRole('button', { name: 'Upper A', exact: true })).toBeVisible();
     await expect(library.locator('.library-program-card').filter({ hasText: programName })).toHaveCount(0);
+
+    // Dragging an active program collapses it; releasing it on active workout expands it.
+    const activeGrip = activeCard.locator('[data-slot-grip]').first();
+    const activeGripBox = (await activeGrip.boundingBox())!;
+    await page.mouse.move(activeGripBox.x + activeGripBox.width / 2, activeGripBox.y + activeGripBox.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(activeGripBox.x + activeGripBox.width / 2 + 20, activeGripBox.y + activeGripBox.height / 2 + 20, { steps: 6 });
+    await expect(activeCard.getByRole('button', { name: `Expand ${programName}`, exact: true })).toBeVisible();
+    await page.mouse.up();
+    await expect(activeCard.getByRole('button', { name: `Collapse ${programName}`, exact: true })).toBeVisible();
 
     // Passing a day is progress, so taking the program out now asks first; Cancel leaves it put.
     await finishWorkout(page.request, headers, created.workouts[0].id);
@@ -145,11 +157,14 @@ test('workouts move between the library and the active slot, forgetting progress
     await expect(forget).toBeHidden();
     await expect(activeCard).toBeVisible();
     await expect(activeCard.getByText(/1 of 2 days passed/)).toBeVisible();
+    await expect(activeCard.getByRole('button', { name: `Collapse ${programName}`, exact: true })).toBeVisible();
 
     await dragTo(page, activeCard, library);
     await page.getByRole('dialog', { name: `Move ${programName} to the library?` })
       .getByRole('button', { name: 'Move and forget progress', exact: true }).click();
-    await expect(library.locator('.library-program-card').filter({ hasText: programName })).toBeVisible();
+    const parkedCard = library.locator('.library-program-card').filter({ hasText: programName });
+    await expect(parkedCard).toBeVisible();
+    await expect(parkedCard.getByRole('button', { name: `Expand ${programName}`, exact: true })).toBeVisible();
     await expect(zone.getByRole('heading', { name: 'Drag a workout here to activate it' })).toBeVisible();
     const parked = await (await page.request.get(`/api/programs/${programId}`)).json();
     expect(parked.active).toBe(false);

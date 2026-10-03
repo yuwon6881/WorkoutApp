@@ -30,6 +30,24 @@ test.beforeEach(async ({ page }) => {
   await signIn(page);
 });
 
+test('overview weeks scroll with a finger and keep phone navigation compact', async ({ page }) => {
+  const calendar = page.getByRole('region', { name: 'Training calendar' });
+  const rail = calendar.locator('.calendar-week-rail');
+  await expect(rail).toBeVisible();
+  await expect(calendar.getByRole('button', { name: 'Previous week' })).toBeHidden();
+  await expect(calendar.getByRole('button', { name: 'Next week' })).toBeHidden();
+  const reset = calendar.getByRole('button', { name: 'Return to this week', includeHidden: true });
+  await expect(reset).toBeDisabled();
+  const cdp = await page.context().newCDPSession(page);
+  const box = (await rail.boundingBox())!;
+  await drag(page, cdp, { x: box.x + box.width - 20, y: box.y + 30 },
+    { x: box.x + 20, y: box.y + 30 }, 20);
+  await expect(reset).toBeEnabled();
+  await reset.click();
+  await expect(reset).toBeDisabled();
+  await expect(calendar.getByRole('group', { name: 'Days of the week', exact: true })).toBeInViewport();
+});
+
 test('a bottom sheet closes when its header is dragged down', async ({ page }) => {
   const cdp = await page.context().newCDPSession(page);
   await page.getByRole('button', { name: 'Workouts', exact: true }).filter({ visible: true }).first().click();

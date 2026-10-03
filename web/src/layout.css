@@ -55,12 +55,19 @@
 .skeleton-hero-line { width: 44%; height: 16px; }
 .skeleton-hero-button { width: 180px; height: 48px; margin-top: 8px; }
 .skeleton-section-title { width: 140px; height: 20px; margin-bottom: 14px; }
+.app-loading-quick-start { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; padding: 16px 20px; }
+.app-loading-quick-start > div { display: grid; gap: 8px; }
+.app-loading-quick-start .skeleton-hero-line { width: 160px; }
+.app-loading-quick-start .skeleton-hero-button { margin: 0 0 0 auto; height: 44px; }
+.app-loading-week-summary { display: flex; align-items: center; gap: 16px; margin-bottom: 16px; }
+.skeleton-week-ring { width: 88px; height: 88px; flex: none; border-radius: 50% !important; }
+@media (max-width: 639px) { .skeleton-week-ring { width: 76px; height: 76px; } }
 /* Reserve rows before the lazy calendar/stat styles arrive; otherwise seven days stack. */
 .app-loading .app-loading-week { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; margin-bottom: 20px; }
 .app-loading-week .skeleton-day { min-height: 64px; border-radius: 12px !important; }
-.app-loading .progress-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.app-loading .progress-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
 .app-loading .progress-stats > * { grid-column: auto; }
-@media (max-width: 1023px) { .app-loading .progress-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; } }
+@media (max-width: 639px) { .app-loading .progress-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; } .app-loading .progress-stats > :last-child { grid-column: 1 / -1; } }
 .skeleton-stat { min-height: 96px; border-radius: var(--radius, 12px) !important; }
 .app-loading-bottom-nav { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; padding: 8px 12px; }
 .skeleton-bottom-item { height: 44px; border-radius: 14px !important; }
@@ -353,4 +360,22 @@ html[data-keyboard='open'] .workout-rest-bar { display: none; }
 :root[data-input-modality="pointer"] :focus-visible:not(input, textarea, select, [contenteditable="true"], .issue-focus, [aria-expanded="true"]) {
   outline: none !important;
   box-shadow: none !important;
+}
+
+/* A persistent session card above navigation, with live timing and progress. */
+.resume-workout.button { width: 420px; max-width: calc(100vw - 32px); min-height: 100px; border-radius: 16px; padding: 14px; gap: 12px; border-color: var(--accent-border); background: var(--surface); box-shadow: 0 8px 28px var(--overlay); white-space: normal; text-align: left; }
+.resume-icon { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 12px; color: var(--accent); background: var(--accent-soft); flex-shrink: 0; }
+.resume-summary { display: grid; gap: 4px; flex: 1; min-width: 0; }
+.resume-summary strong { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; color: var(--text); overflow-wrap: anywhere; font-size: 16px; }
+.resume-label { color: var(--accent); font-size: var(--font-secondary); }
+.resume-metrics { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: var(--font-secondary); color: var(--muted); font-variant-numeric: tabular-nums; }
+.resume-open { display: flex; align-items: center; gap: 4px; color: var(--accent); font-size: var(--font-secondary); }
+.resume-workout ~ .toast { bottom: 144px; }
+.import-progress-pill.has-resume { bottom: 144px; }
+@media (max-width: 639px) {
+  .resume-workout.button { left: 12px; right: 12px; width: auto; max-width: none; bottom: calc(82px + env(safe-area-inset-bottom)); }
+  .resume-open { display: none; }
+  .resume-workout ~ .toast, .import-progress-pill.has-resume { bottom: calc(238px + env(safe-area-inset-bottom)); }
+  .import-progress-pill.has-resume ~ .toast { bottom: calc(294px + env(safe-area-inset-bottom)); }
+  .app-shell:has(.resume-workout) main { padding-bottom: 254px; }
 }

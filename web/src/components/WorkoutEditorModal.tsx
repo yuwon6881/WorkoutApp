@@ -342,6 +342,7 @@ export function WorkoutEditorModal({
 
       {swapIndex !== null && (
         <Modal
+          wide
           title={`Swap ${draft.exercises[swapIndex]?.name ?? 'exercise'}`}
           onClose={() => setSwapIndex(null)}
         >

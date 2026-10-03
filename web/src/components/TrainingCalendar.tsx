@@ -1,43 +1,83 @@
-import { useEffect, useState } from 'react';
-import { ArrowRight, CalendarDays, Check, ChevronLeft, ChevronRight, RotateCcw } from 'lucide-react';
-import type { Session, WorkoutActivityItem } from '../types';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { ArrowRight, Check, ChevronLeft, ChevronRight, RotateCcw } from 'lucide-react';
+import type { HistoryPage, ProgramSummary, Session, WorkoutActivityItem } from '../types';
 import { api } from '../lib/api';
 import { weekDays } from '../lib/training';
+import { programWeekCompletion } from '../lib/programWeekCompletion';
 import { Button } from './ui/Button';
 import { Modal } from './ui/Modal';
 import './TrainingCalendar.css';
-import './TrainingCalendarLayout.css';
 
 interface TrainingCalendarProps {
   onSession: (s: Session) => void;
+  program: ProgramSummary | null;
+  refreshKey: string | HistoryPage;
+  activeWorkoutId: string | null;
 }
 
 const localDay = (day: Date) =>
   `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, '0')}-${String(day.getDate()).padStart(2, '0')}`;
 
-export function TrainingCalendar({ onSession }: TrainingCalendarProps) {
+export function TrainingCalendar({ onSession, program, refreshKey, activeWorkoutId }: TrainingCalendarProps) {
   const [offset, setOffset] = useState(0);
   const days = weekDays(offset);
+  const rail = useRef<HTMLDivElement>(null);
+  const scrollTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useLayoutEffect(() => {
+    const element = rail.current;
+    if (!element) return;
+    const centerWeek = () => {
+      if (scrollTimer.current) clearTimeout(scrollTimer.current);
+      element.scrollLeft = element.firstElementChild?.getBoundingClientRect().width ?? 0;
+    };
+    centerWeek();
+    const observer = new ResizeObserver(centerWeek);
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [offset]);
+
+  useEffect(() => () => {
+    if (scrollTimer.current) clearTimeout(scrollTimer.current);
+  }, []);
+
+  const settleWeek = () => {
+    if (scrollTimer.current) clearTimeout(scrollTimer.current);
+    scrollTimer.current = setTimeout(() => {
+      const element = rail.current;
+      const width = element?.firstElementChild?.getBoundingClientRect().width;
+      if (!element || !width) return;
+      const direction = Math.round(element.scrollLeft / width) - 1;
+      if (direction) setOffset(value => value + direction);
+    }, 180);
+  };
   const [calendar, setCalendar] = useState<WorkoutActivityItem[]>([]);
   const [calendarError, setCalendarError] = useState('');
   const [selectedDay, setSelectedDay] = useState<Date | null>(null);
   const [selectedDayError, setSelectedDayError] = useState('');
 
   useEffect(() => {
-    const from = localDay(days[0]);
-    const to = localDay(days[6]);
+    const from = localDay(weekDays(offset - 1)[0]);
+    const to = localDay(weekDays(offset + 1)[6]);
     const controller = new AbortController();
+    setLoading(true);
     api
       .activity(from, to, controller.signal)
       .then(next => {
+        if (controller.signal.aborted) return;
+        setLoading(false);
         setCalendar(next);
         setCalendarError('');
       })
       .catch(() => {
-        if (!controller.signal.aborted) setCalendarError('Calendar could not be refreshed.');
+        if (!controller.signal.aborted) {
+          setLoading(false);
+          setCalendarError('Calendar could not be refreshed.');
+        }
       });
     return () => controller.abort();
-  }, [offset]);
+  }, [offset, refreshKey, activeWorkoutId]);
 
   const monthYearLabel = (() => {
     const firstMonth = days[0].toLocaleDateString('en', { month: 'short' });
@@ -53,24 +93,46 @@ export function TrainingCalendar({ onSession }: TrainingCalendarProps) {
     return `${firstMonth} ${firstYear} – ${lastMonth} ${lastYear}`;
   })();
 
-  const completedCount = calendar.filter(item => item.status === 'completed').length;
+  const completed = calendar.filter(item => item.status === 'completed' &&
+    item.date >= localDay(days[0]) && item.date <= localDay(days[6]));
+  const completion = programWeekCompletion(program);
+  const unavailable = loading || !!calendarError;
 
   return (
     <section className="panel training-calendar-card" aria-label="Training calendar">
       <div className="calendar-card-header">
-        <div className="calendar-title-wrap">
-          <div className="calendar-title-row">
-            <span className="calendar-icon-badge" aria-hidden="true">
-              <CalendarDays size={18} />
-            </span>
-            <h3>Activity & Schedule</h3>
+        <div className="calendar-completion">
+          <svg className="weekly-completion-ring" viewBox="0 0 100 100" role="img"
+            aria-label={completion ? `${completion.completed} of ${completion.total} workouts completed in program week ${completion.week}` : 'Weekly completion: no active program'}>
+            <circle className="completion-track" cx="50" cy="50" r="42" />
+            {completion && completion.ratio > 0 && <circle className="completion-fill" cx="50" cy="50" r="42"
+              pathLength="100" strokeDasharray={`${completion.ratio * 100} 100`} transform="rotate(-90 50 50)" />}
+            <text x="50" y="55" textAnchor="middle">{completion?.total ? completion.completed : '\u2014'}
+              {completion && completion.total > 0 && <tspan className="completion-total"> / {completion.total}</tspan>}</text>
+          </svg>
+          <div className="calendar-title-wrap">
+            <h3>{completion ? `Program week ${completion.week}` : 'Your training week'}</h3>
+            <span className="calendar-ring-caption">{completion ? completion.total ? 'Workouts completed' : 'Rest week' : 'No active program'}</span>
+            {program && <span className="calendar-program-name">{program.name}</span>}
           </div>
-          <span className="calendar-range-label">{monthYearLabel}</span>
         </div>
+        <Button variant="tertiary" className="calendar-today-btn" aria-label="Return to this week"
+          disabled={offset === 0} onClick={() => setOffset(0)}><RotateCcw size={18} /><span>This week</span></Button>
       </div>
-
-      <div className="calendar-days-grid" role="grid" aria-label="Days of the week">
-        {days.map(day => {
+      <div className="calendar-week-row">
+        <Button aria-label="Previous week" variant="tertiary" className="calendar-nav-btn"
+          onClick={() => setOffset(value => value - 1)}><ChevronLeft size={20} /></Button>
+        <div className="calendar-week-rail" ref={rail} onScroll={settleWeek} aria-label="Swipe to browse weeks" tabIndex={0}
+          onKeyDown={event => {
+            if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
+              event.preventDefault();
+              setOffset(value => value + (event.key === 'ArrowLeft' ? -1 : 1));
+            }
+          }}>
+          {[-1, 0, 1].map(relativeWeek => <div className="calendar-days-grid" key={relativeWeek}
+            inert={relativeWeek !== 0}
+            role="group" aria-label={relativeWeek === 0 ? 'Days of the week' : relativeWeek < 0 ? 'Previous week days' : 'Next week days'}>
+        {weekDays(offset + relativeWeek).map(day => {
           const dayStr = localDay(day);
           const entries = calendar.filter(item => item.date === dayStr);
           const status = entries.some(e => e.status === 'in_progress')
@@ -107,13 +169,13 @@ export function TrainingCalendar({ onSession }: TrainingCalendarProps) {
                   </span>
                 ) : status === 'in_progress' ? (
                   <span className="day-status-disc in-progress" title="Workout in progress">
-                    <span className="status-dot pulsing" aria-hidden="true" />
+                    <span className="status-dot" aria-hidden="true" />
                     <span className="day-status-label">Active</span>
                   </span>
                 ) : (
-                  <span className="day-status-disc rest" title="Rest day">
+                  <span className="day-status-disc rest" title="No workout recorded">
                     <span className="rest-ring" aria-hidden="true" />
-                    <span className="day-status-label">Rest</span>
+                    <span className="day-status-label">No workout</span>
                   </span>
                 )}
                 <span className="day-marker" aria-hidden="true">
@@ -123,57 +185,19 @@ export function TrainingCalendar({ onSession }: TrainingCalendarProps) {
             </Button>
           );
         })}
+          </div>)}
+        </div>
+        <Button aria-label="Next week" variant="tertiary" className="calendar-nav-btn"
+          onClick={() => setOffset(value => value + 1)}><ChevronRight size={20} /></Button>
       </div>
-
-      <div className="calendar-nav-controls" role="group" aria-label="Navigate weeks">
-        <Button
-          aria-label="Previous week"
-          variant="secondary"
-          className="calendar-nav-btn"
-          onClick={() => setOffset(o => o - 1)}
-        >
-          <ChevronLeft size={18} />
-        </Button>
-        <Button
-          aria-label="Return to this week"
-          variant="secondary"
-          className="calendar-today-btn"
-          disabled={offset === 0}
-          onClick={() => setOffset(0)}
-        >
-          <RotateCcw size={15} />
-          <span>Current week</span>
-        </Button>
-        <Button
-          aria-label="Next week"
-          variant="secondary"
-          className="calendar-nav-btn"
-          onClick={() => setOffset(o => o + 1)}
-        >
-          <ChevronRight size={18} />
-        </Button>
-      </div>
-
       <div className="calendar-card-footer">
-        <div className="calendar-week-summary">
-          <span className="calendar-week-badge">
-            {offset === 0 ? 'This week' : 'Selected week'}
-          </span>
-          <span className="calendar-week-count">
-            <strong>{completedCount}</strong> {completedCount === 1 ? 'workout' : 'workouts'} completed
-          </span>
-        </div>
+        <span>{monthYearLabel}</span>
         <div className="calendar-legend-pills" aria-label="Calendar status legend">
-          <span className="calendar-legend-pill">
-            <i className="legend-dot completed" aria-hidden="true" />
-            <span>Completed</span>
-          </span>
-          <span className="calendar-legend-pill">
-            <i className="legend-dot in-progress" aria-hidden="true" />
-            <span>In progress</span>
-          </span>
+          <span className="calendar-legend-pill"><i className="legend-dot completed" aria-hidden="true" />Completed</span>
+          <span className="calendar-legend-pill"><i className="legend-dot in-progress" aria-hidden="true" />In progress</span>
         </div>
       </div>
+      <p className="calendar-week-count">{unavailable ? calendarError ? 'Activity unavailable' : 'Loading activity' : `${completed.length} ${completed.length === 1 ? 'workout' : 'workouts'} completed in this calendar week`}</p>
 
       {calendarError && <p className="muted calendar-error">{calendarError}</p>}
 
