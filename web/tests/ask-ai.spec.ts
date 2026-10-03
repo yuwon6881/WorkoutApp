@@ -83,7 +83,7 @@ test('Ask AI keeps action review until requested and preserves chat when reset f
   expect(resolutions).toBe(1);
 });
 
-test('Ask AI opens a workout preview without starting a session', async ({ page }) => {
+test('Ask AI opens the Workouts screen without starting a session', async ({ page }) => {
   await page.route('**/api/bootstrap/launch', async route => {
     const response = await route.fetch();
     await route.fulfill({ json: { ...await response.json(), activeWorkout: null } });
@@ -107,10 +107,8 @@ test('Ask AI opens a workout preview without starting a session', async ({ page 
   await expect(chat.getByRole('button', { name: 'Open', exact: true })).toBeVisible();
   expect(starts).toBe(0);
   await chat.getByRole('button', { name: 'Open', exact: true }).click();
-  const preview = page.getByRole('dialog', { name: 'Start Review day?', exact: true });
-  await expect(preview).toBeVisible();
-  await expect(preview.getByRole('button', { name: 'Start workout', exact: true })).toBeVisible();
-  await preview.getByRole('button', { name: 'Cancel', exact: true }).click();
-  await expect(preview).not.toBeVisible();
+  // Opening a proposed workout only shows the Workouts screen; a session starts from its Start button.
+  await expect(page.getByRole('heading', { name: 'Workouts', exact: true })).toBeVisible();
+  await expect(page.getByRole('dialog', { name: 'Start Review day?', exact: true })).toHaveCount(0);
   expect(starts).toBe(0);
 });

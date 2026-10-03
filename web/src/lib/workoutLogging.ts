@@ -5,8 +5,6 @@ import { getSupersetGroup } from './supersets';
 import { loadIsEditable, nextPendingSet, setNumberLabel } from './workoutDraft';
 import { isTimedExercise, showSetDuration } from './setDuration';
 
-export type NextLog = { exerciseIndex: number; setIndex: number; label: string; detail: string; ariaLabel: string };
-
 // "60 kg × 8", "BW × 12", or just the reps when the load is still unknown.
 export function setSummary(exercise: SessionExercise, set: LoggedSet, unit: Unit): string {
   if (isTimedExercise(exercise)) {
@@ -24,22 +22,6 @@ export function setSummary(exercise: SessionExercise, set: LoggedSet, unit: Unit
 export function firstOpenExercise(session: Session): number {
   const open = session.exercises.findIndex(exercise => exercise.sets.some(set => !set.done));
   return open >= 0 ? open : 0;
-}
-
-// The footer's primary action logs the first set still open in the exercise on screen.
-export function nextLog(draft: Session, exerciseIndex: number, unit: Unit): NextLog | null {
-  const exercise = draft.exercises[exerciseIndex];
-  const setIndex = nextPendingSet(exercise);
-  if (!exercise || setIndex < 0) return null;
-  const { label, warmup } = setNumberLabel(exercise, setIndex);
-  return {
-    exerciseIndex,
-    setIndex,
-    label: warmup ? `Log warm-up ${label.slice(1)}` : `Log set ${label}`,
-    detail: setSummary(exercise, exercise.sets[setIndex], unit),
-    // Names the same set the row's own control names, so either can be found the same way.
-    ariaLabel: `Log ${exercise.name} set ${setIndex + 1}`
-  };
 }
 
 export type AdvanceOptions = { nextExercise: boolean; supersetPartner: boolean };

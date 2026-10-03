@@ -220,29 +220,20 @@ for (const theme of ['dark', 'light']) {
     await picker.getByRole('button', { name: 'Add Barbell bench press', exact: true }).click();
     await page.reload();
     const activeLogger = page.getByRole('dialog', { name: 'Active layout check', exact: true });
-    const summaryRow = activeLogger.locator('.workout-summary');
-    await expect(summaryRow).toContainText(summary.label);
-    const progressionHelp = activeLogger.getByRole('button', { name: 'Progression details', exact: true });
-    await expect(progressionHelp).toHaveAttribute('aria-expanded', 'false');
-    if (width < 1024) await progressionHelp.tap();
-    else {
-      await progressionHelp.focus();
-      await page.keyboard.press('Enter');
-    }
-    const progressionTooltip = page.getByRole('tooltip');
-    await expect(progressionTooltip).toContainText(summary.reason);
+    // The figures behind the workout no longer take a row between sets; they open from the options menu.
+    await expect(activeLogger.locator('.workout-summary')).toHaveCount(0);
+    await activeLogger.getByRole('button', { name: 'Workout options', exact: true }).click();
+    await page.getByRole('menuitem', { name: 'Workout details', exact: true }).click();
+    const details = page.getByRole('dialog', { name: 'Workout details', exact: true });
+    await expect(details).toContainText(summary.label);
+    await expect(details).toContainText(summary.reason);
     await page.keyboard.press('Escape');
-    await expect(progressionHelp).toHaveAttribute('aria-expanded', 'false');
-    await progressionHelp.focus();
-    await expect(progressionHelp).toBeFocused();
-    await page.keyboard.press('Enter');
-    await expect(progressionTooltip).toBeVisible();
-    await page.keyboard.press('Escape');
+    await expect(details).toBeHidden();
     await logger.getByRole('button', { name: 'Add set', exact: true }).click();
     await logger.getByRole('spinbutton', { name: 'Barbell bench press set 1 reps', exact: true }).fill('8');
     await logger.getByRole('spinbutton', { name: 'Barbell bench press set 1 weight', exact: true }).fill('60');
     await logger.getByRole('button', { name: 'Log Barbell bench press set 1', exact: true }).click();
-    await expect(logger.locator('.rest-bar.resting')).toBeVisible();
+    await expect(logger.locator('.workout-rest-bar')).toBeVisible();
     await checkLayout(page, 'active logger');
     await page.screenshot({ animations: 'disabled', path: join(screenshotsDirectory, 'responsive', `${info.project.name}-${theme}-active-logger.png`) });
     const exerciseNotes = logger.getByRole('textbox', { name: 'Exercise notes', exact: true });
@@ -456,12 +447,7 @@ for (const theme of ['dark', 'light']) {
 
     await navigate(page, 'Workouts');
     await page.locator('.routine-card').filter({ hasText: workoutName }).getByRole('button', { name: 'Start workout', exact: true }).first().click();
-    const preview = page.getByRole('dialog', { name: `Start ${workoutName}?`, exact: true });
-    await expect(preview).toBeVisible();
-    await screenshot('start-preview');
-    await preview.getByRole('button', { name: 'Start workout', exact: true }).click();
-    await expect(preview).toBeHidden();
-    await expect(page.getByRole('dialog')).toBeVisible();
+    await expect(page.getByRole('dialog', { name: workoutName, exact: true })).toBeVisible();
     await screenshot('workout-logger');
     await page.getByRole('button', { name: 'Add another exercise to this workout', exact: true }).click();
     await screenshot('logger-picker');

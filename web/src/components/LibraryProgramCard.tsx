@@ -1,4 +1,4 @@
-import { useState, type HTMLAttributes } from 'react';
+import { useEffect, useState, type HTMLAttributes } from 'react';
 import { Trash2, Zap } from 'lucide-react';
 import type { Exercise, ImportDraft, ProgramSummary } from '../types';
 import { ApiError, api } from '../lib/api';
@@ -10,13 +10,14 @@ import { SlotCardHeader } from './SlotCardHeader';
 /// A saved program waiting in the library: one line until expanded, then the same block and
 /// week timeline the builder uses, view-only. It carries no run state; that only exists while a
 /// program holds the active slot.
-export function LibraryProgramCard({ program, exercises, busy, onActivate, onDelete, dragProps }: {
+export function LibraryProgramCard({ program, exercises, busy, onActivate, onDelete, dragProps, dragging }: {
   program: ProgramSummary;
   exercises: Exercise[];
   busy: boolean;
   onActivate: () => void;
   onDelete: () => void;
   dragProps: HTMLAttributes<HTMLElement>;
+  dragging: boolean;
 }) {
   const [expanded, setExpanded] = useState(false);
   const [draft, setDraft] = useState<ImportDraft | null>(null);
@@ -25,6 +26,9 @@ export function LibraryProgramCard({ program, exercises, busy, onActivate, onDel
   const [error, setError] = useState('');
   const weekCount = new Set(program.days.map(day => day.week)).size;
   const workoutDays = program.days.filter(day => !day.isRestDay).length;
+
+  // A tall card is hard to carry across the page, so lifting it folds it down to its header.
+  useEffect(() => { if (dragging) setExpanded(false); }, [dragging]);
 
   async function toggle() {
     if (!expanded && draft === null) {
@@ -36,12 +40,7 @@ export function LibraryProgramCard({ program, exercises, busy, onActivate, onDel
     setExpanded(value => !value);
   }
 
-  return <section {...dragProps} className={`panel slot-card library-program-card ${expanded ? 'expanded' : 'is-collapsed-card'}`} aria-busy={loading}
-    onClick={!expanded ? (e) => {
-      const target = e.target as HTMLElement;
-      if (target.closest('.slot-card-grip, .slot-card-controls, button, [role="button"], [role="menu"]')) return;
-      void toggle();
-    } : undefined}>
+  return <section {...dragProps} className={`panel slot-card library-program-card ${expanded ? 'expanded' : ''}`} aria-busy={loading}>
     <SlotCardHeader title={program.name}
       meta={`${weekCount} ${weekCount === 1 ? 'week' : 'weeks'} · ${workoutDays} workout ${workoutDays === 1 ? 'day' : 'days'}`}
       expanded={expanded} onToggle={() => void toggle()}

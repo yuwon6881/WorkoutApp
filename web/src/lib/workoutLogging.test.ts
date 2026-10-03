@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { LoggedSet, Session, SessionExercise } from '../types';
 import { blankPrescription } from './workoutDraft';
-import { advanceTarget, nextLog, nextUpText } from './workoutLogging';
+import { advanceTarget, nextUpText } from './workoutLogging';
 
 function set(id: string, patch: Partial<LoggedSet> = {}): LoggedSet {
   return { id, position: 0, weightKg: 60, reps: 8, rpe: null, done: false, warmup: false, resistanceMode: 'external', ...patch };
@@ -20,19 +20,6 @@ function workout(exercises: SessionExercise[]): Session {
     finishedAt: null, revision: 1, exercises, volumeKg: null, completedSets: 0, warmupSets: 0
   };
 }
-
-describe('the next set to log', () => {
-  it('names the first open set with its load and reps', () => {
-    const draft = workout([exercise('a', 'Bench press', [set('a1', { done: true }), set('a2', { weightKg: 62.5 })])]);
-    expect(nextLog(draft, 0, 'kg')).toMatchObject({
-      setIndex: 1, label: 'Log set 2', detail: '62.5 kg × 8', ariaLabel: 'Log Bench press set 2'
-    });
-  });
-
-  it('is absent once every set of the exercise is logged', () => {
-    expect(nextLog(workout([exercise('a', 'Bench', [set('a1', { done: true })])]), 0, 'kg')).toBeNull();
-  });
-});
 
 describe('moving on after a set', () => {
   it('stays on an exercise until its last set, then moves to the next one', () => {

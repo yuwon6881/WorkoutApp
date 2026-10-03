@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import {
+  ClipboardList,
   FileText,
   Layers,
   Plus,
   RefreshCw,
   RotateCcw,
-  Target,
   Trash2,
   TrendingUp,
   Weight
@@ -27,7 +27,8 @@ import { Modal } from './ui/Modal';
 import { MenuButton, MenuItem } from './ui/MenuButton';
 import { ExerciseLibrary } from './Exercises';
 import { WorkoutSetRow } from './WorkoutSetRow';
-import { WorkoutExerciseHistory } from './WorkoutExerciseHistory';
+import { useRecentExerciseSets } from './useRecentExerciseSets';
+import { previousSetSummaries } from '../lib/previousSets';
 import { DemoLink } from './ui/DemoLink';
 import { isTimedExercise } from '../lib/setDuration';
 import { useTrackRir } from '../lib/trackRir';
@@ -154,12 +155,12 @@ export function WorkoutActiveExercise({
   }, [exercise.exerciseId, exercise.loadModel, libraryExercise, unit]);
   const resolvedLoads = libraryExercise ?? focusedLoads;
   const nextUnloggedWorkingIndex = workingSets.findIndex(s => !s.done);
-  const currentSetDisplay =
-    nextUnloggedWorkingIndex >= 0
-      ? `Set ${nextUnloggedWorkingIndex + 1} of ${workingSets.length || exercise.sets.length}`
-      : workingSets.length > 0
-        ? `All ${workingSets.length} sets completed`
-        : `${exercise.sets.length} sets`;
+  // The strip and the rows already show a finished exercise, so progress is only worth a line
+  // while there is still a set to log.
+  const currentSetDisplay = nextUnloggedWorkingIndex >= 0
+    ? `Set ${nextUnloggedWorkingIndex + 1} of ${workingSets.length || exercise.sets.length}`
+    : null;
+  const previousSets = previousSetSummaries(useRecentExerciseSets(exercise.exerciseId), exercise, trackRir);
 
   const progressionBadge = exercise.progression?.suggestedKg != null ? (
     <div className="workout-progression-badge" title={exercise.progression.reason}>
@@ -181,7 +182,7 @@ export function WorkoutActiveExercise({
               : exercise.name}
           </h2>
           <div className="workout-active-meta">
-            <span className="workout-set-progress">{currentSetDisplay}</span>
+            {currentSetDisplay && <span className="workout-set-progress">{currentSetDisplay}</span>}
             {exercise.isReplacement && (
               <span className="tiny-label">Swapped · {exercise.originalName}</span>
             )}
@@ -206,7 +207,7 @@ export function WorkoutActiveExercise({
           aria-pressed={showTargets}
           onClick={() => setShowTargets(s => !s)}
         >
-          <Target size={15} />
+          <ClipboardList size={15} />
           <span>Targets</span>
         </Button>
 
@@ -309,6 +310,7 @@ export function WorkoutActiveExercise({
                 ei={index}
                 exercise={exercise}
                 plan={plan}
+                previous={previousSets[si]}
                 unit={unit}
                 loadStepKg={resolvedLoads?.loadStepKg}
                 availableLoadsKg={resolvedLoads?.availableLoadsKg}
@@ -338,8 +340,6 @@ export function WorkoutActiveExercise({
           </Button>
         </div>
       </div>
-
-      <WorkoutExerciseHistory key={exercise.exerciseId ?? exercise.name} exercise={exercise} unit={unit} />
 
       {showNote && (
         <div className="workout-note-drawer">

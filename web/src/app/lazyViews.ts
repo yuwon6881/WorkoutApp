@@ -8,7 +8,6 @@ const loaders = {
   settings: () => import('../components/Settings'),
   exercises: () => import('../components/Exercises'),
   importReview: () => import('../components/Import'),
-  startPreview: () => import('../components/StartPreview'),
   muscles: () => import('../components/MuscleBalanceView'),
   sessionDetail: () => import('../components/SessionDetail'),
   workout: () => import('../components/Workout')
@@ -21,7 +20,6 @@ export const SettingsView = lazy(() => loaders.settings().then(module => ({ defa
 export const ExerciseLibrary = lazy(() => loaders.exercises().then(module => ({ default: module.ExerciseLibrary })));
 export const ExerciseDetailModal = lazy(() => loaders.exercises().then(module => ({ default: module.ExerciseDetailModal })));
 export const ImportReview = lazy(() => loaders.importReview().then(module => ({ default: module.ImportReview })));
-export const StartPreview = lazy(() => loaders.startPreview().then(module => ({ default: module.StartPreview })));
 export const MuscleBalanceView = lazy(() => loaders.muscles().then(module => ({ default: module.MuscleBalanceView })));
 export const SessionDetail = lazy(() => loaders.sessionDetail().then(module => ({ default: module.SessionDetail })));
 export const Workout = lazy(() => loaders.workout().then(module => ({ default: module.Workout })));

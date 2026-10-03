@@ -1,14 +1,12 @@
 import { useEffect, useState, type FormEvent, type HTMLAttributes } from 'react';
 import { ArrowRight, Library, PartyPopper, RotateCcw, Trash2 } from 'lucide-react';
-import type { DraftWorkout, Exercise, ImportDraft, ProgramSummary, Template, TemplateExercise } from '../types';
+import type { DraftWorkout, Exercise, ImportDraft, ProgramSummary, Template } from '../types';
 import { ApiError, api } from '../lib/api';
 import { isProgramFinished, programToDraft } from '../lib/activeSlot';
 import { Button } from './ui/Button';
 import { Modal } from './ui/Modal';
 import { MenuItem } from './ui/MenuButton';
 import { ProgramWeekChecklist } from './ProgramWeekChecklist';
-import { ProgramDayTree } from './ProgramDayTree';
-import { ProgramSwapModal } from './ProgramSwapModal';
 import { SlotCardHeader } from './SlotCardHeader';
 
 export type SlotCardActions = {
@@ -18,10 +16,10 @@ export type SlotCardActions = {
   onDelete: () => void;
 };
 
-/// The program in the active slot. While a run is underway it keeps the week checklist, the next
-/// workout, and exercise swaps; once every week is passed it turns into a finished card offering
-/// a restart or a move back to the library.
-export function ActiveProgramCard({ program, exercises, onStart, onChanged, hasActiveWorkout, actions, dragProps, moving }: {
+/// The program in the active slot. While a run is underway it shows the week checklist, which
+/// folds away behind the header (and while the card is dragged); once every week is passed it
+/// turns into a finished card offering a restart or a move back to the library.
+export function ActiveProgramCard({ program, exercises, onStart, onChanged, hasActiveWorkout, actions, dragProps, moving, dragging }: {
   program: ProgramSummary;
   exercises: Exercise[];
   onStart: (id: string) => void;
@@ -30,8 +28,9 @@ export function ActiveProgramCard({ program, exercises, onStart, onChanged, hasA
   actions: SlotCardActions;
   dragProps: HTMLAttributes<HTMLElement>;
   moving: boolean;
+  dragging: boolean;
 }) {
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useState(true);
   const [detail, setDetail] = useState<Template[] | null>(null);
   const [draft, setDraft] = useState<ImportDraft | null>(null);
   const [loading, setLoading] = useState(false);
@@ -40,11 +39,9 @@ export function ActiveProgramCard({ program, exercises, onStart, onChanged, hasA
   const [resetPhrase, setResetPhrase] = useState('');
   const [resetBusy, setResetBusy] = useState(false);
   const [resetError, setResetError] = useState('');
-  const [swapTarget, setSwapTarget] = useState<{ template: Template; exercise: TemplateExercise } | null>(null);
   const finished = isProgramFinished(program);
   const next = program.days.find(day => day.id === program.nextTemplateId);
   const progress = program.progress;
-  const currentDays = progress ? program.days.filter(day => day.week === progress.currentWeek) : program.days;
   const weekCount = new Set(program.days.map(day => day.week)).size;
   const weekIndex = progress ? [...new Set(program.days.map(day => day.week))].sort((a, b) => a - b).indexOf(progress.currentWeek) + 1 : 1;
   const canReset = Boolean(program.active && (progress?.passedDays ?? 0) > 0);
@@ -66,10 +63,8 @@ export function ActiveProgramCard({ program, exercises, onStart, onChanged, hasA
     }
   }, [program.id, program.revision, finished]);
 
-  function toggle() {
-    if (!expanded && detail === null) void loadDetail();
-    setExpanded(value => !value);
-  }
+  // A tall card is hard to carry across the page, so lifting it folds it down to its header.
+  useEffect(() => { if (dragging) setExpanded(false); }, [dragging]);
 
   function resetActionInput() {
     if (!progress) throw new Error('The current program week is not available. Refresh and try again.');
@@ -183,16 +178,11 @@ export function ActiveProgramCard({ program, exercises, onStart, onChanged, hasA
     ? `${weekCount} ${weekCount === 1 ? 'week' : 'weeks'} completed`
     : `Week ${weekIndex} of ${weekCount}${progress ? ` · ${progress.passedDays} of ${progress.totalDays} days passed` : ''}`;
 
-  return <section {...dragProps} className={`panel slot-card program-card ${finished ? 'slot-card-finished' : ''} ${moving ? 'slot-card-moving' : ''} ${(!expanded && !finished) ? 'is-collapsed-card' : ''}`}
-    aria-busy={actions.busy || loading}
-    onClick={(!expanded && !finished) ? (e) => {
-      const target = e.target as HTMLElement;
-      if (target.closest('.slot-card-grip, .slot-card-controls, button, a, [role="button"], [role="menu"], input, select')) return;
-      toggle();
-    } : undefined}>
+  return <section {...dragProps} className={`panel slot-card program-card ${finished ? 'slot-card-finished' : ''} ${moving ? 'slot-card-moving' : ''}`}
+    aria-busy={actions.busy || loading}>
     <SlotCardHeader title={program.name} meta={meta}
       badge={<span className={`tiny-label ${finished ? 'slot-finished-label' : 'accent'}`}>{finished ? 'Finished' : 'Active'}</span>}
-      expanded={finished ? undefined : expanded} onToggle={finished ? undefined : toggle}
+      expanded={finished ? undefined : expanded} onToggle={finished ? undefined : () => setExpanded(value => !value)}
       menuLabel={`Actions for ${program.name}`}
       menu={<>
         <MenuItem disabled={actions.busy} onClick={actions.onMoveToLibrary}><Library size={14} />Move to library</MenuItem>
@@ -203,22 +193,13 @@ export function ActiveProgramCard({ program, exercises, onStart, onChanged, hasA
 
     {finished
       ? <SlotFinished name={program.name} description="You passed every week of this program." actions={actions} />
-      : <>
+      : expanded && <>
         {progress && <ProgramWeekChecklist program={program} draft={draft} exercises={exercises} onStart={onStart} onChanged={onChanged} hasActiveWorkout={hasActiveWorkout} onDayChange={handleDayChange} onDraftChange={handleDraftChange} />}
-        {expanded && (detail
-          ? <ProgramDayTree days={currentDays} completed={program.completedTemplateIds} skipped={program.skippedTemplateIds ?? []}
-            nextId={program.nextTemplateId} detail={detail} exercises={exercises} onStart={onStart} canStart
-            onSwap={template => exercise => setSwapTarget({ template, exercise })} />
-          : loading && <p className="muted small-copy" role="status">Loading this week…</p>)}
         {!progress && next && <div className="slot-card-actions">
           <Button variant="primary" disabled={hasActiveWorkout} onClick={() => onStart(next.id)}>Start {next.name}<ArrowRight size={16} /></Button>
         </div>}
       </>}
     {error && <p className="error-text" role="alert">{error}</p>}
-
-    {swapTarget && <ProgramSwapModal program={program} target={swapTarget} detail={detail} exercises={exercises}
-      onClose={() => setSwapTarget(null)}
-      onApplied={async () => { await onChanged(); await loadDetail(); setSwapTarget(null); }} />}
 
     {resetOpen && <Modal title="Reset this week?" onClose={() => { setResetOpen(false); setResetPhrase(''); }}>
       <form className="modal-body program-week-reset-form" noValidate onSubmit={event => void handleResetWeek(event)}>

@@ -110,7 +110,22 @@ test('workouts move between the library and the active slot, forgetting progress
     await expect(dayView.getByRole('textbox')).toHaveCount(0);
     await page.screenshot({ path: join(screenshotsDirectory, `${info.project.name}-workout-slot-library-day.png`) });
     await dayView.getByRole('button', { name: 'Done', exact: true }).click();
-    await libraryCard.getByRole('button', { name: `Collapse ${programName}`, exact: true }).click();
+    // The header toggles in both directions, anywhere on it.
+    await libraryCard.locator('.slot-card-title').click();
+    await expect(libraryCard.getByRole('button', { name: `Expand ${programName}`, exact: true })).toBeVisible();
+    await libraryCard.locator('.slot-card-title').click();
+    await expect(libraryCard.getByRole('button', { name: `Collapse ${programName}`, exact: true })).toBeVisible();
+
+    // Lifting an open card by its grip folds it down, so it is easy to carry. Dropping it where it
+    // started leaves it in the library.
+    const grip = libraryCard.locator('[data-slot-grip]').first();
+    const gripBox = (await grip.boundingBox())!;
+    await page.mouse.move(gripBox.x + gripBox.width / 2, gripBox.y + gripBox.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(gripBox.x + gripBox.width / 2 + 24, gripBox.y + gripBox.height / 2 + 24, { steps: 6 });
+    await expect(libraryCard.getByRole('button', { name: `Expand ${programName}`, exact: true })).toBeVisible();
+    await expect(libraryCard.getByRole('button', { name: 'Upper A', exact: true })).toHaveCount(0);
+    await page.mouse.up();
 
     await dragTo(page, libraryCard, zone);
     const activeCard = zone.locator('.program-card').filter({ hasText: programName });

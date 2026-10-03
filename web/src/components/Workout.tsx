@@ -4,7 +4,7 @@ import { ApiError, api } from '../lib/api';
 import type { SaveQueue } from '../lib/queue';
 import { completedSets, finishBlocker, plannedSets } from '../lib/training';
 import { exerciseListChanged } from '../lib/workoutDraft';
-import { firstOpenExercise, nextLog, nextUpText, type AdvanceOptions } from '../lib/workoutLogging';
+import { firstOpenExercise, nextUpText, type AdvanceOptions } from '../lib/workoutLogging';
 import { useAfterLog } from './useAfterLog';
 import { validateLoggedSet, validateSessionDraft } from '../lib/validation';
 import { restTimer } from '../lib/restTimer';
@@ -20,6 +20,8 @@ import type { WorkoutRecoveryRecord } from '../lib/workoutRecovery';
 import { drainWorkoutOutbox, sessionPayload } from '../lib/workoutOutbox';
 import { Modal } from './ui/Modal';
 import { WorkoutFooter } from './WorkoutFooter';
+import { WorkoutRestBar } from './WorkoutRestBar';
+import { WorkoutDetailsModal, hasWorkoutDetails } from './WorkoutDetails';
 import { WorkoutTopBar } from './WorkoutTopBar';
 import { WorkoutEditor } from './WorkoutEditor';
 import { WorkoutRecoveryConflict } from './WorkoutRecoveryConflict';
@@ -66,6 +68,7 @@ export function Workout({
   const [draft, setDraft] = useState(recovery?.sessionId === session.id ? recovery.draft : session);
   const [picker, setPicker] = useState(false);
   const [confirm, setConfirm] = useState<'finish' | 'discard' | null>(null);
+  const [detailsOpen, setDetailsOpen] = useState(false);
   const [retainSwaps, setRetainSwaps] = useState(false);
   const [error, setError] = useState('');
   const loadCatalog = () => { void onCatalogNeeded?.().catch(failure => setError(failure instanceof Error ? failure.message : 'Exercises could not be loaded. Try again.')); };
@@ -417,10 +420,12 @@ export function Workout({
   });
 
   const currentExercise = draft.exercises[activeIndex] ?? draft.exercises[0];
-  const pendingLog = !paused && !finishIntentAt && !recoveryConflict ? nextLog(draft, activeIndex, unit) : null;
-  const logAction = pendingLog && {
-    ...pendingLog,
-    onLog: () => void toggle(pendingLog.exerciseIndex, pendingLog.setIndex)
+  const planned = plannedSets(draft);
+  const canFinish = !paused && !finishIntentAt && !recoveryConflict && planned > 0 && done >= planned;
+  const requestFinish = () => {
+    const blocker = finishBlocker(draft);
+    if (blocker) { setError(blocker); return; }
+    setConfirm('finish');
   };
   const defaultRestSeconds = currentExercise?.restSeconds ?? preferences.restSeconds ?? 90;
 
@@ -438,16 +443,23 @@ export function Workout({
           : localStatus}
         online={online}
         discardDisabled={busy || !online}
+        finishDisabled={busy || Boolean(finishIntentAt) || recoveryConflict}
+        hasDetails={hasWorkoutDetails(draft)}
+        onFinish={requestFinish}
+        onDetails={() => setDetailsOpen(true)}
         onDiscard={() => setConfirm('discard')}
         session={draft}
         finishedAt={finishIntentAt}
         done={done}
-        planned={plannedSets(draft)}
+        planned={planned}
         paused={paused}
         pauseDisabled={busy || Boolean(finishIntentAt) || recoveryConflict}
         onClose={onClose}
         onTogglePause={() => void togglePause()}
       />
+
+      <WorkoutRestBar rest={rest} nextUp={nextUpText(draft, activeIndex, unit)}
+        disabled={busy || Boolean(finishIntentAt) || recoveryConflict || paused} onRestMutate={handleRestMutate} />
 
       {recoveryConflict && recovery && <WorkoutRecoveryConflict recovery={recovery} online={online} onResolve={choice => void resolveConflict(choice)} />}
 
@@ -458,17 +470,10 @@ export function Workout({
         onChange={change} onEditSet={editSet} onToggleSet={toggle} onSelectExercise={selectExercise}
         onSwap={swapExercise} onRestore={restoreExercise} onRemoveExercise={removeExercise} onCatalogChanged={onCatalogChanged} onCatalogNeeded={onCatalogNeeded} />
 
-      <WorkoutFooter error={error} rest={rest} defaultRestSeconds={defaultRestSeconds}
-        busy={busy || Boolean(finishIntentAt) || recoveryConflict} restDisabled={paused || Boolean(finishIntentAt) || recoveryConflict}
-        nextUp={nextUpText(draft, activeIndex, unit)}
-        logAction={logAction}
-        celebration={celebration}
-        onFinish={() => {
-          const blocker = finishBlocker(draft);
-          if (blocker) { setError(blocker); return; }
-          setConfirm('finish');
-        }}
-        onRestMutate={handleRestMutate} />
+      <WorkoutFooter error={error} busy={busy || Boolean(finishIntentAt) || recoveryConflict}
+        celebration={celebration} canFinish={canFinish} onFinish={requestFinish} />
+
+      {detailsOpen && <WorkoutDetailsModal draft={draft} unit={unit} onClose={() => setDetailsOpen(false)} />}
 
       {confirm && (
         <WorkoutConfirmModal

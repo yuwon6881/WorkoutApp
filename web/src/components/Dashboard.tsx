@@ -14,8 +14,6 @@ import { CalendarSkeleton, ProgressStatsSkeleton } from './DashboardTrainingSkel
 interface DashboardProps {
   data: Bootstrap;
   onStart: (templateId: string) => void;
-  /** Starts straight away; the preview stays one tap further for anyone who wants it. */
-  onQuickStart: (templateId: string) => void;
   onProgram: () => void;
   onImport: () => void;
   onResume: () => void;
@@ -27,7 +25,6 @@ interface DashboardProps {
 export function Dashboard({
   data,
   onStart,
-  onQuickStart,
   onProgram,
   onResume,
   onSession,
@@ -169,12 +166,9 @@ export function Dashboard({
               <Play size={17} fill="currentColor" /> Resume workout <ArrowRight size={18} />
             </Button>
           ) : next ? (
-            <>
-              <Button variant="primary" onClick={() => onQuickStart(next.id)}>
-                <Play size={17} fill="currentColor" /> Start workout <ArrowRight size={18} />
-              </Button>
-              <Button variant="secondary" onClick={() => onStart(next.id)}>Preview</Button>
-            </>
+            <Button variant="primary" onClick={() => onStart(next.id)}>
+              <Play size={17} fill="currentColor" /> Start workout <ArrowRight size={18} />
+            </Button>
           ) : program ? (
             <Button variant="primary" onClick={onProgram}>
               <Check size={17} /> Open workouts <ArrowRight size={18} />

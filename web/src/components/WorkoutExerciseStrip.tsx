@@ -57,7 +57,7 @@ export function WorkoutExerciseStrip({
               onClick={() => onSelect(index)}
             >
               <span className="workout-strip-ring" aria-hidden="true">
-                <svg viewBox="0 0 28 28">
+                <svg className="ring-svg" viewBox="0 0 28 28">
                   <circle className="ring-track" cx="14" cy="14" r="11" />
                   <circle
                     className="ring-value"

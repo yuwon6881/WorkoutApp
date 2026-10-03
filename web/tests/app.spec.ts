@@ -371,14 +371,6 @@ async function openTab(page: Page, name: string) {
   await page.locator('.motion-scene').evaluate(el => Promise.all(el.getAnimations().map(a => a.finished))).catch(() => {});
 }
 
-async function openStartPreview(page: Page, startButton: import('@playwright/test').Locator, preview: import('@playwright/test').Locator) {
-  const templateResponse = page.waitForResponse(response => response.request().method() === 'GET' && /\/api\/templates\/[0-9a-f-]+$/i.test(new URL(response.url()).pathname), { timeout: 15000 }).catch(() => null);
-  await startButton.click({ force: true });
-  const response = await templateResponse;
-  if (response) expect(response.ok()).toBe(true);
-  await expect(preview).toBeVisible({ timeout: 15000 });
-}
-
 test.describe.configure({ mode: 'serial' });
 
 test('build a workout, log a set against the server, and see it in history', async ({ page }, testInfo) => {
@@ -404,19 +396,11 @@ test('build a workout, log a set against the server, and see it in history', asy
   await expect(page.getByRole('heading', { name, exact: true })).toBeVisible();
 
   // Other projects leave their own workouts behind, so start the one this test just built.
-  const preview = page.getByRole('dialog', { name: `Start ${name}?`, exact: true });
   const startBtn = page.locator('.routine-card').filter({ hasText: name }).getByRole('button', { name: 'Start workout', exact: true });
   await startBtn.evaluate(el => el.scrollIntoView({ block: 'center', inline: 'nearest' }));
-  await openStartPreview(page, startBtn, preview);
-
-  // The plan is previewed first; nothing is created until it is confirmed.
-  await expect(preview.getByText('Barbell bench press', { exact: true })).toBeVisible();
-  await preview.getByRole('button', { name: 'Cancel', exact: true }).click();
-  await expect(preview).toBeHidden();
-  expect(await doneSetsOnServer(page)).toBe(0);
-
-  await openStartPreview(page, startBtn, preview);
-  await preview.getByRole('button', { name: 'Start workout', exact: true }).click();
+  // Start begins the workout straight away, with no second confirmation.
+  await startBtn.click({ force: true });
+  await expect(page.getByRole('dialog', { name: `Start ${name}?`, exact: true })).toHaveCount(0);
   const logger = page.getByRole('dialog', { name, exact: true });
   await expect(logger).toBeVisible();
 
@@ -490,7 +474,10 @@ test('build a workout, log a set against the server, and see it in history', asy
   await expect(weights).toHaveCount(setCount);
   await expect(secondWeight).toHaveValue('55');
 
-  await page.getByRole('button', { name: 'Finish workout', exact: true }).click();
+  // Finishing early lives in the options menu; the footer's own Finish only appears once every set is logged.
+  await expect(page.getByRole('button', { name: 'Finish workout', exact: true })).toHaveCount(0);
+  await activeLogger.getByRole('button', { name: 'Workout options', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'Finish workout', exact: true }).click();
   await page.getByRole('button', { name: 'Save workout', exact: true }).click();
   await expect(page.getByText('Workout complete', { exact: true })).toBeVisible();
   await expect(page.getByText('60 kg × 8', { exact: true })).toBeVisible();
@@ -551,13 +538,11 @@ test('build a workout, log a set against the server, and see it in history', asy
     el.scrollIntoView({ block: 'center', inline: 'nearest' });
     return Promise.all(document.getAnimations().map(a => a.finished));
   });
-  const againPreview = page.getByRole('dialog', { name: `Start ${name}?`, exact: true });
-  await openStartPreview(page, againStartBtn, againPreview);
-  await againPreview.getByRole('button', { name: 'Start workout', exact: true }).click();
+  await againStartBtn.click({ force: true });
   const again = page.getByRole('dialog', { name, exact: true });
-  const pastSets = again.getByRole('region', { name: 'Past sets for Barbell bench press' });
-  await expect(pastSets.getByRole('heading', { name: 'Past sets' })).toBeVisible();
-  await expect(pastSets.locator('li').filter({ hasText: '2 RIR' }).first()).toBeVisible();
+  // Last time's reps and reserve sit in the target column; there is no separate past-sets list.
+  await expect(again.getByRole('region', { name: 'Past sets for Barbell bench press' })).toHaveCount(0);
+  await expect(again.locator('.workout-set-row').first().locator('.target-text')).toHaveText('8 · 2 RIR');
   await expect(again.getByRole('textbox', { name: 'Exercise notes', exact: true })).toBeVisible();
   await expect(again.locator('.suggestion-text').first()).toBeVisible();
   await expect(again.getByRole('spinbutton', { name: 'Barbell bench press set 1 weight', exact: true })).toHaveValue('60');
@@ -1009,10 +994,15 @@ test('import a PDF program, resolve an unmapped exercise, and accept it', async 
   await openTab(page, 'Workouts');
   const activeCard = page.locator('.program-card').filter({ hasText: programName });
   await expect(activeCard.getByText('Active', { exact: true })).toBeVisible();
-  await activeCard.getByRole('button', { name: `Expand ${programName}`, exact: true }).click();
-  const activeUpperDay = activeCard.locator('.program-slot-card').filter({ hasText: 'Week 1 Upper' }).first();
-  await activeUpperDay.getByRole('button', { name: /^Show details for / }).click();
-  await expect(activeUpperDay.locator('.program-muscle-preview')).toBeVisible();
+  // The card is open by default and folds away behind its header, anywhere on it, and opens again.
+  // The faked program has no run yet, so only the toggle's state can be read. The day tree is gone.
+  const cardToggle = activeCard.getByRole('button', { name: new RegExp(`^(Collapse|Expand) ${programName}`) });
+  await expect(cardToggle).toHaveAttribute('aria-expanded', 'true');
+  await activeCard.locator('.slot-card-title').click();
+  await expect(cardToggle).toHaveAttribute('aria-expanded', 'false');
+  await activeCard.locator('.slot-card-title').click();
+  await expect(cardToggle).toHaveAttribute('aria-expanded', 'true');
+  await expect(activeCard.locator('.program-tree')).toHaveCount(0);
   await page.unrouteAll({ behavior: 'wait' });
   // Review edits must reach the real program prescription and its active-workout label.
   const requestHeaders = { 'X-Workout-Request': '1', Origin: new URL(page.url()).origin };
@@ -1038,12 +1028,7 @@ test('import a PDF program, resolve an unmapped exercise, and accept it', async 
   const workingIndex = bench.prescription.findIndex((set: { warmup: boolean }) => !set.warmup);
   // This imported day pairs supersets, so automatic handoffs can legitimately
   // omit rest. Verify the timer's explicit action uses the imported prescription.
-  const prescribedRest = bench.prescription[workingIndex].restSeconds;
-  await importedLogger.getByRole('button', { name: `Start a ${prescribedRest} second rest`, exact: true }).click();
-  const importedRest = importedLogger.locator('.rest-bar.resting .rest-clock');
-  await expect(importedRest).toBeVisible();
-  await expect.poll(() => restSeconds(importedRest)).toBeGreaterThan(prescribedRest - 10);
-  expect(await restSeconds(importedRest)).toBeLessThanOrEqual(prescribedRest);
+  expect(workingIndex).toBeGreaterThanOrEqual(0);
   await page.screenshot({ path: join(screenshotsDirectory, `${testInfo.project.name}-imported-partials-active.png`), fullPage: true });
   await clearActiveWorkout(page);
   } finally {

@@ -3,10 +3,10 @@
 
 .modal .workout-top-status-bar {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   gap: 8px;
-  padding: 6px 10px;
+  padding: 6px 10px 6px 16px;
   background: var(--surface);
   border-bottom: 1px solid var(--border);
 }
@@ -22,8 +22,7 @@
 
 .workout-top-summary {
   display: flex;
-  align-items: center;
-  justify-content: center;
+  align-items: flex-start;
   gap: 10px;
   min-width: 0;
 }
@@ -90,7 +89,7 @@
 .workout-top-meta {
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   gap: 6px;
   min-width: 0;
   flex-wrap: wrap;
@@ -113,25 +112,6 @@
 .workout-sync-status.saved { color: var(--muted); }
 .workout-sync-status.offline { color: var(--amber); }
 .workout-sync-status.warning { color: var(--red); }
-
-.modal .workout-summary {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 6px 14px;
-  padding: 8px 14px;
-  background: var(--surface-raised);
-  border-bottom: 1px solid var(--border);
-}
-
-.modal .workout-summary > span {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  color: var(--muted);
-  font-size: var(--font-secondary);
-  font-variant-numeric: tabular-nums;
-}
 
 /* Exercise strip: pills that name the exercise in full and show progress as a ring. */
 .workout-exercise-strip-container {
@@ -192,7 +172,7 @@
   font-variant-numeric: tabular-nums;
 }
 
-.workout-strip-ring svg {
+.workout-strip-ring .ring-svg {
   position: absolute;
   inset: 0;
   transform: rotate(-90deg);
@@ -244,38 +224,21 @@
   color: var(--accent);
 }
 
-/* Rest: a quiet row when idle; while resting, a large countdown, quick adjustments, and the
-   set that comes next, all in the thumb zone above the primary action. */
-.workout-footer .rest-bar {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  min-height: 52px;
-  padding: 4px 14px;
-  color: var(--muted);
-  font-size: var(--font-secondary);
-}
-
-.workout-footer .rest-bar .rest-clock { font-variant-numeric: tabular-nums; white-space: nowrap; }
-
-.workout-footer .rest-bar .button {
-  min-height: 44px;
-  padding: 0 12px;
-  font-size: var(--font-secondary);
-}
-
-.workout-footer .rest-bar.resting {
+/* Rest: pinned under the header while a rest runs, as a large countdown, quick adjustments, and
+   the set that comes next. It is not rendered between rests. */
+.workout-rest-bar {
   display: grid;
-  gap: 8px;
-  padding: 10px 14px;
+  gap: 6px;
+  padding: 8px 14px 10px;
+  border-bottom: 1px solid var(--accent-border);
   background: var(--accent-soft);
   color: var(--accent);
+  font-size: var(--font-secondary);
 }
 
-.rest-bar-head { display: flex; align-items: center; gap: 12px; }
+.rest-bar-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 4px 10px; }
 
-.workout-footer .rest-bar.resting .rest-clock { color: var(--text); font-size: var(--font-secondary); }
+.workout-rest-bar .rest-clock { color: var(--text); font-size: var(--font-secondary); font-variant-numeric: tabular-nums; white-space: nowrap; }
 
 .rest-clock-value {
   display: inline-block;
@@ -287,13 +250,15 @@
   line-height: 1;
 }
 
-.rest-bar-actions {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 6px;
+.workout-rest-bar .button {
+  min-height: 44px;
+  padding: 0 12px;
+  font-size: var(--font-secondary);
 }
 
-.workout-footer .rest-bar-actions .button { padding: 0 6px; }
+.rest-bar-actions { display: flex; align-items: center; gap: 2px; margin-left: auto; }
+
+.workout-rest-bar .rest-bar-actions .button { min-width: 44px; padding: 0 8px; }
 
 .rest-next {
   margin: 0;
@@ -304,17 +269,16 @@
   white-space: nowrap;
 }
 
-.workout-footer .rest-track {
-  flex: 1 1 auto;
-  height: 6px;
-  min-width: 48px;
+.workout-rest-bar .rest-track {
+  display: block;
   max-width: none;
+  height: 4px;
   border-radius: var(--radius-pill);
   background: var(--border);
   overflow: hidden;
 }
 
-.workout-footer .rest-track > span {
+.workout-rest-bar .rest-track > span {
   display: block;
   height: 100%;
   border-radius: inherit;
@@ -322,7 +286,7 @@
   transition: width 1s linear;
 }
 
-/* The primary action row: Finish beside a wide "Log set" button that stays put set after set. */
+/* Finish appears once every working set is logged; errors and personal bests share its row. */
 .workout-footer-actions {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
@@ -333,22 +297,8 @@
   background: var(--surface);
 }
 
-.workout-footer-actions > .modal-actions-error { grid-column: 1 / -1; margin: 0; }
-.workout-footer-actions.has-log { grid-template-columns: auto minmax(0, 1fr); }
+.workout-footer-actions > .modal-actions-error { margin: 0; }
 .workout-footer-actions .button { min-height: 48px; justify-content: center; }
-
-.workout-log-next.button {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0;
-  min-height: 52px;
-  padding: 6px 12px;
-  line-height: 1.2;
-}
-
-.log-next-label { font-size: 16px; font-weight: 700; }
-.log-next-detail { font-size: var(--font-secondary); font-weight: 600; opacity: 0.85; font-variant-numeric: tabular-nums; }
 
 /* Phone set rows: the RIR and done controls have fixed sizes, so they get fixed columns and the
    head labels line up over the controls instead of over stretched, half-empty cells. */
@@ -363,7 +313,7 @@
     justify-self: center;
   }
 
-  .workout-footer .rest-bar { padding-inline: 12px; gap: 8px; }
+  .workout-rest-bar { padding-inline: 12px; }
 }
 
 @media (min-width: 1024px) {
@@ -377,7 +327,7 @@
 
 @media (prefers-reduced-motion: reduce) {
   .workout-strip-ring .ring-value,
-  .workout-footer .rest-track > span {
+  .workout-rest-bar .rest-track > span {
     transition: none;
   }
 }
@@ -403,7 +353,6 @@
 /* Each exercise is a page; a sideways swipe anywhere on the workout turns it (ui/useHorizontalSwipe.ts).
    The wrapper adds no box, so the pan rule sits on the regions it groups. */
 .workout-swipe-surface { display: contents; }
-.workout-swipe-surface > .workout-summary,
 .workout-swipe-surface > .workout-body { touch-action: pan-y; }
 
 /* Phones: the strip is an overview and a jump list, so it gives its height to the sets. */
@@ -414,5 +363,12 @@
   .workout-strip-name { display: block; white-space: normal; overflow-wrap: anywhere; }
   .workout-strip-count { display: none; }
   .workout-strip-add-item.button { min-height: 44px; }
-  .modal .workout-top-status-bar { padding: 4px 8px; }
+  .modal .workout-top-status-bar { padding: 4px 8px 4px 12px; }
 }
+
+/* The workout's details sheet: one icon-led line per figure, each with the plain reason beneath. */
+.workout-details { display: grid; gap: 14px; }
+.workout-details > p { display: flex; align-items: flex-start; gap: 12px; margin: 0; }
+.workout-details > p > svg { flex: 0 0 auto; margin-top: 2px; color: var(--muted); }
+.workout-details > p > span { display: grid; gap: 2px; min-width: 0; }
+.workout-details small { color: var(--muted); font-size: var(--font-secondary); }

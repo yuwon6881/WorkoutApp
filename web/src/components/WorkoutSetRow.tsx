@@ -25,6 +25,7 @@ export function WorkoutSetRow({
   ei,
   exercise,
   plan,
+  previous,
   unit,
   loadStepKg: resolvedStepKg,
   availableLoadsKg,
@@ -37,6 +38,8 @@ export function WorkoutSetRow({
   ei: number;
   exercise: SessionExercise;
   plan: SetPrescription | undefined;
+  /** What this set read last time; when absent the plan's target is shown instead. */
+  previous?: string | null;
   unit: Preferences['unit'];
   loadStepKg?: number;
   availableLoadsKg?: number[] | null;
@@ -67,7 +70,7 @@ export function WorkoutSetRow({
       </span>
 
       <div className="set-target-cell">
-        <span className="target-text">{plan ? (timed ? showTimedTarget(plan) : showTarget(plan, trackRir)) : '—'}</span>
+        <span className="target-text" title={previous ? 'The same set last time' : undefined}>{previous ?? (plan ? (timed ? showTimedTarget(plan) : showTarget(plan, trackRir)) : '—')}</span>
         {partialTechnique && <small className="set-technique-note">{partialTechnique}</small>}
         {set.suggestion && (
           <small className="suggestion-text" title={set.suggestion.reason}>

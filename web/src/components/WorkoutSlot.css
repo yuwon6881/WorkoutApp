@@ -104,9 +104,7 @@
   padding: 18px 18px 18px;
 }
 
-.slot-card-header.is-clickable,
-.library-program-card.is-collapsed-card,
-.program-card.is-collapsed-card {
+.slot-card-header.is-clickable {
   cursor: pointer;
 }
 

@@ -20,8 +20,8 @@
 .action-pill.active { border-color: var(--accent-border-strong); background: var(--accent-soft); color: var(--accent); }
 .pill-static { cursor: default; color: var(--muted); }
 
-/* Targets details card and note drawer */
-.workout-plan-detail-card, .workout-note-drawer { padding: 12px 14px; border-radius: 10px; background: var(--surface-hover); border: 1px solid var(--border); }
+/* Targets details card. The exercise note is a bare field: a tinted box around the textarea's own box buried it. */
+.workout-plan-detail-card { padding: 12px 14px; border-radius: 10px; background: var(--surface-hover); border: 1px solid var(--border); }
 .plan-detail-heading { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: var(--font-secondary, 13px); }
 .plan-detail-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 4px; font-size: var(--font-secondary, 12px); }
 .plan-detail-list li { display: flex; gap: 6px; color: var(--muted); }
@@ -65,7 +65,6 @@
 .workout-set-undo .button { min-height: 44px; }
 .add-set-btn { width: 100%; min-height: 42px; border: 1px dashed var(--accent-border); color: var(--accent); background: var(--accent-soft); border-radius: 8px; display: flex; align-items: center; justify-content: center; gap: 6px; font-weight: 600; }
 .add-set-btn:hover:not(:disabled) { background: var(--surface-hover); border-color: var(--accent-border-strong); }
-.workout-global-notes { margin-top: 10px; }
 
 /* Workout builder modal */
 .workout-builder-body { display: flex; flex-direction: column; gap: 16px; }

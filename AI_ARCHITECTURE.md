@@ -1,6 +1,6 @@
 # Ask AI architecture
 
-Ask AI reads training data and proposes existing screens or drafts for explicit review. It never logs sets, starts/finishes a session, changes a program, or changes Nutrition targets. Opening a workout draft shows StartPreview; a session is created only by the user's normal confirmation.
+Ask AI reads training data and proposes existing screens or drafts for explicit review. It never logs sets, starts/finishes a session, changes a program, or changes Nutrition targets. Opening a workout draft only shows the Workouts screen; a session is created only when the user taps a Start button.
 
 ## Request flow
 

@@ -194,7 +194,7 @@ export function Programs({ data, exercises, onStart, onImport, onChanged, onTemp
         hasLibrary={libraryCount > 0} onNewWorkout={() => open()} onImport={onImport}>
         {displayHolder?.kind === 'program' && <ActiveProgramCard program={displayHolder.program} exercises={exercises} onStart={onStart} onChanged={onChanged}
           hasActiveWorkout={hasActiveWorkout} actions={cardActions(displayHolder)} dragProps={dragProps(displayHolder, 'active')}
-          moving={movingId === displayHolder.program.id} />}
+          moving={movingId === displayHolder.program.id} dragging={draggingId === slotItemId(displayHolder)} />}
         {displayHolder?.kind === 'template' && <ActiveTemplateCard template={displayHolder.template} onStart={() => onStart(displayHolder.template.id)}
           onEdit={() => open(displayHolder.template)} hasActiveWorkout={hasActiveWorkout} actions={cardActions(displayHolder)}
           dragProps={dragProps(displayHolder, 'active')} moving={movingId === displayHolder.template.id} />}
@@ -210,7 +210,7 @@ export function Programs({ data, exercises, onStart, onImport, onChanged, onTemp
         {libraryPrograms.map(program => {
           const item: SlotItem = { kind: 'program', program };
           return <LibraryProgramCard key={program.id} program={program} exercises={exercises} busy={slot.busy}
-            onActivate={() => slot.activate(item)} onDelete={() => slot.remove(item)} dragProps={dragProps(item, 'library')} />;
+            onActivate={() => slot.activate(item)} onDelete={() => slot.remove(item)} dragProps={dragProps(item, 'library')} dragging={draggingId === slotItemId(item)} />;
         })}
       </div>}
       {libraryTemplates.length ? <div className="program-grid">{libraryTemplates.map(template => {

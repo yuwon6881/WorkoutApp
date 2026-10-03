@@ -1,8 +1,8 @@
 // First-screen styles stay eager. Optional feature CSS loads before the shell stylesheet through
 // featureCss, so navigating later cannot invert the existing cascade.
-import { lazy, Suspense, useEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
 import { AlertTriangle, BicepsFlexed, CheckCircle2, Cloud, Dumbbell, LayoutDashboard, Library, Loader2, Plus, RefreshCw, Settings, Sparkles, WifiOff } from 'lucide-react';
-import type { AppResource, Exercise, Session, Template } from './types';
+import type { AppResource, Exercise, Session } from './types';
 import { ApiError, api } from './lib/api';
 import { useApp } from './app/useApp';
 import { useShellRestTimer } from './app/useShellRestTimer';
@@ -24,7 +24,7 @@ import { MotionScene, SelectionIndicator } from './components/ui/Motion';
 import './components/BottomNav.css';
 import { AppLoading } from './components/AppLoading';
 import { ViewSkeleton } from './components/ViewSkeleton';
-import { Auth, Dashboard, ExerciseDetailModal, ExerciseLibrary, ImportReview, MuscleBalanceView, Programs, SessionDetail, SettingsView, StartPreview, Workout, prefetchView } from './app/lazyViews';
+import { Auth, Dashboard, ExerciseDetailModal, ExerciseLibrary, ImportReview, MuscleBalanceView, Programs, SessionDetail, SettingsView, Workout, prefetchView } from './app/lazyViews';
 import { ResumeWorkoutButton } from './components/ResumeWorkoutButton';
 import { TrackRirContext, tracksRir } from './lib/trackRir';
 import {applyTheme, forgetTheme, initialTheme, rememberTheme} from './lib/theme';
@@ -72,11 +72,9 @@ export default function App() {
   const [exerciseDetail, setExerciseDetail] = useState<import('./types').Exercise | null>(null);
   const [toast, setToast] = useState('');
   const [starting, setStarting] = useState(false);
-  const [preview, setPreview] = useState<Template | null>(null);
   const [actionError, setActionError] = useState('');
   const [isAiOpen, setIsAiOpen] = useState(false);
   const [aiInvocation, setAiInvocation] = useState<AiInvocationRequest | null>(null);
-  const previewRequest = useRef<string | null>(null);
   const recovery = app.recovery;
   const recoverySession = recovery && (!data || data.account.id === recovery.accountId) ? recovery.draft : null;
   const hasServerWorkout = Boolean(data?.activeWorkout?.active);
@@ -137,7 +135,7 @@ export default function App() {
     window.history.replaceState(window.history.state, '', `${url.pathname}${url.search}${url.hash}`);
     if (data.activeWorkout?.active) { setTraining(true); return; }
     const today = nextWorkout(data);
-    if (today) void quickStart(today.id);
+    if (today) void start(today.id);
     else setToast('No workout is queued yet. Choose one from Workouts.');
   }, [data?.account.id, loading]);
 
@@ -162,8 +160,8 @@ export default function App() {
 
   if (!data) return <ConnectionRecovery message={app.error} onRetry={app.reload}/>;
 
-  /// Opening a plan shows what it contains first. A session is only created on the server once
-  /// the preview is confirmed, so backing out leaves nothing behind.
+  /// Starting a plan creates the session at once: its content is already on the card that offered
+  /// it. Anything unresolved on this device still comes first.
   async function start(templateId: string) {
     setActionError('');
     if (recovery && recovery.accountId === data!.account.id && hasUnresolvedRecovery(recovery)) {
@@ -173,24 +171,11 @@ export default function App() {
       return;
     }
     if (data!.activeWorkout?.active) { setTraining(true); return; }
-    if (previewRequest.current === templateId) return;
-    previewRequest.current = templateId;
-    try { setPreview(await api.getTemplate(templateId)); }
-    catch (failure) { setActionError(failure instanceof ApiError ? failure.message : 'That workout plan is no longer available. Refresh to see the current list.'); }
-    finally { if (previewRequest.current === templateId) previewRequest.current = null; }
+    await beginWorkout(templateId);
   }
 
-  /// Today's workout from the Overview starts in one tap: its content is already on the card, so
-  /// the preview adds nothing to decide. Anything unresolved on this device still comes first.
-  async function quickStart(templateId: string) {
-    setActionError('');
-    if (recovery && recovery.accountId === data!.account.id && hasUnresolvedRecovery(recovery)) { void start(templateId); return; }
-    if (data!.activeWorkout?.active) { setTraining(true); return; }
-    await confirmStart(templateId);
-  }
-
-  async function confirmStart(templateId = preview?.id) {
-    if (starting || !templateId || !data) return;
+  async function beginWorkout(templateId: string) {
+    if (starting || !data) return;
     const currentData = data;
     setStarting(true); setActionError('');
     try {
@@ -201,7 +186,6 @@ export default function App() {
           setActionError('Resolve the saved workout before starting another one. Its local changes are still available for review.');
           setReviewRecovery(true);
           setTraining(true);
-          setPreview(null);
           return;
         }
       } catch { /* server-backed training remains available when local recovery storage is unavailable */ }
@@ -216,9 +200,8 @@ export default function App() {
       } catch { /* online training can proceed while the UI reports that device recovery is unavailable */ }
       app.setRecovery(initialRecovery);
       app.setActiveWorkout(session);
-      setPreview(null);
       setTraining(true);
-    } catch (failure) { setActionError(failure instanceof ApiError ? failure.message : 'Could not start that workout.'); setPreview(null); }
+    } catch (failure) { setActionError(failure instanceof ApiError ? failure.message : 'Could not start that workout.'); }
     finally { setStarting(false); }
   }
 
@@ -282,12 +265,10 @@ export default function App() {
         case 'openActiveWorkout':
           if (data?.activeWorkout?.active) setTraining(true);
           break;
-        case 'openAddWorkoutDraft': {
-          const tid = (action.payload.templateId as string | undefined) ?? (data ? nextWorkout(data)?.id : null);
-          if (tid) await start(tid);
-          else setTab('program');
+        // Ask AI only ever opens a screen: a session starts from a Start button the lifter taps.
+        case 'openAddWorkoutDraft':
+          setTab('program');
           break;
-        }
       }
     }
   }
@@ -339,7 +320,7 @@ export default function App() {
           action={{label:'Retry',onClick:()=>void app.ensureResources(neededResources),disabled:loading}}/>}
         <MotionScene sceneKey={tab}>
         <Suspense fallback={<ViewSkeleton label={NAV.find(item => item.id === tab)?.label ?? (tab === 'import' ? 'Import' : 'Settings')} />}>
-        {tab === 'overview' && <Dashboard data={data} onStart={start} onQuickStart={quickStart} onProgram={() => setTab('program')}
+        {tab === 'overview' && <Dashboard data={data} onStart={start} onProgram={() => setTab('program')}
             onImport={openImport} onSession={setDetail} onResume={() => setTraining(true)} onChanged={app.reload}
             onExercise={id => { void openExercise(id); }} />}
         {!resourcesReady && <ViewSkeleton label={NAV.find(item => item.id === tab)?.label ?? 'Loading'} />}
@@ -393,7 +374,6 @@ export default function App() {
       onDiscard={async () => { app.queue.clear(); app.setActiveWorkout(null); setTraining(false); await app.reload(); }} /></Suspense>}
 
     <Suspense fallback={null}>
-    {preview && <StartPreview template={preview} busy={starting} onCancel={() => setPreview(null)} onConfirm={() => void confirmStart()} />}
     {detail && <SessionDetail session={detail} preferences={data.preferences} exercises={data.exercises} justFinished={detail.id === finishedId}
       onClose={() => { setDetail(null); setFinishedId(null); }} onDeleted={app.reload} />}
     {exerciseDetail && <ExerciseDetailModal exercise={exerciseDetail} unit={data.preferences.unit} onClose={() => setExerciseDetail(null)} onChanged={async () => { await app.reload(); }}

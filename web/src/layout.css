@@ -175,7 +175,7 @@ html.dialog-open { overflow: hidden; }
 html[data-keyboard='open'] .bottom-nav,
 html[data-keyboard='open'] .resume-workout,
 html[data-keyboard='open'] .import-progress-pill,
-html[data-keyboard='open'] .workout-footer .rest-bar { display: none; }
+html[data-keyboard='open'] .workout-rest-bar { display: none; }
 
 /* Floating bottom items stack instead of overlapping: a toast rises above the resume button and
    the import progress pill when they are showing. */

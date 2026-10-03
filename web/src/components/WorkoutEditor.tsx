@@ -1,10 +1,7 @@
-import { Dumbbell, Plus, TrendingUp } from 'lucide-react';
+import { Dumbbell, Plus } from 'lucide-react';
 import type { Exercise, LoggedSet, Session, SessionExercise, Unit } from '../types';
-import { showVolume, showWeight } from '../lib/training';
-import { getProgressionSummary } from '../lib/progressionSummary';
 import { blankLoggedSet, blankPrescription } from '../lib/workoutDraft';
 import { Button } from './ui/Button';
-import { InfoTooltip } from './ui/InfoTooltip';
 import { Modal } from './ui/Modal';
 import { ExerciseLibrary } from './Exercises';
 import { WorkoutExerciseStrip } from './WorkoutExerciseStrip';
@@ -38,24 +35,7 @@ export function WorkoutEditor({
     onPrevious: () => { if (currentIndex > 0) onSelectExercise(currentIndex - 1); },
     onNext: () => { if (currentIndex >= 0 && currentIndex < draft.exercises.length - 1) onSelectExercise(currentIndex + 1); }
   });
-  // Volume is only worth a chip once something has been lifted; an unknown load stays unknown
-  // rather than reading as zero, so the chip is simply absent until a load is recorded.
-  const liftedKg = draft.volumeKg ?? 0;
-  const withBodyweightKg = draft.systemVolumeKg ?? null;
-  const progression = getProgressionSummary(draft);
-
   return <div className="workout-swipe-surface" {...swipe}>
-    {(liftedKg > 0 || draft.bodyWeight || draft.nutritionContext?.cached || progression) && <div className="workout-summary">
-      {liftedKg > 0 && <span title="Load lifted in completed working sets"><Dumbbell size={15} aria-hidden="true" />{showVolume(liftedKg, unit)} lifted</span>}
-      {withBodyweightKg !== null && withBodyweightKg > liftedKg && <span title="Including your bodyweight on bodyweight movements">{showVolume(withBodyweightKg, unit)} with bodyweight</span>}
-      {draft.bodyWeight && <span title="Recorded when this workout started">Bodyweight {showWeight(draft.bodyWeight.referenceKg, unit)}</span>}
-      {progression && <span><TrendingUp size={15} aria-hidden="true" />{progression.label}
-        <InfoTooltip label="Progression details" content={<div><strong>{progression.label}</strong><p>{progression.reason}</p>
-          {progression.nutritionStatus === 'cached' && <p>This decision used the saved Nutrition snapshot available when the workout started.</p>}
-        </div>} />
-      </span>}
-    </div>}
-
     <WorkoutExerciseStrip exercises={draft.exercises} activeIndex={activeIndex} onSelect={onSelectExercise} onAdd={onAddExercise} />
 
     <div className="modal-body workout-body">
@@ -68,11 +48,6 @@ export function WorkoutEditor({
           <Button variant="primary" disabled={!online || paused || Boolean(finishIntentAt)} onClick={() => onPicker(true)}><Plus size={16} />Add an exercise</Button>
         </div>
       )}
-
-      {!paused && !finishIntentAt && !recoveryConflict && <label className="field workout-global-notes">Workout notes
-        <textarea name="workout-note" placeholder="How did the session feel? Overall fatigue, grip, energy…" value={draft.note}
-          onChange={event => onChange({ ...draft, note: event.target.value })} />
-      </label>}
     </div>
 
     {picker && <Modal title="Add an exercise" onClose={() => onPicker(false)}>
