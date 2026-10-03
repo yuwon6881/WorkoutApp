@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Session } from '../types';
 import { ApiError, api } from '../lib/api';
 import { SaveQueue } from '../lib/queue';
+import * as recovery from '../lib/workoutRecovery';
 import { useWorkoutExerciseList } from './useWorkoutExerciseList';
 
 const draft: Session = {
@@ -12,21 +13,24 @@ const draft: Session = {
 
 function fixture() {
   const revision = { current: draft.revision };
+  const serverSession = { current: draft };
   const setBusy = vi.fn();
   const setError = vi.fn();
   const onSaved = vi.fn();
+  const onRecoveryChange = vi.fn();
   const drain = vi.fn(async () => { revision.current = 4; });
   const actions = useWorkoutExerciseList({
-    draft, online: true, finishIntentAt: null, queue: new SaveQueue(), revision, drain,
-    setDraft: vi.fn(), onSaved, setBusy, setError
+    accountId: 'account', draft, online: true, finishIntentAt: null, queue: new SaveQueue(), revision, serverSession, drain,
+    setDraft: vi.fn(), onSaved, onRecoveryChange, setBusy, setError
   });
-  return { ...actions, revision, setBusy, setError, onSaved, drain };
+  return { ...actions, revision, serverSession, setBusy, setError, onSaved, onRecoveryChange, drain };
 }
 
 afterEach(() => vi.restoreAllMocks());
 
 describe('workout exercise-list writes', () => {
   it('keeps restore busy until the server answers and uses the drained revision', async () => {
+    vi.spyOn(recovery, 'adoptServerSession').mockResolvedValue(null);
     let release!: (saved: Session) => void;
     const held = new Promise<Session>(resolve => { release = resolve; });
     const request = vi.spyOn(api, 'restoreWorkout').mockReturnValue(held);
@@ -42,6 +46,20 @@ describe('workout exercise-list writes', () => {
     expect(f.onSaved).toHaveBeenCalledWith(saved);
     expect(f.revision.current).toBe(5);
     expect(f.setBusy).toHaveBeenLastCalledWith(false);
+  });
+
+  it('makes the restored workout the device recovery copy and the next sync baseline', async () => {
+    const saved = { ...draft, revision: 5 };
+    const record = { sessionId: draft.id } as recovery.WorkoutRecoveryRecord;
+    const adopt = vi.spyOn(recovery, 'adoptServerSession').mockResolvedValue(record);
+    vi.spyOn(api, 'restoreSessionExercise').mockResolvedValue(saved);
+    const f = fixture();
+
+    await f.restoreExercise('bench');
+
+    expect(adopt).toHaveBeenCalledWith('account', saved);
+    expect(f.onRecoveryChange).toHaveBeenCalledWith(record);
+    expect(f.serverSession.current).toBe(saved);
   });
 
   it('shows a rejected restore instead of reporting completion', async () => {

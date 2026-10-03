@@ -112,3 +112,10 @@
   color: var(--accent);
   font-weight: 650;
 }
+
+/* The top bar's Ask AI and Settings icons mark their open screen the way the tabs below do. */
+.topbar .settings-icon.selected,
+.topbar .settings-icon.selected:hover:not(:disabled) {
+  background: var(--accent-soft);
+  color: var(--accent);
+}

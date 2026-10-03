@@ -2,6 +2,7 @@ import { useState } from 'react';
 import type { EditScope } from '../lib/exerciseEditScope';
 import { Button } from './ui/Button';
 import { Modal } from './ui/Modal';
+import './ExerciseScopeOptions.css';
 
 const plural = (count: number, noun: string) => `${count} other ${noun}${count === 1 ? '' : 's'}`;
 

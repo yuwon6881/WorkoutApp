@@ -1,15 +1,14 @@
-import type { Session } from '../types';
 import { Button } from './ui/Button';
 import { Modal } from './ui/Modal';
+import { FinishPlanChoice } from './FinishPlanChoice';
+import type { FinishPlanUpdate } from './useFinishPlanUpdate';
 
 export function WorkoutConfirmModal({
   confirm,
   done,
   unlogged,
   busy,
-  draft,
-  retainSwaps,
-  onRetainSwapsChange,
+  planUpdate,
   onClose,
   onFinish,
   onDiscard,
@@ -20,9 +19,8 @@ export function WorkoutConfirmModal({
   /** Working sets planned but not logged; they are left out of the saved workout. */
   unlogged: number;
   busy: boolean;
-  draft: Session;
-  retainSwaps: boolean;
-  onRetainSwapsChange: (retain: boolean) => void;
+  /** The offer to carry this workout's plan changes into its program, when finishing. */
+  planUpdate: FinishPlanUpdate;
   onClose: () => void;
   onFinish: () => void;
   onDiscard: () => void;
@@ -50,17 +48,7 @@ export function WorkoutConfirmModal({
             ? `${done} completed working ${done === 1 ? 'set' : 'sets'} will be saved.${unlogged > 0 ? ` ${unlogged} unlogged ${unlogged === 1 ? 'set' : 'sets'} will be left out.` : ''}`
             : 'This removes the session in progress. Your completed history stays as it is.'}
         </p>
-        {confirm === 'finish' &&
-          draft.exercises.some(e => e.sourcePhaseId && e.isReplacement) && (
-            <label className="checkbox-row">
-              <input
-                type="checkbox"
-                checked={retainSwaps}
-                onChange={e => onRetainSwapsChange(e.target.checked)}
-              />
-              Keep exercise swaps for the remaining workouts in this phase.
-            </label>
-          )}
+        {confirm === 'finish' && <FinishPlanChoice update={planUpdate} disabled={busy} />}
       </div>
       <div className="modal-actions">
         <Button onClick={onClose}>Keep training</Button>

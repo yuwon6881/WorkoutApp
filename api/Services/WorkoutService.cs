@@ -455,8 +455,9 @@ public sealed partial class WorkoutService(
         string loadModel, CancellationToken ct)
     {
         // Reps and seconds never carry across a timed/reps swap; a timed replacement gets no rep suggestion.
+        // A logged set is what was lifted and is never rewritten; it still counts toward the ordinal.
         var timed = exercise.ExerciseId is { } timedId && (await CatalogService.TrackingModesFor(db, [timedId], ct)).ContainsKey(timedId);
-        foreach (var set in sets)
+        foreach (var set in sets.Where(s => !s.Done))
         {
             if (timed) set.Reps = null;
             else set.DurationSeconds = null;
@@ -475,6 +476,7 @@ public sealed partial class WorkoutService(
         {
             if (set.Warmup) continue;
             workingOrdinal++;
+            if (set.Done) continue;
             var prescription = prescriptions.ElementAtOrDefault(set.Position);
             if (prescription is null) continue;
             var enteredReps = set.Reps;

@@ -97,3 +97,21 @@
   }
 
 }
+
+@media (max-width: 639px) {
+  /* A switch grouped with optional actions (such as Retry) is still a lone switch until one appears. */
+  .setting-row:has(> .setting-controls-wrap > .setting-inline-controls > .switch:only-child) {
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+  }
+
+  .setting-row:has(> .setting-controls-wrap > .setting-inline-controls > .switch:only-child) .setting-controls-wrap,
+  .setting-row:has(> .setting-controls-wrap > .setting-inline-controls > .switch:only-child) .setting-inline-controls {
+    width: auto;
+  }
+
+  /* With actions beside it, the switch keeps the trailing edge. */
+  .setting-inline-controls > .switch:last-child {
+    margin-left: auto;
+  }
+}

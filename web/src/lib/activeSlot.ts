@@ -37,11 +37,15 @@ export function hasSlotProgress(item: SlotItem): boolean {
   return progress.passedDays > 0 || progress.currentWeek > firstWeek || progress.currentAttempt > 1;
 }
 
-function toDraftSet(set: SetPrescription): DraftSet {
+/// The resistance mode rides along although the editor never shows it: a saved day sends its sets
+/// back whole, and the server reads a missing mode as external load, which would quietly turn a
+/// bodyweight set into a loaded one.
+export function toDraftSet(set: SetPrescription): DraftSet {
   return {
     repMin: set.repMin, repMax: set.repMax, targetRpe: set.targetRpe, restSeconds: set.restSeconds, tempo: set.tempo,
     loadText: set.loadText, notes: set.notes, repsSource: set.repsSource, rpeSource: set.rpeSource, restSource: set.restSource,
-    repsText: set.repsText, restText: set.restText, rir: set.rir, warmup: set.warmup, sourcePage: set.sourcePage ?? null
+    repsText: set.repsText, restText: set.restText, rir: set.rir, warmup: set.warmup, sourcePage: set.sourcePage ?? null,
+    ...(set.resistanceMode ? { resistanceMode: set.resistanceMode } : {})
   };
 }
 
@@ -80,4 +84,38 @@ export function programToDraft(program: Program): ImportDraft {
         }))
     }));
   return { programName: program.name, workouts };
+}
+
+/// The template update that saves one edited program day, keeping its revision check.
+export function dayTemplateInput(day: DraftWorkout, revision: number) {
+  return {
+    name: day.name.trim(),
+    focus: day.focus?.trim() || null,
+    note: day.notes || null,
+    block: day.block || null,
+    phase: day.phase || null,
+    phaseWeek: day.phaseWeek,
+    isRestDay: day.isRestDay,
+    revision,
+    idempotencyId: crypto.randomUUID(),
+    exercises: day.exercises.map(exercise => ({
+      exerciseId: exercise.exerciseId,
+      sourceName: exercise.sourceName,
+      note: exercise.notes || null,
+      sets: exercise.sets,
+      sequenceGroup: exercise.sequenceGroup || null,
+      substitutions: exercise.substitutions ?? [],
+      sourcePage: exercise.sourcePage ?? null,
+      slotKey: exercise.slotKey ?? null,
+      restSeconds: exercise.restSeconds ?? null,
+      demoUrl: exercise.demoUrl ?? null,
+      demoLinks: exercise.demoLinks ?? null
+    }))
+  };
+}
+
+/// The days an edit actually changed, so only those are saved.
+export function changedDayIds(before: ImportDraft, after: ImportDraft): string[] {
+  const previous = new Map(before.workouts.map(workout => [workout.lineId, JSON.stringify(workout)]));
+  return after.workouts.filter(workout => previous.get(workout.lineId) !== JSON.stringify(workout)).map(workout => workout.lineId);
 }

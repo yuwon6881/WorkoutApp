@@ -1,8 +1,4 @@
 .program-week-checklist{display:grid;gap:12px;margin:14px 0;padding:16px;border:1px solid var(--border);border-radius:12px;background:var(--surface-raised)}
-.program-week-heading{display:flex;align-items:center;justify-content:space-between;gap:12px}
-.program-week-heading h3{margin-top:3px;color:var(--text)}
-.program-week-kicker{font-size:var(--font-secondary);font-weight:650;letter-spacing:.06em;text-transform:uppercase;color:var(--accent)}
-.program-week-count{flex:0 0 auto;padding:6px 10px;border:1px solid var(--border);border-radius:999px;color:var(--muted);font-size:var(--font-secondary);font-variant-numeric:tabular-nums}
 .program-week-days{display:grid;gap:8px}
 .program-week-day{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:8px 12px;min-width:0;padding:8px 12px;border:1px solid var(--border);border-radius:10px;background:var(--surface);transition:background .15s ease,border-color .15s ease}
 .program-week-day.exercise-day{cursor:pointer}

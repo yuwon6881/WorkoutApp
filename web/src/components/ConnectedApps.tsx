@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { AlertTriangle, Link2, RefreshCw, Salad } from 'lucide-react';
+import { AlertTriangle, Link2, RefreshCw, Salad, Unlink } from 'lucide-react';
 import { ApiError, api } from '../lib/api';
 import { consumeCentralAuthError } from '../lib/centralAuthError';
 import { Button } from './ui/Button';
@@ -86,7 +86,9 @@ export function ConnectedApps() {
   };
   const actions = connectedAppActions(connectionState, canRevoke, syncWarning);
 
-  const statusTone = connectionState === 'connected' && !syncWarning ? 'is-on'
+  // The pill reports the connection, as Google Health's does; a failed data refresh is the
+  // description's and Try again's to report, so "Connected" never appears in a warning color.
+  const statusTone = connectionState === 'connected' ? 'is-on'
     : connectionState === 'loading' || connectionState === 'disconnected' ? '' : 'is-warning';
 
   return (
@@ -125,21 +127,21 @@ export function ConnectedApps() {
           <Button variant="tertiary" disabled>Checking…</Button>
         ) : actions === 'retry' || actions === 'retry_disconnect' ? (
           <>
-            {actions === 'retry_disconnect' && <Button variant="destructive" disabled={busy} onClick={() => void revoke()}>Disconnect</Button>}
+            {actions === 'retry_disconnect' && <Button variant="destructive" disabled={busy} onClick={() => void revoke()}><Unlink size={14} aria-hidden="true" /> Disconnect</Button>}
             <Button variant="secondary" disabled={busy} onClick={() => void retry()}>
               <RefreshCw size={16} aria-hidden="true" /> Try again
             </Button>
           </>
         ) : actions === 'reconnect' || actions === 'reconnect_disconnect' ? (
           <>
-            {actions === 'reconnect_disconnect' && <Button variant="destructive" disabled={busy} onClick={() => void revoke()}>Disconnect</Button>}
+            {actions === 'reconnect_disconnect' && <Button variant="destructive" disabled={busy} onClick={() => void revoke()}><Unlink size={14} aria-hidden="true" /> Disconnect</Button>}
             <Button variant="primary" disabled={busy} onClick={connect}>
               <Link2 size={16} aria-hidden="true" />
               {busy ? 'Opening account…' : connectionState === 'upgrade_required' ? 'Reconnect to upgrade' : 'Reconnect Nutrition'}
             </Button>
           </>
         ) : actions === 'disconnect' ? (
-          <Button variant="destructive" disabled={busy} onClick={() => void revoke()}>Disconnect</Button>
+          <Button variant="destructive" disabled={busy} onClick={() => void revoke()}><Unlink size={14} aria-hidden="true" /> Disconnect</Button>
         ) : actions === 'connect' ? (
           <Button variant="primary" disabled={busy} onClick={connect}>
             <Link2 size={16} aria-hidden="true" />

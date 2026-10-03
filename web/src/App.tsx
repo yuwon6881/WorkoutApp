@@ -1,8 +1,8 @@
 // First-screen styles stay eager. Optional feature CSS loads before the shell stylesheet through
 // featureCss, so navigating later cannot invert the existing cascade.
-import { lazy, Suspense, useEffect, useState } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { AlertTriangle, BicepsFlexed, CheckCircle2, Cloud, Dumbbell, LayoutDashboard, Library, Loader2, Plus, RefreshCw, Settings, Sparkles, WifiOff } from 'lucide-react';
-import type { AppResource, Exercise, Session } from './types';
+import type { AppResource, Bootstrap, Exercise, Session } from './types';
 import { ApiError, api } from './lib/api';
 import { useApp } from './app/useApp';
 import { useShellRestTimer } from './app/useShellRestTimer';
@@ -24,7 +24,7 @@ import './components/BottomNav.css';
 import { AppLoading } from './components/AppLoading';
 import { AuthLoading } from './components/AuthLoading';
 import { ViewSkeleton } from './components/ViewSkeleton';
-import { Auth, Dashboard, ExerciseDetailModal, ExerciseLibrary, ImportReview, MuscleBalanceView, Programs, SessionDetail, SettingsView, Workout, prefetchView } from './app/lazyViews';
+import { Auth, Dashboard, ExerciseDetailModal, ExerciseLibrary, ImportReview, MuscleBalanceView, Programs, SessionDetail, SettingsView, Workout, WorkoutStarting, prefetchView } from './app/lazyViews';
 import { ResumeWorkoutButton } from './components/ResumeWorkoutButton';
 import { TrackRirContext, tracksRir } from './lib/trackRir';
 import {applyTheme, forgetTheme, initialTheme, rememberTheme} from './lib/theme';
@@ -51,6 +51,13 @@ export default function App() {
   const { tab, setTab } = useTabNavigation();
   useKeyboardInset();
   useEffect(() => prefetchView('overview'), []);
+  // The starting sheet is tiny and must be ready the moment Start is tapped, so it warms once the
+  // signed-in shell is idle rather than on the tap.
+  useEffect(() => {
+    if (!data?.account.id) return;
+    const idle = window.requestIdleCallback ?? ((callback: () => void) => window.setTimeout(callback, 1500));
+    idle(() => prefetchView('workoutStarting'));
+  }, [data?.account.id]);
   useEffect(() => installNativeShell(), []);
   const appUpdate = useAppUpdate();
   // Offline has its own banner, so the top bar only reports saves while connected.
@@ -73,6 +80,11 @@ export default function App() {
   const [exerciseDetail, setExerciseDetail] = useState<import('./types').Exercise | null>(null);
   const [toast, setToast] = useState('');
   const [starting, setStarting] = useState(false);
+  const [startingName, setStartingName] = useState<string | null>(null);
+  const startCancelled = useRef(false);
+  // Set when the workout sheet replaces the stand-in shown while starting, so it does not rise twice.
+  const [sheetContinues, setSheetContinues] = useState(false);
+  useEffect(() => { if (!training) setSheetContinues(false); }, [training]);
   const [actionError, setActionError] = useState('');
   const [isAiOpen, setIsAiOpen] = useState(false);
   const [aiInvocation, setAiInvocation] = useState<AiInvocationRequest | null>(null);
@@ -179,6 +191,11 @@ export default function App() {
     if (starting || !data) return;
     const currentData = data;
     setStarting(true); setActionError('');
+    // The sheet opens on the tap; the workout screen's code loads while the server builds the session.
+    // Both are kept out of the first load, which most launches never need them in.
+    startCancelled.current = false;
+    setStartingName(planName(currentData, templateId));
+    prefetchView('workout');
     try {
       try {
         const latestRecovery = await getRecovery(currentData.account.id);
@@ -193,17 +210,17 @@ export default function App() {
       const session = await api.startWorkout(templateId);
       let initialRecovery = null;
       try {
-        await startRecovery({
+        initialRecovery = await startRecovery({
           accountId: currentData.account.id, displayName: currentData.account.displayName, sessionId: session.id,
           draft: session, serverSession: session, preferences: currentData.preferences, activeIndex: 0
         });
-        initialRecovery = await getRecovery(currentData.account.id);
       } catch { /* online training can proceed while the UI reports that device recovery is unavailable */ }
       app.setRecovery(initialRecovery);
       app.setActiveWorkout(session);
-      setTraining(true);
+      // Dismissing the stand-in sheet minimizes the workout rather than cancelling it.
+      if (!startCancelled.current) { setSheetContinues(true); setTraining(true); }
     } catch (failure) { setActionError(failure instanceof ApiError ? failure.message : 'Could not start that workout.'); }
-    finally { setStarting(false); }
+    finally { setStarting(false); setStartingName(null); }
   }
 
   /// Reading a program rewrites the account's programs and the days a session starts from, so it
@@ -281,7 +298,7 @@ export default function App() {
         aria-current={tab === item.id ? 'page' : undefined} onClick={() => setTab(item.id)}>
         <item.icon size={19} /><span>{item.label}</span>{tab === item.id && <span className="nav-dot" />}</Button>)}</nav>
       <div className="sidebar-bottom">
-        <Button variant="tertiary" className="nav-item" onClick={() => setIsAiOpen(true)}><Sparkles size={19} /><span>Ask AI</span></Button>
+        <Button variant="tertiary" className={`nav-item ${isAiOpen ? 'selected' : ''}`.trim()} aria-expanded={isAiOpen} onClick={() => setIsAiOpen(true)}><Sparkles size={19} /><span>Ask AI</span></Button>
         <Button variant="tertiary" className={`nav-item ${tab === 'settings' ? 'selected' : ''}`} onClick={() => setTab('settings')}><Settings size={19} /> Settings</Button>
       </div>
     </aside>
@@ -298,8 +315,8 @@ export default function App() {
           <span className={`device-status save-indicator ${showSaveStatus ? 'visible' : ''}`.trim()} role="status">
             {showSaveStatus && <><StatusIcon state={status.state} online={online} /> {statusTitle(status.state, online)}</>}
           </span>
-          <Button variant="tertiary" className="settings-icon" aria-label="Ask AI" onClick={() => setIsAiOpen(true)}><Sparkles size={19} /></Button>
-          <Button variant="tertiary" className="settings-icon" aria-label="Settings" onClick={() => setTab('settings')}><Settings size={19} /></Button>
+          <Button variant="tertiary" className={`settings-icon ${isAiOpen ? 'selected' : ''}`.trim()} aria-label="Ask AI" aria-expanded={isAiOpen} onClick={() => setIsAiOpen(true)}><Sparkles size={19} /></Button>
+          <Button variant="tertiary" className={`settings-icon ${tab === 'settings' ? 'selected' : ''}`.trim()} aria-label="Settings" aria-current={tab === 'settings' ? 'page' : undefined} onClick={() => setTab('settings')}><Settings size={19} /></Button>
         </div>
       </header>
 
@@ -368,7 +385,9 @@ export default function App() {
     <Suspense fallback={null}><ImportWatchBridge imports={data.imports} active={tab !== 'import'} training={training}
       withResume={Boolean(workoutSession?.active)} onOpen={openImport} onFinished={app.reload} onLocalFailure={setToast} /></Suspense>
 
-    {training && workoutSession && <Suspense fallback={<div className="panel recovery-card" role="status">Opening your workout…</div>}><Workout session={workoutSession} accountId={data.account.id} preferences={recovery?.sessionId === workoutSession.id ? recovery.preferences : data.preferences}
+    {startingName !== null && !training && <Suspense fallback={null}><WorkoutStarting name={startingName} onClose={() => { startCancelled.current = true; setStartingName(null); }} /></Suspense>}
+
+    {training && workoutSession && <Suspense fallback={<Suspense fallback={null}><WorkoutStarting name={workoutSession.name} status="Opening workout…" continues={sheetContinues} onClose={() => setTraining(false)} /></Suspense>}><Workout session={workoutSession} continues={sheetContinues} accountId={data.account.id} preferences={recovery?.sessionId === workoutSession.id ? recovery.preferences : data.preferences}
       onCatalogNeeded={() => app.ensureResources(['catalog'], true)} exercises={data.exercises} queue={app.queue} online={online} recovery={recovery?.sessionId === workoutSession.id ? recovery : null} onRecoveryChange={record => { app.setRecovery(record); if (!record) setReviewRecovery(false); }}
       onSaved={app.setActiveWorkout} onClose={() => setTraining(false)} advance={{ nextExercise: app.devicePreferences.autoAdvance, supersetPartner: app.devicePreferences.supersetAdvance }} onCatalogChanged={async () => { await app.reload(); await app.ensureResources(['catalog'], true); }}
       onFinish={async session => { app.queue.clear(); app.setActiveWorkout(null); setTraining(false); setDetail(session); setFinishedId(session.id); setToast('Workout saved.'); await app.reload(); }}
@@ -407,4 +426,12 @@ function StatusIcon({ state, online }: { state: string; online: boolean }) {
 function statusTitle(state: string, online: boolean): string {
   if (!online) return 'Offline';
   return { connecting: 'Connecting', saving: 'Saving…', saved: 'Saved', failed: 'Not saved', 'signed-out': 'Signed out' }[state] ?? '';
+}
+
+/// The name the starting sheet shows: the day or saved workout the tap came from, as far as the
+/// loaded resources know it.
+function planName(data: Bootstrap, templateId: string): string {
+  if (data.nextWorkout?.id === templateId) return data.nextWorkout.name;
+  const programDay = [data.activeProgram, ...data.programs].flatMap(program => program?.days ?? []).find(day => day.id === templateId);
+  return programDay?.name ?? data.templates.find(template => template.id === templateId)?.name ?? 'Workout';
 }
