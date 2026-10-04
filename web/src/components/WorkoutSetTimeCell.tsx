@@ -1,7 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { Check, Pause, Play, RotateCcw } from 'lucide-react';
 import type { LoggedSet } from '../types';
-import { MAX_SET_SECONDS, showSetDuration, stopwatchSeconds } from '../lib/setDuration';
+import { showSetDuration, stopwatchSeconds } from '../lib/setDuration';
+import {
+  formatClockDigits, normalizeClockDigits, parseClockDigits, popClockDigit, pushClockDigits, secondsToClockDigits
+} from '../lib/clockDigits';
 import { discardStopwatch, setStopwatchAnnouncer, startStopwatch, stopStopwatch, useStopwatch } from '../lib/setStopwatch';
 import { restTimer } from '../lib/restTimer';
 import { useVisibleClock } from '../lib/useVisibleClock';
@@ -9,33 +12,6 @@ import { Button } from './ui/Button';
 import { Modal } from './ui/Modal';
 
 setStopwatchAnnouncer(() => restTimer.announceSetTimer());
-
-function formatClockDigits(digits: string): string {
-  const clean = digits.replace(/^0+/, '');
-  if (!clean) return '0:00';
-  if (clean.length === 1) return `0:0${clean}`;
-  if (clean.length === 2) return `0:${clean}`;
-  const s = clean.slice(-2);
-  const m = clean.slice(0, -2);
-  return `${m}:${s}`;
-}
-
-function parseClockDigits(digits: string): number | null {
-  const clean = digits.replace(/^0+/, '');
-  if (!clean) return null;
-  const s = Number(clean.slice(-2) || 0);
-  const m = Number(clean.slice(0, -2) || 0);
-  const total = m * 60 + s;
-  return Math.min(MAX_SET_SECONDS, total);
-}
-
-function secondsToClockDigits(seconds: number | null | undefined): string {
-  if (seconds == null || seconds <= 0) return '';
-  const m = Math.floor(seconds / 60);
-  const s = seconds % 60;
-  if (m === 0) return String(s);
-  return `${m}${String(s).padStart(2, '0')}`;
-}
 
 /**
  * Seconds for a timed set, typed or timed via the modal sheet opened on click. With a target the
@@ -92,52 +68,58 @@ export function WorkoutSetTimeCell({
     if (seconds !== null) onChange(seconds > 0 ? seconds : null);
   };
 
-  const pushDigit = (digit: string) => {
+  const applyDigits = (next: string) => {
     discardStopwatch(set.id);
-    setDigits(prev => {
-      const next = `${prev}${digit}`.replace(/^0+/, '').slice(-4);
-      const sec = parseClockDigits(next);
-      onChange(sec);
-      return next;
-    });
+    setDigits(next);
+    onChange(parseClockDigits(next));
   };
 
-  const popDigit = () => {
-    discardStopwatch(set.id);
-    setDigits(prev => {
-      const next = prev.slice(0, -1);
-      const sec = parseClockDigits(next);
-      onChange(sec);
-      return next;
-    });
-  };
-
-  const clearDigits = () => {
-    discardStopwatch(set.id);
-    setDigits('');
-    onChange(null);
-  };
+  const clearDigits = () => applyDigits('');
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.altKey || e.ctrlKey || e.metaKey) return;
     if (/^\d$/.test(e.key)) {
       e.preventDefault();
-      pushDigit(e.key);
+      applyDigits(pushClockDigits(digits, e.key));
     } else if (e.key === 'Backspace') {
       e.preventDefault();
-      popDigit();
+      applyDigits(popClockDigit(digits));
     } else if (e.key === 'Delete') {
       e.preventDefault();
       clearDigits();
     }
   };
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const raw = e.target.value.replace(/\D/g, '');
-    const clean = raw.replace(/^0+/, '').slice(-4);
-    discardStopwatch(set.id);
-    setDigits(clean);
-    onChange(parseClockDigits(clean));
+  // Phone keyboards often report every key as "Unidentified" and only edit the text, so the edit
+  // is taken from the native beforeinput event instead and the field's own text is never changed.
+  // React's onBeforeInput does not carry the input type, hence the native listener.
+  useEffect(() => {
+    const input = clockInputRef.current;
+    if (!input) return;
+    const handleBeforeInput = (event: InputEvent) => {
+      if (event.inputType === 'insertText') {
+        event.preventDefault();
+        applyDigits(pushClockDigits(digits, event.data ?? ''));
+      } else if (event.inputType === 'deleteContentBackward') {
+        event.preventDefault();
+        applyDigits(popClockDigit(digits));
+      } else if (event.inputType.startsWith('delete')) {
+        event.preventDefault();
+        clearDigits();
+      }
+    };
+    input.addEventListener('beforeinput', handleBeforeInput);
+    return () => input.removeEventListener('beforeinput', handleBeforeInput);
+  });
+
+  // Paste, autofill, and any edit beforeinput did not cover arrive here as the whole field text.
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => applyDigits(pushClockDigits('', e.target.value));
+
+  // Digits are added at the end, so the caret stays there wherever the field is tapped.
+  const keepCaretAtEnd = (e: React.SyntheticEvent<HTMLInputElement>) => {
+    const input = e.currentTarget;
+    const end = input.value.length;
+    if (input.selectionStart !== end || input.selectionEnd !== end) input.setSelectionRange(end, end);
   };
 
   const resetDuration = () => {
@@ -189,6 +171,9 @@ export function WorkoutSetTimeCell({
                   value={formatClockDigits(digits)}
                   onChange={handleInputChange}
                   onKeyDown={handleKeyDown}
+                  onSelect={keepCaretAtEnd}
+                  // Typed "90" saves ninety seconds; once the field is left it reads as 1:30.
+                  onBlur={() => setDigits(normalizeClockDigits(digits))}
                   aria-label={`${label} duration`}
                   autoComplete="off"
                 />
