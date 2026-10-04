@@ -11,7 +11,8 @@ const loaders = {
   muscles: () => import('../components/MuscleBalanceView'),
   sessionDetail: () => import('../components/SessionDetail'),
   workout: () => import('../components/Workout'),
-  workoutStarting: () => import('../components/WorkoutStarting')
+  workoutSheet: () => import('../components/WorkoutSheet'),
+  resumeWorkout: () => import('../components/ResumeWorkoutButton')
 };
 type View = keyof typeof loaders;
 type Loaded = { [K in View]?: Awaited<ReturnType<(typeof loaders)[K]>> };
@@ -47,8 +48,10 @@ export const ImportReview = lazy(() => load('importReview').then(module => ({ de
 export const MuscleBalanceView = lazy(() => load('muscles').then(module => ({ default: module.MuscleBalanceView })));
 export const SessionDetail = instantLazy('sessionDetail', module => module.SessionDetail);
 export const Workout = instantLazy('workout', module => module.Workout);
-// Warmed at idle and shown on the Start tap itself.
-export const WorkoutStarting = instantLazy('workoutStarting', module => module.WorkoutStarting);
+// Warmed at idle and opened on the Start tap itself.
+export const WorkoutSheet = instantLazy('workoutSheet', module => module.WorkoutSheet);
+// Shown only while a workout is minimized; warmed as soon as the account has one in progress.
+export const ResumeWorkoutButton = instantLazy('resumeWorkout', module => module.ResumeWorkoutButton);
 
 export function prefetchView(view: View) { void load(view).catch(() => undefined); }
 

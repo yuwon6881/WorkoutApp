@@ -19,15 +19,12 @@ import type { Tab } from './app/useTabNavigation';
 import { getRecovery, hasUnresolvedRecovery, sameWorkoutEdits, startRecovery } from './lib/workoutRecovery';
 import { Button } from './components/ui/Button';
 import { CardFeedback } from './components/ui/CardFeedback';
-import { Modal } from './components/ui/Modal';
 import { MotionScene, SelectionIndicator } from './components/ui/Motion';
 import './components/BottomNav.css';
 import { AppLoading } from './components/AppLoading';
 import { AuthLoading } from './components/AuthLoading';
 import { ViewSkeleton } from './components/ViewSkeleton';
-import { Auth, Dashboard, ExerciseDetailModal, ExerciseLibrary, ImportReview, MuscleBalanceView, Programs, SessionDetail, SettingsView, Workout, prefetchView } from './app/lazyViews';
-import { WorkoutStartingContent } from './components/WorkoutStarting';
-import { ResumeWorkoutButton } from './components/ResumeWorkoutButton';
+import { Auth, Dashboard, ExerciseDetailModal, ExerciseLibrary, ImportReview, MuscleBalanceView, Programs, SessionDetail, SettingsView, Workout, WorkoutSheet, ResumeWorkoutButton, prefetchView } from './app/lazyViews';
 import { TrackRirContext, tracksRir } from './lib/trackRir';
 import {applyTheme, forgetTheme, initialTheme, rememberTheme} from './lib/theme';
 const AiAssistantPanel = lazy(() => import('./components/AiAssistantPanel').then(module => ({ default: module.AiAssistantPanel })));
@@ -53,12 +50,12 @@ export default function App() {
   const { tab, setTab } = useTabNavigation();
   useKeyboardInset();
   useEffect(() => prefetchView('overview'), []);
-  // The starting sheet is tiny and must be ready the moment Start is tapped, so it warms once the
-  // signed-in shell is idle rather than on the tap.
+  // The workout sheet is small and must be ready the moment Start is tapped, so it warms once the
+  // signed-in shell is idle rather than on the tap; it stays out of the first load.
   useEffect(() => {
     if (!data?.account.id) return;
     const idle = window.requestIdleCallback ?? ((callback: () => void) => window.setTimeout(callback, 1500));
-    idle(() => prefetchView('workoutStarting'));
+    idle(() => prefetchView('workoutSheet'));
   }, [data?.account.id]);
   useEffect(() => installNativeShell(), []);
   const appUpdate = useAppUpdate();
@@ -97,6 +94,7 @@ export default function App() {
     ? recoverySession : data?.activeWorkout ?? null;
   useEffect(() => { if (training && workoutSession) setStartingName(null); }, [training, workoutSession]);
   const importBlocked = Boolean(workoutSession?.active);
+  useEffect(() => { if (importBlocked) prefetchView('resumeWorkout'); }, [importBlocked]);
   useEffect(() => { if (signedOut) void import('./lib/localPdfRead').then(module => module.resetLocalPdfRead()); }, [signedOut]);
 
   useEffect(() => {
@@ -396,28 +394,28 @@ export default function App() {
       </SelectionIndicator>
     </nav>
 
-    {workoutSession?.active && !training && <ResumeWorkoutButton session={workoutSession} rest={restState} onResume={() => setTraining(true)} />}
+    {workoutSession?.active && !training && <Suspense fallback={null}>
+      <ResumeWorkoutButton session={workoutSession} rest={restState} onResume={() => setTraining(true)} />
+    </Suspense>}
 
     <Suspense fallback={null}><ImportWatchBridge imports={data.imports} active={tab !== 'import'} training={training}
       withResume={Boolean(workoutSession?.active)} onOpen={openImport} onFinished={app.reload} onLocalFailure={setToast} /></Suspense>
 
     {(startingName !== null || (training && workoutSession)) && (
-      <Modal
-        title={training && workoutSession ? workoutSession.name : (startingName ?? '')}
-        onClose={() => {
-          if (training) {
-            setTraining(false);
-          } else {
-            startCancelled.current = true;
-            setStartingName(null);
-          }
-        }}
-        wide
-        headless
-        className={`workout-sheet ${sheetContinues ? 'workout-sheet-continued' : ''}`.trim()}
-      >
-        {training && workoutSession ? (
-          <Suspense fallback={<WorkoutStartingContent name={workoutSession.name} status="Opening workout…" />}>
+      <Suspense fallback={null}>
+        <WorkoutSheet
+          title={training && workoutSession ? workoutSession.name : (startingName ?? '')}
+          continues={sheetContinues}
+          onClose={() => {
+            if (training) {
+              setTraining(false);
+            } else {
+              startCancelled.current = true;
+              setStartingName(null);
+            }
+          }}
+        >
+          {training && workoutSession ? (
             <Workout
               session={workoutSession}
               wrapModal={false}
@@ -437,11 +435,9 @@ export default function App() {
               onFinish={async session => { app.queue.clear(); app.setActiveWorkout(null); setTraining(false); setDetail(session); setFinishedId(session.id); setToast('Workout saved.'); await app.reload(); }}
               onDiscard={async () => { app.queue.clear(); app.setActiveWorkout(null); setTraining(false); await app.reload(); }}
             />
-          </Suspense>
-        ) : (
-          <WorkoutStartingContent name={startingName ?? ''} status="Starting workout…" />
-        )}
-      </Modal>
+          ) : null}
+        </WorkoutSheet>
+      </Suspense>
     )}
 
     <Suspense fallback={null}>
