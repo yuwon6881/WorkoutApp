@@ -198,4 +198,47 @@ public class ProgramWeekProgressTests
         Assert.Equal(1, history.Total);
         Assert.Equal(completedWorkout.Id, history.Sessions.Single().TemplateId);
     }
+
+    [Fact]
+    public async Task A_reset_week_reports_its_latest_attempt_after_the_run_moves_on()
+    {
+        var (h, exerciseId) = await Ready();
+        await using var _h = h;
+        var program = await h.Programs.Create(new ProgramInput("Reset then advance",
+        [
+            Workout(1, "Day A", exerciseId),
+            Workout(1, "Day B", exerciseId),
+            Rest(1, "Rest"),
+            Workout(2, "Week two", exerciseId),
+            Workout(3, "Week three", exerciseId)
+        ]), true, null, default);
+        var dayA = program.Workouts.Single(day => day.Name == "Day A");
+        var dayB = program.Workouts.Single(day => day.Name == "Day B");
+        var rest = program.Workouts.Single(day => day.IsRestDay);
+
+        // Attempt 1 completes Day A and is then abandoned; attempt 2 passes the whole week by skipping.
+        await CompleteWorkout(h, dayA.Id);
+        program = await h.Programs.Get(program.Id, default);
+        program = await h.Programs.ResetWeek(program.Id, Reset(program), default);
+        program = await h.Programs.Skip(program.Id, dayA.Id, Action(program), default);
+        program = await h.Programs.Skip(program.Id, dayB.Id, Action(program), default);
+        program = await h.Programs.AcknowledgeRest(program.Id, rest.Id, Action(program), default);
+        Assert.Equal(2, program.Progress!.CurrentWeek);
+
+        var view = await h.Programs.Get(program.Id, default);
+        Assert.Contains(dayA.Id, view.SkippedTemplateIds!);
+        Assert.Contains(dayB.Id, view.SkippedTemplateIds!);
+        Assert.DoesNotContain(dayA.Id, view.CompletedTemplateIds);
+        Assert.Equal(2, view.Phases!.Sum(phase => phase.SkippedWorkouts));
+
+        var summary = Assert.Single(await h.Programs.List(default), candidate => candidate.Id == program.Id);
+        var stored = await h.Db.Programs.AsNoTracking().SingleAsync(candidate => candidate.Id == program.Id);
+        var single = await h.Programs.Summary(stored, default);
+        foreach (var days in new[] { summary.Days, single.Days })
+        {
+            Assert.Equal(ProgramDayStatus.Skipped, days.Single(day => day.Id == dayA.Id).ProgressStatus);
+            Assert.Equal(ProgramDayStatus.Skipped, days.Single(day => day.Id == dayB.Id).ProgressStatus);
+            Assert.Equal(ProgramDayStatus.RestPassed, days.Single(day => day.Id == rest.Id).ProgressStatus);
+        }
+    }
 }

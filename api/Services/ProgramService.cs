@@ -52,7 +52,9 @@ public sealed partial class ProgramService(AppDb db, TemplateService templates, 
         var runIds = runs.Select(run => run.Id).ToList();
         var dayProgress = runIds.Count == 0 ? [] : await db.ProgramDayProgresses.AsNoTracking()
             .Where(day => runIds.Contains(day.RunId) && db.ProgramRuns.Any(run => run.Id == day.RunId &&
-                (day.Week < run.CurrentWeek && day.Attempt == 1 || day.Week == run.CurrentWeek && day.Attempt == run.CurrentAttempt))).ToListAsync(ct);
+                (day.Week < run.CurrentWeek && !db.ProgramDayProgresses.Any(later => later.RunId == day.RunId &&
+                    later.Week == day.Week && later.Attempt > day.Attempt) ||
+                 day.Week == run.CurrentWeek && day.Attempt == run.CurrentAttempt))).ToListAsync(ct);
         var views = new List<ProgramSummaryView>(programs.Count);
         foreach (var program in programs)
         {
@@ -351,7 +353,11 @@ public sealed partial class ProgramService(AppDb db, TemplateService templates, 
     private static List<ProgramDayProgress> RelevantProgress(ProgramRun? run, IReadOnlyCollection<ProgramDayProgress> rows)
     {
         if (run is null) return [];
-        return rows.Where(day => day.Week < run.CurrentWeek && day.Attempt == 1 ||
+        // A week is left only once an attempt passes every day, so a reset week's record is its
+        // latest attempt; the abandoned attempts before it no longer describe the week.
+        var latestAttempt = rows.Where(day => day.Week < run.CurrentWeek)
+            .GroupBy(day => day.Week).ToDictionary(week => week.Key, week => week.Max(day => day.Attempt));
+        return rows.Where(day => day.Week < run.CurrentWeek && day.Attempt == latestAttempt[day.Week] ||
             day.Week == run.CurrentWeek && day.Attempt == run.CurrentAttempt).ToList();
     }
 
