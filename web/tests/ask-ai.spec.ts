@@ -106,6 +106,7 @@ test('Ask AI opens the Workouts screen without starting a session', async ({ pag
   const chat = page.getByRole('dialog', { name: 'Ask AI', exact: true });
   await expect(chat.getByRole('button', { name: 'Open', exact: true })).toBeVisible();
   expect(starts).toBe(0);
+  await expect(chat.getByText('View workouts', { exact: true })).toBeVisible();
   await chat.getByRole('button', { name: 'Open', exact: true }).click();
   // Opening a proposed workout only shows the Workouts screen; a session starts from its Start button.
   await expect(page.getByRole('heading', { name: 'Workouts', exact: true })).toBeVisible();

@@ -1,64 +1,42 @@
 using System.Text.Json.Nodes;
-using Workout.Api.Services;
 
 namespace Workout.Api.Services.AI.Tools;
 
-public sealed class GetNutritionSummaryTool : IAiTool
+public sealed class GetNutritionSummaryTool(NutritionSummaryService nutrition) : IAiTool
 {
-    private readonly NutritionContextService _nutritionService;
-
-    public GetNutritionSummaryTool(NutritionContextService nutritionService)
-    {
-        _nutritionService = nutritionService;
-    }
-
     public string Name => "get_nutrition_summary";
-    public string Description => "Get the user's linked nutrition summary (goal, weight trend, calorie deficit/surplus mode) if NutritionApp is connected.";
-
+    public string Description => "Read linked Nutrition intake, accepted targets, estimated maintenance, protein coverage, and cleaned weights. Below target is not a deficit. Includes source dates and freshness.";
     public JsonObject ParametersSchema => new()
     {
         ["type"] = "object",
-        ["properties"] = new JsonObject()
+        ["properties"] = new JsonObject { ["days"] = new JsonObject { ["type"] = "integer", ["description"] = "Recent nutrition days, 1-28, default 14." } }
     };
+    public string ProgressLabel(AiToolArgs args) => "Checking linked nutrition evidence...";
 
-    public string ProgressLabel(AiToolArgs args) => "Checking linked nutrition status...";
-
-    public async Task<AiToolResult> ExecuteAsync(AiToolArgs args, AiToolContext context, CancellationToken cancellationToken)
+    public async Task<AiToolResult> ExecuteAsync(AiToolArgs args, AiToolContext context, CancellationToken ct)
     {
-        var result = await _nutritionService.Get(cancellationToken);
-        if (result.Context == null)
-        {
-            return AiToolResult.Of(new
-            {
-                connected = false,
-                message = "NutritionApp is not connected or no nutrition context is currently available."
-            });
-        }
-
-        var ctx = result.Context;
+        var days = args.OptionalInt("days", 1, 28) ?? 14;
+        var result = await nutrition.Get(days, ct);
+        var summary = result.Summary;
         return AiToolResult.Of(new
         {
-            connected = true,
-            progressionMode = result.Mode,
-            goal = ctx.EffectiveGoal,
-            phaseComplete = ctx.PhaseComplete,
-            targetRatePercent = ctx.TargetRatePercent,
-            observedLossRatePercent = ctx.ObservedLossRatePercent,
-            observedWindowDays = ctx.ObservedWindowDays,
-            scaleWeight = ConvertWeight(ctx.ScaleWeightKg, context.WeightUnit),
-            trendWeight = ConvertWeight(ctx.TrendWeightKg, context.WeightUnit),
+            source = "NutritionApp", result.ConnectionState, result.Availability, result.Freshness, result.Warning,
+            requestedDays = days, result.CompleteCoverage, summary?.From, summary?.To, summary?.RetrievedAt, summary?.TimeZone,
+            energyUnit = "kcal", summary?.GoalContext, summary?.Period,
+            historicalContext = result.HistoricalContext == null ? null : new {
+                result.HistoricalContext.RetrievedAt, result.HistoricalContext.TimeZone, result.HistoricalContext.EffectiveGoal,
+                scale = AiToolUnits.Weight(result.HistoricalContext.ScaleWeightKg, context.WeightUnit), result.HistoricalContext.ScaleWeightDate,
+                trend = AiToolUnits.Weight(result.HistoricalContext.TrendWeightKg, context.WeightUnit), result.HistoricalContext.TrendWeightDate,
+                limitation = "Legacy workout-start snapshot only; no intake, maintenance, cleaned-trend verification or complete coverage." },
             weightUnit = context.WeightUnit,
-            cached = result.Cached,
-            confirmed = result.Confirmed,
-            retrievedAt = ctx.RetrievedAt.ToString("yyyy-MM-dd HH:mm UTC")
-        });
-    }
-
-    private static double? ConvertWeight(double? weightKg, string unit)
-    {
-        if (!weightKg.HasValue) return null;
-        if (unit.Equals("lb", StringComparison.OrdinalIgnoreCase))
-            return Math.Round(weightKg.Value * 2.20462, 1);
-        return Math.Round(weightKg.Value, 1);
+            weight = summary == null ? null : new { summary.Weight.WeighIns, summary.Weight.FirstDate, summary.Weight.LastDate, summary.Weight.FirstTrendDate, summary.Weight.LastTrendDate,
+                firstScale = AiToolUnits.Weight(summary.Weight.FirstScaleKg, context.WeightUnit),
+                lastScale = AiToolUnits.Weight(summary.Weight.LastScaleKg, context.WeightUnit),
+                firstTrend = AiToolUnits.Weight(summary.Weight.FirstTrendKg, context.WeightUnit),
+                lastTrend = AiToolUnits.Weight(summary.Weight.LastTrendKg, context.WeightUnit), summary.Weight.TrendMethod },
+            summary?.CoachingEligible, summary?.CoachingExplanation,
+            recentDays = summary?.Days.Take(7).ToArray(),
+            note = "Averages use complete/fasting days only; estimated deficit uses qualified maintenance. Missing protein is unknown. Positive below-target values mean intake was below that target; negative means above."
+        }, approximate: summary?.Period.MaintenanceComparedDays > 0 || result.Freshness == "stale");
     }
 }

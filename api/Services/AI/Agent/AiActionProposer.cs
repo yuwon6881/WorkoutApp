@@ -27,7 +27,7 @@ public sealed class AiActionProposer(AiToolContext toolContext) : IAiActionPropo
                     {
                         ["type"] = new JsonObject { ["type"] = "string",
                             ["enum"] = new JsonArray(AllowedTypes.Select(t => (JsonNode?)JsonValue.Create(t)).ToArray()) },
-                        ["payload"] = new JsonObject { ["type"] = "object", ["description"] = "workoutId for openWorkout, slug or exerciseId for openExercise, optional programId for openProgram, templateId for openAddWorkoutDraft. Other fields are ignored." }
+                        ["payload"] = new JsonObject { ["type"] = "object", ["description"] = "workoutId for openWorkout, slug or exerciseId for openExercise, optional programId for openProgram, templateId for openAddWorkoutDraft (opens the Workouts screen; does not start a session or select a template). Other fields are ignored." }
                     },
                     ["required"] = new JsonArray("type", "payload")
                 }

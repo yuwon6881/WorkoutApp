@@ -27,6 +27,7 @@ public static class IntegrationEndpoints
             var user = await db.Users.SingleOrDefaultAsync(u => u.IdentitySubject == token.Subject, ct);
             Validation.Require(user != null, "That shared account is not mapped to this Workout account.", 403);
             db.CurrentUser = user!.Id;
+            context.Response.Headers["X-Workout-Summary-Version"] = "2";
             return Results.Ok(await workouts.TrainingSummary(from, to, timeZone, ct));
         });
 

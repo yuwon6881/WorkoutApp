@@ -8,7 +8,7 @@ const actionLabels: Record<AiActionType, string> = {
   openProgram: 'View program',
   openHistory: 'View workout history',
   openActiveWorkout: 'View active workout',
-  openAddWorkoutDraft: 'Preview workout before starting',
+  openAddWorkoutDraft: 'View workouts',
 };
 
 interface Props {

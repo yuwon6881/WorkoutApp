@@ -52,6 +52,29 @@ public sealed class AskAiReviewTests
     }
 
     [Fact]
+    public async Task Baseline_reports_finished_program_runs_and_standalone_slot_without_authorizing_omitted_ids()
+    {
+        await using var harness = await Harness.Create();
+        await harness.SignIn();
+        var db = harness.Db;
+        var program = new TrainingProgram { UserId = db.CurrentUser!.Value, Name = "Finished program", Active = true };
+        db.Programs.Add(program);
+        db.ProgramRuns.Add(new ProgramRun { UserId = db.CurrentUser.Value, ProgramId = program.Id, Number = 1, CompletedAt = DateTime.UtcNow });
+        await db.SaveChangesAsync();
+        var context = new AiToolContext("kg", DateOnly.FromDateTime(DateTime.UtcNow));
+        var baseline = await new AiBaselineSnapshotBuilder(db).BuildAsync(context, default);
+        Assert.True(baseline["activeProgram"]?["runCompleted"]?.GetValue<bool>());
+        program.Active = false;
+        var standalone = new WorkoutTemplate { UserId = db.CurrentUser.Value, Name = "Standalone", Active = true, ActiveCompletedAt = DateTime.UtcNow };
+        db.Templates.Add(standalone);
+        await db.SaveChangesAsync();
+        baseline = await new AiBaselineSnapshotBuilder(db).BuildAsync(context, default);
+        Assert.Equal("Standalone", baseline["activeStandalone"]?["name"]?.GetValue<string>());
+        Assert.True(baseline["activeStandalone"]?["completed"]?.GetValue<bool>());
+        Assert.False(context.Evidence.Contains(AiEvidenceLedger.Template, standalone.Id.ToString()));
+    }
+
+    [Fact]
     public async Task SchedulerPrunesExpiredAndAbandonedTurns()
     {
         await using var harness = await Harness.Create();

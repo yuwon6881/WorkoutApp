@@ -47,7 +47,16 @@ public sealed record WorkoutTrainingSummary(
     double? SystemVolumeKg,
     double? AverageRpe,
     bool Completed = true,
-    DateOnly? ActualDate = null);
+    DateOnly? ActualDate = null,
+    DateOnly? CompletionDate = null,
+    int? RepWorkingSets = null,
+    int? TimedWorkingSets = null,
+    int? DurationSeconds = null,
+    int? EffortRecordedSets = null,
+    bool? EffortTracked = null,
+    IReadOnlyList<string>? ExerciseMix = null,
+    bool? ExternalVolumeComplete = null,
+    bool? SystemVolumeComplete = null);
 
 public static class LoadModels
 {

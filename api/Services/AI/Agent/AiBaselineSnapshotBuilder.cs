@@ -30,8 +30,13 @@ public sealed class AiBaselineSnapshotBuilder(AppDb db)
             {
                 ["id"] = programNode["programId"]?.DeepClone(), ["name"] = programNode["programName"]?.DeepClone(),
                 ["currentWeek"] = programNode["currentWeek"]?.DeepClone(), ["totalWeeks"] = programNode["totalWeeks"]?.DeepClone(),
-                ["runNumber"] = programNode["runNumber"]?.DeepClone()
+                ["runNumber"] = programNode["runNumber"]?.DeepClone(),
+                ["runCompleted"] = programNode["runCompleted"]?.DeepClone(),
+                ["lifecycleStatus"] = programNode["lifecycleStatus"]?.DeepClone()
             };
+        if (programNode?["activeStandalone"] is JsonObject standalone)
+            snapshot["activeStandalone"] = new JsonObject { ["name"] = standalone["name"]?.DeepClone(),
+                ["completed"] = standalone["completed"]?.DeepClone() };
         var active = await new GetActiveWorkoutTool(db).ExecuteAsync(AiToolArgs.Empty, baselineContext, cancellationToken);
         var activeNode = JsonSerializer.SerializeToNode(active.Data);
         if (activeNode?["hasActiveWorkout"]?.GetValue<bool>() == true)

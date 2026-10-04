@@ -417,16 +417,6 @@ public sealed class MutationReceipt
     public string? RequestHash { get; set; }
 }
 
-/// Last confirmed Nutrition context. It is a fallback only; a stale row never becomes a zero or
-/// silently changes a completed workout's frozen context.
-public sealed class NutritionContextCache : OwnedRecord
-{
-    public string ContextJson { get; set; } = "";
-    public DateTime? LastSuccessAt { get; set; }
-    public DateTime? LastErrorAt { get; set; }
-    public string LastError { get; set; } = "";
-}
-
 public sealed class IntegrationGrant : OwnedRecord
 {
     public string Peer { get; set; } = "";

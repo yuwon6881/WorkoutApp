@@ -97,6 +97,7 @@ builder.Services.AddScoped<IAiTool, GetExerciseCatalogTool>();
 builder.Services.AddScoped<IAiTool, GetProgramOverviewTool>();
 builder.Services.AddScoped<IAiTool, GetMuscleBalanceTool>();
 builder.Services.AddScoped<IAiTool, GetActiveWorkoutTool>();
+builder.Services.AddScoped<NutritionSummaryService>();
 builder.Services.AddScoped<IAiTool, GetNutritionSummaryTool>();
 builder.Services.AddScoped<AiToolRegistry>();
 builder.Services.AddScoped<AiToolExecutor>();

@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Text.Json.Nodes;
 using Workout.Api.Services.AI.Tools;
 
@@ -30,6 +31,7 @@ public sealed class AiAgentEngine
 
     public async Task<AiAgentTurnResult> RunAsync(AiAgentTurnRequest request, CancellationToken cancellationToken)
     {
+        var startedAt = Stopwatch.GetTimestamp();
         // Read tools appear in fixed order first so the prompt prefix remains cacheable,
         // followed by the session-specific action proposal schema.
         var tools = _registry.Definitions
@@ -80,7 +82,8 @@ public sealed class AiAgentEngine
                 streamSink,
                 cancellationToken);
             // Account for each successful provider response, including rounds before a later failure.
-            await _usage.RecordAsync(result.Usage, 1, cancellationToken);
+            using (var accountingDeadline = new CancellationTokenSource(TimeSpan.FromSeconds(5)))
+                await _usage.RecordAsync(result.Usage, 1, accountingDeadline.Token);
             usage = Add(usage, result.Usage);
             input.AddRange(result.OutputItems);
 
@@ -90,7 +93,8 @@ public sealed class AiAgentEngine
                     ? result.Text
                     : "I couldn't finish looking that up. Please try asking again.";
                 _logger.LogInformation(
-                    "Ask AI turn finished in {Rounds} round(s) with {ToolCalls} tool call(s).", round, trace.Count);
+                    "Ask AI turn finished in {ElapsedMs:F0} ms, {Rounds} round(s), {ToolCalls} tool call(s); in={Input}, cached={Cached}, out={Output}, reasoning={Reasoning}.",
+                    Stopwatch.GetElapsedTime(startedAt).TotalMilliseconds, round, trace.Count, usage.InputTokens, usage.CachedTokens, usage.OutputTokens, usage.ReasoningTokens);
                 return new AiAgentTurnResult(
                     reply, request.ActionProposer.Accepted, trace, usage, round, anyApproximate, atLimit);
             }

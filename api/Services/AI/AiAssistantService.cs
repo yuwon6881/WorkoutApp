@@ -15,6 +15,7 @@ public sealed class AiAssistantService
     private static readonly Regex ThanksPattern = new(@"^\s*(thanks|thank\s+you|thx)\s*[\.!\?]*\s*$", RegexOptions.IgnoreCase | RegexOptions.Compiled);
     private static readonly Regex WhoAreYouPattern = new(@"^\s*(who\s+are\s+you|what\s+can\s+you\s+do|help)\s*[\.!\?]*\s*$", RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
+    private readonly TimeProvider _timeProvider;
     private readonly AiChatClient _client;
     private readonly AppDb _db;
     private readonly AiAgentServices _agent;
@@ -26,8 +27,10 @@ public sealed class AiAssistantService
         AppDb db,
         AiAgentServices agent,
         AiConversationMemoryService conversationMemory,
-        ILogger<AiAssistantService> logger)
+        ILogger<AiAssistantService> logger,
+        TimeProvider? timeProvider = null)
     {
+        _timeProvider = timeProvider ?? TimeProvider.System;
         _client = client;
         _db = db;
         _agent = agent;
@@ -72,10 +75,18 @@ public sealed class AiAssistantService
             State = prepared.State
         };
 
+        using var deadlineTimer = new CancellationTokenSource(TimeSpan.FromSeconds(150), _timeProvider);
+        using var turnDeadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, deadlineTimer.Token);
         AiChatOutcome outcome;
         try
         {
-            outcome = await ExecuteTurnAsync(serverRequest, sink, cancellationToken);
+            outcome = await ExecuteTurnAsync(serverRequest, sink, turnDeadline.Token);
+        }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested && turnDeadline.IsCancellationRequested)
+        {
+            await _conversationMemory.FailAsync(prepared, CancellationToken.None);
+            return new AiChatOutcome(new AiChatResponse("AI took too long to finish. Your conversation is retained; retry your message.", [],
+                ConversationId: prepared.Conversation.Id, ConversationVersion: prepared.Conversation.Version), IsProviderError: true);
         }
         catch
         {

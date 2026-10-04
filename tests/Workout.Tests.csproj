@@ -10,4 +10,5 @@
   <ItemGroup>
     <None Include="../cloudbuild.yaml" Link="cloudbuild.yaml" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
+  <ItemGroup><None Update="fixtures/fitness-ai.examples.json" CopyToOutputDirectory="PreserveNewest" /></ItemGroup>
 </Project>

@@ -12,6 +12,7 @@ public sealed partial class WorkoutService
         var end = to ?? todayLocal;
         Validation.Require(start <= end && end.DayNumber - start.DayNumber <= 366, "Choose a date range of one year or less.");
 
+        var trackEffort = await db.Users.Where(u => u.Id == db.CurrentUser).Select(u => u.TrackRir).SingleAsync(ct);
         var startUtc = start.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc).AddDays(-1);
         var endUtc = end.AddDays(2).ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc);
 
@@ -22,11 +23,11 @@ public sealed partial class WorkoutService
 
         var sessionIds = rows.Select(session => session.Id).ToList();
         var exercises = await db.SessionExercises.AsNoTracking().Where(exercise => sessionIds.Contains(exercise.SessionId))
-            .Select(exercise => new SessionExercise { Id = exercise.Id, SessionId = exercise.SessionId, ExerciseId = exercise.ExerciseId, LoadModel = exercise.LoadModel }).ToListAsync(ct);
+            .Select(exercise => new SessionExercise { Id = exercise.Id, SessionId = exercise.SessionId, ExerciseId = exercise.ExerciseId, NameSnapshot = exercise.NameSnapshot, LoadModel = exercise.LoadModel }).ToListAsync(ct);
         var exerciseIdsForSets = exercises.Select(exercise => exercise.Id).ToList();
         var allSets = await db.Sets.AsNoTracking().Where(set => exerciseIdsForSets.Contains(set.SessionExerciseId) && set.Done && !set.Warmup)
             .Select(set => new CompletedSet { SessionExerciseId = set.SessionExerciseId, Done = set.Done, Warmup = set.Warmup,
-                WeightKg = set.WeightKg, SystemLoadKg = set.SystemLoadKg, Reps = set.Reps, Rpe = set.Rpe }).ToListAsync(ct);
+                WeightKg = set.WeightKg, SystemLoadKg = set.SystemLoadKg, Reps = set.Reps, Rpe = set.Rpe, DurationSeconds = set.DurationSeconds }).ToListAsync(ct);
         var bySession = exercises.ToLookup(exercise => exercise.SessionId);
         var byExercise = allSets.ToLookup(set => set.SessionExerciseId);
         var muscleIds = exercises.Where(e => e.ExerciseId is not null)
@@ -38,18 +39,29 @@ public sealed partial class WorkoutService
         {
             var localDateTime = TimeZoneInfo.ConvertTimeFromUtc(session.StartedAt, zone);
             var actualDate = DateOnly.FromDateTime(localDateTime);
-            if (actualDate < start || actualDate > end) continue;
+            var completionDate = session.FinishedAt is { } finished
+                ? DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(finished, zone)) : (DateOnly?)null;
+            if ((actualDate < start || actualDate > end) && (completionDate < start || completionDate > end || completionDate == null)) continue;
 
             var sessionExercises = bySession[session.Id].ToList();
             var sets = sessionExercises.SelectMany(exercise => byExercise[exercise.Id]).ToList();
             var volume = WorkoutAccounting.Volume(sessionExercises, sets);
-            var rpes = sets.Where(s => s.Rpe is not null).Select(s => s.Rpe!.Value).ToList();
+            var models = sessionExercises.ToDictionary(e => e.Id, e => e.LoadModel);
+            var repSets = sets.Where(s => s.Reps != null).ToArray();
+            var externalSets = repSets.Where(s => models[s.SessionExerciseId] == LoadModels.External && s.SystemLoadKg == null).ToArray();
+            var systemSets = repSets.Where(s => models[s.SessionExerciseId] == LoadModels.FullBodyweight || s.SystemLoadKg != null).ToArray();
+            var rpes = sets.Where(s => trackEffort && s.Rpe is not null).Select(s => s.Rpe!.Value).ToList();
             var exerciseIds = sessionExercises.Where(e => e.ExerciseId is not null).Select(e => e.ExerciseId!.Value).Distinct().ToList();
             var muscles = exerciseIds.Select(id => musclesById.GetValueOrDefault(id, ""))
                 .Where(x => !string.IsNullOrWhiteSpace(x)).Distinct().OrderBy(x => x).ToList();
             var status = session.Active ? "in_progress" : "completed";
             result.Add(new WorkoutTrainingSummary($"session:{session.Id}", status, actualDate, session.StartedAt, session.FinishedAt,
-                session.Name, muscles, sets.Count, volume.External, volume.System, rpes.Count == 0 ? null : rpes.Average(), !session.Active, actualDate));
+                session.Name, muscles, sets.Count, volume.External, volume.System, rpes.Count == 0 ? null : rpes.Average(), !session.Active, actualDate, completionDate,
+                sets.Count(s => s.Reps != null), sets.Count(s => s.DurationSeconds != null),
+                sets.Where(s => s.DurationSeconds != null).Sum(s => s.DurationSeconds!.Value), rpes.Count, trackEffort,
+                sessionExercises.Select(e => $"{e.ExerciseId?.ToString() ?? $"name:{e.NameSnapshot}"}:{e.LoadModel}").Distinct().Order().ToArray(),
+                externalSets.Length > 0 && externalSets.All(s => s.WeightKg != null),
+                systemSets.Length > 0 && systemSets.All(s => s.SystemLoadKg != null)));
         }
         result.Sort((left, right) => left.LocalDate.CompareTo(right.LocalDate));
         // Up-next days have no calendar date, so they belong only to a range that includes today.

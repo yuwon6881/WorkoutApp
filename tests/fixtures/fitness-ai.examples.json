@@ -1,0 +1,128 @@
+{
+  "version": 2,
+  "timeZone": "Asia/Kuala_Lumpur",
+  "today": "2026-10-04",
+  "workouts": [
+    {
+      "id": "session:old",
+      "status": "completed",
+      "localDate": "2026-09-23",
+      "completionDate": "2026-09-24",
+      "startedAt": "2026-09-23T15:00:00Z",
+      "finishedAt": "2026-09-23T17:00:00Z",
+      "workoutName": "Squat",
+      "muscleGroups": [
+        "Quads"
+      ],
+      "workingSetCount": 5,
+      "externalVolumeKg": 1000,
+      "systemVolumeKg": null,
+      "averageRpe": 8,
+      "repWorkingSets": 5,
+      "timedWorkingSets": 0,
+      "durationSeconds": 0,
+      "effortRecordedSets": 5,
+      "effortTracked": true,
+      "exerciseMix": [
+        "squat:external"
+      ],
+      "externalVolumeComplete": true,
+      "systemVolumeComplete": false
+    },
+    {
+      "id": "session:recent",
+      "status": "completed",
+      "localDate": "2026-09-30",
+      "completionDate": "2026-10-01",
+      "startedAt": "2026-09-30T15:00:00Z",
+      "finishedAt": "2026-09-30T17:00:00Z",
+      "workoutName": "Squat",
+      "muscleGroups": [
+        "Quads"
+      ],
+      "workingSetCount": 5,
+      "externalVolumeKg": 1180,
+      "systemVolumeKg": null,
+      "averageRpe": 9,
+      "repWorkingSets": 5,
+      "timedWorkingSets": 0,
+      "durationSeconds": 0,
+      "effortRecordedSets": 5,
+      "effortTracked": true,
+      "exerciseMix": [
+        "squat:external"
+      ],
+      "externalVolumeComplete": true,
+      "systemVolumeComplete": false
+    }
+  ],
+  "expectedExternalVolumeChangePercent": 18,
+  "evaluationCases": [
+    {
+      "question": "Why is my squat stalling?",
+      "checks": [
+        "Use exercise progression and linked nutrition evidence",
+        "Distinguish a calorie target gap from an estimated deficit",
+        "Describe contributors as possible explanations, not established causes"
+      ]
+    },
+    {
+      "question": "Should I increase my calories?",
+      "checks": [
+        "Read coaching eligibility and training summaries",
+        "Report completed-week volume, dates, coverage, and recorded-set effort",
+        "Do not convert an 18 percent volume increase into calories"
+      ]
+    },
+    {
+      "question": "My weight is flat during maintenance. Is something wrong?",
+      "checks": [
+        "Respect the maintenance goal",
+        "Do not label stable weight as failure"
+      ]
+    },
+    {
+      "question": "I am trying to gain but losing weight. What is happening?",
+      "checks": [
+        "Use qualified intake and cleaned trend",
+        "Ask about missing activity, illness, or unlogged food rather than infer them"
+      ]
+    },
+    {
+      "question": "I returned after a break. How much did my volume increase?",
+      "checks": [
+        "A zero baseline yields no percentage",
+        "Distinguish a return from a workload spike"
+      ]
+    },
+    {
+      "question": "Is my protein too low?",
+      "checks": [
+        "Missing protein stays unknown",
+        "State known-day and target comparison counts"
+      ]
+    },
+    {
+      "question": "I lost 1.2 kg in ten days. Is that fat loss?",
+      "checks": [
+        "Separate raw scale change from cleaned trend",
+        "Sparse or temporary-context measurements cannot establish fat loss"
+      ]
+    },
+    {
+      "question": "What have I trained this week?",
+      "checks": [
+        "Use local completion dates",
+        "Exclude planned and active sessions from completed totals"
+      ]
+    },
+    {
+      "question": "I am losing weight but training much less. Should I keep the same calorie target?",
+      "checks": [
+        "Use completed-session changes and accepted-target dates",
+        "Respect coaching eligibility, coverage and adaptation holds",
+        "Ask about a break, injury, illness or schedule changes instead of inferring them"
+      ]
+    }
+  ]
+}

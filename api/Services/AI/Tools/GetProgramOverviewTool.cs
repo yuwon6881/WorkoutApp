@@ -14,7 +14,7 @@ public sealed class GetProgramOverviewTool : IAiTool
     }
 
     public string Name => "get_program_overview";
-    public string Description => "Get an overview of the user's active training program, including current week, phases, and workout templates.";
+    public string Description => "Read the active training slot: standalone workout, or program including finished-run state, current week, phases and templates.";
 
     public JsonObject ParametersSchema => new()
     {
@@ -26,6 +26,9 @@ public sealed class GetProgramOverviewTool : IAiTool
 
     public async Task<AiToolResult> ExecuteAsync(AiToolArgs args, AiToolContext context, CancellationToken cancellationToken)
     {
+        var standalone = await _db.Templates.AsNoTracking().Where(t => t.Active && t.ProgramId == null)
+            .Select(t => new { id = t.Id.ToString(), name = t.Name, completed = t.ActiveCompletedAt != null }).FirstOrDefaultAsync(cancellationToken);
+        if (standalone != null) context.Evidence.Record(AiEvidenceLedger.Template, standalone.id);
         var program = await _db.Programs.AsNoTracking()
             .Where(p => p.Active)
             .FirstOrDefaultAsync(cancellationToken);
@@ -35,7 +38,8 @@ public sealed class GetProgramOverviewTool : IAiTool
             return AiToolResult.Of(new
             {
                 hasActiveProgram = false,
-                message = "No active training program found. The user is currently training on standalone or custom sessions."
+                activeStandalone = standalone,
+                message = "No active program; activeStandalone identifies the active standalone workout when present."
             });
         }
 
@@ -86,6 +90,8 @@ public sealed class GetProgramOverviewTool : IAiTool
             programName = program.Name,
             totalWeeks = program.Weeks,
             lifecycleStatus = program.LifecycleStatus,
+            runCompleted = currentRun?.CompletedAt != null,
+            activeStandalone = standalone,
             currentWeek,
             runNumber = currentRun?.Number ?? 1,
             phases,
