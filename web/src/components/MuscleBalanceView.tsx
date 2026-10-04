@@ -7,7 +7,6 @@ import { Button } from './ui/Button';
 import { Select } from './ui/Select';
 import { MotionPanel } from './ui/Motion';
 import { BodyMap, MuscleDetail } from './BodyMap';
-import { MuscleBalanceList } from './MuscleBalanceList';
 import './MuscleBalance.css';
 
 type BalanceRange = typeof RANGES[number]['value'];
@@ -38,7 +37,6 @@ export function MuscleBalanceView({ timeZone }: { timeZone: string }) {
   const view = views[range] ?? lastView;
   const muscles = useMemo(() => sortMuscles(view?.muscles ?? []), [view?.muscles]);
   const trained = useMemo(() => muscles.filter(muscle => muscle.sets > 0), [muscles]);
-  const untrained = useMemo(() => muscles.filter(muscle => muscle.sets <= 0), [muscles]);
   const peak = useMemo(() => peakSets(muscles), [muscles]);
   const detail = useMemo(() => muscles.find(muscle => muscle.muscle === activeMuscle) ?? null, [activeMuscle, muscles]);
 
@@ -93,7 +91,6 @@ export function MuscleBalanceView({ timeZone }: { timeZone: string }) {
         <section className="panel muscle-balance-loading" aria-label="Loading muscle coverage" aria-busy="true">
           <div className="skeleton muscle-balance-loading-title" />
           <div className="skeleton muscle-balance-loading-map" />
-          <div className="skeleton muscle-balance-loading-list" />
         </section>
       )}
 
@@ -157,38 +154,13 @@ export function MuscleBalanceView({ timeZone }: { timeZone: string }) {
                 muscle in this window{peak > 0 ? `, ${trained[0]?.muscle} at ${formatSets(peak)} sets` : ''}.
               </p>
             </details>
-          </section>
-
-          <MotionPanel motionKey={`muscle-list-${range}`} className="panel muscle-balance-list-panel">
-            <div className="section-heading muscle-balance-section-heading">
-              <h2>Muscles</h2>
-              {trained.length > 0 && <span className="muted">{trained.length} trained</span>}
-            </div>
-            {trained.length > 0
-              ? <MuscleBalanceList
-                muscles={trained}
-                peak={peak}
-                dateLabel={dateLabel}
-                activeMuscle={activeMuscle}
-                onHoverMuscle={setHoveredMuscle}
-                onSelectMuscle={selectMuscle}
-              />
-              : <p className="muscle-balance-empty-note" role="status">No muscle has credited sets in this window yet.</p>}
-            {untrained.length > 0 && (
-              <details className="muscle-balance-untrained">
-                <summary>Not trained in this window ({untrained.length})</summary>
-                <div className="muscle-balance-untrained-chips">
-                  {untrained.map(muscle => <span key={muscle.muscle} className="muscle-chip">{muscle.muscle}</span>)}
-                </div>
-              </details>
-            )}
             {view.unattributedSets > 0 && (
               <p className="muscle-balance-unattributed">
                 {formatSets(view.unattributedSets)} completed {view.unattributedSets === 1 ? 'set could' : 'sets could'} not be matched to a muscle and are excluded from the map.
                 {view.unattributedExamples.length > 0 && <> Examples: {view.unattributedExamples.slice(0, 3).join(', ')}.</>}
               </p>
             )}
-          </MotionPanel>
+          </section>
         </>
       )}
     </div>

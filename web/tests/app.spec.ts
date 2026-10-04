@@ -535,9 +535,10 @@ test('build a workout, log a set against the server, and see it in history', asy
   await page.getByRole('listbox', { name: 'Muscle coverage period', exact: true })
     .getByRole('option', { name: 'Last 3 months', exact: true }).click();
   expect((await longerRange).ok()).toBe(true);
-  const chest = page.locator('.muscle-balance-table-row[data-muscle="Chest"]');
+  const chest = page.locator('.muscle-region[data-muscle="Chest"]').first();
   await expect(chest).toBeVisible();
-  await expect(chest).not.toContainText(/\b0(?:\.0)? sets/);
+  await expect(detail.locator('.body-map-detail-sets')).toBeVisible();
+  await expect(detail.locator('.body-map-detail-sets')).not.toContainText(/\b0(?:\.0)? sets/);
 
   // Starting the same plan again has to carry the last session forward: 8 reps at RPE 8 against
   // a target of 8-12 leaves effort in the tank, so the app asks for one more rep at the same

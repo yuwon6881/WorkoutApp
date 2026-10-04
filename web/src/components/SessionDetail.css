@@ -13,7 +13,7 @@
   padding: 18px;
   border: 1px solid var(--accent-border);
   border-radius: var(--radius);
-  background: linear-gradient(160deg, color-mix(in srgb, var(--accent) 9%, var(--surface)), var(--surface) 72%);
+  background: var(--surface);
 }
 
 .session-summary-top {

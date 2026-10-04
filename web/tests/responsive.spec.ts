@@ -500,8 +500,6 @@ for (const theme of ['dark', 'light']) {
     await screenshot('body');
     await page.getByText('How coverage is counted', { exact: true }).click();
     await screenshot('coverage-explanation');
-    await page.locator('.muscle-balance-untrained summary').click();
-    await screenshot('untrained-muscles');
 
     await navigate(page, 'Workouts');
     await page.locator('.routine-card').filter({ hasText: workoutName }).getByRole('button', { name: 'Start workout', exact: true }).first().click();

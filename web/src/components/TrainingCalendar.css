@@ -344,10 +344,10 @@
   letter-spacing: -0.015em;
 }
 .program-week-card .weekly-completion-ring {
-  width: 96px;
-  height: 96px;
+  width: 116px;
+  height: 116px;
   flex: none;
-  margin: 6px 0 4px;
+  margin: 8px 0 6px;
 }
 .program-week-card-progress {
   margin: 0;

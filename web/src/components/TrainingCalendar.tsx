@@ -1,5 +1,5 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { ArrowRight, Check, ChevronLeft, ChevronRight, RotateCcw } from 'lucide-react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { Check, ChevronLeft, ChevronRight, RotateCcw } from 'lucide-react';
 import type { HistoryPage, ProgramSummary, Session, WorkoutActivityItem } from '../types';
 import { api } from '../lib/api';
 import { weekDays } from '../lib/training';
@@ -8,7 +8,6 @@ import { loadSessionDetail } from '../lib/sessionDetailLoad';
 import { prefetchView } from '../app/lazyViews';
 import { ProgramWeekCompletion } from './ProgramWeekCompletion';
 import { Button } from './ui/Button';
-import { Modal } from './ui/Modal';
 import './TrainingCalendar.css';
 
 interface TrainingCalendarProps {
@@ -26,13 +25,22 @@ export function TrainingCalendar({ onSession, program, refreshKey, activeWorkout
   const days = weekDays(offset);
   const rail = useRef<HTMLDivElement>(null);
   const scrollTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const touchStart = useRef<{ x: number; y: number } | null>(null);
+  const isTouching = useRef(false);
+  const navigating = useRef(false);
   const [calendar, setCalendar] = useState<WorkoutActivityItem[]>([]);
   const [initialLoading, setInitialLoading] = useState(true);
   const [calendarError, setCalendarError] = useState('');
-  const [selectedDay, setSelectedDay] = useState<Date | null>(null);
-  const [selectedDayError, setSelectedDayError] = useState('');
+
+  const navigateByWeek = useCallback((direction: number) => {
+    if (!direction || navigating.current) return;
+    navigating.current = true;
+    if (scrollTimer.current) clearTimeout(scrollTimer.current);
+    setOffset(value => value + direction);
+  }, []);
 
   useLayoutEffect(() => {
+    navigating.current = false;
     const element = rail.current;
     if (!element) return;
     const centerWeek = () => {
@@ -50,14 +58,58 @@ export function TrainingCalendar({ onSession, program, refreshKey, activeWorkout
   }, []);
 
   const settleWeek = () => {
+    if (isTouching.current || navigating.current) return;
     if (scrollTimer.current) clearTimeout(scrollTimer.current);
     scrollTimer.current = setTimeout(() => {
+      if (isTouching.current || navigating.current) return;
       const element = rail.current;
       const width = element?.firstElementChild?.getBoundingClientRect().width;
       if (!element || !width) return;
-      const direction = Math.round(element.scrollLeft / width) - 1;
-      if (direction) setOffset(value => value + direction);
-    }, 180);
+      const delta = element.scrollLeft - width;
+      const threshold = Math.min(25, width * 0.1);
+      if (delta > threshold) {
+        navigateByWeek(1);
+      } else if (delta < -threshold) {
+        navigateByWeek(-1);
+      } else if (Math.abs(delta) > 0) {
+        element.scrollLeft = width;
+      }
+    }, 100);
+  };
+
+  const handleTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
+    if (e.touches.length !== 1) return;
+    isTouching.current = true;
+    touchStart.current = {
+      x: e.touches[0].clientX,
+      y: e.touches[0].clientY
+    };
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent<HTMLDivElement>) => {
+    isTouching.current = false;
+    const start = touchStart.current;
+    touchStart.current = null;
+    const element = rail.current;
+    if (!start || !element) return;
+    const end = e.changedTouches[0];
+    const dx = end.clientX - start.x;
+    const dy = Math.abs(end.clientY - start.y);
+    const movedX = Math.abs(dx);
+    if (movedX >= 25 && movedX > dy) {
+      navigateByWeek(dx < 0 ? 1 : -1);
+    } else {
+      const width = element.firstElementChild?.getBoundingClientRect().width;
+      if (width) element.scrollLeft = width;
+    }
+  };
+
+  const handleTouchCancel = () => {
+    isTouching.current = false;
+    touchStart.current = null;
+    const element = rail.current;
+    const width = element?.firstElementChild?.getBoundingClientRect().width;
+    if (element && width) element.scrollLeft = width;
   };
 
   useEffect(() => {
@@ -145,13 +197,22 @@ export function TrainingCalendar({ onSession, program, refreshKey, activeWorkout
       </div>
 
       <div className="calendar-week-row">
-        <div className="calendar-week-rail" ref={rail} onScroll={settleWeek} aria-label="Swipe to browse weeks" tabIndex={0}
+        <div
+          className="calendar-week-rail"
+          ref={rail}
+          onScroll={settleWeek}
+          onTouchStart={handleTouchStart}
+          onTouchEnd={handleTouchEnd}
+          onTouchCancel={handleTouchCancel}
+          aria-label="Swipe to browse weeks"
+          tabIndex={0}
           onKeyDown={event => {
             if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
               event.preventDefault();
-              setOffset(value => value + (event.key === 'ArrowLeft' ? -1 : 1));
+              navigateByWeek(event.key === 'ArrowLeft' ? -1 : 1);
             }
-          }}>
+          }}
+        >
           {[-1, 0, 1].map(relativeWeek => (
             <div
               className="calendar-days-grid"
@@ -182,10 +243,18 @@ export function TrainingCalendar({ onSession, program, refreshKey, activeWorkout
                     key={day.toISOString()}
                     className={`calendar-day-cell day-${status} ${isToday ? 'today is-today' : ''}`}
                     aria-label={`${day.toDateString()}, ${label}${isToday ? ', today' : ''}`}
-                    onClick={() => {
-                      if (entries.some(entry => entry.status === 'completed')) prefetchView('sessionDetail');
-                      setSelectedDay(day);
-                      setSelectedDayError('');
+                    onClick={async () => {
+                      const performed = entries.find(e => e.status === 'completed')
+                        ?? entries.find(e => e.status === 'in_progress')
+                        ?? entries[0];
+                      if (!performed) return;
+                      prefetchView('sessionDetail');
+                      try {
+                        const session = await loadSessionDetail(performed.id);
+                        onSession(session);
+                      } catch {
+                        setCalendarError('This workout could not be opened.');
+                      }
                     }}
                   >
                     <span className="day-weekday">{day.toLocaleDateString('en', { weekday: 'short' })}</span>
@@ -235,64 +304,6 @@ export function TrainingCalendar({ onSession, program, refreshKey, activeWorkout
       </div>
 
       {calendarError && <p className="muted calendar-error">{calendarError}</p>}
-
-      {selectedDay && (
-        <CalendarDayModal
-          day={selectedDay}
-          entries={calendar.filter(item => item.date === localDay(selectedDay))}
-          onClose={() => setSelectedDay(null)}
-          onSession={async id => {
-            try {
-              const session = await loadSessionDetail(id);
-              setSelectedDay(null);
-              onSession(session);
-            } catch {
-              setSelectedDayError('This workout could not be opened.');
-            }
-          }}
-          error={selectedDayError}
-        />
-      )}
     </section>
   </>);
-}
-
-function CalendarDayModal({
-  day,
-  entries,
-  onClose,
-  onSession,
-  error
-}: {
-  day: Date;
-  entries: WorkoutActivityItem[];
-  onClose: () => void;
-  onSession: (id: string) => Promise<void>;
-  error: string;
-}) {
-  return (
-    <Modal
-      title={day.toLocaleDateString('en', { weekday: 'long', month: 'long', day: 'numeric' })}
-      onClose={onClose}
-    >
-      <div className="modal-body calendar-day-details">
-        {entries.length ? (
-          entries.map(entry => (
-            <div className="calendar-entry" key={entry.id}>
-              <div>
-                <strong>{entry.name}</strong>
-                <span className="muted">{entry.status.replace('_', ' ')}</span>
-              </div>
-              <Button variant="tertiary" onClick={() => void onSession(entry.id)}>
-                Open workout <ArrowRight size={15} />
-              </Button>
-            </div>
-          ))
-        ) : (
-          <p className="muted">No workout recorded for this day.</p>
-        )}
-        {error && <div className="error-text" role="alert">{error}</div>}
-      </div>
-    </Modal>
-  );
 }

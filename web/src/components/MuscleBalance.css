@@ -36,7 +36,7 @@
   white-space:nowrap;
 }
 
-.muscle-balance-map-panel,.muscle-balance-list-panel,.muscle-balance-loading{display:flex;flex-direction:column;gap:14px;min-width:0;margin:0}
+.muscle-balance-map-panel,.muscle-balance-loading{display:flex;flex-direction:column;gap:14px;min-width:0;margin:0}
 .muscle-balance-section-heading{align-items:center;justify-content:space-between;gap:12px;margin:0}
 .muscle-balance-section-heading>.muted{font-size:14px}
 .muscle-balance-range-control{display:flex;align-items:center;gap:10px;min-width:0}
@@ -99,7 +99,6 @@
 .muscle-balance-unattributed{padding-top:12px;border-top:1px solid var(--border);font-size:14px}
 .muscle-balance-loading-title{width:min(280px,70%);height:24px;border-radius:7px}
 .muscle-balance-loading-map{height:270px;border-radius:10px}
-.muscle-balance-loading-list{height:180px;border-radius:10px}
 
 @media(max-width:1023px){
   .muscle-balance-method>summary,.muscle-balance-untrained>summary{min-height:44px}
@@ -114,7 +113,7 @@
   .muscle-balance-stat-value{font-size:16px}
   .muscle-balance-error{align-items:flex-start}
   .muscle-balance-error .button{min-height:44px;padding-inline:10px}
-  .muscle-balance-map-panel,.muscle-balance-list-panel,.muscle-balance-loading{gap:12px}
+  .muscle-balance-map-panel,.muscle-balance-loading{gap:12px}
   .muscle-balance-section-heading{align-items:stretch;flex-direction:column;gap:8px}
   .muscle-balance-range-control{justify-content:space-between;width:100%}
   .muscle-balance-range-control .custom-select-wrap{flex:1 1 auto;min-width:0}
