@@ -27,18 +27,13 @@ function initialTab(): Tab {
   return tabFromPath(window.location.pathname);
 }
 
-// The address always names the open tab, so a reload or Back lands where the user was. Opening
-// the app straight onto a secondary tab still gives Back somewhere to go inside the app:
-// Overview sits beneath it, so the first Back returns home and the next one leaves.
+// The address always names the open tab, so a reload or Back lands where the user was.
+// Initial alignment preserves the active tab address via replaceState so unprompted history items
+// are not added without user interaction.
 function alignHistory(tab: Tab) {
   const { search, hash } = window.location;
   const address = `${TAB_PATHS[tab]}${search}${hash}`;
-  if (tab === 'overview' || window.history.length > 1) {
-    window.history.replaceState(window.history.state, '', address);
-    return;
-  }
-  window.history.replaceState({ overlayDepth: 0 }, '', TAB_PATHS.overview);
-  window.history.pushState({ overlayDepth: 0 }, '', address);
+  window.history.replaceState(window.history.state ?? { overlayDepth: 0 }, '', address);
 }
 
 export function useTabNavigation() {

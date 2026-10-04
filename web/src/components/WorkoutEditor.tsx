@@ -51,7 +51,7 @@ export function WorkoutEditor({
       )}
     </div>
 
-    {picker && <Modal title="Add an exercise" onClose={() => onPicker(false)}>
+    {picker && <Modal wide title="Add an exercise" onClose={() => onPicker(false)}>
       <div className="modal-body"><ExerciseLibrary exercises={exercises} exclude={draft.exercises.map(exercise => exercise.exerciseId).filter((id): id is string => id !== null)}
         onSelect={id => {
           const chosen = exercises.find(exercise => exercise.id === id)!;

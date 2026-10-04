@@ -1,16 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
-import { ArrowRight, ChevronDown, Dumbbell, Trophy } from 'lucide-react';
+import { ArrowRight, Dumbbell, Trash2, Trophy } from 'lucide-react';
 import type { HistoryPage, Session, Unit } from '../types';
 import { ApiError, api } from '../lib/api';
-import { duration, showActualRir, showSetCount, showVolume, toDisplay } from '../lib/training';
-import { formatExercisePrBadge, formatSetPrTag } from '../lib/livePr';
-import { MotionPanel } from './ui/Motion';
+import { duration, showSetCount, showVolume } from '../lib/training';
 import { Button } from './ui/Button';
+import { MenuButton, MenuItem } from './ui/MenuButton';
+import { Modal } from './ui/Modal';
 import { useLoadMoreOnScroll } from './ui/useLoadMoreOnScroll';
 import './History.css';
 import './RenderWindow.css';
-import { showTimedSet } from '../lib/setDuration';
-import { useTrackRir } from '../lib/trackRir';
 
 interface WorkoutHistoryProps {
   initial?: HistoryPage;
@@ -20,6 +18,7 @@ interface WorkoutHistoryProps {
   onSession: (s: Session) => void;
   onStart: () => void;
   onExercise?: (id: string) => void;
+  onDeleted?: () => Promise<void>;
 }
 
 export function WorkoutHistory({
@@ -29,26 +28,26 @@ export function WorkoutHistory({
   unit,
   onSession,
   onStart,
-  onExercise
+  onDeleted
 }: WorkoutHistoryProps) {
   const [page, setPage] = useState<HistoryPage>(initial ?? { total: 0, page: 0, size: 20, sessions: [] });
   const [cursor, setCursor] = useState<{ at: string | null; id: string | null }>({ at: null, id: null });
   const [loading, setLoading] = useState(!initial);
+  const [openingId, setOpeningId] = useState<string | null>(null);
   const [error, setError] = useState('');
-  const trackRir = useTrackRir();
-  const [expandedId, setExpandedId] = useState<string | null>(null);
-  const [details, setDetails] = useState<Record<string, Session>>({});
+  const [deleteSession, setDeleteSession] = useState<Session | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
   const controller = useRef<AbortController | null>(null);
-  const detailController = useRef<AbortController | null>(null);
   const busy = useRef(false);
   const epoch = useRef(0);
 
   useEffect(() => {
     const generation = ++epoch.current;
-    controller.current?.abort(); detailController.current?.abort();
+    controller.current?.abort();
     const active = new AbortController(); controller.current = active;
     busy.current = false;
-    setDetails({}); setExpandedId(null); setError('');
+    setError('');
     if (initial) {
       setPage(initial); setLoading(false);
       const last = initial.sessions.at(-1);
@@ -63,7 +62,7 @@ export function WorkoutHistory({
         if (!active.signal.aborted) setError(failure instanceof ApiError ? failure.message : 'Could not load your history.');
       }).finally(() => { if (generation === epoch.current) setLoading(false); });
     }
-    return () => { active.abort(); detailController.current?.abort(); };
+    return () => { active.abort(); };
   }, [initial, accountId, refreshKey]);
 
   const hasMore = page.sessions.length < page.total && Boolean(cursor.at && cursor.id);
@@ -84,21 +83,44 @@ export function WorkoutHistory({
     } finally { if (generation === epoch.current) { busy.current = false; setLoading(false); } }
   }
 
-  async function expand(session: Session) {
-    detailController.current?.abort();
-    if (expandedId === session.id) { setExpandedId(null); return; }
-    setExpandedId(session.id); setError('');
-    if (session.exercises.length || details[session.id]) return;
-    const active = new AbortController(); detailController.current = active;
+  async function handleOpenSession(session: Session) {
+    if (session.exercises && session.exercises.length > 0) {
+      onSession(session);
+      return;
+    }
+    setOpeningId(session.id);
+    setError('');
     try {
-      const detail = await api.getWorkout(session.id, active.signal);
-      if (!active.signal.aborted) setDetails(current => ({ ...current, [session.id]: detail }));
+      const full = await api.getWorkout(session.id);
+      onSession(full);
     } catch (failure) {
-      if (!active.signal.aborted) setError(failure instanceof ApiError ? failure.message : 'Could not load workout details.');
+      setError(failure instanceof ApiError ? failure.message : 'Could not load workout details.');
+    } finally {
+      setOpeningId(null);
     }
   }
 
-  const sessions = page.sessions.map(session => details[session.id] ?? session);
+  async function confirmDelete() {
+    if (!deleteSession || deleting) return;
+    setDeleting(true);
+    setDeleteError('');
+    try {
+      await api.deleteWorkout(deleteSession.id);
+      setPage(current => ({
+        ...current,
+        total: Math.max(0, current.total - 1),
+        sessions: current.sessions.filter(s => s.id !== deleteSession.id)
+      }));
+      setDeleteSession(null);
+      if (onDeleted) await onDeleted();
+    } catch (failure) {
+      setDeleteError(failure instanceof ApiError ? failure.message : 'Could not delete this workout.');
+    } finally {
+      setDeleting(false);
+    }
+  }
+
+  const sessions = page.sessions;
 
   return (
     <section className={`panel${sessions.length > 100 ? ' history-windowed' : ''}`} aria-label="Workout history">
@@ -109,88 +131,46 @@ export function WorkoutHistory({
 
       {error && <div className="error-banner" role="alert">{error}</div>}
 
-      {sessions.map(session => {
-        const isExpanded = expandedId === session.id;
-        const prCount = session.prCount ?? 0;
-        return (
-          <div className="history-item-wrap" key={session.id}>
-            <Button
-              className={`history-row ${isExpanded ? 'open' : ''}`}
-              variant="tertiary"
-              aria-expanded={isExpanded}
-              aria-controls={`history-detail-${session.id}`}
-              onClick={() => void expand(session)}
-            >
-              <span className="exercise-icon"><Dumbbell size={20} /></span>
-              <span className="row-title">
-                <strong>{session.name}</strong>
-                <small>
-                  {new Date(session.startedAt).toLocaleDateString('en', { month: 'short', day: 'numeric', year: 'numeric' })} · {duration(session)} min · {showSetCount(session.completedSets)}
-                </small>
-              </span>
-              {prCount > 0 && (
-                <span className="pill pill-accent history-pr-pill">
-                  <Trophy size={12} /> {prCount} {prCount === 1 ? 'PR' : 'PRs'}
+      <div className="history-list">
+        {sessions.map(session => {
+          const prCount = session.prCount ?? 0;
+          const hasVolume = session.volumeKg != null && session.volumeKg > 0;
+          return (
+            <div className="history-item-wrap" key={session.id}>
+              <Button
+                className="history-row"
+                variant="tertiary"
+                disabled={openingId === session.id}
+                onClick={() => void handleOpenSession(session)}
+              >
+                <span className="exercise-icon"><Dumbbell size={20} /></span>
+                <span className="row-title">
+                  <strong>{session.name}</strong>
+                  <small>
+                    {new Date(session.startedAt).toLocaleDateString('en', { month: 'short', day: 'numeric', year: 'numeric' })} · {duration(session)} min · {showSetCount(session.completedSets)}
+                  </small>
                 </span>
-              )}
-              <span>{showVolume(session.volumeKg, unit)}</span>
-              <ChevronDown size={16} className={`history-expand-icon ${isExpanded ? 'open' : ''}`} />
-            </Button>
-
-            {isExpanded && (
-              <div className="history-expanded-content" id={`history-detail-${session.id}`}>
-                {!session.exercises.length && <div className="skeleton history-row-skeleton" aria-label="Loading workout details" />}
-                <MotionPanel motionKey={session.id} animateOnMount className="history-expanded-exercises">
-                  {session.exercises.map(exercise => (
-                    <div className="history-exercise-row" key={exercise.id}>
-                      <div className="history-exercise-head">
-                        {exercise.exerciseId && onExercise ? (
-                          <Button
-                            variant="tertiary"
-                            className="history-exercise-btn"
-                            onClick={() => onExercise(exercise.exerciseId!)}
-                            aria-label={`Open ${exercise.name} exercise details`}
-                          >
-                            <strong>{exercise.name}</strong><ArrowRight size={13} />
-                          </Button>
-                        ) : (
-                          <strong>{exercise.name}</strong>
-                        )}
-                        {exercise.isPr && (
-                          <span className="pill pill-accent pr-exercise-badge">
-                            <Trophy size={12} /> {formatExercisePrBadge(exercise, unit)}
-                          </span>
-                        )}
-                      </div>
-                      <div className="history-exercise-sets">
-                        {exercise.sets.filter(s => s.done).map((set, i, completed) => {
-                          const warmupNumber = completed.slice(0, i + 1).filter(item => item.warmup).length;
-                          const workingNumber = completed.slice(0, i + 1).filter(item => !item.warmup).length;
-                          return (
-                            <div key={set.id} className={`history-set-item ${set.isPr ? 'pr-set' : ''}`}>
-                              <span className="muted">{set.warmup ? `W${warmupNumber}` : `Set ${workingNumber}`}</span>
-                              <strong>{set.durationSeconds != null ? showTimedSet(set, unit) : set.weightKg === null ? `${set.reps} reps` : `${toDisplay(set.weightKg, unit)} ${unit} × ${set.reps}`}</strong>
-                              {trackRir && <span className="muted">{showActualRir(set.rir, set.rpe)}</span>}
-                              {set.isPr && <span className="pill pill-accent pr-set-tag"><Trophy size={10} /> {formatSetPrTag(set)}</span>}
-                            </div>
-                          );
-                        })}
-                      </div>
-                      {exercise.note && <p className="history-exercise-note">{exercise.note}</p>}
-                    </div>
-                  ))}
-                </MotionPanel>
-                {session.note && <p className="note-block">{session.note}</p>}
-                <div className="history-expanded-actions">
-                  <Button variant="secondary" disabled={!session.exercises.length && !details[session.id]} onClick={() => onSession(session)}>
-                    Full workout details <ArrowRight size={14} />
-                  </Button>
-                </div>
-              </div>
-            )}
-          </div>
-        );
-      })}
+                {prCount > 0 && (
+                  <span className="pill pill-accent history-pr-pill">
+                    <Trophy size={12} /> {prCount} {prCount === 1 ? 'PR' : 'PRs'}
+                  </span>
+                )}
+                {hasVolume && <span className="history-volume">{showVolume(session.volumeKg, unit)}</span>}
+              </Button>
+              <MenuButton
+                label={`Actions for ${session.name}`}
+                variant="tertiary"
+                triggerClassName="history-menu-trigger"
+                portal
+              >
+                <MenuItem destructive onClick={() => { setDeleteError(''); setDeleteSession(session); }}>
+                  <Trash2 size={14} /> Delete from history
+                </MenuItem>
+              </MenuButton>
+            </div>
+          );
+        })}
+      </div>
 
       {loading && !sessions.length && (
         <div className="history-loading-list" aria-label="Loading workout history">
@@ -211,6 +191,21 @@ export function WorkoutHistory({
         <Button ref={loadMoreRef} className="full-width" disabled={loading} onClick={more}>
           {loading ? 'Loading…' : 'Load more'}
         </Button>
+      )}
+
+      {deleteSession && (
+        <Modal title="Delete workout?" onClose={() => { if (!deleting) setDeleteSession(null); }}>
+          <div className="modal-body">
+            <p>Are you sure you want to delete &ldquo;{deleteSession.name}&rdquo; from your history? This action cannot be undone.</p>
+            {deleteError && <p className="error-text" role="alert">{deleteError}</p>}
+            <div className="modal-actions">
+              <Button variant="tertiary" disabled={deleting} onClick={() => setDeleteSession(null)}>Cancel</Button>
+              <Button variant="destructive" disabled={deleting} onClick={() => void confirmDelete()}>
+                {deleting ? 'Deleting…' : 'Delete'}
+              </Button>
+            </div>
+          </div>
+        </Modal>
       )}
     </section>
   );

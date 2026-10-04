@@ -1,11 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import {
   ClipboardList,
-  FileText,
+  Flame,
   Layers,
   Plus,
   RefreshCw,
   RotateCcw,
+  Sparkles,
+  Target,
   Timer,
   Trash2,
   TrendingUp,
@@ -19,7 +21,7 @@ import type {
   SessionExercise
 } from '../types';
 import { api } from '../lib/api';
-import { restOptions, showTarget, showWeight } from '../lib/training';
+import { restOptions, showReps, showWeight } from '../lib/training';
 import { withSetAdded, withSetRemoved, withSetRestored } from '../lib/workoutDraft';
 import { allowedSetTypes, withSetType } from '../lib/workoutSetTypes';
 import type { RemovedSet } from '../lib/workoutDraft';
@@ -35,12 +37,13 @@ import { previousSetSummaries } from '../lib/previousSets';
 import { DemoLink } from './ui/DemoLink';
 import { isTimedExercise } from '../lib/setDuration';
 import { useTrackRir } from '../lib/trackRir';
+import { getRirColorClass } from './ui/RpeControl';
 import { ExerciseLoadSettings } from './ExerciseLoadSettings';
 import { loadAdjustable } from '../lib/exerciseLoads';
 import { canEnterPerSide } from '../lib/equipmentGroups';
 import { loadColumnLabel, loadEntryFor } from '../lib/resistanceVariant';
 
-const UNDO_WINDOW_MS = 6000;
+const UNDO_WINDOW_MS = 3000;
 
 export function WorkoutActiveExercise({
   exercise,
@@ -82,7 +85,6 @@ export function WorkoutActiveExercise({
     void onCatalogNeeded?.().catch(failure => setCatalogError(failure instanceof Error ? failure.message : 'Exercises could not be loaded.'));
   };
   const [showTargets, setShowTargets] = useState(false);
-  const [showNote, setShowNote] = useState(true);
   const [confirmRemove, setConfirmRemove] = useState(false);
   const actionToolbar = useRef<HTMLDivElement>(null);
   const restoreWeightFocus = useRef(false);
@@ -225,16 +227,6 @@ export function WorkoutActiveExercise({
           </Button>
         )}
 
-        <Button
-          variant="tertiary"
-          className={`action-pill ${showNote ? 'active' : ''}`}
-          aria-pressed={showNote}
-          onClick={() => setShowNote(s => !s)}
-        >
-          <FileText size={15} />
-          <span>Note</span>
-        </Button>
-
         {exercise.sequenceGroup && (
           <div className="action-pill pill-static" title="Superset group">
             <Layers size={15} />
@@ -261,20 +253,75 @@ export function WorkoutActiveExercise({
       {showTargets && (
         <Modal title={`${exercise.name} targets`} onClose={() => setShowTargets(false)}>
           <div className="modal-body workout-plan-detail-card">
-          {exercise.progression && <p className="plan-detail-heading muted">{exercise.progression.reason}</p>}
-          <ul className="plan-detail-list">
-            {(prescription.some(p => !p.warmup) ? prescription.filter(p => !p.warmup) : prescription).map((p, pi) => (
-              <li key={pi}>
-                <span className="plan-set-number">{`Set ${pi + 1}`}</span>
-                <div className="plan-set-prescription">
-                  <span className="plan-set-target">{showTarget(p, trackRir)}</span>
-                  {p.loadText && <span className="plan-set-load">{p.loadText}</span>}
-                  {p.tempo && <span className="plan-set-tempo">Tempo {p.tempo}</span>}
-                  {p.notes && <span className="plan-set-notes">{p.notes}</span>}
+            {exercise.progression && (
+              <div className="plan-detail-banner">
+                <Sparkles size={16} className="plan-banner-icon" aria-hidden="true" />
+                <div className="plan-banner-text">
+                  <strong className="plan-banner-title">Progression Target</strong>
+                  <p>{exercise.progression.reason}</p>
                 </div>
-              </li>
-            ))}
-          </ul>
+              </div>
+            )}
+            <ul className="plan-detail-list">
+              {(prescription.some(p => !p.warmup) ? prescription.filter(p => !p.warmup) : prescription).map((p, pi) => {
+                const rirVal = p.rir && Number.isFinite(Number(p.rir))
+                  ? Math.round(Number(p.rir))
+                  : p.targetRpe !== null
+                    ? Math.round(10 - p.targetRpe)
+                    : !p.warmup ? 2 : null;
+                const rirLabel = rirVal !== null ? `${rirVal} RIR` : null;
+                const repsRaw = showReps(p);
+                const repsLabel = /^\d+(–\d+)?$/.test(repsRaw) ? `${repsRaw} reps` : repsRaw;
+                const setSuggestion = exercise.sets[pi]?.suggestion;
+                const suggestedWeight = setSuggestion?.suggestedLoadKg
+                  ? showWeight(setSuggestion.suggestedLoadKg, unit)
+                  : null;
+
+                return (
+                  <li key={pi}>
+                    <div className="plan-set-header">
+                      <span className="plan-set-badge">{p.warmup ? 'Warmup' : `Set ${pi + 1}`}</span>
+                      <div className="plan-set-badges">
+                        <span className="plan-pill plan-reps-pill">
+                          <Target size={12} aria-hidden="true" />
+                          <span>{repsLabel}</span>
+                        </span>
+                        {trackRir && rirLabel && (
+                          <span className={`plan-pill plan-rir-pill ${getRirColorClass(rirVal)}`}>
+                            <Flame size={12} aria-hidden="true" />
+                            <span>{rirLabel}</span>
+                          </span>
+                        )}
+                        {suggestedWeight && (
+                          <span className="plan-pill plan-load-pill">
+                            <Weight size={12} aria-hidden="true" />
+                            <span>{suggestedWeight}</span>
+                          </span>
+                        )}
+                        {p.loadText && !suggestedWeight && (
+                          <span className="plan-pill plan-load-pill">
+                            <Weight size={12} aria-hidden="true" />
+                            <span>{p.loadText}</span>
+                          </span>
+                        )}
+                        {p.tempo && (
+                          <span className="plan-pill plan-tempo-pill">
+                            <Timer size={12} aria-hidden="true" />
+                            <span>Tempo {p.tempo}</span>
+                          </span>
+                        )}
+                        {previousSets[pi] && (
+                          <span className="plan-pill plan-prev-pill">
+                            Last: {previousSets[pi]}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    {p.notes && <p className="plan-set-note">{p.notes}</p>}
+                  </li>
+                );
+              })}
+            </ul>
           </div>
         </Modal>
       )}
@@ -343,23 +390,21 @@ export function WorkoutActiveExercise({
         </div>
       </div>
 
-      {showNote && (
-        <div className="workout-note-drawer">
-          <TextAreaField
-            label="Exercise notes"
-            autoGrow
-            name={`note-${exercise.id}`}
-            placeholder="Form cues, machine pin setup, seat height..."
-            value={exercise.note}
-            onChange={event => change({
-              ...draft,
-              exercises: draft.exercises.map((item, i) =>
-                i === index ? { ...item, note: event.target.value } : item
-              )
-            })}
-          />
-        </div>
-      )}
+      <div className="workout-note-drawer">
+        <TextAreaField
+          label="Exercise notes"
+          autoGrow
+          name={`note-${exercise.id}`}
+          placeholder="Form cues, machine pin setup, seat height..."
+          value={exercise.note}
+          onChange={event => change({
+            ...draft,
+            exercises: draft.exercises.map((item, i) =>
+              i === index ? { ...item, note: event.target.value } : item
+            )
+          })}
+        />
+      </div>
 
       {confirmRemove && (
         <Modal title={`Remove ${exercise.name}?`} onClose={() => setConfirmRemove(false)}>

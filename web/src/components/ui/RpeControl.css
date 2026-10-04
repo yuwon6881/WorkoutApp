@@ -312,7 +312,7 @@
   }
 }
 
-/* Inline chips (RirChips): six equal targets across the row, coloured only once chosen. */
+/* Inline chips (RirChips): six equal targets across the row, displaying tier colors beforehand */
 .rir-chips {
   display: grid;
   grid-template-columns: repeat(6, minmax(44px, 1fr));
@@ -333,23 +333,62 @@
   cursor: pointer;
   user-select: none;
   touch-action: manipulation;
-  transition: border-color 0.15s ease, background-color 0.15s ease, color 0.15s ease;
+  transition: border-color 0.15s ease, background-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease, filter 0.15s ease;
 }
 
-.rir-chip:hover:not(:disabled) { border-color: var(--border-hover); color: var(--text); }
+.rir-chip:hover:not(:disabled) { border-color: var(--border-hover); }
 .rir-chip:disabled { opacity: 0.55; cursor: not-allowed; }
-.rir-chip.selected { color: var(--text); }
-.rir-chip.selected.rir-tier-0 { border-color: var(--red); background: var(--red-soft); color: var(--red); }
+
+/* Display effort tier colors beforehand */
+.rir-chip.rir-tier-0 {
+  border-color: var(--red-border);
+  background: var(--red-soft);
+  color: var(--red);
+}
+.rir-chip.rir-tier-1 {
+  border-color: color-mix(in srgb, var(--red) 35%, var(--border));
+  background: color-mix(in srgb, var(--red) 10%, transparent);
+  color: color-mix(in srgb, var(--red) 65%, var(--accent));
+}
+.rir-chip.rir-tier-2 {
+  border-color: var(--accent-border);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.rir-chip.rir-tier-easy {
+  border-color: rgba(134, 239, 172, 0.35);
+  background: color-mix(in srgb, var(--green) 10%, transparent);
+  color: var(--green);
+}
+
+.rir-chip:hover:not(:disabled):not(.selected) {
+  filter: brightness(1.2);
+}
+
+/* When selected, chip highlights distinctly with high contrast and outline ring */
+.rir-chip.selected {
+  font-weight: 800;
+  box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px currentColor;
+}
+.rir-chip.selected.rir-tier-0 {
+  border-color: var(--red);
+  background: var(--red);
+  color: #fff;
+}
 .rir-chip.selected.rir-tier-1 {
   border-color: color-mix(in srgb, var(--red) 60%, var(--accent));
-  background: color-mix(in srgb, var(--red) 12%, transparent);
-  color: color-mix(in srgb, var(--red) 60%, var(--accent));
+  background: color-mix(in srgb, var(--red) 60%, var(--accent));
+  color: #fff;
 }
-.rir-chip.selected.rir-tier-2 { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
+.rir-chip.selected.rir-tier-2 {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--on-accent);
+}
 .rir-chip.selected.rir-tier-easy {
   border-color: var(--green);
-  background: color-mix(in srgb, var(--green) 12%, transparent);
-  color: var(--green);
+  background: var(--green);
+  color: #0b0e14;
 }
 
 @media (min-width: 1024px) {

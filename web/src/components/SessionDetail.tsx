@@ -1,7 +1,6 @@
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { Clock3, Dumbbell, Layers, Trophy } from 'lucide-react';
 import type { Exercise, Preferences, Session } from '../types';
-import { ApiError, api } from '../lib/api';
 import { getWorkoutMuscles } from '../lib/muscles';
 import { completedSets, duration, showActualRir, showVolume, toDisplay } from '../lib/training';
 import { formatExercisePrBadge, formatSetPrTag } from '../lib/livePr';
@@ -13,17 +12,14 @@ import { useTrackRir } from '../lib/trackRir';
 
 /// A finished workout. Straight after Finish it opens as the session's result; from history it is
 /// the same summary without the celebration.
-export function SessionDetail({ session, preferences, exercises = [], justFinished = false, onClose, onDeleted }: {
+export function SessionDetail({ session, preferences, exercises = [], justFinished = false, onClose }: {
   session: Session;
   preferences: Preferences;
   exercises?: Exercise[];
   justFinished?: boolean;
   onClose: () => void;
-  onDeleted?: () => Promise<void>;
 }) {
   const trackRir = useTrackRir();
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState('');
   const unit = preferences.unit;
   const muscles = useMemo(() => getWorkoutMuscles(session.exercises, exercises), [session.exercises, exercises]);
   const logged = session.exercises.filter(exercise => exercise.sets.some(set => set.done));
@@ -70,10 +66,13 @@ export function SessionDetail({ session, preferences, exercises = [], justFinish
           <ol className="session-summary-sets">
             {exercise.sets.filter(s => s.done).map((set, i, done) => {
               const number = done.slice(0, i + 1).filter(item => item.warmup === set.warmup).length;
+              const effort = showActualRir(set.rir, set.rpe);
               return <li key={set.id} className={set.isPr ? 'pr-set-row' : ''}>
                 <span className="session-set-label">{set.warmup ? `Warm-up ${number}` : `Set ${number}`}</span>
-                <strong>{set.durationSeconds != null ? showTimedSet(set, unit) : set.weightKg === null ? `${set.reps} reps` : `${toDisplay(set.weightKg, unit)} ${unit} × ${set.reps}`}</strong>
-                {trackRir && <span className="session-set-effort">{showActualRir(set.rir, set.rpe)}</span>}
+                <span className="session-set-target">
+                  <strong>{set.durationSeconds != null ? showTimedSet(set, unit) : set.weightKg === null ? `${set.reps} reps` : `${toDisplay(set.weightKg, unit)} ${unit} × ${set.reps}`}</strong>
+                </span>
+                {trackRir && effort !== '—' && <span className="session-set-effort">{effort}</span>}
                 {set.isPr && <span className="pill pill-accent pr-set-tag"><Trophy size={10} /> {formatSetPrTag(set)}</span>}
               </li>;
             })}
@@ -88,12 +87,6 @@ export function SessionDetail({ session, preferences, exercises = [], justFinish
       {session.note && <p className="note-block">{session.note}</p>}
     </div>
     <div className="modal-actions">
-      {error && <p className="error-text modal-actions-error" role="alert">{error}</p>}
-      {onDeleted && <Button variant="destructive" disabled={busy} onClick={async () => {
-        setBusy(true);
-        try { await api.deleteWorkout(session.id); await onDeleted(); onClose(); }
-        catch (failure) { setError(failure instanceof ApiError ? failure.message : 'Could not delete this workout.'); setBusy(false); }
-      }}>Delete from history</Button>}
       <Button variant="primary" onClick={onClose}>Done</Button>
     </div>
   </Modal>;

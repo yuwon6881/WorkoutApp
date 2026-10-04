@@ -1,19 +1,20 @@
 import { useEffect, useRef, useState, type KeyboardEvent, type MouseEvent, type PointerEvent, type RefObject } from 'react';
 import { haptic } from '../lib/platform';
 
-/// Long enough that a thumb resting on a pill while the strip glides is not mistaken for a grab.
-const HOLD_MS = 450;
+/// Short enough to feel immediate on touch, but distinct from a scroll swipe.
+const HOLD_MS = 240;
 /// Any movement past this before the hold completes is a scroll, and the hold is abandoned.
-const SLOP_PX = 8;
+const SLOP_PX = 12;
 const EDGE_PX = 40;
 const EDGE_STEP_PX = 12;
 
 type Press = {
   index: number;
   pointerId: number;
+  pointerType: string;
   x: number;
   y: number;
-  timer: number;
+  timer?: number;
   active: boolean;
   /// Item centres in the strip's scroll coordinates, captured when the hold starts.
   centres: number[];
@@ -46,8 +47,7 @@ export function useStripReorder({
   const press = useRef<Press | null>(null);
   const suppressClick = useRef(false);
 
-  // Once an item is held the strip must stop panning under the finger. Touch scrolling can only be
-  // refused from a non-passive listener, which React's synthetic handlers cannot register.
+  // Once an item is held the strip must stop panning under the finger.
   useEffect(() => {
     const scroller = scrollerRef.current;
     if (!scroller) return;
@@ -56,10 +56,10 @@ export function useStripReorder({
     return () => scroller.removeEventListener('touchmove', block);
   }, [scrollerRef]);
 
-  useEffect(() => () => { if (press.current) window.clearTimeout(press.current.timer); }, []);
+  useEffect(() => () => { if (press.current?.timer) window.clearTimeout(press.current.timer); }, []);
 
   function release() {
-    if (press.current) window.clearTimeout(press.current.timer);
+    if (press.current?.timer) window.clearTimeout(press.current.timer);
     press.current = null;
     setDrag(null);
   }
@@ -83,6 +83,62 @@ export function useStripReorder({
     return current.centres.filter((centre, index) => index !== current.index && centre < x).length;
   }
 
+  function activateDrag(pending: Press) {
+    pending.active = true;
+    pending.centres = centres();
+    try { scrollerRef.current?.setPointerCapture(pending.pointerId); } catch { /* pointer left */ }
+    haptic('tick');
+    setDrag({ from: pending.index, to: pending.index });
+  }
+
+  // Global pointer move and up listeners ensure dragging tracks even when the cursor wanders outside the strip container.
+  useEffect(() => {
+    const handlePointerMove = (event: globalThis.PointerEvent) => {
+      const current = press.current;
+      if (!current || current.pointerId !== event.pointerId) return;
+      const dx = event.clientX - current.x;
+      const dy = event.clientY - current.y;
+      if (!current.active) {
+        if (current.pointerType === 'mouse' && Math.hypot(dx, dy) > 4) {
+          if (current.timer) window.clearTimeout(current.timer);
+          activateDrag(current);
+        } else if (Math.hypot(dx, dy) > SLOP_PX) {
+          release();
+          return;
+        }
+      }
+      if (current.active) {
+        event.preventDefault();
+        const to = targetFor(current, event.clientX);
+        setDrag(previous => previous && previous.to === to ? previous : { from: current.index, to });
+      }
+    };
+
+    const handlePointerUp = (event: globalThis.PointerEvent) => {
+      const current = press.current;
+      if (!current || current.pointerId !== event.pointerId) return;
+      if (current.active) {
+        suppressClick.current = true;
+        const to = targetFor(current, event.clientX);
+        if (to !== current.index) onMove(current.index, to);
+      }
+      release();
+    };
+
+    const handlePointerCancel = (event: globalThis.PointerEvent) => {
+      if (press.current && press.current.pointerId === event.pointerId) release();
+    };
+
+    window.addEventListener('pointermove', handlePointerMove, { passive: false });
+    window.addEventListener('pointerup', handlePointerUp);
+    window.addEventListener('pointercancel', handlePointerCancel);
+    return () => {
+      window.removeEventListener('pointermove', handlePointerMove);
+      window.removeEventListener('pointerup', handlePointerUp);
+      window.removeEventListener('pointercancel', handlePointerCancel);
+    };
+  }, [count, onMove]);
+
   function itemProps(index: number) {
     return {
       'data-strip-index': index,
@@ -91,14 +147,9 @@ export function useStripReorder({
         release();
         suppressClick.current = false;
         const pending: Press = {
-          index, pointerId: event.pointerId, x: event.clientX, y: event.clientY, active: false, centres: [],
+          index, pointerId: event.pointerId, pointerType: event.pointerType, x: event.clientX, y: event.clientY, active: false, centres: [],
           timer: window.setTimeout(() => {
-            pending.active = true;
-            pending.centres = centres();
-            // The strip, not the pill, holds the pointer: the pill's node moves as the order changes.
-            try { scrollerRef.current?.setPointerCapture(pending.pointerId); } catch { /* The pointer already left. */ }
-            haptic('tick');
-            setDrag({ from: index, to: index });
+            activateDrag(pending);
           }, HOLD_MS)
         };
         press.current = pending;
@@ -118,27 +169,6 @@ export function useStripReorder({
   }
 
   const stripProps = {
-    onPointerMove: (event: PointerEvent<HTMLElement>) => {
-      const current = press.current;
-      if (!current || current.pointerId !== event.pointerId) return;
-      if (!current.active) {
-        if (Math.hypot(event.clientX - current.x, event.clientY - current.y) > SLOP_PX) release();
-        return;
-      }
-      const to = targetFor(current, event.clientX);
-      setDrag(previous => previous && previous.to === to ? previous : { from: current.index, to });
-    },
-    onPointerUp: (event: PointerEvent<HTMLElement>) => {
-      const current = press.current;
-      if (!current || current.pointerId !== event.pointerId) return;
-      if (current.active) {
-        suppressClick.current = true;
-        const to = targetFor(current, event.clientX);
-        if (to !== current.index) onMove(current.index, to);
-      }
-      release();
-    },
-    onPointerCancel: release,
     // The release that drops a held exercise must not also select whatever lies under it.
     onClickCapture: (event: MouseEvent<HTMLElement>) => {
       if (!suppressClick.current) return;

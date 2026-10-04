@@ -26,7 +26,13 @@ describe('program week completion', () => {
 
   it('does not invent a weekly target without an active program', () => {
     expect(programWeekCompletion(null)).toBeNull();
-    expect(programWeekCompletion({ ...program(), active: false })).toBeNull();
+    const inactive = { ...program(), active: false, progress: null };
+    expect(programWeekCompletion(inactive)).toBeNull();
+  });
+
+  it('falls back to week 1 when an active program has no progress and empty days (launch API)', () => {
+    const value = { ...program(), active: true, days: [], progress: null };
+    expect(programWeekCompletion(value)).toEqual({ week: 1, completed: 0, total: 0, ratio: 0 });
   });
 
   it('handles a rest-only week without dividing by zero', () => {

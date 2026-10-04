@@ -77,9 +77,9 @@ export function RepsRirControl({ name, label, reps, rir, trackRir, onChange }: {
         <div className="reps-entry-keypad" role="group" aria-label="Numeric keypad">
           {[1, 2, 3, 4, 5, 6, 7, 8, 9].map(value => <Button key={value} variant="tertiary"
             onClick={() => digit(String(value))}>{value}</Button>)}
-          <Button variant="tertiary" aria-label="Delete last rep digit" onClick={backspace}><Delete size={21} /></Button>
+          <Button variant="tertiary" className="reps-keypad-clear" onClick={() => setEntry(current => current ? { ...current, text: '' } : current)}>Clear</Button>
           <Button variant="tertiary" onClick={() => digit('0')}>0</Button>
-          <Button variant="tertiary" onClick={() => setEntry(current => current ? { ...current, text: '' } : current)}>Clear</Button>
+          <Button variant="tertiary" className="reps-keypad-delete" aria-label="Delete last rep digit" onClick={backspace}><Delete size={21} /></Button>
         </div>
         <Button variant="primary" className="full-width" onClick={save}><Check size={19} />Done</Button>
       </div>

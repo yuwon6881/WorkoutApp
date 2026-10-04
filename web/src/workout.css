@@ -65,10 +65,20 @@
 .workout-set-row > .time-cell, .workout-set-table-head .col-time { grid-column: 4; }
 /* Keep the column aligned when RIR tracking is off. */
 .no-rir .workout-set-row > .reps-cell, .no-rir .workout-set-table-head .col-reps { grid-column: 4; }
-.time-cell { display: flex; gap: 6px; align-items: center; min-width: 0; }
-.time-cell input { flex: 1 1 auto; min-width: 0; }
+.time-cell { display: flex; align-items: center; min-width: 0; width: 100%; }
+.time-cell input { flex: 1 1 auto; min-width: 0; width: 100%; text-align: center; cursor: pointer; }
 .time-cell.timing input { border-color: var(--accent-border-strong); color: var(--accent); }
 .set-stopwatch-btn { flex: 0 0 auto; width: 44px; height: 44px; min-width: 44px; min-height: 44px; padding: 0; display: grid; place-items: center; }
+.timer-modal-body { display: flex; flex-direction: column; gap: 16px; text-align: center; padding: 20px; }
+.timer-modal-clock { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 18px 12px; background: var(--surface-raised); border: 1px solid var(--border); border-radius: var(--radius); }
+.timer-modal-clock strong { font-size: 38px; font-weight: 750; letter-spacing: -0.03em; color: var(--text); font-variant-numeric: tabular-nums; }
+.timer-modal-clock.timing { border-color: var(--accent-border-strong); background: var(--accent-soft); }
+.timer-modal-clock.timing strong { color: var(--accent); }
+.timer-modal-toggle-btn { min-height: 48px; font-size: 15px; font-weight: 650; }
+.timer-modal-direct-input { display: flex; flex-direction: column; gap: 8px; margin-top: 4px; }
+.timer-modal-input-row { display: flex; align-items: center; justify-content: center; gap: 6px; }
+.timer-modal-input-row input { width: 88px; text-align: center; font-size: 16px; font-weight: 650; }
+.timer-modal-input-row .button { padding: 6px 10px; min-width: 44px; min-height: 40px; font-size: 14px; }
 .workout-set-table-footer { margin-top: 6px; display: grid; gap: 6px; }
 .workout-set-undo { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 4px 4px 4px 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); color: var(--muted); }
 .workout-set-undo .button { min-height: 44px; }
@@ -296,20 +306,32 @@
 
 /* Reps and effort share one cell; the effort badge keeps a full touch target. */
 .combined-reps-cell { position: relative; min-width: 0; border: 1px solid var(--border); border-radius: 8px; background: var(--surface-hover); }
-.workout-set-row .combined-reps-cell input { width: 100%; min-height: 44px; height: 44px; padding: 6px 24px 6px 2px; border: 0; background: transparent; }
+.workout-set-row .combined-reps-cell input { width: 100%; min-height: 44px; height: 44px; padding: 6px 2px; text-align: center; border: 0; background: transparent; }
 .combined-reps-cell:focus-within { border-color: var(--accent); }
 .no-rir .combined-reps-cell input { padding-inline: 2px; }
-.workout-plan-detail-card .plan-detail-heading { padding: 14px; border-radius: 12px; background: var(--accent-soft); color: var(--text); font-size: var(--font-secondary); line-height: 1.6; margin-bottom: 16px; }
-.plan-detail-list { gap: 8px; }
-.plan-detail-list li { padding: 12px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface-raised); align-items: baseline; gap: 16px; }
-.plan-set-number { flex: 0 0 90px; }
-.plan-set-prescription { display: flex; flex-wrap: wrap; gap: 6px 12px; min-width: 0; }
-.plan-set-target { color: var(--text); font-weight: 600; }
-.plan-set-notes { flex-basis: 100%; line-height: 1.6; }
-.workout-note-drawer .auto-grow-textarea { resize: none; max-height: none; overflow-y: hidden; }
-@media (max-width: 639px) {
-  .plan-set-number { flex-basis: 80px; }
-}
+.workout-plan-detail-card { display: flex; flex-direction: column; gap: 14px; }
+.plan-detail-banner { display: flex; align-items: flex-start; gap: 12px; padding: 14px 16px; border-radius: 12px; border: 1px solid var(--accent-border); background: var(--accent-soft); }
+.plan-banner-icon { color: var(--accent); margin-top: 2px; flex-shrink: 0; }
+.plan-banner-text { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.plan-banner-title { font-size: 14px; font-weight: 650; color: var(--accent); }
+.plan-banner-text p { margin: 0; font-size: 14px; color: var(--text); line-height: 1.5; }
+.plan-detail-list { display: flex; flex-direction: column; gap: 10px; list-style: none; padding: 0; margin: 0; }
+.plan-detail-list li { display: flex; flex-direction: column; gap: 8px; padding: 14px 16px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface-raised); transition: border-color 0.15s ease, background 0.15s ease; }
+.plan-detail-list li:hover { border-color: var(--border-hover); background: var(--surface-hover); }
+.plan-set-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.plan-set-badge { display: inline-flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 700; color: var(--text); padding: 4px 10px; border-radius: 8px; background: var(--surface); border: 1px solid var(--border); font-variant-numeric: tabular-nums; }
+.plan-set-badges { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.plan-pill { display: inline-flex; align-items: center; gap: 5px; padding: 4px 10px; border-radius: 8px; font-size: 14px; font-weight: 600; border: 1px solid var(--border); background: var(--surface); color: var(--text); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.plan-pill svg { flex-shrink: 0; }
+.plan-reps-pill { border-color: var(--accent-border); background: var(--accent-soft); color: var(--accent); }
+.plan-rir-pill.rir-tier-0 { border-color: var(--red-border); background: var(--red-soft); color: var(--red); }
+.plan-rir-pill.rir-tier-1 { border-color: rgba(251, 113, 133, 0.4); background: color-mix(in srgb, var(--red) 10%, transparent); color: color-mix(in srgb, var(--red) 60%, var(--accent)); }
+.plan-rir-pill.rir-tier-2 { border-color: var(--accent-border); background: var(--accent-soft); color: var(--accent); }
+.plan-rir-pill.rir-tier-easy { border-color: rgba(134, 239, 172, 0.35); background: color-mix(in srgb, var(--green) 10%, transparent); color: var(--green); }
+.plan-load-pill { border-color: var(--border-hover); background: var(--surface); color: var(--text); }
+.plan-tempo-pill { border-color: var(--border); background: var(--surface); color: var(--muted); font-size: 14px; }
+.plan-prev-pill { border-color: var(--border); background: var(--surface); color: var(--muted); font-size: 14px; }
+.plan-set-note { margin: 0; font-size: 14px; color: var(--muted); line-height: 1.5; padding-top: 4px; border-top: 1px dashed var(--border); }
 
 @media (max-width: 359px) {
   .workout-set-table-head, .workout-set-row { gap: 2px; padding-inline: 0; }

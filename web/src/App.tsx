@@ -95,6 +95,7 @@ export default function App() {
   const hasServerWorkout = Boolean(data?.activeWorkout?.active);
   const workoutSession = recoverySession && (reviewRecovery || !hasServerWorkout || data?.activeWorkout?.id === recoverySession.id)
     ? recoverySession : data?.activeWorkout ?? null;
+  useEffect(() => { if (training && workoutSession) setStartingName(null); }, [training, workoutSession]);
   const importBlocked = Boolean(workoutSession?.active);
   useEffect(() => { if (signedOut) void import('./lib/localPdfRead').then(module => module.resetLocalPdfRead()); }, [signedOut]);
 
@@ -221,8 +222,11 @@ export default function App() {
       app.setActiveWorkout(session);
       // Dismissing the stand-in sheet minimizes the workout rather than cancelling it.
       if (!startCancelled.current) { setSheetContinues(true); setTraining(true); }
-    } catch (failure) { setActionError(failure instanceof ApiError ? failure.message : 'Could not start that workout.'); }
-    finally { setStarting(false); setStartingName(null); }
+    } catch (failure) {
+      setActionError(failure instanceof ApiError ? failure.message : 'Could not start that workout.');
+      setStartingName(null);
+    }
+    finally { setStarting(false); }
   }
 
   /// Reading a program rewrites the account's programs and the days a session starts from, so it
@@ -432,7 +436,7 @@ export default function App() {
 
     <Suspense fallback={null}>
     {detail && <SessionDetail session={detail} preferences={data.preferences} exercises={data.exercises} justFinished={detail.id === finishedId}
-      onClose={() => { setDetail(null); setFinishedId(null); }} onDeleted={app.reload} />}
+      onClose={() => { setDetail(null); setFinishedId(null); }} />}
     {exerciseDetail && <ExerciseDetailModal exercise={exerciseDetail} unit={data.preferences.unit} onClose={() => setExerciseDetail(null)} onChanged={async () => { await app.reload(); }}
       onSession={session => { setExerciseDetail(null); setDetail(session); }} />}
     {appUpdate.ready && !training && !workoutSession?.active && <div className="update-banner" role="status">

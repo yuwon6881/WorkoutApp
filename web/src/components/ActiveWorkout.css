@@ -198,12 +198,14 @@
 }
 
 /* A long press picks a pill up; the browser's own long-press callout and selection would fight it. */
-.workout-strip-item { -webkit-touch-callout: none; user-select: none; }
+.workout-strip-item { -webkit-touch-callout: none; user-select: none; touch-action: pan-y; }
 .workout-strip-item.held {
   border-color: var(--accent-border-strong);
   box-shadow: 0 6px 18px var(--overlay);
   transform: scale(1.04);
   cursor: grabbing;
+  z-index: 2;
+  touch-action: none;
 }
 @media (prefers-reduced-motion: reduce) {
   .workout-strip-item.held { transform: none; }

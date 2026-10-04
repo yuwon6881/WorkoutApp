@@ -69,7 +69,7 @@
   display: grid;
   gap: 4px;
   min-width: 0;
-  padding: 12px;
+  padding: 12px 14px;
   border: 1px solid var(--border);
   border-radius: var(--radius-control);
   background: var(--surface-raised);
@@ -81,6 +81,7 @@
   gap: 6px;
   color: var(--muted);
   font-size: var(--font-secondary);
+  white-space: nowrap;
 }
 
 .session-summary-stats dd {
@@ -137,35 +138,58 @@
 }
 
 .session-summary-sets > li {
-  display: grid;
-  grid-template-columns: minmax(84px, auto) minmax(0, 1fr) auto auto;
+  display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
   min-height: 36px;
-  padding: 4px 8px;
+  padding: 6px 10px;
   border-radius: 8px;
   font-variant-numeric: tabular-nums;
 }
 
 .session-summary-sets > li.pr-set-row { background: var(--accent-soft); }
 
-.session-set-label,
+.session-set-label {
+  flex: 0 0 74px;
+  color: var(--muted);
+  font-size: var(--font-secondary);
+}
+
+.session-set-target {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
 .session-set-effort {
   color: var(--muted);
   font-size: var(--font-secondary);
+  margin-left: auto;
 }
 
-.session-summary-note,
-.session-summary-skipped {
-  margin: 8px 0 0;
+.session-summary-sets > li > .pr-set-tag {
+  margin-left: auto;
+}
+
+.session-set-effort + .pr-set-tag {
+  margin-left: 0;
+}
+
+.session-summary-note {
+  margin: 10px 0 0;
+  padding: 8px 12px;
+  background: var(--surface-raised);
+  border-radius: var(--radius-control);
   color: var(--muted);
   font-size: var(--font-secondary);
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 
-.session-summary-skipped { margin: 0; }
-
-@media (min-width: 640px) {
-  .session-summary-stats { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.session-summary-skipped {
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--font-secondary);
 }
 
 /* Straight after Finish, the result lands with one small flourish. Reduced motion removes it. */
@@ -191,8 +215,10 @@
    their full width instead of squeezing four columns into 320 px. */
 @media (max-width: 360px) {
   .session-summary-sets > li {
-    grid-template-columns: minmax(0, 1fr) auto auto;
-    row-gap: 2px;
+    flex-wrap: wrap;
+    gap: 4px 10px;
   }
-  .session-summary-sets > li > .session-set-label { grid-column: 1 / -1; }
+  .session-set-label {
+    flex: 1 0 100%;
+  }
 }

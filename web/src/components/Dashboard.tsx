@@ -23,7 +23,8 @@ export function Dashboard({
   data,
   onProgram,
   onSession,
-  onExercise
+  onExercise,
+  onChanged
 }: DashboardProps) {
   const [progress, setProgress] = useState<ProgressSummary | null>(data.progress ?? null);
   const [progressError, setProgressError] = useState('');
@@ -100,6 +101,7 @@ export function Dashboard({
         onSession={onSession}
         onStart={onProgram}
         onExercise={onExercise}
+        onDeleted={onChanged}
       />
       </Suspense>
     </>

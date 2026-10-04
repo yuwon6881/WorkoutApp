@@ -4,7 +4,7 @@ using Workout.Api.Data;
 namespace Workout.Api.Services;
 
 public sealed record ProgramLaunchView(Guid Id, string Name, int Weeks, bool Active, int Revision, Guid? SourceImportId,
-    Guid? NextTemplateId, string LifecycleStatus, DateTime? CompletedAt);
+    Guid? NextTemplateId, string LifecycleStatus, DateTime? CompletedAt, ProgramProgressView? Progress = null);
 public sealed record NextWorkoutView(Guid Id, string Name, string Focus, int Week, int Position, int ExerciseCount);
 
 public sealed partial class ProgramService
@@ -19,15 +19,27 @@ public sealed partial class ProgramService
         var run = await db.ProgramRuns.AsNoTracking().Where(row => row.ProgramId == program.Id)
             .OrderByDescending(row => row.Number).FirstOrDefaultAsync(ct);
         NextWorkoutView? next = null;
+        ProgramProgressView? progress = null;
         if (run is { CompletedAt: null })
-            next = await db.Templates.AsNoTracking().Where(day => day.ProgramId == program.Id && day.Week == run.CurrentWeek && !day.IsRestDay &&
-                db.ProgramDayProgresses.Any(state => state.RunId == run.Id && state.TemplateId == day.Id &&
-                    state.Attempt == run.CurrentAttempt && state.Status == ProgramDayStatus.Pending))
-                .OrderBy(day => day.Position).ThenBy(day => day.Id)
-                .Select(day => new NextWorkoutView(day.Id, day.Name, day.Focus, day.Week, day.Position,
-                    db.TemplateExercises.Count(exercise => exercise.TemplateId == day.Id))).FirstOrDefaultAsync(ct);
+        {
+            var weekTemplates = await db.Templates.AsNoTracking()
+                .Where(day => day.ProgramId == program.Id && day.Week == run.CurrentWeek)
+                .OrderBy(day => day.Position).ThenBy(day => day.Id).ToListAsync(ct);
+            var statuses = await db.ProgramDayProgresses.AsNoTracking()
+                .Where(state => state.RunId == run.Id && state.Attempt == run.CurrentAttempt && state.Week == run.CurrentWeek)
+                .ToListAsync(ct);
+            progress = CreateProgressView(run, weekTemplates, statuses);
+
+            var nextTemplate = weekTemplates.FirstOrDefault(day => !day.IsRestDay &&
+                statuses.Any(state => state.TemplateId == day.Id && state.Status == ProgramDayStatus.Pending));
+            if (nextTemplate != null)
+            {
+                var exerciseCount = await db.TemplateExercises.CountAsync(exercise => exercise.TemplateId == nextTemplate.Id, ct);
+                next = new NextWorkoutView(nextTemplate.Id, nextTemplate.Name, nextTemplate.Focus, nextTemplate.Week, nextTemplate.Position, exerciseCount);
+            }
+        }
         var summary = new ProgramLaunchView(program.Id, program.Name, program.Weeks, program.Active, program.Revision,
-            program.SourceImportId, next?.Id, program.LifecycleStatus, program.CompletedAt);
+            program.SourceImportId, next?.Id, program.LifecycleStatus, program.CompletedAt, progress);
         return (summary, next);
     }
 }
