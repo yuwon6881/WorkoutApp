@@ -235,6 +235,59 @@ public sealed class GoogleHealthWorkoutSyncTests
         Assert.Equal("cancelled", deletedWork.ProcessingState);
     }
 
+    [Fact]
+    public async Task OneOwnersFailedWriteDoesNotStopOrBlameTheNextOwnersUpload()
+    {
+        var failures = new FailingCommands();
+        await using var harness = await Harness.Create(new() { ["GoogleHealth:ClientId"] = "client", ["GoogleHealth:ClientSecret"] = "secret" }, failures);
+        var alice = await harness.SignIn("alice");
+        var aliceWork = await QueueUpload(harness, alice.Id, DateTime.UtcNow.AddMinutes(-2));
+        var bob = await harness.SignIn("bob");
+        var bobWork = await QueueUpload(harness, bob.Id, DateTime.UtcNow.AddMinutes(-1));
+        harness.Db.CurrentUser = null;
+
+        // Alice's lease is written, then every later write of her work fails, including the retry
+        // the catch handler attempts, so her item ends with tracked edits that were never saved.
+        var aliceUpdates = 0;
+        failures.Fails = command => command.CommandText.StartsWith("UPDATE \"GoogleHealthWorkoutSyncWork\"", StringComparison.Ordinal)
+            && FailingCommands.Mentions(command, aliceWork.Id) && ++aliceUpdates > 1;
+        var http = new HttpClient(new RespondingHandler(request => request.RequestUri!.Host == "oauth2.googleapis.com"
+            ? new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent("{\"access_token\":\"token\"}") }
+            : new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent("{\"name\":\"users/me/dataTypes/exercise/dataPoints/1\"}") }));
+        var google = new GoogleHealthService(http, harness.Db, new TestKms(), harness.Config);
+        var service = new GoogleHealthWorkoutSyncService(harness.Db, google, http, new GoogleHealthWorkoutSummaryService(harness.Db));
+
+        var result = await service.ProcessDueAsync(default);
+
+        Assert.Equal(2, result.Processed);
+        Assert.Equal(1, result.Succeeded);
+        failures.Fails = _ => false;
+        var stored = await harness.Db.GoogleHealthWorkoutSyncWork.IgnoreQueryFilters().AsNoTracking()
+            .ToDictionaryAsync(work => work.Id, work => work.ProcessingState);
+        Assert.Equal("succeeded", stored[bobWork.Id]);
+        Assert.Equal("processing", stored[aliceWork.Id]);
+        Assert.Null(harness.Db.CurrentUser);
+    }
+
+    private static async Task<GoogleHealthWorkoutSyncWork> QueueUpload(Harness harness, Guid userId, DateTime due)
+    {
+        harness.Db.GoogleHealthConnections.Add(new GoogleHealthConnection
+        {
+            UserId = userId, GoogleIdHash = $"hash-{userId:N}", EncryptedRefreshToken = "refresh",
+            GrantedScopesJson = JsonSerializer.Serialize(new[] { GoogleHealthWorkoutSyncService.WorkoutScope }),
+            WorkoutSyncEnabled = true, Status = "connected"
+        });
+        var work = new GoogleHealthWorkoutSyncWork
+        {
+            UserId = userId, WorkoutSessionId = Guid.NewGuid(), GoogleIdHash = $"hash-{userId:N}", ConnectionGeneration = 1,
+            DesiredStartedAt = DateTime.UtcNow.AddHours(-1), DesiredFinishedAt = DateTime.UtcNow,
+            DesiredName = "Workout", ProcessingState = "pending", NextAttemptAt = due
+        };
+        harness.Db.GoogleHealthWorkoutSyncWork.Add(work);
+        await harness.Db.SaveChangesAsync();
+        return work;
+    }
+
     private sealed class TestKms : IIntegrationKms
     {
         public Task<string> EncryptAsync(string plaintext, CancellationToken ct) => Task.FromResult(plaintext);

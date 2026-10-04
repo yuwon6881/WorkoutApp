@@ -287,7 +287,7 @@ public sealed class AppDb(DbContextOptions<AppDb> options) : DbContext(options)
         m.Entity<T>().HasOne<AppUser>().WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
     }
 
-    public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+    public override async Task<int> SaveChangesAsync(bool acceptAllChangesOnSuccess, CancellationToken cancellationToken = default)
     {
         foreach (var entry in ChangeTracker.Entries<OwnedRecord>().Where(e => e.State is EntityState.Added or EntityState.Modified or EntityState.Deleted))
         {
@@ -322,9 +322,13 @@ public sealed class AppDb(DbContextOptions<AppDb> options) : DbContext(options)
         var generations = await ResourceGenerationWriter.Changes(this, cancellationToken);
         await using var transaction = generations.Count > 0 && Database.CurrentTransaction == null
             ? await Database.BeginTransactionAsync(cancellationToken) : null;
-        var saved = await base.SaveChangesAsync(cancellationToken);
+        // Changes are accepted only once the generation bump has been written and our own
+        // transaction committed: if either fails the rows roll back, and the tracked edits must
+        // stay pending so a retry on this context writes them again.
+        var saved = await base.SaveChangesAsync(acceptAllChangesOnSuccess: false, cancellationToken);
         foreach (var generation in generations) await ResourceGenerationWriter.Write(this, generation, cancellationToken);
         if (transaction != null) await transaction.CommitAsync(cancellationToken);
+        if (acceptAllChangesOnSuccess) ChangeTracker.AcceptAllChanges();
         return saved;
     }
 }
