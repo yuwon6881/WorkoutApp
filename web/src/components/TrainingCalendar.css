@@ -313,40 +313,81 @@
 /* Responsive */
 @media (max-width: 639px) {
   .panel.training-calendar-card {
-    padding: 14px;
+    padding: 16px 14px;
     margin-bottom: 20px;
-    gap: 12px;
+    gap: 14px;
   }
   .calendar-card-header {
     flex-direction: column;
     align-items: stretch;
-    gap: 10px;
-  }
-  .calendar-completion {
-    flex: 1 1 100%;
     gap: 12px;
   }
+  .calendar-completion {
+    display: grid;
+    grid-template-areas:
+      "title title"
+      "ring caption";
+    grid-template-columns: auto 1fr;
+    gap: 8px 12px;
+    align-items: center;
+    width: 100%;
+  }
+  .calendar-title-wrap {
+    display: contents;
+  }
+  .calendar-title-wrap h3,
+  .calendar-title-wrap > :first-child {
+    grid-area: title;
+    font-size: 18px;
+    font-weight: 700;
+    margin: 0;
+  }
+  .weekly-completion-ring {
+    grid-area: ring;
+    width: 48px;
+    height: 48px;
+    flex: 0 0 48px;
+  }
+  .calendar-ring-caption,
+  .calendar-title-wrap > :not(:first-child) {
+    grid-area: caption;
+  }
   .calendar-nav-controls {
-    justify-content: space-between;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
     width: 100%;
   }
   .calendar-month-nav {
     flex: 1;
-    justify-content: space-between;
+    justify-content: center;
   }
-  /* Seven 44 px targets need 316 px; on the narrowest phones the rail scrolls rather than
-     shrinking a day below a usable target. */
+  .calendar-today-btn {
+    flex: 0 0 auto;
+  }
+  .calendar-week-rail {
+    scroll-snap-type: none;
+    -webkit-overflow-scrolling: touch;
+  }
   .calendar-days-grid {
-    gap: 0;
-    min-width: 316px;
+    grid-template-columns: repeat(7, minmax(52px, 1fr));
+    gap: 8px;
+    min-width: 412px;
+    padding: 2px 4px;
   }
   .calendar-day-cell {
-    min-height: 74px;
-    padding: 8px 2px;
-    border-radius: 10px;
+    min-width: 52px;
+    min-height: 76px;
+    padding: 8px 4px;
+    border-radius: 12px;
+  }
+  .day-weekday {
+    /* Text stays at the 14px floor; tighter tracking keeps the label inside the narrow phone cell. */
+    letter-spacing: 0;
   }
   .day-number {
-    font-size: 16px;
+    font-size: 17px;
   }
   .calendar-card-footer {
     flex-direction: column;
@@ -354,9 +395,6 @@
     gap: 8px;
     padding-top: 8px;
   }
-}
-@media (max-width: 359px) {
-  .calendar-week-rail { scroll-snap-type: none; }
 }
 
 /* Touch layouts browse weeks by swiping the rail; the arrows are a desktop affordance, and at

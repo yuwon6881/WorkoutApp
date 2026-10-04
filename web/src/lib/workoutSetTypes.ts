@@ -44,7 +44,7 @@ export function withSetType(draft: Session, exerciseIndex: number, setIndex: num
       if (!allowedSetTypes(exercise, setIndex).includes(type)) return exercise;
       const prescription = [...exercise.prescription];
       while (prescription.length <= setIndex) {
-        prescription.push({ ...(prescription.at(-1) ?? blankPrescription(exercise.restSeconds ?? null, exercise.loadModel)), warmup: false, notes: null });
+        prescription.push({ ...(prescription.at(-1) ?? blankPrescription(exercise.restSeconds ?? null, exercise.loadModel, exercise.name)), warmup: false, notes: null });
       }
       prescription[setIndex] = { ...prescription[setIndex], ...applySetType(prescription[setIndex], type) };
       const warmup = type === 'warmup';

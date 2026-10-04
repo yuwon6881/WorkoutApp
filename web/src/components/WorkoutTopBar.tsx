@@ -16,6 +16,7 @@ export function WorkoutTopBar({
   done,
   planned,
   paused,
+  pauseHint,
   pauseDisabled,
   syncMessage,
   online,
@@ -37,6 +38,8 @@ export function WorkoutTopBar({
   done: number;
   planned: number;
   paused: boolean;
+  /** Taps on a set's log button while paused; each change replays the paused pill's pulse. */
+  pauseHint: number;
   pauseDisabled: boolean;
   syncMessage: string;
   online: boolean;
@@ -62,7 +65,12 @@ export function WorkoutTopBar({
         <h2 className="workout-top-title">{name}</h2>
         <div className="workout-top-meta">
           <WorkoutElapsed session={session} finishedAt={finishedAt} />
-          {paused && <span className="workout-paused-label" role="status">Paused</span>}
+          {paused && (
+            <span key={pauseHint} className={`workout-paused-label ${pauseHint > 0 ? 'pulse' : ''}`} role="status">
+              <Pause size={12} aria-hidden="true" />
+              Paused
+            </span>
+          )}
           {problem && <span className={`workout-sync-status ${problem.tone}`} aria-hidden="true">{problem.label}</span>}
         </div>
         <p className="sr-only workout-sync-announcement" role="status">{syncMessage}</p>
@@ -90,7 +98,7 @@ export function WorkoutTopBar({
         >
           {paused ? <Play size={18} /> : <Pause size={18} />}
         </Button>
-        <MenuButton disabled={paused} label="Workout options" triggerClassName="workout-top-icon" portal>
+        <MenuButton label="Workout options" triggerClassName="workout-top-icon" portal>
           {hasDetails && <MenuItem onClick={onDetails}>
             <Info size={16} />
             Workout details

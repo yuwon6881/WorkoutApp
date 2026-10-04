@@ -117,7 +117,7 @@ public sealed partial class WorkoutService
             Warmup = planSet.Warmup,
             WorkingSetOrdinal = planSet.Warmup ? null : ++ordinal,
             Reps = planSet.Warmup && !isTimed ? planSet.RepMin : null,
-            ResistanceMode = planSet.Warmup ? ResistanceModes.Bodyweight : ResolveResistanceMode(loadModel, planSet.ResistanceMode)
+            ResistanceMode = planSet.Warmup ? WarmupResistanceMode(loadModel, exercise.NameSnapshot) : ResolveResistanceMode(loadModel, exercise.NameSnapshot)
         }).ToList();
         db.Sets.AddRange(sets);
 

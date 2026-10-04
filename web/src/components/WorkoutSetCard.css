@@ -62,7 +62,6 @@
   font-weight: 600;
 }
 
-.set-card-field .mode-mini-select.custom-select-wrap { width: 100%; max-width: none; }
 
 @media (min-width: 640px) {
   .workout-set-card { padding: 14px 16px; }

@@ -662,6 +662,20 @@ test('import a PDF program, resolve an unmapped exercise, and accept it', async 
   await discardPrompt.getByRole('button', { name: 'Keep editing', exact: true }).click();
   await expect(discardPrompt).toBeHidden();
   await expect(dayModal).toBeVisible();
+  // It is still the open, modal dialog, not a closed one left on the page.
+  await expect(dayModal).toHaveAttribute('open', '');
+  // Escape asks the same way, and keeping on editing returns to the same scroll position.
+  // Arriving from the unmapped issue briefly holds focus on its library control; let it settle first.
+  await expect(dayModal.locator('.issue-focus')).toHaveCount(0);
+  const dayBody = dayModal.locator('.day-detail-modal-body');
+  await dayBody.evaluate(element => { element.scrollTop = Math.min(120, element.scrollHeight - element.clientHeight); });
+  const scrolledTo = await dayBody.evaluate(element => element.scrollTop);
+  await dayModal.press('Escape');
+  await expect(discardPrompt).toBeVisible();
+  await discardPrompt.getByRole('button', { name: 'Keep editing', exact: true }).click();
+  await expect(discardPrompt).toBeHidden();
+  await expect(dayModal).toHaveAttribute('open', '');
+  await expect.poll(() => dayBody.evaluate(element => element.scrollTop)).toBe(scrolledTo);
   await expect(benchExercise.locator('[data-import-save-bar]')).toBeVisible();
   let failExerciseSave = true;
   // Exercise saves send only the days they changed, so both draft-save routes count.
@@ -1005,7 +1019,7 @@ test('import a PDF program, resolve an unmapped exercise, and accept it', async 
   await page.reload();
   await openTab(page, 'Workouts');
   const activeCard = page.locator('.program-card').filter({ hasText: programName });
-  await expect(activeCard.getByText('Active', { exact: true })).toBeVisible();
+  await expect(activeCard).toBeVisible();
   // The card is open by default and folds away behind its header, anywhere on it, and opens again.
   // The faked program has no run yet, so only the toggle's state can be read. The day tree is gone.
   const cardToggle = activeCard.getByRole('button', { name: new RegExp(`^(Collapse|Expand) ${programName}`) });
@@ -1049,6 +1063,33 @@ test('import a PDF program, resolve an unmapped exercise, and accept it', async 
   // This imported day pairs supersets, so automatic handoffs can legitimately
   // omit rest. Verify the timer's explicit action uses the imported prescription.
   expect(workingIndex).toBeGreaterThanOrEqual(0);
+
+  // The exercise strip: arrows only where there is no swipe, a tap still selects, and a press-and-hold
+  // drag (or Alt+arrow) reorders without changing which exercise is open.
+  const strip = importedLogger.getByRole('navigation', { name: 'Workout exercises' });
+  const stripNames = () => strip.locator('.workout-strip-name').allTextContents();
+  // Arrows are present off-phone, and hidden while the strip has nowhere further to scroll.
+  await expect(strip.locator('.workout-strip-arrow')).toHaveCount(testInfo.project.name === 'mobile' ? 0 : 2);
+  const tabs = strip.getByRole('tab');
+  expect(await tabs.count()).toBeGreaterThan(1);
+  await tabs.nth(1).click();
+  await expect(tabs.nth(1)).toHaveAttribute('aria-selected', 'true');
+  const [first, second] = await stripNames();
+  const firstBox = (await tabs.nth(0).boundingBox())!;
+  const secondBox = (await tabs.nth(1).boundingBox())!;
+  await page.mouse.move(firstBox.x + firstBox.width / 2, firstBox.y + firstBox.height / 2);
+  await page.mouse.down();
+  await page.waitForTimeout(650);
+  await page.mouse.move(secondBox.x + secondBox.width - 4, secondBox.y + secondBox.height / 2, { steps: 8 });
+  await page.mouse.up();
+  await expect.poll(async () => (await stripNames()).slice(0, 2)).toEqual([second, first]);
+  // The exercise that was open is still the open one, now first.
+  await expect(tabs.nth(0)).toHaveAttribute('aria-selected', 'true');
+  await tabs.nth(0).focus();
+  await page.keyboard.press('Alt+ArrowRight');
+  await expect.poll(async () => (await stripNames()).slice(0, 2)).toEqual([first, second]);
+  await expect(tabs.nth(1)).toHaveAttribute('aria-selected', 'true');
+
   await page.screenshot({ path: join(screenshotsDirectory, `${testInfo.project.name}-imported-partials-active.png`), fullPage: true });
   await clearActiveWorkout(page);
   } finally {

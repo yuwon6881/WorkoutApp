@@ -293,10 +293,10 @@ public class ProgressionSessionTests
         var h = await Harness.Create();
         await using var _h = h;
         await h.SignIn();
-        await h.Seed(new SeedExercise("pull-up", "Pull-up", "Back", "Bodyweight", "Pull", null, 2.5, LoadModels.FullBodyweight));
+        await h.Seed(new SeedExercise("pull-up", "Weighted Pull-up", "Back", "Bodyweight", "Pull", null, 2.5, LoadModels.FullBodyweight));
         var exerciseId = await h.ExerciseId("pull-up");
         var template = await h.Templates.Create(
-            Harness.Template("Pull", Harness.Exercise(exerciseId, "Pull-up", Harness.Set(3, 8))), null, 1, 0, default);
+            Harness.Template("Pull", Harness.Exercise(exerciseId, "Weighted Pull-up", Harness.Set(3, 8))), null, 1, 0, default);
         var session = await h.Workouts.Start(template.Id, null, default);
         var row = await h.Db.Workouts.SingleAsync(item => item.Id == session.Id);
         row.BodyWeightSnapshotJson = Json.Write(new BodyWeightSnapshot(80, null, null, null, 80, "scale", null, "test", null, DateTime.UtcNow));

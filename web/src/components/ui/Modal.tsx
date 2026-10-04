@@ -31,10 +31,21 @@ export function Modal({ title, children, onClose, wide = false, headless = false
   const ref = useRef<HTMLDialogElement>(null);
   const pointerStartedOnBackdrop = useRef(false);
 
+  const mounted = useRef(true);
+  useEffect(() => () => { mounted.current = false; }, []);
+
+  // The owner decides whether the dialog closes, by unmounting it; unmounting closes the native
+  // dialog. A guarded owner (unsaved changes) may keep it, so the dialog must stay shown and a sheet
+  // dragged away must come back rather than leave an invisible dialog holding the page's scroll lock.
   const close = useCallback(() => {
-    const el = ref.current;
-    if (el?.open) el.close();
     onClose();
+    window.requestAnimationFrame(() => {
+      const el = ref.current;
+      if (!mounted.current || !el) return;
+      if (!el.open) el.showModal();
+      el.style.transition = '';
+      el.style.transform = '';
+    });
   }, [onClose]);
   const latestClose = useRef(close);
   latestClose.current = close;

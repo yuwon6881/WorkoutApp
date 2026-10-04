@@ -18,13 +18,15 @@ import { installNativeShell, isStandalone, setNativeStatusBar } from './lib/plat
 import type { Tab } from './app/useTabNavigation';
 import { getRecovery, hasUnresolvedRecovery, sameWorkoutEdits, startRecovery } from './lib/workoutRecovery';
 import { Button } from './components/ui/Button';
-import {CardFeedback} from './components/ui/CardFeedback';
+import { CardFeedback } from './components/ui/CardFeedback';
+import { Modal } from './components/ui/Modal';
 import { MotionScene, SelectionIndicator } from './components/ui/Motion';
 import './components/BottomNav.css';
 import { AppLoading } from './components/AppLoading';
 import { AuthLoading } from './components/AuthLoading';
 import { ViewSkeleton } from './components/ViewSkeleton';
-import { Auth, Dashboard, ExerciseDetailModal, ExerciseLibrary, ImportReview, MuscleBalanceView, Programs, SessionDetail, SettingsView, Workout, WorkoutStarting, prefetchView } from './app/lazyViews';
+import { Auth, Dashboard, ExerciseDetailModal, ExerciseLibrary, ImportReview, MuscleBalanceView, Programs, SessionDetail, SettingsView, Workout, prefetchView } from './app/lazyViews';
+import { WorkoutStartingContent } from './components/WorkoutStarting';
 import { ResumeWorkoutButton } from './components/ResumeWorkoutButton';
 import { TrackRirContext, tracksRir } from './lib/trackRir';
 import {applyTheme, forgetTheme, initialTheme, rememberTheme} from './lib/theme';
@@ -385,13 +387,48 @@ export default function App() {
     <Suspense fallback={null}><ImportWatchBridge imports={data.imports} active={tab !== 'import'} training={training}
       withResume={Boolean(workoutSession?.active)} onOpen={openImport} onFinished={app.reload} onLocalFailure={setToast} /></Suspense>
 
-    {startingName !== null && !training && <Suspense fallback={null}><WorkoutStarting name={startingName} onClose={() => { startCancelled.current = true; setStartingName(null); }} /></Suspense>}
-
-    {training && workoutSession && <Suspense fallback={<Suspense fallback={null}><WorkoutStarting name={workoutSession.name} status="Opening workout…" continues={sheetContinues} onClose={() => setTraining(false)} /></Suspense>}><Workout session={workoutSession} continues={sheetContinues} accountId={data.account.id} preferences={recovery?.sessionId === workoutSession.id ? recovery.preferences : data.preferences}
-      onCatalogNeeded={() => app.ensureResources(['catalog'], true)} exercises={data.exercises} queue={app.queue} online={online} recovery={recovery?.sessionId === workoutSession.id ? recovery : null} onRecoveryChange={record => { app.setRecovery(record); if (!record) setReviewRecovery(false); }}
-      onSaved={app.setActiveWorkout} onClose={() => setTraining(false)} advance={{ nextExercise: app.devicePreferences.autoAdvance, supersetPartner: app.devicePreferences.supersetAdvance }} onCatalogChanged={async () => { await app.reload(); await app.ensureResources(['catalog'], true); }}
-      onFinish={async session => { app.queue.clear(); app.setActiveWorkout(null); setTraining(false); setDetail(session); setFinishedId(session.id); setToast('Workout saved.'); await app.reload(); }}
-      onDiscard={async () => { app.queue.clear(); app.setActiveWorkout(null); setTraining(false); await app.reload(); }} /></Suspense>}
+    {(startingName !== null || (training && workoutSession)) && (
+      <Modal
+        title={training && workoutSession ? workoutSession.name : (startingName ?? '')}
+        onClose={() => {
+          if (training) {
+            setTraining(false);
+          } else {
+            startCancelled.current = true;
+            setStartingName(null);
+          }
+        }}
+        wide
+        headless
+        className={`workout-sheet ${sheetContinues ? 'workout-sheet-continued' : ''}`.trim()}
+      >
+        {training && workoutSession ? (
+          <Suspense fallback={<WorkoutStartingContent name={workoutSession.name} status="Opening workout…" />}>
+            <Workout
+              session={workoutSession}
+              wrapModal={false}
+              continues={sheetContinues}
+              accountId={data.account.id}
+              preferences={recovery?.sessionId === workoutSession.id ? recovery.preferences : data.preferences}
+              onCatalogNeeded={() => app.ensureResources(['catalog'], true)}
+              exercises={data.exercises}
+              queue={app.queue}
+              online={online}
+              recovery={recovery?.sessionId === workoutSession.id ? recovery : null}
+              onRecoveryChange={record => { app.setRecovery(record); if (!record) setReviewRecovery(false); }}
+              onSaved={app.setActiveWorkout}
+              onClose={() => setTraining(false)}
+              advance={{ nextExercise: app.devicePreferences.autoAdvance, supersetPartner: app.devicePreferences.supersetAdvance }}
+              onCatalogChanged={async () => { await app.reload(); await app.ensureResources(['catalog'], true); }}
+              onFinish={async session => { app.queue.clear(); app.setActiveWorkout(null); setTraining(false); setDetail(session); setFinishedId(session.id); setToast('Workout saved.'); await app.reload(); }}
+              onDiscard={async () => { app.queue.clear(); app.setActiveWorkout(null); setTraining(false); await app.reload(); }}
+            />
+          </Suspense>
+        ) : (
+          <WorkoutStartingContent name={startingName ?? ''} status="Starting workout…" />
+        )}
+      </Modal>
+    )}
 
     <Suspense fallback={null}>
     {detail && <SessionDetail session={detail} preferences={data.preferences} exercises={data.exercises} justFinished={detail.id === finishedId}

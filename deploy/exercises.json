@@ -3644,7 +3644,8 @@
     "category": "Body Weight",
     "cue": "",
     "aliases": [],
-    "trackingMode": "duration"
+    "trackingMode": "duration",
+    "loadModel": "full_bodyweight"
   },
   {
     "slug": "crunch",
@@ -3720,7 +3721,8 @@
       "Long Lever Posterior Tilt Plank",
       "Long-Lever Plank"
     ],
-    "trackingMode": "duration"
+    "trackingMode": "duration",
+    "loadModel": "full_bodyweight"
   },
   {
     "slug": "roman-chair-leg-raise",
@@ -3876,7 +3878,8 @@
       "Chest Static Stretch",
       "Pec Static Stretch 30s"
     ],
-    "trackingMode": "duration"
+    "trackingMode": "duration",
+    "loadModel": "full_bodyweight"
   },
   {
     "slug": "lat-static-stretch",
@@ -3888,7 +3891,8 @@
     "aliases": [
       "Lat Static Stretch 30s"
     ],
-    "trackingMode": "duration"
+    "trackingMode": "duration",
+    "loadModel": "full_bodyweight"
   },
   {
     "slug": "side-delt-static-stretch",
@@ -3900,7 +3904,8 @@
     "aliases": [
       "Side Delt Static Stretch (30s)"
     ],
-    "trackingMode": "duration"
+    "trackingMode": "duration",
+    "loadModel": "full_bodyweight"
   },
   {
     "slug": "bicep-static-stretch",
@@ -3912,7 +3917,8 @@
     "aliases": [
       "Bicep Static Stretch (30s)"
     ],
-    "trackingMode": "duration"
+    "trackingMode": "duration",
+    "loadModel": "full_bodyweight"
   },
   {
     "slug": "spider-curl",
@@ -4179,7 +4185,8 @@
     "category": "Body Weight",
     "cue": "",
     "aliases": [],
-    "trackingMode": "duration"
+    "trackingMode": "duration",
+    "loadModel": "full_bodyweight"
   },
   {
     "slug": "wall-slide",

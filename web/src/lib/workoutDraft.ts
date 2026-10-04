@@ -1,4 +1,5 @@
 import type { Exercise, LoggedSet, Session, SessionExercise } from '../types';
+import { loadEntryFor, resistanceModeFor } from './resistanceVariant';
 
 export type RemovedSet = {
   exerciseId: string;
@@ -10,23 +11,37 @@ export type RemovedSet = {
 export function blankPrescription(
   restSeconds: number | null = 90,
   loadModel?: Exercise['loadModel'],
-  resistanceMode?: LoggedSet['resistanceMode']
+  name = ''
 ): SessionExercise['prescription'][number] {
   return {
     repMin: 8, repMax: 12, targetRpe: 8, restSeconds, tempo: null, loadText: null, notes: null,
     repsText: null, restText: null, rir: null, warmup: false,
     repsSource: 'userEdited', rpeSource: 'userEdited', restSource: 'userEdited',
-    resistanceMode: normalizeResistanceMode(loadModel, resistanceMode)
+    resistanceMode: resistanceModeFor(loadModel, name)
   };
 }
 
-export function blankLoggedSet(
-  loadModel?: Exercise['loadModel'],
-  resistanceMode?: LoggedSet['resistanceMode']
-): LoggedSet {
+/// An exercise added during a workout has no plan behind it, so its targets stay empty rather than
+/// an invented rep range and effort; the lifter's own entries are the only numbers it shows.
+export function unplannedPrescription(loadModel?: Exercise['loadModel'], name = ''): SessionExercise['prescription'][number] {
+  return { ...blankPrescription(90, loadModel, name), repMin: null, repMax: null, targetRpe: null };
+}
+
+/// The session row for a library exercise added mid-workout: one empty set, in the catalog's own
+/// tracking mode so a hold logs seconds from its first set.
+export function addedSessionExercise(chosen: Exercise, position: number): SessionExercise {
+  return {
+    id: crypto.randomUUID(), exerciseId: chosen.id, name: chosen.name, position,
+    note: '', sequenceGroup: '', substitutions: [], prescription: [unplannedPrescription(chosen.loadModel, chosen.name)],
+    sets: [blankLoggedSet(chosen.loadModel, chosen.name)],
+    progression: null, loadModel: chosen.loadModel, trackingMode: chosen.trackingMode
+  };
+}
+
+export function blankLoggedSet(loadModel?: Exercise['loadModel'], name = ''): LoggedSet {
   return {
     id: crypto.randomUUID(), position: 0, weightKg: null, reps: null, rpe: null, done: false, warmup: false,
-    resistanceMode: normalizeResistanceMode(loadModel, resistanceMode)
+    resistanceMode: resistanceModeFor(loadModel, name)
   };
 }
 
@@ -97,14 +112,26 @@ export function withSetRestored(draft: Session, removed: RemovedSet): Session | 
   }));
 }
 
-function mapExercise(draft: Session, exerciseIndex: number, update: (exercise: SessionExercise) => SessionExercise): Session {
-  return { ...draft, exercises: draft.exercises.map((item, i) => (i === exerciseIndex ? update(item) : item)) };
+// The lifter's order for what is left of the session. Superset pairings travel with each exercise.
+export function withExerciseMoved(draft: Session, from: number, to: number): Session {
+  const count = draft.exercises.length;
+  if (from === to || from < 0 || to < 0 || from >= count || to >= count) return draft;
+  const exercises = [...draft.exercises];
+  const [moved] = exercises.splice(from, 1);
+  exercises.splice(to, 0, moved);
+  return { ...draft, exercises: exercises.map((exercise, position) => ({ ...exercise, position })) };
 }
 
-function normalizeResistanceMode(loadModel?: Exercise['loadModel'], resistanceMode?: LoggedSet['resistanceMode']): LoggedSet['resistanceMode'] {
-  if (loadModel === 'full_bodyweight')
-    return resistanceMode === 'added' || resistanceMode === 'assistance' || resistanceMode === 'bodyweight' ? resistanceMode : 'bodyweight';
-  return loadModel === 'bodyweight_context_only' || loadModel === 'reps_only' ? 'reps_only' : 'external';
+/// Where the exercise on screen sits after a move, so reordering never changes which one is open.
+export function indexAfterMove(active: number, from: number, to: number): number {
+  if (active === from) return to;
+  if (from < active && to >= active) return active - 1;
+  if (from > active && to <= active) return active + 1;
+  return active;
+}
+
+function mapExercise(draft: Session, exerciseIndex: number, update: (exercise: SessionExercise) => SessionExercise): Session {
+  return { ...draft, exercises: draft.exercises.map((item, i) => (i === exerciseIndex ? update(item) : item)) };
 }
 
 // Sets are numbered the way the lifter counts them: warm-ups as W1, W2… and working sets from 1.
@@ -131,9 +158,10 @@ export function effortPatch(value: number | null): Pick<LoggedSet, 'rpe' | 'rir'
   return value >= 5 ? { rpe: null, rir: '5+' } : { rpe: 10 - value, rir: String(value) };
 }
 
-export function loadIsEditable(exercise: SessionExercise, set: LoggedSet): boolean {
-  const loadModel = exercise.loadModel ?? 'external';
-  return loadModel === 'external' || (loadModel === 'full_bodyweight' && (set.resistanceMode ?? 'bodyweight') !== 'bodyweight');
+// The exercise, not the set, decides whether there is a load to enter: a plain pull-up is bodyweight.
+export function loadIsEditable(exercise: Pick<SessionExercise, 'name' | 'loadModel'>): boolean {
+  const entry = loadEntryFor(exercise);
+  return entry !== 'bodyweight' && entry !== 'none';
 }
 
 /// What the server works out about each exercise (whether Restore default would change anything)

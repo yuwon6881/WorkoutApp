@@ -189,9 +189,6 @@ export function ExerciseEditor({ exercise: saved, exercises, allDayExercises, re
             </Button>
           </span>
         )}
-        {!exercise.exerciseId && (
-          <span className="tiny-label warn"><AlertTriangle size={12} /> Unmapped</span>
-        )}
         <div className="import-exercise-actions">
           <DemoLink url={exercise.demoUrl} exerciseName={exercise.sourceName} />
           <div className="field import-rest-field" data-import-field="rest">
@@ -249,6 +246,10 @@ export function ExerciseEditor({ exercise: saved, exercises, allDayExercises, re
                 </span>
               </Button>
             </div>
+            {/* The warning sits with the control that resolves it, not among the timing actions. */}
+            {!exercise.exerciseId && (
+              <span className="tiny-label warn import-unmapped-note"><AlertTriangle size={12} aria-hidden="true" />Not linked to the library</span>
+            )}
             {selected && (
               <div className="import-exercise-muscles" aria-label={`Target muscles: ${[selected.muscle, ...(selected.secondaryMuscles ?? [])].filter(Boolean).join(', ')}`}>
                 <span className="pill pill-accent">{selected.muscle || 'Full body'}</span>

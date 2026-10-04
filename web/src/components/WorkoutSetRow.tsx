@@ -1,10 +1,9 @@
 import { useState } from 'react';
-import { Check, Trash2 } from 'lucide-react';
+import { Check, Pause, Trash2 } from 'lucide-react';
 import type { LoggedSet, Preferences, SessionExercise, SetPrescription } from '../types';
 import { defaultLoadStepKg, showTarget, showWeight, toDisplay, toKg } from '../lib/training';
 import { effortPatch, effortValue, loadIsEditable, setNumberLabel } from '../lib/workoutDraft';
 import { Button } from './ui/Button';
-import { Select } from './ui/Select';
 import { RepsRirControl } from './ui/RepsRirControl';
 import { SetTypeSelect } from './ui/SetTypeSelect';
 import { SwipeableRow } from './ui/SwipeableRow';
@@ -17,12 +16,7 @@ import { isTimedExercise, showTimedTarget, timedTargetSeconds } from '../lib/set
 import { discardStopwatch } from '../lib/setStopwatch';
 import { WorkoutSetTimeCell } from './WorkoutSetTimeCell';
 import { useTrackRir } from '../lib/trackRir';
-
-export const resistanceModeOptions: Array<{ value: NonNullable<LoggedSet['resistanceMode']>; label: string }> = [
-  { value: 'bodyweight', label: 'BW' },
-  { value: 'added', label: '+Load' },
-  { value: 'assistance', label: 'Assist' }
-];
+import { loadEntryFor, loadFieldName, loadSign } from '../lib/resistanceVariant';
 
 export function WorkoutSetRow({
   set,
@@ -36,6 +30,7 @@ export function WorkoutSetRow({
   availableLoadsKg,
   editSet,
   toggle,
+  paused,
   setTypes,
   onSetType,
   onRemoveSet
@@ -52,6 +47,8 @@ export function WorkoutSetRow({
   availableLoadsKg?: number[] | null;
   editSet: (ei: number, si: number, patch: Partial<LoggedSet>) => void;
   toggle: (ei: number, si: number) => void | boolean | Promise<void | boolean>;
+  /** While the workout clock is stopped a set can be edited but not newly logged. */
+  paused: boolean;
   /** The types this set may take here (warm-ups stay a leading block). */
   setTypes: SetType[];
   onSetType: (si: number, type: SetType) => void;
@@ -64,8 +61,9 @@ export function WorkoutSetRow({
   const shown = toDisplay(set.weightKg, unit);
   const stepKg = resolvedStepKg ?? defaultLoadStepKg(unit);
   const { label, warmup } = setNumberLabel(exercise, si);
-  const loadModel = exercise.loadModel ?? 'external';
-  const loadEditable = loadIsEditable(exercise, set);
+  const loadEntry = loadEntryFor(exercise);
+  const sign = loadSign(loadEntry);
+  const loadEditable = loadIsEditable(exercise);
   const partialTechnique = plan ? partialTechniqueLabel(plan) : null;
   const timed = isTimedExercise(exercise);
   const type = sessionSetType(set, plan);
@@ -73,6 +71,7 @@ export function WorkoutSetRow({
   const compact = useWindowTier() === 'compact';
   const setName = `${exercise.name} set ${si + 1}`;
   const removable = exercise.sets.length > 1;
+  const locked = paused && !set.done;
   const remove = () => {
     discardStopwatch(set.id);
     onRemoveSet(si);
@@ -114,10 +113,11 @@ export function WorkoutSetRow({
         )}
       </div>
 
-      <div className="set-input-cell load-cell">
+      <div className={`set-input-cell load-cell load-${loadEntry}`}>
+        {sign && <span className="load-sign" aria-hidden="true">{sign}</span>}
         <input
           name={`weight-${exercise.id}-${si}`}
-          aria-label={`${exercise.name} set ${si + 1} weight`}
+          aria-label={`${exercise.name} set ${si + 1} ${loadFieldName(loadEntry)}`}
           inputMode="decimal"
           type="number"
           min="0"
@@ -132,22 +132,14 @@ export function WorkoutSetRow({
             editSet(ei, si, { weightKg: next });
           }}
           placeholder="—"
-          value={shown === null ? '' : shown}
+          // A bodyweight movement has no load to enter, so its field stays an empty dash.
+          value={!loadEditable || shown === null ? '' : shown}
           disabled={!loadEditable}
           // Correcting a logged set keeps it logged; only the log button unlogs a set.
           onChange={e =>
             editSet(ei, si, { weightKg: e.target.value === '' ? null : toKg(Number(e.target.value), unit) })
           }
         />
-        {loadModel === 'full_bodyweight' && (
-          <Select
-            className="mode-mini-select"
-            ariaLabel="Resistance mode"
-            value={set.resistanceMode ?? 'bodyweight'}
-            options={resistanceModeOptions}
-            onChange={val => editSet(ei, si, { resistanceMode: val })}
-          />
-        )}
       </div>
 
       {timed ? (
@@ -167,11 +159,11 @@ export function WorkoutSetRow({
       <div className="set-action-cell log-cell">
         <Button
           presentation="plain"
-          className={`set-log-checkbox ${set.done ? 'checked' : ''}`}
-          aria-label={`${set.done ? 'Unlog' : 'Log'} ${exercise.name} set ${si + 1}`}
+          className={`set-log-checkbox ${set.done ? 'checked' : ''} ${locked ? 'paused-lock' : ''}`}
+          aria-label={`${set.done ? 'Unlog' : 'Log'} ${exercise.name} set ${si + 1}${locked ? ' (workout paused)' : ''}`}
           aria-pressed={set.done}
           onClick={async () => {
-            if (!set.done && set.reps === null && (set.durationSeconds ?? null) === null) {
+            if (!locked && !set.done && set.reps === null && (set.durationSeconds ?? null) === null) {
               triggerNudge();
               return;
             }
@@ -183,7 +175,7 @@ export function WorkoutSetRow({
             }
           }}
         >
-          <Check size={18} strokeWidth={set.done ? 3 : 2} />
+          {locked ? <Pause size={16} /> : <Check size={18} strokeWidth={set.done ? 3 : 2} />}
         </Button>
       </div>
 

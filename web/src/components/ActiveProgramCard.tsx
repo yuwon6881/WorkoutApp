@@ -155,7 +155,7 @@ export function ActiveProgramCard({ program, exercises, onStart, onChanged, hasA
   return <section {...dragProps} className={`panel slot-card program-card ${finished ? 'slot-card-finished' : ''} ${moving ? 'slot-card-moving' : ''}`}
     aria-busy={actions.busy || loading}>
     <SlotCardHeader title={program.name} meta={meta}
-      badge={<span className={`tiny-label ${finished ? 'slot-finished-label' : 'accent'}`}>{finished ? 'Finished' : 'Active'}</span>}
+      badge={finished ? <span className="tiny-label slot-finished-label">Finished</span> : undefined}
       expanded={finished ? undefined : expanded} onToggle={finished ? undefined : () => setExpanded(value => !value)}
       menuLabel={`Actions for ${program.name}`}
       menu={<>

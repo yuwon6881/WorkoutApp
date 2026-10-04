@@ -129,7 +129,7 @@ test('workouts move between the library and the active slot, forgetting progress
 
     await dragTo(page, libraryCard, zone);
     const activeCard = zone.locator('.program-card').filter({ hasText: programName });
-    await expect(activeCard.getByText('Active', { exact: true })).toBeVisible();
+    await expect(activeCard).toBeVisible();
     await expect(activeCard.getByRole('button', { name: `Collapse ${programName}`, exact: true })).toBeVisible();
     await expect(activeCard.getByRole('button', { name: 'View Upper A', exact: true })).toBeVisible();
     await expect(library.locator('.library-program-card').filter({ hasText: programName })).toHaveCount(0);

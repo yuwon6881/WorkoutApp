@@ -38,6 +38,7 @@ import { useTrackRir } from '../lib/trackRir';
 import { ExerciseLoadSettings } from './ExerciseLoadSettings';
 import { loadAdjustable } from '../lib/exerciseLoads';
 import { canEnterPerSide } from '../lib/equipmentGroups';
+import { loadColumnLabel, loadEntryFor } from '../lib/resistanceVariant';
 
 const UNDO_WINDOW_MS = 6000;
 
@@ -101,6 +102,7 @@ export function WorkoutActiveExercise({
   const [removedSet, setRemovedSet] = useState<RemovedSet | null>(null);
 
   const prescription = exercise.prescription;
+  const loadEntry = loadEntryFor(exercise);
 
   // A removed set can be put back for a few seconds, so a mis-tap never costs a logged set.
   useEffect(() => {
@@ -277,11 +279,14 @@ export function WorkoutActiveExercise({
         </Modal>
       )}
 
+      {loadEntry === 'assistance' && (
+        <p className="load-assist-hint">Assistance takes weight off you, so a higher number is an easier set.</p>
+      )}
       <div className={`workout-set-table-container ${trackRir ? '' : 'no-rir'} ${isTimedExercise(exercise) ? 'timed' : ''}`.trim()}>
         <div className="workout-set-table-head">
           <span className="col-set">Set</span>
           <span className="col-target">Target</span>
-          <span className="col-load">{unit.toUpperCase()}</span>
+          <span className="col-load">{loadColumnLabel(loadEntry, unit)}</span>
           {isTimedExercise(exercise) ? (
             <span className="col-reps col-time">Time</span>
           ) : (
@@ -310,6 +315,7 @@ export function WorkoutActiveExercise({
                 availableLoadsKg={resolvedLoads?.availableLoadsKg}
                 editSet={editSet}
                 toggle={toggle}
+                paused={Boolean(draft.pausedAt)}
                 setTypes={allowedSetTypes(exercise, si)}
                 onSetType={(sidx, type) => change(withSetType(draft, index, sidx, type))}
                 onRemoveSet={sidx => removeSet(sidx)}

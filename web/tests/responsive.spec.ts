@@ -244,13 +244,11 @@ for (const theme of ['dark', 'light']) {
     await page.keyboard.press('Escape');
     await logger.getByRole('button', { name: 'Pause workout', exact: true }).click();
     await expect(logger.locator('.workout-active-exercise')).toBeVisible();
-    await expect(logger.locator('.workout-swipe-surface')).toHaveAttribute('inert', '');
-    expect(await logger.locator('input[name^=reps-]').first().evaluate(input => {
-      (input as HTMLInputElement).focus();
-      return document.activeElement === input;
-    })).toBe(false);
-    await logger.getByRole('button', { name: 'Resume workout', exact: true }).click();
+    // A paused workout stays editable; only logging a new set is held until it resumes.
     await expect(logger.locator('.workout-swipe-surface')).not.toHaveAttribute('inert', '');
+    await expect(logger.getByRole('button', { name: /\(workout paused\)$/ }).first()).toBeVisible();
+    await logger.getByRole('button', { name: 'Resume workout', exact: true }).click();
+    await expect(logger.getByRole('button', { name: /\(workout paused\)$/ })).toHaveCount(0);
     await logger.getByRole('button', { name: 'Add set', exact: true }).click();
     const repsInput = logger.getByRole('spinbutton', { name: 'Barbell bench press set 1 reps', exact: true });
     await logger.getByRole('spinbutton', { name: 'Barbell bench press set 1 weight', exact: true }).fill('60');

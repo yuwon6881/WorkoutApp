@@ -68,7 +68,7 @@ public sealed partial class WorkoutService
             Validation.Require(modeElement.ValueKind == JsonValueKind.String, "Resistance mode is invalid.");
             resistanceMode = modeElement.GetString() ?? "";
         }
-        resistanceMode = ResolveResistanceMode(loadModel, resistanceMode);
+        resistanceMode = ResolveResistanceMode(loadModel, exercise.NameSnapshot);
         Validation.LoggedSet(weight, reps, rpe, done, warmup, durationSeconds);
         ValidateActualRir(rir, rpe);
         var warmupChanged = warmup != set.Warmup;

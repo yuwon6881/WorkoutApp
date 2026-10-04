@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Check, Delete } from 'lucide-react';
+import { Check, Delete, Flame } from 'lucide-react';
 import { Button } from './Button';
 import { Modal } from './Modal';
 import { getRirColorClass, RirChips } from './RpeControl';
@@ -63,7 +63,7 @@ export function RepsRirControl({ name, label, reps, rir, trackRir, onChange }: {
       }}
       onChange={event => onChange(event.target.value === '' ? null : Number(event.target.value), rir)} />
     {trackRir && <span className={`reps-rir-badge ${getRirColorClass(rir)}`} aria-hidden="true">
-      {rir === null ? '—' : rir >= 5 ? '5+' : Math.round(rir)}
+      {rir === null ? <Flame size={12} className="reps-rir-flame" aria-hidden="true" /> : rir >= 5 ? '5+' : Math.round(rir)}
     </span>}
     {entry && <Modal title={trackRir ? 'Reps & RIR' : 'Reps'} onClose={close} className="reps-rir-modal">
       <div className="modal-body reps-rir-entry">

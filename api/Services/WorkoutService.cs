@@ -185,13 +185,13 @@ public sealed partial class WorkoutService(
                         {
                             UserId = session.UserId, SessionExerciseId = exercise.Id, Position = index,
                             Reps = isTimed ? null : planSet.RepMin, Rpe = null, Done = false, Warmup = true,
-                            ResistanceMode = ResistanceModes.Bodyweight
+                            ResistanceMode = WarmupResistanceMode(loadModel, resolvedName)
                         });
                         continue;
                     }
 
                     workingOrdinal++;
-                    var resistanceMode = ResolveResistanceMode(loadModel, planSet.ResistanceMode);
+                    var resistanceMode = ResolveResistanceMode(loadModel, resolvedName);
                     if (isTimed)
                     {
                         db.Sets.Add(new CompletedSet
@@ -230,13 +230,12 @@ public sealed partial class WorkoutService(
         return await Get(session.Id, ct);
     }
 
-    private static string ResolveResistanceMode(string loadModel, string requested)
-    {
-        if (loadModel == LoadModels.FullBodyweight)
-            return requested is ResistanceModes.Added or ResistanceModes.Assistance or ResistanceModes.Bodyweight ? requested : ResistanceModes.Bodyweight;
-        if (loadModel is LoadModels.BodyweightContextOnly or LoadModels.RepsOnly) return ResistanceModes.RepsOnly;
-        return ResistanceModes.External;
-    }
+    private static string ResolveResistanceMode(string loadModel, string exerciseName) => ResistanceVariant.For(loadModel, exerciseName);
+
+    // A weighted or assisted warm-up still enters its load the same way; other warm-ups keep the
+    // bodyweight marker they have always carried.
+    private static string WarmupResistanceMode(string loadModel, string exerciseName) =>
+        loadModel == LoadModels.FullBodyweight ? ResolveResistanceMode(loadModel, exerciseName) : ResistanceModes.Bodyweight;
 
     private static BodyWeightSnapshot? ChooseBodyWeight(NutritionTrainingContext? context)
     {
@@ -368,7 +367,7 @@ public sealed partial class WorkoutService(
                     ? old?.WorkingSetOrdinal ?? ++workingOrdinal
                     : (int?)null;
                 if (ordinal is { } persistedOrdinal) workingOrdinal = Math.Max(workingOrdinal, persistedOrdinal);
-                var resistanceMode = ResolveResistanceMode(loadModel, set.ResistanceMode ?? old?.ResistanceMode ?? ResistanceModes.External);
+                var resistanceMode = ResolveResistanceMode(loadModel, exercise.NameSnapshot);
                 var enteredLoad = NormalizeEnteredLoad(loadModel, resistanceMode, set.WeightKg, step);
                 var updated = old ?? new CompletedSet { UserId = sessionRow.UserId, SessionExerciseId = row.Id, SuggestionJson = "" };
                 updated.SessionExerciseId = row.Id; updated.Position = setPosition++; updated.WeightKg = enteredLoad;
@@ -430,7 +429,7 @@ public sealed partial class WorkoutService(
         sourceRow.LoadModel = replacementModel;
         sourceRow.ProgressionJson = "";
         sourceRow.IsReplacement = true;
-        foreach (var set in sets) ClearUnfinishedSet(set, replacementModel);
+        foreach (var set in sets) ClearUnfinishedSet(set, replacementModel, replacementName);
         await RefreshReplacementSuggestions(swapSession, sourceRow, sets, replacementModel, ct);
         db.ExerciseSubstitutions.Add(new ExerciseSubstitution
         {
@@ -445,10 +444,10 @@ public sealed partial class WorkoutService(
         return await Get(id, ct);
     }
 
-    private static void ClearUnfinishedSet(CompletedSet set, string replacementModel)
+    private static void ClearUnfinishedSet(CompletedSet set, string replacementModel, string replacementName)
     {
         set.WeightKg = null; set.SystemLoadKg = null; set.SuggestionJson = "";
-        set.ResistanceMode = ResolveResistanceMode(replacementModel, set.ResistanceMode);
+        set.ResistanceMode = ResolveResistanceMode(replacementModel, replacementName);
     }
 
     private async Task RefreshReplacementSuggestions(WorkoutSession session, SessionExercise exercise, List<CompletedSet> sets,
@@ -481,7 +480,7 @@ public sealed partial class WorkoutService(
             if (prescription is null) continue;
             var enteredReps = set.Reps;
             var enteredRpe = set.Rpe;
-            var mode = ResolveResistanceMode(loadModel, prescription.ResistanceMode);
+            var mode = ResolveResistanceMode(loadModel, exercise.NameSnapshot);
             var suggestion = Progression.ForPrescription(prescription, FollowStraightSets(prescription, straight,
                 MakeSuggestion(prescription, histories.GetValueOrDefault(workingOrdinal) ?? [], result.Mode, step, result, mode, loadModel, bodyWeight,
                     exercise.ExerciseId is { } loadId ? info.GetValueOrDefault(loadId)?.AvailableLoadsKg : null)));

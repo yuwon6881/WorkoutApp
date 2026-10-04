@@ -43,13 +43,22 @@
 .set-input-cell .custom-select-wrap { width: 100%; min-width: 0; max-width: 100%; }
 .set-input-cell input { width: 100%; min-height: 40px; padding: 6px 8px; text-align: center; font-size: 14px; font-weight: 600; border-radius: 8px; border: 1px solid var(--border); background: var(--surface-hover); color: var(--text); }
 .set-input-cell input:focus { border-color: var(--accent-border-strong); outline: none; }
-.load-cell { display: flex; gap: 4px; align-items: center; min-width: 0; }
-.mode-mini-select { font-size: var(--font-secondary, 14px); font-weight: 600; padding: 4px; border-radius: 6px; border: 1px solid var(--border); background: var(--surface-hover); color: var(--text); min-height: 40px; }
-.mode-mini-select.custom-select-wrap { min-width: 64px; max-width: 84px; width: auto; flex-shrink: 0; }
-.mode-mini-select .custom-select-trigger { min-height: 40px; padding: 6px 8px; font-size: var(--font-secondary, 14px); font-weight: 600; }
+.load-cell { position: relative; display: flex; gap: 4px; align-items: center; min-width: 0; }
+/* Added load and assistance carry their sign inside the field; the number alone stays centered. */
+.load-sign { position: absolute; left: 8px; top: 50%; transform: translateY(-50%); font-size: 14px; font-weight: 700; color: var(--muted); pointer-events: none; }
+.load-added .load-sign { color: var(--accent); }
+.load-cell.load-added input, .load-cell.load-assistance input { padding-left: 18px; }
+/* Assistance is a different kind of number: more of it is an easier set. */
+.load-cell.load-assistance input { border-style: dashed; border-color: var(--accent-border); }
+/* Bodyweight has no load to enter: an empty, dashed field marks the column as not applicable. */
+.load-cell.load-bodyweight input:disabled { border-style: dashed; background: transparent; cursor: not-allowed; opacity: 1; }
+.load-assist-hint { margin: 4px 0 0; font-size: var(--font-secondary, 13px); color: var(--muted); }
 .set-log-checkbox { width: 44px; height: 44px; min-width: 44px; min-height: 44px; border-radius: 10px; border: 2px solid var(--border); background: transparent; color: transparent; display: grid; place-items: center; cursor: pointer; transition: all 0.15s ease; }
 .set-log-checkbox:hover { border-color: var(--accent); }
 .set-log-checkbox.checked { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+/* While paused a set can still be edited but not logged: a dashed, pause-marked box says why. */
+.set-log-checkbox.paused-lock { border-style: dashed; color: var(--muted); cursor: not-allowed; }
+.set-log-checkbox.paused-lock:hover { border-color: var(--accent-border-strong); color: var(--accent); }
 .set-del-btn { width: 44px; height: 44px; min-width: 44px; min-height: 44px; padding: 0; display: grid; place-items: center; color: var(--muted); }
 .set-del-btn:hover { color: var(--red); }
 /* Time and combined reps/RIR occupy the same column. */
@@ -115,8 +124,10 @@
   }
   .workout-set-row .suggestion-text { font-size: var(--font-secondary, 14px); white-space: normal; overflow-wrap: anywhere; text-align: center; }
   .workout-set-row .set-input-cell input { padding: 6px 2px; }
+  .workout-set-row .load-cell.load-added input,
+  .workout-set-row .load-cell.load-assistance input { padding-left: 16px; }
+  .workout-set-row .load-sign { left: 6px; }
   .workout-set-row > .load-cell { flex-direction: column; align-items: stretch; }
-  .workout-set-row .load-cell .mode-mini-select.custom-select-wrap { width: 100%; min-width: 0; max-width: 100%; }
   .workout-set-row > .rpe-cell,
   .workout-set-row > .log-cell { justify-self: center; }
 
@@ -131,7 +142,6 @@
 @media (max-width: 1023px) {
   .action-pill,
   .set-input-cell input,
-  .mode-mini-select,
   .add-set-btn,
   .set-input-cell .rpe-control,
   .set-input-cell .rpe-value-btn { min-height: 44px; min-width: 44px; }

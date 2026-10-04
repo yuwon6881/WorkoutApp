@@ -5,11 +5,21 @@
   flex-direction: column;
   height: min(860px, 90dvh);
   max-height: 90dvh;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.modal.workout-sheet::-webkit-scrollbar {
+  display: none;
 }
 .modal.workout-sheet .workout-body {
   flex: 1 1 auto;
   overflow-y: auto;
   min-height: 0;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.modal.workout-sheet .workout-body::-webkit-scrollbar {
+  display: none;
 }
 @media (max-width: 639px) {
   .modal.workout-sheet {
@@ -91,6 +101,16 @@
   color: var(--accent);
 }
 
+/* Replayed (by remounting) each time a set is tapped while paused, pointing at the cause. */
+@keyframes paused-pulse {
+  0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 transparent; }
+  35% { transform: scale(1.12); box-shadow: 0 0 0 4px var(--accent-soft); }
+}
+.workout-paused-label.pulse { animation: paused-pulse 0.5s ease-out; }
+@media (prefers-reduced-motion: reduce) {
+  .workout-paused-label.pulse { animation: none; }
+}
+
 /* Title and status share the header: the name on one line, then time and any save problem. */
 .workout-top-summary { flex-direction: column; gap: 2px; }
 
@@ -167,6 +187,27 @@
 }
 
 .workout-exercise-strip::-webkit-scrollbar { display: none; }
+
+/* Wider layouts page the strip with arrows, since a mouse cannot swipe it. */
+.workout-exercise-strip-container.with-arrows { display: flex; align-items: center; gap: 4px; padding-inline: 6px; }
+.workout-exercise-strip-container.with-arrows .workout-exercise-strip { flex: 1 1 auto; min-width: 0; padding-inline: 4px; }
+.workout-strip-arrow.button { flex: 0 0 auto; width: 44px; min-width: 44px; height: 44px; min-height: 44px; padding: 0; border-radius: 12px; }
+.workout-strip-arrow.button:disabled { visibility: hidden; }
+@media (min-width: 1024px) {
+  .workout-strip-arrow.button { width: 36px; min-width: 36px; height: 36px; min-height: 36px; }
+}
+
+/* A long press picks a pill up; the browser's own long-press callout and selection would fight it. */
+.workout-strip-item { -webkit-touch-callout: none; user-select: none; }
+.workout-strip-item.held {
+  border-color: var(--accent-border-strong);
+  box-shadow: 0 6px 18px var(--overlay);
+  transform: scale(1.04);
+  cursor: grabbing;
+}
+@media (prefers-reduced-motion: reduce) {
+  .workout-strip-item.held { transform: none; }
+}
 
 .workout-strip-item {
   display: flex;

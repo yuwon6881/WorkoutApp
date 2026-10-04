@@ -123,6 +123,17 @@ export function TrainingCalendar({ onSession, program, refreshKey, activeWorkout
         </div>
 
         <div className="calendar-nav-controls">
+          {offset !== 0 && (
+            <Button
+              variant="tertiary"
+              className="calendar-today-btn"
+              aria-label="Return to this week"
+              onClick={() => setOffset(0)}
+            >
+              <RotateCcw size={15} />
+              <span>This week</span>
+            </Button>
+          )}
           <div className="calendar-month-nav">
             <Button
               aria-label="Previous week"
@@ -142,17 +153,6 @@ export function TrainingCalendar({ onSession, program, refreshKey, activeWorkout
               <ChevronRight size={18} />
             </Button>
           </div>
-          {offset !== 0 && (
-            <Button
-              variant="tertiary"
-              className="calendar-today-btn"
-              aria-label="Return to this week"
-              onClick={() => setOffset(0)}
-            >
-              <RotateCcw size={15} />
-              <span>This week</span>
-            </Button>
-          )}
         </div>
       </div>
 

@@ -4,18 +4,21 @@ import { findNextStep } from './restRules';
 import { getSupersetGroup } from './supersets';
 import { loadIsEditable, nextPendingSet, setNumberLabel } from './workoutDraft';
 import { isTimedExercise, showSetDuration } from './setDuration';
+import { loadEntryFor } from './resistanceVariant';
 
-// "60 kg × 8", "BW × 12", or just the reps when the load is still unknown.
+// "60 kg × 8", "+10 kg × 6", "20 kg assist × 8", "BW × 12", or just the reps when the load is still unknown.
 export function setSummary(exercise: SessionExercise, set: LoggedSet, unit: Unit): string {
   if (isTimedExercise(exercise)) {
     const time = set.durationSeconds == null ? '' : showSetDuration(set.durationSeconds);
-    if (set.weightKg === null || !loadIsEditable(exercise, set)) return time;
+    if (set.weightKg === null || !loadIsEditable(exercise)) return time;
     return time ? `${showWeight(set.weightKg, unit)} · ${time}` : showWeight(set.weightKg, unit);
   }
   const reps = set.reps === null ? '' : `× ${set.reps}`;
-  if (!loadIsEditable(exercise, set)) return set.reps === null ? '' : `BW ${reps}`;
+  if (!loadIsEditable(exercise)) return set.reps === null ? '' : `BW ${reps}`;
   if (set.weightKg === null) return set.reps === null ? '' : `${set.reps} reps`;
-  return `${showWeight(set.weightKg, unit)} ${reps}`.trim();
+  const entry = loadEntryFor(exercise);
+  const load = entry === 'added' ? `+${showWeight(set.weightKg, unit)}` : entry === 'assistance' ? `${showWeight(set.weightKg, unit)} assist` : showWeight(set.weightKg, unit);
+  return `${load} ${reps}`.trim();
 }
 
 // A workout opens on the first exercise with a set still to log, or the first one when all are done.

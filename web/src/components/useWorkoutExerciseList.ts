@@ -36,7 +36,7 @@ export function useWorkoutExerciseList({
   setError: (message: string) => void;
 }) {
   async function changeExerciseList(key: string, request: (revision: number) => Promise<Session>, failureMessage: string) {
-    if (!online || finishIntentAt || draft.pausedAt) { setError('Connect and resume the workout before changing its exercise list.'); return; }
+    if (!online || finishIntentAt) { setError('Connect before changing the exercise list.'); return; }
     setBusy(true); setError('');
     try {
       queue.push(key, async () => {

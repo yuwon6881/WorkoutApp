@@ -3,7 +3,7 @@ import type { Exercise, LoggedSet, Preferences, RestMutationInput, Session, Sess
 import { ApiError, api } from '../lib/api';
 import type { SaveQueue } from '../lib/queue';
 import { completedSets, finishBlocker, plannedSets } from '../lib/training';
-import { exerciseListChanged, withServerFlags } from '../lib/workoutDraft';
+import { exerciseListChanged, indexAfterMove, loadIsEditable, withExerciseMoved, withServerFlags } from '../lib/workoutDraft';
 import { firstOpenExercise, nextUpText, type AdvanceOptions } from '../lib/workoutLogging';
 import { useAfterLog } from './useAfterLog';
 import { validateLoggedSet, validateSessionDraft } from '../lib/validation';
@@ -34,45 +34,24 @@ import { useFinishPlanUpdate } from './useFinishPlanUpdate';
 import { useStopwatchRecovery } from './useStopwatchRecovery';
 import './ActiveWorkout.css';
 
-export function Workout({
-  session,
-  accountId,
-  preferences,
-  exercises,
-  queue,
-  online,
-  recovery,
-  onRecoveryChange,
-  onSaved,
-  onClose,
-  onFinish,
-  onDiscard,
-  advance,
-  onCatalogChanged,
-  onCatalogNeeded,
-  continues = false
-}: {
-  session: Session;
-  accountId: string;
-  preferences: Preferences;
-  exercises: Exercise[];
-  queue: SaveQueue;
-  online: boolean;
-  recovery: WorkoutRecoveryRecord | null;
+export type WorkoutProps = {
+  session: Session; accountId: string; preferences: Preferences; exercises: Exercise[];
+  queue: SaveQueue; online: boolean; recovery: WorkoutRecoveryRecord | null;
   onRecoveryChange: (record: WorkoutRecoveryRecord | null) => void;
-  onSaved: (s: Session) => void;
-  onClose: () => void;
-  onFinish: (s: Session) => void;
-  onDiscard: () => void;
-  advance?: AdvanceOptions;
-  /** Weight settings changed mid-workout, so the exercise catalog is read again. */
-  onCatalogChanged?: () => void | Promise<void>;
-  onCatalogNeeded?: () => Promise<void>;
-  /** Replaces the starting stand-in already on screen, so the sheet does not rise again. */
-  continues?: boolean;
-}) {
+  onSaved: (s: Session) => void; onClose: () => void; onFinish: (s: Session) => void; onDiscard: () => void;
+  advance?: AdvanceOptions; onCatalogChanged?: () => void | Promise<void>;
+  onCatalogNeeded?: () => Promise<void>; continues?: boolean; wrapModal?: boolean;
+};
+
+export function Workout({
+  session, accountId, preferences, exercises, queue, online, recovery,
+  onRecoveryChange, onSaved, onClose, onFinish, onDiscard, advance,
+  onCatalogChanged, onCatalogNeeded, continues = false, wrapModal = true
+}: WorkoutProps) {
   const [draft, setDraft] = useState(recovery?.sessionId === session.id ? recovery.draft : session);
   const [picker, setPicker] = useState(false);
+  // Counts taps on a set's log button while paused; each one replays the paused pill's pulse.
+  const [pauseHint, setPauseHint] = useState(0);
   const [confirm, setConfirm] = useState<'finish' | 'discard' | 'restore' | null>(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
   const planUpdate = useFinishPlanUpdate(draft, confirm === 'finish', online, exercises);
@@ -210,15 +189,8 @@ export function Workout({
     restState?: SessionRest | null
   ): Promise<boolean> {
     const exercise = draft.exercises[ei];
-    const loadModel = exercise?.loadModel ?? 'external';
-    const resistanceMode = exercise?.sets[si]?.resistanceMode ?? 'bodyweight';
-    if (
-      'weightKg' in patch &&
-      (loadModel === 'bodyweight_context_only' ||
-        loadModel === 'reps_only' ||
-        (loadModel === 'full_bodyweight' && resistanceMode === 'bodyweight'))
-    )
-      return false;
+    // A bodyweight movement has no load: its name, not a per-set choice, decides that.
+    if ('weightKg' in patch && (!exercise || !loadIsEditable(exercise))) return false;
     const next = {
       ...draft,
       exercises: draft.exercises.map((e, i) =>
@@ -229,6 +201,12 @@ export function Workout({
   }
 
   async function toggle(ei: number, si: number) {
+    // Logging a set while the clock is stopped would count work that the elapsed time excludes.
+    // The refusal is shown by the set row and the paused pill, not by a message.
+    if (draft.pausedAt && !draft.exercises[ei].sets[si].done) {
+      setPauseHint(count => count + 1);
+      return false;
+    }
     const stored = draft.exercises[ei].sets[si];
     const timed = (stored.done ? null : stopStopwatch(stored.id)) || null;
     const set = timed === null ? stored : { ...stored, durationSeconds: timed };
@@ -404,6 +382,16 @@ export function Workout({
   const done = completedSets(draft).length;
   const unit = preferences.unit;
 
+  // The open exercise stays open when the order changes. A reorder is an exercise-list change, so
+  // offline it is refused by change() and the open exercise must not move either.
+  function moveExercise(from: number, to: number) {
+    const next = withExerciseMoved(draft, from, to);
+    if (next === draft) return;
+    const accepted = online && !finishIntentAt && !onlineFallback.hasPendingFinish();
+    void change(next);
+    if (accepted) selectExercise(indexAfterMove(activeIndex, from, to));
+  }
+
   function selectExercise(index: number) {
     setActiveIndex(index);
     void saveNavigation(accountId, draft.id, { activeIndex: index }).catch(() => undefined);
@@ -432,8 +420,8 @@ export function Workout({
   // The Android notification shows the next set once the phone is unlocked.
   useEffect(() => { restTimer.setNextUp(draft.id, nextUp); }, [draft.id, nextUp]);
 
-  return (
-    <Modal title={draft.name} onClose={onClose} wide headless className={continues ? 'workout-sheet workout-sheet-continued' : 'workout-sheet'}>
+  const content = (
+    <>
       <WorkoutTopBar
         name={draft.name}
         syncMessage={finishIntentAt
@@ -444,7 +432,7 @@ export function Workout({
         finishDisabled={busy || Boolean(finishIntentAt) || recoveryConflict}
         hasDetails={hasWorkoutDetails(draft)}
         canRestore={Boolean(draft.templateId)}
-        restoreDisabled={busy || !online || paused || Boolean(finishIntentAt) || recoveryConflict}
+        restoreDisabled={busy || !online || Boolean(finishIntentAt) || recoveryConflict}
         onRestore={() => setConfirm('restore')}
         onFinish={requestFinish}
         onDetails={() => setDetailsOpen(true)}
@@ -454,6 +442,7 @@ export function Workout({
         done={done}
         planned={planned}
         paused={paused}
+        pauseHint={pauseHint}
         pauseDisabled={busy || Boolean(finishIntentAt) || recoveryConflict}
         onClose={onClose}
         onTogglePause={() => void togglePause()}
@@ -465,10 +454,10 @@ export function Workout({
       {recoveryConflict && recovery && <WorkoutRecoveryConflict recovery={recovery} online={online} onResolve={choice => void resolveConflict(choice)} />}
 
       <WorkoutEditor draft={draft} unit={unit} exercises={exercises} activeIndex={activeIndex} online={online}
-        paused={paused} finishIntentAt={finishIntentAt} recoveryConflict={recoveryConflict}
+        finishIntentAt={finishIntentAt} recoveryConflict={recoveryConflict}
         picker={picker} onPicker={open => { setPicker(open); if (open) loadCatalog(); }}
-        onAddExercise={() => online && !paused && !finishIntentAt ? (setPicker(true), loadCatalog()) : setError('Connect and resume before adding an exercise.')}
-        onChange={change} onEditSet={editSet} onToggleSet={toggle} onSelectExercise={selectExercise}
+        onAddExercise={() => online && !finishIntentAt ? (setPicker(true), loadCatalog()) : setError('Connect before adding an exercise.')}
+        onChange={change} onEditSet={editSet} onToggleSet={toggle} onSelectExercise={selectExercise} onMoveExercise={moveExercise}
         onSwap={swapExercise} onRestore={restoreExercise} onRemoveExercise={removeExercise} onCatalogChanged={onCatalogChanged} onCatalogNeeded={onCatalogNeeded} />
 
       <WorkoutFooter error={error} busy={busy || Boolean(finishIntentAt) || recoveryConflict}
@@ -489,6 +478,14 @@ export function Workout({
           onRestore={() => { setConfirm(null); void restoreWorkout(); }}
         />
       )}
+    </>
+  );
+
+  if (!wrapModal) return content;
+
+  return (
+    <Modal title={draft.name} onClose={onClose} wide headless className={continues ? 'workout-sheet workout-sheet-continued' : 'workout-sheet'}>
+      {content}
     </Modal>
   );
 }

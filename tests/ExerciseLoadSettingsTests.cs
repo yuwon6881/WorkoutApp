@@ -93,15 +93,15 @@ public sealed class ExerciseLoadSettingsTests
     }
 
     [Theory]
-    [InlineData(ResistanceModes.Added, 93)]
-    [InlineData(ResistanceModes.Assistance, 67)]
-    public async Task Bodyweight_logging_preserves_available_weights_instead_of_rounding_to_the_default(string mode, double systemLoad)
+    [InlineData("Weighted Pull-up", ResistanceModes.Added, 93)]
+    [InlineData("Assisted Pull-up", ResistanceModes.Assistance, 67)]
+    public async Task Bodyweight_logging_preserves_available_weights_instead_of_rounding_to_the_default(string name, string mode, double systemLoad)
     {
         await using var h = await Harness.Create();
         await h.SignIn();
-        await h.Seed(new SeedExercise("pull", "Pull-up", "Back", "Machine", "", null, 2.5, LoadModels.FullBodyweight));
+        await h.Seed(new SeedExercise("pull", name, "Back", "Machine", "", null, 2.5, LoadModels.FullBodyweight));
         var id = await h.ExerciseId("pull");
-        var template = await h.Templates.Create(Harness.Template("Pull", Harness.Exercise(id, "Pull-up", Harness.Set(8, 10))), null, 1, 0, default);
+        var template = await h.Templates.Create(Harness.Template("Pull", Harness.Exercise(id, name, Harness.Set(8, 10))), null, 1, 0, default);
         var session = await h.Workouts.Start(template.Id, null, default);
         var row = await h.Db.Workouts.SingleAsync(x => x.Id == session.Id);
         row.BodyWeightSnapshotJson = Json.Write(new BodyWeightSnapshot(80, null, null, null, 80, "scale", null, "test", null, DateTime.UtcNow));
@@ -114,5 +114,6 @@ public sealed class ExerciseLoadSettingsTests
             session.Revision, null), default);
         Assert.Equal(13, saved.Exercises.Single().Sets[0].WeightKg);
         Assert.Equal(systemLoad, saved.Exercises.Single().Sets[0].SystemLoadKg);
+        Assert.Equal(mode, saved.Exercises.Single().Sets[0].ResistanceMode);
     }
 }

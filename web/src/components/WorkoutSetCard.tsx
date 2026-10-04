@@ -7,8 +7,7 @@ import { effortPatch, effortValue, loadIsEditable, setNumberLabel } from '../lib
 import { Button } from './ui/Button';
 import { NumberStepper } from './ui/NumberStepper';
 import { RirChips } from './ui/RpeControl';
-import { Select } from './ui/Select';
-import { resistanceModeOptions } from './WorkoutSetRow';
+import { loadEntryFor, loadFieldName } from '../lib/resistanceVariant';
 import { PlateCalculator } from './PlateCalculator';
 import './WorkoutSetCard.css';
 
@@ -40,7 +39,11 @@ export function WorkoutSetCard({
   onRemoveSet: (si: number) => void;
 }) {
   const { label, warmup } = setNumberLabel(exercise, si);
-  const loadEditable = loadIsEditable(exercise, set);
+  const loadEditable = loadIsEditable(exercise);
+  const loadEntry = loadEntryFor(exercise);
+  const loadLabel = loadEntry === 'bodyweight' ? 'Bodyweight'
+    : loadEntry === 'assistance' ? `Assistance (${unit}, more is easier)`
+    : `${loadEntry === 'added' ? 'Added load' : 'Load'} (${unit})`;
   const displayStep = toDisplay(loadStepKg, unit) ?? loadStepKg;
   const partialTechnique = plan ? partialTechniqueLabel(plan) : null;
   const [platesOpen, setPlatesOpen] = useState(false);
@@ -78,7 +81,7 @@ export function WorkoutSetCard({
       <div className="set-card-inputs">
         <div className="set-card-field">
           <span className="set-card-label-row">
-            <span className="set-card-label" aria-hidden="true">{loadEditable ? `Load (${unit})` : 'Load'}</span>
+            <span className="set-card-label" aria-hidden="true">{loadLabel}</span>
             {barbell && loadEditable && (
               <Button variant="tertiary" className="set-card-plates" onClick={() => setPlatesOpen(true)}>
                 <Disc3 size={15} aria-hidden="true" />Plates
@@ -87,25 +90,16 @@ export function WorkoutSetCard({
           </span>
           <NumberStepper
             name={`weight-${exercise.id}-${si}`}
-            ariaLabel={`${exercise.name} set ${si + 1} weight`}
+            ariaLabel={`${exercise.name} set ${si + 1} ${loadFieldName(loadEntry)}`}
             unit={unit}
-            value={toDisplay(set.weightKg, unit)}
+            value={loadEditable ? toDisplay(set.weightKg, unit) : null}
             step={displayStep}
             decimals={unit === 'lb' ? 1 : 2}
             max={unit === 'lb' ? 2200 : 1000}
             disabled={!loadEditable}
-            placeholder={loadEditable ? '—' : 'BW'}
+            placeholder="—"
             onChange={value => editSet(ei, si, { weightKg: value === null ? null : toKg(value, unit) })}
           />
-          {(exercise.loadModel ?? 'external') === 'full_bodyweight' && (
-            <Select
-              className="mode-mini-select"
-              ariaLabel="Resistance mode"
-              value={set.resistanceMode ?? 'bodyweight'}
-              options={resistanceModeOptions}
-              onChange={value => editSet(ei, si, { resistanceMode: value })}
-            />
-          )}
         </div>
         <div className="set-card-field">
           <span className="set-card-label" aria-hidden="true">Reps</span>

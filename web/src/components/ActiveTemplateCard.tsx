@@ -26,7 +26,7 @@ export function ActiveTemplateCard({ template, onStart, onEdit, hasActiveWorkout
   return <section {...dragProps} className={`panel slot-card template-slot-card ${finished ? 'slot-card-finished' : ''} ${moving ? 'slot-card-moving' : ''}`}
     aria-busy={actions.busy}>
     <SlotCardHeader title={template.name} meta={meta}
-      badge={<span className={`tiny-label ${finished ? 'slot-finished-label' : 'accent'}`}>{finished ? 'Finished' : 'Active'}</span>}
+      badge={finished ? <span className="tiny-label slot-finished-label">Finished</span> : undefined}
       menuLabel={`Actions for ${template.name}`}
       menu={<>
         <MenuItem disabled={actions.busy} onClick={actions.onMoveToLibrary}><Library size={14} />Move to library</MenuItem>

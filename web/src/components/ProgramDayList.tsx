@@ -111,13 +111,10 @@ export function ProgramDayList({
     moveDayTo(state.lineId, insertAt);
   }, [days, moveDayTo, setDrag]);
 
-  const lastUnsavedLineId = useRef<string | null>(null);
   const lastScrollTop = useRef<number>(0);
 
   const closeModal = useCallback(() => {
     if (unsaved.current.size > 0 && openDay) {
-      const keys = Array.from(unsaved.current.keys());
-      lastUnsavedLineId.current = keys[keys.length - 1] ?? null;
       const modalBody = document.querySelector('.day-detail-modal-body');
       if (modalBody) {
         lastScrollTop.current = modalBody.scrollTop;
@@ -129,20 +126,12 @@ export function ProgramDayList({
     setSelectedMuscle(null);
   }, [openDay, setOpenDay]);
 
+  // The day dialog never closed, so keeping on editing returns to exactly where the lifter was.
   const handleKeepEditing = useCallback(() => {
     setDiscardPrompt(null);
     requestAnimationFrame(() => {
-      if (lastUnsavedLineId.current) {
-        const target = document.querySelector(`[data-exercise-line="${lastUnsavedLineId.current}"]`);
-        if (target) {
-          target.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-          return;
-        }
-      }
       const modalBody = document.querySelector('.day-detail-modal-body');
-      if (modalBody && lastScrollTop.current > 0) {
-        modalBody.scrollTop = lastScrollTop.current;
-      }
+      if (modalBody) modalBody.scrollTop = lastScrollTop.current;
     });
   }, []);
 
