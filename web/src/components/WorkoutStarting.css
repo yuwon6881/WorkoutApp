@@ -8,13 +8,15 @@
   align-content: center;
 }
 
+/* Matches .workout-top-title: a long name wraps rather than hiding behind an ellipsis. */
 .workout-starting-title h2 {
+  max-width: 100%;
   margin: 0;
-  overflow: hidden;
-  font-size: 17px;
-  font-weight: 650;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
+  color: var(--text);
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.25;
 }
 
 .workout-starting-status {

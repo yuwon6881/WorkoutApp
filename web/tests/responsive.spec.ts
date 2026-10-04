@@ -369,7 +369,9 @@ for (const theme of ['dark', 'light']) {
     }));
     expect(dayFit, 'calendar days retain touch targets within a horizontal rail').toBe(true);
     const rail = calendar.locator('.calendar-week-rail');
-    await expect(calendar.getByRole('button', { name: 'Return to this week', includeHidden: true })).toBeDisabled();
+    // Return to this week appears only once the rail has left the current week.
+    const reset = calendar.getByRole('button', { name: 'Return to this week' });
+    await expect(reset).toHaveCount(0);
     if (page.viewportSize()!.width >= 1024) {
       await expect(calendar.getByRole('button', { name: 'Previous week' })).toBeVisible();
       await calendar.getByRole('button', { name: 'Previous week' }).click();
@@ -378,13 +380,13 @@ for (const theme of ['dark', 'light']) {
       await expect(calendar.getByRole('button', { name: 'Next week' })).toBeHidden();
       await rail.evaluate(element => { element.scrollLeft = 0; });
     }
-    await expect(calendar.getByRole('button', { name: 'Return to this week', includeHidden: true })).toBeEnabled();
-    await calendar.getByRole('button', { name: 'Return to this week', includeHidden: true }).click();
-    await expect(calendar.getByRole('button', { name: 'Return to this week', includeHidden: true })).toBeDisabled();
+    await expect(reset).toBeVisible();
+    await reset.click();
+    await expect(reset).toHaveCount(0);
     await rail.focus();
     await page.keyboard.press('ArrowRight');
-    await expect(calendar.getByRole('button', { name: 'Return to this week', includeHidden: true })).toBeEnabled();
-    await calendar.getByRole('button', { name: 'Return to this week', includeHidden: true }).click();
+    await expect(reset).toBeVisible();
+    await reset.click();
 
     await navigate(page, 'Workouts');
     await expect(page.getByRole('heading', { name: 'Workouts', exact: true })).toBeVisible();

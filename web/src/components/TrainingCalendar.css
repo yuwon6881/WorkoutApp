@@ -112,10 +112,10 @@
   display: inline-flex !important;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  min-width: 32px;
-  height: 32px;
-  min-height: 32px;
+  width: 36px;
+  min-width: 36px;
+  height: 36px;
+  min-height: 36px;
   padding: 0;
   border-radius: 6px;
   color: var(--muted);
@@ -163,7 +163,7 @@
 
 .calendar-days-grid {
   display: grid;
-  grid-template-columns: repeat(7, minmax(0, 1fr));
+  grid-template-columns: repeat(7, minmax(44px, 1fr));
   gap: 8px;
   flex: 0 0 100%;
   min-width: 0;
@@ -178,7 +178,7 @@
   align-items: center;
   justify-content: center;
   gap: 6px;
-  min-width: 0;
+  min-width: 44px;
   min-height: 84px;
   border: 1px solid var(--border);
   border-radius: 12px;
@@ -203,7 +203,7 @@
 
 .day-weekday {
   color: var(--muted);
-  font-size: var(--font-micro, 12px);
+  font-size: 14px;
   font-weight: 550;
   text-transform: uppercase;
   letter-spacing: 0.04em;
@@ -334,17 +334,16 @@
     flex: 1;
     justify-content: space-between;
   }
+  /* Seven 44 px targets need 316 px; on the narrowest phones the rail scrolls rather than
+     shrinking a day below a usable target. */
   .calendar-days-grid {
-    gap: 4px;
-    min-width: 0;
+    gap: 0;
+    min-width: 316px;
   }
   .calendar-day-cell {
     min-height: 74px;
     padding: 8px 2px;
     border-radius: 10px;
-  }
-  .day-weekday {
-    font-size: 11px;
   }
   .day-number {
     font-size: 16px;
@@ -365,5 +364,8 @@
 @media (max-width: 1023px) {
   .calendar-nav-btn {
     display: none !important;
+  }
+  .calendar-today-btn {
+    min-height: 44px;
   }
 }
