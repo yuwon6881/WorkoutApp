@@ -43,6 +43,12 @@ export function AppLoading() {
             <Skeleton className="skeleton-hero-button" />
           </section>
 
+          <section className="panel app-loading-program-week" aria-hidden="true">
+            <Skeleton className="skeleton-section-title" />
+            <Skeleton className="skeleton-week-ring" />
+            <Skeleton className="skeleton-subtitle" />
+          </section>
+
           <section className="panel training-calendar-card" aria-hidden="true">
             <div className="app-loading-week-summary">
               <Skeleton className="skeleton-week-ring" />

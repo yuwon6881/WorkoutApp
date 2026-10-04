@@ -27,7 +27,7 @@ export function WorkoutExerciseStrip({
   // Phones scroll the strip by touch; wider layouts also get arrows for a mouse.
   const arrows = useWindowTier() !== 'compact';
   const [edges, setEdges] = useState({ start: true, end: true });
-  const { drag, itemProps, stripProps } = useStripReorder({ scrollerRef, count: exercises.length, onMove });
+  const { drag, pressingIndex, itemProps, stripProps } = useStripReorder({ scrollerRef, count: exercises.length, onMove });
 
   const measure = useCallback(() => {
     const scroller = scrollerRef.current;
@@ -75,7 +75,7 @@ export function WorkoutExerciseStrip({
         </Button>
       )}
       <span id="workout-strip-reorder-hint" className="sr-only">Press and hold, then drag to reorder, or use Alt with the arrow keys.</span>
-      <div className="workout-exercise-strip" role="tablist" ref={scrollerRef} onScroll={arrows ? measure : undefined} {...stripProps}>
+      <div className={`workout-exercise-strip ${drag ? 'reordering' : ''}`.trim()} role="tablist" ref={scrollerRef} onScroll={arrows ? measure : undefined} {...stripProps}>
         {previewOrder(exercises.length, drag).map((index, shownAt) => {
           const exercise = exercises[index];
           const isSelected = index === activeIndex;
@@ -84,6 +84,8 @@ export function WorkoutExerciseStrip({
           const doneCount = counted.filter(s => s.done).length;
           const completed = counted.length > 0 && doneCount === counted.length;
           const progress = counted.length ? doneCount / counted.length : 0;
+          const isHeld = drag?.from === index;
+          const isPressing = pressingIndex === index && !isHeld;
 
           return (
             <Button
@@ -93,7 +95,7 @@ export function WorkoutExerciseStrip({
               aria-selected={isSelected}
               aria-label={`${exercise.name}, ${doneCount} of ${counted.length} sets completed`}
               aria-describedby={exercises.length > 1 ? 'workout-strip-reorder-hint' : undefined}
-              className={`workout-strip-item ${isSelected ? 'active' : ''} ${completed ? 'completed' : ''} ${drag?.from === index ? 'held' : ''}`}
+              className={`workout-strip-item ${isSelected ? 'active' : ''} ${completed ? 'completed' : ''} ${isHeld ? 'held' : ''} ${isPressing ? 'pressing' : ''}`.trim()}
               {...itemProps(index)}
               onClick={() => onSelect(index)}
             >

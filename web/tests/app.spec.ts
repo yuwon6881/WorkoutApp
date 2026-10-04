@@ -423,8 +423,9 @@ test('build a workout, log a set against the server, and see it in history', asy
   await logger.getByRole('spinbutton', { name: 'Barbell bench press set 1 reps', exact: true }).fill('8');
   await logger.getByRole('spinbutton', { name: 'Barbell bench press set 1 reps', exact: true }).click();
   const entry = page.getByRole('dialog', { name: 'Reps & RIR', exact: true });
+  // Choosing the effort saves the reps with it and closes the sheet.
   await entry.getByRole('radio', { name: '2 RIR, 2 reps in reserve', exact: true }).click();
-  await entry.getByRole('button', { name: 'Done', exact: true }).click();
+  await expect(entry).toBeHidden();
   await expect(logged).toHaveAttribute('aria-pressed', 'true');
   // A completed set has to read as finished, not just change a label.
   await expect(logger.locator('.workout-set-row.done')).toHaveCount(1);

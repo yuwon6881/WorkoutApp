@@ -6,11 +6,7 @@
 .program-muscle-tile.is-selected{border-color:var(--accent-border-strong);background:var(--accent-soft)}
 .program-muscle-tile.is-selected:hover{border-color:var(--accent)}
 .program-muscle-tile:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
-.program-muscle-figure{display:block;width:76px;height:64px;overflow:hidden;pointer-events:none}
-.program-muscle-part,.program-muscle-region{fill:color-mix(in srgb,var(--muted) 42%,var(--surface));stroke:var(--surface-raised);stroke-width:1.6;stroke-linejoin:round}
-/* The day's other trained muscles stay visible around the focus at 40% of their own depth. */
-.program-muscle-region.is-context{fill:color-mix(in srgb,var(--accent) calc(var(--muscle-shade,35%) * .4),color-mix(in srgb,var(--muted) 42%,var(--surface)))}
-.program-muscle-region.is-highlighted{fill:color-mix(in srgb,var(--accent) var(--muscle-shade,35%),color-mix(in srgb,var(--muted) 42%,var(--surface)))}
+.program-muscle-figure{width:76px;height:64px}
 .program-muscle-copy{display:grid;gap:4px;min-width:0}
 .program-muscle-copy>strong{font-size:14px;font-weight:600;line-height:1.25;overflow-wrap:anywhere}
 .program-muscle-copy>span{color:var(--muted);font-size:14px;line-height:1.35;font-variant-numeric:tabular-nums}

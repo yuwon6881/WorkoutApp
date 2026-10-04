@@ -3,7 +3,10 @@ import { ArrowRight, Check, ChevronLeft, ChevronRight, RotateCcw } from 'lucide-
 import type { HistoryPage, ProgramSummary, Session, WorkoutActivityItem } from '../types';
 import { api } from '../lib/api';
 import { weekDays } from '../lib/training';
-import { programWeekCompletion } from '../lib/programWeekCompletion';
+import { useWindowTier } from '../lib/breakpoints';
+import { loadSessionDetail } from '../lib/sessionDetailLoad';
+import { prefetchView } from '../app/lazyViews';
+import { ProgramWeekCompletion } from './ProgramWeekCompletion';
 import { Button } from './ui/Button';
 import { Modal } from './ui/Modal';
 import './TrainingCalendar.css';
@@ -99,28 +102,13 @@ export function TrainingCalendar({ onSession, program, refreshKey, activeWorkout
 
   const completed = calendar.filter(item => item.status === 'completed' &&
     item.date >= localDay(days[0]) && item.date <= localDay(days[6]));
-  const completion = programWeekCompletion(program);
+  const compact = useWindowTier() === 'compact';
 
-  return (
+  return (<>
+    {compact && <ProgramWeekCompletion program={program} standalone />}
     <section className="panel training-calendar-card" aria-label="Training calendar">
       <div className="calendar-card-header">
-        <div className="calendar-completion">
-          <svg className="weekly-completion-ring" viewBox="0 0 100 100" role="img"
-            aria-label={completion ? `${completion.completed} of ${completion.total} workouts completed in program week ${completion.week}` : 'Weekly completion: no active program'}>
-            <circle className="completion-track" cx="50" cy="50" r="42" />
-            {completion && completion.ratio > 0 && <circle className="completion-fill" cx="50" cy="50" r="42"
-              pathLength="100" strokeDasharray={`${completion.ratio * 100} 100`} transform="rotate(-90 50 50)" />}
-            <text x="50" y="55" textAnchor="middle">{completion?.total ? completion.completed : '\u2014'}
-              {completion && completion.total > 0 && <tspan className="completion-total"> / {completion.total}</tspan>}</text>
-          </svg>
-          <div className="calendar-title-wrap">
-            <h3>{completion ? `Program week ${completion.week}` : 'Your training week'}</h3>
-            <span className="calendar-ring-caption">
-              {completion ? (completion.total ? `${completion.completed} of ${completion.total} workouts completed` : 'Rest week') : 'No active program'}
-              {program && ` · ${program.name}`}
-            </span>
-          </div>
-        </div>
+        {!compact && <ProgramWeekCompletion program={program} />}
 
         <div className="calendar-nav-controls">
           {offset !== 0 && (
@@ -195,6 +183,7 @@ export function TrainingCalendar({ onSession, program, refreshKey, activeWorkout
                     className={`calendar-day-cell day-${status} ${isToday ? 'today is-today' : ''}`}
                     aria-label={`${day.toDateString()}, ${label}${isToday ? ', today' : ''}`}
                     onClick={() => {
+                      if (entries.some(entry => entry.status === 'completed')) prefetchView('sessionDetail');
                       setSelectedDay(day);
                       setSelectedDayError('');
                     }}
@@ -254,7 +243,7 @@ export function TrainingCalendar({ onSession, program, refreshKey, activeWorkout
           onClose={() => setSelectedDay(null)}
           onSession={async id => {
             try {
-              const session = await api.getWorkout(id);
+              const session = await loadSessionDetail(id);
               setSelectedDay(null);
               onSession(session);
             } catch {
@@ -265,7 +254,7 @@ export function TrainingCalendar({ onSession, program, refreshKey, activeWorkout
         />
       )}
     </section>
-  );
+  </>);
 }
 
 function CalendarDayModal({

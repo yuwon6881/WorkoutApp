@@ -116,6 +116,16 @@ export default function App() {
     media?.addEventListener('change', sync);
     return () => media?.removeEventListener('change', sync);
   }, [data?.preferences.theme, signedOut]);
+  // A session summary credits muscles from the exercise library, which Overview does not load.
+  const [detailCatalogSettled, setDetailCatalogSettled] = useState(false);
+  useEffect(() => {
+    if (!detail || data?.resources?.catalog) return;
+    let current = true;
+    setDetailCatalogSettled(false);
+    void app.ensureResources(['catalog']).finally(() => { if (current) setDetailCatalogSettled(true); });
+    return () => { current = false; };
+  }, [detail?.id, data?.account.id]);
+  const detailCatalogLoading = Boolean(detail) && !data?.resources?.catalog && !detailCatalogSettled;
   const restState = useShellRestTimer({ data, recovery, recoverySession, devicePreferences: app.devicePreferences, setToast });
   useEffect(() => {
     if (recovery && (!data || data.account.id === recovery.accountId) &&
@@ -435,7 +445,8 @@ export default function App() {
     )}
 
     <Suspense fallback={null}>
-    {detail && <SessionDetail session={detail} preferences={data.preferences} exercises={data.exercises} justFinished={detail.id === finishedId}
+    {detail && <SessionDetail session={detail} preferences={data.preferences} exercises={data.exercises}
+      catalogLoading={detailCatalogLoading} justFinished={detail.id === finishedId}
       onClose={() => { setDetail(null); setFinishedId(null); }} />}
     {exerciseDetail && <ExerciseDetailModal exercise={exerciseDetail} unit={data.preferences.unit} onClose={() => setExerciseDetail(null)} onChanged={async () => { await app.reload(); }}
       onSession={session => { setExerciseDetail(null); setDetail(session); }} />}

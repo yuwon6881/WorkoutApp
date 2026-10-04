@@ -1,14 +1,26 @@
-/* Finished-workout summary. Phone first: the result reads at a glance, then the sets follow. */
+/* Finished-workout summary. Phone first: the result reads at a glance, the muscles it trained
+   scroll sideways beneath it, then each exercise lists its sets. */
 
 .session-summary {
   display: grid;
-  gap: 16px;
+  gap: 22px;
 }
 
+/* Result card: when it happened, then the four figures that sum it up. */
 .session-summary-hero {
+  display: grid;
+  gap: 16px;
+  padding: 18px;
+  border: 1px solid var(--accent-border);
+  border-radius: var(--radius);
+  background: linear-gradient(160deg, color-mix(in srgb, var(--accent) 9%, var(--surface)), var(--surface) 72%);
+}
+
+.session-summary-top {
   display: flex;
   align-items: center;
   gap: 14px;
+  min-width: 0;
 }
 
 .session-summary-icon {
@@ -32,8 +44,9 @@
 .session-summary-kicker {
   margin: 0;
   color: var(--accent);
-  font-size: 16px;
+  font-size: 18px;
   font-weight: 700;
+  letter-spacing: -0.015em;
   line-height: 1.3;
 }
 
@@ -44,45 +57,35 @@
   line-height: 1.4;
 }
 
-.session-summary-pr {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin: 0;
-  padding: 10px 12px;
-  border: 1px solid var(--accent-border);
-  border-radius: var(--radius-control);
-  background: var(--accent-soft);
-  color: var(--accent);
-  font-size: var(--font-secondary);
-  font-weight: 650;
-}
-
 .session-summary-stats {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 8px;
   margin: 0;
 }
 
 .session-summary-stats > div {
   display: grid;
-  gap: 4px;
+  align-content: start;
+  gap: 6px;
   min-width: 0;
   padding: 12px 14px;
   border: 1px solid var(--border);
   border-radius: var(--radius-control);
-  background: var(--surface-raised);
+  background: var(--surface);
 }
 
 .session-summary-stats dt {
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  min-width: 0;
   color: var(--muted);
   font-size: var(--font-secondary);
   white-space: nowrap;
 }
+
+.session-summary-stats dt svg { flex: 0 0 auto; }
 
 .session-summary-stats dd {
   display: flex;
@@ -90,10 +93,11 @@
   gap: 4px;
   margin: 0;
   color: var(--text);
-  font-size: 20px;
+  font-size: 22px;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
-  letter-spacing: -0.01em;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
   overflow-wrap: anywhere;
 }
 
@@ -101,32 +105,245 @@
   color: var(--muted);
   font-size: var(--font-secondary);
   font-weight: 500;
+  letter-spacing: 0;
 }
 
-.session-summary-exercises {
+.session-summary-stats > .has-records {
+  border-color: var(--accent-border);
+  background: var(--accent-soft);
+}
+
+.session-summary-stats > .has-records dt,
+.session-summary-stats > .has-records dd { color: var(--accent); }
+
+/* Section headings shared by the muscles and exercises. */
+.session-section {
   display: grid;
   gap: 10px;
+  min-width: 0;
 }
 
-.session-summary-exercise {
+.session-section-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 36px;
+}
+
+.session-section-heading h3 {
+  margin: 0;
+  color: var(--text);
+  font-size: 16px;
+  font-weight: 650;
+}
+
+.session-section-count {
+  display: inline-grid;
+  min-width: 28px;
+  height: 24px;
+  place-items: center;
+  padding: 0 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  color: var(--muted);
+  font-size: var(--font-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.session-section-empty,
+.session-section-note,
+.session-summary-skipped {
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--font-secondary);
+  line-height: 1.5;
+}
+
+.session-section-empty {
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  background: var(--surface-raised);
+}
+
+/* Muscles worked: a sideways row of body-map crops, busiest first. The edges fade only while more
+   tiles wait beyond them. */
+.session-muscles-arrows {
+  display: none;
+  gap: 4px;
+}
+
+.session-muscles-arrow {
+  width: 36px;
+  min-width: 36px;
+  height: 36px;
+  min-height: 36px;
+  padding: 0;
+  color: var(--muted);
+}
+
+.session-muscle-scroller {
+  position: relative;
+  min-width: 0;
+}
+
+.session-muscle-scroller::before,
+.session-muscle-scroller::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 8px;
+  z-index: 1;
+  width: 28px;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity var(--motion-control) var(--motion-ease);
+}
+
+.session-muscle-scroller::before {
+  left: 0;
+  background: linear-gradient(90deg, var(--surface), transparent);
+}
+
+.session-muscle-scroller::after {
+  right: 0;
+  background: linear-gradient(270deg, var(--surface), transparent);
+}
+
+.session-muscle-scroller.fade-start::before,
+.session-muscle-scroller.fade-end::after { opacity: 1; }
+
+.session-muscle-rail {
+  display: flex;
+  gap: 10px;
+  min-width: 0;
+  margin: 0;
+  padding: 0 0 8px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x proximity;
+  scroll-padding-inline: 2px;
+  list-style: none;
+}
+
+.session-muscle-rail:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: var(--radius-control);
+}
+
+.session-muscle-tile {
+  --muscle-thumb-gap: var(--surface-raised);
+  display: grid;
+  flex: 0 0 132px;
+  justify-items: center;
+  align-content: start;
+  gap: 4px;
+  min-width: 0;
+  padding: 10px 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface-raised);
+  scroll-snap-align: start;
+  text-align: center;
+}
+
+.session-muscle-figure {
+  width: 104px;
+  height: 96px;
+  margin-bottom: 4px;
+}
+
+.session-muscle-tile > strong {
+  max-width: 100%;
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 650;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+
+.session-muscle-tile > span {
+  color: var(--muted);
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+}
+
+.session-muscle-rail.is-loading { overflow: hidden; }
+.session-muscle-tile.skeleton { height: 166px; border-color: transparent; }
+
+/* Exercises: each card names the movement and its working-set count, then lists the logged sets. */
+.session-exercises {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.session-exercise {
+  min-width: 0;
   padding: 12px 14px;
   border: 1px solid var(--border);
   border-radius: var(--radius-control);
   background: var(--surface);
 }
 
-.session-summary-exercise .detail-exercise-header {
-  display: flex;
-  flex-wrap: wrap;
+.session-exercise-skeleton {
+  height: 132px;
+  border-color: transparent;
+}
+
+/* The record badge takes its own line under the name, so a long badge never squeezes the name. */
+.session-exercise-header {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr);
   align-items: center;
-  justify-content: space-between;
-  gap: 8px;
+  gap: 6px 10px;
   margin-bottom: 8px;
 }
 
-.session-summary-exercise h3 {
+.session-exercise-header > .pr-exercise-badge {
+  grid-column: 2;
+  justify-self: start;
+  max-width: 100%;
+  white-space: normal;
+  line-height: 1.35;
+}
+
+.session-exercise-order {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--surface-raised);
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+
+.session-exercise-title {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.session-exercise-title h4 {
   margin: 0;
+  color: var(--text);
   font-size: 15px;
+  font-weight: 650;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+
+.session-exercise-title > span {
+  color: var(--muted);
+  font-size: var(--font-secondary);
 }
 
 .session-summary-sets {
@@ -141,16 +358,18 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  min-height: 36px;
+  min-height: 38px;
   padding: 6px 10px;
   border-radius: 8px;
   font-variant-numeric: tabular-nums;
 }
 
+.session-summary-sets > li:nth-child(odd) { background: var(--surface-raised); }
 .session-summary-sets > li.pr-set-row { background: var(--accent-soft); }
+.session-summary-sets > li.is-warmup .session-set-target strong { color: var(--muted); font-weight: 550; }
 
 .session-set-label {
-  flex: 0 0 74px;
+  flex: 0 0 78px;
   color: var(--muted);
   font-size: var(--font-secondary);
 }
@@ -166,13 +385,8 @@
   margin-left: auto;
 }
 
-.session-summary-sets > li > .pr-set-tag {
-  margin-left: auto;
-}
-
-.session-set-effort + .pr-set-tag {
-  margin-left: 0;
-}
+.session-summary-sets > li > .pr-set-tag { margin-left: auto; }
+.session-set-effort + .pr-set-tag { margin-left: 0; }
 
 .session-summary-note {
   margin: 10px 0 0;
@@ -184,12 +398,6 @@
   line-height: 1.5;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
-}
-
-.session-summary-skipped {
-  margin: 0;
-  color: var(--muted);
-  font-size: var(--font-secondary);
 }
 
 /* Straight after Finish, the result lands with one small flourish. Reduced motion removes it. */
@@ -211,6 +419,23 @@
     session-glow 900ms 240ms var(--motion-ease);
 }
 
+/* Pointer-and-keyboard layouts page the strip with arrows; touch layouts swipe it. */
+@media (min-width: 1024px) {
+  .session-muscles-arrows { display: inline-flex; }
+}
+
+@media (max-width: 639px) {
+  .session-summary { gap: 18px; }
+  .session-summary-hero { padding: 14px; gap: 14px; }
+  .session-summary-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .session-summary-stats > div { padding: 10px 12px; }
+  .session-summary-stats dd { font-size: 20px; }
+  .session-muscle-tile { flex-basis: 116px; }
+  .session-muscle-figure { width: 92px; height: 85px; }
+  .session-exercise { padding: 12px; }
+  .session-summary-sets > li { padding: 6px 8px; gap: 10px; }
+}
+
 /* The narrowest phones: the set label takes its own line so load, effort and the PR tag keep
    their full width instead of squeezing four columns into 320 px. */
 @media (max-width: 360px) {
@@ -221,4 +446,9 @@
   .session-set-label {
     flex: 1 0 100%;
   }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .session-muscle-scroller::before,
+  .session-muscle-scroller::after { transition: none; }
 }

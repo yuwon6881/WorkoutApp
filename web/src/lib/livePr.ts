@@ -100,17 +100,22 @@ export function newBestAfterLogging(exercise: SessionExercise, setIndex: number)
   return pr && (pr.kind === 'e1rm' || pr.kind === 'both') ? pr.e1rm : null;
 }
 
+/// An estimate, so one decimal place is all it carries; the stored value keeps full precision.
+function showEstimate(kg: number, unit: Unit): number {
+  return Math.round((toDisplay(kg, unit) ?? 0) * 10) / 10;
+}
+
 export function formatExercisePrBadge(exercise: SessionExercise, unit: Unit): string {
   if (exercise.prKind === 'reps') {
     return `Rep best${exercise.prReps != null ? ` · ${exercise.prReps} reps` : ''}`;
   }
   if (exercise.prKind === 'e1rm') {
-    return `Estimated strength best${exercise.prE1rmKg != null ? ` · ${toDisplay(exercise.prE1rmKg, unit)} ${unit} e1RM` : ''}`;
+    return `Estimated strength best${exercise.prE1rmKg != null ? ` · ${showEstimate(exercise.prE1rmKg, unit)} ${unit} e1RM` : ''}`;
   }
   if (exercise.prKind === 'both') {
-    return `Strength & rep best${exercise.prE1rmKg != null ? ` · ${toDisplay(exercise.prE1rmKg, unit)} ${unit} e1RM` : ''}${exercise.prReps != null ? ` · ${exercise.prReps} reps` : ''}`;
+    return `Strength & rep best${exercise.prE1rmKg != null ? ` · ${showEstimate(exercise.prE1rmKg, unit)} ${unit} e1RM` : ''}${exercise.prReps != null ? ` · ${exercise.prReps} reps` : ''}`;
   }
-  return `PR${exercise.prE1rmKg != null ? ` · ${toDisplay(exercise.prE1rmKg, unit)} ${unit} e1RM` : ''}`;
+  return `PR${exercise.prE1rmKg != null ? ` · ${showEstimate(exercise.prE1rmKg, unit)} ${unit} e1RM` : ''}`;
 }
 
 export function formatSetPrTag(set: LoggedSet): string {

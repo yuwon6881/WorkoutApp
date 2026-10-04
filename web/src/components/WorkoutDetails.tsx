@@ -4,6 +4,7 @@ import { showVolume, showWeight } from '../lib/training';
 import { getProgressionSummary } from '../lib/progressionSummary';
 import { Modal } from './ui/Modal';
 import { WorkoutElapsed } from './WorkoutElapsed';
+import './WorkoutDetails.css';
 
 /// What the workout is based on and has lifted so far. It sits behind the workout's options menu
 /// because none of it is needed between sets, and a row of figures cost the sets room to breathe.

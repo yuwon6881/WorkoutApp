@@ -44,6 +44,7 @@ export function useStripReorder({
   onMove: (from: number, to: number) => void;
 }) {
   const [drag, setDrag] = useState<StripDrag | null>(null);
+  const [pressingIndex, setPressingIndex] = useState<number | null>(null);
   const press = useRef<Press | null>(null);
   const suppressClick = useRef(false);
 
@@ -61,6 +62,7 @@ export function useStripReorder({
   function release() {
     if (press.current?.timer) window.clearTimeout(press.current.timer);
     press.current = null;
+    setPressingIndex(null);
     setDrag(null);
   }
 
@@ -88,6 +90,7 @@ export function useStripReorder({
     pending.centres = centres();
     try { scrollerRef.current?.setPointerCapture(pending.pointerId); } catch { /* pointer left */ }
     haptic('tick');
+    setPressingIndex(null);
     setDrag({ from: pending.index, to: pending.index });
   }
 
@@ -146,6 +149,7 @@ export function useStripReorder({
         if (count < 2 || (event.pointerType === 'mouse' && event.button !== 0)) return;
         release();
         suppressClick.current = false;
+        setPressingIndex(index);
         const pending: Press = {
           index, pointerId: event.pointerId, pointerType: event.pointerType, x: event.clientX, y: event.clientY, active: false, centres: [],
           timer: window.setTimeout(() => {
@@ -178,5 +182,5 @@ export function useStripReorder({
     }
   };
 
-  return { drag, itemProps, stripProps };
+  return { drag, pressingIndex, itemProps, stripProps };
 }

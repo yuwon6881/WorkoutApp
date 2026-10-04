@@ -62,6 +62,14 @@
 .app-loading-week-summary { display: flex; align-items: center; gap: 16px; margin-bottom: 16px; }
 .skeleton-week-ring { width: 88px; height: 88px; flex: none; border-radius: 50% !important; }
 @media (max-width: 639px) { .skeleton-week-ring { width: 76px; height: 76px; } }
+/* Phones give the program week its own card above the calendar (components/ProgramWeekCompletion.tsx). */
+.app-loading-program-week { display: none; }
+@media (max-width: 639px) {
+  .app-loading .app-loading-program-week { display: grid; justify-items: center; gap: 10px; margin-bottom: 0; }
+  .app-loading-program-week .skeleton-section-title,
+  .app-loading-program-week .skeleton-subtitle { margin: 0; }
+  .app-loading .app-loading-week-summary { display: none; }
+}
 /* Reserve rows before the lazy calendar/stat styles arrive; otherwise seven days stack. */
 .app-loading .app-loading-week { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; margin-bottom: 20px; }
 .app-loading-week .skeleton-day { min-height: 64px; border-radius: 12px !important; }

@@ -258,15 +258,15 @@ for (const theme of ['dark', 'light']) {
     await checkLayout(page, 'reps and RIR keypad');
     await page.screenshot({ animations: 'disabled', path: join(screenshotsDirectory, 'responsive', `${info.project.name}-${theme}-reps-rir-keypad.png`) });
     await entry.getByRole('button', { name: '8', exact: true }).click();
+    // Choosing the effort saves the typed reps with it and closes the sheet.
     await entry.getByRole('radio', { name: '2 RIR, 2 reps in reserve', exact: true }).click();
-    await entry.getByRole('button', { name: 'Done', exact: true }).click();
     await expect(entry).toBeHidden();
     await expect(repsInput).toBeFocused();
     await expect(repsInput).toHaveValue('8');
     await expect(logger.locator('.reps-rir-badge').first()).toHaveText('2');
     await repsInput.click();
     await entry.getByRole('button', { name: '9', exact: true }).click();
-    await entry.getByRole('radio', { name: '1 RIR, 1 rep in reserve', exact: true }).click();
+    // Leaving without choosing an effort or pressing Done discards the typed reps.
     await page.keyboard.press('Escape');
     await expect(entry).toBeHidden();
     await expect(repsInput).toHaveValue('8');

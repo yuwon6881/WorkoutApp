@@ -32,6 +32,13 @@ export function RepsRirControl({ name, label, reps, rir, trackRir, onChange }: {
     close();
   };
 
+  const selectRir = (value: number | null) => {
+    if (!entry) return;
+    const finalReps = entry.text === '' ? null : Number(entry.text);
+    onChange(finalReps, value);
+    close();
+  };
+
   useEffect(() => {
     // The nested native dialog must release its focus lock before the input can receive focus.
     if (!entry && restoreFocus.current) {
@@ -72,7 +79,7 @@ export function RepsRirControl({ name, label, reps, rir, trackRir, onChange }: {
         {trackRir && <div className="reps-entry-effort">
           <span className="muted">Reps in reserve</span>
           <div className="reps-entry-effort-rail"><RirChips value={entry.rir} ariaLabel={`${label} RIR`}
-            onChange={value => setEntry(current => current ? { ...current, rir: value } : current)} /></div>
+            onChange={selectRir} /></div>
         </div>}
         <div className="reps-entry-keypad" role="group" aria-label="Numeric keypad">
           {[1, 2, 3, 4, 5, 6, 7, 8, 9].map(value => <Button key={value} variant="tertiary"

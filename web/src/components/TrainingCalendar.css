@@ -171,6 +171,8 @@
   padding: 2px;
 }
 
+/* A day is its weekday, its date in a disc, and a status mark. Today fills the disc with the
+   accent; a day with a finished workout tints it green. */
 .calendar-day-cell {
   position: relative;
   display: flex;
@@ -179,26 +181,24 @@
   justify-content: center;
   gap: 6px;
   min-width: 44px;
-  min-height: 84px;
-  border: 1px solid var(--border);
+  min-height: 88px;
+  border: 1px solid transparent;
   border-radius: 12px;
-  padding: 10px 4px;
-  background: var(--surface-raised);
+  padding: 8px 2px;
+  background: transparent;
   color: var(--text);
   cursor: pointer;
-  transition: all 0.16s ease;
+  transition: background-color var(--motion-control) var(--motion-ease), border-color var(--motion-control) var(--motion-ease);
 }
 .calendar-day-cell:hover {
   background: var(--surface-hover);
-  border-color: var(--border-hover);
 }
 .calendar-day-cell.is-today {
+  border-color: var(--accent-border);
   background: var(--accent-soft);
-  border-color: var(--accent-border-strong);
 }
-.calendar-day-cell.is-today .day-number {
+.calendar-day-cell.is-today .day-weekday {
   color: var(--accent);
-  font-weight: 750;
 }
 
 .day-weekday {
@@ -209,10 +209,26 @@
   letter-spacing: 0.04em;
 }
 .day-number {
-  font-size: 18px;
+  display: grid;
+  width: 36px;
+  height: 36px;
+  place-items: center;
+  border-radius: 50%;
+  font-size: 17px;
   font-weight: 650;
   font-variant-numeric: tabular-nums;
   line-height: 1;
+}
+.calendar-day-cell.day-completed .day-number {
+  background: color-mix(in srgb, var(--green) 16%, transparent);
+}
+.calendar-day-cell.day-in_progress .day-number {
+  box-shadow: inset 0 0 0 1.5px var(--accent);
+}
+.calendar-day-cell.is-today .day-number {
+  background: var(--accent);
+  color: var(--on-accent);
+  box-shadow: none;
 }
 
 .day-status-indicator {
@@ -230,7 +246,7 @@
   width: 20px;
   height: 20px;
   border-radius: 50%;
-  background: rgba(134, 239, 172, 0.12);
+  background: color-mix(in srgb, var(--green) 14%, transparent);
 }
 .day-status-disc.in-progress {
   color: var(--accent);
@@ -265,9 +281,9 @@
 
 .calendar-week-count {
   margin: 0;
-  color: var(--text);
-  font-size: var(--font-secondary, 13px);
-  font-weight: 550;
+  color: var(--muted);
+  font-size: var(--font-secondary, 14px);
+  font-weight: 400;
 }
 
 .calendar-legend-pills {
@@ -310,58 +326,76 @@
 }
 .calendar-entry strong { display: block; margin-bottom: 4px; }
 
+/* Phones: the program week is its own card above the calendar, one line each for the week, the
+   ring, the count, and the program. */
+.panel.program-week-card {
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  margin-bottom: 16px;
+  padding: 18px 16px 20px;
+  text-align: center;
+}
+.program-week-card-title {
+  margin: 0;
+  color: var(--text);
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+}
+.program-week-card .weekly-completion-ring {
+  width: 96px;
+  height: 96px;
+  flex: none;
+  margin: 6px 0 4px;
+}
+.program-week-card-progress {
+  margin: 0;
+  color: var(--text);
+  font-size: 15px;
+  font-weight: 550;
+  line-height: 1.4;
+}
+.program-week-card-name {
+  max-width: 100%;
+  margin: 0;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
 /* Responsive */
 @media (max-width: 639px) {
   .panel.training-calendar-card {
-    padding: 16px 14px;
+    padding: 14px 12px;
     margin-bottom: 20px;
-    gap: 14px;
-  }
-  .calendar-card-header {
-    flex-direction: column;
-    align-items: stretch;
     gap: 12px;
   }
-  .calendar-completion {
-    display: grid;
-    grid-template-areas:
-      "title title"
-      "ring caption";
-    grid-template-columns: auto 1fr;
-    gap: 8px 12px;
-    align-items: center;
-    width: 100%;
-  }
-  .calendar-title-wrap {
-    display: contents;
-  }
-  .calendar-title-wrap h3,
-  .calendar-title-wrap > :first-child {
-    grid-area: title;
-    font-size: 18px;
-    font-weight: 700;
-    margin: 0;
-  }
-  .weekly-completion-ring {
-    grid-area: ring;
-    width: 48px;
-    height: 48px;
-    flex: 0 0 48px;
-  }
-  .calendar-ring-caption,
-  .calendar-title-wrap > :not(:first-child) {
-    grid-area: caption;
+  /* The header holds only the month and, away from this week, the way back to it. */
+  .calendar-card-header {
+    flex-wrap: nowrap;
+    gap: 8px;
   }
   .calendar-nav-controls {
-    display: flex;
-    align-items: center;
-    justify-content: flex-end;
-    gap: 8px;
+    justify-content: space-between;
     width: 100%;
+    min-height: 44px;
   }
   .calendar-month-nav {
-    flex: 1;
-    justify-content: center;
+    flex: 1 1 auto;
+    min-width: 0;
+    padding: 0 4px;
+    border: 0;
+    background: transparent;
+  }
+  .calendar-month-label {
+    padding: 0;
+    color: var(--text);
+    font-size: 16px;
+    font-weight: 650;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
   .calendar-today-btn {
     flex: 0 0 auto;
@@ -370,30 +404,36 @@
     scroll-snap-type: none;
     -webkit-overflow-scrolling: touch;
   }
+  /* All seven days share the width; each keeps a 44 px target, so only the narrowest phones
+     scroll the last day in. */
   .calendar-days-grid {
-    grid-template-columns: repeat(7, minmax(52px, 1fr));
-    gap: 8px;
-    min-width: 412px;
+    grid-template-columns: repeat(7, minmax(44px, 1fr));
+    gap: 0;
+    min-width: 316px;
     padding: 2px 4px;
   }
   .calendar-day-cell {
-    min-width: 52px;
-    min-height: 76px;
-    padding: 8px 4px;
+    min-height: 80px;
+    padding: 6px 0;
+    gap: 4px;
     border-radius: 12px;
   }
   .day-weekday {
-    /* Text stays at the 14px floor; tighter tracking keeps the label inside the narrow phone cell. */
+    /* Text stays at the 14px floor; title case keeps the label inside the narrow phone cell. */
     letter-spacing: 0;
+    text-transform: none;
   }
   .day-number {
-    font-size: 17px;
+    width: 32px;
+    height: 32px;
+    font-size: 16px;
   }
   .calendar-card-footer {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 8px;
-    padding-top: 8px;
+    gap: 6px 14px;
+    padding-top: 10px;
+  }
+  .calendar-legend-pills {
+    gap: 12px;
   }
 }
 

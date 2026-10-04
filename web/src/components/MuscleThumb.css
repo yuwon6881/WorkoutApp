@@ -1,0 +1,5 @@
+/* A body-map crop onto one muscle. Plate strokes take the surface behind the thumbnail, set by the
+   container through --muscle-thumb-gap, so the gaps between plates read as background. */
+.muscle-thumb{display:block;overflow:hidden;pointer-events:none}
+.muscle-thumb-part,.muscle-thumb-region{fill:color-mix(in srgb,var(--muted) 42%,var(--surface));stroke:var(--muscle-thumb-gap,var(--surface-raised));stroke-width:1.6;stroke-linejoin:round}
+.muscle-thumb-region.is-highlighted{fill:color-mix(in srgb,var(--accent) var(--muscle-shade,35%),color-mix(in srgb,var(--muted) 42%,var(--surface)))}

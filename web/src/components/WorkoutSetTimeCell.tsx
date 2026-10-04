@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Check, Pause, Play, RotateCcw } from 'lucide-react';
 import type { LoggedSet } from '../types';
 import { MAX_SET_SECONDS, showSetDuration, stopwatchSeconds } from '../lib/setDuration';
@@ -9,6 +9,33 @@ import { Button } from './ui/Button';
 import { Modal } from './ui/Modal';
 
 setStopwatchAnnouncer(() => restTimer.announceSetTimer());
+
+function formatClockDigits(digits: string): string {
+  const clean = digits.replace(/^0+/, '');
+  if (!clean) return '0:00';
+  if (clean.length === 1) return `0:0${clean}`;
+  if (clean.length === 2) return `0:${clean}`;
+  const s = clean.slice(-2);
+  const m = clean.slice(0, -2);
+  return `${m}:${s}`;
+}
+
+function parseClockDigits(digits: string): number | null {
+  const clean = digits.replace(/^0+/, '');
+  if (!clean) return null;
+  const s = Number(clean.slice(-2) || 0);
+  const m = Number(clean.slice(0, -2) || 0);
+  const total = m * 60 + s;
+  return Math.min(MAX_SET_SECONDS, total);
+}
+
+function secondsToClockDigits(seconds: number | null | undefined): string {
+  if (seconds == null || seconds <= 0) return '';
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  if (m === 0) return String(s);
+  return `${m}${String(s).padStart(2, '0')}`;
+}
 
 /**
  * Seconds for a timed set, typed or timed via the modal sheet opened on click. With a target the
@@ -32,12 +59,21 @@ export function WorkoutSetTimeCell({
   const now = useVisibleClock(running !== undefined && running.finishedSeconds === undefined);
   const finished = running?.finishedSeconds;
 
+  const [digits, setDigits] = useState<string>(() => secondsToClockDigits(set.durationSeconds));
+  const clockInputRef = useRef<HTMLInputElement>(null);
+
   // A countdown that ended (perhaps while this row was off screen) is written into the set once.
   useEffect(() => {
     if (finished === undefined) return;
     const seconds = stopStopwatch(set.id);
     if (seconds !== null) onChange(seconds);
   }, [finished, set.id, onChange]);
+
+  useEffect(() => {
+    if (modalOpen && !running) {
+      setDigits(secondsToClockDigits(set.durationSeconds));
+    }
+  }, [modalOpen, running, set.durationSeconds]);
 
   const reached = running ? stopwatchSeconds(running.baseSeconds, running.startedAtMs, now, running.targetSeconds) : null;
   const countingDown = running?.targetSeconds != null;
@@ -49,22 +85,63 @@ export function WorkoutSetTimeCell({
     if (!running) {
       restTimer.primeSound();
       startStopwatch(set.id, set.durationSeconds, targetSeconds);
+      setModalOpen(false);
       return;
     }
     const seconds = stopStopwatch(set.id);
     if (seconds !== null) onChange(seconds > 0 ? seconds : null);
   };
 
-  const adjustSeconds = (delta: number) => {
+  const pushDigit = (digit: string) => {
     discardStopwatch(set.id);
-    const base = set.durationSeconds ?? targetSeconds ?? 0;
-    const next = Math.max(1, Math.min(MAX_SET_SECONDS, base + delta));
-    onChange(next);
+    setDigits(prev => {
+      const next = `${prev}${digit}`.replace(/^0+/, '').slice(-4);
+      const sec = parseClockDigits(next);
+      onChange(sec);
+      return next;
+    });
+  };
+
+  const popDigit = () => {
+    discardStopwatch(set.id);
+    setDigits(prev => {
+      const next = prev.slice(0, -1);
+      const sec = parseClockDigits(next);
+      onChange(sec);
+      return next;
+    });
+  };
+
+  const clearDigits = () => {
+    discardStopwatch(set.id);
+    setDigits('');
+    onChange(null);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.altKey || e.ctrlKey || e.metaKey) return;
+    if (/^\d$/.test(e.key)) {
+      e.preventDefault();
+      pushDigit(e.key);
+    } else if (e.key === 'Backspace') {
+      e.preventDefault();
+      popDigit();
+    } else if (e.key === 'Delete') {
+      e.preventDefault();
+      clearDigits();
+    }
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const raw = e.target.value.replace(/\D/g, '');
+    const clean = raw.replace(/^0+/, '').slice(-4);
+    discardStopwatch(set.id);
+    setDigits(clean);
+    onChange(parseClockDigits(clean));
   };
 
   const resetDuration = () => {
-    discardStopwatch(set.id);
-    onChange(null);
+    clearDigits();
   };
 
   const formattedDuration = set.durationSeconds != null ? showSetDuration(set.durationSeconds) : '';
@@ -95,10 +172,31 @@ export function WorkoutSetTimeCell({
         <Modal title="Set duration" onClose={() => setModalOpen(false)}>
           <div className="modal-body timer-modal-body">
             <p className="muted" style={{ margin: 0 }}>{label}</p>
-            <div className={`timer-modal-clock ${running ? 'timing' : ''}`}>
-              <strong>{clock !== null ? clock : (set.durationSeconds != null ? showSetDuration(set.durationSeconds) : (targetSeconds != null ? showSetDuration(targetSeconds) : '0:00'))}</strong>
+            <div
+              className={`timer-modal-clock ${running ? 'timing' : 'editable'}`}
+              onClick={() => { if (!running) clockInputRef.current?.focus(); }}
+            >
+              {running ? (
+                <strong className="timer-modal-clock-display">{clock}</strong>
+              ) : (
+                <input
+                  ref={clockInputRef}
+                  id={`duration-edit-${set.id}`}
+                  name={`duration-edit-${set.id}`}
+                  type="text"
+                  inputMode="numeric"
+                  className="timer-modal-clock-input"
+                  value={formatClockDigits(digits)}
+                  onChange={handleInputChange}
+                  onKeyDown={handleKeyDown}
+                  aria-label={`${label} duration`}
+                  autoComplete="off"
+                />
+              )}
               <span className="muted">
-                {running ? (countingDown ? 'Time remaining' : 'Timing elapsed') : (targetSeconds != null ? `Target: ${showSetDuration(targetSeconds)}` : 'Duration')}
+                {running
+                  ? (countingDown ? 'Time remaining' : 'Timing elapsed')
+                  : (targetSeconds != null && digits === '' ? `Target: ${showSetDuration(targetSeconds)}` : 'Duration')}
               </span>
             </div>
 
@@ -111,29 +209,8 @@ export function WorkoutSetTimeCell({
               <span>{running ? 'Pause timer' : targetSeconds != null ? `Start ${showSetDuration(targetSeconds)} timer` : 'Start timer'}</span>
             </Button>
 
-            <div className="timer-modal-direct-input">
-              <span className="tiny-label">ADJUST TIME</span>
-              <div className="timer-modal-input-row">
-                <Button variant="tertiary" onClick={() => adjustSeconds(-15)}>−15s</Button>
-                <Button variant="tertiary" onClick={() => adjustSeconds(-5)}>−5s</Button>
-                <input
-                  type="number"
-                  min="1"
-                  max={MAX_SET_SECONDS}
-                  placeholder={targetSeconds != null ? String(targetSeconds) : 'sec'}
-                  value={set.durationSeconds ?? ''}
-                  onChange={event => {
-                    discardStopwatch(set.id);
-                    onChange(event.target.value === '' ? null : Math.round(Number(event.target.value)));
-                  }}
-                />
-                <Button variant="tertiary" onClick={() => adjustSeconds(5)}>+5s</Button>
-                <Button variant="tertiary" onClick={() => adjustSeconds(15)}>+15s</Button>
-              </div>
-            </div>
-
             <div className="timer-modal-actions" style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
-              {set.durationSeconds != null && !running && (
+              {(set.durationSeconds != null || digits !== '') && !running && (
                 <Button variant="tertiary" onClick={resetDuration}>
                   <RotateCcw size={16} /> Reset
                 </Button>

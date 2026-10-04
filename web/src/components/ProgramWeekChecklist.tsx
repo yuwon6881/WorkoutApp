@@ -183,6 +183,8 @@ export function ProgramWeekChecklist({
             return <div className={`program-week-day rest ${passed ? 'passed' : ''}`} key={day.templateId} role="listitem">
               <label className="program-week-check">
                 <input
+                  id={`program-rest-day-${day.templateId}`}
+                  name={`program-rest-day-${day.templateId}`}
                   type="checkbox"
                   checked={passed}
                   disabled={!program.active || passed || busyDay !== null || hasActiveWorkout}
@@ -216,6 +218,8 @@ export function ProgramWeekChecklist({
           >
             <div className="program-week-check">
               <input
+                id={`program-exercise-day-${day.templateId}`}
+                name={`program-exercise-day-${day.templateId}`}
                 type="checkbox"
                 checked={passed}
                 readOnly

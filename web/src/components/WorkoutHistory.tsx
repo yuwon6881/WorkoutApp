@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import { ArrowRight, Dumbbell, Trash2, Trophy } from 'lucide-react';
 import type { HistoryPage, Session, Unit } from '../types';
 import { ApiError, api } from '../lib/api';
+import { forgetSessionDetail, prefetchSessionDetail } from '../lib/sessionDetailLoad';
+import { prefetchView, viewReady } from '../app/lazyViews';
 import { duration, showSetCount, showVolume } from '../lib/training';
 import { Button } from './ui/Button';
 import { MenuButton, MenuItem } from './ui/MenuButton';
@@ -33,7 +35,6 @@ export function WorkoutHistory({
   const [page, setPage] = useState<HistoryPage>(initial ?? { total: 0, page: 0, size: 20, sessions: [] });
   const [cursor, setCursor] = useState<{ at: string | null; id: string | null }>({ at: null, id: null });
   const [loading, setLoading] = useState(!initial);
-  const [openingId, setOpeningId] = useState<string | null>(null);
   const [error, setError] = useState('');
   const [deleteSession, setDeleteSession] = useState<Session | null>(null);
   const [deleting, setDeleting] = useState(false);
@@ -83,21 +84,11 @@ export function WorkoutHistory({
     } finally { if (generation === epoch.current) { busy.current = false; setLoading(false); } }
   }
 
-  async function handleOpenSession(session: Session) {
-    if (session.exercises && session.exercises.length > 0) {
-      onSession(session);
-      return;
-    }
-    setOpeningId(session.id);
-    setError('');
-    try {
-      const full = await api.getWorkout(session.id);
-      onSession(full);
-    } catch (failure) {
-      setError(failure instanceof ApiError ? failure.message : 'Could not load workout details.');
-    } finally {
-      setOpeningId(null);
-    }
+  /// Pressing a row starts loading the summary's code and the session's exercises, so the tap that
+  /// follows opens the summary straight away and the sets are usually already there.
+  function prepareSession(session: Session) {
+    prefetchView('sessionDetail');
+    if (session.exercises.length === 0) prefetchSessionDetail(session.id);
   }
 
   async function confirmDelete() {
@@ -106,6 +97,7 @@ export function WorkoutHistory({
     setDeleteError('');
     try {
       await api.deleteWorkout(deleteSession.id);
+      forgetSessionDetail(deleteSession.id);
       setPage(current => ({
         ...current,
         total: Math.max(0, current.total - 1),
@@ -140,8 +132,10 @@ export function WorkoutHistory({
               <Button
                 className="history-row"
                 variant="tertiary"
-                disabled={openingId === session.id}
-                onClick={() => void handleOpenSession(session)}
+                onPointerEnter={() => prefetchView('sessionDetail')}
+                onPointerDown={() => prepareSession(session)}
+                onFocus={() => prefetchView('sessionDetail')}
+                onClick={() => { prepareSession(session); void viewReady('sessionDetail').then(() => onSession(session)); }}
               >
                 <span className="exercise-icon"><Dumbbell size={20} /></span>
                 <span className="row-title">

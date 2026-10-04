@@ -71,14 +71,14 @@
 .set-stopwatch-btn { flex: 0 0 auto; width: 44px; height: 44px; min-width: 44px; min-height: 44px; padding: 0; display: grid; place-items: center; }
 .timer-modal-body { display: flex; flex-direction: column; gap: 16px; text-align: center; padding: 20px; }
 .timer-modal-clock { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 18px 12px; background: var(--surface-raised); border: 1px solid var(--border); border-radius: var(--radius); }
-.timer-modal-clock strong { font-size: 38px; font-weight: 750; letter-spacing: -0.03em; color: var(--text); font-variant-numeric: tabular-nums; }
+.timer-modal-clock strong, .timer-modal-clock-input { font-size: 38px; font-weight: 750; letter-spacing: -0.03em; color: var(--text); font-variant-numeric: tabular-nums; }
 .timer-modal-clock.timing { border-color: var(--accent-border-strong); background: var(--accent-soft); }
 .timer-modal-clock.timing strong { color: var(--accent); }
+.timer-modal-clock.editable { cursor: text; transition: border-color var(--motion-control) var(--motion-ease), box-shadow var(--motion-control) var(--motion-ease); }
+.timer-modal-clock.editable:hover { border-color: var(--border-hover); }
+.timer-modal-clock.editable:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft-glow); }
+.timer-modal-clock-input { width: 100%; max-width: 240px; background: transparent !important; border: 0 !important; box-shadow: none !important; outline: none !important; text-align: center; padding: 0 !important; min-height: unset !important; height: auto !important; caret-color: var(--accent); }
 .timer-modal-toggle-btn { min-height: 48px; font-size: 15px; font-weight: 650; }
-.timer-modal-direct-input { display: flex; flex-direction: column; gap: 8px; margin-top: 4px; }
-.timer-modal-input-row { display: flex; align-items: center; justify-content: center; gap: 6px; }
-.timer-modal-input-row input { width: 88px; text-align: center; font-size: 16px; font-weight: 650; }
-.timer-modal-input-row .button { padding: 6px 10px; min-width: 44px; min-height: 40px; font-size: 14px; }
 .workout-set-table-footer { margin-top: 6px; display: grid; gap: 6px; }
 .workout-set-undo { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 4px 4px 4px 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); color: var(--muted); }
 .workout-set-undo .button { min-height: 44px; }

@@ -41,6 +41,17 @@
   background: transparent !important;
 }
 
+/* The shared press shrink scales a full-width, start-aligned row toward its centre, which reads as
+   the row sliding sideways and back. A row answers a press with a tint instead. */
+.button.history-row:active:not(:disabled) {
+  transform: none;
+}
+
+.history-item-wrap:has(.history-row:active) {
+  background: var(--surface-hover);
+  border-color: var(--border-hover);
+}
+
 .history-row .exercise-icon {
   flex-shrink: 0;
   width: 36px;
@@ -143,6 +154,7 @@
   .history-pr-pill,
   .history-volume {
     grid-column: 2;
+    justify-self: start;
   }
   .history-loading-list .history-row-skeleton {
     height: 72px;

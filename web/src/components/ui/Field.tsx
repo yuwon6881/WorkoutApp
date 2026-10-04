@@ -1,5 +1,6 @@
 import {
   useCallback,
+  useEffect,
   useId,
   useLayoutEffect,
   useRef,
@@ -50,14 +51,36 @@ export function TextAreaField({
   const generated = useId();
   const { controlId, controlName, errorId } = fieldIds(id, generated, error, name, label);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const userHeightRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    userHeightRef.current = null;
+  }, [controlId]);
+
   const resize = useCallback(() => {
     const textarea = textareaRef.current;
     if (!textarea || !autoGrow) return;
     textarea.style.height = 'auto';
     const computed = window.getComputedStyle(textarea);
-    const borders = Number.parseFloat(computed.borderTopWidth) + Number.parseFloat(computed.borderBottomWidth);
-    const height = `${textarea.scrollHeight + (Number.isFinite(borders) ? borders : 0)}px`;
-    if (textarea.style.height !== height) textarea.style.height = height;
+    const borders = (Number.parseFloat(computed.borderTopWidth) || 0) + (Number.parseFloat(computed.borderBottomWidth) || 0);
+    const contentHeight = textarea.scrollHeight + (Number.isFinite(borders) ? borders : 0);
+    const targetHeight = userHeightRef.current != null
+      ? Math.max(contentHeight, userHeightRef.current)
+      : contentHeight;
+    const heightStr = `${targetHeight}px`;
+    if (textarea.style.height !== heightStr) textarea.style.height = heightStr;
+  }, [autoGrow]);
+
+  useEffect(() => {
+    const textarea = textareaRef.current;
+    if (!textarea || !autoGrow) return;
+    const onPointerUp = () => {
+      if (textarea.offsetHeight > 0) {
+        userHeightRef.current = textarea.offsetHeight;
+      }
+    };
+    textarea.addEventListener('pointerup', onPointerUp);
+    return () => textarea.removeEventListener('pointerup', onPointerUp);
   }, [autoGrow]);
 
   useLayoutEffect(() => {
