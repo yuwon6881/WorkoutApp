@@ -19,7 +19,7 @@ public sealed partial class ExerciseService
         // Metadata authorization is current even when the numerical result can be reused.
         await Metadata(id, ct);
         var revision = await db.ResourceGenerations.AsNoTracking().SingleOrDefaultAsync(ct) ?? new ResourceGeneration();
-        var key = $"exercise-insight:v1:{db.CurrentUser}:{id}:{revision.History}:{revision.Progress}:{revision.CustomExercises}:{revision.ExerciseLoads}:{DateTime.UtcNow:yyyyMMdd}:{range}:{page}:{size}";
+        var key = $"exercise-insight:v2:{db.CurrentUser}:{id}:{revision.History}:{revision.Progress}:{revision.CustomExercises}:{revision.ExerciseLoads}:{DateTime.UtcNow:yyyyMMdd}:{range}:{page}:{size}";
         CachedInsight stored;
         lock (InsightCacheGate)
             stored = cache.GetOrCreate(key, entry => {

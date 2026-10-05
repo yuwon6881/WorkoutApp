@@ -243,13 +243,14 @@ public sealed partial class WorkoutService(
         var now = DateTime.UtcNow;
         var zone = SafeZone(context.TimeZone);
         var today = DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(now, zone));
-        var sameDayScale = context.ScaleWeightKg is not null && context.ScaleWeightDate == today;
-        var recentTrend = context.TrendWeightKg is not null && context.TrendWeightDate is { } trendDate && trendDate >= today.AddDays(-7) && trendDate <= today;
-        var source = sameDayScale ? "scale" : recentTrend ? "trend" : null;
-        var reference = sameDayScale ? context.ScaleWeightKg : recentTrend ? context.TrendWeightKg : null;
+        var sameDayScale = context.ScaleWeightKg is > 0 && context.ScaleWeightDate == today;
+        var recentTrend = context.TrendWeightKg is > 0 && context.TrendWeightDate is { } trendDate && trendDate >= today.AddDays(-7) && trendDate <= today;
+        var recentScale = context.ScaleWeightKg is > 0 && context.ScaleWeightDate is { } scaleDate && scaleDate >= today.AddDays(-7) && scaleDate <= today;
+        var source = sameDayScale ? "scale" : recentTrend ? "trend" : recentScale ? "scale" : null;
+        var reference = sameDayScale ? context.ScaleWeightKg : recentTrend ? context.TrendWeightKg : recentScale ? context.ScaleWeightKg : null;
         if (reference is null) return null;
         return new BodyWeightSnapshot(context.ScaleWeightKg, context.ScaleWeightDate, context.TrendWeightKg, context.TrendWeightDate,
-            reference, source, sameDayScale ? context.ScaleWeightDate : context.TrendWeightDate, "bodyweight-context-v1",
+            reference, source, source == "scale" ? context.ScaleWeightDate : context.TrendWeightDate, "bodyweight-context-v2",
             context.Revision, now);
     }
 
@@ -533,7 +534,7 @@ public sealed partial class WorkoutService(
         }
 
         // The legacy estimate remains useful for charts; use effective system load for a full
-        // bodyweight set and entered load for external/reps-only work. Technique sets are not
+        // bodyweight set and entered load for external work. Technique sets are not
         // straight-set strength, so they never move the trend.
         await progression.Record(exercises.Select(e =>
         {
@@ -541,7 +542,7 @@ public sealed partial class WorkoutService(
             return (e.ExerciseId, e.NameSnapshot,
                 sets.Where(s => s.SessionExerciseId == e.Id && s.Done && !s.Warmup && SetTechniques.IsStrengthEvidence(techniques, s.Position))
                     .OrderBy(s => s.Position)
-                    .Select(s => new PreviousSet(e.LoadModel == LoadModels.FullBodyweight ? s.SystemLoadKg : s.WeightKg, s.Reps, s.Rpe ?? Progression.RpeFromRir(s.Rir))).ToList());
+                    .Select(s => new PreviousSet(LoadModels.ComparableLoad(e.LoadModel, s.WeightKg, s.SystemLoadKg), s.Reps, s.Rpe ?? Progression.RpeFromRir(s.Rir))).ToList());
         }).ToList(), ct);
 
         if (session.PausedAt is { } pauseStart)

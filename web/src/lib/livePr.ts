@@ -18,7 +18,8 @@ export type LivePrResult = {
 // announce a record nor count as one, matching the server.
 export function setEstimate(exercise: SessionExercise, set: LoggedSet): number | null {
   if (!isStrengthSet(exercise, set)) return null;
-  const load = exercise.loadModel === 'full_bodyweight' ? set.systemLoadKg ?? set.weightKg : set.weightKg;
+  const load = exercise.loadModel === 'full_bodyweight' ? set.systemLoadKg ?? null
+    : exercise.loadModel === 'bodyweight_context_only' || exercise.loadModel === 'reps_only' ? null : set.weightKg;
   return calculateEstimated1Rm(load, set.reps, set.rpe);
 }
 

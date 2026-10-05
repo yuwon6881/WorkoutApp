@@ -29,7 +29,8 @@ internal static class PrescriptionProgression
                 mode, revision, false, selectLoad is null ? null : weight, resistanceMode, transition);
 
         if (source?.Reps is not { } actual || load is null && !repsOnly)
-            return Result(null, min ?? 0, "First time through. Enter the load you actually use.");
+            return Result(null, min ?? 0, repsOnly ? "First time through. Log actual reps and effort."
+                : "First time through. Enter the load you actually use.");
 
         var reserve = ProgressionEvidence.Reserve(source);
         var lower = min ?? actual;

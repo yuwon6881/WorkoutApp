@@ -49,7 +49,7 @@ public sealed partial class WorkoutService
             var models = sessionExercises.ToDictionary(e => e.Id, e => e.LoadModel);
             var repSets = sets.Where(s => s.Reps != null).ToArray();
             var externalSets = repSets.Where(s => models[s.SessionExerciseId] == LoadModels.External && s.SystemLoadKg == null).ToArray();
-            var systemSets = repSets.Where(s => models[s.SessionExerciseId] == LoadModels.FullBodyweight || s.SystemLoadKg != null).ToArray();
+            var systemSets = repSets.Where(s => models[s.SessionExerciseId] == LoadModels.FullBodyweight).ToArray();
             var rpes = sets.Where(s => trackEffort && s.Rpe is not null).Select(s => s.Rpe!.Value).ToList();
             var exerciseIds = sessionExercises.Where(e => e.ExerciseId is not null).Select(e => e.ExerciseId!.Value).Distinct().ToList();
             var muscles = exerciseIds.Select(id => musclesById.GetValueOrDefault(id, ""))

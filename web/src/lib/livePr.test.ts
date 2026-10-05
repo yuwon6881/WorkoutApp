@@ -1,6 +1,20 @@
 import { describe, expect, it } from 'vitest';
 import type { LoggedSet, SessionExercise } from '../types';
-import { checkLivePr, formatExercisePrBadge, formatSetPrTag, newBestAfterLogging } from './livePr';
+import { checkLivePr, formatExercisePrBadge, formatSetPrTag, newBestAfterLogging, setEstimate } from './livePr';
+
+describe('bodyweight strength eligibility', () => {
+  it('requires a frozen total load even when added weight was entered', () => {
+    const row = exercise([set({ weightKg: 50, systemLoadKg: null, reps: 8 })], 20, null, 'full_bodyweight');
+    expect(setEstimate(row, row.sets[0])).toBeNull();
+    expect(checkLivePr(row, 0)).toBeNull();
+  });
+
+  it.each(['reps_only', 'bodyweight_context_only'] as const)('never estimates strength for %s', model => {
+    const row = exercise([set({ weightKg: 50, reps: 8 })], 20, null, model);
+    expect(setEstimate(row, row.sets[0])).toBeNull();
+    expect(checkLivePr(row, 0)).toBeNull();
+  });
+});
 
 function set(patch: Partial<LoggedSet>): LoggedSet {
   return { id: crypto.randomUUID(), position: 0, weightKg: 60, reps: 5, rpe: 8, done: true, warmup: false, ...patch };

@@ -197,6 +197,25 @@ public sealed class CatalogCoverageTests
     private static SeedExercise[] SeedRows()
         => [.. Json.Read<List<SeedExercise>>(File.ReadAllText(CatalogPath()))];
 
+    [Theory]
+    [InlineData("plank", LoadModels.RepsOnly)]
+    [InlineData("crunch", LoadModels.RepsOnly)]
+    [InlineData("reverse-crunch", LoadModels.RepsOnly)]
+    [InlineData("pull-up", LoadModels.FullBodyweight)]
+    [InlineData("wide-grip-pull-up", LoadModels.FullBodyweight)]
+    [InlineData("dip", LoadModels.FullBodyweight)]
+    [InlineData("assisted-dip", LoadModels.FullBodyweight)]
+    [InlineData("assisted-pull-up", LoadModels.FullBodyweight)]
+    [InlineData("assisted-chin-up", LoadModels.FullBodyweight)]
+    [InlineData("push-up", LoadModels.BodyweightContextOnly)]
+    [InlineData("weighted-crunch", LoadModels.External)]
+    public void Catalog_distinguishes_bodymass_resistance_from_loadless_and_contextual_movements(string slug, string model)
+        => Assert.Equal(model, SeedRows().Single(x => x.Slug == slug).LoadModel);
+
+    [Fact]
+    public void No_unweighted_bodyweight_catalog_entry_defaults_to_external_load()
+        => Assert.DoesNotContain(SeedRows(), x => x.Equipment == "Bodyweight" && x.Slug != "weighted-crunch" && x.LoadModel == LoadModels.External);
+
     private static string CatalogPath()
     {
         foreach (var start in new[] { AppContext.BaseDirectory, Directory.GetCurrentDirectory() })

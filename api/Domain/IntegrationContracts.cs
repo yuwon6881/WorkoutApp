@@ -65,6 +65,16 @@ public static class LoadModels
     public const string BodyweightContextOnly = "bodyweight_context_only";
     public const string RepsOnly = "reps_only";
     public static readonly string[] All = [External, FullBodyweight, BodyweightContextOnly, RepsOnly];
+
+    /// Entered load is never a substitute for missing frozen body mass, nor a strength
+    /// measurement for movements tracked only by reps or bodyweight context.
+    public static double? ComparableLoad(string loadModel, double? enteredKg, double? systemKg)
+        => loadModel switch
+        {
+            External => enteredKg,
+            FullBodyweight => systemKg,
+            _ => null
+        };
 }
 
 /// How a set of an exercise is measured. Timed holds (planks, hangs, carries) record seconds

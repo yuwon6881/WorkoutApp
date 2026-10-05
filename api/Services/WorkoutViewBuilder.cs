@@ -95,7 +95,7 @@ public static class WorkoutViewBuilder
             var sId = sessionGroup.Key.SessionId;
             var prCount = repBests.SessionCounts.GetValueOrDefault(sId);
 
-            var exerciseGroups = sessionGroup.GroupBy(x => PrKey(x.ExerciseId, x.NameSnapshot));
+            var exerciseGroups = sessionGroup.GroupBy(x => StrengthKey(x.ExerciseId, x.NameSnapshot, x.LoadModel));
             foreach (var exGroup in exerciseGroups)
             {
                 var key = exGroup.Key;
@@ -108,7 +108,7 @@ public static class WorkoutViewBuilder
 
                 foreach (var s in exGroup)
                 {
-                    var load = s.LoadModel == LoadModels.FullBodyweight ? (s.SystemLoadKg ?? s.WeightKg) : s.WeightKg;
+                    var load = LoadModels.ComparableLoad(s.LoadModel, s.WeightKg, s.SystemLoadKg);
                     var estimate = Progression.Estimate1Rm(load, s.Reps, s.Rpe);
                     if (estimate is { } eVal)
                     {
@@ -177,6 +177,11 @@ public static class WorkoutViewBuilder
 
     public static (Guid, string) PrKey(Guid? exerciseId, string nameSnapshot) => (exerciseId ?? Guid.Empty, CatalogService.Normalize(nameSnapshot));
 
+    // A corrected catalog model must establish a fresh strength baseline: kilograms entered
+    // as assistance or added load cannot be compared with kilograms of total resistance.
+    private static (Guid, string) StrengthKey(Guid? exerciseId, string name, string loadModel)
+        => (exerciseId ?? Guid.Empty, $"{loadModel}:{CatalogService.Normalize(name)}");
+
     public static SessionView BuildView(
         WorkoutSession session,
         IReadOnlyList<SessionExercise> exercises,
@@ -232,7 +237,7 @@ public static class WorkoutViewBuilder
                     e.SwapGroupKey, e.IsReplacement, e.OriginalExerciseId, e.OriginalNameSnapshot, e.SourcePage, canRestore, e.RestSeconds,
                     e.DemoUrl is { Length: > 0 } demoUrl ? demoUrl : null,
                     isExPr, prE1rmKg,
-                    previousBests != null && previousBests.TryGetValue(key, out var previousBest) ? previousBest : null,
+                    previousBests != null && previousBests.TryGetValue(StrengthKey(e.ExerciseId, e.NameSnapshot, e.LoadModel), out var previousBest) ? previousBest : null,
                     exPrKind, exPrReps,
                     repRecords is null ? null : LegacyRepBests(repRecords), repRecords,
                     e.ExerciseId is { } trackedId && trackingModes?.GetValueOrDefault(trackedId) is { } mode ? mode : TrackingModes.Reps);
