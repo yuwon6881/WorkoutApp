@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { AlertTriangle, ArrowLeft, ChevronRight, Loader2, RotateCcw, Trash2, Upload, Wand2, X } from 'lucide-react';
 import type { Exercise, ImportDraft, ImportView } from '../types';
 import { ApiError, api } from '../lib/api';
+import { CardFeedback } from './ui/CardFeedback';
 import { Button } from './ui/Button';
 import { Field } from './ui/Field';
 import { Modal } from './ui/Modal';
@@ -112,7 +113,7 @@ export function ImportReview({ exercises, imports, onBack, onChanged, notify }: 
   // same one it would open on a fresh visit. When imports update in the background, keep
   // the selected row in sync with its latest status and draft.
   useEffect(() => {
-    if (busy || localRead) return;
+    if (busy || localRead || saver.localDirty) return;
     if (!selected) {
       const next = resumableImport(imports, discarded.current);
       if (next) setSelected(next);
@@ -126,7 +127,7 @@ export function ImportReview({ exercises, imports, onBack, onChanged, notify }: 
       setSelected(matching);
       if (matching.draft) setDraft(matching.draft);
     }
-  }, [busy, imports, localRead, selected]);
+  }, [busy, imports, localRead, selected, saver.localDirty]);
 
   function discard(view: ImportView) {
     discarded.current.add(view.id);
@@ -136,6 +137,7 @@ export function ImportReview({ exercises, imports, onBack, onChanged, notify }: 
   useEffect(() => {
     let cancelled = false;
     if (!selected) { setDraft(null); return; }
+    if (saver.localDirty) return;
     if (selected.draft) { setDraft(selected.draft); return; }
     if (selected.status === 'ready') {
       api.getImport(selected.id).then(view => {
@@ -241,7 +243,8 @@ export function ImportReview({ exercises, imports, onBack, onChanged, notify }: 
       {pipeline.failure && selected?.status !== 'failed'
         && !hasStructuredTerminalError(selected)
         && <Failure failure={pipeline.failure} onDismiss={pipeline.clearFailure} />}
-      {saveError && <p className="error-text" role="alert">{saveError}</p>}
+      {saveError && <CardFeedback message={saveError} action={{ label: 'Retry save', disabled: busy,
+        onClick: () => void saver.retry().catch(failure => setSaveError(failure instanceof Error ? failure.message : 'Could not save changes.')) }} />}
       <p className="muted small-copy">The text is read from the PDF on this device and only that text is sent; the file itself stays here. It becomes an editable draft before it can affect your workouts.</p>
       <StoppedImports imports={imports} busy={busy} onSelect={view => {
         pipeline.clearFailure();
@@ -328,7 +331,7 @@ export function ImportReview({ exercises, imports, onBack, onChanged, notify }: 
           <h2>Review</h2>
         </div>
         {!selected.acceptable && <p className="muted small-copy import-notice-copy" role="status">The program can be created after every review item is resolved.</p>}
-        <Field label="Program name" name="import-program-name" value={draft.programName} onChange={e => setDraft({ ...draft, programName: e.target.value })} onBlur={() => void saver.persist(draft)} />
+        <Field label="Program name" name="import-program-name" value={draft.programName} onChange={e => saver.editLocal({ ...draft, programName: e.target.value })} onBlur={() => void saver.persist(draft)} />
         {selected.unresolved.length > 0 && <div className="import-unresolved-banner" role="status"><AlertTriangle size={17} />
           <span>{selected.unresolved.length} exercise slot{selected.unresolved.length === 1 ? '' : 's'} are not linked to the catalog. Unmapped names stay verbatim and can still be logged.</span>
         </div>}
@@ -369,11 +372,11 @@ export function ImportReview({ exercises, imports, onBack, onChanged, notify }: 
           restorableExerciseLineIds={selected.restorableExerciseLineIds}
           onRestoreExercise={handleRestoreExercise}
           canRestoreDraft={selected.canRestoreDraft || saver.localDirty}
-          acceptable={selected.acceptable}
+          acceptable={selected.acceptable && !saver.localDirty && !saveError}
           busy={busy}
           onRestoreDraft={() => setConfirmRestoreDraft(true)}
           onDiscardDraft={() => pipeline.run('Discarding this draft…', async () => { discarded.current.add(selected.id); await api.discardImport(selected.id); setSelected(null); setDraft(null); })}
-          onAcceptProgram={() => pipeline.run('Creating the program…', async () => { await api.acceptImport(selected.id); await onChanged(); setSelected(null); setDraft(null); onBack(); })}
+          onAcceptProgram={() => pipeline.run('Creating the program…', async () => { await saver.flush(); await api.acceptImport(selected.id, saver.revision()); await onChanged(); setSelected(null); setDraft(null); onBack(); })}
         />
       )
         : <section className="panel"><div className="empty-message"><AlertTriangle size={30} /><h3>No extracted days</h3><p>The draft needs at least one training or rest day.</p></div></section>}
@@ -394,7 +397,7 @@ export function ImportReview({ exercises, imports, onBack, onChanged, notify }: 
               setIsRestoringDraft(true);
               setDraftRestoreError(null);
               try {
-                await saver.flush();
+                await saver.flush(false);
                 const view = await api.restoreImport(selected.id, saver.revision());
                 saver.applyView(view);
                 setConfirmRestoreDraft(false);

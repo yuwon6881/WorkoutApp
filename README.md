@@ -255,3 +255,13 @@ limits; PDF bytes remain on the device. Import polling retains its successful tw
 shares in-flight status reads, aborts obsolete watchers, and backs off transport failures.
 
 See [PERFORMANCE.md](PERFORMANCE.md) for local measurements, repeatable checks, and release limits.
+
+### Save and recovery integrity
+
+New workouts preserve the entire start plan, including removed exercises, notes, rest and suggested loads. Existing workouts without a complete snapshot restore only their surviving exercise baselines, with this limitation shown before restoration. Logged work is retained.
+
+Finishing can update repeated movements in the same block or whole program. The server previews changed fields and affected day revisions; the program edits and finish commit together with an idempotent operation identity. A changed day refuses the entire finish for review. Session-only and offline finishes remain available.
+
+Import acceptance waits for a clean saved draft and checks its revision. Failed edits remain visible for retry; refreshing cannot replace them. Failed preferences retain the intended account settings with retry/revert, and unit-dependent catalog refresh and rest-alert confirmation await a successful save. Timed sets freeze when paused on both phone and watch and retain their timer state through navigation and recovery. Terminal workout/account transitions release timers and queued watch edits.
+
+Deleting a history session rebuilds the affected strength trend from surviving exposures without resetting passed program days. Clearing exercise history queues updated Google Health workout data and invalidates the device session-detail reads. Heaviest-load records use the reps of that same set; duration sets supply neither rep volume nor strength evidence. Server set writes enforce the catalog tracking mode.

@@ -11,6 +11,8 @@ export type QueueStatus = { state: SaveState; message: string; pending: number }
 export class SaveQueue {
   private queue: Task[] = [];
   private running = false;
+  private generation = 0;
+  private failedWrites = new Map<string, { state: SaveState; message: string }>();
   private activeKey: string | null = null;
   private listeners = new Set<(status: QueueStatus) => void>();
   private idleWaiters = new Set<() => void>();
@@ -24,7 +26,7 @@ export class SaveQueue {
 
   get current() { return this.status; }
   /// True while work the user can see has not reached the server yet.
-  get unsaved() { return this.running || this.queue.length > 0 || this.status.state === 'failed'; }
+  get unsaved() { return this.running || this.queue.length > 0 || this.failedWrites.size > 0; }
   /// True while a write with this key is waiting or on its way to the server.
   pending(key: string) { return this.activeKey === key || this.queue.some(task => task.key === key); }
 
@@ -46,17 +48,21 @@ export class SaveQueue {
     this.running = true;
     while (this.queue.length) {
       const task = this.queue.shift()!;
+      const generation = this.generation;
       this.activeKey = task.key;
       this.set('saving');
       try {
         await task.run();
+        if (generation === this.generation) this.failedWrites.delete(task.key);
       } catch (error) {
+        if (generation !== this.generation) continue;
         // A failure stops the pipeline: later writes were composed against state the server
         // has now rejected, so replaying them would save something the user never saw.
         this.queue = [];
         this.running = false;
         this.activeKey = null;
         const failure = error instanceof ApiError ? error : new ApiError('Something went wrong. Try again.', -1);
+        this.failedWrites.set(task.key, { state: failure.signedOut ? 'signed-out' : failure.offline ? 'offline' : 'failed', message: failure.message });
         this.set(failure.signedOut ? 'signed-out' : failure.offline ? 'offline' : 'failed', failure.message);
         this.resolveIdleWaiters();
         return;
@@ -64,7 +70,9 @@ export class SaveQueue {
     }
     this.running = false;
     this.activeKey = null;
-    this.set('saved');
+    const failed = this.failedWrites.values().next().value;
+    if (failed) this.set(failed.state, failed.message);
+    else if (this.status.state !== 'idle') this.set('saved');
     this.resolveIdleWaiters();
   }
 
@@ -82,5 +90,18 @@ export class SaveQueue {
     this.idleWaiters.clear();
   }
 
-  clear() { this.queue = []; this.running = false; this.activeKey = null; this.set('idle'); this.resolveIdleWaiters(); }
+  clear() {
+    this.generation++;
+    this.queue = [];
+    this.failedWrites.clear();
+    // The old request still owns serialization until it returns; its status is now obsolete.
+    this.set('idle');
+    if (!this.running) this.activeKey = null;
+    this.resolveIdleWaiters();
+  }
+
+  dismissFailure(key: string) {
+    this.failedWrites.delete(key);
+    if (!this.running && this.queue.length === 0 && this.failedWrites.size === 0) this.set('idle');
+  }
 }

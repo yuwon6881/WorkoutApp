@@ -14,7 +14,7 @@ public sealed record WorkoutSessionPrSummary(int Count, List<WorkoutPrMark> Exer
 public static class WorkoutPrReadService
 {
     // Rebuild invalid loadless estimates and partition strength baselines by stored load model.
-    private const int Version = 3;
+    private const int Version = 4;
     // Fixed stripes bound coordination memory independently of account count.
     private static readonly SemaphoreSlim[] Gates = Enumerable.Range(0, 32).Select(_ => new SemaphoreSlim(1)).ToArray();
 

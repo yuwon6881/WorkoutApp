@@ -171,7 +171,7 @@ export default function App() {
     <main className="recovery-main">
       <div className="error-banner" role="status"><WifiOff size={17} />{loading ? 'Checking your connection. Your saved workout is available; changes stay on this device until your account is confirmed.' : 'Offline recovery. This is the active workout previously saved on this device. Changes stay here until you reconnect and the server can confirm them.'}</div>
       {training && workoutSession ? <Suspense fallback={<div className="panel recovery-card" role="status">Opening your saved workout…</div>}><Workout session={workoutSession} accountId={recovery.accountId} preferences={recovery.preferences}
-        exercises={[]} queue={app.queue} online={false} recovery={recovery} onRecoveryChange={app.setRecovery}
+        exercises={[]} queue={app.queue} online={false} recovery={recovery} onRecoveryChange={app.setRecovery} isAccountCurrent={app.isAccountCurrent}
         onSaved={() => undefined} onClose={() => setTraining(false)}
         onFinish={async () => { setTraining(false); await app.reload(); }}
         onDiscard={async () => { setTraining(false); await app.reload(); }} /></Suspense> : <section className="panel recovery-card">
@@ -365,7 +365,8 @@ export default function App() {
         {resourcesReady && tab === 'exercises' && <ExerciseLibrary exercises={data.exercises} onOpen={setExerciseDetail} onChanged={app.reload} />}
         {tab === 'settings' && <SettingsView account={data.account} preferences={data.preferences} devicePreferences={app.devicePreferences} onCatalogChanged={async () => { await app.reload(); }}
           version={__APP_VERSION__}
-          onDevicePreferences={app.setDevicePreferences} onPreferences={app.savePreferences} notify={setToast} onSignOut={async () => { await app.signOut(); }} />}
+          onDevicePreferences={app.setDevicePreferences} onPreferences={app.savePreferences} notify={setToast} onSignOut={async () => { await app.signOut(); }}
+          preferencePending={app.preferencePending} onRetryPreferences={app.retryPreferences} onRevertPreferences={app.revertPreferences} />}
         </Suspense>
         </MotionScene>
       </main>
@@ -421,6 +422,7 @@ export default function App() {
               wrapModal={false}
               continues={sheetContinues}
               accountId={data.account.id}
+              isAccountCurrent={app.isAccountCurrent}
               preferences={recovery?.sessionId === workoutSession.id ? recovery.preferences : data.preferences}
               onCatalogNeeded={() => app.ensureResources(['catalog'], true)}
               exercises={data.exercises}

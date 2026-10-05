@@ -99,6 +99,7 @@ class WearScreenshotTest {
             message = null,
             error = error,
             onCompleteSet = { _, _, _, _ -> },
+            onSetTimerChanged = { _, _ -> },
             onUndoLastSet = {},
             onExtendRest = {},
             onShortenRest = {},

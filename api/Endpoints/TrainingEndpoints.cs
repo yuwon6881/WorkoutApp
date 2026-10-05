@@ -21,7 +21,7 @@ public record PreferencesInput(string Unit, string Theme, int? RestSeconds = nul
     }
 }
 public record StartInput(Guid? TemplateId, string? Name);
-public record FinishInput(int? Revision, bool RetainExerciseSwaps = false, Guid? MutationId = null, DateTimeOffset? FinishedAt = null);
+public record FinishInput(int? Revision, bool RetainExerciseSwaps = false, Guid? MutationId = null, DateTimeOffset? FinishedAt = null, FinishPlanUpdateInput? PlanUpdate = null);
 public record ActivateInput(bool Active, int? Revision);
 public record RevisionInput(int? Revision);
 public record TemplateRestoreInput(int? Revision = null, Guid? IdempotencyId = null);
@@ -99,8 +99,16 @@ public static class TrainingEndpoints
             => await exercises.RecentSets(exerciseId, limit ?? 3, ct));
         app.MapGet("/api/exercises/{exerciseId:guid}/clear-preview", async (Guid exerciseId, ExerciseService exercises, CancellationToken ct)
             => await exercises.ClearPreview(exerciseId, ct));
-        app.MapPost("/api/exercises/{exerciseId:guid}/clear-history", async (Guid exerciseId, ExerciseService exercises, CancellationToken ct)
-            => await exercises.ClearHistory(exerciseId, ct));
+        app.MapPost("/api/exercises/{exerciseId:guid}/clear-history", async (Guid exerciseId, ExerciseService exercises, AppDb db,
+            IServiceScopeFactory scopes, ILogger<WorkoutService> logger, HttpContext http, CancellationToken ct) =>
+        {
+            var result = await exercises.ClearHistory(exerciseId, ct);
+            await IntegrationDispatch.AfterCommit(http,
+                () => db.GoogleHealthWorkoutSyncWork.AsNoTracking().AnyAsync(work =>
+                    work.ProcessingState == "pending" || work.ProcessingState == "processing" || work.ProcessingState == "awaiting_operation", ct),
+                () => GoogleHealthWorkoutFlush.ForActiveUserAsync(scopes, db.CurrentUser, logger, ct));
+            return result;
+        });
         app.MapGet("/api/exercises/substitutions", async (Guid? exerciseId, string? name, string? imported, string? q, CatalogService catalog, CancellationToken ct) =>
         {
             var alternatives = string.IsNullOrWhiteSpace(imported) ? [] : imported.Split('|', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
@@ -205,13 +213,15 @@ public static class TrainingEndpoints
         app.MapPost("/api/workouts/{id:guid}/rest", async (Guid id, WorkoutRestMutationInput input, WorkoutService workouts, CancellationToken ct) => await workouts.MutateRest(id, input, ct));
         app.MapPost("/api/workouts/{id:guid}/finish", async (Guid id, FinishInput input, WorkoutService workouts, AppDb db, IServiceScopeFactory scopes, ILogger<WorkoutService> logger, HttpContext http, CancellationToken ct) =>
         {
-            var finished = await workouts.Finish(id, input.Revision, ct, input.RetainExerciseSwaps, input.MutationId, input.FinishedAt);
+            var finished = await workouts.Finish(id, input.Revision, ct, input.RetainExerciseSwaps, input.MutationId, input.FinishedAt, input.PlanUpdate);
             await IntegrationDispatch.AfterCommit(http,
                 () => db.GoogleHealthWorkoutSyncWork.AsNoTracking().AnyAsync(work =>
                     work.ProcessingState == "pending" || work.ProcessingState == "processing" || work.ProcessingState == "awaiting_operation", ct),
                 () => GoogleHealthWorkoutFlush.ForActiveUserAsync(scopes, db.CurrentUser, logger, ct));
             return finished;
         });
+        app.MapPost("/api/workouts/{id:guid}/finish/preview", async (Guid id, WorkoutService workouts, CancellationToken ct)
+            => await workouts.PreviewFinishPlan(id, ct));
         app.MapPost("/api/workouts/{id:guid}/discard", async (Guid id, WorkoutService workouts, CancellationToken ct) =>
         { await workouts.Discard(id, ct); return Results.NoContent(); });
         app.MapGet("/api/workouts/{id:guid}", async (Guid id, WorkoutService workouts, CancellationToken ct) => await workouts.Get(id, ct));

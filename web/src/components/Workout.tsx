@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { Exercise, LoggedSet, Preferences, RestMutationInput, Session, SessionRest } from '../types';
 import { ApiError, api } from '../lib/api';
 import type { SaveQueue } from '../lib/queue';
@@ -8,7 +8,7 @@ import { firstOpenExercise, nextUpText, type AdvanceOptions } from '../lib/worko
 import { useAfterLog } from './useAfterLog';
 import { validateLoggedSet, validateSessionDraft } from '../lib/validation';
 import { restTimer } from '../lib/restTimer';
-import { stopStopwatch } from '../lib/setStopwatch';
+import { clearStopwatches, pauseStopwatches, resumeStopwatches, stopStopwatch } from '../lib/setStopwatch';
 import { findNextStep, restAppliesAfter } from '../lib/restRules';
 import {
   clearRecovery, enqueueFinish, enqueueSave, enqueueSetEdits, enqueueTiming, getRecovery,
@@ -17,7 +17,7 @@ import {
 } from '../lib/workoutRecovery';
 import { startRestAfterSetIsDurable } from '../lib/workoutRecoveryActions';
 import type { WorkoutRecoveryRecord } from '../lib/workoutRecovery';
-import { drainWorkoutOutbox, sessionPayload } from '../lib/workoutOutbox';
+import { sessionPayload } from '../lib/workoutOutbox';
 import { Modal } from './ui/Modal';
 import { WorkoutFooter } from './WorkoutFooter';
 import { WorkoutRestBar } from './WorkoutRestBar';
@@ -32,6 +32,8 @@ import { useWorkoutExerciseList } from './useWorkoutExerciseList';
 import { WorkoutConfirmModal } from './WorkoutConfirmModal';
 import { useFinishPlanUpdate } from './useFinishPlanUpdate';
 import { useStopwatchRecovery } from './useStopwatchRecovery';
+import { useWorkoutDrain } from './useWorkoutDrain';
+import { useAccountWorkoutCallbacks } from './useAccountWorkoutCallbacks';
 import './ActiveWorkout.css';
 
 export type WorkoutProps = {
@@ -41,20 +43,23 @@ export type WorkoutProps = {
   onSaved: (s: Session) => void; onClose: () => void; onFinish: (s: Session) => void; onDiscard: () => void;
   advance?: AdvanceOptions; onCatalogChanged?: () => void | Promise<void>;
   onCatalogNeeded?: () => Promise<void>; continues?: boolean; wrapModal?: boolean;
+  isAccountCurrent?: (id: string) => boolean;
 };
 
 export function Workout({
   session, accountId, preferences, exercises, queue, online, recovery,
-  onRecoveryChange, onSaved, onClose, onFinish, onDiscard, advance,
-  onCatalogChanged, onCatalogNeeded, continues = false, wrapModal = true
+  onRecoveryChange: recoveryChanged, onSaved: savedWorkout, onClose, onFinish: finishedWorkout, onDiscard: discardedWorkout, advance,
+  onCatalogChanged, onCatalogNeeded, isAccountCurrent, continues = false, wrapModal = true
 }: WorkoutProps) {
+  const { onSaved, onFinish, onDiscard, onRecoveryChange } = useAccountWorkoutCallbacks(accountId, isAccountCurrent,
+    { onSaved: savedWorkout, onFinish: finishedWorkout, onDiscard: discardedWorkout, onRecoveryChange: recoveryChanged });
   const [draft, setDraft] = useState(recovery?.sessionId === session.id ? recovery.draft : session);
   const [picker, setPicker] = useState(false);
   // Counts taps on a set's log button while paused; each one replays the paused pill's pulse.
   const [pauseHint, setPauseHint] = useState(0);
   const [confirm, setConfirm] = useState<'finish' | 'discard' | 'restore' | null>(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
-  const planUpdate = useFinishPlanUpdate(draft, confirm === 'finish', online, exercises);
+  const planUpdate = useFinishPlanUpdate(draft, confirm === 'finish', online, async () => { await queue.whenIdle(); await drain(); });
   const [error, setError] = useState('');
   const loadCatalog = () => { void onCatalogNeeded?.().catch(failure => setError(failure instanceof Error ? failure.message : 'Exercises could not be loaded. Try again.')); };
   const [busy, setBusy] = useState(false);
@@ -62,7 +67,7 @@ export function Workout({
   const [finishIntentAt, setFinishIntentAt] = useState(() => recovery?.operations.find(operation => operation.type === 'finish')?.finishedAt ?? null);
   const [localStatus, setLocalStatus] = useState('');
   const [recoveryConflict, setRecoveryConflict] = useState(recovery?.conflict ?? false);
-  useStopwatchRecovery(accountId, session.id, recovery);
+  useStopwatchRecovery(accountId, session.id, recovery, draft, setLocalStatus);
 
   const serverSession = useRef(recovery?.serverSession ?? session);
   const revision = useRef(serverSession.current.revision);
@@ -94,25 +99,10 @@ export function Workout({
   }, [accountId, session.id]);
 
 
-  const drain = useCallback(async () => {
-    if (!online || recoveryConflict) return;
-    await drainWorkoutOutbox(accountId, session.id, () => serverSession.current, {
-      onSaved: (saved, nextRecovery) => {
-        serverSession.current = saved;
-        revision.current = saved.revision;
-        onSaved(saved);
-        setDraft(current => withServerFlags(current, saved));
-        onRecoveryChange(nextRecovery);
-        setLocalStatus(nextRecovery?.operations.length ? 'Saving…' : 'Synced.');
-      },
-      onFinished: onFinish,
-      onConflict: nextRecovery => {
-        setRecoveryConflict(true);
-        onRecoveryChange(nextRecovery);
-        setError('This workout changed on another device. Your local copy is safe; choose which version to keep.');
-      }
-    });
-  }, [accountId, online, recoveryConflict, session.id, onSaved, onFinish, onRecoveryChange]);
+  const drain = useWorkoutDrain({
+    accountId, sessionId: session.id, online, recoveryConflict, serverSession, revision, onSaved, onFinish,
+    onRecoveryChange, setDraft, setFinishIntentAt, setBusy, setConfirm, setError, setLocalStatus, setRecoveryConflict
+  });
 
   useEffect(() => {
     if (!online || !recovery?.operations.length || recovery.conflict) return;
@@ -287,6 +277,7 @@ export function Workout({
         return;
       }
       const record = await enqueueTiming(accountId, kind, occurredAt, next);
+      if (kind === 'pause') pauseStopwatches(Date.parse(occurredAt)); else resumeStopwatches(Date.parse(occurredAt));
       setDraft(next);
       if (kind === 'pause') restTimer.pause(); else restTimer.resume();
       onRecoveryChange(record);
@@ -318,25 +309,25 @@ export function Workout({
         if (!(failure instanceof ApiError && failure.offline)) throw failure;
       }
     }
-      // The program is updated first, while the dialog can still show a failure and offer to save
-      // without it; the workout itself is unaffected either way.
+      // The program update travels with the finish operation and commits atomically.
       if (!(await planUpdate.apply())) { setBusy(false); return; }
       const finishedAt = new Date().toISOString();
       if (!recovery) {
         if (!online) throw new Error('This browser cannot save the workout locally. Reconnect before finishing.');
         setLocalStatus('Device recovery is unavailable. Finishing directly with the server…');
-        const saved = await onlineFallback.finish(draft, false);
+        const saved = await onlineFallback.finish(draft, false, planUpdate.input);
         onFinish(saved);
         return;
       }
       await enqueueSave(accountId, draft, { activeIndex });
-      const withFinish = await enqueueFinish(accountId, finishedAt, false, draft);
+      const withFinish = await enqueueFinish(accountId, finishedAt, false, draft, planUpdate.input);
+      clearStopwatches();
       onRecoveryChange(withFinish);
       setFinishIntentAt(finishedAt);
       setLocalStatus(`Finished on this device at ${new Date(finishedAt).toLocaleTimeString()}. Waiting to sync.`);
       restTimer.skip();
       if (online) {
-        queue.push('workout-finish', drain);
+        queue.push('workout', drain);
         await queue.whenIdle();
       } else {
         setBusy(false);
@@ -472,6 +463,7 @@ export function Workout({
           unlogged={plannedSets(draft) - done}
           busy={busy}
           planUpdate={planUpdate}
+          restoreIncludesRemovedExercises={draft.restoreIncludesRemovedExercises}
           onClose={() => setConfirm(null)}
           onFinish={() => void finish()}
           onDiscard={() => void discard()}

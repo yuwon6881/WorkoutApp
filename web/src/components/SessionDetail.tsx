@@ -41,7 +41,7 @@ export function SessionDetail({ session: initial, preferences, exercises = [], c
         <div className="session-summary-top">
           <span className="session-summary-icon" aria-hidden="true"><Trophy size={22} /></span>
           <div className="session-summary-heading">
-            <p className="session-summary-kicker">{justFinished ? 'Workout complete' : 'Completed workout'}</p>
+            <p className="session-summary-kicker">{session.active ? 'Workout in progress' : justFinished ? 'Workout complete' : 'Completed workout'}</p>
             <p className="session-summary-when">{when}</p>
           </div>
         </div>

@@ -230,6 +230,7 @@ public sealed class WorkoutSession : OwnedRecord
     public DateTime? LastTimingEventAt { get; set; }
     public string BodyWeightSnapshotJson { get; set; } = "";
     public string NutritionContextJson { get; set; } = "";
+    public string StartPlanJson { get; set; } = "";
     public long? NutritionContextRevision { get; set; }
     public string? RestGeneration { get; set; }
     public string RestStatus { get; set; } = WorkoutRestStatus.Idle;

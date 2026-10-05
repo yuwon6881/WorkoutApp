@@ -12,6 +12,7 @@ object SessionProjection {
     private val gson = GsonBuilder().serializeNulls().create()
 
     fun project(remote: WorkoutSession, operations: List<PendingOperation>): WorkoutSession {
+        if (!remote.active) return remote
         var session = remote
         for (operation in operations.sortedBy { it.sequence }) {
             if (operation.sessionId != remote.id) continue

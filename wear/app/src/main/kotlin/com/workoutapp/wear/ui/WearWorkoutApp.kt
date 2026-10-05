@@ -268,6 +268,7 @@ private fun ActiveRoute(
                 runAction { repository.logSet(model.exercise.id, set.id, reps, load, rir, durationSeconds); setMessage("Set saved on this watch.") }
             }
         },
+        onSetTimerChanged = repository::saveSetTimer,
         onUndoLastSet = { runAction { repository.undoLastSet(); setMessage("Set undone. Log it again when ready.") } },
         onExtendRest = { repository.extendRest(REST_ADJUST_SECONDS) },
         onShortenRest = { repository.shortenRest(REST_ADJUST_SECONDS) },

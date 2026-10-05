@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Session } from '../types';
 
 const mocks = vi.hoisted(() => ({
-  api: { patchWorkoutSet: vi.fn(), mutateWorkoutRest: vi.fn() },
+  api: { patchWorkoutSet: vi.fn(), mutateWorkoutRest: vi.fn(), finishWorkout: vi.fn(), getWorkout: vi.fn() },
   record: null as unknown
 }));
 
@@ -32,7 +32,7 @@ vi.mock('./workoutRecovery', () => ({
 }));
 
 import { drainWorkoutOutbox } from './workoutOutbox';
-import { api } from './api';
+import { ApiError, api } from './api';
 
 const session: Session = {
   id: 'workout-1', templateId: null, programId: null, name: 'Workout', note: '', active: true,
@@ -49,6 +49,22 @@ describe('durable workout operation replay', () => {
       activeIndex: 0, conflict: false,
       operations: [{ id: 'mutation-1', type: 'setPatch', setId: 'set-1', patch: { done: true }, revision: null, createdAt: '2026-09-21T08:01:00.000Z' }]
     };
+  });
+
+  it('releases a rejected program finish for a fresh review while keeping the saved workout active', async () => {
+    const record = mocks.record as import('./workoutRecovery').WorkoutRecoveryRecord;
+    record.operations = [{ id: 'finish-1', type: 'finish', revision: 12, finishedAt: '2026-09-21T08:20:00Z',
+      retainExerciseSwaps: false, createdAt: '2026-09-21T08:20:00Z',
+      planUpdate: { scope: 'program', changesHash: 'before', programRevision: 1, dayRevisions: { day: 2 } } }];
+    mocks.api.finishWorkout.mockRejectedValue(new ApiError('A program day changed', 409));
+    mocks.api.getWorkout.mockResolvedValue(session);
+    const onFinishReview = vi.fn();
+    const onConflict = vi.fn();
+    await drainWorkoutOutbox('account-1', session.id, () => session,
+      { onSaved: vi.fn(), onFinished: vi.fn(), onConflict, onFinishReview });
+    expect(record.operations).toHaveLength(0);
+    expect(onFinishReview).toHaveBeenCalledWith(session, record);
+    expect(onConflict).not.toHaveBeenCalled();
   });
 
   it('persists one fixed revision and mutation identity across an uncertain set-patch retry', async () => {

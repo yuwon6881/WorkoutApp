@@ -52,9 +52,21 @@ class SetDraft(reps: Int, load: Double?, rir: String?, seconds: Int? = null) {
     var timerTarget by mutableStateOf<Int?>(null)
         private set
     private var timerBase = 0
+    private var timerPausedAt by mutableStateOf<Long?>(null)
     val timing: Boolean get() = timerStartedAt != null
 
-    fun secondsAt(nowEpochMs: Long): Int? = timerStartedAt?.let { stopwatchSeconds(timerBase, it, nowEpochMs, timerTarget) } ?: seconds
+    fun secondsAt(nowEpochMs: Long): Int? = timerStartedAt?.let { stopwatchSeconds(timerBase, it, timerPausedAt ?: nowEpochMs, timerTarget) } ?: seconds
+
+    fun restoreTimer(timer: com.workoutapp.wear.data.SetTimerSnapshot?) {
+        if (timer == null) return
+        timerStartedAt = timer.startedAt
+        timerBase = timer.baseSeconds
+        timerTarget = timer.targetSeconds
+        timerPausedAt = timer.pausedAt
+        seconds = timer.stoppedSeconds
+    }
+
+    fun snapshotTimer() = com.workoutapp.wear.data.SetTimerSnapshot(timerStartedAt, timerBase, timerTarget, seconds, timerPausedAt)
 
     /** Time left on a running countdown, or null when counting up or stopped. */
     fun remainingAt(nowEpochMs: Long): Int? = timerTarget?.let { target -> secondsAt(nowEpochMs)?.let { target - it } }?.takeIf { timing }
@@ -68,10 +80,11 @@ class SetDraft(reps: Int, load: Double?, rir: String?, seconds: Int? = null) {
         timerBase = if (targetSeconds != null && entered >= targetSeconds) 0 else entered
         timerTarget = targetSeconds
         timerStartedAt = nowEpochMs
+        timerPausedAt = null
     }
 
     /** When a running countdown reaches its target. */
-    fun countdownEndsAt(): Long? = timerStartedAt?.let { started -> timerTarget?.let { started + (it - timerBase) * 1_000L } }
+    fun countdownEndsAt(): Long? = if (timerPausedAt != null) null else timerStartedAt?.let { started -> timerTarget?.let { started + (it - timerBase) * 1_000L } }
 
     /** A countdown reached its target: it stops with the target recorded. */
     fun finishCountdown() {

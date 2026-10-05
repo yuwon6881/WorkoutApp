@@ -11,6 +11,40 @@ namespace Workout.Tests;
 public sealed class GoogleHealthWorkoutSyncTests
 {
     [Fact]
+    public async Task Clearing_exercise_history_queues_updated_notes_for_the_finished_workout()
+    {
+        await using var h = await Harness.Create(new() { ["GoogleHealth:ClientId"] = "client", ["GoogleHealth:ClientSecret"] = "secret" });
+        var user = await h.SignIn();
+        await h.Seed(new SeedExercise("bench", "Bench", "Chest", "Barbell", "", null));
+        var exerciseId = await h.ExerciseId("bench");
+        var template = await h.Templates.Create(Harness.Template("Push", Harness.Exercise(exerciseId, "Bench", Harness.Set(8, 10))), null, 1, 0, default);
+        var session = await h.Workouts.Start(template.Id, null, default);
+        var exercise = session.Exercises[0];
+        var saved = await h.Workouts.Save(session.Id, new SessionInput(null,
+            [new SessionExerciseInput(exerciseId, "Bench", null, exercise.Prescription,
+                [new SetInput(60, 8, 8, true, Id: exercise.Sets[0].Id)], Id: exercise.Id)], session.Revision, null), default);
+        await h.Workouts.Finish(session.Id, saved.Revision, default);
+        h.Db.GoogleHealthConnections.Add(new GoogleHealthConnection
+        {
+            UserId = user.Id, GoogleIdHash = "hash", EncryptedRefreshToken = "refresh", WorkoutSyncEnabled = true,
+            GrantedScopesJson = JsonSerializer.Serialize(new[] { GoogleHealthWorkoutSyncService.WorkoutScope }), Status = "connected"
+        });
+        await h.Db.SaveChangesAsync();
+        using var http = new HttpClient(new RespondingHandler(_ => new HttpResponseMessage(HttpStatusCode.OK)));
+        var google = new GoogleHealthService(http, h.Db, new TestKms(), h.Config);
+        var sync = new GoogleHealthWorkoutSyncService(h.Db, google, http, new GoogleHealthWorkoutSummaryService(h.Db));
+        await sync.QueueWorkoutAsync(session.Id, false, default);
+        await h.Db.SaveChangesAsync();
+        var work = await h.Db.GoogleHealthWorkoutSyncWork.SingleAsync();
+        var notes = work.DesiredNotes;
+        var revision = work.DesiredRevision;
+        await new ExerciseService(h.Db, workoutSync: sync).ClearHistory(exerciseId, default);
+        Assert.Equal(revision + 1, work.DesiredRevision);
+        Assert.NotEqual(notes, work.DesiredNotes);
+        Assert.False(work.DesiredDeleted);
+    }
+
+    [Fact]
     public async Task DueWorkUsesItsOwnerWhenBackgroundContextHasNoCurrentUser()
     {
         await using var harness = await Harness.Create(new() { ["GoogleHealth:ClientId"] = "client", ["GoogleHealth:ClientSecret"] = "secret" });

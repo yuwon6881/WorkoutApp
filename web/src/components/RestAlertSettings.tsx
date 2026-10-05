@@ -23,7 +23,7 @@ export function RestAlertSettings({ accountId, preferences, devicePreferences, o
   accountId: string;
   preferences: Preferences;
   devicePreferences: DevicePreferences;
-  onPreferences: (p: Preferences) => void;
+  onPreferences: (p: Preferences) => void | Promise<void>;
   onDevicePreferences: (p: DevicePreferences) => void;
   notify: (message: string) => void;
 }) {
@@ -87,7 +87,7 @@ export function RestAlertSettings({ accountId, preferences, devicePreferences, o
       // The Android app schedules its own local notification for each rest, so it needs only the
       // permission, not a registered push device.
       if (isNative()) {
-        if (!preferences.restAlerts) onPreferences({ ...preferences, restAlerts: true });
+        if (!preferences.restAlerts) await onPreferences({ ...preferences, restAlerts: true });
         notify('Rest notifications are enabled. Delivery depends on Android notification settings.');
         return;
       }
@@ -95,7 +95,7 @@ export function RestAlertSettings({ accountId, preferences, devicePreferences, o
       const status = await api.registerRestAlertDevice(registration.deviceId, registration.token);
       setPushStatus(status);
       window.dispatchEvent(new Event('workout-rest-push-changed'));
-      if (!preferences.restAlerts) onPreferences({ ...preferences, restAlerts: true });
+      if (!preferences.restAlerts) await onPreferences({ ...preferences, restAlerts: true });
       notify('This device is set up for private rest alerts. Delivery depends on browser and phone notification settings.');
     } catch (failure) {
       notify(failure instanceof Error ? failure.message : 'Could not enable notifications on this device.');
@@ -123,7 +123,8 @@ export function RestAlertSettings({ accountId, preferences, devicePreferences, o
               if (!allowed) {
                 notify('Workout notifications are not enabled. You can still use the on-screen timer and sound.');
               }
-              onPreferences({ ...preferences, restAlerts: wanted && allowed });
+              try { await onPreferences({ ...preferences, restAlerts: wanted && allowed }); }
+              catch (failure) { notify(failure instanceof Error ? failure.message : 'Rest alert preferences were not saved.'); }
               void getAlertCapabilities().then(setCapabilities);
             }}
           />

@@ -212,12 +212,13 @@ public sealed partial class ImportService(AppDb db, WorkoutAi ai, CatalogService
     }
 
     /// Acceptance is all-or-nothing: the review must have no unresolved mappings or document issues.
-    public async Task<ProgramView> Accept(Guid id, CancellationToken ct)
+    public async Task<ProgramView> Accept(Guid id, CancellationToken ct, int? revision = null)
     {
         await using var gate = await MutationLock.Acquire(db, db.CurrentUser, ct);
         var import = await db.Imports.SingleOrDefaultAsync(i => i.Id == id, ct);
         Validation.Require(import != null, "That import no longer exists.", 404);
         Validation.Require(import!.Status == ImportStatus.Ready, "This import has already been accepted or discarded.", 409);
+        TemplateService.RequireFresh(revision, import.Revision);
         var draft = ImportValidation.NormalizeDraft(Json.Read<ImportDraft>(import.DraftJson));
         await ValidateDraft(draft, ct);
         ValidateDraftPages(draft, import.PageCoverageJson);

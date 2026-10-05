@@ -1,10 +1,10 @@
 import { NativeBuildInfo } from './NativeBuildInfo';
 import { Dumbbell, Link2, LogOut, Moon, SlidersHorizontal, Sun, Timer, Watch, Weight } from 'lucide-react';
 import type { Account, Preferences } from '../types';
-import { api } from '../lib/api';
-import { deleteWorkoutPushToken, getWorkoutPushDeviceId } from '../lib/push/firebaseMessaging';
+import { useState } from 'react';
 import type { DevicePreferences } from '../lib/workoutRecovery';
 import { Button } from './ui/Button';
+import { CardFeedback } from './ui/CardFeedback';
 import { SegmentedControl } from './ui/SegmentedControl';
 import { SettingRow } from './ui/SettingRow';
 import { Switch } from './ui/Switch';
@@ -22,12 +22,15 @@ type SettingsViewProps = {
   account: Account;
   preferences: Preferences;
   devicePreferences: DevicePreferences;
-  onDevicePreferences: (preferences: DevicePreferences) => void;
+  onDevicePreferences: (preferences: DevicePreferences) => void | Promise<void>;
   onPreferences: (preferences: Preferences) => void | Promise<void>;
   notify: (message: string) => void;
   onSignOut: () => Promise<void>;
   version: string;
   onCatalogChanged?: () => void | Promise<void>;
+  preferencePending?: boolean;
+  onRetryPreferences?: () => Promise<void>;
+  onRevertPreferences?: () => void;
 };
 
 const sections: SettingsSectionLink[] = [
@@ -47,19 +50,25 @@ function initials(name: string) {
 
 export function SettingsView(props: SettingsViewProps) {
   const { account, preferences, devicePreferences, onDevicePreferences, onPreferences, notify, onSignOut, version, onCatalogChanged } = props;
-  const deviceId = getWorkoutPushDeviceId();
+  const [saveError, setSaveError] = useState('');
+  const [signingOut, setSigningOut] = useState(false);
   const [general, training, weights, rest, watch, connections] = sections;
 
   async function signOut() {
-    if (deviceId) {
-      try {
-        await api.unregisterRestAlertDevice(deviceId);
-        await deleteWorkoutPushToken();
-      } catch {
-        notify('Device push registration may not have been revoked yet. Any queued rest alert expires shortly.');
-      }
-    }
-    await onSignOut();
+    setSigningOut(true);
+    try { await onSignOut(); }
+    catch (failure) { setSaveError(failure instanceof Error ? failure.message : 'Could not sign out. Try again.'); }
+    finally { setSigningOut(false); }
+  }
+
+  async function save(next: Preferences) {
+    setSaveError('');
+    try { await onPreferences(next); return true; }
+    catch (failure) { setSaveError(failure instanceof Error ? failure.message : 'Preferences were not saved.'); return false; }
+  }
+  async function saveDevice(next: DevicePreferences) {
+    try { await onDevicePreferences(next); }
+    catch (failure) { setSaveError(failure instanceof Error ? failure.message : 'Device preferences were not saved.'); }
   }
 
   return (
@@ -75,10 +84,17 @@ export function SettingsView(props: SettingsViewProps) {
           <h2 id="settings-account-title" className="settings-account-name">{account.displayName}</h2>
           <span className="settings-account-note">Synced across your devices.</span>
         </div>
-        <Button variant="secondary" className="account-signout-btn" onClick={() => void signOut()}>
+        <Button variant="secondary" className="account-signout-btn" disabled={signingOut} onClick={() => void signOut()}>
           <LogOut size={16} aria-hidden="true" /> Sign out
         </Button>
       </section>
+
+      {saveError && <div><CardFeedback message={saveError} />
+        {props.preferencePending && <div className="modal-actions">
+          <Button onClick={() => void props.onRetryPreferences?.().then(() => setSaveError('')).catch(failure => setSaveError(failure instanceof Error ? failure.message : 'Could not save preferences.'))}>Retry save</Button>
+          <Button onClick={() => { props.onRevertPreferences?.(); setSaveError(''); }}>Revert preferences</Button>
+        </div>}
+      </div>}
 
       <div className="settings-shell">
         <SettingsNav links={sections} />
@@ -88,7 +104,7 @@ export function SettingsView(props: SettingsViewProps) {
               <SegmentedControl
                 label="Appearance"
                 value={preferences.theme}
-                onChange={theme => onPreferences({ ...preferences, theme })}
+                onChange={theme => void save({ ...preferences, theme })}
                 options={[
                   { value: 'dark', label: <><Moon size={15} aria-hidden="true" />Dark</> },
                   { value: 'light', label: <><Sun size={15} aria-hidden="true" />Light</> }
@@ -102,8 +118,7 @@ export function SettingsView(props: SettingsViewProps) {
                 onChange={async unit => {
                   // Exercise steps are resolved in the saved unit, so refresh them only once the
                   // server has it; refreshing sooner reads the old unit back over the new choice.
-                  await onPreferences({ ...preferences, unit });
-                  await onCatalogChanged?.();
+                  if (await save({ ...preferences, unit })) await onCatalogChanged?.();
                 }}
                 options={[
                   { value: 'kg', label: 'kg', ariaLabel: 'Kilograms (kg)' },
@@ -123,10 +138,10 @@ export function SettingsView(props: SettingsViewProps) {
                 label="Track reps in reserve (RIR)"
                 describedBy="track-rir-description"
                 checked={tracksRir(preferences)}
-                onChange={trackRir => onPreferences({ ...preferences, trackRir })}
+                onChange={trackRir => void save({ ...preferences, trackRir })}
               />
             </SettingRow>
-            <WorkoutFlowSettings devicePreferences={devicePreferences} onDevicePreferences={onDevicePreferences} />
+            <WorkoutFlowSettings devicePreferences={devicePreferences} onDevicePreferences={saveDevice} />
           </SettingsSection>
 
           <SettingsSection {...weights} layout="plain" title="Weight increments" description="The weights your equipment offers, used for suggestions.">
@@ -138,8 +153,8 @@ export function SettingsView(props: SettingsViewProps) {
               accountId={account.id}
               preferences={preferences}
               devicePreferences={devicePreferences}
-              onDevicePreferences={onDevicePreferences}
-              onPreferences={onPreferences}
+              onDevicePreferences={saveDevice}
+              onPreferences={async next => { if (!(await save(next))) throw new Error('Rest alert preferences were not saved. Retry in Settings.'); }}
               notify={notify}
             />
           </SettingsSection>

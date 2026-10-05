@@ -1,7 +1,7 @@
 import type { LoggedSet, Preferences, RestMutationInput, Session, SessionRest } from '../types';
 import { reconcileSetPatchOperation, sameWorkoutEdits, sameWorkoutNonSetEdits } from './workoutRecoveryComparison';
 import { getRecoveryStorage } from './recoveryStorage';
-import type { RunningStopwatch } from './setStopwatch';
+import { discardStopwatch, type RunningStopwatch } from './setStopwatch';
 
 export { reconcileSetPatchOperation, sameWorkoutEdits };
 export { defaultDevicePreferences, loadDevicePreferences, saveDevicePreferences } from './workoutDevicePreferences';
@@ -12,7 +12,7 @@ export type WorkoutOperation =
   | { id: string; type: 'setPatch'; setId: string; patch: SetPatch; rest?: RestMutationInput | null; revision: number | null; createdAt: string }
   | { id: string; type: 'rest'; rest: RestMutationInput; revision: number | null; createdAt: string }
   | { id: string; type: 'pause' | 'resume'; occurredAt: string; revision: number | null; createdAt: string }
-  | { id: string; type: 'finish'; finishedAt: string; retainExerciseSwaps: boolean; revision: number | null; createdAt: string };
+  | { id: string; type: 'finish'; finishedAt: string; retainExerciseSwaps: boolean; planUpdate?: import('./finishPlanContract').FinishPlanUpdateInput; revision: number | null; createdAt: string };
 
 export type SetPatch = Partial<Pick<LoggedSet, 'weightKg' | 'reps' | 'durationSeconds' | 'rpe' | 'rir' | 'done' | 'warmup' | 'resistanceMode'>>;
 
@@ -246,6 +246,16 @@ export async function enqueueTiming(accountId: string, type: 'pause' | 'resume',
   return serializeWrite(accountId, async () => {
     const record = await requireRecovery(accountId, draft.id);
     record.draft = draft;
+    const now = Date.parse(occurredAt);
+    record.stopwatches = Object.fromEntries(Object.entries(record.stopwatches ?? {}).map(([id, timer]) => {
+      if (type === 'pause' && timer.pausedAtMs === undefined) return [id, { ...timer, pausedAtMs: now }];
+      if (type === 'resume' && timer.pausedAtMs !== undefined) {
+        const next = { ...timer, startedAtMs: timer.startedAtMs + Math.max(0, now - timer.pausedAtMs) };
+        delete next.pausedAtMs;
+        return [id, next];
+      }
+      return [id, timer];
+    }));
     record.updatedAt = new Date().toISOString();
     record.operations.push({ id: crypto.randomUUID(), type, occurredAt, revision: null, createdAt: record.updatedAt });
     await putRecord(record);
@@ -253,12 +263,13 @@ export async function enqueueTiming(accountId: string, type: 'pause' | 'resume',
   });
 }
 
-export async function enqueueFinish(accountId: string, finishedAt: string, retainExerciseSwaps: boolean, draft: Session): Promise<WorkoutRecoveryRecord> {
+export async function enqueueFinish(accountId: string, finishedAt: string, retainExerciseSwaps: boolean, draft: Session, planUpdate?: import('./finishPlanContract').FinishPlanUpdateInput): Promise<WorkoutRecoveryRecord> {
   return serializeWrite(accountId, async () => {
     const record = await requireRecovery(accountId, draft.id);
     record.draft = draft;
+    record.stopwatches = {};
     record.updatedAt = new Date().toISOString();
-    record.operations.push({ id: crypto.randomUUID(), type: 'finish', finishedAt, retainExerciseSwaps, revision: null, createdAt: record.updatedAt });
+    record.operations.push({ id: crypto.randomUUID(), type: 'finish', finishedAt, retainExerciseSwaps, ...(planUpdate ? { planUpdate } : {}), revision: null, createdAt: record.updatedAt });
     await putRecord(record);
     return record;
   });
@@ -302,7 +313,10 @@ export async function setConflict(accountId: string, conflict: boolean, serverSe
 
 export async function clearRecovery(accountId: string): Promise<void> {
   await serializeWrite(accountId, async () => {
+    const record = await getRecovery(accountId);
     await getRecoveryStorage().delete(accountId);
+    for (const exercise of record?.draft.exercises ?? [])
+      for (const set of exercise.sets) discardStopwatch(set.id);
   });
 }
 

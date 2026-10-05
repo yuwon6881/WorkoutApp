@@ -8,7 +8,7 @@ namespace Workout.Api.Services;
 public static class RebuildableReadCache
 {
     // Progress now keeps technique volume while excluding its strength evidence.
-    private const int ProgressVersion = 2;
+    private const int ProgressVersion = 3;
     private static readonly SemaphoreSlim[] Gates = Enumerable.Range(0, 32).Select(_ => new SemaphoreSlim(1)).ToArray();
     private sealed record Snapshot(string Date, JsonElement Value);
 

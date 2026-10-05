@@ -50,23 +50,17 @@ public sealed partial class WorkoutService
             kept.Add(exercise);
         }
 
-        var template = await db.Templates.AsNoTracking().SingleOrDefaultAsync(t => t.Id == session.TemplateId, ct);
-        var planned = template is null ? [] : await db.TemplateExercises.AsNoTracking()
-            .Where(e => e.TemplateId == template.Id).OrderBy(e => e.Position).ToListAsync(ct);
-        var present = kept.Select(e => e.SourceTemplateExerciseId).OfType<Guid>().ToHashSet();
-        var missing = planned.Where(plan => !present.Contains(plan.Id)).ToList();
-        if (missing.Count > 0)
+        var startPlan = SessionStartPlan.Read(session, exercises);
+        var present = kept.Select(row => row.SourceTemplateExerciseId).ToHashSet();
+        foreach (var saved in startPlan.Where(row => !present.Contains(row.SourceTemplateExerciseId)))
         {
-            var names = await templates.CatalogNames(missing.Select(p => p.ExerciseId), ct);
-            var models = await catalog.LoadModelsFor(missing.Select(p => p.ExerciseId), ct);
-            var timed = await CatalogService.TrackingModesFor(db, missing.Select(p => p.ExerciseId), ct);
-            foreach (var plan in missing)
-                kept.Add(await AddPlannedExercise(session, template!, plan, names, models, timed, ct));
+            kept.Add(SessionStartPlan.Restore(db, session, saved));
             changed = true;
         }
 
         // The plan's order first; anything kept beyond the plan follows in its current order.
-        var planOrder = planned.Select((plan, index) => (plan.Id, index)).ToDictionary(x => x.Id, x => x.index);
+        var planOrder = startPlan.Where(row => row.SourceTemplateExerciseId is not null)
+            .ToDictionary(row => row.SourceTemplateExerciseId!.Value, row => row.Position);
         var ordered = kept
             .Select((exercise, index) => (exercise, index))
             .OrderBy(x => x.exercise.SourceTemplateExerciseId is { } source && planOrder.TryGetValue(source, out var at) ? at : planOrder.Count + x.index)
@@ -90,41 +84,4 @@ public sealed partial class WorkoutService
         return await Get(id, ct);
     }
 
-    /// A planned exercise brought back after it was removed: the same rows Start creates, with set
-    /// suggestions read against the session's frozen Nutrition and bodyweight context.
-    private async Task<SessionExercise> AddPlannedExercise(WorkoutSession session, WorkoutTemplate template, TemplateExercise plan,
-        IReadOnlyDictionary<Guid, string> names, IReadOnlyDictionary<Guid, string> models, IReadOnlyDictionary<Guid, string> timed,
-        CancellationToken ct)
-    {
-        var prescription = Json.Read<List<SetPrescription>>(plan.SetsJson);
-        var loadModel = plan.ExerciseId is { } modelId ? models.GetValueOrDefault(modelId, LoadModels.External) : LoadModels.External;
-        var exercise = new SessionExercise
-        {
-            UserId = session.UserId, SessionId = session.Id, ExerciseId = plan.ExerciseId, Position = plan.Position,
-            NameSnapshot = plan.ExerciseId is { } catalogId && names.TryGetValue(catalogId, out var resolved) ? resolved : plan.SourceName,
-            Note = plan.Note, PrescriptionJson = Json.Write(prescription), SequenceGroup = plan.SequenceGroup,
-            RestSeconds = plan.RestSeconds, SubstitutionsJson = plan.SubstitutionsJson, LoadModel = loadModel,
-            SourceTemplateExerciseId = plan.Id, SourceSlotKey = plan.SlotKey, SourcePhaseId = template.ProgramPhaseId,
-            SourcePage = plan.SourcePage, DemoUrl = plan.DemoUrl, DemoLinksJson = plan.DemoLinksJson
-        };
-        db.SessionExercises.Add(exercise);
-
-        var isTimed = plan.ExerciseId is { } timedId && timed.ContainsKey(timedId);
-        var ordinal = 0;
-        var sets = prescription.Select((planSet, index) => new CompletedSet
-        {
-            UserId = session.UserId, SessionExerciseId = exercise.Id, Position = index,
-            Warmup = planSet.Warmup,
-            WorkingSetOrdinal = planSet.Warmup ? null : ++ordinal,
-            Reps = planSet.Warmup && !isTimed ? planSet.RepMin : null,
-            ResistanceMode = planSet.Warmup ? WarmupResistanceMode(loadModel, exercise.NameSnapshot) : ResolveResistanceMode(loadModel, exercise.NameSnapshot)
-        }).ToList();
-        db.Sets.AddRange(sets);
-
-        await RefreshReplacementSuggestions(session, exercise, sets, loadModel, ct);
-        foreach (var set in sets.Where(s => !s.Warmup && !isTimed && s.SuggestionJson.Length > 0))
-            set.Reps = Progression.PrefillReps(prescription[set.Position], Json.Read<SetProgressionSuggestion>(set.SuggestionJson));
-        exercise.BaselineJson = CreateExerciseBaseline(exercise, sets);
-        return exercise;
-    }
 }

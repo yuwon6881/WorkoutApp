@@ -12,6 +12,11 @@ const session = (overrides: Partial<Session> = {}): Session => ({
   volumeKg: 600, completedSets: 1, warmupSets: 0, ...overrides
 });
 
+it('history duration counts training time without completed or open pauses', () => {
+  expect(duration(session({ pausedSeconds: 1200 }))).toBe(40);
+  expect(duration(session({ pausedSeconds: 600, pausedAt: '2026-09-13T10:50:00Z' }))).toBe(40);
+});
+
 describe('weight conversion', () => {
   it('keeps kilograms unchanged and converts pounds both ways', () => {
     expect(toDisplay(100, 'kg')).toBe(100);

@@ -88,12 +88,14 @@ public sealed partial class WorkoutService
     {
         var baseline = Json.Read<SessionExerciseBaseline>(sourceRow.BaselineJson);
         var restoreIdentity = !sets.Any(s => s.Done) && IdentityDiffers(sourceRow, baseline);
-        if (!restoreIdentity && !SessionPlanRestore.PlanDiffers(baseline, sourceRow.PrescriptionJson, sets)) return false;
+        if (!restoreIdentity && !PlanDiffers(sourceRow, baseline, sets)) return false;
 
         var plan = SessionPlanRestore.Apply(baseline, sets);
         db.Sets.RemoveRange(plan.Removed);
         var rows = SessionPlanRestore.ApplyTo(plan, session.UserId, sourceRow.Id, row => db.Sets.Add(row));
         sourceRow.PrescriptionJson = Json.Write(plan.Prescription);
+        sourceRow.Note = baseline.Note;
+        sourceRow.RestSeconds = baseline.RestSeconds;
         if (!restoreIdentity)
         {
             // A swap that stays (sets are logged on it) keeps its own loads: the start snapshot's
@@ -134,6 +136,10 @@ public sealed partial class WorkoutService
         if (string.IsNullOrEmpty(row.BaselineJson)) return false;
         var baseline = Json.Read<SessionExerciseBaseline>(row.BaselineJson);
         return (!sets.Any(s => s.Done) && IdentityDiffers(row, baseline))
-            || SessionPlanRestore.PlanDiffers(baseline, row.PrescriptionJson, sets);
+            || PlanDiffers(row, baseline, sets);
     }
+
+    private static bool PlanDiffers(SessionExercise row, SessionExerciseBaseline baseline, IReadOnlyCollection<CompletedSet> sets)
+        => row.Note != baseline.Note || row.RestSeconds != baseline.RestSeconds
+            || SessionPlanRestore.PlanDiffers(baseline, row.PrescriptionJson, sets);
 }

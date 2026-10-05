@@ -15,7 +15,7 @@ vi.mock('./recoveryStorage', () => ({
   })
 }));
 
-const { adoptServerSession, enqueueSetEdits, getRecovery, saveStopwatches, startRecovery } = await import('./workoutRecovery');
+const { adoptServerSession, enqueueFinish, enqueueTiming, enqueueSetEdits, getRecovery, saveStopwatches, startRecovery } = await import('./workoutRecovery');
 
 const session = (patch: Partial<Session> = {}): Session => ({
   id: 'workout-1', templateId: 'day-1', programId: null, name: 'Push', note: '', active: true,
@@ -42,6 +42,18 @@ beforeEach(async () => {
 });
 
 describe('device recovery after a direct server change', () => {
+  it('writes paused timers atomically with pause and shifts their start only once on resume', async () => {
+    const start = Date.parse('2026-10-04T08:00:00.000Z');
+    await saveStopwatches('account', 'workout-1', { 'set-1': { startedAtMs: start, baseSeconds: 0, targetSeconds: 30 } });
+    await enqueueTiming('account', 'pause', new Date(start + 10_000).toISOString(), session({ pausedAt: new Date(start + 10_000).toISOString() }));
+    expect((await getRecovery('account'))?.stopwatches?.['set-1'].pausedAtMs).toBe(start + 10_000);
+    await enqueueTiming('account', 'resume', new Date(start + 100_000).toISOString(), session());
+    const resumed = (await getRecovery('account'))?.stopwatches?.['set-1'];
+    expect(resumed?.startedAtMs).toBe(start + 90_000);
+    expect(resumed?.pausedAtMs).toBeUndefined();
+    await enqueueFinish('account', new Date(start + 110_000).toISOString(), false, session());
+    expect((await getRecovery('account'))?.stopwatches).toEqual({});
+  });
   it('keeps a swap or restore the server confirmed, so a crash reopens it', async () => {
     await adoptServerSession('account', swapped());
 

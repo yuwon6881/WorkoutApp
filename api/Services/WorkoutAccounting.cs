@@ -8,7 +8,7 @@ public static class WorkoutAccounting
     public static (double? External, double? System) Volume(IReadOnlyList<SessionExercise> exercises, IReadOnlyList<CompletedSet> sets)
     {
         var models = exercises.ToDictionary(exercise => exercise.Id, exercise => exercise.LoadModel);
-        var working = sets.Where(set => set.Done && !set.Warmup && set.Reps is not null).ToList();
+        var working = sets.Where(set => set.Done && !set.Warmup && set.DurationSeconds is null && set.Reps is not null).ToList();
         var external = working.Where(set => set.WeightKg is not null && set.SystemLoadKg is null &&
             models.GetValueOrDefault(set.SessionExerciseId, LoadModels.External) == LoadModels.External).ToList();
         var system = working.Where(set => set.SystemLoadKg is not null &&

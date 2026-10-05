@@ -1311,137 +1311,58 @@ test('the API is never answered from the app shell and requires a session', asyn
   expect(responseCheck.cache).toContain('no-store');
 });
 
-test('overview calendar displays matching markers and details for completed, in-progress, and empty days', async ({ page }) => {
+test('overview calendar opens matching completed and active sessions and leaves empty days idle', async ({ page }) => {
   const today = new Date();
-  const pad = (n: number) => String(n).padStart(2, '0');
-  const toDateStr = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-
-  const todayStr = toDateStr(today);
+  const localDay = (date: Date) => [date.getFullYear(), String(date.getMonth() + 1).padStart(2, '0'), String(date.getDate()).padStart(2, '0')].join('-');
   const yesterday = new Date(today);
   yesterday.setDate(today.getDate() - 1);
-  const yesterdayStr = toDateStr(yesterday);
-
-  const startOfWeek = new Date(today);
-  startOfWeek.setHours(0, 0, 0, 0);
-  startOfWeek.setDate(startOfWeek.getDate() - ((startOfWeek.getDay() + 6) % 7));
-  const currentWeekDays = Array.from({ length: 7 }, (_, i) => {
-    const d = new Date(startOfWeek);
-    d.setDate(d.getDate() + i);
-    return d;
-  });
-  const emptyDay = currentWeekDays.find(d => toDateStr(d) !== todayStr && toDateStr(d) !== yesterdayStr)!;
-
-  const mockActivity = [
-    {
-      id: 'activity-completed-today',
-      name: 'Evening Bench & Arms',
-      startedAt: `${yesterdayStr}T23:30:00.000Z`,
-      finishedAt: `${todayStr}T00:30:00.000Z`,
-      status: 'completed',
-      date: todayStr,
-    },
-    {
-      id: 'activity-completed-second-today',
-      name: 'Morning Mobility',
-      status: 'completed',
-      date: todayStr,
-    },
-    {
-      id: 'activity-in-progress-yesterday',
-      name: 'Late Night Squats',
-      startedAt: `${yesterdayStr}T23:30:00.000Z`,
-      finishedAt: null,
-      status: 'in_progress',
-      date: yesterdayStr,
-    },
+  const monday = new Date(today);
+  monday.setDate(today.getDate() - ((today.getDay() + 6) % 7));
+  const emptyDay = Array.from({ length: 7 }, (_, offset) => {
+    const date = new Date(monday);
+    date.setDate(date.getDate() + offset);
+    return date;
+  }).find(date => localDay(date) !== localDay(today) && localDay(date) !== localDay(yesterday))!;
+  const completedId = '00000000-0000-4000-8000-000000000041';
+  const activeId = '00000000-0000-4000-8000-000000000042';
+  const activity = [
+    { id: completedId, name: 'Evening Bench & Arms', status: 'completed', date: localDay(today) },
+    { id: activeId, name: 'Late Night Squats', status: 'in_progress', date: localDay(yesterday) }
   ];
-
-  await page.route('**/api/workouts/activity*', async route => {
-    await route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify(mockActivity),
-    });
-  });
-
-  await page.route('**/api/history/summaries*', async route => {
-    const response = await route.fetch();
-    const json = await response.json();
-    json.sessions = [
-      {
-        id: 'activity-completed-today',
-        name: 'Evening Bench & Arms',
-        startedAt: `${yesterdayStr}T23:30:00.000Z`,
-        finishedAt: `${todayStr}T00:30:00.000Z`,
-        exercises: [],
-        notes: '',
-        unit: 'kg',
-        durationMinutes: 60,
-        volumeKg: 1000,
-        totalReps: 50,
-      },
-      ...(json.sessions || []),
-    ];
-    await route.fulfill({ response, json });
-  });
-
+  await page.route('**/api/workouts/activity?*', route => route.fulfill({ json: activity }));
+  for (const item of activity) {
+    await page.route('**/api/workouts/' + item.id, route => route.fulfill({ json: {
+      id: item.id, name: item.name, active: item.status === 'in_progress', revision: 1,
+      startedAt: item.date + 'T08:00:00.000Z', finishedAt: item.status === 'completed' ? item.date + 'T09:00:00.000Z' : null,
+      pausedAt: null, pausedSeconds: 0, exercises: [], note: '', volumeKg: null, completedSets: 0, warmupSets: 0
+    } }));
+  }
   await signIn(page);
-
-  await expect(page.locator('.weekly-completion-ring')).toBeVisible();
-  await expect(page.getByRole('region', { name: 'Training calendar' }).getByText('2 workouts completed in this calendar week', { exact: true })).toBeVisible();
-
-  const todayButton = page.getByRole('button', { name: new RegExp(`^${today.toDateString()}, workout completed, today$`) });
-  await expect(todayButton).toBeVisible();
+  const calendar = page.getByRole('region', { name: 'Training calendar' });
+  await expect(calendar.getByText('1 workout completed in this calendar week', { exact: true })).toBeVisible();
+  const todayButton = page.getByRole('button', { name: today.toDateString() + ', workout completed, today', exact: true });
   await expect(todayButton).toHaveClass(/day-completed/);
-  await expect(todayButton).toHaveClass(/today/);
-  await expect(todayButton.locator('svg')).toBeVisible();
-
   await todayButton.click();
-  const todayTitle = today.toLocaleDateString('en', { weekday: 'long', month: 'long', day: 'numeric' });
-  const todayModal = page.getByRole('dialog', { name: todayTitle, exact: true });
-  await expect(todayModal).toBeVisible();
-  await expect(todayModal.getByText('Evening Bench & Arms', { exact: true })).toBeVisible();
-  await expect(todayModal.getByText('completed', { exact: true })).toHaveCount(2);
-  await todayModal.getByRole('button', { name: 'Close dialog', exact: true }).click();
-  await expect(todayModal).toBeHidden();
-
+  const completed = page.getByRole('dialog', { name: 'Evening Bench & Arms', exact: true });
+  await expect(completed).toBeVisible();
+  await expect(completed.getByText('Completed workout', { exact: true })).toBeVisible();
+  await completed.getByRole('button', { name: 'Done', exact: true }).click();
   if (today.getDay() === 1) {
     await page.locator('.calendar-week-rail').focus();
     await page.keyboard.press('ArrowLeft');
   }
-
-  const yesterdayButton = page.getByRole('button', { name: new RegExp(`^${yesterday.toDateString()}, workout in progress$`) });
-  await expect(yesterdayButton).toBeVisible();
+  const yesterdayButton = page.getByRole('button', { name: yesterday.toDateString() + ', workout in progress', exact: true });
   await expect(yesterdayButton).toHaveClass(/day-in_progress/);
-  expect(await yesterdayButton.evaluate(el => el.classList.contains('day-completed'))).toBe(false);
-  await expect(yesterdayButton.locator('.day-marker')).toHaveText('…');
-
   await yesterdayButton.click();
-  const yesterdayTitle = yesterday.toLocaleDateString('en', { weekday: 'long', month: 'long', day: 'numeric' });
-  const yesterdayModal = page.getByRole('dialog', { name: yesterdayTitle, exact: true });
-  await expect(yesterdayModal).toBeVisible();
-  await expect(yesterdayModal.getByText('Late Night Squats', { exact: true })).toBeVisible();
-  await expect(yesterdayModal.getByText('in progress', { exact: true })).toBeVisible();
-  await expect(yesterdayModal.getByText('Evening Bench & Arms', { exact: true })).toBeHidden();
-  await yesterdayModal.getByRole('button', { name: 'Close dialog', exact: true }).click();
-  await expect(yesterdayModal).toBeHidden();
-
-  if (today.getDay() === 1) {
-    await page.getByRole('button', { name: 'Return to this week', exact: true }).click();
-  }
-
-  const emptyDayButton = page.getByRole('button', { name: new RegExp(`^${emptyDay.toDateString()}, no workout recorded$`) });
-  await expect(emptyDayButton).toBeVisible();
-  await expect(emptyDayButton).toHaveClass(/day-rest/);
-  await expect(emptyDayButton.locator('.day-marker')).toHaveText('·');
-
-  await emptyDayButton.click();
-  const emptyDayTitle = emptyDay.toLocaleDateString('en', { weekday: 'long', month: 'long', day: 'numeric' });
-  const emptyModal = page.getByRole('dialog', { name: emptyDayTitle, exact: true });
-  await expect(emptyModal).toBeVisible();
-  await expect(emptyModal.getByText('No workout recorded for this day.', { exact: true })).toBeVisible();
-  await emptyModal.getByRole('button', { name: 'Close dialog', exact: true }).click();
-  await expect(emptyModal).toBeHidden();
+  const active = page.getByRole('dialog', { name: 'Late Night Squats', exact: true });
+  await expect(active).toBeVisible();
+  await expect(active.getByText('Workout in progress', { exact: true })).toBeVisible();
+  await active.getByRole('button', { name: 'Done', exact: true }).click();
+  if (today.getDay() === 1) await page.getByRole('button', { name: 'Return to this week', exact: true }).click();
+  const empty = page.getByRole('button', { name: emptyDay.toDateString() + ', no workout recorded', exact: true });
+  await expect(empty).toHaveClass(/day-rest/);
+  await empty.click();
+  await expect(page.getByRole('dialog')).toHaveCount(0);
 });
 
 test('overview completion follows the active program week rather than calendar activity or skipped days', async ({ page }, info) => {

@@ -8,6 +8,8 @@ using Workout.Api.Services;
 
 namespace Workout.Api.Endpoints;
 
+public record ImportRevisionInput(int? Revision);
+
 public static class ImportEndpoints
 {
     /// The browser sends the text it read from the PDF, not the PDF. Even a large book's text
@@ -100,8 +102,8 @@ public static class ImportEndpoints
             => await imports.MapSlot(id, exerciseLineId, input?.ReplacementExerciseId, input?.Revision, ct));
         app.MapPost("/api/imports/{id:guid}/alternative", async (Guid id, ImportAlternativeInput input, ImportService imports, CancellationToken ct)
             => await imports.SelectAlternative(id, input.AlternativeId, ct));
-        app.MapPost("/api/imports/{id:guid}/accept", async (Guid id, ImportService imports, CancellationToken ct) =>
-            await imports.Accept(id, ct));
+        app.MapPost("/api/imports/{id:guid}/accept", async (Guid id, ImportRevisionInput? input, ImportService imports, CancellationToken ct) =>
+            await imports.Accept(id, ct, input?.Revision));
         app.MapPost("/api/imports/{id:guid}/discard", async (Guid id, ImportService imports, CancellationToken ct) =>
         { await imports.Discard(id, ct); return Results.NoContent(); });
     }

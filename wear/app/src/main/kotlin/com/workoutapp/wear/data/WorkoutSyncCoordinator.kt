@@ -124,13 +124,12 @@ class WorkoutSyncCoordinator(
             return Step.Stop(SyncOutcome(pending = true, message = OFFLINE_MESSAGE))
         }
 
-        if (operation.type == "set" && remote.exercises.none { exercise -> exercise.sets.any { it.id == operation.setId } }) {
-            reject(operation, "A set logged on the watch was removed in WorkoutApp, so it was not saved.", remote)
+        if (!remote.active) {
+            closeSession(operation.sessionId)
             return Step.Next
         }
-        // A finished or discarded workout is authoritative: a rest change for it is simply dropped.
-        if (operation.type == "rest" && !remote.active) {
-            reject(operation, "The workout ended in WorkoutApp, so the watch's rest change was not saved.", remote)
+        if (operation.type == "set" && remote.exercises.none { exercise -> exercise.sets.any { it.id == operation.setId } }) {
+            reject(operation, "A set logged on the watch was removed in WorkoutApp, so it was not saved.", remote)
             return Step.Next
         }
         // The same revision means the refusal was not a race another device won; resending the same

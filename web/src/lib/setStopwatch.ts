@@ -8,6 +8,7 @@ export type RunningStopwatch = {
   targetSeconds: number | null;
   /** Set when a countdown reached its target and is waiting to be written into the set. */
   finishedSeconds?: number;
+  pausedAtMs?: number;
 };
 
 // Held in memory by set id so a hold keeps counting while the user swipes to another exercise
@@ -55,7 +56,7 @@ export function startStopwatch(setId: string, baseSeconds: number | null | undef
 export function finishCountdown(setId: string) {
   const entry = running.get(setId);
   clearDeadline(setId);
-  if (!entry || entry.targetSeconds === null || entry.finishedSeconds !== undefined) return;
+  if (!entry || entry.pausedAtMs !== undefined || entry.targetSeconds === null || entry.finishedSeconds !== undefined) return;
   running.set(setId, { ...entry, finishedSeconds: entry.targetSeconds });
   emit();
   onFinished();
@@ -68,13 +69,46 @@ export function stopStopwatch(setId: string, nowMs = Date.now()): number | null 
   running.delete(setId);
   clearDeadline(setId);
   emit();
-  return entry.finishedSeconds ?? stopwatchSeconds(entry.baseSeconds, entry.startedAtMs, nowMs, entry.targetSeconds);
+  return entry.finishedSeconds ?? stopwatchSeconds(entry.baseSeconds, entry.startedAtMs, entry.pausedAtMs ?? nowMs, entry.targetSeconds);
 }
 
 /** Forgets a stopwatch without recording it, for a set that is removed or edited by hand. */
 export function discardStopwatch(setId: string) {
   clearDeadline(setId);
   if (running.delete(setId)) emit();
+}
+
+export function clearStopwatches() {
+  for (const setId of running.keys()) clearDeadline(setId);
+  running.clear();
+  emit();
+}
+
+export function pauseStopwatches(nowMs = Date.now()) {
+  let changed = false;
+  for (const [id, entry] of running) {
+    if (entry.pausedAtMs !== undefined || entry.finishedSeconds !== undefined) continue;
+    clearDeadline(id);
+    running.set(id, { ...entry, pausedAtMs: nowMs });
+    changed = true;
+  }
+  if (changed) emit();
+}
+
+export function resumeStopwatches(nowMs = Date.now()) {
+  let changed = false;
+  for (const [id, entry] of running) {
+    if (entry.pausedAtMs === undefined) continue;
+    const next = { ...entry, startedAtMs: entry.startedAtMs + Math.max(0, nowMs - entry.pausedAtMs) };
+    delete next.pausedAtMs;
+    running.set(id, next);
+    if (next.targetSeconds !== null && next.finishedSeconds === undefined) {
+      const remaining = (next.targetSeconds - next.baseSeconds) * 1000 - (nowMs - next.startedAtMs);
+      deadlines.set(id, setTimeout(() => finishCountdown(id), Math.max(0, remaining)));
+    }
+    changed = true;
+  }
+  if (changed) emit();
 }
 
 export function useStopwatch(setId: string): RunningStopwatch | undefined {
@@ -101,8 +135,9 @@ export function restoreStopwatches(saved: Record<string, RunningStopwatch>, nowM
     if (running.has(setId) || !Number.isFinite(entry?.startedAtMs) || !Number.isFinite(entry?.baseSeconds)) continue;
     const target = typeof entry.targetSeconds === 'number' ? entry.targetSeconds : null;
     const next: RunningStopwatch = { startedAtMs: entry.startedAtMs, baseSeconds: entry.baseSeconds, targetSeconds: target };
+    if (typeof entry.pausedAtMs === 'number') next.pausedAtMs = entry.pausedAtMs;
     if (typeof entry.finishedSeconds === 'number') next.finishedSeconds = entry.finishedSeconds;
-    if (target !== null && next.finishedSeconds === undefined) {
+    if (target !== null && next.finishedSeconds === undefined && next.pausedAtMs === undefined) {
       const remainingMs = (target - entry.baseSeconds) * 1000 - (nowMs - entry.startedAtMs);
       if (remainingMs <= 0) next.finishedSeconds = target;
       else deadlines.set(setId, setTimeout(() => finishCountdown(setId), remainingMs));

@@ -44,6 +44,17 @@ public sealed class ImportEditDaysTests
         Exercises = day.Exercises.Select(exercise => exercise with { RestSeconds = rest }).ToList()
     };
 
+    [Fact]
+    public async Task Acceptance_refuses_a_draft_revision_that_is_no_longer_current()
+    {
+        var (h, imports, view) = await Ready();
+        await using var _ = h;
+        var failure = await Assert.ThrowsAsync<DomainException>(() => imports.Accept(view.Id, default, view.Revision - 1));
+        Assert.Equal(409, failure.Status);
+        Assert.Empty(await h.Programs.List(default));
+        Assert.Equal(ImportStatus.Ready, (await imports.Get(view.Id, default)).Status);
+    }
+
     [Fact] public async Task Changed_days_replace_their_lines_and_every_other_day_is_kept()
     {
         var (h, imports, view) = await Ready();

@@ -11,6 +11,7 @@ export type RecoveryDrainHandlers = {
   onSaved: (session: Session, recovery: WorkoutRecoveryRecord | null) => void;
   onFinished: (session: Session) => void | Promise<void>;
   onConflict: (recovery: WorkoutRecoveryRecord, remote: Session) => void;
+  onFinishReview?: (session: Session, recovery: WorkoutRecoveryRecord | null) => void;
 };
 
 /// Last-resort path for an online workout when local IndexedDB is unavailable. These requests
@@ -23,12 +24,27 @@ export function applyOnlineTiming(
 }
 
 export async function finishOnlineWithoutRecovery(
-  draft: Session, revision: number, saveMutationId: string, finishMutationId: string, finishedAt: string, retainExerciseSwaps: boolean
+  draft: Session, revision: number, saveMutationId: string, finishMutationId: string, finishedAt: string, retainExerciseSwaps: boolean,
+  planUpdate?: import('./finishPlanContract').FinishPlanUpdateInput
 ): Promise<Session> {
   const saved = await api.saveWorkout(draft.id, sessionPayload(draft, revision, saveMutationId));
-  return api.finishWorkout(draft.id, {
-    revision: saved.revision, mutationId: finishMutationId, finishedAt, retainExerciseSwaps
-  });
+  try {
+    return await api.finishWorkout(draft.id, {
+      revision: saved.revision, mutationId: finishMutationId, finishedAt, retainExerciseSwaps, ...(planUpdate ? { planUpdate } : {})
+    });
+  } catch (failure) {
+    if (planUpdate && failure instanceof ApiError && failure.conflict) {
+      const remote = await api.getWorkout(draft.id).catch(() => null);
+      if (remote?.active && remote.revision === saved.revision) throw new FinishPlanReviewError(remote);
+    }
+    throw failure;
+  }
+}
+
+export class FinishPlanReviewError extends ApiError {
+  constructor(public readonly session: Session) {
+    super('The program changed. Review its changes again, or save just this workout.', 409);
+  }
 }
 
 export async function drainWorkoutOutbox(
@@ -98,7 +114,8 @@ export async function drainWorkoutOutbox(
           case 'finish':
             saved = await api.finishWorkout(sessionId, {
               revision: operation.revision!, mutationId: operation.id,
-              finishedAt: operation.finishedAt, retainExerciseSwaps: operation.retainExerciseSwaps
+              finishedAt: operation.finishedAt, retainExerciseSwaps: operation.retainExerciseSwaps,
+              ...(operation.planUpdate ? { planUpdate: operation.planUpdate } : {})
             });
             break;
         }
@@ -106,6 +123,14 @@ export async function drainWorkoutOutbox(
         if (failure instanceof ApiError && failure.conflict) {
           const remote = await api.getWorkout(sessionId).catch(() => null);
           if (remote) {
+            // An unchanged active workout proves this program update never committed.
+            // Release only the finish intent so current day revisions can be reviewed again.
+            if (operation.type === 'finish' && operation.planUpdate && remote.active &&
+                remote.revision === operation.revision && sameWorkoutEdits(remote, recovery.serverSession)) {
+              const next = await acknowledgeOperation(accountId, operation.id, remote);
+              handlers.onFinishReview?.(remote, next);
+              return;
+            }
             recovery = await setConflict(accountId, true, remote) ?? recovery;
             handlers.onConflict(recovery, remote);
           }

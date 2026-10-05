@@ -113,7 +113,9 @@ export const showTarget = (set: SetPrescription, trackRir = true): string => {
 
 export const duration = (session: Session): number => {
   const end = session.finishedAt ? Date.parse(session.finishedAt) : Date.now();
-  return Math.max(1, Math.round((end - Date.parse(session.startedAt)) / 60000));
+  const openPause = session.pausedAt ? Math.max(0, (end - Date.parse(session.pausedAt)) / 1000) : 0;
+  const elapsed = Math.max(0, (end - Date.parse(session.startedAt)) / 1000 - (session.pausedSeconds ?? 0) - openPause);
+  return Math.max(1, Math.round(elapsed / 60));
 };
 
 export const localDate = (value: string | number | Date): string => {

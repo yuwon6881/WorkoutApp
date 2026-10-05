@@ -1934,6 +1934,10 @@ namespace Workout.Api.Data.Migrations
                         .IsConcurrencyToken()
                         .HasColumnType("integer");
 
+                    b.Property<string>("StartPlanJson")
+                        .IsRequired()
+                        .HasColumnType("text");
+
                     b.Property<DateTime>("StartedAt")
                         .HasColumnType("timestamp with time zone");
 

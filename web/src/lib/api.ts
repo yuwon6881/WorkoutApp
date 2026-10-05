@@ -183,7 +183,8 @@ export const api = {
   restoreWorkout: (id: string, input: { revision?: number; idempotencyId?: string }) => call<Session>(`/api/workouts/${id}/restore`, 'POST', input),
   pauseWorkout: (id: string, input: { revision: number; mutationId: string; occurredAt: string }) => call<Session>(`/api/workouts/${id}/pause`, 'POST', input),
   resumeWorkout: (id: string, input: { revision: number; mutationId: string; occurredAt: string }) => call<Session>(`/api/workouts/${id}/resume`, 'POST', input),
-  finishWorkout: (id: string, input: { revision: number; retainExerciseSwaps?: boolean; mutationId?: string; finishedAt?: string }) => call<Session>(`/api/workouts/${id}/finish`, 'POST', input),
+  previewFinishPlan: (id: string) => call<import('./finishPlanContract').FinishPlanPreview>(`/api/workouts/${id}/finish/preview`, 'POST'),
+  finishWorkout: (id: string, input: { revision: number; retainExerciseSwaps?: boolean; mutationId?: string; finishedAt?: string; planUpdate?: import('./finishPlanContract').FinishPlanUpdateInput }) => call<Session>(`/api/workouts/${id}/finish`, 'POST', input),
   discardWorkout: (id: string) => call<void>(`/api/workouts/${id}/discard`, 'POST'),
   deleteWorkout: (id: string) => call<void>(`/api/workouts/${id}`, 'DELETE'),
   history: (page: number, size = 20, signal?: AbortSignal) => call<HistoryPage>(`/api/history?page=${page}&size=${size}`, 'GET', undefined, signal),
@@ -216,6 +217,6 @@ export const api = {
   restoreImport: (id: string, revision?: number) => call<ImportView>(`/api/imports/${id}/restore`, 'POST', { revision }),
   restoreImportExercise: (id: string, exerciseLineId: string, revision?: number) => call<ImportView>(`/api/imports/${id}/exercises/${exerciseLineId}/restore`, 'POST', { revision }),
   selectImportAlternative: (id: string, alternativeId: string) => call<ImportView>(`/api/imports/${id}/alternative`, 'POST', { alternativeId }),
-  acceptImport: (id: string) => call<Program>(`/api/imports/${id}/accept`, 'POST'),
+  acceptImport: (id: string, revision?: number) => call<Program>(`/api/imports/${id}/accept`, 'POST', revision === undefined ? undefined : { revision }),
   discardImport: (id: string) => call<void>(`/api/imports/${id}/discard`, 'POST')
 };

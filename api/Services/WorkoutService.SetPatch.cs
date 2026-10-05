@@ -71,6 +71,9 @@ public sealed partial class WorkoutService
         resistanceMode = ResolveResistanceMode(loadModel, exercise.NameSnapshot);
         Validation.LoggedSet(weight, reps, rpe, done, warmup, durationSeconds);
         ValidateActualRir(rir, rpe);
+        var trackingModes = await CatalogService.TrackingModesFor(db, [exercise.ExerciseId], ct);
+        WorkoutSetValidation.Tracking(exercise.ExerciseId is { } trackingId && trackingModes.ContainsKey(trackingId),
+            reps, durationSeconds, rpe, rir, done);
         var warmupChanged = warmup != set.Warmup;
         var step = Progression.DefaultStep(await LoadRuleReader.AccountUnit(db, ct));
         if (exercise.ExerciseId is { } exerciseId)

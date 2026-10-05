@@ -1,6 +1,7 @@
 import { Loader2 } from 'lucide-react';
 import type { FinishPlanChoice as Choice, FinishPlanUpdate } from './useFinishPlanUpdate';
 import './ExerciseScopeOptions.css';
+import { CardFeedback } from './ui/CardFeedback';
 
 const others = (count: number) => `Also ${count} other ${count === 1 ? 'occurrence' : 'occurrences'}`;
 
@@ -11,7 +12,10 @@ export function FinishPlanChoice({ update, disabled }: { update: FinishPlanUpdat
     <Loader2 size={14} className="spin" aria-hidden="true" />Checking your program for the same exercises…
   </p>;
   const { summary } = update;
-  if (!summary) return null;
+  if (!summary) return update.error ? <div><CardFeedback message={update.error}
+    action={{ label: 'Retry review', disabled, onClick: update.retry }} />
+    <p className="muted">You can save just this workout, or retry reviewing program changes.</p>
+    </div> : null;
 
   const options: { value: Choice; label: string; detail: string }[] = [
     { value: 'session', label: 'Just this workout', detail: 'The program stays as it is' },

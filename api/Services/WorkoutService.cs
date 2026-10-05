@@ -35,7 +35,7 @@ public sealed record SessionRestView(
 public record SessionView(Guid Id, Guid? TemplateId, Guid? ProgramId, string Name, string Note, bool Active, DateTime StartedAt, DateTime? FinishedAt, int Revision,
     List<SessionExerciseView> Exercises, double? VolumeKg, int CompletedSets, int WarmupSets = 0,
     BodyWeightSnapshot? BodyWeight = null, NutritionTrainingContext? NutritionContext = null,
-    double? SystemVolumeKg = null, DateTime? PausedAt = null, long PausedSeconds = 0, int PrCount = 0, SessionRestView? Rest = null);
+    double? SystemVolumeKg = null, DateTime? PausedAt = null, long PausedSeconds = 0, int PrCount = 0, SessionRestView? Rest = null, bool RestoreIncludesRemovedExercises = false);
 
 public sealed record WorkoutActivityItem(Guid Id, string Name, string Status, DateOnly Date);
 
@@ -225,6 +225,8 @@ public sealed partial class WorkoutService(
                 exercise.BaselineJson = CreateExerciseBaseline(exercise, db.Sets.Local.Where(s => s.SessionExerciseId == exercise.Id));
             }
         }
+        session.StartPlanJson = Json.Write(db.SessionExercises.Local.Where(row => row.SessionId == session.Id)
+            .OrderBy(row => row.Position).Select(SessionStartPlan.Capture).ToList());
         await db.SaveChangesAsync(ct);
         await gate.Commit(ct);
         return await Get(session.Id, ct);
@@ -294,6 +296,7 @@ public sealed partial class WorkoutService(
 
         Validation.Text(input.Note, 4000, "Workout notes");
         Validation.Require(input.Exercises is { Count: <= 40 }, "A workout can have at most 40 exercises.");
+        var trackingModes = await CatalogService.TrackingModesFor(db, input.Exercises.Select(row => row.ExerciseId), ct);
         foreach (var exercise in input.Exercises)
         {
             Validation.Name(exercise.NameSnapshot, "Exercise name", 160);
@@ -306,6 +309,8 @@ public sealed partial class WorkoutService(
             {
                 Validation.LoggedSet(set.WeightKg, set.Reps, set.Rpe, set.Done, set.Warmup, set.DurationSeconds);
                 ValidateActualRir(set.Rir, set.Rpe);
+                WorkoutSetValidation.Tracking(exercise.ExerciseId is { } trackingId && trackingModes.ContainsKey(trackingId),
+                    set.Reps, set.DurationSeconds, set.Rpe, set.Rir, set.Done);
                 Validation.Require(set.ResistanceMode is null || ResistanceModes.All.Contains(set.ResistanceMode), "Unknown resistance mode.");
             }
             await catalog.RequireActive(exercise.ExerciseId, ct);
@@ -495,13 +500,13 @@ public sealed partial class WorkoutService(
 
     /// Finishing keeps only completed sets, so an untouched suggestion never becomes history.
     public async Task<SessionView> Finish(Guid id, int? revision, CancellationToken ct, bool retainExerciseSwaps = false,
-        Guid? mutationId = null, DateTimeOffset? finishedAt = null)
+        Guid? mutationId = null, DateTimeOffset? finishedAt = null, FinishPlanUpdateInput? planUpdate = null)
     {
         await using var gate = await MutationLock.Acquire(db, db.CurrentUser, ct);
         var session = await db.Workouts.SingleOrDefaultAsync(w => w.Id == id, ct);
         Validation.Require(session != null, "That workout no longer exists.", 404);
         var finishRequest = new FinishMutation(revision, retainExerciseSwaps, finishedAt?.ToUniversalTime());
-        var requestHash = Fingerprint(finishRequest);
+        var requestHash = planUpdate is null ? Fingerprint(finishRequest) : Fingerprint(new { Finish = finishRequest, PlanUpdate = planUpdate });
         var replay = await ReplayWorkoutMutation(id, mutationId, "workout.finish", requestHash, ct);
         if (replay is not null)
         {
@@ -521,6 +526,8 @@ public sealed partial class WorkoutService(
         var sets = await db.Sets.Where(s => ids.Contains(s.SessionExerciseId)).ToListAsync(ct);
         // A workout of warm-ups alone records no training, and the phone and watch refuse it too.
         Validation.Require(sets.Any(s => s.Done && !s.Warmup), "Complete at least one working set to save this workout.");
+        Validation.Require(planUpdate is null || !retainExerciseSwaps, "Choose one program update method.");
+        if (planUpdate is not null) await ApplyFinishPlan(session, planUpdate, ct);
         db.Sets.RemoveRange(sets.Where(s => !s.Done));
         foreach (var exercise in exercises.Where(e => !sets.Any(s => s.Done && s.SessionExerciseId == e.Id))) db.SessionExercises.Remove(exercise);
 
@@ -540,7 +547,7 @@ public sealed partial class WorkoutService(
         {
             var techniques = SetTechniques.ByPosition(e.PrescriptionJson);
             return (e.ExerciseId, e.NameSnapshot,
-                sets.Where(s => s.SessionExerciseId == e.Id && s.Done && !s.Warmup && SetTechniques.IsStrengthEvidence(techniques, s.Position))
+                sets.Where(s => s.SessionExerciseId == e.Id && s.Done && !s.Warmup && s.DurationSeconds == null && SetTechniques.IsStrengthEvidence(techniques, s.Position))
                     .OrderBy(s => s.Position)
                     .Select(s => new PreviousSet(LoadModels.ComparableLoad(e.LoadModel, s.WeightKg, s.SystemLoadKg), s.Reps, s.Rpe ?? Progression.RpeFromRir(s.Rir))).ToList());
         }).ToList(), ct);
@@ -606,9 +613,11 @@ public sealed partial class WorkoutService(
         await using var gate = await MutationLock.Acquire(db, db.CurrentUser, ct);
         var session = await db.Workouts.SingleOrDefaultAsync(w => w.Id == id && !w.Active, ct);
         Validation.Require(session != null, "That workout is not in your history.", 404);
+        var removed = await db.SessionExercises.AsNoTracking().Where(e => e.SessionId == id).ToListAsync(ct);
         if (workoutSync is not null) await workoutSync.QueueWorkoutAsync(id, isDelete: true, ct);
         await Remove(session!, ct);
         await db.SaveChangesAsync(ct);
+        await RebuildProgress(removed, ct);
         await gate.Commit(ct);
     }
 

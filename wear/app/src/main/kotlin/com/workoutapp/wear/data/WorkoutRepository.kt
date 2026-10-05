@@ -42,6 +42,14 @@ class WorkoutRepository private constructor(context: Context) {
 
     fun cached(): WorkoutSnapshot? = store.readSnapshot()
 
+    fun saveSetTimer(setId: String, timer: SetTimerSnapshot) {
+        store.update { snapshot, _ ->
+            if (snapshot?.session?.active != true || snapshot.pendingFinish ||
+                snapshot.session.exercises.none { e -> e.sets.any { it.id == setId && !it.done } }) snapshot
+            else snapshot.copy(setTimers = snapshot.setTimers.orEmpty() + (setId to timer))
+        }
+    }
+
     fun isPaired(): Boolean = secureStore.isDevicePaired() && secureStore.pendingPairing() == null
 
     suspend fun refresh(): WorkoutSnapshot? = gate.withLock {
@@ -360,6 +368,7 @@ class WorkoutRepository private constructor(context: Context) {
         )
         val next = snapshot.copy(
             session = nextSession,
+            setTimers = snapshot.setTimers.orEmpty().mapValues { (_, timer) -> if (pause) timer.pause(nowEpochMs) else timer.resume(nowEpochMs) },
             restEndsAtEpochMs = resumedDeadline,
             pausedRestRemainingMs = if (pause) pausedRest else null,
             restGeneration = if (resumedDeadline != null) UUID.randomUUID().toString() else null

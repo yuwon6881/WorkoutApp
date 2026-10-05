@@ -50,6 +50,7 @@ fun ActiveWorkoutScreen(
     message: String?,
     error: String?,
     onCompleteSet: (reps: Int?, load: Double?, rir: String?, durationSeconds: Int?) -> Unit,
+    onSetTimerChanged: (String, com.workoutapp.wear.data.SetTimerSnapshot) -> Unit,
     onUndoLastSet: () -> Unit,
     onExtendRest: () -> Unit,
     onShortenRest: () -> Unit,
@@ -67,7 +68,17 @@ fun ActiveWorkoutScreen(
     val model = activeSetModel(snapshot)
     val unit = snapshot.unit
     val paused = session.pausedAt != null
-    val draft = remember(model.set?.id, unit) { SetDraft(model.startingReps, model.startingLoad, model.startingRir, model.startingSeconds) }
+    val draft = remember(session.id, model.set?.id, unit) {
+        SetDraft(model.startingReps, model.startingLoad, model.startingRir, model.startingSeconds).apply {
+            restoreTimer(snapshot.setTimers?.get(model.set?.id))
+        }
+    }
+    LaunchedEffect(snapshot.setTimers?.get(model.set?.id), session.pausedAt) {
+        val timer = snapshot.setTimers?.get(model.set?.id) ?: return@LaunchedEffect
+        val current = if (paused) timer.pause(java.time.Instant.parse(session.pausedAt).toEpochMilli()) else timer.resume(System.currentTimeMillis())
+        draft.restoreTimer(current)
+        if (current != timer) model.set?.id?.let { onSetTimerChanged(it, current) }
+    }
     var adjusting by rememberSaveable(model.set?.id) { mutableStateOf<SetField?>(null) }
     var confirmFinish by rememberSaveable(session.id) { mutableStateOf(false) }
     var confirmDisconnect by rememberSaveable { mutableStateOf(false) }
@@ -81,12 +92,14 @@ fun ActiveWorkoutScreen(
 
     val context = LocalContext.current
     // A countdown finishes itself at its target with the rest-end pulse; the draft keeps the time.
-    LaunchedEffect(draft, draft.timerStartedAt, draft.timerTarget) {
+    LaunchedEffect(draft, draft.timerStartedAt, draft.timerTarget, paused) {
+        if (paused) return@LaunchedEffect
         val target = draft.timerTarget ?: return@LaunchedEffect
         val endsAt = draft.countdownEndsAt() ?: return@LaunchedEffect
         delay((endsAt - System.currentTimeMillis()).coerceAtLeast(0))
         if (draft.timing && draft.timerTarget == target) {
             draft.finishCountdown()
+            model.set?.id?.let { onSetTimerChanged(it, draft.snapshotTimer()) }
             vibrateTimerDone(context)
         }
     }
@@ -103,8 +116,10 @@ fun ActiveWorkoutScreen(
                     // A timed set with no time yet: the edge button starts the hold.
                     haptics.performHapticFeedback(HapticFeedbackType.SegmentTick)
                     draft.startTimer(now, model.targetSeconds)
+                    model.set?.id?.let { onSetTimerChanged(it, draft.snapshotTimer()) }
                 } else {
                     val seconds = if (draft.timing) draft.stopTimer(now) else draft.seconds
+                    model.set?.id?.let { onSetTimerChanged(it, draft.snapshotTimer()) }
                     if (seconds != null) {
                         haptics.performHapticFeedback(HapticFeedbackType.Confirm)
                         onCompleteSet(null, load, null, seconds)
@@ -158,6 +173,7 @@ fun ActiveWorkoutScreen(
                                         val now = System.currentTimeMillis()
                                         haptics.performHapticFeedback(HapticFeedbackType.SegmentTick)
                                         if (draft.timing) draft.stopTimer(now) else draft.startTimer(now, model.targetSeconds)
+                                        model.set?.id?.let { onSetTimerChanged(it, draft.snapshotTimer()) }
                                     },
                                     onAction = onSetAction
                                 )

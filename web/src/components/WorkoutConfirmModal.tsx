@@ -9,6 +9,7 @@ export function WorkoutConfirmModal({
   unlogged,
   busy,
   planUpdate,
+  restoreIncludesRemovedExercises,
   onClose,
   onFinish,
   onDiscard,
@@ -21,6 +22,7 @@ export function WorkoutConfirmModal({
   busy: boolean;
   /** The offer to carry this workout's plan changes into its program, when finishing. */
   planUpdate: FinishPlanUpdate;
+  restoreIncludesRemovedExercises?: boolean;
   onClose: () => void;
   onFinish: () => void;
   onDiscard: () => void;
@@ -30,6 +32,7 @@ export function WorkoutConfirmModal({
     <Modal title="Restore program defaults?" onClose={onClose}>
       <div className="modal-body">
         <p>Exercises, sets and set types go back to the program. Sets you have logged are kept.</p>
+        {restoreIncludesRemovedExercises === false && <p className="muted">This workout started before complete default snapshots were available. Removed exercises cannot be recovered; remaining exercises return to their saved defaults.</p>}
       </div>
       <div className="modal-actions">
         <Button onClick={onClose}>Keep changes</Button>
@@ -54,7 +57,7 @@ export function WorkoutConfirmModal({
         <Button onClick={onClose}>Keep training</Button>
         <Button
           variant={confirm === 'finish' ? 'primary' : 'destructive'}
-          disabled={busy}
+          disabled={busy || (confirm === 'finish' && planUpdate.status === 'loading')}
           onClick={confirm === 'finish' ? onFinish : onDiscard}
         >
           {confirm === 'finish' ? 'Save workout' : 'Discard workout'}

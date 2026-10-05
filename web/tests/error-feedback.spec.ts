@@ -1,5 +1,29 @@
 import {test,expect} from '@playwright/test';
 
+test('failed preferences retain their choice through refresh and retry explicitly', async ({ page }, info) => {
+  await page.goto('/settings');
+  await expect(page.getByRole('group', { name: 'Appearance', exact: true })).toBeVisible();
+  const original = (await (await page.request.get('/api/bootstrap')).json()).preferences;
+  const changedTheme = original.theme === 'dark' ? 'light' : 'dark';
+  let failing = true;
+  await page.route('**/api/preferences', async route => {
+    if (route.request().method() !== 'PUT' || !failing) await route.continue();
+    else await route.fulfill({ status: 503, json: { error: 'Preference save failed for this test.' } });
+  });
+  await page.getByRole('group', { name: 'Appearance', exact: true }).getByRole('button', { name: changedTheme === 'dark' ? 'Dark' : 'Light', exact: true }).click();
+  const retry = page.getByRole('button', { name: 'Retry save', exact: true });
+  await expect(retry).toBeVisible();
+  await expect(page.locator('html')).toHaveAttribute('data-theme', changedTheme);
+  await page.evaluate(() => window.dispatchEvent(new Event('workout:resume')));
+  await expect(page.locator('html')).toHaveAttribute('data-theme', changedTheme);
+  await page.screenshot({ path: info.outputPath('failed-preferences.png'), fullPage: true });
+  failing = false;
+  await retry.click();
+  await expect(retry).toHaveCount(0);
+  expect((await (await page.request.get('/api/bootstrap')).json()).preferences.theme).toBe(changedTheme);
+  await page.request.put('/api/preferences', { headers: { 'X-Workout-Request': '1', Origin: new URL(page.url()).origin }, data: original });
+});
+
 test('Google Health status appears while uploads are still pending',async({page})=>{
   let releaseUploads!:()=>void;
   const uploads=new Promise<void>(resolve=>{releaseUploads=resolve;});

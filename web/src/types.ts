@@ -63,7 +63,7 @@ export type SessionRest = {
   durationMs: number | null;
   originDeviceId: string | null;
 };
-export type Session = { id: string; templateId: string | null; programId: string | null; name: string; note: string; active: boolean; startedAt: string; finishedAt: string | null; pausedAt?: string | null; pausedSeconds?: number; revision: number; exercises: SessionExercise[]; volumeKg: number | null; completedSets: number; warmupSets: number; bodyWeight?: BodyWeightSnapshot | null; nutritionContext?: NutritionTrainingContext | null; systemVolumeKg?: number | null; prCount?: number; rest?: SessionRest | null };
+export type Session = { restoreIncludesRemovedExercises?: boolean; id: string; templateId: string | null; programId: string | null; name: string; note: string; active: boolean; startedAt: string; finishedAt: string | null; pausedAt?: string | null; pausedSeconds?: number; revision: number; exercises: SessionExercise[]; volumeKg: number | null; completedSets: number; warmupSets: number; bodyWeight?: BodyWeightSnapshot | null; nutritionContext?: NutritionTrainingContext | null; systemVolumeKg?: number | null; prCount?: number; rest?: SessionRest | null };
 export type WatchDevice = { id: string; deviceId: string; deviceName: string; createdAt: string; expiresAt: string };
 export type RecentExerciseSession = Pick<Session, 'id' | 'name' | 'startedAt' | 'finishedAt'> & {
   /** techniques: each set position's technique (null for straight sets); absent from older servers. */

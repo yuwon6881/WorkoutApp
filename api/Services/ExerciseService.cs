@@ -39,7 +39,7 @@ public record ExerciseClearPreview(Guid ExerciseId, string Name, int AffectedWor
 
 /// Account-owned exercise creation and server-authoritative exercise analytics. The service keeps
 /// the shared catalog read-only and uses stable exercise ids for every historical query.
-public sealed partial class ExerciseService(AppDb db, IMemoryCache? cache = null)
+public sealed partial class ExerciseService(AppDb db, IMemoryCache? cache = null, GoogleHealthWorkoutSyncService? workoutSync = null)
 {
     public async Task<CustomExerciseView> Create(CustomExerciseInput input, CancellationToken ct)
     {
@@ -132,6 +132,12 @@ public sealed partial class ExerciseService(AppDb db, IMemoryCache? cache = null
                 RemovedSets = sets.Count, AffectedWorkouts = rows.Select(x => x.SessionId).Distinct().Count()
             });
         await db.SaveChangesAsync(ct);
+        if (workoutSync is not null)
+        {
+            foreach (var sessionId in rows.Select(x => x.SessionId).Distinct())
+                await workoutSync.QueueWorkoutAsync(sessionId, isDelete: false, ct);
+            await db.SaveChangesAsync(ct);
+        }
         await gate.Commit(ct);
         return new ExerciseClearPreview(id, meta.Name, rows.Select(x => x.SessionId).Distinct().Count(), sets.Count, false, false);
     }
@@ -150,7 +156,7 @@ public sealed partial class ExerciseService(AppDb db, IMemoryCache? cache = null
         // Technique sets (partials, myo-reps, drop sets) count as work and volume, but their load
         // and reps are not straight-set strength, so estimates and records read straight sets only.
         var techniques = rows.ToDictionary(x => x.Id, x => SetTechniques.ByPosition(x.PrescriptionJson));
-        var strengthSets = sets.Where(x => SetTechniques.IsStrengthEvidence(techniques[x.SessionExerciseId], x.Position)).ToList();
+        var strengthSets = sets.Where(x => x.DurationSeconds is null && SetTechniques.IsStrengthEvidence(techniques[x.SessionExerciseId], x.Position)).ToList();
         var strengthIds = strengthSets.Select(x => x.Id).ToHashSet();
         var records = new List<(Guid SessionId, DateOnly Date, string Name, double? E1rm, double? Load, double? Volume, int? Reps, bool Partial)>();
         foreach (var group in rows.GroupBy(x => x.SessionId))
@@ -158,13 +164,13 @@ public sealed partial class ExerciseService(AppDb db, IMemoryCache? cache = null
             var session = sessions[group.Key];
             var groupSets = sets.Where(x => group.Select(e => e.Id).Contains(x.SessionExerciseId)).ToList();
             if (groupSets.Count == 0) continue;
-            var partial = groupSets.Any(x => byExercise[x.SessionExerciseId].LoadModel is LoadModels.External or LoadModels.FullBodyweight
+            var partial = groupSets.Any(x => x.DurationSeconds is null && byExercise[x.SessionExerciseId].LoadModel is LoadModels.External or LoadModels.FullBodyweight
                 && RecordedLoad(x) is null);
-            var volume = groupSets.Select(x => (Load: RecordedLoad(x), x.Reps)).Where(x => x.Load is not null && x.Reps is not null)
+            var volume = groupSets.Where(x => x.DurationSeconds is null).Select(x => (Load: RecordedLoad(x), x.Reps)).Where(x => x.Load is not null && x.Reps is not null)
                 .Select(x => x.Load!.Value * x.Reps!.Value).ToList();
             var groupStrength = groupSets.Where(x => strengthIds.Contains(x.Id)).ToList();
             var estimates = groupStrength.Select(x => Progression.E1rm(RecordedLoad(x), x.Reps, x.Rpe)).Where(x => x is not null).Select(x => x!.Value).ToList();
-            var best = groupStrength.Where(x => RecordedLoad(x) is not null).OrderByDescending(x => RecordedLoad(x)).FirstOrDefault();
+            var best = groupStrength.Where(x => RecordedLoad(x) is not null).OrderByDescending(x => RecordedLoad(x)).ThenByDescending(x => x.Reps).FirstOrDefault();
             var rep = groupStrength.Where(x => x.Reps is not null).OrderByDescending(x => x.Reps).FirstOrDefault();
             records.Add((group.Key, DateOnly.FromDateTime(session.FinishedAt!.Value), session.Name,
                 estimates.Count == 0 ? null : estimates.Max(), best == null ? null : RecordedLoad(best),
@@ -184,6 +190,8 @@ public sealed partial class ExerciseService(AppDb db, IMemoryCache? cache = null
         var paged = historyRows.Skip(page * size).Take(size).ToList();
         var bestE = records.Where(x => x.E1rm is not null).OrderByDescending(x => x.E1rm).FirstOrDefault();
         var heavy = records.Where(x => x.Load is not null).OrderByDescending(x => x.Load).FirstOrDefault();
+        var heaviestSet = strengthSets.Where(x => RecordedLoad(x) is not null)
+            .OrderByDescending(x => RecordedLoad(x)).ThenByDescending(x => x.Reps).FirstOrDefault();
         var setRecords = strengthSets.Select(x => (Set: x, Session: sessions[byExercise[x.SessionExerciseId].SessionId], Load: RecordedLoad(x)))
             .Where(x => x.Load is not null && x.Set.Reps is not null).ToList();
         var largestSet = setRecords.OrderByDescending(x => x.Load!.Value * x.Set.Reps!.Value).FirstOrDefault();
@@ -203,8 +211,8 @@ public sealed partial class ExerciseService(AppDb db, IMemoryCache? cache = null
             .Take(10).Select(x => new ExerciseHistoryClearView(x.ClearedAt, x.RemovedSets, x.AffectedWorkouts)).ToListAsync(ct);
         return new ExerciseInsight(id, meta.Name, meta.Muscle, meta.Equipment, meta.Cue, meta.LoadModel, meta.LoadStepKg,
             meta.IsCustom, meta.Archived, records.Select(x => x.SessionId).Distinct().Count(), sets.Count, allSets.Count,
-            bestE.E1rm, bestE.E1rm is null ? null : bestE.Date, heavy.Load, heavy.Load is null ? null : records.First(x => x.SessionId == heavy.SessionId).Reps,
-            heavy.Load is null ? null : heavy.Date, largestSet.Load is null ? null : largestSet.Load.Value * largestSet.Set.Reps!.Value,
+            bestE.E1rm, bestE.E1rm is null ? null : bestE.Date, heavy.Load, heaviestSet?.Reps,
+            heaviestSet is null ? null : DateOnly.FromDateTime(sessions[byExercise[heaviestSet.SessionExerciseId].SessionId].FinishedAt!.Value), largestSet.Load is null ? null : largestSet.Load.Value * largestSet.Set.Reps!.Value,
             largestSet.Load is null ? null : DateOnly.FromDateTime(largestSet.Session.FinishedAt!.Value), largestSession.Volume,
             largestSession.Volume is null ? null : largestSession.Date,
             // An exercise can have finished sessions and still no set that states both a load and

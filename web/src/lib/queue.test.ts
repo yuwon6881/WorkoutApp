@@ -5,6 +5,28 @@ import { SaveQueue } from './queue';
 const settle = () => new Promise(resolve => setTimeout(resolve, 0));
 
 describe('the save pipeline', () => {
+  it('keeps an in-flight request serialized across a reset and ignores its failure', async () => {
+    const queue = new SaveQueue();
+    let reject!: (error: Error) => void;
+    let secondStarted = false;
+    queue.push('old-account', () => new Promise<void>((_, fail) => { reject = fail; }));
+    queue.clear();
+    queue.push('new-account', async () => { secondStarted = true; });
+    expect(secondStarted).toBe(false);
+    reject(new ApiError('Old session expired.', 401));
+    await queue.whenIdle();
+    expect(secondStarted).toBe(true);
+    expect(queue.current.state).toBe('saved');
+  });
+
+  it('keeps a failed offline write marked unsaved until explicitly reset', async () => {
+    const queue = new SaveQueue();
+    queue.push('preferences', async () => { throw new ApiError('Offline.', 0); });
+    await settle();
+    expect(queue.unsaved).toBe(true);
+    queue.clear();
+    expect(queue.unsaved).toBe(false);
+  });
   it('sends writes one at a time, in the order they were made', async () => {
     const queue = new SaveQueue();
     const order: string[] = [];
@@ -126,5 +148,17 @@ describe('the save pipeline', () => {
     await settle(); await settle();
     expect(queue.current.state).toBe('failed');
     expect(queue.pending('preferences')).toBe(false);
+  });
+
+  it('does not mark a failed preference save as saved when an unrelated workout write succeeds', async () => {
+    const queue = new SaveQueue();
+    queue.push('preferences', async () => { throw new ApiError('Offline', 0); });
+    await settle();
+    queue.push('workout', async () => undefined);
+    await settle();
+    expect(queue.unsaved).toBe(true);
+    await expect(queue.whenIdle()).rejects.toMatchObject({ offline: true });
+    queue.dismissFailure('preferences');
+    expect(queue.unsaved).toBe(false);
   });
 });

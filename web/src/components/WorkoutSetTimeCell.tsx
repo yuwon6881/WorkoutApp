@@ -32,7 +32,7 @@ export function WorkoutSetTimeCell({
 }) {
   const [modalOpen, setModalOpen] = useState(false);
   const running = useStopwatch(set.id);
-  const now = useVisibleClock(running !== undefined && running.finishedSeconds === undefined);
+  const now = useVisibleClock(running !== undefined && running.finishedSeconds === undefined && running.pausedAtMs === undefined);
   const finished = running?.finishedSeconds;
 
   const [digits, setDigits] = useState<string>(() => secondsToClockDigits(set.durationSeconds));
@@ -51,7 +51,7 @@ export function WorkoutSetTimeCell({
     }
   }, [modalOpen, running, set.durationSeconds]);
 
-  const reached = running ? stopwatchSeconds(running.baseSeconds, running.startedAtMs, now, running.targetSeconds) : null;
+  const reached = running ? stopwatchSeconds(running.baseSeconds, running.startedAtMs, running.pausedAtMs ?? now, running.targetSeconds) : null;
   const countingDown = running?.targetSeconds != null;
   const clock = running && reached !== null
     ? showSetDuration(countingDown ? running.targetSeconds! - reached : reached)

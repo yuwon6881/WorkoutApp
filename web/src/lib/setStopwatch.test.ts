@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { discardStopwatch, restoreStopwatches, runningStopwatches, startStopwatch, stopStopwatch } from './setStopwatch';
+import { clearStopwatches, discardStopwatch, pauseStopwatches, resumeStopwatches, restoreStopwatches, runningStopwatches, startStopwatch, stopStopwatch } from './setStopwatch';
 
 const start = Date.parse('2026-10-04T08:00:00.000Z');
 
@@ -9,6 +9,20 @@ afterEach(() => {
 });
 
 describe('stopwatch recovery', () => {
+  it('freezes a countdown across pause and persisted recovery, then resumes the remaining time', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(start);
+    startStopwatch('hold', 0, 30, start);
+    pauseStopwatches(start + 10_000);
+    const saved = runningStopwatches();
+    clearStopwatches();
+    restoreStopwatches(saved, start + 100_000);
+    expect(runningStopwatches().hold.finishedSeconds).toBeUndefined();
+    expect(stopStopwatch('hold', start + 100_000)).toBe(10);
+    restoreStopwatches(saved, start + 100_000);
+    resumeStopwatches(start + 100_000);
+    expect(stopStopwatch('hold', start + 105_000)).toBe(15);
+  });
   it('lists running stopwatches so the workout can keep a copy', () => {
     startStopwatch('hold', 5, null, start);
 

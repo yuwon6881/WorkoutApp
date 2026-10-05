@@ -9,6 +9,8 @@ import { deleteWorkoutPushToken, getWorkoutPushDeviceId } from '../lib/push/fire
 import { retireWorkoutPushAfterAccountSwitch, retireWorkoutPushDevice } from '../lib/push/cleanup';
 import { clearRecovery, defaultDevicePreferences, getLastAccountId, getLastRecovery, getRecovery, loadDevicePreferences, refreshRecovery, sameWorkoutEdits, saveDevicePreferences as persistDevicePreferences, setConflict, setLastAccount, startRecovery } from '../lib/workoutRecovery';
 import type { DevicePreferences, WorkoutRecoveryRecord } from '../lib/workoutRecovery';
+import { clearStopwatches } from '../lib/setStopwatch';
+import { forgetSessionDetail } from '../lib/sessionDetailLoad';
 
 export type AppState = {
   data: Bootstrap | null;
@@ -28,7 +30,11 @@ export type AppState = {
   savePreferences: (preferences: Preferences) => Promise<void>;
   setActiveWorkout: (session: Session | null) => void;
   setRecovery: (record: WorkoutRecoveryRecord | null) => void;
-  setDevicePreferences: (preferences: DevicePreferences) => void;
+  setDevicePreferences: (preferences: DevicePreferences) => Promise<void>;
+  preferencePending: boolean;
+  retryPreferences: () => Promise<void>;
+  revertPreferences: () => void;
+  isAccountCurrent: (id: string) => boolean;
   signOut: () => Promise<void>;
 };
 
@@ -47,13 +53,18 @@ export function useApp(): AppState {
   const [devicePreferences, setDevicePreferencesState] = useState<DevicePreferences>(defaultDevicePreferences);
   const queue = useMemo(() => new SaveQueue(), []);
   const [status, setStatus] = useState<QueueStatus>(queue.current);
+  const pendingPreferences = useRef<{ accountId: string; desired: Preferences; confirmed: Preferences } | null>(null);
+  const [preferencePending, setPreferencePending] = useState(false);
   const wasOnline = useRef(online);
   const lastRefreshAt = useRef(0);
   const currentData = useRef(data);
   currentData.current = data;
   const reloadFlight = useRef<Promise<void> | null>(null);
   const loadEpoch = useRef(0);
+  const mutationAccount = useRef<string | null>(null);
+  const isAccountCurrent = useCallback((id: string) => mutationAccount.current === id, []);
   const preferenceVersion = useRef(0);
+  const devicePreferenceVersion = useRef(0);
   const workoutVersion = useRef(0);
   const resourcesInFlight = useRef(new Map<AppResource, Promise<void>>());
   const [resourceError, setResourceError] = useState('');
@@ -61,6 +72,8 @@ export function useApp(): AppState {
   useEffect(() => queue.subscribe(next => {
     setStatus(next);
     if (next.state === 'signed-out') {
+      mutationAccount.current = null;
+      clearStopwatches(); forgetSessionDetail(); pendingPreferences.current = null; setPreferencePending(false);
       void retireCurrentPushDevice();
       void setLastAccount(null).catch(() => undefined);
       setRecovery(null);
@@ -87,12 +100,15 @@ export function useApp(): AppState {
       if (epoch !== loadEpoch.current || currentData.current || workoutVersion.current !== workoutAtStart
           || validatedAccountId !== undefined && validatedAccountId !== local.accountId) return;
       setDevicePreferencesState(preferences);
+      if (validatedAccountId === undefined) mutationAccount.current = local.accountId;
       setRecovery(local);
     }).catch(() => undefined);
     try {
       const [previousAccountId, shell] = await Promise.all([getLastAccountId().catch(() => null), api.launch()]);
       if (epoch !== loadEpoch.current) return;
       validatedAccountId = shell.account.id;
+      if (mutationAccount.current !== null && mutationAccount.current !== shell.account.id) queue.clear();
+      mutationAccount.current = shell.account.id;
       const next: Bootstrap = { ...shell, exercises: [], templates: [], programs: [],
         history: { total: 0, page: 0, size: 20, sessions: [] }, resources: {}, historyDeferred: true };
       const previous = currentData.current;
@@ -173,23 +189,29 @@ export function useApp(): AppState {
       setDevicePreferencesState(devicePreferences);
       const current = currentData.current;
       if (current?.account.id === next.account.id) {
-        if (preferenceVersion.current !== preferenceAtStart || preferenceSavingAtStart) next.preferences = current.preferences;
+        if (preferenceVersion.current !== preferenceAtStart || preferenceSavingAtStart || pendingPreferences.current?.accountId === next.account.id) next.preferences = current.preferences;
         if (workoutVersion.current !== workoutAtStart) next.activeWorkout = current.activeWorkout;
       }
       lastRefreshAt.current = Date.now();
-      if (currentData.current?.account.id !== next.account.id) resetGoogleHealthState();
+      if (currentData.current?.account.id !== next.account.id) {
+        if (previousAccountId && previousAccountId !== next.account.id) clearStopwatches();
+        forgetSessionDetail(); pendingPreferences.current = null; setPreferencePending(false);
+        queue.clear(); resetGoogleHealthState();
+      }
       setData(next); setResourceError(''); setError(''); setSignedOut(false);
       if (!queue.unsaved) queue.clear();
     } catch (failure) {
       if (epoch !== loadEpoch.current) return;
       const problem = failure instanceof ApiError ? failure : new ApiError('Could not load your training.', -1);
-      if (problem.signedOut) { validatedAccountId = null; resetGoogleHealthState(); await setLastAccount(null).catch(() => undefined); setRecovery(null); setSignedOut(true); setData(null); setError(''); queue.set('signed-out'); }
+      if (problem.signedOut) mutationAccount.current = null;
+      if (problem.signedOut) { clearStopwatches(); forgetSessionDetail(); pendingPreferences.current = null; setPreferencePending(false); validatedAccountId = null; resetGoogleHealthState(); await setLastAccount(null).catch(() => undefined); setRecovery(null); setSignedOut(true); setData(null); setError(''); queue.clear(); queue.set('signed-out'); }
       else {
         setError(problem.message);
         if (problem.offline) {
           try {
             const local = await getLastRecovery();
             setRecovery(local);
+            if (local) mutationAccount.current = local.accountId;
             if (local) setDevicePreferencesState(await loadDevicePreferences(local.accountId));
           } catch { setRecovery(null); }
         }
@@ -277,16 +299,39 @@ export function useApp(): AppState {
     setData(current => current ? update(current) : current), []);
 
   const savePreferences = useCallback((preferences: Preferences) => {
+    const current = currentData.current;
+    if (!current) return Promise.reject(new Error('Sign in before saving preferences.'));
+    const previous = pendingPreferences.current?.accountId === current.account.id ? pendingPreferences.current.confirmed : current.preferences;
+    pendingPreferences.current = { accountId: current.account.id, desired: preferences, confirmed: previous };
+    setPreferencePending(true);
     preferenceVersion.current++;
     patch(current => ({ ...current, preferences }));
     const version = preferenceVersion.current;
     const accountId = currentData.current?.account.id;
     queue.push('preferences', async () => {
+      if (mutationAccount.current !== accountId) return;
       const saved = await api.preferences(preferences);
-      if (preferenceVersion.current === version && currentData.current?.account.id === accountId) patch(current => ({ ...current, preferences: saved }));
+      if (mutationAccount.current !== accountId || currentData.current?.account.id !== accountId) return;
+      const pending = pendingPreferences.current;
+      if (pending && pending.accountId === accountId) pending.confirmed = saved;
+      if (preferenceVersion.current === version) {
+        pendingPreferences.current = null; setPreferencePending(false);
+        patch(current => ({ ...current, preferences: saved }));
+      }
     });
-    // A failed save is reported by the queue status; callers only need to know it is over.
-    return queue.whenIdle().catch(() => undefined);
+    return queue.whenIdle();
+  }, [patch, queue]);
+
+  const retryPreferences = useCallback(async () => {
+    const pending = pendingPreferences.current;
+    if (pending && pending.accountId === currentData.current?.account.id) await savePreferences(pending.desired);
+  }, [savePreferences]);
+  const revertPreferences = useCallback(() => {
+    const pending = pendingPreferences.current;
+    if (!pending || queue.pending('preferences')) return;
+    preferenceVersion.current++;
+    if (pending.accountId === currentData.current?.account.id) patch(current => ({ ...current, preferences: pending.confirmed }));
+    pendingPreferences.current = null; setPreferencePending(false); queue.dismissFailure('preferences');
   }, [patch, queue]);
 
   const setActiveWorkout = useCallback((session: Session | null) => {
@@ -299,19 +344,30 @@ export function useApp(): AppState {
     setRecovery(record);
   }, []);
 
-  const setDevicePreferences = useCallback((preferences: DevicePreferences) => {
+  const setDevicePreferences = useCallback(async (preferences: DevicePreferences) => {
+    const version = ++devicePreferenceVersion.current;
     setDevicePreferencesState(preferences);
     const accountId = data?.account.id ?? recovery?.accountId;
-    if (accountId) void persistDevicePreferences(accountId, preferences);
-  }, [data?.account.id, recovery?.accountId]);
+    if (accountId) {
+      try { await persistDevicePreferences(accountId, preferences); }
+      catch (failure) {
+        if (version === devicePreferenceVersion.current && currentData.current?.account.id === accountId)
+          setDevicePreferencesState(devicePreferences);
+        throw failure;
+      }
+    }
+  }, [data?.account.id, recovery?.accountId, devicePreferences]);
 
   const signOut = useCallback(async () => {
     loadEpoch.current++; sharedReads.reset(); resourcesInFlight.current.clear();
     await retireCurrentPushDevice();
-    try { await api.logout(); } finally { resetGoogleHealthState(); await setLastAccount(null).catch(() => undefined); queue.clear(); setData(null); setRecovery(null); setSignedOut(true); }
+    await api.logout();
+    mutationAccount.current = null;
+    clearStopwatches(); forgetSessionDetail(); pendingPreferences.current = null; setPreferencePending(false);
+    resetGoogleHealthState(); await setLastAccount(null).catch(() => undefined); queue.clear(); setData(null); setRecovery(null); setSignedOut(true);
   }, [queue]);
 
-  return { data, status, loading, error, signedOut, online, recovery, devicePreferences, reload, ensureResources, resourceError, queue, setData: patch, savePreferences, setActiveWorkout, setRecovery: updateRecovery, setDevicePreferences, signOut };
+  return { data, status, loading, error, signedOut, online, recovery, devicePreferences, reload, ensureResources, resourceError, queue, setData: patch, savePreferences, setActiveWorkout, setRecovery: updateRecovery, setDevicePreferences, signOut, preferencePending, retryPreferences, revertPreferences, isAccountCurrent };
 }
 
 async function retireCurrentPushDevice(): Promise<void> {

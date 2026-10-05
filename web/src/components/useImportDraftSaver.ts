@@ -23,8 +23,17 @@ export function useImportDraftSaver({ selected, setSelected, draft, setDraft, on
   const pendingRef = useRef(0);
   const [pending, setPending] = useState(0);
   const [localDirty, setLocalDirty] = useState(false);
+  const dirtyRef = useRef(false);
+  const failureRef = useRef('');
+  const editVersion = useRef(0);
 
-  useEffect(() => { selectedRef.current = selected; }, [selected]);
+  useEffect(() => {
+    if (selectedRef.current?.id !== selected?.id) {
+      editVersion.current++; dirtyRef.current = false; failureRef.current = '';
+      setLocalDirty(false); setSaveError(''); draftRef.current = selected?.draft ?? null;
+    }
+    selectedRef.current = selected;
+  }, [selected, setSaveError]);
   useEffect(() => { if (draft !== null) draftRef.current = draft; }, [draft]);
 
   const applyView = useCallback((view: ImportView) => {
@@ -33,28 +42,39 @@ export function useImportDraftSaver({ selected, setSelected, draft, setDraft, on
     setSelected(view);
     setDraft(view.draft);
     setLocalDirty(false);
-  }, [setDraft, setSelected]);
+    dirtyRef.current = false;
+    failureRef.current = '';
+    setSaveError('');
+  }, [setDraft, setSelected, setSaveError]);
 
-  const enqueue = useCallback((next: ImportDraft, request: (view: ImportView, revision: number) => Promise<ImportView>, failureMessage: string) => {
+  const enqueue = useCallback((next: ImportDraft, request: (view: ImportView, revision: number) => Promise<ImportView>, failureMessage: string, full = false) => {
+    const version = ++editVersion.current;
+    const importId = selectedRef.current?.id;
     draftRef.current = next;
     setDraft(next);
     setLocalDirty(true);
+    dirtyRef.current = true;
     pendingRef.current += 1;
     setPending(pendingRef.current);
 
     const run = async () => {
       try {
+        if (failureRef.current && !full) throw new Error(failureRef.current);
         const view = selectedRef.current;
-        if (!view) return;
+        if (!view || view.id !== importId) return;
         const saved = await request(view, view.revision);
+        if (selectedRef.current?.id !== importId) return;
+        if (full) failureRef.current = '';
         selectedRef.current = saved;
         // Keep the newest optimistic draft visible while later writes are waiting. The response
         // still advances the server revision used by the next queued request.
-        if (pendingRef.current === 1) {
+        if (editVersion.current === version) {
           draftRef.current = saved.draft;
           setDraft(saved.draft);
           setSelected(saved);
           setLocalDirty(false);
+          dirtyRef.current = false;
+          setSaveError('');
         } else {
           setSelected({ ...saved, draft: draftRef.current });
         }
@@ -62,7 +82,9 @@ export function useImportDraftSaver({ selected, setSelected, draft, setDraft, on
         // already applied, so the next queued save and the editor never wait on it.
         void onChanged();
       } catch (failure) {
-        setSaveError(failure instanceof ApiError ? failure.message : failureMessage);
+        if (selectedRef.current?.id !== importId) return;
+        failureRef.current = failure instanceof Error ? failure.message : failureMessage;
+        setSaveError(failureRef.current);
       } finally {
         pendingRef.current = Math.max(0, pendingRef.current - 1);
         setPending(pendingRef.current);
@@ -81,10 +103,12 @@ export function useImportDraftSaver({ selected, setSelected, draft, setDraft, on
       draftRef.current = next;
       setSaveError(invalid);
       setLocalDirty(true);
+      dirtyRef.current = true;
+      failureRef.current = invalid;
       return Promise.resolve();
     }
     setSaveError('');
-    return enqueue(next, (view, revision) => api.editImport(view.id, next, revision), 'Could not save your changes.');
+    return enqueue(next, (view, revision) => api.editImport(view.id, next, revision), 'Could not save your changes.', true);
   }, [enqueue, setDraft, setSaveError]);
 
   const persistDay = useCallback((day: DraftWorkout) => {
@@ -97,16 +121,20 @@ export function useImportDraftSaver({ selected, setSelected, draft, setDraft, on
     setDraft(next);
     draftRef.current = next;
     setLocalDirty(true);
+    dirtyRef.current = true;
     if (invalid) {
       setSaveError(invalid);
+      failureRef.current = invalid;
       return Promise.resolve();
     }
     setSaveError('');
     return enqueue(next, (view, revision) => api.editImportDay(view.id, day, revision), 'Could not save this day.');
   }, [enqueue, setDraft, setSaveError]);
 
-  const flush = useCallback(async () => {
+  const flush = useCallback(async (requireClean = true) => {
     await queueRef.current;
+    if (requireClean && (dirtyRef.current || failureRef.current))
+      throw new Error(failureRef.current || 'Save your draft changes before creating the program.');
   }, []);
 
   const mutate = useCallback((request: (view: ImportView, revision: number) => Promise<ImportView>, failureMessage: string) => {
@@ -115,6 +143,7 @@ export function useImportDraftSaver({ selected, setSelected, draft, setDraft, on
     setPending(pendingRef.current);
     const run = async () => {
       try {
+        if (failureRef.current || dirtyRef.current) throw new Error(failureRef.current || 'Save the draft changes first.');
         const view = selectedRef.current;
         if (!view) return;
         const saved = await request(view, view.revision);
@@ -134,6 +163,13 @@ export function useImportDraftSaver({ selected, setSelected, draft, setDraft, on
   }, [applyView, onChanged, setSaveError]);
 
   const revision = useCallback(() => selectedRef.current?.revision, []);
+  const editLocal = useCallback((next: ImportDraft) => {
+    editVersion.current++; draftRef.current = next; dirtyRef.current = true; setLocalDirty(true); setDraft(next);
+  }, [setDraft]);
+  const retry = useCallback(async () => {
+    if (draftRef.current) await persist(draftRef.current);
+    await flush();
+  }, [persist, flush]);
 
   // Explicit exercise saves must reject failures so the editor retains its held edits for retry.
   // An edit applied to every occurrence touches a handful of days in a program that can run to
@@ -147,5 +183,5 @@ export function useImportDraftSaver({ selected, setSelected, draft, setDraft, on
       : api.editImport(view.id, next, revision), 'Could not save this exercise.');
   }, [mutate]);
 
-  return { persist, persistDay, persistExercise, flush, mutate, revision, applyView, pending: pending > 0, localDirty };
+  return { persist, persistDay, persistExercise, flush, mutate, revision, applyView, editLocal, retry, pending: pending > 0, localDirty };
 }

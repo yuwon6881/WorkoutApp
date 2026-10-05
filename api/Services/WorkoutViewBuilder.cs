@@ -51,7 +51,7 @@ public static class WorkoutViewBuilder
         var allDoneSets = await (from s in db.Sets.AsNoTracking()
                                  join e in db.SessionExercises.AsNoTracking() on s.SessionExerciseId equals e.Id
                                  join w in db.Workouts.AsNoTracking() on e.SessionId equals w.Id
-                                 where w.UserId == user && w.FinishedAt != null && s.Done && !s.Warmup
+                                 where w.UserId == user && w.FinishedAt != null && s.Done && !s.Warmup && s.DurationSeconds == null
                                      && (!useBatch || requestedIds.Contains(w.Id))
                                  select new
                                  {
@@ -245,7 +245,7 @@ public static class WorkoutViewBuilder
             volume.External,
             workingDone.Count, warmupDone.Count, bodyWeight, context,
             volume.System, session.PausedAt, session.PausedSeconds,
-            sessionPrCount, restView);
+            sessionPrCount, restView, !string.IsNullOrEmpty(session.StartPlanJson));
     }
 
     private static Dictionary<string, int> LegacyRepBests(IEnumerable<PreviousRepRecord> records)

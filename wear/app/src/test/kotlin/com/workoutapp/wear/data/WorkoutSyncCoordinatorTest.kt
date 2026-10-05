@@ -69,6 +69,20 @@ class WorkoutSyncCoordinatorTest {
     }
 
     @Test
+    fun `phone finish releases a queued watch set instead of opening a conflict`() = runBlocking {
+        val server = session()
+        val store = WorkoutStore(context)
+        store.enqueue(server.toSnapshot(), setOperation("late-set", "set-1", server, 65.0, 9, sequence = 0))
+        val gateway = FakeWorkoutGateway(server.copy(active = false, revision = server.revision + 1))
+        val outcome = WorkoutSyncCoordinator(context, store, gateway).syncPending()
+        assertFalse(outcome.conflict)
+        assertFalse(outcome.pending)
+        assertTrue(store.pendingOperations().isEmpty())
+        assertEquals(null, store.readSnapshot())
+        store.close()
+    }
+
+    @Test
     fun `finish waits behind queued sets and syncs only after those sets are durable`() = runBlocking {
         val server = session()
         val localAfterSet = patchSession(server, "set-1", 65.0, 9)

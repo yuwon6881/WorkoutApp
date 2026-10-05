@@ -39,8 +39,10 @@ internal sealed class ProgressAccumulator(IReadOnlyList<ExerciseProgress> states
                 foreach (var set in setsByExercise[exercise.Id])
                 {
                     workingSets++;
-                    hasZeroWeight |= set.WeightKg == 0;
                     if (recent) weekWorkingSets++;
+                    // Timed work counts as a set, but seconds are neither reps nor load volume.
+                    if (set.DurationSeconds is not null) continue;
+                    hasZeroWeight |= set.WeightKg == 0;
                     var load = exercise.LoadModel == LoadModels.FullBodyweight ? set.SystemLoadKg
                         : exercise.LoadModel == LoadModels.External ? set.WeightKg : null;
                     if (load is { } value && set.Reps is { } reps)

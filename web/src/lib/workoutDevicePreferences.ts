@@ -32,6 +32,5 @@ export async function loadDevicePreferences(accountId: string): Promise<DevicePr
 }
 
 export async function saveDevicePreferences(accountId: string, value: DevicePreferences): Promise<void> {
-  try { localStorage.setItem(`workout.device-preferences.v1:${accountId}`, JSON.stringify(value)); }
-  catch { /* device settings are a convenience and do not block training */ }
+  localStorage.setItem(`workout.device-preferences.v1:${accountId}`, JSON.stringify(value));
 }

@@ -92,7 +92,8 @@ data class WorkoutSnapshot(
     /** The set most recently logged on this watch, so a mis-tap can be taken back from the wrist. */
     val lastLoggedSetId: String? = null,
     /** The account hides reps in reserve; logged values pass through untouched. */
-    val trackRir: Boolean = true
+    val trackRir: Boolean = true,
+    val setTimers: Map<String, SetTimerSnapshot>? = emptyMap()
 )
 
 /** Everything the store persists, published as one value so screens never pair a snapshot with a stale queue. */
