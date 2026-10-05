@@ -498,8 +498,8 @@ for (const theme of ['dark', 'light']) {
     await expect(page.getByRole('heading', { name: 'Muscle coverage', exact: true })).toBeVisible();
     await expect(page.locator('.body-map-detail')).toBeVisible();
     await screenshot('body');
-    await page.getByText('How coverage is counted', { exact: true }).click();
-    await screenshot('coverage-explanation');
+    await expect(page.locator('.muscle-breakdown-panel')).toBeVisible();
+    await screenshot('muscle-breakdown');
 
     await navigate(page, 'Workouts');
     await page.locator('.routine-card').filter({ hasText: workoutName }).getByRole('button', { name: 'Start workout', exact: true }).first().click();

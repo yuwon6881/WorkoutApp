@@ -1,4 +1,4 @@
-import { Trophy } from 'lucide-react';
+import { Clock3, Trophy } from 'lucide-react';
 import type { LoggedSet, SessionExercise, Unit } from '../types';
 import { formatExercisePrBadge, formatSetPrTag } from '../lib/livePr';
 import { showTimedSet } from '../lib/setDuration';
@@ -24,7 +24,7 @@ function SessionExerciseCard({ exercise, order, unit, trackRir }: {
         <span className="session-exercise-order" aria-hidden="true">{order}</span>
         <div className="session-exercise-title">
           <h4>{exercise.name}</h4>
-          <span>{working} working {working === 1 ? 'set' : 'sets'}</span>
+          <span className="session-exercise-subtitle">{working} working {working === 1 ? 'set' : 'sets'}</span>
         </div>
         {exercise.isPr && <span className="pill pill-accent pr-exercise-badge">
           <Trophy size={12} aria-hidden="true" /> {formatExercisePrBadge(exercise, unit)}
@@ -34,11 +34,17 @@ function SessionExerciseCard({ exercise, order, unit, trackRir }: {
         {done.map((set, index) => {
           const number = done.slice(0, index + 1).filter(item => item.warmup === set.warmup).length;
           const effort = showActualRir(set.rir, set.rpe);
+          const isTimed = set.durationSeconds != null;
           return <li key={set.id} className={`${set.warmup ? 'is-warmup' : ''}${set.isPr ? ' pr-set-row' : ''}`.trim() || undefined}>
             <span className="session-set-label">{set.warmup ? `Warm-up ${number}` : `Set ${number}`}</span>
-            <span className="session-set-target"><strong>{setResult(set, unit)}</strong></span>
-            {trackRir && effort !== '—' && <span className="session-set-effort">{effort}</span>}
-            {set.isPr && <span className="pill pill-accent pr-set-tag"><Trophy size={10} aria-hidden="true" /> {formatSetPrTag(set)}</span>}
+            <span className="session-set-target">
+              {isTimed && <Clock3 size={13} aria-hidden="true" className="session-set-timer-icon" />}
+              <strong>{setResult(set, unit)}</strong>
+            </span>
+            <div className="session-set-tags">
+              {trackRir && effort !== '—' && <span className="session-set-effort">{effort}</span>}
+              {set.isPr && <span className="pill pill-accent pr-set-tag"><Trophy size={10} aria-hidden="true" /> {formatSetPrTag(set)}</span>}
+            </div>
           </li>;
         })}
       </ol>

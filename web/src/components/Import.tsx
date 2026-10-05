@@ -162,7 +162,7 @@ export function ImportReview({ exercises, imports, onBack, onChanged, notify }: 
   const attentionRows = [
     ...unresolved.map(item => ({
       key: `unresolved-${item.lineId}`,
-      title: `Map ${item.sourceName} slot`,
+      title: `Map ${item.sourceName}`,
       message: null as string | null,
       detail: `${item.block ? `${item.block} · ` : ''}${item.occurrences && item.occurrences > 1 ? `${item.occurrences} occurrences · ` : ''}Choose a library exercise for this slot.`,
       action: 'Map',
@@ -337,7 +337,7 @@ export function ImportReview({ exercises, imports, onBack, onChanged, notify }: 
         </div>}
         {attentionRows.length > 0 && <section className="import-review-issues" aria-labelledby="import-review-issues-title">
           <div className="import-review-issues-heading">
-            <div><h3 id="import-review-issues-title">Needs attention</h3><p className="muted">Resolve each item before creating the program. Editing what an item points to marks it reviewed; undoing the edit or restoring the draft brings it back.</p></div>
+            <div><h3 id="import-review-issues-title">Needs attention</h3><p className="muted import-review-issues-desc">Resolve each item before creating the program. Editing what an item points to marks it reviewed; undoing the edit or restoring the draft brings it back.</p></div>
             <span className="pill pill-accent">{attentionRows.length} {attentionRows.length === 1 ? 'item' : 'items'}</span>
           </div>
           <div className="import-issue-table" role="table" aria-label="Import issues">
@@ -345,7 +345,7 @@ export function ImportReview({ exercises, imports, onBack, onChanged, notify }: 
               <span role="columnheader">Issue</span><span role="columnheader">Source</span><span role="columnheader">Action</span>
             </div>
             {visibleAttentionRows.map(row => <div className="import-issue-table-row" role="row" key={row.key}>
-              <span className="import-issue-table-description" role="cell"><AlertTriangle size={15} /><span className="import-issue-copy"><strong>{row.title}</strong>{row.message && <span className="import-issue-message">{row.message}</span>}</span></span>
+              <span className="import-issue-table-description" role="cell"><AlertTriangle size={15} /><span className="import-issue-copy"><strong title={row.title}>{row.title}</strong>{row.message && <span className="import-issue-message">{row.message}</span>}</span></span>
               <span className="import-issue-table-detail" role="cell">{row.detail}</span>
               <Button variant="secondary" className="import-issue-action-btn" aria-label={row.ariaLabel} onClick={() => focusReviewIssue(row.target)}>
                 {row.action}<ChevronRight size={14} />

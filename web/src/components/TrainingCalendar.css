@@ -273,8 +273,8 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 14px;
-  padding-top: 10px;
+  gap: 12px;
+  padding-top: 12px;
   border-top: 1px solid var(--border);
   flex-wrap: wrap;
 }
@@ -282,27 +282,36 @@
 .calendar-week-count {
   margin: 0;
   color: var(--muted);
-  font-size: var(--font-secondary, 14px);
-  font-weight: 400;
+  font-size: var(--font-secondary);
+  font-weight: 500;
+  line-height: 1.4;
 }
 
 .calendar-legend-pills {
   display: flex;
-  gap: 14px;
+  gap: 8px;
   align-items: center;
+  flex-wrap: wrap;
 }
 .calendar-legend-pill {
   display: inline-flex;
   gap: 6px;
   align-items: center;
-  font-size: var(--font-secondary, 12px);
+  padding: 4px 10px;
+  border-radius: var(--radius-pill, 999px);
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  font-size: var(--font-secondary);
+  font-weight: 500;
   color: var(--muted);
   white-space: nowrap;
+  line-height: 1.2;
 }
 .legend-dot {
-  width: 7px;
-  height: 7px;
+  width: 6px;
+  height: 6px;
   border-radius: 50%;
+  flex-shrink: 0;
 }
 .legend-dot.completed { background: var(--green); }
 .legend-dot.in-progress { background: var(--accent); }
@@ -429,11 +438,21 @@
     font-size: 16px;
   }
   .calendar-card-footer {
-    gap: 6px 14px;
-    padding-top: 10px;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+    padding-top: 12px;
+  }
+  .calendar-week-count {
+    font-size: var(--font-secondary);
   }
   .calendar-legend-pills {
-    gap: 12px;
+    gap: 8px;
+    width: 100%;
+  }
+  .calendar-legend-pill {
+    font-size: var(--font-secondary);
+    padding: 3.5px 9px;
   }
 }
 

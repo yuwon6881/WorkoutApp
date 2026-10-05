@@ -285,10 +285,16 @@
 
 .session-exercise {
   min-width: 0;
-  padding: 12px 14px;
+  padding: 14px 16px;
   border: 1px solid var(--border);
-  border-radius: var(--radius-control);
+  border-radius: var(--radius);
   background: var(--surface);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+  transition: border-color var(--motion-control) var(--motion-ease);
+}
+
+.session-exercise:hover {
+  border-color: var(--border-hover);
 }
 
 .session-exercise-skeleton {
@@ -296,33 +302,26 @@
   border-color: transparent;
 }
 
-/* The record badge takes its own line under the name, so a long badge never squeezes the name. */
+/* Exercise card header */
 .session-exercise-header {
-  display: grid;
-  grid-template-columns: 28px minmax(0, 1fr);
+  display: flex;
   align-items: center;
-  gap: 6px 10px;
-  margin-bottom: 8px;
-}
-
-.session-exercise-header > .pr-exercise-badge {
-  grid-column: 2;
-  justify-self: start;
-  max-width: 100%;
-  white-space: normal;
-  line-height: 1.35;
+  gap: 12px;
+  margin-bottom: 12px;
 }
 
 .session-exercise-order {
   display: grid;
+  flex: 0 0 28px;
   width: 28px;
   height: 28px;
   place-items: center;
   border-radius: 50%;
   background: var(--surface-raised);
-  color: var(--muted);
-  font-size: 14px;
-  font-weight: 650;
+  border: 1px solid var(--border);
+  color: var(--accent);
+  font-size: var(--font-secondary);
+  font-weight: 700;
   font-variant-numeric: tabular-nums;
 }
 
@@ -330,68 +329,98 @@
   display: grid;
   gap: 2px;
   min-width: 0;
+  flex: 1 1 auto;
 }
 
 .session-exercise-title h4 {
   margin: 0;
   color: var(--text);
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 650;
-  line-height: 1.3;
+  line-height: 1.25;
   overflow-wrap: anywhere;
 }
 
-.session-exercise-title > span {
+.session-exercise-title .session-exercise-subtitle {
   color: var(--muted);
   font-size: var(--font-secondary);
 }
 
+.session-exercise-header > .pr-exercise-badge {
+  flex: 0 0 auto;
+  margin-left: auto;
+}
+
+/* Inset sets table with clean row dividers */
 .session-summary-sets {
-  display: grid;
-  gap: 2px;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
   margin: 0;
   padding: 0;
   list-style: none;
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  overflow: hidden;
 }
 
 .session-summary-sets > li {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 12px;
-  min-height: 38px;
-  padding: 6px 10px;
-  border-radius: 8px;
+  min-height: 40px;
+  padding: 8px 14px;
+  border-bottom: 1px solid var(--border);
   font-variant-numeric: tabular-nums;
+  transition: background var(--motion-control) var(--motion-ease);
 }
-
-.session-summary-sets > li:nth-child(odd) { background: var(--surface-raised); }
+.session-summary-sets > li:last-child { border-bottom: none; }
+.session-summary-sets > li:hover { background: var(--surface-hover); }
 .session-summary-sets > li.pr-set-row { background: var(--accent-soft); }
 .session-summary-sets > li.is-warmup .session-set-target strong { color: var(--muted); font-weight: 550; }
 
 .session-set-label {
-  flex: 0 0 78px;
+  flex: 0 0 76px;
   color: var(--muted);
   font-size: var(--font-secondary);
+  font-weight: 500;
 }
 
 .session-set-target {
-  flex: 1 1 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   min-width: 0;
+  flex: 1 1 auto;
+  font-size: var(--font-secondary);
+  color: var(--text);
 }
+.session-set-target strong { color: var(--text); font-weight: 650; }
+.session-set-timer-icon { color: var(--accent); flex-shrink: 0; }
+.session-set-tags { display: inline-flex; align-items: center; gap: 8px; margin-left: auto; }
 
 .session-set-effort {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: var(--radius-pill, 999px);
+  background: var(--surface);
+  border: 1px solid var(--border);
   color: var(--muted);
   font-size: var(--font-secondary);
-  margin-left: auto;
+  font-weight: 500;
+  white-space: nowrap;
 }
 
-.session-summary-sets > li > .pr-set-tag { margin-left: auto; }
-.session-set-effort + .pr-set-tag { margin-left: 0; }
+.session-summary-sets > li > .session-set-tags > .pr-set-tag { margin-left: 0; }
 
 .session-summary-note {
   margin: 10px 0 0;
-  padding: 8px 12px;
+  padding: 10px 12px;
   background: var(--surface-raised);
+  border: 1px solid var(--border);
   border-radius: var(--radius-control);
   color: var(--muted);
   font-size: var(--font-secondary);
@@ -433,7 +462,7 @@
   .session-muscle-tile { flex-basis: 116px; }
   .session-muscle-figure { width: 92px; height: 85px; }
   .session-exercise { padding: 12px; }
-  .session-summary-sets > li { padding: 6px 8px; gap: 10px; }
+  .session-summary-sets > li { padding: 8px 10px; gap: 10px; }
 }
 
 /* The narrowest phones: the set label takes its own line so load, effort and the PR tag keep

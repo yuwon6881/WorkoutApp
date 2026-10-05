@@ -19,6 +19,14 @@ function dateLabel(value: string | null) {
     : date.toLocaleDateString('en', { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
+const LOWER_BODY_MUSCLES = new Set([
+  'Quads', 'Hamstrings', 'Glutes', 'Calves', 'Adductors'
+]);
+
+function isLowerBody(muscle: string): boolean {
+  return LOWER_BODY_MUSCLES.has(muscle);
+}
+
 function sortMuscles(rows: MuscleBalanceRow[]) {
   return [...rows].sort((a, b) => b.sets - a.sets || a.muscle.localeCompare(b.muscle));
 }
@@ -39,6 +47,12 @@ export function MuscleBalanceView({ timeZone }: { timeZone: string }) {
   const trained = useMemo(() => muscles.filter(muscle => muscle.sets > 0), [muscles]);
   const peak = useMemo(() => peakSets(muscles), [muscles]);
   const detail = useMemo(() => muscles.find(muscle => muscle.muscle === activeMuscle) ?? null, [activeMuscle, muscles]);
+
+  const upperMuscles = useMemo(() => muscles.filter(m => !isLowerBody(m.muscle)), [muscles]);
+  const lowerMuscles = useMemo(() => muscles.filter(m => isLowerBody(m.muscle)), [muscles]);
+  const upperTotal = useMemo(() => upperMuscles.reduce((sum, m) => sum + m.sets, 0), [upperMuscles]);
+  const lowerTotal = useMemo(() => lowerMuscles.reduce((sum, m) => sum + m.sets, 0), [lowerMuscles]);
+  const maxMuscleSets = useMemo(() => Math.max(...muscles.map(m => m.sets), 0), [muscles]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -69,8 +83,6 @@ export function MuscleBalanceView({ timeZone }: { timeZone: string }) {
     setPinnedMuscle(current => (current === muscleName ? null : muscleName));
     setHoveredMuscle(current => (current === muscleName && pinnedMuscle === muscleName ? null : current));
   }, [pinnedMuscle]);
-
-  const hasCompletedSets = (view?.totalSets ?? 0) > 0;
 
   return (
     <div className="muscle-balance-page">
@@ -145,21 +157,111 @@ export function MuscleBalanceView({ timeZone }: { timeZone: string }) {
               <span className="muscle-legend-item"><i className="legend-swatch mid" />Frequent</span>
               <span className="muscle-legend-item"><i className="legend-swatch peak" />Most frequent</span>
             </div>
-            {!hasCompletedSets && <p className="muscle-balance-empty-note" role="status">No completed sets in this window.</p>}
-            <details className="muscle-balance-method">
-              <summary>How coverage is counted</summary>
-              <p>
-                Each completed working set credits its primary muscle as 1 set and each listed or estimated indirect
-                muscle as 0.5. Warm-ups and unfinished workouts are excluded. Shading is relative to your busiest
-                muscle in this window{peak > 0 ? `, ${trained[0]?.muscle} at ${formatSets(peak)} sets` : ''}.
-              </p>
-            </details>
             {view.unattributedSets > 0 && (
               <p className="muscle-balance-unattributed">
                 {formatSets(view.unattributedSets)} completed {view.unattributedSets === 1 ? 'set could' : 'sets could'} not be matched to a muscle and are excluded from the map.
                 {view.unattributedExamples.length > 0 && <> Examples: {view.unattributedExamples.slice(0, 3).join(', ')}.</>}
               </p>
             )}
+          </section>
+
+          <section className="panel muscle-breakdown-panel" aria-labelledby="muscle-breakdown-heading">
+            <div className="section-heading muscle-breakdown-heading">
+              <div>
+                <h2 id="muscle-breakdown-heading">Muscle breakdown</h2>
+                <p className="muscle-breakdown-subtitle">Sets by muscle group in the selected window</p>
+              </div>
+            </div>
+
+            <div className="muscle-breakdown-groups">
+              <div className="muscle-breakdown-group">
+                <div className="muscle-group-header">
+                  <h3>Upper body</h3>
+                  <span className="pill pill-accent">{formatSets(upperTotal)} {upperTotal === 1 ? 'set' : 'sets'}</span>
+                </div>
+                <ul className="muscle-breakdown-list" role="list">
+                  {upperMuscles.map(m => {
+                    const isActive = activeMuscle === m.muscle;
+                    const pct = maxMuscleSets > 0 ? Math.round((m.sets / maxMuscleSets) * 100) : 0;
+                    return (
+                      <li
+                        key={m.muscle}
+                        className={`muscle-breakdown-item${m.sets > 0 ? ' is-trained' : ' is-untrained'}${isActive ? ' is-active' : ''}`}
+                        role="button"
+                        tabIndex={0}
+                        onClick={() => selectMuscle(m.muscle)}
+                        onMouseEnter={() => setHoveredMuscle(m.muscle)}
+                        onMouseLeave={() => setHoveredMuscle(null)}
+                        onKeyDown={e => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            selectMuscle(m.muscle);
+                          }
+                        }}
+                        aria-pressed={isActive}
+                      >
+                        <div className="muscle-breakdown-row">
+                          <span className="muscle-breakdown-name">{m.muscle}</span>
+                          <span className="muscle-breakdown-sets">
+                            <strong>{formatSets(m.sets)}</strong> <small>{m.sets === 1 ? 'set' : 'sets'}</small>
+                          </span>
+                        </div>
+                        <div className="muscle-breakdown-track" aria-hidden="true">
+                          <div
+                            className="muscle-breakdown-fill"
+                            style={{ width: `${m.sets > 0 ? Math.max(pct, 4) : 0}%` }}
+                          />
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+
+              <div className="muscle-breakdown-group">
+                <div className="muscle-group-header">
+                  <h3>Lower body</h3>
+                  <span className="pill pill-accent">{formatSets(lowerTotal)} {lowerTotal === 1 ? 'set' : 'sets'}</span>
+                </div>
+                <ul className="muscle-breakdown-list" role="list">
+                  {lowerMuscles.map(m => {
+                    const isActive = activeMuscle === m.muscle;
+                    const pct = maxMuscleSets > 0 ? Math.round((m.sets / maxMuscleSets) * 100) : 0;
+                    return (
+                      <li
+                        key={m.muscle}
+                        className={`muscle-breakdown-item${m.sets > 0 ? ' is-trained' : ' is-untrained'}${isActive ? ' is-active' : ''}`}
+                        role="button"
+                        tabIndex={0}
+                        onClick={() => selectMuscle(m.muscle)}
+                        onMouseEnter={() => setHoveredMuscle(m.muscle)}
+                        onMouseLeave={() => setHoveredMuscle(null)}
+                        onKeyDown={e => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            selectMuscle(m.muscle);
+                          }
+                        }}
+                        aria-pressed={isActive}
+                      >
+                        <div className="muscle-breakdown-row">
+                          <span className="muscle-breakdown-name">{m.muscle}</span>
+                          <span className="muscle-breakdown-sets">
+                            <strong>{formatSets(m.sets)}</strong> <small>{m.sets === 1 ? 'set' : 'sets'}</small>
+                          </span>
+                        </div>
+                        <div className="muscle-breakdown-track" aria-hidden="true">
+                          <div
+                            className="muscle-breakdown-fill"
+                            style={{ width: `${m.sets > 0 ? Math.max(pct, 4) : 0}%` }}
+                          />
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            </div>
           </section>
         </>
       )}

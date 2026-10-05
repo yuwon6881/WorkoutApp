@@ -334,9 +334,9 @@ html[data-keyboard='open'] .workout-rest-bar { display: none; }
   .day-editor { padding: 14px 12px; gap: 12px; }
   .import-program-card { padding: 14px 10px; }
   .import-review-issues { padding: 10px; background: transparent; }
-  .import-issue-table-row { grid-template-columns: minmax(0, 1fr); padding: 12px; }
+  .import-issue-table-row { grid-template-columns: minmax(0, 1fr); padding: 14px; gap: 8px; }
   .import-issue-table-detail { grid-column: 1; }
-  .import-issue-table-action { grid-column: 1; grid-row: auto; justify-self: end; }
+  .import-issue-action-btn { width: 100%; margin-top: 4px; }
   .import-fields { padding: 10px; margin-bottom: 12px; }
   .import-exercise { padding: 10px; }
   .set-grid-wrap .rep-mode-btn { font-size: 14px; }
