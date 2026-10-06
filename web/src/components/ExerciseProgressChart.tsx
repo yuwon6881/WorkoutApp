@@ -14,8 +14,18 @@ export function ExerciseProgressChart({ points, label, format }: {
 }) {
   const [selected, setSelected] = useState<number | null>(null);
   if (!points.length) return <div className="exercise-chart"><span className="muted">No completed working sets in this range.</span></div>;
+  if (!points.some(point => point.value !== null)) {
+    return <div className="exercise-chart"><span className="muted">No logged weights in this range to calculate {label.replace(/\s+progress$/i, '').toLowerCase()}.</span></div>;
+  }
 
-  const index = selected === null || selected >= points.length ? points.length - 1 : selected;
+  let defaultIndex = points.length - 1;
+  for (let i = points.length - 1; i >= 0; i--) {
+    if (points[i].value !== null) {
+      defaultIndex = i;
+      break;
+    }
+  }
+  const index = selected === null || selected >= points.length ? defaultIndex : selected;
   const max = Math.max(1, ...points.map(point => point.value ?? 0));
   const current = points[index];
 

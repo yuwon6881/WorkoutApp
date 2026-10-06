@@ -16,8 +16,8 @@ export function ProgramWeekCompletion({ program, standalone = false }: { program
     <circle className="completion-track" cx="50" cy="50" r="42" />
     {completion && completion.ratio > 0 && <circle className="completion-fill" cx="50" cy="50" r="42"
       pathLength="100" strokeDasharray={`${completion.ratio * 100} 100`} transform="rotate(-90 50 50)" />}
-    <text x="50" y="55" textAnchor="middle">{completion?.total ? completion.completed : '—'}
-      {completion && completion.total > 0 && <tspan className="completion-total"> / {completion.total}</tspan>}</text>
+    <text x="50" y="50" dy="0.36em" textAnchor="middle">{completion?.total ? completion.completed : '—'}
+      {completion && completion.total > 0 && <tspan className="completion-total">/{completion.total}</tspan>}</text>
   </svg>;
 
   if (standalone) {

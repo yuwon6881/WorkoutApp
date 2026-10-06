@@ -336,7 +336,7 @@ details>p{font-size:14px!important;line-height:1.5;color:var(--muted);margin-top
 .detail-record-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
 .detail-record-grid .stat-card{min-width:0;padding:10px 12px;border-radius:10px}
 .detail-record-grid .stat-card .stat-label{font-size:11px}
-.detail-record-grid .stat-card strong{font-size:16px;margin:6px 0 2px}
+.detail-record-grid .stat-card>strong{font-size:16px!important;font-weight:650;line-height:1.35;letter-spacing:-0.01em;margin:4px 0 2px;white-space:normal}
 .detail-record-grid .stat-card small{display:block;margin-top:2px;color:var(--muted);font-size:11px}
 .exercise-detail-modal .section-heading{align-items:end}
 .exercise-detail-modal .section-heading .field{margin:0;min-width:150px}
@@ -346,11 +346,6 @@ details>p{font-size:14px!important;line-height:1.5;color:var(--muted);margin-top
 .detail-resistance-records span{padding:7px 9px;border:1px solid var(--border);border-radius:6px;background:var(--surface-raised)}
 .detail-resistance-records strong{color:var(--text);font-weight:600;margin-left:4px}
 .exercise-history-cleared{padding:10px 12px;border:1px dashed var(--border);border-radius:7px;color:var(--muted);font-size:10px}
-
-
-
-
-
 .chart-table{display:grid;gap:0;max-height:220px;overflow:auto}
 .chart-table-row{display:grid;grid-template-columns:1.2fr repeat(4,1fr);gap:8px;padding:9px 0;border-bottom:1px solid var(--border);font-size:var(--font-secondary)}
 .chart-table-head{color:var(--muted);font-weight:600;position:sticky;top:0;background:var(--surface)}
@@ -395,7 +390,7 @@ details>p{font-size:14px!important;line-height:1.5;color:var(--muted);margin-top
   .form-grid-two{grid-template-columns:1fr}
   .detail-record-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
   .detail-record-grid .stat-card:last-child{grid-column:1 / -1}
-  .exercise-detail-modal .section-heading{align-items:stretch;flex-direction:column}
+  .exercise-detail-modal .section-heading:has(.detail-selectors){align-items:stretch;flex-direction:column}
   .exercise-detail-modal .section-heading .field{min-width:0}
   .detail-selectors{width:100%;align-items:stretch}
   .detail-selectors .field{flex:1 1 140px;min-width:0}

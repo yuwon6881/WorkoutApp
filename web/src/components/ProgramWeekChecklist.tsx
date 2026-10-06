@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Check, ChevronRight, Play, SkipForward } from 'lucide-react';
+import { ChevronRight, Play, SkipForward } from 'lucide-react';
 import type { DraftWorkout, Exercise, ImportDraft, ProgramProgressDay, ProgramSummary } from '../types';
 import { ApiError, api } from '../lib/api';
 import { dayTitle, isGenericDayTitle } from '../lib/dayTitle';
@@ -240,7 +240,6 @@ export function ProgramWeekChecklist({
               </div>
             </div>
             <div className="program-week-status-col">
-              {day.status === 'completed' && <Check className="program-week-complete-icon" size={18} aria-label="Completed" />}
               {day.status === 'skipped' && <span className="program-week-skipped-indicator" title="Skipped"><SkipForward size={14} className="muted" /></span>}
               {day.status === 'pending' && <ChevronRight className="program-week-chevron muted" size={16} aria-hidden="true" />}
             </div>

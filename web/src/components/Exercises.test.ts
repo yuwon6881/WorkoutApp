@@ -182,3 +182,40 @@ describe('ExerciseLibrary UI and grouping', () => {
     expect(markup).not.toContain('<span class="pill pill-muted">Core</span>');
   });
 });
+
+describe('defaultChartMetric and ExerciseProgressChart', () => {
+  it('falls back to reps when sets were logged without weight so the progress chart does not default to Unavailable', async () => {
+    const { defaultChartMetric } = await import('./Exercises');
+    const { ExerciseProgressChart } = await import('./ExerciseProgressChart');
+
+    const repsOnlyPoints = [
+      {
+        date: '2026-10-06',
+        sessionId: 'w-1',
+        sessionName: 'Full Body 3',
+        estimated1RmKg: null,
+        loadKg: null,
+        volumeKg: null,
+        reps: 4,
+        partial: true
+      }
+    ];
+
+    expect(defaultChartMetric(repsOnlyPoints)).toBe('reps');
+
+    const repsMarkup = renderToStaticMarkup(createElement(ExerciseProgressChart, {
+      points: [{ key: 'w-1-2026-10-06', date: 'Oct 6, 2026', value: 4 }],
+      label: 'Reps progress',
+      format: value => value == null ? 'Unavailable' : `${value} reps`
+    }));
+    expect(repsMarkup).toContain('4 reps');
+    expect(repsMarkup).not.toContain('Unavailable');
+
+    const unavailableMetricMarkup = renderToStaticMarkup(createElement(ExerciseProgressChart, {
+      points: [{ key: 'w-1-2026-10-06', date: 'Oct 6, 2026', value: null }],
+      label: 'Estimated 1RM progress',
+      format: value => value == null ? 'Unavailable' : `${value} kg`
+    }));
+    expect(unavailableMetricMarkup).toContain('No logged weights in this range to calculate estimated 1rm.');
+  });
+});

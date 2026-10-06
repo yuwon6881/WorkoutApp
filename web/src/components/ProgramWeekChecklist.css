@@ -13,7 +13,6 @@
 .program-week-name{min-width:0;overflow-wrap:anywhere;color:var(--text);font-size:var(--font-body);font-weight:600}
 .program-week-meta{color:var(--muted);font-size:var(--font-secondary);font-weight:450}
 .program-week-status-col{display:flex;align-items:center;justify-content:flex-end;gap:6px;min-width:24px}
-.program-week-complete-icon{color:var(--accent)}
 .program-week-skipped-indicator{display:inline-flex;align-items:center;justify-content:center;padding:4px}
 .program-week-chevron{transition:transform .15s ease}
 .program-week-day.exercise-day:hover .program-week-chevron{transform:translateX(2px);color:var(--text)}

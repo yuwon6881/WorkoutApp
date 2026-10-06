@@ -323,7 +323,8 @@ function dateLabel(value: string | null | undefined) {
 
 export function ExerciseDetailModal({ exercise, unit, onClose, onChanged }: { exercise: Exercise; unit: 'kg' | 'lb'; onClose: () => void; onChanged?: () => Promise<void> | void }) {
   const [detailTab, setDetailTab] = useState<'progress' | 'history'>('progress');
-  const [insight, setInsight] = useState<ExerciseInsight | null>(null); const [range, setRange] = useState('3m'); const [metric, setMetric] = useState<ChartMetric>('estimated1rm'); const [error, setError] = useState(''); const [busy, setBusy] = useState(false); const [historyBusy, setHistoryBusy] = useState(false); const [clearPreview, setClearPreview] = useState<ExerciseClearPreview | null>(null); const [deleteConfirm, setDeleteConfirm] = useState(false);
+  const [insight, setInsight] = useState<ExerciseInsight | null>(null); const [range, setRange] = useState('3m'); const [selectedMetric, setSelectedMetric] = useState<ChartMetric | null>(null); const [error, setError] = useState(''); const [busy, setBusy] = useState(false); const [historyBusy, setHistoryBusy] = useState(false); const [clearPreview, setClearPreview] = useState<ExerciseClearPreview | null>(null); const [deleteConfirm, setDeleteConfirm] = useState(false);
+  const metric = selectedMetric ?? defaultChartMetric(insight?.points ?? []);
   useEffect(() => { const controller = new AbortController(); setInsight(null); setError(''); api.exerciseInsight(exercise.id, range, 0, 20, controller.signal).then(setInsight).catch(failure => { if (!controller.signal.aborted) setError(failure instanceof ApiError ? failure.message : 'Could not load exercise details.'); }); return () => controller.abort(); }, [exercise.id, range]);
   async function clearHistory() { setBusy(true); try { const preview = await api.exerciseClearPreview(exercise.id); if (preview.hasActiveWorkout) { setError('Finish or discard the active workout before clearing this exercise.'); return; } setClearPreview(preview); } catch (failure) { setError(failure instanceof ApiError ? failure.message : 'Could not prepare history clearing.'); } finally { setBusy(false); } }
   async function confirmClear() { setBusy(true); try { await api.clearExerciseHistory(exercise.id); forgetSessionDetail(); setClearPreview(null); setInsight(null); await onChanged?.(); setInsight(await api.exerciseInsight(exercise.id, range, 0, 20)); } catch (failure) { setError(failure instanceof ApiError ? failure.message : 'Could not clear this exercise history.'); } finally { setBusy(false); } }
@@ -346,7 +347,7 @@ export function ExerciseDetailModal({ exercise, unit, onClose, onChanged }: { ex
         {!insight && !error && <div className="skeleton detail-loading" aria-label="Loading exercise details" />}
         {insight && insight.totalHistoryRows === 0 && <p className="muted">No workout history yet. Complete a workout to see progress here.</p>}
         {insight && insight.totalHistoryRows > 0 && detailTab === 'progress' && <>
-          <div className="section-heading"><h3>Progress</h3><div className="detail-selectors"><label className="field"><span>Metric</span><Select name="progress-metric-select" label="Progress metric" value={metric} onChange={val => setMetric(val as ChartMetric)} options={[{ value: 'estimated1rm', label: 'Estimated 1RM' }, { value: 'load', label: 'Heaviest load' }, { value: 'volume', label: 'Session volume' }, { value: 'reps', label: 'Reps' }]} /></label><label className="field"><span>Range</span><Select name="progress-range-select" label="Progress range" value={range} onChange={val => setRange(val as string)} options={[{ value: '1m', label: 'Last month' }, { value: '3m', label: 'Last 3 months' }, { value: '6m', label: 'Last 6 months' }, { value: 'all', label: 'All time' }]} /></label></div></div>
+          <div className="section-heading"><h3>Progress</h3><div className="detail-selectors"><label className="field"><span>Metric</span><Select name="progress-metric-select" label="Progress metric" value={metric} onChange={val => setSelectedMetric(val as ChartMetric)} options={[{ value: 'estimated1rm', label: 'Estimated 1RM' }, { value: 'load', label: 'Heaviest load' }, { value: 'volume', label: 'Session volume' }, { value: 'reps', label: 'Reps' }]} /></label><label className="field"><span>Range</span><Select name="progress-range-select" label="Progress range" value={range} onChange={val => setRange(val as string)} options={[{ value: '1m', label: 'Last month' }, { value: '3m', label: 'Last 3 months' }, { value: '6m', label: 'Last 6 months' }, { value: 'all', label: 'All time' }]} /></label></div></div>
           <ExerciseProgressChart label={`${chartMetricLabel(metric)} progress`} format={value => formatMetricValue(value, metric, unit)} points={insight.points.map(point => ({ key: `${point.sessionId}-${point.date}`, date: dateLabel(point.date), value: metricValue(point, metric) }))} />
           {insight.points.length > 0 && <div className="chart-table" role="table" aria-label="Exercise progress table"><div className="chart-table-row chart-table-head" role="row"><span>Date</span><span>1RM</span><span>Load</span><span>Volume</span><span>Reps</span></div>{insight.points.map(point => <div className="chart-table-row" role="row" key={`row-${point.sessionId}-${point.date}`}><span>{dateLabel(point.date)}</span><span>{displayKg(point.estimated1RmKg, unit)}</span><span>{displayKg(point.loadKg, unit)}</span><span>{displayKg(point.volumeKg, unit)}{point.partial ? ' *' : ''}</span><span>{point.reps ?? '—'}</span></div>)}</div>}
           {insight.partialVolume && <p className="muted detail-note">* Volume is partial because one or more logged loads were unknown.</p>}
@@ -376,7 +377,12 @@ export function ExerciseDetailModal({ exercise, unit, onClose, onChanged }: { ex
   </>;
 }
 
-type ChartMetric = 'estimated1rm' | 'load' | 'volume' | 'reps';
+export type ChartMetric = 'estimated1rm' | 'load' | 'volume' | 'reps';
+const chartMetrics: ChartMetric[] = ['estimated1rm', 'load', 'volume', 'reps'];
+export function defaultChartMetric(points: ExerciseInsight['points']): ChartMetric {
+  if (!points.length) return 'estimated1rm';
+  return chartMetrics.find(candidate => points.some(point => metricValue(point, candidate) != null)) ?? 'estimated1rm';
+}
 function metricValue(point: ExerciseInsight['points'][number], metric: ChartMetric) {
   return metric === 'estimated1rm' ? point.estimated1RmKg : metric === 'load' ? point.loadKg : metric === 'volume' ? point.volumeKg : point.reps;
 }
