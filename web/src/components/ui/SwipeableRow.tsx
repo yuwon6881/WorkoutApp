@@ -19,6 +19,9 @@ type SwipeableRowProps = {
 
 const PEEK_OFFSET = 44;
 const PEEK_HOLD_MS = 520;
+// Waits for the surface to settle first: a row that appears inside an arriving sheet would
+// otherwise slide while the sheet's content is still fading in, reading as a layout shift.
+const PEEK_DELAY_MS = 700;
 let peekShown = false;
 
 function clampOffset(value: number, actionsWidth: number) {
@@ -54,10 +57,14 @@ export function SwipeableRow({
       if (peekShown || !entries.some(entry => entry.isIntersecting && entry.intersectionRatio >= 0.9)) return;
       peekShown = true;
       observer.disconnect();
-      setOffset(-Math.min(PEEK_OFFSET, actionsWidth));
+      const peekOffset = -Math.min(PEEK_OFFSET, actionsWidth);
       timer = window.setTimeout(() => {
-        if (!pointer.current) setOffset(current => current === -Math.min(PEEK_OFFSET, actionsWidth) ? 0 : current);
-      }, PEEK_HOLD_MS);
+        if (pointer.current) return;
+        setOffset(current => current === 0 ? peekOffset : current);
+        timer = window.setTimeout(() => {
+          if (!pointer.current) setOffset(current => current === peekOffset ? 0 : current);
+        }, PEEK_HOLD_MS);
+      }, PEEK_DELAY_MS);
     }, { threshold: 0.9 });
     observer.observe(node);
     return () => {

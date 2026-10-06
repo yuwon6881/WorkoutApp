@@ -2,7 +2,7 @@
    workout's header and first exercise so the real sheet lands without a jump. */
 .workout-starting-title {
   display: grid;
-  gap: 4px;
+  gap: 2px;
   min-width: 0;
   min-height: 44px;
   align-content: center;
@@ -65,13 +65,37 @@
   padding: 16px 20px;
 }
 
-.workout-starting-strip { height: 36px; }
+/* Sized like .workout-top-icon and .workout-strip-item so the header and strip keep their height. */
+.workout-starting-icon { width: 44px; height: 44px; border-radius: var(--radius-control); }
+.workout-starting-strip { flex: 0 0 184px; width: 184px; height: 71px; border-radius: 14px; }
+/* Wider layouts page the strip with a leading arrow; the skeleton starts where the first pill does. */
+.workout-starting-part .workout-exercise-strip { padding-left: 58px; }
 .workout-starting-heading { width: 60%; height: 24px; }
 .workout-starting-card { height: 88px; }
 .workout-starting-row { height: 44px; }
+@media (max-width: 639px) {
+  .workout-starting-strip { flex-basis: 152px; width: 152px; height: 45px; }
+  .workout-starting-part .workout-exercise-strip { padding-left: 14px; }
+}
+@media (min-width: 1024px) {
+  .workout-starting-icon { width: 40px; height: 40px; }
+  .workout-starting-part .workout-exercise-strip { padding-left: 50px; }
+}
 
-/* The real sheet takes the stand-in's place; rising again would read as a second open. */
+/* The real sheet takes the stand-in's place; rising again would read as a second open. Its strip
+   and exercise fade in over the same footprint instead of cutting from the skeleton. */
 .modal.workout-sheet-continued[open],
 .modal.workout-sheet-continued[open]::backdrop {
   animation: none;
+}
+.modal.workout-sheet-continued .workout-exercise-strip-container:not(.workout-starting-part),
+.modal.workout-sheet-continued .workout-body:not(.workout-starting-part),
+.modal.workout-sheet-continued .workout-top-actions:not([aria-hidden]) {
+  animation: workout-sheet-arrive var(--motion-panel) var(--motion-ease) both;
+}
+@keyframes workout-sheet-arrive { from { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) {
+  .modal.workout-sheet-continued .workout-exercise-strip-container,
+  .modal.workout-sheet-continued .workout-body,
+  .modal.workout-sheet-continued .workout-top-actions { animation: none; }
 }

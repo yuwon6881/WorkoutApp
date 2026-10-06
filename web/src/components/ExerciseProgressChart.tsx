@@ -1,91 +1,74 @@
-import { useId, useState } from 'react';
+import { useId, useLayoutEffect, useRef, useState } from 'react';
 import type { KeyboardEvent, PointerEvent } from 'react';
+import { chartScale, nearestPointIndex, pointPositions, tickLabel } from '../lib/progressChart';
 
 export type ChartPoint = { key: string; date: string; value: number | null };
 
-/// A line progress chart for exercise tracking. Renders a progression curve with gradient fill
-/// and interactive session inspection. When points have unknown values, they render honestly
-/// without interpolating fictitious numbers.
+const height = 176;
+const padLeft = 40;
+const padRight = 18;
+const padTop = 14;
+const padBottom = 30;
+const fallbackWidth = 600;
+
+/// A line progress chart for exercise tracking. It draws at the canvas's real pixel width so dots
+/// stay round, and every dot is selectable by pointer (the nearest dot to the pointer) or by arrow
+/// keys. Sessions without a value break the line rather than interpolating a fictitious number.
 export function ExerciseProgressChart({ points, label, format }: {
   points: ChartPoint[];
   label: string;
   format: (value: number | null) => string;
 }) {
   const gradientId = useId();
+  const canvas = useRef<HTMLDivElement>(null);
+  const [width, setWidth] = useState(fallbackWidth);
   const [selected, setSelected] = useState<number | null>(null);
+  const hasValues = points.some(point => point.value !== null);
+
+  useLayoutEffect(() => {
+    const element = canvas.current;
+    if (!element) return;
+    const measure = () => { if (element.clientWidth > 0) setWidth(element.clientWidth); };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [hasValues]);
 
   if (!points.length) {
     return <div className="exercise-chart"><span className="muted">No completed working sets in this range.</span></div>;
   }
-  if (!points.some(point => point.value !== null)) {
+  if (!hasValues) {
     return <div className="exercise-chart"><span className="muted">No logged weights in this range to calculate {label.replace(/\s+progress$/i, '').toLowerCase()}.</span></div>;
   }
 
-  let defaultIndex = points.length - 1;
-  for (let i = points.length - 1; i >= 0; i--) {
-    if (points[i].value !== null) {
-      defaultIndex = i;
-      break;
-    }
-  }
-  const index = selected === null || selected >= points.length ? defaultIndex : selected;
+  let latestKnown = points.length - 1;
+  while (latestKnown > 0 && points[latestKnown].value === null) latestKnown--;
+  const index = selected === null || selected >= points.length ? latestKnown : selected;
   const current = points[index];
 
-  const validValues = points.map(p => p.value).filter((v): v is number => v !== null);
-  const minVal = Math.min(...validValues);
-  const maxVal = Math.max(...validValues);
-  const valSpread = maxVal === minVal ? Math.max(1, maxVal * 0.2) : maxVal - minVal;
-  const yMin = maxVal === minVal ? Math.max(0, minVal - valSpread) : Math.max(0, minVal - valSpread * 0.15);
-  const yMax = maxVal === minVal ? minVal + valSpread : maxVal + valSpread * 0.15;
-  const range = Math.max(1e-6, yMax - yMin);
-
-  const width = 600;
-  const height = 150;
-  const padLeft = 24;
-  const padRight = 24;
-  const padTop = 18;
-  const padBottom = 22;
-  const plotWidth = width - padLeft - padRight;
-  const plotHeight = height - padTop - padBottom;
+  const scale = chartScale(points.flatMap(point => point.value === null ? [] : [point.value]));
   const baselineY = height - padBottom;
+  const plotHeight = baselineY - padTop;
+  const xs = pointPositions(points.length, padLeft, width - padRight);
+  const y = (value: number) => baselineY - ((value - scale.min) / (scale.max - scale.min)) * plotHeight;
 
-  const count = points.length;
-  function getX(i: number) {
-    if (count <= 1) return width / 2;
-    return padLeft + (i / (count - 1)) * plotWidth;
-  }
-
-  function getY(v: number | null) {
-    if (v === null) return null;
-    const norm = (v - yMin) / range;
-    return baselineY - norm * plotHeight;
-  }
-
-  const coords = points.map((p, i) => ({
-    x: getX(i),
-    y: getY(p.value),
-    value: p.value
-  }));
-
-  const validCoords = coords.filter((c): c is { x: number; y: number; value: number } => c.y !== null);
-
-  let linePath = '';
-  let areaPath = '';
-
-  if (validCoords.length > 1) {
-    linePath = `M ${validCoords[0].x} ${validCoords[0].y}`;
-    for (let i = 1; i < validCoords.length; i++) {
-      linePath += ` L ${validCoords[i].x} ${validCoords[i].y}`;
+  // Consecutive known values form one segment; a session without a value ends it.
+  const segments: { x: number; y: number }[][] = [];
+  let run: { x: number; y: number }[] = [];
+  points.forEach((point, i) => {
+    if (point.value === null) {
+      if (run.length) segments.push(run);
+      run = [];
+    } else {
+      run.push({ x: xs[i], y: y(point.value) });
     }
-    const first = validCoords[0];
-    const last = validCoords[validCoords.length - 1];
-    areaPath = `${linePath} L ${last.x} ${baselineY} L ${first.x} ${baselineY} Z`;
-  }
+  });
+  if (run.length) segments.push(run);
 
   function pick(event: PointerEvent<HTMLDivElement>) {
     const box = event.currentTarget.getBoundingClientRect();
-    const ratio = Math.max(0, Math.min(0.999, (event.clientX - box.left) / box.width));
-    setSelected(Math.floor(ratio * points.length));
+    setSelected(nearestPointIndex(xs, ((event.clientX - box.left) / box.width) * width));
   }
 
   function step(event: KeyboardEvent<HTMLDivElement>) {
@@ -96,17 +79,21 @@ export function ExerciseProgressChart({ points, label, format }: {
     setSelected(Math.min(points.length - 1, Math.max(0, next)));
   }
 
-  const activeCoord = coords[index];
-  const showAxis = points.length > 1 && points[0].date !== points[points.length - 1].date;
+  const lastIndex = points.length - 1;
+  const showRange = points.length > 1 && points[0].date !== points[lastIndex].date;
+  const activeX = xs[index];
+  const activeY = current.value === null ? null : y(current.value);
 
   return (
     <div className="exercise-chart">
       <p className="exercise-chart-readout" aria-live="polite">
         <strong>{format(current.value)}</strong>
         <span>{current.date}</span>
+        {points.length > 1 && <span className="exercise-chart-position">Session {index + 1} of {points.length}</span>}
       </p>
       <div
-        className="exercise-chart-bars exercise-chart-canvas"
+        ref={canvas}
+        className="exercise-chart-canvas"
         role="slider"
         tabIndex={0}
         aria-label={`${label}, session ${index + 1} of ${points.length}`}
@@ -118,122 +105,48 @@ export function ExerciseProgressChart({ points, label, format }: {
         onPointerMove={event => { if (event.pointerType === 'mouse' || event.buttons) pick(event); }}
         onKeyDown={step}
       >
-        <svg
-          className="exercise-chart-svg"
-          viewBox={`0 0 ${width} ${height}`}
-          preserveAspectRatio="none"
-          aria-hidden="true"
-        >
+        <svg className="exercise-chart-svg" width={width} height={height} viewBox={`0 0 ${width} ${height}`} aria-hidden="true">
           <defs>
             <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="var(--accent)" stopOpacity="0.28" />
-              <stop offset="100%" stopColor="var(--accent)" stopOpacity="0.0" />
+              <stop offset="0%" stopColor="var(--accent)" stopOpacity="0.22" />
+              <stop offset="100%" stopColor="var(--accent)" stopOpacity="0" />
             </linearGradient>
           </defs>
 
-          <line x1={padLeft} y1={padTop + plotHeight * 0.25} x2={width - padRight} y2={padTop + plotHeight * 0.25} stroke="var(--border)" strokeDasharray="4 4" strokeWidth="1" opacity="0.6" />
-          <line x1={padLeft} y1={padTop + plotHeight * 0.5} x2={width - padRight} y2={padTop + plotHeight * 0.5} stroke="var(--border)" strokeDasharray="4 4" strokeWidth="1" opacity="0.6" />
-          <line x1={padLeft} y1={padTop + plotHeight * 0.75} x2={width - padRight} y2={padTop + plotHeight * 0.75} stroke="var(--border)" strokeDasharray="4 4" strokeWidth="1" opacity="0.6" />
-          <line x1={padLeft} y1={baselineY} x2={width - padRight} y2={baselineY} stroke="var(--border)" strokeWidth="1" opacity="0.75" />
-
-          {validCoords.length === 1 && (
-            <line
-              x1={padLeft}
-              y1={validCoords[0].y}
-              x2={width - padRight}
-              y2={validCoords[0].y}
-              stroke="var(--accent)"
-              strokeDasharray="4 4"
-              strokeWidth="1.5"
-              opacity="0.35"
-            />
-          )}
-
-          {areaPath && (
-            <path d={areaPath} fill={`url(#${gradientId})`} />
-          )}
-
-          {linePath && (
-            <path
-              d={linePath}
-              fill="none"
-              stroke="var(--accent)"
-              strokeWidth="2.75"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          )}
-
-          {activeCoord && (
-            <line
-              x1={activeCoord.x}
-              y1={padTop}
-              x2={activeCoord.x}
-              y2={baselineY}
-              stroke="var(--accent)"
-              strokeWidth="1.5"
-              strokeDasharray="3 3"
-              opacity="0.75"
-            />
-          )}
-
-          {coords.map((c, i) => {
-            if (c.y === null || i === index) return null;
-            return (
-              <circle
-                key={points[i].key}
-                cx={c.x}
-                cy={c.y}
-                r="4"
-                fill="var(--surface-raised)"
-                stroke="var(--accent)"
-                strokeWidth="2"
-              />
-            );
-          })}
-
-          {activeCoord && activeCoord.y !== null && (
-            <g>
-              <circle
-                cx={activeCoord.x}
-                cy={activeCoord.y}
-                r="9"
-                fill="var(--accent-soft)"
-              />
-              <circle
-                cx={activeCoord.x}
-                cy={activeCoord.y}
-                r="5"
-                fill="var(--accent)"
-                stroke="var(--surface)"
-                strokeWidth="2"
-              />
+          {scale.ticks.map(tick => (
+            <g key={tick}>
+              <line className="exercise-chart-grid" x1={padLeft} x2={width - padRight} y1={y(tick)} y2={y(tick)} />
+              <text className="exercise-chart-tick" x={padLeft - 8} y={y(tick)} textAnchor="end" dominantBaseline="middle">{tickLabel(tick)}</text>
             </g>
-          )}
+          ))}
 
-          {coords.map((c, i) => {
-            if (c.y !== null) return null;
-            return (
-              <circle
-                key={points[i].key}
-                cx={c.x}
-                cy={baselineY}
-                r="3"
-                fill="transparent"
-                stroke="var(--faint)"
-                strokeDasharray="2 2"
-                strokeWidth="1"
+          {points.length > 1 && <line className="exercise-chart-guide" x1={activeX} x2={activeX} y1={padTop} y2={baselineY} />}
+
+          {segments.map(segment => segment.length > 1 && (
+            <g key={`${segment[0].x}`}>
+              <path
+                d={`M ${segment.map(p => `${p.x} ${p.y}`).join(' L ')} L ${segment[segment.length - 1].x} ${baselineY} L ${segment[0].x} ${baselineY} Z`}
+                fill={`url(#${gradientId})`}
               />
-            );
-          })}
+              <path className="exercise-chart-line" d={`M ${segment.map(p => `${p.x} ${p.y}`).join(' L ')}`} />
+            </g>
+          ))}
+
+          {points.map((point, i) => point.value === null
+            ? <circle key={point.key} className="exercise-chart-gap" cx={xs[i]} cy={baselineY} r={3} />
+            : i !== index && <circle key={point.key} className="exercise-chart-dot" cx={xs[i]} cy={y(point.value)} r={4} />)}
+
+          {activeY !== null && <>
+            <circle className="exercise-chart-halo" cx={activeX} cy={activeY} r={10} />
+            <circle className="exercise-chart-dot active" cx={activeX} cy={activeY} r={5.5} />
+          </>}
+
+          {showRange ? <>
+            <text className="exercise-chart-tick" x={xs[0]} y={height - 8} textAnchor="start">{points[0].date}</text>
+            <text className="exercise-chart-tick" x={xs[lastIndex]} y={height - 8} textAnchor="end">{points[lastIndex].date}</text>
+          </> : <text className="exercise-chart-tick" x={xs[lastIndex]} y={height - 8} textAnchor={points.length > 1 ? 'end' : 'middle'}>{points[lastIndex].date}</text>}
         </svg>
       </div>
-      {showAxis && (
-        <div className="exercise-chart-axis" aria-hidden="true">
-          <span>{points[0].date}</span>
-          <span>{points[points.length - 1].date}</span>
-        </div>
-      )}
     </div>
   );
 }

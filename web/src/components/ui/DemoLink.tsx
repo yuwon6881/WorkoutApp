@@ -27,8 +27,8 @@ export function DemoLink({ url, exerciseName }: Props) {
           event.preventDefault();
           setOpen(true);
         }}
-        title={`Watch demonstration of ${exerciseName} (opens in a new tab)`}
-        aria-label={`Watch a demonstration of ${exerciseName} (opens in a new tab)`}
+        title={`Watch demonstration of ${exerciseName}`}
+        aria-label={`Watch a demonstration of ${exerciseName}`}
       >
         <Play size={12} className="demo-play-icon" aria-hidden="true" fill="currentColor" />
         <span>Demo</span>
@@ -49,6 +49,9 @@ export function DemoLink({ url, exerciseName }: Props) {
                   src={embedInfo.embedUrl}
                   title={`${exerciseName} demonstration`}
                   allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                  // The app's same-origin referrer policy would hide the hosting page, and YouTube
+                  // refuses to play an embed that cannot name it.
+                  referrerPolicy="strict-origin-when-cross-origin"
                   allowFullScreen
                 />
               </div>

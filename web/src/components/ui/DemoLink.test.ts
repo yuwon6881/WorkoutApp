@@ -13,7 +13,7 @@ describe('DemoLink', () => {
     expect(markup).toContain('exercise-demo-pill');
     expect(markup).toContain('Demo');
     expect(markup).toContain('href="https://youtu.be/SJqInYJcd6c"');
-    expect(markup).toContain('aria-label="Watch a demonstration of Egyptian Cable Lateral Raise (opens in a new tab)"');
+    expect(markup).toContain('aria-label="Watch a demonstration of Egyptian Cable Lateral Raise"');
   });
 
   it('renders nothing when url is missing or empty', () => {
