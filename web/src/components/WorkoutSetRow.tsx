@@ -122,7 +122,9 @@ export function WorkoutSetRow({
           type="number"
           min="0"
           step={availableLoadsKg?.length || stepKg <= 0 ? 'any' : toDisplay(stepKg, unit) ?? 'any'}
+          onWheel={event => event.currentTarget.blur()}
           onKeyDown={event => {
+            if (event.key === '-') { event.preventDefault(); return; }
             if (event.key !== 'ArrowUp' && event.key !== 'ArrowDown') return;
             event.preventDefault();
             const direction = event.key === 'ArrowUp' ? 1 : -1;
@@ -136,9 +138,12 @@ export function WorkoutSetRow({
           value={!loadEditable || shown === null ? '' : shown}
           disabled={!loadEditable}
           // Correcting a logged set keeps it logged; only the log button unlogs a set.
-          onChange={e =>
-            editSet(ei, si, { weightKg: e.target.value === '' ? null : toKg(Number(e.target.value), unit) })
-          }
+          onChange={e => {
+            const val = e.target.value;
+            if (val === '') { editSet(ei, si, { weightKg: null }); return; }
+            const num = Number(val);
+            if (!Number.isNaN(num) && num >= 0) editSet(ei, si, { weightKg: toKg(num, unit) });
+          }}
         />
       </div>
 

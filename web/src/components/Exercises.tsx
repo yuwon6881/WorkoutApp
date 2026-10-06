@@ -2,12 +2,14 @@ import { ExerciseLoadSettings } from './ExerciseLoadSettings';
 import { canEnterPerSide } from '../lib/equipmentGroups';
 import { loadAdjustable } from '../lib/exerciseLoads';
 import { useDeferredValue, useEffect, useMemo, useState } from 'react';
-import { ArrowLeftRight, Dumbbell, Library, Link2, Plus, Search, X, Trash2, RotateCcw, TrendingUp } from 'lucide-react';
-import type { Exercise, ExerciseCategory, ExerciseClearPreview, ExerciseInsight, Session } from '../types';
+import { ArrowLeftRight, Dumbbell, Library, Link2, Plus, Search, X, Trash2, RotateCcw } from 'lucide-react';
+import type { Exercise, ExerciseCategory, ExerciseClearPreview, ExerciseInsight } from '../types';
 import { ApiError, api } from '../lib/api';
 import { forgetSessionDetail } from '../lib/sessionDetailLoad';
 import { showSetCount } from '../lib/training';
 import { Button } from './ui/Button';
+import { ExerciseHistory } from './ExerciseHistory';
+import { SegmentedControl } from './ui/SegmentedControl';
 import { ExerciseProgressChart } from './ExerciseProgressChart';
 import { Modal } from './ui/Modal';
 import { Select } from './ui/Select';
@@ -319,7 +321,8 @@ function dateLabel(value: string | null | undefined) {
   return value ? new Date(`${value.slice(0, 10)}T12:00:00`).toLocaleDateString('en', { month: 'short', day: 'numeric', year: 'numeric' }) : '—';
 }
 
-export function ExerciseDetailModal({ exercise, unit, onClose, onChanged, onSession }: { exercise: Exercise; unit: 'kg' | 'lb'; onClose: () => void; onChanged?: () => Promise<void> | void; onSession?: (session: Session) => void }) {
+export function ExerciseDetailModal({ exercise, unit, onClose, onChanged }: { exercise: Exercise; unit: 'kg' | 'lb'; onClose: () => void; onChanged?: () => Promise<void> | void }) {
+  const [detailTab, setDetailTab] = useState<'progress' | 'history'>('progress');
   const [insight, setInsight] = useState<ExerciseInsight | null>(null); const [range, setRange] = useState('3m'); const [metric, setMetric] = useState<ChartMetric>('estimated1rm'); const [error, setError] = useState(''); const [busy, setBusy] = useState(false); const [historyBusy, setHistoryBusy] = useState(false); const [clearPreview, setClearPreview] = useState<ExerciseClearPreview | null>(null); const [deleteConfirm, setDeleteConfirm] = useState(false);
   useEffect(() => { const controller = new AbortController(); setInsight(null); setError(''); api.exerciseInsight(exercise.id, range, 0, 20, controller.signal).then(setInsight).catch(failure => { if (!controller.signal.aborted) setError(failure instanceof ApiError ? failure.message : 'Could not load exercise details.'); }); return () => controller.abort(); }, [exercise.id, range]);
   async function clearHistory() { setBusy(true); try { const preview = await api.exerciseClearPreview(exercise.id); if (preview.hasActiveWorkout) { setError('Finish or discard the active workout before clearing this exercise.'); return; } setClearPreview(preview); } catch (failure) { setError(failure instanceof ApiError ? failure.message : 'Could not prepare history clearing.'); } finally { setBusy(false); } }
@@ -329,18 +332,20 @@ export function ExerciseDetailModal({ exercise, unit, onClose, onChanged, onSess
   return <>
     <Modal title={exercise.name} onClose={onClose} wide>
       <div className="modal-body exercise-detail-modal">
-        <div className="exercise-detail-meta">
+        <SegmentedControl label="Exercise detail view" value={detailTab} onChange={setDetailTab}
+          options={[{ value: 'progress', label: 'Progress' }, { value: 'history', label: 'History' }]} />
+        {detailTab === 'progress' && <div className="exercise-detail-meta">
           <span className="pill pill-accent">{exercise.archived && exercise.isCustom ? 'Deleted custom exercise' : exercise.isCustom ? 'Custom exercise' : exercise.muscle || 'Full body'}</span>
           {(exercise.secondaryMuscles ?? []).map(secondary => <span className="pill pill-muted" key={secondary}>{secondary}</span>)}
           <span className="pill">{exercise.equipment || 'General'}</span>
           <span className="pill pill-category">{getExerciseCategory(exercise)}</span>
-        </div>
-        {exercise.cue && <p className="muted">{exercise.cue}</p>}
-        {!exercise.archived && loadAdjustable(exercise) && <ExerciseLoadSettings key={exercise.id} exerciseId={exercise.id} exerciseName={exercise.name} unit={unit} perSide={canEnterPerSide(exercise)} onChanged={onChanged} />}
+        </div>}
+        {detailTab === 'progress' && exercise.cue && <p className="muted">{exercise.cue}</p>}
+        {detailTab === 'progress' && !exercise.archived && loadAdjustable(exercise) && <ExerciseLoadSettings key={exercise.id} exerciseId={exercise.id} exerciseName={exercise.name} unit={unit} perSide={canEnterPerSide(exercise)} onChanged={onChanged} />}
         {error && <div className="error-banner" role="alert">{error}</div>}
         {!insight && !error && <div className="skeleton detail-loading" aria-label="Loading exercise details" />}
         {insight && insight.totalHistoryRows === 0 && <p className="muted">No workout history yet. Complete a workout to see progress here.</p>}
-        {insight && insight.totalHistoryRows > 0 && <>
+        {insight && insight.totalHistoryRows > 0 && detailTab === 'progress' && <>
           <div className="section-heading"><h3>Progress</h3><div className="detail-selectors"><label className="field"><span>Metric</span><Select name="progress-metric-select" label="Progress metric" value={metric} onChange={val => setMetric(val as ChartMetric)} options={[{ value: 'estimated1rm', label: 'Estimated 1RM' }, { value: 'load', label: 'Heaviest load' }, { value: 'volume', label: 'Session volume' }, { value: 'reps', label: 'Reps' }]} /></label><label className="field"><span>Range</span><Select name="progress-range-select" label="Progress range" value={range} onChange={val => setRange(val as string)} options={[{ value: '1m', label: 'Last month' }, { value: '3m', label: 'Last 3 months' }, { value: '6m', label: 'Last 6 months' }, { value: 'all', label: 'All time' }]} /></label></div></div>
           <ExerciseProgressChart label={`${chartMetricLabel(metric)} progress`} format={value => formatMetricValue(value, metric, unit)} points={insight.points.map(point => ({ key: `${point.sessionId}-${point.date}`, date: dateLabel(point.date), value: metricValue(point, metric) }))} />
           {insight.points.length > 0 && <div className="chart-table" role="table" aria-label="Exercise progress table"><div className="chart-table-row chart-table-head" role="row"><span>Date</span><span>1RM</span><span>Load</span><span>Volume</span><span>Reps</span></div>{insight.points.map(point => <div className="chart-table-row" role="row" key={`row-${point.sessionId}-${point.date}`}><span>{dateLabel(point.date)}</span><span>{displayKg(point.estimated1RmKg, unit)}</span><span>{displayKg(point.loadKg, unit)}</span><span>{displayKg(point.volumeKg, unit)}{point.partial ? ' *' : ''}</span><span>{point.reps ?? '—'}</span></div>)}</div>}
@@ -355,12 +360,14 @@ export function ExerciseDetailModal({ exercise, unit, onClose, onChanged, onSess
             <div className="stat-card"><span className="stat-label">Last performed</span><strong>{dateLabel(insight.lastPerformedDate)}</strong>{insight.setCount > 0 && <small>{insight.setCount} working sets</small>}</div>
           </div>
           <div className="detail-resistance-records" aria-label="Resistance records">{insight.externalLoadPrKg != null && <span>External load PR <strong>{displayKg(insight.externalLoadPrKg, unit)}</strong></span>}{insight.addedLoadPrKg != null && <span>Added load PR <strong>{displayKg(insight.addedLoadPrKg, unit)}</strong></span>}{insight.assistanceReductionPrKg != null && <span>Lowest assistance <strong>{displayKg(insight.assistanceReductionPrKg, unit)}</strong></span>}{insight.systemLoadPrKg != null && <span>System load PR <strong>{displayKg(insight.systemLoadPrKg, unit)}</strong></span>}</div>
-          <div className="section-heading"><h3>History</h3><span className="muted">{insight.totalHistoryRows} workouts</span></div>
-          {insight.history.map(row => <Button variant="tertiary" className="history-row" key={row.sessionId} onClick={async () => { const session = await api.getWorkout(row.sessionId); onSession?.(session); }}><span className="row-title"><strong>{row.sessionName}</strong><small>{dateLabel(row.date)} · {showSetCount(row.setCount)}</small></span><span>{displayKg(row.volumeKg, unit)}{row.partial ? ' *' : ''}</span><TrendingUp size={15} /></Button>)}
+        </>}
+        {insight && insight.totalHistoryRows > 0 && detailTab === 'history' && <>
+          <div className="section-heading"><h3>History</h3><span className="muted">{insight.totalHistoryRows} {insight.totalHistoryRows === 1 ? 'workout' : 'workouts'}</span></div>
+          <ExerciseHistory rows={insight.history} exerciseId={exercise.id} unit={unit} />
           {insight.history.length < insight.totalHistoryRows && <Button variant="tertiary" className="full-width" onClick={() => void moreHistory()} disabled={historyBusy}>{historyBusy ? 'Loading…' : 'Load more history'}</Button>}
           {!insight.history.length && !insight.historyClears?.length && <p className="muted">No workout history for this exercise yet.</p>}
         </>}
-        {insight?.historyClears?.map(clear => <div className="exercise-history-cleared" role="status" key={clear.clearedAt}>Exercise history cleared on {dateLabel(clear.clearedAt)} · {showSetCount(clear.removedSets)} removed</div>)}
+        {detailTab === 'history' && insight?.historyClears?.map(clear => <div className="exercise-history-cleared" role="status" key={clear.clearedAt}>Exercise history cleared on {dateLabel(clear.clearedAt)} · {showSetCount(clear.removedSets)} removed</div>)}
       </div>
       <div className="modal-actions">{Boolean(insight?.clearableSetCount) && <Button variant="tertiary" onClick={clearHistory} disabled={busy}> <RotateCcw size={15} />Clear history</Button>}{exercise.isCustom && !exercise.archived && !insight?.archived && <Button variant="destructive" onClick={() => setDeleteConfirm(true)} disabled={busy}><Trash2 size={15} />Delete custom exercise</Button>}<Button variant="primary" onClick={onClose}>Done</Button></div>
     </Modal>

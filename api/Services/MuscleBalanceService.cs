@@ -5,8 +5,10 @@ using Workout.Api.Domain;
 
 namespace Workout.Api.Services;
 
+public record MuscleContribution(Guid? ExerciseId, string Name, double Sets);
+
 public record MuscleBalanceRow(string Muscle, double Sets, double PrimarySets, double SecondarySets,
-    int Sessions, DateOnly? LastTrainedDate);
+    int Sessions, DateOnly? LastTrainedDate, List<MuscleContribution>? Contributions = null);
 
 public record MuscleBalanceView(string Range, DateOnly From, DateOnly To, double Weeks,
     int Sessions, double TotalSets, List<MuscleBalanceRow> Muscles,
@@ -88,6 +90,11 @@ public sealed class MuscleBalanceService(AppDb db, CatalogService catalog, IMemo
             {
                 var accumulator = accumulators[credit.Region];
                 accumulator.Sets += credit.Weight;
+                var key = (exercise.ExerciseId, exercise.ExerciseId is null ? exercise.NameSnapshot : "");
+                if (accumulator.Contributions.TryGetValue(key, out var lift))
+                    accumulator.Contributions[key] = lift with { Sets = lift.Sets + credit.Weight };
+                else
+                    accumulator.Contributions[key] = new MuscleContribution(exercise.ExerciseId, exercise.NameSnapshot, credit.Weight);
                 if (primaryRegions.Contains(credit.Region)) accumulator.PrimarySets += credit.Weight;
                 else accumulator.SecondarySets += credit.Weight;
                 accumulator.Sessions.Add(session.Id);
@@ -100,7 +107,8 @@ public sealed class MuscleBalanceService(AppDb db, CatalogService catalog, IMemo
         {
             var item = accumulators[region];
             return new MuscleBalanceRow(region, item.Sets, item.PrimarySets, item.SecondarySets,
-                item.Sessions.Count, item.LastTrainedDate);
+                item.Sessions.Count, item.LastTrainedDate, item.Contributions.Values
+                    .OrderByDescending(lift => lift.Sets).ThenBy(lift => lift.Name).ToList());
         }).ToList();
         var result = new MuscleBalanceView(rangeValue, from, to, weeks, sessions.Count, sets.Count,
             muscles, unattributedSets, unattributedExamples.OrderBy(name => name, StringComparer.OrdinalIgnoreCase).Take(5).ToList());
@@ -137,5 +145,6 @@ public sealed class MuscleBalanceService(AppDb db, CatalogService catalog, IMemo
         public double SecondarySets { get; set; }
         public HashSet<Guid> Sessions { get; } = [];
         public DateOnly? LastTrainedDate { get; set; }
+        public Dictionary<(Guid?, string), MuscleContribution> Contributions { get; } = [];
     }
 }

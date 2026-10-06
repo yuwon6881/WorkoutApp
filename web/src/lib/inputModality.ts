@@ -11,8 +11,21 @@ export function modalityForEvent(event: { type: string; key?: string }): InputMo
   return null;
 }
 
+/** Prevents mouse wheel scrolling from changing values on number inputs across the entire application. */
+export function preventNumberInputScroll(): () => void {
+  const handleWheel = (event: WheelEvent) => {
+    const target = event.target;
+    if (target instanceof HTMLInputElement && target.type === 'number') {
+      target.blur();
+    }
+  };
+  window.addEventListener('wheel', handleWheel, { passive: true });
+  return () => window.removeEventListener('wheel', handleWheel);
+}
+
 /** Records the last meaningful input on the root element so focus rings follow keyboard use only. */
 export function trackInputModality(root: HTMLElement = document.documentElement): () => void {
+  preventNumberInputScroll();
   const record = (event: Event) => {
     const modality = modalityForEvent({ type: event.type, key: (event as KeyboardEvent).key });
     if (modality && root.dataset.inputModality !== modality) root.dataset.inputModality = modality;

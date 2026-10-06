@@ -23,12 +23,23 @@ function fieldIds(id: string | undefined, generated: string, error: string | und
   return { controlId, controlName, errorId: error ? `${controlId}-error` : undefined };
 }
 
-export function Field({ label, error, className = '', id, name, ...props }: FieldChrome & InputHTMLAttributes<HTMLInputElement> & { ref?: Ref<HTMLInputElement> }) {
+export function Field({ label, error, className = '', id, name, type, onWheel, ...props }: FieldChrome & InputHTMLAttributes<HTMLInputElement> & { ref?: Ref<HTMLInputElement> }) {
   const generated = useId();
   const { controlId, controlName, errorId } = fieldIds(id, generated, error, name, label);
   return <label className={`field ${className}`.trim()} htmlFor={controlId}>
     <span>{label}</span>
-    <input id={controlId} name={controlName} aria-invalid={error ? true : undefined} aria-describedby={errorId} {...props} />
+    <input
+      id={controlId}
+      name={controlName}
+      type={type}
+      onWheel={e => {
+        if (type === 'number') e.currentTarget.blur();
+        onWheel?.(e);
+      }}
+      aria-invalid={error ? true : undefined}
+      aria-describedby={errorId}
+      {...props}
+    />
     {error && <span id={errorId} className="field-error" role="alert">{error}</span>}
   </label>;
 }

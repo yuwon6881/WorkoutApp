@@ -3,7 +3,7 @@ import type { Locator, Page } from '@playwright/test';
 import { join } from 'node:path';
 import { signIn as auth } from './signIn';
 import { pdf } from './pdfFixture';
-import type { ImportView } from '../src/types';
+import type { Exercise, ExerciseInsight, ImportView, MuscleBalanceView, ShellBootstrap } from '../src/types';
 
 // Geometry checks use reduced motion so the swipe discovery animation cannot shift controls.
 test.use({ reducedMotion: 'reduce' });
@@ -333,7 +333,7 @@ for (const theme of ['dark', 'light']) {
       const viewport = page.viewportSize()!;
       const height = await card.evaluate(element => element.getBoundingClientRect().height);
       await page.setViewportSize({ width: viewport.width, height: Math.max(viewport.height, Math.ceil(height) + 300) });
-      await card.screenshot({ animations: 'disabled', style: '.bottom-nav, .toast, .modal > header, .modal-actions { visibility: hidden !important; }', path: join(screenshotsDirectory, 'responsive', `${info.project.name}-${theme}-${label}.png`) });
+      await card.screenshot({ animations: 'disabled', style: '.topbar, .bottom-nav, .toast, .modal > header, .modal-actions { visibility: hidden !important; }', path: join(screenshotsDirectory, 'responsive', `${info.project.name}-${theme}-${label}.png`) });
       await page.setViewportSize(viewport);
     };
     await screenshot('settings');
@@ -499,7 +499,11 @@ for (const theme of ['dark', 'light']) {
     await expect(page.locator('.body-map-detail')).toBeVisible();
     await screenshot('body');
     await expect(page.locator('.muscle-breakdown-panel')).toBeVisible();
+    await expect(page.locator('.muscle-breakdown-figure')).toHaveCount(14);
+    await page.getByRole('button', { name: /^Calves, .*contributing lifts$/ }).click();
+    await expect(page.getByLabel('Calves contributing lifts', { exact: true })).toBeVisible();
     await screenshot('muscle-breakdown');
+    await cardScreenshot(page.locator('.muscle-breakdown-panel'), 'muscle-breakdown-card');
 
     await navigate(page, 'Workouts');
     await page.locator('.routine-card').filter({ hasText: workoutName }).getByRole('button', { name: 'Start workout', exact: true }).first().click();
@@ -593,5 +597,88 @@ for (const theme of ['dark', 'light'] as const) {
     await expect(history.locator('.history-row')).toHaveCount(2);
     await checkLayout(page, 'populated history');
     await page.screenshot({ animations: 'disabled', path: join(screenshotsDirectory, 'responsive', `${info.project.name}-${theme}-populated-history.png`) });
+  });
+}
+
+for (const theme of ['dark', 'light'] as const) {
+  test('muscle contributors and exercise history fit in ' + theme, async ({ page }, info) => {
+    await signIn(page);
+    await navigate(page, 'Settings');
+    await page.getByRole('group', { name: 'Appearance' }).getByRole('button', { name: theme === 'dark' ? 'Dark' : 'Light' }).click();
+    const catalog: Exercise[] = await (await page.request.get('/api/exercises')).json();
+    const exercise = catalog.find(item => item.name === 'Barbell bench press')!;
+    const balance: MuscleBalanceView = await (await page.request.get('/api/progress/muscles?range=1w&timeZone=UTC')).json();
+    const insight: ExerciseInsight = await (await page.request.get('/api/exercises/' + exercise.id + '/insight?range=3m&page=0&size=20')).json();
+    const when = new Date().toISOString();
+    const programName = 'Strength development with a deliberately long program name — block two';
+    const sessionId = 'muscle-history-fixture';
+    let historyCleared = false;
+    const launch: ShellBootstrap = await (await page.request.get('/api/bootstrap/launch')).json();
+    await page.route('**/api/bootstrap/launch', route => route.fulfill({ json: {
+      ...launch, resourceVersions: { ...launch.resourceVersions, history: historyCleared ? 'cleared-history' : launch.resourceVersions?.history }
+    } }));
+    await page.route('**/api/progress/muscles?*', route => route.fulfill({ json: {
+      ...balance, totalSets: historyCleared ? 0 : 2, sessions: 1,
+      muscles: balance.muscles.map(row => ({ ...row, sets: !historyCleared && row.muscle === 'Chest' ? 2 : 0,
+        primarySets: !historyCleared && row.muscle === 'Chest' ? 2 : 0, secondarySets: 0,
+        contributions: !historyCleared && row.muscle === 'Chest' ? [{ exerciseId: exercise.id, name: exercise.name, sets: 2 }] : [] }))
+    } }));
+    await page.route('**/api/exercises/' + exercise.id + '/insight?*', route => route.fulfill({ json: {
+      ...insight, sessions: historyCleared ? 0 : 1, setCount: historyCleared ? 0 : 2,
+      clearableSetCount: historyCleared ? 0 : 3, totalHistoryRows: historyCleared ? 0 : 1,
+      history: historyCleared ? [] : [{ sessionId, sessionName: 'Upper body training', programName, date: when.slice(0, 10),
+        finishedAt: when, setCount: 2, volumeKg: 900, partial: false }]
+    } }));
+    const clearPreview = { exerciseId: exercise.id, name: exercise.name, affectedWorkouts: 1,
+      affectedSets: 3, hasActiveWorkout: false, canClear: true };
+    await page.route('**/api/exercises/' + exercise.id + '/clear-preview', route => route.fulfill({ json: clearPreview }));
+    await page.route('**/api/exercises/' + exercise.id + '/clear-history', route => {
+      historyCleared = true;
+      return route.fulfill({ json: { ...clearPreview, canClear: false } });
+    });
+    await page.route('**/api/workouts/' + sessionId, route => route.fulfill({ json: {
+      id: sessionId, exercises: [{ id: 'logged-bench', exerciseId: exercise.id, name: exercise.name, note: '',
+        sets: [
+          { id: 'warmup', done: true, warmup: true, weightKg: 20, reps: 10, rir: null, rpe: null },
+          { id: 'working-one', done: true, warmup: false, weightKg: 60, reps: 8, rir: '2', rpe: 8 },
+          { id: 'working-two', done: true, warmup: false, weightKg: 60, reps: 7, rir: '1', rpe: 9 },
+          { id: 'not-logged', done: false, warmup: false, weightKg: 70, reps: 1, rir: null, rpe: null }
+        ] }]
+    } }));
+    await navigate(page, 'Muscles');
+    await page.getByRole('button', { name: /^Chest, .*contributing lifts$/ }).click();
+    const contributors = page.getByLabel('Chest contributing lifts', { exact: true });
+    await expect(contributors.getByRole('button', { name: /Barbell bench press/ })).toBeVisible();
+    const liftNameFits = await contributors.getByRole('button', { name: /Barbell bench press/ }).evaluate(button => {
+      const name = button.querySelector(':scope > span')!;
+      const credits = button.querySelector(':scope > small')!;
+      const text = document.createRange();
+      text.selectNodeContents(name);
+      return text.getBoundingClientRect().right <= credits.getBoundingClientRect().left - 4;
+    });
+    expect(liftNameFits, 'the lift name stays clear of its set-credit label').toBe(true);
+    await checkLayout(page, 'contributing lifts');
+    await page.locator('.muscle-breakdown-panel').screenshot({ animations: 'disabled', style: '.topbar, .bottom-nav { visibility: hidden !important; }',
+      path: join(screenshotsDirectory, 'responsive', info.project.name + '-' + theme + '-contributing-lifts.png') });
+    await contributors.getByRole('button', { name: /Barbell bench press/ }).click();
+    const modal = page.getByRole('dialog', { name: exercise.name, exact: true });
+    await modal.getByRole('button', { name: 'History', exact: true }).click();
+    await expect(modal.getByText(programName, { exact: true })).toBeVisible();
+    await modal.getByRole('button', { name: /Upper body training/ }).click();
+    await expect(modal.getByText('20 kg × 10', { exact: true })).toBeVisible();
+    await expect(modal.getByText('60 kg × 8', { exact: true })).toBeVisible();
+    await expect(modal.getByText('60 kg × 7', { exact: true })).toBeVisible();
+    await expect(modal.getByText('70 kg × 1', { exact: true })).toHaveCount(0);
+    await expect(modal.getByRole('heading', { name: 'Progress', exact: true })).toHaveCount(0);
+    await checkLayout(page, 'expanded exercise history');
+    await page.screenshot({ animations: 'disabled', path: join(screenshotsDirectory, 'responsive',
+      info.project.name + '-' + theme + '-exercise-history.png') });
+    await modal.getByRole('button', { name: 'Clear history', exact: true }).click();
+    const confirmation = page.getByRole('dialog', { name: 'Clear exercise history?', exact: true });
+    await confirmation.getByRole('button', { name: 'Clear history', exact: true }).click();
+    await expect(confirmation).toBeHidden();
+    await modal.getByRole('button', { name: 'Done', exact: true }).click();
+    await expect(page.getByRole('button', { name: 'Chest, 0 sets, contributing lifts', exact: true })).toBeVisible();
+    await expect(page.getByText('No contributing lifts in this window.', { exact: true })).toBeVisible();
   });
 }

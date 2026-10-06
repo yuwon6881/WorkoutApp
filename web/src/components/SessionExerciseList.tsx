@@ -1,3 +1,4 @@
+import { useId } from 'react';
 import { Clock3, Trophy } from 'lucide-react';
 import type { LoggedSet, SessionExercise, Unit } from '../types';
 import { formatExercisePrBadge, formatSetPrTag } from '../lib/livePr';
@@ -55,18 +56,21 @@ function SessionExerciseCard({ exercise, order, unit, trackRir }: {
 
 /// Each logged exercise with its sets in the order they were done; nothing is shown for a set that
 /// was never logged.
-export function SessionExerciseList({ exercises, unit, loading }: {
+export function SessionExerciseList({ exercises, unit, loading, heading = 'Exercises', showCount = true }: {
   exercises: SessionExercise[];
   unit: Unit;
   loading: boolean;
+  heading?: string;
+  showCount?: boolean;
 }) {
+  const headingId = useId();
   const trackRir = useTrackRir();
   const logged = exercises.filter(exercise => exercise.sets.some(set => set.done));
   return (
-    <section className="session-section" aria-labelledby="session-exercises-heading">
+    <section className="session-section" aria-labelledby={headingId}>
       <div className="session-section-heading">
-        <h3 id="session-exercises-heading">Exercises</h3>
-        {!loading && <span className="session-section-count">{logged.length}</span>}
+        <h3 id={headingId}>{heading}</h3>
+        {!loading && showCount && <span className="session-section-count">{logged.length}</span>}
       </div>
       {loading ? (
         <div className="session-exercises" aria-busy="true" aria-label="Loading exercises">

@@ -187,9 +187,11 @@ test('personal exercise weights support uneven lists and kg/lb switching', async
     } }));
     await page.getByRole('button', { name: `View ${name} details`, exact: true }).click();
     await expect(dialog.getByRole('heading', { name: 'Progress', exact: true })).toBeVisible();
-    await expect(dialog.getByRole('button', { name: 'Earlier workout', exact: false })).toBeVisible();
     await expect(dialog.getByText('No completed working sets in this range.', { exact: true })).toBeVisible();
     await expect(dialog.getByRole('table', { name: 'Exercise progress table', exact: true })).toHaveCount(0);
+    await dialog.getByRole('button', { name: 'History', exact: true }).click();
+    await expect(dialog.getByRole('button', { name: 'Earlier workout', exact: false })).toBeVisible();
+    await expect(dialog.getByRole('heading', { name: 'Progress', exact: true })).toHaveCount(0);
   } finally {
     await page.unrouteAll({ behavior: 'ignoreErrors' });
     await page.request.delete(`/api/exercises/custom/${exercise.id}`, { headers });
@@ -539,6 +541,29 @@ test('build a workout, log a set against the server, and see it in history', asy
   await expect(chest).toBeVisible();
   await expect(detail.locator('.body-map-detail-sets')).toBeVisible();
   await expect(detail.locator('.body-map-detail-sets')).not.toContainText(/\b0(?:\.0)? sets/);
+
+  const chestBreakdown = page.getByRole('button', { name: /^Chest, .*contributing lifts$/ });
+  await page.reload();
+  await expect(chestBreakdown.locator('svg')).toBeVisible();
+  if (await chestBreakdown.getAttribute('aria-expanded') !== 'true') await chestBreakdown.click();
+  await page.locator('.muscle-breakdown-panel').screenshot({ animations: 'disabled', style: '.topbar, .bottom-nav { visibility: hidden !important; }',
+    path: join(screenshotsDirectory, `${testInfo.project.name}-muscle-breakdown.png`) });
+  const liftCatalog = page.waitForResponse(response => new URL(response.url()).pathname === '/api/exercises');
+  await page.getByLabel('Chest contributing lifts', { exact: true }).getByRole('button', { name: /Barbell bench press/i }).click();
+  expect((await liftCatalog).ok()).toBe(true);
+  const exerciseDetail = page.getByRole('dialog', { name: 'Barbell bench press', exact: true });
+  await expect(exerciseDetail.getByRole('group', { name: 'Exercise detail view' })).toBeVisible();
+  await exerciseDetail.getByRole('button', { name: 'History', exact: true }).click();
+  const historyEntry = exerciseDetail.getByRole('button', { name: new RegExp(name) });
+  await expect(historyEntry).toContainText('Standalone workout');
+  await historyEntry.click();
+  await expect(exerciseDetail.getByRole('heading', { name: 'Performed sets', exact: true })).toBeVisible();
+  await expect(exerciseDetail.getByText('60 kg × 8', { exact: true })).toBeVisible();
+  for (const theme of ['dark', 'light']) {
+    await page.evaluate(value => document.documentElement.dataset.theme = value, theme);
+    await page.screenshot({ path: join(screenshotsDirectory, testInfo.project.name + '-exercise-history-' + theme + '.png') });
+  }
+  await exerciseDetail.getByRole('button', { name: 'Done', exact: true }).click();
 
   // Starting the same plan again has to carry the last session forward: 8 reps at RPE 8 against
   // a target of 8-12 leaves effort in the tank, so the app asks for one more rep at the same
@@ -1391,7 +1416,12 @@ test('overview completion follows the active program week rather than calendar a
   const ring = page.getByRole('img', { name: '2 of 4 workouts completed in program week 2', exact: true });
   await expect(ring).toBeVisible();
   await expect(ring.locator('.completion-fill')).toHaveAttribute('stroke-dasharray', '50 100');
-  await page.screenshot({ animations: 'disabled', path: join('artifacts', `overview-program-week-${info.project.name}.png`) });
+  if ((page.viewportSize()?.width ?? 0) >= 1024) {
+    await expect(ring).toHaveCSS('width', '68px');
+    await expect(ring.locator('text')).toHaveCSS('font-size', '30px');
+    await expect(ring.locator('.completion-total')).toHaveCSS('font-size', '22px');
+  }
+  await page.screenshot({ animations: 'disabled', path: join(screenshotsDirectory, `overview-program-week-${info.project.name}.png`) });
   await page.locator('.calendar-week-rail').focus();
   await page.keyboard.press('ArrowLeft');
   await expect(page.getByRole('button', { name: 'Return to this week' })).toBeEnabled();

@@ -40,6 +40,12 @@ public class MuscleBalanceTests
         Assert.Equal(1, quads.Sets);
         Assert.Equal(0.5, glutes.Sets);
         Assert.Equal(DateOnly.FromDateTime(now), chest.LastTrainedDate);
+        var lift = Assert.Single(chest.Contributions!);
+        Assert.Equal(bench, lift.ExerciseId);
+        Assert.Equal("Bench Press", lift.Name);
+        Assert.Equal(2, lift.Sets);
+        Assert.Equal(1, Assert.Single(triceps.Contributions!).Sets);
+        Assert.Equal(0.5, Assert.Single(glutes.Contributions!).Sets);
     }
 
     [Fact]
@@ -101,6 +107,7 @@ public class MuscleBalanceTests
         Assert.Equal(0, result.Sessions);
         Assert.Equal(0, result.TotalSets);
         Assert.All(result.Muscles, muscle => Assert.Equal(0, muscle.Sets));
+        Assert.All(result.Muscles, muscle => Assert.Empty(muscle.Contributions!));
     }
 
     private static async Task<Harness> Ready()

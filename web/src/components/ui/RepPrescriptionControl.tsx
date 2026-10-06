@@ -76,6 +76,8 @@ export function RepPrescriptionControl({
             data-import-field="repMin"
             data-import-set-index={dataImportIndex}
             disabled={disabled}
+            onWheel={e => e.currentTarget.blur()}
+            onKeyDown={e => { if (e.key === '-' || e.key === '+' || e.key === 'e' || e.key === '.') e.preventDefault(); }}
             onChange={e => {
               const val = repValue(e.target.value);
               onChange({ repMin: val, repMax: val === null ? repMax : Math.max(val, repMax ?? val) });
@@ -96,6 +98,8 @@ export function RepPrescriptionControl({
             data-import-field="repMax"
             data-import-set-index={dataImportIndex}
             disabled={disabled}
+            onWheel={e => e.currentTarget.blur()}
+            onKeyDown={e => { if (e.key === '-' || e.key === '+' || e.key === 'e' || e.key === '.') e.preventDefault(); }}
             onChange={e => {
               onChange({ repMin, repMax: repValue(e.target.value) });
             }}
@@ -117,6 +121,8 @@ export function RepPrescriptionControl({
             data-import-field="repMin"
             data-import-set-index={dataImportIndex}
             disabled={disabled}
+            onWheel={e => e.currentTarget.blur()}
+            onKeyDown={e => { if (e.key === '-' || e.key === '+' || e.key === 'e' || e.key === '.') e.preventDefault(); }}
             onChange={e => {
               const val = repValue(e.target.value);
               onChange({ repMin: val, repMax: val });

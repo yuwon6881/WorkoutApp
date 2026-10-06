@@ -147,11 +147,9 @@ export function WorkoutActiveExercise({
   }, [exercise.exerciseId, exercise.loadModel, libraryExercise, unit]);
   const resolvedLoads = libraryExercise ?? focusedLoads;
   const nextUnloggedWorkingIndex = workingSets.findIndex(s => !s.done);
-  // The strip and the rows already show a finished exercise, so progress is only worth a line
-  // while there is still a set to log.
   const currentSetDisplay = nextUnloggedWorkingIndex >= 0
     ? `Set ${nextUnloggedWorkingIndex + 1} of ${workingSets.length || exercise.sets.length}`
-    : null;
+    : 'All sets completed';
   const previousSets = previousSetSummaries(useRecentExerciseSets(exercise.exerciseId), exercise, trackRir);
 
   const progressionBadge = exercise.progression?.suggestedKg != null ? (

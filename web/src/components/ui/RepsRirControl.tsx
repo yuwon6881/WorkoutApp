@@ -64,11 +64,23 @@ export function RepsRirControl({ name, label, reps, rir, trackRir, onChange }: {
   return <div className="set-input-cell reps-cell combined-reps-cell">
     <input ref={input} name={name} aria-label={`${label} reps`} type="number" inputMode="none"
       placeholder="—" value={reps ?? ''} aria-haspopup="dialog" aria-expanded={!!entry}
+      min="1" max="1000"
       aria-valuetext={trackRir ? `${reps ?? 'No reps'} reps, ${rir === null ? 'RIR unset' : `${rir >= 5 ? '5+' : rir} RIR`}` : undefined}
-      onClick={open} onKeyDown={event => {
+      onClick={open}
+      onWheel={event => event.currentTarget.blur()}
+      onKeyDown={event => {
+        if (event.key === '-' || event.key === '+' || event.key === 'e' || event.key === '.') {
+          event.preventDefault();
+          return;
+        }
         if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); open(); }
       }}
-      onChange={event => onChange(event.target.value === '' ? null : Number(event.target.value), rir)} />
+      onChange={event => {
+        const val = event.target.value;
+        if (val === '') { onChange(null, rir); return; }
+        const parsed = Number.parseInt(val, 10);
+        if (!Number.isNaN(parsed) && parsed >= 1 && parsed <= 1000) onChange(parsed, rir);
+      }} />
     {trackRir && <span className={`reps-rir-badge ${getRirColorClass(rir)}`} aria-hidden="true">
       {rir === null ? <Flame size={12} className="reps-rir-flame" aria-hidden="true" /> : rir >= 5 ? '5+' : Math.round(rir)}
     </span>}

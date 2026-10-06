@@ -194,8 +194,13 @@
 
 .muscle-breakdown-item {
   display: flex;
-  flex-direction: column;
-  gap: 5px;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  text-align: left;
+  min-height: 64px;
+  background: transparent;
+  color: var(--text);
   padding: 7px 10px;
   border-radius: 8px;
   cursor: pointer;
@@ -212,8 +217,16 @@
 
 .muscle-breakdown-item.is-active {
   background: var(--surface-hover);
-  border-color: var(--accent);
+  border-color: var(--border-hover);
 }
+
+.muscle-breakdown-figure { width: 48px; height: 48px; flex: 0 0 48px; }
+.muscle-breakdown-copy { display: grid; gap: 8px; flex: 1; min-width: 0; }
+.muscle-contributions { padding: 8px 10px 12px; display: grid; gap: 4px; }
+.muscle-contributions .muscle-contribution { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 12px; width: 100%; text-align: left; white-space: normal; min-height: 44px; }
+.muscle-contribution > span { min-width: 0; white-space: normal; overflow-wrap: anywhere; }
+.muscle-contribution small { display: block; color: var(--muted); font-size: var(--font-secondary); }
+.muscle-contribution > small { white-space: nowrap; }
 
 .muscle-breakdown-row {
   display: flex;
@@ -254,6 +267,7 @@
 }
 
 .muscle-breakdown-track {
+  display: block;
   width: 100%;
   height: 4px;
   background: var(--surface);
@@ -262,6 +276,7 @@
 }
 
 .muscle-breakdown-fill {
+  display: block;
   height: 100%;
   border-radius: 999px;
   background: var(--accent);

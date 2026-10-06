@@ -11,6 +11,26 @@ namespace Workout.Tests;
 public sealed class ExerciseInsightTests
 {
     [Fact]
+    public async Task History_names_the_program_and_keeps_standalone_workouts_unlabelled()
+    {
+        var (h, templateId, benchId) = await Ready();
+        await using var owned = h;
+        var session = await h.Workouts.Start(templateId, null, default);
+        await h.Workouts.Save(session.Id, new SessionInput(null,
+            [new SessionExerciseInput(benchId, "Bench press", null, [Harness.Set(8, 10)],
+                [new SetInput(60, 10, 8, true)])], session.Revision, null), default);
+        await h.Workouts.Finish(session.Id, null, default);
+        var service = new ExerciseService(h.Db);
+        Assert.Null(Assert.Single((await service.Insight(benchId, "all", 0, 20, default)).History).ProgramName);
+        var program = new Workout.Api.Data.TrainingProgram { UserId = h.Db.CurrentUser!.Value, Name = "Strength block" };
+        h.Db.Programs.Add(program);
+        var savedSession = await h.Db.Workouts.FindAsync(h.Db.CurrentUser.Value, session.Id);
+        savedSession!.ProgramId = program.Id;
+        await h.Db.SaveChangesAsync();
+        Assert.Equal("Strength block", Assert.Single((await service.Insight(benchId, "all", 0, 20, default)).History).ProgramName);
+    }
+
+    [Fact]
     public async Task Cached_full_history_insights_invalidate_after_completion_and_deletion()
     {
         var (h, templateId, benchId) = await Ready();

@@ -91,6 +91,7 @@ export type MuscleBalanceRow = {
   secondarySets: number;
   sessions: number;
   lastTrainedDate: string | null;
+  contributions?: { exerciseId: string | null; name: string; sets: number }[];
 };
 export type MuscleBalanceView = {
   range: MuscleBalanceRange;
@@ -105,7 +106,7 @@ export type MuscleBalanceView = {
 };
 export type WorkoutActivityItem = { id: string; name: string; status: 'completed' | 'in_progress'; date: string };
 export type ExerciseMetricPoint = { date: string; sessionId: string; sessionName: string; estimated1RmKg: number | null; loadKg: number | null; volumeKg: number | null; reps: number | null; partial: boolean };
-export type ExerciseHistoryRow = { sessionId: string; sessionName: string; date: string; setCount: number; volumeKg: number | null; partial: boolean; finishedAt: string | null };
+export type ExerciseHistoryRow = { sessionId: string; sessionName: string; date: string; setCount: number; volumeKg: number | null; partial: boolean; finishedAt: string | null; programName?: string | null };
 export type ExerciseHistoryClear = { clearedAt: string; removedSets: number; affectedWorkouts: number };
 export type ExerciseInsight = { id: string; name: string; muscle: string; equipment: string; cue: string; loadModel: LoadModel; loadStepKg: number; isCustom: boolean; archived: boolean; sessions: number; setCount: number; clearableSetCount: number; estimated1RmKg: number | null; estimated1RmDate: string | null; heaviestKg: number | null; heaviestReps: number | null; heaviestDate: string | null; largestSetVolumeKg: number | null; largestSetVolumeDate: string | null; largestSessionVolumeKg: number | null; largestSessionVolumeDate: string | null; repPr: number | null; repPrDate: string | null; lastPerformedDate: string | null; partialVolume: boolean; points: ExerciseMetricPoint[]; history: ExerciseHistoryRow[]; page: number; size: number; totalHistoryRows: number; externalLoadPrKg?: number | null; addedLoadPrKg?: number | null; assistanceReductionPrKg?: number | null; systemLoadPrKg?: number | null; historyClears?: ExerciseHistoryClear[] };
 export type ExerciseClearPreview = { exerciseId: string; name: string; affectedWorkouts: number; affectedSets: number; hasActiveWorkout: boolean; canClear: boolean };

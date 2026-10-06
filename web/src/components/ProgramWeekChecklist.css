@@ -7,7 +7,8 @@
 .program-week-check{display:flex;align-items:center;gap:12px;min-width:0;min-height:44px}
 .program-week-day.rest .program-week-check{cursor:pointer}
 .program-week-check input{width:20px;height:20px;min-height:20px;flex:0 0 20px;margin:0;padding:0;accent-color:var(--accent);cursor:pointer}
-.program-week-check input:disabled{opacity:.6;cursor:default}
+.program-week-check input:disabled{cursor:default}
+.program-week-check input:disabled:not(:checked){opacity:.6}
 .program-week-info{display:flex;flex-direction:column;gap:3px;min-width:0}
 .program-week-name{min-width:0;overflow-wrap:anywhere;color:var(--text);font-size:var(--font-body);font-weight:600}
 .program-week-meta{color:var(--muted);font-size:var(--font-secondary);font-weight:450}

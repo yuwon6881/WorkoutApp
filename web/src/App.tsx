@@ -250,6 +250,10 @@ export default function App() {
     const existing = data!.exercises.find(candidate => candidate.id === id);
     if (existing) { setExerciseDetail(existing); return; }
     try {
+      if (!data!.resources?.catalog) {
+        const catalogExercise = (await api.exercises()).find(candidate => candidate.id === id);
+        if (catalogExercise) { setExerciseDetail(catalogExercise); return; }
+      }
       const insight = await api.exerciseInsight(id, '3m', 0, 20);
       const archived: Exercise = {
         id: insight.id, slug: `exercise-${insight.id}`, name: insight.name, muscle: insight.muscle,
@@ -361,7 +365,7 @@ export default function App() {
           onTemplateDeleted={id => app.setData(current => acknowledgeTemplate(current, id, null))} />}
         {resourcesReady && tab === 'import' && <ImportReview exercises={data.exercises} imports={data.imports}
           onBack={() => setTab('program')} onChanged={app.reload} notify={setToast} />}
-        {tab === 'body' && <MuscleBalanceView timeZone={Intl.DateTimeFormat().resolvedOptions().timeZone} />}
+        {tab === 'body' && <MuscleBalanceView timeZone={Intl.DateTimeFormat().resolvedOptions().timeZone} refreshKey={data.resourceVersions?.history} onExercise={id => { void openExercise(id); }} />}
         {resourcesReady && tab === 'exercises' && <ExerciseLibrary exercises={data.exercises} onOpen={setExerciseDetail} onChanged={app.reload} />}
         {tab === 'settings' && <SettingsView account={data.account} preferences={data.preferences} devicePreferences={app.devicePreferences} onCatalogChanged={async () => { await app.reload(); }}
           version={__APP_VERSION__}
@@ -446,8 +450,7 @@ export default function App() {
     {detail && <SessionDetail session={detail} preferences={data.preferences} exercises={data.exercises}
       catalogLoading={detailCatalogLoading} justFinished={detail.id === finishedId}
       onClose={() => { setDetail(null); setFinishedId(null); }} />}
-    {exerciseDetail && <ExerciseDetailModal exercise={exerciseDetail} unit={data.preferences.unit} onClose={() => setExerciseDetail(null)} onChanged={async () => { await app.reload(); }}
-      onSession={session => { setExerciseDetail(null); setDetail(session); }} />}
+    {exerciseDetail && <ExerciseDetailModal exercise={exerciseDetail} unit={data.preferences.unit} onClose={() => setExerciseDetail(null)} onChanged={async () => { await app.reload(); }} />}
     {appUpdate.ready && !training && !workoutSession?.active && <div className="update-banner" role="status">
       <span>A new version of Workout is ready.</span>
       <Button variant="primary" onClick={appUpdate.apply}>Reload</Button>

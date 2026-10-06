@@ -187,9 +187,12 @@ export function ProgramWeekChecklist({
                   name={`program-rest-day-${day.templateId}`}
                   type="checkbox"
                   checked={passed}
-                  disabled={!program.active || passed || busyDay !== null || hasActiveWorkout}
+                  readOnly={passed}
+                  tabIndex={passed ? -1 : 0}
+                  disabled={!program.active || busyDay !== null || hasActiveWorkout}
                   aria-label={`${info.name}: ${passed ? 'Rest day passed' : 'Rest day'}${!passed ? ', mark rest day passed' : ''}`}
-                  onChange={() => void passRest(day)}
+                  onClick={passed ? e => e.preventDefault() : undefined}
+                  onChange={passed ? undefined : () => void passRest(day)}
                 />
                 <div className="program-week-info">
                   <span className="program-week-name">{info.name}</span>

@@ -58,6 +58,16 @@
   font-weight: 500;
 }
 
+@media (min-width: 1024px) {
+  .calendar-completion .weekly-completion-ring {
+    width: 68px;
+    height: 68px;
+    flex-basis: 68px;
+  }
+  .calendar-completion .weekly-completion-ring text { font-size: 30px; }
+  .calendar-completion .weekly-completion-ring .completion-total { font-size: 22px; }
+}
+
 .calendar-title-wrap {
   display: flex;
   flex-direction: column;
@@ -439,16 +449,20 @@
   }
   .calendar-card-footer {
     flex-direction: column;
-    align-items: flex-start;
+    align-items: center;
+    text-align: center;
     gap: 10px;
     padding-top: 12px;
   }
   .calendar-week-count {
     font-size: var(--font-secondary);
+    text-align: center;
+    width: 100%;
   }
   .calendar-legend-pills {
     gap: 8px;
     width: 100%;
+    justify-content: center;
   }
   .calendar-legend-pill {
     font-size: var(--font-secondary);

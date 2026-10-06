@@ -129,7 +129,14 @@ export function SwipeableRow({
       <div className="swipeable-row-desktop-actions">{desktopActions ?? actions}</div>
     </div>}
     {showMobile && <div ref={mobileRef} className={`swipeable-row-mobile ${className}`.trim()} style={{ '--swipe-actions-width': `${actionsWidth}px` } as CSSProperties}>
-      <div className="swipeable-row-actions" role="group" aria-label={actionsLabel} aria-hidden={!open} inert={!open}>
+      <div
+        className="swipeable-row-actions"
+        role="group"
+        aria-label={actionsLabel}
+        aria-hidden={!open}
+        inert={!open}
+        style={{ visibility: (open || offset !== 0 || dragging) ? undefined : 'hidden' }}
+      >
         {actions}
       </div>
       {/* The row owns its sideways drag, so a surrounding page swipe (useHorizontalSwipe) leaves it alone. */}

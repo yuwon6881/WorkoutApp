@@ -18,7 +18,7 @@ public record ExerciseMetricPoint(DateOnly Date, Guid SessionId, string SessionN
     double? Estimated1RmKg, double? LoadKg, double? VolumeKg, int? Reps, bool Partial);
 
 public record ExerciseHistoryRow(Guid SessionId, string SessionName, DateOnly Date, int SetCount,
-    double? VolumeKg, bool Partial, DateTime? FinishedAt);
+    double? VolumeKg, bool Partial, DateTime? FinishedAt, string? ProgramName = null);
 
 public record ExerciseHistoryClearView(DateTime ClearedAt, int RemovedSets, int AffectedWorkouts);
 
@@ -185,8 +185,14 @@ public sealed partial class ExerciseService(AppDb db, IMemoryCache? cache = null
         };
         var filtered = records.Where(x => x.Date >= cutoff).OrderBy(x => x.Date).ToList();
         var history = records.OrderByDescending(x => x.Date).ThenByDescending(x => sessions[x.SessionId].FinishedAt).ToList();
+        var programIds = sessions.Values.Where(session => session.ProgramId != null)
+            .Select(session => session.ProgramId!.Value).Distinct().ToList();
+        var programNames = await db.Programs.AsNoTracking().Where(program => programIds.Contains(program.Id))
+            .ToDictionaryAsync(program => program.Id, program => program.Name, ct);
         var historyRows = history.Select(x => new ExerciseHistoryRow(x.SessionId, x.Name, x.Date,
-            sets.Count(s => byExercise[s.SessionExerciseId].SessionId == x.SessionId), x.Volume, x.Partial, sessions[x.SessionId].FinishedAt)).ToList();
+            sets.Count(s => byExercise[s.SessionExerciseId].SessionId == x.SessionId), x.Volume, x.Partial,
+            sessions[x.SessionId].FinishedAt, sessions[x.SessionId].ProgramId is { } programId
+                ? programNames.GetValueOrDefault(programId, "Program unavailable") : null)).ToList();
         var paged = historyRows.Skip(page * size).Take(size).ToList();
         var bestE = records.Where(x => x.E1rm is not null).OrderByDescending(x => x.E1rm).FirstOrDefault();
         var heavy = records.Where(x => x.Load is not null).OrderByDescending(x => x.Load).FirstOrDefault();

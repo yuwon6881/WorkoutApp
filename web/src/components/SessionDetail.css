@@ -226,7 +226,9 @@
   scroll-snap-type: x proximity;
   scroll-padding-inline: 2px;
   list-style: none;
+  scrollbar-width: none;
 }
+.session-muscle-rail::-webkit-scrollbar { display: none; }
 
 .session-muscle-rail:focus-visible {
   outline: 2px solid var(--accent);

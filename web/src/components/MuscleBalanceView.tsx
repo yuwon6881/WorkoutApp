@@ -7,6 +7,7 @@ import { Button } from './ui/Button';
 import { Select } from './ui/Select';
 import { MotionPanel } from './ui/Motion';
 import { BodyMap, MuscleDetail } from './BodyMap';
+import { MuscleBreakdownGroup } from './MuscleBreakdownGroup';
 import './MuscleBalance.css';
 
 type BalanceRange = typeof RANGES[number]['value'];
@@ -31,7 +32,7 @@ function sortMuscles(rows: MuscleBalanceRow[]) {
   return [...rows].sort((a, b) => b.sets - a.sets || a.muscle.localeCompare(b.muscle));
 }
 
-export function MuscleBalanceView({ timeZone }: { timeZone: string }) {
+export function MuscleBalanceView({ timeZone, onExercise, refreshKey }: { timeZone: string; onExercise: (id: string) => void; refreshKey?: string }) {
   const [range, setRange] = useState<BalanceRange>('1w');
   const [retry, setRetry] = useState(0);
   const [views, setViews] = useState<Partial<Record<BalanceRange, MuscleBalanceData>>>({});
@@ -50,8 +51,6 @@ export function MuscleBalanceView({ timeZone }: { timeZone: string }) {
 
   const upperMuscles = useMemo(() => muscles.filter(m => !isLowerBody(m.muscle)), [muscles]);
   const lowerMuscles = useMemo(() => muscles.filter(m => isLowerBody(m.muscle)), [muscles]);
-  const upperTotal = useMemo(() => upperMuscles.reduce((sum, m) => sum + m.sets, 0), [upperMuscles]);
-  const lowerTotal = useMemo(() => lowerMuscles.reduce((sum, m) => sum + m.sets, 0), [lowerMuscles]);
   const maxMuscleSets = useMemo(() => Math.max(...muscles.map(m => m.sets), 0), [muscles]);
 
   useEffect(() => {
@@ -75,7 +74,7 @@ export function MuscleBalanceView({ timeZone }: { timeZone: string }) {
       });
 
     return () => controller.abort();
-  }, [range, retry, timeZone]);
+  }, [range, retry, timeZone, refreshKey]);
 
   /// Tapping a muscle pins it, which is how a touch device reads the same stats a pointer gets by
   /// hovering. A pinned muscle stays until it is tapped again.
@@ -174,93 +173,10 @@ export function MuscleBalanceView({ timeZone }: { timeZone: string }) {
             </div>
 
             <div className="muscle-breakdown-groups">
-              <div className="muscle-breakdown-group">
-                <div className="muscle-group-header">
-                  <h3>Upper body</h3>
-                  <span className="pill pill-accent">{formatSets(upperTotal)} {upperTotal === 1 ? 'set' : 'sets'}</span>
-                </div>
-                <ul className="muscle-breakdown-list" role="list">
-                  {upperMuscles.map(m => {
-                    const isActive = activeMuscle === m.muscle;
-                    const pct = maxMuscleSets > 0 ? Math.round((m.sets / maxMuscleSets) * 100) : 0;
-                    return (
-                      <li
-                        key={m.muscle}
-                        className={`muscle-breakdown-item${m.sets > 0 ? ' is-trained' : ' is-untrained'}${isActive ? ' is-active' : ''}`}
-                        role="button"
-                        tabIndex={0}
-                        onClick={() => selectMuscle(m.muscle)}
-                        onMouseEnter={() => setHoveredMuscle(m.muscle)}
-                        onMouseLeave={() => setHoveredMuscle(null)}
-                        onKeyDown={e => {
-                          if (e.key === 'Enter' || e.key === ' ') {
-                            e.preventDefault();
-                            selectMuscle(m.muscle);
-                          }
-                        }}
-                        aria-pressed={isActive}
-                      >
-                        <div className="muscle-breakdown-row">
-                          <span className="muscle-breakdown-name">{m.muscle}</span>
-                          <span className="muscle-breakdown-sets">
-                            <strong>{formatSets(m.sets)}</strong> <small>{m.sets === 1 ? 'set' : 'sets'}</small>
-                          </span>
-                        </div>
-                        <div className="muscle-breakdown-track" aria-hidden="true">
-                          <div
-                            className="muscle-breakdown-fill"
-                            style={{ width: `${m.sets > 0 ? Math.max(pct, 4) : 0}%` }}
-                          />
-                        </div>
-                      </li>
-                    );
-                  })}
-                </ul>
-              </div>
-
-              <div className="muscle-breakdown-group">
-                <div className="muscle-group-header">
-                  <h3>Lower body</h3>
-                  <span className="pill pill-accent">{formatSets(lowerTotal)} {lowerTotal === 1 ? 'set' : 'sets'}</span>
-                </div>
-                <ul className="muscle-breakdown-list" role="list">
-                  {lowerMuscles.map(m => {
-                    const isActive = activeMuscle === m.muscle;
-                    const pct = maxMuscleSets > 0 ? Math.round((m.sets / maxMuscleSets) * 100) : 0;
-                    return (
-                      <li
-                        key={m.muscle}
-                        className={`muscle-breakdown-item${m.sets > 0 ? ' is-trained' : ' is-untrained'}${isActive ? ' is-active' : ''}`}
-                        role="button"
-                        tabIndex={0}
-                        onClick={() => selectMuscle(m.muscle)}
-                        onMouseEnter={() => setHoveredMuscle(m.muscle)}
-                        onMouseLeave={() => setHoveredMuscle(null)}
-                        onKeyDown={e => {
-                          if (e.key === 'Enter' || e.key === ' ') {
-                            e.preventDefault();
-                            selectMuscle(m.muscle);
-                          }
-                        }}
-                        aria-pressed={isActive}
-                      >
-                        <div className="muscle-breakdown-row">
-                          <span className="muscle-breakdown-name">{m.muscle}</span>
-                          <span className="muscle-breakdown-sets">
-                            <strong>{formatSets(m.sets)}</strong> <small>{m.sets === 1 ? 'set' : 'sets'}</small>
-                          </span>
-                        </div>
-                        <div className="muscle-breakdown-track" aria-hidden="true">
-                          <div
-                            className="muscle-breakdown-fill"
-                            style={{ width: `${m.sets > 0 ? Math.max(pct, 4) : 0}%` }}
-                          />
-                        </div>
-                      </li>
-                    );
-                  })}
-                </ul>
-              </div>
+              <MuscleBreakdownGroup title="Upper body" muscles={upperMuscles} peak={maxMuscleSets}
+                activeMuscle={pinnedMuscle} onSelect={selectMuscle} onHover={setHoveredMuscle} onExercise={onExercise} />
+              <MuscleBreakdownGroup title="Lower body" muscles={lowerMuscles} peak={maxMuscleSets}
+                activeMuscle={pinnedMuscle} onSelect={selectMuscle} onHover={setHoveredMuscle} onExercise={onExercise} />
             </div>
           </section>
         </>
