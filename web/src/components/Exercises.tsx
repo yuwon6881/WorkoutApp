@@ -363,7 +363,7 @@ export function ExerciseDetailModal({ exercise, unit, onClose, onChanged }: { ex
           <div className="detail-resistance-records" aria-label="Resistance records">{insight.externalLoadPrKg != null && <span>External load PR <strong>{displayKg(insight.externalLoadPrKg, unit)}</strong></span>}{insight.addedLoadPrKg != null && <span>Added load PR <strong>{displayKg(insight.addedLoadPrKg, unit)}</strong></span>}{insight.assistanceReductionPrKg != null && <span>Lowest assistance <strong>{displayKg(insight.assistanceReductionPrKg, unit)}</strong></span>}{insight.systemLoadPrKg != null && <span>System load PR <strong>{displayKg(insight.systemLoadPrKg, unit)}</strong></span>}</div>
         </>}
         {insight && insight.totalHistoryRows > 0 && detailTab === 'history' && <>
-          <div className="section-heading"><h3>History</h3><span className="muted">{insight.totalHistoryRows} {insight.totalHistoryRows === 1 ? 'workout' : 'workouts'}</span></div>
+          <div className="section-heading exercise-history-heading"><h3>History</h3><span className="exercise-history-count">{insight.totalHistoryRows} {insight.totalHistoryRows === 1 ? 'workout' : 'workouts'}</span></div>
           <ExerciseHistory rows={insight.history} exerciseId={exercise.id} unit={unit} />
           {insight.history.length < insight.totalHistoryRows && <Button variant="tertiary" className="full-width" onClick={() => void moreHistory()} disabled={historyBusy}>{historyBusy ? 'Loading…' : 'Load more history'}</Button>}
           {!insight.history.length && !insight.historyClears?.length && <p className="muted">No workout history for this exercise yet.</p>}

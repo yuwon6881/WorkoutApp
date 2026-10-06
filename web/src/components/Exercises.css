@@ -53,3 +53,6 @@
 .exercise-history-entry .history-row > svg { display: block !important; color: var(--muted); flex-shrink: 0; }
 .exercise-history-entry .row-title { display: flex; flex-direction: column; gap: 4px; min-width: 0; overflow-wrap: anywhere; }
 .exercise-history-sets { padding: 12px 16px; border-top: 1px solid var(--border); background: var(--surface); }
+.exercise-history-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
+.exercise-history-heading h3 { flex: 0 0 auto; min-width: max-content; white-space: nowrap; font-size: 16px; font-weight: 650; color: var(--text); margin: 0; }
+.exercise-history-count { display: inline-flex; align-items: center; padding: 4px 10px; border-radius: 999px; background: var(--surface-raised); border: 1px solid var(--border); color: var(--muted); font-size: var(--font-secondary, 14px) !important; font-weight: 550; white-space: nowrap; flex: 0 0 auto; }

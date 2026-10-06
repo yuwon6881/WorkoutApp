@@ -269,7 +269,7 @@ details>p{font-size:14px!important;line-height:1.5;color:var(--muted);margin-top
   .hero-top .eyebrow,.hero-top .pill{font-size:var(--font-secondary)!important}
   .day>span:first-child,.week-caption>span{font-size:var(--font-secondary)!important}
   .routine-row,.routine-row .tiny-label{font-size:var(--font-secondary)!important}
-  .section-heading>h2{flex:0 0 auto;min-width:max-content}
+  .section-heading>h2,.section-heading>h3{flex:0 0 auto;min-width:max-content;white-space:nowrap}
   .section-heading>.muted{min-width:0;flex:1 1 100%}
   .set-table-head{display:none}
   .set-row{grid-template-columns:28px minmax(0,1fr) minmax(0,1fr) 56px 48px 48px!important;gap:7px!important;padding:9px 0}
@@ -338,7 +338,7 @@ details>p{font-size:14px!important;line-height:1.5;color:var(--muted);margin-top
 .detail-record-grid .stat-card .stat-label{font-size:11px}
 .detail-record-grid .stat-card>strong{font-size:16px!important;font-weight:650;line-height:1.35;letter-spacing:-0.01em;margin:4px 0 2px;white-space:normal}
 .detail-record-grid .stat-card small{display:block;margin-top:2px;color:var(--muted);font-size:11px}
-.exercise-detail-modal .section-heading{align-items:end}
+.exercise-detail-modal .section-heading:has(.detail-selectors){align-items:end}
 .exercise-detail-modal .section-heading .field{margin:0;min-width:150px}
 .detail-selectors{display:flex;gap:8px;align-items:end;flex-wrap:wrap}
 .detail-selectors .field{min-width:150px}

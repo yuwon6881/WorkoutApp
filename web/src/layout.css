@@ -251,31 +251,26 @@ html[data-keyboard='open'] .workout-rest-bar { display: none; }
 /* Start and Preview stay together; the readiness note takes the trailing edge. */
 .hero-bottom > span { margin-left: auto; }
 
-/* components/ExerciseProgressChart.tsx: bars share the width, a readout names the chosen one. */
+/* components/ExerciseProgressChart.tsx: line chart with interactive point selection and gradient fill. */
 .exercise-chart { display: grid; gap: 8px; padding: 12px 0; border-bottom: 1px solid var(--border); }
 .exercise-chart-readout { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin: 0; }
 .exercise-chart-readout strong { font-size: 20px; font-variant-numeric: tabular-nums; }
 .exercise-chart-readout span { color: var(--muted); font-size: var(--font-secondary); }
-.exercise-chart-bars {
-  display: flex;
-  align-items: flex-end;
-  gap: 3px;
-  height: 140px;
-  padding: 0 2px;
+.exercise-chart-bars, .exercise-chart-canvas {
+  position: relative;
+  width: 100%;
+  height: 150px;
   border-radius: var(--radius-control, 8px);
-  cursor: crosshair;
+  cursor: pointer;
   touch-action: pan-y;
+  user-select: none;
 }
-.exercise-chart-bars:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
-.exercise-chart-point { display: flex; flex: 1 1 0; align-items: flex-end; justify-content: center; min-width: 0; height: 100%; }
-.exercise-chart-point i {
+.exercise-chart-bars:focus-visible, .exercise-chart-canvas:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
+.exercise-chart-svg {
+  width: 100%;
+  height: 100%;
   display: block;
-  width: min(100%, 22px);
-  min-height: 4px;
-  border-radius: 4px 4px 0 0;
-  background: color-mix(in srgb, var(--accent) 55%, transparent);
 }
-.exercise-chart-point.selected i { background: var(--accent); }
 .exercise-chart-axis { display: flex; justify-content: space-between; color: var(--muted); font-size: var(--font-secondary); }
 
 /* Exercise library: rows off screen skip layout and paint until scrolled near, which keeps a long
