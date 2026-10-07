@@ -1,4 +1,5 @@
 import type { DraftSet } from '../types';
+import { setTechnique } from './setTechnique';
 
 export type SetType = 'normal' | 'warmup' | 'dropset' | 'amrap' | 'myoreps' | 'partials' | 'lengthenedPartials' | 'integratedPartials';
 
@@ -21,13 +22,12 @@ const PARTIAL_TECHNIQUE_LABELS: Partial<Record<SetType, string>> = {
 
 export function getSetType(set: DraftSet): SetType {
   if (set.warmup) return 'warmup';
+  // The technique comes first, read by the server's own patterns: a partial, myo-rep, or drop set
+  // taken to failure is still progressed and compared as that technique, not as a straight AMRAP set.
+  const technique = setTechnique(set);
+  if (technique) return technique;
   const notes = (set.notes ?? '').toLowerCase();
-  if (notes.includes('dropset') || notes.includes('drop set')) return 'dropset';
   if (notes.includes('amrap') || notes.includes('failure')) return 'amrap';
-  if (notes.includes('myo-rep') || notes.includes('myorep')) return 'myoreps';
-  if (/\b(?:lengthened|long[- ]length)\s+partials?\b/.test(notes)) return 'lengthenedPartials';
-  if (/\bintegrated\s+partials?\b/.test(notes)) return 'integratedPartials';
-  if (/\b(?:partials?(?:\s+reps?)?|half[- ]?rom|half\s+reps?)\b/.test(notes)) return 'partials';
   return 'normal';
 }
 

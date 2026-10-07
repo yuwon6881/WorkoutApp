@@ -4,7 +4,8 @@ internal static class PrescriptionProgression
 {
     public static SetProgressionSuggestion Suggest(
         SetPrescription prescription, IReadOnlyList<SetExposure> history, string progressionMode,
-        LoadOptions loads, long? revision, string resistanceMode, Func<SetExposure, double?>? selectLoad, DateTime? now = null)
+        LoadOptions loads, long? revision, string resistanceMode, Func<SetExposure, double?>? selectLoad, DateTime? now = null,
+        DateTime? lastTrained = null)
     {
         var mode = ProgressionModes.All.Contains(progressionMode) ? progressionMode : ProgressionModes.Normal;
         var selector = selectLoad ?? (exposure => exposure.LoadKg);
@@ -14,9 +15,10 @@ internal static class PrescriptionProgression
         var goal = ProgressionEvidence.Reserve(prescription.Rir, prescription.TargetRpe);
         // A set only learns from sets done the same way: a partial or myo-rep set says nothing
         // about the straight set in its slot, and the reverse.
+        // Time away counts every session of the movement, whatever technique it used.
+        var away = ProgressionLayoff.Days(lastTrained ?? ProgressionLayoff.Newest(history), now);
         var technique = SetTechniques.Of(prescription);
         history = history.Where(exposure => exposure.Technique == technique).ToList();
-        var away = ProgressionLayoff.Days(history, now);
         history = ProgressionHistory.Prepare(history, min, max, goal);
         var source = history.FirstOrDefault();
         var load = source is null ? null : selector(source);
@@ -45,7 +47,11 @@ internal static class PrescriptionProgression
                 return Result(load, repeatReps, $"Back after {away} days away: repeat your last session before progressing.", rebuilding);
             var factor = ProgressionLayoff.Factor(away.Value);
             var eased = load is { } current && loads.Adjustable && !repsOnly ? Math.Min(current, loads.AtMost(current * factor)) : load;
-            return Result(eased, lower, $"Back after {away} days away: about {(int)Math.Round((1 - factor) * 100)}% lighter to rebuild.");
+            // Only claim a lighter load when one exists: a reps-only movement or the lightest available
+            // weight eases in through the reps alone.
+            return Result(eased, lower, eased is { } lighter && load is { } before && lighter < before
+                ? $"Back after {away} days away: about {(int)Math.Round((1 - lighter / before) * 100)}% lighter to rebuild."
+                : $"Back after {away} days away: ease back in at the bottom of the range before progressing.");
         }
 
         // Changing the program's targets is not a failed exposure. Re-select a suitable load
@@ -208,7 +214,7 @@ internal static class PrescriptionProgression
             return Result(load, upper, $"Top of the range reached. Earn {required - qualified} more qualified exposures at this load before increasing it.");
 
         var increased = loads.Next(load.Value);
-        if (!open && ProgressionCalibration.Applies(mode, source, goal, repsOnly) &&
+        if (!open && ProgressionCalibration.Applies(mode, source, goal, repsOnly, upper) &&
             ProgressionCalibration.Load(source, load.Value, goal!.Value, lower, loads) is { } jump && jump > increased)
         {
             var calibrated = ProgressionEvidence.RepsAt(source, load, jump, goal) ?? lower;

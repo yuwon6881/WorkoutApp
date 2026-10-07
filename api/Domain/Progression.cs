@@ -200,8 +200,8 @@ public static class Progression
     public static SetProgressionSuggestion Suggest(
         SetPrescription prescription, IReadOnlyList<SetExposure> history, string mode, LoadOptions loads,
         long? revision = null, string resistanceMode = ResistanceModes.External,
-        Func<SetExposure, double?>? selectLoad = null, DateTime? now = null)
-        => PrescriptionProgression.Suggest(prescription, history, mode, loads, revision, resistanceMode, selectLoad, now);
+        Func<SetExposure, double?>? selectLoad = null, DateTime? now = null, DateTime? lastTrained = null)
+        => PrescriptionProgression.Suggest(prescription, history, mode, loads, revision, resistanceMode, selectLoad, now, lastTrained);
 
     /// Compatibility entry point for callers with explicit rep bounds.
     public static SetProgressionSuggestion SuggestSet(

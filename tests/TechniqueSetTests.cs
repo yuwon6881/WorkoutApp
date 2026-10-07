@@ -83,6 +83,51 @@ public sealed class TechniqueSetTests
         Assert.DoesNotContain(saved.Exercises.Single().Sets, set => set.IsPr);
     }
 
+    [Fact]
+    public async Task A_technique_set_keeps_its_own_load_when_the_straight_sets_have_none_yet()
+    {
+        await using var h = await Harness.Create();
+        await h.SignIn();
+        await h.Seed(new SeedExercise("curl", "Curl", "Biceps", "Dumbbell", "Curl", null, 2.5));
+        var id = await h.ExerciseId("curl");
+        var partials = Harness.Set(8, 10) with { Notes = "Lengthened partials" };
+        var allPartials = await h.Templates.Create(Harness.Template("Partials", Harness.Exercise(id, "Curl",
+            partials, partials, partials)), null, 1, 0, default);
+        var mixed = await h.Templates.Create(Harness.Template("Mixed", Harness.Exercise(id, "Curl",
+            Harness.Set(8, 10), Harness.Set(8, 10), partials)), null, 1, 0, default);
+
+        await Log(h, await h.Workouts.Start(allPartials.Id, null, default), (40, 12, 9), (40, 12, 9), (40, 12, 9));
+
+        // The straight sets have never been done, so they have no load to hand on; the partial set
+        // still knows the 40 kg it used rather than starting blank.
+        var exercise = (await h.Workouts.Start(mixed.Id, null, default)).Exercises.Single();
+        Assert.Null(exercise.Sets[1].WeightKg);
+        Assert.Equal(40, exercise.Sets[2].WeightKg);
+    }
+
+    [Fact]
+    public async Task A_first_technique_only_session_starts_from_the_straight_set_load()
+    {
+        await using var h = await Harness.Create();
+        await h.SignIn();
+        await h.Seed(new SeedExercise("pulldown", "Lat Pulldown", "Lats", "Machine", "Pulldown", null, 2.5));
+        var id = await h.ExerciseId("pulldown");
+        var straight = await h.Templates.Create(Harness.Template("Straight", Harness.Exercise(id, "Lat Pulldown",
+            Harness.Set(8, 10), Harness.Set(8, 10))), null, 1, 0, default);
+        var partials = Harness.Set(8, 10) with { Notes = "Lengthened partials" };
+        var allPartials = await h.Templates.Create(Harness.Template("Partials", Harness.Exercise(id, "Lat Pulldown",
+            partials, partials)), null, 1, 0, default);
+
+        await Log(h, await h.Workouts.Start(straight.Id, null, default), (60, 9, 8), (60, 9, 8));
+
+        // Partials have never been done on this movement: the known straight-set load is the start,
+        // not a blank "first time through".
+        var exercise = (await h.Workouts.Start(allPartials.Id, null, default)).Exercises.Single();
+        Assert.Equal(60, exercise.Sets[0].WeightKg);
+        Assert.StartsWith("Technique set", exercise.Sets[0].Suggestion!.Reason);
+        Assert.Equal(60, exercise.Sets[1].WeightKg);
+    }
+
     private static async Task Log(Harness h, SessionView session, params (double Load, int Reps, double Rpe)[] performed)
     {
         var exercise = Assert.Single(session.Exercises);

@@ -12,11 +12,14 @@ internal static class ProgressionCalibration
 
     /// Only in normal mode, only with a known target, and only when the set was easier than both the
     /// new target and the target it was performed against. A "5+" reserve is a lower bound, so the
-    /// caps below matter more than the estimate.
-    public static bool Applies(string mode, SetExposure source, double? goal, bool repsOnly)
+    /// caps below matter more than the estimate. Reps done past the top of the range are reserve the
+    /// set never needed, so twenty reps at the target effort on an 8-10 set count as far easier too.
+    public static bool Applies(string mode, SetExposure source, double? goal, bool repsOnly, int? upper = null)
     {
         if (mode != ProgressionModes.Normal || repsOnly || goal is not { } target || source.IsRepRangeTransition) return false;
-        if (ProgressionEvidence.Reserve(source) is not { } reserve) return false;
+        if (ProgressionEvidence.Reserve(source) is not { } logged) return false;
+        var surplus = upper is { } top && source.Reps is { } reps && reps > top ? reps - top : 0;
+        var reserve = logged + surplus;
         var own = ProgressionEvidence.Reserve(source.TargetRir, source.TargetRpe) ?? target;
         return reserve >= target + ExtraReserve && reserve >= own + ExtraReserve;
     }

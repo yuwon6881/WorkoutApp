@@ -10,6 +10,8 @@ public static class BodyweightProgression
     {
         history = history.Where(exposure => exposure.ResistanceMode is
             ResistanceModes.Bodyweight or ResistanceModes.Added or ResistanceModes.Assistance).ToList();
+        // Measured before the technique filter: partials or myo-reps in the slot are not time away.
+        var lastTrained = ProgressionLayoff.Newest(history);
         var goal = ProgressionEvidence.Reserve(prescription.Rir, prescription.TargetRpe);
         var open = Progression.HasOpenReps(prescription.RepsText) || prescription.RepMin is null;
         var min = open ? null : prescription.RepMin;
@@ -18,7 +20,7 @@ public static class BodyweightProgression
         if (reference is not > 0)
         {
             var fallback = Progression.Suggest(prescription, history.Where(x => x.ResistanceMode == resistanceMode).ToList(),
-                mode, new LoadOptions(0), revision, resistanceMode, exposure => exposure.SystemLoadKg, now);
+                mode, new LoadOptions(0), revision, resistanceMode, exposure => exposure.SystemLoadKg, now, lastTrained);
             var last = history.FirstOrDefault(x => x.SessionId == fallback.SourceSessionId);
             var reps = last?.Reps is { } completed ? Math.Clamp(completed, min ?? 1, max ?? 1000) : fallback.SuggestedReps;
             return fallback with { SuggestedLoadKg = null, SuggestedSystemLoadKg = null, SuggestedReps = reps,
@@ -39,7 +41,7 @@ public static class BodyweightProgression
         var comparable = history.TakeWhile(exposure => ProgressionEvidence.SameLoad(
             exposure.SystemLoadKg, history.FirstOrDefault()?.SystemLoadKg)).ToList();
         var suggestion = Progression.Suggest(prescription, comparable, mode, loads, revision,
-            resistanceMode, exposure => exposure.SystemLoadKg, now);
+            resistanceMode, exposure => exposure.SystemLoadKg, now, lastTrained);
         var input = resistanceMode switch
         {
             ResistanceModes.Added when suggestion.SuggestedLoadKg is { } total =>
@@ -65,7 +67,7 @@ public static class BodyweightProgression
             var reps = predicted is { } estimate
                 ? Math.Clamp(estimate, min ?? 1, max ?? 1000)
                 : source.Reps is { } last ? Math.Clamp(last, min ?? 1, max ?? 1000) : suggestion.SuggestedReps;
-            if (ProgressionLayoff.Days(comparable, now) is >= ProgressionLayoff.HoldDays)
+            if (ProgressionLayoff.Days(lastTrained, now) is >= ProgressionLayoff.HoldDays)
                 reps = Math.Min(reps, suggestion.SuggestedReps);
             return suggestion with { SuggestedLoadKg = null, SuggestedSystemLoadKg = weight,
                 SuggestedReps = reps, IsBodyweightAdjustment = true, IsRepRangeTransition = false,

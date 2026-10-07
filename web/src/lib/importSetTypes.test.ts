@@ -36,6 +36,17 @@ describe('importSetTypes', () => {
     expect(partialTechniqueLabel(prescription)).toBe(label);
   });
 
+  it.each([
+    ['Lengthened partials to failure', 'lengthenedPartials'],
+    ['Last set to failure — Myo-reps', 'myoreps'],
+    ['Drop set to failure', 'dropset'],
+    ['Myo reps', 'myoreps']
+  ] as const)('reads %s as the technique the server progresses it by', (notes, type) => {
+    // The server's SetTechniques decides history and load following; failure on a technique set
+    // does not make it a straight AMRAP set.
+    expect(getSetType(set({ notes }))).toBe(type);
+  });
+
   it('lets review choose a partial technique without changing the rep prescription', () => {
     const prescription = set({ repMin: 8, repMax: 10, repsText: '8-10', notes: 'Lengthened Partials (Extend Set)' });
 

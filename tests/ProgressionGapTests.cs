@@ -89,6 +89,52 @@ public sealed class ProgressionGapTests
         Assert.Contains("35 days", result.Reason);
     }
 
+    [Fact]
+    public void Sessions_done_with_another_technique_are_not_time_away()
+    {
+        // Straight sets 30 days ago, lengthened partials in the same slot last week: the movement was
+        // trained a week ago, so the straight set progresses normally instead of easing back in.
+        var straight = Exposure(50, 10, "2", daysAgo: 30);
+        var partial = Exposure(50, 6, "0", daysAgo: 7) with { Technique = SetTechniques.LengthenedPartials };
+
+        var result = Suggest(8, 10, "2", [partial, straight]);
+
+        Assert.Equal(52.5, result.SuggestedLoadKg);
+        Assert.DoesNotContain("days away", result.Reason);
+    }
+
+    [Fact]
+    public void A_layoff_that_cannot_lighten_the_load_does_not_claim_it_did()
+    {
+        // 10 kg is already the lightest available weight, and a reps-only movement has no load at all.
+        var lightest = Progression.Suggest(new SetPrescription(8, 10, null, null, null, null, null, Rir: "2"),
+            [Exposure(10, 10, "2", daysAgo: 35)], ProgressionModes.Normal,
+            new LoadOptions(0, AvailableLoadsKg: [10, 12, 14]), now: Now);
+        var repsOnly = Progression.Suggest(new SetPrescription(8, 10, null, null, null, null, null, Rir: "2"),
+            [Exposure(0, 10, "2", daysAgo: 35)], ProgressionModes.Normal, new LoadOptions(2.5),
+            resistanceMode: ResistanceModes.RepsOnly, now: Now);
+
+        Assert.Equal(10, lightest.SuggestedLoadKg);
+        Assert.DoesNotContain("lighter", lightest.Reason);
+        Assert.Contains("35 days", lightest.Reason);
+        Assert.Null(repsOnly.SuggestedLoadKg);
+        Assert.DoesNotContain("lighter", repsOnly.Reason);
+    }
+
+    [Theory]
+    [InlineData("1-2")]
+    [InlineData("1–2")]
+    [InlineData("1+")]
+    public void A_ranged_rir_target_still_sets_the_effort_goal(string target)
+    {
+        // Ten reps taken to failure did not stay within a 1-2 RIR target, so the load must not rise.
+        var failed = Suggest(8, 10, target, [Exposure(50, 10, "0", targetRir: target)]);
+        var met = Suggest(8, 10, target, [Exposure(50, 10, "1", targetRir: target)]);
+
+        Assert.Equal(50, failed.SuggestedLoadKg);
+        Assert.Equal(52.5, met.SuggestedLoadKg);
+    }
+
     // Gap 4: an unplanned loss rate on a maintain or gain goal is protected like a cut.
     [Theory]
     [InlineData("maintain", .6, 14, ProgressionModes.Conservative)]
@@ -130,6 +176,17 @@ public sealed class ProgressionGapTests
         var result = Suggest(8, 10, "1", [Exposure(50, 10, "2", targetRir: "1")]);
 
         Assert.Equal(52.5, result.SuggestedLoadKg);
+    }
+
+    [Fact]
+    public void Reps_far_past_the_top_of_the_range_take_the_capped_larger_jump()
+    {
+        // Twenty reps at the target effort on an 8-10 set: the load is far too light, like a 5+ RIR set.
+        var far = Suggest(8, 10, "2", [Exposure(50, 20, "2")]);
+        var justOver = Suggest(8, 10, "2", [Exposure(50, 11, "2")]);
+
+        Assert.Equal(55, far.SuggestedLoadKg);
+        Assert.Equal(52.5, justOver.SuggestedLoadKg);
     }
 
     [Fact]

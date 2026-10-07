@@ -1,17 +1,30 @@
 using System.Globalization;
+using System.Text.RegularExpressions;
 
 namespace Workout.Api.Domain;
 
 internal static class ProgressionEvidence
 {
-    // 5+ is a lower bound, never an assertion that exactly five reps remained.
+    // 5+ is a lower bound, never an assertion that exactly five reps remained. A printed target range
+    // ("1-2") or floor ("1+") counts by its harder end: stopping at one in reserve is within it,
+    // reaching failure is not.
     public static double? Reserve(string? rir, double? rpe)
     {
-        if (rir?.Trim() == "5+") return 5;
-        if (double.TryParse(rir, NumberStyles.Float, CultureInfo.InvariantCulture, out var value) && value is >= 0 and <= 10)
-            return value;
+        var text = rir?.Trim();
+        if (text == "5+") return 5;
+        if (Number(text) is { } value) return value;
+        if (text is { Length: > 0 } && RirRange.Match(text) is { Success: true } range &&
+            Number(range.Groups["first"].Value) is { } first)
+            return range.Groups["second"].Success && Number(range.Groups["second"].Value) is { } second
+                ? Math.Min(first, second) : first;
         return rpe is { } effort ? Math.Max(0, 10 - effort) : null;
     }
+
+    private static readonly Regex RirRange =
+        new(@"^(?<first>\d+(?:\.\d+)?)\s*(?:(?:-|–|—|to)\s*(?<second>\d+(?:\.\d+)?)|\+)$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+
+    private static double? Number(string? text)
+        => double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out var value) && value is >= 0 and <= 10 ? value : null;
 
     public static double? Reserve(SetExposure exposure) => Reserve(exposure.Rir, exposure.Rpe);
 
