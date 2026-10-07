@@ -16,10 +16,33 @@ public sealed partial class WorkoutService
         var startUtc = start.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc).AddDays(-1);
         var endUtc = end.AddDays(2).ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc);
 
+        var program = await db.Programs.AsNoTracking()
+            .Where(p => p.Active && p.LifecycleStatus == ProgramLifecycle.Active)
+            .Select(p => new { p.Id }).FirstOrDefaultAsync(ct);
+        ProgramRun? run = null;
+        List<WorkoutTemplate> weekTemplates = [];
+        Dictionary<Guid, ProgramDayProgress> dayProgressByTemplate = [];
+        if (program is not null)
+        {
+            run = await db.ProgramRuns.AsNoTracking().Where(r => r.ProgramId == program.Id)
+                .OrderByDescending(r => r.Number).FirstOrDefaultAsync(ct);
+            if (run is not null && run.CompletedAt is null)
+            {
+                weekTemplates = await db.Templates.AsNoTracking()
+                    .Where(t => t.ProgramId == program.Id && t.Week == run.CurrentWeek && !t.IsRestDay)
+                    .OrderBy(t => t.Position).ToListAsync(ct);
+                dayProgressByTemplate = (await db.ProgramDayProgresses.AsNoTracking()
+                    .Where(d => d.RunId == run.Id && d.Week == run.CurrentWeek && d.Attempt == run.CurrentAttempt)
+                    .ToListAsync(ct)).ToDictionary(d => d.TemplateId);
+            }
+        }
+        var weekTemplateIds = weekTemplates.Select(t => t.Id).ToHashSet();
+
         var rows = await db.Workouts.AsNoTracking().Where(w =>
             (w.FinishedAt != null && w.FinishedAt >= startUtc && w.FinishedAt < endUtc) ||
-            (w.Active && w.StartedAt >= startUtc && w.StartedAt < endUtc))
-            .OrderBy(w => w.StartedAt).Select(w => new { w.Id, w.Name, w.StartedAt, w.FinishedAt, w.Active }).ToListAsync(ct);
+            (w.Active && w.StartedAt >= startUtc && w.StartedAt < endUtc) ||
+            (weekTemplateIds.Count > 0 && w.TemplateId != null && weekTemplateIds.Contains(w.TemplateId.Value) && w.ProgramId == program!.Id))
+            .OrderBy(w => w.StartedAt).Select(w => new { w.Id, w.Name, w.StartedAt, w.FinishedAt, w.Active, w.TemplateId, w.ProgramId }).ToListAsync(ct);
 
         var sessionIds = rows.Select(session => session.Id).ToList();
         var exercises = await db.SessionExercises.AsNoTracking().Where(exercise => sessionIds.Contains(exercise.SessionId))
@@ -34,6 +57,8 @@ public sealed partial class WorkoutService
             .Select(e => e.ExerciseId!.Value).Distinct().ToList();
         var musclesById = await catalog.MusclesFor(muscleIds, ct);
         var result = new List<WorkoutTrainingSummary>();
+        var weekTemplateMap = weekTemplates.ToDictionary(t => t.Id);
+        var matchedTemplateIds = new HashSet<Guid>();
 
         foreach (var session in rows)
         {
@@ -41,7 +66,9 @@ public sealed partial class WorkoutService
             var actualDate = DateOnly.FromDateTime(localDateTime);
             var completionDate = session.FinishedAt is { } finished
                 ? DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(finished, zone)) : (DateOnly?)null;
-            if ((actualDate < start || actualDate > end) && (completionDate < start || completionDate > end || completionDate == null)) continue;
+            var weekTemplate = session.TemplateId is not null ? weekTemplateMap.GetValueOrDefault(session.TemplateId.Value) : null;
+            var isWeekTemplate = weekTemplate is not null;
+            if (!isWeekTemplate && (actualDate < start || actualDate > end) && (completionDate < start || completionDate > end || completionDate == null)) continue;
 
             var sessionExercises = bySession[session.Id].ToList();
             var sets = sessionExercises.SelectMany(exercise => byExercise[exercise.Id]).ToList();
@@ -55,17 +82,81 @@ public sealed partial class WorkoutService
             var muscles = exerciseIds.Select(id => musclesById.GetValueOrDefault(id, ""))
                 .Where(x => !string.IsNullOrWhiteSpace(x)).Distinct().OrderBy(x => x).ToList();
             var status = session.Active ? "in_progress" : "completed";
+            int? programWeek = null;
+            int? programPosition = null;
+            if (isWeekTemplate && weekTemplate is not null)
+            {
+                programWeek = weekTemplate.Week;
+                programPosition = weekTemplate.Position;
+                matchedTemplateIds.Add(weekTemplate.Id);
+            }
             result.Add(new WorkoutTrainingSummary($"session:{session.Id}", status, actualDate, session.StartedAt, session.FinishedAt,
                 session.Name, muscles, sets.Count, volume.External, volume.System, rpes.Count == 0 ? null : rpes.Average(), !session.Active, actualDate, completionDate,
                 sets.Count(s => s.Reps != null), sets.Count(s => s.DurationSeconds != null),
                 sets.Where(s => s.DurationSeconds != null).Sum(s => s.DurationSeconds!.Value), rpes.Count, trackEffort,
                 sessionExercises.Select(e => $"{e.ExerciseId?.ToString() ?? $"name:{e.NameSnapshot}"}:{e.LoadModel}").Distinct().Order().ToArray(),
                 externalSets.Length > 0 && externalSets.All(s => s.WeightKg != null),
-                systemSets.Length > 0 && systemSets.All(s => s.SystemLoadKg != null)));
+                systemSets.Length > 0 && systemSets.All(s => s.SystemLoadKg != null),
+                ProgramWeek: programWeek,
+                ProgramPosition: programPosition));
         }
         result.Sort((left, right) => left.LocalDate.CompareTo(right.LocalDate));
-        // Up-next days have no calendar date, so they belong only to a range that includes today.
-        if (start <= todayLocal && todayLocal <= end) result.AddRange(await UpNext(todayLocal, ct));
+        if (run is not null && run.CompletedAt is null && start <= todayLocal && todayLocal <= end)
+        {
+            foreach (var template in weekTemplates)
+            {
+                if (matchedTemplateIds.Contains(template.Id)) continue;
+
+                var isPassed = dayProgressByTemplate.TryGetValue(template.Id, out var progress)
+                    && ProgramDayStatus.IsPassed(progress.Status);
+
+                if (isPassed)
+                {
+                    var passedDate = progress?.PassedAt is { } passedAt
+                        ? DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(passedAt, zone))
+                        : (DateOnly?)null;
+                    result.Add(new WorkoutTrainingSummary(
+                        $"passed:{template.Id}",
+                        "completed",
+                        passedDate ?? todayLocal,
+                        null,
+                        progress?.PassedAt,
+                        template.Name,
+                        [],
+                        0,
+                        null,
+                        null,
+                        null,
+                        Completed: true,
+                        ActualDate: passedDate,
+                        ProgramWeek: template.Week,
+                        ProgramPosition: template.Position));
+                }
+                else
+                {
+                    result.Add(new WorkoutTrainingSummary(
+                        $"upcoming:{template.Id}",
+                        "upcoming",
+                        todayLocal,
+                        null,
+                        null,
+                        template.Name,
+                        [],
+                        0,
+                        null,
+                        null,
+                        null,
+                        Completed: false,
+                        ActualDate: null,
+                        ProgramWeek: template.Week,
+                        ProgramPosition: template.Position));
+                }
+            }
+        }
+        else if (start <= todayLocal && todayLocal <= end)
+        {
+            result.AddRange(await UpNext(todayLocal, ct));
+        }
         return result;
     }
 

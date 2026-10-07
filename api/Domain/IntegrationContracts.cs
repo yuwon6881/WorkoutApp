@@ -56,7 +56,9 @@ public sealed record WorkoutTrainingSummary(
     bool? EffortTracked = null,
     IReadOnlyList<string>? ExerciseMix = null,
     bool? ExternalVolumeComplete = null,
-    bool? SystemVolumeComplete = null);
+    bool? SystemVolumeComplete = null,
+    int? ProgramWeek = null,
+    int? ProgramPosition = null);
 
 public static class LoadModels
 {

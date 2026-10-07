@@ -37,6 +37,11 @@ public sealed class TrainingSummaryUpNextTests
         Assert.Equal(["Full Body 2", "Full Body 3"], upNext.Select(item => item.WorkoutName));
         Assert.All(upNext, item => { Assert.False(item.Completed); Assert.Null(item.StartedAt); Assert.Equal(Today, item.LocalDate); });
         Assert.Contains(summaries, item => item.Status == "in_progress" && item.WorkoutName == "Full Body 4");
+
+        var weekly = summaries.Where(s => s.ProgramPosition != null).OrderBy(s => s.ProgramPosition).ToList();
+        Assert.Equal(["Full Body 1", "Full Body 2", "Full Body 3", "Full Body 4"], weekly.Select(s => s.WorkoutName));
+        Assert.Equal([0, 1, 3, 4], weekly.Select(s => s.ProgramPosition!.Value));
+        Assert.DoesNotContain(summaries, s => s.WorkoutName == "Rest Day");
     }
 
     [Fact]
