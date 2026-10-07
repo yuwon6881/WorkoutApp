@@ -67,3 +67,25 @@ describe('Android workout notification detail',()=>{
     expect(nativeRestActionsToApply([],'workout','gen-1')).toEqual([]);
   });
 });
+
+describe('Android rest alert without notification permission',()=>{
+  beforeEach(()=>{
+    vi.useFakeTimers();vi.clearAllMocks();native.claim.mockResolvedValue(true);
+    vi.stubGlobal('document',{visibilityState:'visible',addEventListener:vi.fn(),removeEventListener:vi.fn()});
+    vi.stubGlobal('window',{addEventListener:vi.fn(),removeEventListener:vi.fn()});
+    vi.stubGlobal('localStorage',{getItem:()=>null,setItem:vi.fn(),removeItem:vi.fn()});
+    vi.stubGlobal('navigator',{vibrate:native.vibrate});
+  });
+  afterEach(()=>{vi.useRealTimers();vi.unstubAllGlobals();});
+
+  it('chimes and vibrates from the visible page when the channel cannot alert',async()=>{
+    const timer=new RestTimer();
+    timer.setScope('account','workout',{notifications:false,sound:true,vibration:true,keepAwake:false});
+    timer.start(1);
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(native.sync).toHaveBeenCalledWith(expect.objectContaining({alert:false}));
+    expect(native.claim).toHaveBeenCalled();
+    expect(native.sound).toHaveBeenCalledTimes(1);
+    expect(native.vibrate).toHaveBeenCalledTimes(1);
+  });
+});

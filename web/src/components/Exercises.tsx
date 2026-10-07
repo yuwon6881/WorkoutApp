@@ -202,7 +202,9 @@ export function ExerciseLibrary({ exercises, onSelect, exclude = emptyIds, onOpe
       <label className="search-box">
         <Search size={18} />
         <input name="exercise-search" aria-label="Search exercises" placeholder="Search exercises or equipment…" value={query} onChange={e => setQuery(e.target.value)}
-          inputMode="search" enterKeyHint="search" autoComplete="off" autoCorrect="off" spellCheck={false} />
+          inputMode="search" enterKeyHint="search" autoComplete="off" autoCorrect="off" spellCheck={false}
+          // Results update as you type, so Search only needs to put the keyboard away.
+          onKeyDown={event => { if (event.key === 'Enter') event.currentTarget.blur(); }} />
         {query && <Button presentation="plain" className="search-clear-btn" aria-label="Clear search" onClick={() => setQuery('')}><X size={16} /></Button>}
       </label>
       <div className="exercise-minor-filters" role="group" aria-label="Filter exercises">

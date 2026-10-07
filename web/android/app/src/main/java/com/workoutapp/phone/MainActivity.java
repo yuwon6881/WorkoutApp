@@ -50,7 +50,9 @@ public class MainActivity extends BridgeActivity {
     }
 
     /// A tap on the workout notification while the app is open goes straight to that workout; on
-    /// a cold start the app already reopens the saved workout by itself.
+    /// a cold start the app already reopens the saved workout by itself. A running page opens it in
+    /// place (app/useWorkoutLinkRequest.ts) so the tap never reloads the app mid-workout; only a
+    /// page that does not take the request, such as an error page, is sent to the address.
     @Override
     protected void onNewIntent(Intent intent) {
         super.onNewIntent(intent);
@@ -60,7 +62,9 @@ public class MainActivity extends BridgeActivity {
         }
         String workoutId = intent.getStringExtra(EXTRA_WORKOUT_ID);
         if (workoutId == null || workoutId.isEmpty() || getBridge() == null) return;
-        String script = "window.location.assign('/?workout=' + encodeURIComponent(" + JSONObject.quote(workoutId) + "))";
+        String id = JSONObject.quote(workoutId);
+        String script = "(function(id){var request=new CustomEvent('workout-open-request',{cancelable:true,detail:{workoutId:id}});"
+                + "if(window.dispatchEvent(request))window.location.assign('/?workout='+encodeURIComponent(id));})(" + id + ")";
         getBridge().getWebView().post(() -> getBridge().getWebView().evaluateJavascript(script, null));
     }
 }

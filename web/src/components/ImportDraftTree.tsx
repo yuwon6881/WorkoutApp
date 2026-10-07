@@ -2,6 +2,7 @@ import { forwardRef, useCallback, useImperativeHandle, useMemo } from 'react';
 import { CalendarDays, Check, RotateCcw, Trash2 } from 'lucide-react';
 import type { DraftWorkout, Exercise, ImportDraft } from '../types';
 import { applyExerciseEdit, countOccurrences, type ExerciseEditing } from '../lib/exerciseEditScope';
+import { hasFinePointer } from '../lib/inputModality';
 import { Button } from './ui/Button';
 import { Field } from './ui/Field';
 import { MenuButton, MenuItem } from './ui/MenuButton';
@@ -121,11 +122,14 @@ export const DraftOutline = forwardRef<DraftOutlineHandle, {
         }
         const destination = target.targetField === 'week' ? weekNode ?? scope : control ?? field ?? scope;
         destination.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
-        control?.focus();
+        // On a phone a focused text field raises the keyboard over the issue being shown; the
+        // highlight already points at it, and a tap starts the edit.
+        const focusable = control && (hasFinePointer() || !control.matches('input, textarea')) ? control : null;
+        focusable?.focus();
         const highlight = target.targetField === 'week' ? weekNode ?? dayNode : field ?? exerciseNode ?? dayNode;
         highlight.classList.add('issue-focus');
         window.setTimeout(() => highlight.classList.remove('issue-focus'), 1800);
-        if (control && attempts < 15) {
+        if (focusable && attempts < 15) {
           attempts++;
           window.setTimeout(tryFocus, 25);
         }

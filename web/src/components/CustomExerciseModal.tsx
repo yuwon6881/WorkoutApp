@@ -66,7 +66,7 @@ export function CustomExerciseModal({ onClose, onCreated, initialName = '', onEx
 
   return <Modal title={createdExercise ? 'Finish mapping exercise' : 'Create custom exercise'} onClose={() => !busy && onClose()}>
     <form className="modal-body" noValidate onSubmit={submit}>
-      <Field name="custom-exercise-name" label="Name" value={name} onChange={event => setName(event.target.value)} maxLength={160} autoFocus disabled={!!createdExercise} />
+      <Field name="custom-exercise-name" label="Name" autoCorrect="off" spellCheck={false} value={name} onChange={event => setName(event.target.value)} maxLength={160} autoFocus disabled={!!createdExercise} />
       <div className="form-grid-two">
         <Field name="custom-exercise-muscle" label="Primary muscle" value={muscle} onChange={event => setMuscle(event.target.value)} maxLength={80} disabled={!!createdExercise} />
         <Field name="custom-exercise-equipment" label="Equipment" value={equipment} onChange={event => {

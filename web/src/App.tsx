@@ -9,6 +9,7 @@ import { useShellRestTimer } from './app/useShellRestTimer';
 import { useTabNavigation } from './app/useTabNavigation';
 import { useSaveIndicator } from './app/useSaveIndicator';
 import { useKeyboardInset } from './app/useKeyboardInset';
+import { useWorkoutLinkRequest } from './app/useWorkoutLinkRequest';
 import { nextWorkout } from './lib/nextWorkout';
 import { acknowledgeTemplate } from './lib/templateAcknowledgement';
 import { useAppUpdate } from './app/useAppUpdate';
@@ -137,19 +138,10 @@ export default function App() {
   useEffect(() => {
     if (tab === 'import' && importBlocked) { setTab('program'); setToast(IMPORT_BLOCKED_MESSAGE); }
   }, [tab, importBlocked]);
-  useEffect(() => {
-    const requested = new URLSearchParams(window.location.search).get('workout');
-    if (!requested) return;
-    if (recovery?.sessionId === requested && (!data || data.account.id === recovery.accountId)) {
-      if (data?.activeWorkout?.active && data.activeWorkout.id !== requested) setReviewRecovery(true);
-      setTraining(true);
-    } else if (data?.activeWorkout?.active && data.activeWorkout.id === requested) setTraining(true);
-    else if (data && !loading) setToast('That workout is no longer active on this device.');
-    else return;
-    const url = new URL(window.location.href);
-    url.searchParams.delete('workout');
-    window.history.replaceState(window.history.state, '', `${url.pathname}${url.search}${url.hash}`);
-  }, [recovery?.sessionId, data?.account.id, data?.activeWorkout?.id, loading]);
+  useWorkoutLinkRequest({
+    data, recovery, loading,
+    openWorkout: () => setTraining(true), reviewRecovery: () => setReviewRecovery(true), notify: setToast
+  });
 
   // The home-screen shortcut opens /?start=today: resume what is open, or start today's workout.
   useEffect(() => {

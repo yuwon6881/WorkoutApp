@@ -2,6 +2,7 @@ import { cancelAlarm, primeAlarm, releaseAlarm, scheduleAlarm, soundNow, testAla
 import type { SessionRest } from '../types';
 import { claimNativeRestAlert, hasNativeWorkoutStore, isNative, nativeKeepAwake, notificationPermission, syncNativeWorkout } from './platform';
 import type { NativeRestAction } from './platform';
+import { REST_ALERTS_CHANGED_EVENT } from './restAlertDelivery';
 
 /// Rest uses a deadline so its display stays accurate when the browser suspends the page. The
 /// local record is scoped to the signed-in account and active workout; it is never an authority
@@ -388,7 +389,11 @@ export function isRestAlertOwner(
 }
 
 export async function requestRestAlerts(): Promise<NotificationPermission> {
-  if (isNative()) return notificationPermission(true);
+  if (isNative()) {
+    const permission = await notificationPermission(true);
+    window.dispatchEvent(new Event(REST_ALERTS_CHANGED_EVENT));
+    return permission;
+  }
   if (!('Notification' in window)) return 'denied';
   if (Notification.permission !== 'default') return Notification.permission;
   try { return await Notification.requestPermission(); } catch { return 'denied'; }

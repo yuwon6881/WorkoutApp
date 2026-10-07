@@ -37,3 +37,9 @@ export function trackInputModality(root: HTMLElement = document.documentElement)
     window.removeEventListener('keydown', record, { capture: true });
   };
 }
+
+/** Focusing a text field on a touch phone raises the keyboard over what the person came to see,
+ *  so focus that only saves a click is moved to a field on mouse-and-keyboard devices only. */
+export function hasFinePointer(): boolean {
+  return window.matchMedia?.('(hover: hover) and (pointer: fine)').matches ?? false;
+}

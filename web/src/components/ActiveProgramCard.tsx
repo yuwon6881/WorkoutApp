@@ -180,7 +180,9 @@ export function ActiveProgramCard({ program, exercises, onStart, onChanged, hasA
         <p>This clears the checkmarks for Week {progress?.currentWeek}. Completed workout history stays saved.</p>
         <label className="field" htmlFor={`reset-program-week-${program.id}`}>
           Type <strong>RESET</strong> to confirm
-          <input id={`reset-program-week-${program.id}`} autoComplete="off" value={resetPhrase} onChange={event => setResetPhrase(event.target.value)} aria-describedby={`reset-program-week-hint-${program.id}`} />
+          <input id={`reset-program-week-${program.id}`} autoComplete="off" autoCapitalize="characters" autoCorrect="off" spellCheck={false} value={resetPhrase}
+            // Phone keyboards capitalise only the first letter and may add a space after a suggestion.
+            onChange={event => setResetPhrase(event.target.value.trim().toUpperCase())} aria-describedby={`reset-program-week-hint-${program.id}`} />
         </label>
         <small id={`reset-program-week-hint-${program.id}`}>This cannot be undone. The current week will start again at day one.</small>
         {hasActiveWorkout && <p className="error-text" role="alert">Finish or discard the active workout first.</p>}

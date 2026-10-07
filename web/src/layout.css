@@ -186,11 +186,11 @@ html.dialog-open { overflow: hidden; }
 }
 
 /* While the on-screen keyboard is open (app/useKeyboardInset.ts), chrome pinned to the bottom
-   would sit on top of it, so it steps aside until typing is done. */
+   would sit on top of it, so it steps aside until typing is done. The rest bar sits under the
+   workout header, clear of the keyboard, and stays: typing the next load is when it matters. */
 html[data-keyboard='open'] .bottom-nav,
 html[data-keyboard='open'] .resume-workout,
-html[data-keyboard='open'] .import-progress-pill,
-html[data-keyboard='open'] .workout-rest-bar { display: none; }
+html[data-keyboard='open'] .import-progress-pill { display: none; }
 
 /* Floating bottom items stack instead of overlapping: a toast rises above the resume button and
    the import progress pill when they are showing. */

@@ -15,6 +15,7 @@ import { partialTechniqueLabel } from '../lib/importSetTypes';
 import { isTimedExercise, showTimedTarget, timedTargetSeconds } from '../lib/setDuration';
 import { discardStopwatch } from '../lib/setStopwatch';
 import { WorkoutSetTimeCell } from './WorkoutSetTimeCell';
+import { WorkoutLoadInput } from './WorkoutLoadInput';
 import { useTrackRir } from '../lib/trackRir';
 import { loadEntryFor, loadFieldName, loadSign } from '../lib/resistanceVariant';
 
@@ -115,35 +116,20 @@ export function WorkoutSetRow({
 
       <div className={`set-input-cell load-cell load-${loadEntry}`}>
         {sign && <span className="load-sign" aria-hidden="true">{sign}</span>}
-        <input
+        <WorkoutLoadInput
           name={`weight-${exercise.id}-${si}`}
-          aria-label={`${exercise.name} set ${si + 1} ${loadFieldName(loadEntry)}`}
-          inputMode="decimal"
-          type="number"
-          min="0"
-          step={availableLoadsKg?.length || stepKg <= 0 ? 'any' : toDisplay(stepKg, unit) ?? 'any'}
-          onWheel={event => event.currentTarget.blur()}
-          onKeyDown={event => {
-            if (event.key === '-') { event.preventDefault(); return; }
-            if (event.key !== 'ArrowUp' && event.key !== 'ArrowDown') return;
-            event.preventDefault();
-            const direction = event.key === 'ArrowUp' ? 1 : -1;
+          ariaLabel={`${exercise.name} set ${si + 1} ${loadFieldName(loadEntry)}`}
+          value={shown}
+          // A bodyweight movement has no load to enter, so its field stays an empty dash.
+          disabled={!loadEditable}
+          onStep={direction => {
             const next = availableLoadsKg?.length
               ? nextAvailableLoad(set.weightKg, availableLoadsKg, direction)
               : Math.max(0, (set.weightKg ?? 0) + direction * stepKg);
             editSet(ei, si, { weightKg: next });
           }}
-          placeholder="—"
-          // A bodyweight movement has no load to enter, so its field stays an empty dash.
-          value={!loadEditable || shown === null ? '' : shown}
-          disabled={!loadEditable}
           // Correcting a logged set keeps it logged; only the log button unlogs a set.
-          onChange={e => {
-            const val = e.target.value;
-            if (val === '') { editSet(ei, si, { weightKg: null }); return; }
-            const num = Number(val);
-            if (!Number.isNaN(num) && num >= 0) editSet(ei, si, { weightKg: toKg(num, unit) });
-          }}
+          onChange={value => editSet(ei, si, { weightKg: toKg(value, unit) })}
         />
       </div>
 

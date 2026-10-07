@@ -43,7 +43,8 @@ import { loadAdjustable } from '../lib/exerciseLoads';
 import { canEnterPerSide } from '../lib/equipmentGroups';
 import { loadColumnLabel, loadEntryFor } from '../lib/resistanceVariant';
 
-const UNDO_WINDOW_MS = 3000;
+// Long enough to notice a mistaken swipe-delete between sets and reach Undo with a sweaty hand.
+const UNDO_WINDOW_MS = 8000;
 
 export function WorkoutActiveExercise({
   exercise,

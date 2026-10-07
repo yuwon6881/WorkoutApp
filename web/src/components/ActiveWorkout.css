@@ -197,8 +197,10 @@
   .workout-strip-arrow.button { width: 36px; min-width: 36px; height: 36px; min-height: 36px; }
 }
 
-/* A long press picks a pill up; the browser's own long-press callout and selection would fight it. */
-.workout-strip-item { -webkit-touch-callout: none; user-select: none; touch-action: pan-y; }
+/* A long press picks a pill up; the browser's own long-press callout and selection would fight it.
+   Pills fill the strip, so they must allow its sideways pan; useStripReorder stops the pan once a
+   pill is held. */
+.workout-strip-item { -webkit-touch-callout: none; user-select: none; touch-action: pan-x pan-y; }
 .workout-strip-item.pressing {
   transform: scale(0.97);
   border-color: var(--accent-border);

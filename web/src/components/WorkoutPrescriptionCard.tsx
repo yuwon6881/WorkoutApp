@@ -91,6 +91,8 @@ export function WorkoutPrescriptionCard({
             name={`workout-exercise-name-${exercise.id}`}
             className="inline-input builder-exercise-name"
             aria-label={`Name for exercise ${index + 1}`}
+            autoCorrect="off"
+            spellCheck={false}
             value={exercise.name}
             onChange={e => onUpdateExercise({ name: e.target.value, sourceName: e.target.value })}
           />

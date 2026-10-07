@@ -3,6 +3,7 @@ import type { Unit } from '../types';
 import {
   displayLoadSetting, formatAvailableLoads, loadSettingToKg, type LoadRule
 } from '../lib/exerciseLoads';
+import { hasFinePointer } from '../lib/inputModality';
 import { validateExerciseLoads } from '../lib/validation';
 import { Button } from './ui/Button';
 import { Field, TextAreaField } from './ui/Field';
@@ -105,7 +106,8 @@ export function LoadRuleEditor({
           setList(values.join(', '));
           setFieldError('');
           setSequenceOpen(false);
-          listField.current?.focus();
+          // The list is filled for them; on a phone, focusing it would only raise the keyboard over Save.
+          if (hasFinePointer()) listField.current?.focus();
         }} /></div>}
     </>}
 

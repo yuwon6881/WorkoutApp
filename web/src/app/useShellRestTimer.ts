@@ -4,6 +4,7 @@ import { ApiError, api } from '../lib/api';
 import { restTimer } from '../lib/restTimer';
 import { getWorkoutPushDeviceId } from '../lib/push/firebaseMessaging';
 import { setHapticsEnabled } from '../lib/platform';
+import { useRestAlertDelivery } from './useRestAlertDelivery';
 import type { DevicePreferences, WorkoutRecoveryRecord } from '../lib/workoutRecovery';
 
 /// The rest timer belongs to the shell, so minimizing the workout never stops its deadline, and
@@ -21,7 +22,8 @@ export function useShellRestTimer({ data, recovery, recoverySession, devicePrefe
   const timerAccountId = data?.account.id ?? recovery?.accountId ?? null;
   const timerSessionId = recovery?.conflict && !recovery.serverSession.active
     ? null : recoverySession?.id ?? data?.activeWorkout?.id ?? null;
-  const timerNotifications = data?.preferences.restAlerts ?? recovery?.preferences.restAlerts ?? false;
+  const restAlerts = data?.preferences.restAlerts ?? recovery?.preferences.restAlerts ?? false;
+  const timerNotifications = useRestAlertDelivery(restAlerts, timerSessionId);
   const [restState, setRestState] = useState(restTimer.current);
   const [pushWakeVersion, setPushWakeVersion] = useState(0);
   const pushDesired = useRef<{ accountId: string; sessionId: string; generation: string; deviceId: string } | null>(null);

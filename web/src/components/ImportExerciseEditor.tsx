@@ -160,6 +160,8 @@ export function ExerciseEditor({ exercise: saved, exercises, allDayExercises, re
             name={`exercise-source-name-${exercise.lineId}`}
             className="inline-input"
             aria-label="Exercise name"
+            autoCorrect="off"
+            spellCheck={false}
             value={exercise.sourceName}
             onChange={event => onChange({ ...exercise, sourceName: event.target.value })}
           />

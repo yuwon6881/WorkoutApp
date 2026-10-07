@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useRef } from 'react';
 import { ArrowUp, Square } from 'lucide-react';
 import { Button } from '../ui/Button';
+import { hasFinePointer } from '../../lib/inputModality';
 
 const MAX_LENGTH = 2000;
 const COUNTER_FROM = 1800;
@@ -15,8 +16,6 @@ interface Props {
   disabled: boolean;
 }
 
-// Focusing a field on a phone raises the keyboard over the answer the person came to read.
-const hasFinePointer = () => window.matchMedia?.('(hover: hover) and (pointer: fine)').matches ?? false;
 
 export function AiComposer({ value, onChange, onSubmit, onStop, isSending, disabled }: Props) {
   const field = useRef<HTMLTextAreaElement>(null);
