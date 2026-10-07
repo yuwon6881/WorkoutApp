@@ -221,14 +221,14 @@ public sealed class AiAssistantService
         return input;
     }
 
-    private static IReadOnlyList<AiSeededToolCall>? BuildSeededCalls(AiInvocationContext? context)
+    internal static IReadOnlyList<AiSeededToolCall>? BuildSeededCalls(AiInvocationContext? context)
     {
         if (context == null || string.IsNullOrWhiteSpace(context.Preset)) return null;
 
         return context.Preset switch
         {
             "exercise-progress" when !string.IsNullOrWhiteSpace(context.ExerciseSlug) =>
-                [new("get_exercise_progress", JsonSerializer.Serialize(new { slug = context.ExerciseSlug }))],
+                [new("get_exercise_progress", JsonSerializer.Serialize(new { exercise = context.ExerciseSlug }))],
             "workout-detail" when !string.IsNullOrWhiteSpace(context.WorkoutId) =>
                 [new("get_workout_detail", JsonSerializer.Serialize(new { workoutId = context.WorkoutId }))],
             "program-overview" =>

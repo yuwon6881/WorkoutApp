@@ -36,10 +36,13 @@ public sealed partial class WorkoutService
             var window = Math.Min(4800, Math.Max(120, ids.Count * 120));
             var catalogMatches = await query.Where(x => x.ExerciseId != null && ids.Contains(x.ExerciseId.Value))
                 .OrderByDescending(x => x.FinishedAt).Take(window).ToListAsync(ct);
+            // A window that came back short already holds every exposure, so a sparse exercise
+            // only needs its own read when older history may lie beyond the window.
+            var windowFull = catalogMatches.Count == window;
             foreach (var id in ids)
             {
                 var selected = catalogMatches.Where(x => x.ExerciseId == id).Take(30).ToList();
-                if (selected.Count < 30)
+                if (selected.Count < 30 && windowFull)
                 {
                     selected = await query.Where(x => x.ExerciseId == id).OrderByDescending(x => x.FinishedAt).Take(30).ToListAsync(ct);
                 }

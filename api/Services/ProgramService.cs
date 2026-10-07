@@ -84,14 +84,6 @@ public sealed partial class ProgramService(AppDb db, TemplateService templates, 
         return views;
     }
 
-    public async Task<List<ProgramView>> FullList(CancellationToken ct)
-    {
-        var programs = await db.Programs.AsNoTracking().OrderByDescending(p => p.Active).ThenByDescending(p => p.Created).ToListAsync(ct);
-        var views = new List<ProgramView>();
-        foreach (var program in programs) views.Add(await View(program, ct));
-        return views;
-    }
-
     public async Task<ProgramView> Get(Guid id, CancellationToken ct)
     {
         var program = await db.Programs.AsNoTracking().SingleOrDefaultAsync(p => p.Id == id, ct);

@@ -155,21 +155,7 @@ public sealed partial class GoogleHealthWorkoutSyncService(
         if (connection is null)
             return new(false, false, "disabled", 0, null, 0);
 
-        var work = await db.GoogleHealthWorkoutSyncWork.ToListAsync(ct);
-        var pending = work.Count(x => x.ProcessingState is "pending" or "processing" or "awaiting_operation");
-        var problem = work.Where(x => x.ProcessingState is "failed" or "unknown").OrderByDescending(x => x.UpdatedAt).FirstOrDefault();
-        var state = !connection.WorkoutSyncEnabled ? "disabled"
-            : connection.Status == "reconnect_required" ? "reconnect_required"
-            : problem?.ProcessingState ?? (pending > 0 ? "pending" : "idle");
-        return new(
-            connection.WorkoutSyncEnabled,
-            HasWorkoutScope(connection),
-            state,
-            pending,
-            connection.WorkoutLastSuccessfulSyncAt,
-            connection.WorkoutSyncRevision,
-            problem?.LastErrorCategory,
-            problem?.LastErrorMessage);
+        return await StatusFor(connection, db.GoogleHealthWorkoutSyncWork, ct);
     }
 
     private async Task<WorkoutWorkLease?> LeaseWorkAsync(Guid userId, Guid workId, string leaseId, DateTime now, CancellationToken ct)

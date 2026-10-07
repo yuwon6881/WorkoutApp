@@ -29,13 +29,19 @@ function normalized(value: string) {
   return value.trim().toLowerCase().replace(/[^a-z0-9]+/g, ' ').replace(/\s+/g, ' ');
 }
 
-function exerciseRank(candidate: Exercise, current: Exercise | undefined, preferredNames: string[]) {
-  const candidateNames = [candidate.name, ...candidate.aliases].map(normalized);
-  if (preferredNames.some(name => candidateNames.includes(normalized(name)))) return 0;
+/// Ranks every candidate against the current exercise once; the current exercise's muscles and the
+/// preferred names are normalized a single time rather than inside each sort comparison.
+function exerciseRanks(candidates: Exercise[], current: Exercise | undefined, preferredNames: string[]) {
+  const preferred = new Set(preferredNames.map(normalized));
+  const primary = current ? normalized(current.muscle) : '';
+  const secondary = new Set((current?.secondaryMuscles ?? []).map(normalized));
+  return new Map(candidates.map(candidate => [candidate.id, exerciseRank(candidate, current, preferred, primary, secondary)]));
+}
+
+function exerciseRank(candidate: Exercise, current: Exercise | undefined, preferred: Set<string>, primary: string, secondary: Set<string>) {
+  if ([candidate.name, ...candidate.aliases].some(name => preferred.has(normalized(name)))) return 0;
   if (!current) return 1;
 
-  const primary = normalized(current.muscle);
-  const secondary = new Set((current.secondaryMuscles ?? []).map(normalized));
   const candidatePrimary = normalized(candidate.muscle);
   const candidateSecondary = (candidate.secondaryMuscles ?? []).map(normalized);
   const sharedSecondary = candidateSecondary.filter(value => secondary.has(value)).length;
@@ -85,8 +91,9 @@ export function ExerciseLibrary({ exercises, onSelect, exclude = emptyIds, onOpe
     && (category === 'all' || getExerciseCategory(e) === category)
     && (muscle === 'All muscles' || [e.muscle, ...(e.secondaryMuscles ?? [])].some(value => value.toLowerCase() === muscle.toLowerCase()))
     && searchText.get(e.id)?.includes(search.toLowerCase())), [exercises, exclude, currentExerciseId, source, category, muscle, search, searchText]);
-  const ordered = useMemo(() => [...filtered].sort((a, b) => exerciseRank(a, current, preferredNames) - exerciseRank(b, current, preferredNames)
-    || a.name.localeCompare(b.name)), [filtered, current, preferredNames]);
+  const ranks = useMemo(() => exerciseRanks(filtered, current, preferredNames), [filtered, current, preferredNames]);
+  const ordered = useMemo(() => [...filtered].sort((a, b) => (ranks.get(a.id) ?? 4) - (ranks.get(b.id) ?? 4)
+    || a.name.localeCompare(b.name)), [filtered, ranks]);
   const actionLabel = action === 'swap' ? 'Swap' : action === 'map' ? 'Map' : 'Add';
   const ActionIcon = action === 'add' ? Plus : action === 'swap' ? ArrowLeftRight : Link2;
 
@@ -96,7 +103,7 @@ export function ExerciseLibrary({ exercises, onSelect, exclude = emptyIds, onOpe
     ? [currentCategory, ...baseCategories.filter(c => c !== currentCategory)]
     : ['Free Weights', 'Machine', 'Body Weight'];
 
-  const isRelevant = (e: Exercise) => exerciseRank(e, current, preferredNames) < 4;
+  const isRelevant = (e: Exercise) => (ranks.get(e.id) ?? 4) < 4;
   const showBoundary = isSwapping && !query.trim() && muscle === 'All muscles';
   const relevantList = showBoundary ? ordered.filter(isRelevant) : ordered;
   const otherList = showBoundary ? ordered.filter(e => !isRelevant(e)) : [];

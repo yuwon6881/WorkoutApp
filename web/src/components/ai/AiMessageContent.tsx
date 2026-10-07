@@ -1,4 +1,4 @@
-import { Fragment } from 'react';
+import { Fragment, memo } from 'react';
 import { parseAiMessage } from '../../lib/aiMessage';
 
 const BOLD_OR_CODE_TOKEN = /(\*\*[^*\r\n]+?\*\*|`[^`\r\n]+?`)/g;
@@ -11,8 +11,9 @@ function Inline({ text }: { text: string }) {
   })}</>;
 }
 
-/** Safe, lightweight reply formatter: bold, code snippets, headings, lists, and line breaks. */
-export function AiMessageContent({ content, role }: { content: string; role: 'user' | 'assistant' }) {
+/** Safe, lightweight reply formatter: bold, code snippets, headings, lists, and line breaks.
+ *  Memoized so each streamed token re-parses only the reply being written, not the whole thread. */
+export const AiMessageContent = memo(function AiMessageContent({ content, role }: { content: string; role: 'user' | 'assistant' }) {
   if (role === 'user') return <span className="ai-message-content user">{content}</span>;
   return <div className="ai-message-content">
     {parseAiMessage(content).map((block, index) => {
@@ -28,4 +29,4 @@ export function AiMessageContent({ content, role }: { content: string; role: 'us
       }
     })}
   </div>;
-}
+});

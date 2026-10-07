@@ -51,6 +51,41 @@ public sealed class ExerciseInsightTests
         Assert.Equal(0, (await service.Insight(benchId, "all", 0, 20, default)).Sessions);
     }
 
+    [Fact]
+    public async Task Ranges_and_pages_cut_the_same_cached_history_as_an_uncached_read()
+    {
+        var (h, templateId, benchId) = await Ready();
+        await using var owned = h;
+        var sessionIds = new List<Guid>();
+        foreach (var load in new[] { 60.0, 65.0 })
+        {
+            var session = await h.Workouts.Start(templateId, null, default);
+            await h.Workouts.Save(session.Id, new SessionInput(null,
+                [new SessionExerciseInput(benchId, "Bench press", null, [Harness.Set(8, 10)], [new SetInput(load, 10, 8, true)])],
+                session.Revision, null), default);
+            await h.Workouts.Finish(session.Id, null, default);
+            sessionIds.Add(session.Id);
+        }
+        var older = await h.Db.Workouts.FindAsync(h.Db.CurrentUser!.Value, sessionIds[0]);
+        older!.StartedAt = older.StartedAt.AddDays(-60);
+        older.FinishedAt = older.FinishedAt!.Value.AddDays(-60);
+        await h.Db.SaveChangesAsync();
+        using var cache = new Microsoft.Extensions.Caching.Memory.MemoryCache(new Microsoft.Extensions.Caching.Memory.MemoryCacheOptions { SizeLimit = 256 });
+        var cached = new ExerciseService(h.Db, cache);
+
+        var month = await cached.Insight(benchId, "1m", 0, 1, default);
+        var quarter = await cached.Insight(benchId, "3m", 1, 1, default);
+
+        Assert.Equal(sessionIds[1], Assert.Single(month.Points).SessionId);
+        Assert.Equal(sessionIds[1], Assert.Single(month.History).SessionId);
+        Assert.Equal(2, quarter.Points.Count);
+        Assert.Equal(sessionIds[0], Assert.Single(quarter.History).SessionId);
+        Assert.All(new[] { month, quarter }, insight => Assert.Equal(2, insight.TotalHistoryRows));
+        Assert.Equal((1, 1), (quarter.Page, quarter.Size));
+        Assert.Equal(65, month.HeaviestKg);
+        Assert.Equal(Json.Write(await new ExerciseService(h.Db).Insight(benchId, "3m", 1, 1, default)), Json.Write(quarter));
+    }
+
     private static async Task<(Harness h, Guid templateId, Guid benchId)> Ready()
     {
         var h = await Harness.Create();

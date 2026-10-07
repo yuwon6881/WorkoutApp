@@ -63,18 +63,29 @@ function inferMusclesFromName(name: string): string[] {
   return [...matches];
 }
 
-export function getWorkoutMuscles(items: ExerciseLike[], catalog: Exercise[]): string[] {
-  const catalogById = new Map<string, Exercise>();
-  const catalogByName = new Map<string, Exercise>();
+type CatalogIndex = { byId: Map<string, Exercise>; byName: Map<string, Exercise> };
 
+// Every routine card asks about the same catalog, so the lookup maps are built once per catalog
+// array rather than once per card.
+const catalogIndexes = new WeakMap<Exercise[], CatalogIndex>();
+
+function catalogIndex(catalog: Exercise[]): CatalogIndex {
+  const cached = catalogIndexes.get(catalog);
+  if (cached) return cached;
+  const index: CatalogIndex = { byId: new Map(), byName: new Map() };
   for (const ex of catalog) {
-    catalogById.set(ex.id, ex);
-    catalogByName.set(ex.name.toLowerCase().trim(), ex);
+    index.byId.set(ex.id, ex);
+    index.byName.set(ex.name.toLowerCase().trim(), ex);
     for (const alias of ex.aliases) {
-      catalogByName.set(alias.toLowerCase().trim(), ex);
+      index.byName.set(alias.toLowerCase().trim(), ex);
     }
   }
+  catalogIndexes.set(catalog, index);
+  return index;
+}
 
+export function getWorkoutMuscles(items: ExerciseLike[], catalog: Exercise[]): string[] {
+  const { byId: catalogById, byName: catalogByName } = catalogIndex(catalog);
   const result = new Set<string>();
 
   for (const item of items) {

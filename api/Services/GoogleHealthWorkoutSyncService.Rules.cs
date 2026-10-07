@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text.Json;
+using Microsoft.EntityFrameworkCore;
 using Workout.Api.Data;
 
 namespace Workout.Api.Services;
@@ -55,6 +56,31 @@ public sealed partial class GoogleHealthWorkoutSyncService
 
     private static bool CanDispatch(GoogleHealthConnection connection)
         => connection.Status == "connected" && connection.WorkoutSyncEnabled && HasWorkoutScope(connection);
+
+    /// One sync row is kept per uploaded workout, so the status reads a count and the latest
+    /// problem from the database rather than loading every row and its notes.
+    internal static async Task<GoogleHealthWorkoutSyncStatus> StatusFor(GoogleHealthConnection connection,
+        IQueryable<GoogleHealthWorkoutSyncWork> work, CancellationToken ct)
+    {
+        var pending = await work.CountAsync(x => x.ProcessingState == "pending" || x.ProcessingState == "processing"
+            || x.ProcessingState == "awaiting_operation", ct);
+        var problem = await work.Where(x => x.ProcessingState == "failed" || x.ProcessingState == "unknown")
+            .OrderByDescending(x => x.UpdatedAt)
+            .Select(x => new { x.ProcessingState, x.LastErrorCategory, x.LastErrorMessage })
+            .FirstOrDefaultAsync(ct);
+        var state = !connection.WorkoutSyncEnabled ? "disabled"
+            : connection.Status == "reconnect_required" ? "reconnect_required"
+            : problem?.ProcessingState ?? (pending > 0 ? "pending" : "idle");
+        return new(
+            connection.WorkoutSyncEnabled,
+            HasWorkoutScope(connection),
+            state,
+            pending,
+            connection.WorkoutLastSuccessfulSyncAt,
+            connection.WorkoutSyncRevision,
+            problem?.LastErrorCategory,
+            problem?.LastErrorMessage);
+    }
 
     private static bool HasWorkoutScope(GoogleHealthConnection connection)
     {

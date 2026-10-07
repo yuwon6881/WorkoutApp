@@ -405,27 +405,8 @@ public class GoogleHealthService(
         var connection = await db.GoogleHealthConnections.AsNoTracking().SingleOrDefaultAsync(c => c.UserId == userId, ct);
         if (connection is null) return result;
 
-        string[] granted = [];
-        try { granted = JsonSerializer.Deserialize<string[]>(connection.GrantedScopesJson, Json.Options) ?? []; } catch (JsonException) { }
-
-        var workoutWork = await db.GoogleHealthWorkoutSyncWork.AsNoTracking().Where(x => x.UserId == userId).ToListAsync(ct);
-        var pending = workoutWork.Count(x => x.ProcessingState is "pending" or "processing" or "awaiting_operation");
-        var problem = workoutWork.Where(x => x.ProcessingState is "failed" or "unknown").OrderByDescending(x => x.UpdatedAt).FirstOrDefault();
-
-        var state = !connection.WorkoutSyncEnabled ? "disabled"
-            : connection.Status == "reconnect_required" ? "reconnect_required"
-            : problem?.ProcessingState ?? (pending > 0 ? "pending" : "idle");
-
-        var workoutStatus = new GoogleHealthWorkoutSyncStatus(
-            connection.WorkoutSyncEnabled,
-            granted.Contains(GoogleHealthWorkoutSyncService.WorkoutScope, StringComparer.Ordinal),
-            state,
-            pending,
-            connection.WorkoutLastSuccessfulSyncAt,
-            connection.WorkoutSyncRevision,
-            problem?.LastErrorCategory,
-            problem?.LastErrorMessage);
-
+        var workoutStatus = await GoogleHealthWorkoutSyncService.StatusFor(connection,
+            db.GoogleHealthWorkoutSyncWork.AsNoTracking().Where(x => x.UserId == userId), ct);
         return result with { WorkoutSync = workoutStatus };
     }
 }

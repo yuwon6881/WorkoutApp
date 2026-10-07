@@ -240,6 +240,18 @@ public sealed class CatalogService(AppDb db)
         Validation.Require(catalog || custom, "That exercise is not in the library.", 400);
     }
 
+    /// The set form of RequireActive: a workout, template, or program is checked with two reads
+    /// rather than two per exercise, which matters on autosaves made under the account lock.
+    public async Task RequireAllActive(IEnumerable<Guid?> ids, CancellationToken ct)
+    {
+        var wanted = ids.Where(id => id != null).Select(id => id!.Value).Distinct().ToList();
+        if (wanted.Count == 0) return;
+        var found = await db.Exercises.AsNoTracking().Where(x => wanted.Contains(x.Id) && x.Active).Select(x => x.Id).ToListAsync(ct);
+        if (found.Count < wanted.Count)
+            found.AddRange(await db.CustomExercises.AsNoTracking().Where(x => wanted.Contains(x.Id) && !x.Archived).Select(x => x.Id).ToListAsync(ct));
+        Validation.Require(wanted.All(found.Contains), "That exercise is not in the library.", 400);
+    }
+
     public async Task<Dictionary<Guid, string>> LoadModelsFor(IEnumerable<Guid?> ids, CancellationToken ct)
     {
         var wanted = ids.Where(id => id != null).Select(id => id!.Value).Distinct().ToList();

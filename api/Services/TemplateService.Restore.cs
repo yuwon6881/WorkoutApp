@@ -88,11 +88,10 @@ public sealed partial class TemplateService
         }
 
         var affected = new List<SubstitutionAffectedSlot>();
-        var targetPosition = targetRow.Position;
+        var slotRows = await SlotRows(candidates, targetRow, input.Scope == "phase", tracked: false, ct);
         foreach (var candidate in candidates)
         {
-            var row = await db.TemplateExercises.AsNoTracking().SingleOrDefaultAsync(e => e.TemplateId == candidate.Id &&
-                (e.SlotKey == targetRow.SlotKey || (input.Scope == "phase" && e.Position == targetPosition)), ct);
+            var row = slotRows[candidate.Id].SingleOrDefault();
             if (row is not null) affected.Add(new SubstitutionAffectedSlot(candidate.Id, row.Id, row.SlotKey, candidate.Week, candidate.Name));
         }
 
@@ -157,11 +156,10 @@ public sealed partial class TemplateService
         }
 
         var affected = new List<SubstitutionAffectedSlot>();
-        var targetPosition = targetRow.Position;
+        var slotRows = await SlotRows(templatesToChange, targetRow, input.Scope == "phase", tracked: true, ct);
         foreach (var rowTemplate in templatesToChange)
         {
-            var row = await db.TemplateExercises.SingleOrDefaultAsync(e => e.TemplateId == rowTemplate.Id &&
-                (e.SlotKey == targetRow.SlotKey || (input.Scope == "phase" && e.Position == targetPosition)), ct);
+            var row = slotRows[rowTemplate.Id].SingleOrDefault();
             if (row is null) continue;
 
             var slotBaseline = ResolveBaselineExercise(rowTemplate, row.SlotKey, row.Position) ?? targetBaseline;

@@ -21,7 +21,8 @@ public sealed partial class WorkoutService
             .OrderBy(w => w.FinishedAt).ThenBy(w => w.Id).Select(w => w.Id).ToListAsync(ct);
         foreach (var batch in sessions.Chunk(64))
         {
-            var rows = await db.SessionExercises.AsNoTracking().Where(e => batch.Contains(e.SessionId)).ToListAsync(ct);
+            var rows = await db.SessionExercises.AsNoTracking().Where(e => batch.Contains(e.SessionId) &&
+                (e.ExerciseId == null || ids.Contains(e.ExerciseId.Value))).ToListAsync(ct);
             rows = rows.Where(e => keys.Contains(ProgressionService.Key(e.ExerciseId, e.NameSnapshot))).ToList();
             var rowIds = rows.Select(e => e.Id).ToList();
             var sets = await db.Sets.AsNoTracking().Where(s => rowIds.Contains(s.SessionExerciseId) && s.Done && !s.Warmup && s.DurationSeconds == null).ToListAsync(ct);

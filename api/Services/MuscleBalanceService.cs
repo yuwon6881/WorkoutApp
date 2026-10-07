@@ -30,16 +30,12 @@ public sealed class MuscleBalanceService(AppDb db, CatalogService catalog, IMemo
         var endUtc = to.AddDays(2).ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc);
         var userId = db.CurrentUser!.Value;
 
-        var workoutCount = await db.Workouts.LongCountAsync(ct);
-        var workoutRevision = await db.Workouts.Select(x => (int?)x.Revision).MaxAsync(ct) ?? 0;
-        var exerciseCount = await db.SessionExercises.LongCountAsync(ct);
-        var exerciseRevision = await db.SessionExercises.Select(x => (int?)x.Revision).MaxAsync(ct) ?? 0;
-        var setCount = await db.Sets.LongCountAsync(ct);
-        var setRevision = await db.Sets.Select(x => (int?)x.Revision).MaxAsync(ct) ?? 0;
-        var customCount = await db.CustomExercises.LongCountAsync(ct);
-        var customRevision = await db.CustomExercises.Select(x => (int?)x.Revision).MaxAsync(ct) ?? 0;
+        // Only finished history and custom-exercise muscles feed the balance; both bump their
+        // generation in the same transaction as the change, so one keyed read replaces table scans.
+        var generation = await db.ResourceGenerations.AsNoTracking().Where(x => x.UserId == userId)
+            .Select(x => new { x.History, x.CustomExercises }).SingleOrDefaultAsync(ct);
         var cacheKey = $"workout:muscle-balance:{userId:N}:{rangeValue}:{timeZone.Trim()}:{todayLocal:yyyy-MM-dd}:" +
-            $"{workoutCount}:{workoutRevision}:{exerciseCount}:{exerciseRevision}:{setCount}:{setRevision}:{customCount}:{customRevision}";
+            $"{generation?.History ?? 0}:{generation?.CustomExercises ?? 0}";
         if (cache.TryGetValue<MuscleBalanceView>(cacheKey, out var cached) && cached is not null) return cached;
 
         // Fetch finished sessions with padded UTC bounds, then apply the user's local date window.

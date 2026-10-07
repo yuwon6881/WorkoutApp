@@ -50,6 +50,31 @@ public sealed class RetentionTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task Cleanup_sweeps_abandoned_consent_states_and_spent_watch_pairings_and_devices()
+    {
+        var user = await harness.SignIn();
+        var now = DateTime.UtcNow;
+        harness.Db.GoogleHealthOAuthStates.AddRange(
+            new GoogleHealthOAuthState { State = "abandoned", UserId = user.Id, ExpiresAt = now.AddMinutes(-1) },
+            new GoogleHealthOAuthState { State = "in-flight", UserId = user.Id, ExpiresAt = now.AddMinutes(9) });
+        harness.Db.WatchPairings.AddRange(
+            new WatchPairing { DeviceId = "expired", ExpiresAt = now.AddMinutes(-1) },
+            new WatchPairing { DeviceId = "approved-long-ago", ExpiresAt = now.AddDays(-8), ApprovedAt = now.AddDays(-8), ApprovedUserId = user.Id },
+            new WatchPairing { DeviceId = "waiting", ExpiresAt = now.AddMinutes(4) });
+        harness.Db.WatchDevices.AddRange(
+            new WatchDevice { UserId = user.Id, DeviceId = "revoked", TokenHash = "a", ExpiresAt = now.AddDays(30), RevokedAt = now },
+            new WatchDevice { UserId = user.Id, DeviceId = "idle", TokenHash = "b", ExpiresAt = now.AddDays(-1) },
+            new WatchDevice { UserId = user.Id, DeviceId = "paired", TokenHash = "c", ExpiresAt = now.AddDays(300) });
+        await harness.Db.SaveChangesAsync();
+
+        await harness.Imports(new FakeHandler()).CleanupExpired(default);
+
+        Assert.Equal("in-flight", Assert.Single(await harness.Db.GoogleHealthOAuthStates.IgnoreQueryFilters().ToListAsync()).State);
+        Assert.Equal("waiting", Assert.Single(await harness.Db.WatchPairings.IgnoreQueryFilters().ToListAsync()).DeviceId);
+        Assert.Equal("paired", Assert.Single(await harness.Db.WatchDevices.IgnoreQueryFilters().ToListAsync()).DeviceId);
+    }
+
+    [Fact]
     public async Task MutationReceipts_older_than_retention_window_are_deleted()
     {
         var user = await harness.SignIn();

@@ -215,12 +215,11 @@ public sealed partial class TemplateService(AppDb db, CatalogService catalog)
             Validation.Require(templatesToChange.Count > 0, "There are no remaining workouts in this phase.", 409);
         }
         var affected = new List<SubstitutionAffectedSlot>();
-        var targetPosition = targetRow.Position;
+        var slotRows = await SlotRows(templatesToChange, targetRow, input.Scope == "phase", tracked: true, ct);
         foreach (var rowTemplate in templatesToChange)
         {
             if (rowTemplate.ProgramPhaseId is null && input.Scope == "phase") rowTemplate.ProgramPhaseId = templateRow.ProgramPhaseId;
-            var row = await db.TemplateExercises.SingleOrDefaultAsync(e => e.TemplateId == rowTemplate.Id &&
-                (e.SlotKey == targetRow.SlotKey || (input.Scope == "phase" && e.Position == targetPosition)), ct);
+            var row = slotRows[rowTemplate.Id].SingleOrDefault();
             if (row is null) continue;
             row.ExerciseId = input.ReplacementExerciseId; row.SourceName = replacement;
             row.DemoUrl = ImportDemoLinks.ForName(Json.Read<Dictionary<string, string>>(row.DemoLinksJson), replacement) ?? "";
@@ -271,11 +270,10 @@ public sealed partial class TemplateService(AppDb db, CatalogService catalog)
             candidates = candidates.Where(t => !completed.Contains(t.Id) && !active.Contains(t.Id) && !skipped.Contains(t.Id)).ToList();
         }
         var affected = new List<SubstitutionAffectedSlot>();
-        var targetPosition = targetRow.Position;
+        var slotRows = await SlotRows(candidates, targetRow, input.Scope == "phase", tracked: false, ct);
         foreach (var candidate in candidates)
         {
-            var row = await db.TemplateExercises.AsNoTracking().SingleOrDefaultAsync(e => e.TemplateId == candidate.Id &&
-                (e.SlotKey == targetRow.SlotKey || (input.Scope == "phase" && e.Position == targetPosition)), ct);
+            var row = slotRows[candidate.Id].SingleOrDefault();
             if (row is not null) affected.Add(new SubstitutionAffectedSlot(candidate.Id, row.Id, row.SlotKey, candidate.Week, candidate.Name));
         }
         return new TemplateSubstitutionResult(await Get(templateId, ct), input.Scope, affected, input.ReplacementExerciseId, input.ReplacementName.Trim());
@@ -331,8 +329,22 @@ public sealed partial class TemplateService(AppDb db, CatalogService catalog)
             Validation.Substitutions(exercise.Substitutions);
             Validation.ExerciseRestSeconds(exercise.RestSeconds);
             Validation.Prescriptions(exercise.Sets, requireWorkingRpe);
-            await catalog.RequireActive(exercise.ExerciseId, ct);
         }
+        await catalog.RequireAllActive(input.Exercises.Select(exercise => exercise.ExerciseId), ct);
+    }
+
+    /// The slot a swap or restore touches in each template, read for every template at once. A
+    /// phase-scope change also matches a row at the target slot's position.
+    private async Task<ILookup<Guid, TemplateExercise>> SlotRows(IEnumerable<WorkoutTemplate> templates, TemplateExercise target,
+        bool matchPosition, bool tracked, CancellationToken ct)
+    {
+        var ids = templates.Select(t => t.Id).ToList();
+        var slotKey = target.SlotKey;
+        var position = target.Position;
+        var source = tracked ? db.TemplateExercises : db.TemplateExercises.AsNoTracking();
+        var rows = await source.Where(e => ids.Contains(e.TemplateId) &&
+            (e.SlotKey == slotKey || (matchPosition && e.Position == position))).ToListAsync(ct);
+        return rows.ToLookup(e => e.TemplateId);
     }
 
     public static void RequireFresh(int? supplied, int actual)

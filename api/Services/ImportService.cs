@@ -33,7 +33,9 @@ public sealed partial class ImportService(AppDb db, WorkoutAi ai, CatalogService
                 || (i.Status == ImportStatus.Failed && i.Created >= failedCutoff))
             .OrderByDescending(i => i.Created).Take(10).ToListAsync(ct);
         var views = new List<ImportView>();
-        foreach (var row in rows) views.Add(await View(row, includeDraft: false, ct));
+        // The listing reads the RIR preference once for all of its imports.
+        bool? tracksRir = null;
+        foreach (var row in rows) views.Add(await View(row, includeDraft: false, ct, async () => tracksRir ??= await TracksRir(ct)));
         return views;
     }
 
@@ -90,7 +92,7 @@ public sealed partial class ImportService(AppDb db, WorkoutAi ai, CatalogService
         return await Get(id, ct);
     }
 
-    private async Task<ImportView> View(AiImport import, bool includeDraft, CancellationToken ct)
+    private async Task<ImportView> View(AiImport import, bool includeDraft, CancellationToken ct, Func<Task<bool>>? tracksRir = null)
     {
         ImportDraft? draft = null;
         var unresolved = new List<UnresolvedExercise>();
@@ -107,7 +109,7 @@ public sealed partial class ImportService(AppDb db, WorkoutAi ai, CatalogService
         // the issues derived from the draft, so both reach the panel through one list.
         issues = [.. FilterNotices(ReadNotices(import.NoticesJson), draft, edits), .. issues];
         issues = issues.Distinct().ToList();
-        if (issues.Count > 0) issues = ImportReviewPolicy.ForReview(issues, await TracksRir(ct));
+        if (issues.Count > 0) issues = ImportReviewPolicy.ForReview(issues, await (tracksRir?.Invoke() ?? TracksRir(ct)));
         var coverage = string.IsNullOrWhiteSpace(import.PageCoverageJson) ? [] : Json.Read<List<PdfPageCoverage>>(import.PageCoverageJson);
         var alternatives = string.IsNullOrWhiteSpace(import.AlternativesJson) ? [] : Json.Read<List<ImportAlternative>>(import.AlternativesJson);
         var acceptable = import.Status == ImportStatus.Ready && unresolved.Count == 0 && issues.All(i => i.Severity == "info");
@@ -285,6 +287,15 @@ public sealed partial class ImportService(AppDb db, WorkoutAi ai, CatalogService
         await db.Imports.IgnoreQueryFilters().Where(i => i.Created < importCutoff).ExecuteDeleteAsync(ct);
 
         await db.Sessions.Where(s => s.Expires < now).ExecuteDeleteAsync(ct);
+        // A consent the user never returned from is otherwise never consumed, and pairing only
+        // tidies up after itself when somebody pairs again.
+        await db.GoogleHealthOAuthStates.IgnoreQueryFilters().Where(s => s.ExpiresAt < now).ExecuteDeleteAsync(ct);
+        await db.WatchPairings.IgnoreQueryFilters().Where(pairing =>
+                (pairing.ApprovedAt == null && pairing.ExpiresAt <= now) ||
+                (pairing.ApprovedAt != null && pairing.ApprovedAt < now.AddDays(-7)))
+            .ExecuteDeleteAsync(ct);
+        await db.WatchDevices.IgnoreQueryFilters().Where(device => device.RevokedAt != null || device.ExpiresAt <= now)
+            .ExecuteDeleteAsync(ct);
 
         var receiptDays = Math.Max(1, config?.GetValue("Retention:ReceiptDays", 90) ?? 90);
         var receiptCutoff = now.AddDays(-receiptDays);

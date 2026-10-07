@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Check, ChevronLeft, ChevronRight, RotateCcw } from 'lucide-react';
 import type { HistoryPage, ProgramSummary, Session, WorkoutActivityItem } from '../types';
 import { api } from '../lib/api';
@@ -31,6 +31,12 @@ export function TrainingCalendar({ onSession, program, refreshKey, activeWorkout
   const [calendar, setCalendar] = useState<WorkoutActivityItem[]>([]);
   const [initialLoading, setInitialLoading] = useState(true);
   const [calendarError, setCalendarError] = useState('');
+  // Three weeks of day cells each look up their own date; group once per loaded calendar.
+  const entriesByDay = useMemo(() => {
+    const byDay = new Map<string, WorkoutActivityItem[]>();
+    for (const item of calendar) byDay.set(item.date, [...(byDay.get(item.date) ?? []), item]);
+    return byDay;
+  }, [calendar]);
 
   const navigateByWeek = useCallback((direction: number) => {
     if (!direction || navigating.current) return;
@@ -223,7 +229,7 @@ export function TrainingCalendar({ onSession, program, refreshKey, activeWorkout
             >
               {weekDays(offset + relativeWeek).map(day => {
                 const dayStr = localDay(day);
-                const entries = calendar.filter(item => item.date === dayStr);
+                const entries = entriesByDay.get(dayStr) ?? [];
                 const status = entries.some(e => e.status === 'in_progress')
                   ? 'in_progress'
                   : entries.some(e => e.status === 'completed')

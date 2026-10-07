@@ -142,9 +142,27 @@ public sealed partial class ExerciseService(AppDb db, IMemoryCache? cache = null
         return new ExerciseClearPreview(id, meta.Name, rows.Select(x => x.SessionId).Distinct().Count(), sets.Count, false, false);
     }
 
-    private async Task<ExerciseInsight> BuildInsight(Guid id, string? range, int page, int size, CancellationToken ct)
+    /// The selected range's chart points and one page of history, cut from the whole-history insight.
+    private static ExerciseInsight Slice(ExerciseInsight full, string? range, int page, int size)
     {
-        Validation.Require(page >= 0 && size is > 0 and <= 100, "Invalid exercise history page.");
+        var cutoff = range switch
+        {
+            "1m" => DateOnly.FromDateTime(DateTime.UtcNow).AddMonths(-1),
+            "6m" => DateOnly.FromDateTime(DateTime.UtcNow).AddMonths(-6),
+            "all" => DateOnly.MinValue,
+            _ => DateOnly.FromDateTime(DateTime.UtcNow).AddMonths(-3)
+        };
+        return full with
+        {
+            Points = full.Points.Where(x => x.Date >= cutoff).ToList(),
+            History = full.History.Skip(page * size).Take(size).ToList(),
+            Page = page, Size = size
+        };
+    }
+
+    /// Every chart point and history row; Slice narrows them to what was requested.
+    private async Task<ExerciseInsight> BuildInsight(Guid id, CancellationToken ct)
+    {
         var meta = await Metadata(id, ct);
         var rows = await FinishedExerciseRows(id, ct);
         var sessions = await db.Workouts.AsNoTracking().Where(x => rows.Select(r => r.SessionId).Contains(x.Id))
@@ -158,11 +176,12 @@ public sealed partial class ExerciseService(AppDb db, IMemoryCache? cache = null
         var techniques = rows.ToDictionary(x => x.Id, x => SetTechniques.ByPosition(x.PrescriptionJson));
         var strengthSets = sets.Where(x => x.DurationSeconds is null && SetTechniques.IsStrengthEvidence(techniques[x.SessionExerciseId], x.Position)).ToList();
         var strengthIds = strengthSets.Select(x => x.Id).ToHashSet();
+        var setsBySession = sets.ToLookup(x => byExercise[x.SessionExerciseId].SessionId);
         var records = new List<(Guid SessionId, DateOnly Date, string Name, double? E1rm, double? Load, double? Volume, int? Reps, bool Partial)>();
         foreach (var group in rows.GroupBy(x => x.SessionId))
         {
             var session = sessions[group.Key];
-            var groupSets = sets.Where(x => group.Select(e => e.Id).Contains(x.SessionExerciseId)).ToList();
+            var groupSets = setsBySession[group.Key].ToList();
             if (groupSets.Count == 0) continue;
             var partial = groupSets.Any(x => x.DurationSeconds is null && byExercise[x.SessionExerciseId].LoadModel is LoadModels.External or LoadModels.FullBodyweight
                 && RecordedLoad(x) is null);
@@ -176,24 +195,16 @@ public sealed partial class ExerciseService(AppDb db, IMemoryCache? cache = null
                 estimates.Count == 0 ? null : estimates.Max(), best == null ? null : RecordedLoad(best),
                 volume.Count == 0 ? null : volume.Sum(), rep?.Reps, partial));
         }
-        var cutoff = range switch
-        {
-            "1m" => DateOnly.FromDateTime(DateTime.UtcNow).AddMonths(-1),
-            "6m" => DateOnly.FromDateTime(DateTime.UtcNow).AddMonths(-6),
-            "all" => DateOnly.MinValue,
-            _ => DateOnly.FromDateTime(DateTime.UtcNow).AddMonths(-3)
-        };
-        var filtered = records.Where(x => x.Date >= cutoff).OrderBy(x => x.Date).ToList();
+        var chronological = records.OrderBy(x => x.Date).ToList();
         var history = records.OrderByDescending(x => x.Date).ThenByDescending(x => sessions[x.SessionId].FinishedAt).ToList();
         var programIds = sessions.Values.Where(session => session.ProgramId != null)
             .Select(session => session.ProgramId!.Value).Distinct().ToList();
         var programNames = await db.Programs.AsNoTracking().Where(program => programIds.Contains(program.Id))
             .ToDictionaryAsync(program => program.Id, program => program.Name, ct);
         var historyRows = history.Select(x => new ExerciseHistoryRow(x.SessionId, x.Name, x.Date,
-            sets.Count(s => byExercise[s.SessionExerciseId].SessionId == x.SessionId), x.Volume, x.Partial,
+            setsBySession[x.SessionId].Count(), x.Volume, x.Partial,
             sessions[x.SessionId].FinishedAt, sessions[x.SessionId].ProgramId is { } programId
                 ? programNames.GetValueOrDefault(programId, "Program unavailable") : null)).ToList();
-        var paged = historyRows.Skip(page * size).Take(size).ToList();
         var bestE = records.Where(x => x.E1rm is not null).OrderByDescending(x => x.E1rm).FirstOrDefault();
         var heavy = records.Where(x => x.Load is not null).OrderByDescending(x => x.Load).FirstOrDefault();
         var heaviestSet = strengthSets.Where(x => RecordedLoad(x) is not null)
@@ -207,7 +218,7 @@ public sealed partial class ExerciseService(AppDb db, IMemoryCache? cache = null
                 .OrderByDescending(x => x.Set.Reps).FirstOrDefault()
             : setRecords.OrderByDescending(x => x.Set.Reps).FirstOrDefault();
         var last = records.OrderByDescending(x => x.Date).FirstOrDefault();
-        var points = filtered.Select(x => new ExerciseMetricPoint(x.Date, x.SessionId, x.Name, x.E1rm, x.Load, x.Volume, x.Reps, x.Partial)).ToList();
+        var points = chronological.Select(x => new ExerciseMetricPoint(x.Date, x.SessionId, x.Name, x.E1rm, x.Load, x.Volume, x.Reps, x.Partial)).ToList();
         var externalLoads = strengthSets.Where(x => byExercise[x.SessionExerciseId].LoadModel == LoadModels.External && x.WeightKg is not null).Select(x => x.WeightKg!.Value).ToList();
         var bodyweightSets = strengthSets.Where(x => byExercise[x.SessionExerciseId].LoadModel == LoadModels.FullBodyweight).ToList();
         var addedLoads = bodyweightSets.Where(x => x.ResistanceMode == ResistanceModes.Added && x.WeightKg is not null).Select(x => x.WeightKg!.Value).ToList();
@@ -224,7 +235,7 @@ public sealed partial class ExerciseService(AppDb db, IMemoryCache? cache = null
             // An exercise can have finished sessions and still no set that states both a load and
             // reps — every load unknown, for instance — and the empty tuple's Set is null.
             reps.Set?.Reps, reps.Set?.Reps is null ? null : DateOnly.FromDateTime(reps.Session.FinishedAt!.Value),
-            last.Date == default ? null : last.Date, records.Any(x => x.Partial), points, paged, page, size, historyRows.Count,
+            last.Date == default ? null : last.Date, records.Any(x => x.Partial), points, historyRows, 0, historyRows.Count, historyRows.Count,
             externalLoads.Count == 0 ? null : externalLoads.Max(),
             addedLoads.Count == 0 ? null : addedLoads.Max(),
             assistanceLoads.Count == 0 ? null : assistanceLoads.Min(),

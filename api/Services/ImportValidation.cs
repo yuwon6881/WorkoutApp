@@ -277,8 +277,8 @@ internal static partial class ImportValidation
                 foreach (var source in new[] { set.RepsSource, set.RpeSource, set.RestSource })
                     Validation.Require(source is "extracted" or "inferred" or "userEdited", "Unknown provenance label.");
             }
-            await catalog.RequireActive(exercise.ExerciseId, ct);
         }
+        await catalog.RequireAllActive(workout.Exercises.Select(exercise => exercise.ExerciseId), ct);
     }
 
     /// Numbers each phase's weeks from one. A document regularly labels a phase — a deload week

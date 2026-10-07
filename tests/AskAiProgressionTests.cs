@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Workout.Api.Domain;
 using Workout.Api.Services;
+using Workout.Api.Services.AI;
 using Workout.Api.Services.AI.Tools;
 using Xunit;
 
@@ -118,5 +119,24 @@ public sealed class AskAiProgressionTests
             Assert.Equal(JsonValueKind.Null, set.GetProperty("earlierSetsPastTargetBy").ValueKind);
             Assert.Equal("8-10 reps", set.GetProperty("target").GetString());
         }
+    }
+
+    [Fact]
+    public async Task The_exercise_progress_preset_seeds_arguments_the_progress_tool_accepts()
+    {
+        await using var h = await Harness.Create();
+        await h.SignIn();
+        var template = await TwoSetCurl(h);
+        await Log(h, await h.Workouts.Start(template, null, default), (20, 10, "2"), (20, 9, "2"));
+
+        var seeded = Assert.Single(AiAssistantService.BuildSeededCalls(
+            new AiInvocationContext("exercises", "exercise-progress", ExerciseSlug: "curl"))!);
+        Assert.Equal("get_exercise_progress", seeded.ToolName);
+
+        // A seeded call that fails argument validation costs the user an extra model round-trip.
+        var result = await new GetExerciseProgressTool(h.Db).ExecuteAsync(
+            AiToolArgs.Parse(seeded.ArgumentsJson), new AiToolContext("kg", new DateOnly(2026, 10, 3)), default);
+        var data = JsonSerializer.SerializeToElement(result.Data, Json.Options);
+        Assert.Equal(1, data.GetProperty("sessions").GetArrayLength());
     }
 }

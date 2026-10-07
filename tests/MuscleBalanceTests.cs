@@ -110,6 +110,31 @@ public class MuscleBalanceTests
         Assert.All(result.Muscles, muscle => Assert.Empty(muscle.Contributions!));
     }
 
+    [Fact]
+    public async Task Cached_balance_follows_new_history_and_custom_exercise_muscle_changes()
+    {
+        await using var h = await Ready();
+        var userId = h.Db.CurrentUser!.Value;
+        var custom = new CustomExercise { UserId = userId, Name = "Custom Fly", Muscle = "Chest" };
+        h.Db.CustomExercises.Add(custom);
+        AddExercise(h, AddSession(h, userId, "First", DateTime.UtcNow), custom.Id, custom.Name, (true, false));
+        await h.Db.SaveChangesAsync();
+        Assert.Equal(1, (await h.MuscleBalance.Balance("1w", "UTC", default)).TotalSets);
+
+        AddExercise(h, AddSession(h, userId, "Second", DateTime.UtcNow), custom.Id, custom.Name, (true, false));
+        await h.Db.SaveChangesAsync();
+        var afterWorkout = await h.MuscleBalance.Balance("1w", "UTC", default);
+        Assert.Equal(2, afterWorkout.TotalSets);
+        Assert.Equal(2, Assert.Single(afterWorkout.Muscles, muscle => muscle.Muscle == "Chest").Sets);
+
+        custom.Muscle = "Back";
+        custom.Revision++;
+        await h.Db.SaveChangesAsync();
+        var afterEdit = await h.MuscleBalance.Balance("1w", "UTC", default);
+        Assert.Equal(0, Assert.Single(afterEdit.Muscles, muscle => muscle.Muscle == "Chest").Sets);
+        Assert.Equal(2, Assert.Single(afterEdit.Muscles, muscle => muscle.Muscle == "Back").Sets);
+    }
+
     private static async Task<Harness> Ready()
     {
         var h = await Harness.Create();

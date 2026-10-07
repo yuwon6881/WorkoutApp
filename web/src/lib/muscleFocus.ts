@@ -43,7 +43,18 @@ function merge(left: Bounds | null, right: Bounds | null): Bounds | null {
   };
 }
 
+// Plates are fixed artwork, so each muscle's crop is parsed once; hovering re-renders every thumb.
+const regionBoundsCache = new Map<string, Bounds | null>();
+
 function regionBounds(muscle: string, path: string, centered = false): Bounds | null {
+  const key = `${muscle}|${centered ? 1 : 0}|${path}`;
+  if (regionBoundsCache.has(key)) return regionBoundsCache.get(key) ?? null;
+  const bounds = measureRegion(muscle, path, centered);
+  regionBoundsCache.set(key, bounds);
+  return bounds;
+}
+
+function measureRegion(muscle: string, path: string, centered: boolean): Bounds | null {
   const subpaths = path.split('M').slice(1).map(part => `M${part}`);
   const limb = centered ? false : ONE_LIMB.has(muscle);
   let bounds: Bounds | null = null;

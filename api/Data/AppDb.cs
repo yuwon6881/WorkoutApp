@@ -182,6 +182,8 @@ public sealed class AppDb(DbContextOptions<AppDb> options) : DbContext(options)
         m.Entity<WorkoutTemplate>().HasIndex(x => new { x.UserId, x.ProgramId, x.ProgramPhaseId });
         m.Entity<SessionExercise>().HasIndex(x => new { x.UserId, x.SessionId, x.Position });
         m.Entity<SessionExercise>().HasIndex(x => new { x.UserId, x.SessionId, x.SourceSlotKey });
+        // Per-exercise history (insights, previous exposures, clears) reads across every session.
+        m.Entity<SessionExercise>().HasIndex(x => new { x.UserId, x.ExerciseId });
         m.Entity<ExerciseSubstitution>().HasIndex(x => new { x.UserId, x.SessionId, x.PendingRetention });
         m.Entity<CompletedSet>().HasIndex(x => new { x.UserId, x.SessionExerciseId, x.Position });
         m.Entity<WorkoutSession>().HasIndex(x => new { x.UserId, x.FinishedAt });
@@ -251,6 +253,8 @@ public sealed class AppDb(DbContextOptions<AppDb> options) : DbContext(options)
         m.Entity<WorkoutRestAlertSchedule>().HasIndex(x => new { x.UserId, x.SessionId, x.DeviceId, x.Generation }).IsUnique();
         m.Entity<WorkoutRestAlertSchedule>().HasIndex(x => new { x.Status, x.ExpiresAt });
         m.Entity<WorkoutRestAlertSchedule>().HasIndex(x => new { x.Status, x.CreatedAt });
+        // Cloud Tasks callbacks carry only the schedule id; the key leads with the account.
+        m.Entity<WorkoutRestAlertSchedule>().HasIndex(x => x.Id);
         m.Entity<WorkoutRestAlertSchedule>().HasOne<WorkoutSession>().WithMany()
             .HasForeignKey(x => new { x.UserId, x.SessionId }).OnDelete(DeleteBehavior.Cascade);
         m.Entity<WorkoutRestAlertSchedule>().ToTable("WorkoutRestAlertSchedules", t =>

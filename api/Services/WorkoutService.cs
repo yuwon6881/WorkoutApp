@@ -313,8 +313,8 @@ public sealed partial class WorkoutService(
                     set.Reps, set.DurationSeconds, set.Rpe, set.Rir, set.Done);
                 Validation.Require(set.ResistanceMode is null || ResistanceModes.All.Contains(set.ResistanceMode), "Unknown resistance mode.");
             }
-            await catalog.RequireActive(exercise.ExerciseId, ct);
         }
+        await catalog.RequireAllActive(input.Exercises.Select(exercise => exercise.ExerciseId), ct);
 
         Validation.Require(sessionRow.Active, "This workout is already saved to your history.", 409);
         TemplateService.RequireFresh(input.Revision, sessionRow.Revision);
@@ -581,15 +581,20 @@ public sealed partial class WorkoutService(
             var sourcePosition = swap.SourceTemplateExerciseId is { } sourceId
                 ? await db.TemplateExercises.Where(e => e.Id == sourceId).Select(e => (int?)e.Position).SingleOrDefaultAsync(ct)
                 : null;
-            var completed = await db.Workouts.Where(w => w.FinishedAt != null && w.TemplateId != null)
+            // Only this phase's templates are candidates, so only their completion matters.
+            var phaseTemplateIds = templatesInPhase.Select(t => t.Id).ToList();
+            var completed = await db.Workouts.Where(w => w.FinishedAt != null && w.TemplateId != null && phaseTemplateIds.Contains(w.TemplateId.Value))
                 .Select(w => w.TemplateId!.Value).ToHashSetAsync(ct);
             var skipped = await db.ProgramSkips.Where(s => templatesInPhase.Select(t => t.ProgramId).Contains(s.ProgramId))
                 .Select(s => s.TemplateId).ToHashSetAsync(ct);
-            foreach (var template in templatesInPhase.Where(t => !completed.Contains(t.Id) && !skipped.Contains(t.Id)))
+            var targets = templatesInPhase.Where(t => !completed.Contains(t.Id) && !skipped.Contains(t.Id) && t.Id != currentTemplateId).ToList();
+            var targetIds = targets.Select(t => t.Id).ToList();
+            var slotRows = (await db.TemplateExercises.Where(e => targetIds.Contains(e.TemplateId) &&
+                    (e.SlotKey == swap.SourceSlotKey || (sourcePosition.HasValue && e.Position == sourcePosition.Value))).ToListAsync(ct))
+                .ToLookup(e => e.TemplateId);
+            foreach (var template in targets)
             {
-                if (currentTemplateId == template.Id) continue;
-                var row = await db.TemplateExercises.SingleOrDefaultAsync(e => e.TemplateId == template.Id &&
-                    (e.SlotKey == swap.SourceSlotKey || (sourcePosition.HasValue && e.Position == sourcePosition.Value)), ct);
+                var row = slotRows[template.Id].SingleOrDefault();
                 if (row is null) continue;
                 row.ExerciseId = swap.ReplacementExerciseId; row.SourceName = swap.ReplacementName;
                 row.DemoUrl = ImportDemoLinks.ForName(
