@@ -57,6 +57,8 @@ builder.Services.AddScoped<MuscleBalanceService>();
 builder.Services.AddScoped<GoogleHealthWorkoutSummaryService>();
 builder.Services.AddScoped<NutritionContextService>();
 builder.Services.AddSingleton<SharedAccessTokenService>();
+builder.Services.AddSingleton<IAccountDeletionNoticeValidator>(sp => sp.GetRequiredService<SharedAccessTokenService>());
+builder.Services.AddScoped<AccountErasureService>();
 builder.Services.AddScoped<OpenIddictAccessTokenService>();
 builder.Services.AddScoped<ISharedAccessTokenValidator>(services => services.GetRequiredService<OpenIddictAccessTokenService>());
 builder.Services.AddScoped<FitnessConnectionClient>();
@@ -172,7 +174,9 @@ app.Use(async(http,next)=>
         var isApi = http.Request.Path.StartsWithSegments("/api");
         var isWatchPairingBootstrap = isApi && WatchAuthentication.IsPairingBootstrap(http.Request);
         var isWatchAuthenticated = false;
-        var isUnprotectedApiPath = http.Request.Path.Value is "/api/auth/dev-reset" or "/api/auth/central/start" or "/api/auth/central/callback" or "/api/integrations/google-health/callback";
+        // The account-deletion receiver is server-to-server and authenticated by its signed notice.
+        var isAccountDeletionNotice = http.Request.Path.Value == AccountDeletionEndpoints.Path;
+        var isUnprotectedApiPath = isAccountDeletionNotice || http.Request.Path.Value is "/api/auth/dev-reset" or "/api/auth/central/start" or "/api/auth/central/callback" or "/api/integrations/google-health/callback";
         if(isApi && !http.Request.Path.StartsWithSegments("/api/integrations/v1") && !isUnprotectedApiPath && !isWatchPairingBootstrap)
         {
             var db=http.RequestServices.GetRequiredService<AppDb>();
@@ -196,7 +200,7 @@ app.Use(async(http,next)=>
         }
         if(!HttpMethods.IsGet(http.Request.Method)&&!HttpMethods.IsHead(http.Request.Method)&&isApi)
         {
-            if(isWatchAuthenticated) { /* Device-token requests do not use browser origin checks. */ }
+            if(isWatchAuthenticated || isAccountDeletionNotice) { /* Device-token requests and signed deletion notices do not use browser origin checks. */ }
             else if(isWatchPairingBootstrap)
             {
                 Validation.Require(string.IsNullOrEmpty(http.Request.Headers.Origin) &&
@@ -222,7 +226,7 @@ app.Use(async(http,next)=>
 });
 app.UseRateLimiter();
 app.UseDefaultFiles();app.UseStaticFiles(new StaticFileOptions { OnPrepareResponse=c=> { if(c.File.Name=="sw.js"||c.File.Name=="index.html") c.Context.Response.Headers.CacheControl="no-cache"; } });
-app.MapAuth();app.MapCentralAuth();app.MapBootstrap();app.MapPerformanceReads();app.MapRevisions();app.MapCatalog();app.MapLoadSettings();app.MapTemplates();app.MapPrograms();app.MapProgramEditor();app.MapWorkouts();app.MapImports();app.MapIntegrations();app.MapGoogleHealth();app.MapRestAlerts();app.MapWatch();app.MapAi();
+app.MapAuth();app.MapCentralAuth();app.MapBootstrap();app.MapPerformanceReads();app.MapRevisions();app.MapCatalog();app.MapLoadSettings();app.MapTemplates();app.MapPrograms();app.MapProgramEditor();app.MapWorkouts();app.MapImports();app.MapIntegrations();app.MapGoogleHealth();app.MapRestAlerts();app.MapWatch();app.MapAi();app.MapAccountDeletion();
 app.MapGet("/health",()=>new { status="ok" });
 app.MapFallback(async http=>
 {
