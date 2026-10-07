@@ -51,7 +51,7 @@ public sealed class ImportActiveWorkoutGateTests
     {
         var h = await Harness.Create(Configured());
         await h.SignIn();
-        await h.Seed(new SeedExercise("bench", "Bench press", "Chest", "Barbell", "Cue", null));
+        await h.Seed(new SeedExercise("bench", "Bench press", "Chest", "Barbell", null));
         var benchId = await h.ExerciseId("bench");
         var template = await h.Templates.Create(
             Harness.Template("Push", Harness.Exercise(benchId, "Bench press", Harness.Set(8, 10))), null, 1, 0, default);

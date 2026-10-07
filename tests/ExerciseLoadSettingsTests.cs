@@ -12,7 +12,7 @@ public sealed class ExerciseLoadSettingsTests
     {
         await using var h = await Harness.Create();
         var alice = await h.SignIn();
-        await h.Seed(new SeedExercise("curl", "Curl", "Biceps", "Cable", "", null, 2.5));
+        await h.Seed(new SeedExercise("curl", "Curl", "Biceps", "Cable", null, 2.5));
         var id = await h.ExerciseId("curl");
         var service = new ExerciseLoadSettingsService(h.Db);
         var saved = await service.Save(id, new(1, null, 0), default);
@@ -34,7 +34,7 @@ public sealed class ExerciseLoadSettingsTests
     {
         await using var h = await Harness.Create();
         await h.SignIn();
-        await h.Seed(new SeedExercise("curl", "Curl", "Biceps", "Dumbbell", "", null, 2));
+        await h.Seed(new SeedExercise("curl", "Curl", "Biceps", "Dumbbell", null, 2));
         var id = await h.ExerciseId("curl");
         var template = await h.Templates.Create(Harness.Template("Arms",
             Harness.Exercise(id, "Curl", Harness.Set(10, 15))), null, 1, 0, default);
@@ -69,7 +69,7 @@ public sealed class ExerciseLoadSettingsTests
     {
         await using var h = await Harness.Create();
         await h.SignIn();
-        var custom = await new ExerciseService(h.Db).Create(new("My cable curl", "Biceps", "Cable", ""), default);
+        var custom = await new ExerciseService(h.Db).Create(new("My cable curl", "Biceps", "Cable"), default);
         var service = new ExerciseLoadSettingsService(h.Db);
         foreach (var input in new ExerciseLoadSettingsInput[] {
             new(-1, null, 0), new(51, null, 0), new(double.NaN, null, 0),
@@ -99,7 +99,7 @@ public sealed class ExerciseLoadSettingsTests
     {
         await using var h = await Harness.Create();
         await h.SignIn();
-        await h.Seed(new SeedExercise("pull", name, "Back", "Machine", "", null, 2.5, LoadModels.FullBodyweight));
+        await h.Seed(new SeedExercise("pull", name, "Back", "Machine", null, 2.5, LoadModels.FullBodyweight));
         var id = await h.ExerciseId("pull");
         var template = await h.Templates.Create(Harness.Template("Pull", Harness.Exercise(id, name, Harness.Set(8, 10))), null, 1, 0, default);
         var session = await h.Workouts.Start(template.Id, null, default);

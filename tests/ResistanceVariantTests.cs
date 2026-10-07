@@ -33,7 +33,7 @@ public sealed class ResistanceVariantTests
     {
         await using var h = await Harness.Create();
         await h.SignIn();
-        await h.Seed(new SeedExercise("pull", name, "Back", "Bodyweight", "", null, 2.5, LoadModels.FullBodyweight));
+        await h.Seed(new SeedExercise("pull", name, "Back", "Bodyweight", null, 2.5, LoadModels.FullBodyweight));
         var id = await h.ExerciseId("pull");
         var template = await h.Templates.Create(Harness.Template("Pull", Harness.Exercise(id, name, Harness.Set(8, 10))), null, 1, 0, default);
         var session = await h.Workouts.Start(template.Id, null, default);

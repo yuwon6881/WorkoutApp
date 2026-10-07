@@ -30,7 +30,7 @@ public sealed class ImportSlotMappingTests
     {
         await using var harness = await Harness.Create(Configured());
         await harness.SignIn();
-        await harness.Seed(new SeedExercise("bench", "Barbell Bench Press", "Chest", "Barbell", "", null));
+        await harness.Seed(new SeedExercise("bench", "Barbell Bench Press", "Chest", "Barbell", null));
         var benchId = await harness.ExerciseId("bench");
         var imports = harness.Imports(StubHandler.Program(Program));
 
@@ -72,7 +72,7 @@ public sealed class ImportSlotMappingTests
     {
         await using var harness = await Harness.Create(Configured());
         await harness.SignIn();
-        await harness.Seed(new SeedExercise("bench", "Barbell Bench Press", "Chest", "Barbell", "", null));
+        await harness.Seed(new SeedExercise("bench", "Barbell Bench Press", "Chest", "Barbell", null));
         var imports = harness.Imports(StubHandler.Program(Program));
         var view = await imports.Create(Source(), default);
         var line = view.Unresolved[0].LineId;
@@ -173,7 +173,7 @@ public sealed class ImportSlotMappingTests
             """;
         await using var harness = await Harness.Create(Configured());
         await harness.SignIn();
-        await harness.Seed(new SeedExercise("rear-fly", "Cable Rear Delt Fly", "Rear delts", "Cable", "", null));
+        await harness.Seed(new SeedExercise("rear-fly", "Cable Rear Delt Fly", "Rear delts", "Cable", null));
         var facePull = await harness.ExerciseId("rear-fly");
         var imports = harness.Imports(StubHandler.Program(program));
         var source = new ImportSourceInput("pb3.pdf", 3,

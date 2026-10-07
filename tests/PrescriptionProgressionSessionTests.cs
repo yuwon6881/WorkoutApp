@@ -9,7 +9,7 @@ public sealed class PrescriptionProgressionSessionTests
 {
     private static async Task<Guid> Template(Harness h, params SetPrescription[] prescription)
     {
-        await h.Seed(new SeedExercise("curl", "Curl", "Biceps", "Dumbbell", "Curl", null, 2.5));
+        await h.Seed(new SeedExercise("curl", "Curl", "Biceps", "Dumbbell", null, 2.5));
         var id = await h.ExerciseId("curl");
         var template = await h.Templates.Create(Harness.Template("Arms",
             Harness.Exercise(id, "Curl", prescription)), null, 1, 0, default);

@@ -45,7 +45,7 @@ public sealed class TrackRirTests
     {
         await using var h = await Harness.Create();
         var user = await h.SignIn();
-        await h.Seed(new SeedExercise("squat", "Squat", "Quads", "Barbell", "", null));
+        await h.Seed(new SeedExercise("squat", "Squat", "Quads", "Barbell", null));
         var squat = await h.ExerciseId("squat");
         var set = new DraftSet(5, 5, null, 120, null, null, null, RpeSource: "inferred");
         var day = new DraftWorkout(Guid.NewGuid(), 1, "Lower", null, null,

@@ -4,7 +4,7 @@ using Workout.Api.Domain;
 
 namespace Workout.Api.Services;
 
-public record SeedExercise(string Slug, string Name, string Muscle, string Equipment, string Cue, List<string>? Aliases,
+public record SeedExercise(string Slug, string Name, string Muscle, string Equipment, List<string>? Aliases,
     double? LoadStepKg = null, string LoadModel = LoadModels.External, string? MovementPattern = null,
     List<string>? SecondaryMuscles = null, string? Category = null, string? TrackingMode = null);
 
@@ -27,7 +27,7 @@ public static class CatalogSeed
             Validation.Name(row.Slug, "Exercise slug", 120);
             Validation.Require(row.Slug.All(c => char.IsAsciiLetterOrDigit(c) || c is '-'), $"Slug '{row.Slug}' may use letters, digits, and hyphens only.");
             Validation.Name(row.Name, "Exercise name", 160);
-            Validation.Text(row.Muscle, 60, "Muscle"); Validation.Text(row.Equipment, 60, "Equipment"); Validation.Text(row.Cue, 600, "Cue");
+            Validation.Text(row.Muscle, 60, "Muscle"); Validation.Text(row.Equipment, 60, "Equipment");
             Validation.Text(row.MovementPattern, 80, "Movement pattern");
             Validation.Require((row.SecondaryMuscles ?? []).Count <= 8, "An exercise can have at most 8 secondary muscle groups.");
             foreach (var secondary in row.SecondaryMuscles ?? []) Validation.Text(secondary, 80, "Secondary muscle");
@@ -48,7 +48,7 @@ public static class CatalogSeed
             else updated++;
             exercise.Name = row.Name.Trim(); exercise.Muscle = row.Muscle ?? ""; exercise.Equipment = row.Equipment ?? "";
             exercise.Category = ExerciseCategories.Normalize(row.Category, row.Equipment, row.LoadModel);
-            exercise.Cue = row.Cue ?? ""; exercise.Active = true;
+            exercise.Active = true;
             exercise.SecondaryMusclesJson = Json.Write(CatalogService.NormalizeMuscles(row.Muscle, row.SecondaryMuscles));
             // The seed may state the smallest jump a gym actually has; otherwise equipment decides.
             exercise.LoadStepKg = row.LoadStepKg ?? (row.LoadModel == LoadModels.FullBodyweight

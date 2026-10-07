@@ -12,7 +12,7 @@ public sealed class ProgramEditorTests
     {
         await using var h = await Harness.Create();
         await h.SignIn();
-        await h.Seed(new SeedExercise("bench-press", "Barbell bench press", "Chest", "Barbell", "Press", []));
+        await h.Seed(new SeedExercise("bench-press", "Barbell bench press", "Chest", "Barbell", []));
         var exerciseId = await h.ExerciseId("bench-press");
         var exercise = new DraftExercise(Guid.NewGuid(), "Barbell bench press", exerciseId, null,
             [new DraftSet(8, 10, 8, 90, null, null, null)]);
@@ -86,7 +86,7 @@ public sealed class ProgramEditorTests
     {
         await using var h = await Harness.Create();
         await h.SignIn();
-        await h.Seed(new SeedExercise("bench-press", "Barbell bench press", "Chest", "Barbell", "Press", []));
+        await h.Seed(new SeedExercise("bench-press", "Barbell bench press", "Chest", "Barbell", []));
         var exerciseId = await h.ExerciseId("bench-press");
         var exercise = new DraftExercise(Guid.NewGuid(), "Barbell bench press", exerciseId, null,
             [new DraftSet(8, 10, 8, 90, null, null, null)], RestSeconds: 120);

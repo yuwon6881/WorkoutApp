@@ -55,7 +55,7 @@ public sealed class TechniqueSetTests
     {
         await using var h = await Harness.Create();
         await h.SignIn();
-        await h.Seed(new SeedExercise("curl", "Curl", "Biceps", "Dumbbell", "Curl", null, 2.5));
+        await h.Seed(new SeedExercise("curl", "Curl", "Biceps", "Dumbbell", null, 2.5));
         var id = await h.ExerciseId("curl");
         var template = await h.Templates.Create(Harness.Template("Arms", Harness.Exercise(id, "Curl",
             Harness.Set(8, 10), Harness.Set(8, 10), Harness.Set(8, 10) with { Notes = "Lengthened partials" })), null, 1, 0, default);
@@ -88,7 +88,7 @@ public sealed class TechniqueSetTests
     {
         await using var h = await Harness.Create();
         await h.SignIn();
-        await h.Seed(new SeedExercise("curl", "Curl", "Biceps", "Dumbbell", "Curl", null, 2.5));
+        await h.Seed(new SeedExercise("curl", "Curl", "Biceps", "Dumbbell", null, 2.5));
         var id = await h.ExerciseId("curl");
         var partials = Harness.Set(8, 10) with { Notes = "Lengthened partials" };
         var allPartials = await h.Templates.Create(Harness.Template("Partials", Harness.Exercise(id, "Curl",
@@ -110,7 +110,7 @@ public sealed class TechniqueSetTests
     {
         await using var h = await Harness.Create();
         await h.SignIn();
-        await h.Seed(new SeedExercise("pulldown", "Lat Pulldown", "Lats", "Machine", "Pulldown", null, 2.5));
+        await h.Seed(new SeedExercise("pulldown", "Lat Pulldown", "Lats", "Machine", null, 2.5));
         var id = await h.ExerciseId("pulldown");
         var straight = await h.Templates.Create(Harness.Template("Straight", Harness.Exercise(id, "Lat Pulldown",
             Harness.Set(8, 10), Harness.Set(8, 10))), null, 1, 0, default);

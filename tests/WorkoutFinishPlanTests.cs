@@ -77,7 +77,7 @@ public sealed class WorkoutFinishPlanTests
     private static async Task<SessionView> Prepare(Harness h)
     {
         await h.SignIn();
-        await h.Seed(new SeedExercise("bench", "Bench", "Chest", "Barbell", "", null));
+        await h.Seed(new SeedExercise("bench", "Bench", "Chest", "Barbell", null));
         var id = await h.ExerciseId("bench");
         var program = await h.Programs.Create(new ProgramInput("Program", [
             new ProgramWorkoutInput(1, "First", "Push", null,

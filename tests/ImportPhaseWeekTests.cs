@@ -72,7 +72,7 @@ public sealed class ImportPhaseWeekTests
     {
         await using var h = await Harness.Create(Configured());
         await h.SignIn();
-        await h.Seed(new SeedExercise("bench", "Barbell bench press", "Chest", "Barbell", "", null));
+        await h.Seed(new SeedExercise("bench", "Barbell bench press", "Chest", "Barbell", null));
         var imports = h.Imports(Reading(Outline, Days((4, 4, "Accumulation"), (5, 5, "Deload Week"))));
 
         var pending = await imports.Create(Source(), default);

@@ -182,7 +182,6 @@ export function ExerciseLibrary({ exercises, onSelect, exclude = emptyIds, onOpe
                   </div>
                   <div className="exercise-card-body">
                     <h3 title={e.name}>{e.name}</h3>
-                    {e.cue && <p>{e.cue}</p>}
                   </div>
                 </article>
               )
@@ -350,7 +349,6 @@ export function ExerciseDetailModal({ exercise, unit, onClose, onChanged }: { ex
           <span className="pill">{exercise.equipment || 'General'}</span>
           <span className="pill pill-category">{getExerciseCategory(exercise)}</span>
         </div>}
-        {detailTab === 'progress' && exercise.cue && <p className="muted">{exercise.cue}</p>}
         {detailTab === 'progress' && !exercise.archived && loadAdjustable(exercise) && <ExerciseLoadSettings key={exercise.id} exerciseId={exercise.id} exerciseName={exercise.name} unit={unit} perSide={canEnterPerSide(exercise)} onChanged={onChanged} />}
         {error && <div className="error-banner" role="alert">{error}</div>}
         {!insight && !error && <div className="skeleton detail-loading" aria-label="Loading exercise details" />}

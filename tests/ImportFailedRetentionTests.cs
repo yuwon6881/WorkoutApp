@@ -52,7 +52,7 @@ public sealed class ImportFailedRetentionTests
     {
         await using var h = await Harness.Create(Configured);
         await h.SignIn();
-        await h.Seed(new SeedExercise("bench", "Barbell bench press", "Chest", "Barbell", "Cue", null));
+        await h.Seed(new SeedExercise("bench", "Barbell bench press", "Chest", "Barbell", null));
         var imports = h.Imports(StubHandler.Program(OneWorkout));
         var first = await imports.Create(Source("The_Min-Max_Program__5X.pdf"), default);
         var row = await h.Db.Imports.SingleAsync(import => import.Id == first.Id);

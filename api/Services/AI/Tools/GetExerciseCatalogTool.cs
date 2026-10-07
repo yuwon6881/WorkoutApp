@@ -94,7 +94,6 @@ public sealed class GetExerciseCatalogTool : IAiTool
                 category = e.Category,
                 loadModel = e.LoadModel,
                 trackingMode = e.TrackingMode,
-                cue = e.Cue,
                 isCustom = e.IsCustom
             })
             .ToList();

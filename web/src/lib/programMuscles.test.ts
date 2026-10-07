@@ -10,7 +10,6 @@ function catalogExercise(id: string, muscle: string, secondaryMuscles: string[] 
     muscle,
     secondaryMuscles,
     equipment: 'Barbell',
-    cue: '',
     aliases: [],
     loadStepKg: 2.5
   };

@@ -13,7 +13,7 @@ public sealed class AskAiProgressionTests
 {
     private static async Task<Guid> TwoSetCurl(Harness h)
     {
-        await h.Seed(new SeedExercise("curl", "Curl", "Biceps", "Dumbbell", "Curl", null, 2.5));
+        await h.Seed(new SeedExercise("curl", "Curl", "Biceps", "Dumbbell", null, 2.5));
         var template = await h.Templates.Create(Harness.Template("Arms",
             Harness.Exercise(await h.ExerciseId("curl"), "Curl", Harness.Set(8, 10), Harness.Set(8, 10))), null, 1, 0, default);
         return template.Id;

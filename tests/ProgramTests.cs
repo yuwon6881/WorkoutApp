@@ -18,7 +18,7 @@ public class ProgramTests
     {
         var h = await Harness.Create();
         await h.SignIn();
-        await h.Seed(new SeedExercise("bench", "Bench press", "Chest", "Barbell", "Cue", null));
+        await h.Seed(new SeedExercise("bench", "Bench press", "Chest", "Barbell", null));
         return (h, await h.ExerciseId("bench"));
     }
 

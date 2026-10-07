@@ -12,7 +12,7 @@ public sealed class RecentExerciseSetsTests
     {
         await using var h = await Harness.Create();
         var user = await h.SignIn();
-        await h.Seed(new SeedExercise("bench", "Bench", "Chest", "Barbell", "", null));
+        await h.Seed(new SeedExercise("bench", "Bench", "Chest", "Barbell", null));
         var id = await h.ExerciseId("bench");
         var time = DateTime.UtcNow.AddDays(-8);
         for (var i = 0; i < 8; i++)

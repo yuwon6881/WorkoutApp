@@ -52,7 +52,7 @@ describe('bodyweight variants', () => {
 describe('an exercise added during a workout', () => {
   const plank: Exercise = {
     id: 'plank', slug: 'plank', name: 'Plank', trackingMode: 'duration', muscle: 'Core', equipment: 'Bodyweight',
-    cue: '', aliases: [], loadStepKg: 2.5, loadModel: 'full_bodyweight'
+    aliases: [], loadStepKg: 2.5, loadModel: 'full_bodyweight'
   };
 
   it('keeps its catalog tracking mode and invents no target', () => {
@@ -65,7 +65,7 @@ describe('an exercise added during a workout', () => {
 });
 
 describe('reordering exercises', () => {
-  const base = addedSessionExercise({ id: 'x', slug: 'x', name: 'X', muscle: '', equipment: '', cue: '', aliases: [], loadStepKg: 2.5 }, 0);
+  const base = addedSessionExercise({ id: 'x', slug: 'x', name: 'X', muscle: '', equipment: '', aliases: [], loadStepKg: 2.5 }, 0);
   const draft = {
     id: 'w', templateId: null, programId: null, name: 'W', note: '', active: true, startedAt: '2026-10-04T08:00:00.000Z',
     finishedAt: null, revision: 1, volumeKg: null, completedSets: 0, warmupSets: 0,

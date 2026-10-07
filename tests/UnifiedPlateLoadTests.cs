@@ -16,7 +16,7 @@ public sealed class UnifiedPlateLoadTests
     {
         await using var h = await Harness.Create();
         await h.SignIn();
-        await h.Seed(new SeedExercise("lift", "Lift", "Back", equipment, "", null, LoadModel: model));
+        await h.Seed(new SeedExercise("lift", "Lift", "Back", equipment, null, LoadModel: model));
         var id = await h.ExerciseId("lift");
         var settings = new LoadSettingsService(h.Db, h.Catalog);
         await settings.SaveEquipment(EquipmentGroups.Barbell, new(5, null, 0), default);
@@ -32,7 +32,7 @@ public sealed class UnifiedPlateLoadTests
     {
         await using var h = await Harness.Create();
         await h.SignIn();
-        await h.Seed(new SeedExercise("throw", "Throw", "Core", "Medicine Ball", "", null, storedStep));
+        await h.Seed(new SeedExercise("throw", "Throw", "Core", "Medicine Ball", null, storedStep));
         var id = await h.ExerciseId("throw");
         var settings = new ExerciseLoadSettingsService(h.Db);
         Assert.Equal(1, (await settings.Get(id, default)).LoadStepKg);

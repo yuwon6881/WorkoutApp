@@ -186,7 +186,7 @@ public class AiImportTests
             };
         });
         var imports = h.Imports(stub);
-        await h.Seed(new SeedExercise("constant-curl", "Constant-Tension Lying Leg Curl", "Hamstrings", "Machine", "Control the eccentric", null));
+        await h.Seed(new SeedExercise("constant-curl", "Constant-Tension Lying Leg Curl", "Hamstrings", "Machine", null));
         var source = Source("faithful.pdf") with
         {
             Pages = Source("faithful.pdf").Pages.Select(page => page with
@@ -287,7 +287,7 @@ public class AiImportTests
     {
         await using var h = await Harness.Create(Configured);
         await h.SignIn();
-        await h.Seed(new SeedExercise("bench", "Barbell bench press", "Chest", "Barbell", "Cue", null));
+        await h.Seed(new SeedExercise("bench", "Barbell bench press", "Chest", "Barbell", null));
         // The read reports the page states neither value.
         var body = OneWorkout.Replace("\"targetRpe\":8", "\"targetRpe\":null").Replace("\"restSeconds\":120", "\"restSeconds\":null")
             .Replace("\"rpeSource\":\"inferred\"", "\"rpeSource\":\"extracted\"");
@@ -309,7 +309,7 @@ public class AiImportTests
     {
         await using var h = await Harness.Create(Configured);
         await h.SignIn();
-        await h.Seed(new SeedExercise("bench", "Barbell bench press", "Chest", "Barbell", "Cue", null));
+        await h.Seed(new SeedExercise("bench", "Barbell bench press", "Chest", "Barbell", null));
         var body = OneWorkout.Replace("\"targetRpe\":8", "\"targetRpe\":null");
         var imports = h.Imports(StubHandler.Program(body));
         var failure = await Assert.ThrowsAsync<ImportVerificationException>(() => imports.Create(Source("unread.pdf"), default));
@@ -324,7 +324,7 @@ public class AiImportTests
     {
         await using var h = await Harness.Create(Configured);
         await h.SignIn();
-        await h.Seed(new SeedExercise("bench", "Barbell bench press", "Chest", "Barbell", "Cue", null));
+        await h.Seed(new SeedExercise("bench", "Barbell bench press", "Chest", "Barbell", null));
         var imports = h.Imports(StubHandler.Program(OneWorkout));
         var view = await imports.Create(Source("block.pdf"), default);
 
@@ -348,7 +348,7 @@ public class AiImportTests
     {
         await using var h = await Harness.Create(Configured);
         await h.SignIn();
-        await h.Seed(new SeedExercise("bench", "Barbell bench press", "Chest", "Barbell", "Cue", null));
+        await h.Seed(new SeedExercise("bench", "Barbell bench press", "Chest", "Barbell", null));
         var imports = h.Imports(StubHandler.Program(OneWorkout));
         var view = await imports.Create(Source("block.pdf"), default);
 
@@ -367,7 +367,7 @@ public class AiImportTests
     {
         await using var h = await Harness.Create(Configured);
         await h.SignIn();
-        await h.Seed(new SeedExercise("bench", "Barbell bench press", "Chest", "Barbell", "Cue", null));
+        await h.Seed(new SeedExercise("bench", "Barbell bench press", "Chest", "Barbell", null));
         var benchId = await h.ExerciseId("bench");
         await h.Programs.Create(new ProgramInput("Existing",
             [new ProgramWorkoutInput(1, "Day A", null, null, [Harness.Exercise(benchId, "Barbell bench press", Harness.Set(8, 10))])], null), true, null, default);
@@ -499,7 +499,7 @@ public class AiImportTests
     {
         await using var h = await Harness.Create(Configured);
         await h.SignIn();
-        await h.Seed(new SeedExercise("bench", "Barbell bench press", "Chest", "Barbell", "Cue", null));
+        await h.Seed(new SeedExercise("bench", "Barbell bench press", "Chest", "Barbell", null));
         var imports = h.Imports(StubHandler.Program(OneWorkout));
         var view = await imports.Create(Source("block.pdf"), default);
 
@@ -519,7 +519,7 @@ public class AiImportTests
     {
         await using var h = await Harness.Create(Configured);
         await h.SignIn();
-        await h.Seed(new SeedExercise("bench", "Barbell bench press", "Chest", "Barbell", "Cue", null));
+        await h.Seed(new SeedExercise("bench", "Barbell bench press", "Chest", "Barbell", null));
         var imports = h.Imports(StubHandler.Program(OneWorkout));
         var view = await imports.Create(Source("block.pdf"), default);
         await imports.Discard(view.Id, default);
@@ -533,7 +533,7 @@ public class AiImportTests
     {
         await using var h = await Harness.Create(Configured);
         await h.SignIn();
-        await h.Seed(new SeedExercise("bench", "Barbell bench press", "Chest", "Barbell", "Cue", null));
+        await h.Seed(new SeedExercise("bench", "Barbell bench press", "Chest", "Barbell", null));
         var imports = h.Imports(StubHandler.Program(OneWorkout));
         var older = await imports.Create(Source("The_Min-Max_Program__5X.pdf"), default);
         var row = await h.Db.Imports.SingleAsync(import => import.Id == older.Id);

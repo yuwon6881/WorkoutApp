@@ -31,7 +31,7 @@ public sealed class ImportEditDaysTests
     {
         var h = await Harness.Create(Configured);
         await h.SignIn();
-        await h.Seed(new SeedExercise("bench", "Barbell bench press", "Chest", "Barbell", "Cue", null));
+        await h.Seed(new SeedExercise("bench", "Barbell bench press", "Chest", "Barbell", null));
         var imports = h.Imports(StubHandler.Program(ThreeWeeks));
         var view = await imports.Create(Source(), default);
         Assert.Equal(ImportStatus.Ready, view.Status);

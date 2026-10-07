@@ -8,9 +8,15 @@ import { pairExercises, unlinkExercise } from '../lib/supersets';
 import { Button } from './ui/Button';
 import { Field } from './ui/Field';
 import { Modal } from './ui/Modal';
+import { Select } from './ui/Select';
 import { ExerciseLibrary } from './Exercises';
 import { ProgramMusclePreview } from './ProgramMusclePreview';
 import { WorkoutPrescriptionCard } from './WorkoutPrescriptionCard';
+
+const FOCUS_OPTIONS = [
+  'Hypertrophy', 'Strength', 'Powerbuilding', 'Full Body', 'Upper Body', 'Lower Body',
+  'Push', 'Pull', 'Legs', 'Arms & Shoulders', 'Core & Conditioning'
+] as const;
 
 export type WorkoutDraft = {
   id: string | null;
@@ -203,12 +209,22 @@ export function WorkoutEditorModal({
                 if (nameError) setNameError('');
               }}
             />
-            <Field
-              label="Focus"
-              value={draft.focus}
-              placeholder="e.g. Hypertrophy, Upper body, Strength"
-              onChange={e => setDraft({ ...draft, focus: e.target.value })}
-            />
+            <label className="field">
+              <span>Focus</span>
+              <Select
+                name="workout-focus"
+                label="Focus"
+                value={draft.focus}
+                onChange={value => setDraft({ ...draft, focus: value })}
+                options={[
+                  { value: '', label: 'None' },
+                  ...(draft.focus && !FOCUS_OPTIONS.includes(draft.focus as typeof FOCUS_OPTIONS[number])
+                    ? [{ value: draft.focus, label: draft.focus }]
+                    : []),
+                  ...FOCUS_OPTIONS.map(item => ({ value: item, label: item }))
+                ]}
+              />
+            </label>
             {draft.isLegacyBaseline && (
               <p className="muted small-copy">
                 Restores to current saved version (earlier history unavailable)

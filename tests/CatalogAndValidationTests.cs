@@ -25,7 +25,7 @@ public class CatalogAndValidationTests
     {
         await using var h = await Harness.Create();
         await h.SignIn();
-        SeedExercise[] file = [new("bench", "Bench press", "Chest", "Barbell", "Cue", ["bench press", "bp"])];
+        SeedExercise[] file = [new("bench", "Bench press", "Chest", "Barbell", ["bench press", "bp"])];
         await h.Seed(file);
         await h.Seed(file);
         Assert.Equal(1, await h.Db.Exercises.CountAsync());
@@ -36,13 +36,13 @@ public class CatalogAndValidationTests
     {
         await using var h = await Harness.Create();
         await h.SignIn();
-        await h.Seed(new SeedExercise("bench", "Bench press", "Chest", "Barbell", "Old cue", null), new SeedExercise("squat", "Back squat", "Quads", "Barbell", "Cue", null));
+        await h.Seed(new SeedExercise("bench", "Bench press", "Chest", "Barbell", null), new SeedExercise("squat", "Back squat", "Quads", "Barbell", null));
         var id = await h.ExerciseId("bench");
-        await h.Seed(new SeedExercise("bench", "Barbell bench press", "Chest", "Barbell", "New cue", null));
+        await h.Seed(new SeedExercise("bench", "Barbell bench press", "Chest", "Dumbbell", null));
         var bench = await h.Db.Exercises.AsNoTracking().SingleAsync(x => x.Slug == "bench");
         Assert.Equal(id, bench.Id);
         Assert.Equal("Barbell bench press", bench.Name);
-        Assert.Equal("New cue", bench.Cue);
+        Assert.Equal("Dumbbell", bench.Equipment);
         // An exercise the new file omits is untouched, not removed.
         Assert.True((await h.Db.Exercises.AsNoTracking().SingleAsync(x => x.Slug == "squat")).Active);
     }
@@ -51,9 +51,9 @@ public class CatalogAndValidationTests
     {
         await using var h = await Harness.Create();
         await h.SignIn();
-        await h.Seed(new SeedExercise("bench", "Bench press", "Chest", "Barbell", "Cue", null), new SeedExercise("squat", "Back squat", "Quads", "Barbell", "Cue", null));
+        await h.Seed(new SeedExercise("bench", "Bench press", "Chest", "Barbell", null), new SeedExercise("squat", "Back squat", "Quads", "Barbell", null));
         h.Db.CurrentUser = null;
-        await CatalogSeed.Apply(h.Db, [new("bench", "Bench press", "Chest", "Barbell", "Cue", null)], deactivateMissing: true, default);
+        await CatalogSeed.Apply(h.Db, [new("bench", "Bench press", "Chest", "Barbell", null)], deactivateMissing: true, default);
         h.Db.ChangeTracker.Clear();
         Assert.False((await h.Db.Exercises.AsNoTracking().SingleAsync(x => x.Slug == "squat")).Active);
         Assert.Single(await h.Catalog.All(default));
@@ -64,7 +64,7 @@ public class CatalogAndValidationTests
         await using var h = await Harness.Create();
         h.Db.CurrentUser = null;
         await Assert.ThrowsAsync<DomainException>(() => CatalogSeed.Apply(h.Db,
-            [new("bench", "Bench press", "Chest", "Barbell", "Cue", null), new("bench", "Repeat", "Chest", "Barbell", "Cue", null)], false, default));
+            [new("bench", "Bench press", "Chest", "Barbell", null), new("bench", "Repeat", "Chest", "Barbell", null)], false, default));
         Assert.Equal(0, await h.Db.Exercises.CountAsync());
     }
 
@@ -72,7 +72,7 @@ public class CatalogAndValidationTests
     {
         await using var h = await Harness.Create();
         await h.SignIn();
-        await h.Seed(new SeedExercise("bench", "Barbell bench press", "Chest", "Barbell", "Cue", ["Flat BB Bench"]));
+        await h.Seed(new SeedExercise("bench", "Barbell bench press", "Chest", "Barbell", ["Flat BB Bench"]));
         var id = await h.ExerciseId("bench");
         Assert.Equal(id, await h.Catalog.Match("flat bb bench", default));
         Assert.Equal(id, await h.Catalog.Match("  Barbell   Bench-Press  ", default));
@@ -144,9 +144,9 @@ public class CatalogAndValidationTests
         await using var h = await Harness.Create();
         await h.SignIn();
         await h.Seed(
-            new SeedExercise("bench", "Barbell bench press", "Chest", "Barbell", "Cue", null, Category: "Free Weights"),
-            new SeedExercise("cable-row", "Cable row", "Back", "Cable", "Cue", null),
-            new SeedExercise("pullup", "Pull-up", "Back", "Bodyweight", "Cue", null)
+            new SeedExercise("bench", "Barbell bench press", "Chest", "Barbell", null, Category: "Free Weights"),
+            new SeedExercise("cable-row", "Cable row", "Back", "Cable", null),
+            new SeedExercise("pullup", "Pull-up", "Back", "Bodyweight", null)
         );
         var all = await h.Catalog.All(default);
         Assert.Equal(ExerciseCategories.FreeWeights, all.Single(x => x.Slug == "bench").Category);

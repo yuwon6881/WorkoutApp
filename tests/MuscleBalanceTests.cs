@@ -140,8 +140,8 @@ public class MuscleBalanceTests
         var h = await Harness.Create();
         await h.SignIn();
         await h.Seed(
-            new SeedExercise("bench", "Bench Press", "Chest", "Barbell", "", null),
-            new SeedExercise("squat", "Back Squat", "Quads", "Barbell", "", null));
+            new SeedExercise("bench", "Bench Press", "Chest", "Barbell", null),
+            new SeedExercise("squat", "Back Squat", "Quads", "Barbell", null));
         return h;
     }
 

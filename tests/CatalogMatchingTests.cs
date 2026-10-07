@@ -15,22 +15,22 @@ public sealed class CatalogMatchingTests
         var h = await Harness.Create();
         await h.SignIn();
         await h.Seed(
-            new SeedExercise("pull-up", "Pull Up", "Back", "Bodyweight", "Cue", null),
-            new SeedExercise("wide-grip-pull-up", "Wide-Grip Pull-Up", "Back", "Bodyweight", "Cue", ["Pull-Up (Wide Grip)"]),
-            new SeedExercise("incline-press", "Dumbbell Incline Press", "Chest", "Dumbbell", "Cue", null),
-            new SeedExercise("lat-pulldown", "Lat Pulldown", "Back", "Cable", "Cue", null),
-            new SeedExercise("preacher-curl", "Preacher Curl", "Biceps", "Barbell", "Cue", null),
-            new SeedExercise("squat", "Squat", "Legs", "Barbell", "Cue", null),
-            new SeedExercise("cable-kickback", "Cable Triceps Kickback", "Triceps", "Cable", "Cue", null),
-            new SeedExercise("close-grip-lat-pulldown", "Close-Grip Lat Pulldown", "Back", "Cable", "Cue", null),
-            new SeedExercise("chest-supported-t-bar-row", "Chest-Supported T-Bar Row", "Back", "Barbell", "Cue", null),
-            new SeedExercise("machine-chest-press", "Machine Chest Press", "Chest", "Machine", "Cue", null),
-            new SeedExercise("standing-calf-raise", "Standing Calf Raise", "Calves", "Machine", "Cue", null),
-            new SeedExercise("dumbbell-wrist-curl", "DB Wrist Curl", "Forearms", "Dumbbell", "Cue", null),
-            new SeedExercise("dumbbell-wrist-extension", "DB Wrist Extension", "Forearms", "Dumbbell", "Cue", ["Dumbbell Wrist Extension"]),
-            new SeedExercise("modified-zottman-curl", "Modified Zottman Curl", "Biceps", "Dumbbell", "Cue", null),
-            new SeedExercise("dead-hang", "Dead Hang", "Back", "Bodyweight", "Cue", ["Dead Hangs", "Bar Hang"]),
-            new SeedExercise("alternating-db-curl", "Alternating DB Curl", "Biceps", "Dumbbell", "Cue", null));
+            new SeedExercise("pull-up", "Pull Up", "Back", "Bodyweight", null),
+            new SeedExercise("wide-grip-pull-up", "Wide-Grip Pull-Up", "Back", "Bodyweight", ["Pull-Up (Wide Grip)"]),
+            new SeedExercise("incline-press", "Dumbbell Incline Press", "Chest", "Dumbbell", null),
+            new SeedExercise("lat-pulldown", "Lat Pulldown", "Back", "Cable", null),
+            new SeedExercise("preacher-curl", "Preacher Curl", "Biceps", "Barbell", null),
+            new SeedExercise("squat", "Squat", "Legs", "Barbell", null),
+            new SeedExercise("cable-kickback", "Cable Triceps Kickback", "Triceps", "Cable", null),
+            new SeedExercise("close-grip-lat-pulldown", "Close-Grip Lat Pulldown", "Back", "Cable", null),
+            new SeedExercise("chest-supported-t-bar-row", "Chest-Supported T-Bar Row", "Back", "Barbell", null),
+            new SeedExercise("machine-chest-press", "Machine Chest Press", "Chest", "Machine", null),
+            new SeedExercise("standing-calf-raise", "Standing Calf Raise", "Calves", "Machine", null),
+            new SeedExercise("dumbbell-wrist-curl", "DB Wrist Curl", "Forearms", "Dumbbell", null),
+            new SeedExercise("dumbbell-wrist-extension", "DB Wrist Extension", "Forearms", "Dumbbell", ["Dumbbell Wrist Extension"]),
+            new SeedExercise("modified-zottman-curl", "Modified Zottman Curl", "Biceps", "Dumbbell", null),
+            new SeedExercise("dead-hang", "Dead Hang", "Back", "Bodyweight", ["Dead Hangs", "Bar Hang"]),
+            new SeedExercise("alternating-db-curl", "Alternating DB Curl", "Biceps", "Dumbbell", null));
         return (h, h.Catalog);
     }
 

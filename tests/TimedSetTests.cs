@@ -90,7 +90,7 @@ public sealed class TimedSetTests
     {
         var harness = await Harness.Create();
         await harness.SignIn();
-        await harness.Seed(new SeedExercise("plank", "Plank", "Abs", "Bodyweight", "Cue", null, TrackingMode: TrackingModes.Duration));
+        await harness.Seed(new SeedExercise("plank", "Plank", "Abs", "Bodyweight", null, TrackingMode: TrackingModes.Duration));
         return harness;
     }
 

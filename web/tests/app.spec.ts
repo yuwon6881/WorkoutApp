@@ -113,7 +113,7 @@ test('personal exercise weights support uneven lists and kg/lb switching', async
   const headers = { 'X-Workout-Request': '1', Origin: new URL(page.url()).origin };
   const created = await page.request.post('/api/exercises/custom', {
     headers,
-    data: { name, muscle: 'Biceps', equipment: 'Cable', cue: '', loadStepKg: 2.5, loadModel: 'external' }
+    data: { name, muscle: 'Biceps', equipment: 'Cable', loadStepKg: 2.5, loadModel: 'external' }
   });
   expect(created.ok(), await created.text()).toBeTruthy();
   const exercise = await created.json();

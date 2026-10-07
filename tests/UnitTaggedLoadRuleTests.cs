@@ -23,7 +23,7 @@ public sealed class UnitTaggedLoadRuleTests
     {
         await using var h = await Harness.Create();
         await h.SignIn();
-        await h.Seed(new SeedExercise("pushdown", "Pushdown", "Triceps", "Cable", "", null));
+        await h.Seed(new SeedExercise("pushdown", "Pushdown", "Triceps", "Cable", null));
         var service = new LoadSettingsService(h.Db, h.Catalog);
         await service.SaveEquipment(EquipmentGroups.Cable, new(2, null, 0), default);
 
@@ -47,7 +47,7 @@ public sealed class UnitTaggedLoadRuleTests
     {
         await using var h = await Harness.Create();
         await h.SignIn();
-        await h.Seed(new SeedExercise("chest-press", "Chest Press", "Chest", "Machine", "", null));
+        await h.Seed(new SeedExercise("chest-press", "Chest Press", "Chest", "Machine", null));
         var id = await h.ExerciseId("chest-press");
         var settings = new ExerciseLoadSettingsService(h.Db);
         await settings.Save(id, new(1.5, null, 0), default);
@@ -86,7 +86,7 @@ public sealed class UnitTaggedLoadRuleTests
     {
         await using var h = await Harness.Create();
         await h.SignIn();
-        await h.Seed(new SeedExercise("curl", "Curl", "Biceps", "Dumbbell", "", null));
+        await h.Seed(new SeedExercise("curl", "Curl", "Biceps", "Dumbbell", null));
         var id = await h.ExerciseId("curl");
         var service = new LoadSettingsService(h.Db, h.Catalog);
 
@@ -102,7 +102,7 @@ public sealed class UnitTaggedLoadRuleTests
     {
         await using var h = await Harness.Create();
         await h.SignIn();
-        await h.Seed(new SeedExercise("row", "Row", "Back", "Machine", "", null));
+        await h.Seed(new SeedExercise("row", "Row", "Back", "Machine", null));
         var id = await h.ExerciseId("row");
 
         var view = await new ExerciseLoadSettingsService(h.Db).Save(id, new(10 / PerKg, null, 0, WeightUnits.Lb), default);
@@ -118,7 +118,7 @@ public sealed class UnitTaggedLoadRuleTests
         await using var h = await Harness.Create();
         await h.SignIn();
         await SetUnit(h, WeightUnits.Lb);
-        var custom = await new ExerciseService(h.Db).Create(new CustomExerciseInput("Incline Curl", "Biceps", "Dumbbell", ""), default);
+        var custom = await new ExerciseService(h.Db).Create(new CustomExerciseInput("Incline Curl", "Biceps", "Dumbbell"), default);
         var stored = await h.Db.CustomExercises.AsNoTracking().SingleAsync(x => x.Id == custom.Id);
         Assert.Equal(WeightUnits.Lb, stored.LoadStepUnit);
 
@@ -136,7 +136,7 @@ public sealed class UnitTaggedLoadRuleTests
     {
         await using var h = await Harness.Create();
         await h.SignIn();
-        await h.Seed(new SeedExercise("squat", "Squat", "Legs", "Barbell", "", null));
+        await h.Seed(new SeedExercise("squat", "Squat", "Legs", "Barbell", null));
         var id = await h.ExerciseId("squat");
         await new ExerciseLoadSettingsService(h.Db).Save(id, new(2.5, null, 0), default);
 
@@ -154,7 +154,7 @@ public sealed class UnitTaggedLoadRuleTests
         await using var h = await Harness.Create();
         await h.SignIn();
         await Assert.ThrowsAsync<DomainException>(() => new ExerciseService(h.Db)
-            .Create(new CustomExerciseInput("Odd Press", "Chest", "Machine", "", step), default));
+            .Create(new CustomExerciseInput("Odd Press", "Chest", "Machine", step), default));
         Assert.False(await h.Db.CustomExercises.AnyAsync());
     }
 

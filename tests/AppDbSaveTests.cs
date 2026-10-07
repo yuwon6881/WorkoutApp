@@ -13,7 +13,7 @@ public class AppDbSaveTests
         var failures = new FailingCommands();
         await using var h = await Harness.Create(observer: failures);
         await h.SignIn();
-        await h.Seed(new SeedExercise("bench", "Bench press", "Chest", "Barbell", "Cue", null));
+        await h.Seed(new SeedExercise("bench", "Bench press", "Chest", "Barbell", null));
         var bench = await h.ExerciseId("bench");
         var created = await h.Programs.Create(new ProgramInput("Original",
             [new ProgramWorkoutInput(1, "Day", "Strength", null, [Harness.Exercise(bench, "Bench press", Harness.Set(8, 10))])]),

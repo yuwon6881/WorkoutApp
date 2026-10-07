@@ -30,7 +30,7 @@ public sealed class LoadSettingsServiceTests
     {
         await using var h = await Harness.Create();
         await h.SignIn();
-        await h.Seed(new SeedExercise("pushdown", "Pushdown", "Triceps", "Cable", "", null));
+        await h.Seed(new SeedExercise("pushdown", "Pushdown", "Triceps", "Cable", null));
         var id = await h.ExerciseId("pushdown");
 
         var view = await Service(h).SaveEquipment(EquipmentGroups.Cable, new(5, null, 0), default);
@@ -46,7 +46,7 @@ public sealed class LoadSettingsServiceTests
     {
         await using var h = await Harness.Create();
         await h.SignIn();
-        await h.Seed(new SeedExercise("shoulder-press", "Shoulder Press", "Shoulders", "Machine", "", null));
+        await h.Seed(new SeedExercise("shoulder-press", "Shoulder Press", "Shoulders", "Machine", null));
         var id = await h.ExerciseId("shoulder-press");
         await new ExerciseLoadSettingsService(h.Db).Save(id, new(null, [35, 38.75, 42.5, 46.25], 0), default);
         Assert.Equal(42.5, await NextLoadAfter(h, id, 38.75));
@@ -57,7 +57,7 @@ public sealed class LoadSettingsServiceTests
     {
         await using var h = await Harness.Create();
         await h.SignIn();
-        await h.Seed(new SeedExercise("row", "Cable Row", "Back", "Cable", "", null));
+        await h.Seed(new SeedExercise("row", "Cable Row", "Back", "Cable", null));
         var id = await h.ExerciseId("row");
         await Service(h).SaveEquipment(EquipmentGroups.Cable, new(5, null, 0), default);
 
@@ -73,7 +73,7 @@ public sealed class LoadSettingsServiceTests
     {
         await using var h = await Harness.Create();
         var alice = await h.SignIn();
-        await h.Seed(new SeedExercise("curl", "Cable Curl", "Biceps", "Cable", "", null));
+        await h.Seed(new SeedExercise("curl", "Cable Curl", "Biceps", "Cable", null));
         var id = await h.ExerciseId("curl");
         var service = Service(h);
 
@@ -94,11 +94,11 @@ public sealed class LoadSettingsServiceTests
     {
         await using var h = await Harness.Create();
         await h.SignIn();
-        await h.Seed(new SeedExercise("shoulder-press", "Shoulder Press", "Shoulders", "Machine", "", null));
+        await h.Seed(new SeedExercise("shoulder-press", "Shoulder Press", "Shoulders", "Machine", null));
         var id = await h.ExerciseId("shoulder-press");
         await new ExerciseLoadSettingsService(h.Db).Save(id, new(8.75, null, 0), default);
 
-        await h.Seed(new SeedExercise("shoulder-press", "Plate-Loaded Shoulder Press", "Shoulders", "Machine", "", null));
+        await h.Seed(new SeedExercise("shoulder-press", "Plate-Loaded Shoulder Press", "Shoulders", "Machine", null));
 
         var renamed = (await h.Catalog.All(default)).Single(x => x.Id == id);
         Assert.Equal(("Plate-Loaded Shoulder Press", 8.75), (renamed.Name, renamed.LoadStepKg));
@@ -110,8 +110,8 @@ public sealed class LoadSettingsServiceTests
         await using var h = await Harness.Create();
         await h.SignIn();
         var exercises = new ExerciseService(h.Db);
-        var typed = await exercises.Create(new CustomExerciseInput("Gym Row", "Back", "Cable", null, LoadStepKg: 4), default);
-        var plain = await exercises.Create(new CustomExerciseInput("Gym Fly", "Chest", "Cable", null), default);
+        var typed = await exercises.Create(new CustomExerciseInput("Gym Row", "Back", "Cable", LoadStepKg: 4), default);
+        var plain = await exercises.Create(new CustomExerciseInput("Gym Fly", "Chest", "Cable"), default);
         await Service(h).SaveEquipment(EquipmentGroups.Cable, new(5, null, 0), default);
 
         var catalog = (await h.Catalog.All(default)).ToDictionary(x => x.Id);

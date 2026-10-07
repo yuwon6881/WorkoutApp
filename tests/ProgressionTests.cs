@@ -152,7 +152,7 @@ public class ProgressionSessionTests
     {
         var h = await Harness.Create();
         await h.SignIn();
-        await h.Seed(new SeedExercise("bench", "Bench press", "Chest", "Barbell", "Cue", null));
+        await h.Seed(new SeedExercise("bench", "Bench press", "Chest", "Barbell", null));
         var benchId = await h.ExerciseId("bench");
         var template = await h.Templates.Create(
             Harness.Template("Push", Harness.Exercise(benchId, "Bench press", Harness.Set(repMin, repMax), Harness.Set(repMin, repMax))), null, 1, 0, default);
@@ -293,7 +293,7 @@ public class ProgressionSessionTests
         var h = await Harness.Create();
         await using var _h = h;
         await h.SignIn();
-        await h.Seed(new SeedExercise("pull-up", "Weighted Pull-up", "Back", "Bodyweight", "Pull", null, 2.5, LoadModels.FullBodyweight));
+        await h.Seed(new SeedExercise("pull-up", "Weighted Pull-up", "Back", "Bodyweight", null, 2.5, LoadModels.FullBodyweight));
         var exerciseId = await h.ExerciseId("pull-up");
         var template = await h.Templates.Create(
             Harness.Template("Pull", Harness.Exercise(exerciseId, "Weighted Pull-up", Harness.Set(3, 8))), null, 1, 0, default);

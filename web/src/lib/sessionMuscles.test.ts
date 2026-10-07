@@ -3,7 +3,7 @@ import type { Exercise, LoggedSet } from '../types';
 import { getSessionMuscleCredits } from './sessionMuscles';
 
 function catalogExercise(id: string, muscle: string, secondaryMuscles: string[] = []): Exercise {
-  return { id, slug: id, name: id, muscle, secondaryMuscles, equipment: 'Barbell', cue: '', aliases: [], loadStepKg: 2.5 };
+  return { id, slug: id, name: id, muscle, secondaryMuscles, equipment: 'Barbell', aliases: [], loadStepKg: 2.5 };
 }
 
 function logged(done: boolean, warmup = false): LoggedSet {

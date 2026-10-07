@@ -53,7 +53,7 @@ public sealed class ImportWeekChoiceIntegrationTests
             ["OpenAi:Model"] = "gpt-5.4-mini"
         });
         await harness.SignIn();
-        await harness.Seed(new SeedExercise("lat-pulldown", "Lat Pulldown", "Back", "Machine", "", null));
+        await harness.Seed(new SeedExercise("lat-pulldown", "Lat Pulldown", "Back", "Machine", null));
         var unexpectedSectionReads = 0;
         var handler = new StubHandler(request =>
         {

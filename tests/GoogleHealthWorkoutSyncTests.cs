@@ -15,7 +15,7 @@ public sealed class GoogleHealthWorkoutSyncTests
     {
         await using var h = await Harness.Create(new() { ["GoogleHealth:ClientId"] = "client", ["GoogleHealth:ClientSecret"] = "secret" });
         var user = await h.SignIn();
-        await h.Seed(new SeedExercise("bench", "Bench", "Chest", "Barbell", "", null));
+        await h.Seed(new SeedExercise("bench", "Bench", "Chest", "Barbell", null));
         var exerciseId = await h.ExerciseId("bench");
         var template = await h.Templates.Create(Harness.Template("Push", Harness.Exercise(exerciseId, "Bench", Harness.Set(8, 10))), null, 1, 0, default);
         var session = await h.Workouts.Start(template.Id, null, default);
@@ -241,7 +241,7 @@ public sealed class GoogleHealthWorkoutSyncTests
             harness.Programs,
             workoutSync);
 
-        await harness.Seed(new SeedExercise("bench", "Bench press", "Chest", "Barbell", "Cue", null));
+        await harness.Seed(new SeedExercise("bench", "Bench press", "Chest", "Barbell", null));
         var benchId = await harness.ExerciseId("bench");
         var template = await harness.Templates.Create(
             Harness.Template("Chest Day", Harness.Exercise(benchId, "Bench press", Harness.Set(10, 80))), null, 1, 0, default);

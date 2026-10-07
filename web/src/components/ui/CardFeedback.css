@@ -4,7 +4,7 @@
 .card-feedback.success{color:var(--green)}
 .card-feedback.info{color:var(--blue)}
 .card-feedback-icon{display:grid;place-items:center;width:34px;height:34px;flex:0 0 34px;border-radius:10px;background:color-mix(in srgb,currentColor 10%,transparent)}
-.card-feedback-content{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:16px;min-width:0;flex:1}
+.card-feedback-content{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:16px;min-width:0;min-height:34px;flex:1}
 .card-feedback-copy{display:grid;gap:5px;min-width:0}
 .card-feedback strong{color:var(--text);font-size:var(--font-secondary);font-weight:650}
 .card-feedback p{margin:0;color:var(--muted);font-size:var(--font-secondary);line-height:1.6}

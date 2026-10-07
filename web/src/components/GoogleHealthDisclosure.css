@@ -22,7 +22,7 @@
 
 .google-health-disclosure .disclosure-points p {
   margin: 4px 0 0;
-  font-size: 12px !important;
+  font-size: var(--font-secondary);
   line-height: 1.55;
   color: var(--muted);
 }
@@ -42,13 +42,27 @@
   color: var(--muted);
 }
 
-.disclosure-data-notice svg {
+.disclosure-data-notice > svg {
   flex-shrink: 0;
-  margin-top: 1px;
+  margin-top: 2.5px;
   color: var(--accent);
 }
 
+.disclosure-data-notice a {
+  color: var(--accent);
+  font-weight: 500;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-color: var(--accent-border-strong);
+}
+
+.disclosure-data-notice a:hover {
+  text-decoration-color: var(--accent);
+}
+
 .disclosure-data-notice a svg {
-  display: inline;
-  margin: 0;
+  display: inline-block;
+  vertical-align: -0.14em;
+  margin-left: 2px;
+  color: currentColor;
 }

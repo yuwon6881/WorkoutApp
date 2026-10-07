@@ -12,7 +12,6 @@ const editing: ExerciseEditing = {
 function makeExercise(override: Partial<Exercise> & { id: string; name: string; muscle: string }): Exercise {
   return {
     slug: override.name.toLowerCase().replace(/\s+/g, '-'),
-    cue: '',
     loadStepKg: 2.5,
     secondaryMuscles: [],
     category: 'Free Weights',

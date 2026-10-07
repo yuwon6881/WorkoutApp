@@ -454,7 +454,7 @@ public sealed class ImportReconciliationTests
     {
         await using var h = await Harness.Create(Configured());
         await h.SignIn();
-        await h.Seed(new SeedExercise("bench", "Barbell bench press", "Chest", "Barbell", "", null));
+        await h.Seed(new SeedExercise("bench", "Barbell bench press", "Chest", "Barbell", null));
 
         var eightDays = Days(Enumerable.Range(1, 8).Select(i => (1, $"Day {i}", 1)).ToArray());
         var source = new ImportSourceInput("overflow.pdf", 1, [new ImportPageText(1, "WEEK 1\nBarbell bench press 3x5")]);

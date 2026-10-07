@@ -6,13 +6,13 @@ using Workout.Api.Domain;
 
 namespace Workout.Api.Services;
 
-public record CatalogExercise(Guid Id, string Slug, string Name, string Muscle, string Equipment, string Cue, List<string> Aliases, double LoadStepKg,
+public record CatalogExercise(Guid Id, string Slug, string Name, string Muscle, string Equipment, List<string> Aliases, double LoadStepKg,
     string LoadModel = LoadModels.External, string MovementPattern = "", string Source = "catalog", bool IsCustom = false, bool Archived = false,
     List<string>? SecondaryMuscles = null, string Category = ExerciseCategories.FreeWeights,
     List<double>? AvailableLoadsKg = null, string TrackingMode = TrackingModes.Reps,
     string LoadSource = LoadSources.App, string? LoadEquipmentGroup = null);
 
-public record SubstitutionCandidate(Guid ExerciseId, string Name, string Muscle, string Equipment, string Cue,
+public record SubstitutionCandidate(Guid ExerciseId, string Name, string Muscle, string Equipment,
     string Source, int Rank, bool IsCatalog, string MovementPattern = "", List<string>? SecondaryMuscles = null);
 
 public sealed class CatalogService(AppDb db)
@@ -74,7 +74,7 @@ public sealed class CatalogService(AppDb db)
         var shared = await Shared(ct);
         var output = shared.Select(x => x with { Aliases = x.Aliases.ToList() }).ToList();
         var custom = await db.CustomExercises.AsNoTracking().Where(x => !x.Archived).OrderBy(x => x.Name).ToListAsync(ct);
-        output.AddRange(custom.Select(x => new CatalogExercise(x.Id, $"custom-{x.Id:N}", x.Name, x.Muscle, x.Equipment, x.Cue, [], x.LoadStepKg,
+        output.AddRange(custom.Select(x => new CatalogExercise(x.Id, $"custom-{x.Id:N}", x.Name, x.Muscle, x.Equipment, [], x.LoadStepKg,
             LoadModels.All.Contains(x.LoadModel) ? x.LoadModel : LoadModels.External, x.MovementPattern, "custom", true, false,
             ReadMuscles(x.SecondaryMusclesJson, x.Muscle), ExerciseCategories.Normalize(x.Category, x.Equipment, x.LoadModel),
             null, TrackingModes.Normalize(x.TrackingMode))));
@@ -104,13 +104,13 @@ public sealed class CatalogService(AppDb db)
 
         var exercises = await db.Exercises.AsNoTracking().Where(x => x.Active)
             .OrderBy(x => x.Name)
-            .Select(x => new { x.Id, x.Slug, x.Name, x.Muscle, x.Equipment, x.Category, x.Cue, x.LoadStepKg, x.LoadModel, x.MovementPattern, x.SecondaryMusclesJson, x.TrackingMode })
+            .Select(x => new { x.Id, x.Slug, x.Name, x.Muscle, x.Equipment, x.Category, x.LoadStepKg, x.LoadModel, x.MovementPattern, x.SecondaryMusclesJson, x.TrackingMode })
             .ToListAsync(ct);
         var ids = exercises.Select(x => x.Id).ToList();
         var aliases = ids.Count == 0 ? [] : await db.Aliases.AsNoTracking().Where(a => ids.Contains(a.ExerciseId)).ToListAsync(ct);
         var aliasesByExercise = aliases.GroupBy(a => a.ExerciseId)
             .ToDictionary(g => g.Key, g => g.Select(a => a.Alias).OrderBy(a => a).ToList());
-        var result = exercises.Select(x => new CatalogExercise(x.Id, x.Slug, x.Name, x.Muscle, x.Equipment, x.Cue,
+        var result = exercises.Select(x => new CatalogExercise(x.Id, x.Slug, x.Name, x.Muscle, x.Equipment,
             aliasesByExercise.GetValueOrDefault(x.Id) ?? [], x.LoadStepKg,
             LoadModels.All.Contains(x.LoadModel) ? x.LoadModel : LoadModels.External, x.MovementPattern, "catalog", false, false,
             ReadMuscles(x.SecondaryMusclesJson, x.Muscle), ExerciseCategories.Normalize(x.Category, x.Equipment, x.LoadModel),
@@ -143,7 +143,7 @@ public sealed class CatalogService(AppDb db)
             if (clean.Length == 0 || IsPlaceholder(clean) || !seenNames.Add(Normalize(clean))) continue;
             var match = all.FirstOrDefault(x => Normalize(x.Name) == Normalize(clean) || x.Aliases.Any(a => Normalize(a) == Normalize(clean)));
             if (match == null) continue;
-            output.Add(new SubstitutionCandidate(match.Id, match.Name, match.Muscle, match.Equipment, match.Cue,
+            output.Add(new SubstitutionCandidate(match.Id, match.Name, match.Muscle, match.Equipment,
                 "imported", rank++, true, match.MovementPattern, match.SecondaryMuscles));
         }
         IEnumerable<CatalogExercise> filtered = all;
@@ -159,14 +159,14 @@ public sealed class CatalogService(AppDb db)
         foreach (var candidate in similar.OrderBy(x => SimilarityScore(current, x)).ThenBy(x => x.Name))
         {
             if (!seenNames.Add(Normalize(candidate.Name))) continue;
-            output.Add(new SubstitutionCandidate(candidate.Id, candidate.Name, candidate.Muscle, candidate.Equipment, candidate.Cue,
+            output.Add(new SubstitutionCandidate(candidate.Id, candidate.Name, candidate.Muscle, candidate.Equipment,
                 "similar", rank++, true, candidate.MovementPattern, candidate.SecondaryMuscles));
         }
         foreach (var candidate in filtered.OrderBy(x => x.Name))
         {
             if (current?.Id == candidate.Id) continue;
             if (!seenNames.Add(Normalize(candidate.Name))) continue;
-            output.Add(new SubstitutionCandidate(candidate.Id, candidate.Name, candidate.Muscle, candidate.Equipment, candidate.Cue,
+            output.Add(new SubstitutionCandidate(candidate.Id, candidate.Name, candidate.Muscle, candidate.Equipment,
                 "library", rank++, true, candidate.MovementPattern, candidate.SecondaryMuscles));
         }
         return output;

@@ -53,7 +53,7 @@ public sealed class SessionRestoreTests
     {
         await using var h = await Harness.Create();
         await h.SignIn();
-        await h.Seed(new SeedExercise("bench", "Barbell bench press", "Chest", "Barbell", "", null));
+        await h.Seed(new SeedExercise("bench", "Barbell bench press", "Chest", "Barbell", null));
         var bench = await h.ExerciseId("bench");
         var template = await h.Templates.Create(Harness.Template("Push",
             Harness.Exercise(bench, "Barbell bench press", Warmup(), Harness.Set(8, 10), Harness.Set(8, 10))), null, 1, 0, default);
@@ -90,8 +90,8 @@ public sealed class SessionRestoreTests
         await using var h = await Harness.Create();
         await h.SignIn();
         await h.Seed(
-            new SeedExercise("bench", "Barbell bench press", "Chest", "Barbell", "", null),
-            new SeedExercise("incline", "Incline dumbbell press", "Chest", "Dumbbell", "", null));
+            new SeedExercise("bench", "Barbell bench press", "Chest", "Barbell", null),
+            new SeedExercise("incline", "Incline dumbbell press", "Chest", "Dumbbell", null));
         var bench = await h.ExerciseId("bench"); var incline = await h.ExerciseId("incline");
         var template = await h.Templates.Create(Harness.Template("Push", Harness.Exercise(bench, "Barbell bench press", Harness.Set(8, 10))), null, 1, 0, default);
         var session = await h.Workouts.Start(template.Id, null, default);
@@ -115,8 +115,8 @@ public sealed class SessionRestoreTests
         await using var h = await Harness.Create();
         await h.SignIn();
         await h.Seed(
-            new SeedExercise("bench", "Barbell bench press", "Chest", "Barbell", "", null),
-            new SeedExercise("incline", "Incline dumbbell press", "Chest", "Dumbbell", "", null));
+            new SeedExercise("bench", "Barbell bench press", "Chest", "Barbell", null),
+            new SeedExercise("incline", "Incline dumbbell press", "Chest", "Dumbbell", null));
         var bench = await h.ExerciseId("bench"); var incline = await h.ExerciseId("incline");
         var template = await h.Templates.Create(Harness.Template("Push",
             Harness.Exercise(bench, "Barbell bench press", Harness.Set(8, 10), Harness.Set(8, 10))), null, 1, 0, default);
@@ -154,9 +154,9 @@ public sealed class SessionRestoreTests
         await using var h = await Harness.Create();
         await h.SignIn();
         await h.Seed(
-            new SeedExercise("bench", "Barbell bench press", "Chest", "Barbell", "", null),
-            new SeedExercise("fly", "Cable fly", "Chest", "Cable", "", null),
-            new SeedExercise("dip", "Dip", "Chest", "Bodyweight", "", null));
+            new SeedExercise("bench", "Barbell bench press", "Chest", "Barbell", null),
+            new SeedExercise("fly", "Cable fly", "Chest", "Cable", null),
+            new SeedExercise("dip", "Dip", "Chest", "Bodyweight", null));
         var bench = await h.ExerciseId("bench"); var fly = await h.ExerciseId("fly"); var dip = await h.ExerciseId("dip");
         var template = await h.Templates.Create(Harness.Template("Push",
             Harness.Exercise(bench, "Barbell bench press", Harness.Set(8, 10)),

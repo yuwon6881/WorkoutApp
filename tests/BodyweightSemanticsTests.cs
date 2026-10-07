@@ -172,7 +172,7 @@ public sealed class BodyweightSemanticsTests
         var session = await h.Workouts.Get(finished, default);
         var id = session.Exercises.Single().ExerciseId!.Value;
         var before = await new ExerciseService(h.Db).Insight(id, "all", 0, 20, default);
-        await h.Seed(new SeedExercise("movement", "Pull-Up", "Back", "Bodyweight", "", null, 2.5, LoadModels.RepsOnly));
+        await h.Seed(new SeedExercise("movement", "Pull-Up", "Back", "Bodyweight", null, 2.5, LoadModels.RepsOnly));
         var after = await new ExerciseService(h.Db).Insight(id, "all", 0, 20, default);
         Assert.Equal(before.Estimated1RmKg, after.Estimated1RmKg);
         Assert.Equal(before.LargestSessionVolumeKg, after.LargestSessionVolumeKg);
@@ -194,7 +194,7 @@ public sealed class BodyweightSemanticsTests
         await h.SignIn();
         var template = await Ready(h, "Assisted Pull-Up", LoadModels.External, 80);
         await Complete(h, template, 20, 8);
-        await h.Seed(new SeedExercise("movement", "Assisted Pull-Up", "Back", "Machine", "", null, 2.5, LoadModels.FullBodyweight));
+        await h.Seed(new SeedExercise("movement", "Assisted Pull-Up", "Back", "Machine", null, 2.5, LoadModels.FullBodyweight));
         var next = await h.Workouts.Start(template, null, default);
         Assert.Null(next.Exercises.Single().PreviousBestE1rmKg);
         await h.Workouts.Discard(next.Id, default);
@@ -209,7 +209,7 @@ public sealed class BodyweightSemanticsTests
         h.Db.NutritionContexts.Add(new NutritionContextCache { UserId = h.Db.CurrentUser.Value,
             ContextJson = Json.Write(Context(weight)), LastSuccessAt = DateTime.UtcNow });
         await h.Db.SaveChangesAsync();
-        await h.Seed(new SeedExercise("movement", name, "Back", "Bodyweight", "", null, 2.5, model));
+        await h.Seed(new SeedExercise("movement", name, "Back", "Bodyweight", null, 2.5, model));
         var id = await h.ExerciseId("movement");
         return (await h.Templates.Create(Harness.Template("Training", Harness.Exercise(id, name,
             Harness.Set(8, 12, 8))), null, 1, 0, default)).Id;

@@ -49,7 +49,7 @@ public sealed class WorkoutLogicIntegrityTests
     {
         await using var h = await Harness.Create();
         await h.SignIn();
-        await h.Seed(new SeedExercise("carry", "Carry", "Back", "Dumbbell", "", null, TrackingMode: TrackingModes.Duration));
+        await h.Seed(new SeedExercise("carry", "Carry", "Back", "Dumbbell", null, TrackingMode: TrackingModes.Duration));
         var id = await h.ExerciseId("carry");
         var template = await h.Templates.Create(Harness.Template("Carry", Harness.Exercise(id, "Carry", Harness.Set(8, 10))), null, 1, 0, default);
         var session = await h.Workouts.Start(template.Id, null, default);
@@ -82,7 +82,7 @@ public sealed class WorkoutLogicIntegrityTests
     {
         var h = await Harness.Create();
         await h.SignIn();
-        await h.Seed(new SeedExercise("bench", "Bench", "Chest", "Barbell", "", null));
+        await h.Seed(new SeedExercise("bench", "Bench", "Chest", "Barbell", null));
         await h.Templates.Create(Harness.Template("Push", Harness.Exercise(await h.ExerciseId("bench"), "Bench",
             Harness.Set(3, 3), Harness.Set(12, 12))), null, 1, 0, default);
         return h;

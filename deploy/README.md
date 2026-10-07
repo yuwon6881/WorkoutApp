@@ -186,11 +186,10 @@ $seed = (Resolve-Path deploy\exercises.json).Path
 dotnet run --project api\Workout.Api.csproj -- --seed-exercises=$seed
 ```
 
-Each entry is `{ "slug", "name", "muscle", "equipment", "cue", "aliases": [] }`. Aliases are
+Each entry is `{ "slug", "name", "muscle", "equipment", "aliases": [] }`. Aliases are
 matched case- and punctuation-insensitively. Imports also expand common equipment abbreviations,
 ignore bracketed grip qualifiers, and remove recognized set-technique phrases before trying a
-conservative movement match; ambiguous choices stay unresolved for review. The default file keeps
-cues empty because the supplied list did not include coaching text; equipment labels are only
+conservative movement match; ambiguous choices stay unresolved for review. Equipment labels are only
 filled when the name makes them unambiguous.
 `web/tests/fixtures/exercises.json` remains a three-row test example.
 

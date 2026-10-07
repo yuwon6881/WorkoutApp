@@ -13,7 +13,7 @@ public class WorkoutSessionTests
     {
         var h = await Harness.Create();
         await h.SignIn();
-        await h.Seed(new SeedExercise("bench", "Bench press", "Chest", "Barbell", "Cue", null));
+        await h.Seed(new SeedExercise("bench", "Bench press", "Chest", "Barbell", null));
         var benchId = await h.ExerciseId("bench");
         var template = await h.Templates.Create(
             Harness.Template("Push", Harness.Exercise(benchId, "Bench press", Harness.Set(8, 10), Harness.Set(8, 10))), null, 1, 0, default);
@@ -217,8 +217,8 @@ public class WorkoutSessionTests
         var h = await Harness.Create();
         await using var _h = h;
         await h.SignIn();
-        await h.Seed(new SeedExercise("bench", "Bench press", "Chest", "Barbell", "Cue", null));
-        await h.Seed(new SeedExercise("row", "Row", "Back", "Barbell", "Cue", null));
+        await h.Seed(new SeedExercise("bench", "Bench press", "Chest", "Barbell", null));
+        await h.Seed(new SeedExercise("row", "Row", "Back", "Barbell", null));
         var benchId = await h.ExerciseId("bench");
         var rowId = await h.ExerciseId("row");
         var template = await h.Templates.Create(Harness.Template("Upper",
@@ -250,7 +250,7 @@ public class WorkoutSessionTests
         var h = await Harness.Create();
         await using var _h = h;
         await h.SignIn();
-        await h.Seed(new SeedExercise("bench", "Bench press", "Chest", "Barbell", "Cue", null));
+        await h.Seed(new SeedExercise("bench", "Bench press", "Chest", "Barbell", null));
         var benchId = await h.ExerciseId("bench");
         var template = await h.Templates.Create(Harness.Template("Warm-up only", Harness.Exercise(benchId, "Bench press",
             new SetPrescription(10, 10, null, 60, null, null, null, "10", "1 min", null, true, "inferred", "inferred", "extracted"),
@@ -292,7 +292,7 @@ public class WorkoutSessionTests
         var h = await Harness.Create();
         await using var _h = h;
         await h.SignIn();
-        await h.Seed(new SeedExercise("ohp", "Barbell overhead press", "Shoulders", "Barbell", "Cue", null));
+        await h.Seed(new SeedExercise("ohp", "Barbell overhead press", "Shoulders", "Barbell", null));
         var pressId = await h.ExerciseId("ohp");
         // The stored bounds are the import's 1-rep placeholder for a row that reads "AMRAP".
         var template = await h.Templates.Create(Harness.Template("AMRAP test", Harness.Exercise(pressId, "Barbell overhead press",
@@ -311,7 +311,7 @@ public class WorkoutSessionTests
         var h = await Harness.Create();
         await using var _h = h;
         await h.SignIn();
-        await h.Seed(new SeedExercise("bench", "Bench press", "Chest", "Barbell", "Cue", null));
+        await h.Seed(new SeedExercise("bench", "Bench press", "Chest", "Barbell", null));
         var benchId = await h.ExerciseId("bench");
         var template = await h.Templates.Create(Harness.Template("Warm-up test", Harness.Exercise(benchId, "Bench press",
             new SetPrescription(10, 10, null, 60, null, null, null, "10", "1 min", null, true, "inferred", "inferred", "extracted"),
@@ -376,7 +376,7 @@ public class WorkoutSessionTests
         await h.Workouts.Finish(session.Id, null, default);
 
         // The catalog is renamed afterwards; the finished session must not follow it.
-        await h.Seed(new SeedExercise("bench", "Renamed bench press", "Chest", "Barbell", "Cue", null));
+        await h.Seed(new SeedExercise("bench", "Renamed bench press", "Chest", "Barbell", null));
         var history = await h.Workouts.History(0, 10, default);
         Assert.Equal("Bench press", history.Sessions.Single().Exercises.Single().Name);
     }

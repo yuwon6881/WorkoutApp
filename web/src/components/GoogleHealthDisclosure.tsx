@@ -61,11 +61,11 @@ export function GoogleHealthDisclosure({
         </SettingRow>
 
         <p className="disclosure-data-notice">
-          <ShieldCheck size={18} aria-hidden="true" />
+          <ShieldCheck size={16} aria-hidden="true" />
           <span>
             Workout follows the{' '}
             <a href="https://developers.google.com/terms/api-services-user-data-policy" target="_blank" rel="noopener noreferrer">
-              Google API Services User Data Policy <ArrowUpRight size={12} aria-hidden="true" />
+              Google API Services User Data Policy<ArrowUpRight size={13} aria-hidden="true" />
             </a>
             , including Limited Use requirements.
           </span>

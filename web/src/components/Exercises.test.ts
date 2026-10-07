@@ -6,14 +6,14 @@ import { getExerciseCategory } from '../lib/exerciseCategory';
 import { ExerciseLibrary } from './Exercises';
 
 const sampleExercises: Exercise[] = [
-  { id: 'ex-bench', slug: 'bench', name: 'Barbell bench press', muscle: 'Chest', equipment: 'Barbell', cue: '', aliases: [], loadStepKg: 2.5, category: 'Free Weights' },
-  { id: 'ex-incline-db', slug: 'incline-db', name: 'Incline Dumbbell Press', muscle: 'Chest', equipment: 'Dumbbell', cue: '', aliases: [], loadStepKg: 2, category: 'Free Weights' },
-  { id: 'ex-chest-press-machine', slug: 'chest-press-mach', name: 'Machine Chest Press', muscle: 'Chest', equipment: 'Machine', cue: '', aliases: [], loadStepKg: 5, category: 'Machine' },
-  { id: 'ex-pushup', slug: 'pushup', name: 'Push-up', muscle: 'Chest', equipment: 'Bodyweight', cue: '', aliases: [], loadStepKg: 0, loadModel: 'full_bodyweight', category: 'Body Weight' },
-  { id: 'ex-cable-crossover', slug: 'cable-crossover', name: 'Cable Crossover', muscle: 'Chest', equipment: 'Cable', cue: '', aliases: [], loadStepKg: 2.5, category: 'Machine' },
-  { id: 'ex-squat', slug: 'squat', name: 'Barbell Back Squat', muscle: 'Quads', equipment: 'Barbell', cue: '', aliases: [], loadStepKg: 2.5, category: 'Free Weights' },
-  { id: 'ex-leg-press', slug: 'leg-press', name: 'Leg Press', muscle: 'Quads', equipment: 'Machine', cue: '', aliases: [], loadStepKg: 10, category: 'Machine' },
-  { id: 'ex-pullup', slug: 'pullup', name: 'Pull-up', muscle: 'Back', equipment: 'Bodyweight', cue: '', aliases: [], loadStepKg: 0, loadModel: 'full_bodyweight', category: 'Body Weight' }
+  { id: 'ex-bench', slug: 'bench', name: 'Barbell bench press', muscle: 'Chest', equipment: 'Barbell', aliases: [], loadStepKg: 2.5, category: 'Free Weights' },
+  { id: 'ex-incline-db', slug: 'incline-db', name: 'Incline Dumbbell Press', muscle: 'Chest', equipment: 'Dumbbell', aliases: [], loadStepKg: 2, category: 'Free Weights' },
+  { id: 'ex-chest-press-machine', slug: 'chest-press-mach', name: 'Machine Chest Press', muscle: 'Chest', equipment: 'Machine', aliases: [], loadStepKg: 5, category: 'Machine' },
+  { id: 'ex-pushup', slug: 'pushup', name: 'Push-up', muscle: 'Chest', equipment: 'Bodyweight', aliases: [], loadStepKg: 0, loadModel: 'full_bodyweight', category: 'Body Weight' },
+  { id: 'ex-cable-crossover', slug: 'cable-crossover', name: 'Cable Crossover', muscle: 'Chest', equipment: 'Cable', aliases: [], loadStepKg: 2.5, category: 'Machine' },
+  { id: 'ex-squat', slug: 'squat', name: 'Barbell Back Squat', muscle: 'Quads', equipment: 'Barbell', aliases: [], loadStepKg: 2.5, category: 'Free Weights' },
+  { id: 'ex-leg-press', slug: 'leg-press', name: 'Leg Press', muscle: 'Quads', equipment: 'Machine', aliases: [], loadStepKg: 10, category: 'Machine' },
+  { id: 'ex-pullup', slug: 'pullup', name: 'Pull-up', muscle: 'Back', equipment: 'Bodyweight', aliases: [], loadStepKg: 0, loadModel: 'full_bodyweight', category: 'Body Weight' }
 ];
 
 describe('getExerciseCategory', () => {
@@ -160,7 +160,6 @@ describe('ExerciseLibrary UI and grouping', () => {
       muscle: 'Chest',
       secondaryMuscles: ['Triceps', 'Shoulders', 'Core'],
       equipment: 'Barbell',
-      cue: '',
       aliases: [],
       loadStepKg: 2.5,
       category: 'Free Weights'

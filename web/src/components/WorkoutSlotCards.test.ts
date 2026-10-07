@@ -22,7 +22,7 @@ const sampleProgram: ProgramSummary = {
 };
 
 const sampleExercises: Exercise[] = [
-  { id: 'ex-bench', slug: 'bench', name: 'Barbell bench press', muscle: 'Chest', equipment: 'Barbell', cue: '', aliases: [], loadStepKg: 2.5, category: 'Free Weights' }
+  { id: 'ex-bench', slug: 'bench', name: 'Barbell bench press', muscle: 'Chest', equipment: 'Barbell', aliases: [], loadStepKg: 2.5, category: 'Free Weights' }
 ];
 
 describe('WorkoutSlotCards expand/collapse states', () => {

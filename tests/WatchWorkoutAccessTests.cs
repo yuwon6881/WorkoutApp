@@ -60,7 +60,7 @@ public sealed class WatchWorkoutAccessTests
     {
         var harness = await Harness.Create();
         await harness.SignIn();
-        await harness.Seed(new SeedExercise("bench", "Bench press", "Chest", "Barbell", "Cue", null));
+        await harness.Seed(new SeedExercise("bench", "Bench press", "Chest", "Barbell", null));
         return harness;
     }
 

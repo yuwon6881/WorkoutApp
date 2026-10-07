@@ -12,7 +12,7 @@ public class AuthAndTenancyTests
     {
         await using var h = await Harness.Create();
         var alice = await h.SignIn();
-        await h.Seed(new SeedExercise("bench", "Bench press", "Chest", "Barbell", "Cue", null));
+        await h.Seed(new SeedExercise("bench", "Bench press", "Chest", "Barbell", null));
         var template = await h.Templates.Create(Harness.Template("Push", Harness.Exercise(await h.ExerciseId("bench"), "Bench press", Harness.Set(8, 10))), null, 1, 0, default);
 
         var bob = await h.CreateUser("bob");
@@ -47,7 +47,7 @@ public class AuthAndTenancyTests
     {
         await using var h = await Harness.Create();
         var alice = await h.SignIn();
-        await h.Seed(new SeedExercise("bench", "Bench press", "Chest", "Barbell", "", null));
+        await h.Seed(new SeedExercise("bench", "Bench press", "Chest", "Barbell", null));
         Assert.Single(await h.Catalog.All(default));
 
         var bob = await h.CreateUser("bob");

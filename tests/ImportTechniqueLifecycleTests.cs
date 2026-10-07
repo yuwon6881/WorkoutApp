@@ -18,7 +18,7 @@ public sealed class ImportTechniqueLifecycleTests
             ["OpenAi:Model"] = "local"
         });
         await harness.SignIn();
-        await harness.Seed(new SeedExercise("bench", "Barbell bench press", "Chest", "Barbell", "Cue", null));
+        await harness.Seed(new SeedExercise("bench", "Barbell bench press", "Chest", "Barbell", null));
 
         var set = """
             {"repMin":8,"repMax":10,"repsText":"8-10","targetRpe":8,"rir":"2","restSeconds":150,

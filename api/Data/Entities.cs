@@ -44,7 +44,6 @@ public sealed class Exercise
     public string SecondaryMusclesJson { get; set; } = "[]";
     public string Equipment { get; set; } = "";
     public string Category { get; set; } = ExerciseCategories.FreeWeights;
-    public string Cue { get; set; } = "";
     public bool Active { get; set; } = true;
     /// The smallest load change this exercise can actually make in a gym. Zero means the load
     /// is not adjustable at all, so progression happens through reps.
@@ -68,7 +67,6 @@ public sealed class CustomExercise : OwnedRecord
     public string SecondaryMusclesJson { get; set; } = "[]";
     public string Equipment { get; set; } = "";
     public string Category { get; set; } = ExerciseCategories.FreeWeights;
-    public string Cue { get; set; } = "";
     public double LoadStepKg { get; set; } = 2.5;
     /// The account unit when the exercise was created; LoadStepKg is that unit's default step.
     public string LoadStepUnit { get; set; } = WeightUnits.Kg;

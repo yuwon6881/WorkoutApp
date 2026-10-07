@@ -10,7 +10,7 @@ public sealed class ProgramLaunchTests
     {
         await using var h = await Harness.Create();
         await h.SignIn();
-        await h.Seed(new SeedExercise("bench", "Bench", "Chest", "Barbell", "", null));
+        await h.Seed(new SeedExercise("bench", "Bench", "Chest", "Barbell", null));
         var exerciseId = await h.ExerciseId("bench");
         var created = await h.Programs.Create(new ProgramInput("Program", [
             new ProgramWorkoutInput(1, "First", "Push", null, [Harness.Exercise(exerciseId, "Bench", Harness.Set(8, 10))]),

@@ -250,7 +250,7 @@ export default function App() {
       const insight = await api.exerciseInsight(id, '3m', 0, 20);
       const archived: Exercise = {
         id: insight.id, slug: `exercise-${insight.id}`, name: insight.name, muscle: insight.muscle,
-        equipment: insight.equipment, cue: insight.cue, aliases: [], loadStepKg: insight.loadStepKg,
+        equipment: insight.equipment, aliases: [], loadStepKg: insight.loadStepKg,
         loadModel: insight.loadModel, source: insight.isCustom ? 'custom' : 'catalog',
         isCustom: insight.isCustom, archived: insight.archived
       };

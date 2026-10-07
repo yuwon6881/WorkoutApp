@@ -119,7 +119,7 @@ public sealed class ImportPrintedSectionTests
         });
         await using var harness = await Harness.Create(new Dictionary<string, string?> { ["OpenAi:ApiKey"] = "test-key", ["OpenAi:Model"] = "gpt-5.4-mini" });
         await harness.SignIn();
-        await harness.Seed(new SeedExercise("hack-squat", "Hack Squat", "Quadriceps", "Machine", "", null));
+        await harness.Seed(new SeedExercise("hack-squat", "Hack Squat", "Quadriceps", "Machine", null));
         var imports = harness.Imports(handler);
 
         var pending = await imports.Create(new ImportSourceInput("pure.pdf", 7, pages), default);

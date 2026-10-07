@@ -163,7 +163,7 @@ public sealed class ImportPrintedScheduleBookTests
         });
         await using var harness = await Harness.Create(new Dictionary<string, string?> { ["OpenAi:ApiKey"] = "test-key", ["OpenAi:Model"] = "gpt-5.4-mini" });
         await harness.SignIn();
-        await harness.Seed(new SeedExercise("squat", "Squat", "Quadriceps", "Barbell", "", null));
+        await harness.Seed(new SeedExercise("squat", "Squat", "Quadriceps", "Barbell", null));
         var imports = harness.Imports(handler);
         var pending = await imports.Create(new ImportSourceInput(fileName, pages.Max(page => page.Page), pages), default);
         return await imports.Extract(pending.Id, default);

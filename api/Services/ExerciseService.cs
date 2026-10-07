@@ -6,11 +6,11 @@ using Workout.Api.Domain;
 namespace Workout.Api.Services;
 
 /// LoadStepKg is optional: without one the exercise follows the account rule for its equipment.
-public record CustomExerciseInput(string Name, string? Muscle, string? Equipment, string? Cue,
+public record CustomExerciseInput(string Name, string? Muscle, string? Equipment,
     double? LoadStepKg = null, string LoadModel = LoadModels.External, string? MovementPattern = null,
     List<string>? SecondaryMuscles = null, string? Category = null, string? TrackingMode = null);
 
-public record CustomExerciseView(Guid Id, string Name, string Muscle, string Equipment, string Cue,
+public record CustomExerciseView(Guid Id, string Name, string Muscle, string Equipment,
     double LoadStepKg, string LoadModel, string MovementPattern, bool Archived, DateTime CreatedAt,
     List<string>? SecondaryMuscles = null, string Category = ExerciseCategories.FreeWeights, string TrackingMode = TrackingModes.Reps);
 
@@ -22,7 +22,7 @@ public record ExerciseHistoryRow(Guid SessionId, string SessionName, DateOnly Da
 
 public record ExerciseHistoryClearView(DateTime ClearedAt, int RemovedSets, int AffectedWorkouts);
 
-public record ExerciseInsight(Guid Id, string Name, string Muscle, string Equipment, string Cue,
+public record ExerciseInsight(Guid Id, string Name, string Muscle, string Equipment,
     string LoadModel, double LoadStepKg, bool IsCustom, bool Archived, int Sessions, int SetCount,
     int ClearableSetCount,
     double? Estimated1RmKg, DateOnly? Estimated1RmDate, double? HeaviestKg, int? HeaviestReps,
@@ -46,7 +46,6 @@ public sealed partial class ExerciseService(AppDb db, IMemoryCache? cache = null
         Validation.Name(input.Name, "Exercise name", 160);
         Validation.Text(input.Muscle, 80, "Muscle");
         Validation.Text(input.Equipment, 80, "Equipment");
-        Validation.Text(input.Cue, 1000, "Instructions");
         Validation.Text(input.MovementPattern, 80, "Movement pattern");
         Validation.Require((input.SecondaryMuscles ?? []).Count <= 8, "An exercise can have at most 8 secondary muscle groups.");
         foreach (var secondary in input.SecondaryMuscles ?? []) Validation.Text(secondary, 80, "Secondary muscle");
@@ -67,7 +66,7 @@ public sealed partial class ExerciseService(AppDb db, IMemoryCache? cache = null
         {
             UserId = db.CurrentUser!.Value, Name = input.Name.Trim(), Muscle = input.Muscle?.Trim() ?? "",
             Equipment = input.Equipment?.Trim() ?? "", Category = ExerciseCategories.Normalize(input.Category, input.Equipment, input.LoadModel),
-            Cue = input.Cue?.Trim() ?? "", LoadStepKg = appStep, LoadStepUnit = unit,
+            LoadStepKg = appStep, LoadStepUnit = unit,
             LoadModel = input.LoadModel, MovementPattern = input.MovementPattern?.Trim() ?? "",
             TrackingMode = TrackingModes.Normalize(input.TrackingMode),
             SecondaryMusclesJson = Json.Write(CatalogService.NormalizeMuscles(input.Muscle, input.SecondaryMuscles))
@@ -226,7 +225,7 @@ public sealed partial class ExerciseService(AppDb db, IMemoryCache? cache = null
         var systemLoads = bodyweightSets.Where(x => x.SystemLoadKg is not null).Select(x => x.SystemLoadKg!.Value).ToList();
         var clears = await db.ExerciseHistoryClears.AsNoTracking().Where(x => x.ExerciseId == id).OrderByDescending(x => x.ClearedAt)
             .Take(10).Select(x => new ExerciseHistoryClearView(x.ClearedAt, x.RemovedSets, x.AffectedWorkouts)).ToListAsync(ct);
-        return new ExerciseInsight(id, meta.Name, meta.Muscle, meta.Equipment, meta.Cue, meta.LoadModel, meta.LoadStepKg,
+        return new ExerciseInsight(id, meta.Name, meta.Muscle, meta.Equipment, meta.LoadModel, meta.LoadStepKg,
             meta.IsCustom, meta.Archived, records.Select(x => x.SessionId).Distinct().Count(), sets.Count, allSets.Count,
             bestE.E1rm, bestE.E1rm is null ? null : bestE.Date, heavy.Load, heaviestSet?.Reps,
             heaviestSet is null ? null : DateOnly.FromDateTime(sessions[byExercise[heaviestSet.SessionExerciseId].SessionId].FinishedAt!.Value), largestSet.Load is null ? null : largestSet.Load.Value * largestSet.Set.Reps!.Value,
@@ -243,13 +242,13 @@ public sealed partial class ExerciseService(AppDb db, IMemoryCache? cache = null
             meta.Category);
     }
 
-    private async Task<(string Name, string Muscle, string Equipment, string Category, string Cue, string LoadModel, double LoadStepKg, bool IsCustom, bool Archived)> Metadata(Guid id, CancellationToken ct)
+    private async Task<(string Name, string Muscle, string Equipment, string Category, string LoadModel, double LoadStepKg, bool IsCustom, bool Archived)> Metadata(Guid id, CancellationToken ct)
     {
         var catalogRow = await db.Exercises.AsNoTracking().SingleOrDefaultAsync(x => x.Id == id, ct);
-        if (catalogRow != null) return (catalogRow.Name, catalogRow.Muscle, catalogRow.Equipment, catalogRow.Category, catalogRow.Cue, catalogRow.LoadModel, catalogRow.LoadStepKg, false, !catalogRow.Active);
+        if (catalogRow != null) return (catalogRow.Name, catalogRow.Muscle, catalogRow.Equipment, catalogRow.Category, catalogRow.LoadModel, catalogRow.LoadStepKg, false, !catalogRow.Active);
         var custom = await db.CustomExercises.AsNoTracking().SingleOrDefaultAsync(x => x.Id == id, ct);
         Validation.Require(custom != null, "That exercise no longer exists.", 404);
-        return (custom!.Name, custom.Muscle, custom.Equipment, custom.Category, custom.Cue, custom.LoadModel, custom.LoadStepKg, true, custom.Archived);
+        return (custom!.Name, custom.Muscle, custom.Equipment, custom.Category, custom.LoadModel, custom.LoadStepKg, true, custom.Archived);
     }
 
     private async Task<List<SessionExercise>> FinishedExerciseRows(Guid id, CancellationToken ct)
@@ -259,7 +258,7 @@ public sealed partial class ExerciseService(AppDb db, IMemoryCache? cache = null
         => LoadModels.ComparableLoad(loadModel, set.WeightKg, set.SystemLoadKg);
 
     private static CustomExerciseView View(CustomExercise row)
-        => new(row.Id, row.Name, row.Muscle, row.Equipment, row.Cue, row.LoadStepKg, row.LoadModel, row.MovementPattern, row.Archived, row.CreatedAt,
+        => new(row.Id, row.Name, row.Muscle, row.Equipment, row.LoadStepKg, row.LoadModel, row.MovementPattern, row.Archived, row.CreatedAt,
             CatalogService.NormalizeMuscles(row.Muscle, string.IsNullOrWhiteSpace(row.SecondaryMusclesJson) ? [] : Json.Read<List<string>>(row.SecondaryMusclesJson)),
             row.Category, TrackingModes.Normalize(row.TrackingMode));
 }

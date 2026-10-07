@@ -184,8 +184,8 @@ public sealed class ImportDemoLinkTests
     {
         await using var harness = await Harness.Create(Configured());
         await harness.SignIn();
-        await harness.Seed(new SeedExercise("machine-chest-press", "Machine Chest Press", "Chest", "Machine", "", null),
-            new SeedExercise("pec-deck", "Pec Deck", "Chest", "Machine", "", null));
+        await harness.Seed(new SeedExercise("machine-chest-press", "Machine Chest Press", "Chest", "Machine", null),
+            new SeedExercise("pec-deck", "Pec Deck", "Chest", "Machine", null));
         var imports = Imports(harness);
 
         var ready = await imports.Extract((await imports.Create(Source([
@@ -221,8 +221,8 @@ public sealed class ImportDemoLinkTests
         await using var harness = await Harness.Create();
         await harness.SignIn();
         await harness.Seed(
-            new SeedExercise("bench", original, "Chest", "Barbell", "", null),
-            new SeedExercise("smith", alternative, "Chest", "Machine", "", null));
+            new SeedExercise("bench", original, "Chest", "Barbell", null),
+            new SeedExercise("smith", alternative, "Chest", "Machine", null));
         var bench = await harness.ExerciseId("bench");
         var smith = await harness.ExerciseId("smith");
         var created = await harness.Templates.Create(new TemplateInput("Push", null, null,

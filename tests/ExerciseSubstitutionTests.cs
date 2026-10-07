@@ -13,10 +13,10 @@ public sealed class ExerciseSubstitutionTests
         await using var h = await Harness.Create();
         await h.SignIn();
         await h.Seed(
-            new SeedExercise("press", "Barbell Press", "Chest", "Barbell", "", null, SecondaryMuscles: ["Triceps", "Shoulders"]),
-            new SeedExercise("press-match", "Incline Press", "Chest", "Dumbbell", "", null, SecondaryMuscles: ["Triceps", "Shoulders"]),
-            new SeedExercise("press-primary", "Machine Press", "Chest", "Machine", "", null, SecondaryMuscles: ["Core"]),
-            new SeedExercise("row", "Cable Row", "Back", "Cable", "", null, SecondaryMuscles: ["Biceps"]));
+            new SeedExercise("press", "Barbell Press", "Chest", "Barbell", null, SecondaryMuscles: ["Triceps", "Shoulders"]),
+            new SeedExercise("press-match", "Incline Press", "Chest", "Dumbbell", null, SecondaryMuscles: ["Triceps", "Shoulders"]),
+            new SeedExercise("press-primary", "Machine Press", "Chest", "Machine", null, SecondaryMuscles: ["Core"]),
+            new SeedExercise("row", "Cable Row", "Back", "Cable", null, SecondaryMuscles: ["Biceps"]));
 
         var source = await h.ExerciseId("press");
         var rows = await h.Catalog.Substitutions(source, null, [], null, default);
@@ -33,9 +33,9 @@ public sealed class ExerciseSubstitutionTests
         await using var h = await Harness.Create();
         await h.SignIn();
         await h.Seed(
-            new SeedExercise("bench", "Barbell bench press", "Chest", "Barbell", "", ["flat bench"], 2.5, Workout.Api.Domain.LoadModels.External, "horizontal_push"),
-            new SeedExercise("incline", "Incline dumbbell press", "Chest", "Dumbbell", "", null, 2.5, Workout.Api.Domain.LoadModels.External, "horizontal_push"),
-            new SeedExercise("curl", "Dumbbell curl", "Biceps", "Dumbbell", "", null, 2.5, Workout.Api.Domain.LoadModels.External, "elbow_flexion"));
+            new SeedExercise("bench", "Barbell bench press", "Chest", "Barbell", ["flat bench"], 2.5, Workout.Api.Domain.LoadModels.External, "horizontal_push"),
+            new SeedExercise("incline", "Incline dumbbell press", "Chest", "Dumbbell", null, 2.5, Workout.Api.Domain.LoadModels.External, "horizontal_push"),
+            new SeedExercise("curl", "Dumbbell curl", "Biceps", "Dumbbell", null, 2.5, Workout.Api.Domain.LoadModels.External, "elbow_flexion"));
         var bench = await h.ExerciseId("bench");
         var incline = await h.ExerciseId("incline");
         var rows = await h.Catalog.Substitutions(bench, null, ["Incline dumbbell press", "Mystery press", "N/A", "See Notes"], null, default);
@@ -51,8 +51,8 @@ public sealed class ExerciseSubstitutionTests
         await using var h = await Harness.Create();
         await h.SignIn();
         await h.Seed(
-            new SeedExercise("bench", "Barbell bench press", "Chest", "Barbell", "", null),
-            new SeedExercise("incline", "Incline dumbbell press", "Chest", "Dumbbell", "", null));
+            new SeedExercise("bench", "Barbell bench press", "Chest", "Barbell", null),
+            new SeedExercise("incline", "Incline dumbbell press", "Chest", "Dumbbell", null));
         var bench = await h.ExerciseId("bench"); var incline = await h.ExerciseId("incline");
         var created = await h.Templates.Create(Harness.Template("Push", Harness.Exercise(bench, "Barbell bench press", Harness.Set(8, 10))), null, 1, 0, default);
         var slot = created.Exercises.Single().SlotKey;
@@ -71,8 +71,8 @@ public sealed class ExerciseSubstitutionTests
         await using var h = await Harness.Create();
         await h.SignIn();
         await h.Seed(
-            new SeedExercise("bench", "Barbell bench press", "Chest", "Barbell", "", null),
-            new SeedExercise("incline", "Incline dumbbell press", "Chest", "Dumbbell", "", null));
+            new SeedExercise("bench", "Barbell bench press", "Chest", "Barbell", null),
+            new SeedExercise("incline", "Incline dumbbell press", "Chest", "Dumbbell", null));
         var bench = await h.ExerciseId("bench"); var incline = await h.ExerciseId("incline");
         var template = await h.Templates.Create(Harness.Template("Push", Harness.Exercise(bench, "Barbell bench press", Harness.Set(8, 10), Harness.Set(8, 10))), null, 1, 0, default);
         var session = await h.Workouts.Start(template.Id, null, default);
@@ -93,8 +93,8 @@ public sealed class ExerciseSubstitutionTests
         await using var h = await Harness.Create();
         await h.SignIn();
         await h.Seed(
-            new SeedExercise("bench", "Barbell bench press", "Chest", "Barbell", "", null),
-            new SeedExercise("incline", "Incline dumbbell press", "Chest", "Dumbbell", "", null));
+            new SeedExercise("bench", "Barbell bench press", "Chest", "Barbell", null),
+            new SeedExercise("incline", "Incline dumbbell press", "Chest", "Dumbbell", null));
         var bench = await h.ExerciseId("bench"); var incline = await h.ExerciseId("incline");
         var template = await h.Templates.Create(Harness.Template("Push", Harness.Exercise(bench, "Barbell bench press", Harness.Set(8, 10))), null, 1, 0, default);
         var session = await h.Workouts.Start(template.Id, null, default);
@@ -118,7 +118,7 @@ public sealed class ExerciseSubstitutionTests
     {
         await using var h = await Harness.Create();
         await h.SignIn();
-        await h.Seed(new SeedExercise("bench", "Barbell bench press", "Chest", "Barbell", "", null));
+        await h.Seed(new SeedExercise("bench", "Barbell bench press", "Chest", "Barbell", null));
         var bench = await h.ExerciseId("bench");
         var template = await h.Templates.Create(Harness.Template("Push", Harness.Exercise(bench, "Barbell bench press", Harness.Set(8, 10))), null, 1, 0, default);
         var session = await h.Workouts.Start(template.Id, null, default);
@@ -138,8 +138,8 @@ public sealed class ExerciseSubstitutionTests
         await using var h = await Harness.Create();
         await h.SignIn();
         await h.Seed(
-            new SeedExercise("bench", "Barbell bench press", "Chest", "Barbell", "", null),
-            new SeedExercise("incline", "Incline dumbbell press", "Chest", "Dumbbell", "", null));
+            new SeedExercise("bench", "Barbell bench press", "Chest", "Barbell", null),
+            new SeedExercise("incline", "Incline dumbbell press", "Chest", "Dumbbell", null));
         var bench = await h.ExerciseId("bench"); var incline = await h.ExerciseId("incline");
         var input = new ProgramInput("Two week push", [
             new ProgramWorkoutInput(1, "Push 1", null, null, [Harness.Exercise(bench, "Barbell bench press", Harness.Set(8, 10))], "Block", "Base", 1, false),
@@ -168,8 +168,8 @@ public sealed class ExerciseSubstitutionTests
         await using var h = await Harness.Create();
         await h.SignIn();
         await h.Seed(
-            new SeedExercise("bench", "Barbell bench press", "Chest", "Barbell", "", null),
-            new SeedExercise("incline", "Incline dumbbell press", "Chest", "Dumbbell", "", null));
+            new SeedExercise("bench", "Barbell bench press", "Chest", "Barbell", null),
+            new SeedExercise("incline", "Incline dumbbell press", "Chest", "Dumbbell", null));
         var bench = await h.ExerciseId("bench"); var incline = await h.ExerciseId("incline");
         var created = await h.Templates.Create(Harness.Template("Push", Harness.Exercise(bench, "Barbell bench press", Harness.Set(8, 10))), null, 1, 0, default);
         var slot = created.Exercises.Single().SlotKey;
@@ -202,8 +202,8 @@ public sealed class ExerciseSubstitutionTests
         await using var h = await Harness.Create();
         await h.SignIn();
         await h.Seed(
-            new SeedExercise("bench", "Barbell bench press", "Chest", "Barbell", "", null),
-            new SeedExercise("incline", "Incline dumbbell press", "Chest", "Dumbbell", "", null));
+            new SeedExercise("bench", "Barbell bench press", "Chest", "Barbell", null),
+            new SeedExercise("incline", "Incline dumbbell press", "Chest", "Dumbbell", null));
         var bench = await h.ExerciseId("bench"); var incline = await h.ExerciseId("incline");
         var input = new ProgramInput("Three week push", [
             new ProgramWorkoutInput(1, "Push 1", null, null, [Harness.Exercise(bench, "Barbell bench press", Harness.Set(8, 10))], "Block", "Base", 1, false),
