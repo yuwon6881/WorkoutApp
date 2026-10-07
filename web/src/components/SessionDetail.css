@@ -292,12 +292,18 @@
   border-radius: var(--radius);
   background: var(--surface);
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
-  transition: border-color var(--motion-control) var(--motion-ease);
+  transition: border-color var(--motion-control) var(--motion-ease), background var(--motion-control) var(--motion-ease), box-shadow var(--motion-control) var(--motion-ease);
 }
 
 .session-exercise:hover {
   border-color: var(--border-hover);
 }
+
+.session-exercise.session-exercise-action { cursor: pointer; outline: none; }
+.session-exercise.session-exercise-action:hover { border-color: var(--border-hover); background: var(--surface-hover); box-shadow: 0 4px 16px rgba(0, 0, 0, 0.16); }
+.session-exercise.session-exercise-action:hover .session-exercise-title h4 { color: var(--accent); }
+.session-exercise.session-exercise-action:focus-visible { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft-glow); background: var(--surface-hover); }
+.session-exercise.session-exercise-action:active { transform: scale(0.995); }
 
 .session-exercise-skeleton {
   height: 132px;

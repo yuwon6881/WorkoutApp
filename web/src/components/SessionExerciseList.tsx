@@ -11,16 +11,22 @@ function setResult(set: LoggedSet, unit: Unit): string {
   return set.weightKg === null ? `${set.reps} reps` : `${toDisplay(set.weightKg, unit)} ${unit} × ${set.reps}`;
 }
 
-function SessionExerciseCard({ exercise, order, unit, trackRir }: {
+function SessionExerciseCard({ exercise, order, unit, trackRir, onOpen }: {
   exercise: SessionExercise;
   order: number;
   unit: Unit;
   trackRir: boolean;
+  onOpen?: () => void;
 }) {
   const done = exercise.sets.filter(set => set.done);
   const working = done.filter(set => !set.warmup).length;
   return (
-    <li className="session-exercise">
+    <li className={`session-exercise${onOpen ? ' session-exercise-action' : ''}`.trim()}
+      tabIndex={onOpen ? 0 : undefined}
+      role={onOpen ? 'button' : undefined}
+      aria-label={onOpen ? `View ${exercise.name} details` : undefined}
+      onClick={onOpen}
+      onKeyDown={onOpen ? event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); onOpen(); } } : undefined}>
       <div className="session-exercise-header">
         <span className="session-exercise-order" aria-hidden="true">{order}</span>
         <div className="session-exercise-title">
@@ -56,12 +62,13 @@ function SessionExerciseCard({ exercise, order, unit, trackRir }: {
 
 /// Each logged exercise with its sets in the order they were done; nothing is shown for a set that
 /// was never logged.
-export function SessionExerciseList({ exercises, unit, loading, heading = 'Exercises', showCount = true }: {
+export function SessionExerciseList({ exercises, unit, loading, heading = 'Exercises', showCount = true, onExercise }: {
   exercises: SessionExercise[];
   unit: Unit;
   loading: boolean;
   heading?: string;
   showCount?: boolean;
+  onExercise?: (exercise: SessionExercise) => void;
 }) {
   const headingId = useId();
   const trackRir = useTrackRir();
@@ -79,7 +86,7 @@ export function SessionExerciseList({ exercises, unit, loading, heading = 'Exerc
       ) : (
         <ol className="session-exercises">
           {logged.map((exercise, index) => <SessionExerciseCard key={exercise.id} exercise={exercise}
-            order={index + 1} unit={unit} trackRir={trackRir} />)}
+            order={index + 1} unit={unit} trackRir={trackRir} onOpen={onExercise ? () => onExercise(exercise) : undefined} />)}
         </ol>
       )}
     </section>

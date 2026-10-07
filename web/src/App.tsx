@@ -247,11 +247,12 @@ export default function App() {
   }
 
   async function openExercise(id: string) {
-    const existing = data!.exercises.find(candidate => candidate.id === id);
+    const key = id.trim().toLowerCase();
+    const existing = data!.exercises.find(candidate => candidate.id === id || candidate.name.toLowerCase() === key || candidate.slug.toLowerCase() === key || candidate.aliases.some(alias => alias.toLowerCase() === key));
     if (existing) { setExerciseDetail(existing); return; }
     try {
       if (!data!.resources?.catalog) {
-        const catalogExercise = (await api.exercises()).find(candidate => candidate.id === id);
+        const catalogExercise = (await api.exercises()).find(candidate => candidate.id === id || candidate.name.toLowerCase() === key || candidate.slug.toLowerCase() === key || candidate.aliases.some(alias => alias.toLowerCase() === key));
         if (catalogExercise) { setExerciseDetail(catalogExercise); return; }
       }
       const insight = await api.exerciseInsight(id, '3m', 0, 20);
@@ -449,7 +450,8 @@ export default function App() {
     <Suspense fallback={null}>
     {detail && <SessionDetail session={detail} preferences={data.preferences} exercises={data.exercises}
       catalogLoading={detailCatalogLoading} justFinished={detail.id === finishedId}
-      onClose={() => { setDetail(null); setFinishedId(null); }} />}
+      onClose={() => { setDetail(null); setFinishedId(null); }}
+      onExercise={id => { void openExercise(id); }} />}
     {exerciseDetail && <ExerciseDetailModal exercise={exerciseDetail} unit={data.preferences.unit} onClose={() => setExerciseDetail(null)} onChanged={async () => { await app.reload(); }} />}
     {appUpdate.ready && !training && !workoutSession?.active && <div className="update-banner" role="status">
       <span>A new version of Workout is ready.</span>

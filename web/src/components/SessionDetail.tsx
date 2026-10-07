@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { Clock3, Dumbbell, Layers, Trophy } from 'lucide-react';
-import type { Exercise, Preferences, Session } from '../types';
+import type { Exercise, Preferences, Session, SessionExercise } from '../types';
 import { getSessionMuscleCredits } from '../lib/sessionMuscles';
 import { duration, showVolume } from '../lib/training';
 import { Button } from './ui/Button';
@@ -14,7 +14,7 @@ import './SessionDetail.css';
 /// A finished workout. Straight after Finish it opens as the session's result; from history it is
 /// the same summary without the celebration. A history row opens it at once from its summary, and
 /// the exercises fill in when the full session arrives.
-export function SessionDetail({ session: initial, preferences, exercises = [], catalogLoading = false, justFinished = false, onClose }: {
+export function SessionDetail({ session: initial, preferences, exercises = [], catalogLoading = false, justFinished = false, onClose, onExercise }: {
   session: Session;
   preferences: Preferences;
   exercises?: Exercise[];
@@ -22,6 +22,7 @@ export function SessionDetail({ session: initial, preferences, exercises = [], c
   catalogLoading?: boolean;
   justFinished?: boolean;
   onClose: () => void;
+  onExercise?: (id: string) => void;
 }) {
   const { session, loading, error, retry } = useSessionDetail(initial);
   const unit = preferences.unit;
@@ -34,6 +35,23 @@ export function SessionDetail({ session: initial, preferences, exercises = [], c
   const when = new Date(session.startedAt).toLocaleString('en', {
     weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit'
   });
+
+  const handleOpenExercise = (exercise: SessionExercise) => {
+    if (!onExercise) return;
+    if (exercise.exerciseId) {
+      onExercise(exercise.exerciseId);
+      return;
+    }
+    const match = exercises.find(candidate =>
+      candidate.name.toLowerCase() === exercise.name.toLowerCase() ||
+      candidate.aliases.some(alias => alias.toLowerCase() === exercise.name.toLowerCase())
+    );
+    if (match) {
+      onExercise(match.id);
+    } else {
+      onExercise(exercise.name);
+    }
+  };
 
   return <Modal title={session.name} onClose={onClose} wide>
     <div className="modal-body session-summary">
@@ -59,7 +77,7 @@ export function SessionDetail({ session: initial, preferences, exercises = [], c
         <CardFeedback title="Exercises unavailable" message={error} action={{ label: 'Retry', onClick: retry }} />
       ) : <>
         <SessionMuscleStrip summary={muscles} loading={loading || catalogLoading} />
-        <SessionExerciseList exercises={session.exercises} unit={unit} loading={loading} />
+        <SessionExerciseList exercises={session.exercises} unit={unit} loading={loading} onExercise={onExercise ? handleOpenExercise : undefined} />
       </>}
 
       {skipped.length > 0 && <p className="session-summary-skipped">
