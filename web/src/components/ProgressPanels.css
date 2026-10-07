@@ -46,9 +46,10 @@
   min-width: 28px;
   min-height: 28px;
   border-radius: 8px;
-  background: var(--surface-raised);
-  border: 1px solid var(--border);
-  color: var(--muted);
+  /* Accent-tinted badges, as on Nutrition's dashboard cards, tie each figure to the app's colour. */
+  background: var(--accent-soft);
+  border: 1px solid transparent;
+  color: var(--accent);
   flex-shrink: 0;
   transition: color 0.16s ease, border-color 0.16s ease;
 }
@@ -70,7 +71,7 @@
 
 .progress-stat-card strong,
 .stat-card-value > strong {
-  font-size: 24px;
+  font-size: 28px;
   font-weight: 700;
   margin: 0;
   font-variant-numeric: tabular-nums;
@@ -124,6 +125,11 @@
   }
   .progress-stat-card strong,
   .stat-card-value > strong {
-    font-size: 20px;
+    font-size: 24px;
   }
+}
+
+/* The loading placeholder keeps the neutral skeleton tone rather than the badge's accent tint. */
+.stat-icon-wrap.skeleton {
+  background: var(--surface-raised);
 }

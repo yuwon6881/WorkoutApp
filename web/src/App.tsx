@@ -307,7 +307,7 @@ export default function App() {
       <a className="brand" href="#" onClick={e => { e.preventDefault(); setTab('overview'); }}><img src="/favicon.svg" alt="" /><span>Workout</span></a>
       <nav aria-label="Main navigation">{NAV.map(item => <Button key={item.id} variant="tertiary" className={`nav-item ${tab === item.id ? 'selected' : ''}`}
         aria-current={tab === item.id ? 'page' : undefined} onClick={() => setTab(item.id)}>
-        <item.icon size={19} /><span>{item.label}</span>{tab === item.id && <span className="nav-dot" />}</Button>)}</nav>
+        <item.icon size={19} /><span>{item.label}</span></Button>)}</nav>
       <div className="sidebar-bottom">
         <Button variant="tertiary" className={`nav-item ${isAiOpen ? 'selected' : ''}`.trim()} aria-expanded={isAiOpen} onClick={() => setIsAiOpen(true)}><Sparkles size={19} /><span>Ask AI</span></Button>
         <Button variant="tertiary" className={`nav-item ${tab === 'settings' ? 'selected' : ''}`} onClick={() => setTab('settings')}><Settings size={19} /> Settings</Button>

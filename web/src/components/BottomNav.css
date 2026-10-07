@@ -36,11 +36,24 @@
   top: 0;
   left: 0;
   border-radius: 12px;
-  background: var(--accent-soft);
-  border: 1px solid var(--accent-border);
-  box-shadow: 0 0 14px var(--accent-soft-glow);
+  background: transparent;
+  border: 0;
   pointer-events: none;
   transition: transform var(--motion-panel) var(--motion-ease), width var(--motion-panel) var(--motion-ease), height var(--motion-panel) var(--motion-ease);
+}
+
+/* As in Nutrition, the selection is a soft pill behind the icon only, so the label stays plain text
+   and the bar reads as one quiet surface rather than a boxed tab. */
+.bottom-nav .selection-indicator-marker::after {
+  content: '';
+  position: absolute;
+  top: 3px;
+  left: 50%;
+  width: 52px;
+  height: 30px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  transform: translateX(-50%);
 }
 
 [data-motion-reduced] .bottom-nav .selection-indicator-marker {
@@ -93,7 +106,7 @@
 
 .bottom-nav-item.selected .bottom-nav-icon-slot {
   color: var(--accent);
-  transform: scale(1.08);
+  transform: translateY(-1px) scale(1.08);
 }
 
 .bottom-nav-label {

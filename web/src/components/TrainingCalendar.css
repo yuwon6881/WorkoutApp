@@ -203,12 +203,11 @@
 .calendar-day-cell:hover {
   background: var(--surface-hover);
 }
-.calendar-day-cell.is-today {
-  border-color: var(--accent-border);
-  background: var(--accent-soft);
-}
+/* The filled disc and accent weekday already mark today; a tinted box around it as well doubled the
+   emphasis, so the cell itself stays plain like the other days. */
 .calendar-day-cell.is-today .day-weekday {
   color: var(--accent);
+  font-weight: 650;
 }
 
 .day-weekday {
