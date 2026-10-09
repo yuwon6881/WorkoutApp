@@ -1,0 +1,342 @@
+/* The open exercise in the active workout (WorkoutActiveExercise.tsx, WorkoutSetRow.tsx): its
+   heading, action pills and set table. Modelled on MacroFactor's logger: a large title, grey round
+   pills, and one row per set with borderless filled fields and no box around it. Colour carries
+   meaning only: the accent marks the set being logged and the sets already logged.
+   This sheet loads after the shell's base rules in development but before them in a build, so its
+   selectors are written to win either way rather than by order. */
+
+.workout-active-exercise { display: flex; flex-direction: column; gap: 14px; }
+
+/* Heading: the name, then where the lifter is in it, with the progression capsule beside it. */
+.workout-active-exercise .workout-active-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding-inline: 4px; }
+.workout-active-exercise .workout-active-title-group { min-width: 0; }
+.workout-active-exercise .workout-active-title-group h2 {
+  margin: 0;
+  color: var(--text);
+  font-size: 24px !important;
+  font-weight: 750;
+  letter-spacing: -0.025em;
+  line-height: 1.2;
+}
+.workout-active-exercise .workout-active-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin-top: 6px; }
+.workout-set-progress { display: inline-flex; align-items: center; gap: 5px; color: var(--muted); font-size: var(--font-secondary); font-weight: 600; font-variant-numeric: tabular-nums; }
+.workout-set-progress.complete { color: var(--accent); }
+.workout-last-time { margin: 6px 0 0; color: var(--muted); font-size: var(--font-secondary) !important; font-variant-numeric: tabular-nums; }
+.load-assist-hint { margin: 0 4px; color: var(--muted); font-size: var(--font-secondary) !important; }
+
+.workout-progression-badge {
+  display: grid;
+  justify-items: end;
+  gap: 1px;
+  flex-shrink: 0;
+  padding: 7px 12px;
+  border-radius: 14px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+}
+.workout-progression-badge .badge-weight { display: inline-flex; align-items: center; gap: 5px; font-size: 16px; font-weight: 750; }
+.workout-progression-badge .badge-sub { color: var(--muted); font-size: var(--font-secondary); }
+
+/* Actions: grey round pills in one row that scrolls sideways when it runs out of room. */
+.workout-active-exercise .workout-action-pills {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-inline: -20px;
+  padding: 2px 20px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.workout-action-pills::-webkit-scrollbar { display: none; }
+.workout-action-pills > .ui-menu { margin-left: auto; }
+.workout-action-pills .action-pill.button,
+.workout-action-pills .action-pill {
+  position: relative;
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 7px;
+  min-height: 40px;
+  padding: 0 15px;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: var(--surface-raised);
+  color: var(--text);
+  font-weight: 600;
+  white-space: nowrap;
+}
+.workout-action-pills .action-pill.button:hover:not(:disabled) { background: var(--surface-hover); }
+.workout-action-pills .action-pill svg { color: var(--muted); }
+.workout-action-pills .action-pill.pill-static { color: var(--muted); cursor: default; }
+/* A pill whose thing exists (a written note) carries a small accent dot. */
+.workout-action-pills .action-pill.has-note::after {
+  content: '';
+  position: absolute;
+  top: 8px;
+  right: 9px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+.workout-active-exercise .workout-action-pills .ui-menu-trigger { width: 40px; min-width: 40px; height: 40px; min-height: 40px; border: 0; border-radius: 50%; background: var(--surface-raised); }
+@media (max-width: 639px) {
+  .workout-active-exercise .workout-action-pills { margin-inline: -12px; padding-inline: 12px; }
+}
+@media (max-width: 1023px) {
+  .workout-action-pills .action-pill.button,
+  .workout-action-pills .action-pill { min-height: 44px; }
+  .workout-active-exercise .workout-action-pills .ui-menu-trigger { width: 44px; min-width: 44px; height: 44px; min-height: 44px; }
+}
+
+/* The set table. Head and rows share one column list so each label sits over its control. */
+.workout-set-table-container {
+  --set-columns: 44px minmax(0, 1.25fr) minmax(84px, 1fr) minmax(104px, 1fr) 44px 40px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 2px;
+}
+
+.workout-set-table-head,
+.workout-set-rows .workout-set-row {
+  display: grid;
+  grid-template-columns: var(--set-columns);
+  align-items: center;
+  gap: 8px;
+}
+
+.workout-set-table-container .workout-set-table-head {
+  padding: 0 8px 2px;
+  color: var(--faint);
+  font-size: var(--font-secondary) !important;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-align: center;
+  text-transform: none;
+}
+.workout-set-table-head .col-log { display: grid; place-items: center; }
+/* Time and combined reps/RIR occupy the same column; it stays aligned when RIR tracking is off. */
+.workout-set-rows .workout-set-row > .time-cell,
+.workout-set-table-head .col-time,
+.no-rir .workout-set-rows .workout-set-row > .reps-cell,
+.no-rir .workout-set-table-head .col-reps { grid-column: 4; }
+
+.workout-set-rows { display: flex; flex-direction: column; gap: 4px; }
+
+.workout-set-rows .workout-set-row {
+  position: relative;
+  isolation: isolate;
+  min-height: 56px;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: 14px;
+  background: transparent;
+  transition: background-color 240ms var(--motion-ease), box-shadow 240ms var(--motion-ease);
+}
+
+/* A warm-up is a full row: the shell's faded .warmup-row look would let the swipe action beneath
+   it show through. Its set label alone says it is a warm-up. */
+.workout-set-rows .workout-set-row.warmup-row { opacity: 1; }
+
+/* The set being logged: a soft accent frame, no fill, so it reads before anything is typed. */
+.workout-set-rows .workout-set-row.current { box-shadow: inset 0 0 0 1.5px var(--accent-border); }
+
+/* Logged sets are filled; the fill sweeps in from the set's leading edge when it is ticked. */
+.workout-set-rows .workout-set-row.done { background: var(--accent-soft); box-shadow: none; }
+@keyframes set-row-sweep {
+  0% { opacity: 1; transform: scaleX(0); }
+  55% { opacity: 1; transform: scaleX(1); }
+  100% { opacity: 0; transform: scaleX(1); }
+}
+.workout-set-rows .workout-set-row.done.just-logged::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  background: var(--accent-soft-glow);
+  transform-origin: left center;
+  animation: set-row-sweep 560ms cubic-bezier(.32, .72, 0, 1) both;
+}
+
+/* Set number: a filled circle drawn inside the full 44 px target. */
+.workout-set-row .set-type-select.set-type-compact .custom-select-trigger {
+  width: 44px;
+  height: 44px;
+  min-height: 44px;
+  padding: 5px;
+  border: 0;
+  border-radius: 50%;
+  background-color: var(--surface-raised);
+  background-clip: content-box;
+  color: var(--text);
+  font-size: 15px;
+  font-weight: 750;
+}
+.workout-set-row .set-type-select.set-type-warmup .custom-select-trigger { background-color: color-mix(in srgb, var(--blue) 16%, var(--surface-raised)); color: var(--blue); }
+.workout-set-row .set-type-select.set-type-amrap .custom-select-trigger { background-color: var(--red-soft); color: var(--red); }
+.workout-set-row .set-type-select.set-type-dropset .custom-select-trigger,
+.workout-set-row .set-type-select.set-type-myoreps .custom-select-trigger,
+.workout-set-row .set-type-select.set-type-partials .custom-select-trigger,
+.workout-set-row .set-type-select.set-type-lengthenedPartials .custom-select-trigger,
+.workout-set-row .set-type-select.set-type-integratedPartials .custom-select-trigger { background-color: var(--accent-soft); color: var(--accent); }
+.workout-set-row.done .set-type-select.set-type-normal .custom-select-trigger { background-color: var(--accent-soft-glow); color: var(--accent); }
+
+/* Target: what this set read last time, or the plan's target, with any suggested load beneath. */
+.set-target-cell { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; min-width: 0; text-align: center; }
+/* The target wraps rather than truncating: on the narrowest phones its column is only a few words wide. */
+.workout-set-row .target-text {
+  display: block;
+  width: 100%;
+  color: var(--muted);
+  font-size: var(--font-secondary);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+.workout-set-row .suggestion-text { color: var(--accent); font-size: var(--font-secondary); font-weight: 650; white-space: nowrap; }
+.workout-set-row .set-technique-note { color: var(--accent); font-size: var(--font-secondary); font-weight: 600; }
+
+/* Load and reps: borderless filled fields with large numbers. Focus draws a firm accent edge. */
+.workout-set-rows .set-input-cell { min-width: 0; }
+.workout-set-rows .workout-set-row .set-input-cell input {
+  width: 100%;
+  height: 44px;
+  min-height: 44px;
+  padding: 0 6px;
+  border: 0;
+  border-radius: 11px;
+  background: var(--surface-raised);
+  color: var(--text);
+  font-size: 17px !important;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  box-shadow: none;
+}
+.workout-set-rows .workout-set-row .set-input-cell input:hover { background: var(--surface-hover); }
+.workout-set-rows .workout-set-row .set-input-cell input:focus { outline: none; box-shadow: inset 0 0 0 2px var(--accent); }
+.workout-set-rows .workout-set-row .set-input-cell input::placeholder { color: var(--faint); font-weight: 500; }
+.workout-set-rows .workout-set-row.done .set-input-cell input:not(:focus) { background: transparent; }
+
+.load-cell { position: relative; display: flex; align-items: center; min-width: 0; }
+/* Added load and assistance carry their sign inside the field; the number alone stays centred. */
+.load-sign { position: absolute; left: 9px; top: 50%; z-index: 1; transform: translateY(-50%); color: var(--muted); font-size: 15px; font-weight: 700; pointer-events: none; }
+.load-added .load-sign { color: var(--accent); }
+.workout-set-rows .workout-set-row .load-cell.load-added input,
+.workout-set-rows .workout-set-row .load-cell.load-assistance input { padding-left: 20px; }
+/* Assistance is a different kind of number: more of it is an easier set. */
+.workout-set-rows .workout-set-row .load-cell.load-assistance input:not(:focus) { outline: 1.5px dashed var(--accent-border-strong); outline-offset: -1.5px; }
+/* Bodyweight has no load to enter: an empty, dashed field marks the column as not applicable. */
+.workout-set-rows .workout-set-row .load-cell.load-bodyweight input:disabled { background: transparent; outline: 1.5px dashed var(--border-hover); outline-offset: -1.5px; opacity: 1; cursor: not-allowed; }
+
+/* Reps and effort share one field; the effort badge sits on its lower trailing corner. */
+.workout-set-rows .combined-reps-cell { position: relative; min-width: 0; border: 0; border-radius: 11px; background: transparent; }
+.workout-set-rows .combined-reps-cell .reps-rir-badge { top: auto; right: -5px; bottom: -5px; min-width: 22px; height: 22px; box-shadow: 0 0 0 2px var(--surface); }
+.workout-set-rows .workout-set-row.done .combined-reps-cell .reps-rir-badge { box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 12%, var(--surface)); }
+
+/* Timed sets: the time spans the reps column with its start/stop control. */
+.time-cell { display: flex; align-items: center; gap: 4px; min-width: 0; width: 100%; }
+.workout-set-rows .workout-set-row .time-cell input { flex: 1 1 auto; min-width: 0; cursor: pointer; }
+.workout-set-rows .workout-set-row .time-cell.timing input { box-shadow: inset 0 0 0 2px var(--accent-border-strong); color: var(--accent); }
+.set-stopwatch-btn { flex: 0 0 auto; display: grid; place-items: center; width: 44px; height: 44px; min-width: 44px; min-height: 44px; padding: 0; }
+
+/* The tick: an outlined square that fills with the accent once the set is logged. */
+.set-log-checkbox {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
+  border: 2px solid var(--border-hover);
+  border-radius: 12px;
+  background: transparent;
+  color: transparent;
+  cursor: pointer;
+  transition: background-color 160ms var(--motion-ease), border-color 160ms var(--motion-ease), color 160ms var(--motion-ease), transform 120ms ease;
+}
+.set-log-checkbox:hover { border-color: var(--accent); color: var(--accent-border-strong); }
+.set-log-checkbox:active { transform: scale(.92); }
+.workout-set-row.current .set-log-checkbox:not(.checked) { border-color: var(--accent-border-strong); }
+.set-log-checkbox.checked { border-color: var(--accent); background: var(--accent); color: var(--on-accent); }
+/* While paused a set can still be edited but not logged: a dashed, pause-marked box says why. */
+.set-log-checkbox.paused-lock { border-style: dashed; color: var(--muted); cursor: not-allowed; }
+.set-log-checkbox.paused-lock:hover { border-color: var(--accent-border-strong); color: var(--accent); }
+.log-cell, .del-cell { display: grid; place-items: center; }
+.set-del-btn.button { width: 44px; min-width: 44px; height: 44px; min-height: 44px; padding: 0; border-radius: 12px; color: var(--faint); }
+.workout-set-rows .set-del-btn.button:hover:not(:disabled) { color: var(--red); background: var(--red-soft); }
+
+/* Under the table: a removed set's undo, then Add set. */
+.workout-set-table-footer { display: grid; gap: 8px; margin-top: 6px; }
+.workout-set-undo { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 4px 4px 4px 16px; border-radius: 14px; background: var(--surface-raised); color: var(--text); font-size: var(--font-secondary); animation: undo-in 220ms var(--motion-ease); }
+.workout-set-undo .button { min-height: 44px; color: var(--accent); font-weight: 700; }
+@keyframes undo-in { from { opacity: 0; transform: translateY(-6px); } }
+.workout-set-table-footer .add-set-btn.button {
+  width: 100%;
+  min-height: 44px;
+  border: 0;
+  border-radius: 14px;
+  background: var(--surface-raised);
+  color: var(--text);
+  font-weight: 650;
+}
+.workout-set-table-footer .add-set-btn.button svg { color: var(--accent); }
+.workout-set-table-footer .add-set-btn.button:hover:not(:disabled) { background: var(--surface-hover); }
+
+/* A tap on the tick of a set with nothing to log shakes the row once, pointing at what is missing. */
+@keyframes row-nudge {
+  0%, 100% { transform: translateX(0); }
+  20%, 60% { transform: translateX(-5px); }
+  40%, 80% { transform: translateX(5px); }
+}
+.workout-set-rows .workout-set-row.nudge { animation: row-nudge 0.32s ease-in-out; box-shadow: inset 0 0 0 1.5px var(--accent-border-strong); }
+
+/* Phones: one line per set: type, last time, load, combined reps/RIR (or time), and the tick. The
+   load fits three digits and a decimal, reps two with the effort badge; the last-time text takes
+   what is left and wraps. Delete waits behind a sideways swipe on the row. */
+@media (max-width: 639px) {
+  .workout-set-table-container { --set-columns: 44px minmax(0, 1fr) 60px 84px 44px; }
+  .workout-set-table-container.no-rir { --set-columns: 44px minmax(0, 1fr) 64px 56px 44px; }
+  .workout-set-table-container.timed { --set-columns: 44px minmax(0, 1fr) 60px 100px 44px; }
+  .workout-set-table-head,
+  .workout-set-rows .workout-set-row { gap: 4px; }
+  .workout-set-table-container .workout-set-table-head { padding-inline: 4px; }
+  .workout-set-table-head .col-del { display: none; }
+  .workout-set-rows .workout-set-row { min-height: 54px; padding: 5px 4px; }
+  .workout-set-table-head > span,
+  .workout-set-rows .workout-set-row > *,
+  .workout-set-rows .workout-set-row > .time-cell,
+  .no-rir .workout-set-rows .workout-set-row > .reps-cell,
+  .workout-set-table-head .col-time,
+  .no-rir .workout-set-table-head .col-reps { grid-column: auto; }
+  .workout-set-rows .workout-set-row .set-input-cell input { padding-inline: 2px; }
+  .workout-set-rows .workout-set-row .load-cell.load-added input,
+  .workout-set-rows .workout-set-row .load-cell.load-assistance input { padding-left: 16px; }
+  .load-sign { left: 6px; }
+
+  /* The swipe drawer clips to the row's shape, with Delete waiting behind it. */
+  .workout-set-swipe.swipeable-row-mobile { border-radius: 14px; }
+  .workout-set-swipe .swipeable-row-surface { border-radius: 14px; background: var(--surface); }
+  .workout-set-swipe .swipeable-row-actions > .button { flex-direction: column; gap: 4px; }
+}
+@media (max-width: 359px) {
+  .workout-set-table-head,
+  .workout-set-rows .workout-set-row { gap: 2px; padding-inline: 0; }
+}
+
+/* Wide layouts: a slightly shorter row, and a smaller delete beside the tick for a mouse. */
+@media (min-width: 1024px) {
+  .workout-set-rows .workout-set-row { min-height: 52px; }
+  .workout-set-row .set-type-select.set-type-compact .custom-select-trigger { padding: 4px; }
+  .set-del-btn.button { width: 36px; min-width: 36px; height: 36px; min-height: 36px; border-radius: 10px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .workout-set-rows .workout-set-row { transition: none; }
+  .workout-set-rows .workout-set-row.done.just-logged::before,
+  .workout-set-rows .workout-set-row.nudge,
+  .workout-set-undo { animation: none; }
+}

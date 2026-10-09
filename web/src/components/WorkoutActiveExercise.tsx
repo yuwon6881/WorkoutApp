@@ -1,13 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import {
+  Check,
   ClipboardList,
-  Flame,
   Layers,
+  NotebookPen,
   Plus,
   RefreshCw,
   RotateCcw,
-  Sparkles,
-  Target,
   Timer,
   Trash2,
   TrendingUp,
@@ -21,7 +20,7 @@ import type {
   SessionExercise
 } from '../types';
 import { api } from '../lib/api';
-import { restOptions, showReps, showWeight } from '../lib/training';
+import { restOptions, showWeight } from '../lib/training';
 import { withSetAdded, withSetRemoved, withSetRestored } from '../lib/workoutDraft';
 import { allowedSetTypes, withSetType } from '../lib/workoutSetTypes';
 import type { RemovedSet } from '../lib/workoutDraft';
@@ -37,11 +36,12 @@ import { previousSetSummaries } from '../lib/previousSets';
 import { DemoLink } from './ui/DemoLink';
 import { isTimedExercise } from '../lib/setDuration';
 import { useTrackRir } from '../lib/trackRir';
-import { getRirColorClass } from './ui/RpeControl';
 import { ExerciseLoadSettings } from './ExerciseLoadSettings';
+import { WorkoutTargetsModal } from './WorkoutTargetsModal';
 import { loadAdjustable } from '../lib/exerciseLoads';
 import { canEnterPerSide } from '../lib/equipmentGroups';
 import { loadColumnLabel, loadEntryFor } from '../lib/resistanceVariant';
+import './WorkoutLogger.css';
 
 // Long enough to notice a mistaken swipe-delete between sets and reach Undo with a sweaty hand.
 const UNDO_WINDOW_MS = 8000;
@@ -148,6 +148,8 @@ export function WorkoutActiveExercise({
   }, [exercise.exerciseId, exercise.loadModel, libraryExercise, unit]);
   const resolvedLoads = libraryExercise ?? focusedLoads;
   const nextUnloggedWorkingIndex = workingSets.findIndex(s => !s.done);
+  // The row the lifter is on: the first set, warm-up or working, still to log.
+  const nextSetIndex = exercise.sets.findIndex(s => !s.done);
   const currentSetDisplay = nextUnloggedWorkingIndex >= 0
     ? `Set ${nextUnloggedWorkingIndex + 1} of ${workingSets.length || exercise.sets.length}`
     : 'All sets completed';
@@ -155,13 +157,21 @@ export function WorkoutActiveExercise({
 
   const progressionBadge = exercise.progression?.suggestedKg != null ? (
     <div className="workout-progression-badge" title={exercise.progression.reason}>
-      <TrendingUp size={14} />
-      <span className="badge-weight">{showWeight(exercise.progression.suggestedKg, unit)}</span>
+      <span className="badge-weight"><TrendingUp size={14} aria-hidden="true" />{showWeight(exercise.progression.suggestedKg, unit)}</span>
       {exercise.progression.trendE1rmKg != null && (
         <span className="badge-sub">e1RM {showWeight(exercise.progression.trendE1rmKg, unit)}</span>
       )}
     </div>
   ) : null;
+
+  // The note sits below the sets, often off screen; its pill brings it into view and focus.
+  const noteField = useRef<HTMLDivElement>(null);
+  function openNote() {
+    const field = noteField.current?.querySelector('textarea');
+    if (!field) return;
+    field.focus({ preventScroll: true });
+    field.scrollIntoView({ block: 'center', behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+  }
 
   return (
     <section className={`workout-active-exercise ${exercise.isReplacement ? 'swap-continuation' : ''}`}>
@@ -173,7 +183,9 @@ export function WorkoutActiveExercise({
               : exercise.name}
           </h2>
           <div className="workout-active-meta">
-            {currentSetDisplay && <span className="workout-set-progress">{currentSetDisplay}</span>}
+            {currentSetDisplay && <span className={`workout-set-progress ${nextUnloggedWorkingIndex < 0 ? 'complete' : ''}`.trim()}>
+              {nextUnloggedWorkingIndex < 0 && <Check size={15} strokeWidth={3} aria-hidden="true" />}{currentSetDisplay}
+            </span>}
             {exercise.isReplacement && (
               <span className="tiny-label">Swapped · {exercise.originalName}</span>
             )}
@@ -191,7 +203,7 @@ export function WorkoutActiveExercise({
         {progressionBadge}
       </div>
 
-      <div ref={actionToolbar} className="workout-action-pills" role="toolbar" aria-label="Exercise actions">
+      <div ref={actionToolbar} className="workout-action-pills" role="toolbar" aria-label="Exercise actions" data-swipe-ignore="">
         <Button
           variant="tertiary"
           className="action-pill"
@@ -226,6 +238,11 @@ export function WorkoutActiveExercise({
           </Button>
         )}
 
+        <Button variant="tertiary" className={`action-pill ${exercise.note.trim() ? 'has-note' : ''}`.trim()} onClick={openNote}>
+          <NotebookPen size={15} />
+          <span>Note</span>
+        </Button>
+
         {exercise.sequenceGroup && (
           <div className="action-pill pill-static" title="Superset group">
             <Layers size={15} />
@@ -250,79 +267,8 @@ export function WorkoutActiveExercise({
       </div>
 
       {showTargets && (
-        <Modal title={`${exercise.name} targets`} onClose={() => setShowTargets(false)}>
-          <div className="modal-body workout-plan-detail-card">
-            {exercise.progression && (
-              <div className="plan-detail-banner">
-                <Sparkles size={16} className="plan-banner-icon" aria-hidden="true" />
-                <div className="plan-banner-text">
-                  <strong className="plan-banner-title">Progression Target</strong>
-                  <p>{exercise.progression.reason}</p>
-                </div>
-              </div>
-            )}
-            <ul className="plan-detail-list">
-              {(prescription.some(p => !p.warmup) ? prescription.filter(p => !p.warmup) : prescription).map((p, pi) => {
-                const rirVal = p.rir && Number.isFinite(Number(p.rir))
-                  ? Math.round(Number(p.rir))
-                  : p.targetRpe !== null
-                    ? Math.round(10 - p.targetRpe)
-                    : !p.warmup ? 2 : null;
-                const rirLabel = rirVal !== null ? `${rirVal} RIR` : null;
-                const repsRaw = showReps(p);
-                const repsLabel = /^\d+(–\d+)?$/.test(repsRaw) ? `${repsRaw} reps` : repsRaw;
-                const setSuggestion = exercise.sets[pi]?.suggestion;
-                const suggestedWeight = setSuggestion?.suggestedLoadKg
-                  ? showWeight(setSuggestion.suggestedLoadKg, unit)
-                  : null;
-
-                return (
-                  <li key={pi}>
-                    <div className="plan-set-header">
-                      <span className="plan-set-badge">{p.warmup ? 'Warmup' : `Set ${pi + 1}`}</span>
-                      <div className="plan-set-badges">
-                        <span className="plan-pill plan-reps-pill">
-                          <Target size={12} aria-hidden="true" />
-                          <span>{repsLabel}</span>
-                        </span>
-                        {trackRir && rirLabel && (
-                          <span className={`plan-pill plan-rir-pill ${getRirColorClass(rirVal)}`}>
-                            <Flame size={12} aria-hidden="true" />
-                            <span>{rirLabel}</span>
-                          </span>
-                        )}
-                        {suggestedWeight && (
-                          <span className="plan-pill plan-load-pill">
-                            <Weight size={12} aria-hidden="true" />
-                            <span>{suggestedWeight}</span>
-                          </span>
-                        )}
-                        {p.loadText && !suggestedWeight && (
-                          <span className="plan-pill plan-load-pill">
-                            <Weight size={12} aria-hidden="true" />
-                            <span>{p.loadText}</span>
-                          </span>
-                        )}
-                        {p.tempo && (
-                          <span className="plan-pill plan-tempo-pill">
-                            <Timer size={12} aria-hidden="true" />
-                            <span>Tempo {p.tempo}</span>
-                          </span>
-                        )}
-                        {previousSets[pi] && (
-                          <span className="plan-pill plan-prev-pill">
-                            Last: {previousSets[pi]}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                    {p.notes && <p className="plan-set-note">{p.notes}</p>}
-                  </li>
-                );
-              })}
-            </ul>
-          </div>
-        </Modal>
+        <WorkoutTargetsModal exercise={exercise} unit={unit} trackRir={trackRir} previousSets={previousSets}
+          onClose={() => setShowTargets(false)} />
       )}
 
       {loadEntry === 'assistance' && (
@@ -340,7 +286,7 @@ export function WorkoutActiveExercise({
               <span className="col-reps">{trackRir ? 'Reps / RIR' : 'Reps'}</span>
             </>
           )}
-          <span className="col-log">Done</span>
+          <span className="col-log"><Check size={16} strokeWidth={2.5} aria-hidden="true" /><span className="sr-only">Done</span></span>
           <span className="col-del" />
         </div>
 
@@ -355,6 +301,7 @@ export function WorkoutActiveExercise({
                 ei={index}
                 exercise={exercise}
                 plan={plan}
+                current={si === nextSetIndex}
                 previous={previousSets[si]}
                 unit={unit}
                 loadStepKg={resolvedLoads?.loadStepKg}
@@ -389,7 +336,7 @@ export function WorkoutActiveExercise({
         </div>
       </div>
 
-      <div className="workout-note-drawer">
+      <div className="workout-note-drawer" ref={noteField}>
         <TextAreaField
           label="Exercise notes"
           autoGrow

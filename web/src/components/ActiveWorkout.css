@@ -1,174 +1,12 @@
+/* The in-progress workout's body chrome: the exercise strip, the page area, the footer and the
+   personal-best note. The sheet frame, header and rest timer live in WorkoutSheet.css. Phone
+   first; every row here must fit 320 px without wrapping or clipping. */
 
-/* Stable modal height for active workout so switching exercises does not shift height */
-.modal.workout-sheet {
-  display: flex;
-  flex-direction: column;
-  height: min(860px, 90dvh);
-  max-height: 90dvh;
-  scrollbar-width: none;
-  -ms-overflow-style: none;
-}
-.modal.workout-sheet::-webkit-scrollbar {
-  display: none;
-}
-.modal.workout-sheet .workout-body {
-  flex: 1 1 auto;
-  overflow-y: auto;
-  min-height: 0;
-  scrollbar-width: none;
-  -ms-overflow-style: none;
-}
-.modal.workout-sheet .workout-body::-webkit-scrollbar {
-  display: none;
-}
-@media (max-width: 639px) {
-  .modal.workout-sheet {
-    height: 92dvh;
-    max-height: 94dvh;
-  }
-}
-/* The in-progress workout's chrome: status bar, set progress line, exercise strip and rest
-   bar. Phone first; every row here must fit 320 px without wrapping or clipping. */
-
-.modal .workout-top-status-bar {
-  position: relative;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 8px;
-  padding: 14px 14px 12px 20px;
-  background: var(--surface);
-  border-bottom: 1px solid var(--border);
-}
-
-.workout-top-icon.button {
-  width: 44px;
-  min-width: 44px;
-  height: 44px;
-  min-height: 44px;
-  padding: 0;
-  border-radius: var(--radius-control);
-}
-
-.workout-top-summary {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  min-width: 0;
-}
-
-.workout-top-actions {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.workout-elapsed-clock {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  color: var(--text);
-  font-size: 16px;
-  font-weight: 650;
-  font-variant-numeric: tabular-nums;
-  letter-spacing: -0.01em;
-  white-space: nowrap;
-}
-
-.workout-elapsed-clock svg { color: var(--muted); }
-
-.workout-top-status-bar.paused .workout-elapsed-clock { color: var(--muted); }
-
-.workout-paused-label {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  min-height: 28px;
-  padding: 0 10px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-pill);
-  background: var(--surface-raised);
-  color: var(--muted);
-  font-size: var(--font-secondary);
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-}
-
-.workout-paused-label {
-  border-color: var(--accent-border);
-  background: var(--accent-soft);
-  color: var(--accent);
-}
-
-/* Replayed (by remounting) each time a set is tapped while paused, pointing at the cause. */
-@keyframes paused-pulse {
-  0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 transparent; }
-  35% { transform: scale(1.12); box-shadow: 0 0 0 4px var(--accent-soft); }
-}
-.workout-paused-label.pulse { animation: paused-pulse 0.5s ease-out; }
-@media (prefers-reduced-motion: reduce) {
-  .workout-paused-label.pulse { animation: none; }
-}
-
-/* Title and status share the header: the name on one line, then time and any save problem. */
-.workout-top-summary { flex-direction: column; gap: 2px; }
-
-.workout-top-title {
-  max-width: 100%;
-  margin: 0;
-  overflow-wrap: anywhere;
-  color: var(--text);
-  font-size: 16px;
-  font-weight: 700;
-  line-height: 1.25;
-  white-space: normal;
-}
-
-.workout-top-meta {
-  display: flex;
-  align-items: center;
-  justify-content: flex-start;
-  gap: 6px;
-  min-width: 0;
-  flex-wrap: wrap;
-}
-
-.workout-top-meta .workout-elapsed-clock { font-size: var(--font-secondary); }
-
-.workout-top-meta .workout-paused-label { min-height: 24px; padding: 0 8px; }
-
-.workout-sync-status {
-  font-size: var(--font-secondary);
-  font-weight: 600;
-  white-space: nowrap;
-}
-
-/* Logged working sets fill the header's bottom edge, sitting over its border. */
-.workout-sets-progress {
-  position: absolute;
-  right: 0;
-  bottom: -1px;
-  left: 0;
-  height: 3px;
-  overflow: hidden;
-  pointer-events: none;
-}
-
-.workout-sets-progress > span {
-  display: block;
-  height: 100%;
-  background: var(--accent);
-  transform-origin: left center;
-  transition: transform var(--motion-panel) var(--motion-ease);
-}
-
-.workout-sync-status.offline { color: var(--amber); }
-.workout-sync-status.warning { color: var(--red); }
-
-/* Exercise strip: pills that name the exercise in full and show progress as a ring. */
+/* Exercise strip: a tab bar of the session's exercises. Each tab names the exercise, shows its
+   logged share as a ring, and sits on an underline segment that turns accent for the open one. */
 .workout-exercise-strip-container {
-  padding: 10px 0;
+  position: relative;
+  padding: 6px 0 0;
   background: var(--surface);
   border-bottom: 1px solid var(--border);
 }
@@ -177,132 +15,130 @@
   position: relative;
   display: flex;
   align-items: stretch;
-  gap: 8px;
-  padding: 0 14px 2px;
+  gap: 4px;
+  padding: 0 12px;
   overflow-x: auto;
   overflow-y: hidden;
-  scroll-padding-inline: 14px;
+  scroll-padding-inline: 12px;
   scrollbar-width: none;
   -webkit-overflow-scrolling: touch;
 }
-
 .workout-exercise-strip::-webkit-scrollbar { display: none; }
 
-/* Wider layouts page the strip with arrows, since a mouse cannot swipe it. */
-.workout-exercise-strip-container.with-arrows { display: flex; align-items: center; gap: 4px; padding-inline: 6px; }
-.workout-exercise-strip-container.with-arrows .workout-exercise-strip { flex: 1 1 auto; min-width: 0; padding-inline: 4px; }
-.workout-strip-arrow.button { flex: 0 0 auto; width: 44px; min-width: 44px; height: 44px; min-height: 44px; padding: 0; border-radius: 12px; }
-.workout-strip-arrow.button:disabled { visibility: hidden; }
-@media (min-width: 1024px) {
-  .workout-strip-arrow.button { width: 36px; min-width: 36px; height: 36px; min-height: 36px; }
+/* Wider layouts page the strip with arrows, since a mouse cannot swipe it. They float over its
+   ends on a fade, so the first tab starts at the edge and nothing is reserved for a hidden arrow. */
+.workout-exercise-strip-container.with-arrows .workout-exercise-strip { padding-inline: 16px; scroll-padding-inline: 52px; }
+.workout-strip-arrow.button {
+  position: absolute;
+  top: 6px;
+  bottom: 4px;
+  z-index: 2;
+  width: 52px;
+  min-width: 0;
+  height: auto;
+  min-height: 0;
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--text);
+  transition: opacity var(--motion-control) var(--motion-ease);
 }
-
-/* A long press picks a pill up; the browser's own long-press callout and selection would fight it.
-   Pills fill the strip, so they must allow its sideways pan; useStripReorder stops the pan once a
-   pill is held. */
-.workout-strip-item { -webkit-touch-callout: none; user-select: none; touch-action: pan-x pan-y; }
-.workout-strip-item.pressing {
-  transform: scale(0.97);
-  border-color: var(--accent-border);
-  transition: transform 0.12s ease, border-color 0.12s ease;
-}
-.workout-strip-item.held {
-  border-color: var(--accent);
-  background: var(--surface-hover);
-  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.5), 0 0 0 2px var(--accent), 0 0 18px var(--accent-soft-glow);
-  transform: scale(1.06) translateY(-4px);
-  cursor: grabbing;
-  z-index: 10;
-  touch-action: none;
-}
-@keyframes held-ring-pulse {
-  0%, 100% { transform: scale(1); filter: drop-shadow(0 0 2px var(--accent)); }
-  50% { transform: scale(1.1); filter: drop-shadow(0 0 6px var(--accent)); }
-}
-.workout-strip-item.held .workout-strip-ring {
-  animation: held-ring-pulse 1.2s ease-in-out infinite;
-  color: var(--accent);
-}
-.workout-exercise-strip.reordering .workout-strip-item:not(.held) {
-  transition: transform 0.22s cubic-bezier(0.2, 0, 0.2, 1);
-}
-@media (prefers-reduced-motion: reduce) {
-  .workout-strip-item.held,
-  .workout-strip-item.pressing { transform: none; }
-  .workout-strip-item.held .workout-strip-ring { animation: none; }
-}
+.workout-strip-arrow.button:first-child { left: 0; justify-content: flex-start; padding-left: 10px; background: linear-gradient(90deg, var(--surface) 55%, transparent); }
+.workout-strip-arrow.button:last-child { right: 0; justify-content: flex-end; padding-right: 10px; background: linear-gradient(270deg, var(--surface) 55%, transparent); }
+/* Hover keeps the fade rather than taking the shared tertiary fill. */
+.workout-exercise-strip-container .workout-strip-arrow.button:first-child:hover:not(:disabled) { background: linear-gradient(90deg, var(--surface) 55%, transparent); color: var(--accent); }
+.workout-exercise-strip-container .workout-strip-arrow.button:last-child:hover:not(:disabled) { background: linear-gradient(270deg, var(--surface) 55%, transparent); color: var(--accent); }
+.workout-strip-arrow.button:disabled { opacity: 0; pointer-events: none; }
 
 .workout-strip-item {
+  position: relative;
   display: flex;
-  flex: 0 0 184px;
-  width: 184px;
-  min-width: 184px;
-  max-width: 184px;
+  flex: 0 0 172px;
+  width: 172px;
+  min-width: 172px;
+  max-width: 172px;
   box-sizing: border-box;
   align-items: center;
   gap: 10px;
-  min-height: 52px;
-  padding: 6px 14px 6px 8px;
-  border: 1px solid var(--border);
-  border-radius: 14px;
-  background: var(--surface-raised);
+  min-height: 54px;
+  padding: 4px 10px 9px 6px;
+  border: 0;
+  border-radius: 12px 12px 0 0;
+  background: transparent;
   color: var(--text);
   text-align: left;
   cursor: pointer;
-  transition: border-color var(--motion-control) var(--motion-ease),
-              background-color var(--motion-control) var(--motion-ease),
+  /* A long press picks a tab up; the browser's own long-press callout and selection would fight it.
+     Tabs fill the strip, so they allow its sideways pan; useStripReorder stops it once one is held. */
+  -webkit-touch-callout: none;
+  user-select: none;
+  touch-action: pan-x pan-y;
+  transition: background-color var(--motion-control) var(--motion-ease),
               transform 0.2s cubic-bezier(0.2, 0, 0, 1),
               box-shadow 0.2s cubic-bezier(0.2, 0, 0, 1);
 }
 
-.workout-strip-item:hover { border-color: var(--border-hover); }
-
-.workout-strip-item.active {
-  border-color: var(--accent-border-strong);
-  background: var(--accent-soft);
+.workout-strip-item::after {
+  content: '';
+  position: absolute;
+  right: 6px;
+  bottom: 0;
+  left: 6px;
+  height: 2px;
+  border-radius: 2px 2px 0 0;
+  background: var(--border);
+  transition: height var(--motion-control) var(--motion-ease), background-color var(--motion-control) var(--motion-ease);
 }
+
+.workout-strip-item:hover { background: var(--surface-hover); }
+.workout-strip-item.active { background: var(--surface-raised); }
+.workout-strip-item.active::after { height: 3px; background: var(--accent); }
+.workout-strip-item.completed:not(.active)::after { background: var(--accent-border); }
+
+.workout-strip-item.pressing { transform: scale(0.97); transition: transform 0.12s ease; }
+.workout-strip-item.held {
+  border-radius: 12px;
+  background: var(--surface-hover);
+  box-shadow: 0 14px 30px var(--overlay), 0 0 0 2px var(--accent);
+  transform: scale(1.05) translateY(-3px);
+  cursor: grabbing;
+  z-index: 10;
+  touch-action: none;
+}
+.workout-strip-item.held::after { opacity: 0; }
+.workout-exercise-strip.reordering .workout-strip-item:not(.held) { transition: transform 0.22s cubic-bezier(0.2, 0, 0.2, 1); }
 
 .workout-strip-ring {
   position: relative;
   display: grid;
-  flex: 0 0 32px;
-  width: 32px;
-  height: 32px;
+  flex: 0 0 30px;
+  width: 30px;
+  height: 30px;
   place-items: center;
+  border-radius: 50%;
+  background: var(--surface-raised);
   color: var(--muted);
   font-size: var(--font-secondary);
   font-weight: 700;
   font-variant-numeric: tabular-nums;
 }
-
-.workout-strip-ring .ring-svg {
-  position: absolute;
-  inset: 0;
-  transform: rotate(-90deg);
-}
-
-.workout-strip-ring circle {
-  fill: none;
-  stroke-width: 2.5;
-}
-
-.workout-strip-ring .ring-track { stroke: var(--border-hover); }
-
+.workout-strip-item.active .workout-strip-ring { background: var(--surface); color: var(--text); }
+.workout-strip-ring .ring-svg { position: absolute; inset: 0; transform: rotate(-90deg); }
+.workout-strip-ring circle { fill: none; stroke-width: 2.5; }
+.workout-strip-ring .ring-track { stroke: transparent; }
 .workout-strip-ring .ring-value {
   stroke: var(--accent);
   stroke-linecap: round;
-  transition: stroke-dashoffset var(--motion-panel) var(--motion-ease);
+  transition: stroke-dashoffset 420ms cubic-bezier(.32, .72, 0, 1);
 }
 
-.workout-strip-item.active .workout-strip-ring,
-.workout-strip-item.completed .workout-strip-ring { color: var(--accent); }
+/* A finished exercise trades its number for a filled check that pops in once. */
+@keyframes strip-done { 0% { transform: scale(.6); } 60% { transform: scale(1.12); } 100% { transform: scale(1); } }
+.workout-strip-item.completed .workout-strip-ring { background: var(--accent); color: var(--on-accent); }
+.workout-strip-item.just-completed .workout-strip-ring { animation: strip-done 360ms var(--motion-ease); }
+.workout-strip-item.completed .ring-svg { display: none; }
 
-.workout-strip-text {
-  display: grid;
-  gap: 1px;
-  min-width: 0;
-  flex: 1 1 0;
-}
+.workout-strip-text { display: grid; gap: 1px; min-width: 0; flex: 1 1 0; }
 
 .workout-strip-name {
   /* The 14px text floor holds here too; two clamped lines carry longer names. */
@@ -315,185 +151,110 @@
   overflow: hidden;
   overflow-wrap: anywhere;
 }
+.workout-strip-item:not(.active) .workout-strip-name { color: var(--muted); }
+.workout-strip-item.active .workout-strip-name { color: var(--text); }
 
 .workout-strip-count {
-  color: var(--muted);
+  color: var(--faint);
   font-size: var(--font-secondary);
   font-variant-numeric: tabular-nums;
 }
+.workout-strip-item.active .workout-strip-count { color: var(--muted); }
 
-.workout-strip-item.completed:not(.active) .workout-strip-name { color: var(--muted); }
-
-.workout-strip-add-item.button {
+.workout-exercise-strip .workout-strip-add-item.button {
   flex: 0 0 auto;
-  min-height: 52px;
-  padding: 0 16px;
-  border: 1px dashed var(--accent-border);
-  border-radius: 14px;
-  color: var(--accent);
-}
-
-/* Rest: pinned under the header while a rest runs, as a compact countdown, quick adjustments, and
-   the set that comes next. It is not rendered between rests. */
-.workout-rest-bar {
-  display: grid;
-  gap: 4px;
-  padding: 6px 12px 8px;
-  border-bottom: 1px solid var(--accent-border);
-  background: var(--surface);
-  color: var(--accent);
-  font-size: var(--font-secondary);
-}
-
-.rest-bar-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-
-.workout-rest-bar .rest-clock { color: var(--text); font-size: var(--font-secondary); font-variant-numeric: tabular-nums; white-space: nowrap; }
-
-.rest-clock-value {
-  display: inline-block;
-  min-width: 4ch;
-  color: var(--text);
-  font-size: 20px;
-  font-weight: 750;
-  letter-spacing: -0.02em;
-  line-height: 1;
-}
-
-.workout-rest-bar .button {
+  align-self: center;
   min-height: 44px;
-  padding: 0 6px;
-  font-size: var(--font-secondary);
-}
-
-.rest-bar-actions { display: flex; align-items: center; gap: 2px; margin-left: auto; }
-
-.workout-rest-bar .rest-bar-actions .button { min-width: 44px; padding: 0 6px; }
-
-.rest-next {
-  margin: 0;
-  overflow: hidden;
-  color: var(--muted);
-  font-size: var(--font-secondary);
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.workout-rest-bar .rest-track {
-  display: block;
-  max-width: none;
-  height: 2px;
+  margin: 0 0 6px 4px;
+  padding: 0 14px;
   border-radius: var(--radius-pill);
-  background: var(--border);
-  overflow: hidden;
+  background: var(--surface-raised);
+  color: var(--text);
+}
+.workout-exercise-strip .workout-strip-add-item.button:hover:not(:disabled) { background: var(--surface-hover); }
+
+/* Phones: the strip is an overview and a jump list, so it gives its height to the sets. */
+@media (max-width: 639px) {
+  .workout-exercise-strip-container { padding-top: 4px; }
+  .workout-exercise-strip { padding-inline: 8px; scroll-padding-inline: 8px; }
+  .workout-strip-item {
+    flex: 0 0 150px;
+    width: 150px;
+    min-width: 150px;
+    max-width: 150px;
+    min-height: 48px;
+    gap: 8px;
+    padding: 2px 8px 7px 4px;
+  }
+  .workout-strip-ring { flex-basis: 28px; width: 28px; height: 28px; }
+  .workout-strip-count { display: none; }
 }
 
-.workout-rest-bar .rest-track > span {
-  display: block;
-  height: 100%;
-  border-radius: inherit;
-  background: var(--accent);
-  transition: width 1s linear;
-}
+/* Each exercise is a page; a sideways swipe anywhere on the workout turns it, and the page follows
+   the finger (useExercisePager.ts). The wrapper adds no box, so the pan rule sits on the regions it
+   groups; the page itself is clipped by the body so a moving page never widens the sheet. */
+.workout-swipe-surface { display: contents; }
+.workout-swipe-surface > .workout-body { touch-action: pan-y; overflow-x: hidden; }
+.workout-page { min-width: 0; will-change: auto; }
+.workout-page.dragging { will-change: transform; }
 
 /* Finish appears once every working set is logged; errors and personal bests share its row. */
+@keyframes footer-rise { from { opacity: 0; transform: translateY(14px); } }
+.modal.workout-sheet .workout-footer {
+  position: relative;
+  flex: 0 0 auto;
+  border-top: 1px solid var(--border);
+  background: var(--surface);
+  animation: footer-rise 320ms cubic-bezier(.32, .72, 0, 1);
+}
+
 .workout-footer-actions {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   align-items: center;
   gap: 8px;
   padding: 10px 14px calc(10px + env(safe-area-inset-bottom));
-  border-top: 1px solid var(--border);
-  background: var(--surface);
 }
-
-.workout-footer-actions > .modal-actions-error { margin: 0; }
-.workout-footer-actions .button { min-height: 48px; justify-content: center; }
-
-@media (max-width: 639px) {
-  .workout-rest-bar { padding-inline: 12px; }
-  .workout-rest-bar .rest-bar-actions { gap: 6px; }
-  .workout-rest-bar .rest-bar-actions .button {
-    font-size: 14px;
-    font-weight: 600;
-    min-width: 48px;
-    min-height: 44px;
-    padding: 0 10px;
-    border-radius: 8px;
-    background: var(--surface-raised);
-    border: 1px solid var(--border);
-  }
-}
-
-@media (min-width: 1024px) {
-  .workout-top-icon.button {
-    width: 40px;
-    min-width: 40px;
-    height: 40px;
-    min-height: 40px;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .workout-strip-ring .ring-value,
-  .workout-sets-progress > span,
-  .workout-rest-bar .rest-track > span {
-    transition: none;
-  }
-}
+.workout-footer-actions:empty { display: none; }
+.workout-footer-actions > .modal-actions-error { margin: 0; text-align: left; }
+.workout-footer-actions .workout-finish-btn.button { min-height: 52px; justify-content: center; border-radius: 14px; font-size: 16px !important; font-weight: 700; }
 
 /* A personal best, announced in the footer for a few seconds (useAfterLog.ts). */
+@keyframes celebration-in { 0% { opacity: 0; transform: translateY(10px) scale(.98); } 100% { opacity: 1; transform: none; } }
+@keyframes trophy-pop { 0% { transform: scale(.4) rotate(-18deg); } 55% { transform: scale(1.25) rotate(8deg); } 100% { transform: none; } }
 .workout-celebration {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   margin: 0;
-  padding: 10px 14px;
-  border-top: 1px solid var(--accent-border);
+  padding: 12px 16px;
   background: var(--accent-soft);
   color: var(--text);
-  font-size: var(--font-secondary);
+  font-size: var(--font-secondary) !important;
   font-weight: 650;
-  animation: celebration-in var(--motion-panel, 220ms) var(--motion-ease, ease-out);
+  animation: celebration-in 360ms cubic-bezier(.32, .72, 0, 1);
 }
-.workout-celebration svg { flex: 0 0 auto; color: var(--accent); }
-@keyframes celebration-in { from { opacity: 0; transform: translateY(6px); } }
-@media (prefers-reduced-motion: reduce) { .workout-celebration { animation: none; } }
+.workout-celebration svg { flex: 0 0 auto; color: var(--accent); animation: trophy-pop 520ms var(--motion-ease) 120ms both; }
 
-/* Each exercise is a page; a sideways swipe anywhere on the workout turns it (ui/useHorizontalSwipe.ts).
-   The wrapper adds no box, so the pan rule sits on the regions it groups. */
-.workout-swipe-surface { display: contents; }
-.workout-swipe-surface > .workout-body { touch-action: pan-y; }
-
-/* Phones: the strip is an overview and a jump list, so it gives its height to the sets. */
-@media (max-width: 639px) {
-  .workout-exercise-strip-container { padding: 6px 0; }
-  .workout-strip-item {
-    min-height: 44px;
-    flex: 0 0 152px;
-    width: 152px;
-    min-width: 152px;
-    max-width: 152px;
-    box-sizing: border-box;
-    gap: 8px;
-    padding: 4px 12px 4px 6px;
-    border-radius: 12px;
-  }
-  .workout-strip-ring { flex-basis: 28px; width: 28px; height: 28px; }
-  .workout-strip-count { display: none; }
-  .workout-strip-add-item.button { min-height: 44px; }
-  .modal .workout-top-status-bar { padding: 12px 10px 10px 16px; }
-}
-
-/* Active workout exercise notes drawer: expands to content height, draggable and expandable */
-.workout-note-drawer {
-  margin-top: 14px;
-}
-.workout-note-drawer .field {
-  gap: 6px;
-}
+/* Active workout exercise notes: a quiet field that grows with what is typed. */
+.workout-note-drawer { margin-top: 18px; }
+.workout-note-drawer .field { gap: 6px; }
 .workout-note-drawer textarea {
-  min-height: 44px;
+  min-height: 48px;
   resize: vertical;
   field-sizing: content;
   line-height: 1.45;
+  border-color: transparent;
+  background: var(--surface-raised);
+}
+.workout-note-drawer textarea:hover { border-color: var(--border); }
+
+@media (prefers-reduced-motion: reduce) {
+  .workout-strip-item.held,
+  .workout-strip-item.pressing { transform: none; }
+  .workout-strip-ring .ring-value { transition: none; }
+  .workout-strip-item.just-completed .workout-strip-ring,
+  .modal.workout-sheet .workout-footer,
+  .workout-celebration,
+  .workout-celebration svg { animation: none; }
 }

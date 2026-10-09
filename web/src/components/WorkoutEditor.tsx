@@ -6,7 +6,7 @@ import { Modal } from './ui/Modal';
 import { ExerciseLibrary } from './Exercises';
 import { WorkoutExerciseStrip } from './WorkoutExerciseStrip';
 import { WorkoutActiveExercise } from './WorkoutActiveExercise';
-import { useHorizontalSwipe } from './ui/useHorizontalSwipe';
+import { useExercisePager } from './useExercisePager';
 
 type SetChange = { setId: string; patch: Partial<LoggedSet> };
 
@@ -31,19 +31,23 @@ export function WorkoutEditor({
   const currentIndex = currentExercise ? draft.exercises.indexOf(currentExercise) : -1;
   const showingExercise = !recoveryConflict && !finishIntentAt && Boolean(currentExercise);
   // One exercise is a page: a sideways swipe anywhere on the workout moves to the neighbouring one.
-  const swipe = useHorizontalSwipe({
-    enabled: showingExercise && draft.exercises.length > 1,
-    onPrevious: () => { if (currentIndex > 0) onSelectExercise(currentIndex - 1); },
-    onNext: () => { if (currentIndex >= 0 && currentIndex < draft.exercises.length - 1) onSelectExercise(currentIndex + 1); }
+  const { page, swipe } = useExercisePager({
+    index: currentIndex,
+    pageKey: currentExercise?.id,
+    count: draft.exercises.length,
+    enabled: showingExercise,
+    onSelect: onSelectExercise
   });
   return <div className="workout-swipe-surface" {...swipe}>
     <WorkoutExerciseStrip exercises={draft.exercises} activeIndex={activeIndex} onSelect={onSelectExercise} onAdd={onAddExercise} onMove={onMoveExercise} />
 
     <div className="modal-body workout-body">
       {recoveryConflict ? <div className="empty-message"><h3>Review the saved versions</h3><p>Choose the server workout or apply this device’s copy after considering the changes.</p></div> : finishIntentAt ? <div className="empty-message"><h3>Workout finished</h3><p>Your completion time and workout are saved on this device. They will sync when the server is reachable.</p></div> : currentExercise ? (
-        <WorkoutActiveExercise key={currentExercise.id} exercise={currentExercise} index={currentIndex}
-          unit={unit} draft={draft} exercises={exercises} change={onChange} editSet={onEditSet} toggle={onToggleSet}
-          onSwap={onSwap} onRestore={onRestore} onRemoveExercise={onRemoveExercise} onCatalogChanged={onCatalogChanged} onCatalogNeeded={onCatalogNeeded} />
+        <div className="workout-page" ref={page}>
+          <WorkoutActiveExercise key={currentExercise.id} exercise={currentExercise} index={currentIndex}
+            unit={unit} draft={draft} exercises={exercises} change={onChange} editSet={onEditSet} toggle={onToggleSet}
+            onSwap={onSwap} onRestore={onRestore} onRemoveExercise={onRemoveExercise} onCatalogChanged={onCatalogChanged} onCatalogNeeded={onCatalogNeeded} />
+        </div>
       ) : (
         <div className="empty-message"><Dumbbell size={30} /><h3>No exercises in this workout</h3>
           <Button variant="primary" disabled={!online || Boolean(finishIntentAt)} onClick={() => onPicker(true)}><Plus size={16} />Add an exercise</Button>

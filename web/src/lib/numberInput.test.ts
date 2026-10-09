@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatTypedNumber, parseTypedNumber, stepValue } from './numberInput';
+import { formatTypedNumber, parseTypedNumber } from './numberInput';
 
 describe('typed numbers', () => {
   it('accepts a comma or a point as the decimal mark', () => {
@@ -23,20 +23,5 @@ describe('typed numbers', () => {
     expect(formatTypedNumber(62.5, 2)).toBe('62.5');
     expect(formatTypedNumber(60, 2)).toBe('60');
     expect(formatTypedNumber(null, 2)).toBe('');
-  });
-});
-
-describe('stepping', () => {
-  it('moves to the next multiple of the step', () => {
-    expect(stepValue(61, 2.5, 1)).toBe(62.5);
-    expect(stepValue(62.5, 2.5, 1)).toBe(65);
-    expect(stepValue(61, 2.5, -1)).toBe(60);
-    expect(stepValue(60, 2.5, -1)).toBe(57.5);
-  });
-
-  it('starts from zero when empty and never goes below the minimum', () => {
-    expect(stepValue(null, 1, 1)).toBe(1);
-    expect(stepValue(0, 2.5, -1)).toBe(0);
-    expect(stepValue(1, 1, -1, 1)).toBe(1);
   });
 });

@@ -8,6 +8,17 @@ import { previewOrder, useStripReorder } from './useStripReorder';
 
 const RING = 2 * Math.PI * 11;
 
+// Working sets decide an exercise's progress; an all-warm-up exercise counts its warm-ups.
+function countedSets(exercise: SessionExercise) {
+  const working = exercise.sets.filter(set => !set.warmup);
+  return working.length ? working : exercise.sets;
+}
+
+function isComplete(exercise: SessionExercise) {
+  const counted = countedSets(exercise);
+  return counted.length > 0 && counted.every(set => set.done);
+}
+
 export function WorkoutExerciseStrip({
   exercises,
   activeIndex,
@@ -28,6 +39,14 @@ export function WorkoutExerciseStrip({
   const arrows = useWindowTier() !== 'compact';
   const [edges, setEdges] = useState({ start: true, end: true });
   const { drag, pressingIndex, itemProps, stripProps } = useStripReorder({ scrollerRef, count: exercises.length, onMove });
+  // Exercises already complete when the strip first draws keep a still check; one finished while it
+  // is on screen keeps a mark that plays its pop once, until it is no longer complete.
+  const completedBefore = useRef<Set<string> | null>(null);
+  const popped = useRef(new Set<string>());
+  const completedNow = new Set(exercises.filter(isComplete).map(exercise => exercise.id));
+  for (const id of completedNow) if (completedBefore.current && !completedBefore.current.has(id)) popped.current.add(id);
+  for (const id of popped.current) if (!completedNow.has(id)) popped.current.delete(id);
+  useEffect(() => { completedBefore.current = completedNow; });
 
   const measure = useCallback(() => {
     const scroller = scrollerRef.current;
@@ -53,13 +72,15 @@ export function WorkoutExerciseStrip({
     const scroller = scrollerRef.current;
     const active = scroller?.querySelector<HTMLElement>('[aria-selected="true"]');
     if (!scroller || !active) return;
+    // Wider layouts float their arrows over the strip's ends, so the open tab clears them.
+    const inset = arrows ? 56 : 16;
     const start = active.offsetLeft;
     const end = start + active.offsetWidth;
-    const left = start < scroller.scrollLeft
-      ? start - 16
-      : end > scroller.scrollLeft + scroller.clientWidth ? end - scroller.clientWidth + 16 : null;
+    const left = start < scroller.scrollLeft + inset
+      ? start - inset
+      : end > scroller.scrollLeft + scroller.clientWidth - inset ? end - scroller.clientWidth + inset : null;
     if (left !== null) scroller.scrollTo({ left, behavior: reduced ? 'auto' : 'smooth' });
-  }, [activeIndex, reduced]);
+  }, [activeIndex, reduced, arrows]);
 
   function page(direction: 1 | -1) {
     const scroller = scrollerRef.current;
@@ -79,10 +100,10 @@ export function WorkoutExerciseStrip({
         {previewOrder(exercises.length, drag).map((index, shownAt) => {
           const exercise = exercises[index];
           const isSelected = index === activeIndex;
-          const working = exercise.sets.filter(s => !s.warmup);
-          const counted = working.length ? working : exercise.sets;
+          const counted = countedSets(exercise);
           const doneCount = counted.filter(s => s.done).length;
-          const completed = counted.length > 0 && doneCount === counted.length;
+          const completed = completedNow.has(exercise.id);
+          const justCompleted = popped.current.has(exercise.id);
           const progress = counted.length ? doneCount / counted.length : 0;
           const isHeld = drag?.from === index;
           const isPressing = pressingIndex === index && !isHeld;
@@ -95,7 +116,7 @@ export function WorkoutExerciseStrip({
               aria-selected={isSelected}
               aria-label={`${exercise.name}, ${doneCount} of ${counted.length} sets completed`}
               aria-describedby={exercises.length > 1 ? 'workout-strip-reorder-hint' : undefined}
-              className={`workout-strip-item ${isSelected ? 'active' : ''} ${completed ? 'completed' : ''} ${isHeld ? 'held' : ''} ${isPressing ? 'pressing' : ''}`.trim()}
+              className={`workout-strip-item ${isSelected ? 'active' : ''} ${completed ? 'completed' : ''} ${justCompleted ? 'just-completed' : ''} ${isHeld ? 'held' : ''} ${isPressing ? 'pressing' : ''}`.replace(/\s+/g, ' ').trim()}
               {...itemProps(index)}
               onClick={() => onSelect(index)}
             >

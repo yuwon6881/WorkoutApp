@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from 'react';
+import { createContext, useCallback, useContext, useEffect, useRef } from 'react';
 import type { ReactNode } from 'react';
 import { X } from 'lucide-react';
 import { Button } from './Button';
@@ -6,6 +6,19 @@ import { useSheetDrag } from './useSheetDrag';
 import { backStack } from '../../lib/backStack';
 
 let openDialogs = 0;
+// Longer than any exit animation, so a missed animationend (a hidden tab) never strands a dialog.
+const EXIT_FALLBACK_MS = 420;
+
+const ModalDismiss = createContext<(() => void) | null>(null);
+
+/// The enclosing dialog's own close, with its exit motion, for content that draws its own header.
+export function useModalDismiss() {
+  return useContext(ModalDismiss);
+}
+
+function prefersReducedMotion() {
+  return typeof window !== 'undefined' && Boolean(window.matchMedia?.('(prefers-reduced-motion: reduce)').matches);
+}
 
 // Native dialogs do not stop the page behind them from scrolling, so a swipe that reaches the end
 // of a sheet would carry on into the tab underneath.
@@ -18,7 +31,7 @@ function lockPageScroll() {
   };
 }
 
-export function Modal({ title, children, onClose, wide = false, headless = false, className = '', headerActions }: {
+export function Modal({ title, children, onClose, wide = false, headless = false, className = '', headerActions, animateExit = false }: {
   title: string;
   children: ReactNode;
   onClose: () => void;
@@ -27,9 +40,12 @@ export function Modal({ title, children, onClose, wide = false, headless = false
   headless?: boolean;
   className?: string;
   headerActions?: ReactNode;
+  /** Plays the stylesheet's `[data-leaving]` animation before the owner is asked to close. */
+  animateExit?: boolean;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
   const pointerStartedOnBackdrop = useRef(false);
+  const leaving = useRef(false);
 
   const mounted = useRef(true);
   useEffect(() => () => { mounted.current = false; }, []);
@@ -37,16 +53,39 @@ export function Modal({ title, children, onClose, wide = false, headless = false
   // The owner decides whether the dialog closes, by unmounting it; unmounting closes the native
   // dialog. A guarded owner (unsaved changes) may keep it, so the dialog must stay shown and a sheet
   // dragged away must come back rather than leave an invisible dialog holding the page's scroll lock.
-  const close = useCallback(() => {
+  const closeNow = useCallback(() => {
+    leaving.current = false;
     onClose();
     window.requestAnimationFrame(() => {
       const el = ref.current;
       if (!mounted.current || !el) return;
       if (!el.open) el.showModal();
+      delete el.dataset.leaving;
       el.style.transition = '';
       el.style.transform = '';
     });
   }, [onClose]);
+
+  // The exit plays first and the owner hears about it once it ends, so the dialog leaves the way it
+  // arrived instead of vanishing. Repeated requests while it leaves are the same request.
+  const close = useCallback(() => {
+    const el = ref.current;
+    if (!animateExit || !el || prefersReducedMotion()) { closeNow(); return; }
+    if (leaving.current) return;
+    leaving.current = true;
+    let done = false;
+    const finish = () => {
+      if (done) return;
+      done = true;
+      el.removeEventListener('animationend', onEnd);
+      window.clearTimeout(fallback);
+      closeNow();
+    };
+    const onEnd = (event: AnimationEvent) => { if (event.target === el) finish(); };
+    const fallback = window.setTimeout(finish, EXIT_FALLBACK_MS);
+    el.addEventListener('animationend', onEnd);
+    el.dataset.leaving = '';
+  }, [animateExit, closeNow]);
   const latestClose = useRef(close);
   latestClose.current = close;
 
@@ -62,7 +101,8 @@ export function Modal({ title, children, onClose, wide = false, headless = false
     return () => { leaveBackStack?.(); unlock(); el?.close(); };
   }, []);
 
-  const drag = useSheetDrag(ref, close);
+  // A dragged sheet has already left the screen under the finger; it must not play the exit again.
+  const drag = useSheetDrag(ref, closeNow);
 
   const handlePointerDown = (e: React.PointerEvent<HTMLDialogElement>) => {
     const el = ref.current;
@@ -114,6 +154,6 @@ export function Modal({ title, children, onClose, wide = false, headless = false
         <Button variant="tertiary" aria-label="Close dialog" onClick={close}><X size={20} /></Button>
       </div>
     </header>}
-    {children}
+    <ModalDismiss.Provider value={close}>{children}</ModalDismiss.Provider>
   </dialog>;
 }

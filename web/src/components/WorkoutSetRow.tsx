@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Check, Pause, Trash2 } from 'lucide-react';
 import type { LoggedSet, Preferences, SessionExercise, SetPrescription } from '../types';
 import { defaultLoadStepKg, showTarget, showWeight, toDisplay, toKg } from '../lib/training';
@@ -25,6 +25,7 @@ export function WorkoutSetRow({
   ei,
   exercise,
   plan,
+  current = false,
   previous,
   unit,
   loadStepKg: resolvedStepKg,
@@ -41,6 +42,8 @@ export function WorkoutSetRow({
   ei: number;
   exercise: SessionExercise;
   plan: SetPrescription | undefined;
+  /** The first set still to log in this exercise, marked as the one the lifter is on. */
+  current?: boolean;
   /** What this set read last time; when absent the plan's target is shown instead. */
   previous?: string | null;
   unit: Preferences['unit'];
@@ -59,6 +62,13 @@ export function WorkoutSetRow({
   const trackRir = useTrackRir();
   const [justLogged, setJustLogged] = useState(false);
   const [nudging, setNudging] = useState(false);
+  // The marks normally clear when their animation ends; a backgrounded tab sends no animation
+  // events, so they also expire, and the next log or nudge can play again.
+  useEffect(() => {
+    if (!justLogged && !nudging) return;
+    const timer = window.setTimeout(() => { setJustLogged(false); setNudging(false); }, 800);
+    return () => window.clearTimeout(timer);
+  }, [justLogged, nudging]);
   const shown = toDisplay(set.weightKg, unit);
   const stepKg = resolvedStepKg ?? defaultLoadStepKg(unit);
   const { label, warmup } = setNumberLabel(exercise, si);
@@ -73,6 +83,7 @@ export function WorkoutSetRow({
   const setName = `${exercise.name} set ${si + 1}`;
   const removable = exercise.sets.length > 1;
   const locked = paused && !set.done;
+  const suggestedLoad = set.suggestion?.suggestedLoadKg != null ? showWeight(set.suggestion.suggestedLoadKg, unit) : null;
   const remove = () => {
     discardStopwatch(set.id);
     onRemoveSet(si);
@@ -88,8 +99,8 @@ export function WorkoutSetRow({
   const row = (
     <div
       className={`workout-set-row ${set.done ? 'done' : ''} ${warmup ? 'warmup-row' : ''} ${
-        set.suggestion ? 'has-suggestion' : ''
-      } ${justLogged ? 'just-logged' : ''} ${nudging ? 'nudge' : ''} ${timed ? 'timed-row' : ''}`}
+        suggestedLoad ? 'has-suggestion' : ''
+      } ${current && !set.done ? 'current' : ''} ${justLogged ? 'just-logged' : ''} ${nudging ? 'nudge' : ''} ${timed ? 'timed-row' : ''}`.replace(/\s+/g, ' ').trim()}
       onAnimationEnd={event => { if (event.target === event.currentTarget) { setJustLogged(false); setNudging(false); } }}
     >
       <SetTypeSelect
@@ -105,12 +116,9 @@ export function WorkoutSetRow({
       <div className="set-target-cell">
         <span className="target-text" title={previous ? 'The same set last time' : undefined}>{previous ?? (plan ? (timed ? showTimedTarget(plan) : showTarget(plan, trackRir)) : '—')}</span>
         {partialTechnique && <small className="set-technique-note">{partialTechnique}</small>}
-        {set.suggestion && (
-          <small className="suggestion-text" title={set.suggestion.reason}>
-            {set.suggestion.suggestedLoadKg != null
-              ? `${showWeight(set.suggestion.suggestedLoadKg, unit)}`
-              : 'Suggested'}
-          </small>
+        {/* Only a suggested load is worth a line; a suggestion without one would say nothing. */}
+        {suggestedLoad && (
+          <small className="suggestion-text" title={set.suggestion?.reason}>{suggestedLoad}</small>
         )}
       </div>
 

@@ -1,0 +1,360 @@
+/* The workout sheet's frame: its size, its header, and how it arrives and leaves. Both the
+   stand-in shown while the server starts a session (WorkoutStarting.tsx) and the workout itself
+   load this file, so the stand-in is drawn in the same shape the workout lands in. */
+
+.modal.workout-sheet {
+  display: flex;
+  flex-direction: column;
+  height: min(880px, 92dvh);
+  max-height: 92dvh;
+  overflow: hidden;
+  background: var(--surface);
+}
+
+.modal.workout-sheet .workout-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  padding: 18px 20px 32px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: none;
+}
+.modal.workout-sheet .workout-body:not(.workout-starting-body) { display: block; }
+@media (max-width: 639px) {
+  .modal.workout-sheet .workout-body { padding: 14px 12px 28px; }
+}
+.modal.workout-sheet .workout-body::-webkit-scrollbar { display: none; }
+
+@media (min-width: 1024px) {
+  .modal.workout-sheet.wide { width: min(820px, calc(100% - 48px)); }
+}
+
+@media (max-width: 639px) {
+  .modal.workout-sheet {
+    height: calc(100dvh - max(12px, env(safe-area-inset-top, 0px)));
+    max-height: calc(100dvh - max(12px, env(safe-area-inset-top, 0px)));
+    border-radius: 22px 22px 0 0;
+  }
+}
+
+/* Arriving and leaving. A phone sheet rises from the bottom edge it is anchored to and settles
+   without overshoot, the way a minimized player expands; wider layouts lift the dialog into
+   place. Leaving is the same path reversed, a little quicker, and takes no taps on the way out. */
+@keyframes workout-sheet-rise { from { transform: translateY(100%); } }
+@keyframes workout-sheet-fall { to { transform: translateY(100%); } }
+@keyframes workout-sheet-lift { from { opacity: 0; transform: translateY(24px) scale(.97); } }
+@keyframes workout-sheet-drop { to { opacity: 0; transform: translateY(16px) scale(.98); } }
+@keyframes workout-backdrop-in { from { opacity: 0; } }
+@keyframes workout-backdrop-out { to { opacity: 0; } }
+
+.modal.workout-sheet[open] { animation: workout-sheet-lift 300ms var(--motion-ease) both; }
+.modal.workout-sheet[open]::backdrop { animation: workout-backdrop-in 300ms ease both; }
+.modal.workout-sheet[open][data-leaving] {
+  animation: workout-sheet-drop 200ms cubic-bezier(.4, 0, 1, 1) forwards;
+  pointer-events: none;
+}
+.modal.workout-sheet[open][data-leaving]::backdrop { animation: workout-backdrop-out 200ms ease forwards; }
+
+@media (max-width: 639px) {
+  .modal.workout-sheet[open] { animation: workout-sheet-rise 440ms cubic-bezier(.32, .72, 0, 1) both; }
+  .modal.workout-sheet[open][data-leaving] { animation: workout-sheet-fall 280ms cubic-bezier(.4, 0, .9, .6) forwards; }
+  .modal.workout-sheet[open][data-leaving]::backdrop { animation-duration: 280ms; }
+}
+
+/* The real workout replaces the stand-in inside the same open dialog, so the rise already under way
+   carries on untouched (switching it off here would snap a sheet that is still rising to the top);
+   its own content fades in over the same footprint instead (WorkoutStarting.css). */
+
+@media (prefers-reduced-motion: reduce) {
+  .modal.workout-sheet[open],
+  .modal.workout-sheet[open]::backdrop { animation: none; }
+}
+
+/* Header: the workout's name, its clock, and three actions. On phones it is also the sheet's drag
+   handle (ui/useSheetDrag.ts). Every row here fits 320 px without wrapping its controls. */
+.modal .workout-top-status-bar {
+  position: relative;
+  display: grid;
+  gap: 2px;
+  padding: 10px 12px 8px 20px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+
+.workout-top-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+}
+
+/* A long name wraps rather than hiding behind an ellipsis. */
+.workout-top-title {
+  max-width: 100%;
+  margin: 0;
+  overflow-wrap: anywhere;
+  color: var(--muted);
+  font-size: var(--font-secondary) !important;
+  font-weight: 650;
+  letter-spacing: 0;
+  line-height: 1.3;
+}
+
+.workout-top-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+/* The status row: clock and logged sets lead, the rest timer trails. Its height is fixed, so the
+   rest arriving or ending never moves what is under it. */
+.workout-top-rail {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 44px;
+  min-width: 0;
+}
+
+.workout-top-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  flex: 0 1 auto;
+  white-space: nowrap;
+}
+
+.workout-top-rail .workout-elapsed-clock {
+  color: var(--text);
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+.workout-top-rail .workout-elapsed-clock svg { display: none; }
+.workout-top-status-bar.paused .workout-top-rail .workout-elapsed-clock { color: var(--muted); }
+
+.workout-top-sets {
+  color: var(--muted);
+  font-size: var(--font-secondary);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Rest: a clock that drains a slim track beneath it, then −30, +30 and Skip. */
+@keyframes rest-arrive { from { opacity: 0; transform: translateX(10px); } }
+@keyframes rest-over { 0% { transform: scale(.94); } 55% { transform: scale(1.04); } 100% { transform: scale(1); } }
+
+.workout-rest-bar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  min-width: 0;
+  flex: 1 1 auto;
+  animation: rest-arrive 260ms var(--motion-ease) both;
+}
+
+.rest-clock {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex: 0 0 auto;
+  min-height: 36px;
+  padding: 0 12px 4px 10px;
+  border-radius: var(--radius-pill);
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.rest-clock-value {
+  min-width: 3.6ch;
+  color: var(--text);
+  font-size: 18px;
+  font-weight: 750;
+  letter-spacing: -0.01em;
+  line-height: 1;
+}
+
+/* The word is read with the clock everywhere and shown where the row has room for it. */
+.rest-clock-label {
+  color: var(--accent);
+  font-size: var(--font-secondary);
+  font-weight: 600;
+}
+
+.rest-clock .rest-track {
+  position: absolute;
+  right: 12px;
+  bottom: 5px;
+  left: 12px;
+  height: 3px;
+  max-width: none;
+  border-radius: var(--radius-pill);
+  background: var(--accent-border);
+  overflow: hidden;
+}
+.rest-clock .rest-track > span {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--accent);
+  transform-origin: left center;
+  transition: transform 1s linear;
+}
+
+.workout-rest-bar.paused .rest-clock { background: var(--surface-raised); color: var(--muted); }
+.workout-rest-bar.paused .rest-clock-label { color: var(--muted); }
+.workout-rest-bar.paused .rest-track > span { background: var(--muted); }
+.workout-rest-bar.over .rest-clock { background: var(--accent); color: var(--on-accent); animation: rest-over 420ms var(--motion-ease); }
+.workout-rest-bar.over .rest-clock-value,
+.workout-rest-bar.over .rest-clock-label { color: var(--on-accent); }
+.workout-rest-bar.over .rest-track { display: none; }
+
+/* Only the expanded sheet has room to name the next set beside the clock. It wraps (two lines fit the
+   rail) rather than truncating a long exercise name. */
+.rest-next {
+  flex: 0 1 auto;
+  min-width: 0;
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--font-secondary) !important;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 1023px) {
+  .rest-next { display: none; }
+}
+
+.rest-bar-actions { display: flex; align-items: center; gap: 2px; flex: 0 0 auto; }
+.rest-bar-actions .button {
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0 8px;
+  border-radius: var(--radius-pill);
+  color: var(--text);
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+.rest-bar-actions .button:hover:not(:disabled) { background: var(--surface-hover); }
+
+.workout-top-icon.button {
+  width: 44px;
+  min-width: 44px;
+  height: 44px;
+  min-height: 44px;
+  padding: 0;
+  border-radius: 12px;
+  color: var(--muted);
+}
+.workout-top-icon.button:hover:not(:disabled) { color: var(--text); }
+.workout-top-icon.button.primary { color: var(--on-accent); }
+
+.workout-elapsed-clock {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--muted);
+  font-size: var(--font-secondary);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.workout-elapsed-clock svg { color: var(--faint); }
+
+.workout-paused-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 24px;
+  padding: 0 9px;
+  border: 1px solid var(--accent-border);
+  border-radius: var(--radius-pill);
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: var(--font-secondary);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* Replayed (by remounting) each time a set is tapped while paused, pointing at the cause. */
+@keyframes paused-pulse {
+  0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 transparent; }
+  35% { transform: scale(1.12); box-shadow: 0 0 0 4px var(--accent-soft); }
+}
+.workout-paused-label.pulse { animation: paused-pulse 0.5s ease-out; }
+
+.workout-sync-status {
+  font-size: var(--font-secondary);
+  font-weight: 600;
+  white-space: nowrap;
+}
+.workout-sync-status.offline { color: var(--amber); }
+.workout-sync-status.warning { color: var(--red); }
+
+/* Logged working sets fill the header's bottom edge, sitting over its border. */
+.workout-sets-progress {
+  position: absolute;
+  right: 0;
+  bottom: -1px;
+  left: 0;
+  height: 3px;
+  overflow: hidden;
+  pointer-events: none;
+}
+.workout-sets-progress > span {
+  display: block;
+  height: 100%;
+  border-radius: 0 3px 3px 0;
+  background: var(--accent);
+  transform-origin: left center;
+  transition: transform 420ms cubic-bezier(.32, .72, 0, 1);
+}
+
+/* Phones: the next set is already the highlighted row below, so the row keeps to the clock and its
+   three adjustments; the logged-sets count steps aside for them while a rest runs. */
+@media (max-width: 639px) {
+  .modal .workout-top-status-bar { gap: 0; padding: 4px 8px 6px 16px; }
+  .workout-top-rail { gap: 6px; }
+  .workout-top-rail .workout-elapsed-clock { font-size: 20px; }
+  .workout-rest-bar:not(.over) .rest-clock-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+  }
+  .rest-clock { padding-inline: 9px 11px; }
+  .rest-bar-actions .button { min-width: 44px; padding: 0 6px; }
+}
+@media (max-width: 639px) {
+  .workout-top-status-bar:has(.workout-rest-bar) .workout-top-sets { display: none; }
+}
+/* The narrowest phones keep an hour-long clock and a rest on one row. */
+@media (max-width: 359px) {
+  .workout-top-status-bar:has(.workout-rest-bar) .workout-top-rail .workout-elapsed-clock { font-size: 17px; }
+  .rest-clock svg { display: none; }
+  .rest-bar-actions { gap: 0; }
+}
+
+@media (min-width: 1024px) {
+  .modal .workout-top-status-bar { padding: 12px 14px 8px 24px; }
+  .workout-top-icon.button { width: 40px; min-width: 40px; height: 40px; min-height: 40px; border-radius: 10px; }
+  .workout-top-rail { min-height: 40px; }
+  .rest-bar-actions .button { min-width: 40px; min-height: 36px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .workout-paused-label.pulse,
+  .workout-rest-bar,
+  .workout-rest-bar.over .rest-clock { animation: none; }
+  .workout-sets-progress > span,
+  .rest-clock .rest-track > span { transition: none; }
+}

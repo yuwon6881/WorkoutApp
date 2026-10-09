@@ -11,7 +11,7 @@
   border-radius: 999px;
   background: var(--surface-raised);
   border: 1px solid var(--border);
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
+  box-shadow: 0 1px 4px var(--overlay);
   color: var(--muted);
   font-size: 14px;
   font-weight: 650;
@@ -19,21 +19,77 @@
   letter-spacing: -0.02em;
   pointer-events: none;
   z-index: 2;
+  transition: background-color 200ms ease, color 200ms ease, border-color 200ms ease;
 }
 .reps-rir-badge.rir-tier-0 { color: var(--red); background: color-mix(in srgb, var(--red) 20%, var(--surface-raised)); border-color: var(--red-border); }
-.reps-rir-badge.rir-tier-1 { color: color-mix(in srgb, var(--red) 60%, var(--accent)); background: color-mix(in srgb, var(--red) 14%, var(--surface-raised)); border-color: rgba(251, 113, 133, 0.5); }
+.reps-rir-badge.rir-tier-1 { color: color-mix(in srgb, var(--red) 60%, var(--accent)); background: color-mix(in srgb, var(--red) 14%, var(--surface-raised)); border-color: color-mix(in srgb, var(--red) 40%, var(--accent)); }
 .reps-rir-badge.rir-tier-2 { color: var(--accent); background: color-mix(in srgb, var(--accent) 20%, var(--surface-raised)); border-color: var(--accent-border); }
-.reps-rir-badge.rir-tier-easy { color: var(--green); background: color-mix(in srgb, var(--green) 20%, var(--surface-raised)); border-color: rgba(134, 239, 172, 0.5); }
+.reps-rir-badge.rir-tier-easy { color: var(--green); background: color-mix(in srgb, var(--green) 20%, var(--surface-raised)); border-color: color-mix(in srgb, var(--green) 45%, transparent); }
 .reps-rir-flame { display: block; color: var(--muted); opacity: 0.8; }
+
+/* The entry sheet: a large readout, the effort chips, then a keypad sized for a thumb. */
 .modal.reps-rir-modal { max-width: 420px; }
-.reps-rir-entry { display: grid; gap: 12px; }
-.reps-rir-entry > p { font-size: 14px; }
-.reps-entry-value { display: flex; justify-content: center; align-items: baseline; gap: 10px; padding: 4px; }
-.reps-entry-value strong { font-size: 36px; font-variant-numeric: tabular-nums; }
-.reps-entry-value > span { color: var(--muted); font-size: 14px; }
+.reps-rir-entry { display: grid; gap: 14px; }
+.reps-rir-entry > p { margin: 0; color: var(--muted); font-size: 14px; text-align: center; }
+.reps-entry-value { display: flex; justify-content: center; align-items: baseline; gap: 8px; padding: 2px 4px 4px; }
+.reps-entry-value strong { min-width: 2ch; color: var(--text); font-size: 44px; font-weight: 750; letter-spacing: -0.03em; line-height: 1; font-variant-numeric: tabular-nums; text-align: center; }
+.reps-entry-value > span { color: var(--muted); font-size: 16px; font-weight: 600; }
 .reps-entry-effort { display: grid; gap: 8px; }
 .reps-entry-effort-rail { overflow-x: auto; padding: 3px; }
 .reps-entry-effort .rir-chips { min-width: 284px; }
-.reps-entry-keypad { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; }
-.reps-entry-keypad .button { min-height: 48px; font-size: 22px !important; }
-.reps-entry-keypad .reps-keypad-clear { font-size: 14px !important; }
+
+.reps-entry-keypad {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) minmax(0, 1.15fr);
+  grid-template-areas:
+    "k1 k2 k3 del"
+    "k4 k5 k6 clear"
+    "k7 k8 k9 done"
+    "zero zero zero done";
+  gap: 6px;
+}
+.reps-entry-keypad .reps-key.button {
+  min-height: 54px;
+  border: 0;
+  border-radius: 14px;
+  background: var(--surface-raised);
+  color: var(--text);
+  font-size: 24px !important;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  transition: background-color 120ms ease, transform 100ms ease;
+}
+.reps-entry-keypad .reps-key.button:hover:not(:disabled) { background: var(--surface-hover); }
+.reps-entry-keypad .reps-key.button:active:not(:disabled) { transform: scale(.95); background: var(--surface-hover); }
+.reps-entry-keypad .reps-key:nth-child(1) { grid-area: k1; }
+.reps-entry-keypad .reps-key:nth-child(2) { grid-area: k2; }
+.reps-entry-keypad .reps-key:nth-child(3) { grid-area: k3; }
+.reps-entry-keypad .reps-key:nth-child(4) { grid-area: k4; }
+.reps-entry-keypad .reps-key:nth-child(5) { grid-area: k5; }
+.reps-entry-keypad .reps-key:nth-child(6) { grid-area: k6; }
+.reps-entry-keypad .reps-key:nth-child(7) { grid-area: k7; }
+.reps-entry-keypad .reps-key:nth-child(8) { grid-area: k8; }
+.reps-entry-keypad .reps-key:nth-child(9) { grid-area: k9; }
+.reps-entry-keypad .reps-key-zero { grid-area: zero; }
+.reps-entry-keypad .reps-keypad-delete { grid-area: del; color: var(--muted); }
+.reps-entry-keypad .reps-key.reps-keypad-clear { grid-area: clear; color: var(--muted); font-size: 15px !important; }
+.reps-entry-keypad .reps-key.reps-keypad-done.button {
+  grid-area: done;
+  flex-direction: column;
+  gap: 4px;
+  background: var(--accent);
+  color: var(--on-accent);
+  font-size: 15px !important;
+  font-weight: 700;
+}
+.reps-entry-keypad .reps-key.reps-keypad-done.button:hover:not(:disabled),
+.reps-entry-keypad .reps-key.reps-keypad-done.button:active:not(:disabled) { background: var(--accent); filter: brightness(1.06); }
+
+@media (max-width: 639px) {
+  .reps-rir-modal .reps-rir-entry { padding-bottom: calc(16px + env(safe-area-inset-bottom)); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reps-entry-keypad .reps-key.button { transition: none; }
+  .reps-entry-keypad .reps-key.button:active:not(:disabled) { transform: none; }
+}

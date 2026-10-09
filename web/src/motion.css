@@ -19,23 +19,14 @@
   }
 }
 
-/* A logged set answers the tap: the check pops and the row glows once. */
+/* A logged set answers the tap: the check pops in, and the row's fill sweeps across it
+   (WorkoutLogger.css). */
 @keyframes set-check-pop {
-  0% { transform: scale(.82); }
-  60% { transform: scale(1.08); }
+  0% { transform: scale(.4) rotate(-12deg); opacity: 0; }
+  55% { transform: scale(1.18) rotate(0); opacity: 1; }
   100% { transform: scale(1); }
 }
 
-@keyframes set-row-logged {
-  0% { box-shadow: 0 0 0 0 var(--accent-soft-glow); }
-  40% { box-shadow: 0 0 0 5px var(--accent-soft-glow); }
-  100% { box-shadow: 0 0 0 0 transparent; }
-}
-
 .just-logged .set-log-checkbox.checked svg {
-  animation: set-check-pop var(--motion-panel) var(--motion-ease);
-}
-
-.workout-set-row.done.just-logged {
-  animation: set-row-logged 520ms var(--motion-ease);
+  animation: set-check-pop 360ms cubic-bezier(.32, .72, 0, 1);
 }

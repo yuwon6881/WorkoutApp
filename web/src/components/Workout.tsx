@@ -20,7 +20,6 @@ import type { WorkoutRecoveryRecord } from '../lib/workoutRecovery';
 import { sessionPayload } from '../lib/workoutOutbox';
 import { Modal } from './ui/Modal';
 import { WorkoutFooter } from './WorkoutFooter';
-import { WorkoutRestBar } from './WorkoutRestBar';
 import { WorkoutDetailsModal, hasWorkoutDetails } from './WorkoutDetails';
 import { WorkoutTopBar } from './WorkoutTopBar';
 import { WorkoutEditor } from './WorkoutEditor';
@@ -34,6 +33,7 @@ import { useFinishPlanUpdate } from './useFinishPlanUpdate';
 import { useStopwatchRecovery } from './useStopwatchRecovery';
 import { useWorkoutDrain } from './useWorkoutDrain';
 import { useAccountWorkoutCallbacks } from './useAccountWorkoutCallbacks';
+import './WorkoutSheet.css';
 import './ActiveWorkout.css';
 
 export type WorkoutProps = {
@@ -435,12 +435,13 @@ export function Workout({
         paused={paused}
         pauseHint={pauseHint}
         pauseDisabled={busy || Boolean(finishIntentAt) || recoveryConflict}
+        rest={rest}
+        nextUp={nextUp}
+        restDisabled={busy || Boolean(finishIntentAt) || recoveryConflict || paused}
+        onRestMutate={handleRestMutate}
         onClose={onClose}
         onTogglePause={() => void togglePause()}
       />
-
-      <WorkoutRestBar rest={rest} nextUp={nextUp}
-        disabled={busy || Boolean(finishIntentAt) || recoveryConflict || paused} onRestMutate={handleRestMutate} />
 
       {recoveryConflict && recovery && <WorkoutRecoveryConflict recovery={recovery} online={online} onResolve={choice => void resolveConflict(choice)} />}
 
@@ -476,7 +477,7 @@ export function Workout({
   if (!wrapModal) return content;
 
   return (
-    <Modal title={draft.name} onClose={onClose} wide headless className={continues ? 'workout-sheet workout-sheet-continued' : 'workout-sheet'}>
+    <Modal title={draft.name} onClose={onClose} wide headless animateExit className={continues ? 'workout-sheet workout-sheet-continued' : 'workout-sheet'}>
       {content}
     </Modal>
   );

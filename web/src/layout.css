@@ -192,22 +192,6 @@ html[data-keyboard='open'] .bottom-nav,
 html[data-keyboard='open'] .resume-workout,
 html[data-keyboard='open'] .import-progress-pill { display: none; }
 
-/* Floating bottom items stack instead of overlapping: a toast rises above the resume button and
-   the import progress pill when they are showing. */
-.resume-rest {
-  margin-left: 8px;
-  padding-left: 8px;
-  border-left: 1px solid color-mix(in srgb, var(--on-accent) 35%, transparent);
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-}
-.resume-workout ~ .toast { bottom: 84px; }
-@media (max-width: 639px) {
-  .resume-workout ~ .toast { bottom: calc(138px + env(safe-area-inset-bottom)); }
-  .import-progress-pill ~ .toast { bottom: calc(138px + env(safe-area-inset-bottom)); }
-  .import-progress-pill.has-resume ~ .toast { bottom: calc(192px + env(safe-area-inset-bottom)); }
-}
-
 /* A waiting app update (app/useAppUpdate.ts), offered above the bottom navigation. */
 .update-banner {
   position: fixed;
@@ -369,20 +353,59 @@ html[data-keyboard='open'] .import-progress-pill { display: none; }
   box-shadow: none !important;
 }
 
-/* A persistent session card above navigation, with live timing and progress. */
-.resume-workout.button { width: 420px; max-width: calc(100vw - 32px); min-height: 100px; border-radius: 16px; padding: 14px; gap: 12px; border-color: var(--accent-border); background: var(--surface); box-shadow: 0 8px 28px var(--overlay); white-space: normal; text-align: left; }
-.resume-icon { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 12px; color: var(--accent); background: var(--accent-soft); flex-shrink: 0; }
-.resume-summary { display: grid; gap: 4px; flex: 1; min-width: 0; }
-.resume-summary strong { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; color: var(--text); overflow-wrap: anywhere; font-size: 16px; }
-.resume-label { color: var(--accent); font-size: var(--font-secondary); }
-.resume-metrics { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: var(--font-secondary); color: var(--muted); font-variant-numeric: tabular-nums; }
-.resume-open { display: flex; align-items: center; gap: 4px; color: var(--accent); font-size: var(--font-secondary); }
-.resume-workout ~ .toast { bottom: 144px; }
-.import-progress-pill.has-resume { bottom: 144px; }
+/* The minimized workout (components/ResumeWorkoutButton.tsx): a slim bar like a music app's mini
+   player, above the navigation on phones and in the trailing corner on wider layouts. It rises in
+   when the workout sheet is put away, and its bottom edge fills with the logged sets. */
+@keyframes resume-rise { from { opacity: 0; transform: translateY(18px) scale(.98); } }
+.resume-workout.button {
+  position: fixed;
+  right: 28px;
+  bottom: 22px;
+  z-index: 9;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 12px;
+  width: 380px;
+  max-width: calc(100vw - 32px);
+  min-height: 66px;
+  padding: 10px 12px 12px 10px;
+  overflow: hidden;
+  border: 1px solid var(--accent-border);
+  border-radius: 18px;
+  background: var(--surface);
+  box-shadow: 0 10px 30px var(--overlay);
+  white-space: normal;
+  text-align: left;
+  animation: resume-rise 380ms cubic-bezier(.32, .72, 0, 1);
+}
+.resume-workout.button:hover:not(:disabled) { border-color: var(--accent-border-strong); background: var(--surface-raised); }
+.resume-icon { display: grid; flex: 0 0 40px; place-items: center; width: 40px; height: 40px; border-radius: 50%; background: var(--accent); color: var(--on-accent); }
+.resume-icon svg { color: inherit; }
+.resume-workout.resting .resume-icon { background: var(--accent-soft); color: var(--accent); }
+.resume-summary { display: grid; flex: 1 1 auto; gap: 2px; min-width: 0; }
+.resume-summary strong { overflow: hidden; color: var(--text); font-size: 15px; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
+.resume-metrics { display: flex; flex-wrap: wrap; align-items: center; gap: 0 10px; color: var(--muted); font-size: var(--font-secondary); font-weight: 500; font-variant-numeric: tabular-nums; }
+.resume-metrics .workout-elapsed-clock { display: inline-flex; align-items: center; gap: 4px; color: var(--text); font-weight: 650; }
+.resume-metrics .workout-elapsed-clock svg { color: var(--faint); }
+.resume-rest, .resume-paused { color: var(--accent); font-weight: 650; white-space: nowrap; }
+.resume-open { display: grid; flex: 0 0 auto; place-items: center; color: var(--muted); }
+.resume-progress { position: absolute; right: 0; bottom: 0; left: 0; height: 3px; background: var(--border); }
+.resume-progress > span { display: block; height: 100%; background: var(--accent); transform-origin: left center; transition: transform 420ms cubic-bezier(.32, .72, 0, 1); }
+
+/* Floating bottom items stack instead of overlapping: a toast and the import progress pill rise
+   above the bar while it is showing. */
+.resume-workout ~ .toast,
+.import-progress-pill.has-resume { bottom: 102px; }
 @media (max-width: 639px) {
-  .resume-workout.button { left: 12px; right: 12px; width: auto; max-width: none; bottom: calc(82px + env(safe-area-inset-bottom)); }
-  .resume-open { display: none; }
-  .resume-workout ~ .toast, .import-progress-pill.has-resume { bottom: calc(238px + env(safe-area-inset-bottom)); }
-  .import-progress-pill.has-resume ~ .toast { bottom: calc(294px + env(safe-area-inset-bottom)); }
-  .app-shell:has(.resume-workout) main { padding-bottom: 254px; }
+  .resume-workout.button { right: 12px; bottom: calc(82px + env(safe-area-inset-bottom)); left: 12px; width: auto; max-width: none; }
+  .resume-workout ~ .toast,
+  .import-progress-pill.has-resume { bottom: calc(160px + env(safe-area-inset-bottom)); }
+  .import-progress-pill ~ .toast { bottom: calc(138px + env(safe-area-inset-bottom)); }
+  .import-progress-pill.has-resume ~ .toast { bottom: calc(216px + env(safe-area-inset-bottom)); }
+  .app-shell:has(.resume-workout) main { padding-bottom: 104px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .resume-workout.button { animation: none; }
+  .resume-progress > span { transition: none; }
 }

@@ -10,16 +10,19 @@ import { SlotFinished, type SlotCardActions } from './ActiveProgramCard';
 
 /// A standalone workout in the active slot behaves like a one-day program: a single day whose
 /// tick fills in by itself once a session from it is finished.
-export function ActiveTemplateCard({ template, onStart, onEdit, hasActiveWorkout, actions, dragProps, moving }: {
+export function ActiveTemplateCard({ template, onStart, onEdit, hasActiveWorkout, activeTemplateId = null, actions, dragProps, moving }: {
   template: Template;
   onStart: () => void;
   onEdit: () => void;
   hasActiveWorkout: boolean;
+  /** The plan the open workout came from; its own card continues that workout. */
+  activeTemplateId?: string | null;
   actions: SlotCardActions;
   dragProps: HTMLAttributes<HTMLElement>;
   moving: boolean;
 }) {
   const finished = isTemplateFinished(template);
+  const inProgress = activeTemplateId === template.id;
   const setCount = template.exercises.reduce((total, exercise) => total + exercise.sets.filter(set => !set.warmup).length, 0);
   const meta = `${template.exercises.length} ${template.exercises.length === 1 ? 'exercise' : 'exercises'} · ${showSetCount(setCount)}`;
 
@@ -42,8 +45,9 @@ export function ActiveTemplateCard({ template, onStart, onEdit, hasActiveWorkout
         <strong>{template.name}</strong>
         <span className="muted small-copy">{template.exercises.slice(0, 4).map(exercise => exercise.name).join(', ')}{template.exercises.length > 4 ? `, and ${template.exercises.length - 4} more` : ''}</span>
       </div>
-      {!finished && <Button variant="primary" className="slot-start-btn" disabled={hasActiveWorkout} aria-label={`Start ${template.name}`} onClick={onStart}>
-        <Play size={14} fill="currentColor" /><span>Start</span>
+      {!finished && <Button variant="primary" className="slot-start-btn" disabled={hasActiveWorkout && !inProgress}
+        aria-label={`${inProgress ? 'Continue' : 'Start'} ${template.name}`} onClick={onStart}>
+        <Play size={14} fill="currentColor" /><span>{inProgress ? 'Continue' : 'Start'}</span>
       </Button>}
     </div>
 

@@ -2,6 +2,7 @@ import { Suspense } from 'react';
 import type { ReactNode } from 'react';
 import { Modal } from './ui/Modal';
 import { WorkoutStartingContent } from './WorkoutStarting';
+import './WorkoutSheet.css';
 
 /// The workout sheet opens on the tap that starts it. The server still builds the session (its
 /// suggestions are frozen at start), so the sheet stands in with its own shape until the workout
@@ -16,7 +17,7 @@ export function WorkoutSheet({ title, continues, onClose, children }: {
   children?: ReactNode;
 }) {
   return (
-    <Modal title={title} onClose={onClose} wide headless
+    <Modal title={title} onClose={onClose} wide headless animateExit
       className={`workout-sheet ${continues ? 'workout-sheet-continued' : ''}`.trim()}>
       {children ? (
         <Suspense fallback={<WorkoutStartingContent name={title} status="Opening workout…" />}>{children}</Suspense>

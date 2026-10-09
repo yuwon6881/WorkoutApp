@@ -1,25 +1,8 @@
 /* In-Progress Workout and Workout Builder enhancements
    Strict adherence to Ayu theme variables, standard responsive breakpoints, and accessibility. */
 
-/* Active exercise view */
-.workout-active-exercise { display: flex; flex-direction: column; gap: 12px; }
-.workout-active-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
-.workout-active-title-group h2 { font-size: 20px; font-weight: 700; color: var(--text); margin: 0; line-height: 1.25; }
-.workout-active-meta { display: flex; align-items: center; gap: 8px; margin-top: 4px; }
-.workout-set-progress { font-size: var(--font-secondary, 13px); color: var(--muted); font-weight: 500; }
-.workout-active-meta { flex-wrap: wrap; }
-.workout-last-time { margin: 4px 0 0; color: var(--muted); font-size: var(--font-secondary); font-variant-numeric: tabular-nums; }
-.workout-progression-badge { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 20px; background: var(--accent-soft); border: 1px solid var(--accent-border); color: var(--accent); flex-shrink: 0; }
-.workout-progression-badge .badge-weight { font-weight: 700; font-size: var(--font-secondary, 13px); }
-.workout-progression-badge .badge-sub { font-size: var(--font-secondary, 14px); color: var(--muted); border-left: 1px solid var(--accent-border); padding-left: 6px; }
+/* The active workout logger itself is styled in components/WorkoutLogger.css. */
 
-/* Action pills row */
-.workout-action-pills > .ui-menu { margin-left: auto; }
-.workout-action-pills { display: flex; align-items: center; gap: 8px; overflow-x: auto; padding-bottom: 2px; }
-.action-pill { display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 6px 14px; border-radius: 18px; font-size: var(--font-secondary, 13px); font-weight: 550; border: 1px solid var(--border); background: var(--surface-hover); color: var(--text); white-space: nowrap; }
-.action-pill.active { border-color: var(--accent-border-strong); background: var(--accent-soft); color: var(--accent); }
-.pill-static { cursor: default; color: var(--muted); }
-/* Targets dialog. */
 /* Targets dialog. The exercise note is a bare field: a tinted box around the textarea's own box buried it. */
 .workout-plan-detail-card .plan-detail-heading { margin: 0 0 8px; }
 .plan-detail-heading { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: var(--font-secondary, 13px); }
@@ -27,48 +10,6 @@
 .plan-detail-list li { display: flex; gap: 6px; color: var(--muted); }
 .plan-set-number { font-weight: 600; color: var(--text); }
 
-/* Modern set logging table */
-.workout-set-table-container { display: flex; flex-direction: column; gap: 6px; margin-top: 4px; }
-.workout-set-table-head { display: grid; grid-template-columns: 44px minmax(0, 1.5fr) minmax(84px, 1.2fr) minmax(90px, 1fr) 44px 44px; align-items: center; gap: 8px; padding: 4px 6px; font-size: var(--font-secondary, 14px); font-weight: 650; color: var(--muted); text-transform: uppercase; letter-spacing: 0.02em; text-align: center; }
-.workout-set-rows { display: flex; flex-direction: column; gap: 8px; }
-.workout-set-row { display: grid; grid-template-columns: 44px minmax(0, 1.5fr) minmax(84px, 1.2fr) minmax(90px, 1fr) 44px 44px; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 10px; background: var(--surface); border: 1px solid var(--border); transition: border-color 0.15s ease, background-color 0.15s ease; }
-.workout-set-row.done { border-color: var(--accent-border); background: var(--surface-hover); }
-.workout-set-row.warmup-row { border-style: dashed; opacity: 1; }
-.set-badge-circle { width: 28px; height: 28px; border-radius: 50%; background: var(--surface-hover); border: 1px solid var(--border); display: grid; place-items: center; font-size: var(--font-secondary, 14px); font-weight: 700; color: var(--text); }
-.workout-set-row.done .set-badge-circle { background: var(--accent-soft); border-color: var(--accent-border); color: var(--accent); }
-.set-target-cell { display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; gap: 2px; min-width: 0; }
-.set-technique-note { color: var(--accent); font-size: var(--font-micro, 12px); font-weight: 600; text-align: center; }
-.target-text { width: 100%; font-size: var(--font-secondary, 13px); color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: center; }
-.suggestion-text { font-size: var(--font-secondary, 14px); color: var(--accent); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: center; }
-.set-input-cell .custom-select-wrap { width: 100%; min-width: 0; max-width: 100%; }
-.set-input-cell input { width: 100%; min-height: 40px; padding: 6px 8px; text-align: center; font-size: 14px; font-weight: 600; border-radius: 8px; border: 1px solid var(--border); background: var(--surface-hover); color: var(--text); }
-.set-input-cell input:focus { border-color: var(--accent-border-strong); outline: none; }
-.load-cell { position: relative; display: flex; gap: 4px; align-items: center; min-width: 0; }
-/* Added load and assistance carry their sign inside the field; the number alone stays centered. */
-.load-sign { position: absolute; left: 8px; top: 50%; transform: translateY(-50%); font-size: 14px; font-weight: 700; color: var(--muted); pointer-events: none; }
-.load-added .load-sign { color: var(--accent); }
-.load-cell.load-added input, .load-cell.load-assistance input { padding-left: 18px; }
-/* Assistance is a different kind of number: more of it is an easier set. */
-.load-cell.load-assistance input { border-style: dashed; border-color: var(--accent-border); }
-/* Bodyweight has no load to enter: an empty, dashed field marks the column as not applicable. */
-.load-cell.load-bodyweight input:disabled { border-style: dashed; background: transparent; cursor: not-allowed; opacity: 1; }
-.load-assist-hint { margin: 4px 0 0; font-size: var(--font-secondary, 13px); color: var(--muted); }
-.set-log-checkbox { width: 44px; height: 44px; min-width: 44px; min-height: 44px; border-radius: 10px; border: 2px solid var(--border); background: transparent; color: transparent; display: grid; place-items: center; cursor: pointer; transition: all 0.15s ease; }
-.set-log-checkbox:hover { border-color: var(--accent); }
-.set-log-checkbox.checked { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
-/* While paused a set can still be edited but not logged: a dashed, pause-marked box says why. */
-.set-log-checkbox.paused-lock { border-style: dashed; color: var(--muted); cursor: not-allowed; }
-.set-log-checkbox.paused-lock:hover { border-color: var(--accent-border-strong); color: var(--accent); }
-.set-del-btn { width: 44px; height: 44px; min-width: 44px; min-height: 44px; padding: 0; display: grid; place-items: center; color: var(--muted); }
-.set-del-btn:hover { color: var(--red); }
-/* Time and combined reps/RIR occupy the same column. */
-.workout-set-row > .time-cell, .workout-set-table-head .col-time { grid-column: 4; }
-/* Keep the column aligned when RIR tracking is off. */
-.no-rir .workout-set-row > .reps-cell, .no-rir .workout-set-table-head .col-reps { grid-column: 4; }
-.time-cell { display: flex; align-items: center; min-width: 0; width: 100%; }
-.time-cell input { flex: 1 1 auto; min-width: 0; width: 100%; text-align: center; cursor: pointer; }
-.time-cell.timing input { border-color: var(--accent-border-strong); color: var(--accent); }
-.set-stopwatch-btn { flex: 0 0 auto; width: 44px; height: 44px; min-width: 44px; min-height: 44px; padding: 0; display: grid; place-items: center; }
 .timer-modal-body { display: flex; flex-direction: column; gap: 16px; text-align: center; padding: 20px; }
 .timer-modal-clock { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 18px 12px; background: var(--surface-raised); border: 1px solid var(--border); border-radius: var(--radius); }
 .timer-modal-clock strong, .timer-modal-clock-input { font-size: 38px; font-weight: 750; letter-spacing: -0.03em; color: var(--text); font-variant-numeric: tabular-nums; }
@@ -79,11 +20,6 @@
 .timer-modal-clock.editable:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft-glow); }
 .timer-modal-clock-input { width: 100%; max-width: 240px; background: transparent !important; border: 0 !important; box-shadow: none !important; outline: none !important; text-align: center; padding: 0 !important; min-height: unset !important; height: auto !important; caret-color: var(--accent); }
 .timer-modal-toggle-btn { min-height: 48px; font-size: 15px; font-weight: 650; }
-.workout-set-table-footer { margin-top: 6px; display: grid; gap: 6px; }
-.workout-set-undo { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 4px 4px 4px 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); color: var(--muted); }
-.workout-set-undo .button { min-height: 44px; }
-.add-set-btn { width: 100%; min-height: 42px; border: 1px dashed var(--accent-border); color: var(--accent); background: var(--accent-soft); border-radius: 8px; display: flex; align-items: center; justify-content: center; gap: 6px; font-weight: 600; }
-.add-set-btn:hover:not(:disabled) { background: var(--surface-hover); border-color: var(--accent-border-strong); }
 
 /* Workout builder modal */
 .workout-builder-body { display: flex; flex-direction: column; gap: 16px; }
@@ -92,69 +28,8 @@
 .workout-builder-exercise-card { border: 1px solid var(--border); border-radius: 12px; padding: 14px; background: var(--surface); }
 .set-warmup-toggle { margin-left: auto; font-size: var(--font-secondary, 12px); color: var(--muted); }
 
-/* Mobile responsive adjustments */
 @media (max-width: 639px) {
-  .workout-action-pills { gap: 6px; padding-bottom: 4px; }
-  .workout-active-header { flex-direction: column; align-items: flex-start; gap: 8px; }
-  .workout-progression-badge { align-self: flex-start; }
-
-  /* One line per set: type, last time, load, combined reps/RIR (or time), and the log tick. The load is
-     sized for three digits and a decimal, reps for two; the last-time text takes what is left
-     and wraps. Head and rows share one column list so the labels sit over their controls. */
-  .workout-set-table-container { --set-columns: 44px minmax(0, 1fr) 58px 90px 44px; }
-  .workout-set-table-container.no-rir { --set-columns: 44px minmax(0, 1fr) 58px 46px 44px; }
-  .workout-set-table-container.timed { --set-columns: 44px minmax(0, 1fr) 58px 96px 44px; }
-  .workout-set-table-head,
-  .workout-set-row {
-    grid-template-columns: var(--set-columns);
-    gap: 4px;
-  }
-  .workout-set-table-head {
-    padding: 4px 7px 0;
-    font-size: var(--font-secondary, 14px);
-    text-align: center;
-  }
-  .workout-set-table-head .col-del { display: none; }
-  .workout-set-row {
-    padding: 6px;
-    border-radius: 12px;
-  }
-  .workout-set-table-head > span,
-  .workout-set-row > *,
-  .workout-set-row > .time-cell,
-  .no-rir .workout-set-row > .reps-cell,
-  .workout-set-table-head .col-time,
-  .no-rir .workout-set-table-head .col-reps { grid-column: auto; }
-  .workout-set-row .target-text {
-    font-size: var(--font-secondary, 14px);
-    color: var(--muted);
-    white-space: normal;
-    overflow-wrap: anywhere;
-    text-align: center;
-  }
-  .workout-set-row .suggestion-text { font-size: var(--font-secondary, 14px); white-space: normal; overflow-wrap: anywhere; text-align: center; }
-  .workout-set-row .set-input-cell input { padding: 6px 2px; }
-  .workout-set-row .load-cell.load-added input,
-  .workout-set-row .load-cell.load-assistance input { padding-left: 16px; }
-  .workout-set-row .load-sign { left: 6px; }
-  .workout-set-row > .load-cell { flex-direction: column; align-items: stretch; }
-  .workout-set-row > .rpe-cell,
-  .workout-set-row > .log-cell { justify-self: center; }
-
-  /* The swipe drawer clips to the row's shape, with Delete waiting behind it. */
-  .workout-set-swipe.swipeable-row-mobile { border-radius: 12px; }
-  .workout-set-swipe .swipeable-row-surface { background: var(--surface); border-radius: 12px; }
-  .workout-set-swipe .swipeable-row-actions > .button { gap: 4px; flex-direction: column; font-size: var(--font-secondary, 14px); }
   .workout-builder-meta { grid-template-columns: minmax(0, 1fr); }
-
-}
-
-@media (max-width: 1023px) {
-  .action-pill,
-  .set-input-cell input,
-  .add-set-btn,
-  .set-input-cell .rpe-control,
-  .set-input-cell .rpe-value-btn { min-height: 44px; min-width: 44px; }
 }
 
 /* Custom select dropdown sizing & theme obedience */
@@ -304,11 +179,6 @@
   font-size: var(--font-secondary) !important;
 }
 
-/* Reps and effort share one cell; the effort badge keeps a full touch target. */
-.combined-reps-cell { position: relative; min-width: 0; border: 1px solid var(--border); border-radius: 8px; background: var(--surface-hover); }
-.workout-set-row .combined-reps-cell input { width: 100%; min-height: 44px; height: 44px; padding: 6px 2px; text-align: center; border: 0; background: transparent; }
-.combined-reps-cell:focus-within { border-color: var(--accent); }
-.no-rir .combined-reps-cell input { padding-inline: 2px; }
 .workout-plan-detail-card { display: flex; flex-direction: column; gap: 14px; }
 .plan-detail-banner { display: flex; align-items: flex-start; gap: 12px; padding: 14px 16px; border-radius: 12px; border: 1px solid var(--accent-border); background: var(--accent-soft); }
 .plan-banner-icon { color: var(--accent); margin-top: 2px; flex-shrink: 0; }
@@ -332,20 +202,3 @@
 .plan-tempo-pill { border-color: var(--border); background: var(--surface); color: var(--muted); font-size: 14px; }
 .plan-prev-pill { border-color: var(--border); background: var(--surface); color: var(--muted); font-size: 14px; }
 .plan-set-note { margin: 0; font-size: 14px; color: var(--muted); line-height: 1.5; padding-top: 4px; border-top: 1px dashed var(--border); }
-
-@media (max-width: 359px) {
-  .workout-set-table-head, .workout-set-row { gap: 2px; padding-inline: 0; }
-}
-
-@keyframes row-nudge {
-  0%, 100% { transform: translateX(0); }
-  20%, 60% { transform: translateX(-5px); }
-  40%, 80% { transform: translateX(5px); }
-}
-.workout-set-row.nudge {
-  animation: row-nudge 0.32s ease-in-out;
-  border-color: var(--accent-border-strong);
-}
-@media (prefers-reduced-motion: reduce) {
-  .workout-set-row.nudge { animation: none; }
-}

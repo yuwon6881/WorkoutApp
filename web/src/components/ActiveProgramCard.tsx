@@ -20,12 +20,14 @@ export type SlotCardActions = {
 /// The program in the active slot. While a run is underway it shows the week checklist, which
 /// folds away behind the header (and while the card is dragged); once every week is passed it
 /// turns into a finished card offering a restart or a move back to the library.
-export function ActiveProgramCard({ program, exercises, onStart, onChanged, hasActiveWorkout, actions, dragProps, moving, dragging }: {
+export function ActiveProgramCard({ program, exercises, onStart, onChanged, hasActiveWorkout, activeTemplateId = null, actions, dragProps, moving, dragging }: {
   program: ProgramSummary;
   exercises: Exercise[];
   onStart: (id: string) => void;
   onChanged: () => Promise<void>;
   hasActiveWorkout: boolean;
+  /** The day the open workout came from; that day continues it instead of refusing a start. */
+  activeTemplateId?: string | null;
   actions: SlotCardActions;
   dragProps: HTMLAttributes<HTMLElement>;
   moving: boolean;
@@ -168,9 +170,11 @@ export function ActiveProgramCard({ program, exercises, onStart, onChanged, hasA
     {finished
       ? <SlotFinished name={program.name} description="You passed every week of this program." actions={actions} />
       : expanded && <>
-        {progress && <ProgramWeekChecklist program={program} draft={draft} exercises={exercises} onStart={onStart} onChanged={onChanged} hasActiveWorkout={hasActiveWorkout} onDayChange={handleDayChange} onDraftChange={handleDraftChange} />}
+        {progress && <ProgramWeekChecklist program={program} draft={draft} exercises={exercises} onStart={onStart} onChanged={onChanged} hasActiveWorkout={hasActiveWorkout} activeTemplateId={activeTemplateId} onDayChange={handleDayChange} onDraftChange={handleDraftChange} />}
         {!progress && next && <div className="slot-card-actions">
-          <Button variant="primary" disabled={hasActiveWorkout} onClick={() => onStart(next.id)}>Start {next.name}<ArrowRight size={16} /></Button>
+          <Button variant="primary" disabled={hasActiveWorkout && next.id !== activeTemplateId} onClick={() => onStart(next.id)}>
+            {next.id === activeTemplateId ? 'Continue' : 'Start'} {next.name}<ArrowRight size={16} />
+          </Button>
         </div>}
       </>}
     {error && <p className="error-text" role="alert">{error}</p>}

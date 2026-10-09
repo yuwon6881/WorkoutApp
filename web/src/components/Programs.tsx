@@ -87,6 +87,8 @@ export function Programs({ data, exercises, onStart, onImport, onChanged, onTemp
   }
 
   const hasActiveWorkout = Boolean(data.activeWorkout?.active);
+  // The plan the open workout was started from, so its card continues it instead of refusing a start.
+  const activeTemplateId = data.activeWorkout?.active ? data.activeWorkout.templateId : null;
 
   useEffect(() => {
     if (!slot.optimistic) return;
@@ -171,7 +173,7 @@ export function Programs({ data, exercises, onStart, onImport, onChanged, onTemp
         </MenuButton>
       </div>
     </div>
-    {hasActiveWorkout && <p className="program-week-note">Finish or discard the active workout before importing a program.</p>}
+    {hasActiveWorkout && <p className="program-week-note programs-import-note">Finish or discard the active workout before importing a program.</p>}
 
     {readyImport && !hasActiveWorkout && (
       <section className="panel ready-import-card" role="status">
@@ -193,10 +195,10 @@ export function Programs({ data, exercises, onStart, onImport, onChanged, onTemp
       <ActiveSlotDropZone over={drag?.overZone === 'active' && drag.from === 'library'} occupied={Boolean(displayHolder)}
         hasLibrary={libraryCount > 0} onNewWorkout={() => open()} onImport={onImport}>
         {displayHolder?.kind === 'program' && <ActiveProgramCard key={displayHolder.program.id} program={displayHolder.program} exercises={exercises} onStart={onStart} onChanged={onChanged}
-          hasActiveWorkout={hasActiveWorkout} actions={cardActions(displayHolder)} dragProps={dragProps(displayHolder, 'active')}
+          hasActiveWorkout={hasActiveWorkout} activeTemplateId={activeTemplateId} actions={cardActions(displayHolder)} dragProps={dragProps(displayHolder, 'active')}
           moving={movingId === displayHolder.program.id} dragging={draggingId === slotItemId(displayHolder)} />}
         {displayHolder?.kind === 'template' && <ActiveTemplateCard key={displayHolder.template.id} template={displayHolder.template} onStart={() => onStart(displayHolder.template.id)}
-          onEdit={() => open(displayHolder.template)} hasActiveWorkout={hasActiveWorkout} actions={cardActions(displayHolder)}
+          onEdit={() => open(displayHolder.template)} hasActiveWorkout={hasActiveWorkout} activeTemplateId={activeTemplateId} actions={cardActions(displayHolder)}
           dragProps={dragProps(displayHolder, 'active')} moving={movingId === displayHolder.template.id} />}
       </ActiveSlotDropZone>
     </section>

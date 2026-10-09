@@ -18,6 +18,7 @@ export function ProgramWeekChecklist({
   onStart,
   onChanged,
   hasActiveWorkout,
+  activeTemplateId = null,
   onDayChange,
   onDraftChange
 }: {
@@ -27,6 +28,8 @@ export function ProgramWeekChecklist({
   onStart: (templateId: string) => void;
   onChanged: () => Promise<void>;
   hasActiveWorkout: boolean;
+  /** The day the open workout came from; its dialog continues that workout. */
+  activeTemplateId?: string | null;
   onDayChange?: (day: DraftWorkout) => Promise<void>;
   onDraftChange?: (draft: ImportDraft) => Promise<void>;
 }) {
@@ -290,12 +293,12 @@ export function ProgramWeekChecklist({
         </div>
         <div className="modal-actions">
           {openDay.status === 'pending' ? (
-            <Button variant="primary" disabled={hasActiveWorkout} onClick={() => {
+            <Button variant="primary" disabled={hasActiveWorkout && openDay.templateId !== activeTemplateId} onClick={() => {
               const targetId = openDay.templateId;
               closeModal();
               onStart(targetId);
             }}>
-              <Play size={14} fill="currentColor" />Start workout
+              <Play size={14} fill="currentColor" />{openDay.templateId === activeTemplateId ? 'Continue workout' : 'Start workout'}
             </Button>
           ) : (
             <Button variant="primary" onClick={closeModal}>Done</Button>

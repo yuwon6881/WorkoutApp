@@ -93,14 +93,15 @@ export function RepsRirControl({ name, label, reps, rir, trackRir, onChange }: {
           <div className="reps-entry-effort-rail"><RirChips value={entry.rir} ariaLabel={`${label} RIR`}
             onChange={selectRir} /></div>
         </div>}
+        {/* Digits on the left; delete, clear and a tall Done down the right edge, under the thumb. */}
         <div className="reps-entry-keypad" role="group" aria-label="Numeric keypad">
-          {[1, 2, 3, 4, 5, 6, 7, 8, 9].map(value => <Button key={value} variant="tertiary"
+          {[1, 2, 3, 4, 5, 6, 7, 8, 9].map(value => <Button key={value} variant="tertiary" className="reps-key"
             onClick={() => digit(String(value))}>{value}</Button>)}
-          <Button variant="tertiary" className="reps-keypad-clear" onClick={() => setEntry(current => current ? { ...current, text: '' } : current)}>Clear</Button>
-          <Button variant="tertiary" onClick={() => digit('0')}>0</Button>
-          <Button variant="tertiary" className="reps-keypad-delete" aria-label="Delete last rep digit" onClick={backspace}><Delete size={21} /></Button>
+          <Button variant="tertiary" className="reps-key reps-key-zero" onClick={() => digit('0')}>0</Button>
+          <Button variant="tertiary" className="reps-key reps-keypad-delete" aria-label="Delete last rep digit" onClick={backspace}><Delete size={22} /></Button>
+          <Button variant="tertiary" className="reps-key reps-keypad-clear" onClick={() => setEntry(current => current ? { ...current, text: '' } : current)}>Clear</Button>
+          <Button variant="primary" className="reps-key reps-keypad-done" onClick={save}><Check size={20} />Done</Button>
         </div>
-        <Button variant="primary" className="full-width" onClick={save}><Check size={19} />Done</Button>
       </div>
     </Modal>}
   </div>;

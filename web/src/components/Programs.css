@@ -4,3 +4,5 @@
 .ready-import-card h3{font-size:16px;margin:0;color:var(--text)}
 .ready-import-card p{font-size:14px;margin:0;color:var(--muted)}
 @media(max-width:639px){.ready-import-card{flex-direction:column;align-items:stretch}.ready-import-card .button{width:100%;justify-content:center;min-height:44px}}
+/* Why Import is unavailable, kept apart from the section heading that follows it. */
+.program-week-note.programs-import-note{margin:-10px 0 20px}
