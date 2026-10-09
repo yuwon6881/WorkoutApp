@@ -33,12 +33,19 @@ public sealed class ImportProgramTitleTests
             ["OpenAi:Model"] = "gpt-5.4-mini"
         });
         await harness.SignIn();
-        var call = 0;
         // Each section faithfully reports the block heading printed over its own pages.
-        var bodies = new[] { Outline, Section("Foundation Block", 1, 1), Section("Ramping Block", 2, 2) };
-        var imports = harness.Imports(new StubHandler(_ => new HttpResponseMessage(HttpStatusCode.OK)
+        var imports = harness.Imports(new StubHandler(request =>
         {
-            Content = new StringContent($$"""{"status":"completed","output":[{"content":[{"type":"output_text","text":{{JsonSerializer.Serialize(bodies[Math.Min(call++, bodies.Length - 1)])}}}]}]}""")
+            var body = request.Content?.ReadAsStringAsync().GetAwaiter().GetResult() ?? "";
+            var answer = body.Contains("training_program_outline", StringComparison.Ordinal)
+                ? Outline
+                : body.Contains("=== PAGE 1 ===", StringComparison.Ordinal) || body.Contains("WEEK 1", StringComparison.Ordinal)
+                    ? Section("Foundation Block", 1, 1)
+                    : Section("Ramping Block", 2, 2);
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent($$"""{"status":"completed","output":[{"content":[{"type":"output_text","text":{{JsonSerializer.Serialize(answer)}}}]}]}""")
+            };
         }));
         var source = new ImportSourceInput("ppl.pdf", 2, [
             new ImportPageText(1, "WEEK 1\nBench Press 3 x 6-8 @ RPE 8"),
