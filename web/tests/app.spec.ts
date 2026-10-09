@@ -375,6 +375,50 @@ async function openTab(page: Page, name: string) {
 
 test.describe.configure({ mode: 'serial' });
 
+test('a minimized workout stays minimized when an edit finishes syncing', async ({ page }, info) => {
+  await signIn(page);
+  await clearActiveWorkout(page);
+  const headers = { 'X-Workout-Request': '1', Origin: new URL(page.url()).origin };
+  const catalog: { id: string; name: string }[] = await (await page.request.get('/api/exercises')).json();
+  const bench = catalog.find(item => item.name === 'Barbell bench press')!;
+  const name = `Minimize sync ${info.project.name} ${Date.now()}`;
+  const template = await page.request.post('/api/templates', { headers, data: {
+    name, exercises: [{ exerciseId: bench.id, sourceName: bench.name, sets: [{ repMin: 8, repMax: 12, targetRpe: 8, restSeconds: 90 }] }]
+  } });
+  expect(template.ok(), await template.text()).toBeTruthy();
+  const templateId = (await template.json()).id;
+  try {
+    expect((await page.request.post('/api/workouts', { headers, data: { templateId } })).ok()).toBeTruthy();
+    await page.reload();
+    const sheet = page.getByRole('dialog', { name, exact: true });
+    await expect(sheet).toBeVisible();
+
+    // Hold the set's save open so it is still syncing when the lifter minimizes.
+    let release!: () => void;
+    const held = new Promise<void>(resolve => { release = resolve; });
+    let reached!: () => void;
+    const saving = new Promise<void>(resolve => { reached = resolve; });
+    await page.route('**/api/workouts/*/sets/*', async route => { reached(); await held; await route.continue(); });
+    await sheet.getByRole('spinbutton', { name: 'Barbell bench press set 1 weight', exact: true }).fill('50');
+    await sheet.getByRole('spinbutton', { name: 'Barbell bench press set 1 weight', exact: true }).blur();
+    await saving;
+    await sheet.getByRole('button', { name: 'Minimize workout', exact: true }).click();
+    await expect(sheet).toHaveCount(0);
+
+    const saved = page.waitForResponse(response => /\/api\/workouts\/[^/]+\/sets\//.test(response.url()));
+    release();
+    await saved;
+    await expect.poll(async () => (await (await page.request.get('/api/workouts/active')).json())?.exercises?.[0]?.sets?.[0]?.weightKg).toBe(50);
+    // The sheet reopening after a save is a frame away; give it well over that before checking.
+    await page.waitForTimeout(1000);
+    await expect(sheet).toHaveCount(0);
+    await page.unroute('**/api/workouts/*/sets/*');
+  } finally {
+    await clearActiveWorkout(page);
+    await page.request.delete(`/api/templates/${templateId}`, { headers });
+  }
+});
+
 test('build a workout, log a set against the server, and see it in history', async ({ page }, testInfo) => {
   const errors: string[] = [];
   page.on('pageerror', e => errors.push(e.message));

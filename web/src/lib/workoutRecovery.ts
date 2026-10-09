@@ -82,7 +82,9 @@ export async function refreshRecovery(accountId: string, displayName: string, se
     record.serverSession = serverSession;
     record.preferences = preferences;
     if (serverSession.rest !== undefined) record.rest = serverSession.rest;
-    if (sameWorkoutEdits(record.draft, serverSession)) {
+    // With nothing queued, this device holds no edit the server lacks, so the server's copy is the
+    // workout, including sets another device logged since this one last synced.
+    if (record.operations.length === 0 || sameWorkoutEdits(record.draft, serverSession)) {
       record.draft = serverSession;
       record.operations = record.operations.filter(operation => operation.type !== 'save');
     }

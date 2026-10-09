@@ -7,8 +7,9 @@ import type { QueueStatus } from '../lib/queue';
 import type { AppResource, Bootstrap, Preferences, Session } from '../types';
 import { deleteWorkoutPushToken, getWorkoutPushDeviceId } from '../lib/push/firebaseMessaging';
 import { retireWorkoutPushAfterAccountSwitch, retireWorkoutPushDevice } from '../lib/push/cleanup';
-import { clearRecovery, defaultDevicePreferences, getLastAccountId, getLastRecovery, getRecovery, loadDevicePreferences, refreshRecovery, sameWorkoutEdits, saveDevicePreferences as persistDevicePreferences, setConflict, setLastAccount, startRecovery } from '../lib/workoutRecovery';
+import { clearRecovery, defaultDevicePreferences, getLastAccountId, getLastRecovery, getRecovery, loadDevicePreferences, sameWorkoutEdits, saveDevicePreferences as persistDevicePreferences, setConflict, setLastAccount, startRecovery } from '../lib/workoutRecovery';
 import type { DevicePreferences, WorkoutRecoveryRecord } from '../lib/workoutRecovery';
+import { reconcileReopenedWorkout } from '../lib/launchRecovery';
 import { clearStopwatches } from '../lib/setStopwatch';
 import { forgetSessionDetail } from '../lib/sessionDetailLoad';
 
@@ -141,21 +142,7 @@ export function useApp(): AppState {
         local = await getRecovery(next.account.id);
       } catch { /* local recovery is optional for reading server-backed training */ }
       if (local && next.activeWorkout?.id === local.sessionId) {
-        const hasPending = local.operations.length > 0;
-        const operationWasSent = local.operations[0]?.revision !== null && local.operations[0] !== undefined;
-        if (hasPending && !operationWasSent && local.serverSession.revision !== next.activeWorkout.revision && !sameWorkoutEdits(local.serverSession, next.activeWorkout)) {
-          local = await setConflict(next.account.id, true, next.activeWorkout) ?? local;
-        } else if (!hasPending && !sameWorkoutEdits(local.draft, next.activeWorkout) && local.serverSession.revision !== next.activeWorkout.revision) {
-          if (!sameWorkoutEdits(local.draft, local.serverSession)) {
-            local = await setConflict(next.account.id, true, next.activeWorkout) ?? local;
-          } else {
-            local = await refreshRecovery(next.account.id, next.account.displayName, next.activeWorkout, next.preferences) ?? local;
-          }
-        } else if (sameWorkoutEdits(local.draft, next.activeWorkout)) {
-          local = await refreshRecovery(next.account.id, next.account.displayName, next.activeWorkout, next.preferences) ?? local;
-        } else if (!operationWasSent && sameWorkoutEdits(local.serverSession, next.activeWorkout)) {
-          local = await setConflict(next.account.id, false, next.activeWorkout) ?? local;
-        }
+        local = await reconcileReopenedWorkout(local, next.activeWorkout, next.account, next.preferences);
       } else if (local && !next.activeWorkout?.active && local.operations.some(operation => operation.type === 'finish')) {
         // A prior finish may have reached the API before the browser closed. Replay its exact
         // mutation identity after the UI mounts; the server acknowledges an exact retry.

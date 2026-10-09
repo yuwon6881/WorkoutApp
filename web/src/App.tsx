@@ -126,11 +126,13 @@ export default function App() {
   }, [detail?.id, data?.account.id]);
   const detailCatalogLoading = Boolean(detail) && !data?.resources?.catalog && !detailCatalogSettled;
   const restState = useShellRestTimer({ data, recovery, recoverySession, devicePreferences: app.devicePreferences, setToast });
+  // Opens the saved workout when it is found (at launch, or after a conflict) — not each time its
+  // queue drains, or a sheet minimized while an edit was still syncing would spring back open.
   useEffect(() => {
     if (recovery && (!data || data.account.id === recovery.accountId) &&
       (!data?.activeWorkout?.active || data.activeWorkout.id === recovery.sessionId || recovery.operations.some(operation => operation.type === 'finish')) &&
       (recovery.operations.length > 0 || recovery.conflict || data?.activeWorkout?.id === recovery.sessionId)) setTraining(true);
-  }, [recovery?.sessionId, recovery?.operations.length, recovery?.conflict, data?.activeWorkout?.id, data?.account.id]);
+  }, [recovery?.sessionId, recovery?.conflict, data?.activeWorkout?.id, data?.account.id]);
   useEffect(() => { if (!toast) return; const timer = setTimeout(() => setToast(''), 4500); return () => clearTimeout(timer); }, [toast]);
   /// A workout can become active while the import screen is already open — restored from recovery
   /// on this device, or started on another one. The screen closes rather than staying open around
