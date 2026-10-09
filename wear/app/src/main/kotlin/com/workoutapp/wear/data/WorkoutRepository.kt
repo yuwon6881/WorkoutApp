@@ -402,7 +402,7 @@ class WorkoutRepository private constructor(context: Context) {
             addProperty("done", patch.done)
         }
         val shouldRest = patch.done && RestPolicy.shouldRestAfter(nextSession, exercise.id, set.id)
-        val restSeconds = exercise.restSeconds ?: snapshot.defaultRestSeconds
+        val restSeconds = RestPolicy.restSecondsAfter(exercise, set, snapshot.defaultRestSeconds)
         val restGeneration = if (shouldRest && restSeconds > 0) UUID.randomUUID().toString() else null
         val restDeadline = if (restGeneration != null) System.currentTimeMillis() + restSeconds * 1_000L else null
         if (shouldRest && restGeneration != null) {

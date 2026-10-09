@@ -16,6 +16,20 @@ export function getSupersetOrder(sequenceGroup?: string | null, position?: numbe
   return (position ?? 0) + 1;
 }
 
+/// How long to rest after logging a set: the exercise's own rest timer when it has one (set in the
+/// builder, derived from an import, or picked during the workout), otherwise the rest its plan
+/// gives the set just logged, otherwise the account default.
+export function restSecondsAfter(exercise: SessionExercise, setIndex: number, accountDefault: number): number {
+  return exercise.restSeconds ?? exercise.prescription[setIndex]?.restSeconds ?? accountDefault;
+}
+
+/// The rest an exercise shows: its own rest timer, else what its first working set prescribes, so a
+/// leading warm-up's shorter rest is not mistaken for the exercise's.
+export function exerciseRestSeconds(exercise: SessionExercise, accountDefault: number): number {
+  const working = exercise.prescription.find(set => !set.warmup) ?? exercise.prescription[0];
+  return exercise.restSeconds ?? working?.restSeconds ?? accountDefault;
+}
+
 export function restAppliesAfter(
   currentStep: WorkoutStep,
   nextStep: WorkoutStep | null | undefined

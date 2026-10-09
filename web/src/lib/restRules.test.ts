@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { SessionExercise, SetPrescription } from '../types';
-import { findNextStep, restAppliesAfter, type WorkoutStep } from './restRules';
+import { exerciseRestSeconds, findNextStep, restAppliesAfter, restSecondsAfter, type WorkoutStep } from './restRules';
 
 function makeExercise(id: string, name: string, sequenceGroup = '', setsCount = 3, options?: { warmupFirst?: boolean; dropsetLast?: boolean; myorepsLast?: boolean }): SessionExercise {
   const prescription: SetPrescription[] = Array.from({ length: setsCount }, (_, i) => {
@@ -178,5 +178,44 @@ describe('findNextStep', () => {
     ex.sets[1].done = true;
     const step = findNextStep([ex], 0, 1);
     expect(step).toBeNull();
+  });
+});
+
+describe('rest length', () => {
+  // A template built with a per-set rest and no exercise-level rest timer once started a
+  // 1:30 rest after a set its plan gave 150 seconds.
+  it('uses the rest the plan gives the logged set when the exercise has no rest timer', () => {
+    const ex = makeExercise('bench', 'Bench');
+    ex.prescription = ex.prescription.map(p => ({ ...p, restSeconds: 150 }));
+    expect(restSecondsAfter(ex, 1, 90)).toBe(150);
+  });
+
+  it('lets the exercise rest timer win over the set prescription', () => {
+    const ex = { ...makeExercise('bench', 'Bench'), restSeconds: 120 };
+    expect(restSecondsAfter(ex, 1, 90)).toBe(120);
+  });
+
+  it('falls back to the account default when neither says', () => {
+    const ex = makeExercise('bench', 'Bench');
+    ex.prescription = ex.prescription.map(p => ({ ...p, restSeconds: null }));
+    expect(restSecondsAfter(ex, 0, 75)).toBe(75);
+    expect(restSecondsAfter(ex, 9, 75)).toBe(75);
+  });
+
+  it('rests after a warm-up for the time its own prescription gives', () => {
+    const ex = makeExercise('bench', 'Bench', '', 3, { warmupFirst: true });
+    ex.prescription[0] = { ...ex.prescription[0], restSeconds: 60 };
+    ex.prescription[1] = { ...ex.prescription[1], restSeconds: 180 };
+    expect(restSecondsAfter(ex, 0, 90)).toBe(60);
+    expect(restSecondsAfter(ex, 1, 90)).toBe(180);
+  });
+
+  it('shows the rest of the first working set rather than a leading warm-up', () => {
+    const ex = makeExercise('bench', 'Bench', '', 3, { warmupFirst: true });
+    ex.prescription[0] = { ...ex.prescription[0], restSeconds: 60 };
+    ex.prescription[1] = { ...ex.prescription[1], restSeconds: 180 };
+    expect(exerciseRestSeconds(ex, 90)).toBe(180);
+    expect(exerciseRestSeconds({ ...ex, restSeconds: 45 }, 90)).toBe(45);
+    expect(exerciseRestSeconds({ ...ex, prescription: [] }, 90)).toBe(90);
   });
 });

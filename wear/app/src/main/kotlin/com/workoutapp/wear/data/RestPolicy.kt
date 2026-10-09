@@ -22,6 +22,13 @@ object RestPolicy {
     }
 
     /**
+     * How long to rest after this set, matching the phone: the exercise's own rest timer, else the
+     * rest its plan gives this set, else the account default.
+     */
+    fun restSecondsAfter(exercise: WorkoutExercise, set: WorkoutSet, accountDefault: Int): Int =
+        exercise.restSeconds ?: exercise.prescription.getOrNull(set.position)?.restSeconds ?: accountDefault
+
+    /**
      * The set a lifter moves to after this one, in session order: the next superset partner first,
      * then the rest of this exercise, then later exercises. Null after the session's final set.
      */

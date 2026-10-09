@@ -1,5 +1,6 @@
 package com.workoutapp.wear.data
 
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -39,6 +40,23 @@ class RestPolicyTest {
         val warmup = SetPrescription(10, 10, warmup = true)
         val exercise = exercise("bench", "", listOf(set("s1", 0, true), set("s2", 1)), prescriptions = listOf(SetPrescription(8, 10), warmup))
         assertFalse(RestPolicy.shouldRestAfter(session(exercise), "bench", "s1"))
+    }
+
+    @Test
+    fun `a set rests for its own prescribed time when the exercise has no rest timer`() {
+        val sets = listOf(set("s1", 0, true), set("s2", 1))
+        val planned = exercise("bench", "", sets, prescriptions = listOf(SetPrescription(8, 10, restSeconds = 150), SetPrescription(8, 10, restSeconds = 150)))
+        assertEquals(150, RestPolicy.restSecondsAfter(planned, sets[0], accountDefault = 90))
+    }
+
+    @Test
+    fun `the exercise rest timer wins and the account default fills a gap`() {
+        val sets = listOf(set("s1", 0, true), set("s2", 1))
+        val timed = exercise("bench", "", sets, prescriptions = listOf(SetPrescription(8, 10, restSeconds = 150), SetPrescription(8, 10)))
+            .copy(restSeconds = 120)
+        val unplanned = exercise("row", "", sets)
+        assertEquals(120, RestPolicy.restSecondsAfter(timed, sets[0], accountDefault = 90))
+        assertEquals(75, RestPolicy.restSecondsAfter(unplanned, sets[1], accountDefault = 75))
     }
 
     private fun session(vararg exercises: WorkoutExercise) = WorkoutSession(exercises = exercises.toList())

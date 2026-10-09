@@ -9,7 +9,7 @@ import { useAfterLog } from './useAfterLog';
 import { validateLoggedSet, validateSessionDraft } from '../lib/validation';
 import { restTimer } from '../lib/restTimer';
 import { clearStopwatches, pauseStopwatches, resumeStopwatches, stopStopwatch } from '../lib/setStopwatch';
-import { findNextStep, restAppliesAfter } from '../lib/restRules';
+import { exerciseRestSeconds, findNextStep, restAppliesAfter, restSecondsAfter } from '../lib/restRules';
 import {
   clearRecovery, enqueueFinish, enqueueSave, enqueueSetEdits, enqueueTiming, getRecovery,
   isStorageFailure, persistDraftOnly, saveNavigation,
@@ -215,7 +215,7 @@ export function Workout({
     setGeneration.set(set.id, generation);
     const exercise = draft.exercises[ei];
     const plan = exercise.prescription[si];
-    const restSeconds = exercise.restSeconds ?? preferences.restSeconds ?? 90;
+    const restSeconds = restSecondsAfter(exercise, si, preferences.restSeconds ?? 90);
     const nextStep = findNextStep(draft.exercises, ei, si);
     const shouldRest = !set.done && restSeconds > 0 && !draft.pausedAt && restAppliesAfter({ exercise, setIndex: si, set, prescription: plan }, nextStep);
     const logging = !set.done;
@@ -401,7 +401,9 @@ export function Workout({
     if (blocker) { setError(blocker); return; }
     setConfirm('finish');
   };
-  const defaultRestSeconds = currentExercise?.restSeconds ?? preferences.restSeconds ?? 90;
+  const defaultRestSeconds = currentExercise
+    ? exerciseRestSeconds(currentExercise, preferences.restSeconds ?? 90)
+    : preferences.restSeconds ?? 90;
 
   const { rest, handleRestMutate } = useWorkoutRest({
     accountId, draft, revision, paused, finishIntentAt, recoveryConflict, recovery, defaultRestSeconds, onRecoveryChange,

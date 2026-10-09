@@ -41,6 +41,7 @@ import { WorkoutTargetsModal } from './WorkoutTargetsModal';
 import { loadAdjustable } from '../lib/exerciseLoads';
 import { canEnterPerSide } from '../lib/equipmentGroups';
 import { loadColumnLabel, loadEntryFor } from '../lib/resistanceVariant';
+import { exerciseRestSeconds } from '../lib/restRules';
 import './WorkoutLogger.css';
 
 // Long enough to notice a mistaken swipe-delete between sets and reach Undo with a sweaty hand.
@@ -392,8 +393,8 @@ export function WorkoutActiveExercise({
               Rest duration
               <Select
                 ariaLabel="Rest duration"
-                value={exercise.restSeconds ?? exercise.prescription[0]?.restSeconds ?? 90}
-                options={restOptions(exercise.restSeconds ?? exercise.prescription[0]?.restSeconds ?? 90)}
+                value={exerciseRestSeconds(exercise, 90)}
+                options={restOptions(exerciseRestSeconds(exercise, 90))}
                 onChange={val => {
                   const sec = Number(val);
                   change({

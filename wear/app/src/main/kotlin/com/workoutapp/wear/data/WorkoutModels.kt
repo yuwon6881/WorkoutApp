@@ -53,7 +53,9 @@ data class SetPrescription(
     val repsText: String? = null,
     val rir: String? = null,
     val warmup: Boolean = false,
-    val notes: String? = null
+    val notes: String? = null,
+    /** The rest the plan gives after this set; null when it states none. */
+    val restSeconds: Int? = null
 )
 
 data class Progression(val stepKg: Double = 2.5)
