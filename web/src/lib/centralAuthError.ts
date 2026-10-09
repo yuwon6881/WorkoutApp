@@ -3,7 +3,8 @@ const messages: Record<string, string> = {
   connection_changed: 'Nutrition connection changed before setup completed. Try connecting again.',
   invalid_request: 'The sign-in request was not accepted. Try again.',
   login_required: 'Sign-in is required. Please try again.',
-  interaction_required: 'The sign-in session needs your attention. Please try again.'
+  interaction_required: 'The sign-in session needs your attention. Please try again.',
+  temporarily_unavailable: 'Fitness Account is taking longer to start. Please try signing in again.'
 };
 
 export function centralAuthError(code: string | null): string {

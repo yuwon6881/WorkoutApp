@@ -21,9 +21,14 @@ public static class CentralAuthEndpoints
 
     public static void MapCentralAuth(this WebApplication app)
     {
-        app.MapGet("/api/auth/central/start", (HttpRequest request, HttpResponse response, IConfiguration config, [FromServices] IDataProtectionProvider protection, IHostEnvironment environment) =>
+        app.MapGet("/api/auth/central/start", async (HttpRequest request, HttpResponse response, IConfiguration config,
+            [FromServices] IDataProtectionProvider protection, IHostEnvironment environment, IHttpClientFactory clients,
+            CancellationToken ct) =>
         {
             var settings = Settings(config, environment);
+            if (!environment.IsDevelopment() && !await CentralIdentityReadiness.WaitForReady(
+                clients.CreateClient("fitness-account"), settings.Authority, ct))
+                return Results.Redirect(AppendError(settings.ReturnUrl, "temporarily_unavailable"));
             var state = NewState(settings.ReturnUrl, false, null);
             var protector = protection.CreateProtector("workout-fitness-account-oidc-state-v1");
             response.Cookies.Append(StateCookie, protector.Protect(JsonSerializer.Serialize(state)), CookieOptions(environment, TimeSpan.FromMinutes(10)));
@@ -32,11 +37,15 @@ public static class CentralAuthEndpoints
 
         // Consent is a separate backend flow. Shared login above requests identity claims only.
         app.MapGet("/api/auth/central/connect", async (HttpRequest request, HttpResponse response, IConfiguration config, [FromServices] IDataProtectionProvider protection,
-            IHostEnvironment environment, AppDb db, IntegrationTokenService peerTokens, CancellationToken ct) =>
+            IHostEnvironment environment, AppDb db, IntegrationTokenService peerTokens, IHttpClientFactory clients,
+            CancellationToken ct) =>
         {
             Validation.Require(db.CurrentUser is not null, "Sign in before connecting Nutrition.", 401);
             var localUser = db.CurrentUser!.Value;
             var settings = Settings(config, environment);
+            if (!environment.IsDevelopment() && !await CentralIdentityReadiness.WaitForReady(
+                clients.CreateClient("fitness-account"), settings.Authority, ct))
+                return Results.Redirect(AppendError(settings.ConnectReturnUrl, "temporarily_unavailable"));
             var revision = await peerTokens.BeginConnectionAttempt(ct);
             var state = NewState(settings.ConnectReturnUrl, true, localUser, revision);
             var protector = protection.CreateProtector("workout-fitness-account-oidc-connect-v1");
