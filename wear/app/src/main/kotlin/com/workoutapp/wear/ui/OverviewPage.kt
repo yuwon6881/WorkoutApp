@@ -22,7 +22,7 @@ import androidx.wear.compose.material3.SurfaceTransformation
 import androidx.wear.compose.material3.Text
 import com.workoutapp.wear.R
 import com.workoutapp.wear.data.WorkoutSession
-import com.workoutapp.wear.ui.theme.Ayu
+import com.workoutapp.wear.ui.theme.Palette
 
 /** Whole-session controls: time, progress, sync, pause/resume, exercise jump list and finish. */
 @Composable
@@ -72,7 +72,7 @@ fun OverviewPage(
                 Text(
                     session.name,
                     style = MaterialTheme.typography.labelMedium,
-                    color = Ayu.Muted,
+                    color = Palette.Muted,
                     textAlign = TextAlign.Center,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
@@ -80,12 +80,12 @@ fun OverviewPage(
                 Text(
                     elapsedWorkoutSeconds(session, nowEpochMs)?.let(::formatClock) ?: "—",
                     style = MaterialTheme.typography.numeralMedium,
-                    color = if (paused) Ayu.Amber else Ayu.Text
+                    color = if (paused) Palette.Amber else Palette.Text
                 )
                 Text(
                     if (paused) "PAUSED" else "ELAPSED",
                     style = MaterialTheme.typography.labelSmall,
-                    color = if (paused) Ayu.Amber else Ayu.Muted,
+                    color = if (paused) Palette.Amber else Palette.Muted,
                     letterSpacing = 1.sp
                 )
             }
@@ -96,20 +96,20 @@ fun OverviewPage(
                     "${progress.doneSets} of ${plural(progress.plannedSets, "set")}",
                     modifier = Modifier.fillMaxWidth(),
                     style = MaterialTheme.typography.labelSmall,
-                    color = Ayu.Text,
+                    color = Palette.Text,
                     textAlign = TextAlign.Center
                 )
                 LinearProgressIndicator(
                     progress = { progress.fraction },
                     modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
-                    colors = ProgressIndicatorDefaults.colors(indicatorColor = Ayu.Accent, trackColor = Ayu.SurfaceRaised)
+                    colors = ProgressIndicatorDefaults.colors(indicatorColor = Palette.Accent, trackColor = Palette.SurfaceRaised)
                 )
                 if (!canFinish && !pendingFinish) {
                     Text(
                         "Log a working set to enable Finish",
                         modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
                         style = MaterialTheme.typography.labelSmall,
-                        color = Ayu.Muted,
+                        color = Palette.Muted,
                         textAlign = TextAlign.Center
                     )
                 }
@@ -122,7 +122,7 @@ fun OverviewPage(
                 enabled = !busy,
                 modifier = Modifier.fillMaxWidth().listRow(this, spec),
                 transformation = SurfaceTransformation(spec),
-                icon = { WearIcon(R.drawable.ic_undo, null, Modifier.size(ButtonDefaults.IconSize), tint = Ayu.Accent) },
+                icon = { WearIcon(R.drawable.ic_undo, null, Modifier.size(ButtonDefaults.IconSize), tint = Palette.Accent) },
                 label = { Text("Undo last set", maxLines = 1) },
                 secondaryLabel = {
                     Text("${undoableSet.exerciseName} · ${undoableSet.summary}", maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -161,7 +161,7 @@ fun OverviewPage(
         if (hasFeedback(message, error)) item { Feedback(message, error, Modifier.listRow(this, spec)) }
         item {
             ListHeader(Modifier.listRow(this, spec), transformation = SurfaceTransformation(spec)) {
-                Text("Exercises", color = Ayu.Muted)
+                Text("Exercises", color = Palette.Muted)
             }
         }
         session.exercises.forEach { exercise ->
@@ -175,12 +175,12 @@ fun OverviewPage(
                     modifier = Modifier.fillMaxWidth().listRow(this, spec),
                     transformation = SurfaceTransformation(spec),
                     colors = ButtonDefaults.filledTonalButtonColors(
-                        containerColor = if (current) Ayu.AccentContainer else Ayu.SurfaceRaised,
-                        contentColor = if (current) Ayu.Accent else Ayu.Text,
-                        secondaryContentColor = Ayu.Muted
+                        containerColor = if (current) Palette.AccentContainer else Palette.SurfaceRaised,
+                        contentColor = if (current) Palette.Accent else Palette.Text,
+                        secondaryContentColor = Palette.Muted
                     ),
                     icon = if (complete) {
-                        { WearIcon(R.drawable.ic_check, "Complete", Modifier.size(ButtonDefaults.SmallIconSize), tint = Ayu.Green) }
+                        { WearIcon(R.drawable.ic_check, "Complete", Modifier.size(ButtonDefaults.SmallIconSize), tint = Palette.Green) }
                     } else null,
                     label = { Text(exercise.name, maxLines = 2, overflow = TextOverflow.Ellipsis) },
                     secondaryLabel = { Text(if (current) "Now · $done of ${exercise.sets.size}" else "$done of ${plural(exercise.sets.size, "set")}") }
@@ -192,7 +192,7 @@ fun OverviewPage(
                 onClick = onEnableNotifications,
                 modifier = Modifier.fillMaxWidth().listRow(this, spec),
                 transformation = SurfaceTransformation(spec),
-                icon = { WearIcon(R.drawable.ic_bell, null, Modifier.size(ButtonDefaults.IconSize), tint = Ayu.Accent) },
+                icon = { WearIcon(R.drawable.ic_bell, null, Modifier.size(ButtonDefaults.IconSize), tint = Palette.Accent) },
                 label = { Text("Allow notifications") },
                 secondaryLabel = { Text("One-tap return from the watch face") }
             )

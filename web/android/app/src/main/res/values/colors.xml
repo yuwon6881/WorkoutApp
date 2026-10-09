@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Ayu dark, for the few screens drawn natively (the offline workout recovery screen). -->
+<!-- The app's dark theme, for the few screens drawn natively (the offline workout recovery screen). -->
 <resources>
-    <color name="ayu_bg">#0B0E14</color>
-    <color name="ayu_text">#BFBDB6</color>
-    <color name="ayu_muted">#707480</color>
-    <color name="ayu_accent">#E6B450</color>
+    <color name="brand_bg">#0F1115</color>
+    <color name="brand_text">#E7E9EC</color>
+    <color name="brand_muted">#ADB4BD</color>
+    <color name="brand_accent">#FFA056</color>
 </resources>

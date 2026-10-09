@@ -47,8 +47,8 @@
 .muscle-legend-item{display:inline-flex;align-items:center;gap:6px;font-size:14px;font-weight:500}
 .legend-swatch{display:inline-block;width:12px;height:12px;border-radius:3px;flex-shrink:0}
 .legend-swatch.empty{background:var(--muscle-empty);border:1px solid var(--border)}
-.legend-swatch.low{background:color-mix(in srgb,var(--accent) 35%,var(--muscle-empty));border:1px solid var(--accent-border)}
-.legend-swatch.mid{background:color-mix(in srgb,var(--accent) 65%,var(--muscle-empty));border:1px solid var(--accent-border)}
+.legend-swatch.low{background:color-mix(in oklch,var(--accent) 35%,var(--muscle-empty));border:1px solid var(--accent-border)}
+.legend-swatch.mid{background:color-mix(in oklch,var(--accent) 65%,var(--muscle-empty));border:1px solid var(--accent-border)}
 .legend-swatch.peak{background:var(--accent);border:1px solid var(--accent)}
 
 .muscle-balance-method>summary,.muscle-balance-untrained>summary{

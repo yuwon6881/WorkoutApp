@@ -36,7 +36,7 @@ import androidx.wear.compose.material3.IconButtonDefaults
 import androidx.wear.compose.material3.MaterialTheme
 import androidx.wear.compose.material3.Text
 import com.workoutapp.wear.R
-import com.workoutapp.wear.ui.theme.Ayu
+import com.workoutapp.wear.ui.theme.Palette
 
 @Composable
 private fun StepButton(increase: Boolean, name: String, enabled: Boolean, onClick: () -> Unit) {
@@ -44,7 +44,7 @@ private fun StepButton(increase: Boolean, name: String, enabled: Boolean, onClic
         onClick = onClick,
         enabled = enabled,
         modifier = Modifier.size(IconButtonDefaults.ExtraSmallButtonSize + 12.dp),
-        colors = IconButtonDefaults.filledTonalIconButtonColors(containerColor = Ayu.SurfaceHover, contentColor = Ayu.Text)
+        colors = IconButtonDefaults.filledTonalIconButtonColors(containerColor = Palette.SurfaceHover, contentColor = Palette.Text)
     ) {
         WearIcon(
             if (increase) R.drawable.ic_plus else R.drawable.ic_minus,
@@ -66,7 +66,7 @@ fun ValueAdjuster(
     canDecrease: Boolean,
     onStep: (increase: Boolean) -> Unit,
     onDone: () -> Unit,
-    valueColor: Color = Ayu.Text
+    valueColor: Color = Palette.Text
 ) {
     val haptics = LocalHapticFeedback.current
     val context = LocalContext.current
@@ -81,7 +81,7 @@ fun ValueAdjuster(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Ayu.Background)
+            .background(Palette.Background)
             .onRotaryScrollEvent { event ->
                 val pixels = event.verticalScrollPixels
                 if (lowResolutionInput) {
@@ -111,7 +111,7 @@ fun ValueAdjuster(
             modifier = Modifier.fillMaxWidth().padding(bottom = 28.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text(title.uppercase(), style = MaterialTheme.typography.labelSmall, color = Ayu.Muted, letterSpacing = 1.sp)
+            Text(title.uppercase(), style = MaterialTheme.typography.labelSmall, color = Palette.Muted, letterSpacing = 1.sp)
             Row(
                 modifier = Modifier.padding(vertical = 4.dp),
                 verticalAlignment = Alignment.CenterVertically,
@@ -135,8 +135,8 @@ fun ValueAdjuster(
                     onStep(true)
                 }
             }
-            Text(caption, style = MaterialTheme.typography.labelSmall, color = Ayu.Muted)
-            Text("Turn the crown to adjust", style = MaterialTheme.typography.labelSmall, color = Ayu.Faint)
+            Text(caption, style = MaterialTheme.typography.labelSmall, color = Palette.Muted)
+            Text("Turn the crown to adjust", style = MaterialTheme.typography.labelSmall, color = Palette.Faint)
         }
         EdgeButton(
             onClick = onDone,

@@ -271,6 +271,16 @@ const screenshotsDirectory = process.env.WORKOUT_TEST_SCREENSHOTS || 'artifacts'
 
 const signIn = (page: Page) => auth(page, USER);
 
+/// The accent as the page resolves it, so colour checks follow the theme rather than one palette.
+const accentColor = (page: Page) => page.evaluate(() => {
+  const probe = document.createElement('span');
+  probe.style.color = 'var(--accent)';
+  document.body.append(probe);
+  const color = getComputedStyle(probe).color;
+  probe.remove();
+  return color;
+});
+
 /// Each viewport project shares one account, so a workout a previous project left open has to
 /// go before this one starts its own.
 async function clearActiveWorkout(page: Page) {
@@ -477,7 +487,7 @@ test('build a workout, log a set against the server, and see it in history', asy
   await expect(logger.locator('.workout-set-row.done')).toHaveCount(1);
   await expect(logged).toHaveClass(/checked/);
   // The button transitions into its filled state, so poll for the settled colour.
-  await expect.poll(() => logged.evaluate(el => getComputedStyle(el).backgroundColor), { timeout: 5000 }).toBe('rgb(230, 180, 80)');
+  await expect.poll(() => logged.evaluate(el => getComputedStyle(el).backgroundColor), { timeout: 5000 }).toBe(await accentColor(page));
   // The logged set has to reach the server: nothing is kept on the device to fall back on.
   await expect.poll(() => doneSetsOnServer(page), { timeout: 20000 }).toBe(1);
   await page.screenshot({ path: join(screenshotsDirectory, `${testInfo.project.name}-logger.png`), fullPage: true });
@@ -886,7 +896,8 @@ test('import a PDF program, resolve an unmapped exercise, and accept it', async 
   await saveExerciseChanges(page, mysteryExercise);
   await expect(saveBar).toBeHidden({ timeout: 30000 });
   await expect(accept).toBeEnabled({ timeout: 30000 });
-  await expect(accept).toHaveCSS('background-color', 'rgb(230, 180, 80)');
+  const accent = await accentColor(page);
+  await expect(accept).toHaveCSS('background-color', accent);
   const activeAcceptColors = await accept.evaluate(element => {
     const probe = document.createElement('span');
     probe.style.color = 'var(--on-accent)';
@@ -896,7 +907,7 @@ test('import a PDF program, resolve an unmapped exercise, and accept it', async 
     const style = getComputedStyle(element);
     return { color: style.color, background: style.backgroundColor, opacity: style.opacity, expected };
   });
-  expect(activeAcceptColors).toEqual({ color: activeAcceptColors.expected, background: 'rgb(230, 180, 80)', opacity: '1', expected: activeAcceptColors.expected });
+  expect(activeAcceptColors).toEqual({ color: activeAcceptColors.expected, background: accent, opacity: '1', expected: activeAcceptColors.expected });
   const emptySubstitutions = mysteryExercise.locator('.substitution-empty-state');
   await expect(emptySubstitutions).toBeVisible();
   const libraryBox = await mysteryExercise.getByRole('button', { name: 'Library exercise for Mystery machine row', exact: true }).boundingBox();

@@ -40,20 +40,20 @@ public class WorkoutOfflineRecoveryActivity extends AppCompatActivity {
         LinearLayout layout = new LinearLayout(this);
         layout.setOrientation(LinearLayout.VERTICAL);
         layout.setGravity(Gravity.CENTER);
-        layout.setBackgroundColor(ContextCompat.getColor(this, R.color.ayu_bg));
+        layout.setBackgroundColor(ContextCompat.getColor(this, R.color.brand_bg));
         int pad = Math.round(24 * getResources().getDisplayMetrics().density);
         layout.setPadding(pad, pad, pad, pad);
 
-        layout.addView(text("Your workout is saved on this phone", 20, R.color.ayu_text));
-        layout.addView(text(summary(json), 15, R.color.ayu_muted));
-        clock = text("", 15, R.color.ayu_text);
+        layout.addView(text("Your workout is saved on this phone", 20, R.color.brand_text));
+        layout.addView(text(summary(json), 15, R.color.brand_muted));
+        clock = text("", 15, R.color.brand_text);
         layout.addView(clock);
-        layout.addView(text("The app needs a connection to open. Nothing saved here is changed or discarded.", 13, R.color.ayu_muted));
+        layout.addView(text("The app needs a connection to open. Nothing saved here is changed or discarded.", 13, R.color.brand_muted));
 
         Button retry = new Button(this);
         retry.setText("Try again");
-        retry.setTextColor(ContextCompat.getColor(this, R.color.ayu_bg));
-        retry.setBackgroundColor(ContextCompat.getColor(this, R.color.ayu_accent));
+        retry.setTextColor(ContextCompat.getColor(this, R.color.brand_bg));
+        retry.setBackgroundColor(ContextCompat.getColor(this, R.color.brand_accent));
         retry.setMinHeight(Math.round(48 * getResources().getDisplayMetrics().density));
         retry.setOnClickListener(view -> {
             startActivity(new Intent(this, MainActivity.class).putExtra(MainActivity.EXTRA_RETRY, true)

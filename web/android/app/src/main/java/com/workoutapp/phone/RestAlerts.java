@@ -90,7 +90,7 @@ final class RestAlerts {
                 .setPriority(NotificationCompat.PRIORITY_HIGH)
                 .setCategory(NotificationCompat.CATEGORY_REMINDER)
                 .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
-                .setColor(ContextCompat.getColor(context, R.color.ayu_accent))
+                .setColor(ContextCompat.getColor(context, R.color.brand_accent))
                 // Once the next set is under way the alert is old news; the next rest clears it sooner.
                 .setTimeoutAfter(FINISHED_TIMEOUT_MS)
                 .setSilent(!sound);

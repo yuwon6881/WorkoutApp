@@ -19,7 +19,7 @@ import androidx.wear.compose.material3.CircularProgressIndicator
 import androidx.wear.compose.material3.MaterialTheme
 import androidx.wear.compose.material3.ProgressIndicatorDefaults
 import androidx.wear.compose.material3.Text
-import com.workoutapp.wear.ui.theme.Ayu
+import com.workoutapp.wear.ui.theme.Palette
 
 @Composable
 fun PairingScreen(
@@ -64,21 +64,21 @@ private fun PairingCode(code: String, secondsLeft: Long?, checking: Boolean, mes
             progress = { progress },
             modifier = Modifier.fillMaxSize().padding(2.dp),
             strokeWidth = 4.dp,
-            colors = ProgressIndicatorDefaults.colors(indicatorColor = Ayu.Accent, trackColor = Ayu.SurfaceRaised)
+            colors = ProgressIndicatorDefaults.colors(indicatorColor = Palette.Accent, trackColor = Palette.SurfaceRaised)
         )
         WearListScreen { spec ->
             item {
                 Column(Modifier.listRow(this, spec), horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("PAIRING CODE", style = MaterialTheme.typography.labelSmall, color = Ayu.Muted, letterSpacing = 1.sp)
+                    Text("PAIRING CODE", style = MaterialTheme.typography.labelSmall, color = Palette.Muted, letterSpacing = 1.sp)
                     PairingCodeText(code, Modifier.padding(top = 2.dp))
                     Text(
                         secondsLeft?.let { "Expires in ${formatClock(it)}" } ?: "Waiting for approval",
                         style = MaterialTheme.typography.labelSmall,
-                        color = if (secondsLeft != null && secondsLeft < 60) Ayu.Amber else Ayu.Muted
+                        color = if (secondsLeft != null && secondsLeft < 60) Palette.Amber else Palette.Muted
                     )
                 }
             }
-            item { BodyText(PAIRING_INSTRUCTION, Modifier.listRow(this, spec).padding(top = 4.dp), color = Ayu.Text) }
+            item { BodyText(PAIRING_INSTRUCTION, Modifier.listRow(this, spec).padding(top = 4.dp), color = Palette.Text) }
             item {
                 BodyText(
                     if (checking) "Checking approval…" else "Approve only if this code matches your watch.",

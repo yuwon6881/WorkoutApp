@@ -104,24 +104,24 @@
 }
 
 .rpe-control.rir-tier-1 {
-  border-color: rgba(251, 113, 133, 0.35);
-  background: rgba(251, 113, 133, 0.12);
+  border-color: color-mix(in srgb, var(--effort-hard) 35%, transparent);
+  background: color-mix(in srgb, var(--effort-hard) 12%, transparent);
 }
 .rpe-control.rir-tier-1 .rpe-value-text {
-  color: #fb7185;
+  color: var(--effort-hard);
 }
 
 .rpe-control.rir-tier-2 {
-  border-color: var(--accent-border);
-  background: var(--accent-soft);
+  border-color: color-mix(in srgb, var(--effort-moderate) 35%, transparent);
+  background: color-mix(in srgb, var(--effort-moderate) 12%, transparent);
 }
 .rpe-control.rir-tier-2 .rpe-value-text {
-  color: var(--accent);
+  color: var(--effort-moderate);
 }
 
 .rpe-control.rir-tier-easy {
-  border-color: rgba(134, 239, 172, 0.35);
-  background: rgba(134, 239, 172, 0.12);
+  border-color: color-mix(in srgb, var(--effort-easy) 35%, transparent);
+  background: color-mix(in srgb, var(--effort-easy) 12%, transparent);
 }
 .rpe-control.rir-tier-easy .rpe-value-text {
   color: var(--green);
@@ -223,7 +223,7 @@
 }
 .rir-option-card.selected.rir-tier-0 .rir-option-num {
   background: var(--red);
-  color: #fff;
+  color: var(--on-accent);
   border-color: var(--red);
 }
 .rir-option-card.selected.rir-tier-0 .rir-option-text strong {
@@ -231,50 +231,50 @@
 }
 
 .rir-option-card.rir-tier-1 .rir-option-num {
-  border-color: rgba(251, 113, 133, 0.35);
-  color: #fb7185;
+  border-color: color-mix(in srgb, var(--effort-hard) 35%, transparent);
+  color: var(--effort-hard);
 }
 .rir-option-card.selected.rir-tier-1 {
-  background: rgba(251, 113, 133, 0.12);
-  border-color: #fb7185;
+  background: color-mix(in srgb, var(--effort-hard) 12%, transparent);
+  border-color: var(--effort-hard);
 }
 .rir-option-card.selected.rir-tier-1 .rir-option-num {
-  background: #fb7185;
-  color: #fff;
-  border-color: #fb7185;
+  background: var(--effort-hard);
+  color: var(--on-accent);
+  border-color: var(--effort-hard);
 }
 .rir-option-card.selected.rir-tier-1 .rir-option-text strong {
-  color: #fb7185;
+  color: var(--effort-hard);
 }
 
 .rir-option-card.rir-tier-2 .rir-option-num {
-  border-color: var(--accent-border);
-  color: var(--accent);
+  border-color: color-mix(in srgb, var(--effort-moderate) 35%, transparent);
+  color: var(--effort-moderate);
 }
 .rir-option-card.selected.rir-tier-2 {
-  background: var(--accent-soft);
-  border-color: var(--accent);
+  background: color-mix(in srgb, var(--effort-moderate) 12%, transparent);
+  border-color: var(--effort-moderate);
 }
 .rir-option-card.selected.rir-tier-2 .rir-option-num {
-  background: var(--accent);
+  background: var(--effort-moderate);
   color: var(--on-accent);
-  border-color: var(--accent);
+  border-color: var(--effort-moderate);
 }
 .rir-option-card.selected.rir-tier-2 .rir-option-text strong {
-  color: var(--accent);
+  color: var(--effort-moderate);
 }
 
 .rir-option-card.rir-tier-easy .rir-option-num {
-  border-color: rgba(134, 239, 172, 0.35);
+  border-color: color-mix(in srgb, var(--effort-easy) 35%, transparent);
   color: var(--green);
 }
 .rir-option-card.selected.rir-tier-easy {
-  background: rgba(134, 239, 172, 0.12);
+  background: color-mix(in srgb, var(--effort-easy) 12%, transparent);
   border-color: var(--green);
 }
 .rir-option-card.selected.rir-tier-easy .rir-option-num {
   background: var(--green);
-  color: #0b0e14;
+  color: var(--on-accent);
   border-color: var(--green);
 }
 .rir-option-card.selected.rir-tier-easy .rir-option-text strong {
@@ -346,17 +346,17 @@
   color: var(--red);
 }
 .rir-chip.rir-tier-1 {
-  border-color: color-mix(in srgb, var(--red) 35%, var(--border));
-  background: color-mix(in srgb, var(--red) 10%, transparent);
-  color: color-mix(in srgb, var(--red) 65%, var(--accent));
+  border-color: color-mix(in srgb, var(--effort-hard) 35%, transparent);
+  background: color-mix(in srgb, var(--effort-hard) 10%, transparent);
+  color: var(--effort-hard);
 }
 .rir-chip.rir-tier-2 {
-  border-color: var(--accent-border);
-  background: var(--accent-soft);
-  color: var(--accent);
+  border-color: color-mix(in srgb, var(--effort-moderate) 35%, transparent);
+  background: color-mix(in srgb, var(--effort-moderate) 12%, transparent);
+  color: var(--effort-moderate);
 }
 .rir-chip.rir-tier-easy {
-  border-color: rgba(134, 239, 172, 0.35);
+  border-color: color-mix(in srgb, var(--effort-easy) 35%, transparent);
   background: color-mix(in srgb, var(--green) 10%, transparent);
   color: var(--green);
 }
@@ -373,22 +373,22 @@
 .rir-chip.selected.rir-tier-0 {
   border-color: var(--red);
   background: var(--red);
-  color: #fff;
+  color: var(--on-accent);
 }
 .rir-chip.selected.rir-tier-1 {
-  border-color: color-mix(in srgb, var(--red) 60%, var(--accent));
-  background: color-mix(in srgb, var(--red) 60%, var(--accent));
-  color: #fff;
+  border-color: var(--effort-hard);
+  background: var(--effort-hard);
+  color: var(--on-accent);
 }
 .rir-chip.selected.rir-tier-2 {
-  border-color: var(--accent);
-  background: var(--accent);
+  border-color: var(--effort-moderate);
+  background: var(--effort-moderate);
   color: var(--on-accent);
 }
 .rir-chip.selected.rir-tier-easy {
   border-color: var(--green);
   background: var(--green);
-  color: #0b0e14;
+  color: var(--on-accent);
 }
 
 @media (min-width: 1024px) {

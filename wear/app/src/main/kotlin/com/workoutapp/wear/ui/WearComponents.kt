@@ -38,7 +38,7 @@ import androidx.wear.compose.material3.lazy.TransformationSpec
 import androidx.wear.compose.material3.lazy.rememberTransformationSpec
 import androidx.wear.compose.material3.lazy.transformedHeight
 import com.workoutapp.wear.R
-import com.workoutapp.wear.ui.theme.Ayu
+import com.workoutapp.wear.ui.theme.Palette
 
 /**
  * One scrolling screen: rotary-aware list, round-screen content padding, scroll-away time text and an
@@ -95,8 +95,8 @@ fun BrandMark(modifier: Modifier = Modifier, size: Dp = 48.dp) {
         modifier = modifier
             .size(size)
             .clip(CircleShape)
-            .background(Ayu.SurfaceRaised)
-            .border(1.dp, Ayu.Border, CircleShape)
+            .background(Palette.SurfaceRaised)
+            .border(1.dp, Palette.Border, CircleShape)
     )
 }
 
@@ -113,7 +113,7 @@ fun ScreenTitle(text: String, modifier: Modifier = Modifier, maxLines: Int = 2) 
 }
 
 @Composable
-fun BodyText(text: String, modifier: Modifier = Modifier, color: Color = Ayu.Muted) {
+fun BodyText(text: String, modifier: Modifier = Modifier, color: Color = Palette.Muted) {
     Text(
         text,
         modifier = modifier.fillMaxWidth().padding(horizontal = 4.dp),
@@ -127,8 +127,8 @@ fun BodyText(text: String, modifier: Modifier = Modifier, color: Color = Ayu.Mut
 @Composable
 fun Feedback(message: String?, error: String?, modifier: Modifier = Modifier) {
     when {
-        !error.isNullOrBlank() -> BodyText(error, modifier, color = Ayu.Red)
-        !message.isNullOrBlank() -> BodyText(message, modifier, color = Ayu.Muted)
+        !error.isNullOrBlank() -> BodyText(error, modifier, color = Palette.Red)
+        !message.isNullOrBlank() -> BodyText(message, modifier, color = Palette.Muted)
     }
 }
 

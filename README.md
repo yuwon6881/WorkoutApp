@@ -67,7 +67,7 @@ use case, permission prerequisites, and reproducible 20-set measurement protocol
 
 ## UI text and type
 
-Visible interface text uses the shared Ayu typography scale in `web/src/index.css`: 16px body and
+Visible interface text uses the shared typography scale in `web/src/index.css`: 16px body and
 form text, 14px navigation, metadata, badges, and secondary text, 20px section headings, and
 28–32px page titles. Keep labels factual and concise, remove repeated slogans, and keep warnings,
 targets, provenance, and server or permission consequences visible. Use a keyboard-accessible

@@ -55,7 +55,7 @@ final class LiveUpdateNotificationAdapter {
         String nextUp = detailed && snapshot != null ? snapshot.nextUp : null;
         NotificationCompat.Builder builder = new NotificationCompat.Builder(context, RestAlerts.CHANNEL_ONGOING)
                 .setSmallIcon(R.drawable.ic_stat_rest)
-                .setColor(ContextCompat.getColor(context, R.color.ayu_accent))
+                .setColor(ContextCompat.getColor(context, R.color.brand_accent))
                 .setContentIntent(RestAlerts.openWorkout(context, sessionId, RestAlerts.NOTIFICATION_ID_ONGOING))
                 .setOngoing(true)
                 .setOnlyAlertOnce(true)
@@ -113,7 +113,7 @@ final class LiveUpdateNotificationAdapter {
         return new NotificationCompat.ProgressStyle()
                 .setStyledByProgress(true)
                 .addProgressSegment(new NotificationCompat.ProgressStyle.Segment(total)
-                        .setColor(ContextCompat.getColor(context, R.color.ayu_accent)))
+                        .setColor(ContextCompat.getColor(context, R.color.brand_accent)))
                 .setProgress(Math.max(0, Math.min(total, total - left)));
     }
 }

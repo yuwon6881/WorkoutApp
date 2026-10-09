@@ -18,7 +18,7 @@ import androidx.wear.compose.material3.ButtonDefaults
 import androidx.wear.compose.material3.MaterialTheme
 import androidx.wear.compose.material3.Text
 import com.workoutapp.wear.R
-import com.workoutapp.wear.ui.theme.Ayu
+import com.workoutapp.wear.ui.theme.Palette
 
 const val PAIRING_INSTRUCTION = "Enter it in WorkoutApp under Settings → Wear OS."
 
@@ -50,7 +50,7 @@ fun PairPrompt(
                 label = { Text("Pair this watch") }
             )
         } else {
-            Text("PAIRING CODE", style = MaterialTheme.typography.labelSmall, color = Ayu.Muted, letterSpacing = 1.sp)
+            Text("PAIRING CODE", style = MaterialTheme.typography.labelSmall, color = Palette.Muted, letterSpacing = 1.sp)
             PairingCodeText(pairingCode)
             BodyText(if (checking) "Checking approval…" else PAIRING_INSTRUCTION)
         }
@@ -67,7 +67,7 @@ fun PairingCodeText(code: String, modifier: Modifier = Modifier) {
         fontSize = 26.sp,
         fontWeight = FontWeight.SemiBold,
         letterSpacing = 1.sp,
-        color = Ayu.Accent,
+        color = Palette.Accent,
         textAlign = TextAlign.Center,
         maxLines = 1
     )

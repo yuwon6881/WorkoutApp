@@ -31,7 +31,7 @@ import androidx.wear.compose.material3.ProgressIndicatorDefaults
 import androidx.wear.compose.material3.ScreenScaffold
 import androidx.wear.compose.material3.Text
 import com.workoutapp.wear.R
-import com.workoutapp.wear.ui.theme.Ayu
+import com.workoutapp.wear.ui.theme.Palette
 
 /**
  * Full-screen rest countdown. The ring drains toward the deadline persisted in the snapshot, so it
@@ -64,8 +64,8 @@ fun RestPage(
                 modifier = Modifier.fillMaxSize().padding(3.dp),
                 strokeWidth = 6.dp,
                 colors = ProgressIndicatorDefaults.colors(
-                    indicatorColor = if (finished) Ayu.Green else Ayu.Accent,
-                    trackColor = Ayu.SurfaceRaised
+                    indicatorColor = if (finished) Palette.Green else Palette.Accent,
+                    trackColor = Palette.SurfaceRaised
                 )
             )
             Column(
@@ -76,19 +76,19 @@ fun RestPage(
                     formatClock(seconds),
                     style = if (LocalConfiguration.current.screenWidthDp < COMPACT_WATCH_DP) MaterialTheme.typography.numeralMedium
                     else MaterialTheme.typography.numeralLarge,
-                    color = if (finished) Ayu.Green else Ayu.Text
+                    color = if (finished) Palette.Green else Palette.Text
                 )
                 if (nextUp != null) {
                     Text(
                         nextUp.exerciseName,
                         modifier = Modifier.widthIn(max = 148.dp),
                         style = MaterialTheme.typography.labelMedium,
-                        color = Ayu.Text,
+                        color = Palette.Text,
                         textAlign = TextAlign.Center,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
-                    Text(nextUp.detail, style = MaterialTheme.typography.labelSmall, color = Ayu.Muted, maxLines = 1)
+                    Text(nextUp.detail, style = MaterialTheme.typography.labelSmall, color = Palette.Muted, maxLines = 1)
                 }
                 Row(
                     modifier = Modifier.padding(top = 8.dp),
@@ -116,7 +116,7 @@ private fun RestAdjustButton(label: String, description: String, enabled: Boolea
         onClick = onClick,
         enabled = enabled,
         modifier = Modifier.semantics { contentDescription = description },
-        colors = IconButtonDefaults.filledTonalIconButtonColors(containerColor = Ayu.SurfaceHover, contentColor = Ayu.Text)
+        colors = IconButtonDefaults.filledTonalIconButtonColors(containerColor = Palette.SurfaceHover, contentColor = Palette.Text)
     ) {
         Text(label, style = MaterialTheme.typography.labelMedium)
     }

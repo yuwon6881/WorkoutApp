@@ -20,7 +20,7 @@ import androidx.wear.compose.material3.SurfaceTransformation
 import androidx.wear.compose.material3.Text
 import androidx.wear.compose.material3.lazy.TransformationSpec
 import com.workoutapp.wear.R
-import com.workoutapp.wear.ui.theme.Ayu
+import com.workoutapp.wear.ui.theme.Palette
 
 // These screens also carry "Disconnect watch" below the fold. An edge button only appears once a list is
 // scrolled to its end, so the primary action is an in-list button that is visible on the first screen.
@@ -37,7 +37,7 @@ fun NoWorkoutScreen(
     WearListScreen { spec ->
         item {
             Box(Modifier.listRow(this, spec), contentAlignment = Alignment.Center) {
-                IconBadge(R.drawable.ic_workout_status, tint = Ayu.Accent, container = Ayu.AccentContainer, size = 36.dp)
+                IconBadge(R.drawable.ic_workout_status, tint = Palette.Accent, container = Palette.AccentContainer, size = 36.dp)
             }
         }
         item { ScreenTitle("No active workout", Modifier.listRow(this, spec)) }
@@ -70,7 +70,7 @@ fun FinishPendingScreen(
     WearListScreen { spec ->
         item {
             Box(Modifier.listRow(this, spec), contentAlignment = Alignment.Center) {
-                IconBadge(R.drawable.ic_check, tint = Ayu.Green, container = Ayu.GreenContainer, size = 36.dp)
+                IconBadge(R.drawable.ic_check, tint = Palette.Green, container = Palette.GreenContainer, size = 36.dp)
             }
         }
         item { ScreenTitle("Workout finished", Modifier.listRow(this, spec)) }
@@ -138,8 +138,8 @@ fun TransformingLazyColumnScope.disconnectItem(
             enabled = enabled,
             modifier = Modifier.fillMaxWidth().padding(top = 8.dp).listRow(this, spec),
             transformation = SurfaceTransformation(spec),
-            icon = { WearIcon(R.drawable.ic_logout, null, Modifier.size(ButtonDefaults.SmallIconSize), tint = if (enabled) Ayu.Red else Ayu.Faint) },
-            label = { Text(if (blockedBySync) "Sync before disconnecting" else "Disconnect watch", color = if (enabled) Ayu.Red else Ayu.Faint) }
+            icon = { WearIcon(R.drawable.ic_logout, null, Modifier.size(ButtonDefaults.SmallIconSize), tint = if (enabled) Palette.Red else Palette.Faint) },
+            label = { Text(if (blockedBySync) "Sync before disconnecting" else "Disconnect watch", color = if (enabled) Palette.Red else Palette.Faint) }
         )
     }
 }

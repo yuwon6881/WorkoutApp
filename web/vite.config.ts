@@ -53,7 +53,7 @@ export default defineConfig({
     manifest: {
       id: '/', name: 'Workout', short_name: 'Workout',
       description: 'Plan, train, and track your lifting. Your training is saved to your account.',
-      theme_color: '#0b0e14', background_color: '#0b0e14', display: 'standalone', start_url: '/', scope: '/',
+      theme_color: '#0f1115', background_color: '#0f1115', display: 'standalone', start_url: '/', scope: '/',
       orientation: 'portrait', categories: ['health', 'fitness', 'sports'],
       // A maskable icon is cropped to a circle or squircle, so it carries its own padded artwork
       // instead of sharing the "any" icon, whose glyph would be clipped.

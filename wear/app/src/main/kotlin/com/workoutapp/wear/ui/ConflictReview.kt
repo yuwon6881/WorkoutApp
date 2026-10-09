@@ -23,7 +23,7 @@ import com.workoutapp.wear.R
 import com.workoutapp.wear.data.PendingOperation
 import com.workoutapp.wear.data.WorkoutSet
 import com.workoutapp.wear.data.WorkoutSnapshot
-import com.workoutapp.wear.ui.theme.Ayu
+import com.workoutapp.wear.ui.theme.Palette
 
 @Composable
 fun ConflictReview(
@@ -47,7 +47,7 @@ fun ConflictReview(
     WearListScreen { spec ->
         item {
             Box(Modifier.listRow(this, spec), contentAlignment = Alignment.Center) {
-                IconBadge(R.drawable.ic_warning, tint = Ayu.Amber, container = Ayu.AccentContainer, size = 36.dp)
+                IconBadge(R.drawable.ic_warning, tint = Palette.Amber, container = Palette.AccentContainer, size = 36.dp)
             }
         }
         item { ScreenTitle("Review changes", Modifier.listRow(this, spec)) }
@@ -122,12 +122,12 @@ private fun ComparisonCard(
 ) {
     Card(
         modifier = Modifier.listRow(scope, spec),
-        colors = CardDefaults.cardColors(containerColor = if (highlighted) Ayu.AccentContainer else Ayu.SurfaceRaised),
+        colors = CardDefaults.cardColors(containerColor = if (highlighted) Palette.AccentContainer else Palette.SurfaceRaised),
         transformation = with(scope) { SurfaceTransformation(spec) }
     ) {
-        Text(source, style = MaterialTheme.typography.labelSmall, color = if (highlighted) Ayu.Accent else Ayu.Muted, letterSpacing = 1.sp)
-        Text(value, style = MaterialTheme.typography.bodyMedium, color = Ayu.Text)
-        if (detail != null) Text(detail, style = MaterialTheme.typography.labelSmall, color = Ayu.Muted, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Text(source, style = MaterialTheme.typography.labelSmall, color = if (highlighted) Palette.Accent else Palette.Muted, letterSpacing = 1.sp)
+        Text(value, style = MaterialTheme.typography.bodyMedium, color = Palette.Text)
+        if (detail != null) Text(detail, style = MaterialTheme.typography.labelSmall, color = Palette.Muted, maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
 }
 

@@ -13,7 +13,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.wear.compose.material3.AppScaffold
-import com.workoutapp.wear.ui.theme.Ayu
+import com.workoutapp.wear.ui.theme.Palette
 import com.workoutapp.wear.ui.theme.WearWorkoutTheme
 import java.io.File
 import java.time.Duration
@@ -47,7 +47,7 @@ fun renderScreen(device: WatchDevice, name: String, settleMs: Long = 2_000, cont
     val activity = controller.get()
     activity.setContent {
         WearWorkoutTheme {
-            AppScaffold { Box(Modifier.fillMaxSize().background(Ayu.Background)) { content() } }
+            AppScaffold { Box(Modifier.fillMaxSize().background(Palette.Background)) { content() } }
         }
     }
     shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMillis(settleMs))

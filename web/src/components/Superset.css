@@ -1,5 +1,5 @@
 /* Superset management interface and modal styles
-   Obeying Ayu theme variables and accessibility standards. */
+   Obeying semantic theme variables and accessibility standards. */
 .superset-control-wrap {
   display: flex;
   align-items: center;

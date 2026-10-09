@@ -8,7 +8,7 @@ import androidx.wear.compose.material3.AlertDialog
 import androidx.wear.compose.material3.AlertDialogDefaults
 import androidx.wear.compose.material3.IconButtonDefaults
 import androidx.wear.compose.material3.Text
-import com.workoutapp.wear.ui.theme.Ayu
+import com.workoutapp.wear.ui.theme.Palette
 
 /** A yes/no confirmation using the platform dialog so swipe-to-dismiss and rotary behave natively. */
 @Composable
@@ -29,8 +29,8 @@ fun ConfirmDialog(
             AlertDialogDefaults.ConfirmButton(
                 onClick = onConfirm,
                 colors = if (destructive) IconButtonDefaults.filledIconButtonColors(
-                    containerColor = Ayu.Red,
-                    contentColor = Ayu.Background
+                    containerColor = Palette.Red,
+                    contentColor = Palette.Background
                 ) else IconButtonDefaults.filledIconButtonColors()
             )
         },

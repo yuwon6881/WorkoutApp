@@ -16,7 +16,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.wear.compose.material3.MaterialTheme
 import androidx.wear.compose.material3.Text
-import com.workoutapp.wear.ui.theme.Ayu
+import com.workoutapp.wear.ui.theme.Palette
 
 enum class SyncTone { Synced, Pending, Syncing, Attention }
 
@@ -39,10 +39,10 @@ fun syncStatus(queuedCount: Int, pairingRequired: Boolean, syncing: Boolean): Sy
 }
 
 fun SyncTone.color(): Color = when (this) {
-    SyncTone.Synced -> Ayu.Green
-    SyncTone.Pending -> Ayu.Amber
-    SyncTone.Syncing -> Ayu.Blue
-    SyncTone.Attention -> Ayu.Red
+    SyncTone.Synced -> Palette.Green
+    SyncTone.Pending -> Palette.Amber
+    SyncTone.Syncing -> Palette.Blue
+    SyncTone.Attention -> Palette.Red
 }
 
 @Composable
@@ -62,7 +62,7 @@ fun SyncStatusLine(status: SyncStatus, modifier: Modifier = Modifier) {
         Text(
             status.label,
             style = MaterialTheme.typography.labelSmall,
-            color = if (status.tone == SyncTone.Synced) Ayu.Muted else status.tone.color(),
+            color = if (status.tone == SyncTone.Synced) Palette.Muted else status.tone.color(),
             maxLines = 1,
             overflow = TextOverflow.Ellipsis
         )

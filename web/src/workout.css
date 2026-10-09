@@ -1,5 +1,5 @@
 /* In-Progress Workout and Workout Builder enhancements
-   Strict adherence to Ayu theme variables, standard responsive breakpoints, and accessibility. */
+   Strict adherence to semantic theme variables, standard responsive breakpoints, and accessibility. */
 
 /* The active workout logger itself is styled in components/WorkoutLogger.css. */
 
@@ -194,10 +194,10 @@
 .plan-pill { display: inline-flex; align-items: center; gap: 5px; padding: 4px 10px; border-radius: 8px; font-size: 14px; font-weight: 600; border: 1px solid var(--border); background: var(--surface); color: var(--text); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .plan-pill svg { flex-shrink: 0; }
 .plan-reps-pill { border-color: var(--accent-border); background: var(--accent-soft); color: var(--accent); }
-.plan-rir-pill.rir-tier-0 { border-color: var(--red-border); background: var(--red-soft); color: var(--red); }
-.plan-rir-pill.rir-tier-1 { border-color: rgba(251, 113, 133, 0.4); background: color-mix(in srgb, var(--red) 10%, transparent); color: color-mix(in srgb, var(--red) 60%, var(--accent)); }
-.plan-rir-pill.rir-tier-2 { border-color: var(--accent-border); background: var(--accent-soft); color: var(--accent); }
-.plan-rir-pill.rir-tier-easy { border-color: rgba(134, 239, 172, 0.35); background: color-mix(in srgb, var(--green) 10%, transparent); color: var(--green); }
+.plan-rir-pill.rir-tier-0 { border-color: color-mix(in srgb, var(--effort-max) 40%, transparent); background: color-mix(in srgb, var(--effort-max) 12%, var(--surface)); color: var(--effort-max); }
+.plan-rir-pill.rir-tier-1 { border-color: color-mix(in srgb, var(--effort-hard) 40%, transparent); background: color-mix(in srgb, var(--effort-hard) 12%, var(--surface)); color: var(--effort-hard); }
+.plan-rir-pill.rir-tier-2 { border-color: color-mix(in srgb, var(--effort-moderate) 40%, transparent); background: color-mix(in srgb, var(--effort-moderate) 12%, var(--surface)); color: var(--effort-moderate); }
+.plan-rir-pill.rir-tier-easy { border-color: color-mix(in srgb, var(--effort-easy) 40%, transparent); background: color-mix(in srgb, var(--effort-easy) 12%, var(--surface)); color: var(--effort-easy); }
 .plan-load-pill { border-color: var(--border-hover); background: var(--surface); color: var(--text); }
 .plan-tempo-pill { border-color: var(--border); background: var(--surface); color: var(--muted); font-size: 14px; }
 .plan-prev-pill { border-color: var(--border); background: var(--surface); color: var(--muted); font-size: 14px; }

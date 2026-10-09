@@ -21,10 +21,10 @@
   z-index: 2;
   transition: background-color 200ms ease, color 200ms ease, border-color 200ms ease;
 }
-.reps-rir-badge.rir-tier-0 { color: var(--red); background: color-mix(in srgb, var(--red) 20%, var(--surface-raised)); border-color: var(--red-border); }
-.reps-rir-badge.rir-tier-1 { color: color-mix(in srgb, var(--red) 60%, var(--accent)); background: color-mix(in srgb, var(--red) 14%, var(--surface-raised)); border-color: color-mix(in srgb, var(--red) 40%, var(--accent)); }
-.reps-rir-badge.rir-tier-2 { color: var(--accent); background: color-mix(in srgb, var(--accent) 20%, var(--surface-raised)); border-color: var(--accent-border); }
-.reps-rir-badge.rir-tier-easy { color: var(--green); background: color-mix(in srgb, var(--green) 20%, var(--surface-raised)); border-color: color-mix(in srgb, var(--green) 45%, transparent); }
+.reps-rir-badge.rir-tier-0 { color: var(--effort-max); background: color-mix(in srgb, var(--effort-max) 12%, var(--surface)); border-color: color-mix(in srgb, var(--effort-max) 45%, transparent); }
+.reps-rir-badge.rir-tier-1 { color: var(--effort-hard); background: color-mix(in srgb, var(--effort-hard) 12%, var(--surface)); border-color: color-mix(in srgb, var(--effort-hard) 45%, transparent); }
+.reps-rir-badge.rir-tier-2 { color: var(--effort-moderate); background: color-mix(in srgb, var(--effort-moderate) 12%, var(--surface)); border-color: color-mix(in srgb, var(--effort-moderate) 45%, transparent); }
+.reps-rir-badge.rir-tier-easy { color: var(--effort-easy); background: color-mix(in srgb, var(--effort-easy) 12%, var(--surface)); border-color: color-mix(in srgb, var(--effort-easy) 45%, transparent); }
 .reps-rir-flame { display: block; color: var(--muted); opacity: 0.8; }
 
 /* The entry sheet: a large readout, the effort chips, then a keypad sized for a thumb. */

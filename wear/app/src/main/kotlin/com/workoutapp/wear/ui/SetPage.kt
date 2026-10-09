@@ -33,7 +33,7 @@ import androidx.wear.compose.material3.FilledTonalButton
 import androidx.wear.compose.material3.MaterialTheme
 import androidx.wear.compose.material3.Text
 import com.workoutapp.wear.R
-import com.workoutapp.wear.ui.theme.Ayu
+import com.workoutapp.wear.ui.theme.Palette
 import com.workoutapp.wear.ui.theme.rirColor
 
 enum class SetField { Reps, Load, Rir, Time }
@@ -173,7 +173,7 @@ fun SetPage(
                                 else -> "time"
                             },
                             editable && !draft.timing,
-                            valueColor = if (draft.timing) Ayu.Accent else if (shown == null) Ayu.Muted else Ayu.Text
+                            valueColor = if (draft.timing) Palette.Accent else if (shown == null) Palette.Muted else Palette.Text
                         ) { onAdjust(SetField.Time) }
                     } else {
                         MetricTile("reps", draft.reps.toString(), "reps", editable) { onAdjust(SetField.Reps) }
@@ -207,7 +207,7 @@ private fun RowScope.MetricTile(
     value: String,
     caption: String,
     enabled: Boolean,
-    valueColor: Color = Ayu.Text,
+    valueColor: Color = Palette.Text,
     onClick: (() -> Unit)?
 ) {
     Column(
@@ -215,7 +215,7 @@ private fun RowScope.MetricTile(
             .weight(1f)
             .heightIn(min = 50.dp)
             .clip(RoundedCornerShape(18.dp))
-            .background(Ayu.SurfaceRaised)
+            .background(Palette.SurfaceRaised)
             .then(
                 if (onClick == null) Modifier
                 else Modifier.clickable(enabled = enabled, role = Role.Button, onClickLabel = "Adjust $name", onClick = onClick)
@@ -228,10 +228,10 @@ private fun RowScope.MetricTile(
             value,
             style = MaterialTheme.typography.numeralExtraSmall,
             fontSize = if (value.length > 4) 18.sp else 22.sp,
-            color = if (enabled) valueColor else Ayu.Muted,
+            color = if (enabled) valueColor else Palette.Muted,
             maxLines = 1
         )
-        Text(caption, style = MaterialTheme.typography.labelSmall, fontSize = 10.sp, color = Ayu.Muted, maxLines = 1)
+        Text(caption, style = MaterialTheme.typography.labelSmall, fontSize = 10.sp, color = Palette.Muted, maxLines = 1)
     }
 }
 
@@ -260,23 +260,23 @@ private fun SetBadgeRow(model: ActiveSetModel, paused: Boolean, pausedRestSecond
         when {
             paused -> Badge(
                 pausedRestSeconds?.let { "PAUSED · REST ${formatClock(it)}" } ?: "PAUSED",
-                Ayu.Amber, Ayu.AccentContainer
+                Palette.Amber, Palette.AccentContainer
             )
-            model.set == null -> Badge("ALL ${model.setCount} DONE", Ayu.Green, Ayu.GreenContainer)
+            model.set == null -> Badge("ALL ${model.setCount} DONE", Palette.Green, Palette.GreenContainer)
             else -> {
                 Badge(if (model.warmup) "WARM-UP" else "SET ${model.setNumber}/${model.setCount}",
-                    if (model.warmup) Ayu.Blue else Ayu.Muted,
-                    if (model.warmup) Ayu.BlueContainer else Ayu.SurfaceRaised)
+                    if (model.warmup) Palette.Blue else Palette.Muted,
+                    if (model.warmup) Palette.BlueContainer else Palette.SurfaceRaised)
                 when {
                     // Sync trouble outranks the target, which the crown editors repeat anyway.
                     sync.tone != SyncTone.Synced -> SyncStatusLine(sync, Modifier.weight(1f, fill = false))
-                    restComplete -> Badge("REST DONE", Ayu.Green, Ayu.GreenContainer)
+                    restComplete -> Badge("REST DONE", Palette.Green, Palette.GreenContainer)
                     else -> targetLine(model)?.let {
                         Text(
                             it,
                             modifier = Modifier.weight(1f, fill = false),
                             style = MaterialTheme.typography.labelSmall,
-                            color = Ayu.Muted,
+                            color = Palette.Muted,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
