@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { ArrowRight, ChartNoAxesCombined, Dumbbell, ListChecks } from 'lucide-react';
+import { ArrowRight, ChartNoAxesCombined, Dumbbell, ListChecks, Loader2 } from 'lucide-react';
 import { Button } from './ui/Button';
 import { CardFeedback } from './ui/CardFeedback';
 import { StartupScreen } from './ui/StartupScreen';
@@ -31,15 +31,15 @@ export function Auth() {
         title={errorCode === 'access_denied' ? 'Sign-in cancelled' : 'Sign-in could not be completed'}
         message={errorCode === 'access_denied' ? 'You’re still signed out. Sign in again when you’re ready to allow access to Workout.' : centralAuthError(errorCode)}
       />}
-      <Button className="startup-submit" variant="primary" type="button" disabled={starting} onClick={() => {
+      <Button className="startup-submit" variant="primary" type="button" disabled={starting} aria-busy={starting} onClick={() => {
         if (navigationStarted.current) return;
         navigationStarted.current = true;
         setStarting(true);
         window.location.assign('/api/auth/central/start');
       }}>
-        {starting ? 'Opening Fitness Account…' : 'Sign in with Fitness Account'}{!starting && <ArrowRight size={18} aria-hidden="true" />}
+        <span>{starting ? 'Opening Fitness Account…' : 'Sign in with Fitness Account'}</span>
+        {starting ? <Loader2 size={18} className="spin" aria-hidden="true" /> : <ArrowRight size={18} aria-hidden="true" />}
       </Button>
-      {starting && <p className="startup-status" role="status">Starting secure sign-in…</p>}
       <p className="startup-registration">New to Workout? You can create an account on the next screen.</p>
     </StartupScreen>
   );

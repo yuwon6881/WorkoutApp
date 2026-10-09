@@ -3,7 +3,7 @@
   display: grid;
   place-items: center;
   padding: 48px 24px;
-  background: radial-gradient(ellipse at 50% 0%, var(--accent-soft), transparent 48rem), var(--bg);
+  background: var(--bg);
 }
 
 .startup-shell { width: min(100%, 640px); }
