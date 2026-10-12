@@ -735,11 +735,12 @@ test('build a workout, log a set against the server, and see it in history', asy
     });
     await againStartBtn.click({ force: true });
     const again = page.getByRole('dialog', { name, exact: true });
-    // Last time's reps and reserve sit in the target column; there is no separate past-sets list.
+    // The target column shows the progression target the inputs are filled with, at the plan's
+    // effort; last time's sets live in the targets modal, so there is no separate past-sets list.
     await expect(again.getByRole('region', { name: 'Past sets for Barbell bench press' })).toHaveCount(0);
-    await expect(again.locator('.workout-set-row').first().locator('.target-text')).toHaveText('8 · 2 RIR');
+    await expect(again.locator('.workout-set-row').first().locator('.target-text')).toHaveText('9 · 2 RIR');
     await expect(again.getByRole('textbox', { name: 'Exercise notes', exact: true })).toBeVisible();
-    await expect(again.locator('.suggestion-text').first()).toBeVisible();
+    await expect(again.locator('.suggestion-text').first()).toHaveText('60 kg');
     await expect(again.getByRole('spinbutton', { name: 'Barbell bench press set 1 weight', exact: true })).toHaveValue('60');
     await expect(again.getByRole('spinbutton', { name: 'Barbell bench press set 1 reps', exact: true })).toHaveValue('9');
     // Discard lives in the workout's options menu, away from the thumb zone's primary actions.
