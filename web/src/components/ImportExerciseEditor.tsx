@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { AlertTriangle, ArrowLeftRight, Check, Dumbbell, Link2, Loader2, Plus, RotateCcw, Timer, Trash2, X } from 'lucide-react';
+import { AlertTriangle, ArrowLeftRight, Check, Dumbbell, Link2, Loader2, Plus, RotateCcw, Timer, Trash2, Unlink2, X } from 'lucide-react';
 import type { CustomExerciseCreated, DraftExercise, DraftSet, Exercise } from '../types';
 import { restOptions } from '../lib/training';
 import { demoUrlForName } from '../lib/demoLinks';
@@ -23,6 +23,7 @@ import './PrescriptionCardLayout.css';
 import { MenuButton, MenuItem } from './ui/MenuButton';
 import { getSupersetGroup, isSuperset } from '../lib/supersets';
 import { SupersetModal } from './SupersetModal';
+import { SupersetPosition } from './SupersetTag';
 import { useTrackRir } from '../lib/trackRir';
 import type { ExerciseEditing } from '../lib/exerciseEditScope';
 import { ExerciseScopeModal } from './ExerciseScopeModal';
@@ -152,11 +153,15 @@ export function ExerciseEditor({ exercise: saved, exercises, allDayExercises, re
   const isPaired = isSuperset(exercise.sequenceGroup);
   const partners = allDayExercises.filter(e => e.lineId !== exercise.lineId && getSupersetGroup(e.sequenceGroup) === currentGroup);
   const partnerNames = partners.map(p => p.sourceName).join(', ');
+  const groupExercises = allDayExercises.filter(e => getSupersetGroup(e.sequenceGroup) === currentGroup);
+  const exercisePos = groupExercises.findIndex(e => e.lineId === exercise.lineId) + 1;
 
   return <div className={`import-exercise ${exercise.sequenceGroup ? 'exercise-card-superset-active' : ''}`} data-import-exercise={exercise.lineId}>
     <div className="import-exercise-heading">
       <div className="import-exercise-title">
-        <span className="import-exercise-icon" aria-hidden="true"><Dumbbell size={17} /></span>
+        {partners.length > 0
+          ? <SupersetPosition group={currentGroup} position={exercisePos || 1} partnerNames={partnerNames} />
+          : <span className="import-exercise-icon" aria-hidden="true"><Dumbbell size={17} /></span>}
         <div className="inline-input-wrap">
           <span className="inline-input-mirror" aria-hidden="true" data-value={exercise.sourceName || ''} />
           <input
@@ -171,29 +176,6 @@ export function ExerciseEditor({ exercise: saved, exercises, allDayExercises, re
         </div>
       </div>
       <div className="prescription-context-row">
-        {isPaired && (
-          <span
-            className="chip-group active prescription-superset-chip"
-            title={partnerNames ? `Superset with ${partnerNames}` : 'Superset group'}
-            aria-label={`Superset ${currentGroup} with ${partnerNames}`}
-          >
-            <span className="filter-chip active prescription-superset-label">
-              <Link2 size={12} />Pair {currentGroup}
-            </span>
-            <Button
-              presentation="plain"
-              className="chip-icon-btn"
-              aria-label={`Unlink ${exercise.sourceName} from superset`}
-              title="Unlink from superset"
-              onClick={e => {
-                e.stopPropagation();
-                onUnlinkExercise();
-              }}
-            >
-              <X size={12} />
-            </Button>
-          </span>
-        )}
         <div className="import-exercise-actions">
           <DemoLink url={exercise.demoUrl} exerciseName={exercise.sourceName} />
           <div className="field import-rest-field" data-import-field="rest">
@@ -215,6 +197,12 @@ export function ExerciseEditor({ exercise: saved, exercises, allDayExercises, re
               <Link2 size={14} />
               <span>{isPaired ? `Superset options (Group ${currentGroup})` : 'Pair into superset'}</span>
             </MenuItem>
+            {isPaired && (
+              <MenuItem onClick={onUnlinkExercise}>
+                <Unlink2 size={14} />
+                <span>Unlink from superset</span>
+              </MenuItem>
+            )}
             {restoreAvailable && (
               <MenuItem disabled={isRestoring || isSaving} onClick={() => void handleRestore()}>
                 <RotateCcw size={14} />

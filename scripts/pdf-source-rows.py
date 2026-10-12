@@ -29,6 +29,10 @@ def columns(cells):
             result["working"] = index
         elif re.match(r"rep(?:s|etitions)?\b", name):
             result["reps"] = index
+        elif name in ("hold", "hold time", "hold duration"):
+            result["hold"] = index
+        elif name in ("lstf", "last set failure", "last set to failure"):
+            result["lastSetFailure"] = index
         elif "early" in name and "rpe" in name:
             result["earlyRpe"] = index
         elif "last" in name and "rpe" in name and "lsrpe" not in name:

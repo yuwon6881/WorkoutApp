@@ -28,7 +28,8 @@ internal static class PrescriptionProgression
             => new(repsOnly ? null : weight, reps, reason,
                 source?.SessionId == Guid.Empty ? null : source?.SessionId,
                 source?.CompletedAt == DateTime.MinValue ? null : source?.CompletedAt,
-                mode, revision, false, selectLoad is null ? null : weight, resistanceMode, transition);
+                mode, revision, false, selectLoad is null ? null : weight, resistanceMode, transition,
+                PreviousLoadKg: repsOnly ? null : load, PreviousReps: source?.Reps);
 
         if (source?.Reps is not { } actual || load is null && !repsOnly)
             return Result(null, min ?? 0, repsOnly ? "First time through. Log actual reps and effort."
@@ -89,8 +90,14 @@ internal static class PrescriptionProgression
             exposure => !ProgressionEvidence.Changed(exposure, min, max, goal) &&
                 !fatigue.Excused.Contains(exposure) &&
                 ProgressionEvidence.Hard(exposure, lower, goal));
+        // A set pushed past its target says how many reps the load really allows: aim there, or
+        // lighter, rather than asking for the same reps that already cost too much.
+        var aimed = rebuilding || goal is not { } target ? null
+            : ProgressionRetarget.Aim(source, load, lower, upper, target, loads, repsOnly);
         if (hardStreak > 0)
         {
+            if (aimed is not null && (hardStreak == 1 || !loads.Adjustable || repsOnly))
+                return Result(aimed.LoadKg, aimed.Reps, ProgressionRetarget.Reason(aimed, load));
             if (!loads.Adjustable || repsOnly)
                 return Result(load, repeatReps, "No adjustable load: repeat the reps and use an easier variation if needed to match the intended effort.", rebuilding);
             if (hardStreak == 1)
@@ -98,8 +105,12 @@ internal static class PrescriptionProgression
                     ? "Hold the transition reps after a hard exposure; match the intended effort before rebuilding."
                     : "Repeat the reps after a hard exposure; match the intended effort before progressing.", rebuilding);
             if (hardStreak == 2)
-                return Result(load is { } weight ? loads.Previous(weight) : null, lower,
-                    "One equipment step lighter after two hard exposures.");
+            {
+                // Never heavier than what the last set itself says the target needs.
+                var stepped = load is { } weight ? loads.Previous(weight) : (double?)null;
+                if (aimed?.LoadKg is { } estimate && stepped is { } step && estimate < step) stepped = estimate;
+                return Result(stepped, lower, "One equipment step lighter after two hard exposures.");
+            }
             var successful = history.FirstOrDefault(exposure => exposure.Reps >= lower &&
                 ProgressionEvidence.MeetsEffort(exposure, goal) && selector(exposure) is not null);
             var baseline = hardStreak == 3 && successful is not null ? selector(successful) : load;
@@ -149,7 +160,9 @@ internal static class PrescriptionProgression
                 "No actual RPE or RIR was recorded. Repeat the load; repeated results are needed before a cautious increase.", rebuilding);
         }
         if (reserve is not null && !ProgressionEvidence.MeetsEffort(source, goal))
-            return Result(load, repeatReps, "Repeat the last load and reps. The exposure was not within the target effort range.", rebuilding);
+            return aimed is not null
+                ? Result(aimed.LoadKg, aimed.Reps, ProgressionRetarget.Reason(aimed, load))
+                : Result(load, repeatReps, "Repeat the last load and reps. The exposure was not within the target effort range.", rebuilding);
 
         if (open)
         {

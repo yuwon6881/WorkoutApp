@@ -10,9 +10,10 @@
 .muscle-balance-stats-strip{
   display:grid;
   grid-template-columns:repeat(4,minmax(0,1fr));
-  border:1px solid var(--border);
-  border-radius:var(--radius-control, 8px);
-  background:var(--surface-raised);
+  border:1px solid var(--card-border);
+  border-radius:var(--radius);
+  background:var(--surface);
+  box-shadow:var(--shadow);
   overflow:hidden;
 }
 .muscle-balance-stat-card{
@@ -20,7 +21,7 @@
   flex-direction:column;
   gap:4px;
   min-width:0;
-  padding:12px 14px;
+  padding:16px 20px;
   border:none;
   border-radius:0;
   background:transparent;
@@ -30,13 +31,16 @@
 }
 .muscle-balance-stat-label{
   color:var(--muted);
-  font-size:14px;
-  font-weight:500;
+  font-size: var(--font-secondary);
+  font-weight:620;
+  letter-spacing:-0.005em;
+  text-transform:none;
 }
 .muscle-balance-stat-value{
   color:var(--text);
-  font-size:18px;
-  font-weight:700;
+  font-size:22px;
+  font-weight:760;
+  letter-spacing:-0.03em;
   font-variant-numeric:tabular-nums;
   overflow:hidden;
   text-overflow:ellipsis;
@@ -59,7 +63,18 @@
   }
 }
 
-.muscle-balance-map-panel,.muscle-balance-loading{display:flex;flex-direction:column;gap:14px;min-width:0;margin:0}
+.muscle-balance-map-panel,.muscle-balance-loading{
+  display:flex;
+  flex-direction:column;
+  gap:14px;
+  min-width:0;
+  margin:0;
+  border:1px solid var(--card-border);
+  border-radius:var(--radius);
+  background:var(--surface);
+  box-shadow:var(--shadow);
+  padding:24px;
+}
 .muscle-balance-map-panel { container-type: inline-size; }
 @container (max-width: 500px) {
   .muscle-balance-map-panel .body-map-detail {
@@ -71,6 +86,7 @@
     padding: 10px 12px;
     gap: 2px 8px;
     align-content: center;
+    border-radius: var(--radius-control);
   }
   .muscle-balance-map-panel .body-map-detail-split,
   .muscle-balance-map-panel .body-map-detail-last {
@@ -84,6 +100,7 @@
   }
 }
 .muscle-balance-section-heading{align-items:center;justify-content:space-between;gap:12px;margin:0}
+.muscle-balance-section-heading h2{font-weight:700;letter-spacing:-0.025em}
 .muscle-balance-section-heading>.muted{font-size:14px}
 .muscle-balance-range-control{display:flex;align-items:center;gap:10px;min-width:0}
 .muscle-balance-range-control .muted{font-size:14px}
@@ -134,8 +151,8 @@
 .muscle-balance-bar{
   display:block;
   width:100%;
-  height:4px;
-  border-radius:999px;
+  height:8px;
+  border-radius:var(--radius-pill);
   background:linear-gradient(to right,var(--accent) var(--muscle-bar,0%),var(--surface-hover) var(--muscle-bar,0%));
 }
 .muscle-balance-sets,.muscle-balance-last-trained{display:grid;gap:3px}
@@ -177,7 +194,7 @@
 }
 
 @media(prefers-reduced-motion:reduce){
-  .muscle-balance-table-row{transition:none}
+  .muscle-balance-table-row,.muscle-breakdown-fill{transition:none}
 }
 
 /* Muscle breakdown panel */
@@ -188,16 +205,27 @@
   gap: 16px;
   min-width: 0;
   margin: 0;
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  padding: 24px;
 }
 
 .muscle-breakdown-heading {
   margin-bottom: 0;
 }
 
+.muscle-breakdown-heading h2 {
+  font-weight: 700;
+  letter-spacing: -0.025em;
+}
+
 .muscle-breakdown-subtitle {
   margin: 3px 0 0;
   font-size: var(--font-secondary);
   color: var(--muted);
+  line-height: 1.45;
 }
 
 .muscle-breakdown-groups {
@@ -241,7 +269,8 @@
 .muscle-group-header h3 {
   margin: 0;
   font-size: 15px;
-  font-weight: 650;
+  font-weight: 700;
+  letter-spacing: -0.02em;
   color: var(--text);
 }
 
@@ -260,11 +289,11 @@
   gap: 12px;
   width: 100%;
   text-align: left;
-  min-height: 64px;
+  min-height: 56px;
   background: transparent;
   color: var(--text);
-  padding: 7px 10px;
-  border-radius: 8px;
+  padding: 8px 12px;
+  border-radius: var(--radius-control);
   cursor: pointer;
   transition: background var(--motion-control) var(--motion-ease), border-color var(--motion-control) var(--motion-ease);
   border: 1px solid transparent;
@@ -278,8 +307,16 @@
 }
 
 .muscle-breakdown-item.is-active {
-  background: var(--surface-hover);
-  border-color: var(--border-hover);
+  background: var(--accent-soft);
+  border-color: var(--accent-border);
+}
+
+.muscle-breakdown-item.is-active .muscle-breakdown-name {
+  color: var(--accent);
+}
+
+.muscle-breakdown-item.is-active .muscle-breakdown-sets strong {
+  color: var(--accent);
 }
 
 .muscle-breakdown-figure { width: 48px; height: 48px; flex: 0 0 48px; }
@@ -295,8 +332,14 @@
   text-align: left;
   white-space: normal;
   min-height: 44px;
-  padding: 8px 10px;
-  border-radius: var(--radius-control, 8px);
+  padding: 8px 12px;
+  border-radius: var(--radius-control);
+  background: var(--surface-raised);
+  border: 1px solid transparent;
+}
+.muscle-contributions .muscle-contribution:hover:not(:disabled) {
+  background: var(--surface-hover);
+  border-color: var(--border-hover);
 }
 .muscle-contribution > span {
   flex: 1 1 140px;
@@ -356,18 +399,18 @@
 .muscle-breakdown-track {
   display: block;
   width: 100%;
-  height: 4px;
-  background: var(--surface);
-  border-radius: 999px;
+  height: 8px;
+  background: var(--surface-raised);
+  border-radius: var(--radius-pill);
   overflow: hidden;
 }
 
 .muscle-breakdown-fill {
   display: block;
   height: 100%;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--accent);
-  transition: width 0.3s ease;
+  transition: width var(--motion-panel) var(--motion-ease);
 }
 
 .muscle-breakdown-item.is-untrained .muscle-breakdown-fill {
@@ -384,5 +427,13 @@
   }
   .muscle-breakdown-group + .muscle-breakdown-group {
     padding-top: 14px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .muscle-breakdown-fill,
+  .muscle-balance-fill,
+  .muscle-breakdown-item {
+    transition: none;
   }
 }

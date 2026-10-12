@@ -25,9 +25,9 @@ describe('NextWorkoutHero', () => {
     const html = renderToStaticMarkup(React.createElement(NextWorkoutHero, {
       data, onStart: () => {}, onResume: () => {}, onProgram: () => {}
     }));
-    expect(html).toContain('Workout Complete');
+    expect(html).toContain('Workout complete');
     expect(html).toContain('Push');
-    expect(html).not.toContain('Get Started');
+    expect(html).not.toContain('Get started');
   });
   it('renders active in-progress workout with static flame icon and factual set counts', () => {
     const activeWorkout = mockSession();
@@ -41,7 +41,7 @@ describe('NextWorkoutHero', () => {
       })
     );
 
-    expect(html).toContain('In Progress');
+    expect(html).toContain('In progress');
     expect(html).toContain('Push Day');
     expect(html).toContain('1</strong> of <strong>2</strong> sets done');
     expect(html).toContain('1</strong> exercises');
@@ -63,7 +63,7 @@ describe('NextWorkoutHero', () => {
       })
     );
 
-    expect(html).toContain('Workout Paused');
+    expect(html).toContain('Workout paused');
     expect(html).toContain('paused-pill');
     expect(html).not.toContain('pulse-dot');
   });
@@ -159,7 +159,7 @@ describe('NextWorkoutHero', () => {
       })
     );
 
-    expect(html).toContain('Rest Day');
+    expect(html).toContain('Rest day');
     expect(html).toContain('Scheduled rest. Training resumes with your next planned workout.');
     expect(html).not.toContain('No session planned for today');
   });
@@ -194,10 +194,10 @@ describe('NextWorkoutHero', () => {
       })
     );
 
-    expect(html).toContain('Week 2 Complete');
-    expect(html).toContain('Week 2 Workouts Complete');
+    expect(html).toContain('Week 2 complete');
+    expect(html).toContain('Week 2 workouts complete');
     expect(html).toContain('All planned workouts completed for week 2.');
-    expect(html).not.toContain('Concluded');
+    expect(html).not.toContain('concluded');
   });
 
   it('renders concluded state distinguishing skips from completion when week has mixed completed and skipped sessions', () => {
@@ -230,10 +230,10 @@ describe('NextWorkoutHero', () => {
       })
     );
 
-    expect(html).toContain('Week 2 Concluded');
-    expect(html).toContain('Week 2 Sessions Concluded');
+    expect(html).toContain('Week 2 concluded');
+    expect(html).toContain('Week 2 sessions concluded');
     expect(html).toContain('2 completed, 1 skipped');
-    expect(html).not.toContain('Workouts Complete');
+    expect(html).not.toContain('workouts complete');
   });
 
   it('handles rest-only week without claiming workouts complete', () => {
@@ -265,10 +265,10 @@ describe('NextWorkoutHero', () => {
       })
     );
 
-    expect(html).toContain('Week 4 Rest');
+    expect(html).toContain('Week 4 rest');
     expect(html).toContain('Scheduled rest week. Training resumes next week.');
-    expect(html).not.toContain('Workouts Complete');
-    expect(html).not.toContain('Sessions Concluded');
+    expect(html).not.toContain('workouts complete');
+    expect(html).not.toContain('sessions concluded');
   });
 
   it('renders active program view schedule fallback when progress is missing/null', () => {
@@ -289,7 +289,7 @@ describe('NextWorkoutHero', () => {
       })
     );
 
-    expect(html).toContain('Active Program');
+    expect(html).toContain('Active program');
     expect(html).toContain('Hypertrophy Phase 1');
     expect(html).toContain('View program schedule');
     expect(html).not.toContain('Ready to train?');
@@ -309,10 +309,10 @@ describe('NextWorkoutHero', () => {
     const html = renderToStaticMarkup(React.createElement(NextWorkoutHero, {
       data, onStart: () => {}, onResume: () => {}, onProgram: () => {}
     }));
-    expect(html).toContain('Active Program');
+    expect(html).toContain('Active program');
     expect(html).toContain('View program schedule');
     expect(html).not.toContain('Scheduled rest week');
-    expect(html).not.toContain('Workouts Complete');
+    expect(html).not.toContain('workouts complete');
   });
 
   it('scopes progress days to current week when program has multi-week day templates', () => {
@@ -355,8 +355,8 @@ describe('NextWorkoutHero', () => {
     );
 
     // Should evaluate ONLY week 2: 1 completed, 1 skipped
-    expect(html).toContain('Week 2 Concluded');
-    expect(html).toContain('Week 2 Sessions Concluded');
+    expect(html).toContain('Week 2 concluded');
+    expect(html).toContain('Week 2 sessions concluded');
     expect(html).toContain('1 completed, 1 skipped');
     // Should NOT include week 1's completed count (which would make it 3 completed)
     expect(html).not.toContain('3 completed');
@@ -379,7 +379,7 @@ describe('NextWorkoutHero', () => {
     );
 
     expect(html).toContain('Ready to train?');
-    expect(html).toContain('Get Started');
+    expect(html).toContain('Get started');
     expect(html).toContain('Explore workouts');
   });
 
@@ -406,7 +406,7 @@ describe('NextWorkoutHero', () => {
       })
     );
 
-    expect(html).toContain('Workout Complete');
+    expect(html).toContain('Workout complete');
     expect(html).toContain('Codex Upper Body');
     expect(html).toContain('View workouts');
     expect(html).toContain('Restart this workout or choose another from your library.');
@@ -427,7 +427,7 @@ describe('NextWorkoutHero', () => {
       })
     );
 
-    expect(html).not.toContain('Workout Complete');
+    expect(html).not.toContain('Workout complete');
     expect(html).toContain('Ready to train?');
     expect(html).toContain('Explore workouts');
   });

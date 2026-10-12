@@ -2,7 +2,6 @@
 .import-exercise .import-exercise-heading { align-items: start; }
 .prescription-context-row { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 8px; }
 .prescription-context-row .import-exercise-actions { width: auto; }
-.prescription-superset-chip .prescription-superset-label { display: inline-flex; align-items: center; gap: 4px; cursor: default; }
 .import-exercise .import-fields {
   border: 0;
   background: transparent;
@@ -63,12 +62,37 @@
   width: 100%;
 }
 .import-exercise .import-exercise-notes { border: 0; background: transparent; padding: 0; margin: 0; }
-.import-exercise .import-exercise-notes textarea { min-height: 76px; background: var(--surface); }
+.import-exercise .import-exercise-notes textarea {
+  min-height: 76px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  padding: 10px 14px;
+  color: var(--text);
+  transition: border-color var(--motion-control) ease,
+              background-color var(--motion-control) ease,
+              box-shadow var(--motion-control) ease;
+}
+.import-exercise .import-exercise-notes textarea:focus {
+  background: var(--surface);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft-glow);
+}
 .import-exercise .import-exercise-notes textarea.auto-grow-textarea { max-height: none; overflow-y: hidden; resize: none; }
 .import-exercise .set-grid-wrap { margin-top: 14px; }
 .import-exercise .import-set-footer { max-width: none; margin-top: 10px; }
-.import-exercise .import-library-trigger { min-height: 44px; }
-.import-exercise .substitution-chip { border-radius: var(--radius-control); }
+.import-exercise .import-library-trigger { min-height: 44px; border-radius: var(--radius-control); }
+.import-exercise .substitution-chip {
+  border-radius: var(--radius-pill);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  transition: border-color var(--motion-control) ease,
+              background-color var(--motion-control) ease;
+}
+.import-exercise .substitution-chip:hover {
+  border-color: var(--border-hover);
+  background: var(--surface-hover);
+}
 .import-exercise-muscles {
   display: inline-flex;
   align-items: center;

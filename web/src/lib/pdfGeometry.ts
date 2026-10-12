@@ -101,7 +101,12 @@ export function positionPieces(items: readonly TextPiece[]): PositionedPiece[] {
         if (!prior.str.endsWith(piece.str.slice(0, length))) continue;
         const overlapWidth = prior.endX - piece.x;
         const expectedWidth = (piece.endX - piece.x) * length / piece.str.length;
-        if (Math.abs(overlapWidth - expectedWidth) <= Math.max(1, expectedWidth * 0.65)) {
+        // Runs such as "N I" repaint the final N of "LEAN". Including the space in
+        // the average makes that wide glyph look too narrow to recognize its overlap.
+        const glyphCount = piece.str.replace(/\s/g, '').length;
+        const glyphWidth = (piece.endX - piece.x) * length / Math.max(1, glyphCount);
+        const matchesWidth = (width: number) => Math.abs(overlapWidth - width) <= Math.max(1, width * 0.65);
+        if (matchesWidth(expectedWidth) || (!/\s/.test(piece.str.slice(0, length)) && matchesWidth(glyphWidth))) {
           match = { prior, shared: length };
           break;
         }

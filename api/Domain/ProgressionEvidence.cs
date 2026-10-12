@@ -31,10 +31,12 @@ internal static class ProgressionEvidence
     public static bool MeetsEffort(SetExposure exposure, double? goal)
         => goal is null || Reserve(exposure) is { } reserve && reserve >= goal;
 
+    // Without a recorded reserve, falling short of the minimum is the only sign the load was too
+    // heavy, whether or not the program states a target effort.
     public static bool Hard(SetExposure exposure, int minimum, double? goal)
         => goal is { } target && Reserve(exposure) is { } reserve
             ? reserve <= target - 1
-            : goal is null && exposure.Reps < minimum && !exposure.IsRepRangeTransition;
+            : exposure.Reps < minimum && !exposure.IsRepRangeTransition;
 
     public static bool SameLoad(double? left, double? right)
         => left is null && right is null || left is { } l && right is { } r && Math.Abs(l - r) < .0001;

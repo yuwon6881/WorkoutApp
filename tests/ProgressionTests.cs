@@ -68,18 +68,20 @@ public class ProgressionFormulaTests
         Assert.Equal(4, plan.TargetReps);
     }
 
-    [Fact] public void A_set_harder_than_the_target_repeats_instead_of_progressing()
+    [Fact] public void A_set_harder_than_the_target_never_progresses()
     {
+        // 4.5 reps to failure leaves 2 at the 2 RIR target, below the 3-rep floor: 60 × 34.5 / 35 → 57.5 kg.
         var plan = Plan(3, 5, 8, new PreviousSet(60, 4, 9.5));
-        Assert.Equal(0, plan.DeltaKg);
-        Assert.Equal(4, plan.TargetReps);
-        Assert.Contains("Repeat", plan.Reason);
+        Assert.Equal(-2.5, plan.DeltaKg);
+        Assert.Equal(3, plan.TargetReps);
+        Assert.Contains("lighter", plan.Reason);
     }
 
-    [Fact] public void Missing_the_bottom_of_the_range_holds_the_load()
+    [Fact] public void Missing_the_bottom_of_the_range_too_hard_lowers_the_load_for_the_minimum()
     {
+        // 3 reps at RPE 9 is 4 to failure: 5 reps at 2 RIR needs 60 × 34 / 37 ≈ 55.1 kg → 55 kg.
         var plan = Plan(5, 8, 8, new PreviousSet(60, 3, 9));
-        Assert.Equal(0, plan.DeltaKg);
+        Assert.Equal(-5, plan.DeltaKg);
         Assert.Equal(5, plan.TargetReps);
     }
 

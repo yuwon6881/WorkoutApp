@@ -1,9 +1,13 @@
 /* The Workouts page: one active slot and the library, with cards dragged between them. */
 
+.active-slot-zone,
+.slot-library-zone {
+  transition: background-color var(--motion-control) var(--motion-ease), border-color var(--motion-control) var(--motion-ease);
+}
+
 .active-slot-zone {
   position: relative;
   border-radius: var(--radius);
-  transition: background-color var(--motion-control) var(--motion-ease), border-color var(--motion-control) var(--motion-ease);
 }
 
 .active-slot-empty {
@@ -12,10 +16,10 @@
   justify-content: flex-start;
   gap: 14px;
   min-height: 68px;
-  padding: 14px 18px;
-  margin-bottom: 18px;
-  border: 1px dashed var(--border-hover);
-  border-radius: var(--radius);
+  padding: 16px 20px;
+  margin-bottom: 20px;
+  border: 1.5px dashed var(--border);
+  border-radius: 18px;
   background: var(--surface-raised);
   text-align: left;
   color: var(--muted);
@@ -24,19 +28,22 @@
 .active-slot-empty.first-run {
   flex-direction: row;
   justify-content: space-between;
-  align-items: center;
   flex-wrap: wrap;
-  gap: 14px;
 }
 
-.active-slot-empty-icon {
+.active-slot-empty-icon,
+.template-slot-tick,
+.slot-card-grip {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  flex: 0 0 auto;
+}
+
+.active-slot-empty-icon {
   width: 36px;
   height: 36px;
-  flex: 0 0 auto;
-  border-radius: var(--radius-control, 8px);
+  border-radius: var(--radius-control);
   background: var(--surface);
   border: 1px solid var(--border);
   color: var(--muted);
@@ -46,12 +53,13 @@
   margin: 0 0 4px;
   color: var(--text);
   font-size: 15px;
-  font-weight: 650;
+  font-weight: 720;
+  letter-spacing: -0.02em;
 }
 
 .active-slot-empty-copy p {
   margin: 0;
-  font-size: var(--font-secondary, 14px);
+  font-size: var(--font-secondary);
   line-height: 1.5;
 }
 
@@ -64,21 +72,21 @@
 .active-slot-zone.occupied.slot-zone-over {
   outline: 2px dashed var(--accent);
   outline-offset: 4px;
+  border-radius: var(--radius);
 }
 
 .active-slot-replace,
 .slot-library-hint {
   margin: 0 0 12px;
   color: var(--accent);
-  font-size: var(--font-secondary, 14px);
-  font-weight: 600;
+  font-size: var(--font-secondary);
+  font-weight: 650;
   text-align: center;
 }
 
 .slot-library-zone {
-  border: 2px dashed transparent;
-  border-radius: var(--radius);
-  transition: background-color var(--motion-control) var(--motion-ease), border-color var(--motion-control) var(--motion-ease);
+  border: 1.5px dashed transparent;
+  border-radius: 18px;
 }
 
 .slot-library-zone.slot-zone-over {
@@ -89,7 +97,7 @@
 .slot-library-list {
   display: grid;
   gap: 10px;
-  margin-bottom: 18px;
+  margin-bottom: 20px;
 }
 
 /* Cards */
@@ -97,24 +105,20 @@
 .panel.slot-card {
   display: grid;
   gap: 12px;
-  padding: 16px 18px;
+  padding: 18px 20px;
   margin-bottom: 0;
   border-radius: var(--radius);
-  border: 1px solid var(--border);
+  border: 1px solid var(--card-border);
   background: var(--surface);
-}
-
-.active-slot-zone.occupied .panel.slot-card {
-  border-color: var(--border-hover);
+  box-shadow: var(--shadow);
 }
 
 .slot-library-list .panel.slot-card {
   padding: 14px 16px;
-  border-radius: var(--radius);
 }
 
 .slot-library-list .panel.slot-card.expanded {
-  padding: 16px 18px;
+  padding: 18px 20px;
 }
 
 .slot-card-header.is-clickable {
@@ -147,20 +151,14 @@
 }
 
 .slot-card-grip {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
   align-self: stretch;
   width: 28px;
   min-height: 44px;
   margin-left: -6px;
-  flex: 0 0 auto;
   color: var(--faint);
   cursor: grab;
   touch-action: none;
   user-select: none;
-  -webkit-user-select: none;
-  -webkit-touch-callout: none;
 }
 
 .slot-card-grip:hover {
@@ -176,8 +174,9 @@
 
 .slot-card-title h3 {
   margin: 0;
-  font-size: 15px;
-  font-weight: 650;
+  font-size: 16px;
+  font-weight: 740;
+  letter-spacing: -0.025em;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -186,7 +185,7 @@
 .slot-card-meta {
   margin: 0;
   color: var(--muted);
-  font-size: var(--font-secondary, 14px);
+  font-size: var(--font-secondary);
   font-variant-numeric: tabular-nums;
 }
 
@@ -195,6 +194,13 @@
   align-items: center;
   gap: 4px;
   flex: 0 0 auto;
+}
+
+.slot-card-toggle,
+.slot-card-menu-trigger {
+  min-width: 44px;
+  min-height: 44px;
+  border-radius: var(--radius-pill);
 }
 
 .slot-card-toggle svg {
@@ -215,13 +221,18 @@
 /* Finished state */
 
 .panel.slot-card-finished {
-  border-color: var(--border-hover);
+  border-color: var(--card-border);
   background: var(--surface);
+  box-shadow: var(--shadow);
 }
 
 .tiny-label.slot-finished-label {
-  padding: 3px 8px;
-  border-radius: 6px;
+  padding: 3px 10px;
+  border-radius: var(--radius-pill);
+  font-size: var(--font-secondary);
+  font-weight: 650;
+  letter-spacing: -0.005em;
+  text-transform: none;
   color: var(--on-accent);
   background: var(--accent);
 }
@@ -236,21 +247,16 @@
 .slot-finished-copy strong {
   display: block;
   font-size: 15px;
-  font-weight: 650;
+  font-weight: 720;
+  letter-spacing: -0.02em;
   color: var(--text);
 }
 
 .slot-finished-copy p {
   margin: 3px 0 0;
   color: var(--muted);
-  font-size: var(--font-secondary, 14px);
-  line-height: 1.4;
-}
-
-.slot-finished .slot-card-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
+  font-size: var(--font-secondary);
+  line-height: 1.45;
 }
 
 /* A standalone workout in the active slot reads as a one-day program. */
@@ -259,21 +265,19 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 12px 14px;
+  padding: 14px 16px;
   border: 1px solid var(--border);
-  border-radius: 10px;
-  background: var(--surface);
-}
-
-.template-slot-day.completed-slot {
+  border-radius: 16px;
   background: var(--surface-raised);
 }
 
-.template-slot-day-copy {
-  flex: 1;
-  min-width: 0;
-  display: grid;
-  gap: 2px;
+.template-slot-day.completed-slot {
+  opacity: .85;
+}
+
+.template-slot-day-copy span {
+  font-size: var(--font-secondary);
+  line-height: 1.45;
 }
 
 /* The exercise list wraps to two lines and then ends in an ellipsis, never a word cut in half. */
@@ -281,27 +285,19 @@
   display: -webkit-box;
   overflow: hidden;
   color: var(--text);
-  font-size: var(--font-secondary);
-  line-height: 1.4;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
 }
 
 .template-slot-day-copy .template-slot-hint {
   color: var(--muted);
-  font-size: var(--font-secondary);
-  line-height: 1.4;
 }
 
 .template-slot-tick {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
   width: 24px;
   height: 24px;
-  flex: 0 0 auto;
-  border: 2px solid var(--border-hover);
-  border-radius: 6px;
+  border: 1.5px solid var(--border-hover);
+  border-radius: var(--radius-pill);
 }
 
 .template-slot-tick.ticked {
@@ -310,19 +306,32 @@
   color: var(--on-accent);
 }
 
-/* Library workout cards gain a grip and a menu beside the edit action. */
+/* Soft-pill week chips inside slot cards with current week on the accent */
 
-.routine-card .routine-card-title {
-  flex: 1;
+.slot-card .filter-chip,
+.slot-card .import-week-chip {
+  border-radius: var(--radius-pill);
+  font-size: var(--font-secondary);
+  font-weight: 600;
+  border: 1px solid var(--border);
+  background: var(--surface-raised);
+  color: var(--muted);
+  transition: background-color var(--motion-control) ease, color var(--motion-control) ease, border-color var(--motion-control) ease;
 }
 
-.routine-card .slot-card-grip {
-  min-height: 44px;
+.slot-card .filter-chip:hover:not(:disabled),
+.slot-card .import-week-chip:hover:not(:disabled) {
+  background: var(--surface-hover);
+  color: var(--text);
+  border-color: var(--border-hover);
 }
 
-.slot-card-menu-trigger {
-  min-width: 44px;
-  min-height: 44px;
+.slot-card .filter-chip.active,
+.slot-card .import-week-chip.active {
+  background: var(--accent);
+  color: var(--on-accent);
+  border-color: var(--accent);
+  font-weight: 700;
 }
 
 /* The view-only program timeline inside an expanded library card. */
@@ -333,11 +342,15 @@
   min-width: 0;
 }
 
-.readonly-day-exercises {
+.readonly-day-exercises,
+.readonly-exercise-sets {
   list-style: none;
   margin: 0;
   padding: 0;
   display: grid;
+}
+
+.readonly-day-exercises {
   gap: 10px;
 }
 
@@ -346,7 +359,7 @@
   gap: 8px;
   padding: 14px 16px;
   border: 1px solid var(--border);
-  border-radius: var(--radius-control, 10px);
+  border-radius: 16px;
   background: var(--surface-raised);
   transition: opacity .18s ease;
 }
@@ -355,14 +368,8 @@
   opacity: .35;
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .readonly-exercise {
-    transition: none;
-  }
-}
-
 .superset-block .readonly-exercise + .readonly-exercise {
-  margin-top: 8px;
+  margin-top: 0;
 }
 
 .readonly-exercise-head {
@@ -375,12 +382,13 @@
 .readonly-exercise-name {
   font-size: 15px;
   font-weight: 700;
+  letter-spacing: -0.015em;
   color: var(--text);
   line-height: 1.3;
 }
 
 .readonly-exercise-rest {
-  font-size: var(--font-secondary, 14px);
+  font-size: var(--font-secondary);
   color: var(--muted);
   font-weight: 500;
   font-variant-numeric: tabular-nums;
@@ -388,12 +396,8 @@
 }
 
 .readonly-exercise-sets {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: grid;
   gap: 6px;
-  font-size: var(--font-secondary, 14px);
+  font-size: var(--font-secondary);
   font-variant-numeric: tabular-nums;
 }
 
@@ -403,14 +407,17 @@
   gap: 10px;
 }
 
-.readonly-set-count {
-  min-width: 32px;
-  color: var(--muted);
+.readonly-set-count,
+.readonly-set-target {
   font-weight: 500;
 }
 
+.readonly-set-count {
+  min-width: 32px;
+  color: var(--muted);
+}
+
 .readonly-set-target {
-  font-weight: 500;
   color: var(--text);
 }
 
@@ -421,7 +428,7 @@
 .readonly-exercise-note {
   margin: 4px 0 0;
   color: var(--muted);
-  font-size: var(--font-secondary, 14px);
+  font-size: var(--font-secondary);
   line-height: 1.5;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
@@ -436,11 +443,11 @@
   z-index: 60;
   display: grid;
   gap: 2px;
-  padding: 14px 16px;
+  padding: 14px 18px;
   border: 1px solid var(--accent-border);
   border-radius: var(--radius);
   background: var(--surface);
-  box-shadow: 0 16px 40px var(--overlay);
+  box-shadow: var(--shadow-float);
   pointer-events: none;
   cursor: grabbing;
 }
@@ -452,6 +459,7 @@
 
 .slot-drag-ghost strong {
   font-size: 14px;
+  font-weight: 700;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -459,18 +467,13 @@
 
 .slot-drag-ghost span {
   color: var(--muted);
-  font-size: var(--font-secondary, 14px);
+  font-size: var(--font-secondary);
 }
 
-@media (max-width: 1023px) {
-  .slot-card-toggle,
-  .slot-card-menu-trigger {
-    min-width: 44px;
-    min-height: 44px;
-  }
-
-  .routine-card .slot-card-grip {
-    min-height: 44px;
+@media (prefers-reduced-motion: reduce) {
+  .readonly-exercise,
+  .slot-drag-ghost.returning {
+    transition: none;
   }
 }
 

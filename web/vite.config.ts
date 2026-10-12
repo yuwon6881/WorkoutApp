@@ -61,7 +61,7 @@ export default defineConfig({
     manifest: {
       id: '/', name: 'Workout', short_name: 'Workout',
       description: 'Plan, train, and track your lifting. Your training is saved to your account.',
-      theme_color: '#101412', background_color: '#101412', display: 'standalone', start_url: '/', scope: '/',
+      theme_color: '#08080A', background_color: '#08080A', display: 'standalone', start_url: '/', scope: '/',
       orientation: 'portrait', categories: ['health', 'fitness', 'sports'],
       // A maskable icon is cropped to a circle or squircle, so it carries its own padded artwork
       // instead of sharing the "any" icon, whose glyph would be clipped.
@@ -87,9 +87,9 @@ export default defineConfig({
       // chunks out of the install-time download; the importer remains available online and the
       // rest of the workout shell stays fast on a fresh install.
       globIgnores: ['**/assets/*pdf*', '**/assets/*PDF*', '**/assets/firebase-push-*.js',
-        // Manrope's Cyrillic, Greek and Vietnamese subsets load only for text that needs them, so they
+        // Plus Jakarta Sans's Cyrillic and Vietnamese subsets load only for text that needs them, so they
         // are fetched on demand rather than installed with the shell.
-        '**/assets/manrope-cyrillic*', '**/assets/manrope-greek*', '**/assets/manrope-vietnamese*',
+        '**/assets/plus-jakarta-sans-cyrillic*', '**/assets/plus-jakarta-sans-vietnamese*', '**/assets/*-wght-italic*',
         '**/assets/Settings-*', '**/assets/Programs-*', '**/assets/Import-*', '**/assets/ImportDraftTree-*',
         '**/assets/MuscleBalanceView-*', '**/assets/bodyMap*', '**/assets/pdfPageText*'],
       // The rest-timer notification needs a click handler in the worker itself. It is imported

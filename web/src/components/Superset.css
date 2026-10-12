@@ -1,124 +1,253 @@
-/* Superset management interface and modal styles
-   Obeying semantic theme variables and accessibility standards. */
-.superset-control-wrap {
+/* Superset presentation stylesheet
+   Consistent grouping, position tags, builder controls, and modal styles.
+   Obeying semantic theme variables, accessibility standards, and minimum 14px text. */
+
+/* Group container: paired exercises sit in one rounded group with a soft accent wash
+   and a 3px accent rail down the left edge joining the cards. */
+.superset-block {
+  position: relative;
+  border-radius: 22px;
+  background: color-mix(in srgb, var(--accent) 6%, transparent);
+  border: none;
+  outline: none;
+  padding: 14px 14px 14px 24px;
+  margin: 12px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* 3px accent rail down the left edge joining the cards */
+.superset-block::before {
+  content: '';
+  position: absolute;
+  top: 48px;
+  bottom: 14px;
+  left: 10px;
+  width: 3px;
+  background: var(--accent);
+  border-radius: var(--radius-pill);
+  pointer-events: none;
+}
+
+/* Superset group header: round accent-soft icon disc, title, and alternate sets subtitle */
+.superset-heading {
   display: flex;
   align-items: center;
   gap: 8px;
   flex-wrap: wrap;
+  padding: 2px 0 6px 0;
+  margin: 0;
 }
-.superset-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  padding: 3px 9px;
-  border-radius: 6px;
-  font-size: var(--font-secondary);
-  font-weight: 650;
-  letter-spacing: 0.3px;
-  color: var(--accent);
+
+.superset-heading-icon {
+  display: inline-grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  min-width: 28px;
+  min-height: 28px;
+  border-radius: var(--radius-pill);
   background: var(--accent-soft);
-  border: 1px solid var(--accent-border);
-  cursor: pointer;
-  transition: all 0.15s ease;
+  color: var(--accent);
   flex-shrink: 0;
-  margin-left: -2px;
 }
-.superset-badge:hover {
-  background: var(--surface-hover);
-  border-color: var(--accent-border-strong);
+
+.superset-heading-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: -0.015em;
+  line-height: 1.3;
 }
+
+.superset-heading-subtitle {
+  font-size: var(--font-secondary, 14px);
+  color: var(--muted);
+  font-weight: 500;
+  line-height: 1.3;
+}
+
+/* A paired exercise's position ("C1") in the header icon slot: same box as the icon it replaces. */
+.import-exercise-heading .import-exercise-icon.superset-position {
+  border-color: var(--accent-border);
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: var(--font-secondary);
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Builder card field trigger: quiet secondary pill */
 .superset-trigger {
   width: 100%;
-  min-height: 48px;
+  min-height: 44px;
+  padding: 8px 16px;
   justify-content: flex-start;
   gap: 8px;
   text-align: left;
-  font-size: var(--font-secondary);
-  background: var(--surface-card);
+  font-size: var(--font-secondary, 14px);
+  font-weight: 600;
+  border-radius: var(--radius-pill);
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  color: var(--muted);
+  transition: background-color var(--motion-control) ease,
+              border-color var(--motion-control) ease,
+              color var(--motion-control) ease;
 }
+
+.superset-trigger:hover:not(:disabled) {
+  background: var(--surface-hover);
+  border-color: var(--border-hover);
+  color: var(--text);
+}
+
 .superset-trigger.paired {
   color: var(--accent);
   border-color: var(--accent-border);
   background: var(--accent-soft);
+  font-weight: 650;
 }
+
 .superset-trigger.paired:hover:not(:disabled) {
   background: var(--surface-hover);
   border-color: var(--accent-border-strong);
 }
+
+/* Class kept for tests and DOM contract; group rail is drawn by .superset-block */
+.exercise-card-superset-active {
+  border-left: 1px solid var(--border);
+}
+
+/* Modal styles aligned with the shared visual language */
+.superset-modal-body {
+  gap: 16px;
+}
+
 .superset-current-card {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 12px 14px;
+  padding: 14px 18px;
   border: 1px solid var(--accent-border);
-  border-radius: 10px;
+  border-radius: var(--radius-control);
   background: var(--accent-soft);
 }
+
 .superset-current-info {
   display: flex;
   flex-direction: column;
   gap: 6px;
   min-width: 0;
 }
+
 .superset-current-names {
-  font-size: var(--font-secondary);
+  font-size: var(--font-secondary, 14px);
   color: var(--text);
   margin: 0;
 }
+
+.superset-current-names strong {
+  font-weight: 650;
+  color: var(--text);
+}
+
 .superset-unlink-btn {
   flex-shrink: 0;
   min-height: 44px;
-  padding: 8px 14px;
-  font-size: var(--font-secondary);
+  padding: 8px 18px;
+  border-radius: var(--radius-pill);
+  font-size: var(--font-secondary, 14px);
+  font-weight: 600;
 }
+
 .superset-picker-lead {
-  font-size: var(--font-secondary);
+  font-size: var(--font-secondary, 14px);
   color: var(--muted);
   margin: 0 0 10px;
+  line-height: 1.5;
 }
+
 .superset-picker-list {
   display: grid;
   gap: 8px;
   margin-top: 8px;
 }
+
 .superset-picker-item {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
-  gap: 10px;
-  padding: 11px 13px;
+  gap: 12px;
+  padding: 10px 14px;
   width: 100%;
   text-align: left;
-  min-height: 50px;
+  min-height: 48px;
+  border-radius: var(--radius-control);
+  border: 1px solid var(--border);
+  background: var(--surface-raised);
+  font-size: var(--font-secondary, 14px);
+  transition: background-color var(--motion-control) ease,
+              border-color var(--motion-control) ease;
 }
+
+.superset-picker-item:hover:not(:disabled) {
+  background: var(--surface-hover);
+  border-color: var(--border-hover);
+}
+
 .superset-picker-item.selected-partner {
   border-color: var(--accent-border);
   background: var(--accent-soft);
 }
+
 .superset-picker-icon {
-  color: var(--accent);
   display: grid;
   place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-pill);
+  background: var(--accent-soft);
+  color: var(--accent);
+  flex-shrink: 0;
 }
+
 .superset-picker-text {
   display: flex;
   flex-direction: column;
   gap: 2px;
   min-width: 0;
 }
+
 .superset-picker-text strong {
-  font-size: var(--font-secondary);
+  font-size: var(--font-secondary, 14px);
+  font-weight: 650;
   color: var(--text);
   overflow-wrap: anywhere;
 }
+
 .superset-candidate-muscle {
-  font-size: var(--font-secondary);
+  font-size: var(--font-secondary, 14px);
   color: var(--muted);
 }
+
 .superset-picker-badge {
   flex-shrink: 0;
 }
-.exercise-card-superset-active {
-  border-left: 3px solid var(--accent) !important;
+
+.superset-picker-badge .pill {
+  border-radius: var(--radius-pill);
+  font-size: var(--font-secondary, 14px);
+  font-weight: 600;
+  padding: 4px 10px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .superset-trigger,
+  .superset-picker-item {
+    transition: none;
+  }
 }

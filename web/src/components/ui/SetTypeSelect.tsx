@@ -56,8 +56,17 @@ export function SetTypeSelect({
       className={`set-type-select set-type-${type} ${compact ? 'set-type-compact' : ''}`.trim()}
       value={type}
       options={options}
-      displayLabel={compact ? `${COMPACT_PREFIXES[type]}${number}` : `${SHORT_LABELS[type]} ${number}`}
-      // The trigger is a fixed-width label; the menu names each type in full on one line.
+      displayLabel={
+        compact ? (
+          `${COMPACT_PREFIXES[type]}${number}`
+        ) : (
+          <>
+            <span className="set-type-badge">{number}</span>
+            <span className="set-type-label">{SHORT_LABELS[type]}</span>
+          </>
+        )
+      }
+      // The trigger is a pill chip sized to its content; the menu names each type in full on one line.
       fitMenuToOptions
       onChange={onChange}
     />

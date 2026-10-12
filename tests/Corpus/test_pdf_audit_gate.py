@@ -47,6 +47,35 @@ class SourceAuditGateTests(unittest.TestCase):
         changed["workouts"][0]["exercises"][0]["sets"][0]["restSeconds"] = 120
         self.assertFalse(self.run_gate(changed))
 
+    def test_missing_separate_hold_target_fails(self):
+        self.rows[0]["rows"][0].update(reps="HOLD", hold="20 SEC")
+        changed = copy.deepcopy(self.draft)
+        changed["workouts"][0]["exercises"][0]["sets"][0].update(repMin=None, repMax=None, repsText="HOLD")
+        self.assertFalse(self.run_gate(changed))
+        changed["workouts"][0]["exercises"][0]["sets"][0]["repsText"] = "20 SEC"
+        self.assertTrue(self.run_gate(changed))
+
+    def test_ignored_last_set_failure_fails(self):
+        self.rows[0]["rows"][0].update(lastSetFailure="Y", rirBySet=[], rpe="8")
+        self.assertFalse(self.run_gate())
+        changed = copy.deepcopy(self.draft)
+        exercise = changed["workouts"][0]["exercises"][0]
+        exercise['notes'] = 'LSTF: Y. Take the last set to failure.'
+        exercise['sets'][0].update(targetRpe=10, rir="0")
+        self.assertTrue(self.run_gate(changed))
+
+    def test_inserted_coaching_glyph_fails(self):
+        self.rows[0]["rows"][0]["notes"] = "LEAN INTO THE RAISE"
+        changed = copy.deepcopy(self.draft)
+        changed["workouts"][0]["exercises"][0]["notes"] = "LEAN N INTO THE RAISE"
+        self.assertFalse(self.run_gate(changed))
+
+    def test_complete_coaching_note_with_footer_passes(self):
+        self.rows[0]["rows"][0]["notes"] = "LEAN INTO THE RAISE"
+        changed = copy.deepcopy(self.draft)
+        changed["workouts"][0]["exercises"][0]["notes"] = "LEAN INTO THE RAISE — FINAL SET TO FAILURE"
+        self.assertTrue(self.run_gate(changed))
+
     def test_omitted_source_exercise_fails(self):
         changed = copy.deepcopy(self.draft)
         changed["workouts"][0]["exercises"] = []

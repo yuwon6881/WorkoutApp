@@ -8,12 +8,12 @@ public sealed partial class WorkoutService
     /// straight-set load the movement already has rather than from a blank first-time suggestion.
     private SetProgressionSuggestion MakeSuggestion(SetPrescription prescription, IReadOnlyList<SetExposure> exposures,
         string mode, double step, NutritionContextResult context, string resistanceMode, string loadModel,
-        BodyWeightSnapshot? bodyWeight, IReadOnlyList<double>? availableLoads = null)
+        BodyWeightSnapshot? bodyWeight, IReadOnlyList<double>? availableLoads = null, DateTime? lastTrained = null)
     {
-        var own = OwnSuggestion(prescription, exposures, mode, step, context, resistanceMode, loadModel, bodyWeight, availableLoads);
+        var own = OwnSuggestion(prescription, exposures, mode, step, context, resistanceMode, loadModel, bodyWeight, availableLoads, lastTrained);
         if (SetTechniques.Of(prescription) is null || own.SourceSessionId is not null || own.SourceDate is not null) return own;
         var straight = OwnSuggestion(prescription with { Notes = null }, exposures, mode, step, context, resistanceMode, loadModel,
-            bodyWeight, availableLoads);
+            bodyWeight, availableLoads, lastTrained);
         return straight.SuggestedLoadKg is null && straight.SuggestedSystemLoadKg is null
             ? own
             : FollowStraightSets(prescription, straight, own);
@@ -21,17 +21,17 @@ public sealed partial class WorkoutService
 
     private SetProgressionSuggestion OwnSuggestion(SetPrescription prescription, IReadOnlyList<SetExposure> exposures,
         string mode, double step, NutritionContextResult context, string resistanceMode, string loadModel,
-        BodyWeightSnapshot? bodyWeight, IReadOnlyList<double>? availableLoads)
+        BodyWeightSnapshot? bodyWeight, IReadOnlyList<double>? availableLoads, DateTime? lastTrained)
     {
         if (loadModel == LoadModels.FullBodyweight)
             return BodyweightProgression.Suggest(prescription, exposures, mode, step, context.Context?.Revision,
-                resistanceMode, bodyWeight?.ReferenceKg, availableLoads, DateTime.UtcNow);
+                resistanceMode, bodyWeight?.ReferenceKg, availableLoads, DateTime.UtcNow, lastTrained);
 
         exposures = exposures.Where(exposure => exposure.ResistanceMode == resistanceMode).ToList();
         var policyMode = loadModel is LoadModels.BodyweightContextOnly or LoadModels.RepsOnly ? ResistanceModes.RepsOnly : resistanceMode;
         return Progression.Suggest(prescription, exposures, mode, new LoadOptions(step, AvailableLoadsKg: availableLoads),
             context.Context?.Revision, policyMode,
-            policyMode == ResistanceModes.RepsOnly ? _ => null : null, DateTime.UtcNow) with { ResistanceMode = resistanceMode };
+            policyMode == ResistanceModes.RepsOnly ? _ => null : null, DateTime.UtcNow, lastTrained) with { ResistanceMode = resistanceMode };
     }
 
     /// A technique set that comes after straight sets in the same exercise (a last-set myo-rep,

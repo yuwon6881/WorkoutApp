@@ -31,6 +31,19 @@ describe('timed sets', () => {
     expect(stopwatchSeconds(0, 0, 10_000_000)).toBe(MAX_SET_SECONDS);
   });
 
+  it('keeps an imported stride goal and counts elapsed time without a stride-based countdown', () => {
+    vi.useFakeTimers();
+    const prescription = plan({ repMin: 40, repMax: 40, repsText: '40 strides' });
+    const announce = vi.fn();
+    setStopwatchAnnouncer(announce);
+    expect(showTimedTarget(prescription)).toBe('40 strides');
+    expect(timedTargetSeconds(prescription)).toBeNull();
+    startStopwatch('stride-carry', null, timedTargetSeconds(prescription), Date.now());
+    vi.advanceTimersByTime(41_000);
+    expect(announce).not.toHaveBeenCalled();
+    expect(stopStopwatch('stride-carry')).toBe(41);
+  });
+
   it('a countdown finishes itself at the target, announces once, and records the target', () => {
     vi.useFakeTimers();
     const announce = vi.fn();

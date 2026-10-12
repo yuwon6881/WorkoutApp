@@ -22,9 +22,10 @@ public sealed class BodyweightProgressionTests
         var result = BodyweightProgression.Suggest(Harness.Set(8, 12, 8),
             [Exposure(80, 8, 1) with { Rpe = 9 }, Exposure(75, 8, 8) with { Rpe = 9 }],
             ProgressionModes.Normal, 2.5, null, ResistanceModes.Assistance, 80);
-        Assert.Equal(0, result.SuggestedLoadKg);
-        Assert.Equal(80, result.SuggestedSystemLoadKg);
-        Assert.Contains("hard exposure", result.Reason);
+        // One hard exposure, not a deload: 8 reps at RPE 9 against a 2 RIR target needs a little help.
+        Assert.Equal(2.5, result.SuggestedLoadKg);
+        Assert.Equal(77.5, result.SuggestedSystemLoadKg);
+        Assert.DoesNotContain("Deload", result.Reason);
     }
 
     [Fact]

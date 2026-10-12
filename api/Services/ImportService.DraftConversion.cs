@@ -103,7 +103,12 @@ public sealed partial class ImportService
                 var alternates = PrintedAlternates(source.Substitutions, id, library, canonicalNames);
                 var substitutions = alternates.Take(2).ToList();
                 if (alternates.Count > 2) noteParts.Add($"Other alternates: {string.Join(", ", alternates.Skip(2))}");
-                exercises.Add(new DraftExercise(Guid.NewGuid(), ImportNormalization.Label(cleanName.Length > 0 ? cleanName : rawName, 160, "Unnamed exercise"), id, Note(noteParts), working,
+                var description = Note(noteParts);
+                working = working.Select(set => set.Warmup ? set : set with
+                {
+                    RepsText = CarryTargetUnits.Text(set.RepsText, set.RepMin, set.RepMax, cleanName, description)
+                }).ToList();
+                exercises.Add(new DraftExercise(Guid.NewGuid(), ImportNormalization.Label(cleanName.Length > 0 ? cleanName : rawName, 160, "Unnamed exercise"), id, description, working,
                     sequenceGroup, substitutions, ImportNormalization.Page(source.SourcePage), RestSeconds: DeriveRestSeconds(working)));
             }
         }
@@ -144,7 +149,26 @@ public sealed partial class ImportService
     private static string? Note(List<string> parts)
     {
         if (parts.Count == 0) return null;
-        var note = string.Join(" — ", parts);
+        var unique = new List<(string Text, string Key)>();
+        foreach (var part in parts)
+        {
+            var key = Regex.Replace(part.Trim(), @"\s+", " ");
+            if (key.Length == 0) continue;
+            // Source reconciliation can append a table footer to the coaching copy.
+            // Keep that complete copy instead of repeating its original note first.
+            bool Extends(string longer, string shorter) => longer.Equals(shorter, StringComparison.OrdinalIgnoreCase)
+                || (longer.StartsWith(shorter, StringComparison.OrdinalIgnoreCase)
+                    && longer.Length > shorter.Length && !char.IsLetterOrDigit(longer[shorter.Length]));
+            if (unique.Any(item => Extends(item.Key, key))) continue;
+            var index = unique.FindIndex(item => Extends(key, item.Key));
+            if (index < 0) unique.Add((part, key));
+            else
+            {
+                unique[index] = (part, key);
+                unique.RemoveAll(item => item.Key != key && Extends(key, item.Key));
+            }
+        }
+        var note = string.Join(" — ", unique.Select(item => item.Text));
         return note.Length <= 1000 ? note : note[..1000].TrimEnd();
     }
 

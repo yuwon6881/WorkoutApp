@@ -80,7 +80,8 @@ public sealed class ProgressionFatigueTests
             Exposure(0, 7, "1", priorOvershoot: 0),
             Exposure(1, 7, "1", priorOvershoot: 0));
 
-        Assert.Equal(57.5, result.SuggestedLoadKg);
+        // Two hard sessions step down, and no further than the set's own estimate for 8 reps at 2 RIR.
+        Assert.Equal(55, result.SuggestedLoadKg);
         Assert.DoesNotContain("fatigue", result.Reason);
     }
 

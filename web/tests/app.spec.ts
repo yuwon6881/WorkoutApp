@@ -587,8 +587,9 @@ test('build a workout, log a set against the server, and see it in history', asy
     // A completed set has to read as finished, not just change a label.
     await expect(logger.locator('.workout-set-row.done')).toHaveCount(1);
     await expect(logged).toHaveClass(/checked/);
-    // The completed tick uses the accent while the row carries the softer completion fill.
-    await expect.poll(() => logged.evaluate(el => getComputedStyle(el).color), { timeout: 5000 }).toBe(await accentColor(page));
+    // The completed tick is a solid accent disc with an on-accent mark, inside the softer row fill.
+    await expect.poll(() => logged.evaluate(el => getComputedStyle(el).backgroundColor), { timeout: 5000 }).toBe(await accentColor(page));
+    await expect(logged).not.toHaveCSS('color', await accentColor(page));
     // The logged set has to reach the server: nothing is kept on the device to fall back on.
     await expect.poll(() => doneSetsOnServer(page), { timeout: 20000 }).toBe(1);
     await page.screenshot({ path: join(screenshotsDirectory, `${testInfo.project.name}-logger.png`), fullPage: true });

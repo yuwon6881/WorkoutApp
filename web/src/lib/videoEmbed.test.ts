@@ -35,7 +35,18 @@ describe('getVideoEmbedInfo', () => {
   it('parses vimeo links', () => {
     const result = getVideoEmbedInfo('https://vimeo.com/76979871');
     expect(result.platform).toBe('vimeo');
-    expect(result.embedUrl).toBe('https://player.vimeo.com/video/76979871?autoplay=1');
+    expect(result.embedUrl).toBe('https://player.vimeo.com/video/76979871?autoplay=1&muted=1');
+  });
+
+  // Demos open muted: a gym is often quiet, and muted autoplay is what mobile browsers and the
+  // Android WebView start without a further tap. The player's own control unmutes.
+  it('starts every embedded player muted', () => {
+    for (const url of ['https://youtu.be/SJqInYJcd6c', 'https://www.youtube.com/watch?v=SJqInYJcd6c&t=45s', 'https://youtube.com/shorts/SJqInYJcd6c']) {
+      const params = new URL(getVideoEmbedInfo(url).embedUrl!).searchParams;
+      expect(params.get('mute')).toBe('1');
+      expect(params.get('autoplay')).toBe('1');
+    }
+    expect(new URL(getVideoEmbedInfo('https://vimeo.com/76979871').embedUrl!).searchParams.get('muted')).toBe('1');
   });
 
   it('returns other platform and null embed for non-video hosts', () => {

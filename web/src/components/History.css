@@ -1,24 +1,32 @@
 /* Workout history list in Overview */
 
+.panel[aria-label="Workout history"],
+.panel.history-windowed {
+  background: var(--surface);
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 22px 24px;
+}
+
 .history-list {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 2px;
 }
 
 .history-item-wrap {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 6px 8px;
-  border-radius: var(--radius-control, 8px);
+  padding: 8px 10px;
+  border-radius: var(--radius-control);
   border: 1px solid transparent;
-  transition: background-color 0.16s ease, border-color 0.16s ease;
+  transition: background-color var(--motion-control) var(--motion-ease);
 }
 
 .history-item-wrap:hover {
   background: var(--surface-hover);
-  border-color: var(--border);
 }
 
 .history-row {
@@ -29,7 +37,7 @@
   justify-content: flex-start;
   gap: 12px;
   padding: 4px 2px;
-  border-radius: var(--radius-control, 8px);
+  border-radius: var(--radius-control);
   text-align: left;
   background: transparent !important;
   border: none !important;
@@ -49,26 +57,26 @@
 
 .history-item-wrap:has(.history-row:active) {
   background: var(--surface-hover);
-  border-color: var(--border-hover);
 }
 
 .history-row .row-title {
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 2px;
   min-width: 0;
   flex: 1 1 auto;
 }
 
 .history-row .row-title strong {
-  font-size: 14px;
-  font-weight: 600;
+  font-size: 15px;
+  font-weight: 680;
+  letter-spacing: -0.015em;
   color: var(--text);
   overflow-wrap: anywhere;
 }
 
 .history-row .row-title small {
-  font-size: 14px;
+  font-size: var(--font-secondary);
   color: var(--muted);
   line-height: 1.4;
   white-space: normal;
@@ -77,10 +85,12 @@
 .history-pr-pill {
   display: inline-flex;
   align-items: center;
-  padding: 2px 7px;
-  font-size: 14px;
-  font-weight: 600;
-  border-radius: var(--radius-control, 6px);
+  padding: 3px 10px;
+  font-size: var(--font-secondary);
+  font-weight: 680;
+  letter-spacing: -0.005em;
+  text-transform: none;
+  border-radius: var(--radius-pill);
   background: var(--accent-soft);
   color: var(--accent);
   border: 1px solid var(--accent-border);
@@ -89,7 +99,8 @@
 
 .history-item-wrap .history-row > span:not(.row-title),
 .history-volume {
-  font-size: 14px !important;
+  font-size: var(--font-secondary) !important;
+  font-weight: 600;
   color: var(--muted);
   font-variant-numeric: tabular-nums;
   flex-shrink: 0;
@@ -98,10 +109,15 @@
 .history-menu-trigger {
   flex-shrink: 0;
   padding: 8px;
+  width: 44px;
   min-width: 44px;
+  height: 44px;
   min-height: 44px;
-  border-radius: var(--radius-control, 8px);
+  border-radius: var(--radius-pill);
   color: var(--muted);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .history-menu-trigger:hover,
@@ -118,12 +134,16 @@
 
 .history-loading-list .history-row-skeleton {
   height: 56px;
-  border-radius: var(--radius-control, 8px);
+  border-radius: var(--radius-control);
 }
 
 @media (max-width: 639px) {
+  .panel[aria-label="Workout history"],
+  .panel.history-windowed {
+    padding: 18px 16px;
+  }
   .history-item-wrap {
-    padding: 6px 6px;
+    padding: 8px 6px;
   }
   .history-row {
     display: flex;
@@ -134,6 +154,12 @@
   }
   .history-row .row-title {
     flex: 1 1 100%;
+  }
+  .history-row .row-title strong {
+    font-size: 14px;
+  }
+  .history-row .row-title small {
+    font-size: var(--font-secondary);
   }
   .history-pr-pill,
   .history-volume {

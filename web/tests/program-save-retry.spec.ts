@@ -34,7 +34,8 @@ test('failed program day edits stay visible and retry against the saved revision
     await dialog.getByRole('textbox', { name: 'Day name', exact: true }).blur();
     await expect(dialog.getByRole('alert')).toContainText('Audit save unavailable');
     await expect(dialog.getByRole('textbox', { name: 'Day name', exact: true })).toHaveValue('Retained day');
-    await dialog.getByRole('button', { name: 'Done', exact: true }).click();
+    await dialog.getByRole('button', { name: 'Close dialog', exact: true }).click();
+    await expect(dialog).toBeHidden();
     await expect(card.getByRole('alert')).toContainText('Audit save unavailable');
     fail = false;
     await card.getByRole('button', { name: 'Retry save', exact: true }).click();

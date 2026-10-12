@@ -9,22 +9,23 @@
 .program-week-meter-label {
   flex: 0 0 auto;
   color: var(--muted);
+  font-size: var(--font-secondary);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
 
 .program-week-meter-label strong {
   color: var(--text);
-  font-weight: 650;
+  font-weight: 760;
 }
 
 .program-week-meter-track {
   position: relative;
   flex: 0 1 96px;
   min-width: 40px;
-  height: 4px;
+  height: 6px;
   overflow: hidden;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--border);
 }
 
@@ -34,4 +35,10 @@
   border-radius: inherit;
   background: var(--accent);
   transition: width var(--motion-panel) var(--motion-ease);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .program-week-meter-fill {
+    transition: none;
+  }
 }

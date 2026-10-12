@@ -97,6 +97,7 @@ class WorkoutOngoingService : Service() {
         }
         val builder = NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_workout_status)
+            .setColor(ContextCompat.getColor(this, R.color.brand_accent))
             .setContentTitle(sessionName)
             .setContentText(content)
             .setContentIntent(pendingIntent)

@@ -132,7 +132,7 @@ internal static partial class ImportTableEvidence
         int? name = null, sets = null, reps = null, load = null, rir = null, warmup = null, notes = null, technique = null, tempo = null;
         var rirBySet = new Dictionary<int, int>();
         var substitutions = new List<int>();
-        int? rpe = null, early = null, last = null, rest = null;
+        int? rpe = null, early = null, last = null, rest = null, hold = null, lastSetFailure = null;
         string? restUnit = null;
         var loadIsPercent1Rm = false;
         var hasWarmup = false;
@@ -146,6 +146,8 @@ internal static partial class ImportTableEvidence
             // "Last-Set Intensity Technique" is how the final working set is done; the model puts it in that set's notes.
             if (h.Contains("technique")) technique = i;
             if (h == "tempo") tempo = i;
+            if (h is "hold" or "hold time" or "hold duration") hold = i;
+            if (h == "lstf" || Regex.IsMatch(h, @"^last[- ]set (?:to )?failure$")) lastSetFailure = i;
             if (h.Contains("substitut") || Regex.IsMatch(h, @"^option\s*\d$")) substitutions.Add(i);
             if (h is "exercise" or "movement" || h.Contains("exercise name") || h.Contains("movement name")) name = i;
             if ((h.Contains("working") && h.Contains("set")) || h is "sets" or "set count" || h.Contains("number of sets")) sets = i;
@@ -182,7 +184,7 @@ internal static partial class ImportTableEvidence
         var indexedRir = rirBySet.Count == 0 ? [] : Enumerable.Range(1, rirBySet.Keys.Max())
             .Select(index => rirBySet.TryGetValue(index, out var column) ? (int?)column : null).ToArray();
         columns = new Columns(name, sets, reps, load, rir, indexedRir, rpe, early, last, rest,
-            restUnit, loadIsPercent1Rm, hasWarmup, warmup, notes, [.. substitutions], technique, tempo);
+            restUnit, loadIsPercent1Rm, hasWarmup, warmup, notes, [.. substitutions], technique, tempo, hold, lastSetFailure);
         return true;
     }
 
@@ -196,6 +198,11 @@ internal static partial class ImportTableEvidence
             if (ImportStructureHeadings.TryDayLabel(name, out _) || TableSummary.IsMatch(name?.Trim() ?? "")) return false;
             var setCell = Cell(cells, map.Sets);
             var repsText = CleanValue(Cell(cells, map.Reps));
+            // Some tables label the rep cell HOLD and put its actual target in a separate
+            // hold column. Keep timed and open-ended targets there without replacing reps.
+            if ((NoValue(repsText) || string.Equals(repsText, "HOLD", StringComparison.OrdinalIgnoreCase))
+                && CleanValue(Cell(cells, map.Hold)) is { } holdText && !NoValue(holdText))
+                repsText = holdText;
             var combined = repsText is null ? CombinedSetsAndReps.Match(CleanValue(setCell) ?? "") : Match.Empty;
             var setCount = ParseSetCount(setCell) ?? (combined.Success
                 && int.TryParse(combined.Groups["sets"].Value, NumberStyles.None, CultureInfo.InvariantCulture, out var combinedSets)
@@ -210,6 +217,23 @@ internal static partial class ImportTableEvidence
                 rpe ??= ParseRpe(repsText);
             var early = ParseRpe(Cell(cells, map.EarlyRpe));
             var last = ParseRpe(Cell(cells, map.LastRpe));
+            var coachingNote = map.Notes is { } notesIndex ? ImportNormalization.Text(Cell(cells, notesIndex), 1000) : null;
+            var techniqueCoachingNote = coachingNote;
+            var failureCell = Cell(cells, map.LastSetFailure)?.Trim();
+            if (failureCell?.Equals("Y", StringComparison.OrdinalIgnoreCase) == true
+                || failureCell?.Equals("YES", StringComparison.OrdinalIgnoreCase) == true)
+            {
+                const string instruction = "LSTF: Y. Take the last set to failure.";
+                var avoidsFailure = Regex.IsMatch(coachingNote ?? "", @"\bavoid\s+failure\b|\bdo\s+not\s+(?:go|train|take.{0,30})\s+to\s+failure\b", RegexOptions.IgnoreCase);
+                if (!avoidsFailure) last = 10;
+                coachingNote = HasText(coachingNote) ? $"{coachingNote} {instruction}" : instruction;
+            }
+            else if (failureCell?.Equals("N", StringComparison.OrdinalIgnoreCase) == true
+                || failureCell?.Equals("NO", StringComparison.OrdinalIgnoreCase) == true)
+            {
+                const string instruction = "LSTF: N. Do not take the last set to failure.";
+                coachingNote = HasText(coachingNote) ? $"{coachingNote} {instruction}" : instruction;
+            }
             var rirText = RirCellText(Cell(cells, map.Rir));
             var rir = ParseRir(rirText);
             var rirBySet = map.RirBySet.Select(column =>
@@ -229,16 +253,17 @@ internal static partial class ImportTableEvidence
                 RestStatedAbsent: map.Rest is null || NoValue(Cell(cells, map.Rest)),
                 NotPerformed: IsZero(Cell(cells, map.Sets)) && (IsZero(Cell(cells, map.Reps)) || NoValue(Cell(cells, map.Reps))),
                 WarmupText: map.Warmup is { } warmupIndex ? CleanValue(Cell(cells, warmupIndex)) : null,
-                CoachingNote: map.Notes is { } notesIndex ? ImportNormalization.Text(Cell(cells, notesIndex), 1000) : null,
+                CoachingNote: coachingNote,
                 FullHeader: map.Name is not null && map.Sets is not null && map.Reps is not null,
-                RepsStatedAbsent: map.Reps is not null && NoValue(Cell(cells, map.Reps)),
+                RepsStatedAbsent: map.Reps is not null && NoValue(repsText),
                 WorkingSetPrescriptionText: SetPrescriptionText(setCell),
                 WorkingSetsStatedAbsent: IsStatedAbsent(setCell),
                 SequenceGroup: PrintedSetTag(name), Substitutions: PrintedSubstitutions(cells, map),
                 Prose: (setCount is null || cells.Length <= 2) && repsText is null && loadText is null && rest.Text is null && rpe is null && early is null && last is null
                     && rirText is null && rirBySet.All(value => value.Text is null),
                 Technique: NoValue(Cell(cells, map.Technique)) ? null : Cell(cells, map.Technique)!.Trim(),
-                Tempo: NoValue(Cell(cells, map.Tempo)) ? null : Cell(cells, map.Tempo)!.Trim());
+                Tempo: NoValue(Cell(cells, map.Tempo)) ? null : Cell(cells, map.Tempo)!.Trim(),
+                TechniqueCoachingNote: techniqueCoachingNote);
             return true;
         }
 

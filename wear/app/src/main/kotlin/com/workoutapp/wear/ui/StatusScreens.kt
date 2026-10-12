@@ -37,7 +37,7 @@ fun NoWorkoutScreen(
 ) {
     var confirmDisconnect by rememberSaveable { mutableStateOf(false) }
     WearListScreen { spec ->
-        item { ScreenTitle("No active workout", Modifier.listRow(this, spec).padding(horizontal = topRowInset())) }
+        item { ScreenTitle("No active workout", Modifier.fillMaxWidth().padding(start = topRowInset(), end = topRowInset(), top = timeTextAllowance())) }
         item { BodyText("Start a workout in WorkoutApp.", Modifier.listRow(this, spec)) }
         primaryItem(
             spec,
@@ -71,7 +71,7 @@ fun FinishPendingScreen(
     var confirmDisconnect by rememberSaveable { mutableStateOf(false) }
     val status = syncStatus(queuedCount, pairingRequired, busy)
     WearListScreen { spec ->
-        item { ScreenTitle("Workout finished", Modifier.listRow(this, spec).padding(horizontal = topRowInset())) }
+        item { ScreenTitle("Workout finished", Modifier.fillMaxWidth().padding(start = topRowInset(), end = topRowInset(), top = timeTextAllowance())) }
         item {
             Box(Modifier.listRow(this, spec).padding(vertical = 2.dp), contentAlignment = Alignment.Center) {
                 SyncStatusLine(status)

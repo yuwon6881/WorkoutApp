@@ -1,19 +1,83 @@
+.exercise-demo-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 36px;
+  height: 36px;
+  padding: 0 12px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--accent-border);
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: var(--font-secondary);
+  font-weight: 600;
+  text-decoration: none;
+  transition: background-color var(--motion-control) ease,
+              border-color var(--motion-control) ease,
+              color var(--motion-control) ease,
+              transform var(--motion-control) var(--motion-ease);
+}
+
+.exercise-demo-pill .demo-play-icon {
+  color: var(--accent);
+  flex-shrink: 0;
+}
+
+@media (max-width: 1023px) {
+  .exercise-demo-pill {
+    min-height: 44px;
+  }
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .exercise-demo-pill:hover {
+    background: var(--surface-hover);
+    border-color: var(--accent-border-strong);
+    color: var(--accent);
+    transform: translateY(-1px);
+  }
+}
+
+.exercise-demo-pill:active {
+  transform: scale(0.98);
+}
+
+.exercise-demo-pill:focus-visible {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft-glow);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .exercise-demo-pill {
+    transition: none;
+    transform: none;
+  }
+  .exercise-demo-pill:hover,
+  .exercise-demo-pill:active {
+    transform: none;
+  }
+}
+
 .demo-video-modal {
   width: min(720px, calc(100% - 28px));
 }
+
 .demo-video-body {
   padding: 18px 20px;
   gap: 14px;
 }
+
 .demo-video-player-wrap {
   position: relative;
   width: 100%;
   aspect-ratio: 16 / 9;
-  background: #000;
+  background: var(--bg);
   border-radius: var(--radius-control);
   overflow: hidden;
   border: 1px solid var(--border);
 }
+
 .demo-video-iframe {
   position: absolute;
   inset: 0;
@@ -21,6 +85,7 @@
   height: 100%;
   border: 0;
 }
+
 .demo-fallback-card {
   display: flex;
   flex-direction: column;
@@ -33,11 +98,13 @@
   border: 1px solid var(--border);
   border-radius: var(--radius-control);
 }
+
 .demo-fallback-card p {
   color: var(--muted);
   font-size: 14px;
   margin: 0;
 }
+
 .demo-modal-actions {
   display: flex;
   align-items: center;

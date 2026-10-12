@@ -32,7 +32,7 @@
   flex-shrink: 0;
   align-items: center;
   gap: 12px;
-  padding: 14px 14px 14px 20px;
+  padding: 14px 16px 14px 20px;
   border-bottom: 1px solid var(--border);
 }
 
@@ -40,8 +40,8 @@
   display: grid;
   flex-shrink: 0;
   place-items: center;
-  width: 36px;
-  height: 36px;
+  width: 38px;
+  height: 38px;
   border: 1px solid var(--accent-border);
   border-radius: var(--radius-control);
   background: var(--accent-soft);
@@ -56,11 +56,16 @@
 
 .ai-chat-heading h2 {
   margin: 0;
+  font-size: 18px;
+  font-weight: 750;
+  letter-spacing: -0.025em;
+  color: var(--text);
 }
 
 .ai-chat-heading span {
   color: var(--muted);
   font-size: var(--font-secondary);
+  font-weight: 550;
 }
 
 .ai-chat-header .button {
@@ -70,9 +75,10 @@
 /* Conversation */
 .ai-chat-log {
   display: flex;
-  flex: 1;
+  flex-shrink: 1;
+  flex-grow: 1;
   flex-direction: column;
-  gap: 20px;
+  gap: 16px;
   min-height: 0;
   padding: 20px;
   overflow-y: auto;
@@ -82,38 +88,45 @@
 .ai-chat-loading {
   margin: auto;
   color: var(--muted);
+  font-size: var(--font-secondary);
 }
 
 .ai-chat-message {
   min-width: 0;
   max-width: min(100%, 680px);
-  font-size: var(--font-body);
-  line-height: 1.55;
+  font-size: 14px;
+  line-height: 1.6;
   overflow-wrap: anywhere;
 }
 
 .ai-chat-message.user {
   align-self: flex-end;
   max-width: min(88%, 540px);
-  padding: 10px 14px;
-  border-radius: var(--radius) var(--radius) 4px var(--radius);
-  background: var(--accent);
-  color: var(--on-accent);
+  padding: 12px 16px;
+  border-radius: 20px 20px 6px 20px;
+  background: var(--accent-soft);
+  border: 1px solid var(--accent-border);
+  color: var(--text);
   font-weight: 500;
 }
 
 .ai-chat-message.assistant {
   align-self: flex-start;
-  padding-left: 14px;
-  border-left: 2px solid var(--accent-border);
+  max-width: min(92%, 620px);
+  padding: 14px 18px;
+  border-radius: 20px 20px 20px 6px;
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  color: var(--text);
 }
 
 .ai-chat-message-label {
   display: block;
-  margin-bottom: 2px;
+  margin-bottom: 6px;
   color: var(--accent);
   font-size: var(--font-secondary);
   font-weight: 700;
+  letter-spacing: 0.02em;
 }
 
 .ai-message-content.user {
@@ -268,10 +281,12 @@
   width: 100%;
   justify-content: flex-start;
   gap: 10px;
-  padding: 8px 12px 8px 8px;
-  background: var(--surface-card);
+  padding: 10px 14px;
+  background: var(--surface-raised);
   border-color: var(--border);
-  font-weight: 500;
+  border-radius: 16px;
+  font-weight: 550;
+  font-size: var(--font-secondary);
   line-height: 1.4;
   text-align: start;
   white-space: normal;
@@ -281,10 +296,11 @@
   display: grid;
   flex-shrink: 0;
   place-items: center;
-  width: 28px;
-  height: 28px;
-  border-radius: 8px;
+  width: 30px;
+  height: 30px;
+  border-radius: 10px;
   background: var(--accent-soft);
+  border: 1px solid var(--accent-border);
   color: var(--accent);
 }
 
@@ -310,10 +326,11 @@
 .ai-chat-review {
   align-self: stretch;
   max-width: 680px;
-  padding: 14px;
+  padding: 16px 18px;
   border: 1px solid var(--accent-border);
   border-radius: var(--radius);
-  background: var(--accent-soft);
+  background: var(--surface);
+  box-shadow: var(--shadow);
 }
 
 .ai-chat-review-title {
@@ -325,7 +342,9 @@
 .ai-chat-review-title p {
   margin: 0;
   color: var(--text);
-  font-weight: 600;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
   overflow-wrap: anywhere;
 }
 
@@ -333,18 +352,32 @@
   display: grid;
   flex-shrink: 0;
   place-items: center;
-  width: 28px;
-  height: 28px;
-  border-radius: 8px;
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
   background: var(--accent);
   color: var(--on-accent);
 }
 
-.ai-chat-action-detail,
-.ai-chat-review > small {
+.ai-chat-action-detail {
+  display: inline-block;
+  margin-top: 8px;
+  padding: 3px 10px;
+  border-radius: var(--radius-pill);
+  background: var(--accent-soft);
+  border: 1px solid var(--accent-border);
+  color: var(--accent);
+  font-size: var(--font-secondary);
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.ai-chat-review > small:not(.ai-chat-action-detail) {
   display: block;
   margin-top: 8px;
   color: var(--muted);
+  font-size: var(--font-secondary);
+  line-height: 1.5;
   overflow-wrap: anywhere;
 }
 
@@ -352,7 +385,7 @@
   display: flex;
   justify-content: flex-end;
   gap: 8px;
-  margin-top: 12px;
+  margin-top: 14px;
 }
 
 /* Error: the shared banner, docked above the composer */
@@ -369,7 +402,7 @@
 /* Composer */
 .ai-chat-composer {
   flex-shrink: 0;
-  padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
+  padding: 12px 18px calc(14px + env(safe-area-inset-bottom));
   border-top: 1px solid var(--border);
   background: var(--surface);
 }
@@ -378,15 +411,16 @@
   display: flex;
   align-items: flex-end;
   gap: 8px;
-  padding: 6px 6px 6px 14px;
+  padding: 4px 6px 4px 16px;
   border: 1px solid var(--border);
-  border-radius: var(--radius);
+  border-radius: var(--radius-pill);
   background: var(--surface-raised);
-  transition: border-color var(--motion-control) var(--motion-ease), box-shadow var(--motion-control) var(--motion-ease);
+  transition: border-color var(--motion-control) var(--motion-ease), box-shadow var(--motion-control) var(--motion-ease), background-color var(--motion-control) var(--motion-ease);
 }
 
 .ai-chat-composer-box:focus-within {
   border-color: var(--accent);
+  background: var(--surface);
   box-shadow: 0 0 0 3px var(--accent-soft-glow);
 }
 
@@ -394,14 +428,16 @@
 .ai-chat-composer textarea:hover,
 .ai-chat-composer textarea:focus {
   flex: 1;
-  min-height: 44px;
+  min-height: 40px;
   max-height: 160px;
-  padding: 10px 0;
+  padding: 9px 0;
   border: 0;
   background: transparent;
   box-shadow: none;
   line-height: 1.5;
   resize: none;
+  font-size: 14px;
+  color: var(--text);
 }
 
 .ai-chat-composer-box > .button {
@@ -409,7 +445,9 @@
   width: 44px;
   min-width: 44px;
   height: 44px;
+  min-height: 44px;
   padding: 0;
+  border-radius: var(--radius-pill);
 }
 
 .ai-chat-counter {

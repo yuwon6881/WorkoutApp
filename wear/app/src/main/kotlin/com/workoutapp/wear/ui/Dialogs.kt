@@ -34,6 +34,12 @@ fun ConfirmDialog(
                 ) else IconButtonDefaults.filledIconButtonColors()
             )
         },
-        dismissButton = { AlertDialogDefaults.DismissButton(onClick = onDismiss) }
+        // Cancel is the secondary choice, so its icon stays neutral; lime belongs to the confirm action.
+        dismissButton = {
+            AlertDialogDefaults.DismissButton(
+                onClick = onDismiss,
+                colors = IconButtonDefaults.filledTonalIconButtonColors(contentColor = Palette.Text)
+            )
+        }
     )
 }

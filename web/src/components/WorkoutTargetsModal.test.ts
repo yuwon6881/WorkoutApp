@@ -2,7 +2,7 @@ import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import type { LoggedSet, SessionExercise, SetPrescription, SetProgressionSuggestion } from '../types';
-import { WorkoutTargetsModal } from './WorkoutTargetsModal';
+import { WorkoutTargetsView } from './WorkoutTargetsModal';
 
 function plan(warmup: boolean): SetPrescription {
   return {
@@ -14,7 +14,7 @@ function plan(warmup: boolean): SetPrescription {
 
 function suggestion(loadKg: number): SetProgressionSuggestion {
   return {
-    suggestedLoadKg: loadKg, suggestedReps: 6, reason: 'Last time was easy.', sourceSessionId: null, sourceDate: null,
+    suggestedLoadKg: loadKg, suggestedReps: 6, reason: 'Last time was easy.', sourceSessionId: null, sourceDate: '2026-10-05T10:00:00Z',
     progressionMode: 'load', nutritionContextRevision: null, isBodyweightAdjustment: false, suggestedSystemLoadKg: null,
     resistanceMode: 'external'
   };
@@ -35,7 +35,7 @@ describe('WorkoutTargetsModal', () => {
   // A leading warm-up is not listed, but it still occupies the first set; each working row must
   // read its own set's suggestion and last result rather than its neighbour's.
   it('keeps each working set lined up with its own suggestion and last result after a warm-up', () => {
-    const markup = renderToStaticMarkup(createElement(WorkoutTargetsModal, {
+    const markup = renderToStaticMarkup(createElement(WorkoutTargetsView, {
       exercise, unit: 'kg', trackRir: true,
       previousSets: ['W 40 kg × 8', '80 kg × 6', '82.5 kg × 6'],
       onClose: () => undefined

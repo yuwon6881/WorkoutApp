@@ -1,15 +1,74 @@
 /* The workout's details sheet: one icon-led line per figure, each with the plain reason beneath. */
-.workout-details { display: grid; gap: 14px; }
-.workout-details > p { display: flex; align-items: flex-start; gap: 12px; margin: 0; }
-.workout-details > p > svg { flex: 0 0 auto; margin-top: 3px; color: var(--muted); }
-.workout-details > p > span { display: grid; gap: 2px; min-width: 0; }
-.workout-details small { color: var(--muted); font-size: var(--font-secondary); }
+.workout-details {
+  display: grid;
+  gap: 14px;
+}
 
-.workout-details-summary { display: grid; gap: 10px; padding: 18px; border-radius: 14px; border: 1px solid var(--accent-border); background: var(--accent-soft); }
-.workout-details-summary > strong { font-size: 20px; overflow-wrap: anywhere; }
-.workout-details-summary > span { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: var(--font-secondary); color: var(--muted); }
-.workout-details > p { padding: 16px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface-raised); }
-.workout-details > p > svg { color: var(--accent); }
-.workout-details strong { color: var(--text); }
-.workout-details small { line-height: 1.65; }
-.workout-details .workout-context-source { margin: 6px 0; color: var(--accent); text-transform: capitalize; }
+.workout-details-summary {
+  display: grid;
+  gap: 8px;
+  padding: 18px 20px;
+  border-radius: var(--radius-control);
+  border: 1px solid var(--accent-border);
+  background: var(--accent-soft);
+}
+
+.workout-details-summary > strong {
+  font-size: 20px;
+  font-weight: 760;
+  letter-spacing: -0.025em;
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+
+.workout-details-summary > span {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--font-secondary);
+  color: var(--muted);
+}
+
+.workout-details > p {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  margin: 0;
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  background: var(--surface-raised);
+}
+
+.workout-details > p > svg {
+  flex: 0 0 auto;
+  margin-top: 2px;
+  color: var(--accent);
+}
+
+.workout-details > p > span {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.workout-details strong {
+  font-size: 15px;
+  font-weight: 680;
+  letter-spacing: -0.01em;
+  color: var(--text);
+}
+
+.workout-details small {
+  color: var(--muted);
+  font-size: var(--font-secondary);
+  line-height: 1.5;
+}
+
+.workout-details .workout-context-source {
+  margin: 4px 0 2px;
+  color: var(--accent);
+  font-weight: 600;
+  text-transform: none;
+}

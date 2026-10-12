@@ -6,6 +6,11 @@ These fixtures were extracted from all 39 original PDFs in `D:\App\Programs`, us
 
 Regenerate evidence with the `scripts/pdf-source-*.py`, `pdf-cell-evidence.py`, and `pdf-borderless-evidence.py` tools, and review changes against original pages. Never update expectations from imported results. New or changed PDFs require independently reviewed expectations; the gate rejects missing or unexpected corpus files and changed hashes.
 
+Forearm rows retain the separate printed HOLD cells (20/30 SEC, MAX HOLD and MAX STRIDES).
+Back rows retain LSTF yes/no cells; the source FAQ defines these as the final-set failure instruction.
+These fields were recovered from the independent original cell evidence and reviewed against source
+pages, with the original source hashes and cell rectangles preserved.
+
 After browser-equivalent extraction and a `CorpusReport` replay with `WORKOUT_CORPUS_DUMP=1`, run from the repository root:
 
 ```powershell

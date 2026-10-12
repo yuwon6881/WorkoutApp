@@ -16,6 +16,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -28,12 +29,15 @@ import androidx.wear.compose.foundation.lazy.TransformingLazyColumn
 import androidx.wear.compose.foundation.lazy.TransformingLazyColumnItemScope
 import androidx.wear.compose.foundation.lazy.TransformingLazyColumnScope
 import androidx.wear.compose.foundation.lazy.rememberTransformingLazyColumnState
+import androidx.wear.compose.material3.ButtonColors
+import androidx.wear.compose.material3.ButtonDefaults
 import androidx.wear.compose.material3.EdgeButton
 import androidx.wear.compose.material3.EdgeButtonSize
 import androidx.wear.compose.material3.Icon
 import androidx.wear.compose.material3.LocalContentColor
 import androidx.wear.compose.material3.MaterialTheme
 import androidx.wear.compose.material3.ScreenScaffold
+import androidx.wear.compose.material3.ScreenScaffoldDefaults
 import androidx.wear.compose.material3.Text
 import androidx.wear.compose.material3.lazy.TransformationSpec
 import androidx.wear.compose.material3.lazy.rememberTransformationSpec
@@ -48,12 +52,14 @@ import com.workoutapp.wear.ui.theme.Palette
 @Composable
 fun WearListScreen(
     edgeButton: (@Composable BoxScope.() -> Unit)? = null,
+    // A glance page that must keep its whole action on the first screen can close the gap above it.
+    edgeButtonSpacing: Dp = ScreenScaffoldDefaults.EdgeButtonSpacing,
     content: TransformingLazyColumnScope.(TransformationSpec) -> Unit
 ) {
     val state = rememberTransformingLazyColumnState()
     val spec = rememberTransformationSpec()
     if (edgeButton != null) {
-        ScreenScaffold(scrollState = state, edgeButton = edgeButton) { padding ->
+        ScreenScaffold(scrollState = state, edgeButton = edgeButton, edgeButtonSpacing = edgeButtonSpacing) { padding ->
             TransformingLazyColumn(state = state, contentPadding = padding) { content(spec) }
         }
     } else {
@@ -135,6 +141,13 @@ fun Feedback(message: String?, error: String?, modifier: Modifier = Modifier) {
 
 fun hasFeedback(message: String?, error: String?): Boolean = !message.isNullOrBlank() || !error.isNullOrBlank()
 
+/**
+ * Tonal rows are secondary actions. Material tints their icons with the primary colour, but lime is
+ * kept for the primary action, the current item and progress, so their icons stay neutral.
+ */
+@Composable
+fun secondaryButtonColors(): ButtonColors = ButtonDefaults.filledTonalButtonColors(iconColor = Palette.Text)
+
 /** The screen's one primary action. Short text only: the top of an edge button is too narrow for an icon and a word. */
 @Composable
 fun PrimaryEdgeButton(label: String, onClick: () -> Unit, enabled: Boolean = true, description: String = label) {
@@ -164,6 +177,36 @@ fun PrimaryEdgeButton(label: String, onClick: () -> Unit, enabled: Boolean = tru
     }
 }
 
-/** Extra side inset for a list's first rows, which sit where a round face is narrowest; square faces need none. */
+/**
+ * Extra side inset for a list's first rows, which sit where a round face is narrowest; square faces
+ * need none. It scales with the face so a larger watch's wider text still clears the bezel.
+ */
 @Composable
-fun topRowInset(): Dp = if (LocalConfiguration.current.isScreenRound) 14.dp else 0.dp
+fun topRowInset(): Dp {
+    val config = LocalConfiguration.current
+    return if (config.isScreenRound) (config.screenWidthDp * 0.08f).dp else 0.dp
+}
+
+/**
+ * Widest a single line may run just under the clock. A round face is only about two thirds as wide
+ * there, and on a square face the clock's curved scrim reaches into that line's corners, so a long
+ * line is capped and ellipsized.
+ */
+@Composable
+fun underClockMaxWidth(): Dp {
+    val config = LocalConfiguration.current
+    return (config.screenWidthDp * if (config.isScreenRound) 0.65f else 0.7f).dp
+}
+
+/**
+ * The time text grows with the system font size but the scaffold's top padding does not, so a list's
+ * first row moves down by the difference rather than sitting under the clock.
+ */
+@Composable
+fun timeTextAllowance(): Dp = ((LocalDensity.current.fontScale - 1f).coerceAtLeast(0f) * 14f).dp
+
+/** Large system text on a watch: layouts drop secondary lines so the values and the action still fit. */
+@Composable
+fun largeText(): Boolean = LocalDensity.current.fontScale > LARGE_TEXT_SCALE
+
+private const val LARGE_TEXT_SCALE = 1.1f

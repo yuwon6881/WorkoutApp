@@ -6,7 +6,7 @@
    logged share as a ring, and sits on an underline segment that turns accent for the open one. */
 .workout-exercise-strip-container {
   position: relative;
-  padding: 6px 0 0;
+  padding: 8px 0;
   background: var(--surface);
   border-bottom: 1px solid var(--border);
 }
@@ -53,19 +53,19 @@
 .workout-strip-item {
   position: relative;
   display: flex;
-  flex: 0 0 172px;
-  width: 172px;
-  min-width: 172px;
-  max-width: 172px;
+  flex: 0 0 auto;
+  width: auto;
+  min-width: 150px;
+  max-width: 220px;
   box-sizing: border-box;
   align-items: center;
-  gap: 10px;
-  min-height: 54px;
-  padding: 4px 10px 9px 6px;
-  border: 0;
-  border-radius: var(--radius-control, 8px) var(--radius-control, 8px) 0 0;
-  background: transparent;
-  color: var(--text);
+  gap: 8px;
+  min-height: 44px;
+  padding: 4px 14px 4px 6px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-pill);
+  background: var(--surface-raised);
+  color: var(--muted);
   text-align: left;
   cursor: pointer;
   /* A long press picks a tab up; the browser's own long-press callout and selection would fight it.
@@ -74,30 +74,28 @@
   user-select: none;
   touch-action: pan-x pan-y;
   transition: background-color var(--motion-control) var(--motion-ease),
+              border-color var(--motion-control) var(--motion-ease),
+              color var(--motion-control) var(--motion-ease),
               transform 0.2s cubic-bezier(0.2, 0, 0, 1),
               box-shadow 0.2s cubic-bezier(0.2, 0, 0, 1);
 }
 
-.workout-strip-item::after {
-  content: '';
-  position: absolute;
-  right: 6px;
-  bottom: 0;
-  left: 6px;
-  height: 2px;
-  border-radius: 2px 2px 0 0;
-  background: var(--border);
-  transition: height var(--motion-control) var(--motion-ease), background-color var(--motion-control) var(--motion-ease);
-}
+.workout-strip-item::after { display: none; }
 
-.workout-strip-item:hover { background: var(--surface-hover); }
-.workout-strip-item.active { background: var(--surface-raised); }
-.workout-strip-item.active::after { height: 3px; background: var(--accent); }
-.workout-strip-item.completed:not(.active)::after { background: var(--accent-border); }
+.workout-strip-item:hover { background: var(--surface-hover); color: var(--text); }
+.workout-strip-item.active {
+  background: var(--accent-soft);
+  border-color: var(--accent-border);
+  color: var(--accent);
+}
+.workout-strip-item.completed:not(.active) {
+  border-color: var(--border);
+  color: var(--text);
+}
 
 .workout-strip-item.pressing { transform: scale(0.97); transition: transform 0.12s ease; }
 .workout-strip-item.held {
-  border-radius: 12px;
+  border-radius: var(--radius-pill);
   background: var(--surface-hover);
   box-shadow: 0 14px 30px var(--overlay), 0 0 0 2px var(--accent);
   transform: scale(1.05) translateY(-3px);
@@ -111,18 +109,21 @@
 .workout-strip-ring {
   position: relative;
   display: grid;
-  flex: 0 0 30px;
-  width: 30px;
-  height: 30px;
+  flex: 0 0 28px;
+  width: 28px;
+  height: 28px;
   place-items: center;
   border-radius: 50%;
-  background: var(--surface-raised);
+  background: var(--surface);
   color: var(--muted);
   font-size: var(--font-secondary);
   font-weight: 700;
   font-variant-numeric: tabular-nums;
 }
-.workout-strip-item.active .workout-strip-ring { background: var(--surface); color: var(--text); }
+.workout-strip-item.active .workout-strip-ring {
+  background: color-mix(in srgb, var(--accent) 18%, var(--surface));
+  color: var(--accent);
+}
 .workout-strip-ring .ring-svg { position: absolute; inset: 0; transform: rotate(-90deg); }
 .workout-strip-ring circle { fill: none; stroke-width: 2.5; }
 .workout-strip-ring .ring-track { stroke: transparent; }
@@ -152,14 +153,14 @@
   overflow-wrap: anywhere;
 }
 .workout-strip-item:not(.active) .workout-strip-name { color: var(--muted); }
-.workout-strip-item.active .workout-strip-name { color: var(--text); }
+.workout-strip-item.active .workout-strip-name { color: var(--accent); font-weight: 700; }
 
 .workout-strip-count {
   color: var(--faint);
   font-size: var(--font-secondary);
   font-variant-numeric: tabular-nums;
 }
-.workout-strip-item.active .workout-strip-count { color: var(--muted); }
+.workout-strip-item.active .workout-strip-count { color: var(--accent); opacity: 0.85; }
 
 .workout-exercise-strip .workout-strip-add-item.button {
   flex: 0 0 auto;
@@ -175,18 +176,19 @@
 
 /* Phones: the strip is an overview and a jump list, so it gives its height to the sets. */
 @media (max-width: 639px) {
-  .workout-exercise-strip-container { padding-top: 4px; }
+  .workout-exercise-strip-container { padding-top: 6px; padding-bottom: 6px; }
   .workout-exercise-strip { padding-inline: 8px; scroll-padding-inline: 8px; }
   .workout-strip-item {
-    flex: 0 0 150px;
-    width: 150px;
-    min-width: 150px;
-    max-width: 150px;
-    min-height: 48px;
-    gap: 8px;
-    padding: 2px 8px 7px 4px;
+    flex: 0 0 auto;
+    width: auto;
+    min-width: 130px;
+    max-width: 170px;
+    min-height: 44px;
+    gap: 6px;
+    padding: 3px 10px 3px 5px;
+    border-radius: var(--radius-pill);
   }
-  .workout-strip-ring { flex-basis: 28px; width: 28px; height: 28px; }
+  .workout-strip-ring { flex-basis: 26px; width: 26px; height: 26px; }
   .workout-strip-count { display: none; }
 }
 
@@ -217,7 +219,20 @@
 }
 .workout-footer-actions:empty { display: none; }
 .workout-footer-actions > .modal-actions-error { margin: 0; text-align: left; }
-.workout-footer-actions .workout-finish-btn.button { min-height: 52px; justify-content: center; border-radius: var(--radius-control, 8px); font-size: 16px !important; font-weight: 700; }
+.workout-footer-actions .workout-finish-btn.button {
+  min-height: 52px;
+  justify-content: center;
+  border-radius: var(--radius-pill);
+  background: var(--accent);
+  color: var(--on-accent);
+  font-size: 16px !important;
+  font-weight: 760;
+  letter-spacing: -0.01em;
+}
+.workout-footer-actions .workout-finish-btn.button:hover:not(:disabled) {
+  box-shadow: var(--shadow-raised);
+  filter: brightness(1.05);
+}
 
 /* A personal best, announced quietly in the footer for a few seconds (useAfterLog.ts). */
 @keyframes celebration-in { 0% { opacity: 0; transform: translateY(6px); } 100% { opacity: 1; transform: none; } }
@@ -226,8 +241,8 @@
   align-items: center;
   gap: 10px;
   margin: 0;
-  padding: 10px 14px;
-  border-radius: var(--radius-control, 8px);
+  padding: 10px 16px;
+  border-radius: var(--radius-pill);
   background: var(--surface-raised);
   border: 1px solid var(--accent-border);
   color: var(--text);
@@ -245,6 +260,7 @@
   resize: vertical;
   field-sizing: content;
   line-height: 1.45;
+  border-radius: var(--radius-control);
   border-color: transparent;
   background: var(--surface-raised);
 }

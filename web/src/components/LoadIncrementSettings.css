@@ -1,23 +1,49 @@
 /* Chained with .panel.settings-card, whose own padding would otherwise win on specificity. */
 .panel.settings-card.load-settings-group {
-  padding-block: 20px 6px;
+  padding: 22px 24px 8px;
+  background: var(--surface);
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
 }
 
 .load-settings-group h3 {
   margin: 0;
-  font-size: 16px;
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--text);
 }
 
 .load-settings-group > .muted {
-  margin: 4px 0 8px;
+  margin: 6px 0 14px;
   font-size: var(--font-secondary, 14px);
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.load-settings-group .setting-row {
+  padding: 14px 0;
+  border-bottom: 1px solid var(--border);
 }
 
 .load-settings-group .setting-row:last-child {
-  padding-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 0;
+}
+
+.load-settings-group .setting-row .button {
+  min-height: 44px;
+}
+
+@media (min-width: 1024px) {
+  .load-settings-group .setting-row .button {
+    min-height: 36px;
+  }
 }
 
 .load-settings-skeleton {
   height: 180px;
   margin-block: 16px;
+  border-radius: var(--radius-control);
 }

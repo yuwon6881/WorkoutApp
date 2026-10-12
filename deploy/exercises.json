@@ -363,7 +363,8 @@
     "category": "Free Weights",
     "aliases": [
       "Dumbbell RDL",
-      "Dumbbell Romanian Deadlift"
+      "Dumbbell Romanian Deadlift",
+      "DB RDL"
     ]
   },
   {
@@ -371,14 +372,6 @@
     "name": "Barbell RDL",
     "muscle": "Posterior chain",
     "equipment": "Barbell",
-    "category": "Free Weights",
-    "aliases": []
-  },
-  {
-    "slug": "db-rdl",
-    "name": "DB RDL",
-    "muscle": "Posterior chain",
-    "equipment": "Dumbbell",
     "category": "Free Weights",
     "aliases": []
   },
@@ -737,18 +730,6 @@
     ]
   },
   {
-    "slug": "barbell-bench-press",
-    "name": "Barbell Bench Press",
-    "muscle": "Chest",
-    "equipment": "Barbell",
-    "category": "Free Weights",
-    "aliases": [],
-    "secondaryMuscles": [
-      "Triceps",
-      "Shoulders"
-    ]
-  },
-  {
     "slug": "barbell-incline-press",
     "name": "Barbell Incline Press",
     "muscle": "Chest",
@@ -766,7 +747,13 @@
     "muscle": "Chest",
     "equipment": "Barbell",
     "category": "Free Weights",
-    "aliases": []
+    "aliases": [
+      "Barbell Bench Press"
+    ],
+    "secondaryMuscles": [
+      "Triceps",
+      "Shoulders"
+    ]
   },
   {
     "slug": "larsen-press",
@@ -791,7 +778,9 @@
     "equipment": "Machine",
     "category": "Machine",
     "aliases": [
-      "Machine Chest Press"
+      "Machine Chest Press",
+      "Plate-Loaded Chest Press Machine",
+      "Chest Press Machine"
     ]
   },
   {
@@ -802,7 +791,10 @@
     "category": "Machine",
     "aliases": [
       "Selectorized Machine Chest Press",
-      "Selectorised Machine Chest Press"
+      "Selectorised Machine Chest Press",
+      "Weight-Stack Chest Press Machine",
+      "Selectorized Chest Press Machine",
+      "Selectorised Chest Press Machine"
     ]
   },
   {
@@ -904,27 +896,6 @@
     "equipment": "Smith Machine",
     "category": "Machine",
     "aliases": []
-  },
-  {
-    "slug": "chest-press-machine",
-    "name": "Plate-Loaded Chest Press Machine",
-    "muscle": "Chest",
-    "equipment": "Machine",
-    "category": "Machine",
-    "aliases": [
-      "Chest Press Machine"
-    ]
-  },
-  {
-    "slug": "weight-stack-chest-press-machine",
-    "name": "Weight-Stack Chest Press Machine",
-    "muscle": "Chest",
-    "equipment": "Machine",
-    "category": "Machine",
-    "aliases": [
-      "Selectorized Chest Press Machine",
-      "Selectorised Chest Press Machine"
-    ]
   },
   {
     "slug": "dumbbell-chest-press",
@@ -1321,7 +1292,8 @@
     "equipment": "Cable",
     "category": "Machine",
     "aliases": [
-      "Cable Row"
+      "Cable Row",
+      "Cable Seated Row"
     ]
   },
   {
@@ -1395,7 +1367,9 @@
     "muscle": "Back",
     "equipment": "Cable",
     "category": "Machine",
-    "aliases": []
+    "aliases": [
+      "Half-Kneeling 1-Arm Lat Pulldown"
+    ]
   },
   {
     "slug": "1-arm-lat-pull-in",
@@ -1471,14 +1445,6 @@
       "Selectorized Omni-Grip Machine Chest-Supported Row",
       "Selectorised Omni-Grip Machine Chest-Supported Row"
     ]
-  },
-  {
-    "slug": "cable-seated-row",
-    "name": "Cable Seated Row",
-    "muscle": "Back",
-    "equipment": "Cable",
-    "category": "Machine",
-    "aliases": []
   },
   {
     "slug": "kroc-row",
@@ -1715,14 +1681,6 @@
     "aliases": []
   },
   {
-    "slug": "half-kneeling-1-arm-lat-pulldown",
-    "name": "Half-Kneeling 1-Arm Lat Pulldown",
-    "muscle": "Back",
-    "equipment": "Cable",
-    "category": "Machine",
-    "aliases": []
-  },
-  {
     "slug": "cable-lat-prayer",
     "name": "Cable Lat Prayer",
     "muscle": "Back",
@@ -1932,20 +1890,6 @@
     "aliases": []
   },
   {
-    "slug": "barbell-overhead-press",
-    "name": "Barbell Overhead Press",
-    "muscle": "Shoulders",
-    "equipment": "Barbell",
-    "category": "Free Weights",
-    "aliases": [
-      "Standing Overhead Barbell Press"
-    ],
-    "secondaryMuscles": [
-      "Triceps",
-      "Core"
-    ]
-  },
-  {
     "slug": "overhead-press",
     "name": "Overhead Press",
     "muscle": "Shoulders",
@@ -1953,7 +1897,9 @@
     "category": "Free Weights",
     "aliases": [
       "Military Press",
-      "Overhead Press / Push Press"
+      "Overhead Press / Push Press",
+      "Barbell Overhead Press",
+      "Standing Overhead Barbell Press"
     ],
     "secondaryMuscles": [
       "Triceps",
@@ -2053,14 +1999,6 @@
     ]
   },
   {
-    "slug": "db-incline-curl",
-    "name": "DB Incline Curl",
-    "muscle": "Biceps and forearms",
-    "equipment": "Dumbbell",
-    "category": "Free Weights",
-    "aliases": []
-  },
-  {
     "slug": "hammer-curl",
     "name": "Hammer Curl",
     "muscle": "Biceps and forearms",
@@ -2079,7 +2017,8 @@
     "aliases": [
       "Incline DB Stretch Curl",
       "Incline DB Curl",
-      "Lying Incline Death Curl"
+      "Lying Incline Death Curl",
+      "DB Incline Curl"
     ]
   },
   {
@@ -2228,7 +2167,8 @@
     "muscle": "Biceps and forearms",
     "equipment": "Plate",
     "category": "Free Weights",
-    "aliases": []
+    "aliases": [],
+    "trackingMode": "duration"
   },
   {
     "slug": "triceps-machine",
@@ -2526,7 +2466,10 @@
     "muscle": "Shoulders",
     "equipment": "Cable",
     "category": "Machine",
-    "aliases": []
+    "aliases": [
+      "Cable Reverse Flye",
+      "Low-to-High Reverse Flye"
+    ]
   },
   {
     "slug": "bent-over-reverse-db-flye",
@@ -2537,7 +2480,10 @@
     "aliases": [
       "Bent Over Reverse Dumbbell Flye",
       "Dumbbell Bent Over Lateral Raise",
-      "DB Bent-Over Lateral Raise"
+      "DB Bent-Over Lateral Raise",
+      "Bent Over Dumbbell Reverse Flye",
+      "Dumbbell Reverse Flye",
+      "DB Reverse Flye"
     ]
   },
   {
@@ -2649,16 +2595,6 @@
     "equipment": "Cable",
     "category": "Machine",
     "aliases": []
-  },
-  {
-    "slug": "cable-reverse-flye",
-    "name": "Cable Reverse Flye",
-    "muscle": "Shoulders",
-    "equipment": "Cable",
-    "category": "Machine",
-    "aliases": [
-      "Low-to-High Reverse Flye"
-    ]
   },
   {
     "slug": "cuffed-behind-the-back-lateral-raise",
@@ -3901,17 +3837,6 @@
     "equipment": "Band",
     "category": "Free Weights",
     "aliases": []
-  },
-  {
-    "slug": "bent-over-dumbbell-reverse-flye",
-    "name": "Bent Over Dumbbell Reverse Flye",
-    "muscle": "Shoulders",
-    "equipment": "Dumbbell",
-    "category": "Free Weights",
-    "aliases": [
-      "Dumbbell Reverse Flye",
-      "DB Reverse Flye"
-    ]
   },
   {
     "slug": "standing-dumbbell-press",

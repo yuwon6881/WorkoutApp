@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- The app's dark theme, for the few screens drawn natively (the offline workout recovery screen). -->
 <resources>
-    <color name="brand_bg">#101412</color>
-    <color name="brand_text">#F3F4F2</color>
-    <color name="brand_muted">#9CA8A1</color>
-    <color name="brand_accent">#91D8BA</color>
+    <color name="brand_bg">#08080A</color>
+    <color name="brand_text">#ECECF1</color>
+    <color name="brand_muted">#A2A2AD</color>
+    <color name="brand_accent">#B5F04A</color>
 </resources>

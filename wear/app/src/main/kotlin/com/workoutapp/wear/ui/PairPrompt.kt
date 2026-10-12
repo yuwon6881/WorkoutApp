@@ -8,6 +8,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
@@ -51,7 +52,7 @@ fun PairPrompt(
                 label = { Text("Pair this watch") }
             )
         } else {
-            Text("PAIRING CODE", style = MaterialTheme.typography.labelSmall, color = Palette.Muted, letterSpacing = 1.sp)
+            Text("Pairing code", style = MaterialTheme.typography.labelSmall, color = Palette.Muted)
             PairingCodeText(pairingCode)
             BodyText(if (checking) "Checking approval…" else PAIRING_INSTRUCTION)
         }
@@ -62,15 +63,21 @@ fun PairPrompt(
 fun PairingCodeText(code: String, modifier: Modifier = Modifier) {
     val formatted = formatPairingCode(code)
     val compact = LocalConfiguration.current.screenWidthDp < 200
+    // The code must stay on one line to be compared character by character, and it is already large,
+    // so its growth with the system font size is capped where a small face would cut its ends off.
+    val fontScale = LocalDensity.current.fontScale
+    val baseSize = if (compact) 20f else 24f
     Text(
         formatted,
         modifier = modifier.semantics { contentDescription = "Pairing code ${formatted.toCharArray().joinToString(" ")}" },
         style = MaterialTheme.typography.numeralExtraSmall,
-        fontSize = if (compact) 20.sp else 24.sp,
+        fontSize = (baseSize * fontScale.coerceAtMost(MAX_CODE_SCALE) / fontScale).sp,
         fontWeight = FontWeight.SemiBold,
         letterSpacing = 1.sp,
-        color = Palette.Accent,
+        color = Palette.Text,
         textAlign = TextAlign.Center,
         maxLines = 1
     )
 }
+
+private const val MAX_CODE_SCALE = 1.1f

@@ -11,7 +11,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.wear.compose.material3.ButtonDefaults
 import androidx.wear.compose.material3.FilledTonalButton
 import androidx.wear.compose.material3.LinearProgressIndicator
@@ -68,7 +67,7 @@ fun OverviewPage(
         }
     ) { spec ->
         item {
-            Column(Modifier.listRow(this, spec).padding(horizontal = topRowInset() + 4.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+            Column(Modifier.fillMaxWidth().padding(start = topRowInset() + 4.dp, end = topRowInset() + 4.dp, top = timeTextAllowance()), horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(
                     session.name,
                     style = MaterialTheme.typography.labelMedium,
@@ -83,10 +82,9 @@ fun OverviewPage(
                     color = if (paused) Palette.Amber else Palette.Text
                 )
                 Text(
-                    if (paused) "PAUSED" else "ELAPSED",
+                    if (paused) "Paused" else "Elapsed",
                     style = MaterialTheme.typography.labelSmall,
-                    color = if (paused) Palette.Amber else Palette.Muted,
-                    letterSpacing = 1.sp
+                    color = if (paused) Palette.Amber else Palette.Muted
                 )
             }
         }
@@ -122,7 +120,8 @@ fun OverviewPage(
                 enabled = !busy,
                 modifier = Modifier.fillMaxWidth().listRow(this, spec),
                 transformation = SurfaceTransformation(spec),
-                icon = { WearIcon(R.drawable.ic_undo, null, Modifier.size(ButtonDefaults.IconSize), tint = Palette.Accent) },
+                colors = secondaryButtonColors(),
+                icon = { WearIcon(R.drawable.ic_undo, null, Modifier.size(ButtonDefaults.IconSize)) },
                 label = { Text("Undo last set", maxLines = 1) },
                 secondaryLabel = {
                     Text("${undoableSet.exerciseName} · ${undoableSet.summary}", maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -135,6 +134,7 @@ fun OverviewPage(
                 enabled = !busy && session.active && !pendingFinish,
                 modifier = Modifier.fillMaxWidth().listRow(this, spec),
                 transformation = SurfaceTransformation(spec),
+                colors = secondaryButtonColors(),
                 icon = { WearIcon(if (paused) R.drawable.ic_play else R.drawable.ic_pause, null, Modifier.size(ButtonDefaults.IconSize)) },
                 label = { Text(if (paused) "Resume workout" else "Pause workout") }
             )
@@ -180,7 +180,7 @@ fun OverviewPage(
                         secondaryContentColor = Palette.Muted
                     ),
                     icon = if (complete) {
-                        { WearIcon(R.drawable.ic_check, "Complete", Modifier.size(ButtonDefaults.SmallIconSize), tint = Palette.Green) }
+                        { WearIcon(R.drawable.ic_check, "Complete", Modifier.size(ButtonDefaults.SmallIconSize), tint = Palette.Teal) }
                     } else null,
                     label = { Text(exercise.name, maxLines = 2, overflow = TextOverflow.Ellipsis) },
                     secondaryLabel = { Text(if (current) "Now · $done of ${exercise.sets.size}" else "$done of ${plural(exercise.sets.size, "set")}") }
@@ -192,7 +192,8 @@ fun OverviewPage(
                 onClick = onEnableNotifications,
                 modifier = Modifier.fillMaxWidth().listRow(this, spec),
                 transformation = SurfaceTransformation(spec),
-                icon = { WearIcon(R.drawable.ic_bell, null, Modifier.size(ButtonDefaults.IconSize), tint = Palette.Accent) },
+                colors = secondaryButtonColors(),
+                icon = { WearIcon(R.drawable.ic_bell, null, Modifier.size(ButtonDefaults.IconSize)) },
                 label = { Text("Allow notifications") },
                 secondaryLabel = { Text("One-tap return from the watch face") }
             )

@@ -15,6 +15,7 @@ const loaders = {
   resumeWorkout: () => import('../components/ResumeWorkoutButton')
 };
 type View = keyof typeof loaders;
+export type LazyView = View;
 type Loaded = { [K in View]?: Awaited<ReturnType<(typeof loaders)[K]>> };
 const loaded: Loaded = {};
 

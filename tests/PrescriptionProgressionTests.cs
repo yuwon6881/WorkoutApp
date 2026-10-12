@@ -8,6 +8,30 @@ public sealed class PrescriptionProgressionTests
     private static SetExposure Exposure(double load, int reps, double? rpe, string? rir = null)
         => new(Guid.NewGuid(), DateTime.UtcNow, load, reps, rpe, Rir: rir);
 
+    // The logger says whether a suggestion adds weight, adds reps or repeats, so each suggestion
+    // carries the load and reps of the exposure it was built from.
+    [Fact]
+    public void Suggestion_reports_the_load_and_reps_it_progresses_from()
+    {
+        var addsWeight = Progression.SuggestSet(10, 15, 8, [Exposure(50, 15, 8)], "normal", 2.5);
+        Assert.Equal(50, addsWeight.PreviousLoadKg);
+        Assert.Equal(15, addsWeight.PreviousReps);
+        Assert.True(addsWeight.SuggestedLoadKg > addsWeight.PreviousLoadKg);
+
+        var holds = Progression.SuggestSet(8, 8, 8, Enumerable.Range(0, 3).Select(_ => Exposure(50, 7, 8)).ToList(), "normal", 2.5);
+        Assert.Equal(50, holds.PreviousLoadKg);
+        Assert.Equal(7, holds.PreviousReps);
+        Assert.Equal(holds.PreviousLoadKg, holds.SuggestedLoadKg);
+    }
+
+    [Fact]
+    public void First_suggestion_has_nothing_to_progress_from()
+    {
+        var first = Progression.SuggestSet(8, 10, 8, [], "normal", 2.5);
+        Assert.Null(first.PreviousLoadKg);
+        Assert.Null(first.PreviousReps);
+    }
+
     [Fact]
     public void Repeated_one_rep_short_at_target_effort_keeps_building_without_deload()
     {

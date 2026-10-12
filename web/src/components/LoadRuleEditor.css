@@ -1,6 +1,6 @@
 .load-rule-editor {
   display: grid;
-  gap: 12px;
+  gap: 14px;
   min-width: 0;
 }
 
@@ -9,33 +9,57 @@
   overflow-wrap: anywhere;
   font-size: 13px;
   line-height: 1.5;
+  color: var(--muted);
 }
 
-/* The optional sequence helper wraps its fields on phones. */
+/* The sequence helper styled as a nested raised well */
 .load-rule-generator {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr)) auto;
   align-items: end;
-  gap: 8px;
+  gap: 10px;
   min-width: 0;
   margin: 0;
-  padding: 10px 12px 12px;
-  border: 1px solid var(--border);
-  border-radius: 12px;
+  padding: 12px 14px 14px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-control);
+  background: var(--surface-raised);
 }
 
 .load-rule-generator legend {
   padding: 0 4px;
   color: var(--muted);
-  font-size: var(--font-secondary, 14px);
-  font-weight: 600;
+  font-size: var(--font-secondary);
+  font-weight: 650;
+  text-transform: none;
+  letter-spacing: -0.005em;
 }
 
-.load-rule-sequence-toggle { justify-self: start; }
+.load-rule-sequence-toggle {
+  justify-self: start;
+}
+
+.load-rule-generator .button,
+.load-rule-editor .button {
+  min-height: 44px;
+}
+
+@media (min-width: 1024px) {
+  .load-rule-generator .button,
+  .load-rule-editor .button {
+    min-height: 36px;
+  }
+}
 
 @media (max-width: 639px) {
-  .load-rule-generator { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-  .load-rule-generator > .button { grid-column: 1 / -1; justify-self: end; }
+  .load-rule-generator {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .load-rule-generator > .button {
+    grid-column: 1 / -1;
+    justify-self: stretch;
+    width: 100%;
+  }
 }
 
 .load-rule-editor .modal-actions {
@@ -43,6 +67,7 @@
   flex-wrap: wrap;
   justify-content: flex-end;
   gap: 8px;
+  margin-top: 4px;
 }
 
 /* The reset stays at the leading edge so it is not mistaken for a way to confirm. */

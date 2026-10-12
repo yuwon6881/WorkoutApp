@@ -22,6 +22,7 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.rotary.onRotaryScrollEvent
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -78,6 +79,7 @@ fun ValueAdjuster(
     val lowResolutionInput = remember(context) { context.packageManager.hasSystemFeature(LOW_RES_ROTARY_FEATURE) }
     val focusRequester = remember { FocusRequester() }
     val accumulated = remember { floatArrayOf(0f) }
+    val crowdedEditor = largeText() && LocalConfiguration.current.screenHeightDp < 200
     BackHandler(onBack = onDone)
     LaunchedEffect(Unit) { focusRequester.requestFocus() }
     ScreenScaffold {
@@ -113,10 +115,10 @@ fun ValueAdjuster(
             contentAlignment = Alignment.Center
         ) {
             Column(
-                modifier = Modifier.fillMaxWidth().padding(bottom = 26.dp),
+                modifier = Modifier.fillMaxWidth().padding(top = timeTextAllowance(), bottom = 26.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Text(title.uppercase(), style = MaterialTheme.typography.labelSmall, color = Palette.Muted, letterSpacing = 1.sp)
+                Text(title, style = MaterialTheme.typography.labelSmall, color = Palette.Muted)
                 Row(
                     modifier = Modifier.padding(vertical = 4.dp),
                     verticalAlignment = Alignment.CenterVertically,
@@ -148,7 +150,8 @@ fun ValueAdjuster(
                     }
                 }
                 Text(caption, style = MaterialTheme.typography.labelSmall, fontSize = 12.sp, lineHeight = 14.sp, color = Palette.Muted, maxLines = 1)
-                Text("Turn crown", style = MaterialTheme.typography.labelSmall, fontSize = 12.sp, lineHeight = 14.sp, color = Palette.Muted, maxLines = 1)
+                // On a short face at large text the hint would sit under the Done button; the crown still works.
+                if (!crowdedEditor) Text("Turn crown", style = MaterialTheme.typography.labelSmall, fontSize = 12.sp, lineHeight = 14.sp, color = Palette.Muted, maxLines = 1)
             }
             EdgeButton(
                 onClick = onDone,

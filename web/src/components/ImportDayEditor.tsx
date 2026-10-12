@@ -6,6 +6,7 @@ import { Button } from './ui/Button';
 import { Field } from './ui/Field';
 import { pairExercises, unlinkExercise } from '../lib/supersets';
 import { ExerciseEditor, blankExercise } from './ImportExerciseEditor';
+import { SupersetGroupHeader } from './SupersetTag';
 import type { ExerciseEditing } from '../lib/exerciseEditScope';
 
 export function DayEditor({ day, exercises, onChange, editing, onCustomExerciseCreated, restorableExerciseLineIds, onRestoreExercise, getRepRangeMemory, selectedMuscle }: {
@@ -88,7 +89,7 @@ export function DayEditor({ day, exercises, onChange, editing, onCustomExerciseC
     {draft.isRestDay
       ? <div className="rest-callout"><span className="tiny-label">Rest day</span><p>No exercises are scheduled for this slot.</p></div>
       : groups.map((group, groupIndex) => <div className={group.length > 1 ? 'superset-block' : ''} key={groupIndex}>
-        {group.length > 1 && <div className="superset-heading">Superset {group[0].sequenceGroup.match(/^[A-Za-z]+/)?.[0] ?? ''}</div>}
+        {group.length > 1 && <SupersetGroupHeader sequenceGroup={group[0].sequenceGroup} count={group.length} />}
         {group.map(exercise => <div key={exercise.lineId}
           data-exercise-line={exercise.lineId}
           className={dimSet?.has(exercise.lineId) ? 'import-exercise-dim-wrap exercise-dimmed' : ''}>

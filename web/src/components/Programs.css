@@ -6,35 +6,42 @@
   border: 1px solid var(--accent-border);
   background: var(--surface);
   border-radius: var(--radius);
-  padding: 16px 20px;
+  box-shadow: var(--shadow);
+  padding: 18px 22px;
   margin-bottom: 20px;
 }
 .ready-import-info {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 6px;
   min-width: 0;
 }
 .ready-import-badge {
   display: inline-flex;
   align-items: center;
-  font-size: 13px !important;
+  font-size: var(--font-secondary) !important;
   font-weight: 650;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
+  text-transform: none;
+  letter-spacing: -0.005em;
   color: var(--accent);
+  background: var(--accent-soft);
+  border: 1px solid var(--accent-border);
+  border-radius: var(--radius-pill);
+  padding: 2px 10px;
+  width: fit-content;
 }
 .ready-import-card h3 {
   font-size: 16px;
-  font-weight: 650;
+  font-weight: 720;
+  letter-spacing: -0.025em;
   margin: 0;
   color: var(--text);
 }
 .ready-import-card p {
-  font-size: 14px;
+  font-size: var(--font-secondary);
   margin: 0;
   color: var(--muted);
-  line-height: 1.4;
+  line-height: 1.45;
 }
 .ready-import-card > .button {
   flex-shrink: 0;

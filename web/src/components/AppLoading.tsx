@@ -11,12 +11,22 @@ export function AppLoading() {
     <div className="app-shell app-loading-shell" aria-busy="true">
       <aside className="sidebar" aria-hidden="true">
         <div className="brand"><img src="/favicon.svg" alt="" /><span>Workout</span></div>
+        <div className="app-loading-action">
+          <Skeleton className="skeleton-action-button" />
+        </div>
         <div className="app-loading-nav">
           {Array.from({ length: NAV_ITEMS }, (_, index) => <Skeleton key={index} className="skeleton-nav-item" />)}
         </div>
         <div className="sidebar-bottom app-loading-nav-bottom">
           <Skeleton className="skeleton-nav-item" />
           <Skeleton className="skeleton-nav-item" />
+          <div className="skeleton-account-card">
+            <Skeleton className="skeleton-account-avatar" />
+            <div className="skeleton-account-text">
+              <Skeleton className="skeleton-account-name" />
+              <Skeleton className="skeleton-account-desc" />
+            </div>
+          </div>
         </div>
       </aside>
 
@@ -71,7 +81,8 @@ export function AppLoading() {
 
       <nav className="bottom-nav" aria-hidden="true">
         <div className="bottom-nav-track app-loading-bottom-nav">
-          {Array.from({ length: NAV_ITEMS }, (_, index) => <Skeleton key={index} className="skeleton-bottom-item" />)}
+          {Array.from({ length: NAV_ITEMS + 1 }, (_, index) => <Skeleton key={index}
+            className={index === NAV_ITEMS / 2 ? 'skeleton-bottom-action' : 'skeleton-bottom-item'} />)}
         </div>
       </nav>
     </div>

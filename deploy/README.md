@@ -176,10 +176,10 @@ dotnet run --project api\Workout.Api.csproj -- --migrate-only
 ## Exercise catalog
 
 The schema ships with an empty catalog and it is the only data users cannot create, edit, or
-delete. The checked-in `deploy\exercises.json` contains the 385 default movements. Load it with
+delete. The checked-in `deploy\exercises.json` contains the 421 default movements. Load it with
 the seed command, which is keyed by stable slug, so re-running the same file updates rows in place
 instead of duplicating them. Exercises the file omits are left untouched unless
-`--deactivate-missing` is supplied. The whole file is applied in one transaction or not at all.
+`--deactivate-missing` is supplied. Ten reviewed synonym pairs are consolidated in the source file; ordinary additive reseeding transfers their aliases to canonical rows while preserving old ids for existing plans, settings, and history. The library lists one canonical movement when both identities remain. Do not use `--deactivate-missing` merely to consolidate these synonyms: it retires omitted ids and can prevent saved plans using them from being edited. The whole file is applied in one transaction or not at all.
 
 ```powershell
 $seed = (Resolve-Path deploy\exercises.json).Path

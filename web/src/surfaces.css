@@ -1,0 +1,55 @@
+/* Surface layer for the Midnight Lime (dark) and Lavender (light) themes, shared with NutritionApp.
+   Loaded after every other sheet, so it stays limited to shared primitives — shell, cards, dialogs,
+   buttons, fields, and labels. Feature sheets own their own layouts. It consumes
+   only the semantic tokens in index.css and never introduces colours of its own. */
+
+/* Canvas: a soft wash of the accent behind the top of every page. */
+body{background:radial-gradient(1100px 520px at 50% -260px,color-mix(in srgb,var(--accent) 16%,transparent),transparent 72%) no-repeat,var(--bg)}
+:root:not([data-theme=light]) body{background:radial-gradient(900px 420px at 50% -260px,color-mix(in srgb,var(--accent) 7%,transparent),transparent 70%) no-repeat,var(--bg)}
+
+/* Type: display-weight headings with tight tracking; labels stay in sentence case. */
+h1,h2,h3{font-weight:700;letter-spacing:-.03em}
+h1{font-weight:760;letter-spacing:-.035em;line-height:1.12}
+h2{font-weight:680;letter-spacing:-.022em}
+.brand{font-weight:780;letter-spacing:-.045em}
+.eyebrow,.tiny-label,.stat-label{text-transform:none;letter-spacing:-.005em;font-weight:620;color:var(--muted)}
+.page-heading .eyebrow,.hero-top .eyebrow{letter-spacing:-.005em}
+
+/* Cards: borderless white floats on lavender; dark cards keep a hairline on near-black. */
+.panel{border-color:var(--card-border);border-radius:var(--radius);box-shadow:var(--shadow)}
+.pill{border-radius:var(--radius-pill);padding-inline:10px}
+
+/* Dialogs and sheets: the largest radius, lifted by a deep shadow. */
+.modal{border-color:var(--card-border);border-radius:var(--radius-modal);box-shadow:0 30px 80px -20px var(--overlay)}
+.modal::backdrop{backdrop-filter:blur(6px)}
+@media(max-width:639px){.modal,.modal.wide{border-radius:var(--radius-modal) var(--radius-modal) 0 0}}
+
+/* Buttons: pills. Primary carries the accent glow on hover only. */
+.button{border-radius:var(--radius-pill);font-weight:620;transition:background-color var(--motion-control) ease,border-color var(--motion-control) ease,color var(--motion-control) ease,box-shadow var(--motion-control) ease,transform var(--motion-control) var(--motion-ease)}
+.button.primary{font-weight:680;letter-spacing:-.005em;border-color:var(--accent)}
+@media (hover:hover) and (pointer:fine){.button.primary:hover:not(:disabled){box-shadow:var(--shadow-raised);transform:translateY(-1px)}}
+.button.primary:active:not(:disabled){transform:scale(.98);box-shadow:none}
+.button.secondary{background:var(--surface);border-color:var(--border)}
+:root:not([data-theme=light]) .button.secondary{background:var(--surface-raised);border-color:transparent}
+@media (hover:hover) and (pointer:fine){.button.secondary:hover:not(:disabled){border-color:var(--accent-border)}}
+.button.destructive{border-color:var(--red-border)}
+.button.tertiary{border-color:transparent}
+
+/* Fields: soft filled wells that sharpen to the accent on focus. */
+input:not([type=checkbox]):not([type=radio]):not([type=range]),select,textarea,.search-box{border-radius:var(--radius-control);background:var(--surface-raised);border-color:color-mix(in srgb,var(--border-hover) 45%,transparent)}
+input:not([type=checkbox]):not([type=radio]):not([type=range]):focus,select:focus,textarea:focus{background:var(--surface);border-color:var(--accent)}
+.search-box:focus-within{background:var(--surface);border-color:var(--accent)}
+
+/* Segmented choices (the sunken pill track) are styled in components/ui/SegmentedControl.css. */
+
+
+/* The top bar floats on the canvas; it no longer draws a rule under itself. */
+.topbar{border-bottom-color:transparent}
+@media(max-width:1023px){.topbar{background:color-mix(in srgb,var(--bg) 88%,transparent);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)}}
+.topbar .settings-icon{border-radius:var(--radius-pill)}
+
+/* Phones: leave room for the floating dock and its raised action. */
+@media(max-width:639px){.workspace{padding-bottom:calc(104px + env(safe-area-inset-bottom,0px))}}
+
+/* Toasts and the update offer read as floating pills. */
+.toast,.update-banner{border-radius:var(--radius-pill);box-shadow:var(--shadow-float)}

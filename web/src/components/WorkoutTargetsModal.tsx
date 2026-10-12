@@ -1,17 +1,30 @@
 import { Flame, Sparkles, Target, Timer, Weight } from 'lucide-react';
 import type { Preferences, SessionExercise } from '../types';
-import { showReps, showWeight } from '../lib/training';
+import { showReps } from '../lib/training';
+import { previousSetSummaries } from '../lib/previousSets';
+import { setTarget } from '../lib/setTarget';
 import { Modal } from './ui/Modal';
 import { getRirColorClass } from './ui/RpeControl';
+import { useRecentExerciseSets } from './useRecentExerciseSets';
 
-/// An exercise's planned sets in full: reps, effort, suggested or printed load, tempo, what the same
-/// set read last time, and each set's own note, under the progression reason when there is one.
-export function WorkoutTargetsModal({ exercise, unit, trackRir, previousSets, onClose }: {
+type TargetsProps = {
   exercise: SessionExercise;
   unit: Preferences['unit'];
   trackRir: boolean;
-  previousSets: Array<string | null | undefined>;
   onClose: () => void;
+};
+
+/// Last time's sets are read only when the targets are opened, so turning through the workout never
+/// waits on history; each Last pill appears when the read arrives and stays absent offline.
+export function WorkoutTargetsModal(props: TargetsProps) {
+  const previousSets = previousSetSummaries(useRecentExerciseSets(props.exercise.exerciseId), props.exercise, props.trackRir);
+  return <WorkoutTargetsView {...props} previousSets={previousSets} />;
+}
+
+/// An exercise's planned sets in full: reps, effort, the progression's target load, tempo, what the
+/// same set read last time, and each set's own note, under the progression reason when there is one.
+export function WorkoutTargetsView({ exercise, unit, trackRir, previousSets, onClose }: TargetsProps & {
+  previousSets: Array<string | null | undefined>;
 }) {
   // Working sets are listed when there are any; each keeps its own index into the sets, so a
   // leading warm-up never shifts which set's suggestion or last result a row shows.
@@ -39,10 +52,9 @@ export function WorkoutTargetsModal({ exercise, unit, trackRir, previousSets, on
             const rirLabel = rirVal !== null ? `${rirVal} RIR` : null;
             const repsRaw = showReps(p);
             const repsLabel = /^\d+(–\d+)?$/.test(repsRaw) ? `${repsRaw} reps` : repsRaw;
-            const setSuggestion = exercise.sets[setIndex]?.suggestion;
-            const suggestedWeight = setSuggestion?.suggestedLoadKg
-              ? showWeight(setSuggestion.suggestedLoadKg, unit)
-              : null;
+            const loggedSet = exercise.sets[setIndex];
+            // The same load the set row shows, so the column and this list never disagree.
+            const suggestedWeight = loggedSet ? setTarget(loggedSet, p, exercise, unit, trackRir).load : null;
 
             return (
               <li key={setIndex}>

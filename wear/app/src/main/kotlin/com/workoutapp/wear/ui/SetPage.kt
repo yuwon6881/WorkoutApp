@@ -6,9 +6,11 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
@@ -19,7 +21,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -28,9 +30,10 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.wear.compose.material3.ButtonDefaults
-import androidx.wear.compose.material3.FilledTonalButton
+import androidx.wear.compose.material3.FilledTonalIconButton
+import androidx.wear.compose.material3.IconButtonDefaults
 import androidx.wear.compose.material3.MaterialTheme
+import androidx.wear.compose.material3.ScreenScaffoldDefaults
 import androidx.wear.compose.material3.Text
 import com.workoutapp.wear.R
 import com.workoutapp.wear.ui.theme.Palette
@@ -162,19 +165,32 @@ fun SetPage(
 ) {
     val editable = model.set != null && !paused && !busy
     val timerState = if (model.timed) TimerState(draft.timing, draft.secondsAt(nowEpochMs) != null) else null
-    WearListScreen(edgeButton = { SetEdgeButton(action, busy, timerState) { onAction(action) } }) { spec ->
+    // With large text or on a short face the page only fits above the Log action without a separate
+    // feedback row, so the message briefly replaces the badge row; the overview still shows it in full.
+    val compactFeedback = largeText() || LocalConfiguration.current.screenHeightDp < SHORT_FACE_DP
+    WearListScreen(
+        edgeButton = { SetEdgeButton(action, busy, timerState) { onAction(action) } },
+        edgeButtonSpacing = ScreenScaffoldDefaults.EdgeButtonMinSpacing
+    ) { spec ->
         item {
-            Column(Modifier.listRow(this, spec).padding(horizontal = topRowInset()), horizontalAlignment = Alignment.CenterHorizontally) {
-                SetBadgeRow(model, paused, pausedRestSeconds, restComplete, sync)
+            Column(
+                // Not height-morphed: this row sits in the top transition area, where morphing clipped its edges.
+                Modifier.fillMaxWidth().padding(start = topRowInset(), end = topRowInset(), top = timeTextAllowance()),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                SetBadgeRow(
+                    model, paused, pausedRestSeconds, restComplete, sync,
+                    feedback = if (compactFeedback) inlineFeedback(message, error) else null
+                )
                 Text(
                     model.exercise.name,
                     modifier = Modifier
-                        .padding(top = 3.dp)
+                        .padding(top = 2.dp)
                         .semantics { contentDescription = model.exercise.name },
-                    style = MaterialTheme.typography.titleSmall,
+                    style = MaterialTheme.typography.titleSmall.let { it.copy(lineHeight = it.fontSize * 1.2f) },
                     textAlign = TextAlign.Center,
                     // Enlarged text would push the Log action below the fold; the overview keeps the full name.
-                    maxLines = if (LocalDensity.current.fontScale > LARGE_TEXT_SCALE) 1 else 2,
+                    maxLines = if (largeText()) 1 else 2,
                     overflow = TextOverflow.Ellipsis
                 )
             }
@@ -183,7 +199,11 @@ fun SetPage(
             item { BodyText("All planned sets for this exercise are logged.", Modifier.listRow(this, spec)) }
         } else {
             item {
-                Row(Modifier.listRow(this, spec).padding(top = 4.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                Row(
+                    Modifier.listRow(this, spec),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
                     if (model.timed) {
                         val remaining = draft.remainingAt(nowEpochMs)
                         val shown = remaining ?: draft.secondsAt(nowEpochMs)
@@ -214,13 +234,12 @@ fun SetPage(
                             onAdjust(SetField.Rir)
                         }
                     }
+                    // A timed set has no RIR, so its free slot holds the start/stop control beside the time.
+                    if (model.timed) TimerToggle(draft.timing, enabled = editable, onClick = onToggleTimer)
                 }
             }
         }
-        if (model.timed && model.set != null) {
-            item { TimerToggle(draft.timing, enabled = editable, Modifier.listRow(this, spec), onToggleTimer) }
-        }
-        if (hasFeedback(message, error)) item { Feedback(message, error, Modifier.listRow(this, spec)) }
+        if (!compactFeedback && hasFeedback(message, error)) item { Feedback(message, error, Modifier.listRow(this, spec)) }
     }
 }
 
@@ -244,7 +263,7 @@ private fun RowScope.MetricTile(
                 if (onClick == null) Modifier
                 else Modifier.clickable(enabled = enabled, role = Role.Button, onClickLabel = "Adjust $name", onClick = onClick)
             )
-            .padding(horizontal = 2.dp, vertical = 2.dp)
+            .padding(horizontal = 2.dp, vertical = 1.dp)
             .semantics { contentDescription = "$name $value" },
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
@@ -255,13 +274,14 @@ private fun RowScope.MetricTile(
             value.length > 2 -> 18.sp
             else -> 20.sp
         }
+        // Line heights hug the glyphs so the tile stays one touch target tall at large text sizes.
         Text(
             value,
-            style = MaterialTheme.typography.numeralExtraSmall.copy(fontSize = tunedFontSize),
+            style = MaterialTheme.typography.numeralExtraSmall.copy(fontSize = tunedFontSize, lineHeight = tunedFontSize * 1.1f),
             color = if (enabled) valueColor else Palette.Muted,
             maxLines = 1
         )
-        Text(caption, style = MaterialTheme.typography.labelSmall, fontSize = 10.sp, color = Palette.Muted, maxLines = 1)
+        Text(caption, style = MaterialTheme.typography.labelSmall, fontSize = 10.sp, lineHeight = 12.sp, color = Palette.Muted, maxLines = 1)
     }
 }
 
@@ -270,63 +290,101 @@ data class TimerState(val running: Boolean, val hasTime: Boolean)
 
 @Composable
 private fun SetEdgeButton(action: SetAction, busy: Boolean, timer: TimerState?, onClick: () -> Unit) {
+    // At large text the small edge button holds about eight characters, so the timed labels shorten;
+    // the button still announces the full action.
+    val short = largeText()
     val label = when (action) {
         SetAction.Log -> when {
             busy -> "Saving"
-            timer?.running == true -> "Stop & log"
-            timer != null && !timer.hasTime -> "Start timer"
+            timer?.running == true -> if (short) "Log time" else "Stop & log"
+            timer != null && !timer.hasTime -> if (short) "Start" else "Start timer"
             else -> "Log set"
         }
         SetAction.Resume -> "Resume"
         SetAction.Finish -> "Finish"
         SetAction.NextExercise -> "Next"
     }
-    PrimaryEdgeButton(label, onClick, enabled = !busy)
+    val description = when {
+        busy -> label
+        action == SetAction.Log && timer?.running == true -> "Stop timer and log set"
+        action == SetAction.Log && timer != null && !timer.hasTime -> "Start timer"
+        else -> label
+    }
+    PrimaryEdgeButton(label, onClick, enabled = !busy, description = description)
+}
+
+/** Feedback squeezed into the badge row: its text, and whether it reports a failure. */
+private data class InlineFeedback(val text: String, val error: Boolean)
+
+private fun inlineFeedback(message: String?, error: String?): InlineFeedback? = when {
+    !error.isNullOrBlank() -> InlineFeedback(error, error = true)
+    !message.isNullOrBlank() -> InlineFeedback(message, error = false)
+    else -> null
 }
 
 @Composable
-private fun SetBadgeRow(model: ActiveSetModel, paused: Boolean, pausedRestSeconds: Long?, restComplete: Boolean, sync: SyncStatus) {
-    Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
+private fun SetBadgeRow(
+    model: ActiveSetModel,
+    paused: Boolean,
+    pausedRestSeconds: Long?,
+    restComplete: Boolean,
+    sync: SyncStatus,
+    feedback: InlineFeedback?
+) {
+    Row(
+        modifier = Modifier.widthIn(max = underClockMaxWidth()),
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
         when {
-            paused -> Badge(
-                pausedRestSeconds?.let { "PAUSED · REST ${formatClock(it)}" } ?: "PAUSED",
-                Palette.Amber, Palette.SurfaceRaised
-            )
-            model.set == null -> Badge("ALL ${model.setCount} DONE", Palette.Green, Palette.GreenContainer)
+            // Feedback is short-lived and takes the whole row so as much of it as possible shows.
+            feedback != null -> BadgeRowText(feedback.text, if (feedback.error) Palette.Red else Palette.Muted)
+            paused -> {
+                Badge("Paused", Palette.Amber, Palette.SurfaceRaised)
+                // The frozen rest is trailing text so a narrow row shortens it rather than the state.
+                pausedRestSeconds?.let { BadgeRowText("Rest ${formatClock(it)}", Palette.Amber, small = true) }
+            }
+            model.set == null -> Badge("All ${model.setCount} done", Palette.Teal, Palette.TealContainer)
             else -> {
-                Badge(if (model.warmup) "WARM-UP" else "SET ${model.setNumber}/${model.setCount}",
+                Badge(if (model.warmup) "Warm-up" else "Set ${model.setNumber}/${model.setCount}",
                     if (model.warmup) Palette.Blue else Palette.Muted,
                     if (model.warmup) Palette.BlueContainer else Palette.SurfaceRaised)
                 when {
                     // Sync trouble outranks the target, which the crown editors repeat anyway.
                     sync.tone != SyncTone.Synced -> SyncStatusLine(sync, Modifier.weight(1f, fill = false))
-                    restComplete -> Badge("REST DONE", Palette.Green, Palette.GreenContainer)
-                    else -> targetLine(model)?.let {
-                        Text(
-                            it,
-                            modifier = Modifier.weight(1f, fill = false),
-                            style = MaterialTheme.typography.labelSmall,
-                            color = Palette.Muted,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                    }
+                    restComplete -> Badge("Rest done", Palette.Teal, Palette.TealContainer)
+                    else -> targetLine(model)?.let { BadgeRowText(it, Palette.Muted) }
                 }
             }
         }
     }
 }
 
+// "Small" matches the pills beside it, for a short value that must not be ellipsized away.
+@Composable
+private fun RowScope.BadgeRowText(text: String, color: Color, small: Boolean = false) {
+    Text(
+        text,
+        modifier = Modifier.weight(1f, fill = false).semantics { contentDescription = text },
+        style = MaterialTheme.typography.labelSmall.let { if (small) it.copy(fontSize = 10.sp, lineHeight = 13.sp) else it },
+        color = color,
+        maxLines = 1,
+        overflow = TextOverflow.Ellipsis
+    )
+}
+
 /** Starts or stops a timed set without logging it, for a hold taken in parts or timed before logging. */
 @Composable
-private fun TimerToggle(running: Boolean, enabled: Boolean, modifier: Modifier, onClick: () -> Unit) {
-    FilledTonalButton(
+private fun TimerToggle(running: Boolean, enabled: Boolean, onClick: () -> Unit) {
+    val label = if (running) "Stop timer" else "Start timer"
+    FilledTonalIconButton(
         onClick = onClick,
         enabled = enabled,
-        modifier = modifier,
-        icon = { WearIcon(if (running) R.drawable.ic_pause else R.drawable.ic_play, null, Modifier.size(ButtonDefaults.IconSize)) },
-        label = { Text(if (running) "Stop timer" else "Start timer", maxLines = 1) }
-    )
+        modifier = Modifier.size(48.dp).semantics { contentDescription = label },
+        colors = IconButtonDefaults.filledTonalIconButtonColors(containerColor = Palette.SurfaceRaised, contentColor = Palette.Text)
+    ) {
+        WearIcon(if (running) R.drawable.ic_pause else R.drawable.ic_play, null, Modifier.size(IconButtonDefaults.SmallIconSize))
+    }
 }
 
 @Composable
@@ -336,9 +394,10 @@ fun Badge(text: String, color: Color, container: Color) {
         modifier = Modifier.clip(RoundedCornerShape(50)).background(container).padding(horizontal = 7.dp, vertical = 1.dp),
         style = MaterialTheme.typography.labelSmall,
         fontSize = 10.sp,
-        letterSpacing = 0.6.sp,
+        lineHeight = 13.sp,
         color = color,
-        maxLines = 1
+        maxLines = 1,
+        overflow = TextOverflow.Ellipsis
     )
 }
 
@@ -366,4 +425,5 @@ fun loadCaption(model: ActiveSetModel, load: Double?, unit: String): String = wh
     else -> unit
 }
 
-private const val LARGE_TEXT_SCALE = 1.1f
+// Below this height (a 180 dp square face) a feedback row would push the Log action off the first screen.
+private const val SHORT_FACE_DP = 190

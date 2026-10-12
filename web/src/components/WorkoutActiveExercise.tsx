@@ -9,7 +9,6 @@ import {
   RotateCcw,
   Timer,
   Trash2,
-  TrendingUp,
   Weight
 } from 'lucide-react';
 import type {
@@ -21,6 +20,7 @@ import type {
 } from '../types';
 import { api } from '../lib/api';
 import { restOptions, showWeight } from '../lib/training';
+import { ProgressionChangeBadge } from './ProgressionChangeBadge';
 import { withSetAdded, withSetRemoved, withSetRestored } from '../lib/workoutDraft';
 import { allowedSetTypes, withSetType } from '../lib/workoutSetTypes';
 import type { RemovedSet } from '../lib/workoutDraft';
@@ -31,8 +31,6 @@ import { MenuButton, MenuItem } from './ui/MenuButton';
 import { Select } from './ui/Select';
 import { ExerciseLibrary } from './Exercises';
 import { WorkoutSetRow } from './WorkoutSetRow';
-import { useRecentExerciseSets } from './useRecentExerciseSets';
-import { previousSetSummaries } from '../lib/previousSets';
 import { DemoLink } from './ui/DemoLink';
 import { isTimedExercise } from '../lib/setDuration';
 import { useTrackRir } from '../lib/trackRir';
@@ -154,16 +152,7 @@ export function WorkoutActiveExercise({
   const currentSetDisplay = nextUnloggedWorkingIndex >= 0
     ? `Set ${nextUnloggedWorkingIndex + 1} of ${workingSets.length || exercise.sets.length}`
     : 'All sets completed';
-  const previousSets = previousSetSummaries(useRecentExerciseSets(exercise.exerciseId), exercise, trackRir);
 
-  const progressionBadge = exercise.progression?.suggestedKg != null ? (
-    <div className="workout-progression-badge" title={exercise.progression.reason}>
-      <span className="badge-weight"><TrendingUp size={14} aria-hidden="true" />{showWeight(exercise.progression.suggestedKg, unit)}</span>
-      {exercise.progression.trendE1rmKg != null && (
-        <span className="badge-sub">e1RM {showWeight(exercise.progression.trendE1rmKg, unit)}</span>
-      )}
-    </div>
-  ) : null;
 
   // The note sits below the sets, often off screen; its pill brings it into view and focus.
   const noteField = useRef<HTMLDivElement>(null);
@@ -201,7 +190,7 @@ export function WorkoutActiveExercise({
           )}
         </div>
 
-        {progressionBadge}
+        <ProgressionChangeBadge exercise={exercise} unit={unit} />
       </div>
 
       <div ref={actionToolbar} className="workout-action-pills" role="toolbar" aria-label="Exercise actions" data-swipe-ignore="">
@@ -269,7 +258,7 @@ export function WorkoutActiveExercise({
       </div>
 
       {showTargets && (
-        <WorkoutTargetsModal exercise={exercise} unit={unit} trackRir={trackRir} previousSets={previousSets}
+        <WorkoutTargetsModal exercise={exercise} unit={unit} trackRir={trackRir}
           onClose={() => setShowTargets(false)} />
       )}
 
@@ -304,7 +293,6 @@ export function WorkoutActiveExercise({
                 exercise={exercise}
                 plan={plan}
                 current={si === nextSetIndex}
-                previous={previousSets[si]}
                 unit={unit}
                 loadStepKg={resolvedLoads?.loadStepKg}
                 availableLoadsKg={resolvedLoads?.availableLoadsKg}

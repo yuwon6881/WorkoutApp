@@ -67,6 +67,7 @@ public static class CatalogSeed
         var slugs = input.Select(r => r.Slug).ToList();
         var seeded = await db.Exercises.Where(x => slugs.Contains(x.Slug)).ToListAsync(ct);
         var ids = seeded.Select(x => x.Id).ToList();
+        ids.AddRange(CatalogSynonyms.AliasOwners(existing, input));
         db.Aliases.RemoveRange(await db.Aliases.Where(a => ids.Contains(a.ExerciseId)).ToListAsync(ct));
         await db.SaveChangesAsync(ct);
         var aliasCount = 0;

@@ -66,25 +66,27 @@ public sealed class AdaptiveProgressionTests
     }
 
     [Fact]
-    public void Neutral_effort_repeats_and_resets_a_qualified_streak()
+    public void Slightly_too_hard_effort_trims_a_rep_and_resets_a_qualified_streak()
     {
         var result = Progression.SuggestSet(8, 12, 8,
             [Exposure(40, 12, 8.5), Exposure(40, 12, 8)], ProgressionModes.Normal, 2.5);
 
         Assert.Equal(40, result.SuggestedLoadKg);
-        Assert.Equal(12, result.SuggestedReps);
-        Assert.Contains("not within", result.Reason);
+        Assert.Equal(11, result.SuggestedReps);
+        Assert.Contains("harder than the target", result.Reason);
     }
 
     [Fact]
-    public void Hard_exposures_repeat_then_reduce_then_deload()
+    public void Hard_exposures_retarget_then_reduce_then_deload()
     {
+        // 7 reps at 1 RIR cannot reach 8 at 2 RIR on 40 kg: 40 × 38 / 40 = 38 → 37.5 kg first.
         var first = Progression.SuggestSet(8, 12, 8, [Exposure(40, 7, 9)], ProgressionModes.Normal, 2.5);
         var second = Progression.SuggestSet(8, 12, 8, [Exposure(40, 7, 9), Exposure(40, 7, 9, 7)], ProgressionModes.Normal, 2.5);
         var third = Progression.SuggestSet(8, 12, 8,
             [Exposure(40, 7, 9), Exposure(40, 7, 9, 7), Exposure(40, 7, 9, 14), Exposure(40, 12, 8, 21)], ProgressionModes.Normal, 2.5);
 
-        Assert.Equal(40, first.SuggestedLoadKg);
+        Assert.Equal(37.5, first.SuggestedLoadKg);
+        Assert.Equal(8, first.SuggestedReps);
         Assert.Equal(37.5, second.SuggestedLoadKg);
         Assert.Equal(35, third.SuggestedLoadKg);
         Assert.True(third.Reason.Contains("Deload", StringComparison.Ordinal));
@@ -163,12 +165,13 @@ public sealed class AdaptiveProgressionTests
     }
 
     [Fact]
-    public void One_hard_exposure_retains_achieved_reps_clamped_to_range()
+    public void One_hard_exposure_aims_for_the_reps_its_effort_allows()
     {
+        // 11 reps at 1 RIR is 12 to failure; at the 2 RIR target that is 10.
         var result = Progression.SuggestSet(8, 12, 8, [Exposure(50, 11, 9)], ProgressionModes.Normal, 2.5);
         Assert.Equal(50, result.SuggestedLoadKg);
-        Assert.Equal(11, result.SuggestedReps);
-        Assert.Contains("intended effort", result.Reason);
+        Assert.Equal(10, result.SuggestedReps);
+        Assert.Contains("harder than the target", result.Reason);
     }
 
     [Fact]

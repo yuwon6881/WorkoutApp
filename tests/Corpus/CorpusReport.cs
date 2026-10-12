@@ -22,7 +22,7 @@ namespace Workout.Tests.Corpus;
 ///
 /// Every fixture is run with both a faithful and a deliberately drifting reader. The complete
 /// semantic drafts must match after source reconciliation; IDs and provider telemetry are ignored.
-public sealed class CorpusReport
+public sealed partial class CorpusReport
 {
     /// Slots a program leaves for the lifter to choose are mapped in review, not seeded.
     private static readonly Regex Placeholder = new(@"weak point|your choice|pick one|choose one", RegexOptions.IgnoreCase);
@@ -135,7 +135,8 @@ public sealed class CorpusReport
         Dictionary<Guid, string> CanonicalNames, List<ImportAlternative> WeekChoices);
 
     private static async Task<ReplayResult> Replay(string file, List<SeedExercise> catalog, bool drifting,
-        string? selectedAlternativeId, bool stopAtChoice = false, string? weekChoiceId = null)
+        string? selectedAlternativeId, bool stopAtChoice = false, string? weekChoiceId = null,
+        AiOutline? outlineOverride = null, Func<string, string, string>? transformAnswer = null)
     {
         var extracted = JsonDocument.Parse(File.ReadAllText(file)).RootElement;
         var pages = extracted.GetProperty("pages").EnumerateArray()
@@ -148,7 +149,13 @@ public sealed class CorpusReport
         await harness.SignIn();
         await harness.Seed([.. catalog]);
         var model = new TableTranscriber.Model(pages, drifting);
-        var imports = harness.Imports(new StubHandler(request => Respond(model.Answer(request.Content!.ReadAsStringAsync().Result))));
+        var imports = harness.Imports(new StubHandler(request =>
+        {
+            var body = request.Content!.ReadAsStringAsync().Result;
+            var answer = outlineOverride is not null && body.Contains("training_program_outline")
+                ? JsonSerializer.Serialize(outlineOverride) : model.Answer(body);
+            return Respond(transformAnswer?.Invoke(body, answer) ?? answer);
+        }));
         var created = await imports.Create(new ImportSourceInput(Path.ChangeExtension(Path.GetFileName(file), ".pdf"), extracted.GetProperty("pageCount").GetInt32(), pages, links), default);
         var ready = created;
         if (ready.Status == "pending" && ready.Stage == "outline") ready = await imports.Extract(created.Id, default);

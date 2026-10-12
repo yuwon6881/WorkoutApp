@@ -26,6 +26,7 @@
   min-height: 44px;
   letter-spacing: 0.12em;
   text-transform: uppercase;
+  font-weight: 700;
 }
 
 .watch-pairing-inputs > .button {
@@ -49,9 +50,9 @@
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
-  gap: 12px;
-  padding: 12px 14px;
-  border-radius: 12px;
+  gap: 14px;
+  padding: 14px 16px;
+  border-radius: 16px;
   background: var(--surface-raised);
   border: 1px solid var(--border);
 }
@@ -59,10 +60,11 @@
 .watch-device-icon {
   display: grid;
   place-items: center;
-  width: 36px;
-  height: 36px;
-  border-radius: 10px;
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
   background: var(--accent-soft);
+  border: 1px solid var(--accent-border);
   color: var(--accent);
 }
 
@@ -70,6 +72,12 @@
   display: grid;
   gap: 3px;
   min-width: 0;
+}
+
+.watch-device-row strong {
+  font-size: 14px;
+  font-weight: 650;
+  color: var(--text);
 }
 
 .watch-device-row span {
@@ -82,8 +90,8 @@
   align-items: center;
   gap: 8px;
   margin: 16px 0 0;
-  padding: 12px 14px;
-  border-radius: 12px;
+  padding: 14px 16px;
+  border-radius: 14px;
   border: 1px dashed var(--border-hover);
   color: var(--muted);
   font-size: var(--font-secondary);

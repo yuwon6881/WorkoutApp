@@ -39,7 +39,7 @@ fun syncStatus(queuedCount: Int, pairingRequired: Boolean, syncing: Boolean): Sy
 }
 
 fun SyncTone.color(): Color = when (this) {
-    SyncTone.Synced -> Palette.Green
+    SyncTone.Synced -> Palette.Teal
     SyncTone.Pending -> Palette.Amber
     SyncTone.Syncing -> Palette.Blue
     SyncTone.Attention -> Palette.Red

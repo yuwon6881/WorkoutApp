@@ -18,7 +18,7 @@ export function Auth() {
 
   return (
     <StartupScreen className="startup-login">
-      <p className="eyebrow">YOUR TRAINING SPACE</p>
+      <p className="eyebrow">Your training space</p>
       <h1 id="startup-heading">Sign in to Workout</h1>
       <p className="startup-description">Use your Fitness Account to access your programs, record your workouts, and follow your progress across devices.</p>
       <ul className="startup-features" aria-label="Workout features">

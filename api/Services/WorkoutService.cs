@@ -170,6 +170,7 @@ public sealed partial class WorkoutService(
 
                 var historyKey = (plan.ExerciseId, plan.ExerciseId is null ? CatalogService.Normalize(plan.SourceName) : "");
                 var previous = histories.GetValueOrDefault(historyKey) ?? [];
+                var lastTrained = ProgressionLayoff.Newest(previous.Values.SelectMany(exposures => exposures));
                 var step = plan.ExerciseId is { } id2 && info.TryGetValue(id2, out var found) ? found.StepKg : Progression.DefaultStep(userUnit);
                 var workingOrdinal = 0;
                 // Timed holds are measured in seconds; the rep-based progression has nothing honest to suggest.
@@ -205,7 +206,7 @@ public sealed partial class WorkoutService(
                     var exposures = previous.GetValueOrDefault(workingOrdinal) ?? [];
                     var suggestion = Progression.ForPrescription(planSet, FollowStraightSets(planSet, straightSuggestion,
                         MakeSuggestion(planSet, exposures, contextResult.Mode, step, contextResult, resistanceMode, loadModel, bodyWeight,
-                            plan.ExerciseId is { } loadId ? info.GetValueOrDefault(loadId)?.AvailableLoadsKg : null)));
+                            plan.ExerciseId is { } loadId ? info.GetValueOrDefault(loadId)?.AvailableLoadsKg : null, lastTrained)));
                     if (SetTechniques.Of(planSet) is null) straightSuggestion = suggestion;
                     firstSuggestion ??= suggestion;
                     db.Sets.Add(new CompletedSet
@@ -476,6 +477,7 @@ public sealed partial class WorkoutService(
         var info = await progression.LoadInfo([exercise.ExerciseId], ct);
         var step = exercise.ExerciseId is { } id && info.TryGetValue(id, out var found) ? found.StepKg : Progression.DefaultStep(userUnit);
         var histories = await PreviousExposures(exercise.ExerciseId, exercise.NameSnapshot, ct);
+        var lastTrained = ProgressionLayoff.Newest(histories.Values.SelectMany(exposures => exposures));
         var workingOrdinal = 0; SetProgressionSuggestion? first = null; SetProgressionSuggestion? straight = null;
         foreach (var set in sets.OrderBy(s => s.Position))
         {
@@ -489,7 +491,7 @@ public sealed partial class WorkoutService(
             var mode = ResolveResistanceMode(loadModel, exercise.NameSnapshot);
             var suggestion = Progression.ForPrescription(prescription, FollowStraightSets(prescription, straight,
                 MakeSuggestion(prescription, histories.GetValueOrDefault(workingOrdinal) ?? [], result.Mode, step, result, mode, loadModel, bodyWeight,
-                    exercise.ExerciseId is { } loadId ? info.GetValueOrDefault(loadId)?.AvailableLoadsKg : null)));
+                    exercise.ExerciseId is { } loadId ? info.GetValueOrDefault(loadId)?.AvailableLoadsKg : null, lastTrained)));
             if (SetTechniques.Of(prescription) is null) straight = suggestion;
             set.WeightKg = suggestion.SuggestedLoadKg; set.SystemLoadKg = suggestion.SuggestedSystemLoadKg;
             set.ResistanceMode = mode; set.SuggestionJson = Json.Write(suggestion); set.Reps = enteredReps; set.Rpe = enteredRpe; first ??= suggestion;

@@ -19,7 +19,7 @@
 .timer-modal-clock.editable:hover { border-color: var(--border-hover); }
 .timer-modal-clock.editable:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft-glow); }
 .timer-modal-clock-input { width: 100%; max-width: 240px; background: transparent !important; border: 0 !important; box-shadow: none !important; outline: none !important; text-align: center; padding: 0 !important; min-height: unset !important; height: auto !important; caret-color: var(--accent); }
-.timer-modal-toggle-btn { min-height: 48px; font-size: 15px; font-weight: 650; }
+.timer-modal-toggle-btn { min-height: 48px; font-size: 15px; font-weight: 680; border-radius: var(--radius-pill); }
 
 /* Workout builder modal */
 .workout-builder-body { display: flex; flex-direction: column; gap: 16px; }
@@ -180,18 +180,18 @@
 }
 
 .workout-plan-detail-card { display: flex; flex-direction: column; gap: 14px; }
-.plan-detail-banner { display: flex; align-items: flex-start; gap: 12px; padding: 14px 16px; border-radius: 12px; border: 1px solid var(--accent-border); background: var(--accent-soft); }
+.plan-detail-banner { display: flex; align-items: flex-start; gap: 12px; padding: 14px 16px; border-radius: var(--radius-control); border: 1px solid var(--accent-border); background: var(--accent-soft); }
 .plan-banner-icon { color: var(--accent); margin-top: 2px; flex-shrink: 0; }
 .plan-banner-text { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
 .plan-banner-title { font-size: 14px; font-weight: 650; color: var(--accent); }
 .plan-banner-text p { margin: 0; font-size: 14px; color: var(--text); line-height: 1.5; }
 .plan-detail-list { display: flex; flex-direction: column; gap: 10px; list-style: none; padding: 0; margin: 0; }
-.plan-detail-list li { display: flex; flex-direction: column; gap: 8px; padding: 14px 16px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface-raised); transition: border-color 0.15s ease, background 0.15s ease; }
+.plan-detail-list li { display: flex; flex-direction: column; gap: 8px; padding: 14px 16px; border: 1px solid var(--border); border-radius: var(--radius-control); background: var(--surface-raised); transition: border-color 0.15s ease, background 0.15s ease; }
 .plan-detail-list li:hover { border-color: var(--border-hover); background: var(--surface-hover); }
 .plan-set-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
-.plan-set-badge { display: inline-flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 700; color: var(--text); padding: 4px 10px; border-radius: 8px; background: var(--surface); border: 1px solid var(--border); font-variant-numeric: tabular-nums; }
+.plan-set-badge { display: inline-flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 700; color: var(--text); padding: 4px 10px; border-radius: var(--radius-pill); background: var(--surface); border: 1px solid var(--border); font-variant-numeric: tabular-nums; }
 .plan-set-badges { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
-.plan-pill { display: inline-flex; align-items: center; gap: 5px; padding: 4px 10px; border-radius: 8px; font-size: 14px; font-weight: 600; border: 1px solid var(--border); background: var(--surface); color: var(--text); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.plan-pill { display: inline-flex; align-items: center; gap: 5px; padding: 4px 10px; border-radius: var(--radius-pill); font-size: 14px; font-weight: 600; border: 1px solid var(--border); background: var(--surface); color: var(--text); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .plan-pill svg { flex-shrink: 0; }
 .plan-reps-pill { border-color: var(--accent-border); background: var(--accent-soft); color: var(--accent); }
 .plan-rir-pill.rir-tier-0 { border-color: color-mix(in srgb, var(--effort-max) 40%, transparent); background: color-mix(in srgb, var(--effort-max) 12%, var(--surface)); color: var(--effort-max); }

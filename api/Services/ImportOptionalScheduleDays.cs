@@ -15,18 +15,22 @@ internal static class ImportOptionalScheduleDays
 
     public sealed record Result(List<DraftWorkout> Workouts, List<ImportReviewIssue> Notices);
 
+    internal static List<int> ScheduledWeeks(string text)
+    {
+        var schedules = WeekSchedule.Matches(Regex.Replace(text, @"\s+", " "));
+        return schedules.Count == 1
+            ? WeekNumber.Matches(schedules[0].Groups["weeks"].Value)
+                .Select(match => int.Parse(match.Groups["week"].Value)).Distinct().ToList()
+            : [];
+    }
+
     public static Result Reconcile(IReadOnlyList<DraftWorkout> workouts, IReadOnlyList<ImportPageText> pages)
     {
         var result = workouts.ToList();
         var notices = new List<ImportReviewIssue>();
         foreach (var page in pages.OrderBy(page => page.Page))
         {
-            var schedules = WeekSchedule.Matches(page.Text ?? "");
-            if (schedules.Count != 1) continue;
-
-            var weeks = WeekNumber.Matches(schedules[0].Groups["weeks"].Value)
-                .Select(match => int.Parse(match.Groups["week"].Value))
-                .Distinct().ToList();
+            var weeks = ScheduledWeeks(page.Text ?? "");
             var labels = ImportDayLabels.Read([page]).GetValueOrDefault(page.Page) ?? [];
             if (weeks.Count == 0 || weeks.Any(week => week is < 1 or > 104) || labels.Count != 1) continue;
 

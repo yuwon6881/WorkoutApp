@@ -6,12 +6,12 @@ public static class BodyweightProgression
 {
     public static SetProgressionSuggestion Suggest(SetPrescription prescription, IReadOnlyList<SetExposure> history,
         string mode, double step, long? revision, string resistanceMode, double? reference,
-        IReadOnlyList<double>? availableLoads = null, DateTime? now = null)
+        IReadOnlyList<double>? availableLoads = null, DateTime? now = null, DateTime? lastTrained = null)
     {
         history = history.Where(exposure => exposure.ResistanceMode is
             ResistanceModes.Bodyweight or ResistanceModes.Added or ResistanceModes.Assistance).ToList();
         // Measured before the technique filter: partials or myo-reps in the slot are not time away.
-        var lastTrained = ProgressionLayoff.Newest(history);
+        lastTrained ??= ProgressionLayoff.Newest(history);
         var goal = ProgressionEvidence.Reserve(prescription.Rir, prescription.TargetRpe);
         var open = Progression.HasOpenReps(prescription.RepsText) || prescription.RepMin is null;
         var min = open ? null : prescription.RepMin;
@@ -45,9 +45,9 @@ public static class BodyweightProgression
         var input = resistanceMode switch
         {
             ResistanceModes.Added when suggestion.SuggestedLoadKg is { } total =>
-                Progression.RoundToStep(Math.Max(0, total - weight), availableLoads is null ? step : 0),
+                PhysicalInput(Math.Max(0, total - weight), step, availableLoads, assistance: false),
             ResistanceModes.Assistance when suggestion.SuggestedLoadKg is { } total =>
-                Progression.RoundToStep(Math.Max(0, weight - total), availableLoads is null ? step : 0),
+                PhysicalInput(Math.Max(0, weight - total), step, availableLoads, assistance: true),
             _ => (double?)null
         };
         var system = resistanceMode switch
@@ -81,10 +81,29 @@ public static class BodyweightProgression
             _ => null
         };
         var adjusted = input is not null && previousReference is { } oldReference && !ProgressionEvidence.SameLoad(weight, oldReference);
+        var equipmentAdjustment = input is not null && system is { } physical && suggestion.SuggestedLoadKg is { } target &&
+            !ProgressionEvidence.SameLoad(physical, target);
+        var reason = adjusted
+            ? "Bodyweight adjustment: the entered load accounts for your current Nutrition bodyweight. " + suggestion.Reason
+            : source is null && resistanceMode == ResistanceModes.Bodyweight
+                ? "First time through at your Nutrition bodyweight. Log actual reps and effort." : suggestion.Reason;
         return suggestion with { SuggestedLoadKg = input, SuggestedSystemLoadKg = system,
             IsBodyweightAdjustment = adjusted,
-            Reason = adjusted ? "Bodyweight adjustment: the entered load accounts for your current Nutrition bodyweight. " + suggestion.Reason
-                : source is null && resistanceMode == ResistanceModes.Bodyweight
-                    ? "First time through at your Nutrition bodyweight. Log actual reps and effort." : suggestion.Reason };
+            Reason = reason + (equipmentAdjustment
+                ? " Adjusted to an available equipment weight; total resistance differs from the estimate. Log actual effort." : "") };
+    }
+
+    /// A changed weigh-in can put a held total between equipment steps. Choose the easier
+    /// physical input where possible: less added load, or more assistance. Keep the actual
+    /// assistance entry even when it exceeds bodyweight and total resistance bottoms out at zero.
+    private static double PhysicalInput(double target, double step, IReadOnlyList<double>? available, bool assistance)
+    {
+        if (available is { Count: > 0 })
+            return assistance
+                ? available.Where(load => load >= target - 1e-9).DefaultIfEmpty(available.Max()).Min()
+                : available.Where(load => load <= target + 1e-9).DefaultIfEmpty(available.Min()).Max();
+        if (step <= 0) return Math.Min(1000, target);
+        var result = (assistance ? Math.Ceiling((target - 1e-9) / step) : Math.Floor((target + 1e-9) / step)) * step;
+        return Math.Max(0, Math.Min(result, Progression.RoundDownToStep(1000, step)));
     }
 }

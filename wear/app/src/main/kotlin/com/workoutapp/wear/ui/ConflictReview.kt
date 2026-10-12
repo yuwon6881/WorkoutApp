@@ -9,7 +9,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.wear.compose.foundation.lazy.TransformingLazyColumnItemScope
 import androidx.wear.compose.material3.Button
 import androidx.wear.compose.material3.ButtonDefaults
@@ -47,7 +46,7 @@ fun ConflictReview(
     val timed = operation?.setId?.let { id -> snapshot.session.exercises.firstOrNull { row -> row.sets.any { it.id == id } }?.trackingMode == "duration" } == true
 
     WearListScreen { spec ->
-        item { ScreenTitle("Review changes", Modifier.listRow(this, spec).padding(horizontal = topRowInset())) }
+        item { ScreenTitle("Review changes", Modifier.fillMaxWidth().padding(start = topRowInset(), end = topRowInset(), top = timeTextAllowance())) }
         item {
             BodyText(
                 when {
@@ -60,12 +59,12 @@ fun ConflictReview(
             )
         }
         if (localSet != null || remoteSet != null) {
-            item { ComparisonCard("IN WORKOUTAPP", formatConflictSet(remoteSet, unit, snapshot.trackRir, timed), exerciseName, highlighted = false, spec = spec, scope = this) }
-            item { ComparisonCard("ON THIS WATCH", formatConflictSet(localSet, unit, snapshot.trackRir, timed), exerciseName, highlighted = true, spec = spec, scope = this) }
+            item { ComparisonCard("In WorkoutApp", formatConflictSet(remoteSet, unit, snapshot.trackRir, timed), exerciseName, highlighted = false, spec = spec, scope = this) }
+            item { ComparisonCard("On this watch", formatConflictSet(localSet, unit, snapshot.trackRir, timed), exerciseName, highlighted = true, spec = spec, scope = this) }
         } else if (remote != null) {
             item {
                 ComparisonCard(
-                    "IN WORKOUTAPP",
+                    "In WorkoutApp",
                     if (remote.active) "Workout is active" else "Workout is finished",
                     "Revision ${remote.revision}",
                     highlighted = false, spec = spec, scope = this
@@ -73,7 +72,7 @@ fun ConflictReview(
             }
             item {
                 ComparisonCard(
-                    "ON THIS WATCH",
+                    "On this watch",
                     if (snapshot.pendingFinish) "Finished here" else "Timing changed here",
                     "Revision ${snapshot.session.revision}",
                     highlighted = true, spec = spec, scope = this
@@ -99,6 +98,7 @@ fun ConflictReview(
                 enabled = !busy,
                 modifier = Modifier.fillMaxWidth().listRow(this, spec),
                 transformation = SurfaceTransformation(spec),
+                colors = secondaryButtonColors(),
                 icon = { WearIcon(R.drawable.ic_sync, null, Modifier.size(ButtonDefaults.SmallIconSize)) },
                 label = { Text("Use WorkoutApp") }
             )
@@ -122,7 +122,7 @@ private fun ComparisonCard(
         colors = CardDefaults.cardColors(containerColor = if (highlighted) Palette.AccentContainer else Palette.SurfaceRaised),
         transformation = with(scope) { SurfaceTransformation(spec) }
     ) {
-        Text(source, style = MaterialTheme.typography.labelSmall, color = if (highlighted) Palette.Accent else Palette.Muted, letterSpacing = 1.sp)
+        Text(source, style = MaterialTheme.typography.labelSmall, color = if (highlighted) Palette.Accent else Palette.Muted)
         Text(value, style = MaterialTheme.typography.bodyMedium, color = Palette.Text)
         if (detail != null) Text(detail, style = MaterialTheme.typography.labelSmall, color = Palette.Muted, maxLines = 2, overflow = TextOverflow.Ellipsis)
     }

@@ -216,11 +216,15 @@ public sealed partial class ImportService
                 analysis.WeekVersions.ToDictionary(item => item.Key, item => item.Value));
             return;
         }
+        var reconciled = ImportAlternativeReconciliation.Reconcile(result.Outline!, pages, analysis);
+        if (reconciled.Notices.Count > 0)
+            import.NoticesJson = Json.Write(ImportReviewNotices.Merge(ReadNotices(import.NoticesJson), reconciled.Notices));
         // A complete printed schedule is its own page map: when the outline leaves out pages it prints,
         // its weeks are read section by section instead of the shorter program the outline describes.
         // A schedule printed entirely as clean tables is divided the same way, so every section is
         // read from its tables and none waits on a model read.
-        if (result.Outline?.Alternatives is not { Count: > 1 }
+        if ((result.Outline?.Alternatives is not { Count: > 1 }
+            || reconciled.Notices.Any(notice => notice.Code == ImportAlternativeWeekScope.NoticeCode))
             && analysis.Schedule is { } printed && (!printed.CoveredBy(OutlinedChunks(result.Outline!))
             || ImportTableEvidence.ReadPrintedSection(printed.Days, analysis.Tables,
                 printed.Days[0].Page, printed.Days[^1].Page) is not null))
@@ -238,9 +242,6 @@ public sealed partial class ImportService
         // Exercise matching is local and happens after each chunk is parsed. The catalog is
         // deliberately absent from outline/extraction requests so a long library cannot consume
         // context tokens or bias the transcription toward a near match.
-        var reconciled = ImportAlternativeReconciliation.Reconcile(result.Outline!, pages);
-        if (reconciled.Notices.Count > 0)
-            import.NoticesJson = Json.Write(ImportReviewNotices.Merge(ReadNotices(import.NoticesJson), reconciled.Notices));
         var alternatives = reconciled.Alternatives;
         if (alternatives.Count > 1)
         {

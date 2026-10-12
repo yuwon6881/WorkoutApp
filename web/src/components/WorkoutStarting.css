@@ -10,27 +10,27 @@
   font-weight: 600;
 }
 
-.workout-starting-icon { width: 44px; height: 44px; border-radius: 12px; }
+.workout-starting-icon { width: 44px; height: 44px; border-radius: var(--radius-pill); }
 .workout-starting-part .workout-exercise-strip { gap: 4px; padding-bottom: 8px; overflow: hidden; }
 /* Placeholders shrink to share a narrow phone rather than run past its edge. */
-.workout-starting-strip { flex: 0 1 172px; min-width: 0; height: 46px; border-radius: 12px; }
+.workout-starting-strip { flex: 0 1 172px; min-width: 0; height: 44px; border-radius: var(--radius-pill); }
 
 .workout-starting-body {
   display: grid;
   align-content: start;
   gap: 10px;
 }
-.workout-starting-heading { width: 62%; height: 28px; border-radius: 8px; }
+.workout-starting-heading { width: 62%; height: 30px; border-radius: 8px; }
 .workout-starting-subtitle { width: 28%; height: 16px; border-radius: 6px; }
 .workout-starting-pills { display: flex; gap: 8px; margin: 6px 0 8px; }
 .workout-starting-pill { width: 104px; height: 40px; border-radius: var(--radius-pill); }
-.workout-starting-row { height: 48px; border-radius: 12px; }
+.workout-starting-row { height: 56px; border-radius: var(--radius-control); }
 
 @media (max-width: 639px) {
-  .workout-starting-strip { flex-basis: 150px; height: 42px; }
+  .workout-starting-strip { flex-basis: 150px; height: 44px; }
 }
 @media (min-width: 1024px) {
-  .workout-starting-icon { width: 40px; height: 40px; border-radius: 10px; }
+  .workout-starting-icon { width: 40px; height: 40px; border-radius: var(--radius-pill); }
 }
 
 /* When the real workout replaces the stand-in inside the open sheet, its strip, page and actions

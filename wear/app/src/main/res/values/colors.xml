@@ -1,3 +1,5 @@
 <resources>
     <color name="brand_background">#FF000000</color>
+    <!-- Midnight Lime accent, shared with the phone and web app; tints the ongoing workout notification. -->
+    <color name="brand_accent">#FFB5F04A</color>
 </resources>

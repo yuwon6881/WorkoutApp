@@ -242,6 +242,42 @@ public sealed class ImportNormalizationTests
         Assert.Equal("2 hours", set.RestText);
     }
 
+    [Theory]
+    [InlineData("AS MANY REPS AS POSSIBLE. ALWAYS USE A SPOTTER AND GOOD FORM. AIM TO 3+ REPS", false)]
+    [InlineData("as many reps as possible.  always use a spotter and good form. aim to 3+ reps", false)]
+    [InlineData("Use a controlled descent", true)]
+    public async Task Duplicate_note_fields_are_joined_once_and_distinct_guidance_is_kept(string coaching, bool distinct)
+    {
+        const string note = "AS MANY REPS AS POSSIBLE. ALWAYS USE A SPOTTER AND GOOD FORM. AIM TO 3+ REPS";
+        await using var h = await Harness.Create(Configured());
+        await h.SignIn();
+        var exercise = $"""
+            "sourceName":"Barbell bench press","notes":"{note}","coachingNotes":"{coaching}","sourcePage":1
+            """;
+        var imports = h.Imports(Reading(Outline, Day(exercise, Set("\"tempo\":null"))));
+        var pending = await imports.Create(Source(), default);
+        var ready = await imports.Extract(pending.Id, default);
+        Assert.Equal(distinct ? $"{note} — {coaching}" : note, ready.Draft!.Workouts.Single().Exercises.Single().Notes);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task A_source_footer_extension_keeps_the_complete_note_once(bool completeFirst)
+    {
+        const string note = "Use underhand grip and externally rotate throughout ROM";
+        const string complete = note + " TAKE THE FINAL SET OF EACH EXERCISE TO FAILURE";
+        await using var h = await Harness.Create(Configured());
+        await h.SignIn();
+        var exercise = $"""
+            "sourceName":"Barbell bench press","notes":"{(completeFirst ? complete : note)}","coachingNotes":"{(completeFirst ? note : complete)}","sourcePage":1
+            """;
+        var imports = h.Imports(Reading(Outline, Day(exercise, Set("\"tempo\":null"))));
+        var pending = await imports.Create(Source(), default);
+        var ready = await imports.Extract(pending.Id, default);
+        Assert.Equal(complete, ready.Draft!.Workouts.Single().Exercises.Single().Notes);
+    }
+
     [Fact]
     public async Task A_coaching_note_longer_than_its_column_is_trimmed_rather_than_rejected()
     {

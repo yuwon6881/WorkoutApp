@@ -37,14 +37,16 @@ internal static partial class ImportTableEvidence
         bool NotPerformed = false, string? WarmupText = null, string? CoachingNote = null, string? DayLabel = null,
         bool FullHeader = false, string? SequenceGroup = null, List<string>? Substitutions = null, bool Prose = false,
         int Table = 0, string? Technique = null, string? Tempo = null, bool RepsStatedAbsent = false,
-        string? WorkingSetPrescriptionText = null, bool WorkingSetsStatedAbsent = false);
+        string? WorkingSetPrescriptionText = null, bool WorkingSetsStatedAbsent = false,
+        string? TechniqueCoachingNote = null);
     internal sealed record RirEvidence(string? Text, double? Value);
     internal sealed record EvidencePage(int? Week, string? Block, string? Phase, string? DayName, bool HasRestDayFooter,
         List<EvidenceRow> Rows, bool RestBandFollowsTable = false, string Body = "");
     internal sealed record SourceRead(Dictionary<int, EvidencePage> Pages);
     private sealed record Columns(int? Name, int? Sets, int? Reps, int? Load, int? Rir, int?[] RirBySet,
         int? Rpe, int? EarlyRpe, int? LastRpe, int? Rest, string? RestUnit, bool LoadIsPercent1Rm,
-        bool HasWarmup = false, int? Warmup = null, int? Notes = null, int[]? Substitutions = null, int? Technique = null, int? Tempo = null);
+        bool HasWarmup = false, int? Warmup = null, int? Notes = null, int[]? Substitutions = null, int? Technique = null,
+        int? Tempo = null, int? Hold = null, int? LastSetFailure = null);
 
     public static AiProgram Enrich(AiProgram program, string sourceText)
     {
@@ -303,10 +305,13 @@ internal static partial class ImportTableEvidence
         var technique = evidence.Technique;
         var applies = HasText(technique) && TechniqueApplies(technique!, index, count, defaultAll: false);
 
-        var partialFromNotes = PrescribedPartialTechnique(evidence.CoachingNote);
+        // Expanded effort-column instructions must not narrow a movement's ROM technique
+        // to the last set merely because the effort instruction names that set.
+        var techniqueNote = evidence.TechniqueCoachingNote ?? evidence.CoachingNote;
+        var partialFromNotes = PrescribedPartialTechnique(techniqueNote);
         if (partialFromNotes is not null
             && !string.Equals(PartialTechnique(technique), partialFromNotes, StringComparison.OrdinalIgnoreCase)
-            && TechniqueApplies(evidence.CoachingNote!, index, count, defaultAll: true))
+            && TechniqueApplies(techniqueNote!, index, count, defaultAll: true))
         {
             if (applies) return MergeTechnique(existing, technique!, partialFromNotes);
             return MergeTechnique(existing, partialFromNotes);

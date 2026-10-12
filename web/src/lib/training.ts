@@ -98,16 +98,18 @@ export const plannedSets = (session: Session): number => session.exercises.reduc
 
 export const normalizeExerciseName = (value: string): string => value.trim().toLowerCase().replace(/[^a-z0-9]/g, ' ').split(/\s+/).filter(Boolean).join(' ');
 
+/// The effort the program asks of a set, or null when it states none.
+export const targetRirLabel = (set: SetPrescription): string | null =>
+  set.rir && Number.isFinite(Number(set.rir)) ? `${Math.round(Number(set.rir))} RIR`
+    : set.targetRpe !== null ? `${Math.round(10 - set.targetRpe)} RIR`
+      : null;
+
 export const showTarget = (set: SetPrescription, trackRir = true): string => {
   const parts = [showReps(set)];
   if (!trackRir) return parts[0];
-  if (set.rir && Number.isFinite(Number(set.rir))) {
-    parts.push(`${Math.round(Number(set.rir))} RIR`);
-  } else if (set.targetRpe !== null) {
-    parts.push(`${Math.round(10 - set.targetRpe)} RIR`);
-  } else if (!set.warmup) {
-    parts.push('app default 2 RIR');
-  }
+  const effort = targetRirLabel(set);
+  if (effort) parts.push(effort);
+  else if (!set.warmup) parts.push('app default 2 RIR');
   return parts.join(' · ');
 };
 

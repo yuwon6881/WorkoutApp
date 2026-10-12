@@ -30,9 +30,13 @@
   width: 20px;
   height: 20px;
   border-radius: 50%;
-  background: var(--muted);
+  background: var(--surface);
   box-shadow: 0 1px 3px var(--overlay);
-  transition: transform var(--motion-control) var(--motion-ease), background var(--motion-control) ease;
+  transition: transform var(--motion-control) var(--motion-ease), background-color var(--motion-control) ease;
+}
+
+:root:not([data-theme=light]) .switch-thumb {
+  background: var(--text);
 }
 
 .switch[aria-checked='true'] .switch-track {
@@ -46,7 +50,11 @@
 }
 
 .switch:hover:not(:disabled) .switch-track {
-  border-color: var(--accent-border-strong);
+  border-color: var(--border-hover);
+}
+
+.switch:hover:not(:disabled)[aria-checked='true'] .switch-track {
+  filter: brightness(1.05);
 }
 
 .switch:focus-visible {

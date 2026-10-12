@@ -117,11 +117,11 @@ public sealed class CatalogCoverageTests
         // Shoulder Hypertrophy: distinct printed movements are seeded; faithful equipment and
         // handle spellings resolve to the existing movement.
         { "Cable External Rotation", "Cable External Rotation" },
-        { "Standing Overhead Barbell Press", "Barbell Overhead Press" },
-        { "Standing Overhead Barbell Press (Warm Up)", "Barbell Overhead Press" },
+        { "Standing Overhead Barbell Press", "Overhead Press" },
+        { "Standing Overhead Barbell Press (Warm Up)", "Overhead Press" },
         { "Incline Dumbbell Lateral Hold", "Incline Dumbbell Lateral Hold" },
         { "Banded Lateral Raise", "Banded Lateral Raise" },
-        { "Bent Over Dumbbell Reverse Flye", "Bent Over Dumbbell Reverse Flye" },
+        { "Bent Over Dumbbell Reverse Flye", "Bent-Over Reverse DB Flye" },
         { "Standing Dumbbell Press", "Standing Dumbbell Press" },
         { "Banded Front Y Raise", "Banded Front Y Raise" },
         { "Rope Facepull", "Rope Face Pull" },
@@ -196,6 +196,24 @@ public sealed class CatalogCoverageTests
 
     private static SeedExercise[] SeedRows()
         => [.. Json.Read<List<SeedExercise>>(File.ReadAllText(CatalogPath()))];
+
+    [Theory]
+    [InlineData("heavy-barbell-hold")]
+    [InlineData("plate-pinch")]
+    [InlineData("farmer-s-walk")]
+    public async Task Grip_holds_and_carries_use_duration_tracking_when_existing_catalog_rows_are_reseeded(string slug)
+    {
+        var shipped = Assert.Single(SeedRows(), row => row.Slug == slug);
+        Assert.Equal(TrackingModes.Duration, shipped.TrackingMode);
+        await using var harness = await Harness.Create();
+        await harness.SignIn();
+        await harness.Seed(shipped with { TrackingMode = null });
+        var original = await harness.ExerciseId(slug);
+        await harness.Seed(shipped);
+        Assert.Equal(original, await harness.ExerciseId(slug));
+        var exercise = Assert.Single(await harness.Catalog.All(default), row => row.Id == original);
+        Assert.Equal(TrackingModes.Duration, exercise.TrackingMode);
+    }
 
     [Theory]
     [InlineData("plank", LoadModels.RepsOnly)]

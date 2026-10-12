@@ -15,6 +15,6 @@
   if (!metas[0] || !saved) return;
 
   metas[0].removeAttribute('media');
-  metas[0].setAttribute('content', theme === 'light' ? '#f5f6f1' : '#101412');
+  metas[0].setAttribute('content', theme === 'light' ? '#F4F2FA' : '#08080A');
   metas.slice(1).forEach(meta => meta.remove());
 })();

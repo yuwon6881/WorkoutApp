@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { AlertTriangle, ArrowLeftRight, Dumbbell, FileText, Link2, Plus, RefreshCw, RotateCcw, Timer, Trash2, X } from 'lucide-react';
+import { AlertTriangle, ArrowLeftRight, Dumbbell, FileText, Link2, Plus, RefreshCw, RotateCcw, Timer, Trash2, Unlink2, X } from 'lucide-react';
 import type { Exercise, SetPrescription, TemplateExercise } from '../types';
 import { restOptions } from '../lib/training';
 import { demoUrlForName } from '../lib/demoLinks';
@@ -10,6 +10,7 @@ import { MenuButton, MenuItem } from './ui/MenuButton';
 import { Select } from './ui/Select';
 import { getSupersetGroup, isSuperset } from '../lib/supersets';
 import { SupersetModal } from './SupersetModal';
+import { SupersetPosition } from './SupersetTag';
 import { WorkoutPrescriptionSets } from './WorkoutPrescriptionSets';
 import './Superset.css';
 import './WorkoutBuilder.css';
@@ -76,6 +77,10 @@ export function WorkoutPrescriptionCard({
     e => e.id !== exercise.id && getSupersetGroup(e.sequenceGroup) === currentGroup
   );
   const partnerNames = partners.map(p => p.name).join(', ');
+  const groupExercises = (allExercises ?? []).filter(
+    e => getSupersetGroup(e.sequenceGroup) === currentGroup
+  );
+  const exercisePos = groupExercises.findIndex(e => e.id === exercise.id) + 1;
   // The title already names a linked exercise, so the mapping only earns space once the two
   // disagree: a renamed slot, or one that is not in the library at all.
   const showMapping = !linked || linked.name.trim().toLowerCase() !== exercise.name.trim().toLowerCase();
@@ -84,9 +89,9 @@ export function WorkoutPrescriptionCard({
     <div className={`import-exercise workout-builder-exercise-card ${exercise.sequenceGroup ? 'exercise-card-superset-active' : ''}`} key={exercise.id}>
       <div className="import-exercise-heading builder-exercise-heading">
         <div className="import-exercise-title">
-          <span className="import-exercise-icon" aria-hidden="true">
-            <Dumbbell size={17} />
-          </span>
+          {partners.length > 0
+            ? <SupersetPosition group={currentGroup} position={exercisePos || 1} partnerNames={partnerNames} />
+            : <span className="import-exercise-icon" aria-hidden="true"><Dumbbell size={17} /></span>}
           <input
             name={`workout-exercise-name-${exercise.id}`}
             className="inline-input builder-exercise-name"
@@ -110,6 +115,12 @@ export function WorkoutPrescriptionCard({
                 Restore default
               </MenuItem>
             )}
+            {isPaired && onUnlinkExercise && (
+              <MenuItem onClick={onUnlinkExercise}>
+                <Unlink2 size={15} />
+                Unlink from superset
+              </MenuItem>
+            )}
             <MenuItem destructive onClick={onRemoveExercise}>
               <Trash2 size={15} />
               Remove exercise
@@ -118,24 +129,11 @@ export function WorkoutPrescriptionCard({
         </div>
       </div>
 
-      {(isPaired || !exercise.exerciseId) && (
+      {!exercise.exerciseId && (
         <div className="builder-exercise-badges">
-          {isPaired && (
-            <Button
-              variant="tertiary"
-              className="superset-badge"
-              title={partnerNames ? `Superset with ${partnerNames}` : 'Superset group'}
-              aria-label={`Superset ${currentGroup} with ${partnerNames}`}
-              onClick={() => setSupersetModalOpen(true)}
-            >
-              <Link2 size={12} />Superset {currentGroup}
-            </Button>
-          )}
-          {!exercise.exerciseId && (
-            <span className="tiny-label warn">
-              <AlertTriangle size={12} /> Not in library
-            </span>
-          )}
+          <span className="tiny-label warn">
+            <AlertTriangle size={12} /> Not in library
+          </span>
         </div>
       )}
 
@@ -175,7 +173,11 @@ export function WorkoutPrescriptionCard({
             onClick={() => setSupersetModalOpen(true)}
           >
             <Link2 size={14} />
-            <span>{isPaired ? `${currentGroup} · ${partners.length} paired` : 'Pair'}</span>
+            <span>
+              {isPaired
+                ? `${currentGroup}${exercisePos || 1} · ${partners.length} paired`
+                : 'Link superset'}
+            </span>
           </Button>
         </div>
         <div className="field import-rest-field">

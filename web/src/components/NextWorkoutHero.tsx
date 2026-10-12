@@ -84,7 +84,7 @@ function RestDayHero({
       ariaLabel="Scheduled rest day"
       variant="is-rest"
       statusClass="rest-pill"
-      statusLabel="Rest Day"
+      statusLabel="Rest day"
       programBadge={programName ? `${programName}${week ? ` · Week ${week}` : ''}` : undefined}
       title={title}
       description={description}
@@ -138,7 +138,7 @@ export function NextWorkoutHero({ data, onStart, onResume, onProgram }: NextWork
       <section className="panel next-workout-hero is-active" aria-label="Active workout in progress">
         <div className="hero-eyebrow">
           <span className={`hero-status-pill ${isPaused ? 'paused-pill' : 'active-pill'}`}>
-            {isPaused ? 'Workout Paused' : 'In Progress'}
+            {isPaused ? 'Workout paused' : 'In progress'}
           </span>
           {program && <span className="hero-program-pill">{program.name}</span>}
         </div>
@@ -218,7 +218,7 @@ export function NextWorkoutHero({ data, onStart, onResume, onProgram }: NextWork
       <section className="panel next-workout-hero" aria-label="Next planned workout">
         <div className="hero-eyebrow">
           <span className="hero-status-pill planned-pill">
-            Next Workout
+            Next workout
           </span>
           {program ? (
             <span className="hero-program-pill">{program.name} · Week {week}</span>
@@ -269,7 +269,7 @@ export function NextWorkoutHero({ data, onStart, onResume, onProgram }: NextWork
         ariaLabel="Program completed"
         variant="is-finished"
         statusClass="finished-pill"
-        statusLabel="Program Finished"
+        statusLabel="Program finished"
         title={program.name}
         description="This program cycle has finished. Review your schedule, restart the cycle, or choose another program."
         actionLabel="Choose next program"
@@ -303,7 +303,7 @@ export function NextWorkoutHero({ data, onStart, onResume, onProgram }: NextWork
           <RestDayHero
             programName={program.name}
             week={currentWeek}
-            title={`Week ${currentWeek} Rest`}
+            title={`Week ${currentWeek} rest`}
             description="Scheduled rest week. Training resumes next week."
             onProgram={onProgram}
           />
@@ -327,9 +327,9 @@ export function NextWorkoutHero({ data, onStart, onResume, onProgram }: NextWork
               ariaLabel="Week workouts completed"
               variant="is-finished"
               statusClass="finished-pill"
-              statusLabel={`Week ${currentWeek} Complete`}
+              statusLabel={`Week ${currentWeek} complete`}
               programBadge={program.name}
-              title={`Week ${currentWeek} Workouts Complete`}
+              title={`Week ${currentWeek} workouts complete`}
               description={`All planned workouts completed for week ${currentWeek}.`}
               actionLabel="View program schedule"
               actionVariant="secondary"
@@ -344,9 +344,9 @@ export function NextWorkoutHero({ data, onStart, onResume, onProgram }: NextWork
               ariaLabel="Week workouts concluded"
               variant="is-finished"
               statusClass="finished-pill"
-              statusLabel={`Week ${currentWeek} Concluded`}
+              statusLabel={`Week ${currentWeek} concluded`}
               programBadge={program.name}
-              title={`Week ${currentWeek} Sessions Concluded`}
+              title={`Week ${currentWeek} sessions concluded`}
               description={`Week ${currentWeek} training sessions are done (${completedCount} completed, ${skippedCount} skipped).`}
               actionLabel="View program schedule"
               actionVariant="secondary"
@@ -362,7 +362,7 @@ export function NextWorkoutHero({ data, onStart, onResume, onProgram }: NextWork
       <HeroStatusCard
         ariaLabel="Active program"
         statusClass="planned-pill"
-        statusLabel="Active Program"
+        statusLabel="Active program"
         programBadge={`${program.name} · Week ${currentWeek}`}
         title={program.name}
         description="Program is active, but progress details are unavailable."
@@ -382,7 +382,7 @@ export function NextWorkoutHero({ data, onStart, onResume, onProgram }: NextWork
         ariaLabel="Active workout completed"
         variant="is-finished"
         statusClass="finished-pill"
-        statusLabel="Workout Complete"
+        statusLabel="Workout complete"
         title={completedName}
         description="Restart this workout or choose another from your library."
         actionLabel="View workouts"
@@ -398,7 +398,7 @@ export function NextWorkoutHero({ data, onStart, onResume, onProgram }: NextWork
       ariaLabel="Ready to train"
       variant="is-empty"
       statusClass="empty-pill"
-      statusLabel="Get Started"
+      statusLabel="Get started"
       title="Ready to train?"
       description="Choose a workout or create a program."
       actionLabel="Explore workouts"

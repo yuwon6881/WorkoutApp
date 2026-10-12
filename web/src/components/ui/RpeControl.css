@@ -8,7 +8,7 @@
   min-width: 44px;
   max-width: 50px;
   border: 1px solid var(--border);
-  border-radius: var(--radius-control, 8px);
+  border-radius: var(--radius-pill);
   background: var(--surface-raised);
   user-select: none;
   transition: border-color 0.16s ease, box-shadow 0.16s ease, background-color 0.16s ease;
@@ -53,7 +53,7 @@
   min-height: 44px;
   padding: 0;
   border: 0;
-  border-radius: var(--radius-control, 8px);
+  border-radius: var(--radius-pill);
   background: transparent;
   color: var(--text);
   cursor: pointer;
@@ -153,7 +153,7 @@
   align-items: center;
   gap: 12px;
   padding: 12px 14px;
-  border-radius: 10px;
+  border-radius: var(--radius-control);
   border: 1px solid var(--border);
   background: var(--surface-raised);
   cursor: pointer;
@@ -180,7 +180,7 @@
   height: 32px;
   min-width: 32px;
   min-height: 32px;
-  border-radius: 8px;
+  border-radius: var(--radius-pill);
   background: var(--surface);
   color: var(--text);
   font-size: 14px;
@@ -324,7 +324,7 @@
   min-width: 44px;
   padding: 0;
   border: 1px solid var(--border);
-  border-radius: var(--radius-control, 8px);
+  border-radius: var(--radius-pill);
   background: var(--surface);
   color: var(--muted);
   font-size: var(--font-secondary, 14px);
@@ -357,8 +357,8 @@
 }
 .rir-chip.rir-tier-easy {
   border-color: color-mix(in srgb, var(--effort-easy) 35%, transparent);
-  background: color-mix(in srgb, var(--green) 10%, transparent);
-  color: var(--green);
+  background: color-mix(in srgb, var(--effort-easy) 10%, transparent);
+  color: var(--effort-easy);
 }
 
 .rir-chip:hover:not(:disabled):not(.selected) {

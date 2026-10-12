@@ -1,7 +1,95 @@
-.import-progress-pill.is-finished{padding:12px 16px;background:var(--accent);color:var(--on-accent);border-color:transparent}
-.import-pill-finished{display:flex;align-items:center;gap:12px;width:100%;min-width:0}
-.import-pill-icon{display:flex;align-items:center;justify-content:center;color:var(--on-accent);flex-shrink:0}
-.import-pill-copy{display:flex;flex-direction:column;gap:2px;text-align:left;min-width:0;flex:1}
-.import-pill-copy strong{font-size:13px;font-weight:650;color:var(--on-accent);line-height:1.2}
-.import-pill-copy small{font-size:11px;color:color-mix(in srgb,var(--on-accent) 80%,transparent);line-height:1.2;overflow-wrap:anywhere}
-.import-pill-arrow{color:var(--on-accent);flex-shrink:0}
+.button.import-progress-pill,
+.import-progress-pill {
+  border-radius: var(--radius-pill);
+  box-shadow: var(--shadow-float);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  transition: transform var(--motion-control) var(--motion-ease),
+              box-shadow var(--motion-control) ease,
+              border-color var(--motion-control) ease;
+}
+
+:root:not([data-theme=light]) .button.import-progress-pill,
+:root:not([data-theme=light]) .import-progress-pill {
+  background: var(--surface-raised);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .button.import-progress-pill:hover:not(:disabled),
+  .import-progress-pill:hover {
+    box-shadow: var(--shadow-float);
+    transform: translateY(-1px);
+    border-color: var(--border-hover);
+  }
+}
+
+.button.import-progress-pill:active:not(:disabled),
+.import-progress-pill:active {
+  transform: scale(0.98);
+}
+
+.import-progress-pill.is-finished {
+  padding: 12px 18px;
+  background: var(--accent);
+  color: var(--on-accent);
+  border-color: transparent;
+  box-shadow: var(--shadow-float);
+}
+
+.import-pill-finished {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-width: 0;
+}
+
+.import-pill-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--on-accent);
+  flex-shrink: 0;
+}
+
+.import-pill-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  text-align: left;
+  min-width: 0;
+  flex: 1;
+}
+
+.import-pill-copy strong {
+  font-size: var(--font-secondary);
+  font-weight: 700;
+  color: var(--on-accent);
+  line-height: 1.2;
+}
+
+.import-pill-copy small {
+  font-size: var(--font-secondary);
+  color: color-mix(in srgb, var(--on-accent) 80%, transparent);
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
+.import-pill-arrow {
+  color: var(--on-accent);
+  flex-shrink: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .button.import-progress-pill,
+  .import-progress-pill {
+    transition: none;
+    transform: none;
+  }
+  .button.import-progress-pill:hover,
+  .import-progress-pill:hover,
+  .button.import-progress-pill:active,
+  .import-progress-pill:active {
+    transform: none;
+  }
+}

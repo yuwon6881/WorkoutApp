@@ -23,10 +23,10 @@
 }
 .body-map-diagram figcaption{
   color:var(--muted);
-  font-size:14px;
-  font-weight:600;
-  letter-spacing:0.04em;
-  text-transform:uppercase;
+  font-size: var(--font-secondary);
+  font-weight:650;
+  letter-spacing:-0.01em;
+  text-transform:none;
 }
 .body-map-figure{
   display:block;
@@ -59,8 +59,12 @@
 }
 .muscle-region.is-untrained{fill:var(--muscle-empty)}
 .muscle-region:hover,
-.muscle-region:focus-visible,
+.muscle-region:focus-visible{
+  stroke:var(--accent-border-strong);
+  stroke-width:2;
+}
 .muscle-region.is-active{
+  fill:var(--accent);
   stroke:var(--accent);
   stroke-width:2.2;
 }
@@ -76,14 +80,14 @@
   margin-top:10px;
   padding:0 14px;
   overflow:hidden;
-  border:1px solid var(--border);
-  border-radius:10px;
+  border:1px solid transparent;
+  border-radius:var(--radius-control);
   background:var(--surface-raised);
   font-size:14px;
 }
 .body-map-detail>*{min-width:0;overflow-wrap:anywhere}
-.body-map-detail-name{color:var(--accent);font-size:15px;font-weight:650}
-.body-map-detail-sets{color:var(--text);font-weight:600;font-variant-numeric:tabular-nums}
+.body-map-detail-name{color:var(--accent);font-size:15px;font-weight:700;letter-spacing:-0.015em}
+.body-map-detail-sets{color:var(--text);font-weight:700;font-variant-numeric:tabular-nums}
 .body-map-detail-split,.body-map-detail-last,.body-map-detail-hint{color:var(--muted)}
 .body-map-detail-last{text-align:right}
 

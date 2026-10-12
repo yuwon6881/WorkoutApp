@@ -8,8 +8,8 @@
 }
 
 .google-health-disclosure .disclosure-points li {
-  padding: 12px 14px;
-  border-radius: 12px;
+  padding: 14px 16px;
+  border-radius: 16px;
   background: var(--surface-raised);
   border: 1px solid var(--border);
 }
@@ -17,6 +17,7 @@
 .google-health-disclosure .disclosure-points strong {
   display: block;
   font-size: 14px;
+  font-weight: 650;
   color: var(--text);
 }
 
@@ -50,10 +51,10 @@
 
 .disclosure-data-notice a {
   color: var(--accent);
-  font-weight: 500;
+  font-weight: 600;
   text-decoration: underline;
   text-underline-offset: 3px;
-  text-decoration-color: var(--accent-border-strong);
+  text-decoration-color: var(--accent-border);
 }
 
 .disclosure-data-notice a:hover {

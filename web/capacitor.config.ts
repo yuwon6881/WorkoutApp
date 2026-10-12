@@ -9,7 +9,7 @@ const config: CapacitorConfig = {
   appName: 'Workout',
   webDir: process.env.WORKOUT_BUILD_DIRECTORY ?? 'dist',
   // The WebView's own colour before the page paints, so launch never flashes white.
-  backgroundColor: '#101412',
+  backgroundColor: '#08080A',
   server: {
     hostname: new URL(origin).hostname,
     // Central sign-in is a navigation to FitnessAccount and back; it stays inside the app.
@@ -22,9 +22,9 @@ const config: CapacitorConfig = {
     adjustMarginsForEdgeToEdge: 'disable'
   },
   plugins: {
-    SplashScreen: { launchShowDuration: 0, backgroundColor: '#101412' },
-    StatusBar: { overlaysWebView: false, style: 'DARK', backgroundColor: '#101412' },
-    LocalNotifications: { smallIcon: 'ic_stat_rest', iconColor: '#91d8ba' }
+    SplashScreen: { launchShowDuration: 0, backgroundColor: '#08080A' },
+    StatusBar: { overlaysWebView: false, style: 'DARK', backgroundColor: '#08080A' },
+    LocalNotifications: { smallIcon: 'ic_stat_rest', iconColor: '#B5F04A' }
   }
 };
 

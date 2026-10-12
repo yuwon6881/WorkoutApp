@@ -28,7 +28,7 @@ export function applyTheme(theme: Theme): void {
   document.documentElement.dataset.theme = theme;
   const metas = [...document.querySelectorAll('meta[name="theme-color"]')];
   const background = getComputedStyle(document.documentElement).getPropertyValue('--bg').trim();
-  const color = background || (theme === 'light' ? '#f5f6f1' : '#101412');
+  const color = background || (theme === 'light' ? '#F4F2FA' : '#08080A');
   if (metas[0]) {
     metas[0].removeAttribute('media');
     metas[0].setAttribute('content', color);

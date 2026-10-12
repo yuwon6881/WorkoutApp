@@ -35,7 +35,7 @@ export function Select<T extends string | number>({
   className?: string;
   disabled?: boolean;
   /** Trigger text when it should say more than the option does, such as "Warm-up 2". */
-  displayLabel?: string;
+  displayLabel?: React.ReactNode;
   /** Sizes the menu to its longest option on one line instead of to a trigger narrower than it. */
   fitMenuToOptions?: boolean;
 }) {

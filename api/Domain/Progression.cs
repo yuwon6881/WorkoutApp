@@ -68,7 +68,12 @@ public sealed record SetProgressionSuggestion(
     bool IsBodyweightAdjustment = false,
     double? SuggestedSystemLoadKg = null,
     string ResistanceMode = ResistanceModes.External,
-    bool IsRepRangeTransition = false);
+    bool IsRepRangeTransition = false,
+    // The load and reps of the exposure the suggestion was built from, so the logger can say
+    // whether it adds weight, adds reps, repeats or eases off. Absent for a first session and for
+    // suggestions stored before these fields existed.
+    double? PreviousLoadKg = null,
+    int? PreviousReps = null);
 
 /// The old exercise estimate is retained for historical exports and strength charts. It is not
 /// used to make a set suggestion: adaptive progression is keyed by exercise and working ordinal.

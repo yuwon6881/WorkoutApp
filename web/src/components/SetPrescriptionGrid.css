@@ -116,9 +116,27 @@
   min-width: 0;
   min-height: 44px;
   height: 44px;
-  padding: 8px 2px;
+  padding: 8px 4px;
   text-align: center;
+  border-radius: var(--radius-control);
   background: var(--surface-raised);
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+  transition: border-color var(--motion-control) ease,
+              background-color var(--motion-control) ease,
+              box-shadow var(--motion-control) ease;
+}
+
+.set-grid-row input:hover {
+  border-color: var(--border-hover);
+}
+
+.set-grid-row input:focus {
+  outline: none;
+  background: var(--surface);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft-glow);
 }
 
 /* The column toggle keeps a full touch target on phones and tablets. */
@@ -137,8 +155,23 @@
   height: 36px;
   padding: 0 10px;
   border-radius: var(--radius-pill);
-  font-size: 14px;
+  font-size: var(--font-secondary);
+  font-weight: 600;
   line-height: 1;
+  color: var(--muted);
+  transition: color var(--motion-control) ease,
+              background-color var(--motion-control) ease;
+}
+
+.set-grid-head .rep-mode-btn:hover:not(:disabled):not(.active) {
+  color: var(--text);
+}
+
+.set-grid-head .rep-mode-btn.active {
+  background: var(--accent);
+  color: var(--on-accent);
+  font-weight: 700;
+  box-shadow: none;
 }
 
 .set-grid-head .rep-mode-btn::after {
@@ -175,8 +208,8 @@
   color: var(--muted);
   font-size: var(--font-secondary);
   font-weight: 600;
-  letter-spacing: .04em;
-  text-transform: uppercase;
+  letter-spacing: -0.005em;
+  text-transform: none;
 }
 
 .set-grid-head-reps {
@@ -187,16 +220,17 @@
   gap: 12px;
   min-width: 0;
   text-transform: none;
-  letter-spacing: 0;
+  letter-spacing: -0.005em;
 }
 
 .set-grid-head-reps > span:first-child {
-  text-transform: uppercase;
-  letter-spacing: .04em;
+  text-transform: none;
+  letter-spacing: -0.005em;
+  font-weight: 600;
 }
 
-.set-grid-head-rir { grid-area: rir; text-align: center; }
-.set-grid-head-tempo { grid-area: tempo; text-align: center; }
+.set-grid-head-rir { grid-area: rir; text-align: center; text-transform: none; letter-spacing: -0.005em; }
+.set-grid-head-tempo { grid-area: tempo; text-align: center; text-transform: none; letter-spacing: -0.005em; }
 
 
 /* The mode switch belongs to the exercise, separate from the numeric column labels. */
@@ -225,6 +259,21 @@
 .set-grid-row .rep-single-input-wrap,
 .set-grid-row .rep-range-inputs,
 .set-grid-row .rep-open-value { width: 100%; }
+.set-grid-row .rep-open-value {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  height: 44px;
+  padding: 8px 12px;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-control);
+  background: var(--surface-raised);
+  color: var(--text);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.005em;
+}
 .set-grid-row .rpe-field { justify-self: end; }
 .set-grid-row .set-tempo-field { max-width: 160px; }
 .set-grid-row .set-tempo-field > span:first-child {
@@ -234,7 +283,7 @@
   margin: 0;
   clip: auto;
 }
-.set-grid-list.import-sets { gap: 0; border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+.set-grid-list.import-sets { gap: 0; border: 1px solid var(--border); border-radius: 14px; overflow: hidden; }
 .set-grid-wrap .import-set-swipe-row,
 .set-grid-wrap .import-set.warmup-row .import-set-swipe-row {
   border: 0;
@@ -245,14 +294,6 @@
 .set-grid-list .import-set:first-child .import-set-swipe-row { border-top: 0; }
 .set-grid-list .import-set { opacity: 1; background: transparent; }
 .set-grid-wrap .import-set-content.set-grid-row { padding: 10px; }
-.set-grid-wrap .set-grid-row .set-type-select .custom-select-trigger {
-  background: transparent;
-  border-color: transparent;
-  padding-inline: 4px;
-}
-.set-grid-wrap .set-grid-row .set-type-select.set-type-warmup .custom-select-trigger { color: var(--blue); }
-.set-grid-wrap .set-grid-row .set-type-select.set-type-myoreps .custom-select-trigger,
-.set-grid-wrap .set-grid-row .set-type-select.set-type-dropset .custom-select-trigger { color: var(--accent); }
 
 @container set-grid (max-width: 359px) {
   .set-grid-wrap .set-grid-head { justify-content: flex-end; }
@@ -270,11 +311,6 @@
     row-gap: 2px;
   }
   .set-grid-typed.set-grid-wrap .set-grid-row { grid-template-areas: "meta meta" "reps rir"; }
-  .set-grid-wrap .set-grid-row .set-type-select { width: 144px; min-width: 144px; max-width: 144px; }
-  .set-grid-wrap .set-grid-row .set-type-select .custom-select-trigger {
-    gap: 2px; padding-inline: 0; min-height: 44px; height: 44px;
-  }
-  .set-grid-wrap .set-grid-row .set-type-select .custom-select-text { font-size: 14px; line-height: 1.2; }
   /* Exact, range and AMRAP rows share one gap: the earlier .import-set-content rule would otherwise
      leave only range rows tight, making exact rows 6 px taller. */
   .set-grid-wrap .import-set-content.set-grid-row { padding: 6px 10px; gap: 3px 6px; row-gap: 2px; }

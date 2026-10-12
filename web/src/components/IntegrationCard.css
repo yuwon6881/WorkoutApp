@@ -1,12 +1,18 @@
 /* Shared by the Nutrition and Google Health connection cards on the settings page. */
 /* Integration cards (Nutrition, Google Health): identity and status in the header, effect below. */
 .integration-card.panel {
-  padding: 22px 24px;
-  transition: border-color var(--motion-control) ease;
+  padding: 24px 26px;
+  background: var(--surface);
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  transition: border-color var(--motion-control) ease, box-shadow var(--motion-control) ease;
 }
 
-.integration-card.panel:hover {
-  border-color: var(--border-hover);
+@media (hover: hover) and (pointer: fine) {
+  .integration-card.panel:hover {
+    border-color: var(--border-hover);
+  }
 }
 
 .integration-card-header {
@@ -19,11 +25,11 @@
 .integration-logo {
   display: grid;
   place-items: center;
-  width: 42px;
-  height: 42px;
-  border-radius: 13px;
-  background: var(--surface-raised);
-  border: 1px solid var(--border);
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  background: var(--accent-soft);
+  border: 1px solid var(--accent-border);
   color: var(--accent);
 }
 
@@ -33,6 +39,10 @@
 
 .integration-card-title h3 {
   margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--text);
 }
 
 .integration-card-title span {
@@ -46,8 +56,8 @@
 .integration-status {
   display: inline-flex;
   align-items: center;
-  gap: 7px;
-  padding: 5px 10px;
+  gap: 6px;
+  padding: 4px 12px;
   border-radius: var(--radius-pill);
   border: 1px solid var(--border);
   background: var(--surface-raised);
@@ -55,16 +65,21 @@
   font-size: var(--font-secondary);
   font-weight: 600;
   white-space: nowrap;
+  letter-spacing: -0.005em;
 }
 
 .integration-status .status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
   background: var(--faint);
+  flex-shrink: 0;
 }
 
 .integration-status.is-on {
   color: var(--green);
-  border-color: color-mix(in srgb, var(--green) 35%, var(--border));
-  background: color-mix(in srgb, var(--green) 10%, var(--surface));
+  border-color: color-mix(in srgb, var(--green) 35%, transparent);
+  background: color-mix(in srgb, var(--green) 12%, transparent);
 }
 
 .integration-status.is-on .status-dot {
@@ -73,8 +88,8 @@
 
 .integration-status.is-warning {
   color: var(--amber);
-  border-color: color-mix(in srgb, var(--amber) 35%, var(--border));
-  background: color-mix(in srgb, var(--amber) 10%, var(--surface));
+  border-color: color-mix(in srgb, var(--amber) 35%, transparent);
+  background: color-mix(in srgb, var(--amber) 12%, transparent);
 }
 
 .integration-status.is-warning .status-dot {
@@ -94,9 +109,9 @@
 }
 
 .integration-stream {
-  margin-top: 16px;
-  padding: 0 16px;
-  border-radius: 12px;
+  margin-top: 18px;
+  padding: 0 18px;
+  border-radius: 16px;
   background: var(--surface-raised);
   border: 1px solid var(--border);
 }
@@ -127,8 +142,8 @@
   gap: 12px;
   padding: 14px 18px;
   border-radius: var(--radius-control);
-  background: color-mix(in srgb, var(--green) 10%, var(--surface));
-  border: 1px solid color-mix(in srgb, var(--green) 35%, var(--border));
+  background: color-mix(in srgb, var(--green) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--green) 35%, transparent);
   color: var(--text);
   font-size: var(--font-secondary);
 }
@@ -152,7 +167,7 @@
 
 @media (max-width: 639px) {
   .integration-card.panel {
-    padding: 16px 14px;
+    padding: 18px 16px;
   }
 
   .integration-card-header {
@@ -161,9 +176,9 @@
   }
 
   .integration-logo {
-    width: 36px;
-    height: 36px;
-    border-radius: 10px;
+    width: 38px;
+    height: 38px;
+    border-radius: 12px;
   }
 
   .integration-card-title h3 {
@@ -174,23 +189,23 @@
     grid-column: 2;
     justify-self: start;
     margin-top: 4px;
-    padding: 3px 8px;
-    font-size: var(--font-secondary, 14px);
+    padding: 3px 10px;
+    font-size: var(--font-secondary);
   }
 
   .integration-description {
-    margin-top: 10px;
-    font-size: var(--font-secondary, 14px);
+    margin-top: 12px;
+    font-size: var(--font-secondary);
     line-height: 1.5;
   }
 
   .integration-stream {
-    padding: 0 12px;
-    margin-top: 12px;
+    padding: 0 14px;
+    margin-top: 14px;
   }
 
   .integration-actions {
-    margin-top: 12px;
+    margin-top: 14px;
     gap: 8px;
   }
 

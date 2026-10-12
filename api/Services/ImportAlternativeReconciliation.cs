@@ -11,7 +11,8 @@ internal static class ImportAlternativeReconciliation
         List<AiOutlineChunk> Chunks,
         List<ImportReviewIssue> Notices);
 
-    public static Outcome Reconcile(AiOutline outline, IReadOnlyList<ImportPageText> pages)
+    public static Outcome Reconcile(AiOutline outline, IReadOnlyList<ImportPageText> pages,
+        ImportSourceAnalysis? analysis = null)
     {
         var chunks = outline.Chunks ?? [];
         var alternatives = outline.Alternatives ?? [];
@@ -40,6 +41,13 @@ internal static class ImportAlternativeReconciliation
                 "alternative_not_in_document",
                 $"This PDF describes another version of the program ({names}) but does not contain its schedule, so only the schedule printed in this file was imported.",
                 "info", null));
+        }
+
+        if (ImportAlternativeWeekScope.Recover(survivors, pages, analysis) is { } sharedSchedule)
+        {
+            notices.Add(new ImportReviewIssue(ImportAlternativeWeekScope.NoticeCode,
+                "The options are versions of one printed week. The whole schedule was read; choose that week's version after the read finishes.", "info"));
+            return new Outcome([], sharedSchedule, notices);
         }
 
         var chunksBackedPages = BackedPages(chunks, schedulePages);

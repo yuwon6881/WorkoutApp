@@ -2,6 +2,13 @@
    builder its own header and settings strip so a phone shows the name in full and one card fits
    in roughly a screen. */
 
+.workout-builder-exercise-card.import-exercise {
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  box-shadow: none;
+}
+
 .builder-exercise-heading {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
@@ -32,19 +39,21 @@
   background: transparent;
   color: var(--text);
   font-size: 16px;
-  font-weight: 650;
-  letter-spacing: -0.01em;
+  font-weight: 700;
+  letter-spacing: -0.02em;
   text-overflow: ellipsis;
+  transition: border-color var(--motion-control) ease,
+              background-color var(--motion-control) ease;
 }
 
 .builder-exercise-name.inline-input:hover {
   border-color: var(--border);
-  background: var(--surface-raised);
+  background: var(--surface);
 }
 
 .builder-exercise-name.inline-input:focus {
   border-color: var(--accent);
-  background: var(--surface-raised);
+  background: var(--surface);
 }
 
 .builder-exercise-badges {
@@ -57,6 +66,7 @@
 
 .builder-exercise-badges .superset-badge.button {
   min-height: 36px;
+  border-radius: var(--radius-pill);
 }
 
 .builder-exercise-fields.import-fields {

@@ -3,6 +3,23 @@ import { groupRows, positionPiece, positionPieces } from './pdfGeometry';
 import { rotatedPiece } from './pdfPieces.fixtures';
 
 describe('PDF text geometry', () => {
+  it('reads a repainted wide final glyph before a space only once', () => {
+    const pieces = positionPieces([
+      { str: 'LEAN', transform: [8, 0, 0, 8, 496.708, 690.339], width: 20.36146097 },
+      { str: 'N I', transform: [8, 0, 0, 8, 511.428, 690.339], width: 9.91907221 },
+      { str: 'IN', transform: [8, 0, 0, 8, 519.13, 690.339], width: 7.85646097 }
+    ]);
+    expect(pieces.map(piece => piece.str)).toEqual(['LEAN IN']);
+  });
+
+  it('keeps a repeated letter at a separate printed position or baseline', () => {
+    const pieces = positionPieces([
+      { str: 'LEAN', transform: [8, 0, 0, 8, 100, 100], width: 20 },
+      { str: 'N INTO', transform: [8, 0, 0, 8, 123, 100], width: 25 },
+      { str: 'N INTO', transform: [8, 0, 0, 8, 115, 80], width: 25 }
+    ]);
+    expect(pieces.map(piece => piece.str)).toEqual(['LEAN', 'N INTO', 'N INTO']);
+  });
   it('uses the run advance, not a font-scaled matrix value, for a rotated span', () => {
     const positioned = positionPiece(rotatedPiece('Upper 1', 90, 100, 35, 12));
     expect(positioned).toMatchObject({ x: 78, endX: 90, y: 135, yStart: 100, yEnd: 135 });

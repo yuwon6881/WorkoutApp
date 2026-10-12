@@ -1,18 +1,28 @@
+/* Exercise load settings summary inside exercise details dialog */
 .exercise-load-settings {
   min-width: 0;
-  padding-block: 4px;
-  border-block: 1px solid var(--border);
+  padding: 10px 16px;
+  border-radius: var(--radius-control);
+  background: var(--surface-raised);
+  border: 1px solid transparent;
 }
 
 .exercise-load-settings .setting-row {
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   gap: 8px 16px;
-  padding: 12px 0;
+  padding: 8px 0;
   border-bottom: 0;
 }
 
 .exercise-load-settings .setting-controls-wrap,
 .exercise-load-settings .setting-controls-wrap > .button {
   width: auto;
+  min-height: 44px;
+}
+
+@media (min-width: 1024px) {
+  .exercise-load-settings .setting-controls-wrap > .button {
+    min-height: 36px;
+  }
 }

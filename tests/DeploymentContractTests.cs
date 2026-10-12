@@ -64,7 +64,7 @@ public sealed class DeploymentContractTests
         Assert.Contains("font-src 'self'", api);
         Assert.Contains("style-src-elem 'self'", frontend);
         Assert.Contains("font-src 'self'", frontend);
-        Assert.Contains("@fontsource-variable/manrope", entry);
+        Assert.Contains("@fontsource-variable/plus-jakarta-sans", entry);
         Assert.DoesNotContain("fonts.googleapis.com", entry);
     }
 

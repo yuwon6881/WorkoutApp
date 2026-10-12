@@ -83,8 +83,9 @@ def compare(row, exercise):
     source_note = row.get("notes", "").strip()
     if source_note and source_note.upper() not in ("N/A", "-"):
         check("coachingNoteCharacters", True, Counter(key(source_note[:1000])) <= Counter(key(exercise.get("notes") or "")))
-        # Inserted overlay glyphs or retained model context may add characters,
-        # but every printed instruction must still appear in source order.
+        # Additional context may follow the printed instruction, but extra overlay
+        # glyphs inside it are corruption rather than preserved source text.
+        check("coachingNoteText", True, key(source_note[:1000]) in key(exercise.get("notes") or ""))
         actual_characters = iter(key(exercise.get("notes") or ""))
         check("coachingNoteOrder", True, all(character in actual_characters for character in key(source_note)))
     for substitution in row.get("substitutions", []):
@@ -121,6 +122,10 @@ def compare(row, exercise):
             check(prefix + "partialTechniqueScope", sorted(expected_methods), sorted(found_methods))
         reps = row["reps"]
         reps = reps.strip().strip('"').strip()
+        hold = row.get("hold", "").strip()
+        if reps.upper() in ("HOLD", "", "-", "N/A") and hold.upper() not in ("", "-", "N/A"):
+            check(prefix + "holdTarget", hold.casefold(), (item.get("repsText") or "").casefold())
+            reps = hold
         if re.fullmatch(r"\d+(?:\s*,\s*\d+)+", reps) and len(reps.split(",")) == len(prescribed):
             values = reps.split(",")
             reps = values[min(index, len(values) - 1)].strip()
@@ -132,7 +137,7 @@ def compare(row, exercise):
             check(prefix + "repMax", int(match[2] or match[1]), item["repMax"])
         elif re.fullmatch(r"\d+(?:\s*[/+,]\s*\d+)+(?:\+|X)?", reps, re.I) or re.fullmatch(r"\d+(?:-\d+)?\s*\+\s*\d+(?:-\d+)?", reps) or re.fullmatch(r"\d+(?:-\d+)?\s*\(\+\d+(?:\+\d+)*\)|\+\d+|\d+\+", reps):
             check(prefix + "repsText", re.sub(r"\s", "", reps), re.sub(r"\s", "", item.get("repsText") or ""))
-        elif reps.upper() in ("N/A", "AMRAP", "FAILURE", "RPE ONLY", "HOLD", "NOTES", "-", "") or reps.upper().startswith("AMRAP/") or re.fullmatch(r"RPE\s*\d+(?:\.\d+)?\s*TEST|(?:(?:\d{1,2})?:\d{2}|\d+(?:[-–]\d+)?\s*[- ]?\s*(?:s|sec|seconds?|min|minutes?))(?:\s+(?:HOLD|each|per leg))?", reps, re.I):
+        elif reps.upper() in ("N/A", "AMRAP", "FAILURE", "RPE ONLY", "HOLD", "MAX HOLD", "MAX STRIDES", "NOTES", "-", "") or reps.upper().startswith("AMRAP/") or re.fullmatch(r"RPE\s*\d+(?:\.\d+)?\s*TEST|(?:(?:\d{1,2})?:\d{2}|\d+(?:[-–]\d+)?\s*[- ]?\s*(?:s|sec|seconds?|min|minutes?))(?:\s+(?:HOLD|each|per leg))?", reps, re.I):
             check(prefix + "emptyReps", True, item["repMin"] is None and item["repMax"] is None)
         else:
             issues.append({"field": prefix + "reps", "unresolvedSource": reps})
@@ -141,6 +146,12 @@ def compare(row, exercise):
             effort = reps
         if row.get("footer") and index == len(work) - 1 and not re.search(r"\bavoid\s+failure\b", row.get("notes", ""), re.I):
             effort = "10"
+        if row.get("lastSetFailure", "").strip().upper() in ("Y", "YES") and index == len(work) - 1:
+            if not re.search(r"\bavoid\s+failure\b|\bdo\s+not\s+(?:go|train|take.{0,30})\s+to\s+failure\b", row.get("notes", ""), re.I):
+                effort = "10"
+            check(prefix + "lastSetFailureInstruction", True, bool(re.search(r"(?:last|final)\s+set.{0,35}to\s+failure", exercise.get("notes") or "", re.I)))
+        elif row.get("lastSetFailure", "").strip().upper() in ("N", "NO") and index == len(work) - 1:
+            check(prefix + "lastSetFailureInstruction", True, "lstf:n" in re.sub(r"\s", "", (exercise.get("notes") or "").casefold()))
         reserves = row.get("rirBySet", [])
         reserve = reserves[min(index, len(reserves) - 1)] if reserves else None
         if standalone_warmup:
@@ -253,7 +264,7 @@ def audit(documents, folder, inventory=None):
                     covered.add((row["page"], row["table"], row["row"]))
                     fields, issues = compare(row, exercise)
                     branch["comparisons"].append(location | {"sourceTable": row["table"], "sourceRow": row["row"],
-                        "expected": {field: row.get(field) for field in ("working", "warmups", "reps", "rir", "rirBySet", "rpe", "earlyRpe", "lastRpe", "load", "tempo", "rest", "technique", "notes", "footer", "substitutions")},
+                        "expected": {field: row.get(field) for field in ("working", "warmups", "reps", "hold", "lastSetFailure", "rir", "rirBySet", "rpe", "earlyRpe", "lastRpe", "load", "tempo", "rest", "technique", "notes", "footer", "substitutions")},
                         "actual": {field: exercise.get(field) for field in ("sourceName", "sets", "notes", "substitutions", "demoUrl", "demoLinks")}, "issues": issues})
                     branch["fields"] += fields
                     if issues:

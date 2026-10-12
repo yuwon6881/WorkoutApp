@@ -110,11 +110,11 @@ public sealed class CatalogService(AppDb db)
         var aliases = ids.Count == 0 ? [] : await db.Aliases.AsNoTracking().Where(a => ids.Contains(a.ExerciseId)).ToListAsync(ct);
         var aliasesByExercise = aliases.GroupBy(a => a.ExerciseId)
             .ToDictionary(g => g.Key, g => g.Select(a => a.Alias).OrderBy(a => a).ToList());
-        var result = exercises.Select(x => new CatalogExercise(x.Id, x.Slug, x.Name, x.Muscle, x.Equipment,
+        var result = CatalogSynonyms.Listings(exercises.Select(x => new CatalogExercise(x.Id, x.Slug, x.Name, x.Muscle, x.Equipment,
             aliasesByExercise.GetValueOrDefault(x.Id) ?? [], x.LoadStepKg,
             LoadModels.All.Contains(x.LoadModel) ? x.LoadModel : LoadModels.External, x.MovementPattern, "catalog", false, false,
             ReadMuscles(x.SecondaryMusclesJson, x.Muscle), ExerciseCategories.Normalize(x.Category, x.Equipment, x.LoadModel),
-            null, TrackingModes.Normalize(x.TrackingMode))).ToList();
+            null, TrackingModes.Normalize(x.TrackingMode))).ToList());
         if (!db.Database.IsSqlite())
             SharedCache.Set(SharedCatalogKey, result, new MemoryCacheEntryOptions
             {

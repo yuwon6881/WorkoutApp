@@ -1,7 +1,7 @@
 // First-screen styles stay eager. Optional feature CSS loads before the shell stylesheet through
 // featureCss, so navigating later cannot invert the existing cascade.
 import { lazy, Suspense, useEffect, useRef, useState } from 'react';
-import { AlertTriangle, BicepsFlexed, CheckCircle2, Cloud, Dumbbell, LayoutDashboard, Library, Loader2, Plus, RefreshCw, Settings, Sparkles, WifiOff } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, Cloud, Loader2, Plus, RefreshCw, Settings, Sparkles, WifiOff } from 'lucide-react';
 import type { AppResource, Bootstrap, Exercise, Session } from './types';
 import { ApiError, api } from './lib/api';
 import { useApp } from './app/useApp';
@@ -16,14 +16,16 @@ import { useAppUpdate } from './app/useAppUpdate';
 import { usePullToRefresh } from './app/usePullToRefresh';
 import { useWindowTier } from './lib/breakpoints';
 import { installNativeShell, isStandalone } from './lib/platform';
-import type { Tab } from './app/useTabNavigation';
 import { getRecovery } from './lib/workoutRecoveryReads';
 import { hasUnresolvedRecovery, sameWorkoutEdits } from './lib/workoutRecoveryComparison';
 import { startRecovery } from './lib/workoutRecoveryAccess';
 import { Button } from './components/ui/Button';
 import { CardFeedback } from './components/ui/CardFeedback';
-import { MotionScene, SelectionIndicator } from './components/ui/Motion';
+import { MotionScene } from './components/ui/Motion';
 import './components/BottomNav.css';
+import { BottomNav, type DockAction } from './components/BottomNav';
+import { SideNav } from './components/SideNav';
+import { NAV } from './app/navigation';
 import { AppLoading } from './components/AppLoading';
 import { AuthLoading } from './components/AuthLoading';
 import { ViewSkeleton } from './components/ViewSkeleton';
@@ -39,13 +41,6 @@ import type { AiInvocationRequest } from './components/useAiConversation';
 
 /// Matches the server's refusal in ImportService.Create, so both sides say the same thing.
 const IMPORT_BLOCKED_MESSAGE = 'Finish or discard the active workout before importing a program.';
-
-const NAV: Array<{ id: Tab; label: string; icon: typeof LayoutDashboard }> = [
-  { id: 'overview', label: 'Overview', icon: LayoutDashboard },
-  { id: 'program', label: 'Workouts', icon: Dumbbell },
-  { id: 'body', label: 'Muscles', icon: BicepsFlexed },
-  { id: 'exercises', label: 'Exercises', icon: Library }
-];
 
 export default function App() {
   const app = useApp();
@@ -178,6 +173,15 @@ export default function App() {
     await beginWorkout(templateId);
   }
 
+  const dockAction: DockAction = workoutSession?.active ? 'resume' : nextWorkout(data) ? 'start' : 'choose';
+  /// The dock's centre button does what the home-screen shortcut does: reopen, start today's, or pick one.
+  function runDockAction() {
+    const today = nextWorkout(data!);
+    if (dockAction === 'resume') setTraining(true);
+    else if (dockAction === 'start' && today) void start(today.id);
+    else setTab('program');
+  }
+
   async function beginWorkout(templateId: string) {
     if (starting || !data) return;
     const currentData = data;
@@ -291,32 +295,17 @@ export default function App() {
   }
 
   return <TrackRirContext value={tracksRir(data.preferences)}><div className="app-shell">
-    <aside className="sidebar">
-      <a className="brand" href="#" onClick={e => { e.preventDefault(); setTab('overview'); }}><img src="/favicon.svg" alt="" /><span>Workout</span></a>
-      <nav aria-label="Main navigation">
-        <SelectionIndicator active={tab} className="sidebar-nav-track">
-          {NAV.map(item => (
-            <Button
-              key={item.id}
-              data-selection-key={item.id}
-              onPointerEnter={() => prefetchView(item.id === 'program' ? 'programs' : item.id === 'body' ? 'muscles' : item.id === 'exercises' ? 'exercises' : 'workout')}
-              onFocus={() => prefetchView(item.id === 'program' ? 'programs' : item.id === 'body' ? 'muscles' : item.id === 'exercises' ? 'exercises' : 'workout')}
-              variant="tertiary"
-              className={`nav-item ${tab === item.id ? 'selected' : ''}`}
-              aria-current={tab === item.id ? 'page' : undefined}
-              onClick={() => setTab(item.id)}
-            >
-              <item.icon size={18} />
-              <span>{item.label}</span>
-            </Button>
-          ))}
-        </SelectionIndicator>
-      </nav>
-      <div className="sidebar-bottom">
-        <Button variant="tertiary" className={`nav-item ${isAiOpen ? 'selected' : ''}`.trim()} aria-expanded={isAiOpen} onClick={() => setIsAiOpen(true)}><Sparkles size={18} /><span>Ask AI</span></Button>
-        <Button variant="tertiary" className={`nav-item ${tab === 'settings' ? 'selected' : ''}`.trim()} aria-current={tab === 'settings' ? 'page' : undefined} onClick={() => setTab('settings')}><Settings size={18} /><span>Settings</span></Button>
-      </div>
-    </aside>
+    <SideNav
+      tab={tab}
+      onTab={setTab}
+      action={dockAction}
+      actionBusy={starting}
+      onAction={runDockAction}
+      aiOpen={isAiOpen}
+      onAskAi={() => setIsAiOpen(true)}
+      onSettings={() => setTab('settings')}
+      displayName={data.account.displayName}
+    />
 
     <div className="workspace">
       {(pullToRefresh.pull > 0 || pullToRefresh.refreshing) && <div className={`pull-refresh ${pullToRefresh.ready || pullToRefresh.refreshing ? 'ready' : ''}`.trim()}
@@ -375,27 +364,7 @@ export default function App() {
 
     </div>
 
-    <nav className="bottom-nav" aria-label="Mobile navigation">
-      <SelectionIndicator active={tab} className="bottom-nav-track">
-        {NAV.map(item => (
-          <Button
-            key={item.id}
-            data-selection-key={item.id}
-            onPointerEnter={() => prefetchView(item.id === 'program' ? 'programs' : item.id === 'body' ? 'muscles' : item.id === 'exercises' ? 'exercises' : 'workout')}
-            onFocus={() => prefetchView(item.id === 'program' ? 'programs' : item.id === 'body' ? 'muscles' : item.id === 'exercises' ? 'exercises' : 'workout')}
-            variant="tertiary"
-            className={`bottom-nav-item ${tab === item.id ? 'selected' : ''}`}
-            aria-current={tab === item.id ? 'page' : undefined}
-            onClick={() => setTab(item.id)}
-          >
-            <span className="bottom-nav-icon-slot">
-              <item.icon size={20} />
-            </span>
-            <span className="bottom-nav-label">{item.label}</span>
-          </Button>
-        ))}
-      </SelectionIndicator>
-    </nav>
+    <BottomNav tab={tab} onTab={setTab} action={dockAction} actionBusy={starting} onAction={runDockAction} />
 
     {workoutSession?.active && !training && tab !== 'overview' && <Suspense fallback={null}>
       <ResumeWorkoutButton session={workoutSession} rest={restState} onResume={() => setTraining(true)} />

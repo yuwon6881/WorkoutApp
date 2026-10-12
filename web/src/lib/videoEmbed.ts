@@ -45,8 +45,11 @@ export function getVideoEmbedInfo(rawUrl: string | null | undefined): VideoEmbed
 
       if (videoId && /^[\w-]+$/.test(videoId)) {
         const start = parseStartTime(parsed.searchParams.get('t') ?? parsed.searchParams.get('start'));
+        // Muted by default: quiet in a gym, and muted autoplay is what mobile browsers and the
+        // Android WebView start without a second tap. The player's own control unmutes it.
         const params = new URLSearchParams({
           autoplay: '1',
+          mute: '1',
           rel: '0',
           modestbranding: '1',
           playsinline: '1'
@@ -63,7 +66,7 @@ export function getVideoEmbedInfo(rawUrl: string | null | undefined): VideoEmbed
       const match = /\/(\d+)/.exec(parsed.pathname);
       if (match) {
         return {
-          embedUrl: `https://player.vimeo.com/video/${match[1]}?autoplay=1`,
+          embedUrl: `https://player.vimeo.com/video/${match[1]}?autoplay=1&muted=1`,
           platform: 'vimeo'
         };
       }

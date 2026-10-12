@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Check, Pause, Trash2 } from 'lucide-react';
 import type { LoggedSet, Preferences, SessionExercise, SetPrescription } from '../types';
-import { defaultLoadStepKg, showTarget, showWeight, toDisplay, toKg } from '../lib/training';
+import { defaultLoadStepKg, toDisplay, toKg } from '../lib/training';
+import { setTarget } from '../lib/setTarget';
 import { effortPatch, effortValue, loadIsEditable, setNumberLabel } from '../lib/workoutDraft';
 import { Button } from './ui/Button';
 import { RepsRirControl } from './ui/RepsRirControl';
@@ -12,7 +13,7 @@ import type { SetType } from '../lib/importSetTypes';
 import { sessionSetType } from '../lib/workoutSetTypes';
 import { nextAvailableLoad } from '../lib/exerciseLoads';
 import { partialTechniqueLabel } from '../lib/importSetTypes';
-import { isTimedExercise, showTimedTarget, timedTargetSeconds } from '../lib/setDuration';
+import { isTimedExercise, timedTargetSeconds } from '../lib/setDuration';
 import { discardStopwatch } from '../lib/setStopwatch';
 import { WorkoutSetTimeCell } from './WorkoutSetTimeCell';
 import { WorkoutLoadInput } from './WorkoutLoadInput';
@@ -26,7 +27,6 @@ export function WorkoutSetRow({
   exercise,
   plan,
   current = false,
-  previous,
   unit,
   loadStepKg: resolvedStepKg,
   availableLoadsKg,
@@ -44,8 +44,6 @@ export function WorkoutSetRow({
   plan: SetPrescription | undefined;
   /** The first set still to log in this exercise, marked as the one the lifter is on. */
   current?: boolean;
-  /** What this set read last time; when absent the plan's target is shown instead. */
-  previous?: string | null;
   unit: Preferences['unit'];
   loadStepKg?: number;
   availableLoadsKg?: number[] | null;
@@ -83,7 +81,8 @@ export function WorkoutSetRow({
   const setName = `${exercise.name} set ${si + 1}`;
   const removable = exercise.sets.length > 1;
   const locked = paused && !set.done;
-  const suggestedLoad = set.suggestion?.suggestedLoadKg != null ? showWeight(set.suggestion.suggestedLoadKg, unit) : null;
+  const target = setTarget(set, plan, exercise, unit, trackRir);
+  const targetDescription = `set-target-reason-${set.id}`;
   const remove = () => {
     discardStopwatch(set.id);
     onRemoveSet(si);
@@ -99,7 +98,7 @@ export function WorkoutSetRow({
   const row = (
     <div
       className={`workout-set-row ${set.done ? 'done' : ''} ${warmup ? 'warmup-row' : ''} ${
-        suggestedLoad ? 'has-suggestion' : ''
+        target.load ? 'has-suggestion' : ''
       } ${current && !set.done ? 'current' : ''} ${justLogged ? 'just-logged' : ''} ${nudging ? 'nudge' : ''} ${timed ? 'timed-row' : ''}`.replace(/\s+/g, ' ').trim()}
       onAnimationEnd={event => { if (event.target === event.currentTarget) { setJustLogged(false); setNudging(false); } }}
     >
@@ -113,13 +112,13 @@ export function WorkoutSetRow({
         onChange={next => onSetType(si, next)}
       />
 
-      <div className="set-target-cell">
-        <span className="target-text" title={previous ? 'The same set last time' : undefined}>{previous ?? (plan ? (timed ? showTimedTarget(plan) : showTarget(plan, trackRir)) : '—')}</span>
+      {/* The target the progression set at the start: fixed for the session, with its reason. */}
+      <div className="set-target-cell" title={target.reason ?? undefined}
+        aria-describedby={target.reason ? targetDescription : undefined}>
+        <span className="target-text">{target.reps}</span>
         {partialTechnique && <small className="set-technique-note">{partialTechnique}</small>}
-        {/* Only a suggested load is worth a line; a suggestion without one would say nothing. */}
-        {suggestedLoad && (
-          <small className="suggestion-text" title={set.suggestion?.reason}>{suggestedLoad}</small>
-        )}
+        {target.load && <small className="suggestion-text">{target.load}</small>}
+        {target.reason && <span id={targetDescription} className="sr-only">{target.reason}</span>}
       </div>
 
       <div className={`set-input-cell load-cell load-${loadEntry}`}>

@@ -103,7 +103,7 @@ fun RestPage(
                 modifier = Modifier.fillMaxSize().padding(2.dp),
                 strokeWidth = 4.dp,
                 colors = ProgressIndicatorDefaults.colors(
-                    indicatorColor = if (finished) Palette.Green else Palette.Accent,
+                    indicatorColor = if (finished) Palette.Teal else Palette.Accent,
                     trackColor = Palette.SurfaceRaised
                 )
             )
@@ -117,7 +117,7 @@ fun RestPage(
                 Text(
                     formatClock(seconds),
                     style = clockStyle,
-                    color = if (finished) Palette.Green else Palette.Text
+                    color = if (finished) Palette.Teal else Palette.Text
                 )
                 if (nextUp != null) {
                     if (compact) {

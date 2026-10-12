@@ -6,6 +6,7 @@ import { summarizeSets } from '../lib/setSummary';
 import { formatRest } from '../lib/training';
 import { useTrackRir } from '../lib/trackRir';
 import { ProgramMusclePreview } from './ProgramMusclePreview';
+import { SupersetGroupHeader } from './SupersetTag';
 
 /// A library day shown as the program prints it. Nothing here is editable: a program only
 /// becomes editable once it is moved into the active slot.
@@ -48,7 +49,7 @@ export function ReadOnlyDay({ day, exercises, selectedMuscle, onMuscleSelect }: 
     </div>
     <ol className="readonly-day-exercises">
       {groups.map(group => <li key={group[0].lineId} className={group.length > 1 ? 'superset-block' : undefined}>
-        {group.length > 1 && <div className="superset-heading">Superset {getSupersetGroup(group[0].sequenceGroup)}</div>}
+        {group.length > 1 && <SupersetGroupHeader sequenceGroup={group[0].sequenceGroup} count={group.length} />}
         {group.map(exercise => (
           <ReadOnlyExercise
             key={exercise.lineId}
