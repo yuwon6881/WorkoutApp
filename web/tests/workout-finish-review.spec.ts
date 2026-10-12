@@ -5,7 +5,10 @@ test('program finish waits for review even when the saved exercise has no restor
   await signIn(page, 'e2e-lifter');
   const headers = { 'X-Workout-Request': '1', Origin: new URL(page.url()).origin };
   const active = await (await page.request.get('/api/workouts/active')).json();
-  if (active) await page.request.post(`/api/workouts/${active.id}/discard`, { headers });
+  if (active) {
+    const discardActive = await page.request.post(`/api/workouts/${active.id}/discard`, { headers });
+    expect(discardActive.ok(), await discardActive.text()).toBeTruthy();
+  }
   const catalog = await (await page.request.get('/api/exercises')).json();
   const bench = catalog.find((exercise: { name: string }) => exercise.name === 'Barbell bench press') ?? catalog[0];
   const exercise = { exerciseId: bench.id, sourceName: bench.name, sets: [{ repMin: 8, repMax: 10, targetRpe: 8, restSeconds: 90 }] };
@@ -40,12 +43,15 @@ test('program finish waits for review even when the saved exercise has no restor
       await reviewing;
       if (!page.isClosed()) await route.continue();
     });
+
+    // On launch with an active workout, the app contract deterministically auto-opens the workout sheet
     await page.goto('/');
+    const sheet = page.getByRole('dialog', { name: session.name, exact: true });
+    await expect(sheet).toBeVisible();
     const options = page.getByRole('button', { name: 'Workout options', exact: true });
-    const resume = page.getByRole('button', { name: `Resume ${session.name}`, exact: true });
-    await expect.poll(async () => await options.isVisible() || await resume.isVisible()).toBe(true);
-    if (!await options.isVisible()) await resume.click();
+    await expect(options).toBeVisible();
     await options.click();
+
     await page.getByRole('menuitem', { name: 'Finish workout', exact: true }).click();
     const save = page.getByRole('button', { name: 'Save workout', exact: true });
     await expect.poll(() => reviews).toBe(1);
@@ -55,15 +61,31 @@ test('program finish waits for review even when the saved exercise has no restor
     await save.click();
     await expect(page.getByText('Workout complete', { exact: true })).toBeVisible();
   } finally {
-    release();
+    release?.();
     if (!page.isClosed()) {
       await page.unrouteAll({ behavior: 'ignoreErrors' });
-      if (sessionId) {
-        const latest = await (await page.request.get(`/api/workouts/${sessionId}`)).json();
-        if (latest.active) await page.request.post(`/api/workouts/${sessionId}/discard`, { headers });
-        else await page.request.delete(`/api/workouts/${sessionId}`, { headers });
+      try {
+        if (sessionId) {
+          const check = await page.request.get(`/api/workouts/${sessionId}`);
+          if (check.ok()) {
+            const latest = await check.json();
+            if (latest?.active) {
+              const res = await page.request.post(`/api/workouts/${sessionId}/discard`, { headers });
+              expect(res.ok(), await res.text()).toBeTruthy();
+            } else {
+              const res = await page.request.delete(`/api/workouts/${sessionId}`, { headers });
+              expect(res.ok(), await res.text()).toBeTruthy();
+            }
+          } else {
+            expect(check.ok(), await check.text()).toBeTruthy();
+          }
+        }
+      } finally {
+        if (program?.id) {
+          const res = await page.request.delete(`/api/programs/${program.id}`, { headers });
+          expect(res.ok(), await res.text()).toBeTruthy();
+        }
       }
-      await page.request.delete(`/api/programs/${program.id}`, { headers });
     }
   }
 });

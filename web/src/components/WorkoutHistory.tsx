@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
-import { ArrowRight, Dumbbell, Trash2, Trophy } from 'lucide-react';
-import type { HistoryPage, Session, Unit } from '../types';
+import { ArrowRight, Trash2 } from 'lucide-react';
+import type { HistoryPage, HistorySummaryPage, Session, Unit } from '../types';
+import { viewReadCache } from '../lib/viewReadCache';
 import { ApiError, api } from '../lib/api';
 import { forgetSessionDetail, prefetchSessionDetail } from '../lib/sessionDetailLoad';
 import { prefetchView, viewReady } from '../app/lazyViews';
@@ -15,7 +16,7 @@ import './RenderWindow.css';
 interface WorkoutHistoryProps {
   initial?: HistoryPage;
   accountId?: string;
-  refreshKey?: object;
+  refreshKey?: object | string;
   unit: Unit;
   onSession: (s: Session) => void;
   onStart: () => void;
@@ -32,9 +33,11 @@ export function WorkoutHistory({
   onStart,
   onDeleted
 }: WorkoutHistoryProps) {
-  const [page, setPage] = useState<HistoryPage>(initial ?? { total: 0, page: 0, size: 20, sessions: [] });
-  const [cursor, setCursor] = useState<{ at: string | null; id: string | null }>({ at: null, id: null });
-  const [loading, setLoading] = useState(!initial);
+  const readKey = `${accountId ?? ''}:history`;
+  const cached = viewReadCache.get<HistorySummaryPage>(readKey, refreshKey);
+  const [page, setPage] = useState<HistoryPage>(initial ?? { total: cached?.total ?? 0, page: 0, size: 20, sessions: cached?.sessions ?? [] });
+  const [cursor, setCursor] = useState<{ at: string | null; id: string | null }>({ at: cached?.nextBeforeAt ?? null, id: cached?.nextBeforeId ?? null });
+  const [loading, setLoading] = useState(!initial && !cached);
   const [error, setError] = useState('');
   const [deleteSession, setDeleteSession] = useState<Session | null>(null);
   const [deleting, setDeleting] = useState(false);
@@ -54,9 +57,14 @@ export function WorkoutHistory({
       const last = initial.sessions.at(-1);
       setCursor({ at: last?.finishedAt ?? null, id: last?.id ?? null });
     } else {
-      setLoading(true);
+      const snapshot = viewReadCache.get<HistorySummaryPage>(readKey, refreshKey);
+      setPage({ total: snapshot?.total ?? 0, page: 0, size: 20, sessions: snapshot?.sessions ?? [] });
+      setCursor({ at: snapshot?.nextBeforeAt ?? null, id: snapshot?.nextBeforeId ?? null });
+      setLoading(!snapshot);
+      if (viewReadCache.fresh(readKey, refreshKey)) return () => active.abort();
       api.historySummaries(null, null, active.signal).then(next => {
-        if (generation !== epoch.current) return;
+        if (active.signal.aborted || generation !== epoch.current) return;
+        viewReadCache.set(readKey, refreshKey, next);
         setPage({ total: next.total, page: 0, size: 20, sessions: next.sessions });
         setCursor({ at: next.nextBeforeAt, id: next.nextBeforeId });
       }).catch(failure => {
@@ -97,6 +105,7 @@ export function WorkoutHistory({
     setDeleteError('');
     try {
       await api.deleteWorkout(deleteSession.id);
+      viewReadCache.reset();
       forgetSessionDetail(deleteSession.id);
       setPage(current => ({
         ...current,
@@ -137,7 +146,6 @@ export function WorkoutHistory({
                 onFocus={() => prefetchView('sessionDetail')}
                 onClick={() => { prepareSession(session); void viewReady('sessionDetail').then(() => onSession(session)); }}
               >
-                <span className="exercise-icon"><Dumbbell size={20} /></span>
                 <span className="row-title">
                   <strong>{session.name}</strong>
                   <small>
@@ -146,7 +154,7 @@ export function WorkoutHistory({
                 </span>
                 {prCount > 0 && (
                   <span className="pill pill-accent history-pr-pill">
-                    <Trophy size={12} /> {prCount} {prCount === 1 ? 'PR' : 'PRs'}
+                    {prCount} {prCount === 1 ? 'PR' : 'PRs'}
                   </span>
                 )}
                 {hasVolume && <span className="history-volume">{showVolume(session.volumeKg, unit)}</span>}
@@ -174,7 +182,6 @@ export function WorkoutHistory({
 
       {!sessions.length && !loading && (
         <div className="empty-message">
-          <Dumbbell size={32} />
           <h3>No workouts yet</h3>
           <p>Finish a workout to see its sets and volume here.</p>
           <Button onClick={onStart}>Find a workout<ArrowRight size={16} /></Button>

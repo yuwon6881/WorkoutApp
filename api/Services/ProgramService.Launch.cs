@@ -9,6 +9,38 @@ public sealed record NextWorkoutView(Guid Id, string Name, string Focus, int Wee
 
 public sealed partial class ProgramService
 {
+    public static async Task<NextWorkoutView?> StandaloneNext(AppDb db, CancellationToken ct)
+    {
+        var candidate = await db.Templates.AsNoTracking()
+            .Where(day => day.ProgramId == null)
+            .OrderByDescending(day => day.Active)
+            .ThenBy(day => day.Position)
+            .ThenBy(day => day.Id)
+            .Select(day => new
+            {
+                day.Id,
+                day.Name,
+                day.Focus,
+                day.Week,
+                day.Position,
+                day.Active,
+                day.ActiveCompletedAt,
+                ExerciseCount = db.TemplateExercises.Count(exercise => exercise.TemplateId == day.Id)
+            })
+            .FirstOrDefaultAsync(ct);
+
+        if (candidate is null) return null;
+        if (candidate.Active && candidate.ActiveCompletedAt is not null) return null;
+
+        return new NextWorkoutView(
+            candidate.Id,
+            candidate.Name,
+            candidate.Focus,
+            candidate.Week,
+            candidate.Position,
+            candidate.ExerciseCount);
+    }
+
     public async Task<(ProgramLaunchView? Program, NextWorkoutView? Next)> Launch(CancellationToken ct)
     {
         var program = await db.Programs.AsNoTracking().Where(row => row.Active).OrderByDescending(row => row.Created).FirstOrDefaultAsync(ct);

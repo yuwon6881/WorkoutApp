@@ -5,12 +5,14 @@ import { getWorkoutMuscles } from '../lib/muscles';
 import { showReps, showSetCount } from '../lib/training';
 import { Button } from './ui/Button';
 import './RoutineCard.css';
+import { showTimedTarget } from '../lib/setDuration';
 
-const LISTED_EXERCISES = 4;
+const LISTED_EXERCISES = 2;
 
 /// A saved workout in the library: what it trains, what is in it, and one action to start it.
-export function RoutineCard({ template, exercises, onEdit, onStart, dragProps, menu }: {
+export function RoutineCard({ template, exercises, onEdit, onStart, hasActiveWorkout = false, activeTemplateId = null, dragProps, menu }: {
   template: Template; exercises: Exercise[]; onEdit: () => void; onStart: () => void;
+  hasActiveWorkout?: boolean; activeTemplateId?: string | null;
   dragProps?: HTMLAttributes<HTMLElement>; menu?: ReactNode;
 }) {
   const muscles = useMemo(() => getWorkoutMuscles(template.exercises, exercises), [template.exercises, exercises]);
@@ -30,6 +32,8 @@ export function RoutineCard({ template, exercises, onEdit, onStart, dragProps, m
         <h2>{template.name}</h2>
         <p className="routine-card-meta">{meta.map((part, i) => <Fragment key={part}>{i > 0 && ' · '}<span>{part}</span></Fragment>)}</p>
       </div>
+    </div>
+    <div className="routine-card-controls">
       <Button variant="tertiary" className="routine-card-edit" aria-label={`Edit ${template.name}`} onClick={onEdit}><Pencil size={17} /></Button>
       {menu}
     </div>
@@ -38,12 +42,18 @@ export function RoutineCard({ template, exercises, onEdit, onStart, dragProps, m
       {muscles.length > 5 && <span className="muscle-chip muscle-chip-overflow" title={muscles.slice(5).join(', ')}>+{muscles.length - 5}</span>}
     </div>}
     <ol className="routine-card-exercises">
-      {template.exercises.slice(0, LISTED_EXERCISES).map(e => <li key={e.id}>
+      {template.exercises.slice(0, LISTED_EXERCISES).map(e => {
+        const working = e.sets.filter(set => !set.warmup);
+        const timed = exercises.find(exercise => exercise.id === e.exerciseId)?.trackingMode === 'duration';
+        return <li key={e.id}>
         <span>{e.name}</span>
-        <small>{e.sets.length} × {showReps(e.sets[0])}</small>
-      </li>)}
+        <small>{working.length} × {working[0] ? timed ? showTimedTarget(working[0]) : showReps(working[0]) : '—'}</small>
+      </li>;
+      })}
       {hidden > 0 && <li className="routine-card-more"><span>+{hidden} more</span></li>}
     </ol>
-    <Button className="full-width routine-card-start" onClick={onStart}>Start workout<ArrowRight size={17} /></Button>
+    <Button className="routine-card-start" disabled={hasActiveWorkout && activeTemplateId !== template.id} onClick={onStart}>
+      {hasActiveWorkout && activeTemplateId === template.id ? 'Continue workout' : 'Start workout'}<ArrowRight size={17} />
+    </Button>
   </section>;
 }

@@ -10,8 +10,8 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 4px 6px;
-  border-radius: var(--radius-control, 10px);
+  padding: 6px 8px;
+  border-radius: var(--radius-control, 8px);
   border: 1px solid transparent;
   transition: background-color 0.16s ease, border-color 0.16s ease;
 }
@@ -28,7 +28,7 @@
   align-items: center;
   justify-content: flex-start;
   gap: 12px;
-  padding: 8px 6px;
+  padding: 4px 2px;
   border-radius: var(--radius-control, 8px);
   text-align: left;
   background: transparent !important;
@@ -41,8 +41,8 @@
   background: transparent !important;
 }
 
-/* The shared press shrink scales a full-width, start-aligned row toward its centre, which reads as
-   the row sliding sideways and back. A row answers a press with a tint instead. */
+/* The shared press shrink scales a full-width, start-aligned row toward its centre.
+   A row answers a press with a tint instead. */
 .button.history-row:active:not(:disabled) {
   transform: none;
 }
@@ -50,18 +50,6 @@
 .history-item-wrap:has(.history-row:active) {
   background: var(--surface-hover);
   border-color: var(--border-hover);
-}
-
-.history-row .exercise-icon {
-  flex-shrink: 0;
-  width: 36px;
-  height: 36px;
-  display: grid;
-  place-items: center;
-  border-radius: 8px;
-  color: var(--accent);
-  background: var(--accent-soft);
-  border: 1px solid var(--accent-border);
 }
 
 .history-row .row-title {
@@ -89,18 +77,17 @@
 .history-pr-pill {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  padding: 3px 8px;
+  padding: 2px 7px;
   font-size: 14px;
   font-weight: 600;
-  border-radius: 6px;
+  border-radius: var(--radius-control, 6px);
   background: var(--accent-soft);
   color: var(--accent);
   border: 1px solid var(--accent-border);
   flex-shrink: 0;
 }
 
-.history-item-wrap .history-row > span:not(.row-title):not(.exercise-icon),
+.history-item-wrap .history-row > span:not(.row-title),
 .history-volume {
   font-size: 14px !important;
   color: var(--muted);
@@ -130,33 +117,29 @@
 }
 
 .history-loading-list .history-row-skeleton {
-  height: 64px;
-  border-radius: var(--radius-control, 10px);
+  height: 56px;
+  border-radius: var(--radius-control, 8px);
 }
 
 @media (max-width: 639px) {
   .history-item-wrap {
-    padding: 6px 8px;
+    padding: 6px 6px;
   }
   .history-row {
-    display: grid;
-    grid-template-columns: 36px minmax(0, 1fr);
-    gap: 8px 10px;
-    padding: 4px 0;
-  }
-  .history-row .exercise-icon {
-    grid-column: 1;
-    grid-row: 1 / span 2;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 4px 10px;
+    padding: 2px 0;
   }
   .history-row .row-title {
-    grid-column: 2;
+    flex: 1 1 100%;
   }
   .history-pr-pill,
   .history-volume {
-    grid-column: 2;
-    justify-self: start;
+    margin-top: 2px;
   }
   .history-loading-list .history-row-skeleton {
-    height: 72px;
+    height: 60px;
   }
 }

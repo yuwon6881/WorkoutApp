@@ -47,8 +47,8 @@
 @keyframes workout-backdrop-in { from { opacity: 0; } }
 @keyframes workout-backdrop-out { to { opacity: 0; } }
 
-.modal.workout-sheet[open] { animation: workout-sheet-lift 300ms var(--motion-ease) both; }
-.modal.workout-sheet[open]::backdrop { animation: workout-backdrop-in 300ms ease both; }
+.modal.workout-sheet[open] { animation: workout-sheet-lift 300ms var(--motion-ease); }
+.modal.workout-sheet[open]::backdrop { animation: workout-backdrop-in 300ms ease; }
 .modal.workout-sheet[open][data-leaving] {
   animation: workout-sheet-drop 200ms cubic-bezier(.4, 0, 1, 1) forwards;
   pointer-events: none;
@@ -56,7 +56,7 @@
 .modal.workout-sheet[open][data-leaving]::backdrop { animation: workout-backdrop-out 200ms ease forwards; }
 
 @media (max-width: 639px) {
-  .modal.workout-sheet[open] { animation: workout-sheet-rise 440ms cubic-bezier(.32, .72, 0, 1) both; }
+  .modal.workout-sheet[open] { animation: workout-sheet-rise 440ms cubic-bezier(.32, .72, 0, 1); }
   .modal.workout-sheet[open][data-leaving] { animation: workout-sheet-fall 280ms cubic-bezier(.4, 0, .9, .6) forwards; }
   .modal.workout-sheet[open][data-leaving]::backdrop { animation-duration: 280ms; }
 }
@@ -317,12 +317,25 @@
   transition: transform 420ms cubic-bezier(.32, .72, 0, 1);
 }
 
-/* Phones: the next set is already the highlighted row below, so the row keeps to the clock and its
-   three adjustments; the logged-sets count steps aside for them while a rest runs. */
+/* While a rest runs it is the number the lifter is waiting on, so it leads: the workout clock steps
+   back to supporting size and the set count stays beside it instead of disappearing. */
+.workout-top-status-bar:has(.workout-rest-bar) .workout-top-rail .workout-elapsed-clock {
+  color: var(--muted);
+  font-size: var(--font-secondary);
+  font-weight: 600;
+  letter-spacing: 0;
+}
+.workout-top-status-bar:has(.workout-rest-bar) .rest-clock { min-height: 40px; }
+.workout-top-status-bar:has(.workout-rest-bar) .rest-clock-value { font-size: 24px; }
+
+/* Phones: the next set is already the highlighted row below, so the row keeps to the two clocks and
+   the rest's three adjustments. The workout clock and set count stack to leave the rest its width. */
 @media (max-width: 639px) {
   .modal .workout-top-status-bar { gap: 0; padding: 4px 8px 6px 16px; }
   .workout-top-rail { gap: 6px; }
   .workout-top-rail .workout-elapsed-clock { font-size: 20px; }
+  .workout-top-status-bar:has(.workout-rest-bar) .workout-top-meta { flex-direction: column; align-items: flex-start; gap: 0; }
+  .workout-top-status-bar:has(.workout-rest-bar) .workout-top-meta > * { line-height: 1.3; }
   .workout-rest-bar:not(.over) .rest-clock-label {
     position: absolute;
     width: 1px;
@@ -334,12 +347,9 @@
   .rest-clock { padding-inline: 9px 11px; }
   .rest-bar-actions .button { min-width: 44px; padding: 0 6px; }
 }
-@media (max-width: 639px) {
-  .workout-top-status-bar:has(.workout-rest-bar) .workout-top-sets { display: none; }
-}
 /* The narrowest phones keep an hour-long clock and a rest on one row. */
 @media (max-width: 359px) {
-  .workout-top-status-bar:has(.workout-rest-bar) .workout-top-rail .workout-elapsed-clock { font-size: 17px; }
+  .workout-top-status-bar:has(.workout-rest-bar) .rest-clock-value { font-size: 22px; }
   .rest-clock svg { display: none; }
   .rest-bar-actions { gap: 0; }
 }

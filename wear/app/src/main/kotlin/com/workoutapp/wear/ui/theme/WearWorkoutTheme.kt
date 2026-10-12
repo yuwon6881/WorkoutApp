@@ -14,25 +14,25 @@ import androidx.wear.compose.material3.Typography
  */
 object Palette {
     val Background = Color(0xFF000000)
-    val Surface = Color(0xFF13151B)
-    val SurfaceRaised = Color(0xFF1C202A)
-    val SurfaceHover = Color(0xFF252A36)
-    val Border = Color(0xFF252A36)
-    val BorderHover = Color(0xFF4B5563)
-    val Text = Color(0xFFF3F4F6)
-    val Muted = Color(0xFF9CA3AF)
-    val Faint = Color(0xFF6B7280)
-    val Accent = Color(0xFFCCFF00)
-    val AccentDim = Color(0xFFA3CC00)
-    val AccentContainer = Color(0xFF1C2400)
-    val OnAccent = Color(0xFF0A0A0C)
-    val Green = Color(0xFFCCFF00)
-    val GreenContainer = Color(0xFF1C2400)
+    val Surface = Color(0xFF141716)
+    val SurfaceRaised = Color(0xFF191F1C)
+    val SurfaceHover = Color(0xFF232B27)
+    val Border = Color(0xFF232B27)
+    val BorderHover = Color(0xFF333E38)
+    val Text = Color(0xFFF3F4F2)
+    val Muted = Color(0xFF9CA8A1)
+    val Faint = Color(0xFF97A69D)
+    val Accent = Color(0xFF91D8BA)
+    val AccentDim = Color(0xFF70B89C)
+    val AccentContainer = Color(0xFF162820)
+    val OnAccent = Color(0xFF0C1A14)
+    val Green = Color(0xFF91D8BA)
+    val GreenContainer = Color(0xFF162820)
     val Amber = Color(0xFFFACC15)
     val Coral = Color(0xFFFB923C)
     val Red = Color(0xFFF43F5E)
     val RedContainer = Color(0xFF240B10)
-    val Blue = Color(0xFF22D3EE)
+    val Blue = Color(0xFF38BDF8)
     val BlueContainer = Color(0xFF072127)
 }
 
@@ -50,7 +50,7 @@ private val WorkoutColorScheme = ColorScheme(
     tertiary = Palette.Green,
     tertiaryDim = Palette.Green,
     tertiaryContainer = Palette.GreenContainer,
-    onTertiary = Palette.Background,
+    onTertiary = Palette.OnAccent,
     onTertiaryContainer = Palette.Green,
     surfaceContainerLow = Palette.Surface,
     surfaceContainer = Palette.SurfaceRaised,

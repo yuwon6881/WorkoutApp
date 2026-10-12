@@ -104,6 +104,12 @@ fun workoutProgress(session: WorkoutSession): WorkoutProgress {
     return WorkoutProgress(doneSets = working.count { it.done }, plannedSets = working.size)
 }
 
+fun finishConfirmationMessage(doneSets: Int, plannedSets: Int): String =
+    "$doneSets of ${plural(plannedSets, "set")} logged. Only logged sets are saved after sync."
+
+fun finishConfirmationMessage(progress: WorkoutProgress): String =
+    finishConfirmationMessage(progress.doneSets, progress.plannedSets)
+
 fun allSetsLogged(session: WorkoutSession): Boolean = session.exercises.none { row -> row.sets.any { !it.done } }
 
 fun nextIncompleteExercise(session: WorkoutSession, afterId: String): WorkoutExercise? {

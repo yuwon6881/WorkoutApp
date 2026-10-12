@@ -182,4 +182,137 @@ public class ActiveSlotTests
         var failure = await Assert.ThrowsAsync<DomainException>(() => h.ActiveSlot.SetTemplateActive(day.Id, true, day.Revision, default));
         Assert.Equal(409, failure.Status);
     }
+
+    [Fact]
+    public async Task Non_first_active_standalone_is_selected_over_earlier_library_template()
+    {
+        var (h, benchId) = await Ready();
+        await using var _h = h;
+        var first = await h.Templates.Create(Harness.Template("A First", Harness.Exercise(benchId, "Bench press", Harness.Set(8, 10))), null, 1, 0, default);
+        var second = await h.Templates.Create(Harness.Template("B Second", Harness.Exercise(benchId, "Bench press", Harness.Set(8, 10))), null, 1, 1, default);
+
+        var initial = await ProgramService.StandaloneNext(h.Db, default);
+        Assert.NotNull(initial);
+        Assert.Equal(first.Id, initial.Id);
+
+        await h.ActiveSlot.SetTemplateActive(second.Id, true, second.Revision, default);
+
+        var activeNext = await ProgramService.StandaloneNext(h.Db, default);
+        Assert.NotNull(activeNext);
+        Assert.Equal(second.Id, activeNext.Id);
+        var hero = await WorkoutHeroReadService.Get(h.Db, activeNext.Id, null, default);
+        Assert.Equal(1, hero.WorkingSets);
+        Assert.Contains(hero.Muscles, muscle => muscle.Muscle == "Chest" && muscle.Sets == 1);
+        Assert.Equal("B Second", activeNext.Name);
+        Assert.Equal(1, activeNext.Position);
+    }
+
+    [Fact]
+    public async Task Completed_active_standalone_suppresses_library_fallback()
+    {
+        var (h, benchId) = await Ready();
+        await using var _h = h;
+        var first = await h.Templates.Create(Harness.Template("A First", Harness.Exercise(benchId, "Bench press", Harness.Set(8, 10))), null, 1, 0, default);
+        var second = await h.Templates.Create(Harness.Template("B Second", Harness.Exercise(benchId, "Bench press", Harness.Set(8, 10))), null, 1, 1, default);
+        await h.ActiveSlot.SetTemplateActive(second.Id, true, second.Revision, default);
+
+        await CompleteWorkout(h, second.Id);
+
+        var completed = await h.Templates.Get(second.Id, default);
+        Assert.True(completed.Active);
+        Assert.NotNull(completed.ActiveCompletedAt);
+
+        var next = await ProgramService.StandaloneNext(h.Db, default);
+        Assert.Null(next);
+    }
+
+    [Fact]
+    public async Task Restart_and_move_to_library_transitions_for_standalone_next()
+    {
+        var (h, benchId) = await Ready();
+        await using var _h = h;
+        var first = await h.Templates.Create(Harness.Template("A First", Harness.Exercise(benchId, "Bench press", Harness.Set(8, 10))), null, 1, 0, default);
+        var second = await h.Templates.Create(Harness.Template("B Second", Harness.Exercise(benchId, "Bench press", Harness.Set(8, 10))), null, 1, 1, default);
+        await h.ActiveSlot.SetTemplateActive(second.Id, true, second.Revision, default);
+        await CompleteWorkout(h, second.Id);
+
+        Assert.Null(await ProgramService.StandaloneNext(h.Db, default));
+        var hero = await WorkoutHeroReadService.Get(h.Db, null, null, default);
+        Assert.Equal("B Second", hero.CompletedStandaloneName);
+
+        var finished = await h.Templates.Get(second.Id, default);
+        var restarted = await h.ActiveSlot.RestartTemplate(second.Id, finished.Revision, default);
+        Assert.True(restarted.Active);
+        Assert.Null(restarted.ActiveCompletedAt);
+
+        var resumedNext = await ProgramService.StandaloneNext(h.Db, default);
+        Assert.NotNull(resumedNext);
+        Assert.Equal(second.Id, resumedNext.Id);
+
+        var moved = await h.ActiveSlot.SetTemplateActive(second.Id, false, restarted.Revision, default);
+        Assert.False(moved.Active);
+
+        var libraryFallback = await ProgramService.StandaloneNext(h.Db, default);
+        Assert.NotNull(libraryFallback);
+        Assert.Equal(first.Id, libraryFallback.Id);
+    }
+
+    [Fact]
+    public async Task Program_priority_is_preserved_over_standalone_in_launch()
+    {
+        var (h, benchId) = await Ready();
+        await using var _h = h;
+        var program = await h.Programs.Create(TwoWeeks(benchId), true, null, default);
+        await h.Templates.Create(Harness.Template("Standalone", Harness.Exercise(benchId, "Bench press", Harness.Set(8, 10))), null, 1, 0, default);
+
+        var (launchProgram, next) = await h.Programs.Launch(default);
+        Assert.NotNull(launchProgram);
+        Assert.NotNull(next);
+        Assert.Equal(program.Workouts[0].Id, next.Id);
+        Assert.Equal("Week 1 Day A", next.Name);
+    }
+
+    [Fact]
+    public async Task Standalone_next_enforces_account_isolation()
+    {
+        var (h, benchId) = await Ready();
+        await using var _h = h;
+        var aliceTemplate = await h.Templates.Create(Harness.Template("Alice Active", Harness.Exercise(benchId, "Bench press", Harness.Set(8, 10))), null, 1, 0, default);
+        await h.ActiveSlot.SetTemplateActive(aliceTemplate.Id, true, aliceTemplate.Revision, default);
+
+        var aliceNext = await ProgramService.StandaloneNext(h.Db, default);
+        Assert.NotNull(aliceNext);
+        Assert.Equal(aliceTemplate.Id, aliceNext.Id);
+
+        await h.SignIn("bob");
+
+        var bobNextEmpty = await ProgramService.StandaloneNext(h.Db, default);
+        Assert.Null(bobNextEmpty);
+
+        var bobTemplate = await h.Templates.Create(Harness.Template("Bob Library", Harness.Exercise(benchId, "Bench press", Harness.Set(8, 10))), null, 1, 0, default);
+        var bobNext = await ProgramService.StandaloneNext(h.Db, default);
+        Assert.NotNull(bobNext);
+        Assert.Equal(bobTemplate.Id, bobNext.Id);
+        Assert.NotEqual(aliceTemplate.Id, bobNext.Id);
+    }
+
+    [Fact]
+    public async Task Standalone_next_projects_summary_fields_and_exercise_count()
+    {
+        var (h, benchId) = await Ready();
+        await using var _h = h;
+        var template = await h.Templates.Create(Harness.Template("Two Moves",
+            Harness.Exercise(benchId, "Bench press", Harness.Set(8, 10)),
+            Harness.Exercise(benchId, "Bench press 2", Harness.Set(10, 12))), null, 1, 3, default);
+        await h.ActiveSlot.SetTemplateActive(template.Id, true, template.Revision, default);
+
+        var next = await ProgramService.StandaloneNext(h.Db, default);
+        Assert.NotNull(next);
+        Assert.Equal(template.Id, next.Id);
+        Assert.Equal("Two Moves", next.Name);
+        Assert.Equal("Focus", next.Focus);
+        Assert.Equal(1, next.Week);
+        Assert.Equal(3, next.Position);
+        Assert.Equal(2, next.ExerciseCount);
+    }
 }

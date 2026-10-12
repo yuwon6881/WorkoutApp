@@ -1,5 +1,9 @@
 import type { LoggedSet, RestMutationInput, Session } from '../types';
-import type { SetPatch, WorkoutOperation } from './workoutRecovery';
+import type { SetPatch, WorkoutOperation, WorkoutRecoveryRecord } from './workoutRecovery';
+
+export function hasUnresolvedRecovery(record: WorkoutRecoveryRecord): boolean {
+  return record.conflict || record.operations.length > 0 || !sameWorkoutEdits(record.draft, record.serverSession);
+}
 
 /// Coalesce only operations that have not been bound to a request. An already-bound operation
 /// may have reached the server, so a later revert must be represented by a compensating patch.

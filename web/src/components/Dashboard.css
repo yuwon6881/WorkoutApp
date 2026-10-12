@@ -20,6 +20,30 @@
   text-align: left;
 }
 
+.overview-main-column {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+
 @media (max-width: 639px) {
   .page-heading.dashboard-heading { margin-bottom: 16px; }
+
+  /* Mobile compact flow: hero -> calendar -> metrics -> history */
+  .overview-main-column {
+    display: contents;
+  }
+  .overview-hero-calendar-grid > .overview-main-column > .next-workout-hero {
+    order: 1;
+  }
+  .overview-hero-calendar-grid > .overview-calendar-column {
+    order: 2;
+  }
+  .overview-hero-calendar-grid > .overview-main-column > .progress-stats {
+    order: 3;
+  }
+  .overview-hero-calendar-grid > .overview-main-column > .error-banner {
+    order: 4;
+  }
 }

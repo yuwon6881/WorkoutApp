@@ -1,14 +1,16 @@
 .panel.training-calendar-card {
+  container-type: inline-size;
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  padding: 22px 24px;
-  margin-bottom: 24px;
+  gap: 12px;
+  padding: 16px 18px;
+  margin-bottom: 0;
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: var(--radius);
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.12);
+  border-radius: var(--radius, 12px);
+  box-shadow: none;
   overflow: hidden;
+  box-sizing: border-box;
 }
 
 /* Header */
@@ -16,22 +18,22 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
+  gap: 12px;
   flex-wrap: wrap;
 }
 
 .calendar-completion {
   display: flex;
   align-items: center;
-  gap: 14px;
-  flex: 1 1 280px;
+  gap: 10px;
+  flex: 1 1 200px;
   min-width: 0;
 }
 
 .weekly-completion-ring {
-  width: 56px;
-  height: 56px;
-  flex: 0 0 56px;
+  width: 44px;
+  height: 44px;
+  flex: 0 0 44px;
   overflow: visible;
 }
 .weekly-completion-ring circle {
@@ -48,47 +50,36 @@
 .weekly-completion-ring text {
   fill: var(--text);
   font-family: inherit;
-  font-size: 24px;
-  font-weight: 750;
+  font-size: 22px;
+  font-weight: 700;
   font-variant-numeric: tabular-nums;
 }
 .weekly-completion-ring .completion-total {
   fill: var(--muted);
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 500;
-}
-
-@media (min-width: 1024px) {
-  .calendar-completion .weekly-completion-ring {
-    width: 68px;
-    height: 68px;
-    flex-basis: 68px;
-  }
-  .calendar-completion .weekly-completion-ring text { font-size: 30px; }
-  .calendar-completion .weekly-completion-ring .completion-total { font-size: 22px; }
 }
 
 .calendar-title-wrap {
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 2px;
   min-width: 0;
   flex: 1;
 }
 .calendar-title-wrap h3 {
   margin: 0;
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 700;
   color: var(--text);
   letter-spacing: -0.015em;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 .calendar-ring-caption {
   color: var(--muted);
   font-size: var(--font-secondary, 13px);
-  line-height: 1.4;
+  line-height: 1.35;
   overflow-wrap: anywhere;
 }
 
@@ -96,22 +87,23 @@
 .calendar-nav-controls {
   display: flex;
   align-items: center;
-  gap: 10px;
-  flex-shrink: 0;
+  gap: 8px;
+  flex-wrap: wrap;
+  min-width: 0;
 }
 
 .calendar-month-nav {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  padding: 3px 6px;
+  gap: 2px;
+  padding: 2px 4px;
   background: var(--surface-raised);
   border: 1px solid var(--border);
-  border-radius: var(--radius-control);
+  border-radius: var(--radius-control, 8px);
 }
 
 .calendar-month-label {
-  font-size: var(--font-secondary, 13px);
+  font-size: var(--font-secondary, 14px);
   font-weight: 600;
   color: var(--text);
   padding: 0 6px;
@@ -122,10 +114,10 @@
   display: inline-flex !important;
   align-items: center;
   justify-content: center;
-  width: 36px;
-  min-width: 36px;
-  height: 36px;
-  min-height: 36px;
+  width: 44px;
+  min-width: 44px;
+  height: 44px;
+  min-height: 44px;
   padding: 0;
   border-radius: 6px;
   color: var(--muted);
@@ -139,11 +131,11 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  min-height: 38px;
-  padding: 6px 12px;
-  font-size: var(--font-secondary, 13px);
+  min-height: 44px;
+  padding: 4px 10px;
+  font-size: var(--font-secondary, 14px);
   font-weight: 550;
-  border-radius: var(--radius-control);
+  border-radius: var(--radius-control, 8px);
   background: var(--surface-raised);
   border: 1px solid var(--border);
   color: var(--muted);
@@ -174,27 +166,33 @@
 .calendar-days-grid {
   display: grid;
   grid-template-columns: repeat(7, minmax(44px, 1fr));
-  gap: 8px;
+  gap: 6px;
   flex: 0 0 100%;
   min-width: 0;
   scroll-snap-align: start;
   padding: 2px;
 }
 
-/* A day is its weekday, its date in a disc, and a status mark. Today fills the disc with the
-   accent; a day with a finished workout tints it green. */
+@container (max-width: 400px) {
+  .calendar-card-header { gap: 8px; }
+  .calendar-completion { flex: 1 1 100%; }
+  .calendar-nav-controls { width: 100%; justify-content: space-between; }
+  .calendar-days-grid { gap: 0; min-width: 316px; padding: 2px 4px; }
+  .day-weekday { letter-spacing: 0; text-transform: none; }
+}
+
 .calendar-day-cell {
   position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 6px;
+  gap: 4px;
   min-width: 44px;
-  min-height: 88px;
+  min-height: 74px;
   border: 1px solid transparent;
-  border-radius: 12px;
-  padding: 8px 2px;
+  border-radius: var(--radius-control, 8px);
+  padding: 6px 2px;
   background: transparent;
   color: var(--text);
   cursor: pointer;
@@ -203,8 +201,6 @@
 .calendar-day-cell:hover {
   background: var(--surface-hover);
 }
-/* The filled disc and accent weekday already mark today; a tinted box around it as well doubled the
-   emphasis, so the cell itself stays plain like the other days. */
 .calendar-day-cell.is-today .day-weekday {
   color: var(--accent);
   font-weight: 650;
@@ -215,15 +211,15 @@
   font-size: 14px;
   font-weight: 550;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.03em;
 }
 .day-number {
   display: grid;
-  width: 36px;
-  height: 36px;
+  width: 32px;
+  height: 32px;
   place-items: center;
   border-radius: 50%;
-  font-size: 17px;
+  font-size: 16px;
   font-weight: 650;
   font-variant-numeric: tabular-nums;
   line-height: 1;
@@ -241,7 +237,7 @@
 }
 
 .day-status-indicator {
-  height: 20px;
+  height: 18px;
   display: grid;
   place-items: center;
 }
@@ -252,8 +248,8 @@
 }
 .day-status-disc.completed {
   color: var(--green);
-  width: 20px;
-  height: 20px;
+  width: 18px;
+  height: 18px;
   border-radius: 50%;
   background: color-mix(in srgb, var(--green) 14%, transparent);
 }
@@ -271,8 +267,8 @@
   clip-path: inset(50%);
 }
 .rest-ring {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
   border: 1.5px solid var(--border-hover);
   border-radius: 50%;
 }
@@ -282,8 +278,8 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 12px;
-  padding-top: 12px;
+  gap: 10px;
+  padding-top: 10px;
   border-top: 1px solid var(--border);
   flex-wrap: wrap;
 }
@@ -293,12 +289,13 @@
   color: var(--muted);
   font-size: var(--font-secondary);
   font-weight: 500;
-  line-height: 1.4;
+  line-height: 1.35;
 }
 
+/* A key, not controls: plain text beside its dot, so nothing here reads as a button. */
 .calendar-legend-pills {
   display: flex;
-  gap: 8px;
+  gap: 4px 14px;
   align-items: center;
   flex-wrap: wrap;
 }
@@ -306,10 +303,6 @@
   display: inline-flex;
   gap: 6px;
   align-items: center;
-  padding: 4px 10px;
-  border-radius: var(--radius-pill, 999px);
-  background: var(--surface-raised);
-  border: 1px solid var(--border);
   font-size: var(--font-secondary);
   font-weight: 500;
   color: var(--muted);
@@ -327,78 +320,38 @@
 .legend-dot.rest { background: var(--faint); }
 
 .calendar-error {
-  margin: 8px 0 0;
+  margin: 6px 0 0;
   color: var(--red);
   font-size: var(--font-secondary, 12px);
-}
-
-.calendar-entry {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 12px;
-  padding: 14px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-control);
-  background: var(--surface-raised);
-}
-.calendar-entry strong { display: block; margin-bottom: 4px; }
-
-/* Phones: the program week is its own card above the calendar, one line each for the week, the
-   ring, the count, and the program. */
-.panel.program-week-card {
-  display: grid;
-  justify-items: center;
-  gap: 6px;
-  margin-bottom: 16px;
-  padding: 18px 16px 20px;
-  text-align: center;
-}
-.program-week-card-title {
-  margin: 0;
-  color: var(--text);
-  font-size: 18px;
-  font-weight: 700;
-  letter-spacing: -0.015em;
-}
-.program-week-card .weekly-completion-ring {
-  width: 116px;
-  height: 116px;
-  flex: none;
-  margin: 8px 0 6px;
-}
-.program-week-card-progress {
-  margin: 0;
-  color: var(--text);
-  font-size: 15px;
-  font-weight: 550;
-  line-height: 1.4;
-}
-.program-week-card-name {
-  max-width: 100%;
-  margin: 0;
-  color: var(--muted);
-  font-size: 14px;
-  line-height: 1.4;
-  overflow-wrap: anywhere;
 }
 
 /* Responsive */
 @media (max-width: 639px) {
   .panel.training-calendar-card {
-    padding: 14px 12px;
-    margin-bottom: 20px;
-    gap: 12px;
+    padding: 16px 4px;
+    gap: 10px;
   }
-  /* The header holds only the month and, away from this week, the way back to it. */
   .calendar-card-header {
-    flex-wrap: nowrap;
+    flex-wrap: wrap;
     gap: 8px;
+  }
+  .calendar-completion {
+    flex: 1 1 100%;
+    gap: 10px;
+    /* Lines the title up with the month label below it now that the card's own padding is 4 px. */
+    padding-inline: 4px;
+  }
+  .weekly-completion-ring {
+    width: 40px;
+    height: 40px;
+    flex-basis: 40px;
   }
   .calendar-nav-controls {
     justify-content: space-between;
     width: 100%;
     min-height: 44px;
+    flex-wrap: wrap;
+    gap: 8px;
   }
   .calendar-month-nav {
     flex: 1 1 auto;
@@ -410,48 +363,46 @@
   .calendar-month-label {
     padding: 0;
     color: var(--text);
-    font-size: 16px;
+    font-size: 15px;
     font-weight: 650;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    white-space: normal;
+    overflow-wrap: anywhere;
   }
   .calendar-today-btn {
     flex: 0 0 auto;
+    min-height: 44px;
   }
   .calendar-week-rail {
     scroll-snap-type: none;
     -webkit-overflow-scrolling: touch;
   }
-  /* All seven days share the width; each keeps a 44 px target, so only the narrowest phones
-     scroll the last day in. */
   .calendar-days-grid {
     grid-template-columns: repeat(7, minmax(44px, 1fr));
     gap: 0;
-    min-width: 316px;
-    padding: 2px 4px;
+    min-width: 308px;
+    padding: 2px 0;
   }
   .calendar-day-cell {
-    min-height: 80px;
-    padding: 6px 0;
-    gap: 4px;
-    border-radius: 12px;
+    min-height: 72px;
+    padding: 4px 0;
+    gap: 3px;
+    border-radius: 8px;
   }
   .day-weekday {
-    /* Text stays at the 14px floor; title case keeps the label inside the narrow phone cell. */
     letter-spacing: 0;
     text-transform: none;
   }
   .day-number {
-    width: 32px;
-    height: 32px;
-    font-size: 16px;
+    width: 30px;
+    height: 30px;
+    font-size: 15px;
   }
   .calendar-card-footer {
     flex-direction: column;
     align-items: center;
     text-align: center;
-    gap: 10px;
-    padding-top: 12px;
+    gap: 8px;
+    padding-top: 10px;
   }
   .calendar-week-count {
     font-size: var(--font-secondary);
@@ -459,18 +410,11 @@
     width: 100%;
   }
   .calendar-legend-pills {
-    gap: 8px;
     width: 100%;
     justify-content: center;
   }
-  .calendar-legend-pill {
-    font-size: var(--font-secondary);
-    padding: 3.5px 9px;
-  }
 }
 
-/* Touch layouts browse weeks by swiping the rail; the arrows are a desktop affordance, and at
-   32 px they would also fall short of the 44 px compact and medium target. */
 @media (max-width: 1023px) {
   .calendar-nav-btn {
     display: none !important;

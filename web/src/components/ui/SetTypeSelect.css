@@ -1,8 +1,8 @@
 /* ui/SetTypeSelect.tsx: one width and shape for every set type; only the tint says which it is. */
 .set-type-select.custom-select-wrap {
-  width: 132px;
-  min-width: 132px;
-  max-width: 132px;
+  width: 144px;
+  min-width: 144px;
+  max-width: 144px;
   flex: 0 0 auto;
 }
 

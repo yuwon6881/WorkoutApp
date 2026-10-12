@@ -14,16 +14,15 @@ public static class PerformanceEndpoints
             var user = await db.Users.AsNoTracking().SingleAsync(row => row.Id == db.CurrentUser, ct);
             var (program, next) = await programs.Launch(ct);
             if (program is null)
-                next = await db.Templates.AsNoTracking().Where(day => day.ProgramId == null)
-                    .OrderBy(day => day.Position).ThenBy(day => day.Id).Select(day => new NextWorkoutView(day.Id,
-                        day.Name, day.Focus, day.Week, day.Position, db.TemplateExercises.Count(exercise => exercise.TemplateId == day.Id)))
-                    .FirstOrDefaultAsync(ct);
+                next = await ProgramService.StandaloneNext(db, ct);
             var generation = await db.ResourceGenerations.AsNoTracking().SingleOrDefaultAsync(ct) ?? new ResourceGeneration();
+            var activeWorkout = await workouts.Active(ct);
             return new {
                 resourceVersions = ResourceVersions.For(generation, user.Unit),
                 account = new { user.Id, displayName = user.DisplayName },
                 preferences = new { user.Unit, user.Theme, user.RestSeconds, user.RestAlerts, user.TrackRir },
-                activeWorkout = await workouts.Active(ct), activeProgram = program, nextWorkout = next,
+                activeWorkout, activeProgram = program, nextWorkout = next,
+                workoutHero = await WorkoutHeroReadService.Get(db, next?.Id, activeWorkout, ct),
                 imports = await imports.LaunchSummaries(ct),
                 navigationCounts = new { programs = await db.Programs.CountAsync(ct), templates = await db.Templates.CountAsync(day => day.ProgramId == null, ct) }
             };
@@ -33,19 +32,19 @@ public static class PerformanceEndpoints
         {
             var user = await db.Users.AsNoTracking().SingleAsync(x => x.Id == db.CurrentUser, ct);
             var active = (await programs.List(ct, activeOnly: true)).FirstOrDefault();
-            var standalone = await db.Templates.AsNoTracking().Where(x => x.ProgramId == null)
-                .OrderBy(x => x.Position).ThenBy(x => x.Id).Select(x => new { x.Id, x.Name, x.Focus, x.Week, x.Position }).FirstOrDefaultAsync(ct);
             object? next = active?.Days.FirstOrDefault(x => x.Id == active.NextTemplateId);
-            if (active == null && standalone != null)
-                next = new { standalone.Id, standalone.Name, standalone.Focus, standalone.Week, standalone.Position,
-                    exerciseCount = await db.TemplateExercises.CountAsync(x => x.TemplateId == standalone.Id, ct) };
+            if (active == null)
+                next = await ProgramService.StandaloneNext(db, ct);
             var generation = await db.ResourceGenerations.AsNoTracking().SingleOrDefaultAsync(ct) ?? new ResourceGeneration();
+            var activeWorkout = await workouts.Active(ct);
+            var nextId = active?.NextTemplateId ?? (next as NextWorkoutView)?.Id;
             return new
             {
                 resourceVersions = ResourceVersions.For(generation, user.Unit),
                 account = new { user.Id, displayName = user.DisplayName },
                 preferences = new { user.Unit, user.Theme, user.RestSeconds, user.RestAlerts, user.TrackRir },
-                activeWorkout = await workouts.Active(ct), activeProgram = active, nextWorkout = next,
+                activeWorkout, activeProgram = active, nextWorkout = next,
+                workoutHero = await WorkoutHeroReadService.Get(db, nextId, activeWorkout, ct),
                 imports = await imports.List(ct),
                 navigationCounts = new { programs = await db.Programs.CountAsync(ct), templates = await db.Templates.CountAsync(x => x.ProgramId == null, ct) }
             };

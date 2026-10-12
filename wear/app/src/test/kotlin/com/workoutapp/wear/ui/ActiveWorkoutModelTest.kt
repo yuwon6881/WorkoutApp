@@ -123,4 +123,12 @@ class ActiveWorkoutModelTest {
         assertEquals(SyncTone.Attention, reconnect.tone)
         assertEquals("1 change saved on this watch", reconnect.detail)
     }
+
+    @Test
+    fun finishConfirmationDisclosesLoggedSetsAndSync() {
+        assertEquals(
+            "1 of 13 sets logged. Only logged sets are saved after sync.",
+            finishConfirmationMessage(1, 13)
+        )
+    }
 }

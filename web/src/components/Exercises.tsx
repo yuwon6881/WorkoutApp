@@ -2,7 +2,7 @@ import { ExerciseLoadSettings } from './ExerciseLoadSettings';
 import { canEnterPerSide } from '../lib/equipmentGroups';
 import { loadAdjustable } from '../lib/exerciseLoads';
 import { useDeferredValue, useEffect, useMemo, useState } from 'react';
-import { ArrowLeftRight, Dumbbell, Library, Link2, Plus, Search, X, Trash2, RotateCcw } from 'lucide-react';
+import { ArrowLeftRight, Link2, Plus, Search, X, Trash2, RotateCcw } from 'lucide-react';
 import type { Exercise, ExerciseCategory, ExerciseClearPreview, ExerciseInsight } from '../types';
 import { ApiError, api } from '../lib/api';
 import { forgetSessionDetail } from '../lib/sessionDetailLoad';
@@ -130,7 +130,6 @@ export function ExerciseLibrary({ exercises, onSelect, exclude = emptyIds, onOpe
                 <article className="panel picker-card" key={e.id}>
                   <div className="picker-card-info">
                     <div className="picker-card-header">
-                      <span className="picker-exercise-icon" aria-hidden="true"><Dumbbell size={16} /></span>
                       <h3 title={e.name}>{e.name}</h3>
                     </div>
                     <div className="picker-tags">
@@ -162,7 +161,7 @@ export function ExerciseLibrary({ exercises, onSelect, exclude = emptyIds, onOpe
                 <article className="panel exercise-card exercise-card-action" key={e.id} tabIndex={0} role="button" aria-label={`View ${e.name} details`}
                   onClick={() => onOpen?.(e)} onKeyDown={event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); onOpen?.(e); } }}>
                   <div className="exercise-card-top">
-                    <span className="exercise-icon"><Dumbbell size={22} /></span>
+                    <h3 className="exercise-card-title" title={e.name}>{e.name}</h3>
                     <div className="exercise-card-badges">
                       <span className="pill pill-equipment">{e.equipment || 'General'}</span>
                       <span className="pill pill-category">{cat}</span>
@@ -180,9 +179,6 @@ export function ExerciseLibrary({ exercises, onSelect, exclude = emptyIds, onOpe
                       </span>
                     )}
                   </div>
-                  <div className="exercise-card-body">
-                    <h3 title={e.name}>{e.name}</h3>
-                  </div>
                 </article>
               )
             ))}
@@ -195,9 +191,8 @@ export function ExerciseLibrary({ exercises, onSelect, exclude = emptyIds, onOpe
   if (!exercises.length) return <>
     {!onSelect && <div className="page-heading"><h1 data-page-heading tabIndex={-1}>Exercises</h1><Button variant="primary" onClick={() => setCreateOpen(true)}><Plus size={16} />Create exercise</Button></div>}
     <div className="empty-message">
-      <Library size={32} />
       <h3>No exercises available</h3>
-      <p>The shared exercise library has not been loaded yet.</p>
+      <p>Exercise library has not loaded.</p>
     </div>
     {createOpen && <CustomExerciseModal onClose={() => setCreateOpen(false)} onCreated={async () => { setCreateOpen(false); await onChanged?.(); }} />}
   </>;
@@ -261,7 +256,6 @@ export function ExerciseLibrary({ exercises, onSelect, exclude = emptyIds, onOpe
         <article className="panel picker-card picker-card-current" key={`current-${current.id}`}>
           <div className="picker-card-info">
             <div className="picker-card-header">
-              <span className="picker-exercise-icon" aria-hidden="true"><Dumbbell size={16} /></span>
               <h3 title={current.name}>{current.name}</h3>
             </div>
             <div className="picker-tags">

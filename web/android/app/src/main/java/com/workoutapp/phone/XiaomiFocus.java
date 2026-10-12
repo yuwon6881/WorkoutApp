@@ -26,7 +26,7 @@ final class XiaomiFocus {
     static final String EXTRA_PARAM = "miui.focus.param";
     static final String EXTRA_PICS = "miui.focus.pics";
     static final String PIC_REST = "miui.focus.pic_rest";
-    private static final String ACCENT = "#E6B450";
+    private static final String ACCENT = "#91D8BA";
     // Countdown and count-up timer types in Xiaomi's timerInfo.
     private static final int TIMER_COUNTDOWN = -1;
     private static final int TIMER_COUNT_UP = 1;

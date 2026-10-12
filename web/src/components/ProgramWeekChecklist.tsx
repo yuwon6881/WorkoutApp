@@ -20,7 +20,8 @@ export function ProgramWeekChecklist({
   hasActiveWorkout,
   activeTemplateId = null,
   onDayChange,
-  onDraftChange
+  onDraftChange,
+  actionsBusy = false
 }: {
   program: ProgramSummary;
   draft?: ImportDraft | null;
@@ -32,6 +33,7 @@ export function ProgramWeekChecklist({
   activeTemplateId?: string | null;
   onDayChange?: (day: DraftWorkout) => Promise<void>;
   onDraftChange?: (draft: ImportDraft) => Promise<void>;
+  actionsBusy?: boolean;
 }) {
   const [busyDay, setBusyDay] = useState<string | null>(null);
   const [error, setError] = useState('');
@@ -73,10 +75,10 @@ export function ProgramWeekChecklist({
   }, [onDayChange]);
 
   const handleDraftChange = useCallback(async (nextDraft: ImportDraft) => {
-    setLocalDraft(nextDraft);
     if (onDraftChange) {
       await onDraftChange(nextDraft);
     }
+    setLocalDraft(nextDraft);
   }, [onDraftChange]);
 
   const editing = useMemo<ExerciseEditing>(() => ({
@@ -134,7 +136,7 @@ export function ProgramWeekChecklist({
   }
 
   async function passRest(day: ProgramProgressDay) {
-    if (!progress || !day.isRestDay || !program.active || day.status !== 'pending' || hasActiveWorkout) return;
+    if (!progress || actionsBusy || progress.runId === 'optimistic' || !day.isRestDay || !program.active || day.status !== 'pending' || hasActiveWorkout) return;
     setOptimisticPassed(prev => new Set(prev).add(day.templateId));
     setBusyDay(day.templateId);
     setError('');
@@ -152,7 +154,7 @@ export function ProgramWeekChecklist({
   }
 
   async function skipWorkout(day: ProgramProgressDay) {
-    if (!progress || day.isRestDay || !program.active || day.status !== 'pending' || hasActiveWorkout) return;
+    if (!progress || actionsBusy || progress.runId === 'optimistic' || day.isRestDay || !program.active || day.status !== 'pending' || hasActiveWorkout) return;
     setBusyDay(day.templateId);
     setError('');
     try {
@@ -192,7 +194,7 @@ export function ProgramWeekChecklist({
                   checked={passed}
                   readOnly={passed}
                   tabIndex={passed ? -1 : 0}
-                  disabled={!program.active || busyDay !== null || hasActiveWorkout}
+                  disabled={!program.active || actionsBusy || progress.runId === 'optimistic' || busyDay !== null || hasActiveWorkout}
                   aria-label={`${info.name}: ${passed ? 'Rest day passed' : 'Rest day'}${!passed ? ', mark rest day passed' : ''}`}
                   onClick={passed ? e => e.preventDefault() : undefined}
                   onChange={passed ? undefined : () => void passRest(day)}
@@ -264,7 +266,7 @@ export function ProgramWeekChecklist({
         headerActions={
           openDay.status === 'pending' && program.active ? (
             <MenuButton label={`Actions for ${openDayWorkoutName || 'workout'}`} portal>
-              <MenuItem disabled={hasActiveWorkout || busyDay !== null} onClick={() => {
+              <MenuItem disabled={actionsBusy || progress?.runId === 'optimistic' || hasActiveWorkout || busyDay !== null} onClick={() => {
                 const target = openDay;
                 closeModal();
                 void skipWorkout(target);
@@ -293,7 +295,7 @@ export function ProgramWeekChecklist({
         </div>
         <div className="modal-actions">
           {openDay.status === 'pending' ? (
-            <Button variant="primary" disabled={hasActiveWorkout && openDay.templateId !== activeTemplateId} onClick={() => {
+            <Button variant="primary" disabled={actionsBusy || progress?.runId === 'optimistic' || (hasActiveWorkout && openDay.templateId !== activeTemplateId)} onClick={() => {
               const targetId = openDay.templateId;
               closeModal();
               onStart(targetId);

@@ -23,6 +23,8 @@ export function ActiveTemplateCard({ template, onStart, onEdit, hasActiveWorkout
 }) {
   const finished = isTemplateFinished(template);
   const inProgress = activeTemplateId === template.id;
+  // Only one workout can be open at a time; another one's card says so rather than just greying out.
+  const startBlocked = hasActiveWorkout && !inProgress && !finished;
   const setCount = template.exercises.reduce((total, exercise) => total + exercise.sets.filter(set => !set.warmup).length, 0);
   const meta = `${template.exercises.length} ${template.exercises.length === 1 ? 'exercise' : 'exercises'} · ${showSetCount(setCount)}`;
 
@@ -41,16 +43,17 @@ export function ActiveTemplateCard({ template, onStart, onEdit, hasActiveWorkout
     <div className={`template-slot-day ${finished ? 'completed-slot' : ''}`}>
       <span className={`template-slot-tick ${finished ? 'ticked' : ''}`} role="img"
         aria-label={finished ? 'Completed' : 'Not completed yet'}>{finished && <Check size={14} />}</span>
+      {/* The card header already names the workout, so this row lists what is in it. */}
       <div className="template-slot-day-copy">
-        <strong>{template.name}</strong>
-        <span className="muted small-copy">{template.exercises.slice(0, 4).map(exercise => exercise.name).join(', ')}{template.exercises.length > 4 ? `, and ${template.exercises.length - 4} more` : ''}</span>
+        <span className="template-slot-exercises">{template.exercises.slice(0, 4).map(exercise => exercise.name).join(', ')}{template.exercises.length > 4 ? `, and ${template.exercises.length - 4} more` : ''}</span>
+        {startBlocked && <span className="template-slot-hint">Finish your open workout first.</span>}
       </div>
-      {!finished && <Button variant="primary" className="slot-start-btn" disabled={hasActiveWorkout && !inProgress}
+      {!finished && <Button variant="primary" className="slot-start-btn" disabled={startBlocked}
         aria-label={`${inProgress ? 'Continue' : 'Start'} ${template.name}`} onClick={onStart}>
         <Play size={14} fill="currentColor" /><span>{inProgress ? 'Continue' : 'Start'}</span>
       </Button>}
     </div>
 
-    {finished && <SlotFinished name={template.name} description="You finished this workout." actions={actions} />}
+    {finished && <SlotFinished name={template.name} description="Restart or move to library." actions={actions} />}
   </section>;
 }

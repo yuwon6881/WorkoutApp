@@ -143,17 +143,22 @@
     margin-left: auto;
   }
 }
-/* Notes and settings occupy the left column; prescriptions use the right column's width. */
-@media (min-width: 1200px) {
-  .import-exercise:not(.workout-builder-exercise-card) .import-exercise-body {
+/* Notes and settings sit beside the prescriptions only when the exercise card itself is wide
+   enough for both: the day dialog stops at 750 px on any screen, so a window-width rule squeezed
+   the sets into a third of it and gave large screens taller set rows than a tablet. */
+.import-exercise:not(.workout-builder-exercise-card) { container: import-exercise / inline-size; }
+@container import-exercise (min-width: 960px) {
+  .import-exercise-body {
     display: grid;
     grid-template-columns: minmax(0, .9fr) minmax(0, 1.1fr);
     column-gap: 24px;
     align-items: start;
   }
-  .import-exercise:not(.workout-builder-exercise-card) .set-grid-wrap {
+  .import-exercise-body .set-grid-wrap {
     margin-top: 0;
   }
+}
+@media (min-width: 1200px) {
   .workout-builder-exercise-card > .set-grid-wrap { margin-top: 14px; }
   .workout-builder-exercise-card > .import-set-footer { margin-top: 10px; }
   .workout-builder-exercise-card > .import-exercise-notes { margin-top: 14px; }

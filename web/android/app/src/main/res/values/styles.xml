@@ -9,7 +9,7 @@
     </style>
 
     <!-- Android 15+ draws the app edge to edge and ignores status-bar colours, so the window behind
-         the bars carries the app's Ayu dark background, with light system icons over it. -->
+         the bars carries the app's charcoal background, with light system icons over it. -->
     <style name="AppTheme.NoActionBarBase" parent="Theme.AppCompat.DayNight.NoActionBar">
         <item name="windowActionBar">false</item>
         <item name="windowNoTitle">true</item>

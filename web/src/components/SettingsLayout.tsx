@@ -6,11 +6,11 @@ import { SelectionIndicator, useReducedMotion } from './ui/Motion';
 export type SettingsSectionLink = { id: string; label: string; icon: LucideIcon };
 
 /// A titled settings group. `card` wraps its rows in one panel; `plain` lets the group hold its own cards.
-export function SettingsSection({ id, title, description, icon: Icon, layout = 'card', className = '', children }: {
+export function SettingsSection({ id, title, description, layout = 'card', className = '', children }: {
   id: string;
   title: string;
   description?: ReactNode;
-  icon: LucideIcon;
+  icon?: LucideIcon;
   layout?: 'card' | 'plain';
   className?: string;
   children: ReactNode;
@@ -18,7 +18,6 @@ export function SettingsSection({ id, title, description, icon: Icon, layout = '
   return (
     <section id={id} className={`settings-section ${className}`.trim()} aria-labelledby={`${id}-title`}>
       <header className="settings-section-header">
-        <span className="settings-section-icon" aria-hidden="true"><Icon size={18} /></span>
         <div>
           <h2 id={`${id}-title`} tabIndex={-1}>{title}</h2>
           {description && <span className="settings-section-description">{description}</span>}

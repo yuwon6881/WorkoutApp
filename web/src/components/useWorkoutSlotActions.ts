@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { ApiError, api } from '../lib/api';
 import { activeSlotApi } from '../lib/api/activeSlot';
 import { hasSlotProgress, isSlotItemFinished, slotItemId, slotItemName, type SlotItem } from '../lib/activeSlot';
@@ -26,11 +26,14 @@ export function useWorkoutSlotActions({ holder, onChanged, onTemplateDeleted }: 
   onTemplateDeleted?: (id: string) => void;
 }) {
   const [busy, setBusy] = useState(false);
+  const busyRef = useRef(false);
   const [error, setError] = useState('');
   const [confirmation, setConfirmation] = useState<SlotConfirmation | null>(null);
   const [optimistic, setOptimistic] = useState<SlotOptimisticState>(null);
 
   const perform = useCallback(async (run: () => Promise<unknown>) => {
+    if (busyRef.current) return;
+    busyRef.current = true;
     setBusy(true);
     setError('');
     try {
@@ -40,9 +43,8 @@ export function useWorkoutSlotActions({ holder, onChanged, onTemplateDeleted }: 
       setOptimistic(null);
       setError(failure instanceof ApiError ? failure.message : 'Could not update your workouts. Try again.');
     } finally {
+      busyRef.current = false;
       setBusy(false);
-      // Keep optimistic state active until incoming data updates, with a fallback timeout
-      setTimeout(() => setOptimistic(null), 4000);
     }
   }, [onChanged]);
 
@@ -81,6 +83,7 @@ export function useWorkoutSlotActions({ holder, onChanged, onTemplateDeleted }: 
   }, []);
 
   const activate = useCallback((item: SlotItem) => {
+    if (busyRef.current) return;
     const run = () => setActive(item, true);
     if (holder && hasSlotProgress(holder)) {
       setConfirmation({
@@ -100,6 +103,7 @@ export function useWorkoutSlotActions({ holder, onChanged, onTemplateDeleted }: 
   }, [holder, perform, setActive, withActiveItem]);
 
   const moveToLibrary = useCallback((item: SlotItem) => {
+    if (busyRef.current) return;
     const run = () => setActive(item, false);
     if (hasSlotProgress(item)) {
       setConfirmation({
@@ -119,6 +123,7 @@ export function useWorkoutSlotActions({ holder, onChanged, onTemplateDeleted }: 
   }, [perform, setActive]);
 
   const restart = useCallback((item: SlotItem) => {
+    if (busyRef.current) return;
     const run = () => item.kind === 'program'
       ? activeSlotApi.restartProgram(item.program.id, item.program.revision)
       : activeSlotApi.restartTemplate(item.template.id, item.template.revision);
@@ -136,6 +141,7 @@ export function useWorkoutSlotActions({ holder, onChanged, onTemplateDeleted }: 
   }, [perform]);
 
   const remove = useCallback((item: SlotItem) => {
+    if (busyRef.current) return;
     setConfirmation({
       title: `Delete ${slotItemName(item)}?`,
       body: 'This removes the plan from your library. Finished sessions stay in your history.',
@@ -152,12 +158,13 @@ export function useWorkoutSlotActions({ holder, onChanged, onTemplateDeleted }: 
   }, [onTemplateDeleted]);
 
   const drop = useCallback((item: SlotItem, _from: SlotZone, to: SlotZone) => {
+    if (busyRef.current) return;
     if (to === 'active') activate(item);
     else moveToLibrary(item);
   }, [activate, moveToLibrary]);
 
   const confirm = useCallback(() => {
-    if (!confirmation) return;
+    if (busyRef.current || !confirmation) return;
     const { run } = confirmation;
     setConfirmation(null);
     void perform(run);

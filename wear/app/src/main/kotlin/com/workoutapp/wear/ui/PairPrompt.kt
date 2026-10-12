@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
@@ -60,11 +61,12 @@ fun PairPrompt(
 @Composable
 fun PairingCodeText(code: String, modifier: Modifier = Modifier) {
     val formatted = formatPairingCode(code)
+    val compact = LocalConfiguration.current.screenWidthDp < 200
     Text(
         formatted,
         modifier = modifier.semantics { contentDescription = "Pairing code ${formatted.toCharArray().joinToString(" ")}" },
         style = MaterialTheme.typography.numeralExtraSmall,
-        fontSize = 26.sp,
+        fontSize = if (compact) 20.sp else 24.sp,
         fontWeight = FontWeight.SemiBold,
         letterSpacing = 1.sp,
         color = Palette.Accent,

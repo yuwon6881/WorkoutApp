@@ -41,6 +41,10 @@ enum class SetField { Reps, Load, Rir, Time }
 /** The values being edited for the current set; they reset whenever the set or display unit changes. */
 @Stable
 class SetDraft(reps: Int, load: Double?, rir: String?, seconds: Int? = null) {
+    private var sourceReps = reps
+    private var sourceLoad = load
+    private var sourceRir = rir
+    private var sourceSeconds = seconds
     var reps by mutableIntStateOf(reps)
     var load by mutableStateOf(load)
     var rir by mutableStateOf(rir)
@@ -54,6 +58,24 @@ class SetDraft(reps: Int, load: Double?, rir: String?, seconds: Int? = null) {
     private var timerBase = 0
     private var timerPausedAt by mutableStateOf<Long?>(null)
     val timing: Boolean get() = timerStartedAt != null
+
+    /** Remote edits refresh untouched fields; locally adjusted values and running timers stay. */
+    fun reconcile(model: ActiveSetModel) {
+        if (reps == sourceReps) reps = model.startingReps
+        if (load == sourceLoad) load = model.startingLoad
+        if (rir == sourceRir) rir = model.startingRir
+        if (!timing && seconds == sourceSeconds) seconds = model.startingSeconds
+        sourceReps = model.startingReps
+        sourceLoad = model.startingLoad
+        sourceRir = model.startingRir
+        sourceSeconds = model.startingSeconds
+    }
+
+    fun loadForSubmission(model: ActiveSetModel, unit: String): Double? {
+        if (!model.loadEditable) return passthroughLoad(model.set, unit)
+        if (load != sourceLoad) return load
+        return (model.set?.weightKg ?: model.set?.suggestion?.suggestedLoadKg)?.let { kgToDisplay(it, unit) }
+    }
 
     fun secondsAt(nowEpochMs: Long): Int? = timerStartedAt?.let { stopwatchSeconds(timerBase, it, timerPausedAt ?: nowEpochMs, timerTarget) } ?: seconds
 
@@ -146,7 +168,9 @@ fun SetPage(
                 SetBadgeRow(model, paused, pausedRestSeconds, restComplete, sync)
                 Text(
                     model.exercise.name,
-                    modifier = Modifier.padding(top = 3.dp),
+                    modifier = Modifier
+                        .padding(top = 3.dp)
+                        .semantics { contentDescription = model.exercise.name },
                     style = MaterialTheme.typography.titleSmall,
                     textAlign = TextAlign.Center,
                     // Enlarged text would push the Log action below the fold; the overview keeps the full name.
@@ -213,21 +237,27 @@ private fun RowScope.MetricTile(
     Column(
         modifier = Modifier
             .weight(1f)
-            .heightIn(min = 50.dp)
-            .clip(RoundedCornerShape(18.dp))
+            .heightIn(min = 48.dp)
+            .clip(RoundedCornerShape(14.dp))
             .background(Palette.SurfaceRaised)
             .then(
                 if (onClick == null) Modifier
                 else Modifier.clickable(enabled = enabled, role = Role.Button, onClickLabel = "Adjust $name", onClick = onClick)
             )
+            .padding(horizontal = 2.dp, vertical = 2.dp)
             .semantics { contentDescription = "$name $value" },
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
+        val tunedFontSize = when {
+            value.length > 4 -> 14.sp
+            value.length > 3 -> 16.sp
+            value.length > 2 -> 18.sp
+            else -> 20.sp
+        }
         Text(
             value,
-            style = MaterialTheme.typography.numeralExtraSmall,
-            fontSize = if (value.length > 4) 18.sp else 22.sp,
+            style = MaterialTheme.typography.numeralExtraSmall.copy(fontSize = tunedFontSize),
             color = if (enabled) valueColor else Palette.Muted,
             maxLines = 1
         )
@@ -260,7 +290,7 @@ private fun SetBadgeRow(model: ActiveSetModel, paused: Boolean, pausedRestSecond
         when {
             paused -> Badge(
                 pausedRestSeconds?.let { "PAUSED · REST ${formatClock(it)}" } ?: "PAUSED",
-                Palette.Amber, Palette.AccentContainer
+                Palette.Amber, Palette.SurfaceRaised
             )
             model.set == null -> Badge("ALL ${model.setCount} DONE", Palette.Green, Palette.GreenContainer)
             else -> {

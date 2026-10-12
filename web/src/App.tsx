@@ -15,9 +15,11 @@ import { acknowledgeTemplate } from './lib/templateAcknowledgement';
 import { useAppUpdate } from './app/useAppUpdate';
 import { usePullToRefresh } from './app/usePullToRefresh';
 import { useWindowTier } from './lib/breakpoints';
-import { installNativeShell, isStandalone, setNativeStatusBar } from './lib/platform';
+import { installNativeShell, isStandalone } from './lib/platform';
 import type { Tab } from './app/useTabNavigation';
-import { getRecovery, hasUnresolvedRecovery, sameWorkoutEdits, startRecovery } from './lib/workoutRecovery';
+import { getRecovery } from './lib/workoutRecoveryReads';
+import { hasUnresolvedRecovery, sameWorkoutEdits } from './lib/workoutRecoveryComparison';
+import { startRecovery } from './lib/workoutRecoveryAccess';
 import { Button } from './components/ui/Button';
 import { CardFeedback } from './components/ui/CardFeedback';
 import { MotionScene, SelectionIndicator } from './components/ui/Motion';
@@ -27,7 +29,7 @@ import { AuthLoading } from './components/AuthLoading';
 import { ViewSkeleton } from './components/ViewSkeleton';
 import { Auth, Dashboard, ExerciseDetailModal, ExerciseLibrary, ImportReview, MuscleBalanceView, Programs, SessionDetail, SettingsView, Workout, WorkoutSheet, ResumeWorkoutButton, prefetchView } from './app/lazyViews';
 import { TrackRirContext, tracksRir } from './lib/trackRir';
-import {applyTheme, forgetTheme, initialTheme, rememberTheme} from './lib/theme';
+import { useAppTheme } from './app/useAppTheme';
 const AiAssistantPanel = lazy(() => import('./components/AiAssistantPanel').then(module => ({ default: module.AiAssistantPanel })));
 const ImportWatchBridge = lazy(() => import('./components/ImportWatchBridge').then(module => ({ default: module.ImportWatchBridge })));
 const InstallAppCard = lazy(() => import('./components/InstallAppCard').then(module => ({ default: module.InstallAppCard })));
@@ -77,7 +79,7 @@ export default function App() {
   const [detail, setDetail] = useState<Session | null>(null);
   // The session just finished, so its summary opens as a result rather than a history entry.
   const [finishedId, setFinishedId] = useState<string | null>(null);
-  const [exerciseDetail, setExerciseDetail] = useState<import('./types').Exercise | null>(null);
+  const [exerciseDetail, setExerciseDetail] = useState<Exercise | null>(null);
   const [toast, setToast] = useState('');
   const [starting, setStarting] = useState(false);
   const [startingName, setStartingName] = useState<string | null>(null);
@@ -98,23 +100,7 @@ export default function App() {
   useEffect(() => { if (importBlocked) prefetchView('resumeWorkout'); }, [importBlocked]);
   useEffect(() => { if (signedOut) void import('./lib/localPdfRead').then(module => module.resetLocalPdfRead()); }, [signedOut]);
 
-  useEffect(() => {
-    const saved = data?.preferences.theme;
-    // Signing out drops the device copy so the sign-in screen follows the browser or OS.
-    if (signedOut) forgetTheme();
-    const sync = () => {
-      const theme = saved ?? initialTheme();
-      applyTheme(theme);
-      const bg = getComputedStyle(document.documentElement).getPropertyValue('--bg').trim();
-      if (bg) setNativeStatusBar(theme === 'light' ? 'light' : 'dark', bg);
-    };
-    if (saved) rememberTheme(saved);
-    sync();
-    if (saved) return undefined;
-    const media = window.matchMedia?.('(prefers-color-scheme: dark)');
-    media?.addEventListener('change', sync);
-    return () => media?.removeEventListener('change', sync);
-  }, [data?.preferences.theme, signedOut]);
+  useAppTheme(data?.preferences.theme, signedOut);
   // A session summary credits muscles from the exercise library, which Overview does not load.
   const [detailCatalogSettled, setDetailCatalogSettled] = useState(false);
   useEffect(() => {
@@ -307,12 +293,28 @@ export default function App() {
   return <TrackRirContext value={tracksRir(data.preferences)}><div className="app-shell">
     <aside className="sidebar">
       <a className="brand" href="#" onClick={e => { e.preventDefault(); setTab('overview'); }}><img src="/favicon.svg" alt="" /><span>Workout</span></a>
-      <nav aria-label="Main navigation">{NAV.map(item => <Button key={item.id} variant="tertiary" className={`nav-item ${tab === item.id ? 'selected' : ''}`}
-        aria-current={tab === item.id ? 'page' : undefined} onClick={() => setTab(item.id)}>
-        <item.icon size={19} /><span>{item.label}</span></Button>)}</nav>
+      <nav aria-label="Main navigation">
+        <SelectionIndicator active={tab} className="sidebar-nav-track">
+          {NAV.map(item => (
+            <Button
+              key={item.id}
+              data-selection-key={item.id}
+              onPointerEnter={() => prefetchView(item.id === 'program' ? 'programs' : item.id === 'body' ? 'muscles' : item.id === 'exercises' ? 'exercises' : 'workout')}
+              onFocus={() => prefetchView(item.id === 'program' ? 'programs' : item.id === 'body' ? 'muscles' : item.id === 'exercises' ? 'exercises' : 'workout')}
+              variant="tertiary"
+              className={`nav-item ${tab === item.id ? 'selected' : ''}`}
+              aria-current={tab === item.id ? 'page' : undefined}
+              onClick={() => setTab(item.id)}
+            >
+              <item.icon size={18} />
+              <span>{item.label}</span>
+            </Button>
+          ))}
+        </SelectionIndicator>
+      </nav>
       <div className="sidebar-bottom">
-        <Button variant="tertiary" className={`nav-item ${isAiOpen ? 'selected' : ''}`.trim()} aria-expanded={isAiOpen} onClick={() => setIsAiOpen(true)}><Sparkles size={19} /><span>Ask AI</span></Button>
-        <Button variant="tertiary" className={`nav-item ${tab === 'settings' ? 'selected' : ''}`} onClick={() => setTab('settings')}><Settings size={19} /> Settings</Button>
+        <Button variant="tertiary" className={`nav-item ${isAiOpen ? 'selected' : ''}`.trim()} aria-expanded={isAiOpen} onClick={() => setIsAiOpen(true)}><Sparkles size={18} /><span>Ask AI</span></Button>
+        <Button variant="tertiary" className={`nav-item ${tab === 'settings' ? 'selected' : ''}`.trim()} aria-current={tab === 'settings' ? 'page' : undefined} onClick={() => setTab('settings')}><Settings size={18} /><span>Settings</span></Button>
       </div>
     </aside>
 
@@ -353,9 +355,10 @@ export default function App() {
         <Suspense fallback={<ViewSkeleton label={NAV.find(item => item.id === tab)?.label ?? (tab === 'import' ? 'Import' : 'Settings')} />}>
         {tab === 'overview' && <Dashboard data={data} onProgram={() => setTab('program')}
             onImport={openImport} onSession={setDetail} onResume={() => setTraining(true)} onChanged={app.reload}
-            onExercise={id => { void openExercise(id); }} />}
+            onExercise={id => { void openExercise(id); }} onStart={start} />}
         {!resourcesReady && <ViewSkeleton label={NAV.find(item => item.id === tab)?.label ?? 'Loading'} />}
         {resourcesReady && tab === 'program' && <Programs data={data} exercises={data.exercises} onStart={start} onImport={openImport} onChanged={app.reload}
+          ensureResources={app.ensureResources}
           onTemplateSaved={saved => app.setData(current => acknowledgeTemplate(current, saved.id, saved))}
           onTemplateDeleted={id => app.setData(current => acknowledgeTemplate(current, id, null))} />}
         {resourcesReady && tab === 'import' && <ImportReview exercises={data.exercises} imports={data.imports}
@@ -394,7 +397,7 @@ export default function App() {
       </SelectionIndicator>
     </nav>
 
-    {workoutSession?.active && !training && <Suspense fallback={null}>
+    {workoutSession?.active && !training && tab !== 'overview' && <Suspense fallback={null}>
       <ResumeWorkoutButton session={workoutSession} rest={restState} onResume={() => setTraining(true)} />
     </Suspense>}
 

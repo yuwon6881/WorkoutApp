@@ -166,9 +166,12 @@ test('workouts move between the library and the active slot, forgetting progress
     await expect(parkedCard).toBeVisible();
     await expect(parkedCard.getByRole('button', { name: `Expand ${programName}`, exact: true })).toBeVisible();
     await expect(zone.getByRole('heading', { name: 'Drag a workout here to activate it' })).toBeVisible();
-    const parked = await (await page.request.get(`/api/programs/${programId}`)).json();
-    expect(parked.active).toBe(false);
-    expect(parked.progress).toBeNull();
+    await expect.poll(async () => {
+      const response = await page.request.get(`/api/programs/${programId}`);
+      if (!response.ok()) return null;
+      const parked = await response.json();
+      return { active: parked.active, progress: parked.progress };
+    }).toEqual({ active: false, progress: null });
 
     // A standalone workout activated from its menu is a one-day run that ticks itself when done.
     const routine = library.locator('.routine-card').filter({ hasText: workoutName });
@@ -179,7 +182,8 @@ test('workouts move between the library and the active slot, forgetting progress
     await finishWorkout(page.request, headers, templateId!);
     await page.reload();
     await expect(activeWorkout.getByRole('img', { name: 'Completed' })).toBeVisible();
-    await expect(activeWorkout.getByText(`${workoutName} is finished`)).toBeVisible();
+    await expect(activeWorkout.getByRole('status', { name: `${workoutName} completed`, exact: true })).toBeVisible();
+    await expect(activeWorkout.getByRole('status', { name: `${workoutName} completed`, exact: true }).getByText('Completed', { exact: true })).toBeVisible();
     await page.screenshot({ path: join(screenshotsDirectory, `${info.project.name}-workout-slot-finished.png`), fullPage: true });
     await activeWorkout.getByRole('button', { name: 'Restart', exact: true }).click();
     await expect(activeWorkout.getByRole('img', { name: 'Not completed yet' })).toBeVisible();

@@ -30,7 +30,7 @@ test.beforeEach(async ({ page }) => {
   await signIn(page);
 });
 
-test('overview weeks scroll with a finger and keep phone navigation compact', async ({ page }) => {
+test('overview weeks scroll with a finger and keep phone navigation compact', async ({ page }, testInfo) => {
   const calendar = page.getByRole('region', { name: 'Training calendar' });
   const rail = calendar.locator('.calendar-week-rail');
   await expect(rail).toBeVisible();
@@ -39,10 +39,40 @@ test('overview weeks scroll with a finger and keep phone navigation compact', as
   // Return to this week appears only once the rail has left the current week.
   const reset = calendar.getByRole('button', { name: 'Return to this week' });
   await expect(reset).toHaveCount(0);
+
+  // Position rail in the vertical center of the viewport so the gesture is well clear of the fixed mobile bottom dock.
+  await rail.evaluate(el => el.scrollIntoView({ block: 'center', inline: 'nearest' }));
+
   const cdp = await page.context().newCDPSession(page);
   const box = (await rail.boundingBox())!;
-  await drag(page, cdp, { x: box.x + box.width - 20, y: box.y + 30 },
-    { x: box.x + 20, y: box.y + 30 }, 20);
+  const from = { x: box.x + box.width - 20, y: box.y + box.height / 2 };
+  const to = { x: box.x + 20, y: box.y + box.height / 2 };
+
+  // Assert native touch hit targets are genuinely within the calendar rail at both endpoints before dispatching.
+  const hitCheck = await rail.evaluate((el, { from, to }) => {
+    const startEl = document.elementFromPoint(from.x, from.y);
+    const endEl = document.elementFromPoint(to.x, to.y);
+    return {
+      startWithinRail: Boolean(startEl && el.contains(startEl)),
+      endWithinRail: Boolean(endEl && el.contains(endEl)),
+      startTag: startEl ? `${startEl.tagName.toLowerCase()}${startEl.className ? '.' + startEl.className.replace(/\s+/g, '.') : ''}` : null,
+      endTag: endEl ? `${endEl.tagName.toLowerCase()}${endEl.className ? '.' + endEl.className.replace(/\s+/g, '.') : ''}` : null,
+    };
+  }, { from, to });
+
+  expect(hitCheck.startWithinRail).toBe(true);
+  expect(hitCheck.endWithinRail).toBe(true);
+
+  testInfo.attach('touch-geometry', {
+    body: JSON.stringify({
+      viewport: page.viewportSize(),
+      railBox: box,
+      hitCheck,
+    }, null, 2),
+    contentType: 'application/json',
+  });
+
+  await drag(page, cdp, from, to, 20);
   await expect(reset).toBeVisible();
   await reset.click();
   await expect(reset).toHaveCount(0);

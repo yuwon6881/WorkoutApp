@@ -6,6 +6,78 @@ import { pdf } from './pdfFixture';
 
 const USER = 'e2e-lifter';
 
+test('audit regression: running timed sets log directly and zero reps stay out of the draft', async ({ page }, info) => {
+  await signIn(page);
+  await clearActiveWorkout(page);
+  const headers = { 'X-Workout-Request': '1', Origin: new URL(page.url()).origin };
+  const name = `Timed audit ${info.project.name} ${Date.now()}`;
+  const created = await page.request.post('/api/exercises/custom', { headers, data: {
+    name, muscle: 'Core', equipment: 'Bodyweight', loadModel: 'reps_only', trackingMode: 'duration'
+  } });
+  expect(created.ok(), await created.text()).toBeTruthy();
+  const exercise = await created.json();
+  let templateId: string | null = null;
+  try {
+    const catalog = await (await page.request.get('/api/exercises')).json();
+    const bench = catalog.find((row: { slug: string }) => row.slug === 'barbell-bench-press') ?? catalog.find((row: { trackingMode?: string }) => row.trackingMode !== 'duration');
+    const prescription = { repMin: null, repMax: null, targetRpe: 8, restSeconds: 0,
+      tempo: null, loadText: null, notes: null, repsText: '45 sec', restText: null, rir: null, warmup: false,
+      repsSource: 'userEdited', rpeSource: 'userEdited', restSource: 'userEdited' };
+    const response = await page.request.post('/api/templates', { headers, data: {
+      name: 'Audit logging', focus: 'Core', note: '', exercises: [
+        { exerciseId: exercise.id, sourceName: name, sets: [prescription] },
+        { exerciseId: bench.id, sourceName: bench.name, sets: [{ ...prescription, repsText: null, repMin: 8, repMax: 10 }] }
+      ]
+    } });
+    expect(response.ok(), await response.text()).toBeTruthy();
+    templateId = (await response.json()).id;
+    const started = await page.request.post('/api/workouts', { headers, data: { templateId } });
+    expect(started.ok(), await started.text()).toBeTruthy();
+    const session = await started.json();
+    await page.goto('/');
+    const sheet = page.getByRole('dialog', { name: 'Audit logging', exact: true });
+    await expect(sheet).toBeVisible();
+    await sheet.locator('.time-cell input').click();
+    await page.getByRole('dialog', { name: 'Set duration' }).getByRole('button', { name: 'Start 0:45 timer' }).click();
+    await expect(sheet.locator('.time-cell input')).toHaveValue(/^0:(?:[0-3]\d|4[0-4]) left$/);
+    await sheet.getByRole('button', { name: `Log ${name} set 1`, exact: true }).click();
+    await expect.poll(async () => {
+      const saved = await (await page.request.get(`/api/workouts/${session.id}`)).json();
+      return saved.exercises[0].sets[0].done && saved.exercises[0].sets[0].durationSeconds >= 1;
+    }).toBe(true);
+    await sheet.getByRole('spinbutton', { name: `${bench.name} set 1 reps`, exact: true }).click();
+    const keypad = page.getByRole('dialog', { name: /Reps/ });
+    await keypad.getByRole('button', { name: '0', exact: true }).click();
+    await keypad.getByRole('button', { name: 'Done', exact: true }).click();
+    await expect(keypad.getByRole('alert')).toContainText('between 1 and 1,000');
+    if (await keypad.getByRole('radio').count()) {
+      await keypad.getByRole('radio').first().click();
+      await expect(keypad).toBeVisible();
+    }
+    await keypad.getByRole('button', { name: 'Delete last rep digit' }).click();
+    await keypad.getByRole('button', { name: '8', exact: true }).click();
+    await keypad.getByRole('button', { name: 'Done', exact: true }).click();
+    await expect(keypad).toBeHidden();
+    await expect(sheet.getByRole('spinbutton', { name: `${bench.name} set 1 reps`, exact: true })).toHaveValue('8');
+  } finally {
+    await clearActiveWorkout(page);
+    if (templateId) await page.request.delete(`/api/templates/${templateId}`, { headers });
+    await page.request.delete(`/api/exercises/custom/${exercise.id}`, { headers });
+  }
+});
+
+test('audit regression: concurrent SQLite authentication reads and writes remain available', async ({ page }) => {
+  await signIn(page);
+  const preferences = (await (await page.request.get('/api/bootstrap')).json()).preferences;
+  const headers = { 'X-Workout-Request': '1', Origin: new URL(page.url()).origin };
+  for (let pass = 0; pass < 3; pass++) {
+    const responses = await Promise.all(Array.from({ length: 12 }, (_, index) => index % 3 === 0
+      ? page.request.put('/api/preferences', { headers, data: preferences })
+      : page.request.get(index % 3 === 1 ? '/api/bootstrap/launch' : '/api/history/summaries')));
+    for (const response of responses) expect(response.ok(), await response.text()).toBeTruthy();
+  }
+});
+
 test('unified plate defaults and active exercise menu keep weight editing available', async ({ page }, info) => {
   await signIn(page);
   await clearActiveWorkout(page);
@@ -155,6 +227,7 @@ test('personal exercise weights support uneven lists and kg/lb switching', async
       await expect.poll(() => weights.evaluate(element => element.scrollWidth <= element.clientWidth + 1)).toBeTruthy();
       await page.screenshot({ path: `${screenshotsDirectory}/exercise-weights-${testInfo.project.name}-${theme}.png` });
       await weights.getByRole('button', { name: 'Cancel', exact: true }).click();
+      await expect(weights).toBeHidden();
       await expect(dialog.getByRole('button', { name: 'Edit weights', exact: true })).toBeFocused();
       await dialog.getByRole('button', { name: 'Close dialog', exact: true }).click();
     }
@@ -170,11 +243,13 @@ test('personal exercise weights support uneven lists and kg/lb switching', async
     await weights.getByRole('button', { name: 'Increment', exact: true }).click();
     await weights.getByLabel('Weight increment (lb)', { exact: true }).fill('5');
     await weights.getByRole('button', { name: 'Save weights', exact: true }).click();
+    await expect(weights).toBeHidden();
     await expect(dialog.getByText("5 lb steps · This exercise's setting", { exact: true })).toBeVisible();
     const saved = await (await page.request.get(`/api/exercises/${exercise.id}/load-settings`)).json();
     expect(saved.loadStepKg).toBeCloseTo(5 / 2.2046226218, 8);
     await dialog.getByRole('button', { name: 'Edit weights', exact: true }).click();
     await weights.getByRole('button', { name: 'Use default', exact: true }).click();
+    await expect(weights).toBeHidden();
     await expect(dialog.getByText('5 lb steps · App default', { exact: true })).toBeVisible();
     // Old history remains usable even when the chosen chart range contains no points.
     const insight = await (await page.request.get(`/api/exercises/${exercise.id}/insight?range=3m&page=0&size=20`)).json();
@@ -284,52 +359,61 @@ const accentColor = (page: Page) => page.evaluate(() => {
 /// Each viewport project shares one account, so a workout a previous project left open has to
 /// go before this one starts its own.
 async function clearActiveWorkout(page: Page) {
-  await page.evaluate(async () => {
-    const headers = { 'X-Workout-Request': '1' };
-    const response = await fetch('/api/workouts/active', { headers, cache: 'no-store' });
-    if (!response.ok) throw new Error('Could not check for an existing E2E workout.');
-    const active = await response.json();
-    if (active) {
-      const discarded = await fetch(`/api/workouts/${active.id}/discard`, { method: 'POST', headers });
-      if (!discarded.ok) throw new Error('Could not discard the previous E2E workout.');
-      const verified = await fetch('/api/workouts/active', { headers, cache: 'no-store' });
-      if (!verified.ok || await verified.json()) throw new Error('The previous E2E workout is still active.');
-    }
-    const importsRes = await fetch('/api/imports', { headers, cache: 'no-store' });
-    if (importsRes.ok) {
-      const existingImports = await importsRes.json();
-      for (const item of existingImports) {
-        const discardedImport = await fetch(`/api/imports/${item.id}/discard`, { method: 'POST', headers });
-        if (!discardedImport.ok) throw new Error(`Could not discard E2E import: ${discardedImport.status}`);
+  // Navigating to an empty same-origin page unloads the mounted app, preventing mounted hooks
+  // and timers from racing direct cleanup and rewriting active recovery back to IndexedDB.
+  const cleanupUrl = `/__e2e-cleanup-${Date.now()}`;
+  await page.route(cleanupUrl, route => route.fulfill({ status: 200, contentType: 'text/html', body: '<!DOCTYPE html><html><body></body></html>' }));
+  try {
+    await page.goto(cleanupUrl);
+    await page.evaluate(async () => {
+      const headers = { 'X-Workout-Request': '1' };
+      const response = await fetch('/api/workouts/active', { headers, cache: 'no-store' });
+      if (!response.ok) throw new Error('Could not check for an existing E2E workout.');
+      const active = await response.json();
+      if (active) {
+        const discarded = await fetch(`/api/workouts/${active.id}/discard`, { method: 'POST', headers });
+        if (!discarded.ok) throw new Error('Could not discard the previous E2E workout.');
+        const verified = await fetch('/api/workouts/active', { headers, cache: 'no-store' });
+        if (!verified.ok || await verified.json()) throw new Error('The previous E2E workout is still active.');
       }
-    }
+      const importsRes = await fetch('/api/imports', { headers, cache: 'no-store' });
+      if (importsRes.ok) {
+        const existingImports = await importsRes.json();
+        for (const item of existingImports) {
+          const discardedImport = await fetch(`/api/imports/${item.id}/discard`, { method: 'POST', headers });
+          if (!discardedImport.ok) throw new Error(`Could not discard E2E import: ${discardedImport.status}`);
+        }
+      }
 
-    // E2E cleanup mutates the server directly, so remove the corresponding device snapshot too.
-    // This is fixture isolation; normal app flows always resolve recovery through the UI.
-    const bootstrap = await fetch('/api/bootstrap', { headers, cache: 'no-store' });
-    if (!bootstrap.ok) throw new Error('Could not load the E2E account for local cleanup.');
-    const { account } = await bootstrap.json();
-    const request = indexedDB.open('workout-recovery');
-    const db = await new Promise<IDBDatabase>((resolve, reject) => {
-      request.onsuccess = () => resolve(request.result);
-      request.onerror = () => reject(request.error ?? new Error('Could not open E2E workout storage.'));
-    });
-    if (db.objectStoreNames.contains('active-sessions')) {
-      await new Promise<void>((resolve, reject) => {
-        const tx = db.transaction('active-sessions', 'readwrite');
-        tx.objectStore('active-sessions').delete(account.id);
-        tx.oncomplete = () => resolve();
-        tx.onerror = () => reject(tx.error ?? new Error('Could not clear E2E workout recovery.'));
-        tx.onabort = () => reject(tx.error ?? new Error('E2E workout recovery cleanup was interrupted.'));
+      // E2E cleanup mutates the server directly, so remove the corresponding device snapshot too.
+      // This is fixture isolation; normal app flows always resolve recovery through the UI.
+      const bootstrap = await fetch('/api/bootstrap', { headers, cache: 'no-store' });
+      if (!bootstrap.ok) throw new Error('Could not load the E2E account for local cleanup.');
+      const { account } = await bootstrap.json();
+      const request = indexedDB.open('workout-recovery');
+      const db = await new Promise<IDBDatabase>((resolve, reject) => {
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error ?? new Error('Could not open E2E workout storage.'));
       });
-    }
-    db.close();
-    try {
-      localStorage.removeItem('workout.rest');
-      for (const key of Object.keys(localStorage))
-        if (key.startsWith(`workout.rest.v2:${account.id}:`)) localStorage.removeItem(key);
-    } catch { /* Test cleanup remains valid if the browser blocks optional timer storage. */ }
-  });
+      if (db.objectStoreNames.contains('active-sessions')) {
+        await new Promise<void>((resolve, reject) => {
+          const tx = db.transaction('active-sessions', 'readwrite');
+          tx.objectStore('active-sessions').delete(account.id);
+          tx.oncomplete = () => resolve();
+          tx.onerror = () => reject(tx.error ?? new Error('Could not clear E2E workout recovery.'));
+          tx.onabort = () => reject(tx.error ?? new Error('E2E workout recovery cleanup was interrupted.'));
+        });
+      }
+      db.close();
+      try {
+        localStorage.removeItem('workout.rest');
+        for (const key of Object.keys(localStorage))
+          if (key.startsWith(`workout.rest.v2:${account.id}:`)) localStorage.removeItem(key);
+      } catch { /* Test cleanup remains valid if the browser blocks optional timer storage. */ }
+    });
+  } finally {
+    await page.unroute(cleanupUrl);
+  }
   // A reload keeps the current tab now that tabs have addresses, so cleanup returns to Overview.
   await page.goto('/');
   await expect(page.getByRole('heading', { name: 'Overview', exact: true })).toBeVisible();
@@ -435,216 +519,249 @@ test('build a workout, log a set against the server, and see it in history', asy
 
   await signIn(page);
   await clearActiveWorkout(page);
+
+  const originUrl = new URL(page.url());
+  expect(['localhost', '127.0.0.1']).toContain(originUrl.hostname);
+  const headers = { 'X-Workout-Request': '1', Origin: originUrl.origin };
+  const catalogResponse = await page.request.get('/api/exercises', { headers });
+  expect(catalogResponse.ok(), await catalogResponse.text()).toBe(true);
+  const catalog: Array<{ id: string; name: string }> = await catalogResponse.json();
+  const benchExercise = catalog.find(item => item.name === 'Barbell bench press');
+  expect(benchExercise).toBeDefined();
+  if (!benchExercise) {
+    throw new Error('Barbell bench press must be present in the catalog');
+  }
+  const clearHistoryResponse = await page.request.post(`/api/exercises/${benchExercise.id}/clear-history`, { headers });
+  expect(clearHistoryResponse.ok(), await clearHistoryResponse.text()).toBe(true);
+
   await page.screenshot({ path: join(screenshotsDirectory, `${testInfo.project.name}-overview.png`), fullPage: true });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 
-  await openTab(page, 'Workouts');
-  await openNewMenu(page, 'New workout');
-  const editor = page.getByRole('dialog', { name: 'Build a workout' });
-  const name = `E2E day ${Date.now()}`;
-  await editor.getByLabel('Workout name').fill(name);
-  await editor.getByRole('button', { name: 'Add exercise', exact: true }).click();
-  const builderPicker = page.getByRole('dialog', { name: 'Add exercise to workout', exact: true });
-  await builderPicker.getByRole('button', { name: 'Add Barbell bench press', exact: true }).click();
-  await expect(builderPicker).toBeHidden();
-  await editor.getByRole('button', { name: 'Save workout', exact: true }).click();
-  await expect(editor).toBeHidden();
-  await expect(page.getByRole('heading', { name, exact: true })).toBeVisible();
+  let primaryError: unknown = null;
+  try {
+    await openTab(page, 'Workouts');
+    await openNewMenu(page, 'New workout');
+    const editor = page.getByRole('dialog', { name: 'Build a workout' });
+    const name = `E2E day ${Date.now()}`;
+    await editor.getByLabel('Workout name').fill(name);
+    await editor.getByRole('button', { name: 'Add exercise', exact: true }).click();
+    const builderPicker = page.getByRole('dialog', { name: 'Add exercise to workout', exact: true });
+    await builderPicker.getByRole('button', { name: 'Add Barbell bench press', exact: true }).click();
+    await expect(builderPicker).toBeHidden();
+    await editor.getByRole('button', { name: 'Save workout', exact: true }).click();
+    await expect(editor).toBeHidden();
+    await expect(page.getByRole('heading', { name, exact: true })).toBeVisible();
 
-  // Other projects leave their own workouts behind, so start the one this test just built.
-  const startBtn = page.locator('.routine-card').filter({ hasText: name }).getByRole('button', { name: 'Start workout', exact: true });
-  await startBtn.evaluate(el => el.scrollIntoView({ block: 'center', inline: 'nearest' }));
-  // Start begins the workout straight away, with no second confirmation.
-  await startBtn.click({ force: true });
-  await expect(page.getByRole('dialog', { name: `Start ${name}?`, exact: true })).toHaveCount(0);
-  const logger = page.getByRole('dialog', { name, exact: true });
-  await expect(logger).toBeVisible();
+    // Other projects leave their own workouts behind, so start the one this test just built.
+    const startBtn = page.locator('.routine-card').filter({ hasText: name }).getByRole('button', { name: 'Start workout', exact: true });
+    await startBtn.evaluate(el => el.scrollIntoView({ block: 'center', inline: 'nearest' }));
+    // Start begins the workout straight away, with no second confirmation.
+    await startBtn.click({ force: true });
+    await expect(page.getByRole('dialog', { name: `Start ${name}?`, exact: true })).toHaveCount(0);
+    const logger = page.getByRole('dialog', { name, exact: true });
+    await expect(logger).toBeVisible();
 
-  const logButton = page.getByRole('button', { name: 'Log Barbell bench press set 1', exact: true });
-  await logButton.evaluate(el => el.scrollIntoView({ block: 'center', inline: 'nearest' }));
-  const logHit = await logButton.evaluate(el => {
-    const box = el.getBoundingClientRect();
-    const hit = document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2);
-    return { ok: box.width >= 44 && box.height >= 44 && (hit === el || el.contains(hit)), viewport: { innerWidth, innerHeight, visualWidth: visualViewport?.width, visualHeight: visualViewport?.height, scrollY }, box: { x: box.x, y: box.y, width: box.width, height: box.height }, hit: hit && { tag: hit.tagName, cls: String(hit.className), text: hit.textContent?.slice(0, 80) }, parents: [...el.parentElement?.parentElement?.children ?? []].map(node => { const b = (node as HTMLElement).getBoundingClientRect(); return { tag: node.tagName, cls: String(node.className), x: b.x, y: b.y, width: b.width, height: b.height }; }) };
-  });
-  expect(logHit.ok).toBe(true);
+    const logButton = page.getByRole('button', { name: 'Log Barbell bench press set 1', exact: true });
+    await logButton.evaluate(el => el.scrollIntoView({ block: 'center', inline: 'nearest' }));
+    const logHit = await logButton.evaluate(el => {
+      const box = el.getBoundingClientRect();
+      const hit = document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2);
+      return { ok: box.width >= 44 && box.height >= 44 && (hit === el || el.contains(hit)), viewport: { innerWidth, innerHeight, visualWidth: visualViewport?.width, visualHeight: visualViewport?.height, scrollY }, box: { x: box.x, y: box.y, width: box.width, height: box.height }, hit: hit && { tag: hit.tagName, cls: String(hit.className), text: hit.textContent?.slice(0, 80) }, parents: [...el.parentElement?.parentElement?.children ?? []].map(node => { const b = (node as HTMLElement).getBoundingClientRect(); return { tag: node.tagName, cls: String(node.className), x: b.x, y: b.y, width: b.width, height: b.height }; }) };
+    });
+    expect(logHit.ok).toBe(true);
 
-  // Suggested reps are available immediately; load and actual RPE may remain blank until recorded.
-  await logButton.click();
-  const logged = page.getByRole('button', { name: 'Unlog Barbell bench press set 1', exact: true });
-  await expect(logged).toHaveAttribute('aria-pressed', 'true');
+    // Suggested reps are available immediately; load and actual RPE may remain blank until recorded.
+    await logButton.click();
+    const logged = page.getByRole('button', { name: 'Unlog Barbell bench press set 1', exact: true });
+    await expect(logged).toHaveAttribute('aria-pressed', 'true');
 
-  // Correcting a logged set's values keeps it logged rather than silently unlogging it.
-  await logger.getByRole('spinbutton', { name: 'Barbell bench press set 1 weight', exact: true }).fill('60');
-  await logger.getByRole('spinbutton', { name: 'Barbell bench press set 1 reps', exact: true }).fill('8');
-  await logger.getByRole('spinbutton', { name: 'Barbell bench press set 1 reps', exact: true }).click();
-  const entry = page.getByRole('dialog', { name: 'Reps & RIR', exact: true });
-  // Choosing the effort saves the reps with it and closes the sheet.
-  await entry.getByRole('radio', { name: '2 RIR, 2 reps in reserve', exact: true }).click();
-  await expect(entry).toBeHidden();
-  await expect(logged).toHaveAttribute('aria-pressed', 'true');
-  // A completed set has to read as finished, not just change a label.
-  await expect(logger.locator('.workout-set-row.done')).toHaveCount(1);
-  await expect(logged).toHaveClass(/checked/);
-  // The button transitions into its filled state, so poll for the settled colour.
-  await expect.poll(() => logged.evaluate(el => getComputedStyle(el).backgroundColor), { timeout: 5000 }).toBe(await accentColor(page));
-  // The logged set has to reach the server: nothing is kept on the device to fall back on.
-  await expect.poll(() => doneSetsOnServer(page), { timeout: 20000 }).toBe(1);
-  await page.screenshot({ path: join(screenshotsDirectory, `${testInfo.project.name}-logger.png`), fullPage: true });
-  expect(await logger.evaluate(el => el.scrollWidth <= el.clientWidth)).toBe(true);
+    // Correcting a logged set's values keeps it logged rather than silently unlogging it.
+    await logger.getByRole('spinbutton', { name: 'Barbell bench press set 1 weight', exact: true }).fill('60');
+    await logger.getByRole('spinbutton', { name: 'Barbell bench press set 1 reps', exact: true }).fill('8');
+    await logger.getByRole('spinbutton', { name: 'Barbell bench press set 1 reps', exact: true }).click();
+    const entry = page.getByRole('dialog', { name: 'Reps & RIR', exact: true });
+    // Choosing the effort saves the reps with it and closes the sheet.
+    await entry.getByRole('radio', { name: '2 RIR, 2 reps in reserve', exact: true }).click();
+    await expect(entry).toBeHidden();
+    await expect(logged).toHaveAttribute('aria-pressed', 'true');
+    // A completed set has to read as finished, not just change a label.
+    await expect(logger.locator('.workout-set-row.done')).toHaveCount(1);
+    await expect(logged).toHaveClass(/checked/);
+    // The completed tick uses the accent while the row carries the softer completion fill.
+    await expect.poll(() => logged.evaluate(el => getComputedStyle(el).color), { timeout: 5000 }).toBe(await accentColor(page));
+    // The logged set has to reach the server: nothing is kept on the device to fall back on.
+    await expect.poll(() => doneSetsOnServer(page), { timeout: 20000 }).toBe(1);
+    await page.screenshot({ path: join(screenshotsDirectory, `${testInfo.project.name}-logger.png`), fullPage: true });
+    expect(await logger.evaluate(el => el.scrollWidth <= el.clientWidth)).toBe(true);
 
-  // Logging a set starts the rest, and the clock counts down rather than sitting still.
-  const clock = logger.locator('.rest-clock');
-  await expect(clock).toContainText('rest');
-  const started = await restSeconds(clock);
-  expect(started).toBeGreaterThan(60);
-  await expect.poll(() => restSeconds(clock), { timeout: 8000 }).toBeLessThan(started);
+    // Logging a set starts the rest, and the clock counts down rather than sitting still.
+    const clock = logger.locator('.rest-clock');
+    await expect(clock).toContainText('rest');
+    const started = await restSeconds(clock);
+    expect(started).toBeGreaterThan(60);
+    await expect.poll(() => restSeconds(clock), { timeout: 8000 }).toBeLessThan(started);
 
-  // The set came back from the server, not from this device: a reload proves it.
-  await page.reload();
-  // Recovery opens the saved active workout directly after launch.
-  const activeLogger = page.getByRole('dialog', { name, exact: true });
-  await expect(activeLogger).toBeVisible();
-  await expect(page.getByRole('spinbutton', { name: 'Barbell bench press set 1 weight', exact: true })).toHaveValue('60');
+    // The set came back from the server, not from this device: a reload proves it.
+    await page.reload();
+    // Recovery opens the saved active workout directly after launch.
+    const activeLogger = page.getByRole('dialog', { name, exact: true });
+    await expect(activeLogger).toBeVisible();
+    await expect(page.getByRole('spinbutton', { name: 'Barbell bench press set 1 weight', exact: true })).toHaveValue('60');
 
-  // The rest is a deadline, not a count held in memory, so a reload finds it already lower
-  // rather than restarting it or losing it.
-  const resumed = await restSeconds(page.locator('.rest-clock'));
-  expect(resumed).toBeLessThan(started);
-  expect(resumed).toBeGreaterThan(0);
+    // The rest is a deadline, not a count held in memory, so a reload finds it already lower
+    // rather than restarting it or losing it.
+    const resumed = await restSeconds(page.locator('.rest-clock'));
+    expect(resumed).toBeLessThan(started);
+    expect(resumed).toBeGreaterThan(0);
 
-  // Removing a set can be undone, and the same set comes back where it was.
-  const weights = activeLogger.getByRole('spinbutton', { name: /^Barbell bench press set \d+ weight$/ });
-  const setCount = await weights.count();
-  expect(setCount).toBeGreaterThan(1);
-  const secondWeight = activeLogger.getByRole('spinbutton', { name: 'Barbell bench press set 2 weight', exact: true });
-  await secondWeight.fill('55');
-  if ((page.viewportSize()?.width ?? 1440) < 640) {
-    // Phones keep each set on one line and hide Delete until the row is swiped sideways.
-    const surface = activeLogger.locator('.workout-set-swipe .swipeable-row-surface').nth(1);
-    const box = (await surface.boundingBox())!;
-    expect(box.height).toBeLessThan(64);
-    await page.mouse.move(box.x + 70, box.y + box.height / 2);
-    await page.mouse.down();
-    await page.mouse.move(box.x - 60, box.y + box.height / 2, { steps: 8 });
-    await page.mouse.up();
+    // Removing a set can be undone, and the same set comes back where it was.
+    const weights = activeLogger.getByRole('spinbutton', { name: /^Barbell bench press set \d+ weight$/ });
+    const setCount = await weights.count();
+    expect(setCount).toBeGreaterThan(1);
+    const secondWeight = activeLogger.getByRole('spinbutton', { name: 'Barbell bench press set 2 weight', exact: true });
+    await secondWeight.fill('55');
+    if ((page.viewportSize()?.width ?? 1440) < 640) {
+      // Phones keep each set on one line and hide Delete until the row is swiped sideways.
+      const surface = activeLogger.locator('.workout-set-swipe .swipeable-row-surface').nth(1);
+      const box = (await surface.boundingBox())!;
+      expect(box.height).toBeLessThan(64);
+      await page.mouse.move(box.x + 70, box.y + box.height / 2);
+      await page.mouse.down();
+      await page.mouse.move(box.x - 60, box.y + box.height / 2, { steps: 8 });
+      await page.mouse.up();
+    }
+    await activeLogger.getByRole('button', { name: 'Remove Barbell bench press set 2', exact: true }).click();
+    await expect(weights).toHaveCount(setCount - 1);
+    await expect(activeLogger.getByRole('status').filter({ hasText: 'Set 2 removed.' })).toBeVisible();
+    await activeLogger.getByRole('button', { name: 'Undo', exact: true }).click();
+    await expect(weights).toHaveCount(setCount);
+    await expect(secondWeight).toHaveValue('55');
+
+    // Finishing early lives in the options menu; the footer's own Finish only appears once every set is logged.
+    await activeLogger.getByRole('button', { name: 'Minimize workout', exact: true }).click();
+    await openTab(page, 'Overview');
+    const today = new Date().toDateString();
+    await expect(page.getByRole('button', { name: `${today}, workout in progress, today`, exact: true })).toBeVisible();
+    await expect(page.locator('.dashboard-quick-start')).toHaveCount(0);
+    await page.getByRole('button', { name: `Resume ${name}`, exact: true }).click();
+    await expect(page.getByRole('button', { name: 'Finish workout', exact: true })).toHaveCount(0);
+    await activeLogger.getByRole('button', { name: 'Workout options', exact: true }).click();
+    await page.getByRole('menuitem', { name: 'Finish workout', exact: true }).click();
+    await page.getByRole('button', { name: 'Save workout', exact: true }).click();
+    await expect(page.getByText('Workout complete', { exact: true })).toBeVisible();
+    await expect(page.getByText('60 kg × 8', { exact: true })).toBeVisible();
+    await expect(page.getByText(/(?:RPE 8|2 RIR)/, { exact: true })).toBeVisible();
+    await page.getByRole('button', { name: 'Done', exact: true }).click();
+
+    await openTab(page, 'Overview');
+    await expect(page.getByRole('heading', { name: 'Overview' })).toBeVisible();
+    await expect(page.getByRole('button', { name: `${today}, workout completed, today`, exact: true })).toBeVisible();
+    await expect(page.getByText(name, { exact: true }).first()).toBeVisible();
+    const progressStats = page.locator('.progress-stats');
+    const workoutHistoryHeading = page.getByRole('heading', { name: 'Workout history', exact: true });
+    expect(await progressStats.evaluate((stats, heading) => Boolean(stats.compareDocumentPosition(heading as Node) & Node.DOCUMENT_POSITION_FOLLOWING), await workoutHistoryHeading.elementHandle())).toBe(true);
+    const progressHeadings = await page.locator('main h2').allTextContents();
+    expect(progressHeadings).not.toContain('Personal bests');
+    expect(progressHeadings).toContain('Workout history');
+
+    await openTab(page, 'Muscles');
+    await expect(page.getByRole('heading', { name: 'Muscle coverage', exact: true })).toBeVisible();
+    const rangeSelect = page.getByRole('button', { name: 'Muscle coverage period', exact: true });
+    await expect(rangeSelect).toContainText('Last week');
+    await expect(page.getByRole('img', { name: /front/i })).toBeVisible();
+    await expect(page.getByRole('img', { name: /back/i })).toBeVisible();
+
+    // Selecting a muscle reads it out in a slot that is always there, so the figure cannot move out
+    // from under the pointer that is picking it.
+    const figure = page.getByRole('img', { name: /front/i });
+    const figureBefore = await figure.boundingBox();
+    const detail = page.locator('.body-map-detail');
+    await tapMuscleRegion(page, 'Chest');
+    await expect(detail).toContainText('Chest');
+    expect(await figure.boundingBox()).toEqual(figureBefore);
+
+    // Shade depth is relative: a trained muscle is deeper than one with no credited sets.
+    const shadeOf = (muscle: string) => page.locator(`.muscle-region[data-muscle="${muscle}"]`).first()
+      .evaluate(element => Number.parseFloat(getComputedStyle(element).getPropertyValue('--muscle-shade')));
+    expect(await shadeOf('Chest')).toBeGreaterThan(await shadeOf('Calves'));
+
+    const longerRange = page.waitForResponse(response => response.request().method() === 'GET'
+      && new URL(response.url()).pathname === '/api/progress/muscles'
+      && new URL(response.url()).searchParams.get('range') === '3m');
+    await rangeSelect.click();
+    await page.getByRole('listbox', { name: 'Muscle coverage period', exact: true })
+      .getByRole('option', { name: 'Last 3 months', exact: true }).click();
+    expect((await longerRange).ok()).toBe(true);
+    const chest = page.locator('.muscle-region[data-muscle="Chest"]').first();
+    await expect(chest).toBeVisible();
+    await expect(detail.locator('.body-map-detail-sets')).toBeVisible();
+    await expect(detail.locator('.body-map-detail-sets')).not.toContainText(/\b0(?:\.0)? sets/);
+
+    const chestBreakdown = page.getByRole('button', { name: /^Chest, .*contributing lifts$/ });
+    await page.reload();
+    await expect(chestBreakdown.locator('svg')).toBeVisible();
+    if (await chestBreakdown.getAttribute('aria-expanded') !== 'true') await chestBreakdown.click();
+    await page.locator('.muscle-breakdown-panel').screenshot({ animations: 'disabled', style: '.topbar, .bottom-nav { visibility: hidden !important; }',
+      path: join(screenshotsDirectory, `${testInfo.project.name}-muscle-breakdown.png`) });
+    const liftCatalog = page.waitForResponse(response => new URL(response.url()).pathname === '/api/exercises');
+    await page.getByLabel('Chest contributing lifts', { exact: true }).getByRole('button', { name: /Barbell bench press/i }).click();
+    expect((await liftCatalog).ok()).toBe(true);
+    const exerciseDetail = page.getByRole('dialog', { name: 'Barbell bench press', exact: true });
+    await expect(exerciseDetail.getByRole('group', { name: 'Exercise detail view' })).toBeVisible();
+    await exerciseDetail.getByRole('button', { name: 'History', exact: true }).click();
+    const historyEntry = exerciseDetail.getByRole('button', { name: new RegExp(name) });
+    await expect(historyEntry).toContainText('Standalone workout');
+    await historyEntry.click();
+    await expect(exerciseDetail.getByRole('heading', { name: 'Performed sets', exact: true })).toBeVisible();
+    await expect(exerciseDetail.getByText('60 kg × 8', { exact: true })).toBeVisible();
+    for (const theme of ['dark', 'light']) {
+      await page.evaluate(value => document.documentElement.dataset.theme = value, theme);
+      await page.screenshot({ path: join(screenshotsDirectory, testInfo.project.name + '-exercise-history-' + theme + '.png') });
+    }
+    await exerciseDetail.getByRole('button', { name: 'Done', exact: true }).click();
+
+    // Starting the same plan again has to carry the last session forward: 8 reps at RPE 8 against
+    // a target of 8-12 leaves effort in the tank, so the app asks for one more rep at the same
+    // load and says so in words rather than silently changing a number.
+    await openTab(page, 'Workouts');
+    await expect(page.getByRole('heading', { name: 'Workouts', exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: /^Resume / })).toBeHidden();
+    const againCard = page.locator('.routine-card').filter({ hasText: name });
+    const againStartBtn = againCard.getByRole('button', { name: 'Start workout', exact: true });
+    await againStartBtn.evaluate(el => {
+      el.scrollIntoView({ block: 'center', inline: 'nearest' });
+      return Promise.all(document.getAnimations().map(a => a.finished));
+    });
+    await againStartBtn.click({ force: true });
+    const again = page.getByRole('dialog', { name, exact: true });
+    // Last time's reps and reserve sit in the target column; there is no separate past-sets list.
+    await expect(again.getByRole('region', { name: 'Past sets for Barbell bench press' })).toHaveCount(0);
+    await expect(again.locator('.workout-set-row').first().locator('.target-text')).toHaveText('8 · 2 RIR');
+    await expect(again.getByRole('textbox', { name: 'Exercise notes', exact: true })).toBeVisible();
+    await expect(again.locator('.suggestion-text').first()).toBeVisible();
+    await expect(again.getByRole('spinbutton', { name: 'Barbell bench press set 1 weight', exact: true })).toHaveValue('60');
+    await expect(again.getByRole('spinbutton', { name: 'Barbell bench press set 1 reps', exact: true })).toHaveValue('9');
+    // Discard lives in the workout's options menu, away from the thumb zone's primary actions.
+    await again.getByRole('button', { name: 'Workout options', exact: true }).click();
+    await page.getByRole('menuitem', { name: 'Discard workout', exact: true }).click();
+    await page.getByRole('button', { name: 'Discard workout', exact: true }).click();
+    await expect(again).toBeHidden();
+  } catch (error) {
+    primaryError = error;
+    throw error;
+  } finally {
+    try {
+      await clearActiveWorkout(page);
+    } catch (cleanupError) {
+      if (primaryError) {
+        throw new AggregateError(
+          [primaryError, cleanupError],
+          `Test assertion failed and cleanup also failed: ${cleanupError instanceof Error ? cleanupError.message : String(cleanupError)}`
+        );
+      }
+      throw cleanupError;
+    }
   }
-  await activeLogger.getByRole('button', { name: 'Remove Barbell bench press set 2', exact: true }).click();
-  await expect(weights).toHaveCount(setCount - 1);
-  await expect(activeLogger.getByRole('status').filter({ hasText: 'Set 2 removed.' })).toBeVisible();
-  await activeLogger.getByRole('button', { name: 'Undo', exact: true }).click();
-  await expect(weights).toHaveCount(setCount);
-  await expect(secondWeight).toHaveValue('55');
-
-  // Finishing early lives in the options menu; the footer's own Finish only appears once every set is logged.
-  await activeLogger.getByRole('button', { name: 'Minimize workout', exact: true }).click();
-  await openTab(page, 'Overview');
-  const today = new Date().toDateString();
-  await expect(page.getByRole('button', { name: `${today}, workout in progress, today`, exact: true })).toBeVisible();
-  await expect(page.locator('.dashboard-quick-start')).toHaveCount(0);
-  await page.getByRole('button', { name: `Resume ${name}`, exact: true }).click();
-  await expect(page.getByRole('button', { name: 'Finish workout', exact: true })).toHaveCount(0);
-  await activeLogger.getByRole('button', { name: 'Workout options', exact: true }).click();
-  await page.getByRole('menuitem', { name: 'Finish workout', exact: true }).click();
-  await page.getByRole('button', { name: 'Save workout', exact: true }).click();
-  await expect(page.getByText('Workout complete', { exact: true })).toBeVisible();
-  await expect(page.getByText('60 kg × 8', { exact: true })).toBeVisible();
-  await expect(page.getByText(/(?:RPE 8|2 RIR)/, { exact: true })).toBeVisible();
-  await page.getByRole('button', { name: 'Done', exact: true }).click();
-
-  await openTab(page, 'Overview');
-  await expect(page.getByRole('heading', { name: 'Overview' })).toBeVisible();
-  await expect(page.getByRole('button', { name: `${today}, workout completed, today`, exact: true })).toBeVisible();
-  await expect(page.getByText(name, { exact: true }).first()).toBeVisible();
-  const progressStats = page.locator('.progress-stats');
-  const workoutHistoryHeading = page.getByRole('heading', { name: 'Workout history', exact: true });
-  expect(await progressStats.evaluate((stats, heading) => Boolean(stats.compareDocumentPosition(heading as Node) & Node.DOCUMENT_POSITION_FOLLOWING), await workoutHistoryHeading.elementHandle())).toBe(true);
-  const progressHeadings = await page.locator('main h2').allTextContents();
-  expect(progressHeadings).not.toContain('Personal bests');
-  expect(progressHeadings).toContain('Workout history');
-
-  await openTab(page, 'Muscles');
-  await expect(page.getByRole('heading', { name: 'Muscle coverage', exact: true })).toBeVisible();
-  const rangeSelect = page.getByRole('button', { name: 'Muscle coverage period', exact: true });
-  await expect(rangeSelect).toContainText('Last week');
-  await expect(page.getByRole('img', { name: /front/i })).toBeVisible();
-  await expect(page.getByRole('img', { name: /back/i })).toBeVisible();
-
-  // Selecting a muscle reads it out in a slot that is always there, so the figure cannot move out
-  // from under the pointer that is picking it.
-  const figure = page.getByRole('img', { name: /front/i });
-  const figureBefore = await figure.boundingBox();
-  const detail = page.locator('.body-map-detail');
-  await tapMuscleRegion(page, 'Chest');
-  await expect(detail).toContainText('Chest');
-  expect(await figure.boundingBox()).toEqual(figureBefore);
-
-  // Shade depth is relative: a trained muscle is deeper than one with no credited sets.
-  const shadeOf = (muscle: string) => page.locator(`.muscle-region[data-muscle="${muscle}"]`).first()
-    .evaluate(element => Number.parseFloat(getComputedStyle(element).getPropertyValue('--muscle-shade')));
-  expect(await shadeOf('Chest')).toBeGreaterThan(await shadeOf('Calves'));
-
-  const longerRange = page.waitForResponse(response => response.request().method() === 'GET'
-    && new URL(response.url()).pathname === '/api/progress/muscles'
-    && new URL(response.url()).searchParams.get('range') === '3m');
-  await rangeSelect.click();
-  await page.getByRole('listbox', { name: 'Muscle coverage period', exact: true })
-    .getByRole('option', { name: 'Last 3 months', exact: true }).click();
-  expect((await longerRange).ok()).toBe(true);
-  const chest = page.locator('.muscle-region[data-muscle="Chest"]').first();
-  await expect(chest).toBeVisible();
-  await expect(detail.locator('.body-map-detail-sets')).toBeVisible();
-  await expect(detail.locator('.body-map-detail-sets')).not.toContainText(/\b0(?:\.0)? sets/);
-
-  const chestBreakdown = page.getByRole('button', { name: /^Chest, .*contributing lifts$/ });
-  await page.reload();
-  await expect(chestBreakdown.locator('svg')).toBeVisible();
-  if (await chestBreakdown.getAttribute('aria-expanded') !== 'true') await chestBreakdown.click();
-  await page.locator('.muscle-breakdown-panel').screenshot({ animations: 'disabled', style: '.topbar, .bottom-nav { visibility: hidden !important; }',
-    path: join(screenshotsDirectory, `${testInfo.project.name}-muscle-breakdown.png`) });
-  const liftCatalog = page.waitForResponse(response => new URL(response.url()).pathname === '/api/exercises');
-  await page.getByLabel('Chest contributing lifts', { exact: true }).getByRole('button', { name: /Barbell bench press/i }).click();
-  expect((await liftCatalog).ok()).toBe(true);
-  const exerciseDetail = page.getByRole('dialog', { name: 'Barbell bench press', exact: true });
-  await expect(exerciseDetail.getByRole('group', { name: 'Exercise detail view' })).toBeVisible();
-  await exerciseDetail.getByRole('button', { name: 'History', exact: true }).click();
-  const historyEntry = exerciseDetail.getByRole('button', { name: new RegExp(name) });
-  await expect(historyEntry).toContainText('Standalone workout');
-  await historyEntry.click();
-  await expect(exerciseDetail.getByRole('heading', { name: 'Performed sets', exact: true })).toBeVisible();
-  await expect(exerciseDetail.getByText('60 kg × 8', { exact: true })).toBeVisible();
-  for (const theme of ['dark', 'light']) {
-    await page.evaluate(value => document.documentElement.dataset.theme = value, theme);
-    await page.screenshot({ path: join(screenshotsDirectory, testInfo.project.name + '-exercise-history-' + theme + '.png') });
-  }
-  await exerciseDetail.getByRole('button', { name: 'Done', exact: true }).click();
-
-  // Starting the same plan again has to carry the last session forward: 8 reps at RPE 8 against
-  // a target of 8-12 leaves effort in the tank, so the app asks for one more rep at the same
-  // load and says so in words rather than silently changing a number.
-  await openTab(page, 'Workouts');
-  await expect(page.getByRole('heading', { name: 'Workouts', exact: true })).toBeVisible();
-  await expect(page.getByRole('button', { name: /^Resume / })).toBeHidden();
-  const againCard = page.locator('.routine-card').filter({ hasText: name });
-  const againStartBtn = againCard.getByRole('button', { name: 'Start workout', exact: true });
-  await againStartBtn.evaluate(el => {
-    el.scrollIntoView({ block: 'center', inline: 'nearest' });
-    return Promise.all(document.getAnimations().map(a => a.finished));
-  });
-  await againStartBtn.click({ force: true });
-  const again = page.getByRole('dialog', { name, exact: true });
-  // Last time's reps and reserve sit in the target column; there is no separate past-sets list.
-  await expect(again.getByRole('region', { name: 'Past sets for Barbell bench press' })).toHaveCount(0);
-  await expect(again.locator('.workout-set-row').first().locator('.target-text')).toHaveText('8 · 2 RIR');
-  await expect(again.getByRole('textbox', { name: 'Exercise notes', exact: true })).toBeVisible();
-  await expect(again.locator('.suggestion-text').first()).toBeVisible();
-  await expect(again.getByRole('spinbutton', { name: 'Barbell bench press set 1 weight', exact: true })).toHaveValue('60');
-  await expect(again.getByRole('spinbutton', { name: 'Barbell bench press set 1 reps', exact: true })).toHaveValue('9');
-  // Discard lives in the workout's options menu, away from the thumb zone's primary actions.
-  await again.getByRole('button', { name: 'Workout options', exact: true }).click();
-  await page.getByRole('menuitem', { name: 'Discard workout', exact: true }).click();
-  await page.getByRole('button', { name: 'Discard workout', exact: true }).click();
-  await expect(again).toBeHidden();
 
   expect(errors).toEqual([]);
 });
@@ -1419,7 +1536,7 @@ test('overview calendar opens matching completed and active sessions and leaves 
   }
   await signIn(page);
   const calendar = page.getByRole('region', { name: 'Training calendar' });
-  await expect(calendar.getByText('1 workout completed in this calendar week', { exact: true })).toBeVisible();
+  await expect(calendar.getByText('1 workout completed this week', { exact: true })).toBeVisible();
   const todayButton = page.getByRole('button', { name: today.toDateString() + ', workout completed, today', exact: true });
   await expect(todayButton).toHaveClass(/day-completed/);
   await todayButton.click();
@@ -1472,9 +1589,9 @@ test('overview completion follows the active program week rather than calendar a
   await expect(ring).toBeVisible();
   await expect(ring.locator('.completion-fill')).toHaveAttribute('stroke-dasharray', '50 100');
   if ((page.viewportSize()?.width ?? 0) >= 1024) {
-    await expect(ring).toHaveCSS('width', '68px');
-    await expect(ring.locator('text')).toHaveCSS('font-size', '30px');
-    await expect(ring.locator('.completion-total')).toHaveCSS('font-size', '22px');
+    await expect(ring).toHaveCSS('width', '44px');
+    await expect(ring.locator('text')).toHaveCSS('font-size', '22px');
+    await expect(ring.locator('.completion-total')).toHaveCSS('font-size', '15px');
   }
   await page.screenshot({ animations: 'disabled', path: join(screenshotsDirectory, `overview-program-week-${info.project.name}.png`) });
   await page.locator('.calendar-week-rail').focus();

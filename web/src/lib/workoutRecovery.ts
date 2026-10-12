@@ -1,9 +1,11 @@
 import type { LoggedSet, Preferences, RestMutationInput, Session, SessionRest } from '../types';
-import { reconcileSetPatchOperation, sameWorkoutEdits, sameWorkoutNonSetEdits } from './workoutRecoveryComparison';
+import { hasUnresolvedRecovery, reconcileSetPatchOperation, sameWorkoutEdits, sameWorkoutNonSetEdits } from './workoutRecoveryComparison';
+import { getRecovery, setLastAccount } from './workoutRecoveryReads';
 import { getRecoveryStorage } from './recoveryStorage';
 import { discardStopwatch, type RunningStopwatch } from './setStopwatch';
 
-export { reconcileSetPatchOperation, sameWorkoutEdits };
+export { hasUnresolvedRecovery, reconcileSetPatchOperation, sameWorkoutEdits };
+export { getRecovery, getLastRecovery, getLastAccountId, setLastAccount } from './workoutRecoveryReads';
 export { defaultDevicePreferences, loadDevicePreferences, saveDevicePreferences } from './workoutDevicePreferences';
 export type { DevicePreferences } from './workoutDevicePreferences';
 
@@ -32,23 +34,6 @@ export type WorkoutRecoveryRecord = {
   /** Timed sets still counting, so a hold survives the app closing or crashing mid-set. */
   stopwatches?: Record<string, RunningStopwatch>;
 };
-
-export async function getRecovery(accountId: string): Promise<WorkoutRecoveryRecord | null> {
-  return getRecoveryStorage().get(accountId);
-}
-
-export async function getLastRecovery(): Promise<WorkoutRecoveryRecord | null> {
-  const accountId = await getLastAccountId();
-  return accountId ? getRecovery(accountId) : null;
-}
-
-export async function getLastAccountId(): Promise<string | null> {
-  return getRecoveryStorage().getLastAccountId();
-}
-
-export async function setLastAccount(accountId: string | null): Promise<void> {
-  return getRecoveryStorage().setLastAccountId(accountId);
-}
 
 /// Returns the stored record so a caller can show it without reading it straight back.
 export async function startRecovery(record: Omit<WorkoutRecoveryRecord, 'schemaVersion' | 'operations' | 'conflict' | 'updatedAt'>): Promise<WorkoutRecoveryRecord> {
@@ -409,10 +394,6 @@ function getRecoveryLockManager(): RecoveryLockManager | undefined {
 }
 
 const writeRecoveryMutation = createRecoveryMutationSerializer(getRecoveryLockManager());
-
-export function hasUnresolvedRecovery(record: WorkoutRecoveryRecord): boolean {
-  return record.conflict || record.operations.length > 0 || !sameWorkoutEdits(record.draft, record.serverSession);
-}
 
 export function hasPendingTimingOperations(record: WorkoutRecoveryRecord): boolean {
   return record.operations.some(operation => operation.type === 'pause' || operation.type === 'resume');

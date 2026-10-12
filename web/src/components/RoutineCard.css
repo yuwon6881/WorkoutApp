@@ -1,30 +1,39 @@
-/* Library workout card. Compact enough that a phone shows two at once without losing the
-   exercise list or the start action. */
+/* Library workout card. Compact, quiet layout with title, succinct counts, and clear start action. */
 
 .panel.routine-card {
   display: grid;
-  gap: 12px;
-  padding: 18px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px 8px;
+  padding: 14px 16px;
+  margin-bottom: 0;
   min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
   overflow: hidden;
 }
 
 .routine-card-head {
+  grid-column: 1;
+  grid-row: 1;
   display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
+  align-items: center;
   gap: 8px;
+  min-width: 0;
 }
 
 .routine-card-title {
   display: grid;
-  gap: 3px;
+  gap: 2px;
   min-width: 0;
+  flex: 1;
 }
 
 .panel.routine-card h2 {
   margin: 0;
-  font-size: 18px !important;
+  font-size: 16px !important;
+  font-weight: 650;
   line-height: 1.3;
   overflow-wrap: anywhere;
 }
@@ -32,27 +41,57 @@
 .routine-card-meta {
   margin: 0;
   color: var(--muted);
-  font-size: var(--font-secondary);
+  font-size: var(--font-secondary, 14px);
   line-height: 1.4;
+  font-variant-numeric: tabular-nums;
 }
 
-.routine-card-meta > span { white-space: nowrap; }
+.routine-card-meta > span {
+  white-space: nowrap;
+}
+
+.routine-card-controls {
+  grid-column: 2;
+  grid-row: 1;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: 0 0 auto;
+  align-self: center;
+  justify-self: end;
+}
 
 .routine-card-edit.button {
   flex: 0 0 auto;
   width: 44px;
   min-width: 44px;
   height: 44px;
-  margin: -8px -8px 0 0;
+  min-height: 44px;
+  margin: 0;
   padding: 0;
+  color: var(--muted);
 }
 
-.routine-card .day-muscles-row { margin: 0; }
+.routine-card-edit.button:hover:not(:disabled) {
+  color: var(--text);
+}
+
+.routine-card .day-muscles-row {
+  grid-column: 1 / -1;
+  margin: 0;
+  gap: 6px;
+}
+
+.routine-card:has(.slot-card-grip) .day-muscles-row {
+  padding-left: 30px;
+}
 
 .routine-card-exercises {
+  grid-column: 1 / -1;
   display: grid;
+  grid-template-columns: 1fr;
   gap: 0;
-  margin: 0;
+  margin: 2px 0 0;
   padding: 0;
   list-style: none;
   border-top: 1px solid var(--border);
@@ -63,29 +102,76 @@
   align-items: baseline;
   justify-content: space-between;
   gap: 12px;
-  padding: 8px 0;
+  padding: 6px 0;
   border-bottom: 1px solid var(--border);
-  font-size: var(--font-secondary);
+  font-size: var(--font-secondary, 14px);
+  min-width: 0;
 }
 
 .routine-card-exercises > li > span {
   min-width: 0;
   color: var(--text);
   overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .routine-card-exercises small {
   flex: 0 0 auto;
   color: var(--muted);
+  font-size: var(--font-secondary, 14px);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
 
-.routine-card-exercises > li.routine-card-more > span { color: var(--muted); }
+.routine-card-exercises > li.routine-card-more > span {
+  color: var(--muted);
+}
 
-.routine-card-start.button { margin-top: 2px; }
+.routine-card-start.button {
+  grid-column: 1 / -1;
+  width: 100%;
+  min-height: 44px;
+  margin-top: 2px;
+  border-radius: var(--radius-control, 8px);
+}
 
-@media (min-width: 1024px) {
-  .panel.routine-card { padding: 20px 22px; }
-  .routine-card-edit.button { width: 36px; min-width: 36px; height: 36px; margin: -4px -6px 0 0; }
+@media (min-width: 768px) {
+  .panel.routine-card {
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    align-items: center;
+    gap: 8px 8px;
+    padding: 16px 18px;
+  }
+
+  .routine-card-start.button {
+    grid-column: 3;
+    grid-row: 1;
+    width: auto;
+    min-width: 44px;
+    min-height: 44px;
+    align-self: center;
+    justify-self: end;
+    margin-top: 0;
+    margin-left: 2px;
+    white-space: nowrap;
+  }
+
+  .routine-card-exercises {
+    grid-column: 1 / -1;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 4px 20px;
+    margin: 4px 0 0;
+    padding: 6px 0 0;
+    border-top: 1px solid var(--border);
+  }
+
+  .routine-card-exercises > li {
+    padding: 4px 0;
+    border-bottom: none;
+  }
+
+  .routine-card-exercises > li:only-child,
+  .routine-card-exercises > li.routine-card-more {
+    grid-column: 1 / -1;
+  }
 }

@@ -29,7 +29,7 @@ data class SyncStatus(val tone: SyncTone, val label: String, val detail: String)
 fun syncStatus(queuedCount: Int, pairingRequired: Boolean, syncing: Boolean): SyncStatus = when {
     queuedCount > 0 && pairingRequired -> SyncStatus(
         SyncTone.Attention,
-        "Reconnect to sync",
+        "Reconnect",
         "${plural(queuedCount, "change")} saved on this watch"
     )
     queuedCount > 0 && syncing -> SyncStatus(SyncTone.Syncing, "Syncing…", "Sending ${plural(queuedCount, "change")}")

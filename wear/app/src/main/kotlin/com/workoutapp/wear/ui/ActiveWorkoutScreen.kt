@@ -73,6 +73,9 @@ fun ActiveWorkoutScreen(
             restoreTimer(snapshot.setTimers?.get(model.set?.id))
         }
     }
+    LaunchedEffect(model.set, model.startingLoad, model.startingReps, model.startingRir) {
+        draft.reconcile(model)
+    }
     LaunchedEffect(snapshot.setTimers?.get(model.set?.id), session.pausedAt) {
         val timer = snapshot.setTimers?.get(model.set?.id) ?: return@LaunchedEffect
         val current = if (paused) timer.pause(java.time.Instant.parse(session.pausedAt).toEpochMilli()) else timer.resume(System.currentTimeMillis())
@@ -108,7 +111,7 @@ fun ActiveWorkoutScreen(
         when (action) {
             SetAction.Log -> {
                 val now = System.currentTimeMillis()
-                val load = if (model.loadEditable) draft.load else passthroughLoad(model.set, unit)
+                val load = draft.loadForSubmission(model, unit)
                 if (!model.timed) {
                     haptics.performHapticFeedback(HapticFeedbackType.Confirm)
                     onCompleteSet(draft.reps, load, if (model.warmup) null else draft.rir, null)
@@ -225,7 +228,7 @@ fun ActiveWorkoutScreen(
     ConfirmDialog(
         visible = confirmFinish,
         title = "Finish workout?",
-        text = "${progress.doneSets} of ${plural(progress.plannedSets, "set")} logged. Unlogged sets are left out. WorkoutApp confirms the finish when the watch syncs.",
+        text = finishConfirmationMessage(progress),
         destructive = false,
         onConfirm = { confirmFinish = false; onFinish() },
         onDismiss = { confirmFinish = false }
@@ -245,7 +248,8 @@ private fun SetFieldAdjuster(field: SetField, model: ActiveSetModel, draft: SetD
             caption = model.targetReps?.let { "Target $it" } ?: "reps",
             canDecrease = draft.reps > MIN_REPS,
             onStep = { up -> draft.reps = stepReps(draft.reps, up) },
-            onDone = onDone
+            onDone = onDone,
+            canIncrease = draft.reps < MAX_REPS
         )
         SetField.Load -> ValueAdjuster(
             title = model.loadLabel,
@@ -256,13 +260,14 @@ private fun SetFieldAdjuster(field: SetField, model: ActiveSetModel, draft: SetD
             onDone = onDone
         )
         SetField.Rir -> ValueAdjuster(
-            title = "Reps in reserve",
+            title = "RIR",
             value = draft.rir ?: "—",
             caption = model.targetRir?.let { "Target RIR $it" } ?: "0 = no reps left",
             canDecrease = draft.rir != "0",
             onStep = { up -> draft.rir = stepRir(draft.rir, up, model.targetRir) },
             onDone = onDone,
-            valueColor = rirColor(draft.rir)
+            valueColor = rirColor(draft.rir),
+            canIncrease = draft.rir != "5+"
         )
         SetField.Time -> ValueAdjuster(
             title = "Time",
@@ -270,7 +275,8 @@ private fun SetFieldAdjuster(field: SetField, model: ActiveSetModel, draft: SetD
             caption = model.targetReps?.let { "Target $it" } ?: "min:sec",
             canDecrease = draft.seconds != null,
             onStep = { up -> draft.seconds = stepSeconds(draft.seconds, up) },
-            onDone = onDone
+            onDone = onDone,
+            canIncrease = (draft.seconds ?: 0) < WorkoutRepository.MAX_SET_SECONDS
         )
     }
 }

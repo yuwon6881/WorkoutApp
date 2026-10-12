@@ -37,15 +37,18 @@
 
 /* The first-load skeleton in components/AppLoading.tsx. It sits inside the real shell, so only
    the placeholders' own sizes live here; spacing and columns come from the page's own classes. */
-.app-loading { display: grid; gap: var(--space-section, 20px); }
-.app-loading-nav { display: grid; gap: 8px; margin-top: 24px; }
+.app-loading { display: block; }
+.app-loading-nav { display: grid; gap: 4px; margin-top: 14px; }
+.app-loading-nav-bottom { display: grid; gap: 4px; margin-top: 10px; padding-top: 10px; }
 .app-loading .skeleton,
 .app-loading-shell .skeleton { border-radius: var(--radius-control, 8px); }
-.skeleton-nav-item { height: 40px; }
+.skeleton-nav-item { height: 40px; border-radius: 10px !important; }
+@media (max-width: 1023px) { .skeleton-nav-item { height: 44px; } }
 .skeleton-topbar-action { width: 44px; height: 44px; margin-left: auto; border-radius: 50% !important; }
 .skeleton-topbar-ai { display: none; }
+@media (min-width: 640px) { .app-loading-shell .skeleton-topbar-action { display: none; } }
 @media (max-width: 639px) { .skeleton-topbar-ai { display: block; } }
-.app-loading .skeleton-title { width: 180px; max-width: 60%; height: 32px; }
+.app-loading .skeleton-title { width: 180px; max-width: 60%; height: 40px; }
 .app-loading .skeleton-subtitle { width: 220px; max-width: 70%; height: 16px; margin-top: 10px; }
 .app-loading-hero { display: grid; gap: 12px; margin-bottom: 24px; }
 .app-loading-hero .hero-top { display: flex; justify-content: space-between; gap: 12px; }
@@ -55,34 +58,50 @@
 .skeleton-hero-line { width: 44%; height: 16px; }
 .skeleton-hero-button { width: 180px; height: 48px; margin-top: 8px; }
 .skeleton-section-title { width: 140px; height: 20px; margin-bottom: 14px; }
-.app-loading-quick-start { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; padding: 16px 20px; }
-.app-loading-quick-start > div { display: grid; gap: 8px; }
-.app-loading-quick-start .skeleton-hero-line { width: 160px; }
-.app-loading-quick-start .skeleton-hero-button { margin: 0 0 0 auto; height: 44px; }
-.app-loading-week-summary { display: flex; align-items: center; gap: 16px; margin-bottom: 16px; }
-.skeleton-week-ring { width: 88px; height: 88px; flex: none; border-radius: 50% !important; }
-@media (max-width: 639px) { .skeleton-week-ring { width: 76px; height: 76px; } }
-/* Phones give the program week its own card above the calendar (components/ProgramWeekCompletion.tsx). */
-.app-loading-program-week { display: none; }
+.app-loading-quick-start { display: grid; gap: 16px; padding: 24px; }
+.app-loading-quick-start > div { display: grid; gap: 16px; }
+.app-loading-quick-start .skeleton-hero-line { width: 80%; height: 40px; }
+.app-loading-quick-start .skeleton-hero-button { margin: 0; height: 44px; }
+@media (max-width: 639px) { .app-loading-quick-start .skeleton-hero-button { width: 100%; } }
+.app-loading .overview-main-column { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
 @media (max-width: 639px) {
-  .app-loading .app-loading-program-week { display: grid; justify-items: center; gap: 10px; margin-bottom: 0; }
-  .app-loading-program-week .skeleton-section-title,
-  .app-loading-program-week .skeleton-subtitle { margin: 0; }
-  .app-loading .app-loading-week-summary { display: none; }
+  .app-loading .overview-main-column { display: contents; }
+  .app-loading .app-loading-quick-start { order: 1; }
+  .app-loading .overview-calendar-column { order: 2; }
+  .app-loading .progress-stats { order: 3; }
+}
+.app-loading-week-summary { display: flex; align-items: center; gap: 10px; margin-bottom: 0; }
+.app-loading-week-summary > div { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.app-loading .app-loading-week-summary .skeleton-section-title,
+.app-loading .app-loading-week-summary .skeleton-subtitle { margin: 0; }
+.skeleton-week-ring { width: 44px; height: 44px; flex: none; border-radius: 50% !important; }
+@media (max-width: 639px) {
+  .app-loading .app-loading-week-summary { display: flex; align-items: center; gap: 10px; margin-bottom: 0; }
+  .skeleton-week-ring { width: 44px; height: 44px; }
 }
 /* Reserve rows before the lazy calendar/stat styles arrive; otherwise seven days stack. */
 .app-loading .app-loading-week { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; margin-bottom: 20px; }
 .app-loading-week .skeleton-day { min-height: 64px; border-radius: 12px !important; }
-.app-loading .progress-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.app-loading .progress-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0;
+  padding: 14px 18px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius, 12px);
+  box-sizing: border-box;
+}
 .app-loading .progress-stats > * { grid-column: auto; }
-@media (max-width: 639px) { .app-loading .progress-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; } .app-loading .progress-stats > :last-child { grid-column: 1 / -1; } }
-.skeleton-stat { min-height: 96px; border-radius: var(--radius, 12px) !important; }
-.app-loading-bottom-nav { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; padding: 8px 12px; }
-.skeleton-bottom-item { height: 44px; border-radius: 14px !important; }
+@media (max-width: 639px) { .app-loading .progress-stats { padding: 12px 10px; } }
+.skeleton-stat { min-height: 52px; }
+.app-loading-bottom-nav { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; padding: 4px; }
+.skeleton-bottom-item { height: 48px; border-radius: 999px !important; }
 
 /* Dialogs: the page behind an open dialog does not scroll, and a sheet's own scroll never chains
    into it. The dialog takes focus on open, which needs no ring; its controls keep theirs. */
 html.dialog-open { overflow: hidden; }
+dialog.modal:not([open]) { display: none; }
 .modal { overscroll-behavior: contain; }
 .modal:focus { outline: none; }
 
@@ -169,7 +188,7 @@ html.dialog-open { overflow: hidden; }
    notch and rounded corners are kept clear on every edge, not only the bottom. */
 .app-shell { min-height: 100dvh; }
 .topbar {
-  height: calc(74px + env(safe-area-inset-top, 0px));
+  height: calc(28px + env(safe-area-inset-top, 0px));
   padding-top: env(safe-area-inset-top, 0px);
 }
 /* Without the sidebar, the top bar is the way to Settings and the save status, so it stays put. */
@@ -177,8 +196,38 @@ html.dialog-open { overflow: hidden; }
   .topbar { position: sticky; top: 0; z-index: 9; background: var(--bg); }
 }
 .app-shell { padding-inline: env(safe-area-inset-left, 0px) env(safe-area-inset-right, 0px); }
-.bottom-nav { padding-left: max(8px, env(safe-area-inset-left, 0px)); padding-right: max(8px, env(safe-area-inset-right, 0px)); }
+.bottom-nav { padding-left: max(10px, env(safe-area-inset-left, 0px)); padding-right: max(10px, env(safe-area-inset-right, 0px)); }
+@media (max-width: 359px) { .bottom-nav { padding-left: max(6px, env(safe-area-inset-left, 0px)); padding-right: max(6px, env(safe-area-inset-right, 0px)); } }
 .modal { padding-left: env(safe-area-inset-left, 0px); padding-right: env(safe-area-inset-right, 0px); }
+
+@media (min-width: 640px) {
+  .topbar {
+    height: calc(28px + env(safe-area-inset-top, 0px));
+    min-height: calc(28px + env(safe-area-inset-top, 0px));
+    padding: env(safe-area-inset-top, 0px) 0 0;
+  }
+  .app-shell > .topbar > .topbar-actions > .settings-icon,
+  .app-shell > .workspace > .topbar > .topbar-actions > .settings-icon,
+  .app-shell .topbar > .topbar-actions > .settings-icon {
+    display: none;
+  }
+}
+
+@media (min-width: 1024px) and (max-width: 1279px) {
+  .topbar {
+    height: calc(24px + env(safe-area-inset-top, 0px));
+    min-height: calc(24px + env(safe-area-inset-top, 0px));
+    padding: env(safe-area-inset-top, 0px) 4px 0;
+  }
+}
+
+@media (min-width: 640px) and (max-width: 1023px) {
+  .topbar {
+    height: calc(20px + env(safe-area-inset-top, 0px));
+    min-height: calc(20px + env(safe-area-inset-top, 0px));
+    padding: env(safe-area-inset-top, 0px) 8px 0;
+  }
+}
 
 @media (max-width: 639px) {
   .topbar { height: calc(68px + env(safe-area-inset-top, 0px)); }

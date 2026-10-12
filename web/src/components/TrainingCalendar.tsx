@@ -3,24 +3,25 @@ import { Check, ChevronLeft, ChevronRight, RotateCcw } from 'lucide-react';
 import type { HistoryPage, ProgramSummary, Session, WorkoutActivityItem } from '../types';
 import { api } from '../lib/api';
 import { weekDays } from '../lib/training';
-import { useWindowTier } from '../lib/breakpoints';
 import { loadSessionDetail } from '../lib/sessionDetailLoad';
 import { prefetchView } from '../app/lazyViews';
 import { ProgramWeekCompletion } from './ProgramWeekCompletion';
 import { Button } from './ui/Button';
 import './TrainingCalendar.css';
+import { viewReadCache } from '../lib/viewReadCache';
 
 interface TrainingCalendarProps {
   onSession: (s: Session) => void;
   program: ProgramSummary | null;
   refreshKey: string | HistoryPage;
   activeWorkoutId: string | null;
+  accountId: string;
 }
 
 const localDay = (day: Date) =>
   `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, '0')}-${String(day.getDate()).padStart(2, '0')}`;
 
-export function TrainingCalendar({ onSession, program, refreshKey, activeWorkoutId }: TrainingCalendarProps) {
+export function TrainingCalendar({ onSession, program, refreshKey, activeWorkoutId, accountId }: TrainingCalendarProps) {
   const [offset, setOffset] = useState(0);
   const days = weekDays(offset);
   const rail = useRef<HTMLDivElement>(null);
@@ -28,8 +29,9 @@ export function TrainingCalendar({ onSession, program, refreshKey, activeWorkout
   const touchStart = useRef<{ x: number; y: number } | null>(null);
   const isTouching = useRef(false);
   const navigating = useRef(false);
-  const [calendar, setCalendar] = useState<WorkoutActivityItem[]>([]);
-  const [initialLoading, setInitialLoading] = useState(true);
+  const initialKey = `${accountId}:activity:${localDay(weekDays(-1)[0])}:${localDay(weekDays(1)[6])}:${activeWorkoutId ?? ''}`;
+  const [calendar, setCalendar] = useState<WorkoutActivityItem[]>(() => viewReadCache.get(initialKey, refreshKey) ?? []);
+  const [initialLoading, setInitialLoading] = useState(() => !viewReadCache.get(initialKey, refreshKey));
   const [calendarError, setCalendarError] = useState('');
   // Three weeks of day cells each look up their own date; group once per loaded calendar.
   const entriesByDay = useMemo(() => {
@@ -121,15 +123,22 @@ export function TrainingCalendar({ onSession, program, refreshKey, activeWorkout
   useEffect(() => {
     const from = localDay(weekDays(offset - 1)[0]);
     const to = localDay(weekDays(offset + 1)[6]);
+    const readKey = `${accountId}:activity:${from}:${to}:${activeWorkoutId ?? ''}`;
+    const cached = viewReadCache.get<WorkoutActivityItem[]>(readKey, refreshKey);
+    if (cached) { setCalendar(cached); setInitialLoading(false); }
+    if (viewReadCache.fresh(readKey, refreshKey)) return;
     const controller = new AbortController();
     api
       .activity(from, to, controller.signal)
       .then(next => {
         if (controller.signal.aborted) return;
         setInitialLoading(false);
+        viewReadCache.set(readKey, refreshKey, next);
         setCalendar(prev => {
           const map = new Map<string, WorkoutActivityItem>();
-          for (const item of prev) map.set(`${item.id}-${item.date}`, item);
+          for (const item of prev) {
+            if (item.date < from || item.date > to) map.set(`${item.id}-${item.date}`, item);
+          }
           for (const item of next) map.set(`${item.id}-${item.date}`, item);
           return Array.from(map.values());
         });
@@ -142,7 +151,7 @@ export function TrainingCalendar({ onSession, program, refreshKey, activeWorkout
         }
       });
     return () => controller.abort();
-  }, [offset, refreshKey, activeWorkoutId]);
+  }, [offset, refreshKey, activeWorkoutId, accountId]);
 
   const monthYearLabel = (() => {
     const firstMonth = days[0].toLocaleDateString('en', { month: 'short' });
@@ -160,13 +169,10 @@ export function TrainingCalendar({ onSession, program, refreshKey, activeWorkout
 
   const completed = calendar.filter(item => item.status === 'completed' &&
     item.date >= localDay(days[0]) && item.date <= localDay(days[6]));
-  const compact = useWindowTier() === 'compact';
-
-  return (<>
-    {compact && <ProgramWeekCompletion program={program} standalone />}
+  return (
     <section className="panel training-calendar-card" aria-label="Training calendar">
       <div className="calendar-card-header">
-        {!compact && <ProgramWeekCompletion program={program} />}
+        <ProgramWeekCompletion program={program} />
 
         <div className="calendar-nav-controls">
           {offset !== 0 && (
@@ -300,16 +306,16 @@ export function TrainingCalendar({ onSession, program, refreshKey, activeWorkout
             ? (calendarError || 'Loading activity')
             : calendarError
               ? 'Activity unavailable'
-              : `${completed.length} ${completed.length === 1 ? 'workout' : 'workouts'} completed in this calendar week`}
+              : `${completed.length} ${completed.length === 1 ? 'workout' : 'workouts'} completed this week`}
         </p>
         <div className="calendar-legend-pills" aria-label="Calendar status legend">
           <span className="calendar-legend-pill"><i className="legend-dot completed" aria-hidden="true" />Completed</span>
           <span className="calendar-legend-pill"><i className="legend-dot in-progress" aria-hidden="true" />In progress</span>
-          <span className="calendar-legend-pill"><i className="legend-dot rest" aria-hidden="true" />Rest</span>
+          <span className="calendar-legend-pill"><i className="legend-dot rest" aria-hidden="true" />No workout</span>
         </div>
       </div>
 
       {calendarError && <p className="muted calendar-error">{calendarError}</p>}
     </section>
-  </>);
+  );
 }

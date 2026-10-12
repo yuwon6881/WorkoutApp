@@ -46,6 +46,12 @@ async function savedImports(page: Page, views: ImportView[]) {
   return (next: ImportView[]) => { imports = next; };
 }
 
+test.afterEach(async ({ page }) => {
+  if (!page.isClosed()) {
+    await page.unrouteAll({ behavior: 'wait' });
+  }
+});
+
 test('reload and discarding another draft never select an older failed import', async ({ page }, testInfo) => {
   const pageErrors: string[] = [];
   page.on('pageerror', error => pageErrors.push(error.message));
@@ -149,7 +155,7 @@ test('a stopped import explains what was doubted, where, and what to do next', a
   // Imports arrive with the app's bootstrap; everything else in it stays the account's own.
   await page.route('**/api/bootstrap/launch', async route => {
     const response = await route.fetch();
-    route.fulfill({ response, json: { ...(await response.json()), imports: [failedImport] } });
+    await route.fulfill({ response, json: { ...(await response.json()), imports: [failedImport] } });
   });
   await page.route('**/api/imports', route => route.request().method() === 'GET'
     ? route.fulfill({ json: [failedImport] }) : route.continue());

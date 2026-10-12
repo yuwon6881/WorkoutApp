@@ -215,7 +215,7 @@
 }
 .set-grid-head-tempo { display: none; }
 .set-grid-wrap .set-grid-row {
-  grid-template-columns: 132px minmax(0, 1fr) 44px;
+  grid-template-columns: 144px minmax(0, 1fr) 44px;
   grid-template-areas: "meta reps rir" "tempo tempo tempo";
   gap: 8px;
 }
@@ -270,12 +270,14 @@
     row-gap: 2px;
   }
   .set-grid-typed.set-grid-wrap .set-grid-row { grid-template-areas: "meta meta" "reps rir"; }
-  .set-grid-wrap .set-grid-row .set-type-select { width: 112px; min-width: 112px; max-width: 112px; }
+  .set-grid-wrap .set-grid-row .set-type-select { width: 144px; min-width: 144px; max-width: 144px; }
   .set-grid-wrap .set-grid-row .set-type-select .custom-select-trigger {
     gap: 2px; padding-inline: 0; min-height: 44px; height: 44px;
   }
   .set-grid-wrap .set-grid-row .set-type-select .custom-select-text { font-size: 14px; line-height: 1.2; }
-  .set-grid-wrap .import-set-content.set-grid-row { padding: 6px 10px; }
+  /* Exact, range and AMRAP rows share one gap: the earlier .import-set-content rule would otherwise
+     leave only range rows tight, making exact rows 6 px taller. */
+  .set-grid-wrap .import-set-content.set-grid-row { padding: 6px 10px; gap: 3px 6px; row-gap: 2px; }
   .set-grid-wrap.set-grid-range .set-grid-row {
     grid-template-columns: minmax(0, 1fr) 44px;
     grid-template-areas: "meta meta" "reps rir" "tempo tempo";
@@ -292,11 +294,11 @@
 }
 @container set-grid (min-width: 600px) {
   .set-grid-wrap .set-grid-row {
-    grid-template-columns: 132px minmax(0, 1fr) 44px minmax(64px, .7fr);
+    grid-template-columns: 144px minmax(0, 1fr) 44px minmax(64px, .7fr);
     align-items: end;
     grid-template-areas: "meta reps rir tempo";
   }
-  .set-grid-typed.set-grid-wrap .set-grid-row { grid-template-columns: 132px minmax(0, 1fr) 44px; grid-template-areas: "meta reps rir"; }
+  .set-grid-typed.set-grid-wrap .set-grid-row { grid-template-columns: 144px minmax(0, 1fr) 44px; grid-template-areas: "meta reps rir"; }
 }
 @media (max-width: 1023px) {
   .set-grid-head .rep-mode-btn { min-height: 44px; height: 44px; padding-inline: 10px; }
@@ -318,3 +320,7 @@
 .set-grid-wrap:not(.set-grid-typed) .set-grid-row .rpe-field > span:first-child {
   position: static; width: auto; height: auto; margin: 0; clip: auto; font-size: 14px;
 }
+
+/* Source notes for sets that have any, listed under the grid so no set row changes height. */
+.import-set-notes { display: grid; gap: 4px; margin: 10px 0 0; padding: 0; list-style: none; color: var(--muted); font-size: var(--font-secondary); line-height: 1.4; }
+.import-set-notes strong { color: var(--text); font-weight: 650; }

@@ -24,7 +24,7 @@ export function ActiveSlotDropZone({ over, occupied, hasLibrary, onNewWorkout, o
   }
 
   if (!hasLibrary) {
-    return <section className="panel active-slot-zone active-slot-empty first-run" data-slot-zone="active" aria-label="Active workout">
+    return <section className="panel active-slot-zone active-slot-empty first-run" data-slot-zone="active" aria-label="Active plan">
       <div className="active-slot-empty-copy">
         <h3>Ready for your first workout</h3>
         <p>Build one by hand, or import a program from a PDF. It will wait in your library until you drag it here.</p>
@@ -36,7 +36,7 @@ export function ActiveSlotDropZone({ over, occupied, hasLibrary, onNewWorkout, o
     </section>;
   }
 
-  return <section className={`active-slot-zone active-slot-empty ${over ? 'slot-zone-over' : ''}`} data-slot-zone="active" aria-label="Active workout">
+  return <section className={`active-slot-zone active-slot-empty ${over ? 'slot-zone-over' : ''}`} data-slot-zone="active" aria-label="Active plan">
     <span className="active-slot-empty-icon" aria-hidden="true"><MousePointerClick size={22} /></span>
     <div className="active-slot-empty-copy">
       <h3>{over ? 'Drop to activate' : 'Drag a workout here to activate it'}</h3>

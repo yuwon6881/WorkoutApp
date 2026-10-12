@@ -9,32 +9,37 @@
 .active-slot-empty {
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   gap: 14px;
-  min-height: 140px;
-  padding: 24px 20px;
+  min-height: 68px;
+  padding: 14px 18px;
   margin-bottom: 18px;
-  border: 2px dashed var(--border-hover);
-  background: transparent;
-  text-align: center;
+  border: 1px dashed var(--border-hover);
+  border-radius: var(--radius);
+  background: var(--surface-raised);
+  text-align: left;
   color: var(--muted);
 }
 
 .active-slot-empty.first-run {
-  flex-direction: column;
-  border-style: dashed;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 14px;
 }
 
 .active-slot-empty-icon {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 44px;
-  height: 44px;
+  width: 36px;
+  height: 36px;
   flex: 0 0 auto;
-  border-radius: 999px;
-  background: var(--accent-soft);
-  color: var(--accent);
+  border-radius: var(--radius-control, 8px);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--muted);
 }
 
 .active-slot-empty-copy h3 {
@@ -46,7 +51,7 @@
 
 .active-slot-empty-copy p {
   margin: 0;
-  font-size: 12px;
+  font-size: var(--font-secondary, 14px);
   line-height: 1.5;
 }
 
@@ -65,7 +70,7 @@
 .slot-library-hint {
   margin: 0 0 12px;
   color: var(--accent);
-  font-size: 12px;
+  font-size: var(--font-secondary, 14px);
   font-weight: 600;
   text-align: center;
 }
@@ -91,17 +96,25 @@
 
 .panel.slot-card {
   display: grid;
-  gap: 14px;
+  gap: 12px;
   padding: 16px 18px;
   margin-bottom: 0;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.active-slot-zone.occupied .panel.slot-card {
+  border-color: var(--border-hover);
 }
 
 .slot-library-list .panel.slot-card {
-  padding: 16px 16px;
+  padding: 14px 16px;
+  border-radius: var(--radius);
 }
 
 .slot-library-list .panel.slot-card.expanded {
-  padding: 18px 18px 18px;
+  padding: 16px 18px;
 }
 
 .slot-card-header.is-clickable {
@@ -173,7 +186,8 @@
 .slot-card-meta {
   margin: 0;
   color: var(--muted);
-  font-size: 12px;
+  font-size: var(--font-secondary, 14px);
+  font-variant-numeric: tabular-nums;
 }
 
 .slot-card-controls {
@@ -201,8 +215,8 @@
 /* Finished state */
 
 .panel.slot-card-finished {
-  border-color: var(--accent-border);
-  background: var(--accent-soft);
+  border-color: var(--border-hover);
+  background: var(--surface);
 }
 
 .tiny-label.slot-finished-label {
@@ -213,37 +227,30 @@
 }
 
 .slot-finished {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  gap: 10px 12px;
-  align-items: start;
-}
-
-.slot-finished-icon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 40px;
-  height: 40px;
-  border-radius: 999px;
-  background: var(--accent);
-  color: var(--on-accent);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-top: 4px;
 }
 
 .slot-finished-copy strong {
   display: block;
-  font-size: 14px;
+  font-size: 15px;
+  font-weight: 650;
+  color: var(--text);
 }
 
 .slot-finished-copy p {
-  margin: 4px 0 0;
+  margin: 3px 0 0;
   color: var(--muted);
-  font-size: 12px;
-  line-height: 1.5;
+  font-size: var(--font-secondary, 14px);
+  line-height: 1.4;
 }
 
 .slot-finished .slot-card-actions {
-  grid-column: 1 / -1;
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
 }
 
 /* A standalone workout in the active slot reads as a one-day program. */
@@ -269,11 +276,21 @@
   gap: 2px;
 }
 
-.template-slot-day-copy .small-copy {
-  margin: 0;
+/* The exercise list wraps to two lines and then ends in an ellipsis, never a word cut in half. */
+.template-slot-day-copy .template-slot-exercises {
+  display: -webkit-box;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  color: var(--text);
+  font-size: var(--font-secondary);
+  line-height: 1.4;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.template-slot-day-copy .template-slot-hint {
+  color: var(--muted);
+  font-size: var(--font-secondary);
+  line-height: 1.4;
 }
 
 .template-slot-tick {
@@ -300,7 +317,12 @@
 }
 
 .routine-card .slot-card-grip {
-  min-height: 36px;
+  min-height: 44px;
+}
+
+.slot-card-menu-trigger {
+  min-width: 44px;
+  min-height: 44px;
 }
 
 /* The view-only program timeline inside an expanded library card. */
@@ -358,7 +380,7 @@
 }
 
 .readonly-exercise-rest {
-  font-size: 13px;
+  font-size: var(--font-secondary, 14px);
   color: var(--muted);
   font-weight: 500;
   font-variant-numeric: tabular-nums;
@@ -371,7 +393,7 @@
   padding: 0;
   display: grid;
   gap: 6px;
-  font-size: 13px;
+  font-size: var(--font-secondary, 14px);
   font-variant-numeric: tabular-nums;
 }
 
@@ -399,7 +421,7 @@
 .readonly-exercise-note {
   margin: 4px 0 0;
   color: var(--muted);
-  font-size: 12px;
+  font-size: var(--font-secondary, 14px);
   line-height: 1.5;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
@@ -437,7 +459,7 @@
 
 .slot-drag-ghost span {
   color: var(--muted);
-  font-size: 11px;
+  font-size: var(--font-secondary, 14px);
 }
 
 @media (max-width: 1023px) {
@@ -455,7 +477,9 @@
 @media (max-width: 639px) {
   .active-slot-empty {
     flex-direction: column;
-    min-height: 160px;
+    align-items: flex-start;
+    min-height: auto;
+    padding: 14px 16px;
   }
 
   .slot-card-actions .button {

@@ -16,6 +16,7 @@ import { ExerciseLibrary } from './Exercises';
 import { CustomExerciseModal } from './CustomExerciseModal';
 import { SwipeableRow } from './ui/SwipeableRow';
 import { toggleRepMode, usesRepRange } from '../lib/repMode';
+import { ImportSetNotes } from './ImportSetNotes';
 import './SetPrescriptionGrid.css';
 import './ProgramBuilder.css';
 import './PrescriptionCardLayout.css';
@@ -91,6 +92,8 @@ export function ExerciseEditor({ exercise: saved, exercises, allDayExercises, re
   const selected = exercises.find(option => option.id === exercise.exerciseId)
     || (exercise.sourceName ? exercises.find(option => option.name.toLowerCase() === exercise.sourceName.toLowerCase() || option.aliases.some(a => a.toLowerCase() === exercise.sourceName.toLowerCase())) : undefined);
   const repRange = usesRepRange(exercise.sets.filter(set => !hasOpenReps(set)));
+  // A hold or hang is prescribed in seconds, as it is in the builder and the workout.
+  const timed = selected?.trackingMode === 'duration';
   const select = (exerciseId: string | null) => {
     const selectedExercise = exerciseId ? exercises.find(item => item.id === exerciseId) : undefined;
     if (editing.keepWrittenName) {
@@ -315,10 +318,10 @@ export function ExerciseEditor({ exercise: saved, exercises, allDayExercises, re
         <div className={`set-grid-wrap set-grid-typed ${repRange ? 'set-grid-range' : 'set-grid-exact'}`}>
         <div className="set-grid-head">
           <span className="set-grid-head-reps">
-            <span aria-hidden="true">Reps</span>
+            <span aria-hidden="true">{timed ? 'Seconds' : 'Reps'}</span>
             <RepModeToggle
               range={repRange}
-              label={`Rep target for ${exercise.sourceName}`}
+              label={`${timed ? 'Time' : 'Rep'} target for ${exercise.sourceName}`}
               onChange={range => onChange({
                 ...exercise,
                 sets: toggleRepMode(exercise.sets, range, rememberedRepWidths)
@@ -361,6 +364,7 @@ export function ExerciseEditor({ exercise: saved, exercises, allDayExercises, re
                       dataImportIndex={index}
                       labelPrefix={`${exercise.sourceName} ${set.warmup ? 'warm-up' : 'set'} ${setDisplayNumber}`}
                       openReps={hasOpenReps(set)}
+                      seconds={timed}
                       onChange={({ repMin, repMax }) =>
                         editSet(index, { repMin, repMax, repsText: null, repsSource: 'userEdited' })
                       }
@@ -392,6 +396,7 @@ export function ExerciseEditor({ exercise: saved, exercises, allDayExercises, re
             </li>;
           })}
         </ol>
+        <ImportSetNotes sets={exercise.sets} />
         </div>
         <div className="import-set-footer">
           <Button variant="secondary" className="import-add-set" disabled={exercise.sets.length >= 24} onClick={() => {

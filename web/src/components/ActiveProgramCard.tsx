@@ -1,9 +1,11 @@
-import { useEffect, useState, type FormEvent, type HTMLAttributes } from 'react';
-import { ArrowRight, Library, PartyPopper, RotateCcw, Trash2 } from 'lucide-react';
-import type { DraftWorkout, Exercise, ImportDraft, ProgramSummary, Template } from '../types';
+import { useEffect, useMemo, useState, type FormEvent, type HTMLAttributes } from 'react';
+import { ArrowRight, Library, RotateCcw, Trash2 } from 'lucide-react';
+import type { DraftWorkout, Exercise, ImportDraft, ProgramSummary } from '../types';
 import { ApiError, api } from '../lib/api';
-import { changedDayIds, dayTemplateInput, isProgramFinished, programToDraft } from '../lib/activeSlot';
+import { changedDayIds, isProgramFinished, programToDraft } from '../lib/activeSlot';
+import { ProgramDayWrites } from '../lib/programDayWrites';
 import { Button } from './ui/Button';
+import { CardFeedback } from './ui/CardFeedback';
 import { Modal } from './ui/Modal';
 import { MenuItem } from './ui/MenuButton';
 import { ProgramWeekChecklist } from './ProgramWeekChecklist';
@@ -34,10 +36,11 @@ export function ActiveProgramCard({ program, exercises, onStart, onChanged, hasA
   dragging: boolean;
 }) {
   const [expanded, setExpanded] = useState(true);
-  const [detail, setDetail] = useState<Template[] | null>(null);
   const [draft, setDraft] = useState<ImportDraft | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [saving, setSaving] = useState(false);
+  const writes = useMemo(() => new ProgramDayWrites(api.updateTemplate, () => {}), [program.id]);
   const [resetOpen, setResetOpen] = useState(false);
   const [resetPhrase, setResetPhrase] = useState('');
   const [resetBusy, setResetBusy] = useState(false);
@@ -66,8 +69,9 @@ export function ActiveProgramCard({ program, exercises, onStart, onChanged, hasA
     setLoading(true); setError('');
     try {
       const full = await api.getProgram(program.id);
-      setDetail(full.workouts);
-      setDraft(programToDraft(full));
+      writes.setTemplates(full.workouts);
+      const loaded = programToDraft(full);
+      setDraft({ ...loaded, workouts: loaded.workouts.map(day => writes.pending.get(day.lineId) ?? day) });
     }
     catch (failure) { setError(failure instanceof ApiError ? failure.message : 'Could not load this program.'); }
     finally { setLoading(false); }
@@ -107,7 +111,7 @@ export function ActiveProgramCard({ program, exercises, onStart, onChanged, hasA
 
   async function handleResetWeek(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!progress || !canReset || resetPhrase !== 'RESET' || hasActiveWorkout) return;
+    if (!progress || !canReset || resetPhrase !== 'RESET' || hasActiveWorkout || saving || writes.pending.size > 0) return;
     setResetBusy(true);
     setResetError('');
     try {
@@ -120,15 +124,19 @@ export function ActiveProgramCard({ program, exercises, onStart, onChanged, hasA
     } finally { setResetBusy(false); }
   }
 
-  async function saveDay(day: DraftWorkout) {
-    const targetTemplate = detail?.find(t => t.id === day.lineId);
-    if (!targetTemplate) return;
+  async function savePending() {
+    setSaving(true);
+    setError('');
     try {
-      const saved = await api.updateTemplate(targetTemplate.id, dayTemplateInput(day, targetTemplate.revision));
-      setDetail(prev => prev?.map(t => t.id === saved.id ? saved : t) ?? null);
-    } catch (err) {
-      console.error('Failed to update template', err);
-    }
+      await writes.flush();
+      const full = await api.getProgram(program.id);
+      writes.setTemplates(full.workouts);
+      setDraft(programToDraft(full));
+      await onChanged();
+    } catch (failure) {
+      setError(failure instanceof Error ? failure.message : 'Could not save this program. Your edits are kept for retry.');
+      throw failure;
+    } finally { setSaving(false); }
   }
 
   async function handleDayChange(updatedDay: DraftWorkout) {
@@ -136,48 +144,49 @@ export function ActiveProgramCard({ program, exercises, onStart, onChanged, hasA
       ...prev,
       workouts: prev.workouts.map(w => w.lineId === updatedDay.lineId ? updatedDay : w)
     } : null);
-    await saveDay(updatedDay);
-    void onChanged();
+    writes.enqueue([updatedDay]);
+    await savePending();
   }
 
   /// An edit can reach a block or the whole program; only the days it changed are saved.
   async function handleDraftChange(updatedDraft: ImportDraft) {
     const changed = new Set(draft ? changedDayIds(draft, updatedDraft) : updatedDraft.workouts.map(day => day.lineId));
-    setDraft(updatedDraft);
-    for (const day of updatedDraft.workouts) {
-      if (changed.has(day.lineId)) await saveDay(day);
-    }
-    void onChanged();
+    writes.enqueue(updatedDraft.workouts.filter(day => changed.has(day.lineId)));
+    await savePending();
   }
 
   const meta = finished
     ? `${weekCount} ${weekCount === 1 ? 'week' : 'weeks'} completed`
     : <ProgramWeekMeter week={weekIndex} weeks={weekCount} passedDays={progress?.passedDays ?? 0} totalDays={progress?.totalDays ?? 0} />;
+  const actionsBlocked = actions.busy || saving || writes.pending.size > 0;
 
   return <section {...dragProps} className={`panel slot-card program-card ${finished ? 'slot-card-finished' : ''} ${moving ? 'slot-card-moving' : ''}`}
-    aria-busy={actions.busy || loading}>
+    aria-busy={actions.busy || loading || saving}>
     <SlotCardHeader title={program.name} meta={meta}
       badge={finished ? <span className="tiny-label slot-finished-label">Finished</span> : undefined}
       expanded={finished ? undefined : expanded} onToggle={finished ? undefined : () => setExpanded(value => !value)}
       menuLabel={`Actions for ${program.name}`}
       menu={<>
-        <MenuItem disabled={actions.busy} onClick={actions.onMoveToLibrary}><Library size={14} />Move to library</MenuItem>
-        <MenuItem disabled={actions.busy} onClick={actions.onRestart}><RotateCcw size={14} />Restart from the beginning</MenuItem>
-        {canReset && <MenuItem disabled={actions.busy || hasActiveWorkout} onClick={() => { setResetOpen(true); setResetPhrase(''); setResetError(''); }}><RotateCcw size={14} />Reset this week</MenuItem>}
-        <MenuItem destructive disabled={actions.busy} onClick={actions.onDelete}><Trash2 size={14} />Delete program</MenuItem>
+        <MenuItem disabled={actionsBlocked} onClick={actions.onMoveToLibrary}><Library size={14} />Move to library</MenuItem>
+        <MenuItem disabled={actionsBlocked} onClick={actions.onRestart}><RotateCcw size={14} />Restart from the beginning</MenuItem>
+        {canReset && <MenuItem disabled={actionsBlocked || hasActiveWorkout} onClick={() => { setResetOpen(true); setResetPhrase(''); setResetError(''); }}><RotateCcw size={14} />Reset this week</MenuItem>}
+        <MenuItem destructive disabled={actionsBlocked} onClick={actions.onDelete}><Trash2 size={14} />Delete program</MenuItem>
       </>} />
 
     {finished
-      ? <SlotFinished name={program.name} description="You passed every week of this program." actions={actions} />
+      ? <SlotFinished name={program.name} description="You passed every week of this program." actions={{ ...actions, busy: actionsBlocked }} />
       : expanded && <>
-        {progress && <ProgramWeekChecklist program={program} draft={draft} exercises={exercises} onStart={onStart} onChanged={onChanged} hasActiveWorkout={hasActiveWorkout} activeTemplateId={activeTemplateId} onDayChange={handleDayChange} onDraftChange={handleDraftChange} />}
+        {progress && <ProgramWeekChecklist program={{ ...program, progress }} actionsBusy={actionsBlocked || progress.runId === 'optimistic'} draft={draft} exercises={exercises} onStart={onStart} onChanged={onChanged} hasActiveWorkout={hasActiveWorkout} activeTemplateId={activeTemplateId} onDayChange={handleDayChange} onDraftChange={handleDraftChange} />}
         {!progress && next && <div className="slot-card-actions">
           <Button variant="primary" disabled={hasActiveWorkout && next.id !== activeTemplateId} onClick={() => onStart(next.id)}>
             {next.id === activeTemplateId ? 'Continue' : 'Start'} {next.name}<ArrowRight size={16} />
           </Button>
         </div>}
       </>}
-    {error && <p className="error-text" role="alert">{error}</p>}
+    {error && <CardFeedback message={error} action={{
+      label: writes.pending.size > 0 ? 'Retry save' : 'Retry refresh', disabled: saving,
+      onClick: () => { void savePending().catch(() => {}); }
+    }} />}
 
     {resetOpen && <Modal title="Reset this week?" onClose={() => { setResetOpen(false); setResetPhrase(''); }}>
       <form className="modal-body program-week-reset-form" noValidate onSubmit={event => void handleResetWeek(event)}>
@@ -203,12 +212,15 @@ export function ActiveProgramCard({ program, exercises, onStart, onChanged, hasA
 }
 
 /// The finished state shared by programs and standalone workouts in the active slot.
-export function SlotFinished({ name, description, actions }: { name: string; description: string; actions: SlotCardActions }) {
-  return <div className="slot-finished" role="status">
-    <span className="slot-finished-icon" aria-hidden="true"><PartyPopper size={20} /></span>
+export function SlotFinished({ name, description, actions }: { name: string; description?: string; actions: SlotCardActions }) {
+  const trimmed = description?.replace(/^Workout completed\.?\s*/i, '').trim();
+  const text = trimmed
+    ? (trimmed.toLowerCase().includes('restart') ? trimmed : `${trimmed} Restart or move to library.`)
+    : 'Restart or move to library.';
+  return <div className="slot-finished" role="status" aria-label={`${name} completed`}>
     <div className="slot-finished-copy">
-      <strong>{name} is finished</strong>
-      <p>{description} Restart it from the beginning, or move it back to the library.</p>
+      <strong>Completed</strong>
+      <p>{text}</p>
     </div>
     <div className="slot-card-actions">
       <Button variant="secondary" disabled={actions.busy} onClick={actions.onMoveToLibrary}><Library size={15} />Move to library</Button>

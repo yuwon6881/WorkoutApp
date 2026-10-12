@@ -383,7 +383,7 @@
 
 .import-exercise-save-state {
   margin-right: auto;
-  font-size: var(--font-secondary, 12px);
+  font-size: var(--font-secondary, 14px);
   color: var(--muted);
 }
 

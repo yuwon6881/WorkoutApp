@@ -10,7 +10,7 @@ export function loadFeatureStyle(url: string, name: string): Promise<void> {
     link.rel = 'stylesheet'; link.href = url; link.dataset.featureStyle = name;
     link.onload = () => resolve();
     link.onerror = () => { link.remove(); loads.delete(name); reject(new Error('This view could not load its styles. Reconnect and retry.')); };
-    const before = [...document.querySelectorAll<HTMLLinkElement>('link[rel="stylesheet"]')]
+    const before = [...document.querySelectorAll<HTMLLinkElement | HTMLStyleElement>('link[rel="stylesheet"], style[data-vite-dev-id]')]
       .find(element => !element.dataset.featureStyle || element.dataset.featureStyle.localeCompare(name) > 0);
     document.head.insertBefore(link, before ?? null);
   });

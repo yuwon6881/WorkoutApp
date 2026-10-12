@@ -31,6 +31,7 @@ val WATCH_DEVICES = listOf(
     WatchDevice("square", "w180dp-h180dp-notround-watch-xhdpi"),
     // Accessibility text size on the smallest face: values and actions must stay legible and on screen.
     WatchDevice("small-round-large-text", "w192dp-h192dp-round-watch-xhdpi", fontScale = 1.3f),
+    WatchDevice("square-large-text", "w180dp-h180dp-notround-watch-xhdpi", fontScale = 1.3f),
     // Not a real watch: a tall canvas that shows every list item at once for layout review.
     WatchDevice("tall-review", "w192dp-h560dp-notround-watch-xhdpi")
 )

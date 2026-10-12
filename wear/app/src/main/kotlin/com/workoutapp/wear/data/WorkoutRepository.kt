@@ -159,7 +159,11 @@ class WorkoutRepository private constructor(context: Context) {
         check(snapshot.session.active && snapshot.session.pausedAt == null && !snapshot.pendingFinish) { "Resume the workout before logging a set." }
         val exercise = snapshot.session.exercises.firstOrNull { it.id == exerciseId } ?: error("This exercise is no longer in the workout.")
         val set = exercise.sets.firstOrNull { it.id == setId } ?: error("This set is no longer in the workout.")
-        val weightKg = displayWeight?.let { if (snapshot.unit == "lb") it / LB_PER_KG else it }
+        // Preserve canonical values when the UI submits an untouched load in display units.
+        val baselineKg = set.weightKg ?: set.suggestion?.suggestedLoadKg
+        val baselineDisplay = baselineKg?.let { if (snapshot.unit == "lb") it * LB_PER_KG else it }
+        val weightKg = if (displayWeight != null && baselineDisplay != null && kotlin.math.abs(displayWeight - baselineDisplay) < 1e-9)
+            baselineKg else displayWeight?.let { if (snapshot.unit == "lb") it / LB_PER_KG else it }
         val actualRir = RirPolicy.normalize(rir, set.warmup)
         val timed = durationSeconds != null
         val patch = SetPatch(weightKg, if (timed) null else reps, durationSeconds, RirPolicy.toRpe(actualRir), actualRir, true, set.warmup, set.resistanceMode)

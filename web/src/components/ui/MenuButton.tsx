@@ -28,7 +28,7 @@ export function MenuButton({
   disabled = false,
   text,
   variant = 'secondary',
-  portal = false
+  portal = true
 }: {
   label: string;
   children: ReactNode;

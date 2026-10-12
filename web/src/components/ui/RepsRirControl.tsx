@@ -4,6 +4,7 @@ import { Button } from './Button';
 import { Modal } from './Modal';
 import { getRirColorClass, RirChips } from './RpeControl';
 import './RepsRirControl.css';
+import { validateInteger } from '../../lib/validation';
 
 type Entry = { text: string; rir: number | null; replace: boolean };
 
@@ -16,9 +17,10 @@ export function RepsRirControl({ name, label, reps, rir, trackRir, onChange }: {
   onChange: (reps: number | null, rir: number | null) => void;
 }) {
   const [entry, setEntry] = useState<Entry | null>(null);
+  const [error, setError] = useState('');
   const input = useRef<HTMLInputElement>(null);
   const restoreFocus = useRef(false);
-  const open = () => setEntry({ text: reps === null ? '' : String(reps), rir, replace: true });
+  const open = () => { setError(''); setEntry({ text: reps === null ? '' : String(reps), rir, replace: true }); };
   const close = () => { restoreFocus.current = true; setEntry(null); };
   const digit = (value: string) => setEntry(current => {
     if (!current) return current;
@@ -26,18 +28,16 @@ export function RepsRirControl({ name, label, reps, rir, trackRir, onChange }: {
     return Number(text) <= 1000 ? { ...current, text, replace: false } : current;
   });
   const backspace = () => setEntry(current => current ? { ...current, text: current.text.slice(0, -1), replace: false } : current);
-  const save = () => {
+  const commit = (selectedRir: number | null) => {
     if (!entry) return;
-    onChange(entry.text === '' ? null : Number(entry.text), entry.rir);
+    const value = entry.text === '' ? null : Number(entry.text);
+    const failure = validateInteger(value, 1, 1000, 'Reps');
+    if (failure) { setError(failure); return; }
+    onChange(value, selectedRir);
     close();
   };
-
-  const selectRir = (value: number | null) => {
-    if (!entry) return;
-    const finalReps = entry.text === '' ? null : Number(entry.text);
-    onChange(finalReps, value);
-    close();
-  };
+  const save = () => { if (entry) commit(entry.rir); };
+  const selectRir = (value: number | null) => commit(value);
 
   useEffect(() => {
     // The nested native dialog must release its focus lock before the input can receive focus.
@@ -88,6 +88,7 @@ export function RepsRirControl({ name, label, reps, rir, trackRir, onChange }: {
       <div className="modal-body reps-rir-entry">
         <p>{label}</p>
         <div className="reps-entry-value" aria-live="polite"><strong>{entry.text || '—'}</strong><span>reps</span></div>
+        {error && <p className="error-text" role="alert">{error}</p>}
         {trackRir && <div className="reps-entry-effort">
           <span className="muted">Reps in reserve</span>
           <div className="reps-entry-effort-rail"><RirChips value={entry.rir} ariaLabel={`${label} RIR`}

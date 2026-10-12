@@ -57,6 +57,21 @@ describe('set removal and undo', () => {
 });
 
 describe('adding a set', () => {
+  it('repeats a timed prescription without copying recorded time or inventing effort', () => {
+    const timed = exercise('hold', [loggedSet('hold-1', { reps: null, durationSeconds: 45 })]);
+    timed.trackingMode = 'duration';
+    timed.prescription = [{ ...blankPrescription(), repMin: null, repMax: null, repsText: '45 sec', targetRpe: null }];
+    const added = withSetAdded({ ...session, exercises: [timed] }, 0).exercises[0];
+    expect(added.prescription[1]).toMatchObject({ repMin: null, repMax: null, repsText: '45 sec', targetRpe: null, rir: null });
+    expect(added.sets[1]).toMatchObject({ reps: null, durationSeconds: null, done: false });
+  });
+
+  it('does not invent a target for an unplanned timed set', () => {
+    const timed = { ...exercise('hold', []), trackingMode: 'duration' as const, prescription: [] };
+    const added = withSetAdded({ ...session, exercises: [timed] }, 0).exercises[0];
+    expect(added.prescription[0]).toMatchObject({ repMin: null, repMax: null, targetRpe: null, repsText: null });
+  });
+
   it('repeats the previous load and reps as an unlogged set', () => {
     const added = withSetAdded(session, 0).exercises[0];
     expect(added.sets).toHaveLength(4);

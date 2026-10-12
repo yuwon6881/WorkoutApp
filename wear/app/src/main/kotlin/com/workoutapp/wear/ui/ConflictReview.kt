@@ -2,6 +2,7 @@ package com.workoutapp.wear.ui
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -43,14 +44,10 @@ fun ConflictReview(
     val remoteSet = operation?.setId?.let { id -> remote?.exercises?.asSequence()?.flatMap { it.sets.asSequence() }?.firstOrNull { it.id == id } }
     val finishAlreadyDone = operation?.type == "finish" && remote?.active == false
     val exerciseName = operation?.setId?.let { id -> snapshot.session.exercises.firstOrNull { row -> row.sets.any { it.id == id } }?.name }
+    val timed = operation?.setId?.let { id -> snapshot.session.exercises.firstOrNull { row -> row.sets.any { it.id == id } }?.trackingMode == "duration" } == true
 
     WearListScreen { spec ->
-        item {
-            Box(Modifier.listRow(this, spec), contentAlignment = Alignment.Center) {
-                IconBadge(R.drawable.ic_warning, tint = Palette.Amber, container = Palette.AccentContainer, size = 36.dp)
-            }
-        }
-        item { ScreenTitle("Review changes", Modifier.listRow(this, spec)) }
+        item { ScreenTitle("Review changes", Modifier.listRow(this, spec).padding(horizontal = topRowInset())) }
         item {
             BodyText(
                 when {
@@ -63,8 +60,8 @@ fun ConflictReview(
             )
         }
         if (localSet != null || remoteSet != null) {
-            item { ComparisonCard("IN WORKOUTAPP", formatSet(remoteSet, unit), exerciseName, highlighted = false, spec = spec, scope = this) }
-            item { ComparisonCard("ON THIS WATCH", formatSet(localSet, unit), exerciseName, highlighted = true, spec = spec, scope = this) }
+            item { ComparisonCard("IN WORKOUTAPP", formatConflictSet(remoteSet, unit, snapshot.trackRir, timed), exerciseName, highlighted = false, spec = spec, scope = this) }
+            item { ComparisonCard("ON THIS WATCH", formatConflictSet(localSet, unit, snapshot.trackRir, timed), exerciseName, highlighted = true, spec = spec, scope = this) }
         } else if (remote != null) {
             item {
                 ComparisonCard(
@@ -127,13 +124,14 @@ private fun ComparisonCard(
     ) {
         Text(source, style = MaterialTheme.typography.labelSmall, color = if (highlighted) Palette.Accent else Palette.Muted, letterSpacing = 1.sp)
         Text(value, style = MaterialTheme.typography.bodyMedium, color = Palette.Text)
-        if (detail != null) Text(detail, style = MaterialTheme.typography.labelSmall, color = Palette.Muted, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        if (detail != null) Text(detail, style = MaterialTheme.typography.labelSmall, color = Palette.Muted, maxLines = 2, overflow = TextOverflow.Ellipsis)
     }
 }
 
-private fun formatSet(set: WorkoutSet?, unit: String): String {
+internal fun formatConflictSet(set: WorkoutSet?, unit: String, trackRir: Boolean, timed: Boolean): String {
     if (set == null) return "Set is no longer in this workout"
     val loadText = set.weightKg?.let { "${formatLoad(kgToDisplay(it, unit))} $unit" } ?: "load not set"
     val rirText = set.rir?.let { "RIR $it" } ?: "RIR not set"
-    return "${set.reps ?: "—"} reps · $loadText · $rirText"
+    val performed = if (timed || set.durationSeconds != null) formatSetSeconds(set.durationSeconds) else "${set.reps ?: "—"} reps"
+    return listOfNotNull(performed, loadText, rirText.takeIf { trackRir && !timed && set.durationSeconds == null }).joinToString(" · ")
 }

@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { gzipSync } from 'node:zlib';
 
-const root = resolve(import.meta.dirname, '../dist');
+const root = process.env.WORKOUT_BUILD_DIRECTORY ? resolve(process.env.WORKOUT_BUILD_DIRECTORY) : resolve(import.meta.dirname, '../dist');
 const html = readFileSync(resolve(root, 'index.html'), 'utf8');
 const initial = [...html.matchAll(/(?:src|href)="(\/assets\/[^\"]+\.(?:js|css))"/g)]
   .map(match => ({ path: match[1], bytes: gzipSync(readFileSync(resolve(root, `.${match[1]}`))).length }));

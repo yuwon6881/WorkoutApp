@@ -34,6 +34,7 @@ import androidx.wear.compose.material3.EdgeButtonSize
 import androidx.wear.compose.material3.FilledTonalIconButton
 import androidx.wear.compose.material3.IconButtonDefaults
 import androidx.wear.compose.material3.MaterialTheme
+import androidx.wear.compose.material3.ScreenScaffold
 import androidx.wear.compose.material3.Text
 import com.workoutapp.wear.R
 import com.workoutapp.wear.ui.theme.Palette
@@ -43,7 +44,7 @@ private fun StepButton(increase: Boolean, name: String, enabled: Boolean, onClic
     FilledTonalIconButton(
         onClick = onClick,
         enabled = enabled,
-        modifier = Modifier.size(IconButtonDefaults.ExtraSmallButtonSize + 12.dp),
+        modifier = Modifier.size(48.dp),
         colors = IconButtonDefaults.filledTonalIconButtonColors(containerColor = Palette.SurfaceHover, contentColor = Palette.Text)
     ) {
         WearIcon(
@@ -66,7 +67,8 @@ fun ValueAdjuster(
     canDecrease: Boolean,
     onStep: (increase: Boolean) -> Unit,
     onDone: () -> Unit,
-    valueColor: Color = Palette.Text
+    valueColor: Color = Palette.Text,
+    canIncrease: Boolean = true
 ) {
     val haptics = LocalHapticFeedback.current
     val context = LocalContext.current
@@ -78,72 +80,83 @@ fun ValueAdjuster(
     val accumulated = remember { floatArrayOf(0f) }
     BackHandler(onBack = onDone)
     LaunchedEffect(Unit) { focusRequester.requestFocus() }
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Palette.Background)
-            .onRotaryScrollEvent { event ->
-                val pixels = event.verticalScrollPixels
-                if (lowResolutionInput) {
-                    val increase = pixels > 0
-                    if (pixels != 0f && (increase || canDecrease)) {
-                        onStep(increase)
-                        haptics.performHapticFeedback(HapticFeedbackType.SegmentTick)
+    ScreenScaffold {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Palette.Background)
+                .onRotaryScrollEvent { event ->
+                    val pixels = event.verticalScrollPixels
+                    if (lowResolutionInput) {
+                        val increase = pixels > 0
+                        val allowed = if (increase) canIncrease else canDecrease
+                        if (pixels != 0f && allowed) {
+                            onStep(increase)
+                            haptics.performHapticFeedback(HapticFeedbackType.SegmentTick)
+                        }
+                        return@onRotaryScrollEvent true
                     }
-                    return@onRotaryScrollEvent true
-                }
-                accumulated[0] += pixels
-                while (accumulated[0] >= stepPx || accumulated[0] <= -stepPx) {
-                    val increase = accumulated[0] > 0
-                    accumulated[0] += if (increase) -stepPx else stepPx
-                    if (increase || canDecrease) {
-                        onStep(increase)
-                        haptics.performHapticFeedback(HapticFeedbackType.SegmentFrequentTick)
+                    accumulated[0] += pixels
+                    while (accumulated[0] >= stepPx || accumulated[0] <= -stepPx) {
+                        val increase = accumulated[0] > 0
+                        val allowed = if (increase) canIncrease else canDecrease
+                        accumulated[0] += if (increase) -stepPx else stepPx
+                        if (allowed) {
+                            onStep(increase)
+                            haptics.performHapticFeedback(HapticFeedbackType.SegmentFrequentTick)
+                        }
                     }
+                    true
                 }
-                true
-            }
-            .focusRequester(focusRequester)
-            .focusable(),
-        contentAlignment = Alignment.Center
-    ) {
-        Column(
-            modifier = Modifier.fillMaxWidth().padding(bottom = 28.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+                .focusRequester(focusRequester)
+                .focusable(),
+            contentAlignment = Alignment.Center
         ) {
-            Text(title.uppercase(), style = MaterialTheme.typography.labelSmall, color = Palette.Muted, letterSpacing = 1.sp)
-            Row(
-                modifier = Modifier.padding(vertical = 4.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            Column(
+                modifier = Modifier.fillMaxWidth().padding(bottom = 26.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                StepButton(increase = false, name = title, enabled = canDecrease) {
-                    haptics.performHapticFeedback(HapticFeedbackType.SegmentTick)
-                    onStep(false)
+                Text(title.uppercase(), style = MaterialTheme.typography.labelSmall, color = Palette.Muted, letterSpacing = 1.sp)
+                Row(
+                    modifier = Modifier.padding(vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    StepButton(increase = false, name = title, enabled = canDecrease) {
+                        haptics.performHapticFeedback(HapticFeedbackType.SegmentTick)
+                        onStep(false)
+                    }
+                    val tunedFontSize = when {
+                        value.length > 4 -> 20.sp
+                        value.length > 3 -> 24.sp
+                        value.length > 2 -> 26.sp
+                        else -> 30.sp
+                    }
+                    Text(
+                        value,
+                        modifier = Modifier.widthIn(min = 48.dp),
+                        style = MaterialTheme.typography.numeralMedium.copy(
+                            fontSize = tunedFontSize, lineHeight = (tunedFontSize.value + 4).sp
+                        ),
+                        color = valueColor,
+                        textAlign = TextAlign.Center,
+                        maxLines = 1
+                    )
+                    StepButton(increase = true, name = title, enabled = canIncrease) {
+                        haptics.performHapticFeedback(HapticFeedbackType.SegmentTick)
+                        onStep(true)
+                    }
                 }
-                Text(
-                    value,
-                    modifier = Modifier.widthIn(min = 64.dp),
-                    style = MaterialTheme.typography.numeralMedium,
-                    fontSize = if (value.length > 4) 28.sp else 34.sp,
-                    color = valueColor,
-                    textAlign = TextAlign.Center,
-                    maxLines = 1
-                )
-                StepButton(increase = true, name = title, enabled = true) {
-                    haptics.performHapticFeedback(HapticFeedbackType.SegmentTick)
-                    onStep(true)
-                }
+                Text(caption, style = MaterialTheme.typography.labelSmall, fontSize = 12.sp, lineHeight = 14.sp, color = Palette.Muted, maxLines = 1)
+                Text("Turn crown", style = MaterialTheme.typography.labelSmall, fontSize = 12.sp, lineHeight = 14.sp, color = Palette.Muted, maxLines = 1)
             }
-            Text(caption, style = MaterialTheme.typography.labelSmall, color = Palette.Muted)
-            Text("Turn the crown to adjust", style = MaterialTheme.typography.labelSmall, color = Palette.Faint)
-        }
-        EdgeButton(
-            onClick = onDone,
-            modifier = Modifier.align(Alignment.BottomCenter),
-            buttonSize = EdgeButtonSize.ExtraSmall
-        ) {
-            WearIcon(R.drawable.ic_check, "Done", Modifier.size(ButtonDefaults.SmallIconSize))
+            EdgeButton(
+                onClick = onDone,
+                modifier = Modifier.align(Alignment.BottomCenter),
+                buttonSize = EdgeButtonSize.ExtraSmall
+            ) {
+                WearIcon(R.drawable.ic_check, "Done", Modifier.size(ButtonDefaults.SmallIconSize))
+            }
         }
     }
 }

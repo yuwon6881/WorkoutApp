@@ -20,11 +20,13 @@ export function DayEditor({ day, exercises, onChange, editing, onCustomExerciseC
   selectedMuscle?: string | null;
 }) {
   const [draft, setDraft] = useState(day);
+  const [saveError, setSaveError] = useState('');
   useEffect(() => setDraft(day), [day]);
 
   const save = (next: DraftWorkout) => {
     setDraft(next);
-    void onChange(next);
+    setSaveError('');
+    void onChange(next).catch(failure => setSaveError(failure instanceof Error ? failure.message : 'Could not save this day. Your edits are kept.'));
   };
 
   const groups: DraftExercise[][] = [];
@@ -77,10 +79,11 @@ export function DayEditor({ day, exercises, onChange, editing, onCustomExerciseC
   }, [selectedMuscle, draft.exercises, catalogById]);
 
   return <div className="day-editor">
+    {saveError && <p className="error-text" role="alert">{saveError}</p>}
     <div className="day-editor-fields">
       <Field name={`day-name-${draft.lineId}`} className="day-name-field" label="Day name" value={draft.name} data-import-field="name"
         onChange={event => setDraft({ ...draft, name: event.target.value })}
-        onBlur={() => void onChange(draft)} />
+        onBlur={() => save(draft)} />
     </div>
     {draft.isRestDay
       ? <div className="rest-callout"><span className="tiny-label">Rest day</span><p>No exercises are scheduled for this slot.</p></div>

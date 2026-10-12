@@ -1,6 +1,7 @@
 package com.workoutapp.wear.ui
 
 import androidx.compose.runtime.Composable
+import com.workoutapp.wear.data.SetTimerSnapshot
 import com.workoutapp.wear.data.WorkoutSnapshot
 import com.workoutapp.wear.ui.FakeWorkouts.now
 import com.workoutapp.wear.ui.FakeWorkouts.snapshot
@@ -45,7 +46,7 @@ class WearScreenshotTest {
             ValueAdjuster("Load", "82.5", "kg · suggested", canDecrease = true, onStep = {}, onDone = {})
         },
         "09b-adjust-rir" to {
-            ValueAdjuster("Reps in reserve", "1", "Target RIR 1", canDecrease = true, onStep = {}, onDone = {}, valueColor = com.workoutapp.wear.ui.theme.rirColor("1"))
+            ValueAdjuster("RIR", "1", "Target RIR 1", canDecrease = true, onStep = {}, onDone = {}, valueColor = com.workoutapp.wear.ui.theme.rirColor("1"))
         },
         "10-rest-countdown" to { Active(snapshot(restEndsAtEpochMs = now + 88_000)) },
         "11-rest-done" to { Active(snapshot(restEndsAtEpochMs = now - 500)) },
@@ -58,7 +59,7 @@ class WearScreenshotTest {
         "16-set-error" to { Active(snapshot(), error = "WorkoutApp could not complete that action.") },
         "17-all-logged" to { Active(snapshot(session = FakeWorkouts.allDone)) },
         "18-finish-confirm" to {
-            ConfirmDialog(true, "Finish workout?", "1 of 13 sets logged. WorkoutApp confirms the finish when the watch syncs.", false, {}, {})
+            ConfirmDialog(true, "Finish workout?", finishConfirmationMessage(1, 13), false, {}, {})
         },
         "19-finish-pending" to { FinishPendingScreen(2, false, null, false, false, null, null, {}, {}, {}) },
         "20-finish-pending-reconnect" to { FinishPendingScreen(2, true, "K7QM2XRP", false, false, null, null, {}, {}, {}) },
@@ -74,6 +75,26 @@ class WearScreenshotTest {
         },
         "23-disconnect-confirm" to {
             ConfirmDialog(true, "Disconnect watch?", "You will need a new pairing code to use this watch again.", true, {}, {})
+        },
+        "24-active-set-timed-countdown" to { Active(snapshot(activeExerciseId = "plank")) },
+        "24b-active-set-timed-countdown-running" to {
+            val timerNow = System.currentTimeMillis()
+            Active(snapshot(activeExerciseId = "plank", setTimers = mapOf("plank-0" to SetTimerSnapshot(startedAt = timerNow - 15_000, targetSeconds = 45))), timerNow = timerNow)
+        },
+        "25-active-set-timed-countup" to { Active(snapshot(activeExerciseId = "hang")) },
+        "25b-active-set-timed-countup-running" to {
+            val timerNow = System.currentTimeMillis()
+            Active(snapshot(activeExerciseId = "hang", setTimers = mapOf("hang-0" to SetTimerSnapshot(startedAt = timerNow - 25_000, targetSeconds = null))), timerNow = timerNow)
+        },
+        "26-active-set-rir-off" to { Active(snapshot(trackRir = false)) },
+        "27-active-set-long-title" to { Active(snapshot(activeExerciseId = "long-name")) },
+        "28-active-set-weighted" to { Active(snapshot(activeExerciseId = "pullups")) },
+        "29-active-set-assisted" to { Active(snapshot(activeExerciseId = "assisted-dips")) },
+        "30-adjust-reps" to {
+            ValueAdjuster("Reps", "8", "Target 6–8", canDecrease = true, onStep = {}, onDone = {})
+        },
+        "31-adjust-seconds" to {
+            ValueAdjuster("Time", "0:45", "Target 45 sec", canDecrease = true, onStep = {}, onDone = {})
         }
     )
 
@@ -85,11 +106,12 @@ class WearScreenshotTest {
         page: Int = 0,
         unit: String? = null,
         error: String? = null,
-        notifications: Boolean = true
+        notifications: Boolean = true,
+        timerNow: Long = now
     ) {
         ActiveWorkoutScreen(
             snapshot = unit?.let { snapshot.copy(unit = it) } ?: snapshot,
-            nowEpochMs = now,
+            nowEpochMs = timerNow,
             queuedCount = queued,
             pairingRequired = pairingRequired,
             pairingCode = null,

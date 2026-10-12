@@ -1,4 +1,4 @@
-﻿import type { CapacitorConfig } from '@capacitor/cli';
+import type { CapacitorConfig } from '@capacitor/cli';
 
 // Static assets ship in the APK; API requests still use the existing first-party HTTPS origin.
 const origin = process.env.WORKOUT_APP_ORIGIN ?? 'https://workout-one-mocha.vercel.app';
@@ -7,9 +7,9 @@ const signIn = process.env.WORKOUT_SIGN_IN_HOST ?? 'fitness-account-i47taxhzba-a
 const config: CapacitorConfig = {
   appId: 'com.workoutapp.phone',
   appName: 'Workout',
-  webDir: 'dist',
+  webDir: process.env.WORKOUT_BUILD_DIRECTORY ?? 'dist',
   // The WebView's own colour before the page paints, so launch never flashes white.
-  backgroundColor: '#0f1115',
+  backgroundColor: '#101412',
   server: {
     hostname: new URL(origin).hostname,
     // Central sign-in is a navigation to FitnessAccount and back; it stays inside the app.
@@ -22,9 +22,9 @@ const config: CapacitorConfig = {
     adjustMarginsForEdgeToEdge: 'disable'
   },
   plugins: {
-    SplashScreen: { launchShowDuration: 0, backgroundColor: '#0f1115' },
-    StatusBar: { overlaysWebView: false, style: 'DARK', backgroundColor: '#0f1115' },
-    LocalNotifications: { smallIcon: 'ic_stat_rest', iconColor: '#ffa056' }
+    SplashScreen: { launchShowDuration: 0, backgroundColor: '#101412' },
+    StatusBar: { overlaysWebView: false, style: 'DARK', backgroundColor: '#101412' },
+    LocalNotifications: { smallIcon: 'ic_stat_rest', iconColor: '#91d8ba' }
   }
 };
 

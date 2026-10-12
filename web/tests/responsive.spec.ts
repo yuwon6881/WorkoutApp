@@ -172,7 +172,7 @@ for (const theme of ['dark', 'light']) {
       { mode: 'conservative', goal: 'lose', rate: 0.5, label: 'Loss goal · Conservative progression', reason: 'recorded rate below 0.75% per week' },
       { mode: 'preservation', goal: 'lose', rate: 0.9, label: 'Loss goal · Preservation progression', reason: 'recorded rate of 0.90% per week' }
     ] as const;
-    const summary = summaries[(widths.indexOf(width) + (theme === 'light' ? 1 : 0)) % summaries.length];
+    const summary = summaries[(Math.max(0, widths.indexOf(width)) + (theme === 'light' ? 1 : 0)) % summaries.length];
     const applySummaryFixture = (session: Record<string, unknown>) => {
       if (session.active !== true) return session;
       session.nutritionContext = {
@@ -218,11 +218,25 @@ for (const theme of ['dark', 'light']) {
     const picker = page.getByRole('dialog', { name: 'Add an exercise', exact: true });
     await picker.getByRole('textbox', { name: 'Search exercises' }).fill('bench');
     await picker.getByRole('button', { name: 'Add Barbell bench press', exact: true }).click();
+    await expect(picker).toBeHidden();
+    await expect(logger.getByRole('heading', { name: 'Barbell bench press', exact: true })).toBeVisible();
+    await expect.poll(() => page.evaluate(() => window.history.state?.overlayDepth ?? 0)).toBe(1);
     await page.reload();
     const activeLogger = page.getByRole('dialog', { name: 'Active layout check', exact: true });
+    await expect(activeLogger).toBeVisible();
+    await expect(activeLogger.getByRole('heading', { name: 'Barbell bench press', exact: true })).toBeVisible();
     // The figures behind the workout no longer take a row between sets; they open from the options menu.
     await expect(activeLogger.locator('.workout-summary')).toHaveCount(0);
-    await activeLogger.getByRole('button', { name: 'Workout options', exact: true }).click();
+    const workoutOptions = activeLogger.getByRole('button', { name: 'Workout options', exact: true });
+    await workoutOptions.click();
+    const workoutMenu = page.getByRole('menu', { name: 'Workout options', exact: true });
+    await expect(workoutMenu).toBeVisible();
+    if ((page.viewportSize()?.width ?? 0) >= 640) {
+      const [triggerBox, menuBox] = await Promise.all([workoutOptions.boundingBox(), workoutMenu.boundingBox()]);
+      expect(triggerBox && menuBox).toBeTruthy();
+      expect(Math.abs(menuBox!.y - (triggerBox!.y + triggerBox!.height))).toBeLessThanOrEqual(12);
+      expect(Math.abs((menuBox!.x + menuBox!.width) - (triggerBox!.x + triggerBox!.width))).toBeLessThanOrEqual(12);
+    }
     await page.getByRole('menuitem', { name: 'Workout details', exact: true }).click();
     const details = page.getByRole('dialog', { name: 'Workout details', exact: true });
     await expect(details).toContainText(summary.label);
@@ -285,6 +299,16 @@ for (const theme of ['dark', 'light']) {
     await page.screenshot({ animations: 'disabled', path: join(screenshotsDirectory, 'responsive', `${info.project.name}-${theme}-active-notes.png`) });
     const exerciseActions = logger.getByRole('button', { name: 'Actions for Barbell bench press', exact: true });
     await exerciseActions.click();
+    const exerciseMenu = page.getByRole('menu', { name: 'Actions for Barbell bench press', exact: true });
+    await expect(exerciseMenu).toBeVisible();
+    if ((page.viewportSize()?.width ?? 0) >= 640) {
+      const [triggerBox, menuBox] = await Promise.all([exerciseActions.boundingBox(), exerciseMenu.boundingBox()]);
+      expect(triggerBox && menuBox).toBeTruthy();
+      const belowDistance = Math.abs(menuBox!.y - (triggerBox!.y + triggerBox!.height));
+      const aboveDistance = Math.abs((menuBox!.y + menuBox!.height) - triggerBox!.y);
+      expect(Math.min(belowDistance, aboveDistance)).toBeLessThanOrEqual(12);
+      expect(Math.abs((menuBox!.x + menuBox!.width) - (triggerBox!.x + triggerBox!.width))).toBeLessThanOrEqual(12);
+    }
     await page.getByRole('menuitem', { name: 'Weight settings', exact: true }).click();
     const weights = page.getByRole('dialog', { name: 'Barbell bench press weights', exact: true });
     await checkLayout(page, 'active exercise weight settings');
@@ -654,7 +678,12 @@ for (const theme of ['dark', 'light'] as const) {
       const credits = button.querySelector(':scope > small')!;
       const text = document.createRange();
       text.selectNodeContents(name);
-      return text.getBoundingClientRect().right <= credits.getBoundingClientRect().left - 4;
+      const creditBounds = credits.getBoundingClientRect();
+      // A narrow card deliberately places credits below the name. Every rendered
+      // text line must stay clear in either axis, including names that wrap.
+      return Array.from(text.getClientRects()).every(line =>
+        line.right <= creditBounds.left - 4 || line.left >= creditBounds.right + 4 ||
+        line.bottom <= creditBounds.top - 2 || line.top >= creditBounds.bottom + 2);
     });
     expect(liftNameFits, 'the lift name stays clear of its set-credit label').toBe(true);
     await checkLayout(page, 'contributing lifts');

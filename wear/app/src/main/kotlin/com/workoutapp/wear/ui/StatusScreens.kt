@@ -11,6 +11,8 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.wear.compose.foundation.lazy.TransformingLazyColumnScope
 import androidx.wear.compose.material3.Button
@@ -35,14 +37,15 @@ fun NoWorkoutScreen(
 ) {
     var confirmDisconnect by rememberSaveable { mutableStateOf(false) }
     WearListScreen { spec ->
-        item {
-            Box(Modifier.listRow(this, spec), contentAlignment = Alignment.Center) {
-                IconBadge(R.drawable.ic_workout_status, tint = Palette.Accent, container = Palette.AccentContainer, size = 36.dp)
-            }
-        }
-        item { ScreenTitle("No active workout", Modifier.listRow(this, spec)) }
-        item { BodyText("Start one in WorkoutApp, then join it here.", Modifier.listRow(this, spec)) }
-        primaryItem(spec, if (busy) "Checking…" else "Join workout", R.drawable.ic_arrow_forward, enabled = !busy, onClick = onJoin)
+        item { ScreenTitle("No active workout", Modifier.listRow(this, spec).padding(horizontal = topRowInset())) }
+        item { BodyText("Start a workout in WorkoutApp.", Modifier.listRow(this, spec)) }
+        primaryItem(
+            spec,
+            if (busy) "Checking…" else "Join",
+            contentDescription = if (busy) "Checking…" else "Join workout",
+            enabled = !busy,
+            onClick = onJoin
+        )
         if (hasFeedback(message, error)) item { Feedback(message, error, Modifier.listRow(this, spec)) }
         disconnectItem(spec, enabled = !busy, blockedBySync = false) { confirmDisconnect = true }
     }
@@ -68,18 +71,13 @@ fun FinishPendingScreen(
     var confirmDisconnect by rememberSaveable { mutableStateOf(false) }
     val status = syncStatus(queuedCount, pairingRequired, busy)
     WearListScreen { spec ->
-        item {
-            Box(Modifier.listRow(this, spec), contentAlignment = Alignment.Center) {
-                IconBadge(R.drawable.ic_check, tint = Palette.Green, container = Palette.GreenContainer, size = 36.dp)
-            }
-        }
-        item { ScreenTitle("Workout finished", Modifier.listRow(this, spec)) }
+        item { ScreenTitle("Workout finished", Modifier.listRow(this, spec).padding(horizontal = topRowInset())) }
         item {
             Box(Modifier.listRow(this, spec).padding(vertical = 2.dp), contentAlignment = Alignment.Center) {
                 SyncStatusLine(status)
             }
         }
-        item { BodyText("Saved on this watch. WorkoutApp confirms it once the watch syncs.", Modifier.listRow(this, spec)) }
+        item { BodyText("Saved on watch. WorkoutApp confirms after sync.", Modifier.listRow(this, spec)) }
         if (pairingPromptVisible(pairingRequired, pairingCode)) {
             item { PairPrompt(pairingRequired, pairingCode, pairingChecking, busy, onStartPairing, Modifier.listRow(this, spec)) }
         } else {
@@ -109,7 +107,8 @@ fun DisconnectDialog(visible: Boolean, onDismiss: () -> Unit, onConfirm: () -> U
 private fun TransformingLazyColumnScope.primaryItem(
     spec: TransformationSpec,
     label: String,
-    icon: Int,
+    icon: Int? = null,
+    contentDescription: String? = null,
     enabled: Boolean,
     onClick: () -> Unit
 ) {
@@ -117,9 +116,21 @@ private fun TransformingLazyColumnScope.primaryItem(
         Button(
             onClick = onClick,
             enabled = enabled,
-            modifier = Modifier.fillMaxWidth().padding(top = 4.dp).listRow(this, spec),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 4.dp)
+                .listRow(this, spec)
+                .semantics {
+                    if (contentDescription != null) {
+                        this.contentDescription = contentDescription
+                    }
+                },
             transformation = SurfaceTransformation(spec),
-            icon = { WearIcon(icon, null, Modifier.size(ButtonDefaults.IconSize)) },
+            icon = if (icon != null) {
+                { WearIcon(icon, null, Modifier.size(ButtonDefaults.IconSize)) }
+            } else {
+                null
+            },
             label = { Text(label, maxLines = 1) }
         )
     }

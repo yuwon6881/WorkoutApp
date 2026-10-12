@@ -12,9 +12,9 @@ export default defineConfig({
   projects: [
     { name: 'setup', testMatch: 'auth.setup.ts' },
     { name: 'auth-view', testMatch: 'auth.spec.ts', use: { ...devices['Desktop Chrome'] } },
-    { name: 'desktop', testMatch: ['app.spec.ts', 'app-update.spec.ts', 'ask-ai.spec.ts', 'error-feedback.spec.ts', 'workout-slot.spec.ts', 'workout-finish-review.spec.ts'], dependencies: ['setup'], use: { ...devices['Desktop Chrome'], storageState: join(authDirectory, 'lifter.json'), viewport: { width: 1440, height: 1000 } } },
-    { name: 'mobile', testMatch: ['app.spec.ts', 'app-update.spec.ts', 'error-feedback.spec.ts', 'workout-slot.spec.ts', 'workout-finish-review.spec.ts'], dependencies: ['setup'], use: { ...devices['iPhone 13'], storageState: join(authDirectory, 'lifter.json'), defaultBrowserType: 'chromium' } },
-    { name: 'tablet', testMatch: ['app.spec.ts', 'app-update.spec.ts', 'error-feedback.spec.ts', 'workout-slot.spec.ts', 'workout-finish-review.spec.ts'], dependencies: ['setup'], use: { ...devices['Desktop Chrome'], storageState: join(authDirectory, 'lifter.json'), viewport: { width: 768, height: 1024 } } },
+    { name: 'desktop', testMatch: ['app.spec.ts', 'app-update.spec.ts', 'ask-ai.spec.ts', 'error-feedback.spec.ts', 'workout-slot.spec.ts', 'program-save-retry.spec.ts', 'workout-finish-review.spec.ts'], dependencies: ['setup'], use: { ...devices['Desktop Chrome'], storageState: join(authDirectory, 'lifter.json'), viewport: { width: 1440, height: 1000 } } },
+    { name: 'mobile', testMatch: ['app.spec.ts', 'app-update.spec.ts', 'error-feedback.spec.ts', 'workout-slot.spec.ts', 'program-save-retry.spec.ts', 'workout-finish-review.spec.ts'], dependencies: ['setup'], use: { ...devices['iPhone 13'], storageState: join(authDirectory, 'lifter.json'), defaultBrowserType: 'chromium' } },
+    { name: 'tablet', testMatch: ['app.spec.ts', 'app-update.spec.ts', 'error-feedback.spec.ts', 'workout-slot.spec.ts', 'program-save-retry.spec.ts', 'workout-finish-review.spec.ts'], dependencies: ['setup'], use: { ...devices['Desktop Chrome'], storageState: join(authDirectory, 'lifter.json'), viewport: { width: 768, height: 1024 } } },
     // The stopped-import screen, served from a mocked import list, at a phone and a desktop size.
     { name: 'import-failure-phone', testMatch: 'import-failure.spec.ts', dependencies: ['setup'], use: { ...devices['iPhone 13'], storageState: join(authDirectory, 'lifter.json'), defaultBrowserType: 'chromium' } },
     { name: 'import-failure-desktop', testMatch: 'import-failure.spec.ts', dependencies: ['setup'], use: { ...devices['Desktop Chrome'], storageState: join(authDirectory, 'lifter.json'), viewport: { width: 1440, height: 1000 } } },
@@ -22,6 +22,7 @@ export default defineConfig({
     // Pixel baselines at a phone and a desktop size.
     { name: 'baseline-phone', testMatch: 'baseline.spec.ts', use: { ...devices['Pixel 7'] } },
     { name: 'baseline-desktop', testMatch: 'baseline.spec.ts', use: { ...devices['Desktop Chrome'], viewport: { width: 1440, height: 1000 } } },
+    { name: 'visual-capture', testMatch: 'visual-capture.spec.ts', dependencies: ['setup'], use: { ...devices['Desktop Chrome'], storageState: join(authDirectory, 'lifter.json') } },
     { name: 'touch', testMatch: 'touch.spec.ts', dependencies: ['setup'], use: { ...devices['Pixel 7'], storageState: join(authDirectory, 'lifter.json') } }
   ],
   webServer: process.env.WORKOUT_BASE_URL ? undefined : testServers,

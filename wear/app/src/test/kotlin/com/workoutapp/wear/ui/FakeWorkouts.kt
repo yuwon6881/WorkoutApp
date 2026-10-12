@@ -4,6 +4,7 @@ import com.workoutapp.wear.data.PendingOperation
 import com.workoutapp.wear.data.Progression
 import com.workoutapp.wear.data.SetPrescription
 import com.workoutapp.wear.data.SetSuggestion
+import com.workoutapp.wear.data.SetTimerSnapshot
 import com.workoutapp.wear.data.WorkoutExercise
 import com.workoutapp.wear.data.WorkoutSession
 import com.workoutapp.wear.data.WorkoutSet
@@ -54,10 +55,36 @@ object FakeWorkouts {
         prescription = prescription(3, 10, 12, "2"),
         sets = sets(3, 0, null, null, mode = "bodyweight")
     )
+    val plank = WorkoutExercise(
+        id = "plank", name = "Plank Hold", position = 4, trackingMode = "duration",
+        prescription = listOf(SetPrescription(repMin = 45, repMax = 45, repsText = "45 sec")),
+        sets = listOf(WorkoutSet(id = "plank-0", position = 0, done = false, durationSeconds = null))
+    )
+    val longNameExercise = WorkoutExercise(
+        id = "long-name", name = "Standing Dual Cable Incline Chest Fly With Supinated Grip", position = 5,
+        prescription = prescription(3, 10, 12, "2"),
+        sets = sets(3, 0, null, null, suggestion = 15.0)
+    )
+    val weightedPullups = WorkoutExercise(
+        id = "pullups", name = "Weighted Pull-Up", position = 6, loadModel = "full_bodyweight",
+        prescription = prescription(3, 6, 8, "2"),
+        sets = listOf(WorkoutSet(id = "pullup-0", position = 0, weightKg = 15.0, reps = 6, done = false, resistanceMode = "added"))
+    )
+    val assistedDips = WorkoutExercise(
+        id = "assisted-dips", name = "Assisted Dips", position = 7, loadModel = "full_bodyweight",
+        prescription = prescription(3, 8, 10, "2"),
+        sets = listOf(WorkoutSet(id = "adips-0", position = 0, weightKg = 20.0, reps = 8, done = false, resistanceMode = "assistance"))
+    )
+    val deadHang = WorkoutExercise(
+        id = "hang", name = "Dead Hang", position = 8, trackingMode = "duration",
+        prescription = listOf(SetPrescription()),
+        sets = listOf(WorkoutSet(id = "hang-0", position = 0, done = false, durationSeconds = null))
+    )
 
     val session = WorkoutSession(
         id = "session-1", name = "Push Day A — Strength", startedAt = STARTED, revision = 7,
-        exercises = listOf(bench, incline, lateral, dips), completedSets = 1, warmupSets = 1
+        exercises = listOf(bench, incline, lateral, dips),
+        completedSets = 1, warmupSets = 1
     )
 
     fun snapshot(
@@ -69,13 +96,32 @@ object FakeWorkouts {
         pausedRestRemainingMs: Long? = null,
         pendingFinish: Boolean = false,
         conflictOperationId: String? = null,
-        conflictSession: WorkoutSession? = null
-    ) = WorkoutSnapshot(
-        session = session, unit = unit, defaultRestSeconds = 90, activeExerciseId = activeExerciseId,
-        restEndsAtEpochMs = restEndsAtEpochMs, restGeneration = restEndsAtEpochMs?.let { "rest-1" },
-        alertedRestGeneration = alertedRestGeneration, pausedRestRemainingMs = pausedRestRemainingMs,
-        pendingFinish = pendingFinish, conflictOperationId = conflictOperationId, conflictSession = conflictSession
-    )
+        conflictSession: WorkoutSession? = null,
+        trackRir: Boolean = true,
+        setTimers: Map<String, SetTimerSnapshot>? = emptyMap()
+    ): WorkoutSnapshot {
+        val extra = when (activeExerciseId) {
+            "plank" -> plank
+            "hang" -> deadHang
+            "long-name" -> longNameExercise
+            "pullups" -> weightedPullups
+            "assisted-dips" -> assistedDips
+            else -> null
+        }
+        val resolvedSession = if (extra != null && session.exercises.none { it.id == extra.id }) {
+            session.copy(exercises = session.exercises + extra)
+        } else {
+            session
+        }
+        return WorkoutSnapshot(
+            session = resolvedSession, unit = unit, defaultRestSeconds = 90, activeExerciseId = activeExerciseId,
+            restEndsAtEpochMs = restEndsAtEpochMs, restGeneration = restEndsAtEpochMs?.let { "rest-1" },
+            alertedRestGeneration = alertedRestGeneration, pausedRestRemainingMs = pausedRestRemainingMs,
+            pendingFinish = pendingFinish, conflictOperationId = conflictOperationId, conflictSession = conflictSession,
+            trackRir = trackRir,
+            setTimers = setTimers
+        )
+    }
 
     val paused = session.copy(pausedAt = "2026-09-25T10:30:00Z", pausedSeconds = 60)
 

@@ -74,7 +74,7 @@ fun OverviewPage(
                     style = MaterialTheme.typography.labelMedium,
                     color = Palette.Muted,
                     textAlign = TextAlign.Center,
-                    maxLines = 1,
+                    maxLines = 2,
                     overflow = TextOverflow.Ellipsis
                 )
                 Text(

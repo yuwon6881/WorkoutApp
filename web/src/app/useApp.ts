@@ -2,14 +2,17 @@ import {resetGoogleHealthState} from '../lib/googleHealthAccount';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ApiError, api } from '../lib/api';
 import { sharedReads } from '../lib/readCoordinator';
+import { viewReadCache } from '../lib/viewReadCache';
 import { SaveQueue } from '../lib/queue';
 import type { QueueStatus } from '../lib/queue';
 import type { AppResource, Bootstrap, Preferences, Session } from '../types';
 import { deleteWorkoutPushToken, getWorkoutPushDeviceId } from '../lib/push/firebaseMessaging';
 import { retireWorkoutPushAfterAccountSwitch, retireWorkoutPushDevice } from '../lib/push/cleanup';
-import { clearRecovery, defaultDevicePreferences, getLastAccountId, getLastRecovery, getRecovery, loadDevicePreferences, sameWorkoutEdits, saveDevicePreferences as persistDevicePreferences, setConflict, setLastAccount, startRecovery } from '../lib/workoutRecovery';
+import { defaultDevicePreferences, loadDevicePreferences, saveDevicePreferences as persistDevicePreferences } from '../lib/workoutDevicePreferences';
+import { getLastAccountId, getLastRecovery, getRecovery, setLastAccount } from '../lib/workoutRecoveryReads';
+import { sameWorkoutEdits } from '../lib/workoutRecoveryComparison';
+import { clearRecovery, setConflict, startRecovery, reconcileReopenedWorkout } from '../lib/workoutRecoveryAccess';
 import type { DevicePreferences, WorkoutRecoveryRecord } from '../lib/workoutRecovery';
-import { reconcileReopenedWorkout } from '../lib/launchRecovery';
 import { clearStopwatches } from '../lib/setStopwatch';
 import { forgetSessionDetail } from '../lib/sessionDetailLoad';
 
@@ -23,7 +26,7 @@ export type AppState = {
   recovery: WorkoutRecoveryRecord | null;
   devicePreferences: DevicePreferences;
   reload: () => Promise<void>;
-  ensureResources: (resources: AppResource[], throwOnError?: boolean) => Promise<void>;
+  ensureResources: (resources: AppResource[], throwOnError?: boolean, force?: boolean) => Promise<void>;
   resourceError: string;
   queue: SaveQueue;
   setData: (update: (current: Bootstrap) => Bootstrap) => void;
@@ -78,7 +81,7 @@ export function useApp(): AppState {
       void retireCurrentPushDevice();
       void setLastAccount(null).catch(() => undefined);
       setRecovery(null);
-      loadEpoch.current++; sharedReads.reset(); resourcesInFlight.current.clear();
+      loadEpoch.current++; sharedReads.reset(); viewReadCache.reset(); resourcesInFlight.current.clear();
       setSignedOut(true);
       setData(null);
     }
@@ -131,7 +134,7 @@ export function useApp(): AppState {
           }
         }
       }
-      if (previousAccountId && previousAccountId !== next.account.id) sharedReads.reset();
+      if (previousAccountId && previousAccountId !== next.account.id) { sharedReads.reset(); viewReadCache.reset(); }
       const deviceId = getWorkoutPushDeviceId();
       await retireWorkoutPushAfterAccountSwitch(previousAccountId, next.account.id, deviceId,
         deviceId ? () => api.unregisterRestAlertDevice(deviceId) : undefined, deleteWorkoutPushToken);
@@ -191,7 +194,7 @@ export function useApp(): AppState {
       if (epoch !== loadEpoch.current) return;
       const problem = failure instanceof ApiError ? failure : new ApiError('Could not load your training.', -1);
       if (problem.signedOut) mutationAccount.current = null;
-      if (problem.signedOut) { clearStopwatches(); forgetSessionDetail(); pendingPreferences.current = null; setPreferencePending(false); validatedAccountId = null; resetGoogleHealthState(); await setLastAccount(null).catch(() => undefined); setRecovery(null); setSignedOut(true); setData(null); setError(''); queue.clear(); queue.set('signed-out'); }
+      if (problem.signedOut) { viewReadCache.reset(); clearStopwatches(); forgetSessionDetail(); pendingPreferences.current = null; setPreferencePending(false); validatedAccountId = null; resetGoogleHealthState(); await setLastAccount(null).catch(() => undefined); setRecovery(null); setSignedOut(true); setData(null); setError(''); queue.clear(); queue.set('signed-out'); }
       else {
         setError(problem.message);
         if (problem.offline) {
@@ -214,14 +217,14 @@ export function useApp(): AppState {
     return flight;
   }, [load]);
 
-  const ensureResources = useCallback(async (requested: AppResource[], throwOnError = false) => {
+  const ensureResources = useCallback(async (requested: AppResource[], throwOnError = false, force = false) => {
     const accountId = currentData.current?.account.id;
     const epoch = loadEpoch.current;
     if (!accountId) return;
     setResourceError('');
     try {
       await Promise.all(requested.map(resource => {
-        if (currentData.current?.resources?.[resource]) return;
+        if (!force && currentData.current?.resources?.[resource]) return;
         const existing = resourcesInFlight.current.get(resource);
         if (existing) return existing;
         const flight = (async () => {
@@ -346,7 +349,7 @@ export function useApp(): AppState {
   }, [data?.account.id, recovery?.accountId, devicePreferences]);
 
   const signOut = useCallback(async () => {
-    loadEpoch.current++; sharedReads.reset(); resourcesInFlight.current.clear();
+    loadEpoch.current++; sharedReads.reset(); viewReadCache.reset(); resourcesInFlight.current.clear();
     await retireCurrentPushDevice();
     await api.logout();
     mutationAccount.current = null;

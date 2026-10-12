@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ArrowRight, CheckCircle2, Dumbbell, FileText, Plus, Trash2, Zap } from 'lucide-react';
-import type { Bootstrap, Exercise, Template } from '../types';
+import { ArrowRight, Dumbbell, FileText, Plus, Trash2, Zap } from 'lucide-react';
+import type { AppResource, Bootstrap, Exercise, Template } from '../types';
 import { api } from '../lib/api';
 import { createEmptyProgramDraft } from '../lib/importDraftWeeks';
 import { slotItemId, type SlotItem } from '../lib/activeSlot';
@@ -18,8 +18,9 @@ import { useWorkoutSlotActions } from './useWorkoutSlotActions';
 import './WorkoutSlot.css';
 import './Programs.css';
 
-export function Programs({ data, exercises, onStart, onImport, onChanged, onTemplateSaved, onTemplateDeleted }: {
+export function Programs({ data, exercises, onStart, onImport, onChanged, ensureResources, onTemplateSaved, onTemplateDeleted }: {
   data: Bootstrap; exercises: Exercise[]; onStart: (templateId: string) => void; onImport: () => void; onChanged: () => Promise<void>;
+  ensureResources?: (resources: AppResource[], throwOnError?: boolean, force?: boolean) => Promise<void>;
   onTemplateSaved?: (template: Template) => void;
   onTemplateDeleted?: (id: string) => void;
 }) {
@@ -31,7 +32,13 @@ export function Programs({ data, exercises, onStart, onImport, onChanged, onTemp
   const rawActiveTemplate = data.templates.find(template => template.active) ?? null;
   const holder = useMemo<SlotItem | null>(() => rawActiveProgram ? { kind: 'program', program: rawActiveProgram }
     : rawActiveTemplate ? { kind: 'template', template: rawActiveTemplate } : null, [rawActiveProgram, rawActiveTemplate]);
-  const slot = useWorkoutSlotActions({ holder, onChanged, onTemplateDeleted });
+  const handleChanged = async () => {
+    await onChanged();
+    if (ensureResources) {
+      await ensureResources(['programs', 'templates'], true, true);
+    }
+  };
+  const slot = useWorkoutSlotActions({ holder, onChanged: handleChanged, onTemplateDeleted });
   const { drag, handlers } = useWorkoutSlotDrag(slot.drop);
 
   const activeProgram = useMemo(() => {
@@ -178,9 +185,9 @@ export function Programs({ data, exercises, onStart, onImport, onChanged, onTemp
     {readyImport && !hasActiveWorkout && (
       <section className="panel ready-import-card" role="status">
         <div className="ready-import-info">
-          <span className="ready-import-badge"><CheckCircle2 size={16} /> Import ready to review</span>
+          <span className="ready-import-badge">Import ready</span>
           <h3>{readyImport.fileName || 'Imported PDF Program'}</h3>
-          <p>Your program has finished processing. Review the extracted schedule and exercises to accept it into your library.</p>
+          <p>Processing complete. Review schedule and exercises to accept.</p>
         </div>
         <Button variant="primary" onClick={onImport}>
           Review program <ArrowRight size={16} />
@@ -191,7 +198,7 @@ export function Programs({ data, exercises, onStart, onImport, onChanged, onTemp
     {slot.error && <div className="error-banner" role="alert"><span>{slot.error}</span></div>}
 
     <section className="program-section">
-      <div className="section-heading"><h2>Active workout</h2></div>
+      <div className="section-heading"><h2>Active plan</h2></div>
       <ActiveSlotDropZone over={drag?.overZone === 'active' && drag.from === 'library'} occupied={Boolean(displayHolder)}
         hasLibrary={libraryCount > 0} onNewWorkout={() => open()} onImport={onImport}>
         {displayHolder?.kind === 'program' && <ActiveProgramCard key={displayHolder.program.id} program={displayHolder.program} exercises={exercises} onStart={onStart} onChanged={onChanged}
@@ -215,17 +222,18 @@ export function Programs({ data, exercises, onStart, onImport, onChanged, onTemp
             onActivate={() => slot.activate(item)} onDelete={() => slot.remove(item)} dragProps={dragProps(item, 'library')} dragging={draggingId === slotItemId(item)} />;
         })}
       </div>}
-      {libraryTemplates.length ? <div className="program-grid">{libraryTemplates.map(template => {
+      {libraryTemplates.length ? <div className="routine-library-list">{libraryTemplates.map(template => {
         const item: SlotItem = { kind: 'template', template };
         return <RoutineCard key={template.id} template={template} exercises={exercises} onEdit={() => open(template)}
+          hasActiveWorkout={hasActiveWorkout} activeTemplateId={activeTemplateId}
           onStart={() => onStart(template.id)} dragProps={dragProps(item, 'library')}
           menu={<MenuButton label={`Actions for ${template.name}`} triggerClassName="slot-card-menu-trigger" portal>
             <MenuItem disabled={slot.busy} onClick={() => slot.activate(item)}><Zap size={14} />Make active</MenuItem>
             <MenuItem destructive disabled={slot.busy} onClick={() => slot.remove(item)}><Trash2 size={14} />Delete workout</MenuItem>
           </MenuButton>} />;
       })}</div>
-        : libraryPrograms.length === 0 && <section className="panel"><div className="empty-message"><Dumbbell size={30} /><h3>{holder ? 'Nothing else in your library' : 'Your library is empty'}</h3>
-          <p>{exercises.length ? 'Build a workout or a program by hand, or import one from a PDF.' : 'The exercise library is still empty, so a workout cannot be built yet. Importing a PDF will still create a reviewable draft.'}</p></div></section>}
+        : libraryPrograms.length === 0 && <section className="panel"><div className="empty-message"><h3>{holder ? 'No other workouts' : 'Library empty'}</h3>
+          <p>{exercises.length ? 'Create a workout or program, or import a PDF.' : 'Import a PDF to start.'}</p></div></section>}
     </section>
 
     {drag && <SlotDragGhost drag={drag} />}

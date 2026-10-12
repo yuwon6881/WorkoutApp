@@ -23,6 +23,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.wear.compose.foundation.lazy.TransformingLazyColumn
 import androidx.wear.compose.foundation.lazy.TransformingLazyColumnItemScope
 import androidx.wear.compose.foundation.lazy.TransformingLazyColumnScope
@@ -137,13 +138,29 @@ fun hasFeedback(message: String?, error: String?): Boolean = !message.isNullOrBl
 /** The screen's one primary action. Short text only: the top of an edge button is too narrow for an icon and a word. */
 @Composable
 fun PrimaryEdgeButton(label: String, onClick: () -> Unit, enabled: Boolean = true, description: String = label) {
+    val config = LocalConfiguration.current
+    val compact = config.screenWidthDp < 200
+    val shortScreen = config.screenHeightDp <= 180
+    val edgeLabelStyle = MaterialTheme.typography.labelMedium.copy(
+        fontSize = when {
+            shortScreen -> 12.sp
+            compact -> 13.sp
+            else -> 14.sp
+        },
+        lineHeight = when {
+            shortScreen -> 14.sp
+            compact -> 16.sp
+            else -> 18.sp
+        },
+        letterSpacing = if (shortScreen) 0.sp else 0.5.sp
+    )
     EdgeButton(
         onClick = onClick,
         modifier = Modifier.semantics { contentDescription = description },
         enabled = enabled,
-        buttonSize = EdgeButtonSize.ExtraSmall
+        buttonSize = EdgeButtonSize.Small
     ) {
-        Text(label, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Text(label, style = edgeLabelStyle, textAlign = TextAlign.Center, maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
 }
 

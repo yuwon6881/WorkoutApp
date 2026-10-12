@@ -22,8 +22,10 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.wear.compose.material3.CircularProgressIndicator
-import androidx.wear.compose.material3.FilledIconButton
+import androidx.wear.compose.material3.EdgeButton
+import androidx.wear.compose.material3.EdgeButtonSize
 import androidx.wear.compose.material3.FilledTonalIconButton
 import androidx.wear.compose.material3.IconButtonDefaults
 import androidx.wear.compose.material3.MaterialTheme
@@ -57,54 +59,115 @@ fun RestPage(
     )
     val seconds = remainingSeconds(restEndsAtEpochMs, nowEpochMs)
     val finished = seconds == 0L
+    val config = LocalConfiguration.current
+    val compact = config.screenWidthDp < COMPACT_WATCH_DP
+    val shortScreen = config.screenHeightDp <= SHORT_WATCH_DP
+    val topPadding = when {
+        shortScreen -> 23.dp
+        config.isScreenRound -> 20.dp
+        else -> 16.dp
+    }
+    val clockStyle = MaterialTheme.typography.numeralMedium.copy(
+        fontSize = when {
+            shortScreen -> 20.sp
+            compact -> 28.sp
+            else -> 40.sp
+        },
+        lineHeight = when {
+            shortScreen -> 20.sp
+            compact -> 32.sp
+            else -> 44.sp
+        }
+    )
+    val contextStyle = MaterialTheme.typography.labelSmall.copy(
+        fontSize = if (shortScreen) 11.sp else 12.sp,
+        lineHeight = if (shortScreen) 12.sp else 14.sp
+    )
+    val edgeLabelStyle = MaterialTheme.typography.labelMedium.copy(
+        fontSize = when {
+            shortScreen -> 12.sp
+            compact -> 13.sp
+            else -> 14.sp
+        },
+        lineHeight = when {
+            shortScreen -> 14.sp
+            compact -> 16.sp
+            else -> 18.sp
+        },
+        letterSpacing = if (shortScreen) 0.sp else 0.5.sp
+    )
     ScreenScaffold {
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             CircularProgressIndicator(
                 progress = { progress },
-                modifier = Modifier.fillMaxSize().padding(3.dp),
-                strokeWidth = 6.dp,
+                modifier = Modifier.fillMaxSize().padding(2.dp),
+                strokeWidth = 4.dp,
                 colors = ProgressIndicatorDefaults.colors(
                     indicatorColor = if (finished) Palette.Green else Palette.Accent,
                     trackColor = Palette.SurfaceRaised
                 )
             )
             Column(
-                modifier = Modifier.padding(top = 10.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(top = topPadding, bottom = if (shortScreen) 38.dp else 48.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(if (shortScreen) 2.dp else 4.dp)
             ) {
                 Text(
                     formatClock(seconds),
-                    style = if (LocalConfiguration.current.screenWidthDp < COMPACT_WATCH_DP) MaterialTheme.typography.numeralMedium
-                    else MaterialTheme.typography.numeralLarge,
+                    style = clockStyle,
                     color = if (finished) Palette.Green else Palette.Text
                 )
                 if (nextUp != null) {
-                    Text(
-                        nextUp.exerciseName,
-                        modifier = Modifier.widthIn(max = 148.dp),
-                        style = MaterialTheme.typography.labelMedium,
-                        color = Palette.Text,
-                        textAlign = TextAlign.Center,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                    Text(nextUp.detail, style = MaterialTheme.typography.labelSmall, color = Palette.Muted, maxLines = 1)
+                    if (compact) {
+                        Text(
+                            nextUp.detail,
+                            modifier = Modifier
+                                .widthIn(max = 140.dp)
+                                .semantics { contentDescription = "Next up: ${nextUp.exerciseName}, ${nextUp.detail}" },
+                            style = contextStyle,
+                            color = Palette.Text,
+                            textAlign = TextAlign.Center,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    } else {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text(
+                                nextUp.exerciseName,
+                                modifier = Modifier.widthIn(max = 150.dp),
+                                style = contextStyle,
+                                color = Palette.Text,
+                                textAlign = TextAlign.Center,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            Text(nextUp.detail, style = contextStyle, color = Palette.Muted, maxLines = 1)
+                        }
+                    }
                 }
                 Row(
-                    modifier = Modifier.padding(top = 8.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     RestAdjustButton("−15", "Take 15 seconds off the rest", enabled = !busy && !finished, onClick = onShorten)
-                    FilledIconButton(onClick = onSkip, enabled = !busy) {
-                        WearIcon(
-                            if (finished) R.drawable.ic_arrow_forward else R.drawable.ic_skip,
-                            contentDescription = if (finished) "Continue to the next set" else "Skip rest",
-                            modifier = Modifier.size(IconButtonDefaults.DefaultIconSize)
-                        )
-                    }
                     RestAdjustButton("+15", "Add 15 seconds of rest", enabled = !busy, onClick = onExtend)
                 }
+            }
+            EdgeButton(
+                onClick = onSkip,
+                enabled = !busy,
+                modifier = Modifier.align(Alignment.BottomCenter),
+                buttonSize = EdgeButtonSize.Small
+            ) {
+                Text(
+                    if (finished) "Continue" else "Skip",
+                    style = edgeLabelStyle,
+                    textAlign = TextAlign.Center,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
             }
         }
     }
@@ -115,7 +178,7 @@ private fun RestAdjustButton(label: String, description: String, enabled: Boolea
     FilledTonalIconButton(
         onClick = onClick,
         enabled = enabled,
-        modifier = Modifier.semantics { contentDescription = description },
+        modifier = Modifier.size(48.dp).semantics { contentDescription = description },
         colors = IconButtonDefaults.filledTonalIconButtonColors(containerColor = Palette.SurfaceHover, contentColor = Palette.Text)
     ) {
         Text(label, style = MaterialTheme.typography.labelMedium)
@@ -124,3 +187,4 @@ private fun RestAdjustButton(label: String, description: String, enabled: Boolea
 
 // Below this width (for example 40 mm faces) the large numerals push the rest controls into the bezel.
 private const val COMPACT_WATCH_DP = 200
+private const val SHORT_WATCH_DP = 180

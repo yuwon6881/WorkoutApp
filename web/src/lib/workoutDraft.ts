@@ -1,5 +1,6 @@
 import type { Exercise, LoggedSet, Session, SessionExercise } from '../types';
 import { loadEntryFor, resistanceModeFor } from './resistanceVariant';
+import { isTimedExercise } from './setDuration';
 
 export type RemovedSet = {
   exerciseId: string;
@@ -60,6 +61,7 @@ export function withSetAdded(draft: Session, exerciseIndex: number): Session {
   return mapExercise(draft, exerciseIndex, item => {
     const prevSet = item.sets.at(-1);
     const prevPlan = item.prescription.at(-1);
+    const timed = isTimedExercise(item);
     const mode = prevSet?.resistanceMode ?? prevPlan?.resistanceMode;
     return {
       ...item,
@@ -67,7 +69,7 @@ export function withSetAdded(draft: Session, exerciseIndex: number): Session {
         ...item.sets,
         {
           id: crypto.randomUUID(), position: item.sets.length,
-          weightKg: prevSet?.weightKg ?? null, reps: prevSet?.reps ?? null, rpe: null,
+          weightKg: prevSet?.weightKg ?? null, reps: timed ? null : prevSet?.reps ?? null, durationSeconds: null, rpe: null,
           done: false, warmup: false, resistanceMode: mode
         }
       ],
@@ -75,9 +77,11 @@ export function withSetAdded(draft: Session, exerciseIndex: number): Session {
         ...item.prescription,
         {
           ...prevPlan,
-          repMin: prevPlan ? prevPlan.repMin : 8, repMax: prevPlan ? prevPlan.repMax : 12, targetRpe: prevPlan?.targetRpe ?? 8,
+          repMin: prevPlan ? prevPlan.repMin : timed ? null : 8,
+          repMax: prevPlan ? prevPlan.repMax : timed ? null : 12,
+          targetRpe: timed ? null : prevPlan?.targetRpe ?? 8,
           restSeconds: prevPlan?.restSeconds ?? 90, tempo: null, loadText: null, notes: null,
-          repsText: null, restText: null, rir: null, warmup: false,
+          repsText: timed ? prevPlan?.repsText ?? null : null, restText: null, rir: null, warmup: false,
           repsSource: 'userEdited', rpeSource: 'userEdited', restSource: 'userEdited', resistanceMode: mode
         }
       ]

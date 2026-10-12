@@ -162,10 +162,7 @@ export function WorkoutSetRow({
           aria-label={`${set.done ? 'Unlog' : 'Log'} ${exercise.name} set ${si + 1}${locked ? ' (workout paused)' : ''}`}
           aria-pressed={set.done}
           onClick={async () => {
-            if (!locked && !set.done && set.reps === null && (set.durationSeconds ?? null) === null) {
-              triggerNudge();
-              return;
-            }
+            // toggle captures any running stopwatch before validating the completed set.
             const res = await toggle(ei, si);
             if (res === false && !set.done) {
               triggerNudge();

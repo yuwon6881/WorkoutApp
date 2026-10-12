@@ -5,7 +5,7 @@ import { transformWithEsbuild, type Plugin } from 'vite';
 // These styles participate in the first screen. Optional feature links are inserted before
 // the shell stylesheet, preserving the existing feature-before-index/layout cascade.
 const critical = new Set(['BottomNav.css', 'Dashboard.css', 'History.css', 'ProgressPanels.css',
-  'TrainingCalendar.css', 'TrainingCalendarLayout.css']);
+  'TrainingCalendar.css', 'TrainingCalendarLayout.css', 'NextWorkoutHero.css', 'MuscleThumb.css']);
 
 export function featureCss(): Plugin {
   let production = false;

@@ -1,0 +1,48 @@
+/* Shared by the live Overview and its first-load skeleton. */
+.overview-hero-calendar-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(380px, 1fr);
+  gap: 24px;
+  margin-bottom: 24px;
+  align-items: start;
+}
+
+.overview-hero-calendar-grid > * {
+  min-width: 0;
+}
+
+.overview-calendar-column {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+
+.overview-hero-calendar-grid .panel {
+  margin-bottom: 0;
+  box-sizing: border-box;
+}
+
+@media (min-width: 1024px) and (max-width: 1199px) {
+  .overview-hero-calendar-grid {
+    grid-template-columns: minmax(0, 1.4fr) minmax(380px, 1fr);
+    gap: 20px;
+  }
+}
+
+@media (max-width: 1023px) {
+  .overview-hero-calendar-grid {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+}
+
+@media (max-width: 639px) {
+  .overview-hero-calendar-grid {
+    gap: 16px;
+    margin-bottom: 16px;
+  }
+  .overview-calendar-column {
+    gap: 16px;
+  }
+}

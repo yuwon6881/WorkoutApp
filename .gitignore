@@ -33,3 +33,4 @@ web/test-results*/
 **/.kotlin/
 __pycache__/
 *.pyc
+.idea/

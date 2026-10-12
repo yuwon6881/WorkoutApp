@@ -63,7 +63,7 @@
   min-height: 54px;
   padding: 4px 10px 9px 6px;
   border: 0;
-  border-radius: 12px 12px 0 0;
+  border-radius: var(--radius-control, 8px) var(--radius-control, 8px) 0 0;
   background: transparent;
   color: var(--text);
   text-align: left;
@@ -217,24 +217,25 @@
 }
 .workout-footer-actions:empty { display: none; }
 .workout-footer-actions > .modal-actions-error { margin: 0; text-align: left; }
-.workout-footer-actions .workout-finish-btn.button { min-height: 52px; justify-content: center; border-radius: 14px; font-size: 16px !important; font-weight: 700; }
+.workout-footer-actions .workout-finish-btn.button { min-height: 52px; justify-content: center; border-radius: var(--radius-control, 8px); font-size: 16px !important; font-weight: 700; }
 
-/* A personal best, announced in the footer for a few seconds (useAfterLog.ts). */
-@keyframes celebration-in { 0% { opacity: 0; transform: translateY(10px) scale(.98); } 100% { opacity: 1; transform: none; } }
-@keyframes trophy-pop { 0% { transform: scale(.4) rotate(-18deg); } 55% { transform: scale(1.25) rotate(8deg); } 100% { transform: none; } }
+/* A personal best, announced quietly in the footer for a few seconds (useAfterLog.ts). */
+@keyframes celebration-in { 0% { opacity: 0; transform: translateY(6px); } 100% { opacity: 1; transform: none; } }
 .workout-celebration {
   display: flex;
   align-items: center;
   gap: 10px;
   margin: 0;
-  padding: 12px 16px;
-  background: var(--accent-soft);
+  padding: 10px 14px;
+  border-radius: var(--radius-control, 8px);
+  background: var(--surface-raised);
+  border: 1px solid var(--accent-border);
   color: var(--text);
   font-size: var(--font-secondary) !important;
   font-weight: 650;
-  animation: celebration-in 360ms cubic-bezier(.32, .72, 0, 1);
+  animation: celebration-in 240ms var(--motion-ease);
 }
-.workout-celebration svg { flex: 0 0 auto; color: var(--accent); animation: trophy-pop 520ms var(--motion-ease) 120ms both; }
+.workout-celebration svg { flex: 0 0 auto; color: var(--accent); }
 
 /* Active workout exercise notes: a quiet field that grows with what is typed. */
 .workout-note-drawer { margin-top: 18px; }
@@ -255,6 +256,5 @@
   .workout-strip-ring .ring-value { transition: none; }
   .workout-strip-item.just-completed .workout-strip-ring,
   .modal.workout-sheet .workout-footer,
-  .workout-celebration,
-  .workout-celebration svg { animation: none; }
+  .workout-celebration { animation: none; }
 }

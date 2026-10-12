@@ -74,6 +74,7 @@ export type HistorySummaryPage = { total: number; sessions: Session[]; nextBefor
 export type AppResource = 'catalog' | 'programs' | 'templates';
 export type NextWorkoutSummary = Pick<ProgramDay, 'id' | 'name' | 'focus' | 'week' | 'position' | 'exerciseCount'>;
 export type ShellBootstrap = Pick<Bootstrap, 'account' | 'preferences' | 'activeWorkout' | 'activeProgram' | 'imports' | 'resourceVersions'> & {
+  workoutHero?: WorkoutHeroSummary;
   nextWorkout: NextWorkoutSummary | null; navigationCounts: { programs: number; templates: number };
 };
 export type ProgressExercise = {
@@ -143,7 +144,12 @@ export type ImportStatusView = {
   progress?: ImportProgressDetails | null;
 };
 
+export type WorkoutHeroSummary = {
+  templateId: string | null; sessionId: string | null; sessionRevision: number | null;
+  completedStandaloneName: string | null; workingSets: number | null; muscles: { muscle: string; sets: number }[];
+};
 export type Bootstrap = {
+  workoutHero?: WorkoutHeroSummary;
   account: Account; preferences: Preferences; exercises: Exercise[]; templates: Template[];
   programs: ProgramSummary[]; activeProgram: ProgramSummary | null; activeWorkout: Session | null;
   imports: ImportView[]; history: HistoryPage; progress?: ProgressSummary;

@@ -1,4 +1,4 @@
-import { ArrowRight, Clock, Dumbbell, Trophy } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
 import type { ProgressSummary, Unit } from '../types';
 import { showWeight, toDisplay } from '../lib/training';
 import { Button } from './ui/Button';
@@ -8,30 +8,21 @@ export function ProgressStats({ progress }: { progress: ProgressSummary | null }
   return (
     <div className="stats-grid progress-stats" role="region" aria-label="Training statistics">
       <div className="stat-card progress-stat-card">
-        <div className="stat-card-header">
-          <span className="stat-icon-wrap"><Trophy size={16} aria-hidden="true" /></span>
-          <span className="stat-label-text">Workouts</span>
-        </div>
+        <span className="stat-label-text">Workouts</span>
         <div className="stat-card-value">
           <strong>{progress?.sessions ? progress.sessions.toLocaleString() : '—'}</strong>
         </div>
       </div>
 
       <div className="stat-card progress-stat-card">
-        <div className="stat-card-header">
-          <span className="stat-icon-wrap"><Dumbbell size={16} aria-hidden="true" /></span>
-          <span className="stat-label-text">Working sets</span>
-        </div>
+        <span className="stat-label-text">Working sets</span>
         <div className="stat-card-value">
           <strong>{progress?.workingSets ? progress.workingSets.toLocaleString() : '—'}</strong>
         </div>
       </div>
 
       <div className="stat-card progress-stat-card">
-        <div className="stat-card-header">
-          <span className="stat-icon-wrap"><Clock size={16} aria-hidden="true" /></span>
-          <span className="stat-label-text">Training time</span>
-        </div>
+        <span className="stat-label-text">Training time</span>
         <div className="stat-card-value">
           <strong>
             {progress?.trainingMinutes ? (
@@ -45,6 +36,9 @@ export function ProgressStats({ progress }: { progress: ProgressSummary | null }
           </strong>
         </div>
       </div>
+
+      {/* These totals cover every finished workout, not a window, so say so. */}
+      <small className="progress-stats-scope">All-time totals</small>
     </div>
   );
 }
@@ -61,13 +55,13 @@ export function PersonalBests({ progress, error, onRetry, onExercise, unit }: {
     .sort((a, b) => (b.value ?? 0) - (a.value ?? 0)) ?? [];
 
   return <section className="panel progress-record-panel" aria-live="polite">
-    <div className="section-heading"><h2>Personal bests</h2><Trophy size={18} className="accent" /></div>
+    <div className="section-heading"><h2>Personal bests</h2></div>
     {!progress && !error && <div className="skeleton progress-section-skeleton" aria-label="Loading personal bests" />}
     {error && <div className="error-banner" role="alert"><span>{error}</span><Button variant="tertiary" onClick={onRetry}>Retry</Button></div>}
     {progress && (bests.length ? bests.slice(0, 6).map(record => record.exerciseId && onExercise
       ? <Button variant="tertiary" className="best-row best-row-action" key={record.exercise} onClick={() => onExercise(record.exerciseId!)} aria-label={`Open ${record.exercise} exercise details`}><span>{record.exercise}</span><strong>{showWeight(record.value ?? null, unit)}</strong><ArrowRight size={15} /></Button>
       : <div className="best-row" key={record.exercise}><span>{record.exercise}</span><strong>{showWeight(record.value ?? null, unit)}</strong></div>)
-      : <div className="empty-message"><Trophy size={30} /><p>No personal bests yet. Log a workout to record one.</p></div>)}
+      : <div className="empty-message"><p>No personal bests yet. Log a workout to record one.</p></div>)}
   </section>;
 }
 
@@ -76,7 +70,7 @@ export function BodyweightRecords({ progress, unit }: { progress: ProgressSummar
   if (!records.length) return null;
 
   return <section className="panel progress-record-panel">
-    <div className="section-heading"><h2>Bodyweight records</h2><Trophy size={18} className="accent" /></div>
+    <div className="section-heading"><h2>Bodyweight records</h2></div>
     {records.map(record => <div className="best-row" key={record.exercise}><span>{record.exercise}</span><strong>{record.bodyweightRepRecord!.reps} reps at {toDisplay(record.bodyweightRepRecord!.bodyweightKg, unit)} {unit} bodyweight</strong></div>)}
   </section>;
 }

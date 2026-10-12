@@ -1,4 +1,5 @@
-/* Bottom Navigation Bar for Mobile Viewports */
+/* Floating Glass Capsule Dock for Mobile Viewports (< 640px) */
+
 .bottom-nav {
   position: fixed;
   display: flex;
@@ -6,13 +7,21 @@
   left: 0;
   right: 0;
   z-index: 10;
-  background: color-mix(in srgb, var(--surface) 88%, transparent);
-  backdrop-filter: blur(20px) saturate(180%);
-  -webkit-backdrop-filter: blur(20px) saturate(180%);
-  border-top: 1px solid var(--border);
-  box-shadow: 0 -4px 20px var(--overlay), inset 0 1px 0 0 rgba(255, 255, 255, 0.04);
-  padding: 6px 8px calc(6px + env(safe-area-inset-bottom, 0px));
   justify-content: center;
+  background: transparent;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  border: 0;
+  box-shadow: none;
+  padding: 0 max(10px, env(safe-area-inset-left, 0px)) calc(10px + env(safe-area-inset-bottom, 0px)) max(10px, env(safe-area-inset-right, 0px));
+  pointer-events: none;
+}
+
+@media (max-width: 359px) {
+  .bottom-nav {
+    padding-left: max(6px, env(safe-area-inset-left, 0px));
+    padding-right: max(6px, env(safe-area-inset-right, 0px));
+  }
 }
 
 @media (min-width: 640px) {
@@ -21,39 +30,34 @@
   }
 }
 
-.bottom-nav-track.selection-indicator {
+.bottom-nav-track {
+  pointer-events: auto;
   display: flex;
   align-items: center;
   justify-content: space-around;
   width: 100%;
-  max-width: 480px;
+  max-width: 440px;
   position: relative;
-  border-radius: 12px;
+  padding: 4px;
+  border-radius: 999px !important;
+  border: 1px solid var(--border-hover);
+  background: color-mix(in srgb, var(--surface) 88%, transparent);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  box-shadow: 0 10px 32px var(--overlay);
 }
 
 .bottom-nav .selection-indicator-marker {
   position: absolute;
   top: 0;
   left: 0;
-  border-radius: 12px;
-  background: transparent;
-  border: 0;
+  z-index: 0;
+  border-radius: 999px !important;
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.14);
   pointer-events: none;
   transition: transform var(--motion-panel) var(--motion-ease), width var(--motion-panel) var(--motion-ease), height var(--motion-panel) var(--motion-ease);
-}
-
-/* As in Nutrition, the selection is a soft pill behind the icon only, so the label stays plain text
-   and the bar reads as one quiet surface rather than a boxed tab. */
-.bottom-nav .selection-indicator-marker::after {
-  content: '';
-  position: absolute;
-  top: 3px;
-  left: 50%;
-  width: 52px;
-  height: 30px;
-  border-radius: 999px;
-  background: var(--accent-soft);
-  transform: translateX(-50%);
 }
 
 [data-motion-reduced] .bottom-nav .selection-indicator-marker {
@@ -63,16 +67,16 @@
 .bottom-nav-item.button {
   position: relative;
   z-index: 1;
-  flex: 1;
+  flex: 1 1 0;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 3px;
-  min-height: 52px;
+  gap: 2px;
+  min-height: 48px;
   min-width: 44px;
-  padding: 6px 2px 4px;
-  border-radius: 12px;
+  padding: 5px 2px 4px;
+  border-radius: 999px;
   background: transparent !important;
   border: 0 !important;
   box-shadow: none !important;
@@ -88,7 +92,8 @@
 }
 
 .bottom-nav-item.selected {
-  color: var(--accent);
+  color: var(--text);
+  font-weight: 650;
 }
 
 .bottom-nav-item:active:not(:disabled) {
@@ -98,37 +103,35 @@
 .bottom-nav-icon-slot {
   display: grid;
   place-items: center;
-  width: 24px;
-  height: 24px;
+  width: 22px;
+  height: 22px;
   color: inherit;
   transition: transform 0.18s cubic-bezier(0.2, 0.8, 0.2, 1), color 0.16s ease;
 }
 
 .bottom-nav-item.selected .bottom-nav-icon-slot {
   color: var(--accent);
-  transform: translateY(-1px) scale(1.08);
+  transform: translateY(-0.5px);
 }
 
 .bottom-nav-label {
   font-size: var(--font-secondary, 14px) !important;
   font-weight: 550;
-  line-height: 1.2;
-  letter-spacing: -0.01em;
+  line-height: 1.15;
+  letter-spacing: -0.015em;
   color: inherit;
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: clip;
   transition: color 0.16s ease, font-weight 0.16s ease;
 }
 
 .bottom-nav-item.selected .bottom-nav-label {
-  color: var(--accent);
+  color: var(--text);
   font-weight: 650;
 }
 
 /* The top bar's Ask AI and Settings icons mark their open screen the way the tabs below do. */
 .topbar .settings-icon.selected,
 .topbar .settings-icon.selected:hover:not(:disabled) {
-  background: var(--accent-soft);
+  background: var(--surface-raised);
   color: var(--accent);
 }

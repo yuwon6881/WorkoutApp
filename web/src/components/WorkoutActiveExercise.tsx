@@ -215,17 +215,18 @@ export function WorkoutActiveExercise({
           <span>Targets</span>
         </Button>
 
-        <Button
-          variant="tertiary"
-          className="action-pill"
-          aria-label={`Swap ${exercise.name}`}
-          disabled={hasCompletedSets}
-          title={hasCompletedSets ? 'Swapping is not available after completing sets.' : undefined}
-          onClick={() => setSwapOpen(true)}
-        >
-          <RefreshCw size={15} />
-          <span>Swap</span>
-        </Button>
+        {/* Swapping only works before a set is logged, so it leaves the row rather than sit greyed out. */}
+        {!hasCompletedSets && (
+          <Button
+            variant="tertiary"
+            className="action-pill"
+            aria-label={`Swap ${exercise.name}`}
+            onClick={() => setSwapOpen(true)}
+          >
+            <RefreshCw size={15} />
+            <span>Swap</span>
+          </Button>
+        )}
 
         {exercise.canRestore && (
           <Button

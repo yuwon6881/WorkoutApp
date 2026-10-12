@@ -45,10 +45,8 @@ private fun PairingStart(busy: Boolean, message: String?, error: String?, onStar
             PrimaryEdgeButton(if (busy) "Wait…" else "Pair", onStartPairing, enabled = !busy, description = "Pair this watch with WorkoutApp")
         }
     ) { spec ->
-        // An error needs the room more than the brand mark does, so the Pair action stays on the first screen.
-        if (error.isNullOrBlank()) item { Box(Modifier.listRow(this, spec), contentAlignment = Alignment.Center) { BrandMark(size = 40.dp) } }
-        item { ScreenTitle("Connect watch", Modifier.listRow(this, spec)) }
-        item { BodyText("Pair with WorkoutApp to log sets from your wrist.", Modifier.listRow(this, spec)) }
+        item { ScreenTitle("Pair watch", Modifier.listRow(this, spec).padding(horizontal = topRowInset())) }
+        item { BodyText("Log WorkoutApp sets from your wrist.", Modifier.listRow(this, spec)) }
         if (hasFeedback(message, error)) item { Feedback(message, error, Modifier.listRow(this, spec)) }
     }
 }
@@ -68,7 +66,7 @@ private fun PairingCode(code: String, secondsLeft: Long?, checking: Boolean, mes
         )
         WearListScreen { spec ->
             item {
-                Column(Modifier.listRow(this, spec), horizontalAlignment = Alignment.CenterHorizontally) {
+                Column(Modifier.listRow(this, spec).padding(horizontal = topRowInset()), horizontalAlignment = Alignment.CenterHorizontally) {
                     Text("PAIRING CODE", style = MaterialTheme.typography.labelSmall, color = Palette.Muted, letterSpacing = 1.sp)
                     PairingCodeText(code, Modifier.padding(top = 2.dp))
                     Text(

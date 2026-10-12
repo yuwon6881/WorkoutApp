@@ -35,6 +35,9 @@ public static class TrainingEndpoints
         {
             var user = await db.Users.AsNoTracking().SingleAsync(u => u.Id == db.CurrentUser, ct);
             var programList = await programs.List(ct);
+            var activeProgram = programList.FirstOrDefault(p => p.Active);
+            object? nextWorkout = activeProgram?.Days.FirstOrDefault(day => day.Id == activeProgram.NextTemplateId);
+            if (activeProgram is null) nextWorkout = await ProgramService.StandaloneNext(db, ct);
             return new
             {
                 account = new { user.Id, displayName = user.DisplayName },
@@ -42,7 +45,8 @@ public static class TrainingEndpoints
                 exercises = await catalog.All(ct),
                 templates = await templates.List(null, standaloneOnly: true, ct),
                 programs = programList,
-                activeProgram = programList.FirstOrDefault(p => p.Active),
+                activeProgram,
+                nextWorkout,
                 activeWorkout = await workouts.Active(ct),
                 imports = await imports.List(ct),
                 history = await workouts.History(0, 20, ct),

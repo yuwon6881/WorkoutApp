@@ -88,7 +88,7 @@ export function ImportReview({ exercises, imports, onBack, onChanged, notify }: 
     notify?.(`Import complete! Read ${count} workout days. Review your program below.`);
     if (typeof document !== 'undefined' && document.hidden) {
       const originalTitle = document.title;
-      document.title = '✓ Import complete! — Workout';
+      document.title = 'Import complete — Workout';
       const onFocus = () => {
         document.title = originalTitle;
         window.removeEventListener('focus', onFocus);
@@ -333,7 +333,7 @@ export function ImportReview({ exercises, imports, onBack, onChanged, notify }: 
         {!selected.acceptable && <p className="muted small-copy import-notice-copy" role="status">The program can be created after every review item is resolved.</p>}
         <Field label="Program name" name="import-program-name" value={draft.programName} onChange={e => saver.editLocal({ ...draft, programName: e.target.value })} onBlur={() => void saver.persist(draft)} />
         {selected.unresolved.length > 0 && <div className="import-unresolved-banner" role="status"><AlertTriangle size={17} />
-          <span>{selected.unresolved.length} exercise slot{selected.unresolved.length === 1 ? '' : 's'} are not linked to the catalog. Unmapped names stay verbatim and can still be logged.</span>
+          <span>{selected.unresolved.length} exercise slot{selected.unresolved.length === 1 ? ' is' : 's are'} not linked to the catalog. Unmapped names stay verbatim and can still be logged.</span>
         </div>}
         {attentionRows.length > 0 && <section className="import-review-issues" aria-labelledby="import-review-issues-title">
           <div className="import-review-issues-heading">
