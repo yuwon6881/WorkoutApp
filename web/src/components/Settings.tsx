@@ -164,8 +164,8 @@ export function SettingsView(props: SettingsViewProps) {
           </SettingsSection>
 
           <SettingsSection {...connections} layout="plain" title="Connected apps" description="Data sharing with connected apps.">
-            <ConnectedApps />
             <GoogleHealthSettings />
+            <ConnectedApps />
           </SettingsSection>
 
           <div className="app-version-meta">Workout version {version}</div>

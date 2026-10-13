@@ -178,7 +178,7 @@
   .calendar-card-header { gap: 8px; }
   .calendar-completion { flex: 1 1 100%; }
   .calendar-nav-controls { width: 100%; justify-content: space-between; }
-  .calendar-days-grid { gap: 0; min-width: 316px; padding: 2px 4px; }
+  .calendar-days-grid { gap: 4px; min-width: 332px; padding: 2px; }
   .day-weekday { letter-spacing: -0.01em; text-transform: none; }
 }
 
@@ -428,8 +428,8 @@
   }
   .calendar-days-grid {
     grid-template-columns: repeat(7, minmax(44px, 1fr));
-    gap: 3px;
-    min-width: 308px;
+    gap: 4px;
+    min-width: 332px;
     padding: 2px 0;
   }
   .calendar-day-cell {

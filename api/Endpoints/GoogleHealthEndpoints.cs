@@ -10,7 +10,7 @@ namespace Workout.Api.Endpoints;
 
 public static class GoogleHealthEndpoints
 {
-    public sealed record ConnectInput(bool SyncWorkout = false);
+    public sealed record ConnectInput(bool SyncWorkout = true);
     public sealed record WorkoutSyncPreferenceInput(bool Enabled, long Revision);
 
     public static void MapGoogleHealth(this WebApplication app)
@@ -46,7 +46,7 @@ public static class GoogleHealthEndpoints
                 sessionHash,
                 origin,
                 ct,
-                input?.SyncWorkout == true);
+                input?.SyncWorkout ?? true);
             return Results.Ok(result);
         });
 

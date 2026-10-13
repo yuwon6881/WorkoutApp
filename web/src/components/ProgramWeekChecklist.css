@@ -2,10 +2,10 @@
   display: grid;
   gap: 12px;
   margin: 14px 0;
-  padding: 16px;
+  padding: 14px;
   border: 1px solid var(--border);
   border-radius: 16px;
-  background: var(--surface-raised);
+  background: transparent;
 }
 
 .program-week-days {
@@ -23,7 +23,7 @@
   min-height: 48px;
   border: 1px solid var(--border);
   border-radius: var(--radius-control);
-  background: var(--surface);
+  background: var(--surface-raised);
   transition: background-color var(--motion-control) ease, border-color var(--motion-control) ease, box-shadow var(--motion-control) ease;
 }
 
@@ -41,13 +41,13 @@
 .program-week-day.passed + .program-week-day:not(.passed) {
   border-color: var(--accent-border-strong);
   box-shadow: 0 0 0 1px var(--accent-border);
-  background: color-mix(in srgb, var(--accent) 4%, var(--surface));
+  background: color-mix(in srgb, var(--accent) 6%, var(--surface-raised));
 }
 
 .program-week-day:not(.passed):first-child:hover,
 .program-week-day.passed + .program-week-day:not(.passed):hover {
   border-color: var(--accent);
-  background: color-mix(in srgb, var(--accent) 7%, var(--surface));
+  background: color-mix(in srgb, var(--accent) 9%, var(--surface-raised));
 }
 
 .program-week-day:not(.passed):first-child .program-week-name,
@@ -61,14 +61,19 @@
 }
 
 .program-week-day.passed {
-  background: var(--surface-raised);
-  border-color: color-mix(in srgb, var(--border) 60%, transparent);
-  opacity: 0.8;
+  background: color-mix(in srgb, var(--accent) 4%, var(--surface-raised));
+  border-color: var(--accent-border);
+  opacity: 1;
+}
+
+.program-week-day.passed.exercise-day:hover {
+  border-color: var(--accent-border-strong);
+  background: color-mix(in srgb, var(--accent) 7%, var(--surface-raised));
 }
 
 .program-week-day.passed .program-week-name {
-  color: var(--muted);
-  font-weight: 550;
+  color: var(--text);
+  font-weight: 600;
 }
 
 .program-week-check {

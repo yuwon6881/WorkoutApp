@@ -28,7 +28,7 @@ export function GoogleHealthSettings() {
   const [workoutActionLoading, setWorkoutActionLoading] = useState(false);
 
   const openDisclosure = () => {
-    setRequestWorkoutSync(state.workoutSync.enabled);
+    setRequestWorkoutSync(state.status === 'connected' && state.workoutSync.permissionGranted ? state.workoutSync.enabled : true);
     setDisclosureOpen(true);
   };
 
