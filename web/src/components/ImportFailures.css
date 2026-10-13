@@ -1,0 +1,272 @@
+/* Import failure, reading stopped, failure banner, and stopped imports redesign */
+
+/* Stopped imports list (<details>) */
+.ifail-stopped {
+  border-top: 1px solid var(--border);
+  padding-top: 16px; margin-top: 18px;
+  min-width: 0; max-width: 100%;
+}
+.ifail-stopped-summary {
+  display: flex; align-items: center; justify-content: space-between;
+  min-height: 44px; padding: 6px 4px;
+  color: var(--text); font-size: 14px; font-weight: 600;
+  cursor: pointer; list-style: none; user-select: none;
+  border-radius: var(--radius-control);
+  transition: color var(--motion-control) ease;
+}
+.ifail-stopped-summary::-webkit-details-marker { display: none; }
+.ifail-stopped-summary:hover { color: var(--accent); }
+.ifail-stopped-summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.ifail-stopped-summary-chevron {
+  color: var(--muted); flex-shrink: 0;
+  transition: transform var(--motion-control) var(--motion-ease), color var(--motion-control) ease;
+}
+.ifail-stopped[open] .ifail-stopped-summary-chevron { transform: rotate(180deg); }
+.ifail-stopped-summary:hover .ifail-stopped-summary-chevron { color: var(--text); }
+.ifail-stopped-desc {
+  margin: 4px 4px 12px;
+  font-size: var(--font-secondary); line-height: 1.5; color: var(--muted);
+}
+.ifail-stopped-list {
+  display: grid; gap: 8px; list-style: none;
+  margin: 0; padding: 0; width: 100%; max-width: 100%; min-width: 0;
+}
+.ifail-stopped-item { width: 100%; max-width: 100%; min-width: 0; }
+
+/* Card-style row button */
+.ifail-stopped-row.button {
+  display: flex; align-items: center; gap: 12px;
+  width: 100%; max-width: 100%; min-width: 0; min-height: 52px;
+  padding: 10px 14px; border-radius: var(--radius-control);
+  background: var(--surface); border: 1px solid var(--border);
+  box-shadow: var(--shadow); text-align: left; white-space: normal;
+  color: var(--text); box-sizing: border-box;
+  transition: background-color var(--motion-control) ease, border-color var(--motion-control) ease, box-shadow var(--motion-control) ease;
+}
+.ifail-stopped-row.button:hover:not(:disabled) {
+  background: var(--surface-hover); border-color: var(--border-hover);
+  box-shadow: var(--shadow-raised);
+}
+.ifail-stopped-row.button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.ifail-stopped-icon {
+  display: grid; place-items: center; width: 32px; height: 32px; flex-shrink: 0;
+  border-radius: 8px; background: var(--surface-raised); border: 1px solid var(--border);
+  color: var(--muted);
+  transition: color var(--motion-control) ease, border-color var(--motion-control) ease;
+}
+.ifail-stopped-row.button:hover:not(:disabled) .ifail-stopped-icon {
+  color: var(--accent); border-color: var(--accent-border);
+}
+.ifail-stopped-text {
+  display: flex; flex-direction: column; gap: 2px;
+  flex: 1 1 auto; min-width: 0; overflow: hidden;
+}
+.ifail-stopped-filename {
+  display: block; font-size: 14px; font-weight: 600; color: var(--text);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  min-width: 0; max-width: 100%; line-height: 1.4;
+}
+.ifail-stopped-meta {
+  display: block; font-size: var(--font-secondary); color: var(--muted);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  min-width: 0; max-width: 100%; line-height: 1.3;
+}
+.ifail-stopped-chevron {
+  flex-shrink: 0; margin-left: auto; color: var(--muted);
+  transition: transform var(--motion-control) var(--motion-ease), color var(--motion-control) ease;
+}
+.ifail-stopped-row.button:hover:not(:disabled) .ifail-stopped-chevron {
+  color: var(--text); transform: translateX(2px);
+}
+
+/* Failed Panel & Reading Stopped Panel (Shared) */
+.ifail-panel {
+  display: grid; gap: 18px; width: 100%; max-width: 100%; min-width: 0;
+}
+.ifail-header {
+  display: flex; align-items: flex-start; gap: 14px; min-width: 0;
+}
+.ifail-icon-tile {
+  display: grid; place-items: center; width: 44px; height: 44px; flex: 0 0 44px;
+  border-radius: var(--radius-control); background: var(--surface-raised);
+  border: 1px solid var(--border); color: var(--muted);
+}
+.ifail-icon-tile.error {
+  background: var(--red-soft); border-color: var(--red-border); color: var(--red);
+}
+.ifail-icon-tile.warning {
+  background: color-mix(in srgb, var(--amber) 14%, transparent);
+  border-color: color-mix(in srgb, var(--amber) 32%, transparent);
+  color: var(--amber);
+}
+.ifail-heading {
+  display: flex; flex-direction: column; gap: 6px;
+  min-width: 0; flex: 1 1 auto;
+}
+.ifail-title {
+  margin: 0; font-size: 18px; font-weight: 700; letter-spacing: -0.02em;
+  color: var(--text); line-height: 1.25;
+}
+.ifail-subtitle {
+  margin: 0; font-size: var(--font-secondary); color: var(--muted); line-height: 1.45;
+}
+.ifail-filename-chip {
+  display: inline-flex; align-items: center; gap: 6px; align-self: flex-start;
+  padding: 3px 10px; border-radius: var(--radius-pill);
+  background: var(--surface-raised); border: 1px solid var(--border);
+  font-size: var(--font-secondary); color: var(--muted); max-width: 100%; min-width: 0;
+}
+.ifail-filename-chip svg { flex-shrink: 0; color: var(--faint); }
+.ifail-filename-text {
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0;
+}
+
+/* Reason / Error block with left severity bar */
+.ifail-reason {
+  display: grid; gap: 8px; padding: 14px 16px;
+  border-radius: var(--radius-control); background: var(--surface-raised);
+  border: 1px solid var(--border); min-width: 0;
+}
+.ifail-reason.error {
+  background: color-mix(in srgb, var(--red-soft) 40%, var(--surface-raised));
+  border-color: var(--red-border); border-left: 4px solid var(--red);
+}
+.ifail-reason.warning {
+  background: color-mix(in srgb, var(--amber) 8%, var(--surface-raised));
+  border-color: color-mix(in srgb, var(--amber) 28%, var(--border));
+  border-left: 4px solid var(--amber);
+}
+.ifail-reason-header {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px;
+}
+.ifail-reason-title {
+  font-size: 15px; font-weight: 650; color: var(--text); letter-spacing: -0.01em;
+}
+.ifail-page-pill {
+  font-size: var(--font-secondary); font-weight: 600; padding: 2px 8px;
+  border-radius: var(--radius-pill); background: var(--surface);
+  border: 1px solid var(--border); color: var(--muted);
+}
+.ifail-reason-message {
+  margin: 0; font-size: 14px; line-height: 1.5; color: var(--text); overflow-wrap: anywhere;
+}
+.ifail-reason-hint {
+  margin: 0; font-size: var(--font-secondary); line-height: 1.45; color: var(--muted); overflow-wrap: anywhere;
+}
+
+/* "What you can do" numbered steps */
+.ifail-steps { display: grid; gap: 10px; min-width: 0; }
+.ifail-steps-heading {
+  margin: 0; font-size: 14px; font-weight: 650; letter-spacing: -0.01em; color: var(--text);
+}
+.ifail-steps-list {
+  display: grid; gap: 8px; list-style: none; margin: 0; padding: 0;
+}
+.ifail-step-item {
+  display: flex; align-items: flex-start; gap: 12px; padding: 10px 14px;
+  border-radius: var(--radius-control); background: var(--surface-raised);
+  border: 1px solid var(--border); min-width: 0;
+}
+.ifail-step-badge {
+  display: grid; place-items: center; flex: 0 0 22px; width: 22px; height: 22px;
+  border-radius: 50%; background: var(--surface-hover); border: 1px solid var(--border-hover);
+  color: var(--text); font-size: var(--font-secondary); font-weight: 700; margin-top: 1px;
+}
+.ifail-step-text {
+  font-size: var(--font-secondary); line-height: 1.5; color: var(--text); flex: 1 1 auto;
+  min-width: 0; overflow-wrap: anywhere;
+}
+
+/* Consistent quiet disclosures */
+.ifail-disclosure { border-top: 1px solid var(--border); padding-top: 4px; min-width: 0; }
+.ifail-disclosure-summary {
+  display: flex; align-items: center; justify-content: space-between;
+  min-height: 44px; padding: 6px 4px; cursor: pointer;
+  font-size: var(--font-secondary); font-weight: 600; color: var(--muted);
+  list-style: none; user-select: none; border-radius: var(--radius-control);
+  transition: color var(--motion-control) ease;
+}
+.ifail-disclosure-summary::-webkit-details-marker { display: none; }
+.ifail-disclosure-summary:hover { color: var(--text); }
+.ifail-disclosure-summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.ifail-disclosure-chevron {
+  flex-shrink: 0; color: var(--muted);
+  transition: transform var(--motion-control) var(--motion-ease), color var(--motion-control) ease;
+}
+.ifail-disclosure[open] .ifail-disclosure-chevron { transform: rotate(180deg); }
+.ifail-disclosure-summary:hover .ifail-disclosure-chevron { color: var(--text); }
+.ifail-disclosure-list {
+  display: grid; gap: 10px; margin: 6px 0 12px; padding: 0; list-style: none;
+}
+.ifail-disclosure-item {
+  display: grid; gap: 4px; padding: 10px 14px;
+  border-radius: var(--radius-control); background: var(--surface-raised);
+  border: 1px solid var(--border); font-size: var(--font-secondary); min-width: 0;
+}
+.ifail-disclosure-item-header {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 6px; color: var(--text);
+}
+.ifail-disclosure-item-header strong { font-size: var(--font-secondary); font-weight: 650; }
+.ifail-disclosure-item-msg { margin: 0; color: var(--muted); line-height: 1.45; overflow-wrap: anywhere; }
+.ifail-disclosure-body { margin: 6px 0 12px; }
+.ifail-tech-error {
+  margin: 0; padding: 12px 14px; border-radius: var(--radius-control);
+  background: var(--surface-raised); border: 1px solid var(--border);
+  color: var(--muted); font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: var(--font-secondary); line-height: 1.55; overflow-wrap: anywhere; white-space: pre-wrap;
+}
+
+/* Action row */
+.ifail-actions {
+  display: flex; align-items: center; gap: 10px; margin-top: 6px;
+}
+@media (min-width: 640px) {
+  .ifail-actions { justify-content: flex-end; }
+  .ifail-actions .ifail-btn-secondary { order: 1; }
+  .ifail-actions .ifail-btn-primary { order: 2; }
+}
+@media (max-width: 639px) {
+  .ifail-actions { flex-direction: column; width: 100%; gap: 10px; }
+  .ifail-actions .ifail-btn-primary { order: 1; width: 100%; min-height: 48px; }
+  .ifail-actions .ifail-btn-secondary { order: 2; width: 100%; min-height: 48px; }
+}
+
+/* Failure Banner (ImportFailureBanner) */
+.ifail-banner {
+  display: flex; align-items: center; gap: 12px;
+  padding: 6px 8px 6px 14px; border-radius: var(--radius-control);
+  background: color-mix(in srgb, var(--red) 10%, var(--surface-raised));
+  border: 1px solid var(--red-border); color: var(--text);
+  margin-top: 12px; margin-bottom: 12px;
+  width: 100%; max-width: 100%; min-width: 0; box-sizing: border-box;
+}
+.ifail-banner-icon {
+  display: grid; place-items: center; flex: 0 0 16px; width: 16px; color: var(--red);
+}
+.ifail-banner-message {
+  flex: 1 1 auto; min-width: 0; margin: 0;
+  font-size: var(--font-secondary); line-height: 1.45; color: var(--text);
+  overflow-wrap: anywhere; word-break: break-word;
+}
+.ifail-banner-dismiss.button {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 44px; min-height: 44px; width: 44px; height: 44px; padding: 0;
+  border-radius: var(--radius-pill); flex-shrink: 0;
+  color: var(--muted); background: transparent; border-color: transparent;
+  transition: color var(--motion-control) ease, background-color var(--motion-control) ease;
+}
+.ifail-banner-dismiss.button:hover:not(:disabled) {
+  color: var(--text); background: var(--surface-hover);
+}
+.ifail-banner-dismiss.button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* Reduced Motion */
+@media (prefers-reduced-motion: reduce) {
+  .ifail-stopped-summary-chevron,
+  .ifail-stopped-chevron,
+  .ifail-disclosure-chevron,
+  .ifail-stopped-row.button {
+    transition: none !important;
+    transform: none !important;
+  }
+}

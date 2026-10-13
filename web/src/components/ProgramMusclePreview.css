@@ -1,47 +1,274 @@
-.program-muscle-preview { display: grid; gap: 9px; margin: 2px 0 1px; min-width: 0; }
-.program-muscle-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 210px), 1fr)); gap: 8px; margin: 0; padding: 0; list-style: none; min-width: 0; }
-.program-muscle-grid > li { min-width: 0; }
-.program-muscle-tile { display: grid; grid-template-columns: 76px minmax(0, 1fr); align-items: center; gap: 10px; width: 100%; min-width: 0; min-height: 78px; padding: 8px 12px; border: 1px solid var(--border); border-radius: 16px; background: var(--surface-raised); color: var(--text); text-align: left; cursor: pointer; transition: border-color var(--motion-control) ease, background-color var(--motion-control) ease, box-shadow var(--motion-control) ease; }
-.program-muscle-tile:hover { border-color: var(--border-hover); background: var(--surface-hover); }
-.program-muscle-tile.is-selected { border-color: var(--accent-border-strong); background: var(--accent-soft); box-shadow: 0 0 0 1px var(--accent-border); }
-.program-muscle-tile.is-selected:hover { border-color: var(--accent); }
-.program-muscle-tile:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
-.program-muscle-figure { width: 76px; height: 64px; }
-.program-muscle-copy { display: grid; gap: 4px; min-width: 0; }
-.program-muscle-copy > strong { font-size: 14px; font-weight: 700; letter-spacing: -0.015em; line-height: 1.25; overflow-wrap: anywhere; }
-.program-muscle-copy > span { color: var(--muted); font-size: var(--font-secondary); line-height: 1.35; font-variant-numeric: tabular-nums; }
-.program-muscle-empty, .program-muscle-unattributed { font-size: var(--font-secondary); line-height: 1.5; color: var(--muted); }
-.program-muscle-empty { padding: 10px 14px; border: 1px solid var(--border); border-radius: 14px; background: var(--surface-raised); }
+/* Container */
+.program-muscle-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0;
+  min-width: 0;
+  width: 100%;
+}
+
+.draft-day-muscles,
+.day-detail-modal-body .draft-day-muscles {
+  padding: 0;
+  margin: 0;
+  min-width: 0;
+  width: 100%;
+}
+
+/* Heading above tiles */
+.program-muscle-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+}
+
+.program-muscle-heading {
+  margin: 0;
+  font-size: var(--font-secondary);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+  line-height: 1.3;
+}
+
+/* Grid on medium and expanded (>= 640px): auto-fill grid with equal tile heights */
+.program-muscle-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  grid-auto-rows: 1fr;
+  align-items: stretch;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  min-width: 0;
+  width: 100%;
+}
+
+.program-muscle-grid > li,
+.program-muscle-item {
+  min-width: 0;
+  height: 100%;
+  display: flex;
+}
+
+/* Base tile styling */
+.program-muscle-tile {
+  display: grid;
+  grid-template-columns: 52px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-width: 0;
+  min-height: 68px;
+  height: 100%;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control, 14px);
+  background: var(--surface-raised);
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+  box-sizing: border-box;
+  transition: border-color var(--motion-control) ease,
+              background-color var(--motion-control) ease,
+              box-shadow var(--motion-control) ease;
+}
+
+.program-muscle-tile:hover {
+  border-color: var(--border-hover);
+  background: var(--surface-hover);
+}
+
+/* Selected state: accent border + accent-soft background, box shadow, and visible text badge */
+.program-muscle-tile.is-selected {
+  border-color: var(--accent-border-strong);
+  background: var(--accent-soft);
+  box-shadow: 0 0 0 1px var(--accent-border);
+}
+
+.program-muscle-tile.is-selected:hover {
+  border-color: var(--accent);
+}
+
+.program-muscle-tile:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+/* Figure */
+.program-muscle-figure {
+  width: 52px;
+  height: 44px;
+  flex-shrink: 0;
+}
+
+/* Copy text */
+.program-muscle-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+  justify-content: center;
+}
+
+.program-muscle-title-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  width: 100%;
+}
+
+.program-muscle-title-row > strong {
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+  line-height: 1.25;
+  color: var(--text);
+  overflow-wrap: anywhere;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+/* Selected text badge: ensures selected state is conveyed through text, not colour alone */
+.program-muscle-selected-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 6px;
+  font-size: var(--font-secondary);
+  font-weight: 750;
+  line-height: 1.2;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  border-radius: var(--radius-pill);
+  background: var(--accent);
+  color: var(--on-accent);
+  flex: 0 0 auto;
+}
+
+/* Credit text wraps by word and is never clipped: the credit count is the figure itself. */
+.program-muscle-credit-text {
+  color: var(--muted);
+  font-size: var(--font-secondary);
+  line-height: 1.35;
+  font-variant-numeric: tabular-nums;
+  word-break: normal;
+  overflow-wrap: break-word;
+}
+
+/* Empty & Unattributed states */
+.program-muscle-empty,
+.program-muscle-unattributed {
+  font-size: var(--font-secondary, 14px);
+  line-height: 1.5;
+  color: var(--muted);
+  margin: 0;
+}
+
+.program-muscle-empty {
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control, 14px);
+  background: var(--surface-raised);
+}
 
 /* Exercise highlight state: when a muscle tile is selected, exercises that don't contribute are dimmed. */
-.import-exercise.exercise-dimmed { opacity: .35; transition: opacity var(--motion-panel) ease; }
-.import-exercise:not(.exercise-dimmed) { transition: opacity var(--motion-panel) ease; }
+.import-exercise.exercise-dimmed,
+.import-exercise-dim-wrap.exercise-dimmed {
+  opacity: .35;
+  transition: opacity var(--motion-panel) ease;
+}
 
+.import-exercise:not(.exercise-dimmed),
+.import-exercise-dim-wrap:not(.exercise-dimmed) {
+  transition: opacity var(--motion-panel) ease;
+}
+
+/* Compact layout (< 640px): clean 2-column grid */
 @media (max-width: 639px) {
   .program-muscle-grid {
-    display: flex;
-    flex-wrap: nowrap;
-    overflow-x: auto;
-    overflow-y: hidden;
-    -webkit-overflow-scrolling: touch;
-    scroll-behavior: smooth;
-    scrollbar-width: none;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-auto-rows: 1fr;
     gap: 8px;
-    padding: 2px 2px 8px;
+    padding: 0;
     margin: 0;
+    overflow: visible;
   }
-  .program-muscle-grid::-webkit-scrollbar { display: none; }
-  .program-muscle-grid > li { flex: 0 0 auto; width: 180px; min-width: 180px; }
-  .program-muscle-tile { grid-template-columns: 52px minmax(0, 1fr); gap: 8px; min-height: 60px; height: 100%; padding: 6px 10px; cursor: pointer; border-radius: 14px; }
-  .program-muscle-figure { width: 52px; height: 44px; }
-  .program-muscle-copy > strong { font-size: 14px; overflow-wrap: anywhere; }
-  .program-muscle-copy > span { font-size: var(--font-secondary); white-space: normal; overflow-wrap: anywhere; }
+
+  .program-muscle-grid > li,
+  .program-muscle-item {
+    width: 100%;
+    min-width: 0;
+    height: 100%;
+  }
+
+  .program-muscle-tile {
+    grid-template-columns: 40px minmax(0, 1fr);
+    gap: 8px;
+    min-height: 60px;
+    height: 100%;
+    padding: 6px 8px;
+    border-radius: 12px;
+  }
+
+  .program-muscle-figure {
+    width: 40px;
+    height: 34px;
+  }
+
+  .program-muscle-title-row > strong {
+    font-size: var(--font-secondary);
+  }
+
+  .program-muscle-selected-badge {
+    padding: 1px 4px;
+    font-size: var(--font-secondary);
+  }
+
+  .program-muscle-credit-text {
+    font-size: var(--font-secondary);
+    line-height: 1.25;
+  }
+}
+
+/* Very narrow viewports (< 360px): tight padding and scaled thumb to prevent overflow */
+@media (max-width: 359px) {
+  .program-muscle-grid {
+    gap: 6px;
+  }
+
+  .program-muscle-tile {
+    grid-template-columns: 34px minmax(0, 1fr);
+    gap: 6px;
+    padding: 6px 6px;
+  }
+
+  .program-muscle-figure {
+    width: 34px;
+    height: 29px;
+  }
+
+  .program-muscle-title-row > strong {
+    font-size: var(--font-secondary);
+  }
+
+  .program-muscle-credit-text {
+    font-size: var(--font-secondary);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .program-muscle-tile,
   .import-exercise.exercise-dimmed,
-  .import-exercise:not(.exercise-dimmed) { transition: none; }
+  .import-exercise:not(.exercise-dimmed),
+  .import-exercise-dim-wrap.exercise-dimmed,
+  .import-exercise-dim-wrap:not(.exercise-dimmed) {
+    transition: none;
+  }
 }
-
-.draft-day-muscles { padding: 0 14px 12px; min-width: 0; }

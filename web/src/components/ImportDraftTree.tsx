@@ -11,14 +11,11 @@ import { ProgramStructureModals } from './ProgramStructureModals';
 import { ProgramDayList } from './ProgramDayList';
 import { useProgramStructureEditor } from './useProgramStructureEditor';
 import './ProgramBuilder.css';
+import './ProgramTimeline.css';
+import './ProgramStructureBar.css';
 
-export type ImportIssueTarget = {
-  sourcePage?: number | null;
-  workoutLineId?: string | null;
-  exerciseLineId?: string | null;
-  setIndex?: number | null;
-  targetField?: string | null;
-};
+import type { ImportIssueTarget } from '../lib/importAttentionRows';
+export type { ImportIssueTarget };
 
 export type DraftOutlineHandle = {
   focusIssue: (target: ImportIssueTarget) => void;
@@ -162,42 +159,58 @@ export const DraftOutline = forwardRef<DraftOutlineHandle, {
   }
 
   return <>
-    <section className="panel import-program-card" data-editor-mode={editorMode}>
-      <div className="section-heading import-program-heading">
-        <div className="import-program-title">
-          <span className="import-program-icon" aria-hidden="true"><CalendarDays size={18} /></span>
-          <div>
-            <span className="import-program-kicker">Program timeline · {weeks.length} {weeks.length === 1 ? 'week' : 'weeks'}</span>
+    <section className="panel import-program-card ptl-timeline-card" data-editor-mode={editorMode}>
+      <div className="section-heading import-program-heading ptl-header">
+        <div className="import-program-title ptl-title-block">
+          <span className="import-program-icon ptl-icon-tile" aria-hidden="true"><CalendarDays size={18} /></span>
+          <div className="ptl-title-content">
+            <span className="import-program-kicker ptl-kicker">Program timeline · {weeks.length} {weeks.length === 1 ? 'week' : 'weeks'}</span>
             {editableProgramName
-              ? <Field label="Program name" name="program-name" value={draft.programName}
-                onChange={event => onProgramNameChange?.(event.currentTarget.value)} />
-              : <h2>{draft.programName}</h2>}
+              ? <Field
+                  label="Program name"
+                  name="program-name"
+                  placeholder="e.g. Upper / Lower 4-day"
+                  value={draft.programName}
+                  onChange={event => onProgramNameChange?.(event.currentTarget.value)}
+                  className="ptl-program-name-field"
+                />
+              : <h2 className="ptl-title-text">{draft.programName}</h2>}
           </div>
         </div>
-        <div className="import-program-actions">
-          {(onRestoreDraft || onDiscardDraft) && (
-            <MenuButton label="Draft actions" triggerClassName="program-actions-trigger">
-              {canRestoreDraft && onRestoreDraft && (
-                <MenuItem disabled={busy && !canRestoreDraft} onClick={onRestoreDraft}>
-                  <RotateCcw size={14} />Restore default draft
-                </MenuItem>
-              )}
-              {onDiscardDraft && (
-                <MenuItem destructive disabled={busy} onClick={onDiscardDraft}>
-                  <Trash2 size={14} />Discard draft
-                </MenuItem>
-              )}
-            </MenuButton>
-          )}
-          {onAcceptProgram && (
-            <Button
-              variant="primary"
-              disabled={busy || !acceptable}
-              title={!acceptable ? actionHint ?? 'Resolve review items before creating the program' : undefined}
-              onClick={onAcceptProgram}
-            >
-              <Check size={15} />{actionLabel}
-            </Button>
+        <div className="import-program-actions ptl-actions-group">
+          <div className="ptl-actions-row">
+            {onAcceptProgram && (
+              <Button
+                variant="primary"
+                disabled={busy || !acceptable}
+                title={!acceptable ? actionHint ?? 'Resolve review items before creating the program' : undefined}
+                onClick={onAcceptProgram}
+                className="ptl-primary-btn"
+              >
+                <Check size={15} />{actionLabel}
+              </Button>
+            )}
+            {(onRestoreDraft || onDiscardDraft) && (
+              <div className="ptl-menu-wrap">
+                <MenuButton label="Draft actions" triggerClassName="program-actions-trigger ptl-actions-trigger">
+                  {canRestoreDraft && onRestoreDraft && (
+                    <MenuItem disabled={busy && !canRestoreDraft} onClick={onRestoreDraft}>
+                      <RotateCcw size={14} />Restore default draft
+                    </MenuItem>
+                  )}
+                  {onDiscardDraft && (
+                    <MenuItem destructive disabled={busy} onClick={onDiscardDraft}>
+                      <Trash2 size={14} />Discard draft
+                    </MenuItem>
+                  )}
+                </MenuButton>
+              </div>
+            )}
+          </div>
+          {onAcceptProgram && !acceptable && (
+            <p className="ptl-action-hint" role="status">
+              {actionHint ?? 'Resolve review items before creating the program'}
+            </p>
           )}
         </div>
       </div>

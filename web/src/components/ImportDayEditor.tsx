@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Plus } from 'lucide-react';
+import { Moon, Plus } from 'lucide-react';
 import type { DraftExercise, DraftWorkout, Exercise } from '../types';
 import { exerciseCredits } from '../lib/programMuscles';
 import { Button } from './ui/Button';
@@ -8,8 +8,19 @@ import { pairExercises, unlinkExercise } from '../lib/supersets';
 import { ExerciseEditor, blankExercise } from './ImportExerciseEditor';
 import { SupersetGroupHeader } from './SupersetTag';
 import type { ExerciseEditing } from '../lib/exerciseEditScope';
+import './ImportDaySheet.css';
 
-export function DayEditor({ day, exercises, onChange, editing, onCustomExerciseCreated, restorableExerciseLineIds, onRestoreExercise, getRepRangeMemory, selectedMuscle }: {
+export function DayEditor({
+  day,
+  exercises,
+  onChange,
+  editing,
+  onCustomExerciseCreated,
+  restorableExerciseLineIds,
+  onRestoreExercise,
+  getRepRangeMemory,
+  selectedMuscle
+}: {
   day: DraftWorkout;
   exercises: Exercise[];
   onChange: (day: DraftWorkout) => Promise<void>;
@@ -27,7 +38,9 @@ export function DayEditor({ day, exercises, onChange, editing, onCustomExerciseC
   const save = (next: DraftWorkout) => {
     setDraft(next);
     setSaveError('');
-    void onChange(next).catch(failure => setSaveError(failure instanceof Error ? failure.message : 'Could not save this day. Your edits are kept.'));
+    void onChange(next).catch(failure =>
+      setSaveError(failure instanceof Error ? failure.message : 'Could not save this day. Your edits are kept.')
+    );
   };
 
   const groups: DraftExercise[][] = [];
@@ -79,33 +92,74 @@ export function DayEditor({ day, exercises, onChange, editing, onCustomExerciseC
     return dimmed;
   }, [selectedMuscle, draft.exercises, catalogById]);
 
-  return <div className="day-editor">
-    {saveError && <p className="error-text" role="alert">{saveError}</p>}
-    <div className="day-editor-fields">
-      <Field name={`day-name-${draft.lineId}`} className="day-name-field" label="Day name" value={draft.name} data-import-field="name"
-        onChange={event => setDraft({ ...draft, name: event.target.value })}
-        onBlur={() => save(draft)} />
+  return (
+    <div className="ids-day-editor day-editor">
+      {saveError && <p className="error-text" role="alert">{saveError}</p>}
+      <div className="ids-day-fields day-editor-fields">
+        <Field
+          name={`day-name-${draft.lineId}`}
+          className="ids-day-name-field day-name-field"
+          label="Day name"
+          value={draft.name}
+          data-import-field="name"
+          onChange={event => setDraft({ ...draft, name: event.target.value })}
+          onBlur={() => save(draft)}
+        />
+      </div>
+      {draft.isRestDay ? (
+        <div className="ids-rest-callout rest-callout" role="status">
+          <span className="ids-rest-icon" aria-hidden="true">
+            <Moon size={20} />
+          </span>
+          <div className="ids-rest-content">
+            <strong className="ids-rest-title">Rest day</strong>
+            <p className="ids-rest-message">No exercises are scheduled for this slot.</p>
+          </div>
+        </div>
+      ) : (
+        <div className="ids-exercise-groups">
+          {groups.map((group, groupIndex) => (
+            <div className={group.length > 1 ? 'ids-superset-block superset-block' : 'ids-single-block'} key={groupIndex}>
+              {group.length > 1 && <SupersetGroupHeader sequenceGroup={group[0].sequenceGroup} count={group.length} />}
+              <div className="ids-group-exercises">
+                {group.map(exercise => (
+                  <div
+                    key={exercise.lineId}
+                    data-exercise-line={exercise.lineId}
+                    className={dimSet?.has(exercise.lineId) ? 'import-exercise-dim-wrap exercise-dimmed' : 'import-exercise-dim-wrap'}
+                  >
+                    <ExerciseEditor
+                      exercise={exercise}
+                      exercises={exercises}
+                      allDayExercises={draft.exercises}
+                      rememberedRepWidths={getRepRangeMemory(exercise.lineId)}
+                      editing={editing}
+                      onRemove={() => handleRemoveExercise(exercise.lineId)}
+                      onPairExercises={targetLineId => handlePairExercises(exercise.lineId, targetLineId)}
+                      onUnlinkExercise={() => handleUnlinkExercise(exercise.lineId)}
+                      onCustomExerciseCreated={onCustomExerciseCreated}
+                      canRestore={restorableExerciseLineIds?.includes(exercise.lineId)}
+                      onRestore={onRestoreExercise ? () => onRestoreExercise(exercise.lineId) : undefined}
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+      {!draft.isRestDay && (
+        <div className="ids-add-exercise-row">
+          <Button
+            variant="secondary"
+            className="ids-add-exercise-button day-add-exercise-button"
+            onClick={() => save({ ...draft, exercises: [...draft.exercises, blankExercise()] })}
+          >
+            <Plus size={16} aria-hidden="true" />
+            <span>Add exercise</span>
+          </Button>
+        </div>
+      )}
     </div>
-    {draft.isRestDay
-      ? <div className="rest-callout"><span className="tiny-label">Rest day</span><p>No exercises are scheduled for this slot.</p></div>
-      : groups.map((group, groupIndex) => <div className={group.length > 1 ? 'superset-block' : ''} key={groupIndex}>
-        {group.length > 1 && <SupersetGroupHeader sequenceGroup={group[0].sequenceGroup} count={group.length} />}
-        {group.map(exercise => <div key={exercise.lineId}
-          data-exercise-line={exercise.lineId}
-          className={dimSet?.has(exercise.lineId) ? 'import-exercise-dim-wrap exercise-dimmed' : ''}>
-          <ExerciseEditor exercise={exercise} exercises={exercises} allDayExercises={draft.exercises}
-            rememberedRepWidths={getRepRangeMemory(exercise.lineId)}
-            editing={editing}
-            onRemove={() => handleRemoveExercise(exercise.lineId)}
-            onPairExercises={targetLineId => handlePairExercises(exercise.lineId, targetLineId)}
-            onUnlinkExercise={() => handleUnlinkExercise(exercise.lineId)}
-            onCustomExerciseCreated={onCustomExerciseCreated}
-            canRestore={restorableExerciseLineIds?.includes(exercise.lineId)}
-            onRestore={onRestoreExercise ? () => onRestoreExercise(exercise.lineId) : undefined} />
-        </div>)}
-      </div>)}
-    {!draft.isRestDay && <Button variant="tertiary" className="day-add-exercise-button" onClick={() => save({ ...draft, exercises: [...draft.exercises, blankExercise()] })}>
-      <Plus size={16} />Add exercise
-    </Button>}
-  </div>;
+  );
 }

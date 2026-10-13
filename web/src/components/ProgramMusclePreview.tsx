@@ -25,29 +25,49 @@ export function ProgramMusclePreview({ summary, selectedMuscle, onMuscleSelect }
   return (
     <section className="program-muscle-preview" aria-label="Planned target muscles">
       {summary.muscles.length > 0 ? (
-        <ul className="program-muscle-grid" role="list" aria-label="Planned target muscles list">
-          {summary.muscles.map(({ muscle, sets }) => {
-            const isSelected = selectedMuscle === muscle;
-            return (
-              <li key={muscle}>
-                <Button
-                  presentation="plain"
-                  className={`program-muscle-tile${isSelected ? ' is-selected' : ''}`}
-                  aria-label={`${muscle}, ${formatSets(sets)} planned set ${sets === 1 ? 'credit' : 'credits'}`}
-                  aria-pressed={isSelected}
-                  onClick={() => onMuscleSelect?.(isSelected ? null : muscle)}
-                >
-                  <MuscleThumb muscle={muscle} shade={shades.get(muscle) ?? 0} aspect={THUMB_ASPECT}
-                    className="program-muscle-figure" />
-                  <span className="program-muscle-copy">
-                    <strong>{muscle}</strong>
-                    <span>{formatSets(sets)} planned set {sets === 1 ? 'credit' : 'credits'}</span>
-                  </span>
-                </Button>
-              </li>
-            );
-          })}
-        </ul>
+        <>
+          <div className="program-muscle-header">
+            <h3 className="program-muscle-heading">Muscles worked</h3>
+          </div>
+          <ul className="program-muscle-grid" role="list" aria-label="Planned target muscles list">
+            {summary.muscles.map(({ muscle, sets }) => {
+              const isSelected = selectedMuscle === muscle;
+              const formattedSets = formatSets(sets);
+              const creditWord = sets === 1 ? 'credit' : 'credits';
+              return (
+                <li key={muscle} className="program-muscle-item">
+                  <Button
+                    presentation="plain"
+                    className={`program-muscle-tile${isSelected ? ' is-selected' : ''}`}
+                    aria-label={`${muscle}, ${formattedSets} planned set ${creditWord}${isSelected ? ', selected' : ''}`}
+                    aria-pressed={isSelected}
+                    onClick={() => onMuscleSelect?.(isSelected ? null : muscle)}
+                  >
+                    <MuscleThumb
+                      muscle={muscle}
+                      shade={shades.get(muscle) ?? 0}
+                      aspect={THUMB_ASPECT}
+                      className="program-muscle-figure"
+                    />
+                    <span className="program-muscle-copy">
+                      <span className="program-muscle-title-row">
+                        <strong title={muscle}>{muscle}</strong>
+                        {isSelected && (
+                          <span className="program-muscle-selected-badge" aria-hidden="true">
+                            Selected
+                          </span>
+                        )}
+                      </span>
+                      <span className="program-muscle-credit-text">
+                        {formattedSets} planned set {creditWord}
+                      </span>
+                    </span>
+                  </Button>
+                </li>
+              );
+            })}
+          </ul>
+        </>
       ) : (
         <p className="program-muscle-empty" role="status">
           {summary.unattributedExercises > 0

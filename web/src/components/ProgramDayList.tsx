@@ -11,6 +11,7 @@ import { ReadOnlyDay } from './ReadOnlyDay';
 import { useEdgeAutoScroll } from './useEdgeAutoScroll';
 import { dayTitle, isGenericDayTitle } from '../lib/dayTitle';
 import type { ProgramStructureEditor } from './useProgramStructureEditor';
+import './ProgramDayList.css';
 
 type DragState = { lineId: string; overIndex: number; side: 'before' | 'after' };
 
@@ -151,12 +152,12 @@ export function ProgramDayList({
     : '';
 
   return <>
-    <div className="import-week-days" role="tabpanel" aria-label={`Week ${week.week}`}>
+    <div className="import-week-days pdl-week-days" role="tabpanel" aria-label={`Week ${week.week}`}>
       {days.map((day, dayIndex) => {
         const dropSide = drag && drag.lineId !== day.lineId && drag.overIndex === dayIndex ? drag.side : null;
         return <div
           key={day.lineId}
-          className="program-day-entry"
+          className={`program-day-entry pdl-day-entry ${day.isRestDay ? 'pdl-entry-rest' : ''}`}
           data-day-index={dayIndex}
           data-dragging={drag?.lineId === day.lineId ? 'true' : undefined}
           data-drop={dropSide ?? undefined}
@@ -168,8 +169,8 @@ export function ProgramDayList({
             exercises={exercises}
             handle={readOnly ? undefined : <Button
               presentation="plain"
-              className="program-day-handle"
-              aria-label={`Reorder ${day.name}, day ${dayIndex + 1} of ${days.length}. Press the up or down arrow key to move it.`}
+              className="program-day-handle pdl-day-handle"
+              aria-label={`Reorder ${day.name || `Day ${dayIndex + 1}`}, day ${dayIndex + 1} of ${days.length}. Press the up or down arrow key to move it.`}
               disabled={days.length <= 1}
               onKeyDown={event => {
                 if (event.key !== 'ArrowUp' && event.key !== 'ArrowDown') return;
@@ -187,7 +188,7 @@ export function ProgramDayList({
             >
               <GripVertical size={16} />
             </Button>}
-            menu={readOnly ? undefined : <MenuButton label={`Actions for ${day.name}`} triggerClassName="program-day-menu-trigger" portal>
+            menu={readOnly ? undefined : <MenuButton label={`Actions for ${day.name || `Day ${dayIndex + 1}`}`} triggerClassName="program-day-menu-trigger pdl-day-menu-trigger" portal>
               <MenuItem disabled={!canAddDay} onClick={() => duplicateDay(day.lineId)}>
                 <Copy size={14} />Duplicate day
               </MenuItem>
@@ -199,12 +200,12 @@ export function ProgramDayList({
         </div>;
       })}
     </div>
-    {!readOnly && <div className="program-day-add-actions">
-      <div className="program-day-add-buttons">
-        <Button variant="secondary" aria-label="Add workout day" disabled={!canAddDay} onClick={() => addDay(false)}>
+    {!readOnly && <div className="program-day-add-actions pdl-add-actions">
+      <div className="program-day-add-buttons pdl-add-buttons">
+        <Button variant="secondary" className="pdl-add-btn" aria-label="Add workout day" disabled={!canAddDay} onClick={() => addDay(false)}>
           <Plus size={15} />Workout day
         </Button>
-        <Button variant="secondary" aria-label="Add rest day" disabled={!canAddDay} onClick={() => addDay(true)}>
+        <Button variant="secondary" className="pdl-add-btn" aria-label="Add rest day" disabled={!canAddDay} onClick={() => addDay(true)}>
           <Plus size={15} />Rest day
         </Button>
       </div>

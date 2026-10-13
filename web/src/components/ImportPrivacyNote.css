@@ -1,0 +1,79 @@
+/* The "How your PDF is read" disclosure of the upload panel (split from ImportUploadPanel.css). */
+/* Privacy Disclosure ("How your PDF is read") */
+.panel.import-upload-panel .iup-privacy-details {
+  border-top: 1px solid var(--border);
+  padding-top: 10px;
+  min-width: 0;
+  width: 100%;
+}
+
+@media (min-width: 1024px) {
+  .panel.import-upload-panel .iup-privacy-details {
+    padding-top: 18px;
+    margin-top: 4px;
+  }
+}
+
+.iup-privacy-details summary.iup-privacy-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 38px;
+  color: var(--muted);
+  font-size: var(--font-secondary);
+  font-weight: 550;
+  cursor: pointer;
+  user-select: none;
+  list-style: none;
+  border-radius: var(--radius-control);
+  transition: color var(--motion-control) ease;
+}
+
+@media (max-width: 1023px) {
+  .iup-privacy-details summary.iup-privacy-summary {
+    min-height: 44px;
+  }
+}
+
+.iup-privacy-details summary.iup-privacy-summary::-webkit-details-marker {
+  display: none;
+}
+
+.iup-privacy-details summary.iup-privacy-summary:hover {
+  color: var(--text);
+}
+
+.iup-privacy-details summary.iup-privacy-summary:hover .iup-privacy-chevron {
+  color: var(--text);
+}
+
+.iup-privacy-details summary.iup-privacy-summary:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.iup-privacy-chevron {
+  color: var(--muted);
+  flex-shrink: 0;
+  transition: transform var(--motion-control) var(--motion-ease);
+}
+
+.iup-privacy-details[open] .iup-privacy-chevron {
+  transform: rotate(180deg);
+}
+
+.iup-privacy-text {
+  max-width: 60ch;
+  color: var(--muted);
+  font-size: var(--font-secondary);
+  line-height: 1.55;
+  margin: 4px 0 0;
+  overflow-wrap: anywhere;
+}
+
+@media (min-width: 1024px) {
+  .iup-privacy-text {
+    max-width: 65ch;
+  }
+}

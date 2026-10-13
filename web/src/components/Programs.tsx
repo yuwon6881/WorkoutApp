@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ArrowRight, Dumbbell, FileText, Plus, Trash2, Zap } from 'lucide-react';
+import { ArrowRight, Dumbbell, FileText, FolderOpen, Plus, Trash2, Zap } from 'lucide-react';
 import type { AppResource, Bootstrap, Exercise, Template } from '../types';
 import { api } from '../lib/api';
 import { createEmptyProgramDraft } from '../lib/importDraftWeeks';
@@ -17,6 +17,7 @@ import { useWorkoutSlotDrag } from './useWorkoutSlotDrag';
 import { useWorkoutSlotActions } from './useWorkoutSlotActions';
 import './WorkoutSlot.css';
 import './Programs.css';
+import './ProgramsPolish.css';
 
 export function Programs({ data, exercises, onStart, onImport, onChanged, ensureResources, onTemplateSaved, onTemplateDeleted }: {
   data: Bootstrap; exercises: Exercise[]; onStart: (templateId: string) => void; onImport: () => void; onChanged: () => Promise<void>;
@@ -150,6 +151,8 @@ export function Programs({ data, exercises, onStart, onImport, onChanged, ensure
 
   const libraryCount = libraryPrograms.length + libraryTemplates.length;
   const readyImport = data.imports.find(view => view.status === 'ready' && !view.error);
+  const pendingImport = data.imports.find(view => view.status === 'pending' && !view.error);
+  const activeImport = readyImport ?? pendingImport ?? null;
   const movingId = slot.confirmation?.movingId ?? null;
   const draggingId = drag ? slotItemId(drag.item) : null;
   const cardActions = (item: SlotItem): SlotCardActions => ({
@@ -170,71 +173,105 @@ export function Programs({ data, exercises, onStart, onImport, onChanged, ensure
   }
 
   return <>
-    <div className="page-heading">
-      <h1 data-page-heading tabIndex={-1}>Workouts</h1>
-      <div className="heading-actions">
-        <MenuButton label="Add a workout or program" text="New" variant="primary" icon={<Plus size={17} />}>
-          <MenuItem onClick={() => open()}><Dumbbell size={14} />New workout</MenuItem>
-          <MenuItem onClick={() => setBuilding(true)}><Plus size={14} />New program</MenuItem>
-          <MenuItem onClick={onImport} disabled={hasActiveWorkout}><FileText size={14} />Import a PDF program</MenuItem>
-        </MenuButton>
-      </div>
-    </div>
-    {hasActiveWorkout && <p className="program-week-note programs-import-note">Finish or discard the active workout before importing a program.</p>}
-
-    {readyImport && !hasActiveWorkout && (
-      <section className="panel ready-import-card" role="status">
-        <div className="ready-import-info">
-          <span className="ready-import-badge">Import ready</span>
-          <h3>{readyImport.fileName || 'Imported PDF Program'}</h3>
-          <p>Processing complete. Review schedule and exercises to accept.</p>
+    <div className="pp-workouts-page">
+      <div className="page-heading">
+        <h1 data-page-heading tabIndex={-1}>Workouts</h1>
+        <div className="heading-actions">
+          <MenuButton label="Add a workout or program" text="New" variant="primary" icon={<Plus size={17} />}>
+            <MenuItem onClick={() => open()}><Dumbbell size={14} />New workout</MenuItem>
+            <MenuItem onClick={() => setBuilding(true)}><Plus size={14} />New program</MenuItem>
+            <MenuItem onClick={onImport} disabled={hasActiveWorkout}><FileText size={14} />Import a PDF program</MenuItem>
+          </MenuButton>
         </div>
-        <Button variant="primary" onClick={onImport}>
-          Review program <ArrowRight size={16} />
-        </Button>
+      </div>
+      {hasActiveWorkout && <p className="program-week-note programs-import-note">Finish or discard the active workout before importing a program.</p>}
+
+      {activeImport && !hasActiveWorkout && (
+        <section className="panel ready-import-card pp-import-banner" role="status">
+          <div className="pp-import-banner-content">
+            <div className="pp-import-icon-tile" aria-hidden="true">
+              <FileText size={22} />
+            </div>
+            <div className="ready-import-info pp-import-banner-info">
+              <div className="pp-import-chip-row">
+                <span className="ready-import-badge pp-import-status-chip">
+                  {activeImport.status === 'ready' ? 'Import ready' : 'Reading ...'}
+                </span>
+              </div>
+              <h3 className="pp-import-filename" title={activeImport.fileName || 'Imported PDF Program'}>
+                {activeImport.fileName || 'Imported PDF Program'}
+              </h3>
+              <p className="pp-import-desc">
+                {activeImport.status === 'ready'
+                  ? 'Processing complete. Review schedule and exercises to accept.'
+                  : (activeImport.currentChunkLabel
+                    ? `Reading ${activeImport.currentChunkLabel}. Review schedule and exercises to accept.`
+                    : 'Processing program schedule and exercises in the background.')}
+              </p>
+            </div>
+          </div>
+          <Button variant="primary" onClick={onImport} className="pp-import-banner-action">
+            Review program <ArrowRight size={16} />
+          </Button>
+        </section>
+      )}
+
+      {slot.error && <div className="error-banner" role="alert"><span>{slot.error}</span></div>}
+
+      <section className="program-section">
+        <div className="section-heading"><h2>Active plan</h2></div>
+        <ActiveSlotDropZone over={drag?.overZone === 'active' && drag.from === 'library'} occupied={Boolean(displayHolder)}
+          hasLibrary={libraryCount > 0} onNewWorkout={() => open()} onImport={onImport}>
+          {displayHolder?.kind === 'program' && <ActiveProgramCard key={displayHolder.program.id} program={displayHolder.program} exercises={exercises} onStart={onStart} onChanged={onChanged}
+            hasActiveWorkout={hasActiveWorkout} activeTemplateId={activeTemplateId} actions={cardActions(displayHolder)} dragProps={dragProps(displayHolder, 'active')}
+            moving={movingId === displayHolder.program.id} dragging={draggingId === slotItemId(displayHolder)} />}
+          {displayHolder?.kind === 'template' && <ActiveTemplateCard key={displayHolder.template.id} template={displayHolder.template} onStart={() => onStart(displayHolder.template.id)}
+            onEdit={() => open(displayHolder.template)} hasActiveWorkout={hasActiveWorkout} activeTemplateId={activeTemplateId} actions={cardActions(displayHolder)}
+            dragProps={dragProps(displayHolder, 'active')} moving={movingId === displayHolder.template.id} />}
+        </ActiveSlotDropZone>
       </section>
-    )}
 
-    {slot.error && <div className="error-banner" role="alert"><span>{slot.error}</span></div>}
-
-    <section className="program-section">
-      <div className="section-heading"><h2>Active plan</h2></div>
-      <ActiveSlotDropZone over={drag?.overZone === 'active' && drag.from === 'library'} occupied={Boolean(displayHolder)}
-        hasLibrary={libraryCount > 0} onNewWorkout={() => open()} onImport={onImport}>
-        {displayHolder?.kind === 'program' && <ActiveProgramCard key={displayHolder.program.id} program={displayHolder.program} exercises={exercises} onStart={onStart} onChanged={onChanged}
-          hasActiveWorkout={hasActiveWorkout} activeTemplateId={activeTemplateId} actions={cardActions(displayHolder)} dragProps={dragProps(displayHolder, 'active')}
-          moving={movingId === displayHolder.program.id} dragging={draggingId === slotItemId(displayHolder)} />}
-        {displayHolder?.kind === 'template' && <ActiveTemplateCard key={displayHolder.template.id} template={displayHolder.template} onStart={() => onStart(displayHolder.template.id)}
-          onEdit={() => open(displayHolder.template)} hasActiveWorkout={hasActiveWorkout} activeTemplateId={activeTemplateId} actions={cardActions(displayHolder)}
-          dragProps={dragProps(displayHolder, 'active')} moving={movingId === displayHolder.template.id} />}
-      </ActiveSlotDropZone>
-    </section>
-
-    <section className={`program-section slot-library-zone ${drag?.overZone === 'library' && drag.from === 'active' ? 'slot-zone-over' : ''}`}
-      data-slot-zone="library">
-      <div className="section-heading"><h2>Workout library</h2>
-        <span className="muted">{libraryCount} saved</span></div>
-      {drag?.from === 'active' && <p className="slot-library-hint" role="status">Drop here to move it back to your library</p>}
-      {libraryPrograms.length > 0 && <div className="slot-library-list">
-        {libraryPrograms.map(program => {
-          const item: SlotItem = { kind: 'program', program };
-          return <LibraryProgramCard key={program.id} program={program} exercises={exercises} busy={slot.busy}
-            onActivate={() => slot.activate(item)} onDelete={() => slot.remove(item)} dragProps={dragProps(item, 'library')} dragging={draggingId === slotItemId(item)} />;
-        })}
-      </div>}
-      {libraryTemplates.length ? <div className="routine-library-list">{libraryTemplates.map(template => {
-        const item: SlotItem = { kind: 'template', template };
-        return <RoutineCard key={template.id} template={template} exercises={exercises} onEdit={() => open(template)}
-          hasActiveWorkout={hasActiveWorkout} activeTemplateId={activeTemplateId}
-          onStart={() => onStart(template.id)} dragProps={dragProps(item, 'library')}
-          menu={<MenuButton label={`Actions for ${template.name}`} triggerClassName="slot-card-menu-trigger" portal>
-            <MenuItem disabled={slot.busy} onClick={() => slot.activate(item)}><Zap size={14} />Make active</MenuItem>
-            <MenuItem destructive disabled={slot.busy} onClick={() => slot.remove(item)}><Trash2 size={14} />Delete workout</MenuItem>
-          </MenuButton>} />;
-      })}</div>
-        : libraryPrograms.length === 0 && <section className="panel"><div className="empty-message"><h3>{holder ? 'No other workouts' : 'Library empty'}</h3>
-          <p>{exercises.length ? 'Create a workout or program, or import a PDF.' : 'Import a PDF to start.'}</p></div></section>}
-    </section>
+      <section className={`program-section slot-library-zone ${drag?.overZone === 'library' && drag.from === 'active' ? 'slot-zone-over' : ''}`}
+        data-slot-zone="library">
+        <div className="section-heading"><h2>Workout library</h2>
+          <span className="muted">{libraryCount} saved</span></div>
+        {drag?.from === 'active' && <p className="slot-library-hint" role="status">Drop here to move it back to your library</p>}
+        {libraryPrograms.length > 0 && <div className="slot-library-list">
+          {libraryPrograms.map(program => {
+            const item: SlotItem = { kind: 'program', program };
+            return <LibraryProgramCard key={program.id} program={program} exercises={exercises} busy={slot.busy}
+              onActivate={() => slot.activate(item)} onDelete={() => slot.remove(item)} dragProps={dragProps(item, 'library')} dragging={draggingId === slotItemId(item)} />;
+          })}
+        </div>}
+        {libraryTemplates.length ? <div className="routine-library-list">{libraryTemplates.map(template => {
+          const item: SlotItem = { kind: 'template', template };
+          return <RoutineCard key={template.id} template={template} exercises={exercises} onEdit={() => open(template)}
+            hasActiveWorkout={hasActiveWorkout} activeTemplateId={activeTemplateId}
+            onStart={() => onStart(template.id)} dragProps={dragProps(item, 'library')}
+            menu={<MenuButton label={`Actions for ${template.name}`} triggerClassName="slot-card-menu-trigger" portal>
+              <MenuItem disabled={slot.busy} onClick={() => slot.activate(item)}><Zap size={14} />Make active</MenuItem>
+              <MenuItem destructive disabled={slot.busy} onClick={() => slot.remove(item)}><Trash2 size={14} />Delete workout</MenuItem>
+            </MenuButton>} />;
+        })}</div>
+          : libraryPrograms.length === 0 && (
+            <section className="panel pp-library-empty-card" aria-label="Workout library empty">
+              <div className="pp-library-empty-content">
+                <div className="pp-library-empty-icon" aria-hidden="true">
+                  <FolderOpen size={22} />
+                </div>
+                <div className="pp-library-empty-text">
+                  <h3>{holder ? 'No other workouts' : 'Library empty'}</h3>
+                  <p>
+                    {exercises.length
+                      ? 'Create a workout or program, or import a PDF. Saved routines and multi-week programs wait here until you activate them.'
+                      : 'Import a PDF to start. Your saved programs and routines will wait here until you activate them.'}
+                  </p>
+                </div>
+              </div>
+            </section>
+          )}
+      </section>
+    </div>
 
     {drag && <SlotDragGhost drag={drag} />}
     {slot.confirmation && <SlotConfirmDialog confirmation={slot.confirmation} onCancel={slot.cancel} onConfirm={slot.confirm} />}

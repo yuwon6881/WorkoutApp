@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { FileText, MousePointerClick, Plus } from 'lucide-react';
+import { Dumbbell, FileText, MousePointerClick, Plus } from 'lucide-react';
 import { slotItemName } from '../lib/activeSlot';
 import { Button } from './ui/Button';
 import { Modal } from './ui/Modal';
@@ -24,23 +24,30 @@ export function ActiveSlotDropZone({ over, occupied, hasLibrary, onNewWorkout, o
   }
 
   if (!hasLibrary) {
-    return <section className="panel active-slot-zone active-slot-empty first-run" data-slot-zone="active" aria-label="Active plan">
-      <div className="active-slot-empty-copy">
-        <h3>Ready for your first workout</h3>
-        <p>Build one by hand, or import a program from a PDF. It will wait in your library until you drag it here.</p>
+    return <section className="panel active-slot-zone active-slot-empty first-run pp-active-slot-card pp-first-run-card" data-slot-zone="active" aria-label="Active plan">
+      <div className="pp-slot-content">
+        <div className="pp-slot-icon-tile" aria-hidden="true">
+          <Dumbbell size={22} />
+        </div>
+        <div className="active-slot-empty-copy pp-slot-copy">
+          <h3>Ready for your first workout</h3>
+          <p className="pp-slot-help-text">Build one by hand, or import a program from a PDF. It will wait in your library until you drag it here.</p>
+        </div>
       </div>
-      <div className="slot-card-actions">
-        <Button variant="secondary" onClick={onImport}><FileText size={15} />Import a PDF</Button>
-        <Button variant="primary" onClick={onNewWorkout}><Plus size={15} />Build a workout</Button>
+      <div className="slot-card-actions pp-first-run-actions">
+        <Button variant="secondary" onClick={onImport} className="pp-first-run-btn"><FileText size={15} />Import a PDF</Button>
+        <Button variant="primary" onClick={onNewWorkout} className="pp-first-run-btn"><Plus size={15} />Build a workout</Button>
       </div>
     </section>;
   }
 
-  return <section className={`active-slot-zone active-slot-empty ${over ? 'slot-zone-over' : ''}`} data-slot-zone="active" aria-label="Active plan">
-    <span className="active-slot-empty-icon" aria-hidden="true"><MousePointerClick size={22} /></span>
-    <div className="active-slot-empty-copy">
-      <h3>{over ? 'Drop to activate' : 'Drag a workout here to activate it'}</h3>
-      <p>Or choose <strong>Make active</strong> from a library card’s menu.</p>
+  return <section className={`active-slot-zone active-slot-empty pp-active-slot-card pp-active-slot-drop-target ${over ? 'slot-zone-over' : ''}`} data-slot-zone="active" aria-label="Active plan">
+    <div className="pp-slot-content">
+      <span className="active-slot-empty-icon pp-slot-icon-tile" aria-hidden="true"><MousePointerClick size={22} /></span>
+      <div className="active-slot-empty-copy pp-slot-copy">
+        <h3>{over ? 'Drop to activate' : 'Drag a workout here to activate it'}</h3>
+        <p>Or choose <strong>Make active</strong> from a library card’s menu.</p>
+      </div>
     </div>
   </section>;
 }

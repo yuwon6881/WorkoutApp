@@ -1,0 +1,458 @@
+/* Set prescription rows and card actions of the import exercise card (split from ImportExerciseCard.css). */
+/* ==========================================================================
+   4. Set Prescriptions Grid & Rows:
+   - >= 360 px: Single line per set (type pill, rep inputs, RIR button).
+   - < 360 px: Clean 2-row card with labelled fields ("Min reps", "Max reps", "RIR"),
+     never stray captions.
+   - Column headers aligned over columns on wide screens.
+   ========================================================================== */
+:root .import-exercise.iex-card .iex-set-grid {
+  margin-top: 12px !important;
+  padding-top: 12px !important;
+  border-top: 1px solid var(--section-border) !important;
+}
+
+/* Column headers over grid */
+:root .import-exercise.iex-card .iex-set-head {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 8px !important;
+  padding: 0 8px 10px !important;
+  margin: 0 !important;
+}
+
+@media (min-width: 640px) {
+  :root .import-exercise.iex-card .iex-set-head {
+    display: grid !important;
+    grid-template-columns: 130px minmax(0, 1fr) 44px !important;
+    grid-template-areas: "empty reps rir" !important;
+    padding: 0 60px 10px 10px !important; /* 60px matches 52px desktop delete button + padding */
+    gap: 8px !important;
+  }
+  :root .import-exercise.iex-card .iex-set-head .set-grid-head-reps {
+    grid-area: reps !important;
+    margin: 0 !important;
+    justify-content: flex-start !important;
+  }
+  :root .import-exercise.iex-card .iex-set-head .set-grid-head-rir {
+    grid-area: rir !important;
+    width: 44px !important;
+    text-align: center !important;
+    padding: 0 !important;
+  }
+}
+
+:root .import-exercise.iex-card .iex-set-head .set-grid-head-reps {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  font-size: var(--font-secondary) !important;
+  font-weight: 650 !important;
+  color: var(--muted) !important;
+}
+
+:root .import-exercise.iex-card .iex-set-head .set-grid-head-rir {
+  font-size: var(--font-secondary) !important;
+  font-weight: 650 !important;
+  color: var(--muted) !important;
+}
+
+/* When RIR tracking is turned off */
+:root .import-exercise.iex-card .iex-no-rir .iex-set-head {
+  display: flex !important;
+  justify-content: flex-start !important;
+}
+
+/* Set list container */
+:root .import-exercise.iex-card .iex-set-list {
+  display: grid !important;
+  gap: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  list-style: none !important;
+  border: 1px solid var(--border) !important;
+  border-radius: var(--radius-control) !important;
+  overflow: hidden !important;
+  background: var(--surface) !important;
+}
+
+:root .import-exercise.iex-card .iex-set-list .import-set {
+  display: block !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-top: 1px solid var(--border) !important;
+  background: transparent !important;
+}
+
+:root .import-exercise.iex-card .iex-set-list .import-set:first-child {
+  border-top: 0 !important;
+}
+
+:root .import-exercise.iex-card .iex-set-list .import-set.warmup-row {
+  background: color-mix(in srgb, var(--blue) 5%, var(--surface)) !important;
+}
+
+/* Inside row: single line layout (default and >= 430px) */
+:root .import-exercise.iex-card .iex-set-row {
+  display: grid !important;
+  grid-template-columns: auto minmax(0, 1fr) 44px !important;
+  grid-template-areas: "meta reps rir" !important;
+  align-items: center !important;
+  gap: 8px !important;
+  padding: 8px 10px !important;
+  box-sizing: border-box !important;
+}
+
+:root .import-exercise.iex-card .iex-no-rir .iex-set-row {
+  grid-template-columns: auto minmax(0, 1fr) !important;
+  grid-template-areas: "meta reps" !important;
+}
+
+:root .import-exercise.iex-card .iex-set-row .import-set-heading {
+  grid-area: meta !important;
+  display: flex !important;
+  align-items: center !important;
+  min-width: 0 !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  border: 0 !important;
+}
+
+/* The type select trigger */
+:root .import-exercise.iex-card .iex-set-row .set-type-select .custom-select-trigger {
+  min-height: 40px !important;
+  height: 40px !important;
+  padding: 4px 10px 4px 4px !important;
+}
+
+@media (max-width: 639px) {
+  :root .import-exercise.iex-card .iex-set-row .set-type-select .custom-select-trigger {
+    min-height: 44px !important;
+    height: 44px !important;
+  }
+}
+
+:root .import-exercise.iex-card .iex-set-row .import-set-fields {
+  display: contents !important;
+}
+
+/* Reps area: fills middle column */
+:root .import-exercise.iex-card .iex-set-row .rep-prescription-field {
+  grid-area: reps !important;
+  display: flex !important;
+  align-items: center !important;
+  min-width: 0 !important;
+  width: 100% !important;
+}
+
+:root .import-exercise.iex-card .iex-set-row .rep-range-inputs {
+  display: flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  width: 100% !important;
+}
+
+:root .import-exercise.iex-card .iex-set-row .rep-range-inputs input,
+:root .import-exercise.iex-card .iex-set-row .rep-single-input-wrap input {
+  flex: 1 1 0 !important;
+  min-width: 0 !important;
+  width: 100% !important;
+  min-height: 40px !important;
+  height: 40px !important;
+  padding: 4px 8px !important;
+  text-align: center !important;
+  font-size: 14px !important;
+  font-weight: 650 !important;
+  font-variant-numeric: tabular-nums !important;
+  border-radius: var(--radius-control) !important;
+  border: 1px solid var(--border) !important;
+  background: var(--surface-raised) !important;
+  color: var(--text) !important;
+}
+
+@media (max-width: 639px) {
+  :root .import-exercise.iex-card .iex-set-row .rep-range-inputs input,
+  :root .import-exercise.iex-card .iex-set-row .rep-single-input-wrap input {
+    min-height: 44px !important;
+    height: 44px !important;
+  }
+}
+
+:root .import-exercise.iex-card .iex-set-row .rep-range-inputs input:hover,
+:root .import-exercise.iex-card .iex-set-row .rep-single-input-wrap input:hover {
+  border-color: var(--border-hover) !important;
+}
+
+:root .import-exercise.iex-card .iex-set-row .rep-range-inputs input:focus,
+:root .import-exercise.iex-card .iex-set-row .rep-single-input-wrap input:focus {
+  outline: none !important;
+  border-color: var(--accent) !important;
+  background: var(--surface) !important;
+  box-shadow: 0 0 0 2px var(--accent-soft-glow) !important;
+}
+
+:root .import-exercise.iex-card .iex-set-row .rep-range-sep {
+  flex: 0 0 auto !important;
+  color: var(--muted) !important;
+  font-weight: 600 !important;
+  font-size: var(--font-secondary) !important;
+}
+
+/* RIR area: trailing column */
+:root .import-exercise.iex-card .iex-set-row .rpe-field {
+  grid-area: rir !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  min-width: 44px !important;
+  width: 44px !important;
+  margin: 0 !important;
+}
+
+/* Visually hide inline caption on single-line mode so there is NO stray caption */
+:root .import-exercise.iex-card .iex-set-row .rpe-field > span:first-child {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  margin: -1px !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+}
+
+:root .import-exercise.iex-card .iex-set-row .rpe-control,
+:root .import-exercise.iex-card .iex-set-row .warmup-rir-trigger {
+  min-height: 40px !important;
+  height: 40px !important;
+  width: 40px !important;
+  min-width: 40px !important;
+  border-radius: var(--radius-pill) !important;
+}
+
+@media (max-width: 639px) {
+  :root .import-exercise.iex-card .iex-set-row .rpe-control,
+  :root .import-exercise.iex-card .iex-set-row .warmup-rir-trigger {
+    min-height: 44px !important;
+    height: 44px !important;
+    width: 44px !important;
+    min-width: 44px !important;
+  }
+}
+
+/* Two-row card mode for narrow screens < 360 px */
+:root .import-exercise.iex-card .iex-row-sublabels {
+  display: none !important;
+}
+
+@media (max-width: 429px) {
+  :root .import-exercise.iex-card .iex-set-head .set-grid-head-rir {
+    display: none !important;
+  }
+
+  :root .import-exercise.iex-card .iex-set-row {
+    grid-template-columns: minmax(0, 1fr) 44px !important;
+    grid-template-areas:
+      "meta meta"
+      "sublabel sublabel"
+      "reps rir" !important;
+    gap: 4px 8px !important;
+    padding: 8px !important;
+  }
+
+  :root .import-exercise.iex-card .iex-no-rir .iex-set-row {
+    grid-template-columns: minmax(0, 1fr) !important;
+    grid-template-areas:
+      "meta"
+      "sublabel"
+      "reps" !important;
+  }
+
+  :root .import-exercise.iex-card .iex-row-sublabels {
+    grid-area: sublabel !important;
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) 44px !important;
+    align-items: center !important;
+    gap: 8px !important;
+    margin-top: 2px !important;
+  }
+
+  :root .import-exercise.iex-card .iex-sublabel-reps {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    padding-inline: 4px !important;
+    font-size: var(--font-secondary) !important;
+    font-weight: 650 !important;
+    color: var(--muted) !important;
+    text-transform: none !important;
+    letter-spacing: -0.01em !important;
+  }
+
+  :root .import-exercise.iex-card .iex-sublabel-rir {
+    text-align: center !important;
+    font-size: var(--font-secondary) !important;
+    font-weight: 650 !important;
+    color: var(--muted) !important;
+    letter-spacing: -0.01em !important;
+  }
+}
+
+
+/* ==========================================================================
+   5. Action Buttons: Add another set & Save / Cancel Bar
+   ========================================================================== */
+:root .import-exercise.iex-card .iex-set-footer {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-end !important;
+  width: 100% !important;
+  margin-top: 12px !important;
+  padding: 0 !important;
+}
+
+:root .import-exercise.iex-card .iex-add-set {
+  min-height: 40px !important;
+  height: 40px !important;
+  padding: 0 16px !important;
+  border-radius: var(--radius-control) !important;
+  background: var(--control-surface) !important;
+  border: 1px solid var(--control-border) !important;
+  color: var(--text) !important;
+  font-size: var(--font-secondary) !important;
+  font-weight: 650 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  width: auto !important;
+  min-width: 0 !important;
+  transition: background-color var(--motion-control) ease,
+              border-color var(--motion-control) ease,
+              color var(--motion-control) ease !important;
+}
+
+:root .import-exercise.iex-card .iex-add-set:hover:not(:disabled) {
+  background: var(--surface-hover) !important;
+  border-color: var(--border-hover) !important;
+  color: var(--accent) !important;
+}
+
+:root .import-exercise.iex-card .iex-add-set:focus-visible {
+  border-color: var(--accent) !important;
+  box-shadow: 0 0 0 2px var(--accent-soft-glow) !important;
+}
+
+@media (max-width: 639px) {
+  :root .import-exercise.iex-card .iex-add-set {
+    min-height: 44px !important;
+    height: 44px !important;
+  }
+}
+
+/* Save / Cancel bar */
+:root .import-exercise.iex-card .iex-save-bar {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  align-items: center !important;
+  justify-content: flex-end !important;
+  gap: 10px !important;
+  margin-top: 16px !important;
+  padding-top: 14px !important;
+  border-top: 1px solid var(--section-border) !important;
+}
+
+:root .import-exercise.iex-card .iex-save-state {
+  margin-right: auto !important;
+  font-size: var(--font-secondary) !important;
+  font-weight: 650 !important;
+  color: var(--amber) !important;
+}
+
+:root .import-exercise.iex-card .iex-save-bar .button {
+  min-height: 40px !important;
+  height: 40px !important;
+  padding: 0 16px !important;
+  border-radius: var(--radius-control) !important;
+  font-size: var(--font-secondary) !important;
+  font-weight: 650 !important;
+}
+
+@media (max-width: 639px) {
+  :root .import-exercise.iex-card .iex-save-bar .button {
+    min-height: 44px !important;
+    height: 44px !important;
+  }
+}
+
+/* Touch targets: 44 px below 1024 px and 36 px from there up, for every control of the card. The
+   rules above size controls for the denser desktop layout with long, important selectors, so
+   these repeat :root to outrank them. */
+@media (max-width: 1023px) {
+  :root:root:root:root .import-exercise.iex-card .custom-select-trigger,
+  :root:root:root:root .import-exercise.iex-card .iex-menu-trigger,
+  :root:root:root:root .import-exercise.iex-card .iex-library-trigger,
+  :root:root:root:root .import-exercise.iex-card .warmup-rir-trigger,
+  :root:root:root:root .import-exercise.iex-card .rpe-control,
+  :root:root:root:root .import-exercise.iex-card .iex-add-set,
+  :root:root:root:root .import-exercise.iex-card .iex-notes textarea,
+  :root:root:root:root .import-exercise.iex-card textarea.auto-grow-textarea,
+  :root:root:root:root .import-exercise.iex-card .iex-set-row .rep-range-inputs input,
+  :root:root:root:root .import-exercise.iex-card .iex-set-row .rep-single-input-wrap input {
+    min-height: 44px !important;
+  }
+
+  :root:root:root:root .import-exercise.iex-card .iex-menu-trigger,
+  :root:root:root:root .import-exercise.iex-card .warmup-rir-trigger {
+    min-width: 44px !important;
+    width: 44px !important;
+    height: 44px !important;
+  }
+
+  :root:root:root:root .import-exercise.iex-card .iex-set-row .rep-range-inputs input,
+  :root:root:root:root .import-exercise.iex-card .iex-set-row .rep-single-input-wrap input,
+  :root:root:root:root .import-exercise.iex-card .iex-add-set {
+    height: 44px !important;
+  }
+}
+
+/* The substitution chip stays compact; its remove button keeps a full-size hit area by
+   overlapping the chip's padding instead of growing the chip. */
+:root:root:root:root .import-exercise.iex-card .substitution-chip .chip-remove-btn {
+  width: 36px !important;
+  height: 36px !important;
+  min-width: 36px !important;
+  min-height: 36px !important;
+  margin: -8px -8px -8px 0 !important;
+}
+
+@media (max-width: 1023px) {
+  :root:root:root:root .import-exercise.iex-card .substitution-chip .chip-remove-btn {
+    width: 44px !important;
+    height: 44px !important;
+    min-width: 44px !important;
+    min-height: 44px !important;
+    margin: -12px -12px -12px 0 !important;
+  }
+}
+
+@media (max-width: 1023px) {
+  :root:root:root:root .import-exercise.iex-card .iex-save-bar .button {
+    min-height: 44px !important;
+    height: 44px !important;
+  }
+}
+
+/* The label is read by screen readers only; its box must really be one pixel, or the browser
+   spec (and sighted users with clipped text) see a 17 px line of it. */
+:root:root:root:root .import-exercise.iex-card .iex-set-row .rpe-field > span:first-child {
+  width: 1px !important;
+  height: 1px !important;
+  min-height: 0 !important;
+  max-height: 1px !important;
+  line-height: 1 !important;
+}

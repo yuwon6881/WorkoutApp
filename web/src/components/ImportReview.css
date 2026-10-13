@@ -1,0 +1,453 @@
+/* Import review panel, needs attention issues table/cards, and restore draft modal */
+
+.irev-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+  width: 100%;
+}
+
+/* Review heading and status chip */
+.irev-header {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.irev-header-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+  flex-wrap: wrap;
+}
+
+.irev-header-title-row h2 {
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--text);
+  margin: 0;
+}
+
+.irev-status-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border-radius: var(--radius-pill);
+  font-size: var(--font-secondary);
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.irev-status-chip--ready {
+  color: var(--accent);
+  background: var(--accent-soft);
+  border: 1px solid var(--accent-border);
+}
+
+.irev-status-chip--attention {
+  color: var(--amber);
+  background: color-mix(in srgb, var(--amber) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--amber) 30%, transparent);
+}
+
+.irev-notice-copy {
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--font-secondary);
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+/* Full-width program name field */
+.irev-name-field {
+  width: 100%;
+  margin-top: 2px;
+}
+
+.irev-name-field input {
+  width: 100%;
+}
+
+/* Calm info row for unmapped exercise slots banner */
+.irev-unresolved-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: var(--radius-control);
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-size: var(--font-secondary);
+  line-height: 1.5;
+  min-width: 0;
+}
+
+.irev-unresolved-icon {
+  color: var(--muted);
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.irev-unresolved-text {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+/* Needs attention issues section */
+.irev-issues-section {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-top: 4px;
+  min-width: 0;
+}
+
+.irev-issues-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+}
+
+.irev-issues-title-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  flex: 1;
+}
+
+.irev-issues-title {
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+  color: var(--text);
+  margin: 0;
+}
+
+.irev-issues-desc {
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--font-secondary);
+  line-height: 1.5;
+  max-width: 68ch;
+  overflow-wrap: anywhere;
+}
+
+.irev-count-pill {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 10px;
+  border-radius: var(--radius-pill);
+  font-size: var(--font-secondary);
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  border: 1px solid var(--border);
+  background: var(--surface-raised);
+  color: var(--muted);
+}
+
+/* Table and card layout (cards below 1024px, aligned grid >= 1024px) */
+.irev-table {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+  min-width: 0;
+}
+
+.irev-table-head {
+  display: none;
+}
+
+.irev-row {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px 16px;
+  background: var(--surface);
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-control);
+  box-shadow: var(--shadow);
+  min-width: 0;
+  transition: background-color var(--motion-control) ease,
+              border-color var(--motion-control) ease;
+}
+
+.irev-row:hover {
+  background: var(--surface-hover);
+  border-color: var(--border-hover);
+}
+
+.irev-cell {
+  min-width: 0;
+}
+
+.irev-cell--issue {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.irev-issue-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  min-width: 0;
+}
+
+.irev-issue-icon {
+  color: var(--amber);
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.irev-issue-title {
+  font-size: 14px;
+  font-weight: 650;
+  color: var(--text);
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+
+.irev-issue-message {
+  margin: 2px 0 0 25px;
+  font-size: var(--font-secondary);
+  color: var(--muted);
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.irev-cell--source {
+  padding-left: 25px;
+}
+
+.irev-source-text {
+  display: block;
+  font-size: var(--font-secondary);
+  color: var(--muted);
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.irev-cell--action {
+  display: flex;
+  justify-content: flex-end;
+  width: 100%;
+  margin-top: 4px;
+}
+
+.irev-action-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 44px;
+  min-width: 80px;
+  padding: 8px 16px;
+  border-radius: var(--radius-pill);
+  font-size: var(--font-secondary);
+  font-weight: 600;
+  color: var(--accent);
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  transition: background-color var(--motion-control) ease,
+              border-color var(--motion-control) ease,
+              transform var(--motion-control) ease;
+}
+
+.irev-action-btn:hover:not(:disabled) {
+  background: var(--surface-hover);
+  border-color: var(--border-hover);
+}
+
+.irev-action-btn:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+/* Divider between unmapped exercises and review notes */
+.irev-divider-row {
+  display: flex;
+  align-items: center;
+  padding: 10px 4px 4px;
+  min-width: 0;
+}
+
+.irev-divider-cell {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.irev-divider-cell::before,
+.irev-divider-cell::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+
+.irev-divider-label {
+  font-size: var(--font-secondary);
+  font-weight: 650;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--faint);
+  white-space: nowrap;
+}
+
+/* Quiet bar footer */
+.irev-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 14px;
+  margin-top: 4px;
+  border-radius: var(--radius-control);
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  min-width: 0;
+  flex-wrap: wrap;
+}
+
+.irev-footer-count {
+  font-size: var(--font-secondary);
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.irev-footer-toggle {
+  min-height: 44px;
+  padding: 8px 14px;
+  font-size: var(--font-secondary);
+  font-weight: 600;
+  color: var(--text);
+  border-radius: var(--radius-pill);
+}
+
+.irev-footer-toggle:hover:not(:disabled) {
+  color: var(--accent);
+}
+
+/* Expanded layout (>= 1024px): aligned grid table */
+@media (min-width: 1024px) {
+  .irev-table {
+    display: grid;
+    gap: 0;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-control);
+    background: var(--surface);
+    overflow: hidden;
+    box-shadow: var(--shadow);
+  }
+
+  .irev-table-head {
+    display: grid;
+    grid-template-columns: minmax(0, 1.85fr) minmax(0, 1.15fr) 92px;
+    align-items: center;
+    gap: 16px;
+    padding: 12px 18px;
+    background: var(--surface-raised);
+    border-bottom: 1px solid var(--border);
+    font-size: var(--font-secondary);
+    font-weight: 600;
+    color: var(--muted);
+    letter-spacing: 0.02em;
+  }
+
+  .irev-col-header--action {
+    text-align: right;
+    justify-self: end;
+  }
+
+  .irev-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1.85fr) minmax(0, 1.15fr) 92px;
+    align-items: center;
+    gap: 16px;
+    padding: 13px 18px;
+    border-radius: 0;
+    border: 0;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+    box-shadow: none;
+    min-height: 54px;
+  }
+
+  .irev-row:last-child {
+    border-bottom: 0;
+  }
+
+  .irev-row:hover {
+    background: var(--surface-hover);
+  }
+
+  .irev-issue-message {
+    margin-left: 25px;
+    font-size: var(--font-secondary);
+  }
+
+  .irev-cell--source {
+    padding-left: 0;
+    text-align: left;
+  }
+
+  .irev-source-text {
+    font-size: var(--font-secondary);
+    color: var(--muted);
+    text-align: left;
+  }
+
+  .irev-cell--action {
+    width: auto;
+    margin-top: 0;
+    justify-content: flex-end;
+  }
+
+  .irev-action-btn {
+    min-height: 36px;
+    min-width: 72px;
+    padding: 6px 14px;
+    font-size: var(--font-secondary);
+  }
+
+  .irev-divider-row {
+    grid-column: 1 / -1;
+    display: flex;
+    padding: 9px 18px;
+    background: var(--surface-raised);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .irev-divider-cell::before,
+  .irev-divider-cell::after {
+    display: none;
+  }
+
+  .irev-footer {
+    padding: 6px 14px;
+  }
+
+  .irev-footer-toggle {
+    min-height: 36px;
+    padding: 6px 12px;
+    font-size: var(--font-secondary);
+  }
+}

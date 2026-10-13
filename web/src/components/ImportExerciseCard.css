@@ -1,0 +1,485 @@
+/* ImportExerciseCard.css: Polished exercise card for day sheet editor (Task T9).
+   Obeying design system tokens, responsive contract 320-1920px, and both themes. */
+
+/* Card surface */
+:root .import-exercise.iex-card {
+  margin: 0 0 14px;
+  padding: 16px;
+  border: 1px solid var(--section-border);
+  border-radius: var(--radius-control);
+  background: var(--surface-card);
+  box-shadow: var(--shadow);
+  transition: border-color var(--motion-control) var(--motion-ease);
+  box-sizing: border-box;
+  min-width: 0;
+  width: 100%;
+}
+
+:root[data-theme='light'] .import-exercise.iex-card {
+  border-color: var(--border);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+@media (max-width: 639px) {
+  :root .import-exercise.iex-card {
+    padding: 12px;
+    margin: 0 0 12px;
+    border-radius: 16px;
+  }
+}
+
+/* ==========================================================================
+   1. Card Header: Single tidy row across all screen widths.
+   Badge + name (wraps up to 2 lines) + trailing controls (Rest + Menu + Demo).
+   ========================================================================== */
+:root .day-detail-modal .import-exercise.iex-card .iex-header,
+:root .import-exercise.iex-card .iex-header {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 8px !important;
+  width: 100% !important;
+  margin: 0 0 12px 0 !important;
+  padding: 0 0 10px 0 !important;
+  border-bottom: 1px solid var(--section-border) !important;
+  box-sizing: border-box !important;
+}
+
+/* Leading part: icon/badge + exercise name */
+:root .import-exercise.iex-card .iex-title {
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  flex: 1 1 auto !important;
+  min-width: 0 !important;
+}
+
+/* Badge (Dumbbell or Superset A1/A2) */
+:root .import-exercise.iex-card .import-exercise-icon {
+  width: 34px !important;
+  height: 34px !important;
+  min-width: 34px !important;
+  min-height: 34px !important;
+  flex: 0 0 34px !important;
+  display: inline-grid !important;
+  place-items: center !important;
+  border-radius: 10px !important;
+  border: 1px solid var(--control-border) !important;
+  background: var(--control-surface) !important;
+  color: var(--muted) !important;
+}
+
+:root .import-exercise.iex-card .import-exercise-icon.superset-position {
+  border-color: var(--accent-border) !important;
+  background: var(--accent-soft) !important;
+  color: var(--accent) !important;
+  font-size: var(--font-secondary) !important;
+  font-weight: 800 !important;
+  letter-spacing: -0.01em !important;
+}
+
+/* Exercise name textarea field */
+:root .import-exercise.iex-card .iex-name-field {
+  flex: 1 1 auto !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
+  margin: 0 !important;
+}
+
+:root .import-exercise.iex-card .iex-name-field > span:first-child {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  overflow: hidden !important;
+  clip-path: inset(50%) !important;
+}
+
+:root .import-exercise.iex-card .iex-name-field textarea {
+  width: 100% !important;
+  min-height: 40px !important;
+  max-height: 56px !important;
+  padding: 6px 10px !important;
+  font-size: 15px !important;
+  font-weight: 700 !important;
+  line-height: 1.35 !important;
+  color: var(--text) !important;
+  background: transparent !important;
+  border: 1px solid transparent !important;
+  border-radius: var(--radius-control) !important;
+  overflow-wrap: anywhere !important;
+  resize: none !important;
+  overflow-y: hidden !important;
+  transition: background-color var(--motion-control) ease,
+              border-color var(--motion-control) ease,
+              box-shadow var(--motion-control) ease !important;
+  box-sizing: border-box !important;
+}
+
+:root .import-exercise.iex-card .iex-name-field textarea:hover {
+  background: var(--surface-hover) !important;
+  border-color: var(--border-hover) !important;
+}
+
+:root .import-exercise.iex-card .iex-name-field textarea:focus {
+  background: var(--control-surface) !important;
+  border-color: var(--accent) !important;
+  box-shadow: 0 0 0 2px var(--accent-soft-glow) !important;
+  outline: none !important;
+}
+
+/* Trailing controls wrapper */
+:root .day-detail-modal .import-exercise.iex-card .iex-actions-wrap,
+:root .import-exercise.iex-card .iex-actions-wrap {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-end !important;
+  flex: 0 0 auto !important;
+  width: auto !important;
+  margin: 0 !important;
+}
+
+:root .day-detail-modal .import-exercise.iex-card .iex-actions,
+:root .import-exercise.iex-card .iex-actions {
+  display: flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  width: auto !important;
+  max-width: none !important;
+  margin: 0 !important;
+  flex-shrink: 0 !important;
+}
+
+/* Rest timer select trigger */
+:root .day-detail-modal .import-exercise.iex-card .iex-rest-field,
+:root .import-exercise.iex-card .iex-rest-field {
+  width: auto !important;
+  min-width: 0 !important;
+  flex: 0 0 auto !important;
+  margin: 0 !important;
+}
+
+:root .day-detail-modal .import-exercise.iex-card .iex-rest-field .custom-select-wrap,
+:root .import-exercise.iex-card .iex-rest-field .custom-select-wrap {
+  width: auto !important;
+  min-width: 0 !important;
+}
+
+:root .day-detail-modal .import-exercise.iex-card .iex-rest-field .custom-select-trigger,
+:root .import-exercise.iex-card .iex-rest-field .custom-select-trigger {
+  width: auto !important;
+  min-width: 0 !important;
+  min-height: 40px !important;
+  height: 40px !important;
+  padding: 0 10px !important;
+  border-radius: var(--radius-control) !important;
+  background: var(--control-surface) !important;
+  border: 1px solid var(--control-border) !important;
+  color: var(--text) !important;
+  font-size: var(--font-secondary) !important;
+  font-weight: 600 !important;
+  gap: 6px !important;
+  box-sizing: border-box !important;
+  justify-content: center !important;
+}
+
+:root .import-exercise.iex-card .iex-rest-field .custom-select-trigger:hover:not(:disabled) {
+  background: var(--surface-hover) !important;
+  border-color: var(--border-hover) !important;
+}
+
+:root .import-exercise.iex-card .iex-rest-field .custom-select-trigger:focus-visible,
+:root .import-exercise.iex-card .iex-rest-field .custom-select-trigger.active {
+  border-color: var(--accent) !important;
+  box-shadow: 0 0 0 2px var(--accent-soft-glow) !important;
+}
+
+/* Demo link button */
+:root .import-exercise.iex-card .exercise-demo-pill {
+  min-height: 40px !important;
+  height: 40px !important;
+  padding: 0 10px !important;
+  border-radius: var(--radius-control) !important;
+  background: var(--control-surface) !important;
+  border: 1px solid var(--control-border) !important;
+  color: var(--text) !important;
+  font-size: var(--font-secondary) !important;
+  font-weight: 600 !important;
+  gap: 6px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+}
+
+:root .import-exercise.iex-card .exercise-demo-pill:hover {
+  background: var(--surface-hover) !important;
+  border-color: var(--border-hover) !important;
+}
+
+/* Header menu button trigger */
+:root .import-exercise.iex-card .iex-menu-trigger {
+  width: 40px !important;
+  height: 40px !important;
+  min-width: 40px !important;
+  min-height: 40px !important;
+  border-radius: var(--radius-control) !important;
+  background: var(--control-surface) !important;
+  border: 1px solid var(--control-border) !important;
+  color: var(--muted) !important;
+  display: inline-grid !important;
+  place-items: center !important;
+  padding: 0 !important;
+  transition: background-color var(--motion-control) ease,
+              border-color var(--motion-control) ease,
+              color var(--motion-control) ease !important;
+}
+
+:root .import-exercise.iex-card .iex-menu-trigger:hover:not(:disabled),
+:root .import-exercise.iex-card .iex-menu-trigger[aria-expanded="true"] {
+  background: var(--surface-hover) !important;
+  border-color: var(--border-hover) !important;
+  color: var(--text) !important;
+}
+
+@media (max-width: 639px) {
+  :root .day-detail-modal .import-exercise.iex-card .iex-rest-field .custom-select-trigger,
+  :root .import-exercise.iex-card .iex-rest-field .custom-select-trigger,
+  :root .import-exercise.iex-card .exercise-demo-pill {
+    min-height: 44px !important;
+    height: 44px !important;
+    padding: 0 8px !important;
+  }
+  :root .import-exercise.iex-card .iex-menu-trigger {
+    width: 44px !important;
+    height: 44px !important;
+    min-width: 44px !important;
+    min-height: 44px !important;
+  }
+}
+
+@media (max-width: 359px) {
+  :root .import-exercise.iex-card .exercise-demo-pill span {
+    display: none !important;
+  }
+  :root .import-exercise.iex-card .exercise-demo-pill {
+    padding: 0 8px !important;
+    min-width: 36px !important;
+  }
+  :root .import-exercise.iex-card .iex-rest-field .custom-select-trigger {
+    padding: 0 6px !important;
+  }
+}
+
+
+/* ==========================================================================
+   2. Compact Meta Block: Library Link + Muscle Badges + Substitutions.
+   Grouped with consistent gaps and clean alignment.
+   ========================================================================== */
+:root .import-exercise.iex-card .iex-meta-group {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  /* Legacy rules make this a column, where centring would centre each item horizontally. */
+  align-items: flex-start !important;
+  gap: 8px !important;
+  width: 100% !important;
+  padding: 0 !important;
+  margin: 0 0 10px 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+  box-sizing: border-box !important;
+}
+
+:root .import-exercise.iex-card .iex-library-field {
+  flex: 0 1 auto !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
+  margin: 0 !important;
+}
+
+:root .import-exercise.iex-card .iex-library-trigger {
+  min-height: 38px !important;
+  padding: 0 12px !important;
+  border-radius: var(--radius-control) !important;
+  background: var(--control-surface) !important;
+  border: 1px solid var(--control-border) !important;
+  color: var(--text) !important;
+  font-size: var(--font-secondary) !important;
+  font-weight: 600 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  max-width: 100% !important;
+}
+
+:root .import-exercise.iex-card .iex-library-trigger:hover:not(:disabled) {
+  background: var(--surface-hover) !important;
+  border-color: var(--border-hover) !important;
+}
+
+:root .import-exercise.iex-card .iex-library-trigger:focus-visible {
+  border-color: var(--accent) !important;
+  box-shadow: 0 0 0 2px var(--accent-soft-glow) !important;
+}
+
+:root .import-exercise.iex-card .import-library-status {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 4px !important;
+  color: var(--amber) !important;
+  font-size: var(--font-secondary) !important;
+  font-weight: 600 !important;
+  white-space: nowrap !important;
+}
+
+:root .import-exercise.iex-card .iex-muscle-badges {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  flex-wrap: wrap !important;
+}
+
+:root .import-exercise.iex-card .iex-muscle-badges .pill {
+  min-height: 28px !important;
+  padding: 3px 10px !important;
+  border-radius: var(--radius-pill) !important;
+  font-size: var(--font-secondary) !important;
+  font-weight: 600 !important;
+}
+
+:root .import-exercise.iex-card .iex-muscle-badges .pill-accent {
+  background: var(--accent-soft) !important;
+  border: 1px solid var(--accent-border) !important;
+  color: var(--accent) !important;
+}
+
+:root .import-exercise.iex-card .iex-muscle-badges .pill-muted {
+  background: var(--control-surface) !important;
+  border: 1px solid var(--control-border) !important;
+  color: var(--muted) !important;
+}
+
+:root .import-exercise.iex-card .iex-substitutions-field {
+  display: inline-flex !important;
+  align-items: center !important;
+  margin: 0 !important;
+  min-width: 0 !important;
+}
+
+:root .import-exercise.iex-card .substitution-chips-row {
+  display: inline-flex !important;
+  flex-wrap: wrap !important;
+  align-items: center !important;
+  gap: 6px !important;
+}
+
+:root .import-exercise.iex-card .substitution-chip {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 2px !important;
+  min-height: 32px !important;
+  padding: 0 4px 0 10px !important;
+  border-radius: var(--radius-pill) !important;
+  background: var(--control-surface) !important;
+  border: 1px solid var(--control-border) !important;
+  transition: background-color var(--motion-control) ease,
+              border-color var(--motion-control) ease !important;
+}
+
+:root .import-exercise.iex-card .substitution-chip:hover {
+  background: var(--surface-hover) !important;
+  border-color: var(--border-hover) !important;
+}
+
+:root .import-exercise.iex-card .substitution-swap-btn {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  font-size: var(--font-secondary) !important;
+  font-weight: 600 !important;
+  color: var(--text) !important;
+}
+
+:root .import-exercise.iex-card .chip-remove-btn {
+  display: inline-grid !important;
+  place-items: center !important;
+  width: 24px !important;
+  height: 24px !important;
+  min-width: 24px !important;
+  min-height: 24px !important;
+  border-radius: var(--radius-pill) !important;
+  color: var(--muted) !important;
+}
+
+:root .import-exercise.iex-card .chip-remove-btn:hover {
+  color: var(--text) !important;
+  background: var(--surface-hover) !important;
+}
+
+@media (max-width: 639px) {
+  :root .import-exercise.iex-card .iex-library-trigger {
+    min-height: 44px !important;
+  }
+}
+
+
+/* ==========================================================================
+   3. Description: the 2 px accent rule marks it as the coaching surface (the browser spec checks it).
+   ========================================================================== */
+:root .import-exercise.iex-card .import-exercise-notes,
+:root .import-exercise.iex-card .iex-notes {
+  margin-top: 10px !important;
+  padding: 0 0 0 12px !important;
+  border: 0 !important;
+  border-left: 2px solid var(--accent-border) !important;
+  background: transparent !important;
+  gap: 6px !important;
+  display: flex !important;
+  flex-direction: column !important;
+}
+
+:root .import-exercise.iex-card .iex-notes > span:first-child {
+  font-size: var(--font-secondary) !important;
+  font-weight: 650 !important;
+  color: var(--muted) !important;
+}
+
+:root .import-exercise.iex-card .iex-notes textarea {
+  min-height: 48px !important;
+  padding: 10px 12px !important;
+  font-size: 14px !important;
+  line-height: 1.45 !important;
+  color: var(--text) !important;
+  background: var(--control-surface) !important;
+  border: 1px solid var(--control-border) !important;
+  border-radius: var(--radius-control) !important;
+  transition: background-color var(--motion-control) ease,
+              border-color var(--motion-control) ease,
+              box-shadow var(--motion-control) ease !important;
+}
+
+:root .import-exercise.iex-card .iex-notes textarea:hover {
+  background: var(--surface-hover) !important;
+  border-color: var(--border-hover) !important;
+}
+
+:root .import-exercise.iex-card .iex-notes textarea:focus {
+  background: var(--surface) !important;
+  border-color: var(--accent) !important;
+  box-shadow: 0 0 0 3px var(--accent-soft-glow) !important;
+}
+
+:root .import-exercise.iex-card .iex-meta-group > .iex-substitutions,
+:root .import-exercise.iex-card .iex-meta-group > .iex-muscle-badges {
+  align-items: flex-start !important;
+  justify-content: flex-start !important;
+}
+
+/* The substitution chips sit under the library link, start-aligned like the other meta items. */
+:root .import-exercise.iex-card .iex-substitutions-field,
+:root .import-exercise.iex-card .iex-substitutions-field .substitution-chips-wrap,
+:root .import-exercise.iex-card .iex-substitutions-field .substitution-chips-row {
+  align-items: flex-start !important;
+  justify-content: flex-start !important;
+  align-self: flex-start !important;
+  text-align: start !important;
+}

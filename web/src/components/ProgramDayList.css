@@ -1,0 +1,409 @@
+/* ProgramDayList and DayRow styles (T7) */
+
+/* Container for week day cards */
+.import-week-days.pdl-week-days,
+.pdl-week-days {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+  width: 100%;
+}
+
+/* Individual day card entry */
+.program-day-entry.pdl-day-entry,
+.pdl-day-entry {
+  position: relative;
+  min-width: 0;
+  box-sizing: border-box;
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-control);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  margin-bottom: 0;
+  transition: border-color var(--motion-control) ease, background-color var(--motion-control) ease,
+              box-shadow var(--motion-control) ease, opacity var(--motion-control) ease, transform var(--motion-control) ease;
+}
+
+:root:not([data-theme="light"]) .program-day-entry.pdl-day-entry,
+:root:not([data-theme="light"]) .pdl-day-entry {
+  background: var(--surface);
+  border-color: var(--border);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .program-day-entry.pdl-day-entry:hover,
+  .pdl-day-entry:hover {
+    border-color: var(--border-hover);
+    background: var(--surface-hover);
+  }
+}
+
+/* Dragging & drop indicators */
+.program-day-entry.pdl-day-entry[data-dragging="true"],
+.pdl-day-entry[data-dragging="true"] {
+  opacity: 0.45;
+  transform: scale(0.99);
+}
+
+.program-day-entry.pdl-day-entry[data-drop]::after,
+.pdl-day-entry[data-drop]::after {
+  content: "";
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  height: 3px;
+  border-radius: 3px;
+  background: var(--accent);
+  box-shadow: 0 0 8px var(--accent-soft-glow);
+  pointer-events: none;
+  z-index: 10;
+}
+.program-day-entry.pdl-day-entry[data-drop="before"]::after,
+.pdl-day-entry[data-drop="before"]::after { top: -6px; }
+.program-day-entry.pdl-day-entry[data-drop="after"]::after,
+.pdl-day-entry[data-drop="after"]::after { bottom: -6px; }
+
+/* Issue-focus highlight preserved and clearly visible */
+.pdl-day-entry:has(.issue-focus),
+.pdl-day-entry .issue-focus,
+.pdl-day-card.issue-focus {
+  border-color: var(--accent-border-strong) !important;
+  box-shadow: 0 0 0 3px var(--accent-soft-glow) !important;
+  outline: none;
+}
+
+/* Rest day card: calmer, visually distinct rhythm */
+.program-day-entry.pdl-entry-rest,
+.pdl-day-entry.pdl-entry-rest {
+  background: color-mix(in srgb, var(--surface) 40%, transparent);
+  border: 1px dashed var(--border);
+  box-shadow: none;
+}
+:root[data-theme="light"] .program-day-entry.pdl-entry-rest,
+:root[data-theme="light"] .pdl-day-entry.pdl-entry-rest {
+  background: color-mix(in srgb, var(--surface) 60%, transparent);
+  border: 1px dashed var(--border);
+  box-shadow: none;
+}
+@media (hover: hover) and (pointer: fine) {
+  .program-day-entry.pdl-entry-rest:hover,
+  .pdl-day-entry.pdl-entry-rest:hover {
+    border-color: var(--border-hover);
+    border-style: solid;
+    background: var(--surface-hover);
+  }
+}
+
+/* Card inner section wrapper */
+.draft-day.pdl-day-card,
+.pdl-day-card {
+  border: 0;
+  margin: 0;
+  border-radius: var(--radius-control);
+  background: transparent;
+  overflow: visible;
+  min-width: 0;
+}
+.day-detail-modal-body.pdl-day-card,
+.day-detail-modal-body.draft-day {
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  margin: 0 !important;
+}
+
+/* Single row layout: drag handle, summary, menu */
+.draft-day-row.pdl-day-row,
+.pdl-day-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px 6px 6px;
+  min-width: 0;
+  width: 100%;
+  box-sizing: border-box;
+}
+@media (max-width: 639px) {
+  .draft-day-row.pdl-day-row,
+  .pdl-day-row { gap: 6px; padding: 6px 6px 6px 4px; }
+}
+
+/* Drag handle: proper touch target on touch layouts */
+.program-day-handle.pdl-day-handle,
+.pdl-day-handle {
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: 36px;
+  height: 36px;
+  min-width: 36px;
+  min-height: 36px;
+  border: 0;
+  border-radius: var(--radius-control);
+  color: var(--faint);
+  background: transparent;
+  cursor: grab;
+  touch-action: none;
+  transition: color var(--motion-control) ease, background-color var(--motion-control) ease;
+}
+@media (max-width: 1023px) {
+  .program-day-handle.pdl-day-handle,
+  .pdl-day-handle { width: 44px; height: 44px; min-width: 44px; min-height: 44px; }
+}
+.program-day-handle.pdl-day-handle:hover:not(:disabled),
+.pdl-day-handle:hover:not(:disabled) { color: var(--text); background: var(--surface-hover); }
+.program-day-handle.pdl-day-handle:focus-visible,
+.pdl-day-handle:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.program-day-handle.pdl-day-handle:disabled,
+.pdl-day-handle:disabled { opacity: 0.35; cursor: default; }
+
+/* Trailing menu button */
+.program-day-menu-trigger.pdl-day-menu-trigger,
+.pdl-day-menu-trigger {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  min-width: 36px;
+  min-height: 36px;
+  border-radius: var(--radius-control);
+  color: var(--muted);
+  background: transparent;
+  border: 1px solid transparent;
+  transition: color var(--motion-control) ease, background-color var(--motion-control) ease, border-color var(--motion-control) ease;
+}
+@media (max-width: 1023px) {
+  .program-day-menu-trigger.pdl-day-menu-trigger,
+  .pdl-day-menu-trigger { width: 44px; height: 44px; min-width: 44px; min-height: 44px; }
+}
+.program-day-menu-trigger.pdl-day-menu-trigger:hover:not(:disabled),
+.program-day-menu-trigger.pdl-day-menu-trigger[aria-expanded="true"],
+.pdl-day-menu-trigger:hover:not(:disabled),
+.pdl-day-menu-trigger[aria-expanded="true"] {
+  color: var(--text);
+  background: var(--surface-hover);
+  border-color: var(--border);
+}
+.program-day-menu-trigger.pdl-day-menu-trigger:focus-visible,
+.pdl-day-menu-trigger:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* Day summary (clickable card body) */
+.draft-day .draft-day-summary.pdl-day-summary,
+.pdl-day-summary {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 8px;
+  min-height: 48px;
+  text-align: left;
+  border: 0;
+  border-radius: var(--radius-control);
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+  box-sizing: border-box;
+  transition: background-color var(--motion-control) ease;
+}
+@media (max-width: 639px) {
+  .draft-day .draft-day-summary.pdl-day-summary,
+  .pdl-day-summary { gap: 10px; padding: 4px 4px; }
+}
+.draft-day .draft-day-summary-static.pdl-day-summary-static,
+.pdl-day-summary-static { cursor: default; }
+.draft-day .draft-day-summary.pdl-day-summary:focus-visible,
+.pdl-day-summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* Day number badge: accent-soft tile */
+.pdl-day-badge {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  min-width: 40px;
+  border-radius: 10px;
+  background: var(--accent-soft);
+  border: 1px solid var(--accent-border);
+  color: var(--accent);
+  flex-shrink: 0;
+  user-select: none;
+  box-sizing: border-box;
+}
+@media (max-width: 639px) {
+  .pdl-day-badge { width: 38px; height: 38px; min-width: 38px; border-radius: 9px; }
+}
+.pdl-day-badge-prefix {
+  font-size: var(--font-secondary);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  line-height: 1;
+  opacity: 0.85;
+}
+.pdl-day-badge-number {
+  font-size: 15px;
+  font-weight: 750;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+
+/* Rest day badge: calm muted tile */
+.pdl-day-badge.pdl-day-badge-rest {
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  color: var(--muted);
+}
+.pdl-rest-icon { color: var(--muted); flex-shrink: 0; }
+
+/* Day text content: title row and meta line */
+.pdl-day-content {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 3px;
+  min-width: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
+}
+.pdl-day-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  overflow: hidden;
+}
+.pdl-day-title {
+  font-size: 14px;
+  font-weight: 680;
+  letter-spacing: -0.015em;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+.pdl-rest-title { color: var(--muted); font-weight: 600; }
+.pdl-day-focus-tag { flex-shrink: 0; min-height: 20px; padding: 1px 7px; font-size: var(--font-secondary); }
+.pdl-day-deload-tag { flex-shrink: 0; font-size: var(--font-secondary); padding: 2px 7px; }
+.pdl-rest-badge {
+  flex-shrink: 0;
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  color: var(--muted);
+  font-size: var(--font-secondary);
+  font-weight: 600;
+}
+
+/* Meta line: count + exercise names preview */
+.pdl-day-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  font-size: var(--font-secondary, 13px);
+  color: var(--muted);
+  line-height: 1.35;
+  overflow: hidden;
+}
+.pdl-day-count {
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+  font-size: var(--font-secondary, 13px);
+  color: var(--muted);
+}
+.pdl-meta-sep { flex-shrink: 0; opacity: 0.6; }
+.pdl-exercise-preview {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 400;
+  color: var(--muted);
+  font-size: var(--font-secondary, 13px);
+}
+.pdl-rest-meta {
+  color: var(--faint);
+  font-size: var(--font-secondary, 13px);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Add-day actions bar: deliberate row, no giant empty sunken bar */
+.program-day-add-actions.pdl-add-actions,
+.pdl-add-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  margin-top: 12px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+.program-day-add-buttons.pdl-add-buttons,
+.pdl-add-buttons {
+  display: inline-flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin: 0;
+}
+.pdl-add-btn {
+  font-size: var(--font-secondary, 13px);
+  font-weight: 600;
+  border-radius: var(--radius-pill);
+  min-height: 36px;
+  padding: 6px 16px;
+}
+@media (max-width: 639px) {
+  .program-day-add-actions.pdl-add-actions,
+  .pdl-add-actions { width: 100%; margin-top: 10px; }
+  .program-day-add-buttons.pdl-add-buttons,
+  .pdl-add-buttons {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    width: 100%;
+  }
+  .pdl-add-btn {
+    width: 100%;
+    min-height: 44px;
+    justify-content: center;
+    padding-inline: 10px;
+  }
+}
+
+/* Reduced motion preference */
+@media (prefers-reduced-motion: reduce) {
+  .pdl-day-entry, .pdl-day-handle, .pdl-day-summary,
+  .pdl-day-badge, .pdl-day-menu-trigger, .pdl-add-btn {
+    transition: none !important;
+    transform: none !important;
+  }
+}
+
+/* On narrow phones the count and the exercise names cannot share one line without squeezing the
+   names to a single letter, so the names take a line of their own and keep their ellipsis. */
+@media (max-width: 479px) {
+  .pdl-day-meta { flex-wrap: wrap; row-gap: 0; }
+  .pdl-meta-sep { display: none; }
+  .pdl-exercise-preview { flex: 1 1 100%; }
+}
+
+/* The browser spec forbids clipped text, so the exercise names wrap instead of truncating. */
+.pdl-exercise-preview,
+.pdl-exercise-preview .day-exercise-preview-compact {
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+  overflow-wrap: anywhere;
+}

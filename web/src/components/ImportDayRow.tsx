@@ -1,10 +1,12 @@
 import { useMemo, type ReactNode } from 'react';
+import { Moon } from 'lucide-react';
 import type { DraftWorkout, Exercise } from '../types';
 import { getPlannedMuscleCredits } from '../lib/programMuscles';
 import type { ExerciseEditing } from '../lib/exerciseEditScope';
 import { dayTitle, isGenericDayTitle } from '../lib/dayTitle';
 import { Button } from './ui/Button';
 import { ProgramMusclePreview } from './ProgramMusclePreview';
+import './ProgramDayList.css';
 
 /// One line per day when collapsed: what it is called, how much is in it and which exercises it
 /// holds. Clicking a workout day opens a modal with the full details.
@@ -33,50 +35,74 @@ export function DayRow({
     return { full: list(4), compact: list(1) };
   }, [day.exercises, day.isRestDay]);
 
-  const title = dayTitle(day.name, index + 1);
-  const isGenericDay = isGenericDayTitle(title);
-  const isGenericRest = day.isRestDay && (isGenericDay || title.toLowerCase() === 'rest day');
+  const rawTitle = dayTitle(day.name, index + 1);
+  const isGenericDay = isGenericDayTitle(rawTitle);
+  const isGenericRest = day.isRestDay && (isGenericDay || rawTitle.toLowerCase() === 'rest day');
+  const dayNumber = index + 1;
 
-  const meta = <>
-    {!day.isRestDay && (isGenericDay
-      ? <strong className="draft-day-number">{day.name?.trim() || `Day ${index + 1}`}</strong>
-      : <>
-        <span className="draft-day-index">Day {index + 1}</span>
-        <strong>{title}</strong>
-      </>)}
-    {day.isRestDay && (isGenericRest
-      ? <>
-        <span className="draft-day-index">Day {index + 1}</span>
-        <span className="tiny-label rest-badge">Rest day</span>
-      </>
-      : <>
-        <span className="draft-day-index">Day {index + 1}</span>
-        <strong>{title}</strong>
-        <span className="tiny-label rest-badge">Rest day</span>
-      </>)}
-    {!day.isRestDay && (
-      <span className="tiny-label draft-day-count">{day.exercises.length} {day.exercises.length === 1 ? 'exercise' : 'exercises'}</span>
-    )}
-    {day.focus && <span className="day-focus-tag">{day.focus}</span>}
-    {day.phase?.toLowerCase().includes('deload') && <span className="pill pill-accent">Deload</span>}
-  </>;
+  const displayTitle = day.isRestDay
+    ? (isGenericRest ? `Day ${dayNumber}` : (rawTitle || day.name?.trim() || 'Rest day'))
+    : (isGenericDay ? (day.name?.trim() || `Day ${dayNumber}`) : rawTitle);
 
   return (
-    <section className={`draft-day ${day.isRestDay ? 'rest-day' : ''}`} data-import-day={day.lineId}>
-      <div className="draft-day-row">
+    <section
+      className={`draft-day pdl-day-card ${day.isRestDay ? 'rest-day pdl-rest-day' : ''}`}
+      data-import-day={day.lineId}
+    >
+      <div className="draft-day-row pdl-day-row">
         {handle}
-        {day.isRestDay
-          ? <div className="draft-day-summary draft-day-summary-static">
-            <span className="draft-day-heading">{meta}</span>
+        {day.isRestDay ? (
+          <div className="draft-day-summary draft-day-summary-static pdl-day-summary pdl-day-summary-static">
+            <span className="pdl-day-badge pdl-day-badge-rest" aria-hidden="true">
+              <Moon size={18} className="pdl-rest-icon" />
+            </span>
+            <div className="pdl-day-content">
+              <div className="pdl-day-title-row">
+                <strong className="pdl-day-title pdl-rest-title">{displayTitle}</strong>
+                <span className="tiny-label rest-badge pdl-rest-badge">Rest day</span>
+                {day.focus && <span className="day-focus-tag pdl-day-focus-tag">{day.focus}</span>}
+              </div>
+              <div className="pdl-day-meta pdl-rest-meta">
+                <span>{day.focus ? `Day ${dayNumber} · ${day.focus}` : `Day ${dayNumber} · Recovery & rest`}</span>
+              </div>
+            </div>
           </div>
-          : <Button presentation="plain" className="draft-day-summary"
-            aria-label={day.name} onClick={onOpen}>
-            <span className="draft-day-heading">{meta}</span>
-            {exercisePreview && <span className="day-exercise-preview">
-              <span className="day-exercise-preview-full">{exercisePreview.full}</span>
-              <span className="day-exercise-preview-compact">{exercisePreview.compact}</span>
-            </span>}
-          </Button>}
+        ) : (
+          <Button
+            presentation="plain"
+            className="draft-day-summary pdl-day-summary"
+            aria-label={day.name?.trim() || `Day ${dayNumber}`}
+            onClick={onOpen}
+          >
+            <span className="pdl-day-badge" aria-hidden="true">
+              <span className="pdl-day-badge-prefix">Day</span>
+              <span className="pdl-day-badge-number">{dayNumber}</span>
+            </span>
+            <div className="pdl-day-content">
+              <div className="pdl-day-title-row">
+                <strong className="pdl-day-title">{displayTitle}</strong>
+                {day.focus && <span className="day-focus-tag pdl-day-focus-tag">{day.focus}</span>}
+                {day.phase?.toLowerCase().includes('deload') && (
+                  <span className="pill pill-accent pdl-day-deload-tag">Deload</span>
+                )}
+              </div>
+              <div className="pdl-day-meta">
+                <span className="tiny-label draft-day-count pdl-day-count">
+                  {day.exercises.length} {day.exercises.length === 1 ? 'exercise' : 'exercises'}
+                </span>
+                {exercisePreview && (
+                  <>
+                    <span className="pdl-meta-sep" aria-hidden="true">·</span>
+                    <span className="day-exercise-preview pdl-exercise-preview">
+                      <span className="day-exercise-preview-full">{exercisePreview.full}</span>
+                      <span className="day-exercise-preview-compact">{exercisePreview.compact}</span>
+                    </span>
+                  </>
+                )}
+              </div>
+            </div>
+          </Button>
+        )}
         {menu}
       </div>
     </section>

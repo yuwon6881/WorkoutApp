@@ -1,0 +1,364 @@
+/* ProgramsPolish.css - Task T10 Workouts page polished entry points
+   Consumes only semantic tokens from index.css. Works identically in Midnight Lime (dark)
+   and Lavender (light) themes without raw color literals or hard-coded hex codes. */
+
+/* Page-level layout capping max width on expanded displays to keep reading measure elegant. */
+.pp-workouts-page {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 1120px;
+  margin: 0;
+}
+
+/* =============================================================================
+   1. Import-ready and in-progress banner
+   ============================================================================= */
+
+.ready-import-card.pp-import-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  background: var(--accent-soft);
+  border: 1px solid var(--accent-border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 18px 24px;
+  margin-bottom: 24px;
+  transition: border-color var(--motion-control) var(--motion-ease);
+}
+
+.ready-import-card.pp-import-banner:hover {
+  border-color: var(--accent-border-strong);
+}
+
+.pp-import-banner-content {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-width: 0;
+  flex: 1;
+}
+
+.pp-import-icon-tile {
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  border-radius: var(--radius-control);
+  background: var(--surface);
+  border: 1px solid var(--accent-border);
+  color: var(--accent);
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  box-shadow: var(--shadow);
+}
+
+.ready-import-info.pp-import-banner-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  flex: 1;
+}
+
+.pp-import-chip-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ready-import-badge.pp-import-status-chip {
+  display: inline-flex;
+  align-items: center;
+  font-size: var(--font-secondary);
+  font-weight: 650;
+  letter-spacing: -0.005em;
+  color: var(--accent);
+  background: var(--surface);
+  border: 1px solid var(--accent-border);
+  border-radius: var(--radius-pill);
+  padding: 2px 10px;
+  width: fit-content;
+  line-height: 1.4;
+}
+
+.pp-import-filename {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 740;
+  letter-spacing: -0.025em;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.pp-import-desc {
+  margin: 0;
+  font-size: var(--font-secondary);
+  color: var(--muted);
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.pp-import-banner-action {
+  flex-shrink: 0;
+  min-height: 40px;
+}
+
+@media (max-width: 639px) {
+  .ready-import-card.pp-import-banner {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 16px;
+    padding: 16px;
+    margin-bottom: 20px;
+  }
+
+  .pp-import-banner-content {
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .pp-import-icon-tile {
+    width: 40px;
+    height: 40px;
+    min-width: 40px;
+    margin-top: 2px;
+  }
+
+  .pp-import-banner-action {
+    width: 100%;
+    min-height: 44px;
+    justify-content: center;
+  }
+}
+
+/* =============================================================================
+   2. Active plan empty state (first run and drop target)
+   ============================================================================= */
+
+.active-slot-empty.pp-active-slot-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: nowrap;
+  gap: 20px;
+  padding: 18px 24px;
+  margin-bottom: 24px;
+  border-radius: var(--radius);
+  background: var(--surface-raised);
+  border: 1.5px dashed var(--border);
+  transition: border-color var(--motion-control) var(--motion-ease), background-color var(--motion-control) var(--motion-ease);
+}
+
+.active-slot-empty.pp-active-slot-card.slot-zone-over {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.pp-slot-content {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-width: 0;
+  flex: 1;
+}
+
+.pp-slot-icon-tile {
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  border-radius: var(--radius-control);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--accent);
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  box-shadow: var(--shadow);
+}
+
+.pp-active-slot-drop-target .pp-slot-icon-tile {
+  color: var(--muted);
+}
+
+.active-slot-empty-copy.pp-slot-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.active-slot-empty-copy.pp-slot-copy h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 720;
+  letter-spacing: -0.02em;
+  color: var(--text);
+}
+
+.active-slot-empty-copy.pp-slot-copy p {
+  margin: 0;
+  font-size: var(--font-secondary);
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.pp-slot-help-text {
+  text-wrap: pretty;
+}
+
+.pp-first-run-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.pp-first-run-actions .button {
+  min-height: 40px;
+}
+
+@media (max-width: 639px) {
+  .active-slot-empty.first-run.pp-active-slot-card {
+    flex-direction: column;
+    align-items: stretch;
+    flex-wrap: wrap;
+    gap: 16px;
+    padding: 16px;
+    margin-bottom: 20px;
+  }
+
+  .pp-slot-content {
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .pp-slot-icon-tile {
+    width: 40px;
+    height: 40px;
+    min-width: 40px;
+    margin-top: 2px;
+  }
+
+  .pp-first-run-actions {
+    flex-direction: column-reverse;
+    width: 100%;
+    gap: 10px;
+  }
+
+  .pp-first-run-actions .button,
+  .pp-first-run-btn {
+    width: 100%;
+    min-height: 44px;
+    justify-content: center;
+  }
+}
+
+/* =============================================================================
+   3. Workout library empty state
+   ============================================================================= */
+
+.panel.pp-library-empty-card {
+  padding: 18px 24px;
+  margin-bottom: 0;
+  border-radius: var(--radius);
+  background: var(--surface);
+  border: 1px solid var(--card-border);
+  box-shadow: var(--shadow);
+}
+
+.pp-library-empty-content {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-width: 0;
+  text-align: left;
+}
+
+.pp-library-empty-icon {
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  border-radius: var(--radius-control);
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  color: var(--muted);
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+
+.pp-library-empty-text {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  max-width: 680px;
+}
+
+.pp-library-empty-text h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 720;
+  letter-spacing: -0.02em;
+  color: var(--text);
+}
+
+.pp-library-empty-text p {
+  margin: 0;
+  font-size: var(--font-secondary);
+  color: var(--muted);
+  line-height: 1.45;
+  text-wrap: pretty;
+}
+
+@media (max-width: 639px) {
+  .panel.pp-library-empty-card {
+    padding: 16px;
+  }
+
+  .pp-library-empty-content {
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .pp-library-empty-icon {
+    width: 40px;
+    height: 40px;
+    min-width: 40px;
+    margin-top: 2px;
+  }
+}
+
+/* =============================================================================
+   4. Expanded layouts & card grids
+   ============================================================================= */
+
+@media (min-width: 640px) {
+  .pp-workouts-page .routine-library-list {
+    grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+    gap: 14px;
+  }
+
+  .pp-workouts-page .slot-library-list {
+    grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+    gap: 14px;
+  }
+
+  .pp-workouts-page .slot-library-list .library-program-card.expanded {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ready-import-card.pp-import-banner,
+  .active-slot-empty.pp-active-slot-card {
+    transition: none;
+  }
+}

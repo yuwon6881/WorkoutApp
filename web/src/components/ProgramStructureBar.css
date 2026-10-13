@@ -1,0 +1,357 @@
+/* Block and week chips of the program timeline (split from ProgramTimeline.css). */
+/* 3. Structure Bar (Unified Blocks & Weeks Container) */
+.ptl-structure-bar {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 20px;
+  padding: 14px 16px;
+  border-radius: var(--radius-control);
+  background: var(--surface-raised);
+  border: 1px solid var(--section-border);
+}
+
+@media (max-width: 639px) {
+  .ptl-structure-bar {
+    padding: 12px 10px;
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+}
+
+.ptl-structure-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+}
+
+@media (max-width: 639px) {
+  .ptl-structure-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+  }
+}
+
+.ptl-structure-row.ptl-block-row {
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--section-border);
+}
+
+@media (max-width: 639px) {
+  .ptl-structure-row.ptl-block-row {
+    padding-bottom: 10px;
+  }
+}
+
+.ptl-structure-caption {
+  width: 50px;
+  min-width: 50px;
+  font-size: var(--font-secondary);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  user-select: none;
+  flex-shrink: 0;
+}
+
+@media (max-width: 639px) {
+  .ptl-structure-caption {
+    width: auto;
+    min-width: 0;
+    padding-left: 2px;
+  }
+}
+
+/* Reset old sunken container borders inside unified bar */
+.ptl-structure-bar .program-block-control-bar {
+  background: transparent !important;
+  border: none !important;
+  border-radius: 0 !important;
+  padding: 0 !important;
+  margin-bottom: 0 !important;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.ptl-block-selector {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 2px 0 !important;
+  margin-bottom: 0 !important;
+  scrollbar-width: none;
+}
+.ptl-block-selector::-webkit-scrollbar {
+  display: none;
+}
+
+.ptl-week-scroller-wrap {
+  flex: 1 1 auto;
+  min-width: 0;
+  width: 100%;
+}
+
+.ptl-week-scroller-wrap .filter-chips-nav {
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  width: 100% !important;
+  margin-bottom: 0 !important;
+}
+
+.ptl-week-scroller-wrap .filter-chips {
+  flex: 1 1 auto !important;
+  min-width: 0 !important;
+  padding: 2px 0 !important;
+  margin-bottom: 0 !important;
+}
+
+/* 4. Chips: Uniform Heights & Semantic Colors */
+.ptl-chip-group {
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--control-border);
+  background: var(--surface);
+  transition: all var(--motion-control) ease;
+  min-height: 44px;
+  height: 44px;
+  box-sizing: border-box;
+  padding: 0 2px 0 0;
+}
+
+@media (min-width: 1024px) {
+  .ptl-chip-group {
+    min-height: 38px;
+    height: 38px;
+  }
+}
+
+.ptl-chip-group.chip-group-lone,
+.ptl-chip-group:not(:has(.ptl-chip-action-btn, .chip-icon-btn, .ui-menu)) {
+  padding-right: 0;
+}
+
+.ptl-chip-group:not(.ptl-chip-active):hover {
+  border-color: var(--border-hover);
+  background: var(--surface-hover);
+}
+
+.ptl-chip-group .ptl-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0 !important;
+  background: transparent !important;
+  border-radius: var(--radius-pill);
+  color: var(--text) !important;
+  font-size: var(--font-secondary);
+  font-weight: 600;
+  cursor: pointer;
+  padding-left: 14px !important;
+  padding-right: 4px !important;
+  min-height: 44px !important;
+  height: 44px !important;
+  box-sizing: border-box;
+  transition: color var(--motion-control) ease;
+}
+
+@media (min-width: 1024px) {
+  .ptl-chip-group .ptl-chip {
+    min-height: 38px !important;
+    height: 38px !important;
+    padding-left: 12px !important;
+    padding-right: 3px !important;
+  }
+}
+
+.ptl-chip-group.chip-group-lone .ptl-chip,
+.ptl-chip-group:not(:has(.ptl-chip-action-btn, .chip-icon-btn, .ui-menu)) .ptl-chip {
+  padding-right: 14px !important;
+}
+
+@media (min-width: 1024px) {
+  .ptl-chip-group.chip-group-lone .ptl-chip,
+  .ptl-chip-group:not(:has(.ptl-chip-action-btn, .chip-icon-btn, .ui-menu)) .ptl-chip {
+    padding-right: 12px !important;
+  }
+}
+
+.ptl-chip-group .ptl-chip:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+/* Selected Chip: Solid Accent Fill with on-accent text */
+.ptl-chip-group.ptl-chip-active,
+.ptl-chip-group.ptl-chip-active:hover {
+  background: var(--accent) !important;
+  border-color: var(--accent) !important;
+  box-shadow: 0 0 14px var(--accent-soft-glow);
+}
+
+.ptl-chip-group.ptl-chip-active .ptl-chip,
+.ptl-chip-group.ptl-chip-active:hover .ptl-chip {
+  color: var(--on-accent) !important;
+  font-weight: 700 !important;
+}
+
+/* Action button inside chip (Block actions menu, Week delete) */
+.ptl-chip-group .ptl-chip-action-btn {
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: transparent !important;
+  color: var(--muted);
+  cursor: pointer;
+  margin-left: 0 !important;
+  margin-right: 4px;
+  transition: all var(--motion-control) ease;
+}
+
+@media (min-width: 1024px) {
+  .ptl-chip-group .ptl-chip-action-btn {
+    width: 36px;
+    height: 36px;
+    min-width: 36px;
+    min-height: 36px;
+    margin-right: 3px;
+  }
+}
+
+.ptl-chip-group .ui-menu {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 0 !important;
+}
+
+.ptl-chip-group .ui-menu .ptl-chip-action-btn {
+  margin-left: 0 !important;
+}
+
+.ptl-chip-group .ptl-chip-action-btn:hover:not(:disabled),
+.ptl-chip-group .ptl-chip-action-btn[aria-expanded="true"] {
+  color: var(--text);
+  background: color-mix(in srgb, var(--text) 12%, transparent) !important;
+}
+
+.ptl-chip-group.ptl-chip-active .ptl-chip-action-btn {
+  color: var(--on-accent) !important;
+}
+
+.ptl-chip-group.ptl-chip-active .ptl-chip-action-btn:hover:not(:disabled),
+.ptl-chip-group.ptl-chip-active .ptl-chip-action-btn[aria-expanded="true"] {
+  color: var(--on-accent) !important;
+  background: color-mix(in srgb, var(--on-accent) 18%, transparent) !important;
+}
+
+/* 5. Add Buttons ("+ Add block", "+ Add week") */
+.ptl-add-btn {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 6px !important;
+  flex: 0 0 auto !important;
+  width: auto !important;
+  min-width: auto !important;
+  min-height: 44px !important;
+  height: 44px !important;
+  padding: 0 14px 0 10px !important;
+  border: 1px solid var(--control-border) !important;
+  border-radius: var(--radius-pill) !important;
+  background: var(--surface) !important;
+  color: var(--text) !important;
+  font-size: var(--font-secondary) !important;
+  font-weight: 600 !important;
+  cursor: pointer !important;
+  transition: all var(--motion-control) ease !important;
+}
+
+@media (min-width: 1024px) {
+  .ptl-add-btn {
+    min-height: 38px !important;
+    height: 38px !important;
+    padding: 0 12px 0 8px !important;
+  }
+}
+
+.ptl-add-btn:hover:not(:disabled) {
+  background: var(--surface-hover) !important;
+  border-color: var(--border-hover) !important;
+  color: var(--accent) !important;
+}
+
+.ptl-add-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.ptl-add-btn:disabled {
+  opacity: 0.45 !important;
+  cursor: not-allowed !important;
+}
+
+.ptl-add-btn svg {
+  color: inherit;
+  flex-shrink: 0;
+}
+
+.ptl-add-btn-label {
+  white-space: nowrap;
+}
+
+/* 6. Scroll Arrows: 44px, visible when there is overflow, hidden when disabled */
+.ptl-week-scroller-wrap .filter-nav-btn {
+  flex: 0 0 44px !important;
+  width: 44px !important;
+  height: 44px !important;
+  min-width: 44px !important;
+  min-height: 44px !important;
+  border-radius: var(--radius-pill) !important;
+  background: var(--surface) !important;
+  border: 1px solid var(--control-border) !important;
+  color: var(--text) !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  transition: all var(--motion-control) ease !important;
+  cursor: pointer !important;
+}
+
+.ptl-week-scroller-wrap .filter-nav-btn:hover:not(:disabled) {
+  background: var(--surface-hover) !important;
+  border-color: var(--border-hover) !important;
+  color: var(--accent) !important;
+}
+
+.ptl-week-scroller-wrap .filter-nav-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.ptl-week-scroller-wrap .filter-nav-btn:disabled {
+  display: none !important;
+}
+
+/* The week chips scroll sideways on phones; fading the trailing edge shows that a chip past the
+   edge is not cut off by mistake. */
+@media (max-width: 639px) {
+  .ptl-week-scroller-wrap .filter-chips {
+    -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent);
+    mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent);
+  }
+}

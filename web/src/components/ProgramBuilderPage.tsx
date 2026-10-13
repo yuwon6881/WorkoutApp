@@ -6,6 +6,8 @@ import { ApiError, api } from '../lib/api';
 import { DraftOutline, type DraftOutlineHandle } from './ImportDraftTree';
 import { Button } from './ui/Button';
 import { Modal } from './ui/Modal';
+import './ProgramTimeline.css';
+import './ProgramStructureBar.css';
 
 /// The whole program is built in the browser and reaches the server once, when the lifter asks for
 /// the program. Nothing half-built is stored, so leaving is a confirmed decision.
@@ -77,8 +79,8 @@ export function ProgramBuilderPage({ initialDraft, exercises, onBack, onCreated 
 
   const setProgramName = useCallback((programName: string) => update({ ...draft, programName }), [draft, update]);
 
-  return <div className="program-builder-page">
-    <div className="page-heading">
+  return <div className="program-builder-page ptl-builder-page">
+    <div className="page-heading ptl-page-heading">
       <div>
         <Button variant="tertiary" onClick={() => setLeaveConfirmOpen(true)}><ArrowLeft size={16} />Back to workouts</Button>
         <h1>Build a program</h1>
@@ -93,7 +95,7 @@ export function ProgramBuilderPage({ initialDraft, exercises, onBack, onCreated 
       acceptable busy={creating}
       onAcceptProgram={() => void create()} />
     {issue && !validationError && (draft.programName.trim() !== '' || issue !== 'Program name is required.') && (
-      <p className="program-builder-hint" role="status">{issue}</p>
+      <p className="program-builder-hint ptl-builder-hint" role="status">{issue}</p>
     )}
     {leaveConfirmOpen && <Modal title="Leave this program?" onClose={() => setLeaveConfirmOpen(false)}>
       <div className="modal-body">

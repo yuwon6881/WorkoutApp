@@ -1032,14 +1032,16 @@ test('import a PDF program, resolve an unmapped exercise, and accept it', async 
   const descriptionFrame = mysteryExercise.locator('.import-exercise-notes');
   const descriptionColors = await descriptionFrame.evaluate(element => {
     const probe = document.createElement('span');
-    probe.style.backgroundColor = 'var(--accent-soft)';
+    probe.style.color = 'var(--accent-border)';
     element.append(probe);
-    const expected = getComputedStyle(probe).backgroundColor;
+    const expected = getComputedStyle(probe).color;
     probe.remove();
-    return { actual: getComputedStyle(element).backgroundColor, expected };
+    return { actual: getComputedStyle(element).borderLeftColor, expected };
   });
   expect(descriptionColors.actual).toBe(descriptionColors.expected);
-  await expect(descriptionFrame).toHaveCSS('padding', '12px');
+  await expect(descriptionFrame).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
+  await expect(descriptionFrame).toHaveCSS('border-left-width', '2px');
+  await expect(descriptionFrame).toHaveCSS('padding-left', '12px');
   const setRow = mysteryExercise.locator('.import-set-swipe-row:visible').first();
   // Sets share one outer surface; rows use separators rather than nested card borders.
   await expect(mysteryExercise.locator('.set-grid-list')).toHaveCSS('border-left-width', '1px');
@@ -1352,8 +1354,9 @@ test('program version chooser uses the source schedule metadata and one explicit
     });
     expect((await created).ok()).toBeTruthy();
     const chooser = page.getByRole('group', { name: 'Available program versions', exact: true });
-    await expect(chooser.getByRole('article')).toHaveCount(2, { timeout: 15000 });
-    const fullBody = chooser.locator('.alternative-card').filter({ hasText: 'Full Body Program' });
+    // Each version is one selectable card (a toggle button), not an article.
+    await expect(chooser.getByRole('button')).toHaveCount(2, { timeout: 15000 });
+    const fullBody = chooser.locator('.ialt-card').filter({ hasText: 'Full Body Program' });
     await expect(fullBody).toContainText('8 weeks');
     await expect(fullBody).toContainText('3 sessions / week');
     await expect(fullBody).toContainText('24 estimated sessions');
@@ -1365,7 +1368,7 @@ test('program version chooser uses the source schedule metadata and one explicit
       await themeElement.evaluate((element, value) => element.setAttribute('data-theme', value), theme);
       await expect(chooser).toBeVisible();
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-      for (const card of await chooser.locator('.alternative-card').all()) {
+      for (const card of await chooser.locator('.ialt-card').all()) {
         const box = await card.boundingBox();
         expect(box).not.toBeNull();
         expect(box!.x).toBeGreaterThanOrEqual(0);
@@ -1375,7 +1378,7 @@ test('program version chooser uses the source schedule metadata and one explicit
       const gridBox = await chooserGrid.boundingBox();
       expect(gridBox).not.toBeNull();
       if (gridBox!.width >= 576) {
-        const cardBoxes = await chooserGrid.locator('.alternative-card').evaluateAll(cards => cards.map(card => {
+        const cardBoxes = await chooserGrid.locator('.ialt-card').evaluateAll(cards => cards.map(card => {
           const box = card.getBoundingClientRect();
           return { x: box.x, y: box.y, width: box.width };
         }));
@@ -1390,9 +1393,11 @@ test('program version chooser uses the source schedule metadata and one explicit
       else element.removeAttribute('data-theme');
     }, originalTheme);
 
-    const selectedButton = fullBody.getByRole('button', { name: 'Choose this version', exact: true });
-    await selectedButton.click();
-    await expect(fullBody.getByRole('button', { name: 'Selected', exact: true })).toHaveAttribute('aria-pressed', 'true');
+    // The whole version card is the toggle button, so it is the filtered locator itself.
+    await expect(fullBody).toHaveAccessibleName('Choose this version');
+    await fullBody.click();
+    await expect(fullBody).toHaveAccessibleName('Selected');
+    await expect(fullBody).toHaveAttribute('aria-pressed', 'true');
     await page.getByRole('button', { name: 'Continue with selected version', exact: true }).click();
     await expect(page.getByRole('heading', { name: 'Review', exact: true })).toBeVisible();
     expect(selectedAlternativeId).toBe('full-body-program');

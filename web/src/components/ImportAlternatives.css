@@ -1,0 +1,350 @@
+/* ImportAlternatives.css - Choice of program / week version (prefix: ialt-) */
+
+.ialt-panel {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Header: left-aligned icon tile + title + explanatory text */
+.ialt-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.ialt-header-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-control);
+  background: var(--accent-soft);
+  border: 1px solid var(--accent-border);
+  color: var(--accent);
+  flex-shrink: 0;
+}
+
+.ialt-header-text {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  flex: 1;
+}
+
+.ialt-title {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--text);
+  line-height: 1.25;
+}
+
+.ialt-description {
+  margin: 0;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.55;
+  max-width: 65ch;
+  overflow-wrap: anywhere;
+}
+
+/* Grid layout: 1 col compact (< 640px), 2 col medium (640-1023px), up to 3 col expanded (>= 1024px) */
+.ialt-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+  width: 100%;
+  max-width: 1100px;
+  align-items: stretch;
+}
+
+/* Choice card: individual selectable unit using Button primitive */
+.ialt-card {
+  appearance: none;
+  -webkit-appearance: none;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  margin: 0;
+  padding: 20px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  cursor: pointer;
+  transition: border-color var(--motion-control) ease,
+              background var(--motion-control) ease,
+              box-shadow var(--motion-control) ease,
+              transform var(--motion-control) var(--motion-ease);
+}
+
+.ialt-card:hover:not(:disabled) {
+  border-color: var(--border-hover);
+  background: var(--surface-hover);
+  box-shadow: var(--shadow-raised);
+  transform: translateY(-2px);
+}
+
+.ialt-card.ialt-card--selected {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent-border-strong), var(--shadow);
+}
+
+.ialt-card.ialt-card--selected:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--accent-soft) 88%, var(--surface-hover));
+  border-color: var(--accent);
+}
+
+.ialt-card:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft-glow);
+}
+
+.ialt-card:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+  transform: none;
+  box-shadow: none;
+}
+
+/* Card inner layout: radio indicator on left, content on right */
+.ialt-card-main {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  width: 100%;
+  min-width: 0;
+}
+
+.ialt-card-indicator {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-top: 1px;
+  color: var(--faint);
+  transition: color var(--motion-control) ease;
+}
+
+.ialt-card:hover:not(:disabled) .ialt-indicator-unchecked {
+  color: var(--muted);
+}
+
+.ialt-indicator-checked {
+  color: var(--accent);
+}
+
+.ialt-card-content {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+}
+
+.ialt-card-title {
+  display: block;
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+  color: var(--text);
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+  text-align: left;
+}
+
+.ialt-card-description {
+  display: block;
+  margin-top: 8px;
+  color: var(--muted);
+  font-size: var(--font-secondary);
+  line-height: 1.5;
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+
+/* Compact stats pills pinned to card bottom */
+.ialt-card-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  margin-top: auto;
+  padding-top: 16px;
+  width: 100%;
+}
+
+.ialt-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 8px;
+  border-radius: var(--radius-pill);
+  font-size: var(--font-secondary);
+  font-weight: 550;
+  line-height: 1.35;
+  border: 1px solid var(--border);
+  background: var(--surface-raised);
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.ialt-pill--accent {
+  border-color: var(--accent-border);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.ialt-pill--muted {
+  color: var(--muted);
+}
+
+.ialt-card--selected .ialt-pill:not(.ialt-pill--accent) {
+  border-color: color-mix(in srgb, var(--accent-border) 60%, var(--border));
+  background: color-mix(in srgb, var(--surface) 70%, transparent);
+  color: var(--text);
+}
+
+/* Footer: trailing-aligned primary button with selected caption */
+.ialt-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid var(--section-border);
+  max-width: 1100px;
+}
+
+.ialt-footer-status {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.ialt-selected-caption {
+  margin: 0;
+  font-size: var(--font-secondary);
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
+.ialt-selected-name {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.ialt-continue-btn {
+  flex-shrink: 0;
+  margin-left: auto;
+  min-height: 44px;
+  padding: 0 24px;
+  border-radius: var(--radius-pill);
+}
+
+/* Medium viewport: 640px - 1023px */
+@media (min-width: 640px) {
+  .ialt-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 18px;
+  }
+}
+
+/* Expanded viewport: >= 1024px */
+@media (min-width: 1024px) {
+  .ialt-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 20px;
+  }
+
+  .ialt-grid[data-count="2"] {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    max-width: 760px;
+  }
+
+  .ialt-grid[data-count="1"] {
+    grid-template-columns: minmax(0, 480px);
+  }
+}
+
+/* Compact viewport: < 640px */
+@media (max-width: 639px) {
+  .ialt-header {
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+
+  .ialt-header-icon {
+    width: 40px;
+    height: 40px;
+  }
+
+  .ialt-title {
+    font-size: 18px;
+  }
+
+  .ialt-description {
+    font-size: var(--font-secondary);
+  }
+
+  .ialt-card {
+    padding: 16px 14px;
+  }
+
+  /* Description clamped to 3 lines on phones */
+  .ialt-card-description {
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .ialt-card-meta {
+    padding-top: 12px;
+    gap: 5px;
+  }
+
+  .ialt-pill {
+    padding: 2px 7px;
+    font-size: var(--font-secondary);
+  }
+
+  .ialt-footer {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+    margin-top: 20px;
+    padding-top: 16px;
+  }
+
+  .ialt-footer-status {
+    text-align: center;
+  }
+
+  .ialt-continue-btn {
+    width: 100%;
+  }
+}
+
+/* Reduced motion preference */
+@media (prefers-reduced-motion: reduce) {
+  .ialt-card {
+    transition: none;
+    transform: none;
+  }
+
+  .ialt-card:hover:not(:disabled) {
+    transform: none;
+  }
+}

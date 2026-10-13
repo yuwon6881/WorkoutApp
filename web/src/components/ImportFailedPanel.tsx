@@ -2,6 +2,7 @@ import { AlertTriangle, ChevronDown, FileText, Trash2, Upload } from 'lucide-rea
 import type { ImportView } from '../types';
 import { importFailureSteps, importIssueCopy } from '../lib/importIssueCopy';
 import { Button } from './ui/Button';
+import './ImportFailures.css';
 
 type Issue = NonNullable<ImportView['reviewIssues']>[number];
 
@@ -31,46 +32,78 @@ export function ImportFailedPanel({ view, busy, onChooseFile, onDiscard }: {
   const steps = importFailureSteps(issue?.sourcePage);
 
   return (
-    <section className="panel import-failed-panel" aria-labelledby="import-failed-title">
-      <header className="import-failed-header">
-        <span className="import-failed-icon" aria-hidden="true"><AlertTriangle size={20} /></span>
-        <div className="import-failed-heading">
-          <h3 id="import-failed-title">This PDF could not be imported</h3>
-          <p className="muted"><FileText size={14} aria-hidden="true" />{view.fileName}</p>
+    <section className="panel ifail-panel" aria-labelledby="import-failed-title">
+      <header className="ifail-header">
+        <div className="ifail-icon-tile error" aria-hidden="true">
+          <AlertTriangle size={22} />
+        </div>
+        <div className="ifail-heading">
+          <h3 id="import-failed-title" className="ifail-title">This PDF could not be imported</h3>
+          <div className="ifail-filename-chip" title={view.fileName}>
+            <FileText size={13} aria-hidden="true" />
+            <span className="ifail-filename-text">{view.fileName}</span>
+          </div>
         </div>
       </header>
 
-      <div className="import-failed-reason" role="alert">
-        <div className="import-failed-reason-title">
-          <strong>{copy?.title ?? 'The read could not be completed'}</strong>
-          {issue?.sourcePage && <span className="pill">PDF page {issue.sourcePage}</span>}
+      <div className="ifail-reason error" role="alert">
+        <div className="ifail-reason-header">
+          <strong className="ifail-reason-title">{copy?.title ?? 'The read could not be completed'}</strong>
+          {issue?.sourcePage && <span className="pill ifail-page-pill">PDF page {issue.sourcePage}</span>}
         </div>
-        <p className="import-failed-message">{issue ? issue.message : plainMessage(view.error)}</p>
-        {copy?.hint && <p className="muted">{copy.hint}</p>}
+        <p className="ifail-reason-message">{issue ? issue.message : plainMessage(view.error)}</p>
+        {copy?.hint && <p className="ifail-reason-hint muted">{copy.hint}</p>}
       </div>
 
-      <div className="import-failed-steps">
-        <h4>What you can do</h4>
-        <ol>{steps.map(step => <li key={step}>{step}</li>)}</ol>
+      <div className="ifail-steps">
+        <h4 className="ifail-steps-heading">What you can do</h4>
+        <ol className="ifail-steps-list">
+          {steps.map((step, index) => (
+            <li key={step} className="ifail-step-item">
+              <span className="ifail-step-badge" aria-hidden="true">{index + 1}</span>
+              <span className="ifail-step-text">{step}</span>
+            </li>
+          ))}
+        </ol>
       </div>
 
-      {others.length > 0 && <details className="import-failed-more">
-        <summary>{others.length} more {others.length === 1 ? 'item' : 'items'} to check<ChevronDown size={16} aria-hidden="true" /></summary>
-        <ul>{others.map((item, index) => <li key={`${item.code}-${item.sourcePage ?? ''}-${index}`}>
-          <strong>{importIssueCopy(item.code, item.message).title}</strong>
-          {item.sourcePage ? <span className="muted"> · PDF page {item.sourcePage}</span> : null}
-          <p>{item.message}</p>
-        </li>)}</ul>
-      </details>}
+      {others.length > 0 && (
+        <details className="ifail-disclosure">
+          <summary className="ifail-disclosure-summary">
+            <span>{others.length} more {others.length === 1 ? 'item' : 'items'} to check</span>
+            <ChevronDown size={16} className="ifail-disclosure-chevron" aria-hidden="true" />
+          </summary>
+          <ul className="ifail-disclosure-list">
+            {others.map((item, index) => (
+              <li key={`${item.code}-${item.sourcePage ?? ''}-${index}`} className="ifail-disclosure-item">
+                <div className="ifail-disclosure-item-header">
+                  <strong>{importIssueCopy(item.code, item.message).title}</strong>
+                  {item.sourcePage ? <span className="muted"> · PDF page {item.sourcePage}</span> : null}
+                </div>
+                <p className="ifail-disclosure-item-msg">{item.message}</p>
+              </li>
+            ))}
+          </ul>
+        </details>
+      )}
 
-      <details className="import-failed-technical">
-        <summary>Technical details<ChevronDown size={16} aria-hidden="true" /></summary>
-        <p>{view.error}</p>
+      <details className="ifail-disclosure">
+        <summary className="ifail-disclosure-summary">
+          <span>Technical details</span>
+          <ChevronDown size={16} className="ifail-disclosure-chevron" aria-hidden="true" />
+        </summary>
+        <div className="ifail-disclosure-body">
+          <p className="ifail-tech-error">{view.error}</p>
+        </div>
       </details>
 
-      <div className="reading-card-actions">
-        <Button variant="destructive" disabled={busy} onClick={onDiscard}><Trash2 size={15} />Discard import</Button>
-        <Button variant="primary" disabled={busy} onClick={onChooseFile}><Upload size={15} />Choose another PDF</Button>
+      <div className="ifail-actions">
+        <Button variant="destructive" disabled={busy} onClick={onDiscard} className="ifail-btn-secondary">
+          <Trash2 size={15} />Discard import
+        </Button>
+        <Button variant="primary" disabled={busy} onClick={onChooseFile} className="ifail-btn-primary">
+          <Upload size={15} />Choose another PDF
+        </Button>
       </div>
     </section>
   );

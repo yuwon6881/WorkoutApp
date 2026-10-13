@@ -46,7 +46,7 @@ export function SortableWeekChip({
     <span
       role="presentation"
       data-import-week-chip={week}
-      className={`chip-group import-week-chip-group ${selected ? 'active' : ''} ${!onDelete ? 'chip-group-lone' : ''} ${dragging ? 'dragging' : ''} ${dropClass}`.trim()}
+      className={`chip-group import-week-chip-group ${selected ? 'active' : ''} ${!onDelete ? 'chip-group-lone' : ''} ${dragging ? 'dragging' : ''} ${dropClass} ptl-chip-group ptl-week-chip-group ${selected ? 'ptl-chip-active' : ''}`.trim()}
     >
       <Button
         ref={chipRef}
@@ -54,7 +54,7 @@ export function SortableWeekChip({
         role="tab"
         aria-selected={selected}
         draggable
-        className={`filter-chip import-week-chip ${selected ? 'active' : ''}`}
+        className={`filter-chip import-week-chip ${selected ? 'active' : ''} ptl-chip ${selected ? 'ptl-chip-active' : ''}`}
         onClick={() => {
           if (suppressClick.current) {
             suppressClick.current = false;
@@ -156,7 +156,7 @@ export function SortableWeekChip({
       {onDelete && (
         <Button
           presentation="plain"
-          className="chip-icon-btn"
+          className="chip-icon-btn ptl-chip-action-btn ptl-chip-delete-btn"
           aria-label={`Delete week ${week}`}
           title={`Delete week ${week}`}
           onClick={onDelete}
