@@ -38,9 +38,16 @@ public static class WatchEndpoints
             return Results.NoContent();
         });
 
-        app.MapGet("/api/watch/active", async (AppDb db, WorkoutService workouts, CancellationToken ct) =>
+        app.MapGet("/api/watch/active", async (AppDb db, WorkoutService workouts, HttpContext http, CancellationToken ct) =>
         {
             var user = await db.Users.AsNoTracking().SingleAsync(item => item.Id == db.CurrentUser, ct);
+            var tag = await WatchActiveTag.Compute(db, user, ct);
+            if (http.Request.Headers.IfNoneMatch == tag)
+            {
+                http.Response.Headers.ETag = tag;
+                return Results.StatusCode(StatusCodes.Status304NotModified);
+            }
+            http.Response.Headers.ETag = tag;
             return Results.Ok(new { unit = user.Unit, restSeconds = user.RestSeconds, trackRir = user.TrackRir, session = await workouts.Active(ct) });
         });
         app.MapGet("/api/watch/workouts/{id:guid}", async (Guid id, WorkoutService workouts, CancellationToken ct)

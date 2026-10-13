@@ -5,6 +5,7 @@ import { restTimer } from '../lib/restTimer';
 import { getWorkoutPushDeviceId } from '../lib/push/firebaseMessaging';
 import { setHapticsEnabled } from '../lib/platform';
 import { useRestAlertDelivery } from './useRestAlertDelivery';
+import { restAlertCancelNeeded, restAlertPushKey, type RestAlertPushAttempt } from '../lib/restAlertDelivery';
 import type { DevicePreferences, WorkoutRecoveryRecord } from '../lib/workoutRecovery';
 
 /// The rest timer belongs to the shell, so minimizing the workout never stops its deadline, and
@@ -27,7 +28,7 @@ export function useShellRestTimer({ data, recovery, recoverySession, devicePrefe
   const [restState, setRestState] = useState(restTimer.current);
   const [pushWakeVersion, setPushWakeVersion] = useState(0);
   const pushDesired = useRef<{ accountId: string; sessionId: string; generation: string; deviceId: string } | null>(null);
-  const pushAttempt = useRef<{ key: string; inFlight: boolean; confirmed: boolean } | null>(null);
+  const pushAttempt = useRef<RestAlertPushAttempt | null>(null);
   const pushWork = useRef<Promise<void>>(Promise.resolve());
   useEffect(() => {
     restTimer.setScope(timerAccountId, timerSessionId, {
@@ -116,9 +117,10 @@ export function useShellRestTimer({ data, recovery, recoverySession, devicePrefe
 
     if (!running || !deviceId || !timerAccountId || !timerSessionId) {
       const previous = pushDesired.current;
+      const previousAttempt = pushAttempt.current;
       pushDesired.current = null;
       pushAttempt.current = null;
-      if (previous && previous.accountId === timerAccountId) {
+      if (previous && previous.accountId === timerAccountId && restAlertCancelNeeded(previous, previousAttempt)) {
         void enqueue(async () => {
           try { await api.cancelRestAlert(previous.sessionId, { deviceId: previous.deviceId, generation: previous.generation }); }
           catch { /* Expiring server-side tasks are safe if cancellation cannot reach the server. */ }
@@ -128,7 +130,7 @@ export function useShellRestTimer({ data, recovery, recoverySession, devicePrefe
     }
 
     const next = { accountId: timerAccountId, sessionId: timerSessionId, generation: restState.generation, deviceId };
-    const key = `${next.accountId}:${next.sessionId}:${next.generation}`;
+    const key = restAlertPushKey(next);
     const previous = pushDesired.current;
     if (previous && previous.accountId === next.accountId && previous.sessionId !== next.sessionId) {
       void enqueue(async () => {
@@ -146,7 +148,8 @@ export function useShellRestTimer({ data, recovery, recoverySession, devicePrefe
           pushDesired.current.generation !== next.generation) return;
         const status = await api.restAlertStatus(deviceId, timerSessionId);
         if (!status.configured || !status.registered) {
-          pushAttempt.current = { key, inFlight: false, confirmed: false };
+          // No schedule request was sent, so the server holds no alert for this rest.
+          pushAttempt.current = { key, inFlight: false, confirmed: false, unscheduled: true };
           return;
         }
         if (pushDesired.current?.generation !== next.generation) return;

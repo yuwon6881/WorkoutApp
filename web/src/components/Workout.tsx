@@ -32,6 +32,7 @@ import { WorkoutConfirmModal } from './WorkoutConfirmModal';
 import { useFinishPlanUpdate } from './useFinishPlanUpdate';
 import { useStopwatchRecovery } from './useStopwatchRecovery';
 import { useWorkoutDrain } from './useWorkoutDrain';
+import { useWorkoutDrainSchedule } from './useWorkoutDrainSchedule';
 import { useAccountWorkoutCallbacks } from './useAccountWorkoutCallbacks';
 import './WorkoutSheet.css';
 import './ActiveWorkout.css';
@@ -104,11 +105,7 @@ export function Workout({
     onRecoveryChange, setDraft, setFinishIntentAt, setBusy, setConfirm, setError, setLocalStatus, setRecoveryConflict
   });
 
-  useEffect(() => {
-    if (!online || !recovery?.operations.length || recovery.conflict) return;
-    const timer = setTimeout(() => queue.push('workout', drain), 250);
-    return () => clearTimeout(timer);
-  }, [online, recovery?.operations.length, recovery?.conflict, queue, drain]);
+  useWorkoutDrainSchedule({ online, recovery, queue, drain });
 
   useEffect(() => queue.subscribe(status => {
     if (status.state === 'offline' && recovery?.operations.length) setLocalStatus('Saved on this device. Waiting for a connection to sync.');
