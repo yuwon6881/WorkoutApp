@@ -38,7 +38,7 @@ internal static partial class ImportTableEvidence
         bool FullHeader = false, string? SequenceGroup = null, List<string>? Substitutions = null, bool Prose = false,
         int Table = 0, string? Technique = null, string? Tempo = null, bool RepsStatedAbsent = false,
         string? WorkingSetPrescriptionText = null, bool WorkingSetsStatedAbsent = false,
-        string? TechniqueCoachingNote = null);
+        string? TechniqueCoachingNote = null, Dictionary<int, CoachingEffort>? CoachingEfforts = null);
     internal sealed record RirEvidence(string? Text, double? Value);
     internal sealed record EvidencePage(int? Week, string? Block, string? Phase, string? DayName, bool HasRestDayFooter,
         List<EvidenceRow> Rows, bool RestBandFollowsTable = false, string Body = "");
@@ -250,6 +250,14 @@ internal static partial class ImportTableEvidence
                         ? ((int)Math.Round(10 - tVal)).ToString(CultureInfo.InvariantCulture)
                         : null;
 
+        var coached = evidence.CoachingEfforts?.GetValueOrDefault(index);
+        if (coached is not null)
+        {
+            targetRpe = coached.Rpe;
+            resolvedRir = coached.Rir;
+            rpeSource = "extracted";
+        }
+
         // A rest cell that reads "N/A" states that the row prescribes none. A time the model supplied
         // there came from somewhere else in the document, and would enter the program as printed.
         if (evidence.RestNotStated) set = set with { RestText = null, RestSeconds = null, RestSource = "extracted" };
@@ -277,6 +285,14 @@ internal static partial class ImportTableEvidence
         // The printed cell is blank, "-" or N/A: the page sets no rep target, whatever the read guessed.
         if (evidence.RepsStatedAbsent && !HasText(set.RepsText)) reps = (null, null);
         var (repMin, repMax) = reps;
+        var coachingTechnique = CoachingSetTechnique(evidence);
+        if (coachingTechnique is not null
+            && !TechniqueApplies(evidence.TechniqueCoachingNote ?? evidence.CoachingNote ?? "", index, count, defaultAll: true)
+            && BaseTechniqueReps(evidence.RepsText) is { } baseReps)
+        {
+            repsText = baseReps;
+            (repMin, repMax) = ParseSimpleReps(baseReps);
+        }
         return set with
         {
             RepMin = repMin,
@@ -285,7 +301,9 @@ internal static partial class ImportTableEvidence
             RepsSource = !HasText(set.RepsText) && HasText(evidence.RepsText) ? "extracted" : set.RepsSource,
             LoadText = HasText(set.LoadText) ? set.LoadText : evidence.LoadText,
             Tempo = HasText(set.Tempo) ? set.Tempo : evidence.Tempo,
-            Notes = TechniqueNotes(set.Notes, evidence, index, count),
+            Notes = coached?.Printed is { } printedEffort
+                ? MergeTechnique(TechniqueNotes(set.Notes, evidence, index, count), printedEffort)
+                : TechniqueNotes(set.Notes, evidence, index, count),
             TargetRpe = targetRpe,
             Rir = resolvedRir,
             RpeSource = rpeSource,
@@ -317,7 +335,11 @@ internal static partial class ImportTableEvidence
             return MergeTechnique(existing, partialFromNotes);
         }
 
-        return applies ? MergeTechnique(existing, technique!) : existing;
+        var result = applies ? MergeTechnique(existing, technique!) : existing;
+        var coachingTechnique = CoachingSetTechnique(evidence);
+        if (coachingTechnique is null) return result;
+        return TechniqueApplies(techniqueNote ?? "", index, count, defaultAll: true)
+            ? MergeTechnique(result, coachingTechnique) : WithoutCoachingTechnique(result, coachingTechnique);
     }
 
     private static bool TechniqueApplies(string source, int index, int count, bool defaultAll)

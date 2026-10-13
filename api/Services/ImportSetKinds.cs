@@ -3,13 +3,13 @@ using System.Text.RegularExpressions;
 namespace Workout.Api.Services;
 
 /// What kind of set a printed row describes, beyond its numbers. A row whose reps read "AMRAP"
-/// has no rep target, so the technique tag is what tells review and logging to go to failure. A
+/// has no rep target; its AMRAP tag keeps that open target without overriding prescribed reserve. A
 /// row the table itself names a warm-up
 /// ("Overhead Press (Warm Up)") is the warm-up, not a movement to warm up for.
 internal static class ImportSetKinds
 {
     /// The tag the review's set-type control reads (web/src/lib/importSetTypes.ts).
-    public const string AmrapNote = "To failure / AMRAP";
+    public const string AmrapNote = "AMRAP";
 
     private static readonly Regex OpenReps = new(@"\b(?:amrap|max(?:imum)?\s+reps?|to\s+failure|failure)\b", RegexOptions.Compiled | RegexOptions.IgnoreCase);
     private static readonly Regex AlreadyTagged = new(@"amrap|failure", RegexOptions.Compiled | RegexOptions.IgnoreCase);
@@ -21,6 +21,11 @@ internal static class ImportSetKinds
     public static DraftSet Tagged(DraftSet set)
     {
         if (string.IsNullOrWhiteSpace(set.RepsText) || !OpenReps.IsMatch(set.RepsText)) return set;
+        // An AMRAP may stop at the prescribed reserve. The old app-owned label
+        // incorrectly instructed failure even when the source prescribed RPE 8/9.
+        if (Regex.IsMatch(set.RepsText, @"\bamrap\b", RegexOptions.IgnoreCase)
+            && set.TargetRpe is < 10 && set.Notes is { } legacy)
+            set = set with { Notes = legacy.Replace("To failure / AMRAP", AmrapNote, StringComparison.OrdinalIgnoreCase) };
         if (set.Notes is { } notes && AlreadyTagged.IsMatch(notes)) return set;
         var tagged = string.IsNullOrWhiteSpace(set.Notes) ? AmrapNote : $"{set.Notes.Trim()} — {AmrapNote}";
         return set with { Notes = ImportNormalization.Text(tagged, 400) };

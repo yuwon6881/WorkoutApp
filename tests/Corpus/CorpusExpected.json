@@ -1,4 +1,20 @@
 {
+  "Powerbuilding_3.0_4xweek": {
+    "expectedFailures": [
+      { "code": "effort_instruction_conflict", "page": 52, "targetField": "targetRpe" }
+    ]
+  },
+  "Powerbuilding-3.0_5xweek": {
+    "expectedFailures": [
+      { "code": "effort_instruction_conflict", "page": 42, "targetField": "targetRpe" },
+      { "code": "effort_instruction_conflict", "page": 45, "targetField": "targetRpe" },
+      { "code": "effort_instruction_conflict", "page": 48, "targetField": "targetRpe" },
+      { "code": "effort_instruction_conflict", "page": 51, "targetField": "targetRpe" },
+      { "code": "effort_instruction_conflict", "page": 54, "targetField": "targetRpe" },
+      { "code": "effort_instruction_conflict", "page": 57, "targetField": "targetRpe" },
+      { "code": "effort_instruction_conflict", "page": 60, "targetField": "targetRpe" }
+    ]
+  },
   "Shoulder_Hypertrophy_Program": {
     "expectedFailures": [
       { "code": "effort_instruction_conflict", "page": 12, "targetField": "targetRpe" },

@@ -219,6 +219,7 @@ internal static partial class ImportTableEvidence
             var last = ParseRpe(Cell(cells, map.LastRpe));
             var coachingNote = map.Notes is { } notesIndex ? ImportNormalization.Text(Cell(cells, notesIndex), 1000) : null;
             var techniqueCoachingNote = coachingNote;
+            repsText = ImportHoldTargets.FromCoaching(repsText, coachingNote);
             var failureCell = Cell(cells, map.LastSetFailure)?.Trim();
             if (failureCell?.Equals("Y", StringComparison.OrdinalIgnoreCase) == true
                 || failureCell?.Equals("YES", StringComparison.OrdinalIgnoreCase) == true)
@@ -264,6 +265,7 @@ internal static partial class ImportTableEvidence
                 Technique: NoValue(Cell(cells, map.Technique)) ? null : Cell(cells, map.Technique)!.Trim(),
                 Tempo: NoValue(Cell(cells, map.Tempo)) ? null : Cell(cells, map.Tempo)!.Trim(),
                 TechniqueCoachingNote: techniqueCoachingNote);
+            row = row with { CoachingEfforts = ReadCoachingEffort(row) };
             return true;
         }
 

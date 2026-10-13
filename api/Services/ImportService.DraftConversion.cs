@@ -221,7 +221,7 @@ public sealed partial class ImportService
             var calculatedRir = (int)Math.Round(10 - rpe.Value);
             if (calculatedRir is >= 0 and <= 4) rirText = calculatedRir.ToString(CultureInfo.InvariantCulture);
         }
-        else if (TryFirstNumber(rirText, out var parsedRir))
+        else if (Regex.IsMatch(rirText ?? "", @"^\d+(?:\.\d+)?$") && TryFirstNumber(rirText, out var parsedRir))
         {
             rirText = ((int)Math.Round((double)parsedRir)).ToString(CultureInfo.InvariantCulture);
         }

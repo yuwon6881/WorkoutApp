@@ -172,9 +172,24 @@ decision. Passive status rows are regular content; only rows with an available a
   separately printed warm-up rows keep their own prescriptions. Timed holds retain duration text
   without treating seconds as repetitions, including a separate HOLD column's timed or maximum
   hold/stride targets. LSTF yes/no cells retain their instruction, with yes applying failure effort
-  only to the final working set. An open-ended base such as `AMRAP/2` keeps its
+  only to the final working set. A generic HOLD cell also keeps a unique explicit hold time from
+  its coaching note; maximum holds and per-rep pauses do not become countdown targets. AMRAP
+  labels preserve the printed effort without adding an instruction to reach failure.
+  Static dumbbell holds have dedicated duration-tracking catalog entries; squat walk-outs and
+  stomach vacuums also use seconds rather than repetitions.
+  An open-ended base such as `AMRAP/2` keeps its
   notation without treating the forced negatives as the base rep target. Tables with an unlabeled
   exercise column retain that column from the printed geometry, keeping counts out of wrapped names.
+  Coaching-column dropsets, explicitly coached short-rest mini-set sequences, and explicit
+  Myo-Rep and Mechanical Dropset labels in exercise names retain their set technique.
+  A final-set-only extension keeps earlier sets straight with the base rep target,
+  while the final set and exercise description retain the complete prescription.
+  Set-specific effort in coaching supplies the printed set targets, including final-set failure
+  and indexed feeder-set RPE. Low feeder effort retains its exact printed range beside a `5+ RIR`
+  target without inventing an RPE of 6; reserve floors and ranges keep their qualifiers during
+  draft conversion. Conditional coaching advice does not become a prescribed effort.
+  A row-wide instruction to take every set to failure conflicts with printed reserve targets
+  and requires review; the importer keeps both source instructions instead of choosing one.
   Instructions referring to a working set beyond the
   stated count also require review, preserving both the count and the original instructions.
   An explicit final-set failure instruction beneath a table applies to that session's working

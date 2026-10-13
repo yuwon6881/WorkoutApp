@@ -14,6 +14,7 @@ import runpy
 from collections import Counter
 
 techniques = runpy.run_path(str(Path(__file__).with_name("pdf-technique-evidence.py")))
+coaching_effort = runpy.run_path(str(Path(__file__).with_name("pdf-coaching-effort.py")))["expected"]
 
 
 def key(value):
@@ -122,10 +123,25 @@ def compare(row, exercise):
             check(prefix + "partialTechniqueScope", sorted(expected_methods), sorted(found_methods))
         reps = row["reps"]
         reps = reps.strip().strip('"').strip()
+        method, method_indices = techniques["intensity"](row, len(prescribed))
+        if method is not None:
+            check(prefix + "coachingIntensityTechnique", [method] if index in method_indices else [],
+                  sorted(techniques["intensity_actual"](item.get("notes"))))
+            if index not in method_indices:
+                reps = techniques["base_reps"](reps)
+                check(prefix + "straightSetRepsText", reps, item.get("repsText"))
         hold = row.get("hold", "").strip()
         if reps.upper() in ("HOLD", "", "-", "N/A") and hold.upper() not in ("", "-", "N/A"):
             check(prefix + "holdTarget", hold.casefold(), (item.get("repsText") or "").casefold())
             reps = hold
+        if reps.upper() == "HOLD":
+            # A generic cell points to an explicit exercise-level time in the note.
+            # Maximum holds and per-rep pauses do not prescribe that countdown.
+            note = row.get("notes") or ""
+            times = re.findall(r"\bhold\b(?:(?!\b(?:rest|between|up\s+to|maximum|max|until|as\s+long|per\s+rep|each\s+rep)\b)[^.!?]){0,160}?\bfor\s+(\d+(?:\s*[-–]\s*\d+)?\s+(?:seconds?|secs?|minutes?|mins?))\b", note, re.I)
+            if len({time.casefold() for time in times}) == 1:
+                reps = times[0]
+                check(prefix + "coachedHoldTarget", reps.casefold(), (item.get("repsText") or "").casefold())
         if re.fullmatch(r"\d+(?:\s*,\s*\d+)+", reps) and len(reps.split(",")) == len(prescribed):
             values = reps.split(",")
             reps = values[min(index, len(values) - 1)].strip()
@@ -153,9 +169,19 @@ def compare(row, exercise):
         elif row.get("lastSetFailure", "").strip().upper() in ("N", "NO") and index == len(work) - 1:
             check(prefix + "lastSetFailureInstruction", True, "lstf:n" in re.sub(r"\s", "", (exercise.get("notes") or "").casefold()))
         reserves = row.get("rirBySet", [])
+        source_effort = rounded_effort(effort)
+        if re.search(r"\bamrap\b", reps, re.I) and source_effort is not None and source_effort < 10:
+            check(prefix + "reservedAmrapNoInventedFailure", False,
+                  bool(re.search(r"\bto\s+failure\b", item.get("notes") or "", re.I)))
         reserve = reserves[min(index, len(reserves) - 1)] if reserves else None
         if standalone_warmup:
             check(prefix + "emptyWarmupEffort", True, item["targetRpe"] is None and item.get("rir") is None)
+        elif index in coaching_effort(row, len(work)):
+            coached_rpe, coached_rir, printed = coaching_effort(row, len(work))[index]
+            check(prefix + "coachedTargetRpe", coached_rpe, item["targetRpe"])
+            check(prefix + "coachedRir", coached_rir, item.get("rir"))
+            if printed:
+                check(prefix + "printedCoachedEffort", True, f"Printed RPE: {printed}" in (item.get("notes") or ""))
         elif reserve is not None and re.fullmatch(r"[~≈]?\s*\d+(?:\.\d+)?\+?", reserve):
             count = math.floor(numbers(reserve)[0] + 0.5)
             check(prefix + "rir", str(count) + ("+" if "+" in reserve else ""), item.get("rir"))

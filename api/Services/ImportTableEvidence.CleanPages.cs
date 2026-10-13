@@ -155,7 +155,8 @@ internal static partial class ImportTableEvidence
     private static AiSet WithoutPrinted(AiSet set, EvidenceRow row)
     {
         var effortPrinted = row.Rpe is not null || row.EarlyRpe is not null || row.LastRpe is not null
-            || row.Rir is not null || row.RirBySet.Any(value => value.Value is not null);
+            || row.Rir is not null || row.RirBySet.Any(value => value.Value is not null)
+            || row.CoachingEfforts is { Count: > 0 };
         return set with
         {
             RepsText = row.RepsStatedAbsent || row.RepsText is not null ? null : set.RepsText,

@@ -25,6 +25,10 @@ public sealed class CatalogCoverageTests
         { "Band Pull-Apart", "Band Pull-Apart" },
         { "Reverse Hyper", "Reverse Hyper" },
         { "Plank", "Plank" },
+        { "Flat Dumbbell Static Hold", "Flat Dumbbell Static Hold" },
+        { "Dumbbell Lateral Raise ISO-HOLD", "DB Lateral Raise Isometric Hold" },
+        { "Squat Walk-Out (Do Not Squat)", "Squat Walk-Out" },
+        { "Stomach Vacuums", "Stomach Vacuum" },
         { "Bulgarian Split Squat", "DB Bulgarian Split Squat" },
         { "Military Press", "Overhead Press" },
         { "Single-Arm Pulldown", "1-Arm Cable Pulldown" },
@@ -201,6 +205,10 @@ public sealed class CatalogCoverageTests
     [InlineData("heavy-barbell-hold")]
     [InlineData("plate-pinch")]
     [InlineData("farmer-s-walk")]
+    [InlineData("flat-dumbbell-static-hold")]
+    [InlineData("dumbbell-lateral-raise-isometric-hold")]
+    [InlineData("squat-walk-out")]
+    [InlineData("stomach-vacuum")]
     public async Task Grip_holds_and_carries_use_duration_tracking_when_existing_catalog_rows_are_reseeded(string slug)
     {
         var shipped = Assert.Single(SeedRows(), row => row.Slug == slug);

@@ -24,7 +24,7 @@ def name_keys(name):
     plain = re.sub(r"\bDB\b", "Dumbbell", plain, flags=re.I)
     plain = re.sub(r"\bBB\b", "Barbell", plain, flags=re.I)
     plain = re.sub(r"\bRDL\b", "Romanian Deadlift", plain, flags=re.I)
-    plain = re.sub(r"\b(?:1|one)[- ]arm\b", "Single Arm", plain, flags=re.I)
+    plain = re.sub(r"\b(?:1|one)[-\s]+arm\b", "Single Arm", plain, flags=re.I)
     plain = re.sub(r"\bpull[- ]up\b", "pullup", plain, flags=re.I)
     words = re.findall(r"[a-z0-9]+", plain.lower())
     return {key(name), key(plain), "words:" + " ".join(sorted(words))}

@@ -650,9 +650,17 @@
     "equipment": "Dumbbell",
     "category": "Free Weights",
     "aliases": [
-      "Flat Dumbbell Press",
-      "Flat Dumbbell Static Hold"
+      "Flat Dumbbell Press"
     ]
+  },
+  {
+    "slug": "flat-dumbbell-static-hold",
+    "name": "Flat Dumbbell Static Hold",
+    "muscle": "Chest",
+    "equipment": "Dumbbell",
+    "category": "Free Weights",
+    "aliases": ["Flat DB Static Hold"],
+    "trackingMode": "duration"
   },
   {
     "slug": "flat-machine-chest-press",
@@ -2393,7 +2401,6 @@
     "aliases": [
       "Dumbbell Lateral Raise",
       "DB Lateral Raise Swing",
-      "Dumbbell Lateral Raise Iso-Hold",
       "Lateral Raise"
     ]
   },
@@ -3789,6 +3796,7 @@
     "aliases": [
       "Squat Walk-Out (Do Not Squat)"
     ],
+    "trackingMode": "duration",
     "secondaryMuscles": [
       "Core"
     ]
@@ -3828,6 +3836,15 @@
     "equipment": "Dumbbell",
     "category": "Free Weights",
     "aliases": [],
+    "trackingMode": "duration"
+  },
+  {
+    "slug": "dumbbell-lateral-raise-isometric-hold",
+    "name": "DB Lateral Raise Isometric Hold",
+    "muscle": "Shoulders",
+    "equipment": "Dumbbell",
+    "category": "Free Weights",
+    "aliases": ["Dumbbell Lateral Raise ISO-HOLD", "DB Lateral Raise ISO-HOLD"],
     "trackingMode": "duration"
   },
   {
@@ -4049,7 +4066,8 @@
     "equipment": "Bodyweight",
     "category": "Body Weight",
     "loadModel": "reps_only",
-    "aliases": []
+    "aliases": [],
+    "trackingMode": "duration"
   },
   {
     "slug": "modified-candlestick",

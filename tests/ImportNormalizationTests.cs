@@ -65,6 +65,19 @@ public sealed class ImportNormalizationTests
     }
 
     [Theory]
+    [InlineData("5+", null)]
+    [InlineData("2+", 8d)]
+    [InlineData("1-2", 9d)]
+    public async Task Reserve_floors_and_ranges_survive_draft_conversion(string rir, double? expectedRpe)
+    {
+        await using var h = await Harness.Create(Configured());
+        await h.SignIn();
+        var set = await ReadSet(h, Set("\"targetRpe\":null,\"rir\":\"" + rir + "\""));
+        Assert.Equal(rir, set.Rir);
+        Assert.Equal(expectedRpe, set.TargetRpe);
+    }
+
+    [Theory]
     [InlineData("30 sec hold", 0)]
     [InlineData("30 sec hold", 30)]
     [InlineData(":30", 30)]

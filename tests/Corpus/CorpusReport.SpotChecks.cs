@@ -9,6 +9,37 @@ namespace Workout.Tests.Corpus;
 public sealed partial class CorpusReport
 {
     [Theory]
+    [InlineData("Arm_Hypertrophy_Program")]
+    [InlineData("Powerbuilding_2.0_5-6xweek")]
+    [InlineData("Powerbuilding-3.0_5xweek")]
+    [InlineData("The_Ultimate_Push_Pull_Legs_System_-_4xweek")]
+    [InlineData("The_Ultimate_Push_Pull_Legs_System_-_5xweek")]
+    [InlineData("The_Ultimate_Push_Pull_Legs_System_-_6xweek")]
+    public Task SpotCheck_sixth_round_source_fidelity(string key) =>
+        SpotCheck_complex_pdfs_recover_faulty_reads_and_repeated_descriptions(key, null, null);
+
+    [Theory]
+    [InlineData("The_Ultimate_Push_Pull_Legs_System_-_5xweek")]
+    [InlineData("The_Ultimate_Push_Pull_Legs_System_-_6xweek")]
+    [InlineData("The_Pure_Bodybuilding_Program_-_PPL")]
+    [InlineData("High_Frequency_Full_Body_Program_4xweek")]
+    [InlineData("Powerbuilding_2.0_4xweek")]
+    [InlineData("Chest_Hypertrophy_Program")]
+    [InlineData("Shoulder_Hypertrophy_Program")]
+    public Task SpotCheck_fifth_round_source_fidelity(string key) =>
+        SpotCheck_complex_pdfs_recover_faulty_reads_and_repeated_descriptions(key, null, null);
+
+    [Theory]
+    [InlineData("The_Essentials_Program_-_5xweek")]
+    [InlineData("Intermediate_Advanced_PPL_Program_6xweek")]
+    [InlineData("Upper_Lower_Program_6xweek")]
+    [InlineData("Pure_Bodybuilding_Phase_2_-_Full_Body")]
+    [InlineData("The_Bodybuilding_Transformation_System_-_Beginner")]
+    [InlineData("Powerbuilding_2.0_5-6xweek")]
+    public Task SpotCheck_fourth_round_source_fidelity(string key) =>
+        SpotCheck_complex_pdfs_recover_faulty_reads_and_repeated_descriptions(key, null, null);
+
+    [Theory]
     [InlineData("Forearm_Hypertrophy_Program")]
     [InlineData("Back_Hypertrophy_Program")]
     [InlineData("Chest_Hypertrophy_Program")]
@@ -55,11 +86,33 @@ public sealed partial class CorpusReport
         Assert.True(stress.View.Status == "ready", $"Stress {key}: {stress.View.Status}: {stress.View.Error}");
         if (key == "Arm_Hypertrophy_Program")
         {
+            var finalFailure = normal.View.Draft!.Workouts.SelectMany(day => day.Exercises)
+                .Where(exercise => exercise.SourceName is "STANDING EZ BAR CURL" or "MEDICINE BALL PUSHUPS").ToList();
+            Assert.Equal(16, finalFailure.Count);
+            Assert.All(finalFailure, exercise =>
+            {
+                var working = exercise.Sets.Where(set => !set.Warmup).ToList();
+                Assert.All(working.Take(working.Count - 1), set => Assert.Equal(9, set.TargetRpe));
+                Assert.Equal(10, working[^1].TargetRpe);
+                Assert.Equal("0", working[^1].Rir);
+            });
             var carries = normal.View.Draft!.Workouts.SelectMany(day => day.Exercises)
                 .Where(exercise => exercise.SourceName == "FARMERS WALKS").ToList();
             Assert.Equal(8, carries.Count);
             Assert.Equal(24, carries.Sum(exercise => exercise.Sets.Count));
             Assert.All(carries.SelectMany(exercise => exercise.Sets), set => Assert.Equal("40 strides", set.RepsText));
+        }
+        if (key.StartsWith("The_Ultimate_Push_Pull_Legs_System", StringComparison.Ordinal))
+        {
+            var feeders = normal.View.Draft!.Workouts.SelectMany(day => day.Exercises)
+                .Where(exercise => exercise.SourceName == "Lat Pulldown (Feeder Sets)").ToList();
+            Assert.Equal(6, feeders.Count);
+            Assert.All(feeders, exercise =>
+            {
+                Assert.Equal(new double?[] { null, 7, 8, 10 }, exercise.Sets.Select(set => set.TargetRpe));
+                Assert.Equal(["5+", "3", "2", "0"], exercise.Sets.Select(set => set.Rir));
+                Assert.All(exercise.Sets, set => Assert.False(set.Warmup));
+            });
         }
         if (key == "Shoulder_Hypertrophy_Program")
         {

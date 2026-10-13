@@ -5,6 +5,19 @@ namespace Workout.Tests;
 
 public sealed class ImportRepTechniqueReviewTests
 {
+    [Theory]
+    [InlineData("Push these all very hard. Go to true failure.", 9, true)]
+    [InlineData("Push these all very hard. Go to true failure.", 10, false)]
+    [InlineData("All sets: do not go to failure.", 9, false)]
+    [InlineData("On the last set only: go to failure.", 9, false)]
+    public void Unqualified_all_set_failure_conflicts_with_reserved_targets(string note, int rpe, bool expected)
+    {
+        var draft = Draft(note, Set("10-12", 10, 12) with { TargetRpe = rpe, Rir = (10 - rpe).ToString() });
+        Assert.Equal(expected, ImportValidation.ReviewIssues(draft).Any(issue => issue.Code == "effort_instruction_conflict"));
+        Assert.Equal(rpe, draft.Workouts[0].Exercises[0].Sets[0].TargetRpe);
+        Assert.Equal(note, draft.Workouts[0].Exercises[0].Notes);
+    }
+
     [Fact]
     public void Contradictory_failure_instructions_require_review()
     {

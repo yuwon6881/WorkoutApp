@@ -53,3 +53,36 @@ def actual(text):
         ("lengthened", r"(?:lengthened|long[- ]length)\s+partials"),
         ("partial", r"\bpartial\s+reps?|(?:top|bottom)[- ]half\s+(?:rom|reps?)")
     ) if re.search(pattern, text, re.I)}
+
+
+def intensity(row, count):
+    """Coaching methods and their set ownership, independently of application code."""
+    note = row.get("notes") or ""
+    text = row.get("reps") or ""
+    if re.search(r"\b(?:avoid|never|don't|do not|without|no)\s+(?:(?:use|using|do|doing)\s+)?(?:drop\s?sets?|myo[- ]?reps?)", note, re.I):
+        return None, set()
+    if re.search(r"\bdrop\s?sets?\b", note, re.I) or re.search(r"\bdrop\s?sets?\b", row.get("name") or "", re.I) or (
+            not re.search(r"reverse pyramid|back[- ]?off|(?:for|on) set \d+", note, re.I)
+            and re.search(r"\bdrop the weight\b.{0,80}\b(?:more|another|additional)\b", note, re.I)):
+        method = "dropset"
+    elif re.search(r"\bmyo[- ]?reps?\b", note, re.I) or re.search(r"\bmyo[- ]?reps?\b", row.get("name") or "", re.I) or (
+            re.search(r"\(\s*\+\d+\s*\+\d+", text)
+            and re.search(r"rest \d+(?:[-–]\d+)? seconds?\..{0,30}another \d+ reps?", note, re.I)):
+        method = "myoreps"
+    else:
+        return None, set()
+    if re.search(r"\b(?:last|final)\s+(?:working\s+)?set\b", note, re.I):
+        indices = {count - 1}
+    else:
+        indices = set(range(count))
+    return method, indices
+
+
+def intensity_actual(text):
+    return {method for method, pattern in (("dropset", r"\bdrop\s?sets?\b"), ("myoreps", r"\bmyo[- ]?reps?\b"))
+            if re.search(pattern, text or "", re.I)}
+
+
+def base_reps(text):
+    match = re.fullmatch(r"(\d+(?:\s*[-–]\s*\d+)?)(?:\s*\(dropset\)|\s*[/+]\s*\d+.*|\s*\(\+\d+.*\))", text, re.I)
+    return match[1] if match else text

@@ -22,6 +22,13 @@ const set = (overrides: Partial<LoggedSet> = {}): LoggedSet => ({
 const barbell: Pick<SessionExercise, 'name' | 'loadModel' | 'trackingMode'> = { name: 'Bench press', loadModel: 'external' };
 
 describe('setTarget', () => {
+  it.each(['5+', '2+', '1-2'])('retains the imported reserve %s on first and subsequent exposure targets', rir => {
+    const prescription = plan({ rir, targetRpe: null });
+    expect(setTarget(set({ suggestion: null }), prescription, barbell, 'kg', true).reps).toBe(`8–12 · ${rir} RIR`);
+    expect(setTarget(set(), prescription, barbell, 'kg', true).reps).toBe(`9 · ${rir} RIR`);
+    expect(setTarget(set(), prescription, barbell, 'kg', false).reps).toBe('9');
+  });
+
   it('shows the progression target the inputs were filled with, at the program effort', () => {
     const target = setTarget(set(), plan(), barbell, 'kg', true);
     expect(target).toEqual({ reps: '9 · 2 RIR', load: '50 kg', reason: suggestion().reason });
