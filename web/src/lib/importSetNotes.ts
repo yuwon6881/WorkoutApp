@@ -9,6 +9,8 @@ const COMPOUND_REPS = /\d\s*[/+×x,]\s*\d/i;
 /// The set's own row stays one fixed shape; this text is listed beneath the grid.
 export function setNoteText(set: DraftSet): string | null {
   const parts: string[] = [];
+  const load = set.loadText?.trim();
+  if (load) parts.push(`Load: ${load}`);
   const technique = partialTechniqueLabel(set);
   if (technique) parts.push(technique);
   const remainder = cleanTechniqueNotes(set.notes);
@@ -16,4 +18,29 @@ export function setNoteText(set: DraftSet): string | null {
   const printed = set.repsText?.trim();
   if (printed && !hasOpenReps(set) && COMPOUND_REPS.test(printed)) parts.push(`printed as ${printed}`);
   return parts.length ? parts.join(' · ') : null;
+}
+
+/// Adjacent identical instructions read once, while each set keeps its source prescription.
+export function setNoteItems(sets: DraftSet[]): { label: string; text: string }[] {
+  const groups: { warmup: boolean; first: number; last: number; text: string }[] = [];
+  let warmups = 0;
+  let working = 0;
+  let previousHadNote = false;
+  for (const set of sets) {
+    const number = set.warmup ? ++warmups : ++working;
+    const text = setNoteText(set);
+    const previous = groups.at(-1);
+    if (text && previousHadNote && previous?.text === text && previous.warmup === set.warmup) {
+      previous.last = number;
+    } else if (text) {
+      groups.push({ warmup: set.warmup, first: number, last: number, text });
+    }
+    previousHadNote = Boolean(text);
+  }
+  return groups.map(group => ({
+    label: group.first === group.last
+      ? `${group.warmup ? 'Warm-up' : 'Set'} ${group.first}`
+      : `${group.warmup ? 'Warm-ups' : 'Sets'} ${group.first}–${group.last}`,
+    text: group.text
+  }));
 }

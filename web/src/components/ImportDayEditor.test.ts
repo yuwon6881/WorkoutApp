@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest';
 import type { DraftWorkout, Exercise } from '../types';
 import type { ExerciseEditing } from '../lib/exerciseEditScope';
 import { DayEditor } from './ImportDayEditor';
+import { ReadOnlyDay } from './ReadOnlyDay';
 
 const editing: ExerciseEditing = {
   save: async () => {}, count: () => ({ block: 0, program: 0 }), keepWrittenName: true, unsaved: new Map()
@@ -23,7 +24,7 @@ function makeExercise(override: Partial<Exercise> & { id: string; name: string; 
   };
 }
 
-function renderEditor(warmup = false) {
+function renderEditor(warmup = false, readOnly = false) {
   const day: DraftWorkout = {
     lineId: 'day-line', week: 1, name: 'Week 1 Upper', focus: null, notes: null,
     exercises: [{
@@ -37,12 +38,23 @@ function renderEditor(warmup = false) {
     block: 'Block 1', phase: 'Base', phaseWeek: 1, isRestDay: false, sourcePage: 3
   };
 
+  if (readOnly) return renderToStaticMarkup(createElement(ReadOnlyDay, {
+    day, exercises: [], selectedMuscle: null, onMuscleSelect: () => {}
+  }));
   return renderToStaticMarkup(createElement(DayEditor, {
     day, exercises: [], onChange: async () => {}, editing, getRepRangeMemory: () => new Map()
   }));
 }
 
 describe('PDF import set review fields', () => {
+  it('retains printed load and compound rep instructions in editable and saved day review', () => {
+    for (const readOnly of [false, true]) {
+      const markup = renderEditor(false, readOnly);
+      expect(markup).toContain('Load: 70–75% 1RM');
+      expect(markup).toContain('printed as 6/6');
+    }
+    expect(renderEditor()).not.toContain('No substitutions available.');
+  });
   it('shows the four editable prescription fields without source-value inputs', () => {
     const markup = renderEditor();
 

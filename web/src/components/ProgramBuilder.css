@@ -266,6 +266,13 @@
 }
 .draft-day-summary-static>.draft-day-heading{grid-column:1}
 .draft-day-heading>strong{font-size:14px;font-weight:680;letter-spacing:-0.01em;color:var(--text);overflow-wrap:anywhere}
+.draft-day-heading > .draft-day-number {
+  padding: 3px 10px;
+  border-radius: var(--radius-pill);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.draft-day-heading > .draft-day-count { color: var(--muted); }
 .draft-day-index{
   flex:0 0 auto;
   padding:2px 8px;
@@ -317,6 +324,15 @@
 .day-detail-modal-body .day-editor{padding:0;border-top:0;background:transparent}
 .day-detail-modal .day-editor-fields{border:1px solid var(--border);border-radius:14px;background:var(--surface-raised);padding:16px;gap:14px}
 .day-detail-modal .import-exercise{border:1px solid var(--border);border-radius:18px;background:var(--surface-raised);box-shadow:none;margin:0 0 14px;padding:16px}
+.day-detail-modal .import-exercise-heading {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 8px;
+  margin-bottom: 12px;
+  padding-bottom: 12px;
+}
+.day-detail-modal .prescription-context-row { justify-content: flex-end; }
+.day-detail-modal .day-editor-fields { margin-bottom: 4px; }
 .import-exercise-dim-wrap{transition:opacity var(--motion-panel) ease}
 .import-exercise-dim-wrap.exercise-dimmed{opacity:.35}
 

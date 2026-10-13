@@ -39,7 +39,7 @@ export function DayRow({
 
   const meta = <>
     {!day.isRestDay && (isGenericDay
-      ? <strong>{day.name?.trim() || `Day ${index + 1}`}</strong>
+      ? <strong className="draft-day-number">{day.name?.trim() || `Day ${index + 1}`}</strong>
       : <>
         <span className="draft-day-index">Day {index + 1}</span>
         <strong>{title}</strong>
@@ -55,7 +55,7 @@ export function DayRow({
         <span className="tiny-label rest-badge">Rest day</span>
       </>)}
     {!day.isRestDay && (
-      <span className="tiny-label">{day.exercises.length} {day.exercises.length === 1 ? 'exercise' : 'exercises'}</span>
+      <span className="tiny-label draft-day-count">{day.exercises.length} {day.exercises.length === 1 ? 'exercise' : 'exercises'}</span>
     )}
     {day.focus && <span className="day-focus-tag">{day.focus}</span>}
     {day.phase?.toLowerCase().includes('deload') && <span className="pill pill-accent">Deload</span>}

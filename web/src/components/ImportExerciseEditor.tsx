@@ -162,18 +162,16 @@ export function ExerciseEditor({ exercise: saved, exercises, allDayExercises, re
         {partners.length > 0
           ? <SupersetPosition group={currentGroup} position={exercisePos || 1} partnerNames={partnerNames} />
           : <span className="import-exercise-icon" aria-hidden="true"><Dumbbell size={17} /></span>}
-        <div className="inline-input-wrap">
-          <span className="inline-input-mirror" aria-hidden="true" data-value={exercise.sourceName || ''} />
-          <input
-            name={`exercise-source-name-${exercise.lineId}`}
-            className="inline-input"
-            aria-label="Exercise name"
-            autoCorrect="off"
-            spellCheck={false}
-            value={exercise.sourceName}
-            onChange={event => onChange({ ...exercise, sourceName: event.target.value })}
-          />
-        </div>
+        <TextAreaField
+          name={`exercise-source-name-${exercise.lineId}`}
+          className="import-exercise-name-field"
+          label="Exercise name"
+          autoGrow rows={1}
+          autoCorrect="off"
+          spellCheck={false}
+          value={exercise.sourceName}
+          onChange={event => onChange({ ...exercise, sourceName: event.target.value })}
+        />
       </div>
       <div className="prescription-context-row">
         <div className="import-exercise-actions">
@@ -257,9 +255,8 @@ export function ExerciseEditor({ exercise: saved, exercises, allDayExercises, re
               </div>
             )}
           </div>
-          <div className="field import-substitutions-field">
+          {validSubstitutions.length > 0 && <div className="field import-substitutions-field">
             <div className="substitution-chips-wrap">
-              {validSubstitutions.length > 0 ? (
                 <div className="substitution-chips-row" role="group" aria-label={`Substitutions for ${exercise.sourceName}`}>
                   {validSubstitutions.map((sub, sIdx) => (
                     <span key={sIdx} className="substitution-chip">
@@ -290,11 +287,8 @@ export function ExerciseEditor({ exercise: saved, exercises, allDayExercises, re
                     </span>
                   ))}
                 </div>
-              ) : (
-                <span className="muted small-copy substitution-empty-state">No substitutions available.</span>
-              )}
             </div>
-          </div>
+          </div>}
         </div>
         <TextAreaField name={`exercise-notes-${exercise.lineId}`} className="import-exercise-notes" label="Description"
           value={exercise.notes ?? ''} placeholder="Cues, tempo or coaching notes"

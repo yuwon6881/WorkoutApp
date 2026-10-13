@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { DraftSet } from '../types';
-import { setNoteText } from './importSetNotes';
+import { setNoteItems, setNoteText } from './importSetNotes';
 
 const set = (overrides: Partial<DraftSet>): DraftSet => ({
   repMin: 8, repMax: 8, targetRpe: null, restSeconds: null, tempo: null, loadText: null, notes: null,
@@ -9,6 +9,24 @@ const set = (overrides: Partial<DraftSet>): DraftSet => ({
 });
 
 describe('setNoteText', () => {
+  it('shows source loads verbatim without inventing a load unit or basis', () => {
+    expect(setNoteText(set({ loadText: '72.5%' }))).toBe('Load: 72.5%');
+    expect(setNoteText(set({ loadText: '70–75% 1RM', notes: 'Pause at the bottom' })))
+      .toBe('Load: 70–75% 1RM · Pause at the bottom');
+  });
+
+  it('groups only adjacent equal notes with separate warm-up and working numbering', () => {
+    expect(setNoteItems([
+      set({ warmup: true, loadText: '50%' }), set({ warmup: true, loadText: '50%' }),
+      set({ loadText: '72.5%' }), set({ loadText: '72.5%' }), set({}),
+      set({ loadText: '72.5%' }), set({ loadText: '80%' })
+    ])).toEqual([
+      { label: 'Warm-ups 1–2', text: 'Load: 50%' },
+      { label: 'Sets 1–2', text: 'Load: 72.5%' },
+      { label: 'Set 4', text: 'Load: 72.5%' },
+      { label: 'Set 5', text: 'Load: 80%' }
+    ]);
+  });
   it('has nothing to say for an ordinary set or a bare drop set', () => {
     expect(setNoteText(set({ repsText: '8' }))).toBeNull();
     expect(setNoteText(set({ notes: 'Dropset' }))).toBeNull();

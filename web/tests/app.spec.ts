@@ -583,6 +583,7 @@ test('build a workout, log a set against the server, and see it in history', asy
     // Choosing the effort saves the reps with it and closes the sheet.
     await entry.getByRole('radio', { name: '2 RIR, 2 reps in reserve', exact: true }).click();
     await expect(entry).toBeHidden();
+    await expect(logger.getByRole('spinbutton', { name: 'Barbell bench press set 1 reps', exact: true })).not.toBeFocused();
     await expect(logged).toHaveAttribute('aria-pressed', 'true');
     // A completed set has to read as finished, not just change a label.
     await expect(logger.locator('.workout-set-row.done')).toHaveCount(1);
@@ -850,7 +851,7 @@ test('import a PDF program, resolve an unmapped exercise, and accept it', async 
   await expect(page.getByLabel('Barbell bench press set 1 min reps').first()).toHaveValue('8');
   await expect(page.getByLabel('Barbell bench press set 1 max reps').first()).toHaveValue('12');
   const benchExercise = dayModal.locator('.import-exercise').filter({
-    has: page.locator('input[aria-label="Exercise name"][value="Barbell bench press"]')
+    has: page.getByRole('button', { name: 'Library exercise for Barbell bench press', exact: true })
   });
   const benchRepMode = benchExercise.getByRole('group', { name: 'Rep target for Barbell bench press', exact: true });
   await benchRepMode.getByRole('button', { name: 'Exact', exact: true }).click();
@@ -953,7 +954,7 @@ test('import a PDF program, resolve an unmapped exercise, and accept it', async 
     expect(actionsBox!.x).toBeGreaterThan(acceptBox!.x);
   }
   const mysteryExercise = page.locator('.import-exercise').filter({
-    has: page.locator('input[aria-label="Exercise name"][value="Mystery machine row"]')
+    has: page.getByRole('button', { name: 'Library exercise for Mystery machine row', exact: true })
   });
   const mysteryTargetEffort = mysteryExercise.getByRole('button', { name: /Target (?:RPE|RIR) for Mystery machine row set 1/ });
   await expect(mysteryTargetEffort).toBeVisible();
@@ -1027,26 +1028,18 @@ test('import a PDF program, resolve an unmapped exercise, and accept it', async 
     return { color: style.color, background: style.backgroundColor, opacity: style.opacity, expected };
   });
   expect(activeAcceptColors).toEqual({ color: activeAcceptColors.expected, background: accent, opacity: '1', expected: activeAcceptColors.expected });
-  const emptySubstitutions = mysteryExercise.locator('.substitution-empty-state');
-  await expect(emptySubstitutions).toBeVisible();
-  const libraryBox = await mysteryExercise.getByRole('button', { name: 'Library exercise for Mystery machine row', exact: true }).boundingBox();
-  const substitutionsBox = await emptySubstitutions.boundingBox();
-  expect(libraryBox).not.toBeNull();
-  expect(substitutionsBox).not.toBeNull();
-  if ((page.viewportSize()?.width ?? 0) < 640 || Math.abs(libraryBox!.x - substitutionsBox!.x) <= 2) {
-    expect(Math.abs(libraryBox!.x - substitutionsBox!.x)).toBeLessThanOrEqual(2);
-  } else if (substitutionsBox!.y >= libraryBox!.y + libraryBox!.height) {
-    // The source mapping, muscle tags, and substitutions share a wrapping metadata row.
-    const fieldsBox = await mysteryExercise.locator('.import-fields').boundingBox();
-    expect(fieldsBox).not.toBeNull();
-    expect(substitutionsBox!.x).toBeGreaterThanOrEqual(fieldsBox!.x);
-    expect(substitutionsBox!.x + substitutionsBox!.width).toBeLessThanOrEqual(fieldsBox!.x + fieldsBox!.width + 1);
-  } else {
-    expect(Math.abs((libraryBox!.y + libraryBox!.height / 2) - (substitutionsBox!.y + substitutionsBox!.height / 2))).toBeLessThanOrEqual(2);
-  }
+  await expect(mysteryExercise.locator('.import-substitutions-field')).toHaveCount(0);
   const descriptionFrame = mysteryExercise.locator('.import-exercise-notes');
-  await expect(descriptionFrame).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
-  await expect(descriptionFrame).toHaveCSS('padding', '0px');
+  const descriptionColors = await descriptionFrame.evaluate(element => {
+    const probe = document.createElement('span');
+    probe.style.backgroundColor = 'var(--accent-soft)';
+    element.append(probe);
+    const expected = getComputedStyle(probe).backgroundColor;
+    probe.remove();
+    return { actual: getComputedStyle(element).backgroundColor, expected };
+  });
+  expect(descriptionColors.actual).toBe(descriptionColors.expected);
+  await expect(descriptionFrame).toHaveCSS('padding', '12px');
   const setRow = mysteryExercise.locator('.import-set-swipe-row:visible').first();
   // Sets share one outer surface; rows use separators rather than nested card borders.
   await expect(mysteryExercise.locator('.set-grid-list')).toHaveCSS('border-left-width', '1px');

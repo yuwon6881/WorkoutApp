@@ -358,5 +358,19 @@
 }
 
 /* Source notes for sets that have any, listed under the grid so no set row changes height. */
-.import-set-notes { display: grid; gap: 4px; margin: 10px 0 0; padding: 0; list-style: none; color: var(--muted); font-size: var(--font-secondary); line-height: 1.4; }
-.import-set-notes strong { color: var(--text); font-weight: 650; }
+.import-set-notes {
+  display: grid;
+  gap: 8px;
+  margin: 12px 0 0;
+  padding: 12px;
+  list-style: none;
+  border: 1px solid var(--accent-border);
+  border-radius: var(--radius-control);
+  background: var(--accent-soft);
+  color: var(--text);
+  font-size: var(--font-secondary);
+  line-height: 1.5;
+}
+.import-set-notes li { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 10px; }
+.import-set-notes strong { color: var(--accent); font-weight: 650; flex: 0 0 auto; }
+.import-set-notes li > span { min-width: 0; overflow-wrap: anywhere; }

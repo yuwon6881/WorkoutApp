@@ -86,7 +86,7 @@ export function TextAreaField({
     const textarea = textareaRef.current;
     if (!textarea || !autoGrow) return;
     const onPointerUp = () => {
-      if (textarea.offsetHeight > 0) {
+      if (textarea.offsetHeight > 0 && getComputedStyle(textarea).resize !== 'none') {
         userHeightRef.current = textarea.offsetHeight;
       }
     };
@@ -100,8 +100,26 @@ export function TextAreaField({
 
   useLayoutEffect(() => {
     if (!autoGrow) return;
+    const textarea = textareaRef.current;
+    let active = true;
+    let width = textarea?.clientWidth ?? 0;
+    // A day editor mounts inside a closed dialog. Measure again when it opens, or its first
+    // long name/description keeps the height measured before it had a visible layout.
+    const observer = textarea && typeof ResizeObserver !== 'undefined'
+      ? new ResizeObserver(() => {
+        if (textarea.clientWidth === width) return;
+        width = textarea.clientWidth;
+        resize();
+      })
+      : null;
+    if (textarea) observer?.observe(textarea);
+    void document.fonts?.ready.then(() => { if (active) resize(); });
     window.addEventListener('resize', resize);
-    return () => window.removeEventListener('resize', resize);
+    return () => {
+      active = false;
+      observer?.disconnect();
+      window.removeEventListener('resize', resize);
+    };
   }, [autoGrow, resize]);
 
   const setRef = useCallback((node: HTMLTextAreaElement | null) => {

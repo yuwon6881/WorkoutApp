@@ -275,7 +275,7 @@ for (const theme of ['dark', 'light']) {
     // Choosing the effort saves the typed reps with it and closes the sheet.
     await entry.getByRole('radio', { name: '2 RIR, 2 reps in reserve', exact: true }).click();
     await expect(entry).toBeHidden();
-    await expect(repsInput).toBeFocused();
+    await expect(repsInput).not.toBeFocused();
     await expect(repsInput).toHaveValue('8');
     await expect(logger.locator('.reps-rir-badge').first()).toHaveText('2');
     await repsInput.click();

@@ -7,6 +7,9 @@ import { formatRest } from '../lib/training';
 import { useTrackRir } from '../lib/trackRir';
 import { ProgramMusclePreview } from './ProgramMusclePreview';
 import { SupersetGroupHeader } from './SupersetTag';
+import { ImportSetNotes } from './ImportSetNotes';
+import './SetPrescriptionGrid.css';
+import './ReadOnlyDay.css';
 
 /// A library day shown as the program prints it. Nothing here is editable: a program only
 /// becomes editable once it is moved into the active slot.
@@ -78,6 +81,7 @@ function ReadOnlyExercise({ exercise, trackRir, dimmed }: { exercise: DraftExerc
         {line.warmup && <span className="tiny-label readonly-warmup-label">Warm-up</span>}
       </li>)}
     </ul>}
+    <ImportSetNotes sets={exercise.sets} />
     {exercise.notes && <p className="readonly-exercise-note">{exercise.notes}</p>}
   </div>;
 }

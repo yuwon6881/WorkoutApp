@@ -19,9 +19,16 @@ export function RepsRirControl({ name, label, reps, rir, trackRir, onChange }: {
   const [entry, setEntry] = useState<Entry | null>(null);
   const [error, setError] = useState('');
   const input = useRef<HTMLInputElement>(null);
-  const restoreFocus = useRef(false);
-  const open = () => { setError(''); setEntry({ text: reps === null ? '' : String(reps), rir, replace: true }); };
-  const close = () => { restoreFocus.current = true; setEntry(null); };
+  const wasOpen = useRef(false);
+  const open = () => {
+    input.current?.blur();
+    setError('');
+    setEntry({ text: reps === null ? '' : String(reps), rir, replace: true });
+  };
+  const close = () => {
+    input.current?.blur();
+    setEntry(null);
+  };
   const digit = (value: string) => setEntry(current => {
     if (!current) return current;
     const text = `${current.replace ? '' : current.text}${value}`.replace(/^0+(?=\d)/, '');
@@ -40,10 +47,15 @@ export function RepsRirControl({ name, label, reps, rir, trackRir, onChange }: {
   const selectRir = (value: number | null) => commit(value);
 
   useEffect(() => {
-    // The nested native dialog must release its focus lock before the input can receive focus.
-    if (!entry && restoreFocus.current) {
-      restoreFocus.current = false;
-      input.current?.focus();
+    // Discarding the modal must unfocus the input so mobile virtual keyboards do not reopen.
+    if (entry) {
+      wasOpen.current = true;
+    } else if (wasOpen.current) {
+      wasOpen.current = false;
+      input.current?.blur();
+      window.requestAnimationFrame?.(() => {
+        input.current?.blur();
+      });
     }
   }, [entry]);
 

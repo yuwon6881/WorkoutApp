@@ -15,6 +15,7 @@ import { resumableImport } from '../lib/importSelection';
 import { localPdfRead, useLocalPdfRead } from '../lib/localPdfRead';
 import { StoppedImports } from './StoppedImports';
 import './Import.css';
+import './ImportSource.css';
 
 
 /// What the import is doing. A read in flight covers every section the import still owes, because
@@ -200,8 +201,13 @@ export function ImportReview({ exercises, imports, onBack, onChanged, notify }: 
       </div>
     </div>
 
-    <section className="panel">
-      <div className="section-heading"><h2>Upload</h2><span className="muted">PDF · read on this device · up to 1,000 pages</span></div>
+    <section className={`panel import-upload-panel${selected?.status === 'ready' && draft ? ' has-draft' : ''}`}>
+      <div className="section-heading">
+        <h2>{selected?.status === 'ready' && draft ? 'Source PDF' : 'Upload'}</h2>
+        <span className="muted">{selected?.status === 'ready' && draft
+          ? selected.fileName
+          : 'PDF · read on this device · up to 1,000 pages'}</span>
+      </div>
       <input name="program-pdf" ref={file} type="file" accept="application/pdf,.pdf" hidden aria-label="Program PDF"
         onChange={e => {
           const chosen = e.target.files?.[0];
@@ -245,7 +251,10 @@ export function ImportReview({ exercises, imports, onBack, onChanged, notify }: 
         && <Failure failure={pipeline.failure} onDismiss={pipeline.clearFailure} />}
       {saveError && <CardFeedback message={saveError} action={{ label: 'Retry save', disabled: busy,
         onClick: () => void saver.retry().catch(failure => setSaveError(failure instanceof Error ? failure.message : 'Could not save changes.')) }} />}
-      <p className="muted small-copy">The text is read from the PDF on this device and only that text is sent; the file itself stays here. It becomes an editable draft before it can affect your workouts.</p>
+      <details className="import-source-details" open={selected?.status !== 'ready' || !draft}>
+        <summary>How your PDF is read</summary>
+        <p className="muted small-copy">The text is read from the PDF on this device and only that text is sent; the file itself stays here. It becomes an editable draft before it can affect your workouts.</p>
+      </details>
       <StoppedImports imports={imports} busy={busy} onSelect={view => {
         pipeline.clearFailure();
         setSaveError('');
