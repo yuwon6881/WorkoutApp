@@ -43,7 +43,16 @@ describe('setTarget', () => {
 
   it('never invents a rep count for an AMRAP set or one with no rep target', () => {
     expect(setTarget(set(), plan({ repsText: 'AMRAP', repMin: 1, repMax: 1 }), barbell, 'kg', true).reps).toBe('AMRAP · 2 RIR');
-    expect(setTarget(set(), plan({ repMin: null, repMax: null }), barbell, 'kg', true).reps).toBe('— · 2 RIR');
+    expect(setTarget(set(), plan({ repMin: null, repMax: null }), barbell, 'kg', true).reps).toBe('2 RIR');
+  });
+
+  it('shows an available effort alone, and a dash only when no target is available', () => {
+    const unknownReps = plan({ repMin: null, repMax: null });
+    expect(setTarget(set({ suggestion: null }), unknownReps, barbell, 'kg', true).reps).toBe('2 RIR');
+    expect(setTarget(set({ suggestion: null }), { ...unknownReps, rir: null }, barbell, 'kg', true).reps).toBe('Default 2 RIR');
+    expect(setTarget(set(), { ...unknownReps, rir: null }, barbell, 'kg', true).reps).toBe('—');
+    expect(setTarget(set(), unknownReps, barbell, 'kg', false).reps).toBe('—');
+    expect(setTarget(set({ suggestion: null, warmup: true }), { ...unknownReps, warmup: true }, barbell, 'kg', true).reps).toBe('—');
   });
 
   it('shows the plan target for a first session, with the reason it gives', () => {

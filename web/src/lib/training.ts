@@ -106,13 +106,17 @@ export const targetRirLabel = (set: SetPrescription): string | null => {
     : set.targetRpe !== null ? `${Math.round(10 - set.targetRpe)} RIR` : null;
 };
 
+/** A dash stands for a wholly empty target, rather than preceding an available effort target. */
+export const showRepEffortTarget = (reps: string, effort: string | null): string => {
+  if (!effort) return reps;
+  return reps === '—' ? effort : `${reps} · ${effort}`;
+};
+
 export const showTarget = (set: SetPrescription, trackRir = true): string => {
-  const parts = [showReps(set)];
-  if (!trackRir) return parts[0];
-  const effort = targetRirLabel(set);
-  if (effort) parts.push(effort);
-  else if (!set.warmup) parts.push('app default 2 RIR');
-  return parts.join(' · ');
+  const reps = showReps(set);
+  if (!trackRir) return reps;
+  const effort = targetRirLabel(set) ?? (set.warmup ? null : 'Default 2 RIR');
+  return showRepEffortTarget(reps, effort);
 };
 
 export const duration = (session: Session): number => {

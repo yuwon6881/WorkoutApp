@@ -1,5 +1,5 @@
 import type { LoggedSet, SessionExercise, SetPrescription, Unit } from '../types';
-import { showReps, showTarget, showWeight, targetRirLabel } from './training';
+import { showReps, showRepEffortTarget, showTarget, showWeight, targetRirLabel } from './training';
 import { isTimedExercise, showTimedTarget } from './setDuration';
 import { loadEntryFor, loadSign } from './resistanceVariant';
 
@@ -40,5 +40,5 @@ export function setTarget(
   const load = suggestion.suggestedLoadKg !== null && entry !== 'bodyweight' && entry !== 'none'
     ? `${loadSign(entry)}${showWeight(suggestion.suggestedLoadKg, unit)}`
     : null;
-  return { reps: effort ? `${reps} · ${effort}` : reps, load, reason };
+  return { reps: showRepEffortTarget(reps, effort), load, reason };
 }

@@ -32,7 +32,7 @@
   padding: 6px 10px;
   border-radius: var(--radius-pill);
   background: var(--surface-raised);
-  border: 1px solid var(--border);
+  border: 1px solid var(--control-border);
   color: var(--accent);
   font-variant-numeric: tabular-nums;
 }
@@ -64,7 +64,7 @@
   gap: 7px;
   min-height: 40px;
   padding: 0 14px;
-  border: 1px solid var(--border);
+  border: 1px solid var(--control-border);
   border-radius: var(--radius-pill);
   background: var(--surface-raised);
   color: var(--text);
@@ -72,20 +72,11 @@
   white-space: nowrap;
 }
 .workout-action-pills .action-pill.button:hover:not(:disabled) { background: var(--surface-hover); border-color: var(--border-hover); }
+.workout-action-pills .action-pill.button:focus-visible { border-color: var(--accent); }
 .workout-action-pills .action-pill svg { color: var(--muted); }
 .workout-action-pills .action-pill.pill-static { color: var(--muted); cursor: default; }
-/* A pill whose thing exists (a written note) carries a small accent dot. */
-.workout-action-pills .action-pill.has-note::after {
-  content: '';
-  position: absolute;
-  top: 8px;
-  right: 9px;
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--accent);
-}
-.workout-active-exercise .workout-action-pills .ui-menu-trigger { width: 40px; min-width: 40px; height: 40px; min-height: 40px; border: 1px solid var(--border); border-radius: var(--radius-pill); background: var(--surface-raised); }
+.workout-active-exercise .workout-action-pills .ui-menu-trigger { width: 40px; min-width: 40px; height: 40px; min-height: 40px; border: 1px solid var(--control-border); border-radius: var(--radius-pill); background: var(--surface-raised); }
+.workout-active-exercise .workout-action-pills .ui-menu-trigger:focus-visible { border-color: var(--accent); }
 @media (max-width: 639px) {
   .workout-active-exercise .workout-action-pills { margin-inline: -12px; padding-inline: 12px; }
 }
@@ -145,10 +136,10 @@
    it show through. Its set label alone says it is a warm-up. */
 .workout-set-rows .workout-set-row.warmup-row { opacity: 1; }
 
-/* The set being logged: a fine accent frame, no fill, so it reads before anything is typed. */
+/* The current set keeps the ordinary row surface; its tick is the logging action. */
 .workout-set-rows .workout-set-row.current {
-  border-color: var(--accent-border-strong);
-  box-shadow: inset 0 0 0 1.5px var(--accent-border-strong);
+  border-color: transparent;
+  box-shadow: none;
 }
 
 /* Logged sets are filled; the fill sweeps in from the set's leading edge when it is ticked. */

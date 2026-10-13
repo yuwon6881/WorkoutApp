@@ -161,10 +161,11 @@
   position: relative;
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 6px;
   flex: 0 0 auto;
   min-height: 40px;
-  padding: 0 14px 6px 12px;
+  padding: 0 12px;
   border-radius: var(--radius-pill);
   background: var(--accent-soft);
   color: var(--accent);
@@ -175,6 +176,7 @@
 
 .rest-clock-value {
   min-width: 3.6ch;
+  text-align: center;
   color: var(--text);
   font-size: 22px;
   font-weight: 760;
@@ -348,7 +350,7 @@
     clip: rect(0, 0, 0, 0);
     white-space: nowrap;
   }
-  .rest-clock { padding-inline: 10px 12px; min-height: 44px; }
+  .rest-clock { padding-inline: 10px; min-height: 44px; }
   .rest-bar-actions .button { min-width: 44px; padding: 0 6px; }
 }
 /* The narrowest phones keep an hour-long clock and a rest on one row. */

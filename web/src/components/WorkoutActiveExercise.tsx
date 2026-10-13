@@ -3,7 +3,6 @@ import {
   Check,
   ClipboardList,
   Layers,
-  NotebookPen,
   Plus,
   RefreshCw,
   RotateCcw,
@@ -154,15 +153,6 @@ export function WorkoutActiveExercise({
     : 'All sets completed';
 
 
-  // The note sits below the sets, often off screen; its pill brings it into view and focus.
-  const noteField = useRef<HTMLDivElement>(null);
-  function openNote() {
-    const field = noteField.current?.querySelector('textarea');
-    if (!field) return;
-    field.focus({ preventScroll: true });
-    field.scrollIntoView({ block: 'center', behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
-  }
-
   return (
     <section className={`workout-active-exercise ${exercise.isReplacement ? 'swap-continuation' : ''}`}>
       <div className="workout-active-header">
@@ -228,11 +218,6 @@ export function WorkoutActiveExercise({
             <span>Restore default</span>
           </Button>
         )}
-
-        <Button variant="tertiary" className={`action-pill ${exercise.note.trim() ? 'has-note' : ''}`.trim()} onClick={openNote}>
-          <NotebookPen size={15} />
-          <span>Note</span>
-        </Button>
 
         {exercise.sequenceGroup && (
           <div className="action-pill pill-static" title="Superset group">
@@ -326,7 +311,7 @@ export function WorkoutActiveExercise({
         </div>
       </div>
 
-      <div className="workout-note-drawer" ref={noteField}>
+      <div className="workout-note-drawer">
         <TextAreaField
           label="Exercise notes"
           autoGrow

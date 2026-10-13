@@ -15,14 +15,15 @@
 
 .import-exercise .import-exercise-notes {
   margin-top: 12px !important;
-  padding: 12px;
-  border: 1px solid var(--accent-border);
-  border-radius: var(--radius-control);
-  background: var(--accent-soft);
+  padding: 0 0 0 12px;
+  border: 0;
+  border-left: 2px solid var(--accent-border);
+  border-radius: 0;
+  background: transparent;
   gap: 8px;
 }
 .import-exercise .import-exercise-notes > span:first-child {
-  color: var(--accent);
+  color: var(--muted);
   font-weight: 650;
 }
 .import-exercise .import-exercise-body {
@@ -33,7 +34,7 @@
 }
 .import-exercise .set-grid-wrap {
   padding-top: 14px;
-  border-top: 1px solid var(--border);
+  border-top: 1px solid var(--section-border);
 }
 .import-exercise .import-exercise-title {
   flex-wrap: nowrap;
@@ -65,10 +66,10 @@
   max-height: none;
 }
 .import-exercise .import-exercise-name-field textarea:hover {
-  border-color: var(--border);
+  border-color: var(--control-border);
 }
 .import-exercise .import-exercise-name-field textarea:focus {
-  background: var(--surface);
+  background: var(--control-surface);
 }
 /* Keep muscle metadata on its own row, independent of name length or substitutions. */
 .import-library-row {
@@ -90,8 +91,37 @@
   min-width: 0;
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
+  padding-inline: 10px;
 }
+.import-library-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--amber);
+  font-size: var(--font-secondary);
+  font-weight: 550;
+  white-space: nowrap;
+}
+.import-library-affordance { margin-left: auto; color: var(--muted); }
+/* Outrank the shared dark secondary-button surface, which deliberately removes its border. */
+:root .import-exercise .button.secondary.import-library-trigger,
+.import-exercise .import-rest-field .custom-select-trigger {
+  background: var(--control-surface);
+  border: 1px solid var(--control-border);
+}
+:root .import-exercise .button.secondary.import-library-trigger:hover:not(:disabled),
+.import-exercise .import-rest-field .custom-select-trigger:hover:not(:disabled) {
+  background: var(--surface-hover);
+  border-color: var(--border-hover);
+}
+:root .import-exercise .button.secondary.import-library-trigger:focus-visible,
+.import-exercise .import-rest-field .custom-select-trigger:focus-visible,
+.import-exercise .import-rest-field .custom-select-trigger.active,
+.import-exercise .import-exercise-name-field textarea:focus {
+  border-color: var(--accent);
+}
+.import-exercise .import-exercise-heading { border-bottom-color: var(--section-border); }
 .import-library-row .import-library-name {
   overflow: hidden;
   text-overflow: ellipsis;
@@ -108,6 +138,11 @@
   min-width: 0;
   align-self: flex-start;
 }
+.import-exercise .import-exercise-muscles .pill-muted {
+  background: var(--control-surface);
+  border-color: var(--control-border);
+  color: var(--muted);
+}
 .import-exercise .import-substitutions-field {
   width: 100%;
   min-width: 0;
@@ -121,8 +156,8 @@
 }
 .import-exercise .import-exercise-notes textarea {
   min-height: 54px;
-  background: var(--surface);
-  border: 1px solid var(--border);
+  background: var(--control-surface);
+  border: 1px solid var(--control-border);
   border-radius: var(--radius-control);
   padding: 10px 12px;
   line-height: 1.5;

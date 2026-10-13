@@ -261,10 +261,11 @@
   field-sizing: content;
   line-height: 1.45;
   border-radius: var(--radius-control);
-  border-color: transparent;
+  border-color: var(--control-border);
   background: var(--surface-raised);
 }
-.workout-note-drawer textarea:hover { border-color: var(--border); }
+.workout-note-drawer textarea:hover { border-color: var(--border-hover); }
+.workout-note-drawer textarea:focus { border-color: var(--accent); }
 
 @media (prefers-reduced-motion: reduce) {
   .workout-strip-item.held,

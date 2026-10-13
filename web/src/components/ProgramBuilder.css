@@ -322,8 +322,11 @@
 .day-detail-modal .day-detail-modal-body.draft-day:hover{margin:0;border:0;border-radius:0;background:transparent}
 .day-detail-modal-body .draft-day-muscles{padding:0 0 12px}
 .day-detail-modal-body .day-editor{padding:0;border-top:0;background:transparent}
-.day-detail-modal .day-editor-fields{border:1px solid var(--border);border-radius:14px;background:var(--surface-raised);padding:16px;gap:14px}
-.day-detail-modal .import-exercise{border:1px solid var(--border);border-radius:18px;background:var(--surface-raised);box-shadow:none;margin:0 0 14px;padding:16px}
+.day-detail-modal .day-editor-fields{border:1px solid var(--section-border);border-radius:14px;background:var(--surface-raised);padding:16px;gap:14px}
+:root .day-detail-modal .day-editor-fields .field input { border-color: var(--control-border); background: var(--control-surface); }
+:root .day-detail-modal .day-editor-fields .field input:hover { border-color: var(--border-hover); }
+:root .day-detail-modal .day-editor-fields .field input:focus { border-color: var(--accent); }
+.day-detail-modal .import-exercise{border:1px solid var(--section-border);border-radius:18px;background:var(--surface-raised);box-shadow:none;margin:0 0 14px;padding:16px}
 .day-detail-modal .import-exercise-heading {
   display: grid;
   grid-template-columns: minmax(0, 1fr);

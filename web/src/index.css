@@ -1,3 +1,9 @@
+/* A visible neutral boundary for interactive controls on workout and prescription surfaces. */
+:root {
+  --control-border: color-mix(in srgb, var(--border-hover) 75%, var(--surface-raised));
+  --control-surface: color-mix(in srgb, var(--surface-hover) 70%, var(--surface-raised));
+  --section-border: color-mix(in srgb, var(--border-hover) 45%, var(--surface-raised));
+}
 /* Plus Jakarta Sans Variable is self-hosted via @fontsource-variable/plus-jakarta-sans (imported in main.tsx).
    Midnight Lime (dark, the default) and Lavender (light) match NutritionApp. Feature styles consume only these
    semantic tokens; --blue, --amber, --teal and the effort scale are data colours, never decoration. */

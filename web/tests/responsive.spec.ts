@@ -287,10 +287,30 @@ for (const theme of ['dark', 'light']) {
     await expect(logger.locator('.reps-rir-badge').first()).toHaveText('2');
     await logger.getByRole('button', { name: 'Log Barbell bench press set 1', exact: true }).click();
     await expect(logger.locator('.workout-rest-bar')).toBeVisible();
+    const timerAlignment = await logger.locator('.rest-clock').evaluate(element => {
+      const pill = element.getBoundingClientRect();
+      const value = element.querySelector('.rest-clock-value')!;
+      const valueBox = value.getBoundingClientRect();
+      const text = document.createRange();
+      text.selectNodeContents(value);
+      const textBox = text.getBoundingClientRect();
+      return {
+        vertical: Math.abs((valueBox.top + valueBox.bottom - pill.top - pill.bottom) / 2),
+        horizontal: Math.abs((textBox.left + textBox.right - pill.left - pill.right) / 2),
+      };
+    });
+    expect(timerAlignment.vertical).toBeLessThanOrEqual(1);
+    if (width < 360) expect(timerAlignment.horizontal).toBeLessThanOrEqual(1);
     expect(await logger.locator('.workout-rest-bar').evaluate(element => element.getBoundingClientRect().height)).toBeLessThan(100);
     await checkLayout(page, 'active logger');
+    await expect(logger.locator('.workout-set-row.current')).toHaveCSS('border-top-color', 'rgba(0, 0, 0, 0)');
+    await expect(logger.locator('.workout-set-row.current')).toHaveCSS('box-shadow', 'none');
+    for (const target of await logger.locator('.target-text').allTextContents()) {
+      expect(target).not.toMatch(/^—\s*·/);
+    }
     await page.screenshot({ animations: 'disabled', path: join(screenshotsDirectory, 'responsive', `${info.project.name}-${theme}-active-logger.png`) });
     const exerciseNotes = logger.getByRole('textbox', { name: 'Exercise notes', exact: true });
+    await expect(logger.getByRole('button', { name: 'Note', exact: true })).toHaveCount(0);
     await exerciseNotes.fill('Keep a steady tempo. '.repeat(30));
     expect(await exerciseNotes.evaluate(node => node.scrollHeight <= node.clientHeight + 2)).toBe(true);
     await exerciseNotes.fill('Keep a steady tempo.');
