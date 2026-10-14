@@ -350,7 +350,9 @@
 .exercise-chart-readout strong {
   font-size: 28px;
   font-weight: 760;
-  letter-spacing: -0.03em;
+  /* Tight tracking closes the space in "8 reps" up to "8reps"; keep the unit visibly apart. */
+  letter-spacing: -0.015em;
+  word-spacing: 0.12em;
   line-height: 1.15;
   color: var(--text);
   font-variant-numeric: tabular-nums;
@@ -360,6 +362,7 @@
   font-size: var(--font-secondary);
   color: var(--faint);
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 .exercise-chart-canvas {
   width: 100%;
@@ -367,12 +370,26 @@
   position: relative;
   outline: none;
   touch-action: pan-y;
+  user-select: none;
   cursor: crosshair;
 }
 .exercise-chart-canvas:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
   border-radius: var(--radius-control);
+}
+.exercise-chart-svg { display: block; width: 100%; height: 100%; overflow: visible; }
+.exercise-chart-grid { stroke: var(--border); stroke-width: 1; }
+.exercise-chart-tick { fill: var(--faint); font-size: 11px; font-variant-numeric: tabular-nums; }
+.exercise-chart-guide { stroke: var(--border-hover); stroke-width: 1; }
+.exercise-chart-line { fill: none; stroke: var(--accent); stroke-width: 2.25; stroke-linecap: round; stroke-linejoin: round; }
+.exercise-chart-dot { fill: var(--surface-raised); stroke: var(--accent); stroke-width: 2; }
+.exercise-chart-dot.active { fill: var(--accent); stroke: var(--surface-raised); }
+.exercise-chart-halo { fill: var(--accent-soft-glow); }
+.exercise-chart-gap { fill: var(--surface-raised); stroke: var(--faint); stroke-width: 1.5; }
+@media (max-width: 639px) {
+  .exercise-chart { padding: 16px; gap: 10px; }
+  .exercise-chart-readout strong { font-size: 24px; }
 }
 
 /* Compact record tiles: raised wells */

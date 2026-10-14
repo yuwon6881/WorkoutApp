@@ -20,6 +20,7 @@ import { ImportReviewPanel } from './ImportReviewPanel';
 import { ImportUploadPanel } from './ImportUploadPanel';
 import { StoppedImports } from './StoppedImports';
 import './Import.css';
+import './ImportReviewSurface.css';
 
 function hasStructuredTerminalError(view: ImportView | null) {
   return Boolean(view?.error && view.reviewIssues?.some(issue => view.error.includes(`[${issue.code}]`)));
@@ -120,7 +121,7 @@ export function ImportReview({ exercises, imports, onBack, onChanged, notify }: 
   // shows one thing at a time instead of the hero above every state.
   const hasDraft = Boolean(selected);
 
-  return <>
+  return <div className="import-page">
     <div className="page-heading">
       <div>
         <div className="back-nav-row">
@@ -210,5 +211,5 @@ export function ImportReview({ exercises, imports, onBack, onChanged, notify }: 
 
     {selected && selected.status === 'failed' && <ImportFailedPanel view={selected} busy={busy}
       onChooseFile={() => file.current?.click()} onDiscard={() => void discard(selected)} />}
-  </>;
+  </div>;
 }

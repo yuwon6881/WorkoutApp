@@ -37,7 +37,8 @@ public record SessionView(Guid Id, Guid? TemplateId, Guid? ProgramId, string Nam
     BodyWeightSnapshot? BodyWeight = null, NutritionTrainingContext? NutritionContext = null,
     double? SystemVolumeKg = null, DateTime? PausedAt = null, long PausedSeconds = 0, int PrCount = 0, SessionRestView? Rest = null, bool RestoreIncludesRemovedExercises = false);
 
-public sealed record WorkoutActivityItem(Guid Id, string Name, string Status, DateOnly Date);
+public sealed record WorkoutActivityItem(Guid Id, string Name, string Status, DateOnly Date,
+    int? WorkingSets = null, int? TrainingMinutes = null);
 
 public record SessionSubstitutionInput(Guid SessionExerciseId, Guid? ReplacementExerciseId, string ReplacementName,
     int? Revision, Guid? IdempotencyId);
@@ -662,44 +663,6 @@ public sealed partial class WorkoutService(
         var last = pageRows.LastOrDefault();
         return new HistoryCursorPage(views, hasMore && last is not null ? last.FinishedAt : null,
             hasMore && last is not null ? last.Id : null);
-    }
-
-    public async Task<List<WorkoutActivityItem>> Activity(DateOnly? from, DateOnly? to, string? timeZone, CancellationToken ct)
-    {
-        Validation.Require(!string.IsNullOrWhiteSpace(timeZone), "A valid time zone is required.", 400);
-        if (!TimeZoneInfo.TryFindSystemTimeZoneById(timeZone!.Trim(), out var zone))
-            throw new DomainException("Unknown or unsupported time zone.", 400);
-
-        var todayLocal = DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, zone));
-        var start = from ?? todayLocal.AddDays(-30);
-        var end = to ?? todayLocal;
-        Validation.Require(start <= end && end.DayNumber - start.DayNumber <= 366, "Choose a date range of one year or less.");
-
-        var startUtc = start.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc).AddDays(-1);
-        var endUtc = end.AddDays(2).ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc);
-        var rows = await db.Workouts.AsNoTracking().Where(w =>
-            (w.FinishedAt != null && w.FinishedAt >= startUtc && w.FinishedAt < endUtc) ||
-            (w.Active && w.StartedAt >= startUtc && w.StartedAt < endUtc))
-            .ToListAsync(ct);
-
-        var items = new List<(WorkoutActivityItem Item, DateTime Timestamp)>();
-        foreach (var w in rows)
-        {
-            var isCompleted = w.FinishedAt != null;
-            var timestamp = isCompleted ? w.FinishedAt!.Value : w.StartedAt;
-            var localDateTime = TimeZoneInfo.ConvertTimeFromUtc(timestamp, zone);
-            var localDate = DateOnly.FromDateTime(localDateTime);
-            if (localDate < start || localDate > end) continue;
-
-            var status = isCompleted ? "completed" : "in_progress";
-            items.Add((new WorkoutActivityItem(w.Id, w.Name, status, localDate), timestamp));
-        }
-
-        return items
-            .OrderBy(x => x.Item.Date)
-            .ThenBy(x => x.Timestamp)
-            .Select(x => x.Item)
-            .ToList();
     }
 
     private static double? ComputeSystemLoad(WorkoutSession session, string loadModel, string resistanceMode, double? input)

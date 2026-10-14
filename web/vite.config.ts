@@ -40,6 +40,8 @@ export default defineConfig({
   preview: { proxy },
   build: {
     outDir: process.env.WORKOUT_BUILD_DIRECTORY || 'dist',
+    // Even small font subsets must stay same-origin files for font-src 'self'.
+    assetsInlineLimit: filePath => /\.(?:woff2?|ttf|otf)$/i.test(filePath) ? false : undefined,
     minify: 'terser',
     terserOptions: { compress: { passes: 2 } },
     target: 'es2022',

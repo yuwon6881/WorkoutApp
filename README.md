@@ -14,6 +14,10 @@ sibling NutritionApp.
 | `wear/` | Kotlin + Compose standalone Wear OS companion |
 | `deploy/` | Deployment, seeding, and recovery notes |
 
+Overview totals cover completed workouts in the Monday–Sunday week displayed by the calendar. Browsing or swiping weeks updates workouts, logged working sets (including timed sets, excluding warm-ups), and training minutes excluding pauses. Loading or unavailable metrics stay unknown. The calendar reserves a fixed position for its return-to-this-week action. Active-plan days use neutral surfaces, teal completion markers, and a small Next label. The sidebar and mobile navigation workout action open a read-only preview of the next workout’s exercises, prescriptions, and notes; Start creates the session. An existing workout resumes immediately.
+
+Import review uses a slim 4 px progress track, neutral day badges, and separated exercise-name previews without decorative glows. In the day editor, muscle badges sit beneath the library link at the leading edge. Every set type keeps the same column width; numeric targets keep matching sizes for reps and seconds in Exact and Range modes, chosen once per exercise in a separate toolbar. Notes and prescriptions use the app’s neutral surfaces and keyboard focus outlines.
+
 ## Run it locally
 
 Requires Node 24 and .NET 10. Building the watch app also requires JDK 17 and Android SDK 36.

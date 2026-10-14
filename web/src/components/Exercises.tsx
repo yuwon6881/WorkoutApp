@@ -11,10 +11,12 @@ import { Button } from './ui/Button';
 import { ExerciseHistory } from './ExerciseHistory';
 import { SegmentedControl } from './ui/SegmentedControl';
 import { ExerciseProgressChart } from './ExerciseProgressChart';
+import { ExerciseProgressTable } from './ExerciseProgressTable';
 import { Modal } from './ui/Modal';
 import { Select } from './ui/Select';
 import { CustomExerciseModal } from './CustomExerciseModal';
-import { getExerciseCategory } from '../lib/exerciseCategory';
+import { getExerciseCategory, informativeEquipment } from '../lib/exerciseCategory';
+import { buildExerciseSearchIndex, searchExerciseScores } from '../lib/exerciseSearch';
 import { ChipScroller } from './ui/ChipScroller';
 import './Exercises.css';
 import './RenderWindow.css';
@@ -76,9 +78,8 @@ export function ExerciseLibrary({ exercises, onSelect, exclude = emptyIds, onOpe
   // Filtering the whole catalog on every keystroke can stall typing on a phone; the list follows
   // the query a moment later while the field itself stays instant.
   const search = useDeferredValue(query);
-  const searchText = useMemo(() => new Map(exercises.map(e => [e.id,
-    `${e.name} ${e.equipment} ${e.muscle} ${(e.secondaryMuscles ?? []).join(' ')} ${e.movementPattern ?? ''} ${e.aliases.join(' ')}`.toLowerCase()
-  ])), [exercises]);
+  const searchIndex = useMemo(() => new Map(exercises.map(e => [e.id, buildExerciseSearchIndex(e)])), [exercises]);
+  const searchScores = useMemo(() => searchExerciseScores(searchIndex, search), [searchIndex, search]);
   const muscles = useMemo(() => ['All muscles', ...new Map(exercises.flatMap(e => [e.muscle, ...(e.secondaryMuscles ?? [])])
     .filter(Boolean).map(value => [value.toLowerCase(), value] as const)).values()], [exercises]);
   const current = currentExerciseId ? exercises.find(e => e.id === currentExerciseId) : undefined;
@@ -90,10 +91,13 @@ export function ExerciseLibrary({ exercises, onSelect, exclude = emptyIds, onOpe
     && (source === 'all' || (source === 'custom' ? e.isCustom : !e.isCustom))
     && (category === 'all' || getExerciseCategory(e) === category)
     && (muscle === 'All muscles' || [e.muscle, ...(e.secondaryMuscles ?? [])].some(value => value.toLowerCase() === muscle.toLowerCase()))
-    && searchText.get(e.id)?.includes(search.toLowerCase())), [exercises, exclude, currentExerciseId, source, category, muscle, search, searchText]);
+    && searchScores.has(e.id)), [exercises, exclude, currentExerciseId, source, category, muscle, searchScores]);
   const ranks = useMemo(() => exerciseRanks(filtered, current, preferredNames), [filtered, current, preferredNames]);
+  // While searching, the closest name match leads within its group; with no query the order is
+  // the plain relevance rank and then the name.
   const ordered = useMemo(() => [...filtered].sort((a, b) => (ranks.get(a.id) ?? 4) - (ranks.get(b.id) ?? 4)
-    || a.name.localeCompare(b.name)), [filtered, ranks]);
+    || (searchScores.get(a.id) ?? 0) - (searchScores.get(b.id) ?? 0)
+    || a.name.localeCompare(b.name)), [filtered, ranks, searchScores]);
   const actionLabel = action === 'swap' ? 'Swap' : action === 'map' ? 'Map' : 'Add';
   const ActionIcon = action === 'add' ? Plus : action === 'swap' ? ArrowLeftRight : Link2;
 
@@ -108,7 +112,7 @@ export function ExerciseLibrary({ exercises, onSelect, exclude = emptyIds, onOpe
   const relevantList = showBoundary ? ordered.filter(isRelevant) : ordered;
   const otherList = showBoundary ? ordered.filter(e => !isRelevant(e)) : [];
 
-  const currentMatches = current && (!query.trim() || `${current.name} ${current.equipment} ${current.muscle} ${(current.secondaryMuscles ?? []).join(' ')} ${current.movementPattern ?? ''} ${current.aliases.join(' ')}`.toLowerCase().includes(query.toLowerCase()))
+  const currentMatches = current && searchScores.has(current.id)
     && (source === 'all' || (source === 'custom' ? current.isCustom : !current.isCustom))
     && (category === 'all' || getExerciseCategory(current) === category)
     && (muscle === 'All muscles' || [current.muscle, ...(current.secondaryMuscles ?? [])].some(val => val.toLowerCase() === muscle.toLowerCase()));
@@ -143,7 +147,7 @@ export function ExerciseLibrary({ exercises, onSelect, exclude = emptyIds, onOpe
                           +{e.secondaryMuscles.length - 1}
                         </span>
                       )}
-                      <span className="pill pill-equipment">{e.equipment || 'General'}</span>
+                      {informativeEquipment(e) && <span className="pill pill-equipment">{informativeEquipment(e)}</span>}
                     </div>
                   </div>
                   <Button
@@ -162,10 +166,9 @@ export function ExerciseLibrary({ exercises, onSelect, exclude = emptyIds, onOpe
                   onClick={() => onOpen?.(e)} onKeyDown={event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); onOpen?.(e); } }}>
                   <div className="exercise-card-top">
                     <h3 className="exercise-card-title" title={e.name}>{e.name}</h3>
-                    <div className="exercise-card-badges">
-                      <span className="pill pill-equipment">{e.equipment || 'General'}</span>
-                      <span className="pill pill-category">{cat}</span>
-                    </div>
+                    {informativeEquipment(e) && <div className="exercise-card-badges">
+                      <span className="pill pill-equipment">{informativeEquipment(e)}</span>
+                    </div>}
                   </div>
                   <div className="exercise-card-meta">
                     {e.isCustom && <span className="pill pill-muted">Custom</span>}
@@ -262,7 +265,7 @@ export function ExerciseLibrary({ exercises, onSelect, exclude = emptyIds, onOpe
               {current.isCustom && <span className="pill pill-muted">Custom</span>}
               <span className="pill pill-accent picker-muscle-tag">{current.muscle || 'Full body'}</span>
               {(current.secondaryMuscles ?? []).map(secondary => <span className="pill pill-muted" key={`cur-${current.id}-${secondary}`}>{secondary}</span>)}
-              <span className="pill pill-equipment">{current.equipment || 'General'}</span>
+              {informativeEquipment(current) && <span className="pill pill-equipment">{informativeEquipment(current)}</span>}
               <span className="pill pill-category">{getExerciseCategory(current)}</span>
             </div>
           </div>
@@ -340,7 +343,7 @@ export function ExerciseDetailModal({ exercise, unit, onClose, onChanged }: { ex
         {detailTab === 'progress' && <div className="exercise-detail-meta">
           <span className="pill pill-accent">{exercise.archived && exercise.isCustom ? 'Deleted custom exercise' : exercise.isCustom ? 'Custom exercise' : exercise.muscle || 'Full body'}</span>
           {(exercise.secondaryMuscles ?? []).map(secondary => <span className="pill pill-muted" key={secondary}>{secondary}</span>)}
-          <span className="pill">{exercise.equipment || 'General'}</span>
+          {informativeEquipment(exercise) && <span className="pill pill-equipment">{informativeEquipment(exercise)}</span>}
           <span className="pill pill-category">{getExerciseCategory(exercise)}</span>
         </div>}
         {detailTab === 'progress' && !exercise.archived && loadAdjustable(exercise) && <ExerciseLoadSettings key={exercise.id} exerciseId={exercise.id} exerciseName={exercise.name} unit={unit} perSide={canEnterPerSide(exercise)} onChanged={onChanged} />}
@@ -350,13 +353,14 @@ export function ExerciseDetailModal({ exercise, unit, onClose, onChanged }: { ex
         {insight && insight.totalHistoryRows > 0 && detailTab === 'progress' && <>
           <div className="section-heading"><h3>Progress</h3><div className="detail-selectors"><label className="field"><span>Metric</span><Select name="progress-metric-select" label="Progress metric" value={metric} onChange={val => setSelectedMetric(val as ChartMetric)} options={[{ value: 'estimated1rm', label: 'Estimated 1RM' }, { value: 'load', label: 'Heaviest load' }, { value: 'volume', label: 'Session volume' }, { value: 'reps', label: 'Reps' }]} /></label><label className="field"><span>Range</span><Select name="progress-range-select" label="Progress range" value={range} onChange={val => setRange(val as string)} options={[{ value: '1m', label: 'Last month' }, { value: '3m', label: 'Last 3 months' }, { value: '6m', label: 'Last 6 months' }, { value: 'all', label: 'All time' }]} /></label></div></div>
           <ExerciseProgressChart label={`${chartMetricLabel(metric)} progress`} format={value => formatMetricValue(value, metric, unit)} points={insight.points.map(point => ({ key: `${point.sessionId}-${point.date}`, date: dateLabel(point.date), value: metricValue(point, metric) }))} />
-          {insight.points.length > 0 && <div className="chart-table" role="table" aria-label="Exercise progress table"><div className="chart-table-row chart-table-head" role="row"><span>Date</span><span>1RM</span><span>Load</span><span>Volume</span><span>Reps</span></div>{insight.points.map(point => <div className="chart-table-row" role="row" key={`row-${point.sessionId}-${point.date}`}><span>{dateLabel(point.date)}</span><span>{displayKg(point.estimated1RmKg, unit)}</span><span>{displayKg(point.loadKg, unit)}</span><span>{displayKg(point.volumeKg, unit)}{point.partial ? ' *' : ''}</span><span>{point.reps ?? '—'}</span></div>)}</div>}
-          {insight.partialVolume && <p className="muted detail-note">* Volume is partial because one or more logged loads were unknown.</p>}
+          {insight.points.length > 0 && <ExerciseProgressTable points={insight.points} formatDate={dateLabel} formatKg={value => displayKg(value, unit)} />}
+          {insight.partialVolume && insight.points.some(point => point.volumeKg != null) && <p className="muted detail-note">* Volume is partial because one or more logged loads were unknown.</p>}
           <div className="detail-record-grid">
-            <div className="stat-card"><span className="stat-label">Estimated 1RM</span><strong>{displayKg(insight.estimated1RmKg, unit)}</strong>{insight.estimated1RmKg != null && <small>{dateLabel(insight.estimated1RmDate)}</small>}</div>
-            <div className="stat-card"><span className="stat-label">Heaviest load</span><strong>{displayKg(insight.heaviestKg, unit)}</strong>{insight.heaviestKg != null && <small>{insight.heaviestReps ? `${insight.heaviestReps} reps · ` : ''}{dateLabel(insight.heaviestDate)}</small>}</div>
-            <div className="stat-card"><span className="stat-label">Largest set volume</span><strong>{displayKg(insight.largestSetVolumeKg, unit)}</strong>{insight.largestSetVolumeKg != null && <small>{dateLabel(insight.largestSetVolumeDate)}</small>}</div>
-            <div className="stat-card"><span className="stat-label">Largest session volume</span><strong>{displayKg(insight.largestSessionVolumeKg, unit)}</strong>{insight.largestSessionVolumeKg != null && <small>{dateLabel(insight.largestSessionVolumeDate)}</small>}</div>
+            {/* A record with no logged load behind it (a rep-only movement) is left out, not shown as a dash. */}
+            {insight.estimated1RmKg != null && <div className="stat-card"><span className="stat-label">Estimated 1RM</span><strong>{displayKg(insight.estimated1RmKg, unit)}</strong><small>{dateLabel(insight.estimated1RmDate)}</small></div>}
+            {insight.heaviestKg != null && <div className="stat-card"><span className="stat-label">Heaviest load</span><strong>{displayKg(insight.heaviestKg, unit)}</strong><small>{insight.heaviestReps ? `${insight.heaviestReps} reps · ` : ''}{dateLabel(insight.heaviestDate)}</small></div>}
+            {insight.largestSetVolumeKg != null && <div className="stat-card"><span className="stat-label">Largest set volume</span><strong>{displayKg(insight.largestSetVolumeKg, unit)}</strong><small>{dateLabel(insight.largestSetVolumeDate)}</small></div>}
+            {insight.largestSessionVolumeKg != null && <div className="stat-card"><span className="stat-label">Largest session volume</span><strong>{displayKg(insight.largestSessionVolumeKg, unit)}</strong><small>{dateLabel(insight.largestSessionVolumeDate)}</small></div>}
             <div className="stat-card"><span className="stat-label">Rep PR</span><strong>{insight.repPr ?? '—'}</strong>{insight.repPr != null && <small>{dateLabel(insight.repPrDate)}</small>}</div>
             <div className="stat-card"><span className="stat-label">Sessions</span><strong>{insight.sessions > 0 ? insight.sessions : '—'}</strong>{insight.sessions > 0 && <small>completed workouts</small>}</div>
             <div className="stat-card"><span className="stat-label">Last performed</span><strong>{dateLabel(insight.lastPerformedDate)}</strong>{insight.setCount > 0 && <small>{insight.setCount} working sets</small>}</div>

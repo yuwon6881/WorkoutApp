@@ -1,8 +1,8 @@
 /* Progress card for PDF program import flow.
-   Subtle card surface within upload panel, thicker rounded progress track,
+   Subtle card surface within upload panel, slim rounded progress track,
    stage stepper (desktop multi-step, mobile compact dots), and responsive stat chips. */
 
-.ipc-card {
+.import-progress.ipc-card {
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -13,11 +13,12 @@
   border-radius: var(--radius-control);
   box-shadow: var(--shadow);
   width: 100%;
+  min-width: 0;
   box-sizing: border-box;
 }
 
 @media (max-width: 639px) {
-  .ipc-card {
+  .import-progress.ipc-card {
     padding: 14px 16px;
     gap: 14px;
     margin: 12px 0;
@@ -75,7 +76,7 @@
   background: var(--accent);
   border: 1px solid var(--accent);
   color: var(--on-accent);
-  box-shadow: 0 0 0 3px var(--accent-soft-glow);
+  box-shadow: none;
 }
 .ipc-step--current .ipc-step-label { color: var(--text); font-weight: 700; }
 
@@ -186,7 +187,7 @@
 /* ── Progress Track & Fill ──────────────────────────────────── */
 
 .ipc-card .ipc-progress-track {
-  height: 8px;
+  height: 4px;
   border-radius: var(--radius-pill);
   background: color-mix(in srgb, var(--border) 60%, var(--surface-raised));
   overflow: hidden;

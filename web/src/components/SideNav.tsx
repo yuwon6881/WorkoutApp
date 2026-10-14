@@ -62,7 +62,7 @@ export function SideNav({
           className="sidebar-action"
           aria-label={DOCK_ACTION_LABEL[action]}
           disabled={actionBusy}
-          onPointerEnter={() => prefetchView('workout')}
+          onPointerEnter={() => prefetchView(action === 'start' ? 'workoutPreview' : 'workout')}
           onClick={onAction}
         >
           <ActionIcon size={20} className="sidebar-action-icon" aria-hidden="true" />

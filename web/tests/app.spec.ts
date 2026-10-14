@@ -800,7 +800,7 @@ test('import a PDF program, resolve an unmapped exercise, and accept it', async 
   const day = page.getByRole('button', { name: 'Week 1 Upper', exact: true });
   await expect(day).toBeVisible();
   await expect(page.locator('.day-action-button')).toHaveCount(0);
-  await day.locator('.day-exercise-preview').click();
+  await day.locator('.pdl-exercise-preview').click();
   const dayModal = page.locator('dialog.modal.day-detail-modal');
   await expect(dayModal).toBeVisible();
   const detailBody = dayModal.locator('.day-detail-modal-body');
@@ -922,7 +922,7 @@ test('import a PDF program, resolve an unmapped exercise, and accept it', async 
   await expect(benchExercise.locator('[data-import-save-bar]')).toBeHidden({ timeout: 30000 });
   await dayModal.getByRole('button', { name: 'Close dialog', exact: true }).click();
   await expect(dayModal).not.toBeVisible();
-  await day.locator('.day-exercise-preview').click();
+  await day.locator('.pdl-exercise-preview').click();
   await expect(dayModal).toBeVisible();
   await expect(benchRepMode.getByRole('button', { name: 'Exact', exact: true })).toHaveAttribute('aria-pressed', 'true');
   await benchRepMode.getByRole('button', { name: 'Exact', exact: true }).click();
@@ -1030,21 +1030,12 @@ test('import a PDF program, resolve an unmapped exercise, and accept it', async 
   expect(activeAcceptColors).toEqual({ color: activeAcceptColors.expected, background: accent, opacity: '1', expected: activeAcceptColors.expected });
   await expect(mysteryExercise.locator('.import-substitutions-field')).toHaveCount(0);
   const descriptionFrame = mysteryExercise.locator('.import-exercise-notes');
-  const descriptionColors = await descriptionFrame.evaluate(element => {
-    const probe = document.createElement('span');
-    probe.style.color = 'var(--accent-border)';
-    element.append(probe);
-    const expected = getComputedStyle(probe).color;
-    probe.remove();
-    return { actual: getComputedStyle(element).borderLeftColor, expected };
-  });
-  expect(descriptionColors.actual).toBe(descriptionColors.expected);
   await expect(descriptionFrame).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
-  await expect(descriptionFrame).toHaveCSS('border-left-width', '2px');
-  await expect(descriptionFrame).toHaveCSS('padding-left', '12px');
+  await expect(descriptionFrame).toHaveCSS('border-left-width', '0px');
+  await expect(descriptionFrame).toHaveCSS('padding-left', '0px');
   const setRow = mysteryExercise.locator('.import-set-swipe-row:visible').first();
-  // Sets share one outer surface; rows use separators rather than nested card borders.
-  await expect(mysteryExercise.locator('.set-grid-list')).toHaveCSS('border-left-width', '1px');
+  // Prescriptions keep neutral, unframed rows without nested card borders.
+  await expect(mysteryExercise.locator('.set-grid-list')).toHaveCSS('border-left-width', '0px');
   await expect(setRow).toHaveCSS('border-left-width', '0px');
   await expect(setRow).toHaveCSS('border-top-width', '0px');
 

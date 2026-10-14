@@ -29,7 +29,7 @@ import { NAV } from './app/navigation';
 import { AppLoading } from './components/AppLoading';
 import { AuthLoading } from './components/AuthLoading';
 import { ViewSkeleton } from './components/ViewSkeleton';
-import { Auth, Dashboard, ExerciseDetailModal, ExerciseLibrary, ImportReview, MuscleBalanceView, Programs, SessionDetail, SettingsView, Workout, WorkoutSheet, ResumeWorkoutButton, prefetchView } from './app/lazyViews';
+import { Auth, Dashboard, ExerciseDetailModal, ExerciseLibrary, ImportReview, MuscleBalanceView, Programs, SessionDetail, SettingsView, Workout, WorkoutSheet, WorkoutPreviewModal, ResumeWorkoutButton, prefetchView } from './app/lazyViews';
 import { TrackRirContext, tracksRir } from './lib/trackRir';
 import { useAppTheme } from './app/useAppTheme';
 const AiAssistantPanel = lazy(() => import('./components/AiAssistantPanel').then(module => ({ default: module.AiAssistantPanel })));
@@ -53,7 +53,7 @@ export default function App() {
   useEffect(() => {
     if (!data?.account.id) return;
     const idle = window.requestIdleCallback ?? ((callback: () => void) => window.setTimeout(callback, 1500));
-    idle(() => prefetchView('workoutSheet'));
+    idle(() => { prefetchView('workoutSheet'); prefetchView('workoutPreview'); });
   }, [data?.account.id]);
   useEffect(() => installNativeShell(), []);
   const appUpdate = useAppUpdate();
@@ -78,6 +78,11 @@ export default function App() {
   const [toast, setToast] = useState('');
   const [starting, setStarting] = useState(false);
   const [startingName, setStartingName] = useState<string | null>(null);
+  const [preview, setPreview] = useState<{ id: string; name: string } | null>(null);
+  useEffect(() => {
+    if (preview && !data?.resources?.catalog) void app.ensureResources(['catalog']);
+  }, [preview?.id, data?.account.id]);
+  useEffect(() => { setPreview(null); }, [data?.account.id, data?.activeWorkout?.id]);
   const startCancelled = useRef(false);
   // Set when the workout sheet replaces the stand-in shown while starting, so it does not rise twice.
   const [sheetContinues, setSheetContinues] = useState(false);
@@ -174,11 +179,11 @@ export default function App() {
   }
 
   const dockAction: DockAction = workoutSession?.active ? 'resume' : nextWorkout(data) ? 'start' : 'choose';
-  /// The dock's centre button does what the home-screen shortcut does: reopen, start today's, or pick one.
+  /// A dock action previews the next plan; an open workout continues immediately.
   function runDockAction() {
     const today = nextWorkout(data!);
     if (dockAction === 'resume') setTraining(true);
-    else if (dockAction === 'start' && today) void start(today.id);
+    else if (dockAction === 'start' && today) { setActionError(''); setPreview({ id: today.id, name: today.name }); }
     else setTab('program');
   }
 
@@ -306,6 +311,10 @@ export default function App() {
       onSettings={() => setTab('settings')}
       displayName={data.account.displayName}
     />
+
+    {preview && <Suspense fallback={null}><WorkoutPreviewModal key={`${data.account.id}:${preview.id}`}
+      templateId={preview.id} name={preview.name} exercises={data.exercises} onClose={() => setPreview(null)}
+      onStart={id => { setPreview(null); void start(id); }} /></Suspense>}
 
     <div className="workspace">
       {(pullToRefresh.pull > 0 || pullToRefresh.refreshing) && <div className={`pull-refresh ${pullToRefresh.ready || pullToRefresh.refreshing ? 'ready' : ''}`.trim()}

@@ -5,7 +5,7 @@ import { NAV, navView } from '../app/navigation';
 import { prefetchView } from '../app/lazyViews';
 import type { Tab } from '../app/useTabNavigation';
 
-/** What the dock's centre button does now: reopen the open workout, start the queued one, or pick one. */
+/** What the dock's centre button does now: reopen the open workout, preview the queued one, or pick one. */
 export type DockAction = 'resume' | 'start' | 'choose';
 
 export const DOCK_ACTION_LABEL: Record<DockAction, string> = {
@@ -54,7 +54,7 @@ export function BottomNav({ tab, onTab, action, actionBusy, onAction }: BottomNa
           className="bottom-nav-action"
           aria-label={DOCK_ACTION_LABEL[action]}
           disabled={actionBusy}
-          onPointerEnter={() => prefetchView('workout')}
+          onPointerEnter={() => prefetchView(action === 'start' ? 'workoutPreview' : 'workout')}
           onClick={onAction}
         >
           <ActionIcon size={24} strokeWidth={2.4} aria-hidden="true" />

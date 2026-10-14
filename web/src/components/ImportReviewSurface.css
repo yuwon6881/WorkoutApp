@@ -1,0 +1,30 @@
+/* Import review uses quiet surfaces; selection and focus stay explicit without glows. */
+.import-page :where(*),
+.import-day-modal :where(*) {
+  box-shadow: none !important;
+}
+
+.import-page :where(input, textarea, button, [role='button']):focus-visible,
+.import-day-modal :where(input, textarea, button, [role='button']):focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.import-day-modal .import-exercise {
+  background: var(--surface);
+  border-color: var(--card-border);
+}
+
+.import-day-modal .day-editor-fields {
+  border: 0;
+  background: transparent;
+}
+
+.import-page .pdl-day-row {
+  padding-block: 12px;
+}
+
+.import-page .pdl-day-title {
+  font-size: 15px;
+  font-weight: 650;
+}

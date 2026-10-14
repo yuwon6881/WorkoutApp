@@ -224,7 +224,7 @@ export function ProgramDayList({
     )}
 
     {openDayData && !openDayData.isRestDay && (
-      <Modal title={modalTitle} wide onClose={closeModal} className="day-detail-modal">
+      <Modal title={modalTitle} wide onClose={closeModal} className={`day-detail-modal ${readOnly ? '' : 'import-day-modal'}`}>
         <div className="modal-body day-detail-modal-body draft-day" data-import-day={openDayData.lineId}>
           {readOnly
             ? <ReadOnlyDay day={openDayData} exercises={exercises} selectedMuscle={selectedMuscle} onMuscleSelect={setSelectedMuscle} />

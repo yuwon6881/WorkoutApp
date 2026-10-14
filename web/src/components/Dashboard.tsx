@@ -4,6 +4,7 @@ import { ApiError, api } from '../lib/api';
 import { Button } from './ui/Button';
 import { NextWorkoutHero } from './NextWorkoutHero';
 import { viewReadCache } from '../lib/viewReadCache';
+import type { CalendarWeekSummary } from '../lib/calendarWeekSummary';
 const TrainingCalendar = lazy(() => import('./TrainingCalendar').then(module => ({ default: module.TrainingCalendar })));
 const BodyweightRecords = lazy(() => import('./ProgressPanels').then(module => ({ default: module.BodyweightRecords })));
 const ProgressStats = lazy(() => import('./ProgressPanels').then(module => ({ default: module.ProgressStats })));
@@ -36,6 +37,7 @@ export function Dashboard({
   const [progress, setProgress] = useState<ProgressSummary | null>(data.progress ?? viewReadCache.get(readKey, readVersion) ?? null);
   const [progressError, setProgressError] = useState('');
   const [progressRetry, setProgressRetry] = useState(0);
+  const [calendarWeek, setCalendarWeek] = useState<CalendarWeekSummary | null>(null);
 
   useEffect(() => {
     if (data.progress && progressRetry === 0) { setProgress(data.progress); return; }
@@ -89,7 +91,7 @@ export function Dashboard({
             onProgram={onProgram}
           />
           <Suspense fallback={<ProgressStatsSkeleton />}>
-            <ProgressStats progress={progress} />
+            <ProgressStats week={calendarWeek} />
           </Suspense>
           {progressError && (
             <div className="error-banner" role="alert">
@@ -108,6 +110,7 @@ export function Dashboard({
               refreshKey={data.resourceVersions?.history ?? data.history}
               activeWorkoutId={data.activeWorkout?.id ?? null}
               accountId={data.account.id}
+              onWeekChange={setCalendarWeek}
             />
           </Suspense>
         </div>

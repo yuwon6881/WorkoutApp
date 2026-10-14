@@ -630,6 +630,33 @@ public class WorkoutSessionTests
                 exercise.Sets.Select(_ => new SetInput(weight, reps, rpe, true, warmup)).ToList())], session.Revision, null), default);
     }
 
+    [Fact] public async Task Activity_totals_count_logged_working_sets_including_timed_work_and_exclude_pauses()
+    {
+        var (h, templateId, _) = await Ready();
+        await using var _h = h;
+        var session = await h.Workouts.Start(templateId, null, default);
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var active = Assert.Single(await h.Workouts.Activity(today, today, "UTC", default));
+        Assert.Null(active.WorkingSets);
+        Assert.Null(active.TrainingMinutes);
+        await Complete(h, session, 60, 10, 8);
+        await h.Workouts.Finish(session.Id, null, default);
+        var entity = await h.Db.Workouts.SingleAsync(w => w.Id == session.Id);
+        entity.StartedAt = entity.FinishedAt!.Value.AddHours(-1);
+        entity.PausedSeconds = 600;
+        entity.PausedAt = entity.FinishedAt.Value.AddMinutes(-10);
+        var sets = await h.Db.Sets.OrderBy(s => s.Position).ToListAsync();
+        sets[0].Warmup = true;
+        sets[1].DurationSeconds = 45;
+        await h.Db.SaveChangesAsync();
+        var finished = Assert.Single(await h.Workouts.Activity(today, today, "UTC", default));
+        Assert.Equal(1, finished.WorkingSets);
+        Assert.Equal(40, finished.TrainingMinutes);
+        sets[1].Done = false;
+        await h.Db.SaveChangesAsync();
+        Assert.Equal(0, Assert.Single(await h.Workouts.Activity(today, today, "UTC", default)).WorkingSets);
+    }
+
     [Fact] public async Task Activity_marks_completed_sessions_on_finish_date_and_active_sessions_on_start_date()
     {
         var (h, templateId, _) = await Ready();

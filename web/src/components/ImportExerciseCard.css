@@ -5,10 +5,10 @@
 :root .import-exercise.iex-card {
   margin: 0 0 14px;
   padding: 16px;
-  border: 1px solid var(--section-border);
+  border: 1px solid var(--card-border);
   border-radius: var(--radius-control);
   background: var(--surface-card);
-  box-shadow: var(--shadow);
+  box-shadow: none;
   transition: border-color var(--motion-control) var(--motion-ease);
   box-sizing: border-box;
   min-width: 0;
@@ -18,7 +18,7 @@
 :root[data-theme='light'] .import-exercise.iex-card {
   border-color: var(--border);
   background: var(--surface);
-  box-shadow: var(--shadow);
+  box-shadow: none;
 }
 
 @media (max-width: 639px) {
@@ -125,7 +125,7 @@
 :root .import-exercise.iex-card .iex-name-field textarea:focus {
   background: var(--control-surface) !important;
   border-color: var(--accent) !important;
-  box-shadow: 0 0 0 2px var(--accent-soft-glow) !important;
+  box-shadow: none !important;
   outline: none !important;
 }
 
@@ -192,7 +192,7 @@
 :root .import-exercise.iex-card .iex-rest-field .custom-select-trigger:focus-visible,
 :root .import-exercise.iex-card .iex-rest-field .custom-select-trigger.active {
   border-color: var(--accent) !important;
-  box-shadow: 0 0 0 2px var(--accent-soft-glow) !important;
+  box-shadow: none !important;
 }
 
 /* Demo link button */
@@ -277,13 +277,14 @@
    ========================================================================== */
 :root .import-exercise.iex-card .iex-meta-group {
   display: flex !important;
-  flex-wrap: wrap !important;
+  flex-direction: column !important;
+  flex-wrap: nowrap !important;
   /* Legacy rules make this a column, where centring would centre each item horizontally. */
   align-items: flex-start !important;
   gap: 8px !important;
   width: 100% !important;
   padding: 0 !important;
-  margin: 0 0 10px 0 !important;
+  margin: 0 !important;
   border: 0 !important;
   background: transparent !important;
   box-sizing: border-box !important;
@@ -318,7 +319,7 @@
 
 :root .import-exercise.iex-card .iex-library-trigger:focus-visible {
   border-color: var(--accent) !important;
-  box-shadow: 0 0 0 2px var(--accent-soft-glow) !important;
+  box-shadow: none !important;
 }
 
 :root .import-exercise.iex-card .import-library-status {
@@ -332,6 +333,8 @@
 }
 
 :root .import-exercise.iex-card .iex-muscle-badges {
+  align-self: flex-start !important;
+  justify-content: flex-start !important;
   display: inline-flex !important;
   align-items: center !important;
   gap: 6px !important;
@@ -423,14 +426,14 @@
 
 
 /* ==========================================================================
-   3. Description: the 2 px accent rule marks it as the coaching surface (the browser spec checks it).
+   3. Description: a neutral coaching surface separated by the card's regular gap.
    ========================================================================== */
 :root .import-exercise.iex-card .import-exercise-notes,
 :root .import-exercise.iex-card .iex-notes {
-  margin-top: 10px !important;
-  padding: 0 0 0 12px !important;
+  margin: 0 !important;
+  padding: 0 !important;
   border: 0 !important;
-  border-left: 2px solid var(--accent-border) !important;
+  border-left: 0 !important;
   background: transparent !important;
   gap: 6px !important;
   display: flex !important;
@@ -465,7 +468,7 @@
 :root .import-exercise.iex-card .iex-notes textarea:focus {
   background: var(--surface) !important;
   border-color: var(--accent) !important;
-  box-shadow: 0 0 0 3px var(--accent-soft-glow) !important;
+  box-shadow: none !important;
 }
 
 :root .import-exercise.iex-card .iex-meta-group > .iex-substitutions,

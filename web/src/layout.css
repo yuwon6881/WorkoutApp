@@ -298,40 +298,12 @@ html[data-keyboard='open'] .import-progress-pill { display: none; }
 /* Start and Preview stay together; the readiness note takes the trailing edge. */
 .hero-bottom > span { margin-left: auto; }
 
-/* components/ExerciseProgressChart.tsx: line chart drawn at real pixel width, nearest-dot selection. */
-.exercise-chart { display: grid; grid-template-columns: minmax(0, 1fr); gap: 6px; padding: 12px 0; border-bottom: 1px solid var(--border); }
-.exercise-chart-readout { display: flex; align-items: baseline; gap: 8px; margin: 0; min-width: 0; }
-.exercise-chart-readout strong { font-size: 15px; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--text); }
-.exercise-chart-readout span { color: var(--muted); font-size: 13px; }
-.exercise-chart-readout .exercise-chart-position { margin-left: auto; color: var(--faint); white-space: nowrap; }
-.exercise-chart-canvas {
-  position: relative;
-  width: 100%;
-  height: 176px;
-  border-radius: var(--radius-control, 8px);
-  cursor: pointer;
-  touch-action: pan-y;
-  user-select: none;
-}
-.exercise-chart-canvas:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
-.exercise-chart-svg { display: block; width: 100%; height: 100%; overflow: visible; }
-.exercise-chart-grid { stroke: var(--border); stroke-width: 1; }
-.exercise-chart-tick { fill: var(--faint); font-size: 11px; font-variant-numeric: tabular-nums; }
-.exercise-chart-guide { stroke: var(--border-hover); stroke-width: 1; }
-.exercise-chart-line { fill: none; stroke: var(--accent); stroke-width: 2.25; stroke-linecap: round; stroke-linejoin: round; }
-.exercise-chart-dot { fill: var(--surface); stroke: var(--accent); stroke-width: 2; }
-.exercise-chart-dot.active { fill: var(--accent); stroke: var(--surface); }
-.exercise-chart-halo { fill: var(--accent-soft-glow); }
-.exercise-chart-gap { fill: var(--surface); stroke: var(--faint); stroke-width: 1.5; }
-
 /* Exercise library: rows off screen skip layout and paint until scrolled near, which keeps a long
    catalog smooth without a virtual list. Phones get denser cards, about four rows to a screen. */
 .exercise-grid > .exercise-card,
 .picker-list > .picker-card { content-visibility: auto; contain-intrinsic-size: auto 120px; }
 @media (max-width: 639px) {
   .exercise-grid > .exercise-card { min-height: 0; padding: 14px 16px; }
-  .exercise-card-top { margin-bottom: 8px; }
-  .exercise-card-meta { margin-bottom: 12px; }
   .exercise-grid > .exercise-card .exercise-icon { display: none; }
   .exercise-grid > .exercise-card .exercise-card-badges { margin-left: 0; }
 }

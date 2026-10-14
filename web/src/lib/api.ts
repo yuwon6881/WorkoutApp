@@ -152,7 +152,7 @@ export const api = {
 
   createProgramFromEditor: (draft: ProgramEditorDocument, idempotencyId: string) => call<Program>('/api/programs/from-editor', 'POST', { draft, idempotencyId }),
   templates: () => call<Template[]>('/api/templates'),
-  getTemplate: (id: string) => call<Template>(`/api/templates/${id}`),
+  getTemplate: (id: string, signal?: AbortSignal) => call<Template>(`/api/templates/${id}`, 'GET', undefined, signal),
   createTemplate: (input: unknown) => call<Template>('/api/templates', 'POST', input),
   updateTemplate: (id: string, input: unknown) => call<Template>(`/api/templates/${id}`, 'PUT', input),
   restoreTemplate: (id: string, revision?: number) => call<Template>(`/api/templates/${id}/restore`, 'POST', { revision }),

@@ -3,21 +3,23 @@ import type { ProgressSummary, Unit } from '../types';
 import { showWeight, toDisplay } from '../lib/training';
 import { Button } from './ui/Button';
 import './ProgressPanels.css';
+import { calendarWeekLabel, type CalendarWeekSummary } from '../lib/calendarWeekSummary';
 
-export function ProgressStats({ progress }: { progress: ProgressSummary | null }) {
+export function ProgressStats({ week }: { week: CalendarWeekSummary | null }) {
+  const totals = week?.totals;
   return (
     <div className="stats-grid progress-stats" role="region" aria-label="Training statistics">
       <div className="stat-card progress-stat-card">
         <span className="stat-label-text">Workouts</span>
         <div className="stat-card-value">
-          <strong>{progress?.sessions ? progress.sessions.toLocaleString() : '—'}</strong>
+          <strong>{totals?.sessions.toLocaleString() ?? '—'}</strong>
         </div>
       </div>
 
       <div className="stat-card progress-stat-card">
         <span className="stat-label-text">Working sets</span>
         <div className="stat-card-value">
-          <strong>{progress?.workingSets ? progress.workingSets.toLocaleString() : '—'}</strong>
+          <strong>{totals?.workingSets?.toLocaleString() ?? '—'}</strong>
         </div>
       </div>
 
@@ -25,9 +27,9 @@ export function ProgressStats({ progress }: { progress: ProgressSummary | null }
         <span className="stat-label-text">Training time</span>
         <div className="stat-card-value">
           <strong>
-            {progress?.trainingMinutes ? (
+            {totals?.trainingMinutes != null ? (
               <>
-                {progress.trainingMinutes.toLocaleString()}{' '}
+                {totals.trainingMinutes.toLocaleString()}{' '}
                 <small className="stat-unit">min</small>
               </>
             ) : (
@@ -37,8 +39,9 @@ export function ProgressStats({ progress }: { progress: ProgressSummary | null }
         </div>
       </div>
 
-      {/* These totals cover every finished workout, not a window, so say so. */}
-      <small className="progress-stats-scope">All-time totals</small>
+      <small className="progress-stats-scope" aria-live="polite">
+        {week ? `${calendarWeekLabel(week.from, week.to)} · Completed workouts` : 'Weekly totals'}
+      </small>
     </div>
   );
 }

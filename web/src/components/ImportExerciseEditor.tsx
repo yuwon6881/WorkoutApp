@@ -301,10 +301,8 @@ export function ExerciseEditor({ exercise: saved, exercises, allDayExercises, re
       </div>
 
       <div className="import-exercise-col import-exercise-sets-col iex-sets-col">
-        <div className={`set-grid-wrap set-grid-typed iex-set-grid ${repRange ? 'set-grid-range' : 'set-grid-exact'} ${!trackRir ? 'iex-no-rir' : ''}`}>
-        <div className="set-grid-head iex-set-head">
-          <span className="set-grid-head-reps">
-            <span aria-hidden="true">{timed ? 'Seconds' : 'Reps'}</span>
+        <div className="iex-prescription-toolbar">
+          <span>{timed ? 'Time targets' : 'Rep targets'}</span>
             <RepModeToggle
               range={repRange}
               label={`${timed ? 'Time' : 'Rep'} target for ${exercise.sourceName}`}
@@ -316,6 +314,13 @@ export function ExerciseEditor({ exercise: saved, exercises, allDayExercises, re
                     : { ...set, repsText: null, repsSource: 'userEdited' })
               })}
             />
+        </div>
+        <div className={`set-grid-wrap set-grid-typed iex-set-grid ${repRange ? 'set-grid-range' : 'set-grid-exact'} ${!trackRir ? 'iex-no-rir' : ''}`}>
+        <div className="set-grid-head iex-set-head">
+          <span className="set-grid-head-type" aria-hidden="true">Set type</span>
+          <span className="set-grid-head-reps">
+            <span aria-hidden="true">{timed ? 'Seconds' : 'Reps'}</span>
+
           </span>
           {trackRir && <span className="set-grid-head-rir" aria-hidden="true">RIR</span>}
         </div>

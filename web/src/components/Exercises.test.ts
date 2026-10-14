@@ -3,6 +3,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import type { Exercise } from '../types';
 import { getExerciseCategory } from '../lib/exerciseCategory';
+import { buildExerciseSearchIndex, searchExerciseScores } from '../lib/exerciseSearch';
 import { ExerciseLibrary } from './Exercises';
 
 const sampleExercises: Exercise[] = [
@@ -111,15 +112,37 @@ describe('ExerciseLibrary UI and grouping', () => {
     expect(markup).not.toContain('Leg Press');
   });
 
-  it('renders category badges in default library mode', () => {
+  it('names each category once, in its group heading, in default library mode', () => {
     const libraryMarkup = renderToStaticMarkup(createElement(ExerciseLibrary, {
       exercises: sampleExercises
     }));
 
-    expect(libraryMarkup).toContain('pill pill-category');
-    expect(libraryMarkup).toContain('Free Weights');
-    expect(libraryMarkup).toContain('Machine');
-    expect(libraryMarkup).toContain('Body Weight');
+    expect(libraryMarkup).toContain('aria-label="Free Weights exercises"');
+    expect(libraryMarkup).toContain('aria-label="Machine exercises"');
+    expect(libraryMarkup).toContain('aria-label="Body Weight exercises"');
+    expect(libraryMarkup).not.toContain('pill pill-category');
+  });
+
+  it('prints equipment only when it says more than the category', () => {
+    const markup = renderToStaticMarkup(createElement(ExerciseLibrary, { exercises: sampleExercises }));
+
+    expect(markup).toContain('<span class="pill pill-equipment">Barbell</span>');
+    expect(markup).toContain('<span class="pill pill-equipment">Cable</span>');
+    // "Machine" under Machine and "Bodyweight" under Body Weight repeat their heading.
+    expect(markup).not.toContain('<span class="pill pill-equipment">Machine</span>');
+    expect(markup).not.toContain('<span class="pill pill-equipment">Bodyweight</span>');
+  });
+
+  it('finds Pull-Up however the search is spelled', () => {
+    const exercises: Exercise[] = [
+      ...sampleExercises,
+      { id: 'ex-weighted-pullup', slug: 'weighted-pullup', name: 'Weighted Pull-Up', muscle: 'Back', equipment: 'Bodyweight', aliases: [], loadStepKg: 2.5, category: 'Body Weight' }
+    ];
+    // Static markup has no typing, so the default query is exercised through the pure matcher.
+    const indexes = new Map(exercises.map(exercise => [exercise.id, buildExerciseSearchIndex(exercise)]));
+    for (const query of ['pullup', 'pull up', 'pull-up', 'pullu']) {
+      expect([...searchExerciseScores(indexes, query).keys()].sort(), query).toEqual(['ex-pullup', 'ex-weighted-pullup']);
+    }
   });
 
   it('leaves the category to the group heading on picker cards', () => {

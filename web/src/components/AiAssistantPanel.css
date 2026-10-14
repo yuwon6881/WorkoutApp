@@ -409,7 +409,7 @@
 
 .ai-chat-composer-box {
   display: flex;
-  align-items: flex-end;
+  align-items: center;
   gap: 8px;
   padding: 4px 6px 4px 16px;
   border: 1px solid var(--border);
@@ -428,19 +428,20 @@
 .ai-chat-composer textarea:hover,
 .ai-chat-composer textarea:focus {
   flex: 1;
-  min-height: 40px;
+  min-height: 44px;
   max-height: 160px;
-  padding: 9px 0;
+  padding: 11px 0;
   border: 0;
   background: transparent;
   box-shadow: none;
-  line-height: 1.5;
+  line-height: 22px;
   resize: none;
   font-size: 14px;
   color: var(--text);
 }
 
 .ai-chat-composer-box > .button {
+  align-self: flex-end;
   flex-shrink: 0;
   width: 44px;
   min-width: 44px;

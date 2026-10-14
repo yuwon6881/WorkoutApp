@@ -36,44 +36,37 @@
   border-color: var(--border-hover);
 }
 
-/* Accent-marked current day */
-.program-week-day:not(.passed):first-child,
-.program-week-day.passed + .program-week-day:not(.passed) {
-  border-color: var(--accent-border-strong);
-  box-shadow: 0 0 0 1px var(--accent-border);
-  background: color-mix(in srgb, var(--accent) 6%, var(--surface-raised));
+.program-week-day.next {
+  border-color: var(--border-hover);
 }
-
-.program-week-day:not(.passed):first-child:hover,
-.program-week-day.passed + .program-week-day:not(.passed):hover {
-  border-color: var(--accent);
-  background: color-mix(in srgb, var(--accent) 9%, var(--surface-raised));
-}
-
-.program-week-day:not(.passed):first-child .program-week-name,
-.program-week-day.passed + .program-week-day:not(.passed) .program-week-name {
+.program-week-day.next .program-week-name {
   font-weight: 700;
 }
-
-.program-week-day:not(.passed):first-child .program-week-chevron,
-.program-week-day.passed + .program-week-day:not(.passed) .program-week-chevron {
+.program-day-marker {
+  display: flex;
+  color: var(--muted);
+  flex: 0 0 20px;
+}
+.program-day-marker.completed, .program-day-status.completed {
+  color: var(--teal);
+}
+.program-day-status {
+  color: var(--muted);
+  font-size: var(--font-secondary);
+}
+.program-day-status.next {
+  padding: 3px 10px;
+  border-radius: var(--radius-pill);
   color: var(--accent);
+  background: var(--accent-soft);
 }
-
 .program-week-day.passed {
-  background: color-mix(in srgb, var(--accent) 4%, var(--surface-raised));
-  border-color: var(--accent-border);
-  opacity: 1;
+  background: var(--surface);
+  border-color: var(--border);
 }
-
 .program-week-day.passed.exercise-day:hover {
-  border-color: var(--accent-border-strong);
-  background: color-mix(in srgb, var(--accent) 7%, var(--surface-raised));
-}
-
-.program-week-day.passed .program-week-name {
-  color: var(--text);
-  font-weight: 600;
+  background: var(--surface-hover);
+  border-color: var(--border-hover);
 }
 
 .program-week-check {
@@ -95,7 +88,7 @@
   flex: 0 0 20px;
   margin: 0;
   padding: 0;
-  accent-color: var(--accent);
+  accent-color: var(--teal);
   cursor: pointer;
 }
 
@@ -136,13 +129,6 @@
   min-width: 24px;
 }
 
-.program-week-skipped-indicator {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 4px;
-}
-
 .program-week-chevron {
   transition: transform var(--motion-control) ease, color var(--motion-control) ease;
 }
@@ -164,8 +150,7 @@
   border: 1px solid var(--border);
 }
 
-.program-week-day:not(.passed):first-child .rest-badge,
-.program-week-day.passed + .program-week-day:not(.passed) .rest-badge {
+.program-week-day.next .rest-badge {
   background: var(--accent-soft);
   color: var(--accent);
   border-color: var(--accent-border);

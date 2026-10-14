@@ -21,9 +21,19 @@ for (const width of [320, 390, 640, 768, 1024, 1440, 1920]) {
       const dialog = page.getByRole('dialog', { name: 'Ask AI', exact: true });
       await expect(dialog.getByText('Your saved answer.')).toBeVisible();
       await expect(dialog.getByLabel('Message', { exact: true })).toBeEnabled();
+      const message = dialog.getByLabel('Message', { exact: true });
+      const centerError = () => message.evaluate(element => {
+        const field = element.getBoundingClientRect();
+        const box = element.parentElement!.getBoundingClientRect();
+        const style = getComputedStyle(element);
+        const lineCenter = field.top + parseFloat(style.paddingTop) + parseFloat(style.lineHeight) / 2;
+        return Math.abs(lineCenter - (box.top + box.height / 2));
+      });
+      expect(await centerError(), 'placeholder is vertically centered').toBeLessThanOrEqual(1);
       expect(await dialog.evaluate(el => el.scrollWidth <= el.clientWidth)).toBeTruthy();
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBeTruthy();
       await dialog.getByLabel('Message', { exact: true }).fill('Show my recent history');
+      expect(await centerError(), 'single-line message is vertically centered').toBeLessThanOrEqual(1);
       const send = dialog.getByRole('button', { name: 'Send message', exact: true });
       const rect = (await send.boundingBox())!;
       expect(rect.width).toBeGreaterThanOrEqual(44);

@@ -28,10 +28,10 @@ export function DayRow({
   const exercisePreview = useMemo(() => {
     if (day.isRestDay || !day.exercises.length) return null;
     const names = day.exercises.map(exercise => exercise.sourceName);
-    const list = (shown: number) => names.length <= shown
-      ? names.join(', ')
-      : `${names.slice(0, shown).join(', ')} and ${names.length - shown} more`;
-    // A phone row has room for one name before it wraps, so it leads with the first exercise.
+    const list = (shown: number) => <>
+      {names.slice(0, shown).map((name, position) => <span className="pdl-preview-name" key={position} title={name}>{name}</span>)}
+      {names.length > shown && <span className="pdl-preview-more">+{names.length - shown} more</span>}
+    </>;
     return { full: list(4), compact: list(1) };
   }, [day.exercises, day.isRestDay]);
 
@@ -92,10 +92,9 @@ export function DayRow({
                 </span>
                 {exercisePreview && (
                   <>
-                    <span className="pdl-meta-sep" aria-hidden="true">·</span>
-                    <span className="day-exercise-preview pdl-exercise-preview">
-                      <span className="day-exercise-preview-full">{exercisePreview.full}</span>
-                      <span className="day-exercise-preview-compact">{exercisePreview.compact}</span>
+                    <span className="pdl-exercise-preview">
+                      <span className="pdl-preview-full">{exercisePreview.full}</span>
+                      <span className="pdl-preview-compact">{exercisePreview.compact}</span>
                     </span>
                   </>
                 )}

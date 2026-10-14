@@ -9,6 +9,7 @@ import { ProgramWeekCompletion } from './ProgramWeekCompletion';
 import { Button } from './ui/Button';
 import './TrainingCalendar.css';
 import { viewReadCache } from '../lib/viewReadCache';
+import { calendarWeekTotals, type CalendarWeekSummary } from '../lib/calendarWeekSummary';
 
 interface TrainingCalendarProps {
   onSession: (s: Session) => void;
@@ -16,12 +17,13 @@ interface TrainingCalendarProps {
   refreshKey: string | HistoryPage;
   activeWorkoutId: string | null;
   accountId: string;
+  onWeekChange?: (week: CalendarWeekSummary) => void;
 }
 
 const localDay = (day: Date) =>
   `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, '0')}-${String(day.getDate()).padStart(2, '0')}`;
 
-export function TrainingCalendar({ onSession, program, refreshKey, activeWorkoutId, accountId }: TrainingCalendarProps) {
+export function TrainingCalendar({ onSession, program, refreshKey, activeWorkoutId, accountId, onWeekChange }: TrainingCalendarProps) {
   const [offset, setOffset] = useState(0);
   const days = weekDays(offset);
   const rail = useRef<HTMLDivElement>(null);
@@ -29,10 +31,23 @@ export function TrainingCalendar({ onSession, program, refreshKey, activeWorkout
   const touchStart = useRef<{ x: number; y: number } | null>(null);
   const isTouching = useRef(false);
   const navigating = useRef(false);
-  const initialKey = `${accountId}:activity:${localDay(weekDays(-1)[0])}:${localDay(weekDays(1)[6])}:${activeWorkoutId ?? ''}`;
-  const [calendar, setCalendar] = useState<WorkoutActivityItem[]>(() => viewReadCache.get(initialKey, refreshKey) ?? []);
-  const [initialLoading, setInitialLoading] = useState(() => !viewReadCache.get(initialKey, refreshKey));
+  const from = localDay(weekDays(offset - 1)[0]);
+  const to = localDay(weekDays(offset + 1)[6]);
+  const readKey = `${accountId}:activity:${from}:${to}:${activeWorkoutId ?? ''}`;
+  const [read, setRead] = useState<{ key: string; version: typeof refreshKey; items: WorkoutActivityItem[] } | null>(() => {
+    const cached = viewReadCache.get<WorkoutActivityItem[]>(readKey, refreshKey);
+    return cached ? { key: readKey, version: refreshKey, items: cached } : null;
+  });
+  const calendar = read?.items ?? [];
+  const initialLoading = read?.key !== readKey || read.version !== refreshKey;
   const [calendarError, setCalendarError] = useState('');
+  const weekFrom = localDay(days[0]);
+  const weekTo = localDay(days[6]);
+  const weekSummary = useMemo<CalendarWeekSummary>(() => ({
+    from: weekFrom, to: weekTo,
+    totals: initialLoading ? null : calendarWeekTotals(calendar, weekFrom, weekTo)
+  }), [read, initialLoading, weekFrom, weekTo]);
+  useEffect(() => { onWeekChange?.(weekSummary); }, [onWeekChange, weekSummary]);
   // Three weeks of day cells each look up their own date; group once per loaded calendar.
   const entriesByDay = useMemo(() => {
     const byDay = new Map<string, WorkoutActivityItem[]>();
@@ -121,37 +136,26 @@ export function TrainingCalendar({ onSession, program, refreshKey, activeWorkout
   };
 
   useEffect(() => {
-    const from = localDay(weekDays(offset - 1)[0]);
-    const to = localDay(weekDays(offset + 1)[6]);
-    const readKey = `${accountId}:activity:${from}:${to}:${activeWorkoutId ?? ''}`;
     const cached = viewReadCache.get<WorkoutActivityItem[]>(readKey, refreshKey);
-    if (cached) { setCalendar(cached); setInitialLoading(false); }
+    setCalendarError('');
+    if (cached) setRead({ key: readKey, version: refreshKey, items: cached });
     if (viewReadCache.fresh(readKey, refreshKey)) return;
     const controller = new AbortController();
     api
       .activity(from, to, controller.signal)
       .then(next => {
         if (controller.signal.aborted) return;
-        setInitialLoading(false);
         viewReadCache.set(readKey, refreshKey, next);
-        setCalendar(prev => {
-          const map = new Map<string, WorkoutActivityItem>();
-          for (const item of prev) {
-            if (item.date < from || item.date > to) map.set(`${item.id}-${item.date}`, item);
-          }
-          for (const item of next) map.set(`${item.id}-${item.date}`, item);
-          return Array.from(map.values());
-        });
+        setRead({ key: readKey, version: refreshKey, items: next });
         setCalendarError('');
       })
       .catch(() => {
         if (!controller.signal.aborted) {
-          setInitialLoading(false);
           setCalendarError('Calendar could not be refreshed.');
         }
       });
     return () => controller.abort();
-  }, [offset, refreshKey, activeWorkoutId, accountId]);
+  }, [readKey, refreshKey, from, to]);
 
   const monthYearLabel = (() => {
     const firstMonth = days[0].toLocaleDateString('en', { month: 'short' });
@@ -175,17 +179,20 @@ export function TrainingCalendar({ onSession, program, refreshKey, activeWorkout
         <ProgramWeekCompletion program={program} />
 
         <div className="calendar-nav-controls">
+          <div className="calendar-reset-slot">
           {offset !== 0 && (
             <Button
               variant="tertiary"
               className="calendar-today-btn"
               aria-label="Return to this week"
+              title="This week"
               onClick={() => setOffset(0)}
             >
               <RotateCcw size={15} />
               <span>This week</span>
             </Button>
           )}
+          </div>
           <div className="calendar-month-nav">
             <Button
               aria-label="Previous week"
@@ -302,7 +309,7 @@ export function TrainingCalendar({ onSession, program, refreshKey, activeWorkout
 
       <div className="calendar-card-footer">
         <p className="calendar-week-count">
-          {initialLoading && calendar.length === 0
+          {initialLoading
             ? (calendarError || 'Loading activity')
             : calendarError
               ? 'Activity unavailable'

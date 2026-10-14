@@ -12,6 +12,7 @@ const loaders = {
   sessionDetail: () => import('../components/SessionDetail'),
   workout: () => import('../components/Workout'),
   workoutSheet: () => import('../components/WorkoutSheet'),
+  workoutPreview: () => import('../components/WorkoutPreviewModal'),
   resumeWorkout: () => import('../components/ResumeWorkoutButton')
 };
 type View = keyof typeof loaders;
@@ -51,6 +52,7 @@ export const SessionDetail = instantLazy('sessionDetail', module => module.Sessi
 export const Workout = instantLazy('workout', module => module.Workout);
 // Warmed at idle and opened on the Start tap itself.
 export const WorkoutSheet = instantLazy('workoutSheet', module => module.WorkoutSheet);
+export const WorkoutPreviewModal = instantLazy('workoutPreview', module => module.WorkoutPreviewModal);
 // Shown only while a workout is minimized; warmed as soon as the account has one in progress.
 export const ResumeWorkoutButton = instantLazy('resumeWorkout', module => module.ResumeWorkoutButton);
 

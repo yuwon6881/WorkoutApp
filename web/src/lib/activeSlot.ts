@@ -55,35 +55,39 @@ export function toDraftSet(set: SetPrescription): DraftSet {
 export function programToDraft(program: Program): ImportDraft {
   const workouts: DraftWorkout[] = [...program.workouts]
     .sort((left, right) => left.week - right.week || left.position - right.position)
-    .map(day => ({
-      lineId: day.id,
-      week: day.week,
-      name: day.name,
-      focus: day.focus || null,
-      notes: day.note || null,
-      block: day.block || null,
-      phase: day.phase || null,
-      phaseWeek: day.phaseWeek,
-      isRestDay: day.isRestDay,
-      sourcePage: day.sourcePage ?? null,
-      exercises: [...day.exercises]
-        .sort((left, right) => left.position - right.position)
-        .map(exercise => ({
-          lineId: exercise.id,
-          sourceName: exercise.name,
-          exerciseId: exercise.exerciseId,
-          notes: exercise.note || null,
-          sets: exercise.sets.map(toDraftSet),
-          sequenceGroup: exercise.sequenceGroup,
-          substitutions: exercise.substitutions,
-          sourcePage: exercise.sourcePage ?? null,
-          slotKey: exercise.slotKey ?? null,
-          restSeconds: exercise.restSeconds ?? null,
-          demoUrl: exercise.demoUrl ?? null,
-          demoLinks: exercise.demoLinks ?? null
-        }))
-    }));
+    .map(templateToDraft);
   return { programName: program.name, workouts };
+}
+
+export function templateToDraft(day: Template): DraftWorkout {
+  return {
+    lineId: day.id,
+    week: day.week,
+    name: day.name,
+    focus: day.focus || null,
+    notes: day.note || null,
+    block: day.block || null,
+    phase: day.phase || null,
+    phaseWeek: day.phaseWeek,
+    isRestDay: day.isRestDay,
+    sourcePage: day.sourcePage ?? null,
+    exercises: [...day.exercises]
+      .sort((left, right) => left.position - right.position)
+      .map(exercise => ({
+        lineId: exercise.id,
+        sourceName: exercise.name,
+        exerciseId: exercise.exerciseId,
+        notes: exercise.note || null,
+        sets: exercise.sets.map(toDraftSet),
+        sequenceGroup: exercise.sequenceGroup,
+        substitutions: exercise.substitutions,
+        sourcePage: exercise.sourcePage ?? null,
+        slotKey: exercise.slotKey ?? null,
+        restSeconds: exercise.restSeconds ?? null,
+        demoUrl: exercise.demoUrl ?? null,
+        demoLinks: exercise.demoLinks ?? null
+      }))
+  };
 }
 
 /// The template update that saves one edited program day, keeping its revision check.

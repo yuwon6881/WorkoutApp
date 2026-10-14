@@ -236,7 +236,7 @@ export function ImportProgressCard({ uploadProgress, selected, busy, onCancelUpl
         )}
       </div>
 
-      {/* Rounded 8px progress track */}
+      {/* Slim progress track */}
       <div
         className={`ipc-progress-track import-progress-track ${percent === null ? 'indeterminate' : ''}`}
         role="progressbar"

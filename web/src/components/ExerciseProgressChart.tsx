@@ -89,7 +89,7 @@ export function ExerciseProgressChart({ points, label, format }: {
       <p className="exercise-chart-readout" aria-live="polite">
         <strong>{format(current.value)}</strong>
         <span>{current.date}</span>
-        {points.length > 1 && <span className="exercise-chart-position">Session {index + 1} of {points.length}</span>}
+        <span className="exercise-chart-position">{points.length > 1 ? `Session ${index + 1} of ${points.length}` : 'Only session so far'}</span>
       </p>
       <div
         ref={canvas}

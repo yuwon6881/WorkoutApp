@@ -1,4 +1,5 @@
 import { useId } from 'react';
+import { SegmentedControl } from './SegmentedControl';
 
 export interface RepPrescriptionControlProps {
   /// Empty bounds are a set the program gives no rep target; clearing the input empties it.
@@ -153,26 +154,7 @@ export function RepModeToggle({
   label: string;
   disabled?: boolean;
 }) {
-  return (
-    <div className="rep-mode-toggle" role="group" aria-label={label}>
-      <button
-        type="button"
-        className={`rep-mode-btn ${!range ? 'active' : ''}`}
-        aria-pressed={!range}
-        disabled={disabled}
-        onClick={() => { if (range) onChange(false); }}
-      >
-        Exact
-      </button>
-      <button
-        type="button"
-        className={`rep-mode-btn ${range ? 'active' : ''}`}
-        aria-pressed={range}
-        disabled={disabled}
-        onClick={() => { if (!range) onChange(true); }}
-      >
-        Range
-      </button>
-    </div>
-  );
+  return <SegmentedControl className="rep-mode-toggle" label={label} value={range ? 'range' : 'exact'}
+    options={[{ value: 'exact', label: 'Exact' }, { value: 'range', label: 'Range' }]}
+    disabled={disabled} onChange={value => { if ((value === 'range') !== range) onChange(value === 'range'); }} />;
 }

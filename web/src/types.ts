@@ -105,7 +105,7 @@ export type MuscleBalanceView = {
   unattributedSets: number;
   unattributedExamples: string[];
 };
-export type WorkoutActivityItem = { id: string; name: string; status: 'completed' | 'in_progress'; date: string };
+export type WorkoutActivityItem = { id: string; name: string; status: 'completed' | 'in_progress'; date: string; workingSets?: number | null; trainingMinutes?: number | null };
 export type ExerciseMetricPoint = { date: string; sessionId: string; sessionName: string; estimated1RmKg: number | null; loadKg: number | null; volumeKg: number | null; reps: number | null; partial: boolean };
 export type ExerciseHistoryRow = { sessionId: string; sessionName: string; date: string; setCount: number; volumeKg: number | null; partial: boolean; finishedAt: string | null; programName?: string | null };
 export type ExerciseHistoryClear = { clearedAt: string; removedSets: number; affectedWorkouts: number };

@@ -122,6 +122,10 @@ async function checkLayout(page: Page, label: string) {
     const box = el.getBoundingClientRect();
     const style = getComputedStyle(el);
     return box.width > 0 && box.height > 0 && el.textContent?.trim() && !el.closest('[aria-hidden="true"]')
+      // Compact day summaries deliberately abbreviate names; the full name is retained in the
+      // tooltip and the day dialog. Other interface text must still fit without clipping.
+      && !(el.matches('.pdl-preview-name[title]') && el.getAttribute('title') === el.textContent.trim()
+        && style.textOverflow === 'ellipsis')
       && !(style.position === 'absolute' && box.width <= 1 && box.height <= 1
         && (style.clip !== 'auto' || style.clipPath !== 'none'))
       && (style.overflowX === 'hidden' || style.overflowY === 'hidden' || style.textOverflow === 'ellipsis')

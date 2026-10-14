@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ChevronRight, Play, SkipForward } from 'lucide-react';
+import { CheckCircle2, Circle, ChevronRight, Play, SkipForward } from 'lucide-react';
 import type { DraftWorkout, Exercise, ImportDraft, ProgramProgressDay, ProgramSummary } from '../types';
 import { ApiError, api } from '../lib/api';
 import { dayTitle, isGenericDayTitle } from '../lib/dayTitle';
@@ -48,6 +48,7 @@ export function ProgramWeekChecklist({
 
   const progress = program.progress;
   const days = progress?.days ?? [];
+  const nextDayId = days.find(day => day.status === 'pending' && !optimisticPassed.has(day.templateId))?.templateId;
   const dayDetails = useMemo(() => new Map(program.days.map(day => [day.id, day])), [program.days]);
   const currentDays = useMemo(() => progress ? program.days.filter(day => day.week === progress.currentWeek) : program.days, [program.days, progress]);
 
@@ -185,7 +186,7 @@ export function ProgramWeekChecklist({
           const passed = day.status !== 'pending' || optimisticPassed.has(day.templateId);
 
           if (isRest) {
-            return <div className={`program-week-day rest ${passed ? 'passed' : ''}`} key={day.templateId} role="listitem">
+            return <div className={`program-week-day rest ${passed ? 'passed' : ''} ${day.templateId === nextDayId ? 'next' : ''}`} key={day.templateId} role="listitem">
               <label className="program-week-check">
                 <input
                   id={`program-rest-day-${day.templateId}`}
@@ -210,11 +211,12 @@ export function ProgramWeekChecklist({
           }
 
           return <div
-            className={`program-week-day exercise-day ${passed ? 'passed' : ''}`}
+            className={`program-week-day exercise-day ${passed ? 'passed' : ''} ${day.templateId === nextDayId ? 'next' : ''}`}
             key={day.templateId}
             role="button"
             tabIndex={0}
             aria-label={`View ${info.name}`}
+            aria-description={day.status === 'completed' ? 'Completed' : day.status === 'skipped' ? 'Skipped' : day.templateId === nextDayId ? 'Next workout' : 'Upcoming workout'}
             onClick={() => { setSelectedMuscle(null); setOpenDay(day); }}
             onKeyDown={e => {
               if (e.key === 'Enter' || e.key === ' ') {
@@ -225,27 +227,17 @@ export function ProgramWeekChecklist({
             }}
           >
             <div className="program-week-check">
-              <input
-                id={`program-exercise-day-${day.templateId}`}
-                name={`program-exercise-day-${day.templateId}`}
-                type="checkbox"
-                checked={passed}
-                readOnly
-                tabIndex={-1}
-                aria-hidden="true"
-                onClick={e => {
-                  e.stopPropagation();
-                  e.preventDefault();
-                  setSelectedMuscle(null);
-                  setOpenDay(day);
-                }}
-              />
+              <span className={`program-day-marker ${day.status === 'completed' ? 'completed' : ''}`} aria-hidden="true">
+                {day.status === 'completed' ? <CheckCircle2 size={20} /> : day.status === 'skipped' ? <SkipForward size={18} /> : <Circle size={20} />}
+              </span>
               <div className="program-week-info">
                 <span className="program-week-name">{info.name}</span>
               </div>
             </div>
             <div className="program-week-status-col">
-              {day.status === 'skipped' && <span className="program-week-skipped-indicator" title="Skipped"><SkipForward size={14} className="muted" /></span>}
+              {day.status === 'completed' && <span className="program-day-status completed">Done</span>}
+              {day.status === 'skipped' && <span className="program-day-status">Skipped</span>}
+              {day.templateId === nextDayId && <span className="program-day-status next">Next</span>}
               {day.status === 'pending' && <ChevronRight className="program-week-chevron muted" size={16} aria-hidden="true" />}
             </div>
           </div>;
