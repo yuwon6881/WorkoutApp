@@ -115,4 +115,31 @@ public sealed class WorkoutFinishPlanUnloggedSetTests
         Assert.Empty(preview.Edits);
         Assert.Empty(preview.Changes);
     }
+
+    /// What the phone sends: every field of the session it last received, unchanged.
+    private static SessionInput Resend(SessionView session) => new(session.Note,
+        session.Exercises.Select(e => new SessionExerciseInput(e.ExerciseId, e.Name, e.Note, e.Prescription,
+            e.Sets.Select(set => new SetInput(set.WeightKg, set.Reps, set.Rpe, set.Done, set.Warmup, set.ResistanceMode, set.Id, set.Rir, set.DurationSeconds)).ToList(),
+            e.SequenceGroup, e.Substitutions, e.LoadModel, e.Id, e.SourceTemplateExerciseId, e.SourceSlotKey, e.SourcePhaseId, e.SourcePage, e.RestSeconds)).ToList(),
+        session.Revision, null);
+
+    [Fact]
+    public async Task Saving_the_workout_again_right_before_finishing_does_not_invalidate_the_program_review()
+    {
+        await using var rig = await Ready();
+        var session = await SwappedSession(rig, removeThird: false);
+        var reviewed = await rig.H.Workouts.PreviewFinishPlan(session.Id, default);
+
+        // Finishing on the phone saves the whole draft once more before it asks to finish.
+        session = await rig.H.Workouts.Save(session.Id, Resend(session), default);
+        var again = await rig.H.Workouts.PreviewFinishPlan(session.Id, default);
+
+        Assert.Equal(reviewed.ChangesHash, again.ChangesHash);
+        Assert.Equal(reviewed.ProgramRevision, again.ProgramRevision);
+        Assert.Equal(reviewed.DayRevisions, again.DayRevisions);
+        var plan = new FinishPlanUpdateInput("program", reviewed.ChangesHash, reviewed.ProgramRevision, reviewed.DayRevisions);
+        await rig.H.Workouts.Finish(session.Id, session.Revision, default, planUpdate: plan);
+        Assert.Equal("Back squat", (await rig.H.Db.TemplateExercises.AsNoTracking().SingleAsync(e => e.TemplateId ==
+            rig.H.Db.Templates.Single(t => t.ProgramId == rig.Program.Id && t.Week == 2).Id)).SourceName);
+    }
 }

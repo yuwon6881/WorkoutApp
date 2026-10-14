@@ -190,6 +190,8 @@ export function sessionPayload(session: Session, revision: number, idempotencyId
       sourceSlotKey: exercise.sourceSlotKey,
       sourcePhaseId: exercise.sourcePhaseId,
       sourcePage: exercise.sourcePage,
+      // Omitting it would erase the exercise's rest timer on the server with every full save.
+      restSeconds: exercise.restSeconds ?? null,
       sets: exercise.sets.map(set => ({
         id: set.id,
         weightKg: set.weightKg,
