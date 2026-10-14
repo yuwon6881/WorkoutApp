@@ -122,16 +122,28 @@ public sealed partial class TemplateService(AppDb db, CatalogService catalog)
         var template = await db.Templates.SingleOrDefaultAsync(t => t.Id == id, ct);
         Validation.Require(template != null, "That workout no longer exists.", 404);
         RequireFresh(input.Revision, template!.Revision);
+        RequireEditable(await ProgramLockState.ForTemplate(db, template, ct), template);
         template.Name = input.Name.Trim(); template.Focus = input.Focus?.Trim() ?? ""; template.Note = input.Note?.Trim() ?? "";
         template.Block = input.Block?.Trim() ?? ""; template.Phase = input.Phase?.Trim() ?? ""; template.PhaseWeek = input.PhaseWeek; template.IsRestDay = input.IsRestDay;
         template.Revision++;
         var existing = await db.TemplateExercises.Where(e => e.TemplateId == id).OrderBy(e => e.Position).ToListAsync(ct);
         EnsureBaseline(template!, existing);
+        SyncExercises(id, existing, input.Exercises);
+        await Receipt(input.IdempotencyId, ct);
+        await db.SaveChangesAsync(ct);
+        await gate.Commit(ct);
+        return await Get(id, ct);
+    }
+
+    /// Rewrites a template's exercise rows in place from the supplied list. A row is matched by its
+    /// slot key (else by position) so the slot keeps its identity for sessions and substitutions.
+    public void SyncExercises(Guid id, List<TemplateExercise> existing, List<TemplateExerciseInput> exercises)
+    {
         foreach (var legacy in existing.Where(e => e.SlotKey == Guid.Empty)) legacy.SlotKey = Guid.NewGuid();
         var bySlot = existing.GroupBy(e => e.SlotKey).ToDictionary(g => g.Key, g => g.First());
         var used = new HashSet<Guid>();
         var position = 0;
-        foreach (var inputExercise in input.Exercises)
+        foreach (var inputExercise in exercises)
         {
             var row = inputExercise.SlotKey is { } slot && bySlot.TryGetValue(slot, out var stable)
                 ? stable
@@ -157,10 +169,6 @@ public sealed partial class TemplateService(AppDb db, CatalogService catalog)
             if (!existing.Contains(row)) db.TemplateExercises.Add(row);
         }
         db.TemplateExercises.RemoveRange(existing.Where(e => !used.Contains(e.Id)));
-        await Receipt(input.IdempotencyId, ct);
-        await db.SaveChangesAsync(ct);
-        await gate.Commit(ct);
-        return await Get(id, ct);
     }
 
     public async Task<TemplateSubstitutionResult> Swap(Guid templateId, TemplateSubstitutionInput input, CancellationToken ct)
@@ -174,6 +182,8 @@ public sealed partial class TemplateService(AppDb db, CatalogService catalog)
         Validation.Require(template != null, "That workout no longer exists.", 404);
         var templateRow = template!;
         RequireFresh(input.Revision, templateRow.Revision);
+        var locks = await ProgramLockState.ForTemplate(db, templateRow, ct);
+        RequireEditable(locks, templateRow);
         var existingExercises = await db.TemplateExercises.Where(e => e.TemplateId == templateId).OrderBy(e => e.Position).ToListAsync(ct);
         EnsureBaseline(templateRow, existingExercises);
         var target = existingExercises.SingleOrDefault(e =>
@@ -211,7 +221,8 @@ public sealed partial class TemplateService(AppDb db, CatalogService catalog)
             var active = await db.Workouts.Where(w => w.ProgramId == templateRow.ProgramId && w.Active && w.TemplateId != null)
                 .Select(w => w.TemplateId!.Value).ToHashSetAsync(ct);
             var skipped = await db.ProgramSkips.Where(s => s.ProgramId == templateRow.ProgramId).Select(s => s.TemplateId).ToHashSetAsync(ct);
-            templatesToChange = templatesToChange.Where(t => !completed.Contains(t.Id) && !active.Contains(t.Id) && !skipped.Contains(t.Id)).ToList();
+            templatesToChange = templatesToChange.Where(t => !completed.Contains(t.Id) && !active.Contains(t.Id) && !skipped.Contains(t.Id)
+                && !locks.IsLocked(t)).ToList();
             Validation.Require(templatesToChange.Count > 0, "There are no remaining workouts in this phase.", 409);
         }
         var affected = new List<SubstitutionAffectedSlot>();
@@ -248,6 +259,7 @@ public sealed partial class TemplateService(AppDb db, CatalogService catalog)
             (input.TemplateExerciseId == null || e.Id == input.TemplateExerciseId) && (input.SlotKey == null || e.SlotKey == input.SlotKey), ct);
         Validation.Require(target != null, "That exercise slot no longer exists.", 404);
         var templateRow = template!; var targetRow = target!;
+        var locks = await ProgramLockState.ForTemplate(db, templateRow, ct);
         var candidates = new List<WorkoutTemplate> { templateRow };
         if (input.Scope == "phase")
         {
@@ -267,7 +279,8 @@ public sealed partial class TemplateService(AppDb db, CatalogService catalog)
             var active = await db.Workouts.AsNoTracking().Where(w => w.ProgramId == templateRow.ProgramId && w.Active && w.TemplateId != null)
                 .Select(w => w.TemplateId!.Value).ToHashSetAsync(ct);
             var skipped = await db.ProgramSkips.AsNoTracking().Where(s => s.ProgramId == templateRow.ProgramId).Select(s => s.TemplateId).ToHashSetAsync(ct);
-            candidates = candidates.Where(t => !completed.Contains(t.Id) && !active.Contains(t.Id) && !skipped.Contains(t.Id)).ToList();
+            candidates = candidates.Where(t => !completed.Contains(t.Id) && !active.Contains(t.Id) && !skipped.Contains(t.Id)
+                && !locks.IsLocked(t)).ToList();
         }
         var affected = new List<SubstitutionAffectedSlot>();
         var slotRows = await SlotRows(candidates, targetRow, input.Scope == "phase", tracked: false, ct);
@@ -346,6 +359,11 @@ public sealed partial class TemplateService(AppDb db, CatalogService catalog)
             (e.SlotKey == slotKey || (matchPosition && e.Position == position))).ToListAsync(ct);
         return rows.ToLookup(e => e.TemplateId);
     }
+
+    /// A day the active run has already passed is history; its plan is no longer edited.
+    public static void RequireEditable(ProgramLockState locks, WorkoutTemplate day)
+        => Validation.Require(!locks.IsLocked(day),
+            "This day is already past in the active program, so it can no longer be edited.", 409);
 
     public static void RequireFresh(int? supplied, int actual)
         => Validation.Require(supplied == null || supplied == actual, "This changed on another device. Refresh to see the newer version before saving.", 409);

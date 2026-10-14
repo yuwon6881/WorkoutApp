@@ -154,14 +154,10 @@ export function WorkoutActiveExercise({
 
 
   return (
-    <section className={`workout-active-exercise ${exercise.isReplacement ? 'swap-continuation' : ''}`}>
+    <section className="workout-active-exercise">
       <div className="workout-active-header">
         <div className="workout-active-title-group">
-          <h2>
-            {exercise.isReplacement && exercise.originalName
-              ? `Continuation · ${exercise.name}`
-              : exercise.name}
-          </h2>
+          <h2>{exercise.name}</h2>
           <div className="workout-active-meta">
             {currentSetDisplay && <span className={`workout-set-progress ${nextUnloggedWorkingIndex < 0 ? 'complete' : ''}`.trim()}>
               {nextUnloggedWorkingIndex < 0 && <Check size={15} strokeWidth={3} aria-hidden="true" />}{currentSetDisplay}

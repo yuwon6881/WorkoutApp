@@ -15,6 +15,7 @@ import './ProgramTimeline.css';
 import './ProgramStructureBar.css';
 
 import type { ImportIssueTarget } from '../lib/importAttentionRows';
+import type { ProgramEditLocks } from '../lib/programEditLocks';
 export type { ImportIssueTarget };
 
 export type DraftOutlineHandle = {
@@ -44,6 +45,8 @@ export const DraftOutline = forwardRef<DraftOutlineHandle, {
   onDiscardDraft?: () => void;
   onAcceptProgram?: () => void;
   readOnly?: boolean;
+  /// Past weeks and days of an activated program: shown, but never changed.
+  locks?: ProgramEditLocks;
 }>(function DraftOutline({
   draft,
   expandedDay,
@@ -66,9 +69,10 @@ export const DraftOutline = forwardRef<DraftOutlineHandle, {
   onRestoreDraft,
   onDiscardDraft,
   onAcceptProgram,
-  readOnly = false
+  readOnly = false,
+  locks
 }, ref) {
-  const structure = useProgramStructureEditor({ draft, onDraftChange, onDayChange });
+  const structure = useProgramStructureEditor({ draft, onDraftChange, onDayChange, locks });
   const { normalizedDraft, weeks, week, setSelectedWeek } = structure;
 
   const focusIssue = useCallback((target: ImportIssueTarget) => {

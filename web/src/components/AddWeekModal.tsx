@@ -10,7 +10,8 @@ export function AddWeekModal({
   onAddWeek,
   currentWeekNumber,
   blockName,
-  phaseName
+  phaseName,
+  duplicateDisabled = false
 }: {
   open: boolean;
   onClose: () => void;
@@ -18,6 +19,8 @@ export function AddWeekModal({
   currentWeekNumber: number;
   blockName: string;
   phaseName?: string | null;
+  /// The shown week is already past, so a copy of it would land before the week in progress.
+  duplicateDisabled?: boolean;
 }) {
   if (!open) return null;
 
@@ -35,12 +38,15 @@ export function AddWeekModal({
         <Button
           variant="secondary"
           className="week-create-option"
+          disabled={duplicateDisabled}
           onClick={() => onAddWeek('duplicate-current')}
         >
           <Copy size={18} />
           <span>
             <strong>Duplicate Week {currentWeekNumber}</strong>
-            <small>Copy all training days, mapped exercises, and set prescriptions from Week {currentWeekNumber}.</small>
+            <small>{duplicateDisabled
+              ? `Week ${currentWeekNumber} is already past. Open a later week to copy it.`
+              : `Copy all training days, mapped exercises, and set prescriptions from Week ${currentWeekNumber}.`}</small>
           </span>
         </Button>
 

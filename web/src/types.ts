@@ -33,6 +33,18 @@ export type ProgramDay = { id: string; name: string; focus: string; block: strin
 export type ProgramPhase = { id: string; name: string; block: string; weekFrom: number; weekTo: number; durationWeeks: number; completedWorkouts: number; totalWorkouts: number; complete: boolean; currentWeek?: number; skippedWorkouts?: number; sourcePageFrom?: number | null; sourcePageTo?: number | null };
 export type ProgramSummary = { id: string; name: string; weeks: number; active: boolean; revision: number; sourceImportId: string | null; days: ProgramDay[]; completedTemplateIds: string[]; nextTemplateId: string | null; lifecycleStatus?: 'standby' | 'active' | 'completed'; completedAt?: string | null; skippedTemplateIds?: string[]; phases?: ProgramPhase[]; progress?: ProgramProgress | null };
 export type Program = ProgramSummary & { workouts: Template[] };
+/// One exercise as the program editor saves it; the same fields a single-day save sends.
+export type ProgramEditExercise = {
+  exerciseId: string | null; sourceName: string; note: string | null; sets: SetPrescription[]; sequenceGroup: string | null;
+  substitutions: string[]; sourcePage: number | null; slotKey: string | null; restSeconds: number | null; demoUrl: string | null;
+  demoLinks: Record<string, string> | null;
+};
+/// A day of an edited program. An id that names a day of the program keeps that day; null makes a new one.
+export type ProgramEditDay = {
+  id: string | null; week: number; name: string; focus: string | null; note: string | null; exercises: ProgramEditExercise[];
+  block: string | null; phase: string | null; phaseWeek: number; isRestDay: boolean; sourcePage: number | null;
+};
+export type ProgramEditInput = { name: string; revision: number; days: ProgramEditDay[]; idempotencyId: string };
 
 export type SetProgressionSuggestion = { suggestedLoadKg: number | null; suggestedReps: number; reason: string; sourceSessionId: string | null; sourceDate: string | null; progressionMode: string; nutritionContextRevision: number | null; isBodyweightAdjustment: boolean; suggestedSystemLoadKg: number | null; resistanceMode: ResistanceMode; previousLoadKg?: number | null; previousReps?: number | null };
 export type LoggedSet = { id: string; position: number; weightKg: number | null; reps: number | null; durationSeconds?: number | null; rpe: number | null; done: boolean; warmup: boolean; workingSetOrdinal?: number | null; resistanceMode?: ResistanceMode; systemLoadKg?: number | null; suggestion?: SetProgressionSuggestion | null; isPr?: boolean; estimated1RmKg?: number | null; rir?: string | null; prKind?: 'e1rm' | 'reps' | 'both' | null; prReps?: number | null };

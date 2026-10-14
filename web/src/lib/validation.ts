@@ -137,7 +137,12 @@ export function validateDraftWorkout(day: DraftWorkout): string | undefined {
   return undefined;
 }
 
-export function validateProgramEditorDocument(document: ImportDraft, requireCatalogExercises = false): string | undefined {
+export function validateProgramEditorDocument(
+  document: ImportDraft,
+  requireCatalogExercises = false,
+  /// An imported program may repeat a block name across separate blocks; only a new one is held to unique names.
+  requireUniqueBlockNames = true
+): string | undefined {
   const name = validateName(document.programName, 'Program name');
   if (name) return name;
   const days = document.workouts;
@@ -173,7 +178,7 @@ export function validateProgramEditorDocument(document: ImportDraft, requireCata
     previousBlock = blockId;
   }
   const uniqueNames = new Set<string>();
-  for (const name of blockNames.values()) {
+  for (const name of requireUniqueBlockNames ? blockNames.values() : []) {
     const normalized = name.toLocaleLowerCase();
     if (uniqueNames.has(normalized)) return 'Give each block a different name.';
     uniqueNames.add(normalized);

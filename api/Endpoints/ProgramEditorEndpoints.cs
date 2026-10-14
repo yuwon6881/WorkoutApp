@@ -12,6 +12,10 @@ public static class ProgramEditorEndpoints
     {
         app.MapPost("/api/programs/from-editor", async (HttpRequest request, ProgramEditorService editor, CancellationToken ct)
             => await editor.CreateProgram(await ReadJson<ProgramEditorCreateInput>(request, ct), ct));
+        // Saves a program that already exists, including one in the active slot: past weeks and
+        // days stay exactly as they were, everything after them can change.
+        app.MapPut("/api/programs/{id:guid}/plan", async (Guid id, HttpRequest request, ProgramEditorService editor, CancellationToken ct)
+            => await editor.UpdateProgram(id, await ReadJson<ProgramEditInput>(request, ct), ct));
     }
 
     private static async Task<T> ReadJson<T>(HttpRequest request, CancellationToken ct)

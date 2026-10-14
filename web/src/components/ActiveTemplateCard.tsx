@@ -31,7 +31,8 @@ export function ActiveTemplateCard({ template, onStart, onEdit, hasActiveWorkout
   return <section {...dragProps} className={`panel slot-card template-slot-card ${finished ? 'slot-card-finished' : ''} ${moving ? 'slot-card-moving' : ''}`}
     aria-busy={actions.busy}>
     <SlotCardHeader title={template.name} meta={meta}
-      badge={finished ? <span className="tiny-label slot-finished-label">Finished</span> : undefined}
+      badge={finished ? <span className="tiny-label slot-finished-label">Finished</span>
+        : inProgress ? <span className="tiny-label slot-progress-label">In progress</span> : undefined}
       menuLabel={`Actions for ${template.name}`}
       menu={<>
         <MenuItem disabled={actions.busy} onClick={actions.onMoveToLibrary}><Library size={14} />Move to library</MenuItem>
@@ -40,7 +41,7 @@ export function ActiveTemplateCard({ template, onStart, onEdit, hasActiveWorkout
         <MenuItem destructive disabled={actions.busy} onClick={actions.onDelete}><Trash2 size={14} />Delete workout</MenuItem>
       </>} />
 
-    <div className={`template-slot-day ${finished ? 'completed-slot' : ''}`}>
+    <div className={['template-slot-day', finished && 'completed-slot', inProgress && !finished && 'in-progress'].filter(Boolean).join(' ')}>
       <span className={`template-slot-tick ${finished ? 'ticked' : ''}`} role="img"
         aria-label={finished ? 'Completed' : 'Not completed yet'}>{finished && <Check size={14} />}</span>
       {/* The card header already names the workout, so this row lists what is in it. */}

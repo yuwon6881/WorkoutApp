@@ -1,5 +1,5 @@
 import { useMemo, type ReactNode } from 'react';
-import { Moon } from 'lucide-react';
+import { Lock, Moon } from 'lucide-react';
 import type { DraftWorkout, Exercise } from '../types';
 import { getPlannedMuscleCredits } from '../lib/programMuscles';
 import type { ExerciseEditing } from '../lib/exerciseEditScope';
@@ -16,7 +16,8 @@ export function DayRow({
   onOpen,
   exercises: _exercises,
   handle,
-  menu
+  menu,
+  lockLabel
 }: {
   day: DraftWorkout;
   index: number;
@@ -24,6 +25,8 @@ export function DayRow({
   exercises?: Exercise[];
   handle?: ReactNode;
   menu?: ReactNode;
+  /// Set for a day the active run has already passed (Done, Skipped, Past); it is shown but not edited.
+  lockLabel?: string;
 }) {
   const exercisePreview = useMemo(() => {
     if (day.isRestDay || !day.exercises.length) return null;
@@ -60,6 +63,7 @@ export function DayRow({
               <div className="pdl-day-title-row">
                 <strong className="pdl-day-title pdl-rest-title">{displayTitle}</strong>
                 <span className="tiny-label rest-badge pdl-rest-badge">Rest day</span>
+                {lockLabel && <span className="pill pdl-lock-tag"><Lock size={12} aria-hidden="true" />{lockLabel}</span>}
                 {day.focus && <span className="day-focus-tag pdl-day-focus-tag">{day.focus}</span>}
               </div>
               <div className="pdl-day-meta pdl-rest-meta">
@@ -81,6 +85,7 @@ export function DayRow({
             <div className="pdl-day-content">
               <div className="pdl-day-title-row">
                 <strong className="pdl-day-title">{displayTitle}</strong>
+                {lockLabel && <span className="pill pdl-lock-tag"><Lock size={12} aria-hidden="true" />{lockLabel}</span>}
                 {day.focus && <span className="day-focus-tag pdl-day-focus-tag">{day.focus}</span>}
                 {day.phase?.toLowerCase().includes('deload') && (
                   <span className="pill pill-accent pdl-day-deload-tag">Deload</span>

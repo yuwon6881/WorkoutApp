@@ -228,7 +228,7 @@ public sealed partial class ProgramService(AppDb db, TemplateService templates, 
         => string.Equals(left.Block?.Trim() ?? "", right.Block?.Trim() ?? "", StringComparison.OrdinalIgnoreCase) &&
            string.Equals(left.Phase?.Trim() ?? "", right.Phase?.Trim() ?? "", StringComparison.OrdinalIgnoreCase);
 
-    private static List<List<WorkoutTemplate>> GroupTemplatePhases(IEnumerable<WorkoutTemplate> templates)
+    internal static List<List<WorkoutTemplate>> GroupTemplatePhases(IEnumerable<WorkoutTemplate> templates)
     {
         var ordered = templates.OrderBy(template => template.Week).ThenBy(template => template.Position).ToList();
         var groups = new List<List<WorkoutTemplate>>();
@@ -318,27 +318,34 @@ public sealed partial class ProgramService(AppDb db, TemplateService templates, 
     public async Task Validate(ProgramInput input, CancellationToken ct, bool allowMissingWorkingRpe = false)
     {
         Validation.Name(input.Name, "Program name");
-        Validation.Require(input.Workouts is { Count: > 0 }, "A program needs at least one workout.");
-        Validation.Require(input.Workouts.Count <= 400, "A program can have at most 400 workouts.");
-        Validation.Require(input.Workouts.GroupBy(workout => workout.Week).All(week => week.Count() <= ProgramLimits.MaxDaysPerWeek),
-            $"A program week can have at most {ProgramLimits.MaxDaysPerWeek} days.", 422);
-        Validation.Require(input.Workouts.Any(workout => !workout.IsRestDay), "A program needs at least one training workout.");
-        Validation.Require(input.Workouts.All(w => w.Week is > 0 and <= 104), "Program weeks must be between 1 and 104.");
-        var programWeeks = input.Workouts.Select(workout => workout.Week).Distinct().Order().ToList();
-        Validation.Require(programWeeks.SequenceEqual(Enumerable.Range(programWeeks[0], programWeeks.Count)),
-            "Program weeks must be contiguous.", 422);
-        foreach (var phase in GroupPhases(input.Workouts))
-        {
-            var phaseWeeks = phase.Select(workout => workout.PhaseWeek).Distinct().OrderBy(week => week).ToList();
-            Validation.Require(phaseWeeks.SequenceEqual(Enumerable.Range(1, phaseWeeks.Count)), "A phase has a missing phase-relative week.", 422);
-            var absoluteWeeks = phase.Select(workout => workout.Week).Distinct().OrderBy(week => week).ToList();
-            Validation.Require(absoluteWeeks.SequenceEqual(Enumerable.Range(absoluteWeeks[0], absoluteWeeks[^1] - absoluteWeeks[0] + 1)), "A phase has a missing absolute week.", 422);
-        }
+        ValidateStructure(input.Workouts);
         foreach (var workout in input.Workouts)
         {
             Validation.Require(workout.SourcePage is null || workout.SourcePage.Value is > 0 and <= ImportSourceText.MaxPages, "Workout source page is invalid.");
             await templates.ValidateInput(new TemplateInput(workout.Name, workout.Focus, workout.Note, workout.Exercises, null, null,
                 workout.Block, workout.Phase, workout.PhaseWeek, workout.IsRestDay), ct, !allowMissingWorkingRpe);
+        }
+    }
+
+    /// The shape rules shared by creating a program and editing a saved one: how many days and
+    /// weeks, contiguous weeks, and phases whose relative weeks run without gaps.
+    public static void ValidateStructure(IReadOnlyList<ProgramWorkoutInput> workouts)
+    {
+        Validation.Require(workouts is { Count: > 0 }, "A program needs at least one workout.");
+        Validation.Require(workouts.Count <= 400, "A program can have at most 400 workouts.");
+        Validation.Require(workouts.GroupBy(workout => workout.Week).All(week => week.Count() <= ProgramLimits.MaxDaysPerWeek),
+            $"A program week can have at most {ProgramLimits.MaxDaysPerWeek} days.", 422);
+        Validation.Require(workouts.Any(workout => !workout.IsRestDay), "A program needs at least one training workout.");
+        Validation.Require(workouts.All(w => w.Week is > 0 and <= 104), "Program weeks must be between 1 and 104.");
+        var programWeeks = workouts.Select(workout => workout.Week).Distinct().Order().ToList();
+        Validation.Require(programWeeks.SequenceEqual(Enumerable.Range(programWeeks[0], programWeeks.Count)),
+            "Program weeks must be contiguous.", 422);
+        foreach (var phase in GroupPhases(workouts))
+        {
+            var phaseWeeks = phase.Select(workout => workout.PhaseWeek).Distinct().OrderBy(week => week).ToList();
+            Validation.Require(phaseWeeks.SequenceEqual(Enumerable.Range(1, phaseWeeks.Count)), "A phase has a missing phase-relative week.", 422);
+            var absoluteWeeks = phase.Select(workout => workout.Week).Distinct().OrderBy(week => week).ToList();
+            Validation.Require(absoluteWeeks.SequenceEqual(Enumerable.Range(absoluteWeeks[0], absoluteWeeks[^1] - absoluteWeeks[0] + 1)), "A phase has a missing absolute week.", 422);
         }
     }
 

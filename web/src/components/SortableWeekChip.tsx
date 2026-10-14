@@ -1,5 +1,5 @@
 import { useRef } from 'react';
-import { X } from 'lucide-react';
+import { Lock, X } from 'lucide-react';
 import { Button } from './ui/Button';
 
 export interface SortableWeekChipProps {
@@ -12,6 +12,8 @@ export interface SortableWeekChipProps {
   onDragOver: (week: number, side: 'before' | 'after') => void;
   onDrop: (week?: number, side?: 'before' | 'after') => void;
   onDelete?: () => void;
+  /// A week holding passed days: it can be opened but not dragged or deleted.
+  locked?: boolean;
 }
 
 export function SortableWeekChip({
@@ -23,7 +25,8 @@ export function SortableWeekChip({
   onDragStart,
   onDragOver,
   onDrop,
-  onDelete
+  onDelete,
+  locked = false
 }: SortableWeekChipProps) {
   const pointer = useRef<{ id: number; startX: number; startY: number; armed: boolean; moved: boolean; timer?: number; scroller: HTMLElement | null; scrollStart: number; scrolling: boolean } | null>(null);
   const chipRef = useRef<HTMLButtonElement>(null);
@@ -53,7 +56,7 @@ export function SortableWeekChip({
         presentation="plain"
         role="tab"
         aria-selected={selected}
-        draggable
+        draggable={!locked}
         className={`filter-chip import-week-chip ${selected ? 'active' : ''} ptl-chip ${selected ? 'ptl-chip-active' : ''}`}
         onClick={() => {
           if (suppressClick.current) {
@@ -63,6 +66,10 @@ export function SortableWeekChip({
           onSelect();
         }}
         onDragStart={event => {
+          if (locked) {
+            event.preventDefault();
+            return;
+          }
           event.dataTransfer.effectAllowed = 'move';
           onDragStart();
         }}
@@ -82,7 +89,7 @@ export function SortableWeekChip({
           onDrop();
         }}
         onPointerDown={event => {
-          if (event.pointerType === 'mouse' && event.button !== 0) return;
+          if (locked || (event.pointerType === 'mouse' && event.button !== 0)) return;
           const current = {
             id: event.pointerId,
             startX: event.clientX,
@@ -151,7 +158,8 @@ export function SortableWeekChip({
         }}
         onPointerCancel={clearPointer}
       >
-        Week {week}
+        {locked && <Lock size={12} aria-hidden="true" />}
+        Week {week}{locked && <span className="sr-only"> (has passed days)</span>}
       </Button>
       {onDelete && (
         <Button

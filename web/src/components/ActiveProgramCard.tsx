@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type FormEvent, type HTMLAttributes } from 'react';
-import { ArrowRight, Library, RotateCcw, Trash2 } from 'lucide-react';
+import { ArrowRight, Library, Pencil, RotateCcw, Trash2 } from 'lucide-react';
 import type { DraftWorkout, Exercise, ImportDraft, ProgramSummary } from '../types';
 import { ApiError, api } from '../lib/api';
 import { changedDayIds, isProgramFinished, programToDraft } from '../lib/activeSlot';
@@ -22,11 +22,13 @@ export type SlotCardActions = {
 /// The program in the active slot. While a run is underway it shows the week checklist, which
 /// folds away behind the header (and while the card is dragged); once every week is passed it
 /// turns into a finished card offering a restart or a move back to the library.
-export function ActiveProgramCard({ program, exercises, onStart, onChanged, hasActiveWorkout, activeTemplateId = null, actions, dragProps, moving, dragging }: {
+export function ActiveProgramCard({ program, exercises, onStart, onChanged, onEdit, hasActiveWorkout, activeTemplateId = null, actions, dragProps, moving, dragging }: {
   program: ProgramSummary;
   exercises: Exercise[];
   onStart: (id: string) => void;
   onChanged: () => Promise<void>;
+  /// Opens the whole program in the editor; days already passed stay locked there.
+  onEdit: () => void;
   hasActiveWorkout: boolean;
   /** The day the open workout came from; that day continues it instead of refusing a start. */
   activeTemplateId?: string | null;
@@ -167,6 +169,7 @@ export function ActiveProgramCard({ program, exercises, onStart, onChanged, hasA
       expanded={finished ? undefined : expanded} onToggle={finished ? undefined : () => setExpanded(value => !value)}
       menuLabel={`Actions for ${program.name}`}
       menu={<>
+        {!finished && <MenuItem disabled={actionsBlocked || progress?.runId === 'optimistic'} onClick={onEdit}><Pencil size={14} />Edit program</MenuItem>}
         <MenuItem disabled={actionsBlocked} onClick={actions.onMoveToLibrary}><Library size={14} />Move to library</MenuItem>
         <MenuItem disabled={actionsBlocked} onClick={actions.onRestart}><RotateCcw size={14} />Restart from the beginning</MenuItem>
         {canReset && <MenuItem disabled={actionsBlocked || hasActiveWorkout} onClick={() => { setResetOpen(true); setResetPhrase(''); setResetError(''); }}><RotateCcw size={14} />Reset this week</MenuItem>}

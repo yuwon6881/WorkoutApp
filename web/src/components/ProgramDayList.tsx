@@ -39,7 +39,7 @@ export function ProgramDayList({
   readOnly?: boolean;
 }) {
   const {
-    week, canAddDay, duplicateDay, reorderDay, moveDayTo, setDeleteConfirmDay, addDay
+    week, canAddDay, duplicateDay, reorderDay, moveDayTo, setDeleteConfirmDay, addDay, isDayLocked, locks, weekSealed
   } = structure;
   const [drag, setDragState] = useState<DragState | null>(null);
   const dragRef = useRef<DragState | null>(null);
@@ -155,6 +155,9 @@ export function ProgramDayList({
     <div className="import-week-days pdl-week-days" role="tabpanel" aria-label={`Week ${week.week}`}>
       {days.map((day, dayIndex) => {
         const dropSide = drag && drag.lineId !== day.lineId && drag.overIndex === dayIndex ? drag.side : null;
+        const locked = isDayLocked(day.lineId);
+        const pinned = locks.pinnedDayIds.has(day.lineId);
+        const fixed = readOnly || locked || weekSealed(week);
         return <div
           key={day.lineId}
           className={`program-day-entry pdl-day-entry ${day.isRestDay ? 'pdl-entry-rest' : ''}`}
@@ -167,7 +170,8 @@ export function ProgramDayList({
             index={dayIndex}
             onOpen={() => setOpenDay(day.lineId)}
             exercises={exercises}
-            handle={readOnly ? undefined : <Button
+            lockLabel={locked ? locks.labels.get(day.lineId) ?? 'Past' : undefined}
+            handle={fixed ? undefined : <Button
               presentation="plain"
               className="program-day-handle pdl-day-handle"
               aria-label={`Reorder ${day.name || `Day ${dayIndex + 1}`}, day ${dayIndex + 1} of ${days.length}. Press the up or down arrow key to move it.`}
@@ -188,19 +192,19 @@ export function ProgramDayList({
             >
               <GripVertical size={16} />
             </Button>}
-            menu={readOnly ? undefined : <MenuButton label={`Actions for ${day.name || `Day ${dayIndex + 1}`}`} triggerClassName="program-day-menu-trigger pdl-day-menu-trigger" portal>
+            menu={fixed ? undefined : <MenuButton label={`Actions for ${day.name || `Day ${dayIndex + 1}`}`} triggerClassName="program-day-menu-trigger pdl-day-menu-trigger" portal>
               <MenuItem disabled={!canAddDay} onClick={() => duplicateDay(day.lineId)}>
                 <Copy size={14} />Duplicate day
               </MenuItem>
-              <MenuItem destructive disabled={days.length <= 1} onClick={() => setDeleteConfirmDay(day.lineId)}>
-                <Trash2 size={14} />Delete day
+              <MenuItem destructive disabled={days.length <= 1 || pinned} onClick={() => setDeleteConfirmDay(day.lineId)}>
+                <Trash2 size={14} />{pinned ? 'Delete day (workout open)' : 'Delete day'}
               </MenuItem>
             </MenuButton>}
           />
         </div>;
       })}
     </div>
-    {!readOnly && <div className="program-day-add-actions pdl-add-actions">
+    {!readOnly && !weekSealed(week) && <div className="program-day-add-actions pdl-add-actions">
       <div className="program-day-add-buttons pdl-add-buttons">
         <Button variant="secondary" className="pdl-add-btn" aria-label="Add workout day" disabled={!canAddDay} onClick={() => addDay(false)}>
           <Plus size={15} />Workout day
@@ -224,9 +228,9 @@ export function ProgramDayList({
     )}
 
     {openDayData && !openDayData.isRestDay && (
-      <Modal title={modalTitle} wide onClose={closeModal} className={`day-detail-modal ${readOnly ? '' : 'import-day-modal'}`}>
+      <Modal title={modalTitle} wide onClose={closeModal} className={`day-detail-modal ${readOnly || isDayLocked(openDayData.lineId) ? '' : 'import-day-modal'}`}>
         <div className="modal-body day-detail-modal-body draft-day" data-import-day={openDayData.lineId}>
-          {readOnly
+          {readOnly || isDayLocked(openDayData.lineId)
             ? <ReadOnlyDay day={openDayData} exercises={exercises} selectedMuscle={selectedMuscle} onMuscleSelect={setSelectedMuscle} />
             : <DayDetailContent
             day={openDayData}

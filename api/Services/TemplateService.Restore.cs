@@ -64,6 +64,7 @@ public sealed partial class TemplateService
 
         var templateRow = template!;
         var targetRow = target!;
+        var locks = await ProgramLockState.ForTemplate(db, templateRow, ct);
         var candidates = new List<WorkoutTemplate> { templateRow };
 
         if (input.Scope == "phase")
@@ -84,7 +85,8 @@ public sealed partial class TemplateService
             var active = await db.Workouts.AsNoTracking().Where(w => w.ProgramId == templateRow.ProgramId && w.Active && w.TemplateId != null)
                 .Select(w => w.TemplateId!.Value).ToHashSetAsync(ct);
             var skipped = await db.ProgramSkips.AsNoTracking().Where(s => s.ProgramId == templateRow.ProgramId).Select(s => s.TemplateId).ToHashSetAsync(ct);
-            candidates = candidates.Where(t => !completed.Contains(t.Id) && !active.Contains(t.Id) && !skipped.Contains(t.Id)).ToList();
+            candidates = candidates.Where(t => !completed.Contains(t.Id) && !active.Contains(t.Id) && !skipped.Contains(t.Id)
+                && !locks.IsLocked(t)).ToList();
         }
 
         var affected = new List<SubstitutionAffectedSlot>();
@@ -111,6 +113,8 @@ public sealed partial class TemplateService
         Validation.Require(template != null, "That workout no longer exists.", 404);
         var templateRow = template!;
         RequireFresh(input.Revision, templateRow.Revision);
+        var locks = await ProgramLockState.ForTemplate(db, templateRow, ct);
+        RequireEditable(locks, templateRow);
 
         var existingExercises = await db.TemplateExercises.Where(e => e.TemplateId == templateId).OrderBy(e => e.Position).ToListAsync(ct);
         EnsureBaseline(templateRow, existingExercises);
@@ -151,7 +155,8 @@ public sealed partial class TemplateService
             var active = await db.Workouts.Where(w => w.ProgramId == templateRow.ProgramId && w.Active && w.TemplateId != null)
                 .Select(w => w.TemplateId!.Value).ToHashSetAsync(ct);
             var skipped = await db.ProgramSkips.Where(s => s.ProgramId == templateRow.ProgramId).Select(s => s.TemplateId).ToHashSetAsync(ct);
-            templatesToChange = templatesToChange.Where(t => !completed.Contains(t.Id) && !active.Contains(t.Id) && !skipped.Contains(t.Id)).ToList();
+            templatesToChange = templatesToChange.Where(t => !completed.Contains(t.Id) && !active.Contains(t.Id) && !skipped.Contains(t.Id)
+                && !locks.IsLocked(t)).ToList();
             Validation.Require(templatesToChange.Count > 0, "There are no remaining workouts in this phase.", 409);
         }
 
@@ -191,6 +196,7 @@ public sealed partial class TemplateService
         Validation.Require(template != null, "That workout no longer exists.", 404);
         var templateRow = template!;
         RequireFresh(revision, templateRow.Revision);
+        RequireEditable(await ProgramLockState.ForTemplate(db, templateRow, ct), templateRow);
 
         var existing = await db.TemplateExercises.Where(e => e.TemplateId == id).OrderBy(e => e.Position).ToListAsync(ct);
         EnsureBaseline(templateRow, existing);

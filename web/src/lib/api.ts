@@ -4,7 +4,7 @@ import type { ExerciseLoadSettings, LoadRule, LoadSettingsOverview } from './exe
 import type { PdfExtraction } from './pdfText';
 import { sharedReads } from './readCoordinator';
 import type { Exercise, HistorySummaryPage, ShellBootstrap, TrackingMode, Unit } from '../types';
-import type { Bootstrap, CustomExerciseCreated, DraftWorkout, ExerciseClearPreview, ExerciseInsight, HistoryPage, ImportDraft, ImportStatusView, ImportView, MuscleBalanceRange, MuscleBalanceView, Preferences, ProgressSummary, Program, ProgramDayActionInput, ProgramEditorDocument, ProgramSummary, ProgramWeekResetInput, RestMutationInput, Session, Template, TemplateSubstitutionResult, WatchDevice, WorkoutActivityItem } from '../types';
+import type { Bootstrap, CustomExerciseCreated, DraftWorkout, ExerciseClearPreview, ExerciseInsight, HistoryPage, ImportDraft, ImportStatusView, ImportView, MuscleBalanceRange, MuscleBalanceView, Preferences, ProgressSummary, Program, ProgramDayActionInput, ProgramEditInput, ProgramEditorDocument, ProgramSummary, ProgramWeekResetInput, RestMutationInput, Session, Template, TemplateSubstitutionResult, WatchDevice, WorkoutActivityItem } from '../types';
 
 export class ApiError extends Error {
   constructor(message: string, readonly status: number, readonly retryAfterMs: number | null = null) { super(message); }
@@ -165,6 +165,7 @@ export const api = {
   programs: () => call<ProgramSummary[]>('/api/programs'),
   getProgram: (id: string) => call<Program>(`/api/programs/${id}`),
   createProgram: (input: unknown) => call<Program>('/api/programs', 'POST', input),
+  updateProgramPlan: (id: string, input: ProgramEditInput) => call<Program>(`/api/programs/${id}/plan`, 'PUT', input),
   setProgramActive: (id: string, active: boolean, revision: number) => call<Program>(`/api/programs/${id}/active`, 'POST', { active, revision }),
   skipProgramWorkout: (id: string, templateId: string, input: ProgramDayActionInput) => call<Program>(`/api/programs/${id}/workouts/${templateId}/skip`, 'POST', input),
   passProgramRestDay: (id: string, templateId: string, input: ProgramDayActionInput) => call<Program>(`/api/programs/${id}/days/${templateId}/pass`, 'POST', input),

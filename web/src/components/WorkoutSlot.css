@@ -226,6 +226,17 @@
   box-shadow: var(--shadow);
 }
 
+.tiny-label.slot-progress-label {
+  padding: 3px 10px;
+  border-radius: var(--radius-pill);
+  font-size: var(--font-secondary);
+  font-weight: 650;
+  letter-spacing: -0.005em;
+  text-transform: none;
+  color: var(--on-accent);
+  background: var(--accent);
+}
+
 .tiny-label.slot-finished-label {
   padding: 3px 10px;
   border-radius: var(--radius-pill);
@@ -273,6 +284,11 @@
 
 .template-slot-day.completed-slot {
   opacity: .85;
+}
+
+.template-slot-day.in-progress {
+  border-color: var(--accent-border);
+  background: var(--accent-soft);
 }
 
 .template-slot-day-copy span {

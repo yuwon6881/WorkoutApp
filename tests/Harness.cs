@@ -40,7 +40,7 @@ public sealed class Harness : IAsyncDisposable
         var lifecycle = new ProgramLifecycleService(db, Templates, ProgramProgress);
         Programs = new ProgramService(db, Templates, ProgramProgress, lifecycle);
         ActiveSlot = new ActiveSlotService(db, Templates, lifecycle);
-        ProgramEditor = new ProgramEditorService(Programs);
+        ProgramEditor = new ProgramEditorService(Programs, db, Templates, ProgramProgress, lifecycle);
         Progression = new ProgressionService(db);
         Workouts = new WorkoutService(db, Catalog, Templates, Progression,
             new NutritionContextService(db, new TestHttpClientFactory(), config), Programs);

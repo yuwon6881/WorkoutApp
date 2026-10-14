@@ -42,10 +42,24 @@
 .program-week-day.next .program-week-name {
   font-weight: 700;
 }
+.program-week-day.in-progress {
+  border-color: var(--accent-border);
+  background: var(--accent-soft);
+}
+.program-week-day.in-progress.exercise-day:hover {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+}
+.program-week-day.in-progress .program-week-name {
+  font-weight: 700;
+}
 .program-day-marker {
   display: flex;
   color: var(--muted);
   flex: 0 0 20px;
+}
+.program-day-marker.in-progress {
+  color: var(--accent);
 }
 .program-day-marker.completed, .program-day-status.completed {
   color: var(--teal);
@@ -59,6 +73,14 @@
   border-radius: var(--radius-pill);
   color: var(--accent);
   background: var(--accent-soft);
+}
+/* The open workout is the loudest state: a solid accent pill rather than Next's soft one. */
+.program-day-status.in-progress {
+  padding: 3px 10px;
+  border-radius: var(--radius-pill);
+  font-weight: 650;
+  color: var(--on-accent);
+  background: var(--accent);
 }
 .program-week-day.passed {
   background: var(--surface);

@@ -17,11 +17,14 @@ export function ProgramStructureBar({ structure, readOnly = false }: { structure
     weeks, blocks, week, setSelectedWeek, selectedBlockIndex,
     totalDayCount, setWeekModalOpen, setDeleteConfirmWeek, setDeleteConfirmBlock, deleteBlock,
     setRenameBlock, setRenameValue, draggedWeek, setDraggedWeek, dropTarget, setDropTarget,
-    reorderWeeks, reorderBlocks, addBlock
+    reorderWeeks, reorderBlocks, addBlock, weekHasHistory, blockHasHistory, canAddWeekAfter
   } = structure;
 
   if (!week) return null;
   const atCapacity = weeks.length >= 104 || totalDayCount >= 400;
+  // A new week lands after the selected block's last week, which must not be before the week in progress.
+  const selectedBlockLast = blocks[selectedBlockIndex]?.weeks.at(-1);
+  const weekAddBlocked = atCapacity || !canAddWeekAfter(selectedBlockLast);
 
   return <div className="ptl-structure-bar">
     <div className="ptl-structure-row ptl-block-row">
@@ -31,6 +34,8 @@ export function ProgramStructureBar({ structure, readOnly = false }: { structure
           {blocks.map((block, index) => {
             const isSelected = block.id === week.blockId;
             const label = blockLabel(index);
+            const sealed = blockHasHistory(block);
+            const previousSealed = index > 0 && blockHasHistory(blocks[index - 1]);
             return <span key={block.id} role="presentation"
               className={`chip-group import-block-chip-group ${isSelected ? 'active' : 'chip-group-lone'} ptl-chip-group ptl-block-chip-group ${isSelected ? 'ptl-chip-active' : ''}`}>
               <Button presentation="plain" role="tab" aria-selected={isSelected}
@@ -39,18 +44,18 @@ export function ProgramStructureBar({ structure, readOnly = false }: { structure
                 {label}
               </Button>
               {isSelected && !readOnly && <MenuButton label={`Actions for ${label}`} triggerClassName="chip-icon-btn ptl-chip-action-btn ptl-chip-menu-btn" align="start" portal>
-                <MenuItem onClick={() => { setRenameValue(block.name); setRenameBlock({ id: block.id, name: block.name }); }}>
+                <MenuItem disabled={sealed} onClick={() => { setRenameValue(block.name); setRenameBlock({ id: block.id, name: block.name }); }}>
                   <Pencil size={14} />Rename block
                 </MenuItem>
-                <MenuItem disabled={selectedBlockIndex <= 0}
+                <MenuItem disabled={selectedBlockIndex <= 0 || sealed || previousSealed}
                   onClick={() => reorderBlocks(selectedBlockIndex, selectedBlockIndex - 1)}>
                   <ArrowUp size={14} />Move block earlier
                 </MenuItem>
-                <MenuItem disabled={selectedBlockIndex < 0 || selectedBlockIndex >= blocks.length - 1}
+                <MenuItem disabled={selectedBlockIndex < 0 || selectedBlockIndex >= blocks.length - 1 || sealed}
                   onClick={() => reorderBlocks(selectedBlockIndex, selectedBlockIndex + 1)}>
                   <ArrowDown size={14} />Move block later
                 </MenuItem>
-                <MenuItem destructive disabled={blocks.length <= 1} onClick={() => {
+                <MenuItem destructive disabled={blocks.length <= 1 || sealed} onClick={() => {
                   if (isBlockEmpty(block)) {
                     deleteBlock(block.id);
                   } else {
@@ -88,14 +93,15 @@ export function ProgramStructureBar({ structure, readOnly = false }: { structure
             dragging={draggedWeek === entry.week}
             dropSide={dropTarget?.week === entry.week && draggedWeek !== entry.week ? dropTarget.side : null}
             onSelect={() => setSelectedWeek(entry.week)}
-            onDelete={entry.week === week.week && weeks.length > 1
+            locked={weekHasHistory(entry)}
+            onDelete={entry.week === week.week && weeks.length > 1 && !weekHasHistory(entry)
               ? () => setDeleteConfirmWeek(entry.week)
               : undefined}
             onDragStart={() => { setDraggedWeek(entry.week); setDropTarget(null); }}
             onDragOver={(weekNumber, side) => setDropTarget({ week: weekNumber, side })}
             onDrop={(weekNumber, side) => reorderWeeks(draggedWeek ?? entry.week, weekNumber ?? dropTarget?.week ?? entry.week, side ?? dropTarget?.side ?? 'before')} />)}
           {!readOnly && <Button presentation="plain" className="chip-add-btn ptl-add-btn" aria-label="Add week"
-            disabled={atCapacity} onClick={() => setWeekModalOpen(true)}>
+            disabled={weekAddBlocked} onClick={() => setWeekModalOpen(true)}>
             <Plus size={15} />
             <span className="ptl-add-btn-label">Add week</span>
           </Button>}

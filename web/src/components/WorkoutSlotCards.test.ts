@@ -1,8 +1,9 @@
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
-import type { Exercise, ProgramSummary } from '../types';
+import type { Exercise, ProgramSummary, Template } from '../types';
 import { ActiveProgramCard } from './ActiveProgramCard';
+import { ActiveTemplateCard } from './ActiveTemplateCard';
 import { LibraryProgramCard } from './LibraryProgramCard';
 
 const sampleProgram: ProgramSummary = {
@@ -32,6 +33,7 @@ describe('WorkoutSlotCards expand/collapse states', () => {
       exercises: sampleExercises,
       onStart: () => {},
       onChanged: async () => {},
+      onEdit: () => {},
       hasActiveWorkout: false,
       actions: { busy: false, onMoveToLibrary: () => {}, onRestart: () => {}, onDelete: () => {} },
       dragProps: {},
@@ -49,6 +51,7 @@ describe('WorkoutSlotCards expand/collapse states', () => {
       exercises: sampleExercises,
       busy: false,
       onActivate: () => {},
+      onEdit: () => {},
       onDelete: () => {},
       dragProps: {},
       dragging: false
@@ -56,5 +59,28 @@ describe('WorkoutSlotCards expand/collapse states', () => {
 
     expect(markup).toContain('aria-expanded="false"');
     expect(markup).toContain('aria-label="Expand Hypertrophy Block"');
+  });
+});
+
+describe('ActiveTemplateCard in-progress state', () => {
+  const template = {
+    id: 't1', programId: null, name: 'Quick push', focus: '', note: '', week: 1, position: 0, revision: 1, active: true, activeCompletedAt: null,
+    exercises: [{ id: 'e1', name: 'Bench press', sets: [{ warmup: false }] }]
+  } as unknown as Template;
+  const render = (activeTemplateId: string | null) => renderToStaticMarkup(createElement(ActiveTemplateCard, {
+    template, onStart: () => {}, onEdit: () => {}, hasActiveWorkout: activeTemplateId !== null, activeTemplateId,
+    actions: { busy: false, onMoveToLibrary: () => {}, onRestart: () => {}, onDelete: () => {} }, dragProps: {}, moving: false
+  }));
+
+  it('badges the open workout and offers Continue', () => {
+    const markup = render('t1');
+    expect(markup).toContain('In progress');
+    expect(markup).toContain('template-slot-day in-progress');
+    expect(markup).toContain('aria-label="Continue Quick push"');
+  });
+
+  it('shows no badge when no workout, or another workout, is open', () => {
+    expect(render(null)).not.toContain('In progress');
+    expect(render('other')).not.toContain('In progress');
   });
 });

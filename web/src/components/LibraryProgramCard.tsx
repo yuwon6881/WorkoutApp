@@ -1,5 +1,5 @@
 import { useEffect, useState, type HTMLAttributes } from 'react';
-import { Trash2, Zap } from 'lucide-react';
+import { Pencil, Trash2, Zap } from 'lucide-react';
 import type { Exercise, ImportDraft, ProgramSummary } from '../types';
 import { ApiError, api } from '../lib/api';
 import { programToDraft } from '../lib/activeSlot';
@@ -8,13 +8,14 @@ import { DraftOutline } from './ImportDraftTree';
 import { SlotCardHeader } from './SlotCardHeader';
 
 /// A saved program waiting in the library: one line until expanded, then the same block and
-/// week timeline the builder uses, view-only. It carries no run state; that only exists while a
-/// program holds the active slot.
-export function LibraryProgramCard({ program, exercises, busy, onActivate, onDelete, dragProps, dragging }: {
+/// week timeline the builder uses, view-only; Edit program opens it in the editor. It carries no
+/// run state, so nothing in it is locked; that only exists while a program holds the active slot.
+export function LibraryProgramCard({ program, exercises, busy, onActivate, onEdit, onDelete, dragProps, dragging }: {
   program: ProgramSummary;
   exercises: Exercise[];
   busy: boolean;
   onActivate: () => void;
+  onEdit: () => void;
   onDelete: () => void;
   dragProps: HTMLAttributes<HTMLElement>;
   dragging: boolean;
@@ -52,6 +53,7 @@ export function LibraryProgramCard({ program, exercises, busy, onActivate, onDel
       menuLabel={`Actions for ${program.name}`}
       menu={<>
         <MenuItem disabled={busy} onClick={onActivate}><Zap size={14} />Make active</MenuItem>
+        <MenuItem disabled={busy} onClick={onEdit}><Pencil size={14} />Edit program</MenuItem>
         <MenuItem destructive disabled={busy} onClick={onDelete}><Trash2 size={14} />Delete program</MenuItem>
       </>} />
     {expanded && loading && <p className="muted small-copy" role="status">Loading program…</p>}

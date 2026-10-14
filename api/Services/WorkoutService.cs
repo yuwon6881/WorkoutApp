@@ -590,7 +590,9 @@ public sealed partial class WorkoutService(
                 .Select(w => w.TemplateId!.Value).ToHashSetAsync(ct);
             var skipped = await db.ProgramSkips.Where(s => templatesInPhase.Select(t => t.ProgramId).Contains(s.ProgramId))
                 .Select(s => s.TemplateId).ToHashSetAsync(ct);
-            var targets = templatesInPhase.Where(t => !completed.Contains(t.Id) && !skipped.Contains(t.Id) && t.Id != currentTemplateId).ToList();
+            var locks = await ProgramLockState.Load(db, phase.ProgramId, ct);
+            var targets = templatesInPhase.Where(t => !completed.Contains(t.Id) && !skipped.Contains(t.Id) && t.Id != currentTemplateId
+                && !locks.IsLocked(t)).ToList();
             var targetIds = targets.Select(t => t.Id).ToList();
             var slotRows = (await db.TemplateExercises.Where(e => targetIds.Contains(e.TemplateId) &&
                     (e.SlotKey == swap.SourceSlotKey || (sourcePosition.HasValue && e.Position == sourcePosition.Value))).ToListAsync(ct))

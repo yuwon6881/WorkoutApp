@@ -1,4 +1,5 @@
 using System.Text;
+using Workout.Api.Data;
 using Workout.Api.Domain;
 
 namespace Workout.Api.Services;
@@ -7,7 +8,8 @@ public sealed record ProgramEditorCreateInput(ImportDraft Draft, Guid? Idempoten
 
 /// Validation and one-shot materialization for a program authored in the builder. The document is
 /// held in the browser until the lifter asks for the program, so nothing half-built is stored.
-public sealed class ProgramEditorService(ProgramService programs)
+public sealed partial class ProgramEditorService(ProgramService programs, AppDb db, TemplateService templates,
+    ProgramProgressService progress, ProgramLifecycleService lifecycle)
 {
     private const int MaxJsonBytes = 1_048_576;
 

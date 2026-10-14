@@ -1,4 +1,4 @@
-import type { DraftSet, DraftWorkout, ImportDraft, Program, ProgramSummary, SetPrescription, Template } from '../types';
+import type { DraftExercise, DraftSet, DraftWorkout, ImportDraft, Program, ProgramSummary, SetPrescription, Template } from '../types';
 
 /// The active slot holds one program or one standalone workout. Library items carry no run
 /// state: leaving the slot forgets progress, so only the active holder is ever "in progress".
@@ -90,6 +90,23 @@ export function templateToDraft(day: Template): DraftWorkout {
   };
 }
 
+/// One exercise as the server stores it. Day saves and whole-program saves send the same shape.
+export function templateExerciseInput(exercise: DraftExercise) {
+  return {
+    exerciseId: exercise.exerciseId,
+    sourceName: exercise.sourceName,
+    note: exercise.notes || null,
+    sets: exercise.sets,
+    sequenceGroup: exercise.sequenceGroup || null,
+    substitutions: exercise.substitutions ?? [],
+    sourcePage: exercise.sourcePage ?? null,
+    slotKey: exercise.slotKey ?? null,
+    restSeconds: exercise.restSeconds ?? null,
+    demoUrl: exercise.demoUrl ?? null,
+    demoLinks: exercise.demoLinks ?? null
+  };
+}
+
 /// The template update that saves one edited program day, keeping its revision check.
 export function dayTemplateInput(day: DraftWorkout, revision: number) {
   return {
@@ -102,19 +119,7 @@ export function dayTemplateInput(day: DraftWorkout, revision: number) {
     isRestDay: day.isRestDay,
     revision,
     idempotencyId: crypto.randomUUID(),
-    exercises: day.exercises.map(exercise => ({
-      exerciseId: exercise.exerciseId,
-      sourceName: exercise.sourceName,
-      note: exercise.notes || null,
-      sets: exercise.sets,
-      sequenceGroup: exercise.sequenceGroup || null,
-      substitutions: exercise.substitutions ?? [],
-      sourcePage: exercise.sourcePage ?? null,
-      slotKey: exercise.slotKey ?? null,
-      restSeconds: exercise.restSeconds ?? null,
-      demoUrl: exercise.demoUrl ?? null,
-      demoLinks: exercise.demoLinks ?? null
-    }))
+    exercises: day.exercises.map(templateExerciseInput)
   };
 }
 

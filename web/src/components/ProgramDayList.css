@@ -476,3 +476,13 @@
   text-overflow: clip;
   overflow-wrap: anywhere;
 }
+
+/* A day the active run has already passed: visible, but marked as history. */
+.pdl-lock-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--font-secondary);
+  font-weight: 620;
+  color: var(--muted);
+}

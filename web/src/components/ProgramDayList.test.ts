@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { ProgramDayList } from './ProgramDayList';
 import type { ProgramStructureEditor } from './useProgramStructureEditor';
 import type { DraftWorkout, Exercise } from '../types';
+import { NO_LOCKS } from '../lib/programEditLocks';
 
 describe('ProgramDayList', () => {
   it('renders days and handles open day modal structure', () => {
@@ -37,7 +38,10 @@ describe('ProgramDayList', () => {
       reorderDay: vi.fn(),
       moveDayTo: vi.fn(),
       setDeleteConfirmDay: vi.fn(),
-      addDay: vi.fn()
+      addDay: vi.fn(),
+      locks: NO_LOCKS,
+      isDayLocked: () => false,
+      weekSealed: () => false
     } as unknown as ProgramStructureEditor;
 
     const exercises: Exercise[] = [];

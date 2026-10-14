@@ -137,23 +137,34 @@ function locate(draft: ImportDraft, lineId: string): { workout: DraftWorkout; ex
 /// The other occurrences of the exercise as it was saved. A placeholder ("your choice") is a
 /// single decision for the whole program, so the server key already spans blocks; the block
 /// scope still narrows it to the block being edited.
-export function findOccurrences(draft: ImportDraft, base: DraftExercise, scope: EditScope): Occurrence[] {
+export function findOccurrences(
+  draft: ImportDraft,
+  base: DraftExercise,
+  scope: EditScope,
+  /// Days an edit must never reach, such as days an activated program has already passed.
+  frozenDayIds?: ReadonlySet<string>
+): Occurrence[] {
   if (scope === 'occurrence') return [];
   const home = locate(draft, base.lineId);
   if (!home) return [];
   const key = movementKey(base);
   const block = blockOf(home.workout);
-  return draft.workouts.flatMap(workout => workout.isRestDay || (scope === 'block' && blockOf(workout) !== block)
+  return draft.workouts.flatMap(workout => workout.isRestDay || frozenDayIds?.has(workout.lineId)
+    || (scope === 'block' && blockOf(workout) !== block)
     ? []
     : workout.exercises
       .filter(exercise => exercise.lineId !== base.lineId && movementKey(exercise) === key)
       .map(exercise => ({ workoutLineId: workout.lineId, exercise })));
 }
 
-export function countOccurrences(draft: ImportDraft, base: DraftExercise): { block: number; program: number } {
+export function countOccurrences(
+  draft: ImportDraft,
+  base: DraftExercise,
+  frozenDayIds?: ReadonlySet<string>
+): { block: number; program: number } {
   return {
-    block: findOccurrences(draft, base, 'block').length,
-    program: findOccurrences(draft, base, 'program').length
+    block: findOccurrences(draft, base, 'block', frozenDayIds).length,
+    program: findOccurrences(draft, base, 'program', frozenDayIds).length
   };
 }
 
@@ -207,10 +218,11 @@ export function applyExerciseEdit(
   base: DraftExercise,
   edited: DraftExercise,
   scope: EditScope,
-  library: Exercise[]
+  library: Exercise[],
+  frozenDayIds?: ReadonlySet<string>
 ): ImportDraft {
   const change = diffExercise(base, edited);
-  const reached = new Map(change ? findOccurrences(draft, base, scope).map(item => [item.exercise.lineId, item.exercise]) : []);
+  const reached = new Map(change ? findOccurrences(draft, base, scope, frozenDayIds).map(item => [item.exercise.lineId, item.exercise]) : []);
   return {
     ...draft,
     workouts: draft.workouts.map(workout => ({

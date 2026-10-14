@@ -1,13 +1,15 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { CheckCircle2, Circle, ChevronRight, Play, SkipForward } from 'lucide-react';
+import { CheckCircle2, Circle, CirclePlay, ChevronRight, Play, SkipForward } from 'lucide-react';
 import type { DraftWorkout, Exercise, ImportDraft, ProgramProgressDay, ProgramSummary } from '../types';
 import { ApiError, api } from '../lib/api';
 import { dayTitle, isGenericDayTitle } from '../lib/dayTitle';
+import { dayRowState, inProgressDayId, nextDayId as findNextDayId } from '../lib/programDayState';
 import { applyExerciseEdit, countOccurrences, type ExerciseEditing, type UnsavedExercise } from '../lib/exerciseEditScope';
 import { Button } from './ui/Button';
 import { Modal } from './ui/Modal';
 import { MenuButton, MenuItem } from './ui/MenuButton';
 import { DayDetailContent } from './ImportDayRow';
+import { ReadOnlyDay } from './ReadOnlyDay';
 import { DayEditor } from './ImportDayEditor';
 import './ProgramWeekChecklist.css';
 
@@ -48,7 +50,9 @@ export function ProgramWeekChecklist({
 
   const progress = program.progress;
   const days = progress?.days ?? [];
-  const nextDayId = days.find(day => day.status === 'pending' && !optimisticPassed.has(day.templateId))?.templateId;
+  // The open workout's day reads as in progress; Next moves on to the day after it.
+  const runningDayId = inProgressDayId(days, activeTemplateId, hasActiveWorkout);
+  const nextDayId = findNextDayId(days, optimisticPassed, runningDayId);
   const dayDetails = useMemo(() => new Map(program.days.map(day => [day.id, day])), [program.days]);
   const currentDays = useMemo(() => progress ? program.days.filter(day => day.week === progress.currentWeek) : program.days, [program.days, progress]);
 
@@ -82,16 +86,24 @@ export function ProgramWeekChecklist({
     setLocalDraft(nextDraft);
   }, [onDraftChange]);
 
+  // Days already passed, and every day of an earlier week, are history: an edit to the same
+  // movement elsewhere never reaches them.
+  const frozenDayIds = useMemo(() => {
+    const frozen = new Set(days.filter(day => day.status !== 'pending').map(day => day.templateId));
+    if (progress) for (const day of program.days) if (day.week < progress.currentWeek) frozen.add(day.id);
+    return frozen;
+  }, [days, program.days, progress]);
+
   const editing = useMemo<ExerciseEditing>(() => ({
     save: async (base, edited, scope) => {
       if (!localDraft) return;
-      const nextDraft = applyExerciseEdit(localDraft, base, edited, scope, exercises);
+      const nextDraft = applyExerciseEdit(localDraft, base, edited, scope, exercises, frozenDayIds);
       await handleDraftChange(nextDraft);
     },
-    count: base => localDraft ? countOccurrences(localDraft, base) : { block: 1, program: 1 },
+    count: base => localDraft ? countOccurrences(localDraft, base, frozenDayIds) : { block: 1, program: 1 },
     keepWrittenName: false,
     unsaved: unsaved.current
-  }), [exercises, handleDraftChange, localDraft]);
+  }), [exercises, frozenDayIds, handleDraftChange, localDraft]);
 
   const closeModal = useCallback(() => {
     if (unsaved.current.size > 0) {
@@ -210,13 +222,14 @@ export function ProgramWeekChecklist({
             </div>;
           }
 
+          const state = dayRowState(day, nextDayId, runningDayId);
           return <div
-            className={`program-week-day exercise-day ${passed ? 'passed' : ''} ${day.templateId === nextDayId ? 'next' : ''}`}
+            className={`program-week-day exercise-day ${passed ? 'passed' : ''} ${state === 'next' ? 'next' : ''} ${state === 'in-progress' ? 'in-progress' : ''}`.replace(/\s+/g, ' ').trim()}
             key={day.templateId}
             role="button"
             tabIndex={0}
             aria-label={`View ${info.name}`}
-            aria-description={day.status === 'completed' ? 'Completed' : day.status === 'skipped' ? 'Skipped' : day.templateId === nextDayId ? 'Next workout' : 'Upcoming workout'}
+            aria-description={state === 'completed' ? 'Completed' : state === 'skipped' ? 'Skipped' : state === 'in-progress' ? 'Workout in progress' : state === 'next' ? 'Next workout' : 'Upcoming workout'}
             onClick={() => { setSelectedMuscle(null); setOpenDay(day); }}
             onKeyDown={e => {
               if (e.key === 'Enter' || e.key === ' ') {
@@ -227,17 +240,18 @@ export function ProgramWeekChecklist({
             }}
           >
             <div className="program-week-check">
-              <span className={`program-day-marker ${day.status === 'completed' ? 'completed' : ''}`} aria-hidden="true">
-                {day.status === 'completed' ? <CheckCircle2 size={20} /> : day.status === 'skipped' ? <SkipForward size={18} /> : <Circle size={20} />}
+              <span className={`program-day-marker ${state === 'completed' ? 'completed' : ''} ${state === 'in-progress' ? 'in-progress' : ''}`.trim()} aria-hidden="true">
+                {state === 'completed' ? <CheckCircle2 size={20} /> : state === 'skipped' ? <SkipForward size={18} /> : state === 'in-progress' ? <CirclePlay size={20} /> : <Circle size={20} />}
               </span>
               <div className="program-week-info">
                 <span className="program-week-name">{info.name}</span>
               </div>
             </div>
             <div className="program-week-status-col">
-              {day.status === 'completed' && <span className="program-day-status completed">Done</span>}
-              {day.status === 'skipped' && <span className="program-day-status">Skipped</span>}
-              {day.templateId === nextDayId && <span className="program-day-status next">Next</span>}
+              {state === 'completed' && <span className="program-day-status completed">Done</span>}
+              {state === 'skipped' && <span className="program-day-status">Skipped</span>}
+              {state === 'in-progress' && <span className="program-day-status in-progress">In progress</span>}
+              {state === 'next' && <span className="program-day-status next">Next</span>}
               {day.status === 'pending' && <ChevronRight className="program-week-chevron muted" size={16} aria-hidden="true" />}
             </div>
           </div>;
@@ -270,7 +284,9 @@ export function ProgramWeekChecklist({
         }
       >
         <div className="modal-body day-detail-modal-body draft-day" data-import-day={openDay.templateId}>
-          {openDayWorkout ? (
+          {openDayWorkout && openDay.status !== 'pending' ? (
+            <ReadOnlyDay day={openDayWorkout} exercises={exercises} selectedMuscle={selectedMuscle} onMuscleSelect={setSelectedMuscle} />
+          ) : openDayWorkout ? (
             <DayDetailContent
               day={openDayWorkout}
               exercises={exercises}

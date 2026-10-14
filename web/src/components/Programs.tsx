@@ -8,6 +8,7 @@ import { Button } from './ui/Button';
 import { MenuButton, MenuItem } from './ui/MenuButton';
 import { WorkoutEditorModal, type WorkoutDraft } from './WorkoutEditorModal';
 import { ProgramBuilderPage } from './ProgramBuilderPage';
+import { ProgramEditPage } from './ProgramEditPage';
 import { RoutineCard } from './RoutineCard';
 import { ActiveProgramCard, type SlotCardActions } from './ActiveProgramCard';
 import { ActiveTemplateCard } from './ActiveTemplateCard';
@@ -28,6 +29,7 @@ export function Programs({ data, exercises, onStart, onImport, onChanged, ensure
   const [draft, setDraft] = useState<WorkoutDraft | null>(null);
   const [busy, setBusy] = useState(false);
   const [building, setBuilding] = useState(false);
+  const [editingProgramId, setEditingProgramId] = useState<string | null>(null);
 
   const rawActiveProgram = data.programs.find(program => program.active) ?? null;
   const rawActiveTemplate = data.templates.find(template => template.active) ?? null;
@@ -172,6 +174,11 @@ export function Programs({ data, exercises, onStart, onImport, onChanged, ensure
       onCreated={async () => { await onChanged(); }} />;
   }
 
+  if (editingProgramId) {
+    return <ProgramEditPage programId={editingProgramId} exercises={exercises} activeTemplateId={activeTemplateId}
+      onBack={() => setEditingProgramId(null)} onSaved={handleChanged} />;
+  }
+
   return <>
     <div className="pp-workouts-page">
       <div className="page-heading">
@@ -223,6 +230,7 @@ export function Programs({ data, exercises, onStart, onImport, onChanged, ensure
         <ActiveSlotDropZone over={drag?.overZone === 'active' && drag.from === 'library'} occupied={Boolean(displayHolder)}
           hasLibrary={libraryCount > 0} onNewWorkout={() => open()} onImport={onImport}>
           {displayHolder?.kind === 'program' && <ActiveProgramCard key={displayHolder.program.id} program={displayHolder.program} exercises={exercises} onStart={onStart} onChanged={onChanged}
+            onEdit={() => setEditingProgramId(displayHolder.program.id)}
             hasActiveWorkout={hasActiveWorkout} activeTemplateId={activeTemplateId} actions={cardActions(displayHolder)} dragProps={dragProps(displayHolder, 'active')}
             moving={movingId === displayHolder.program.id} dragging={draggingId === slotItemId(displayHolder)} />}
           {displayHolder?.kind === 'template' && <ActiveTemplateCard key={displayHolder.template.id} template={displayHolder.template} onStart={() => onStart(displayHolder.template.id)}
@@ -240,7 +248,7 @@ export function Programs({ data, exercises, onStart, onImport, onChanged, ensure
           {libraryPrograms.map(program => {
             const item: SlotItem = { kind: 'program', program };
             return <LibraryProgramCard key={program.id} program={program} exercises={exercises} busy={slot.busy}
-              onActivate={() => slot.activate(item)} onDelete={() => slot.remove(item)} dragProps={dragProps(item, 'library')} dragging={draggingId === slotItemId(item)} />;
+              onActivate={() => slot.activate(item)} onEdit={() => setEditingProgramId(program.id)} onDelete={() => slot.remove(item)} dragProps={dragProps(item, 'library')} dragging={draggingId === slotItemId(item)} />;
           })}
         </div>}
         {libraryTemplates.length ? <div className="routine-library-list">{libraryTemplates.map(template => {

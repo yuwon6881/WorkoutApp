@@ -15,7 +15,7 @@ public sealed partial class WorkoutService
     private sealed record PlanEdit(SessionExercise Exercise, TemplateExercise Home, WorkoutTemplate Day,
         PrescriptionDelta Sets, bool Library, bool Note, bool Rest);
     private sealed record FinishPlan(List<PlanEdit> Edits, List<WorkoutTemplate> Days, List<TemplateExercise> Rows,
-        FinishPlanPreview Preview);
+        FinishPlanPreview Preview, ProgramLockState Locks);
 
     public async Task<FinishPlanPreview> PreviewFinishPlan(Guid id, CancellationToken ct)
     {
@@ -33,6 +33,8 @@ public sealed partial class WorkoutService
         var days = program is null ? [] : await db.Templates.Where(t => t.ProgramId == program.Id && !t.IsRestDay).ToListAsync(ct);
         var dayIds = days.Select(d => d.Id).ToList();
         var rows = await db.TemplateExercises.Where(e => dayIds.Contains(e.TemplateId)).ToListAsync(ct);
+        // Days the run has already passed are history; a finished workout never rewrites them.
+        var locks = program is null ? ProgramLockState.Unlocked : await ProgramLockState.Load(db, program.Id, ct);
         var exercises = await db.SessionExercises.Where(e => e.SessionId == session.Id).OrderBy(e => e.Position).ToListAsync(ct);
         var edits = new List<PlanEdit>();
         foreach (var exercise in exercises.Where(e => e.SourceTemplateExerciseId is not null && e.BaselineJson.Length > 0))
@@ -54,7 +56,7 @@ public sealed partial class WorkoutService
         var changes = new HashSet<string>();
         foreach (var edit in edits)
         {
-            foreach (var row in Targets(edit, rows, days, "program"))
+            foreach (var row in Targets(edit, rows, days, "program", locks))
             {
                 affectedDays.Add(row.TemplateId);
                 if (row.Id == edit.Home.Id) continue;
@@ -71,14 +73,15 @@ public sealed partial class WorkoutService
         var preview = new FinishPlanPreview(edits.Select(e => new FinishPlanEditView(e.Exercise.NameSnapshot)).ToList(),
             new(block, total), changes.ToList(), hash, program?.Revision ?? 0,
             days.Where(d => affectedDays.Contains(d.Id)).ToDictionary(d => d.Id, d => d.Revision));
-        return new(edits, days, rows, preview);
+        return new(edits, days, rows, preview, locks);
     }
 
     private static IEnumerable<TemplateExercise> Targets(PlanEdit edit, List<TemplateExercise> rows,
-        List<WorkoutTemplate> days, string scope)
+        List<WorkoutTemplate> days, string scope, ProgramLockState locks)
     {
         var key = ImportValidation.MovementKey(edit.Home.SourceName);
-        var allowed = days.Where(d => scope == "program" || d.Block == edit.Day.Block).Select(d => d.Id).ToHashSet();
+        var allowed = days.Where(d => (scope == "program" || d.Block == edit.Day.Block) && (d.Id == edit.Day.Id || !locks.IsLocked(d)))
+            .Select(d => d.Id).ToHashSet();
         return rows.Where(row => allowed.Contains(row.TemplateId) &&
             (row.Id == edit.Home.Id || ImportValidation.MovementKey(row.SourceName) == key));
     }
@@ -94,7 +97,7 @@ public sealed partial class WorkoutService
             "A program day changed. Review the program update again.", 409);
         var changed = new HashSet<Guid>();
         foreach (var edit in plan.Edits)
-        foreach (var row in Targets(edit, plan.Rows, plan.Days, input.Scope))
+        foreach (var row in Targets(edit, plan.Rows, plan.Days, input.Scope, plan.Locks))
         {
             if (edit.Library)
             {

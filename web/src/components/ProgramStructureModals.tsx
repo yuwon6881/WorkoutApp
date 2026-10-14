@@ -15,7 +15,7 @@ export function ProgramStructureModals({ structure }: { structure: ProgramStruct
     deleteConfirmBlock, setDeleteConfirmBlock, deleteBlock,
     deleteConfirmDay, setDeleteConfirmDay, deleteDay,
     restConfirmDay, setRestConfirmDay, confirmRestConversion,
-    deleteConfirmWeek, setDeleteConfirmWeek, deleteWeek
+    deleteConfirmWeek, setDeleteConfirmWeek, deleteWeek, canAddWeekAfter
   } = structure;
 
   if (!week) return null;
@@ -30,6 +30,7 @@ export function ProgramStructureModals({ structure }: { structure: ProgramStruct
       currentWeekNumber={week.week}
       blockName={week.block || `Block ${selectedBlock}`}
       phaseName={week.phases[0]}
+      duplicateDisabled={!canAddWeekAfter(week)}
     />
     {renameBlock && (
       <Modal title="Rename block" onClose={() => setRenameBlock(null)}>
