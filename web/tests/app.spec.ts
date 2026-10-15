@@ -555,9 +555,10 @@ test('build a workout, log a set against the server, and see it in history', asy
     // Other projects leave their own workouts behind, so start the one this test just built.
     const startBtn = page.locator('.routine-card').filter({ hasText: name }).getByRole('button', { name: 'Start workout', exact: true });
     await startBtn.evaluate(el => el.scrollIntoView({ block: 'center', inline: 'nearest' }));
-    // Start begins the workout straight away, with no second confirmation.
+    // Start shows the plan first; starting from that preview begins the workout.
     await startBtn.click({ force: true });
     await expect(page.getByRole('dialog', { name: `Start ${name}?`, exact: true })).toHaveCount(0);
+    await page.getByRole('dialog', { name, exact: true }).getByRole('button', { name: 'Start workout', exact: true }).click();
     const logger = page.getByRole('dialog', { name, exact: true });
     await expect(logger).toBeVisible();
 
@@ -735,6 +736,7 @@ test('build a workout, log a set against the server, and see it in history', asy
       return Promise.all(document.getAnimations().map(a => a.finished));
     });
     await againStartBtn.click({ force: true });
+    await page.getByRole('dialog', { name, exact: true }).getByRole('button', { name: 'Start workout', exact: true }).click();
     const again = page.getByRole('dialog', { name, exact: true });
     // The target column shows the progression target the inputs are filled with, at the plan's
     // effort; last time's sets live in the targets modal, so there is no separate past-sets list.

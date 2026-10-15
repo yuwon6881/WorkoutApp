@@ -178,6 +178,16 @@ export default function App() {
     await beginWorkout(templateId);
   }
 
+  /// A Start button always shows the plan first, like opening the day; an open or unresolved
+  /// session skips the preview because there is nothing to choose between.
+  function previewWorkout(templateId: string) {
+    const hasOpenSession = Boolean(data!.activeWorkout?.active)
+      || Boolean(recovery && recovery.accountId === data!.account.id && hasUnresolvedRecovery(recovery));
+    if (hasOpenSession || starting) { void start(templateId); return; }
+    setActionError('');
+    setPreview({ id: templateId, name: planName(data!, templateId) });
+  }
+
   const dockAction: DockAction = workoutSession?.active ? 'resume' : nextWorkout(data) ? 'start' : 'choose';
   /// A dock action previews the next plan; an open workout continues immediately.
   function runDockAction() {
@@ -353,9 +363,9 @@ export default function App() {
         <Suspense fallback={<ViewSkeleton label={NAV.find(item => item.id === tab)?.label ?? (tab === 'import' ? 'Import' : 'Settings')} />}>
         {tab === 'overview' && <Dashboard data={data} onProgram={() => setTab('program')}
             onImport={openImport} onSession={setDetail} onResume={() => setTraining(true)} onChanged={app.reload}
-            onExercise={id => { void openExercise(id); }} onStart={start} />}
+            onExercise={id => { void openExercise(id); }} onStart={previewWorkout} />}
         {!resourcesReady && <ViewSkeleton label={NAV.find(item => item.id === tab)?.label ?? 'Loading'} />}
-        {resourcesReady && tab === 'program' && <Programs data={data} exercises={data.exercises} onStart={start} onImport={openImport} onChanged={app.reload}
+        {resourcesReady && tab === 'program' && <Programs data={data} exercises={data.exercises} onStart={start} onPreview={previewWorkout} onImport={openImport} onChanged={app.reload}
           ensureResources={app.ensureResources}
           onTemplateSaved={saved => app.setData(current => acknowledgeTemplate(current, saved.id, saved))}
           onTemplateDeleted={id => app.setData(current => acknowledgeTemplate(current, id, null))} />}

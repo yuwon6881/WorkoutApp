@@ -2,7 +2,9 @@ import { useEffect, useRef, useState } from 'react';
 import type { Exercise, LoggedSet, Preferences, RestMutationInput, Session, SessionRest } from '../types';
 import { ApiError, api } from '../lib/api';
 import type { SaveQueue } from '../lib/queue';
-import { completedSets, finishBlocker, plannedSets } from '../lib/training';
+import { completedSets, defaultLoadStepKg, finishBlocker, plannedSets } from '../lib/training';
+import { withLiveAdjustment, type FilledInputsLog } from '../lib/liveAdjustment';
+import { useTrackRir } from '../lib/trackRir';
 import { exerciseListChanged, indexAfterMove, loadIsEditable, withExerciseMoved, withServerFlags } from '../lib/workoutDraft';
 import { firstOpenExercise, nextUpText, type AdvanceOptions } from '../lib/workoutLogging';
 import { useAfterLog } from './useAfterLog';
@@ -73,6 +75,9 @@ export function Workout({
   const serverSession = useRef(recovery?.serverSession ?? session);
   const revision = useRef(serverSession.current.revision);
   const setToggleGenerations = useRef(new Map<string, number>());
+  // What the logger last filled into each later set, so a typed value is never overwritten.
+  const filledInputs = useRef<FilledInputsLog>(new Map());
+  const trackRir = useTrackRir();
   const { celebration, afterLog } = useAfterLog({
     unit: preferences.unit, advance, onAdvance: index => selectExercise(index)
   });
@@ -178,13 +183,20 @@ export function Workout({
     const exercise = draft.exercises[ei];
     // A bodyweight movement has no load: its name, not a per-set choice, decides that.
     if ('weightKg' in patch && (!exercise || !loadIsEditable(exercise))) return false;
-    const next = {
+    const edited = {
       ...draft,
       exercises: draft.exercises.map((e, i) =>
         i === ei ? { ...e, sets: e.sets.map((s, j) => (j === si ? { ...s, ...patch } : s)) } : e
       )
     };
+    // The sets after a logged one follow how it went, so they are saved in the same step.
+    const next = isLoggedResultEdit(patch) ? withLiveAdjustment(edited, ei, si, loadGridFor(exercise), trackRir, filledInputs.current) : edited;
     return change(next, { setId: exercise.sets[si].id, patch }, restMutation, restState);
+  }
+
+  function loadGridFor(exercise: Session['exercises'][number]) {
+    const library = exercises.find(item => item.id === exercise.exerciseId);
+    return { stepKg: library?.loadStepKg ?? defaultLoadStepKg(preferences.unit), availableLoadsKg: library?.availableLoadsKg ?? null };
   }
 
   async function toggle(ei: number, si: number) {
@@ -481,3 +493,7 @@ export function Workout({
     </Modal>
   );
 }
+
+/// Logging a set, or correcting one that is logged, can move the sets after it.
+const isLoggedResultEdit = (patch: Partial<LoggedSet>): boolean =>
+  patch.done === true || 'weightKg' in patch || 'reps' in patch || 'rpe' in patch || 'rir' in patch;

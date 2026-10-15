@@ -555,7 +555,8 @@ for (const theme of ['dark', 'light']) {
 
     await navigate(page, 'Workouts');
     await page.locator('.routine-card').filter({ hasText: workoutName }).getByRole('button', { name: 'Start workout', exact: true }).first().click();
-    await expect(page.getByRole('dialog', { name: workoutName, exact: true })).toBeVisible();
+    await page.getByRole('dialog', { name: workoutName, exact: true }).getByRole('button', { name: 'Start workout', exact: true }).click();
+    await expect(page.getByRole('dialog', { name: workoutName, exact: true }).locator('.workout-set-row').first()).toBeVisible();
     await screenshot('workout-logger');
     await page.getByRole('button', { name: 'Add another exercise to this workout', exact: true }).click();
     await screenshot('logger-picker');
