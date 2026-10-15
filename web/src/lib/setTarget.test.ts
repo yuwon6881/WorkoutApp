@@ -56,7 +56,7 @@ describe('setTarget', () => {
     const unknownReps = plan({ repMin: null, repMax: null });
     expect(setTarget(set({ suggestion: null }), unknownReps, barbell, 'kg', true).reps).toBe('2 RIR');
     expect(setTarget(set({ suggestion: null }), { ...unknownReps, rir: null }, barbell, 'kg', true).reps).toBe('Default 2 RIR');
-    expect(setTarget(set(), { ...unknownReps, rir: null }, barbell, 'kg', true).reps).toBe('—');
+    expect(setTarget(set(), { ...unknownReps, rir: null }, barbell, 'kg', true).reps).toBe('Default 2 RIR');
     expect(setTarget(set(), unknownReps, barbell, 'kg', false).reps).toBe('—');
     expect(setTarget(set({ suggestion: null, warmup: true }), { ...unknownReps, warmup: true }, barbell, 'kg', true).reps).toBe('—');
   });
@@ -91,8 +91,9 @@ describe('setTarget', () => {
     expect(setTarget(set(), plan(), barbell, 'lb', false)).toMatchObject({ reps: '9', load: '110.23 lb' });
   });
 
-  it('leaves out an effort the program never states', () => {
-    expect(setTarget(set(), plan({ rir: null, targetRpe: null }), barbell, 'kg', true).reps).toBe('9');
+  it('names the default effort when the program states none, so the prefilled RIR is explained', () => {
+    expect(setTarget(set(), plan({ rir: null, targetRpe: null }), barbell, 'kg', true).reps).toBe('9 · Default 2 RIR');
+    expect(setTarget(set(), plan({ rir: null, targetRpe: null }), barbell, 'kg', false).reps).toBe('9');
   });
 
   it('shows a technique set at the straight-set load its suggestion follows', () => {

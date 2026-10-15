@@ -112,10 +112,12 @@ export const showRepEffortTarget = (reps: string, effort: string | null): string
   return reps === '—' ? effort : `${reps} · ${effort}`;
 };
 
+export const DEFAULT_EFFORT_TARGET = 'Default 2 RIR';
+
 export const showTarget = (set: SetPrescription, trackRir = true): string => {
   const reps = showReps(set);
   if (!trackRir) return reps;
-  const effort = targetRirLabel(set) ?? (set.warmup ? null : 'Default 2 RIR');
+  const effort = targetRirLabel(set) ?? (set.warmup ? null : DEFAULT_EFFORT_TARGET);
   return showRepEffortTarget(reps, effort);
 };
 

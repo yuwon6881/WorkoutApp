@@ -32,6 +32,7 @@ describe('WorkoutSlotCards expand/collapse states', () => {
       program: sampleProgram,
       exercises: sampleExercises,
       onStart: () => {},
+      onPreview: () => {},
       onChanged: async () => {},
       onEdit: () => {},
       hasActiveWorkout: false,

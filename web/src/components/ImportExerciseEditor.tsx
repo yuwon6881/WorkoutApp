@@ -333,7 +333,7 @@ export function ExerciseEditor({ exercise: saved, exercises, allDayExercises, re
               <Trash2 size={15} /><span className="sr-only">Delete</span>
             </Button>;
             return <li className={`import-set ${set.warmup ? 'warmup-row' : ''}`} key={index}>
-              <SwipeableRow className="import-set-swipe-row" actions={remove} desktopActions={remove} actionsWidth={72} peek={index === 0} actionsLabel={`Actions for ${set.warmup ? 'warm-up' : 'set'} ${setDisplayNumber}`}>
+              <SwipeableRow className="import-set-swipe-row" actions={remove} desktopActions={remove} actionsWidth={72} actionsLabel={`Actions for ${set.warmup ? 'warm-up' : 'set'} ${setDisplayNumber}`}>
                 <div className="import-set-content set-grid-row iex-set-row" data-import-set-index={index}>
                   <div className="import-set-heading">
                     <SetTypeSelect

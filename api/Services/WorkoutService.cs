@@ -152,6 +152,7 @@ public sealed partial class WorkoutService(
             var histories = await PreviousExposuresBatch(planned.Select(p => (p.ExerciseId, p.SourceName)), ct);
             var timed = await CatalogService.TrackingModesFor(db, planned.Select(p => p.ExerciseId), ct);
             var userUnit = await LoadRuleReader.AccountUnit(db, ct);
+            var tracksRir = await db.Users.Where(u => u.Id == db.CurrentUser).Select(u => u.TrackRir).SingleAsync(ct);
             foreach (var plan in planned)
             {
                 var prescription = Json.Read<List<SetPrescription>>(plan.SetsJson);
@@ -210,11 +211,14 @@ public sealed partial class WorkoutService(
                             plan.ExerciseId is { } loadId ? info.GetValueOrDefault(loadId)?.AvailableLoadsKg : null, lastTrained)));
                     if (SetTechniques.Of(planSet) is null) straightSuggestion = suggestion;
                     firstSuggestion ??= suggestion;
+                    // Effort is filled in only where history already fills in the load and reps.
+                    var effort = tracksRir && (suggestion.SourceSessionId is not null || suggestion.SourceDate is not null)
+                        ? EffortPrefill.For(planSet) : null;
                     db.Sets.Add(new CompletedSet
                     {
                         UserId = session.UserId, SessionExerciseId = exercise.Id, Position = index,
                         WorkingSetOrdinal = workingOrdinal, WeightKg = suggestion.SuggestedLoadKg,
-                        Reps = Progression.PrefillReps(planSet, suggestion), Rpe = null, Done = false, Warmup = false,
+                        Reps = Progression.PrefillReps(planSet, suggestion), Rpe = effort?.Rpe, Rir = effort?.Rir, Done = false, Warmup = false,
                         SuggestionJson = Json.Write(suggestion), ResistanceMode = resistanceMode,
                         SystemLoadKg = suggestion.SuggestedSystemLoadKg
                     });

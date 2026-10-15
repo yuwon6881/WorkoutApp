@@ -74,7 +74,6 @@ export function WorkoutPrescriptionSets({
                 actions={removeAction}
                 desktopActions={removeAction}
                 actionsWidth={72}
-                peek={si === 0}
                 actionsLabel={`Actions for ${setLabel.toLowerCase()}`}
               >
                 <div className="import-set-content set-grid-row">
