@@ -2,8 +2,8 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Exercise, LoggedSet, Preferences, RestMutationInput, Session, SessionRest } from '../types';
 import { ApiError, api } from '../lib/api';
 import type { SaveQueue } from '../lib/queue';
-import { completedSets, defaultLoadStepKg, finishBlocker, plannedSets } from '../lib/training';
-import { withLiveAdjustment, type FilledInputsLog } from '../lib/liveAdjustment';
+import { completedSets, finishBlocker, plannedSets } from '../lib/training';
+import { exerciseLoadGrid, withLiveAdjustment, type FilledInputsLog } from '../lib/liveAdjustment';
 import { useTrackRir } from '../lib/trackRir';
 import { exerciseListChanged, indexAfterMove, loadIsEditable, withExerciseMoved, withServerFlags } from '../lib/workoutDraft';
 import { firstOpenExercise, nextUpText, type AdvanceOptions } from '../lib/workoutLogging';
@@ -193,13 +193,8 @@ export function Workout({
       )
     };
     // The sets after a logged one follow how it went, so they are saved in the same step.
-    const next = isLoggedResultEdit(patch) ? withLiveAdjustment(edited, ei, si, loadGridFor(exercise), trackRir, filledInputs.current) : edited;
+    const next = isLoggedResultEdit(patch) ? withLiveAdjustment(edited, ei, si, exerciseLoadGrid(exercise, exercises, preferences.unit), trackRir, filledInputs.current) : edited;
     return change(next, { setId: exercise.sets[si].id, patch }, restMutation, restState);
-  }
-
-  function loadGridFor(exercise: Session['exercises'][number]) {
-    const library = exercises.find(item => item.id === exercise.exerciseId);
-    return { stepKg: library?.loadStepKg ?? defaultLoadStepKg(preferences.unit), availableLoadsKg: library?.availableLoadsKg ?? null };
   }
 
   async function toggle(ei: number, si: number) {

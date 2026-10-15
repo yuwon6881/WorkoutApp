@@ -298,6 +298,10 @@ Deleting a history session rebuilds the affected strength trend from surviving e
 
 ### Weight entry convention
 
+Live bodyweight PR checks recalculate total resistance from the workout's frozen bodyweight
+snapshot after load edits, including offline work and recovered drafts. See
+[`docs/BODYWEIGHT_LIVE_PR_REVIEW.md`](docs/BODYWEIGHT_LIVE_PR_REVIEW.md) for the source review and limitations.
+
 Every library exercise declares `weightBasis`: `per_side` or `total`. Dumbbell bench presses and lateral raises use one dumbbell’s weight (`kg/side` or `lb/side`). Goblet squats, shared-dumbbell pullovers and two-hand overhead extensions use the full single dumbbell. Independent paired cables use one side; machine chest presses and leg presses use total plates or the selected stack. A unilateral machine movement still uses its selected load. The catalog and exercise details show the convention, and custom exercise creation offers Total weight or Per side for external loads. The Wear logger also identifies per-side loads.
 
 Progression, available-weight settings, estimated strength and volume continue to use the recorded load, without an automatic factor of two. A per-side setting describes how to enter weight; it does not say how many implements or sides a set trains. Historical numbers are unchanged because earlier entry conventions cannot be inferred. Existing custom exercises default to total. [Full exercise classification](docs/EXERCISE_WEIGHT_BASIS_AUDIT.md).

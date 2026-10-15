@@ -50,6 +50,7 @@ test('weighted bodyweight live records use the edited load offline', async ({ pa
     await page.goto('/');
     const workout = page.getByRole('dialog', { name: session.name, exact: true });
     await expect(workout).toBeVisible();
+    await page.waitForLoadState('networkidle');
     await context.setOffline(true);
     const load = workout.getByRole('spinbutton', { name: `${exercise.name} set 1 added weight`, exact: true });
     await load.fill('10');
@@ -60,7 +61,7 @@ test('weighted bodyweight live records use the edited load offline', async ({ pa
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
   } finally {
     await context.setOffline(false);
-    await page.unrouteAll({ behavior: 'wait' });
+    await page.unrouteAll({ behavior: 'ignoreErrors' });
     if (sessionId) await page.request.post(`/api/workouts/${sessionId}/discard`, { headers });
     if (templateId) await page.request.delete(`/api/templates/${templateId}`, { headers });
     await page.request.delete(`/api/exercises/custom/${exercise.id}`, { headers });

@@ -1,4 +1,5 @@
-import type { LoggedSet, Session, SessionExercise, SetPrescription } from '../types';
+import type { Exercise, LoggedSet, Session, SessionExercise, SetPrescription, Unit } from '../types';
+import { defaultLoadStepKg } from './training';
 import { loadEntryFor } from './resistanceVariant';
 import { isTimedExercise } from './setDuration';
 import { effortPatch, effortValue } from './workoutDraft';
@@ -6,6 +7,11 @@ import { setKind } from './workoutSetTypes';
 
 /// The loads a piece of equipment can actually be set to: a weight list, else multiples of a step.
 export type LoadGrid = { stepKg: number; availableLoadsKg: number[] | null };
+
+export function exerciseLoadGrid(exercise: SessionExercise, catalog: Exercise[], unit: Unit): LoadGrid {
+  const library = catalog.find(item => item.id === exercise.exerciseId);
+  return { stepKg: library?.loadStepKg ?? defaultLoadStepKg(unit), availableLoadsKg: library?.availableLoadsKg ?? null };
+}
 
 /// What the logger last wrote into a set's inputs for the lifter, so a later adjustment can tell
 /// its own fill from something the lifter typed.
