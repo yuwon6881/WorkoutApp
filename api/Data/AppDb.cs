@@ -81,6 +81,9 @@ public sealed class AppDb(DbContextOptions<AppDb> options) : DbContext(options)
         m.Entity<Exercise>().Property(x => x.Name).HasMaxLength(160);
         m.Entity<Exercise>().Property(x => x.LoadStepKg).HasDefaultValue(2.5);
         m.Entity<Exercise>().Property(x => x.LoadModel).HasDefaultValue("external");
+        m.Entity<Exercise>().Property(x => x.WeightBasis).HasMaxLength(16).HasDefaultValue(WeightBases.Total);
+        m.Entity<Exercise>().ToTable("Exercises", t =>
+            t.HasCheckConstraint("CK_Exercises_WeightBasis", "\"WeightBasis\" IN ('total','per_side')"));
         m.Entity<Exercise>().Property(x => x.Category).HasDefaultValue(ExerciseCategories.FreeWeights);
         m.Entity<Exercise>().Property(x => x.SecondaryMusclesJson).HasDefaultValue("[]");
         m.Entity<Exercise>().Property(x => x.MovementPattern).HasDefaultValue("");
@@ -115,6 +118,9 @@ public sealed class AppDb(DbContextOptions<AppDb> options) : DbContext(options)
         m.Entity<ExerciseLoadSetting>().Property(x => x.LoadStepUnit).HasDefaultValue(WeightUnits.Kg);
         m.Entity<EquipmentLoadDefault>().Property(x => x.LoadStepUnit).HasDefaultValue(WeightUnits.Kg);
         m.Entity<CustomExercise>().Property(x => x.LoadModel).HasDefaultValue("external");
+        m.Entity<CustomExercise>().Property(x => x.WeightBasis).HasMaxLength(16).HasDefaultValue(WeightBases.Total);
+        m.Entity<CustomExercise>().ToTable("CustomExercises", t =>
+            t.HasCheckConstraint("CK_CustomExercises_WeightBasis", "\"WeightBasis\" IN ('total','per_side')"));
         m.Entity<CustomExercise>().Property(x => x.Category).HasDefaultValue(ExerciseCategories.FreeWeights);
         m.Entity<CustomExercise>().Property(x => x.SecondaryMusclesJson).HasDefaultValue("[]");
         m.Entity<CustomExercise>().Property(x => x.TrackingMode).HasMaxLength(16).HasDefaultValue(TrackingModes.Reps);

@@ -18,7 +18,8 @@ import type {
   SessionExercise
 } from '../types';
 import { api } from '../lib/api';
-import { restOptions, showWeight } from '../lib/training';
+import { restOptions } from '../lib/training';
+import { showExerciseWeight } from '../lib/weightBasis';
 import { ProgressionChangeBadge } from './ProgressionChangeBadge';
 import { withSetAdded, withSetRemoved, withSetRestored } from '../lib/workoutDraft';
 import { allowedSetTypes, withSetType } from '../lib/workoutSetTypes';
@@ -170,7 +171,7 @@ export function WorkoutActiveExercise({
           </div>
           {exercise.progression?.lastE1rmKg != null && (
             <p className="workout-last-time">
-              Last time: e1RM {showWeight(exercise.progression.lastE1rmKg, unit)}
+              Last time: e1RM {showExerciseWeight(exercise.progression.lastE1rmKg, unit, exercise)}
               {lastSourceDate && ` · ${new Date(lastSourceDate.length === 10 ? `${lastSourceDate}T00:00` : lastSourceDate).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}`}
             </p>
           )}
@@ -250,7 +251,7 @@ export function WorkoutActiveExercise({
         <div className="workout-set-table-head">
           <span className="col-set">Set</span>
           <span className="col-target">Target</span>
-          <span className="col-load">{loadColumnLabel(loadEntry, unit)}</span>
+          <span className="col-load" title={exercise.weightBasis === 'per_side' ? 'Weight of one dumbbell or one side' : 'Total weight'}>{loadColumnLabel(loadEntry, unit, exercise)}</span>
           {isTimedExercise(exercise) ? (
             <span className="col-reps col-time">Time</span>
           ) : (

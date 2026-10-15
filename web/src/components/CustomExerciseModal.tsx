@@ -1,5 +1,5 @@
 import { useRef, useState, type FormEvent } from 'react';
-import type { CustomExerciseCreated, ExerciseCategory, TrackingMode } from '../types';
+import type { CustomExerciseCreated, ExerciseCategory, TrackingMode, WeightBasis } from '../types';
 import { ApiError, api } from '../lib/api';
 import { getExerciseCategory } from '../lib/exerciseCategory';
 import { Button } from './ui/Button';
@@ -31,6 +31,7 @@ export function CustomExerciseModal({ onClose, onCreated, initialName = '', onEx
   const [secondaryMuscles, setSecondaryMuscles] = useState<string[]>([]);
   const [loadModel, setLoadModel] = useState('external');
   const [trackingMode, setTrackingMode] = useState<TrackingMode>('reps');
+  const [weightBasis, setWeightBasis] = useState<WeightBasis>('total');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [createdExercise, setCreatedExercise] = useState<CustomExerciseCreated | null>(null);
@@ -50,7 +51,7 @@ export function CustomExerciseModal({ onClose, onCreated, initialName = '', onEx
     try {
       const created = createdExercise ?? await api.createCustomExercise({
         name: name.trim(), muscle, secondaryMuscles, equipment, category,
-        loadModel, trackingMode
+        loadModel, trackingMode, weightBasis: loadModel === 'external' ? weightBasis : 'total'
       });
       if (!createdExercise) {
         setCreatedExercise(created);
@@ -105,6 +106,13 @@ export function CustomExerciseModal({ onClose, onCreated, initialName = '', onEx
           { value: 'external', label: 'External load' }, { value: 'full_bodyweight', label: 'Full bodyweight' },
           { value: 'bodyweight_context_only', label: 'Bodyweight context only' }, { value: 'reps_only', label: 'Reps only' }
         ]} /></label>
+      </div>
+      <div className="field">
+        <span>Weight entered</span>
+        <SegmentedControl<WeightBasis> label="Weight entered" value={loadModel === 'external' ? weightBasis : 'total'}
+          onChange={setWeightBasis} disabled={!!createdExercise || loadModel !== 'external'}
+          options={[{ value: 'total', label: 'Total weight' }, { value: 'per_side', label: 'Per side' }]} />
+        <p className="muted">Per side: enter one dumbbell or independently loaded side. Total: enter the full implement or selected machine load.</p>
       </div>
       <div className="field">
         <span>Measured by</span>

@@ -78,7 +78,7 @@ fun activeSetModel(snapshot: WorkoutSnapshot): ActiveSetModel {
             "assistance" -> "Assistance"
             "bodyweight" -> "Bodyweight"
             "reps_only" -> "Reps only"
-            else -> "Load"
+            else -> if (exercise.weightBasis == "per_side") "Load/side" else "Load"
         },
         startingRir = set?.rir?.takeIf { it in RirPolicy.choices },
         timed = timed,

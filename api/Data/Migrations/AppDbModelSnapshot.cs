@@ -496,7 +496,6 @@ namespace Workout.Api.Data.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
-
                     b.Property<string>("Equipment")
                         .IsRequired()
                         .HasColumnType("text");
@@ -548,6 +547,13 @@ namespace Workout.Api.Data.Migrations
                         .HasColumnType("character varying(16)")
                         .HasDefaultValue("reps");
 
+                    b.Property<string>("WeightBasis")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)")
+                        .HasDefaultValue("total");
+
                     b.HasKey("UserId", "Id");
 
                     b.HasIndex("UserId", "Name")
@@ -564,6 +570,8 @@ namespace Workout.Api.Data.Migrations
                             t.HasCheckConstraint("CK_CustomExercises_LoadStepUnit", "\"LoadStepUnit\" IN ('kg','lb')");
 
                             t.HasCheckConstraint("CK_CustomExercises_TrackingMode", "\"TrackingMode\" IN ('reps','duration')");
+
+                            t.HasCheckConstraint("CK_CustomExercises_WeightBasis", "\"WeightBasis\" IN ('total','per_side')");
                         });
                 });
 
@@ -626,7 +634,6 @@ namespace Workout.Api.Data.Migrations
                         .HasColumnType("text")
                         .HasDefaultValue("Free Weights");
 
-
                     b.Property<string>("Equipment")
                         .IsRequired()
                         .HasColumnType("text");
@@ -675,6 +682,13 @@ namespace Workout.Api.Data.Migrations
                         .HasColumnType("character varying(16)")
                         .HasDefaultValue("reps");
 
+                    b.Property<string>("WeightBasis")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)")
+                        .HasDefaultValue("total");
+
                     b.HasKey("Id");
 
                     b.HasIndex("Slug")
@@ -689,6 +703,8 @@ namespace Workout.Api.Data.Migrations
                             t.HasCheckConstraint("CK_Exercises_LoadStep", "\"LoadStepKg\" >= 0 AND \"LoadStepKg\" <= 50");
 
                             t.HasCheckConstraint("CK_Exercises_TrackingMode", "\"TrackingMode\" IN ('reps','duration')");
+
+                            t.HasCheckConstraint("CK_Exercises_WeightBasis", "\"WeightBasis\" IN ('total','per_side')");
                         });
                 });
 

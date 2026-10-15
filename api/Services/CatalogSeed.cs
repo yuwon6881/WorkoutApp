@@ -6,7 +6,8 @@ namespace Workout.Api.Services;
 
 public record SeedExercise(string Slug, string Name, string Muscle, string Equipment, List<string>? Aliases,
     double? LoadStepKg = null, string LoadModel = LoadModels.External, string? MovementPattern = null,
-    List<string>? SecondaryMuscles = null, string? Category = null, string? TrackingMode = null);
+    List<string>? SecondaryMuscles = null, string? Category = null, string? TrackingMode = null,
+    string WeightBasis = WeightBases.Total);
 
 /// The catalog changes only here. Seeding is keyed by slug, so re-running the same file
 /// updates rows in place instead of creating duplicates, and leaves omitted exercises alone.
@@ -24,6 +25,9 @@ public static class CatalogSeed
         Validation.Require(input.Count > 0, "The seed file contains no exercises.");
         foreach (var row in input)
         {
+            Validation.Require(WeightBases.IsValid(row.WeightBasis), "Choose total or per-side weight.");
+            Validation.Require(row.WeightBasis != WeightBases.PerSide || row.LoadModel == LoadModels.External,
+                "Per-side weight requires an external load.");
             Validation.Name(row.Slug, "Exercise slug", 120);
             Validation.Require(row.Slug.All(c => char.IsAsciiLetterOrDigit(c) || c is '-'), $"Slug '{row.Slug}' may use letters, digits, and hyphens only.");
             Validation.Name(row.Name, "Exercise name", 160);
@@ -56,9 +60,11 @@ public static class CatalogSeed
                 : Progression.StepForEquipment(row.Equipment));
             exercise.LoadModel = row.LoadModel;
             exercise.TrackingMode = TrackingModes.Normalize(row.TrackingMode);
+            exercise.WeightBasis = row.WeightBasis;
             exercise.MovementPattern = row.MovementPattern?.Trim() ?? CuratedMovementPattern(row.Slug);
         }
         var deactivated = 0;
+        CatalogSynonyms.UpdateLegacyWeightBases(existing, input);
         if (deactivateMissing)
             foreach (var exercise in existing.Where(x => x.Active && !input.Any(r => r.Slug == x.Slug))) { exercise.Active = false; deactivated++; }
         await db.SaveChangesAsync(ct);

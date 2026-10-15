@@ -1,4 +1,5 @@
 import type { Exercise, LoggedSet } from '../types';
+import { weightUnit, type WithWeightBasis } from './weightBasis';
 
 type ResistanceMode = NonNullable<LoggedSet['resistanceMode']>;
 type Named = { name: string; loadModel?: Exercise['loadModel'] };
@@ -29,16 +30,16 @@ export function loadEntryFor(exercise: Named): LoadEntry {
 export const loadSign = (entry: LoadEntry): string => entry === 'added' ? '+' : entry === 'assistance' ? '−' : '';
 
 /// The load column's heading, so the number below it is never read as the wrong kind of weight.
-export function loadColumnLabel(entry: LoadEntry, unit: string): string {
+export function loadColumnLabel(entry: LoadEntry, unit: string, exercise: WithWeightBasis = {}): string {
   if (entry === 'assistance') return 'Assist';
   if (entry === 'bodyweight') return 'BW';
-  return `${loadSign(entry)}${unit.toUpperCase()}`;
+  return `${loadSign(entry)}${weightUnit(unit, exercise).toUpperCase()}`;
 }
 
 /// What the load field is called for a screen reader, in the same words as the column.
-export function loadFieldName(entry: LoadEntry): string {
+export function loadFieldName(entry: LoadEntry, exercise: WithWeightBasis = {}): string {
   if (entry === 'added') return 'added weight';
   if (entry === 'assistance') return 'assistance weight, more is easier';
   if (entry === 'bodyweight') return 'bodyweight, no load to enter';
-  return 'weight';
+  return exercise.weightBasis === 'per_side' ? 'weight per side' : 'weight';
 }

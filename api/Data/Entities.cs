@@ -36,6 +36,7 @@ public sealed class AuthSession
 /// Catalog rows are global and read-only to users; only the seed command writes them.
 public sealed class Exercise
 {
+    public string WeightBasis { get; set; } = WeightBases.Total;
     public Guid Id { get; set; } = Guid.NewGuid();
     public string Slug { get; set; } = "";
     public string Name { get; set; } = "";
@@ -61,6 +62,7 @@ public sealed class Exercise
 /// or remove another user's library. Archived rows remain resolvable by historical workouts.
 public sealed class CustomExercise : OwnedRecord
 {
+    public string WeightBasis { get; set; } = WeightBases.Total;
     public string Name { get; set; } = "";
     public string Muscle { get; set; } = "";
     /// JSON array of normalized secondary muscle groups. The primary muscle remains in Muscle.

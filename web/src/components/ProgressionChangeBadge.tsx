@@ -3,6 +3,7 @@ import type { LucideIcon } from 'lucide-react';
 import type { SessionExercise, Unit } from '../types';
 import { progressionChange, type ProgressionChange } from '../lib/progressionChange';
 import { showWeight } from '../lib/training';
+import { showExerciseWeight, weightUnit } from '../lib/weightBasis';
 
 type Tone = 'up' | 'hold' | 'down';
 
@@ -37,10 +38,10 @@ export function ProgressionChangeBadge({ exercise, unit }: { exercise: SessionEx
   const reason = current?.suggestion?.reason ?? '';
   return (
     <div className={`workout-progression-badge progression-${tone}`} title={reason} role="note"
-      aria-label={`Suggestion: ${spoken}. ${reason}`.trim()}>
-      <span className="badge-weight"><Icon size={14} aria-hidden="true" />{text}</span>
+      aria-label={`Suggestion: ${spoken.replace(unit, weightUnit(unit, exercise))}. ${reason}`.trim()}>
+      <span className="badge-weight"><Icon size={14} aria-hidden="true" />{text.replace(unit, weightUnit(unit, exercise))}</span>
       {exercise.progression?.trendE1rmKg != null && (
-        <span className="badge-sub">e1RM {showWeight(exercise.progression.trendE1rmKg, unit)}</span>
+        <span className="badge-sub">e1RM {showExerciseWeight(exercise.progression.trendE1rmKg, unit, exercise)}</span>
       )}
     </div>
   );

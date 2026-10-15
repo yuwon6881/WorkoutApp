@@ -10,6 +10,19 @@ import org.junit.Test
 
 class ActiveWorkoutModelTest {
     @Test
+    fun independentLoadsQualifyBothTheTileAndEditorUnit() {
+        val original = snapshot()
+        val perSide = original.copy(session = original.session.copy(exercises = original.session.exercises.map {
+            it.copy(weightBasis = "per_side")
+        }))
+        val model = activeSetModel(perSide)
+        assertEquals("Load/side", model.loadLabel)
+        assertEquals("kg/side", loadUnitCaption(model, "kg"))
+        assertEquals("lb/side · not recorded", loadCaption(model, null, "lb"))
+        assertEquals("kg/side", loadCaption(model, 20.0, "kg"))
+    }
+
+    @Test
     fun currentSetStartsFromTheServerSuggestionAndTarget() {
         val model = activeSetModel(snapshot())
         assertEquals("bench", model.exercise.id)

@@ -4,6 +4,7 @@ import { haptic } from '../lib/platform';
 import { checkLivePr } from '../lib/livePr';
 import { advanceTarget, type AdvanceOptions } from '../lib/workoutLogging';
 import { showWeight } from '../lib/training';
+import { withSessionSystemLoads } from '../lib/workoutSystemLoads';
 
 const CELEBRATION_MS = 4500;
 
@@ -25,12 +26,12 @@ export function useAfterLog({ unit, advance, onAdvance }: {
   }, [celebration]);
 
   function afterLog(draft: Session, exerciseIndex: number, setIndex: number) {
-    const logged = {
+    const logged = withSessionSystemLoads({
       ...draft,
       exercises: draft.exercises.map((item, i) => i !== exerciseIndex ? item : {
         ...item, sets: item.sets.map((row, j) => j === setIndex ? { ...row, done: true } : row)
       })
-    };
+    });
     const exercise = logged.exercises[exerciseIndex];
     const pr = checkLivePr(exercise, setIndex);
     if (pr !== null) {

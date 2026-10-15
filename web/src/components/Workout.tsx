@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Exercise, LoggedSet, Preferences, RestMutationInput, Session, SessionRest } from '../types';
 import { ApiError, api } from '../lib/api';
 import type { SaveQueue } from '../lib/queue';
@@ -34,6 +34,7 @@ import { useStopwatchRecovery } from './useStopwatchRecovery';
 import { useWorkoutDrain } from './useWorkoutDrain';
 import { useWorkoutDrainSchedule } from './useWorkoutDrainSchedule';
 import { useAccountWorkoutCallbacks } from './useAccountWorkoutCallbacks';
+import { withSessionSystemLoads } from '../lib/workoutSystemLoads';
 import './WorkoutSheet.css';
 import './ActiveWorkout.css';
 
@@ -54,7 +55,8 @@ export function Workout({
 }: WorkoutProps) {
   const { onSaved, onFinish, onDiscard, onRecoveryChange } = useAccountWorkoutCallbacks(accountId, isAccountCurrent,
     { onSaved: savedWorkout, onFinish: finishedWorkout, onDiscard: discardedWorkout, onRecoveryChange: recoveryChanged });
-  const [draft, setDraft] = useState(recovery?.sessionId === session.id ? recovery.draft : session);
+  const [storedDraft, setDraft] = useState(recovery?.sessionId === session.id ? recovery.draft : session);
+  const draft = useMemo(() => withSessionSystemLoads(storedDraft), [storedDraft]);
   const [picker, setPicker] = useState(false);
   // Counts taps on a set's log button while paused; each one replays the paused pill's pulse.
   const [pauseHint, setPauseHint] = useState(0);
@@ -123,6 +125,7 @@ export function Workout({
       setError('Adding, removing, or replacing exercises needs a connection. Sets and notes are saved on this device.');
       return false;
     }
+    next = withSessionSystemLoads(next);
     setDraft(next);
     const validationError = validateSessionDraft(next);
     if (validationError) {

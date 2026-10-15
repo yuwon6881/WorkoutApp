@@ -5,10 +5,11 @@ import { formatExercisePrBadge, formatSetPrTag } from '../lib/livePr';
 import { showTimedSet } from '../lib/setDuration';
 import { showActualRir, toDisplay } from '../lib/training';
 import { useTrackRir } from '../lib/trackRir';
+import { weightUnit } from '../lib/weightBasis';
 
-function setResult(set: LoggedSet, unit: Unit): string {
-  if (set.durationSeconds != null) return showTimedSet(set, unit);
-  return set.weightKg === null ? `${set.reps} reps` : `${toDisplay(set.weightKg, unit)} ${unit} × ${set.reps}`;
+function setResult(set: LoggedSet, unit: Unit, exercise: SessionExercise): string {
+  if (set.durationSeconds != null) return showTimedSet(set, unit).replace(unit, weightUnit(unit, exercise));
+  return set.weightKg === null ? `${set.reps} reps` : `${toDisplay(set.weightKg, unit)} ${weightUnit(unit, exercise)} × ${set.reps}`;
 }
 
 function SessionExerciseCard({ exercise, order, unit, trackRir, onOpen }: {
@@ -46,7 +47,7 @@ function SessionExerciseCard({ exercise, order, unit, trackRir, onOpen }: {
             <span className="session-set-label">{set.warmup ? `Warm-up ${number}` : `Set ${number}`}</span>
             <span className="session-set-target">
               {isTimed && <Clock3 size={13} aria-hidden="true" className="session-set-timer-icon" />}
-              <strong>{setResult(set, unit)}</strong>
+              <strong>{setResult(set, unit, exercise)}</strong>
             </span>
             <div className="session-set-tags">
               {trackRir && effort !== '—' && <span className="session-set-effort">{effort}</span>}

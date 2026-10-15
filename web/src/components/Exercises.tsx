@@ -7,6 +7,7 @@ import type { Exercise, ExerciseCategory, ExerciseClearPreview, ExerciseInsight 
 import { ApiError, api } from '../lib/api';
 import { forgetSessionDetail } from '../lib/sessionDetailLoad';
 import { showSetCount } from '../lib/training';
+import { weightBasisDescription } from '../lib/weightBasis';
 import { Button } from './ui/Button';
 import { ExerciseHistory } from './ExerciseHistory';
 import { SegmentedControl } from './ui/SegmentedControl';
@@ -137,6 +138,7 @@ export function ExerciseLibrary({ exercises, onSelect, exclude = emptyIds, onOpe
                       <h3 title={e.name}>{e.name}</h3>
                     </div>
                     <div className="picker-tags">
+                      {loadAdjustable(e) && <span className="pill pill-muted">{e.weightBasis === 'per_side' ? 'Per side' : 'Total weight'}</span>}
                       {e.isCustom && <span className="pill pill-muted">Custom</span>}
                       <span className="pill pill-accent picker-muscle-tag">{e.muscle || 'Full body'}</span>
                       {e.secondaryMuscles && e.secondaryMuscles.length > 0 && (
@@ -171,6 +173,7 @@ export function ExerciseLibrary({ exercises, onSelect, exclude = emptyIds, onOpe
                     </div>}
                   </div>
                   <div className="exercise-card-meta">
+                    {loadAdjustable(e) && <span className="pill pill-muted">{e.weightBasis === 'per_side' ? 'Per side' : 'Total weight'}</span>}
                     {e.isCustom && <span className="pill pill-muted">Custom</span>}
                     <span className="pill pill-accent">{e.muscle || 'Full body'}</span>
                     {e.secondaryMuscles && e.secondaryMuscles.length > 0 && (
@@ -347,6 +350,7 @@ export function ExerciseDetailModal({ exercise, unit, onClose, onChanged }: { ex
           <span className="pill pill-category">{getExerciseCategory(exercise)}</span>
         </div>}
         {detailTab === 'progress' && !exercise.archived && loadAdjustable(exercise) && <ExerciseLoadSettings key={exercise.id} exerciseId={exercise.id} exerciseName={exercise.name} unit={unit} perSide={canEnterPerSide(exercise)} onChanged={onChanged} />}
+        {loadAdjustable(exercise) && <p className="muted">{weightBasisDescription(exercise)}</p>}
         {error && <div className="error-banner" role="alert">{error}</div>}
         {!insight && !error && <div className="skeleton detail-loading" aria-label="Loading exercise details" />}
         {insight && insight.totalHistoryRows === 0 && <p className="muted">No workout history yet. Complete a workout to see progress here.</p>}

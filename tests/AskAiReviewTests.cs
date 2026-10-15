@@ -18,7 +18,7 @@ public sealed class AskAiReviewTests
         await harness.SignIn();
         var db = harness.Db;
         var exercise = new CustomExercise { UserId = db.CurrentUser!.Value,
-            Name = "My cable press", Muscle = "Chest", Equipment = "Cable", Category = "Machine" };
+            Name = "My cable press", Muscle = "Chest", Equipment = "Cable", Category = "Machine", WeightBasis = "per_side" };
         db.CustomExercises.Add(exercise);
         await db.SaveChangesAsync();
         var context = new AiToolContext("kg", new DateOnly(2026, 9, 30));
@@ -26,11 +26,13 @@ public sealed class AskAiReviewTests
             AiToolArgs.Parse("{\"query\":\"cable\",\"category\":\"Machine\"}"), context, default);
         var row = JsonSerializer.SerializeToElement(result.Data).GetProperty("exercises")[0];
         Assert.True(row.GetProperty("isCustom").GetBoolean());
+        Assert.Equal("per_side", row.GetProperty("weightBasis").GetString());
         var slug = row.GetProperty("slug").GetString()!;
         Assert.True(context.Evidence.Contains(AiEvidenceLedger.Exercise, slug));
         var progress = await new GetExerciseProgressTool(db).ExecuteAsync(
             AiToolArgs.Parse(JsonSerializer.Serialize(new { exercise = slug })), context, default);
         Assert.Equal(exercise.Name, JsonSerializer.SerializeToElement(progress.Data).GetProperty("exercise").GetString());
+        Assert.Equal("per_side", JsonSerializer.SerializeToElement(progress.Data).GetProperty("weightBasis").GetString());
     }
 
     [Fact]

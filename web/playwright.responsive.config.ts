@@ -15,7 +15,7 @@ export default defineConfig({
   projects: [
     { name: 'setup', testMatch: 'auth.setup.ts' },
     ...[320, 390, 640, 768, 1024, 1440, 1920].map(width => ({
-      name: `${width}px`, testMatch: ['responsive.spec.ts', 'overview-uplift.spec.ts', 'import-uplift.spec.ts'], dependencies: ['setup'],
+      name: `${width}px`, testMatch: ['responsive.spec.ts', 'weight-basis.spec.ts', 'overview-uplift.spec.ts', 'import-uplift.spec.ts'], dependencies: ['setup'],
       use: { storageState: join(authDirectory, 'responsive.json'), viewport: { width, height: width < 640 ? 844 : 1000 }, isMobile: width < 640, hasTouch: width < 1024 }
     }))
   ],

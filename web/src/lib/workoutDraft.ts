@@ -35,7 +35,7 @@ export function addedSessionExercise(chosen: Exercise, position: number): Sessio
     id: crypto.randomUUID(), exerciseId: chosen.id, name: chosen.name, position,
     note: '', sequenceGroup: '', substitutions: [], prescription: [unplannedPrescription(chosen.loadModel, chosen.name)],
     sets: [blankLoggedSet(chosen.loadModel, chosen.name)],
-    progression: null, loadModel: chosen.loadModel, trackingMode: chosen.trackingMode
+    progression: null, loadModel: chosen.loadModel, trackingMode: chosen.trackingMode, weightBasis: chosen.weightBasis
   };
 }
 

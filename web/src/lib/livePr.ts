@@ -107,16 +107,17 @@ function showEstimate(kg: number, unit: Unit): number {
 }
 
 export function formatExercisePrBadge(exercise: SessionExercise, unit: Unit): string {
+  const loadUnit = exercise.weightBasis === 'per_side' ? `${unit}/side` : unit;
   if (exercise.prKind === 'reps') {
     return `Rep best${exercise.prReps != null ? ` · ${exercise.prReps} reps` : ''}`;
   }
   if (exercise.prKind === 'e1rm') {
-    return `Estimated strength best${exercise.prE1rmKg != null ? ` · ${showEstimate(exercise.prE1rmKg, unit)} ${unit} e1RM` : ''}`;
+    return `Estimated strength best${exercise.prE1rmKg != null ? ` · ${showEstimate(exercise.prE1rmKg, unit)} ${loadUnit} e1RM` : ''}`;
   }
   if (exercise.prKind === 'both') {
-    return `Strength & rep best${exercise.prE1rmKg != null ? ` · ${showEstimate(exercise.prE1rmKg, unit)} ${unit} e1RM` : ''}${exercise.prReps != null ? ` · ${exercise.prReps} reps` : ''}`;
+    return `Strength & rep best${exercise.prE1rmKg != null ? ` · ${showEstimate(exercise.prE1rmKg, unit)} ${loadUnit} e1RM` : ''}${exercise.prReps != null ? ` · ${exercise.prReps} reps` : ''}`;
   }
-  return `PR${exercise.prE1rmKg != null ? ` · ${showEstimate(exercise.prE1rmKg, unit)} ${unit} e1RM` : ''}`;
+  return `PR${exercise.prE1rmKg != null ? ` · ${showEstimate(exercise.prE1rmKg, unit)} ${loadUnit} e1RM` : ''}`;
 }
 
 export function formatSetPrTag(set: LoggedSet): string {

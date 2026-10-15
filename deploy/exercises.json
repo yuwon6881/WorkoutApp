@@ -1,6 +1,7 @@
 [
   {
     "slug": "air-squat",
+    "weightBasis": "total",
     "name": "Air Squat",
     "muscle": "Quads",
     "equipment": "Bodyweight",
@@ -10,6 +11,7 @@
   },
   {
     "slug": "back-squat",
+    "weightBasis": "total",
     "name": "Back Squat",
     "muscle": "Quads",
     "equipment": "Barbell",
@@ -26,6 +28,7 @@
   },
   {
     "slug": "high-bar-back-squat",
+    "weightBasis": "total",
     "name": "High-Bar Back Squat",
     "muscle": "Quads",
     "equipment": "Barbell",
@@ -38,6 +41,7 @@
   },
   {
     "slug": "low-bar-back-squat",
+    "weightBasis": "total",
     "name": "Low-Bar Back Squat",
     "muscle": "Quads",
     "equipment": "Barbell",
@@ -46,6 +50,7 @@
   },
   {
     "slug": "pause-squat",
+    "weightBasis": "total",
     "name": "Pause Squat",
     "muscle": "Quads",
     "equipment": "Barbell",
@@ -54,6 +59,7 @@
   },
   {
     "slug": "wide-stance-back-squat",
+    "weightBasis": "total",
     "name": "Wide Stance Back Squat",
     "muscle": "Quads",
     "equipment": "Barbell",
@@ -62,6 +68,7 @@
   },
   {
     "slug": "front-squat",
+    "weightBasis": "total",
     "name": "Front Squat",
     "muscle": "Quads",
     "equipment": "Barbell",
@@ -70,6 +77,7 @@
   },
   {
     "slug": "hack-squat",
+    "weightBasis": "total",
     "name": "Hack Squat",
     "muscle": "Quads",
     "equipment": "Machine",
@@ -81,6 +89,7 @@
   },
   {
     "slug": "pause-hack-squat",
+    "weightBasis": "total",
     "name": "Pause Hack Squat",
     "muscle": "Quads",
     "equipment": "Machine",
@@ -89,6 +98,7 @@
   },
   {
     "slug": "leg-press",
+    "weightBasis": "total",
     "name": "Plate-Loaded Leg Press",
     "muscle": "Quads",
     "equipment": "Machine",
@@ -102,6 +112,7 @@
   },
   {
     "slug": "weight-stack-leg-press",
+    "weightBasis": "total",
     "name": "Weight-Stack Leg Press",
     "muscle": "Quads",
     "equipment": "Machine",
@@ -116,6 +127,7 @@
   },
   {
     "slug": "constant-tension-leg-press",
+    "weightBasis": "total",
     "name": "Plate-Loaded Constant-Tension Leg Press",
     "muscle": "Quads",
     "equipment": "Machine",
@@ -126,6 +138,7 @@
   },
   {
     "slug": "weight-stack-constant-tension-leg-press",
+    "weightBasis": "total",
     "name": "Weight-Stack Constant-Tension Leg Press",
     "muscle": "Quads",
     "equipment": "Machine",
@@ -137,6 +150,7 @@
   },
   {
     "slug": "single-leg-leg-press",
+    "weightBasis": "total",
     "name": "Plate-Loaded Single-Leg Leg Press",
     "muscle": "Quads",
     "equipment": "Machine",
@@ -147,6 +161,7 @@
   },
   {
     "slug": "weight-stack-single-leg-leg-press",
+    "weightBasis": "total",
     "name": "Weight-Stack Single-Leg Leg Press",
     "muscle": "Quads",
     "equipment": "Machine",
@@ -158,6 +173,7 @@
   },
   {
     "slug": "smith-machine-squat",
+    "weightBasis": "total",
     "name": "Smith Machine Squat",
     "muscle": "Quads",
     "equipment": "Smith Machine",
@@ -166,6 +182,7 @@
   },
   {
     "slug": "belt-squat",
+    "weightBasis": "total",
     "name": "Belt Squat",
     "muscle": "Quads",
     "equipment": "Machine",
@@ -174,6 +191,7 @@
   },
   {
     "slug": "pendulum-squat",
+    "weightBasis": "total",
     "name": "Pendulum Squat",
     "muscle": "Quads",
     "equipment": "Machine",
@@ -182,6 +200,7 @@
   },
   {
     "slug": "goblet-squat",
+    "weightBasis": "total",
     "name": "Goblet Squat",
     "muscle": "Quads",
     "equipment": "Dumbbell",
@@ -190,6 +209,7 @@
   },
   {
     "slug": "dumbbell-walking-lunge",
+    "weightBasis": "per_side",
     "name": "Dumbbell Walking Lunge",
     "muscle": "Quads",
     "equipment": "Dumbbell",
@@ -198,6 +218,7 @@
   },
   {
     "slug": "smith-machine-lunge",
+    "weightBasis": "total",
     "name": "Smith Machine Lunge",
     "muscle": "Quads",
     "equipment": "Smith Machine",
@@ -209,6 +230,7 @@
   },
   {
     "slug": "smith-machine-reverse-lunge",
+    "weightBasis": "total",
     "name": "Smith Machine Reverse Lunge",
     "muscle": "Quads",
     "equipment": "Smith Machine",
@@ -220,6 +242,7 @@
   },
   {
     "slug": "db-lunge",
+    "weightBasis": "per_side",
     "name": "DB Lunge",
     "muscle": "Quads",
     "equipment": "Dumbbell",
@@ -228,6 +251,7 @@
   },
   {
     "slug": "barbell-lunge",
+    "weightBasis": "total",
     "name": "Barbell Lunge",
     "muscle": "Quads",
     "equipment": "Barbell",
@@ -236,6 +260,7 @@
   },
   {
     "slug": "db-bulgarian-split-squat",
+    "weightBasis": "per_side",
     "name": "DB Bulgarian Split Squat",
     "muscle": "Quads",
     "equipment": "Dumbbell",
@@ -246,6 +271,7 @@
   },
   {
     "slug": "pause-db-bulgarian-split-squat",
+    "weightBasis": "per_side",
     "name": "Pause DB Bulgarian Split Squat",
     "muscle": "Quads",
     "equipment": "Dumbbell",
@@ -254,6 +280,7 @@
   },
   {
     "slug": "walking-lunge",
+    "weightBasis": "total",
     "name": "Walking Lunge",
     "muscle": "Quads",
     "equipment": "Bodyweight",
@@ -263,6 +290,7 @@
   },
   {
     "slug": "leg-extension",
+    "weightBasis": "total",
     "name": "Plate-Loaded Leg Extension",
     "muscle": "Quads",
     "equipment": "Machine",
@@ -274,6 +302,7 @@
   },
   {
     "slug": "weight-stack-leg-extension",
+    "weightBasis": "total",
     "name": "Weight-Stack Leg Extension",
     "muscle": "Quads",
     "equipment": "Machine",
@@ -285,6 +314,7 @@
   },
   {
     "slug": "unilateral-eccentric-overloaded-leg-extension",
+    "weightBasis": "total",
     "name": "Unilateral Eccentric-Overloaded Leg Extension",
     "muscle": "Quads",
     "equipment": "Machine",
@@ -293,6 +323,7 @@
   },
   {
     "slug": "dumbbell-step-up",
+    "weightBasis": "per_side",
     "name": "Dumbbell Step-Up",
     "muscle": "Quads",
     "equipment": "Dumbbell",
@@ -303,6 +334,7 @@
   },
   {
     "slug": "reverse-nordic",
+    "weightBasis": "total",
     "name": "Reverse Nordic",
     "muscle": "Quads",
     "equipment": "Bodyweight",
@@ -312,6 +344,7 @@
   },
   {
     "slug": "sissy-squat",
+    "weightBasis": "total",
     "name": "Sissy Squat",
     "muscle": "Quads",
     "equipment": "Bodyweight",
@@ -321,6 +354,7 @@
   },
   {
     "slug": "deadlift",
+    "weightBasis": "total",
     "name": "Deadlift",
     "muscle": "Posterior chain",
     "equipment": "Barbell",
@@ -329,6 +363,7 @@
   },
   {
     "slug": "pause-deadlift",
+    "weightBasis": "total",
     "name": "Pause Deadlift",
     "muscle": "Posterior chain",
     "equipment": "Barbell",
@@ -337,6 +372,7 @@
   },
   {
     "slug": "trap-bar-deadlift",
+    "weightBasis": "total",
     "name": "Trap Bar Deadlift",
     "muscle": "Posterior chain",
     "equipment": "Trap Bar",
@@ -345,6 +381,7 @@
   },
   {
     "slug": "romanian-deadlift",
+    "weightBasis": "total",
     "name": "Romanian Deadlift",
     "muscle": "Posterior chain",
     "equipment": "Barbell",
@@ -357,6 +394,7 @@
   },
   {
     "slug": "db-romanian-deadlift",
+    "weightBasis": "per_side",
     "name": "DB Romanian Deadlift",
     "muscle": "Posterior chain",
     "equipment": "Dumbbell",
@@ -369,6 +407,7 @@
   },
   {
     "slug": "barbell-rdl",
+    "weightBasis": "total",
     "name": "Barbell RDL",
     "muscle": "Posterior chain",
     "equipment": "Barbell",
@@ -377,6 +416,7 @@
   },
   {
     "slug": "snatch-grip-rdl",
+    "weightBasis": "total",
     "name": "Snatch-Grip RDL",
     "muscle": "Posterior chain",
     "equipment": "Barbell",
@@ -385,6 +425,7 @@
   },
   {
     "slug": "stiff-leg-deadlift",
+    "weightBasis": "total",
     "name": "Stiff Leg Deadlift",
     "muscle": "Posterior chain",
     "equipment": "Barbell",
@@ -393,6 +434,7 @@
   },
   {
     "slug": "eccentric-accentuated-stiff-leg-deadlift",
+    "weightBasis": "total",
     "name": "Eccentric-Accentuated Stiff-Leg Deadlift",
     "muscle": "Posterior chain",
     "equipment": "Barbell",
@@ -403,6 +445,7 @@
   },
   {
     "slug": "good-morning",
+    "weightBasis": "total",
     "name": "Good Morning",
     "muscle": "Posterior chain",
     "equipment": "Barbell",
@@ -413,6 +456,7 @@
   },
   {
     "slug": "barbell-hip-thrust",
+    "weightBasis": "total",
     "name": "Barbell Hip Thrust",
     "muscle": "Posterior chain",
     "equipment": "Barbell",
@@ -425,6 +469,7 @@
   },
   {
     "slug": "machine-hip-thrust",
+    "weightBasis": "total",
     "name": "Plate-Loaded Machine Hip Thrust",
     "muscle": "Posterior chain",
     "equipment": "Machine",
@@ -435,6 +480,7 @@
   },
   {
     "slug": "weight-stack-machine-hip-thrust",
+    "weightBasis": "total",
     "name": "Weight-Stack Machine Hip Thrust",
     "muscle": "Posterior chain",
     "equipment": "Machine",
@@ -446,6 +492,7 @@
   },
   {
     "slug": "single-leg-db-hip-thrust",
+    "weightBasis": "total",
     "name": "Single-Leg DB Hip Thrust",
     "muscle": "Posterior chain",
     "equipment": "Dumbbell",
@@ -456,6 +503,7 @@
   },
   {
     "slug": "45-hyperextension",
+    "weightBasis": "total",
     "name": "45° Hyperextension",
     "muscle": "Posterior chain",
     "equipment": "Bodyweight",
@@ -472,6 +520,7 @@
   },
   {
     "slug": "seated-hamstring-curl",
+    "weightBasis": "total",
     "name": "Plate-Loaded Seated Hamstring Curl",
     "muscle": "Posterior chain",
     "equipment": "Machine",
@@ -482,6 +531,7 @@
   },
   {
     "slug": "weight-stack-seated-hamstring-curl",
+    "weightBasis": "total",
     "name": "Weight-Stack Seated Hamstring Curl",
     "muscle": "Posterior chain",
     "equipment": "Machine",
@@ -493,6 +543,7 @@
   },
   {
     "slug": "lying-leg-curl",
+    "weightBasis": "total",
     "name": "Plate-Loaded Lying Leg Curl",
     "muscle": "Posterior chain",
     "equipment": "Machine",
@@ -503,6 +554,7 @@
   },
   {
     "slug": "weight-stack-lying-leg-curl",
+    "weightBasis": "total",
     "name": "Weight-Stack Lying Leg Curl",
     "muscle": "Posterior chain",
     "equipment": "Machine",
@@ -514,6 +566,7 @@
   },
   {
     "slug": "constant-tension-lying-leg-curl",
+    "weightBasis": "total",
     "name": "Plate-Loaded Constant-Tension Lying Leg Curl",
     "muscle": "Posterior chain",
     "equipment": "Machine",
@@ -524,6 +577,7 @@
   },
   {
     "slug": "weight-stack-constant-tension-lying-leg-curl",
+    "weightBasis": "total",
     "name": "Weight-Stack Constant-Tension Lying Leg Curl",
     "muscle": "Posterior chain",
     "equipment": "Machine",
@@ -535,6 +589,7 @@
   },
   {
     "slug": "swiss-ball-leg-curl",
+    "weightBasis": "total",
     "name": "Swiss Ball Leg Curl",
     "muscle": "Posterior chain",
     "equipment": "Bodyweight",
@@ -544,6 +599,7 @@
   },
   {
     "slug": "standing-cable-leg-curl",
+    "weightBasis": "total",
     "name": "Standing Cable Leg Curl",
     "muscle": "Posterior chain",
     "equipment": "Cable",
@@ -552,6 +608,7 @@
   },
   {
     "slug": "sliding-leg-curl",
+    "weightBasis": "total",
     "name": "Sliding Leg Curl",
     "muscle": "Posterior chain",
     "equipment": "Bodyweight",
@@ -561,6 +618,7 @@
   },
   {
     "slug": "glute-ham-raise",
+    "weightBasis": "total",
     "name": "Glute Ham Raise",
     "muscle": "Posterior chain",
     "equipment": "Bodyweight",
@@ -570,6 +628,7 @@
   },
   {
     "slug": "nordic-ham-curl",
+    "weightBasis": "total",
     "name": "Nordic Ham Curl",
     "muscle": "Posterior chain",
     "equipment": "Bodyweight",
@@ -579,6 +638,7 @@
   },
   {
     "slug": "seated-leg-curl",
+    "weightBasis": "total",
     "name": "Plate-Loaded Seated Leg Curl",
     "muscle": "Posterior chain",
     "equipment": "Machine",
@@ -591,6 +651,7 @@
   },
   {
     "slug": "weight-stack-seated-leg-curl",
+    "weightBasis": "total",
     "name": "Weight-Stack Seated Leg Curl",
     "muscle": "Posterior chain",
     "equipment": "Machine",
@@ -602,6 +663,7 @@
   },
   {
     "slug": "cable-pull-through",
+    "weightBasis": "total",
     "name": "Cable Pull-Through",
     "muscle": "Posterior chain",
     "equipment": "Cable",
@@ -614,6 +676,7 @@
   },
   {
     "slug": "glute-kickback",
+    "weightBasis": "total",
     "name": "Plate-Loaded Glute Kickback",
     "muscle": "Posterior chain",
     "equipment": "Machine",
@@ -626,6 +689,7 @@
   },
   {
     "slug": "weight-stack-glute-kickback",
+    "weightBasis": "total",
     "name": "Weight-Stack Glute Kickback",
     "muscle": "Posterior chain",
     "equipment": "Machine",
@@ -637,6 +701,7 @@
   },
   {
     "slug": "seated-cable-deadlift",
+    "weightBasis": "total",
     "name": "Seated Cable Deadlift",
     "muscle": "Posterior chain",
     "equipment": "Cable",
@@ -645,6 +710,7 @@
   },
   {
     "slug": "flat-db-press",
+    "weightBasis": "per_side",
     "name": "Flat DB Press",
     "muscle": "Chest",
     "equipment": "Dumbbell",
@@ -655,6 +721,7 @@
   },
   {
     "slug": "flat-dumbbell-static-hold",
+    "weightBasis": "per_side",
     "name": "Flat Dumbbell Static Hold",
     "muscle": "Chest",
     "equipment": "Dumbbell",
@@ -664,6 +731,7 @@
   },
   {
     "slug": "flat-machine-chest-press",
+    "weightBasis": "total",
     "name": "Plate-Loaded Flat Machine Chest Press",
     "muscle": "Chest",
     "equipment": "Machine",
@@ -674,6 +742,7 @@
   },
   {
     "slug": "weight-stack-flat-machine-chest-press",
+    "weightBasis": "total",
     "name": "Weight-Stack Flat Machine Chest Press",
     "muscle": "Chest",
     "equipment": "Machine",
@@ -685,6 +754,7 @@
   },
   {
     "slug": "seated-chest-press",
+    "weightBasis": "total",
     "name": "Plate-Loaded Seated Chest Press",
     "muscle": "Chest",
     "equipment": "Machine",
@@ -695,6 +765,7 @@
   },
   {
     "slug": "weight-stack-seated-chest-press",
+    "weightBasis": "total",
     "name": "Weight-Stack Seated Chest Press",
     "muscle": "Chest",
     "equipment": "Machine",
@@ -706,6 +777,7 @@
   },
   {
     "slug": "incline-machine-press",
+    "weightBasis": "total",
     "name": "Plate-Loaded Incline Machine Press",
     "muscle": "Chest",
     "equipment": "Machine",
@@ -717,6 +789,7 @@
   },
   {
     "slug": "weight-stack-incline-machine-press",
+    "weightBasis": "total",
     "name": "Weight-Stack Incline Machine Press",
     "muscle": "Chest",
     "equipment": "Machine",
@@ -728,6 +801,7 @@
   },
   {
     "slug": "incline-smith-machine-press",
+    "weightBasis": "total",
     "name": "Incline Smith Machine Press",
     "muscle": "Chest",
     "equipment": "Smith Machine",
@@ -739,6 +813,7 @@
   },
   {
     "slug": "barbell-incline-press",
+    "weightBasis": "total",
     "name": "Barbell Incline Press",
     "muscle": "Chest",
     "equipment": "Barbell",
@@ -751,6 +826,7 @@
   },
   {
     "slug": "bench-press",
+    "weightBasis": "total",
     "name": "Bench Press",
     "muscle": "Chest",
     "equipment": "Barbell",
@@ -765,6 +841,7 @@
   },
   {
     "slug": "larsen-press",
+    "weightBasis": "total",
     "name": "Larsen Press",
     "muscle": "Chest",
     "equipment": "Barbell",
@@ -773,6 +850,7 @@
   },
   {
     "slug": "db-bench-press",
+    "weightBasis": "per_side",
     "name": "DB Bench Press",
     "muscle": "Chest",
     "equipment": "Dumbbell",
@@ -781,6 +859,7 @@
   },
   {
     "slug": "machine-chest-press",
+    "weightBasis": "total",
     "name": "Plate-Loaded Machine Chest Press",
     "muscle": "Chest",
     "equipment": "Machine",
@@ -793,6 +872,7 @@
   },
   {
     "slug": "weight-stack-machine-chest-press",
+    "weightBasis": "total",
     "name": "Weight-Stack Machine Chest Press",
     "muscle": "Chest",
     "equipment": "Machine",
@@ -807,6 +887,7 @@
   },
   {
     "slug": "close-grip-barbell-incline-press",
+    "weightBasis": "total",
     "name": "Close-Grip Barbell Incline Press",
     "muscle": "Chest",
     "equipment": "Barbell",
@@ -815,6 +896,7 @@
   },
   {
     "slug": "close-grip-db-incline-press",
+    "weightBasis": "per_side",
     "name": "Close-Grip DB Incline Press",
     "muscle": "Chest",
     "equipment": "Dumbbell",
@@ -823,6 +905,7 @@
   },
   {
     "slug": "close-grip-machine-press",
+    "weightBasis": "total",
     "name": "Plate-Loaded Close-Grip Machine Press",
     "muscle": "Chest",
     "equipment": "Machine",
@@ -833,6 +916,7 @@
   },
   {
     "slug": "weight-stack-close-grip-machine-press",
+    "weightBasis": "total",
     "name": "Weight-Stack Close-Grip Machine Press",
     "muscle": "Chest",
     "equipment": "Machine",
@@ -844,6 +928,7 @@
   },
   {
     "slug": "press-around",
+    "weightBasis": "total",
     "name": "Press-Around",
     "muscle": "Chest",
     "equipment": "Cable",
@@ -852,6 +937,7 @@
   },
   {
     "slug": "db-flye",
+    "weightBasis": "per_side",
     "name": "DB Flye",
     "muscle": "Chest",
     "equipment": "Dumbbell",
@@ -860,6 +946,7 @@
   },
   {
     "slug": "deficit-push-up",
+    "weightBasis": "total",
     "name": "Deficit Push Up",
     "muscle": "Chest",
     "equipment": "Bodyweight",
@@ -869,6 +956,7 @@
   },
   {
     "slug": "low-incline-db-press",
+    "weightBasis": "per_side",
     "name": "Low Incline DB Press",
     "muscle": "Chest",
     "equipment": "Dumbbell",
@@ -877,6 +965,7 @@
   },
   {
     "slug": "low-incline-machine-press",
+    "weightBasis": "total",
     "name": "Plate-Loaded Low Incline Machine Press",
     "muscle": "Chest",
     "equipment": "Machine",
@@ -888,6 +977,7 @@
   },
   {
     "slug": "weight-stack-low-incline-machine-press",
+    "weightBasis": "total",
     "name": "Weight-Stack Low Incline Machine Press",
     "muscle": "Chest",
     "equipment": "Machine",
@@ -899,6 +989,7 @@
   },
   {
     "slug": "low-incline-smith-machine-press",
+    "weightBasis": "total",
     "name": "Low Incline Smith Machine Press",
     "muscle": "Chest",
     "equipment": "Smith Machine",
@@ -907,6 +998,7 @@
   },
   {
     "slug": "dumbbell-chest-press",
+    "weightBasis": "per_side",
     "name": "Dumbbell Chest Press",
     "muscle": "Chest",
     "equipment": "Dumbbell",
@@ -915,6 +1007,7 @@
   },
   {
     "slug": "cable-chest-press",
+    "weightBasis": "per_side",
     "name": "Cable Chest Press",
     "muscle": "Chest",
     "equipment": "Cable",
@@ -923,6 +1016,7 @@
   },
   {
     "slug": "weighted-dip",
+    "weightBasis": "total",
     "name": "Weighted Dip",
     "muscle": "Chest",
     "equipment": "Bodyweight",
@@ -932,6 +1026,7 @@
   },
   {
     "slug": "dip",
+    "weightBasis": "total",
     "name": "Dip",
     "muscle": "Chest",
     "equipment": "Bodyweight",
@@ -945,6 +1040,7 @@
   },
   {
     "slug": "assisted-dip",
+    "weightBasis": "total",
     "name": "Assisted Dip",
     "muscle": "Chest",
     "equipment": "Machine",
@@ -961,6 +1057,7 @@
   },
   {
     "slug": "push-up",
+    "weightBasis": "total",
     "name": "Push Up",
     "muscle": "Chest",
     "equipment": "Bodyweight",
@@ -970,6 +1067,7 @@
   },
   {
     "slug": "close-grip-push-up",
+    "weightBasis": "total",
     "name": "Close-Grip Push Up",
     "muscle": "Chest",
     "equipment": "Bodyweight",
@@ -979,6 +1077,7 @@
   },
   {
     "slug": "incline-close-grip-push-up",
+    "weightBasis": "total",
     "name": "Incline Close-Grip Push Up",
     "muscle": "Chest",
     "equipment": "Bodyweight",
@@ -988,6 +1087,7 @@
   },
   {
     "slug": "kneeling-modified-push-up",
+    "weightBasis": "total",
     "name": "Kneeling Modified Push Up",
     "muscle": "Chest",
     "equipment": "Bodyweight",
@@ -997,6 +1097,7 @@
   },
   {
     "slug": "45-incline-barbell-press",
+    "weightBasis": "total",
     "name": "45° Incline Barbell Press",
     "muscle": "Chest",
     "equipment": "Barbell",
@@ -1005,6 +1106,7 @@
   },
   {
     "slug": "45-incline-db-press",
+    "weightBasis": "per_side",
     "name": "45° Incline DB Press",
     "muscle": "Chest",
     "equipment": "Dumbbell",
@@ -1013,6 +1115,7 @@
   },
   {
     "slug": "45-incline-machine-press",
+    "weightBasis": "total",
     "name": "Plate-Loaded 45° Incline Machine Press",
     "muscle": "Chest",
     "equipment": "Machine",
@@ -1023,6 +1126,7 @@
   },
   {
     "slug": "weight-stack-45-incline-machine-press",
+    "weightBasis": "total",
     "name": "Weight-Stack 45° Incline Machine Press",
     "muscle": "Chest",
     "equipment": "Machine",
@@ -1034,6 +1138,7 @@
   },
   {
     "slug": "dumbbell-floor-press",
+    "weightBasis": "per_side",
     "name": "Dumbbell Floor Press",
     "muscle": "Chest",
     "equipment": "Dumbbell",
@@ -1042,6 +1147,7 @@
   },
   {
     "slug": "pause-barbell-bench-press",
+    "weightBasis": "total",
     "name": "Pause Barbell Bench Press",
     "muscle": "Chest",
     "equipment": "Barbell",
@@ -1050,6 +1156,7 @@
   },
   {
     "slug": "strict-bench-press",
+    "weightBasis": "total",
     "name": "Strict Bench Press",
     "muscle": "Chest",
     "equipment": "Barbell",
@@ -1058,6 +1165,7 @@
   },
   {
     "slug": "close-grip-bench-press",
+    "weightBasis": "total",
     "name": "Close-Grip Bench Press",
     "muscle": "Chest",
     "equipment": "Barbell",
@@ -1068,6 +1176,7 @@
   },
   {
     "slug": "close-grip-smith-machine-press",
+    "weightBasis": "total",
     "name": "Close-Grip Smith Machine Press",
     "muscle": "Chest",
     "equipment": "Smith Machine",
@@ -1081,6 +1190,7 @@
   },
   {
     "slug": "smith-machine-bench-press",
+    "weightBasis": "total",
     "name": "Smith Machine Bench Press",
     "muscle": "Chest",
     "equipment": "Smith Machine",
@@ -1089,6 +1199,7 @@
   },
   {
     "slug": "low-to-high-cable-flye",
+    "weightBasis": "per_side",
     "name": "Low To High Cable Flye",
     "muscle": "Chest",
     "equipment": "Cable",
@@ -1097,6 +1208,7 @@
   },
   {
     "slug": "cable-flye-21s",
+    "weightBasis": "per_side",
     "name": "Cable Flye 21s",
     "muscle": "Chest",
     "equipment": "Cable",
@@ -1105,6 +1217,7 @@
   },
   {
     "slug": "cable-flye",
+    "weightBasis": "per_side",
     "name": "Cable Flye",
     "muscle": "Chest",
     "equipment": "Cable",
@@ -1115,6 +1228,7 @@
   },
   {
     "slug": "pec-deck",
+    "weightBasis": "total",
     "name": "Plate-Loaded Pec Deck",
     "muscle": "Chest",
     "equipment": "Machine",
@@ -1125,6 +1239,7 @@
   },
   {
     "slug": "weight-stack-pec-deck",
+    "weightBasis": "total",
     "name": "Weight-Stack Pec Deck",
     "muscle": "Chest",
     "equipment": "Machine",
@@ -1136,6 +1251,7 @@
   },
   {
     "slug": "bent-over-cable-pec-flye",
+    "weightBasis": "per_side",
     "name": "Bent-Over Cable Pec Flye",
     "muscle": "Chest",
     "equipment": "Cable",
@@ -1144,6 +1260,7 @@
   },
   {
     "slug": "cable-crossover-ladder",
+    "weightBasis": "per_side",
     "name": "Cable Crossover Ladder",
     "muscle": "Chest",
     "equipment": "Cable",
@@ -1154,6 +1271,7 @@
   },
   {
     "slug": "bottom-half-db-flye",
+    "weightBasis": "per_side",
     "name": "Bottom-Half DB Flye",
     "muscle": "Chest",
     "equipment": "Dumbbell",
@@ -1162,6 +1280,7 @@
   },
   {
     "slug": "low-incline-db-flye",
+    "weightBasis": "per_side",
     "name": "Low Incline DB Flye",
     "muscle": "Chest",
     "equipment": "Dumbbell",
@@ -1170,6 +1289,7 @@
   },
   {
     "slug": "low-to-high-cable-crossover",
+    "weightBasis": "per_side",
     "name": "Low-To-High Cable Crossover",
     "muscle": "Chest",
     "equipment": "Cable",
@@ -1178,6 +1298,7 @@
   },
   {
     "slug": "2-grip-lat-pulldown",
+    "weightBasis": "total",
     "name": "2-Grip Lat Pulldown",
     "muscle": "Back",
     "equipment": "Cable",
@@ -1186,6 +1307,7 @@
   },
   {
     "slug": "2-grip-pull-up",
+    "weightBasis": "total",
     "name": "2-Grip Pull-up",
     "muscle": "Back",
     "equipment": "Bodyweight",
@@ -1195,6 +1317,7 @@
   },
   {
     "slug": "machine-pulldown",
+    "weightBasis": "total",
     "name": "Plate-Loaded Machine Pulldown",
     "muscle": "Back",
     "equipment": "Machine",
@@ -1205,6 +1328,7 @@
   },
   {
     "slug": "weight-stack-machine-pulldown",
+    "weightBasis": "total",
     "name": "Weight-Stack Machine Pulldown",
     "muscle": "Back",
     "equipment": "Machine",
@@ -1216,6 +1340,7 @@
   },
   {
     "slug": "t-bar-row",
+    "weightBasis": "total",
     "name": "T-Bar Row",
     "muscle": "Back",
     "equipment": "Barbell",
@@ -1224,6 +1349,7 @@
   },
   {
     "slug": "cable-seated-elbows-out-row",
+    "weightBasis": "total",
     "name": "Cable Seated Elbows-Out Row",
     "muscle": "Back",
     "equipment": "Cable",
@@ -1234,6 +1360,7 @@
   },
   {
     "slug": "machine-high-row",
+    "weightBasis": "total",
     "name": "Plate-Loaded Machine High Row",
     "muscle": "Back",
     "equipment": "Machine",
@@ -1244,6 +1371,7 @@
   },
   {
     "slug": "weight-stack-machine-high-row",
+    "weightBasis": "total",
     "name": "Weight-Stack Machine High Row",
     "muscle": "Back",
     "equipment": "Machine",
@@ -1255,6 +1383,7 @@
   },
   {
     "slug": "seal-row",
+    "weightBasis": "total",
     "name": "Seal Row",
     "muscle": "Back",
     "equipment": "Barbell",
@@ -1263,6 +1392,7 @@
   },
   {
     "slug": "helms-db-row",
+    "weightBasis": "per_side",
     "name": "Helms DB Row",
     "muscle": "Back",
     "equipment": "Dumbbell",
@@ -1273,6 +1403,7 @@
   },
   {
     "slug": "chest-supported-machine-row",
+    "weightBasis": "total",
     "name": "Plate-Loaded Chest-Supported Machine Row",
     "muscle": "Back",
     "equipment": "Machine",
@@ -1284,6 +1415,7 @@
   },
   {
     "slug": "weight-stack-chest-supported-machine-row",
+    "weightBasis": "total",
     "name": "Weight-Stack Chest-Supported Machine Row",
     "muscle": "Back",
     "equipment": "Machine",
@@ -1295,6 +1427,7 @@
   },
   {
     "slug": "seated-cable-row",
+    "weightBasis": "total",
     "name": "Seated Cable Row",
     "muscle": "Back",
     "equipment": "Cable",
@@ -1306,6 +1439,7 @@
   },
   {
     "slug": "incline-chest-supported-db-row",
+    "weightBasis": "per_side",
     "name": "Incline Chest-Supported DB Row",
     "muscle": "Back",
     "equipment": "Dumbbell",
@@ -1314,6 +1448,7 @@
   },
   {
     "slug": "chest-supported-t-bar-row",
+    "weightBasis": "total",
     "name": "Chest-Supported T-Bar Row",
     "muscle": "Back",
     "equipment": "Barbell",
@@ -1327,6 +1462,7 @@
   },
   {
     "slug": "lat-pulldown",
+    "weightBasis": "total",
     "name": "Lat Pulldown",
     "muscle": "Back",
     "equipment": "Cable",
@@ -1339,6 +1475,7 @@
   },
   {
     "slug": "pull-up",
+    "weightBasis": "total",
     "name": "Pull-Up",
     "muscle": "Back",
     "equipment": "Bodyweight",
@@ -1356,6 +1493,7 @@
   },
   {
     "slug": "assisted-pull-up",
+    "weightBasis": "total",
     "name": "Assisted Pull-Up",
     "muscle": "Back",
     "equipment": "Machine",
@@ -1371,6 +1509,7 @@
   },
   {
     "slug": "1-arm-half-kneeling-lat-pulldown",
+    "weightBasis": "total",
     "name": "1-Arm Half-Kneeling Lat Pulldown",
     "muscle": "Back",
     "equipment": "Cable",
@@ -1381,6 +1520,7 @@
   },
   {
     "slug": "1-arm-lat-pull-in",
+    "weightBasis": "total",
     "name": "1-Arm Lat Pull-In",
     "muscle": "Back",
     "equipment": "Cable",
@@ -1389,6 +1529,7 @@
   },
   {
     "slug": "weighted-pull-up",
+    "weightBasis": "total",
     "name": "Weighted Pull-Up",
     "muscle": "Back",
     "equipment": "Bodyweight",
@@ -1401,6 +1542,7 @@
   },
   {
     "slug": "neutral-grip-pullup",
+    "weightBasis": "total",
     "name": "Neutral-Grip Pullup",
     "muscle": "Back",
     "equipment": "Bodyweight",
@@ -1410,6 +1552,7 @@
   },
   {
     "slug": "pendlay-row",
+    "weightBasis": "total",
     "name": "Pendlay Row",
     "muscle": "Back",
     "equipment": "Barbell",
@@ -1420,6 +1563,7 @@
   },
   {
     "slug": "barbell-bent-over-row",
+    "weightBasis": "total",
     "name": "Barbell Bent Over Row",
     "muscle": "Back",
     "equipment": "Barbell",
@@ -1435,6 +1579,7 @@
   },
   {
     "slug": "omni-grip-machine-chest-supported-row",
+    "weightBasis": "total",
     "name": "Plate-Loaded Omni-Grip Machine Chest-Supported Row",
     "muscle": "Back",
     "equipment": "Machine",
@@ -1445,6 +1590,7 @@
   },
   {
     "slug": "weight-stack-omni-grip-machine-chest-supported-row",
+    "weightBasis": "total",
     "name": "Weight-Stack Omni-Grip Machine Chest-Supported Row",
     "muscle": "Back",
     "equipment": "Machine",
@@ -1456,6 +1602,7 @@
   },
   {
     "slug": "kroc-row",
+    "weightBasis": "per_side",
     "name": "Kroc Row",
     "muscle": "Back",
     "equipment": "Dumbbell",
@@ -1464,6 +1611,7 @@
   },
   {
     "slug": "single-arm-db-row",
+    "weightBasis": "per_side",
     "name": "Single-Arm DB Row",
     "muscle": "Back",
     "equipment": "Dumbbell",
@@ -1475,6 +1623,7 @@
   },
   {
     "slug": "meadows-row",
+    "weightBasis": "total",
     "name": "Meadows Row",
     "muscle": "Back",
     "equipment": "Barbell",
@@ -1483,6 +1632,7 @@
   },
   {
     "slug": "pronated-pulldown",
+    "weightBasis": "total",
     "name": "Pronated Pulldown",
     "muscle": "Back",
     "equipment": "Cable",
@@ -1491,6 +1641,7 @@
   },
   {
     "slug": "humble-row",
+    "weightBasis": "total",
     "name": "Humble Row",
     "muscle": "Back",
     "equipment": "Barbell",
@@ -1499,6 +1650,7 @@
   },
   {
     "slug": "wide-grip-pull-up",
+    "weightBasis": "total",
     "name": "Wide-Grip Pull-Up",
     "muscle": "Back",
     "equipment": "Bodyweight",
@@ -1510,6 +1662,7 @@
   },
   {
     "slug": "cable-close-grip-row",
+    "weightBasis": "total",
     "name": "Cable Close-Grip Row",
     "muscle": "Back",
     "equipment": "Cable",
@@ -1521,6 +1674,7 @@
   },
   {
     "slug": "machine-chest-supported-row-w-band",
+    "weightBasis": "total",
     "name": "Plate-Loaded Machine Chest-Supported Row W/Band",
     "muscle": "Back",
     "equipment": "Machine",
@@ -1531,6 +1685,7 @@
   },
   {
     "slug": "weight-stack-machine-chest-supported-row-w-band",
+    "weightBasis": "total",
     "name": "Weight-Stack Machine Chest-Supported Row W/Band",
     "muscle": "Back",
     "equipment": "Machine",
@@ -1542,6 +1697,7 @@
   },
   {
     "slug": "negative-neutral-grip-pull-up",
+    "weightBasis": "total",
     "name": "Negative Neutral-Grip Pull-Up",
     "muscle": "Back",
     "equipment": "Bodyweight",
@@ -1551,6 +1707,7 @@
   },
   {
     "slug": "seated-t-bar-row",
+    "weightBasis": "total",
     "name": "Seated T-Bar Row",
     "muscle": "Back",
     "equipment": "Barbell",
@@ -1559,6 +1716,7 @@
   },
   {
     "slug": "wide-grip-lat-pulldown",
+    "weightBasis": "total",
     "name": "Wide-Grip Lat Pulldown",
     "muscle": "Back",
     "equipment": "Cable",
@@ -1567,6 +1725,7 @@
   },
   {
     "slug": "1-arm-cable-pulldown",
+    "weightBasis": "total",
     "name": "1-Arm Cable Pulldown",
     "muscle": "Back",
     "equipment": "Cable",
@@ -1578,6 +1737,7 @@
   },
   {
     "slug": "close-grip-lat-pulldown",
+    "weightBasis": "total",
     "name": "Close-Grip Lat Pulldown",
     "muscle": "Back",
     "equipment": "Cable",
@@ -1586,6 +1746,7 @@
   },
   {
     "slug": "close-grip-pull-up",
+    "weightBasis": "total",
     "name": "Close-Grip Pull-Up",
     "muscle": "Back",
     "equipment": "Bodyweight",
@@ -1595,6 +1756,7 @@
   },
   {
     "slug": "chest-supported-db-row",
+    "weightBasis": "per_side",
     "name": "Chest-Supported DB Row",
     "muscle": "Back",
     "equipment": "Dumbbell",
@@ -1603,6 +1765,7 @@
   },
   {
     "slug": "chest-supported-row",
+    "weightBasis": "total",
     "name": "Plate-Loaded Chest-Supported Row",
     "muscle": "Back",
     "equipment": "Machine",
@@ -1613,6 +1776,7 @@
   },
   {
     "slug": "weight-stack-chest-supported-row",
+    "weightBasis": "total",
     "name": "Weight-Stack Chest-Supported Row",
     "muscle": "Back",
     "equipment": "Machine",
@@ -1624,6 +1788,7 @@
   },
   {
     "slug": "neutral-grip-pulldown",
+    "weightBasis": "total",
     "name": "Neutral Grip Pulldown",
     "muscle": "Back",
     "equipment": "Cable",
@@ -1634,6 +1799,7 @@
   },
   {
     "slug": "bicep-grip-lat-pulldown",
+    "weightBasis": "total",
     "name": "Bicep Grip Lat Pulldown",
     "muscle": "Back",
     "equipment": "Cable",
@@ -1642,6 +1808,7 @@
   },
   {
     "slug": "dual-handle-lat-pulldown",
+    "weightBasis": "total",
     "name": "Dual-Handle Lat Pulldown",
     "muscle": "Back",
     "equipment": "Cable",
@@ -1650,6 +1817,7 @@
   },
   {
     "slug": "pendlay-deficit-row",
+    "weightBasis": "total",
     "name": "Pendlay Deficit Row",
     "muscle": "Back",
     "equipment": "Barbell",
@@ -1658,6 +1826,7 @@
   },
   {
     "slug": "smith-machine-deficit-row",
+    "weightBasis": "total",
     "name": "Smith Machine Deficit Row",
     "muscle": "Back",
     "equipment": "Smith Machine",
@@ -1666,6 +1835,7 @@
   },
   {
     "slug": "smith-machine-row",
+    "weightBasis": "total",
     "name": "Smith Machine Row",
     "muscle": "Back",
     "equipment": "Smith Machine",
@@ -1674,6 +1844,7 @@
   },
   {
     "slug": "moto-row",
+    "weightBasis": "total",
     "name": "Moto Row",
     "muscle": "Back",
     "equipment": "Cable",
@@ -1682,6 +1853,7 @@
   },
   {
     "slug": "cross-body-lat-pull-around",
+    "weightBasis": "total",
     "name": "Cross-Body Lat Pull-Around",
     "muscle": "Back",
     "equipment": "Cable",
@@ -1690,6 +1862,7 @@
   },
   {
     "slug": "cable-lat-prayer",
+    "weightBasis": "total",
     "name": "Cable Lat Prayer",
     "muscle": "Back",
     "equipment": "Cable",
@@ -1700,6 +1873,7 @@
   },
   {
     "slug": "lat-focused-cable-row",
+    "weightBasis": "total",
     "name": "Lat-Focused Cable Row",
     "muscle": "Back",
     "equipment": "Cable",
@@ -1708,6 +1882,7 @@
   },
   {
     "slug": "elbows-in-1-arm-db-row",
+    "weightBasis": "per_side",
     "name": "Elbows-In 1-Arm DB Row",
     "muscle": "Back",
     "equipment": "Dumbbell",
@@ -1716,6 +1891,7 @@
   },
   {
     "slug": "cable-lat-pullover",
+    "weightBasis": "total",
     "name": "Cable Lat Pullover",
     "muscle": "Back",
     "equipment": "Cable",
@@ -1729,6 +1905,7 @@
   },
   {
     "slug": "db-lat-pullover",
+    "weightBasis": "total",
     "name": "DB Lat Pullover",
     "muscle": "Back",
     "equipment": "Dumbbell",
@@ -1737,6 +1914,7 @@
   },
   {
     "slug": "bottom-half-db-lat-pullover",
+    "weightBasis": "total",
     "name": "Bottom-Half DB Lat Pullover",
     "muscle": "Back",
     "equipment": "Dumbbell",
@@ -1745,6 +1923,7 @@
   },
   {
     "slug": "lat-pullover",
+    "weightBasis": "total",
     "name": "Lat Pullover",
     "muscle": "Back",
     "equipment": "Cable",
@@ -1755,6 +1934,7 @@
   },
   {
     "slug": "cable-pull-over",
+    "weightBasis": "total",
     "name": "Cable Pull-Over",
     "muscle": "Back",
     "equipment": "Cable",
@@ -1763,6 +1943,7 @@
   },
   {
     "slug": "machine-lat-pullover",
+    "weightBasis": "total",
     "name": "Plate-Loaded Machine Lat Pullover",
     "muscle": "Back",
     "equipment": "Machine",
@@ -1773,6 +1954,7 @@
   },
   {
     "slug": "weight-stack-machine-lat-pullover",
+    "weightBasis": "total",
     "name": "Weight-Stack Machine Lat Pullover",
     "muscle": "Back",
     "equipment": "Machine",
@@ -1784,6 +1966,7 @@
   },
   {
     "slug": "machine-pullover",
+    "weightBasis": "total",
     "name": "Plate-Loaded Machine Pullover",
     "muscle": "Back",
     "equipment": "Machine",
@@ -1794,6 +1977,7 @@
   },
   {
     "slug": "weight-stack-machine-pullover",
+    "weightBasis": "total",
     "name": "Weight-Stack Machine Pullover",
     "muscle": "Back",
     "equipment": "Machine",
@@ -1805,6 +1989,7 @@
   },
   {
     "slug": "db-pullover",
+    "weightBasis": "total",
     "name": "DB Pullover",
     "muscle": "Back",
     "equipment": "Dumbbell",
@@ -1813,6 +1998,7 @@
   },
   {
     "slug": "machine-shoulder-press",
+    "weightBasis": "total",
     "name": "Plate-Loaded Machine Shoulder Press",
     "muscle": "Shoulders",
     "equipment": "Machine",
@@ -1824,6 +2010,7 @@
   },
   {
     "slug": "weight-stack-machine-shoulder-press",
+    "weightBasis": "total",
     "name": "Weight-Stack Machine Shoulder Press",
     "muscle": "Shoulders",
     "equipment": "Machine",
@@ -1835,6 +2022,7 @@
   },
   {
     "slug": "push-press",
+    "weightBasis": "total",
     "name": "Push Press",
     "muscle": "Shoulders",
     "equipment": "Barbell",
@@ -1848,6 +2036,7 @@
   },
   {
     "slug": "standing-db-arnold-press",
+    "weightBasis": "per_side",
     "name": "Standing DB Arnold Press",
     "muscle": "Shoulders",
     "equipment": "Dumbbell",
@@ -1859,6 +2048,7 @@
   },
   {
     "slug": "seated-db-shoulder-press",
+    "weightBasis": "per_side",
     "name": "Seated DB Shoulder Press",
     "muscle": "Shoulders",
     "equipment": "Dumbbell",
@@ -1870,6 +2060,7 @@
   },
   {
     "slug": "constant-tension-machine-shoulder-press",
+    "weightBasis": "total",
     "name": "Plate-Loaded Constant-Tension Machine Shoulder Press",
     "muscle": "Shoulders",
     "equipment": "Machine",
@@ -1880,6 +2071,7 @@
   },
   {
     "slug": "weight-stack-constant-tension-machine-shoulder-press",
+    "weightBasis": "total",
     "name": "Weight-Stack Constant-Tension Machine Shoulder Press",
     "muscle": "Shoulders",
     "equipment": "Machine",
@@ -1891,6 +2083,7 @@
   },
   {
     "slug": "arnold-press",
+    "weightBasis": "per_side",
     "name": "Arnold Press",
     "muscle": "Shoulders",
     "equipment": "Dumbbell",
@@ -1899,6 +2092,7 @@
   },
   {
     "slug": "overhead-press",
+    "weightBasis": "total",
     "name": "Overhead Press",
     "muscle": "Shoulders",
     "equipment": "Barbell",
@@ -1916,6 +2110,7 @@
   },
   {
     "slug": "db-curl",
+    "weightBasis": "per_side",
     "name": "DB Curl",
     "muscle": "Biceps and forearms",
     "equipment": "Dumbbell",
@@ -1926,6 +2121,7 @@
   },
   {
     "slug": "single-arm-cable-curl",
+    "weightBasis": "total",
     "name": "Single-Arm Cable Curl",
     "muscle": "Biceps and forearms",
     "equipment": "Cable",
@@ -1937,6 +2133,7 @@
   },
   {
     "slug": "db-pronated-curl",
+    "weightBasis": "per_side",
     "name": "DB Pronated Curl",
     "muscle": "Biceps and forearms",
     "equipment": "Dumbbell",
@@ -1947,6 +2144,7 @@
   },
   {
     "slug": "cable-ez-curl",
+    "weightBasis": "total",
     "name": "Cable EZ Curl",
     "muscle": "Biceps and forearms",
     "equipment": "Cable",
@@ -1957,6 +2155,7 @@
   },
   {
     "slug": "ez-bar-curl",
+    "weightBasis": "total",
     "name": "EZ-Bar Curl",
     "muscle": "Biceps and forearms",
     "equipment": "EZ-Bar",
@@ -1971,6 +2170,7 @@
   },
   {
     "slug": "db-bicep-curl",
+    "weightBasis": "per_side",
     "name": "DB Bicep Curl",
     "muscle": "Biceps and forearms",
     "equipment": "Dumbbell",
@@ -1979,6 +2179,7 @@
   },
   {
     "slug": "alternating-db-curl",
+    "weightBasis": "per_side",
     "name": "Alternating DB Curl",
     "muscle": "Biceps and forearms",
     "equipment": "Dumbbell",
@@ -1987,6 +2188,7 @@
   },
   {
     "slug": "supinated-dumbbell-curl",
+    "weightBasis": "per_side",
     "name": "Supinated Dumbbell Curl",
     "muscle": "Biceps and forearms",
     "equipment": "Dumbbell",
@@ -1998,6 +2200,7 @@
   },
   {
     "slug": "bayesian-cable-curl",
+    "weightBasis": "total",
     "name": "Bayesian Cable Curl",
     "muscle": "Biceps and forearms",
     "equipment": "Cable",
@@ -2008,6 +2211,7 @@
   },
   {
     "slug": "hammer-curl",
+    "weightBasis": "per_side",
     "name": "Hammer Curl",
     "muscle": "Biceps and forearms",
     "equipment": "Dumbbell",
@@ -2018,6 +2222,7 @@
   },
   {
     "slug": "incline-dumbbell-curl",
+    "weightBasis": "per_side",
     "name": "Incline Dumbbell Curl",
     "muscle": "Biceps and forearms",
     "equipment": "Dumbbell",
@@ -2031,6 +2236,7 @@
   },
   {
     "slug": "ez-bar-strict-curl",
+    "weightBasis": "total",
     "name": "EZ-Bar Strict Curl",
     "muscle": "Biceps and forearms",
     "equipment": "EZ-Bar",
@@ -2042,6 +2248,7 @@
   },
   {
     "slug": "ez-bar-preacher-curl",
+    "weightBasis": "total",
     "name": "EZ-Bar Preacher Curl",
     "muscle": "Biceps and forearms",
     "equipment": "EZ-Bar",
@@ -2055,6 +2262,7 @@
   },
   {
     "slug": "machine-preacher-curl",
+    "weightBasis": "total",
     "name": "Plate-Loaded Machine Preacher Curl",
     "muscle": "Biceps and forearms",
     "equipment": "Machine",
@@ -2065,6 +2273,7 @@
   },
   {
     "slug": "weight-stack-machine-preacher-curl",
+    "weightBasis": "total",
     "name": "Weight-Stack Machine Preacher Curl",
     "muscle": "Biceps and forearms",
     "equipment": "Machine",
@@ -2076,6 +2285,7 @@
   },
   {
     "slug": "db-preacher-curl",
+    "weightBasis": "per_side",
     "name": "DB Preacher Curl",
     "muscle": "Biceps and forearms",
     "equipment": "Dumbbell",
@@ -2089,6 +2299,7 @@
   },
   {
     "slug": "heavy-barbell-hold",
+    "weightBasis": "total",
     "name": "Heavy Barbell Hold",
     "muscle": "Biceps and forearms",
     "equipment": "Barbell",
@@ -2098,6 +2309,7 @@
   },
   {
     "slug": "bench-braced-wrist-curl",
+    "weightBasis": "per_side",
     "name": "Bench-Braced Wrist Curl",
     "muscle": "Biceps and forearms",
     "equipment": "Dumbbell",
@@ -2106,6 +2318,7 @@
   },
   {
     "slug": "dumbbell-wrist-curl",
+    "weightBasis": "per_side",
     "name": "DB Wrist Curl",
     "muscle": "Biceps and forearms",
     "equipment": "Dumbbell",
@@ -2117,6 +2330,7 @@
   },
   {
     "slug": "behind-the-back-wrist-curl",
+    "weightBasis": "total",
     "name": "Behind-the-Back Wrist Curl",
     "muscle": "Biceps and forearms",
     "equipment": "Barbell",
@@ -2125,6 +2339,7 @@
   },
   {
     "slug": "bench-braced-wrist-extension",
+    "weightBasis": "per_side",
     "name": "Bench-Braced Wrist Extension",
     "muscle": "Biceps and forearms",
     "equipment": "Dumbbell",
@@ -2133,6 +2348,7 @@
   },
   {
     "slug": "dumbbell-wrist-extension",
+    "weightBasis": "per_side",
     "name": "DB Wrist Extension",
     "muscle": "Biceps and forearms",
     "equipment": "Dumbbell",
@@ -2146,6 +2362,7 @@
   },
   {
     "slug": "modified-zottman-curl",
+    "weightBasis": "per_side",
     "name": "Modified Zottman Curl",
     "muscle": "Biceps and forearms",
     "equipment": "Dumbbell",
@@ -2154,6 +2371,7 @@
   },
   {
     "slug": "standing-wrist-extension",
+    "weightBasis": "total",
     "name": "Standing Wrist Extension",
     "muscle": "Biceps and forearms",
     "equipment": "Barbell",
@@ -2162,6 +2380,7 @@
   },
   {
     "slug": "farmer-s-walk",
+    "weightBasis": "per_side",
     "name": "Farmer's Walk",
     "muscle": "Biceps and forearms",
     "equipment": "Dumbbell",
@@ -2171,6 +2390,7 @@
   },
   {
     "slug": "plate-pinch",
+    "weightBasis": "total",
     "name": "Plate Pinch",
     "muscle": "Biceps and forearms",
     "equipment": "Plate",
@@ -2180,6 +2400,7 @@
   },
   {
     "slug": "triceps-machine",
+    "weightBasis": "total",
     "name": "Triceps Machine",
     "muscle": "Triceps",
     "equipment": "Machine",
@@ -2188,6 +2409,7 @@
   },
   {
     "slug": "overhead-cable-triceps-extension",
+    "weightBasis": "total",
     "name": "Overhead Cable Triceps Extension",
     "muscle": "Triceps",
     "equipment": "Cable",
@@ -2201,6 +2423,7 @@
   },
   {
     "slug": "single-arm-rope-triceps-extension",
+    "weightBasis": "total",
     "name": "Single-Arm Rope Triceps Extension",
     "muscle": "Triceps",
     "equipment": "Cable",
@@ -2209,6 +2432,7 @@
   },
   {
     "slug": "db-french-press",
+    "weightBasis": "total",
     "name": "DB French Press",
     "muscle": "Triceps",
     "equipment": "Dumbbell",
@@ -2217,6 +2441,7 @@
   },
   {
     "slug": "ez-bar-skull-crusher",
+    "weightBasis": "total",
     "name": "EZ-Bar Skull Crusher",
     "muscle": "Triceps",
     "equipment": "EZ-Bar",
@@ -2228,6 +2453,7 @@
   },
   {
     "slug": "db-skull-crusher",
+    "weightBasis": "per_side",
     "name": "DB Skull Crusher",
     "muscle": "Triceps",
     "equipment": "Dumbbell",
@@ -2238,6 +2464,7 @@
   },
   {
     "slug": "triceps-pressdown",
+    "weightBasis": "total",
     "name": "Triceps Pressdown",
     "muscle": "Triceps",
     "equipment": "Cable",
@@ -2250,6 +2477,7 @@
   },
   {
     "slug": "katana-triceps-extension",
+    "weightBasis": "total",
     "name": "Katana Triceps Extension",
     "muscle": "Triceps",
     "equipment": "Cable",
@@ -2258,6 +2486,7 @@
   },
   {
     "slug": "triceps-diverging-pressdown",
+    "weightBasis": "total",
     "name": "Triceps Diverging Pressdown",
     "muscle": "Triceps",
     "equipment": "Cable",
@@ -2268,6 +2497,7 @@
   },
   {
     "slug": "dual-cable-triceps-press",
+    "weightBasis": "per_side",
     "name": "Dual-Cable Triceps Press",
     "muscle": "Triceps",
     "equipment": "Cable",
@@ -2276,6 +2506,7 @@
   },
   {
     "slug": "cable-triceps-kickback",
+    "weightBasis": "total",
     "name": "Cable Triceps Kickback",
     "muscle": "Triceps",
     "equipment": "Cable",
@@ -2284,6 +2515,7 @@
   },
   {
     "slug": "db-triceps-kickback",
+    "weightBasis": "per_side",
     "name": "DB Triceps Kickback",
     "muscle": "Triceps",
     "equipment": "Dumbbell",
@@ -2292,6 +2524,7 @@
   },
   {
     "slug": "n1-style-cross-body-triceps-extension",
+    "weightBasis": "total",
     "name": "N1-Style Cross-Body Triceps Extension",
     "muscle": "Triceps",
     "equipment": "Cable",
@@ -2300,6 +2533,7 @@
   },
   {
     "slug": "single-arm-tricep-pressdown",
+    "weightBasis": "total",
     "name": "Single-Arm Tricep Pressdown",
     "muscle": "Triceps",
     "equipment": "Cable",
@@ -2308,6 +2542,7 @@
   },
   {
     "slug": "single-arm-cable-tricep-kickback",
+    "weightBasis": "total",
     "name": "Single-Arm Cable Tricep Kickback",
     "muscle": "Triceps",
     "equipment": "Cable",
@@ -2316,6 +2551,7 @@
   },
   {
     "slug": "squeeze-only-triceps-pressdown",
+    "weightBasis": "total",
     "name": "Squeeze-Only Triceps Pressdown",
     "muscle": "Triceps",
     "equipment": "Cable",
@@ -2324,6 +2560,7 @@
   },
   {
     "slug": "stretch-only-overhead-triceps-extension",
+    "weightBasis": "total",
     "name": "Stretch-Only Overhead Triceps Extension",
     "muscle": "Triceps",
     "equipment": "Cable",
@@ -2332,6 +2569,7 @@
   },
   {
     "slug": "floor-skull-crusher-heavy",
+    "weightBasis": "total",
     "name": "Floor Skull Crusher (Heavy)",
     "muscle": "Triceps",
     "equipment": "Barbell",
@@ -2342,6 +2580,7 @@
   },
   {
     "slug": "db-floor-skull-crusher",
+    "weightBasis": "per_side",
     "name": "DB Floor Skull Crusher",
     "muscle": "Triceps",
     "equipment": "Dumbbell",
@@ -2350,6 +2589,7 @@
   },
   {
     "slug": "myo-reps-floor-skull-crusher",
+    "weightBasis": "total",
     "name": "Myo Reps Floor Skull Crusher",
     "muscle": "Triceps",
     "equipment": "Barbell",
@@ -2358,6 +2598,7 @@
   },
   {
     "slug": "tricep-pushdown",
+    "weightBasis": "total",
     "name": "Tricep Pushdown",
     "muscle": "Triceps",
     "equipment": "Cable",
@@ -2366,6 +2607,7 @@
   },
   {
     "slug": "smith-machine-jm-press",
+    "weightBasis": "total",
     "name": "Smith Machine JM Press",
     "muscle": "Triceps",
     "equipment": "Smith Machine",
@@ -2374,6 +2616,7 @@
   },
   {
     "slug": "overhead-cable-triceps-extension-bar",
+    "weightBasis": "total",
     "name": "Overhead Cable Triceps Extension (Bar)",
     "muscle": "Triceps",
     "equipment": "Cable",
@@ -2382,6 +2625,7 @@
   },
   {
     "slug": "overhead-cable-triceps-extension-rope",
+    "weightBasis": "total",
     "name": "Overhead Cable Triceps Extension (Rope)",
     "muscle": "Triceps",
     "equipment": "Cable",
@@ -2394,6 +2638,7 @@
   },
   {
     "slug": "db-lateral-raise",
+    "weightBasis": "per_side",
     "name": "DB Lateral Raise",
     "muscle": "Shoulders",
     "equipment": "Dumbbell",
@@ -2406,6 +2651,7 @@
   },
   {
     "slug": "cable-lateral-raise",
+    "weightBasis": "total",
     "name": "Cable Lateral Raise",
     "muscle": "Shoulders",
     "equipment": "Cable",
@@ -2416,6 +2662,7 @@
   },
   {
     "slug": "machine-lateral-raise",
+    "weightBasis": "total",
     "name": "Plate-Loaded Machine Lateral Raise",
     "muscle": "Shoulders",
     "equipment": "Machine",
@@ -2426,6 +2673,7 @@
   },
   {
     "slug": "weight-stack-machine-lateral-raise",
+    "weightBasis": "total",
     "name": "Weight-Stack Machine Lateral Raise",
     "muscle": "Shoulders",
     "equipment": "Machine",
@@ -2437,6 +2685,7 @@
   },
   {
     "slug": "incline-db-y-raise",
+    "weightBasis": "per_side",
     "name": "Incline DB Y-Raise",
     "muscle": "Shoulders",
     "equipment": "Dumbbell",
@@ -2445,6 +2694,7 @@
   },
   {
     "slug": "cable-y-raise",
+    "weightBasis": "per_side",
     "name": "Cable Y-Raise",
     "muscle": "Shoulders",
     "equipment": "Cable",
@@ -2453,6 +2703,7 @@
   },
   {
     "slug": "cross-body-cable-y-raise-side-delt",
+    "weightBasis": "total",
     "name": "Cross-Body Cable Y-Raise (Side Delt)",
     "muscle": "Shoulders",
     "equipment": "Cable",
@@ -2461,6 +2712,7 @@
   },
   {
     "slug": "omni-direction-face-pull",
+    "weightBasis": "total",
     "name": "Omni-Direction Face Pull",
     "muscle": "Shoulders",
     "equipment": "Cable",
@@ -2469,6 +2721,7 @@
   },
   {
     "slug": "reverse-cable-flye",
+    "weightBasis": "per_side",
     "name": "Reverse Cable Flye",
     "muscle": "Shoulders",
     "equipment": "Cable",
@@ -2480,6 +2733,7 @@
   },
   {
     "slug": "bent-over-reverse-db-flye",
+    "weightBasis": "per_side",
     "name": "Bent-Over Reverse DB Flye",
     "muscle": "Shoulders",
     "equipment": "Dumbbell",
@@ -2495,6 +2749,7 @@
   },
   {
     "slug": "rope-face-pull",
+    "weightBasis": "total",
     "name": "Rope Face Pull",
     "muscle": "Shoulders",
     "equipment": "Cable",
@@ -2507,6 +2762,7 @@
   },
   {
     "slug": "high-cable-lateral-raise",
+    "weightBasis": "total",
     "name": "High-Cable Lateral Raise",
     "muscle": "Shoulders",
     "equipment": "Cable",
@@ -2515,6 +2771,7 @@
   },
   {
     "slug": "1-arm-reverse-pec-deck",
+    "weightBasis": "total",
     "name": "Plate-Loaded 1-Arm Reverse Pec Deck",
     "muscle": "Shoulders",
     "equipment": "Machine",
@@ -2525,6 +2782,7 @@
   },
   {
     "slug": "weight-stack-1-arm-reverse-pec-deck",
+    "weightBasis": "total",
     "name": "Weight-Stack 1-Arm Reverse Pec Deck",
     "muscle": "Shoulders",
     "equipment": "Machine",
@@ -2536,6 +2794,7 @@
   },
   {
     "slug": "lying-reverse-db-flye",
+    "weightBasis": "per_side",
     "name": "Lying Reverse DB Flye",
     "muscle": "Shoulders",
     "equipment": "Dumbbell",
@@ -2544,6 +2803,7 @@
   },
   {
     "slug": "reverse-cable-crossover",
+    "weightBasis": "per_side",
     "name": "Reverse Cable Crossover",
     "muscle": "Shoulders",
     "equipment": "Cable",
@@ -2552,6 +2812,7 @@
   },
   {
     "slug": "rear-delt-fly",
+    "weightBasis": "total",
     "name": "Rear Delt Fly",
     "muscle": "Shoulders",
     "equipment": "Machine",
@@ -2560,6 +2821,7 @@
   },
   {
     "slug": "rear-delt-45-cable-flye",
+    "weightBasis": "per_side",
     "name": "Rear Delt 45° Cable Flye",
     "muscle": "Shoulders",
     "equipment": "Cable",
@@ -2571,6 +2833,7 @@
   },
   {
     "slug": "high-cable-cuffed-lateral-raise",
+    "weightBasis": "total",
     "name": "High-Cable Cuffed Lateral Raise",
     "muscle": "Shoulders",
     "equipment": "Cable",
@@ -2579,6 +2842,7 @@
   },
   {
     "slug": "lean-in-db-lateral-raise",
+    "weightBasis": "per_side",
     "name": "Lean-In DB Lateral Raise",
     "muscle": "Shoulders",
     "equipment": "Dumbbell",
@@ -2589,6 +2853,7 @@
   },
   {
     "slug": "meadows-incline-db-lateral-raise",
+    "weightBasis": "per_side",
     "name": "Meadows Incline DB Lateral Raise",
     "muscle": "Shoulders",
     "equipment": "Dumbbell",
@@ -2597,6 +2862,7 @@
   },
   {
     "slug": "cable-unilateral-face-pull",
+    "weightBasis": "total",
     "name": "Cable Unilateral Face Pull",
     "muscle": "Shoulders",
     "equipment": "Cable",
@@ -2605,6 +2871,7 @@
   },
   {
     "slug": "cuffed-behind-the-back-lateral-raise",
+    "weightBasis": "total",
     "name": "Cuffed Behind-The-Back Lateral Raise",
     "muscle": "Shoulders",
     "equipment": "Cable",
@@ -2613,6 +2880,7 @@
   },
   {
     "slug": "lying-paused-rope-face-pull",
+    "weightBasis": "total",
     "name": "Lying Paused Rope Face Pull",
     "muscle": "Shoulders",
     "equipment": "Cable",
@@ -2621,6 +2889,7 @@
   },
   {
     "slug": "standing-calf-raise",
+    "weightBasis": "total",
     "name": "Plate-Loaded Standing Calf Raise",
     "muscle": "Traps, calves, and hips",
     "equipment": "Machine",
@@ -2632,6 +2901,7 @@
   },
   {
     "slug": "weight-stack-standing-calf-raise",
+    "weightBasis": "total",
     "name": "Weight-Stack Standing Calf Raise",
     "muscle": "Traps, calves, and hips",
     "equipment": "Machine",
@@ -2643,6 +2913,7 @@
   },
   {
     "slug": "seated-calf-raise",
+    "weightBasis": "total",
     "name": "Plate-Loaded Seated Calf Raise",
     "muscle": "Traps, calves, and hips",
     "equipment": "Machine",
@@ -2653,6 +2924,7 @@
   },
   {
     "slug": "weight-stack-seated-calf-raise",
+    "weightBasis": "total",
     "name": "Weight-Stack Seated Calf Raise",
     "muscle": "Traps, calves, and hips",
     "equipment": "Machine",
@@ -2664,6 +2936,7 @@
   },
   {
     "slug": "leg-press-toe-press",
+    "weightBasis": "total",
     "name": "Plate-Loaded Leg Press Toe Press",
     "muscle": "Traps, calves, and hips",
     "equipment": "Machine",
@@ -2674,6 +2947,7 @@
   },
   {
     "slug": "weight-stack-leg-press-toe-press",
+    "weightBasis": "total",
     "name": "Weight-Stack Leg Press Toe Press",
     "muscle": "Traps, calves, and hips",
     "equipment": "Machine",
@@ -2685,6 +2959,7 @@
   },
   {
     "slug": "leg-press-calf-press",
+    "weightBasis": "total",
     "name": "Plate-Loaded Leg Press Calf Press",
     "muscle": "Traps, calves, and hips",
     "equipment": "Machine",
@@ -2695,6 +2970,7 @@
   },
   {
     "slug": "weight-stack-leg-press-calf-press",
+    "weightBasis": "total",
     "name": "Weight-Stack Leg Press Calf Press",
     "muscle": "Traps, calves, and hips",
     "equipment": "Machine",
@@ -2706,6 +2982,7 @@
   },
   {
     "slug": "leg-press-calf-jumps",
+    "weightBasis": "total",
     "name": "Plate-Loaded Leg Press Calf Jumps",
     "muscle": "Traps, calves, and hips",
     "equipment": "Machine",
@@ -2716,6 +2993,7 @@
   },
   {
     "slug": "weight-stack-leg-press-calf-jumps",
+    "weightBasis": "total",
     "name": "Weight-Stack Leg Press Calf Jumps",
     "muscle": "Traps, calves, and hips",
     "equipment": "Machine",
@@ -2727,6 +3005,7 @@
   },
   {
     "slug": "db-calf-jumps",
+    "weightBasis": "per_side",
     "name": "DB Calf Jumps",
     "muscle": "Traps, calves, and hips",
     "equipment": "Dumbbell",
@@ -2737,6 +3016,7 @@
   },
   {
     "slug": "donkey-calf-raise",
+    "weightBasis": "total",
     "name": "Donkey Calf Raise",
     "muscle": "Traps, calves, and hips",
     "equipment": "Machine",
@@ -2745,6 +3025,7 @@
   },
   {
     "slug": "single-leg-db-calf-raise",
+    "weightBasis": "per_side",
     "name": "Single-Leg DB Calf Raise",
     "muscle": "Traps, calves, and hips",
     "equipment": "Dumbbell",
@@ -2753,6 +3034,7 @@
   },
   {
     "slug": "calf-raise-machine",
+    "weightBasis": "total",
     "name": "Plate-Loaded Calf Raise Machine",
     "muscle": "Traps, calves, and hips",
     "equipment": "Machine",
@@ -2763,6 +3045,7 @@
   },
   {
     "slug": "weight-stack-calf-raise-machine",
+    "weightBasis": "total",
     "name": "Weight-Stack Calf Raise Machine",
     "muscle": "Traps, calves, and hips",
     "equipment": "Machine",
@@ -2774,6 +3057,7 @@
   },
   {
     "slug": "seated-hip-abduction",
+    "weightBasis": "total",
     "name": "Seated Hip Abduction",
     "muscle": "Traps, calves, and hips",
     "equipment": "Machine",
@@ -2782,6 +3066,7 @@
   },
   {
     "slug": "machine-hip-abduction",
+    "weightBasis": "total",
     "name": "Machine Hip Abduction",
     "muscle": "Traps, calves, and hips",
     "equipment": "Machine",
@@ -2793,6 +3078,7 @@
   },
   {
     "slug": "cable-hip-abduction",
+    "weightBasis": "total",
     "name": "Cable Hip Abduction",
     "muscle": "Traps, calves, and hips",
     "equipment": "Cable",
@@ -2803,6 +3089,7 @@
   },
   {
     "slug": "standing-plate-abduction",
+    "weightBasis": "total",
     "name": "Standing Plate Abduction",
     "muscle": "Traps, calves, and hips",
     "equipment": "Plate",
@@ -2811,6 +3098,7 @@
   },
   {
     "slug": "lateral-band-walk",
+    "weightBasis": "total",
     "name": "Lateral Band Walk",
     "muscle": "Traps, calves, and hips",
     "equipment": "Band",
@@ -2819,6 +3107,7 @@
   },
   {
     "slug": "hex-bar-shrug",
+    "weightBasis": "total",
     "name": "Hex Bar Shrug",
     "muscle": "Traps",
     "equipment": "Trap Bar",
@@ -2827,6 +3116,7 @@
   },
   {
     "slug": "smith-machine-shrug",
+    "weightBasis": "total",
     "name": "Smith Machine Shrug",
     "muscle": "Traps",
     "equipment": "Smith Machine",
@@ -2837,6 +3127,7 @@
   },
   {
     "slug": "dumbbell-shrug",
+    "weightBasis": "per_side",
     "name": "Dumbbell Shrug",
     "muscle": "Traps",
     "equipment": "Dumbbell",
@@ -2847,6 +3138,7 @@
   },
   {
     "slug": "barbell-shrug",
+    "weightBasis": "total",
     "name": "Barbell Shrug",
     "muscle": "Traps",
     "equipment": "Barbell",
@@ -2855,6 +3147,7 @@
   },
   {
     "slug": "cable-shrug-in",
+    "weightBasis": "total",
     "name": "Cable Shrug-In",
     "muscle": "Traps",
     "equipment": "Cable",
@@ -2865,6 +3158,7 @@
   },
   {
     "slug": "machine-shrug",
+    "weightBasis": "total",
     "name": "Plate-Loaded Machine Shrug",
     "muscle": "Traps",
     "equipment": "Machine",
@@ -2876,6 +3170,7 @@
   },
   {
     "slug": "weight-stack-machine-shrug",
+    "weightBasis": "total",
     "name": "Weight-Stack Machine Shrug",
     "muscle": "Traps",
     "equipment": "Machine",
@@ -2887,6 +3182,7 @@
   },
   {
     "slug": "kelso-shrug",
+    "weightBasis": "per_side",
     "name": "Kelso Shrug",
     "muscle": "Traps",
     "equipment": "Dumbbell",
@@ -2895,6 +3191,7 @@
   },
   {
     "slug": "seated-cable-kelso-shrug",
+    "weightBasis": "total",
     "name": "Seated Cable Kelso Shrug",
     "muscle": "Traps",
     "equipment": "Cable",
@@ -2903,6 +3200,7 @@
   },
   {
     "slug": "incline-db-kelso-shrug",
+    "weightBasis": "per_side",
     "name": "Incline DB Kelso Shrug",
     "muscle": "Traps",
     "equipment": "Dumbbell",
@@ -2911,6 +3209,7 @@
   },
   {
     "slug": "trap-bar-shrug",
+    "weightBasis": "total",
     "name": "Trap Bar Shrug",
     "muscle": "Traps",
     "equipment": "Trap Bar",
@@ -2919,6 +3218,7 @@
   },
   {
     "slug": "seated-dumbbell-shrug",
+    "weightBasis": "per_side",
     "name": "Seated Dumbbell Shrug",
     "muscle": "Traps",
     "equipment": "Dumbbell",
@@ -2927,6 +3227,7 @@
   },
   {
     "slug": "cable-crunch",
+    "weightBasis": "total",
     "name": "Cable Crunch",
     "muscle": "Core",
     "equipment": "Cable",
@@ -2935,6 +3236,7 @@
   },
   {
     "slug": "machine-crunch",
+    "weightBasis": "total",
     "name": "Plate-Loaded Machine Crunch",
     "muscle": "Core",
     "equipment": "Machine",
@@ -2945,6 +3247,7 @@
   },
   {
     "slug": "weight-stack-machine-crunch",
+    "weightBasis": "total",
     "name": "Weight-Stack Machine Crunch",
     "muscle": "Core",
     "equipment": "Machine",
@@ -2956,6 +3259,7 @@
   },
   {
     "slug": "plate-weighted-crunch",
+    "weightBasis": "total",
     "name": "Plate-Weighted Crunch",
     "muscle": "Core",
     "equipment": "Plate",
@@ -2964,6 +3268,7 @@
   },
   {
     "slug": "decline-plate-weighted-crunch",
+    "weightBasis": "total",
     "name": "Decline Plate-Weighted Crunch",
     "muscle": "Core",
     "equipment": "Plate",
@@ -2974,6 +3279,7 @@
   },
   {
     "slug": "hanging-leg-raise",
+    "weightBasis": "total",
     "name": "Hanging Leg Raise",
     "muscle": "Core",
     "equipment": "Bodyweight",
@@ -2983,6 +3289,7 @@
   },
   {
     "slug": "roman-chair-crunch",
+    "weightBasis": "total",
     "name": "Roman Chair Crunch",
     "muscle": "Core",
     "equipment": "Bodyweight",
@@ -2992,6 +3299,7 @@
   },
   {
     "slug": "reverse-crunch",
+    "weightBasis": "total",
     "name": "Reverse Crunch",
     "muscle": "Core",
     "equipment": "Bodyweight",
@@ -3001,6 +3309,7 @@
   },
   {
     "slug": "bicycle-crunch",
+    "weightBasis": "total",
     "name": "Bicycle Crunch",
     "muscle": "Core",
     "equipment": "Bodyweight",
@@ -3010,6 +3319,7 @@
   },
   {
     "slug": "weighted-crunch",
+    "weightBasis": "total",
     "name": "Weighted Crunch",
     "muscle": "Core",
     "equipment": "Bodyweight",
@@ -3018,6 +3328,7 @@
   },
   {
     "slug": "dragon-flag",
+    "weightBasis": "total",
     "name": "Dragon Flag",
     "muscle": "Core",
     "equipment": "Bodyweight",
@@ -3027,6 +3338,7 @@
   },
   {
     "slug": "bent-knee-dragon-flag",
+    "weightBasis": "total",
     "name": "Bent-Knee Dragon Flag",
     "muscle": "Core",
     "equipment": "Bodyweight",
@@ -3036,6 +3348,7 @@
   },
   {
     "slug": "lying-leg-raise",
+    "weightBasis": "total",
     "name": "Lying Leg Raise",
     "muscle": "Core",
     "equipment": "Bodyweight",
@@ -3045,6 +3358,7 @@
   },
   {
     "slug": "copenhagen-hip-adduction",
+    "weightBasis": "total",
     "name": "Copenhagen Hip Adduction",
     "muscle": "Adductors and neck",
     "equipment": "Bodyweight",
@@ -3054,6 +3368,7 @@
   },
   {
     "slug": "cable-hip-adduction",
+    "weightBasis": "total",
     "name": "Cable Hip Adduction",
     "muscle": "Adductors and neck",
     "equipment": "Cable",
@@ -3062,6 +3377,7 @@
   },
   {
     "slug": "machine-hip-adduction",
+    "weightBasis": "total",
     "name": "Machine Hip Adduction",
     "muscle": "Adductors and neck",
     "equipment": "Machine",
@@ -3072,6 +3388,7 @@
   },
   {
     "slug": "head-harness-neck-curl",
+    "weightBasis": "total",
     "name": "Head Harness Neck Curl",
     "muscle": "Adductors and neck",
     "equipment": "Plate",
@@ -3080,6 +3397,7 @@
   },
   {
     "slug": "head-harness-neck-extension",
+    "weightBasis": "total",
     "name": "Head Harness Neck Extension",
     "muscle": "Adductors and neck",
     "equipment": "Plate",
@@ -3091,6 +3409,7 @@
   },
   {
     "slug": "plate-loaded-neck-curl",
+    "weightBasis": "total",
     "name": "Plate-Loaded Neck Curl",
     "muscle": "Adductors and neck",
     "equipment": "Plate",
@@ -3102,6 +3421,7 @@
   },
   {
     "slug": "plate-loaded-neck-extension",
+    "weightBasis": "total",
     "name": "Plate-Loaded Neck Extension",
     "muscle": "Adductors and neck",
     "equipment": "Plate",
@@ -3110,6 +3430,7 @@
   },
   {
     "slug": "dead-hang",
+    "weightBasis": "total",
     "name": "Dead Hang",
     "muscle": "Back",
     "equipment": "Bodyweight",
@@ -3127,6 +3448,7 @@
   },
   {
     "slug": "db-incline-press",
+    "weightBasis": "per_side",
     "name": "DB Incline Press",
     "muscle": "Chest",
     "equipment": "Dumbbell",
@@ -3143,6 +3465,7 @@
   },
   {
     "slug": "deficit-deadlift",
+    "weightBasis": "total",
     "name": "Deficit Deadlift",
     "muscle": "Posterior chain",
     "equipment": "Barbell",
@@ -3155,6 +3478,7 @@
   },
   {
     "slug": "leg-curl",
+    "weightBasis": "total",
     "name": "Plate-Loaded Leg Curl",
     "muscle": "Posterior chain",
     "equipment": "Machine",
@@ -3165,6 +3489,7 @@
   },
   {
     "slug": "weight-stack-leg-curl",
+    "weightBasis": "total",
     "name": "Weight-Stack Leg Curl",
     "muscle": "Posterior chain",
     "equipment": "Machine",
@@ -3176,6 +3501,7 @@
   },
   {
     "slug": "dumbbell-row",
+    "weightBasis": "per_side",
     "name": "Dumbbell Row",
     "muscle": "Back",
     "equipment": "Dumbbell",
@@ -3187,6 +3513,7 @@
   },
   {
     "slug": "barbell-supinated-row",
+    "weightBasis": "total",
     "name": "Barbell Supinated Row",
     "muscle": "Back",
     "equipment": "Barbell",
@@ -3201,6 +3528,7 @@
   },
   {
     "slug": "cable-upright-row",
+    "weightBasis": "total",
     "name": "Cable Upright Row",
     "muscle": "Shoulders",
     "equipment": "Cable",
@@ -3215,6 +3543,7 @@
   },
   {
     "slug": "barbell-floor-press",
+    "weightBasis": "total",
     "name": "Barbell Floor Press",
     "muscle": "Chest",
     "equipment": "Barbell",
@@ -3228,6 +3557,7 @@
   },
   {
     "slug": "california-press",
+    "weightBasis": "total",
     "name": "California Press",
     "muscle": "Triceps",
     "equipment": "Barbell",
@@ -3239,6 +3569,7 @@
   },
   {
     "slug": "band-pull-apart",
+    "weightBasis": "total",
     "name": "Band Pull-Apart",
     "muscle": "Back",
     "equipment": "Band",
@@ -3250,6 +3581,7 @@
   },
   {
     "slug": "reverse-hyper",
+    "weightBasis": "total",
     "name": "Reverse Hyper",
     "muscle": "Posterior chain",
     "equipment": "Machine",
@@ -3263,6 +3595,7 @@
   },
   {
     "slug": "plank",
+    "weightBasis": "total",
     "name": "Plank",
     "muscle": "Core",
     "equipment": "Bodyweight",
@@ -3273,6 +3606,7 @@
   },
   {
     "slug": "crunch",
+    "weightBasis": "total",
     "name": "Crunch",
     "muscle": "Core",
     "equipment": "Bodyweight",
@@ -3282,6 +3616,7 @@
   },
   {
     "slug": "ab-wheel-rollout",
+    "weightBasis": "total",
     "name": "Ab Wheel Rollout",
     "muscle": "Core",
     "equipment": "Bodyweight",
@@ -3293,6 +3628,7 @@
   },
   {
     "slug": "diamond-push-up",
+    "weightBasis": "total",
     "name": "Diamond Push Up",
     "muscle": "Chest",
     "equipment": "Bodyweight",
@@ -3309,6 +3645,7 @@
   },
   {
     "slug": "med-ball-close-grip-push-up",
+    "weightBasis": "total",
     "name": "Med-Ball Close Grip Push Up",
     "muscle": "Chest",
     "equipment": "Medicine Ball",
@@ -3325,6 +3662,7 @@
   },
   {
     "slug": "corpse-crunch",
+    "weightBasis": "total",
     "name": "Corpse Crunch",
     "muscle": "Core",
     "equipment": "Bodyweight",
@@ -3334,6 +3672,7 @@
   },
   {
     "slug": "llpt-plank",
+    "weightBasis": "total",
     "name": "LLPT Plank",
     "muscle": "Core",
     "equipment": "Bodyweight",
@@ -3348,6 +3687,7 @@
   },
   {
     "slug": "roman-chair-leg-raise",
+    "weightBasis": "total",
     "name": "Roman Chair Leg Raise",
     "muscle": "Core",
     "equipment": "Bodyweight",
@@ -3360,6 +3700,7 @@
   },
   {
     "slug": "plate-front-raise",
+    "weightBasis": "total",
     "name": "Plate Front Raise",
     "muscle": "Shoulders",
     "equipment": "Plate",
@@ -3371,6 +3712,7 @@
   },
   {
     "slug": "egyptian-cable-lateral-raise",
+    "weightBasis": "total",
     "name": "Egyptian Cable Lateral Raise",
     "muscle": "Shoulders",
     "equipment": "Cable",
@@ -3384,6 +3726,7 @@
   },
   {
     "slug": "reverse-pec-deck",
+    "weightBasis": "total",
     "name": "Plate-Loaded Reverse Pec Deck",
     "muscle": "Shoulders",
     "equipment": "Machine",
@@ -3399,6 +3742,7 @@
   },
   {
     "slug": "weight-stack-reverse-pec-deck",
+    "weightBasis": "total",
     "name": "Weight-Stack Reverse Pec Deck",
     "muscle": "Shoulders",
     "equipment": "Machine",
@@ -3413,6 +3757,7 @@
   },
   {
     "slug": "machine-low-row",
+    "weightBasis": "total",
     "name": "Plate-Loaded Machine Low Row",
     "muscle": "Back",
     "equipment": "Machine",
@@ -3428,6 +3773,7 @@
   },
   {
     "slug": "weight-stack-machine-low-row",
+    "weightBasis": "total",
     "name": "Weight-Stack Machine Low Row",
     "muscle": "Back",
     "equipment": "Machine",
@@ -3442,6 +3788,7 @@
   },
   {
     "slug": "wide-grip-cable-row",
+    "weightBasis": "total",
     "name": "Wide-Grip Cable Row",
     "muscle": "Back",
     "equipment": "Cable",
@@ -3457,6 +3804,7 @@
   },
   {
     "slug": "omni-grip-lat-pulldown",
+    "weightBasis": "total",
     "name": "Omni-Grip Lat Pulldown",
     "muscle": "Back",
     "equipment": "Cable",
@@ -3470,6 +3818,7 @@
   },
   {
     "slug": "n1-style-cross-body-cable-bicep-curl",
+    "weightBasis": "total",
     "name": "N1-Style Cross-Body Cable Bicep Curl",
     "muscle": "Biceps and forearms",
     "equipment": "Cable",
@@ -3482,6 +3831,7 @@
   },
   {
     "slug": "pec-static-stretch",
+    "weightBasis": "total",
     "name": "Pec Static Stretch",
     "muscle": "Chest",
     "equipment": "Bodyweight",
@@ -3495,6 +3845,7 @@
   },
   {
     "slug": "lat-static-stretch",
+    "weightBasis": "total",
     "name": "Lat Static Stretch",
     "muscle": "Back",
     "equipment": "Bodyweight",
@@ -3507,6 +3858,7 @@
   },
   {
     "slug": "side-delt-static-stretch",
+    "weightBasis": "total",
     "name": "Side Delt Static Stretch",
     "muscle": "Shoulders",
     "equipment": "Bodyweight",
@@ -3519,6 +3871,7 @@
   },
   {
     "slug": "bicep-static-stretch",
+    "weightBasis": "total",
     "name": "Bicep Static Stretch",
     "muscle": "Biceps and forearms",
     "equipment": "Bodyweight",
@@ -3531,6 +3884,7 @@
   },
   {
     "slug": "spider-curl",
+    "weightBasis": "per_side",
     "name": "Spider Curl",
     "muscle": "Biceps and forearms",
     "equipment": "Dumbbell",
@@ -3538,6 +3892,7 @@
   },
   {
     "slug": "cable-shoulder-press",
+    "weightBasis": "per_side",
     "name": "Cable Shoulder Press",
     "muscle": "Shoulders",
     "equipment": "Cable",
@@ -3548,6 +3903,7 @@
   },
   {
     "slug": "machine-squat",
+    "weightBasis": "total",
     "name": "Plate-Loaded Machine Squat",
     "muscle": "Quads",
     "equipment": "Machine",
@@ -3560,6 +3916,7 @@
   },
   {
     "slug": "weight-stack-machine-squat",
+    "weightBasis": "total",
     "name": "Weight-Stack Machine Squat",
     "muscle": "Quads",
     "equipment": "Machine",
@@ -3573,6 +3930,7 @@
   },
   {
     "slug": "dead-bug",
+    "weightBasis": "total",
     "name": "Dead Bug",
     "muscle": "Core",
     "equipment": "Bodyweight",
@@ -3581,6 +3939,7 @@
   },
   {
     "slug": "zottman-curl",
+    "weightBasis": "per_side",
     "name": "Zottman Curl",
     "muscle": "Biceps and forearms",
     "equipment": "Dumbbell",
@@ -3588,6 +3947,7 @@
   },
   {
     "slug": "anderson-squat",
+    "weightBasis": "total",
     "name": "Anderson Squat",
     "muscle": "Quads",
     "equipment": "Barbell",
@@ -3600,6 +3960,7 @@
   },
   {
     "slug": "pin-squat",
+    "weightBasis": "total",
     "name": "Pin Squat",
     "muscle": "Quads",
     "equipment": "Barbell",
@@ -3612,6 +3973,7 @@
   },
   {
     "slug": "barbell-box-squat",
+    "weightBasis": "total",
     "name": "Barbell Box Squat",
     "muscle": "Quads",
     "equipment": "Barbell",
@@ -3627,6 +3989,7 @@
   },
   {
     "slug": "touch-and-go-deadlift",
+    "weightBasis": "total",
     "name": "Touch-and-Go Deadlift",
     "muscle": "Posterior chain",
     "equipment": "Barbell",
@@ -3639,6 +4002,7 @@
   },
   {
     "slug": "reset-deadlift",
+    "weightBasis": "total",
     "name": "Reset Deadlift",
     "muscle": "Posterior chain",
     "equipment": "Barbell",
@@ -3651,6 +4015,7 @@
   },
   {
     "slug": "opposite-stance-deadlift",
+    "weightBasis": "total",
     "name": "Opposite Stance Deadlift",
     "muscle": "Posterior chain",
     "equipment": "Barbell",
@@ -3663,6 +4028,7 @@
   },
   {
     "slug": "block-pull",
+    "weightBasis": "total",
     "name": "Block Pull",
     "muscle": "Posterior chain",
     "equipment": "Barbell",
@@ -3682,6 +4048,7 @@
   },
   {
     "slug": "chin-up",
+    "weightBasis": "total",
     "name": "Chin-Up",
     "muscle": "Back",
     "equipment": "Bodyweight",
@@ -3695,6 +4062,7 @@
   },
   {
     "slug": "assisted-chin-up",
+    "weightBasis": "total",
     "name": "Assisted Chin-Up",
     "muscle": "Back",
     "equipment": "Machine",
@@ -3708,6 +4076,7 @@
   },
   {
     "slug": "db-concentration-curl",
+    "weightBasis": "per_side",
     "name": "DB Concentration Curl",
     "muscle": "Biceps and forearms",
     "equipment": "Dumbbell",
@@ -3721,6 +4090,7 @@
   },
   {
     "slug": "ez-bar-reverse-curl",
+    "weightBasis": "total",
     "name": "EZ-Bar Reverse Curl",
     "muscle": "Biceps and forearms",
     "equipment": "EZ-Bar",
@@ -3732,6 +4102,7 @@
   },
   {
     "slug": "barbell-reverse-curl",
+    "weightBasis": "total",
     "name": "Barbell Reverse Curl",
     "muscle": "Biceps and forearms",
     "equipment": "Barbell",
@@ -3745,6 +4116,7 @@
   },
   {
     "slug": "plate-shrug",
+    "weightBasis": "total",
     "name": "Plate Shrug",
     "muscle": "Traps",
     "equipment": "Plate",
@@ -3753,6 +4125,7 @@
   },
   {
     "slug": "incline-shrug",
+    "weightBasis": "per_side",
     "name": "Incline Shrug",
     "muscle": "Traps",
     "equipment": "Dumbbell",
@@ -3761,6 +4134,7 @@
   },
   {
     "slug": "v-sit-up",
+    "weightBasis": "total",
     "name": "V Sit-Up",
     "muscle": "Core",
     "equipment": "Bodyweight",
@@ -3770,6 +4144,7 @@
   },
   {
     "slug": "l-sit-hold",
+    "weightBasis": "total",
     "name": "L-Sit Hold",
     "muscle": "Core",
     "equipment": "Bodyweight",
@@ -3780,6 +4155,7 @@
   },
   {
     "slug": "wall-slide",
+    "weightBasis": "total",
     "name": "Wall Slide",
     "muscle": "Shoulders",
     "equipment": "Bodyweight",
@@ -3789,6 +4165,7 @@
   },
   {
     "slug": "squat-walk-out",
+    "weightBasis": "total",
     "name": "Squat Walk-Out",
     "muscle": "Quads",
     "equipment": "Barbell",
@@ -3803,6 +4180,7 @@
   },
   {
     "slug": "neck-flexion-extension",
+    "weightBasis": "total",
     "name": "Neck Flexion/Extension",
     "muscle": "Adductors and neck",
     "equipment": "Plate",
@@ -3811,6 +4189,7 @@
   },
   {
     "slug": "barbell-isometric-hold",
+    "weightBasis": "total",
     "name": "Barbell Isometric Hold",
     "muscle": "Biceps and forearms",
     "equipment": "Barbell",
@@ -3823,6 +4202,7 @@
   },
   {
     "slug": "cable-external-rotation",
+    "weightBasis": "total",
     "name": "Cable External Rotation",
     "muscle": "Shoulders",
     "equipment": "Cable",
@@ -3831,6 +4211,7 @@
   },
   {
     "slug": "incline-dumbbell-lateral-hold",
+    "weightBasis": "per_side",
     "name": "Incline Dumbbell Lateral Hold",
     "muscle": "Shoulders",
     "equipment": "Dumbbell",
@@ -3840,6 +4221,7 @@
   },
   {
     "slug": "dumbbell-lateral-raise-isometric-hold",
+    "weightBasis": "per_side",
     "name": "DB Lateral Raise Isometric Hold",
     "muscle": "Shoulders",
     "equipment": "Dumbbell",
@@ -3849,6 +4231,7 @@
   },
   {
     "slug": "banded-lateral-raise",
+    "weightBasis": "total",
     "name": "Banded Lateral Raise",
     "muscle": "Shoulders",
     "equipment": "Band",
@@ -3857,6 +4240,7 @@
   },
   {
     "slug": "standing-dumbbell-press",
+    "weightBasis": "per_side",
     "name": "Standing Dumbbell Press",
     "muscle": "Shoulders",
     "equipment": "Dumbbell",
@@ -3865,6 +4249,7 @@
   },
   {
     "slug": "banded-front-y-raise",
+    "weightBasis": "total",
     "name": "Banded Front Y Raise",
     "muscle": "Shoulders",
     "equipment": "Band",
@@ -3873,6 +4258,7 @@
   },
   {
     "slug": "1-arm-dumbbell-upright-row",
+    "weightBasis": "per_side",
     "name": "1-Arm Dumbbell Upright Row",
     "muscle": "Shoulders",
     "equipment": "Dumbbell",
@@ -3883,6 +4269,7 @@
   },
   {
     "slug": "hammer-preacher-curl",
+    "weightBasis": "per_side",
     "name": "Hammer Preacher Curl",
     "muscle": "Biceps and forearms",
     "equipment": "Dumbbell",
@@ -3893,6 +4280,7 @@
   },
   {
     "slug": "barbell-curl",
+    "weightBasis": "total",
     "name": "Barbell Curl",
     "muscle": "Biceps and forearms",
     "equipment": "Barbell",
@@ -3903,6 +4291,7 @@
   },
   {
     "slug": "n1-style-short-head-curl",
+    "weightBasis": "total",
     "name": "N1-Style Short-Head Curl",
     "muscle": "Biceps and forearms",
     "equipment": "Cable",
@@ -3911,6 +4300,7 @@
   },
   {
     "slug": "cable-wrist-curl",
+    "weightBasis": "total",
     "name": "Cable Wrist Curl",
     "muscle": "Biceps and forearms",
     "equipment": "Cable",
@@ -3919,6 +4309,7 @@
   },
   {
     "slug": "cable-wrist-extension",
+    "weightBasis": "total",
     "name": "Cable Wrist Extension",
     "muscle": "Biceps and forearms",
     "equipment": "Cable",
@@ -3927,6 +4318,7 @@
   },
   {
     "slug": "prone-trap-raise",
+    "weightBasis": "per_side",
     "name": "Prone Trap Raise",
     "muscle": "Traps",
     "equipment": "Dumbbell",
@@ -3938,6 +4330,7 @@
   },
   {
     "slug": "overhead-shrug",
+    "weightBasis": "total",
     "name": "Overhead Shrug",
     "muscle": "Traps",
     "equipment": "Barbell",
@@ -3946,6 +4339,7 @@
   },
   {
     "slug": "power-shrug",
+    "weightBasis": "total",
     "name": "Power Shrug",
     "muscle": "Traps",
     "equipment": "Barbell",
@@ -3954,6 +4348,7 @@
   },
   {
     "slug": "plate-loaded-lateral-neck-curl",
+    "weightBasis": "total",
     "name": "Plate-Loaded Lateral Neck Curl",
     "muscle": "Adductors and neck",
     "equipment": "Plate",
@@ -3964,6 +4359,7 @@
   },
   {
     "slug": "rack-pull",
+    "weightBasis": "total",
     "name": "Rack Pull",
     "muscle": "Back",
     "equipment": "Barbell",
@@ -3974,6 +4370,7 @@
   },
   {
     "slug": "snatch-grip-deadlift",
+    "weightBasis": "total",
     "name": "Snatch-Grip Deadlift",
     "muscle": "Posterior chain",
     "equipment": "Barbell",
@@ -3984,6 +4381,7 @@
   },
   {
     "slug": "inverted-row",
+    "weightBasis": "total",
     "name": "Inverted Row",
     "muscle": "Back",
     "equipment": "Bodyweight",
@@ -3995,6 +4393,7 @@
   },
   {
     "slug": "supinated-lat-pulldown",
+    "weightBasis": "total",
     "name": "Supinated Lat Pulldown",
     "muscle": "Back",
     "equipment": "Cable",
@@ -4006,6 +4405,7 @@
   },
   {
     "slug": "machine-row",
+    "weightBasis": "total",
     "name": "Plate-Loaded Machine Row",
     "muscle": "Back",
     "equipment": "Machine",
@@ -4018,6 +4418,7 @@
   },
   {
     "slug": "weight-stack-machine-row",
+    "weightBasis": "total",
     "name": "Weight-Stack Machine Row",
     "muscle": "Back",
     "equipment": "Machine",
@@ -4029,6 +4430,7 @@
   },
   {
     "slug": "russian-twist",
+    "weightBasis": "total",
     "name": "Russian Twist",
     "muscle": "Core",
     "equipment": "Medicine Ball",
@@ -4040,6 +4442,7 @@
   },
   {
     "slug": "swiss-ball-rollout",
+    "weightBasis": "total",
     "name": "Swiss Ball Rollout",
     "muscle": "Core",
     "equipment": "Bodyweight",
@@ -4051,6 +4454,7 @@
   },
   {
     "slug": "pallof-press",
+    "weightBasis": "total",
     "name": "Pallof Press",
     "muscle": "Core",
     "equipment": "Cable",
@@ -4061,6 +4465,7 @@
   },
   {
     "slug": "stomach-vacuum",
+    "weightBasis": "total",
     "name": "Stomach Vacuum",
     "muscle": "Core",
     "equipment": "Bodyweight",
@@ -4071,6 +4476,7 @@
   },
   {
     "slug": "modified-candlestick",
+    "weightBasis": "total",
     "name": "Modified Candlestick",
     "muscle": "Core",
     "equipment": "Bodyweight",
@@ -4080,6 +4486,7 @@
   },
   {
     "slug": "barbell-pin-press",
+    "weightBasis": "total",
     "name": "Barbell Pin Press",
     "muscle": "Chest",
     "equipment": "Barbell",
@@ -4090,6 +4497,7 @@
   },
   {
     "slug": "decline-barbell-press",
+    "weightBasis": "total",
     "name": "Decline Barbell Press",
     "muscle": "Chest",
     "equipment": "Barbell",
@@ -4100,6 +4508,7 @@
   },
   {
     "slug": "decline-smith-machine-press",
+    "weightBasis": "total",
     "name": "Decline Smith Machine Press",
     "muscle": "Chest",
     "equipment": "Smith Machine",
@@ -4108,6 +4517,7 @@
   },
   {
     "slug": "low-incline-barbell-press",
+    "weightBasis": "total",
     "name": "Low Incline Barbell Press",
     "muscle": "Chest",
     "equipment": "Barbell",
@@ -4118,6 +4528,7 @@
   },
   {
     "slug": "seated-barbell-shoulder-press",
+    "weightBasis": "total",
     "name": "Seated Barbell Shoulder Press",
     "muscle": "Shoulders",
     "equipment": "Barbell",
@@ -4128,6 +4539,7 @@
   },
   {
     "slug": "db-front-raise",
+    "weightBasis": "per_side",
     "name": "DB Front Raise",
     "muscle": "Shoulders",
     "equipment": "Dumbbell",
@@ -4138,6 +4550,7 @@
   },
   {
     "slug": "cable-front-raise",
+    "weightBasis": "total",
     "name": "Cable Front Raise",
     "muscle": "Shoulders",
     "equipment": "Cable",
@@ -4146,6 +4559,7 @@
   },
   {
     "slug": "db-rear-delt-swing",
+    "weightBasis": "per_side",
     "name": "DB Rear Delt Swing",
     "muscle": "Shoulders",
     "equipment": "Dumbbell",
@@ -4154,6 +4568,7 @@
   },
   {
     "slug": "bench-dip",
+    "weightBasis": "total",
     "name": "Bench Dip",
     "muscle": "Triceps",
     "equipment": "Bodyweight",
@@ -4163,6 +4578,7 @@
   },
   {
     "slug": "machine-dip",
+    "weightBasis": "total",
     "name": "Plate-Loaded Machine Dip",
     "muscle": "Triceps",
     "equipment": "Machine",
@@ -4174,6 +4590,7 @@
   },
   {
     "slug": "weight-stack-machine-dip",
+    "weightBasis": "total",
     "name": "Weight-Stack Machine Dip",
     "muscle": "Triceps",
     "equipment": "Machine",
@@ -4185,6 +4602,7 @@
   },
   {
     "slug": "overhead-db-triceps-extension",
+    "weightBasis": "total",
     "name": "Overhead DB Triceps Extension",
     "muscle": "Triceps",
     "equipment": "Dumbbell",
@@ -4196,6 +4614,7 @@
   },
   {
     "slug": "barbell-jm-press",
+    "weightBasis": "total",
     "name": "Barbell JM Press",
     "muscle": "Triceps",
     "equipment": "Barbell",
@@ -4206,6 +4625,7 @@
   },
   {
     "slug": "db-reverse-lunge",
+    "weightBasis": "per_side",
     "name": "DB Reverse Lunge",
     "muscle": "Quads",
     "equipment": "Dumbbell",
@@ -4216,6 +4636,7 @@
   },
   {
     "slug": "db-static-lunge",
+    "weightBasis": "per_side",
     "name": "DB Static Lunge",
     "muscle": "Quads",
     "equipment": "Dumbbell",
@@ -4227,6 +4648,7 @@
   },
   {
     "slug": "smith-machine-split-squat",
+    "weightBasis": "total",
     "name": "Smith Machine Split Squat",
     "muscle": "Quads",
     "equipment": "Smith Machine",
@@ -4235,6 +4657,7 @@
   },
   {
     "slug": "banded-push-up",
+    "weightBasis": "total",
     "name": "Banded Push Up",
     "muscle": "Chest",
     "equipment": "Band",

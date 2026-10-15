@@ -23,7 +23,7 @@ public record SessionExerciseView(Guid Id, Guid? ExerciseId, string Name, int Po
     bool CanRestore = false, int? RestSeconds = null, string? DemoUrl = null, bool IsPr = false, double? PrE1rmKg = null,
     double? PreviousBestE1rmKg = null, string? PrKind = null, int? PrReps = null,
     IReadOnlyDictionary<string, int>? PreviousRepBests = null, IReadOnlyList<PreviousRepRecord>? PreviousRepRecords = null,
-    string TrackingMode = TrackingModes.Reps);
+    string TrackingMode = TrackingModes.Reps, string WeightBasis = WeightBases.Total);
 public sealed record SessionRestView(
     string? Generation,
     string Status,

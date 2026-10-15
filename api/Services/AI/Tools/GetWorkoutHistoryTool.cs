@@ -113,6 +113,7 @@ public sealed class GetWorkoutHistoryTool : IAiTool
 
         var setsByExercise = sets.GroupBy(s => s.SessionExerciseId)
             .ToDictionary(g => g.Key, g => g.ToList());
+        var weightBases = await ExerciseWeightBasis.Read(_db, exercises.Select(e => e.ExerciseId), cancellationToken);
         var exercisesBySession = exercises.GroupBy(e => e.SessionId)
             .ToDictionary(g => g.Key, g => g.ToList());
 
@@ -129,6 +130,7 @@ public sealed class GetWorkoutHistoryTool : IAiTool
                 return new
                 {
                     name = e.NameSnapshot,
+                    weightBasis = e.ExerciseId is { } id ? weightBases.GetValueOrDefault(id, "total") : "total",
                     completedSets = doneSets.Count,
                     topSet = topSet == null ? null : new
                     {

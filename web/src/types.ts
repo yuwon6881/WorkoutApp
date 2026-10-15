@@ -3,16 +3,17 @@ export type Unit = 'kg' | 'lb';
 export type Theme = 'dark' | 'light';
 export type Provenance = 'extracted' | 'inferred' | 'userEdited';
 
+export type WeightBasis = 'total' | 'per_side';
 export type LoadModel = 'external' | 'full_bodyweight' | 'bodyweight_context_only' | 'reps_only';
 /** A timed exercise (plank, dead hang) records seconds instead of reps. */
 export type TrackingMode = 'reps' | 'duration';
 export type ResistanceMode = 'external' | 'bodyweight' | 'added' | 'assistance' | 'reps_only';
 export type ExerciseCategory = 'Free Weights' | 'Machine' | 'Body Weight';
-export type Exercise = { id: string; slug: string; name: string; trackingMode?: TrackingMode; muscle: string; secondaryMuscles?: string[]; equipment: string; category?: ExerciseCategory; aliases: string[]; loadStepKg: number; availableLoadsKg?: number[] | null; loadSource?: 'exercise' | 'equipment' | 'app'; loadEquipmentGroup?: string | null; loadModel?: LoadModel; movementPattern?: string; source?: 'catalog' | 'custom'; isCustom?: boolean; archived?: boolean };
+export type Exercise = { id: string; slug: string; name: string; trackingMode?: TrackingMode; weightBasis?: WeightBasis; muscle: string; secondaryMuscles?: string[]; equipment: string; category?: ExerciseCategory; aliases: string[]; loadStepKg: number; availableLoadsKg?: number[] | null; loadSource?: 'exercise' | 'equipment' | 'app'; loadEquipmentGroup?: string | null; loadModel?: LoadModel; movementPattern?: string; source?: 'catalog' | 'custom'; isCustom?: boolean; archived?: boolean };
 export type CustomExerciseCreated = {
   id: string; name: string; muscle: string; equipment: string; loadStepKg: number;
   loadModel: LoadModel; movementPattern: string; archived: boolean; createdAt: string;
-  secondaryMuscles?: string[]; category?: ExerciseCategory;
+  secondaryMuscles?: string[]; category?: ExerciseCategory; weightBasis?: WeightBasis;
 };
 export type Preferences = { unit: Unit; theme: Theme; restSeconds?: number; restAlerts: boolean; trackRir?: boolean };
 export type Account = { id: string; displayName: string };
@@ -54,7 +55,7 @@ export type Progression = { suggestedKg: number | null; targetReps: number; reas
 export type BodyWeightSnapshot = { scaleWeightKg: number | null; scaleDate: string | null; trendWeightKg: number | null; trendDate: string | null; referenceKg: number; referenceSource: string; referenceDate: string | null; calculationVersion: string; nutritionRevision: number | null; capturedAt: string };
 export type NutritionTrainingContext = { subject: string; revision: number; timeZone: string; effectiveGoal: string; phaseComplete: boolean; targetRatePercent: number | null; observedLossRatePercent: number | null; observedWindowDays: number | null; scaleWeightKg: number | null; scaleWeightDate: string | null; trendWeightKg: number | null; trendWeightDate: string | null; retrievedAt?: string; confirmed: boolean; cached?: boolean; error?: string | null };
 export type PreviousRepRecord = { loadModel: LoadModel; resistanceMode: ResistanceMode; loadKg: number | null; reps: number };
-export type SessionExercise = { id: string; exerciseId: string | null; name: string; trackingMode?: TrackingMode; position: number; note: string; prescription: SetPrescription[]; sets: LoggedSet[]; sequenceGroup: string; substitutions: string[]; progression: Progression | null; loadModel?: LoadModel; sourceTemplateExerciseId?: string | null; sourceSlotKey?: string | null; sourcePhaseId?: string | null; swapGroupKey?: string | null; isReplacement?: boolean; originalExerciseId?: string | null; originalName?: string; sourcePage?: number | null; canRestore?: boolean; restSeconds?: number | null; isPr?: boolean; prE1rmKg?: number | null; demoUrl?: string | null; previousBestE1rmKg?: number | null; prKind?: 'e1rm' | 'reps' | 'both' | null; prReps?: number | null; previousRepBests?: Record<string, number> | null; previousRepRecords?: PreviousRepRecord[] | null };
+export type SessionExercise = { id: string; exerciseId: string | null; name: string; trackingMode?: TrackingMode; weightBasis?: WeightBasis; position: number; note: string; prescription: SetPrescription[]; sets: LoggedSet[]; sequenceGroup: string; substitutions: string[]; progression: Progression | null; loadModel?: LoadModel; sourceTemplateExerciseId?: string | null; sourceSlotKey?: string | null; sourcePhaseId?: string | null; swapGroupKey?: string | null; isReplacement?: boolean; originalExerciseId?: string | null; originalName?: string; sourcePage?: number | null; canRestore?: boolean; restSeconds?: number | null; isPr?: boolean; prE1rmKg?: number | null; demoUrl?: string | null; previousBestE1rmKg?: number | null; prKind?: 'e1rm' | 'reps' | 'both' | null; prReps?: number | null; previousRepBests?: Record<string, number> | null; previousRepRecords?: PreviousRepRecord[] | null };
 export type RestStatus = 'idle' | 'running' | 'paused' | 'elapsed';
 export type RestAction = 'start' | 'extend' | 'shorten' | 'skip' | 'pause' | 'resume';
 export type RestMutationInput = {

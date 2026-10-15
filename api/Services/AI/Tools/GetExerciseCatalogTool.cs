@@ -93,6 +93,7 @@ public sealed class GetExerciseCatalogTool : IAiTool
                 equipment = e.Equipment,
                 category = e.Category,
                 loadModel = e.LoadModel,
+                weightBasis = e.WeightBasis,
                 trackingMode = e.TrackingMode,
                 isCustom = e.IsCustom
             })

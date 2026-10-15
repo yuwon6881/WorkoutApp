@@ -22,6 +22,12 @@ const set = (overrides: Partial<LoggedSet> = {}): LoggedSet => ({
 const barbell: Pick<SessionExercise, 'name' | 'loadModel' | 'trackingMode'> = { name: 'Bench press', loadModel: 'external' };
 
 describe('setTarget', () => {
+  it('keeps the suggested amount on its per-side basis in either unit', () => {
+    const exercise = { ...barbell, weightBasis: 'per_side' as const };
+    expect(setTarget(set(), plan(), exercise, 'kg', true).load).toBe('50 kg/side');
+    expect(setTarget(set(), plan(), exercise, 'lb', true).load).toBe('110.23 lb/side');
+  });
+
   it.each(['5+', '2+', '1-2'])('retains the imported reserve %s on first and subsequent exposure targets', rir => {
     const prescription = plan({ rir, targetRpe: null });
     expect(setTarget(set({ suggestion: null }), prescription, barbell, 'kg', true).reps).toBe(`8–12 · ${rir} RIR`);

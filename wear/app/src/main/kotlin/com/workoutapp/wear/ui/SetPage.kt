@@ -413,16 +413,16 @@ fun targetLine(model: ActiveSetModel): String? {
 fun loadUnitCaption(model: ActiveSetModel, unit: String): String = when (model.resistanceMode) {
     "added" -> "+$unit"
     "assistance" -> "−$unit"
-    else -> unit
+    else -> if (model.exercise.weightBasis == "per_side") "$unit/side" else unit
 }
 
 /** Longer caption for the full-screen editor, where there is room to say where the value came from. */
 fun loadCaption(model: ActiveSetModel, load: Double?, unit: String): String = when {
-    load == null -> "$unit · not recorded"
+    load == null -> "${loadUnitCaption(model, unit)} · not recorded"
     model.resistanceMode == "added" -> "$unit added"
     model.resistanceMode == "assistance" -> "$unit assistance"
-    model.suggestedLoad != null && load == model.suggestedLoad -> "$unit · suggested"
-    else -> unit
+    model.suggestedLoad != null && load == model.suggestedLoad -> "${loadUnitCaption(model, unit)} · suggested"
+    else -> loadUnitCaption(model, unit)
 }
 
 // Below this height (a 180 dp square face) a feedback row would push the Log action off the first screen.

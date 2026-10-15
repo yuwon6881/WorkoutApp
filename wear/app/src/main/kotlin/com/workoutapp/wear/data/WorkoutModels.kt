@@ -44,7 +44,8 @@ data class WorkoutExercise(
     val progression: Progression? = null,
     val restSeconds: Int? = null,
     /** "duration" for timed holds, which log seconds instead of reps. */
-    val trackingMode: String = "reps"
+    val trackingMode: String = "reps",
+    val weightBasis: String = "total"
 )
 
 data class SetPrescription(

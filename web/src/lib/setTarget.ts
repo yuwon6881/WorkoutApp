@@ -1,7 +1,8 @@
 import type { LoggedSet, SessionExercise, SetPrescription, Unit } from '../types';
-import { showReps, showRepEffortTarget, showTarget, showWeight, targetRirLabel } from './training';
+import { showReps, showRepEffortTarget, showTarget, targetRirLabel } from './training';
 import { isTimedExercise, showTimedTarget } from './setDuration';
 import { loadEntryFor, loadSign } from './resistanceVariant';
+import { showExerciseWeight } from './weightBasis';
 
 /// What one set aims for: its reps and effort, the load beneath it, and why. The load is null when
 /// there is none to show; the reason is null when the plan alone sets the target.
@@ -19,7 +20,7 @@ const hasOpenReps = (plan: SetPrescription): boolean =>
 export function setTarget(
   set: LoggedSet,
   plan: SetPrescription | undefined,
-  exercise: Pick<SessionExercise, 'name' | 'loadModel' | 'trackingMode'>,
+  exercise: Pick<SessionExercise, 'name' | 'loadModel' | 'trackingMode' | 'weightBasis'>,
   unit: Unit,
   trackRir: boolean
 ): SetTarget {
@@ -38,7 +39,7 @@ export function setTarget(
   const effort = trackRir ? targetRirLabel(plan) : null;
   const entry = loadEntryFor(exercise);
   const load = suggestion.suggestedLoadKg !== null && entry !== 'bodyweight' && entry !== 'none'
-    ? `${loadSign(entry)}${showWeight(suggestion.suggestedLoadKg, unit)}`
+    ? `${loadSign(entry)}${showExerciseWeight(suggestion.suggestedLoadKg, unit, exercise)}`
     : null;
   return { reps: showRepEffortTarget(reps, effort), load, reason };
 }

@@ -20,11 +20,12 @@ public static class WorkoutViewBuilder
 
         var (exercisePrs, setPrs, sessionPrCounts, bests, repBests) = await WorkoutPrReadService.Get(db, sessions, ct);
         var trackingModes = await CatalogService.TrackingModesFor(db, exercises.Select(e => e.ExerciseId), ct);
+        var weightBases = await ExerciseWeightBasis.Read(db, exercises.Select(e => e.ExerciseId), ct);
 
         return sessions.ToDictionary(session => session.Id, session => BuildView(session,
             exercisesBySession.GetValueOrDefault(session.Id) ?? [], setsByExercise, exercisePrs, setPrs,
             sessionPrCounts.GetValueOrDefault(session.Id, 0), session.Active ? bests : null,
-            session.Active ? repBests.PreviousByExercise : null, trackingModes));
+            session.Active ? repBests.PreviousByExercise : null, trackingModes, weightBases));
     }
 
     public static async Task<(Dictionary<Guid, (bool IsPr, double? PrE1rmKg, string? PrKind, int? PrReps)> ExercisePrs,
@@ -191,7 +192,8 @@ public static class WorkoutViewBuilder
         int sessionPrCount = 0,
         IReadOnlyDictionary<(Guid, string), double>? previousBests = null,
         IReadOnlyDictionary<(Guid, string), List<PreviousRepRecord>>? previousRepRecords = null,
-        IReadOnlyDictionary<Guid, string>? trackingModes = null)
+        IReadOnlyDictionary<Guid, string>? trackingModes = null,
+        IReadOnlyDictionary<Guid, string>? weightBases = null)
     {
         var sets = exercises.SelectMany(e => setsByExercise.GetValueOrDefault(e.Id) ?? []).ToList();
         var done = sets.Where(s => s.Done).ToList();
@@ -240,7 +242,8 @@ public static class WorkoutViewBuilder
                     previousBests != null && previousBests.TryGetValue(StrengthKey(e.ExerciseId, e.NameSnapshot, e.LoadModel), out var previousBest) ? previousBest : null,
                     exPrKind, exPrReps,
                     repRecords is null ? null : LegacyRepBests(repRecords), repRecords,
-                    e.ExerciseId is { } trackedId && trackingModes?.GetValueOrDefault(trackedId) is { } mode ? mode : TrackingModes.Reps);
+                    e.ExerciseId is { } trackedId && trackingModes?.GetValueOrDefault(trackedId) is { } mode ? mode : TrackingModes.Reps,
+                    e.ExerciseId is { } weightedId ? weightBases?.GetValueOrDefault(weightedId) ?? WeightBases.Total : WeightBases.Total);
             }).ToList(),
             volume.External,
             workingDone.Count, warmupDone.Count, bodyWeight, context,

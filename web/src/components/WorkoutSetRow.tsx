@@ -125,7 +125,7 @@ export function WorkoutSetRow({
         {sign && <span className="load-sign" aria-hidden="true">{sign}</span>}
         <WorkoutLoadInput
           name={`weight-${exercise.id}-${si}`}
-          ariaLabel={`${exercise.name} set ${si + 1} ${loadFieldName(loadEntry)}`}
+          ariaLabel={`${exercise.name} set ${si + 1} ${loadFieldName(loadEntry, exercise)}`}
           value={shown}
           // A bodyweight movement has no load to enter, so its field stays an empty dash.
           disabled={!loadEditable}

@@ -126,6 +126,7 @@ public sealed class GetExerciseProgressTool : IAiTool
             slug,
             muscle = catalogEx?.Muscle ?? customEx?.Muscle ?? "Unknown",
             weightUnit = context.WeightUnit,
+            weightBasis = catalogEx?.WeightBasis ?? customEx?.WeightBasis ?? "total",
             rirTracked = context.TrackRir,
             setNumber,
             progression = progress == null ? null : new

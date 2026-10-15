@@ -8,11 +8,13 @@ namespace Workout.Api.Services;
 /// LoadStepKg is optional: without one the exercise follows the account rule for its equipment.
 public record CustomExerciseInput(string Name, string? Muscle, string? Equipment,
     double? LoadStepKg = null, string LoadModel = LoadModels.External, string? MovementPattern = null,
-    List<string>? SecondaryMuscles = null, string? Category = null, string? TrackingMode = null);
+    List<string>? SecondaryMuscles = null, string? Category = null, string? TrackingMode = null,
+    string WeightBasis = WeightBases.Total);
 
 public record CustomExerciseView(Guid Id, string Name, string Muscle, string Equipment,
     double LoadStepKg, string LoadModel, string MovementPattern, bool Archived, DateTime CreatedAt,
-    List<string>? SecondaryMuscles = null, string Category = ExerciseCategories.FreeWeights, string TrackingMode = TrackingModes.Reps);
+    List<string>? SecondaryMuscles = null, string Category = ExerciseCategories.FreeWeights, string TrackingMode = TrackingModes.Reps,
+    string WeightBasis = WeightBases.Total);
 
 public record ExerciseMetricPoint(DateOnly Date, Guid SessionId, string SessionName,
     double? Estimated1RmKg, double? LoadKg, double? VolumeKg, int? Reps, bool Partial);
@@ -50,6 +52,9 @@ public sealed partial class ExerciseService(AppDb db, IMemoryCache? cache = null
         Validation.Require((input.SecondaryMuscles ?? []).Count <= 8, "An exercise can have at most 8 secondary muscle groups.");
         foreach (var secondary in input.SecondaryMuscles ?? []) Validation.Text(secondary, 80, "Secondary muscle");
         Validation.Require(LoadModels.All.Contains(input.LoadModel), "Choose a valid load model.");
+        Validation.Require(WeightBases.IsValid(input.WeightBasis), "Choose total or per-side weight.");
+        Validation.Require(input.WeightBasis != WeightBases.PerSide || input.LoadModel == LoadModels.External,
+            "Per-side weight requires an external load.");
         Validation.Require(input.TrackingMode is null || TrackingModes.All.Contains(input.TrackingMode), "Choose reps or time.");
         if (input.LoadStepKg is { } typedStep) Validation.Number(typedStep, 0, 50, "Load increment");
         var unit = await LoadRuleReader.AccountUnit(db, ct);
@@ -69,6 +74,7 @@ public sealed partial class ExerciseService(AppDb db, IMemoryCache? cache = null
             LoadStepKg = appStep, LoadStepUnit = unit,
             LoadModel = input.LoadModel, MovementPattern = input.MovementPattern?.Trim() ?? "",
             TrackingMode = TrackingModes.Normalize(input.TrackingMode),
+            WeightBasis = input.WeightBasis,
             SecondaryMusclesJson = Json.Write(CatalogService.NormalizeMuscles(input.Muscle, input.SecondaryMuscles))
         };
         db.CustomExercises.Add(row);
@@ -260,5 +266,5 @@ public sealed partial class ExerciseService(AppDb db, IMemoryCache? cache = null
     private static CustomExerciseView View(CustomExercise row)
         => new(row.Id, row.Name, row.Muscle, row.Equipment, row.LoadStepKg, row.LoadModel, row.MovementPattern, row.Archived, row.CreatedAt,
             CatalogService.NormalizeMuscles(row.Muscle, string.IsNullOrWhiteSpace(row.SecondaryMusclesJson) ? [] : Json.Read<List<string>>(row.SecondaryMusclesJson)),
-            row.Category, TrackingModes.Normalize(row.TrackingMode));
+            row.Category, TrackingModes.Normalize(row.TrackingMode), row.WeightBasis);
 }

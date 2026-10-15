@@ -6,6 +6,16 @@ namespace Workout.Api.Services;
 /// are deliberately separate. Legacy identities remain usable by saved plans and history.
 internal static class CatalogSynonyms
 {
+    public static void UpdateLegacyWeightBases(List<Exercise> existing, List<SeedExercise> input)
+    {
+        var seeded = input.ToDictionary(row => row.Slug, StringComparer.Ordinal);
+        foreach (var legacy in existing)
+            if (Canonical.TryGetValue(legacy.Slug, out var slug) && seeded.TryGetValue(slug, out var current)
+                && legacy.Equipment == current.Equipment && legacy.LoadModel == current.LoadModel
+                && legacy.TrackingMode == (current.TrackingMode ?? "reps"))
+                legacy.WeightBasis = current.WeightBasis;
+    }
+
     private static readonly IReadOnlyDictionary<string, string> Canonical = new Dictionary<string, string>(StringComparer.Ordinal)
     {
         ["barbell-bench-press"] = "bench-press",

@@ -10,7 +10,8 @@ public record CatalogExercise(Guid Id, string Slug, string Name, string Muscle, 
     string LoadModel = LoadModels.External, string MovementPattern = "", string Source = "catalog", bool IsCustom = false, bool Archived = false,
     List<string>? SecondaryMuscles = null, string Category = ExerciseCategories.FreeWeights,
     List<double>? AvailableLoadsKg = null, string TrackingMode = TrackingModes.Reps,
-    string LoadSource = LoadSources.App, string? LoadEquipmentGroup = null);
+    string LoadSource = LoadSources.App, string? LoadEquipmentGroup = null,
+    string WeightBasis = WeightBases.Total);
 
 public record SubstitutionCandidate(Guid ExerciseId, string Name, string Muscle, string Equipment,
     string Source, int Rank, bool IsCatalog, string MovementPattern = "", List<string>? SecondaryMuscles = null);
@@ -77,7 +78,7 @@ public sealed class CatalogService(AppDb db)
         output.AddRange(custom.Select(x => new CatalogExercise(x.Id, $"custom-{x.Id:N}", x.Name, x.Muscle, x.Equipment, [], x.LoadStepKg,
             LoadModels.All.Contains(x.LoadModel) ? x.LoadModel : LoadModels.External, x.MovementPattern, "custom", true, false,
             ReadMuscles(x.SecondaryMusclesJson, x.Muscle), ExerciseCategories.Normalize(x.Category, x.Equipment, x.LoadModel),
-            null, TrackingModes.Normalize(x.TrackingMode))));
+            null, TrackingModes.Normalize(x.TrackingMode), WeightBasis: x.WeightBasis)));
         var rules = await LoadRuleReader.Read(db, null, ct);
         var customUnits = custom.ToDictionary(x => x.Id, x => x.LoadStepUnit);
         return output.Select(exercise =>
@@ -104,7 +105,7 @@ public sealed class CatalogService(AppDb db)
 
         var exercises = await db.Exercises.AsNoTracking().Where(x => x.Active)
             .OrderBy(x => x.Name)
-            .Select(x => new { x.Id, x.Slug, x.Name, x.Muscle, x.Equipment, x.Category, x.LoadStepKg, x.LoadModel, x.MovementPattern, x.SecondaryMusclesJson, x.TrackingMode })
+            .Select(x => new { x.Id, x.Slug, x.Name, x.Muscle, x.Equipment, x.Category, x.LoadStepKg, x.LoadModel, x.MovementPattern, x.SecondaryMusclesJson, x.TrackingMode, x.WeightBasis })
             .ToListAsync(ct);
         var ids = exercises.Select(x => x.Id).ToList();
         var aliases = ids.Count == 0 ? [] : await db.Aliases.AsNoTracking().Where(a => ids.Contains(a.ExerciseId)).ToListAsync(ct);
@@ -114,7 +115,7 @@ public sealed class CatalogService(AppDb db)
             aliasesByExercise.GetValueOrDefault(x.Id) ?? [], x.LoadStepKg,
             LoadModels.All.Contains(x.LoadModel) ? x.LoadModel : LoadModels.External, x.MovementPattern, "catalog", false, false,
             ReadMuscles(x.SecondaryMusclesJson, x.Muscle), ExerciseCategories.Normalize(x.Category, x.Equipment, x.LoadModel),
-            null, TrackingModes.Normalize(x.TrackingMode))).ToList());
+            null, TrackingModes.Normalize(x.TrackingMode), WeightBasis: x.WeightBasis)).ToList());
         if (!db.Database.IsSqlite())
             SharedCache.Set(SharedCatalogKey, result, new MemoryCacheEntryOptions
             {
