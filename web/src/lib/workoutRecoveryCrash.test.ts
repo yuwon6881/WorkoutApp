@@ -15,7 +15,7 @@ vi.mock('./recoveryStorage', () => ({
   })
 }));
 
-const { adoptServerSession, enqueueFinish, enqueueTiming, enqueueSetEdits, getRecovery, saveStopwatches, startRecovery } = await import('./workoutRecovery');
+const { adoptServerSession, enqueueFinish, enqueueTiming, enqueueRest, enqueueSetEdits, getRecovery, refreshRecovery, saveStopwatches, startRecovery } = await import('./workoutRecovery');
 
 const session = (patch: Partial<Session> = {}): Session => ({
   id: 'workout-1', templateId: 'day-1', programId: null, name: 'Push', note: '', active: true,
@@ -42,6 +42,15 @@ beforeEach(async () => {
 });
 
 describe('device recovery after a direct server change', () => {
+  it('keeps an imported rest projection while its server acknowledgement is still pending', async () => {
+    const rest = { generation: 'tap-result', status: 'running' as const, deadlineUtc: '2026-10-04T08:02:00.000Z',
+      durationMs: 120000, pausedRemainingMs: null, originDeviceId: null };
+    await enqueueRest('account', 'workout-1', { revision: 2, action: 'extend', generation: 'tap-result', seconds: 30 }, session(), rest);
+    const refreshed = await refreshRecovery('account', 'Lifter', { ...session(), rest: null },
+      { unit: 'kg', theme: 'dark', restAlerts: false });
+    expect(refreshed?.rest).toEqual(rest);
+    expect(refreshed?.operations).toHaveLength(1);
+  });
   it('writes paused timers atomically with pause and shifts their start only once on resume', async () => {
     const start = Date.parse('2026-10-04T08:00:00.000Z');
     await saveStopwatches('account', 'workout-1', { 'set-1': { startedAtMs: start, baseSeconds: 0, targetSeconds: 30 } });

@@ -3,6 +3,7 @@
 // they fall back to web APIs or do nothing. Feature code imports only this module.
 
 import type { AlertCapabilities, NativeRestAction, NativeWorkoutState } from './nativeBridge';
+import type { NativeWorkoutContext } from './nativeWorkoutProjection';
 
 export type { AlertCapabilities, NativeRestAction, NativeWorkoutState };
 
@@ -84,19 +85,12 @@ function queueNative(work: () => Promise<void>) {
 /// The Android app shows and alerts the workout from one snapshot: elapsed time while training,
 /// the countdown while resting, and the paused state. `null` ends the workout notification.
 /// Apps installed before the workout service keep a scheduled local notification for the rest.
-export function syncNativeWorkout(state: NativeWorkoutState | null) {
+export function syncNativeWorkout(context: NativeWorkoutContext) {
   if (!isNative()) return;
-  if (!hasNativeWorkoutStore()) {
-    const at = state?.status === 'running' && state.alert ? state.deadlineMs : null;
-    void bridge()
-      .then(native => at === null ? native.nativeCancelLegacyRest() : native.nativeScheduleLegacyRest(at, state!.sessionId))
-      .catch(() => undefined);
-    return;
-  }
+  const captured = structuredClone(context);
   queueNative(async () => {
     const native = await bridge();
-    if (state) await native.nativeSyncWorkout(state);
-    else await native.nativeStopWorkout();
+    await native.nativeSyncWorkoutContext(captured);
     nativeError = null;
   });
 }
@@ -111,9 +105,14 @@ export async function claimNativeRestAlert(sessionId: string, generation: string
 
 /// The rest buttons on the Android workout notification change the rest on the device at once;
 /// the page takes those changes here and sends them on like its own.
-export async function takeNativeRestActions(): Promise<NativeRestAction[]> {
+export async function readNativeRestActions(): Promise<NativeRestAction[]> {
   if (!hasNativeWorkoutStore()) return [];
-  try { return await (await bridge()).nativeTakeRestActions(); } catch { return []; }
+  return (await bridge()).nativeReadRestActions();
+}
+
+export async function commitNativeRestImport(options: { accountId: string; sessionId: string;
+  expectedJson: string; recordJson: string; importedIds: string[] }): Promise<boolean> {
+  return (await bridge()).nativeImportRestActions(options);
 }
 
 /// Calls `listener` whenever a notification button leaves a rest change for an open page.
@@ -130,13 +129,8 @@ export function onNativeRestAction(listener: () => void): () => void {
 
 export async function getAlertCapabilities(): Promise<AlertCapabilities | null> {
   if (!hasNativeWorkoutStore()) return null;
-  try {
-    const capabilities = await (await bridge()).nativeGetAlertCapabilities();
-    return { ...capabilities, serviceError: capabilities.serviceError ?? nativeError };
-  } catch (failure) {
-    return { exactAlarm: false, notifications: false, batteryExempt: false, liveUpdates: false,
-      serviceError: failure instanceof Error ? failure.message : 'Workout alert status is unavailable.' };
-  }
+  try { return await (await bridge()).nativeGetAlertCapabilities(nativeError); }
+  catch { return null; }
 }
 
 export async function openNativeSettings(type: 'exact_alarm' | 'notifications' | 'rest_channel' | 'battery' | 'app'): Promise<void> {

@@ -30,16 +30,19 @@ export function useShellRestTimer({ data, recovery, recoverySession, devicePrefe
   const pushDesired = useRef<{ accountId: string; sessionId: string; generation: string; deviceId: string } | null>(null);
   const pushAttempt = useRef<RestAlertPushAttempt | null>(null);
   const pushWork = useRef<Promise<void>>(Promise.resolve());
+  const localRestPending = recovery?.operations.some(operation =>
+    operation.type === 'rest' || (operation.type === 'setPatch' && Boolean(operation.rest))) ?? false;
+  const committedRest = localRestPending ? recovery?.rest : undefined;
   useEffect(() => {
     restTimer.setScope(timerAccountId, timerSessionId, {
       notifications: timerNotifications,
       sound: devicePreferences.sound,
       vibration: devicePreferences.vibration,
       keepAwake: devicePreferences.keepAwake
-    });
+    }, committedRest);
     setHapticsEnabled(devicePreferences.vibration);
     return restTimer.attach();
-  }, [timerAccountId, timerSessionId, timerNotifications, devicePreferences]);
+  }, [timerAccountId, timerSessionId, timerNotifications, devicePreferences, committedRest]);
   // The Android workout notification counts the workout's own elapsed time while training.
   const clockSession = recoverySession?.id === timerSessionId ? recoverySession
     : data?.activeWorkout?.id === timerSessionId ? data?.activeWorkout ?? null : null;
@@ -53,8 +56,6 @@ export function useShellRestTimer({ data, recovery, recoverySession, devicePrefe
   // reads the workout, unless this device still has its own rest change to send.
   const serverRest = recovery?.serverSession.id === timerSessionId ? recovery?.serverSession.rest
     : data?.activeWorkout?.id === timerSessionId ? data?.activeWorkout?.rest : undefined;
-  const localRestPending = recovery?.operations.some(operation =>
-    operation.type === 'rest' || (operation.type === 'setPatch' && Boolean(operation.rest))) ?? false;
   useEffect(() => {
     if (!localRestPending) restTimer.adoptServerRest(serverRest);
   }, [serverRest, localRestPending, timerSessionId]);

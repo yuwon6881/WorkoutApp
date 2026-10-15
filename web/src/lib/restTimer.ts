@@ -3,6 +3,7 @@ import type { SessionRest } from '../types';
 import { claimNativeRestAlert, hasNativeWorkoutStore, isNative, nativeKeepAwake, notificationPermission, syncNativeWorkout } from './platform';
 import type { NativeRestAction } from './platform';
 import { REST_ALERTS_CHANGED_EVENT } from './restAlertDelivery';
+import { recoveredRestState } from './recoveredRestState';
 
 /// Rest uses a deadline so its display stays accurate when the browser suspends the page. The
 /// local record is scoped to the signed-in account and active workout; it is never an authority
@@ -48,10 +49,13 @@ export class RestTimer {
     return this.state.endsAt === 0 ? Math.max(0, this.state.pausedRemainingMs) : Math.max(0, this.state.endsAt - Date.now());
   }
 
-  setScope(accountId: string | null, sessionId: string | null, options: RestTimerOptions = defaults): void {
+  setScope(accountId: string | null, sessionId: string | null, options: RestTimerOptions = defaults, committedRest?: SessionRest | null): void {
     const changed = accountId !== this.accountId || sessionId !== this.sessionId;
     this.options = options;
-    if (!changed) { this.syncAlarm(); this.syncNative(); return; }
+    if (!changed) {
+      if (committedRest !== undefined) { this.state = recoveredRestState(committedRest); this.emit(); }
+      this.syncAlarm(); this.syncNative(); return;
+    }
     this.disarm();
     void this.releaseScreen();
     releaseAlarm();
@@ -59,7 +63,7 @@ export class RestTimer {
     this.sessionId = sessionId;
     this.serverGeneration = null;
     this.storageKey = accountId && sessionId ? `${STORAGE_PREFIX}:${accountId}:${sessionId}` : null;
-    this.state = this.storageKey ? read(this.storageKey) ?? idle() : idle();
+    this.state = committedRest !== undefined ? recoveredRestState(committedRest) : this.storageKey ? read(this.storageKey) ?? idle() : idle();
     try { localStorage.removeItem(LEGACY_STORAGE_KEY); } catch { /* the old record is ignored */ }
     if (this.state.endsAt > 0 && this.remainingMs === 0) this.state = { ...this.state, announced: true };
     this.emit();
@@ -108,6 +112,13 @@ export class RestTimer {
   /// Tells the Android service this page's rest again, after notification actions it could not
   /// apply, so the notification never keeps showing a change the page did not make.
   restateNative(): void { this.syncNative(); }
+
+  adoptCommittedRest(accountId: string, sessionId: string, state: RestState): void {
+    if (accountId !== this.accountId || sessionId !== this.sessionId) return;
+    this.disarm();
+    this.write(state);
+    this.arm();
+  }
 
   primeSound(): boolean { return this.options.sound && primeAlarm(); }
 
@@ -279,24 +290,7 @@ export class RestTimer {
   /// deadline until it is skipped or replaced, so the service can still alert for it while the
   /// page is hidden; the service itself treats a long-past deadline as already finished.
   private syncNative(): void {
-    if (!this.sessionId) { syncNativeWorkout(null); return; }
-    const running = this.state.endsAt > 0;
-    const paused = !running && this.state.pausedRemainingMs > 0;
-    syncNativeWorkout({
-      sessionId: this.sessionId,
-      generation: this.state.generation,
-      status: running ? 'running' : paused ? 'paused' : 'idle',
-      deadlineMs: running ? this.state.endsAt : 0,
-      pausedRemainingMs: paused ? this.state.pausedRemainingMs : 0,
-      startedAtMs: this.clock?.startedAtMs ?? null,
-      pausedAtMs: this.clock?.pausedAtMs ?? null,
-      pausedSeconds: this.clock?.pausedSeconds ?? 0,
-      alert: this.options.notifications,
-      sound: this.options.sound,
-      vibrate: this.options.vibration,
-      totalMs: running || paused ? this.state.totalSeconds * 1000 : 0,
-      nextUp: this.nextUp?.sessionId === this.sessionId ? this.nextUp.text : null
-    });
+    syncNativeWorkout({ sessionId: this.sessionId, rest: this.state, clock: this.clock, options: this.options, nextUp: this.nextUp });
   }
 
   private write(state: RestState): void {

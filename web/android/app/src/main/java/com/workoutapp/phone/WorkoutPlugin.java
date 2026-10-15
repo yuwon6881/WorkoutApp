@@ -22,6 +22,27 @@ import org.json.JSONObject;
 /// scheduled.
 @CapacitorPlugin(name = "WorkoutPlugin")
 public class WorkoutPlugin extends Plugin {
+    @PluginMethod public void checkApkUpdate(PluginCall call) {
+        new Thread(() -> call.resolve(ApkUpdates.check(getContext(), Boolean.TRUE.equals(call.getBoolean("manual", false)))), "apk-update-check").start();
+    }
+
+    @PluginMethod public void openApkRelease(PluginCall call) {
+        try {
+            getActivity().startActivity(new Intent(Intent.ACTION_VIEW,
+                    Uri.parse(AndroidReleaseContract.releaseUrl(BuildConfig.DISTRIBUTION_CHANNEL))));
+            call.resolve();
+        } catch (RuntimeException failure) { call.reject("The release page could not be opened.", "release_page_unavailable"); }
+    }
+    @PluginMethod public void getDeviceDiagnostics(PluginCall call) {
+        getActivity().runOnUiThread(() -> {
+            try {
+                JSObject info = AndroidDeviceInfo.read(getActivity());
+                String accountId = call.getString("accountId");
+                info.put("pendingActions", store().getRestActions().stream().filter(action -> action.accountId.equals(accountId)).count());
+                call.resolve(info);
+            } catch (RuntimeException failure) { call.reject("Device diagnostics could not be checked.", "diagnostics_unavailable"); }
+        });
+    }
     static final String EVENT_REST_ACTION = "restAction";
     // The plugin of the page that is open, if any, so a notification tap can tell it at once.
     private static volatile WeakReference<WorkoutPlugin> active = new WeakReference<>(null);
@@ -46,10 +67,10 @@ public class WorkoutPlugin extends Plugin {
     }
 
     @PluginMethod
-    public void takeRestActions(PluginCall call) {
+    public void readRestActions(PluginCall call) {
         JSONArray actions = new JSONArray();
         try {
-            for (RestAction action : store().takeRestActions()) actions.put(action.toJson());
+            for (RestAction action : store().getRestActions()) actions.put(action.toJson());
         } catch (JSONException | RuntimeException failure) {
             call.reject("Rest changes from the notification could not be read.", "rest_actions_failed");
             return;
@@ -57,6 +78,25 @@ public class WorkoutPlugin extends Plugin {
         JSObject result = new JSObject();
         result.put("actions", actions);
         call.resolve(result);
+    }
+
+    @PluginMethod
+    public void importRestActions(PluginCall call) {
+        try {
+            java.util.List<String> ids = call.getArray("importedIds").toList();
+            String accountId = call.getString("accountId");
+            String sessionId = call.getString("sessionId");
+            String json = call.getString("recordJson");
+            JSONObject record = new JSONObject(json);
+            if (!record.getString("accountId").equals(accountId) || !record.getString("sessionId").equals(sessionId))
+                throw new IllegalArgumentException("Recovery ownership mismatch");
+            JSObject result = new JSObject();
+            result.put("committed", store().importRestActions(accountId, sessionId,
+                    call.getString("expectedJson"), json, ids));
+            call.resolve(result);
+        } catch (JSONException | RuntimeException failure) {
+            call.reject("Notification changes are still on this device. Try again.", "rest_import_failed", failure);
+        }
     }
 
     @PluginMethod

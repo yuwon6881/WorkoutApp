@@ -12,13 +12,14 @@ type HistoryLike = Pick<History, 'pushState' | 'replaceState' | 'back' | 'state'
 type Target = Pick<Window, 'addEventListener' | 'removeEventListener'>;
 
 type Overlay = { id: number; close: () => void; pushed: boolean; closingFromHistory: boolean };
-type State = { overlayDepth?: number } | null;
+type State = { overlayDepth?: number; appDepth?: number } | null;
 
 export type BackStack = {
   openOverlay: (close: () => void) => () => void;
   navigate: (path: string) => void;
   onNavigate: (listener: (path: string) => void) => () => void;
   depth: () => number;
+  canGoBack: () => boolean;
   dispose: () => void;
 };
 
@@ -32,7 +33,8 @@ export function createBackStack(history: HistoryLike, target: Target, currentPat
   const stateDepth = (state: State) => (state && typeof state.overlayDepth === 'number' ? state.overlayDepth : 0);
 
   // A reload can land on an entry a sheet pushed before; nothing is open now, so it is a tab entry.
-  if (stateDepth(history.state as State) !== 0) history.replaceState({ overlayDepth: 0 }, '');
+  history.replaceState({ overlayDepth: 0, appDepth: 0 }, '');
+  const appDepth = () => Math.max(0, (history.state as State)?.appDepth ?? 0);
 
   function whenSettled(push: () => void) {
     if (pendingBacks > 0) pendingPushes.push(push);
@@ -42,7 +44,7 @@ export function createBackStack(history: HistoryLike, target: Target, currentPat
   function pushOverlayEntry(overlay: Overlay) {
     whenSettled(() => {
       if (!overlays.includes(overlay) || overlay.pushed) return;
-      history.pushState({ overlayDepth: overlays.indexOf(overlay) + 1 }, '');
+      history.pushState({ overlayDepth: overlays.indexOf(overlay) + 1, appDepth: appDepth() + 1 }, '');
       overlay.pushed = true;
     });
   }
@@ -71,7 +73,7 @@ export function createBackStack(history: HistoryLike, target: Target, currentPat
         }
       }, REFUSED_CLOSE_CHECK_MS);
     }
-    if (depth > overlays.length) history.replaceState({ overlayDepth: overlays.length }, '');
+    if (depth > overlays.length) history.replaceState({ overlayDepth: overlays.length, appDepth: appDepth() }, '');
     const path = currentPath();
     listeners.forEach(listener => listener(path));
   }
@@ -98,7 +100,7 @@ export function createBackStack(history: HistoryLike, target: Target, currentPat
     navigate(path) {
       whenSettled(() => {
         if (path === currentPath()) return;
-        history.pushState({ overlayDepth: 0 }, '', path);
+        history.pushState({ overlayDepth: 0, appDepth: appDepth() + 1 }, '', path);
       });
     },
     onNavigate(listener) {
@@ -106,6 +108,7 @@ export function createBackStack(history: HistoryLike, target: Target, currentPat
       return () => listeners.delete(listener);
     },
     depth: () => overlays.length,
+    canGoBack: () => appDepth() > 0,
     dispose() {
       target.removeEventListener('popstate', handlePopState as EventListener);
       listeners.clear();

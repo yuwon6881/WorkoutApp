@@ -7,6 +7,9 @@ import { LocalNotifications } from '@capacitor/local-notifications';
 import { StatusBar, Style } from '@capacitor/status-bar';
 import { registerPlugin, type PluginListenerHandle } from '@capacitor/core';
 import type { Haptic } from './platform';
+import { backStack } from './backStack';
+import { nativeWorkoutState, type NativeWorkoutContext } from './nativeWorkoutProjection';
+import { hasNativeWorkoutStore } from './platform';
 
 // Kept apart from the ongoing workout notification so a legacy alert never replaces it.
 const LEGACY_REST_NOTIFICATION_ID = 7201;
@@ -47,6 +50,9 @@ export type NativeWorkoutState = {
 
 /// A rest change made from the notification's buttons, waiting for the page to send it on.
 export type NativeRestAction = {
+  id?: string;
+  accountId?: string;
+  resultingGeneration?: string;
   sessionId: string;
   generation: string;
   kind: 'extend' | 'shorten' | 'skip';
@@ -55,6 +61,7 @@ export type NativeRestAction = {
 };
 
 export interface WorkoutPluginInterface {
+  getDeviceDiagnostics(options: { accountId: string }): Promise<import('./deviceDiagnostics').DeviceInfo & { pendingActions: number }>;
   getRecoveryRecord(options: { accountId: string }): Promise<{ recordJson?: string | null }>;
   saveRecoveryRecord(options: { accountId: string; sessionId: string; recordJson: string }): Promise<void>;
   deleteRecoveryRecord(options: { accountId: string }): Promise<void>;
@@ -66,7 +73,9 @@ export interface WorkoutPluginInterface {
   getAlertCapabilities(): Promise<AlertCapabilities>;
   openSettings(options: { type: 'exact_alarm' | 'notifications' | 'rest_channel' | 'battery' | 'app' }): Promise<void>;
   testAlert(options: { sound: boolean; vibrate: boolean }): Promise<void>;
-  takeRestActions(): Promise<{ actions: NativeRestAction[] }>;
+  readRestActions(): Promise<{ actions: NativeRestAction[] }>;
+  importRestActions(options: { accountId: string; sessionId: string; expectedJson: string;
+    recordJson: string; importedIds: string[] }): Promise<{ committed: boolean }>;
   addListener(event: 'restAction', listener: () => void): Promise<PluginListenerHandle>;
 }
 
@@ -95,6 +104,15 @@ let sequence = 0;
 
 export async function nativeSyncWorkout(state: NativeWorkoutState): Promise<void> {
   await WorkoutNative.syncWorkout({ ...state, epoch, sequence: ++sequence });
+}
+
+export async function nativeSyncWorkoutContext(context: NativeWorkoutContext): Promise<void> {
+  const state = nativeWorkoutState(context);
+  if (!hasNativeWorkoutStore()) {
+    if (state?.status === 'running' && state.alert) await nativeScheduleLegacyRest(state.deadlineMs, state.sessionId);
+    else await nativeCancelLegacyRest();
+  } else if (state) await nativeSyncWorkout(state);
+  else await nativeStopWorkout();
 }
 
 export async function nativeStopWorkout(): Promise<void> {
@@ -146,8 +164,14 @@ export async function nativeClaimRestAlert(sessionId: string, generation: string
   return result.claimed;
 }
 
-export async function nativeGetAlertCapabilities(): Promise<AlertCapabilities> {
-  return WorkoutNative.getAlertCapabilities();
+export async function nativeGetAlertCapabilities(lastError: string | null = null): Promise<AlertCapabilities> {
+  try {
+    const capabilities = await WorkoutNative.getAlertCapabilities();
+    return { ...capabilities, serviceError: capabilities.serviceError ?? lastError };
+  } catch (failure) {
+    return { exactAlarm: false, notifications: false, batteryExempt: false, liveUpdates: false,
+      serviceError: failure instanceof Error ? failure.message : 'Workout alert status is unavailable.' };
+  }
 }
 
 export async function nativeOpenSettings(type: 'exact_alarm' | 'notifications' | 'rest_channel' | 'battery' | 'app'): Promise<void> {
@@ -155,9 +179,18 @@ export async function nativeOpenSettings(type: 'exact_alarm' | 'notifications' |
 }
 
 /// Takes the notification's rest changes; once taken they are gone from the device store.
-export async function nativeTakeRestActions(): Promise<NativeRestAction[]> {
-  const result = await WorkoutNative.takeRestActions();
+export async function nativeReadRestActions(): Promise<NativeRestAction[]> {
+  // Method discovery also supports web assets running in an older installed APK.
+  const native = (globalThis as { Capacitor?: { PluginHeaders?: Array<{ name: string; methods: Array<{ name: string }> }> } }).Capacitor;
+  const header = native?.PluginHeaders?.find(plugin => plugin.name === 'WorkoutPlugin');
+  if (!header?.methods.some(method => method.name === 'readRestActions'))
+    throw new Error('Update the Android app to recover notification changes safely.');
+  const result = await WorkoutNative.readRestActions();
   return result.actions ?? [];
+}
+
+export async function nativeImportRestActions(options: Parameters<WorkoutPluginInterface['importRestActions']>[0]): Promise<boolean> {
+  return (await WorkoutNative.importRestActions(options)).committed;
 }
 
 export async function nativeOnRestAction(listener: () => void): Promise<PluginListenerHandle> {
@@ -176,10 +209,11 @@ let shellInstalled = false;
 export async function installNativeShell() {
   if (shellInstalled) return;
   shellInstalled = true;
+  await (await import('./apkUpdates')).installApkUpdateChecks();
   await App.addListener('resume', () => window.dispatchEvent(new Event('workout:resume')));
-  await App.addListener('backButton', ({ canGoBack }) => {
-    if (canGoBack) window.history.back();
-    else void App.exitApp();
+  await App.addListener('backButton', () => {
+    if (backStack()?.canGoBack()) window.history.back();
+    else void App.minimizeApp();
   });
   await LocalNotifications.addListener('localNotificationActionPerformed', action => {
     const url = (action.notification.extra as { url?: string } | undefined)?.url;

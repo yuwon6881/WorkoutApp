@@ -78,7 +78,7 @@ public class RestActionTest {
         assertEquals(30, read.get(0).seconds);
         assertEquals(RestAction.SKIP, read.get(1).kind);
         assertEquals(0, read.get(1).seconds);
-        assertTrue(RestAction.listFromJson("not json").isEmpty());
+        org.junit.Assert.assertThrows(IllegalStateException.class, () -> RestAction.listFromJson("not json"));
         assertTrue(RestAction.listFromJson(null).isEmpty());
     }
 

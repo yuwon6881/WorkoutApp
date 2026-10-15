@@ -1,7 +1,8 @@
 import { useEffect, useEffectEvent, useState } from 'react';
 import type { RestAction, RestMutationInput, Session, SessionRest } from '../types';
-import { hasNativeWorkoutStore, onNativeRestAction, takeNativeRestActions } from '../lib/platform';
-import { nativeRestActionsToApply, restTimer, type RestState } from '../lib/restTimer';
+import { hasNativeWorkoutStore, onNativeRestAction } from '../lib/platform';
+import { restTimer, type RestState } from '../lib/restTimer';
+import { committedRestState, importNativeRestActions } from '../lib/nativeRestImport';
 import { enqueueRest, type WorkoutRecoveryRecord } from '../lib/workoutRecovery';
 
 export function useWorkoutRest({
@@ -40,6 +41,11 @@ export function useWorkoutRest({
 
   async function handleRestMutate(action: RestAction, seconds?: number) {
     if (paused || finishIntentAt || recoveryConflict) return;
+    // Drain notification taps before an ordinary edit replaces their generation.
+    if (hasNativeWorkoutStore()) {
+      try { await recoverNativeActions(); }
+      catch (failure) { onError(failure instanceof Error ? failure.message : 'Notification changes could not be recovered.'); return; }
+    }
     const gen = crypto.randomUUID();
     const occurredAt = new Date().toISOString();
     let mutation: RestMutationInput;
@@ -101,14 +107,18 @@ export function useWorkoutRest({
   // go through the same path as the rest bar so the server and the watch hear about them too.
   // A change made on a rest this page has since replaced is dropped rather than applied to the new one.
   const applyNativeRestActions = useEffectEvent(async () => {
-    const taken = await takeNativeRestActions();
-    if (taken.length === 0) return;
-    for (const action of nativeRestActionsToApply(taken, draft.id, restTimer.current.generation)) {
-      await handleRestMutate(action.kind, action.seconds || undefined);
+    try { await recoverNativeActions(); }
+    catch (failure) {
+      onError(failure instanceof Error ? failure.message : 'Notification changes remain on this device. Reopen the workout to retry.');
     }
-    // Whatever was applied, the notification now has to show this page's rest.
-    restTimer.restateNative();
   });
+
+  async function recoverNativeActions() {
+    const committed = await importNativeRestActions(accountId, draft.id);
+    if (!committed) return;
+    onRecoveryChange(committed);
+    restTimer.adoptCommittedRest(accountId, draft.id, committedRestState(committed.rest));
+  }
 
   useEffect(() => {
     if (!hasNativeWorkoutStore()) return;
@@ -120,7 +130,7 @@ export function useWorkoutRest({
       stopListening();
       window.removeEventListener('workout:resume', take);
     };
-  }, []);
+  }, [accountId, draft.id, !!recovery, recoveryConflict]);
 
   return { rest, handleRestMutate };
 }

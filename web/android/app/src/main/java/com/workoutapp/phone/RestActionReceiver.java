@@ -20,7 +20,13 @@ public class RestActionReceiver extends BroadcastReceiver {
         String kind = intent.getStringExtra(EXTRA_KIND);
         RestAction action = new RestAction(intent.getStringExtra(EXTRA_SESSION_ID), intent.getStringExtra(EXTRA_GENERATION),
                 kind, RestAction.SKIP.equals(kind) ? 0 : RestAction.STEP_SECONDS, System.currentTimeMillis());
-        RestSnapshot updated = WorkoutRecoveryStore.get(context).applyRestAction(action);
+        RestSnapshot updated;
+        try { updated = WorkoutRecoveryStore.get(context).applyRestAction(action); }
+        catch (RuntimeException failure) {
+            context.getSharedPreferences("MainActivity", Context.MODE_PRIVATE).edit()
+                    .putString("recovery_error", "rest_action_save_failed").apply();
+            return;
+        }
         // A button left on an older notification after its rest changed does nothing.
         if (updated == null) return;
         RestSchedule.apply(context, updated);

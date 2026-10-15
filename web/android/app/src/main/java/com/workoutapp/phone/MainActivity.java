@@ -7,6 +7,7 @@ import android.webkit.WebResourceResponse;
 import android.webkit.WebResourceError;
 import android.webkit.WebResourceRequest;
 import android.webkit.WebView;
+import android.webkit.RenderProcessGoneDetail;
 import com.getcapacitor.BridgeActivity;
 import com.getcapacitor.BridgeWebViewClient;
 import com.getcapacitor.CapConfig;
@@ -31,6 +32,10 @@ public class MainActivity extends BridgeActivity {
         // Match the configured origin so APIs bypass the APK asset server, as in Nutrition.
         final String appHost = Uri.parse(getBridge().getLocalUrl()).getHost();
         getBridge().setWebViewClient(new BridgeWebViewClient(getBridge()) {
+            @Override
+            public boolean onRenderProcessGone(WebView view, RenderProcessGoneDetail detail) {
+                return RendererRecovery.handle(MainActivity.this, view);
+            }
             @Override
             public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest request) {
                 Uri uri = request.getUrl();

@@ -11,6 +11,7 @@ def debugSigningKeyPassword = System.getenv('ANDROID_DEBUG_KEY_PASSWORD')
 def hasStableDebugSigningKey = debugSigningStoreFile && debugSigningKeyAlias && debugSigningStorePassword && debugSigningKeyPassword
 
 android {
+    buildFeatures { buildConfig true }
     namespace = "com.workoutapp.phone"
     compileSdk = rootProject.ext.compileSdkVersion
     defaultConfig {
@@ -48,11 +49,15 @@ android {
     }
     buildTypes {
         debug {
+            buildConfigField 'String', 'DISTRIBUTION_CHANNEL', '"device-test"'
+            manifestPlaceholders.distributionChannel = 'device-test'
             if (hasStableDebugSigningKey) {
                 signingConfig signingConfigs.deviceTestDebug
             }
         }
         release {
+            buildConfigField 'String', 'DISTRIBUTION_CHANNEL', '"release"'
+            manifestPlaceholders.distributionChannel = 'release'
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
             if (signingStoreFile && signingKeyAlias && signingStorePassword && signingKeyPassword) {

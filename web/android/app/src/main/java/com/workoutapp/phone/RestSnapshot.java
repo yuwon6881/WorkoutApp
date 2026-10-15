@@ -67,6 +67,11 @@ final class RestSnapshot {
         return RUNNING.equals(status) && deadlineMs > 0;
     }
 
+    RestSnapshot withGeneration(String value) {
+        return new RestSnapshot(sessionId, value, status, deadlineMs, pausedRemainingMs, startedAtMs,
+                pausedAtMs, pausedSeconds, alert, sound, vibrate, epoch, sequence, totalMs, nextUp);
+    }
+
     boolean isPaused() {
         return PAUSED.equals(status) && pausedRemainingMs > 0;
     }

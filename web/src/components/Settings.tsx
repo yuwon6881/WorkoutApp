@@ -1,7 +1,9 @@
 import { NativeBuildInfo } from './NativeBuildInfo';
+import { isNative } from '../lib/platform';
 import { Dumbbell, Link2, LogOut, Moon, SlidersHorizontal, Sun, Timer, Watch, Weight } from 'lucide-react';
 import type { Account, Preferences } from '../types';
-import { useState } from 'react';
+import { lazy, Suspense, useState } from 'react';
+const AndroidDiagnostics=lazy(()=>import('./AndroidDiagnostics').then(module=>({default:module.AndroidDiagnostics})));
 import type { DevicePreferences } from '../lib/workoutRecovery';
 import { Button } from './ui/Button';
 import { CardFeedback } from './ui/CardFeedback';
@@ -170,6 +172,7 @@ export function SettingsView(props: SettingsViewProps) {
 
           <div className="app-version-meta">Workout version {version}</div>
           <NativeBuildInfo />
+          {isNative()&&<Suspense fallback={null}><AndroidDiagnostics accountId={account.id}/></Suspense>}
         </div>
       </div>
     </div>

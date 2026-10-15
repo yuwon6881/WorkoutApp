@@ -9,6 +9,8 @@ import android.database.sqlite.SQLiteOpenHelper;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
+import java.util.UUID;
 
 public class WorkoutRecoveryStore {
     private static final String DB_NAME = "workout_recovery.db";
@@ -33,8 +35,6 @@ public class WorkoutRecoveryStore {
     private static final String KEY_LAST_ACCOUNT = "last-account";
     private static final String KEY_REST_STATE = "rest-state";
     private static final String KEY_REST_ACTIONS = "rest-actions";
-    // Taps beyond this many before the page takes them are dropped; a rest needs only a few.
-    private static final int MAX_REST_ACTIONS = 20;
     // A claim only has to outlive the rest it silences; older ones are removed as new ones arrive.
     private static final long CLAIM_RETENTION_MS = 24L * 60 * 60 * 1000;
 
@@ -80,7 +80,14 @@ public class WorkoutRecoveryStore {
     public synchronized void deleteRecovery(String accountId) {
         if (accountId == null) return;
         SQLiteDatabase db = helper.getWritableDatabase();
-        db.delete(TABLE_RECOVERY, COL_ACCOUNT_ID + " = ?", new String[]{accountId});
+        db.beginTransaction();
+        try {
+            List<RestAction> actions = getRestActions();
+            actions.removeIf(action -> accountId.equals(action.accountId));
+            db.delete(TABLE_RECOVERY, COL_ACCOUNT_ID + " = ?", new String[]{accountId});
+            putMeta(db, KEY_REST_ACTIONS, RestAction.listToJson(actions));
+            db.setTransactionSuccessful();
+        } finally { db.endTransaction(); }
     }
 
     public synchronized String getLastAccountId() {
@@ -120,8 +127,7 @@ public class WorkoutRecoveryStore {
     /// stored, or null when the snapshot was older.
     public synchronized RestSnapshot saveRestSnapshotIfNewer(RestSnapshot snapshot) {
         if (!snapshot.supersedes(getRestSnapshot())) return null;
-        List<RestAction> pending = new ArrayList<>();
-        for (RestAction action : getRestActions()) if (action.belongsTo(snapshot)) pending.add(action);
+        List<RestAction> pending = getRestActions();
         RestSnapshot stored = RestAction.overlay(snapshot, pending);
         putRest(stored, pending);
         return stored;
@@ -131,28 +137,94 @@ public class WorkoutRecoveryStore {
     /// rest, or null when the action is for a rest that is no longer stored.
     public synchronized RestSnapshot applyRestAction(RestAction action) {
         RestSnapshot current = getRestSnapshot();
-        if (!action.belongsTo(current)) return null;
+        RestSnapshot beforeMigration = current;
         List<RestAction> pending = getRestActions();
-        pending.add(action);
-        while (pending.size() > MAX_REST_ACTIONS) pending.remove(0);
-        RestSnapshot updated = action.applyTo(current);
+        current = getRestSnapshot();
+        if (!action.belongsTo(current) && action.belongsTo(beforeMigration) && current != null &&
+                beforeMigration.sessionId.equals(current.sessionId)) {
+            action = new RestAction(action.sessionId, current.generation, action.kind, action.seconds, action.atMs);
+        }
+        if (!action.belongsTo(current) || !(current.isRunning() || current.isPaused())) return null;
+        String accountId = ownerOf(action.sessionId);
+        if (accountId == null) return null;
+        RestAction accepted = new RestAction(action.sessionId, action.generation, action.kind, action.seconds,
+                action.atMs, UUID.randomUUID().toString(), accountId, UUID.randomUUID().toString());
+        pending.add(accepted);
+        RestSnapshot updated = accepted.applyTo(current);
         putRest(updated, pending);
         return updated;
     }
 
-    /// Hands every pending notification action to the page and forgets them here.
-    public synchronized List<RestAction> takeRestActions() {
-        List<RestAction> pending = getRestActions();
-        helper.getWritableDatabase().delete(TABLE_META, COL_KEY + " = ?", new String[]{KEY_REST_ACTIONS});
-        return pending;
+    /// Non-destructive read. Legacy identities are assigned and persisted once, before delivery.
+    public synchronized List<RestAction> getRestActions() {
+        List<RestAction> actions = RestAction.listFromJson(getMeta(KEY_REST_ACTIONS));
+        if (actions.stream().noneMatch(action -> action.id.isEmpty())) return actions;
+        List<RestAction> migrated = new ArrayList<>();
+        RestSnapshot nativeRest = getRestSnapshot();
+        String previousSource = null;
+        String previousResult = null;
+        String previousSession = null;
+        for (RestAction action : actions) {
+            if (!action.id.isEmpty()) { migrated.add(action); continue; }
+            String owner = ownerOf(action.sessionId);
+            if (owner == null) continue;
+            String source = action.sessionId.equals(previousSession) && action.generation.equals(previousSource)
+                    ? previousResult : action.generation;
+            String result = UUID.randomUUID().toString();
+            migrated.add(new RestAction(action.sessionId, source, action.kind, action.seconds, action.atMs,
+                    UUID.randomUUID().toString(), owner, result));
+            previousSource = action.generation;
+            previousSession = action.sessionId;
+            previousResult = result;
+            // Legacy native snapshots already include the deltas. Only advance their identity.
+            if (nativeRest != null && nativeRest.isCurrent(action.sessionId, action.generation))
+                nativeRest = nativeRest.withGeneration(result);
+            else if (nativeRest != null && nativeRest.isCurrent(action.sessionId, source))
+                nativeRest = nativeRest.withGeneration(result);
+        }
+        SQLiteDatabase db = helper.getWritableDatabase();
+        db.beginTransaction();
+        try {
+            putMeta(db, KEY_REST_ACTIONS, RestAction.listToJson(migrated));
+            if (nativeRest != null) putMeta(db, KEY_REST_STATE, nativeRest.toJson());
+            db.setTransactionSuccessful();
+        } finally { db.endTransaction(); }
+        return migrated;
     }
 
-    synchronized List<RestAction> getRestActions() {
-        return RestAction.listFromJson(getMeta(KEY_REST_ACTIONS));
+    private String ownerOf(String sessionId) {
+        try (Cursor cursor = helper.getReadableDatabase().query(TABLE_RECOVERY, new String[]{COL_ACCOUNT_ID},
+                COL_SESSION_ID + " = ?", new String[]{sessionId}, null, null, null)) {
+            if (!cursor.moveToFirst()) return null;
+            String owner = cursor.getString(0);
+            return cursor.moveToNext() ? null : owner;
+        }
+    }
+
+    /// Compare the entire recovery revision, then import and acknowledge in one SQLite commit.
+    public synchronized boolean importRestActions(String accountId, String sessionId, String expectedJson,
+                                                  String updatedJson, List<String> importedIds) {
+        SQLiteDatabase db = helper.getWritableDatabase();
+        db.beginTransaction();
+        try {
+            if (!Objects.equals(expectedJson, getRecovery(accountId)) || expectedJson == null) return false;
+            List<RestAction> pending = getRestActions();
+            for (String id : importedIds) {
+                RestAction action = pending.stream().filter(item -> item.id.equals(id)).findFirst().orElse(null);
+                if (action == null || !action.accountId.equals(accountId) || !action.sessionId.equals(sessionId)) return false;
+            }
+            saveRecovery(accountId, sessionId, updatedJson);
+            pending.removeIf(action -> importedIds.contains(action.id));
+            putMeta(db, KEY_REST_ACTIONS, RestAction.listToJson(pending));
+            db.setTransactionSuccessful();
+            return true;
+        } finally { db.endTransaction(); }
     }
 
     public synchronized void clearRestSnapshot() {
-        helper.getWritableDatabase().delete(TABLE_META, COL_KEY + " IN (?, ?)", new String[]{KEY_REST_STATE, KEY_REST_ACTIONS});
+        // Stopping the service also happens on account switches. Only deleting that account's
+        // recovery record acknowledges clearing its pending actions with the workout.
+        helper.getWritableDatabase().delete(TABLE_META, COL_KEY + " = ?", new String[]{KEY_REST_STATE});
     }
 
     private String getMeta(String key) {

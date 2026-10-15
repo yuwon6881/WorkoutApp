@@ -1,9 +1,10 @@
 import {afterEach,beforeEach,describe,expect,it,vi} from 'vitest';
 const native=vi.hoisted(()=>({claim:vi.fn(),sync:vi.fn(),sound:vi.fn(),vibrate:vi.fn()}));
-vi.mock('./platform',()=>({
+vi.mock('./platform',async()=>({
   hasNativeWorkoutStore:()=>true,isNative:()=>true,nativeKeepAwake:vi.fn(),
-  notificationPermission:vi.fn(),syncNativeWorkout:native.sync,claimNativeRestAlert:native.claim,
+  notificationPermission:vi.fn(),syncNativeWorkout:(context:import('./nativeWorkoutProjection').NativeWorkoutContext)=>native.sync(nativeWorkoutState(context)),claimNativeRestAlert:native.claim,
 }));
+import {nativeWorkoutState} from './nativeWorkoutProjection';
 vi.mock('./alarm',()=>({cancelAlarm:vi.fn(),primeAlarm:vi.fn(),releaseAlarm:vi.fn(),
   scheduleAlarm:vi.fn(),soundNow:native.sound,testAlarmSound:vi.fn()}));
 import {RestTimer,nativeRestActionsToApply} from './restTimer';
@@ -43,6 +44,17 @@ describe('Android workout notification detail',()=>{
     vi.stubGlobal('navigator',{vibrate:native.vibrate});
   });
   afterEach(()=>{vi.useRealTimers();vi.unstubAllGlobals();});
+
+  it('restores committed recovery after a crash before the local timer snapshot was written',()=>{
+    const now=Date.now();
+    vi.stubGlobal('localStorage',{getItem:()=>JSON.stringify({endsAt:now+30000,totalSeconds:90,announced:false,generation:'old',pausedRemainingMs:0}),setItem:vi.fn(),removeItem:vi.fn()});
+    const timer=new RestTimer();
+    timer.setScope('account','workout',{notifications:true,sound:true,vibration:false,keepAwake:false},{
+      generation:'imported',status:'running',deadlineUtc:new Date(now+60000).toISOString(),durationMs:120000,pausedRemainingMs:null,originDeviceId:null
+    });
+    expect(timer.current).toMatchObject({endsAt:now+60000,generation:'imported',totalSeconds:120});
+    expect(native.sync).toHaveBeenLastCalledWith(expect.objectContaining({deadlineMs:now+60000,generation:'imported'}));
+  });
 
   it('sends the rest length for the progress bar and the next set for the scoped workout only',()=>{
     const timer=new RestTimer();

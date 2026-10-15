@@ -1,5 +1,6 @@
-import {useEffect,useState} from 'react';
+import {lazy,Suspense,useEffect,useState} from 'react';
 import {isNative} from '../lib/platform';
+const ApkUpdateSettings=lazy(()=>import('./ApkUpdateSettings').then(module=>({default:module.ApkUpdateSettings})));
 
 export function NativeBuildInfo(){
   const [build,setBuild]=useState<string|null>(null);
@@ -12,5 +13,5 @@ export function NativeBuildInfo(){
     return()=>{active=false;};
   },[]);
   if(!build)return null;
-  return <p className="app-version-meta">Android version {build}. Install a newer APK to update the native features.</p>;
+  return <div><p className="app-version-meta">Android version {build}.</p><Suspense fallback={null}><ApkUpdateSettings/></Suspense></div>;
 }

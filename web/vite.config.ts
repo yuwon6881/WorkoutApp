@@ -39,6 +39,8 @@ export default defineConfig({
   },
   preview: { proxy },
   build: {
+    // These surfaces only execute inside the APK, whose dependencies are already bundled.
+    modulePreload: { resolveDependencies: (filename, dependencies) => /\/(nativeBridge|apkUpdates|AndroidDiagnostics|ApkUpdateSettings)-/.test(filename) ? [] : dependencies },
     outDir: process.env.WORKOUT_BUILD_DIRECTORY || 'dist',
     // Even small font subsets must stay same-origin files for font-src 'self'.
     assetsInlineLimit: filePath => /\.(?:woff2?|ttf|otf)$/i.test(filePath) ? false : undefined,

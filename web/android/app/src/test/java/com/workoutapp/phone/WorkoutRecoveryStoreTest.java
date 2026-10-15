@@ -79,6 +79,7 @@ public class WorkoutRecoveryStoreTest {
     }
 
     @Test public void aNotificationTapSurvivesThePageRestatingTheSameRest() {
+        store.saveRecovery("account", "session", "{}");
         long now = System.currentTimeMillis();
         store.saveRestSnapshotIfNewer(page("gen-1", now + 40_000, "page-a", 1));
         RestSnapshot tapped = store.applyRestAction(new RestAction("session", "gen-1", RestAction.EXTEND, 30, now));
@@ -86,29 +87,36 @@ public class WorkoutRecoveryStoreTest {
         // A reloaded page restates the rest it remembers; the tap stays on top until the page takes it.
         RestSnapshot restated = store.saveRestSnapshotIfNewer(page("gen-1", now + 40_000, "page-b", 1));
         assertEquals(now + 70_000, restated.deadlineMs);
-        assertEquals(1, store.takeRestActions().size());
-        assertTrue(store.takeRestActions().isEmpty());
+        assertEquals(1, store.getRestActions().size());
+        assertEquals(1, store.getRestActions().size());
+        assertTrue(store.importRestActions("account", "session", "{}", "{}",
+                java.util.Collections.singletonList(store.getRestActions().get(0).id)));
         // Once the page has made the change itself, its own rest stands.
         assertEquals(now + 70_000, store.saveRestSnapshotIfNewer(page("gen-2", now + 70_000, "page-b", 2)).deadlineMs);
     }
 
     @Test public void aTapForAReplacedRestIsDropped() {
+        store.saveRecovery("account", "session", "{}");
         long now = System.currentTimeMillis();
         store.saveRestSnapshotIfNewer(page("gen-1", now + 40_000, "page-a", 1));
         store.applyRestAction(new RestAction("session", "gen-1", RestAction.SKIP, 0, now));
         RestSnapshot next = store.saveRestSnapshotIfNewer(page("gen-2", now + 90_000, "page-a", 2));
         assertEquals(RestSnapshot.RUNNING, next.status);
-        assertTrue(store.takeRestActions().isEmpty());
+        // The importer classifies the old tap as superseded; a snapshot write cannot acknowledge it.
+        assertEquals(1, store.getRestActions().size());
         assertNull(store.applyRestAction(new RestAction("session", "gen-1", RestAction.SKIP, 0, now)));
     }
 
     @Test public void endingTheWorkoutForgetsPendingTaps() {
+        store.saveRecovery("account", "session", "{}");
         long now = System.currentTimeMillis();
         store.saveRestSnapshotIfNewer(page("gen-1", now + 40_000, "page-a", 1));
         store.applyRestAction(new RestAction("session", "gen-1", RestAction.EXTEND, 30, now));
         store.clearRestSnapshot();
         assertNull(store.getRestSnapshot());
-        assertTrue(store.takeRestActions().isEmpty());
+        assertEquals(1, store.getRestActions().size());
+        store.deleteRecovery("account");
+        assertTrue(store.getRestActions().isEmpty());
     }
 
     @Test public void permissionGrantRearmsOnlyFutureRunningRests() {

@@ -33,6 +33,30 @@ describe('back stack', () => {
   beforeEach(() => vi.useFakeTimers());
   afterEach(() => vi.useRealTimers());
 
+  it('starts a native root after authentication or notification entry despite stale WebView history', () => {
+    const browser = fakeBrowser('/auth/obsolete');
+    browser.history.pushState({ overlayDepth: 0, appDepth: 5 }, '', '/');
+    const stack = createBackStack(browser.history as unknown as History, browser.target as unknown as Window, browser.path);
+    expect(stack.canGoBack()).toBe(false);
+    stack.navigate('/settings');
+    expect(stack.canGoBack()).toBe(true);
+  });
+
+  it('reaches the native root only after the dialog and app navigation have unwound', async () => {
+    const browser = fakeBrowser();
+    const stack = createBackStack(browser.history as unknown as History, browser.target as unknown as Window, browser.path);
+    stack.navigate('/workouts');
+    let close!: () => void;
+    close = stack.openOverlay(() => close());
+    expect(stack.canGoBack()).toBe(true);
+    browser.history.back();
+    await vi.runAllTimersAsync();
+    expect(stack.canGoBack()).toBe(true);
+    browser.history.back();
+    await vi.runAllTimersAsync();
+    expect(stack.canGoBack()).toBe(false);
+  });
+
   it('closes the top sheet on back, then walks back through tabs', async () => {
     const browser = fakeBrowser();
     const stack = createBackStack(browser.history as unknown as History, browser.target as unknown as Window, browser.path);
@@ -108,6 +132,6 @@ describe('back stack', () => {
     const browser = fakeBrowser();
     browser.history.replaceState({ overlayDepth: 2 }, '');
     createBackStack(browser.history as unknown as History, browser.target as unknown as Window, browser.path);
-    expect(browser.history.state).toEqual({ overlayDepth: 0 });
+    expect(browser.history.state).toEqual({ overlayDepth: 0, appDepth: 0 });
   });
 });

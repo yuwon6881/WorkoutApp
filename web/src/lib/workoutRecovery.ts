@@ -66,7 +66,8 @@ export async function refreshRecovery(accountId: string, displayName: string, se
     record.displayName = displayName;
     record.serverSession = serverSession;
     record.preferences = preferences;
-    if (serverSession.rest !== undefined) record.rest = serverSession.rest;
+    if (serverSession.rest !== undefined && !record.operations.some(operation =>
+      operation.type === 'rest' || (operation.type === 'setPatch' && operation.rest))) record.rest = serverSession.rest;
     // With nothing queued, this device holds no edit the server lacks, so the server's copy is the
     // workout, including sets another device logged since this one last synced.
     if (record.operations.length === 0 || sameWorkoutEdits(record.draft, serverSession)) {
@@ -283,6 +284,7 @@ export async function acknowledgeOperation(accountId: string, operationId: strin
     if (record.operations.length === 0 && sameWorkoutEdits(record.draft, saved)) record.draft = saved;
     record.updatedAt = new Date().toISOString();
     await putRecord(record);
+    void import('./confirmedSync').then(module => module.recordConfirmedSync(accountId)).catch(() => undefined);
     return record;
   });
 }
@@ -393,7 +395,7 @@ function getRecoveryLockManager(): RecoveryLockManager | undefined {
   return (navigator as Navigator & { locks?: RecoveryLockManager }).locks;
 }
 
-const writeRecoveryMutation = createRecoveryMutationSerializer(getRecoveryLockManager());
+export const writeRecoveryMutation = createRecoveryMutationSerializer(getRecoveryLockManager());
 
 export function hasPendingTimingOperations(record: WorkoutRecoveryRecord): boolean {
   return record.operations.some(operation => operation.type === 'pause' || operation.type === 'resume');

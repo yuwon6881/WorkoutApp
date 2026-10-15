@@ -15,6 +15,45 @@ defaults:
     working-directory: web
 
 jobs:
+  instrumentation:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        api: [24, 33, 36]
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - uses: actions/setup-java@dded0888837ed1f317902acf8a20df0ad188d165
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: android-actions/setup-android@v3
+      - uses: gradle/actions/setup-gradle@v4
+      - run: sdkmanager "platforms;android-36" "build-tools;36.0.0" "platform-tools"
+      - run: npm ci
+      - run: npm run android:sync
+      - name: Enable emulator acceleration
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: ${{ matrix.api }}
+          target: google_apis
+          arch: x86_64
+          disable-animations: true
+          script: cd web/android && ./gradlew --no-daemon connectedDebugAndroidTest
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: workout-instrumentation-api-${{ matrix.api }}
+          path: web/android/app/build/reports/androidTests
   debug-apk:
     runs-on: ubuntu-latest
     steps:
@@ -64,18 +103,17 @@ jobs:
         env:
           ANDROID_DEBUG_SIGNING_CERT_SHA256: ${{ vars.ANDROID_DEBUG_SIGNING_CERT_SHA256 }}
         run: |
-          test -n "$ANDROID_DEBUG_SIGNING_CERT_SHA256"
-          apk="android/app/build/outputs/apk/debug/app-debug.apk"
-          actual="$("$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --print-certs "$apk" | awk -F ': ' '/Signer #1 certificate SHA-256 digest:/ {gsub(":", "", $2); print toupper($2); exit}')"
-          expected="$(printf '%s' "$ANDROID_DEBUG_SIGNING_CERT_SHA256" | tr -d ':' | tr '[:lower:]' '[:upper:]')"
-          test "$actual" = "$expected"
+          ANDROID_SIGNING_CERT_SHA256="$ANDROID_DEBUG_SIGNING_CERT_SHA256" node scripts/android-release-manifest.mjs android/app/build/outputs/apk/debug/app-debug.apk device-test
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: workout-android-debug-${{ github.event_name == 'pull_request' && 'pull-request' || 'device-test' }}
-          path: web/android/app/build/outputs/apk/debug/app-debug.apk
+          path: |
+            web/android/app/build/outputs/apk/debug/app-debug.apk
+            web/android/app/build/outputs/apk/debug/android-release.json
           if-no-files-found: error
 
   signed-release-aab:
+    needs: [debug-apk, instrumentation]
     if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     env:
@@ -110,11 +148,18 @@ jobs:
           echo "ANDROID_KEYSTORE_PATH=$RUNNER_TEMP/workout-release.jks" >> "$GITHUB_ENV"
       - name: Build web app and sync Capacitor Android project
         run: npm run android:sync
-      - name: Build signed Android App Bundle
+      - name: Build signed release APK and App Bundle
         working-directory: web/android
-        run: ./gradlew --no-daemon bundleRelease
+        run: ./gradlew --no-daemon lintRelease testReleaseUnitTest assembleRelease bundleRelease
+      - name: Verify release identity and generate exact-APK manifest
+        env:
+          ANDROID_SIGNING_CERT_SHA256: ${{ vars.ANDROID_RELEASE_SIGNING_CERT_SHA256 }}
+        run: node scripts/android-release-manifest.mjs android/app/build/outputs/apk/release/app-release.apk release
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: workout-android-release-aab
-          path: web/android/app/build/outputs/bundle/release/app-release.aab
+          path: |
+            web/android/app/build/outputs/bundle/release/app-release.aab
+            web/android/app/build/outputs/apk/release/app-release.apk
+            web/android/app/build/outputs/apk/release/android-release.json
           if-no-files-found: error

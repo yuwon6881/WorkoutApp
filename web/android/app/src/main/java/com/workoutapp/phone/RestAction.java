@@ -17,6 +17,9 @@ final class RestAction {
     static final long STEP_SECONDS = 30;
 
     final String sessionId;
+    final String id;
+    final String accountId;
+    final String resultingGeneration;
     // The rest the tap was made on; an action never carries over to a different rest.
     final String generation;
     final String kind;
@@ -24,7 +27,15 @@ final class RestAction {
     final long atMs;
 
     RestAction(String sessionId, String generation, String kind, long seconds, long atMs) {
+        this(sessionId, generation, kind, seconds, atMs, "", "", generation);
+    }
+
+    RestAction(String sessionId, String generation, String kind, long seconds, long atMs,
+               String id, String accountId, String resultingGeneration) {
         this.sessionId = sessionId;
+        this.id = id;
+        this.accountId = accountId;
+        this.resultingGeneration = resultingGeneration;
         this.generation = generation == null ? "" : generation;
         this.kind = EXTEND.equals(kind) || SHORTEN.equals(kind) ? kind : SKIP;
         this.seconds = SKIP.equals(this.kind) ? 0 : Math.max(0, seconds);
@@ -37,17 +48,22 @@ final class RestAction {
 
     /// The rest after this action. An action for another rest, or for a rest already over, changes nothing.
     RestSnapshot applyTo(RestSnapshot snapshot) {
+        RestSnapshot updated = transition(snapshot);
+        return updated == snapshot ? snapshot : updated.withGeneration(resultingGeneration);
+    }
+
+    private RestSnapshot transition(RestSnapshot snapshot) {
         if (!belongsTo(snapshot) || !(snapshot.isRunning() || snapshot.isPaused())) return snapshot;
         if (SKIP.equals(kind)) return idle(snapshot);
         long deltaMs = seconds * 1000L;
         if (snapshot.isPaused()) {
             long remaining = snapshot.pausedRemainingMs + (EXTEND.equals(kind) ? deltaMs : -deltaMs);
             if (remaining <= 0) return idle(snapshot);
-            long total = EXTEND.equals(kind) && snapshot.totalMs > 0 ? snapshot.totalMs + deltaMs : snapshot.totalMs;
+            long total = EXTEND.equals(kind) ? snapshot.totalMs + deltaMs : snapshot.totalMs;
             return snapshot.withRest(RestSnapshot.PAUSED, 0, remaining, total);
         }
         if (EXTEND.equals(kind)) {
-            long total = snapshot.totalMs > 0 ? snapshot.totalMs + deltaMs : 0;
+            long total = snapshot.totalMs + deltaMs;
             return snapshot.withRest(RestSnapshot.RUNNING, Math.max(atMs, snapshot.deadlineMs) + deltaMs, 0, total);
         }
         // Cutting past the end finishes the rest quietly: the lifter chose to go early.
@@ -68,6 +84,10 @@ final class RestAction {
 
     JSONObject toJson() throws JSONException {
         return new JSONObject()
+                .put("schemaVersion", 2)
+                .put("id", id)
+                .put("accountId", accountId)
+                .put("resultingGeneration", resultingGeneration)
                 .put("sessionId", sessionId)
                 .put("generation", generation)
                 .put("kind", kind)
@@ -80,7 +100,7 @@ final class RestAction {
         try {
             for (RestAction action : actions) array.put(action.toJson());
         } catch (JSONException e) {
-            return "[]";
+            throw new IllegalStateException("Rest changes could not be saved.", e);
         }
         return array.toString();
     }
@@ -95,10 +115,11 @@ final class RestAction {
                 String sessionId = o.optString("sessionId", "");
                 if (sessionId.isEmpty()) continue;
                 actions.add(new RestAction(sessionId, o.optString("generation", ""), o.optString("kind", SKIP),
-                        o.optLong("seconds", 0), o.optLong("atMs", 0)));
+                        o.optLong("seconds", 0), o.optLong("atMs", 0), o.optString("id", ""),
+                        o.optString("accountId", ""), o.optString("resultingGeneration", o.optString("generation", ""))));
             }
         } catch (JSONException e) {
-            actions.clear();
+            throw new IllegalStateException("Rest changes could not be read.", e);
         }
         return actions;
     }
