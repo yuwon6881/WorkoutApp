@@ -29,7 +29,7 @@ public sealed class EffortPrefillTests
         await h.Seed(new SeedExercise("press", "Press", "Chest", "Barbell", null, 2.5));
         var id = await h.ExerciseId("press");
         var template = await h.Templates.Create(Harness.Template("Press", Harness.Exercise(id, "Press",
-            Harness.Set(8, 12, null))), null, 1, 0, default);
+            Harness.Set(8, 12))), null, 1, 0, default);
 
         var first = await h.Workouts.Start(template.Id, null, default);
         var firstSet = first.Exercises.Single().Sets.Single();
