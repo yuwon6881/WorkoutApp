@@ -29,6 +29,12 @@ The rest of Gemini's account is broadly accurate, with these qualifications:
   not the physiological accuracy of an individual's estimate.
 - Rep records compare frozen total system load, load model, resistance mode, and exercise
   identity. External and system volume are accounted for separately, excluding unknown values.
+- The active logger announces live records through the after-log celebration; it does not render
+  per-set PR badges. Saved session/history PR tags use server-calculated records, so Gemini's
+  additional claim about live set badges does not describe the current logger.
+- A first-ever exercise with no finished historical baseline deliberately announces no live PR.
+  Missing system load is a defect when there is a comparable baseline to beat; the absence of
+  a first-ever celebration alone is not evidence of a bug.
 - Progression uses frozen historical system loads and the current session reference. Physical
   equipment rounding chooses a conservative available load, including assistance direction.
 - Snapshot selection requires confirmed Nutrition context: today's scale weight takes priority,
