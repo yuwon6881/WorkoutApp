@@ -20,8 +20,8 @@ import './WorkoutSlot.css';
 import './Programs.css';
 import './ProgramsPolish.css';
 
-export function Programs({ data, exercises, onStart, onImport, onChanged, ensureResources, onTemplateSaved, onTemplateDeleted }: {
-  data: Bootstrap; exercises: Exercise[]; onStart: (templateId: string) => void; onImport: () => void; onChanged: () => Promise<void>;
+export function Programs({ data, exercises, onStart, onPreview, onImport, onChanged, ensureResources, onTemplateSaved, onTemplateDeleted }: {
+  data: Bootstrap; exercises: Exercise[]; onStart: (templateId: string) => void; onPreview: (templateId: string) => void; onImport: () => void; onChanged: () => Promise<void>;
   ensureResources?: (resources: AppResource[], throwOnError?: boolean, force?: boolean) => Promise<void>;
   onTemplateSaved?: (template: Template) => void;
   onTemplateDeleted?: (id: string) => void;
@@ -229,11 +229,11 @@ export function Programs({ data, exercises, onStart, onImport, onChanged, ensure
         <div className="section-heading"><h2>Active plan</h2></div>
         <ActiveSlotDropZone over={drag?.overZone === 'active' && drag.from === 'library'} occupied={Boolean(displayHolder)}
           hasLibrary={libraryCount > 0} onNewWorkout={() => open()} onImport={onImport}>
-          {displayHolder?.kind === 'program' && <ActiveProgramCard key={displayHolder.program.id} program={displayHolder.program} exercises={exercises} onStart={onStart} onChanged={onChanged}
+          {displayHolder?.kind === 'program' && <ActiveProgramCard key={displayHolder.program.id} program={displayHolder.program} exercises={exercises} onStart={onStart} onPreview={onPreview} onChanged={onChanged}
             onEdit={() => setEditingProgramId(displayHolder.program.id)}
             hasActiveWorkout={hasActiveWorkout} activeTemplateId={activeTemplateId} actions={cardActions(displayHolder)} dragProps={dragProps(displayHolder, 'active')}
             moving={movingId === displayHolder.program.id} dragging={draggingId === slotItemId(displayHolder)} />}
-          {displayHolder?.kind === 'template' && <ActiveTemplateCard key={displayHolder.template.id} template={displayHolder.template} onStart={() => onStart(displayHolder.template.id)}
+          {displayHolder?.kind === 'template' && <ActiveTemplateCard key={displayHolder.template.id} template={displayHolder.template} onStart={() => onPreview(displayHolder.template.id)}
             onEdit={() => open(displayHolder.template)} hasActiveWorkout={hasActiveWorkout} activeTemplateId={activeTemplateId} actions={cardActions(displayHolder)}
             dragProps={dragProps(displayHolder, 'active')} moving={movingId === displayHolder.template.id} />}
         </ActiveSlotDropZone>
@@ -255,7 +255,7 @@ export function Programs({ data, exercises, onStart, onImport, onChanged, ensure
           const item: SlotItem = { kind: 'template', template };
           return <RoutineCard key={template.id} template={template} exercises={exercises} onEdit={() => open(template)}
             hasActiveWorkout={hasActiveWorkout} activeTemplateId={activeTemplateId}
-            onStart={() => onStart(template.id)} dragProps={dragProps(item, 'library')}
+            onStart={() => onPreview(template.id)} dragProps={dragProps(item, 'library')}
             menu={<MenuButton label={`Actions for ${template.name}`} triggerClassName="slot-card-menu-trigger" portal>
               <MenuItem disabled={slot.busy} onClick={() => slot.activate(item)}><Zap size={14} />Make active</MenuItem>
               <MenuItem destructive disabled={slot.busy} onClick={() => slot.remove(item)}><Trash2 size={14} />Delete workout</MenuItem>

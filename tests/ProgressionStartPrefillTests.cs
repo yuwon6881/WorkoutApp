@@ -50,7 +50,8 @@ public sealed class ProgressionStartPrefillTests
         Assert.Equal(set.Suggestion.SuggestedReps, set.Reps);
         Assert.Equal(8, next.Exercises.Single().Prescription.Single().TargetRpe);
         Assert.False(set.Done);
-        Assert.Null(set.Rpe);
-        Assert.Null(set.Rir);
+        // History fills in the program's own effort too, still without logging the set.
+        Assert.Equal(8, set.Rpe);
+        Assert.Equal("2", set.Rir);
     }
 }

@@ -1,5 +1,5 @@
 import type { LoggedSet, SessionExercise, SetPrescription, Unit } from '../types';
-import { showReps, showRepEffortTarget, showTarget, showWeight, targetRirLabel } from './training';
+import { DEFAULT_EFFORT_TARGET, showReps, showRepEffortTarget, showTarget, showWeight, targetRirLabel } from './training';
 import { isTimedExercise, showTimedTarget } from './setDuration';
 import { loadEntryFor, loadSign } from './resistanceVariant';
 
@@ -35,7 +35,8 @@ export function setTarget(
 
   const open = plan.repMin === null || hasOpenReps(plan);
   const reps = open ? showReps(plan) : String(suggestion.suggestedReps);
-  const effort = trackRir ? targetRirLabel(plan) : null;
+  // The default is named so a program that prints no effort still says what the prefilled RIR aims for.
+  const effort = trackRir ? targetRirLabel(plan) ?? DEFAULT_EFFORT_TARGET : null;
   const entry = loadEntryFor(exercise);
   const load = suggestion.suggestedLoadKg !== null && entry !== 'bodyweight' && entry !== 'none'
     ? `${loadSign(entry)}${showWeight(suggestion.suggestedLoadKg, unit)}`

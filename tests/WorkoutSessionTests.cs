@@ -192,7 +192,8 @@ public class WorkoutSessionTests
         Assert.Equal(62.5, sets[0].WeightKg);
         Assert.Equal(8, sets[0].Reps);
         Assert.False(sets[0].Done);
-        Assert.Null(sets[0].Rpe);
+        // The program's reserve is filled in from history; the set is not rated as done.
+        Assert.Equal(8, sets[0].Rpe);
     }
 
     [Fact] public async Task Finishing_keeps_only_the_sets_that_were_actually_completed()

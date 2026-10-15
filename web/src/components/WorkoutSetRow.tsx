@@ -195,7 +195,6 @@ export function WorkoutSetRow({
       adaptive
       className="workout-set-swipe"
       actionsWidth={80}
-      peek={si === 0}
       actionsLabel={`Actions for ${setName}`}
       actions={(
         <Button variant="destructive" aria-label={`Remove ${setName}`} onClick={remove}>

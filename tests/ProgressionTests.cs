@@ -180,7 +180,7 @@ public class ProgressionSessionTests
         Assert.Equal(60, sets[0].WeightKg);
         Assert.Equal(4, sets[0].Reps);
         Assert.All(sets, s => Assert.False(s.Done));
-        Assert.All(sets, s => Assert.Null(s.Rpe));
+        Assert.All(sets, s => Assert.Equal(8, s.Rpe));
     }
 
     [Fact] public async Task Topping_the_rep_range_comes_back_heavier_with_the_reps_reset()

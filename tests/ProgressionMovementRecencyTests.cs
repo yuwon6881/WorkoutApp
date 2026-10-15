@@ -45,7 +45,7 @@ public sealed class ProgressionMovementRecencyTests
         Assert.DoesNotContain("days away", second.Suggestion!.Reason);
         Assert.Equal(old, second.Suggestion.SourceSessionId);
         Assert.False(second.Done);
-        Assert.Null(second.Rpe);
+        Assert.Equal(8, second.Rpe);
     }
 
     private static async Task<Guid> Complete(Harness h, Guid templateId, double load)

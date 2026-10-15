@@ -41,7 +41,8 @@ public sealed class PrescriptionProgressionSessionTests
         Assert.Equal(first.Id, set.Suggestion!.SourceSessionId);
         Assert.True(set.Suggestion.IsRepRangeTransition);
         Assert.False(set.Done);
-        Assert.Null(set.Rpe);
+        // History fills in the program's reserve with the load and reps, without rating the set as done.
+        Assert.Equal(8, set.Rpe);
         Assert.Equal(10, next.Exercises.Single().Prescription[0].RepMin);
         await Log(h, next, 15, 7, 8);
         var third = await h.Workouts.Start(template, null, default);
