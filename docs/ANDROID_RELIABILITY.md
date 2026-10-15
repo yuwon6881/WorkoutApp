@@ -39,7 +39,7 @@ CI builds and tests signed release APKs alongside AABs. Set `ANDROID_RELEASE_SIG
 
 ## Verification and release acceptance
 
-Run frontend typecheck, standards/docs checks, full tests/build, visual tests and responsive tests. Sync the tested web bundle to Capacitor, compare bundled asset hashes, then run Android lint, JVM tests, instrumented tests and APK signature/package inspection. The CI instrumentation matrix covers API 24, 33 and 36; actual renderer termination is available from API 29 and is skipped on API 24.
+Run frontend typecheck, standards/docs checks, full tests/build, visual tests and responsive tests. Sync the tested web bundle to Capacitor, compare bundled asset hashes, then run Android lint, JVM tests, instrumented tests and APK signature/package inspection. The CI instrumentation matrix covers API 24, 33 and 36; actual renderer termination is available from API 29 and is skipped on API 24, whose stock WebView (Chrome 52) cannot run the es2022 bundle, so the root-Back test is skipped there too.
 
 Record automated, emulator, physical-device, provider and Wear evidence separately. Browser native-bridge fixtures validate UI contracts, not Android providers. Local emulator APKs signed with a temporary/default debug key are test artifacts, not an in-place upgrade candidate for an installation using another key.
 

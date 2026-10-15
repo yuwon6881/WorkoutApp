@@ -17,7 +17,20 @@ import org.junit.runner.RunWith;
 
 @RunWith(AndroidJUnit4.class)
 public class AndroidRecoveryJourneyTest {
+    // The web bundle targets es2022 (Chrome 94); the API 24 google_apis image ships Chrome 52 and
+    // cannot run it, so tests that need the page to boot are skipped there, not failed.
+    private static final int MIN_BUNDLE_WEBVIEW_MAJOR = 94;
+
+    private static void assumeWebViewRunsTheBundle() {
+        Context context = InstrumentationRegistry.getInstrumentation().getTargetContext();
+        java.util.regex.Matcher chrome = java.util.regex.Pattern.compile("Chrome/(\\d+)")
+            .matcher(android.webkit.WebSettings.getDefaultUserAgent(context));
+        int major = chrome.find() ? Integer.parseInt(chrome.group(1)) : 0;
+        org.junit.Assume.assumeTrue("WebView " + major + " cannot run the bundled web app", major >= MIN_BUNDLE_WEBVIEW_MAJOR);
+    }
+
     @Test public void rootBackMinimizesWithoutFinishingTheActivity() throws Exception {
+        assumeWebViewRunsTheBundle();
         try (ActivityScenario<MainActivity> scenario = ActivityScenario.launch(MainActivity.class)) {
             AtomicReference<MainActivity> original = new AtomicReference<>();
             java.lang.reflect.Method hasListeners = com.getcapacitor.Plugin.class.getDeclaredMethod("hasListeners", String.class);
@@ -33,7 +46,9 @@ public class AndroidRecoveryJourneyTest {
                 SystemClock.sleep(100);
             }
             assertTrue("The bundled web app installed its Back handler", ready.get());
-            androidx.test.espresso.Espresso.pressBack();
+            // pressBack() throws NoActivityResumedException when the app minimizes, which is the
+            // behavior under test.
+            androidx.test.espresso.Espresso.pressBackUnconditionally();
             long backgroundDeadline = SystemClock.elapsedRealtime() + 5000;
             while (scenario.getState() == androidx.lifecycle.Lifecycle.State.RESUMED && SystemClock.elapsedRealtime() < backgroundDeadline)
                 SystemClock.sleep(100);
