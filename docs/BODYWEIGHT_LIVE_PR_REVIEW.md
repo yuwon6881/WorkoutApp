@@ -54,3 +54,13 @@ including eight load-derivation regressions. The production build, TypeScript ch
 standards, documentation equality, and diff whitespace checks passed. The focused desktop
 browser regression passed with a real local workout UI and mocked frozen Nutrition/history
 context; it verified the combined strength/rep celebration at the edited 90 kg system load.
+
+Final full browser verification after the master merge: 147 visual checks passed with two
+intentional skips (the desktop-only settings-section navigation case on mobile and tablet),
+and all 100 responsive checks passed across 320/390/640/768/1024/1440/1920 px. The offline
+weighted-bodyweight record regression and the custom per-side / total workout flow passed at
+all seven widths; the latter covers both themes and both kg/lb display units. The suites ran
+against the production build with disposable databases and local provider stand-ins. Desktop
+and 320 px rendered screenshots were inspected. The earlier focused offline attempt disconnected
+before optional CSS finished loading; the fixture now waits for network idle before disconnecting,
+and the focused retry and both complete suites passed.
