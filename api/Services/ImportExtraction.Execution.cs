@@ -1,5 +1,4 @@
 using System.Text.Json;
-using System.Collections.Concurrent;
 using System.Diagnostics;
 using Microsoft.EntityFrameworkCore;
 using Workout.Api.Data;
@@ -137,17 +136,14 @@ public sealed partial class ImportService
                     pending.Add(new PendingChunk(index, chunk, text, printed.Program, printed.Pages));
                     continue;
                 }
-                if (!string.IsNullOrWhiteSpace(text) && !persistedResults.ContainsKey(index))
-                {
-                    // Every read is reserved before its request. If the daily budget runs out
-                    // partway through, the covered sections still run and the rest wait for tomorrow.
-                    try { await MeterInitialChunk(id, leaseId, ct); }
-                    catch (DomainException) when (pending.Any(item => item.Text.Length > 0)) { break; }
-                }
                 pending.Add(new PendingChunk(index, chunk, text));
             }
+            // Every read is reserved before its request, all of them in one transaction: reserving
+            // them one at a time held the first request back by a round trip per section.
+            var providerReads = pending.Count(item => item.Text.Length > 0 && item.Printed is null && !persistedResults.ContainsKey(item.Index));
+            if (providerReads > 0) await MeterInitialChunks(id, leaseId, providerReads, ct);
             logger?.LogInformation("Import section preparation completed in {ElapsedMilliseconds} ms: {LocalPageCount} pages read locally, {ProviderSectionCount} sections need a provider read.",
-                localReadTimer.ElapsedMilliseconds, locallyReadPages, pending.Count(item => item.Text.Length > 0 && !persistedResults.ContainsKey(item.Index)));
+                localReadTimer.ElapsedMilliseconds, locallyReadPages, providerReads);
         }
         var sourceEvidence = analysis.Outline;
         var printedWeeks = analysis.PrintedWeeks;
@@ -159,29 +155,32 @@ public sealed partial class ImportService
         var completedThisPass = new HashSet<int>();
         var failures = new Dictionary<int, DomainException>();
         var leaseLost = false;
-        var chunkStages = new ConcurrentDictionary<int, string>();
         var identifier = AuthService.Hash(user.ToString())[..32];
+        var providerWork = pending.Where(item => item.Text.Length > 0
+                && (!results.ContainsKey(item.Index) || persistedRecoveryCandidates.ContainsKey(item.Index)))
+            // The pass lasts as long as its slowest section, so the longest reads start first
+            // rather than queueing behind short ones for the last free slot.
+            .OrderByDescending(item => item.Text.Length).ThenBy(item => item.Index).ToList();
+        // Scoring reads the catalog through this pass's database context. Loading the snapshot
+        // once here keeps scoring off the database, so it no longer waits behind progress writes.
+        if (providerWork.Count > 0) await ImportCatalog(ct);
         // Concurrency is bounded so one import cannot open an unlimited number of provider
-        // requests at once; a handful in flight is what turns the sum of the sections into the
+        // requests at once; enough in flight is what turns the sum of the sections into the
         // longest of them. These are I/O waits, so widening the gate costs no extra CPU here and
         // no extra tokens — the real ceiling is the provider's per-minute allowance.
-        using (var inFlight = new SemaphoreSlim(Math.Max(1, config?.GetValue("OpenAi:MaxConcurrentChunks", 8) ?? 8)))
+        using (var inFlight = new SemaphoreSlim(Math.Max(1, config?.GetValue("OpenAi:MaxConcurrentChunks", 16) ?? 16)))
         using (var persistGate = new SemaphoreSlim(1, 1))
+        using (var scoreGate = new SemaphoreSlim(1, 1))
         {
+            var progress = new ImportSectionProgress((resolve, stages) =>
+                PersistProgressStage(id, leaseId, persistGate, resolve, stages, CancellationToken.None), logger);
             async Task UpdateChunkStage(int index, string? stage)
             {
-                if (stage is null) chunkStages.TryRemove(index, out _);
-                else chunkStages[index] = stage;
-                var persisted = await PersistProgressStage(id, leaseId, persistGate,
-                    () => chunkStages.Values.Contains("extract") ? "extract"
-                        : chunkStages.Values.Contains("recover") ? "recover"
-                        : chunkStages.Values.Contains("verify") ? "verify" : "extract", chunkStages, CancellationToken.None);
-                if (!persisted) leaseLost = true;
+                await progress.Update(index, stage);
+                if (!progress.LeaseHeld) leaseLost = true;
             }
 
-            await Task.WhenAll(pending.Where(item => item.Text.Length > 0
-                    && (!results.ContainsKey(item.Index) || persistedRecoveryCandidates.ContainsKey(item.Index)))
-                .Select(async item =>
+            await Task.WhenAll(providerWork.Select(async item =>
             {
                 await inFlight.WaitAsync(ct);
                 try
@@ -195,9 +194,11 @@ public sealed partial class ImportService
                     {
                         ImportVerificationFinding finding;
                         var verificationTimer = Stopwatch.StartNew();
-                        await persistGate.WaitAsync(ct);
+                        // Scoring shares the pass's source indexes, so it stays one at a time, but it
+                        // no longer holds the gate that every section's database write waits on.
+                        await scoreGate.WaitAsync(ct);
                         try { finding = await RecoveryScore(candidate.Response, chunkPages, printedDays, analysis, ct); }
-                        finally { persistGate.Release(); }
+                        finally { scoreGate.Release(); }
                         logger?.LogInformation("Import section verification completed in {ElapsedMilliseconds} ms for section {SectionIndex}, attempt {Attempt}: score {Score}, repair reasons {RepairReasons}, targeted {Targeted}.",
                             verificationTimer.ElapsedMilliseconds, item.Index + 1, candidate.Attempt,
                             finding.Score, string.Join(",", finding.RepairReasons), finding.TargetedRepair);
@@ -308,6 +309,8 @@ public sealed partial class ImportService
                     finally { inFlight.Release(); }
                 }
             }));
+            await progress.Settle();
+            if (!progress.LeaseHeld) leaseLost = true;
         }
 
         // All provider work for this pass has settled. Ordered reconciliation and persistence
@@ -317,7 +320,7 @@ public sealed partial class ImportService
             using var progressGate = new SemaphoreSlim(1, 1);
             var reachedEnd = pending.Count > 0 && pending[^1].Index == totalChunks - 1 && failures.Count == 0;
             await PersistProgressStage(id, leaseId, progressGate, () => reachedEnd ? "verify" : "extract",
-                chunkStages, CancellationToken.None);
+                new Dictionary<int, string>(), CancellationToken.None);
         }
 
         // Persist any remaining successful provider responses before attempting ordered draft

@@ -49,13 +49,17 @@ internal static class ImportOptionalScheduleDays
             var notes = AppendNote(source.Notes, note);
             var copies = weeks.Select((week, index) =>
             {
+                // A placed copy belongs to the week it joins. The page that prints the optional day
+                // can sit inside another phase — a deload week printed just before it — and an
+                // unnamed phase in the target week is that week's phase, not a gap to fill from
+                // the source page.
                 var context = WeekContext(source, week, workouts);
                 var placed = source with
                 {
                     Week = week,
                     PhaseWeek = context?.PhaseWeek ?? source.PhaseWeek,
-                    Block = context?.Block ?? source.Block,
-                    Phase = context?.Phase ?? source.Phase,
+                    Block = context is null ? source.Block : context.Block,
+                    Phase = context is null ? source.Phase : context.Phase,
                     BlockId = context?.BlockId,
                     WeekId = context?.WeekId,
                     Notes = notes

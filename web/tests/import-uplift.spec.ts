@@ -50,6 +50,21 @@ for (const theme of ['dark', 'light']) {
     const badge = page.locator('.pdl-day-badge').first();
     expect((await badge.boundingBox())!.height).toBeGreaterThanOrEqual(52);
     await expect(page.locator('.pdl-preview-name').first()).toHaveCSS('font-weight', '400');
+    // A day's exercise names stay on one line at every width, with the rest counted.
+    const previews = await page.locator('.pdl-exercise-preview').filter({ visible: true }).evaluateAll(elements => elements.map(element => {
+      const row = element.querySelector('.pdl-preview-row')!;
+      const name = row.querySelector('.pdl-preview-name')!;
+      const shown = row.querySelectorAll('.pdl-preview-name').length;
+      const more = row.querySelector('.pdl-preview-more')?.textContent ?? '';
+      return { height: row.getBoundingClientRect().height, line: name.getBoundingClientRect().height,
+        overflows: row.scrollWidth > row.clientWidth + 1, shown, more };
+    }));
+    expect(previews.length).toBeGreaterThan(0);
+    for (const preview of previews) {
+      expect(preview.height, JSON.stringify(preview)).toBeLessThanOrEqual(preview.line + 1);
+      expect(preview.overflows, JSON.stringify(preview)).toBe(false);
+      if (preview.shown < names.length) expect(preview.more).toBe(`+${names.length - preview.shown} more`);
+    }
     await expect(page.locator('.ptl-icon-tile')).toHaveCSS('box-shadow', 'none');
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     await page.screenshot({ path: info.outputPath(`timeline-${theme}.png`), fullPage: true });
@@ -91,11 +106,20 @@ for (const theme of ['dark', 'light']) {
     await expect(first.locator('.iex-save-bar')).toHaveCount(0);
     await dialog.getByRole('button', { name: 'Done', exact: true }).click();
 
-    view = { ...view, status: 'pending', stage: 'extract', draft: null, chunksDone: 3 };
+    // Sections are read side by side and none has committed yet: the bar and the tiles still move.
+    const sectionStates = ['saved', 'saved', 'saved', 'checking', 'repairing', 'reading', 'reading', 'reading', 'reading', 'queued', 'queued', 'queued'];
+    view = { ...view, status: 'pending', stage: 'extract', draft: null, chunksDone: 0,
+      progress: { sectionsCompleted: 0, sectionsQueued: 3, sectionsReading: 4, sectionsVerifying: 1, sectionsRepairing: 1,
+        sectionsWithResponses: 5, startedAtUtc: new Date(Date.now() - 75_000).toISOString(), lastProgressAtUtc: new Date().toISOString(), sectionStates } };
     await page.reload();
     const progress = page.locator('.ipc-progress-track');
     await expect(progress).toBeVisible();
     await expect(progress).toHaveCSS('height', '4px');
+    await expect(page.locator('.ipc-section')).toHaveCount(sectionStates.length);
+    await expect(page.locator('.ipc-section--reading')).toHaveCount(4);
+    expect(Number(await progress.getAttribute('aria-valuenow'))).toBeGreaterThan(30);
+    await expect(page.locator('.ipc-elapsed')).toHaveText(/^1:1\d$/);
+    await expect(page.locator('.ipc-stat-chip--accent')).toContainText('3done');
     const progressCard = page.locator('.ipc-card');
     const bounds = (await progressCard.boundingBox())!;
     const contents = await progressCard.locator(':scope > *').filter({ visible: true }).evaluateAll(elements => elements.map(element => {

@@ -49,9 +49,48 @@ public sealed class ImportOptionalScheduleDayTests
         Assert.Single(result.Notices, notice => notice.Code == "optional_source_day_scheduled");
     }
 
-    private static DraftWorkout Training(int week, string name, int page, int? phaseWeek = null)
+    /// Powerbuilding System prints its optional arm day after the week 11 deload pages. The copies
+    /// placed in weeks 1, 3, 5, 7 and 9 train in those weeks' unnamed phase, so none of them may
+    /// carry the deload label of the pages printed before it.
+    [Fact]
+    public void Optional_day_printed_after_a_deload_week_takes_the_target_weeks_phase()
+    {
+        var workouts = new List<DraftWorkout>();
+        var pages = new List<ImportPageText>();
+        for (var week = 1; week <= 11; week++)
+        {
+            var phase = week == 11 ? "Deload Week" : null;
+            for (var dayIndex = 1; dayIndex <= 4; dayIndex++)
+            {
+                var page = (week - 1) * 4 + dayIndex;
+                var name = $"Week {week} Day {dayIndex}";
+                workouts.Add(Training(week, name, page, phaseWeek: week, block: null, phase: phase));
+                pages.Add(new ImportPageText(page, $"WEEK {week}\nDAY LABEL: {name}"));
+            }
+        }
+
+        const int optionalPage = 71;
+        workouts.Add(Training(11, "Full Body 5: Arm & Pump Day", optionalPage, phaseWeek: 11, block: null, phase: "Deload Week"));
+        pages.Add(new ImportPageText(optionalPage,
+            "ARM & HYPERTROPHY DAY: OPTIONALLY RUN THIS DAY ON THE ODD WEEKS (WEEK 1, 3, 5, 7 AND 9) IF YOU HAVE AN EXTRA DAY TO TRAIN.\n" +
+            "DAY LABEL: FULL BODY 5: ARM & PUMP DAY"));
+
+        var result = ImportOptionalScheduleDays.Reconcile(workouts, pages);
+        var optionalDays = result.Workouts.Where(day => day.SourcePage == optionalPage).OrderBy(day => day.Week).ToList();
+
+        Assert.Equal([1, 3, 5, 7, 9], optionalDays.Select(day => day.Week));
+        Assert.All(optionalDays, day =>
+        {
+            Assert.Null(day.Phase);
+            Assert.Null(day.Block);
+        });
+        Assert.All(result.Workouts.Where(day => day.Week == 11), day => Assert.Equal("Deload Week", day.Phase));
+    }
+
+    private static DraftWorkout Training(int week, string name, int page, int? phaseWeek = null,
+        string? block = "Block 1", string? phase = "Build")
         => new(Guid.NewGuid(), week, name, null, null,
             [new DraftExercise(Guid.NewGuid(), "Barbell Curl", null, null,
                 [new DraftSet(8, 10, 8, 90, null, null, null, SourcePage: page)], SourcePage: page)],
-            "Block 1", "Build", phaseWeek ?? week, false, page);
+            block, phase, phaseWeek ?? week, false, page);
 }

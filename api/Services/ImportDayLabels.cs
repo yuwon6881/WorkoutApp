@@ -18,17 +18,59 @@ internal static class ImportDayLabels
         foreach (var page in pages.OrderBy(page => page.Page))
         {
             var lines = (page.Text ?? "").ReplaceLineEndings("\n").Split('\n');
-            for (var i = 0; i < lines.Length; i++)
+            void Add(string label)
             {
-                var raw = lines[i];
-                if (!ImportStructureHeadings.TryDayLabel(raw, out var label)) continue;
-                if (IsRestSession(lines, i, label)) continue;
                 if (!labels.TryGetValue(page.Page, out var pageLabels)) labels[page.Page] = pageLabels = [];
                 pageLabels.Add(label.Replace('|', '/'));
             }
+
+            // Some books title a day only by a rotated spine printed down the table's WORKOUT
+            // column, with no "DAY LABEL" heading above that table. Those cells are the day's
+            // title; a table that already has a heading keeps the heading as its only title.
+            var headingWaiting = false;
+            var inTable = false;
+            List<string>? spine = null;
+            void CloseTable()
+            {
+                if (spine is { Count: > 0 } && Regex.Replace(string.Join(" ", spine), @"\s+", " ").Trim() is { Length: > 0 } title
+                    && !IsRestTitle(title))
+                    Add(title);
+                spine = null;
+                inTable = false;
+            }
+
+            for (var i = 0; i < lines.Length; i++)
+            {
+                var raw = lines[i];
+                if (ImportStructureHeadings.TryDayLabel(raw, out var label))
+                {
+                    CloseTable();
+                    headingWaiting = true;
+                    if (!IsRestSession(lines, i, label)) Add(label);
+                    continue;
+                }
+                if (raw.Contains('|') && ImportStructureHeadings.LeadingSegment(raw).Equals("WORKOUT", StringComparison.OrdinalIgnoreCase))
+                {
+                    CloseTable();
+                    inTable = true;
+                    spine = headingWaiting ? null : [];
+                    headingWaiting = false;
+                    continue;
+                }
+                if (!inTable) continue;
+                if (raw.Contains('|'))
+                {
+                    if (spine is not null && ImportStructureHeadings.LeadingSegment(raw) is { Length: > 0 } cell) spine.Add(cell);
+                }
+                else if (!string.IsNullOrWhiteSpace(raw)) CloseTable();
+            }
+            CloseTable();
         }
         return labels;
     }
+
+    private static bool IsRestTitle(string label)
+        => label.Equals("REST", StringComparison.OrdinalIgnoreCase) || label.StartsWith("REST ", StringComparison.OrdinalIgnoreCase);
 
     private static bool IsRestSession(string[] lines, int index, string label)
     {

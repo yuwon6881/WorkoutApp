@@ -3,6 +3,7 @@ import type { ImportDraft, ImportView } from '../types';
 import { ApiError, api } from '../lib/api';
 import { PdfTextError } from '../lib/pdfText';
 import { cancelLocalPdfRead, isLocalPdfReadActive, startLocalPdfRead, takeLocalPdfResult, useLocalPdfRead } from '../lib/localPdfRead';
+import { estimatedPercent } from '../lib/importProgress';
 
 /// `percent` is null while the step has no measurable size, so the bar can stay indeterminate
 /// instead of inventing a number.
@@ -117,10 +118,8 @@ export function useImportPipeline({ selected, setSelected, setDraft, onChanged, 
           ? `${view.progress?.sectionsWithResponses ?? 0} section responses saved; comparing sessions, exercises, sets, and prescriptions with printed evidence.`
           : view.stage === 'recover'
             ? `${view.progress?.sectionsWithResponses ?? 0} section responses saved; re-reading only source discrepancies.`
-            : remaining > 1 ? 'Sections commit in order as they land.' : view.currentChunkLabel ?? '',
-        percent: view.stage === 'verify' || view.stage === 'recover'
-          ? null
-          : view.chunksTotal > 0 ? Math.min(99, Math.round((view.chunksDone / view.chunksTotal) * 100)) : null
+            : remaining > 1 ? 'Sections are read side by side and assembled in order.' : view.currentChunkLabel ?? '',
+        percent: estimatedPercent(view)
       });
     };
 

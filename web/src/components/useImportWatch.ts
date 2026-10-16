@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { ImportStatusView, ImportView } from '../types';
 import { api } from '../lib/api';
+import { estimatedPercent } from '../lib/importProgress';
 import type { ProgressValue } from './ui/Progress';
 import { isLocalPdfReadActive, takeLocalPdfResult, useLocalPdfRead } from '../lib/localPdfRead';
 
@@ -67,26 +68,27 @@ export function useImportWatch({ imports, active, onFinished, onLocalFailure }: 
     let etag: string | undefined;
     let lastStage: string = initialStage;
     let lastDone = initialDone;
+    let lastServerProgress: string | null = null;
     let lastProgressAt = Date.now();
 
-    const show = (stage: string, done: number, total: number, label: string | null) => {
-      const remaining = Math.max(0, total - done);
+    const show = (status: Pick<ImportStatusView, 'stage' | 'chunksDone' | 'chunksTotal' | 'currentChunkLabel' | 'progress'>) => {
+      const remaining = Math.max(0, status.chunksTotal - status.chunksDone);
       setWatch(previous => {
         const next = {
         importId,
         progress: {
-          label: stage === 'outline'
+          label: status.stage === 'outline'
             ? 'Reading the outline'
             : remaining > 1 ? `Reading ${remaining} sections` : 'Reading the last section',
-          detail: remaining > 1 ? fileName : label ?? fileName,
-          percent: total > 0 ? Math.round((done / total) * 100) : null
+          detail: remaining > 1 ? fileName : status.currentChunkLabel ?? fileName,
+          percent: estimatedPercent(status)
         }
       };
         return previous?.progress.label === next.progress.label && previous.progress.detail === next.progress.detail && previous.progress.percent === next.progress.percent ? previous : next;
       });
     };
 
-    show(initialStage, initialDone, initialTotal, null);
+    show({ stage: initialStage, chunksDone: initialDone, chunksTotal: initialTotal, currentChunkLabel: null, progress: null });
 
     void (async () => {
       while (!stopped) {
@@ -156,11 +158,16 @@ export function useImportWatch({ imports, active, onFinished, onLocalFailure }: 
           return;
         }
 
-        show(status.stage, status.chunksDone, status.chunksTotal, status.currentChunkLabel);
+        show(status);
 
-        if (status.stage !== lastStage || status.chunksDone > lastDone) {
+        // Sections land long before the first one commits, so a newer server progress time also
+        // counts as movement; only a pass that stopped recording anything is kicked again.
+        const serverProgress = status.progress?.lastProgressAtUtc ?? null;
+        if (status.stage !== lastStage || status.chunksDone > lastDone
+          || (serverProgress !== null && serverProgress !== lastServerProgress)) {
           lastStage = status.stage;
           lastDone = status.chunksDone;
+          lastServerProgress = serverProgress;
           lastProgressAt = Date.now();
         } else if (Date.now() - lastProgressAt >= STALL_INTERVAL_MS) {
           // A scale-to-zero instance that recycled has no in-memory pass left. Kicking again is

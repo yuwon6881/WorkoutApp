@@ -167,12 +167,12 @@ public sealed partial class ImportService
     }
 
     /// The daily read budget. Every model call an import makes is metered, including retries.
-    private async Task Meter(AiImport import, CancellationToken ct)
+    private async Task Meter(AiImport import, CancellationToken ct, int reads = 1)
     {
         var today = DateOnly.FromDateTime(DateTime.UtcNow);
         var usage = await db.Usage.SingleOrDefaultAsync(u => u.Date == today, ct);
         if (usage == null) { usage = new AiUsage { UserId = db.CurrentUser!.Value, Date = today, Count = 0 }; db.Usage.Add(usage); }
-        usage.Count++; import.Calls++;
+        usage.Count += reads; import.Calls += reads;
         await db.SaveChangesAsync(ct);
     }
 }

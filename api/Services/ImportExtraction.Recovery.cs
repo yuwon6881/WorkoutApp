@@ -79,18 +79,18 @@ public sealed partial class ImportService
         => existing is not null && existing.Count == next.Count
             && existing.All(item => next.TryGetValue(item.Key, out var stage) && stage == item.Value);
 
-    private async Task MeterInitialChunk(Guid id, string leaseId, CancellationToken ct)
+    private async Task MeterInitialChunks(Guid id, string leaseId, int reads, CancellationToken ct)
     {
         var timer = Stopwatch.StartNew();
         await using var gate = await MutationLock.Acquire(db, db.CurrentUser, ct);
         var import = await db.Imports.SingleOrDefaultAsync(row => row.Id == id, ct);
         Validation.Require(import is not null && import.Status == ImportStatus.Pending && OwnsLease(import, leaseId),
             "This PDF import is no longer waiting for a read.", 409);
-        await Meter(import!, ct);
+        await Meter(import!, ct, reads);
         RenewLease(import!);
         await db.SaveChangesAsync(ct);
         await gate.Commit(ct);
-        logger?.LogInformation("Import AI-read reservation took {ElapsedMilliseconds} ms.", timer.ElapsedMilliseconds);
+        logger?.LogInformation("Import AI-read reservation took {ElapsedMilliseconds} ms for {ReadCount} reads.", timer.ElapsedMilliseconds, reads);
     }
 
     private async Task<int?> TryReserveRecoveryRead(Guid id, int chunkIndex, string leaseId,

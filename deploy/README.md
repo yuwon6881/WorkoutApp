@@ -43,7 +43,9 @@ background pass on CPU between polls, but it switches the service to instance-ba
 whole lifetime of the instance rather than per request. An import spends almost all of its wall
 clock awaiting the model over HTTPS, so the throttled work is only response parsing and the merge
 pass, and those already get CPU on each poll. Import latency is governed by `OpenAi:ReasoningEffort`
-and `OpenAi:MaxConcurrentChunks`, neither of which costs Cloud Run anything.
+and `OpenAi:MaxConcurrentChunks` (16, so a typical book's sections run in about two waves rather
+than three), neither of which costs Cloud Run anything. A rate-limited or briefly unavailable
+provider answer (429/502/503/504) is retried twice with backoff before the section is reported.
 
 Request-based billing scales to zero when idle. A daily maintenance request runs the retention sweep; because the API is reachable
 without Cloud Run IAM, `/internal/import-maintenance` exists only when `Maintenance__Secret` is

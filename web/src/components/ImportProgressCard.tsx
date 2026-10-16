@@ -1,24 +1,24 @@
 import { Check, Trash2, X } from 'lucide-react';
-import type { ImportProgressDetails, ImportView } from '../types';
+import type { ImportView } from '../types';
+import { importProgressEstimate, sectionStates, summarizeSections, type SectionState } from '../lib/importProgress';
 import type { ImportProgress } from './useImportPipeline';
+import { formatElapsed, useLiveImportPercent } from './useLiveImportPercent';
 import { Button } from './ui/Button';
 import { useReducedMotion } from './ui/Motion';
 import './ImportProgressCard.css';
 
-/// What the import is doing. A read in flight covers every section the import still owes, because
-/// they are sent together rather than one after another, so it says how many are being read; a
-/// resting import names the section that commits next instead.
-function stageLabel(view: ImportView, reading = false) {
+/// What the import is doing. Sections are read side by side, so the line counts how many have
+/// been read rather than naming one; a repair is called out because it is a second read.
+function stageLabel(view: ImportView, states: readonly SectionState[], reading: boolean) {
   if (view.stage === 'outline') return 'Reading the outline';
   if (view.stage === 'select') return 'Waiting for your choice';
-  if ((view.progress?.sectionsRepairing ?? 0) > 0) return `Repairing ${view.progress!.sectionsRepairing} section${view.progress!.sectionsRepairing === 1 ? '' : 's'}`;
-  if ((view.progress?.sectionsVerifying ?? 0) > 0) return `Checking ${view.progress!.sectionsVerifying} section${view.progress!.sectionsVerifying === 1 ? '' : 's'} against the PDF`;
-  if (view.stage === 'verify') return 'Checking extracted details against the PDF';
+  const counts = summarizeSections(states);
+  if (counts.repairing > 0) return `Repairing ${counts.repairing} section${counts.repairing === 1 ? '' : 's'}`;
+  const read = counts.committed + counts.saved + counts.checking;
+  if (view.stage === 'verify' && states.length > 0 && read === states.length) return 'Checking the whole program against the PDF';
   if (view.stage === 'recover') return 'Repairing source discrepancies';
-  if (view.stage !== 'extract') return 'Reading';
-  const remaining = Math.max(0, view.chunksTotal - view.chunksDone);
-  if (!reading) return `Section ${Math.min(view.chunksDone + 1, view.chunksTotal)} of ${view.chunksTotal}`;
-  return remaining > 1 ? `Reading ${remaining} sections at once` : 'Reading the last section';
+  if (states.length > 0 && (reading || read > 0)) return `${read} of ${states.length} sections read`;
+  return `Section ${Math.min(view.chunksDone + 1, view.chunksTotal)} of ${view.chunksTotal}`;
 }
 
 type StepperStage = {
@@ -59,27 +59,31 @@ type StatChip = {
   tone: 'accent' | 'default' | 'blue' | 'amber' | 'red';
 };
 
-/// Converts granular section progress counters into concise chips for display in verify/recover stages.
-/// The committed count is always retained (even at zero); other metrics hide when zero.
-function getStatChips(progress: ImportProgressDetails, chunksDone: number): StatChip[] {
-  const committed = progress.sectionsCompleted ?? chunksDone ?? 0;
-  const saved = progress.sectionsWithResponses ?? 0;
-  const queued = progress.sectionsQueued ?? 0;
-  const reading = progress.sectionsReading ?? 0;
-  const checking = progress.sectionsVerifying ?? 0;
-  const repairing = progress.sectionsRepairing ?? 0;
-
+/// One chip per state that holds a section, in the order a section moves through them. The chips
+/// share the section tiles' colours, so they double as the tiles' legend. Done is always shown.
+function getStatChips(states: readonly SectionState[]): StatChip[] {
+  const counts = summarizeSections(states);
   const chips: StatChip[] = [
-    { id: 'committed', count: committed, label: 'committed', tone: 'accent' },
+    { id: 'done', count: counts.committed + counts.saved, label: 'done', tone: 'accent' },
+    { id: 'checking', count: counts.checking, label: 'checking', tone: 'amber' },
+    { id: 'repairing', count: counts.repairing, label: 'repairing', tone: 'red' },
+    { id: 'reading', count: counts.reading, label: 'reading', tone: 'blue' },
+    { id: 'queued', count: counts.queued, label: 'queued', tone: 'default' }
   ];
+  return chips.filter(chip => chip.id === 'done' || chip.count > 0);
+}
 
-  if (saved > 0) chips.push({ id: 'saved', count: saved, label: 'saved', tone: 'default' });
-  if (queued > 0) chips.push({ id: 'queued', count: queued, label: 'queued', tone: 'default' });
-  if (reading > 0) chips.push({ id: 'reading', count: reading, label: 'reading', tone: 'blue' });
-  if (checking > 0) chips.push({ id: 'checking', count: checking, label: 'checking', tone: 'amber' });
-  if (repairing > 0) chips.push({ id: 'repairing', count: repairing, label: 'repairing', tone: 'red' });
-
-  return chips;
+/// Where every section stands, one tile each in outline order, so a pass of twenty sections shows
+/// its sections landing rather than a single number.
+function SectionTiles({ states }: { states: readonly SectionState[] }) {
+  const counts = summarizeSections(states);
+  const summary = `${states.length} sections: ${counts.committed + counts.saved} done, ${counts.checking} checking, `
+    + `${counts.repairing} repairing, ${counts.reading} reading, ${counts.queued} queued`;
+  return (
+    <div className="ipc-sections" role="img" aria-label={summary}>
+      {states.map((state, index) => <span key={index} className={`ipc-section ipc-section--${state}`} />)}
+    </div>
+  );
 }
 
 /// Unified progress card for the import: PDF page reading on this device, program detection, and
@@ -141,26 +145,20 @@ export function ImportProgressCard({ uploadProgress, selected, busy, onCancelUpl
 
   // Server-side import stages
   if (!selected || selected.status !== 'pending' || selected.stage === 'select') return null;
+  return <ServerProgress selected={selected} busy={busy} reduced={reduced} onDiscard={onDiscard} />;
+}
 
-  const isChecking = selected.stage === 'verify' || selected.stage === 'recover';
-  const label = stageLabel(selected, busy);
-  const percent = isChecking
-    ? null
-    : selected.chunksTotal > 0
-      ? Math.min(99, Math.round((selected.chunksDone / selected.chunksTotal) * 100))
-      : null;
-
-  const statChips = isChecking && selected.progress
-    ? getStatChips(selected.progress, selected.chunksDone)
-    : null;
-
-  const detailText = statChips
-    ? ''
-    : selected.stage === 'outline'
-      ? selected.fileName
-      : busy && selected.chunksTotal - selected.chunksDone > 1
-        ? 'Sections commit in order as they land.'
-        : (selected.currentChunkLabel ?? '');
+function ServerProgress({ selected, busy, reduced, onDiscard }: {
+  selected: ImportView;
+  busy: boolean;
+  reduced: boolean;
+  onDiscard: (view: ImportView) => void;
+}) {
+  const states = selected.stage === 'outline' ? [] : sectionStates(selected);
+  const label = stageLabel(selected, states, busy);
+  const { percent, elapsedSeconds } = useLiveImportPercent(importProgressEstimate(selected), selected.progress?.startedAtUtc);
+  const statChips = states.length > 0 ? getStatChips(states) : null;
+  const detailText = statChips ? '' : selected.stage === 'outline' ? selected.fileName : (selected.currentChunkLabel ?? '');
 
   const activeStageIndex = getStageIndex(selected.stage);
   const currentStage = STAGES[activeStageIndex];
@@ -228,11 +226,16 @@ export function ImportProgressCard({ uploadProgress, selected, busy, onCancelUpl
         </div>
       </div>
 
-      {/* Status line */}
+      {/* Status line: what is happening, how far, and for how long */}
       <div className="ipc-status-line import-progress-line">
         <span className="ipc-status-label import-progress-label">{label}</span>
-        {percent !== null && (
-          <span className="ipc-status-percent import-progress-percent">{percent}%</span>
+        {(percent !== null || elapsedSeconds !== null) && (
+          <span className="ipc-status-percent import-progress-percent">
+            {percent !== null && <span>{percent}%</span>}
+            {elapsedSeconds !== null && (
+              <span className="ipc-elapsed" aria-label={`${formatElapsed(elapsedSeconds)} elapsed`}>{formatElapsed(elapsedSeconds)}</span>
+            )}
+          </span>
         )}
       </div>
 
@@ -251,26 +254,26 @@ export function ImportProgressCard({ uploadProgress, selected, busy, onCancelUpl
         />
       </div>
 
-      {/* Footer: Stat chips or detail text + Action */}
-      {(Boolean(statChips?.length) || Boolean(detailText) || Boolean(cancelAction)) && (
-        <div className="ipc-footer import-progress-footer">
-          <div className="ipc-footer-info">
-            {statChips ? (
-              <div className="ipc-stat-chips" role="group" aria-label="Section processing stats">
-                {statChips.map(chip => (
-                  <span key={chip.id} className={`ipc-stat-chip ipc-stat-chip--${chip.tone}`}>
-                    <strong className="ipc-stat-number">{chip.count}</strong>
-                    <span className="ipc-stat-label">{chip.label}</span>
-                  </span>
-                ))}
-              </div>
-            ) : detailText ? (
-              <p className="ipc-detail-text">{detailText}</p>
-            ) : null}
-          </div>
-          <div className="ipc-actions import-progress-actions">{cancelAction}</div>
+      {states.length > 0 && <SectionTiles states={states} />}
+
+      {/* Footer: section chips (the tiles' legend) or detail text, and the cancel action */}
+      <div className="ipc-footer import-progress-footer">
+        <div className="ipc-footer-info">
+          {statChips ? (
+            <div className="ipc-stat-chips" role="group" aria-label="Section processing stats">
+              {statChips.map(chip => (
+                <span key={chip.id} className={`ipc-stat-chip ipc-stat-chip--${chip.tone}`}>
+                  <strong className="ipc-stat-number">{chip.count}</strong>
+                  <span className="ipc-stat-label">{chip.label}</span>
+                </span>
+              ))}
+            </div>
+          ) : detailText ? (
+            <p className="ipc-detail-text">{detailText}</p>
+          ) : null}
         </div>
-      )}
+        <div className="ipc-actions import-progress-actions">{cancelAction}</div>
+      </div>
     </div>
   );
 }

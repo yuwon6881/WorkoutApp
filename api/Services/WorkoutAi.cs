@@ -1,3 +1,4 @@
+using System.Net;
 using System.Net.Http.Headers;
 using System.Diagnostics;
 using System.Text;
@@ -80,7 +81,9 @@ public sealed class WorkoutAi(HttpClient http, IConfiguration config, ILogger<Wo
     /// table footers and coaching text, and reviews conflicting source instructions; v40 shares
     /// source analysis within a pass, reads clean mixed-section pages locally, defers gap checks
     /// until week choices are reconciled, and persists bounded targeted repairs.
-    public const string PromptVersion = "workout-import-v44-source-group-scope";
+    /// v45 reads a day title printed down a table's WORKOUT column and keeps an optional day placed
+    /// in another week out of the phase of the page that prints it.
+    public const string PromptVersion = "workout-import-v45-workout-column-titles";
 
     /// One cheap pass over a page-by-page view of the document. Most of a commercial training PDF
     /// is explanation and photography; this pass exists to find the few pages that actually carry
@@ -128,7 +131,10 @@ public sealed class WorkoutAi(HttpClient http, IConfiguration config, ILogger<Wo
         // A section is bounded to about eight days of tables, and the answer carries the model's
         // own reasoning inside the same ceiling. The headroom is what stops a read from wrapping
         // itself up early and returning a section that looks whole with its last pages missing.
-        var result = await Call(catalog, safetyIdentifier, maxOutputTokens: 48000, chunkDirective,
+        // Production sections answer in 2,500-6,000 tokens, so this is still over five times the
+        // largest; the provider counts the ceiling against its per-minute allowance, so it is not
+        // left larger than a read can use when sections run side by side.
+        var result = await Call(catalog, safetyIdentifier, maxOutputTokens: 32000, chunkDirective,
             WorkoutAiSchemas.Content, "training_program_chunk", ct, chunkText);
         AiProgram program;
         try { program = Json.Read<AiProgram>(JsonSerializer.Serialize(result.Payload, Json.Options)); }
@@ -175,23 +181,36 @@ public sealed class WorkoutAi(HttpClient http, IConfiguration config, ILogger<Wo
         if (effort is "minimal" or "low" or "medium" or "high") body["reasoning"] = new { effort };
 
         var endpoint = (config["OpenAi:BaseUrl"] ?? "https://api.openai.com/v1/responses").Trim();
-        using var request = new HttpRequestMessage(HttpMethod.Post, endpoint);
-        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", key);
-        request.Content = new StringContent(Json.Write(body), Encoding.UTF8, "application/json");
+        var requestJson = Json.Write(body);
         var timer = Stopwatch.StartNew();
         HttpResponseMessage response;
-        try { response = await http.SendAsync(request, ct); }
-        catch (TaskCanceledException) when (!ct.IsCancellationRequested)
+        for (var attempt = 1; ; attempt++)
         {
-            logger?.LogWarning("Import provider call timed out for {SchemaName} after {ElapsedMilliseconds} ms ({InputCharacters} input characters).",
-                schemaName, timer.ElapsedMilliseconds, sourceText.Length);
-            throw new DomainException("The AI import timed out. Try a smaller or clearer PDF.", 504);
-        }
-        catch (Exception error) when (!ct.IsCancellationRequested)
-        {
-            logger?.LogWarning("Import provider call failed for {SchemaName} after {ElapsedMilliseconds} ms ({FailureType}).",
-                schemaName, timer.ElapsedMilliseconds, error.GetType().Name);
-            throw;
+            using var request = new HttpRequestMessage(HttpMethod.Post, endpoint);
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", key);
+            request.Content = new StringContent(requestJson, Encoding.UTF8, "application/json");
+            try { response = await http.SendAsync(request, ct); }
+            catch (TaskCanceledException) when (!ct.IsCancellationRequested)
+            {
+                logger?.LogWarning("Import provider call timed out for {SchemaName} after {ElapsedMilliseconds} ms ({InputCharacters} input characters).",
+                    schemaName, timer.ElapsedMilliseconds, sourceText.Length);
+                throw new DomainException("The AI import timed out. Try a smaller or clearer PDF.", 504);
+            }
+            catch (Exception error) when (!ct.IsCancellationRequested)
+            {
+                logger?.LogWarning("Import provider call failed for {SchemaName} after {ElapsedMilliseconds} ms ({FailureType}).",
+                    schemaName, timer.ElapsedMilliseconds, error.GetType().Name);
+                throw;
+            }
+            // A rate limit or a briefly unavailable provider refused the request before any work
+            // was done, so asking again shortly costs nothing. Sections run side by side, and one
+            // refused section otherwise stops the whole pass until someone retries it.
+            if (attempt > ProviderRetries || !IsTransientRefusal(response.StatusCode)) break;
+            var wait = RetryDelay(response, attempt);
+            logger?.LogWarning("Import provider call returned {StatusCode} for {SchemaName}; retrying in {DelayMilliseconds} ms (attempt {Attempt}).",
+                (int)response.StatusCode, schemaName, (int)wait.TotalMilliseconds, attempt);
+            response.Dispose();
+            await Task.Delay(wait, ct);
         }
         using (response)
         {
@@ -240,4 +259,23 @@ public sealed class WorkoutAi(HttpClient http, IConfiguration config, ILogger<Wo
     }
 
     private readonly record struct AiResponse(JsonElement Payload, string Model, long InputTokens, long OutputTokens, long CachedInputTokens);
+
+    private const int ProviderRetries = 2;
+    private static readonly TimeSpan MaxRetryDelay = TimeSpan.FromSeconds(20);
+
+    private static bool IsTransientRefusal(HttpStatusCode status)
+        => status is HttpStatusCode.TooManyRequests or HttpStatusCode.BadGateway
+            or HttpStatusCode.ServiceUnavailable or HttpStatusCode.GatewayTimeout;
+
+    /// The provider's own Retry-After when it sends one, otherwise a short jittered backoff.
+    private TimeSpan RetryDelay(HttpResponseMessage response, int attempt)
+    {
+        var advised = response.Headers.RetryAfter is { } retryAfter
+            ? retryAfter.Delta ?? (retryAfter.Date is { } date ? date - DateTimeOffset.UtcNow : null)
+            : null;
+        if (advised is { } delay && delay > TimeSpan.Zero) return delay < MaxRetryDelay ? delay : MaxRetryDelay;
+        var baseMilliseconds = Math.Max(0, config.GetValue("OpenAi:RetryDelayMs", 1500));
+        var backoff = baseMilliseconds * Math.Pow(2, attempt - 1) * (0.75 + Random.Shared.NextDouble() * 0.5);
+        return TimeSpan.FromMilliseconds(Math.Min(backoff, MaxRetryDelay.TotalMilliseconds));
+    }
 }

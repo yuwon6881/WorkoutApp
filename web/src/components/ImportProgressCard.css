@@ -228,6 +228,57 @@
   opacity: 0.35;
 }
 
+.ipc-card .ipc-status-percent {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.ipc-elapsed {
+  color: var(--faint, var(--muted));
+}
+
+/* ── Section tiles: one per section, in outline order ───────── */
+
+.ipc-sections {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  min-width: 0;
+}
+
+.ipc-section {
+  flex: 0 0 auto;
+  width: 14px;
+  height: 8px;
+  border-radius: var(--radius-pill);
+  background: color-mix(in srgb, var(--border) 70%, var(--surface-raised));
+  transition: background-color var(--motion-panel) var(--motion-ease), transform var(--motion-panel) var(--motion-ease);
+}
+
+.ipc-section--committed,
+.ipc-section--saved { background: var(--accent); }
+.ipc-section--checking { background: var(--amber); }
+.ipc-section--repairing { background: var(--red); }
+.ipc-section--reading {
+  background: var(--blue);
+  animation: ipc-section-reading 1.4s var(--motion-ease) infinite alternate;
+}
+
+/* A section with a read out breathes, so a long read reads as work rather than a stall. */
+@keyframes ipc-section-reading {
+  from { opacity: 1; }
+  to { opacity: 0.45; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ipc-section { transition: none; }
+  .ipc-section--reading { animation: none; }
+}
+
+.ipc-card[data-motion-reduced="true"] .ipc-section { transition: none; }
+.ipc-card[data-motion-reduced="true"] .ipc-section--reading { animation: none; }
+
 /* ── Footer: Stat Chips / Plain Detail + Actions ────────────── */
 
 .ipc-footer {

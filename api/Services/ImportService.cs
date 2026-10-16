@@ -51,11 +51,8 @@ public sealed partial class ImportService(AppDb db, WorkoutAi ai, CatalogService
         var import = await db.Imports.AsNoTracking().SingleOrDefaultAsync(i => i.Id == id, ct);
         Validation.Require(import != null, "That import no longer exists.", 404);
         var chunks = ReadChunks(import!.OutlineJson);
-        var state = ImportWorkState.Read(import.WorkStateJson);
-        var candidateKeys = state.RecoveryCandidates is { } candidates ? candidates.Keys : Enumerable.Empty<int>();
-        var saved = ReadChunkResults(import.ChunkResultsJson).Keys.Concat(candidateKeys).Distinct().Count();
         var done = import.ChunksDone;
-        var progress = import.Status == ImportStatus.Pending ? state.Progress(import.ChunksTotal, done, Math.Max(done, saved)) : null;
+        var progress = ProgressOf(import);
         return new ImportStatusView(import.Id, import.Status, import.Stage, done, import.ChunksTotal,
             chunks.ElementAtOrDefault(done)?.Label ?? chunks.ElementAtOrDefault(import.ChunksDone)?.Label, import.Error, import.Revision, import.Retries,
             import.UnresolvedCount, progress);
@@ -114,16 +111,24 @@ public sealed partial class ImportService(AppDb db, WorkoutAi ai, CatalogService
         var alternatives = string.IsNullOrWhiteSpace(import.AlternativesJson) ? [] : Json.Read<List<ImportAlternative>>(import.AlternativesJson);
         var acceptable = import.Status == ImportStatus.Ready && unresolved.Count == 0 && issues.All(i => i.Severity == "info");
         var (canRestoreDraft, restorableExerciseLineIds) = AnalyzeRestorability(import, draft);
-        var state = ImportWorkState.Read(import.WorkStateJson);
-        var candidateKeys = state.RecoveryCandidates is { } candidates ? candidates.Keys : Enumerable.Empty<int>();
-        var saved = ReadChunkResults(import.ChunkResultsJson).Keys.Concat(candidateKeys).Distinct().Count();
         var done = import.ChunksDone;
         return new ImportView(import.Id, import.Status, import.FileName, import.Pages, import.Error, import.Created, import.Model,
             import.Stage, done, import.ChunksTotal, chunks.ElementAtOrDefault(done)?.Label ?? chunks.ElementAtOrDefault(import.ChunksDone)?.Label, unresolvedCount, draft,
             unresolved, acceptable, import.ProgramId, issues,
             import.InputTokens, import.OutputTokens, import.Retries, coverage, alternatives, import.SelectedAlternativeId,
             import.Revision, canRestoreDraft, restorableExerciseLineIds,
-            import.Status == ImportStatus.Pending ? state.Progress(import.ChunksTotal, done, Math.Max(done, saved)) : null);
+            ProgressOf(import));
+    }
+
+    /// Where every section of a pending import stands, read from its stored responses and the
+    /// stages the running pass last recorded.
+    private static ImportProgressDetails? ProgressOf(AiImport import)
+    {
+        if (import.Status != ImportStatus.Pending) return null;
+        var state = ImportWorkState.Read(import.WorkStateJson);
+        var finalResults = ReadChunkResults(import.ChunkResultsJson).Keys.ToHashSet();
+        var responses = finalResults.Concat(state.RecoveryCandidates?.Keys ?? Enumerable.Empty<int>()).ToHashSet();
+        return state.Progress(import.ChunksTotal, import.ChunksDone, finalResults, responses);
     }
 
     public static List<UnresolvedExercise> Unresolved(ImportDraft draft) => ImportValidation.Unresolved(draft);

@@ -150,6 +150,8 @@ export type ImportProgressDetails = {
   sectionsCompleted: number; sectionsQueued: number; sectionsReading: number; sectionsVerifying: number; sectionsRepairing: number;
   sectionsWithResponses: number;
   startedAtUtc: string | null; lastProgressAtUtc: string | null;
+  /// One entry per section in outline order: committed, saved, checking, repairing, reading or queued.
+  sectionStates?: string[] | null;
 };
 export type ImportStatusView = {
   id: string; status: ImportView['status']; stage: ImportView['stage']; chunksDone: number; chunksTotal: number;

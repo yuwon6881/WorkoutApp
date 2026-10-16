@@ -342,8 +342,8 @@
 /* Meta line: count + exercise names preview */
 .pdl-day-meta {
   display: flex;
-  align-items: flex-start;
-  flex-wrap: wrap;
+  align-items: center;
+  flex-wrap: nowrap;
   gap: 4px 12px;
   min-width: 0;
   font-size: var(--font-secondary, 13px);
@@ -362,20 +362,45 @@
   flex-shrink: 0;
   opacity: 0.6;
 }
+/* Exactly one line of names: DayExercisePreview shows as many as fit, then "+N more". */
 .pdl-exercise-preview {
+  position: relative;
   min-width: 0;
-  flex: 1 1 240px;
+  flex: 1 1 0;
 }
-.pdl-preview-full, .pdl-preview-compact {
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 4px 10px;
-}
-.pdl-preview-full {
+.pdl-preview-row {
   display: flex;
+  align-items: center;
+  flex-wrap: nowrap;
+  gap: 10px;
+  min-width: 0;
+  overflow: hidden;
 }
-.pdl-preview-compact {
-  display: none;
+.pdl-preview-row > .pdl-preview-name:first-child {
+  flex: 0 1 auto;
+  min-width: 0;
+}
+.pdl-preview-row > :not(:first-child) {
+  flex: 0 0 auto;
+}
+/* The hidden copy the preview measures natural name widths from. It is clipped to a single pixel
+   like other visually hidden content, and its names keep their natural width inside it. */
+.pdl-preview-ruler {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  display: flex;
+  gap: 10px;
+  white-space: nowrap;
+  visibility: hidden;
+  pointer-events: none;
+}
+.pdl-preview-ruler > * {
+  flex: none;
 }
 .pdl-preview-name {
   max-width: 28ch;
@@ -392,11 +417,6 @@
   color: var(--muted);
   font-size: var(--font-secondary);
   font-weight: 400;
-}
-@media (max-width: 639px) {
-  .pdl-preview-full { display: none; }
-  .pdl-preview-compact { display: flex; }
-  .pdl-exercise-preview { flex-basis: 100%; }
 }
 .pdl-rest-meta {
   color: var(--faint);
@@ -461,20 +481,11 @@
 }
 
 /* On narrow phones the count and the exercise names cannot share one line without squeezing the
-   names to a single letter, so the names take a line of their own and keep their ellipsis. */
+   names to a single letter, so the names take a line of their own — still a single line. */
 @media (max-width: 479px) {
   .pdl-day-meta { flex-wrap: wrap; row-gap: 0; }
   .pdl-meta-sep { display: none; }
   .pdl-exercise-preview { flex: 1 1 100%; }
-}
-
-/* The browser spec forbids clipped text, so the exercise names wrap instead of truncating. */
-.pdl-exercise-preview,
-.pdl-exercise-preview .day-exercise-preview-compact {
-  white-space: normal;
-  overflow: visible;
-  text-overflow: clip;
-  overflow-wrap: anywhere;
 }
 
 /* A day the active run has already passed: visible, but marked as history. */

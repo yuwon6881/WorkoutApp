@@ -74,9 +74,22 @@ public record ImportView(
     int Revision = 0, bool CanRestoreDraft = false, List<Guid>? RestorableExerciseLineIds = null,
     ImportProgressDetails? Progress = null);
 
+/// SectionStates holds one entry per section in outline order — committed, saved, checking,
+/// repairing, reading or queued — so the import screen can show where every section stands.
 public record ImportProgressDetails(
     int SectionsCompleted, int SectionsQueued, int SectionsReading, int SectionsVerifying, int SectionsRepairing,
-    int SectionsWithResponses, DateTime? StartedAtUtc, DateTime? LastProgressAtUtc);
+    int SectionsWithResponses, DateTime? StartedAtUtc, DateTime? LastProgressAtUtc,
+    List<string>? SectionStates = null);
+
+public static class ImportSectionStates
+{
+    public const string Committed = "committed";
+    public const string Saved = "saved";
+    public const string Checking = "checking";
+    public const string Repairing = "repairing";
+    public const string Reading = "reading";
+    public const string Queued = "queued";
+}
 
 /// Lightweight polling contract.  Extraction progress must not repeatedly serialize the
 /// potentially large draft, page coverage, and review metadata; the full view is fetched only

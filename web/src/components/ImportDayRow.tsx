@@ -6,6 +6,7 @@ import type { ExerciseEditing } from '../lib/exerciseEditScope';
 import { dayTitle, isGenericDayTitle } from '../lib/dayTitle';
 import { Button } from './ui/Button';
 import { ProgramMusclePreview } from './ProgramMusclePreview';
+import { DayExercisePreview } from './DayExercisePreview';
 import './ProgramDayList.css';
 
 /// One line per day when collapsed: what it is called, how much is in it and which exercises it
@@ -28,15 +29,10 @@ export function DayRow({
   /// Set for a day the active run has already passed (Done, Skipped, Past); it is shown but not edited.
   lockLabel?: string;
 }) {
-  const exercisePreview = useMemo(() => {
-    if (day.isRestDay || !day.exercises.length) return null;
-    const names = day.exercises.map(exercise => exercise.sourceName);
-    const list = (shown: number) => <>
-      {names.slice(0, shown).map((name, position) => <span className="pdl-preview-name" key={position} title={name}>{name}</span>)}
-      {names.length > shown && <span className="pdl-preview-more">+{names.length - shown} more</span>}
-    </>;
-    return { full: list(4), compact: list(1) };
-  }, [day.exercises, day.isRestDay]);
+  const previewNames = useMemo(
+    () => day.isRestDay ? [] : day.exercises.map(exercise => exercise.sourceName),
+    [day.exercises, day.isRestDay]
+  );
 
   const rawTitle = dayTitle(day.name, index + 1);
   const isGenericDay = isGenericDayTitle(rawTitle);
@@ -95,14 +91,7 @@ export function DayRow({
                 <span className="tiny-label draft-day-count pdl-day-count">
                   {day.exercises.length} {day.exercises.length === 1 ? 'exercise' : 'exercises'}
                 </span>
-                {exercisePreview && (
-                  <>
-                    <span className="pdl-exercise-preview">
-                      <span className="pdl-preview-full">{exercisePreview.full}</span>
-                      <span className="pdl-preview-compact">{exercisePreview.compact}</span>
-                    </span>
-                  </>
-                )}
+                {previewNames.length > 0 && <DayExercisePreview names={previewNames} />}
               </div>
             </div>
           </Button>

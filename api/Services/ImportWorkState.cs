@@ -19,17 +19,29 @@ internal sealed record ImportWorkState(
         catch (DomainException) { return new ImportWorkState(); }
     }
 
-    public ImportProgressDetails Progress(int total, int completed, int sectionsWithResponses)
+    /// `finalResults` are the sections whose chosen response is stored; `responses` also counts
+    /// sections whose first response is stored but still being checked or repaired.
+    public ImportProgressDetails Progress(int total, int completed, IReadOnlySet<int> finalResults, IReadOnlySet<int> responses)
     {
         var stages = SectionStages ?? [];
         var reading = stages.Values.Count(stage => stage == "extract");
         var verifying = stages.Values.Count(stage => stage == "verify");
         var repairing = stages.Values.Count(stage => stage == "recover");
-        var active = reading + verifying + repairing;
-        var outstanding = Math.Max(completed, sectionsWithResponses);
-        var queued = Math.Max(0, total - completed - Math.Max(active, outstanding - completed));
+        var sectionsWithResponses = Math.Max(completed, responses.Count);
+        var states = Enumerable.Range(0, Math.Max(0, total)).Select(index =>
+            index < completed ? ImportSectionStates.Committed
+            : stages.TryGetValue(index, out var stage) ? stage switch
+            {
+                "verify" => ImportSectionStates.Checking,
+                "recover" => ImportSectionStates.Repairing,
+                _ => ImportSectionStates.Reading
+            }
+            : finalResults.Contains(index) ? ImportSectionStates.Saved
+            : ImportSectionStates.Queued).ToList();
+        // Counted from the same list the screen draws, so a saved section is never also queued.
+        var queued = states.Count(state => state == ImportSectionStates.Queued);
         return new ImportProgressDetails(completed, queued, reading, verifying, repairing,
-            sectionsWithResponses, StartedAtUtc, LastProgressAtUtc);
+            sectionsWithResponses, StartedAtUtc, LastProgressAtUtc, states);
     }
 }
 

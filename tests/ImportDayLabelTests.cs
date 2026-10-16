@@ -17,6 +17,43 @@ public sealed class ImportDayLabelTests
         Assert.Contains(result.Notices, notice => notice.Code == "day_name_from_source" && notice.Severity == "info");
     }
 
+    /// Powerbuilding System prints its second lower day with no "DAY LABEL" heading; the title runs
+    /// down the table's WORKOUT column instead. Missing it made verification expect one day on the
+    /// page, so a correct two-day read was sent for a repair that could never change the count.
+    [Fact]
+    public void Workout_column_spine_titles_a_table_without_a_heading()
+    {
+        var page = new ImportPageText(40, string.Join('\n',
+            "WEEK 2",
+            "WORKOUT | EXERCISE | WARM-UP SETS | WORKING SETS | REPS",
+            " | BACK SQUAT | 4 | 3 | 6",
+            "LOWER # 2 | STANDING CALF RAISE | 0 | 4 | 15-20",
+            " | V SIT-UP | 0 | 3 | 12-15",
+            "DAY LABEL: UPPER #2",
+            "WORKOUT | EXERCISE | WARM-UP SETS | WORKING SETS | REPS",
+            " | CLOSE-GRIP BENCH PRESS | 3 | 3 | 12",
+            "SUGGESTED REST DAY (1-2 DAYS OFF DEPENDING ON YOUR SCHEDULE)"));
+
+        Assert.Equal(["LOWER # 2", "UPPER #2"], ImportDayLabels.Read([page])[40]);
+
+        var draft = new ImportDraft("Program", [Day(2, "Lower 2", 40), Day(2, "Upper 2", 40)]);
+        var applied = ImportDayLabels.Apply(draft, [page]);
+        Assert.Equal(["Lower # 2", "Upper #2"], applied.Draft.Workouts.Select(day => day.Name));
+        Assert.DoesNotContain(applied.Notices, notice => notice.Code == "day_label_ambiguous");
+    }
+
+    [Fact]
+    public void Workout_column_cells_under_a_heading_are_not_a_second_title()
+    {
+        var page = new ImportPageText(58, string.Join('\n',
+            "DAY LABEL: LOWER #2",
+            "WORKOUT | EXERCISE | WARM-UP SETS",
+            "LOWER #2 | LOW-BAR BACK SQUAT | 4",
+            " | LEG EXTENSION | 1"));
+
+        Assert.Equal(["LOWER #2"], ImportDayLabels.Read([page])[58]);
+    }
+
     [Fact]
     public void Mismatched_source_label_and_training_day_counts_are_left_unchanged()
     {
