@@ -23,11 +23,19 @@ function reloadOnceForNewVersion(): boolean {
   return true;
 }
 
-export class ErrorBoundary extends Component<{ children: ReactNode }, { failed: boolean; reloading: boolean }> {
-  state = { failed: false, reloading: false };
+interface BoundaryState {
+  failed: boolean;
+  reloading: boolean;
+  // The running page is older than the deployed one. React.lazy keeps a rejected import, so a plain
+  // re-render throws the same error again: only a fresh shell recovers, and Try again would loop.
+  stale: boolean;
+}
 
-  static getDerivedStateFromError() {
-    return { failed: true, reloading: false };
+export class ErrorBoundary extends Component<{ children: ReactNode }, BoundaryState> {
+  state: BoundaryState = { failed: false, reloading: false, stale: false };
+
+  static getDerivedStateFromError(error: Error): BoundaryState {
+    return { failed: true, reloading: false, stale: CHUNK_FAILURE.test(error.message) };
   }
 
   componentDidCatch(error: Error, info: ErrorInfo) {
@@ -41,27 +49,28 @@ export class ErrorBoundary extends Component<{ children: ReactNode }, { failed: 
   };
 
   private reset = () => {
-    this.setState({ failed: false, reloading: false });
+    this.setState({ failed: false, reloading: false, stale: false });
   };
 
   render() {
     if (!this.state.failed) return this.props.children;
+    const { reloading, stale } = this.state;
     return (
       <StartupScreen className="startup-recovery reload-recovery" headingId="reload-heading">
         <div role="alert" className="startup-recovery-copy">
           <span className="recovery-error-icon" aria-hidden="true"><AlertTriangle size={24}/></span>
           <p className="eyebrow">VIEW RECOVERY</p>
-          <h1 id="reload-heading">This view needs a reload</h1>
+          <h1 id="reload-heading">{stale ? 'A new version is available' : 'This view needs a reload'}</h1>
           <p>An active workout stays saved on this device. Reload to continue where you left off.</p>
         </div>
         <div className="recovery-actions">
-          <Button variant="primary" className="full-width" disabled={this.state.reloading} onClick={this.reload}>
+          <Button variant="primary" className="full-width" disabled={reloading} onClick={this.reload}>
             <RotateCcw size={16} />
-            {this.state.reloading ? 'Reloading…' : 'Reload workout app'}
+            {reloading ? 'Reloading…' : 'Reload workout app'}
           </Button>
-          <Button variant="secondary" className="full-width" disabled={this.state.reloading} onClick={this.reset}>
+          {!stale && <Button variant="secondary" className="full-width" disabled={reloading} onClick={this.reset}>
             Try again
-          </Button>
+          </Button>}
         </div>
       </StartupScreen>
     );
