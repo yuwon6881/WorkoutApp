@@ -100,12 +100,12 @@ export function ProgramStructureBar({ structure, readOnly = false }: { structure
             onDragStart={() => { setDraggedWeek(entry.week); setDropTarget(null); }}
             onDragOver={(weekNumber, side) => setDropTarget({ week: weekNumber, side })}
             onDrop={(weekNumber, side) => reorderWeeks(draggedWeek ?? entry.week, weekNumber ?? dropTarget?.week ?? entry.week, side ?? dropTarget?.side ?? 'before')} />)}
-          {!readOnly && <Button presentation="plain" className="chip-add-btn ptl-add-btn" aria-label="Add week"
-            disabled={weekAddBlocked} onClick={() => setWeekModalOpen(true)}>
-            <Plus size={15} />
-            <span className="ptl-add-btn-label">Add week</span>
-          </Button>}
         </ChipScroller>
+        {!readOnly && <Button presentation="plain" className="chip-add-btn ptl-add-btn ptl-add-week-btn" aria-label="Add week"
+          disabled={weekAddBlocked} onClick={() => setWeekModalOpen(true)}>
+          <Plus size={15} />
+          <span className="ptl-add-btn-label">Add week</span>
+        </Button>}
       </div>
     </div>
   </div>;

@@ -164,6 +164,12 @@
   white-space: nowrap;
 }
 
+@media (min-width: 1024px) {
+  .ptl-primary-btn {
+    padding: 0 28px;
+  }
+}
+
 .ptl-menu-wrap {
   flex: 0 0 auto;
   display: flex;

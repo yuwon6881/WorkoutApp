@@ -410,6 +410,11 @@ html[data-keyboard='open'] .import-progress-pill { display: none; }
   text-align: left;
   animation: resume-rise 380ms cubic-bezier(.32, .72, 0, 1);
 }
+@media (min-width: 1024px) {
+  .resume-workout.button {
+    padding: 14px 16px 16px 14px;
+  }
+}
 .resume-workout.button:hover:not(:disabled) { border-color: var(--accent-border-strong); background: var(--surface-raised); }
 .resume-icon { display: grid; flex: 0 0 40px; place-items: center; width: 40px; height: 40px; border-radius: 50%; background: var(--accent); color: var(--on-accent); }
 .resume-icon svg { color: inherit; }

@@ -92,6 +92,9 @@
 }
 
 .ptl-week-scroller-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   flex: 1 1 auto;
   min-width: 0;
   width: 100%;
@@ -101,7 +104,9 @@
   display: flex !important;
   align-items: center !important;
   gap: 8px !important;
-  width: 100% !important;
+  flex: 1 1 auto !important;
+  min-width: 0 !important;
+  width: 0 !important; /* forces the scroller to shrink rather than push the add button out of view */
   margin-bottom: 0 !important;
 }
 
@@ -110,6 +115,11 @@
   min-width: 0 !important;
   padding: 2px 0 !important;
   margin-bottom: 0 !important;
+}
+
+/* Keep the Add week button outside the scroll area and always visible */
+.ptl-add-week-btn {
+  flex-shrink: 0 !important;
 }
 
 /* 4. Chips: Uniform Heights & Semantic Colors */
