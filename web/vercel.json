@@ -26,6 +26,8 @@
     },
     { "src": "/(?:sw\\.js|index\\.html|manifest\\.webmanifest|(?:settings|workouts|muscles|exercises|import)/?|)", "headers": { "Cache-Control": "no-cache" }, "continue": true },
     { "handle": "filesystem" },
+    { "src": "/open/?", "status": 308, "headers": { "Location": "/" } },
+    { "src": "/open/(settings|workouts|muscles|exercises|import)/?", "status": 308, "headers": { "Location": "/$1" } },
     { "src": "/(?:settings|workouts|muscles|exercises|import)/?", "dest": "/index.html" },
     { "src": "/", "dest": "/index.html" },
     { "src": "/(.*)", "status": 404 }

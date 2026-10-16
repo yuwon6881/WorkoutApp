@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { backStack } from '../lib/backStack';
 import { haptic } from '../lib/platform';
+import { APP_LINK_EVENT, appLinkTab } from '../lib/appLinks';
 
 export type Tab = 'overview' | 'program' | 'body' | 'exercises' | 'import' | 'settings';
 
@@ -63,6 +64,15 @@ export function useTabNavigation() {
     // A new tab opens at its top rather than halfway down, where the last tab was left.
     window.scrollTo({ top: 0 });
   }, []);
+
+  useEffect(() => {
+    const openLink = (event: Event) => {
+      const next = appLinkTab((event as CustomEvent<unknown>).detail, window.location.origin);
+      if (next) setTab(next);
+    };
+    window.addEventListener(APP_LINK_EVENT, openLink);
+    return () => window.removeEventListener(APP_LINK_EVENT, openLink);
+  }, [setTab]);
 
   return { tab, setTab };
 }

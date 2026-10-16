@@ -85,7 +85,8 @@ export default defineConfig({
       navigateFallback: '/index.html',
       // Only the static shell is precached. Training data is never cached: an API request must
       // reach the server or fail visibly, and must never be answered with the SPA document.
-      navigateFallbackDenylist: [/^\/assets\//, /^\/api\//, /^\/health$/],
+      // App Link (`/open`) redirects and asset links are answered by hosting, never by the shell.
+      navigateFallbackDenylist: [/^\/assets\//, /^\/api\//, /^\/health$/, /^\/open(?:\/|$)/, /^\/\.well-known\//],
       globPatterns: ['**/*.{js,css,html,png,svg,woff2}'],
       // PDF.js is loaded only after a user selects an import. Keep its large worker and dynamic
       // chunks out of the install-time download; the importer remains available online and the

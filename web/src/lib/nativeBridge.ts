@@ -8,6 +8,7 @@ import { StatusBar, Style } from '@capacitor/status-bar';
 import { registerPlugin, type PluginListenerHandle } from '@capacitor/core';
 import type { Haptic } from './platform';
 import { backStack } from './backStack';
+import { APP_LINK_EVENT } from './appLinks';
 import { nativeWorkoutState, type NativeWorkoutContext } from './nativeWorkoutProjection';
 import { hasNativeWorkoutStore } from './platform';
 
@@ -211,6 +212,8 @@ export async function installNativeShell() {
   shellInstalled = true;
   await (await import('./apkUpdates')).installApkUpdateChecks();
   await App.addListener('resume', () => window.dispatchEvent(new Event('workout:resume')));
+  // Capacitor retains the launch link until this listener attaches, so cold starts arrive here too.
+  await App.addListener('appUrlOpen', ({ url }) => window.dispatchEvent(new CustomEvent(APP_LINK_EVENT, { detail: url })));
   await App.addListener('backButton', () => {
     if (backStack()?.canGoBack()) window.history.back();
     else void App.minimizeApp();

@@ -44,6 +44,16 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
 
+            <!-- Verified links claim only /open/…: sign-in and Google Health consent finish in the
+                 browser on the tab paths, so those must keep opening there. -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" android:host="workout-one-mocha.vercel.app" android:path="/open" />
+                <data android:scheme="https" android:host="workout-one-mocha.vercel.app" android:pathPrefix="/open/" />
+            </intent-filter>
+
         </activity>
 
         <activity

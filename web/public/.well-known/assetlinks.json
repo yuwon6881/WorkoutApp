@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.workoutapp.phone",
+      "sha256_cert_fingerprints": [
+        "EF:35:A3:B2:D6:0B:85:E3:79:79:A0:20:EF:6B:01:6C:50:F4:AA:EC:41:7D:7B:97:9E:78:35:15:08:DC:2F:C6"
+      ]
+    }
+  }
+]
