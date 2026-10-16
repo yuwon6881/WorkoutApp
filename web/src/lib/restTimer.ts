@@ -63,6 +63,17 @@ export class RestTimer {
     this.sessionId = sessionId;
     this.serverGeneration = null;
     this.storageKey = accountId && sessionId ? `${STORAGE_PREFIX}:${accountId}:${sessionId}` : null;
+    if (accountId !== null && sessionId !== null) {
+      try {
+        const prefix = `${STORAGE_PREFIX}:${accountId}:`;
+        const stale: string[] = [];
+        for (let i = 0; i < localStorage.length; i++) {
+          const key = localStorage.key(i);
+          if (key && key.startsWith(prefix) && key !== this.storageKey) stale.push(key);
+        }
+        for (const key of stale) localStorage.removeItem(key);
+      } catch { /* stale records for this account are ignored */ }
+    }
     this.state = committedRest !== undefined ? recoveredRestState(committedRest) : this.storageKey ? read(this.storageKey) ?? idle() : idle();
     try { localStorage.removeItem(LEGACY_STORAGE_KEY); } catch { /* the old record is ignored */ }
     if (this.state.endsAt > 0 && this.remainingMs === 0) this.state = { ...this.state, announced: true };

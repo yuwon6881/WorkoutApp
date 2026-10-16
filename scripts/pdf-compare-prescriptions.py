@@ -15,6 +15,37 @@ from collections import Counter
 
 techniques = runpy.run_path(str(Path(__file__).with_name("pdf-technique-evidence.py")))
 coaching_effort = runpy.run_path(str(Path(__file__).with_name("pdf-coaching-effort.py")))["expected"]
+PRINTED_TAG = re.compile(r"^\s*(?:(?:super|tri|giant|compound)[\s-]?sets?\s*|circuit\s*)?([A-Z]\d{1,2})(?::|\.|\s*[-–]\s+|\s+)", re.I)
+
+
+def source_tag(row):
+    match = PRINTED_TAG.match(row['name'])
+    return match[1].upper() if match else None
+
+
+def source_group_plan(rows):
+    tables, plan = {}, {}
+    for row in rows:
+        if source_tag(row):
+            tables.setdefault((row['page'], row['table']), []).append(row)
+    for table, members in tables.items():
+        tags = [source_tag(row) for row in members]
+        labels = {tag for tag, following in zip(tags, tags[1:]) if tag == following}
+        label_positions, cycles, previous = {}, {}, {}
+        for row, tag in zip(members, tags):
+            prefix = re.match(r'[A-Z]+', tag)[0]
+            if tag in labels:
+                label_positions[tag] = label_positions.get(tag, 0) + 1
+                entry = {'label': tag, 'member': None, 'position': label_positions[tag], 'identity': (*table, 'label', tag)}
+            else:
+                position = int(re.search(r'\d+', tag)[0])
+                if prefix in previous and position <= previous[prefix]:
+                    cycles[prefix] = cycles.get(prefix, 0) + 1
+                previous[prefix] = position
+                cycle = cycles.get(prefix, 0)
+                entry = {'label': None, 'member': tag if cycle else None, 'position': position, 'identity': (*table, 'member', prefix, cycle)}
+            plan[(row['page'], row['table'], row['row'])] = entry
+    return plan
 
 
 def key(value):
@@ -57,7 +88,7 @@ def expected_rest(value, unit=None):
     return math.floor(midpoint * (1 if (match[3] or unit).lower().startswith(("sec", "s")) else 60) + 0.5)
 
 
-def compare(row, exercise):
+def compare(row, exercise, group_label=None, member_position=None, member_label=None):
     issues = []
     work = [item for item in exercise["sets"] if not item["warmup"]]
     warm = [item for item in exercise["sets"] if item["warmup"]]
@@ -69,6 +100,15 @@ def compare(row, exercise):
         fields += 1
         if actual != expected:
             issues.append({"field": field, "expected": expected, "actual": actual})
+
+    tag = source_tag(row)
+    if group_label or member_label:
+        kind, printed = ('group', group_label) if group_label else ('member', member_label)
+        check('printedSupersetSourceTag', True, f'Printed superset {kind}: {printed}.' in (exercise.get('notes') or ''))
+        actual_member = re.fullmatch(r'[A-Z]+(\d+)', (exercise.get('sequenceGroup') or '').strip().upper())
+        check('supersetMemberOrder', member_position, int(actual_member[1]) if actual_member else None)
+    elif tag:
+        check("printedSupersetMember", tag, (exercise.get("sequenceGroup") or "").strip().upper())
 
     counts = (("warmups", row["working"], len(warm)), ("working", "0", len(work))) if standalone_warmup else (("working", row["working"], len(work)), ("warmups", row.get("warmups", "0"), len(warm)))
     for label, value, actual in counts:
@@ -82,6 +122,8 @@ def compare(row, exercise):
 
     prescribed = warm if standalone_warmup else work
     source_note = row.get("notes", "").strip()
+    if row.get('footer'):
+        check('printedFailureFooter', True, key(row['footer']) in key(exercise.get('notes') or ''))
     if source_note and source_note.upper() not in ("N/A", "-"):
         check("coachingNoteCharacters", True, Counter(key(source_note[:1000])) <= Counter(key(exercise.get("notes") or "")))
         # Additional context may follow the printed instruction, but extra overlay
@@ -130,6 +172,8 @@ def compare(row, exercise):
             if index not in method_indices:
                 reps = techniques["base_reps"](reps)
                 check(prefix + "straightSetRepsText", reps, item.get("repsText"))
+        elif printed_technique.upper() in ("-", "N/A", "NONE"):
+            check(prefix + "noUnprintedIntensityTechnique", [], sorted(techniques["intensity_actual"](item.get("notes"))))
         hold = row.get("hold", "").strip()
         if reps.upper() in ("HOLD", "", "-", "N/A") and hold.upper() not in ("", "-", "N/A"):
             check(prefix + "holdTarget", hold.casefold(), (item.get("repsText") or "").casefold())
@@ -153,6 +197,10 @@ def compare(row, exercise):
             check(prefix + "repMax", int(match[2] or match[1]), item["repMax"])
         elif re.fullmatch(r"\d+(?:\s*[/+,]\s*\d+)+(?:\+|X)?", reps, re.I) or re.fullmatch(r"\d+(?:-\d+)?\s*\+\s*\d+(?:-\d+)?", reps) or re.fullmatch(r"\d+(?:-\d+)?\s*\(\+\d+(?:\+\d+)*\)|\+\d+|\d+\+", reps):
             check(prefix + "repsText", re.sub(r"\s", "", reps), re.sub(r"\s", "", item.get("repsText") or ""))
+            total = techniques['rom_total'](row)
+            if total is not None:
+                check(prefix + "romRepMin", total, item['repMin'])
+                check(prefix + "romRepMax", total, item['repMax'])
         elif reps.upper() in ("N/A", "AMRAP", "FAILURE", "RPE ONLY", "HOLD", "MAX HOLD", "MAX STRIDES", "NOTES", "-", "") or reps.upper().startswith("AMRAP/") or re.fullmatch(r"RPE\s*\d+(?:\.\d+)?\s*TEST|(?:(?:\d{1,2})?:\d{2}|\d+(?:[-–]\d+)?\s*[- ]?\s*(?:s|sec|seconds?|min|minutes?))(?:\s+(?:HOLD|each|per leg))?", reps, re.I):
             check(prefix + "emptyReps", True, item["repMin"] is None and item["repMax"] is None)
         else:
@@ -176,6 +224,11 @@ def compare(row, exercise):
         reserve = reserves[min(index, len(reserves) - 1)] if reserves else None
         if standalone_warmup:
             check(prefix + "emptyWarmupEffort", True, item["targetRpe"] is None and item.get("rir") is None)
+        elif re.fullmatch(r"\s*[~≈]?\s*(?:RPE\s*)?\d+(?:\.\d+)?(?:\s*[-–]\s*\d+(?:\.\d+)?)?\s*", effort, re.I) and (
+                any(number < 5 or number > 10 for number in numbers(effort))
+                or numbers(effort)[0] > numbers(effort)[-1]):
+            check(prefix + "unusablePrintedEffort", True, f"Printed RPE requires review: {effort.strip()}." in (item.get("notes") or ""))
+            check(prefix + "noGuessedEffort", True, item["targetRpe"] is None and item.get("rir") is None)
         elif index in coaching_effort(row, len(work)):
             coached_rpe, coached_rir, printed = coaching_effort(row, len(work))[index]
             check(prefix + "coachedTargetRpe", coached_rpe, item["targetRpe"])
@@ -226,6 +279,7 @@ def compare(row, exercise):
 def audit(documents, folder, inventory=None):
     report = []
     for document in documents:
+        group_plan = source_group_plan(document['rows'])
         drafts = sorted(Path(folder).glob(document["key"] + "*.draft"))
         choices = next((item["choices"] for item in inventory or [] if item["key"] == document["key"]), None)
         if choices is not None:
@@ -255,6 +309,7 @@ def audit(documents, folder, inventory=None):
             for day in draft["workouts"]:
                 occurrence = {}
                 previous_source_row = None
+                source_groups, actual_groups = {}, {}
                 for exercise in day["exercises"]:
                     branch["occurrences"] += 1
                     location = {"week": day["week"], "day": day["name"], "page": exercise.get("sourcePage"), "exercise": exercise["sourceName"]}
@@ -288,10 +343,21 @@ def audit(documents, folder, inventory=None):
                         branch["discrepancies"].append(location | {"issues": [{"field": "exerciseOrder", "previousSourceRow": previous_source_row, "actualSourceRow": source_position}]})
                     previous_source_row = source_position
                     covered.add((row["page"], row["table"], row["row"]))
-                    fields, issues = compare(row, exercise)
+                    tag = source_tag(row)
+                    group = group_plan.get(source_position, {})
+                    fields, issues = compare(row, exercise, group.get('label'), group.get('position'), group.get('member'))
+                    if tag:
+                        match = re.match(r'[A-Z]+', (exercise.get('sequenceGroup') or '').upper())
+                        actual_group = match[0] if match else None
+                        source_group = group['identity']
+                        fields += 2
+                        if source_groups.setdefault(source_group, actual_group) != actual_group:
+                            issues.append({'field': 'supersetGroupSplit', 'sourceGroup': tag, 'actualGroup': actual_group})
+                        if actual_groups.setdefault(actual_group, source_group) != source_group:
+                            issues.append({'field': 'supersetGroupsMerged', 'sourceGroup': tag, 'actualGroup': actual_group})
                     branch["comparisons"].append(location | {"sourceTable": row["table"], "sourceRow": row["row"],
                         "expected": {field: row.get(field) for field in ("working", "warmups", "reps", "hold", "lastSetFailure", "rir", "rirBySet", "rpe", "earlyRpe", "lastRpe", "load", "tempo", "rest", "technique", "notes", "footer", "substitutions")},
-                        "actual": {field: exercise.get(field) for field in ("sourceName", "sets", "notes", "substitutions", "demoUrl", "demoLinks")}, "issues": issues})
+                        "actual": {field: exercise.get(field) for field in ("sourceName", "sequenceGroup", "sets", "notes", "substitutions", "demoUrl", "demoLinks")}, "issues": issues})
                     branch["fields"] += fields
                     if issues:
                         branch["discrepancies"].append(location | {"sourceTable": row["table"], "sourceRow": row["row"], "issues": issues})

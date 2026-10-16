@@ -36,7 +36,9 @@ public sealed partial class CorpusReport
                     failures.Add($"{Path.GetFileName(path)} p.{exercise.SourcePage}: {exercise.SourceName} -> {entry?.Name ?? "unresolved"} ({entry?.TrackingMode})");
             }
         }
-        File.WriteAllText(Path.Combine(folder, "spot-checks", "round5-duration-mappings.json"), Json.Write(checks));
+        var output = Path.Combine(folder, "spot-checks");
+        Directory.CreateDirectory(output);
+        File.WriteAllText(Path.Combine(output, "round5-duration-mappings.json"), Json.Write(checks));
         Assert.NotEmpty(checks);
         Assert.True(failures.Count == 0, string.Join("\n", failures));
     }

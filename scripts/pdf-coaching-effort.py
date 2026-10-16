@@ -36,6 +36,16 @@ def expected(row, count):
         if value is not None:
             candidates.setdefault(index, set()).add(value)
     result = {index: next(iter(values)) for index, values in candidates.items() if len(values) == 1}
+    stated = [str(row.get(field) or '') for field in ('rpe', 'earlyRpe', 'lastRpe', 'rir')]
+    stated = [re.sub(r'\d+(?:\.\d+)?(?:\s*[-–]\s*\d+(?:\.\d+)?)?\s*%', '', text) for text in stated]
+    if count == 1 and not any(re.search(r'\d', text) for text in stated) and not any(re.search(r'\d', text or '') for text in row.get('rirBySet', [])) and not re.search(r'\b(?:if|when|unless)\b', note, re.I):
+        targets = set(re.findall(r'@\s*RPE\s*(\d+(?:\.\d+)?(?:\s*[-–]\s*\d+(?:\.\d+)?)?)(?![\d.])', note, re.I))
+        if len(targets) == 1:
+            printed = next(iter(targets))
+            values = [float(n) for n in re.findall(r'\d+(?:\.\d+)?', printed)]
+            if values == sorted(values) and all(5 <= n <= 10 for n in values):
+                effort = math.floor(sum(values) / len(values) + 0.5)
+                result[0] = (effort if effort >= 6 else None, str(10 - effort), printed)
     if count - 1 not in result and not row.get("lastRpe") and failure(note):
         scoped = re.search(r"(?:last|final)\s+set\b[^.!?]{0,120}(?:to|hit|reach(?:ing)?)\s+(?:true\s+)?failure", note, re.I)
         if scoped:

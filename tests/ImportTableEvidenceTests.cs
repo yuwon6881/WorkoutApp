@@ -790,7 +790,7 @@ public sealed class ImportTableEvidenceTests
     }
 
     [Fact]
-    public void An_effort_range_outside_the_rpe_scale_stays_unresolved()
+    public void An_effort_range_outside_the_rpe_scale_is_preserved_without_a_guessed_target()
     {
         var program = new AiProgram("Invalid effort", [new AiDay(null, null, 1, 1, "Day 1", false, null, [
             new AiExercise("Bench Press", null, null, [new AiSet(8, 10, null, null, null, null, null, RpeSource: "inferred")], SourcePage: 14)
@@ -804,7 +804,8 @@ public sealed class ImportTableEvidenceTests
         var set = Assert.Single(Assert.Single(ImportTableEvidence.Enrich(program, text).Days!).Exercises).Sets[0];
 
         Assert.Null(set.TargetRpe);
-        Assert.Equal("inferred", set.RpeSource);
+        Assert.Equal("extracted", set.RpeSource);
+        Assert.Contains("Printed RPE requires review: 1-9.", set.Notes);
     }
 
     [Fact]
@@ -840,7 +841,7 @@ public sealed class ImportTableEvidenceTests
         Assert.Equal([7d, 9d], exercises[2].Sets.Select(set => set.TargetRpe));
         Assert.All(exercises.SelectMany(exercise => exercise.Sets), set => Assert.Equal("extracted", set.RpeSource));
         Assert.Equal(["5", "3"], exercises[1].Sets.Select(set => set.Rir));
-        Assert.Equal(["2", "2", "2"], exercises.Select(exercise => exercise.WarmupSets));
+        Assert.Equal(["3", "2", "1"], exercises.Select(exercise => exercise.WarmupSets));
     }
 
     [Fact]

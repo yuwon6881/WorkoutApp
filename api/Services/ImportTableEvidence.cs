@@ -27,7 +27,7 @@ internal static partial class ImportTableEvidence
     /// never prints. A bare integer is not enough, because tracking columns are headed "1 | 2 | 3".
     private static readonly Regex HeaderValue = new(@"^(?:[~≈]\s*\d.*|\d+(?:\.\d+)?\s*[-–]\s*\d+(?:\.\d+)?\s*(?:min|mins|minutes?|sec|secs|seconds?|s|m|reps?)?|\d+(?:\.\d+)?\s*(?:min|mins|minutes?|sec|secs|seconds?|%)|\d+\.\d+)$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
     private const int MaxHeaderLength = 48;
-    private const string PartialRangePhrase = @"(?:partials?(?:\s+reps?)?(?:\s+rom)?|(?:short|reduced)[- ]?(?:rom|range\s+of\s+motion)|half[- ]?rom|half\s+reps?|(?:(?:top|bottom)[- ]?)?" + ImportRomPrescription.Range + ")";
+    private const string PartialRangePhrase = @"(?:partials?(?:\s+reps?)?(?:\s+rom)?|(?:short|reduced)[- ]?(?:rom|range\s+of\s+motion)|half[- ]?rom|half\s+reps?|" + ImportRomPrescription.EndRange + @"|(?:(?:top|bottom)[- ]?)?" + ImportRomPrescription.Range + ")";
     private const string PartialRangeToken = @"(?<!\w)" + PartialRangePhrase + @"(?!\w)";
 
     internal sealed record EvidenceRow(string? ExerciseName, int? WorkingSets, string? RepsText, int? RepMin, int? RepMax,
@@ -38,7 +38,8 @@ internal static partial class ImportTableEvidence
         bool FullHeader = false, string? SequenceGroup = null, List<string>? Substitutions = null, bool Prose = false,
         int Table = 0, string? Technique = null, string? Tempo = null, bool RepsStatedAbsent = false,
         string? WorkingSetPrescriptionText = null, bool WorkingSetsStatedAbsent = false,
-        string? TechniqueCoachingNote = null, Dictionary<int, CoachingEffort>? CoachingEfforts = null);
+        string? TechniqueCoachingNote = null, Dictionary<int, CoachingEffort>? CoachingEfforts = null,
+        string? UnusableEarlyRpe = null, string? UnusableLastRpe = null, bool TechniqueStated = false);
     internal sealed record RirEvidence(string? Text, double? Value);
     internal sealed record EvidencePage(int? Week, string? Block, string? Phase, string? DayName, bool HasRestDayFooter,
         List<EvidenceRow> Rows, bool RestBandFollowsTable = false, string Body = "");
@@ -208,11 +209,14 @@ internal static partial class ImportTableEvidence
         return exercise with
         {
             SourceName = HasText(evidence.ExerciseName) ? evidence.ExerciseName! : exercise.SourceName,
+            // A printed member tag states both the group and its order, even if the read supplied
+            // a different tag. Untagged rows may still be paired by instructions outside the table.
+            SequenceGroup = evidence.SequenceGroup ?? exercise.SequenceGroup,
             WorkingSets = evidence.WorkingSets is { } stated
                 ? stated.ToString(CultureInfo.InvariantCulture) : exercise.WorkingSets,
             // A table with no warm-up column states no warm-up count; one the read supplied was
             // taken from a row's own set count and added sets the page never prints.
-            WarmupSets = evidence.WarmupCounted ? exercise.WarmupSets : null,
+            WarmupSets = evidence.WarmupCounted ? evidence.WarmupText : null,
             CoachingNotes = coachingNotes,
             Sets = repaired
         };
@@ -293,7 +297,7 @@ internal static partial class ImportTableEvidence
             repsText = baseReps;
             (repMin, repMax) = ParseSimpleReps(baseReps);
         }
-        return set with
+        return ImportPrintedEffort.Preserve(set with
         {
             RepMin = repMin,
             RepMax = repMax,
@@ -312,7 +316,7 @@ internal static partial class ImportTableEvidence
             RestSource = restSeconds is null && !HasText(restText)
                 ? evidence.RestStatedAbsent || evidence.RestNotStated ? "extracted" : "inferred"
                 : set.RestSeconds is null && (evidence.RestSeconds is not null || HasText(evidence.RestText)) ? "extracted" : set.RestSource
-        };
+        }, last ? evidence.UnusableLastRpe : evidence.UnusableEarlyRpe);
     }
 
     /// A dedicated intensity-technique column defaults to the final working set. Explicit set
@@ -418,7 +422,7 @@ internal static partial class ImportTableEvidence
         if (technique is null || Regex.IsMatch(source!,
             $@"\b(?:avoid|don't|do\s+not|never|without|no|not)\b(?:\s+(?:using|use|performing|perform|doing|do|any|the|all|these|those|lengthened|integrated|long[- ]length))*\s+{PartialRangeToken}",
             RegexOptions.IgnoreCase)) return null;
-        if (Regex.IsMatch(source!, @"\b\d+\s+(?:reps?\s*:?\s*)?(?:in\s+)?(?:the\s+)?(?:top|bottom)[- ]?" + ImportRomPrescription.Range + @"\b", RegexOptions.IgnoreCase))
+        if (Regex.IsMatch(source!, @"\b\d+\s+(?:reps?\s*:?\s*)?(?:in\s+)?(?:the\s+)?(?:(?:top|bottom)[- ]?" + ImportRomPrescription.Range + "|" + ImportRomPrescription.EndRange + @")\b", RegexOptions.IgnoreCase))
             return technique;
         return Regex.IsMatch(source!,
             $@"\b(?:use|using|perform(?:ed|ing)?|continue|follow|switch|alternate|add|finish|end|include|do|swing|stay|keep|kept|set)\b[^.!?]{{0,70}}{PartialRangeToken}|{PartialRangeToken}[^.!?]{{0,70}}\b(?:on|during|for)\s+(?:the\s+)?(?:(?:all|each|every|first|last|final)\s+)?(?:(?:one|two|three|\d+)\s+)?(?:(?:working\s+)?sets?|reps?|rom)(?:\s+\d+)?\b",

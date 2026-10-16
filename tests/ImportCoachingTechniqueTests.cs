@@ -55,6 +55,20 @@ public sealed class ImportCoachingTechniqueTests
     }
 
     [Fact]
+    public void Top_and_bottom_end_rom_segments_are_partial_rep_work()
+    {
+        var exercise = Read("10+5+5", "10 REPS FULL ROM, 5 REPS TOP END ROM, 5 REPS BOTTOM END ROM");
+        Assert.All(exercise.Sets, set => Assert.Equal("Partial reps", set.Notes));
+    }
+
+    [Fact]
+    public void Ordinary_end_of_rom_coaching_does_not_prescribe_partials()
+    {
+        var exercise = Read("10-12", "Keep tension at the end of ROM for every rep.");
+        Assert.All(exercise.Sets, set => Assert.Null(set.Notes));
+    }
+
+    [Fact]
     public void Source_scope_repairs_a_model_tag_on_every_set()
     {
         var program = new AiProgram("Example", [new AiDay(null, null, 1, 1, "Day 1", false, null,

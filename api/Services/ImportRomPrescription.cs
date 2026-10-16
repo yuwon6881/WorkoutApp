@@ -4,4 +4,5 @@ namespace Workout.Api.Services;
 internal static class ImportRomPrescription
 {
     public const string Range = @"(?:half|1\s*/\s*[2-4]|[23]\s*/\s*4|2\s*/\s*3|[¼½¾])(?:\s+of)?\s+(?:the\s+)?(?:rom|range\s+of\s+motion)";
+    public const string EndRange = @"(?:top|bottom)[- ]end(?:\s+of)?\s+(?:the\s+)?(?:rom|range\s+of\s+motion)";
 }

@@ -1,4 +1,5 @@
 using System.Text.RegularExpressions;
+using Workout.Api.Domain;
 
 namespace Workout.Api.Services;
 
@@ -43,5 +44,17 @@ internal static partial class ImportTableEvidence
         var pattern = method == "Dropset" ? @"drop\s?sets?" : @"myo[- ]?reps?";
         var cleaned = Regex.Replace(existing, $@"(?:^|\s*—\s*){pattern}(?:\s*—\s*|$)", "", RegexOptions.IgnoreCase).Trim();
         return cleaned.Length == 0 ? null : cleaned;
+    }
+
+    /// An explicit technique cell replaces reader-supplied set-type labels. Keep freeform
+    /// coaching and source effort notes; ApplySet adds the printed technique at its stated scope.
+    private static string? WithoutPrintedTechnique(string? existing)
+    {
+        if (string.IsNullOrWhiteSpace(existing)) return null;
+        var retained = Regex.Split(existing, @"\s*—\s*")
+            .Select(part => part.Trim()).Where(part => part.Length > 0
+                && SetTechniques.Of(part) is null && !Regex.IsMatch(part, @"\b(?:failure|amrap)\b", RegexOptions.IgnoreCase));
+        var result = string.Join(" — ", retained);
+        return result.Length == 0 ? null : result;
     }
 }

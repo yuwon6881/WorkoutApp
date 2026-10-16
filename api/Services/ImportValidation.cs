@@ -8,7 +8,7 @@ internal static partial class ImportValidation
 {
     private const string PartialRepReviewCode = "rep_technique_conflict";
     private static readonly Regex RomRepSegment = new(
-        @"(?<count>\d{1,3})\s*(?:reps?\s+)?(?:(?:top|bottom)\s+" + ImportRomPrescription.Range + @"|(?:full|complete)\s+rom)\b",
+        @"(?<count>\d{1,3})\s*(?:reps?\s+)?(?:(?:top|bottom)\s+" + ImportRomPrescription.Range + "|" + ImportRomPrescription.EndRange + @"|(?:full|complete)\s+rom)\b",
         RegexOptions.Compiled | RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
     private static readonly Regex CompoundRepTarget = new(@"^\s*\d+(?:\s*[/+]\s*\d+)+\s*$",
         RegexOptions.Compiled | RegexOptions.CultureInvariant);
@@ -66,7 +66,7 @@ internal static partial class ImportValidation
                 SetIndex: loadSpecified[0].index, TargetField: "targetRpe"));
 
         var unrated = working.Where(item => item.set.TargetRpe is null && !HasRirTarget(item.set.Rir)
-            && !IsPercentageLoad(item.set.LoadText)).ToList();
+            && !IsPercentageLoad(item.set.LoadText) && !ImportPrintedEffort.NeedsReview(item.set)).ToList();
         AddUnspecified(issues, edits, unrated, "rpe_unspecified", "rpe_unread", "targetRpe", item => item.set.RpeSource,
             "working set has", "working sets have", "no target RIR");
 
@@ -79,6 +79,7 @@ internal static partial class ImportValidation
 
         issues.AddRange(PartialRepConflicts(training));
         issues.AddRange(ImportSetInstructionReview.Issues(training));
+        issues.AddRange(ImportPrintedEffort.Issues(training));
 
         var weeks = draft.Workouts.Select(day => day.Week).Distinct().Order().ToList();
         var missingWeeksBetweenPhases = new List<int>();

@@ -19,6 +19,12 @@ python scripts/pdf-audit-gate.py tests/Corpus/SourceExpected/prescriptions.json.
 
 For the complete extraction, normal/drift replay and independent gate in one serialized command, run `./scripts/test-pdf-import-audit.ps1 -Python <python-executable>`. It clears inherited single-PDF filters and restores the environment afterward.
 
-The comparison needs only Python's standard library. Evidence regeneration needs PyMuPDF. The replay produces both normal and drift drafts, and the gate checks both. A failure includes source locations and expected/actual fields in `source-audit.json`; missing exercises, choices, source pages, or fields cannot silently pass.
+The comparison needs only Python's standard library. Evidence regeneration needs PyMuPDF. The replay produces both normal and drift drafts, and the gate checks both, including explicit printed superset member tags and warm-up counts. Drift reads deliberately change those fields to check source authority. The runner generates every draft before the dependent spot checks run. A failure includes source locations and expected/actual fields in `source-audit.json`; missing exercises, choices, source pages, or fields cannot silently pass.
+
+Readable numeric RPE outside the supported training range must remain in each affected set's source note without a guessed numerical effort. The API corpus report separately checks that these source conflicts finish ready for review at their printed page locations.
+
+Arm Hypertrophy pages 11-14 include starred table-local final-set failure footnotes. Their source annotations retain each footer only on its own table and exclude the named close-grip bench press. These annotations were recovered from original PDF line geometry, not imported drafts. Bench Press percentage-only intensity cells also populate the source load field while retaining their original cell text. Coaching `@RPE9` and matching ROM segment totals are checked independently from the original coaching and rep cells.
+
+Superset checks validate the relationships between exercises as well as their tags. Consecutive repeated labels such as S1/S1 identify one group; a later restart of member numbers such as A1/A2, A1/A2 identifies another group. Imported canonical groups must keep the members together, keep separate groups apart, preserve member order, and retain renamed source labels in the notes. Qualified reader technique labels are also tested against an explicit no-technique cell.
 
 Run `python tests/Corpus/test_pdf_audit_gate.py` to verify that omitted exercises/choices/PDFs, changed hashes and incorrect rest averages fail the gate.

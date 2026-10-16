@@ -42,9 +42,109 @@ class SourceAuditGateTests(unittest.TestCase):
     def test_source_grounded_normal_and_drift_pass(self):
         self.assertTrue(self.run_gate())
 
+    def test_repeated_superset_labels_must_stay_separate_and_ordered(self):
+        source_row = copy.deepcopy(self.rows[0]['rows'][0])
+        exercise = copy.deepcopy(self.draft['workouts'][0]['exercises'][0])
+        self.rows[0]['rows'] = []
+        self.draft['workouts'][0]['exercises'] = []
+        for index, name in enumerate(('Cable row', 'Cable flye', 'Bicep curl', 'Triceps pressdown')):
+            label = 'S1' if index < 2 else 'S2'
+            self.rows[0]['rows'].append(source_row | {'row': index + 1, 'name': f'{label}: {name}'})
+            item = copy.deepcopy(exercise)
+            item.update(sourceName=name, sequenceGroup=('A' if index < 2 else 'B') + str(index % 2 + 1), notes=f'Printed superset group: {label}.')
+            self.draft['workouts'][0]['exercises'].append(item)
+        self.assertTrue(self.run_gate())
+        changed = copy.deepcopy(self.draft)
+        for index, item in enumerate(changed['workouts'][0]['exercises']):
+            item['sequenceGroup'] = 'S1' if index < 2 else 'S2'
+        self.assertFalse(self.run_gate(changed))
+
+    def test_restarted_member_numbers_are_separate_pairs(self):
+        template = copy.deepcopy(self.rows[0]['rows'][0])
+        exercise = copy.deepcopy(self.draft['workouts'][0]['exercises'][0])
+        self.rows[0]['rows'] = []
+        self.draft['workouts'][0]['exercises'] = []
+        for index, name in enumerate(('Sissy squat', 'Nordic ham curl', 'Cable crunch', 'Cable shrug-in')):
+            member = index % 2 + 1
+            self.rows[0]['rows'].append(template | {'row': index + 1, 'name': f'A{member}: {name}'})
+            item = copy.deepcopy(exercise)
+            item.update(sourceName=name, sequenceGroup=('A' if index < 2 else 'B') + str(member),
+                        notes=f'Printed superset member: A{member}.' if index >= 2 else None)
+            self.draft['workouts'][0]['exercises'].append(item)
+        self.assertTrue(self.run_gate())
+        changed = copy.deepcopy(self.draft)
+        for index, item in enumerate(changed['workouts'][0]['exercises']):
+            item['sequenceGroup'] = f'A{index % 2 + 1}'
+        self.assertFalse(self.run_gate(changed))
+        changed = copy.deepcopy(self.draft)
+        for index, item in enumerate(changed['workouts'][0]['exercises']):
+            item['sequenceGroup'] = f'A{index + 1}'
+        self.assertFalse(self.run_gate(changed))
+
+    def test_single_set_at_rpe_coaching_cannot_be_lost(self):
+        self.rows[0]['rows'][0].update(rpe='85%', load='85%', rirBySet=[], reps='AMRAP', notes='DO AS MANY REPS AS POSSIBLE @RPE9')
+        changed = copy.deepcopy(self.draft)
+        exercise = changed['workouts'][0]['exercises'][0]
+        exercise['notes'] = 'DO AS MANY REPS AS POSSIBLE @RPE9'
+        target = exercise['sets'][0]
+        target.update(repMin=None, repMax=None, repsText='AMRAP', targetRpe=None, rir=None, loadText='85%', notes='AMRAP')
+        self.assertFalse(self.run_gate(changed))
+        target.update(targetRpe=9, rir='1', notes='Printed RPE: 9 - AMRAP')
+        self.assertTrue(self.run_gate(changed))
+
+    def test_rom_sequence_checks_the_whole_set_total(self):
+        self.rows[0]['rows'][0].update(reps='10+5+5', notes='10 REPS FULL ROM, 5 REPS TOP END ROM, 5 REPS BOTTOM END ROM')
+        changed = copy.deepcopy(self.draft)
+        exercise = changed['workouts'][0]['exercises'][0]
+        exercise['notes'] = self.rows[0]['rows'][0]['notes']
+        target = exercise['sets'][0]
+        target.update(repMin=10, repMax=10, repsText='10+5+5', notes='Partial reps')
+        self.assertFalse(self.run_gate(changed))
+        target.update(repMin=20, repMax=20)
+        self.assertTrue(self.run_gate(changed))
+
+    def test_explicit_no_technique_cannot_keep_an_invented_intensity_tag(self):
+        self.rows[0]["rows"][0]["technique"] = "-"
+        self.assertTrue(self.run_gate())
+        for technique in ("Dropset", "Myo-reps", "Partial reps", "Dropset (reduce weight by 50%)", "Long-length Partials (on all reps of the last set)"):
+            changed = copy.deepcopy(self.draft)
+            changed["workouts"][0]["exercises"][0]["sets"][0]["notes"] = technique
+            self.assertFalse(self.run_gate(changed))
+
     def test_changed_rest_average_fails(self):
         changed = copy.deepcopy(self.draft)
         changed["workouts"][0]["exercises"][0]["sets"][0]["restSeconds"] = 120
+        self.assertFalse(self.run_gate(changed))
+
+    def test_printed_superset_tag_cannot_be_lost_or_reordered(self):
+        self.rows[0]["rows"][0]["name"] = "A2. Cable row"
+        self.assertFalse(self.run_gate())
+        changed = copy.deepcopy(self.draft)
+        exercise = changed["workouts"][0]["exercises"][0]
+        exercise["sequenceGroup"] = "A1"
+        self.assertFalse(self.run_gate(changed))
+        exercise["sequenceGroup"] = "A2"
+        self.assertTrue(self.run_gate(changed))
+
+    def test_wrong_printed_warmup_count_fails(self):
+        self.rows[0]["rows"][0]["warmups"] = "2-3"
+        self.assertFalse(self.run_gate())
+        changed = copy.deepcopy(self.draft)
+        exercise = changed["workouts"][0]["exercises"][0]
+        warmup = {"warmup": True, "repMin": None, "repMax": None, "repsText": None,
+                  "targetRpe": None, "rir": None, "notes": None}
+        exercise["sets"] = [warmup.copy(), warmup.copy(), *exercise["sets"]]
+        self.assertTrue(self.run_gate(changed))
+
+    def test_unusable_printed_effort_must_be_preserved_without_a_guessed_target(self):
+        self.rows[0]["rows"][0].update(rpe="1-9", rirBySet=[])
+        changed = copy.deepcopy(self.draft)
+        target = changed["workouts"][0]["exercises"][0]["sets"][0]
+        target.update(targetRpe=None, rir=None)
+        self.assertFalse(self.run_gate(changed))
+        target["notes"] = "Printed RPE requires review: 1-9."
+        self.assertTrue(self.run_gate(changed))
+        target.update(targetRpe=9, rir="1")
         self.assertFalse(self.run_gate(changed))
 
     def test_missing_separate_hold_target_fails(self):

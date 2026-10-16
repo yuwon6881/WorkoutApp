@@ -47,19 +47,7 @@ internal static partial class ImportTableEvidence
                 else if (Day.IsMatch(clean)) dayName = clean;
 
                 var cells = clean.Split('|').Select(cell => cell.Trim()).ToArray();
-                if (Regex.IsMatch(clean, @"^take\s+the\s+(?:final|last)\s+set\s+of\s+each\s+exercise\s+to\s+failure[.!]?$", RegexOptions.IgnoreCase))
-                {
-                    for (var rowIndex = 0; rowIndex < rows.Count; rowIndex++)
-                    {
-                        var stated = rows[rowIndex];
-                        if (stated.Table != table || stated.WorkingSets is null || ImportSetKinds.IsWarmupRow(stated.ExerciseName)) continue;
-                        var note = HasText(stated.CoachingNote) ? $"{stated.CoachingNote} {clean}" : clean;
-                        var avoidsFailure = Regex.IsMatch(stated.CoachingNote ?? "", @"\bavoid\s+failure\b|\bdo\s+not\s+(?:go|train|take.{0,30})\s+to\s+failure\b", RegexOptions.IgnoreCase);
-                        rows[rowIndex] = stated with { LastRpe = avoidsFailure ? stated.LastRpe : 10,
-                            LastEffortAbsent = avoidsFailure && stated.LastEffortAbsent, CoachingNote = note };
-                    }
-                    continue;
-                }
+                if (ApplyFailureFooter(cells, rows, table)) continue;
                 if (TryColumns(cells, out var detected))
                 {
                     columns = detected;
@@ -88,7 +76,7 @@ internal static partial class ImportTableEvidence
                 _ => null
             };
             if (rows.Count > 0 || dayName is not null || hasRestDayFooter || currentWeek is not null || currentBlock is not null || currentPhase is not null)
-                output[page] = new EvidencePage(pageWeek, currentBlock, currentPhase, dayName, hasRestDayFooter, rows,
+                output[page] = new EvidencePage(pageWeek, currentBlock, currentPhase, dayName, hasRestDayFooter, NormalizeSupersetLabels(rows),
                     restBandFollowsTable || rows.Count == 0, body);
         }
         return output;
@@ -264,7 +252,10 @@ internal static partial class ImportTableEvidence
                     && rirText is null && rirBySet.All(value => value.Text is null),
                 Technique: NoValue(Cell(cells, map.Technique)) ? null : Cell(cells, map.Technique)!.Trim(),
                 Tempo: NoValue(Cell(cells, map.Tempo)) ? null : Cell(cells, map.Tempo)!.Trim(),
-                TechniqueCoachingNote: techniqueCoachingNote);
+                TechniqueCoachingNote: techniqueCoachingNote,
+                UnusableEarlyRpe: ImportPrintedEffort.Unusable(Cell(cells, map.EarlyRpe ?? map.Rpe)),
+                UnusableLastRpe: ImportPrintedEffort.Unusable(Cell(cells, map.LastRpe ?? map.EarlyRpe ?? map.Rpe)),
+                TechniqueStated: map.Technique is not null && HasText(Cell(cells, map.Technique)));
             row = row with { CoachingEfforts = ReadCoachingEffort(row) };
             return true;
         }

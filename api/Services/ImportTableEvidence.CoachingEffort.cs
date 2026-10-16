@@ -12,6 +12,16 @@ internal static partial class ImportTableEvidence
         var result = new Dictionary<int, CoachingEffort>();
         if (row.WorkingSets is not > 0 || !HasText(row.CoachingNote)) return result;
         var count = row.WorkingSets.Value;
+        // A single prescribed working set can put its effort in the coaching column,
+        // e.g. "WORK UP TO A HEAVY SET OF 5 @RPE9" or a reserve-qualified AMRAP.
+        if (count == 1 && row.Rpe is null && row.EarlyRpe is null && row.LastRpe is null
+            && row.RirText is null && row.RirBySet.All(value => value.Text is null)
+            && !Regex.IsMatch(row.CoachingNote!, @"\b(?:if|unless|when)\b", RegexOptions.IgnoreCase))
+        {
+            var targets = Regex.Matches(row.CoachingNote!, @"@\s*RPE\s*(?<value>\d+(?:\.\d+)?(?:\s*[-–]\s*\d+(?:\.\d+)?)?)(?![\d.])", RegexOptions.IgnoreCase)
+                .Select(match => CoachedRpe(match.Groups["value"].Value)).Where(value => value is not null).Distinct().ToList();
+            if (targets.Count == 1) result[0] = targets[0]!;
+        }
         var candidates = new List<(int Index, CoachingEffort Effort)>();
         foreach (Match clause in Regex.Matches(row.CoachingNote!, @"\bset\s+(?<set>\d+)\b(?<clause>.*?)(?=\bset\s+\d+\b|$)", RegexOptions.IgnoreCase))
         {

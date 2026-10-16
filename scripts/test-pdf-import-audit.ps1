@@ -26,8 +26,12 @@ try {
     $env:WORKOUT_CORPUS_DUMP = '1'
     Push-Location $repository
     try {
-        & dotnet test tests/Workout.Tests.csproj --artifacts-path artifacts/pdf-audit-tests --filter FullyQualifiedName~CorpusReport
+        # Spot checks consume the drafts. Generate all branches before running their consumers;
+        # xUnit does not promise an order between methods in the corpus test class.
+        & dotnet test tests/Workout.Tests.csproj --artifacts-path artifacts/pdf-audit-tests --filter FullyQualifiedName~CorpusReport.Writes_a_report_for_every_extracted_program
         if ($LASTEXITCODE -ne 0) { throw 'Normal/drift import replay failed.' }
+        & dotnet test tests/Workout.Tests.csproj --artifacts-path artifacts/pdf-audit-tests --no-build --filter 'FullyQualifiedName~CorpusReport&FullyQualifiedName!~Writes_a_report_for_every_extracted_program'
+        if ($LASTEXITCODE -ne 0) { throw 'Source spot checks failed.' }
         & $Python scripts/pdf-audit-gate.py tests/Corpus/SourceExpected/prescriptions.json.gz tests/Corpus/SourceExpected/links.json.gz tests/Corpus/SourceExpected/inventory.json $output (Join-Path $output 'source-audit')
         if ($LASTEXITCODE -ne 0) { throw 'Independent source fidelity or coverage gate failed.' }
     } finally { Pop-Location }

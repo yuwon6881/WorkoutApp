@@ -6,7 +6,16 @@ remain review work rather than being filled from the application's imported outp
 
 import re
 
-ROM = r"[~≈]?(?:half\s*(?:of\s+(?:the\s+)?)?|(?:1/[234]|[23]/4|2/3|[¼½¾])\s*(?:of\s+(?:the\s+)?)?)(?:rom|range\s+of\s+motion)"
+ROM = r"[~≈]?(?:(?:half|end)\s*(?:of\s+(?:the\s+)?)?|(?:1/[234]|[23]/4|2/3|[¼½¾])\s*(?:of\s+(?:the\s+)?)?)(?:rom|range\s+of\s+motion)"
+
+
+def rom_total(row):
+    reps = row.get('reps') or ''
+    if not re.fullmatch(r'\s*\d+(?:\s*[/+]\s*\d+)+\s*', reps):
+        return None
+    printed = [int(n) for n in re.findall(r'\d+', reps)]
+    segments = [int(n) for n in re.findall(r'\b(\d+)\s*(?:reps?\s*)?(?:(?:full|complete)\s+rom|(?:top|bottom)\s*[- ]?' + ROM + r')\b', row.get('notes') or '', re.I)]
+    return sum(printed) if len(segments) > 1 and printed == segments else None
 
 
 def technique(text, column=False):

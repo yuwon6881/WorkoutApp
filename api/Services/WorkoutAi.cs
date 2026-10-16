@@ -80,7 +80,7 @@ public sealed class WorkoutAi(HttpClient http, IConfiguration config, ILogger<Wo
     /// table footers and coaching text, and reviews conflicting source instructions; v40 shares
     /// source analysis within a pass, reads clean mixed-section pages locally, defers gap checks
     /// until week choices are reconciled, and persists bounded targeted repairs.
-    public const string PromptVersion = "workout-import-v40-source-verified-speed";
+    public const string PromptVersion = "workout-import-v44-source-group-scope";
 
     /// One cheap pass over a page-by-page view of the document. Most of a commercial training PDF
     /// is explanation and photography; this pass exists to find the few pages that actually carry

@@ -119,8 +119,6 @@ internal static partial class ImportTableEvidence
                     : previous.Sets };
             result.Add(Apply(source with
             {
-                SequenceGroup = HasText(source.SequenceGroup) ? source.SequenceGroup : row.SequenceGroup,
-                WarmupSets = source.WarmupSets ?? row.WarmupText,
                 Substitutions = row.Substitutions ?? source.Substitutions,
                 SourcePage = source.SourcePage ?? pageNumber
             }, row));
@@ -159,6 +157,7 @@ internal static partial class ImportTableEvidence
             || row.CoachingEfforts is { Count: > 0 };
         return set with
         {
+            Notes = row.TechniqueStated ? WithoutPrintedTechnique(set.Notes) : set.Notes,
             RepsText = row.RepsStatedAbsent || row.RepsText is not null ? null : set.RepsText,
             RepMin = row.RepsStatedAbsent ? null : row.RepMin is null ? set.RepMin : 0,
             RepMax = row.RepsStatedAbsent ? null : row.RepMax is null ? set.RepMax : 0,

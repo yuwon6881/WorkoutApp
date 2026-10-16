@@ -131,7 +131,7 @@ public sealed class ImportCleanPageTests
 
         var exercise = Assert.Single(ImportTableEvidence.Enrich(new AiProgram("Forearm", [read]), Page).Days!).Exercises[1];
 
-        Assert.Equal(("reverse-curl", "Keep elbows pinned", "B1", "Slow eccentric"),
+        Assert.Equal(("reverse-curl", "Keep elbows pinned", "A2", "Slow eccentric"),
             (exercise.ExerciseId, exercise.Notes, exercise.SequenceGroup, exercise.CoachingNotes));
         Assert.Equal(["EZ-Bar Reverse Curl", "Cable Reverse Curl"], exercise.Substitutions);
     }

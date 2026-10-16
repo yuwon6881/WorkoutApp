@@ -149,6 +149,10 @@ internal static class TableTranscriber
             var node = JsonNode.Parse(JsonSerializer.Serialize(exercise))!.AsObject();
             if (key % 4 == 0 && node["sourceName"]?.GetValue<string>() is { Length: > 0 } name)
                 node["sourceName"] = Regex.Replace(name.ToLowerInvariant(), @"(?<![\p{L}'])\p{L}", match => match.Value.ToUpperInvariant());
+            if (key % 4 == 0 && node["warmupSets"] is not null)
+                node["warmupSets"] = "8";
+            if (key % 3 == 0 && node["sequenceGroup"] is not null)
+                node["sequenceGroup"] = "Z9";
             if (key % 3 == 0 && node["sets"] is JsonArray sets)
                 foreach (var set in sets.OfType<JsonObject>().Where(set => set["restText"] is not null))
                 {

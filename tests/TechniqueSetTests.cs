@@ -147,6 +147,7 @@ public sealed class ImportRomRepTotalsTests
     [Theory]
     [InlineData(TwentyOnes, "7/7/7", 21)]
     [InlineData(TwentyOnes, "7+7+7", 21)]
+    [InlineData("10 REPS FULL ROM, 5 REPS TOP END ROM, 5 REPS BOTTOM END ROM", "10+5+5", 20)]
     [InlineData(TwentyOnes, "10", 7)]
     [InlineData(TwentyOnes, "6/6/6", 7)]
     [InlineData("DROPSET. DROP WEIGHT BY ~50% ON SECOND 15 REPS.", "15/15", 7)]

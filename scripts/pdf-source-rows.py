@@ -100,6 +100,8 @@ def source_rows(document, folder=None):
                     continue
                 values = {key: cells[index] for key, index in active.items() if isinstance(index, int)}
                 values["working"] = count
+                if re.fullmatch(r'\d+(?:\.\d+)?(?:[-–]\d+(?:\.\d+)?)?%', values.get('rpe', '')) and not values.get('load'):
+                    values['load'] = values['rpe']
                 values["substitutions"] = [cells[index] for index in active.get("substitutions", []) if cells[index]]
                 values["rirBySet"] = [cells[index] for index in active.get("rirColumns", [])]
                 if active["name"] > 0 and cells[0]:
@@ -114,19 +116,22 @@ def source_rows(document, folder=None):
         line_reader = runpy.run_path(str(Path(__file__).with_name("pdf-borderless-evidence.py")))["lines"]
         with pymupdf.open(Path(folder) / document["pdf"]) as pdf:
             for page in document["pages"]:
-                if not re.search(r"TAKE\s+THE\s+(?:FINAL|LAST)\s+SET\s+OF\s+EACH\s+EXERCISE\s+TO\s+FAILURE",
+                if not re.search(r"TAKE\s+THE\s+(?:FINAL|LAST)\s+SET\s+OF\s+EACH\s+EXERCISE\b",
                                  pdf[page["page"] - 1].get_text(), re.I):
                     continue
                 for baseline, tokens in line_reader(pdf[page["page"] - 1]):
                     text = " ".join(token["text"].strip() for token in tokens)
-                    if not re.fullmatch(r"TAKE THE (?:FINAL|LAST) SET OF EACH EXERCISE TO FAILURE", text, re.I):
+                    footer = re.fullmatch(r"\*?\s*TAKE THE (?:FINAL|LAST) SET OF EACH EXERCISE(?: EXCEPT (?P<except>.+?))? TO FAILURE[.!]?", text, re.I)
+                    if not footer:
                         continue
                     prior = [(index, table["bbox"][1]) for index, table in enumerate(page["tables"]) if table["bbox"][1] < baseline]
                     if not prior:
                         continue
                     table_index = max(prior, key=lambda item: item[1])[0]
+                    exception = re.sub(r'[^a-z0-9]', '', footer['except'].lower()) if footer['except'] else None
                     for row in result:
-                        if row["page"] == page["page"] and row["table"] == table_index:
+                        if row["page"] == page["page"] and row["table"] == table_index and (
+                                exception is None or re.sub(r'[^a-z0-9]', '', row['name'].lower()) != exception):
                             row["footer"] = text
     for page in document["pages"]:
         same_page = [row for row in result if row["page"] == page["page"]]
