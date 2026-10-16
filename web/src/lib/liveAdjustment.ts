@@ -75,7 +75,9 @@ const roundToGrid = (value: number, grid: LoadGrid, mode: 'floor' | 'nearest'): 
   }
   if (grid.stepKg <= 0) return value;
   const steps = value / grid.stepKg;
-  return Number((grid.stepKg * (mode === 'floor' ? Math.floor(steps + EPSILON) : Math.round(steps))).toFixed(4));
+  // The equipment cannot be set below its smallest step, and a zero load would make capacity / load infinite.
+  const whole = Math.max(1, mode === 'floor' ? Math.floor(steps + EPSILON) : Math.round(steps));
+  return Number((grid.stepKg * whole).toFixed(4));
 };
 
 type Plan = { low: number; high: number; goal: number };

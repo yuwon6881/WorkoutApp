@@ -1,8 +1,10 @@
-import { useMemo } from 'react';
-import { ArrowRight, Play } from 'lucide-react';
-import type { Bootstrap } from '../types';
+import { useMemo, useState, type ReactNode } from 'react';
+import { ArrowRight, Check, Play } from 'lucide-react';
+import type { Bootstrap, ProgramSummary } from '../types';
+import { ApiError, api } from '../lib/api';
 import { nextWorkout } from '../lib/nextWorkout';
 import { getPlannedMuscleCredits } from '../lib/programMuscles';
+import { passableRestDayId, programDayActionInput } from '../lib/programDayState';
 import { Button } from './ui/Button';
 import { MuscleThumb } from './MuscleThumb';
 import { WorkoutElapsed } from './WorkoutElapsed';
@@ -13,6 +15,8 @@ interface NextWorkoutHeroProps {
   onStart: (templateId: string) => void;
   onResume: () => void;
   onProgram: () => void;
+  /** Reloads the program after a change; without it the hero offers no action that changes the program. */
+  onChanged?: () => Promise<void>;
 }
 
 interface HeroStatusCardProps {
@@ -26,6 +30,9 @@ interface HeroStatusCardProps {
   actionLabel: string;
   actionVariant?: 'primary' | 'secondary';
   onAction: () => void;
+  /** An action that comes before the main one, such as passing a rest day. */
+  leadingAction?: ReactNode;
+  error?: string;
 }
 
 function HeroStatusCard({
@@ -38,7 +45,9 @@ function HeroStatusCard({
   description,
   actionLabel,
   actionVariant = 'secondary',
-  onAction
+  onAction,
+  leadingAction,
+  error
 }: HeroStatusCardProps) {
   return (
     <section className={`panel next-workout-hero ${variant ?? ''}`.trim()} aria-label={ariaLabel}>
@@ -57,11 +66,13 @@ function HeroStatusCard({
       </div>
 
       <div className="hero-footer">
+        {leadingAction}
         <Button variant={actionVariant} className="hero-action-btn" onClick={onAction}>
           {actionLabel}
           <ArrowRight size={15} aria-hidden="true" />
         </Button>
       </div>
+      {error && <p className="error-text hero-error" role="alert">{error}</p>}
     </section>
   );
 }
@@ -71,14 +82,32 @@ function RestDayHero({
   week,
   title = 'Rest & Recovery',
   description = 'Scheduled rest. Training resumes with your next planned workout.',
-  onProgram
+  onProgram,
+  pass
 }: {
   programName?: string;
   week?: number;
   title?: string;
   description?: string;
   onProgram: () => void;
+  /** The program and pending rest day to pass; absent when this view cannot change the program. */
+  pass?: { program: ProgramSummary; dayId: string; onChanged: () => Promise<void> };
 }) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+
+  async function passRestDay() {
+    if (!pass || busy) return;
+    setBusy(true);
+    setError('');
+    try {
+      await api.passProgramRestDay(pass.program.id, pass.dayId, programDayActionInput(pass.program));
+      await pass.onChanged();
+    } catch (failure) {
+      setError(failure instanceof ApiError || failure instanceof Error ? failure.message : 'Could not update this rest day.');
+    } finally { setBusy(false); }
+  }
+
   return (
     <HeroStatusCard
       ariaLabel="Scheduled rest day"
@@ -91,6 +120,13 @@ function RestDayHero({
       actionLabel="View program schedule"
       actionVariant="secondary"
       onAction={onProgram}
+      error={error}
+      leadingAction={pass ? (
+        <Button variant="primary" className="hero-action-btn" disabled={busy} onClick={() => void passRestDay()}>
+          <Check size={16} aria-hidden="true" />
+          {busy ? 'Passing rest day…' : 'Pass rest day'}
+        </Button>
+      ) : undefined}
     />
   );
 }
@@ -111,9 +147,13 @@ function HeroMuscles({ muscles }: { muscles: { muscle: string; sets: number }[] 
   );
 }
 
-export function NextWorkoutHero({ data, onStart, onResume, onProgram }: NextWorkoutHeroProps) {
+export function NextWorkoutHero({ data, onStart, onResume, onProgram, onChanged }: NextWorkoutHeroProps) {
   const activeWorkout = data.activeWorkout?.active ? data.activeWorkout : null;
   const program = data.activeProgram;
+  const passRest = (preferredId?: string) => {
+    const dayId = onChanged && program ? passableRestDayId(program, preferredId) : null;
+    return program && onChanged && dayId ? { program, dayId, onChanged } : undefined;
+  };
   const next = useMemo(() => nextWorkout(data), [data]);
 
   // If there's an active workout in progress, the hero is in "Resume" state
@@ -182,6 +222,7 @@ export function NextWorkoutHero({ data, onStart, onResume, onProgram }: NextWork
           programName={program?.name}
           title={next.name || 'Rest & Recovery'}
           onProgram={onProgram}
+          pass={passRest(next.id)}
         />
       );
     }
@@ -306,6 +347,7 @@ export function NextWorkoutHero({ data, onStart, onResume, onProgram }: NextWork
             title={`Week ${currentWeek} rest`}
             description="Scheduled rest week. Training resumes next week."
             onProgram={onProgram}
+            pass={passRest(pendingRest?.templateId)}
           />
         );
       }
@@ -316,6 +358,7 @@ export function NextWorkoutHero({ data, onStart, onResume, onProgram }: NextWork
             programName={program.name}
             week={currentWeek}
             onProgram={onProgram}
+            pass={passRest(pendingRest.templateId)}
           />
         );
       }

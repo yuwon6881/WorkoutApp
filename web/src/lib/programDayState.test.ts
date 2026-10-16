@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import type { ProgramProgressDay } from '../types';
-import { dayRowState, inProgressDayId, nextDayId } from './programDayState';
+import type { ProgramProgressDay, ProgramSummary } from '../types';
+import { dayRowState, inProgressDayId, nextDayId, passableRestDayId, programDayActionInput } from './programDayState';
 
 const day = (templateId: string, status: ProgramProgressDay['status'] = 'pending', isRestDay = false): ProgramProgressDay =>
   ({ templateId, status, isRestDay, position: 0 });
@@ -55,5 +55,39 @@ describe('program day row state', () => {
 
   it('reads skipped days as skipped even when they were once the running day', () => {
     expect(dayRowState(day('s', 'skipped'), undefined, 's')).toBe('skipped');
+  });
+});
+
+const programWith = (days: ProgramProgressDay[], overrides: Partial<ProgramSummary> = {}): ProgramSummary => ({
+  id: 'p', name: 'Program', weeks: 4, active: true, revision: 7, sourceImportId: null, days: [], completedTemplateIds: [], nextTemplateId: null,
+  progress: { runId: 'run-1', currentWeek: 2, currentAttempt: 3, passedDays: 0, totalDays: days.length, days }, ...overrides
+});
+
+describe('program day action input', () => {
+  it('names the revision, run, week and attempt the server checks, with a fresh idempotency id', () => {
+    const first = programDayActionInput(programWith([day('r', 'pending', true)]));
+    expect(first).toMatchObject({ revision: 7, runId: 'run-1', week: 2, attempt: 3 });
+    expect(first.idempotencyId).not.toBe(programDayActionInput(programWith([])).idempotencyId);
+  });
+
+  it('refuses a program whose week is not loaded', () => {
+    expect(() => programDayActionInput(programWith([], { progress: null }))).toThrow(/current program week/);
+  });
+});
+
+describe('passable rest day', () => {
+  const days = [day('t1', 'completed'), day('r1', 'pending', true), day('r2', 'pending', true)];
+
+  it('names the first pending rest day, or the preferred one when it is pending', () => {
+    expect(passableRestDayId(programWith(days))).toBe('r1');
+    expect(passableRestDayId(programWith(days), 'r2')).toBe('r2');
+  });
+
+  it('is absent when nothing can be passed', () => {
+    expect(passableRestDayId(programWith(days, { active: false }))).toBeNull();
+    expect(passableRestDayId(programWith(days, { progress: { ...programWith(days).progress!, runId: 'optimistic' } }))).toBeNull();
+    expect(passableRestDayId(programWith([day('t1', 'pending'), day('r1', 'completed', true)]))).toBeNull();
+    expect(passableRestDayId(programWith(days), 't1')).toBe('r1');
+    expect(passableRestDayId(null)).toBeNull();
   });
 });

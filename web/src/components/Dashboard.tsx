@@ -89,6 +89,7 @@ export function Dashboard({
             onStart={onStart ?? (() => onProgram())}
             onResume={onResume}
             onProgram={onProgram}
+            onChanged={onChanged}
           />
           <Suspense fallback={<ProgressStatsSkeleton />}>
             <ProgressStats week={calendarWeek} />

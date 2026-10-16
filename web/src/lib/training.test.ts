@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Session } from '../types';
-import { calculateEstimated1Rm, canComplete, completedSets, duration, finishBlocker, estimate1Rm, normalizeExerciseName, plannedSets, showActualRir, showClock, showDuration, showReps, showRpe, showRir, showTarget, showVolume, showWeight, toDisplay, toKg, validReps, validRpe } from './training';
+import { calculateEstimated1Rm, canComplete, completedSets, duration, finishBlocker, estimate1Rm, localDate, normalizeExerciseName, plannedSets, showActualRir, showClock, showDuration, showReps, showRpe, showRir, showTarget, showVolume, showWeight, toDisplay, toKg, validReps, validRpe } from './training';
 
 const set = (overrides: Partial<Session['exercises'][number]['sets'][number]> = {}) =>
   ({ id: 'set', position: 0, weightKg: 60, reps: 10, rpe: 8, done: true, warmup: false, ...overrides });
@@ -184,5 +184,13 @@ describe('finishBlocker', () => {
   it('needs a logged working set, so warm-ups alone and an untouched workout cannot finish', () => {
     expect(finishBlocker(withSets(set({ warmup: true }), set({ done: false })))).toMatch(/working set/);
     expect(finishBlocker(withSets(set({ done: false }), set({ done: false })))).toMatch(/working set/);
+  });
+});
+
+describe('localDate', () => {
+  it('writes the local calendar day as a padded, one-based YYYY-MM-DD', () => {
+    expect(localDate(new Date(2026, 8, 6, 23, 30))).toBe('2026-09-06');
+    expect(localDate(new Date(2027, 0, 1, 0, 5))).toBe('2027-01-01');
+    expect(localDate(new Date(2026, 11, 31))).toBe('2026-12-31');
   });
 });

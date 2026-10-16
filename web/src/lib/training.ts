@@ -130,7 +130,7 @@ export const duration = (session: Session): number => {
 
 export const localDate = (value: string | number | Date): string => {
   const date = value instanceof Date ? value : new Date(value);
-  return `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 };
 
 export function weekDays(offset = 0): Date[] {

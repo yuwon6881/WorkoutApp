@@ -432,3 +432,38 @@ describe('NextWorkoutHero', () => {
     expect(html).toContain('Explore workouts');
   });
 });
+
+describe('NextWorkoutHero rest day action', () => {
+  const restProgress = (days: ProgramProgressDay[]) => mockProgram({
+    progress: { runId: 'run-1', currentWeek: 2, currentAttempt: 1, passedDays: 0, totalDays: days.length, days }
+  });
+  const render = (data: ReturnType<typeof mockBootstrap>, onChanged?: () => Promise<void>) => renderToStaticMarkup(
+    React.createElement(NextWorkoutHero, { data, onStart: () => {}, onResume: () => {}, onProgram: () => {}, onChanged })
+  );
+  const rest: ProgramProgressDay = { templateId: 't-rest', status: 'pending', isRestDay: true, position: 3 };
+  const done: ProgramProgressDay = { templateId: 't-1', status: 'completed', isRestDay: false, position: 0 };
+
+  it('offers to pass a pending rest day beside the schedule link', () => {
+    const html = render(mockBootstrap({ nextWorkout: null, activeProgram: restProgress([done, rest]) }), async () => {});
+    expect(html).toContain('Pass rest day');
+    expect(html).toContain('View program schedule');
+  });
+
+  it('offers it for a rest-only week and for the next day being a rest day', () => {
+    const only = render(mockBootstrap({ nextWorkout: null, activeProgram: restProgress([rest]) }), async () => {});
+    expect(only).toContain('Week 2 rest');
+    expect(only).toContain('Pass rest day');
+    const next = render(mockBootstrap({
+      nextWorkout: { id: 't-rest', name: 'Rest', focus: '', week: 2, position: 3, exerciseCount: 0, isRestDay: true } as never,
+      activeProgram: restProgress([done, rest])
+    }), async () => {});
+    expect(next).toContain('Pass rest day');
+  });
+
+  it('offers nothing to change when the program cannot refresh, is inactive, or has no pending rest day', () => {
+    const data = mockBootstrap({ nextWorkout: null, activeProgram: restProgress([done, rest]) });
+    expect(render(data)).not.toContain('Pass rest day');
+    const inactive = mockBootstrap({ nextWorkout: null, activeProgram: { ...restProgress([done, rest]), active: false } });
+    expect(render(inactive, async () => {})).not.toContain('Pass rest day');
+  });
+});

@@ -3,7 +3,7 @@ import { CheckCircle2, Circle, CirclePlay, ChevronRight, Play, SkipForward } fro
 import type { DraftWorkout, Exercise, ImportDraft, ProgramProgressDay, ProgramSummary } from '../types';
 import { ApiError, api } from '../lib/api';
 import { dayTitle, isGenericDayTitle } from '../lib/dayTitle';
-import { dayRowState, inProgressDayId, nextDayId as findNextDayId } from '../lib/programDayState';
+import { dayRowState, inProgressDayId, nextDayId as findNextDayId, programDayActionInput } from '../lib/programDayState';
 import { applyExerciseEdit, countOccurrences, type ExerciseEditing, type UnsavedExercise } from '../lib/exerciseEditScope';
 import { Button } from './ui/Button';
 import { Modal } from './ui/Modal';
@@ -137,24 +137,13 @@ export function ProgramWeekChecklist({
     });
   }, [program.progress]);
 
-  function actionInput() {
-    if (!progress) throw new Error('The current program week is not available. Refresh and try again.');
-    return {
-      revision: program.revision,
-      runId: progress.runId,
-      week: progress.currentWeek,
-      attempt: progress.currentAttempt,
-      idempotencyId: crypto.randomUUID()
-    };
-  }
-
   async function passRest(day: ProgramProgressDay) {
     if (!progress || actionsBusy || progress.runId === 'optimistic' || !day.isRestDay || !program.active || day.status !== 'pending' || hasActiveWorkout) return;
     setOptimisticPassed(prev => new Set(prev).add(day.templateId));
     setBusyDay(day.templateId);
     setError('');
     try {
-      await api.passProgramRestDay(program.id, day.templateId, actionInput());
+      await api.passProgramRestDay(program.id, day.templateId, programDayActionInput(program));
       await onChanged();
     } catch (failure) {
       setOptimisticPassed(prev => {
@@ -171,7 +160,7 @@ export function ProgramWeekChecklist({
     setBusyDay(day.templateId);
     setError('');
     try {
-      await api.skipProgramWorkout(program.id, day.templateId, actionInput());
+      await api.skipProgramWorkout(program.id, day.templateId, programDayActionInput(program));
       await onChanged();
     } catch (failure) {
       setError(failure instanceof ApiError ? failure.message : failure instanceof Error ? failure.message : 'Could not skip this workout.');

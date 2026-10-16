@@ -112,6 +112,32 @@ describe('withLiveAdjustment', () => {
     expect(result.rpe).toBeNull();
     expect(result.weightKg).toBeLessThan(60);
   });
+
+  describe('near the smallest load the equipment can be set to', () => {
+    const smallest = () => draftWith([set('a', 0, 2.5, 10), set('b', 1, 2.5, 10)]);
+    const missBadly = { reps: 1, rpe: 10, rir: '0' };
+
+    it('never floors a step grid load to zero after a big miss', () => {
+      const result = withLiveAdjustment(logged(smallest(), 0, missBadly), 0, 0, grid, true, new Map()).exercises[0].sets[1];
+      expect(result.weightKg).toBe(2.5);
+      expect(result.reps).toBeGreaterThanOrEqual(8);
+      expect(result.reps).toBeLessThanOrEqual(12);
+    });
+
+    it('keeps a weight list load at its smallest entry after a big miss', () => {
+      const listGrid: LoadGrid = { stepKg: 2.5, availableLoadsKg: [2.5, 5, 7.5] };
+      const result = withLiveAdjustment(logged(smallest(), 0, missBadly), 0, 0, listGrid, true, new Map()).exercises[0].sets[1];
+      expect(result.weightKg).toBe(2.5);
+    });
+
+    it('never rounds an exact-target load to zero', () => {
+      const exact = plan({ repMin: 5, repMax: 5 });
+      const draft = draftWith([set('a', 0, 1.25, 5), set('b', 1, 1.25, 5)], exact);
+      const result = withLiveAdjustment(logged(draft, 0, { reps: 1, rpe: 10, rir: '0' }), 0, 0, grid, true, new Map()).exercises[0].sets[1];
+      expect(result.weightKg).toBeGreaterThan(0);
+      expect(Number.isFinite(result.reps)).toBe(true);
+    });
+  });
 });
 
 describe('targetReserve', () => {

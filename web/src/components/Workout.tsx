@@ -5,7 +5,7 @@ import type { SaveQueue } from '../lib/queue';
 import { completedSets, finishBlocker, plannedSets } from '../lib/training';
 import { withLoggedSetEdit, type FilledInputsLog } from '../lib/liveAdjustment';
 import { useTrackRir } from '../lib/trackRir';
-import { exerciseListChanged, indexAfterMove, withExerciseMoved, withServerFlags } from '../lib/workoutDraft';
+import { exerciseListChanged, indexAfterMove, indexAfterRemoval, withExerciseMoved, withServerFlags } from '../lib/workoutDraft';
 import { firstOpenExercise, nextUpText, type AdvanceOptions } from '../lib/workoutLogging';
 import { useAfterLog } from './useAfterLog';
 import { validateLoggedSet, validateSessionDraft } from '../lib/validation';
@@ -368,10 +368,10 @@ export function Workout({
 
   function removeExercise(ei: number) {
     const remaining = draft.exercises.filter((_, i) => i !== ei);
-    change({ ...draft, exercises: remaining });
-    if (activeIndex >= remaining.length) {
-      setActiveIndex(Math.max(0, remaining.length - 1));
-    }
+    // change() refuses an exercise-list edit offline or once finishing, so the open tab must stay put then.
+    const accepted = online && !finishIntentAt && !onlineFallback.hasPendingFinish();
+    void change({ ...draft, exercises: remaining });
+    if (accepted && activeIndex >= remaining.length) selectExercise(indexAfterRemoval(activeIndex, remaining.length));
   }
 
   const paused = Boolean(draft.pausedAt);

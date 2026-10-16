@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { LoggedSet, Session, SessionExercise } from '../types';
-import { blankPrescription, effortPatch, effortValue, exerciseListChanged, nextPendingSet, setNumberLabel, withSetAdded, withSetRemoved, withServerFlags, withSetRestored } from './workoutDraft';
+import { blankPrescription, effortPatch, effortValue, exerciseListChanged, nextPendingSet, setNumberLabel, indexAfterRemoval, withSetAdded, withSetRemoved, withServerFlags, withSetRestored } from './workoutDraft';
 
 function loggedSet(id: string, patch: Partial<LoggedSet> = {}): LoggedSet {
   return { id, position: 0, weightKg: 60, reps: 8, rpe: null, done: false, warmup: false, resistanceMode: 'external', ...patch };
@@ -72,6 +72,20 @@ describe('adding a set', () => {
     expect(added.prescription[0]).toMatchObject({ repMin: null, repMax: null, targetRpe: null, repsText: null });
   });
 
+  it('keeps the program reserve target on the added set', () => {
+    const planned = exercise('rir', [loggedSet('rir-1')]);
+    planned.prescription = [{ ...blankPrescription(), rir: '1-2' }];
+    const added = withSetAdded({ ...session, exercises: [planned] }, 0).exercises[0];
+    expect(added.prescription[1].rir).toBe('1-2');
+  });
+
+  it('does not carry a warm-up dash onto a working set', () => {
+    const warm = exercise('warm', [loggedSet('warm-1', { warmup: true })]);
+    warm.prescription = [{ ...blankPrescription(), warmup: true, rir: '-' }];
+    const added = withSetAdded({ ...session, exercises: [warm] }, 0).exercises[0];
+    expect(added.prescription[1]).toMatchObject({ warmup: false, rir: null });
+  });
+
   it('repeats the previous load and reps as an unlogged set', () => {
     const added = withSetAdded(session, 0).exercises[0];
     expect(added.sets).toHaveLength(4);
@@ -124,5 +138,14 @@ describe('withServerFlags', () => {
   it('returns the same draft when nothing changed', () => {
     const draft = session(false);
     expect(withServerFlags(draft, session(false))).toBe(draft);
+  });
+});
+
+describe('exercise removal navigation', () => {
+  it('keeps the open exercise unless it was the last one', () => {
+    expect(indexAfterRemoval(0, 2)).toBe(0);
+    expect(indexAfterRemoval(1, 2)).toBe(1);
+    expect(indexAfterRemoval(2, 2)).toBe(1);
+    expect(indexAfterRemoval(3, 0)).toBe(0);
   });
 });

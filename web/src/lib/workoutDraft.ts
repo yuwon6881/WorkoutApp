@@ -81,7 +81,9 @@ export function withSetAdded(draft: Session, exerciseIndex: number): Session {
           repMax: prevPlan ? prevPlan.repMax : timed ? null : 12,
           targetRpe: timed ? null : prevPlan?.targetRpe ?? 8,
           restSeconds: prevPlan?.restSeconds ?? 90, tempo: null, loadText: null, notes: null,
-          repsText: timed ? prevPlan?.repsText ?? null : null, restText: null, rir: null, warmup: false,
+          repsText: timed ? prevPlan?.repsText ?? null : null, restText: null,
+          // A warm-up's dash is not a working-set reserve, so only a working set's target carries over.
+          rir: timed || prevPlan?.warmup ? null : prevPlan?.rir ?? null, warmup: false,
           repsSource: 'userEdited', rpeSource: 'userEdited', restSource: 'userEdited', resistanceMode: mode
         }
       ]
@@ -132,6 +134,11 @@ export function indexAfterMove(active: number, from: number, to: number): number
   if (from < active && to >= active) return active - 1;
   if (from > active && to <= active) return active + 1;
   return active;
+}
+
+/// Which exercise is open once one has been taken out: the same position, or the new last one.
+export function indexAfterRemoval(active: number, remainingCount: number): number {
+  return Math.max(0, Math.min(active, remainingCount - 1));
 }
 
 function mapExercise(draft: Session, exerciseIndex: number, update: (exercise: SessionExercise) => SessionExercise): Session {

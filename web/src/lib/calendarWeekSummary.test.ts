@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { WorkoutActivityItem } from '../types';
-import { calendarWeekTotals } from './calendarWeekSummary';
+import { calendarWeekLabel, calendarWeekTotals } from './calendarWeekSummary';
 
 describe('calendar week totals', () => {
   const completed = (id: string, date: string, workingSets = 12, trainingMinutes = 30): WorkoutActivityItem =>
@@ -18,5 +18,15 @@ describe('calendar week totals', () => {
     expect(calendarWeekTotals([], '2026-10-12', '2026-10-18')).toEqual({ sessions: 0, workingSets: 0, trainingMinutes: 0 });
     expect(calendarWeekTotals([{ id: 'old', name: 'Old', date: '2026-10-14', status: 'completed' }], '2026-10-12', '2026-10-18'))
       .toEqual({ sessions: 1, workingSets: null, trainingMinutes: null });
+  });
+});
+
+describe('calendar week label', () => {
+  it('names the year once when the week stays inside it', () => {
+    expect(calendarWeekLabel('2026-10-12', '2026-10-18')).toBe('Oct 12 – Oct 18, 2026');
+  });
+
+  it('names both years when the week crosses New Year', () => {
+    expect(calendarWeekLabel('2026-12-28', '2027-01-03')).toBe('Dec 28, 2026 – Jan 3, 2027');
   });
 });

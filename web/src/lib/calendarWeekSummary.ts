@@ -16,5 +16,10 @@ export function calendarWeekTotals(activity: WorkoutActivityItem[], from: string
 
 export function calendarWeekLabel(from: string, to: string): string {
   const date = (day: string) => new Date(`${day}T12:00:00`);
-  return `${date(from).toLocaleDateString('en', { month: 'short', day: 'numeric' })} – ${date(to).toLocaleDateString('en', { month: 'short', day: 'numeric', year: 'numeric' })}`;
+  const start = date(from);
+  const end = date(to);
+  // A week spanning New Year would otherwise read as if both ends fell in the closing year.
+  const startOptions: Intl.DateTimeFormatOptions = start.getFullYear() === end.getFullYear()
+    ? { month: 'short', day: 'numeric' } : { month: 'short', day: 'numeric', year: 'numeric' };
+  return `${start.toLocaleDateString('en', startOptions)} – ${end.toLocaleDateString('en', { month: 'short', day: 'numeric', year: 'numeric' })}`;
 }

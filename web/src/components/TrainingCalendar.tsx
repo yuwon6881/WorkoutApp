@@ -2,7 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { Check, ChevronLeft, ChevronRight, RotateCcw } from 'lucide-react';
 import type { HistoryPage, ProgramSummary, Session, WorkoutActivityItem } from '../types';
 import { api } from '../lib/api';
-import { weekDays } from '../lib/training';
+import { localDate, weekDays } from '../lib/training';
 import { loadSessionDetail } from '../lib/sessionDetailLoad';
 import { prefetchView } from '../app/lazyViews';
 import { ProgramWeekCompletion } from './ProgramWeekCompletion';
@@ -20,9 +20,6 @@ interface TrainingCalendarProps {
   onWeekChange?: (week: CalendarWeekSummary) => void;
 }
 
-const localDay = (day: Date) =>
-  `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, '0')}-${String(day.getDate()).padStart(2, '0')}`;
-
 export function TrainingCalendar({ onSession, program, refreshKey, activeWorkoutId, accountId, onWeekChange }: TrainingCalendarProps) {
   const [offset, setOffset] = useState(0);
   const days = weekDays(offset);
@@ -31,8 +28,8 @@ export function TrainingCalendar({ onSession, program, refreshKey, activeWorkout
   const touchStart = useRef<{ x: number; y: number } | null>(null);
   const isTouching = useRef(false);
   const navigating = useRef(false);
-  const from = localDay(weekDays(offset - 1)[0]);
-  const to = localDay(weekDays(offset + 1)[6]);
+  const from = localDate(weekDays(offset - 1)[0]);
+  const to = localDate(weekDays(offset + 1)[6]);
   const readKey = `${accountId}:activity:${from}:${to}:${activeWorkoutId ?? ''}`;
   const [read, setRead] = useState<{ key: string; version: typeof refreshKey; items: WorkoutActivityItem[] } | null>(() => {
     const cached = viewReadCache.get<WorkoutActivityItem[]>(readKey, refreshKey);
@@ -41,8 +38,8 @@ export function TrainingCalendar({ onSession, program, refreshKey, activeWorkout
   const calendar = read?.items ?? [];
   const initialLoading = read?.key !== readKey || read.version !== refreshKey;
   const [calendarError, setCalendarError] = useState('');
-  const weekFrom = localDay(days[0]);
-  const weekTo = localDay(days[6]);
+  const weekFrom = localDate(days[0]);
+  const weekTo = localDate(days[6]);
   const weekSummary = useMemo<CalendarWeekSummary>(() => ({
     from: weekFrom, to: weekTo,
     totals: initialLoading ? null : calendarWeekTotals(calendar, weekFrom, weekTo)
@@ -172,7 +169,7 @@ export function TrainingCalendar({ onSession, program, refreshKey, activeWorkout
   })();
 
   const completed = calendar.filter(item => item.status === 'completed' &&
-    item.date >= localDay(days[0]) && item.date <= localDay(days[6]));
+    item.date >= localDate(days[0]) && item.date <= localDate(days[6]));
   return (
     <section className="panel training-calendar-card" aria-label="Training calendar">
       <div className="calendar-card-header">
@@ -241,14 +238,14 @@ export function TrainingCalendar({ onSession, program, refreshKey, activeWorkout
               aria-label={relativeWeek === 0 ? 'Days of the week' : relativeWeek < 0 ? 'Previous week days' : 'Next week days'}
             >
               {weekDays(offset + relativeWeek).map(day => {
-                const dayStr = localDay(day);
+                const dayStr = localDate(day);
                 const entries = entriesByDay.get(dayStr) ?? [];
                 const status = entries.some(e => e.status === 'in_progress')
                   ? 'in_progress'
                   : entries.some(e => e.status === 'completed')
                     ? 'completed'
                     : 'rest';
-                const isToday = dayStr === localDay(new Date());
+                const isToday = dayStr === localDate(new Date());
                 const label =
                   status === 'completed'
                     ? 'workout completed'
