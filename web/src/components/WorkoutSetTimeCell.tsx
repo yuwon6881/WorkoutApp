@@ -33,17 +33,9 @@ export function WorkoutSetTimeCell({
   const [modalOpen, setModalOpen] = useState(false);
   const running = useStopwatch(set.id);
   const now = useVisibleClock(running !== undefined && running.finishedSeconds === undefined && running.pausedAtMs === undefined);
-  const finished = running?.finishedSeconds;
 
   const [digits, setDigits] = useState<string>(() => secondsToClockDigits(set.durationSeconds));
   const clockInputRef = useRef<HTMLInputElement>(null);
-
-  // A countdown that ended (perhaps while this row was off screen) is written into the set once.
-  useEffect(() => {
-    if (finished === undefined) return;
-    const seconds = stopStopwatch(set.id);
-    if (seconds !== null) onChange(seconds);
-  }, [finished, set.id, onChange]);
 
   useEffect(() => {
     if (modalOpen && !running) {

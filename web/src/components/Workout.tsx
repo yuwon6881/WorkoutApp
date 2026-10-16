@@ -3,9 +3,9 @@ import type { Exercise, LoggedSet, Preferences, RestMutationInput, Session, Sess
 import { ApiError, api } from '../lib/api';
 import type { SaveQueue } from '../lib/queue';
 import { completedSets, finishBlocker, plannedSets } from '../lib/training';
-import { exerciseLoadGrid, withLiveAdjustment, type FilledInputsLog } from '../lib/liveAdjustment';
+import { withLoggedSetEdit, type FilledInputsLog } from '../lib/liveAdjustment';
 import { useTrackRir } from '../lib/trackRir';
-import { exerciseListChanged, indexAfterMove, loadIsEditable, withExerciseMoved, withServerFlags } from '../lib/workoutDraft';
+import { exerciseListChanged, indexAfterMove, withExerciseMoved, withServerFlags } from '../lib/workoutDraft';
 import { firstOpenExercise, nextUpText, type AdvanceOptions } from '../lib/workoutLogging';
 import { useAfterLog } from './useAfterLog';
 import { validateLoggedSet, validateSessionDraft } from '../lib/validation';
@@ -33,6 +33,8 @@ import { useWorkoutExerciseList } from './useWorkoutExerciseList';
 import { WorkoutConfirmModal } from './WorkoutConfirmModal';
 import { useFinishPlanUpdate } from './useFinishPlanUpdate';
 import { useStopwatchRecovery } from './useStopwatchRecovery';
+import { useFinishedSetTimers } from './useFinishedSetTimers';
+import { withFinishedSetTimers } from '../lib/finishedSetTimers';
 import { useWorkoutDrain } from './useWorkoutDrain';
 import { useWorkoutDrainSchedule } from './useWorkoutDrainSchedule';
 import { useAccountWorkoutCallbacks } from './useAccountWorkoutCallbacks';
@@ -142,7 +144,7 @@ export function Workout({
     setError('');
     setLocalStatus('Saving on this device…');
     const persist = changedSet
-      ? enqueueSetEdits(accountId, next, { activeIndex }, restMutation, restState)
+      ? enqueueSetEdits(accountId, next, { activeIndex }, restMutation, restState, changedSet.setId)
       : enqueueSave(accountId, next, { activeIndex });
     try {
       const record = await persist;
@@ -184,16 +186,8 @@ export function Workout({
     restState?: SessionRest | null
   ): Promise<boolean> {
     const exercise = draft.exercises[ei];
-    // A bodyweight movement has no load: its name, not a per-set choice, decides that.
-    if ('weightKg' in patch && (!exercise || !loadIsEditable(exercise))) return false;
-    const edited = {
-      ...draft,
-      exercises: draft.exercises.map((e, i) =>
-        i === ei ? { ...e, sets: e.sets.map((s, j) => (j === si ? { ...s, ...patch } : s)) } : e
-      )
-    };
-    // The sets after a logged one follow how it went, so they are saved in the same step.
-    const next = isLoggedResultEdit(patch) ? withLiveAdjustment(edited, ei, si, exerciseLoadGrid(exercise, exercises, preferences.unit), trackRir, filledInputs.current) : edited;
+    const next = withLoggedSetEdit(draft, ei, si, patch, exercises, preferences.unit, trackRir, filledInputs.current);
+    if (!next) return false;
     return change(next, { setId: exercise.sets[si].id, patch }, restMutation, restState);
   }
 
@@ -300,12 +294,13 @@ export function Workout({
   }
 
   async function finish() {
-    const validationError = validateSessionDraft(draft);
+    let finishingDraft = withFinishedSetTimers(draft);
+    const validationError = validateSessionDraft(finishingDraft);
     if (validationError) {
       setError(validationError);
       return;
     }
-    const blocker = finishBlocker(draft);
+    const blocker = finishBlocker(finishingDraft);
     if (blocker) { setError(blocker); return; }
     if (recoveryConflict) { setError('Resolve the workout version conflict before finishing.'); return; }
     setBusy(true);
@@ -318,16 +313,17 @@ export function Workout({
     }
       // The program update travels with the finish operation and commits atomically.
       if (!(await planUpdate.apply())) { setBusy(false); return; }
+      finishingDraft = withFinishedSetTimers(finishingDraft);
       const finishedAt = new Date().toISOString();
       if (!recovery) {
         if (!online) throw new Error('This browser cannot save the workout locally. Reconnect before finishing.');
         setLocalStatus('Device recovery is unavailable. Finishing directly with the server…');
-        const saved = await onlineFallback.finish(draft, false, planUpdate.input);
+        const saved = await onlineFallback.finish(finishingDraft, false, planUpdate.input);
         onFinish(saved);
         return;
       }
-      await enqueueSave(accountId, draft, { activeIndex });
-      const withFinish = await enqueueFinish(accountId, finishedAt, false, draft, planUpdate.input);
+      await enqueueSave(accountId, finishingDraft, { activeIndex });
+      const withFinish = await enqueueFinish(accountId, finishedAt, false, finishingDraft, planUpdate.input);
       clearStopwatches();
       onRecoveryChange(withFinish);
       setFinishIntentAt(finishedAt);
@@ -346,6 +342,8 @@ export function Workout({
       setConfirm(null);
     }
   }
+
+  useFinishedSetTimers(draft, change, draft.active && !finishIntentAt && !busy && !recoveryConflict);
 
   const { swapExercise, restoreExercise, restoreWorkout } = useWorkoutExerciseList({
     accountId, draft, online, finishIntentAt, queue, revision, serverSession, drain, setDraft, onSaved, onRecoveryChange, setBusy, setError
@@ -491,7 +489,3 @@ export function Workout({
     </Modal>
   );
 }
-
-/// Logging a set, or correcting one that is logged, can move the sets after it.
-const isLoggedResultEdit = (patch: Partial<LoggedSet>): boolean =>
-  patch.done === true || 'weightKg' in patch || 'reps' in patch || 'rpe' in patch || 'rir' in patch;

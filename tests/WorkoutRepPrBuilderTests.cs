@@ -6,6 +6,23 @@ namespace Workout.Tests;
 
 public class WorkoutRepPrBuilderTests
 {
+    [Theory]
+    [InlineData(12, false)]
+    [InlineData(13, true)]
+    public void Repeated_blocks_follow_exercise_order_and_count_the_canonical_exercise_once(int lastReps, bool lastPr)
+    {
+        var prior = Guid.NewGuid();
+        var current = Guid.NewGuid();
+        var first = Exposure(current, FirstFinish.AddDays(1), 0, 50, 12) with { ExercisePosition = 0 };
+        var second = Exposure(current, FirstFinish.AddDays(1), 1, 50, lastReps) with
+        { SessionExerciseId = Guid.NewGuid(), Position = 0, ExercisePosition = 1 };
+        var result = WorkoutRepPrBuilder.Build([second, Exposure(prior, FirstFinish, 0, 50, 10), first]);
+        Assert.True(result.Exercises[first.SessionExerciseId].IsPr);
+        Assert.Equal(lastPr, result.Exercises[second.SessionExerciseId].IsPr);
+        Assert.Equal(lastPr, result.Sets[second.SetId].IsPr);
+        Assert.Equal(1, result.SessionCounts[current]);
+    }
+
     private static readonly DateTime FirstFinish = new(2026, 9, 1, 10, 0, 0, DateTimeKind.Utc);
     private static readonly Guid ExerciseId = Guid.Parse("10000000-0000-0000-0000-000000000001");
 

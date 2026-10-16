@@ -660,7 +660,10 @@ public sealed partial class WorkoutService(
         Validation.Require(size is > 0 and <= 100, "Invalid page request.");
         var query = db.Workouts.AsNoTracking().Where(w => w.FinishedAt != null);
         if (beforeAt is { } cursorAt && beforeId is { } cursorId)
+        {
+            cursorAt = HistoryCursorTime.Utc(cursorAt);
             query = query.Where(w => w.FinishedAt < cursorAt || (w.FinishedAt == cursorAt && w.Id.CompareTo(cursorId) < 0));
+        }
         var rows = await query.OrderByDescending(w => w.FinishedAt).ThenByDescending(w => w.Id).Take(size + 1).ToListAsync(ct);
         var pageRows = rows.Take(size).ToList();
         var byId = await Views(pageRows, ct);

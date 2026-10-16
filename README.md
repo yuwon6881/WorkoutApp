@@ -132,6 +132,9 @@ decision. Passive status rows are regular content; only rows with an available a
   time so it still sounds with the screen off. If the browser closes the app outright, the timer
   is still correct on return and reports what was missed. The displayed remainder never exceeds
   the configured duration, including immediately after starting or extending rest.
+- A timed set's completed countdown is saved into its draft even while another exercise is open.
+  The duration survives recovery, but logging remains explicit: finishing a workout still leaves
+  out every unlogged set.
 - Programs run in phase order: finishing or explicitly skipping every training slot completes a
   phase, and the next Monday starts the following phase. The final phase moves the program to
   Completed; imported programs wait in Standby until scheduled and activated.

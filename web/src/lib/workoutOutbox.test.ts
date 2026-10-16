@@ -92,10 +92,13 @@ describe('durable workout operation replay', () => {
       revision: null,
       createdAt: '2026-09-21T08:01:00.000Z'
     }];
-    vi.mocked(api.patchWorkoutSet).mockResolvedValueOnce({ ...session, revision: 13 });
+    vi.mocked(api.patchWorkoutSet).mockRejectedValueOnce(new Error('rest response lost'))
+      .mockResolvedValueOnce({ ...session, revision: 13 });
     const handlers = { onSaved: vi.fn(), onFinished: vi.fn(), onConflict: vi.fn() };
 
+    await expect(drainWorkoutOutbox('account-1', session.id, () => session, handlers)).rejects.toThrow('rest response lost');
     await drainWorkoutOutbox('account-1', session.id, () => session, handlers);
+    expect(vi.mocked(api.patchWorkoutSet).mock.calls[1]).toEqual(vi.mocked(api.patchWorkoutSet).mock.calls[0]);
     expect(api.patchWorkoutSet).toHaveBeenCalledWith(session.id, 'set-1', {
       done: true,
       rest: { revision: 12, action: 'start', seconds: 90, generation: 'gen-1' },

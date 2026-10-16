@@ -6,6 +6,93 @@ import { pdf } from './pdfFixture';
 
 const USER = 'e2e-lifter';
 
+for (const [logHold, recoveryAvailable] of [[true, true], [false, true], [true, false]]) test(`off-screen countdown persists and finish respects explicit logging (logged=${logHold}, recovery=${recoveryAvailable})`, async ({ page }, info) => {
+  await signIn(page);
+  await clearTimerFixture(page);
+  if (!recoveryAvailable) await page.addInitScript(() => {
+    if (location.pathname.startsWith('/__e2e-cleanup-')) return;
+    Object.defineProperty(window, 'indexedDB', { get() { throw new DOMException('Storage denied by test', 'SecurityError'); } });
+  });
+  const headers = { 'X-Workout-Request': '1', Origin: new URL(page.url()).origin };
+  const name = `Offscreen hold ${info.project.name} ${Date.now()}`;
+  const created = await page.request.post('/api/exercises/custom', { headers, data: {
+    name, muscle: 'Core', equipment: 'Bodyweight', loadModel: 'reps_only', trackingMode: 'duration'
+  } });
+  expect(created.ok(), await created.text()).toBeTruthy();
+  const hold = await created.json();
+  let templateId: string | undefined;
+  let sessionId: string | undefined;
+  try {
+    const catalog = await (await page.request.get('/api/exercises')).json();
+    const bench = catalog.find((row: { slug: string }) => row.slug === 'barbell-bench-press')
+      ?? catalog.find((row: { trackingMode?: string }) => row.trackingMode !== 'duration');
+    const template = await page.request.post('/api/templates', { headers, data: {
+      name, focus: '', note: '', exercises: [
+        { exerciseId: hold.id, sourceName: name, sets: [{ repMin: null, repMax: null, repsText: '5 sec', targetRpe: 8, restSeconds: 0 }] },
+        { exerciseId: bench.id, sourceName: bench.name, sets: [{ repMin: 8, repMax: 8, targetRpe: 8, restSeconds: 0 }] }
+      ]
+    } });
+    expect(template.ok(), await template.text()).toBeTruthy();
+    templateId = (await template.json()).id;
+    const started = await page.request.post('/api/workouts', { headers, data: { templateId } });
+    expect(started.ok(), await started.text()).toBeTruthy();
+    const session = await started.json();
+    sessionId = session.id;
+    await page.goto('/');
+    if (!recoveryAvailable) await page.getByRole('button', { name: `Resume ${name}`, exact: true }).click();
+    let sheet = page.getByRole('dialog', { name, exact: true });
+    await sheet.locator('.time-cell input').click();
+    await page.getByRole('dialog', { name: 'Set duration' }).getByRole('button', { name: 'Start 0:05 timer', exact: true }).click();
+    await sheet.getByRole('tab', { name: `${bench.name}, 0 of 1 sets completed`, exact: true }).click();
+    await expect(sheet.locator('.time-cell input')).toHaveCount(0);
+    await expect.poll(async () => {
+      const saved = await (await page.request.get(`/api/workouts/${sessionId}`)).json();
+      return saved.exercises[0].sets[0].durationSeconds;
+    }, { timeout: 25000 }).toBe(5);
+    const unlogged = await (await page.request.get(`/api/workouts/${sessionId}`)).json();
+    expect(unlogged.exercises[0].sets[0].done).toBe(false);
+    await page.reload();
+    if (!recoveryAvailable) await page.getByRole('button', { name: `Resume ${name}`, exact: true }).click();
+    sheet = page.getByRole('dialog', { name, exact: true });
+    await sheet.getByRole('tab', { name: `${name}, 0 of 1 sets completed`, exact: true }).click();
+    await expect(sheet.locator('.time-cell input')).toHaveValue('0:05');
+    await sheet.screenshot({ path: info.outputPath('completed-hold.png') });
+    if (logHold) await sheet.getByRole('button', { name: `Log ${name} set 1`, exact: true }).click();
+    await sheet.getByRole('tab', { name: `${bench.name}, 0 of 1 sets completed`, exact: true }).click();
+    await sheet.getByRole('button', { name: `Log ${bench.name} set 1`, exact: true }).click();
+    await expect.poll(async () => {
+      const saved = await (await page.request.get(`/api/workouts/${sessionId}`)).json();
+      return saved.exercises.find((exercise: { exerciseId: string }) => exercise.exerciseId === bench.id)?.sets[0].done;
+    }).toBe(true);
+    await expect(sheet).toBeVisible();
+    if (logHold) await sheet.getByRole('button', { name: 'Finish workout', exact: true }).click();
+    else {
+      await sheet.getByRole('button', { name: 'Workout options', exact: true }).click();
+      await page.getByRole('menuitem', { name: 'Finish workout', exact: true }).click();
+    }
+    await page.getByRole('dialog', { name: 'Finish your workout?', exact: true }).getByRole('button', { name: 'Save workout', exact: true }).click();
+    await expect.poll(async () => (await (await page.request.get(`/api/workouts/${sessionId}`)).json()).active).toBe(false);
+    const finished = await (await page.request.get(`/api/workouts/${sessionId}`)).json();
+    const savedHold = finished.exercises.find((exercise: { exerciseId: string }) => exercise.exerciseId === hold.id);
+    if (logHold) expect(savedHold.sets[0]).toMatchObject({ done: true, durationSeconds: 5 });
+    else expect(savedHold).toBeUndefined();
+  } finally {
+    await clearTimerFixture(page);
+    if (sessionId) await page.request.delete(`/api/workouts/${sessionId}`, { headers });
+    if (templateId) await page.request.delete(`/api/templates/${templateId}`, { headers });
+    await page.request.delete(`/api/exercises/custom/${hold.id}`, { headers });
+  }
+});
+
+async function clearTimerFixture(page: Page) {
+  try { await clearActiveWorkout(page); }
+  catch (failure) {
+    if (!String(failure).includes('ERR_ABORTED')) throw failure;
+    // The PWA's initial claim can supersede this fixture navigation once.
+    await clearActiveWorkout(page);
+  }
+}
+
 test('audit regression: running timed sets log directly and zero reps stay out of the draft', async ({ page }, info) => {
   await signIn(page);
   await clearActiveWorkout(page);

@@ -2,7 +2,7 @@ import type { Exercise, LoggedSet, Session, SessionExercise, SetPrescription, Un
 import { defaultLoadStepKg } from './training';
 import { loadEntryFor } from './resistanceVariant';
 import { isTimedExercise } from './setDuration';
-import { effortPatch, effortValue } from './workoutDraft';
+import { effortPatch, effortValue, loadIsEditable } from './workoutDraft';
 import { setKind } from './workoutSetTypes';
 
 /// The loads a piece of equipment can actually be set to: a weight list, else multiples of a step.
@@ -17,6 +17,17 @@ export function exerciseLoadGrid(exercise: SessionExercise, catalog: Exercise[],
 /// its own fill from something the lifter typed.
 export type FilledInputs = { weightKg: number | null; reps: number | null; rpe: number | null; rir: string | null };
 export type FilledInputsLog = Map<string, FilledInputs>;
+
+/** A result edit and the following straight-set adjustments form one draft change. */
+export function withLoggedSetEdit(draft: Session, ei: number, si: number, patch: Partial<LoggedSet>,
+  catalog: Exercise[], unit: Unit, trackRir: boolean, filled: FilledInputsLog): Session | null {
+  const exercise = draft.exercises[ei];
+  if (!exercise?.sets[si] || ('weightKg' in patch && !loadIsEditable(exercise))) return null;
+  const edited = { ...draft, exercises: draft.exercises.map((item, index) => index === ei
+    ? { ...item, sets: item.sets.map((set, setIndex) => setIndex === si ? { ...set, ...patch } : set) } : item) };
+  const isResult = patch.done === true || 'weightKg' in patch || 'reps' in patch || 'rpe' in patch || 'rir' in patch;
+  return isResult ? withLiveAdjustment(edited, ei, si, exerciseLoadGrid(exercise, catalog, unit), trackRir, filled) : edited;
+}
 
 const DEFAULT_RESERVE = 2;
 /// How many reps a logged set must be off the plan, at the planned load, before the sets after it

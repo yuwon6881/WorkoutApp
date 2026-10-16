@@ -15,7 +15,8 @@ internal sealed record WorkoutRepExposure(
     string ResistanceMode,
     double? WeightKg,
     double? SystemLoadKg,
-    int? Reps);
+    int? Reps,
+    int ExercisePosition = 0);
 
 internal sealed record RepPrLoadKey(string LoadModel, string ResistanceMode, string Value, double? LoadKg);
 
@@ -66,7 +67,7 @@ internal static class WorkoutRepPrBuilder
                 var setPrs = new Dictionary<Guid, int>();
                 var sessionMaxima = new Dictionary<(string LoadModel, string ResistanceMode, string Load), int>();
 
-                foreach (var set in exercise.OrderBy(x => x.Position))
+                foreach (var set in exercise.OrderBy(x => x.ExercisePosition).ThenBy(x => x.Position).ThenBy(x => x.SetId))
                 {
                     if (set.Reps is not > 0 || LoadKey(set.LoadModel, set.ResistanceMode, set.WeightKg, set.SystemLoadKg) is not { } load)
                         continue;
@@ -91,9 +92,12 @@ internal static class WorkoutRepPrBuilder
 
                 var isPr = setPrs.Count > 0;
                 if (isPr) sessionCount++;
-                var exerciseId = exercise.First().SessionExerciseId;
-                var kind = isPr ? "reps" : null;
-                exercises[exerciseId] = (isPr, kind, isPr ? setPrs.Values.Max() : null);
+                foreach (var block in exercise.GroupBy(x => x.SessionExerciseId))
+                {
+                    var blockRecords = block.Where(x => setPrs.ContainsKey(x.SetId)).Select(x => setPrs[x.SetId]).ToList();
+                    var blockPr = blockRecords.Count > 0;
+                    exercises[block.Key] = (blockPr, blockPr ? "reps" : null, blockPr ? blockRecords.Max() : null);
+                }
                 foreach (var set in exercise)
                 {
                     var isSetPr = setPrs.TryGetValue(set.SetId, out var reps);

@@ -129,7 +129,8 @@ export async function enqueueSetEdits(
   draft: Session,
   navigation: { activeIndex: number },
   restMutation?: RestMutationInput | null,
-  restState?: SessionRest | null
+  restState?: SessionRest | null,
+  targetSetId?: string
 ): Promise<WorkoutRecoveryRecord> {
   return serializeWrite(accountId, async () => {
     const record = await requireRecovery(accountId, draft.id);
@@ -143,8 +144,10 @@ export async function enqueueSetEdits(
     // Set-only edits use PATCH, so a delayed client cannot replace unrelated server state. If a
     // note or exercise edit is also waiting in a draft, the full-save operation carries it too.
     const previousFullSave = [...record.operations].reverse().find((operation): operation is Extract<WorkoutOperation, { type: 'save' }> => operation.type === 'save');
-    if (!sameWorkoutNonSetEdits(record.serverSession, draft) ||
-      (previousFullSave && !sameWorkoutNonSetEdits(previousFullSave.draft, draft))) {
+    const needsFullSave = !sameWorkoutNonSetEdits(record.serverSession, draft) ||
+      (previousFullSave && !sameWorkoutNonSetEdits(previousFullSave.draft, draft));
+    const canPatchRestTarget = restMutation && targetSetId && record.serverSession.exercises.some(exercise => exercise.sets.some(set => set.id === targetSetId));
+    if (needsFullSave && !canPatchRestTarget) {
       const tail = record.operations.at(-1);
       if (tail?.type === 'save' && tail.revision === null) tail.draft = draft;
       else record.operations.push({ id: crypto.randomUUID(), type: 'save', draft, revision: null, createdAt: record.updatedAt });
@@ -172,13 +175,27 @@ export async function enqueueSetEdits(
       }
     }
     if (restMutation) {
-      const lastOp = record.operations.at(-1);
-      if (lastOp && lastOp.type === 'setPatch' && lastOp.revision === null) {
-        lastOp.rest = restMutation;
+      const target = [...record.operations].reverse().find(operation => operation.type === 'setPatch' && operation.setId === targetSetId);
+      const alreadyAttached = target?.type === 'setPatch' && JSON.stringify(target.rest) === JSON.stringify(restMutation);
+      if (alreadyAttached) {
+        // Repeating an already-queued intent must keep its original mutation identity.
+      } else if (target?.type === 'setPatch' && target.revision === null && !target.rest) {
+        target.rest = restMutation;
       } else {
-        record.operations.push({ id: crypto.randomUUID(), type: 'rest', rest: restMutation, revision: null, createdAt: record.updatedAt });
+        // A bound request is immutable; a new intent needs its own identity even if the set
+        // values are identical. Keep the rest and set together across an uncertain response.
+        const set = draft.exercises.flatMap(exercise => exercise.sets).find(set => set.id === targetSetId);
+        if (set && canPatchRestTarget) {
+          const { weightKg, reps, durationSeconds, rpe, rir, done, warmup, resistanceMode } = set;
+          record.operations.push({ id: crypto.randomUUID(), type: 'setPatch', setId: set.id,
+            patch: { weightKg, reps, durationSeconds: durationSeconds ?? null, rpe, rir: rir ?? null, done, warmup, resistanceMode },
+            rest: restMutation, revision: null, createdAt: record.updatedAt });
+        } else record.operations.push({ id: crypto.randomUUID(), type: 'rest', rest: restMutation, revision: null, createdAt: record.updatedAt });
       }
     }
+    // When a note is also pending, commit set/rest first rather than logging through a full
+    // save ahead of the atomic patch. Do not coalesce this save into an earlier operation.
+    if (needsFullSave) record.operations.push({ id: crypto.randomUUID(), type: 'save', draft, revision: null, createdAt: record.updatedAt });
     await putRecord(record);
     return record;
   });

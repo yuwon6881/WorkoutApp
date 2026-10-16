@@ -15,7 +15,7 @@ vi.mock('./recoveryStorage', () => ({
   })
 }));
 
-const { adoptServerSession, enqueueFinish, enqueueTiming, enqueueRest, enqueueSetEdits, getRecovery, refreshRecovery, saveStopwatches, startRecovery } = await import('./workoutRecovery');
+const { adoptServerSession, bindOperation, enqueueFinish, enqueueTiming, enqueueRest, enqueueSetEdits, getRecovery, refreshRecovery, saveStopwatches, startRecovery } = await import('./workoutRecovery');
 
 const session = (patch: Partial<Session> = {}): Session => ({
   id: 'workout-1', templateId: 'day-1', programId: null, name: 'Push', note: '', active: true,
@@ -88,6 +88,53 @@ describe('device recovery after a direct server change', () => {
 });
 
 describe('timed sets in device recovery', () => {
+  it('keeps an uncertain set/rest request exact and gives a new rest intent a new patch identity', async () => {
+    const edited = session();
+    edited.exercises[0].sets[0].done = true;
+    const rest = { revision: 2, action: 'start' as const, generation: 'first', seconds: 90 };
+    const initial = await enqueueSetEdits('account', edited, { activeIndex: 0 }, rest, undefined, 'set-1');
+    const id = initial.operations[0].id;
+    await bindOperation('account', id, 2);
+    const retry = await enqueueSetEdits('account', edited, { activeIndex: 0 }, rest, undefined, 'set-1');
+    expect(retry.operations).toHaveLength(1);
+    expect(retry.operations[0]).toMatchObject({ id, rest, revision: 2 });
+    const nextRest = { ...rest, generation: 'second' };
+    const later = await enqueueSetEdits('account', edited, { activeIndex: 0 }, nextRest, undefined, 'set-1');
+    expect(later.operations).toHaveLength(2);
+    expect(later.operations[0]).toMatchObject({ id, rest, revision: 2 });
+    expect(later.operations[1]).toMatchObject({ type: 'setPatch', setId: 'set-1', rest: nextRest, revision: null });
+    expect(later.operations[1].id).not.toBe(id);
+  });
+
+  it('commits the logged set and rest before a pending note full save', async () => {
+    const edited = session({ note: 'Also changed a note' });
+    edited.exercises[0].sets[0].done = true;
+    const rest = { revision: 2, action: 'start' as const, generation: 'first', seconds: 90 };
+    const record = await enqueueSetEdits('account', edited, { activeIndex: 0 }, rest, undefined, 'set-1');
+    expect(record.operations.map(operation => operation.type)).toEqual(['setPatch', 'save']);
+    expect(record.operations[0]).toMatchObject({ setId: 'set-1', rest, patch: { done: true } });
+    expect(record.operations[1]).toMatchObject({ draft: { note: edited.note } });
+  });
+
+  it('attaches rest to the logged set even when live adjustment changes later sets', async () => {
+    const original = session();
+    original.exercises[0].sets.push({ ...original.exercises[0].sets[0], id: 'set-2', position: 1 });
+    await startRecovery({ accountId: 'account', displayName: '', sessionId: original.id, draft: original,
+      serverSession: original, preferences: { unit: 'kg', theme: 'dark', restAlerts: false }, activeIndex: 0 });
+    const edited = structuredClone(original);
+    edited.exercises[0].sets[0].done = true;
+    edited.exercises[0].sets[1].weightKg = 65;
+    const rest = { revision: 2, action: 'start' as const, generation: 'logged-1', seconds: 90 };
+    const record = await enqueueSetEdits('account', edited, { activeIndex: 0 }, rest, undefined, 'set-1');
+    expect(record.operations).toHaveLength(2);
+    expect(record.operations[0]).toMatchObject({ type: 'setPatch', setId: 'set-1', rest });
+    expect(record.operations[1]).not.toHaveProperty('rest');
+    const id = record.operations[0].id;
+    edited.exercises[0].sets[1].weightKg = 70;
+    const later = await enqueueSetEdits('account', edited, { activeIndex: 0 });
+    expect(later.operations[0]).toMatchObject({ id, rest });
+  });
+
   it('keeps only running stopwatches that belong to this workout', async () => {
     await saveStopwatches('account', 'workout-1', {
       'set-1': { startedAtMs: 1, baseSeconds: 0, targetSeconds: 30 },

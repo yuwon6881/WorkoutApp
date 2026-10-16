@@ -64,6 +64,7 @@ public static class WorkoutViewBuilder
                                      e.LoadModel,
                                      s.ResistanceMode,
                                      SessionExerciseId = e.Id,
+                                     ExercisePosition = e.Position,
                                      SetId = s.Id,
                                      s.Position,
                                      s.WeightKg,
@@ -83,7 +84,7 @@ public static class WorkoutViewBuilder
 
         var repBests = WorkoutRepPrBuilder.Build(allDoneSets.Select(x => new WorkoutRepExposure(
             x.SessionId, x.FinishedAt!.Value, x.StartedAt, PrKey(x.ExerciseId, x.NameSnapshot), x.SessionExerciseId,
-            x.SetId, x.Position, x.LoadModel, x.ResistanceMode, x.WeightKg, x.SystemLoadKg, x.Reps)), baseline?.Reps);
+            x.SetId, x.Position, x.LoadModel, x.ResistanceMode, x.WeightKg, x.SystemLoadKg, x.Reps, x.ExercisePosition)), baseline?.Reps);
         var sessionsChronological = allDoneSets
             .GroupBy(x => new { x.SessionId, x.FinishedAt, x.StartedAt })
             .OrderBy(g => g.Key.FinishedAt)
@@ -96,7 +97,8 @@ public static class WorkoutViewBuilder
             var sId = sessionGroup.Key.SessionId;
             var prCount = repBests.SessionCounts.GetValueOrDefault(sId);
 
-            var exerciseGroups = sessionGroup.GroupBy(x => StrengthKey(x.ExerciseId, x.NameSnapshot, x.LoadModel));
+            var exerciseGroups = sessionGroup.OrderBy(x => x.ExercisePosition).ThenBy(x => x.Position).ThenBy(x => x.SetId)
+                .GroupBy(x => StrengthKey(x.ExerciseId, x.NameSnapshot, x.LoadModel));
             foreach (var exGroup in exerciseGroups)
             {
                 var key = exGroup.Key;
@@ -136,22 +138,23 @@ public static class WorkoutViewBuilder
                     }
                 }
 
-                var (isRepPr, repPrKind, maxPrReps) = repBests.Exercises.GetValueOrDefault(
-                    exGroup.First().SessionExerciseId, (false, null, null));
-
-                var isExPr = isE1rmPr || isRepPr;
+                var isRepPr = exGroup.Any(x => repBests.Sets.GetValueOrDefault(x.SetId).IsPr);
                 if (isE1rmPr && !isRepPr) prCount++;
 
-                var sessionExerciseId = exGroup.First().SessionExerciseId;
-                string? exPrKind = (isE1rmPr, isRepPr) switch
+                foreach (var block in exGroup.GroupBy(x => x.SessionExerciseId))
                 {
-                    (true, true) => "both",
-                    (true, false) => "e1rm",
-                    (false, true) => repPrKind,
-                    _ => null
-                };
-
-                exercisePrs[sessionExerciseId] = (isExPr, sessionMax > 0 ? sessionMax : null, exPrKind, maxPrReps);
+                    var blockE1rmPr = isE1rmPr && block.Any(x => x.SetId == bestSetId);
+                    var (blockRepPr, repPrKind, maxPrReps) = repBests.Exercises.GetValueOrDefault(block.Key, (false, null, null));
+                    var blockMax = block.Max(x => setEstimates.GetValueOrDefault(x.SetId));
+                    string? kind = (blockE1rmPr, blockRepPr) switch
+                    {
+                        (true, true) => "both",
+                        (true, false) => "e1rm",
+                        (false, true) => repPrKind,
+                        _ => null
+                    };
+                    exercisePrs[block.Key] = (blockE1rmPr || blockRepPr, blockMax > 0 ? blockMax : null, kind, maxPrReps);
+                }
 
                 foreach (var s in exGroup)
                 {
