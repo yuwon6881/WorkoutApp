@@ -7,7 +7,7 @@
   color: var(--accent);
   background: var(--accent-soft);
   border: 1px solid var(--accent-border);
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-control);
   font-weight: 650;
   transition: background-color var(--motion-control) ease, border-color var(--motion-control) ease, color var(--motion-control) ease;
 }
@@ -110,7 +110,7 @@
 .picker-show-all-btn {
   min-height: 44px;
   font-size: var(--font-secondary, 14px) !important;
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-control);
 }
 @media (min-width: 1024px) {
   .picker-show-all-btn {

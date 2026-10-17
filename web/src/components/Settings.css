@@ -87,7 +87,7 @@
 .settings-nav-list {
   display: grid;
   gap: 4px;
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-control);
 }
 
 .settings-nav-list > .button {
@@ -99,7 +99,7 @@
   font-weight: 550;
   color: var(--muted);
   background: transparent;
-  border-radius: var(--radius-pill);
+  border-radius: calc(var(--radius-control) - 3px);
   position: relative;
   z-index: 1;
   transition: color var(--motion-control) ease, background-color var(--motion-control) ease;
@@ -121,7 +121,7 @@
 
 .settings-nav-list.selection-indicator .selection-indicator-marker {
   border: 0;
-  border-radius: var(--radius-pill);
+  border-radius: calc(var(--radius-control) - 3px);
   background: var(--surface);
   box-shadow: var(--shadow);
 }
@@ -344,7 +344,7 @@
     padding: 0 11px;
     gap: 6px;
     border: 1px solid var(--border);
-    border-radius: var(--radius-pill, 999px);
+    border-radius: calc(var(--radius-control) - 3px);
     white-space: nowrap;
   }
   .settings-nav-list > .button.is-current { border-color: var(--accent-border-strong); background: var(--accent-soft); color: var(--accent); font-weight: 650; }

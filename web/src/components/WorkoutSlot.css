@@ -19,7 +19,7 @@
   padding: 16px 20px;
   margin-bottom: 20px;
   border: 1.5px dashed var(--border);
-  border-radius: 18px;
+  border-radius: 12px;
   background: var(--surface-raised);
   text-align: left;
   color: var(--muted);
@@ -86,7 +86,7 @@
 
 .slot-library-zone {
   border: 1.5px dashed transparent;
-  border-radius: 18px;
+  border-radius: 12px;
 }
 
 .slot-library-zone.slot-zone-over {
@@ -278,7 +278,7 @@
   gap: 12px;
   padding: 14px 16px;
   border: 1px solid var(--border);
-  border-radius: 16px;
+  border-radius: 12px;
   background: var(--surface-raised);
 }
 

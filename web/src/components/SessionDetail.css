@@ -252,7 +252,7 @@
   min-width: 0;
   padding: 10px 10px 12px;
   border: 1px solid var(--border);
-  border-radius: 16px;
+  border-radius: 12px;
   background: var(--surface-raised);
   scroll-snap-align: start;
   text-align: center;

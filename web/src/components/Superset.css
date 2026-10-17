@@ -6,7 +6,7 @@
    and a 3px accent rail down the left edge joining the cards. */
 .superset-block {
   position: relative;
-  border-radius: 22px;
+  border-radius: 14px;
   background: color-mix(in srgb, var(--accent) 6%, transparent);
   border: none;
   outline: none;

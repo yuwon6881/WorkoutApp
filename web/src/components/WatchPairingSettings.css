@@ -52,7 +52,7 @@
   align-items: center;
   gap: 14px;
   padding: 14px 16px;
-  border-radius: 16px;
+  border-radius: 12px;
   background: var(--surface-raised);
   border: 1px solid var(--border);
 }
@@ -91,7 +91,7 @@
   gap: 8px;
   margin: 16px 0 0;
   padding: 14px 16px;
-  border-radius: 14px;
+  border-radius: 10px;
   border: 1px dashed var(--border-hover);
   color: var(--muted);
   font-size: var(--font-secondary);

@@ -251,7 +251,7 @@
   margin: 0;
   clip: auto;
 }
-.set-grid-list.import-sets { gap: 0; border: 1px solid var(--border); border-radius: 14px; overflow: hidden; }
+.set-grid-list.import-sets { gap: 0; border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
 .set-grid-wrap .import-set-swipe-row,
 .set-grid-wrap .import-set.warmup-row .import-set-swipe-row {
   border: 0;

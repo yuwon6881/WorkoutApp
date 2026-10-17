@@ -65,7 +65,7 @@
   min-height: 40px;
   padding: 0 14px;
   border: 1px solid var(--control-border);
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-control);
   background: var(--surface-raised);
   color: var(--text);
   font-weight: 600;
@@ -285,7 +285,7 @@
   width: 100%;
   min-height: 44px;
   border: 1px solid var(--border);
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-control);
   background: var(--surface-raised);
   color: var(--text);
   font-weight: 650;

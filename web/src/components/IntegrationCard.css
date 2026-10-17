@@ -27,7 +27,7 @@
   place-items: center;
   width: 44px;
   height: 44px;
-  border-radius: 14px;
+  border-radius: 10px;
   background: var(--accent-soft);
   border: 1px solid var(--accent-border);
   color: var(--accent);
@@ -111,7 +111,7 @@
 .integration-stream {
   margin-top: 18px;
   padding: 0 18px;
-  border-radius: 16px;
+  border-radius: 12px;
   background: var(--surface-raised);
   border: 1px solid var(--border);
 }

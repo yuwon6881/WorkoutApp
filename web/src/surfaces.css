@@ -24,8 +24,8 @@ h2{font-weight:680;letter-spacing:-.022em}
 .modal::backdrop{backdrop-filter:blur(6px)}
 @media(max-width:639px){.modal,.modal.wide{border-radius:var(--radius-modal) var(--radius-modal) 0 0}}
 
-/* Buttons: pills. Primary carries the accent glow on hover only. */
-.button{border-radius:var(--radius-pill);font-weight:620;transition:background-color var(--motion-control) ease,border-color var(--motion-control) ease,color var(--motion-control) ease,box-shadow var(--motion-control) ease,transform var(--motion-control) var(--motion-ease)}
+/* Buttons: the control radius, matching fields. Primary carries the accent glow on hover only. */
+.button{border-radius:var(--radius-control);font-weight:620;transition:background-color var(--motion-control) ease,border-color var(--motion-control) ease,color var(--motion-control) ease,box-shadow var(--motion-control) ease,transform var(--motion-control) var(--motion-ease)}
 .button.primary{font-weight:680;letter-spacing:-.005em;border-color:var(--accent)}
 @media (hover:hover) and (pointer:fine){.button.primary:hover:not(:disabled){box-shadow:var(--shadow-raised);transform:translateY(-1px)}}
 .button.primary:active:not(:disabled){transform:scale(.98);box-shadow:none}
@@ -51,5 +51,5 @@ input:not([type=checkbox]):not([type=radio]):not([type=range]):focus,select:focu
 /* Phones: leave room for the floating dock and its raised action. */
 @media(max-width:639px){.workspace{padding-bottom:calc(104px + env(safe-area-inset-bottom,0px))}}
 
-/* Toasts and the update offer read as floating pills. */
-.toast,.update-banner{border-radius:var(--radius-pill);box-shadow:var(--shadow-float)}
+/* Toasts and the update offer float as small cards. */
+.toast,.update-banner{border-radius:var(--radius);box-shadow:var(--shadow-float)}

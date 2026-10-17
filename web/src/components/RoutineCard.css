@@ -71,7 +71,7 @@
   min-height: 44px;
   margin: 0;
   padding: 0;
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-control);
   color: var(--muted);
 }
 
@@ -149,7 +149,7 @@
   width: 100%;
   min-height: 44px;
   margin-top: 2px;
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-control);
   font-weight: 680;
   letter-spacing: -0.005em;
 }

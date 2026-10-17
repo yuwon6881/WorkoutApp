@@ -9,7 +9,7 @@
 
 .google-health-disclosure .disclosure-points li {
   padding: 14px 16px;
-  border-radius: 16px;
+  border-radius: 12px;
   background: var(--surface-raised);
   border: 1px solid var(--border);
 }

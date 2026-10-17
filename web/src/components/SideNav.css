@@ -213,7 +213,7 @@
     width: 100%;
     min-height: 48px;
     height: 48px;
-    border-radius: var(--radius-pill);
+    border-radius: var(--radius-control);
     padding: 0 16px;
     gap: 8px;
     font-size: 15px;
@@ -238,7 +238,7 @@
   .app-shell > .sidebar .selection-indicator-marker,
   .app-shell > .sidebar .nav-item,
   .app-shell > .sidebar .sidebar-bottom .nav-item {
-    border-radius: var(--radius-pill);
+    border-radius: var(--radius-control);
   }
 
   .app-shell > .sidebar .nav-item {
@@ -269,7 +269,7 @@
     min-height: 52px;
     padding: 6px 12px;
     margin-top: 8px;
-    border-radius: 18px;
+    border-radius: 12px;
     border: 1px solid transparent;
     background: transparent;
     text-align: left;
@@ -390,7 +390,7 @@
   .app-shell > .sidebar .selection-indicator-marker,
   .app-shell > .sidebar .nav-item,
   .app-shell > .sidebar .sidebar-bottom .nav-item {
-    border-radius: 20px;
+    border-radius: 14px;
   }
 
   .app-shell > .sidebar .nav-item {
@@ -424,7 +424,7 @@
     min-height: 48px;
     margin: 6px auto 0;
     padding: 0;
-    border-radius: var(--radius-pill);
+    border-radius: var(--radius-control);
     border: 1px solid transparent;
     background: transparent;
     cursor: pointer;

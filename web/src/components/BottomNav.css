@@ -44,7 +44,7 @@
   max-width: 460px;
   position: relative;
   padding: 6px;
-  border-radius: 30px;
+  border-radius: 22px;
   border: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
   background: color-mix(in srgb, var(--surface) 82%, transparent);
   backdrop-filter: blur(20px) saturate(1.4);
@@ -62,7 +62,7 @@
   left: 0;
   z-index: 0;
   border: 0;
-  border-radius: 24px;
+  border-radius: 14px;
   background: var(--accent-soft);
   pointer-events: none;
   transition: transform var(--motion-panel) var(--motion-ease), width var(--motion-panel) var(--motion-ease), height var(--motion-panel) var(--motion-ease);
@@ -81,7 +81,7 @@
   min-height: 56px;
   min-width: 44px;
   padding: 6px 0 5px;
-  border-radius: 24px;
+  border-radius: 14px;
   background: transparent;
   border: 0;
   box-shadow: none;

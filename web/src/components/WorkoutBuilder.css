@@ -5,7 +5,7 @@
 .workout-builder-exercise-card.import-exercise {
   background: var(--surface-raised);
   border: 1px solid var(--border);
-  border-radius: 18px;
+  border-radius: 12px;
   box-shadow: none;
 }
 

@@ -259,7 +259,7 @@
   min-height: 44px;
   min-width: 80px;
   padding: 8px 16px;
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-control);
   font-size: var(--font-secondary);
   font-weight: 600;
   color: var(--accent);

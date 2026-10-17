@@ -201,12 +201,17 @@ export function ProgramWeekChecklist({
                   onClick={passed ? e => e.preventDefault() : undefined}
                   onChange={passed ? undefined : () => void passRest(day)}
                 />
+                {/* The box is drawn as the workout rows' marker so every row's tick lines up. */}
+                <span className={`program-day-marker ${passed ? 'completed' : ''}`.trim()} aria-hidden="true">
+                  {passed ? <CheckCircle2 size={20} /> : <Circle size={20} />}
+                </span>
                 <div className="program-week-info">
                   <span className="program-week-name">{info.name}</span>
                 </div>
               </label>
               <div className="program-week-status-col">
                 <span className="tiny-label rest-badge">Rest</span>
+                <span className="program-week-chevron-slot" aria-hidden="true" />
               </div>
             </div>;
           }

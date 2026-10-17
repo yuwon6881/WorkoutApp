@@ -62,7 +62,7 @@
   font-weight: 550;
   color: var(--text);
   border: 1px solid var(--border);
-  border-radius: var(--radius-control, 14px);
+  border-radius: var(--radius-control, 10px);
   background: var(--surface-raised);
   box-sizing: border-box;
   transition: border-color var(--motion-control) ease,
@@ -89,7 +89,7 @@
 /* Save error text */
 .ids-day-editor .error-text {
   padding: 10px 14px;
-  border-radius: var(--radius-control, 14px);
+  border-radius: var(--radius-control, 10px);
   border: 1px solid var(--red-border);
   background: var(--red-soft);
   color: var(--red);
@@ -127,7 +127,7 @@
 .ids-day-editor .ids-superset-block,
 .ids-day-editor .superset-block {
   margin: 0 !important;
-  border-radius: 20px;
+  border-radius: 14px;
   border: 1px solid var(--accent-border);
   background: color-mix(in srgb, var(--accent) 4%, var(--surface-raised));
   padding: 14px 14px 14px 22px;
@@ -156,7 +156,7 @@
   align-items: center;
   gap: 14px;
   padding: 16px 18px;
-  border-radius: var(--radius-control, 14px);
+  border-radius: var(--radius-control, 10px);
   border: 1px solid var(--border);
   background: var(--surface-raised);
   margin: 0;
@@ -218,7 +218,7 @@
   padding: 10px 20px;
   font-size: var(--font-secondary, 14px);
   font-weight: 650;
-  border-radius: var(--radius-control, 14px);
+  border-radius: var(--radius-control, 10px);
   border: 1.5px dashed var(--border-hover);
   background: var(--surface-raised);
   color: var(--text);

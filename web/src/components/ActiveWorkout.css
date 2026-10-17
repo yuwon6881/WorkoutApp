@@ -63,7 +63,7 @@
   min-height: 44px;
   padding: 4px 14px 4px 6px;
   border: 1px solid transparent;
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-control);
   background: var(--surface-raised);
   color: var(--muted);
   text-align: left;
@@ -95,7 +95,7 @@
 
 .workout-strip-item.pressing { transform: scale(0.97); transition: transform 0.12s ease; }
 .workout-strip-item.held {
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-control);
   background: var(--surface-hover);
   box-shadow: 0 14px 30px var(--overlay), 0 0 0 2px var(--accent);
   transform: scale(1.05) translateY(-3px);
@@ -168,7 +168,7 @@
   min-height: 44px;
   margin: 0 0 6px 4px;
   padding: 0 14px;
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-control);
   background: var(--surface-raised);
   color: var(--text);
 }
@@ -186,7 +186,7 @@
     min-height: 44px;
     gap: 6px;
     padding: 3px 10px 3px 5px;
-    border-radius: var(--radius-pill);
+    border-radius: var(--radius-control);
   }
   .workout-strip-ring { flex-basis: 26px; width: 26px; height: 26px; }
   .workout-strip-count { display: none; }
@@ -222,7 +222,7 @@
 .workout-footer-actions .workout-finish-btn.button {
   min-height: 52px;
   justify-content: center;
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-control);
   background: var(--accent);
   color: var(--on-accent);
   font-size: 16px !important;

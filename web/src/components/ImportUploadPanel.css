@@ -197,7 +197,7 @@
   padding: 10px 22px;
   font-size: var(--font-secondary);
   font-weight: 680;
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-control);
 }
 
 @media (min-width: 1024px) {

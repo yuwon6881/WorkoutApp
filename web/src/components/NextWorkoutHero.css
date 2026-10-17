@@ -206,7 +206,7 @@
 .hero-action-btn {
   min-height: 44px;
   padding: 11px 24px;
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-control);
   font-size: 14px;
   font-weight: 680;
   letter-spacing: -0.005em;

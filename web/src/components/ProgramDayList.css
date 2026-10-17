@@ -449,7 +449,7 @@
 .pdl-add-btn {
   font-size: var(--font-secondary, 13px);
   font-weight: 600;
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-control);
   min-height: 36px;
   padding: 6px 16px;
 }

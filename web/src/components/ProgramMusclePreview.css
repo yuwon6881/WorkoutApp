@@ -68,7 +68,7 @@
   height: 100%;
   padding: 8px 12px;
   border: 1px solid var(--border);
-  border-radius: var(--radius-control, 14px);
+  border-radius: var(--radius-control, 10px);
   background: var(--surface-raised);
   color: var(--text);
   text-align: left;
@@ -173,7 +173,7 @@
 .program-muscle-empty {
   padding: 14px 16px;
   border: 1px solid var(--border);
-  border-radius: var(--radius-control, 14px);
+  border-radius: var(--radius-control, 10px);
   background: var(--surface-raised);
 }
 
