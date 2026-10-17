@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { ImportStatusView, ImportView } from '../types';
 import { api } from '../lib/api';
 import { estimatedPercent } from '../lib/importProgress';
+import { getRecordedHighestPercent, getRecordedImportEtag, getRecordedImportStatus, recordImportStatus } from '../lib/importStatusCache';
 import type { ProgressValue } from './ui/Progress';
 import { isLocalPdfReadActive, takeLocalPdfResult, useLocalPdfRead } from '../lib/localPdfRead';
 
@@ -54,46 +55,64 @@ export function useImportWatch({ imports, active, onFinished, onLocalFailure }: 
   /// on the user, not work in flight, so it belongs on the import screen rather than in a pill.
   const running = imports.find(view => view.status === 'pending' && view.stage !== 'select' && !view.error);
   const importId = active ? running?.id ?? null : null;
-  const initialStage = running?.stage ?? 'outline';
-  const initialDone = running?.chunksDone ?? 0;
-  const initialTotal = running?.chunksTotal ?? 0;
   const fileName = running?.fileName ?? '';
 
   useEffect(() => {
     if (!importId) { setWatch(null); return; }
 
+    const cached = getRecordedImportStatus(importId);
+    const initialStage = cached?.stage ?? running?.stage ?? 'outline';
+    const initialDone = cached?.chunksDone ?? running?.chunksDone ?? 0;
+    const initialTotal = cached?.chunksTotal ?? running?.chunksTotal ?? 0;
+    const initialChunkLabel = cached?.currentChunkLabel ?? null;
+    const initialProgress = cached?.progress ?? null;
+
     let stopped = false;
     const controller = new AbortController();
     let failures = 0;
-    let etag: string | undefined;
+    let etag: string | undefined = getRecordedImportEtag(importId);
     let lastStage: string = initialStage;
     let lastDone = initialDone;
-    let lastServerProgress: string | null = null;
+    let lastServerProgress: string | null = initialProgress?.lastProgressAtUtc ?? null;
     let lastProgressAt = Date.now();
 
     const show = (status: Pick<ImportStatusView, 'stage' | 'chunksDone' | 'chunksTotal' | 'currentChunkLabel' | 'progress'>) => {
       const remaining = Math.max(0, status.chunksTotal - status.chunksDone);
+      const rawPercent = estimatedPercent(status);
+      const recordedHighest = getRecordedHighestPercent(importId);
+      const percent = rawPercent !== null && recordedHighest !== null
+        ? Math.max(rawPercent, recordedHighest)
+        : (rawPercent ?? recordedHighest);
+
       setWatch(previous => {
         const next = {
-        importId,
-        progress: {
-          label: status.stage === 'outline'
-            ? 'Reading the outline'
-            : remaining > 1 ? `Reading ${remaining} sections` : 'Reading the last section',
-          detail: remaining > 1 ? fileName : status.currentChunkLabel ?? fileName,
-          percent: estimatedPercent(status)
-        }
-      };
+          importId,
+          progress: {
+            label: status.stage === 'outline'
+              ? 'Reading the outline'
+              : remaining > 1 ? `Reading ${remaining} sections` : 'Reading the last section',
+            detail: remaining > 1 ? fileName : status.currentChunkLabel ?? fileName,
+            percent
+          }
+        };
         return previous?.progress.label === next.progress.label && previous.progress.detail === next.progress.detail && previous.progress.percent === next.progress.percent ? previous : next;
       });
     };
 
-    show({ stage: initialStage, chunksDone: initialDone, chunksTotal: initialTotal, currentChunkLabel: null, progress: null });
+    if (cached) {
+      show(cached);
+    } else {
+      show({ stage: initialStage, chunksDone: initialDone, chunksTotal: initialTotal, currentChunkLabel: initialChunkLabel, progress: initialProgress });
+    }
 
     void (async () => {
+      let isFirstPoll = true;
       while (!stopped) {
-        await new Promise(resolve => window.setTimeout(resolve, Math.min(16000, POLL_INTERVAL_MS * 2 ** failures)));
-        if (stopped) return;
+        if (!isFirstPoll) {
+          await new Promise(resolve => window.setTimeout(resolve, Math.min(16000, POLL_INTERVAL_MS * 2 ** failures)));
+          if (stopped) return;
+        }
+        isFirstPoll = false;
 
         let status: ImportStatusView;
         try {
@@ -109,6 +128,7 @@ export function useImportWatch({ imports, active, onFinished, onLocalFailure }: 
             continue;
           }
           status = meta.data;
+          recordImportStatus(status, meta.etag);
         } catch {
           failures = Math.min(failures + 1, 3);
           // A failed poll is not worth surfacing from a background pill; the import screen reports

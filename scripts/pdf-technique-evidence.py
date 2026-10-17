@@ -19,6 +19,10 @@ def rom_total(row):
 
 
 def technique(text, column=False):
+    # "At the top end ROM" places a cue in the range (spread the rope there, keep the arms
+    # vertical there); it does not shorten the rep.
+    if text:
+        text = re.sub(r"\bat\s+(?:the\s+)?(?:top|bottom)[- ]end\s+(?:of\s+(?:the\s+)?)?(?:rom|range\s+of\s+motion)", " ", text, flags=re.I)
     if not text or re.search(r"\b(?:avoid|never|do not|don't)\s+(?:(?:using|doing|performing|lengthened|integrated)\s+)*partial", text, re.I):
         return None
     affirmative = column or re.search(r"\b(?:perform(?:ed|ing)?|use|do|stay|keep|switch|alternate|continue|extend|all reps|cut out|only|first|last)\b", text, re.I)

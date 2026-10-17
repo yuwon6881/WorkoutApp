@@ -34,12 +34,17 @@ public sealed partial class GoogleHealthWorkoutSyncService
             : start.AddMinutes(45);
 
         return new GoogleHealthWorkoutDataPoint(
-            start.ToString("yyyy-MM-dd'T'HH:mm:sszzz", CultureInfo.InvariantCulture),
-            finish.ToString("yyyy-MM-dd'T'HH:mm:sszzz", CultureInfo.InvariantCulture),
+            start.UtcDateTime.ToString("yyyy-MM-dd'T'HH:mm:ss'Z'", CultureInfo.InvariantCulture),
+            UtcOffsetDuration(start),
+            finish.UtcDateTime.ToString("yyyy-MM-dd'T'HH:mm:ss'Z'", CultureInfo.InvariantCulture),
+            UtcOffsetDuration(finish),
             string.IsNullOrWhiteSpace(name) ? "Workout" : name.Trim(),
             "WEIGHTLIFTING",
             notes ?? "");
     }
+
+    private static string UtcOffsetDuration(DateTimeOffset time)
+        => ((long)time.Offset.TotalSeconds).ToString(CultureInfo.InvariantCulture) + "s";
 
     private static void CancelWork(GoogleHealthWorkoutSyncWork work)
     {

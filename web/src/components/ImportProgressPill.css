@@ -4,6 +4,7 @@
   box-shadow: var(--shadow-float);
   border: 1px solid var(--border);
   background: var(--surface);
+  padding: 14px 22px;
   transition: transform var(--motion-control) var(--motion-ease),
               box-shadow var(--motion-control) ease,
               border-color var(--motion-control) ease;
@@ -12,6 +13,32 @@
 :root:not([data-theme=light]) .button.import-progress-pill,
 :root:not([data-theme=light]) .import-progress-pill {
   background: var(--surface-raised);
+}
+
+.import-progress-pill .import-progress {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  width: 100%;
+}
+
+.import-progress-pill .import-progress-track {
+  height: 5px;
+  background: var(--surface-hover);
+}
+
+.import-progress-pill .import-progress-percent {
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.import-progress-pill .import-progress-label {
+  font-weight: 650;
+}
+
+.import-progress-pill .import-progress-footer small {
+  color: var(--muted);
+  font-size: var(--font-secondary);
 }
 
 @media (hover: hover) and (pointer: fine) {
@@ -29,7 +56,7 @@
 }
 
 .import-progress-pill.is-finished {
-  padding: 12px 18px;
+  padding: 14px 22px;
   background: var(--accent);
   color: var(--on-accent);
   border-color: transparent;

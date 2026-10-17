@@ -5,11 +5,15 @@ using System.Text.Json;
 
 namespace Workout.Api.Services;
 
+/// Times are UTC RFC 3339 instants; the offsets are Google's "<seconds>s" durations, which the
+/// API requires beside each instant to place the session on the user's local calendar day.
 public sealed record GoogleHealthWorkoutDataPoint(
     string StartTime,
+    string StartUtcOffset,
     string EndTime,
+    string EndUtcOffset,
     string ExerciseDisplayName,
-    string ActivityType,
+    string ExerciseType,
     string Notes);
 
 public sealed record GoogleHealthOperationResult(
@@ -68,10 +72,15 @@ internal static class GoogleHealthWorkoutProvider
                 interval = new
                 {
                     startTime = data.StartTime,
-                    endTime = data.EndTime
+                    startUtcOffset = data.StartUtcOffset,
+                    endTime = data.EndTime,
+                    endUtcOffset = data.EndUtcOffset
                 },
-                exerciseDisplayName = string.IsNullOrWhiteSpace(data.ExerciseDisplayName) ? "Workout" : data.ExerciseDisplayName.Trim(),
-                activityType = string.IsNullOrWhiteSpace(data.ActivityType) ? "WEIGHTLIFTING" : data.ActivityType,
+                exerciseType = string.IsNullOrWhiteSpace(data.ExerciseType) ? "WEIGHTLIFTING" : data.ExerciseType,
+                // Google replaces this with a generated name for every type except OTHER.
+                displayName = string.IsNullOrWhiteSpace(data.ExerciseDisplayName) ? "Workout" : data.ExerciseDisplayName.Trim(),
+                // Required by the schema; the app records no calories, distance or heart rate.
+                metricsSummary = new { },
                 notes = data.Notes ?? ""
             }
         };
@@ -169,6 +178,34 @@ internal static class GoogleHealthWorkoutProvider
         return new(done, true, returnedOpName, resourceName);
     }
 
+    /// Google's own explanation of a 400, kept so a rejection says which field it disliked.
+    /// Accepts either a full error body or the bare message of an error inside an operation.
+    private static string? ProviderDetail(string? body)
+    {
+        if (string.IsNullOrWhiteSpace(body)) return null;
+        var detail = body.Trim();
+        try
+        {
+            using var doc = JsonDocument.Parse(detail);
+            detail = doc.RootElement.TryGetProperty("error", out var error)
+                && error.ValueKind == JsonValueKind.Object
+                && error.TryGetProperty("message", out var message)
+                && message.ValueKind == JsonValueKind.String
+                    ? message.GetString() ?? ""
+                    : "";
+        }
+        catch (JsonException)
+        {
+            // Not JSON: an operation error already hands over just the message text.
+        }
+
+        detail = string.Join(' ', detail.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
+        if (detail.Length == 0) return null;
+        return detail.Length > MaxDetailLength ? detail[..MaxDetailLength].TrimEnd() + "…" : detail;
+    }
+
+    private const int MaxDetailLength = 240;
+
     private static (string Category, string Message) ParseError(HttpStatusCode code, string? body)
     {
         var category = code switch
@@ -187,7 +224,9 @@ internal static class GoogleHealthWorkoutProvider
             HttpStatusCode.Forbidden => "Google Health did not grant permission to upload workouts.",
             HttpStatusCode.NotFound => "The requested workout data point no longer exists in Google Health.",
             HttpStatusCode.TooManyRequests => "Google Health rate limit reached. Retry scheduled.",
-            HttpStatusCode.BadRequest => "Google Health rejected the workout format.",
+            HttpStatusCode.BadRequest => ProviderDetail(body) is { } detail
+                ? $"Google Health rejected the workout: {detail}"
+                : "Google Health rejected the workout format.",
             _ when (int)code >= 500 => "Google Health is temporarily unavailable.",
             _ => "Google Health returned an unexpected error."
         };

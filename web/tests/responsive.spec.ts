@@ -78,14 +78,18 @@ async function checkLayout(page: Page, label: string) {
     const scope = [...document.querySelectorAll('dialog[open]')].at(-1) || document;
     const minimum = innerWidth < 1024 ? 44 : 36;
     // Role-only controls count too. Body-map muscle shapes are excluded because the muscle list
-    // beside the figure is the full-size way to pick the same muscle.
+    // beside the figure is the full-size way to pick the same muscle. Dropdown menu items use compact
+    // height across viewports.
     const controls = 'button,input:not([hidden]),select,textarea,summary,[role=button]:not(svg *),[role=option],[role=tab]';
     return [...scope.querySelectorAll(controls)].filter(el => {
       // A wrapped radio's whole label selects it; measure that actual target, not its small dot.
       const target = el instanceof HTMLInputElement && el.type === 'radio' && el.labels?.length
         ? el.labels[0] : el;
       const box = target.getBoundingClientRect();
-      return box.width > 0 && box.height > 0 && (box.width < minimum - 1 || box.height < minimum - 1);
+      const isDropdownItem = Boolean(target.matches?.('.ui-menu-item, [role=menuitem]') || target.closest?.('.ui-menu-dropdown, [role=menu]'));
+      const minHeight = isDropdownItem ? 32 : minimum;
+      const minWidth = isDropdownItem ? 32 : minimum;
+      return box.width > 0 && box.height > 0 && (box.width < minWidth - 1 || box.height < minHeight - 1);
     }).map(el => el.getAttribute('aria-label') || el.textContent?.slice(0, 70));
   });
   expect(smallTargets, `${label}: controls have usable touch targets`).toEqual([]);

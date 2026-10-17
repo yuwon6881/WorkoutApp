@@ -61,6 +61,17 @@ public sealed class ImportCoachingTechniqueTests
         Assert.All(exercise.Sets, set => Assert.Equal("Partial reps", set.Notes));
     }
 
+    /// Arm Hypertrophy cues where in the range to act ("press rope apart at the top end ROM",
+    /// "at bottom end ROM arms should be aligned vertically"); every set had been tagged partial reps.
+    [Theory]
+    [InlineData("PERFORM BOTH ARMS AT ONCE, PRESS ROPE APART AT THE TOP END ROM")]
+    [InlineData("USE BARBELL OR EZ BAR, AT BOTTOM END ROM ARMS SHOULD BE ALLIGNED VERTICALLY")]
+    public void A_cue_placed_at_the_end_of_the_range_is_not_partial_reps(string note)
+    {
+        var exercise = Read("12-15", note);
+        Assert.All(exercise.Sets, set => Assert.Null(set.Notes));
+    }
+
     [Fact]
     public void Ordinary_end_of_rom_coaching_does_not_prescribe_partials()
     {

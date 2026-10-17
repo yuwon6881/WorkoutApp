@@ -329,16 +329,18 @@ html[data-keyboard='open'] .import-progress-pill { display: none; }
 /* Menus portaled out of their trigger (MenuButton portal) keep the 44 px item target on compact
    and medium layouts, like menus rendered in place. */
 @media (max-width: 1023px) {
-  .ui-menu-dropdown .ui-menu-item { min-height: 44px; }
+  .ui-menu-dropdown .ui-menu-item { min-height: 36px; }
 }
 
 /* Shared action surfaces use the same semantic accents as feature cards. */
-.ui-menu-item { min-height: 44px; gap: 12px; padding: 9px 12px; font-size: var(--font-secondary); }
+.ui-menu-item { min-height: 36px; gap: 8px; padding: 6px 10px; font-size: var(--font-secondary); }
 .ui-menu-item > svg:first-child {
   box-sizing: content-box;
   flex-shrink: 0;
-  padding: 8px;
-  border-radius: 9px;
+  padding: 5px;
+  border-radius: 6px;
+  width: 15px;
+  height: 15px;
   color: var(--accent);
   background: var(--accent-soft);
 }

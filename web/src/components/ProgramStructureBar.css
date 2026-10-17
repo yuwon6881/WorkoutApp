@@ -353,13 +353,15 @@
   outline-offset: 2px;
 }
 
+/* A disabled arrow keeps its place: removing it resized the strip under the press, so the chips
+   jumped and a page of weeks looked like a nudge. */
 .ptl-week-scroller-wrap .filter-nav-btn:disabled {
-  display: none !important;
+  visibility: hidden;
 }
 
-/* The week chips scroll sideways on phones; fading the trailing edge shows that a chip past the
-   edge is not cut off by mistake. */
-@media (max-width: 639px) {
+/* Below 1024 px the week chips scroll by touch, with no arrows; fading the trailing edge shows
+   that a chip past the edge is not cut off by mistake. */
+@media (max-width: 1023px) {
   .ptl-week-scroller-wrap .filter-chips {
     -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent);
     mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent);

@@ -30,7 +30,10 @@ export function useWorkoutDrain(options: Options) {
         onRecoveryChange(nextRecovery);
         setLocalStatus(nextRecovery?.operations.length ? 'Saving…' : 'Synced.');
       },
-      onFinished: onFinish,
+      onFinished: session => {
+        onRecoveryChange(null);
+        onFinish(session);
+      },
       onFinishReview: (saved, nextRecovery) => {
         serverSession.current = saved;
         revision.current = saved.revision;

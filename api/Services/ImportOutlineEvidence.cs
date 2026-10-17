@@ -51,19 +51,47 @@ internal static class ImportOutlineEvidence
         string? currentBlock = null;
         string? currentPhase = null;
         string? pendingPhase = null;
+        int? pendingUntilPage = null;
         foreach (var page in pages.OrderBy(page => page.Page))
         {
             var snapshots = new List<SourceContext>();
             var pageLines = ContextLines(page.Text).ToList();
+            // A page with no week heading and no workout table is a cover, an overview or a
+            // divider. Its phase heading announces the weeks printed just after it, so it waits
+            // for a week heading on the next pages rather than labelling everything that follows;
+            // a page listing several phases describes the program and names none of its weeks.
+            var standalone = !pageLines.Any(line => ImportStructureHeadings.TryWeek(Key(line), out _)) && !HasWorkoutTable(page.Text);
+            if (standalone)
+            {
+                var announced = pageLines.Select(Key).Where(key => PhaseHeading.IsMatch(key) && IsNotDayOrHeader(key))
+                    .Select(CanonicalPhase).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+                if (announced.Count == 1) { pendingPhase = announced[0]; pendingUntilPage = page.Page + StandalonePhaseReach; }
+                if (pageLines.Any(line => ImportStructureHeadings.TryBlock(Key(line), out _)))
+                {
+                    currentBlock = $"Block {pageLines.Select(line => ImportStructureHeadings.TryBlock(Key(line), out var found) ? found : null).First(found => found is not null)}";
+                    snapshots.Add(new SourceContext(currentWeek, currentBlock, currentPhase));
+                }
+                if (currentWeek is not null || currentBlock is not null || currentPhase is not null)
+                    snapshots.Add(new SourceContext(currentWeek, currentBlock, currentPhase));
+                pageContexts[page.Page] = snapshots.Distinct().GroupBy(snapshot => snapshot.Week)
+                    .Select(group => group.Last()).ToList();
+                continue;
+            }
             for (var lineIndex = 0; lineIndex < pageLines.Count; lineIndex++)
             {
                 var key = Key(pageLines[lineIndex]);
                 if (ImportStructureHeadings.TryWeek(key, out var week))
                 {
+                    if (pendingPhase is not null && pendingUntilPage is { } until && page.Page > until)
+                    {
+                        pendingPhase = null;
+                        pendingUntilPage = null;
+                    }
                     if (pendingPhase is not null)
                     {
                         currentPhase = pendingPhase;
                         pendingPhase = null;
+                        pendingUntilPage = null;
                     }
                     else if (currentWeek is not null && currentWeek != week && IsWeekSpecific(currentPhase)) currentPhase = null;
                     currentWeek = week;
@@ -81,7 +109,7 @@ internal static class ImportOutlineEvidence
                     var phase = CanonicalPhase(key);
                     var appliesToLaterWeek = pageLines.Skip(lineIndex + 1)
                         .Any(line => ImportStructureHeadings.TryWeek(Key(line), out _));
-                    if (appliesToLaterWeek) pendingPhase = phase;
+                    if (appliesToLaterWeek) { pendingPhase = phase; pendingUntilPage = page.Page; }
                     else
                     {
                         currentPhase = phase;
@@ -221,6 +249,15 @@ internal static class ImportOutlineEvidence
            && !ImportStructureHeadings.TryDayLabel(value, out _)
            && !Regex.IsMatch(value, @"^(?:EXERCISE|MOVEMENT|SETS?|REPS?|RPE|RIR|REST|LOAD|WEIGHT|NOTES?|SUBSTITUTION|TRACKING)\b", RegexOptions.IgnoreCase)
            && !Regex.IsMatch(value, @"^(?:\d(?:\s*[-–]\s*\d)?\s+)?(?:SUGGESTED\s+|MANDATORY\s+|OPTIONAL\s+)?REST\s+DAYS?(?:\s*\([^)]{0,80}\))?$", RegexOptions.IgnoreCase);
+
+    /// How many pages after a standalone phase heading its weeks may begin.
+    private const int StandalonePhaseReach = 2;
+
+    private static bool HasWorkoutTable(string? text)
+    {
+        var lines = (text ?? "").ReplaceLineEndings("\n").Split('\n');
+        return lines.Count(line => line.Contains('|')) >= 3 || lines.Any(line => ImportStructureHeadings.TryDayLabel(line, out _));
+    }
 
     private static string CanonicalPhase(string value)
     {

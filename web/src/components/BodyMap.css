@@ -59,14 +59,18 @@
 }
 .muscle-region.is-untrained{fill:var(--muscle-empty)}
 .muscle-region:hover,
-.muscle-region:focus-visible,
+.muscle-region:focus-visible{
+  fill:color-mix(in oklch,var(--accent) min(100%,calc(var(--muscle-shade,35%) + 45%)),var(--muscle-empty));
+}
 .muscle-region.is-active{
-  fill:color-mix(in oklch,var(--accent) min(100%,calc(var(--muscle-shade,35%) + 25%)),var(--muscle-empty));
+  fill:var(--accent);
 }
 .muscle-region.is-untrained:hover,
-.muscle-region.is-untrained:focus-visible,
+.muscle-region.is-untrained:focus-visible{
+  fill:color-mix(in oklch,var(--accent) 55%,var(--muscle-empty));
+}
 .muscle-region.is-untrained.is-active{
-  fill:color-mix(in oklch,var(--accent) 25%,var(--muscle-empty));
+  fill:color-mix(in oklch,var(--accent) 80%,var(--muscle-empty));
 }
 
 /* A reserved row: the readout never adds or removes height while a muscle is pointed at. */

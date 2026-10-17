@@ -9,6 +9,7 @@ import {
   setGoogleHealthWorkoutSync,
   useGoogleHealth,
 } from '../lib/googleHealth';
+import { describeWorkoutUploadFailure } from '../lib/googleHealthFailure';
 import { GoogleHealthDisclosure } from './GoogleHealthDisclosure';
 import { Activity, RefreshCw, Unlink } from 'lucide-react';
 import './IntegrationCard.css';
@@ -151,6 +152,7 @@ export function GoogleHealthSettings() {
   const isReconnectRequired = state.status === 'reconnect_required';
 
   const sync = state.workoutSync;
+  const uploadFailure = describeWorkoutUploadFailure(sync);
   const statusLabel = isConnected ? 'Connected' : isReconnectRequired ? 'Reconnect required' : loading ? 'Checking…' : syncError ? 'Unavailable' : 'Not connected';
   const statusTone = isConnected ? 'is-on' : isReconnectRequired ? 'is-warning' : '';
 
@@ -193,20 +195,9 @@ export function GoogleHealthSettings() {
                   {sync.pendingCount} workout{sync.pendingCount === 1 ? '' : 's'} queued for upload
                 </span>
               )}
-              {sync.state === 'failed' && (
-                <span className="setting-status is-failed">{sync.failureMessage ?? 'Workout upload failed.'}</span>
-              )}
-              {sync.state === 'unknown' && (
-                <span className="setting-status is-unknown">Upload status uncertain. Check Google Health before recovering.</span>
-              )}
             </>}
           >
             <div className="setting-inline-controls">
-              {(sync.state === 'failed' || sync.state === 'unknown') && (
-                <Button variant="tertiary" onClick={() => void handleWorkoutRecover()} disabled={workoutActionLoading}>
-                  Retry
-                </Button>
-              )}
               <Switch
                 label="Sync completed workouts"
                 describedBy="google-health-sync-description"
@@ -216,6 +207,19 @@ export function GoogleHealthSettings() {
               />
             </div>
           </SettingRow>
+          {uploadFailure && (
+            <CardFeedback
+              tone={uploadFailure.tone}
+              title={uploadFailure.title}
+              message={uploadFailure.message}
+              detail={uploadFailure.detail}
+              action={{
+                label: workoutActionLoading && uploadFailure.action === 'retry' ? 'Retrying…' : uploadFailure.actionLabel,
+                onClick: uploadFailure.action === 'reconnect' ? openDisclosure : () => void handleWorkoutRecover(),
+                disabled: workoutActionLoading,
+              }}
+            />
+          )}
         </div>
       )}
 

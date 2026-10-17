@@ -227,14 +227,6 @@
   color: var(--accent);
 }
 
-.setting-status.is-failed {
-  color: var(--red);
-}
-
-.setting-status.is-unknown {
-  color: var(--amber);
-}
-
 .app-version-meta {
   margin: 0;
   padding: 0 0 20px;

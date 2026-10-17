@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from './Button';
+import { useReducedMotion } from './Motion';
 
 export function ChipScroller({
   ariaLabel,
@@ -18,6 +19,7 @@ export function ChipScroller({
   rightLabel?: string;
 }) {
   const chipsRef = useRef<HTMLDivElement>(null);
+  const reducedMotion = useReducedMotion();
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(false);
 
@@ -35,8 +37,11 @@ export function ChipScroller({
     const frame = window.requestAnimationFrame(checkScroll);
     element.addEventListener('scroll', checkScroll, { passive: true });
     window.addEventListener('resize', checkScroll);
+    // The chips grow without the strip changing size (a week added, a label renamed, a font
+    // arriving), so each chip is watched too; otherwise an overflowing strip can show no arrow.
     const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(checkScroll);
     observer?.observe(element);
+    for (const chip of element.children) observer?.observe(chip);
     return () => {
       window.cancelAnimationFrame(frame);
       element.removeEventListener('scroll', checkScroll);
@@ -45,10 +50,24 @@ export function ChipScroller({
     };
   }, [checkScroll, resetKey]);
 
+  /// One press pages by most of what is visible, landing on a chip edge: the first chip cut off
+  /// at the far edge becomes the first chip shown, so nothing is skipped and nothing is repeated
+  /// more than the chip that was half visible.
   const scroll = (direction: 'left' | 'right') => {
     const element = chipsRef.current;
     if (!element) return;
-    element.scrollBy({ left: direction === 'left' ? -240 : 240, behavior: 'smooth' });
+    const view = element.getBoundingClientRect();
+    const chips = [...element.children].map(chip => chip.getBoundingClientRect());
+    const page = Math.max(element.clientWidth * 0.85, 120);
+    let delta = direction === 'right' ? page : -page;
+    if (direction === 'right') {
+      const cut = chips.find(chip => chip.right > view.right + 1);
+      if (cut && cut.left - view.left > 0) delta = Math.min(page, cut.left - view.left);
+    } else {
+      const cut = [...chips].reverse().find(chip => chip.left < view.left - 1);
+      if (cut && view.right - cut.right > 0) delta = -Math.min(page, view.right - cut.right);
+    }
+    element.scrollBy({ left: delta, behavior: reducedMotion ? 'auto' : 'smooth' });
   };
 
   return <div className="filter-chips-nav">

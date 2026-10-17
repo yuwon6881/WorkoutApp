@@ -14,8 +14,10 @@ public sealed class GoogleHealthWorkoutProviderTests
         using var http = new HttpClient(handler);
 
         var dataPoint = new GoogleHealthWorkoutDataPoint(
-            "2026-09-20T09:00:00+08:00",
-            "2026-09-20T10:15:00+08:00",
+            "2026-09-20T01:00:00Z",
+            "28800s",
+            "2026-09-20T02:15:00Z",
+            "28800s",
             "Upper Body Push",
             "WEIGHTLIFTING",
             "Bench Press: 3 sets (80kg x 8, 85kg x 6, 85kg x 6)\nTotal Volume: 1,660 kg | 3 completed sets");
@@ -28,11 +30,51 @@ public sealed class GoogleHealthWorkoutProviderTests
 
         using var body = JsonDocument.Parse(handler.Body!);
         var exercise = body.RootElement.GetProperty("exercise");
-        Assert.Equal("2026-09-20T09:00:00+08:00", exercise.GetProperty("interval").GetProperty("startTime").GetString());
-        Assert.Equal("2026-09-20T10:15:00+08:00", exercise.GetProperty("interval").GetProperty("endTime").GetString());
-        Assert.Equal("Upper Body Push", exercise.GetProperty("exerciseDisplayName").GetString());
-        Assert.Equal("WEIGHTLIFTING", exercise.GetProperty("activityType").GetString());
+        var interval = exercise.GetProperty("interval");
+        Assert.Equal("2026-09-20T01:00:00Z", interval.GetProperty("startTime").GetString());
+        Assert.Equal("28800s", interval.GetProperty("startUtcOffset").GetString());
+        Assert.Equal("2026-09-20T02:15:00Z", interval.GetProperty("endTime").GetString());
+        Assert.Equal("28800s", interval.GetProperty("endUtcOffset").GetString());
+        Assert.Equal("Upper Body Push", exercise.GetProperty("displayName").GetString());
+        Assert.Equal("WEIGHTLIFTING", exercise.GetProperty("exerciseType").GetString());
+        Assert.Equal(JsonValueKind.Object, exercise.GetProperty("metricsSummary").ValueKind);
+        Assert.False(exercise.TryGetProperty("activityType", out _));
         Assert.Contains("Total Volume: 1,660 kg", exercise.GetProperty("notes").GetString());
+    }
+
+    [Fact]
+    public async Task RejectedWorkoutKeepsGoogleReasonInTheMessage()
+    {
+        using var http = new HttpClient(new RejectingHandler(
+            "{\"error\":{\"code\":400,\"message\":\"Invalid value at 'exercise.exercise_type'.\",\"status\":\"INVALID_ARGUMENT\"}}"));
+        var dataPoint = new GoogleHealthWorkoutDataPoint(
+            "2026-09-20T01:00:00Z", "0s", "2026-09-20T02:00:00Z", "0s", "Push", "WEIGHTLIFTING", "");
+
+        var failure = await Assert.ThrowsAsync<GoogleHealthWorkoutProviderException>(
+            () => GoogleHealthWorkoutProvider.CreateAsync(http, "access-token", dataPoint, default));
+
+        Assert.Equal("provider_validation", failure.Category);
+        Assert.False(failure.Transient);
+        Assert.Contains("Invalid value at 'exercise.exercise_type'.", failure.Message);
+    }
+
+    [Fact]
+    public async Task RejectedWorkoutWithoutBodyFallsBackToGenericMessage()
+    {
+        using var http = new HttpClient(new RejectingHandler(""));
+        var dataPoint = new GoogleHealthWorkoutDataPoint(
+            "2026-09-20T01:00:00Z", "0s", "2026-09-20T02:00:00Z", "0s", "Push", "WEIGHTLIFTING", "");
+
+        var failure = await Assert.ThrowsAsync<GoogleHealthWorkoutProviderException>(
+            () => GoogleHealthWorkoutProvider.CreateAsync(http, "access-token", dataPoint, default));
+
+        Assert.Equal("Google Health rejected the workout format.", failure.Message);
+    }
+
+    private sealed class RejectingHandler(string body) : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+            => Task.FromResult(new HttpResponseMessage(HttpStatusCode.BadRequest) { Content = new StringContent(body) });
     }
 
     [Fact]

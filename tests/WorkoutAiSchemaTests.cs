@@ -19,7 +19,7 @@ public sealed class WorkoutAiSchemaTests
         Assert.Contains("DAY LABEL: <text>", WorkoutAiSchemas.Instructions);
         Assert.Contains("explicit qualifier such as All Sets", WorkoutAiSchemas.Instructions);
         Assert.Contains("Do not turn general discussion", WorkoutAiSchemas.Instructions);
-        Assert.Equal("workout-import-v45-workout-column-titles", WorkoutAi.PromptVersion);
+        Assert.Equal("workout-import-v46-version-weeks-and-phase-scope", WorkoutAi.PromptVersion);
         Assert.Contains("1-2 REST DAYS", WorkoutAiSchemas.Instructions);
     }
 }

@@ -87,6 +87,27 @@ public sealed class ImportOptionalScheduleDayTests
         Assert.All(result.Workouts.Where(day => day.Week == 11), day => Assert.Equal("Deload Week", day.Phase));
     }
 
+    /// A read that returns the optional day once per listed week keeps the printed title from being
+    /// applied, so the one session left on the page after repeats are removed carries the model's
+    /// own wording. It is still the printed day, placed in every listed week under its printed title.
+    [Fact]
+    public void Optional_day_read_under_another_name_is_still_placed_under_its_printed_title()
+    {
+        var workouts = Enumerable.Range(1, 11).Select(week => Training(week, $"Week {week} Day 1", week)).ToList();
+        var pages = workouts.Select(day => new ImportPageText(day.SourcePage!.Value, $"WEEK {day.Week}\nDAY LABEL: {day.Name}")).ToList();
+        const int optionalPage = 71;
+        workouts.Add(Training(11, "FULL BODY 5: ARM & PUMP DAY - WORKOUT", optionalPage, phaseWeek: 11));
+        pages.Add(new ImportPageText(optionalPage,
+            "ARM & HYPERTROPHY DAY: OPTIONALLY RUN THIS DAY ON THE ODD WEEKS (WEEK 1, 3, 5, 7 AND 9) IF YOU HAVE AN EXTRA DAY TO TRAIN.\n" +
+            "DAY LABEL: FULL BODY 5: ARM & PUMP DAY"));
+
+        var result = ImportOptionalScheduleDays.Reconcile(workouts, pages);
+        var optionalDays = result.Workouts.Where(day => day.SourcePage == optionalPage).ToList();
+
+        Assert.Equal([1, 3, 5, 7, 9], optionalDays.Select(day => day.Week).Order());
+        Assert.All(optionalDays, day => Assert.Equal("Full Body 5: Arm & Pump Day", day.Name));
+    }
+
     private static DraftWorkout Training(int week, string name, int page, int? phaseWeek = null,
         string? block = "Block 1", string? phase = "Build")
         => new(Guid.NewGuid(), week, name, null, null,

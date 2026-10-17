@@ -153,8 +153,8 @@ export default function App() {
       {training && workoutSession ? <Suspense fallback={<div className="panel recovery-card" role="status">Opening your saved workout…</div>}><Workout session={workoutSession} accountId={recovery.accountId} preferences={recovery.preferences}
         exercises={[]} queue={app.queue} online={false} recovery={recovery} onRecoveryChange={app.setRecovery} isAccountCurrent={app.isAccountCurrent}
         onSaved={() => undefined} onClose={() => setTraining(false)}
-        onFinish={async () => { setTraining(false); await app.reload(); }}
-        onDiscard={async () => { setTraining(false); await app.reload(); }} /></Suspense> : <section className="panel recovery-card">
+        onFinish={async () => { app.setRecovery(null); setTraining(false); await app.reload(); }}
+        onDiscard={async () => { app.setRecovery(null); setTraining(false); await app.reload(); }} /></Suspense> : <section className="panel recovery-card">
         <h1>{recovery.draft.name}</h1><p>Your workout and pending changes are stored on this device.</p>
         <Button variant="primary" onClick={() => setTraining(true)}>Continue workout</Button>
       </section>}
@@ -424,8 +424,8 @@ export default function App() {
               onClose={() => setTraining(false)}
               advance={{ nextExercise: app.devicePreferences.autoAdvance, supersetPartner: app.devicePreferences.supersetAdvance }}
               onCatalogChanged={async () => { await app.reload(); await app.ensureResources(['catalog'], true); }}
-              onFinish={async session => { app.queue.clear(); app.setActiveWorkout(null); setTraining(false); setDetail(session); setFinishedId(session.id); setToast('Workout saved.'); await app.reload(); }}
-              onDiscard={async () => { app.queue.clear(); app.setActiveWorkout(null); setTraining(false); await app.reload(); }}
+              onFinish={async session => { app.queue.clear(); app.setActiveWorkout(null); app.setRecovery(null); setTraining(false); setDetail(session); setFinishedId(session.id); setToast('Workout saved.'); await app.reload(); }}
+              onDiscard={async () => { app.queue.clear(); app.setActiveWorkout(null); app.setRecovery(null); setTraining(false); await app.reload(); }}
             />
           ) : null}
         </WorkoutSheet>

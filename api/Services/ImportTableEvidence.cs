@@ -418,6 +418,11 @@ internal static partial class ImportTableEvidence
 
     private static string? PrescribedPartialTechnique(string? source)
     {
+        // "At the top end ROM" says where in the range a cue applies (press the rope apart there,
+        // keep the arms vertical there); it does not shorten the rep, so it is no partial.
+        source = HasText(source)
+            ? Regex.Replace(source!, $@"\bat\s+(?:the\s+)?{ImportRomPrescription.EndRange}", " ", RegexOptions.IgnoreCase)
+            : source;
         var technique = PartialTechnique(source);
         if (technique is null || Regex.IsMatch(source!,
             $@"\b(?:avoid|don't|do\s+not|never|without|no|not)\b(?:\s+(?:using|use|performing|perform|doing|do|any|the|all|these|those|lengthened|integrated|long[- ]length))*\s+{PartialRangeToken}",

@@ -1,0 +1,82 @@
+/* Rendered Ask AI replies: paragraphs, lists, lead-in labels, headings and inline code. */
+.ai-message-content.user {
+  white-space: pre-wrap;
+}
+
+.ai-message-content :where(p, ul, ol) {
+  margin: 0;
+}
+
+/* Paragraphs default to the muted tone elsewhere in the app; a reply is the primary content. */
+.ai-message-content p {
+  color: inherit;
+}
+
+.ai-message-content > * + * {
+  margin-top: 10px;
+}
+
+.ai-message-content ul {
+  display: grid;
+  gap: 6px;
+  padding: 0;
+  list-style: none;
+}
+
+.ai-message-content ul > li {
+  position: relative;
+  padding-left: 20px;
+}
+
+.ai-message-content ul > li::before {
+  content: '';
+  position: absolute;
+  top: 0.62em;
+  left: 4px;
+  width: 6px;
+  height: 6px;
+  border-radius: 2px;
+  background: var(--accent);
+}
+
+/* A line that only introduces the sub-list beneath it reads as a label, not another point. */
+.ai-message-content ul > li.ai-message-lead-in {
+  padding-left: 0;
+  font-weight: 650;
+}
+
+.ai-message-content ul > li.ai-message-lead-in::before {
+  display: none;
+}
+
+.ai-message-content ul ul {
+  margin: 6px 0 0 8px;
+  font-weight: 400;
+}
+
+.ai-message-content ol {
+  display: grid;
+  gap: 6px;
+  padding-left: 24px;
+}
+
+.ai-message-content ol > li::marker {
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.ai-message-content strong {
+  font-weight: 650;
+}
+
+.ai-message-content code {
+  padding: 1px 6px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface-raised);
+  font-size: 0.85em;
+}
+
+.ai-message-heading {
+  font-weight: 650;
+}

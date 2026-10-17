@@ -40,6 +40,34 @@ public sealed class ImportWeekVersionTests
         Assert.Equal(6, result.Moved.Count);
     }
 
+    /// Powerbuilding System's outline numbered "WEEK 10B" as week 11 and its deload week as week 11
+    /// too. The versions were already apart, so nothing moved the deload out of the way: week 11
+    /// held twelve days and the import stopped on a week with too many days.
+    [Fact]
+    public void A_week_read_with_the_same_number_as_a_later_version_moves_after_it()
+    {
+        List<DraftWorkout> days =
+        [
+            Training(9, "Full Body 1", 63),
+            .. TestingWeek(10, 66), .. TestingWeek(11, 68),
+            Training(11, "Lower 1", 70), Rest(11, null), Training(11, "Upper 1", 70)
+        ];
+
+        var result = ImportWeekVariants.Separate(days, Pages);
+
+        Assert.All(result.Workouts.Where(day => day.SourcePage == 66), day => Assert.Equal(10, day.Week));
+        Assert.All(result.Workouts.Where(day => day.SourcePage == 68), day => Assert.Equal(11, day.Week));
+        Assert.Equal([12, 12, 12], result.Workouts.Skip(1 + 6 + 6).Select(day => day.Week));
+        Assert.Equal(result.Workouts.Select(day => day.LineId), ImportWeekVariants.Separate(result.Workouts, Pages).Workouts.Select(day => day.LineId));
+        Assert.Equal(result.Workouts.Select(day => day.Week), ImportWeekVariants.Separate(result.Workouts, Pages).Workouts.Select(day => day.Week));
+
+        var choices = ImportWeekChoice.Offer(new ImportDraft("Program", result.Workouts), Pages);
+        Assert.Equal(2, choices.Count);
+        var chosen = ImportWeekChoice.Apply(new ImportDraft("Program", result.Workouts), choices[0], choices);
+        Assert.DoesNotContain(ImportValidation.ReviewIssues(chosen), issue => issue.Code == "week_day_overflow");
+        Assert.Equal([10, 10, 10, 10, 10, 10, 11, 11, 11], chosen.Workouts.Where(day => day.Week >= 10).Select(day => day.Week));
+    }
+
     [Fact]
     public void Reconciliation_is_idempotent_after_the_options_have_been_separated()
     {
@@ -139,6 +167,9 @@ public sealed class ImportWeekVersionTests
             yield return new DraftWorkout(Guid.NewGuid(), week, "Rest Day", null, null, [], IsRestDay: true, SourcePage: page);
         }
     }
+
+    private static DraftWorkout Rest(int week, int? page)
+        => new(Guid.NewGuid(), week, "Rest Day", null, null, [], IsRestDay: true, SourcePage: page);
 
     private static DraftWorkout Training(int week, string name, int page)
         => new(Guid.NewGuid(), week, name, null, null,

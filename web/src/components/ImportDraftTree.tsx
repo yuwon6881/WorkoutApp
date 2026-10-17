@@ -191,7 +191,7 @@ export const DraftOutline = forwardRef<DraftOutlineHandle, {
                 onClick={onAcceptProgram}
                 className="ptl-primary-btn"
               >
-                <Check size={15} />{actionLabel}
+                <Check size={16} strokeWidth={2.5} />{actionLabel}
               </Button>
             )}
             {(onRestoreDraft || onDiscardDraft) && (

@@ -62,8 +62,47 @@ internal static class ImportWeekVariants
                 "info", first.Day.SourcePage, first.Day.LineId, TargetField: "week"));
             week += extra;
         }
+        workouts = MakeRoomAfterLaterVersions(workouts, versions, moved);
         return new Result(workouts, notices, moved);
     }
+
+    /// A read can number a later version as the week after the first itself ("WEEK 10B" as week 11)
+    /// while numbering the week printed after it the same way. That week then shares its number with
+    /// the version, so it and every later week move along one, as they would have if both versions
+    /// had arrived in one week. Only days printed after the version's pages move; a version week
+    /// that holds the document's first letter, or days printed before it, is left as read.
+    private static List<DraftWorkout> MakeRoomAfterLaterVersions(List<DraftWorkout> workouts,
+        Dictionary<int, (int Week, string Version)> versions, HashSet<Guid> moved)
+    {
+        if (workouts.Count == 0 || versions.Count == 0) return workouts;
+        var firstLetters = versions.Values.GroupBy(version => version.Week)
+            .ToDictionary(group => group.Key, group => group.Select(version => version.Version).Order(StringComparer.OrdinalIgnoreCase).First());
+        for (var week = workouts.Min(day => day.Week); week <= workouts.Max(day => day.Week); week++)
+        {
+            var days = workouts.Where(day => day.Week == week).ToList();
+            var versionPages = days.Select(PageOf).OfType<int>()
+                .Where(page => versions.TryGetValue(page, out var version)
+                    && !string.Equals(version.Version, firstLetters[version.Week], StringComparison.OrdinalIgnoreCase))
+                .ToList();
+            if (versionPages.Count == 0) continue;
+            var lastVersionPage = versionPages.Max();
+            // A day that cites no page (a rest day read without one) goes with the day before it.
+            var after = new HashSet<Guid>();
+            var following = false;
+            foreach (var day in days)
+            {
+                if (PageOf(day) is { } page) following = page > lastVersionPage && !versions.ContainsKey(page);
+                if (following) after.Add(day.LineId);
+            }
+            if (after.Count == 0) continue;
+            workouts = workouts.Select(day => day.Week > week || after.Contains(day.LineId) ? Renumber(day, day.Week + 1) : day).ToList();
+            foreach (var lineId in after) moved.Add(lineId);
+        }
+        return workouts;
+    }
+
+    private static int? PageOf(DraftWorkout day)
+        => day.SourcePage ?? day.Exercises.Select(exercise => exercise.SourcePage).FirstOrDefault(value => value is not null);
 
     /// Which version each day of a week belongs to. A day cites its page; a day that cites none
     /// (a rest day read without one) belongs with the day printed before it.

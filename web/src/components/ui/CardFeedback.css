@@ -71,6 +71,29 @@
   text-align: center;
 }
 
+.card-feedback-detail summary {
+  width: fit-content;
+  min-height: 24px;
+  color: var(--muted);
+  font-size: var(--font-secondary);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.card-feedback-detail summary:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+.card-feedback-detail p {
+  margin-top: 6px;
+  color: var(--faint);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12px;
+  user-select: text;
+}
+
 .error-banner > svg {
   color: var(--red);
 }

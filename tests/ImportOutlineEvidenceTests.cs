@@ -12,6 +12,31 @@ public sealed class ImportOutlineEvidenceTests
         new ImportPageText(56, "WEEK 8\nUpper 2")
     ]);
 
+    /// Powerbuilding 2.0 explains its three phases on an early page, and Fundamentals prints
+    /// HYPERTROPHY on its cover. Neither page is a week's banner, yet the last phase line read was
+    /// carried onto every training day of the program.
+    [Fact]
+    public void Phase_lines_on_overview_and_cover_pages_do_not_label_the_schedule()
+    {
+        var evidence = ImportOutlineEvidence.Read([
+            new ImportPageText(1, "FUNDAMENTALS\nHYPERTROPHY\nPROGRAM"),
+            new ImportPageText(13, "PHASE 1: Building the base\nPHASE 2: Building volume tolerance\nPHASE 3: Peaking for strength"),
+            new ImportPageText(39, "WEEK 1\nDAY LABEL: FULL BODY 1\nEXERCISE | SETS | REPS\nSQUAT | 3 | 5\nBENCH | 3 | 5"),
+            new ImportPageText(70, "PHASE 2"),
+            new ImportPageText(71, "WEEK 2\nDAY LABEL: FULL BODY 1\nEXERCISE | SETS | REPS\nSQUAT | 3 | 5\nBENCH | 3 | 5")
+        ]);
+        var draft = new ImportDraft("Program", [
+            new DraftWorkout(Guid.NewGuid(), 1, "Full Body 1", null, null, [], SourcePage: 39),
+            new DraftWorkout(Guid.NewGuid(), 2, "Full Body 1", null, null, [], SourcePage: 71)
+        ]);
+
+        var normalized = ImportOutlineEvidence.NormalizeDraft(draft, evidence);
+
+        Assert.Null(normalized.Workouts[0].Phase);
+        // A divider printed just before its weeks still names them.
+        Assert.Equal("Phase 2", normalized.Workouts[1].Phase);
+    }
+
     [Fact]
     public void Overlapping_outline_ranges_coalesce_to_page_and_week_unions_without_adding_day_estimates()
     {

@@ -193,7 +193,7 @@ public sealed class GoogleHealthWorkoutSyncTests
     }
 
     [Fact]
-    public void BuildDataPointProducesValidIntervalAndActivityType()
+    public void BuildDataPointProducesUtcIntervalWithOffsetsAndExerciseType()
     {
         var start = new DateTime(2026, 9, 20, 1, 0, 0, DateTimeKind.Utc);
         var finish = new DateTime(2026, 9, 20, 2, 15, 0, DateTimeKind.Utc);
@@ -205,10 +205,12 @@ public sealed class GoogleHealthWorkoutSyncTests
             "Squats: 3 sets\nTotal Volume: 4,000 kg",
             "Asia/Kuala_Lumpur");
 
-        Assert.Equal("2026-09-20T09:00:00+08:00", dp.StartTime);
-        Assert.Equal("2026-09-20T10:15:00+08:00", dp.EndTime);
+        Assert.Equal("2026-09-20T01:00:00Z", dp.StartTime);
+        Assert.Equal("28800s", dp.StartUtcOffset);
+        Assert.Equal("2026-09-20T02:15:00Z", dp.EndTime);
+        Assert.Equal("28800s", dp.EndUtcOffset);
         Assert.Equal("Heavy Leg Day", dp.ExerciseDisplayName);
-        Assert.Equal("WEIGHTLIFTING", dp.ActivityType);
+        Assert.Equal("WEIGHTLIFTING", dp.ExerciseType);
         Assert.Contains("Total Volume: 4,000 kg", dp.Notes);
     }
 

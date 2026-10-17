@@ -4,6 +4,7 @@ import { ApiError, api } from '../lib/api';
 import { PdfTextError } from '../lib/pdfText';
 import { cancelLocalPdfRead, isLocalPdfReadActive, startLocalPdfRead, takeLocalPdfResult, useLocalPdfRead } from '../lib/localPdfRead';
 import { estimatedPercent } from '../lib/importProgress';
+import { clearRecordedImport, recordImportStatus } from '../lib/importStatusCache';
 
 /// `percent` is null while the step has no measurable size, so the bar can stay indeterminate
 /// instead of inventing a number.
@@ -62,6 +63,7 @@ export function useImportPipeline({ selected, setSelected, setDraft, onChanged, 
   useEffect(() => () => { pollAbort.current?.abort(); }, []);
   const apply = useCallback((view: ImportView) => {
     if (cancelled.current === view.id) return;
+    recordImportStatus(view);
     setSelected(view); setDraft(view.draft);
   }, [setSelected, setDraft]);
 
@@ -84,14 +86,18 @@ export function useImportPipeline({ selected, setSelected, setDraft, onChanged, 
   const poll = useCallback(async (current: ImportView): Promise<ImportView> => {
     const meta = await api.getImportStatusMeta(current.id, statusEtags.current.get(current.id), pollAbort.current?.signal);
     if (meta.etag) statusEtags.current.set(current.id, meta.etag);
+    if (meta.data) recordImportStatus(meta.data, meta.etag);
     if (meta.notModified || !meta.data) return current;
     const status = meta.data;
     const lightweight: ImportView = { ...current, ...status };
     // A completed draft or an alternative choice carries data that is deliberately omitted from
     // the polling contract. Fetch it once at the transition instead of transferring it every two
     // seconds while the model is still working.
-    if (status.status === 'ready' || status.stage === 'select' || status.status === 'failed')
-      return api.getImport(current.id);
+    if (status.status === 'ready' || status.stage === 'select' || status.status === 'failed') {
+      const full = await api.getImport(current.id);
+      recordImportStatus(full);
+      return full;
+    }
     return lightweight;
   }, []);
 
@@ -251,6 +257,7 @@ export function useImportPipeline({ selected, setSelected, setDraft, onChanged, 
   /// the pass in flight: the server finds no row to commit to and the draft never appears.
   const cancel = useCallback(async (view: ImportView) => {
     cancelled.current = view.id;
+    clearRecordedImport(view.id);
     pollAbort.current?.abort();
     resumed.current.delete(view.id);
     setFailure(null); setNotice(''); setProgress(null);

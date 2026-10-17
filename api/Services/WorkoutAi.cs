@@ -83,7 +83,10 @@ public sealed class WorkoutAi(HttpClient http, IConfiguration config, ILogger<Wo
     /// until week choices are reconciled, and persists bounded targeted repairs.
     /// v45 reads a day title printed down a table's WORKOUT column and keeps an optional day placed
     /// in another week out of the phase of the page that prints it.
-    public const string PromptVersion = "workout-import-v45-workout-column-titles";
+    /// v46 moves a week read with the same number as a later lettered version after it, places an
+    /// optional day read under another name, keeps cover and overview phase lines off the schedule,
+    /// and reads a cue placed "at the top/bottom end ROM" as position rather than partial reps.
+    public const string PromptVersion = "workout-import-v46-version-weeks-and-phase-scope";
 
     /// One cheap pass over a page-by-page view of the document. Most of a commercial training PDF
     /// is explanation and photography; this pass exists to find the few pages that actually carry

@@ -35,10 +35,14 @@ internal static class ImportOptionalScheduleDays
             if (weeks.Count == 0 || weeks.Any(week => week is < 1 or > 104) || labels.Count != 1) continue;
 
             var targetName = Identity(labels[0]);
-            var matches = result.Select((workout, index) => (workout, index))
-                .Where(item => !item.workout.IsRestDay && SourcePage(item.workout) == page.Page &&
-                    Identity(item.workout.Name) == targetName)
+            var onPage = result.Select((workout, index) => (workout, index))
+                .Where(item => !item.workout.IsRestDay && SourcePage(item.workout) == page.Page)
                 .ToList();
+            var matches = onPage.Where(item => Identity(item.workout.Name) == targetName).ToList();
+            // The printed title is not applied when a read returns the day more than once, so the
+            // single session left on the page after repeats are removed is that day by another name.
+            var renamed = matches.Count == 0 && onPage.Count == 1;
+            if (renamed) matches = onPage;
             if (matches.Count != 1) continue;
 
             var (source, sourceIndex) = matches[0];
@@ -57,6 +61,7 @@ internal static class ImportOptionalScheduleDays
                 var placed = source with
                 {
                     Week = week,
+                    Name = renamed ? ImportNormalization.Text(ImportDayLabels.TidyLabel(labels[0]), 120) ?? source.Name : source.Name,
                     PhaseWeek = context?.PhaseWeek ?? source.PhaseWeek,
                     Block = context is null ? source.Block : context.Block,
                     Phase = context is null ? source.Phase : context.Phase,

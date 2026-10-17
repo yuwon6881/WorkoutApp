@@ -1,5 +1,6 @@
 import { Fragment, memo } from 'react';
 import { parseAiMessage } from '../../lib/aiMessage';
+import './AiMessageContent.css';
 
 const BOLD_OR_CODE_TOKEN = /(\*\*[^*\r\n]+?\*\*|`[^`\r\n]+?`)/g;
 
@@ -21,7 +22,12 @@ export const AiMessageContent = memo(function AiMessageContent({ content, role }
         case 'heading':
           return <p key={index} className="ai-message-heading"><Inline text={block.text} /></p>;
         case 'bullets':
-          return <ul key={index}>{block.items.map((item, i) => <li key={i}><Inline text={item} /></li>)}</ul>;
+          return <ul key={index}>{block.items.map((item, i) => (
+            <li key={i} className={item.leadIn ? 'ai-message-lead-in' : undefined}>
+              <Inline text={item.text} />
+              {item.children.length > 0 && <ul>{item.children.map((child, j) => <li key={j}><Inline text={child} /></li>)}</ul>}
+            </li>
+          ))}</ul>;
         case 'numbered':
           return <ol key={index} start={block.start}>{block.items.map((item, i) => <li key={i}><Inline text={item} /></li>)}</ol>;
         case 'paragraph':
