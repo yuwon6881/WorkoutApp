@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ArrowLeft } from 'lucide-react';
 import type { DraftWorkout, Exercise, ImportDraft, ProgramEditorDocument } from '../types';
 import { validateProgramEditorDocument } from '../lib/validation';
 import { ApiError, api } from '../lib/api';
 import { DraftOutline, type DraftOutlineHandle } from './ImportDraftTree';
 import { Button } from './ui/Button';
+import { BackButton } from './ui/BackButton';
 import { Modal } from './ui/Modal';
 import './ProgramTimeline.css';
 import './ProgramStructureBar.css';
@@ -82,7 +82,7 @@ export function ProgramBuilderPage({ initialDraft, exercises, onBack, onCreated 
   return <div className="program-builder-page ptl-builder-page">
     <div className="page-heading ptl-page-heading">
       <div>
-        <Button variant="tertiary" onClick={() => setLeaveConfirmOpen(true)}><ArrowLeft size={16} />Back to workouts</Button>
+        <BackButton to="workouts" onClick={() => setLeaveConfirmOpen(true)} />
         <h1>Build a program</h1>
       </div>
     </div>

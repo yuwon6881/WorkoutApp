@@ -281,8 +281,8 @@
   min-height: 44px !important;
   height: 44px !important;
   padding: 0 14px 0 10px !important;
-  border: 1px solid var(--control-border) !important;
-  border-radius: var(--radius-control) !important;
+  border: 1px dashed var(--control-border) !important;
+  border-radius: var(--radius-pill) !important;
   background: var(--surface) !important;
   color: var(--text) !important;
   font-size: var(--font-secondary) !important;
@@ -302,7 +302,7 @@
 .ptl-add-btn:hover:not(:disabled) {
   background: var(--surface-hover) !important;
   border-color: var(--border-hover) !important;
-  color: var(--accent) !important;
+  border-style: solid !important;
 }
 
 .ptl-add-btn:focus-visible {
@@ -316,12 +316,26 @@
 }
 
 .ptl-add-btn svg {
-  color: inherit;
+  color: var(--accent);
   flex-shrink: 0;
 }
 
 .ptl-add-btn-label {
   white-space: nowrap;
+}
+
+/* A phone has no room for the labels beside two chips, so the add actions become round "+"
+   chips (named by aria-label) and the week chips stop scrolling out of view. */
+@media (max-width: 639px) {
+  .ptl-add-btn {
+    width: 44px !important;
+    min-width: 44px !important;
+    padding: 0 !important;
+  }
+
+  .ptl-add-btn-label {
+    display: none;
+  }
 }
 
 /* 6. Scroll Arrows: 44px, visible when there is overflow, hidden when disabled */
@@ -353,16 +367,22 @@
   outline-offset: 2px;
 }
 
-/* A disabled arrow keeps its place: removing it resized the strip under the press, so the chips
-   jumped and a page of weeks looked like a nudge. */
+/* When every week fits there is nothing to scroll, so the arrows and their space go and Week 1
+   lines up with the block chips above it. */
+.ptl-week-scroller-wrap .filter-chips-nav:not(.has-overflow) .filter-nav-btn {
+  display: none !important;
+}
+
+/* Once the strip overflows, a disabled arrow stays visible but dimmed: removing it resized the
+   strip under the press, so the chips jumped and a page of weeks looked like a nudge. */
 .ptl-week-scroller-wrap .filter-nav-btn:disabled {
-  visibility: hidden;
+  opacity: 0.35 !important;
 }
 
 /* Below 1024 px the week chips scroll by touch, with no arrows; fading the trailing edge shows
    that a chip past the edge is not cut off by mistake. */
 @media (max-width: 1023px) {
-  .ptl-week-scroller-wrap .filter-chips {
+  .ptl-week-scroller-wrap .can-scroll-right .filter-chips {
     -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent);
     mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent);
   }

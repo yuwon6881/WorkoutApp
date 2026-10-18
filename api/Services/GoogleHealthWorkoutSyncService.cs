@@ -24,7 +24,8 @@ public sealed partial class GoogleHealthWorkoutSyncService(
     GoogleHealthService google,
     HttpClient http,
     GoogleHealthWorkoutSummaryService summary,
-    Func<TimeSpan, CancellationToken, Task>? retryDelay = null)
+    Func<TimeSpan, CancellationToken, Task>? retryDelay = null,
+    TimeSpan? inFlightGrace = null)
 {
     public const string WorkoutScope = "https://www.googleapis.com/auth/googlehealth.activity_and_fitness.writeonly";
     private static readonly TimeSpan LeaseDuration = TimeSpan.FromMinutes(2);
