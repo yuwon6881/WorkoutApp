@@ -32,7 +32,7 @@ public static class WatchAuthentication
             return HttpMethods.IsPatch(request.Method);
 
         return segments.Length == 5 && segments[0] == "api" && segments[1] == "watch" && segments[2] == "workouts" &&
-            Guid.TryParse(segments[3], out _) && segments[4] is "pause" or "resume" or "finish" && HttpMethods.IsPost(request.Method);
+            Guid.TryParse(segments[3], out _) && segments[4] is "pause" or "resume" or "rest" or "finish" && HttpMethods.IsPost(request.Method);
     }
 
     public static async Task<Guid?> FindAccountForDeviceToken(AppDb db, string token, CancellationToken ct)

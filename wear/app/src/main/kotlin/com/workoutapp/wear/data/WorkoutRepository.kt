@@ -78,14 +78,7 @@ class WorkoutRepository private constructor(context: Context) {
                 ownEdits && remote?.id != local?.session?.id -> local
                 remote == null -> null
                 local?.session?.id == remote.id -> {
-                    // The watch's own unsent rest change, or a read older than what the watch
-                    // already holds, never replaces the rest the watch is showing.
-                    val keepLocal = pending.any { it.type == "set" || it.type == "rest" } || remote.revision < local.session.revision
-                    val (restEndsAt, restGen, pausedRest) = if (keepLocal) {
-                        Triple(local.restEndsAtEpochMs, local.restGeneration, local.pausedRestRemainingMs)
-                    } else {
-                        remoteRestState(remote.rest)
-                    }
+                    val (restEndsAt, restGen, pausedRest) = RestSync.forAdoption(local, remote, pending, System.currentTimeMillis())
 
                     local.copy(
                         session = SessionProjection.project(remote, pending),

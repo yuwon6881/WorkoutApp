@@ -13,6 +13,8 @@ public sealed class WatchAuthenticationTests
     [InlineData("POST", "/api/watch/workouts/6e9d4551-5a3d-4d04-9f86-39f487c73c40/pause", true)]
     [InlineData("POST", "/api/watch/workouts/6e9d4551-5a3d-4d04-9f86-39f487c73c40/resume", true)]
     [InlineData("POST", "/api/watch/workouts/6e9d4551-5a3d-4d04-9f86-39f487c73c40/finish", true)]
+    [InlineData("POST", "/api/watch/workouts/6e9d4551-5a3d-4d04-9f86-39f487c73c40/rest", true)]
+    [InlineData("GET", "/api/watch/workouts/6e9d4551-5a3d-4d04-9f86-39f487c73c40/rest", false)]
     [InlineData("POST", "/api/watch/session/revoke", true)]
     [InlineData("POST", "/api/watch/integrations/google-health/sync-data", true)]
     [InlineData("GET", "/api/watch/integrations/google-health/sync-data", false)]

@@ -76,8 +76,10 @@ fun ActiveWorkoutScreen(
     LaunchedEffect(model.set, model.startingLoad, model.startingReps, model.startingRir) {
         draft.reconcile(model)
     }
+    // A running timer freezes with the workout and picks up where it stopped; a stopped one is
+    // already in the draft, where a crown edit made after stopping must survive a pause.
     LaunchedEffect(snapshot.setTimers?.get(model.set?.id), session.pausedAt) {
-        val timer = snapshot.setTimers?.get(model.set?.id) ?: return@LaunchedEffect
+        val timer = snapshot.setTimers?.get(model.set?.id)?.takeIf { it.startedAt != null } ?: return@LaunchedEffect
         val current = if (paused) timer.pause(java.time.Instant.parse(session.pausedAt).toEpochMilli()) else timer.resume(System.currentTimeMillis())
         draft.restoreTimer(current)
         if (current != timer) model.set?.id?.let { onSetTimerChanged(it, current) }

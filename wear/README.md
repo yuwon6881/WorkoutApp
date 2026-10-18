@@ -44,3 +44,10 @@ Robolectric tests verify service replacement, cancellation, pause, finish, destr
 - Alert lateness relative to the deadline, plus screen-on versus screen-off conditions and any interrupted rests.
 
 Repeat the same procedure after any change to the service, wake-lock bound, or alert mechanism. No physical-watch measurement has been recorded for this build.
+
+## Verification
+
+The `Wear OS` workflow (`.github/workflows/wear.yml`) runs on every push that touches `wear/`:
+
+- `gradle -p wear :app:testDebugUnitTest :app:assembleDebug` runs the unit and Robolectric tests, including `WearScreenshotTest`, which renders every screen state on small round, large round and square watches (plus large text) into `wear/app/build/wear-shots` and fails a screen that draws nothing. The renders and test reports are uploaded as `wear-unit-reports`.
+- A Wear OS emulator (API 34) per face shape installs the debug APK with `scripts/emulator-smoke.sh`, launches it at normal and large text sizes, fails on an app crash, and uploads the screenshots as `wear-emulator-<profile>`.

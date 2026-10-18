@@ -195,6 +195,30 @@ public sealed class WatchActiveConditionalTests : IAsyncDisposable
         Assert.NotEqual(runningEtag, elapsedEtag);
     }
 
+    [Fact]
+    public async Task Paired_watch_can_change_the_rest_of_the_active_workout()
+    {
+        var (user, token) = await CreateUserAndPairedDeviceToken("user_watch_rest");
+        using var clientForUser = CreateWatchClient(token);
+
+        var (workoutId, _, revision) = await StartWorkoutWithSet(user.Id);
+
+        using var restReq = new HttpRequestMessage(HttpMethod.Post, $"/api/watch/workouts/{workoutId}/rest")
+        {
+            Content = new StringContent(
+                $$"""{"revision":{{revision}},"mutationId":"{{Guid.NewGuid()}}","action":"start","seconds":60,"generation":"watch-rest-1","originDeviceId":"watch"}""",
+                Encoding.UTF8, "application/json")
+        };
+        var restRes = await clientForUser.SendAsync(restReq);
+        Assert.Equal(HttpStatusCode.OK, restRes.StatusCode);
+
+        using var body = JsonDocument.Parse(await restRes.Content.ReadAsStringAsync());
+        var rest = body.RootElement.GetProperty("rest");
+        Assert.Equal("running", rest.GetProperty("status").GetString());
+        Assert.Equal("watch-rest-1", rest.GetProperty("generation").GetString());
+        Assert.Equal("watch", rest.GetProperty("originDeviceId").GetString());
+    }
+
     private HttpClient CreateWatchClient(string token)
     {
         var watchClient = factory.CreateClient();

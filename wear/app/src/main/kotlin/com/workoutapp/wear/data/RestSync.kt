@@ -20,4 +20,22 @@ object RestSync {
             else -> Triple(null, null, null)
         }
     }
+
+    /**
+     * The rest the watch shows after adopting [remote] over its own [local] copy of the same workout.
+     * Any unsent watch edit (a set, a rest change, or a pause that froze the rest), or a read older
+     * than what the watch already holds, keeps the watch's rest. A rest this watch already buzzed
+     * for is over, even when the server's clock has it a moment from its deadline.
+     */
+    fun forAdoption(
+        local: WorkoutSnapshot,
+        remote: WorkoutSession,
+        pending: List<PendingOperation>,
+        nowMs: Long
+    ): Triple<Long?, String?, Long?> {
+        val keepLocal = pending.any { it.sessionId == local.session.id } || remote.revision < local.session.revision
+        if (keepLocal) return Triple(local.restEndsAtEpochMs, local.restGeneration, local.pausedRestRemainingMs)
+        val rest = fromServer(remote.rest, nowMs)
+        return if (rest.second != null && rest.second == local.alertedRestGeneration) Triple(null, null, null) else rest
+    }
 }

@@ -90,6 +90,48 @@ class WorkoutStoreTest {
         }
     }
 
+    @Test
+    fun `running set timers survive a store restart`() {
+        val store = WorkoutStore(context)
+        val timer = SetTimerSnapshot(startedAt = 8_000_000L, baseSeconds = 10, targetSeconds = 45, pausedAt = 8_020_000L)
+        store.saveSnapshot(snapshot().copy(setTimers = mapOf("set-1" to timer)))
+        store.close()
+
+        val restarted = WorkoutStore(context)
+        try {
+            assertEquals(mapOf("set-1" to timer), restarted.readSnapshot()?.setTimers)
+        } finally {
+            restarted.close()
+        }
+    }
+
+    @Test
+    fun `version five databases gain the set timer column and keep the saved workout`() {
+        val database = context.openOrCreateDatabase("workout-wear.db", Context.MODE_PRIVATE, null)
+        database.execSQL("""CREATE TABLE workout_state (
+            id INTEGER PRIMARY KEY CHECK (id = 1), session_json TEXT NOT NULL, unit TEXT NOT NULL,
+            default_rest_seconds INTEGER NOT NULL, active_exercise_id TEXT, rest_ends_at INTEGER,
+            paused_rest_remaining_ms INTEGER, rest_generation TEXT, alerted_rest_generation TEXT, conflict_operation_id TEXT,
+            conflict_session_json TEXT, pending_finish INTEGER NOT NULL DEFAULT 0, last_logged_set_id TEXT,
+            track_rir INTEGER NOT NULL DEFAULT 1
+        )""")
+        database.execSQL("""INSERT INTO workout_state (id, session_json, unit, default_rest_seconds)
+            VALUES (1, '{"id":"workout-1","revision":4}', 'kg', 90)""")
+        database.version = 5
+        database.close()
+
+        val upgraded = WorkoutStore(context)
+        try {
+            val saved = upgraded.readSnapshot()!!
+            assertEquals("workout-1", saved.session.id)
+            assertEquals(emptyMap<String, SetTimerSnapshot>(), saved.setTimers)
+            upgraded.saveSnapshot(saved.copy(setTimers = mapOf("set-1" to SetTimerSnapshot(stoppedSeconds = 30))))
+            assertEquals(30, upgraded.readSnapshot()?.setTimers?.get("set-1")?.stoppedSeconds)
+        } finally {
+            upgraded.close()
+        }
+    }
+
     private fun snapshot() = WorkoutSnapshot(
         session = WorkoutSession(id = "workout-1", revision = 4),
         unit = "kg",

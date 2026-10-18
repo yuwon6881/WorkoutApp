@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.toArgb
 import androidx.wear.compose.material3.AppScaffold
 import com.workoutapp.wear.ui.theme.Palette
 import com.workoutapp.wear.ui.theme.WearWorkoutTheme
@@ -57,6 +58,7 @@ fun renderScreen(device: WatchDevice, name: String, settleMs: Long = 2_000, cont
     val canvas = Canvas(bitmap)
     root.draw(canvas)
     ShadowDialog.getLatestDialog()?.takeIf { it.isShowing }?.window?.decorView?.draw(canvas)
+    check(drawnFraction(bitmap) >= MIN_DRAWN_FRACTION) { "$name drew almost nothing on ${device.id}" }
     if (activity.resources.configuration.isScreenRound) maskToCircle(canvas, bitmap.width, bitmap.height)
     val directory = File(System.getProperty("wear.shots.dir") ?: "build/wear-shots", device.id)
     directory.mkdirs()
@@ -65,6 +67,14 @@ fun renderScreen(device: WatchDevice, name: String, settleMs: Long = 2_000, cont
     ShadowDialog.getLatestDialog()?.dismiss()
     controller.pause().stop().destroy()
     return file
+}
+
+/** Share of pixels that differ from the screen background, so a screen that fails to draw is caught. */
+private fun drawnFraction(bitmap: Bitmap): Double {
+    val pixels = IntArray(bitmap.width * bitmap.height)
+    bitmap.getPixels(pixels, 0, bitmap.width, 0, 0, bitmap.width, bitmap.height)
+    val background = Palette.Background.toArgb()
+    return pixels.count { it != background }.toDouble() / pixels.size
 }
 
 private fun maskToCircle(canvas: Canvas, width: Int, height: Int) {
@@ -76,3 +86,5 @@ private fun maskToCircle(canvas: Canvas, width: Int, height: Int) {
 }
 
 private const val BEZEL = 0xFF2A2E36.toInt()
+// Even the sparsest screen (a title and one button) covers more than this.
+private const val MIN_DRAWN_FRACTION = 0.005

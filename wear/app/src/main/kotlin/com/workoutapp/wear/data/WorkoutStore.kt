@@ -5,6 +5,7 @@ import android.content.Context
 import android.database.sqlite.SQLiteDatabase
 import android.database.sqlite.SQLiteOpenHelper
 import com.google.gson.GsonBuilder
+import com.google.gson.reflect.TypeToken
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -41,7 +42,7 @@ class WorkoutStore(context: Context) : SQLiteOpenHelper(context.applicationConte
             default_rest_seconds INTEGER NOT NULL, active_exercise_id TEXT, rest_ends_at INTEGER,
             paused_rest_remaining_ms INTEGER, rest_generation TEXT, alerted_rest_generation TEXT, conflict_operation_id TEXT,
             conflict_session_json TEXT, pending_finish INTEGER NOT NULL DEFAULT 0, last_logged_set_id TEXT,
-            track_rir INTEGER NOT NULL DEFAULT 1
+            track_rir INTEGER NOT NULL DEFAULT 1, set_timers_json TEXT
         )""".trimIndent())
         db.execSQL("""CREATE TABLE workout_operations (
             sequence INTEGER PRIMARY KEY AUTOINCREMENT, id TEXT NOT NULL UNIQUE, type TEXT NOT NULL,
@@ -60,6 +61,9 @@ class WorkoutStore(context: Context) : SQLiteOpenHelper(context.applicationConte
         }
         if (oldVersion < 5 && !hasColumn(db, "workout_state", "track_rir")) {
             db.execSQL("ALTER TABLE workout_state ADD COLUMN track_rir INTEGER NOT NULL DEFAULT 1")
+        }
+        if (oldVersion < 6 && !hasColumn(db, "workout_state", "set_timers_json")) {
+            db.execSQL("ALTER TABLE workout_state ADD COLUMN set_timers_json TEXT")
         }
     }
 
@@ -81,7 +85,10 @@ class WorkoutStore(context: Context) : SQLiteOpenHelper(context.applicationConte
             conflictSession = cursor.stringOrNull("conflict_session_json")?.let { gson.fromJson(it, WorkoutSession::class.java) },
             pendingFinish = cursor.getInt(cursor.getColumnIndexOrThrow("pending_finish")) != 0,
             lastLoggedSetId = cursor.stringOrNull("last_logged_set_id"),
-            trackRir = cursor.getInt(cursor.getColumnIndexOrThrow("track_rir")) != 0
+            trackRir = cursor.getInt(cursor.getColumnIndexOrThrow("track_rir")) != 0,
+            setTimers = cursor.stringOrNull("set_timers_json")
+                ?.let { runCatching { gson.fromJson<Map<String, SetTimerSnapshot>>(it, SET_TIMERS_TYPE) }.getOrNull() }
+                .orEmpty()
         )
     }
 
@@ -252,6 +259,7 @@ class WorkoutStore(context: Context) : SQLiteOpenHelper(context.applicationConte
         put("pending_finish", if (snapshot.pendingFinish) 1 else 0)
         put("last_logged_set_id", snapshot.lastLoggedSetId)
         put("track_rir", if (snapshot.trackRir) 1 else 0)
+        put("set_timers_json", snapshot.setTimers?.takeIf { it.isNotEmpty() }?.let(gson::toJson))
     }
 
     private fun operationValues(operation: PendingOperation) = ContentValues().apply {
@@ -285,9 +293,10 @@ class WorkoutStore(context: Context) : SQLiteOpenHelper(context.applicationConte
 
     companion object {
         private const val DATABASE_NAME = "workout-wear.db"
-        private const val DATABASE_VERSION = 5
+        private const val DATABASE_VERSION = 6
         private const val NOTICE_PREFERENCES = "workout-wear-notices"
         private const val NOTICE_KEY = "sync-notice"
+        private val SET_TIMERS_TYPE = object : TypeToken<Map<String, SetTimerSnapshot>>() {}.type
 
         @Volatile private var shared: WorkoutStore? = null
 
