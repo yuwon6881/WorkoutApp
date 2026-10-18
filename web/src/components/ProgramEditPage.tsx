@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowLeft, Lock } from 'lucide-react';
+import { Lock } from 'lucide-react';
 import type { DraftWorkout, Exercise, ImportDraft, Program } from '../types';
 import { ApiError, api } from '../lib/api';
 import { programToDraft } from '../lib/activeSlot';
@@ -10,6 +10,7 @@ import {
 import { validateProgramEditorDocument } from '../lib/validation';
 import { DraftOutline } from './ImportDraftTree';
 import { Button } from './ui/Button';
+import { BackButton } from './ui/BackButton';
 import { CardFeedback } from './ui/CardFeedback';
 import { Modal } from './ui/Modal';
 import './ProgramTimeline.css';
@@ -123,7 +124,7 @@ export function ProgramEditPage({ programId, exercises, activeTemplateId, onBack
   return <div className="program-builder-page ptl-builder-page">
     <div className="page-heading ptl-page-heading">
       <div>
-        <Button variant="tertiary" onClick={leave}><ArrowLeft size={16} />Back to workouts</Button>
+        <BackButton to="workouts" onClick={leave} />
         <h1>Edit program</h1>
       </div>
     </div>

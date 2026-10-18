@@ -7,14 +7,20 @@ namespace Workout.Api.Services;
 /// item runs as its owner and a failed item is contained to itself.
 public sealed partial class GoogleHealthWorkoutSyncService
 {
+    /// Beyond the budget, an upload already sent gets this long to answer before it is abandoned.
+    /// Cutting a create off mid-flight leaves it uncertain (it may have reached Google), so a slow
+    /// answer is worth waiting a little longer for; the whole pass still ends inside the client's timeout.
+    public static readonly TimeSpan DefaultInFlightGrace = TimeSpan.FromSeconds(8);
+
     /// Processes due uploads for every account (the daily sweep), or for one account while its user
-    /// is active. A budget cancels in-progress work; an unfinished record retains its lease.
+    /// is active. The budget stops new uploads from starting; one in progress may run on for the
+    /// in-flight grace, after which it is cancelled and its unfinished record retains its lease.
     public async Task<GoogleHealthWorkoutSyncProcessResult> ProcessDueAsync(CancellationToken ct, Guid? userId = null, TimeSpan? budget = null)
     {
         ct.ThrowIfCancellationRequested();
         if (budget <= TimeSpan.Zero) return new(0, 0, 0, 0, 0);
         using var passDeadline = CancellationTokenSource.CreateLinkedTokenSource(ct);
-        if (budget is { } passBudget) passDeadline.CancelAfter(passBudget);
+        if (budget is { } passBudget) passDeadline.CancelAfter(passBudget + (inFlightGrace ?? DefaultInFlightGrace));
         ct = passDeadline.Token;
         var started = DateTime.UtcNow;
         var deadline = budget is { } limit ? started.Add(limit) : DateTime.MaxValue;

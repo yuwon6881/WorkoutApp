@@ -70,7 +70,11 @@ export function ChipScroller({
     element.scrollBy({ left: delta, behavior: reducedMotion ? 'auto' : 'smooth' });
   };
 
-  return <div className="filter-chips-nav">
+  // The classes let a strip drop its arrows (and their space) when every chip already fits, and
+  // fade only the edge that hides a chip.
+  const overflowClass = canScrollLeft || canScrollRight ? ' has-overflow' : '';
+  const endClass = canScrollRight ? ' can-scroll-right' : '';
+  return <div className={`filter-chips-nav${overflowClass}${endClass}`}>
     <Button presentation="plain" className="filter-nav-btn" aria-label={leftLabel}
       disabled={!canScrollLeft} onClick={() => scroll('left')}>
       <ChevronLeft size={18} />

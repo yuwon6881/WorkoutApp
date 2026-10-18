@@ -5,8 +5,8 @@ import { buildAttentionRows, type ImportIssueTarget } from '../lib/importAttenti
 import { resumableImport } from '../lib/importSelection';
 import { localPdfRead, useLocalPdfRead } from '../lib/localPdfRead';
 import { CardFeedback } from './ui/CardFeedback';
-import { AlertTriangle, ArrowLeft, Loader2 } from 'lucide-react';
-import { Button } from './ui/Button';
+import { AlertTriangle, Loader2 } from 'lucide-react';
+import { BackButton } from './ui/BackButton';
 import { DraftOutline, type DraftOutlineHandle } from './ImportDraftTree';
 import { useImportPipeline } from './useImportPipeline';
 import { useImportDraftSaver } from './useImportDraftSaver';
@@ -124,9 +124,7 @@ export function ImportReview({ exercises, imports, onBack, onChanged, notify }: 
   return <div className="import-page">
     <div className="page-heading">
       <div>
-        <div className="back-nav-row">
-          <Button variant="tertiary" className="back-button" onClick={onBack}><ArrowLeft size={16} />Back to workouts</Button>
-        </div>
+        <BackButton to="workouts" onClick={onBack} />
         <h1>Import a program</h1>
       </div>
     </div>
