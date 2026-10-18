@@ -57,13 +57,16 @@ internal static class PrescriptionProgression
 
         // Changing the program's targets is not a failed exposure. Re-select a suitable load
         // before evaluating streaks against the new prescription.
-        if (changed && reserve is not null && load is > 0 && loads.Adjustable && !repsOnly &&
-            ProgressionEvidence.Capacity(source, load) is { } capacity)
+        // An unrecorded effort is read as the target the set was asked for, so a periodised program
+        // still re-selects its load when RIR is not tracked.
+        var assumed = ProgressionEvidence.AssumedReserve(source, goal);
+        if (changed && assumed is not null && load is > 0 && loads.Adjustable && !repsOnly &&
+            ProgressionEvidence.Capacity(source, load, assumed) is { } capacity)
         {
             var predicted = ProgressionEvidence.RepsAt(source, load, load.Value, goal);
             if (predicted < lower - 1 || predicted > upper + 1)
             {
-                var selected = loads.AtMost(capacity / (30 + lower + (goal ?? reserve.Value)));
+                var selected = loads.AtMost(capacity / (30 + lower + (goal ?? assumed.Value)));
                 if (selected > 0)
                 {
                     var estimate = ProgressionEvidence.RepsAt(source, load, selected, goal) ?? lower;
@@ -235,8 +238,16 @@ internal static class PrescriptionProgression
                 "That set was well within reach of the target effort: a larger, capped step to reach it. Reps are estimated; adjust from actual effort.");
         }
         var predictedReps = ProgressionEvidence.RepsAt(source, load, increased, goal);
-        if (increased <= load || predictedReps is null)
+        if (increased <= load)
+            return Result(load, upper, "Top of the range at the heaviest available weight: keep building reps or control the tempo.");
+        if (predictedReps is null)
+        {
+            // Past 30 effective reps the estimate no longer holds, but a high-rep set at the top of
+            // its range has earned a small step as surely as any other.
+            if (!open && increased / load <= 1.1)
+                return Result(increased, lower, "Increase one equipment step; aim for the bottom of the range at the intended effort.");
             return Result(load, upper, "Hold the load: the next available step cannot be estimated reliably from this set.");
+        }
 
         if (!open && predictedReps == lower - 1 && load > 0 && increased / load <= 1.1)
             return Result(increased, lower, "Increase one equipment step; aim for the prescribed minimum at the intended effort.");
@@ -250,7 +261,16 @@ internal static class PrescriptionProgression
             // For an exact target, one extra rep is a progression attempt, not a promise.
             if (!open && lower == upper && predictedReps >= lower - 1)
                 return Result(increased, lower, "Increase one equipment step; aim to rebuild the exact rep target at the prescribed effort.");
-            return Result(load, upper, "Hold the load: the smallest available increase is too large for the current rep target. Build reserve first.");
+            // Reps capped at the top of the range can never show the step is reachable, so the
+            // set earns it with reps past the range, one at a time, as far as a bounded overshoot.
+            var aimAtStep = lower < upper && reserve is not null ? transitionFloor : lower == upper ? lower - 1 : lower;
+            if (!open && ProgressionCalibration.RepsToReach(source, load.Value, increased, aimAtStep, goal, upper) is { } needed)
+            {
+                var next = Math.Min(Math.Max(actual, upper) + 1, needed);
+                return Result(load, next,
+                    $"The next available weight is too big a jump from here: aim for {next} reps at this load, past the range, and step up once about {needed} reps are within the target effort.");
+            }
+            return Result(load, upper, "Hold the load: the next available weight is too big a jump for this rep target. Add a smaller increment in this exercise's weight settings, or move up and log the reps you get.");
         }
         if (allowedTransition)
             return Result(increased, predictedReps.Value,

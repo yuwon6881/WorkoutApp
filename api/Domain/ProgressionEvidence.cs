@@ -65,14 +65,27 @@ internal static class ProgressionEvidence
 
     // A local load/reps heuristic, deliberately separate from PR/e1RM reporting. It is used
     // only up to 30 effective reps, and never claimed to guarantee the prescribed effort.
-    public static double? Capacity(SetExposure source, double? load)
-        => load is > 0 && source.Reps is > 0 && source.Reps + (Reserve(source) ?? 0) <= 30
-            ? load * (30 + source.Reps + (Reserve(source) ?? 0)) : null;
+    // An unrecorded reserve is taken as the one assumed for it (the target the set was asked for),
+    // never as failure: reading it as zero would rate every unrated set weaker than it was.
+    public static double? Capacity(SetExposure source, double? load, double? assumedReserve = null)
+    {
+        var reserve = Reserve(source) ?? assumedReserve ?? 0;
+        return load is > 0 && source.Reps is > 0 && source.Reps + reserve <= 30
+            ? load * (30 + source.Reps + reserve) : null;
+    }
 
+    /// The reserve a set is read with: the one it logged, else the target it was performed against,
+    /// else the target now asked for. Null when none of them is known.
+    public static double? AssumedReserve(SetExposure source, double? goal)
+        => Reserve(source) ?? Reserve(source.TargetRir, source.TargetRpe) ?? goal;
+
+    /// The reps the set allows at a new load, kept at the same effort: the target when one is set,
+    /// else the reserve the set itself logged. A set with no recorded effort is assumed to have met
+    /// its target, so the estimate moves only with the load.
     public static int? RepsAt(SetExposure source, double? oldLoad, double newLoad, double? goal)
     {
-        if (newLoad <= 0 || Capacity(source, oldLoad) is not { } capacity) return null;
-        return (int)Math.Floor(capacity / newLoad - 30 - (goal ?? Reserve(source) ?? 0) + 1e-9);
+        if (newLoad <= 0 || Capacity(source, oldLoad, AssumedReserve(source, goal)) is not { } capacity) return null;
+        return (int)Math.Floor(capacity / newLoad - 30 - (goal ?? AssumedReserve(source, null) ?? 0) + 1e-9);
     }
 
     public static int Streak(IEnumerable<SetExposure> history, Func<SetExposure, bool> predicate)

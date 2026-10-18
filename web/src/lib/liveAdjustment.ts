@@ -4,6 +4,7 @@ import { loadEntryFor } from './resistanceVariant';
 import { isTimedExercise } from './setDuration';
 import { effortPatch, effortValue, loadIsEditable } from './workoutDraft';
 import { setKind } from './workoutSetTypes';
+import { hasOpenReps } from './setTarget';
 
 /// The loads a piece of equipment can actually be set to: a weight list, else multiples of a step.
 export type LoadGrid = { stepKg: number; availableLoadsKg: number[] | null };
@@ -82,9 +83,10 @@ const roundToGrid = (value: number, grid: LoadGrid, mode: 'floor' | 'nearest'): 
 
 type Plan = { low: number; high: number; goal: number };
 
-/// The rep range a straight working set aims for, null when it states no rep count to steer by.
+/// The rep range a straight working set aims for, null when it states no rep count to steer by
+/// (an AMRAP set's stored one-rep bound is a placeholder, not a target).
 function repPlan(plan: SetPrescription | undefined): Plan | null {
-  if (!plan || plan.warmup || plan.repMin == null || plan.repMin <= 0) return null;
+  if (!plan || plan.warmup || plan.repMin == null || plan.repMin <= 0 || hasOpenReps(plan)) return null;
   const high = plan.repMax != null && plan.repMax >= plan.repMin ? plan.repMax : plan.repMin;
   return { low: plan.repMin, high, goal: targetReserve(plan) };
 }
@@ -119,10 +121,12 @@ function adjustedInputs(
   const capacity = plannedCapacity * ratio; // in reps-plus-reserve units at the planned load
   const exact = target.low === target.high;
   const repsAtPlannedLoad = capacity - 30 - target.goal;
+  // Equipment with no increment and no weight list progresses through reps alone, so its load stays put.
+  const loadMoves = loadMatters && (!!grid.availableLoadsKg?.length || grid.stepKg > 0);
   let load = base.weightKg;
   let reps: number;
 
-  if (!loadMatters || load === null || load <= 0) {
+  if (!loadMoves || load === null || load <= 0) {
     reps = Math.min(target.high, Math.max(target.low, Math.round(repsAtPlannedLoad)));
   } else {
     // The same lift moves the load whose reps land in range: capacity / load = reps + reserve + 30.

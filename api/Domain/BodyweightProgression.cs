@@ -17,15 +17,11 @@ public static class BodyweightProgression
         var min = open ? null : prescription.RepMin;
         var max = open ? null : prescription.RepMax ?? min;
         history = ProgressionHistory.Prepare(history.Where(x => x.Technique == SetTechniques.Of(prescription)).ToList(), min, max, goal);
-        if (reference is not > 0)
-        {
-            var fallback = Progression.Suggest(prescription, history.Where(x => x.ResistanceMode == resistanceMode).ToList(),
-                mode, new LoadOptions(0), revision, resistanceMode, exposure => exposure.SystemLoadKg, now, lastTrained);
-            var last = history.FirstOrDefault(x => x.SessionId == fallback.SourceSessionId);
-            var reps = last?.Reps is { } completed ? Math.Clamp(completed, min ?? 1, max ?? 1000) : fallback.SuggestedReps;
-            return fallback with { SuggestedLoadKg = null, SuggestedSystemLoadKg = null, SuggestedReps = reps,
-                Reason = "No recent Nutrition bodyweight is available. Log actual reps and effort; total resistance cannot be estimated." };
-        }
+        // Without a total to compare (no usable weigh-in today, or none frozen with the last session)
+        // the set still progresses on what was entered: the reps follow the policy and the added or
+        // assistance weight is repeated as logged, never re-estimated against an unknown bodyweight.
+        if (reference is not > 0 || history.FirstOrDefault() is { SystemLoadKg: null })
+            return WithoutTotal(prescription, history, mode, revision, resistanceMode, reference, max, now, lastTrained);
 
         var weight = reference.Value;
         var loads = resistanceMode switch
@@ -91,6 +87,40 @@ public static class BodyweightProgression
             IsBodyweightAdjustment = adjusted,
             Reason = reason + (equipmentAdjustment
                 ? " Adjusted to an available equipment weight; total resistance differs from the estimate. Log actual effort." : "") };
+    }
+
+    private static SetProgressionSuggestion WithoutTotal(SetPrescription prescription, IReadOnlyList<SetExposure> history,
+        string mode, long? revision, string resistanceMode, double? reference, int? max, DateTime? now, DateTime? lastTrained)
+    {
+        var entered = resistanceMode is ResistanceModes.Added or ResistanceModes.Assistance;
+        var same = history.Where(exposure => exposure.ResistanceMode == resistanceMode).ToList();
+        // Reps only compare at the same entered weight; plain bodyweight has none to differ.
+        var suggestion = Progression.Suggest(prescription, same, mode, new LoadOptions(0), revision, ResistanceModes.RepsOnly,
+            entered ? exposure => exposure.LoadKg : _ => null, now, lastTrained);
+        var source = same.FirstOrDefault(exposure => exposure.SessionId == suggestion.SourceSessionId);
+        var input = entered ? source?.LoadKg : null;
+        var system = reference is > 0 ? resistanceMode switch
+        {
+            ResistanceModes.Bodyweight => reference,
+            ResistanceModes.Added when input is { } added => reference + added,
+            ResistanceModes.Assistance when input is { } assistance => Math.Max(0, reference.Value - assistance),
+            _ => null
+        } : null;
+        var top = max is { } upper && source?.Reps >= upper && suggestion.SuggestedReps >= upper;
+        var why = reference is > 0
+            ? "The last session has no recorded bodyweight, so total resistance can't be compared"
+            : "No recent Nutrition bodyweight, so total resistance can't be estimated";
+        var reason = source is null ? why + ". Log actual reps and effort."
+            : entered && top ? why + (resistanceMode == ResistanceModes.Added
+                ? ": top of the range at this added weight. Add weight when these reps feel within the target effort."
+                : ": top of the range at this assistance. Take some away when these reps feel within the target effort.")
+            : entered ? why + $": keep the same {(resistanceMode == ResistanceModes.Added ? "added weight" : "assistance")}. " + suggestion.Reason
+            : why + ". " + suggestion.Reason;
+        return suggestion with
+        {
+            SuggestedLoadKg = input, SuggestedSystemLoadKg = system, ResistanceMode = resistanceMode,
+            IsBodyweightAdjustment = false, PreviousLoadKg = input is null ? null : source?.LoadKg, Reason = reason
+        };
     }
 
     /// A changed weigh-in can put a held total between equipment steps. Choose the easier

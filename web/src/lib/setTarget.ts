@@ -10,7 +10,7 @@ export type SetTarget = { reps: string; load: string | null; reason: string | nu
 
 // Mirrors the server's Progression.HasOpenReps: an "AMRAP" or "max reps" set with no count.
 const OPEN_REPS = /\b(?:amrap|max(?:imum)?\s+reps?|to\s+failure|failure)\b/i;
-const hasOpenReps = (plan: SetPrescription): boolean =>
+export const hasOpenReps = (plan: SetPrescription): boolean =>
   !!plan.repsText?.trim() && OPEN_REPS.test(plan.repsText) && !/\d/.test(plan.repsText);
 
 /// The set's target as the progression set it when the workout started: the load and reps the

@@ -47,6 +47,18 @@ internal static class ProgressionCalibration
         return recent.Take(PlateauSessions - 1).Max(exposure => exposure.Reps!.Value) <= recent[^1].Reps!.Value;
     }
 
+    /// The reps at the current load that would make the next step land on its own target
+    /// (Epley with reps in reserve, as RepsAt), when that is within a bounded overshoot of the
+    /// range's top: up to half the range again, at least two reps. Null when the step stays out
+    /// of reach that way, so the lifter needs a smaller increment instead.
+    public static int? RepsToReach(SetExposure source, double load, double next, int aim, double? goal, int upper)
+    {
+        var limit = upper + Math.Max(2, (int)Math.Ceiling(upper * .5));
+        for (var reps = Math.Max(source.Reps ?? upper, upper) + 1; reps <= limit; reps++)
+            if (ProgressionEvidence.RepsAt(source with { Reps = reps }, load, next, goal) >= aim) return reps;
+        return null;
+    }
+
     public static double ResetLoad(double load, LoadOptions loads)
     {
         var reduced = loads.AtMost(load * PlateauReset);

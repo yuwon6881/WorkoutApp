@@ -70,6 +70,20 @@ describe('withLiveAdjustment', () => {
     expect(sets[1].reps).toBe(10);
   });
 
+  it('moves reps, never the load, on equipment set to progress through reps alone', () => {
+    const sets = withLiveAdjustment(logged(three(), 0, { reps: 8, rpe: 10, rir: '0' }), 0, 0,
+      { stepKg: 0, availableLoadsKg: null }, true, new Map()).exercises[0].sets;
+    expect(sets[1].weightKg).toBe(60);
+    expect(sets[1].reps).toBeLessThan(10);
+  });
+
+  it('does not steer by an AMRAP set, whose one-rep bound is only a placeholder', () => {
+    const amrap = plan({ repMin: 1, repMax: 1, repsText: 'AMRAP', rir: null });
+    const draft = draftWith([set('a', 0, 60, 12), set('b', 1, 60, 12)], amrap);
+    const after = logged(draft, 0, { reps: 6, rpe: 10, rir: '0' });
+    expect(withLiveAdjustment(after, 0, 0, grid, true, new Map())).toBe(after);
+  });
+
   it('moves the load for an exact rep target', () => {
     const exact = plan({ repMin: 5, repMax: 5 });
     const draft = draftWith([set('a', 0, 100, 5), set('b', 1, 100, 5)], exact);

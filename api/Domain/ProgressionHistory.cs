@@ -10,11 +10,22 @@ internal static class ProgressionHistory
 
     public static IReadOnlyList<SetExposure> Prepare(IReadOnlyList<SetExposure> history, int? min, int? max, double? goal)
     {
+        history = OnePerSession(history, min, max, goal);
         var working = history.Where(exposure => !ProgressionEvidence.IsDeload(exposure, goal)).ToList();
         if (working.Count == 0) return history;
 
         var matched = working.Where(exposure => !ProgressionEvidence.Changed(exposure, min, max, goal)).ToList();
         if (matched.Count == 0 || matched.Count == working.Count) return working;
         return (working[0].CompletedAt - matched[0].CompletedAt).TotalDays <= MatchWindowDays ? matched : working;
+    }
+
+    /// A session that trained the movement twice (a top set and back-off sets as separate rows)
+    /// counts once: as the row prescribed like the set being planned, else its first row.
+    private static IReadOnlyList<SetExposure> OnePerSession(IReadOnlyList<SetExposure> history, int? min, int? max, double? goal)
+    {
+        if (history.Select(exposure => exposure.SessionId).Distinct().Count() == history.Count) return history;
+        return history.GroupBy(exposure => exposure.SessionId)
+            .Select(session => session.FirstOrDefault(exposure => !ProgressionEvidence.Changed(exposure, min, max, goal)) ?? session.First())
+            .ToList();
     }
 }

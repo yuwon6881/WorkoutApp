@@ -179,6 +179,7 @@ public sealed partial class WorkoutService(
                 var isTimed = plan.ExerciseId is { } timedId && timed.ContainsKey(timedId);
                 var firstSuggestion = (SetProgressionSuggestion?)null;
                 var straightSuggestion = (SetProgressionSuggestion?)null;
+                var straightPlan = (SetPrescription?)null;
                 for (var index = 0; index < prescription.Count; index++)
                 {
                     var planSet = prescription[index];
@@ -195,21 +196,22 @@ public sealed partial class WorkoutService(
 
                     workingOrdinal++;
                     var resistanceMode = ResolveResistanceMode(loadModel, resolvedName);
+                    var exposures = previous.GetValueOrDefault(workingOrdinal) ?? [];
                     if (isTimed)
                     {
                         db.Sets.Add(new CompletedSet
                         {
                             UserId = session.UserId, SessionExerciseId = exercise.Id, Position = index,
                             WorkingSetOrdinal = workingOrdinal, Done = false, Warmup = false, SuggestionJson = "",
-                            ResistanceMode = resistanceMode
+                            ResistanceMode = resistanceMode, WeightKg = TimedStartLoad(exposures, resistanceMode, lastTrained)
                         });
                         continue;
                     }
-                    var exposures = previous.GetValueOrDefault(workingOrdinal) ?? [];
-                    var suggestion = Progression.ForPrescription(planSet, FollowStraightSets(planSet, straightSuggestion,
+                    var suggestion = Progression.ForPrescription(planSet, AddedSet(planSet, FollowStraightSets(planSet, straightSuggestion,
                         MakeSuggestion(planSet, exposures, contextResult.Mode, step, contextResult, resistanceMode, loadModel, bodyWeight,
-                            plan.ExerciseId is { } loadId ? info.GetValueOrDefault(loadId)?.AvailableLoadsKg : null, lastTrained)));
-                    if (SetTechniques.Of(planSet) is null) straightSuggestion = suggestion;
+                            plan.ExerciseId is { } loadId ? info.GetValueOrDefault(loadId)?.AvailableLoadsKg : null, lastTrained)),
+                        straightPlan, straightSuggestion));
+                    if (SetTechniques.Of(planSet) is null) (straightSuggestion, straightPlan) = (suggestion, planSet);
                     firstSuggestion ??= suggestion;
                     // Effort is filled in only where history already fills in the load and reps.
                     var effort = tracksRir && (suggestion.SourceSessionId is not null || suggestion.SourceDate is not null)
@@ -460,49 +462,6 @@ public sealed partial class WorkoutService(
     {
         set.WeightKg = null; set.SystemLoadKg = null; set.SuggestionJson = "";
         set.ResistanceMode = ResolveResistanceMode(replacementModel, replacementName);
-    }
-
-    private async Task RefreshReplacementSuggestions(WorkoutSession session, SessionExercise exercise, List<CompletedSet> sets,
-        string loadModel, CancellationToken ct)
-    {
-        // Reps and seconds never carry across a timed/reps swap; a timed replacement gets no rep suggestion.
-        // A logged set is what was lifted and is never rewritten; it still counts toward the ordinal.
-        var timed = exercise.ExerciseId is { } timedId && (await CatalogService.TrackingModesFor(db, [timedId], ct)).ContainsKey(timedId);
-        foreach (var set in sets.Where(s => !s.Done))
-        {
-            if (timed) set.Reps = null;
-            else set.DurationSeconds = null;
-        }
-        if (timed) return;
-        var prescriptions = Json.Read<List<SetPrescription>>(exercise.PrescriptionJson);
-        var context = ReadOptional<NutritionTrainingContext>(session.NutritionContextJson);
-        var result = new NutritionContextResult(context, NutritionContextService.Mode(context, DateTime.UtcNow), context is not null, context?.Confirmed == true, null);
-        var bodyWeight = ReadOptional<BodyWeightSnapshot>(session.BodyWeightSnapshotJson);
-        var userUnit = await LoadRuleReader.AccountUnit(db, ct);
-        var info = await progression.LoadInfo([exercise.ExerciseId], ct);
-        var step = exercise.ExerciseId is { } id && info.TryGetValue(id, out var found) ? found.StepKg : Progression.DefaultStep(userUnit);
-        var histories = await PreviousExposures(exercise.ExerciseId, exercise.NameSnapshot, ct);
-        var lastTrained = ProgressionLayoff.Newest(histories.Values.SelectMany(exposures => exposures));
-        var workingOrdinal = 0; SetProgressionSuggestion? first = null; SetProgressionSuggestion? straight = null;
-        foreach (var set in sets.OrderBy(s => s.Position))
-        {
-            if (set.Warmup) continue;
-            workingOrdinal++;
-            if (set.Done) continue;
-            var prescription = prescriptions.ElementAtOrDefault(set.Position);
-            if (prescription is null) continue;
-            var enteredReps = set.Reps;
-            var enteredRpe = set.Rpe;
-            var mode = ResolveResistanceMode(loadModel, exercise.NameSnapshot);
-            var suggestion = Progression.ForPrescription(prescription, FollowStraightSets(prescription, straight,
-                MakeSuggestion(prescription, histories.GetValueOrDefault(workingOrdinal) ?? [], result.Mode, step, result, mode, loadModel, bodyWeight,
-                    exercise.ExerciseId is { } loadId ? info.GetValueOrDefault(loadId)?.AvailableLoadsKg : null, lastTrained)));
-            if (SetTechniques.Of(prescription) is null) straight = suggestion;
-            set.WeightKg = suggestion.SuggestedLoadKg; set.SystemLoadKg = suggestion.SuggestedSystemLoadKg;
-            set.ResistanceMode = mode; set.SuggestionJson = Json.Write(suggestion); set.Reps = enteredReps; set.Rpe = enteredRpe; first ??= suggestion;
-        }
-        exercise.ProgressionJson = first is null ? "" : Json.Write(new ProgressionView(first.SuggestedLoadKg, first.SuggestedReps, first.Reason,
-            null, null, step, first.ProgressionMode, first.NutritionContextRevision));
     }
 
     /// Finishing keeps only completed sets, so an untouched suggestion never becomes history.

@@ -28,7 +28,11 @@ public sealed record SetExposure(
     /// How far the earlier working sets of the same exercise in that session went past their target
     /// effort, and the lowest reserve they logged (see ProgressionFatigue). Null when unknown.
     double? PriorOvershoot = null,
-    double? PriorReserve = null);
+    double? PriorReserve = null)
+{
+    /// The session exercise row the set belongs to, telling apart two rows of one movement in a session.
+    public Guid? SessionExerciseId { get; init; }
+}
 
 public static class ProgressionModes
 {
