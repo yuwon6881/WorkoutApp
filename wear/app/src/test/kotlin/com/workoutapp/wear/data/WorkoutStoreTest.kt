@@ -115,6 +115,11 @@ class WorkoutStoreTest {
             conflict_session_json TEXT, pending_finish INTEGER NOT NULL DEFAULT 0, last_logged_set_id TEXT,
             track_rir INTEGER NOT NULL DEFAULT 1
         )""")
+        database.execSQL("""CREATE TABLE workout_operations (
+            sequence INTEGER PRIMARY KEY AUTOINCREMENT, id TEXT NOT NULL UNIQUE, type TEXT NOT NULL,
+            session_id TEXT NOT NULL, set_id TEXT, revision INTEGER NOT NULL, request_json TEXT NOT NULL,
+            baseline_json TEXT NOT NULL, created_at TEXT NOT NULL, attempted INTEGER NOT NULL DEFAULT 0
+        )""")
         database.execSQL("""INSERT INTO workout_state (id, session_json, unit, default_rest_seconds)
             VALUES (1, '{"id":"workout-1","revision":4}', 'kg', 90)""")
         database.version = 5
