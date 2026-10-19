@@ -116,10 +116,18 @@ public class WorkoutForegroundService extends Service {
     /// Alerts for the stored rest at most once on this device, whichever of the page, this
     /// callback, and the alarm gets there first.
     static void alertOnce(Context context, RestSnapshot snapshot) {
-        if (!snapshot.alert) return;
-        if (WorkoutRecoveryStore.get(context).claimRestAlert(snapshot.sessionId, snapshot.generation)) {
-            RestAlerts.post(context, snapshot.sessionId, snapshot.sound, snapshot.vibrate);
+        alertOnce(context, snapshot, () -> { });
+    }
+
+    /// The chime and vibration need no notification permission, so they play even when the rest
+    /// notification is off. `done` runs once the chime has finished.
+    static void alertOnce(Context context, RestSnapshot snapshot, Runnable done) {
+        if (!RestSchedule.alerts(snapshot)
+                || !WorkoutRecoveryStore.get(context).claimRestAlert(snapshot.sessionId, snapshot.generation)) {
+            done.run();
+            return;
         }
+        RestAlerts.post(context, snapshot.sessionId, snapshot.alert, snapshot.sound, snapshot.vibrate, done);
     }
 
     private void acquireWakeLock(long timeoutMs) {

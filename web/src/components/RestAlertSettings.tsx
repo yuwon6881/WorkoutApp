@@ -143,7 +143,7 @@ export function RestAlertSettings({ accountId, preferences, devicePreferences, o
             {capabilities?.notifications && capabilities.restChannelEnabled === false &&
               <span role="status">The rest notification channel is off.</span>}
             {capabilities?.restChannelEnabled && capabilities.restSoundEnabled === false && devicePreferences.sound &&
-              <span role="status">Rest sound is muted in Android channel settings.</span>}
+              <span role="status">Do Not Disturb is holding back the rest chime.</span>}
             {capabilities?.notifications && capabilities.liveUpdatesSupported && !capabilities.liveUpdates &&
               <span>Live Updates are off, so the rest countdown is not pinned to the status bar.</span>}
             {capabilities?.notifications && capabilities.xiaomiIsland === 'off' &&
@@ -151,7 +151,7 @@ export function RestAlertSettings({ accountId, preferences, devicePreferences, o
             {capabilities?.serviceError && <span role="alert">{capabilities.serviceError}</span>}
           </>}
           info={{
-            content: 'Alerts need notifications and precise timing. Scheduling an alert does not prove it arrives: use Test alert with the screen locked. Force stop, Do Not Disturb, and a muted phone can still silence it.',
+            content: 'Alerts need notifications and precise timing. Scheduling an alert does not prove it arrives: use Test alert with the screen locked. The chime plays at media volume over music, even on vibrate; Force stop and Do Not Disturb can still silence it.',
             label: 'Workout alerts info'
           }}
         >

@@ -19,7 +19,9 @@ public class RestAlarmReceiver extends BroadcastReceiver {
     @Override
     public void onReceive(Context context, Intent intent) {
         if (intent.getBooleanExtra(EXTRA_TEST, false)) {
-            RestAlerts.post(context, null, intent.getBooleanExtra(EXTRA_SOUND, true), intent.getBooleanExtra(EXTRA_VIBRATE, false));
+            PendingResult test = goAsync();
+            RestAlerts.post(context, null, true, intent.getBooleanExtra(EXTRA_SOUND, true),
+                    intent.getBooleanExtra(EXTRA_VIBRATE, false), test::finish);
             return;
         }
         RestSnapshot snapshot = WorkoutRecoveryStore.get(context).getRestSnapshot();
@@ -27,7 +29,10 @@ public class RestAlarmReceiver extends BroadcastReceiver {
                 || !snapshot.isCurrent(intent.getStringExtra(EXTRA_SESSION_ID), intent.getStringExtra(EXTRA_GENERATION))) return;
         long late = System.currentTimeMillis() - snapshot.deadlineMs;
         if (late < -1000 || late > LATE_LIMIT_MS) return;
-        WorkoutForegroundService.alertOnce(context, snapshot);
+        // The receiver stays alive until the chime has played; otherwise the process may be
+        // reclaimed mid-chime when no service is running.
+        PendingResult pending = goAsync();
+        WorkoutForegroundService.alertOnce(context, snapshot, pending::finish);
         // A running service redraws the notification from the countdown to the workout's time.
         if (WorkoutForegroundService.isRunning()) {
             try { WorkoutForegroundService.start(context); } catch (RuntimeException ignored) { /* the next app visit redraws it */ }

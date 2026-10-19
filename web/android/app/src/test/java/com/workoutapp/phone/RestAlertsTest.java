@@ -33,7 +33,8 @@ public class RestAlertsTest {
         manager.createNotificationChannel(new NotificationChannel(RestAlerts.CHANNEL_ALERT, "Blocked", NotificationManager.IMPORTANCE_NONE));
         assertTrue(RestAlerts.notificationsEnabled(context));
         assertFalse(RestAlerts.restChannelEnabled(context));
-        assertFalse(RestAlerts.restSoundEnabled(context));
+        // The chime is the app's own, so a blocked channel does not silence it.
+        assertTrue(RestAlerts.restSoundEnabled(context));
         RestAlerts.post(context, "session", true, false);
         assertEquals(0, manager.getActiveNotifications().length);
     }
@@ -60,11 +61,31 @@ public class RestAlertsTest {
         assertEquals(0, manager.getActiveNotifications().length);
     }
 
-    @Test public void silentChannelCanDeliverWithoutReportingSound() {
-        NotificationChannel channel = new NotificationChannel(RestAlerts.CHANNEL_ALERT, "Silent", NotificationManager.IMPORTANCE_LOW);
-        channel.setSound(null, null);
-        manager.createNotificationChannel(channel);
-        assertTrue(RestAlerts.restChannelEnabled(context));
+    @Test public void theChannelIsSilentBecauseTheAppPlaysTheChime() {
+        RestAlerts.createChannels(context);
+        NotificationChannel channel = manager.getNotificationChannel(RestAlerts.CHANNEL_ALERT);
+        assertNull(channel.getSound());
+        assertEquals(NotificationManager.IMPORTANCE_HIGH, channel.getImportance());
+        // The channels that played the chime as their own sound are gone.
+        assertNull(manager.getNotificationChannel("workout_rest_complete"));
+    }
+
+    @Test public void theChimePlaysInSilentModeButNotUnderDoNotDisturb() {
+        RestAlerts.createChannels(context);
+        AudioManager audio = context.getSystemService(AudioManager.class);
+        audio.setRingerMode(AudioManager.RINGER_MODE_SILENT);
+        manager.setInterruptionFilter(NotificationManager.INTERRUPTION_FILTER_ALL);
+        assertTrue(RestAlerts.chimeAllowed(context));
+        manager.setInterruptionFilter(NotificationManager.INTERRUPTION_FILTER_PRIORITY);
+        assertFalse(RestAlerts.chimeAllowed(context));
         assertFalse(RestAlerts.restSoundEnabled(context));
+    }
+
+    @Test public void anAlertWithoutChimeReportsDoneAtOnce() {
+        RestAlerts.createChannels(context);
+        boolean[] done = {false};
+        RestAlerts.post(context, "session", false, false, false, () -> done[0] = true);
+        assertTrue(done[0]);
+        assertEquals(0, manager.getActiveNotifications().length);
     }
 }

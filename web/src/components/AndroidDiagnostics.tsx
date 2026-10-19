@@ -24,7 +24,7 @@ export function AndroidDiagnostics({ accountId }: { accountId: string }) {
       const yes = (value: boolean | undefined) => value === undefined ? 'Could not check' : value ? 'Enabled' : 'Disabled';
       setLines([...diagnosticLines(info, navigator.onLine, recordedSync(accountId)),
         ['Pending edits', String(recovery?.operations.length ?? 0)], ['Pending notification actions', String(info.pendingActions)],
-        ['Rest alert readiness', !alerts ? 'Could not check' : !alerts.notifications || !alerts.restChannelEnabled ? 'Blocked' : alerts.restSoundEnabled ? 'Enabled' : 'Available but silent'],
+        ['Rest alert readiness', !alerts ? 'Could not check' : !alerts.notifications || !alerts.restChannelEnabled ? 'Blocked' : alerts.restSoundEnabled ? 'Enabled' : 'Chime held by Do Not Disturb'],
         ['Exact alarms', yes(alerts?.exactAlarm)], ['Battery unrestricted', yes(alerts?.batteryExempt)],
         ['Workout service', alerts?.serviceError ? 'service_unavailable' : 'No failure reported'],
         ['Live Update promotion', yes(alerts?.liveUpdates)], ['Last update check', diagnosticTimestamp(lastApkUpdate().lastSuccessfulCheck ? new Date(lastApkUpdate().lastSuccessfulCheck!).toISOString() : null)]]);

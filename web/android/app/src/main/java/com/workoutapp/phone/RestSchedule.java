@@ -24,7 +24,7 @@ final class RestSchedule {
 
     /// Arms the alarm for a running rest whose deadline is still ahead; anything else cancels it.
     static void apply(Context context, RestSnapshot snapshot) {
-        if (snapshot == null || !snapshot.alert || !snapshot.isRunning() || snapshot.deadlineMs <= System.currentTimeMillis()) {
+        if (!alerts(snapshot) || !snapshot.isRunning() || snapshot.deadlineMs <= System.currentTimeMillis()) {
             cancel(context);
             return;
         }
@@ -33,6 +33,11 @@ final class RestSchedule {
                 .putExtra(RestAlarmReceiver.EXTRA_GENERATION, snapshot.generation);
         set(context, snapshot.deadlineMs, PendingIntent.getBroadcast(context, REQUEST_REST, intent,
                 PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE));
+    }
+
+    /// Whether a finished rest does anything on this device: a notification, a chime, or a buzz.
+    static boolean alerts(RestSnapshot snapshot) {
+        return snapshot != null && (snapshot.alert || snapshot.sound || snapshot.vibrate);
     }
 
     static void cancel(Context context) {
