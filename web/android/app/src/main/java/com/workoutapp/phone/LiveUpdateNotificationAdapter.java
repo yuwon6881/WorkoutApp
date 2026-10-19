@@ -18,6 +18,7 @@ import androidx.core.content.ContextCompat;
 final class LiveUpdateNotificationAdapter {
     // The rest bar moves in steps this long; the countdown text itself is the system's, to the second.
     static final long PROGRESS_REFRESH_MS = 5000L;
+    private static final long MINUTE_MS = 60_000L;
     private static final int REQUEST_SHORTEN = RestAlerts.NOTIFICATION_ID_ONGOING + 10;
     private static final int REQUEST_EXTEND = RestAlerts.NOTIFICATION_ID_ONGOING + 11;
     private static final int REQUEST_SKIP = RestAlerts.NOTIFICATION_ID_ONGOING + 12;
@@ -48,6 +49,35 @@ final class LiveUpdateNotificationAdapter {
     /// Whether the notification changes over time in a way the system cannot draw by itself.
     static boolean needsProgressRefresh(RestSnapshot snapshot, long now) {
         return snapshot != null && snapshot.isRunning() && snapshot.deadlineMs > now && snapshot.totalMs > 0;
+    }
+
+    /// How long until the notification must be redrawn, or 0 when the system keeps it current: the
+    /// rest bar every few seconds, and on HyperOS the island's elapsed minutes at each new minute.
+    static long refreshDelayMs(Context context, RestSnapshot snapshot, long now) {
+        if (needsProgressRefresh(snapshot, now)) return PROGRESS_REFRESH_MS;
+        long start = trainingStart(snapshot, now);
+        if (start <= 0 || !compactIsland(context)) return 0;
+        return MINUTE_MS - (now - start) % MINUTE_MS;
+    }
+
+    /// HyperOS draws a promoted notification's title in the Super Island when it has no short
+    /// text, and does not draw the chronometer there, so "Workout in progress" filled the island.
+    /// Stock Android shows the ticking chronometer in its chip, which a short text would replace.
+    static boolean compactIsland(Context context) {
+        return XiaomiFocus.protocolVersion(context) >= 1;
+    }
+
+    /// When the workout's elapsed time started counting, less pauses; 0 outside plain training.
+    private static long trainingStart(RestSnapshot snapshot, long now) {
+        if (snapshot == null || snapshot.startedAtMs <= 0 || snapshot.pausedAtMs > 0 || snapshot.isPaused() ||
+                snapshot.isRunning() && snapshot.deadlineMs > now) return 0;
+        return snapshot.startedAtMs + snapshot.pausedSeconds * 1000L;
+    }
+
+    /// Elapsed workout time short enough for the island: "0m", "52m", "1h 05m".
+    static String elapsedShort(long elapsedMs) {
+        long minutes = Math.max(0, elapsedMs) / MINUTE_MS;
+        return minutes < 60 ? minutes + "m" : minutes / 60 + "h " + String.format(java.util.Locale.ROOT, "%02dm", minutes % 60);
     }
 
     private static NotificationCompat.Builder create(Context context, RestSnapshot snapshot, long now, boolean detailed) {
@@ -91,6 +121,7 @@ final class LiveUpdateNotificationAdapter {
                     .setContentText("Return to the app to resume.")
                     .setUsesChronometer(false)
                     .setShowWhen(false);
+            if (compactIsland(context)) builder.setShortCriticalText("Paused");
         } else {
             builder.setContentTitle("Workout in progress")
                     .setContentText(nextUp != null ? "Next: " + nextUp : "Return to the app to log your next set.")
@@ -98,9 +129,12 @@ final class LiveUpdateNotificationAdapter {
             if (snapshot != null && snapshot.startedAtMs > 0) {
                 // Counting up from the start, less the time spent paused, reads the workout's
                 // elapsed time without any per-second update from the app.
-                builder.setUsesChronometer(true).setWhen(snapshot.startedAtMs + snapshot.pausedSeconds * 1000L);
+                long start = snapshot.startedAtMs + snapshot.pausedSeconds * 1000L;
+                builder.setUsesChronometer(true).setWhen(start);
+                if (compactIsland(context)) builder.setShortCriticalText(elapsedShort(now - start));
             } else {
                 builder.setShowWhen(false);
+                if (compactIsland(context)) builder.setShortCriticalText("Workout");
             }
         }
         return builder;

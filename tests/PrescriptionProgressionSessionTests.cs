@@ -64,6 +64,23 @@ public sealed class PrescriptionProgressionSessionTests
     }
 
     [Fact]
+    public async Task A_set_prescribed_like_the_set_before_it_never_starts_heavier_than_it()
+    {
+        await using var h = await Harness.Create();
+        await h.SignIn();
+        var template = await Template(h, Harness.Set(8, 8), Harness.Set(8, 8));
+        await LogSets(h, await h.Workouts.Start(template, null, default), (20, 8, "2"), (20, 8, "2"));
+        // The first set went to failure, so it is re-aimed lighter; the second met its target.
+        await LogSets(h, await h.Workouts.Start(template, null, default), (20, 8, "0"), (20, 8, "2"));
+
+        var sets = (await h.Workouts.Start(template, null, default)).Exercises.Single().Sets;
+        Assert.True(sets[0].WeightKg < 20);
+        // Back-off and straight sets do not climb within a row.
+        Assert.Equal(sets[0].WeightKg, sets[1].WeightKg);
+        Assert.Contains("set before it", sets[1].Suggestion!.Reason);
+    }
+
+    [Fact]
     public async Task A_second_set_dip_after_the_first_set_overshot_its_target_holds_the_load()
     {
         await using var h = await Harness.Create();

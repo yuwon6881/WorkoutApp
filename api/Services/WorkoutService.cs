@@ -207,10 +207,11 @@ public sealed partial class WorkoutService(
                         });
                         continue;
                     }
-                    var suggestion = Progression.ForPrescription(planSet, AddedSet(planSet, FollowStraightSets(planSet, straightSuggestion,
-                        MakeSuggestion(planSet, exposures, contextResult.Mode, step, contextResult, resistanceMode, loadModel, bodyWeight,
-                            plan.ExerciseId is { } loadId ? info.GetValueOrDefault(loadId)?.AvailableLoadsKg : null, lastTrained)),
-                        straightPlan, straightSuggestion));
+                    var suggestion = Progression.ForPrescription(planSet, NoHeavierThanBefore(planSet, AddedSet(planSet,
+                        FollowStraightSets(planSet, straightSuggestion,
+                            MakeSuggestion(planSet, exposures, contextResult.Mode, step, contextResult, resistanceMode, loadModel, bodyWeight,
+                                plan.ExerciseId is { } loadId ? info.GetValueOrDefault(loadId)?.AvailableLoadsKg : null, lastTrained)),
+                        straightPlan, straightSuggestion), straightPlan, straightSuggestion));
                     if (SetTechniques.Of(planSet) is null) (straightSuggestion, straightPlan) = (suggestion, planSet);
                     firstSuggestion ??= suggestion;
                     // Effort is filled in only where history already fills in the load and reps.

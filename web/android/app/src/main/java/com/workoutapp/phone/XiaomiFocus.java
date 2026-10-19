@@ -105,7 +105,8 @@ final class XiaomiFocus {
                 long start = snapshot.startedAtMs + snapshot.pausedSeconds * 1000L;
                 timer = timer(TIMER_COUNT_UP, start, Math.max(0, now - start), now);
             } else {
-                title = "Workout in progress";
+                // The island sizes itself to this text; keep it one short word.
+                title = "Workout";
                 content = "Return to the app to log your next set.";
             }
 

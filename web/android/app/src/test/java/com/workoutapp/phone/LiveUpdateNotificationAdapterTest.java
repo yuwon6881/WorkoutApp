@@ -89,6 +89,26 @@ public class LiveUpdateNotificationAdapterTest {
         assertFalse(LiveUpdateNotificationAdapter.needsProgressRefresh(unknownLength, now));
     }
 
+    @Test public void hyperOsKeepsTheIslandToShortTextWhileStockAndroidKeepsTheChronometer() {
+        long now = System.currentTimeMillis();
+        RestSnapshot training = new RestSnapshot("workout-1", "", RestSnapshot.IDLE, 0, 0, now - 600_000, 0, 0,
+                true, true, false, "page", 1);
+        assertNull(LiveUpdateNotificationAdapter.build(context, training).getShortCriticalText());
+        assertEquals(0, LiveUpdateNotificationAdapter.refreshDelayMs(context, training, now));
+
+        Settings.System.putInt(context.getContentResolver(), "notification_focus_protocol", 3);
+        assertEquals("10m", LiveUpdateNotificationAdapter.build(context, training).getShortCriticalText());
+        long delay = LiveUpdateNotificationAdapter.refreshDelayMs(context, training, now);
+        assertTrue(delay > 0 && delay <= 60_000);
+        RestSnapshot paused = new RestSnapshot("workout-1", "", RestSnapshot.IDLE, 0, 0, now - 600_000, now - 1000, 0,
+                true, true, false, "page", 1);
+        assertEquals("Paused", LiveUpdateNotificationAdapter.build(context, paused).getShortCriticalText());
+        assertEquals(0, LiveUpdateNotificationAdapter.refreshDelayMs(context, paused, now));
+        // A rest keeps the system countdown in the chip.
+        assertNull(LiveUpdateNotificationAdapter.build(context, resting(null)).getShortCriticalText());
+        assertEquals("1h 05m", LiveUpdateNotificationAdapter.elapsedShort(65 * 60_000L));
+    }
+
     @Test public void otherPhonesCarryNoXiaomiExtras() {
         assertEquals(XiaomiFocus.STATUS_UNSUPPORTED, XiaomiFocus.status(context));
         assertNull(LiveUpdateNotificationAdapter.build(context, resting(null)).extras.getString(XiaomiFocus.EXTRA_PARAM));

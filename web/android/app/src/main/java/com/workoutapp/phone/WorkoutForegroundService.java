@@ -81,9 +81,8 @@ public class WorkoutForegroundService extends Service {
         handler.removeCallbacks(deadline);
         handler.removeCallbacks(progress);
         releaseWakeLock();
-        if (LiveUpdateNotificationAdapter.needsProgressRefresh(snapshot, System.currentTimeMillis())) {
-            handler.postDelayed(progress, LiveUpdateNotificationAdapter.PROGRESS_REFRESH_MS);
-        }
+        long refresh = LiveUpdateNotificationAdapter.refreshDelayMs(this, snapshot, System.currentTimeMillis());
+        if (refresh > 0) handler.postDelayed(progress, refresh);
         RestSchedule.apply(this, snapshot);
         long remaining = snapshot.deadlineMs - System.currentTimeMillis();
         if (snapshot.isRunning() && remaining > 0) {
@@ -105,13 +104,13 @@ public class WorkoutForegroundService extends Service {
         if (snapshot != null) promote(snapshot);
     }
 
-    /// Moves the rest bar on. The countdown text needs no help; only the bar is redrawn, and only
-    /// while a rest with a known length is running.
+    /// Moves the rest bar (and on HyperOS the island's elapsed minutes) on. The countdown text needs
+    /// no help; the notification is redrawn only while something the system cannot draw changes.
     private void onProgress() {
         RestSnapshot snapshot = WorkoutRecoveryStore.get(this).getRestSnapshot();
-        if (!LiveUpdateNotificationAdapter.needsProgressRefresh(snapshot, System.currentTimeMillis())) return;
+        if (snapshot == null || LiveUpdateNotificationAdapter.refreshDelayMs(this, snapshot, System.currentTimeMillis()) <= 0) return;
         promote(snapshot);
-        handler.postDelayed(progress, LiveUpdateNotificationAdapter.PROGRESS_REFRESH_MS);
+        handler.postDelayed(progress, LiveUpdateNotificationAdapter.refreshDelayMs(this, snapshot, System.currentTimeMillis()));
     }
 
     /// Alerts for the stored rest at most once on this device, whichever of the page, this

@@ -51,10 +51,11 @@ public sealed partial class WorkoutService
             var enteredReps = set.Reps;
             var enteredRpe = set.Rpe;
             var mode = ResolveResistanceMode(loadModel, exercise.NameSnapshot);
-            var suggestion = Progression.ForPrescription(prescription, AddedSet(prescription, FollowStraightSets(prescription, straight,
-                MakeSuggestion(prescription, histories.GetValueOrDefault(workingOrdinal) ?? [], result.Mode, step, result, mode, loadModel, bodyWeight,
-                    exercise.ExerciseId is { } loadId ? info.GetValueOrDefault(loadId)?.AvailableLoadsKg : null, lastTrained)),
-                straightPlan, straight));
+            var suggestion = Progression.ForPrescription(prescription, NoHeavierThanBefore(prescription, AddedSet(prescription,
+                FollowStraightSets(prescription, straight,
+                    MakeSuggestion(prescription, histories.GetValueOrDefault(workingOrdinal) ?? [], result.Mode, step, result, mode, loadModel, bodyWeight,
+                        exercise.ExerciseId is { } loadId ? info.GetValueOrDefault(loadId)?.AvailableLoadsKg : null, lastTrained)),
+                straightPlan, straight), straightPlan, straight));
             if (SetTechniques.Of(prescription) is null) (straight, straightPlan) = (suggestion, prescription);
             set.WeightKg = suggestion.SuggestedLoadKg; set.SystemLoadKg = suggestion.SuggestedSystemLoadKg;
             set.ResistanceMode = mode; set.SuggestionJson = Json.Write(suggestion); set.Reps = enteredReps; set.Rpe = enteredRpe; first ??= suggestion;
@@ -102,10 +103,7 @@ public sealed partial class WorkoutService
         if (SetTechniques.Of(prescription) is not null || own.SourceSessionId is not null || own.SourceDate is not null ||
             previousPlan is null || previous is null || previous.SourceSessionId is null && previous.SourceDate is null)
             return own;
-        if (previousPlan.RepMin != prescription.RepMin || previousPlan.RepMax != prescription.RepMax ||
-            previousPlan.RepsText != prescription.RepsText ||
-            ProgressionEvidence.Reserve(previousPlan.Rir, previousPlan.TargetRpe) != ProgressionEvidence.Reserve(prescription.Rir, prescription.TargetRpe))
-            return own;
+        if (!PrescribedAlike(previousPlan, prescription)) return own;
         // It has no exposure of its own, so it claims no change from one.
         return previous with
         {
@@ -113,6 +111,34 @@ public sealed partial class WorkoutService
             PreviousLoadKg = null, PreviousReps = null
         };
     }
+
+    /// A straight set prescribed like the straight set before it in the same row is done after it,
+    /// on top of its fatigue, so it never starts heavier than that set. Each set reads its own
+    /// history, and sets whose histories disagree (one re-aimed lower, the next progressed) would
+    /// otherwise ask for back-off sets that climb. Assisted movements are left alone, since more
+    /// assistance is easier.
+    private static SetProgressionSuggestion NoHeavierThanBefore(SetPrescription prescription, SetProgressionSuggestion own,
+        SetPrescription? previousPlan, SetProgressionSuggestion? previous)
+    {
+        if (SetTechniques.Of(prescription) is not null || previousPlan is null || previous is null ||
+            own.ResistanceMode != previous.ResistanceMode ||
+            own.ResistanceMode is not (ResistanceModes.External or ResistanceModes.Added) ||
+            own.SuggestedLoadKg is not { } load || previous.SuggestedLoadKg is not { } before || load <= before ||
+            !PrescribedAlike(previousPlan, prescription))
+            return own;
+        return own with
+        {
+            SuggestedLoadKg = before,
+            SuggestedSystemLoadKg = previous.SuggestedSystemLoadKg,
+            SuggestedReps = previous.SuggestedReps,
+            Reason = "Same prescription as the set before it: start no heavier than that set, and add load once it moves up."
+        };
+    }
+
+    private static bool PrescribedAlike(SetPrescription previous, SetPrescription prescription)
+        => previous.RepMin == prescription.RepMin && previous.RepMax == prescription.RepMax &&
+           previous.RepsText == prescription.RepsText &&
+           ProgressionEvidence.Reserve(previous.Rir, previous.TargetRpe) == ProgressionEvidence.Reserve(prescription.Rir, prescription.TargetRpe);
 
     /// A timed hold or carry gets no rep-based suggestion, but a loaded one starts from the weight
     /// its set last held, as long as the movement was trained recently enough for that weight to

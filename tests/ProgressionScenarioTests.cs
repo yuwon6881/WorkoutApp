@@ -94,6 +94,20 @@ public sealed class ProgressionScenarioTests
         Assert.Equal(80, result.PreviousLoadKg);
     }
 
+    [Fact]
+    public void A_back_off_set_with_no_matching_row_reads_the_closest_row_rather_than_the_top_set()
+    {
+        // The back-off row's effort target changed since last time, so neither row matches exactly;
+        // the back-off row is still the one prescribed like today's set.
+        var session = Guid.NewGuid();
+        var top = Done(80, 5, "2", 7, 5, 5) with { SessionId = session };
+        var backOff = Done(72.5, 8, "3", 7, 8, 8, targetRir: "3") with { SessionId = session };
+        var result = Progression.Suggest(Plan(8, 8, rir: null), [top, backOff], ProgressionModes.Normal, new LoadOptions(2.5),
+            now: DateTime.UtcNow);
+        Assert.Equal(72.5, result.PreviousLoadKg);
+        Assert.Equal(8, result.PreviousReps);
+    }
+
     private static async Task<Guid> Exercise(Harness h, string slug, string name, string equipment, string? tracking = null)
     {
         await h.Seed(new SeedExercise(slug, name, "Back", equipment, null, 2.5, TrackingMode: tracking));
