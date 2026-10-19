@@ -360,10 +360,7 @@
   font-size: var(--font-secondary);
 }
 
-.session-exercise-header > .pr-exercise-badge {
-  flex: 0 0 auto;
-  margin-left: auto;
-}
+.session-exercise-header > .pr-exercise-badge { flex: 0 0 auto; margin-left: auto; display: inline-flex; align-items: center; gap: 6px; }
 
 /* Inset sets table with clean row dividers */
 .session-summary-sets {
@@ -428,7 +425,7 @@
   white-space: nowrap;
 }
 
-.session-summary-sets > li > .session-set-tags > .pr-set-tag { margin-left: 0; }
+.session-summary-sets > li > .session-set-tags > .pr-set-tag { margin-left: 0; display: inline-flex; align-items: center; gap: 5px; }
 
 .session-summary-note {
   margin: 10px 0 0;

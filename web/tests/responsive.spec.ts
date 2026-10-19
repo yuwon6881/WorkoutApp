@@ -641,8 +641,8 @@ for (const theme of ['dark', 'light'] as const) {
     const modal = page.getByRole('dialog');
     await expect(modal).toBeVisible();
     await expect(modal.getByText('Rep best · 15 reps', { exact: true })).toBeVisible();
-    await expect(modal.getByText('Estimated strength best · 75 kg e1RM', { exact: true })).toBeVisible();
-    await expect(modal.getByText('Strength & rep best · 80 kg e1RM · 20 reps', { exact: true })).toBeVisible();
+    await expect(modal.getByText('Estimated strength best · 75 kg est. 1RM', { exact: true })).toBeVisible();
+    await expect(modal.getByText('Strength & rep best · 80 kg est. 1RM · 20 reps', { exact: true })).toBeVisible();
     await expect(modal.getByText('Rep best', { exact: true }).first()).toBeVisible();
     await expect(modal.getByText('Estimated strength best', { exact: true }).last()).toBeVisible();
     await expect(modal.getByText('Strength & rep best', { exact: true }).last()).toBeVisible();

@@ -34,8 +34,9 @@ function SessionExerciseCard({ exercise, order, unit, trackRir, onOpen }: {
           <h4>{exercise.name}</h4>
           <span className="session-exercise-subtitle">{working} working {working === 1 ? 'set' : 'sets'}</span>
         </div>
-        {exercise.isPr && <span className="pill pill-accent pr-exercise-badge">
-          <Trophy size={12} aria-hidden="true" /> {formatExercisePrBadge(exercise, unit)}
+        {exercise.isPr && <span className="pill pill-accent pr-exercise-badge" title="Estimated 1-rep max personal record">
+          <Trophy size={12} aria-hidden="true" />
+          <span>{formatExercisePrBadge(exercise, unit)}</span>
         </span>}
       </div>
       <ol className="session-summary-sets">
@@ -51,7 +52,10 @@ function SessionExerciseCard({ exercise, order, unit, trackRir, onOpen }: {
             </span>
             <div className="session-set-tags">
               {trackRir && effort !== '—' && <span className="session-set-effort">{effort}</span>}
-              {set.isPr && <span className="pill pill-accent pr-set-tag"><Trophy size={10} aria-hidden="true" /> {formatSetPrTag(set)}</span>}
+              {set.isPr && <span className="pill pill-accent pr-set-tag" title={set.prKind === 'e1rm' ? 'Estimated 1-rep max personal record' : undefined}>
+                <Trophy size={10} aria-hidden="true" />
+                <span>{formatSetPrTag(set)}</span>
+              </span>}
             </div>
           </li>;
         })}

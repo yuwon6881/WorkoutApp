@@ -17,7 +17,7 @@ h2{font-weight:680;letter-spacing:-.022em}
 
 /* Cards: borderless white floats on lavender; dark cards keep a hairline on near-black. */
 .panel{border-color:var(--card-border);border-radius:var(--radius);box-shadow:var(--shadow)}
-.pill{border-radius:var(--radius-pill);padding-inline:10px}
+.pill{border-radius:var(--radius-pill);padding-inline:10px;gap:6px}
 
 /* Dialogs and sheets: the largest radius, lifted by a deep shadow. */
 .modal{border-color:var(--card-border);border-radius:var(--radius-modal);box-shadow:0 30px 80px -20px var(--overlay)}

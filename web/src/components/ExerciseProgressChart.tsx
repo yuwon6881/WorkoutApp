@@ -1,4 +1,4 @@
-import { useId, useLayoutEffect, useRef, useState } from 'react';
+import { useLayoutEffect, useRef, useState } from 'react';
 import type { KeyboardEvent, PointerEvent } from 'react';
 import { chartScale, nearestPointIndex, pointPositions, tickLabel } from '../lib/progressChart';
 
@@ -19,7 +19,6 @@ export function ExerciseProgressChart({ points, label, format }: {
   label: string;
   format: (value: number | null) => string;
 }) {
-  const gradientId = useId();
   const canvas = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(fallbackWidth);
   const [selected, setSelected] = useState<number | null>(null);
@@ -106,13 +105,6 @@ export function ExerciseProgressChart({ points, label, format }: {
         onKeyDown={step}
       >
         <svg className="exercise-chart-svg" width={width} height={height} viewBox={`0 0 ${width} ${height}`} aria-hidden="true">
-          <defs>
-            <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="var(--accent)" stopOpacity="0.22" />
-              <stop offset="100%" stopColor="var(--accent)" stopOpacity="0" />
-            </linearGradient>
-          </defs>
-
           {scale.ticks.map(tick => (
             <g key={tick}>
               <line className="exercise-chart-grid" x1={padLeft} x2={width - padRight} y1={y(tick)} y2={y(tick)} />
@@ -123,13 +115,7 @@ export function ExerciseProgressChart({ points, label, format }: {
           {points.length > 1 && <line className="exercise-chart-guide" x1={activeX} x2={activeX} y1={padTop} y2={baselineY} />}
 
           {segments.map(segment => segment.length > 1 && (
-            <g key={`${segment[0].x}`}>
-              <path
-                d={`M ${segment.map(p => `${p.x} ${p.y}`).join(' L ')} L ${segment[segment.length - 1].x} ${baselineY} L ${segment[0].x} ${baselineY} Z`}
-                fill={`url(#${gradientId})`}
-              />
-              <path className="exercise-chart-line" d={`M ${segment.map(p => `${p.x} ${p.y}`).join(' L ')}`} />
-            </g>
+            <path key={`${segment[0].x}`} className="exercise-chart-line" d={`M ${segment.map(p => `${p.x} ${p.y}`).join(' L ')}`} />
           ))}
 
           {points.map((point, i) => point.value === null
