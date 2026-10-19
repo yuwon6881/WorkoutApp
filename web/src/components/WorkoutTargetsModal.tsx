@@ -1,4 +1,4 @@
-import { Flame, Sparkles, Target, Timer, Weight } from 'lucide-react';
+import { Flame, Hash, Timer, TrendingUp, Weight } from 'lucide-react';
 import type { Preferences, SessionExercise } from '../types';
 import { showReps } from '../lib/training';
 import { previousSetSummaries } from '../lib/previousSets';
@@ -35,7 +35,7 @@ export function WorkoutTargetsView({ exercise, unit, trackRir, previousSets, onC
       <div className="modal-body workout-plan-detail-card">
         {exercise.progression && (
           <div className="plan-detail-banner">
-            <Sparkles size={16} className="plan-banner-icon" aria-hidden="true" />
+            <TrendingUp size={16} className="plan-banner-icon" aria-hidden="true" />
             <div className="plan-banner-text">
               <strong className="plan-banner-title">Progression Target</strong>
               <p>{exercise.progression.reason}</p>
@@ -51,7 +51,7 @@ export function WorkoutTargetsView({ exercise, unit, trackRir, previousSets, onC
                 : !p.warmup ? 2 : null;
             const rirLabel = rirVal !== null ? `${rirVal} RIR` : null;
             const repsRaw = showReps(p);
-            const repsLabel = /^\d+(–\d+)?$/.test(repsRaw) ? `${repsRaw} reps` : repsRaw;
+            const repsLabel = /^\d+([–-]\d+)?$/.test(repsRaw) ? `${repsRaw} reps` : repsRaw;
             const loggedSet = exercise.sets[setIndex];
             // The same load the set row shows, so the column and this list never disagree.
             const suggestedWeight = loggedSet ? setTarget(loggedSet, p, exercise, unit, trackRir).load : null;
@@ -62,7 +62,7 @@ export function WorkoutTargetsView({ exercise, unit, trackRir, previousSets, onC
                   <span className="plan-set-badge">{p.warmup ? 'Warmup' : `Set ${pi + 1}`}</span>
                   <div className="plan-set-badges">
                     <span className="plan-pill plan-reps-pill">
-                      <Target size={12} aria-hidden="true" />
+                      <Hash size={12} aria-hidden="true" />
                       <span>{repsLabel}</span>
                     </span>
                     {trackRir && rirLabel && (
