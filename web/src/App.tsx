@@ -344,7 +344,8 @@ export default function App() {
       </header>
 
       <main>
-        {status.state === 'failed' && <div className="error-banner" role="alert">
+        {/* Settings reports its own failed preference save beside Retry and Revert, so the page never shows it twice. */}
+        {status.state === 'failed' && !(tab === 'settings' && app.preferencePending) && <div className="error-banner" role="alert">
           <AlertTriangle size={17} />{status.message || 'A change could not be saved.'}
           <Button variant="tertiary" onClick={() => void app.reload()}><RefreshCw size={15} />Refresh</Button>
         </div>}

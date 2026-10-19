@@ -25,7 +25,7 @@ public sealed record GoogleHealthSyncResult(
 
 public sealed record GoogleHealthConnectResult(string AuthUrl);
 
-public class GoogleHealthService(
+public partial class GoogleHealthService(
     HttpClient http,
     AppDb db,
     IIntegrationKms kms,
@@ -54,7 +54,7 @@ public class GoogleHealthService(
 
     public async Task<GoogleHealthConnectResult> GenerateConnectUrlAsync(
         Guid userId, string sessionHash, string? requestOrigin, CancellationToken ct,
-        bool requestWorkoutSync = false)
+        bool requestWorkoutSync = false, string? handoffVerifier = null)
     {
         Validation.Require(!string.IsNullOrEmpty(ClientId), "Google Health integration is not configured.", 503);
 
@@ -78,7 +78,8 @@ public class GoogleHealthService(
             RequestedOperationsJson = JsonSerializer.Serialize(operations),
             RequestedScopesJson = JsonSerializer.Serialize(scopes),
             CreatedAt = DateTime.UtcNow,
-            ExpiresAt = DateTime.UtcNow.AddMinutes(10)
+            ExpiresAt = DateTime.UtcNow.AddMinutes(10),
+            HandoffVerifierHash = handoffVerifier == null ? null : HandoffHash(handoffVerifier)
         };
 
         db.GoogleHealthOAuthStates.Add(oauthState);

@@ -1,8 +1,9 @@
 import type { Tab } from '../app/useTabNavigation';
 
-/// Verified Android App Links claim only `/open/…`. Sign-in and Google Health consent run in the
-/// browser and return to the tab paths; claiming those would pull the redirect into the app and
-/// strand the browser session. Hosting redirects each `/open/…` link to its tab for browsers.
+/// Verified Android App Links claim only `/open/…`. Sign-in and web Google Health consent return to
+/// the tab paths in the browser; claiming those would pull the redirect into the app and strand the
+/// browser session. Consent started from the app returns through `/open/settings` instead, so the app
+/// can finish it (lib/googleHealthBrowser.ts). Hosting redirects each `/open/…` link to its tab for browsers.
 export const APP_LINK_TABS: Readonly<Record<string, Tab>> = {
   '/open': 'overview',
   '/open/workouts': 'program',

@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react';
 import { getAlertCapabilities, hasNativeWorkoutStore, notificationPermission } from '../lib/platform';
-import { REST_ALERTS_CHANGED_EVENT, restAlertsDeliverable } from '../lib/restAlertDelivery';
+import { askRestAlertPermissionAtLaunch, REST_ALERTS_CHANGED_EVENT, restAlertsDeliverable } from '../lib/restAlertDelivery';
 
 /// Whether rest alerts should go through the Android notification channel. The account setting
 /// alone is not enough: on a fresh install notification permission has never been asked, and a
-/// channel that cannot post would leave every rest silent. The permission is asked once a
-/// workout is under way, when a rest alert is about to matter.
-export function useRestAlertDelivery(restAlerts: boolean, sessionId: string | null): boolean {
+/// channel that cannot post would leave every rest silent. The permission is asked when the
+/// signed-in app first opens, so a fresh install is ready before its first rest.
+export function useRestAlertDelivery(restAlerts: boolean): boolean {
   const [channelAllowed, setChannelAllowed] = useState<boolean | null>(null);
   const native = hasNativeWorkoutStore();
 
@@ -31,15 +31,13 @@ export function useRestAlertDelivery(restAlerts: boolean, sessionId: string | nu
   }, [native]);
 
   useEffect(() => {
-    if (!native || !restAlerts || !sessionId) return;
+    if (!native) return;
     let active = true;
-    void (async () => {
-      if (await notificationPermission(false) !== 'default' || !active) return;
-      await notificationPermission(true);
-      if (active) window.dispatchEvent(new Event(REST_ALERTS_CHANGED_EVENT));
-    })();
+    void askRestAlertPermissionAtLaunch(restAlerts, notificationPermission).then(asked => {
+      if (asked && active) window.dispatchEvent(new Event(REST_ALERTS_CHANGED_EVENT));
+    });
     return () => { active = false; };
-  }, [native, restAlerts, sessionId]);
+  }, [native, restAlerts]);
 
   return native ? restAlertsDeliverable(restAlerts, channelAllowed) : restAlerts;
 }

@@ -62,7 +62,6 @@ export type NativeRestAction = {
 };
 
 export interface WorkoutPluginInterface {
-  getDeviceDiagnostics(options: { accountId: string }): Promise<import('./deviceDiagnostics').DeviceInfo & { pendingActions: number }>;
   getRecoveryRecord(options: { accountId: string }): Promise<{ recordJson?: string | null }>;
   saveRecoveryRecord(options: { accountId: string; sessionId: string; recordJson: string }): Promise<void>;
   deleteRecoveryRecord(options: { accountId: string }): Promise<void>;
@@ -210,7 +209,6 @@ let shellInstalled = false;
 export async function installNativeShell() {
   if (shellInstalled) return;
   shellInstalled = true;
-  await (await import('./apkUpdates')).installApkUpdateChecks();
   await App.addListener('resume', () => window.dispatchEvent(new Event('workout:resume')));
   // Capacitor retains the launch link until this listener attaches, so cold starts arrive here too.
   await App.addListener('appUrlOpen', ({ url }) => window.dispatchEvent(new CustomEvent(APP_LINK_EVENT, { detail: url })));

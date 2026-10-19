@@ -85,7 +85,7 @@ final class LiveUpdateNotificationAdapter {
         String nextUp = detailed && snapshot != null ? snapshot.nextUp : null;
         NotificationCompat.Builder builder = new NotificationCompat.Builder(context, RestAlerts.CHANNEL_ONGOING)
                 .setSmallIcon(R.drawable.ic_stat_rest)
-                .setColor(ContextCompat.getColor(context, R.color.brand_accent))
+                .setColor(ContextCompat.getColor(context, R.color.brand_icon))
                 .setContentIntent(RestAlerts.openWorkout(context, sessionId, RestAlerts.NOTIFICATION_ID_ONGOING))
                 .setOngoing(true)
                 .setOnlyAlertOnce(true)

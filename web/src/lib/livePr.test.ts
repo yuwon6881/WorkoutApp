@@ -221,14 +221,14 @@ describe('PR badge and tag formatting', () => {
       prKind: 'e1rm',
       prE1rmKg: 100
     };
-    expect(formatExercisePrBadge(ex, 'kg')).toBe('Estimated strength best · 100 kg e1RM');
+    expect(formatExercisePrBadge(ex, 'kg')).toBe('Estimated strength best · 100 kg est. 1RM');
   });
 
   it('rounds an estimated strength best to one decimal place in either unit', () => {
     // 40 kg × 8 at RPE 10 estimates 53.333… kg; the badge shows the estimate, not its float noise.
     const ex: SessionExercise = { ...exercise([]), isPr: true, prKind: 'e1rm', prE1rmKg: 40 * (1 + 10 / 30) };
-    expect(formatExercisePrBadge(ex, 'kg')).toBe('Estimated strength best · 53.3 kg e1RM');
-    expect(formatExercisePrBadge(ex, 'lb')).toBe('Estimated strength best · 117.6 lb e1RM');
+    expect(formatExercisePrBadge(ex, 'kg')).toBe('Estimated strength best · 53.3 kg est. 1RM');
+    expect(formatExercisePrBadge(ex, 'lb')).toBe('Estimated strength best · 117.6 lb est. 1RM');
   });
 
   it('formats exercise badge for both', () => {
@@ -239,7 +239,7 @@ describe('PR badge and tag formatting', () => {
       prE1rmKg: 100,
       prReps: 12
     };
-    expect(formatExercisePrBadge(ex, 'kg')).toBe('Strength & rep best · 100 kg e1RM · 12 reps');
+    expect(formatExercisePrBadge(ex, 'kg')).toBe('Strength & rep best · 100 kg est. 1RM · 12 reps');
   });
 
   it('formats set PR tag', () => {

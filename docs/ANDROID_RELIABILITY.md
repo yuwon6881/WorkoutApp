@@ -16,11 +16,9 @@ The activity handles renderer termination separately from network errors. It det
 
 Native Back consumes app-owned history and top sheets. At the document root it calls `App.minimizeApp()`, preserving the activity and workout. A new document establishes its own history boundary so authentication and notification entry cannot reopen obsolete WebView entries.
 
-## Diagnostics
+## Installed version
 
-Settings has a collapsed Android diagnostics disclosure with Refresh and Copy diagnostics. It reads APK/build/channel, Android/WebView version, device connectivity, last confirmed mutation synchronization, current-account pending edits and notification actions, and existing alert/service capabilities. Missing checks remain unknown. Copy uses a fixed field allowlist; it excludes account identity, credentials, workout names and raw recovery records. It never uploads telemetry.
-
-`renderer_terminated` means the display process stopped; `rest_action_save_failed` means a notification action could not be persisted. A service failure is copied only as `service_unavailable`, never as a raw exception. A missing sync/check time means no successful result has been recorded on this installation.
+Settings end with an About card naming the web version and, in the Android app, the APK version and build. There is no in-app diagnostics disclosure or update check.
 
 ## APK update channels
 
@@ -31,7 +29,7 @@ Each channel uses a manual GitHub Release tag:
 - `android-device-test`: device-test APK and `android-release.json`.
 - `android-release`: release APK and `android-release.json`.
 
-The native client reads only the fixed repository/channel metadata URL, over HTTPS, with at most three redirects to GitHub asset hosts, a ten-second overall deadline and a 64 KiB response limit. It validates schema, application, channel, integer version code, APK destination, digests and publication time, then compares the installed signing certificate. Certificate mismatch is incompatible; uninstalling is never an update path. Update checks run once per foreground day, with a manual Settings action and last successful check time. The release page opens externally; no automatic installation permission or mandatory update gate exists.
+The installed app does not read this metadata; updates are installed from the release page by hand, and uninstalling is never an update path.
 
 Manifest schema 1 fields are `schemaVersion`, `applicationId`, `channel`, `versionName`, `versionCode`, `apkUrl`, `apkSha256`, `signingCertificateSha256`, and `publishedAt`. CI adds `sourceCommit` and `sourceDirty` for traceability.
 

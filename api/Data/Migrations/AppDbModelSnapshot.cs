@@ -979,6 +979,17 @@ namespace Workout.Api.Data.Migrations
                     b.Property<DateTime>("ExpiresAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<string>("HandoffVerifierHash")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("PendingCode")
+                        .HasColumnType("text");
+
+                    b.Property<string>("PendingError")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
                     b.Property<string>("RequestedOperationsJson")
                         .IsRequired()
                         .HasColumnType("text");

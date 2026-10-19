@@ -1,9 +1,7 @@
-import { NativeBuildInfo } from './NativeBuildInfo';
-import { isNative } from '../lib/platform';
 import { Dumbbell, Link2, LogOut, Moon, SlidersHorizontal, Sun, Timer, Watch, Weight } from 'lucide-react';
 import type { Account, Preferences } from '../types';
-import { lazy, Suspense, useState } from 'react';
-const AndroidDiagnostics=lazy(()=>import('./AndroidDiagnostics').then(module=>({default:module.AndroidDiagnostics})));
+import { useState } from 'react';
+import { AppVersionInfo } from './AppVersionInfo';
 import type { DevicePreferences } from '../lib/workoutRecovery';
 import { Button } from './ui/Button';
 import { CardFeedback } from './ui/CardFeedback';
@@ -91,10 +89,11 @@ export function SettingsView(props: SettingsViewProps) {
         </Button>
       </section>
 
-      {saveError && <div><CardFeedback message={saveError} />
-        {props.preferencePending && <div className="modal-actions">
+      {saveError && <div className="settings-save-failure">
+        <CardFeedback title="Settings not saved" message={saveError} />
+        {props.preferencePending && <div className="settings-save-actions">
+          <Button variant="tertiary" onClick={() => { props.onRevertPreferences?.(); setSaveError(''); }}>Revert</Button>
           <Button onClick={() => void props.onRetryPreferences?.().then(() => setSaveError('')).catch(failure => setSaveError(failure instanceof Error ? failure.message : 'Could not save preferences.'))}>Retry save</Button>
-          <Button onClick={() => { props.onRevertPreferences?.(); setSaveError(''); }}>Revert preferences</Button>
         </div>}
       </div>}
 
@@ -170,9 +169,7 @@ export function SettingsView(props: SettingsViewProps) {
             <ConnectedApps />
           </SettingsSection>
 
-          <div className="app-version-meta">Workout version {version}</div>
-          <NativeBuildInfo />
-          {isNative()&&<Suspense fallback={null}><AndroidDiagnostics accountId={account.id}/></Suspense>}
+          <AppVersionInfo version={version} />
         </div>
       </div>
     </div>

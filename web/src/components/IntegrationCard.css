@@ -56,8 +56,8 @@
 .integration-status {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 4px 12px;
+  gap: 7px;
+  padding: 6px 14px;
   border-radius: var(--radius-pill);
   border: 1px solid var(--border);
   background: var(--surface-raised);
@@ -132,10 +132,6 @@
   display: none;
 }
 
-.integration-card > .error-text {
-  margin: 12px 0 0;
-}
-
 .success-banner {
   display: flex;
   align-items: center;
@@ -188,8 +184,8 @@
   .integration-card-header > .integration-status {
     grid-column: 2;
     justify-self: start;
-    margin-top: 4px;
-    padding: 3px 10px;
+    margin-top: 10px;
+    padding: 5px 12px;
     font-size: var(--font-secondary);
   }
 

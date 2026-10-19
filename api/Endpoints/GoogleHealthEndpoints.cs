@@ -10,8 +10,13 @@ namespace Workout.Api.Endpoints;
 
 public static class GoogleHealthEndpoints
 {
-    public sealed record ConnectInput(bool SyncWorkout = true);
+    public sealed record ConnectInput(bool SyncWorkout = true, string? HandoffVerifier = null);
+    public sealed record HandoffInput(string State, string Verifier);
     public sealed record WorkoutSyncPreferenceInput(bool Enabled, long Revision);
+
+    /// A PKCE-style verifier: long enough that guessing it is hopeless, and nothing but URL-safe characters.
+    private static string? ValidVerifier(string? verifier)
+        => verifier is { Length: >= 43 and <= 128 } && verifier.All(ch => char.IsAsciiLetterOrDigit(ch) || ch is '-' or '.' or '_' or '~') ? verifier : null;
 
     public static void MapGoogleHealth(this WebApplication app)
     {
@@ -46,7 +51,10 @@ public static class GoogleHealthEndpoints
                 sessionHash,
                 origin,
                 ct,
-                input?.SyncWorkout ?? true);
+                input?.SyncWorkout ?? true,
+                input?.HandoffVerifier is { } verifier
+                    ? ValidVerifier(verifier) ?? throw new DomainException("The Google Health connection could not be started.", 400)
+                    : null);
             return Results.Ok(result);
         });
 
@@ -59,6 +67,10 @@ public static class GoogleHealthEndpoints
             HttpContext http,
             CancellationToken ct) =>
         {
+            // Consent opened from the Android app has no session in this browser; the app finishes it.
+            var handoff = await service.DeferHandoffAsync(code, state, error, ct);
+            if (handoff != null) return Results.Redirect(handoff);
+
             var token = http.Request.Cookies[AuthService.Cookie];
             if (string.IsNullOrEmpty(token))
                 return Results.Redirect("/settings?google_health=error&code=session_expired");
@@ -72,6 +84,17 @@ public static class GoogleHealthEndpoints
             var origin = $"{http.Request.Scheme}://{http.Request.Host}";
             var redirectUrl = await service.HandleCallbackAsync(code, state, error, session.UserId, sessionHash, origin, ct);
             return Results.Redirect(redirectUrl);
+        });
+
+        app.MapPost("/api/integrations/google-health/handoff", async (HandoffInput input, GoogleHealthService service, AppDb db, HttpContext http, CancellationToken ct) =>
+        {
+            Validation.Require(ValidVerifier(input.Verifier) != null && !string.IsNullOrEmpty(input.State), "The Google Health connection could not be finished.", 400);
+            var sessionHash = AuthService.Hash(http.Request.Cookies[AuthService.Cookie] ?? "");
+            // The same origin rule as connect, so the exchange repeats the redirect address Google saw.
+            var origin = http.Request.Headers.Origin.ToString();
+            if (string.IsNullOrEmpty(origin))
+                origin = $"{http.Request.Scheme}://{http.Request.Host}";
+            return Results.Ok(await service.CompleteHandoffAsync(db.CurrentUser!.Value, sessionHash, input.State, input.Verifier, origin, ct));
         });
 
         app.MapPost("/api/integrations/google-health/disconnect", async (GoogleHealthService service, AppDb db, CancellationToken ct) =>

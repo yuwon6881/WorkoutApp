@@ -37,9 +37,9 @@ export function useAfterLog({ unit, advance, onAdvance }: {
     if (pr !== null) {
       if (pr.kind === 'both') {
         const loadStr = pr.isRepsOnly || pr.loadKg === null ? '' : ` at ${showWeight(pr.loadKg, unit)}`;
-        setCelebration(`New strength and rep best on ${exercise.name}: e1RM ${showWeight(pr.e1rm, unit)} · ${pr.reps} reps${loadStr}`);
+        setCelebration(`New strength and rep best on ${exercise.name}: est. 1RM ${showWeight(pr.e1rm, unit)} · ${pr.reps} reps${loadStr}`);
       } else if (pr.kind === 'e1rm') {
-        setCelebration(`New estimated strength best on ${exercise.name}: e1RM ${showWeight(pr.e1rm, unit)}`);
+        setCelebration(`New estimated strength best on ${exercise.name}: est. 1RM ${showWeight(pr.e1rm, unit)}`);
       } else {
         const loadStr = pr.isRepsOnly || pr.loadKg === null ? '' : ` at ${showWeight(pr.loadKg, unit)}`;
         setCelebration(`New rep best on ${exercise.name}: ${pr.reps} reps${loadStr}`);

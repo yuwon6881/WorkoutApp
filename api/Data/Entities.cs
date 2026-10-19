@@ -458,6 +458,11 @@ public class GoogleHealthOAuthState
     public string RequestedScopesJson { get; set; } = "[]";
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime ExpiresAt { get; set; }
+    /// Set when the Android app opens consent in a Custom Tab: the hash of the verifier only that app holds.
+    public string? HandoffVerifierHash { get; set; }
+    /// The callback's authorization code, encrypted, waiting for the starting app session to finish it.
+    public string? PendingCode { get; set; }
+    public string? PendingError { get; set; }
 }
 
 public class GoogleHealthWorkoutSyncWork : OwnedRecord

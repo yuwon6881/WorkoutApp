@@ -245,6 +245,8 @@ public sealed class AppDb(DbContextOptions<AppDb> options) : DbContext(options)
         m.Entity<GoogleHealthOAuthState>().HasKey(x => x.State);
         m.Entity<GoogleHealthOAuthState>().HasQueryFilter(x => x.UserId == CurrentUser);
         m.Entity<GoogleHealthOAuthState>().HasIndex(x => x.ExpiresAt);
+        m.Entity<GoogleHealthOAuthState>().Property(x => x.HandoffVerifierHash).HasMaxLength(64);
+        m.Entity<GoogleHealthOAuthState>().Property(x => x.PendingError).HasMaxLength(64);
         m.Entity<GoogleHealthOAuthState>().HasOne<AppUser>().WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
 
         Configure<WorkoutPushDevice>(m);

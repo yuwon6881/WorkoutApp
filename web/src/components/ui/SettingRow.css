@@ -111,8 +111,4 @@
     width: auto;
   }
 
-  /* With actions beside it, the switch keeps the trailing edge. */
-  .setting-inline-controls > .switch:last-child {
-    margin-left: auto;
-  }
 }
