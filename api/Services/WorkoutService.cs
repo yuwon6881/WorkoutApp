@@ -180,6 +180,8 @@ public sealed partial class WorkoutService(
                 var firstSuggestion = (SetProgressionSuggestion?)null;
                 var straightSuggestion = (SetProgressionSuggestion?)null;
                 var straightPlan = (SetPrescription?)null;
+                var previousOfKind = new Dictionary<string, PlannedSuggestion>();
+                var previousTimed = (TimedLoad?)null;
                 for (var index = 0; index < prescription.Count; index++)
                 {
                     var planSet = prescription[index];
@@ -199,11 +201,14 @@ public sealed partial class WorkoutService(
                     var exposures = previous.GetValueOrDefault(workingOrdinal) ?? [];
                     if (isTimed)
                     {
+                        var timedLoad = NoHeavierThanBefore(planSet, resistanceMode,
+                            TimedStartLoad(planSet, exposures, resistanceMode, lastTrained), previousTimed);
+                        previousTimed = new TimedLoad(planSet, resistanceMode, timedLoad);
                         db.Sets.Add(new CompletedSet
                         {
                             UserId = session.UserId, SessionExerciseId = exercise.Id, Position = index,
                             WorkingSetOrdinal = workingOrdinal, Done = false, Warmup = false, SuggestionJson = "",
-                            ResistanceMode = resistanceMode, WeightKg = TimedStartLoad(exposures, resistanceMode, lastTrained)
+                            ResistanceMode = resistanceMode, WeightKg = timedLoad
                         });
                         continue;
                     }
@@ -211,8 +216,9 @@ public sealed partial class WorkoutService(
                         FollowStraightSets(planSet, straightSuggestion,
                             MakeSuggestion(planSet, exposures, contextResult.Mode, step, contextResult, resistanceMode, loadModel, bodyWeight,
                                 plan.ExerciseId is { } loadId ? info.GetValueOrDefault(loadId)?.AvailableLoadsKg : null, lastTrained)),
-                        straightPlan, straightSuggestion), straightPlan, straightSuggestion));
+                        straightPlan, straightSuggestion), previousOfKind));
                     if (SetTechniques.Of(planSet) is null) (straightSuggestion, straightPlan) = (suggestion, planSet);
+                    previousOfKind[KindOf(planSet)] = new PlannedSuggestion(planSet, suggestion);
                     firstSuggestion ??= suggestion;
                     // Effort is filled in only where history already fills in the load and reps.
                     var effort = tracksRir && (suggestion.SourceSessionId is not null || suggestion.SourceDate is not null)

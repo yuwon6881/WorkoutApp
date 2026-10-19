@@ -186,4 +186,25 @@ public sealed class ImportRomRepTotalsTests
         Assert.Equal(defective.LineId, conflict.ExerciseLineId);
         Assert.Equal(10, draft.Workouts[1].Exercises[0].Sets[0].RepMin);
     }
+
+    [Fact]
+    public async Task A_technique_set_never_starts_heavier_than_the_like_set_of_its_technique_before_it()
+    {
+        await using var h = await Harness.Create();
+        await h.SignIn();
+        await h.Seed(new SeedExercise("curl", "Curl", "Biceps", "Dumbbell", null, 2.5));
+        var id = await h.ExerciseId("curl");
+        var myo = Harness.Set(8, 8) with { Notes = "Myo-reps" };
+        var template = await h.Templates.Create(Harness.Template("Arms", Harness.Exercise(id, "Curl", myo, myo)), null, 1, 0, default);
+        var first = await h.Workouts.Start(template.Id, null, default);
+        var exercise = first.Exercises.Single();
+        await h.Workouts.Save(first.Id, new SessionInput(null, [new SessionExerciseInput(id, "Curl", null, exercise.Prescription,
+            [new SetInput(20, 8, 8, true, Id: exercise.Sets[0].Id, Rir: "2"), new SetInput(25, 8, 8, true, Id: exercise.Sets[1].Id, Rir: "2")],
+            Id: exercise.Id)], first.Revision, null), default);
+        await h.Workouts.Finish(first.Id, null, default);
+
+        var sets = (await h.Workouts.Start(template.Id, null, default)).Exercises.Single().Sets;
+        Assert.NotNull(sets[0].WeightKg);
+        Assert.Equal(sets[0].WeightKg, sets[1].WeightKg);
+    }
 }

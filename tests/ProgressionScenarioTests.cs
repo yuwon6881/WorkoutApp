@@ -177,4 +177,25 @@ public sealed class ProgressionScenarioTests
         Assert.All(sets, set => Assert.Null(set.Reps));
         Assert.All(sets, set => Assert.False(set.Done));
     }
+
+    [Fact]
+    public async Task A_loaded_hold_in_a_second_row_reads_its_own_row_and_never_climbs()
+    {
+        await using var h = await Harness.Create();
+        await h.SignIn();
+        var walk = await Exercise(h, "farmers-walk", "Farmer's Walk", "Dumbbell", TrackingModes.Duration);
+        var template = await h.Templates.Create(Harness.Template("Carry",
+            Harness.Exercise(walk, "Farmer's Walk", Harness.Set(20, 20)),
+            Harness.Exercise(walk, "Farmer's Walk", Harness.Set(45, 45), Harness.Set(45, 45))), null, 1, 0, default);
+        // A heavy short carry, then two longer ones whose second was (oddly) heavier.
+        await Finish(h, await h.Workouts.Start(template.Id, null, default), (exercise, index) =>
+            new SetInput(exercise.Prescription[0].RepMin == 20 ? 40 : index == 0 ? 24 : 28, null, null, true, DurationSeconds: 40));
+
+        var next = await h.Workouts.Start(template.Id, null, default);
+        Assert.Equal(40, next.Exercises[0].Sets.Single().WeightKg);
+        var longer = next.Exercises[1].Sets;
+        // Its first set reads the longer row, not the heavy first row of the session.
+        Assert.Equal(24, longer[0].WeightKg);
+        Assert.Equal(24, longer[1].WeightKg);
+    }
 }

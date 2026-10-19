@@ -24,7 +24,7 @@ internal static class ProgressionHistory
     /// and effort come closest to it. Falling back to the first row read a back-off set from the
     /// top set (5 reps re-aimed at 8) while the next back-off set, which the top set never reached,
     /// read its own row, so the second back-off set came out heavier than the first.
-    private static IReadOnlyList<SetExposure> OnePerSession(IReadOnlyList<SetExposure> history, int? min, int? max, double? goal)
+    internal static IReadOnlyList<SetExposure> OnePerSession(IReadOnlyList<SetExposure> history, int? min, int? max, double? goal)
     {
         if (history.Select(exposure => exposure.SessionId).Distinct().Count() == history.Count) return history;
         return history.GroupBy(exposure => exposure.SessionId)

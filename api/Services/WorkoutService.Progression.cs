@@ -21,12 +21,18 @@ public sealed partial class WorkoutService
             var timedHistory = await PreviousExposures(exercise.ExerciseId, exercise.NameSnapshot, ct);
             var timedLast = ProgressionLayoff.Newest(timedHistory.Values.SelectMany(exposures => exposures));
             var timedOrdinal = 0;
+            var timedPrescriptions = Json.Read<List<SetPrescription>>(exercise.PrescriptionJson);
+            TimedLoad? previousTimed = null;
             foreach (var set in sets.OrderBy(s => s.Position))
             {
                 if (set.Warmup) continue;
                 timedOrdinal++;
+                // A set added in the session has no plan entry; it still starts from its history.
+                var timedPlan = timedPrescriptions.ElementAtOrDefault(set.Position) ?? new SetPrescription(null, null, null, null, null, null, null);
                 if (!set.Done)
-                    set.WeightKg = TimedStartLoad(timedHistory.GetValueOrDefault(timedOrdinal) ?? [], set.ResistanceMode, timedLast);
+                    set.WeightKg = NoHeavierThanBefore(timedPlan, set.ResistanceMode, TimedStartLoad(timedPlan,
+                        timedHistory.GetValueOrDefault(timedOrdinal) ?? [], set.ResistanceMode, timedLast), previousTimed);
+                previousTimed = new TimedLoad(timedPlan, set.ResistanceMode, set.WeightKg);
             }
             return;
         }
@@ -41,6 +47,7 @@ public sealed partial class WorkoutService
         var lastTrained = ProgressionLayoff.Newest(histories.Values.SelectMany(exposures => exposures));
         var workingOrdinal = 0; SetProgressionSuggestion? first = null; SetProgressionSuggestion? straight = null;
         SetPrescription? straightPlan = null;
+        var previousOfKind = new Dictionary<string, PlannedSuggestion>();
         foreach (var set in sets.OrderBy(s => s.Position))
         {
             if (set.Warmup) continue;
@@ -55,8 +62,9 @@ public sealed partial class WorkoutService
                 FollowStraightSets(prescription, straight,
                     MakeSuggestion(prescription, histories.GetValueOrDefault(workingOrdinal) ?? [], result.Mode, step, result, mode, loadModel, bodyWeight,
                         exercise.ExerciseId is { } loadId ? info.GetValueOrDefault(loadId)?.AvailableLoadsKg : null, lastTrained)),
-                straightPlan, straight), straightPlan, straight));
+                straightPlan, straight), previousOfKind));
             if (SetTechniques.Of(prescription) is null) (straight, straightPlan) = (suggestion, prescription);
+            previousOfKind[KindOf(prescription)] = new PlannedSuggestion(prescription, suggestion);
             set.WeightKg = suggestion.SuggestedLoadKg; set.SystemLoadKg = suggestion.SuggestedSystemLoadKg;
             set.ResistanceMode = mode; set.SuggestionJson = Json.Write(suggestion); set.Reps = enteredReps; set.Rpe = enteredRpe; first ??= suggestion;
         }
@@ -112,19 +120,27 @@ public sealed partial class WorkoutService
         };
     }
 
-    /// A straight set prescribed like the straight set before it in the same row is done after it,
-    /// on top of its fatigue, so it never starts heavier than that set. Each set reads its own
-    /// history, and sets whose histories disagree (one re-aimed lower, the next progressed) would
-    /// otherwise ask for back-off sets that climb. Assisted movements are left alone, since more
-    /// assistance is easier.
+    private sealed record PlannedSuggestion(SetPrescription Plan, SetProgressionSuggestion Suggestion);
+    private sealed record TimedLoad(SetPrescription Plan, string ResistanceMode, double? LoadKg);
+
+    /// Sets are compared only with the earlier set of the same kind: straight with straight, and a
+    /// myo-rep, partial or drop set with the one of its own technique before it.
+    private static string KindOf(SetPrescription prescription) => SetTechniques.Of(prescription) ?? "";
+
+    /// A set prescribed like the earlier set of its kind in the same row is done after it, on top of
+    /// its fatigue, so it never starts heavier than that set. Each set reads its own history, and
+    /// sets whose histories disagree (one re-aimed lower, the next progressed) would otherwise ask
+    /// for back-off sets that climb. Only a load can be capped: assisted movements are left alone,
+    /// since more assistance is easier, and loadless sets keep their own reps (a later set aiming
+    /// for more reps than a fatigued earlier one is how carried-over fatigue is answered).
     private static SetProgressionSuggestion NoHeavierThanBefore(SetPrescription prescription, SetProgressionSuggestion own,
-        SetPrescription? previousPlan, SetProgressionSuggestion? previous)
+        IReadOnlyDictionary<string, PlannedSuggestion> previousOfKind)
     {
-        if (SetTechniques.Of(prescription) is not null || previousPlan is null || previous is null ||
-            own.ResistanceMode != previous.ResistanceMode ||
-            own.ResistanceMode is not (ResistanceModes.External or ResistanceModes.Added) ||
+        if (!previousOfKind.TryGetValue(KindOf(prescription), out var earlier)) return own;
+        var previous = earlier.Suggestion;
+        if (own.ResistanceMode != previous.ResistanceMode || !CappableMode(own.ResistanceMode) ||
             own.SuggestedLoadKg is not { } load || previous.SuggestedLoadKg is not { } before || load <= before ||
-            !PrescribedAlike(previousPlan, prescription))
+            !PrescribedAlike(earlier.Plan, prescription))
             return own;
         return own with
         {
@@ -135,6 +151,16 @@ public sealed partial class WorkoutService
         };
     }
 
+    /// The timed counterpart: a loaded hold or carry starts no heavier than the like-prescribed
+    /// timed set before it in the row.
+    private static double? NoHeavierThanBefore(SetPrescription prescription, string resistanceMode, double? load, TimedLoad? previous)
+        => previous is { LoadKg: { } before } && load is { } own && own > before && previous.ResistanceMode == resistanceMode &&
+           CappableMode(resistanceMode) && PrescribedAlike(previous.Plan, prescription)
+            ? before : load;
+
+    private static bool CappableMode(string resistanceMode)
+        => resistanceMode is ResistanceModes.External or ResistanceModes.Added;
+
     private static bool PrescribedAlike(SetPrescription previous, SetPrescription prescription)
         => previous.RepMin == prescription.RepMin && previous.RepMax == prescription.RepMax &&
            previous.RepsText == prescription.RepsText &&
@@ -143,11 +169,17 @@ public sealed partial class WorkoutService
     /// A timed hold or carry gets no rep-based suggestion, but a loaded one starts from the weight
     /// its set last held, as long as the movement was trained recently enough for that weight to
     /// stand. Bodyweight and loadless holds have no weight to carry.
-    private static double? TimedStartLoad(IReadOnlyList<SetExposure> exposures, string resistanceMode, DateTime? lastTrained)
+    /// When the newest session held the movement in two rows, the row timed like this set is read,
+    /// as for rep sets, rather than whichever row came first.
+    private static double? TimedStartLoad(SetPrescription prescription, IReadOnlyList<SetExposure> exposures,
+        string resistanceMode, DateTime? lastTrained)
     {
         if (resistanceMode is not (ResistanceModes.External or ResistanceModes.Added or ResistanceModes.Assistance)) return null;
         if (ProgressionLayoff.Days(lastTrained, DateTime.UtcNow) is >= ProgressionLayoff.ReduceDays) return null;
-        return exposures.FirstOrDefault(exposure => exposure.ResistanceMode == resistanceMode && exposure.LoadKg is not null)?.LoadKg;
+        var loaded = exposures.Where(exposure => exposure.ResistanceMode == resistanceMode && exposure.LoadKg is not null).ToList();
+        var goal = ProgressionEvidence.Reserve(prescription.Rir, prescription.TargetRpe);
+        return ProgressionHistory.OnePerSession(loaded, prescription.RepMin, prescription.RepMax ?? prescription.RepMin, goal)
+            .FirstOrDefault()?.LoadKg;
     }
 
     /// A technique set that comes after straight sets in the same exercise (a last-set myo-rep,
