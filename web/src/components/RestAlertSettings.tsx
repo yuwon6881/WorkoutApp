@@ -8,7 +8,8 @@ import { isFirebasePushConfigured } from '../lib/push/firebaseConfig';
 import type { DevicePreferences } from '../lib/workoutRecovery';
 import { Button } from './ui/Button';
 import { SettingRow } from './ui/SettingRow';
-import { getAlertCapabilities, hasNativeWorkoutStore, isNative, openNativeSettings, testNativeAlert } from '../lib/platform';
+import { getAlertCapabilities, hasNativeWorkoutStore, isNative, testNativeAlert } from '../lib/platform';
+import { NativeAlertChecklist } from './NativeAlertChecklist';
 import type { AlertCapabilities } from '../lib/platform';
 import { Switch } from './ui/Switch';
 
@@ -131,49 +132,22 @@ export function RestAlertSettings({ accountId, preferences, devicePreferences, o
         </SettingRow>
 
         <SettingRow
+          className="setting-row-stacked"
           label={<strong>Workout alerts on this phone</strong>}
-          description={<>
-            <span className={`setting-status ${capabilities?.notifications ? 'is-on' : ''}`}>
-              <span className="status-dot" aria-hidden="true" />
-              {!capabilities ? 'Checking…' : capabilities.notifications ? 'Notifications allowed' : 'Notifications are off'}
-            </span>
-            {capabilities && <span>{capabilities.exactAlarm
-              ? 'Precise timing allowed.'
-              : 'Precise timing is off, so an alert can arrive late while the phone sleeps.'}</span>}
-            {capabilities?.notifications && capabilities.restChannelEnabled === false &&
-              <span role="status">The rest notification channel is off.</span>}
-            {capabilities?.restChannelEnabled && capabilities.restSoundEnabled === false && devicePreferences.sound &&
-              <span role="status">Do Not Disturb is holding back the rest chime.</span>}
-            {capabilities?.notifications && capabilities.liveUpdatesSupported && !capabilities.liveUpdates &&
-              <span>Live Updates are off, so the rest countdown is not pinned to the status bar.</span>}
-            {capabilities?.notifications && capabilities.xiaomiIsland === 'off' &&
-              <span>Super Island is off for this app. Allow focus notifications in HyperOS notification settings.</span>}
-            {capabilities?.serviceError && <span role="alert">{capabilities.serviceError}</span>}
-          </>}
           info={{
             content: 'Alerts need notifications and precise timing. Scheduling an alert does not prove it arrives: use Test alert with the screen locked. The chime plays at media volume over music, even on vibrate; Force stop and Do Not Disturb can still silence it.',
             label: 'Workout alerts info'
           }}
         >
-          <div className="setting-inline-controls">
-            {capabilities && (capabilities.restChannelEnabled === false || capabilities.restSoundEnabled === false) && (
-              <Button variant="secondary" onClick={() => void openNativeSettings('rest_channel').catch(() => notify('Could not open rest notification settings.'))}>
-                Rest channel settings
-              </Button>
-            )}
-            {capabilities && (!capabilities.notifications || capabilities.xiaomiIsland === 'off' ||
-              (capabilities.liveUpdatesSupported && !capabilities.liveUpdates)) && (
-              <Button variant="secondary" onClick={() => void openNativeSettings('notifications').catch(() => notify('Could not open notification settings.'))}>
-                Notification settings
-              </Button>
-            )}
-            {capabilities && !capabilities.exactAlarm && (
-              <Button variant="secondary" onClick={() => void openNativeSettings('exact_alarm').catch(() => notify('Could not open alarm settings.'))}>
-                Alarm settings
-              </Button>
-            )}
+          <div className="alert-checklist-panel">
+            <NativeAlertChecklist
+              capabilities={capabilities}
+              sound={devicePreferences.sound}
+              notify={notify}
+              onChanged={() => void getAlertCapabilities().then(setCapabilities)}
+            />
             <Button
-              variant="tertiary"
+              variant="secondary"
               onClick={async () => {
                 try {
                   await testNativeAlert(devicePreferences.sound, devicePreferences.vibration);
@@ -183,7 +157,7 @@ export function RestAlertSettings({ accountId, preferences, devicePreferences, o
                 }
               }}
             >
-              Test alert
+              <BellRing size={15} aria-hidden="true" /> Test alert
             </Button>
           </div>
         </SettingRow>
@@ -195,7 +169,7 @@ export function RestAlertSettings({ accountId, preferences, devicePreferences, o
         >
           <div className="setting-inline-controls">
             <Button
-              variant="tertiary"
+              variant="secondary"
               onClick={() =>
                 notify(
                   testAlarmSound()
@@ -300,7 +274,7 @@ export function RestAlertSettings({ accountId, preferences, devicePreferences, o
       >
         <div className="setting-inline-controls">
           <Button
-            variant="tertiary"
+            variant="secondary"
             onClick={() =>
               notify(
                 testAlarmSound()

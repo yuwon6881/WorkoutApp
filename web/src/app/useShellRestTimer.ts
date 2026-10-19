@@ -24,7 +24,7 @@ export function useShellRestTimer({ data, recovery, recoverySession, devicePrefe
   const timerSessionId = recovery?.conflict && !recovery.serverSession.active
     ? null : recoverySession?.id ?? data?.activeWorkout?.id ?? null;
   const restAlerts = data?.preferences.restAlerts ?? recovery?.preferences.restAlerts ?? false;
-  const timerNotifications = useRestAlertDelivery(restAlerts, timerSessionId);
+  const timerNotifications = useRestAlertDelivery(restAlerts);
   const [restState, setRestState] = useState(restTimer.current);
   const [pushWakeVersion, setPushWakeVersion] = useState(0);
   const pushDesired = useRef<{ accountId: string; sessionId: string; generation: string; deviceId: string } | null>(null);

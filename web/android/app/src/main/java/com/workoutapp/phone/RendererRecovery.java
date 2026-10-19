@@ -16,7 +16,6 @@ final class RendererRecovery {
         // The terminated renderer cannot be reused. Storage and the workout service are independent.
         if (view.getParent() instanceof ViewGroup) ((ViewGroup) view.getParent()).removeView(view);
         view.destroy();
-        activity.getPreferences(Activity.MODE_PRIVATE).edit().putString("recovery_error", "renderer_terminated").apply();
         if (POLICY.allowAutomatic(SystemClock.elapsedRealtime())) {
             activity.recreate();
         } else {

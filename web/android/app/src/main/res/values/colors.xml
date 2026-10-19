@@ -5,4 +5,7 @@
     <color name="brand_text">#ECECF1</color>
     <color name="brand_muted">#A2A2AD</color>
     <color name="brand_accent">#B5F04A</color>
+    <!-- The launcher icon's field. Notifications tint their app badge with it, so the badge reads as
+         the launcher icon (white W on near-black) rather than a lime disc. -->
+    <color name="brand_icon">@color/ic_launcher_background</color>
 </resources>

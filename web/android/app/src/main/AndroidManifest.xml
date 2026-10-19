@@ -7,7 +7,10 @@
     <!-- The rest alert and the ongoing workout notification. Exact alarms keep a 90-second rest
          from arriving minutes late while the phone idles; without them the alarm is inexact. -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
-    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+    <!-- A rest timer is the app's core function, so Android 13+ grants USE_EXACT_ALARM at install and
+         nobody has to find the alarm page in Settings. Android 12 has only SCHEDULE_EXACT_ALARM. -->
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" android:maxSdkVersion="32" />
+    <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
     <uses-permission android:name="android.permission.VIBRATE" />
     <!-- Held only during a rest, released at its end, bounded to 15 minutes. -->
     <uses-permission android:name="android.permission.WAKE_LOCK" />
@@ -44,8 +47,9 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
 
-            <!-- Verified links claim only /open/…: sign-in and Google Health consent finish in the
-                 browser on the tab paths, so those must keep opening there. -->
+            <!-- Verified links claim only /open/…: sign-in and web Google Health consent finish in the
+                 browser on the tab paths, so those must keep opening there. Consent the app opened in
+                 a Custom Tab returns through /open/settings, which brings the app back to finish it. -->
             <intent-filter android:autoVerify="true">
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />

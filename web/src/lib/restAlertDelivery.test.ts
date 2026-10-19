@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest';
-import { restAlertCancelNeeded, restAlertPushKey, restAlertsDeliverable } from './restAlertDelivery';
+import { describe, expect, it, vi } from 'vitest';
+import { askRestAlertPermissionAtLaunch, restAlertCancelNeeded, restAlertPushKey, restAlertsDeliverable } from './restAlertDelivery';
 
 describe('rest alert delivery', () => {
   it('keeps the page chime when the Android channel cannot post', () => {
@@ -28,5 +28,25 @@ describe('rest alert push cancellation', () => {
     expect(restAlertCancelNeeded(target, { key, inFlight: false, confirmed: false })).toBe(true);
     expect(restAlertCancelNeeded(target, { key: 'a:s:other', inFlight: false, confirmed: false, unscheduled: true })).toBe(true);
     expect(restAlertCancelNeeded(target, null)).toBe(true);
+  });
+});
+
+describe('notification permission at launch', () => {
+  it('asks a fresh install once, before any workout starts', async () => {
+    const permission = vi.fn(async (request: boolean): Promise<NotificationPermission> => request ? 'granted' : 'default');
+
+    expect(await askRestAlertPermissionAtLaunch(true, permission)).toBe(true);
+    expect(permission.mock.calls).toEqual([[false], [true]]);
+  });
+
+  it('never asks again once answered, or when rest alerts are off', async () => {
+    for (const answered of ['granted', 'denied'] as const) {
+      const permission = vi.fn(async (): Promise<NotificationPermission> => answered);
+      expect(await askRestAlertPermissionAtLaunch(true, permission)).toBe(false);
+      expect(permission).not.toHaveBeenCalledWith(true);
+    }
+    const off = vi.fn(async (): Promise<NotificationPermission> => 'default');
+    expect(await askRestAlertPermissionAtLaunch(false, off)).toBe(false);
+    expect(off).not.toHaveBeenCalled();
   });
 });

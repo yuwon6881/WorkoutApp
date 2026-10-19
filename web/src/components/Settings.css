@@ -64,6 +64,30 @@
   color: var(--muted);
 }
 
+/* A failed preference save sits above the sections with its two remedies on the trailing edge. */
+.settings-save-failure {
+  display: grid;
+  gap: 10px;
+  margin: -12px 0 28px;
+}
+
+.settings-save-failure > .card-feedback {
+  margin: 0;
+}
+
+.settings-save-actions {
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+@media (max-width: 639px) {
+  .settings-save-actions .button {
+    min-height: 44px;
+  }
+}
+
 .settings-shell {
   display: grid;
   gap: 40px;
@@ -227,12 +251,71 @@
   color: var(--accent);
 }
 
-.app-version-meta {
+/* The installed versions close the page as one quiet card: the mark, then label-and-value rows. */
+.app-about {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 20px;
+  padding: 18px 22px;
+  background: var(--surface);
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+
+.app-about-mark {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+}
+
+.app-about-copy {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.app-about-copy h2 {
   margin: 0;
-  padding: 0 0 20px;
-  text-align: center;
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--text);
+}
+
+.app-about-versions {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+}
+
+.app-about-versions > div {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
   font-size: var(--font-secondary);
-  color: var(--faint);
+}
+
+.app-about-versions dt {
+  color: var(--muted);
+}
+
+.app-about-versions dd {
+  margin: 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.app-about-build {
+  font-weight: 500;
+  color: var(--muted);
 }
 
 @media (min-width: 1024px) {
@@ -299,7 +382,7 @@
 
   .setting-inline-controls {
     width: 100%;
-    justify-content: space-between;
+    justify-content: flex-end;
   }
 
   .setting-action-controls {
@@ -322,15 +405,22 @@
     top: calc(68px + env(safe-area-inset-top, 0px));
     z-index: 8;
     margin: 0 -4px 16px;
-    padding: 6px 4px;
+    padding: 2px 0;
     background: var(--bg);
     min-width: 0;
-    max-width: 100%;
+    /* Not capped at 100%: with the negative side margins that would stop it short on the right
+       and let the cards scrolling underneath show through. */
+    max-width: none;
     overflow: hidden;
   }
+  /* The scroller clips its chips, so it carries no radius of its own (that would shave the first
+     and last chip's corners) and keeps an inset so their borders and focus rings stay whole. */
   .settings-nav-list {
     display: flex;
     gap: 6px;
+    padding: 4px;
+    scroll-padding-inline: 4px;
+    border-radius: 0;
     overflow-x: auto;
     scrollbar-width: none;
     overscroll-behavior-x: contain;

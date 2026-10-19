@@ -22,3 +22,16 @@ export function restAlertPushKey(target: RestAlertPushTarget): string {
 export function restAlertCancelNeeded(previous: RestAlertPushTarget, attempt: RestAlertPushAttempt | null): boolean {
   return !(attempt?.unscheduled === true && attempt.key === restAlertPushKey(previous));
 }
+
+/// Asks for notification permission at most once, as soon as the signed-in Android app opens with
+/// rest alerts on, so a fresh install is ready before its first rest instead of prompting mid-set.
+/// Android reports a permission it has never asked about as `default`; once answered either way
+/// it is never asked again here, and changing it is left to Settings.
+export async function askRestAlertPermissionAtLaunch(
+  restAlerts: boolean,
+  permission: (request: boolean) => Promise<NotificationPermission>
+): Promise<boolean> {
+  if (!restAlerts || await permission(false) !== 'default') return false;
+  await permission(true);
+  return true;
+}

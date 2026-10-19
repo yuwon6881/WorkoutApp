@@ -13,8 +13,8 @@ import { describeWorkoutUploadFailure } from '../lib/googleHealthFailure';
 import { GoogleHealthDisclosure } from './GoogleHealthDisclosure';
 import { Activity, RefreshCw, Unlink } from 'lucide-react';
 import './IntegrationCard.css';
-import {openGoogleHealthSettingsInBrowser} from '../lib/googleHealthBrowser';
-import {isNative} from '../lib/platform';
+import { GOOGLE_HEALTH_HANDOFF_EVENT, startGoogleHealthHandoff, type GoogleHealthHandoffOutcome } from '../lib/googleHealthBrowser';
+import { describeGoogleHealthConnectError } from '../lib/googleHealthConnectError';
 
 export function GoogleHealthSettings() {
   const { state, loading, error: syncError, refresh, connect, disconnect } = useGoogleHealth();
@@ -33,61 +33,41 @@ export function GoogleHealthSettings() {
     setDisclosureOpen(true);
   };
 
-  // Check URL parameters for OAuth redirect results
+  // The browser callback reports its result in the address; the Android handoff reports it by event.
   useEffect(() => {
+    const show = (connected: boolean, code: string | null) => {
+      setActionError('');
+      setBannerNotice(connected
+        ? { type: 'success', message: 'Google Health connected successfully.' }
+        : { type: 'error', message: describeGoogleHealthConnectError(code) });
+      if (connected) void refresh(true);
+    };
+
     const params = new URLSearchParams(window.location.search);
     const ghResult = params.get('google_health');
-    const code = params.get('code');
-
-    if (ghResult === 'connected') {
-      setBannerNotice({
-        type: 'success',
-        message: 'Google Health connected successfully.',
-      });
-      setActionError('');
-      void refresh(true);
-      const url = new URL(window.location.href);
-      url.searchParams.delete('google_health');
-      url.searchParams.delete('code');
-      window.history.replaceState(window.history.state, '', url.pathname + (url.search ? url.search : '') + url.hash);
-    } else if (ghResult === 'error') {
-      let msg = 'Google Health connection was not completed.';
-      if (code === 'duplicate_account') {
-        msg = 'This Google account is already linked to another Workout account. Each Google account can only connect once.';
-      } else if (code === 'identity_change_requires_disconnect') {
-        msg = 'This Workout account is already linked to a different Google account. Disconnect it before connecting another account.';
-      } else if (code === 'session_mismatch' || code === 'session_expired') {
-        msg = 'Your Workout session changed during connection. Please sign in and try again.';
-      } else if (code === 'access_denied') {
-        msg = 'Access was denied in Google permissions.';
-      } else if (code === 'invalid_state') {
-        msg = 'Connection session expired. Please start the connection again.';
-      } else if (code === 'identity_resolution_failed') {
-        msg = 'Google granted access, but its account identity could not be confirmed. Try again, and contact support if it continues.';
-      } else if (code === 'token_exchange_failed') {
-        msg = 'Google could not finish the authorization exchange. Check the configured redirect URI and try again.';
-      } else if (code === 'missing_tokens') {
-        msg = 'Google did not return the required authorization tokens. Remove this app from your Google account and reconnect.';
-      } else if (code === 'encryption_failed') {
-        msg = 'Workout could not securely store the Google connection. Try again later.';
-      } else if (code === 'missing_parameters') {
-        msg = 'Google returned an incomplete authorization response. Please start the connection again.';
-      } else if (code === 'provider_error') {
-        msg = 'Google returned an unexpected authorization error. Please try again.';
-      }
-      setBannerNotice({ type: 'error', message: msg });
+    if (ghResult === 'connected' || ghResult === 'error') {
+      show(ghResult === 'connected', params.get('code'));
       const url = new URL(window.location.href);
       url.searchParams.delete('google_health');
       url.searchParams.delete('code');
       window.history.replaceState(window.history.state, '', url.pathname + (url.search ? url.search : '') + url.hash);
     }
+
+    const handoff = (event: Event) => {
+      const outcome = (event as CustomEvent<GoogleHealthHandoffOutcome>).detail;
+      if (outcome.status === 'connected') show(true, null);
+      else if (outcome.status === 'error') show(false, outcome.code);
+    };
+    window.addEventListener(GOOGLE_HEALTH_HANDOFF_EVENT, handoff);
+    return () => window.removeEventListener(GOOGLE_HEALTH_HANDOFF_EVENT, handoff);
   }, [refresh]);
 
   const handleStartConnect = async () => {
     setConnecting(true);
     setActionError('');
     try {
-      if(await openGoogleHealthSettingsInBrowser()){
+      // In the Android app consent runs in a Custom Tab; the handoff event reports how it ended.
+      if (await startGoogleHealthHandoff(requestWorkoutSync)) {
         setDisclosureOpen(false);
         setConnecting(false);
         return;
@@ -170,7 +150,6 @@ export function GoogleHealthSettings() {
         </span>
       </header>
 
-      {isNative()&&<p className="description">Connect in your browser using the same FitnessAccount account, then return here. Google consent cannot run inside this app.</p>}
       {bannerNotice && <CardFeedback tone={bannerNotice.type} title={bannerNotice.type==='error'?'Connection needs attention':'Google Health connected'} message={bannerNotice.message}/>}
       {actionError && <CardFeedback title="Google Health action failed" message={actionError}/>}
       {syncError && <CardFeedback tone="warning" title="Google Health sync paused" message={syncError}
@@ -207,20 +186,21 @@ export function GoogleHealthSettings() {
               />
             </div>
           </SettingRow>
-          {uploadFailure && (
-            <CardFeedback
-              tone={uploadFailure.tone}
-              title={uploadFailure.title}
-              message={uploadFailure.message}
-              detail={uploadFailure.detail}
-              action={{
-                label: workoutActionLoading && uploadFailure.action === 'retry' ? 'Retrying…' : uploadFailure.actionLabel,
-                onClick: uploadFailure.action === 'reconnect' ? openDisclosure : () => void handleWorkoutRecover(),
-                disabled: workoutActionLoading,
-              }}
-            />
-          )}
         </div>
+      )}
+      {/* Beside the sync row rather than inside its panel, so a phone does not nest it three surfaces deep. */}
+      {isConnected && uploadFailure && (
+        <CardFeedback
+          tone={uploadFailure.tone}
+          title={uploadFailure.title}
+          message={uploadFailure.message}
+          detail={uploadFailure.detail}
+          action={{
+            label: workoutActionLoading && uploadFailure.action === 'retry' ? 'Retrying…' : uploadFailure.actionLabel,
+            onClick: uploadFailure.action === 'reconnect' ? openDisclosure : () => void handleWorkoutRecover(),
+            disabled: workoutActionLoading,
+          }}
+        />
       )}
 
       <div className="integration-actions">

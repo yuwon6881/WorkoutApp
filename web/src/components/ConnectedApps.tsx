@@ -3,6 +3,7 @@ import { AlertTriangle, Link2, RefreshCw, Salad, Unlink } from 'lucide-react';
 import { ApiError, api } from '../lib/api';
 import { consumeCentralAuthError } from '../lib/centralAuthError';
 import { Button } from './ui/Button';
+import { CardFeedback } from './ui/CardFeedback';
 import { connectedAppActions, parseConnectionState, type ConnectionState } from './connectedAppsState';
 import {initialTheme} from '../lib/theme';
 import './IntegrationCard.css';
@@ -122,6 +123,8 @@ export function ConnectedApps() {
         {connectionState === 'upgrade_required' && 'Reconnect once to upgrade to durable consent.'}
         {connectionState === 'disconnected' && 'Link your account to share weight trends and goals.'}
       </div>
+      {/* The card's own actions below already offer the retry, so the feedback carries none. */}
+      {error && <CardFeedback title="Nutrition connection" message={error} />}
       <div className="integration-actions">
         {actions === 'checking' ? (
           <Button variant="tertiary" disabled>Checking…</Button>
@@ -149,7 +152,6 @@ export function ConnectedApps() {
           </Button>
         ) : null}
       </div>
-      {error && <p className="error-text" role="alert">{error}</p>}
     </article>
   );
 }

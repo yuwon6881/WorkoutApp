@@ -22,27 +22,6 @@ import org.json.JSONObject;
 /// scheduled.
 @CapacitorPlugin(name = "WorkoutPlugin")
 public class WorkoutPlugin extends Plugin {
-    @PluginMethod public void checkApkUpdate(PluginCall call) {
-        new Thread(() -> call.resolve(ApkUpdates.check(getContext(), Boolean.TRUE.equals(call.getBoolean("manual", false)))), "apk-update-check").start();
-    }
-
-    @PluginMethod public void openApkRelease(PluginCall call) {
-        try {
-            getActivity().startActivity(new Intent(Intent.ACTION_VIEW,
-                    Uri.parse(AndroidReleaseContract.releaseUrl(BuildConfig.DISTRIBUTION_CHANNEL))));
-            call.resolve();
-        } catch (RuntimeException failure) { call.reject("The release page could not be opened.", "release_page_unavailable"); }
-    }
-    @PluginMethod public void getDeviceDiagnostics(PluginCall call) {
-        getActivity().runOnUiThread(() -> {
-            try {
-                JSObject info = AndroidDeviceInfo.read(getActivity());
-                String accountId = call.getString("accountId");
-                info.put("pendingActions", store().getRestActions().stream().filter(action -> action.accountId.equals(accountId)).count());
-                call.resolve(info);
-            } catch (RuntimeException failure) { call.reject("Device diagnostics could not be checked.", "diagnostics_unavailable"); }
-        });
-    }
     static final String EVENT_REST_ACTION = "restAction";
     // The plugin of the page that is open, if any, so a notification tap can tell it at once.
     private static volatile WeakReference<WorkoutPlugin> active = new WeakReference<>(null);

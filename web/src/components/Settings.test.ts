@@ -23,7 +23,7 @@ vi.mock('./GoogleHealthSettings', () => ({ GoogleHealthSettings: () => null }));
 vi.mock('./ConnectedApps', () => ({ ConnectedApps: () => null }));
 vi.mock('./WatchPairingSettings', () => ({ WatchPairingSettings: () => null }));
 vi.mock('./WorkoutFlowSettings', () => ({ WorkoutFlowSettings: () => null }));
-vi.mock('./NativeBuildInfo', () => ({ NativeBuildInfo: () => null }));
+vi.mock('./AppVersionInfo', () => ({ AppVersionInfo: () => null }));
 import { SettingsView } from './Settings';
 import { api } from '../lib/api';
 

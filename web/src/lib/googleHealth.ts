@@ -1,7 +1,7 @@
 import { resetIntegrationDispatch } from './integrationDispatch';
 import { useCallback, useEffect, useState, useSyncExternalStore } from 'react';
 import { api, ApiError } from './api';
-import { consumeGoogleHealthHandoff } from './googleHealthBrowser';
+import { finishGoogleHealthHandoff } from './googleHealthBrowser';
 import {IntegrationRecovery} from './integrationRecovery';
 
 export type GoogleHealthStatus = 'disconnected' | 'connected' | 'reconnect_required';
@@ -219,9 +219,12 @@ export function useGoogleHealth() {
   }, []);
 
   useEffect(() => {
-    void refresh(false);
+    // A reloaded app may still hold a handoff from before Android reclaimed it.
+    void finishGoogleHealthHandoff().then(outcome => refresh(outcome.status !== 'none'));
     const resume = () => {
-      if (document.visibilityState === 'visible') void refresh(consumeGoogleHealthHandoff());
+      if (document.visibilityState !== 'visible') return;
+      // Returning from consent in the Custom Tab finishes the connection first, then reads it fresh.
+      void finishGoogleHealthHandoff().then(outcome => refresh(outcome.status !== 'none'));
     };
     const online = () => { void refresh(true); };
     document.addEventListener('visibilitychange', resume);

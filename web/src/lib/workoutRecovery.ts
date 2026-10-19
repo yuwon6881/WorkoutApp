@@ -301,7 +301,6 @@ export async function acknowledgeOperation(accountId: string, operationId: strin
     if (record.operations.length === 0 && sameWorkoutEdits(record.draft, saved)) record.draft = saved;
     record.updatedAt = new Date().toISOString();
     await putRecord(record);
-    void import('./confirmedSync').then(module => module.recordConfirmedSync(accountId)).catch(() => undefined);
     return record;
   });
 }

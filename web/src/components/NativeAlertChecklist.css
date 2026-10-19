@@ -1,0 +1,81 @@
+/* One line per thing a rest alert depends on: state icon, label and plain status, then its fix. */
+.alert-checklist {
+  display: grid;
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.alert-checklist > li {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  min-height: 44px;
+  padding: 10px 0;
+  border-top: 1px solid var(--border);
+}
+
+.alert-checklist > li:first-child {
+  border-top: 0;
+  padding-top: 2px;
+}
+
+.alert-checklist > li > svg {
+  flex-shrink: 0;
+}
+
+.alert-checklist > li.is-ok > svg {
+  color: var(--green);
+}
+
+.alert-checklist > li.is-off > svg {
+  color: var(--amber);
+}
+
+.alert-checklist-copy {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.alert-checklist-copy strong {
+  font-size: 14px;
+  font-weight: 650;
+  color: var(--text);
+}
+
+.alert-checklist-copy span {
+  font-size: var(--font-secondary);
+  line-height: 1.45;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
+.alert-checklist .button {
+  min-width: 76px;
+  justify-content: center;
+}
+
+.alert-checklist-checking {
+  margin: 0;
+  font-size: var(--font-secondary);
+  color: var(--muted);
+}
+
+.alert-checklist + .card-feedback {
+  margin-bottom: 0;
+}
+
+/* The checklist and its Test alert fill the stacked row; the test action sits on the trailing edge. */
+.alert-checklist-panel {
+  display: grid;
+  gap: 12px;
+  width: 100%;
+  min-width: 0;
+}
+
+.alert-checklist-panel > .button {
+  justify-self: end;
+}
