@@ -104,9 +104,16 @@ public class LiveUpdateNotificationAdapterTest {
                 true, true, false, "page", 1);
         assertEquals("Paused", LiveUpdateNotificationAdapter.build(context, paused).getShortCriticalText());
         assertEquals(0, LiveUpdateNotificationAdapter.refreshDelayMs(context, paused, now));
-        // A rest keeps the system countdown in the chip.
-        assertNull(LiveUpdateNotificationAdapter.build(context, resting(null)).getShortCriticalText());
+        // HyperOS does not draw the chronometer in the island, so a rest counts down in the short
+        // text, redrawn every second.
+        RestSnapshot rest = resting(null);
+        String left = LiveUpdateNotificationAdapter.build(context, rest).getShortCriticalText().toString();
+        assertTrue(left.equals("1:00") || left.equals("0:59"));
+        long restDelay = LiveUpdateNotificationAdapter.refreshDelayMs(context, rest, now);
+        assertTrue(restDelay > 0 && restDelay <= 1_020);
         assertEquals("1h 05m", LiveUpdateNotificationAdapter.elapsedShort(65 * 60_000L));
+        assertEquals("1:31", LiveUpdateNotificationAdapter.remainingShort(90_001L));
+        assertEquals("0:05", LiveUpdateNotificationAdapter.remainingShort(5_000L));
     }
 
     @Test public void otherPhonesCarryNoXiaomiExtras() {

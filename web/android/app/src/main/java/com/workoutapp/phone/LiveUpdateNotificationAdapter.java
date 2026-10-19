@@ -19,6 +19,7 @@ final class LiveUpdateNotificationAdapter {
     // The rest bar moves in steps this long; the countdown text itself is the system's, to the second.
     static final long PROGRESS_REFRESH_MS = 5000L;
     private static final long MINUTE_MS = 60_000L;
+    private static final long SECOND_MS = 1000L;
     private static final int REQUEST_SHORTEN = RestAlerts.NOTIFICATION_ID_ONGOING + 10;
     private static final int REQUEST_EXTEND = RestAlerts.NOTIFICATION_ID_ONGOING + 11;
     private static final int REQUEST_SKIP = RestAlerts.NOTIFICATION_ID_ONGOING + 12;
@@ -52,8 +53,14 @@ final class LiveUpdateNotificationAdapter {
     }
 
     /// How long until the notification must be redrawn, or 0 when the system keeps it current: the
-    /// rest bar every few seconds, and on HyperOS the island's elapsed minutes at each new minute.
+    /// rest bar every few seconds, and on HyperOS the island's rest countdown every second and its
+    /// elapsed minutes at each new minute.
     static long refreshDelayMs(Context context, RestSnapshot snapshot, long now) {
+        if (resting(snapshot, now) && compactIsland(context)) {
+            // Redraw just after each whole second turns over, so the shown second is never stale.
+            long untilNextSecond = (snapshot.deadlineMs - now) % SECOND_MS;
+            return untilNextSecond == 0 ? SECOND_MS : untilNextSecond + 20;
+        }
         if (needsProgressRefresh(snapshot, now)) return PROGRESS_REFRESH_MS;
         long start = trainingStart(snapshot, now);
         if (start <= 0 || !compactIsland(context)) return 0;
@@ -72,6 +79,16 @@ final class LiveUpdateNotificationAdapter {
         if (snapshot == null || snapshot.startedAtMs <= 0 || snapshot.pausedAtMs > 0 || snapshot.isPaused() ||
                 snapshot.isRunning() && snapshot.deadlineMs > now) return 0;
         return snapshot.startedAtMs + snapshot.pausedSeconds * 1000L;
+    }
+
+    private static boolean resting(RestSnapshot snapshot, long now) {
+        return snapshot != null && snapshot.isRunning() && snapshot.deadlineMs > now;
+    }
+
+    /// Rest left for the island, rounded up like the system countdown: "1:31", "0:05".
+    static String remainingShort(long remainingMs) {
+        long seconds = (Math.max(0, remainingMs) + SECOND_MS - 1) / SECOND_MS;
+        return seconds / 60 + ":" + String.format(java.util.Locale.ROOT, "%02d", seconds % 60);
     }
 
     /// Elapsed workout time short enough for the island: "0m", "52m", "1h 05m".
@@ -99,7 +116,10 @@ final class LiveUpdateNotificationAdapter {
                 .setRequestPromotedOngoing(true);
 
         if (snapshot != null && snapshot.isRunning() && snapshot.deadlineMs > now) {
-            // No short critical text here: without one, the status-bar chip shows the countdown itself.
+            // Stock Android's chip draws the chronometer countdown when there is no short text.
+            // HyperOS does not draw it in the island, so there the countdown is the short text,
+            // redrawn every second by the service.
+            if (compactIsland(context)) builder.setShortCriticalText(remainingShort(snapshot.deadlineMs - now));
             builder.setContentTitle("Resting")
                     .setContentText(nextUp != null ? "Next: " + nextUp : "Rest ends at the countdown.")
                     .setUsesChronometer(true)
