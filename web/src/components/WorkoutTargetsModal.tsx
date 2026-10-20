@@ -17,7 +17,7 @@ type TargetsProps = {
 /// Last time's sets are read only when the targets are opened, so turning through the workout never
 /// waits on history; each Last pill appears when the read arrives and stays absent offline.
 export function WorkoutTargetsModal(props: TargetsProps) {
-  const previousSets = previousSetSummaries(useRecentExerciseSets(props.exercise.exerciseId), props.exercise, props.trackRir);
+  const previousSets = previousSetSummaries(useRecentExerciseSets(props.exercise.exerciseId), props.exercise, props.trackRir, props.unit);
   return <WorkoutTargetsView {...props} previousSets={previousSets} />;
 }
 
@@ -91,7 +91,7 @@ export function WorkoutTargetsView({ exercise, unit, trackRir, previousSets, onC
                     )}
                     {previousSets[setIndex] && (
                       <span className="plan-pill plan-prev-pill">
-                        Last: {previousSets[setIndex]}
+                        Last time: {previousSets[setIndex]}
                       </span>
                     )}
                   </div>

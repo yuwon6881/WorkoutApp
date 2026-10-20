@@ -41,9 +41,9 @@ describe('WorkoutTargetsModal', () => {
       onClose: () => undefined
     }));
     expect(markup).not.toContain('Warmup');
-    expect(markup).not.toContain('Last: W 40 kg × 8');
-    expect(markup.indexOf('Last: 80 kg × 6')).toBeGreaterThan(markup.indexOf('Set 1'));
-    expect(markup.indexOf('Last: 82.5 kg × 6')).toBeGreaterThan(markup.indexOf('Set 2'));
+    expect(markup).not.toContain('Last time: W 40 kg × 8');
+    expect(markup.indexOf('Last time: 80 kg × 6')).toBeGreaterThan(markup.indexOf('Set 1'));
+    expect(markup.indexOf('Last time: 82.5 kg × 6')).toBeGreaterThan(markup.indexOf('Set 2'));
     expect(markup).toContain('82.5 kg');
     expect(markup).not.toMatch(/>40 kg</);
   });
