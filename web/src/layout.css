@@ -185,13 +185,24 @@ dialog.modal:not([open]) { display: none; }
     background: var(--border);
   }
 
-  .picker-sheet .custom-select-item,
-  .picker-sheet .ui-menu-item {
+  /* Qualified by the sheet class so no shared menu-item rule later in the cascade can shrink a
+     sheet row back to the 36 px desktop size (one did, and every phone menu looked crammed). */
+  .custom-select-dropdown.picker-sheet,
+  .ui-menu-dropdown.picker-sheet { gap: 4px; }
+
+  .custom-select-dropdown.picker-sheet .custom-select-item,
+  .ui-menu-dropdown.picker-sheet .ui-menu-item {
     min-height: 52px;
+    gap: 14px;
     padding: 0 16px;
-    font-size: 16px;
+    /* Rows are buttons, and every button's size is pinned with !important (index.css); a sheet
+       row reads at the phone's body size instead. */
+    font-size: 16px !important;
     border-radius: 10px;
   }
+
+  .ui-menu-dropdown.picker-sheet .ui-menu-item > svg:first-child { padding: 7px; border-radius: 8px; }
+  .ui-menu-dropdown.picker-sheet .ui-menu-note { padding: 8px 16px; }
 }
 
 @media (max-width: 639px) and (prefers-reduced-motion: reduce) {
@@ -199,6 +210,10 @@ dialog.modal:not([open]) { display: none; }
   .custom-select-dropdown.picker-sheet,
   .ui-menu-dropdown.picker-sheet { animation: none; }
 }
+
+/* The app draws its own pressed states. Android's default tap highlight would also flash over
+   any clickable container, such as a whole card header when only its menu button was tapped. */
+html { -webkit-tap-highlight-color: transparent; }
 
 /* Viewport and safe areas. The shell fills the dynamic viewport, and with viewport-fit=cover the
    notch and rounded corners are kept clear on every edge, not only the bottom. */
@@ -329,7 +344,7 @@ html[data-keyboard='open'] .import-progress-pill { display: none; }
 /* Menus portaled out of their trigger (MenuButton portal) keep the 44 px item target on compact
    and medium layouts, like menus rendered in place. */
 @media (max-width: 1023px) {
-  .ui-menu-dropdown .ui-menu-item { min-height: 36px; }
+  .ui-menu-dropdown .ui-menu-item { min-height: 44px; }
 }
 
 /* Shared action surfaces use the same semantic accents as feature cards. */
