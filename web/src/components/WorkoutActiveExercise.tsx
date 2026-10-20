@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import {
+  ChartLine,
   Check,
   ClipboardList,
   Layers,
@@ -58,7 +59,8 @@ export function WorkoutActiveExercise({
   onRestore,
   onRemoveExercise,
   onCatalogChanged,
-  onCatalogNeeded
+  onCatalogNeeded,
+  onOpenExercise
 }: {
   exercise: SessionExercise;
   index: number;
@@ -73,6 +75,8 @@ export function WorkoutActiveExercise({
   onRemoveExercise: (index: number) => void;
   onCatalogChanged?: () => void | Promise<void>;
   onCatalogNeeded?: () => Promise<void>;
+  /// Opens the library details (progress chart, records, history) over the workout.
+  onOpenExercise?: (exerciseId: string) => void;
 }) {
   const trackRir = useTrackRir();
   const [swapOpen, setSwapOpen] = useState(false);
@@ -190,6 +194,20 @@ export function WorkoutActiveExercise({
           <ClipboardList size={15} />
           <span>Targets</span>
         </Button>
+
+        {/* Only a library exercise has progress to show; a name typed mid-workout has none yet. */}
+        {exercise.exerciseId && onOpenExercise && (
+          <Button
+            variant="tertiary"
+            className="action-pill"
+            aria-haspopup="dialog"
+            aria-label={`${exercise.name} progress and history`}
+            onClick={() => onOpenExercise(exercise.exerciseId!)}
+          >
+            <ChartLine size={15} />
+            <span>Progress</span>
+          </Button>
+        )}
 
         {/* Swapping only works before a set is logged, so it leaves the row rather than sit greyed out. */}
         {!hasCompletedSets && (

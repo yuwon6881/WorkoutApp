@@ -14,7 +14,7 @@ export function WorkoutEditor({
   draft, unit, exercises, activeIndex, finishIntentAt, recoveryConflict, online,
   picker, onPicker, onAddExercise, onChange, onEditSet, onToggleSet, onSelectExercise, onMoveExercise,
   onSwap, onRestore, onRemoveExercise, onCatalogChanged,
-  onCatalogNeeded
+  onCatalogNeeded, onOpenExercise
 }: {
   draft: Session; unit: Unit; exercises: Exercise[]; activeIndex: number; online: boolean;
   finishIntentAt: string | null; recoveryConflict: boolean;
@@ -26,6 +26,7 @@ export function WorkoutEditor({
   onRestore: (sessionExerciseId: string) => Promise<void>; onRemoveExercise: (index: number) => void;
   onCatalogChanged?: () => void | Promise<void>;
   onCatalogNeeded?: () => Promise<void>;
+  onOpenExercise?: (exerciseId: string) => void;
 }) {
   const currentExercise = draft.exercises[activeIndex] ?? draft.exercises[0];
   const currentIndex = currentExercise ? draft.exercises.indexOf(currentExercise) : -1;
@@ -46,7 +47,8 @@ export function WorkoutEditor({
         <div className="workout-page" ref={page}>
           <WorkoutActiveExercise key={currentExercise.id} exercise={currentExercise} index={currentIndex}
             unit={unit} draft={draft} exercises={exercises} change={onChange} editSet={onEditSet} toggle={onToggleSet}
-            onSwap={onSwap} onRestore={onRestore} onRemoveExercise={onRemoveExercise} onCatalogChanged={onCatalogChanged} onCatalogNeeded={onCatalogNeeded} />
+            onSwap={onSwap} onRestore={onRestore} onRemoveExercise={onRemoveExercise} onCatalogChanged={onCatalogChanged} onCatalogNeeded={onCatalogNeeded}
+            onOpenExercise={onOpenExercise} />
         </div>
       ) : (
         <div className="empty-message"><Dumbbell size={30} /><h3>No exercises in this workout</h3>

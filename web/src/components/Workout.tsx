@@ -50,12 +50,14 @@ export type WorkoutProps = {
   advance?: AdvanceOptions; onCatalogChanged?: () => void | Promise<void>;
   onCatalogNeeded?: () => Promise<void>; continues?: boolean; wrapModal?: boolean;
   isAccountCurrent?: (id: string) => boolean;
+  /// Opens an exercise's library details (progress chart and history) over the workout.
+  onOpenExercise?: (exerciseId: string) => void;
 };
 
 export function Workout({
   session, accountId, preferences, exercises, queue, online, recovery,
   onRecoveryChange: recoveryChanged, onSaved: savedWorkout, onClose, onFinish: finishedWorkout, onDiscard: discardedWorkout, advance,
-  onCatalogChanged, onCatalogNeeded, isAccountCurrent, continues = false, wrapModal = true
+  onCatalogChanged, onCatalogNeeded, isAccountCurrent, continues = false, wrapModal = true, onOpenExercise
 }: WorkoutProps) {
   const { onSaved, onFinish, onDiscard, onRecoveryChange } = useAccountWorkoutCallbacks(accountId, isAccountCurrent,
     { onSaved: savedWorkout, onFinish: finishedWorkout, onDiscard: discardedWorkout, onRecoveryChange: recoveryChanged });
@@ -457,7 +459,8 @@ export function Workout({
         picker={picker} onPicker={open => { setPicker(open); if (open) loadCatalog(); }}
         onAddExercise={() => online && !finishIntentAt ? (setPicker(true), loadCatalog()) : setError('Connect before adding an exercise.')}
         onChange={change} onEditSet={editSet} onToggleSet={toggle} onSelectExercise={selectExercise} onMoveExercise={moveExercise}
-        onSwap={swapExercise} onRestore={restoreExercise} onRemoveExercise={removeExercise} onCatalogChanged={onCatalogChanged} onCatalogNeeded={onCatalogNeeded} />
+        onSwap={swapExercise} onRestore={restoreExercise} onRemoveExercise={removeExercise} onCatalogChanged={onCatalogChanged} onCatalogNeeded={onCatalogNeeded}
+        onOpenExercise={onOpenExercise} />
 
       <WorkoutFooter error={error} busy={busy || Boolean(finishIntentAt) || recoveryConflict}
         celebration={celebration} canFinish={canFinish} onFinish={requestFinish} />
