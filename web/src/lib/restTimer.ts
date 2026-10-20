@@ -1,6 +1,6 @@
 import { cancelAlarm, primeAlarm, releaseAlarm, scheduleAlarm, soundNow, testAlarmSound } from './alarm';
 import type { SessionRest } from '../types';
-import { claimNativeRestAlert, hasNativeWorkoutStore, isNative, nativeKeepAwake, notificationPermission, syncNativeWorkout } from './platform';
+import { hasNativeWorkoutStore, isNative, nativeKeepAwake, notificationPermission, syncNativeWorkout } from './platform';
 import type { NativeRestAction } from './platform';
 import { REST_ALERTS_CHANGED_EVENT } from './restAlertDelivery';
 import { recoveredRestState } from './recoveredRestState';
@@ -285,13 +285,11 @@ export class RestTimer {
     if (this.shouldHoldScreen()) void this.holdScreen();
     else void this.releaseScreen();
     if (hasNativeWorkoutStore()) {
-      // Notification alerts always use the native channel, including while this page is visible.
-      // Claiming here would silence the service and bypass the channel's mute/sound policy.
-      if (this.options.notifications) return;
-      // A local-only sound remains available while the page is visible when notifications are off.
-      if (document.visibilityState !== 'visible' || !this.sessionId ||
-        !await claimNativeRestAlert(this.sessionId, state.generation)) return;
-      if (this.options.sound) soundNow();
+      // The Android app plays the chime and vibrates natively for every rest, with or without the
+      // notification and whether this page is visible or not. A visible page used to claim the
+      // rest when notifications were off and play a web-audio chime the WebView could keep silent
+      // without a recent tap, which also stood the reliable native chime down.
+      return;
     } else if (this.options.sound && kind === 'missed') soundNow();
     if (this.options.vibration && navigator.vibrate) { try { navigator.vibrate([200, 100, 200]); } catch { /* unsupported */ } }
     if (this.options.notifications) await notify({ lateSeconds: late, sessionId: this.sessionId });

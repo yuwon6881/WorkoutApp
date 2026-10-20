@@ -95,14 +95,6 @@ export function syncNativeWorkout(context: NativeWorkoutContext) {
   });
 }
 
-/// One device alerts once per rest: whichever of the page and the service claims it first.
-/// Without the service there is nothing else to claim against, so the page always may.
-export async function claimNativeRestAlert(sessionId: string, generation: string): Promise<boolean> {
-  if (!hasNativeWorkoutStore()) return true;
-  try { return await (await bridge()).nativeClaimRestAlert(sessionId, generation); }
-  catch { return true; }
-}
-
 /// The rest buttons on the Android workout notification change the rest on the device at once;
 /// the page takes those changes here and sends them on like its own.
 export async function readNativeRestActions(): Promise<NativeRestAction[]> {

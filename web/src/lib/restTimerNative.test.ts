@@ -2,7 +2,7 @@ import {afterEach,beforeEach,describe,expect,it,vi} from 'vitest';
 const native=vi.hoisted(()=>({claim:vi.fn(),sync:vi.fn(),sound:vi.fn(),vibrate:vi.fn()}));
 vi.mock('./platform',async()=>({
   hasNativeWorkoutStore:()=>true,isNative:()=>true,nativeKeepAwake:vi.fn(),
-  notificationPermission:vi.fn(),syncNativeWorkout:(context:import('./nativeWorkoutProjection').NativeWorkoutContext)=>native.sync(nativeWorkoutState(context)),claimNativeRestAlert:native.claim,
+  notificationPermission:vi.fn(),syncNativeWorkout:(context:import('./nativeWorkoutProjection').NativeWorkoutContext)=>native.sync(nativeWorkoutState(context)),
 }));
 import {nativeWorkoutState} from './nativeWorkoutProjection';
 vi.mock('./alarm',()=>({cancelAlarm:vi.fn(),primeAlarm:vi.fn(),releaseAlarm:vi.fn(),
@@ -90,14 +90,16 @@ describe('Android rest alert without notification permission',()=>{
   });
   afterEach(()=>{vi.useRealTimers();vi.unstubAllGlobals();});
 
-  it('chimes and vibrates from the visible page when the channel cannot alert',async()=>{
+  // The native chime and vibration need no notification permission, so the visible page never
+  // plays its own: its web-audio chime could stay silent and would have stood the native one down.
+  it('leaves the chime and vibration to the native alarm even with the page visible',async()=>{
     const timer=new RestTimer();
     timer.setScope('account','workout',{notifications:false,sound:true,vibration:true,keepAwake:false});
     timer.start(1);
     await vi.advanceTimersByTimeAsync(1000);
-    expect(native.sync).toHaveBeenCalledWith(expect.objectContaining({alert:false}));
-    expect(native.claim).toHaveBeenCalled();
-    expect(native.sound).toHaveBeenCalledTimes(1);
-    expect(native.vibrate).toHaveBeenCalledTimes(1);
+    expect(native.sync).toHaveBeenCalledWith(expect.objectContaining({alert:false,sound:true,vibrate:true}));
+    expect(native.claim).not.toHaveBeenCalled();
+    expect(native.sound).not.toHaveBeenCalled();
+    expect(native.vibrate).not.toHaveBeenCalled();
   });
 });
