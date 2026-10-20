@@ -242,8 +242,16 @@ public class WorkoutPlugin extends Plugin {
         }
     }
 
-    private static long longOf(PluginCall call, String key) {
-        Double value = call.getDouble(key);
-        return value == null || value.isNaN() ? 0L : value.longValue();
+    /// Reads a JavaScript number as whole milliseconds or a count. Capacitor's getDouble ignores a
+    /// value that arrived as a Long, and every epoch timestamp does (it is too big for an Integer),
+    /// so the rest deadline and workout start read as 0 and the notification never showed a rest.
+    static long longOf(PluginCall call, String key) {
+        return longOf(call.getData().opt(key));
+    }
+
+    static long longOf(Object value) {
+        if (!(value instanceof Number)) return 0L;
+        double number = ((Number) value).doubleValue();
+        return Double.isNaN(number) || Double.isInfinite(number) ? 0L : ((Number) value).longValue();
     }
 }
