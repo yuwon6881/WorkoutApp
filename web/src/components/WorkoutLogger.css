@@ -217,8 +217,10 @@
 }
 
 .load-cell { position: relative; display: flex; align-items: center; min-width: 0; }
-/* Added load and assistance carry their sign inside the field; the number alone stays centred. */
-.load-sign { position: absolute; left: 9px; top: 50%; z-index: 1; transform: translateY(-50%); color: var(--muted); font-size: 15px; font-weight: 700; pointer-events: none; }
+/* Added load and assistance carry their sign inside the field; the number alone stays centred.
+   A + or − sits on the font's maths axis, below the middle of its line box, so centring the box
+   left the sign about 1.4px under the digits' centre; .09em lifts its ink onto theirs. */
+.load-sign { position: absolute; left: 9px; top: 50%; z-index: 1; transform: translateY(calc(-50% - .09em)); color: var(--muted); font-size: 15px; font-weight: 700; pointer-events: none; }
 .load-added .load-sign { color: var(--accent); }
 .workout-set-rows .workout-set-row .load-cell.load-added input,
 .workout-set-rows .workout-set-row .load-cell.load-assistance input { padding-left: 20px; }
