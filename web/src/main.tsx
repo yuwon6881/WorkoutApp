@@ -12,7 +12,10 @@ import './motion.css';
 import './workout.css';
 import './surfaces.css';
 import { prepareNativeShell } from './lib/nativeShellMigration';
+import { isNative } from './lib/platform';
 applyTheme(initialTheme());
+// Styles that only the Android WebView needs (surfaces.css) key off this.
+if (isNative()) document.documentElement.dataset.shell = 'android';
 trackInputModality();
 void prepareNativeShell().then(ready => {
   if (ready) ReactDOM.createRoot(document.getElementById('root')!).render(<React.StrictMode><ErrorBoundary><App /></ErrorBoundary></React.StrictMode>);

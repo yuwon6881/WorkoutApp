@@ -22,6 +22,10 @@ h2{font-weight:680;letter-spacing:-.022em}
 /* Dialogs and sheets: the largest radius, lifted by a deep shadow. */
 .modal{border-color:var(--card-border);border-radius:var(--radius-modal);box-shadow:0 30px 80px -20px var(--overlay)}
 .modal::backdrop{backdrop-filter:blur(6px)}
+/* Android discards a backgrounded WebView's drawn page, so returning to the app repaints all of it
+   before anything shows; a full-screen backdrop blur made that first frame slow enough to read as a
+   darkened page. The overlay colour alone still dims what is behind a dialog. */
+:root[data-shell=android] .modal::backdrop{backdrop-filter:none}
 @media(max-width:639px){.modal,.modal.wide{border-radius:var(--radius-modal) var(--radius-modal) 0 0}}
 
 /* Buttons: the control radius, matching fields. Primary carries the accent glow on hover only. */
@@ -46,6 +50,7 @@ input:not([type=checkbox]):not([type=radio]):not([type=range]):focus,select:focu
 /* The top bar floats on the canvas; it no longer draws a rule under itself. */
 .topbar{border-bottom-color:transparent}
 @media(max-width:1023px){.topbar{background:color-mix(in srgb,var(--bg) 88%,transparent);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)}}
+:root[data-shell=android] .topbar{background:var(--bg);backdrop-filter:none;-webkit-backdrop-filter:none}
 .topbar .settings-icon{border-radius:var(--radius-pill)}
 
 /* Phones: leave room for the floating dock and its raised action. */
