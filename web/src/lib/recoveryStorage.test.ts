@@ -17,7 +17,6 @@ const nativeMocks = vi.hoisted(() => ({
   nativeDeleteRecovery: vi.fn(),
   nativeGetLastAccountId: vi.fn(),
   nativeSetLastAccountId: vi.fn(),
-  nativeClaimRestAlert: vi.fn(),
   isNative: vi.fn(() => false)
 }));
 
@@ -31,7 +30,6 @@ vi.mock('./nativeBridge', () => ({
   nativeDeleteRecovery: nativeMocks.nativeDeleteRecovery,
   nativeGetLastAccountId: nativeMocks.nativeGetLastAccountId,
   nativeSetLastAccountId: nativeMocks.nativeSetLastAccountId,
-  nativeClaimRestAlert: nativeMocks.nativeClaimRestAlert
 }));
 
 import {
@@ -67,16 +65,6 @@ describe('recoveryStorage', () => {
     vi.clearAllMocks();
     nativeMocks.isNative.mockReturnValue(false);
     localStorage.clear();
-  });
-
-  describe('IndexedDbRecoveryStorage', () => {
-    it('claims rest alert generations idempotently', async () => {
-      const storage = new IndexedDbRecoveryStorage();
-      const gen1 = 'alert-gen-1';
-      expect(await storage.claimRestAlert('workout-1', gen1)).toBe(true);
-      expect(await storage.claimRestAlert('workout-1', gen1)).toBe(false);
-      expect(await storage.claimRestAlert('workout-1', '')).toBe(false);
-    });
   });
 
   describe('NativeRecoveryStorage', () => {
@@ -116,18 +104,14 @@ describe('recoveryStorage', () => {
       expect(await storage.get('account-1')).toBeNull();
     });
 
-    it('delegates last account id operations and rest claim', async () => {
+    it('delegates last account id operations', async () => {
       const storage = new NativeRecoveryStorage();
       nativeMocks.nativeGetLastAccountId.mockResolvedValueOnce('account-1');
       nativeMocks.nativeSetLastAccountId.mockResolvedValueOnce(undefined);
-      nativeMocks.nativeClaimRestAlert.mockResolvedValueOnce(true);
 
       expect(await storage.getLastAccountId()).toBe('account-1');
       await storage.setLastAccountId('account-2');
       expect(nativeMocks.nativeSetLastAccountId).toHaveBeenCalledWith('account-2');
-
-      expect(await storage.claimRestAlert('workout-1', 'gen-123')).toBe(true);
-      expect(nativeMocks.nativeClaimRestAlert).toHaveBeenCalledWith('workout-1', 'gen-123');
     });
   });
 

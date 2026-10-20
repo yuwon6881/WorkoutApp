@@ -7,7 +7,6 @@ export interface RecoveryStorage {
   delete(accountId: string): Promise<void>;
   getLastAccountId(): Promise<string | null>;
   setLastAccountId(accountId: string | null): Promise<void>;
-  claimRestAlert(sessionId: string, generation: string): Promise<boolean>;
 }
 
 const DB_NAME = 'workout-recovery';
@@ -64,8 +63,6 @@ function validateRecord(value: unknown, accountId: string): WorkoutRecoveryRecor
   return record;
 }
 
-const claimedAlertGenerations = new Set<string>();
-
 export class IndexedDbRecoveryStorage implements RecoveryStorage {
   async get(accountId: string): Promise<WorkoutRecoveryRecord | null> {
     const db = await openDatabase();
@@ -119,11 +116,6 @@ export class IndexedDbRecoveryStorage implements RecoveryStorage {
     await transactionDone(tx);
   }
 
-  async claimRestAlert(_sessionId: string, generation: string): Promise<boolean> {
-    if (!generation || claimedAlertGenerations.has(generation)) return false;
-    claimedAlertGenerations.add(generation);
-    return true;
-  }
 }
 
 export class NativeRecoveryStorage implements RecoveryStorage {
@@ -166,10 +158,6 @@ export class NativeRecoveryStorage implements RecoveryStorage {
     await bridge.nativeSetLastAccountId(accountId);
   }
 
-  async claimRestAlert(sessionId: string, generation: string): Promise<boolean> {
-    const bridge = await this.getBridge();
-    return bridge.nativeClaimRestAlert(sessionId, generation);
-  }
 }
 
 let idbStorageInstance: IndexedDbRecoveryStorage | null = null;

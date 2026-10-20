@@ -10,8 +10,7 @@ vi.mock('./recoveryStorage', () => ({
     put: async (record: WorkoutRecoveryRecord) => { stored.set(record.accountId, structuredClone(record)); },
     delete: async (accountId: string) => { stored.delete(accountId); },
     getLastAccountId: async () => null,
-    setLastAccountId: async () => undefined,
-    claimRestAlert: async () => true
+    setLastAccountId: async () => undefined
   })
 }));
 

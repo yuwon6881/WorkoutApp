@@ -67,7 +67,6 @@ export interface WorkoutPluginInterface {
   deleteRecoveryRecord(options: { accountId: string }): Promise<void>;
   getLastAccountId(): Promise<{ accountId?: string | null }>;
   setLastAccountId(options: { accountId: string | null }): Promise<void>;
-  claimRestAlert(options: { sessionId: string; generation: string }): Promise<{ claimed: boolean }>;
   syncWorkout(options: NativeWorkoutState & { epoch: string; sequence: number }): Promise<void>;
   stopWorkout(): Promise<void>;
   getAlertCapabilities(): Promise<AlertCapabilities>;
@@ -157,11 +156,6 @@ export async function nativeGetLastAccountId(): Promise<string | null> {
 
 export async function nativeSetLastAccountId(accountId: string | null): Promise<void> {
   await WorkoutNative.setLastAccountId({ accountId });
-}
-
-export async function nativeClaimRestAlert(sessionId: string, generation: string): Promise<boolean> {
-  const result = await WorkoutNative.claimRestAlert({ sessionId, generation });
-  return result.claimed;
 }
 
 export async function nativeGetAlertCapabilities(lastError: string | null = null): Promise<AlertCapabilities> {

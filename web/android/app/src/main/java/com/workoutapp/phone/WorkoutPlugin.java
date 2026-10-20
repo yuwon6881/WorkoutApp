@@ -114,13 +114,6 @@ public class WorkoutPlugin extends Plugin {
     }
 
     @PluginMethod
-    public void claimRestAlert(PluginCall call) {
-        JSObject result = new JSObject();
-        result.put("claimed", store().claimRestAlert(call.getString("sessionId"), call.getString("generation")));
-        call.resolve(result);
-    }
-
-    @PluginMethod
     public void syncWorkout(PluginCall call) {
         String sessionId = call.getString("sessionId");
         if (sessionId == null || sessionId.isEmpty()) { call.reject("The workout is missing.", "invalid_state"); return; }
