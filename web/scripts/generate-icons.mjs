@@ -1,39 +1,115 @@
 import { writeFileSync } from 'node:fs';
 import sharp from 'sharp';
 
-// Every web icon is written from here (run `node scripts/generate-icons.mjs` from web/). The W
-// spans 61% of the tile: a wide, light stroke needs that width to match the optical weight of the
-// sibling apps' icons (Financial, Nutrition, Calendar), so the four sit evenly side by side on a
-// home screen. Launchers mask the square themselves, so the maskable and iOS icons are full-bleed;
-// the "any" icons carry the shared 22.5% corners because a desktop or browser shows them as drawn.
-// The W's farthest corner sits inside the maskable safe zone (a centred circle of 80%), so one
-// drawing serves both.
-const W_PATH = 'm120 168 55 176 81-128 81 128 55-176';
-const TILE = '#0b0e14';
-const SCALE = 1;
-const RADIUS = 115;
+// Every Workout icon is written from here (run `node scripts/generate-icons.mjs` from web/): web and
+// PWA icons, the Android launcher, splash and notification icons, and the Wear OS launcher and
+// status icons. The mark is drawn in NutritionApp's language (its N lives in that repository's
+// generate-icons.mjs): one rounded white stroke, 24 units wide on a 192 grid, on a pure black tile,
+// at the same scales, so the two sit together on a home screen as a pair.
+const W_PATH = 'M58 68L77 126L96 90L115 126L134 68';
+const STROKE = 24;
+const TILE = '#000000';
+const INK = '#ffffff';
+// The mark spans the same share of a web or iOS tile as the N. Its farthest corner, with the stroke
+// cap, sits 59 units from the centre, so at this scale it stays inside the maskable safe zone
+// (radius 76.8).
+const TILE_SCALE = 1.13;
+// Adaptive launcher foreground: 108 dp on the 192 grid. The launcher safe zone is a 66 dp circle
+// (radius 58.7 here); at 0.74 the mark's farthest edge sits at 44.
+const LAUNCHER_SCALE = 0.74;
+// Status-bar icons fill about 20 dp of their 24 dp canvas; the W is wider than tall, so its width
+// sets the scale.
+const STATUS_SCALE = 1.6;
 
-const icon = radius => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
-  <rect width="512" height="512" rx="${radius}" fill="${TILE}" />
-  <g transform="translate(256 256) scale(${SCALE}) translate(-256 -256)">
-    <path d="${W_PATH}" fill="none" stroke="#ffffff" stroke-width="42" stroke-linecap="round" stroke-linejoin="round" />
-  </g>
-</svg>`;
+const markAt = scale =>
+  `<g transform="translate(96 96) scale(${scale}) translate(-96 -96)"><path d="${W_PATH}" fill="none" stroke="${INK}" stroke-width="${STROKE}" stroke-linecap="round" stroke-linejoin="round"/></g>`;
+const canvas = (body, size = 1024) => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192" width="${size}" height="${size}">${body}</svg>`;
 
-const rounded = icon(RADIUS);
-const square = icon(0);
+// Square tiles are masked by the platform (maskable PWA, iOS); "any" icons carry their own corners.
+const square = `<rect width="192" height="192" fill="${TILE}"/>`;
+const rounded = `<rect width="192" height="192" rx="43" fill="${TILE}"/>`;
+const circle = `<circle cx="96" cy="96" r="96" fill="${TILE}"/>`;
+
+const anyIcon = canvas(rounded + markAt(TILE_SCALE));
+const maskableIcon = canvas(square + markAt(TILE_SCALE));
+const legacyRound = canvas(circle + markAt(TILE_SCALE * 0.92));
 
 const jobs = [
-  [rounded, 192, 'public/icon-192.png'],
-  [rounded, 512, 'public/icon-512.png'],
-  [square, 512, 'public/icon-maskable-512.png'],
-  [square, 180, 'public/apple-touch-icon.png'],
+  [anyIcon, 192, 'public/icon-192.png'],
+  [anyIcon, 512, 'public/icon-512.png'],
+  [maskableIcon, 512, 'public/icon-maskable-512.png'],
+  [maskableIcon, 180, 'public/apple-touch-icon.png'],
 ];
 
-for (const [svg, size, out] of jobs) {
-  await sharp(Buffer.from(svg)).resize(size, size).png().toFile(out);
+// Pre-adaptive launchers (API 24–25) use 48 dp bitmaps; API 26+ use the adaptive vector below.
+const res = 'android/app/src/main/res';
+const densities = { mdpi: 1, hdpi: 1.5, xhdpi: 2, xxhdpi: 3, xxxhdpi: 4 };
+for (const [density, factor] of Object.entries(densities)) {
+  const size = 48 * factor;
+  jobs.push([anyIcon, size, `${res}/mipmap-${density}/ic_launcher.png`], [legacyRound, size, `${res}/mipmap-${density}/ic_launcher_round.png`]);
+}
+
+for (const [source, size, out] of jobs) {
+  // The artwork is greyscale, so a palette PNG is lossless to the eye and keeps the PWA precache small.
+  await sharp(Buffer.from(source)).resize(size, size).png({ palette: true, compressionLevel: 9, effort: 10 }).toFile(out);
   console.log(`wrote ${out} (${size}x${size})`);
 }
 
-writeFileSync('public/favicon.svg', `${rounded.replace(' width="512" height="512"', '')}\n`);
+// Capacitor's pre-Android 12 splash: the launcher foreground's mark, at its launcher size, centred
+// on the tile colour.
+const splashes = [
+  ['drawable', 'mdpi', 480, 320],
+  ...Object.keys(densities).flatMap(density => {
+    const [short, long] = { mdpi: [320, 480], hdpi: [480, 800], xhdpi: [720, 1280], xxhdpi: [960, 1600], xxxhdpi: [1280, 1920] }[density];
+    return [[`drawable-port-${density}`, density, short, long], [`drawable-land-${density}`, density, long, short]];
+  }),
+];
+for (const [folder, density, width, height] of splashes) {
+  const box = Math.round(108 * densities[density]);
+  const mark = await sharp(Buffer.from(canvas(markAt(1), box))).png().toBuffer();
+  const out = `${res}/${folder}/splash.png`;
+  await sharp({ create: { width, height, channels: 3, background: TILE } })
+    .composite([{ input: mark, left: Math.round((width - box) / 2), top: Math.round((height - box) / 2) }])
+    .png({ palette: true, compressionLevel: 9, effort: 10 })
+    .toFile(out);
+  console.log(`wrote ${out} (${width}x${height})`);
+}
+
+writeFileSync('public/favicon.svg', `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192">${rounded}${markAt(TILE_SCALE)}</svg>\n`);
 console.log('wrote public/favicon.svg');
+
+const vector = (dp, scale, comment) => `<?xml version="1.0" encoding="utf-8"?>
+<!-- ${comment} Generated by web/scripts/generate-icons.mjs. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="${dp}dp"
+    android:height="${dp}dp"
+    android:viewportWidth="192"
+    android:viewportHeight="192">
+    <group
+        android:pivotX="96"
+        android:pivotY="96"
+        android:scaleX="${scale}"
+        android:scaleY="${scale}">
+        <path
+            android:pathData="${W_PATH}"
+            android:strokeColor="#FFFFFFFF"
+            android:strokeWidth="${STROKE}"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round" />
+    </group>
+</vector>
+`;
+const launcher = 'Adaptive launcher, splash and themed-icon layer: the W inside the launcher safe zone.';
+const status = 'Status-bar icon for the workout and rest notifications: the W, white on a transparent field as Android expects.';
+const wear = '../wear/app/src/main/res/drawable';
+const vectors = [
+  [`${res}/drawable/workout_launcher_foreground.xml`, vector(108, LAUNCHER_SCALE, launcher)],
+  [`${res}/drawable/ic_stat_rest.xml`, vector(24, STATUS_SCALE, status)],
+  [`${wear}/ic_launcher_foreground.xml`, vector(108, LAUNCHER_SCALE, launcher)],
+  [`${wear}/ic_launcher_monochrome.xml`, vector(108, LAUNCHER_SCALE, launcher)],
+  [`${wear}/ic_workout_status.xml`, vector(24, STATUS_SCALE, status)],
+];
+for (const [out, xml] of vectors) {
+  writeFileSync(out, xml);
+  console.log(`wrote ${out}`);
+}
