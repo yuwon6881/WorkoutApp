@@ -237,23 +237,41 @@
   filter: brightness(1.05);
 }
 
-/* A personal best, announced quietly in the footer for a few seconds (useAfterLog.ts). */
-@keyframes celebration-in { 0% { opacity: 0; transform: translateY(6px); } 100% { opacity: 1; transform: none; } }
+/* A personal best floats just under the workout header for a few seconds (WorkoutCelebration.tsx).
+   The anchor has no height and the card lets taps through, so nothing below it moves or is blocked. */
+@keyframes celebration-in { 0% { opacity: 0; transform: translateY(-8px); } 100% { opacity: 1; transform: none; } }
+.workout-celebration-anchor { position: relative; height: 0; z-index: 4; }
 .workout-celebration {
+  position: absolute;
+  top: 10px;
+  left: 16px;
+  right: 16px;
+  max-width: 520px;
+  margin: 0 auto;
   display: flex;
   align-items: center;
-  gap: 10px;
-  margin: 0;
-  padding: 10px 16px;
-  border-radius: var(--radius-pill);
+  gap: 12px;
+  padding: 12px 16px 12px 12px;
+  border-radius: var(--radius);
   background: var(--surface-raised);
   border: 1px solid var(--accent-border);
-  color: var(--text);
-  font-size: var(--font-secondary) !important;
-  font-weight: 650;
+  box-shadow: var(--shadow-float);
+  pointer-events: none;
   animation: celebration-in 240ms var(--motion-ease);
 }
-.workout-celebration svg { flex: 0 0 auto; color: var(--accent); }
+.workout-celebration-icon {
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.workout-celebration-text { display: grid; gap: 2px; min-width: 0; }
+.workout-celebration-text strong { font-size: 15px; font-weight: 720; color: var(--text); letter-spacing: -0.01em; }
+.workout-celebration-text span { font-size: var(--font-secondary); color: var(--muted); overflow-wrap: anywhere; }
 
 /* Active workout exercise notes: a quiet field that grows with what is typed. */
 .workout-note-drawer { margin-top: 18px; }

@@ -5,6 +5,7 @@ import { checkLivePr } from '../lib/livePr';
 import { advanceTarget, type AdvanceOptions } from '../lib/workoutLogging';
 import { showWeight } from '../lib/training';
 import { withSessionSystemLoads } from '../lib/workoutSystemLoads';
+import type { Celebration } from './WorkoutCelebration';
 
 const CELEBRATION_MS = 4500;
 
@@ -17,11 +18,11 @@ export function useAfterLog({ unit, advance, onAdvance }: {
   advance?: AdvanceOptions;
   onAdvance: (exerciseIndex: number) => void;
 }) {
-  const [celebration, setCelebration] = useState('');
+  const [celebration, setCelebration] = useState<Celebration | null>(null);
 
   useEffect(() => {
     if (!celebration) return;
-    const timer = setTimeout(() => setCelebration(''), CELEBRATION_MS);
+    const timer = setTimeout(() => setCelebration(null), CELEBRATION_MS);
     return () => clearTimeout(timer);
   }, [celebration]);
 
@@ -35,15 +36,13 @@ export function useAfterLog({ unit, advance, onAdvance }: {
     const exercise = logged.exercises[exerciseIndex];
     const pr = checkLivePr(exercise, setIndex);
     if (pr !== null) {
-      if (pr.kind === 'both') {
-        const loadStr = pr.isRepsOnly || pr.loadKg === null ? '' : ` at ${showWeight(pr.loadKg, unit)}`;
-        setCelebration(`New strength and rep best on ${exercise.name}: est. 1RM ${showWeight(pr.e1rm, unit)} · ${pr.reps} reps${loadStr}`);
-      } else if (pr.kind === 'e1rm') {
-        setCelebration(`New estimated strength best on ${exercise.name}: est. 1RM ${showWeight(pr.e1rm, unit)}`);
-      } else {
-        const loadStr = pr.isRepsOnly || pr.loadKg === null ? '' : ` at ${showWeight(pr.loadKg, unit)}`;
-        setCelebration(`New rep best on ${exercise.name}: ${pr.reps} reps${loadStr}`);
-      }
+      const loadStr = pr.isRepsOnly || pr.loadKg === null ? '' : ` at ${showWeight(pr.loadKg, unit)}`;
+      const strength = `est. 1RM ${showWeight(pr.e1rm, unit)}`;
+      const reps = `${pr.reps} reps${loadStr}`;
+      const [title, numbers] = pr.kind === 'both' ? ['New strength and rep best', `${strength} · ${reps}`]
+        : pr.kind === 'e1rm' ? ['New estimated strength best', strength]
+          : ['New rep best', reps];
+      setCelebration({ id: Date.now(), title, detail: `${exercise.name} · ${numbers}` });
     }
     haptic(pr !== null || exercise.sets.every(set => set.done) ? 'success' : 'log');
     const target = advanceTarget(logged, exerciseIndex, setIndex, advance);

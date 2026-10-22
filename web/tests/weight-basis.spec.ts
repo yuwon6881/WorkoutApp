@@ -56,8 +56,8 @@ test('weighted bodyweight live records use the edited load offline', async ({ pa
     await load.fill('10');
     await load.blur();
     await workout.getByRole('button', { name: `Log ${exercise.name} set 1`, exact: true }).click();
-    await expect(workout.getByText(/New strength and rep best on/)).toContainText('111 kg');
-    await expect(workout.getByText(/New strength and rep best on/)).toContainText('5 reps at 90 kg');
+    await expect(workout.getByRole('status').filter({ hasText: 'New strength and rep best' })).toContainText('111 kg');
+    await expect(workout.getByRole('status').filter({ hasText: 'New strength and rep best' })).toContainText('5 reps at 90 kg');
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
   } finally {
     await context.setOffline(false);

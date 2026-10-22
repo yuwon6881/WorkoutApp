@@ -22,6 +22,7 @@ import type { WorkoutRecoveryRecord } from '../lib/workoutRecovery';
 import { sessionPayload } from '../lib/workoutOutbox';
 import { Modal } from './ui/Modal';
 import { WorkoutFooter } from './WorkoutFooter';
+import { WorkoutCelebration } from './WorkoutCelebration';
 import { WorkoutDetailsModal, hasWorkoutDetails } from './WorkoutDetails';
 import { WorkoutTopBar } from './WorkoutTopBar';
 import { WorkoutEditor } from './WorkoutEditor';
@@ -454,6 +455,8 @@ export function Workout({
         onTogglePause={() => void togglePause()}
       />
 
+      <WorkoutCelebration celebration={celebration} />
+
       {recoveryConflict && recovery && <WorkoutRecoveryConflict recovery={recovery} online={online} onResolve={choice => void resolveConflict(choice)} />}
 
       <WorkoutEditor draft={draft} unit={unit} exercises={exercises} activeIndex={activeIndex} online={online}
@@ -465,7 +468,7 @@ export function Workout({
         onOpenExercise={onOpenExercise} />
 
       <WorkoutFooter error={error} busy={busy || Boolean(finishIntentAt) || recoveryConflict}
-        celebration={celebration} canFinish={canFinish} onFinish={requestFinish} />
+        canFinish={canFinish} onFinish={requestFinish} />
 
       {detailsOpen && <WorkoutDetailsModal draft={draft} unit={unit} onClose={() => setDetailsOpen(false)} />}
 
