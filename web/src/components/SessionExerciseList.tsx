@@ -54,7 +54,7 @@ function SessionExerciseCard({ exercise, order, unit, trackRir, onOpen }: {
               {trackRir && effort !== '—' && <span className="session-set-effort">{effort}</span>}
               {set.isPr && <span className="pill pill-accent pr-set-tag" title={set.prKind === 'e1rm' ? 'Estimated 1-rep max personal record' : undefined}>
                 <Trophy size={10} aria-hidden="true" />
-                <span>{formatSetPrTag(set)}</span>
+                <span className="pr-set-tag-text">{formatSetPrTag(set)}</span>
               </span>}
             </div>
           </li>;

@@ -643,9 +643,12 @@ for (const theme of ['dark', 'light'] as const) {
     await expect(modal.getByText('Rep best · 15 reps', { exact: true })).toBeVisible();
     await expect(modal.getByText('Estimated strength best · 75 kg est. 1RM', { exact: true })).toBeVisible();
     await expect(modal.getByText('Strength & rep best · 80 kg est. 1RM · 20 reps', { exact: true })).toBeVisible();
-    await expect(modal.getByText('Rep best', { exact: true }).first()).toBeVisible();
-    await expect(modal.getByText('Estimated strength best', { exact: true }).last()).toBeVisible();
-    await expect(modal.getByText('Strength & rep best', { exact: true }).last()).toBeVisible();
+    // Phones show a record set's tag as the trophy alone; its words stay in the tag for screen readers.
+    const setTags = modal.locator('.pr-set-tag');
+    await expect(setTags.first()).toBeVisible();
+    await expect(setTags.first()).toContainText('Rep best');
+    await expect(setTags.filter({ hasText: 'Estimated strength best' })).toHaveCount(1);
+    await expect(setTags.filter({ hasText: 'Strength & rep best' })).toHaveCount(1);
     await modal.getByRole('button', { name: 'Done' }).click();
     await expect(history.locator('.history-row')).toHaveCount(2);
     await checkLayout(page, 'populated history');

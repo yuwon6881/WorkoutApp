@@ -1,4 +1,3 @@
-import { Check } from 'lucide-react';
 import { Button } from './ui/Button';
 
 /// Sets are logged with their own tick, so the footer only appears when it has something to say:
@@ -23,7 +22,6 @@ export function WorkoutFooter({
         {canFinish && (
           <Button variant="primary" className="workout-finish-btn" aria-label="Finish workout" disabled={busy} onClick={onFinish}>
             Finish workout
-            <Check size={17} />
           </Button>
         )}
       </div>
