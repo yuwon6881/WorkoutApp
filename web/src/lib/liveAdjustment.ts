@@ -31,10 +31,11 @@ export function withLoggedSetEdit(draft: Session, ei: number, si: number, patch:
 }
 
 const DEFAULT_RESERVE = 2;
-/// How many reps a logged set must be off the plan, at the planned load, before the sets after it
-/// follow it. A single rep either way is ordinary set-to-set variation.
-const REP_DEVIATION = 2;
 const EPSILON = 1e-6;
+/// The steepest drop from one set to the next the session's trend is allowed to project, in reps.
+const MAX_DROP_PER_SET = 3;
+/// How far either side of the planned load the next sets may move, in grid steps.
+const LOAD_REACH_STEPS = 8;
 
 /// The reserve a program aims for, read the way the server does: the printed reserve (a range or a
 /// floor counts by its harder end), else 10 − RPE, else the default the logger names.
@@ -68,19 +69,6 @@ function baseInputs(set: LoggedSet, plan: SetPrescription | undefined, trackRir:
   return { weightKg: suggestion.suggestedLoadKg, reps: suggestion.suggestedReps, rpe: effort.rpe, rir: effort.rir ?? null };
 }
 
-const roundToGrid = (value: number, grid: LoadGrid, mode: 'floor' | 'nearest'): number => {
-  if (grid.availableLoadsKg?.length) {
-    const loads = [...grid.availableLoadsKg].sort((a, b) => a - b);
-    if (mode === 'floor') return [...loads].reverse().find(load => load <= value + EPSILON) ?? loads[0];
-    return loads.reduce((best, load) => Math.abs(load - value) < Math.abs(best - value) ? load : best, loads[0]);
-  }
-  if (grid.stepKg <= 0) return value;
-  const steps = value / grid.stepKg;
-  // The equipment cannot be set below its smallest step, and a zero load would make capacity / load infinite.
-  const whole = Math.max(1, mode === 'floor' ? Math.floor(steps + EPSILON) : Math.round(steps));
-  return Number((grid.stepKg * whole).toFixed(4));
-};
-
 type Plan = { low: number; high: number; goal: number };
 
 /// The rep range a straight working set aims for, null when it states no rep count to steer by
@@ -94,94 +82,133 @@ function repPlan(plan: SetPrescription | undefined): Plan | null {
 const isStraightWorking = (exercise: SessionExercise, index: number) =>
   setKind(exercise.sets[index], exercise.prescription[index]) === 'straight';
 
-/// How the lifter's capacity that day compares with what the plan for that set assumed, as a
-/// ratio of load × (reps + reserve + 30): above 1 the set was easier than planned, below 1 harder.
-/// Null when the set cannot say (no history-based plan, no reps, or no rep target).
-function capacityRatio(set: LoggedSet, plan: SetPrescription | undefined, loadMatters: boolean, trackRir: boolean): number | null {
+/// How many reps the lifter could have done at a set's planned load, from what they logged:
+/// load × (reps + reserve + 30) is held constant across loads, as the server's progression reads it.
+function repsToFailureAtPlan(set: LoggedSet, goal: number, loadMatters: boolean, trackRir: boolean): number | null {
   const suggestion = set.suggestion;
-  const target = repPlan(plan);
-  if (!suggestion || !target || set.reps === null || set.reps <= 0 || (!suggestion.sourceSessionId && !suggestion.sourceDate)) return null;
-  const planned = suggestion.suggestedReps;
-  const reserve = trackRir ? effortValue(set) ?? target.goal : target.goal;
-  const actual = set.reps + reserve + 30;
-  const intended = planned + target.goal + 30;
-  if (!loadMatters) return actual / intended;
+  if (!suggestion || set.reps === null || set.reps <= 0) return null;
+  const reserve = trackRir ? effortValue(set) ?? goal : goal;
+  if (!loadMatters) return set.reps + reserve;
   if (set.weightKg === null || suggestion.suggestedLoadKg === null || set.weightKg <= 0 || suggestion.suggestedLoadKg <= 0) return null;
-  return (set.weightKg * actual) / (suggestion.suggestedLoadKg * intended);
+  return (set.weightKg * (set.reps + reserve + 30)) / suggestion.suggestedLoadKg - 30;
 }
 
-/// The load, reps and reserve a later set should start with given today's capacity ratio.
-function adjustedInputs(
-  base: FilledInputs, plan: SetPrescription | undefined, ratio: number, grid: LoadGrid, loadMatters: boolean, trackRir: boolean
+type Deviation = { position: number; reps: number };
+
+/// How far each logged straight set landed from its own plan, in reps to failure at its planned
+/// load, ordered by the set's place among the straight working sets.
+function loggedDeviations(exercise: SessionExercise, loadMatters: boolean, trackRir: boolean): Deviation[] {
+  const deviations: Deviation[] = [];
+  let position = 0;
+  exercise.sets.forEach((set, index) => {
+    if (set.warmup || !isStraightWorking(exercise, index)) return;
+    const plan = exercise.prescription[index];
+    const target = repPlan(plan);
+    const base = target && baseInputs(set, plan, trackRir);
+    const actual = set.done && target ? repsToFailureAtPlan(set, target.goal, loadMatters, trackRir) : null;
+    if (target && base?.reps != null && actual !== null) {
+      const planned = clampReps(base.reps, target) + target.goal;
+      deviations.push({ position, reps: actual - planned });
+    }
+    position += 1;
+  });
+  return deviations;
+}
+
+/// The session's own fatigue trend: the least-squares change in deviation per set. A session that
+/// is fading faster than the plan projects that fade forward; one getting easier is not assumed to
+/// keep getting easier, and a single logged set has no trend yet.
+function deviationTrend(deviations: Deviation[]): number {
+  if (deviations.length < 2) return 0;
+  const meanPosition = deviations.reduce((sum, item) => sum + item.position, 0) / deviations.length;
+  const meanReps = deviations.reduce((sum, item) => sum + item.reps, 0) / deviations.length;
+  const spread = deviations.reduce((sum, item) => sum + (item.position - meanPosition) ** 2, 0);
+  if (spread <= EPSILON) return 0;
+  const slope = deviations.reduce((sum, item) => sum + (item.position - meanPosition) * (item.reps - meanReps), 0) / spread;
+  return Math.max(-MAX_DROP_PER_SET, Math.min(0, slope));
+}
+
+const clampReps = (reps: number, target: Plan) => Math.min(target.high, Math.max(target.low, reps));
+
+/// The loads the next set may be set to near its planned load: the weight list's entries within
+/// reach, else whole steps either side, never zero or below.
+function candidateLoads(planned: number, grid: LoadGrid): number[] {
+  const loads = grid.availableLoadsKg?.length
+    ? grid.availableLoadsKg.filter(load => load > 0 && Math.abs(load - planned) <= LOAD_REACH_STEPS * Math.max(grid.stepKg, planned * 0.05))
+    : Array.from({ length: LOAD_REACH_STEPS * 2 + 1 }, (_, i) => Number((planned + (i - LOAD_REACH_STEPS) * grid.stepKg).toFixed(4)))
+      .filter(load => load > EPSILON);
+  return [planned, ...loads.filter(load => Math.abs(load - planned) > EPSILON)];
+}
+
+/// The load, reps and reserve closest to a set's target given the reps to failure projected at its
+/// planned load. Each option costs its distance from the plan in reps: reps short of the range, a
+/// reserve away from the target, and a changed load by the reps that change is worth. So a set a
+/// rep short keeps its load when a step lighter would cost more than that rep, and a small step
+/// wins when it lands the set back in range for less.
+function aimedInputs(
+  base: FilledInputs, plan: SetPrescription | undefined, projected: number, grid: LoadGrid, loadMatters: boolean, trackRir: boolean
 ): FilledInputs | null {
   const target = repPlan(plan);
   if (!target || base.reps === null) return null;
-  const plannedReps = Math.min(target.high, Math.max(target.low, base.reps));
-  const plannedCapacity = plannedReps + target.goal + 30;
-  const capacity = plannedCapacity * ratio; // in reps-plus-reserve units at the planned load
-  const exact = target.low === target.high;
-  const repsAtPlannedLoad = capacity - 30 - target.goal;
+  const goal = Math.round(target.goal);
+  const planned = base.weightKg;
   // Equipment with no increment and no weight list progresses through reps alone, so its load stays put.
-  const loadMoves = loadMatters && (!!grid.availableLoadsKg?.length || grid.stepKg > 0);
-  let load = base.weightKg;
-  let reps: number;
+  const loadMoves = loadMatters && planned !== null && planned > 0 && (!!grid.availableLoadsKg?.length || grid.stepKg > 0);
+  const loads = loadMoves ? candidateLoads(planned, grid) : [planned];
 
-  if (!loadMoves || load === null || load <= 0) {
-    reps = Math.min(target.high, Math.max(target.low, Math.round(repsAtPlannedLoad)));
-  } else {
-    // The same lift moves the load whose reps land in range: capacity / load = reps + reserve + 30.
-    const loadCapacity = load * capacity;
-    const loadFor = (repsWanted: number) => loadCapacity / (repsWanted + target.goal + 30);
-    const rounded = Math.round(repsAtPlannedLoad);
-    if (exact) load = roundToGrid(loadFor(target.low), grid, 'nearest');
-    else if (rounded < target.low) load = Math.min(load, roundToGrid(loadFor(target.low), grid, 'floor'));
-    else if (rounded > target.high) load = Math.max(load, roundToGrid(loadFor(plannedReps), grid, 'floor'));
-    const repsAtLoad = loadCapacity / load - 30 - target.goal;
-    reps = Math.min(target.high, Math.max(target.low, Math.round(exact ? target.low : repsAtLoad)));
+  let best: { load: number | null; reps: number; reserve: number; cost: number } | null = null;
+  for (const load of loads) {
+    const toFailure = load !== null && planned !== null && load !== planned
+      ? (planned * (projected + 30)) / load - 30
+      : projected;
+    // Never past failure: a set that cannot reach the range keeps the target effort with fewer reps.
+    const reps = Math.max(1, Math.min(target.high, Math.round(toFailure - target.goal)));
+    const reserve = Math.min(5, Math.max(0, Math.round(toFailure - reps)));
+    const cost = Math.abs(toFailure - projected) + Math.max(0, target.low - reps) + Math.abs(reserve - goal);
+    if (!best || cost < best.cost - EPSILON) best = { load, reps, reserve, cost };
   }
-
-  // Say honestly what effort the new load and reps leave, instead of repeating the plan's reserve.
-  let reserve = Math.round(target.goal);
-  if (trackRir) {
-    const loadScale = loadMatters && load !== null && base.weightKg ? base.weightKg / load : 1;
-    const expected = capacity * loadScale - 30 - reps;
-    if (Number.isFinite(expected) && Math.abs(expected - target.goal) >= 1) reserve = Math.min(5, Math.max(0, Math.round(expected)));
-  }
-  const effort = trackRir ? effortPatch(reserve) : { rpe: base.rpe, rir: base.rir };
-  return { weightKg: load, reps, rpe: effort.rpe, rir: effort.rir ?? null };
+  if (!best) return null;
+  if (best.load === planned && best.reps === base.reps && best.reserve === goal) return base;
+  const effort = trackRir ? effortPatch(best.reserve) : { rpe: base.rpe, rir: base.rir };
+  return { weightKg: best.load, reps: best.reps, rpe: effort.rpe, rir: effort.rir ?? null };
 }
 
-/// Re-aims the unlogged straight sets after a set the lifter has just logged (or corrected) when
-/// that set landed far enough from its plan. A much harder or easier set moves the load, reps and
-/// reserve the following sets are filled with; a set back on plan returns them to where the program
-/// started them. A set the lifter has typed into is theirs and is never overwritten, and warm-ups,
-/// techniques, holds and exercises with no history to start from are left alone.
+/// Re-aims every unlogged straight set each time a set is logged (or corrected). Each logged set
+/// says how far the lifter is from the plan today, and their trend across the session (a fade
+/// faster than planned) is carried forward, so a lifter who went 2 RIR then 1 RIR at the same reps
+/// is shown one rep fewer next, then another fewer, or a lighter load where that is closer to the
+/// target. Sets back on plan return to where the program started them. A set the lifter has typed
+/// into is theirs and is never overwritten, and warm-ups, techniques, holds and exercises with no
+/// history to start from are left alone.
 export function withLiveAdjustment(
   draft: Session, exerciseIndex: number, setIndex: number, grid: LoadGrid, trackRir: boolean, filled: FilledInputsLog
 ): Session {
   const exercise = draft.exercises[exerciseIndex];
   const logged = exercise?.sets[setIndex];
   if (!exercise || !logged?.done || logged.warmup || isTimedExercise(exercise) || !isStraightWorking(exercise, setIndex)) return draft;
-  const entry = loadEntryFor(exercise);
-  const loadMatters = entry === 'external';
-  const ratio = capacityRatio(logged, exercise.prescription[setIndex], loadMatters, trackRir);
-  if (ratio === null) return draft;
-  const target = repPlan(exercise.prescription[setIndex]);
-  const plannedReps = logged.suggestion?.suggestedReps ?? 0;
-  const deviation = target ? (plannedReps + target.goal + 30) * (ratio - 1) : 0;
-  const deviates = Math.abs(deviation) >= REP_DEVIATION - EPSILON;
+  const loadMatters = loadEntryFor(exercise) === 'external';
+  const deviations = loggedDeviations(exercise, loadMatters, trackRir);
+  const last = deviations.at(-1);
+  if (!last) return draft;
+  const trend = deviationTrend(deviations);
 
   let changed = false;
+  let position = 0;
   const sets = exercise.sets.map((set, index) => {
-    if (index <= setIndex || set.done || set.warmup || !isStraightWorking(exercise, index)) return set;
+    if (set.warmup || !isStraightWorking(exercise, index)) return set;
+    const place = position;
+    position += 1;
+    if (set.done) return set;
     const plan = exercise.prescription[index];
+    const target = repPlan(plan);
     const base = baseInputs(set, plan, trackRir);
-    if (!base) return set;
+    if (!target || !base || base.reps === null) return set;
     const current = inputsOf(set);
     const lastFilled = filled.get(set.id);
     // Only a set still holding the program's fill, or the last adjustment's, is the app's to move.
     if (!holds(current, base) && !(lastFilled && holds(current, lastFilled))) return set;
-    const next = deviates ? adjustedInputs(base, plan, ratio, grid, loadMatters, trackRir) : base;
+    const projected = clampReps(base.reps, target) + target.goal + last.reps + trend * (place - last.position);
+    const next = aimedInputs(base, plan, projected, grid, loadMatters, trackRir);
     if (!next || sameInputs(next, current)) return set;
     filled.set(set.id, next);
     changed = true;

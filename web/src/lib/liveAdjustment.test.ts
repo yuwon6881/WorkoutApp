@@ -43,9 +43,42 @@ describe('withLiveAdjustment', () => {
     expect(withLiveAdjustment(draft, 0, 0, grid, true, new Map())).toBe(draft);
   });
 
-  it('ignores a one-rep wobble', () => {
-    const draft = logged(three(), 0, { reps: 9, rpe: 8, rir: '2' });
-    expect(withLiveAdjustment(draft, 0, 0, grid, true, new Map())).toBe(draft);
+  it('follows even a one-rep miss, since every logged set re-aims the rest', () => {
+    const sets = adjust(logged(three(), 0, { reps: 9, rpe: 8, rir: '2' }));
+    expect(sets[1]).toMatchObject({ weightKg: 60, reps: 9, rir: '2' });
+    expect(sets[2]).toMatchObject({ weightKg: 60, reps: 9, rir: '2' });
+  });
+
+  describe('carrying the session\'s fade forward', () => {
+    // 27.5 kg × 16 planned at 1 RIR in a 15-20 range, as on a cable face pull.
+    const facePull = () => draftWith([0, 1, 2, 3].map(i => set(`f${i}`, i, 27.5, 16, { rpe: 9, rir: '1' })), plan({ repMin: 15, repMax: 20, rir: '1' }));
+
+    it('projects one rep fewer per set when reserve fell a rep from set to set at the same reps', () => {
+      const filled: FilledInputsLog = new Map();
+      const first = withLiveAdjustment(logged(facePull(), 0, { reps: 16, rpe: 8, rir: '2' }), 0, 0, grid, true, filled);
+      const second = withLiveAdjustment(logged(first, 1, { weightKg: 27.5, reps: 16, rpe: 9, rir: '1' }), 0, 1, grid, true, filled);
+      const sets = second.exercises[0].sets;
+      expect(sets[2]).toMatchObject({ weightKg: 27.5, reps: 15, rir: '1' });
+      // A rep under the range costs less than a 2.5 kg step is worth (about 4.5 reps here), so the load stays.
+      expect(sets[3]).toMatchObject({ weightKg: 27.5, reps: 14, rir: '1' });
+    });
+
+    it('drops to a lighter load when that lands closer to the target than reps under the range', () => {
+      const fine: LoadGrid = { stepKg: 0.5, availableLoadsKg: null };
+      const filled: FilledInputsLog = new Map();
+      const first = withLiveAdjustment(logged(facePull(), 0, { reps: 16, rpe: 8, rir: '2' }), 0, 0, fine, true, filled);
+      const second = withLiveAdjustment(logged(first, 1, { weightKg: 27.5, reps: 16, rpe: 9, rir: '1' }), 0, 1, fine, true, filled);
+      const fourth = second.exercises[0].sets[3];
+      expect(fourth.weightKg).toBeLessThan(27.5);
+      expect(fourth.reps).toBeGreaterThanOrEqual(15);
+    });
+
+    it('does not assume a session getting easier keeps getting easier', () => {
+      const filled: FilledInputsLog = new Map();
+      const first = withLiveAdjustment(logged(facePull(), 0, { reps: 16, rpe: 10, rir: '0' }), 0, 0, grid, true, filled);
+      const second = withLiveAdjustment(logged(first, 1, { weightKg: first.exercises[0].sets[1].weightKg, reps: 16, rpe: 9, rir: '1' }), 0, 1, grid, true, filled);
+      expect(second.exercises[0].sets[2]).toMatchObject({ weightKg: 27.5, reps: 16, rir: '1' });
+    });
   });
 
   it('lowers the load for the next sets after a much harder set', () => {
@@ -134,8 +167,9 @@ describe('withLiveAdjustment', () => {
     it('never floors a step grid load to zero after a big miss', () => {
       const result = withLiveAdjustment(logged(smallest(), 0, missBadly), 0, 0, grid, true, new Map()).exercises[0].sets[1];
       expect(result.weightKg).toBe(2.5);
-      expect(result.reps).toBeGreaterThanOrEqual(8);
-      expect(result.reps).toBeLessThanOrEqual(12);
+      // With nothing lighter to move to, the set keeps its effort and is honest about fewer reps.
+      expect(result.reps).toBeGreaterThanOrEqual(1);
+      expect(result.reps).toBeLessThan(8);
     });
 
     it('keeps a weight list load at its smallest entry after a big miss', () => {
