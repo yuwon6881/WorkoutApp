@@ -30,6 +30,7 @@ import androidx.wear.compose.material3.HorizontalPagerScaffold
 import androidx.wear.compose.material3.PagerScaffoldDefaults
 import com.workoutapp.wear.data.WorkoutRepository
 import com.workoutapp.wear.data.WorkoutSnapshot
+import com.workoutapp.wear.service.vibrateAlert
 import com.workoutapp.wear.ui.theme.rirColor
 import kotlinx.coroutines.launch
 
@@ -105,7 +106,7 @@ fun ActiveWorkoutScreen(
         if (draft.timing && draft.timerTarget == target) {
             draft.finishCountdown()
             model.set?.id?.let { onSetTimerChanged(it, draft.snapshotTimer()) }
-            vibrateTimerDone(context)
+            vibrateAlert(context)
         }
     }
 

@@ -3,6 +3,7 @@ package com.workoutapp.wear.service
 import android.content.Context
 import android.os.Looper
 import android.os.PowerManager
+import android.os.VibrationAttributes
 import android.os.VibratorManager
 import com.workoutapp.wear.data.WorkoutSession
 import com.workoutapp.wear.data.WorkoutSnapshot
@@ -123,6 +124,8 @@ class WorkoutOngoingServiceTest {
         idle()
         assertTrue(vibrator.isVibrating)
         assertArrayEquals(longArrayOf(0, 180, 100, 180), vibrator.pattern)
+        // Unmarked vibrations from an app off screen are dropped, so the alert is a notification vibration.
+        assertEquals(VibrationAttributes.USAGE_NOTIFICATION, vibrator.vibrationAttributesFromLastVibration.usage)
         assertEquals("current", store.readSnapshot()?.alertedRestGeneration)
         assertNull(store.readSnapshot()?.restGeneration)
 

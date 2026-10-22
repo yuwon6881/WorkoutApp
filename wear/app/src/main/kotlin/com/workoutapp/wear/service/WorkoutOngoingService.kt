@@ -14,9 +14,6 @@ import android.os.IBinder
 import android.os.Looper
 import android.os.PowerManager
 import android.os.SystemClock
-import android.os.VibrationEffect
-import android.os.Vibrator
-import android.os.VibratorManager
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
@@ -177,7 +174,7 @@ class WorkoutOngoingService : Service() {
                     return
                 }
                 if (store.claimRestAlert(generation)) {
-                    vibrate()
+                    vibrateAlert(this)
                     val manager = getSystemService(NotificationManager::class.java)
                     runCatching { manager.notify(NOTIFICATION_ID, buildNotification(store.readSnapshot(), "Rest complete • Tap to return")) }
                 }
@@ -202,18 +199,6 @@ class WorkoutOngoingService : Service() {
     private fun releaseRestWakeLock() {
         restWakeLock?.takeIf { it.isHeld }?.release()
         restWakeLock = null
-    }
-
-    private fun vibrate() {
-        val vibrator = if (Build.VERSION.SDK_INT >= 31) {
-            getSystemService(VibratorManager::class.java).defaultVibrator
-        } else {
-            @Suppress("DEPRECATION")
-            getSystemService(Vibrator::class.java)
-        }
-        if (vibrator?.hasVibrator() == true) {
-            vibrator.vibrate(VibrationEffect.createWaveform(longArrayOf(0, 180, 100, 180), -1))
-        }
     }
 
     companion object {

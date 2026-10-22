@@ -1,10 +1,5 @@
 package com.workoutapp.wear.ui
 
-import android.content.Context
-import android.os.Build
-import android.os.VibrationEffect
-import android.os.Vibrator
-import android.os.VibratorManager
 import com.workoutapp.wear.data.SetPrescription
 import com.workoutapp.wear.data.WorkoutRepository
 
@@ -55,18 +50,5 @@ fun timedTargetSeconds(prescription: SetPrescription?): Int? {
 }
 
 fun formatSetSeconds(seconds: Int?): String = seconds?.let { formatClock(it.toLong()) } ?: "—"
-
-/** The same short double pulse as the end of a rest, for a timed set reaching its target. */
-fun vibrateTimerDone(context: Context) {
-    val vibrator = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-        context.getSystemService(VibratorManager::class.java)?.defaultVibrator
-    } else {
-        @Suppress("DEPRECATION")
-        context.getSystemService(Vibrator::class.java)
-    }
-    if (vibrator?.hasVibrator() == true) {
-        vibrator.vibrate(VibrationEffect.createWaveform(longArrayOf(0, 180, 100, 180), -1))
-    }
-}
 
 const val SECONDS_STEP = 5
