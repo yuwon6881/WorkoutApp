@@ -201,4 +201,6 @@
 .plan-load-pill { border-color: var(--border-hover); background: var(--surface); color: var(--text); }
 .plan-tempo-pill { border-color: var(--border); background: var(--surface); color: var(--muted); font-size: 14px; }
 .plan-prev-pill { border-color: var(--border); background: var(--surface); color: var(--muted); font-size: 14px; }
+/* Holds the Last pill's place, at its height, while last time's sets are read. */
+.plan-prev-skeleton { display: inline-block; width: 132px; height: 30px; border: 1px solid var(--border); border-radius: var(--radius-pill); background: var(--surface); }
 .plan-set-note { margin: 0; font-size: 14px; color: var(--muted); line-height: 1.5; padding-top: 4px; border-top: 1px dashed var(--border); }

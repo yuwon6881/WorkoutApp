@@ -4,6 +4,7 @@ import { showReps } from '../lib/training';
 import { previousSetSummaries } from '../lib/previousSets';
 import { setTarget } from '../lib/setTarget';
 import { Modal } from './ui/Modal';
+import { Skeleton } from './ui/Skeleton';
 import { getRirColorClass } from './ui/RpeControl';
 import { useRecentExerciseSets } from './useRecentExerciseSets';
 
@@ -15,16 +16,19 @@ type TargetsProps = {
 };
 
 /// Last time's sets are read only when the targets are opened, so turning through the workout never
-/// waits on history; each Last pill appears when the read arrives and stays absent offline.
+/// waits on history; each Last pill holds a shimmering place while the read is out, fills in when it
+/// arrives, and stays absent offline or where there is no history.
 export function WorkoutTargetsModal(props: TargetsProps) {
-  const previousSets = previousSetSummaries(useRecentExerciseSets(props.exercise.exerciseId), props.exercise, props.trackRir, props.unit);
-  return <WorkoutTargetsView {...props} previousSets={previousSets} />;
+  const recent = useRecentExerciseSets(props.exercise.exerciseId);
+  const previousSets = previousSetSummaries(recent.sessions, props.exercise, props.trackRir, props.unit);
+  return <WorkoutTargetsView {...props} previousSets={previousSets} previousLoading={recent.loading} />;
 }
 
 /// An exercise's planned sets in full: reps, effort, the progression's target load, tempo, what the
 /// same set read last time, and each set's own note, under the progression reason when there is one.
-export function WorkoutTargetsView({ exercise, unit, trackRir, previousSets, onClose }: TargetsProps & {
+export function WorkoutTargetsView({ exercise, unit, trackRir, previousSets, previousLoading = false, onClose }: TargetsProps & {
   previousSets: Array<string | null | undefined>;
+  previousLoading?: boolean;
 }) {
   // Working sets are listed when there are any; each keeps its own index into the sets, so a
   // leading warm-up never shifts which set's suggestion or last result a row shows.
@@ -32,7 +36,8 @@ export function WorkoutTargetsView({ exercise, unit, trackRir, previousSets, onC
   const shown = planned.some(({ p }) => !p.warmup) ? planned.filter(({ p }) => !p.warmup) : planned;
   return (
     <Modal title={`${exercise.name} targets`} onClose={onClose}>
-      <div className="modal-body workout-plan-detail-card">
+      <div className="modal-body workout-plan-detail-card" aria-busy={previousLoading}>
+        {previousLoading && <span className="sr-only" role="status">Loading last time's sets</span>}
         {exercise.progression && (
           <div className="plan-detail-banner">
             <TrendingUp size={16} className="plan-banner-icon" aria-hidden="true" />
@@ -89,6 +94,7 @@ export function WorkoutTargetsView({ exercise, unit, trackRir, previousSets, onC
                         <span>Tempo {p.tempo}</span>
                       </span>
                     )}
+                    {previousLoading && <Skeleton className="plan-prev-skeleton" aria-hidden="true" />}
                     {previousSets[setIndex] && (
                       <span className="plan-pill plan-prev-pill">
                         Last time: {previousSets[setIndex]}

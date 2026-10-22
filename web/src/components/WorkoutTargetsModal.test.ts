@@ -47,4 +47,12 @@ describe('WorkoutTargetsModal', () => {
     expect(markup).toContain('82.5 kg');
     expect(markup).not.toMatch(/>40 kg</);
   });
+
+  it('holds a place for last time while the history read is out', () => {
+    const markup = renderToStaticMarkup(createElement(WorkoutTargetsView, {
+      exercise, unit: 'kg', trackRir: true, previousSets: [], previousLoading: true, onClose: () => undefined
+    }));
+    expect(markup.match(/plan-prev-skeleton/g)).toHaveLength(2);
+    expect(markup).toContain('Loading last time');
+  });
 });
