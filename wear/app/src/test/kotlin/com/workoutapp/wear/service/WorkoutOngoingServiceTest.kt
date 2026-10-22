@@ -125,7 +125,7 @@ class WorkoutOngoingServiceTest {
         assertTrue(vibrator.isVibrating)
         assertArrayEquals(longArrayOf(0, 180, 100, 180), vibrator.pattern)
         // Unmarked vibrations from an app off screen are dropped, so the alert is a notification vibration.
-        assertEquals(VibrationAttributes.USAGE_NOTIFICATION, vibrator.vibrationAttributesFromLastVibration.usage)
+        assertEquals(VibrationAttributes.USAGE_NOTIFICATION, (vibrator.vibrationAttributesFromLastVibration as VibrationAttributes).usage)
         assertEquals("current", store.readSnapshot()?.alertedRestGeneration)
         assertNull(store.readSnapshot()?.restGeneration)
 
