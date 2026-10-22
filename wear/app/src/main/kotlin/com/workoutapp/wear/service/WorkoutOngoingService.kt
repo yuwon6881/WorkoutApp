@@ -174,7 +174,7 @@ class WorkoutOngoingService : Service() {
                     return
                 }
                 if (store.claimRestAlert(generation)) {
-                    vibrateAlert(this)
+                    vibrateAlert(this@WorkoutOngoingService)
                     val manager = getSystemService(NotificationManager::class.java)
                     runCatching { manager.notify(NOTIFICATION_ID, buildNotification(store.readSnapshot(), "Rest complete • Tap to return")) }
                 }
