@@ -169,6 +169,8 @@
   flex: 0 0 100%;
   min-width: 0;
   scroll-snap-align: start;
+  /* One flick never carries past the neighbouring week. */
+  scroll-snap-stop: always;
   padding: 2px;
 }
 
@@ -432,4 +434,9 @@
   .calendar-today-btn {
     min-height: 44px;
   }
+}
+
+/* A week the read has not reached yet: its status marks are unknown, not "no workout". */
+.calendar-week-rail[data-loading] .day-status-indicator {
+  opacity: .35;
 }

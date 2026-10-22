@@ -1,14 +1,14 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { Check, ChevronLeft, ChevronRight, RotateCcw } from 'lucide-react';
+import { ChevronLeft, ChevronRight, RotateCcw } from 'lucide-react';
 import type { HistoryPage, ProgramSummary, Session, WorkoutActivityItem } from '../types';
-import { api } from '../lib/api';
 import { localDate, weekDays } from '../lib/training';
 import { loadSessionDetail } from '../lib/sessionDetailLoad';
 import { prefetchView } from '../app/lazyViews';
 import { ProgramWeekCompletion } from './ProgramWeekCompletion';
 import { Button } from './ui/Button';
 import './TrainingCalendar.css';
-import { viewReadCache } from '../lib/viewReadCache';
+import { TrainingCalendarWeek } from './TrainingCalendarWeek';
+import { useCalendarActivity } from './useCalendarActivity';
 import { calendarWeekTotals, type CalendarWeekSummary } from '../lib/calendarWeekSummary';
 
 interface TrainingCalendarProps {
@@ -28,22 +28,19 @@ export function TrainingCalendar({ onSession, program, refreshKey, activeWorkout
   const touchStart = useRef<{ x: number; y: number } | null>(null);
   const isTouching = useRef(false);
   const navigating = useRef(false);
-  const from = localDate(weekDays(offset - 1)[0]);
-  const to = localDate(weekDays(offset + 1)[6]);
-  const readKey = `${accountId}:activity:${from}:${to}:${activeWorkoutId ?? ''}`;
-  const [read, setRead] = useState<{ key: string; version: typeof refreshKey; items: WorkoutActivityItem[] } | null>(() => {
-    const cached = viewReadCache.get<WorkoutActivityItem[]>(readKey, refreshKey);
-    return cached ? { key: readKey, version: refreshKey, items: cached } : null;
-  });
-  const calendar = read?.items ?? [];
-  const initialLoading = read?.key !== readKey || read.version !== refreshKey;
-  const [calendarError, setCalendarError] = useState('');
   const weekFrom = localDate(days[0]);
   const weekTo = localDate(days[6]);
+  const today = localDate(new Date());
+  const { items: calendar, loading: initialLoading, error: readError } = useCalendarActivity({
+    offset, accountId, activeWorkoutId, refreshKey, weekFrom, weekTo
+  });
+  const [openError, setOpenError] = useState('');
+  const calendarError = readError || openError;
+  useEffect(() => setOpenError(''), [offset]);
   const weekSummary = useMemo<CalendarWeekSummary>(() => ({
     from: weekFrom, to: weekTo,
     totals: initialLoading ? null : calendarWeekTotals(calendar, weekFrom, weekTo)
-  }), [read, initialLoading, weekFrom, weekTo]);
+  }), [calendar, initialLoading, weekFrom, weekTo]);
   useEffect(() => { onWeekChange?.(weekSummary); }, [onWeekChange, weekSummary]);
   // Three weeks of day cells each look up their own date; group once per loaded calendar.
   const entriesByDay = useMemo(() => {
@@ -132,27 +129,19 @@ export function TrainingCalendar({ onSession, program, refreshKey, activeWorkout
     if (element && width) element.scrollLeft = width;
   };
 
-  useEffect(() => {
-    const cached = viewReadCache.get<WorkoutActivityItem[]>(readKey, refreshKey);
-    setCalendarError('');
-    if (cached) setRead({ key: readKey, version: refreshKey, items: cached });
-    if (viewReadCache.fresh(readKey, refreshKey)) return;
-    const controller = new AbortController();
-    api
-      .activity(from, to, controller.signal)
-      .then(next => {
-        if (controller.signal.aborted) return;
-        viewReadCache.set(readKey, refreshKey, next);
-        setRead({ key: readKey, version: refreshKey, items: next });
-        setCalendarError('');
-      })
-      .catch(() => {
-        if (!controller.signal.aborted) {
-          setCalendarError('Calendar could not be refreshed.');
-        }
-      });
-    return () => controller.abort();
-  }, [readKey, refreshKey, from, to]);
+  const openDay = useCallback(async (entries: WorkoutActivityItem[]) => {
+    const performed = entries.find(entry => entry.status === 'completed')
+      ?? entries.find(entry => entry.status === 'in_progress')
+      ?? entries[0];
+    if (!performed) return;
+    setOpenError('');
+    prefetchView('sessionDetail');
+    try {
+      onSession(await loadSessionDetail(performed.id));
+    } catch {
+      setOpenError('This workout could not be opened.');
+    }
+  }, [onSession]);
 
   const monthYearLabel = (() => {
     const firstMonth = days[0].toLocaleDateString('en', { month: 'short' });
@@ -169,7 +158,7 @@ export function TrainingCalendar({ onSession, program, refreshKey, activeWorkout
   })();
 
   const completed = calendar.filter(item => item.status === 'completed' &&
-    item.date >= localDate(days[0]) && item.date <= localDate(days[6]));
+    item.date >= weekFrom && item.date <= weekTo);
   return (
     <section className="panel training-calendar-card" aria-label="Training calendar">
       <div className="calendar-card-header">
@@ -221,6 +210,8 @@ export function TrainingCalendar({ onSession, program, refreshKey, activeWorkout
           onTouchEnd={handleTouchEnd}
           onTouchCancel={handleTouchCancel}
           aria-label="Swipe to browse weeks"
+          aria-busy={initialLoading}
+          data-loading={initialLoading || undefined}
           tabIndex={0}
           onKeyDown={event => {
             if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
@@ -230,76 +221,15 @@ export function TrainingCalendar({ onSession, program, refreshKey, activeWorkout
           }}
         >
           {[-1, 0, 1].map(relativeWeek => (
-            <div
-              className="calendar-days-grid"
+            <TrainingCalendarWeek
               key={relativeWeek}
+              weekOffset={offset + relativeWeek}
+              today={today}
+              entriesByDay={entriesByDay}
               inert={relativeWeek !== 0}
-              role="group"
-              aria-label={relativeWeek === 0 ? 'Days of the week' : relativeWeek < 0 ? 'Previous week days' : 'Next week days'}
-            >
-              {weekDays(offset + relativeWeek).map(day => {
-                const dayStr = localDate(day);
-                const entries = entriesByDay.get(dayStr) ?? [];
-                const status = entries.some(e => e.status === 'in_progress')
-                  ? 'in_progress'
-                  : entries.some(e => e.status === 'completed')
-                    ? 'completed'
-                    : 'rest';
-                const isToday = dayStr === localDate(new Date());
-                const label =
-                  status === 'completed'
-                    ? 'workout completed'
-                    : status === 'in_progress'
-                      ? 'workout in progress'
-                      : 'no workout recorded';
-
-                return (
-                  <Button
-                    presentation="plain"
-                    key={day.toISOString()}
-                    className={`calendar-day-cell day-${status} ${isToday ? 'today is-today' : ''}`}
-                    aria-label={`${day.toDateString()}, ${label}${isToday ? ', today' : ''}`}
-                    onClick={async () => {
-                      const performed = entries.find(e => e.status === 'completed')
-                        ?? entries.find(e => e.status === 'in_progress')
-                        ?? entries[0];
-                      if (!performed) return;
-                      prefetchView('sessionDetail');
-                      try {
-                        const session = await loadSessionDetail(performed.id);
-                        onSession(session);
-                      } catch {
-                        setCalendarError('This workout could not be opened.');
-                      }
-                    }}
-                  >
-                    <span className="day-weekday">{day.toLocaleDateString('en', { weekday: 'short' })}</span>
-                    <strong className="day-number">{day.getDate()}</strong>
-                    <div className="day-status-indicator">
-                      {status === 'completed' ? (
-                        <span className="day-status-disc completed" title="Workout completed">
-                          <Check size={13} strokeWidth={2.8} aria-hidden="true" />
-                          <span className="day-status-label">Done</span>
-                        </span>
-                      ) : status === 'in_progress' ? (
-                        <span className="day-status-disc in-progress" title="Workout in progress">
-                          <span className="status-dot" aria-hidden="true" />
-                          <span className="day-status-label">Active</span>
-                        </span>
-                      ) : (
-                        <span className="day-status-disc rest" title="No workout recorded">
-                          <span className="rest-ring" aria-hidden="true" />
-                          <span className="day-status-label">No workout</span>
-                        </span>
-                      )}
-                      <span className="day-marker" aria-hidden="true">
-                        {status === 'completed' ? '✓' : status === 'in_progress' ? '…' : '·'}
-                      </span>
-                    </div>
-                  </Button>
-                );
-              })}
-            </div>
+              label={relativeWeek === 0 ? 'Days of the week' : relativeWeek < 0 ? 'Previous week days' : 'Next week days'}
+              onOpenDay={openDay}
+            />
           ))}
         </div>
       </div>

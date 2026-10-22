@@ -56,6 +56,16 @@
   background: color-mix(in srgb, var(--surface) 86%, transparent);
 }
 
+:root[data-shell=android] .bottom-nav-track {
+  /* The dock is the one fixed layer left with a live backdrop blur in the app, and the WebView
+     re-composites that layer when the app returns from the background, which showed the dock
+     jumping up for a moment. A solid surface has nothing to re-composite; the topbar and dialog
+     backdrops already drop their blur in the app for the same reason (surfaces.css). */
+  background: var(--surface);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
 .bottom-nav .selection-indicator-marker {
   position: absolute;
   top: 0;
