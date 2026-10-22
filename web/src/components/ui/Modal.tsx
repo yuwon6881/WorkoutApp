@@ -101,6 +101,19 @@ export function Modal({ title, children, onClose, wide = false, headless = false
     return () => { leaveBackStack?.(); unlock(); el?.close(); };
   }, []);
 
+  // Sticky content (such as a picker's group headings) sits just below the sticky dialog header,
+  // whose height changes with a wrapping title and the layout width.
+  useEffect(() => {
+    const el = ref.current;
+    const header = el?.querySelector<HTMLElement>(':scope > header');
+    if (!el || !header || typeof ResizeObserver === 'undefined') return;
+    const publish = () => el.style.setProperty('--modal-header-height', `${header.offsetHeight}px`);
+    publish();
+    const observer = new ResizeObserver(publish);
+    observer.observe(header);
+    return () => observer.disconnect();
+  }, [headless]);
+
   // A dragged sheet has already left the screen under the finger; it must not play the exit again.
   const drag = useSheetDrag(ref, closeNow);
 

@@ -20,6 +20,7 @@ import { getExerciseCategory, informativeEquipment } from '../lib/exerciseCatego
 import { buildExerciseSearchIndex, searchExerciseScores } from '../lib/exerciseSearch';
 import { ChipScroller } from './ui/ChipScroller';
 import './Exercises.css';
+import './ExerciseDetail.css';
 import './RenderWindow.css';
 
 /// The catalog is supplied by the server and is empty until a seed file is loaded, so the
