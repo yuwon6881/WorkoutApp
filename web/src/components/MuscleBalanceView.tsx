@@ -88,7 +88,8 @@ export function MuscleBalanceView({ timeZone, onExercise, refreshKey }: { timeZo
         <h1 data-page-heading tabIndex={-1}>Muscle coverage</h1>
         <div className="heading-actions">
           <div className="muscle-balance-range-control">
-            {loading && <span className="muted" role="status">Updating…</span>}
+            {/* Announced, never drawn: a visible label here pushed the period picker aside while the first read was in flight. */}
+            {loading && <span className="sr-only" role="status">Updating muscle coverage</span>}
             <Select
               name="muscle-balance-range"
               ariaLabel="Muscle coverage period"

@@ -246,7 +246,9 @@ export function ProgramWeekChecklist({
               {state === 'skipped' && <span className="program-day-status">Skipped</span>}
               {state === 'in-progress' && <span className="program-day-status in-progress">In progress</span>}
               {state === 'next' && <span className="program-day-status next">Next</span>}
-              {day.status === 'pending' && <ChevronRight className="program-week-chevron muted" size={16} aria-hidden="true" />}
+              {day.status === 'pending'
+                ? <ChevronRight className="program-week-chevron muted" size={16} aria-hidden="true" />
+                : <span className="program-week-chevron-slot" aria-hidden="true" />}
             </div>
           </div>;
         })}

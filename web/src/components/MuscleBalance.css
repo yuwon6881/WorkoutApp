@@ -103,7 +103,6 @@
 .muscle-balance-section-heading h2{font-weight:700;letter-spacing:-0.025em}
 .muscle-balance-section-heading>.muted{font-size:14px}
 .muscle-balance-range-control{display:flex;align-items:center;gap:10px;min-width:0}
-.muscle-balance-range-control .muted{font-size:14px}
 .muscle-balance-range-control .custom-select-wrap{min-width:160px}
 .muscle-balance-empty-note{padding:6px 0;background:transparent;color:var(--muted);text-align:center}
 .muscle-balance-legend{display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:8px 14px;margin-top:0;font-size:14px;color:var(--muted)}

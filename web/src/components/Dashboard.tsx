@@ -1,16 +1,22 @@
-import { lazy, Suspense, useEffect, useState } from 'react';
+import { lazy, Suspense, useEffect, useState, useSyncExternalStore } from 'react';
 import type { Bootstrap, ProgressSummary, Session } from '../types';
 import { ApiError, api } from '../lib/api';
 import { Button } from './ui/Button';
 import { NextWorkoutHero } from './NextWorkoutHero';
 import { viewReadCache } from '../lib/viewReadCache';
-import type { CalendarWeekSummary } from '../lib/calendarWeekSummary';
+import { createCalendarWeekStore, type CalendarWeekStore } from '../lib/calendarWeekStore';
 const TrainingCalendar = lazy(() => import('./TrainingCalendar').then(module => ({ default: module.TrainingCalendar })));
 const BodyweightRecords = lazy(() => import('./ProgressPanels').then(module => ({ default: module.BodyweightRecords })));
 const ProgressStats = lazy(() => import('./ProgressPanels').then(module => ({ default: module.ProgressStats })));
 const WorkoutHistory = lazy(() => import('./WorkoutHistory').then(module => ({ default: module.WorkoutHistory })));
 import './Dashboard.css';
 import { CalendarSkeleton, ProgressStatsSkeleton } from './DashboardTrainingSkeleton';
+
+/// Follows the calendar's week in a component of its own, so a swipe re-renders only these totals.
+function OverviewWeekStats({ store }: { store: CalendarWeekStore }) {
+  const week = useSyncExternalStore(store.subscribe, store.get);
+  return <ProgressStats week={week} />;
+}
 
 interface DashboardProps {
   data: Bootstrap;
@@ -37,7 +43,7 @@ export function Dashboard({
   const [progress, setProgress] = useState<ProgressSummary | null>(data.progress ?? viewReadCache.get(readKey, readVersion) ?? null);
   const [progressError, setProgressError] = useState('');
   const [progressRetry, setProgressRetry] = useState(0);
-  const [calendarWeek, setCalendarWeek] = useState<CalendarWeekSummary | null>(null);
+  const [weekStore] = useState(createCalendarWeekStore);
 
   useEffect(() => {
     if (data.progress && progressRetry === 0) { setProgress(data.progress); return; }
@@ -92,7 +98,7 @@ export function Dashboard({
             onChanged={onChanged}
           />
           <Suspense fallback={<ProgressStatsSkeleton />}>
-            <ProgressStats week={calendarWeek} />
+            <OverviewWeekStats store={weekStore} />
           </Suspense>
           {progressError && (
             <div className="error-banner" role="alert">
@@ -111,7 +117,7 @@ export function Dashboard({
               refreshKey={data.resourceVersions?.history ?? data.history}
               activeWorkoutId={data.activeWorkout?.id ?? null}
               accountId={data.account.id}
-              onWeekChange={setCalendarWeek}
+              onWeekChange={weekStore.set}
             />
           </Suspense>
         </div>

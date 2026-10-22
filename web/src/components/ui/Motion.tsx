@@ -245,7 +245,7 @@ export function SelectionIndicator({
     const indicator = marker.current;
     if (!container || !indicator) return;
 
-    const measure = () => {
+    const measure = (animate = true) => {
       const selected = [...container.querySelectorAll<HTMLElement>('[data-selection-key]')].find(
         (element) => element.dataset.selectionKey === active
       );
@@ -257,15 +257,22 @@ export function SelectionIndicator({
       const height = selected.offsetHeight;
       const left = selected.offsetLeft;
       const top = selected.offsetTop;
+      // A layout change (resize, returning from another app) puts the marker straight on its item;
+      // only choosing another item slides it, so a transient measurement never visibly bounces.
+      if (!animate) indicator.style.transition = 'none';
       indicator.style.width = `${width}px`;
       indicator.style.height = `${height}px`;
       indicator.style.transform = `translate(${left}px, ${top}px)`;
+      if (!animate) {
+        void indicator.offsetWidth;
+        indicator.style.transition = '';
+      }
     };
 
     measure();
     let frame = 0;
     const scheduleMeasure = () => {
-      if (!frame) frame = requestAnimationFrame(() => { frame = 0; measure(); });
+      if (!frame) frame = requestAnimationFrame(() => { frame = 0; measure(false); });
     };
     const observer = new ResizeObserver(scheduleMeasure);
     observer.observe(container);
