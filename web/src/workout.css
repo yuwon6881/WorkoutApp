@@ -200,7 +200,12 @@
 .plan-rir-pill.rir-tier-easy { border-color: color-mix(in srgb, var(--effort-easy) 40%, transparent); background: color-mix(in srgb, var(--effort-easy) 12%, var(--surface)); color: var(--effort-easy); }
 .plan-load-pill { border-color: var(--border-hover); background: var(--surface); color: var(--text); }
 .plan-tempo-pill { border-color: var(--border); background: var(--surface); color: var(--muted); font-size: 14px; }
-.plan-prev-pill { border-color: var(--border); background: var(--surface); color: var(--muted); font-size: 14px; }
-/* Holds the Last pill's place, at its height, while last time's sets are read. */
-.plan-prev-skeleton { display: inline-block; width: 132px; height: 30px; border: 1px solid var(--border); border-radius: var(--radius-pill); background: var(--surface); }
+/* Last time sits on its own fixed-height row in every set, so loading, a result, and no record
+   all take the same place and nothing moves when the history read arrives. */
+.plan-prev-row { display: flex; align-items: center; gap: 8px; height: 34px; padding: 0 12px; border: 1px solid var(--border); border-radius: var(--radius-control); background: var(--surface); color: var(--muted); font-size: 14px; }
+.plan-prev-row svg { flex-shrink: 0; }
+.plan-prev-label { flex-shrink: 0; }
+.plan-prev-value, .plan-prev-empty { margin-left: auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.plan-prev-value { color: var(--text); font-weight: 650; }
+.plan-prev-skeleton { margin-left: auto; width: 120px; height: 14px; border-radius: var(--radius-pill); }
 .plan-set-note { margin: 0; font-size: 14px; color: var(--muted); line-height: 1.5; padding-top: 4px; border-top: 1px dashed var(--border); }

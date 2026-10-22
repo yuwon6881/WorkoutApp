@@ -41,18 +41,28 @@ describe('WorkoutTargetsModal', () => {
       onClose: () => undefined
     }));
     expect(markup).not.toContain('Warmup');
-    expect(markup).not.toContain('Last time: W 40 kg × 8');
-    expect(markup.indexOf('Last time: 80 kg × 6')).toBeGreaterThan(markup.indexOf('Set 1'));
-    expect(markup.indexOf('Last time: 82.5 kg × 6')).toBeGreaterThan(markup.indexOf('Set 2'));
+    expect(markup).not.toContain('W 40 kg × 8');
+    expect(markup.indexOf('80 kg × 6')).toBeGreaterThan(markup.indexOf('Set 1'));
+    expect(markup.indexOf('82.5 kg × 6')).toBeGreaterThan(markup.indexOf('Set 2'));
     expect(markup).toContain('82.5 kg');
     expect(markup).not.toMatch(/>40 kg</);
   });
 
-  it('holds a place for last time while the history read is out', () => {
-    const markup = renderToStaticMarkup(createElement(WorkoutTargetsView, {
-      exercise, unit: 'kg', trackRir: true, previousSets: [], previousLoading: true, onClose: () => undefined
-    }));
-    expect(markup.match(/plan-prev-skeleton/g)).toHaveLength(2);
-    expect(markup).toContain('Loading last time');
+  it('keeps one Last time row per set whether loading, recorded, missing, or unavailable', () => {
+    const render = (previousStatus: 'loading' | 'ready' | 'failed', previousSets: Array<string | null>) =>
+      renderToStaticMarkup(createElement(WorkoutTargetsView, {
+        exercise, unit: 'kg', trackRir: true, previousSets, previousStatus, onClose: () => undefined
+      }));
+    const loading = render('loading', []);
+    expect(loading.match(/plan-prev-row/g)).toHaveLength(2);
+    expect(loading.match(/plan-prev-skeleton/g)).toHaveLength(2);
+    expect(loading).toContain('Loading last time');
+
+    const partial = render('ready', [null, '80 kg × 6', null]);
+    expect(partial.match(/plan-prev-row/g)).toHaveLength(2);
+    expect(partial).toContain('80 kg × 6');
+    expect(partial).toContain('No record');
+
+    expect(render('failed', [])).toContain('Unavailable');
   });
 });

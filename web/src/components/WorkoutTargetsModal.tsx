@@ -1,4 +1,4 @@
-import { Flame, Hash, Timer, TrendingUp, Weight } from 'lucide-react';
+import { Flame, Hash, History, Timer, TrendingUp, Weight } from 'lucide-react';
 import type { Preferences, SessionExercise } from '../types';
 import { showReps } from '../lib/training';
 import { previousSetSummaries } from '../lib/previousSets';
@@ -6,7 +6,7 @@ import { setTarget } from '../lib/setTarget';
 import { Modal } from './ui/Modal';
 import { Skeleton } from './ui/Skeleton';
 import { getRirColorClass } from './ui/RpeControl';
-import { useRecentExerciseSets } from './useRecentExerciseSets';
+import { useRecentExerciseSets, type RecentSetsStatus } from './useRecentExerciseSets';
 
 type TargetsProps = {
   exercise: SessionExercise;
@@ -16,20 +16,36 @@ type TargetsProps = {
 };
 
 /// Last time's sets are read only when the targets are opened, so turning through the workout never
-/// waits on history; each Last pill holds a shimmering place while the read is out, fills in when it
-/// arrives, and stays absent offline or where there is no history.
+/// waits on history. Every set keeps a fixed-height Last time row in the same place, which shimmers
+/// while the read is out and then shows the result, "No record", or that history is unavailable, so
+/// nothing moves when the read arrives.
 export function WorkoutTargetsModal(props: TargetsProps) {
   const recent = useRecentExerciseSets(props.exercise.exerciseId);
   const previousSets = previousSetSummaries(recent.sessions, props.exercise, props.trackRir, props.unit);
-  return <WorkoutTargetsView {...props} previousSets={previousSets} previousLoading={recent.loading} />;
+  return <WorkoutTargetsView {...props} previousSets={previousSets} previousStatus={recent.status} />;
+}
+
+function LastTimeRow({ value, status }: { value: string | null | undefined; status: RecentSetsStatus }) {
+  return (
+    <div className="plan-prev-row">
+      <History size={14} aria-hidden="true" />
+      <span className="plan-prev-label">Last time</span>
+      {status === 'loading'
+        ? <Skeleton className="plan-prev-skeleton" aria-hidden="true" />
+        : value
+          ? <span className="plan-prev-value">{value}</span>
+          : <span className="plan-prev-empty">{status === 'failed' ? 'Unavailable' : 'No record'}</span>}
+    </div>
+  );
 }
 
 /// An exercise's planned sets in full: reps, effort, the progression's target load, tempo, what the
 /// same set read last time, and each set's own note, under the progression reason when there is one.
-export function WorkoutTargetsView({ exercise, unit, trackRir, previousSets, previousLoading = false, onClose }: TargetsProps & {
+export function WorkoutTargetsView({ exercise, unit, trackRir, previousSets, previousStatus = 'ready', onClose }: TargetsProps & {
   previousSets: Array<string | null | undefined>;
-  previousLoading?: boolean;
+  previousStatus?: RecentSetsStatus;
 }) {
+  const previousLoading = previousStatus === 'loading';
   // Working sets are listed when there are any; each keeps its own index into the sets, so a
   // leading warm-up never shifts which set's suggestion or last result a row shows.
   const planned = exercise.prescription.map((p, setIndex) => ({ p, setIndex }));
@@ -94,14 +110,9 @@ export function WorkoutTargetsView({ exercise, unit, trackRir, previousSets, pre
                         <span>Tempo {p.tempo}</span>
                       </span>
                     )}
-                    {previousLoading && <Skeleton className="plan-prev-skeleton" aria-hidden="true" />}
-                    {previousSets[setIndex] && (
-                      <span className="plan-pill plan-prev-pill">
-                        Last time: {previousSets[setIndex]}
-                      </span>
-                    )}
                   </div>
                 </div>
+                <LastTimeRow value={previousSets[setIndex]} status={previousStatus} />
                 {p.notes && <p className="plan-set-note">{p.notes}</p>}
               </li>
             );
