@@ -160,6 +160,67 @@ describe('withLiveAdjustment', () => {
     expect(result.weightKg).toBeLessThan(60);
   });
 
+  describe('other exercise types', () => {
+    const bodyweight = (name: string, sets: LoggedSet[], referenceKg: number | null = 80): Session => {
+      const draft = draftWith(sets);
+      draft.exercises[0] = { ...draft.exercises[0], name, loadModel: 'full_bodyweight' } as Session['exercises'][number];
+      return { ...draft, bodyWeight: referenceKg === null ? null : { referenceKg } } as Session;
+    };
+
+    it('moves added load on a weighted movement through the bodyweight it is added to', () => {
+      const draft = bodyweight('Weighted dip', [set('a', 0, 20, 10), set('b', 1, 20, 10)]);
+      const next = adjust(logged(draft, 0, { reps: 7, rpe: 10, rir: '0' }))[1];
+      expect(next.weightKg).toBeLessThan(20);
+      expect(next.weightKg).toBeGreaterThanOrEqual(0);
+      // Without the move the set would have been 5 reps, three under the range.
+      expect(next.reps).toBeGreaterThan(5);
+    });
+
+    it('adds assistance, never less, when an assisted movement fades', () => {
+      const draft = bodyweight('Assisted pull-up', [set('a', 0, 30, 10), set('b', 1, 30, 10)]);
+      expect(adjust(logged(draft, 0, { reps: 6, rpe: 10, rir: '0' }))[1].weightKg).toBeGreaterThan(30);
+    });
+
+    it('moves reps alone when no bodyweight is known, or the movement has no load to set', () => {
+      const unknown = bodyweight('Weighted dip', [set('a', 0, 20, 10), set('b', 1, 20, 10)], null);
+      expect(adjust(logged(unknown, 0, { reps: 8, rpe: 10, rir: '0' }))[1]).toMatchObject({ weightKg: 20, reps: 6 });
+      const plain = bodyweight('Pull-up', [set('a', 0, 0, 10), set('b', 1, 0, 10)]);
+      expect(adjust(logged(plain, 0, { reps: 8, rpe: 10, rir: '0' }))[1]).toMatchObject({ weightKg: 0, reps: 6 });
+    });
+
+    it('leaves timed holds alone, which record no effort to read a fade from', () => {
+      const draft = draftWith([set('a', 0, 20, 10), set('b', 1, 20, 10)]);
+      draft.exercises[0] = { ...draft.exercises[0], trackingMode: 'duration' } as Session['exercises'][number];
+      const after = logged(draft, 0, { reps: 6, rpe: 10, rir: '0' });
+      expect(withLiveAdjustment(after, 0, 0, grid, true, new Map())).toBe(after);
+    });
+  });
+
+  describe('technique sets', () => {
+    const withPlans = (sets: LoggedSet[], plans: SetPrescription[]): Session => {
+      const draft = draftWith(sets);
+      draft.exercises[0] = { ...draft.exercises[0], prescription: plans };
+      return draft;
+    };
+
+    it('learns only from logged sets of the same technique', () => {
+      const myo = plan({ notes: 'Myo-reps' });
+      const draft = withPlans([set('a', 0, 60, 10, { done: true }), set('b', 1, 60, 10), set('c', 2, 60, 10), set('d', 3, 60, 10)], [plan(), myo, myo, plan()]);
+      const sets = adjust(logged(draft, 1, { reps: 8, rpe: 10, rir: '0' }), 1);
+      expect(sets[2].weightKg! < 60 || sets[2].reps! < 10).toBe(true);
+      // The straight set after it has its own logged straight set on plan, so it stays as planned.
+      expect(sets[3]).toMatchObject({ weightKg: 60, reps: 10 });
+    });
+
+    it('follows the load of the straight set before it until one of its kind is logged', () => {
+      const drop = plan({ notes: 'Drop set' });
+      const draft = withPlans([set('a', 0, 60, 10), set('b', 1, 60, 10), set('c', 2, 60, 10)], [plan(), plan(), drop]);
+      const sets = adjust(logged(draft, 0, { reps: 8, rpe: 10, rir: '0' }));
+      expect(sets[1].weightKg).toBeLessThan(60);
+      expect(sets[2]).toMatchObject({ weightKg: sets[1].weightKg, reps: 10 });
+    });
+  });
+
   describe('near the smallest load the equipment can be set to', () => {
     const smallest = () => draftWith([set('a', 0, 2.5, 10), set('b', 1, 2.5, 10)]);
     const missBadly = { reps: 1, rpe: 10, rir: '0' };

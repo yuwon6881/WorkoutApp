@@ -1,22 +1,19 @@
 import type { Exercise, LoggedSet, Session, SessionExercise, SetPrescription, Unit } from '../types';
 import { defaultLoadStepKg } from './training';
-import { loadEntryFor } from './resistanceVariant';
+import { loadEntryFor, type LoadEntry } from './resistanceVariant';
 import { isTimedExercise } from './setDuration';
 import { effortPatch, effortValue, loadIsEditable } from './workoutDraft';
-import { setKind } from './workoutSetTypes';
+import { setKind, type SetKind } from './workoutSetTypes';
 import { hasOpenReps } from './setTarget';
+import { aimedInputs, deviationTrend, loadAxisFor, type Deviation, type FilledInputs, type LoadGrid, type RepPlan } from './liveAdjustmentAim';
 
-/// The loads a piece of equipment can actually be set to: a weight list, else multiples of a step.
-export type LoadGrid = { stepKg: number; availableLoadsKg: number[] | null };
+export type { FilledInputs, LoadGrid } from './liveAdjustmentAim';
 
 export function exerciseLoadGrid(exercise: SessionExercise, catalog: Exercise[], unit: Unit): LoadGrid {
   const library = catalog.find(item => item.id === exercise.exerciseId);
   return { stepKg: library?.loadStepKg ?? defaultLoadStepKg(unit), availableLoadsKg: library?.availableLoadsKg ?? null };
 }
 
-/// What the logger last wrote into a set's inputs for the lifter, so a later adjustment can tell
-/// its own fill from something the lifter typed.
-export type FilledInputs = { weightKg: number | null; reps: number | null; rpe: number | null; rir: string | null };
 export type FilledInputsLog = Map<string, FilledInputs>;
 
 /** A result edit and the following straight-set adjustments form one draft change. */
@@ -31,11 +28,6 @@ export function withLoggedSetEdit(draft: Session, ei: number, si: number, patch:
 }
 
 const DEFAULT_RESERVE = 2;
-const EPSILON = 1e-6;
-/// The steepest drop from one set to the next the session's trend is allowed to project, in reps.
-const MAX_DROP_PER_SET = 3;
-/// How far either side of the planned load the next sets may move, in grid steps.
-const LOAD_REACH_STEPS = 8;
 
 /// The reserve a program aims for, read the way the server does: the printed reserve (a range or a
 /// floor counts by its harder end), else 10 − RPE, else the default the logger names.
@@ -69,151 +61,136 @@ function baseInputs(set: LoggedSet, plan: SetPrescription | undefined, trackRir:
   return { weightKg: suggestion.suggestedLoadKg, reps: suggestion.suggestedReps, rpe: effort.rpe, rir: effort.rir ?? null };
 }
 
-type Plan = { low: number; high: number; goal: number };
 
 /// The rep range a straight working set aims for, null when it states no rep count to steer by
 /// (an AMRAP set's stored one-rep bound is a placeholder, not a target).
-function repPlan(plan: SetPrescription | undefined): Plan | null {
+function repPlan(plan: SetPrescription | undefined): RepPlan | null {
   if (!plan || plan.warmup || plan.repMin == null || plan.repMin <= 0 || hasOpenReps(plan)) return null;
   const high = plan.repMax != null && plan.repMax >= plan.repMin ? plan.repMax : plan.repMin;
   return { low: plan.repMin, high, goal: targetReserve(plan) };
 }
 
-const isStraightWorking = (exercise: SessionExercise, index: number) =>
-  setKind(exercise.sets[index], exercise.prescription[index]) === 'straight';
+/// The weight actually moved for an entered load, used to compare a set lifted at another load
+/// with its plan: the entry itself, or the session's frozen bodyweight plus added load or minus
+/// assistance. Null when the load says nothing (plain bodyweight, reps-only, or no bodyweight).
+function movedLoad(entry: LoadEntry, referenceKg: number | null | undefined, entered: number | null): number | null {
+  if (entered === null) return null;
+  if (entry === 'external') return entered > 0 ? entered : null;
+  if (referenceKg == null || referenceKg <= 0) return null;
+  if (entry === 'added') return referenceKg + entered;
+  if (entry === 'assistance') return referenceKg - entered > 0 ? referenceKg - entered : null;
+  return null;
+}
+
+type Reading = { entry: LoadEntry; referenceKg: number | null | undefined; trackRir: boolean };
 
 /// How many reps the lifter could have done at a set's planned load, from what they logged:
-/// load × (reps + reserve + 30) is held constant across loads, as the server's progression reads it.
-function repsToFailureAtPlan(set: LoggedSet, goal: number, loadMatters: boolean, trackRir: boolean): number | null {
+/// load moved × (reps + reserve + 30) is held constant across loads, as the server reads it.
+function repsToFailureAtPlan(set: LoggedSet, goal: number, reading: Reading): number | null {
   const suggestion = set.suggestion;
   if (!suggestion || set.reps === null || set.reps <= 0) return null;
-  const reserve = trackRir ? effortValue(set) ?? goal : goal;
-  if (!loadMatters) return set.reps + reserve;
-  if (set.weightKg === null || suggestion.suggestedLoadKg === null || set.weightKg <= 0 || suggestion.suggestedLoadKg <= 0) return null;
-  return (set.weightKg * (set.reps + reserve + 30)) / suggestion.suggestedLoadKg - 30;
+  const reserve = reading.trackRir ? effortValue(set) ?? goal : goal;
+  const actual = movedLoad(reading.entry, reading.referenceKg, set.weightKg);
+  const planned = movedLoad(reading.entry, reading.referenceKg, suggestion.suggestedLoadKg);
+  if (actual === null || planned === null) return set.reps + reserve;
+  return (actual * (set.reps + reserve + 30)) / planned - 30;
 }
 
-type Deviation = { position: number; reps: number };
+const clampReps = (reps: number, target: RepPlan) => Math.min(target.high, Math.max(target.low, reps));
 
-/// How far each logged straight set landed from its own plan, in reps to failure at its planned
-/// load, ordered by the set's place among the straight working sets.
-function loggedDeviations(exercise: SessionExercise, loadMatters: boolean, trackRir: boolean): Deviation[] {
-  const deviations: Deviation[] = [];
-  let position = 0;
+/// The working sets that can steer and be steered: not warm-ups, and with a rep target.
+const steerable = (exercise: SessionExercise, index: number) => !exercise.sets[index].warmup && !exercise.prescription[index]?.warmup;
+
+/// How far each logged set of every kind landed from its plan, each kind on its own (straight sets
+/// with straight sets, each technique with the same technique), ordered by place within its kind.
+function loggedDeviations(exercise: SessionExercise, reading: Reading): Map<SetKind, Deviation[]> {
+  const byKind = new Map<SetKind, Deviation[]>();
+  const places = new Map<SetKind, number>();
   exercise.sets.forEach((set, index) => {
-    if (set.warmup || !isStraightWorking(exercise, index)) return;
+    if (!steerable(exercise, index)) return;
+    const kind = setKind(set, exercise.prescription[index]);
+    const position = places.get(kind) ?? 0;
+    places.set(kind, position + 1);
     const plan = exercise.prescription[index];
     const target = repPlan(plan);
-    const base = target && baseInputs(set, plan, trackRir);
-    const actual = set.done && target ? repsToFailureAtPlan(set, target.goal, loadMatters, trackRir) : null;
-    if (target && base?.reps != null && actual !== null) {
-      const planned = clampReps(base.reps, target) + target.goal;
-      deviations.push({ position, reps: actual - planned });
-    }
-    position += 1;
+    const base = target && baseInputs(set, plan, reading.trackRir);
+    const actual = set.done && target ? repsToFailureAtPlan(set, target.goal, reading) : null;
+    if (!target || base?.reps == null || actual === null) return;
+    const list = byKind.get(kind) ?? [];
+    list.push({ position, reps: actual - (clampReps(base.reps, target) + target.goal) });
+    byKind.set(kind, list);
   });
-  return deviations;
+  return byKind;
 }
 
-/// The session's own fatigue trend: the least-squares change in deviation per set. A session that
-/// is fading faster than the plan projects that fade forward; one getting easier is not assumed to
-/// keep getting easier, and a single logged set has no trend yet.
-function deviationTrend(deviations: Deviation[]): number {
-  if (deviations.length < 2) return 0;
-  const meanPosition = deviations.reduce((sum, item) => sum + item.position, 0) / deviations.length;
-  const meanReps = deviations.reduce((sum, item) => sum + item.reps, 0) / deviations.length;
-  const spread = deviations.reduce((sum, item) => sum + (item.position - meanPosition) ** 2, 0);
-  if (spread <= EPSILON) return 0;
-  const slope = deviations.reduce((sum, item) => sum + (item.position - meanPosition) * (item.reps - meanReps), 0) / spread;
-  return Math.max(-MAX_DROP_PER_SET, Math.min(0, slope));
-}
-
-const clampReps = (reps: number, target: Plan) => Math.min(target.high, Math.max(target.low, reps));
-
-/// The loads the next set may be set to near its planned load: the weight list's entries within
-/// reach, else whole steps either side, never zero or below.
-function candidateLoads(planned: number, grid: LoadGrid): number[] {
-  const loads = grid.availableLoadsKg?.length
-    ? grid.availableLoadsKg.filter(load => load > 0 && Math.abs(load - planned) <= LOAD_REACH_STEPS * Math.max(grid.stepKg, planned * 0.05))
-    : Array.from({ length: LOAD_REACH_STEPS * 2 + 1 }, (_, i) => Number((planned + (i - LOAD_REACH_STEPS) * grid.stepKg).toFixed(4)))
-      .filter(load => load > EPSILON);
-  return [planned, ...loads.filter(load => Math.abs(load - planned) > EPSILON)];
-}
-
-/// The load, reps and reserve closest to a set's target given the reps to failure projected at its
-/// planned load. Each option costs its distance from the plan in reps: reps short of the range, a
-/// reserve away from the target, and a changed load by the reps that change is worth. So a set a
-/// rep short keeps its load when a step lighter would cost more than that rep, and a small step
-/// wins when it lands the set back in range for less.
-function aimedInputs(
-  base: FilledInputs, plan: SetPrescription | undefined, projected: number, grid: LoadGrid, loadMatters: boolean, trackRir: boolean
-): FilledInputs | null {
-  const target = repPlan(plan);
-  if (!target || base.reps === null) return null;
-  const goal = Math.round(target.goal);
-  const planned = base.weightKg;
-  // Equipment with no increment and no weight list progresses through reps alone, so its load stays put.
-  const loadMoves = loadMatters && planned !== null && planned > 0 && (!!grid.availableLoadsKg?.length || grid.stepKg > 0);
-  const loads = loadMoves ? candidateLoads(planned, grid) : [planned];
-
-  let best: { load: number | null; reps: number; reserve: number; cost: number } | null = null;
-  for (const load of loads) {
-    const toFailure = load !== null && planned !== null && load !== planned
-      ? (planned * (projected + 30)) / load - 30
-      : projected;
-    // Never past failure: a set that cannot reach the range keeps the target effort with fewer reps.
-    const reps = Math.max(1, Math.min(target.high, Math.round(toFailure - target.goal)));
-    const reserve = Math.min(5, Math.max(0, Math.round(toFailure - reps)));
-    const cost = Math.abs(toFailure - projected) + Math.max(0, target.low - reps) + Math.abs(reserve - goal);
-    if (!best || cost < best.cost - EPSILON) best = { load, reps, reserve, cost };
-  }
-  if (!best) return null;
-  if (best.load === planned && best.reps === base.reps && best.reserve === goal) return base;
-  const effort = trackRir ? effortPatch(best.reserve) : { rpe: base.rpe, rir: base.rir };
-  return { weightKg: best.load, reps: best.reps, rpe: effort.rpe, rir: effort.rir ?? null };
-}
-
-/// Re-aims every unlogged straight set each time a set is logged (or corrected). Each logged set
-/// says how far the lifter is from the plan today, and their trend across the session (a fade
-/// faster than planned) is carried forward, so a lifter who went 2 RIR then 1 RIR at the same reps
-/// is shown one rep fewer next, then another fewer, or a lighter load where that is closer to the
-/// target. Sets back on plan return to where the program started them. A set the lifter has typed
-/// into is theirs and is never overwritten, and warm-ups, techniques, holds and exercises with no
-/// history to start from are left alone.
+/// Re-aims every unlogged working set each time a set is logged (or corrected). Each kind of set
+/// learns from the logged sets of its own kind: how far they landed from their plan today, and
+/// their fade across the session (a drop faster than planned is carried forward), so a lifter who
+/// went 2 RIR then 1 RIR at the same reps is shown one rep fewer next, then another fewer, or a
+/// lighter load where that is closer to the target. A technique set with none of its kind logged
+/// yet follows the load of the straight set before it, as the server starts it. Barbells and
+/// machines, weighted and assisted bodyweight movements (through the session's frozen bodyweight),
+/// and reps-only movements all take part; warm-ups and timed holds, which record no effort to read
+/// a fade from, are left alone, as are a set the lifter has typed into and a first time with no
+/// history.
 export function withLiveAdjustment(
   draft: Session, exerciseIndex: number, setIndex: number, grid: LoadGrid, trackRir: boolean, filled: FilledInputsLog
 ): Session {
   const exercise = draft.exercises[exerciseIndex];
   const logged = exercise?.sets[setIndex];
-  if (!exercise || !logged?.done || logged.warmup || isTimedExercise(exercise) || !isStraightWorking(exercise, setIndex)) return draft;
-  const loadMatters = loadEntryFor(exercise) === 'external';
-  const deviations = loggedDeviations(exercise, loadMatters, trackRir);
-  const last = deviations.at(-1);
-  if (!last) return draft;
-  const trend = deviationTrend(deviations);
+  if (!exercise || !logged?.done || isTimedExercise(exercise) || !steerable(exercise, setIndex)) return draft;
+  const entry = loadEntryFor(exercise);
+  const reading: Reading = { entry, referenceKg: draft.bodyWeight?.referenceKg, trackRir };
+  const axis = loadAxisFor(entry, reading.referenceKg, grid);
+  const deviations = loggedDeviations(exercise, reading);
+  const trends = new Map([...deviations].map(([kind, list]) => [kind, deviationTrend(list)]));
 
   let changed = false;
-  let position = 0;
-  const sets = exercise.sets.map((set, index) => {
-    if (set.warmup || !isStraightWorking(exercise, index)) return set;
-    const place = position;
-    position += 1;
-    if (set.done) return set;
+  const places = new Map<SetKind, number>();
+  const sets: LoggedSet[] = [];
+  exercise.sets.forEach((set, index) => {
+    sets.push(set);
+    if (!steerable(exercise, index)) return;
     const plan = exercise.prescription[index];
+    const kind = setKind(set, plan);
+    const place = places.get(kind) ?? 0;
+    places.set(kind, place + 1);
+    if (set.done) return;
     const target = repPlan(plan);
     const base = baseInputs(set, plan, trackRir);
-    if (!target || !base || base.reps === null) return set;
+    if (!target || !base || base.reps === null) return;
     const current = inputsOf(set);
     const lastFilled = filled.get(set.id);
     // Only a set still holding the program's fill, or the last adjustment's, is the app's to move.
-    if (!holds(current, base) && !(lastFilled && holds(current, lastFilled))) return set;
-    const projected = clampReps(base.reps, target) + target.goal + last.reps + trend * (place - last.position);
-    const next = aimedInputs(base, plan, projected, grid, loadMatters, trackRir);
-    if (!next || sameInputs(next, current)) return set;
+    if (!holds(current, base) && !(lastFilled && holds(current, lastFilled))) return;
+    const own = deviations.get(kind);
+    const last = own?.at(-1);
+    let next: FilledInputs | null;
+    if (last) {
+      const projected = clampReps(base.reps, target) + target.goal + last.reps + (trends.get(kind) ?? 0) * (place - last.position);
+      next = aimedInputs(base, target, projected, axis, trackRir);
+    } else {
+      next = kind === 'straight' ? base : followStraightLoad(exercise, sets, index, base, trackRir);
+    }
+    if (!next || sameInputs(next, current)) return;
     filled.set(set.id, next);
     changed = true;
-    return { ...set, weightKg: next.weightKg, reps: next.reps, rpe: next.rpe, rir: next.rir };
+    sets[index] = { ...set, weightKg: next.weightKg, reps: next.reps, rpe: next.rpe, rir: next.rir };
   });
   if (!changed) return draft;
   return { ...draft, exercises: draft.exercises.map((item, index) => index === exerciseIndex ? { ...item, sets } : item) };
+}
+
+/// A technique set that starts at the load of the straight set before it keeps doing so when that
+/// straight set was logged or re-aimed at another load; its own reps and effort stay as planned.
+function followStraightLoad(exercise: SessionExercise, sets: LoggedSet[], index: number, base: FilledInputs, trackRir: boolean): FilledInputs | null {
+  for (let before = index - 1; before >= 0; before -= 1) {
+    if (!steerable(exercise, before) || setKind(exercise.sets[before], exercise.prescription[before]) !== 'straight') continue;
+    const straightBase = baseInputs(exercise.sets[before], exercise.prescription[before], trackRir);
+    const followed = straightBase?.weightKg != null && base.weightKg != null && Math.abs(straightBase.weightKg - base.weightKg) < 1e-4;
+    if (!followed) return base;
+    const load = sets[before].weightKg;
+    return load === null ? base : { ...base, weightKg: load };
+  }
+  return base;
 }
