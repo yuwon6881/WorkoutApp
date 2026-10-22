@@ -59,6 +59,17 @@ class RestPolicyTest {
         assertEquals(75, RestPolicy.restSecondsAfter(unplanned, sets[1], accountDefault = 75))
     }
 
+    @Test
+    fun `the last partner hands back to the first partner's open set before leaving the superset`() {
+        val first = exercise("row", "A1", listOf(set("row-1", 0, true), set("row-2", 1, true), set("row-3", 2), set("row-4", 3)))
+        val second = exercise("press", "A2", listOf(set("press-1", 0, true), set("press-2", 1, true), set("press-3", 2, true)))
+        val after = exercise("curl", "", listOf(set("curl-1", 0)))
+        val session = session(first, second, after)
+
+        assertEquals("row-3", RestPolicy.nextSet(session, "press", "press-3")?.set?.id)
+        assertEquals("row", RestPolicy.nextExerciseId(session, "press", "press-3"))
+    }
+
     private fun session(vararg exercises: WorkoutExercise) = WorkoutSession(exercises = exercises.toList())
 
     private fun exercise(

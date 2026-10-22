@@ -48,8 +48,11 @@ object RestPolicy {
                     ?: partner.sets.firstOrNull { !it.done }
                 if (candidate != null) return NextSet(partner, candidate)
             } else if (partnerIndex == partners.lastIndex && partners.size > 1) {
+                // The next round starts on the first partner's first open set (sets are logged in
+                // order), even when the partners hold different set counts; the superset is only
+                // left once that partner is complete too, as on the phone.
                 val first = partners.first()
-                val candidate = first.sets.getOrNull(setIndex + 1)?.takeIf { !it.done }
+                val candidate = first.sets.firstOrNull { !it.done }
                 if (candidate != null) return NextSet(first, candidate)
             }
         }
