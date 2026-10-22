@@ -22,9 +22,9 @@ h2{font-weight:680;letter-spacing:-.022em}
 /* Dialogs and sheets: the largest radius, lifted by a deep shadow. */
 .modal{border-color:var(--card-border);border-radius:var(--radius-modal);box-shadow:0 30px 80px -20px var(--overlay)}
 .modal::backdrop{backdrop-filter:blur(6px)}
-/* Android discards a backgrounded WebView's drawn page, so returning to the app repaints all of it
-   before anything shows; a full-screen backdrop blur made that first frame slow enough to read as a
-   darkened page. The overlay colour alone still dims what is behind a dialog. */
+/* Full-screen backdrop blurs are costly to raster in the Android WebView (the page is kept across
+   backgrounding by offscreen pre-raster in MainActivity). The overlay colour alone still dims what is
+   behind a dialog. */
 :root[data-shell=android] .modal::backdrop{backdrop-filter:none}
 @media(max-width:639px){.modal,.modal.wide{border-radius:var(--radius-modal) var(--radius-modal) 0 0}}
 

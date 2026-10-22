@@ -29,6 +29,10 @@ public class MainActivity extends BridgeActivity {
     public void onCreate(Bundle savedInstanceState) {
         registerPlugin(WorkoutPlugin.class);
         super.onCreate(savedInstanceState);
+        // Android sends TRIM_MEMORY_BACKGROUND soon after the app leaves the screen, and WebView answers
+        // by dropping every rastered tile unless it pre-rasters offscreen. Returning then showed the
+        // plain WebView background for about a second while the whole page was rastered again.
+        getBridge().getWebView().getSettings().setOffscreenPreRaster(true);
         // Match the configured origin so APIs bypass the APK asset server, as in Nutrition.
         final String appHost = Uri.parse(getBridge().getLocalUrl()).getHost();
         getBridge().setWebViewClient(new BridgeWebViewClient(getBridge()) {

@@ -22,7 +22,7 @@ import { api } from '../lib/api';
 import { restOptions } from '../lib/training';
 import { showExerciseWeight } from '../lib/weightBasis';
 import { ProgressionChangeBadge } from './ProgressionChangeBadge';
-import { withSetAdded, withSetRemoved, withSetRestored } from '../lib/workoutDraft';
+import { setNumberLabel, withSetAdded, withSetRemoved, withSetsRestored } from '../lib/workoutDraft';
 import { allowedSetTypes, withSetType } from '../lib/workoutSetTypes';
 import type { RemovedSet } from '../lib/workoutDraft';
 import { Button } from './ui/Button';
@@ -43,8 +43,9 @@ import { loadColumnLabel, loadEntryFor } from '../lib/resistanceVariant';
 import { exerciseRestSeconds } from '../lib/restRules';
 import './WorkoutLogger.css';
 
-// Long enough to notice a mistaken swipe-delete between sets and reach Undo with a sweaty hand.
-const UNDO_WINDOW_MS = 8000;
+// Long enough to notice a mistaken swipe-delete and reach Undo, short enough not to linger. Each
+// further removal restarts it, so a quick run of deletes stays undoable as one.
+const UNDO_WINDOW_MS = 5000;
 
 export function WorkoutActiveExercise({
   exercise,
@@ -105,28 +106,30 @@ export function WorkoutActiveExercise({
     setWeightsOpen(false);
   }
 
-  const [removedSet, setRemovedSet] = useState<RemovedSet | null>(null);
+  const [removed, setRemoved] = useState<{ sets: RemovedSet[]; label: string } | null>(null);
 
   const prescription = exercise.prescription;
   const loadEntry = loadEntryFor(exercise);
 
   // A removed set can be put back for a few seconds, so a mis-tap never costs a logged set.
   useEffect(() => {
-    if (!removedSet) return;
-    const timer = setTimeout(() => setRemovedSet(null), UNDO_WINDOW_MS);
+    if (!removed) return;
+    const timer = setTimeout(() => setRemoved(null), UNDO_WINDOW_MS);
     return () => clearTimeout(timer);
-  }, [removedSet]);
+  }, [removed]);
 
   function removeSet(setIndex: number) {
     const removal = withSetRemoved(draft, index, setIndex);
     if (!removal) return;
     change(removal.next);
-    setRemovedSet(removal.removed);
+    // Named as the row showed it, so a warm-up reads W1 rather than its position.
+    const label = setNumberLabel(exercise, setIndex).label;
+    setRemoved(current => ({ sets: [...(current?.sets ?? []), removal.removed], label }));
   }
 
   function undoRemoveSet() {
-    const restored = removedSet && withSetRestored(draft, removedSet);
-    setRemovedSet(null);
+    const restored = removed && withSetsRestored(draft, removed.sets);
+    setRemoved(null);
     if (restored) change(restored);
   }
 
@@ -308,9 +311,9 @@ export function WorkoutActiveExercise({
         </div>
 
         <div className="workout-set-table-footer">
-          {removedSet && (
+          {removed && (
             <div className="workout-set-undo" role="status">
-              <span>Set {removedSet.index + 1} removed.</span>
+              <span>{removed.sets.length === 1 ? `Set ${removed.label} removed.` : `${removed.sets.length} sets removed.`}</span>
               <Button variant="tertiary" onClick={undoRemoveSet}>Undo</Button>
             </div>
           )}

@@ -118,6 +118,13 @@ export function withSetRestored(draft: Session, removed: RemovedSet): Session | 
   }));
 }
 
+// Removals undone together go back newest first, so each set lands at the index it was taken from.
+export function withSetsRestored(draft: Session, removed: RemovedSet[]): Session | null {
+  let next: Session | null = null;
+  for (const removal of [...removed].reverse()) next = withSetRestored(next ?? draft, removal) ?? next;
+  return next;
+}
+
 // The lifter's order for what is left of the session. Superset pairings travel with each exercise.
 export function withExerciseMoved(draft: Session, from: number, to: number): Session {
   const count = draft.exercises.length;

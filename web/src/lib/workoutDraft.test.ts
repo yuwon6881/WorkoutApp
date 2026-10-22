@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { LoggedSet, Session, SessionExercise } from '../types';
-import { blankPrescription, effortPatch, effortValue, exerciseListChanged, nextPendingSet, setNumberLabel, indexAfterRemoval, withSetAdded, withSetRemoved, withServerFlags, withSetRestored } from './workoutDraft';
+import { blankPrescription, effortPatch, effortValue, exerciseListChanged, nextPendingSet, setNumberLabel, indexAfterRemoval, withSetAdded, withSetRemoved, withServerFlags, withSetRestored, withSetsRestored } from './workoutDraft';
 
 function loggedSet(id: string, patch: Partial<LoggedSet> = {}): LoggedSet {
   return { id, position: 0, weightKg: 60, reps: 8, rpe: null, done: false, warmup: false, resistanceMode: 'external', ...patch };
@@ -46,6 +46,15 @@ describe('set removal and undo', () => {
 
   it('never removes the only set of an exercise', () => {
     expect(withSetRemoved(session, 1, 0)).toBeNull();
+  });
+
+  it('restores a quick run of removals together, each where it was', () => {
+    const first = withSetRemoved(session, 0, 0)!;
+    const second = withSetRemoved(first.next, 0, 0)!;
+    expect(second.next.exercises[0].sets.map(set => set.id)).toEqual(['a3']);
+    const restored = withSetsRestored(second.next, [first.removed, second.removed])!;
+    expect(restored.exercises[0].sets.map(set => set.id)).toEqual(['a1', 'a2', 'a3']);
+    expect(restored.exercises[0].prescription).toHaveLength(3);
   });
 
   it('does not restore twice or into an exercise that is gone', () => {
