@@ -6,6 +6,7 @@ import { showTimedSet } from '../lib/setDuration';
 import { showActualRir, toDisplay } from '../lib/training';
 import { useTrackRir } from '../lib/trackRir';
 import { weightUnit } from '../lib/weightBasis';
+import './SessionExerciseList.css';
 
 function setResult(set: LoggedSet, unit: Unit, exercise: SessionExercise): string {
   if (set.durationSeconds != null) return showTimedSet(set, unit).replace(unit, weightUnit(unit, exercise));
