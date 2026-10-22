@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { LoggedSet, Session, SessionExercise } from '../types';
-import { blankPrescription, effortPatch, effortValue, exerciseListChanged, nextPendingSet, setNumberLabel, indexAfterRemoval, withSetAdded, withSetRemoved, withServerFlags, withSetRestored, withSetsRestored } from './workoutDraft';
+import { blankPrescription, earlierPendingSet, setOrderProblem, effortPatch, effortValue, exerciseListChanged, nextPendingSet, setNumberLabel, indexAfterRemoval, withSetAdded, withSetRemoved, withServerFlags, withSetRestored, withSetsRestored } from './workoutDraft';
 
 function loggedSet(id: string, patch: Partial<LoggedSet> = {}): LoggedSet {
   return { id, position: 0, weightKg: 60, reps: 8, rpe: null, done: false, warmup: false, resistanceMode: 'external', ...patch };
@@ -156,5 +156,16 @@ describe('exercise removal navigation', () => {
     expect(indexAfterRemoval(1, 2)).toBe(1);
     expect(indexAfterRemoval(2, 2)).toBe(1);
     expect(indexAfterRemoval(3, 0)).toBe(0);
+  });
+});
+
+describe('logging sets in order', () => {
+  it('names the first earlier set still to log', () => {
+    const row = exercise('order', [loggedSet('o1', { done: true }), loggedSet('o2'), loggedSet('o3'), loggedSet('o4')]);
+    expect(earlierPendingSet(row, 0)).toBe(-1);
+    expect(earlierPendingSet(row, 1)).toBe(-1);
+    expect(earlierPendingSet(row, 3)).toBe(1);
+    expect(setOrderProblem(row, 3)).toBe('Log set 2 first, or remove it if you are skipping it.');
+    expect(setOrderProblem(row, 1)).toBeNull();
   });
 });

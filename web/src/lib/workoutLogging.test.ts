@@ -29,6 +29,23 @@ describe('moving on after a set', () => {
     expect(advanceTarget(finished, 0, 1)).toBe(1);
   });
 
+  it('never moves on while a skipped earlier set of the exercise is still to log', () => {
+    const skipped = workout([
+      exercise('a', 'Bench', [set('a1', { done: true }), set('a2'), set('a3', { done: true })]),
+      exercise('b', 'Row', [set('b1')])
+    ]);
+    expect(advanceTarget(skipped, 0, 2)).toBeNull();
+  });
+
+  it('leaves a superset only once every partner is complete', () => {
+    const open = workout([
+      exercise('a', 'Curl', [set('a1', { done: true }), set('a2', { done: true })], 'A1'),
+      exercise('b', 'Pushdown', [set('b1'), set('b2', { done: true })], 'A2'),
+      exercise('c', 'Row', [set('c1')])
+    ]);
+    expect(advanceTarget(open, 0, 1, { nextExercise: true, supersetPartner: false })).toBeNull();
+  });
+
   it('alternates between superset partners', () => {
     const draft = workout([
       exercise('a', 'Curl', [set('a1', { done: true }), set('a2')], 'A1'),

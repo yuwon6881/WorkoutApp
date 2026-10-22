@@ -3,7 +3,7 @@ import { Check, Pause, Trash2 } from 'lucide-react';
 import type { LoggedSet, Preferences, SessionExercise, SetPrescription } from '../types';
 import { defaultLoadStepKg, toDisplay, toKg } from '../lib/training';
 import { setTarget } from '../lib/setTarget';
-import { effortPatch, effortValue, loadIsEditable, setNumberLabel } from '../lib/workoutDraft';
+import { earlierPendingSet, effortPatch, effortValue, loadIsEditable, setNumberLabel } from '../lib/workoutDraft';
 import { Button } from './ui/Button';
 import { RepsRirControl } from './ui/RepsRirControl';
 import { SetTypeSelect } from './ui/SetTypeSelect';
@@ -81,6 +81,8 @@ export function WorkoutSetRow({
   const setName = `${exercise.name} set ${si + 1}`;
   const removable = exercise.sets.length > 1;
   const locked = paused && !set.done;
+  // Sets are logged in order; the tick still answers a tap, with a nudge and a note naming the set to log first.
+  const waiting = !set.done && earlierPendingSet(exercise, si) >= 0;
   const target = setTarget(set, plan, exercise, unit, trackRir);
   const targetDescription = `set-target-reason-${set.id}`;
   const remove = () => {
@@ -158,7 +160,7 @@ export function WorkoutSetRow({
         <Button
           presentation="plain"
           className={`set-log-checkbox ${set.done ? 'checked' : ''} ${locked ? 'paused-lock' : ''}`}
-          aria-label={`${set.done ? 'Unlog' : 'Log'} ${exercise.name} set ${si + 1}${locked ? ' (workout paused)' : ''}`}
+          aria-label={`${set.done ? 'Unlog' : 'Log'} ${exercise.name} set ${si + 1}${locked ? ' (workout paused)' : waiting ? ' (log earlier sets first)' : ''}`}
           aria-pressed={set.done}
           onClick={async () => {
             // toggle captures any running stopwatch before validating the completed set.

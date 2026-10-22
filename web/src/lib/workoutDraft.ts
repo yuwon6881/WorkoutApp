@@ -161,6 +161,20 @@ export function setNumberLabel(exercise: SessionExercise, setIndex: number): { l
   return { label: warmup ? `W${count}` : String(count), warmup };
 }
 
+/// Sets are logged in order: a set waits until every set before it in its exercise is logged.
+/// Returns the first earlier set still to log, or -1 when this one may be logged now.
+export function earlierPendingSet(exercise: SessionExercise, setIndex: number): number {
+  return exercise.sets.slice(0, setIndex).findIndex(set => !set.done);
+}
+
+/// Why this set cannot be logged yet, naming the set to log first; null when it can be.
+export function setOrderProblem(exercise: SessionExercise, setIndex: number): string | null {
+  const waitingFor = earlierPendingSet(exercise, setIndex);
+  if (waitingFor < 0) return null;
+  const { label, warmup } = setNumberLabel(exercise, waitingFor);
+  return `Log ${warmup ? `warm-up ${label.slice(1)}` : `set ${label}`} first, or remove it if you are skipping it.`;
+}
+
 export function nextPendingSet(exercise: SessionExercise | undefined): number {
   return exercise ? exercise.sets.findIndex(set => !set.done) : -1;
 }

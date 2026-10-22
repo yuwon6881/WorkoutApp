@@ -5,7 +5,7 @@ import type { SaveQueue } from '../lib/queue';
 import { completedSets, finishBlocker, plannedSets } from '../lib/training';
 import { withLoggedSetEdit, type FilledInputsLog } from '../lib/liveAdjustment';
 import { useTrackRir } from '../lib/trackRir';
-import { exerciseListChanged, indexAfterMove, indexAfterRemoval, withExerciseMoved, withServerFlags } from '../lib/workoutDraft';
+import { exerciseListChanged, indexAfterMove, indexAfterRemoval, setOrderProblem, withExerciseMoved, withServerFlags } from '../lib/workoutDraft';
 import { firstOpenExercise, nextUpText, type AdvanceOptions } from '../lib/workoutLogging';
 import { useAfterLog } from './useAfterLog';
 import { validateLoggedSet, validateSessionDraft } from '../lib/validation';
@@ -201,6 +201,8 @@ export function Workout({
       return false;
     }
     const stored = draft.exercises[ei].sets[si];
+    const outOfOrder = stored.done ? null : setOrderProblem(draft.exercises[ei], si);
+    if (outOfOrder) { setError(outOfOrder); return false; }
     const timed = (stored.done ? null : stopStopwatch(stored.id)) || null;
     const set = timed === null ? stored : { ...stored, durationSeconds: timed };
     if (!set.done) {

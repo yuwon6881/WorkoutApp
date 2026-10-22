@@ -30,8 +30,9 @@ export function firstOpenExercise(session: Session): number {
 export type AdvanceOptions = { nextExercise: boolean; supersetPartner: boolean };
 
 // After a set is logged, the view moves on when the next step belongs to another exercise: the
-// next exercise once this one is complete, or the partner in a superset after every set. Each
-// kind of move is its own device setting, so a lifter can keep one without the other.
+// partner in a superset after every set, which is the one move made with sets still to log, or
+// the next exercise once this one (and, in a superset, every partner) is complete. Each kind of
+// move is its own device setting, so a lifter can keep one without the other.
 export function advanceTarget(
   draft: Session,
   exerciseIndex: number,
@@ -44,7 +45,12 @@ export function advanceTarget(
   if (target < 0 || target === exerciseIndex) return null;
   const group = getSupersetGroup(draft.exercises[exerciseIndex].sequenceGroup);
   const partner = Boolean(group) && getSupersetGroup(step.exercise.sequenceGroup) === group;
-  return (partner ? options.supersetPartner : options.nextExercise) ? target : null;
+  if (partner) return options.supersetPartner ? target : null;
+  const block = group
+    ? draft.exercises.filter(exercise => getSupersetGroup(exercise.sequenceGroup) === group)
+    : [draft.exercises[exerciseIndex]];
+  if (block.some(exercise => nextPendingSet(exercise) >= 0)) return null;
+  return options.nextExercise ? target : null;
 }
 
 // What the rest leads into, shown under the countdown so the next plate change can start early.
