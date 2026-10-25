@@ -1,4 +1,11 @@
 (() => {
+  // Wakes the API and its database while the app's scripts download, so the first real request
+  // does not also wait for a cold start. Best effort: nothing waits on it and failures are ignored.
+  try {
+    if (navigator.onLine !== false) fetch('/health?db=1', { cache: 'no-store', credentials: 'omit' }).catch(() => {});
+  } catch {
+    // fetch can be unavailable; the app's own requests still work.
+  }
   // The saved theme is a device copy of the signed-in account's setting. Without one (first visit or
   // signed out) the browser or OS appearance applies.
   let saved = null;

@@ -31,6 +31,7 @@ builder.Services.AddResponseCompression(o=>
 builder.Services.AddSingleton<DatabaseMetricsInterceptor>();
 builder.Services.AddSingleton<DatabaseConnectionMetricsInterceptor>();
 builder.Services.AddMemoryCache(o => o.SizeLimit = 256);
+builder.Services.AddSingleton<DatabaseWarmup>();
 builder.Services.AddTransient<ExternalCallMetricsHandler>();
 builder.Services.AddDbContext<AppDb>((services,o)=>
 {
@@ -227,7 +228,13 @@ app.Use(async(http,next)=>
 app.UseRateLimiter();
 app.UseDefaultFiles();app.UseStaticFiles(new StaticFileOptions { OnPrepareResponse=c=> { if(c.File.Name=="sw.js"||c.File.Name=="index.html") c.Context.Response.Headers.CacheControl="no-cache"; } });
 app.MapAuth();app.MapCentralAuth();app.MapBootstrap();app.MapPerformanceReads();app.MapRevisions();app.MapCatalog();app.MapLoadSettings();app.MapTemplates();app.MapPrograms();app.MapProgramEditor();app.MapWorkouts();app.MapImports();app.MapIntegrations();app.MapGoogleHealth();app.MapRestAlerts();app.MapWatch();app.MapAi();app.MapAccountDeletion();
-app.MapGet("/health",()=>new { status="ok" });
+// `?db=1` is the page's early warm-up call; the plain probe stays database-free.
+app.MapGet("/health",async(HttpContext http,DatabaseWarmup warmup)=>
+{
+    if(http.Request.Query["db"]!="1")return Results.Json(new { status="ok" });
+    var ready=await warmup.EnsureAwakeAsync(http.RequestServices.GetRequiredService<AppDb>(),http.RequestAborted);
+    return Results.Json(new { status="ok",database=ready?"ready":"unavailable" });
+});
 app.MapFallback(async http=>
 {
     if(http.Request.Path.StartsWithSegments("/api")||Path.HasExtension(http.Request.Path)) { http.Response.StatusCode=404;return; }
