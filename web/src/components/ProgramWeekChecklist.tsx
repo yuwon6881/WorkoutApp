@@ -9,6 +9,7 @@ import { Button } from './ui/Button';
 import { Modal } from './ui/Modal';
 import { MenuButton, MenuItem } from './ui/MenuButton';
 import { DayDetailContent } from './ImportDayRow';
+import { WorkoutDaySkeleton } from './WorkoutDaySkeleton';
 import { ReadOnlyDay } from './ReadOnlyDay';
 import { DayEditor } from './ImportDayEditor';
 import './ProgramWeekChecklist.css';
@@ -294,7 +295,7 @@ export function ProgramWeekChecklist({
               onMuscleSelect={setSelectedMuscle}
             />
           ) : (
-            <p className="muted small-copy" role="status">Loading workout details…</p>
+            <WorkoutDaySkeleton label="Loading workout details…" />
           )}
         </div>
         <div className="modal-actions">

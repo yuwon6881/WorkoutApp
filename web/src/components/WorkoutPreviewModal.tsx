@@ -7,6 +7,7 @@ import { Button } from './ui/Button';
 import { CardFeedback } from './ui/CardFeedback';
 import { Modal } from './ui/Modal';
 import { ReadOnlyDay } from './ReadOnlyDay';
+import { WorkoutDaySkeleton } from './WorkoutDaySkeleton';
 import './ImportDaySheet.css';
 
 export function WorkoutPreviewModal({ templateId, name, exercises, onClose, onStart }: {
@@ -40,7 +41,7 @@ export function WorkoutPreviewModal({ templateId, name, exercises, onClose, onSt
           selectedMuscle={selectedMuscle} onMuscleSelect={setSelectedMuscle} />
       </> : error ? <CardFeedback title="Could not load workout preview" message={error}
         action={{ label: 'Retry', onClick: () => setRetry(value => value + 1) }} />
-        : <div className="skeleton history-row-skeleton" role="status" aria-label="Loading workout preview" />}
+        : <WorkoutDaySkeleton label="Loading workout preview…" />}
     </div>
     <div className="modal-actions">
       <Button variant="secondary" onClick={onClose}>Cancel</Button>

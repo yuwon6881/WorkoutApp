@@ -1,0 +1,57 @@
+/* Sizes for WorkoutDaySkeleton. The real muscle-tile and exercise-card classes carry the geometry;
+   these only size the placeholders to the text they stand in for. */
+.workout-day-skeleton {
+  display: grid;
+  gap: 12px;
+}
+
+/* The tiles and cards sit on the raised surface the default placeholder uses, so the shapes take a step of text colour instead. */
+.workout-day-skeleton .skeleton {
+  background: color-mix(in srgb, var(--text) 10%, transparent);
+}
+
+.workout-day-skeleton-tile {
+  cursor: default;
+  pointer-events: none;
+}
+
+.workout-day-skeleton-copy {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.workout-day-skeleton-line {
+  height: 14px;
+  width: 70%;
+  border-radius: 6px;
+}
+
+.workout-day-skeleton-line-short {
+  height: 12px;
+  width: 90%;
+}
+
+.workout-day-skeleton-card .readonly-exercise-head {
+  flex-wrap: nowrap;
+  align-items: center;
+}
+
+.workout-day-skeleton-name {
+  flex: 0 1 52%;
+  height: 20px;
+  border-radius: 6px;
+}
+
+.workout-day-skeleton-rest {
+  flex: 0 0 76px;
+  height: 14px;
+  border-radius: 6px;
+}
+
+.workout-day-skeleton-set {
+  height: 18px;
+  margin-block: 2px;
+  width: 36%;
+  border-radius: 6px;
+}
