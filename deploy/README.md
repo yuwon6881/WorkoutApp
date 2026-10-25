@@ -38,6 +38,8 @@ outline order. Concurrency is 4 rather than 1 so those two-second polls do not q
 other and behind the account's other calls on the single instance; it is still one container, so
 the billing shape is unchanged.
 
+Deploys add `--cpu-boost`, which gives an instance extra CPU only while it starts, so a cold start is shorter without a running instance. The page also calls `GET /health?db=1` from its boot script so the cold start and the database wake-up overlap the script download; the database ping is reused for 30 seconds, so the public probe cannot keep the database awake.
+
 CPU throttling stays on — `--no-cpu-throttling` is deliberately absent. It would keep the
 background pass on CPU between polls, but it switches the service to instance-based billing for the
 whole lifetime of the instance rather than per request. An import spends almost all of its wall
