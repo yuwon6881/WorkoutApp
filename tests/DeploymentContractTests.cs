@@ -52,6 +52,25 @@ public sealed class DeploymentContractTests
         Assert.Contains("'--min-instances=0'", build);
     }
 
+    /// Startup CPU boost shortens a cold start without keeping an instance running.
+    [Fact]
+    public void Workout_api_boosts_cpu_only_while_starting()
+    {
+        var build = File.ReadAllText(Path.Combine(RepositoryRoot(), "cloudbuild.yaml"));
+
+        Assert.Contains("'--cpu-boost'", build);
+        Assert.DoesNotContain("'--no-cpu-boost'", build);
+    }
+
+    /// Short-lived scale-to-zero instances never run long enough to repay PGO instrumentation.
+    [Fact]
+    public void Cold_start_runtime_settings_skip_profile_guided_instrumentation()
+    {
+        var project = File.ReadAllText(Path.Combine(RepositoryRoot(), "api", "Workout.Api.csproj"));
+        Assert.Contains("<TieredPGO>false</TieredPGO>", project);
+        Assert.Contains("PublishReadyToRun=true", File.ReadAllText(Path.Combine(RepositoryRoot(), "Dockerfile")));
+    }
+
     [Fact]
     public void Frontend_and_api_csp_explicitly_keep_styles_and_fonts_first_party()
     {

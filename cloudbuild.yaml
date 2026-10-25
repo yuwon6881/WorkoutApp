@@ -98,6 +98,9 @@ steps:
       - '--allow-unauthenticated'
       - '--no-use-http2'
       - '--min-instances=0'
+      # Extra CPU only while an instance starts: a cold start is CPU-bound (dependency injection,
+      # the EF model, token-validation setup) and the boost ends when startup does.
+      - '--cpu-boost'
       - '--max-instances=1'
       - '--memory=2Gi'
       - '--cpu=1'
