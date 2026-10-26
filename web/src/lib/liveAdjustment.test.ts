@@ -249,6 +249,30 @@ describe('withLiveAdjustment', () => {
   });
 });
 
+describe('sessions reported from the gym', () => {
+  it('moves to a lighter load rather than asking a five-rep set for two reps', () => {
+    // Pause bench, 5 reps at 2 RIR on 60 kg: 60 × 4 at 1 RIR, then the suggested 57.5 × 5 also at 1 RIR.
+    const bench = draftWith([set('a', 0, 60, 5), set('b', 1, 60, 5), set('c', 2, 60, 5)], plan({ repMin: 5, repMax: 5 }));
+    const filled: FilledInputsLog = new Map();
+    const first = withLiveAdjustment(logged(bench, 0, { reps: 4, rpe: 9, rir: '1' }), 0, 0, grid, true, filled);
+    expect(first.exercises[0].sets[1]).toMatchObject({ weightKg: 57.5, reps: 5, rir: '2' });
+    const second = withLiveAdjustment(logged(first, 1, { weightKg: 57.5, reps: 5, rpe: 9, rir: '1' }), 0, 1, grid, true, filled);
+    expect(second.exercises[0].sets[2]).toMatchObject({ weightKg: 55, reps: 5, rir: '2' });
+  });
+
+  it('raises the next sets after a first set far heavier than suggested', () => {
+    // Leg curl, 6-8 reps at 2 RIR: 45 × 6 then 32.5 × 8 suggested; the first set went 60 × 6 at 2 RIR.
+    const curl = draftWith([set('a', 0, 45, 6), set('b', 1, 32.5, 8), set('c', 2, 32.5, 8)], plan({ repMin: 6, repMax: 8 }));
+    const sets = adjust(logged(curl, 0, { weightKg: 60, reps: 6, rpe: 8, rir: '2' }));
+    for (const next of sets.slice(1)) {
+      expect(next.weightKg).toBeGreaterThan(32.5);
+      expect(next.reps).toBeGreaterThanOrEqual(6);
+      expect(next.reps).toBeLessThanOrEqual(8);
+      expect(next.rir).toBe('2');
+    }
+  });
+});
+
 describe('targetReserve', () => {
   it.each([['3', null, 3], ['1-2', null, 1], ['1+', null, 1], ['5+', null, 5], [null, 8, 2], [null, null, 2]] as const)(
     'reads %s / RPE %s as %s', (rir, rpe, expected) => {

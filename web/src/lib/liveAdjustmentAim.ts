@@ -23,6 +23,11 @@ const EPSILON = 1e-6;
 const MAX_DROP_PER_SET = 3;
 /// How far either side of the planned load the next sets may move, in grid steps.
 const LOAD_REACH_STEPS = 8;
+/// What a changed load costs per rep it is worth. Changing the load is how a set gets back to its
+/// target, so it costs less than missing the target by the same reps: a step that brings the set
+/// back to its reps and reserve wins over keeping the load and missing either. Kept above zero so a
+/// set only a rep short still keeps its load when a step is worth several reps.
+const LOAD_CHANGE_WEIGHT = 0.5;
 
 export function loadAxisFor(entry: LoadEntry, referenceKg: number | null | undefined, grid: LoadGrid): LoadAxis | null {
   if (!grid.availableLoadsKg?.length && grid.stepKg <= 0) return null;
@@ -70,7 +75,8 @@ export function deviationTrend(deviations: Deviation[]): number {
 
 /// The load, reps and reserve closest to a set's target given the reps to failure projected at its
 /// planned load. Each option costs its distance from the plan in reps: reps short of the range, a
-/// reserve away from the target, and a changed load by the reps that change is worth. So a set a
+/// reserve away from the target (the honest one, even past the 5+ the logger can show), and a
+/// changed load by half the reps that change is worth. So a set a
 /// rep short keeps its load when a step lighter would cost more than that rep, and a small step
 /// wins when it lands the set back in range for less. A set that cannot reach the range keeps the
 /// target effort with fewer reps rather than being asked past failure.
@@ -88,8 +94,9 @@ export function aimedInputs(base: FilledInputs, target: RepPlan, projected: numb
       ? (plannedTotal * (projected + 30)) / total - 30
       : projected;
     const reps = Math.max(1, Math.min(target.high, Math.round(toFailure - target.goal)));
-    const reserve = Math.min(5, Math.max(0, Math.round(toFailure - reps)));
-    const cost = Math.abs(toFailure - projected) + Math.max(0, target.low - reps) + Math.abs(reserve - goal);
+    const honestReserve = Math.max(0, Math.round(toFailure - reps));
+    const reserve = Math.min(5, honestReserve);
+    const cost = LOAD_CHANGE_WEIGHT * Math.abs(toFailure - projected) + Math.max(0, target.low - reps) + Math.abs(honestReserve - goal);
     if (!best || cost < best.cost - EPSILON) best = { load, reps, reserve, cost };
   }
   if (!best) return null;

@@ -450,8 +450,9 @@ public sealed partial class WorkoutService(
         sourceRow.LoadModel = replacementModel;
         sourceRow.ProgressionJson = "";
         sourceRow.IsReplacement = true;
+        var repFill = SetsHoldingRepFill(sourceRow, sets);
         foreach (var set in sets) ClearUnfinishedSet(set, replacementModel, replacementName);
-        await RefreshReplacementSuggestions(swapSession, sourceRow, sets, replacementModel, ct);
+        await RefreshReplacementSuggestions(swapSession, sourceRow, sets, replacementModel, repFill, ct);
         db.ExerciseSubstitutions.Add(new ExerciseSubstitution
         {
             UserId = swapSession.UserId, SessionId = swapSession.Id, SourceTemplateExerciseId = sourceRow.SourceTemplateExerciseId,

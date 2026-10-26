@@ -5,8 +5,22 @@ namespace Workout.Api.Services;
 
 public sealed partial class WorkoutService
 {
+    /// The unlogged sets whose reps still hold the fill their current suggestion gave them, rather
+    /// than a count the lifter typed. Read before a swap clears the suggestions it replaces.
+    private static HashSet<Guid> SetsHoldingRepFill(SessionExercise exercise, IEnumerable<CompletedSet> sets)
+    {
+        var prescriptions = Json.Read<List<SetPrescription>>(exercise.PrescriptionJson);
+        return sets.Where(set => !set.Done && !set.Warmup && prescriptions.ElementAtOrDefault(set.Position) is { } plan
+                && ReadOptional<SetProgressionSuggestion>(set.SuggestionJson) is { } suggestion
+                && set.Reps == Progression.PrefillReps(plan, suggestion))
+            .Select(set => set.Id).ToHashSet();
+    }
+
+    /// Reps the lifter typed stay; reps that only held the replaced exercise's fill (listed in
+    /// <paramref name="repFill"/>) take the replacement's own, so a set never shows one exercise's
+    /// target over another exercise's count.
     private async Task RefreshReplacementSuggestions(WorkoutSession session, SessionExercise exercise, List<CompletedSet> sets,
-        string loadModel, CancellationToken ct)
+        string loadModel, IReadOnlySet<Guid> repFill, CancellationToken ct)
     {
         // Reps and seconds never carry across a timed/reps swap; a timed replacement gets no rep suggestion.
         // A logged set is what was lifted and is never rewritten; it still counts toward the ordinal.
@@ -66,7 +80,8 @@ public sealed partial class WorkoutService
             if (SetTechniques.Of(prescription) is null) (straight, straightPlan) = (suggestion, prescription);
             previousOfKind[KindOf(prescription)] = new PlannedSuggestion(prescription, suggestion);
             set.WeightKg = suggestion.SuggestedLoadKg; set.SystemLoadKg = suggestion.SuggestedSystemLoadKg;
-            set.ResistanceMode = mode; set.SuggestionJson = Json.Write(suggestion); set.Reps = enteredReps; set.Rpe = enteredRpe; first ??= suggestion;
+            set.ResistanceMode = mode; set.SuggestionJson = Json.Write(suggestion); set.Rpe = enteredRpe; first ??= suggestion;
+            set.Reps = repFill.Contains(set.Id) ? Progression.PrefillReps(prescription, suggestion) : enteredReps;
         }
         exercise.ProgressionJson = first is null ? "" : Json.Write(new ProgressionView(first.SuggestedLoadKg, first.SuggestedReps, first.Reason,
             null, null, step, first.ProgressionMode, first.NutritionContextRevision));
