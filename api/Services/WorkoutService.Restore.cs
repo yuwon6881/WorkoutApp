@@ -100,7 +100,8 @@ public sealed partial class WorkoutService
         {
             // A swap that stays (sets are logged on it) keeps its own loads: the start snapshot's
             // suggestions were made for the exercise it replaced.
-            if (IdentityDiffers(sourceRow, baseline)) await RefreshReplacementSuggestions(session, sourceRow, rows, sourceRow.LoadModel, ct);
+            if (IdentityDiffers(sourceRow, baseline))
+                await RefreshReplacementSuggestions(session, sourceRow, rows, sourceRow.LoadModel, SetsHoldingRepFill(sourceRow, rows), ct);
             return true;
         }
 
