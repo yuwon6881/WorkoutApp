@@ -107,10 +107,13 @@ export function Modal({ title, children, onClose, wide = false, headless = false
     const el = ref.current;
     const header = el?.querySelector<HTMLElement>(':scope > header');
     if (!el || !header || typeof ResizeObserver === 'undefined') return;
-    const publish = () => el.style.setProperty('--modal-header-height', `${header.offsetHeight}px`);
-    publish();
-    const observer = new ResizeObserver(publish);
-    observer.observe(header);
+    // The exact layout height: offsetHeight rounds to a whole pixel, which can leave a slit of
+    // scrolling rows between the header and what pins under it. The border box is unaffected by
+    // the open and close transforms.
+    const publish = (height: number) => el.style.setProperty('--modal-header-height', `${height}px`);
+    publish(header.offsetHeight);
+    const observer = new ResizeObserver(([entry]) => publish(entry?.borderBoxSize?.[0]?.blockSize ?? header.offsetHeight));
+    observer.observe(header, { box: 'border-box' });
     return () => observer.disconnect();
   }, [headless]);
 

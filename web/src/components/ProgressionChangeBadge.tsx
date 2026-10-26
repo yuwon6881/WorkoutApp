@@ -7,7 +7,10 @@ import { showExerciseWeight, weightUnit } from '../lib/weightBasis';
 
 type Tone = 'up' | 'hold' | 'down';
 
-function describe(change: ProgressionChange, unit: Unit): { icon: LucideIcon; text: string; spoken: string; tone: Tone } {
+/// The icon and the text never both carry the direction. A load change pairs a trend arrow with a
+/// signed amount; a rep change uses the plus or minus icon itself as the sign, so its text is the
+/// bare count ("+ 1 rep", "− 2 reps").
+export function describeProgressionChange(change: ProgressionChange, unit: Unit): { icon: LucideIcon; text: string; spoken: string; tone: Tone } {
   switch (change.kind) {
     case 'load-up':
       return { icon: TrendingUp, text: `+${showWeight(change.deltaKg, unit)}`, spoken: `add ${showWeight(change.deltaKg, unit)}`, tone: 'up' };
@@ -15,11 +18,11 @@ function describe(change: ProgressionChange, unit: Unit): { icon: LucideIcon; te
       return { icon: TrendingDown, text: `−${showWeight(change.deltaKg, unit)}`, spoken: `${showWeight(change.deltaKg, unit)} lighter`, tone: 'down' };
     case 'reps-up': {
       const reps = `${change.deltaReps} rep${change.deltaReps === 1 ? '' : 's'}`;
-      return { icon: Plus, text: `+${reps}`, spoken: `add ${reps}`, tone: 'up' };
+      return { icon: Plus, text: reps, spoken: `add ${reps}`, tone: 'up' };
     }
     case 'reps-down': {
-      const reps = `${change.deltaReps} fewer rep${change.deltaReps === 1 ? '' : 's'}`;
-      return { icon: Minus, text: reps, spoken: reps, tone: 'down' };
+      const reps = `${change.deltaReps} rep${change.deltaReps === 1 ? '' : 's'}`;
+      return { icon: Minus, text: reps, spoken: `${change.deltaReps} fewer rep${change.deltaReps === 1 ? '' : 's'}`, tone: 'down' };
     }
     case 'repeat':
       return { icon: Repeat, text: 'Repeat', spoken: 'repeat last time', tone: 'hold' };
@@ -34,7 +37,7 @@ export function ProgressionChangeBadge({ exercise, unit }: { exercise: SessionEx
   const current = working.find(set => !set.done && set.suggestion) ?? working.find(set => set.suggestion);
   const change = progressionChange(current?.suggestion);
   if (!change || (exercise.trackingMode === 'duration' && (change.kind === 'reps-up' || change.kind === 'reps-down'))) return null;
-  const { icon: Icon, text, spoken, tone } = describe(change, unit);
+  const { icon: Icon, text, spoken, tone } = describeProgressionChange(change, unit);
   const reason = current?.suggestion?.reason ?? '';
   return (
     <div className={`workout-progression-badge progression-${tone}`} title={reason} role="note"

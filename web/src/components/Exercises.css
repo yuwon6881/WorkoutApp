@@ -62,10 +62,12 @@
 }
 /* In a picker dialog the heading stays pinned under the dialog header while its group scrolls past,
    so a long list always says which category is on screen; the next group's heading pushes it off.
-   .modal-body clips its overflow rather than hiding it, so it never becomes the sticky container. */
+   .modal-body clips its overflow rather than hiding it, so it never becomes the sticky container.
+   It pins a pixel under the header's bottom edge (the header stacks above it), so no seam of
+   scrolling rows can open between them on a fractional device pixel ratio. */
 .modal .category-group-header {
   position: sticky;
-  top: var(--modal-header-height, 0px);
+  top: calc(var(--modal-header-height, 0px) - 1px);
   z-index: 2;
   margin: 0 -4px;
   padding: 8px;
