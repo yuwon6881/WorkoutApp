@@ -256,7 +256,6 @@
   cursor: pointer;
   transition: background-color 160ms var(--motion-ease), border-color 160ms var(--motion-ease), color 160ms var(--motion-ease), transform 120ms ease;
 }
-.set-log-checkbox:hover { border-color: var(--accent); color: var(--accent); }
 .set-log-checkbox:active { transform: scale(.92); }
 .workout-set-row.current .set-log-checkbox:not(.checked) { border-color: var(--accent-border-strong); }
 .set-log-checkbox.checked,
@@ -270,10 +269,15 @@
 .workout-set-row.done .set-log-checkbox svg {
   color: var(--on-accent);
 }
-.set-log-checkbox.checked:hover { border-color: var(--accent); filter: brightness(1.05); }
 /* While paused a set can still be edited but not logged: a dashed, pause-marked box says why. */
 .set-log-checkbox.paused-lock { border: 2px dashed var(--border-hover); background: transparent; color: var(--muted); cursor: not-allowed; }
-.set-log-checkbox.paused-lock:hover { border-color: var(--accent-border-strong); color: var(--accent); }
+/* The hover preview (an accent check) is for a mouse. A touch screen keeps :hover on the last tapped
+   tick, so a refused tap (an earlier set still to log) would leave a check that looks half logged. */
+@media (hover: hover) and (pointer: fine) {
+  .set-log-checkbox:hover { border-color: var(--accent); color: var(--accent); }
+  .set-log-checkbox.checked:hover { border-color: var(--accent); filter: brightness(1.05); }
+  .set-log-checkbox.paused-lock:hover { border-color: var(--accent-border-strong); color: var(--accent); }
+}
 .log-cell, .del-cell { display: grid; place-items: center; }
 .set-del-btn.button { width: 44px; min-width: 44px; height: 44px; min-height: 44px; padding: 0; border-radius: var(--radius-pill); color: var(--faint); }
 .workout-set-rows .set-del-btn.button:hover:not(:disabled) { color: var(--red); background: var(--red-soft); }
