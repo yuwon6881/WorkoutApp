@@ -468,7 +468,7 @@ export function Workout({
         onOpenExercise={onOpenExercise} />
 
       <WorkoutFooter error={error} busy={busy || Boolean(finishIntentAt) || recoveryConflict}
-        canFinish={canFinish} onFinish={requestFinish} />
+        canFinish={canFinish} onFinish={requestFinish} rest={rest} paused={paused} onRestMutate={handleRestMutate} />
 
       {detailsOpen && <WorkoutDetailsModal draft={draft} unit={unit} onClose={() => setDetailsOpen(false)} />}
 
