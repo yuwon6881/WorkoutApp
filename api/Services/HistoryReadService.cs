@@ -17,7 +17,7 @@ public static class HistoryReadService
             // The redundant bound lets the index seek to the cursor.
             query = query.Where(x => x.FinishedAt <= at && (x.FinishedAt < at || (x.FinishedAt == at && x.Id.CompareTo(id) < 0)));
         }
-        var rows = await query.OrderByDescending(x => x.FinishedAt).ThenByDescending(x => x.Id).Take(size + 1).ToListAsync(ct);
+        var rows = await query.OrderByDescending(x => x.FinishedAt).ThenByDescending(x => x.Id).Take(size + 1).WithoutSnapshots().ToListAsync(ct);
         var selected = rows.Take(size).ToList();
         var ids = selected.Select(x => x.Id).ToList();
         var totals = await (from set in db.Sets.AsNoTracking()

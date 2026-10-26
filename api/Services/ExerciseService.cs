@@ -169,10 +169,13 @@ public sealed partial class ExerciseService(AppDb db, IMemoryCache? cache = null
     private async Task<ExerciseInsight> BuildInsight(Guid id, CancellationToken ct)
     {
         var meta = await Metadata(id, ct);
-        var rows = await FinishedExerciseRows(id, ct);
-        var sessions = await db.Workouts.AsNoTracking().Where(x => rows.Select(r => r.SessionId).Contains(x.Id))
+        // This reads the exercise's whole history, so it leaves out the start-of-workout snapshots.
+        var rows = await FinishedExerciseRowsQuery(id).WithoutSnapshots().ToListAsync(ct);
+        var sessionIds = rows.Select(r => r.SessionId).Distinct().ToList();
+        var sessions = await db.Workouts.AsNoTracking().Where(x => sessionIds.Contains(x.Id)).WithoutSnapshots()
             .ToDictionaryAsync(x => x.Id, ct);
-        var allSets = rows.Count == 0 ? [] : await db.Sets.AsNoTracking().Where(x => rows.Select(r => r.Id).Contains(x.SessionExerciseId)).ToListAsync(ct);
+        var rowIds = rows.Select(r => r.Id).ToList();
+        var allSets = rows.Count == 0 ? [] : await db.Sets.AsNoTracking().Where(x => rowIds.Contains(x.SessionExerciseId)).WithoutSnapshots().ToListAsync(ct);
         var sets = allSets.Where(x => x.Done && !x.Warmup).ToList();
         var byExercise = rows.ToDictionary(x => x.Id);
         double? RecordedLoad(CompletedSet set) => EffectiveLoad(set, byExercise[set.SessionExerciseId].LoadModel);
@@ -258,7 +261,10 @@ public sealed partial class ExerciseService(AppDb db, IMemoryCache? cache = null
     }
 
     private async Task<List<SessionExercise>> FinishedExerciseRows(Guid id, CancellationToken ct)
-        => await db.SessionExercises.AsNoTracking().Where(x => x.ExerciseId == id && db.Workouts.Any(w => w.Id == x.SessionId && w.FinishedAt != null)).ToListAsync(ct);
+        => await FinishedExerciseRowsQuery(id).ToListAsync(ct);
+
+    private IQueryable<SessionExercise> FinishedExerciseRowsQuery(Guid id)
+        => db.SessionExercises.AsNoTracking().Where(x => x.ExerciseId == id && db.Workouts.Any(w => w.Id == x.SessionId && w.FinishedAt != null));
 
     private static double? EffectiveLoad(CompletedSet set, string loadModel)
         => LoadModels.ComparableLoad(loadModel, set.WeightKg, set.SystemLoadKg);

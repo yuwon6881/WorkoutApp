@@ -46,12 +46,13 @@ public static class ProgressReadService
             if (since is { } from) query = query.Where(x => x.FinishedAt >= from);
             if (beforeAt is { } at && beforeId is { } id)
                 query = query.Where(x => x.FinishedAt < at || x.FinishedAt == at && x.Id.CompareTo(id) < 0);
-            var batch = await query.OrderByDescending(x => x.FinishedAt).ThenByDescending(x => x.Id).Take(64).ToListAsync(ct);
+            // A full replay reads every finished workout, so it leaves out the start-of-workout snapshots.
+            var batch = await query.OrderByDescending(x => x.FinishedAt).ThenByDescending(x => x.Id).Take(64).WithoutSnapshots().ToListAsync(ct);
             if (batch.Count == 0) break;
             var ids = batch.Select(x => x.Id).ToList();
-            var exercises = await db.SessionExercises.AsNoTracking().Where(x => ids.Contains(x.SessionId)).ToListAsync(ct);
+            var exercises = await db.SessionExercises.AsNoTracking().Where(x => ids.Contains(x.SessionId)).WithoutSnapshots().ToListAsync(ct);
             var exerciseIds = exercises.Select(x => x.Id).ToList();
-            var sets = await db.Sets.AsNoTracking().Where(x => exerciseIds.Contains(x.SessionExerciseId) && x.Done && !x.Warmup).ToListAsync(ct);
+            var sets = await db.Sets.AsNoTracking().Where(x => exerciseIds.Contains(x.SessionExerciseId) && x.Done && !x.Warmup).WithoutSnapshots().ToListAsync(ct);
             accumulator.Add(batch, exercises, sets);
             beforeAt = batch[^1].FinishedAt;
             beforeId = batch[^1].Id;

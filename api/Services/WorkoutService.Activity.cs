@@ -21,7 +21,7 @@ public sealed partial class WorkoutService
         var rows = await db.Workouts.AsNoTracking().Where(w =>
             (w.FinishedAt != null && w.FinishedAt >= startUtc && w.FinishedAt < endUtc) ||
             (w.Active && w.StartedAt >= startUtc && w.StartedAt < endUtc))
-            .ToListAsync(ct);
+            .WithoutSnapshots().ToListAsync(ct);
 
         var completedIds = rows.Where(row => row.FinishedAt != null).Select(row => row.Id).ToList();
         var workingSets = await (from set in db.Sets.AsNoTracking()
