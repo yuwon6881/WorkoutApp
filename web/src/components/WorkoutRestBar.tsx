@@ -19,12 +19,6 @@ export function WorkoutRestBar({ rest, disabled, nextUp, onRestMutate }: {
   const phase = restPhase(rest, now);
   if (phase === 'idle') return null;
   const remaining = remainingRestSeconds(rest, now);
-  const adjust = (action: RestAction, seconds?: number) => () => {
-    if (onRestMutate) onRestMutate(action, seconds);
-    else if (action === 'skip') restTimer.skip();
-    else if (action === 'shorten') restTimer.shorten(seconds ?? 0);
-    else restTimer.extend(seconds ?? 0);
-  };
   const label = phase === 'over' ? 'Rest over' : phase === 'paused' ? 'rest paused' : 'rest';
 
   return (
@@ -38,13 +32,30 @@ export function WorkoutRestBar({ rest, disabled, nextUp, onRestMutate }: {
         </span>
       </span>
       {nextUp && phase === 'running' && <p className="rest-next">Next: {nextUp}</p>}
-      {phase === 'running' && (
-        <div className="rest-bar-actions" role="group" aria-label="Adjust rest">
-          <Button variant="tertiary" disabled={disabled} aria-label="Take 30 seconds off the rest" onClick={adjust('shorten', 30)}>−30</Button>
-          <Button variant="tertiary" disabled={disabled} aria-label="Add 30 seconds of rest" onClick={adjust('extend', 30)}>+30</Button>
-          <Button variant="tertiary" disabled={disabled} onClick={adjust('skip')}>Skip</Button>
-        </div>
-      )}
+      {phase === 'running' && <RestAdjustButtons className="rest-bar-actions" variant="tertiary" disabled={disabled} onRestMutate={onRestMutate} />}
+    </div>
+  );
+}
+
+/// −30, +30 and Skip, through the server when the workout is connected, else the device timer. The
+/// header bar and the phone's rest dock (WorkoutRestDock.tsx) show the same three actions.
+export function RestAdjustButtons({ className, variant, disabled, onRestMutate }: {
+  className: string;
+  variant: 'tertiary' | 'secondary';
+  disabled: boolean;
+  onRestMutate?: (action: RestAction, seconds?: number) => void;
+}) {
+  const adjust = (action: RestAction, seconds?: number) => () => {
+    if (onRestMutate) onRestMutate(action, seconds);
+    else if (action === 'skip') restTimer.skip();
+    else if (action === 'shorten') restTimer.shorten(seconds ?? 0);
+    else restTimer.extend(seconds ?? 0);
+  };
+  return (
+    <div className={className} role="group" aria-label="Adjust rest">
+      <Button variant={variant} disabled={disabled} aria-label="Take 30 seconds off the rest" onClick={adjust('shorten', 30)}>−30</Button>
+      <Button variant={variant} disabled={disabled} aria-label="Add 30 seconds of rest" onClick={adjust('extend', 30)}>+30</Button>
+      <Button variant={variant} disabled={disabled} onClick={adjust('skip')}>Skip</Button>
     </div>
   );
 }

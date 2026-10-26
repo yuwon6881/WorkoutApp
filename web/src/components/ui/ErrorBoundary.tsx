@@ -6,7 +6,14 @@ import { StartupScreen } from './StartupScreen';
 import './CardFeedback.css';
 
 const RELOAD_FLAG = 'workout-chunk-reload';
-const CHUNK_FAILURE = /dynamically imported module|Importing a module script failed|ChunkLoadError|Loading chunk/i;
+// Hashed scripts and stylesheets both disappear in a deploy: a lazy view's stylesheet fails through
+// lib/featureStyles.ts (or Vite's CSS preload) just as its script does.
+const CHUNK_FAILURE = /dynamically imported module|Importing a module script failed|ChunkLoadError|Loading chunk|Unable to preload CSS|could not load its styles/i;
+
+/// A missing file while online means the page is older than the deployment. Offline, the same failure
+/// is the connection, which a reload cannot fix.
+export const isStaleVersionError = (error: Error): boolean =>
+  CHUNK_FAILURE.test(error.message) && (typeof navigator === 'undefined' || navigator.onLine !== false);
 
 // A deploy replaces hashed chunks, so a long-lived tab can ask for a file that no longer exists.
 // One reload per tab session fetches the new shell, so a chunk that is still missing cannot loop;
@@ -29,17 +36,18 @@ interface BoundaryState {
   // The running page is older than the deployed one. React.lazy keeps a rejected import, so a plain
   // re-render throws the same error again: only a fresh shell recovers, and Try again would loop.
   stale: boolean;
+  detail: string | null;
 }
 
 export class ErrorBoundary extends Component<{ children: ReactNode }, BoundaryState> {
-  state: BoundaryState = { failed: false, reloading: false, stale: false };
+  state: BoundaryState = { failed: false, reloading: false, stale: false, detail: null };
 
   static getDerivedStateFromError(error: Error): BoundaryState {
-    return { failed: true, reloading: false, stale: CHUNK_FAILURE.test(error.message) };
+    return { failed: true, reloading: false, stale: isStaleVersionError(error), detail: error.message || error.name || null };
   }
 
   componentDidCatch(error: Error, info: ErrorInfo) {
-    if (CHUNK_FAILURE.test(error.message) && reloadOnceForNewVersion()) return;
+    if (isStaleVersionError(error) && reloadOnceForNewVersion()) return;
     console.error(error, info.componentStack);
   }
 
@@ -49,12 +57,12 @@ export class ErrorBoundary extends Component<{ children: ReactNode }, BoundarySt
   };
 
   private reset = () => {
-    this.setState({ failed: false, reloading: false, stale: false });
+    this.setState({ failed: false, reloading: false, stale: false, detail: null });
   };
 
   render() {
     if (!this.state.failed) return this.props.children;
-    const { reloading, stale } = this.state;
+    const { reloading, stale, detail } = this.state;
     return (
       <StartupScreen className="startup-recovery reload-recovery" headingId="reload-heading">
         <div role="alert" className="startup-recovery-copy">
@@ -62,6 +70,12 @@ export class ErrorBoundary extends Component<{ children: ReactNode }, BoundarySt
           <p className="eyebrow">VIEW RECOVERY</p>
           <h1 id="reload-heading">{stale ? 'A new version is available' : 'This view needs a reload'}</h1>
           <p>An active workout stays saved on this device. Reload to continue where you left off.</p>
+          {detail && (
+            <details className="card-feedback-detail">
+              <summary>Technical detail</summary>
+              <p>{detail}</p>
+            </details>
+          )}
         </div>
         <div className="recovery-actions">
           <Button variant="primary" className="full-width" disabled={reloading} onClick={this.reload}>

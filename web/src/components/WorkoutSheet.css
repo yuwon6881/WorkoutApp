@@ -367,7 +367,85 @@
   .rest-bar-actions .button { min-width: 40px; min-height: 36px; }
 }
 
+/* Phones keep the rest's adjustments in the thumb zone (WorkoutRestDock.tsx): a floating dock above
+   the sheet's bottom edge with large, separated buttons. The header keeps only the countdown. The
+   dock takes the bottom of the scroll area while a rest runs, so no set row moves when it comes or
+   goes. Wider layouts have room for the adjustments in the header. */
+.workout-rest-dock { display: none; }
+@media (max-width: 639px) {
+  .workout-top-status-bar .rest-bar-actions { display: none; }
+  .modal.workout-sheet .workout-rest-dock {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex: 0 0 auto;
+    margin: 0 10px calc(8px + env(safe-area-inset-bottom));
+    padding: 12px 10px 10px 16px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--surface);
+    box-shadow: var(--shadow-float);
+    overflow: hidden;
+    animation: footer-rise 320ms cubic-bezier(.32, .72, 0, 1);
+  }
+  /* Finish below the dock already clears the safe area. */
+  .modal.workout-sheet .workout-rest-dock:has(+ .workout-footer) { margin-bottom: 8px; }
+}
+.rest-dock-track {
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+  height: 3px;
+  background: var(--accent-border);
+}
+.rest-dock-track > span {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+  transform-origin: left center;
+  transition: transform 1s linear;
+}
+.rest-dock-clock {
+  display: flex;
+  flex-direction: column;
+  flex: 0 0 auto;
+  line-height: 1.1;
+}
+.rest-dock-label {
+  color: var(--accent);
+  font-size: var(--font-secondary);
+  font-weight: 600;
+}
+.rest-dock-value {
+  min-width: 3.6ch;
+  color: var(--text);
+  font-size: 24px;
+  font-weight: 760;
+  letter-spacing: -0.025em;
+  font-variant-numeric: tabular-nums;
+}
+.rest-dock-actions {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  flex: 1 1 auto;
+  max-width: 264px;
+  margin-left: auto;
+}
+.workout-rest-dock .rest-dock-actions .button {
+  min-width: 0;
+  min-height: 48px;
+  padding: 0 6px;
+  border-radius: var(--radius-control);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
 @media (prefers-reduced-motion: reduce) {
+  .modal.workout-sheet .workout-rest-dock { animation: none; }
+  .rest-dock-track > span { transition: none; }
   .workout-paused-label.pulse,
   .workout-rest-bar,
   .workout-rest-bar.over .rest-clock { animation: none; }
