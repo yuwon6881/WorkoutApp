@@ -64,6 +64,10 @@
   margin: 0;
 }
 
+.session-summary-stats.no-records {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
 .session-summary-stats > div {
   display: grid;
   align-content: start;
@@ -309,6 +313,7 @@
   .session-summary { gap: 18px; }
   .session-summary-hero { padding: 16px 14px; gap: 14px; }
   .session-summary-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .session-summary-stats.no-records > div:last-child { grid-column: 1 / -1; }
   .session-summary-stats > div { padding: 10px 12px; }
   .session-summary-stats dd { font-size: 20px; }
   .session-muscle-tile { flex-basis: 116px; }

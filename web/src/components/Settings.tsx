@@ -132,7 +132,7 @@ export function SettingsView(props: SettingsViewProps) {
           <SettingsSection {...training} title="Training" description="How workouts are tracked and move between exercises.">
             <SettingRow
               label={<strong>Track reps in reserve (RIR)</strong>}
-              description="Hide RIR in programs, imports and workouts on every device. Existing targets are kept."
+              description="When off, RIR is hidden in programs, imports and workouts on every device. Existing targets are kept."
               descriptionId="track-rir-description"
             >
               <Switch
@@ -170,6 +170,10 @@ export function SettingsView(props: SettingsViewProps) {
           </SettingsSection>
 
           <AppVersionInfo version={version} />
+          {/* Phones end the page with Sign out rather than open it with one (Settings.css). */}
+          <Button variant="secondary" className="settings-signout-end" disabled={signingOut} onClick={() => void signOut()}>
+            <LogOut size={16} aria-hidden="true" /> Sign out
+          </Button>
         </div>
       </div>
     </div>

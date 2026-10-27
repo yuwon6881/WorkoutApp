@@ -63,13 +63,14 @@ export function SessionDetail({ session: initial, preferences, exercises = [], c
             <p className="session-summary-when">{when}</p>
           </div>
         </div>
-        <dl className="session-summary-stats">
+        {/* No records is not news: the tile appears only when the workout set one. */}
+        <dl className={`session-summary-stats${prCount > 0 ? '' : ' no-records'}`}>
           <div><dt><Clock3 size={14} aria-hidden="true" />Duration</dt><dd>{duration(session)}<small>min</small></dd></div>
           <div><dt><Layers size={14} aria-hidden="true" />Working sets</dt><dd>{session.completedSets}</dd></div>
           <div><dt><Dumbbell size={14} aria-hidden="true" />Volume</dt><dd>{showVolume(session.volumeKg, unit)}</dd></div>
-          <div className={prCount > 0 ? 'has-records' : undefined}>
+          {prCount > 0 && <div className="has-records">
             <dt><Trophy size={14} aria-hidden="true" />Personal bests</dt><dd>{prCount}</dd>
-          </div>
+          </div>}
         </dl>
       </header>
 

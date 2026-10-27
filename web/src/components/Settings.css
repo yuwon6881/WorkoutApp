@@ -102,6 +102,10 @@
   max-width: 100%;
 }
 
+.settings-signout-end {
+  display: none;
+}
+
 .settings-nav {
   display: none;
   min-width: 0;
@@ -359,10 +363,16 @@
     margin-top: 1px;
   }
 
+  /* Sign out moves to the end of the page on phones, so it is not the first large action. */
   .settings-account > .button {
-    grid-column: 1 / -1;
+    display: none;
+  }
+
+  .settings-signout-end {
+    display: inline-flex;
     width: 100%;
     min-height: 44px;
+    justify-content: center;
   }
 
   .settings-avatar {
@@ -457,6 +467,8 @@
   .settings-nav[data-overflow-start]::before,
   .settings-nav[data-overflow-end]::after { opacity: 1; }
   .settings-section { scroll-margin-top: calc(136px + env(safe-area-inset-top, 0px)); }
+  /* The chip row already carries its own margin; the shell gap on top of it left a blank band. */
+  .settings-shell { gap: 8px; }
 }
 @media (min-width: 640px) and (max-width: 1023px) {
   .settings-nav { top: calc(20px + env(safe-area-inset-top, 0px)); }

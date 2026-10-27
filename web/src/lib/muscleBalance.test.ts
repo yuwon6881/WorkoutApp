@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { MuscleBalanceRow } from '../types';
-import { formatSets, peakSets, RANGES, shadeFor } from './muscleBalance';
+import { formatSets, orderBreakdownGroups, peakSets, RANGES, shadeFor } from './muscleBalance';
 
 function row(muscle: string, sets: number): MuscleBalanceRow {
   return { muscle, sets, primarySets: sets, secondarySets: 0, sessions: 1, lastTrainedDate: null };
@@ -39,5 +39,15 @@ describe('muscle balance display metadata', () => {
       { value: '1m', label: 'Last month' },
       { value: '3m', label: 'Last 3 months' }
     ]);
+  });
+});
+
+describe('breakdown group order', () => {
+  it('leads with the group holding more credited sets and keeps the given order on ties', () => {
+    const upper = { title: 'Upper body', muscles: [row('Chest', 0), row('Back', 0)] };
+    const lower = { title: 'Lower body', muscles: [row('Quads', 1), row('Glutes', 0.5)] };
+    expect(orderBreakdownGroups([upper, lower]).map(group => group.title)).toEqual(['Lower body', 'Upper body']);
+    const empty = { title: 'Lower body', muscles: [row('Quads', 0)] };
+    expect(orderBreakdownGroups([upper, empty]).map(group => group.title)).toEqual(['Upper body', 'Lower body']);
   });
 });

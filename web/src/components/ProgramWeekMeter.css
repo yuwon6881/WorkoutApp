@@ -14,9 +14,10 @@
   white-space: nowrap;
 }
 
+/* Emphasis by colour and a moderate weight: at 760 the tabular "1" read as another typeface. */
 .program-week-meter-label strong {
   color: var(--text);
-  font-weight: 760;
+  font-weight: 650;
 }
 
 .program-week-meter-track {

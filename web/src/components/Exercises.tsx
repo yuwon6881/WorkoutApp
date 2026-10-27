@@ -139,7 +139,7 @@ export function ExerciseLibrary({ exercises, onSelect, exclude = emptyIds, onOpe
                       <h3 title={e.name}>{e.name}</h3>
                     </div>
                     <div className="picker-tags">
-                      {loadAdjustable(e) && <span className="pill pill-muted">{e.weightBasis === 'per_side' ? 'Per side' : 'Total weight'}</span>}
+                      {loadAdjustable(e) && e.weightBasis === 'per_side' && <span className="pill pill-muted">Per side</span>}
                       {e.isCustom && <span className="pill pill-muted">Custom</span>}
                       <span className="pill pill-accent picker-muscle-tag">{e.muscle || 'Full body'}</span>
                       {e.secondaryMuscles && e.secondaryMuscles.length > 0 && (
@@ -174,7 +174,7 @@ export function ExerciseLibrary({ exercises, onSelect, exclude = emptyIds, onOpe
                     </div>}
                   </div>
                   <div className="exercise-card-meta">
-                    {loadAdjustable(e) && <span className="pill pill-muted">{e.weightBasis === 'per_side' ? 'Per side' : 'Total weight'}</span>}
+                    {loadAdjustable(e) && e.weightBasis === 'per_side' && <span className="pill pill-muted">Per side</span>}
                     {e.isCustom && <span className="pill pill-muted">Custom</span>}
                     <span className="pill pill-accent">{e.muscle || 'Full body'}</span>
                     {e.secondaryMuscles && e.secondaryMuscles.length > 0 && (

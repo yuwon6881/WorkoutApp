@@ -65,3 +65,7 @@ input:not([type=checkbox]):not([type=radio]):not([type=range]):focus,select:focu
   .modal>.modal-actions.dismiss-only{display:none}
   .modal:has(>.modal-actions.dismiss-only){padding-bottom:env(safe-area-inset-bottom,0px)}
 }
+
+/* A chip strip that already fits has nothing to scroll: no disabled arrows, and no space kept for them. */
+.filter-chips-nav:not(.has-overflow){grid-template-columns:minmax(0,1fr)}
+.filter-chips-nav:not(.has-overflow)>.filter-nav-btn{display:none}

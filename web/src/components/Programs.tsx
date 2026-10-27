@@ -276,6 +276,11 @@ export function Programs({ data, exercises, onStart, onPreview, onImport, onChan
                       ? 'Create a workout or program, or import a PDF. Saved routines and multi-week programs wait here until you activate them.'
                       : 'Import a PDF to start. Your saved programs and routines will wait here until you activate them.'}
                   </p>
+                  {/* The same starts as the page's New menu, where the empty state already points. */}
+                  <div className="pp-library-empty-actions">
+                    {exercises.length > 0 && <Button variant="secondary" onClick={() => open()}><Dumbbell size={15} />New workout</Button>}
+                    <Button variant="tertiary" onClick={onImport} disabled={hasActiveWorkout}><FileText size={15} />Import a PDF</Button>
+                  </div>
                 </div>
               </div>
             </section>
