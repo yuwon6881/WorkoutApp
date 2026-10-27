@@ -240,15 +240,16 @@
     padding: 0 6px;
   }
   .history-item-wrap {
+    gap: 4px;
     padding: 8px 6px;
   }
   .history-row {
-    gap: 12px;
+    gap: 10px;
     padding: 2px 0;
   }
   .history-date,
   .history-date-skeleton {
-    width: 44px;
+    width: 42px;
     height: 48px;
   }
   .history-date > strong {
@@ -257,7 +258,12 @@
   .history-row .row-title > strong {
     font-size: 14px;
   }
+  /* Duration, sets and volume share one line on ordinary phones; the narrowest wrap instead of clipping. */
   .history-stats {
-    gap: 6px 12px;
+    gap: 6px 8px;
+    font-size: 13px;
+  }
+  .history-stats > span:not(.history-pr-pill) {
+    gap: 4px;
   }
 }
