@@ -2,14 +2,14 @@ import { ExerciseLoadSettings } from './ExerciseLoadSettings';
 import { canEnterPerSide } from '../lib/equipmentGroups';
 import { loadAdjustable } from '../lib/exerciseLoads';
 import { useDeferredValue, useEffect, useMemo, useState } from 'react';
-import { ArrowLeftRight, Link2, Plus, Search, X, Trash2, RotateCcw } from 'lucide-react';
-import type { Exercise, ExerciseCategory, ExerciseClearPreview, ExerciseInsight } from '../types';
+import { ArrowLeftRight, Link2, Plus, Search, X, Trash2 } from 'lucide-react';
+import type { Exercise, ExerciseCategory, ExerciseInsight } from '../types';
 import { ApiError, api } from '../lib/api';
-import { forgetSessionDetail } from '../lib/sessionDetailLoad';
 import { showSetCount } from '../lib/training';
 import { weightBasisDescription } from '../lib/weightBasis';
 import { Button } from './ui/Button';
 import { ExerciseHistory } from './ExerciseHistory';
+import { ExerciseHistoryClearing } from './ExerciseHistoryClearing';
 import { SegmentedControl } from './ui/SegmentedControl';
 import { ExerciseProgressChart } from './ExerciseProgressChart';
 import { ExerciseProgressTable } from './ExerciseProgressTable';
@@ -332,11 +332,15 @@ function dateLabel(value: string | null | undefined) {
 
 export function ExerciseDetailModal({ exercise, unit, onClose, onChanged }: { exercise: Exercise; unit: 'kg' | 'lb'; onClose: () => void; onChanged?: () => Promise<void> | void }) {
   const [detailTab, setDetailTab] = useState<'progress' | 'history'>('progress');
-  const [insight, setInsight] = useState<ExerciseInsight | null>(null); const [range, setRange] = useState('3m'); const [selectedMetric, setSelectedMetric] = useState<ChartMetric | null>(null); const [error, setError] = useState(''); const [busy, setBusy] = useState(false); const [historyBusy, setHistoryBusy] = useState(false); const [clearPreview, setClearPreview] = useState<ExerciseClearPreview | null>(null); const [deleteConfirm, setDeleteConfirm] = useState(false);
+  const [insight, setInsight] = useState<ExerciseInsight | null>(null); const [range, setRange] = useState('3m'); const [selectedMetric, setSelectedMetric] = useState<ChartMetric | null>(null); const [error, setError] = useState(''); const [busy, setBusy] = useState(false); const [historyBusy, setHistoryBusy] = useState(false); const [deleteConfirm, setDeleteConfirm] = useState(false);
   const metric = selectedMetric ?? defaultChartMetric(insight?.points ?? []);
   useEffect(() => { const controller = new AbortController(); setInsight(null); setError(''); api.exerciseInsight(exercise.id, range, 0, 20, controller.signal).then(setInsight).catch(failure => { if (!controller.signal.aborted) setError(failure instanceof ApiError ? failure.message : 'Could not load exercise details.'); }); return () => controller.abort(); }, [exercise.id, range]);
-  async function clearHistory() { setBusy(true); try { const preview = await api.exerciseClearPreview(exercise.id); if (preview.hasActiveWorkout) { setError('Finish or discard the active workout before clearing this exercise.'); return; } setClearPreview(preview); } catch (failure) { setError(failure instanceof ApiError ? failure.message : 'Could not prepare history clearing.'); } finally { setBusy(false); } }
-  async function confirmClear() { setBusy(true); try { await api.clearExerciseHistory(exercise.id); forgetSessionDetail(); setClearPreview(null); setInsight(null); await onChanged?.(); setInsight(await api.exerciseInsight(exercise.id, range, 0, 20)); } catch (failure) { setError(failure instanceof ApiError ? failure.message : 'Could not clear this exercise history.'); } finally { setBusy(false); } }
+  async function historyCleared() {
+    setInsight(null);
+    await onChanged?.();
+    try { setInsight(await api.exerciseInsight(exercise.id, range, 0, 20)); }
+    catch (failure) { setError(failure instanceof ApiError ? failure.message : 'Could not load exercise details.'); }
+  }
   async function deleteExercise() { setBusy(true); try { await api.deleteCustomExercise(exercise.id); setDeleteConfirm(false); await onChanged?.(); onClose(); } catch (failure) { setError(failure instanceof ApiError ? failure.message : 'Could not delete this custom exercise.'); } finally { setBusy(false); } }
   async function moreHistory() { if (!insight || historyBusy || insight.history.length >= insight.totalHistoryRows) return; setHistoryBusy(true); try { const next = await api.exerciseInsight(exercise.id, range, insight.page + 1, insight.size); setInsight(current => current ? { ...current, history: [...current.history, ...next.history], page: next.page } : next); } catch (failure) { setError(failure instanceof ApiError ? failure.message : 'Could not load more exercise history.'); } finally { setHistoryBusy(false); } }
   return <>
@@ -379,10 +383,10 @@ export function ExerciseDetailModal({ exercise, unit, onClose, onChanged }: { ex
           {!insight.history.length && !insight.historyClears?.length && <p className="muted">No workout history for this exercise yet.</p>}
         </>}
         {detailTab === 'history' && insight?.historyClears?.map(clear => <div className="exercise-history-cleared" role="status" key={clear.clearedAt}>Exercise history cleared on {dateLabel(clear.clearedAt)} · {showSetCount(clear.removedSets)} removed</div>)}
+        {detailTab === 'history' && Boolean(insight?.clearableSetCount) && <ExerciseHistoryClearing exerciseId={exercise.id} clearableSets={insight!.clearableSetCount} onCleared={historyCleared} />}
       </div>
-      <div className="modal-actions">{Boolean(insight?.clearableSetCount) && <Button variant="tertiary" onClick={clearHistory} disabled={busy}> <RotateCcw size={15} />Clear history</Button>}{exercise.isCustom && !exercise.archived && !insight?.archived && <Button variant="destructive" onClick={() => setDeleteConfirm(true)} disabled={busy}><Trash2 size={15} />Delete custom exercise</Button>}<Button variant="primary" onClick={onClose}>Done</Button></div>
+      <div className="modal-actions">{exercise.isCustom && !exercise.archived && !insight?.archived && <Button variant="destructive" onClick={() => setDeleteConfirm(true)} disabled={busy}><Trash2 size={15} />Delete custom exercise</Button>}<Button variant="primary" onClick={onClose}>Done</Button></div>
     </Modal>
-    {clearPreview && <Modal title="Clear exercise history?" onClose={() => setClearPreview(null)}><div className="modal-body"><p>This permanently removes <strong>{clearPreview.affectedSets} sets</strong> from <strong>{clearPreview.affectedWorkouts} workouts</strong> and resets the exercise's progress records. The workouts themselves stay saved.</p><div className="modal-actions"><Button variant="tertiary" onClick={() => setClearPreview(null)}>Cancel</Button><Button variant="destructive" onClick={confirmClear} disabled={busy}>{busy ? 'Clearing…' : 'Clear history'}</Button></div></div></Modal>}
     {deleteConfirm && <Modal title="Delete custom exercise?" onClose={() => setDeleteConfirm(false)}><div className="modal-body"><p>This removes the exercise from future selections. Existing workout names, sets, records, and totals stay preserved; saved templates will mark the reference as deleted until you replace it.</p><div className="modal-actions"><Button variant="tertiary" onClick={() => setDeleteConfirm(false)}>Cancel</Button><Button variant="destructive" onClick={() => void deleteExercise()} disabled={busy}>{busy ? 'Deleting…' : 'Delete exercise'}</Button></div></div></Modal>}
   </>;
 }
