@@ -37,7 +37,7 @@ public record ExerciseInsight(Guid Id, string Name, string Muscle, string Equipm
     string Category = ExerciseCategories.FreeWeights);
 
 public record ExerciseClearPreview(Guid ExerciseId, string Name, int AffectedWorkouts, int AffectedSets,
-    bool HasActiveWorkout, bool CanClear);
+    bool HasActiveWorkout, bool CanClear, string? ActiveWorkoutName = null);
 
 /// Account-owned exercise creation and server-authoritative exercise analytics. The service keeps
 /// the shared catalog read-only and uses stable exercise ids for every historical query.
@@ -107,17 +107,30 @@ public sealed partial class ExerciseService(AppDb db, IMemoryCache? cache = null
         var rows = await FinishedExerciseRows(id, ct);
         var exerciseIds = rows.Select(x => x.Id).ToList();
         var sets = exerciseIds.Count == 0 ? 0 : await db.Sets.CountAsync(x => exerciseIds.Contains(x.SessionExerciseId), ct);
-        var active = await db.SessionExercises.AnyAsync(x => x.ExerciseId == id && db.Workouts.Any(w => w.Id == x.SessionId && w.Active), ct);
-        return new ExerciseClearPreview(id, meta.Name, rows.Select(x => x.SessionId).Distinct().Count(), sets, active, !active && sets > 0);
+        var reading = await OpenWorkoutReading(id, ct);
+        var active = reading is not null;
+        return new ExerciseClearPreview(id, meta.Name, rows.Select(x => x.SessionId).Distinct().Count(), sets, active, !active && sets > 0, reading);
     }
+
+    /// <summary>
+    /// The name of the open workout that includes this exercise, if any. That workout reads the
+    /// exercise's history for the targets and personal-best baselines it froze at start, its "Last
+    /// time" figures and the progress rebuilt when it finishes, so the history may not be cleared
+    /// under it. An open workout without the exercise reads none of it and does not block.
+    /// </summary>
+    private Task<string?> OpenWorkoutReading(Guid id, CancellationToken ct)
+        => db.Workouts.Where(workout => workout.Active && db.SessionExercises.Any(row => row.SessionId == workout.Id && row.ExerciseId == id))
+            .Select(workout => workout.Name).FirstOrDefaultAsync(ct);
 
     public async Task<ExerciseClearPreview> ClearHistory(Guid id, CancellationToken ct)
     {
         await using var gate = await MutationLock.Acquire(db, db.CurrentUser, ct);
         var meta = await Metadata(id, ct);
         var rows = await FinishedExerciseRows(id, ct);
-        var active = await db.SessionExercises.AnyAsync(x => x.ExerciseId == id && db.Workouts.Any(w => w.Id == x.SessionId && w.Active), ct);
-        Validation.Require(!active, "Finish or discard the active workout before clearing this exercise's history.", 409);
+        // Checked again under the lock: a workout started since the preview cannot have its history cleared away.
+        var reading = await OpenWorkoutReading(id, ct);
+        Validation.Require(reading is null,
+            $"Finish or discard “{reading}” before clearing this exercise's history. It includes this exercise and uses its history for today's targets and records.", 409);
         var exerciseIds = rows.Select(x => x.Id).ToList();
         var sets = exerciseIds.Count == 0 ? [] : await db.Sets.Where(x => exerciseIds.Contains(x.SessionExerciseId)).ToListAsync(ct);
         db.Sets.RemoveRange(sets);

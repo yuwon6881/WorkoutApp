@@ -2,23 +2,25 @@ import { expect, test } from '@playwright/test';
 import { signIn } from './signIn';
 
 // Clearing an exercise's history is permanent, so it lives at the end of the History tab and every
-// press answers in a dialog, including the refusal while a workout is open.
-test('clearing exercise history explains an open workout and asks before removing sets', async ({ page }, info) => {
+// press answers in a dialog. An open workout that includes the exercise reads its history, so the
+// section names it up front, and a workout opened between the check and the confirmation is caught.
+test('clearing exercise history waits for an open workout that uses it and asks before removing sets', async ({ page }, info) => {
   await signIn(page);
   const catalog = await (await page.request.get('/api/exercises')).json();
   const exercise = catalog.find((row: { slug: string }) => row.slug === 'barbell-bench-press') ?? catalog[0];
   let workoutOpen = true;
   let clears = 0;
+  const preview = () => ({ exerciseId: exercise.id, name: exercise.name, affectedWorkouts: 2, affectedSets: 4,
+    hasActiveWorkout: workoutOpen, canClear: !workoutOpen, activeWorkoutName: workoutOpen ? 'Push B' : null });
   await page.route(`**/api/exercises/${exercise.id}/insight?*`, async route => {
     const insight = await (await route.fetch()).json();
     await route.fulfill({ json: { ...insight, clearableSetCount: 4 } });
   });
-  await page.route(`**/api/exercises/${exercise.id}/clear-preview`, route => route.fulfill({ json: {
-    exerciseId: exercise.id, name: exercise.name, affectedWorkouts: 2, affectedSets: 4, hasActiveWorkout: workoutOpen, canClear: !workoutOpen
-  } }));
+  await page.route(`**/api/exercises/${exercise.id}/clear-preview`, route => route.fulfill({ json: preview() }));
   await page.route(`**/api/exercises/${exercise.id}/clear-history`, route => {
+    if (workoutOpen) return route.fulfill({ status: 409, json: { error: 'Finish or discard “Push B” first.' } });
     clears++;
-    return route.fulfill({ json: { exerciseId: exercise.id, name: exercise.name, affectedWorkouts: 2, affectedSets: 4, hasActiveWorkout: false, canClear: true } });
+    return route.fulfill({ json: preview() });
   });
 
   await page.goto('/exercises');
@@ -30,17 +32,16 @@ test('clearing exercise history explains an open workout and asks before removin
 
   await details.getByRole('button', { name: 'History', exact: true }).click();
   const section = details.getByRole('region', { name: 'Clear history', exact: true });
-  await expect(section.getByText(/Removes this exercise's 4 sets/)).toBeVisible();
+  // The open workout is named, and no press that cannot succeed is offered.
+  await expect(section.getByText(/“Push B” includes this exercise and uses its history/)).toBeVisible();
+  await expect(section.getByRole('button', { name: 'Clear history', exact: true })).toHaveCount(0);
   await section.scrollIntoViewIfNeeded();
-  await details.screenshot({ path: info.outputPath('clear-history-section.png') });
-
-  await section.getByRole('button', { name: 'Clear history', exact: true }).click();
-  const blocked = page.getByRole('dialog', { name: 'Workout in progress', exact: true });
-  await expect(blocked.getByText(/Finish or discard the active workout/)).toBeVisible();
-  await blocked.getByRole('button', { name: 'OK', exact: true }).click();
-  await expect(blocked).toBeHidden();
+  await details.screenshot({ path: info.outputPath('clear-history-blocked.png') });
 
   workoutOpen = false;
+  await section.getByRole('button', { name: 'Check again', exact: true }).click();
+  await expect(section.getByText(/Removes this exercise's 4 sets/)).toBeVisible();
+  await details.screenshot({ path: info.outputPath('clear-history-section.png') });
   await section.getByRole('button', { name: 'Clear history', exact: true }).click();
   const confirmation = page.getByRole('dialog', { name: 'Clear exercise history?', exact: true });
   await expect(confirmation.getByText('4 sets', { exact: true })).toBeVisible();
@@ -50,6 +51,19 @@ test('clearing exercise history explains an open workout and asks before removin
   await expect(confirmation).toBeHidden();
   expect(clears).toBe(0);
 
+  // A workout with this exercise opens elsewhere while the confirmation is up.
+  await section.getByRole('button', { name: 'Clear history', exact: true }).click();
+  workoutOpen = true;
+  await confirmation.getByRole('button', { name: 'Clear history', exact: true }).click();
+  const blocked = page.getByRole('dialog', { name: 'Workout in progress', exact: true });
+  await expect(blocked.getByText(/“Push B” includes this exercise/)).toBeVisible();
+  await blocked.getByRole('button', { name: 'OK', exact: true }).click();
+  await expect(blocked).toBeHidden();
+  await expect(section.getByRole('button', { name: 'Check again', exact: true })).toBeVisible();
+  expect(clears).toBe(0);
+
+  workoutOpen = false;
+  await section.getByRole('button', { name: 'Check again', exact: true }).click();
   await section.getByRole('button', { name: 'Clear history', exact: true }).click();
   await confirmation.getByRole('button', { name: 'Clear history', exact: true }).click();
   await expect(confirmation).toBeHidden();
