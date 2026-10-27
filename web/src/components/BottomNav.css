@@ -11,22 +11,22 @@
   justify-content: center;
   background: transparent;
   border: 0;
-  padding: 0 max(12px, env(safe-area-inset-left, 0px)) calc(10px + env(safe-area-inset-bottom, 0px)) max(12px, env(safe-area-inset-right, 0px));
+  padding: 0 max(8px, env(safe-area-inset-left, 0px)) calc(10px + env(safe-area-inset-bottom, 0px)) max(8px, env(safe-area-inset-right, 0px));
   pointer-events: none;
 }
 
 /* Each label needs about 66px at 14px, so phones under 400px give the bar a narrower margin. */
 @media (max-width: 399px) {
   .bottom-nav {
-    padding-left: max(8px, env(safe-area-inset-left, 0px));
-    padding-right: max(8px, env(safe-area-inset-right, 0px));
+    padding-left: max(6px, env(safe-area-inset-left, 0px));
+    padding-right: max(6px, env(safe-area-inset-right, 0px));
   }
 }
 
 @media (max-width: 359px) {
   .bottom-nav {
-    padding-left: max(6px, env(safe-area-inset-left, 0px));
-    padding-right: max(6px, env(safe-area-inset-right, 0px));
+    padding-left: max(4px, env(safe-area-inset-left, 0px));
+    padding-right: max(4px, env(safe-area-inset-right, 0px));
   }
 }
 
@@ -37,13 +37,15 @@
 .bottom-nav-track {
   pointer-events: auto;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 56px minmax(0, 1fr) minmax(0, 1fr);
+  /* The labels get every pixel the bar can spare: no gaps between tabs, a slim inset, and a centre
+     slot exactly as wide as the round action. */
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 60px minmax(0, 1fr) minmax(0, 1fr);
   align-items: center;
-  gap: 2px;
+  gap: 0;
   width: 100%;
-  max-width: 460px;
+  max-width: 480px;
   position: relative;
-  padding: 6px;
+  padding: 4px;
   border-radius: 22px;
   border: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
   background: color-mix(in srgb, var(--surface) 82%, transparent);
@@ -118,12 +120,12 @@
   font-size: var(--font-secondary);
   font-weight: 600;
   line-height: 1.15;
-  letter-spacing: -0.01em;
+  letter-spacing: -0.02em;
   color: inherit;
   white-space: nowrap;
 }
 
-.bottom-nav-track > .bottom-nav-item.selected .bottom-nav-label { font-weight: 720; }
+.bottom-nav-track > .bottom-nav-item.selected .bottom-nav-label { font-weight: 650; }
 /* Five 14px labels cannot share the narrowest phones; the icons stay, each button keeps its name. */
 @media (max-width: 359px) { .bottom-nav-label { display: none; } }
 

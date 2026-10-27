@@ -110,7 +110,7 @@
 .app-loading .progress-stats > * { grid-column: auto; }
 @media (max-width: 639px) { .app-loading .progress-stats { padding: 12px 10px; } }
 .skeleton-stat { min-height: 52px; }
-.app-loading-bottom-nav { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 56px minmax(0, 1fr) minmax(0, 1fr); align-items: center; gap: 2px; padding: 6px; }
+.app-loading-bottom-nav { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 60px minmax(0, 1fr) minmax(0, 1fr); align-items: center; gap: 0; padding: 4px; }
 .skeleton-bottom-item { height: 56px; border-radius: 14px !important; }
 .skeleton-bottom-action { width: 56px; height: 56px; border-radius: 50% !important; }
 

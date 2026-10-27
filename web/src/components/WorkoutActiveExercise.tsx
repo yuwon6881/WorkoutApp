@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { Fragment, useEffect, useRef, useState } from 'react';
 import {
   ChartLine,
   Check,
@@ -22,9 +22,8 @@ import { api } from '../lib/api';
 import { restOptions } from '../lib/training';
 import { showExerciseWeight } from '../lib/weightBasis';
 import { ProgressionChangeBadge } from './ProgressionChangeBadge';
-import { setNumberLabel, withSetAdded, withSetRemoved, withSetsRestored } from '../lib/workoutDraft';
+import { setNumberLabel, withSetAdded, withSetRemoved } from '../lib/workoutDraft';
 import { allowedSetTypes, withSetType } from '../lib/workoutSetTypes';
-import type { RemovedSet } from '../lib/workoutDraft';
 import { Button } from './ui/Button';
 import { TextAreaField } from './ui/Field';
 import { Modal } from './ui/Modal';
@@ -32,6 +31,8 @@ import { MenuButton, MenuItem } from './ui/MenuButton';
 import { Select } from './ui/Select';
 import { ExerciseLibrary } from './Exercises';
 import { WorkoutSetRow } from './WorkoutSetRow';
+import { WorkoutRemovedSet } from './WorkoutRemovedSet';
+import { useRemovedSets } from './useRemovedSets';
 import { WorkoutWarmupButton } from './WorkoutWarmupButton';
 import { warmupOffer, withWarmups } from '../lib/workoutWarmups';
 import { DemoLink } from './ui/DemoLink';
@@ -44,10 +45,6 @@ import { canEnterPerSide } from '../lib/equipmentGroups';
 import { loadColumnLabel, loadEntryFor } from '../lib/resistanceVariant';
 import { exerciseRestSeconds } from '../lib/restRules';
 import './WorkoutLogger.css';
-
-// Long enough to notice a mistaken swipe-delete and reach Undo, short enough not to linger. Each
-// further removal restarts it, so a quick run of deletes stays undoable as one.
-const UNDO_WINDOW_MS = 5000;
 
 export function WorkoutActiveExercise({
   exercise,
@@ -108,31 +105,20 @@ export function WorkoutActiveExercise({
     setWeightsOpen(false);
   }
 
-  const [removed, setRemoved] = useState<{ sets: RemovedSet[]; label: string } | null>(null);
+  const removedSets = useRemovedSets(draft, index, change);
 
   const prescription = exercise.prescription;
   const loadEntry = loadEntryFor(exercise);
 
-  // A removed set can be put back for a few seconds, so a mis-tap never costs a logged set.
-  useEffect(() => {
-    if (!removed) return;
-    const timer = setTimeout(() => setRemoved(null), UNDO_WINDOW_MS);
-    return () => clearTimeout(timer);
-  }, [removed]);
-
   function removeSet(setIndex: number) {
     const removal = withSetRemoved(draft, index, setIndex);
     if (!removal) return;
+    // Measured before the change, so the placeholder takes exactly the row's height.
+    const row = document.querySelector<HTMLElement>(`[data-set-id="${CSS.escape(exercise.sets[setIndex].id)}"]`);
+    const height = row?.getBoundingClientRect().height ?? 56;
     change(removal.next);
     // Named as the row showed it, so a warm-up reads W1 rather than its position.
-    const label = setNumberLabel(exercise, setIndex).label;
-    setRemoved(current => ({ sets: [...(current?.sets ?? []), removal.removed], label }));
-  }
-
-  function undoRemoveSet() {
-    const restored = removed && withSetsRestored(draft, removed.sets);
-    setRemoved(null);
-    if (restored) change(restored);
+    removedSets.hold(exercise, removal.removed, setNumberLabel(exercise, setIndex).label, height);
   }
 
   // The library already ranks the program's alternatives and similar movements first, so it is
@@ -288,11 +274,12 @@ export function WorkoutActiveExercise({
         </div>
 
         <div className="workout-set-rows">
+          {removedSets.after(null).map(placeholder => <WorkoutRemovedSet key={placeholder.key} placeholder={placeholder} onUndo={removedSets.undo} />)}
           {exercise.sets.map((set, si) => {
             const plan = prescription[si] ?? prescription.at(-1);
             return (
+              <Fragment key={set.id}>
               <WorkoutSetRow
-                key={set.id}
                 set={set}
                 si={si}
                 ei={index}
@@ -309,17 +296,14 @@ export function WorkoutActiveExercise({
                 onSetType={(sidx, type) => change(withSetType(draft, index, sidx, type))}
                 onRemoveSet={sidx => removeSet(sidx)}
               />
+              {removedSets.after(set.id).map(placeholder => <WorkoutRemovedSet key={placeholder.key} placeholder={placeholder} onUndo={removedSets.undo} />)}
+              </Fragment>
             );
           })}
+          {removedSets.orphaned(exercise).map(placeholder => <WorkoutRemovedSet key={placeholder.key} placeholder={placeholder} onUndo={removedSets.undo} />)}
         </div>
 
         <div className="workout-set-table-footer">
-          {removed && (
-            <div className="workout-set-undo" role="status">
-              <span>{removed.sets.length === 1 ? `Set ${removed.label} removed.` : `${removed.sets.length} sets removed.`}</span>
-              <Button variant="tertiary" onClick={undoRemoveSet}>Undo</Button>
-            </div>
-          )}
           <div className="workout-set-table-actions">
             <Button
               variant="secondary"

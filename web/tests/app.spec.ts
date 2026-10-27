@@ -720,10 +720,15 @@ test('build a workout, log a set against the server, and see it in history', asy
       await page.mouse.move(box.x - 60, box.y + box.height / 2, { steps: 8 });
       await page.mouse.up();
     }
+    const addSet = activeLogger.getByRole('button', { name: 'Add set', exact: true });
+    const addSetBefore = (await addSet.boundingBox())!.y;
     await activeLogger.getByRole('button', { name: 'Remove Barbell bench press set 2', exact: true }).click();
     await expect(weights).toHaveCount(setCount - 1);
-    await expect(activeLogger.getByRole('status').filter({ hasText: 'Set 2 removed.' })).toBeVisible();
-    await activeLogger.getByRole('button', { name: 'Undo', exact: true }).click();
+    expect(Math.abs((await addSet.boundingBox())!.y - addSetBefore)).toBeLessThan(1.5);
+    // The removed set holds its row's place, so the rows below it do not move while Undo is offered.
+    const placeholder = activeLogger.locator('.workout-set-removed');
+    await expect(placeholder.getByRole('status')).toHaveText('Set 2 removed.');
+    await activeLogger.getByRole('button', { name: 'Undo removing set 2', exact: true }).click();
     await expect(weights).toHaveCount(setCount);
     await expect(secondWeight).toHaveValue('55');
 

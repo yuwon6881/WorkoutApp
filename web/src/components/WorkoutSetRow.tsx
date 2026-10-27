@@ -99,6 +99,7 @@ export function WorkoutSetRow({
 
   const row = (
     <div
+      data-set-id={set.id}
       className={`workout-set-row ${set.done ? 'done' : ''} ${warmup ? 'warmup-row' : ''} ${
         target.load ? 'has-suggestion' : ''
       } ${current && !set.done ? 'current' : ''} ${justLogged ? 'just-logged' : ''} ${nudging ? 'nudge' : ''} ${timed ? 'timed-row' : ''}`.replace(/\s+/g, ' ').trim()}
