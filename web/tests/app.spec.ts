@@ -1681,7 +1681,7 @@ test('overview completion follows the active program week rather than calendar a
   if ((page.viewportSize()?.width ?? 0) >= 1024) {
     await expect(ring).toHaveCSS('width', '44px');
     await expect(ring.locator('text')).toHaveCSS('font-size', '22px');
-    await expect(ring.locator('.completion-total')).toHaveCSS('font-size', '15px');
+    await expect(ring.locator('.completion-total')).toHaveCount(0);
   }
   await page.screenshot({ animations: 'disabled', path: join(screenshotsDirectory, `overview-program-week-${info.project.name}.png`) });
   await page.locator('.calendar-week-rail').focus();

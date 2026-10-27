@@ -35,7 +35,7 @@ describe('bodyweight variants', () => {
   it('marks an assisted machine as assistance even though it is logged as an external load', () => {
     expect(loadEntryFor(named('Assisted Pull-Up', 'external'))).toBe('assistance');
     expect(loadColumnLabel(loadEntryFor(named('Assisted Pull-Up', 'external')), 'kg')).toBe('Assist');
-    expect(loadColumnLabel(loadEntryFor(named('Weighted Dip')), 'kg')).toBe('+KG');
+    expect(loadColumnLabel(loadEntryFor(named('Weighted Dip')), 'kg')).toBe('+kg');
     expect(loadColumnLabel(loadEntryFor(named('Dip')), 'kg')).toBe('BW');
   });
 

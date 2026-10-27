@@ -20,3 +20,14 @@ export const NAV: NavItem[] = [
 export function navView(tab: Tab): LazyView {
   return tab === 'program' ? 'programs' : tab === 'body' ? 'muscles' : tab === 'exercises' ? 'exercises' : 'workout';
 }
+
+/** The destination a tab belongs to: Import is reached from, and returns to, Workouts. */
+export function navSection(tab: Tab): Tab {
+  return tab === 'import' ? 'program' : tab;
+}
+
+/** `page` for the destination itself, `true` for the section a sub-page (Import) sits in. */
+export function navCurrent(tab: Tab, item: Tab): 'page' | 'true' | undefined {
+  if (tab === item) return 'page';
+  return navSection(tab) === item ? 'true' : undefined;
+}

@@ -355,7 +355,7 @@ export function ExerciseDetailModal({ exercise, unit, onClose, onChanged }: { ex
           <span className="pill pill-category">{getExerciseCategory(exercise)}</span>
         </div>}
         {detailTab === 'progress' && !exercise.archived && loadAdjustable(exercise) && <ExerciseLoadSettings key={exercise.id} exerciseId={exercise.id} exerciseName={exercise.name} unit={unit} perSide={canEnterPerSide(exercise)} onChanged={onChanged} />}
-        {loadAdjustable(exercise) && <p className="muted">{weightBasisDescription(exercise)}</p>}
+        {detailTab === 'progress' && loadAdjustable(exercise) && <p className="muted">{weightBasisDescription(exercise)}</p>}
         {error && <div className="error-banner" role="alert">{error}</div>}
         {!insight && !error && <div className="skeleton detail-loading" aria-label="Loading exercise details" />}
         {insight && insight.totalHistoryRows === 0 && <p className="muted">No workout history yet. Complete a workout to see progress here.</p>}

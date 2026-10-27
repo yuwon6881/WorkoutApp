@@ -1,4 +1,4 @@
-import { useRef, useState, type FormEvent } from 'react';
+import { useId, useRef, useState, type FormEvent } from 'react';
 import type { CustomExerciseCreated, ExerciseCategory, TrackingMode, WeightBasis } from '../types';
 import { ApiError, api } from '../lib/api';
 import { getExerciseCategory } from '../lib/exerciseCategory';
@@ -24,6 +24,7 @@ export function CustomExerciseModal({ onClose, onCreated, initialName = '', onEx
   initialName?: string;
   onExerciseCreated?: (exercise: CustomExerciseCreated) => Promise<void> | void;
 }) {
+  const formId = useId();
   const [name, setName] = useState(initialName);
   const [muscle, setMuscle] = useState('');
   const [equipment, setEquipment] = useState('');
@@ -74,7 +75,7 @@ export function CustomExerciseModal({ onClose, onCreated, initialName = '', onEx
   }
 
   return <Modal title={createdExercise ? 'Finish mapping exercise' : 'Create custom exercise'} onClose={() => !busy && onClose()}>
-    <form className="modal-body" noValidate onSubmit={submit}>
+    <form id={formId} className="modal-body" noValidate onSubmit={submit}>
       <Field name="custom-exercise-name" label="Name" autoCorrect="off" spellCheck={false} value={name} onChange={event => setName(event.target.value)} maxLength={160} autoFocus disabled={!!createdExercise} />
       <div className="form-grid-two">
         <label className="field"><span>Primary muscle</span><Select name="custom-exercise-muscle" label="Primary muscle" value={muscle} onChange={value => {
@@ -121,12 +122,13 @@ export function CustomExerciseModal({ onClose, onCreated, initialName = '', onEx
       </div>
       <p className="muted">Weights follow the default for its equipment. Give it its own from the exercise details or Settings.</p>
       {error && <div className="error-text" role="alert">{error}</div>}
-      <div className="modal-actions">
-        <Button variant="tertiary" type="button" onClick={onClose} disabled={busy}>Cancel</Button>
-        <Button variant="primary" type="submit" disabled={busy}>
-          {busy ? (createdExercise ? 'Mapping…' : 'Creating…') : createdExercise ? 'Retry mapping' : 'Create and map exercise'}
-        </Button>
-      </div>
     </form>
+    {/* A direct child of the dialog, so the shared sticky footer keeps it in view on long forms. */}
+    <div className="modal-actions">
+      <Button variant="tertiary" type="button" onClick={onClose} disabled={busy}>Cancel</Button>
+      <Button variant="primary" type="submit" form={formId} disabled={busy}>
+        {busy ? (createdExercise ? 'Mapping…' : 'Creating…') : createdExercise ? 'Retry mapping' : 'Create and map exercise'}
+      </Button>
+    </div>
   </Modal>;
 }

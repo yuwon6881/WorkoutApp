@@ -33,7 +33,7 @@ export const loadSign = (entry: LoadEntry): string => entry === 'added' ? '+' : 
 export function loadColumnLabel(entry: LoadEntry, unit: string, exercise: WithWeightBasis = {}): string {
   if (entry === 'assistance') return 'Assist';
   if (entry === 'bodyweight') return 'BW';
-  return `${loadSign(entry)}${weightUnit(unit, exercise).toUpperCase()}`;
+  return `${loadSign(entry)}${weightUnit(unit, exercise)}`;
 }
 
 /// What the load field is called for a screen reader, in the same words as the column.

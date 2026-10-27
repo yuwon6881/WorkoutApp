@@ -350,6 +350,8 @@ details>p{font-size:14px!important;line-height:1.5;color:var(--muted);margin-top
 .detail-record-grid .stat-card>strong{font-size:16px!important;font-weight:650;line-height:1.35;letter-spacing:-0.01em;margin:4px 0 2px;white-space:normal}
 .detail-record-grid .stat-card small{display:block;margin-top:2px;color:var(--muted);font-size:11px}
 .exercise-detail-modal .section-heading:has(.detail-selectors){align-items:end}
+/* Centred on the select boxes, not their labels, so the title reads as part of the control row. */
+.exercise-detail-modal .section-heading:has(.detail-selectors)>h3{min-height:44px;display:flex;align-items:center}
 .exercise-detail-modal .section-heading .field{margin:0;min-width:150px}
 .detail-selectors{display:flex;gap:8px;align-items:end;flex-wrap:wrap}
 .detail-selectors .field{min-width:150px}
@@ -402,6 +404,7 @@ details>p{font-size:14px!important;line-height:1.5;color:var(--muted);margin-top
   .detail-record-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
   .detail-record-grid .stat-card:last-child{grid-column:1 / -1}
   .exercise-detail-modal .section-heading:has(.detail-selectors){align-items:stretch;flex-direction:column}
+  .exercise-detail-modal .section-heading:has(.detail-selectors)>h3{min-height:0}
   .exercise-detail-modal .section-heading .field{min-width:0}
   .detail-selectors{width:100%;align-items:stretch}
   .detail-selectors .field{flex:1 1 140px;min-width:0}

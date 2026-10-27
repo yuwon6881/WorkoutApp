@@ -439,6 +439,23 @@
   }
   .settings-nav-list > .button.is-current { border-color: var(--accent-border-strong); background: var(--accent-soft); color: var(--accent); font-weight: 650; }
   .settings-nav-list > .selection-indicator-marker { display: none; }
+  /* The scrollbar is hidden, so a fade at each edge that hides chips says the row scrolls. */
+  .settings-nav::before,
+  .settings-nav::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    z-index: 1;
+    width: 36px;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity var(--motion-control) var(--motion-ease);
+  }
+  .settings-nav::before { left: 0; background: linear-gradient(to left, transparent, var(--bg)); }
+  .settings-nav::after { right: 0; background: linear-gradient(to right, transparent, var(--bg)); }
+  .settings-nav[data-overflow-start]::before,
+  .settings-nav[data-overflow-end]::after { opacity: 1; }
   .settings-section { scroll-margin-top: calc(136px + env(safe-area-inset-top, 0px)); }
 }
 @media (min-width: 640px) and (max-width: 1023px) {
