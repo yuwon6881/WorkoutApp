@@ -28,7 +28,7 @@ export function withLoggedSetEdit(draft: Session, ei: number, si: number, patch:
     ? { ...item, sets: item.sets.map((set, setIndex) => setIndex === si ? { ...set, ...patch } : set) } : item) };
   const isResult = patch.done === true || 'weightKg' in patch || 'reps' in patch || 'rpe' in patch || 'rir' in patch;
   if (!isResult) return edited;
-  const adjusted = withLiveAdjustment(edited, ei, si, exerciseLoadGrid(exercise, catalog, unit), trackRir, filled);
+  const adjusted = withLiveAdjustment(edited, ei, si, exerciseLoadGrid(exercise, catalog, unit), trackRir, filled, copied);
   return withEmptyLoadsFilled(adjusted, ei, si, copied);
 }
 
@@ -91,12 +91,11 @@ type Reading = { entry: LoadEntry; referenceKg: number | null | undefined; track
 
 /// How many reps the lifter could have done at a set's planned load, from what they logged:
 /// load moved × (reps + reserve + 30) is held constant across loads, as the server reads it.
-function repsToFailureAtPlan(set: LoggedSet, goal: number, reading: Reading): number | null {
-  const suggestion = set.suggestion;
-  if (!suggestion || set.reps === null || set.reps <= 0) return null;
+function repsToFailureAtPlan(set: LoggedSet, plannedKg: number | null, goal: number, reading: Reading): number | null {
+  if (set.reps === null || set.reps <= 0) return null;
   const reserve = reading.trackRir ? effortValue(set) ?? goal : goal;
   const actual = movedLoad(reading.entry, reading.referenceKg, set.weightKg);
-  const planned = movedLoad(reading.entry, reading.referenceKg, suggestion.suggestedLoadKg);
+  const planned = movedLoad(reading.entry, reading.referenceKg, plannedKg);
   if (actual === null || planned === null) return set.reps + reserve;
   return (actual * (set.reps + reserve + 30)) / planned - 30;
 }
@@ -106,9 +105,37 @@ const clampReps = (reps: number, target: RepPlan) => Math.min(target.high, Math.
 /// The working sets that can steer and be steered: not warm-ups, and with a rep target.
 const steerable = (exercise: SessionExercise, index: number) => !exercise.sets[index].warmup && !exercise.prescription[index]?.warmup;
 
+/// For a movement with no history, each kind's first logged set stands in for the server's prefill:
+/// its load, and the reps that leave the target reserve given how many it had left. Only kinds
+/// where no set has history get one, so a set added to a movement with history never steers it.
+function firstTimeBaselines(exercise: SessionExercise, reading: Reading): Map<SetKind, FilledInputs> {
+  const withHistory = new Set<SetKind>();
+  const firsts = new Map<SetKind, FilledInputs>();
+  exercise.sets.forEach((set, index) => {
+    if (!steerable(exercise, index)) return;
+    const plan = exercise.prescription[index];
+    const kind = setKind(set, plan);
+    if (baseInputs(set, plan, reading.trackRir)) { withHistory.add(kind); return; }
+    const target = repPlan(plan);
+    if (firsts.has(kind) || !set.done || !target) return;
+    const toFailure = repsToFailureAtPlan(set, set.weightKg, target.goal, reading);
+    if (toFailure === null) return;
+    const effort = reading.trackRir ? effortPatch(Math.round(target.goal)) : { rpe: null, rir: null };
+    const reps = clampReps(Math.round(toFailure - target.goal), target);
+    firsts.set(kind, { weightKg: set.weightKg, reps, rpe: effort.rpe, rir: effort.rir ?? null });
+  });
+  withHistory.forEach(kind => firsts.delete(kind));
+  return firsts;
+}
+
+/// What a set is steered from: the server's prefill, else (with no history) its kind's first logged set.
+function baseFor(set: LoggedSet, plan: SetPrescription | undefined, baselines: Map<SetKind, FilledInputs>, trackRir: boolean) {
+  return baseInputs(set, plan, trackRir) ?? baselines.get(setKind(set, plan)) ?? null;
+}
+
 /// How far each logged set of every kind landed from its plan, each kind on its own (straight sets
 /// with straight sets, each technique with the same technique), ordered by place within its kind.
-function loggedDeviations(exercise: SessionExercise, reading: Reading): Map<SetKind, Deviation[]> {
+function loggedDeviations(exercise: SessionExercise, reading: Reading, baselines: Map<SetKind, FilledInputs>): Map<SetKind, Deviation[]> {
   const byKind = new Map<SetKind, Deviation[]>();
   const places = new Map<SetKind, number>();
   exercise.sets.forEach((set, index) => {
@@ -118,8 +145,8 @@ function loggedDeviations(exercise: SessionExercise, reading: Reading): Map<SetK
     places.set(kind, position + 1);
     const plan = exercise.prescription[index];
     const target = repPlan(plan);
-    const base = target && baseInputs(set, plan, reading.trackRir);
-    const actual = set.done && target ? repsToFailureAtPlan(set, target.goal, reading) : null;
+    const base = target && baseFor(set, plan, baselines, reading.trackRir);
+    const actual = set.done && target && base ? repsToFailureAtPlan(set, base.weightKg, target.goal, reading) : null;
     if (!target || base?.reps == null || actual === null) return;
     const list = byKind.get(kind) ?? [];
     list.push({ position, reps: actual - (clampReps(base.reps, target) + target.goal) });
@@ -136,10 +163,13 @@ function loggedDeviations(exercise: SessionExercise, reading: Reading): Map<SetK
 /// yet follows the load of the straight set before it, as the server starts it. Barbells and
 /// machines, weighted and assisted bodyweight movements (through the session's frozen bodyweight),
 /// and reps-only movements all take part; warm-ups and timed holds, which record no effort to read
-/// a fade from, are left alone, as are a set the lifter has typed into and a first time with no
-/// history.
+/// a fade from, are left alone, as is a set the lifter has typed into. A movement with no history
+/// starts from its first logged set: the sets after it take its load and the reps that leave the
+/// target reserve, and later sets steer from it as they would from a prefill, filling only sets that
+/// are still blank (or hold a load copied into them, or this adjustment's last fill).
 export function withLiveAdjustment(
-  draft: Session, exerciseIndex: number, setIndex: number, grid: LoadGrid, trackRir: boolean, filled: FilledInputsLog
+  draft: Session, exerciseIndex: number, setIndex: number, grid: LoadGrid, trackRir: boolean, filled: FilledInputsLog,
+  copied: CopiedLoadsLog = new Map()
 ): Session {
   const exercise = draft.exercises[exerciseIndex];
   const logged = exercise?.sets[setIndex];
@@ -147,7 +177,8 @@ export function withLiveAdjustment(
   const entry = loadEntryFor(exercise);
   const reading: Reading = { entry, referenceKg: draft.bodyWeight?.referenceKg, trackRir };
   const axis = loadAxisFor(entry, reading.referenceKg, grid);
-  const deviations = loggedDeviations(exercise, reading);
+  const baselines = firstTimeBaselines(exercise, reading);
+  const deviations = loggedDeviations(exercise, reading, baselines);
   const trends = new Map([...deviations].map(([kind, list]) => [kind, deviationTrend(list)]));
 
   let changed = false;
@@ -162,12 +193,15 @@ export function withLiveAdjustment(
     places.set(kind, place + 1);
     if (set.done) return;
     const target = repPlan(plan);
-    const base = baseInputs(set, plan, trackRir);
+    const prefill = baseInputs(set, plan, trackRir);
+    const base = prefill ?? baselines.get(kind);
     if (!target || !base || base.reps === null) return;
     const current = inputsOf(set);
     const lastFilled = filled.get(set.id);
-    // Only a set still holding the program's fill, or the last adjustment's, is the app's to move.
-    if (!holds(current, base) && !(lastFilled && holds(current, lastFilled))) return;
+    // Only a set still holding the program's fill (or, with no history, still blank), or the last
+    // adjustment's, is the app's to move.
+    const untouched = prefill ? holds(current, prefill) : isBlank(set, copied);
+    if (!untouched && !(lastFilled && holds(current, lastFilled))) return;
     const own = deviations.get(kind);
     const last = own?.at(-1);
     let next: FilledInputs | null;
@@ -179,11 +213,20 @@ export function withLiveAdjustment(
     }
     if (!next || sameInputs(next, current)) return;
     filled.set(set.id, next);
+    copied.delete(set.id);
     changed = true;
     sets[index] = { ...set, weightKg: next.weightKg, reps: next.reps, rpe: next.rpe, rir: next.rir };
   });
   if (!changed) return draft;
   return { ...draft, exercises: draft.exercises.map((item, index) => index === exerciseIndex ? { ...item, sets } : item) };
+}
+
+/// A set with no history the lifter has not filled: no reps or effort, and no load or only one
+/// copied in from an earlier set.
+function isBlank(set: LoggedSet, copied: CopiedLoadsLog): boolean {
+  if (set.reps !== null || set.rpe !== null || (set.rir ?? null) !== null) return false;
+  const copiedLoad = copied.get(set.id);
+  return set.weightKg === null || (copiedLoad !== undefined && Math.abs(copiedLoad - set.weightKg) < 1e-4);
 }
 
 /// A technique set that starts at the load of the straight set before it keeps doing so when that
