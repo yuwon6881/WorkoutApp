@@ -143,6 +143,13 @@ export function MuscleBalanceView({ timeZone, onExercise, refreshKey }: { timeZo
               <div className="section-heading muscle-balance-section-heading">
                 <h2>Anatomy map</h2>
               </div>
+              {/* The key sits above the figure so it is read first, even when the map fills the screen. */}
+              <div className="muscle-balance-legend" aria-label="Credited sets scale">
+                <span className="muscle-legend-item"><i className="legend-swatch empty" />Untrained</span>
+                <span className="muscle-legend-item"><i className="legend-swatch low" />Fewer sets</span>
+                <span className="muscle-legend-item"><i className="legend-swatch mid" />More sets</span>
+                <span className="muscle-legend-item"><i className="legend-swatch peak" />Most sets</span>
+              </div>
               <MotionPanel motionKey={`muscle-map-${range}`} className="muscle-balance-map-body">
                 <BodyMap
                   muscles={view.muscles}
@@ -153,12 +160,6 @@ export function MuscleBalanceView({ timeZone, onExercise, refreshKey }: { timeZo
                 />
                 <MuscleDetail muscle={detail} dateLabel={dateLabel} />
               </MotionPanel>
-              <div className="muscle-balance-legend" aria-label="Credited sets scale">
-                <span className="muscle-legend-item"><i className="legend-swatch empty" />Untrained</span>
-                <span className="muscle-legend-item"><i className="legend-swatch low" />Fewer sets</span>
-                <span className="muscle-legend-item"><i className="legend-swatch mid" />More sets</span>
-                <span className="muscle-legend-item"><i className="legend-swatch peak" />Most sets</span>
-              </div>
               {view.unattributedSets > 0 && (
                 <p className="muscle-balance-unattributed">
                   {formatSets(view.unattributedSets)} completed {view.unattributedSets === 1 ? 'set could' : 'sets could'} not be matched to a muscle and are excluded from the map.

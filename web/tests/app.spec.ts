@@ -746,7 +746,7 @@ test('build a workout, log a set against the server, and see it in history', asy
     await expect(page.getByText('Workout complete', { exact: true })).toBeVisible();
     await expect(page.getByText('60 kg × 8', { exact: true })).toBeVisible();
     await expect(page.getByText(/(?:RPE 8|2 RIR)/, { exact: true })).toBeVisible();
-    await page.getByRole('button', { name: 'Done', exact: true }).click();
+    await page.getByRole('dialog').filter({ hasText: 'Workout complete' }).getByRole('button', { name: 'Close dialog', exact: true }).click();
 
     await openTab(page, 'Overview');
     await expect(page.getByRole('heading', { name: 'Overview' })).toBeVisible();
@@ -813,7 +813,7 @@ test('build a workout, log a set against the server, and see it in history', asy
       await page.evaluate(value => document.documentElement.dataset.theme = value, theme);
       await page.screenshot({ path: join(screenshotsDirectory, testInfo.project.name + '-exercise-history-' + theme + '.png') });
     }
-    await exerciseDetail.getByRole('button', { name: 'Done', exact: true }).click();
+    await exerciseDetail.getByRole('button', { name: 'Close dialog', exact: true }).click();
 
     // Starting the same plan again has to carry the last session forward: 8 reps at RPE 8 against
     // a target of 8-12 leaves effort in the tank, so the app asks for one more rep at the same
@@ -1280,7 +1280,7 @@ test('import a PDF program, resolve an unmapped exercise, and accept it', async 
     if (value) element.setAttribute('data-theme', value);
     else element.removeAttribute('data-theme');
   }, originalTheme);
-  await libraryDayModal.getByRole('button', { name: 'Done', exact: true }).click();
+  await libraryDayModal.getByRole('button', { name: 'Close dialog', exact: true }).click();
   await expect(libraryDayModal).toBeHidden();
   const programId = await page.evaluate(async programName => {
     const response = await fetch('/api/bootstrap', { headers: { 'X-Workout-Request': '1' }, cache: 'no-store' });
@@ -1633,7 +1633,7 @@ test('overview calendar opens matching completed and active sessions and leaves 
   const completed = page.getByRole('dialog', { name: 'Evening Bench & Arms', exact: true });
   await expect(completed).toBeVisible();
   await expect(completed.getByText('Completed workout', { exact: true })).toBeVisible();
-  await completed.getByRole('button', { name: 'Done', exact: true }).click();
+  await completed.getByRole('button', { name: 'Close dialog', exact: true }).click();
   if (today.getDay() === 1) {
     await page.locator('.calendar-week-rail').focus();
     await page.keyboard.press('ArrowLeft');
@@ -1644,7 +1644,7 @@ test('overview calendar opens matching completed and active sessions and leaves 
   const active = page.getByRole('dialog', { name: 'Late Night Squats', exact: true });
   await expect(active).toBeVisible();
   await expect(active.getByText('Workout in progress', { exact: true })).toBeVisible();
-  await active.getByRole('button', { name: 'Done', exact: true }).click();
+  await active.getByRole('button', { name: 'Close dialog', exact: true }).click();
   if (today.getDay() === 1) await page.getByRole('button', { name: 'Return to this week', exact: true }).click();
   const empty = page.getByRole('button', { name: emptyDay.toDateString() + ', no workout recorded', exact: true });
   await expect(empty).toHaveClass(/day-rest/);
@@ -1778,7 +1778,7 @@ test('create a custom multi-block program and cap each week at fourteen schedule
     await saveExerciseChanges(page, page.locator('.day-detail-modal'));
     await expect(page.locator('[data-import-save-bar]')).toBeHidden();
     await expect(page.getByRole('button', { name: 'Library exercise for Barbell bench press', exact: true })).toBeVisible();
-    await page.getByRole('button', { name: 'Done', exact: true }).click();
+    await page.locator('.day-detail-modal').getByRole('button', { name: 'Close dialog', exact: true }).click();
 
     await page.getByRole('button', { name: 'Create program', exact: true }).click();
     const createdCard = page.locator('.library-program-card').filter({ hasText: name });
@@ -1789,7 +1789,7 @@ test('create a custom multi-block program and cap each week at fourteen schedule
     const createdDayModal = page.locator('.day-detail-modal');
     await expect(createdDayModal.locator('.program-muscle-preview')).toBeVisible();
     await expect(createdDayModal.locator('.program-muscle-tile').filter({ hasText: 'Chest' })).toBeVisible();
-    await createdDayModal.getByRole('button', { name: 'Done', exact: true }).click();
+    await createdDayModal.getByRole('button', { name: 'Close dialog', exact: true }).click();
     await expect(createdCard.locator('.rest-day .program-muscle-preview')).toHaveCount(0);
     await createdCard.getByRole('button', { name: `Actions for ${name}`, exact: true }).click();
     await page.getByRole('menuitem', { name: 'Delete program', exact: true }).click();

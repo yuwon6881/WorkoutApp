@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type FormEvent, type HTMLAttributes } from 'react';
 import { ArrowRight, Library, Pencil, RotateCcw, Trash2 } from 'lucide-react';
-import type { DraftWorkout, Exercise, ImportDraft, ProgramSummary } from '../types';
+import type { DraftWorkout, Exercise, ImportDraft, ProgramSummary, Session } from '../types';
 import { ApiError, api } from '../lib/api';
 import { changedDayIds, isProgramFinished, programToDraft } from '../lib/activeSlot';
 import { ProgramDayWrites } from '../lib/programDayWrites';
@@ -22,13 +22,14 @@ export type SlotCardActions = {
 /// The program in the active slot. While a run is underway it shows the week checklist, which
 /// folds away behind the header (and while the card is dragged); once every week is passed it
 /// turns into a finished card offering a restart or a move back to the library.
-export function ActiveProgramCard({ program, exercises, onStart, onPreview, onChanged, onEdit, hasActiveWorkout, activeTemplateId = null, actions, dragProps, moving, dragging }: {
+export function ActiveProgramCard({ program, exercises, onStart, onPreview, onChanged, onSession, onEdit, hasActiveWorkout, activeTemplateId = null, actions, dragProps, moving, dragging }: {
   program: ProgramSummary;
   exercises: Exercise[];
   /// Starts straight away, for the day sheet that is already the preview.
   onStart: (id: string) => void;
   onPreview: (id: string) => void;
   onChanged: () => Promise<void>;
+  onSession?: (session: Session) => void;
   /// Opens the whole program in the editor; days already passed stay locked there.
   onEdit: () => void;
   hasActiveWorkout: boolean;
@@ -181,7 +182,7 @@ export function ActiveProgramCard({ program, exercises, onStart, onPreview, onCh
     {finished
       ? <SlotFinished name={program.name} description="You passed every week of this program." actions={{ ...actions, busy: actionsBlocked }} />
       : expanded && <>
-        {progress && <ProgramWeekChecklist program={{ ...program, progress }} actionsBusy={actionsBlocked || progress.runId === 'optimistic'} draft={draft} exercises={exercises} onStart={onStart} onChanged={onChanged} hasActiveWorkout={hasActiveWorkout} activeTemplateId={activeTemplateId} onDayChange={handleDayChange} onDraftChange={handleDraftChange} />}
+        {progress && <ProgramWeekChecklist program={{ ...program, progress }} actionsBusy={actionsBlocked || progress.runId === 'optimistic'} draft={draft} exercises={exercises} onStart={onStart} onChanged={onChanged} onSession={onSession} hasActiveWorkout={hasActiveWorkout} activeTemplateId={activeTemplateId} onDayChange={handleDayChange} onDraftChange={handleDraftChange} />}
         {!progress && next && <div className="slot-card-actions">
           <Button variant="primary" disabled={hasActiveWorkout && next.id !== activeTemplateId} onClick={() => onPreview(next.id)}>
             {next.id === activeTemplateId ? 'Continue' : 'Start'} {next.name}<ArrowRight size={16} />

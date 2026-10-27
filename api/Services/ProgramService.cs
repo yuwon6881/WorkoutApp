@@ -15,7 +15,8 @@ public record ProgramView(Guid Id, string Name, int Weeks, bool Active, int Revi
     List<ProgramPhaseView>? Phases = null, ProgramProgressView? Progress = null);
 public record ProgramDayView(Guid Id, string Name, string Focus, string Block, string Phase, int Week, int PhaseWeek, int Position, bool IsRestDay, int ExerciseCount,
     int? SourcePage = null, string? ProgressStatus = null);
-public record ProgramProgressDayView(Guid TemplateId, string Status, bool IsRestDay, int Position);
+/// SessionId names the finished workout that completed the day, so the day can open its review.
+public record ProgramProgressDayView(Guid TemplateId, string Status, bool IsRestDay, int Position, Guid? SessionId = null);
 public record ProgramProgressView(Guid RunId, int CurrentWeek, int CurrentAttempt, int PassedDays, int TotalDays, List<ProgramProgressDayView> Days);
 public record ProgramSummaryView(Guid Id, string Name, int Weeks, bool Active, int Revision, Guid? SourceImportId,
     List<ProgramDayView> Days, List<Guid> CompletedTemplateIds, Guid? NextTemplateId,
@@ -55,6 +56,7 @@ public sealed partial class ProgramService(AppDb db, TemplateService templates, 
                 (day.Week < run.CurrentWeek && !db.ProgramDayProgresses.Any(later => later.RunId == day.RunId &&
                     later.Week == day.Week && later.Attempt > day.Attempt) ||
                  day.Week == run.CurrentWeek && day.Attempt == run.CurrentAttempt))).ToListAsync(ct);
+        var finishedSessions = await FinishedSessions(dayProgress, ct);
         var views = new List<ProgramSummaryView>(programs.Count);
         foreach (var program in programs)
         {
@@ -79,7 +81,7 @@ public sealed partial class ProgramService(AppDb db, TemplateService templates, 
             var phaseViews = BuildPhaseViews(programPhases, rows, completed, skipped);
             views.Add(new ProgramSummaryView(program.Id, program.Name, program.Weeks, program.Active, program.Revision, program.SourceImportId,
                 days, completed, next, program.LifecycleStatus, program.CompletedAt, skipped, phaseViews,
-                CreateProgressView(run, rows, relevantProgress)));
+                CreateProgressView(run, rows, relevantProgress, finishedSessions)));
         }
         return views;
     }
@@ -106,7 +108,8 @@ public sealed partial class ProgramService(AppDb db, TemplateService templates, 
             workout.Week == run.CurrentWeek && !workout.IsRestDay && statusByTemplate.GetValueOrDefault(workout.Id) == ProgramDayStatus.Pending)?.Id;
         var phases = await PhaseViews(program.Id, rows, completed, skipped, ct);
         return new ProgramView(program.Id, program.Name, program.Weeks, program.Active, program.Revision, program.SourceImportId, workouts, completed, next,
-            program.LifecycleStatus, program.CompletedAt, skipped, phases, CreateProgressView(run, rows, relevantProgress));
+            program.LifecycleStatus, program.CompletedAt, skipped, phases,
+            CreateProgressView(run, rows, relevantProgress, await FinishedSessions(relevantProgress, ct)));
     }
 
     public async Task<ProgramSummaryView> Summary(TrainingProgram program, CancellationToken ct)
@@ -130,7 +133,7 @@ public sealed partial class ProgramService(AppDb db, TemplateService templates, 
         var phases = await PhaseViews(program.Id, rows, completed, skipped, ct);
         return new ProgramSummaryView(program.Id, program.Name, program.Weeks, program.Active, program.Revision,
             program.SourceImportId, days, completed, next, program.LifecycleStatus, program.CompletedAt, skipped, phases,
-            CreateProgressView(run, rows, relevantProgress));
+            CreateProgressView(run, rows, relevantProgress, await FinishedSessions(relevantProgress, ct)));
     }
 
     public async Task<ProgramView> Create(ProgramInput input, bool activate, Guid? sourceImportId, CancellationToken ct)
@@ -361,16 +364,35 @@ public sealed partial class ProgramService(AppDb db, TemplateService templates, 
     }
 
     private static ProgramProgressView? CreateProgressView(ProgramRun? run, IReadOnlyList<WorkoutTemplate> templates,
-        IReadOnlyCollection<ProgramDayProgress> statuses)
+        IReadOnlyCollection<ProgramDayProgress> statuses, IReadOnlyDictionary<Guid, Guid> finishedSessions)
     {
         if (run is null) return null;
-        var statusByTemplate = statuses.Where(day => day.Week == run.CurrentWeek)
-            .ToDictionary(day => day.TemplateId, day => day.Status);
+        var stateByTemplate = statuses.Where(day => day.Week == run.CurrentWeek)
+            .ToDictionary(day => day.TemplateId);
         var days = templates.Where(template => template.Week == run.CurrentWeek).OrderBy(template => template.Position)
-            .Select(template => new ProgramProgressDayView(template.Id,
-                statusByTemplate.GetValueOrDefault(template.Id, ProgramDayStatus.Pending), template.IsRestDay, template.Position)).ToList();
+            .Select(template =>
+            {
+                var state = stateByTemplate.GetValueOrDefault(template.Id);
+                var status = state?.Status ?? ProgramDayStatus.Pending;
+                Guid? sessionId = state is not null && status == ProgramDayStatus.Completed && finishedSessions.TryGetValue(state.Id, out var id) ? id : null;
+                return new ProgramProgressDayView(template.Id, status, template.IsRestDay, template.Position, sessionId);
+            }).ToList();
         return new ProgramProgressView(run.Id, run.CurrentWeek, run.CurrentAttempt,
             days.Count(day => ProgramDayStatus.IsPassed(day.Status)), days.Count, days);
+    }
+
+    /// The latest finished workout behind each completed day, read in one bounded query.
+    private async Task<Dictionary<Guid, Guid>> FinishedSessions(IEnumerable<ProgramDayProgress> progress, CancellationToken ct)
+    {
+        var completedIds = progress.Where(day => day.Status == ProgramDayStatus.Completed).Select(day => day.Id).ToList();
+        if (completedIds.Count == 0) return [];
+        var sessions = await db.Workouts.AsNoTracking()
+            .Where(session => session.ProgramDayProgressId != null && completedIds.Contains(session.ProgramDayProgressId.Value)
+                && !session.Active && session.FinishedAt != null)
+            .Select(session => new { ProgressId = session.ProgramDayProgressId!.Value, session.Id, session.FinishedAt })
+            .ToListAsync(ct);
+        return sessions.GroupBy(session => session.ProgressId)
+            .ToDictionary(group => group.Key, group => group.OrderByDescending(session => session.FinishedAt).First().Id);
     }
 
     private async Task<List<ProgramPhaseView>> PhaseViews(Guid programId, List<WorkoutTemplate> rows, List<Guid> completed, List<Guid> skipped, CancellationToken ct)

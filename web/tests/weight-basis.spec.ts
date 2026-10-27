@@ -93,6 +93,7 @@ test('weight basis persists from custom creation through workout entry and unit 
     await custom.getByRole('textbox', { name: 'Name', exact: true }).fill(name);
     await custom.getByRole('button', { name: 'Equipment', exact: true }).click();
     await page.getByRole('option', { name: 'Dumbbell', exact: true }).click();
+    await custom.getByText('More options', { exact: true }).click();
     await custom.getByRole('button', { name: 'Per side', exact: true }).click();
     await expect(custom.getByRole('button', { name: 'Per side', exact: true })).toHaveAttribute('aria-pressed', 'true');
     for (const theme of ['dark', 'light']) {

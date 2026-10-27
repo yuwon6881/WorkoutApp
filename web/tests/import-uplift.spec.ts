@@ -104,7 +104,7 @@ for (const theme of ['dark', 'light']) {
     await page.screenshot({ path: info.outputPath(`prescriptions-${theme}.png`) });
     await first.locator('.iex-save-bar').getByRole('button', { name: 'Cancel', exact: true }).click();
     await expect(first.locator('.iex-save-bar')).toHaveCount(0);
-    await dialog.getByRole('button', { name: 'Done', exact: true }).click();
+    await dialog.getByRole('button', { name: 'Close dialog', exact: true }).click();
 
     // Sections are read side by side and none has committed yet: the bar and the tiles still move.
     const sectionStates = ['saved', 'saved', 'saved', 'checking', 'repairing', 'reading', 'reading', 'reading', 'reading', 'queued', 'queued', 'queued'];

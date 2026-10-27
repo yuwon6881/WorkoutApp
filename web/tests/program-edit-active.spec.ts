@@ -88,11 +88,12 @@ test('an activated program can be edited while its passed days stay locked, and 
     await expect(row('Lower A')).toContainText('Next');
     await expect(row('Lower A')).not.toContainText('In progress');
 
-    // A day already done opens read-only; one still ahead stays editable.
+    // A day already done opens the workout that completed it; its plan stays read-only in the editor below.
     await row('Upper A').click();
-    await expect(page.locator('.day-detail-modal .readonly-exercise')).toHaveCount(1);
-    await expect(page.locator('.day-detail-modal').getByRole('textbox')).toHaveCount(0);
-    await page.locator('.day-detail-modal').getByRole('button', { name: 'Done', exact: true }).click();
+    const review = page.getByRole('dialog', { name: 'Upper A', exact: true });
+    await expect(review.getByText('Completed workout', { exact: true })).toBeVisible();
+    await review.getByRole('button', { name: 'Close dialog', exact: true }).click();
+    await expect(review).toBeHidden();
 
     // Edit the whole program from the card menu.
     await card.getByRole('button', { name: `Actions for ${programName}`, exact: true }).click();
@@ -111,7 +112,7 @@ test('an activated program can be edited while its passed days stay locked, and 
     await page.getByRole('button', { name: 'Upper A', exact: true }).click();
     await expect(page.locator('.day-detail-modal .readonly-exercise')).toHaveCount(1);
     await expect(page.locator('.day-detail-modal').getByRole('textbox')).toHaveCount(0);
-    await page.locator('.day-detail-modal').getByRole('button', { name: 'Done', exact: true }).click();
+    await page.locator('.day-detail-modal').getByRole('button', { name: 'Close dialog', exact: true }).click();
 
     // Rename the program and add a copy of week one after it: both are allowed.
     await page.getByLabel('Program name').fill(editedName);

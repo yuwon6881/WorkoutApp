@@ -85,7 +85,7 @@ export function SessionDetail({ session: initial, preferences, exercises = [], c
       </p>}
       {session.note && <p className="note-block">{session.note}</p>}
     </div>
-    <div className="modal-actions">
+    <div className="modal-actions dismiss-only">
       <Button variant="primary" onClick={onClose}>Done</Button>
     </div>
   </Modal>;

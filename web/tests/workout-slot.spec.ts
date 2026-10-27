@@ -109,7 +109,7 @@ test('workouts move between the library and the active slot, forgetting progress
     await expect(dayView.locator('.readonly-exercise')).toHaveCount(1);
     await expect(dayView.getByRole('textbox')).toHaveCount(0);
     await page.screenshot({ path: join(screenshotsDirectory, `${info.project.name}-workout-slot-library-day.png`) });
-    await dayView.getByRole('button', { name: 'Done', exact: true }).click();
+    await dayView.getByRole('button', { name: 'Close dialog', exact: true }).click();
     // The header toggles in both directions, anywhere on it.
     await libraryCard.locator('.slot-card-title').click();
     await expect(libraryCard.getByRole('button', { name: `Expand ${programName}`, exact: true })).toBeVisible();

@@ -376,7 +376,7 @@ export default function App() {
             onImport={openImport} onSession={setDetail} onResume={() => setTraining(true)} onChanged={app.reload}
             onExercise={id => { void openExercise(id); }} onStart={previewWorkout} />}
         {!resourcesReady && <ViewSkeleton label={NAV.find(item => item.id === tab)?.label ?? 'Loading'} />}
-        {resourcesReady && tab === 'program' && <Programs data={data} exercises={data.exercises} onStart={start} onPreview={previewWorkout} onImport={openImport} onChanged={app.reload}
+        {resourcesReady && tab === 'program' && <Programs data={data} exercises={data.exercises} onStart={start} onPreview={previewWorkout} onImport={openImport} onChanged={app.reload} onSession={setDetail}
           ensureResources={app.ensureResources}
           onTemplateSaved={saved => app.setData(current => acknowledgeTemplate(current, saved.id, saved))}
           onTemplateDeleted={id => app.setData(current => acknowledgeTemplate(current, id, null))} />}

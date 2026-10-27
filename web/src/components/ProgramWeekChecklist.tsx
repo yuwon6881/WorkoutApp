@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { CheckCircle2, Circle, CirclePlay, ChevronRight, Play, SkipForward } from 'lucide-react';
-import type { DraftWorkout, Exercise, ImportDraft, ProgramProgressDay, ProgramSummary } from '../types';
+import type { DraftWorkout, Exercise, ImportDraft, ProgramProgressDay, ProgramSummary, Session } from '../types';
+import { loadSessionDetail } from '../lib/sessionDetailLoad';
+import { prefetchView } from '../app/lazyViews';
 import { ApiError, api } from '../lib/api';
 import { dayTitle, isGenericDayTitle } from '../lib/dayTitle';
 import { dayRowState, inProgressDayId, nextDayId as findNextDayId, programDayActionInput } from '../lib/programDayState';
@@ -20,6 +22,7 @@ export function ProgramWeekChecklist({
   exercises,
   onStart,
   onChanged,
+  onSession,
   hasActiveWorkout,
   activeTemplateId = null,
   onDayChange,
@@ -31,6 +34,8 @@ export function ProgramWeekChecklist({
   exercises: Exercise[];
   onStart: (templateId: string) => void;
   onChanged: () => Promise<void>;
+  /** Opens a finished workout's review; a completed day with a session opens that instead of its plan. */
+  onSession?: (session: Session) => void;
   hasActiveWorkout: boolean;
   /** The day the open workout came from; its dialog continues that workout. */
   activeTemplateId?: string | null;
@@ -60,6 +65,23 @@ export function ProgramWeekChecklist({
   useEffect(() => {
     if (draft) setLocalDraft(draft);
   }, [draft]);
+
+  const opensSession = (day: ProgramProgressDay) => day.status === 'completed' && Boolean(day.sessionId) && Boolean(onSession);
+
+  /** A finished day opens what was done; anything else, or a session that can no longer load, opens the plan. */
+  async function openRow(day: ProgramProgressDay) {
+    setSelectedMuscle(null);
+    if (opensSession(day)) {
+      prefetchView('sessionDetail');
+      try {
+        onSession!(await loadSessionDetail(day.sessionId!));
+        return;
+      } catch {
+        // Fall through to the planned day, which is always available.
+      }
+    }
+    setOpenDay(day);
+  }
 
   const getRepRangeMemory = useCallback((exerciseLineId: string) => {
     let memory = repRangeMemories.current.get(exerciseLineId);
@@ -225,12 +247,11 @@ export function ProgramWeekChecklist({
             tabIndex={0}
             aria-label={`View ${info.name}`}
             aria-description={state === 'completed' ? 'Completed' : state === 'skipped' ? 'Skipped' : state === 'in-progress' ? 'Workout in progress' : state === 'next' ? 'Next workout' : 'Upcoming workout'}
-            onClick={() => { setSelectedMuscle(null); setOpenDay(day); }}
+            onClick={() => void openRow(day)}
             onKeyDown={e => {
               if (e.key === 'Enter' || e.key === ' ') {
                 e.preventDefault();
-                setSelectedMuscle(null);
-                setOpenDay(day);
+                void openRow(day);
               }
             }}
           >
@@ -247,7 +268,7 @@ export function ProgramWeekChecklist({
               {state === 'skipped' && <span className="program-day-status">Skipped</span>}
               {state === 'in-progress' && <span className="program-day-status in-progress">In progress</span>}
               {state === 'next' && <span className="program-day-status next">Next</span>}
-              {day.status === 'pending'
+              {day.status === 'pending' || opensSession(day)
                 ? <ChevronRight className="program-week-chevron muted" size={16} aria-hidden="true" />
                 : <span className="program-week-chevron-slot" aria-hidden="true" />}
             </div>
@@ -298,7 +319,7 @@ export function ProgramWeekChecklist({
             <WorkoutDaySkeleton label="Loading workout details…" />
           )}
         </div>
-        <div className="modal-actions">
+        <div className={`modal-actions ${openDay.status === 'pending' ? '' : 'dismiss-only'}`.trim()}>
           {openDay.status === 'pending' ? (
             <Button variant="primary" disabled={actionsBusy || progress?.runId === 'optimistic' || (hasActiveWorkout && openDay.templateId !== activeTemplateId)} onClick={() => {
               const targetId = openDay.templateId;

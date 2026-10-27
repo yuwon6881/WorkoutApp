@@ -343,6 +343,7 @@ export function ExerciseDetailModal({ exercise, unit, onClose, onChanged }: { ex
   }
   async function deleteExercise() { setBusy(true); try { await api.deleteCustomExercise(exercise.id); setDeleteConfirm(false); await onChanged?.(); onClose(); } catch (failure) { setError(failure instanceof ApiError ? failure.message : 'Could not delete this custom exercise.'); } finally { setBusy(false); } }
   async function moreHistory() { if (!insight || historyBusy || insight.history.length >= insight.totalHistoryRows) return; setHistoryBusy(true); try { const next = await api.exerciseInsight(exercise.id, range, insight.page + 1, insight.size); setInsight(current => current ? { ...current, history: [...current.history, ...next.history], page: next.page } : next); } catch (failure) { setError(failure instanceof ApiError ? failure.message : 'Could not load more exercise history.'); } finally { setHistoryBusy(false); } }
+  const customDeletable = exercise.isCustom && !exercise.archived && !insight?.archived;
   return <>
     <Modal title={exercise.name} onClose={onClose} wide>
       <div className="modal-body exercise-detail-modal">
@@ -385,7 +386,7 @@ export function ExerciseDetailModal({ exercise, unit, onClose, onChanged }: { ex
         {detailTab === 'history' && insight?.historyClears?.map(clear => <div className="exercise-history-cleared" role="status" key={clear.clearedAt}>Exercise history cleared on {dateLabel(clear.clearedAt)} · {showSetCount(clear.removedSets)} removed</div>)}
         {detailTab === 'history' && Boolean(insight?.clearableSetCount) && <ExerciseHistoryClearing exerciseId={exercise.id} clearableSets={insight!.clearableSetCount} onCleared={historyCleared} />}
       </div>
-      <div className="modal-actions">{exercise.isCustom && !exercise.archived && !insight?.archived && <Button variant="destructive" onClick={() => setDeleteConfirm(true)} disabled={busy}><Trash2 size={15} />Delete custom exercise</Button>}<Button variant="primary" onClick={onClose}>Done</Button></div>
+      <div className={`modal-actions ${customDeletable ? '' : 'dismiss-only'}`.trim()}>{customDeletable && <Button variant="destructive" onClick={() => setDeleteConfirm(true)} disabled={busy}><Trash2 size={15} />Delete custom exercise</Button>}<Button variant="primary" onClick={onClose}>Done</Button></div>
     </Modal>
     {deleteConfirm && <Modal title="Delete custom exercise?" onClose={() => setDeleteConfirm(false)}><div className="modal-body"><p>This removes the exercise from future selections. Existing workout names, sets, records, and totals stay preserved; saved templates will mark the reference as deleted until you replace it.</p><div className="modal-actions"><Button variant="tertiary" onClick={() => setDeleteConfirm(false)}>Cancel</Button><Button variant="destructive" onClick={() => void deleteExercise()} disabled={busy}>{busy ? 'Deleting…' : 'Delete exercise'}</Button></div></div></Modal>}
   </>;
