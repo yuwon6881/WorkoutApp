@@ -5,7 +5,8 @@ import { sharedReads } from '../lib/readCoordinator';
 import { viewReadCache } from '../lib/viewReadCache';
 import { SaveQueue } from '../lib/queue';
 import type { QueueStatus } from '../lib/queue';
-import type { AppResource, Bootstrap, Preferences, Session } from '../types';
+import type { AppResource, Bootstrap, Preferences, Session, ShellBootstrap } from '../types';
+import { clearLaunchSnapshot, readLaunchSnapshot, saveLaunchSnapshot } from '../lib/launchSnapshot';
 import { deleteWorkoutPushToken, getWorkoutPushDeviceId } from '../lib/push/firebaseMessaging';
 import { retireWorkoutPushAfterAccountSwitch, retireWorkoutPushDevice } from '../lib/push/cleanup';
 import { defaultDevicePreferences, loadDevicePreferences, saveDevicePreferences as persistDevicePreferences } from '../lib/workoutDevicePreferences';
@@ -45,13 +46,18 @@ export type AppState = {
 /// Server data remains authoritative. The only training record retained on this device is the
 /// account-scoped active workout recovery snapshot and its durable mutation identities.
 export function useApp(): AppState {
-  const [data, setData] = useState<Bootstrap | null>(null);
+  // A cold start opens on the last launch summary saved on this device while the live read runs.
+  // It stays marked as a device copy until the server confirms the account.
+  const [data, setData] = useState<Bootstrap | null>(() => {
+    const shell = signInFailed() ? null : readLaunchSnapshot();
+    return shell ? shellBootstrap(shell) : null;
+  });
+  const fromDevice = useRef(data !== null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   // A failed sign-in callback already establishes the destination, even while the session
   // check is pending. Integration-consent callbacks in Settings keep their authenticated flow.
-  const [signedOut, setSignedOut] = useState(() => window.location.pathname === '/' &&
-    Boolean(new URLSearchParams(window.location.search).get('central_error')));
+  const [signedOut, setSignedOut] = useState(signInFailed);
   const [online, setOnline] = useState(() => navigator.onLine);
   const [recovery, setRecovery] = useState<WorkoutRecoveryRecord | null>(null);
   const [devicePreferences, setDevicePreferencesState] = useState<DevicePreferences>(defaultDevicePreferences);
@@ -65,7 +71,7 @@ export function useApp(): AppState {
   currentData.current = data;
   const reloadFlight = useRef<Promise<void> | null>(null);
   const loadEpoch = useRef(0);
-  const mutationAccount = useRef<string | null>(null);
+  const mutationAccount = useRef<string | null>(fromDevice.current ? data?.account.id ?? null : null);
   const isAccountCurrent = useCallback((id: string) => mutationAccount.current === id, []);
   const preferenceVersion = useRef(0);
   const devicePreferenceVersion = useRef(0);
@@ -80,6 +86,7 @@ export function useApp(): AppState {
       clearStopwatches(); forgetSessionDetail(); pendingPreferences.current = null; setPreferencePending(false);
       void retireCurrentPushDevice();
       void setLastAccount(null).catch(() => undefined);
+      clearLaunchSnapshot(); fromDevice.current = false;
       setRecovery(null);
       loadEpoch.current++; sharedReads.reset(); viewReadCache.reset(); resourcesInFlight.current.clear();
       setSignedOut(true);
@@ -96,12 +103,15 @@ export function useApp(): AppState {
     const workoutAtStart = workoutVersion.current;
     resourcesInFlight.current.clear();
     setLoading(true);
-    if (!currentData.current && !queue.unsaved) queue.set('connecting');
+    // Only the device copy of the launch summary is on screen; the account is not confirmed yet.
+    const unconfirmed = () => !currentData.current || fromDevice.current;
+    if (unconfirmed() && !queue.unsaved) queue.set('connecting');
     let validatedAccountId: string | null | undefined;
-    const cachedRecovery = (currentData.current ? Promise.resolve(null) : getLastRecovery()).then(async local => {
+    const cachedRecovery = (unconfirmed() ? getLastRecovery() : Promise.resolve(null)).then(async local => {
       if (!local) return;
       const preferences = await loadDevicePreferences(local.accountId);
-      if (epoch !== loadEpoch.current || currentData.current || workoutVersion.current !== workoutAtStart
+      if (epoch !== loadEpoch.current || !unconfirmed() || workoutVersion.current !== workoutAtStart
+          || currentData.current && currentData.current.account.id !== local.accountId
           || validatedAccountId !== undefined && validatedAccountId !== local.accountId) return;
       setDevicePreferencesState(preferences);
       if (validatedAccountId === undefined) mutationAccount.current = local.accountId;
@@ -113,8 +123,7 @@ export function useApp(): AppState {
       validatedAccountId = shell.account.id;
       if (mutationAccount.current !== null && mutationAccount.current !== shell.account.id) queue.clear();
       mutationAccount.current = shell.account.id;
-      const next: Bootstrap = { ...shell, exercises: [], templates: [], programs: [],
-        history: { total: 0, page: 0, size: 20, sessions: [] }, resources: {}, historyDeferred: true };
+      const next = shellBootstrap(shell);
       const previous = currentData.current;
       if (previousAccountId && previousAccountId !== next.account.id) setRecovery(null);
       if (previous?.account.id === next.account.id) {
@@ -188,14 +197,19 @@ export function useApp(): AppState {
         forgetSessionDetail(); pendingPreferences.current = null; setPreferencePending(false);
         queue.clear(); resetGoogleHealthState();
       }
+      fromDevice.current = false;
       setData(next); setResourceError(''); setError(''); setSignedOut(false);
+      saveLaunchSnapshot(shell);
       if (!queue.unsaved) queue.clear();
     } catch (failure) {
       if (epoch !== loadEpoch.current) return;
       const problem = failure instanceof ApiError ? failure : new ApiError('Could not load your training.', -1);
       if (problem.signedOut) mutationAccount.current = null;
-      if (problem.signedOut) { viewReadCache.reset(); clearStopwatches(); forgetSessionDetail(); pendingPreferences.current = null; setPreferencePending(false); validatedAccountId = null; resetGoogleHealthState(); await setLastAccount(null).catch(() => undefined); setRecovery(null); setSignedOut(true); setData(null); setError(''); queue.clear(); queue.set('signed-out'); }
+      if (problem.signedOut) { clearLaunchSnapshot(); fromDevice.current = false; viewReadCache.reset(); clearStopwatches(); forgetSessionDetail(); pendingPreferences.current = null; setPreferencePending(false); validatedAccountId = null; resetGoogleHealthState(); await setLastAccount(null).catch(() => undefined); setRecovery(null); setSignedOut(true); setData(null); setError(''); queue.clear(); queue.set('signed-out'); }
       else {
+        // The device copy only bridges the wait for the server; a failed read shows the
+        // connection recovery screen rather than training data the server has not confirmed.
+        if (fromDevice.current) { fromDevice.current = false; setData(null); }
         setError(problem.message);
         if (problem.offline) {
           try {
@@ -255,7 +269,7 @@ export function useApp(): AppState {
   useEffect(() => {
     const returnedOnline = online && !wasOnline.current;
     wasOnline.current = online;
-    if (returnedOnline && !data && !signedOut && !loading) void reload();
+    if (returnedOnline && (!data || fromDevice.current) && !signedOut && !loading) void reload();
   }, [online, data, signedOut, loading, reload]);
 
   useEffect(() => {
@@ -354,10 +368,22 @@ export function useApp(): AppState {
     await api.logout();
     mutationAccount.current = null;
     clearStopwatches(); forgetSessionDetail(); pendingPreferences.current = null; setPreferencePending(false);
-    resetGoogleHealthState(); await setLastAccount(null).catch(() => undefined); queue.clear(); setData(null); setRecovery(null); setSignedOut(true);
+    resetGoogleHealthState(); await setLastAccount(null).catch(() => undefined); queue.clear();
+    clearLaunchSnapshot(); fromDevice.current = false;
+    setData(null); setRecovery(null); setSignedOut(true);
   }, [queue]);
 
   return { data, status, loading, error, signedOut, online, recovery, devicePreferences, reload, ensureResources, resourceError, queue, setData: patch, savePreferences, setActiveWorkout, setRecovery: updateRecovery, setDevicePreferences, signOut, preferencePending, retryPreferences, revertPreferences, isAccountCurrent };
+}
+
+function signInFailed(): boolean {
+  return window.location.pathname === '/' && Boolean(new URLSearchParams(window.location.search).get('central_error'));
+}
+
+/** The launch summary as app data; the rest of the account loads when a view asks for it. */
+function shellBootstrap(shell: ShellBootstrap): Bootstrap {
+  return { ...shell, exercises: [], templates: [], programs: [],
+    history: { total: 0, page: 0, size: 20, sessions: [] }, resources: {}, historyDeferred: true };
 }
 
 async function retireCurrentPushDevice(): Promise<void> {

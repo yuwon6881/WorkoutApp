@@ -5,6 +5,7 @@ import { VitePWA } from 'vite-plugin-pwa';
 import { readFileSync } from 'node:fs';
 import { featureCss } from './scripts/feature-css';
 import { preloadLatinFont } from './scripts/preload-latin-font';
+import { bootShell } from './scripts/boot-shell';
 
 const packageVersion = (JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8')) as { version: string }).version;
 const buildRevision = process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 7) ?? process.env.GITHUB_SHA?.slice(0, 7) ?? 'local';
@@ -58,7 +59,7 @@ export default defineConfig({
       }
     }
   },
-  plugins: [featureCss(), react(), preloadLatinFont(), tabShell, VitePWA({
+  plugins: [featureCss(), react(), preloadLatinFont(), bootShell(), tabShell, VitePWA({
     // The app registers the worker itself (app/useAppUpdate.ts) and offers updates when idle.
     registerType: 'prompt',
     injectRegister: false,
