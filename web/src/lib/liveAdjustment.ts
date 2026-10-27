@@ -5,6 +5,7 @@ import { isTimedExercise } from './setDuration';
 import { effortPatch, effortValue, loadIsEditable } from './workoutDraft';
 import { setKind, type SetKind } from './workoutSetTypes';
 import { hasOpenReps } from './setTarget';
+import { withEmptyLoadsFilled, type CopiedLoadsLog } from './emptyLoadFill';
 import { aimedInputs, deviationTrend, loadAxisFor, type Deviation, type FilledInputs, type LoadGrid, type RepPlan } from './liveAdjustmentAim';
 
 export type { FilledInputs, LoadGrid } from './liveAdjustmentAim';
@@ -15,16 +16,20 @@ export function exerciseLoadGrid(exercise: SessionExercise, catalog: Exercise[],
 }
 
 export type FilledInputsLog = Map<string, FilledInputs>;
+export type { CopiedLoadsLog } from './emptyLoadFill';
 
-/** A result edit and the following straight-set adjustments form one draft change. */
+/** A result edit, the following straight-set adjustments and the loads copied into empty later sets
+ * form one draft change. */
 export function withLoggedSetEdit(draft: Session, ei: number, si: number, patch: Partial<LoggedSet>,
-  catalog: Exercise[], unit: Unit, trackRir: boolean, filled: FilledInputsLog): Session | null {
+  catalog: Exercise[], unit: Unit, trackRir: boolean, filled: FilledInputsLog, copied: CopiedLoadsLog = new Map()): Session | null {
   const exercise = draft.exercises[ei];
   if (!exercise?.sets[si] || ('weightKg' in patch && !loadIsEditable(exercise))) return null;
   const edited = { ...draft, exercises: draft.exercises.map((item, index) => index === ei
     ? { ...item, sets: item.sets.map((set, setIndex) => setIndex === si ? { ...set, ...patch } : set) } : item) };
   const isResult = patch.done === true || 'weightKg' in patch || 'reps' in patch || 'rpe' in patch || 'rir' in patch;
-  return isResult ? withLiveAdjustment(edited, ei, si, exerciseLoadGrid(exercise, catalog, unit), trackRir, filled) : edited;
+  if (!isResult) return edited;
+  const adjusted = withLiveAdjustment(edited, ei, si, exerciseLoadGrid(exercise, catalog, unit), trackRir, filled);
+  return withEmptyLoadsFilled(adjusted, ei, si, copied);
 }
 
 const DEFAULT_RESERVE = 2;

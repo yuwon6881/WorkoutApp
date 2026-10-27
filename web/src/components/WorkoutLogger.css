@@ -282,11 +282,30 @@
 .set-del-btn.button { width: 44px; min-width: 44px; height: 44px; min-height: 44px; padding: 0; border-radius: var(--radius-pill); color: var(--faint); }
 .workout-set-rows .set-del-btn.button:hover:not(:disabled) { color: var(--red); background: var(--red-soft); }
 
-/* Under the table: a removed set's undo, then Add set. */
+/* Under the table: Add set and the warm-up ramp. */
 .workout-set-table-footer { display: grid; gap: 8px; margin-top: 6px; }
-.workout-set-undo { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 4px 4px 4px 16px; border-radius: var(--radius-pill); background: var(--surface-raised); border: 1px solid var(--border); color: var(--text); font-size: var(--font-secondary); animation: undo-in 220ms var(--motion-ease); }
-.workout-set-undo .button { min-height: 44px; color: var(--accent); font-weight: 700; }
-@keyframes undo-in { from { opacity: 0; transform: translateY(-6px); } }
+
+/* A removed set keeps its row's place and height while Undo is offered, so nothing below moves;
+   then it folds away. */
+.workout-set-rows .workout-set-removed {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  height: var(--removed-height);
+  min-height: 0;
+  padding: 0 4px 0 16px;
+  overflow: hidden;
+  border: 1px dashed var(--border-hover);
+  border-radius: var(--radius-control);
+  color: var(--muted);
+  font-size: var(--font-secondary);
+  transition: height 200ms var(--motion-ease), margin 200ms var(--motion-ease), opacity 200ms ease, border-color 200ms ease;
+}
+.workout-set-rows .workout-set-removed .button { min-height: 44px; color: var(--accent); font-weight: 700; }
+/* The rows' 4px gap folds away with it, so removing the placeholder at the end moves nothing. */
+.workout-set-rows .workout-set-removed.leaving { height: 0; margin-bottom: -4px; opacity: 0; border-color: transparent; }
+@media (prefers-reduced-motion: reduce) { .workout-set-rows .workout-set-removed { transition: none; } }
 .workout-set-table-footer .add-set-btn.button {
   width: 100%;
   min-height: 44px;
@@ -349,6 +368,13 @@
 @media (prefers-reduced-motion: reduce) {
   .workout-set-rows .workout-set-row { transition: none; }
   .workout-set-rows .workout-set-row.done.just-logged::before,
-  .workout-set-rows .workout-set-row.nudge,
-  .workout-set-undo { animation: none; }
+  .workout-set-rows .workout-set-row.nudge { animation: none; }
 }
+
+/* Add set and the warm-up ramp share one row; a note under them explains a disabled ramp. */
+.workout-set-table-actions { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px; }
+.workout-set-table-actions .warmup-note { grid-column: 1 / -1; margin: 0; font-size: var(--font-secondary); color: var(--muted); }
+.warmup-choice dl { display: grid; gap: 12px; margin: 0; }
+.warmup-choice dl > div { padding: 12px 14px; border-radius: var(--radius-control); background: var(--surface-raised); border: 1px solid var(--border); }
+.warmup-choice dt { font-weight: 650; color: var(--text); }
+.warmup-choice dd { margin: 4px 0 0; color: var(--muted); font-variant-numeric: tabular-nums; }

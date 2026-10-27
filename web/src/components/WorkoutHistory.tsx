@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
-import { ArrowRight, Trash2 } from 'lucide-react';
+import { ArrowRight, Clock3, Dumbbell, Layers, Trash2, Trophy } from 'lucide-react';
 import type { HistoryPage, HistorySummaryPage, Session, Unit } from '../types';
 import { viewReadCache } from '../lib/viewReadCache';
 import { ApiError, api } from '../lib/api';
 import { forgetSessionDetail, prefetchSessionDetail } from '../lib/sessionDetailLoad';
 import { prefetchView, viewReady } from '../app/lazyViews';
 import { duration, showSetCount, showVolume } from '../lib/training';
+import { historyDay, historyMonths } from '../lib/historyGroups';
 import { Button } from './ui/Button';
 import { MenuButton, MenuItem } from './ui/MenuButton';
 import { Modal } from './ui/Modal';
@@ -133,50 +134,70 @@ export function WorkoutHistory({
       {error && <div className="error-banner" role="alert">{error}</div>}
 
       <div className="history-list">
-        {sessions.map(session => {
-          const prCount = session.prCount ?? 0;
-          const hasVolume = session.volumeKg != null && session.volumeKg > 0;
-          return (
-            <div className="history-item-wrap" key={session.id}>
-              <Button
-                className="history-row"
-                variant="tertiary"
-                onPointerEnter={() => prefetchView('sessionDetail')}
-                onPointerDown={() => prepareSession(session)}
-                onFocus={() => prefetchView('sessionDetail')}
-                onClick={() => { prepareSession(session); void viewReady('sessionDetail').then(() => onSession(session)); }}
-              >
-                <span className="row-title">
-                  <strong>{session.name}</strong>
-                  <small>
-                    {new Date(session.startedAt).toLocaleDateString('en', { month: 'short', day: 'numeric', year: 'numeric' })} · {duration(session)} min · {showSetCount(session.completedSets)}
-                  </small>
-                </span>
-                {prCount > 0 && (
-                  <span className="pill pill-accent history-pr-pill">
-                    {prCount} {prCount === 1 ? 'PR' : 'PRs'}
-                  </span>
-                )}
-                {hasVolume && <span className="history-volume">{showVolume(session.volumeKg, unit)}</span>}
-              </Button>
-              <MenuButton
-                label={`Actions for ${session.name}`}
-                variant="tertiary"
-                triggerClassName="history-menu-trigger"
-                portal
-              >
-                <MenuItem destructive onClick={() => { setDeleteError(''); setDeleteSession(session); }}>
-                  <Trash2 size={14} /> Delete from history
-                </MenuItem>
-              </MenuButton>
-            </div>
-          );
-        })}
+        {historyMonths(sessions).map(month => (
+          <section className="history-month" key={month.key} aria-labelledby={`history-month-${month.key}`}>
+            <h3 className="history-month-heading" id={`history-month-${month.key}`}>{month.label}</h3>
+            {month.sessions.map(session => {
+              const prCount = session.prCount ?? 0;
+              const hasVolume = session.volumeKg != null && session.volumeKg > 0;
+              const day = historyDay(session.startedAt);
+              return (
+                <div className="history-item-wrap" key={session.id}>
+                  <Button
+                    className="history-row"
+                    variant="tertiary"
+                    onPointerEnter={() => prefetchView('sessionDetail')}
+                    onPointerDown={() => prepareSession(session)}
+                    onFocus={() => prefetchView('sessionDetail')}
+                    onClick={() => { prepareSession(session); void viewReady('sessionDetail').then(() => onSession(session)); }}
+                  >
+                    <span className="history-date" aria-hidden="true">
+                      <span>{day.month}</span>
+                      <strong>{day.day}</strong>
+                    </span>
+                    <span className="row-title">
+                      <strong>{session.name}</strong>
+                      <span className="sr-only">{day.full}</span>
+                      <span className="history-stats">
+                        <span><Clock3 size={13} aria-hidden="true" />{duration(session)} min</span>
+                        <span><Layers size={13} aria-hidden="true" />{showSetCount(session.completedSets)}</span>
+                        {hasVolume && <span className="history-volume"><Dumbbell size={13} aria-hidden="true" />{showVolume(session.volumeKg, unit)}</span>}
+                        {prCount > 0 && (
+                          <span className="pill pill-accent history-pr-pill">
+                            <Trophy size={12} aria-hidden="true" />{prCount} {prCount === 1 ? 'PR' : 'PRs'}
+                          </span>
+                        )}
+                      </span>
+                    </span>
+                  </Button>
+                  <MenuButton
+                    label={`Actions for ${session.name}`}
+                    variant="tertiary"
+                    triggerClassName="history-menu-trigger"
+                    portal
+                  >
+                    <MenuItem destructive onClick={() => { setDeleteError(''); setDeleteSession(session); }}>
+                      <Trash2 size={14} /> Delete from history
+                    </MenuItem>
+                  </MenuButton>
+                </div>
+              );
+            })}
+          </section>
+        ))}
       </div>
 
       {loading && !sessions.length && (
         <div className="history-loading-list" aria-label="Loading workout history">
-          {[0, 1, 2].map(row => <div className="skeleton history-row-skeleton" key={row} />)}
+          {[0, 1, 2].map(row => (
+            <div className="history-row-skeleton-shape" key={row}>
+              <div className="skeleton history-date-skeleton" />
+              <div className="history-row-skeleton-lines">
+                <div className="skeleton history-title-skeleton" />
+                <div className="skeleton history-stats-skeleton" />
+              </div>
+            </div>
+          ))}
         </div>
       )}
 

@@ -10,6 +10,7 @@ import { useTabNavigation } from './app/useTabNavigation';
 import { useSaveIndicator } from './app/useSaveIndicator';
 import { useKeyboardInset } from './app/useKeyboardInset';
 import { useWorkoutLinkRequest } from './app/useWorkoutLinkRequest';
+import { useHeldStart } from './app/useHeldStart';
 import { nextWorkout } from './lib/nextWorkout';
 import { acknowledgeTemplate } from './lib/templateAcknowledgement';
 import { useAppUpdate } from './app/useAppUpdate';
@@ -83,6 +84,7 @@ export default function App() {
     if (preview && !data?.resources?.catalog) void app.ensureResources(['catalog']);
   }, [preview?.id, data?.account.id]);
   useEffect(() => { setPreview(null); }, [data?.account.id, data?.activeWorkout?.id]);
+  const heldStart = useHeldStart(app.unconfirmed, Boolean(data));
   const startCancelled = useRef(false);
   // Set when the workout sheet replaces the stand-in shown while starting, so it does not rise twice.
   const [sheetContinues, setSheetContinues] = useState(false);
@@ -181,6 +183,7 @@ export default function App() {
   /// A Start button always shows the plan first, like opening the day; an open or unresolved
   /// session skips the preview because there is nothing to choose between.
   function previewWorkout(templateId: string) {
+    if (app.unconfirmed) { heldStart.hold({ kind: 'preview', templateId, wasNext: nextWorkout(data!)?.id === templateId }); return; }
     const hasOpenSession = Boolean(data!.activeWorkout?.active)
       || Boolean(recovery && recovery.accountId === data!.account.id && hasUnresolvedRecovery(recovery));
     if (hasOpenSession || starting) { void start(templateId); return; }
@@ -191,11 +194,18 @@ export default function App() {
   const dockAction: DockAction = workoutSession?.active ? 'resume' : nextWorkout(data) ? 'start' : 'choose';
   /// A dock action previews the next plan; an open workout continues immediately.
   function runDockAction() {
+    if (app.unconfirmed) { heldStart.hold({ kind: 'dock' }); return; }
     const today = nextWorkout(data!);
     if (dockAction === 'resume') setTraining(true);
     else if (dockAction === 'start' && today) { setActionError(''); setPreview({ id: today.id, name: today.name }); }
     else setTab('program');
   }
+
+  heldStart.release.current = held => {
+    if (held.kind === 'dock') { runDockAction(); return; }
+    // The next workout may have moved on since the device saved its copy; Start meant that one.
+    previewWorkout(held.wasNext ? nextWorkout(data!)?.id ?? held.templateId : held.templateId);
+  };
 
   async function beginWorkout(templateId: string) {
     if (starting || !data) return;
