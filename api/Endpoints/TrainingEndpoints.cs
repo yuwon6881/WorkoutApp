@@ -97,6 +97,8 @@ public static class TrainingEndpoints
             => await exercises.Create(input, ct));
         app.MapDelete("/api/exercises/custom/{exerciseId:guid}", async (Guid exerciseId, ExerciseService exercises, CancellationToken ct)
             => { await exercises.ArchiveCustom(exerciseId, ct); return Results.NoContent(); });
+        app.MapGet("/api/exercises/last-performed", async (ExerciseService exercises, CancellationToken ct)
+            => await exercises.LastPerformed(ct));
         app.MapGet("/api/exercises/{exerciseId:guid}/insight", async (Guid exerciseId, string? range, int? page, int? size, ExerciseService exercises, CancellationToken ct)
             => await exercises.Insight(exerciseId, range, page ?? 0, size ?? 20, ct));
         app.MapGet("/api/exercises/{exerciseId:guid}/recent-sets", async (Guid exerciseId, int? limit, ExerciseService exercises, CancellationToken ct)

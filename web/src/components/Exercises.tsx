@@ -3,7 +3,9 @@ import { canEnterPerSide } from '../lib/equipmentGroups';
 import { loadAdjustable } from '../lib/exerciseLoads';
 import { useDeferredValue, useEffect, useMemo, useState } from 'react';
 import { ArrowLeftRight, Link2, Plus, Search, X, Trash2 } from 'lucide-react';
-import type { Exercise, ExerciseCategory, ExerciseInsight } from '../types';
+import type { Exercise, ExerciseCategory, ExerciseInsight, Unit } from '../types';
+import { lastPerformedLabel } from '../lib/lastPerformed';
+import { useLastPerformed } from './useLastPerformed';
 import { ApiError, api } from '../lib/api';
 import { showSetCount } from '../lib/training';
 import { weightBasisDescription } from '../lib/weightBasis';
@@ -55,8 +57,10 @@ function exerciseRank(candidate: Exercise, current: Exercise | undefined, prefer
   return 4;
 }
 
-export function ExerciseLibrary({ exercises, onSelect, exclude = emptyIds, onOpen, onChanged, action = 'add', currentExerciseId, preferredNames = emptyIds, disabled = false }: {
+export function ExerciseLibrary({ exercises, onSelect, exclude = emptyIds, onOpen, onChanged, action = 'add', currentExerciseId, preferredNames = emptyIds, disabled = false, unit }: {
   exercises: Exercise[];
+  /** When given (the library tab), cards add the exercise's last top set in this unit. */
+  unit?: Unit;
   onSelect?: (id: string) => void;
   exclude?: string[];
   onOpen?: (exercise: Exercise) => void;
@@ -68,6 +72,11 @@ export function ExerciseLibrary({ exercises, onSelect, exclude = emptyIds, onOpe
 }) {
   const [query, setQuery] = useState('');
   const [muscle, setMuscle] = useState('All muscles');
+  const lastPerformed = useLastPerformed(Boolean(unit) && !onSelect);
+  const lastLabel = (exercise: Exercise) => {
+    const last = lastPerformed.get(exercise.id);
+    return unit && last ? lastPerformedLabel(last, unit, exercise) : null;
+  };
   const [source, setSource] = useState<'all' | 'custom' | 'catalog'>('all');
   const [category, setCategory] = useState<'all' | ExerciseCategory>('all');
   const [createOpen, setCreateOpen] = useState(false);
@@ -186,6 +195,7 @@ export function ExerciseLibrary({ exercises, onSelect, exclude = emptyIds, onOpe
                       </span>
                     )}
                   </div>
+                  {lastLabel(e) && <p className="exercise-card-last">{lastLabel(e)}</p>}
                 </article>
               )
             ))}
@@ -361,7 +371,7 @@ export function ExerciseDetailModal({ exercise, unit, onClose, onChanged }: { ex
         {!insight && !error && <div className="skeleton detail-loading" aria-label="Loading exercise details" />}
         {insight && insight.totalHistoryRows === 0 && <p className="muted">No workout history yet. Complete a workout to see progress here.</p>}
         {insight && insight.totalHistoryRows > 0 && detailTab === 'progress' && <>
-          <div className="section-heading"><h3>Progress</h3><div className="detail-selectors"><label className="field"><span>Metric</span><Select name="progress-metric-select" label="Progress metric" value={metric} onChange={val => setSelectedMetric(val as ChartMetric)} options={[{ value: 'estimated1rm', label: 'Estimated 1RM' }, { value: 'load', label: 'Heaviest load' }, { value: 'volume', label: 'Session volume' }, { value: 'reps', label: 'Reps' }]} /></label><label className="field"><span>Range</span><Select name="progress-range-select" label="Progress range" value={range} onChange={val => setRange(val as string)} options={[{ value: '1m', label: 'Last month' }, { value: '3m', label: 'Last 3 months' }, { value: '6m', label: 'Last 6 months' }, { value: 'all', label: 'All time' }]} /></label></div></div>
+          <div className="section-heading"><h3>Progress</h3><div className="detail-selectors"><label className="field"><span>Metric</span><Select name="progress-metric-select" label="Progress metric" value={metric} onChange={val => setSelectedMetric(val as ChartMetric)} options={[{ value: 'estimated1rm', label: 'Estimated 1RM' }, { value: 'load', label: 'Heaviest load' }, { value: 'volume', label: 'Session volume' }, { value: 'reps', label: 'Reps' }]} /></label>{insight.totalHistoryRows > 1 && <label className="field"><span>Range</span><Select name="progress-range-select" label="Progress range" value={range} onChange={val => setRange(val as string)} options={[{ value: '1m', label: 'Last month' }, { value: '3m', label: 'Last 3 months' }, { value: '6m', label: 'Last 6 months' }, { value: 'all', label: 'All time' }]} /></label>}</div></div>
           <ExerciseProgressChart label={`${chartMetricLabel(metric)} progress`} format={value => formatMetricValue(value, metric, unit)} points={insight.points.map(point => ({ key: `${point.sessionId}-${point.date}`, date: dateLabel(point.date), value: metricValue(point, metric) }))} />
           {insight.points.length > 0 && <ExerciseProgressTable points={insight.points} formatDate={dateLabel} formatKg={value => displayKg(value, unit)} />}
           {insight.partialVolume && insight.points.some(point => point.volumeKg != null) && <p className="muted detail-note">* Volume is partial because one or more logged loads were unknown.</p>}

@@ -13,8 +13,10 @@ import './ReadOnlyDay.css';
 
 /// A library day shown as the program prints it. Nothing here is editable: a program only
 /// becomes editable once it is moved into the active slot.
-export function ReadOnlyDay({ day, exercises, selectedMuscle, onMuscleSelect }: {
+export function ReadOnlyDay({ day, exercises, selectedMuscle, onMuscleSelect, lastLabels }: {
   day: DraftWorkout;
+  /** "Last: …" lines by library exercise id, for a preview of what is about to be lifted. */
+  lastLabels?: ReadonlyMap<string, string>;
   exercises: Exercise[];
   selectedMuscle: string | null;
   onMuscleSelect: (muscle: string | null) => void;
@@ -59,6 +61,7 @@ export function ReadOnlyDay({ day, exercises, selectedMuscle, onMuscleSelect }: 
             exercise={exercise}
             trackRir={trackRir}
             dimmed={dimSet ? dimSet.has(exercise.lineId) : false}
+            last={exercise.exerciseId ? lastLabels?.get(exercise.exerciseId) : undefined}
           />
         ))}
       </li>)}
@@ -66,7 +69,7 @@ export function ReadOnlyDay({ day, exercises, selectedMuscle, onMuscleSelect }: 
   </>;
 }
 
-function ReadOnlyExercise({ exercise, trackRir, dimmed }: { exercise: DraftExercise; trackRir: boolean; dimmed: boolean }) {
+function ReadOnlyExercise({ exercise, trackRir, dimmed, last }: { exercise: DraftExercise; trackRir: boolean; dimmed: boolean; last?: string }) {
   const lines = summarizeSets(exercise.sets, trackRir);
   const rest = exercise.restSeconds ?? exercise.sets.find(set => !set.warmup)?.restSeconds ?? null;
   return <div className={`readonly-exercise ${dimmed ? 'exercise-dimmed' : ''}`}>
@@ -74,6 +77,7 @@ function ReadOnlyExercise({ exercise, trackRir, dimmed }: { exercise: DraftExerc
       <strong className="readonly-exercise-name">{exercise.sourceName}</strong>
       {rest != null && <span className="readonly-exercise-rest">Rest {formatRest(rest)}</span>}
     </div>
+    {last && <p className="readonly-exercise-last">{last}</p>}
     {lines.length > 0 && <ul className="readonly-exercise-sets">
       {lines.map((line, index) => <li key={index}>
         <span className="readonly-set-count">{line.count} ×</span>

@@ -335,3 +335,14 @@
     transition: none;
   }
 }
+
+/* The last top set: a quiet line under the tags, for a glance at where the lift stands. */
+.exercise-card-last {
+  margin: 10px 0 0;
+  color: var(--muted);
+  font-size: var(--font-secondary);
+  font-variant-numeric: tabular-nums;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

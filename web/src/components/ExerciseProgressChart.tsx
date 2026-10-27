@@ -41,6 +41,18 @@ export function ExerciseProgressChart({ points, label, format }: {
     return <div className="exercise-chart"><span className="muted">No logged weights in this range to calculate {label.replace(/\s+progress$/i, '').toLowerCase()}.</span></div>;
   }
 
+  // One value is a number, not a trend: show it plainly instead of a dot in an empty plot.
+  const known = points.filter(point => point.value !== null);
+  if (known.length === 1) {
+    return <div className="exercise-chart exercise-chart-single">
+      <p className="exercise-chart-readout">
+        <strong>{format(known[0].value)}</strong>
+        <span>{known[0].date}</span>
+      </p>
+      <p className="muted exercise-chart-single-note">Log one more session to see a trend.</p>
+    </div>;
+  }
+
   let latestKnown = points.length - 1;
   while (latestKnown > 0 && points[latestKnown].value === null) latestKnown--;
   const index = selected === null || selected >= points.length ? latestKnown : selected;

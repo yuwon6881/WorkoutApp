@@ -174,6 +174,13 @@
   margin: auto;
 }
 
+/* Phones: the suggestions sit just above the composer, where the thumb already is. */
+@media (max-width: 639px) {
+  .ai-chat-empty {
+    margin: auto auto 0;
+  }
+}
+
 .ai-chat-empty-intro {
   display: grid;
   justify-items: center;

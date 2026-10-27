@@ -103,3 +103,11 @@
 @media (prefers-reduced-motion: reduce) {
   .readonly-exercise { transition: none; }
 }
+
+/* A preview's reminder of where the lift stood last time; a fact, not a target. */
+.readonly-exercise-last {
+  margin: 2px 0 0;
+  color: var(--muted);
+  font-size: var(--font-secondary);
+  font-variant-numeric: tabular-nums;
+}

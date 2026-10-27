@@ -94,6 +94,8 @@ function safeParse(text: string, status: number): { message?: string } & Record<
 }
 
 export const api = {
+  lastPerformed: (signal?: AbortSignal): Promise<import('./lastPerformed').ExerciseLastPerformed[]> =>
+    call('/api/exercises/last-performed', 'GET', undefined, signal),
   recentExerciseSets: async (id: string, signal?: AbortSignal): Promise<import('../types').RecentExerciseSession[]> => {
     try { return await call(`/api/exercises/${encodeURIComponent(id)}/recent-sets?limit=3`, 'GET', undefined, signal); }
     catch (error) {

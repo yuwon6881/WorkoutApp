@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { useState, type DragEvent, type ReactNode } from 'react';
 import { ChevronDown, FileText, Upload } from 'lucide-react';
 import { Button } from './ui/Button';
 import './ImportSource.css';
@@ -13,6 +13,7 @@ export function ImportUploadPanel({
   fileName,
   busy,
   onChooseFile,
+  onDropFile,
   children,
   footer,
 }: {
@@ -20,14 +21,39 @@ export function ImportUploadPanel({
   fileName?: string;
   busy: boolean;
   onChooseFile: () => void;
+  /** A file dropped on the panel goes the same way as a chosen one, through the same checks. */
+  onDropFile?: (file: File) => void;
   children?: ReactNode;
   footer?: ReactNode;
 }) {
+  const [dropping, setDropping] = useState(false);
+  const accepts = (event: DragEvent) => !busy && Boolean(onDropFile) && event.dataTransfer.types.includes('Files');
+  const drop = {
+    onDragOver: (event: DragEvent<HTMLElement>) => {
+      if (!accepts(event)) return;
+      event.preventDefault();
+      event.dataTransfer.dropEffect = 'copy';
+      setDropping(true);
+    },
+    onDragLeave: (event: DragEvent<HTMLElement>) => {
+      // Moving between the panel's own children also fires a leave; only leaving the panel counts.
+      if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setDropping(false);
+    },
+    onDrop: (event: DragEvent<HTMLElement>) => {
+      setDropping(false);
+      if (!accepts(event)) return;
+      event.preventDefault();
+      const dropped = event.dataTransfer.files[0];
+      if (dropped) onDropFile?.(dropped);
+    }
+  };
+
   return (
     <section
       className={`panel import-upload-panel iup-panel${
         hasDraft ? ' has-draft iup-panel--draft' : ' iup-panel--empty'
-      }`}
+      }${dropping ? ' iup-dropping' : ''}`}
+      {...drop}
     >
       {hasDraft ? (
         <div className="iup-draft-bar">
@@ -80,6 +106,7 @@ export function ImportUploadPanel({
               </Button>
               <span className="iup-hero-meta">
                 PDF · read on this device · up to 1,000 pages
+                {onDropFile && <span className="iup-drop-hint"> · or drop it here</span>}
               </span>
             </div>
           </div>
