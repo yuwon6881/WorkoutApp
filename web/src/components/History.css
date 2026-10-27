@@ -84,19 +84,23 @@
   justify-content: center;
   gap: 1px;
   flex: 0 0 auto;
-  width: 48px;
-  height: 52px;
+  width: 50px;
+  height: 54px;
   border-radius: var(--radius-control);
   background: var(--surface-raised);
   font-variant-numeric: tabular-nums;
 }
 
+/* An older phone rule sizes every span in a history row at 11px; the tile keeps the 14px minimum. */
+.history-list .history-item-wrap .history-row > .history-date {
+  font-size: var(--font-secondary);
+}
+
+/* Interface text stays at 14px or larger, so the month is a short word rather than small capitals. */
 .history-date > span {
-  font-size: 11px;
-  font-weight: 650;
-  line-height: 1;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
+  font-size: var(--font-secondary);
+  font-weight: 600;
+  line-height: 1.1;
   color: var(--muted);
 }
 
@@ -203,8 +207,8 @@
 
 .history-date-skeleton {
   flex: 0 0 auto;
-  width: 48px;
-  height: 52px;
+  width: 50px;
+  height: 54px;
   border-radius: var(--radius-control);
 }
 
@@ -249,8 +253,8 @@
   }
   .history-date,
   .history-date-skeleton {
-    width: 42px;
-    height: 48px;
+    width: 46px;
+    height: 52px;
   }
   .history-date > strong {
     font-size: 17px;
@@ -258,10 +262,9 @@
   .history-row .row-title > strong {
     font-size: 14px;
   }
-  /* Duration, sets and volume share one line on ordinary phones; the narrowest wrap instead of clipping. */
+  /* Duration, sets and volume share one line on most phones; the narrowest wrap instead of clipping. */
   .history-stats {
     gap: 6px 8px;
-    font-size: 13px;
   }
   .history-stats > span:not(.history-pr-pill) {
     gap: 4px;
