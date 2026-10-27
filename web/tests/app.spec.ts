@@ -1561,8 +1561,13 @@ test('offline and server failures are reported instead of faked', async ({ page,
   await expect(page.getByRole('heading', { name: 'Connection paused', exact: true })).toBeVisible({ timeout: 30000 });
   expect(await page.evaluate(() => navigator.serviceWorker.controller !== null)).toBe(true);
   const localEntries = await page.evaluate(() => Object.entries(localStorage));
-  expect(localEntries.map(([key]) => key).sort()).toEqual(['workout-theme', 'workout.push-device.v1']);
+  expect(localEntries.map(([key]) => key).sort()).toEqual(['workout-launch-snapshot', 'workout-theme', 'workout.push-device.v1']);
   expect(localEntries.find(([key]) => key === 'workout-theme')?.[1]).toMatch(/^(dark|light)$/);
+  // The launch summary bridges a cold start only; it never carries a session or import drafts.
+  const launch = JSON.parse(localEntries.find(([key]) => key === 'workout-launch-snapshot')![1]) as { shell: Record<string, unknown> };
+  expect(launch.shell.activeWorkout).toBeNull();
+  expect(launch.shell.imports).toEqual([]);
+  expect(launch.shell).not.toHaveProperty('history');
   expect(localEntries.find(([key]) => key === 'workout.push-device.v1')?.[1]).toMatch(/^[a-f0-9-]{36}$/i);
 
   await context.setOffline(false);

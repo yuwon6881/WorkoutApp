@@ -207,6 +207,9 @@ export function useApp(): AppState {
       if (problem.signedOut) mutationAccount.current = null;
       if (problem.signedOut) { clearLaunchSnapshot(); fromDevice.current = false; viewReadCache.reset(); clearStopwatches(); forgetSessionDetail(); pendingPreferences.current = null; setPreferencePending(false); validatedAccountId = null; resetGoogleHealthState(); await setLastAccount(null).catch(() => undefined); setRecovery(null); setSignedOut(true); setData(null); setError(''); queue.clear(); queue.set('signed-out'); }
       else {
+        // The device copy only bridges the wait for the server; a failed read shows the
+        // connection recovery screen rather than training data the server has not confirmed.
+        if (fromDevice.current) { fromDevice.current = false; setData(null); }
         setError(problem.message);
         if (problem.offline) {
           try {
