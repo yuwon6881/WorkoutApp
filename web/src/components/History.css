@@ -12,7 +12,23 @@
 .history-list {
   display: flex;
   flex-direction: column;
+  gap: 18px;
+}
+
+/* Each calendar month gets a quiet heading so a long history reads in chunks. */
+.history-month {
+  display: flex;
+  flex-direction: column;
   gap: 2px;
+}
+
+.history-month-heading {
+  margin: 0 0 4px;
+  padding: 0 10px;
+  font-size: var(--font-secondary);
+  font-weight: 650;
+  letter-spacing: 0;
+  color: var(--muted);
 }
 
 .history-item-wrap {
@@ -35,10 +51,11 @@
   display: flex;
   align-items: center;
   justify-content: flex-start;
-  gap: 12px;
+  gap: 14px;
   padding: 4px 2px;
   border-radius: var(--radius-control);
   text-align: left;
+  white-space: normal;
   background: transparent !important;
   border: none !important;
   box-shadow: none !important;
@@ -59,51 +76,95 @@
   background: var(--surface-hover);
 }
 
+/* The date leads each row as a small calendar tile: month above, day below. */
+.history-date {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  flex: 0 0 auto;
+  width: 48px;
+  height: 52px;
+  border-radius: var(--radius-control);
+  background: var(--surface-raised);
+  font-variant-numeric: tabular-nums;
+}
+
+.history-date > span {
+  font-size: 11px;
+  font-weight: 650;
+  line-height: 1;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+}
+
+.history-date > strong {
+  font-size: 19px;
+  font-weight: 700;
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+  color: var(--text);
+}
+
 .history-row .row-title {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 6px;
   min-width: 0;
   flex: 1 1 auto;
 }
 
-.history-row .row-title strong {
+.history-row .row-title > strong {
   font-size: 15px;
   font-weight: 680;
+  line-height: 1.3;
   letter-spacing: -0.015em;
   color: var(--text);
   overflow-wrap: anywhere;
 }
 
-.history-row .row-title small {
+.history-stats {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 14px;
   font-size: var(--font-secondary);
+  font-weight: 550;
   color: var(--muted);
-  line-height: 1.4;
-  white-space: normal;
+  font-variant-numeric: tabular-nums;
+}
+
+.history-stats > span:not(.history-pr-pill) {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+}
+
+.history-stats svg {
+  color: var(--faint);
 }
 
 .history-pr-pill {
   display: inline-flex;
   align-items: center;
-  padding: 3px 10px;
+  gap: 4px;
+  padding: 2px 8px;
   font-size: var(--font-secondary);
   font-weight: 680;
   letter-spacing: -0.005em;
   text-transform: none;
+  white-space: nowrap;
   border-radius: var(--radius-pill);
   background: var(--accent-soft);
   color: var(--accent);
   border: 1px solid var(--accent-border);
-  flex-shrink: 0;
 }
 
-.history-item-wrap .history-row > span:not(.row-title),
-.history-volume {
-  font-size: var(--font-secondary) !important;
-  font-weight: 600;
-  color: var(--muted);
-  font-variant-numeric: tabular-nums;
-  flex-shrink: 0;
+.history-pr-pill svg {
+  color: inherit;
 }
 
 .history-menu-trigger {
@@ -130,11 +191,41 @@
   display: flex;
   flex-direction: column;
   gap: 6px;
+  padding-top: 22px;
 }
 
-.history-loading-list .history-row-skeleton {
-  height: 56px;
+.history-row-skeleton-shape {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 10px 12px;
+}
+
+.history-date-skeleton {
+  flex: 0 0 auto;
+  width: 48px;
+  height: 52px;
   border-radius: var(--radius-control);
+}
+
+.history-row-skeleton-lines {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.history-title-skeleton {
+  width: min(260px, 70%);
+  height: 16px;
+  border-radius: 6px;
+}
+
+.history-stats-skeleton {
+  width: min(200px, 55%);
+  height: 12px;
+  border-radius: 6px;
 }
 
 @media (max-width: 639px) {
@@ -142,30 +233,31 @@
   .panel.history-windowed {
     padding: 18px 16px;
   }
+  .history-list {
+    gap: 14px;
+  }
+  .history-month-heading {
+    padding: 0 6px;
+  }
   .history-item-wrap {
     padding: 8px 6px;
   }
   .history-row {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: baseline;
-    gap: 4px 10px;
+    gap: 12px;
     padding: 2px 0;
   }
-  .history-row .row-title {
-    flex: 1 1 100%;
+  .history-date,
+  .history-date-skeleton {
+    width: 44px;
+    height: 48px;
   }
-  .history-row .row-title strong {
+  .history-date > strong {
+    font-size: 17px;
+  }
+  .history-row .row-title > strong {
     font-size: 14px;
   }
-  .history-row .row-title small {
-    font-size: var(--font-secondary);
-  }
-  .history-pr-pill,
-  .history-volume {
-    margin-top: 2px;
-  }
-  .history-loading-list .history-row-skeleton {
-    height: 60px;
+  .history-stats {
+    gap: 6px 12px;
   }
 }
