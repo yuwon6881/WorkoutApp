@@ -352,3 +352,11 @@
   .workout-set-rows .workout-set-row.nudge,
   .workout-set-undo { animation: none; }
 }
+
+/* Add set and the warm-up ramp share one row; a note under them explains a disabled ramp. */
+.workout-set-table-actions { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px; }
+.workout-set-table-actions .warmup-note { grid-column: 1 / -1; margin: 0; font-size: var(--font-secondary); color: var(--muted); }
+.warmup-choice dl { display: grid; gap: 12px; margin: 0; }
+.warmup-choice dl > div { padding: 12px 14px; border-radius: var(--radius-control); background: var(--surface-raised); border: 1px solid var(--border); }
+.warmup-choice dt { font-weight: 650; color: var(--text); }
+.warmup-choice dd { margin: 4px 0 0; color: var(--muted); font-variant-numeric: tabular-nums; }

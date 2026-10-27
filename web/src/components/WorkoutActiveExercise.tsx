@@ -32,6 +32,8 @@ import { MenuButton, MenuItem } from './ui/MenuButton';
 import { Select } from './ui/Select';
 import { ExerciseLibrary } from './Exercises';
 import { WorkoutSetRow } from './WorkoutSetRow';
+import { WorkoutWarmupButton } from './WorkoutWarmupButton';
+import { warmupOffer, withWarmups } from '../lib/workoutWarmups';
 import { DemoLink } from './ui/DemoLink';
 import { isTimedExercise } from '../lib/setDuration';
 import { useTrackRir } from '../lib/trackRir';
@@ -153,6 +155,7 @@ export function WorkoutActiveExercise({
     return () => controller.abort();
   }, [exercise.exerciseId, exercise.loadModel, libraryExercise, unit]);
   const resolvedLoads = libraryExercise ?? focusedLoads;
+  const warmups = warmupOffer(draft, index, exercises, unit);
   const nextUnloggedWorkingIndex = workingSets.findIndex(s => !s.done);
   // The row the lifter is on: the first set, warm-up or working, still to log.
   const nextSetIndex = exercise.sets.findIndex(s => !s.done);
@@ -317,15 +320,20 @@ export function WorkoutActiveExercise({
               <Button variant="tertiary" onClick={undoRemoveSet}>Undo</Button>
             </div>
           )}
-          <Button
-            variant="secondary"
-            className="add-set-btn"
-            disabled={exercise.sets.length >= 24}
-            onClick={() => change(withSetAdded(draft, index))}
-          >
-            <Plus size={16} />
-            Add set
-          </Button>
+          <div className="workout-set-table-actions">
+            <Button
+              variant="secondary"
+              className="add-set-btn"
+              disabled={exercise.sets.length >= 24}
+              onClick={() => change(withSetAdded(draft, index))}
+            >
+              <Plus size={16} />
+              Add set
+            </Button>
+            {warmups && <WorkoutWarmupButton exercise={exercise} offer={warmups} unit={unit}
+              catalogReady={Boolean(libraryExercise) || !exercise.exerciseId} loadCatalog={onCatalogNeeded}
+              onApply={steps => change(withWarmups(draft, index, steps))} />}
+          </div>
         </div>
       </div>
 

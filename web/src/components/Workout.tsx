@@ -3,7 +3,7 @@ import type { Exercise, LoggedSet, Preferences, RestMutationInput, Session, Sess
 import { ApiError, api } from '../lib/api';
 import type { SaveQueue } from '../lib/queue';
 import { completedSets, finishBlocker, plannedSets } from '../lib/training';
-import { withLoggedSetEdit, type FilledInputsLog } from '../lib/liveAdjustment';
+import { withLoggedSetEdit, type CopiedLoadsLog, type FilledInputsLog } from '../lib/liveAdjustment';
 import { useTrackRir } from '../lib/trackRir';
 import { exerciseListChanged, indexAfterMove, indexAfterRemoval, setOrderProblem, withExerciseMoved, withServerFlags } from '../lib/workoutDraft';
 import { firstOpenExercise, nextUpText, type AdvanceOptions } from '../lib/workoutLogging';
@@ -83,7 +83,7 @@ export function Workout({
   const revision = useRef(serverSession.current.revision);
   const setToggleGenerations = useRef(new Map<string, number>());
   // What the logger last filled into each later set, so a typed value is never overwritten.
-  const filledInputs = useRef<FilledInputsLog>(new Map());
+  const written = useRef<{ filled: FilledInputsLog; copied: CopiedLoadsLog }>({ filled: new Map(), copied: new Map() });
   const trackRir = useTrackRir();
   const { celebration, afterLog } = useAfterLog({
     unit: preferences.unit, advance, onAdvance: index => selectExercise(index)
@@ -189,7 +189,7 @@ export function Workout({
     restState?: SessionRest | null
   ): Promise<boolean> {
     const exercise = draft.exercises[ei];
-    const next = withLoggedSetEdit(draft, ei, si, patch, exercises, preferences.unit, trackRir, filledInputs.current);
+    const next = withLoggedSetEdit(draft, ei, si, patch, exercises, preferences.unit, trackRir, written.current.filled, written.current.copied);
     if (!next) return false;
     return change(next, { setId: exercise.sets[si].id, patch }, restMutation, restState);
   }
