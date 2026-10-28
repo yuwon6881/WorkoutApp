@@ -3,7 +3,9 @@ import { canEnterPerSide } from '../lib/equipmentGroups';
 import { loadAdjustable } from '../lib/exerciseLoads';
 import { useDeferredValue, useEffect, useMemo, useState } from 'react';
 import { ArrowLeftRight, Link2, Plus, Search, X, Trash2 } from 'lucide-react';
-import type { Exercise, ExerciseCategory, ExerciseInsight } from '../types';
+import type { Exercise, ExerciseCategory, ExerciseInsight, Unit } from '../types';
+import { lastPerformedLabel } from '../lib/lastPerformed';
+import { useLastPerformed } from './useLastPerformed';
 import { ApiError, api } from '../lib/api';
 import { showSetCount } from '../lib/training';
 import { weightBasisDescription } from '../lib/weightBasis';
@@ -55,8 +57,10 @@ function exerciseRank(candidate: Exercise, current: Exercise | undefined, prefer
   return 4;
 }
 
-export function ExerciseLibrary({ exercises, onSelect, exclude = emptyIds, onOpen, onChanged, action = 'add', currentExerciseId, preferredNames = emptyIds, disabled = false }: {
+export function ExerciseLibrary({ exercises, onSelect, exclude = emptyIds, onOpen, onChanged, action = 'add', currentExerciseId, preferredNames = emptyIds, disabled = false, unit }: {
   exercises: Exercise[];
+  /** When given (the library tab), cards add the exercise's last top set in this unit. */
+  unit?: Unit;
   onSelect?: (id: string) => void;
   exclude?: string[];
   onOpen?: (exercise: Exercise) => void;
@@ -68,6 +72,11 @@ export function ExerciseLibrary({ exercises, onSelect, exclude = emptyIds, onOpe
 }) {
   const [query, setQuery] = useState('');
   const [muscle, setMuscle] = useState('All muscles');
+  const lastPerformed = useLastPerformed(Boolean(unit) && !onSelect);
+  const lastLabel = (exercise: Exercise) => {
+    const last = lastPerformed.get(exercise.id);
+    return unit && last ? lastPerformedLabel(last, unit, exercise) : null;
+  };
   const [source, setSource] = useState<'all' | 'custom' | 'catalog'>('all');
   const [category, setCategory] = useState<'all' | ExerciseCategory>('all');
   const [createOpen, setCreateOpen] = useState(false);
@@ -139,7 +148,7 @@ export function ExerciseLibrary({ exercises, onSelect, exclude = emptyIds, onOpe
                       <h3 title={e.name}>{e.name}</h3>
                     </div>
                     <div className="picker-tags">
-                      {loadAdjustable(e) && <span className="pill pill-muted">{e.weightBasis === 'per_side' ? 'Per side' : 'Total weight'}</span>}
+                      {loadAdjustable(e) && e.weightBasis === 'per_side' && <span className="pill pill-muted">Per side</span>}
                       {e.isCustom && <span className="pill pill-muted">Custom</span>}
                       <span className="pill pill-accent picker-muscle-tag">{e.muscle || 'Full body'}</span>
                       {e.secondaryMuscles && e.secondaryMuscles.length > 0 && (
@@ -174,7 +183,7 @@ export function ExerciseLibrary({ exercises, onSelect, exclude = emptyIds, onOpe
                     </div>}
                   </div>
                   <div className="exercise-card-meta">
-                    {loadAdjustable(e) && <span className="pill pill-muted">{e.weightBasis === 'per_side' ? 'Per side' : 'Total weight'}</span>}
+                    {loadAdjustable(e) && e.weightBasis === 'per_side' && <span className="pill pill-muted">Per side</span>}
                     {e.isCustom && <span className="pill pill-muted">Custom</span>}
                     <span className="pill pill-accent">{e.muscle || 'Full body'}</span>
                     {e.secondaryMuscles && e.secondaryMuscles.length > 0 && (
@@ -186,6 +195,7 @@ export function ExerciseLibrary({ exercises, onSelect, exclude = emptyIds, onOpe
                       </span>
                     )}
                   </div>
+                  {lastLabel(e) && <p className="exercise-card-last">{lastLabel(e)}</p>}
                 </article>
               )
             ))}
@@ -343,6 +353,7 @@ export function ExerciseDetailModal({ exercise, unit, onClose, onChanged }: { ex
   }
   async function deleteExercise() { setBusy(true); try { await api.deleteCustomExercise(exercise.id); setDeleteConfirm(false); await onChanged?.(); onClose(); } catch (failure) { setError(failure instanceof ApiError ? failure.message : 'Could not delete this custom exercise.'); } finally { setBusy(false); } }
   async function moreHistory() { if (!insight || historyBusy || insight.history.length >= insight.totalHistoryRows) return; setHistoryBusy(true); try { const next = await api.exerciseInsight(exercise.id, range, insight.page + 1, insight.size); setInsight(current => current ? { ...current, history: [...current.history, ...next.history], page: next.page } : next); } catch (failure) { setError(failure instanceof ApiError ? failure.message : 'Could not load more exercise history.'); } finally { setHistoryBusy(false); } }
+  const customDeletable = exercise.isCustom && !exercise.archived && !insight?.archived;
   return <>
     <Modal title={exercise.name} onClose={onClose} wide>
       <div className="modal-body exercise-detail-modal">
@@ -355,12 +366,12 @@ export function ExerciseDetailModal({ exercise, unit, onClose, onChanged }: { ex
           <span className="pill pill-category">{getExerciseCategory(exercise)}</span>
         </div>}
         {detailTab === 'progress' && !exercise.archived && loadAdjustable(exercise) && <ExerciseLoadSettings key={exercise.id} exerciseId={exercise.id} exerciseName={exercise.name} unit={unit} perSide={canEnterPerSide(exercise)} onChanged={onChanged} />}
-        {loadAdjustable(exercise) && <p className="muted">{weightBasisDescription(exercise)}</p>}
+        {detailTab === 'progress' && loadAdjustable(exercise) && <p className="muted">{weightBasisDescription(exercise)}</p>}
         {error && <div className="error-banner" role="alert">{error}</div>}
         {!insight && !error && <div className="skeleton detail-loading" aria-label="Loading exercise details" />}
         {insight && insight.totalHistoryRows === 0 && <p className="muted">No workout history yet. Complete a workout to see progress here.</p>}
         {insight && insight.totalHistoryRows > 0 && detailTab === 'progress' && <>
-          <div className="section-heading"><h3>Progress</h3><div className="detail-selectors"><label className="field"><span>Metric</span><Select name="progress-metric-select" label="Progress metric" value={metric} onChange={val => setSelectedMetric(val as ChartMetric)} options={[{ value: 'estimated1rm', label: 'Estimated 1RM' }, { value: 'load', label: 'Heaviest load' }, { value: 'volume', label: 'Session volume' }, { value: 'reps', label: 'Reps' }]} /></label><label className="field"><span>Range</span><Select name="progress-range-select" label="Progress range" value={range} onChange={val => setRange(val as string)} options={[{ value: '1m', label: 'Last month' }, { value: '3m', label: 'Last 3 months' }, { value: '6m', label: 'Last 6 months' }, { value: 'all', label: 'All time' }]} /></label></div></div>
+          <div className="section-heading"><h3>Progress</h3><div className="detail-selectors"><label className="field"><span>Metric</span><Select name="progress-metric-select" label="Progress metric" value={metric} onChange={val => setSelectedMetric(val as ChartMetric)} options={[{ value: 'estimated1rm', label: 'Estimated 1RM' }, { value: 'load', label: 'Heaviest load' }, { value: 'volume', label: 'Session volume' }, { value: 'reps', label: 'Reps' }]} /></label>{insight.totalHistoryRows > 1 && <label className="field"><span>Range</span><Select name="progress-range-select" label="Progress range" value={range} onChange={val => setRange(val as string)} options={[{ value: '1m', label: 'Last month' }, { value: '3m', label: 'Last 3 months' }, { value: '6m', label: 'Last 6 months' }, { value: 'all', label: 'All time' }]} /></label>}</div></div>
           <ExerciseProgressChart label={`${chartMetricLabel(metric)} progress`} format={value => formatMetricValue(value, metric, unit)} points={insight.points.map(point => ({ key: `${point.sessionId}-${point.date}`, date: dateLabel(point.date), value: metricValue(point, metric) }))} />
           {insight.points.length > 0 && <ExerciseProgressTable points={insight.points} formatDate={dateLabel} formatKg={value => displayKg(value, unit)} />}
           {insight.partialVolume && insight.points.some(point => point.volumeKg != null) && <p className="muted detail-note">* Volume is partial because one or more logged loads were unknown.</p>}
@@ -385,7 +396,7 @@ export function ExerciseDetailModal({ exercise, unit, onClose, onChanged }: { ex
         {detailTab === 'history' && insight?.historyClears?.map(clear => <div className="exercise-history-cleared" role="status" key={clear.clearedAt}>Exercise history cleared on {dateLabel(clear.clearedAt)} · {showSetCount(clear.removedSets)} removed</div>)}
         {detailTab === 'history' && Boolean(insight?.clearableSetCount) && <ExerciseHistoryClearing exerciseId={exercise.id} clearableSets={insight!.clearableSetCount} onCleared={historyCleared} />}
       </div>
-      <div className="modal-actions">{exercise.isCustom && !exercise.archived && !insight?.archived && <Button variant="destructive" onClick={() => setDeleteConfirm(true)} disabled={busy}><Trash2 size={15} />Delete custom exercise</Button>}<Button variant="primary" onClick={onClose}>Done</Button></div>
+      <div className={`modal-actions ${customDeletable ? '' : 'dismiss-only'}`.trim()}>{customDeletable && <Button variant="destructive" onClick={() => setDeleteConfirm(true)} disabled={busy}><Trash2 size={15} />Delete custom exercise</Button>}<Button variant="primary" onClick={onClose}>Done</Button></div>
     </Modal>
     {deleteConfirm && <Modal title="Delete custom exercise?" onClose={() => setDeleteConfirm(false)}><div className="modal-body"><p>This removes the exercise from future selections. Existing workout names, sets, records, and totals stay preserved; saved templates will mark the reference as deleted until you replace it.</p><div className="modal-actions"><Button variant="tertiary" onClick={() => setDeleteConfirm(false)}>Cancel</Button><Button variant="destructive" onClick={() => void deleteExercise()} disabled={busy}>{busy ? 'Deleting…' : 'Delete exercise'}</Button></div></div></Modal>}
   </>;

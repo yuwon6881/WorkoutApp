@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from './Button';
 import { useReducedMotion } from './Motion';
+import { readHorizontalOverflow } from '../useHorizontalOverflow';
 
 export function ChipScroller({
   ariaLabel,
@@ -26,8 +27,9 @@ export function ChipScroller({
   const checkScroll = useCallback(() => {
     const element = chipsRef.current;
     if (!element) return;
-    setCanScrollLeft(element.scrollLeft > 2);
-    setCanScrollRight(element.scrollLeft + element.clientWidth < element.scrollWidth - 2);
+    const overflow = readHorizontalOverflow(element);
+    setCanScrollLeft(overflow.start);
+    setCanScrollRight(overflow.end);
   }, []);
 
   useEffect(() => {

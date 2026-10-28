@@ -19,9 +19,11 @@ interface Props {
   invocation?: AiInvocationRequest | null;
   onInvocationConsumed?: () => void;
   surface?: string;
+  /** Names the upcoming workout in a suggested prompt. */
+  nextWorkoutName?: string | null;
 }
 
-export function AiAssistantPanel({ isOpen, onClose, onActions, invocation, onInvocationConsumed, surface = 'dashboard' }: Props) {
+export function AiAssistantPanel({ isOpen, onClose, onActions, invocation, onInvocationConsumed, surface = 'dashboard', nextWorkoutName }: Props) {
   const defaultContext = useMemo(() => ({ surface, timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone }), [surface]);
   const chat = useAiConversation({ isOpen, onClose, onActions, invocation, onInvocationConsumed, defaultContext });
   const disabled = chat.isSending || chat.isHydrating || chat.isResetting || chat.isResolving;
@@ -44,7 +46,7 @@ export function AiAssistantPanel({ isOpen, onClose, onActions, invocation, onInv
         </header>
         <AiLog messages={chat.messages} pendingReply={chat.pendingReply} actionBatches={chat.pendingActionBatches}>
           {chat.isHydrating && <p className="ai-chat-loading" role="status">Loading conversation…</p>}
-          {isEmpty && <AiEmptyState disabled={disabled || Boolean(chat.error)} onPick={prompt => void chat.sendMessage(prompt)} />}
+          {isEmpty && <AiEmptyState disabled={disabled || Boolean(chat.error)} nextWorkoutName={nextWorkoutName} onPick={prompt => void chat.sendMessage(prompt)} />}
           {chat.messages.map((message, index) => <div key={index} className={`ai-chat-message ${message.role}`}>
             {message.role === 'assistant' && <span className="ai-chat-message-label">Coach</span>}
             <AiMessageContent content={message.content} role={message.role} />

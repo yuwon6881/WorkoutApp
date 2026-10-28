@@ -318,7 +318,19 @@
   text-wrap: pretty;
 }
 
+.pp-library-empty-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
 @media (max-width: 639px) {
+  .pp-library-empty-actions > .button {
+    flex: 1 1 140px;
+    justify-content: center;
+  }
+
   .panel.pp-library-empty-card {
     padding: 16px;
   }

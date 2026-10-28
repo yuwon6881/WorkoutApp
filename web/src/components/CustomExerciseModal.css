@@ -1,0 +1,53 @@
+/* "More options": the folded half of the custom exercise form. */
+.custom-exercise-more {
+  border-top: 1px solid var(--border);
+  padding-top: 4px;
+}
+
+.custom-exercise-more > summary {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  list-style: none;
+  color: var(--text);
+  font-size: var(--font-secondary);
+  font-weight: 650;
+}
+
+.custom-exercise-more > summary::-webkit-details-marker {
+  display: none;
+}
+
+/* Wraps rather than clipping: interface text is never cut off (responsive suite). */
+.custom-exercise-more-summary {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.custom-exercise-more-chevron {
+  flex: 0 0 auto;
+  color: var(--muted);
+  transition: transform var(--motion-control) var(--motion-ease);
+}
+
+.custom-exercise-more[open] .custom-exercise-more-chevron {
+  transform: rotate(180deg);
+}
+
+.custom-exercise-more[open] .custom-exercise-more-summary {
+  display: none;
+}
+
+.custom-exercise-more-body {
+  display: grid;
+  gap: 15px;
+  padding-top: 4px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .custom-exercise-more-chevron { transition: none; }
+}

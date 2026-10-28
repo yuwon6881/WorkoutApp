@@ -2,10 +2,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { RotateCw } from 'lucide-react';
 import type { MuscleBalanceRow, MuscleBalanceView as MuscleBalanceData } from '../types';
 import { ApiError, api } from '../lib/api';
-import { formatSets, peakSets, RANGES } from '../lib/muscleBalance';
+import { formatSets, orderBreakdownGroups, peakSets, RANGES } from '../lib/muscleBalance';
 import { Button } from './ui/Button';
 import { Select } from './ui/Select';
-import { MotionPanel } from './ui/Motion';
+import { MotionPanel, useReducedMotion } from './ui/Motion';
 import { BodyMap, MuscleDetail } from './BodyMap';
 import { MuscleBreakdownGroup } from './MuscleBreakdownGroup';
 import './MuscleBalance.css';
@@ -52,6 +52,11 @@ export function MuscleBalanceView({ timeZone, onExercise, refreshKey }: { timeZo
   const upperMuscles = useMemo(() => muscles.filter(m => !isLowerBody(m.muscle)), [muscles]);
   const lowerMuscles = useMemo(() => muscles.filter(m => isLowerBody(m.muscle)), [muscles]);
   const maxMuscleSets = useMemo(() => Math.max(...muscles.map(m => m.sets), 0), [muscles]);
+  // The half of the body that was trained more leads, so what was done is seen before what was not.
+  const breakdownGroups = useMemo(() => orderBreakdownGroups([
+    { title: 'Upper body', muscles: upperMuscles },
+    { title: 'Lower body', muscles: lowerMuscles }
+  ]), [upperMuscles, lowerMuscles]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -81,6 +86,16 @@ export function MuscleBalanceView({ timeZone, onExercise, refreshKey }: { timeZo
     setPinnedMuscle(current => (current === muscleName ? null : muscleName));
     setHoveredMuscle(current => (current === muscleName && pinnedMuscle === muscleName ? null : current));
   }, [pinnedMuscle]);
+
+  const reducedMotion = useReducedMotion();
+  /** Pins a muscle (never toggling it off) and brings its breakdown row into view. */
+  const showMuscle = useCallback((muscleName: string) => {
+    setPinnedMuscle(muscleName);
+    requestAnimationFrame(() => {
+      document.querySelector(`[data-breakdown-muscle="${CSS.escape(muscleName)}"]`)
+        ?.scrollIntoView({ behavior: reducedMotion ? 'auto' : 'smooth', block: 'center' });
+    });
+  }, [reducedMotion]);
 
   return (
     <div className="muscle-balance-page">
@@ -132,16 +147,31 @@ export function MuscleBalanceView({ timeZone, onExercise, refreshKey }: { timeZo
               <span className="muscle-balance-stat-label">Trained groups</span>
               <strong className="muscle-balance-stat-value">{trained.length > 0 ? `${trained.length} of ${muscles.length}` : '—'}</strong>
             </div>
-            <div className="muscle-balance-stat-card">
-              <span className="muscle-balance-stat-label">Top muscle</span>
-              <strong className="muscle-balance-stat-value">{trained[0]?.muscle ?? '—'}</strong>
-            </div>
+            {trained[0] ? (
+              <Button presentation="plain" className="muscle-balance-stat-card muscle-balance-stat-action"
+                aria-label={`Top muscle: ${trained[0].muscle}. Show its sets`} onClick={() => showMuscle(trained[0].muscle)}>
+                <span className="muscle-balance-stat-label">Top muscle</span>
+                <strong className="muscle-balance-stat-value">{trained[0].muscle}</strong>
+              </Button>
+            ) : (
+              <div className="muscle-balance-stat-card">
+                <span className="muscle-balance-stat-label">Top muscle</span>
+                <strong className="muscle-balance-stat-value">—</strong>
+              </div>
+            )}
           </div>
 
           <div className="muscle-balance-main-grid">
             <section className="panel muscle-balance-map-panel" aria-busy={loading}>
               <div className="section-heading muscle-balance-section-heading">
                 <h2>Anatomy map</h2>
+              </div>
+              {/* The key sits above the figure so it is read first, even when the map fills the screen. */}
+              <div className="muscle-balance-legend" aria-label="Credited sets scale">
+                <span className="muscle-legend-item"><i className="legend-swatch empty" />Untrained</span>
+                <span className="muscle-legend-item"><i className="legend-swatch low" />Fewer sets</span>
+                <span className="muscle-legend-item"><i className="legend-swatch mid" />More sets</span>
+                <span className="muscle-legend-item"><i className="legend-swatch peak" />Most sets</span>
               </div>
               <MotionPanel motionKey={`muscle-map-${range}`} className="muscle-balance-map-body">
                 <BodyMap
@@ -153,12 +183,6 @@ export function MuscleBalanceView({ timeZone, onExercise, refreshKey }: { timeZo
                 />
                 <MuscleDetail muscle={detail} dateLabel={dateLabel} />
               </MotionPanel>
-              <div className="muscle-balance-legend" aria-label="Credited sets scale">
-                <span className="muscle-legend-item"><i className="legend-swatch empty" />Untrained</span>
-                <span className="muscle-legend-item"><i className="legend-swatch low" />Fewer sets</span>
-                <span className="muscle-legend-item"><i className="legend-swatch mid" />More sets</span>
-                <span className="muscle-legend-item"><i className="legend-swatch peak" />Most sets</span>
-              </div>
               {view.unattributedSets > 0 && (
                 <p className="muscle-balance-unattributed">
                   {formatSets(view.unattributedSets)} completed {view.unattributedSets === 1 ? 'set could' : 'sets could'} not be matched to a muscle and are excluded from the map.
@@ -176,10 +200,8 @@ export function MuscleBalanceView({ timeZone, onExercise, refreshKey }: { timeZo
               </div>
 
               <div className="muscle-breakdown-groups">
-                <MuscleBreakdownGroup title="Upper body" muscles={upperMuscles} peak={maxMuscleSets}
-                  activeMuscle={pinnedMuscle} onSelect={selectMuscle} onHover={setHoveredMuscle} onExercise={onExercise} />
-                <MuscleBreakdownGroup title="Lower body" muscles={lowerMuscles} peak={maxMuscleSets}
-                  activeMuscle={pinnedMuscle} onSelect={selectMuscle} onHover={setHoveredMuscle} onExercise={onExercise} />
+                {breakdownGroups.map(group => <MuscleBreakdownGroup key={group.title} title={group.title} muscles={group.muscles} peak={maxMuscleSets}
+                  activeMuscle={pinnedMuscle} onSelect={selectMuscle} onHover={setHoveredMuscle} onExercise={onExercise} />)}
               </div>
             </section>
           </div>

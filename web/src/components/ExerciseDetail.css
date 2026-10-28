@@ -214,3 +214,6 @@
 .exercise-history-clearing > .error-text {
   flex-basis: 100%;
 }
+.exercise-chart-single-note {
+  margin: 0;
+}

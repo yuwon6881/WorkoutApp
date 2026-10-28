@@ -273,3 +273,8 @@
     transition: none;
   }
 }
+
+.workout-preview-estimate {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+}

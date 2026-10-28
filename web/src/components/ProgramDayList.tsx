@@ -246,7 +246,7 @@ export function ProgramDayList({
             onMuscleSelect={setSelectedMuscle}
           />}
         </div>
-        <div className="modal-actions">
+        <div className="modal-actions dismiss-only">
           <Button variant="primary" onClick={closeModal}>Done</Button>
         </div>
       </Modal>

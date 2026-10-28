@@ -33,13 +33,13 @@ export function ProgramMusclePreview({ summary, selectedMuscle, onMuscleSelect }
             {summary.muscles.map(({ muscle, sets }) => {
               const isSelected = selectedMuscle === muscle;
               const formattedSets = formatSets(sets);
-              const creditWord = sets === 1 ? 'credit' : 'credits';
+              const setWord = sets === 1 ? 'set' : 'sets';
               return (
                 <li key={muscle} className="program-muscle-item">
                   <Button
                     presentation="plain"
                     className={`program-muscle-tile${isSelected ? ' is-selected' : ''}`}
-                    aria-label={`${muscle}, ${formattedSets} planned set ${creditWord}${isSelected ? ', selected' : ''}`}
+                    aria-label={`${muscle}, ${formattedSets} planned ${setWord}${isSelected ? ', selected' : ''}`}
                     aria-pressed={isSelected}
                     onClick={() => onMuscleSelect?.(isSelected ? null : muscle)}
                   >
@@ -59,7 +59,7 @@ export function ProgramMusclePreview({ summary, selectedMuscle, onMuscleSelect }
                         )}
                       </span>
                       <span className="program-muscle-credit-text">
-                        {formattedSets} planned set {creditWord}
+                        {formattedSets} {setWord}
                       </span>
                     </span>
                   </Button>

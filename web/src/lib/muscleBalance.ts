@@ -26,3 +26,11 @@ export function formatSets(sets: number): string {
   const rounded = Math.round(Math.max(0, sets) * 10) / 10;
   return Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(1);
 }
+
+/** Groups by credited sets, most first; ties keep their given order (upper body before lower). */
+export function orderBreakdownGroups<T extends { muscles: MuscleBalanceRow[] }>(groups: T[]): T[] {
+  const total = (group: T) => group.muscles.reduce((sum, muscle) => sum + muscle.sets, 0);
+  return groups.map((group, index) => ({ group, index, sets: total(group) }))
+    .sort((a, b) => b.sets - a.sets || a.index - b.index)
+    .map(entry => entry.group);
+}

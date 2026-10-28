@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { Clock3, Dumbbell, Layers, Trophy } from 'lucide-react';
+import { Clock3, Dumbbell, Layers, RotateCcw, Trophy } from 'lucide-react';
 import type { Exercise, Preferences, Session, SessionExercise } from '../types';
 import { getSessionMuscleCredits } from '../lib/sessionMuscles';
 import { duration, showVolume } from '../lib/training';
@@ -14,7 +14,7 @@ import './SessionDetail.css';
 /// A finished workout. Straight after Finish it opens as the session's result; from history it is
 /// the same summary without the celebration. A history row opens it at once from its summary, and
 /// the exercises fill in when the full session arrives.
-export function SessionDetail({ session: initial, preferences, exercises = [], catalogLoading = false, justFinished = false, onClose, onExercise }: {
+export function SessionDetail({ session: initial, preferences, exercises = [], catalogLoading = false, justFinished = false, onClose, onExercise, onRepeat }: {
   session: Session;
   preferences: Preferences;
   exercises?: Exercise[];
@@ -23,6 +23,8 @@ export function SessionDetail({ session: initial, preferences, exercises = [], c
   justFinished?: boolean;
   onClose: () => void;
   onExercise?: (id: string) => void;
+  /** Offered only for a saved standalone workout while nothing is open; it opens the usual preview. */
+  onRepeat?: () => void;
 }) {
   const { session, loading, error, retry } = useSessionDetail(initial);
   const unit = preferences.unit;
@@ -63,13 +65,14 @@ export function SessionDetail({ session: initial, preferences, exercises = [], c
             <p className="session-summary-when">{when}</p>
           </div>
         </div>
-        <dl className="session-summary-stats">
+        {/* No records is not news: the tile appears only when the workout set one. */}
+        <dl className={`session-summary-stats${prCount > 0 ? '' : ' no-records'}`}>
           <div><dt><Clock3 size={14} aria-hidden="true" />Duration</dt><dd>{duration(session)}<small>min</small></dd></div>
           <div><dt><Layers size={14} aria-hidden="true" />Working sets</dt><dd>{session.completedSets}</dd></div>
           <div><dt><Dumbbell size={14} aria-hidden="true" />Volume</dt><dd>{showVolume(session.volumeKg, unit)}</dd></div>
-          <div className={prCount > 0 ? 'has-records' : undefined}>
+          {prCount > 0 && <div className="has-records">
             <dt><Trophy size={14} aria-hidden="true" />Personal bests</dt><dd>{prCount}</dd>
-          </div>
+          </div>}
         </dl>
       </header>
 
@@ -85,7 +88,8 @@ export function SessionDetail({ session: initial, preferences, exercises = [], c
       </p>}
       {session.note && <p className="note-block">{session.note}</p>}
     </div>
-    <div className="modal-actions">
+    <div className={`modal-actions${onRepeat ? '' : ' dismiss-only'}`}>
+      {onRepeat && <Button variant="secondary" onClick={onRepeat}><RotateCcw size={15} aria-hidden="true" />Do this workout again</Button>}
       <Button variant="primary" onClick={onClose}>Done</Button>
     </div>
   </Modal>;

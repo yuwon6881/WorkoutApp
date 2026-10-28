@@ -1,7 +1,7 @@
 import { Play, Plus, Settings, Sparkles } from 'lucide-react';
 import { Button } from './ui/Button';
 import { SelectionIndicator } from './ui/Motion';
-import { NAV, navView } from '../app/navigation';
+import { NAV, navCurrent, navSection, navView } from '../app/navigation';
 import { prefetchView } from '../app/lazyViews';
 import { DOCK_ACTION_LABEL, type DockAction } from './BottomNav';
 import type { Tab } from '../app/useTabNavigation';
@@ -71,7 +71,7 @@ export function SideNav({
       </div>
 
       <nav aria-label="Main navigation">
-        <SelectionIndicator active={tab} className="sidebar-nav-track">
+        <SelectionIndicator active={navSection(tab)} className="sidebar-nav-track">
           {NAV.map(item => (
             <Button
               key={item.id}
@@ -79,8 +79,8 @@ export function SideNav({
               onPointerEnter={() => prefetchView(navView(item.id))}
               onFocus={() => prefetchView(navView(item.id))}
               variant="tertiary"
-              className={`nav-item ${tab === item.id ? 'selected' : ''}`.trim()}
-              aria-current={tab === item.id ? 'page' : undefined}
+              className={`nav-item ${navSection(tab) === item.id ? 'selected' : ''}`.trim()}
+              aria-current={navCurrent(tab, item.id)}
               onClick={() => onTab(item.id)}
             >
               <item.icon size={20} className="nav-icon" aria-hidden="true" />

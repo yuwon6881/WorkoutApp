@@ -58,7 +58,7 @@ export function WorkoutTargetsView({ exercise, unit, trackRir, previousSets, pre
           <div className="plan-detail-banner">
             <TrendingUp size={16} className="plan-banner-icon" aria-hidden="true" />
             <div className="plan-banner-text">
-              <strong className="plan-banner-title">Progression Target</strong>
+              <strong className="plan-banner-title">Progression target</strong>
               <p>{exercise.progression.reason}</p>
             </div>
           </div>

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { ChevronLeft, ChevronRight, RotateCcw } from 'lucide-react';
+import { Check, ChevronLeft, ChevronRight, RotateCcw } from 'lucide-react';
 import type { HistoryPage, ProgramSummary, Session, WorkoutActivityItem } from '../types';
 import { localDate, weekDays } from '../lib/training';
 import { loadSessionDetail } from '../lib/sessionDetailLoad';
@@ -188,7 +188,10 @@ export function TrainingCalendar({ onSession, program, refreshKey, activeWorkout
             >
               <ChevronLeft size={18} />
             </Button>
-            <span className="calendar-month-label">{monthYearLabel}</span>
+            <span className="calendar-month-label">
+              {monthYearLabel}
+              <span className="calendar-swipe-hint" aria-hidden="true"> · swipe for other weeks</span>
+            </span>
             <Button
               aria-label="Next week"
               variant="tertiary"
@@ -243,7 +246,7 @@ export function TrainingCalendar({ onSession, program, refreshKey, activeWorkout
               : `${completed.length} ${completed.length === 1 ? 'workout' : 'workouts'} completed this week`}
         </p>
         <div className="calendar-legend-pills" aria-label="Calendar status legend">
-          <span className="calendar-legend-pill"><i className="legend-dot completed" aria-hidden="true" />Completed</span>
+          <span className="calendar-legend-pill"><Check size={12} strokeWidth={3} className="legend-mark completed" aria-hidden="true" />Completed</span>
           <span className="calendar-legend-pill"><i className="legend-dot in-progress" aria-hidden="true" />In progress</span>
           <span className="calendar-legend-pill"><i className="legend-dot rest" aria-hidden="true" />No workout</span>
         </div>

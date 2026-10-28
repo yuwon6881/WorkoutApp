@@ -114,7 +114,7 @@ test.describe('Visual Redesign Capture', () => {
             }
 
             // Close modal
-            await page.getByRole('button', { name: 'Done' }).click();
+            await page.getByRole('button', { name: 'Close dialog', exact: true }).click();
             await expect(page.locator('.exercise-detail-modal')).not.toBeVisible();
           }
         }

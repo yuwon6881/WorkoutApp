@@ -231,7 +231,8 @@
 
 /* Reps and effort share one field; the effort badge sits on its lower trailing corner. */
 .workout-set-rows .combined-reps-cell { position: relative; min-width: 0; border: 0; border-radius: 12px; background: transparent; }
-.workout-set-rows .combined-reps-cell .reps-rir-badge { top: auto; right: -5px; bottom: -5px; min-width: 22px; height: 22px; box-shadow: 0 0 0 2px var(--surface); }
+/* The value is centred, so the badge follows the centre on wide cells instead of drifting to the corner beside the tick. */
+.workout-set-rows .combined-reps-cell .reps-rir-badge { top: auto; right: max(-5px, calc(50% - 40px)); bottom: -5px; min-width: 22px; height: 22px; box-shadow: 0 0 0 2px var(--surface); }
 .workout-set-rows .workout-set-row.done .combined-reps-cell .reps-rir-badge { box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 12%, var(--surface)); }
 
 /* Timed sets: the time spans the reps column with its start/stop control. */

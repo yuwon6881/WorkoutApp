@@ -65,7 +65,11 @@ test('clearing exercise history waits for an open workout that uses it and asks 
   workoutOpen = false;
   await section.getByRole('button', { name: 'Check again', exact: true }).click();
   await section.getByRole('button', { name: 'Clear history', exact: true }).click();
+  // A clear re-reads the exercise's insight through the route above; the test must not end while
+  // that read is still in flight, or its response is disposed under the handler.
+  const refreshed = page.waitForResponse(response => response.url().includes(`/api/exercises/${exercise.id}/insight`));
   await confirmation.getByRole('button', { name: 'Clear history', exact: true }).click();
   await expect(confirmation).toBeHidden();
   expect(clears).toBe(1);
+  await refreshed;
 });

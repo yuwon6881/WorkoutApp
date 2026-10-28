@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { ArrowRight, Dumbbell, FileText, FolderOpen, Plus, Trash2, Zap } from 'lucide-react';
-import type { AppResource, Bootstrap, Exercise, Template } from '../types';
+import type { AppResource, Bootstrap, Exercise, Session, Template } from '../types';
 import { api } from '../lib/api';
 import { createEmptyProgramDraft } from '../lib/importDraftWeeks';
 import { slotItemId, type SlotItem } from '../lib/activeSlot';
@@ -20,8 +20,10 @@ import './WorkoutSlot.css';
 import './Programs.css';
 import './ProgramsPolish.css';
 
-export function Programs({ data, exercises, onStart, onPreview, onImport, onChanged, ensureResources, onTemplateSaved, onTemplateDeleted }: {
+export function Programs({ data, exercises, onStart, onPreview, onImport, onChanged, onSession, ensureResources, onTemplateSaved, onTemplateDeleted }: {
   data: Bootstrap; exercises: Exercise[]; onStart: (templateId: string) => void; onPreview: (templateId: string) => void; onImport: () => void; onChanged: () => Promise<void>;
+  /** Opens a finished workout's review, for program days already completed. */
+  onSession?: (session: Session) => void;
   ensureResources?: (resources: AppResource[], throwOnError?: boolean, force?: boolean) => Promise<void>;
   onTemplateSaved?: (template: Template) => void;
   onTemplateDeleted?: (id: string) => void;
@@ -229,7 +231,7 @@ export function Programs({ data, exercises, onStart, onPreview, onImport, onChan
         <div className="section-heading"><h2>Active plan</h2></div>
         <ActiveSlotDropZone over={drag?.overZone === 'active' && drag.from === 'library'} occupied={Boolean(displayHolder)}
           hasLibrary={libraryCount > 0} onNewWorkout={() => open()} onImport={onImport}>
-          {displayHolder?.kind === 'program' && <ActiveProgramCard key={displayHolder.program.id} program={displayHolder.program} exercises={exercises} onStart={onStart} onPreview={onPreview} onChanged={onChanged}
+          {displayHolder?.kind === 'program' && <ActiveProgramCard key={displayHolder.program.id} program={displayHolder.program} exercises={exercises} onStart={onStart} onPreview={onPreview} onChanged={onChanged} onSession={onSession}
             onEdit={() => setEditingProgramId(displayHolder.program.id)}
             hasActiveWorkout={hasActiveWorkout} activeTemplateId={activeTemplateId} actions={cardActions(displayHolder)} dragProps={dragProps(displayHolder, 'active')}
             moving={movingId === displayHolder.program.id} dragging={draggingId === slotItemId(displayHolder)} />}
@@ -274,6 +276,11 @@ export function Programs({ data, exercises, onStart, onPreview, onImport, onChan
                       ? 'Create a workout or program, or import a PDF. Saved routines and multi-week programs wait here until you activate them.'
                       : 'Import a PDF to start. Your saved programs and routines will wait here until you activate them.'}
                   </p>
+                  {/* The same starts as the page's New menu, where the empty state already points. */}
+                  <div className="pp-library-empty-actions">
+                    {exercises.length > 0 && <Button variant="secondary" onClick={() => open()}><Dumbbell size={15} />New workout</Button>}
+                    <Button variant="tertiary" onClick={onImport} disabled={hasActiveWorkout}><FileText size={15} />Import a PDF</Button>
+                  </div>
                 </div>
               </div>
             </section>

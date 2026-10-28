@@ -1,7 +1,7 @@
 import { Play, Plus } from 'lucide-react';
 import { Button } from './ui/Button';
 import { SelectionIndicator } from './ui/Motion';
-import { NAV, navView } from '../app/navigation';
+import { NAV, navCurrent, navSection, navView } from '../app/navigation';
 import { prefetchView } from '../app/lazyViews';
 import type { Tab } from '../app/useTabNavigation';
 
@@ -32,9 +32,9 @@ export function BottomNav({ tab, onTab, action, actionBusy, onAction }: BottomNa
       onPointerEnter={() => prefetchView(navView(entry.id))}
       onFocus={() => prefetchView(navView(entry.id))}
       variant="tertiary"
-      className={`bottom-nav-item ${tab === entry.id ? 'selected' : ''}`}
+      className={`bottom-nav-item ${navSection(tab) === entry.id ? 'selected' : ''}`}
       aria-label={entry.label}
-      aria-current={tab === entry.id ? 'page' : undefined}
+      aria-current={navCurrent(tab, entry.id)}
       onClick={() => onTab(entry.id)}
     >
       <span className="bottom-nav-icon-slot">
@@ -47,7 +47,7 @@ export function BottomNav({ tab, onTab, action, actionBusy, onAction }: BottomNa
 
   return (
     <nav className="bottom-nav" aria-label="Mobile navigation">
-      <SelectionIndicator active={tab} className="bottom-nav-track">
+      <SelectionIndicator active={navSection(tab)} className="bottom-nav-track">
         {NAV.slice(0, half).map(item)}
         <Button
           variant="primary"

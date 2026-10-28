@@ -182,6 +182,13 @@ export default function App() {
 
   /// A Start button always shows the plan first, like opening the day; an open or unresolved
   /// session skips the preview because there is nothing to choose between.
+  /** A finished standalone workout that is still saved can be run again; program days follow their run instead. */
+  function repeatableTemplateId(session: Session): string | null {
+    if (session.active || !session.templateId || session.programId || workoutSession?.active) return null;
+    const template = data?.templates?.find(item => item.id === session.templateId);
+    return template && !template.programId ? template.id : null;
+  }
+
   function previewWorkout(templateId: string) {
     if (app.unconfirmed) { heldStart.hold({ kind: 'preview', templateId, wasNext: nextWorkout(data!)?.id === templateId }); return; }
     const hasOpenSession = Boolean(data!.activeWorkout?.active)
@@ -334,6 +341,7 @@ export default function App() {
 
     {preview && <Suspense fallback={null}><WorkoutPreviewModal key={`${data.account.id}:${preview.id}`}
       templateId={preview.id} name={preview.name} exercises={data.exercises} onClose={() => setPreview(null)}
+      unit={data.preferences.unit} defaultRestSeconds={data.preferences.restSeconds ?? 90}
       onStart={id => { setPreview(null); void start(id); }} /></Suspense>}
 
     <div className="workspace">
@@ -376,14 +384,14 @@ export default function App() {
             onImport={openImport} onSession={setDetail} onResume={() => setTraining(true)} onChanged={app.reload}
             onExercise={id => { void openExercise(id); }} onStart={previewWorkout} />}
         {!resourcesReady && <ViewSkeleton label={NAV.find(item => item.id === tab)?.label ?? 'Loading'} />}
-        {resourcesReady && tab === 'program' && <Programs data={data} exercises={data.exercises} onStart={start} onPreview={previewWorkout} onImport={openImport} onChanged={app.reload}
+        {resourcesReady && tab === 'program' && <Programs data={data} exercises={data.exercises} onStart={start} onPreview={previewWorkout} onImport={openImport} onChanged={app.reload} onSession={setDetail}
           ensureResources={app.ensureResources}
           onTemplateSaved={saved => app.setData(current => acknowledgeTemplate(current, saved.id, saved))}
           onTemplateDeleted={id => app.setData(current => acknowledgeTemplate(current, id, null))} />}
         {resourcesReady && tab === 'import' && <ImportReview exercises={data.exercises} imports={data.imports}
           onBack={() => setTab('program')} onChanged={app.reload} notify={setToast} />}
         {tab === 'body' && <MuscleBalanceView timeZone={Intl.DateTimeFormat().resolvedOptions().timeZone} refreshKey={data.resourceVersions?.history} onExercise={id => { void openExercise(id); }} />}
-        {resourcesReady && tab === 'exercises' && <ExerciseLibrary exercises={data.exercises} onOpen={setExerciseDetail} onChanged={app.reload} />}
+        {resourcesReady && tab === 'exercises' && <ExerciseLibrary exercises={data.exercises} unit={data.preferences.unit} onOpen={setExerciseDetail} onChanged={app.reload} />}
         {tab === 'settings' && <SettingsView account={data.account} preferences={data.preferences} devicePreferences={app.devicePreferences} onCatalogChanged={async () => { await app.reload(); }}
           version={__APP_VERSION__}
           onDevicePreferences={app.setDevicePreferences} onPreferences={app.savePreferences} notify={setToast} onSignOut={async () => { await app.signOut(); }}
@@ -448,7 +456,8 @@ export default function App() {
     {detail && <SessionDetail session={detail} preferences={data.preferences} exercises={data.exercises}
       catalogLoading={detailCatalogLoading} justFinished={detail.id === finishedId}
       onClose={() => { setDetail(null); setFinishedId(null); }}
-      onExercise={id => { void openExercise(id); }} />}
+      onExercise={id => { void openExercise(id); }}
+      onRepeat={repeatableTemplateId(detail) ? () => { const id = repeatableTemplateId(detail)!; setDetail(null); setFinishedId(null); previewWorkout(id); } : undefined} />}
     {exerciseDetail && <ExerciseDetailModal exercise={exerciseDetail} unit={data.preferences.unit} onClose={() => setExerciseDetail(null)} onChanged={async () => { await app.reload(); }} />}
     {appUpdate.ready && !training && !workoutSession?.active && <div className="update-banner" role="status">
       <span>A new version of Workout is ready.</span>
@@ -463,6 +472,7 @@ export default function App() {
       invocation={aiInvocation}
       onInvocationConsumed={() => setAiInvocation(null)}
       surface={tab}
+      nextWorkoutName={data ? nextWorkout(data)?.name ?? null : null}
     /></Suspense>}
   </div></TrackRirContext>;
 }

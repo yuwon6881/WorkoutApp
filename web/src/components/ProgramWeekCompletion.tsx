@@ -30,7 +30,8 @@ export function ProgramWeekCompletion({ program, standalone = false }: { program
       )}
       <text x="50" y="50" dy="0.36em" textAnchor="middle">
         {completion?.total ? completion.completed : '—'}
-        {completion && completion.total > 0 && <tspan className="completion-total">/{completion.total}</tspan>}
+        {/* The calendar's ring is too small to read the total; its caption beside it states it. */}
+        {standalone && completion && completion.total > 0 && <tspan className="completion-total">/{completion.total}</tspan>}
       </text>
     </svg>
   );

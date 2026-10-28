@@ -26,7 +26,8 @@ export type SetPrescription = {
 export type TemplateExercise = { id: string; exerciseId: string | null; sourceName: string; name: string; note: string; position: number; sets: SetPrescription[]; sequenceGroup: string; substitutions: string[]; loadModel?: LoadModel; sourcePage?: number | null; slotKey?: string | null; canRestore?: boolean; isModified?: boolean; restSeconds?: number | null; demoUrl?: string | null; demoLinks?: Record<string, string> | null };
 export type Template = { id: string; programId: string | null; name: string; focus: string; note: string; week: number; position: number; revision: number; exercises: TemplateExercise[]; block: string; phase: string; phaseWeek: number; isRestDay: boolean; sourcePage?: number | null; phaseId?: string | null; canRestore?: boolean; isLegacyBaseline?: boolean; active?: boolean; activeCompletedAt?: string | null };
 export type ProgramDayStatus = 'pending' | 'completed' | 'skipped' | 'rest_passed';
-export type ProgramProgressDay = { templateId: string; status: ProgramDayStatus; isRestDay: boolean; position: number };
+/** sessionId names the finished workout behind a completed day, when the server can still find it. */
+export type ProgramProgressDay = { templateId: string; status: ProgramDayStatus; isRestDay: boolean; position: number; sessionId?: string | null };
 export type ProgramProgress = { runId: string; currentWeek: number; currentAttempt: number; passedDays: number; totalDays: number; days: ProgramProgressDay[] };
 export type ProgramDayActionInput = { revision: number; runId: string; week: number; attempt: number; idempotencyId: string };
 export type ProgramWeekResetInput = ProgramDayActionInput & { confirmation: string };

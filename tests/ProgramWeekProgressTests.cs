@@ -52,7 +52,7 @@ public class ProgramWeekProgressTests
             progress.CurrentAttempt, confirmation, Guid.NewGuid());
     }
 
-    private static async Task CompleteWorkout(Harness harness, Guid templateId)
+    private static async Task<Guid> CompleteWorkout(Harness harness, Guid templateId)
     {
         var session = await harness.Workouts.Start(templateId, null, default);
         var exercise = Assert.Single(session.Exercises);
@@ -60,6 +60,25 @@ public class ProgramWeekProgressTests
             [new SessionExerciseInput(exercise.ExerciseId, exercise.Name, null, exercise.Prescription,
                 [new SetInput(60, 8, 8, true)])], session.Revision, null), default);
         await harness.Workouts.Finish(session.Id, null, default);
+        return session.Id;
+    }
+
+    [Fact]
+    public async Task A_completed_day_names_the_finished_workout_in_every_program_read()
+    {
+        var (h, exerciseId) = await Ready();
+        await using var _h = h;
+        var program = await h.Programs.Create(SevenDayProgram(exerciseId), true, null, default);
+        var monday = program.Workouts.First(day => day.Week == 1 && !day.IsRestDay);
+        var sessionId = await CompleteWorkout(h, monday.Id);
+
+        var view = await h.Programs.Get(program.Id, default);
+        var listed = Assert.Single(await h.Programs.List(default));
+        foreach (var progress in new[] { view.Progress!, listed.Progress! })
+        {
+            Assert.Equal(sessionId, progress.Days.Single(day => day.TemplateId == monday.Id).SessionId);
+            Assert.All(progress.Days.Where(day => day.TemplateId != monday.Id), day => Assert.Null(day.SessionId));
+        }
     }
 
     [Fact]

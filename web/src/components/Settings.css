@@ -102,6 +102,11 @@
   max-width: 100%;
 }
 
+/* Scoped past the shared .button display rule, which would otherwise show it on every layout. */
+.settings-sections > .settings-signout-end {
+  display: none;
+}
+
 .settings-nav {
   display: none;
   min-width: 0;
@@ -359,10 +364,16 @@
     margin-top: 1px;
   }
 
+  /* Sign out moves to the end of the page on phones, so it is not the first large action. */
   .settings-account > .button {
-    grid-column: 1 / -1;
+    display: none;
+  }
+
+  .settings-sections > .settings-signout-end {
+    display: inline-flex;
     width: 100%;
     min-height: 44px;
+    justify-content: center;
   }
 
   .settings-avatar {
@@ -439,7 +450,26 @@
   }
   .settings-nav-list > .button.is-current { border-color: var(--accent-border-strong); background: var(--accent-soft); color: var(--accent); font-weight: 650; }
   .settings-nav-list > .selection-indicator-marker { display: none; }
+  /* The scrollbar is hidden, so a fade at each edge that hides chips says the row scrolls. */
+  .settings-nav::before,
+  .settings-nav::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    z-index: 1;
+    width: 36px;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity var(--motion-control) var(--motion-ease);
+  }
+  .settings-nav::before { left: 0; background: linear-gradient(to left, transparent, var(--bg)); }
+  .settings-nav::after { right: 0; background: linear-gradient(to right, transparent, var(--bg)); }
+  .settings-nav[data-overflow-start]::before,
+  .settings-nav[data-overflow-end]::after { opacity: 1; }
   .settings-section { scroll-margin-top: calc(136px + env(safe-area-inset-top, 0px)); }
+  /* The chip row already carries its own margin; the shell gap on top of it left a blank band. */
+  .settings-shell { gap: 8px; }
 }
 @media (min-width: 640px) and (max-width: 1023px) {
   .settings-nav { top: calc(20px + env(safe-area-inset-top, 0px)); }

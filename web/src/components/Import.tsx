@@ -136,6 +136,7 @@ export function ImportReview({ exercises, imports, onBack, onChanged, notify }: 
         if (chosen) { setSaveError(''); void pipeline.upload(chosen); }
       }} />
     <ImportUploadPanel hasDraft={hasDraft} fileName={selected?.fileName} busy={busy} onChooseFile={() => file.current?.click()}
+      onDropFile={dropped => { setSaveError(''); void pipeline.upload(dropped); }}
       footer={<StoppedImports imports={imports} busy={busy} onSelect={view => {
         pipeline.clearFailure();
         setSaveError('');

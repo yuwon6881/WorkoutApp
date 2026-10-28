@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import type { LucideIcon } from 'lucide-react';
 import { Button } from './ui/Button';
 import { SelectionIndicator, useReducedMotion } from './ui/Motion';
+import { useHorizontalOverflow } from './useHorizontalOverflow';
 
 export type SettingsSectionLink = { id: string; label: string; icon: LucideIcon };
 
@@ -99,6 +100,7 @@ export function SettingsNav({ links }: { links: SettingsSectionLink[] }) {
   const [active, setActive] = useActiveSection(links.map(link => link.id));
   const navRef = useRef<HTMLElement | null>(null);
   const reduced = useReducedMotion();
+  const overflow = useHorizontalOverflow(navRef, '.settings-nav-list');
 
   useEffect(() => {
     const nav = navRef.current;
@@ -118,7 +120,8 @@ export function SettingsNav({ links }: { links: SettingsSectionLink[] }) {
   }
 
   return (
-    <nav ref={navRef} className="settings-nav" aria-label="Settings sections">
+    <nav ref={navRef} className="settings-nav" aria-label="Settings sections"
+      data-overflow-start={overflow.start || undefined} data-overflow-end={overflow.end || undefined}>
       <SelectionIndicator active={active} className="settings-nav-list">
         {links.map(({ id, label, icon: Icon }) => (
           <Button

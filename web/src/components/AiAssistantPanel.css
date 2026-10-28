@@ -174,6 +174,13 @@
   margin: auto;
 }
 
+/* Phones: the suggestions sit just above the composer, where the thumb already is. */
+@media (max-width: 639px) {
+  .ai-chat-empty {
+    margin: auto auto 0;
+  }
+}
+
 .ai-chat-empty-intro {
   display: grid;
   justify-items: center;
@@ -346,7 +353,7 @@
   gap: 8px;
   padding: 4px 6px 4px 16px;
   border: 1px solid var(--border);
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-control);
   background: var(--surface-raised);
   transition: border-color var(--motion-control) var(--motion-ease), box-shadow var(--motion-control) var(--motion-ease), background-color var(--motion-control) var(--motion-ease);
 }

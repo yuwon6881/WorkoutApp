@@ -60,7 +60,7 @@ public sealed partial class ProgramService
             var statuses = await db.ProgramDayProgresses.AsNoTracking()
                 .Where(state => state.RunId == run.Id && state.Attempt == run.CurrentAttempt && state.Week == run.CurrentWeek)
                 .ToListAsync(ct);
-            progress = CreateProgressView(run, weekTemplates, statuses);
+            progress = CreateProgressView(run, weekTemplates, statuses, await FinishedSessions(statuses, ct));
 
             var nextTemplate = weekTemplates.FirstOrDefault(day => !day.IsRestDay &&
                 statuses.Any(state => state.TemplateId == day.Id && state.Status == ProgramDayStatus.Pending));

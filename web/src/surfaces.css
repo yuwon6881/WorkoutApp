@@ -58,3 +58,14 @@ input:not([type=checkbox]):not([type=radio]):not([type=range]):focus,select:focu
 
 /* Toasts and the update offer float as small cards. */
 .toast,.update-banner{border-radius:var(--radius);box-shadow:var(--shadow-float)}
+
+/* Phones: a read-only sheet already closes from its header and by dragging, so a footer holding
+   only Done would spend a thumb's height of the screen repeating that. */
+@media(max-width:639px){
+  .modal>.modal-actions.dismiss-only{display:none}
+  .modal:has(>.modal-actions.dismiss-only){padding-bottom:env(safe-area-inset-bottom,0px)}
+}
+
+/* A chip strip that already fits has nothing to scroll: no disabled arrows, and no space kept for them. */
+.filter-chips-nav:not(.has-overflow){grid-template-columns:minmax(0,1fr)}
+.filter-chips-nav:not(.has-overflow)>.filter-nav-btn{display:none}

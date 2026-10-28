@@ -93,6 +93,7 @@ test('weight basis persists from custom creation through workout entry and unit 
     await custom.getByRole('textbox', { name: 'Name', exact: true }).fill(name);
     await custom.getByRole('button', { name: 'Equipment', exact: true }).click();
     await page.getByRole('option', { name: 'Dumbbell', exact: true }).click();
+    await custom.getByText('More options', { exact: true }).click();
     await custom.getByRole('button', { name: 'Per side', exact: true }).click();
     await expect(custom.getByRole('button', { name: 'Per side', exact: true })).toHaveAttribute('aria-pressed', 'true');
     for (const theme of ['dark', 'light']) {
@@ -135,12 +136,12 @@ test('weight basis persists from custom creation through workout entry and unit 
         const workout = page.getByRole('dialog', { name: 'Weight convention', exact: true });
         await expect(workout).toBeVisible();
         await workout.getByRole('tab', { name: `${name}, 0 of 1 sets completed`, exact: true }).click();
-        await expect(workout.locator('.col-load').filter({ visible: true })).toHaveText(`${unit.toUpperCase()}/SIDE`);
+        await expect(workout.locator('.col-load').filter({ visible: true })).toHaveText(`${unit}/side`);
         await expect(workout.getByRole('spinbutton', { name: `${name} set 1 weight per side`, exact: true })).toBeVisible();
         await checkGeometry(page);
         await workout.screenshot({ path: info.outputPath(`per-side-${theme}-${unit}.png`) });
         await workout.getByRole('tab', { name: `${total.name}, 0 of 1 sets completed`, exact: true }).click();
-        await expect(workout.locator('.col-load').filter({ visible: true })).toHaveText(unit.toUpperCase());
+        await expect(workout.locator('.col-load').filter({ visible: true })).toHaveText(unit);
         await checkGeometry(page);
       }
     }

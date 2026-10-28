@@ -369,6 +369,8 @@ for (const theme of ['dark', 'light']) {
 
     await navigate(page, 'Settings');
     await expect(page.locator('.nav-label, .breadcrumb, .profile, .page-footer')).toHaveCount(0);
+    // Sign out moves to the page end on phones; every layout shows exactly one.
+    await expect(page.getByRole('button', { name: 'Sign out', exact: true }).filter({ visible: true })).toHaveCount(1);
     await page.getByRole('group', { name: 'Appearance' })
       .getByRole('button', { name: theme === 'dark' ? 'Dark' : 'Light' }).click();
     await expect(page.locator('html')).toHaveAttribute('data-theme', theme);
@@ -468,6 +470,15 @@ for (const theme of ['dark', 'light']) {
     await expect(editor).toBeHidden();
 
     await navigate(page, 'Exercises');
+    if ((page.viewportSize()?.width ?? 0) < 640) {
+      // The floating dock and its raised action must never cover the last card once scrolled to the end.
+      await expect(page.locator('.exercise-card').last()).toBeVisible();
+      await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+      const lastCardBottom = await page.locator('.exercise-card').last().evaluate(card => card.getBoundingClientRect().bottom);
+      const dockTop = await page.locator('.bottom-nav-action').evaluate(action => action.getBoundingClientRect().top);
+      expect(lastCardBottom, 'the last exercise card clears the dock').toBeLessThanOrEqual(dockTop);
+      await page.evaluate(() => window.scrollTo(0, 0));
+    }
     await page.getByRole('textbox', { name: 'Search exercises' }).fill('barbell');
     await page.getByRole('group', { name: 'Filter exercises by muscle' }).getByRole('button', { name: 'Chest', exact: true }).click();
     await expect(page.getByRole('heading', { name: 'Barbell bench press' })).toBeVisible();
@@ -649,7 +660,7 @@ for (const theme of ['dark', 'light'] as const) {
     await expect(setTags.first()).toContainText('Rep best');
     await expect(setTags.filter({ hasText: 'Estimated strength best' })).toHaveCount(1);
     await expect(setTags.filter({ hasText: 'Strength & rep best' })).toHaveCount(1);
-    await modal.getByRole('button', { name: 'Done' }).click();
+    await modal.getByRole('button', { name: 'Close dialog', exact: true }).click();
     await expect(history.locator('.history-row')).toHaveCount(2);
     await checkLayout(page, 'populated history');
     await page.screenshot({ animations: 'disabled', path: join(screenshotsDirectory, 'responsive', `${info.project.name}-${theme}-populated-history.png`) });
@@ -738,7 +749,7 @@ for (const theme of ['dark', 'light'] as const) {
     const confirmation = page.getByRole('dialog', { name: 'Clear exercise history?', exact: true });
     await confirmation.getByRole('button', { name: 'Clear history', exact: true }).click();
     await expect(confirmation).toBeHidden();
-    await modal.getByRole('button', { name: 'Done', exact: true }).click();
+    await modal.getByRole('button', { name: 'Close dialog', exact: true }).click();
     await expect(page.getByRole('button', { name: 'Chest, 0 sets, contributing lifts', exact: true })).toBeVisible();
     await expect(page.getByText('No contributing lifts in this window.', { exact: true })).toBeVisible();
   });
