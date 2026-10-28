@@ -1,5 +1,6 @@
 import type { LoggedSet, SessionExercise, SetPrescription } from '../types';
 import { getSupersetGroup } from './supersets';
+import { planRestRange, type RestMode } from './restRange';
 
 export type WorkoutStep = {
   exercise: SessionExercise;
@@ -19,14 +20,43 @@ export function getSupersetOrder(sequenceGroup?: string | null, position?: numbe
 /// How long to rest after logging a set: the exercise's own rest timer when it has one (set in the
 /// builder, derived from an import, or picked during the workout), otherwise the rest its plan
 /// gives the set just logged, otherwise the account default.
-export function restSecondsAfter(exercise: SessionExercise, setIndex: number, accountDefault: number): number {
+export function restSecondsAfter(
+  exercise: SessionExercise,
+  setIndex: number,
+  accountDefault: number,
+  mode: RestMode = 'balanced'
+): number {
+  if (mode !== 'balanced') {
+    const range = planRestRange(exercise, setIndex);
+    if (range) {
+      const userOverridden = exercise.restSeconds != null && Math.abs(exercise.restSeconds - range.balancedSeconds) > 1;
+      if (!userOverridden) {
+        return mode === 'minimal' ? range.minSeconds : range.maxSeconds;
+      }
+    }
+  }
   return exercise.restSeconds ?? exercise.prescription[setIndex]?.restSeconds ?? accountDefault;
 }
 
 /// The rest an exercise shows: its own rest timer, else what its first working set prescribes, so a
 /// leading warm-up's shorter rest is not mistaken for the exercise's.
-export function exerciseRestSeconds(exercise: SessionExercise, accountDefault: number): number {
-  const working = exercise.prescription.find(set => !set.warmup) ?? exercise.prescription[0];
+export function exerciseRestSeconds(
+  exercise: SessionExercise,
+  accountDefault: number,
+  mode: RestMode = 'balanced'
+): number {
+  const workingIndex = exercise.prescription.findIndex(set => !set.warmup);
+  const targetIndex = workingIndex >= 0 ? workingIndex : 0;
+  if (mode !== 'balanced') {
+    const range = planRestRange(exercise, targetIndex);
+    if (range) {
+      const userOverridden = exercise.restSeconds != null && Math.abs(exercise.restSeconds - range.balancedSeconds) > 1;
+      if (!userOverridden) {
+        return mode === 'minimal' ? range.minSeconds : range.maxSeconds;
+      }
+    }
+  }
+  const working = exercise.prescription[targetIndex];
   return exercise.restSeconds ?? working?.restSeconds ?? accountDefault;
 }
 

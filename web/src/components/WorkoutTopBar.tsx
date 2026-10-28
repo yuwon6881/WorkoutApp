@@ -1,11 +1,13 @@
 import { ChevronDown, Flag, Info, Pause, Play, RotateCcw, Trash2 } from 'lucide-react';
 import type { RestAction, Session } from '../types';
 import type { RestState } from '../lib/restTimer';
+import type { RestMode } from '../lib/restRange';
 import { WorkoutElapsed } from './WorkoutElapsed';
 import { WorkoutRestBar } from './WorkoutRestBar';
 import { shortSyncStatus } from '../lib/workoutSyncStatus';
 import { Button } from './ui/Button';
 import { MenuButton, MenuItem } from './ui/MenuButton';
+import { SegmentedControl } from './ui/SegmentedControl';
 import { useModalDismiss } from './ui/Modal';
 
 /// The workout's only header, in two rows: the name with its three actions, then a status row with
@@ -39,7 +41,10 @@ export function WorkoutTopBar({
   onFinish,
   onDetails,
   onRestore,
-  onDiscard
+  onDiscard,
+  restMode = 'balanced',
+  onRestModeChange = () => {},
+  showRestMode = false
 }: {
   name: string;
   session: Pick<Session, 'startedAt' | 'pausedAt' | 'pausedSeconds'>;
@@ -69,6 +74,9 @@ export function WorkoutTopBar({
   onDetails: () => void;
   onRestore: () => void;
   onDiscard: () => void;
+  restMode?: RestMode;
+  onRestModeChange?: (mode: RestMode) => void;
+  showRestMode?: boolean;
 }) {
   // Minimizing goes through the sheet, so it slides away like a drag down does.
   const minimize = useModalDismiss() ?? onClose;
@@ -90,6 +98,21 @@ export function WorkoutTopBar({
             {paused ? <Play size={18} /> : <Pause size={18} />}
           </Button>
           <MenuButton label="Workout options" triggerClassName="workout-top-icon" portal>
+            {showRestMode && (
+              <div className="workout-rest-mode">
+                <span className="tiny-label">Rest time</span>
+                <SegmentedControl<RestMode>
+                  label="Rest time"
+                  value={restMode}
+                  options={[
+                    { value: 'minimal', label: 'Minimal' },
+                    { value: 'balanced', label: 'Balanced' },
+                    { value: 'maximal', label: 'Maximal' }
+                  ]}
+                  onChange={onRestModeChange}
+                />
+              </div>
+            )}
             {hasDetails && <MenuItem onClick={onDetails}>
               <Info size={16} />
               Workout details

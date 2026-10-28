@@ -23,7 +23,7 @@ export default defineConfig({
     { name: 'baseline-phone', testMatch: 'baseline.spec.ts', use: { ...devices['Pixel 7'] } },
     { name: 'baseline-desktop', testMatch: 'baseline.spec.ts', use: { ...devices['Desktop Chrome'], viewport: { width: 1440, height: 1000 } } },
     { name: 'visual-capture', testMatch: 'visual-capture.spec.ts', dependencies: ['setup'], use: { ...devices['Desktop Chrome'], storageState: join(authDirectory, 'lifter.json') } },
-    { name: 'touch', testMatch: 'touch.spec.ts', dependencies: ['setup'], use: { ...devices['Pixel 7'], storageState: join(authDirectory, 'lifter.json') } }
+    { name: 'touch', testMatch: ['touch.spec.ts', 'workout-gestures.spec.ts'], dependencies: ['setup'], use: { ...devices['Pixel 7'], storageState: join(authDirectory, 'lifter.json') } }
   ],
   webServer: process.env.WORKOUT_BASE_URL ? undefined : testServers,
   reporter: 'list'

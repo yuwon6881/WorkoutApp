@@ -218,4 +218,56 @@ describe('rest length', () => {
     expect(exerciseRestSeconds({ ...ex, restSeconds: 45 }, 90)).toBe(45);
     expect(exerciseRestSeconds({ ...ex, prescription: [] }, 90)).toBe(90);
   });
+
+  describe('rest mode (minimal / balanced / maximal)', () => {
+    it('picks minimal and maximal bounds when range exists', () => {
+      const ex = makeExercise('bench', 'Bench');
+      ex.prescription = ex.prescription.map(p => ({ ...p, restText: '2-3 min', restSeconds: 150 }));
+      expect(restSecondsAfter(ex, 0, 90, 'minimal')).toBe(120);
+      expect(restSecondsAfter(ex, 0, 90, 'maximal')).toBe(180);
+      expect(exerciseRestSeconds(ex, 90, 'minimal')).toBe(120);
+      expect(exerciseRestSeconds(ex, 90, 'maximal')).toBe(180);
+    });
+
+    it('keeps balanced mode results identical to default behavior', () => {
+      const ex = makeExercise('bench', 'Bench');
+      ex.prescription = ex.prescription.map(p => ({ ...p, restText: '2-3 min', restSeconds: 150 }));
+      expect(restSecondsAfter(ex, 0, 90, 'balanced')).toBe(150);
+      expect(restSecondsAfter(ex, 0, 90)).toBe(150);
+      expect(exerciseRestSeconds(ex, 90, 'balanced')).toBe(150);
+      expect(exerciseRestSeconds(ex, 90)).toBe(150);
+    });
+
+    it('leaves rest unchanged when there is no rest range', () => {
+      const ex = makeExercise('bench', 'Bench');
+      ex.prescription = ex.prescription.map(p => ({ ...p, restText: null, restSeconds: 100 }));
+      expect(restSecondsAfter(ex, 0, 90, 'minimal')).toBe(100);
+      expect(restSecondsAfter(ex, 0, 90, 'maximal')).toBe(100);
+      expect(exerciseRestSeconds(ex, 90, 'minimal')).toBe(100);
+      expect(exerciseRestSeconds(ex, 90, 'maximal')).toBe(100);
+    });
+
+    it('lets user-overridden exercise rest win over range bounds', () => {
+      const ex = { ...makeExercise('bench', 'Bench'), restSeconds: 45 };
+      ex.prescription = ex.prescription.map(p => ({ ...p, restText: '2-3 min', restSeconds: 150 }));
+      expect(restSecondsAfter(ex, 0, 90, 'minimal')).toBe(45);
+      expect(restSecondsAfter(ex, 0, 90, 'maximal')).toBe(45);
+      expect(exerciseRestSeconds(ex, 90, 'minimal')).toBe(45);
+      expect(exerciseRestSeconds(ex, 90, 'maximal')).toBe(45);
+    });
+
+    it('uses warmup own plan range or falls back to first working set', () => {
+      const ex = makeExercise('bench', 'Bench', '', 3, { warmupFirst: true });
+      // Warm-up with its own range:
+      ex.prescription[0] = { ...ex.prescription[0], restText: '60-90s', restSeconds: 75 };
+      ex.prescription[1] = { ...ex.prescription[1], restText: '2-3 min', restSeconds: 150 };
+      expect(restSecondsAfter(ex, 0, 90, 'minimal')).toBe(60);
+      expect(restSecondsAfter(ex, 0, 90, 'maximal')).toBe(90);
+
+      // Warm-up without its own range falls back to first working set:
+      ex.prescription[0] = { ...ex.prescription[0], restText: null, restSeconds: null };
+      expect(restSecondsAfter(ex, 0, 90, 'minimal')).toBe(120);
+      expect(restSecondsAfter(ex, 0, 90, 'maximal')).toBe(180);
+    });
+  });
 });

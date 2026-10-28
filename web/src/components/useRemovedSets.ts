@@ -78,5 +78,10 @@ export function useRemovedSets(draft: Session, exerciseIndex: number, change: (n
   const orphaned = (exercise: SessionExercise) =>
     placeholders.filter(item => item.anchorId !== null && !exercise.sets.some(set => set.id === item.anchorId));
 
-  return { hold, undo, after, orphaned };
+  function dismiss(key: string) {
+    window.clearTimeout(timers.current.get(key));
+    expire(key);
+  }
+
+  return { hold, undo, dismiss, after, orphaned };
 }

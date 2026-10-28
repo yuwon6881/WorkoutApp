@@ -354,6 +354,7 @@
   .workout-set-swipe.swipeable-row-mobile { border-radius: var(--radius-control); }
   .workout-set-swipe .swipeable-row-surface { border-radius: var(--radius-control); background: var(--surface); }
   .workout-set-swipe .swipeable-row-actions > .button { flex-direction: column; gap: 4px; }
+  .workout-set-swipe .swipeable-row-surface :is(input, button, [role="button"]) { touch-action: pan-y; }
 }
 @media (max-width: 359px) {
   .workout-set-table-head,

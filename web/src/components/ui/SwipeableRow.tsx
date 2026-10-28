@@ -1,5 +1,6 @@
 import { useCallback, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
 import { useWindowTier } from '../../lib/breakpoints';
+import { classifyGesture, settleOpen } from '../../lib/rowSwipe';
 
 type SwipeableRowProps = {
   children: ReactNode;
@@ -31,7 +32,15 @@ export function SwipeableRow({
   const [open, setOpen] = useState(false);
   const [offset, setOffset] = useState(0);
   const [dragging, setDragging] = useState(false);
-  const pointer = useRef<{ id: number; startX: number; startY: number; tracking: boolean } | null>(null);
+  const pointer = useRef<{
+    id: number;
+    startX: number;
+    startY: number;
+    lastX: number;
+    lastTime: number;
+    velocity: number;
+    tracking: boolean;
+  } | null>(null);
   const suppressClick = useRef(false);
 
   const close = useCallback(() => {
@@ -41,7 +50,15 @@ export function SwipeableRow({
 
   const handlePointerDown = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
     if (event.pointerType === 'mouse' && event.button !== 0) return;
-    pointer.current = { id: event.pointerId, startX: event.clientX, startY: event.clientY, tracking: false };
+    pointer.current = {
+      id: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      lastX: event.clientX,
+      lastTime: event.timeStamp || Date.now(),
+      velocity: 0,
+      tracking: false
+    };
   }, []);
 
   const handlePointerMove = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
@@ -50,18 +67,26 @@ export function SwipeableRow({
     const dx = event.clientX - current.startX;
     const dy = event.clientY - current.startY;
     if (!current.tracking) {
-      if (Math.max(Math.abs(dx), Math.abs(dy)) < 8) return;
-      if (Math.abs(dy) >= Math.abs(dx)) {
+      const gesture = classifyGesture(dx, dy);
+      if (gesture === 'undecided') return;
+      if (gesture === 'vertical') {
         pointer.current = null;
         return;
       }
       current.tracking = true;
-      try { event.currentTarget.setPointerCapture(event.pointerId); } catch {
+      try {
+        event.currentTarget.setPointerCapture(event.pointerId);
+      } catch {
         // Pointer capture can be unavailable for synthetic or interrupted gestures; the row can
         // still finish from the movement itself.
       }
       setDragging(true);
     }
+    const now = event.timeStamp || Date.now();
+    const dt = Math.max(1, now - current.lastTime);
+    current.velocity = (event.clientX - current.lastX) / dt;
+    current.lastX = event.clientX;
+    current.lastTime = now;
     event.preventDefault();
     const origin = open ? -actionsWidth : 0;
     setOffset(clampOffset(origin + dx, actionsWidth));
@@ -71,21 +96,45 @@ export function SwipeableRow({
     const current = pointer.current;
     pointer.current = null;
     if (!current || current.id !== event.pointerId || !current.tracking) return;
-    if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      try {
+        event.currentTarget.releasePointerCapture(event.pointerId);
+      } catch {
+        // Already released by the browser; the row still settles below.
+      }
+    }
     setDragging(false);
     suppressClick.current = true;
     window.requestAnimationFrame(() => { suppressClick.current = false; });
-    const dx = event.clientX - current.startX;
-    const shouldOpen = offset < -actionsWidth / 2 || dx < -actionsWidth / 2;
+    const now = event.timeStamp || Date.now();
+    const velocity = (now - current.lastTime > 80) ? 0 : current.velocity;
+    const shouldOpen = settleOpen({
+      wasOpen: open,
+      offset,
+      velocityPxPerMs: velocity,
+      actionsWidth
+    });
     setOpen(shouldOpen);
     setOffset(shouldOpen ? -actionsWidth : 0);
-  }, [actionsWidth, offset]);
+  }, [actionsWidth, offset, open]);
 
   const handlePointerCancel = useCallback(() => {
+    const current = pointer.current;
     pointer.current = null;
     setDragging(false);
-    close();
-  }, [close]);
+    if (!current || !current.tracking) {
+      close();
+      return;
+    }
+    const shouldOpen = settleOpen({
+      wasOpen: open,
+      offset,
+      velocityPxPerMs: 0,
+      actionsWidth
+    });
+    setOpen(shouldOpen);
+    setOffset(shouldOpen ? -actionsWidth : 0);
+  }, [actionsWidth, close, offset, open]);
 
   const tier = useWindowTier();
   const showDesktop = !adaptive || tier !== 'compact';
@@ -96,13 +145,13 @@ export function SwipeableRow({
       <div className="swipeable-row-desktop-content">{children}</div>
       <div className="swipeable-row-desktop-actions">{desktopActions ?? actions}</div>
     </div>}
-    {showMobile && <div className={`swipeable-row-mobile ${className}`.trim()} style={{ '--swipe-actions-width': `${actionsWidth}px` } as CSSProperties}>
+    {showMobile && <div className={`swipeable-row-mobile ${className}`.trim()} data-swipe-ignore="" style={{ '--swipe-actions-width': `${actionsWidth}px` } as CSSProperties}>
       <div
         className="swipeable-row-actions"
         role="group"
         aria-label={actionsLabel}
         aria-hidden={!open}
-        inert={!open}
+        inert={!(open || offset !== 0 || dragging)}
         style={{ visibility: (open || offset !== 0 || dragging) ? undefined : 'hidden' }}
       >
         {actions}

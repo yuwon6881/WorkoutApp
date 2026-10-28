@@ -1,0 +1,11 @@
+.swipe-dismiss {
+  position: relative;
+  overflow: hidden;
+  touch-action: pan-y;
+  min-width: 0;
+}
+
+.swipe-dismiss-content {
+  min-width: 0;
+  will-change: transform, opacity;
+}

@@ -49,5 +49,5 @@ export function useAfterLog({ unit, advance, onAdvance }: {
     if (target !== null) onAdvance(target);
   }
 
-  return { celebration, afterLog };
+  return { celebration, afterLog, dismissCelebration: () => setCelebration(null) };
 }

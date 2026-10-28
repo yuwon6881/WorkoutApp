@@ -1,5 +1,6 @@
 import { Dumbbell, Plus } from 'lucide-react';
 import type { Exercise, LoggedSet, Session, Unit } from '../types';
+import type { RestMode } from '../lib/restRange';
 import { addedSessionExercise } from '../lib/workoutDraft';
 import { Button } from './ui/Button';
 import { Modal } from './ui/Modal';
@@ -14,7 +15,7 @@ export function WorkoutEditor({
   draft, unit, exercises, activeIndex, finishIntentAt, recoveryConflict, online,
   picker, onPicker, onAddExercise, onChange, onEditSet, onToggleSet, onSelectExercise, onMoveExercise,
   onSwap, onRestore, onRemoveExercise, onCatalogChanged,
-  onCatalogNeeded, onOpenExercise
+  onCatalogNeeded, onOpenExercise, restMode = 'balanced'
 }: {
   draft: Session; unit: Unit; exercises: Exercise[]; activeIndex: number; online: boolean;
   finishIntentAt: string | null; recoveryConflict: boolean;
@@ -27,6 +28,7 @@ export function WorkoutEditor({
   onCatalogChanged?: () => void | Promise<void>;
   onCatalogNeeded?: () => Promise<void>;
   onOpenExercise?: (exerciseId: string) => void;
+  restMode?: RestMode;
 }) {
   const currentExercise = draft.exercises[activeIndex] ?? draft.exercises[0];
   const currentIndex = currentExercise ? draft.exercises.indexOf(currentExercise) : -1;
@@ -48,7 +50,7 @@ export function WorkoutEditor({
           <WorkoutActiveExercise key={currentExercise.id} exercise={currentExercise} index={currentIndex}
             unit={unit} draft={draft} exercises={exercises} change={onChange} editSet={onEditSet} toggle={onToggleSet}
             onSwap={onSwap} onRestore={onRestore} onRemoveExercise={onRemoveExercise} onCatalogChanged={onCatalogChanged} onCatalogNeeded={onCatalogNeeded}
-            onOpenExercise={onOpenExercise} />
+            onOpenExercise={onOpenExercise} restMode={restMode} />
         </div>
       ) : (
         <div className="empty-message"><Dumbbell size={30} /><h3>No exercises in this workout</h3>

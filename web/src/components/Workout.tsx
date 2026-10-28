@@ -11,7 +11,8 @@ import { useAfterLog } from './useAfterLog';
 import { validateLoggedSet, validateSessionDraft } from '../lib/validation';
 import { restTimer } from '../lib/restTimer';
 import { clearStopwatches, pauseStopwatches, resumeStopwatches, stopStopwatch } from '../lib/setStopwatch';
-import { exerciseRestSeconds, findNextStep, restAppliesAfter, restSecondsAfter } from '../lib/restRules';
+import { findNextStep, restAppliesAfter } from '../lib/restRules';
+import { useRestMode } from './useRestMode';
 import {
   clearRecovery, enqueueFinish, enqueueSave, enqueueSetEdits, enqueueTiming, getRecovery,
   isStorageFailure, persistDraftOnly, saveNavigation,
@@ -64,6 +65,7 @@ export function Workout({
     { onSaved: savedWorkout, onFinish: finishedWorkout, onDiscard: discardedWorkout, onRecoveryChange: recoveryChanged });
   const [storedDraft, setDraft] = useState(recovery?.sessionId === session.id ? recovery.draft : session);
   const draft = useMemo(() => withSessionSystemLoads(storedDraft), [storedDraft]);
+  const restMode = useRestMode(draft.exercises, preferences.restSeconds ?? 90);
   const [picker, setPicker] = useState(false);
   // Counts taps on a set's log button while paused; each one replays the paused pill's pulse.
   const [pauseHint, setPauseHint] = useState(0);
@@ -85,7 +87,7 @@ export function Workout({
   // What the logger last filled into each later set, so a typed value is never overwritten.
   const written = useRef<{ filled: FilledInputsLog; copied: CopiedLoadsLog }>({ filled: new Map(), copied: new Map() });
   const trackRir = useTrackRir();
-  const { celebration, afterLog } = useAfterLog({
+  const { celebration, afterLog, dismissCelebration } = useAfterLog({
     unit: preferences.unit, advance, onAdvance: index => selectExercise(index)
   });
   const onlineFallback = useWorkoutOnlineFallback({
@@ -110,7 +112,6 @@ export function Workout({
     }).then(async () => onRecoveryChange(await getRecovery(accountId)))
       .catch(() => setLocalStatus('This workout is not recoverable on this device.'));
   }, [accountId, session.id]);
-
 
   const drain = useWorkoutDrain({
     accountId, sessionId: session.id, online, recoveryConflict, serverSession, revision, onSaved, onFinish,
@@ -221,7 +222,7 @@ export function Workout({
     setGeneration.set(set.id, generation);
     const exercise = draft.exercises[ei];
     const plan = exercise.prescription[si];
-    const restSeconds = restSecondsAfter(exercise, si, preferences.restSeconds ?? 90);
+    const restSeconds = restMode.secondsAfter(exercise, si);
     const nextStep = findNextStep(draft.exercises, ei, si);
     const shouldRest = !set.done && restSeconds > 0 && !draft.pausedAt && restAppliesAfter({ exercise, setIndex: si, set, prescription: plan }, nextStep);
     const logging = !set.done;
@@ -411,9 +412,7 @@ export function Workout({
     if (blocker) { setError(blocker); return; }
     setConfirm('finish');
   };
-  const defaultRestSeconds = currentExercise
-    ? exerciseRestSeconds(currentExercise, preferences.restSeconds ?? 90)
-    : preferences.restSeconds ?? 90;
+  const defaultRestSeconds = currentExercise ? restMode.exerciseSeconds(currentExercise) : restMode.accountDefault;
 
   const { rest, handleRestMutate } = useWorkoutRest({
     accountId, draft, revision, paused, finishIntentAt, recoveryConflict, recovery, defaultRestSeconds, onRecoveryChange,
@@ -453,9 +452,10 @@ export function Workout({
         onRestMutate={handleRestMutate}
         onClose={onClose}
         onTogglePause={() => void togglePause()}
+        {...restMode.topBarProps}
       />
 
-      <WorkoutCelebration celebration={celebration} />
+      <WorkoutCelebration celebration={celebration} onDismiss={dismissCelebration} />
 
       {recoveryConflict && recovery && <WorkoutRecoveryConflict recovery={recovery} online={online} onResolve={choice => void resolveConflict(choice)} />}
 
@@ -465,7 +465,7 @@ export function Workout({
         onAddExercise={() => online && !finishIntentAt ? (setPicker(true), loadCatalog()) : setError('Connect before adding an exercise.')}
         onChange={change} onEditSet={editSet} onToggleSet={toggle} onSelectExercise={selectExercise} onMoveExercise={moveExercise}
         onSwap={swapExercise} onRestore={restoreExercise} onRemoveExercise={removeExercise} onCatalogChanged={onCatalogChanged} onCatalogNeeded={onCatalogNeeded}
-        onOpenExercise={onOpenExercise} />
+        onOpenExercise={onOpenExercise} restMode={restMode.mode} />
 
       <WorkoutFooter error={error} busy={busy || Boolean(finishIntentAt) || recoveryConflict}
         canFinish={canFinish} onFinish={requestFinish} rest={rest} paused={paused} onRestMutate={handleRestMutate} />

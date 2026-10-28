@@ -44,6 +44,7 @@ import { loadAdjustable } from '../lib/exerciseLoads';
 import { canEnterPerSide } from '../lib/equipmentGroups';
 import { loadColumnLabel, loadEntryFor } from '../lib/resistanceVariant';
 import { exerciseRestSeconds } from '../lib/restRules';
+import type { RestMode } from '../lib/restRange';
 import './WorkoutLogger.css';
 
 export function WorkoutActiveExercise({
@@ -60,7 +61,8 @@ export function WorkoutActiveExercise({
   onRemoveExercise,
   onCatalogChanged,
   onCatalogNeeded,
-  onOpenExercise
+  onOpenExercise,
+  restMode = 'balanced'
 }: {
   exercise: SessionExercise;
   index: number;
@@ -77,6 +79,7 @@ export function WorkoutActiveExercise({
   onCatalogNeeded?: () => Promise<void>;
   /// Opens the library details (progress chart, records, history) over the workout.
   onOpenExercise?: (exerciseId: string) => void;
+  restMode?: RestMode;
 }) {
   const trackRir = useTrackRir();
   const [swapOpen, setSwapOpen] = useState(false);
@@ -274,7 +277,7 @@ export function WorkoutActiveExercise({
         </div>
 
         <div className="workout-set-rows">
-          {removedSets.after(null).map(placeholder => <WorkoutRemovedSet key={placeholder.key} placeholder={placeholder} onUndo={removedSets.undo} />)}
+          {removedSets.after(null).map(placeholder => <WorkoutRemovedSet key={placeholder.key} placeholder={placeholder} onUndo={removedSets.undo} onDismiss={removedSets.dismiss} />)}
           {exercise.sets.map((set, si) => {
             const plan = prescription[si] ?? prescription.at(-1);
             return (
@@ -296,11 +299,11 @@ export function WorkoutActiveExercise({
                 onSetType={(sidx, type) => change(withSetType(draft, index, sidx, type))}
                 onRemoveSet={sidx => removeSet(sidx)}
               />
-              {removedSets.after(set.id).map(placeholder => <WorkoutRemovedSet key={placeholder.key} placeholder={placeholder} onUndo={removedSets.undo} />)}
+              {removedSets.after(set.id).map(placeholder => <WorkoutRemovedSet key={placeholder.key} placeholder={placeholder} onUndo={removedSets.undo} onDismiss={removedSets.dismiss} />)}
               </Fragment>
             );
           })}
-          {removedSets.orphaned(exercise).map(placeholder => <WorkoutRemovedSet key={placeholder.key} placeholder={placeholder} onUndo={removedSets.undo} />)}
+          {removedSets.orphaned(exercise).map(placeholder => <WorkoutRemovedSet key={placeholder.key} placeholder={placeholder} onUndo={removedSets.undo} onDismiss={removedSets.dismiss} />)}
         </div>
 
         <div className="workout-set-table-footer">
@@ -377,8 +380,8 @@ export function WorkoutActiveExercise({
               Rest duration
               <Select
                 ariaLabel="Rest duration"
-                value={exerciseRestSeconds(exercise, 90)}
-                options={restOptions(exerciseRestSeconds(exercise, 90))}
+                value={exerciseRestSeconds(exercise, 90, restMode)}
+                options={restOptions(exerciseRestSeconds(exercise, 90, restMode))}
                 onChange={val => {
                   const sec = Number(val);
                   change({

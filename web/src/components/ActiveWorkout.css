@@ -240,14 +240,17 @@
 /* A personal best floats just under the workout header for a few seconds (WorkoutCelebration.tsx).
    The anchor has no height and the card lets taps through, so nothing below it moves or is blocked. */
 @keyframes celebration-in { 0% { opacity: 0; transform: translateY(-8px); } 100% { opacity: 1; transform: none; } }
-.workout-celebration-anchor { position: relative; height: 0; z-index: 4; }
-.workout-celebration {
+.workout-celebration-anchor { position: relative; height: 0; z-index: 4; pointer-events: none; }
+.workout-celebration-dismiss {
   position: absolute;
   top: 10px;
   left: 16px;
   right: 16px;
   max-width: 520px;
   margin: 0 auto;
+  pointer-events: none;
+}
+.workout-celebration {
   display: flex;
   align-items: center;
   gap: 12px;
@@ -256,7 +259,7 @@
   background: var(--surface-raised);
   border: 1px solid var(--accent-border);
   box-shadow: var(--shadow-float);
-  pointer-events: none;
+  pointer-events: auto;
   animation: celebration-in 240ms var(--motion-ease);
 }
 .workout-celebration-icon {

@@ -109,6 +109,8 @@
 
 /* The status row: clock and logged sets lead, the rest timer trails. Its height is fixed, so the
    rest arriving or ending never moves what is under it. */
+/* The rest-time choice sits at the top of the workout options menu, above its actions. */
+.workout-rest-mode { display: grid; gap: 6px; padding: 8px 10px; border-bottom: 1px solid var(--border); }
 .workout-top-rail {
   display: flex;
   align-items: center;
