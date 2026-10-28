@@ -102,7 +102,8 @@
   max-width: 100%;
 }
 
-.settings-signout-end {
+/* Scoped past the shared .button display rule, which would otherwise show it on every layout. */
+.settings-sections > .settings-signout-end {
   display: none;
 }
 
@@ -368,7 +369,7 @@
     display: none;
   }
 
-  .settings-signout-end {
+  .settings-sections > .settings-signout-end {
     display: inline-flex;
     width: 100%;
     min-height: 44px;

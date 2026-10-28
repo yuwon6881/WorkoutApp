@@ -369,6 +369,8 @@ for (const theme of ['dark', 'light']) {
 
     await navigate(page, 'Settings');
     await expect(page.locator('.nav-label, .breadcrumb, .profile, .page-footer')).toHaveCount(0);
+    // Sign out moves to the page end on phones; every layout shows exactly one.
+    await expect(page.getByRole('button', { name: 'Sign out', exact: true }).filter({ visible: true })).toHaveCount(1);
     await page.getByRole('group', { name: 'Appearance' })
       .getByRole('button', { name: theme === 'dark' ? 'Dark' : 'Light' }).click();
     await expect(page.locator('html')).toHaveAttribute('data-theme', theme);
