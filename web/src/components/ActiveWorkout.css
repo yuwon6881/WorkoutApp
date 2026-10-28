@@ -193,8 +193,6 @@
   }
   .workout-strip-ring { flex-basis: 26px; width: 26px; height: 26px; }
   .workout-strip-count { display: none; }
-  /* One line on a phone, so every tab keeps the same short height; the ring carries the progress. */
-  .workout-strip-name { -webkit-line-clamp: 1; line-clamp: 1; overflow-wrap: normal; white-space: nowrap; text-overflow: ellipsis; display: block; }
 }
 
 /* Each exercise is a page; a sideways swipe anywhere on the workout turns it, and the page follows

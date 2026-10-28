@@ -342,7 +342,5 @@
   color: var(--muted);
   font-size: var(--font-secondary);
   font-variant-numeric: tabular-nums;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
 }
