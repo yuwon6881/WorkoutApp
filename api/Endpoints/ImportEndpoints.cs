@@ -1,5 +1,4 @@
 using System.IO.Compression;
-using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using Workout.Api.Data;
@@ -24,15 +23,11 @@ public static class ImportEndpoints
         // Cloud Scheduler invokes this daily to run the retention sweep that keeps imports,
         // sessions, receipts, and usage rows bounded, and to retry Google Health uploads that
         // neither the finishing request nor a later visit managed to send. This service is
-        // reachable without Cloud Run IAM, so the route stays absent unless a secret is
-        // configured and presented exactly.
-        app.MapPost("/internal/import-maintenance", async (HttpRequest request, IConfiguration config, ImportService imports, GoogleHealthWorkoutSyncService workoutSync, CancellationToken ct) =>
+        // reachable without Cloud Run IAM, so the route answers 404 unless the caller presents an
+        // allow-listed Google identity token.
+        app.MapPost("/internal/import-maintenance", async (HttpRequest request, MaintenanceGate gate, ImportService imports, GoogleHealthWorkoutSyncService workoutSync, CancellationToken ct) =>
         {
-            var expected = config["Maintenance:Secret"]?.Trim() ?? "";
-            var presented = request.Headers["X-Workout-Maintenance-Secret"].ToString();
-            Validation.Require(!string.IsNullOrWhiteSpace(expected) &&
-                CryptographicOperations.FixedTimeEquals(Encoding.UTF8.GetBytes(expected), Encoding.UTF8.GetBytes(presented)),
-                "Maintenance is not available.", 404);
+            Validation.Require(await gate.Allow(request, ct), "Maintenance is not available.", 404);
             await imports.CleanupExpired(ct);
             var googleHealth = await workoutSync.ProcessDueAsync(ct);
             return Results.Ok(new { swept = true, googleHealth });

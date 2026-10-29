@@ -32,6 +32,8 @@ builder.Services.AddSingleton<DatabaseMetricsInterceptor>();
 builder.Services.AddSingleton<DatabaseConnectionMetricsInterceptor>();
 builder.Services.AddMemoryCache(o => o.SizeLimit = 256);
 builder.Services.AddSingleton<DatabaseWarmup>();
+builder.Services.AddSingleton<IMaintenanceTokenVerifier, GoogleMaintenanceTokenVerifier>();
+builder.Services.AddSingleton<MaintenanceGate>();
 builder.Services.AddTransient<ExternalCallMetricsHandler>();
 builder.Services.AddDbContext<AppDb>((services,o)=>
 {

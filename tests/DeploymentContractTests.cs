@@ -13,7 +13,7 @@ public sealed class DeploymentContractTests
         Assert.Contains("GoogleHealth__ClientId=${_GOOGLE_HEALTH_CLIENT_ID}", build);
         Assert.Contains("GoogleHealth__ClientSecret=google-health-client-secret:latest", build);
         Assert.Contains("_GOOGLE_HEALTH_CLIENT_ID:", build);
-        Assert.Contains("X-Workout-Maintenance-Secret", endpoint);
+        Assert.Contains("MaintenanceGate", endpoint);
         // Uploads ride on the user's own requests and the daily maintenance sweep; an hourly job would keep the API and database awake.
         Assert.False(File.Exists(Path.Combine(root, "deploy", "setup-google-health-workout-sync.ps1")));
         Assert.Contains("GoogleHealthWorkoutFlush.ForActiveUserAsync", endpoint);
@@ -39,8 +39,9 @@ public sealed class DeploymentContractTests
         Assert.DoesNotContain("workout-import-worker", build);
         Assert.DoesNotContain("ImportWorker__", build);
         Assert.DoesNotContain("ImportStorage__", build);
-        // The retention sweep still has a caller, and it is reachable only with its own secret.
-        Assert.Contains("Maintenance__Secret=", build);
+        // The retention sweep still has a caller, and it is reachable only with an allow-listed identity token.
+        Assert.Contains("Maintenance__Audience=", build);
+        Assert.Contains("Maintenance__AllowedCallers=", build);
     }
 
     [Fact]

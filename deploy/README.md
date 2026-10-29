@@ -13,8 +13,7 @@ Singapore. The FinancialApp and NutritionApp services and databases are independ
 | Secret (OpenAI key) | `financialapp-openai-api-key` — shared with the sibling apps, not duplicated |
 | GCP project | `project-7eb1aec8-8636-4c86-b2a` |
 | Cloud Run service | `workout-api`, `asia-southeast1` |
-| Maintenance scheduler | `workout-import-maintenance` (daily, `X-Workout-Maintenance-Secret`) |
-| Secret (maintenance) | `workout-maintenance-secret` (Google Secret Manager) |
+| Maintenance scheduler | `workout-import-maintenance` (daily, OIDC as `workout-internal@<project>`, audience = the API origin) |
 | Secret (Google Health OAuth) | `google-health-client-secret` (Google Secret Manager; shared OAuth client with NutritionApp) |
 | Service account | `workout-api@project-7eb1aec8-8636-4c86-b2a.iam.gserviceaccount.com` |
 | Rest-alert task caller | `workout-rest-task@project-7eb1aec8-8636-4c86-b2a.iam.gserviceaccount.com` (must be provisioned before enabling push) |
@@ -50,8 +49,8 @@ than three), neither of which costs Cloud Run anything. A rate-limited or briefl
 provider answer (429/502/503/504) is retried twice with backoff before the section is reported.
 
 Request-based billing scales to zero when idle. A daily maintenance request runs the retention sweep; because the API is reachable
-without Cloud Run IAM, `/internal/import-maintenance` exists only when `Maintenance__Secret` is
-configured and answers 404 unless the request presents it in `X-Workout-Maintenance-Secret`.
+without Cloud Run IAM, `/internal/import-maintenance` and `/internal/google-health-workout-sync` answer 404 unless the request carries a Google identity token
+whose audience is `Maintenance__Audience` and whose email is in `Maintenance__AllowedCallers` (`_MAINTENANCE_CALLERS`). There is no shared secret.
 
 Google Health workout upload has no scheduler job of its own. Finishing or deleting a workout queues
 the upload atomically. Updated clients opt into deferred dispatch, acknowledge the committed save,
