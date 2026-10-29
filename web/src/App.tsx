@@ -472,7 +472,7 @@ export default function App() {
       invocation={aiInvocation}
       onInvocationConsumed={() => setAiInvocation(null)}
       surface={tab}
-      nextWorkoutName={data ? nextWorkout(data)?.name ?? null : null}
+      trainedExercises={data?.progress?.exercises}
     /></Suspense>}
   </div></TrackRirContext>;
 }

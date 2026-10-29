@@ -10,6 +10,8 @@ import { AiMessageContent } from './ai/AiMessageContent';
 import { AiPendingReply } from './ai/AiPendingReply';
 import { useAiConversation, type AiInvocationRequest } from './useAiConversation';
 import type { AiUiAction } from '../lib/api/ai';
+import { mostTrainedLift } from '../lib/mostTrainedLift';
+import type { ProgressExercise } from '../types';
 import './AiAssistantPanel.css';
 
 interface Props {
@@ -19,11 +21,11 @@ interface Props {
   invocation?: AiInvocationRequest | null;
   onInvocationConsumed?: () => void;
   surface?: string;
-  /** Names the upcoming workout in a suggested prompt. */
-  nextWorkoutName?: string | null;
+  /** Per-exercise history; the most-trained lift is named in a suggested prompt. */
+  trainedExercises?: readonly ProgressExercise[];
 }
 
-export function AiAssistantPanel({ isOpen, onClose, onActions, invocation, onInvocationConsumed, surface = 'dashboard', nextWorkoutName }: Props) {
+export function AiAssistantPanel({ isOpen, onClose, onActions, invocation, onInvocationConsumed, surface = 'dashboard', trainedExercises }: Props) {
   const defaultContext = useMemo(() => ({ surface, timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone }), [surface]);
   const chat = useAiConversation({ isOpen, onClose, onActions, invocation, onInvocationConsumed, defaultContext });
   const disabled = chat.isSending || chat.isHydrating || chat.isResetting || chat.isResolving;
@@ -46,7 +48,7 @@ export function AiAssistantPanel({ isOpen, onClose, onActions, invocation, onInv
         </header>
         <AiLog messages={chat.messages} pendingReply={chat.pendingReply} actionBatches={chat.pendingActionBatches}>
           {chat.isHydrating && <p className="ai-chat-loading" role="status">Loading conversation…</p>}
-          {isEmpty && <AiEmptyState disabled={disabled || Boolean(chat.error)} nextWorkoutName={nextWorkoutName} onPick={prompt => void chat.sendMessage(prompt)} />}
+          {isEmpty && <AiEmptyState disabled={disabled || Boolean(chat.error)} strengthLift={mostTrainedLift(trainedExercises)} onPick={prompt => void chat.sendMessage(prompt)} />}
           {chat.messages.map((message, index) => <div key={index} className={`ai-chat-message ${message.role}`}>
             {message.role === 'assistant' && <span className="ai-chat-message-label">Coach</span>}
             <AiMessageContent content={message.content} role={message.role} />

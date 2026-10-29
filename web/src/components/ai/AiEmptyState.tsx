@@ -1,23 +1,21 @@
 import { BicepsFlexed, ChevronRight, History, TrendingUp, type LucideIcon } from 'lucide-react';
 import { Button } from '../ui/Button';
 
-/** The middle prompt speaks to the workout coming up when there is one; otherwise a common lift. */
-export function suggestedPrompts(nextWorkoutName?: string | null): { text: string; icon: LucideIcon }[] {
+/** The middle prompt names the lift the user trains most; with no history it falls back to a common lift. */
+export function suggestedPrompts(strengthLift?: string | null): { text: string; icon: LucideIcon }[] {
   return [
     { text: 'Show my most recent workouts', icon: History },
-    nextWorkoutName
-      ? { text: `What should I aim for in ${nextWorkoutName}?`, icon: TrendingUp }
-      : { text: 'How is my strength progressing on Squat?', icon: TrendingUp },
+    { text: `How is my strength progressing on ${strengthLift ?? 'Squat'}?`, icon: TrendingUp },
     { text: 'What is my training volume balance across muscles?', icon: BicepsFlexed },
   ];
 }
 
-export function AiEmptyState({ disabled, onPick, nextWorkoutName }: {
+export function AiEmptyState({ disabled, onPick, strengthLift }: {
   disabled: boolean;
   onPick: (prompt: string) => void;
-  nextWorkoutName?: string | null;
+  strengthLift?: string | null;
 }) {
-  const prompts = suggestedPrompts(nextWorkoutName);
+  const prompts = suggestedPrompts(strengthLift);
   return <div className="ai-chat-empty">
     <div className="ai-chat-empty-intro">
       <h3>Ask about your training</h3>
