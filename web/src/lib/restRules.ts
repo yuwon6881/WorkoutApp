@@ -60,12 +60,16 @@ export function exerciseRestSeconds(
   return exercise.restSeconds ?? working?.restSeconds ?? accountDefault;
 }
 
+export function isWarmupStep(step: WorkoutStep | null | undefined): boolean {
+  return Boolean(step?.set?.warmup ?? step?.prescription?.warmup);
+}
+
 export function restAppliesAfter(
   currentStep: WorkoutStep,
   nextStep: WorkoutStep | null | undefined
 ): boolean {
-  const currentWarmup = Boolean(currentStep.set?.warmup ?? currentStep.prescription?.warmup);
-  const nextWarmup = Boolean(nextStep?.set?.warmup ?? nextStep?.prescription?.warmup);
+  const currentWarmup = isWarmupStep(currentStep);
+  const nextWarmup = isWarmupStep(nextStep);
   // Only the final warm-up before working sets needs recovery. Working sets, including
   // myo-reps and the final set, always rest except for the immediate superset handoff.
   if (currentWarmup) return Boolean(nextStep) && !nextWarmup;

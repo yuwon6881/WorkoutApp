@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { SessionExercise, SetPrescription } from '../types';
-import { exerciseRestSeconds, findNextStep, restAppliesAfter, restSecondsAfter, type WorkoutStep } from './restRules';
+import { exerciseRestSeconds, findNextStep, isWarmupStep, restAppliesAfter, restSecondsAfter, type WorkoutStep } from './restRules';
 
 function makeExercise(id: string, name: string, sequenceGroup = '', setsCount = 3, options?: { warmupFirst?: boolean; dropsetLast?: boolean; myorepsLast?: boolean }): SessionExercise {
   const prescription: SetPrescription[] = Array.from({ length: setsCount }, (_, i) => {
@@ -269,5 +269,15 @@ describe('rest length', () => {
       expect(restSecondsAfter(ex, 0, 90, 'minimal')).toBe(120);
       expect(restSecondsAfter(ex, 0, 90, 'maximal')).toBe(180);
     });
+  });
+});
+
+describe('isWarmupStep', () => {
+  // Logging a warm-up never starts, replaces or ends a rest, so a countdown already running stays.
+  it('names a warm-up from its set, or its plan when the set carries no flag', () => {
+    const ex = makeExercise('ex1', 'Bench Press', '', 3, { warmupFirst: true });
+    expect(isWarmupStep({ exercise: ex, setIndex: 0, set: ex.sets[0], prescription: ex.prescription[0] })).toBe(true);
+    expect(isWarmupStep({ exercise: ex, setIndex: 1, set: ex.sets[1], prescription: ex.prescription[1] })).toBe(false);
+    expect(isWarmupStep({ exercise: ex, setIndex: 0, set: null, prescription: ex.prescription[0] })).toBe(true);
   });
 });

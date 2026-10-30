@@ -11,7 +11,8 @@ import { useAfterLog } from './useAfterLog';
 import { validateLoggedSet, validateSessionDraft } from '../lib/validation';
 import { restTimer } from '../lib/restTimer';
 import { clearStopwatches, pauseStopwatches, resumeStopwatches, stopStopwatch } from '../lib/setStopwatch';
-import { findNextStep, restAppliesAfter } from '../lib/restRules';
+import { findNextStep, isWarmupStep, restAppliesAfter } from '../lib/restRules';
+import { skippedRest, startedRest } from '../lib/restMutations';
 import { useRestMode } from './useRestMode';
 import {
   clearRecovery, enqueueFinish, enqueueSave, enqueueSetEdits, enqueueTiming, getRecovery,
@@ -232,24 +233,17 @@ export function Workout({
     let plannedGen: string | undefined;
 
     if (shouldRest) {
-      plannedGen = crypto.randomUUID();
-      const deadlineUtc = new Date(Date.now() + restSeconds * 1000).toISOString();
-      restMutation = {
-        revision: revision.current,
-        action: 'start',
-        seconds: restSeconds,
-        generation: plannedGen,
-        occurredAt: new Date().toISOString()
-      };
-      restState = {
-        generation: plannedGen,
-        status: 'running',
-        deadlineUtc,
-        pausedRemainingMs: null,
-        durationMs: restSeconds * 1000,
-        originDeviceId: null
-      };
+      const started = startedRest(restSeconds, revision.current);
+      plannedGen = started.generation;
+      restMutation = started.mutation;
+      restState = started.state;
     }
+
+    // A warm-up that starts no rest leaves a running one alone. A working set that starts none (an
+    // immediate superset handoff) ends it, and the server hears so: a skip kept on this device
+    // alone is undone when the server's still-running rest is read back.
+    const replacesRest = logging && !shouldRest && !isWarmupStep({ exercise, setIndex: si, set, prescription: plan });
+    if (replacesRest && restTimer.remainingMs > 0) restMutation = skippedRest(revision.current);
 
     const patch: Partial<LoggedSet> = timed === null ? { done: !set.done } : { done: true, durationSeconds: timed };
     const persist = () => editSet(ei, si, patch, restMutation, restState);
@@ -263,7 +257,7 @@ export function Workout({
       saved = await persist();
       // An early completion replaces the previous rest too: an immediate handoff
       // must not leave an older countdown running over the superset partner.
-      if (logging && saved && setGeneration.get(set.id) === generation) restTimer.skip();
+      if (replacesRest && saved && setGeneration.get(set.id) === generation) restTimer.skip();
     }
     if (logging && saved && setGeneration.get(set.id) === generation) afterLog(draft, ei, si);
     return saved;
