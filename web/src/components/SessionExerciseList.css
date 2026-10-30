@@ -126,11 +126,22 @@
 }
 .session-set-target strong { color: var(--text); font-weight: 680; white-space: nowrap; }
 .session-set-timer-icon { color: var(--accent); flex-shrink: 0; }
-.session-set-tags { display: inline-flex; align-items: center; gap: 8px; margin-left: auto; }
+.session-set-target > .pr-set-tag { display: inline-flex; align-items: center; gap: 5px; flex-shrink: 0; }
+.session-set-tags {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 52px;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+.session-set-tags:empty { display: none; }
 
 .session-set-effort {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
+  min-width: 52px;
   padding: 2px 8px;
   border-radius: var(--radius-pill);
   background: var(--surface);
@@ -139,9 +150,9 @@
   font-size: var(--font-secondary);
   font-weight: 550;
   white-space: nowrap;
+  flex-shrink: 0;
 }
 
-.session-summary-sets > li > .session-set-tags > .pr-set-tag { margin-left: 0; display: inline-flex; align-items: center; gap: 5px; }
 .pr-set-tag, .pr-exercise-badge { white-space: nowrap; }
 
 .session-summary-note {
@@ -167,7 +178,7 @@
   .pr-exercise-badge > span { overflow: hidden; text-overflow: ellipsis; }
   /* A record set's row is already highlighted and its kind is named in the header, so the row keeps
      only the trophy; the words stay for screen readers. */
-  .session-summary-sets > li > .session-set-tags > .pr-set-tag { padding: 4px 6px; }
+  .session-set-target > .pr-set-tag { padding: 4px 6px; }
   .pr-set-tag .pr-set-tag-text { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 }
 

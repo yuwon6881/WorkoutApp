@@ -50,13 +50,13 @@ function SessionExerciseCard({ exercise, order, unit, trackRir, onOpen }: {
             <span className="session-set-target">
               {isTimed && <Clock3 size={13} aria-hidden="true" className="session-set-timer-icon" />}
               <strong>{setResult(set, unit, exercise)}</strong>
-            </span>
-            <div className="session-set-tags">
-              {trackRir && effort !== '—' && <span className="session-set-effort">{effort}</span>}
               {set.isPr && <span className="pill pill-accent pr-set-tag" title={set.prKind === 'e1rm' ? 'Estimated 1-rep max personal record' : undefined}>
                 <Trophy size={10} aria-hidden="true" />
                 <span className="pr-set-tag-text">{formatSetPrTag(set)}</span>
               </span>}
+            </span>
+            <div className="session-set-tags">
+              {trackRir && effort !== '—' && <span className="session-set-effort">{effort}</span>}
             </div>
           </li>;
         })}
