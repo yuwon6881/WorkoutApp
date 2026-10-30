@@ -38,6 +38,10 @@ h2{font-weight:680;letter-spacing:-.022em}
 @media (hover:hover) and (pointer:fine){.button.secondary:hover:not(:disabled){border-color:var(--accent-border)}}
 .button.destructive{border-color:var(--red-border)}
 .button.tertiary{border-color:transparent}
+/* A press answers at once on touch, where :hover never fires. Colour only: a button that shrinks
+   under the finger can lose a tap made near its edge. Primary has its own pressed state above. */
+.button.secondary:active:not(:disabled),.button.tertiary:active:not(:disabled){background:var(--surface-hover)}
+.button.destructive:active:not(:disabled){background:var(--red-soft)}
 
 /* Fields: soft filled wells that sharpen to the accent on focus. */
 input:not([type=checkbox]):not([type=radio]):not([type=range]),select,textarea,.search-box{border-radius:var(--radius-control);background:var(--surface-raised);border-color:color-mix(in srgb,var(--border-hover) 45%,transparent)}

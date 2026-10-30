@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { lastPerformedLabel, type ExerciseLastPerformed } from './lastPerformed';
 
-const base: ExerciseLastPerformed = { exerciseId: 'e', finishedAt: '2026-10-27T16:30:00Z', weightKg: 100, reps: 8, durationSeconds: null };
+// Midday UTC falls on the same calendar day in every timezone from UTC-11 to UTC+11, so the label
+// does not depend on where the tests run.
+const base: ExerciseLastPerformed = { exerciseId: 'e', finishedAt: '2026-10-27T12:00:00Z', weightKg: 100, reps: 8, durationSeconds: null };
 
 describe('lastPerformedLabel', () => {
   it('reads load, reps and the day, in the account unit and weight basis', () => {

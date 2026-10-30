@@ -19,14 +19,42 @@
   }
 }
 
-/* A logged set answers the tap: the check pops in, and the row's fill sweeps across it
-   (WorkoutLogger.css). */
-@keyframes set-check-pop {
-  0% { transform: scale(.4) rotate(-12deg); opacity: 0; }
-  55% { transform: scale(1.18) rotate(0); opacity: 1; }
+/* A theme change cross-fades the whole page (lib/theme.ts) on the panel timing instead of
+   flashing; the browser's default would be a little slower and uses its own easing. */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: var(--motion-panel);
+  animation-timing-function: var(--motion-ease);
+}
+
+/* A logged set answers the tap: the tick springs back from its pressed size, the check draws
+   itself, a soft ring leaves the edge, and the row's fill sweeps across (WorkoutLogger.css).
+   The rebound starts at the :active scale so the press flows into it without a jump. The ring is
+   kept to 4px because phone rows clip to their own bounds, and the dash values live in the
+   keyframes so a reduced-motion user sees the finished check rather than a hidden stroke. */
+@keyframes set-tick-rebound {
+  0% { transform: scale(.92); }
+  45% { transform: scale(1.12); }
+  72% { transform: scale(.97); }
   100% { transform: scale(1); }
 }
 
-.just-logged .set-log-checkbox.checked svg {
-  animation: set-check-pop 360ms cubic-bezier(.32, .72, 0, 1);
+@keyframes set-tick-ring {
+  from { box-shadow: 0 0 0 0 var(--accent-border-strong), 0 2px 8px var(--accent-soft-glow); }
+  to { box-shadow: 0 0 0 4px transparent, 0 2px 8px var(--accent-soft-glow); }
+}
+
+@keyframes set-check-draw {
+  from { stroke-dasharray: 24; stroke-dashoffset: 24; }
+  to { stroke-dasharray: 24; stroke-dashoffset: 0; }
+}
+
+.just-logged .set-log-checkbox.checked {
+  animation:
+    set-tick-rebound 380ms cubic-bezier(.32, .72, 0, 1),
+    set-tick-ring 460ms var(--motion-ease);
+}
+
+.just-logged .set-log-checkbox.checked svg path {
+  animation: set-check-draw 220ms var(--motion-ease) 70ms backwards;
 }

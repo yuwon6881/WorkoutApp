@@ -13,7 +13,8 @@ import './workout.css';
 import './surfaces.css';
 import { prepareNativeShell } from './lib/nativeShellMigration';
 import { isNative } from './lib/platform';
-applyTheme(initialTheme());
+// The first paint takes the theme outright; only a later change is cross-faded.
+void applyTheme(initialTheme(), false);
 // Styles that only the Android WebView needs (surfaces.css) key off this.
 if (isNative()) document.documentElement.dataset.shell = 'android';
 trackInputModality();

@@ -10,9 +10,10 @@ export function useAppTheme(themePreference: Theme | undefined, signedOut: boole
     if (signedOut) forgetTheme();
     const sync = () => {
       const theme = saved ?? initialTheme();
-      applyTheme(theme);
-      const bg = getComputedStyle(document.documentElement).getPropertyValue('--bg').trim();
-      if (bg) setNativeStatusBar(theme === 'light' ? 'light' : 'dark', bg);
+      void applyTheme(theme).then(() => {
+        const bg = getComputedStyle(document.documentElement).getPropertyValue('--bg').trim();
+        if (bg) setNativeStatusBar(theme === 'light' ? 'light' : 'dark', bg);
+      });
     };
     if (saved) rememberTheme(saved);
     sync();
