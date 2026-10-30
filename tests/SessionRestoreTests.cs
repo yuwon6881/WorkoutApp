@@ -49,6 +49,36 @@ public sealed class SessionRestoreTests
     }
 
     [Fact]
+    public void Plan_restore_brings_back_a_removed_warmup_without_borrowing_the_logged_working_set()
+    {
+        var baseline = new SessionExerciseBaseline(null, "Bench", "", Json.Write(new List<SetPrescription> { Warmup(), Harness.Set(8, 10) }),
+            "", "[]", LoadModels.External, "", [
+                new BaselineSetSnapshot(0, null, null, 5, null, true, "", ResistanceModes.Bodyweight, null),
+                new BaselineSetSnapshot(1, 1, 60, 8, null, false, "{}", ResistanceModes.External, null)
+            ]);
+        // The warm-up was removed and the working set logged, so one row is left.
+        var logged = new CompletedSet { Position = 0, Done = true, WeightKg = 82.5, Reps = 6, Rpe = 8, Warmup = false };
+
+        var result = SessionPlanRestore.Apply(baseline, [logged]);
+        var created = new List<CompletedSet>();
+        var rows = SessionPlanRestore.ApplyTo(result, Guid.NewGuid(), Guid.NewGuid(), created.Add);
+
+        Assert.Equal(2, rows.Count);
+        var restored = Assert.Single(created);
+        Assert.Same(restored, rows[0]);
+        Assert.Same(logged, rows[1]);
+        Assert.True(restored.Warmup);
+        Assert.False(restored.Done);
+        Assert.Equal((null, 5), (restored.WeightKg, restored.Reps));
+        Assert.False(logged.Warmup);
+        Assert.True(logged.Done);
+        Assert.Equal((82.5, 6, 8d), (logged.WeightKg!.Value, logged.Reps!.Value, logged.Rpe!.Value));
+        Assert.Equal([null, 1], rows.Select(row => row.WorkingSetOrdinal));
+        Assert.True(result.Prescription[0].Warmup);
+        Assert.False(result.Prescription[1].Warmup);
+    }
+
+    [Fact]
     public async Task Restore_default_returns_the_plan_and_keeps_logged_sets()
     {
         await using var h = await Harness.Create();

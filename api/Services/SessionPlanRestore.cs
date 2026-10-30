@@ -28,22 +28,68 @@ public static class SessionPlanRestore
         var prescription = ReadPlan(baseline.PrescriptionJson);
         var planned = baseline.PlannedSets.OrderBy(set => set.Position).ToList();
         var current = sets.OrderBy(set => set.Position).ToList();
-        var steps = planned.Select((snapshot, index) => new PlanRestoreStep(current.ElementAtOrDefault(index), snapshot, index)).ToList();
+        var pairs = current.Count < planned.Count ? AlignByType(planned, current) : null;
+        var steps = new List<PlanRestoreStep>();
         var removed = new List<CompletedSet>();
         var straight = prescription.LastOrDefault(set => !set.Warmup) ?? prescription.LastOrDefault();
-        foreach (var set in current.Skip(planned.Count))
+
+        void KeepBeyondPlan(CompletedSet set)
         {
             if (!set.Done)
             {
                 removed.Add(set);
-                continue;
+                return;
             }
-            steps.Add(new PlanRestoreStep(set, null, steps.Count));
-            prescription.Add(straight is null
+            prescription.Insert(Math.Min(steps.Count, prescription.Count), straight is null
                 ? new SetPrescription(null, null, null, null, null, null, null, RepsSource: "userEdited", RpeSource: "userEdited", RestSource: "userEdited")
                 : straight with { Notes = null, Warmup = false });
+            steps.Add(new PlanRestoreStep(set, null, steps.Count));
+        }
+
+        if (pairs is null)
+        {
+            for (var index = 0; index < planned.Count; index++)
+                steps.Add(new PlanRestoreStep(current.ElementAtOrDefault(index), planned[index], index));
+            foreach (var set in current.Skip(planned.Count)) KeepBeyondPlan(set);
+        }
+        else
+        {
+            // Sets were removed, so position no longer says which plan slot a row belongs to: a planned
+            // slot nothing matches comes back as a fresh row rather than taking over a logged one.
+            var nextPlanned = 0;
+            var nextCurrent = 0;
+            foreach (var (plannedAt, currentAt) in pairs.Append((planned.Count, current.Count)))
+            {
+                for (; nextPlanned < plannedAt; nextPlanned++)
+                    steps.Add(new PlanRestoreStep(null, planned[nextPlanned], steps.Count));
+                for (; nextCurrent < currentAt; nextCurrent++) KeepBeyondPlan(current[nextCurrent]);
+                if (plannedAt == planned.Count) break;
+                steps.Add(new PlanRestoreStep(current[currentAt], planned[plannedAt], steps.Count));
+                nextPlanned = plannedAt + 1;
+                nextCurrent = currentAt + 1;
+            }
         }
         return new PlanRestoreResult(prescription, steps, removed);
+    }
+
+    /// The longest in-order pairing of planned slots with current rows of the same type (warm-up or
+    /// working), earliest rows first.
+    private static List<(int Planned, int Current)> AlignByType(IReadOnlyList<BaselineSetSnapshot> planned, IReadOnlyList<CompletedSet> current)
+    {
+        var best = new int[planned.Count + 1, current.Count + 1];
+        for (var p = planned.Count - 1; p >= 0; p--)
+        for (var c = current.Count - 1; c >= 0; c--)
+            best[p, c] = planned[p].Warmup == current[c].Warmup
+                ? best[p + 1, c + 1] + 1
+                : Math.Max(best[p + 1, c], best[p, c + 1]);
+        var pairs = new List<(int, int)>();
+        for (int p = 0, c = 0; p < planned.Count && c < current.Count;)
+        {
+            if (planned[p].Warmup == current[c].Warmup) pairs.Add((p++, c++));
+            else if (best[p + 1, c] >= best[p, c + 1]) p++;
+            else c++;
+        }
+        return pairs;
     }
 
     /// Writes a restore result onto the exercise's set rows. Returns the rows that now exist, in order.
