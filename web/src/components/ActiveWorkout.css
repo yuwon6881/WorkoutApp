@@ -241,7 +241,9 @@
    The anchor has no height and the card lets taps through, so nothing below it moves or is blocked. */
 @keyframes celebration-in { 0% { opacity: 0; transform: translateY(-8px); } 100% { opacity: 1; transform: none; } }
 .workout-celebration-anchor { position: relative; height: 0; z-index: 4; pointer-events: none; }
-.workout-celebration-dismiss {
+/* Nested so it outranks .swipe-dismiss's position: relative whichever stylesheet loads last; otherwise
+   left/right only shift the card and it overflows the right edge on a phone. */
+.workout-celebration-anchor .workout-celebration-dismiss {
   position: absolute;
   top: 10px;
   left: 16px;
