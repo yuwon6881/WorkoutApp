@@ -18,6 +18,7 @@ vi.mock('./ui/SegmentedControl', () => ({ SegmentedControl: (props: { label: str
 vi.mock('../lib/push/firebaseMessaging', () => ({ getWorkoutPushDeviceId: () => null, deleteWorkoutPushToken: vi.fn() }));
 vi.mock('../lib/api', () => ({ api: { refreshNutritionContext: vi.fn().mockResolvedValue({}) } }));
 vi.mock('./LoadIncrementSettings', () => ({ LoadIncrementSettings: () => null }));
+vi.mock('./GymProfileSettings', () => ({ GymProfileSettings: () => null }));
 vi.mock('./RestAlertSettings', () => ({ RestAlertSettings: () => null }));
 vi.mock('./GoogleHealthSettings', () => ({ GoogleHealthSettings: () => null }));
 vi.mock('./ConnectedApps', () => ({ ConnectedApps: () => null }));

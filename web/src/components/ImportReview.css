@@ -451,3 +451,7 @@
     font-size: var(--font-secondary);
   }
 }
+
+.irev-gym-banner .irev-gym-icon {
+  color: var(--amber);
+}

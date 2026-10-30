@@ -39,7 +39,7 @@ public sealed class CatalogDuplicateAuditTests
                 [new SetInput(50, 10, 8, true, Id: exercise.Sets.Single().Id)], Id: exercise.Id)], first.Revision, null), default);
         await h.Workouts.Finish(first.Id, null, default);
         h.Db.ExerciseLoadSettings.Add(new Workout.Api.Data.ExerciseLoadSetting
-            { Id = legacyId, UserId = h.Db.CurrentUser!.Value, LoadStepKg = 1 });
+            { Id = legacyId, UserId = h.Db.CurrentUser!.Value, GymProfileId = (await GymProfiles.ActiveId(h.Db, default))!.Value, LoadStepKg = 1 });
         await h.Db.SaveChangesAsync();
 
         for (var pass = 0; pass < 2; pass++)

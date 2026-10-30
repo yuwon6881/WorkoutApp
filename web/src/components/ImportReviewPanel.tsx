@@ -4,6 +4,8 @@ import type { ImportDraft, ImportView } from '../types';
 import type { AttentionRow, ImportIssueTarget } from '../lib/importAttentionRows';
 import { Field } from './ui/Field';
 import { ImportReviewIssues } from './ImportReviewIssues';
+import { GymSwitcher } from './GymSwitcher';
+import { useGymAvailabilityCheck } from '../lib/gymAvailability';
 import './ImportReview.css';
 
 /// The head of the review step: the program name, what could not be linked to the catalog, and
@@ -16,6 +18,10 @@ export const ImportReviewPanel = forwardRef<HTMLElement, {
   onNameCommit: () => void;
   onFocusIssue: (target: ImportIssueTarget) => void;
 }>(function ImportReviewPanel({ view, draft, attentionRows, onNameChange, onNameCommit, onFocusIssue }, ref) {
+  const checkGym = useGymAvailabilityCheck();
+  // Each linked movement is counted once, however many days and weeks repeat it.
+  const linked = new Set(draft.workouts.flatMap(day => day.exercises.map(exercise => exercise.exerciseId)).filter(Boolean));
+  const unavailable = [...linked].map(id => checkGym(id)).filter(result => !result.available);
   return (
     <section className="panel irev-panel" ref={ref}>
       <div className="irev-header">
@@ -54,6 +60,17 @@ export const ImportReviewPanel = forwardRef<HTMLElement, {
           <Info size={16} className="irev-unresolved-icon" />
           <span className="irev-unresolved-text">
             {view.unresolved.length} exercise slot{view.unresolved.length === 1 ? ' is' : 's are'} not linked to the catalog. Unmapped names stay verbatim and can still be logged.
+          </span>
+        </div>
+      )}
+
+      <GymSwitcher />
+      {unavailable[0] && !unavailable[0].available && (
+        <div className="irev-unresolved-banner irev-gym-banner" role="status">
+          <AlertTriangle size={16} className="irev-unresolved-icon irev-gym-icon" />
+          <span className="irev-unresolved-text">
+            {unavailable.length} {unavailable.length === 1 ? 'movement needs' : 'movements need'} equipment {unavailable[0].gymName} does
+            not have. They are marked on each exercise; swap them here or once a workout starts.
           </span>
         </div>
       )}

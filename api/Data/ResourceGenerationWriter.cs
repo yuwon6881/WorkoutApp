@@ -52,7 +52,8 @@ internal static class ResourceGenerationWriter
                 History = history ? 1 : 0,
                 HistoryAppendId = appendId,
                 CustomExercises = Has<CustomExercise>() ? 1 : 0,
-                ExerciseLoads = Has<ExerciseLoadSetting>() || Has<EquipmentLoadDefault>() ? 1 : 0,
+                // Catalog and template load steps follow the active gym, so switching gyms refreshes them.
+                ExerciseLoads = Has<ExerciseLoadSetting>() || Has<EquipmentLoadDefault>() || ActiveGymChanged(changed) ? 1 : 0,
                 Preferences = Has<AppUser>() ? 1 : 0
             };
             if (generation.Programs + generation.Templates + generation.Sessions + generation.Imports + generation.Progress
@@ -61,6 +62,9 @@ internal static class ResourceGenerationWriter
         }
         return output;
     }
+
+    private static bool ActiveGymChanged(IEnumerable<Microsoft.EntityFrameworkCore.ChangeTracking.EntityEntry> changed)
+        => changed.Any(e => e.Entity is AppUser && (e.State == EntityState.Added || e.Property(nameof(AppUser.ActiveGymProfileId)).IsModified));
 
     public static async Task Write(AppDb db, ResourceGeneration g, CancellationToken ct)
     {

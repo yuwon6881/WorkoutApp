@@ -10,14 +10,15 @@ public record EquipmentLoadView(string Group, double AppDefaultStepKg, double? O
     double StepKg, List<double>? AvailableLoadsKg, string Source, int Revision, int ExerciseCount);
 public record LoadSettingsView(List<EquipmentLoadView> Equipment);
 
-/// Account equipment defaults. Individual exercise rules are edited with that exercise.
+/// Equipment defaults at the active gym. Individual exercise rules are edited with that exercise.
 public sealed class LoadSettingsService(AppDb db, CatalogService catalog)
 {
     public async Task<LoadSettingsView> Get(CancellationToken ct, string? unit = null)
     {
         var exercises = await catalog.All(ct);
         var rules = await LoadRuleReader.Read(db, [], ct, unit);
-        var defaults = await db.EquipmentLoadDefaults.AsNoTracking().ToDictionaryAsync(x => x.Equipment, ct);
+        var gym = await GymProfiles.ActiveId(db, ct) ?? Guid.Empty;
+        var defaults = await db.EquipmentLoadDefaults.AsNoTracking().Where(x => x.GymProfileId == gym).ToDictionaryAsync(x => x.Equipment, ct);
         var groupSizes = exercises.Select(x => EquipmentGroups.For(x.Equipment, x.LoadModel))
             .Where(group => group is not null).GroupBy(group => group!).ToDictionary(g => g.Key, g => g.Count());
         var equipment = EquipmentGroups.All.Select(group =>
@@ -39,12 +40,13 @@ public sealed class LoadSettingsService(AppDb db, CatalogService catalog)
         var unit = await LoadRuleReader.ReadingUnit(db, input.Unit, ct);
         await using (var gate = await MutationLock.Acquire(db, db.CurrentUser, ct))
         {
-            var row = await db.EquipmentLoadDefaults.SingleOrDefaultAsync(x => x.Equipment == group, ct);
+            var gym = await GymProfiles.EnsureActive(db, ct);
+            var row = await db.EquipmentLoadDefaults.SingleOrDefaultAsync(x => x.GymProfileId == gym && x.Equipment == group, ct);
             Validation.Require(input.Revision == (row?.Revision ?? 0),
                 "These weight settings changed elsewhere. Reload them before saving again.", 409);
             if (row is null)
             {
-                row = new EquipmentLoadDefault { UserId = db.CurrentUser!.Value, Equipment = group };
+                row = new EquipmentLoadDefault { UserId = db.CurrentUser!.Value, GymProfileId = gym, Equipment = group };
                 db.EquipmentLoadDefaults.Add(row);
             }
             row.LoadStepKg = step;

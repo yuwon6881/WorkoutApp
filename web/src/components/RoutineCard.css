@@ -1,10 +1,7 @@
 /* Library workout card. Compact, quiet layout with title, succinct counts, and clear start action. */
 
 .panel.routine-card {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 10px 8px;
+  container-type: inline-size;
   padding: 14px 18px;
   margin-bottom: 0;
   min-width: 0;
@@ -13,6 +10,14 @@
   background: var(--surface);
   box-shadow: var(--shadow);
   overflow: hidden;
+}
+
+.routine-card-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px 8px;
+  min-width: 0;
 }
 
 .routine-card-head {
@@ -156,10 +161,15 @@
 
 @media (min-width: 768px) {
   .panel.routine-card {
-    grid-template-columns: minmax(0, 1fr) auto auto;
-    align-items: center;
-    gap: 8px 8px;
     padding: 16px 18px;
+  }
+}
+
+/* One line of title, actions and Start only when the card itself has room for all three. */
+@container (min-width: 520px) {
+  .routine-card-body {
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    gap: 8px 8px;
   }
 
   .routine-card-start.button {

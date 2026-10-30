@@ -11,7 +11,7 @@ public record CatalogExercise(Guid Id, string Slug, string Name, string Muscle, 
     List<string>? SecondaryMuscles = null, string Category = ExerciseCategories.FreeWeights,
     List<double>? AvailableLoadsKg = null, string TrackingMode = TrackingModes.Reps,
     string LoadSource = LoadSources.App, string? LoadEquipmentGroup = null,
-    string WeightBasis = WeightBases.Total);
+    string WeightBasis = WeightBases.Total, List<string>? Requires = null);
 
 public record SubstitutionCandidate(Guid ExerciseId, string Name, string Muscle, string Equipment,
     string Source, int Rank, bool IsCatalog, string MovementPattern = "", List<string>? SecondaryMuscles = null);
@@ -23,7 +23,7 @@ public sealed class CatalogService(AppDb db)
     // The short expiry also makes a catalog seed visible without requiring a
     // restart or a cross-service cache invalidation channel.
     private static readonly MemoryCache SharedCache = new(new MemoryCacheOptions { SizeLimit = 4 });
-    private const string SharedCatalogKey = "workout:catalog:active:v2";
+    private const string SharedCatalogKey = "workout:catalog:active:v3";
 
     /// Movements a document writes as one word, two words, or hyphenated interchangeably. The
     /// catalog is itself inconsistent — "Neutral-Grip Pullup" sits beside "Close-Grip Pull-Up" —
@@ -63,6 +63,12 @@ public sealed class CatalogService(AppDb db)
         catch { return []; }
     }
 
+    private static List<string> ReadRequires(string? json)
+    {
+        try { return string.IsNullOrWhiteSpace(json) ? [] : Json.Read<List<string>>(json); }
+        catch { return []; }
+    }
+
     public static bool IsPlaceholder(string? text)
     {
         if (string.IsNullOrWhiteSpace(text)) return true;
@@ -78,7 +84,8 @@ public sealed class CatalogService(AppDb db)
         output.AddRange(custom.Select(x => new CatalogExercise(x.Id, $"custom-{x.Id:N}", x.Name, x.Muscle, x.Equipment, [], x.LoadStepKg,
             LoadModels.All.Contains(x.LoadModel) ? x.LoadModel : LoadModels.External, x.MovementPattern, "custom", true, false,
             ReadMuscles(x.SecondaryMusclesJson, x.Muscle), ExerciseCategories.Normalize(x.Category, x.Equipment, x.LoadModel),
-            null, TrackingModes.Normalize(x.TrackingMode), WeightBasis: x.WeightBasis)));
+            null, TrackingModes.Normalize(x.TrackingMode), WeightBasis: x.WeightBasis,
+            Requires: [.. GymEquipment.ForEquipment(x.Equipment)])));
         var rules = await LoadRuleReader.Read(db, null, ct);
         var customUnits = custom.ToDictionary(x => x.Id, x => x.LoadStepUnit);
         return output.Select(exercise =>
@@ -105,7 +112,7 @@ public sealed class CatalogService(AppDb db)
 
         var exercises = await db.Exercises.AsNoTracking().Where(x => x.Active)
             .OrderBy(x => x.Name)
-            .Select(x => new { x.Id, x.Slug, x.Name, x.Muscle, x.Equipment, x.Category, x.LoadStepKg, x.LoadModel, x.MovementPattern, x.SecondaryMusclesJson, x.TrackingMode, x.WeightBasis })
+            .Select(x => new { x.Id, x.Slug, x.Name, x.Muscle, x.Equipment, x.Category, x.LoadStepKg, x.LoadModel, x.MovementPattern, x.SecondaryMusclesJson, x.TrackingMode, x.WeightBasis, x.RequiresJson })
             .ToListAsync(ct);
         var ids = exercises.Select(x => x.Id).ToList();
         var aliases = ids.Count == 0 ? [] : await db.Aliases.AsNoTracking().Where(a => ids.Contains(a.ExerciseId)).ToListAsync(ct);
@@ -115,7 +122,8 @@ public sealed class CatalogService(AppDb db)
             aliasesByExercise.GetValueOrDefault(x.Id) ?? [], x.LoadStepKg,
             LoadModels.All.Contains(x.LoadModel) ? x.LoadModel : LoadModels.External, x.MovementPattern, "catalog", false, false,
             ReadMuscles(x.SecondaryMusclesJson, x.Muscle), ExerciseCategories.Normalize(x.Category, x.Equipment, x.LoadModel),
-            null, TrackingModes.Normalize(x.TrackingMode), WeightBasis: x.WeightBasis)).ToList());
+            null, TrackingModes.Normalize(x.TrackingMode), WeightBasis: x.WeightBasis,
+            Requires: ReadRequires(x.RequiresJson))).ToList());
         if (!db.Database.IsSqlite())
             SharedCache.Set(SharedCatalogKey, result, new MemoryCacheEntryOptions
             {

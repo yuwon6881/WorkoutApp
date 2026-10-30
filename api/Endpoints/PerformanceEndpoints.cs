@@ -24,6 +24,7 @@ public static class PerformanceEndpoints
                 activeWorkout, activeProgram = program, nextWorkout = next,
                 workoutHero = await WorkoutHeroReadService.Get(db, next?.Id, activeWorkout, ct),
                 imports = await imports.LaunchSummaries(ct),
+                gym = await GymProfiles.Launch(db, ct),
                 navigationCounts = new { programs = await db.Programs.CountAsync(ct), templates = await db.Templates.CountAsync(day => day.ProgramId == null, ct) }
             };
         });
@@ -46,6 +47,7 @@ public static class PerformanceEndpoints
                 activeWorkout, activeProgram = active, nextWorkout = next,
                 workoutHero = await WorkoutHeroReadService.Get(db, nextId, activeWorkout, ct),
                 imports = await imports.List(ct),
+                gym = await GymProfiles.Launch(db, ct),
                 navigationCounts = new { programs = await db.Programs.CountAsync(ct), templates = await db.Templates.CountAsync(x => x.ProgramId == null, ct) }
             };
         });

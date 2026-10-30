@@ -1,0 +1,161 @@
+.gym-settings-name {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.gym-settings-name .gym-active-label {
+  color: var(--accent);
+}
+
+.gym-settings-row-actions,
+.gym-settings-footer {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.gym-settings-footer {
+  padding: 14px 0 16px;
+}
+
+/* The form wraps body and footer without a box of its own, so the footer stays pinned like any dialog's. */
+.gym-dialog-form {
+  display: contents;
+}
+
+.modal > .gym-dialog-form > .modal-actions {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+}
+
+.gym-create-form {
+  display: grid;
+  gap: 16px;
+}
+
+.gym-editor {
+  display: grid;
+  gap: 16px;
+}
+
+.gym-editor > .muted {
+  margin: 0;
+}
+
+.gym-equipment-group {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+
+.gym-equipment-group-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--section-border);
+}
+
+.gym-equipment-group legend,
+.gym-overrides h4 {
+  padding: 0;
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.gym-equipment-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.gym-equipment-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 52px;
+  padding: 4px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.gym-equipment-row:last-child {
+  border-bottom: 0;
+}
+
+.gym-equipment-name {
+  min-width: 0;
+  color: var(--text);
+}
+
+.gym-equipment-switches {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 4px 16px;
+}
+
+.gym-equipment-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.gym-overrides {
+  display: grid;
+  gap: 8px;
+}
+
+.gym-overrides > .muted {
+  margin: 0;
+}
+
+.gym-editor-actions {
+  flex-wrap: wrap;
+}
+
+.gym-editor-delete-note {
+  margin: 0 auto 0 0;
+  align-self: center;
+}
+
+.gym-editor-actions > .button.tertiary:first-child,
+.gym-editor-actions > .button.destructive:first-child {
+  margin-right: auto;
+}
+
+@media (max-width: 639px) {
+  /* Compact rows give their actions the whole line, like a lone settings button. */
+  .gym-settings-row-actions {
+    width: 100%;
+    flex-wrap: nowrap;
+  }
+
+  .gym-settings-row-actions > .button {
+    flex: 1 1 0;
+  }
+
+  .gym-equipment-row.builds {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 4px;
+    padding: 10px 0;
+  }
+
+  /* The builds keep the trailing edge every other switch in the list sits on. */
+  .gym-equipment-row.builds .gym-equipment-switches {
+    align-self: stretch;
+    justify-content: flex-end;
+  }
+}

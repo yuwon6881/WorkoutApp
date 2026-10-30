@@ -18,6 +18,8 @@ public sealed partial class WorkoutService
 
     /// Loads all planned exercise histories with one bounded set of database reads. Catalog IDs
     /// use a per-key top-30 query; unresolved names retain the legacy recent-60 matching rule.
+    /// Machines and cables read only workouts done at the active gym, which a workout cannot
+    /// change while open, so it is also the gym the open workout records.
     private async Task<Dictionary<(Guid? ExerciseId, string NameKey), Dictionary<int, List<SetExposure>>>> PreviousExposuresBatch(
         IEnumerable<(Guid? ExerciseId, string Name)> requested, CancellationToken ct)
     {
@@ -26,28 +28,21 @@ public sealed partial class WorkoutService
         var ids = requests.Where(x => x.ExerciseId is not null).Select(x => x.ExerciseId!.Value).Distinct().ToList();
         var names = requests.Where(x => x.ExerciseId is null).Select(x => x.NameKey).ToHashSet(StringComparer.Ordinal);
         var query = db.SessionExercises.AsNoTracking().Join(db.Workouts.AsNoTracking().Where(w => w.FinishedAt != null),
-            e => e.SessionId, w => w.Id, (e, w) => new { e.Id, e.SessionId, e.ExerciseId, e.NameSnapshot, e.PrescriptionJson, e.Position, w.FinishedAt });
+            e => e.SessionId, w => w.Id, (e, w) => new ExposureRow
+            {
+                Id = e.Id, SessionId = e.SessionId, ExerciseId = e.ExerciseId, NameSnapshot = e.NameSnapshot,
+                PrescriptionJson = e.PrescriptionJson, Position = e.Position, FinishedAt = w.FinishedAt, GymProfileId = w.GymProfileId
+            });
         var matches = new List<PreviousExposureMatch>();
         if (ids.Count > 0)
         {
-            // Keep the shared read bounded for long histories. A sparse exercise gets a targeted
-            // top-30 fill only when it did not appear in the recent window; ordinary starts stay
-            // at one query without relying on provider-specific window-function translation.
-            var window = Math.Min(4800, Math.Max(120, ids.Count * 120));
-            var catalogMatches = await query.Where(x => x.ExerciseId != null && ids.Contains(x.ExerciseId.Value))
-                .OrderByDescending(x => x.FinishedAt).Take(window).ToListAsync(ct);
-            // A window that came back short already holds every exposure, so a sparse exercise
-            // only needs its own read when older history may lie beyond the window.
-            var windowFull = catalogMatches.Count == window;
-            foreach (var id in ids)
-            {
-                var selected = catalogMatches.Where(x => x.ExerciseId == id).Take(30).ToList();
-                if (selected.Count < 30 && windowFull)
-                {
-                    selected = await query.Where(x => x.ExerciseId == id).OrderByDescending(x => x.FinishedAt).Take(30).ToListAsync(ct);
-                }
-                matches.AddRange(selected.Select(x => new PreviousExposureMatch(x.Id, x.SessionId, x.ExerciseId, x.NameSnapshot, x.PrescriptionJson, x.Position, x.FinishedAt)));
-            }
+            var scoped = await GymScopedIds(ids, ct);
+            var gym = scoped.Count == 0 ? null : await GymProfiles.ActiveId(db, ct);
+            await AddCatalogMatches(matches, [.. ids.Where(id => !scoped.Contains(id))], query, ct);
+            // With no gym there is no machine history to match; a null filter would read the
+            // workouts of deleted gyms instead.
+            if (gym is { } activeGym)
+                await AddCatalogMatches(matches, [.. ids.Where(scoped.Contains)], query.Where(x => x.GymProfileId == activeGym), ct);
         }
         if (names.Count > 0)
         {
@@ -111,6 +106,49 @@ public sealed partial class WorkoutService
             WeightKg = exposure.LoadKg, Reps = exposure.Reps, Rpe = exposure.Rpe, SystemLoadKg = exposure.SystemLoadKg,
             ResistanceMode = exposure.ResistanceMode, Done = true, Warmup = false, WorkingSetOrdinal = pair.Key
         })).ToList();
+    }
+
+    /// Keep the shared read bounded for long histories. A sparse exercise gets a targeted top-30
+    /// fill only when it did not appear in the recent window; ordinary starts stay at one query
+    /// without relying on provider-specific window-function translation.
+    private static async Task AddCatalogMatches(List<PreviousExposureMatch> matches, List<Guid> ids, IQueryable<ExposureRow> query,
+        CancellationToken ct)
+    {
+        if (ids.Count == 0) return;
+        var window = Math.Min(4800, Math.Max(120, ids.Count * 120));
+        var catalogMatches = await query.Where(x => x.ExerciseId != null && ids.Contains(x.ExerciseId.Value))
+            .OrderByDescending(x => x.FinishedAt).Take(window).ToListAsync(ct);
+        // A window that came back short already holds every exposure, so a sparse exercise
+        // only needs its own read when older history may lie beyond the window.
+        var windowFull = catalogMatches.Count == window;
+        foreach (var id in ids)
+        {
+            var selected = catalogMatches.Where(x => x.ExerciseId == id).Take(30).ToList();
+            if (selected.Count < 30 && windowFull)
+            {
+                selected = await query.Where(x => x.ExerciseId == id).OrderByDescending(x => x.FinishedAt).Take(30).ToListAsync(ct);
+            }
+            matches.AddRange(selected.Select(x => new PreviousExposureMatch(x.Id, x.SessionId, x.ExerciseId, x.NameSnapshot, x.PrescriptionJson, x.Position, x.FinishedAt)));
+        }
+    }
+
+    private async Task<HashSet<Guid>> GymScopedIds(List<Guid> ids, CancellationToken ct)
+    {
+        var catalog = await db.Exercises.AsNoTracking().Where(x => ids.Contains(x.Id)).Select(x => new { x.Id, x.Equipment }).ToListAsync(ct);
+        var custom = await db.CustomExercises.AsNoTracking().Where(x => ids.Contains(x.Id)).Select(x => new { x.Id, x.Equipment }).ToListAsync(ct);
+        return catalog.Concat(custom).Where(x => GymScopedHistory.Applies(x.Equipment)).Select(x => x.Id).ToHashSet();
+    }
+
+    private sealed class ExposureRow
+    {
+        public Guid Id { get; init; }
+        public Guid SessionId { get; init; }
+        public Guid? ExerciseId { get; init; }
+        public string NameSnapshot { get; init; } = "";
+        public string PrescriptionJson { get; init; } = "";
+        public int Position { get; init; }
+        public DateTime? FinishedAt { get; init; }
+        public Guid? GymProfileId { get; init; }
     }
 
     private sealed record PreviousExposureMatch(Guid Id, Guid SessionId, Guid? ExerciseId, string NameSnapshot,

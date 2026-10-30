@@ -25,7 +25,8 @@ public sealed class ExerciseLoadSettingsService(AppDb db)
     public async Task<ExerciseLoadSettingsView> Get(Guid id, CancellationToken ct, string? unit = null)
     {
         var exercise = await Exercise(id, ct);
-        var row = await db.ExerciseLoadSettings.AsNoTracking().SingleOrDefaultAsync(x => x.Id == id, ct);
+        var gym = await GymProfiles.ActiveId(db, ct) ?? Guid.Empty;
+        var row = await db.ExerciseLoadSettings.AsNoTracking().SingleOrDefaultAsync(x => x.GymProfileId == gym && x.Id == id, ct);
         return await View(id, exercise, row, unit, ct);
     }
 
@@ -35,12 +36,13 @@ public sealed class ExerciseLoadSettingsService(AppDb db)
         var unit = await LoadRuleReader.ReadingUnit(db, input.Unit, ct);
         await using var gate = await MutationLock.Acquire(db, db.CurrentUser, ct);
         var exercise = await Exercise(id, ct);
-        var row = await db.ExerciseLoadSettings.SingleOrDefaultAsync(x => x.Id == id, ct);
+        var gym = await GymProfiles.EnsureActive(db, ct);
+        var row = await db.ExerciseLoadSettings.SingleOrDefaultAsync(x => x.GymProfileId == gym && x.Id == id, ct);
         Validation.Require(input.Revision == (row?.Revision ?? 0),
             "These weight settings changed elsewhere. Reload them before saving again.", 409);
         if (row is null)
         {
-            row = new ExerciseLoadSetting { UserId = db.CurrentUser!.Value, Id = id };
+            row = new ExerciseLoadSetting { UserId = db.CurrentUser!.Value, GymProfileId = gym, Id = id };
             db.ExerciseLoadSettings.Add(row);
         }
         row.LoadStepKg = step;

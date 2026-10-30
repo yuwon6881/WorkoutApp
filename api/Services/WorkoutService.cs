@@ -132,6 +132,7 @@ public sealed partial class WorkoutService(
         var session = new WorkoutSession
         {
             UserId = db.CurrentUser!.Value,
+            GymProfileId = await GymProfiles.EnsureActive(db, ct),
             TemplateId = template?.Id,
             ProgramId = template?.ProgramId,
             ProgramDayProgressId = programDayProgressId,

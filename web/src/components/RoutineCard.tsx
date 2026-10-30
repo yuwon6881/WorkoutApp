@@ -25,7 +25,8 @@ export function RoutineCard({ template, exercises, onEdit, onStart, hasActiveWor
   ].filter(Boolean);
   const hidden = exerciseCount - LISTED_EXERCISES;
 
-  return <section {...dragProps} className="panel routine-card">
+  // The body lays itself out by the card's own width: a library grid can hold a narrow card on a wide screen.
+  return <section {...dragProps} className="panel routine-card"><div className="routine-card-body">
     <div className="routine-card-head">
       {dragProps && <span className="slot-card-grip" data-slot-grip aria-hidden="true"><GripVertical size={16} /></span>}
       <div className="routine-card-title">
@@ -55,5 +56,5 @@ export function RoutineCard({ template, exercises, onEdit, onStart, hasActiveWor
     <Button className="routine-card-start" disabled={hasActiveWorkout && activeTemplateId !== template.id} onClick={onStart}>
       {hasActiveWorkout && activeTemplateId === template.id ? 'Continue workout' : 'Start workout'}<ArrowRight size={17} />
     </Button>
-  </section>;
+  </div></section>;
 }

@@ -9,7 +9,17 @@ export type LoadModel = 'external' | 'full_bodyweight' | 'bodyweight_context_onl
 export type TrackingMode = 'reps' | 'duration';
 export type ResistanceMode = 'external' | 'bodyweight' | 'added' | 'assistance' | 'reps_only';
 export type ExerciseCategory = 'Free Weights' | 'Machine' | 'Body Weight';
-export type Exercise = { id: string; slug: string; name: string; trackingMode?: TrackingMode; weightBasis?: WeightBasis; muscle: string; secondaryMuscles?: string[]; equipment: string; category?: ExerciseCategory; aliases: string[]; loadStepKg: number; availableLoadsKg?: number[] | null; loadSource?: 'exercise' | 'equipment' | 'app'; loadEquipmentGroup?: string | null; loadModel?: LoadModel; movementPattern?: string; source?: 'catalog' | 'custom'; isCustom?: boolean; archived?: boolean };
+export type GymEquipmentGroup = 'free-weights' | 'benches-racks' | 'cables' | 'machines';
+/** A machine built both ways is listed once per build, grouped under its machine name. */
+export type GymEquipmentItem = { key: string; label: string; group: GymEquipmentGroup; machine?: string | null; variant?: 'plate' | 'stack' | null };
+export type GymExerciseOverride = 'available' | 'unavailable';
+export type GymProfile = {
+  id: string; name: string; missingEquipment: string[]; exerciseOverrides: Record<string, GymExerciseOverride>; revision: number; active: boolean;
+};
+/** The active gym in full plus the others by name; missingLabels names each missing item. */
+export type GymLaunch = { active: GymProfile; profiles: { id: string; name: string }[]; missingLabels: Record<string, string> };
+export type GymsView = { activeId: string; profiles: GymProfile[]; equipment: GymEquipmentItem[] };
+export type Exercise = { id: string; slug: string; name: string; trackingMode?: TrackingMode; weightBasis?: WeightBasis; muscle: string; secondaryMuscles?: string[]; equipment: string; category?: ExerciseCategory; aliases: string[]; loadStepKg: number; availableLoadsKg?: number[] | null; loadSource?: 'exercise' | 'equipment' | 'app'; loadEquipmentGroup?: string | null; requires?: string[]; loadModel?: LoadModel; movementPattern?: string; source?: 'catalog' | 'custom'; isCustom?: boolean; archived?: boolean };
 export type CustomExerciseCreated = {
   id: string; name: string; muscle: string; equipment: string; loadStepKg: number;
   loadModel: LoadModel; movementPattern: string; archived: boolean; createdAt: string;
@@ -87,7 +97,7 @@ export type HistoryPage = { total: number; page: number; size: number; sessions:
 export type HistorySummaryPage = { total: number; sessions: Session[]; nextBeforeAt: string | null; nextBeforeId: string | null; summaryOnly: boolean };
 export type AppResource = 'catalog' | 'programs' | 'templates';
 export type NextWorkoutSummary = Pick<ProgramDay, 'id' | 'name' | 'focus' | 'week' | 'position' | 'exerciseCount'>;
-export type ShellBootstrap = Pick<Bootstrap, 'account' | 'preferences' | 'activeWorkout' | 'activeProgram' | 'imports' | 'resourceVersions'> & {
+export type ShellBootstrap = Pick<Bootstrap, 'account' | 'preferences' | 'activeWorkout' | 'activeProgram' | 'imports' | 'resourceVersions' | 'gym'> & {
   workoutHero?: WorkoutHeroSummary;
   nextWorkout: NextWorkoutSummary | null; navigationCounts: { programs: number; templates: number };
 };
@@ -167,6 +177,8 @@ export type WorkoutHeroSummary = {
 export type Bootstrap = {
   workoutHero?: WorkoutHeroSummary;
   account: Account; preferences: Preferences; exercises: Exercise[]; templates: Template[];
+  /** Null before the account's first gym exists; nothing is missing then. */
+  gym?: GymLaunch | null;
   programs: ProgramSummary[]; activeProgram: ProgramSummary | null; activeWorkout: Session | null;
   imports: ImportView[]; history: HistoryPage; progress?: ProgressSummary;
   nextWorkout?: NextWorkoutSummary | null;

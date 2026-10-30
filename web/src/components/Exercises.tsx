@@ -21,6 +21,9 @@ import { CustomExerciseModal } from './CustomExerciseModal';
 import { getExerciseCategory, informativeEquipment } from '../lib/exerciseCategory';
 import { buildExerciseSearchIndex, searchExerciseScores } from '../lib/exerciseSearch';
 import { ChipScroller } from './ui/ChipScroller';
+import { GymAvailabilityBadge } from './GymAvailabilityBadge';
+import { ExerciseGymAvailability } from './ExerciseGymAvailability';
+import { useGymAvailabilityCheck } from '../lib/gymAvailability';
 import './Exercises.css';
 import './ExerciseDetail.css';
 import './RenderWindow.css';
@@ -104,11 +107,15 @@ export function ExerciseLibrary({ exercises, onSelect, exclude = emptyIds, onOpe
     && (muscle === 'All muscles' || [e.muscle, ...(e.secondaryMuscles ?? [])].some(value => value.toLowerCase() === muscle.toLowerCase()))
     && searchScores.has(e.id)), [exercises, exclude, currentExerciseId, source, category, muscle, searchScores]);
   const ranks = useMemo(() => exerciseRanks(filtered, current, preferredNames), [filtered, current, preferredNames]);
+  const checkGym = useGymAvailabilityCheck();
+  // A swap or an addition is for this gym, so what it can host comes first; mapping a written
+  // movement to the library is about identity and keeps the plain order.
+  const gymRank = (exercise: Exercise) => action !== 'map' && !checkGym(exercise.id).available ? 1 : 0;
   // While searching, the closest name match leads within its group; with no query the order is
   // the plain relevance rank and then the name.
-  const ordered = useMemo(() => [...filtered].sort((a, b) => (ranks.get(a.id) ?? 4) - (ranks.get(b.id) ?? 4)
+  const ordered = useMemo(() => [...filtered].sort((a, b) => gymRank(a) - gymRank(b) || (ranks.get(a.id) ?? 4) - (ranks.get(b.id) ?? 4)
     || (searchScores.get(a.id) ?? 0) - (searchScores.get(b.id) ?? 0)
-    || a.name.localeCompare(b.name)), [filtered, ranks, searchScores]);
+    || a.name.localeCompare(b.name)), [filtered, ranks, searchScores, checkGym, action]);
   const actionLabel = action === 'swap' ? 'Swap' : action === 'map' ? 'Map' : 'Add';
   const ActionIcon = action === 'add' ? Plus : action === 'swap' ? ArrowLeftRight : Link2;
 
@@ -160,6 +167,7 @@ export function ExerciseLibrary({ exercises, onSelect, exclude = emptyIds, onOpe
                         </span>
                       )}
                       {informativeEquipment(e) && <span className="pill pill-equipment">{informativeEquipment(e)}</span>}
+                      <GymAvailabilityBadge exerciseId={e.id} compact />
                     </div>
                   </div>
                   <Button
@@ -194,6 +202,7 @@ export function ExerciseLibrary({ exercises, onSelect, exclude = emptyIds, onOpe
                         +{e.secondaryMuscles.length - 1}
                       </span>
                     )}
+                    <GymAvailabilityBadge exerciseId={e.id} compact passive />
                   </div>
                   {lastLabel(e) && <p className="exercise-card-last">{lastLabel(e)}</p>}
                 </article>
@@ -280,6 +289,7 @@ export function ExerciseLibrary({ exercises, onSelect, exclude = emptyIds, onOpe
               <span className="pill pill-accent picker-muscle-tag">{current.muscle || 'Full body'}</span>
               {(current.secondaryMuscles ?? []).map(secondary => <span className="pill pill-muted" key={`cur-${current.id}-${secondary}`}>{secondary}</span>)}
               {informativeEquipment(current) && <span className="pill pill-equipment">{informativeEquipment(current)}</span>}
+              <GymAvailabilityBadge exerciseId={current.id} compact />
               <span className="pill pill-category">{getExerciseCategory(current)}</span>
             </div>
           </div>
@@ -365,6 +375,7 @@ export function ExerciseDetailModal({ exercise, unit, onClose, onChanged }: { ex
           {informativeEquipment(exercise) && <span className="pill pill-equipment">{informativeEquipment(exercise)}</span>}
           <span className="pill pill-category">{getExerciseCategory(exercise)}</span>
         </div>}
+        {detailTab === 'progress' && !exercise.archived && <ExerciseGymAvailability exerciseId={exercise.id} requires={exercise.requires} />}
         {detailTab === 'progress' && !exercise.archived && loadAdjustable(exercise) && <ExerciseLoadSettings key={exercise.id} exerciseId={exercise.id} exerciseName={exercise.name} unit={unit} perSide={canEnterPerSide(exercise)} onChanged={onChanged} />}
         {detailTab === 'progress' && loadAdjustable(exercise) && <p className="muted">{weightBasisDescription(exercise)}</p>}
         {error && <div className="error-banner" role="alert">{error}</div>}

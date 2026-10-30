@@ -13,6 +13,7 @@ import { RepModeToggle, RepPrescriptionControl } from './ui/RepPrescriptionContr
 import { TextAreaField } from './ui/Field';
 import { Modal } from './ui/Modal';
 import { ExerciseLibrary } from './Exercises';
+import { GymAvailabilityBadge } from './GymAvailabilityBadge';
 import { CustomExerciseModal } from './CustomExerciseModal';
 import { SwipeableRow } from './ui/SwipeableRow';
 import { toggleRepMode, usesRepRange } from '../lib/repMode';
@@ -246,6 +247,7 @@ export function ExerciseEditor({ exercise: saved, exercises, allDayExercises, re
               <ArrowLeftRight size={14} className="import-library-affordance" aria-hidden="true" />
             </Button>
           </div>
+          <GymAvailabilityBadge exerciseId={exercise.exerciseId} />
           {selected && (
             <div className="import-exercise-muscles iex-muscle-badges" aria-label={`Target muscles: ${[selected.muscle, ...(selected.secondaryMuscles ?? [])].filter(Boolean).join(', ')}`}>
               <span className="pill pill-accent">{selected.muscle || 'Full body'}</span>

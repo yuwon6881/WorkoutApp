@@ -1,0 +1,12 @@
+.gym-availability-badge{display:inline-flex;align-items:flex-start;gap:6px;min-width:0;max-width:100%;padding:3px 8px;border:1px solid color-mix(in srgb,var(--amber) 38%,transparent);border-radius:var(--radius-pill);background:color-mix(in srgb,var(--amber) 9%,transparent);color:var(--text);font-size:.75rem;font-weight:550;line-height:1.35}
+.gym-availability-badge svg{flex:0 0 auto;margin-top:2px;color:var(--amber)}
+.gym-availability-badge.compact{align-items:center;white-space:nowrap}
+.gym-availability-badge.compact>span{overflow:hidden;text-overflow:ellipsis}
+.gym-availability-badge.compact svg{margin-top:0}
+.gym-availability-badge.interactive{position:relative;cursor:pointer;font-family:inherit;text-align:left}
+.gym-availability-badge.interactive:hover{background:color-mix(in srgb,var(--amber) 16%,transparent)}
+/* The pill stays small in the row while its touch target reaches the 44 px minimum. */
+.gym-availability-badge.interactive::after{content:"";position:absolute;inset:-11px -4px}
+.gym-availability-badge.compact.expanded{white-space:normal;align-items:flex-start}
+.gym-availability-badge.compact.expanded svg{margin-top:2px}
+@media (min-width:1024px){.gym-availability-badge.interactive::after{inset:-7px -2px}}

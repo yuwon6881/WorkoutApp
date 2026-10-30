@@ -1,6 +1,8 @@
-import { Dumbbell, Link2, LogOut, Moon, SlidersHorizontal, Sun, Timer, Watch, Weight } from 'lucide-react';
+import { Dumbbell, Link2, LogOut, MapPin, Moon, SlidersHorizontal, Sun, Timer, Watch, Weight } from 'lucide-react';
 import type { Account, Preferences } from '../types';
-import { useState } from 'react';
+import { useContext, useState } from 'react';
+import { GymAvailabilityContext } from '../lib/gymAvailability';
+import { GymProfileSettings } from './GymProfileSettings';
 import { AppVersionInfo } from './AppVersionInfo';
 import type { DevicePreferences } from '../lib/workoutRecovery';
 import { Button } from './ui/Button';
@@ -36,6 +38,7 @@ type SettingsViewProps = {
 const sections: SettingsSectionLink[] = [
   { id: 'settings-general', label: 'General', icon: SlidersHorizontal },
   { id: 'settings-training', label: 'Training', icon: Dumbbell },
+  { id: 'settings-gyms', label: 'Gyms', icon: MapPin },
   { id: 'settings-weights', label: 'Weight increments', icon: Weight },
   { id: 'settings-rest', label: 'Rest timer', icon: Timer },
   { id: 'settings-watch', label: 'Wear OS', icon: Watch },
@@ -52,7 +55,8 @@ export function SettingsView(props: SettingsViewProps) {
   const { account, preferences, devicePreferences, onDevicePreferences, onPreferences, notify, onSignOut, version, onCatalogChanged } = props;
   const [saveError, setSaveError] = useState('');
   const [signingOut, setSigningOut] = useState(false);
-  const [general, training, weights, rest, watch, connections] = sections;
+  const [general, training, gyms, weights, rest, watch, connections] = sections;
+  const { gym } = useContext(GymAvailabilityContext);
 
   async function signOut() {
     setSigningOut(true);
@@ -145,8 +149,14 @@ export function SettingsView(props: SettingsViewProps) {
             <WorkoutFlowSettings devicePreferences={devicePreferences} onDevicePreferences={saveDevice} />
           </SettingsSection>
 
-          <SettingsSection {...weights} layout="plain" title="Weight increments" description="The weights your equipment offers, used for suggestions.">
-            <LoadIncrementSettings unit={preferences.unit} notify={notify} onChanged={onCatalogChanged} />
+          <SettingsSection {...gyms} layout="plain" title="Gyms" description="What each place has, and which one you train at now.">
+            <GymProfileSettings notify={notify} />
+          </SettingsSection>
+
+          <SettingsSection {...weights} layout="plain" title="Weight increments"
+            description={gym ? `The weights ${gym.active.name} offers, used for suggestions.` : 'The weights your equipment offers, used for suggestions.'}>
+            {/* Each gym keeps its own weights, so a switch reads them afresh. */}
+            <LoadIncrementSettings key={gym?.active.id ?? 'none'} unit={preferences.unit} notify={notify} onChanged={onCatalogChanged} />
           </SettingsSection>
 
           <SettingsSection {...rest} title="Rest timer & alerts" description="Timer and notification preferences.">

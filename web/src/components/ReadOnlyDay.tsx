@@ -8,6 +8,7 @@ import { useTrackRir } from '../lib/trackRir';
 import { ProgramMusclePreview } from './ProgramMusclePreview';
 import { SupersetGroupHeader } from './SupersetTag';
 import { ImportSetNotes } from './ImportSetNotes';
+import { GymAvailabilityBadge } from './GymAvailabilityBadge';
 import './SetPrescriptionGrid.css';
 import './ReadOnlyDay.css';
 
@@ -77,6 +78,7 @@ function ReadOnlyExercise({ exercise, trackRir, dimmed, last }: { exercise: Draf
       <strong className="readonly-exercise-name">{exercise.sourceName}</strong>
       {rest != null && <span className="readonly-exercise-rest">Rest {formatRest(rest)}</span>}
     </div>
+    <GymAvailabilityBadge exerciseId={exercise.exerciseId} />
     {last && <p className="readonly-exercise-last">{last}</p>}
     {lines.length > 0 && <ul className="readonly-exercise-sets">
       {lines.map((line, index) => <li key={index}>

@@ -51,7 +51,7 @@ export function saveLaunchSnapshot(shell: ShellBootstrap, now = Date.now(), appV
     schema: schemaVersion,
     appVersion,
     savedAt: now,
-    shell: { ...shell, activeWorkout: null, imports: [] }
+    shell: { ...shell, activeWorkout: null, imports: [], gym: undefined }
   };
   try {
     localStorage.setItem(storageKey, JSON.stringify(stored));

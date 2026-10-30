@@ -15,6 +15,7 @@ public sealed class AppDb(DbContextOptions<AppDb> options) : DbContext(options)
     public DbSet<CustomExercise> CustomExercises => Set<CustomExercise>();
     public DbSet<ExerciseLoadSetting> ExerciseLoadSettings => Set<ExerciseLoadSetting>();
     public DbSet<EquipmentLoadDefault> EquipmentLoadDefaults => Set<EquipmentLoadDefault>();
+    public DbSet<GymProfile> GymProfiles => Set<GymProfile>();
     public DbSet<ExerciseAlias> Aliases => Set<ExerciseAlias>();
     public DbSet<TrainingProgram> Programs => Set<TrainingProgram>();
     public DbSet<ProgramPhase> ProgramPhases => Set<ProgramPhase>();
@@ -87,6 +88,7 @@ public sealed class AppDb(DbContextOptions<AppDb> options) : DbContext(options)
         m.Entity<Exercise>().Property(x => x.Category).HasDefaultValue(ExerciseCategories.FreeWeights);
         m.Entity<Exercise>().Property(x => x.SecondaryMusclesJson).HasDefaultValue("[]");
         m.Entity<Exercise>().Property(x => x.MovementPattern).HasDefaultValue("");
+        m.Entity<Exercise>().Property(x => x.RequiresJson).HasDefaultValue("[]");
         m.Entity<Exercise>().Property(x => x.TrackingMode).HasMaxLength(16).HasDefaultValue(TrackingModes.Reps);
         m.Entity<Exercise>().ToTable("Exercises", t =>
         {
@@ -96,7 +98,15 @@ public sealed class AppDb(DbContextOptions<AppDb> options) : DbContext(options)
             t.HasCheckConstraint("CK_Exercises_Category", "\"Category\" IN ('Free Weights','Machine','Body Weight')");
         });
         Configure<CustomExercise>(m);
+        Configure<GymProfile>(m);
+        m.Entity<GymProfile>().Property(x => x.Name).HasMaxLength(GymProfileLimits.NameLength);
+        m.Entity<GymProfile>().Property(x => x.MissingEquipmentJson).HasDefaultValue("[]");
+        m.Entity<GymProfile>().Property(x => x.ExerciseOverridesJson).HasDefaultValue("{}");
         Configure<ExerciseLoadSetting>(m);
+        // Id is the exercise; each gym keeps its own rule for it.
+        m.Entity<ExerciseLoadSetting>().HasKey(x => new { x.UserId, x.GymProfileId, x.Id });
+        m.Entity<ExerciseLoadSetting>().HasOne<GymProfile>().WithMany().HasForeignKey(x => new { x.UserId, x.GymProfileId })
+            .OnDelete(DeleteBehavior.Cascade);
         m.Entity<ExerciseLoadSetting>().ToTable("ExerciseLoadSettings", t =>
         {
             t.HasCheckConstraint("CK_ExerciseLoadSettings_Step", "\"LoadStepKg\" IS NULL OR (\"LoadStepKg\" >= 0 AND \"LoadStepKg\" <= 50)");
@@ -105,7 +115,9 @@ public sealed class AppDb(DbContextOptions<AppDb> options) : DbContext(options)
         });
         Configure<EquipmentLoadDefault>(m);
         m.Entity<EquipmentLoadDefault>().Property(x => x.Equipment).HasMaxLength(40);
-        m.Entity<EquipmentLoadDefault>().HasIndex(x => new { x.UserId, x.Equipment }).IsUnique();
+        m.Entity<EquipmentLoadDefault>().HasIndex(x => new { x.UserId, x.GymProfileId, x.Equipment }).IsUnique();
+        m.Entity<EquipmentLoadDefault>().HasOne<GymProfile>().WithMany().HasForeignKey(x => new { x.UserId, x.GymProfileId })
+            .OnDelete(DeleteBehavior.Cascade);
         m.Entity<EquipmentLoadDefault>().ToTable("EquipmentLoadDefaults", t =>
         {
             t.HasCheckConstraint("CK_EquipmentLoadDefaults_Step", "\"LoadStepKg\" IS NULL OR (\"LoadStepKg\" >= 0 AND \"LoadStepKg\" <= 50)");

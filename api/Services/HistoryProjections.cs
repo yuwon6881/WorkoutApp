@@ -20,7 +20,7 @@ internal static class HistoryProjections
             LastTimingEventAt = row.LastTimingEventAt, BodyWeightSnapshotJson = row.BodyWeightSnapshotJson,
             NutritionContextRevision = row.NutritionContextRevision, RestGeneration = row.RestGeneration, RestStatus = row.RestStatus,
             RestDeadlineUtc = row.RestDeadlineUtc, RestPausedRemainingMs = row.RestPausedRemainingMs,
-            RestDurationMs = row.RestDurationMs, RestOriginDeviceId = row.RestOriginDeviceId
+            RestDurationMs = row.RestDurationMs, RestOriginDeviceId = row.RestOriginDeviceId, GymProfileId = row.GymProfileId
         });
 
     public static IQueryable<SessionExercise> WithoutSnapshots(this IQueryable<SessionExercise> query)

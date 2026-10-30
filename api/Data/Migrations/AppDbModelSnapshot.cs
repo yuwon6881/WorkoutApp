@@ -324,6 +324,9 @@ namespace Workout.Api.Data.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<Guid?>("ActiveGymProfileId")
+                        .HasColumnType("uuid");
+
                     b.Property<string>("DisplayName")
                         .IsRequired()
                         .HasMaxLength(120)
@@ -591,6 +594,9 @@ namespace Workout.Api.Data.Migrations
                         .HasMaxLength(40)
                         .HasColumnType("character varying(40)");
 
+                    b.Property<Guid>("GymProfileId")
+                        .HasColumnType("uuid");
+
                     b.Property<double?>("LoadStepKg")
                         .HasColumnType("double precision");
 
@@ -606,7 +612,7 @@ namespace Workout.Api.Data.Migrations
 
                     b.HasKey("UserId", "Id");
 
-                    b.HasIndex("UserId", "Equipment")
+                    b.HasIndex("UserId", "GymProfileId", "Equipment")
                         .IsUnique();
 
                     b.ToTable("EquipmentLoadDefaults", null, t =>
@@ -663,6 +669,12 @@ namespace Workout.Api.Data.Migrations
                         .IsRequired()
                         .HasMaxLength(160)
                         .HasColumnType("character varying(160)");
+
+                    b.Property<string>("RequiresJson")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("text")
+                        .HasDefaultValue("[]");
 
                     b.Property<string>("SecondaryMusclesJson")
                         .IsRequired()
@@ -776,6 +788,9 @@ namespace Workout.Api.Data.Migrations
                     b.Property<Guid>("UserId")
                         .HasColumnType("uuid");
 
+                    b.Property<Guid>("GymProfileId")
+                        .HasColumnType("uuid");
+
                     b.Property<Guid>("Id")
                         .HasColumnType("uuid");
 
@@ -795,7 +810,7 @@ namespace Workout.Api.Data.Migrations
                         .IsConcurrencyToken()
                         .HasColumnType("integer");
 
-                    b.HasKey("UserId", "Id");
+                    b.HasKey("UserId", "GymProfileId", "Id");
 
                     b.ToTable("ExerciseLoadSettings", null, t =>
                         {
@@ -1106,6 +1121,43 @@ namespace Workout.Api.Data.Migrations
                         .IsUnique();
 
                     b.ToTable("GoogleHealthWorkoutSyncWork");
+                });
+
+            modelBuilder.Entity("Workout.Api.Data.GymProfile", b =>
+                {
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ExerciseOverridesJson")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("text")
+                        .HasDefaultValue("{}");
+
+                    b.Property<string>("MissingEquipmentJson")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("text")
+                        .HasDefaultValue("[]");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(60)
+                        .HasColumnType("character varying(60)");
+
+                    b.Property<int>("Revision")
+                        .IsConcurrencyToken()
+                        .HasColumnType("integer");
+
+                    b.HasKey("UserId", "Id");
+
+                    b.ToTable("GymProfiles");
                 });
 
             modelBuilder.Entity("Workout.Api.Data.IntegrationGrant", b =>
@@ -1902,6 +1954,9 @@ namespace Workout.Api.Data.Migrations
                     b.Property<DateTime?>("FinishedAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<Guid?>("GymProfileId")
+                        .HasColumnType("uuid");
+
                     b.Property<DateTime?>("LastTimingEventAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -2147,6 +2202,12 @@ namespace Workout.Api.Data.Migrations
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.HasOne("Workout.Api.Data.GymProfile", null)
+                        .WithMany()
+                        .HasForeignKey("UserId", "GymProfileId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("Workout.Api.Data.ExerciseAlias", b =>
@@ -2172,6 +2233,12 @@ namespace Workout.Api.Data.Migrations
                     b.HasOne("Workout.Api.Data.AppUser", null)
                         .WithMany()
                         .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Workout.Api.Data.GymProfile", null)
+                        .WithMany()
+                        .HasForeignKey("UserId", "GymProfileId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });
@@ -2213,6 +2280,15 @@ namespace Workout.Api.Data.Migrations
                 });
 
             modelBuilder.Entity("Workout.Api.Data.GoogleHealthWorkoutSyncWork", b =>
+                {
+                    b.HasOne("Workout.Api.Data.AppUser", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Workout.Api.Data.GymProfile", b =>
                 {
                     b.HasOne("Workout.Api.Data.AppUser", null)
                         .WithMany()

@@ -4,9 +4,9 @@ using Workout.Api.Domain;
 
 namespace Workout.Api.Services;
 
-/// The signed-in user's load rules, read once so a whole catalog or session resolves against
-/// one consistent snapshot. Equipment defaults are a handful of rows per user. Every rule is
-/// read in the account unit; the stored rows keep the unit they were typed in.
+/// The signed-in user's load rules at their active gym, read once so a whole catalog or session
+/// resolves against one consistent snapshot. Equipment defaults are a handful of rows per gym.
+/// Every rule is read in the account unit; the stored rows keep the unit they were typed in.
 public sealed class LoadRuleSnapshot(
     Dictionary<Guid, LoadRule> exercises,
     Dictionary<string, LoadRule> equipment,
@@ -51,10 +51,12 @@ public static class LoadRuleReader
     public static async Task<LoadRuleSnapshot> Read(AppDb db, IReadOnlyCollection<Guid>? exerciseIds, CancellationToken ct,
         string? unit = null)
     {
-        var settingsQuery = db.ExerciseLoadSettings.AsNoTracking();
+        // Before the first gym exists no rule can have been saved, so an empty gym reads nothing.
+        var gym = await GymProfiles.ActiveId(db, ct) ?? Guid.Empty;
+        var settingsQuery = db.ExerciseLoadSettings.AsNoTracking().Where(x => x.GymProfileId == gym);
         if (exerciseIds is not null) settingsQuery = settingsQuery.Where(x => exerciseIds.Contains(x.Id));
         var settings = await settingsQuery.ToListAsync(ct);
-        var defaults = await db.EquipmentLoadDefaults.AsNoTracking().ToListAsync(ct);
+        var defaults = await db.EquipmentLoadDefaults.AsNoTracking().Where(x => x.GymProfileId == gym).ToListAsync(ct);
         return new LoadRuleSnapshot(
             settings.ToDictionary(x => x.Id, x => Rule(x.LoadStepKg, x.AvailableLoadsJson, x.LoadStepUnit)),
             defaults.ToDictionary(x => x.Equipment, x => Rule(x.LoadStepKg, x.AvailableLoadsJson, x.LoadStepUnit)),

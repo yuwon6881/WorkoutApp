@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useContext, useEffect, useMemo, useState } from 'react';
 import { Play } from 'lucide-react';
 import type { Exercise, Template, Unit } from '../types';
 import { lastPerformedLabel } from '../lib/lastPerformed';
@@ -11,6 +11,8 @@ import { CardFeedback } from './ui/CardFeedback';
 import { Modal } from './ui/Modal';
 import { ReadOnlyDay } from './ReadOnlyDay';
 import { WorkoutDaySkeleton } from './WorkoutDaySkeleton';
+import { GymSwitcher } from './GymSwitcher';
+import { GymAvailabilityContext, useGymAvailabilityCheck } from '../lib/gymAvailability';
 import './ImportDaySheet.css';
 
 export function WorkoutPreviewModal({ templateId, name, exercises, unit, defaultRestSeconds, onClose, onStart }: {
@@ -23,6 +25,9 @@ export function WorkoutPreviewModal({ templateId, name, exercises, unit, default
   onClose: () => void;
   onStart: (id: string) => void;
 }) {
+  const checkGym = useGymAvailabilityCheck();
+  // Without the catalog every exercise would read as available, so the preview waits for it.
+  const { requirementsReady = true } = useContext(GymAvailabilityContext);
   const [template, setTemplate] = useState<Template | null>(null);
   const [error, setError] = useState('');
   const [retry, setRetry] = useState(0);
@@ -39,6 +44,7 @@ export function WorkoutPreviewModal({ templateId, name, exercises, unit, default
     return labels;
   }, [lastPerformed, exercises, unit]);
   const minutes = day ? estimateWorkoutMinutes(day.exercises, defaultRestSeconds) : null;
+  const unavailable = (day?.exercises ?? []).map(exercise => checkGym(exercise.exerciseId)).filter(result => !result.available);
   useEffect(() => {
     const controller = new AbortController();
     setTemplate(null);
@@ -53,9 +59,15 @@ export function WorkoutPreviewModal({ templateId, name, exercises, unit, default
 
   return <Modal title={template?.name ?? name} wide className="day-detail-modal" onClose={onClose}>
     <div className="modal-body day-detail-modal-body">
-      {template && day ? <>
+      {template && day && requirementsReady ? <>
         {minutes !== null && <p className="muted small-copy workout-preview-estimate">About {minutes} min, at the planned rests</p>}
         {template.note && <p className="muted small-copy">{template.note}</p>}
+        {/* Switching here makes the workout record that gym and follow its weights. */}
+        <GymSwitcher />
+        {unavailable[0] && !unavailable[0].available && <p className="workout-preview-gym-note small-copy" role="note">
+          {unavailable.length === 1 ? '1 exercise needs' : `${unavailable.length} exercises need`} something {unavailable[0].gymName} does
+          not have. You can swap {unavailable.length === 1 ? 'it' : 'them'} once the workout starts.
+        </p>}
         <ReadOnlyDay day={day} exercises={exercises} lastLabels={lastLabels}
           selectedMuscle={selectedMuscle} onMuscleSelect={setSelectedMuscle} />
       </> : error ? <CardFeedback title="Could not load workout preview" message={error}

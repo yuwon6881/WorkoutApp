@@ -3,7 +3,7 @@ import { integrationGeneration, signalIntegrationPending } from './integrationDi
 import type { ExerciseLoadSettings, LoadRule, LoadSettingsOverview } from './exerciseLoads';
 import type { PdfExtraction } from './pdfText';
 import { sharedReads } from './readCoordinator';
-import type { Exercise, HistorySummaryPage, ShellBootstrap, TrackingMode, Unit } from '../types';
+import type { Exercise, GymExerciseOverride, GymsView, HistorySummaryPage, ShellBootstrap, TrackingMode, Unit } from '../types';
 import type { Bootstrap, CustomExerciseCreated, DraftWorkout, ExerciseClearPreview, ExerciseInsight, HistoryPage, ImportDraft, ImportStatusView, ImportView, MuscleBalanceRange, MuscleBalanceView, Preferences, ProgressSummary, Program, ProgramDayActionInput, ProgramEditInput, ProgramEditorDocument, ProgramSummary, ProgramWeekResetInput, RestMutationInput, Session, Template, TemplateSubstitutionResult, WatchDevice, WorkoutActivityItem } from '../types';
 
 export class ApiError extends Error {
@@ -146,6 +146,12 @@ export const api = {
   loadSettings: (unit: Unit, signal?: AbortSignal) => call<LoadSettingsOverview>(`/api/load-settings?unit=${unit}`, 'GET', undefined, signal),
   saveEquipmentLoad: (group: string, input: LoadRule & { revision: number; unit: Unit }) =>
     call<LoadSettingsOverview>(`/api/load-settings/equipment/${encodeURIComponent(group)}`, 'PUT', input),
+  gyms: (signal?: AbortSignal) => call<GymsView>('/api/gyms', 'GET', undefined, signal),
+  createGym: (name: string, copyFrom: string | null) => call<GymsView>('/api/gyms', 'POST', { name, copyFrom }),
+  updateGym: (id: string, input: { name: string; missingEquipment: string[]; exerciseOverrides: Record<string, GymExerciseOverride>; revision: number }) =>
+    call<GymsView>(`/api/gyms/${encodeURIComponent(id)}`, 'PUT', input),
+  activateGym: (id: string) => call<GymsView>(`/api/gyms/${encodeURIComponent(id)}/activate`, 'POST'),
+  deleteGym: (id: string) => call<GymsView>(`/api/gyms/${encodeURIComponent(id)}`, 'DELETE'),
   createCustomExercise: (input: { name: string; muscle?: string; secondaryMuscles?: string[]; equipment?: string; loadStepKg?: number; loadModel: string; movementPattern?: string; category?: string; weightBasis?: 'total' | 'per_side'; trackingMode?: TrackingMode }) => call<CustomExerciseCreated>('/api/exercises/custom', 'POST', input),
   deleteCustomExercise: (id: string) => call<void>(`/api/exercises/custom/${id}`, 'DELETE'),
   exerciseInsight: (id: string, range = '3m', page = 0, size = 20, signal?: AbortSignal) => call<ExerciseInsight>(`/api/exercises/${id}/insight?range=${range}&page=${page}&size=${size}`, 'GET', undefined, signal),

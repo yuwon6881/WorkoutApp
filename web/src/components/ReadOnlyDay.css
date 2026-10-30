@@ -111,3 +111,7 @@
   font-size: var(--font-secondary);
   font-variant-numeric: tabular-nums;
 }
+
+.readonly-exercise > .gym-availability-badge {
+  justify-self: start;
+}

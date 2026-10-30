@@ -22,6 +22,9 @@ public sealed class AppUser
     /// Whether reps in reserve is shown and asked for. Turning it off hides RIR everywhere but keeps
     /// every stored target and logged value, so turning it back on restores them unchanged.
     public bool TrackRir { get; set; } = true;
+    /// The gym new workouts use and whose weights suggestions follow. Null only before the
+    /// account's first gym profile is made; GymProfiles.EnsureActive makes one.
+    public Guid? ActiveGymProfileId { get; set; }
     /// Central Fitness Account subject.
     public string IdentitySubject { get; set; } = "";
 }
@@ -56,6 +59,8 @@ public sealed class Exercise
     /// legacy catalog rows; an empty value simply falls back to muscle/equipment matching.
     public string MovementPattern { get; set; } = "";
     public string TrackingMode { get; set; } = "reps";
+    /// JSON array of GymEquipment requirements; each entry lists alternatives separated by '|'.
+    public string RequiresJson { get; set; } = "[]";
 }
 
 /// Account-owned exercises extend the shared seed catalog without allowing one user to mutate
@@ -238,6 +243,9 @@ public sealed class WorkoutSession : OwnedRecord
     public long? RestPausedRemainingMs { get; set; }
     public long? RestDurationMs { get; set; }
     public string? RestOriginDeviceId { get; set; }
+    /// The gym the workout was done at, frozen at start. Machine and cable history is only
+    /// compared within one gym. Null for a gym since deleted.
+    public Guid? GymProfileId { get; set; }
 }
 
 /// Names and prescriptions are snapshotted so a later catalog edit cannot rewrite history.

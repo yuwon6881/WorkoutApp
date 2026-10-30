@@ -42,6 +42,7 @@ import { ExerciseLoadSettings } from './ExerciseLoadSettings';
 import { WorkoutTargetsModal } from './WorkoutTargetsModal';
 import { loadAdjustable } from '../lib/exerciseLoads';
 import { canEnterPerSide } from '../lib/equipmentGroups';
+import { GymAvailabilityBadge } from './GymAvailabilityBadge';
 import { loadColumnLabel, loadEntryFor } from '../lib/resistanceVariant';
 import { exerciseRestSeconds } from '../lib/restRules';
 import type { RestMode } from '../lib/restRange';
@@ -166,6 +167,7 @@ export function WorkoutActiveExercise({
               <span className="tiny-label">Swapped · {exercise.originalName}</span>
             )}
             {!exercise.exerciseId && <span className="tiny-label warn">Not in library</span>}
+            <GymAvailabilityBadge exerciseId={exercise.exerciseId} compact />
             <DemoLink url={exercise.demoUrl} exerciseName={exercise.name} />
           </div>
           {exercise.progression?.lastE1rmKg != null && (

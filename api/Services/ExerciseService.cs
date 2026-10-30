@@ -80,7 +80,11 @@ public sealed partial class ExerciseService(AppDb db, IMemoryCache? cache = null
         db.CustomExercises.Add(row);
         // A step typed for this exercise is its own rule, so an equipment default never overrides it.
         if (input.LoadStepKg is { } own && Math.Abs(own - appStep) > 1e-9)
-            db.ExerciseLoadSettings.Add(new ExerciseLoadSetting { UserId = row.UserId, Id = row.Id, LoadStepKg = own, LoadStepUnit = unit, Revision = 1 });
+            db.ExerciseLoadSettings.Add(new ExerciseLoadSetting
+            {
+                UserId = row.UserId, GymProfileId = await GymProfiles.EnsureActive(db, ct), Id = row.Id, LoadStepKg = own,
+                LoadStepUnit = unit, Revision = 1
+            });
         await db.SaveChangesAsync(ct);
         await gate.Commit(ct);
         return View(row);

@@ -31,7 +31,7 @@ import { AppLoading } from './components/AppLoading';
 import { AuthLoading } from './components/AuthLoading';
 import { ViewSkeleton } from './components/ViewSkeleton';
 import { Auth, Dashboard, ExerciseDetailModal, ExerciseLibrary, ImportReview, MuscleBalanceView, Programs, SessionDetail, SettingsView, Workout, WorkoutSheet, WorkoutPreviewModal, ResumeWorkoutButton, prefetchView } from './app/lazyViews';
-import { TrackRirContext, tracksRir } from './lib/trackRir';
+import { AppContexts } from './app/AppContexts';
 import { useAppTheme } from './app/useAppTheme';
 const AiAssistantPanel = lazy(() => import('./components/AiAssistantPanel').then(module => ({ default: module.AiAssistantPanel })));
 const ImportWatchBridge = lazy(() => import('./components/ImportWatchBridge').then(module => ({ default: module.ImportWatchBridge })));
@@ -326,7 +326,7 @@ export default function App() {
     }
   }
 
-  return <TrackRirContext value={tracksRir(data.preferences)}><div className="app-shell">
+  return <AppContexts app={app}><div className="app-shell">
     <SideNav
       tab={tab}
       onTab={setTab}
@@ -474,7 +474,7 @@ export default function App() {
       surface={tab}
       trainedExercises={data?.progress?.exercises}
     /></Suspense>}
-  </div></TrackRirContext>;
+  </div></AppContexts>;
 }
 
 function StatusIcon({ state, online }: { state: string; online: boolean }) {
