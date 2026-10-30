@@ -1,7 +1,5 @@
-import { ArrowRight } from 'lucide-react';
 import type { ProgressSummary, Unit } from '../types';
-import { showWeight, toDisplay } from '../lib/training';
-import { Button } from './ui/Button';
+import { toDisplay } from '../lib/training';
 import './ProgressPanels.css';
 import { calendarWeekLabel, type CalendarWeekSummary } from '../lib/calendarWeekSummary';
 
@@ -44,28 +42,6 @@ export function ProgressStats({ week }: { week: CalendarWeekSummary | null }) {
       </small>
     </div>
   );
-}
-
-export function PersonalBests({ progress, error, onRetry, onExercise, unit }: {
-  progress: ProgressSummary | null; error: string; onRetry: () => void; onExercise?: (id: string) => void; unit: Unit;
-}) {
-  const bests = progress?.exercises
-    .map(exercise => ({
-      ...exercise,
-      value: exercise.estimatedMaxKg ?? exercise.externalLoadPrKg ?? exercise.addedLoadPrKg ?? exercise.systemLoadPrKg ?? exercise.assistanceReductionPrKg
-    }))
-    .filter(exercise => exercise.value !== null)
-    .sort((a, b) => (b.value ?? 0) - (a.value ?? 0)) ?? [];
-
-  return <section className="panel progress-record-panel" aria-live="polite">
-    <div className="section-heading"><h2>Personal bests</h2></div>
-    {!progress && !error && <div className="skeleton progress-section-skeleton" aria-label="Loading personal bests" />}
-    {error && <div className="error-banner" role="alert"><span>{error}</span><Button variant="tertiary" onClick={onRetry}>Retry</Button></div>}
-    {progress && (bests.length ? bests.slice(0, 6).map(record => record.exerciseId && onExercise
-      ? <Button variant="tertiary" className="best-row best-row-action" key={record.exercise} onClick={() => onExercise(record.exerciseId!)} aria-label={`Open ${record.exercise} exercise details`}><span>{record.exercise}</span><strong>{showWeight(record.value ?? null, unit)}</strong><ArrowRight size={15} /></Button>
-      : <div className="best-row" key={record.exercise}><span>{record.exercise}</span><strong>{showWeight(record.value ?? null, unit)}</strong></div>)
-      : <div className="empty-message"><p>No personal bests yet. Log a workout to record one.</p></div>)}
-  </section>;
 }
 
 export function BodyweightRecords({ progress, unit }: { progress: ProgressSummary | null; unit: Unit }) {

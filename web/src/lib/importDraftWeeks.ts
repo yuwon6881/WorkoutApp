@@ -174,17 +174,6 @@ export function createEmptyProgramDraft(): ImportDraft {
   return { programName: '', workouts: [day] };
 }
 
-export function cloneWeek(workouts: DraftWorkout[], week: Week, nextWeek: number, weekId = crypto.randomUUID()): Week {
-  return {
-    ...week,
-    week: nextWeek,
-    sourceWeek: nextWeek,
-    weekId,
-    days: cloneWeekDays(workouts, nextWeek, weekId),
-    pages: []
-  };
-}
-
 export function blankExercise(): DraftExercise {
   const set: DraftSet = {
     repMin: 8,
@@ -216,11 +205,6 @@ export function blockIndex(weeks: Week[], index: number): number {
     }
   }
   return result;
-}
-
-export function weekCaption(week: Week, number: number): string {
-  const phase = week.phases.join(' / ') || 'General';
-  return [`Block ${number}`, phase].filter(Boolean).join(' · ');
 }
 
 export function orderedBlocks(weeks: Week[]): { id: string; name: string; weeks: Week[] }[] {

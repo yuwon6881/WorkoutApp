@@ -121,15 +121,6 @@
   font-weight: 680;
   font-variant-numeric: tabular-nums;
 }
-.progress-record-panel .best-row-action {
-  width: 100%;
-  border-radius: var(--radius-control);
-  padding: 10px 12px;
-  text-align: left;
-}
-.progress-record-panel .best-row-action:hover {
-  background: var(--surface-hover);
-}
 
 @media (max-width: 639px) {
   .progress-page-heading { align-items: stretch; }

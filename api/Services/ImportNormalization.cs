@@ -123,9 +123,4 @@ internal static class ImportNormalization
         var clamped = Math.Clamp(rest, 0, 3600);
         return (clamped, clamped != rest);
     }
-
-    /// The alternates an exercise offers, cleaned of blanks and trimmed to what a name holds. The
-    /// caller decides how many of them fit.
-    public static List<string> Alternates(List<string>? substitutions)
-        => (substitutions ?? []).Select(value => Text(value, 160)).Where(value => value is not null).Select(value => value!).ToList();
 }

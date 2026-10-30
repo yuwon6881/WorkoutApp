@@ -143,17 +143,10 @@ export function weekDays(offset = 0): Date[] {
 export const validRpe = (value: number | null): boolean =>
   value !== null && Number.isFinite(value) && value >= 6 && value <= 10 && Math.abs(value * 2 - Math.round(value * 2)) < 1e-9;
 
-export const validRir = (value: number | null): boolean =>
-  value !== null && Number.isInteger(value) && value >= 0 && value <= 4;
-
 export const validReps = (value: number | null): boolean =>
   value !== null && Number.isInteger(value) && value > 0 && value <= 1000;
 
 export const canComplete = (set: LoggedSet): boolean => validReps(set.reps);
-
-export const rirSteps = [0, 1, 2, 3, 4] as const;
-export const rpeSteps = rirSteps;
-export const rpeOptions = rirSteps.map(value => ({ value, label: `${value} RIR` }));
 
 export const formatRest = (seconds: number | null | undefined): string => {
   if (seconds === null || seconds === undefined || seconds === 0) return 'No rest';

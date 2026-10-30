@@ -202,7 +202,6 @@ dialog.modal:not([open]) { display: none; }
   }
 
   .ui-menu-dropdown.picker-sheet .ui-menu-item > svg:first-child { padding: 7px; border-radius: 8px; }
-  .ui-menu-dropdown.picker-sheet .ui-menu-note { padding: 8px 16px; }
 }
 
 @media (max-width: 639px) and (prefers-reduced-motion: reduce) {

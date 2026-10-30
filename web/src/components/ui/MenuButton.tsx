@@ -158,7 +158,3 @@ export function MenuItem({
     {children}
   </Button>;
 }
-
-export function MenuNote({ children }: { children: ReactNode }) {
-  return <p className="ui-menu-note">{children}</p>;
-}

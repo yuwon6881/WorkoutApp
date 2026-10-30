@@ -32,8 +32,6 @@ public sealed record NutritionTrainingContext(
     string? Error = null,
     bool Cached = false);
 
-public sealed record IntegrationGrantView(string Peer, string Status, DateTime? GrantedAt, DateTime? RevokedAt);
-
 public sealed record WorkoutTrainingSummary(
     string Id,
     string Status,

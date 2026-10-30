@@ -7,7 +7,6 @@ import {
   type InputHTMLAttributes,
   type Ref,
   type ReactNode,
-  type SelectHTMLAttributes,
   type TextareaHTMLAttributes
 } from 'react';
 
@@ -138,16 +137,6 @@ export function TextAreaField({
     <textarea id={controlId} name={controlName} ref={setRef} className={autoGrow ? 'auto-grow-textarea' : undefined}
       aria-invalid={error ? true : undefined} aria-describedby={errorId} onInput={handleInput}
       style={style} {...props} />
-    {error && <span id={errorId} className="field-error" role="alert">{error}</span>}
-  </label>;
-}
-
-export function SelectField({ label, error, className = '', id, name, children, ...props }: FieldChrome & SelectHTMLAttributes<HTMLSelectElement>) {
-  const generated = useId();
-  const { controlId, controlName, errorId } = fieldIds(id, generated, error, name, label);
-  return <label className={`field ${className}`.trim()} htmlFor={controlId}>
-    <span>{label}</span>
-    <select id={controlId} name={controlName} aria-invalid={error ? true : undefined} aria-describedby={errorId} {...props}>{children}</select>
     {error && <span id={errorId} className="field-error" role="alert">{error}</span>}
   </label>;
 }

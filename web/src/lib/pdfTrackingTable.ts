@@ -289,7 +289,3 @@ export function renderTrackingTables(rows: TextRow[], tables: TrackingTable[]): 
 export function isInTrackingTable(row: TextRow, table: TrackingTable): boolean {
   return row.y <= table.headerTop + 4 && row.y >= table.bottom;
 }
-
-export function isTrackingHeaderPiece(piece: PositionedPiece, table: TrackingTable): boolean {
-  return piece.y <= table.headerTop + 4 && piece.y >= table.headerBottom;
-}

@@ -4,7 +4,6 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Caching.Memory;
 using Workout.Api.Data;
 using Workout.Api.Domain;
 
@@ -33,12 +32,6 @@ public partial class GoogleHealthService(
     ILogger<GoogleHealthService>? logger = null)
 {
     private static readonly ConcurrentDictionary<Guid, Task<GoogleHealthSyncResult>> InFlightSyncs = new();
-    private static readonly MemoryCache SyncCache = new(new MemoryCacheOptions { SizeLimit = 512 });
-
-    private sealed record CachedSync(DateTime SyncedAt, GoogleHealthSyncResult Result, long ConnectionGeneration);
-
-    public static void InvalidateMemoryCache(Guid userId) => SyncCache.Remove(userId);
-    public static void ClearMemoryCache() => SyncCache.Compact(1);
 
     public const string Scope = "https://www.googleapis.com/auth/googlehealth.activity_and_fitness.readonly";
 
@@ -264,7 +257,6 @@ public partial class GoogleHealthService(
             }
 
             await db.SaveChangesAsync(ct);
-            SyncCache.Remove(userId);
             return "/settings?google_health=connected";
         }
     }
@@ -293,7 +285,6 @@ public partial class GoogleHealthService(
         if (conn is null || conn.Status == "reconnect_required") return;
         conn.Status = "reconnect_required";
         await db.SaveChangesAsync(ct);
-        SyncCache.Remove(userId);
     }
 
     private async Task<string?> RefreshAccessTokenAsync(GoogleHealthConnection conn, CancellationToken ct)
@@ -380,7 +371,6 @@ public partial class GoogleHealthService(
 
         db.GoogleHealthConnections.Remove(conn);
         await db.SaveChangesAsync(ct);
-        SyncCache.Remove(userId);
 
         return new GoogleHealthSyncResult("disconnected", null, null, "unavailable", []);
     }
