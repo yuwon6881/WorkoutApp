@@ -81,6 +81,36 @@ describe('withLiveAdjustment on a movement with no history', () => {
     expect(corrected.exercises[0].sets[1]).toMatchObject({ weightKg: 60, reps: 12 });
   });
 
+  // The server prefills a first session's reps with the program's target (never a load or effort),
+  // so a later set already shows "10" when the first one is logged; that is still the app's to move.
+  describe('with the program target prefilled into the later sets', () => {
+    const targeted = (id: string, position: number, overrides: Partial<LoggedSet> = {}) => blank(id, position, {
+      reps: 10,
+      suggestion: {
+        suggestedLoadKg: null, suggestedReps: 10, reason: 'No history', sourceSessionId: null, sourceDate: null, progressionMode: 'none',
+        nutritionContextRevision: null, isBodyweightAdjustment: false, suggestedSystemLoadKg: null, resistanceMode: 'external'
+      },
+      ...overrides
+    });
+    const exactTen = plan({ repMin: 10, repMax: 10, rir: '3' });
+
+    it('steers the later sets after a first set taken closer to failure than the target', () => {
+      const draft = draftWith([blank('a', 0, { weightKg: 70 }), targeted('b', 1, { weightKg: 70 }), targeted('c', 2, { weightKg: 70 })], exactTen);
+      const copied: CopiedLoadsLog = new Map([['b', 70], ['c', 70]]);
+      const sets = withLiveAdjustment(logged(draft, 0, { reps: 10, rpe: 9, rir: '1' }), 0, 0, grid, true, new Map(), copied).exercises[0].sets;
+      expect(sets[1].weightKg).toBeLessThan(70);
+      expect(sets[1]).toMatchObject({ reps: 10, rir: '3' });
+      expect(sets[2].weightKg).toBe(sets[1].weightKg);
+    });
+
+    it('never moves a set whose reps the lifter changed', () => {
+      const draft = draftWith([blank('a', 0, { weightKg: 70 }), targeted('b', 1, { weightKg: 70, reps: 9 })], exactTen);
+      const copied: CopiedLoadsLog = new Map([['b', 70]]);
+      const sets = withLiveAdjustment(logged(draft, 0, { reps: 10, rpe: 9, rir: '1' }), 0, 0, grid, true, new Map(), copied).exercises[0].sets;
+      expect(sets[1]).toMatchObject({ weightKg: 70, reps: 9 });
+    });
+  });
+
   it('leaves a movement with no rep target alone', () => {
     const draft = logged(draftWith([blank('a', 0), blank('b', 1)], plan({ repMin: null, repMax: null })), 0, { weightKg: 60, reps: 10 });
     expect(withLiveAdjustment(draft, 0, 0, grid, true, new Map())).toBe(draft);

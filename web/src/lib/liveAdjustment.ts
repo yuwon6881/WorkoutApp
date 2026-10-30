@@ -221,10 +221,13 @@ export function withLiveAdjustment(
   return { ...draft, exercises: draft.exercises.map((item, index) => index === exerciseIndex ? { ...item, sets } : item) };
 }
 
-/// A set with no history the lifter has not filled: no reps or effort, and no load or only one
-/// copied in from an earlier set.
+/// A set with no history the lifter has not filled: no effort, no reps beyond the program's target the
+/// server shows there (a first session still pre-fills that count), and no load or only one copied in
+/// from an earlier set.
 function isBlank(set: LoggedSet, copied: CopiedLoadsLog): boolean {
-  if (set.reps !== null || set.rpe !== null || (set.rir ?? null) !== null) return false;
+  const suggestion = set.suggestion;
+  const shownTarget = suggestion && !suggestion.sourceSessionId && !suggestion.sourceDate ? suggestion.suggestedReps : null;
+  if ((set.reps !== null && set.reps !== shownTarget) || set.rpe !== null || (set.rir ?? null) !== null) return false;
   const copiedLoad = copied.get(set.id);
   return set.weightKg === null || (copiedLoad !== undefined && Math.abs(copiedLoad - set.weightKg) < 1e-4);
 }
