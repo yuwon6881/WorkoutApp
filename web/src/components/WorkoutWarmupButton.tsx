@@ -32,6 +32,11 @@ export function WorkoutWarmupButton({ exercise, offer, unit, catalogReady, loadC
   const describe = (steps: WarmupStep[]) =>
     steps.map(step => `${sign}${showExerciseWeight(step.weightKg, unit, exercise)} × ${step.reps}`).join(' · ');
   const label = offer.existing > 0 ? 'Fill warm-ups' : 'Add warm-ups';
+  const missingLoad = offer.workingKg === null;
+
+  useEffect(() => {
+    setNotice('');
+  }, [exercise.id, offer.workingKg]);
 
   function apply(count: number) {
     const steps = offer.steps(count);
@@ -54,20 +59,23 @@ export function WorkoutWarmupButton({ exercise, offer, unit, catalogReady, loadC
   }, [waiting, catalogReady]);
 
   function start() {
+    if (missingLoad) {
+      setNotice('Enter the first working weight to plan warm-ups.');
+      return;
+    }
     if (catalogReady || !loadCatalog) { press(); return; }
     setWaiting(true);
     // Offline, the ramp still follows the working load, without what the equipment would add.
     loadCatalog().catch(() => { setWaiting(false); press(); });
   }
 
-  const missingLoad = offer.workingKg === null;
   return <>
-    <Button variant="secondary" className="add-set-btn warmup-btn" disabled={missingLoad || waiting} onClick={start}
-      aria-describedby={missingLoad || notice ? `warmup-note-${exercise.id}` : undefined}>
+    <Button variant="secondary" className="add-set-btn warmup-btn" disabled={waiting} onClick={start}
+      aria-describedby={notice ? `warmup-note-${exercise.id}` : undefined}>
       <Flame size={16} aria-hidden="true" />{waiting ? 'Planning…' : label}
     </Button>
-    {(missingLoad || notice) && <p className="warmup-note" id={`warmup-note-${exercise.id}`} role={notice ? 'status' : undefined}>
-      {missingLoad ? 'Enter the first working weight to plan warm-ups.' : notice}
+    {notice && <p className="warmup-note" id={`warmup-note-${exercise.id}`} role="status">
+      {notice}
     </p>}
     {choosing && <Modal title="Warm-up sets" onClose={() => setChoosing(false)}>
       <div className="modal-body warmup-choice">

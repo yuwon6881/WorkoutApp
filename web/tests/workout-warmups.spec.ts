@@ -43,10 +43,12 @@ test('working loads fill the empty sets after them and warm-ups ramp up to them'
     const workout = page.getByRole('dialog', { name: `Ramp day ${tag}`, exact: true });
     await expect(workout).toBeVisible();
     const addWarmups = workout.getByRole('button', { name: 'Add warm-ups', exact: true });
-    await expect(addWarmups).toBeDisabled();
+    await expect(workout.getByText('Enter the first working weight to plan warm-ups.', { exact: true })).toBeHidden();
+    await addWarmups.click();
     await expect(workout.getByText('Enter the first working weight to plan warm-ups.', { exact: true })).toBeVisible();
 
     await workout.getByRole('spinbutton', { name: `${squat.name} set 1 weight`, exact: true }).fill('100');
+    await expect(workout.getByText('Enter the first working weight to plan warm-ups.', { exact: true })).toBeHidden();
     await expect(weights(workout, squat.name)).toHaveCount(3);
     for (const field of await weights(workout, squat.name).all()) await expect(field).toHaveValue('100');
 
