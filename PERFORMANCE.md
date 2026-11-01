@@ -27,9 +27,11 @@ Production builds on this checkout compared with the investigation baseline:
 
 | Measurement | Before | After | Change |
 |---|---:|---:|---:|
-| Entry JavaScript, gzip | 101,295 bytes | 100,964 bytes | -0.33% |
+| Entry JavaScript, gzip | 101,295 bytes | 97,842 bytes | -3.41% |
 | Initial CSS, gzip | 39,177 bytes | 24,842 bytes | -36.59% |
 | Service-worker precache | 1,075.99 KiB | 856.48 KiB | -20.40% |
+
+Later features had grown the entry to 104,047 bytes by November 1 2026. The shell's rest timer (the timer, alarm, rest-alert scheduling and set stopwatches) now loads in its own chunk mounted beside the first screen (`web/src/app/ShellRestTimer.tsx`), and the minimized workout bar waits for its state, which brought the entry to 97,842 bytes; the CSS and precache rows predate that change.
 
 `npm.cmd run check:performance` enforces the entry JavaScript ceiling and a minimum 25% initial CSS reduction. These are bundle measurements, not field latency or physical-device frame-rate measurements.
 

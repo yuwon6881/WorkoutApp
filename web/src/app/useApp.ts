@@ -14,8 +14,11 @@ import { getLastAccountId, getLastRecovery, getRecovery, setLastAccount } from '
 import { sameWorkoutEdits } from '../lib/workoutRecoveryComparison';
 import { clearRecovery, setConflict, startRecovery, reconcileReopenedWorkout } from '../lib/workoutRecoveryAccess';
 import type { DevicePreferences, WorkoutRecoveryRecord } from '../lib/workoutRecovery';
-import { clearStopwatches } from '../lib/setStopwatch';
 import { forgetSessionDetail } from '../lib/sessionDetailLoad';
+
+// Running set stopwatches exist only once a workout has loaded their module, so clearing them
+// waits for it rather than putting the stopwatch store in the entry chunk.
+function clearStopwatches() { void import('../lib/setStopwatch').then(module => module.clearStopwatches()); }
 
 export type AppState = {
   data: Bootstrap | null;

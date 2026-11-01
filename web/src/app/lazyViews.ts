@@ -13,7 +13,8 @@ const loaders = {
   workout: () => import('../components/Workout'),
   workoutSheet: () => import('../components/WorkoutSheet'),
   workoutPreview: () => import('../components/WorkoutPreviewModal'),
-  resumeWorkout: () => import('../components/ResumeWorkoutButton')
+  resumeWorkout: () => import('../components/ResumeWorkoutButton'),
+  shellRestTimer: () => import('./ShellRestTimer')
 };
 type View = keyof typeof loaders;
 export type LazyView = View;
@@ -55,6 +56,9 @@ export const WorkoutSheet = instantLazy('workoutSheet', module => module.Workout
 export const WorkoutPreviewModal = instantLazy('workoutPreview', module => module.WorkoutPreviewModal);
 // Shown only while a workout is minimized; warmed as soon as the account has one in progress.
 export const ResumeWorkoutButton = instantLazy('resumeWorkout', module => module.ResumeWorkoutButton);
+// The rest timer, alarm and rest-alert scheduling serve only a workout in progress, so the shell
+// mounts them beside the first screen instead of carrying them in the entry chunk.
+export const ShellRestTimer = lazy(() => load('shellRestTimer').then(module => ({ default: module.ShellRestTimer })));
 
 export function prefetchView(view: View) { void load(view).catch(() => undefined); }
 

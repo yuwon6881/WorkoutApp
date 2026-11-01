@@ -1,11 +1,10 @@
 // First-screen styles stay eager. Optional feature CSS loads before the shell stylesheet through
 // featureCss, so navigating later cannot invert the existing cascade.
 import { lazy, Suspense, useEffect, useRef, useState } from 'react';
-import { AlertTriangle, CheckCircle2, Cloud, Loader2, Plus, RefreshCw, Settings, Sparkles, WifiOff } from 'lucide-react';
+import { AlertTriangle, Plus, RefreshCw, Settings, Sparkles, WifiOff } from 'lucide-react';
 import type { AppResource, Bootstrap, Exercise, Session } from './types';
 import { ApiError, api } from './lib/api';
 import { useApp } from './app/useApp';
-import { useShellRestTimer } from './app/useShellRestTimer';
 import { useTabNavigation } from './app/useTabNavigation';
 import { useSaveIndicator } from './app/useSaveIndicator';
 import { useKeyboardInset } from './app/useKeyboardInset';
@@ -22,6 +21,7 @@ import { hasUnresolvedRecovery, sameWorkoutEdits } from './lib/workoutRecoveryCo
 import { startRecovery } from './lib/workoutRecoveryAccess';
 import { Button } from './components/ui/Button';
 import { CardFeedback } from './components/ui/CardFeedback';
+import { SaveStatus } from './components/SaveStatus';
 import { MotionScene } from './components/ui/Motion';
 import './components/BottomNav.css';
 import { BottomNav, type DockAction } from './components/BottomNav';
@@ -30,7 +30,7 @@ import { NAV } from './app/navigation';
 import { AppLoading } from './components/AppLoading';
 import { AuthLoading } from './components/AuthLoading';
 import { ViewSkeleton } from './components/ViewSkeleton';
-import { Auth, Dashboard, ExerciseDetailModal, ExerciseLibrary, ImportReview, MuscleBalanceView, Programs, SessionDetail, SettingsView, Workout, WorkoutSheet, WorkoutPreviewModal, ResumeWorkoutButton, prefetchView } from './app/lazyViews';
+import { Auth, Dashboard, ExerciseDetailModal, ExerciseLibrary, ImportReview, MuscleBalanceView, Programs, SessionDetail, SettingsView, Workout, WorkoutSheet, WorkoutPreviewModal, ResumeWorkoutButton, ShellRestTimer, prefetchView } from './app/lazyViews';
 import { AppContexts } from './app/AppContexts';
 import { useAppTheme } from './app/useAppTheme';
 const AiAssistantPanel = lazy(() => import('./components/AiAssistantPanel').then(module => ({ default: module.AiAssistantPanel })));
@@ -38,6 +38,7 @@ const ImportWatchBridge = lazy(() => import('./components/ImportWatchBridge').th
 const InstallAppCard = lazy(() => import('./components/InstallAppCard').then(module => ({ default: module.InstallAppCard })));
 const ConnectionRecovery = lazy(() => import('./components/ui/ConnectionRecovery').then(module => ({ default: module.ConnectionRecovery })));
 import type { AiUiAction } from './lib/api/ai';
+import type { RestState } from './lib/restTimer';
 import type { AiInvocationRequest } from './components/useAiConversation';
 
 /// Matches the server's refusal in ImportService.Create, so both sides say the same thing.
@@ -113,7 +114,13 @@ export default function App() {
     return () => { current = false; };
   }, [detail?.id, data?.account.id]);
   const detailCatalogLoading = Boolean(detail) && !data?.resources?.catalog && !detailCatalogSettled;
-  const restState = useShellRestTimer({ data, recovery, recoverySession, devicePreferences: app.devicePreferences, setToast });
+  // Unknown until the shell timer loads, so the minimized bar waits rather than showing no rest. The
+  // timer comes first in every screen below, so switching screens never remounts it.
+  const [restState, setRestState] = useState<RestState | null>(null);
+  const restTimerDriver = <Suspense key="rest-timer" fallback={null}>
+    <ShellRestTimer data={data} recovery={recovery} recoverySession={recoverySession} devicePreferences={app.devicePreferences}
+      setToast={setToast} onState={setRestState} />
+  </Suspense>;
   // Opens the saved workout when it is found (at launch, or after a conflict) — not each time its
   // queue drains, or a sheet minimized while an edit was still syncing would spring back open.
   useEffect(() => {
@@ -145,11 +152,11 @@ export default function App() {
     else setToast('No workout is queued yet. Choose one from Workouts.');
   }, [data?.account.id, loading]);
 
-  if (signedOut) return <Suspense fallback={<AuthLoading />}><Auth /></Suspense>;
+  if (signedOut) return <>{restTimerDriver}<Suspense fallback={<AuthLoading />}><Auth /></Suspense></>;
 
-  if (loading && !data && !recovery) return <AppLoading />;
+  if (loading && !data && !recovery) return <>{restTimerDriver}<AppLoading /></>;
 
-  if (!data && recovery) return <div className="app-shell recovery-shell">
+  if (!data && recovery) return <>{restTimerDriver}<div className="app-shell recovery-shell">
     <main className="recovery-main">
       <div className="error-banner" role="status"><WifiOff size={17} />{loading ? 'Checking your connection. Your saved workout is available; changes stay on this device until your account is confirmed.' : 'Offline recovery. This is the active workout previously saved on this device. Changes stay here until you reconnect and the server can confirm them.'}</div>
       {training && workoutSession ? <Suspense fallback={<div className="panel recovery-card" role="status">Opening your saved workout…</div>}><Workout session={workoutSession} accountId={recovery.accountId} preferences={recovery.preferences}
@@ -162,9 +169,9 @@ export default function App() {
       </section>}
       {!training && <Button variant="tertiary" onClick={() => void app.reload()}><RefreshCw size={16} />Try to reconnect</Button>}
     </main>
-  </div>;
+  </div></>;
 
-  if (!data) return <Suspense fallback={<AppLoading />}><ConnectionRecovery message={app.error} onRetry={app.reload}/></Suspense>;
+  if (!data) return <>{restTimerDriver}<Suspense fallback={<AppLoading />}><ConnectionRecovery message={app.error} onRetry={app.reload}/></Suspense></>;
 
   /// Starting a plan creates the session at once: its content is already on the card that offered
   /// it. Anything unresolved on this device still comes first.
@@ -326,7 +333,7 @@ export default function App() {
     }
   }
 
-  return <AppContexts app={app}><div className="app-shell">
+  return <>{restTimerDriver}<AppContexts app={app}><div className="app-shell">
     <SideNav
       tab={tab}
       onTab={setTab}
@@ -354,7 +361,7 @@ export default function App() {
         <div className="topbar-actions">
           {/* A fixed slot: the status fades in and out without moving anything around it. */}
           <span className={`device-status save-indicator ${showSaveStatus ? 'visible' : ''}`.trim()} role="status">
-            {showSaveStatus && <><StatusIcon state={status.state} online={online} /> {statusTitle(status.state, online)}</>}
+            {showSaveStatus && <SaveStatus state={status.state} online={online} />}
           </span>
           <Button variant="tertiary" className={`settings-icon ${isAiOpen ? 'selected' : ''}`.trim()} aria-label="Ask AI" aria-expanded={isAiOpen} onClick={() => setIsAiOpen(true)}><Sparkles size={19} /></Button>
           <Button variant="tertiary" className={`settings-icon ${tab === 'settings' ? 'selected' : ''}`.trim()} aria-label="Settings" aria-current={tab === 'settings' ? 'page' : undefined} onClick={() => setTab('settings')}><Settings size={19} /></Button>
@@ -404,7 +411,7 @@ export default function App() {
 
     <BottomNav tab={tab} onTab={setTab} action={dockAction} actionBusy={starting} onAction={runDockAction} />
 
-    {workoutSession?.active && !training && tab !== 'overview' && <Suspense fallback={null}>
+    {workoutSession?.active && !training && tab !== 'overview' && restState && <Suspense fallback={null}>
       <ResumeWorkoutButton session={workoutSession} rest={restState} onResume={() => setTraining(true)} />
     </Suspense>}
 
@@ -474,20 +481,7 @@ export default function App() {
       surface={tab}
       trainedExercises={data?.progress?.exercises}
     /></Suspense>}
-  </div></AppContexts>;
-}
-
-function StatusIcon({ state, online }: { state: string; online: boolean }) {
-  if (!online || state === 'offline') return <WifiOff size={14} />;
-  if (state === 'saving' || state === 'connecting') return <Loader2 size={14} className="spin" />;
-  if (state === 'failed' || state === 'signed-out') return <AlertTriangle size={14} />;
-  if (state === 'saved') return <CheckCircle2 size={14} />;
-  return <Cloud size={14} />;
-}
-
-function statusTitle(state: string, online: boolean): string {
-  if (!online) return 'Offline';
-  return { connecting: 'Connecting', saving: 'Saving…', saved: 'Saved', failed: 'Not saved', 'signed-out': 'Signed out' }[state] ?? '';
+  </div></AppContexts></>;
 }
 
 /// The name the starting sheet shows: the day or saved workout the tap came from, as far as the
