@@ -1,5 +1,6 @@
 import { useLayoutEffect, useRef } from 'react';
-import { pageDragOffset, pageEntryOffset, pageSwipeOutcome, type PageEdges } from '../lib/pageSwipe';
+import { pageDragOffset, pageEntryOffset, pageSwipeOutcome, pushedPastEdge, type PageEdges } from '../lib/pageSwipe';
+import { haptic } from '../lib/platform';
 import { useHorizontalSwipe } from './ui/useHorizontalSwipe';
 import { useReducedMotion } from './ui/Motion';
 
@@ -56,8 +57,8 @@ export function useExercisePager({ index, pageKey, count, enabled, onSelect }: {
 
   const swipe = useHorizontalSwipe({
     enabled: enabled && count > 1,
-    onPrevious: () => onSelect(index - 1),
-    onNext: () => onSelect(index + 1),
+    onPrevious: () => { haptic('tick'); onSelect(index - 1); },
+    onNext: () => { haptic('tick'); onSelect(index + 1); },
     onDrag: dx => {
       const element = page.current;
       if (!element) return;
@@ -71,7 +72,11 @@ export function useExercisePager({ index, pageKey, count, enabled, onSelect }: {
       const from = element.style.transform || 'translate3d(0, 0, 0)';
       settle(element, [{ transform: from }, { transform: 'translate3d(0, 0, 0)' }], 280);
     },
-    decide: (dx, velocity) => pageSwipeOutcome(dx, velocity, page.current?.offsetWidth ?? window.innerWidth, edges)
+    decide: (dx, velocity) => {
+      const width = page.current?.offsetWidth ?? window.innerWidth;
+      if (pushedPastEdge(dx, velocity, width, edges)) haptic('detent');
+      return pageSwipeOutcome(dx, velocity, width, edges);
+    }
   });
 
   return { page, swipe };

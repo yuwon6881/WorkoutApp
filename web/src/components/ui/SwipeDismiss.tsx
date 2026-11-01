@@ -6,6 +6,7 @@ import {
   type ReactNode
 } from 'react';
 import { useReducedMotion } from './Motion';
+import { haptic } from '../../lib/platform';
 import { shouldDismiss } from '../../lib/swipeDismiss';
 import './SwipeDismiss.css';
 
@@ -109,6 +110,7 @@ export function SwipeDismiss({
       const elapsed = Math.max(1, now - current.startTime);
 
       if (shouldDismiss(dx, elapsed)) {
+        haptic('tick');
         if (reduced) {
           onDismiss();
           return;

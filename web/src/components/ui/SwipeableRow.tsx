@@ -1,5 +1,6 @@
 import { useCallback, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
 import { useWindowTier } from '../../lib/breakpoints';
+import { haptic } from '../../lib/platform';
 import { classifyGesture, settleOpen } from '../../lib/rowSwipe';
 
 type SwipeableRowProps = {
@@ -114,6 +115,8 @@ export function SwipeableRow({
       velocityPxPerMs: velocity,
       actionsWidth
     });
+    // The tray clicking into place tells the thumb the Delete is now one tap away.
+    if (shouldOpen && !open) haptic('detent');
     setOpen(shouldOpen);
     setOffset(shouldOpen ? -actionsWidth : 0);
   }, [actionsWidth, offset, open]);

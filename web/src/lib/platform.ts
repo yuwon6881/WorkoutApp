@@ -32,12 +32,14 @@ export function isStandalone(): boolean {
 
 const bridge = () => import('./nativeBridge');
 
-export type Haptic = 'tick' | 'log' | 'success' | 'warning';
+export type Haptic = 'tick' | 'detent' | 'log' | 'success' | 'warning';
 
 // Web vibration patterns are coarse, so each kind is short and distinct: a tick is barely there,
-// a logged set is one firm pulse, success is a double pulse, a warning is a longer buzz.
+// a detent is a crisp click where a gesture locks or meets an edge, a logged set is one firm pulse,
+// success is a double pulse, a warning is a longer buzz.
 const WEB_PATTERNS: Record<Haptic, number | number[]> = {
   tick: 8,
+  detent: 12,
   log: 18,
   success: [18, 60, 28],
   warning: [40, 50, 40]

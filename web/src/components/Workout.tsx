@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Exercise, LoggedSet, Preferences, RestMutationInput, Session, SessionRest } from '../types';
 import { ApiError, api } from '../lib/api';
 import type { SaveQueue } from '../lib/queue';
-import { completedSets, finishBlocker, plannedSets } from '../lib/training';
+import { completedSets, plannedSets } from '../lib/training';
 import { withLoggedSetEdit, type CopiedLoadsLog, type FilledInputsLog } from '../lib/liveAdjustment';
 import { useTrackRir } from '../lib/trackRir';
 import { exerciseListChanged, indexAfterMove, indexAfterRemoval, setOrderProblem, withExerciseMoved, withServerFlags } from '../lib/workoutDraft';
@@ -10,12 +10,12 @@ import { firstOpenExercise, nextUpText, type AdvanceOptions } from '../lib/worko
 import { useAfterLog } from './useAfterLog';
 import { validateLoggedSet, validateSessionDraft } from '../lib/validation';
 import { restTimer } from '../lib/restTimer';
-import { clearStopwatches, pauseStopwatches, resumeStopwatches, stopStopwatch } from '../lib/setStopwatch';
+import { pauseStopwatches, resumeStopwatches, stopStopwatch } from '../lib/setStopwatch';
 import { findNextStep, isWarmupStep, restAppliesAfter } from '../lib/restRules';
 import { skippedRest, startedRest } from '../lib/restMutations';
 import { useRestMode } from './useRestMode';
 import {
-  clearRecovery, enqueueFinish, enqueueSave, enqueueSetEdits, enqueueTiming, getRecovery,
+  clearRecovery, enqueueSave, enqueueSetEdits, enqueueTiming, getRecovery,
   isStorageFailure, persistDraftOnly, saveNavigation,
   startRecovery
 } from '../lib/workoutRecovery';
@@ -33,11 +33,11 @@ import { useWorkoutOnlineFallback } from './useWorkoutOnlineFallback';
 import { useWorkoutRest } from './useWorkoutRest';
 import { useWorkoutConflictResolution } from './useWorkoutConflictResolution';
 import { useWorkoutExerciseList } from './useWorkoutExerciseList';
+import { useWorkoutFinish } from './useWorkoutFinish';
 import { WorkoutConfirmModal } from './WorkoutConfirmModal';
 import { useFinishPlanUpdate } from './useFinishPlanUpdate';
 import { useStopwatchRecovery } from './useStopwatchRecovery';
 import { useFinishedSetTimers } from './useFinishedSetTimers';
-import { withFinishedSetTimers } from '../lib/finishedSetTimers';
 import { useWorkoutDrain } from './useWorkoutDrain';
 import { useWorkoutDrainSchedule } from './useWorkoutDrainSchedule';
 import { useAccountWorkoutCallbacks } from './useAccountWorkoutCallbacks';
@@ -293,55 +293,10 @@ export function Workout({
     } finally { setBusy(false); }
   }
 
-  async function finish() {
-    let finishingDraft = withFinishedSetTimers(draft);
-    const validationError = validateSessionDraft(finishingDraft);
-    if (validationError) {
-      setError(validationError);
-      return;
-    }
-    const blocker = finishBlocker(finishingDraft);
-    if (blocker) { setError(blocker); return; }
-    if (recoveryConflict) { setError('Resolve the workout version conflict before finishing.'); return; }
-    setBusy(true);
-    try {
-    if (online) {
-      try { await queue.whenIdle(); }
-      catch (failure) {
-        if (!(failure instanceof ApiError && failure.offline)) throw failure;
-      }
-    }
-      // The program update travels with the finish operation and commits atomically.
-      if (!(await planUpdate.apply())) { setBusy(false); return; }
-      finishingDraft = withFinishedSetTimers(finishingDraft);
-      const finishedAt = new Date().toISOString();
-      if (!recovery) {
-        if (!online) throw new Error('This browser cannot save the workout locally. Reconnect before finishing.');
-        setLocalStatus('Device recovery is unavailable. Finishing directly with the server…');
-        const saved = await onlineFallback.finish(finishingDraft, false, planUpdate.input);
-        onFinish(saved);
-        return;
-      }
-      await enqueueSave(accountId, finishingDraft, { activeIndex });
-      const withFinish = await enqueueFinish(accountId, finishedAt, false, finishingDraft, planUpdate.input);
-      clearStopwatches();
-      onRecoveryChange(withFinish);
-      setFinishIntentAt(finishedAt);
-      setLocalStatus(`Finished on this device at ${new Date(finishedAt).toLocaleTimeString()}. Waiting to sync.`);
-      restTimer.skip();
-      if (online) {
-        queue.push('workout', drain);
-        await queue.whenIdle();
-      } else {
-        setBusy(false);
-        setConfirm(null);
-      }
-    } catch (failure) {
-      setError(failure instanceof Error ? failure.message : 'Could not save this workout.');
-      setBusy(false);
-      setConfirm(null);
-    }
-  }
+  const { finish, requestFinish } = useWorkoutFinish({
+    accountId, draft, activeIndex, online, queue, recovery, recoveryConflict, planUpdate, onlineFallback, drain,
+    onFinish, onRecoveryChange, setBusy, setConfirm, setError, setFinishIntentAt, setLocalStatus
+  });
 
   useFinishedSetTimers(draft, change, draft.active && !finishIntentAt && !busy && !recoveryConflict);
 
@@ -401,11 +356,6 @@ export function Workout({
   const currentExercise = draft.exercises[activeIndex] ?? draft.exercises[0];
   const planned = plannedSets(draft);
   const canFinish = !paused && !finishIntentAt && !recoveryConflict && planned > 0 && done >= planned;
-  const requestFinish = () => {
-    const blocker = finishBlocker(draft);
-    if (blocker) { setError(blocker); return; }
-    setConfirm('finish');
-  };
   const defaultRestSeconds = currentExercise ? restMode.exerciseSeconds(currentExercise) : restMode.accountDefault;
 
   const { rest, handleRestMutate } = useWorkoutRest({

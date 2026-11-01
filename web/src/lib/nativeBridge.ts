@@ -82,6 +82,7 @@ export const WorkoutNative = registerPlugin<WorkoutPluginInterface>('WorkoutPlug
 
 export async function nativeHaptic(kind: Haptic) {
   if (kind === 'tick') await Haptics.selectionChanged();
+  else if (kind === 'detent') await Haptics.impact({ style: ImpactStyle.Light });
   else if (kind === 'log') await Haptics.impact({ style: ImpactStyle.Medium });
   else if (kind === 'success') await Haptics.notification({ type: NotificationType.Success });
   else await Haptics.notification({ type: NotificationType.Warning });

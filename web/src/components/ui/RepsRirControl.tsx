@@ -4,6 +4,7 @@ import { Button } from './Button';
 import { Modal } from './Modal';
 import { getRirColorClass, RirChips } from './RpeControl';
 import './RepsRirControl.css';
+import { haptic } from '../../lib/platform';
 import { validateInteger } from '../../lib/validation';
 
 type Entry = { text: string; rir: number | null; replace: boolean };
@@ -40,6 +41,7 @@ export function RepsRirControl({ name, label, reps, rir, trackRir, onChange }: {
     const value = entry.text === '' ? null : Number(entry.text);
     const failure = validateInteger(value, 1, 1000, 'Reps');
     if (failure) { setError(failure); return; }
+    haptic('tick');
     onChange(value, selectedRir);
     close();
   };

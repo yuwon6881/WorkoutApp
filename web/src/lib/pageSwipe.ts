@@ -16,11 +16,22 @@ export function pageDragOffset(dx: number, edges: PageEdges): number {
 /// Whether a released drag turns the page. A long enough drag commits, and so does a quick flick
 /// that travelled a little way; anything else, or a drag toward a missing page, springs back.
 export function pageSwipeOutcome(dx: number, velocity: number, width: number, edges: PageEdges): PageOutcome {
-  const distance = Math.min(96, Math.max(56, width * 0.22));
-  const flick = Math.abs(velocity) >= 0.45 && Math.abs(dx) >= 24 && Math.sign(velocity) === Math.sign(dx);
-  if (Math.abs(dx) < distance && !flick) return 'stay';
+  if (!committedSwipe(dx, velocity, width)) return 'stay';
   if (dx < 0) return edges.canNext ? 'next' : 'stay';
   return edges.canPrevious ? 'previous' : 'stay';
+}
+
+/// Whether a release would have turned the page had there been one: a deliberate push against the
+/// first or last exercise, which is answered with a haptic bump rather than a silent spring back.
+export function pushedPastEdge(dx: number, velocity: number, width: number, edges: PageEdges): boolean {
+  if (!committedSwipe(dx, velocity, width)) return false;
+  return dx < 0 ? !edges.canNext : !edges.canPrevious;
+}
+
+function committedSwipe(dx: number, velocity: number, width: number): boolean {
+  const distance = Math.min(96, Math.max(56, width * 0.22));
+  const flick = Math.abs(velocity) >= 0.45 && Math.abs(dx) >= 24 && Math.sign(velocity) === Math.sign(dx);
+  return Math.abs(dx) >= distance || flick;
 }
 
 /// Where an arriving page starts: on the side it comes from, a short way off so it reads as a

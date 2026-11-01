@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { pageDragOffset, pageEntryOffset, pageSwipeOutcome } from './pageSwipe';
+import { pageDragOffset, pageEntryOffset, pageSwipeOutcome, pushedPastEdge } from './pageSwipe';
 
 const both = { canPrevious: true, canNext: true };
 
@@ -40,6 +40,23 @@ describe('pageSwipeOutcome', () => {
     expect(pageSwipeOutcome(-60, 0, 240, both)).toBe('next');
     expect(pageSwipeOutcome(-90, 0, 1200, both)).toBe('stay');
     expect(pageSwipeOutcome(-96, 0, 1200, both)).toBe('next');
+  });
+});
+
+describe('pushedPastEdge', () => {
+  const last = { canPrevious: true, canNext: false };
+  const first = { canPrevious: false, canNext: true };
+
+  it('is felt only when a committed swipe meets a missing page', () => {
+    expect(pushedPastEdge(-120, 0, 375, last)).toBe(true);
+    expect(pushedPastEdge(-30, -0.8, 375, last)).toBe(true);
+    expect(pushedPastEdge(120, 0, 375, first)).toBe(true);
+  });
+
+  it('stays quiet for a short drag or a page that exists', () => {
+    expect(pushedPastEdge(-40, 0.1, 375, last)).toBe(false);
+    expect(pushedPastEdge(120, 0, 375, last)).toBe(false);
+    expect(pushedPastEdge(-120, 0, 375, both)).toBe(false);
   });
 });
 

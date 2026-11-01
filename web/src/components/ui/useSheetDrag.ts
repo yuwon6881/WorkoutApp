@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef } from 'react';
 import type { PointerEvent as ReactPointerEvent, RefObject } from 'react';
 import { windowTier } from '../../lib/breakpoints';
+import { haptic } from '../../lib/platform';
 
 const DISMISS_DISTANCE = 140;
 const DISMISS_VELOCITY = 0.6; // px per ms, a deliberate flick
@@ -70,6 +71,7 @@ export function useSheetDrag(ref: RefObject<HTMLDialogElement | null>, onDismiss
     const offset = Math.max(0, event.clientY - current.startY);
     const dismiss = event.type === 'pointerup' && (offset > Math.min(DISMISS_DISTANCE, element.offsetHeight * 0.3) || current.velocity > DISMISS_VELOCITY);
     if (!dismiss) { reset(element, true); return; }
+    haptic('tick');
     if (reducedMotion()) { onDismiss(); return; }
     element.style.transition = `transform ${SETTLE_MS}ms ease-in`;
     element.style.transform = 'translateY(100%)';

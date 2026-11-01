@@ -1,4 +1,5 @@
 import { Timer } from 'lucide-react';
+import { haptic } from '../lib/platform';
 import { showClock } from '../lib/training';
 import { remainingRestSeconds, restTimer, type RestState } from '../lib/restTimer';
 import { REST_OVER_MS, restPhase, restShareLeft } from '../lib/restDisplay';
@@ -46,6 +47,7 @@ export function RestAdjustButtons({ className, variant, disabled, onRestMutate }
   onRestMutate?: (action: RestAction, seconds?: number) => void;
 }) {
   const adjust = (action: RestAction, seconds?: number) => () => {
+    haptic('tick');
     if (onRestMutate) onRestMutate(action, seconds);
     else if (action === 'skip') restTimer.skip();
     else if (action === 'shorten') restTimer.shorten(seconds ?? 0);
