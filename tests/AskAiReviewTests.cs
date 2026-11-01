@@ -133,6 +133,33 @@ public sealed class AskAiReviewTests
         Assert.Equal(JsonValueKind.Null, topSet.GetProperty("rir").ValueKind);
     }
 
+    [Theory]
+    [InlineData(0.0)]
+    [InlineData(null)]
+    public async Task HistoryTopSetOfAnUnloadedMovementIsItsMostReps(double? weightKg)
+    {
+        await using var harness = await Harness.Create();
+        await harness.SignIn();
+        var db = harness.Db;
+        var workout = new WorkoutSession { UserId = db.CurrentUser!.Value, Name = "Pull day", Active = false,
+            StartedAt = new DateTime(2026, 9, 30, 2, 0, 0, DateTimeKind.Utc),
+            FinishedAt = new DateTime(2026, 9, 30, 3, 0, 0, DateTimeKind.Utc) };
+        var exercise = new SessionExercise { UserId = db.CurrentUser.Value, SessionId = workout.Id, NameSnapshot = "Pull-up" };
+        db.Workouts.Add(workout);
+        db.SessionExercises.Add(exercise);
+        // A product of load and reps is zero for every set here, so it cannot tell them apart.
+        foreach (var reps in new[] { 6, 12, 9 })
+            db.Sets.Add(new CompletedSet { UserId = db.CurrentUser.Value, SessionExerciseId = exercise.Id, Done = true,
+                WeightKg = weightKg, Reps = reps });
+        await db.SaveChangesAsync();
+        var context = new AiToolContext("kg", new DateOnly(2026, 9, 30), timeZone: "UTC", trackRir: false);
+        var result = await new GetWorkoutHistoryTool(db).ExecuteAsync(
+            AiToolArgs.Parse("{\"fromDate\":\"2026-09-30\",\"toDate\":\"2026-09-30\"}"), context, default);
+        var topSet = JsonSerializer.SerializeToElement(result.Data).GetProperty("workouts")[0]
+            .GetProperty("exercises")[0].GetProperty("topSet");
+        Assert.Equal(12, topSet.GetProperty("reps").GetInt32());
+    }
+
 
     
 

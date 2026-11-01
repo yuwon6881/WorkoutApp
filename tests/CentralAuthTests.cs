@@ -256,6 +256,37 @@ public sealed class CentralAuthTests : IAsyncLifetime
         }
     }
 
+    [Fact]
+    public async Task Concurrent_first_sign_ins_respect_the_account_cap_and_duplicate_callbacks_share_one_user()
+    {
+        var path = Path.Combine(Path.GetTempPath(), $"workout-auth-{Guid.NewGuid():N}.db");
+        var options = new DbContextOptionsBuilder<AppDb>().UseSqlite($"Data Source={path};Pooling=False").Options;
+        try
+        {
+            await using (var setup = new AppDb(options)) await setup.Database.EnsureCreatedAsync();
+            var config = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?> { ["Auth:MaxUsers"] = "1" }).Build();
+            async Task<(Guid? Id, int? Status)> Callback(string subject)
+            {
+                await using var context = new AppDb(options);
+                try { return ((await CentralAuthEndpoints.ProvisionOrGetUser(context, config, subject, "Name", default)).Id, null); }
+                catch (DomainException ex) { return (null, ex.Status); }
+            }
+
+            var results = await Task.WhenAll(Callback("same"), Callback("same"), Callback("other"), Callback("another"));
+
+            await using var verify = new AppDb(options);
+            Assert.Equal(1, await verify.Users.IgnoreQueryFilters().CountAsync());
+            var created = await verify.Users.IgnoreQueryFilters().SingleAsync();
+            Assert.All(results.Where(r => r.Id is not null), r => Assert.Equal(created.Id, r.Id));
+            Assert.All(results.Where(r => r.Id is null), r => Assert.Equal(403, r.Status));
+        }
+        finally
+        {
+            SqliteConnection.ClearAllPools();
+            foreach (var file in new[] { path, path + "-wal", path + "-shm" }) if (File.Exists(file)) File.Delete(file);
+        }
+    }
+
     private sealed class TestHostEnvironment(string environmentName) : IHostEnvironment
     {
         public string EnvironmentName { get; set; } = environmentName;

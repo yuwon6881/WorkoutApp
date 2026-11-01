@@ -22,7 +22,16 @@ if(!builder.Environment.IsDevelopment()&&(!Uri.TryCreate(builder.Configuration["
 // Kept for legacy large requests; PDF imports now submit compressed extracted text, not PDF bytes.
 builder.WebHost.ConfigureKestrel(o=>o.Limits.MaxRequestBodySize=160 * 1024 * 1024);
 builder.Services.Configure<FormOptions>(o => o.MultipartBodyLengthLimit = 160 * 1024 * 1024);
-builder.Services.Configure<ForwardedHeadersOptions>(o=> { o.ForwardedHeaders=ForwardedHeaders.XForwardedProto; });
+// Cloud Run's front end appends the caller's address to X-Forwarded-For from proxy addresses that
+// are not loopback, so the known lists are cleared. Only that last hop is read: the watch calls
+// Cloud Run directly, and any earlier entry could have been written by the client.
+builder.Services.Configure<ForwardedHeadersOptions>(o=>
+{
+    o.ForwardedHeaders=ForwardedHeaders.XForwardedFor|ForwardedHeaders.XForwardedProto;
+    o.ForwardLimit=1;
+    o.KnownIPNetworks.Clear();
+    o.KnownProxies.Clear();
+});
 builder.Services.AddResponseCompression(o=>
 {
     o.EnableForHttps=true;
@@ -141,8 +150,10 @@ builder.Services.AddRateLimiter(o=>
     o.AddPolicy("watch-pair-status",http=>RateLimitPartition.GetFixedWindowLimiter(
         http.Connection.RemoteIpAddress?.ToString() ?? "unknown",
         _=>new FixedWindowRateLimiterOptions { PermitLimit=40,Window=TimeSpan.FromMinutes(2),QueueLimit=0 }));
+    // Approval comes from the signed-in phone through the Vercel proxy, whose shared egress address
+    // would pool every account; the session is the caller.
     o.AddPolicy("watch-pair-approve",http=>RateLimitPartition.GetFixedWindowLimiter(
-        http.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+        string.IsNullOrEmpty(http.Request.Cookies[AuthService.Cookie])?"unauthenticated":AuthService.Hash(http.Request.Cookies[AuthService.Cookie]!),
         _=>new FixedWindowRateLimiterOptions { PermitLimit=10,Window=TimeSpan.FromMinutes(5),QueueLimit=0 }));
 });
 var app=builder.Build();

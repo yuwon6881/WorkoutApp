@@ -173,17 +173,24 @@ public static class CentralAuthEndpoints
         var user = await db.Users.IgnoreQueryFilters().SingleOrDefaultAsync(item => item.IdentitySubject == identitySubject, ct);
         if (user is null)
         {
-            var maxUsers = config.GetValue("Auth:MaxUsers", 1);
-            var count = await db.Users.IgnoreQueryFilters().CountAsync(ct);
-            Validation.Require(count < maxUsers, "Registration is closed: the maximum number of accounts has been reached.", 403);
-            user = new AppUser
+            // Serialized so concurrent first sign-ins cannot both pass the cap, and a repeated callback finds the user the first one created.
+            await using var gate = await MutationLock.Acquire(db, null, ct);
+            user = await db.Users.IgnoreQueryFilters().SingleOrDefaultAsync(item => item.IdentitySubject == identitySubject, ct);
+            if (user is null)
             {
-                Id = Guid.NewGuid(),
-                IdentitySubject = identitySubject,
-                DisplayName = trimmedName
-            };
-            db.Users.Add(user);
-            await db.SaveChangesAsync(ct);
+                var maxUsers = config.GetValue("Auth:MaxUsers", 1);
+                var count = await db.Users.IgnoreQueryFilters().CountAsync(ct);
+                Validation.Require(count < maxUsers, "Registration is closed: the maximum number of accounts has been reached.", 403);
+                user = new AppUser
+                {
+                    Id = Guid.NewGuid(),
+                    IdentitySubject = identitySubject,
+                    DisplayName = trimmedName
+                };
+                db.Users.Add(user);
+                await db.SaveChangesAsync(ct);
+            }
+            await gate.Commit(ct);
         }
         else if (!string.IsNullOrWhiteSpace(identityName) && user.DisplayName != trimmedName)
         {

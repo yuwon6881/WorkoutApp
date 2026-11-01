@@ -123,8 +123,11 @@ public sealed class GetWorkoutHistoryTool : IAiTool
             var exerciseSummaries = sessionExercises.Select(e =>
             {
                 var doneSets = setsByExercise.GetValueOrDefault(e.Id, []);
+                // Bodyweight and unloaded sets tie at zero tonnage; the most reps (or longest hold) is their top set.
                 var topSet = doneSets
                     .OrderByDescending(s => (s.WeightKg ?? 0) * (s.Reps ?? 0))
+                    .ThenByDescending(s => s.Reps ?? 0)
+                    .ThenByDescending(s => s.DurationSeconds ?? 0)
                     .FirstOrDefault();
 
                 return new
