@@ -2,7 +2,7 @@
 
 Audited before implementation against all 423 entries in `deploy/exercises.json` on 2026-10-15.
 
-Classification: 84 per side; 339 total. All rows receive explicit metadata; no runtime equipment/name guessing.
+Classification: 84 per side; 339 total. Four rows added on 2026-11-02 (two per side, two total) follow the same rules and appear at the end of the table. All rows receive explicit metadata; no runtime equipment/name guessing.
 
 Per side means the entered load belongs to one independently loaded side or dumbbell. Total means the full shared implement, machine load or selected stack. A single-arm cable or machine movement uses its one selected stack as total. Machine chest press and leg press remain total, including plate-loaded versions. Dumbbell goblet squats, hip thrusts, pullovers and two-hand overhead/French extensions use one shared dumbbell and remain total.
 
@@ -444,3 +444,7 @@ This is an input convention, not a count of implements or repetitions. Stored we
 | db-static-lunge | DB Static Lunge | Dumbbell | Per side | Enter one dumbbell, including one-arm variants; never add left and right. |
 | smith-machine-split-squat | Smith Machine Split Squat | Smith Machine | Total | Enter the full implement, selected stack, or total machine plates; unilateral execution does not halve it. |
 | banded-push-up | Banded Push Up | Band | Total | Enter the full implement, selected stack, or total machine plates; unilateral execution does not halve it. |
+| banded-clamshell | Banded Clamshell | Band | Total | Enter the full implement, selected stack, or total machine plates; unilateral execution does not halve it. |
+| banded-monster-walk | Banded Monster Walk | Band | Total | Enter the full implement, selected stack, or total machine plates; unilateral execution does not halve it. |
+| db-curtsy-lunge | DB Curtsy Lunge | Dumbbell | Per side | Enter one dumbbell, including one-arm variants; never add left and right. |
+| db-lateral-lunge | DB Lateral Lunge | Dumbbell | Per side | Enter one dumbbell, including one-arm variants; never add left and right. |

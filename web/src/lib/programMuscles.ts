@@ -11,7 +11,7 @@ export type PlannedMuscleSummary = {
 
 const MUSCLE_REGIONS = [
   'Neck', 'Traps', 'Shoulders', 'Chest', 'Back', 'Biceps', 'Triceps', 'Forearms',
-  'Core', 'Glutes', 'Quads', 'Hamstrings', 'Adductors', 'Calves'
+  'Core', 'Glutes', 'Abductors', 'Quads', 'Hamstrings', 'Adductors', 'Calves'
 ] as const;
 
 const BUCKET_REGIONS: Record<string, string[]> = {
@@ -56,7 +56,9 @@ function primaryRefinement(bucket: string, name: string): string[] {
 
   if (bucket === 'traps calves and hips') {
     if (hasAny(name, 'calf', 'toe press')) return ['Calves'];
-    if (hasAny(name, 'abduction', 'band walk')) return ['Glutes'];
+    if (hasAny(name, 'abduction', 'abductor', 'band walk', 'lateral walk', 'monster walk', 'clamshell', 'clam shell')) {
+      return ['Abductors'];
+    }
     if (hasWord(name, 'shrug')) return ['Traps'];
   }
 

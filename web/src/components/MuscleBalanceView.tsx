@@ -21,7 +21,7 @@ function dateLabel(value: string | null) {
 }
 
 const LOWER_BODY_MUSCLES = new Set([
-  'Quads', 'Hamstrings', 'Glutes', 'Calves', 'Adductors'
+  'Quads', 'Hamstrings', 'Glutes', 'Abductors', 'Calves', 'Adductors'
 ]);
 
 function isLowerBody(muscle: string): boolean {

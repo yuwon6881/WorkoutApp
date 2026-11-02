@@ -12,7 +12,7 @@ import './CustomExerciseModal.css';
 
 const MUSCLE_OPTIONS = [
   'Chest', 'Back', 'Shoulders', 'Quads', 'Hamstrings', 'Glutes', 'Biceps',
-  'Triceps', 'Forearms', 'Calves', 'Core', 'Traps', 'Adductors', 'Neck'
+  'Triceps', 'Forearms', 'Calves', 'Core', 'Traps', 'Abductors', 'Adductors', 'Neck'
 ] as const;
 
 const LOAD_MODEL_LABELS: Record<string, string> = {

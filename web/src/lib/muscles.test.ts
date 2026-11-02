@@ -72,6 +72,15 @@ describe('getWorkoutMuscles', () => {
     expect(muscles).toContain('Calves');
   });
 
+  it('tags hip abduction as Abductors rather than Glutes', () => {
+    const hipCatalog: Exercise[] = [
+      { id: 'ex-7', slug: 'seated-hip-abduction', name: 'Seated Hip Abduction', muscle: 'Traps, calves, and hips', equipment: 'Machine', aliases: [], loadStepKg: 5 },
+      { id: 'ex-8', slug: 'clamshell', name: 'Banded Clamshell', muscle: 'Abductors', equipment: 'Band', aliases: [], loadStepKg: 0 }
+    ];
+    expect(getWorkoutMuscles([{ exerciseId: 'ex-7' }, { exerciseId: 'ex-8' }], hipCatalog)).toEqual(['Abductors']);
+    expect(getWorkoutMuscles([{ sourceName: 'Cable Hip Abduction' }], hipCatalog)).toEqual(['Abductors']);
+  });
+
   it('returns empty array when no items provided', () => {
     expect(getWorkoutMuscles([], catalog)).toEqual([]);
   });

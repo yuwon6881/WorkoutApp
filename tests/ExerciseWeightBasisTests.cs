@@ -21,8 +21,14 @@ public sealed class ExerciseWeightBasisTests
             await h.Db.Database.ExecuteSqlRawAsync(operation.Sql);
         h.Db.ChangeTracker.Clear();
         var rows = await h.Db.Exercises.AsNoTracking().ToDictionaryAsync(row => row.Slug);
-        Assert.All(input, expected => Assert.Equal(expected.WeightBasis, rows[expected.Slug].WeightBasis));
+        Assert.All(input.Where(row => !AddedAfterBackfill.Contains(row.Slug)),
+            expected => Assert.Equal(expected.WeightBasis, rows[expected.Slug].WeightBasis));
     }
+
+    /// Rows first seeded after the backfill migration take their basis from the seed itself, and an
+    /// applied migration is never rewritten, so they are listed here instead of in its SQL.
+    private static readonly HashSet<string> AddedAfterBackfill =
+        ["banded-clamshell", "banded-monster-walk", "db-curtsy-lunge", "db-lateral-lunge"];
 
     [Fact]
     public void Every_shipped_exercise_has_an_explicit_audited_basis()

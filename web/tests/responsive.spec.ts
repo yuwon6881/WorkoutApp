@@ -562,7 +562,8 @@ for (const theme of ['dark', 'light']) {
     await expect(page.locator('.body-map-detail')).toBeVisible();
     await screenshot('body');
     await expect(page.locator('.muscle-breakdown-panel')).toBeVisible();
-    await expect(page.locator('.muscle-breakdown-figure')).toHaveCount(14);
+    // One figure per canonical muscle region, Abductors included.
+    await expect(page.locator('.muscle-breakdown-figure')).toHaveCount(15);
     await page.getByRole('button', { name: /^Calves, .*contributing lifts$/ }).click();
     await expect(page.getByLabel('Calves contributing lifts', { exact: true })).toBeVisible();
     await screenshot('muscle-breakdown');

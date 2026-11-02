@@ -7,7 +7,7 @@ import { BACK_PARTS, BACK_REGIONS } from './bodyMapBackPaths';
 /// coverage the map silently drops.
 const CANONICAL = [
   'Neck', 'Traps', 'Shoulders', 'Chest', 'Back', 'Biceps', 'Triceps',
-  'Forearms', 'Core', 'Glutes', 'Quads', 'Hamstrings', 'Adductors', 'Calves'
+  'Forearms', 'Core', 'Glutes', 'Abductors', 'Quads', 'Hamstrings', 'Adductors', 'Calves'
 ];
 
 const [, , viewWidth, viewHeight] = BODY_MAP_VIEW_BOX.split(' ').map(Number);

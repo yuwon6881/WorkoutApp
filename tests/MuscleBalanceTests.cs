@@ -135,6 +135,40 @@ public class MuscleBalanceTests
         Assert.Equal(2, Assert.Single(afterEdit.Muscles, muscle => muscle.Muscle == "Back").Sets);
     }
 
+    /// Muscle credit is derived from the catalog when history is read, so re-seeding an exercise's
+    /// muscles re-attributes sessions logged before the change with no data migration.
+    [Fact]
+    public async Task Reseeded_catalog_muscles_reattribute_existing_history()
+    {
+        await using var h = await Ready();
+        var userId = h.Db.CurrentUser!.Value;
+        await h.Seed(
+            new SeedExercise("seated-hip-abduction", "Seated Hip Abduction", "Traps, calves, and hips", "Machine", null),
+            new SeedExercise("db-bulgarian-split-squat", "DB Bulgarian Split Squat", "Quads", "Dumbbell", null));
+        var abduction = await h.ExerciseId("seated-hip-abduction");
+        var split = await h.ExerciseId("db-bulgarian-split-squat");
+        var session = AddSession(h, userId, "Logged before the change", DateTime.UtcNow);
+        AddExercise(h, session, abduction, "Seated Hip Abduction", (true, false), (true, false));
+        AddExercise(h, session, split, "DB Bulgarian Split Squat", (true, false), (true, false));
+        await h.Db.SaveChangesAsync();
+
+        await h.Seed(
+            new SeedExercise("seated-hip-abduction", "Seated Hip Abduction", "Abductors", "Machine", null),
+            new SeedExercise("db-bulgarian-split-squat", "DB Bulgarian Split Squat", "Quads", "Dumbbell", null,
+                SecondaryMuscles: ["Abductors"]));
+        var result = await h.MuscleBalance.Balance("1w", "UTC", default);
+        var abductors = Assert.Single(result.Muscles, muscle => muscle.Muscle == "Abductors");
+        var glutes = Assert.Single(result.Muscles, muscle => muscle.Muscle == "Glutes");
+
+        Assert.Equal(0, result.UnattributedSets);
+        Assert.Equal(2, abductors.PrimarySets);
+        Assert.Equal(1, abductors.SecondarySets);
+        Assert.Equal(3, abductors.Sets);
+        // The split squat keeps its movement-derived glute credit; only isolated abduction leaves Glutes.
+        Assert.Equal(1, glutes.Sets);
+        Assert.Equal(0, glutes.PrimarySets);
+    }
+
     private static async Task<Harness> Ready()
     {
         var h = await Harness.Create();
