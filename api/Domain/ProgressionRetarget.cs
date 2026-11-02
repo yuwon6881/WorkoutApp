@@ -25,8 +25,12 @@ internal static class ProgressionRetarget
         return new RetargetedSet(load, Math.Max(1, aim), false);
     }
 
-    public static string Reason(RetargetedSet aimed, double? before)
+    /// <paramref name="defaultTarget"/> marks a set whose program printed no effort, aimed at the
+    /// default reserve instead, so the reason never claims a target the program does not state.
+    public static string Reason(RetargetedSet aimed, double? before, bool defaultTarget = false)
         => aimed.Lighter && aimed.LoadKg is { } lighter && before is > 0
-            ? $"Last time fell short of the range at the target effort: about {(int)Math.Round((1 - lighter / before.Value) * 100)}% lighter for {aimed.Reps} reps."
-            : $"Last time was harder than the target effort: aim for {aimed.Reps} reps at the same load to land on it.";
+            ? $"Last time fell short of the range at {(defaultTarget ? $"the default {EffortPrefill.DefaultReserve} RIR" : "the target effort")}: about {(int)Math.Round((1 - lighter / before.Value) * 100)}% lighter for {aimed.Reps} reps."
+            : defaultTarget
+                ? $"Last time fell short of the range: aim for {aimed.Reps} reps at the same load, leaving about {EffortPrefill.DefaultReserve} in reserve."
+                : $"Last time was harder than the target effort: aim for {aimed.Reps} reps at the same load to land on it.";
 }

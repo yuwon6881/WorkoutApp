@@ -99,6 +99,44 @@ public sealed class ProgressionRetargetTests
         Assert.Equal(8, twice.SuggestedReps);
     }
 
+    // An 8-rep set printed with no effort target, logged with its reserve, as an imported percentage
+    // program records it.
+    private static SetExposure Untargeted(double load, int reps, string rir)
+        => new(Guid.NewGuid(), DateTime.UtcNow.AddDays(-14), load, reps, 10 - double.Parse(rir), Rir: rir,
+            RepMin: 8, RepMax: 8, HasPrescription: true);
+
+    private static SetProgressionSuggestion SuggestUntargeted(SetExposure source)
+        => Progression.Suggest(new SetPrescription(8, 8, null, null, null, "72.5%", null), [source],
+            ProgressionModes.Normal, new LoadOptions(2.5));
+
+    [Fact]
+    public void Far_short_of_an_untargeted_minimum_with_logged_reserve_lowers_the_load()
+    {
+        // 4 reps at 1 RIR at 50 kg is 5 to failure; 8 reps at the default 2 RIR needs
+        // 50 × 35 / 40 = 43.75 kg, so 42.5 kg. Repeating 50 kg for 8 asked for double the reps.
+        var top = SuggestUntargeted(Untargeted(50, 4, "1"));
+        var second = SuggestUntargeted(Untargeted(40, 6, "1"));
+        var third = SuggestUntargeted(Untargeted(40, 5, "1"));
+
+        Assert.Equal(42.5, top.SuggestedLoadKg);
+        Assert.Equal(8, top.SuggestedReps);
+        Assert.Contains("lighter", top.Reason);
+        // 40 × 37 / 40 = 37 kg and 40 × 36 / 40 = 36 kg: both round down to 35 kg.
+        Assert.Equal(35, second.SuggestedLoadKg);
+        Assert.Equal(35, third.SuggestedLoadKg);
+    }
+
+    [Fact]
+    public void Short_of_an_untargeted_minimum_with_reserve_to_spare_keeps_the_load()
+    {
+        // 6 reps at 4 RIR leaves 10 to failure: 8 at the default 2 RIR is within reach.
+        var result = SuggestUntargeted(Untargeted(40, 6, "4"));
+
+        Assert.Equal(40, result.SuggestedLoadKg);
+        Assert.Equal(8, result.SuggestedReps);
+        Assert.DoesNotContain("harder than the target", result.Reason);
+    }
+
     [Fact]
     public void A_set_on_target_effort_is_not_retargeted()
     {

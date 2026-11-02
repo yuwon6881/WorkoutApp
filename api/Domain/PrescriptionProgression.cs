@@ -94,13 +94,16 @@ internal static class PrescriptionProgression
                 !fatigue.Excused.Contains(exposure) &&
                 ProgressionEvidence.Hard(exposure, lower, goal));
         // A set pushed past its target says how many reps the load really allows: aim there, or
-        // lighter, rather than asking for the same reps that already cost too much.
-        var aimed = rebuilding || goal is not { } target ? null
+        // lighter, rather than asking for the same reps that already cost too much. A program that
+        // prints no effort is aimed at the default reserve the logger offers, once the set logged its
+        // own: otherwise a set far short of the minimum would repeat its load for the full count.
+        var assumedTarget = goal is null && reserve is not null;
+        var aimed = rebuilding || (goal ?? (assumedTarget ? EffortPrefill.DefaultReserve : null)) is not { } target ? null
             : ProgressionRetarget.Aim(source, load, lower, upper, target, loads, repsOnly);
         if (hardStreak > 0)
         {
             if (aimed is not null && (hardStreak == 1 || !loads.Adjustable || repsOnly))
-                return Result(aimed.LoadKg, aimed.Reps, ProgressionRetarget.Reason(aimed, load));
+                return Result(aimed.LoadKg, aimed.Reps, ProgressionRetarget.Reason(aimed, load, assumedTarget));
             if (!loads.Adjustable || repsOnly)
                 return Result(load, repeatReps, "No adjustable load: repeat the reps and use an easier variation if needed to match the intended effort.", rebuilding);
             if (hardStreak == 1)
@@ -164,7 +167,7 @@ internal static class PrescriptionProgression
         }
         if (reserve is not null && !ProgressionEvidence.MeetsEffort(source, goal))
             return aimed is not null
-                ? Result(aimed.LoadKg, aimed.Reps, ProgressionRetarget.Reason(aimed, load))
+                ? Result(aimed.LoadKg, aimed.Reps, ProgressionRetarget.Reason(aimed, load, assumedTarget))
                 : Result(load, repeatReps, "Repeat the last load and reps. The exposure was not within the target effort range.", rebuilding);
 
         if (open)
