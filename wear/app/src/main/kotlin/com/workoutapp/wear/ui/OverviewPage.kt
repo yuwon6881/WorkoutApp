@@ -88,6 +88,22 @@ fun OverviewPage(
                 )
             }
         }
+        // A mis-tap on Log is the commonest watch mistake, so taking it back comes straight under the clock,
+        // ahead of the progress row, to sit on the first screen of a small watch.
+        if (undoableSet != null) item {
+            FilledTonalButton(
+                onClick = onUndoLastSet,
+                enabled = !busy,
+                modifier = Modifier.fillMaxWidth().listRow(this, spec),
+                transformation = SurfaceTransformation(spec),
+                colors = secondaryButtonColors(),
+                icon = { WearIcon(R.drawable.ic_undo, null, Modifier.size(ButtonDefaults.IconSize)) },
+                label = { Text("Undo last set", maxLines = 1) },
+                secondaryLabel = {
+                    Text("${undoableSet.exerciseName} · ${undoableSet.summary}", maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
+            )
+        }
         item {
             Column(Modifier.listRow(this, spec).padding(start = 12.dp, end = 12.dp, top = 8.dp, bottom = 4.dp)) {
                 Text(
@@ -112,21 +128,6 @@ fun OverviewPage(
                     )
                 }
             }
-        }
-        // A mis-tap on Log is the commonest watch mistake, so taking it back sits on the first screen.
-        if (undoableSet != null) item {
-            FilledTonalButton(
-                onClick = onUndoLastSet,
-                enabled = !busy,
-                modifier = Modifier.fillMaxWidth().listRow(this, spec),
-                transformation = SurfaceTransformation(spec),
-                colors = secondaryButtonColors(),
-                icon = { WearIcon(R.drawable.ic_undo, null, Modifier.size(ButtonDefaults.IconSize)) },
-                label = { Text("Undo last set", maxLines = 1) },
-                secondaryLabel = {
-                    Text("${undoableSet.exerciseName} · ${undoableSet.summary}", maxLines = 1, overflow = TextOverflow.Ellipsis)
-                }
-            )
         }
         item {
             FilledTonalButton(

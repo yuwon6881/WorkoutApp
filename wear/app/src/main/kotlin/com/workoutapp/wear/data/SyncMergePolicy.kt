@@ -29,10 +29,14 @@ object SyncMergePolicy {
         return readRequest(operation)
     }
 
+    /**
+     * A finish rebases only over a workout whose saved content is what the watch finished. The rest
+     * is left out: a set queued before the finish starts one on the server, and finishing ends it.
+     */
     fun rebaseFinish(operation: PendingOperation, remote: WorkoutSession): JsonObject? {
         if (!remote.active) return null
         val baseline = readBaseline(operation) ?: return null
-        if (remote.copy(revision = baseline.revision) != baseline) return null
+        if (remote.copy(revision = baseline.revision, rest = baseline.rest) != baseline) return null
         return readRequest(operation)
     }
 

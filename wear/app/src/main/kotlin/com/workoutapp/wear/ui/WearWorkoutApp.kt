@@ -269,6 +269,7 @@ private fun ActiveRoute(
             }
         },
         onSetTimerChanged = repository::saveSetTimer,
+        onCountdownFinished = repository::claimSetTimerAlert,
         onUndoLastSet = { runAction { repository.undoLastSet(); setMessage("Set undone. Log it again when ready.") } },
         onExtendRest = { repository.extendRest(REST_ADJUST_SECONDS) },
         onShortenRest = { repository.shortenRest(REST_ADJUST_SECONDS) },

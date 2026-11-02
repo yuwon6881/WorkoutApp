@@ -43,12 +43,17 @@ class WorkoutRepository private constructor(context: Context) {
     fun cached(): WorkoutSnapshot? = store.readSnapshot()
 
     fun saveSetTimer(setId: String, timer: SetTimerSnapshot) {
-        store.update { snapshot, _ ->
+        val saved = store.update { snapshot, _ ->
             if (snapshot?.session?.active != true || snapshot.pendingFinish ||
                 snapshot.session.exercises.none { e -> e.sets.any { it.id == setId && !it.done } }) snapshot
             else snapshot.copy(setTimers = snapshot.setTimers.orEmpty() + (setId to timer))
         }
+        // The ongoing service pulses at the end of a countdown when the screen is off, so it re-reads timers.
+        if (saved?.setTimers?.get(setId) == timer) WorkoutOngoingService.update(application, saved.session.name)
     }
+
+    /** True for the one caller that ends this countdown run and should give its pulse. */
+    fun claimSetTimerAlert(setId: String, startedAt: Long): Boolean = store.claimSetTimerAlert(setId, startedAt)
 
     fun isPaired(): Boolean = secureStore.isDevicePaired() && secureStore.pendingPairing() == null
 
@@ -184,7 +189,7 @@ class WorkoutRepository private constructor(context: Context) {
         // WorkoutApp only saves a workout with at least one completed working set; queueing one
         // without would sit unsendable on the watch. Unlogged sets are simply left out.
         check(hasLoggedWorkingSet(snapshot.session)) { "Log at least one working set before finishing." }
-        val finishedAt = Instant.now().toString()
+        val finishedAt = workoutEventInstant(Instant.now(), snapshot.session).toString()
         val mutationId = UUID.randomUUID().toString()
         val request = JsonObject().apply {
             addProperty("revision", snapshot.session.revision)
@@ -330,10 +335,14 @@ class WorkoutRepository private constructor(context: Context) {
 
     suspend fun disconnect() {
         check(store.pendingOperations().isEmpty()) { "Sync or review pending workout changes before disconnecting this watch." }
+        // The watch stays paired until WorkoutApp has revoked its session, so a lost or offline watch
+        // never leaves a live session behind; offline, the lifter is told why rather than shown a socket error.
         try {
             api.revoke()
         } catch (failure: ApiFailure) {
             if (failure.statusCode != 401) throw failure
+        } catch (offline: java.io.IOException) {
+            throw IllegalStateException("Connect this watch to the internet to disconnect it from WorkoutApp.", offline)
         }
         secureStore.clearToken()
         secureStore.clearPendingPairing()
@@ -347,7 +356,7 @@ class WorkoutRepository private constructor(context: Context) {
         check(if (pause) snapshot.session.pausedAt == null else snapshot.session.pausedAt != null) {
             if (pause) "This workout is already paused." else "Resume is only available while the workout is paused."
         }
-        val occurredAt = Instant.now()
+        val occurredAt = workoutEventInstant(Instant.now(), snapshot.session)
         val id = UUID.randomUUID().toString()
         val request = JsonObject().apply {
             addProperty("revision", snapshot.session.revision)

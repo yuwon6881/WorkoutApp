@@ -33,6 +33,7 @@ class WorkoutOngoingService : Service() {
     private val handler = Handler(Looper.getMainLooper())
     private lateinit var store: WorkoutStore
     private var restAlert: Runnable? = null
+    private var timerAlert: Runnable? = null
     private var restWakeLock: PowerManager.WakeLock? = null
     private var sessionName = "Workout"
 
@@ -53,12 +54,13 @@ class WorkoutOngoingService : Service() {
             stopSelf()
             return START_NOT_STICKY
         }
-        scheduleRestAlert(snapshot)
+        scheduleAlerts(snapshot)
         return START_STICKY
     }
 
     override fun onDestroy() {
         restAlert?.let(handler::removeCallbacks)
+        timerAlert?.let(handler::removeCallbacks)
         releaseRestWakeLock()
         super.onDestroy()
     }
@@ -154,18 +156,53 @@ class WorkoutOngoingService : Service() {
         })
     }
 
-    private fun scheduleRestAlert(snapshot: WorkoutSnapshot) {
+    /** Arms the end-of-rest and end-of-countdown pulses; either may be absent. */
+    private fun scheduleAlerts(snapshot: WorkoutSnapshot) {
         restAlert?.let(handler::removeCallbacks)
         restAlert = null
+        timerAlert?.let(handler::removeCallbacks)
+        timerAlert = null
+        val restDeadline = scheduleRestAlert(snapshot)
+        val timerDeadline = scheduleTimerAlert(snapshot)
+        val latest = listOfNotNull(restDeadline, timerDeadline).maxOrNull()
+        // With the screen off the CPU sleeps and a posted callback would stall until the next wake,
+        // so a partial wake lock bounded to the last pending alert keeps each buzz on time.
+        if (latest == null) releaseRestWakeLock()
+        else holdRestWakeLock(latest - System.currentTimeMillis() + WAKE_LOCK_GRACE_MS)
+    }
+
+    /**
+     * A timed set counting down to its target pulses when it ends even with the screen off, when the
+     * page's own countdown cannot run. The store claim keeps the page and this service to one pulse.
+     */
+    private fun scheduleTimerAlert(snapshot: WorkoutSnapshot): Long? {
+        if (snapshot.session.pausedAt != null || !snapshot.session.active || snapshot.pendingFinish) return null
+        val (setId, timer) = snapshot.setTimers.orEmpty().entries
+            .mapNotNull { (id, timer) -> timer.countdownEndsAt()?.let { id to timer } }
+            .minByOrNull { (_, timer) -> timer.countdownEndsAt()!! } ?: return null
+        val deadline = timer.countdownEndsAt() ?: return null
+        val startedAt = timer.startedAt ?: return null
+        val alert = object : Runnable {
+            override fun run() {
+                val remaining = deadline - System.currentTimeMillis()
+                if (remaining > 0) {
+                    handler.postDelayed(this, remaining)
+                    return
+                }
+                if (store.claimSetTimerAlert(setId, startedAt)) vibrateAlert(this@WorkoutOngoingService)
+                timerAlert = null
+                if (restAlert == null) releaseRestWakeLock()
+            }
+        }
+        timerAlert = alert
+        handler.postDelayed(alert, (deadline - System.currentTimeMillis()).coerceAtLeast(0L))
+        return deadline
+    }
+
+    private fun scheduleRestAlert(snapshot: WorkoutSnapshot): Long? {
         val deadline = snapshot.restEndsAtEpochMs
         val generation = snapshot.restGeneration
-        if (deadline == null || generation == null || snapshot.session.pausedAt != null) {
-            releaseRestWakeLock()
-            return
-        }
-        // With the screen off the CPU sleeps and a posted callback would stall until the next wake,
-        // so a partial wake lock bounded to this rest keeps the end-of-rest buzz on time.
-        holdRestWakeLock(deadline - System.currentTimeMillis() + WAKE_LOCK_GRACE_MS)
+        if (deadline == null || generation == null || snapshot.session.pausedAt != null) return null
         val alert = object : Runnable {
             override fun run() {
                 val remaining = deadline - System.currentTimeMillis()
@@ -178,11 +215,13 @@ class WorkoutOngoingService : Service() {
                     val manager = getSystemService(NotificationManager::class.java)
                     runCatching { manager.notify(NOTIFICATION_ID, buildNotification(store.readSnapshot(), "Rest complete • Tap to return")) }
                 }
-                releaseRestWakeLock()
+                restAlert = null
+                if (timerAlert == null) releaseRestWakeLock()
             }
         }
         restAlert = alert
         handler.postDelayed(alert, (deadline - System.currentTimeMillis()).coerceAtLeast(0L))
+        return deadline
     }
 
     private fun holdRestWakeLock(timeoutMs: Long) {

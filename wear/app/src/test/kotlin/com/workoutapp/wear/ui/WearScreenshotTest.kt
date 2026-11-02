@@ -122,6 +122,7 @@ class WearScreenshotTest {
             error = error,
             onCompleteSet = { _, _, _, _ -> },
             onSetTimerChanged = { _, _ -> },
+            onCountdownFinished = { _, _ -> false },
             onUndoLastSet = {},
             onExtendRest = {},
             onShortenRest = {},

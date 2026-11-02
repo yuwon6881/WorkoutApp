@@ -24,11 +24,18 @@ class WorkoutSyncCoordinator(
     private val gson = GsonBuilder().serializeNulls().create()
 
     suspend fun syncPending(): SyncOutcome {
+        // Counted per queue head: every queued edit carries the revision it was made on, so each one
+        // after the first is expected to rebase once; only one edit rebasing repeatedly is a loop.
         var rebases = 0
+        var head: Long? = null
         while (true) {
             val snapshot = store.readSnapshot()
             val operation = store.pendingOperations().firstOrNull() ?: return SyncOutcome()
             if (snapshot?.conflictOperationId != null) return SyncOutcome(conflict = true, pending = true)
+            if (operation.sequence != head) {
+                head = operation.sequence
+                rebases = 0
+            }
             store.markAttempted(operation.sequence)
             val server = try {
                 api.send(operation)

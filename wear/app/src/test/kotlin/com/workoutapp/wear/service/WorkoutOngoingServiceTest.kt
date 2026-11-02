@@ -5,6 +5,7 @@ import android.os.Looper
 import android.os.PowerManager
 import android.os.VibrationAttributes
 import android.os.VibratorManager
+import com.workoutapp.wear.data.SetTimerSnapshot
 import com.workoutapp.wear.data.WorkoutSession
 import com.workoutapp.wear.data.WorkoutSnapshot
 import com.workoutapp.wear.data.WorkoutStore
@@ -139,6 +140,51 @@ class WorkoutOngoingServiceTest {
         assertFalse(Shadows.shadowOf(context.getSystemService(VibratorManager::class.java).defaultVibrator).isVibrating)
     }
 
+    @Test
+    fun `a timed countdown pulses once from the service with the screen off and keeps the target`() {
+        val startedAt = now()
+        val running = SetTimerSnapshot(startedAt = startedAt, targetSeconds = 1)
+        store.saveSnapshot(snapshot(restEndsAt = null, generation = null).copy(setTimers = mapOf("plank-1" to running)))
+        val controller = newService()
+        dispatch(controller, 1)
+        val lock = latestWakeLock()
+        assertTrue(lock.isHeld)
+        val alert = privateRunnable(controller, "timerAlert")
+
+        Thread.sleep(1_050)
+        val vibrator = Shadows.shadowOf(context.getSystemService(VibratorManager::class.java).defaultVibrator)
+        vibrator.setHasVibrator(true)
+        alert.run()
+        idle()
+        assertTrue(vibrator.isVibrating)
+        assertFalse(lock.isHeld)
+        val finished = store.readSnapshot()?.setTimers?.get("plank-1")
+        assertNull(finished?.startedAt)
+        assertEquals(1, finished?.stoppedSeconds)
+
+        // The page's own countdown reaching the same run later finds it claimed and stays silent.
+        assertFalse(store.claimSetTimerAlert("plank-1", startedAt))
+    }
+
+    @Test
+    fun `a paused countdown arms no alert and holds no wake lock`() {
+        val paused = SetTimerSnapshot(startedAt = now(), targetSeconds = 30, pausedAt = now())
+        store.saveSnapshot(snapshot(restEndsAt = null, generation = null).copy(setTimers = mapOf("plank-1" to paused)))
+        val controller = newService()
+        dispatch(controller, 1)
+        assertNull(privateField(controller, "timerAlert"))
+        assertTrue(ShadowPowerManager.getLatestWakeLock()?.isHeld != true)
+    }
+
+    private fun privateField(controller: ServiceController<WorkoutOngoingService>, name: String): Any? {
+        val field = WorkoutOngoingService::class.java.getDeclaredField(name)
+        field.isAccessible = true
+        return field.get(controller.get())
+    }
+
+    private fun privateRunnable(controller: ServiceController<WorkoutOngoingService>, name: String): Runnable =
+        requireNotNull(privateField(controller, name) as? Runnable)
+
     private fun newService(): ServiceController<WorkoutOngoingService> =
         Robolectric.buildService(WorkoutOngoingService::class.java).create().also(controllers::add)
 
@@ -159,7 +205,7 @@ class WorkoutOngoingServiceTest {
     private fun latestWakeLock(): PowerManager.WakeLock =
         requireNotNull(ShadowPowerManager.getLatestWakeLock())
 
-    private fun snapshot(restEndsAt: Long, generation: String) = WorkoutSnapshot(
+    private fun snapshot(restEndsAt: Long?, generation: String?) = WorkoutSnapshot(
         session = WorkoutSession(id = "workout-test", name = "Test workout"),
         unit = "kg",
         defaultRestSeconds = 90,

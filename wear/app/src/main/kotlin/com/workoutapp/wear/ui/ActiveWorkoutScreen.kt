@@ -52,6 +52,8 @@ fun ActiveWorkoutScreen(
     error: String?,
     onCompleteSet: (reps: Int?, load: Double?, rir: String?, durationSeconds: Int?) -> Unit,
     onSetTimerChanged: (String, com.workoutapp.wear.data.SetTimerSnapshot) -> Unit,
+    /** Records a countdown that reached its target; true when this caller should give the pulse. */
+    onCountdownFinished: (setId: String, startedAt: Long) -> Boolean,
     onUndoLastSet: () -> Unit,
     onExtendRest: () -> Unit,
     onShortenRest: () -> Unit,
@@ -69,7 +71,9 @@ fun ActiveWorkoutScreen(
     val model = activeSetModel(snapshot)
     val unit = snapshot.unit
     val paused = session.pausedAt != null
-    val draft = remember(session.id, model.set?.id, unit) {
+    // One draft per set for the session, so crown edits not yet logged survive a look at another exercise.
+    val drafts = remember(session.id, unit) { mutableMapOf<String?, SetDraft>() }
+    val draft = drafts.getOrPut(model.set?.id) {
         SetDraft(model.startingReps, model.startingLoad, model.startingRir, model.startingSeconds).apply {
             restoreTimer(snapshot.setTimers?.get(model.set?.id))
         }
@@ -98,15 +102,17 @@ fun ActiveWorkoutScreen(
 
     val context = LocalContext.current
     // A countdown finishes itself at its target with the rest-end pulse; the draft keeps the time.
+    // The ongoing service watches the same deadline with the screen off; whichever claims it pulses.
     LaunchedEffect(draft, draft.timerStartedAt, draft.timerTarget, paused) {
         if (paused) return@LaunchedEffect
         val target = draft.timerTarget ?: return@LaunchedEffect
+        val startedAt = draft.timerStartedAt ?: return@LaunchedEffect
         val endsAt = draft.countdownEndsAt() ?: return@LaunchedEffect
         delay((endsAt - System.currentTimeMillis()).coerceAtLeast(0))
         if (draft.timing && draft.timerTarget == target) {
             draft.finishCountdown()
-            model.set?.id?.let { onSetTimerChanged(it, draft.snapshotTimer()) }
-            vibrateAlert(context)
+            val setId = model.set?.id ?: return@LaunchedEffect
+            if (onCountdownFinished(setId, startedAt)) vibrateAlert(context)
         }
     }
 

@@ -1,6 +1,7 @@
 package com.workoutapp.wear.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -338,7 +339,7 @@ private fun SetBadgeRow(
     ) {
         when {
             // Feedback is short-lived and takes the whole row so as much of it as possible shows.
-            feedback != null -> BadgeRowText(feedback.text, if (feedback.error) Palette.Red else Palette.Muted)
+            feedback != null -> BadgeRowText(feedback.text, if (feedback.error) Palette.Red else Palette.Muted, scrolls = true)
             paused -> {
                 Badge("Paused", Palette.Amber, Palette.SurfaceRaised)
                 // The frozen rest is trailing text so a narrow row shortens it rather than the state.
@@ -360,16 +361,20 @@ private fun SetBadgeRow(
     }
 }
 
-// "Small" matches the pills beside it, for a short value that must not be ellipsized away.
+// "Small" matches the pills beside it, for a short value that must not be ellipsized away. Feedback
+// scrolls rather than ellipsizing: at large text sizes a cut-off error would say nothing useful.
 @Composable
-private fun RowScope.BadgeRowText(text: String, color: Color, small: Boolean = false) {
+private fun RowScope.BadgeRowText(text: String, color: Color, small: Boolean = false, scrolls: Boolean = false) {
     Text(
         text,
-        modifier = Modifier.weight(1f, fill = false).semantics { contentDescription = text },
+        modifier = Modifier
+            .weight(1f, fill = false)
+            .then(if (scrolls) Modifier.basicMarquee(iterations = Int.MAX_VALUE) else Modifier)
+            .semantics { contentDescription = text },
         style = MaterialTheme.typography.labelSmall.let { if (small) it.copy(fontSize = 10.sp, lineHeight = 13.sp) else it },
         color = color,
         maxLines = 1,
-        overflow = TextOverflow.Ellipsis
+        overflow = if (scrolls) TextOverflow.Clip else TextOverflow.Ellipsis
     )
 }
 

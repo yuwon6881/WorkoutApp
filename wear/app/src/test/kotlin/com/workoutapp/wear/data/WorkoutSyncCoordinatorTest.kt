@@ -114,6 +114,58 @@ class WorkoutSyncCoordinatorTest {
         store.close()
     }
 
+    @Test
+    fun `a long offline queue rebases each edit once and syncs without a false review`() = runBlocking {
+        val server = session(setCount = 6)
+        val store = WorkoutStore(context)
+        var local = server
+        // Each edit is queued on the watch's own revision, so every one after the first must rebase.
+        (1..6).forEach { index ->
+            val operation = setOperation("operation-$index", "set-$index", local, 60.0 + index, 8, sequence = 0)
+            local = patchSession(local, "set-$index", 60.0 + index, 8)
+            store.enqueue(local.toSnapshot(), operation)
+        }
+        val gateway = FakeWorkoutGateway(server)
+
+        val result = WorkoutSyncCoordinator(context, store, gateway).syncPending()
+
+        assertFalse(result.conflict)
+        assertFalse(result.pending)
+        assertTrue(store.pendingOperations().isEmpty())
+        assertEquals(null, store.readSnapshot()?.conflictOperationId)
+        assertTrue(gateway.remote.exercises.single().sets.all { it.done })
+        store.close()
+    }
+
+    @Test
+    fun `a finish queued after a set syncs over the rest that set started`() = runBlocking {
+        val server = session()
+        val localAfterSet = patchSession(server, "set-1", 65.0, 9)
+        val afterFinish = localAfterSet.copy(active = false, finishedAt = "2026-09-25T10:10:00Z")
+        val finish = PendingOperation(
+            sequence = 0,
+            id = "finish-after-rest",
+            type = "finish",
+            sessionId = server.id,
+            revision = server.revision,
+            requestJson = """{"revision":4,"mutationId":"finish-after-rest","finishedAt":"2026-09-25T10:10:00Z"}""",
+            baselineJson = gson.toJson(localAfterSet),
+            createdAt = "2026-09-25T10:10:00Z",
+            attempted = false
+        )
+        val store = WorkoutStore(context)
+        store.enqueue(localAfterSet.toSnapshot(), setOperation("set-with-rest", "set-1", server, 65.0, 9, sequence = 0))
+        store.enqueue(afterFinish.toSnapshot(pendingFinish = true), finish)
+        val gateway = FakeWorkoutGateway(server, startsRest = true)
+
+        val result = WorkoutSyncCoordinator(context, store, gateway).syncPending()
+
+        assertFalse(result.conflict)
+        assertTrue(result.finished)
+        assertFalse(gateway.remote.active)
+        store.close()
+    }
+
     private fun setOperation(id: String, setId: String, baseline: WorkoutSession, weightKg: Double, reps: Int, sequence: Long) = PendingOperation(
         sequence = sequence,
         id = id,
@@ -127,18 +179,18 @@ class WorkoutSyncCoordinatorTest {
         attempted = false
     )
 
-    private fun session(): WorkoutSession = WorkoutSession(
+    private fun session(setCount: Int = 2): WorkoutSession = WorkoutSession(
         id = "workout-1",
         revision = 4,
         exercises = listOf(WorkoutExercise(
             id = "exercise-1",
             name = "Bench press",
             position = 0,
-            prescription = listOf(SetPrescription(8, 10), SetPrescription(8, 10)),
+            prescription = List(setCount) { SetPrescription(8, 10) },
             sets = listOf(
                 WorkoutSet(id = "set-1", position = 0, weightKg = 60.0, reps = 8),
                 WorkoutSet(id = "set-2", position = 1, weightKg = 40.0, reps = 10)
-            )
+            ) + (3..setCount).map { WorkoutSet(id = "set-$it", position = it - 1, weightKg = 60.0, reps = 8) }
         ))
     )
 
@@ -157,7 +209,8 @@ class WorkoutSyncCoordinatorTest {
         pendingFinish = pendingFinish
     )
 
-    private class FakeWorkoutGateway(start: WorkoutSession, var offline: Boolean = false) : WorkoutGateway {
+    /** Enforces revisions like the API; [startsRest] mirrors a logged working set starting a rest. */
+    private class FakeWorkoutGateway(start: WorkoutSession, var offline: Boolean = false, private val startsRest: Boolean = false) : WorkoutGateway {
         var remote = start
             private set
         val sentIds = mutableListOf<String>()
@@ -193,7 +246,8 @@ class WorkoutSyncCoordinatorTest {
                     done = request.get("done").asBoolean
                 )
             }) }
-            return remote.copy(exercises = exercises, revision = remote.revision + 1, completedSets = remote.completedSets + 1)
+            val rest = if (startsRest) SessionRest(generation = "rest-${operation.id}", status = "running", deadlineUtc = "2026-09-25T10:12:00Z") else remote.rest
+            return remote.copy(exercises = exercises, revision = remote.revision + 1, completedSets = remote.completedSets + 1, rest = rest)
         }
 
         private fun nullableDouble(json: JsonObject, key: String, fallback: Double?): Double? =

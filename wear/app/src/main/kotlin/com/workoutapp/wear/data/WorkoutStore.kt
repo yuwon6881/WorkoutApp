@@ -212,6 +212,24 @@ class WorkoutStore(context: Context) : SQLiteOpenHelper(context.applicationConte
         return claimed
     }
 
+    /**
+     * Finishes a timed set's countdown once. The screen and the background service both watch the
+     * deadline, and only the caller that finds this same run still going gives the pulse.
+     */
+    @Synchronized
+    fun claimSetTimerAlert(setId: String, startedAt: Long): Boolean {
+        var claimed = false
+        update { snapshot, _ ->
+            val timer = snapshot?.setTimers?.get(setId)
+            if (snapshot == null || timer == null || timer.startedAt != startedAt || timer.countdownEndsAt() == null) snapshot
+            else {
+                claimed = true
+                snapshot.copy(setTimers = snapshot.setTimers.orEmpty() + (setId to timer.finished()))
+            }
+        }
+        return claimed
+    }
+
     @Synchronized
     fun clearAll() {
         writableDatabase.delete("workout_operations", null, null)
