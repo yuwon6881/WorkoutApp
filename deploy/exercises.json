@@ -202,6 +202,9 @@
     "category": "Machine",
     "aliases": [
       "Single-Leg Leg Press"
+    ],
+    "secondaryMuscles": [
+      "Abductors"
     ]
   },
   {
@@ -217,6 +220,9 @@
     "aliases": [
       "Selectorized Single-Leg Leg Press",
       "Selectorised Single-Leg Leg Press"
+    ],
+    "secondaryMuscles": [
+      "Abductors"
     ]
   },
   {
@@ -277,7 +283,10 @@
       "dumbbells"
     ],
     "category": "Free Weights",
-    "aliases": []
+    "aliases": [],
+    "secondaryMuscles": [
+      "Abductors"
+    ]
   },
   {
     "slug": "smith-machine-lunge",
@@ -292,6 +301,9 @@
     "aliases": [
       "Smith Machine Static Lunge w/ Elevated Front Foot",
       "Smith Machine Static Lunge"
+    ],
+    "secondaryMuscles": [
+      "Abductors"
     ]
   },
   {
@@ -306,7 +318,8 @@
     "category": "Machine",
     "aliases": [],
     "secondaryMuscles": [
-      "Glutes"
+      "Glutes",
+      "Abductors"
     ]
   },
   {
@@ -319,7 +332,10 @@
       "dumbbells"
     ],
     "category": "Free Weights",
-    "aliases": []
+    "aliases": [],
+    "secondaryMuscles": [
+      "Abductors"
+    ]
   },
   {
     "slug": "barbell-lunge",
@@ -332,7 +348,10 @@
       "squat-rack"
     ],
     "category": "Free Weights",
-    "aliases": []
+    "aliases": [],
+    "secondaryMuscles": [
+      "Abductors"
+    ]
   },
   {
     "slug": "db-bulgarian-split-squat",
@@ -347,6 +366,9 @@
     "category": "Free Weights",
     "aliases": [
       "Bulgarian Split Squat"
+    ],
+    "secondaryMuscles": [
+      "Abductors"
     ]
   },
   {
@@ -360,7 +382,10 @@
       "flat-bench"
     ],
     "category": "Free Weights",
-    "aliases": []
+    "aliases": [],
+    "secondaryMuscles": [
+      "Abductors"
+    ]
   },
   {
     "slug": "walking-lunge",
@@ -370,7 +395,10 @@
     "equipment": "Bodyweight",
     "category": "Body Weight",
     "loadModel": "bodyweight_context_only",
-    "aliases": []
+    "aliases": [],
+    "secondaryMuscles": [
+      "Abductors"
+    ]
   },
   {
     "slug": "leg-extension",
@@ -427,6 +455,9 @@
     "category": "Free Weights",
     "aliases": [
       "Step-Up"
+    ],
+    "secondaryMuscles": [
+      "Abductors"
     ]
   },
   {
@@ -3929,7 +3960,7 @@
     "slug": "seated-hip-abduction",
     "weightBasis": "total",
     "name": "Seated Hip Abduction",
-    "muscle": "Traps, calves, and hips",
+    "muscle": "Abductors",
     "equipment": "Machine",
     "requires": [
       "hip-abduction"
@@ -3941,7 +3972,7 @@
     "slug": "machine-hip-abduction",
     "weightBasis": "total",
     "name": "Machine Hip Abduction",
-    "muscle": "Traps, calves, and hips",
+    "muscle": "Abductors",
     "equipment": "Machine",
     "requires": [
       "hip-abduction"
@@ -3956,7 +3987,7 @@
     "slug": "cable-hip-abduction",
     "weightBasis": "total",
     "name": "Cable Hip Abduction",
-    "muscle": "Traps, calves, and hips",
+    "muscle": "Abductors",
     "equipment": "Cable",
     "requires": [
       "cable-station"
@@ -3970,7 +4001,7 @@
     "slug": "standing-plate-abduction",
     "weightBasis": "total",
     "name": "Standing Plate Abduction",
-    "muscle": "Traps, calves, and hips",
+    "muscle": "Abductors",
     "equipment": "Plate",
     "requires": [
       "plates"
@@ -3982,13 +4013,82 @@
     "slug": "lateral-band-walk",
     "weightBasis": "total",
     "name": "Lateral Band Walk",
-    "muscle": "Traps, calves, and hips",
+    "muscle": "Abductors",
     "equipment": "Band",
     "requires": [
       "bands"
     ],
     "category": "Body Weight",
     "aliases": []
+  },
+  {
+    "slug": "banded-clamshell",
+    "weightBasis": "total",
+    "name": "Banded Clamshell",
+    "muscle": "Abductors",
+    "equipment": "Band",
+    "requires": [
+      "bands"
+    ],
+    "category": "Body Weight",
+    "aliases": [
+      "Clamshell",
+      "Clam Shell",
+      "Side-Lying Clamshell"
+    ]
+  },
+  {
+    "slug": "banded-monster-walk",
+    "weightBasis": "total",
+    "name": "Banded Monster Walk",
+    "muscle": "Abductors",
+    "equipment": "Band",
+    "requires": [
+      "bands"
+    ],
+    "category": "Body Weight",
+    "aliases": [
+      "Monster Walk"
+    ]
+  },
+  {
+    "slug": "db-curtsy-lunge",
+    "weightBasis": "per_side",
+    "name": "DB Curtsy Lunge",
+    "muscle": "Quads",
+    "equipment": "Dumbbell",
+    "requires": [
+      "dumbbells"
+    ],
+    "category": "Free Weights",
+    "aliases": [
+      "Curtsy Lunge",
+      "Dumbbell Curtsy Lunge"
+    ],
+    "secondaryMuscles": [
+      "Glutes",
+      "Abductors"
+    ]
+  },
+  {
+    "slug": "db-lateral-lunge",
+    "weightBasis": "per_side",
+    "name": "DB Lateral Lunge",
+    "muscle": "Quads",
+    "equipment": "Dumbbell",
+    "requires": [
+      "dumbbells"
+    ],
+    "category": "Free Weights",
+    "aliases": [
+      "Lateral Lunge",
+      "Side Lunge",
+      "Dumbbell Lateral Lunge"
+    ],
+    "secondaryMuscles": [
+      "Adductors",
+      "Glutes"
+    ]
   },
   {
     "slug": "hex-bar-shrug",
@@ -5859,6 +5959,9 @@
     "category": "Free Weights",
     "aliases": [
       "Dumbbell Reverse Lunge"
+    ],
+    "secondaryMuscles": [
+      "Abductors"
     ]
   },
   {
@@ -5874,6 +5977,9 @@
     "aliases": [
       "Dumbbell Static Lunge",
       "DB Split Squat"
+    ],
+    "secondaryMuscles": [
+      "Abductors"
     ]
   },
   {
@@ -5886,7 +5992,10 @@
       "smith-machine"
     ],
     "category": "Machine",
-    "aliases": []
+    "aliases": [],
+    "secondaryMuscles": [
+      "Abductors"
+    ]
   },
   {
     "slug": "banded-push-up",

@@ -12,6 +12,8 @@ public static class MuscleRegions
     public const string Forearms = "Forearms";
     public const string Core = "Core";
     public const string Glutes = "Glutes";
+    /// Gluteus medius, minimus and TFL: frontal-plane hip work that would vanish inside Glutes.
+    public const string Abductors = "Abductors";
     public const string Quads = "Quads";
     public const string Hamstrings = "Hamstrings";
     public const string Adductors = "Adductors";
@@ -20,7 +22,7 @@ public static class MuscleRegions
     public static readonly IReadOnlyList<string> All =
     [
         Neck, Traps, Shoulders, Chest, Back, Biceps, Triceps, Forearms,
-        Core, Glutes, Quads, Hamstrings, Adductors, Calves
+        Core, Glutes, Abductors, Quads, Hamstrings, Adductors, Calves
     ];
 }
 
@@ -125,7 +127,8 @@ public static class MuscleAttribution
     private static List<string> TrapCalfHipRefinement(string name)
     {
         if (HasAny(name, "calf", "toe press")) return [MuscleRegions.Calves];
-        if (HasAny(name, "abduction", "band walk")) return [MuscleRegions.Glutes];
+        if (HasAny(name, "abduction", "abductor", "band walk", "lateral walk", "monster walk", "clamshell", "clam shell"))
+            return [MuscleRegions.Abductors];
         if (HasWord(name, "shrug")) return [MuscleRegions.Traps];
         return [];
     }

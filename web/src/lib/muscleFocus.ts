@@ -9,7 +9,7 @@ export type ViewBox = { x: number; y: number; width: number; height: number };
 /// Where a muscle reads best when only one side can be shown.
 export const MUSCLE_SIDE: Record<string, BodySide> = {
   Neck: 'front', Traps: 'back', Shoulders: 'front', Chest: 'front', Back: 'back',
-  Biceps: 'front', Triceps: 'back', Forearms: 'front', Core: 'front', Glutes: 'back',
+  Biceps: 'front', Triceps: 'back', Forearms: 'front', Core: 'front', Glutes: 'back', Abductors: 'back',
   Quads: 'front', Hamstrings: 'back', Adductors: 'front', Calves: 'back'
 };
 

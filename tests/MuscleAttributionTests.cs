@@ -10,6 +10,8 @@ public class MuscleAttributionTests
     [InlineData("Copenhagen Hip Adduction", "Adductors and neck", "Adductors")]
     [InlineData("DB Wrist Curl", "Biceps and forearms", "Forearms")]
     [InlineData("Seated Hamstring Curl", "Posterior chain", "Hamstrings")]
+    [InlineData("Seated Hip Abduction", "Traps, calves, and hips", "Abductors")]
+    [InlineData("Lateral Band Walk", "Traps, calves, and hips", "Abductors")]
     public void Compound_primary_buckets_refine_from_exercise_names(string name, string primary, string expected)
     {
         var credits = MuscleAttribution.For(name, primary, null);
@@ -64,6 +66,43 @@ public class MuscleAttributionTests
         Assert.Equal(1, credits[MuscleRegions.Chest]);
         Assert.Equal(0.5, credits[MuscleRegions.Triceps]);
         Assert.Equal(0.5, credits[MuscleRegions.Shoulders]);
+    }
+
+    [Theory]
+    [InlineData("Banded Clamshell")]
+    [InlineData("Monster Walk")]
+    [InlineData("Hip Abductor Machine")]
+    [InlineData("Cable Hip Abduction")]
+    public void Unmatched_abduction_imports_credit_abductors_rather_than_glutes(string name)
+    {
+        var credit = Assert.Single(MuscleAttribution.For(name, null, null));
+        Assert.Equal(MuscleRegions.Abductors, credit.Region);
+        Assert.Equal(MuscleAttribution.PrimaryWeight, credit.Weight);
+    }
+
+    [Fact]
+    public void Adduction_stays_with_adductors_beside_the_new_abductor_region()
+    {
+        var credit = Assert.Single(MuscleAttribution.For("Hip Adduction", null, null));
+        Assert.Equal(MuscleRegions.Adductors, credit.Region);
+    }
+
+    [Fact]
+    public void Unilateral_stance_secondary_credits_abductors_without_moving_glute_credit()
+    {
+        var credits = MuscleAttribution.For("DB Bulgarian Split Squat", "Quads", ["Abductors"])
+            .ToDictionary(credit => credit.Region, credit => credit.Weight);
+
+        Assert.Equal(1, credits[MuscleRegions.Quads]);
+        Assert.Equal(0.5, credits[MuscleRegions.Glutes]);
+        Assert.Equal(0.5, credits[MuscleRegions.Abductors]);
+    }
+
+    [Fact]
+    public void Abductors_sit_between_glutes_and_quads_in_canonical_order()
+    {
+        var all = MuscleRegions.All.ToList();
+        Assert.Equal(all.IndexOf(MuscleRegions.Glutes) + 1, all.IndexOf(MuscleRegions.Abductors));
     }
 
     [Fact]

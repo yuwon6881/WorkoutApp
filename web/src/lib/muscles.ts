@@ -20,6 +20,7 @@ const COMPOUND_MUSCLE_MAP: Record<string, string[]> = {
   'traps': ['Traps'],
   'calves': ['Calves'],
   'glutes': ['Glutes'],
+  'abductors': ['Abductors'],
   'neck': ['Neck'],
   'hamstrings': ['Hamstrings'],
   'adductors': ['Adductors'],
@@ -30,7 +31,8 @@ const COMPOUND_MUSCLE_MAP: Record<string, string[]> = {
 const HEURISTIC_KEYWORDS: [RegExp, string][] = [
   [/\b(quad|squat|leg extension|lunge|hack|split squat|leg press)\b/i, 'Quads'],
   [/\b(hamstring|leg curl|rdl|romanian deadlift|good morning|stiff-leg)\b/i, 'Hamstrings'],
-  [/\b(glute|hip thrust|abduction|kickback)\b/i, 'Glutes'],
+  [/\b(glute|hip thrust|kickback)\b/i, 'Glutes'],
+  [/\b(abduction|abductors?|band walk|lateral walk|monster walk|clam ?shell)\b/i, 'Abductors'],
   [/\b(bench|chest|pec|flye?|incline press|push-?up)\b/i, 'Chest'],
   [/\b(shoulder|overhead press|lateral raise|delts?|y-raise|military press|arnold press)\b/i, 'Shoulders'],
   [/\b(row|pull-?up|pull-?down|lats?|chin-?up|deadlift)\b/i, 'Back'],
@@ -46,7 +48,7 @@ function normalizeCatalogMuscle(muscle: string, exerciseName?: string): string[]
   if (clean === 'traps, calves, and hips' && exerciseName) {
     if (/\b(shrug|kelso|trap)\b/i.test(exerciseName)) return ['Traps'];
     if (/\b(calf|calves|toe press)\b/i.test(exerciseName)) return ['Calves'];
-    if (/\b(abduction|band walk)\b/i.test(exerciseName)) return ['Glutes'];
+    if (/\b(abduction|abductors?|band walk|lateral walk|monster walk|clam ?shell)\b/i.test(exerciseName)) return ['Abductors'];
   }
   if (COMPOUND_MUSCLE_MAP[clean]) return COMPOUND_MUSCLE_MAP[clean];
   if (!muscle.trim()) return [];

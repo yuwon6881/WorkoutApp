@@ -96,6 +96,26 @@ describe('getPlannedMuscleCredits', () => {
     expect(result.unattributedExercises).toBe(1);
   });
 
+  it('credits hip abduction to Abductors, from the catalog bucket, a direct primary, or an unmatched name', () => {
+    const result = getPlannedMuscleCredits([
+      workoutExercise('seated', 'Seated Hip Abduction', [set(), set()]),
+      workoutExercise('clam', 'Clamshell', [set()]),
+      workoutExercise(null, 'Banded Monster Walk', [set()]),
+      workoutExercise('split', 'DB Bulgarian Split Squat', [set(), set()])
+    ], [
+      catalogExercise('seated', 'Traps, calves, and hips'),
+      catalogExercise('clam', 'Abductors'),
+      catalogExercise('split', 'Quads', ['Abductors'])
+    ]);
+
+    expect(result.muscles).toEqual([
+      { muscle: 'Abductors', sets: 5 },
+      { muscle: 'Quads', sets: 2 },
+      { muscle: 'Glutes', sets: 1 }
+    ]);
+    expect(result.unattributedExercises).toBe(0);
+  });
+
   it('keeps unmatched names out of the map and does not count warm-up-only prescriptions', () => {
     const result = getPlannedMuscleCredits([
       workoutExercise(null, 'Unmapped unfamiliar movement', [set(), set(true)]),
