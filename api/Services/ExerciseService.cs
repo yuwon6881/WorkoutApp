@@ -215,7 +215,9 @@ public sealed partial class ExerciseService(AppDb db, IMemoryCache? cache = null
             var groupStrength = groupSets.Where(x => strengthIds.Contains(x.Id)).ToList();
             var estimates = groupStrength.Select(x => Progression.E1rm(RecordedLoad(x), x.Reps, x.Rpe)).Where(x => x is not null).Select(x => x!.Value).ToList();
             var best = groupStrength.Where(x => RecordedLoad(x) is not null).OrderByDescending(x => RecordedLoad(x)).ThenByDescending(x => x.Reps).FirstOrDefault();
-            var rep = groupStrength.Where(x => x.Reps is not null).OrderByDescending(x => x.Reps).FirstOrDefault();
+            // The row reads as one set: the heaviest load with its own reps, never reps from a lighter
+            // back-off set. Only a session with no load to show falls back to its most reps.
+            var rep = best ?? groupStrength.Where(x => x.Reps is not null).OrderByDescending(x => x.Reps).FirstOrDefault();
             records.Add((group.Key, DateOnly.FromDateTime(session.FinishedAt!.Value), session.Name,
                 estimates.Count == 0 ? null : estimates.Max(), best == null ? null : RecordedLoad(best),
                 volume.Count == 0 ? null : volume.Sum(), rep?.Reps, partial));

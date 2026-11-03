@@ -86,6 +86,25 @@ public sealed class ExerciseInsightTests
         Assert.Equal(Json.Write(await new ExerciseService(h.Db).Insight(benchId, "3m", 1, 1, default)), Json.Write(quarter));
     }
 
+    [Fact]
+    public async Task A_session_row_pairs_its_heaviest_load_with_that_sets_reps()
+    {
+        // 70 kg for 5, then a 60 kg back-off set for 7: the row must read 70 kg x 5, not 70 kg x 7,
+        // which no set ever did.
+        var (h, templateId, benchId) = await Ready();
+        await using var owned = h;
+        var session = await h.Workouts.Start(templateId, null, default);
+        await h.Workouts.Save(session.Id, new SessionInput(null,
+            [new SessionExerciseInput(benchId, "Bench press", null, [Harness.Set(5, 8), Harness.Set(5, 8)],
+                [new SetInput(70, 5, null, true), new SetInput(60, 7, null, true)])], session.Revision, null), default);
+        await h.Workouts.Finish(session.Id, null, default);
+
+        var point = Assert.Single((await new ExerciseService(h.Db).Insight(benchId, "all", 0, 20, default)).Points);
+
+        Assert.Equal(70, point.LoadKg);
+        Assert.Equal(5, point.Reps);
+    }
+
     private static async Task<(Harness h, Guid templateId, Guid benchId)> Ready()
     {
         var h = await Harness.Create();
