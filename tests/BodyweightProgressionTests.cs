@@ -83,4 +83,51 @@ public sealed class BodyweightProgressionTests
         Assert.Equal(mode == ResistanceModes.Bodyweight ? null : (double?)20, result.SuggestedLoadKg);
         Assert.Null(result.SuggestedSystemLoadKg);
     }
+
+    private static SetExposure Plain(int reps, int daysAgo, double rpe = 8) => new(Guid.NewGuid(),
+        DateTime.UtcNow.AddDays(-daysAgo), null, reps, rpe, 80, ResistanceModes.Bodyweight,
+        RepMin: 8, RepMax: 12, TargetRpe: 8, HasPrescription: true);
+
+    // Trend weight moves a little nearly every day. A change worth less than a whole rep at the
+    // set's effort must not replace the policy's progression with a re-estimate of the last reps.
+    [Theory]
+    [InlineData(80.0)]
+    [InlineData(79.9)]
+    [InlineData(80.1)]
+    [InlineData(79.0)]
+    [InlineData(81.0)]
+    public void A_small_bodyweight_change_keeps_plain_bodyweight_reps_progressing(double today)
+    {
+        var result = BodyweightProgression.Suggest(Harness.Set(8, 12, 8), [Plain(9, 3), Plain(8, 6)],
+            ProgressionModes.Normal, 0, null, ResistanceModes.Bodyweight, today);
+        Assert.Equal(10, result.SuggestedReps);
+        Assert.Equal(today, result.SuggestedSystemLoadKg);
+        Assert.False(result.IsBodyweightAdjustment);
+        Assert.Contains("one more rep", result.Reason);
+    }
+
+    // A real change moves the progressed target, not the last session's reps: lighter adds only the
+    // whole reps it earns, heavier takes away at least what it costs.
+    [Theory]
+    [InlineData(76, 12)]
+    [InlineData(78, 11)]
+    [InlineData(83, 8)]
+    [InlineData(84, 8)]
+    public void A_real_bodyweight_change_adjusts_the_progressed_reps(double today, int expected)
+    {
+        var result = BodyweightProgression.Suggest(Harness.Set(8, 12, 8), [Plain(9, 3), Plain(8, 6)],
+            ProgressionModes.Normal, 0, null, ResistanceModes.Bodyweight, today);
+        Assert.Equal(expected, result.SuggestedReps);
+        Assert.True(result.IsBodyweightAdjustment);
+        Assert.Contains("bodyweight changed", result.Reason);
+    }
+
+    [Fact]
+    public void A_small_bodyweight_change_keeps_the_hard_exposure_rule()
+    {
+        var result = BodyweightProgression.Suggest(Harness.Set(8, 12, 8), [Plain(10, 3, 10)],
+            ProgressionModes.Normal, 0, null, ResistanceModes.Bodyweight, 79.8);
+        Assert.Equal(8, result.SuggestedReps);
+        Assert.Contains("harder than the target", result.Reason);
+    }
 }

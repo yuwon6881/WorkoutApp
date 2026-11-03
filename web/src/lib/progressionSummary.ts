@@ -1,4 +1,4 @@
-import type { Session, SessionExercise } from '../types';
+import type { NutritionTrainingContext, Session, SessionExercise } from '../types';
 
 export type ProgressionSummary = {
   mode: 'normal' | 'conservative' | 'preservation';
@@ -53,21 +53,31 @@ function nutritionFreshAtWorkoutStart(session: Session): boolean {
   return Number.isFinite(age) && age >= 0 && age <= CACHE_WINDOW_MS;
 }
 
+function qualifiedObservedLoss(context: NutritionTrainingContext): number | null {
+  const observed = context.observedWindowDays != null && context.observedWindowDays >= 14
+    ? context.observedLossRatePercent
+    : null;
+  return observed != null && Number.isFinite(observed) ? observed : null;
+}
+
+/** Mirrors the server: on an active cut a qualified scale trend outranks the planned rate. */
+function decidingRate(context: NutritionTrainingContext): number | null {
+  const observed = qualifiedObservedLoss(context);
+  if (context.phaseComplete || context.effectiveGoal !== 'lose') return observed;
+  const target = context.targetRatePercent;
+  return observed ?? (target != null && Number.isFinite(target) ? target : null);
+}
+
 function nutritionMode(session: Session): ProgressionMode {
   const context = session.nutritionContext;
   if (!context?.confirmed) return 'normal';
 
-  const observed = context.observedWindowDays != null && context.observedWindowDays >= 14
-    ? context.observedLossRatePercent
-    : null;
+  const rate = decidingRate(context);
   if (context.phaseComplete || context.effectiveGoal !== 'lose') {
-    return isUnplannedLoss(observed) ? 'conservative' : 'normal';
+    return isUnplannedLoss(rate) ? 'conservative' : 'normal';
   }
-  const rates = [context.targetRatePercent, observed]
-    .filter((rate): rate is number => rate != null && Number.isFinite(rate) && rate >= 0)
-    .map(Math.abs);
-  if (rates.length === 0) return 'normal';
-  return Math.max(...rates) >= 0.75 ? 'preservation' : 'conservative';
+  if (rate == null || rate <= 0) return 'normal';
+  return rate >= 0.75 ? 'preservation' : 'conservative';
 }
 
 function nutritionStatus(session: Session, isFresh: boolean): ProgressionSummary['nutritionStatus'] {
@@ -90,7 +100,7 @@ function makeReason(
   mode: ProgressionMode,
   goal: string | null,
   status: ProgressionSummary['nutritionStatus'],
-  rates: number[],
+  rate: number | null,
   phaseComplete: boolean,
   appliedReason: string | null,
   hasStoredMode: boolean
@@ -113,18 +123,20 @@ function makeReason(
 
   const source = status === 'cached' ? 'The saved Nutrition snapshot' : 'Nutrition';
   let contextReason: string;
-  if (goal !== 'Loss' && mode === 'conservative' && rates.length > 0) {
-    contextReason = `${source} reports a ${goal?.toLowerCase() ?? 'non-cutting'} goal, but recorded weigh-ins show a loss of ${Math.max(...rates).toFixed(2)}% per week; conservative progression applies.`;
+  if (goal !== 'Loss' && mode === 'conservative' && rate != null) {
+    contextReason = `${source} reports a ${goal?.toLowerCase() ?? 'non-cutting'} goal, but recorded weigh-ins show a loss of ${rate.toFixed(2)}% per week; conservative progression applies.`;
   } else if (goal === 'Gain') {
     contextReason = `${source} reports a gain goal. The goal alone does not verify a calorie surplus.`;
   } else if (goal === 'Maintenance') {
     contextReason = `${source} reports a maintenance goal.`;
   } else if (goal === 'Loss' && phaseComplete) {
     contextReason = `${source} reports a completed loss phase.`;
-  } else if (goal === 'Loss' && rates.length === 0) {
+  } else if (goal === 'Loss' && rate == null) {
     contextReason = `${source} reports a loss goal, but no qualifying recorded loss-rate evidence was available.`;
-  } else if (goal === 'Loss' && mode === 'preservation') {
-    contextReason = `${source} reports a loss goal and a recorded rate of ${Math.max(...rates).toFixed(2)}% per week; this selects preservation progression.`;
+  } else if (goal === 'Loss' && rate != null && rate <= 0) {
+    contextReason = `${source} reports a loss goal, but recorded weigh-ins show no weekly loss, so there is no deficit to protect; normal progression applies.`;
+  } else if (goal === 'Loss' && mode === 'preservation' && rate != null) {
+    contextReason = `${source} reports a loss goal and a recorded rate of ${rate.toFixed(2)}% per week; this selects preservation progression.`;
   } else if (goal === 'Loss' && mode === 'conservative') {
     contextReason = `${source} reports a loss goal and a recorded rate below 0.75% per week; this selects conservative progression, which requires 2 qualifying exposures before load advances.`;
   } else if (goal === 'Loss') {
@@ -152,14 +164,7 @@ export function getProgressionSummary(session: Session): ProgressionSummary | nu
 
   if (!hasStoredMode && !nutrition) return null;
   const goal = isFresh ? displayGoal(nutrition?.effectiveGoal) : null;
-  const rates = nutrition && isFresh
-    ? [
-        nutrition.targetRatePercent,
-        nutrition.observedWindowDays != null && nutrition.observedWindowDays >= 14
-          ? nutrition.observedLossRatePercent
-          : null
-      ].filter((rate): rate is number => rate != null && Number.isFinite(rate) && rate >= 0).map(Math.abs)
-    : [];
+  const rate = nutrition && isFresh ? decidingRate(nutrition) : null;
   const modeName = mode === 'preservation'
     ? 'Preservation progression'
     : mode === 'conservative'
@@ -171,7 +176,7 @@ export function getProgressionSummary(session: Session): ProgressionSummary | nu
     mode,
     goal,
     label: goal ? `${goal} goal · ${modeName}` : modeName,
-    reason: makeReason(mode, goal, status, rates, nutrition?.phaseComplete ?? false, appliedReason, hasStoredMode),
+    reason: makeReason(mode, goal, status, rate, nutrition?.phaseComplete ?? false, appliedReason, hasStoredMode),
     nutritionStatus: status
   };
 }

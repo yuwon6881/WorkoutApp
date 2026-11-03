@@ -179,6 +179,22 @@ public sealed class ProgressionGapTests
         Assert.Equal(expected, NutritionContextService.Mode(context, Now));
     }
 
+    // A qualified scale trend outranks the stated cut rate: a cut that is not losing weight is not a
+    // deficit, and the measured rate, not the planned one, picks the tier.
+    [Theory]
+    [InlineData(1.0, -.3, 21, ProgressionModes.Normal)]
+    [InlineData(1.0, 0.0, 14, ProgressionModes.Normal)]
+    [InlineData(1.0, .4, 21, ProgressionModes.Conservative)]
+    [InlineData(.5, .8, 21, ProgressionModes.Preservation)]
+    [InlineData(1.0, -.3, 7, ProgressionModes.Preservation)]
+    [InlineData(1.0, null, null, ProgressionModes.Preservation)]
+    public void A_qualified_observed_rate_decides_the_tier_for_a_loss_goal(double? target, double? loss, int? days, string expected)
+    {
+        var context = new NutritionTrainingContext("subject", 1, "UTC", "lose", false, target, loss, days, 80, null, 79, null, Now, true);
+
+        Assert.Equal(expected, NutritionContextService.Mode(context, Now));
+    }
+
     [Fact]
     public void An_unconfirmed_or_stale_context_never_triggers_the_guard()
     {

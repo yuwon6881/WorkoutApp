@@ -141,6 +141,40 @@ public sealed class NutritionConnectionStateTests
         await AssertCacheRead(cacheAgeHours, expectedCalls, freshHours: freshHours);
     }
 
+    // 403 (connection no longer valid) and 409 (no confirmed goal) are Nutrition's answer, not an
+    // outage: the cached cut must stop steering progression now, and on later reads too.
+    [Theory]
+    [InlineData(System.Net.HttpStatusCode.Forbidden)]
+    [InlineData(System.Net.HttpStatusCode.Conflict)]
+    public async Task A_rejected_read_never_falls_back_to_the_cached_goal(System.Net.HttpStatusCode status)
+    {
+        await using var harness = await Harness.Create(new() { ["Integrations:NutritionTrainingContextUrl"] = ContextUrl });
+        var user = await harness.SignIn();
+        var successAt = DateTime.UtcNow.AddHours(-8);
+        harness.Db.IntegrationGrants.Add(ActiveGrant(user.Id, 2));
+        harness.Db.NutritionContexts.Add(new NutritionContextCache
+        {
+            UserId = user.Id,
+            ContextJson = Json.Write(LosingContext(user.IdentitySubject, successAt)),
+            LastSuccessAt = successAt
+        });
+        await harness.Db.SaveChangesAsync();
+        var nutrition = new DelayedHandler(_ => new HttpResponseMessage(status));
+        var service = new NutritionContextService(harness.Db, new SingleClientFactory(nutrition), harness.Config);
+
+        var rejected = await service.Get(CancellationToken.None);
+        Assert.Equal(ProgressionModes.Normal, rejected.Mode);
+        Assert.Null(rejected.Context);
+        Assert.False(rejected.Confirmed);
+        Assert.NotNull(rejected.Error);
+
+        var outage = new NutritionContextService(harness.Db,
+            new SingleClientFactory(new DelayedHandler(_ => new HttpResponseMessage(System.Net.HttpStatusCode.ServiceUnavailable))), harness.Config);
+        var later = await outage.Get(CancellationToken.None);
+        Assert.Equal(ProgressionModes.Normal, later.Mode);
+        Assert.False(later.Confirmed);
+    }
+
     private static async Task AssertCacheRead(double cacheAgeHours, int expectedCalls, bool forceLive = false, string? freshHours = null)
     {
         await using var harness = await Harness.Create(new()

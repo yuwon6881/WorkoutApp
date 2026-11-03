@@ -1,3 +1,4 @@
+using System.Net;
 using System.Net.Http.Headers;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
@@ -71,6 +72,18 @@ public sealed class NutritionContextService(AppDb db, IHttpClientFactory clients
                 }
                 throw new InvalidOperationException("Nutrition returned an invalid training context.");
             }
+            catch (HttpRequestException ex) when (ex.StatusCode is HttpStatusCode.Forbidden or HttpStatusCode.Conflict
+                && !ct.IsCancellationRequested)
+            {
+                // Nutrition answered, and the answer is not an outage: the connection is no longer
+                // valid (403) or there is no confirmed goal (409). An older cached goal must not keep
+                // steering progression for the rest of the cache window.
+                var rejection = ex.StatusCode == HttpStatusCode.Conflict
+                    ? "Nutrition has no confirmed goal for this account yet."
+                    : "Nutrition no longer accepts this connection. Reconnect Nutrition in Settings.";
+                await SaveError(rejection, now, ct, rejected: true);
+                return new(null, ProgressionModes.Normal, false, false, rejection);
+            }
             catch (Exception ex) when ((ex is HttpRequestException or TaskCanceledException or JsonException or InvalidOperationException)
                 && !ct.IsCancellationRequested)
             {
@@ -97,10 +110,13 @@ public sealed class NutritionContextService(AppDb db, IHttpClientFactory clients
         // to preservation, since the goal itself did not ask for a deficit.
         if (context.EffectiveGoal != "lose" || context.PhaseComplete)
             return observed is >= UnplannedLossPercent ? ProgressionModes.Conservative : ProgressionModes.Normal;
-        var validRates = new[] { context.TargetRatePercent, observed }
-            .Where(rate => rate is >= 0).Select(rate => Math.Abs(rate!.Value)).ToList();
-        if (validRates.Count == 0) return ProgressionModes.Normal;
-        return validRates.Max() >= .75 ? ProgressionModes.Preservation : ProgressionModes.Conservative;
+        // A qualified scale trend is what the body is doing, so it outranks the planned rate: a cut
+        // that is holding or gaining weight is not a deficit, and a cut losing slower or faster than
+        // planned is protected for the rate it actually runs at. The target decides only until the
+        // trend qualifies.
+        var rate = observed ?? context.TargetRatePercent;
+        if (rate is not > 0) return ProgressionModes.Normal;
+        return rate >= .75 ? ProgressionModes.Preservation : ProgressionModes.Conservative;
     }
 
     private async Task SaveSuccess(NutritionTrainingContext context, DateTime now, CancellationToken ct)
@@ -115,7 +131,9 @@ public sealed class NutritionContextService(AppDb db, IHttpClientFactory clients
         await db.SaveChangesAsync(ct);
     }
 
-    private async Task SaveError(string error, DateTime now, CancellationToken ct)
+    /// A rejected read also ends the cached context's validity, so neither the freshness window nor
+    /// the outage fallback reuses it; the stored context stays as dated history.
+    private async Task SaveError(string error, DateTime now, CancellationToken ct, bool rejected = false)
     {
         try
         {
@@ -126,6 +144,7 @@ public sealed class NutritionContextService(AppDb db, IHttpClientFactory clients
                 db.NutritionContexts.Add(row);
             }
             row.LastError = error.Length > 500 ? error[..500] : error; row.LastErrorAt = now; row.Revision++;
+            if (rejected) row.LastSuccessAt = null;
             await db.SaveChangesAsync(ct);
         }
         catch (DbUpdateException)

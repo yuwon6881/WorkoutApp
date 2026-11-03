@@ -36,8 +36,9 @@ freshness window; outages have bounded live reads and a disclosed cache fallback
 | Qualified context | Mode | Exposures at the range ceiling before a load increase |
 |---|---|---:|
 | Maintenance/gain, without qualified rapid observed loss | Normal | 1 |
-| Active loss goal below 0.75%/week | Conservative | 2 |
-| Active loss goal at least 0.75%/week, target or qualified observed rate | Preservation | 3 |
+| Active loss goal below 0.75%/week (qualified observed rate, else target) | Conservative | 2 |
+| Active loss goal at least 0.75%/week (qualified observed rate, else target) | Preservation | 3 |
+| Active loss goal whose qualified observed rate shows no loss | Normal | 1 |
 | Maintenance/gain/finished phase losing at least 0.5%/week over 14+ days | Conservative | 2 |
 | Missing, stale or unconfirmed context | Normal | 1 |
 

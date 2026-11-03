@@ -86,6 +86,32 @@ describe('getProgressionSummary', () => {
     }
   });
 
+  it.each([
+    [1.0, -0.3, 21, 'normal'],
+    [1.0, 0, 14, 'normal'],
+    [1.0, 0.4, 21, 'conservative'],
+    [0.5, 0.8, 21, 'preservation'],
+    [1.0, -0.3, 7, 'preservation'],
+    [1.0, null, null, 'preservation']
+  ] as const)('mirrors the server: a qualified trend outranks a %s%%/wk cut target (%s%%/wk over %s days)', (target, rate, days, mode) => {
+    const summary = getProgressionSummary(makeSession({
+      nutritionContext: makeNutrition({
+        effectiveGoal: 'lose', targetRatePercent: target, observedLossRatePercent: rate, observedWindowDays: days
+      })
+    }));
+    expect(summary?.mode).toBe(mode);
+  });
+
+  it('explains a loss goal whose weigh-ins show no loss', () => {
+    const summary = getProgressionSummary(makeSession({
+      nutritionContext: makeNutrition({
+        effectiveGoal: 'lose', targetRatePercent: 1, observedLossRatePercent: -0.3, observedWindowDays: 21
+      })
+    }));
+    expect(summary?.reason).toContain('recorded weigh-ins show no weekly loss');
+    expect(summary?.reason).toContain('normal progression');
+  });
+
   it('formats loss goal with conservative progression for a moderate recorded rate', () => {
     const session = makeSession({
       nutritionContext: makeNutrition({

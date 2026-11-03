@@ -57,17 +57,18 @@ public static class BodyweightProgression
         var source = comparable.FirstOrDefault();
         var changed = system is { } actual && source?.SystemLoadKg is { } previous &&
             !ProgressionEvidence.SameLoad(actual, previous);
-        if (resistanceMode == ResistanceModes.Bodyweight && changed)
+        // The policy's target (one more rep, a hold after a hard set, a deload) is moved by what the
+        // bodyweight change is worth in reps, never replaced by a re-estimate of the last set's reps.
+        if (resistanceMode == ResistanceModes.Bodyweight && changed &&
+            RepsForWeightChange(source!, weight, goal) is { } shift)
         {
-            var predicted = ProgressionEvidence.RepsAt(source!, source!.SystemLoadKg, weight, goal);
-            var reps = predicted is { } estimate
-                ? Math.Clamp(estimate, min ?? 1, max ?? 1000)
-                : source.Reps is { } last ? Math.Clamp(last, min ?? 1, max ?? 1000) : suggestion.SuggestedReps;
+            var reps = Math.Clamp(suggestion.SuggestedReps + shift, min ?? 1, max ?? 1000);
             if (ProgressionLayoff.Days(lastTrained, now) is >= ProgressionLayoff.HoldDays)
                 reps = Math.Min(reps, suggestion.SuggestedReps);
-            return suggestion with { SuggestedLoadKg = null, SuggestedSystemLoadKg = weight,
-                SuggestedReps = reps, IsBodyweightAdjustment = true, IsRepRangeTransition = false,
-                Reason = $"Nutrition bodyweight changed: aim for {reps} reps at today's bodyweight. This is an estimate; log actual effort." };
+            if (reps != suggestion.SuggestedReps)
+                return suggestion with { SuggestedLoadKg = null, SuggestedSystemLoadKg = weight,
+                    SuggestedReps = reps, IsBodyweightAdjustment = true, IsRepRangeTransition = false,
+                    Reason = $"Nutrition bodyweight changed: aim for {reps} reps at today's bodyweight. This is an estimate; log actual effort." };
         }
         var previousReference = source?.ResistanceMode switch
         {
@@ -121,6 +122,19 @@ public static class BodyweightProgression
             SuggestedLoadKg = input, SuggestedSystemLoadKg = system, ResistanceMode = resistanceMode,
             IsBodyweightAdjustment = false, PreviousLoadKg = input is null ? null : source?.LoadKg, Reason = reason
         };
+    }
+
+    /// The whole reps a change of bodyweight is worth at the set's effort (Epley with reps in
+    /// reserve, as RepsAt). Trend weight drifts a little almost daily, so a change worth less than one
+    /// rep is noise and returns null; beyond that the shift is rounded down, so a lighter lifter is
+    /// asked only for reps the change fully earns and a heavier one gives up at least what it costs.
+    private static int? RepsForWeightChange(SetExposure source, double weight, double? goal)
+    {
+        if (source.SystemLoadKg is not { } previous || weight <= 0 ||
+            ProgressionEvidence.Capacity(source, previous, ProgressionEvidence.AssumedReserve(source, goal)) is not { } capacity)
+            return null;
+        var shift = capacity / weight - capacity / previous;
+        return Math.Abs(shift) < 1 ? null : (int)Math.Floor(shift);
     }
 
     /// A changed weigh-in can put a held total between equipment steps. Choose the easier
