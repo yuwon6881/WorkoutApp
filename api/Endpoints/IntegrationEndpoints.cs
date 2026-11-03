@@ -19,6 +19,14 @@ public static class IntegrationEndpoints
             return Results.Ok(new { mode = result.Mode, cached = result.Cached, confirmed = result.Confirmed, error = result.Error });
         });
 
+        // Unlike refresh, a context read within the freshness window is reused, so opening previews
+        // repeatedly wakes neither peer.
+        app.MapPost("/api/integrations/warm", async (NutritionContextService context, CancellationToken ct) =>
+        {
+            await context.Get(ct, NutritionContextService.WarmDeadline);
+            return Results.NoContent();
+        });
+
         app.MapGet("/api/integrations/v1/training-summary", async (HttpContext context, OpenIddictAccessTokenService tokens,
             IntegrationTokenService peerTokens, AppDb db, WorkoutService workouts, DateOnly? from, DateOnly? to, string? timeZone, CancellationToken ct) =>
         {

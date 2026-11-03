@@ -202,6 +202,7 @@ export const api = {
   muscleBalance: (range: MuscleBalanceRange, timeZone: string, signal?: AbortSignal) => call<MuscleBalanceView>(`/api/progress/muscles?range=${encodeURIComponent(range)}&timeZone=${encodeURIComponent(timeZone)}`, 'GET', undefined, signal),
   connectedApps: () => call<{ peer: string; status: string; connectionState: string; canDisconnect: boolean; syncWarning: boolean; scopes: string[]; grantedAt: string | null; revokedAt: string | null }[]>('/api/integrations/connected'),
   revokeApp: (peer: string) => call<void>(`/api/integrations/connected/${peer}`, 'DELETE'),
+  warmNutritionContext: () => call<void>('/api/integrations/warm', 'POST'),
   refreshNutritionContext: (signal?: AbortSignal) => call<{ mode: string; cached: boolean; confirmed: boolean; error: string | null }>('/api/integrations/refresh', 'POST', undefined, signal),
   googleHealthStatus: (signal?: AbortSignal) => call<import('./googleHealth').GoogleHealthSyncResult>('/api/integrations/google-health', 'GET', undefined, signal,
     {'X-Workout-Google-Health-Status-Only':'1'}),

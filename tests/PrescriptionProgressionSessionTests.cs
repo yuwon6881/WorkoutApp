@@ -91,10 +91,15 @@ public sealed class PrescriptionProgressionSessionTests
         await LogSets(h, await h.Workouts.Start(template, null, default), (20, 10, "0"), (20, 6, "2"));
 
         var next = await h.Workouts.Start(template, null, default);
+        var first = next.Exercises.Single().Sets[0];
         var second = next.Exercises.Single().Sets[1];
         Assert.Equal(20, second.WeightKg);
-        Assert.Equal(9, second.Reps);
-        Assert.Contains("fatigue", second.Suggestion!.Reason);
+        // The dip is fatigue, so the load holds; but the first set is re-aimed to 8 reps at two in
+        // reserve, and a second set after it at the same load must not ask for more (9).
+        Assert.Equal(20, first.WeightKg);
+        Assert.Equal(8, first.Reps);
+        Assert.Equal(8, second.Reps);
+        Assert.Contains("set before it", second.Suggestion!.Reason);
         var history = await h.Workouts.PreviousExposures(next.Exercises.Single().ExerciseId, "Curl", default);
         Assert.Equal(2, history[2][0].PriorOvershoot);
         Assert.Equal(0, history[2][0].PriorReserve);

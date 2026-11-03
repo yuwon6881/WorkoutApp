@@ -22,6 +22,10 @@ public sealed class NutritionContextService(AppDb db, IHttpClientFactory clients
     /// Explicit refreshes may wait out a scale-to-zero cold start of Nutrition, whose handler
     /// also validates the connection with Fitness Account before answering.
     public static readonly TimeSpan RefreshDeadline = TimeSpan.FromSeconds(8);
+    /// Opening the start preview warms the context while the plan is read. A cold Fitness Account
+    /// token exchange alone takes 5-7 s, so with both peers asleep Start's own bound never reaches
+    /// Nutrition; this bound covers both waking, and stays under the client's 20 s request timeout.
+    public static readonly TimeSpan WarmDeadline = TimeSpan.FromSeconds(15);
     private static readonly TimeSpan CacheWindow = TimeSpan.FromDays(7);
     /// Weekly bodyweight loss, as a percent, that a non-cutting goal treats as a real deficit.
     public const double UnplannedLossPercent = .5;

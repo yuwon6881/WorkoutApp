@@ -65,7 +65,7 @@ public sealed class AskAiProgressionTests
 
         var current = data.GetProperty("currentWorkout");
         Assert.Equal(live.Id.ToString(), current.GetProperty("workoutId").GetString());
-        Assert.Contains("fatigue", current.GetProperty("sets")[1].GetProperty("suggestionReason").GetString());
+        Assert.Contains("set before it", current.GetProperty("sets")[1].GetProperty("suggestionReason").GetString());
         Assert.True(context.Evidence.Contains(AiEvidenceLedger.Workout, live.Id.ToString()));
     }
 

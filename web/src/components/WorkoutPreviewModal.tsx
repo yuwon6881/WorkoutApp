@@ -45,6 +45,10 @@ export function WorkoutPreviewModal({ templateId, name, exercises, unit, default
   }, [lastPerformed, exercises, unit]);
   const minutes = day ? estimateWorkoutMinutes(day.exercises, defaultRestSeconds) : null;
   const unavailable = (day?.exercises ?? []).map(exercise => checkGym(exercise.exerciseId)).filter(result => !result.available);
+  // Waking Nutrition (and the token exchange that reaches it) takes longer than Start may wait, so
+  // it begins while the plan is read. It is not aborted on close: Start closes this preview, and the
+  // finished read is what Start reuses. Nutrition is advisory, so a failure here stays silent.
+  useEffect(() => { api.warmNutritionContext().catch(() => undefined); }, []);
   useEffect(() => {
     const controller = new AbortController();
     setTemplate(null);

@@ -188,6 +188,29 @@ public sealed class NutritionConnectionStateTests
         Assert.True(NutritionContextService.StartDeadline < TimeSpan.FromMilliseconds(2300));
     }
 
+    [Fact]
+    public async Task A_preview_warm_up_outlasts_cold_peers_so_start_reads_a_fresh_context()
+    {
+        // Cold Fitness Account and Nutrition took longer than Start's bound, so Start never reached
+        // Nutrition and the cache aged past seven days, losing the bodyweight reference. The warm-up
+        // waits them out and Start then reuses its result without a live read.
+        await using var harness = await Harness.Create(new() { ["Integrations:NutritionTrainingContextUrl"] = ContextUrl });
+        var user = await harness.SignIn();
+        harness.Db.IntegrationGrants.Add(ActiveGrant(user.Id, 2));
+        await harness.Db.SaveChangesAsync();
+        var body = Json.Write(LosingContext(user.IdentitySubject, DateTime.UtcNow));
+        var nutrition = new DelayedHandler(_ => JsonResponse(body), NutritionContextService.StartDeadline + TimeSpan.FromMilliseconds(300));
+        var service = new NutritionContextService(harness.Db, new SingleClientFactory(nutrition), harness.Config);
+
+        var warmed = await service.Get(CancellationToken.None, NutritionContextService.WarmDeadline);
+        var start = await service.Get(CancellationToken.None);
+
+        Assert.Null(warmed.Error);
+        Assert.True(start.Confirmed);
+        Assert.Equal(79, start.Context?.TrendWeightKg);
+        Assert.Equal(1, nutrition.Calls);
+    }
+
     private static NutritionTrainingContext LosingContext(string subject, DateTime retrievedAt)
         => new(subject, 3, "UTC", "lose", false, .8, null, null, 80, null, 79, null, retrievedAt, true);
 

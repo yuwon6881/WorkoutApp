@@ -154,9 +154,17 @@ public sealed partial class WorkoutService
         if (!previousOfKind.TryGetValue(KindOf(prescription), out var earlier)) return own;
         var previous = earlier.Suggestion;
         if (own.ResistanceMode != previous.ResistanceMode || !CappableMode(own.ResistanceMode) ||
-            own.SuggestedLoadKg is not { } load || previous.SuggestedLoadKg is not { } before || load <= before ||
+            own.SuggestedLoadKg is not { } load || previous.SuggestedLoadKg is not { } before || load < before ||
             !PrescribedAlike(earlier.Plan, prescription))
             return own;
+        // At the same load, more reps at the same effort is the harder set: a set re-aimed down after
+        // last time's overshoot must not be followed by one still asking for last time's reps.
+        if (ProgressionEvidence.SameLoad(load, before))
+            return own.SuggestedReps <= previous.SuggestedReps ? own : own with
+            {
+                SuggestedReps = previous.SuggestedReps,
+                Reason = "Same prescription and load as the set before it: aim for no more reps than that set, and add reps once it moves up."
+            };
         return own with
         {
             SuggestedLoadKg = before,
