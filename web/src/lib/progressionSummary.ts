@@ -136,7 +136,7 @@ function makeReason(
   } else if (goal === 'Loss' && rate != null && rate <= 0) {
     contextReason = `${source} reports a loss goal, but recorded weigh-ins show no weekly loss, so there is no deficit to protect; normal progression applies.`;
   } else if (goal === 'Loss' && mode === 'preservation' && rate != null) {
-    contextReason = `${source} reports a loss goal and a recorded rate of ${rate.toFixed(2)}% per week; this selects preservation progression.`;
+    contextReason = `${source} reports a loss goal and a recorded rate of ${rate.toFixed(2)}% per week; this selects preservation progression, which keeps adding reps and load but repeats each new rep once at the target effort before the next.`;
   } else if (goal === 'Loss' && mode === 'conservative') {
     contextReason = `${source} reports a loss goal and a recorded rate below 0.75% per week; this selects conservative progression, which requires 2 qualifying exposures before load advances.`;
   } else if (goal === 'Loss') {

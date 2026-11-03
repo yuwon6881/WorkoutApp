@@ -41,7 +41,7 @@ public sealed class AdaptiveProgressionTests
     [Theory]
     [InlineData(ProgressionModes.Normal, 1)]
     [InlineData(ProgressionModes.Conservative, 2)]
-    [InlineData(ProgressionModes.Preservation, 3)]
+    [InlineData(ProgressionModes.Preservation, 2)]
     public void A_top_of_range_load_increase_uses_the_mode_threshold(string mode, int required)
     {
         var history = Enumerable.Range(0, required)
@@ -174,45 +174,88 @@ public sealed class AdaptiveProgressionTests
         Assert.Contains("harder than the target", result.Reason);
     }
 
+    // A steep deficit slows overload rather than stopping it: each new rep at the target effort is
+    // repeated once before the next is asked for.
     [Fact]
-    public void Preservation_holds_reps_after_one_qualifying_exposure_and_increases_after_two()
+    public void Preservation_consolidates_a_rep_at_the_target_effort_then_adds_one()
     {
-        var one = Progression.SuggestSet(8, 12, 8, [Exposure(50, 10, 7)], ProgressionModes.Preservation, 2.5);
+        var one = Progression.SuggestSet(8, 12, 8, [Exposure(50, 10, 8)], ProgressionModes.Preservation, 2.5);
         Assert.Equal(50, one.SuggestedLoadKg);
         Assert.Equal(10, one.SuggestedReps);
-        Assert.Contains("Preservation heuristic", one.Reason);
+        Assert.Contains("consolidate", one.Reason);
 
-        var two = Progression.SuggestSet(8, 12, 8, [Exposure(50, 10, 7), Exposure(50, 10, 7, 7)], ProgressionModes.Preservation, 2.5);
+        var two = Progression.SuggestSet(8, 12, 8, [Exposure(50, 10, 8), Exposure(50, 10, 8, 7)], ProgressionModes.Preservation, 2.5);
         Assert.Equal(50, two.SuggestedLoadKg);
         Assert.Equal(11, two.SuggestedReps);
-        Assert.Contains("two consecutive exposures", two.Reason);
+        Assert.Contains("deficit", two.Reason);
     }
 
     [Fact]
-    public void Preservation_missing_effort_or_unspecified_target_holds_reps()
+    public void Preservation_adds_a_rep_at_once_after_a_set_easier_than_its_target()
     {
-        var missingEffort = Progression.SuggestSet(8, 12, 8,
-            [Exposure(50, 10, null), Exposure(50, 10, 7, 7)], ProgressionModes.Preservation, 2.5);
-        Assert.Equal(50, missingEffort.SuggestedLoadKg);
-        Assert.Equal(10, missingEffort.SuggestedReps);
+        var result = Progression.SuggestSet(8, 12, 8, [Exposure(50, 10, 7)], ProgressionModes.Preservation, 2.5);
+        Assert.Equal(50, result.SuggestedLoadKg);
+        Assert.Equal(11, result.SuggestedReps);
+    }
 
+    [Fact]
+    public void Preservation_missing_effort_or_unspecified_target_still_progresses_on_repeated_results()
+    {
+        var once = Progression.SuggestSet(8, 12, 8, [Exposure(50, 10, null)], ProgressionModes.Preservation, 2.5);
+        Assert.Equal(10, once.SuggestedReps);
+        var missingEffort = Progression.SuggestSet(8, 12, 8,
+            [Exposure(50, 10, null), Exposure(50, 10, null, 7)], ProgressionModes.Preservation, 2.5);
+        Assert.Equal(50, missingEffort.SuggestedLoadKg);
+        Assert.Equal(11, missingEffort.SuggestedReps);
+
+        var unspecifiedOnce = Progression.SuggestSet(8, 12, null, [Exposure(50, 10, 7)], ProgressionModes.Preservation, 2.5);
+        Assert.Equal(10, unspecifiedOnce.SuggestedReps);
         var unspecifiedTarget = Progression.SuggestSet(8, 12, null,
             [Exposure(50, 10, 7), Exposure(50, 10, 7, 7)], ProgressionModes.Preservation, 2.5);
         Assert.Equal(50, unspecifiedTarget.SuggestedLoadKg);
-        Assert.Equal(10, unspecifiedTarget.SuggestedReps);
+        Assert.Equal(11, unspecifiedTarget.SuggestedReps);
     }
 
     [Fact]
     public void Preservation_prescription_or_load_change_breaks_continuity()
     {
         var loadChanged = Progression.SuggestSet(8, 12, 8,
-            [Exposure(50, 10, 7), Exposure(52.5, 10, 7, 7)], ProgressionModes.Preservation, 2.5);
+            [Exposure(50, 10, 8), Exposure(52.5, 10, 8, 7)], ProgressionModes.Preservation, 2.5);
         Assert.Equal(50, loadChanged.SuggestedLoadKg);
         Assert.Equal(10, loadChanged.SuggestedReps);
 
         var prescChanged = Progression.SuggestSet(8, 12, 8,
-            [Exposure(50, 10, 7), Exposure(50, 10, 7, 7) with { RepMin = 10, HasPrescription = true }], ProgressionModes.Preservation, 2.5);
+            [Exposure(50, 10, 8), Exposure(50, 10, 8, 7) with { RepMin = 10, HasPrescription = true }], ProgressionModes.Preservation, 2.5);
         Assert.Equal(50, prescChanged.SuggestedLoadKg);
         Assert.Equal(10, prescChanged.SuggestedReps);
+    }
+
+    // A lifter who always does what is suggested at exactly the target effort keeps overloading in
+    // every tier, and a deeper deficit only slows the pace.
+    [Fact]
+    public void An_on_target_lifter_keeps_overloading_in_every_deficit_tier()
+    {
+        (double Load, int Reps) Run(string mode)
+        {
+            var history = new List<SetExposure>();
+            var start = DateTime.UtcNow.AddDays(-40);
+            double load = 60; var reps = 8;
+            for (var session = 0; session < 12; session++)
+            {
+                var done = start.AddDays(3 * session);
+                history.Insert(0, new SetExposure(Guid.NewGuid(), done, load, reps, 8));
+                var next = Progression.Suggest(Harness.Set(8, 12, 8), history, mode, new LoadOptions(2.5), now: done.AddDays(3));
+                (load, reps) = (next.SuggestedLoadKg ?? load, next.SuggestedReps);
+            }
+            return (load, reps);
+        }
+
+        var normal = Run(ProgressionModes.Normal);
+        var conservative = Run(ProgressionModes.Conservative);
+        var preservation = Run(ProgressionModes.Preservation);
+
+        Assert.True(preservation.Load > 60, $"Preservation stalled at {preservation.Load} x {preservation.Reps}.");
+        Assert.True(conservative.Load >= preservation.Load);
+        Assert.True(normal.Load >= conservative.Load);
     }
 }

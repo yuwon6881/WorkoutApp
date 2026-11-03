@@ -273,12 +273,16 @@ public sealed class ProgressionGapTests
         Assert.Contains("4 sessions", result.Reason);
     }
 
-    [Fact]
-    public void A_plateau_during_a_deficit_holds_instead_of_resetting()
+    // A deficit keeps the load (no reset) but still asks for overload: one more rep at it.
+    [Theory]
+    [InlineData(ProgressionModes.Conservative)]
+    [InlineData(ProgressionModes.Preservation)]
+    public void A_plateau_during_a_deficit_keeps_the_load_and_aims_for_one_more_rep(string mode)
     {
-        var result = Suggest(8, 10, "2", Stalled(), ProgressionModes.Conservative);
+        var result = Suggest(8, 10, "2", Stalled(), mode);
 
         Assert.Equal(50, result.SuggestedLoadKg);
+        Assert.Equal(9, result.SuggestedReps);
         Assert.Contains("deficit", result.Reason);
     }
 

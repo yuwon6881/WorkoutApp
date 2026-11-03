@@ -37,15 +37,17 @@ freshness window; outages have bounded live reads and a disclosed cache fallback
 |---|---|---:|
 | Maintenance/gain, without qualified rapid observed loss | Normal | 1 |
 | Active loss goal below 0.75%/week (qualified observed rate, else target) | Conservative | 2 |
-| Active loss goal at least 0.75%/week (qualified observed rate, else target) | Preservation | 3 |
+| Active loss goal at least 0.75%/week (qualified observed rate, else target) | Preservation | 2 |
 | Active loss goal whose qualified observed rate shows no loss | Normal | 1 |
 | Maintenance/gain/finished phase losing at least 0.5%/week over 14+ days | Conservative | 2 |
 | Missing, stale or unconfirmed context | Normal | 1 |
 
 Unknown recorded effort requires at least two repeated results before cautious progression.
 Preservation in-range rep increases additionally require two consecutive same-load/prescription
-exposures, each at least as many reps as the latest result and one reserve rep above the target.
-Without actual effort or a target, preservation holds in-range reps. Nutrition supplies the
+exposures at the target effort, each at least as many reps as the latest result, unless the latest
+set was at least one reserve rep easier than its target. Without actual effort or a target, two
+repeated results earn a rep. A four-session plateau in a deficit keeps the load and aims for one
+more rep instead of resetting. Nutrition supplies the
 qualified observation window; Workout does not independently recount Nutrition weigh-ins.
 
 ## Scenario coverage

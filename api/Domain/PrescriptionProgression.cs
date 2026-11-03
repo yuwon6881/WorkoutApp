@@ -144,8 +144,14 @@ internal static class PrescriptionProgression
             ProgressionCalibration.Plateaued(history.Where(exposure => !fatigue.Excused.Contains(exposure)).ToList(),
                 load, goal, selector))
         {
+            // A deficit does not stop strength from rising, but a reset would cost the training
+            // intensity that protects muscle: keep the load and keep asking for overload.
             if (mode != ProgressionModes.Normal)
-                return Result(load, repeatReps, "Holding performance during a calorie deficit is expected. Repeat the load and reps rather than forcing progress.", rebuilding);
+            {
+                var attempt = Math.Min(upper, actual + 1);
+                return Result(load, attempt,
+                    $"No rep gain in {ProgressionCalibration.PlateauSessions} sessions at this load. During a calorie deficit the load holds rather than resets: aim for one more rep, {attempt}.", rebuilding);
+            }
             var reset = ProgressionCalibration.ResetLoad(load.Value, loads);
             var reps = ProgressionEvidence.RepsAt(source, load, reset, goal) ?? upper;
             return Result(reset, Math.Clamp(reps, lower, upper),
@@ -162,10 +168,6 @@ internal static class PrescriptionProgression
 
         if (!open && reserve is null && qualified < required)
         {
-            if (mode == ProgressionModes.Preservation && actual >= lower && actual < upper)
-                return Result(load, repeatReps,
-                    "Preservation heuristic: an in-range rep increase needs a target effort and two consecutive high-reserve exposures. Actual effort is unknown.", rebuilding);
-
             var consistent = ProgressionEvidence.Streak(history, exposure =>
                 ProgressionEvidence.Reserve(exposure) is null && exposure.Reps >= actual &&
                 ProgressionEvidence.SameLoad(load, selector(exposure)) &&
@@ -208,32 +210,28 @@ internal static class PrescriptionProgression
                 return Result(load, lower, "Aim for the prescribed minimum; adjust the load to match actual effort.");
             }
 
-            if (mode == ProgressionModes.Preservation && !(source.IsRepRangeTransition && !changed))
-            {
-                if (goal is null)
-                    return Result(load, repeatReps,
-                        "Preservation heuristic: an unspecified effort target cannot earn an in-range rep increase. Repeat the load and reps.", rebuilding);
-
-                bool PreservationQualifies(SetExposure exposure)
-                    => exposure.Reps >= actual &&
-                       ProgressionEvidence.SameLoad(load, selector(exposure)) &&
-                       !ProgressionEvidence.Changed(exposure, min, max, goal) &&
-                       ProgressionEvidence.Reserve(exposure) is { } expReserve &&
-                       expReserve >= goal.Value + 1;
-
-                var qualifyingStreak = ProgressionEvidence.Streak(history, PreservationQualifies);
-                if (qualifyingStreak < 2)
-                    return Result(load, repeatReps,
-                        "Preservation heuristic: hold reps until two consecutive exposures at this load show reserve at least one rep above target effort.", rebuilding);
-            }
+            // A steep deficit slows overload rather than stopping it: each new rep is repeated once at
+            // the target effort before the next is asked for, unless the set was clearly easier than
+            // its target. Strength can still rise in a deficit, so the lifter keeps progressing at
+            // about half the normal rep pace.
+            var preserving = mode == ProgressionModes.Preservation && !(source.IsRepRangeTransition && !changed);
+            var easier = goal is { } aim && reserve >= aim + 1;
+            if (preserving && !easier && ProgressionEvidence.Streak(history, exposure =>
+                    exposure.Reps >= actual && ProgressionEvidence.SameLoad(load, selector(exposure)) &&
+                    !ProgressionEvidence.Changed(exposure, min, max, goal) &&
+                    ProgressionEvidence.MeetsEffort(exposure, goal)) < 2)
+                return Result(load, repeatReps,
+                    $"Calorie deficit: repeat {repeatReps} reps at this load once more to consolidate them, then add a rep.", rebuilding);
 
             var easy = ProgressionCalibration.Applies(mode, source, goal, repsOnly);
             var nextReps = Math.Min(upper, actual + (easy ? ProgressionCalibration.RepGain(reserve!.Value, goal!.Value) : 1));
             var transition = source.IsRepRangeTransition && !changed && nextReps < lower;
             return Result(load, nextReps, transition
                 ? $"Rebuild after the large equipment step: aim for {nextReps} reps, then work back into the prescribed range."
-                : mode == ProgressionModes.Preservation
-                    ? $"Preservation heuristic: two consecutive exposures showed reserve above target effort; aim for {nextReps} reps."
+                : preserving
+                    ? easier
+                        ? $"Calorie deficit: the last set was easier than its target, so add a rep: {nextReps}."
+                        : $"Calorie deficit: these reps held twice at the target effort, so add a rep: {nextReps}."
                     : $"Same load, one more rep: {nextReps}.", transition);
         }
 

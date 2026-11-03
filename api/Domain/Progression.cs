@@ -44,7 +44,7 @@ public static class ProgressionModes
     public static int QualifiedExposures(string mode) => mode switch
     {
         Conservative => 2,
-        Preservation => 3,
+        Preservation => 2,
         _ => 1
     };
 }
