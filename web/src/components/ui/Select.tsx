@@ -4,6 +4,7 @@ import { Check, ChevronDown } from 'lucide-react';
 import { Button } from './Button';
 import { useAnchoredLayer } from './useAnchoredLayer';
 import { usePickerSheet } from './usePickerSheet';
+import { revealInList } from '../../lib/revealInList';
 
 export type SelectOption<T extends string | number> = {
   value: T;
@@ -75,7 +76,7 @@ export function Select<T extends string | number>({
   useEffect(() => {
     if (open && listboxRef.current) {
       const item = listboxRef.current.children[highlightedIndex] as HTMLElement | undefined;
-      item?.scrollIntoView({ block: 'nearest' });
+      if (item) revealInList(listboxRef.current, item);
     }
   }, [open, highlightedIndex]);
 
@@ -278,7 +279,7 @@ export function MultiSelect<T extends string>({
   useEffect(() => {
     if (open && listboxRef.current) {
       const item = listboxRef.current.children[highlightedIndex] as HTMLElement | undefined;
-      item?.scrollIntoView({ block: 'nearest' });
+      if (item) revealInList(listboxRef.current, item);
     }
   }, [open, highlightedIndex]);
 
