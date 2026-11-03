@@ -15,7 +15,9 @@ const maxAgeMs = 14 * 24 * 60 * 60 * 1000;
 
 type StoredSnapshot = {
   schema: number;
-  // A summary written by another build can have a different shape, so it is never read back.
+  // The build that wrote it. Informational: a release changes the build every time, and a summary
+  // from the previous release is exactly what the first launch after an update needs. A shape
+  // change must bump `schemaVersion` instead.
   appVersion: string;
   savedAt: number;
   shell: ShellBootstrap;
@@ -26,14 +28,14 @@ function currentAppVersion(): string {
 }
 
 /** The device copy of the last launch summary, when it was written by this build recently. */
-export function readLaunchSnapshot(now = Date.now(), appVersion = currentAppVersion()): ShellBootstrap | null {
+export function readLaunchSnapshot(now = Date.now()): ShellBootstrap | null {
   try {
     const raw = localStorage.getItem(storageKey);
     if (!raw) return null;
     const stored = JSON.parse(raw) as Partial<StoredSnapshot>;
-    if (stored.schema !== schemaVersion || stored.appVersion !== appVersion) return null;
+    if (stored.schema !== schemaVersion) return null;
     if (typeof stored.savedAt !== 'number' || now - stored.savedAt > maxAgeMs || stored.savedAt > now) return null;
-    if (!stored.shell?.account?.id || !stored.shell.preferences) return null;
+    if (!stored.shell?.account?.id || !stored.shell.preferences || !stored.shell.navigationCounts) return null;
     return stored.shell;
   } catch {
     // Unavailable storage or an unreadable value: the app waits for the server, as it always could.

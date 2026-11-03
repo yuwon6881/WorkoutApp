@@ -30,37 +30,47 @@ afterEach(() => vi.unstubAllGlobals());
 describe('launch snapshot', () => {
   it('returns the summary saved by the same build', () => {
     saveLaunchSnapshot(shell(), now, '1.0.0+abc');
-    expect(readLaunchSnapshot(now + day, '1.0.0+abc')).toEqual(shell());
+    expect(readLaunchSnapshot(now + day)).toEqual(shell());
   });
 
-  it('never reads a summary written by another build', () => {
+  it('reads a summary written by an earlier build, so the first launch after an update is not blank', () => {
     saveLaunchSnapshot(shell(), now, '1.0.0+abc');
-    expect(readLaunchSnapshot(now, '1.0.1+def')).toBeNull();
+    expect(readLaunchSnapshot(now)).toEqual(shell());
+  });
+
+  it('never reads a summary of another schema or one missing the parts the Overview needs', () => {
+    saveLaunchSnapshot(shell(), now, 'v');
+    const stored = JSON.parse(storage.get('workout-launch-snapshot')!);
+    storage.set('workout-launch-snapshot', JSON.stringify({ ...stored, schema: stored.schema + 1 }));
+    expect(readLaunchSnapshot(now)).toBeNull();
+    const { navigationCounts: _omitted, ...incomplete } = stored.shell;
+    storage.set('workout-launch-snapshot', JSON.stringify({ ...stored, shell: incomplete }));
+    expect(readLaunchSnapshot(now)).toBeNull();
   });
 
   it('drops a summary older than two weeks or dated in the future', () => {
     saveLaunchSnapshot(shell(), now, 'v');
-    expect(readLaunchSnapshot(now + 15 * day, 'v')).toBeNull();
-    expect(readLaunchSnapshot(now - day, 'v')).toBeNull();
+    expect(readLaunchSnapshot(now + 15 * day)).toBeNull();
+    expect(readLaunchSnapshot(now - day)).toBeNull();
   });
 
   it('keeps nothing while a workout is open, so Overview never offers Start over a running session', () => {
     saveLaunchSnapshot(shell(), now, 'v');
     saveLaunchSnapshot(shell({ activeWorkout: { id: 'session' } as Session }), now, 'v');
-    expect(readLaunchSnapshot(now, 'v')).toBeNull();
+    expect(readLaunchSnapshot(now)).toBeNull();
   });
 
   it('leaves import drafts to the live read', () => {
     saveLaunchSnapshot(shell({ imports: [{ id: 'import' }] as ShellBootstrap['imports'] }), now, 'v');
-    expect(readLaunchSnapshot(now, 'v')?.imports).toEqual([]);
+    expect(readLaunchSnapshot(now)?.imports).toEqual([]);
   });
 
   it('is removed at sign-out and tolerates unreadable values', () => {
     saveLaunchSnapshot(shell(), now, 'v');
     clearLaunchSnapshot();
-    expect(readLaunchSnapshot(now, 'v')).toBeNull();
+    expect(readLaunchSnapshot(now)).toBeNull();
     storage.set('workout-launch-snapshot', '{not json');
-    expect(readLaunchSnapshot(now, 'v')).toBeNull();
+    expect(readLaunchSnapshot(now)).toBeNull();
   });
 
   it('falls back to the server when storage is unavailable', () => {
@@ -70,6 +80,6 @@ describe('launch snapshot', () => {
       removeItem: () => { throw new Error('denied'); }
     });
     expect(() => saveLaunchSnapshot(shell(), now, 'v')).not.toThrow();
-    expect(readLaunchSnapshot(now, 'v')).toBeNull();
+    expect(readLaunchSnapshot(now)).toBeNull();
   });
 });
