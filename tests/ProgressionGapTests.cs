@@ -81,6 +81,35 @@ public sealed class ProgressionGapTests
         Assert.Equal(expectedLoad, result.SuggestedLoadKg);
     }
 
+    [Theory]
+    [InlineData(10, 10, 6)]
+    [InlineData(10, 12, 5)]
+    public void A_layoff_hold_repeats_the_reps_last_achieved_not_the_range_minimum(int min, int max, int reps)
+    {
+        // 25 kg for 6 (or 5) against a 10-rep target, three weeks ago with no effort logged: "repeat
+        // your last session" must ask for those reps again, not 25 kg for the full 10.
+        var result = Suggest(min, max, null, [Exposure(25, reps, null, daysAgo: 21, min: min, max: max, targetRir: null)]);
+
+        Assert.Equal(25, result.SuggestedLoadKg);
+        Assert.Equal(reps, result.SuggestedReps);
+        Assert.Contains("21 days", result.Reason);
+    }
+
+    [Fact]
+    public void A_layoff_never_asks_for_more_than_training_through_would()
+    {
+        // A far miss with its effort logged is re-aimed lighter when trained through; a break must
+        // not instead hold the heavier load.
+        var history = new List<SetExposure> { Exposure(25, 6, "0", daysAgo: 21, min: 10, max: 10) };
+        var through = Suggest(10, 10, "2", [history[0] with { CompletedAt = Now.AddDays(-3) }]);
+        var away = Suggest(10, 10, "2", history);
+
+        Assert.True(through.SuggestedLoadKg < 25);
+        Assert.Equal(through.SuggestedLoadKg, away.SuggestedLoadKg);
+        Assert.Equal(through.SuggestedReps, away.SuggestedReps);
+        Assert.Contains("21 days", away.Reason);
+    }
+
     [Fact]
     public void A_layoff_reason_names_the_time_away()
     {

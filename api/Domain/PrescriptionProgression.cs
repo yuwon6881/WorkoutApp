@@ -17,6 +17,11 @@ internal static class PrescriptionProgression
         // about the straight set in its slot, and the reverse.
         // Time away counts every session of the movement, whatever technique it used.
         var away = ProgressionLayoff.Days(lastTrained ?? ProgressionLayoff.Newest(history), now);
+        // Time away only ever eases a suggestion: what the set would be given had the lift been
+        // trained through is the most a layoff may ask for.
+        var trainedThrough = away is >= ProgressionLayoff.HoldDays
+            ? Suggest(prescription, history, progressionMode, loads, revision, resistanceMode, selectLoad)
+            : null;
         var technique = SetTechniques.Of(prescription);
         history = history.Where(exposure => exposure.Technique == technique).ToList();
         history = ProgressionHistory.Prepare(history, min, max, goal);
@@ -44,10 +49,15 @@ internal static class PrescriptionProgression
 
         if (away is >= ProgressionLayoff.HoldDays)
         {
+            // Repeating the last session means its reps too: a set that fell short of the range is
+            // not asked for the full minimum straight after a break.
+            var heldReps = Math.Min(actual, upper);
             if (away < ProgressionLayoff.ReduceDays)
-                return Result(load, repeatReps, $"Back after {away} days away: repeat your last session before progressing.", rebuilding);
+                return Easier(trainedThrough!, load, heldReps, away.Value)
+                    ?? Result(load, heldReps, $"Back after {away} days away: repeat your last session before progressing.", rebuilding);
             var factor = ProgressionLayoff.Factor(away.Value);
             var eased = load is { } current && loads.Adjustable && !repsOnly ? Math.Min(current, loads.AtMost(current * factor)) : load;
+            if (Easier(trainedThrough!, eased, lower, away.Value) is { } easier) return easier;
             // Only claim a lighter load when one exists: a reps-only movement or the lightest available
             // weight eases in through the reps alone.
             return Result(eased, lower, eased is { } lighter && load is { } before && lighter < before
@@ -280,5 +290,16 @@ internal static class PrescriptionProgression
                 $"The smallest equipment step is large: aim for about {predictedReps} reps at the intended effort, then rebuild into {lower}–{upper} reps.", true);
         return Result(increased, Math.Clamp(predictedReps.Value, lower, upper),
             $"Increase one equipment step after {required} qualified exposure{(required == 1 ? "" : "s")}. Reps are estimated; adjust from actual effort.");
+    }
+
+    /// The trained-through suggestion when it already asks for less than the layoff would (a lighter
+    /// load, or fewer reps at the same load), so a break never makes the next session harder.
+    private static SetProgressionSuggestion? Easier(SetProgressionSuggestion trainedThrough, double? load, int reps, int away)
+    {
+        var lighter = trainedThrough.SuggestedLoadKg is { } suggested && load is { } held && suggested < held - .0001;
+        var fewer = ProgressionEvidence.SameLoad(trainedThrough.SuggestedLoadKg, load) && trainedThrough.SuggestedReps < reps;
+        return lighter || fewer
+            ? trainedThrough with { Reason = $"Back after {away} days away. {trainedThrough.Reason}" }
+            : null;
     }
 }
