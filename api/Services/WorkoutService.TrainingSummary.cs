@@ -37,12 +37,16 @@ public sealed partial class WorkoutService
             }
         }
         var weekTemplateIds = weekTemplates.Select(t => t.Id).ToHashSet();
+        // A week template is reused by every run and every reset attempt of that week, so only a session
+        // tied to this attempt's progress row (or one still open) fills its slot; older ones stay plain history.
+        var weekProgressIds = dayProgressByTemplate.Values.Select(d => d.Id).ToList();
 
         var rows = await db.Workouts.AsNoTracking().Where(w =>
             (w.FinishedAt != null && w.FinishedAt >= startUtc && w.FinishedAt < endUtc) ||
             (w.Active && w.StartedAt >= startUtc && w.StartedAt < endUtc) ||
-            (weekTemplateIds.Count > 0 && w.TemplateId != null && weekTemplateIds.Contains(w.TemplateId.Value) && w.ProgramId == program!.Id))
-            .OrderBy(w => w.StartedAt).Select(w => new { w.Id, w.Name, w.StartedAt, w.FinishedAt, w.Active, w.TemplateId, w.ProgramId }).ToListAsync(ct);
+            (w.ProgramDayProgressId != null && weekProgressIds.Contains(w.ProgramDayProgressId.Value)) ||
+            (w.Active && w.TemplateId != null && weekTemplateIds.Contains(w.TemplateId.Value)))
+            .OrderBy(w => w.StartedAt).Select(w => new { w.Id, w.Name, w.StartedAt, w.FinishedAt, w.Active, w.TemplateId, w.ProgramId, w.ProgramDayProgressId }).ToListAsync(ct);
 
         var sessionIds = rows.Select(session => session.Id).ToList();
         var exercises = await db.SessionExercises.AsNoTracking().Where(exercise => sessionIds.Contains(exercise.SessionId))
@@ -66,7 +70,8 @@ public sealed partial class WorkoutService
             var actualDate = DateOnly.FromDateTime(localDateTime);
             var completionDate = session.FinishedAt is { } finished
                 ? DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(finished, zone)) : (DateOnly?)null;
-            var weekTemplate = session.TemplateId is not null ? weekTemplateMap.GetValueOrDefault(session.TemplateId.Value) : null;
+            var weekTemplate = session.TemplateId is not null && (session.Active || (session.ProgramDayProgressId is { } dayId && weekProgressIds.Contains(dayId)))
+                ? weekTemplateMap.GetValueOrDefault(session.TemplateId.Value) : null;
             var isWeekTemplate = weekTemplate is not null;
             if (!isWeekTemplate && (actualDate < start || actualDate > end) && (completionDate < start || completionDate > end || completionDate == null)) continue;
 

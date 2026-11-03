@@ -45,6 +45,44 @@ public sealed class TrainingSummaryUpNextTests
     }
 
     [Fact]
+    public async Task Sessions_from_an_earlier_run_or_attempt_do_not_fill_this_week()
+    {
+        await using var h = await Harness.Create();
+        var user = await h.SignIn();
+        var program = new TrainingProgram { UserId = user.Id, Name = "Full body", Active = true, LifecycleStatus = ProgramLifecycle.Active };
+        var earlier = new ProgramRun { UserId = user.Id, ProgramId = program.Id, Number = 1, CurrentWeek = 1, CompletedAt = DateTime.UtcNow.AddDays(-9) };
+        var run = new ProgramRun { UserId = user.Id, ProgramId = program.Id, Number = 2, CurrentWeek = 1, CurrentAttempt = 2 };
+        var first = new WorkoutTemplate { UserId = user.Id, ProgramId = program.Id, Name = "Full Body 1", Week = 1, Position = 0 };
+        var second = new WorkoutTemplate { UserId = user.Id, ProgramId = program.Id, Name = "Full Body 2", Week = 1, Position = 1 };
+        var oldRunDay = new ProgramDayProgress { UserId = user.Id, ProgramId = program.Id, RunId = earlier.Id, TemplateId = first.Id, Week = 1, Status = ProgramDayStatus.Completed };
+        var oldAttemptDay = new ProgramDayProgress { UserId = user.Id, ProgramId = program.Id, RunId = run.Id, TemplateId = second.Id, Week = 1, Attempt = 1, Status = ProgramDayStatus.Completed };
+        var thisAttemptDay = new ProgramDayProgress { UserId = user.Id, ProgramId = program.Id, RunId = run.Id, TemplateId = first.Id, Week = 1, Attempt = 2, Status = ProgramDayStatus.Completed };
+        h.Db.Programs.Add(program);
+        h.Db.ProgramRuns.AddRange(earlier, run);
+        h.Db.Templates.AddRange(first, second);
+        h.Db.ProgramDayProgresses.AddRange(oldRunDay, oldAttemptDay, thisAttemptDay);
+        WorkoutSession Finished(string name, WorkoutTemplate template, ProgramDayProgress day, int daysAgo) => new()
+        {
+            UserId = user.Id, Name = name, TemplateId = template.Id, ProgramId = program.Id, ProgramDayProgressId = day.Id, Active = false,
+            StartedAt = DateTime.UtcNow.AddDays(-daysAgo), FinishedAt = DateTime.UtcNow.AddDays(-daysAgo).AddHours(1),
+        };
+        h.Db.Workouts.AddRange(
+            Finished("Old run day", first, oldRunDay, 20),
+            Finished("Old attempt day", second, oldAttemptDay, 3),
+            Finished("Full Body 1", first, thisAttemptDay, 1));
+        await h.Db.SaveChangesAsync();
+
+        var summaries = await h.Workouts.TrainingSummary(Today.AddDays(-7), Today, "UTC", default);
+
+        var weekly = summaries.Where(s => s.ProgramPosition != null).OrderBy(s => s.ProgramPosition).ToList();
+        Assert.Equal(["Full Body 1", "Full Body 2"], weekly.Select(s => s.WorkoutName));
+        Assert.Equal(["completed", "upcoming"], weekly.Select(s => s.Status));
+        // The earlier attempt's session is still recent training, just not this week's slot.
+        Assert.Contains(summaries, s => s.WorkoutName == "Old attempt day" && s.ProgramPosition == null);
+        Assert.DoesNotContain(summaries, s => s.WorkoutName == "Old run day");
+    }
+
+    [Fact]
     public async Task Up_next_days_belong_only_to_a_range_that_includes_today()
     {
         await using var h = await Harness.Create();
