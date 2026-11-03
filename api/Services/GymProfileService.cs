@@ -61,8 +61,9 @@ public sealed class GymProfileService(AppDb db)
     public async Task<GymsView> Update(Guid id, GymProfileUpdateInput input, CancellationToken ct)
     {
         var name = CleanName(input.Name);
-        var missing = CleanMissing(input.MissingEquipment);
-        var overrides = CleanOverrides(input.ExerciseOverrides);
+        // A list the edit leaves out keeps what the gym had, so a rename cannot wipe its equipment.
+        var missing = input.MissingEquipment is null ? null : CleanMissing(input.MissingEquipment);
+        var overrides = input.ExerciseOverrides is null ? null : CleanOverrides(input.ExerciseOverrides);
         await using (var gate = await MutationLock.Acquire(db, db.CurrentUser, ct))
         {
             var existing = await db.GymProfiles.ToListAsync(ct);
@@ -71,8 +72,8 @@ public sealed class GymProfileService(AppDb db)
             Validation.Require(profile!.Revision == input.Revision, "This gym changed elsewhere. Reload it before saving again.", 409);
             RequireUniqueName(existing, name, id);
             profile.Name = name;
-            profile.MissingEquipmentJson = Json.Write(missing);
-            profile.ExerciseOverridesJson = Json.Write(overrides);
+            if (missing is not null) profile.MissingEquipmentJson = Json.Write(missing);
+            if (overrides is not null) profile.ExerciseOverridesJson = Json.Write(overrides);
             profile.Revision++;
             await db.SaveChangesAsync(ct);
             await gate.Commit(ct);
@@ -148,17 +149,17 @@ public sealed class GymProfileService(AppDb db)
         => Validation.Require(!existing.Any(x => x.Id != except && string.Equals(x.Name, name, StringComparison.OrdinalIgnoreCase)),
             "You already have a gym with that name.");
 
-    private static List<string> CleanMissing(List<string>? keys)
+    private static List<string> CleanMissing(List<string> keys)
     {
-        var missing = (keys ?? []).Distinct(StringComparer.Ordinal).ToList();
+        var missing = keys.Distinct(StringComparer.Ordinal).ToList();
         Validation.Require(missing.All(GymEquipment.IsKnown), "That equipment is not on the list.");
         return [.. missing.OrderBy(key => key, StringComparer.Ordinal)];
     }
 
-    private static Dictionary<string, string> CleanOverrides(Dictionary<string, string>? overrides)
+    private static Dictionary<string, string> CleanOverrides(Dictionary<string, string> overrides)
     {
         var output = new Dictionary<string, string>(StringComparer.Ordinal);
-        foreach (var (key, value) in overrides ?? [])
+        foreach (var (key, value) in overrides)
         {
             Validation.Require(Guid.TryParse(key, out var id) && GymExerciseOverrides.IsValid(value), "That exercise choice is not valid.");
             output[id.ToString()] = value;

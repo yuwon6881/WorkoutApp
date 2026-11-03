@@ -18,7 +18,13 @@
 }
 
 .gym-settings-footer {
+  align-items: center;
   padding: 14px 0 16px;
+}
+
+.gym-settings-footer > p {
+  flex: 1 1 200px;
+  margin: 0;
 }
 
 /* The form wraps body and footer without a box of its own, so the footer stays pinned like any dialog's. */

@@ -13,6 +13,8 @@ import { GymProfileEditor } from './GymProfileEditor';
 import './GymProfileSettings.css';
 
 const NAME_LIMIT = 60;
+// Mirrors GymProfileLimits.MaxProfiles; the server still decides.
+const MAX_GYMS = 20;
 const FRESH = '';
 
 function summary(profile: GymProfile): string {
@@ -40,6 +42,7 @@ export function GymProfileSettings({ notify }: { notify: (message: string) => vo
   const [nameError, setNameError] = useState('');
   const [copyFrom, setCopyFrom] = useState(FRESH);
   const trigger = useRef<HTMLButtonElement | null>(null);
+  const footer = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -52,7 +55,9 @@ export function GymProfileSettings({ notify }: { notify: (message: string) => vo
 
   useEffect(() => {
     if (editing || adding || busy || !trigger.current) return;
-    trigger.current.focus();
+    // A deleted gym takes its Edit button with it; focus lands on Add gym instead of the page.
+    const target = trigger.current.isConnected ? trigger.current : footer.current?.querySelector('button');
+    target?.focus();
     trigger.current = null;
   }, [editing, adding, busy]);
 
@@ -87,6 +92,7 @@ export function GymProfileSettings({ notify }: { notify: (message: string) => vo
     : <div className="panel settings-card" role="status" aria-label="Loading your gyms"><Skeleton className="load-settings-skeleton" /></div>;
 
   const editingProfile = view.profiles.find(profile => profile.id === editing) ?? null;
+  const atLimit = view.profiles.length >= MAX_GYMS;
 
   return <>
     {/* An open dialog shows its own failure; the page banner would sit behind it. */}
@@ -108,8 +114,9 @@ export function GymProfileSettings({ notify }: { notify: (message: string) => vo
           }}><Pencil size={15} aria-hidden="true" /> Edit</Button>
         </div>
       </SettingRow>)}
-      <div className="gym-settings-footer">
-        <Button variant="secondary" disabled={busy} onClick={event => {
+      <div className="gym-settings-footer" ref={footer}>
+        {atLimit && <p className="muted small-copy">You can keep up to {MAX_GYMS} gyms. Delete one to add another.</p>}
+        <Button variant="secondary" disabled={busy || atLimit} onClick={event => {
           trigger.current = event.currentTarget;
           setName(''); setNameError(''); setCopyFrom(FRESH); setError(''); setAdding(true);
         }}><Plus size={15} aria-hidden="true" /> Add gym</Button>

@@ -205,6 +205,8 @@ public sealed class AppDb(DbContextOptions<AppDb> options) : DbContext(options)
         m.Entity<ExerciseSubstitution>().HasIndex(x => new { x.UserId, x.SessionId, x.PendingRetention });
         m.Entity<CompletedSet>().HasIndex(x => new { x.UserId, x.SessionExerciseId, x.Position });
         m.Entity<WorkoutSession>().HasIndex(x => new { x.UserId, x.FinishedAt });
+        // Gym-scoped machine progression and gym deletion read a user's workouts by gym.
+        m.Entity<WorkoutSession>().HasIndex(x => new { x.UserId, x.GymProfileId, x.FinishedAt });
         // One running estimate per exercise. Guid.Empty plus a name key is a real identity here,
         // not a null, so the database can hold the uniqueness instead of hoping the code does.
         m.Entity<ExerciseProgress>().HasIndex(x => new { x.UserId, x.ExerciseId, x.NameKey }).IsUnique().HasDatabaseName("IX_Progress_ExercisePerUser");

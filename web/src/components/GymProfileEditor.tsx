@@ -106,7 +106,7 @@ export function GymProfileEditor({ profile, equipment, busy, error, onClose, onS
           ? <p className="muted small-copy">None. Set an exercise from its details in Exercises when the equipment list does not tell the whole story.</p>
           : <ul className="gym-equipment-list">
             {overrideEntries.map(([id, value]) => <li key={id} className="gym-equipment-row">
-              <span className="gym-equipment-name">{exerciseNames.get(id) ?? 'An exercise no longer in your library'}
+              <span className="gym-equipment-name">{exerciseLabel(exerciseNames, id)}
                 <span className="muted small-copy"> · {value === 'available' ? 'Available here' : 'Not available here'}</span></span>
               <Button variant="tertiary" disabled={busy} onClick={() => setOverrides(({ [id]: _removed, ...rest }) => rest)}>
                 Reset to auto
@@ -128,16 +128,26 @@ export function GymProfileEditor({ profile, equipment, busy, error, onClose, onS
   </Modal>;
 }
 
+type ExerciseNames = { status: 'loading' } | { status: 'failed' } | { status: 'ready'; names: Map<string, string> };
+
 /** Names for hand-set exercises; read only when there are some to name. */
-function useExerciseNames(needed: boolean): Map<string, string> {
-  const [names, setNames] = useState<Map<string, string>>(new Map());
+function useExerciseNames(needed: boolean): ExerciseNames {
+  const [names, setNames] = useState<ExerciseNames>({ status: 'loading' });
   useEffect(() => {
     if (!needed) return;
     const controller = new AbortController();
+    setNames({ status: 'loading' });
     api.exercises(controller.signal)
-      .then((exercises: Exercise[]) => setNames(new Map(exercises.map(exercise => [exercise.id, exercise.name]))))
-      .catch(() => undefined);
+      .then((exercises: Exercise[]) => setNames({ status: 'ready', names: new Map(exercises.map(exercise => [exercise.id, exercise.name])) }))
+      .catch(() => { if (!controller.signal.aborted) setNames({ status: 'failed' }); });
     return () => controller.abort();
   }, [needed]);
   return names;
+}
+
+/** Only a completed read can say an exercise is gone; until then the row says what is known. */
+function exerciseLabel(names: ExerciseNames, id: string): string {
+  if (names.status === 'loading') return 'Loading exercise name…';
+  if (names.status === 'failed') return 'Exercise name unavailable right now';
+  return names.names.get(id) ?? 'An exercise no longer in your library';
 }

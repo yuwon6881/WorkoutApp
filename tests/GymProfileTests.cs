@@ -109,6 +109,22 @@ public sealed class GymProfileTests
         Assert.Equal(409, stale.Status);
     }
 
+    [Fact]
+    public async Task An_edit_that_leaves_out_a_list_keeps_what_the_gym_had()
+    {
+        await using var h = await Harness.Create();
+        await h.SignIn();
+        var gym = (await Gyms(h).Get(default)).ActiveId;
+        var exerciseId = Guid.NewGuid().ToString();
+        await Gyms(h).Update(gym, new("Home", ["hack-squat"], new() { [exerciseId] = GymExerciseOverrides.Available }, 1), default);
+
+        var renamed = (await Gyms(h).Update(gym, new("Garage", null, null, 2), default)).Profiles.Single(x => x.Id == gym);
+
+        Assert.Equal(("Garage", 3), (renamed.Name, renamed.Revision));
+        Assert.Equal(["hack-squat"], renamed.MissingEquipment);
+        Assert.Equal(GymExerciseOverrides.Available, renamed.ExerciseOverrides[exerciseId]);
+    }
+
     private static async Task Rejected(int status, string? message, Func<Task> action)
     {
         var failure = await Assert.ThrowsAsync<DomainException>(action);

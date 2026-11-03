@@ -2035,6 +2035,8 @@ namespace Workout.Api.Data.Migrations
 
                     b.HasIndex("UserId", "ProgramDayProgressId");
 
+                    b.HasIndex("UserId", "GymProfileId", "FinishedAt");
+
                     b.ToTable("Workouts", null, t =>
                         {
                             t.HasCheckConstraint("CK_Workouts_RestStatus", "\"RestStatus\" IN ('idle','running','paused','elapsed')");
