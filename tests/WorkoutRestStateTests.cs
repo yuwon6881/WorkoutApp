@@ -228,6 +228,10 @@ public class WorkoutRestStateTests
         await using var _h = h;
         var session = await h.Workouts.Start(templateId, null, default);
         var loggedAt = new DateTimeOffset(session.StartedAt, TimeSpan.Zero).AddMilliseconds(5);
+        // The replay must arrive after the moment it reports. On a fast machine the request could
+        // otherwise land within those 5 ms, when the service rightly treats the time as future and
+        // clamps the deadline to its present instead.
+        while (DateTime.UtcNow <= loggedAt.UtcDateTime.AddMilliseconds(20)) await Task.Delay(5);
 
         var started = await h.Workouts.MutateRest(session.Id, new WorkoutRestMutationInput(
             Revision: session.Revision, MutationId: Guid.NewGuid(), Action: "start", Seconds: 90,
