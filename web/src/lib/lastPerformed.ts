@@ -10,12 +10,17 @@ export type ExerciseLastPerformed = {
   durationSeconds: number | null;
 };
 
-/// "Last: 100 kg × 8 · Oct 27": load and reps when both are known, otherwise whichever was logged.
-/// Null when the set recorded nothing worth repeating back.
-export function lastPerformedLabel(last: ExerciseLastPerformed, unit: Unit, exercise: WithWeightBasis, locale?: string): string | null {
+/// "100 kg × 8": load and reps when both are known, otherwise whichever was logged. Null when the
+/// set recorded nothing worth repeating back.
+export function lastPerformedSet(last: ExerciseLastPerformed, unit: Unit, exercise: WithWeightBasis): string | null {
   const load = last.weightKg !== null ? showExerciseWeight(last.weightKg, unit, exercise) : null;
   const effort = last.reps !== null ? `${last.reps}` : last.durationSeconds !== null ? `${last.durationSeconds} s` : null;
-  const set = load && effort ? `${load} × ${effort}` : load ?? (effort && last.reps !== null ? `${effort} reps` : effort);
+  return load && effort ? `${load} × ${effort}` : load ?? (effort && last.reps !== null ? `${effort} reps` : effort);
+}
+
+/// "Last: 100 kg × 8 · Oct 27", or null when the set recorded nothing worth repeating back.
+export function lastPerformedLabel(last: ExerciseLastPerformed, unit: Unit, exercise: WithWeightBasis, locale?: string): string | null {
+  const set = lastPerformedSet(last, unit, exercise);
   if (!set) return null;
   const date = new Date(last.finishedAt).toLocaleDateString(locale, { month: 'short', day: 'numeric' });
   return `Last: ${set} · ${date}`;

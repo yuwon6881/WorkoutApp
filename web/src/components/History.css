@@ -1,6 +1,7 @@
 /* Workout history list in Overview */
 
 .panel[aria-label="Workout history"],
+.panel.history-recent,
 .panel.history-windowed {
   background: var(--surface);
   border: 1px solid var(--card-border);
@@ -234,6 +235,7 @@
 
 @media (max-width: 639px) {
   .panel[aria-label="Workout history"],
+  .panel.history-recent,
   .panel.history-windowed {
     padding: 18px 16px;
   }
@@ -269,4 +271,23 @@
   .history-stats > span:not(.history-pr-pill) {
     gap: 4px;
   }
+}
+
+/* Overview lists only the newest workouts; the whole history opens in a sheet. */
+.history-recent .section-heading {
+  align-items: center;
+}
+
+.history-show-all {
+  min-height: 44px;
+  gap: 6px;
+  margin-right: -10px;
+}
+
+.history-embedded .section-heading {
+  margin-bottom: 12px;
+}
+
+@media (min-width: 1024px) {
+  .history-show-all { min-height: 36px; }
 }

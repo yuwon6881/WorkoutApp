@@ -23,6 +23,10 @@ interface WorkoutHistoryProps {
   onStart: () => void;
   onExercise?: (id: string) => void;
   onDeleted?: () => Promise<void>;
+  /** Overview's short list: only the newest few, and a way to open the whole history. */
+  recent?: { count: number; onShowAll: () => void };
+  /** Drawn inside a sheet that already names the history, so no card or heading of its own. */
+  embedded?: boolean;
 }
 
 export function WorkoutHistory({
@@ -32,7 +36,9 @@ export function WorkoutHistory({
   unit,
   onSession,
   onStart,
-  onDeleted
+  onDeleted,
+  recent,
+  embedded = false
 }: WorkoutHistoryProps) {
   const readKey = `${accountId ?? ''}:history`;
   const cached = viewReadCache.get<HistorySummaryPage>(readKey, refreshKey);
@@ -75,7 +81,7 @@ export function WorkoutHistory({
     return () => { active.abort(); };
   }, [initial, accountId, refreshKey]);
 
-  const hasMore = page.sessions.length < page.total && Boolean(cursor.at && cursor.id);
+  const hasMore = !recent && page.sessions.length < page.total && Boolean(cursor.at && cursor.id);
   const loadMoreRef = useLoadMoreOnScroll(!loading && hasMore && !error, () => void more());
 
   async function more() {
@@ -122,21 +128,38 @@ export function WorkoutHistory({
     }
   }
 
-  const sessions = page.sessions;
+  const sessions = recent ? page.sessions.slice(0, recent.count) : page.sessions;
+  // The short list reads newest first without month headings; the full history groups by month.
+  const groups: { key: string; label: string | null; sessions: Session[] }[] = recent
+    ? (sessions.length ? [{ key: 'recent', label: null, sessions }] : [])
+    : historyMonths(sessions);
+  const surface = embedded ? 'history-embedded' : `panel${recent ? ' history-recent' : ''}`;
 
   return (
-    <section className={`panel${sessions.length > 100 ? ' history-windowed' : ''}`} aria-label="Workout history">
-      <div className="section-heading">
-        <h2>Workout history</h2>
-        <span className="muted">{sessions.length} of {page.total}</span>
-      </div>
+    <section className={`${surface}${sessions.length > 100 ? ' history-windowed' : ''}`}
+      aria-label={recent ? 'Recent workouts' : 'Workout history'}>
+      {recent ? (
+        <div className="section-heading">
+          <h2>Recent workouts</h2>
+          {page.total > sessions.length && (
+            <Button variant="tertiary" className="history-show-all" onClick={recent.onShowAll}>
+              All history<ArrowRight size={15} aria-hidden="true" />
+            </Button>
+          )}
+        </div>
+      ) : (
+        <div className="section-heading">
+          {!embedded && <h2>Workout history</h2>}
+          <span className="muted">{sessions.length} of {page.total}</span>
+        </div>
+      )}
 
       {error && <div className="error-banner" role="alert">{error}</div>}
 
       <div className="history-list">
-        {historyMonths(sessions).map(month => (
-          <section className="history-month" key={month.key} aria-labelledby={`history-month-${month.key}`}>
-            <h3 className="history-month-heading" id={`history-month-${month.key}`}>{month.label}</h3>
+        {groups.map(month => (
+          <section className="history-month" key={month.key} aria-labelledby={month.label ? `history-month-${month.key}` : undefined}>
+            {month.label && <h3 className="history-month-heading" id={`history-month-${month.key}`}>{month.label}</h3>}
             {month.sessions.map(session => {
               const prCount = session.prCount ?? 0;
               const hasVolume = session.volumeKg != null && session.volumeKg > 0;

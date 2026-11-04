@@ -58,10 +58,6 @@ export function AppLoading() {
                 </div>
                 <Skeleton className="skeleton-hero-button" />
               </section>
-
-              <div className="stats-grid progress-stats" aria-hidden="true">
-                {Array.from({ length: STATS }, (_, index) => <Skeleton key={index} className="skeleton-stat" />)}
-              </div>
             </div>
 
             <div className="overview-calendar-column">
@@ -72,6 +68,9 @@ export function AppLoading() {
                 </div>
                 <div className="calendar-days-grid app-loading-week">
                   {Array.from({ length: WEEK_DAYS }, (_, index) => <Skeleton key={index} className="skeleton-day" />)}
+                </div>
+                <div className="stats-grid progress-stats" aria-hidden="true">
+                  {Array.from({ length: STATS }, (_, index) => <Skeleton key={index} className="skeleton-stat" />)}
                 </div>
               </section>
             </div>

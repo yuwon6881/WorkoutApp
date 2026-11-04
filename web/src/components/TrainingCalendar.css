@@ -108,12 +108,27 @@
 }
 .calendar-month-label {
   flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
   min-width: 0;
   text-align: center;
-  font-size: var(--font-secondary);
-  font-weight: 620;
+  line-height: 1.2;
+}
+.calendar-range {
+  font-size: 15px;
+  font-weight: 720;
+  letter-spacing: -0.01em;
   color: var(--text);
-  line-height: 1.35;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.calendar-range-relative {
+  font-size: var(--font-secondary);
+  font-weight: 560;
+  color: var(--muted);
+  white-space: nowrap;
 }
 /* Only touch layouts browse weeks by swiping alone, so only they are told. */
 .calendar-swipe-hint {
@@ -214,11 +229,11 @@
   justify-content: center;
   gap: 4px;
   min-width: 44px;
-  min-height: 78px;
+  min-height: 72px;
   border: 1px solid transparent;
   border-radius: var(--radius-control);
-  padding: 10px 4px 8px;
-  background: var(--surface-raised);
+  padding: 8px 2px 6px;
+  background: transparent;
   color: var(--text);
   cursor: pointer;
   transition: background-color var(--motion-control) var(--motion-ease), border-color var(--motion-control) var(--motion-ease), box-shadow var(--motion-control) var(--motion-ease), transform var(--motion-control) var(--motion-ease);
@@ -227,43 +242,40 @@
   background: var(--surface-hover);
 }
 
-/* Day states */
-.calendar-day-cell.day-completed {
-  background: var(--surface-raised);
-  border-color: transparent;
-}
-.calendar-day-cell.day-completed:hover {
-  border-color: var(--border-hover);
-}
+/* Day states. The days sit on the card itself; the date's disc carries the state, so a week reads
+   as one strip rather than seven boxes. Status keeps its icon below for anyone who cannot rely on
+   colour. */
 .calendar-day-cell.day-completed .day-weekday {
   color: var(--teal);
 }
 .calendar-day-cell.day-completed .day-number {
-  color: var(--text);
+  color: var(--teal);
+  background: color-mix(in srgb, var(--teal) 16%, transparent);
 }
 
-.calendar-day-cell.day-in_progress {
-  background: color-mix(in srgb, var(--accent) 12%, var(--surface-raised));
-  border-color: var(--accent-border-strong);
-}
-.calendar-day-cell.day-in_progress .day-weekday {
-  color: var(--accent);
-}
+.calendar-day-cell.day-in_progress .day-weekday,
 .calendar-day-cell.day-in_progress .day-number {
   color: var(--accent);
 }
-
-.calendar-day-cell.day-rest {
-  background: var(--surface-raised);
-  border-color: transparent;
+.calendar-day-cell.day-in_progress .day-number {
+  background: var(--accent-soft);
 }
 
-.calendar-day-cell.today.is-today {
-  border-color: var(--border-hover);
+/* Days still ahead are quieter, so the week shows how far it has come. */
+.calendar-day-cell.day-ahead .day-weekday,
+.calendar-day-cell.day-ahead .day-number {
+  color: var(--muted);
+}
+
+.calendar-day-cell.today.is-today .day-weekday {
+  color: var(--text);
+  font-weight: 750;
 }
 .calendar-day-cell.today.is-today .day-number {
-  color: var(--on-accent);
-  background: var(--accent);
+  box-shadow: inset 0 0 0 2px var(--accent);
+}
+.calendar-day-cell.today.is-today.day-rest .day-number {
+  color: var(--text);
 }
 
 .day-weekday {
@@ -275,8 +287,8 @@
 }
 .day-number {
   display: grid;
-  width: 30px;
-  height: 30px;
+  width: 34px;
+  height: 34px;
   place-items: center;
   border-radius: 50%;
   font-size: 16px;
@@ -328,17 +340,7 @@
   justify-content: space-between;
   align-items: center;
   gap: 10px;
-  padding-top: 12px;
-  border-top: 1px solid var(--border);
   flex-wrap: wrap;
-}
-
-.calendar-week-count {
-  margin: 0;
-  color: var(--muted);
-  font-size: var(--font-secondary);
-  font-weight: 500;
-  line-height: 1.35;
 }
 
 /* A key, not controls: plain text beside its dot, so nothing here reads as a button. */
@@ -424,8 +426,8 @@
     gap: 3px;
   }
   .day-number {
-    width: 28px;
-    height: 28px;
+    width: 32px;
+    height: 32px;
     font-size: 15px;
   }
   .calendar-card-footer {
@@ -433,12 +435,6 @@
     align-items: center;
     text-align: center;
     gap: 8px;
-    padding-top: 10px;
-  }
-  .calendar-week-count {
-    font-size: var(--font-secondary);
-    text-align: center;
-    width: 100%;
   }
   .calendar-legend-pills {
     width: 100%;
@@ -450,13 +446,38 @@
   .calendar-nav-btn {
     display: none !important;
   }
-  /* Without its arrows the range is a label, not a control: no pill to tap. */
+  /* Without its arrows the range is a label, not a control: no pill to tap. It shares the title's
+     row, trailing, at a fixed width so changing weeks never moves it. */
+  .calendar-card-header {
+    flex-wrap: wrap;
+    align-items: center;
+  }
+  .calendar-completion {
+    flex: 1 1 120px;
+  }
+  .calendar-nav-controls {
+    width: auto;
+    flex: none;
+    margin-left: auto;
+    grid-template-columns: auto 140px;
+    gap: 0;
+  }
+  /* Only a week away from this one needs the way back; until then the title keeps the room. The
+     range is right-aligned in its own column, so it never moves when the control appears. */
+  .calendar-reset-slot {
+    grid-column: 1;
+  }
+  .calendar-reset-slot:empty {
+    width: 0;
+  }
   .calendar-month-nav {
+    grid-column: 2;
     background: transparent;
-    justify-content: flex-start;
+    justify-content: flex-end;
   }
   .calendar-month-label {
-    text-align: left;
+    align-items: flex-end;
+    text-align: right;
   }
   .calendar-today-btn {
     min-height: 44px;
@@ -466,4 +487,20 @@
 /* A week the read has not reached yet: its status marks are unknown, not "no workout". */
 .calendar-week-rail[data-loading] .day-status-indicator {
   opacity: .35;
+}
+
+/* Expanded layouts: the week bar spans the card like the days under it, and the return-to-this-week
+   control appears in the title row instead of holding a gap beside the bar. */
+@media (min-width: 1024px) {
+  .calendar-card-header {
+    position: relative;
+  }
+  .calendar-nav-controls {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .calendar-reset-slot {
+    position: absolute;
+    top: 0;
+    right: 0;
+  }
 }

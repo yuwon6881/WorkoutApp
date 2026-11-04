@@ -7,6 +7,7 @@ import { getPlannedMuscleCredits } from '../lib/programMuscles';
 import { passableRestDayId, programDayActionInput } from '../lib/programDayState';
 import { Button } from './ui/Button';
 import { MuscleThumb } from './MuscleThumb';
+import { NextWorkoutPlan } from './NextWorkoutPlan';
 import { WorkoutElapsed } from './WorkoutElapsed';
 import './NextWorkoutHero.css';
 
@@ -292,6 +293,8 @@ export function NextWorkoutHero({ data, onStart, onResume, onProgram, onChanged 
 
           <HeroMuscles muscles={topMuscles} />
         </div>
+
+        <NextWorkoutPlan data={data} templateId={next.id} />
 
         <div className="hero-footer">
           <Button variant="primary" className="hero-action-btn" onClick={() => onStart(next.id)}>

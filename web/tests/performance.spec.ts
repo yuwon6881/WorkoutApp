@@ -78,7 +78,7 @@ for (const throttled of [false, true]) {
     await page.goto('/');
     await expect(page.getByRole('heading', { name: 'Overview', exact: true })).toBeVisible();
     const usableMs = Date.now() - start;
-    await expect(page.getByRole('region', { name: 'Workout history' })).toBeVisible();
+    await expect(page.getByRole('region', { name: 'Recent workouts' })).toBeVisible();
     const responses = await Promise.all([shellResponse, progressResponse, historyResponse]);
     const startupGzipBytes = (await Promise.all(responses.map(async response => gzipSync(await response.body()).length))).reduce((a, b) => a + b, 0);
     const legacyResponse = await page.request.get('/api/bootstrap');

@@ -31,16 +31,17 @@ export function CalendarSkeleton() {
           </div>
         </div>
       </div>
+      <ProgressStatsSkeleton />
       <div className="calendar-card-footer" aria-hidden="true">
-        <Skeleton style={{ width: 180, height: 16 }} />
+        <Skeleton style={{ width: 220, height: 14 }} />
       </div>
     </section>
   );
 }
 
-export function ProgressStatsSkeleton() {
+function ProgressStatsSkeleton() {
   return (
-    <div className="stats-grid progress-stats" aria-label="Loading training statistics" aria-busy="true">
+    <div className="stats-grid progress-stats" aria-hidden="true">
       {Array.from({ length: 3 }, (_, index) => (
         <div className="stat-card progress-stat-card" key={index} aria-hidden="true">
           <Skeleton style={{ width: 72, height: 16 }} />
@@ -49,7 +50,6 @@ export function ProgressStatsSkeleton() {
           </div>
         </div>
       ))}
-      <small className="progress-stats-scope" aria-hidden="true"><Skeleton style={{ width: 96, height: 14 }} /></small>
     </div>
   );
 }

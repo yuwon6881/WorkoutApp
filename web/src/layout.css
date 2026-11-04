@@ -83,7 +83,6 @@
   .app-loading .overview-main-column { display: contents; }
   .app-loading .app-loading-quick-start { order: 1; }
   .app-loading .overview-calendar-column { order: 2; }
-  .app-loading .progress-stats { order: 3; }
 }
 .app-loading-week-summary { display: flex; align-items: center; gap: 10px; margin-bottom: 0; }
 .app-loading-week-summary > div { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
@@ -95,20 +94,18 @@
   .skeleton-week-ring { width: 44px; height: 44px; }
 }
 /* Reserve rows before the lazy calendar/stat styles arrive; otherwise seven days stack. */
-.app-loading .app-loading-week { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; margin-bottom: 20px; }
+.app-loading .app-loading-week { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; margin-bottom: 14px; }
 .app-loading-week .skeleton-day { min-height: 78px; border-radius: var(--radius-control) !important; }
+/* The week's totals sit inside the calendar card, under its days. */
 .app-loading .progress-stats {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 0;
-  padding: 14px 18px;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius, 12px);
+  gap: 0 12px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
   box-sizing: border-box;
 }
 .app-loading .progress-stats > * { grid-column: auto; }
-@media (max-width: 639px) { .app-loading .progress-stats { padding: 12px 10px; } }
 .skeleton-stat { min-height: 52px; }
 .app-loading-bottom-nav { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 60px minmax(0, 1fr) minmax(0, 1fr); align-items: center; gap: 0; padding: 4px; }
 .skeleton-bottom-item { height: 56px; border-radius: 14px !important; }

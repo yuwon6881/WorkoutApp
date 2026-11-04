@@ -3,41 +3,31 @@ import { toDisplay } from '../lib/training';
 import './ProgressPanels.css';
 import { calendarWeekLabel, type CalendarWeekSummary } from '../lib/calendarWeekSummary';
 
+/// One weekly total: its value, then a short label that fits one line in the narrowest tile.
+/// Sets are working sets and time excludes pauses, as everywhere else in the app.
+function WeekStat({ label, value, unit }: { label: string; value: string | null; unit?: string }) {
+  return (
+    <div className="stat-card progress-stat-card">
+      <span className="stat-label-text">{label}</span>
+      <div className="stat-card-value">
+        <strong>
+          {value ?? '—'}
+          {value !== null && unit && <>{' '}<small className="stat-unit">{unit}</small></>}
+        </strong>
+      </div>
+    </div>
+  );
+}
+
 export function ProgressStats({ week }: { week: CalendarWeekSummary | null }) {
   const totals = week?.totals;
   return (
     <div className="stats-grid progress-stats" role="region" aria-label="Training statistics">
-      <div className="stat-card progress-stat-card">
-        <span className="stat-label-text">Workouts</span>
-        <div className="stat-card-value">
-          <strong>{totals?.sessions.toLocaleString() ?? '—'}</strong>
-        </div>
-      </div>
-
-      <div className="stat-card progress-stat-card">
-        <span className="stat-label-text">Working sets</span>
-        <div className="stat-card-value">
-          <strong>{totals?.workingSets?.toLocaleString() ?? '—'}</strong>
-        </div>
-      </div>
-
-      <div className="stat-card progress-stat-card">
-        <span className="stat-label-text">Training time</span>
-        <div className="stat-card-value">
-          <strong>
-            {totals?.trainingMinutes != null ? (
-              <>
-                {totals.trainingMinutes.toLocaleString()}{' '}
-                <small className="stat-unit">min</small>
-              </>
-            ) : (
-              '—'
-            )}
-          </strong>
-        </div>
-      </div>
-
-      <small className="progress-stats-scope" aria-live="polite">
+      <WeekStat label="Workouts" value={totals?.sessions.toLocaleString() ?? null} />
+      <WeekStat label="Sets" value={totals?.workingSets?.toLocaleString() ?? null} />
+      <WeekStat label="Time" value={totals?.trainingMinutes?.toLocaleString() ?? null} unit="min" />
+      {/* The calendar header shows the range; this keeps it with the totals for screen readers. */}
+      <small className="sr-only" aria-live="polite">
         {week ? `${calendarWeekLabel(week.from, week.to)} · Completed workouts` : 'Weekly totals'}
       </small>
     </div>

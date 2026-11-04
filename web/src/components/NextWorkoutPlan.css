@@ -1,0 +1,68 @@
+/* The hero's glimpse of the next workout: length, then its opening exercises with last top sets. */
+.hero-plan {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 14px;
+  border-top: 1px solid var(--section-border);
+}
+
+.hero-plan-estimate {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  font-size: var(--font-secondary);
+  font-weight: 560;
+  color: var(--muted);
+}
+
+.hero-plan-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.hero-plan-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 14px;
+  min-width: 0;
+}
+
+.hero-plan-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text);
+  font-weight: 560;
+}
+
+.hero-plan-last {
+  flex: none;
+  color: var(--muted);
+  font-size: var(--font-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.hero-plan-more {
+  margin: 0;
+  font-size: var(--font-secondary);
+  color: var(--muted);
+}
+
+.hero-plan-skeleton-line {
+  width: 180px;
+  height: 16px;
+}
+
+.hero-plan-skeleton-row {
+  width: 100%;
+  height: 18px;
+}

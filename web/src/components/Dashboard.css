@@ -4,7 +4,7 @@
   align-items: flex-start;
   justify-content: flex-start;
   gap: 4px;
-  margin-bottom: 24px;
+  margin-bottom: 20px;
   text-align: left;
 }
 
@@ -18,7 +18,7 @@
   color: var(--muted);
   font-weight: 500;
   letter-spacing: -0.01em;
-  margin-top: 4px;
+  margin-top: 2px;
   text-align: left;
 }
 
@@ -31,10 +31,10 @@
 
 @media (max-width: 639px) {
   .page-heading.dashboard-heading {
-    margin-bottom: 16px;
+    margin-bottom: 12px;
   }
 
-  /* Mobile compact flow: hero -> calendar -> metrics -> history */
+  /* Mobile compact flow: hero -> week (calendar and its totals) -> recent workouts */
   .overview-main-column {
     display: contents;
   }
@@ -44,10 +44,7 @@
   .overview-hero-calendar-grid > .overview-calendar-column {
     order: 2;
   }
-  .overview-hero-calendar-grid > .overview-main-column > .progress-stats {
-    order: 3;
-  }
   .overview-hero-calendar-grid > .overview-main-column > .error-banner {
-    order: 4;
+    order: 3;
   }
 }

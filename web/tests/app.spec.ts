@@ -753,11 +753,13 @@ test('build a workout, log a set against the server, and see it in history', asy
     await expect(page.getByRole('button', { name: `${today}, workout completed, today`, exact: true })).toBeVisible();
     await expect(page.getByText(name, { exact: true }).first()).toBeVisible();
     const progressStats = page.locator('.progress-stats');
-    const workoutHistoryHeading = page.getByRole('heading', { name: 'Workout history', exact: true });
-    expect(await progressStats.evaluate((stats, heading) => Boolean(stats.compareDocumentPosition(heading as Node) & Node.DOCUMENT_POSITION_FOLLOWING), await workoutHistoryHeading.elementHandle())).toBe(true);
+    const recentHeading = page.getByRole('heading', { name: 'Recent workouts', exact: true });
+    expect(await progressStats.evaluate((stats, heading) => Boolean(stats.compareDocumentPosition(heading as Node) & Node.DOCUMENT_POSITION_FOLLOWING), await recentHeading.elementHandle())).toBe(true);
+    // The week's totals live inside the calendar card rather than in a card of their own.
+    await expect(page.getByRole('region', { name: 'Training calendar' }).locator('.progress-stats')).toHaveCount(1);
     const progressHeadings = await page.locator('main h2').allTextContents();
     expect(progressHeadings).not.toContain('Personal bests');
-    expect(progressHeadings).toContain('Workout history');
+    expect(progressHeadings).toContain('Recent workouts');
 
     await openTab(page, 'Muscles');
     await expect(page.getByRole('heading', { name: 'Muscle coverage', exact: true })).toBeVisible();
@@ -1626,7 +1628,7 @@ test('overview calendar opens matching completed and active sessions and leaves 
   }
   await signIn(page);
   const calendar = page.getByRole('region', { name: 'Training calendar' });
-  await expect(calendar.getByText('1 workout completed this week', { exact: true })).toBeVisible();
+  await expect(calendar.getByRole('region', { name: 'Training statistics' }).locator('.stat-card-value').first()).toHaveText('1');
   const todayButton = page.getByRole('button', { name: today.toDateString() + ', workout completed, today', exact: true });
   await expect(todayButton).toHaveClass(/day-completed/);
   await todayButton.click();

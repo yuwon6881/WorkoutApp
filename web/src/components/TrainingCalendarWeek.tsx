@@ -50,12 +50,14 @@ export const TrainingCalendarWeek = memo(function TrainingCalendarWeek(
         const entries = entriesByDay.get(key) ?? [];
         const status = dayStatus(entries);
         const isToday = key === today;
+        // Days still ahead read quieter, so the week shows at a glance how far it has come.
+        const isAhead = key > today;
 
         return (
           <Button
             presentation="plain"
             key={key}
-            className={`calendar-day-cell day-${status} ${isToday ? 'today is-today' : ''}`}
+            className={`calendar-day-cell day-${status} ${isToday ? 'today is-today' : ''} ${isAhead ? 'day-ahead' : ''}`}
             aria-label={`${text}, ${STATUS_LABEL[status]}${isToday ? ', today' : ''}`}
             onClick={() => onOpenDay(entries)}
           >

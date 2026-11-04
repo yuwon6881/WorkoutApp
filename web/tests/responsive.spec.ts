@@ -409,7 +409,7 @@ for (const theme of ['dark', 'light']) {
 
     await navigate(page, 'Overview');
     await expect(page.getByRole('region', { name: 'Training statistics' }).locator('.stat-label-text'))
-      .toHaveText(['Workouts', 'Working sets', 'Training time']);
+      .toHaveText(['Workouts', 'Sets', 'Time']);
     await screenshot('overview');
     const calendar = page.getByRole('region', { name: 'Training calendar' });
     const currentWeek = calendar.getByRole('group', { name: 'Days of the week', exact: true });
@@ -647,7 +647,7 @@ for (const theme of ['dark', 'light'] as const) {
     await navigate(page, 'Settings');
     await page.getByRole('group', { name: 'Appearance' }).getByRole('button', { name: theme === 'dark' ? 'Dark' : 'Light' }).click();
     await navigate(page, 'Overview');
-    const history = page.getByRole('region', { name: 'Workout history' });
+    const history = page.getByRole('region', { name: 'Recent workouts' });
     await expect(history.locator('.history-row').first()).toBeVisible();
     await history.locator('.history-row').first().click();
     const modal = page.getByRole('dialog');
@@ -662,7 +662,11 @@ for (const theme of ['dark', 'light'] as const) {
     await expect(setTags.filter({ hasText: 'Estimated strength best' })).toHaveCount(1);
     await expect(setTags.filter({ hasText: 'Strength & rep best' })).toHaveCount(1);
     await modal.getByRole('button', { name: 'Close dialog', exact: true }).click();
-    await expect(history.locator('.history-row')).toHaveCount(2);
+    // Overview lists only what the first page holds; the whole history pages in from its sheet.
+    await expect(history.locator('.history-row')).toHaveCount(1);
+    await history.getByRole('button', { name: 'All history', exact: true }).click();
+    const sheet = page.getByRole('dialog', { name: 'Workout history', exact: true });
+    await expect(sheet.locator('.history-row')).toHaveCount(2);
     await checkLayout(page, 'populated history');
     await page.screenshot({ animations: 'disabled', path: join(screenshotsDirectory, 'responsive', `${info.project.name}-${theme}-populated-history.png`) });
   });

@@ -9,7 +9,8 @@ import { Button } from './ui/Button';
 import './TrainingCalendar.css';
 import { TrainingCalendarWeek } from './TrainingCalendarWeek';
 import { useCalendarActivity } from './useCalendarActivity';
-import { calendarWeekTotals, type CalendarWeekSummary } from '../lib/calendarWeekSummary';
+import { calendarWeekRange, calendarWeekRelative, calendarWeekTotals, type CalendarWeekSummary } from '../lib/calendarWeekSummary';
+import { ProgressStats } from './ProgressPanels';
 
 interface TrainingCalendarProps {
   onSession: (s: Session) => void;
@@ -17,10 +18,9 @@ interface TrainingCalendarProps {
   refreshKey: string | HistoryPage;
   activeWorkoutId: string | null;
   accountId: string;
-  onWeekChange?: (week: CalendarWeekSummary) => void;
 }
 
-export function TrainingCalendar({ onSession, program, refreshKey, activeWorkoutId, accountId, onWeekChange }: TrainingCalendarProps) {
+export function TrainingCalendar({ onSession, program, refreshKey, activeWorkoutId, accountId }: TrainingCalendarProps) {
   const [offset, setOffset] = useState(0);
   const days = weekDays(offset);
   const rail = useRef<HTMLDivElement>(null);
@@ -37,11 +37,12 @@ export function TrainingCalendar({ onSession, program, refreshKey, activeWorkout
   const [openError, setOpenError] = useState('');
   const calendarError = readError || openError;
   useEffect(() => setOpenError(''), [offset]);
+  // The week's totals sit in this card and follow its swipe. A failed read leaves them unknown
+  // rather than reporting an empty week.
   const weekSummary = useMemo<CalendarWeekSummary>(() => ({
     from: weekFrom, to: weekTo,
-    totals: initialLoading ? null : calendarWeekTotals(calendar, weekFrom, weekTo)
-  }), [calendar, initialLoading, weekFrom, weekTo]);
-  useEffect(() => { onWeekChange?.(weekSummary); }, [onWeekChange, weekSummary]);
+    totals: initialLoading || readError ? null : calendarWeekTotals(calendar, weekFrom, weekTo)
+  }), [calendar, initialLoading, readError, weekFrom, weekTo]);
   // Three weeks of day cells each look up their own date; group once per loaded calendar.
   const entriesByDay = useMemo(() => {
     const byDay = new Map<string, WorkoutActivityItem[]>();
@@ -143,22 +144,9 @@ export function TrainingCalendar({ onSession, program, refreshKey, activeWorkout
     }
   }, [onSession]);
 
-  const monthYearLabel = (() => {
-    const firstMonth = days[0].toLocaleDateString('en', { month: 'short' });
-    const lastMonth = days[6].toLocaleDateString('en', { month: 'short' });
-    const firstYear = days[0].getFullYear();
-    const lastYear = days[6].getFullYear();
-    if (firstMonth === lastMonth && firstYear === lastYear) {
-      return `${days[0].toLocaleDateString('en', { month: 'long' })} ${firstYear}`;
-    }
-    if (firstYear === lastYear) {
-      return `${firstMonth} – ${lastMonth} ${firstYear}`;
-    }
-    return `${firstMonth} ${firstYear} – ${lastMonth} ${lastYear}`;
-  })();
+  const rangeLabel = calendarWeekRange(weekFrom, weekTo);
+  const relativeLabel = calendarWeekRelative(offset);
 
-  const completed = calendar.filter(item => item.status === 'completed' &&
-    item.date >= weekFrom && item.date <= weekTo);
   return (
     <section className="panel training-calendar-card" aria-label="Training calendar">
       <div className="calendar-card-header">
@@ -188,9 +176,12 @@ export function TrainingCalendar({ onSession, program, refreshKey, activeWorkout
             >
               <ChevronLeft size={18} />
             </Button>
-            <span className="calendar-month-label">
-              {monthYearLabel}
-              <span className="calendar-swipe-hint" aria-hidden="true"> · swipe for other weeks</span>
+            <span className="calendar-month-label" aria-live="polite">
+              <span className="calendar-range">{rangeLabel}</span>
+              <span className="calendar-range-relative">
+                {relativeLabel}
+                <span className="calendar-swipe-hint" aria-hidden="true"> · swipe</span>
+              </span>
             </span>
             <Button
               aria-label="Next week"
@@ -237,14 +228,9 @@ export function TrainingCalendar({ onSession, program, refreshKey, activeWorkout
         </div>
       </div>
 
+      <ProgressStats week={weekSummary} />
+
       <div className="calendar-card-footer">
-        <p className="calendar-week-count">
-          {initialLoading
-            ? (calendarError || 'Loading activity')
-            : calendarError
-              ? 'Activity unavailable'
-              : `${completed.length} ${completed.length === 1 ? 'workout' : 'workouts'} completed this week`}
-        </p>
         <div className="calendar-legend-pills" aria-label="Calendar status legend">
           <span className="calendar-legend-pill"><Check size={12} strokeWidth={3} className="legend-mark completed" aria-hidden="true" />Completed</span>
           <span className="calendar-legend-pill"><i className="legend-dot in-progress" aria-hidden="true" />In progress</span>

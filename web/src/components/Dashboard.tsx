@@ -1,22 +1,18 @@
-import { lazy, Suspense, useEffect, useState, useSyncExternalStore } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
 import type { Bootstrap, ProgressSummary, Session } from '../types';
 import { ApiError, api } from '../lib/api';
 import { Button } from './ui/Button';
 import { NextWorkoutHero } from './NextWorkoutHero';
 import { viewReadCache } from '../lib/viewReadCache';
-import { createCalendarWeekStore, type CalendarWeekStore } from '../lib/calendarWeekStore';
 const TrainingCalendar = lazy(() => import('./TrainingCalendar').then(module => ({ default: module.TrainingCalendar })));
 const BodyweightRecords = lazy(() => import('./ProgressPanels').then(module => ({ default: module.BodyweightRecords })));
-const ProgressStats = lazy(() => import('./ProgressPanels').then(module => ({ default: module.ProgressStats })));
 const WorkoutHistory = lazy(() => import('./WorkoutHistory').then(module => ({ default: module.WorkoutHistory })));
 import './Dashboard.css';
-import { CalendarSkeleton, ProgressStatsSkeleton } from './DashboardTrainingSkeleton';
+import { CalendarSkeleton } from './DashboardTrainingSkeleton';
+import { Modal } from './ui/Modal';
 
-/// Follows the calendar's week in a component of its own, so a swipe re-renders only these totals.
-function OverviewWeekStats({ store }: { store: CalendarWeekStore }) {
-  const week = useSyncExternalStore(store.subscribe, store.get);
-  return <ProgressStats week={week} />;
-}
+/** Overview shows the latest few workouts; the whole history opens in a sheet over it. */
+const RECENT_WORKOUTS = 3;
 
 interface DashboardProps {
   data: Bootstrap;
@@ -43,7 +39,7 @@ export function Dashboard({
   const [progress, setProgress] = useState<ProgressSummary | null>(data.progress ?? viewReadCache.get(readKey, readVersion) ?? null);
   const [progressError, setProgressError] = useState('');
   const [progressRetry, setProgressRetry] = useState(0);
-  const [weekStore] = useState(createCalendarWeekStore);
+  const [allHistory, setAllHistory] = useState(false);
 
   useEffect(() => {
     if (data.progress && progressRetry === 0) { setProgress(data.progress); return; }
@@ -78,12 +74,7 @@ export function Dashboard({
         <div>
           <h1 data-page-heading tabIndex={-1}>Overview</h1>
           <p className="dashboard-date-subtitle">
-            {new Date().toLocaleDateString('en', {
-              weekday: 'long',
-              month: 'long',
-              day: 'numeric',
-              year: 'numeric'
-            })}
+            {new Date().toLocaleDateString('en', { weekday: 'long', month: 'long', day: 'numeric' })}
           </p>
         </div>
       </div>
@@ -97,9 +88,6 @@ export function Dashboard({
             onProgram={onProgram}
             onChanged={onChanged}
           />
-          <Suspense fallback={<ProgressStatsSkeleton />}>
-            <OverviewWeekStats store={weekStore} />
-          </Suspense>
           {progressError && (
             <div className="error-banner" role="alert">
               <span>{progressError}</span>
@@ -117,17 +105,12 @@ export function Dashboard({
               refreshKey={data.resourceVersions?.history ?? data.history}
               activeWorkoutId={data.activeWorkout?.id ?? null}
               accountId={data.account.id}
-              onWeekChange={weekStore.set}
             />
           </Suspense>
         </div>
       </div>
 
-      <Suspense fallback={<div className="panel skeleton" aria-label="Loading bodyweight records" />}>
-        <BodyweightRecords progress={progress} unit={unit} />
-      </Suspense>
-
-      <Suspense fallback={<div className="panel"><div className="skeleton history-row-skeleton" aria-label="Loading workout history" /></div>}>
+      <Suspense fallback={<div className="panel"><div className="skeleton history-row-skeleton" aria-label="Loading recent workouts" /></div>}>
         <WorkoutHistory
           initial={data.historyDeferred ? undefined : data.history}
           accountId={data.account.id}
@@ -137,8 +120,33 @@ export function Dashboard({
           onStart={onProgram}
           onExercise={onExercise}
           onDeleted={onChanged}
+          recent={{ count: RECENT_WORKOUTS, onShowAll: () => setAllHistory(true) }}
         />
       </Suspense>
+
+      <Suspense fallback={<div className="panel skeleton" aria-label="Loading bodyweight records" />}>
+        <BodyweightRecords progress={progress} unit={unit} />
+      </Suspense>
+
+      {allHistory && (
+        <Modal title="Workout history" wide className="history-sheet" onClose={() => setAllHistory(false)}>
+          <div className="modal-body">
+            <Suspense fallback={<div className="skeleton history-row-skeleton" aria-label="Loading workout history" />}>
+              <WorkoutHistory
+                initial={data.historyDeferred ? undefined : data.history}
+                accountId={data.account.id}
+                refreshKey={readVersion}
+                unit={unit}
+                onSession={onSession}
+                onStart={onProgram}
+                onExercise={onExercise}
+                onDeleted={onChanged}
+                embedded
+              />
+            </Suspense>
+          </div>
+        </Modal>
+      )}
     </>
   );
 }
