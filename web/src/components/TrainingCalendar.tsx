@@ -7,6 +7,7 @@ import { prefetchView } from '../app/lazyViews';
 import { ProgramWeekCompletion } from './ProgramWeekCompletion';
 import { Button } from './ui/Button';
 import './TrainingCalendar.css';
+import './CalendarWeekRange.css';
 import { TrainingCalendarWeek } from './TrainingCalendarWeek';
 import { useCalendarActivity } from './useCalendarActivity';
 import { calendarWeekRange, calendarWeekRelative, calendarWeekTotals, type CalendarWeekSummary } from '../lib/calendarWeekSummary';

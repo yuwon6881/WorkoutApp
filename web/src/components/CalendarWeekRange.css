@@ -1,0 +1,32 @@
+/* The calendar header's week range ("Nov 2 – 8") and where that week sits ("This week"). Loaded
+   after TrainingCalendar.css, which places the range in the header for each layout. */
+.calendar-range {
+  font-size: 15px;
+  font-weight: 720;
+  letter-spacing: -0.01em;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.calendar-range-relative {
+  font-size: var(--font-secondary);
+  font-weight: 560;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+/* Expanded layouts: the week bar spans the card like the days under it, and the return-to-this-week
+   control appears in the title row instead of holding a gap beside the bar. */
+@media (min-width: 1024px) {
+  .calendar-card-header {
+    position: relative;
+  }
+  .calendar-nav-controls {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .calendar-reset-slot {
+    position: absolute;
+    top: 0;
+    right: 0;
+  }
+}
