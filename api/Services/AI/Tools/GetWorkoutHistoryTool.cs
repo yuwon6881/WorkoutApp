@@ -14,7 +14,10 @@ public sealed class GetWorkoutHistoryTool : IAiTool
     }
 
     public string Name => "get_workout_history";
-    public string Description => "Get recent completed workouts, filtered and dated by completion in local time, with start date, duration, and exercise summary.";
+    // Twenty workouts must stay inside the tool-result bound; the full note is in get_workout_detail.
+    private const int HistoryNoteLength = 160;
+
+    public string Description => "Get recent completed workouts, filtered and dated by completion in local time, with start date, duration, the user's workout note (shortened), and exercise summary.";
 
     public JsonObject ParametersSchema => new()
     {
@@ -72,7 +75,8 @@ public sealed class GetWorkoutHistoryTool : IAiTool
                 w.Name,
                 w.StartedAt,
                 w.FinishedAt,
-                w.PausedSeconds
+                w.PausedSeconds,
+                w.Note
             })
             .ToListAsync(cancellationToken);
 
@@ -157,6 +161,7 @@ public sealed class GetWorkoutHistoryTool : IAiTool
                 date = context.LocalDate(w.FinishedAt!.Value).ToString("yyyy-MM-dd"),
                 startedDate = context.LocalDate(w.StartedAt).ToString("yyyy-MM-dd"),
                 durationMinutes,
+                note = AiToolText.Note(w.Note, HistoryNoteLength),
                 exerciseCount = sessionExercises.Count,
                 exercises = exerciseSummaries
             };

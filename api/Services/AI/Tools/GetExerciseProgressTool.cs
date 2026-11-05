@@ -9,10 +9,12 @@ namespace Workout.Api.Services.AI.Tools;
 public sealed class GetExerciseProgressTool : IAiTool
 {
     private readonly AppDb _db;
+    private readonly ExerciseService _exercises;
 
-    public GetExerciseProgressTool(AppDb db)
+    public GetExerciseProgressTool(AppDb db, ExerciseService? exercises = null)
     {
         _db = db;
+        _exercises = exercises ?? new ExerciseService(db);
     }
 
     private const int SessionLimit = 5;
@@ -24,13 +26,16 @@ public sealed class GetExerciseProgressTool : IAiTool
         "suggestedWeight/suggestedReps are what the app recommended when that session started, and suggestionReason explains why. " +
         "earlierSetsPastTargetBy is how many reps closer to failure than prescribed an earlier set of the same exercise went in that session; " +
         "a lower result on a later set after that is carried-over fatigue, not lost strength. " +
+        "allTimeRecords cover every completed session of the exercise, not only those listed; a full-bodyweight movement's " +
+        "weight there is bodyweight plus added load, and technique sets and timed holds do not count toward records. " +
         "The next recommendation is calculated when the next workout starts.";
 
     public string Name => "get_exercise_progress";
     public string Description =>
         "Get the progression of one exercise set by set: each working set's weight, reps, and RIR across recent sessions, " +
         "its target, the app's suggestion and reason, effort carried over from earlier sets, the live suggestion in a workout " +
-        "in progress, and the estimated 1RM trend. Pass setNumber to focus on one working set across more sessions.";
+        "in progress, the estimated 1RM trend, and all-time records (best estimated 1RM, heaviest set, most reps, " +
+        "best session volume, each dated). Pass setNumber to focus on one working set across more sessions.";
 
     public JsonObject ParametersSchema => new()
     {
@@ -119,6 +124,10 @@ public sealed class GetExerciseProgressTool : IAiTool
         var current = await history.Active(exerciseId, exerciseName, setNumber, cancellationToken);
         context.Evidence.RecordAll(AiEvidenceLedger.Workout, sessions.Select(session => session.WorkoutId));
         if (current != null) context.Evidence.Record(AiEvidenceLedger.Workout, current.WorkoutId);
+        // Name-only history has no exercise identity, so it has no record set to read.
+        var records = exerciseId is { } id
+            ? await ExerciseRecordsSummary.Read(_exercises, id, context.WeightUnit, cancellationToken)
+            : null;
 
         return AiToolResult.Of(new
         {
@@ -135,6 +144,7 @@ public sealed class GetExerciseProgressTool : IAiTool
                 lastE1rm = AiToolUnits.Weight(progress.LastE1rmKg, context.WeightUnit),
                 sessionsBelowTrend = progress.Stalls
             },
+            allTimeRecords = records,
             sessions,
             currentWorkout = current,
             howToRead = HowToRead

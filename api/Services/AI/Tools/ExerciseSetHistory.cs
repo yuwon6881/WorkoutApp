@@ -16,9 +16,10 @@ internal sealed class ExerciseSetHistory(AppDb db, AiToolContext context)
 
     public sealed record SessionRow(string Date, string WorkoutId, List<SetRow> Sets);
 
-    /// Completed sessions newest first, and whether older ones were left out. Suggestion reasons are
-    /// kept only for the newest session to stay inside the tool-result bound; older sessions keep the
-    /// suggested numbers.
+    /// Completed sessions newest first, and whether older ones were left out. Across every set,
+    /// suggestion reasons are kept only for the newest session to stay inside the tool-result bound;
+    /// older sessions keep the suggested numbers. Following one set returns a single row per session,
+    /// so every session keeps its reason and the model can see why each earlier step was taken.
     public async Task<(List<SessionRow> Sessions, bool More)> Completed(Guid? exerciseId, string name, int? setNumber, int limit, CancellationToken ct)
     {
         var lowered = name.ToLower();
@@ -37,7 +38,7 @@ internal sealed class ExerciseSetHistory(AppDb db, AiToolContext context)
         var sets = await Sets(rows.Select(row => row.Id).ToList(), doneOnly: true, ct);
         var sessions = rows.Select((row, index) => new SessionRow(
             context.LocalDate(row.FinishedAt!.Value).ToString("yyyy-MM-dd"), row.SessionId.ToString(),
-            Describe(sets[row.Id], row.PrescriptionJson, setNumber, withReasons: index == 0))).ToList();
+            Describe(sets[row.Id], row.PrescriptionJson, setNumber, withReasons: index == 0 || setNumber is not null))).ToList();
         return (sessions, more);
     }
 

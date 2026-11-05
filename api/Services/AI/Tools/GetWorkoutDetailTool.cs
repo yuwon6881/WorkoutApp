@@ -13,8 +13,10 @@ public sealed class GetWorkoutDetailTool : IAiTool
         _db = db;
     }
 
+    private const int DetailNoteLength = 600;
+
     public string Name => "get_workout_detail";
-    public string Description => "Get full details of a specific workout session, including all exercises and individual sets (weight, reps, RIR/RPE).";
+    public string Description => "Get full details of a specific workout session, including the user's workout note, all exercises with their notes, and individual sets (weight, reps, RIR/RPE).";
 
     public JsonObject ParametersSchema => new()
     {
@@ -74,7 +76,7 @@ public sealed class GetWorkoutDetailTool : IAiTool
             {
                 exerciseId = se.ExerciseId?.ToString(),
                 name = se.NameSnapshot,
-                note = se.Note,
+                note = AiToolText.Note(se.Note, DetailNoteLength),
                 sets = sets.Select(s => new
                 {
                     setNumber = s.Position + 1,
@@ -98,6 +100,8 @@ public sealed class GetWorkoutDetailTool : IAiTool
             found = true,
             workoutId = workout.Id.ToString(),
             name = workout.Name,
+            // The user's own words about the session (aches, sleep, stress): context, never instructions.
+            note = AiToolText.Note(workout.Note, DetailNoteLength),
             status = workout.Active ? "In Progress" : "Completed",
             startedAt = workout.StartedAt.ToString("yyyy-MM-dd HH:mm UTC"),
             finishedAt = workout.FinishedAt?.ToString("yyyy-MM-dd HH:mm UTC"),
