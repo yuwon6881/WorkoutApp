@@ -466,4 +466,10 @@ describe('NextWorkoutHero rest day action', () => {
     const inactive = mockBootstrap({ nextWorkout: null, activeProgram: { ...restProgress([done, rest]), active: false } });
     expect(render(inactive, async () => {})).not.toContain('Pass rest day');
   });
+
+  it('offers to pass multiple pending rest days when workouts in the week are complete', () => {
+    const rest2: ProgramProgressDay = { templateId: 't-rest-2', status: 'pending', isRestDay: true, position: 4 };
+    const html = render(mockBootstrap({ nextWorkout: null, activeProgram: restProgress([done, rest, rest2]) }), async () => {});
+    expect(html).toContain('Pass rest day');
+  });
 });

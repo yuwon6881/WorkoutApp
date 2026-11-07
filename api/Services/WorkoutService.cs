@@ -154,6 +154,7 @@ public sealed partial class WorkoutService(
             var timed = await CatalogService.TrackingModesFor(db, planned.Select(p => p.ExerciseId), ct);
             var userUnit = await LoadRuleReader.AccountUnit(db, ct);
             var tracksRir = await db.Users.Where(u => u.Id == db.CurrentUser).Select(u => u.TrackRir).SingleAsync(ct);
+            var typedOneRepMaxes = await OneRepMaxService.Overrides(db, planned.Select(p => p.ExerciseId), ct);
             foreach (var plan in planned)
             {
                 var prescription = Json.Read<List<SetPrescription>>(plan.SetsJson);
@@ -175,6 +176,7 @@ public sealed partial class WorkoutService(
                 var previous = histories.GetValueOrDefault(historyKey) ?? [];
                 var lastTrained = ProgressionLayoff.Newest(previous.Values.SelectMany(exposures => exposures));
                 var step = plan.ExerciseId is { } id2 && info.TryGetValue(id2, out var found) ? found.StepKg : Progression.DefaultStep(userUnit);
+                var oneRepMax = OneRepMaxFor(prescription, loadModel, plan.ExerciseId, typedOneRepMaxes, previous.Values.SelectMany(rows => rows));
                 var workingOrdinal = 0;
                 // Timed holds are measured in seconds; the rep-based progression has nothing honest to suggest.
                 var isTimed = plan.ExerciseId is { } timedId && timed.ContainsKey(timedId);
@@ -216,7 +218,7 @@ public sealed partial class WorkoutService(
                     var suggestion = Progression.ForPrescription(planSet, NoHeavierThanBefore(planSet, AddedSet(planSet,
                         FollowStraightSets(planSet, straightSuggestion,
                             MakeSuggestion(planSet, exposures, contextResult.Mode, step, contextResult, resistanceMode, loadModel, bodyWeight,
-                                plan.ExerciseId is { } loadId ? info.GetValueOrDefault(loadId)?.AvailableLoadsKg : null, lastTrained)),
+                                plan.ExerciseId is { } loadId ? info.GetValueOrDefault(loadId)?.AvailableLoadsKg : null, lastTrained, oneRepMax)),
                         straightPlan, straightSuggestion), previousOfKind));
                     if (SetTechniques.Of(planSet) is null) (straightSuggestion, straightPlan) = (suggestion, planSet);
                     previousOfKind[KindOf(planSet)] = new PlannedSuggestion(planSet, suggestion);

@@ -3,6 +3,7 @@ import { integrationGeneration, signalIntegrationPending } from './integrationDi
 import type { ExerciseLoadSettings, LoadRule, LoadSettingsOverview } from './exerciseLoads';
 import type { PdfExtraction } from './pdfText';
 import { sharedReads } from './readCoordinator';
+import type { OneRepMaxView } from './oneRepMax';
 import type { Exercise, GymExerciseOverride, GymsView, HistorySummaryPage, ShellBootstrap, TrackingMode, Unit } from '../types';
 import type { Bootstrap, CustomExerciseCreated, DraftWorkout, ExerciseClearPreview, ExerciseInsight, HistoryPage, ImportDraft, ImportStatusView, ImportView, MuscleBalanceRange, MuscleBalanceView, Preferences, ProgressSummary, Program, ProgramDayActionInput, ProgramEditInput, ProgramEditorDocument, ProgramSummary, ProgramWeekResetInput, RestMutationInput, Session, Template, TemplateSubstitutionResult, WatchDevice, WorkoutActivityItem } from '../types';
 
@@ -143,6 +144,8 @@ export const api = {
   exerciseLoadSettings: (id: string, unit: Unit, signal?: AbortSignal) =>
     call<ExerciseLoadSettings>(`/api/exercises/${id}/load-settings?unit=${unit}`, 'GET', undefined, signal),
   saveExerciseLoadSettings: (id: string, input: LoadRule & { revision: number; unit: Unit }) => call<ExerciseLoadSettings>(`/api/exercises/${id}/load-settings`, 'PUT', input),
+  exerciseOneRepMax: (id: string, signal?: AbortSignal) => call<OneRepMaxView>(`/api/exercises/${id}/one-rep-max`, 'GET', undefined, signal),
+  saveExerciseOneRepMax: (id: string, oneRepMaxKg: number | null) => call<OneRepMaxView>(`/api/exercises/${id}/one-rep-max`, 'PUT', { oneRepMaxKg }),
   loadSettings: (unit: Unit, signal?: AbortSignal) => call<LoadSettingsOverview>(`/api/load-settings?unit=${unit}`, 'GET', undefined, signal),
   saveEquipmentLoad: (group: string, input: LoadRule & { revision: number; unit: Unit }) =>
     call<LoadSettingsOverview>(`/api/load-settings/equipment/${encodeURIComponent(group)}`, 'PUT', input),

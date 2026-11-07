@@ -93,6 +93,10 @@ public static class TrainingEndpoints
             => await settings.Get(exerciseId, ct, unit));
         app.MapPut("/api/exercises/{exerciseId:guid}/load-settings", async (Guid exerciseId, ExerciseLoadSettingsInput input, ExerciseLoadSettingsService settings, CancellationToken ct)
             => await settings.Save(exerciseId, input, ct));
+        app.MapGet("/api/exercises/{exerciseId:guid}/one-rep-max", async (Guid exerciseId, OneRepMaxService oneRepMax, CancellationToken ct)
+            => await oneRepMax.Get(exerciseId, ct));
+        app.MapPut("/api/exercises/{exerciseId:guid}/one-rep-max", async (Guid exerciseId, OneRepMaxInput input, OneRepMaxService oneRepMax, CancellationToken ct)
+            => await oneRepMax.Save(exerciseId, input, ct));
         app.MapPost("/api/exercises/custom", async (CustomExerciseInput input, ExerciseService exercises, CancellationToken ct)
             => await exercises.Create(input, ct));
         app.MapDelete("/api/exercises/custom/{exerciseId:guid}", async (Guid exerciseId, ExerciseService exercises, CancellationToken ct)

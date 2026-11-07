@@ -59,6 +59,8 @@ public sealed partial class WorkoutService
         var step = exercise.ExerciseId is { } id && info.TryGetValue(id, out var found) ? found.StepKg : Progression.DefaultStep(userUnit);
         var histories = await PreviousExposures(exercise.ExerciseId, exercise.NameSnapshot, ct);
         var lastTrained = ProgressionLayoff.Newest(histories.Values.SelectMany(exposures => exposures));
+        var oneRepMax = OneRepMaxFor(prescriptions, exercise.LoadModel, exercise.ExerciseId,
+            await OneRepMaxService.Overrides(db, [exercise.ExerciseId], ct), histories.Values.SelectMany(rows => rows));
         var workingOrdinal = 0; SetProgressionSuggestion? first = null; SetProgressionSuggestion? straight = null;
         SetPrescription? straightPlan = null;
         var previousOfKind = new Dictionary<string, PlannedSuggestion>();
@@ -75,7 +77,7 @@ public sealed partial class WorkoutService
             var suggestion = Progression.ForPrescription(prescription, NoHeavierThanBefore(prescription, AddedSet(prescription,
                 FollowStraightSets(prescription, straight,
                     MakeSuggestion(prescription, histories.GetValueOrDefault(workingOrdinal) ?? [], result.Mode, step, result, mode, loadModel, bodyWeight,
-                        exercise.ExerciseId is { } loadId ? info.GetValueOrDefault(loadId)?.AvailableLoadsKg : null, lastTrained)),
+                        exercise.ExerciseId is { } loadId ? info.GetValueOrDefault(loadId)?.AvailableLoadsKg : null, lastTrained, oneRepMax)),
                 straightPlan, straight), previousOfKind));
             if (SetTechniques.Of(prescription) is null) (straight, straightPlan) = (suggestion, prescription);
             previousOfKind[KindOf(prescription)] = new PlannedSuggestion(prescription, suggestion);
@@ -87,11 +89,26 @@ public sealed partial class WorkoutService
             null, null, step, first.ProgressionMode, first.NutritionContextRevision));
     }
 
+    /// The one-rep max a percentage-based plan needs, or null when no set of it prints a percentage, so
+    /// ordinary programs never pay for the estimate.
+    private static OneRepMax? OneRepMaxFor(IEnumerable<SetPrescription> plan, string loadModel, Guid? exerciseId,
+        IReadOnlyDictionary<Guid, double> typed, IEnumerable<SetExposure> history)
+        => loadModel == LoadModels.External && plan.Any(set => !set.Warmup && PercentageLoad.Parse(set.LoadText) is not null)
+            ? PercentageLoad.Resolve(exerciseId is { } id && typed.TryGetValue(id, out var kg) ? kg : null, history)
+            : null;
+
     /// A technique never done on this movement before has no history of its own; it starts from the
     /// straight-set load the movement already has rather than from a blank first-time suggestion.
     private SetProgressionSuggestion MakeSuggestion(SetPrescription prescription, IReadOnlyList<SetExposure> exposures,
         string mode, double step, NutritionContextResult context, string resistanceMode, string loadModel,
-        BodyWeightSnapshot? bodyWeight, IReadOnlyList<double>? availableLoads = null, DateTime? lastTrained = null)
+        BodyWeightSnapshot? bodyWeight, IReadOnlyList<double>? availableLoads = null, DateTime? lastTrained = null,
+        OneRepMax? oneRepMax = null)
+        => PercentageLoad.Apply(prescription, Suggest(prescription, exposures, mode, step, context, resistanceMode, loadModel, bodyWeight, availableLoads, lastTrained),
+            oneRepMax?.Kg, oneRepMax?.Estimated ?? false, new LoadOptions(step, AvailableLoadsKg: availableLoads));
+
+    private SetProgressionSuggestion Suggest(SetPrescription prescription, IReadOnlyList<SetExposure> exposures,
+        string mode, double step, NutritionContextResult context, string resistanceMode, string loadModel,
+        BodyWeightSnapshot? bodyWeight, IReadOnlyList<double>? availableLoads, DateTime? lastTrained)
     {
         var own = OwnSuggestion(prescription, exposures, mode, step, context, resistanceMode, loadModel, bodyWeight, availableLoads, lastTrained);
         if (SetTechniques.Of(prescription) is null || own.SourceSessionId is not null || own.SourceDate is not null) return own;
@@ -184,8 +201,12 @@ public sealed partial class WorkoutService
     private static bool CappableMode(string resistanceMode)
         => resistanceMode is ResistanceModes.External or ResistanceModes.Added;
 
+    /// Two percentages are different prescriptions even at the same reps and effort, so a heavier
+    /// percentage is never capped at the lighter one before it.
     private static bool PrescribedAlike(SetPrescription previous, SetPrescription prescription)
-        => previous.RepMin == prescription.RepMin && previous.RepMax == prescription.RepMax &&
+        => PercentageLoad.Parse(previous.LoadText) == PercentageLoad.Parse(prescription.LoadText) &&
+           previous.RepMin == prescription.RepMin &&
+           previous.RepMax == prescription.RepMax &&
            previous.RepsText == prescription.RepsText &&
            ProgressionEvidence.Reserve(previous.Rir, previous.TargetRpe) == ProgressionEvidence.Reserve(prescription.Rir, prescription.TargetRpe);
 

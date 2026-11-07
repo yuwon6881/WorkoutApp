@@ -1,4 +1,5 @@
 import { ExerciseLoadSettings } from './ExerciseLoadSettings';
+import { OneRepMaxSettings } from './OneRepMaxSettings';
 import { canEnterPerSide } from '../lib/equipmentGroups';
 import { loadAdjustable } from '../lib/exerciseLoads';
 import { useDeferredValue, useEffect, useMemo, useState } from 'react';
@@ -377,6 +378,7 @@ export function ExerciseDetailModal({ exercise, unit, onClose, onChanged }: { ex
         </div>}
         {detailTab === 'progress' && !exercise.archived && <ExerciseGymAvailability exerciseId={exercise.id} requires={exercise.requires} />}
         {detailTab === 'progress' && !exercise.archived && loadAdjustable(exercise) && <ExerciseLoadSettings key={exercise.id} exerciseId={exercise.id} exerciseName={exercise.name} unit={unit} perSide={canEnterPerSide(exercise)} onChanged={onChanged} />}
+        {detailTab === 'progress' && !exercise.archived && loadAdjustable(exercise) && <OneRepMaxSettings key={`1rm-${exercise.id}`} exerciseId={exercise.id} exerciseName={exercise.name} unit={unit} />}
         {detailTab === 'progress' && loadAdjustable(exercise) && <p className="muted">{weightBasisDescription(exercise)}</p>}
         {error && <div className="error-banner" role="alert">{error}</div>}
         {!insight && !error && <div className="skeleton detail-loading" aria-label="Loading exercise details" />}

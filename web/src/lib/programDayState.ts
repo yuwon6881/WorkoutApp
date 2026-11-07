@@ -57,3 +57,63 @@ export function passableRestDayId(program: ProgramSummary | null | undefined, pr
   const pending = progress.days.filter(day => day.isRestDay && day.status === 'pending');
   return (pending.find(day => day.templateId === preferredId) ?? pending[0])?.templateId ?? null;
 }
+
+/// All pending rest days that should be passed together from the hero view.
+/// When all training days in the current week are completed (or in a rest-only week),
+/// passing clears every remaining pending rest day in the week so the week can advance.
+/// When earlier training days are still pending, it clears the consecutive pending rest block
+/// starting at the preferred or next rest day.
+export function passableRestDayIds(program: ProgramSummary | null | undefined, preferredId?: string | null): string[] {
+  const progress = program?.progress;
+  if (!program?.active || !progress || progress.runId === 'optimistic') return [];
+  const currentWeek = progress.currentWeek;
+  let weekDays = progress.days;
+  if (program.days && program.days.length > 0) {
+    const currentWeekTemplateIds = new Set(program.days.filter(d => d.week === currentWeek).map(d => d.id));
+    const filtered = weekDays.filter(d => currentWeekTemplateIds.has(d.templateId));
+    if (filtered.length > 0) weekDays = filtered;
+  }
+  const pending = weekDays.filter(day => day.isRestDay && day.status === 'pending');
+  if (pending.length === 0) return [];
+
+  const trainingDays = weekDays.filter(day => !day.isRestDay);
+  const pendingTrainingCount = trainingDays.filter(day => day.status === 'pending').length;
+
+  if (pendingTrainingCount === 0) {
+    return pending.map(day => day.templateId);
+  }
+
+  const startIndex = preferredId ? weekDays.findIndex(d => d.templateId === preferredId) : -1;
+  const effectiveStart = startIndex >= 0 ? startIndex : weekDays.findIndex(d => d.status === 'pending' && d.isRestDay);
+  if (effectiveStart < 0) return [pending[0].templateId];
+
+  const batch: string[] = [];
+  for (let i = effectiveStart; i < weekDays.length; i++) {
+    const d = weekDays[i];
+    if (!d.isRestDay) break;
+    if (d.status === 'pending') batch.push(d.templateId);
+  }
+  return batch.length > 0 ? batch : [pending[0].templateId];
+}
+
+/// Passes the given rest days one after another, each against the revision the last pass returned.
+/// A failure stops the run but reports how many days the server already saved, so the caller can
+/// refresh the view instead of showing a week that no longer matches the server.
+export async function passRestDaysInOrder(
+  program: ProgramSummary,
+  dayIds: readonly string[],
+  pass: (program: ProgramSummary, dayId: string) => Promise<ProgramSummary | void>
+): Promise<{ passed: number; failure: unknown }> {
+  let current = program;
+  let passed = 0;
+  for (const dayId of dayIds) {
+    try {
+      const updated = await pass(current, dayId);
+      if (updated) current = { ...current, revision: updated.revision, progress: updated.progress ?? current.progress };
+      passed++;
+    } catch (failure) {
+      return { passed, failure };
+    }
+  }
+  return { passed, failure: null };
+}
