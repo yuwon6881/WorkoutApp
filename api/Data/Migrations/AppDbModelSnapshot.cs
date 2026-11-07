@@ -822,6 +822,29 @@ namespace Workout.Api.Data.Migrations
                         });
                 });
 
+            modelBuilder.Entity("Workout.Api.Data.ExerciseOneRepMax", b =>
+                {
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid");
+
+                    b.Property<double>("OneRepMaxKg")
+                        .HasColumnType("double precision");
+
+                    b.Property<int>("Revision")
+                        .IsConcurrencyToken()
+                        .HasColumnType("integer");
+
+                    b.HasKey("UserId", "Id");
+
+                    b.ToTable("ExerciseOneRepMaxes", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_ExerciseOneRepMaxes_Kg", "\"OneRepMaxKg\" > 0 AND \"OneRepMaxKg\" <= 1000");
+                        });
+                });
+
             modelBuilder.Entity("Workout.Api.Data.ExerciseProgress", b =>
                 {
                     b.Property<Guid>("UserId")
@@ -2241,6 +2264,15 @@ namespace Workout.Api.Data.Migrations
                     b.HasOne("Workout.Api.Data.GymProfile", null)
                         .WithMany()
                         .HasForeignKey("UserId", "GymProfileId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Workout.Api.Data.ExerciseOneRepMax", b =>
+                {
+                    b.HasOne("Workout.Api.Data.AppUser", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });

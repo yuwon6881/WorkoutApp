@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { ProgramProgressDay, ProgramSummary } from '../types';
-import { dayRowState, inProgressDayId, nextDayId, passableRestDayId, programDayActionInput } from './programDayState';
+import { dayRowState, inProgressDayId, nextDayId, passableRestDayId, passableRestDayIds, passRestDaysInOrder, programDayActionInput } from './programDayState';
 
 const day = (templateId: string, status: ProgramProgressDay['status'] = 'pending', isRestDay = false): ProgramProgressDay =>
   ({ templateId, status, isRestDay, position: 0 });
@@ -89,5 +89,52 @@ describe('passable rest day', () => {
     expect(passableRestDayId(programWith([day('t1', 'pending'), day('r1', 'completed', true)]))).toBeNull();
     expect(passableRestDayId(programWith(days), 't1')).toBe('r1');
     expect(passableRestDayId(null)).toBeNull();
+  });
+
+  it('batches all remaining pending rest days when workouts for the week are completed', () => {
+    expect(passableRestDayIds(programWith(days))).toEqual(['r1', 'r2']);
+    expect(passableRestDayIds(programWith(days), 'r1')).toEqual(['r1', 'r2']);
+    expect(passableRestDayIds(programWith(days), 'r2')).toEqual(['r1', 'r2']);
+  });
+
+  it('batches consecutive pending rest days up to the next workout when earlier workouts remain', () => {
+    const midWeek = [
+      day('t1', 'completed'),
+      day('r1', 'pending', true),
+      day('r2', 'pending', true),
+      day('t2', 'pending', false),
+      day('r3', 'pending', true)
+    ];
+    expect(passableRestDayIds(programWith(midWeek))).toEqual(['r1', 'r2']);
+    expect(passableRestDayIds(programWith(midWeek), 'r1')).toEqual(['r1', 'r2']);
+    expect(passableRestDayIds(programWith(midWeek), 'r3')).toEqual(['r3']);
+  });
+
+  it('returns empty array when no rest day is passable', () => {
+    expect(passableRestDayIds(programWith(days, { active: false }))).toEqual([]);
+    expect(passableRestDayIds(null)).toEqual([]);
+  });
+});
+
+describe('passRestDaysInOrder', () => {
+  const base = programWith([day('r1', 'pending', true), day('r2', 'pending', true), day('r3', 'pending', true)]);
+
+  it('passes each day against the revision the previous pass returned', async () => {
+    const seen: Array<[string, number]> = [];
+    const result = await passRestDaysInOrder(base, ['r1', 'r2'], async (program, dayId) => {
+      seen.push([dayId, program.revision]);
+      return { ...program, revision: program.revision + 1 };
+    });
+    expect(seen).toEqual([['r1', base.revision], ['r2', base.revision + 1]]);
+    expect(result).toEqual({ passed: 2, failure: null });
+  });
+
+  it('stops at the first failure and reports how many days were already saved', async () => {
+    const boom = new Error('stale');
+    const result = await passRestDaysInOrder(base, ['r1', 'r2', 'r3'], async (program, dayId) => {
+      if (dayId === 'r2') throw boom;
+      return program;
+    });
+    expect(result).toEqual({ passed: 1, failure: boom });
   });
 });

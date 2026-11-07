@@ -4,7 +4,7 @@ import type { Bootstrap, ProgramSummary } from '../types';
 import { ApiError, api } from '../lib/api';
 import { nextWorkout } from '../lib/nextWorkout';
 import { getPlannedMuscleCredits } from '../lib/programMuscles';
-import { passableRestDayId, programDayActionInput } from '../lib/programDayState';
+import { passableRestDayIds, passRestDaysInOrder, programDayActionInput } from '../lib/programDayState';
 import { Button } from './ui/Button';
 import { MuscleThumb } from './MuscleThumb';
 import { NextWorkoutPlan } from './NextWorkoutPlan';
@@ -91,19 +91,22 @@ function RestDayHero({
   title?: string;
   description?: string;
   onProgram: () => void;
-  /** The program and pending rest day to pass; absent when this view cannot change the program. */
-  pass?: { program: ProgramSummary; dayId: string; onChanged: () => Promise<void> };
+  /** The program and pending rest day(s) to pass; absent when this view cannot change the program. */
+  pass?: { program: ProgramSummary; dayIds: string[]; onChanged: () => Promise<void> };
 }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
 
   async function passRestDay() {
-    if (!pass || busy) return;
+    if (!pass || busy || pass.dayIds.length === 0) return;
     setBusy(true);
     setError('');
+    // Days passed before a failure are already saved, so the view refreshes either way.
+    const { passed, failure } = await passRestDaysInOrder(pass.program, pass.dayIds,
+      (program, dayId) => api.passProgramRestDay(program.id, dayId, programDayActionInput(program)));
     try {
-      await api.passProgramRestDay(pass.program.id, pass.dayId, programDayActionInput(pass.program));
-      await pass.onChanged();
+      if (passed > 0) await pass.onChanged();
+      if (failure) setError(failure instanceof ApiError || failure instanceof Error ? failure.message : 'Could not update this rest day.');
     } catch (failure) {
       setError(failure instanceof ApiError || failure instanceof Error ? failure.message : 'Could not update this rest day.');
     } finally { setBusy(false); }
@@ -152,8 +155,8 @@ export function NextWorkoutHero({ data, onStart, onResume, onProgram, onChanged 
   const activeWorkout = data.activeWorkout?.active ? data.activeWorkout : null;
   const program = data.activeProgram;
   const passRest = (preferredId?: string) => {
-    const dayId = onChanged && program ? passableRestDayId(program, preferredId) : null;
-    return program && onChanged && dayId ? { program, dayId, onChanged } : undefined;
+    const dayIds = onChanged && program ? passableRestDayIds(program, preferredId) : [];
+    return program && onChanged && dayIds.length > 0 ? { program, dayIds, onChanged } : undefined;
   };
   const next = useMemo(() => nextWorkout(data), [data]);
 
