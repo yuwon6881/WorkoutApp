@@ -100,7 +100,7 @@ export function WorkoutTargetsView({ exercise, unit, trackRir, previousSets, pre
                         <span>{suggestedWeight}</span>
                       </span>
                     )}
-                    {p.loadText && (!suggestedWeight || isPercentLoad(p.loadText)) && (
+                    {p.loadText && (!suggestedWeight || isPercentLoad(p.loadText, p.notes)) && (
                       <span className="plan-pill plan-load-pill">
                         <Weight size={12} aria-hidden="true" />
                         <span>{p.loadText}</span>
@@ -120,7 +120,7 @@ export function WorkoutTargetsView({ exercise, unit, trackRir, previousSets, pre
             );
           })}
         </ul>
-        {exercise.exerciseId && exercise.prescription.some(p => !p.warmup && isPercentLoad(p.loadText)) && (
+        {exercise.exerciseId && exercise.prescription.some(p => !p.warmup && isPercentLoad(p.loadText, p.notes)) && (
           <OneRepMaxSettings exerciseId={exercise.exerciseId} exerciseName={exercise.name} unit={unit} />
         )}
       </div>

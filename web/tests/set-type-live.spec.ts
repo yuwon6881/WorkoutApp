@@ -42,6 +42,16 @@ test('a running workout set can change to myo-reps from its set chip', async ({ 
     await page.reload();
     await expect(page.getByRole('dialog', { name: session.name, exact: true })
       .getByRole('button', { name: `Set type for ${bench.name} set 2: Myo-reps 2`, exact: true })).toBeVisible();
+    const pausedSheet = page.getByRole('dialog', { name: session.name, exact: true });
+    await pausedSheet.getByRole('button', { name: `Set type for ${bench.name} set 2: Myo-reps 2`, exact: true }).click();
+    await page.getByRole('option', { name: 'Pause set', exact: true }).click();
+    await expect.poll(async () => {
+      const latest = await (await page.request.get(`/api/workouts/${session.id}`)).json();
+      return JSON.stringify(latest.exercises[0].prescription[1]).toLowerCase().includes('pause set');
+    }, { timeout: 15000 }).toBe(true);
+    await page.reload();
+    await expect(page.getByRole('dialog', { name: session.name, exact: true })
+      .getByRole('button', { name: `Set type for ${bench.name} set 2: Pause 2`, exact: true })).toBeVisible();
   } finally {
     if (sessionId) await page.request.post(`/api/workouts/${sessionId}/discard`, { headers });
     await page.request.delete(`/api/templates/${templateId}`, { headers });

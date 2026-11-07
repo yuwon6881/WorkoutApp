@@ -126,7 +126,7 @@ describe('strength estimate', () => {
   /// disagreement about what the app is telling the user, not a rounding difference.
   it('rates a set as if it had been carried to failure', () => {
     expect(estimate1Rm(60, 3, 8)).toBeCloseTo(60 * (1 + 5 / 30), 6);
-    expect(estimate1Rm(100, 1, 10)).toBeCloseTo(100 * (1 + 1 / 30), 6);
+    expect(estimate1Rm(100, 1, 10)).toBeCloseTo(100, 6);
   });
 
   it('gives no estimate where the equation does not hold', () => {
@@ -142,7 +142,7 @@ describe('strength estimate', () => {
   it('calculates estimated 1RM with or without RPE using the Epley relationship', () => {
     // With RPE specified
     expect(calculateEstimated1Rm(60, 3, 8)).toBeCloseTo(60 * (1 + 5 / 30), 6);
-    expect(calculateEstimated1Rm(100, 1, 10)).toBeCloseTo(100 * (1 + 1 / 30), 6);
+    expect(calculateEstimated1Rm(100, 1, 10)).toBeCloseTo(100, 6);
     // Without RPE specified (uses reps at face value)
     expect(calculateEstimated1Rm(60, 5)).toBeCloseTo(60 * (1 + 5 / 30), 6);
     expect(calculateEstimated1Rm(60, 5, null)).toBeCloseTo(60 * (1 + 5 / 30), 6);

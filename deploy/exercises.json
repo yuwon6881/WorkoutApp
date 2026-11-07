@@ -1884,6 +1884,16 @@
     "aliases": []
   },
   {
+    "slug": "machine-chest-supported-t-bar-row-retraction",
+    "weightBasis": "total",
+    "name": "Machine Chest-Supported T-Bar Row/Retraction",
+    "muscle": "Back",
+    "equipment": "Machine",
+    "requires": ["t-bar-row"],
+    "category": "Machine",
+    "aliases": []
+  },
+  {
     "slug": "chest-supported-t-bar-row",
     "weightBasis": "total",
     "name": "Chest-Supported T-Bar Row",
@@ -2732,6 +2742,16 @@
       "Triceps",
       "Core"
     ]
+  },
+  {
+    "slug": "pinch-grip-dumbbell-curl",
+    "weightBasis": "per_side",
+    "name": "Pinch Grip Dumbbell Curl",
+    "muscle": "Biceps and forearms",
+    "equipment": "Dumbbell",
+    "requires": ["dumbbells"],
+    "category": "Free Weights",
+    "aliases": ["Pinch Grip Curl"]
   },
   {
     "slug": "db-curl",

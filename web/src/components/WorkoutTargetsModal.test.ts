@@ -32,6 +32,14 @@ const exercise: SessionExercise = {
 };
 
 describe('WorkoutTargetsModal', () => {
+  it('does not ask for a one-rep max when the percentage refers to a top set', () => {
+    const relative = { ...plan(false), loadText: '60%', notes: 'Percentage of top set' };
+    const markup = renderToStaticMarkup(createElement(WorkoutTargetsView, {
+      exercise: { ...exercise, prescription: [relative], sets: [set(0, false, 60)] },
+      unit: 'kg', trackRir: true, previousSets: [], onClose: () => undefined
+    }));
+    expect(markup).not.toContain('One-rep max');
+  });
   // A leading warm-up is not listed, but it still occupies the first set; each working row must
   // read its own set's suggestion and last result rather than its neighbour's.
   it('keeps each working set lined up with its own suggestion and last result after a warm-up', () => {

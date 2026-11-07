@@ -22,5 +22,11 @@ export const oneRepMaxField = (kg: number | null, unit: Unit): string => {
 };
 
 /// A set prints a percentage load such as "75%", "80-85%" or "82.5-87.5% 1RM".
-export const isPercentLoad = (loadText: string | null | undefined): boolean =>
-  !!loadText && /^\s*\d+(?:\.\d+)?(?:\s*[-–]\s*\d+(?:\.\d+)?)?\s*%\s*(?:1\s*RM)?\s*$/i.test(loadText);
+export const isPercentLoad = (loadText: string | null | undefined, notes?: string | null): boolean => {
+  if (/percentage of top set/i.test(notes ?? '')) return false;
+  const match = /^\s*(\d+(?:\.\d+)?)(?:\s*[-–]\s*(\d+(?:\.\d+)?))?\s*%\s*(?:1\s*RM)?\s*$/i.exec(loadText ?? '');
+  if (!match) return false;
+  const low = Number(match[1]);
+  const high = match[2] ? Number(match[2]) : low;
+  return low >= 10 && high <= 125 && high >= low;
+};

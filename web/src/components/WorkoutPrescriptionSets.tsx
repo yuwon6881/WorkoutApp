@@ -7,13 +7,12 @@ import { RpeControl } from './ui/RpeControl';
 import { SwipeableRow } from './ui/SwipeableRow';
 import { WarmupRirNote } from './ui/WarmupRirNote';
 import { SetTypeSelect } from './ui/SetTypeSelect';
-import type { SetType } from '../lib/importSetTypes';
+import { applySetType, getSetType, type SetType } from '../lib/importSetTypes';
 import { toggleRepMode, usesRepRange } from '../lib/repMode';
 import { useTrackRir } from '../lib/trackRir';
 import './SetPrescriptionGrid.css';
 
-// A saved workout's sets are working sets or warm-ups; techniques belong to imported programs.
-const BUILDER_SET_TYPES: SetType[] = ['normal', 'warmup'];
+const BUILDER_SET_TYPES: SetType[] = ['normal', 'warmup', 'pause'];
 
 /// The builder's sets as one grid: the column labels are printed once above the rows so each
 /// set is a single line on wide screens and two short lines on a phone.
@@ -81,17 +80,12 @@ export function WorkoutPrescriptionSets({
                     <SetTypeSelect
                       name={`workout-set-type-${exercise.id}-${si}`}
                       ariaLabel={`Set type for ${exercise.name} set ${si + 1}`}
-                      type={set.warmup ? 'warmup' : 'normal'}
+                      type={set.warmup ? 'warmup' : getSetType(set) === 'pause' ? 'pause' : 'normal'}
                       number={number}
                       types={BUILDER_SET_TYPES}
                       onChange={type => {
-                        const warmup = type === 'warmup';
-                        if (warmup === set.warmup) return;
-                        onUpdateSet(si, {
-                          warmup,
-                          targetRpe: warmup ? null : set.targetRpe ?? 8,
-                          rir: warmup ? null : set.rir
-                        });
+                        if (type === getSetType(set)) return;
+                        onUpdateSet(si, applySetType(set, type));
                       }}
                     />
                   </div>

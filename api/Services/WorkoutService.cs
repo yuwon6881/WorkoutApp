@@ -157,7 +157,7 @@ public sealed partial class WorkoutService(
             var typedOneRepMaxes = await OneRepMaxService.Overrides(db, planned.Select(p => p.ExerciseId), ct);
             foreach (var plan in planned)
             {
-                var prescription = Json.Read<List<SetPrescription>>(plan.SetsJson);
+                var prescription = ImportLoadBasis.ApplyPrescriptions(Json.Read<List<SetPrescription>>(plan.SetsJson), plan.Note);
                 var resolvedName = plan.ExerciseId is { } catalogId && names.TryGetValue(catalogId, out var resolved) ? resolved : plan.SourceName;
                 var loadModel = plan.ExerciseId is { } modelId && info.TryGetValue(modelId, out _)
                     ? models.GetValueOrDefault(modelId, LoadModels.External) : LoadModels.External;

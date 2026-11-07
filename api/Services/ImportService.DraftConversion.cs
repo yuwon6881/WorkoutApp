@@ -100,10 +100,25 @@ public sealed partial class ImportService
                 var noteParts = new[] { ImportNormalization.Text(source.Notes, 1000), ImportNormalization.Text(source.CoachingNotes, 1000) }
                     .Concat(extractedUrls)
                     .Where(value => value is not null).Select(value => value!).ToList();
+                var coaching = Note(noteParts.Where(note => !extractedUrls.Contains(note)).ToList());
+                working = ImportLoadBasis.Apply(working, coaching);
                 var alternates = PrintedAlternates(source.Substitutions, id, library, canonicalNames);
                 var substitutions = alternates.Take(2).ToList();
                 if (alternates.Count > 2) noteParts.Add($"Other alternates: {string.Join(", ", alternates.Skip(2))}");
                 var description = Note(noteParts);
+                if (ImportPause.Requested(cleanName, coaching))
+                {
+                    var baseId = CatalogMatching.FindWhole(library, ImportPause.BaseName(cleanName));
+                    var pauseVariant = ImportPause.Variant(library, cleanName)
+                        ?? (baseId is { } baseExercise && canonicalNames.TryGetValue(baseExercise, out var baseName)
+                            ? ImportPause.Variant(library, baseName) : null);
+                    if (pauseVariant is { } variant) id = variant;
+                    else
+                    {
+                        id ??= baseId;
+                        working = ImportPause.MarkWorkingSets(working, coaching);
+                    }
+                }
                 working = working.Select(set => set.Warmup ? set : set with
                 {
                     RepsText = CarryTargetUnits.Text(set.RepsText, set.RepMin, set.RepMax, cleanName, description)

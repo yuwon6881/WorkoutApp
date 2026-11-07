@@ -9,6 +9,13 @@ const set = (patch: Partial<DraftSet>): DraftSet => ({
 } as DraftSet);
 
 describe('importSetTypes', () => {
+  it('round trips a pause set without changing its reps', () => {
+    const original = set({ repMin: 8, repMax: 10, notes: null });
+    const paused = { ...original, ...applySetType(original, 'pause') };
+    expect(getSetType(paused)).toBe('pause');
+    expect(paused.repMin).toBe(8);
+    expect(applySetType(paused, 'normal').notes).toBeNull();
+  });
   it('treats a tagged AMRAP row with no printed count as having no rep target', () => {
     const amrap = set({ repsText: 'AMRAP', notes: 'To failure / AMRAP' });
 

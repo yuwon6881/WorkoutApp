@@ -20,5 +20,9 @@ describe('one-rep max entry', () => {
   it('recognises the percentage loads the server turns into weights', () => {
     for (const text of ['75%', '80-85%', '82.5–87.5% 1RM']) expect(isPercentLoad(text)).toBe(true);
     for (const text of ['', null, 'add weight', '140 kg']) expect(isPercentLoad(text)).toBe(false);
+    expect(isPercentLoad('100-105%')).toBe(true);
+    expect(isPercentLoad('150%')).toBe(false);
+    expect(isPercentLoad('85-80%')).toBe(false);
+    expect(isPercentLoad('60%', 'Percentage of top set')).toBe(false);
   });
 });

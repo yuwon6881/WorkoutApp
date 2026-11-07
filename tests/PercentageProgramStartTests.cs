@@ -7,6 +7,39 @@ namespace Workout.Tests;
 
 public sealed class PercentageProgramStartTests
 {
+    [Fact]
+    public async Task Relative_backoff_does_not_use_a_saved_one_rep_max()
+    {
+        var h = await Harness.Create();
+        await using var _ = h;
+        await h.SignIn();
+        await h.Seed(new SeedExercise("bench", "Bench", "Chest", "Barbell", null, 2.5));
+        var id = await h.ExerciseId("bench");
+        await new OneRepMaxService(h.Db, h.Workouts).Save(id, new OneRepMaxInput(100), default);
+        var plan = Harness.Set(10, 20) with { LoadText = "60%", Notes = PercentageLoad.PriorSetNote };
+        var template = await h.Templates.Create(Harness.Template("Day", Harness.Exercise(id, "Bench", plan)), null, 1, 0, default);
+        var started = await h.Workouts.Start(template.Id, null, default);
+        var set = started.Exercises.Single().Sets.Single();
+        Assert.Null(set.WeightKg);
+        Assert.Contains("earlier set", set.Suggestion!.Reason);
+    }
+
+    [Fact]
+    public async Task Previously_imported_top_set_instruction_is_honoured_at_start()
+    {
+        var h = await Harness.Create();
+        await using var _ = h;
+        await h.SignIn();
+        await h.Seed(new SeedExercise("bench", "Bench", "Chest", "Barbell", null, 2.5));
+        var id = await h.ExerciseId("bench");
+        await new OneRepMaxService(h.Db, h.Workouts).Save(id, new OneRepMaxInput(100), default);
+        var plan = Harness.Set(10, 20) with { LoadText = "60%" };
+        var exercise = Harness.Exercise(id, "Bench", plan) with { Note = "Use ~60% of the weight you used on your top set." };
+        var template = await h.Templates.Create(Harness.Template("Day", exercise), null, 1, 0, default);
+        var started = await h.Workouts.Start(template.Id, null, default);
+        Assert.Null(started.Exercises.Single().Sets.Single().WeightKg);
+        Assert.Contains(PercentageLoad.PriorSetNote, started.Exercises.Single().Prescription.Single().Notes);
+    }
     private static async Task<(Harness H, Guid ExerciseId, Guid TemplateId)> Setup(string load)
     {
         var h = await Harness.Create();

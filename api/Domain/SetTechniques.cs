@@ -3,13 +3,13 @@ using System.Text.RegularExpressions;
 
 namespace Workout.Api.Domain;
 
-/// Intensity techniques a program can prescribe for a working set. The technique is carried in
+/// Techniques a program can prescribe for a working set. The technique is carried in
 /// the prescription's set notes (the builder and import write it there), so a completed set's
 /// technique is the one its session snapshot prescribed at the same position.
 ///
 /// A technique set is real training work, but its load and reps do not describe straight-set
-/// strength: partials shorten the range, myo-reps and drop sets pile extra reps onto a load after
-/// short or no rest. Those numbers would inflate an estimated 1RM, fake rep records, and push a
+/// strength: partials shorten the range, pause sets change the movement, and myo-reps and drop sets
+/// pile extra reps onto a load after short or no rest. Those numbers could distort an estimated 1RM, fake rep records, and push a
 /// load up because the rep count looked easy. So a technique set still counts as volume and as a
 /// set, but never as strength evidence, and its progression only learns from its own technique.
 /// Failure/AMRAP is not a technique here: it is a full-range straight set, the best strength
@@ -21,6 +21,7 @@ public static class SetTechniques
     public const string LengthenedPartials = "lengthenedPartials";
     public const string IntegratedPartials = "integratedPartials";
     public const string Partials = "partials";
+    public const string Pause = "pause";
 
     private static readonly (string Technique, Regex Pattern)[] Patterns =
     [
@@ -28,7 +29,8 @@ public static class SetTechniques
         (MyoReps, new(@"\bmyo[- ]?reps?\b", RegexOptions.Compiled | RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)),
         (LengthenedPartials, new(@"\b(?:lengthened|long[- ]length)\s+partials?\b", RegexOptions.Compiled | RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)),
         (IntegratedPartials, new(@"\bintegrated\s+partials?\b", RegexOptions.Compiled | RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)),
-        (Partials, new(@"\bpartials?\b|\bhalf[- ]?rom\b|\bhalf\s+reps?\b", RegexOptions.Compiled | RegexOptions.IgnoreCase | RegexOptions.CultureInvariant))
+        (Partials, new(@"\bpartials?\b|\bhalf[- ]?rom\b|\bhalf\s+reps?\b", RegexOptions.Compiled | RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)),
+        (Pause, new(@"\bpause set\b", RegexOptions.Compiled | RegexOptions.IgnoreCase | RegexOptions.CultureInvariant))
     ];
 
     /// The technique a prescribed set uses, or null for a straight set. Warm-ups have none.

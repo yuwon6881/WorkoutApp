@@ -28,7 +28,7 @@ public sealed class ExerciseWeightBasisTests
     /// Rows first seeded after the backfill migration take their basis from the seed itself, and an
     /// applied migration is never rewritten, so they are listed here instead of in its SQL.
     private static readonly HashSet<string> AddedAfterBackfill =
-        ["banded-clamshell", "banded-monster-walk", "db-curtsy-lunge", "db-lateral-lunge"];
+        ["banded-clamshell", "banded-monster-walk", "db-curtsy-lunge", "db-lateral-lunge", "pinch-grip-dumbbell-curl"];
 
     [Fact]
     public void Every_shipped_exercise_has_an_explicit_audited_basis()

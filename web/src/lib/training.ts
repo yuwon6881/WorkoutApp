@@ -54,6 +54,7 @@ export const estimate1Rm = (weightKg: number | null, reps: number | null, rpe: n
   if (weightKg === null || reps === null || rpe === null) return null;
   if (weightKg <= 0 || reps <= 0 || rpe < 6) return null;
   const total = reps + (10 - rpe);
+  if (reps === 1 && rpe === 10) return weightKg;
   return total > 12 ? null : weightKg * (1 + total / 30);
 };
 
@@ -71,6 +72,7 @@ export const calculateEstimated1Rm = (weightKg: number | null, reps: number | nu
   } else {
     total = reps;
   }
+  if (reps === 1 && rpe === 10) return weightKg;
   return total > 12 ? null : weightKg * (1 + total / 30);
 };
 

@@ -2,16 +2,17 @@ import type { LoggedSet, SessionExercise, SetPrescription } from '../types';
 
 /// Mirrors the server's SetTechniques: a prescribed intensity technique, read from the set notes
 /// the builder and import write. Partials shorten the range and myo-reps and drop sets add reps
-/// after little or no rest, so these sets are real work but not straight-set strength. They never
+/// after little or no rest; pause sets change the movement. These sets are real work but not straight-set strength. They never
 /// announce a record or count against one. Failure/AMRAP stays a straight set.
-export type SetTechnique = 'dropset' | 'myoreps' | 'lengthenedPartials' | 'integratedPartials' | 'partials';
+export type SetTechnique = 'dropset' | 'myoreps' | 'lengthenedPartials' | 'integratedPartials' | 'partials' | 'pause';
 
 const PATTERNS: Array<[SetTechnique, RegExp]> = [
   ['dropset', /\bdrop\s?sets?\b/i],
   ['myoreps', /\bmyo[- ]?reps?\b/i],
   ['lengthenedPartials', /\b(?:lengthened|long[- ]length)\s+partials?\b/i],
   ['integratedPartials', /\bintegrated\s+partials?\b/i],
-  ['partials', /\bpartials?\b|\bhalf[- ]?rom\b|\bhalf\s+reps?\b/i]
+  ['partials', /\bpartials?\b|\bhalf[- ]?rom\b|\bhalf\s+reps?\b/i],
+  ['pause', /\bpause set\b/i]
 ];
 
 export function setTechnique(prescription: Pick<SetPrescription, 'notes' | 'warmup'> | null | undefined): SetTechnique | null {

@@ -10,6 +10,19 @@ namespace Workout.Tests;
 /// spelling of the same movement, never a judgement that two movements are near enough.
 public sealed class CatalogMatchingTests
 {
+    [Fact]
+    public async Task Printed_pinch_curl_and_machine_row_resolve_to_their_own_catalog_movements()
+    {
+        var root = new DirectoryInfo(AppContext.BaseDirectory);
+        while (root != null && !File.Exists(Path.Combine(root.FullName, "deploy", "exercises.json"))) root = root.Parent;
+        var rows = Json.Read<List<SeedExercise>>(File.ReadAllText(Path.Combine(root!.FullName, "deploy", "exercises.json")));
+        await using var h = await Harness.Create();
+        await h.SignIn();
+        await h.Seed(rows.ToArray());
+        Assert.Equal(await h.ExerciseId("pinch-grip-dumbbell-curl"), await h.Catalog.Match("PINCH GRIP CURL", default));
+        Assert.Equal(await h.ExerciseId("machine-chest-supported-t-bar-row-retraction"),
+            await h.Catalog.Match("MACHINE CHEST-SUPPORTED T-BAR ROW/RETRACTION", default));
+    }
     private static async Task<(Harness h, CatalogService catalog)> Library()
     {
         var h = await Harness.Create();

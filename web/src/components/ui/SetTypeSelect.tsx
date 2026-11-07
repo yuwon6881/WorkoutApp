@@ -11,7 +11,8 @@ const SHORT_LABELS: Record<SetType, string> = {
   myoreps: 'Myo-reps',
   partials: 'Partial',
   lengthenedPartials: 'Lengthened',
-  integratedPartials: 'Integrated'
+  integratedPartials: 'Integrated',
+  pause: 'Pause'
 };
 
 // The active workout's narrow column: the count alone for a straight set, a letter for the rest.
@@ -23,7 +24,8 @@ const COMPACT_PREFIXES: Record<SetType, string> = {
   myoreps: 'M',
   partials: 'P',
   lengthenedPartials: 'L',
-  integratedPartials: 'I'
+  integratedPartials: 'I',
+  pause: 'Pa'
 };
 
 /// A set's label and its type in one control: the trigger reads "Set 2" or "Warm-up 1", and

@@ -55,6 +55,47 @@ public sealed class ProgressionGapTests
     }
 
     [Fact]
+    public void A_different_rep_target_after_a_layoff_does_not_inherit_the_old_rep_count()
+    {
+        var result = Suggest(8, 8, "2", [Exposure(100, 2, "2", daysAgo: 21, min: 2, max: 2)]);
+        Assert.Equal(8, result.SuggestedReps);
+    }
+
+    [Fact]
+    public void A_long_layoff_retargets_before_reducing_the_heavy_day_load()
+    {
+        var result = Suggest(8, 8, "2", [Exposure(100, 2, "2", daysAgo: 35, min: 2, max: 2)]);
+        Assert.Equal(8, result.SuggestedReps);
+        Assert.True(result.SuggestedLoadKg is null or < 100);
+    }
+
+    [Fact]
+    public void An_eight_rep_day_uses_its_own_history_after_a_two_rep_day()
+    {
+        var result = Suggest(8, 8, "2", [
+            Exposure(100, 2, "2", daysAgo: 2, min: 2, max: 2),
+            Exposure(70, 8, "2", daysAgo: 6, min: 8, max: 8)]);
+        Assert.True(result.SuggestedReps >= 8);
+        Assert.Equal(70, result.PreviousLoadKg);
+    }
+
+    [Fact]
+    public void A_first_eight_rep_day_does_not_use_two_as_its_target()
+    {
+        var result = Suggest(8, 8, "2", [Exposure(100, 2, "2", daysAgo: 2, min: 2, max: 2)]);
+        Assert.Equal(8, result.SuggestedReps);
+    }
+
+    [Fact]
+    public void A_pause_set_does_not_reuse_the_straight_set_history()
+    {
+        var paused = new SetPrescription(8, 8, null, null, null, null, "Pause set", Rir: "2");
+        var straight = Exposure(100, 8, "2", daysAgo: 2, min: 8, max: 8);
+        var result = Progression.Suggest(paused, [straight], ProgressionModes.Normal, new LoadOptions(2.5), now: Now);
+        Assert.Null(result.SuggestedLoadKg);
+    }
+
+    [Fact]
     public void The_session_after_a_deload_week_returns_to_the_pre_deload_load()
     {
         var history = new List<SetExposure>

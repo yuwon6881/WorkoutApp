@@ -31,7 +31,7 @@ public class ProgressionFormulaTests
     {
         // With RPE
         Assert.Equal(60 * (1 + 5 / 30.0), Progression.Estimate1Rm(60, 3, 8)!.Value, 6);
-        Assert.Equal(100 * (1 + 1 / 30.0), Progression.Estimate1Rm(100, 1, 10)!.Value, 6);
+        Assert.Equal(100, Progression.Estimate1Rm(100, 1, 10)!.Value, 6);
         // Without RPE (reps at face value)
         Assert.Equal(60 * (1 + 5 / 30.0), Progression.Estimate1Rm(60, 5)!.Value, 6);
         Assert.Equal(60 * (1 + 5 / 30.0), Progression.Estimate1Rm(60, 5, null)!.Value, 6);

@@ -9,7 +9,7 @@ public sealed partial class WorkoutService
     /// than a count the lifter typed. Read before a swap clears the suggestions it replaces.
     private static HashSet<Guid> SetsHoldingRepFill(SessionExercise exercise, IEnumerable<CompletedSet> sets)
     {
-        var prescriptions = Json.Read<List<SetPrescription>>(exercise.PrescriptionJson);
+        var prescriptions = ImportLoadBasis.ApplyPrescriptions(Json.Read<List<SetPrescription>>(exercise.PrescriptionJson), exercise.Note);
         return sets.Where(set => !set.Done && !set.Warmup && prescriptions.ElementAtOrDefault(set.Position) is { } plan
                 && ReadOptional<SetProgressionSuggestion>(set.SuggestionJson) is { } suggestion
                 && set.Reps == Progression.PrefillReps(plan, suggestion))
@@ -93,7 +93,7 @@ public sealed partial class WorkoutService
     /// ordinary programs never pay for the estimate.
     private static OneRepMax? OneRepMaxFor(IEnumerable<SetPrescription> plan, string loadModel, Guid? exerciseId,
         IReadOnlyDictionary<Guid, double> typed, IEnumerable<SetExposure> history)
-        => loadModel == LoadModels.External && plan.Any(set => !set.Warmup && PercentageLoad.Parse(set.LoadText) is not null)
+        => loadModel == LoadModels.External && plan.Any(set => !set.Warmup && !PercentageLoad.IsRelative(set) && PercentageLoad.Parse(set.LoadText) is not null)
             ? PercentageLoad.Resolve(exerciseId is { } id && typed.TryGetValue(id, out var kg) ? kg : null, history)
             : null;
 
@@ -111,7 +111,7 @@ public sealed partial class WorkoutService
         BodyWeightSnapshot? bodyWeight, IReadOnlyList<double>? availableLoads, DateTime? lastTrained)
     {
         var own = OwnSuggestion(prescription, exposures, mode, step, context, resistanceMode, loadModel, bodyWeight, availableLoads, lastTrained);
-        if (SetTechniques.Of(prescription) is null || own.SourceSessionId is not null || own.SourceDate is not null) return own;
+        if (SetTechniques.Of(prescription) is null or SetTechniques.Pause || own.SourceSessionId is not null || own.SourceDate is not null) return own;
         var straight = OwnSuggestion(prescription with { Notes = null }, exposures, mode, step, context, resistanceMode, loadModel,
             bodyWeight, availableLoads, lastTrained);
         return straight.SuggestedLoadKg is null && straight.SuggestedSystemLoadKg is null
@@ -204,9 +204,9 @@ public sealed partial class WorkoutService
     /// Two percentages are different prescriptions even at the same reps and effort, so a heavier
     /// percentage is never capped at the lighter one before it.
     private static bool PrescribedAlike(SetPrescription previous, SetPrescription prescription)
-        => PercentageLoad.Parse(previous.LoadText) == PercentageLoad.Parse(prescription.LoadText) &&
-           previous.RepMin == prescription.RepMin &&
-           previous.RepMax == prescription.RepMax &&
+        => PercentageLoad.IsRelative(previous) == PercentageLoad.IsRelative(prescription) &&
+           PercentageLoad.Parse(previous.LoadText) == PercentageLoad.Parse(prescription.LoadText) &&
+           previous.RepMin == prescription.RepMin && previous.RepMax == prescription.RepMax &&
            previous.RepsText == prescription.RepsText &&
            ProgressionEvidence.Reserve(previous.Rir, previous.TargetRpe) == ProgressionEvidence.Reserve(prescription.Rir, prescription.TargetRpe);
 
@@ -234,7 +234,7 @@ public sealed partial class WorkoutService
     private static SetProgressionSuggestion FollowStraightSets(SetPrescription prescription,
         SetProgressionSuggestion? straight, SetProgressionSuggestion own)
     {
-        if (SetTechniques.Of(prescription) is null || straight is null || straight.ResistanceMode != own.ResistanceMode)
+        if (SetTechniques.Of(prescription) is null or SetTechniques.Pause || straight is null || straight.ResistanceMode != own.ResistanceMode)
             return own;
         if (straight.SuggestedLoadKg is null && straight.SuggestedSystemLoadKg is null && own.SuggestedLoadKg is not null)
             return own;

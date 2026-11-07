@@ -18,6 +18,7 @@ public sealed class PercentageLoadTests
     [InlineData("75% 1RM", 75, 75)]
     [InlineData("80-85%", 80, 85)]
     [InlineData("82.5–87.5% 1RM", 82.5, 87.5)]
+    [InlineData("100-105%", 100, 105)]
     public void Reads_the_printed_percentage_or_band(string text, double low, double high)
     {
         var band = PercentageLoad.Parse(text);
@@ -108,5 +109,33 @@ public sealed class PercentageLoadTests
         Assert.Equal(100 * (1 + 7 / 30.0), estimate!.Value, 6);
         Assert.Null(PercentageLoad.EstimateOneRepMax([Hit(40, 15, 8, 1)]));
         Assert.Null(PercentageLoad.EstimateOneRepMax([]));
+    }
+
+    [Fact]
+    public void Five_plus_reserve_is_not_a_precise_heavy_set_estimate()
+    {
+        var easy = new SetExposure(Guid.NewGuid(), DateTime.UtcNow, 100, 5, null, Rir: "5+");
+        Assert.Null(PercentageLoad.EstimateOneRepMax([easy]));
+    }
+
+    [Fact]
+    public void An_old_heavy_set_is_not_used_as_a_current_one_rep_max()
+    {
+        var old = new SetExposure(Guid.NewGuid(), DateTime.UtcNow.AddDays(-100), 100, 3, 9);
+        Assert.Null(PercentageLoad.EstimateOneRepMax([old]));
+    }
+
+    [Fact]
+    public void A_relative_top_set_percentage_never_borrows_a_one_rep_max_or_history_load()
+    {
+        var result = PercentageLoad.Apply(Plan("60% of top set"), Engine(100, true), 100, false, Step);
+        Assert.Null(result.SuggestedLoadKg);
+    }
+
+    [Fact]
+    public void Testing_opener_follows_the_printed_start_instruction()
+    {
+        var plan = Plan("100-105%") with { Notes = "Start with 100% and increase by 2.5% every attempt." };
+        Assert.Equal(100, PercentageLoad.Apply(plan, Engine(90, true), 100, false, Step).SuggestedLoadKg);
     }
 }

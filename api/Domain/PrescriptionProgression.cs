@@ -44,18 +44,33 @@ internal static class PrescriptionProgression
         var lower = min ?? actual;
         var upper = max ?? actual;
         var changed = ProgressionEvidence.Changed(source, min, max, goal);
+        var repsChanged = source.HasPrescription && (source.RepMin != min || source.RepMax != max);
         var rebuilding = source.IsRepRangeTransition && !changed && actual < lower;
         var repeatReps = rebuilding ? actual : Math.Clamp(actual, lower, upper);
 
         if (away is >= ProgressionLayoff.HoldDays)
         {
-            // Repeating the last session means its reps too: a set that fell short of the range is
-            // not asked for the full minimum straight after a break.
-            var heldReps = Math.Min(actual, upper);
+            // Only repeat the old reps when they belonged to this prescription. A different rep
+            // target needs its own load; an old heavy double is not a safe load for eight reps.
+            var heldReps = repsChanged ? lower : Math.Min(actual, upper);
             if (away < ProgressionLayoff.ReduceDays)
+            {
+                if (repsChanged)
+                    return Easier(trainedThrough!, load, heldReps, away.Value)
+                        ?? Result(null, lower, $"Back after {away} days away with a different rep target: choose a load for the new target.");
                 return Easier(trainedThrough!, load, heldReps, away.Value)
                     ?? Result(load, heldReps, $"Back after {away} days away: repeat your last session before progressing.", rebuilding);
+            }
             var factor = ProgressionLayoff.Factor(away.Value);
+            if (repsChanged)
+            {
+                var retargeted = trainedThrough!.SuggestedLoadKg;
+                var safe = retargeted is { } retargetedLoad && load is { } previous && loads.Adjustable && !repsOnly
+                    ? Math.Min(retargetedLoad, Math.Min(previous, loads.AtMost(previous * factor))) : retargeted;
+                return Result(safe, lower, safe is null
+                    ? $"Back after {away} days away with a different rep target: choose a load for the new target."
+                    : $"Back after {away} days away: use a lighter load for the new rep target.");
+            }
             var eased = load is { } current && loads.Adjustable && !repsOnly ? Math.Min(current, loads.AtMost(current * factor)) : load;
             if (Easier(trainedThrough!, eased, lower, away.Value) is { } easier) return easier;
             // Only claim a lighter load when one exists: a reps-only movement or the lightest available

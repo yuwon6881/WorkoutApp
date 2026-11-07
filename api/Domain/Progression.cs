@@ -123,6 +123,7 @@ public static class Progression
         if (weight <= 0 || count <= 0 || effort < MinEstimatedRpe) return null;
         var total = count + (10 - effort);
         if (total > MaxEstimatedReps) return null;
+        if (count == 1 && effort == 10) return weight;
         return weight * (1 + total / 30);
     }
 
@@ -147,6 +148,7 @@ public static class Progression
             total = count;
         }
         if (total > MaxEstimatedReps) return null;
+        if (count == 1 && rpe == 10) return weight;
         return weight * (1 + total / 30.0);
     }
 
