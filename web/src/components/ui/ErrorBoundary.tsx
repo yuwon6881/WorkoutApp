@@ -15,14 +15,21 @@ const CHUNK_FAILURE = /dynamically imported module|Importing a module script fai
 export const isStaleVersionError = (error: Error): boolean =>
   CHUNK_FAILURE.test(error.message) && (typeof navigator === 'undefined' || navigator.onLine !== false);
 
-// A deploy replaces hashed chunks, so a long-lived tab can ask for a file that no longer exists.
-// One reload per tab session fetches the new shell, so a chunk that is still missing cannot loop;
-// the active workout survives the reload through device recovery. The reload also drops the service
-// worker's cached shell, which is what keeps requesting the deleted chunks.
+// A failed import can keep failing after a reload. Bound automatic retries for one build, while
+// allowing a later deployment or a later attempt in the same tab to recover on its own.
+export function shouldReloadStaleVersion(storage: Pick<Storage, 'getItem' | 'setItem'>, version: string, now: number): boolean {
+  const prior = storage.getItem(RELOAD_FLAG);
+  const [previousVersion, previousTime] = (prior ?? '').split('|');
+  const elapsed = now - Number(previousTime);
+  if (previousVersion === version && elapsed >= 0 && elapsed < 60_000) return false;
+  storage.setItem(RELOAD_FLAG, `${version}|${now}`);
+  return true;
+}
+
 function reloadOnceForNewVersion(): boolean {
   try {
-    if (sessionStorage.getItem(RELOAD_FLAG)) return false;
-    sessionStorage.setItem(RELOAD_FLAG, String(Date.now()));
+    const version = typeof __APP_VERSION__ === 'string' ? __APP_VERSION__ : 'unknown';
+    if (!shouldReloadStaleVersion(sessionStorage, version, Date.now())) return false;
   } catch {
     return false;
   }

@@ -90,15 +90,14 @@ export default defineConfig({
       // App Link (`/open`) redirects and asset links are answered by hosting, never by the shell.
       navigateFallbackDenylist: [/^\/assets\//, /^\/api\//, /^\/health$/, /^\/open(?:\/|$)/, /^\/\.well-known\//],
       globPatterns: ['**/*.{js,css,html,png,svg,woff2}'],
-      // PDF.js is loaded only after a user selects an import. Keep its large worker and dynamic
-      // chunks out of the install-time download; the importer remains available online and the
-      // rest of the workout shell stays fast on a fresh install.
-      globIgnores: ['**/assets/*pdf*', '**/assets/*PDF*', '**/assets/firebase-push-*.js',
+      // Keep PDF.js and its large worker on demand; cache the import view and its text helper
+      // with the shell so an older tab can open Import after a deployment.
+      globIgnores: ['**/assets/pdf-*.js', '**/assets/pdf.worker-*', '**/assets/firebase-push-*.js',
         // Plus Jakarta Sans's Cyrillic and Vietnamese subsets load only for text that needs them, so they
         // are fetched on demand rather than installed with the shell.
         '**/assets/plus-jakarta-sans-cyrillic*', '**/assets/plus-jakarta-sans-vietnamese*', '**/assets/*-wght-italic*',
-        '**/assets/Settings-*', '**/assets/Programs-*', '**/assets/Import-*', '**/assets/ImportDraftTree-*',
-        '**/assets/MuscleBalanceView-*', '**/assets/bodyMap*', '**/assets/pdfPageText*'],
+        '**/assets/Settings-*', '**/assets/Programs-*',
+        '**/assets/MuscleBalanceView-*', '**/assets/bodyMap*'],
       // The rest-timer notification needs a click handler in the worker itself. It is imported
       // rather than hand-written as a whole worker so Workbox keeps owning the precache.
       importScripts: ['rest-alert-sw.js'],

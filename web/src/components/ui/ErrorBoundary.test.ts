@@ -1,7 +1,7 @@
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { ErrorBoundary } from './ErrorBoundary';
+import { ErrorBoundary, shouldReloadStaleVersion } from './ErrorBoundary';
 
 describe('ErrorBoundary', () => {
   it('renders children when no error occurs', () => {
@@ -25,6 +25,15 @@ describe('ErrorBoundary', () => {
     expect(html).toContain('Reload workout app');
     expect(html).toContain('Try again');
     expect(html).toContain('reload-recovery');
+  });
+
+  it('allows recovery for later deployments but stops repeated reloads of the same version', () => {
+    const storage = new Map<string, string>();
+    const session = { getItem: (key: string) => storage.get(key) ?? null, setItem: (key: string, value: string) => { storage.set(key, value); } };
+    expect(shouldReloadStaleVersion(session, 'build-a', 100_000)).toBe(true);
+    expect(shouldReloadStaleVersion(session, 'build-a', 100_100)).toBe(false);
+    expect(shouldReloadStaleVersion(session, 'build-b', 100_200)).toBe(true);
+    expect(shouldReloadStaleVersion(session, 'build-b', 161_000)).toBe(true);
   });
 
   it('recognises a missing chunk after a deploy as an outdated version', () => {
