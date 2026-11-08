@@ -104,8 +104,11 @@ public sealed partial class ImportService(AppDb db, WorkoutAi ai, CatalogService
         var issues = includeDraft && draft is not null ? ImportValidation.ReviewIssues(draft, edits) : [];
         // Reading notes are recorded as the import runs and are as much a part of the review as
         // the issues derived from the draft, so both reach the panel through one list.
-        issues = [.. FilterNotices(ReadNotices(import.NoticesJson), draft, edits), .. issues];
+        issues = [.. FilterNotices(ReadNotices(import.NoticesJson), draft, edits), .. issues,
+            .. (draft is null ? [] : ImportUncertaintyReview.Issues(draft))];
         issues = issues.Distinct().ToList();
+        if (import.PromptVersion == ImportDraftAlternatives.ExternalPromptVersion)
+            issues = issues.Select(ExternalReviewWording.Apply).ToList();
         if (issues.Count > 0) issues = ImportReviewPolicy.ForReview(issues, await (tracksRir?.Invoke() ?? TracksRir(ct)));
         var coverage = string.IsNullOrWhiteSpace(import.PageCoverageJson) ? [] : Json.Read<List<PdfPageCoverage>>(import.PageCoverageJson);
         var alternatives = string.IsNullOrWhiteSpace(import.AlternativesJson) ? [] : Json.Read<List<ImportAlternative>>(import.AlternativesJson);
@@ -219,7 +222,7 @@ public sealed partial class ImportService(AppDb db, WorkoutAi ai, CatalogService
     }
 
     /// Acceptance is all-or-nothing: the review must have no unresolved mappings or document issues.
-    public async Task<ProgramView> Accept(Guid id, CancellationToken ct, int? revision = null)
+    public async Task<ProgramView> Accept(Guid id, CancellationToken ct, int? revision = null, bool acknowledgeUncertainty = false)
     {
         await using var gate = await MutationLock.Acquire(db, db.CurrentUser, ct);
         var import = await db.Imports.SingleOrDefaultAsync(i => i.Id == id, ct);
@@ -227,6 +230,11 @@ public sealed partial class ImportService(AppDb db, WorkoutAi ai, CatalogService
         Validation.Require(import!.Status == ImportStatus.Ready, "This import has already been accepted or discarded.", 409);
         TemplateService.RequireFresh(revision, import.Revision);
         var draft = ImportValidation.NormalizeDraft(Json.Read<ImportDraft>(import.DraftJson));
+        var hasUncertainty = ImportUncertaintyReview.Issues(draft).Count > 0;
+        Validation.Require(!hasUncertainty || revision is not null,
+            "Reload and review the current draft before acknowledging uncertain details.", 409);
+        Validation.Require(acknowledgeUncertainty || !hasUncertainty,
+            "Review and acknowledge the uncertain import details before creating this program.", 409);
         await ValidateDraft(draft, ct);
         ValidateDraftPages(draft, import.PageCoverageJson);
         var unresolved = Unresolved(draft);
@@ -245,7 +253,9 @@ public sealed partial class ImportService(AppDb db, WorkoutAi ai, CatalogService
         await programs.Validate(input, ct, allowMissingWorkingRpe: true);
         // Imported drafts always enter Standby. Even a completed PDF must be explicitly
         // activated by the user so a mistaken import never displaces the current program.
-        var program = await programs.Materialize(input, activate: false, sourceImportId: import.Id, ct);
+        var external = import.PromptVersion == ImportDraftAlternatives.ExternalPromptVersion;
+        var program = await programs.Materialize(input, activate: false, sourceImportId: external ? null : import.Id, ct);
+        program.AllowUnspecifiedEffort = external;
         // An import is working state, not history. Once its program exists the row has nothing
         // left to say, so it is removed rather than kept as a record of what was imported.
         db.Imports.Remove(import);

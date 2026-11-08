@@ -45,6 +45,61 @@ public sealed class ImportEditDaysTests
     };
 
     [Fact]
+    public async Task Editing_and_restoring_a_draft_preserves_new_metadata_and_the_legacy_baseline()
+    {
+        var (h, imports, view) = await Ready();
+        await using var _ = h;
+        var day = view.Draft!.Workouts[0];
+        var exercise = day.Exercises[0];
+        var set = exercise.Sets[0];
+        var reference = new ImportSourceReference("sheetCell", Sheet: "Training", Cell: "B4:C4");
+        var uncertainty = new ImportUncertainty(true, "Check the source value");
+        var edited = day with { SourcePage = null, SourceReference = reference, Exercises = [exercise with {
+            SourcePage = null, SourceReference = reference, Uncertainty = uncertainty,
+            Sets = [set with { SourcePage = null, SourceReference = reference, Uncertainty = uncertainty }]
+        }] };
+
+        var saved = await imports.EditDays(view.Id, [edited], view.Revision, default);
+        var reloaded = await imports.Get(view.Id, default);
+        var savedExercise = reloaded.Draft!.Workouts[0].Exercises[0];
+        Assert.Equal(reference, savedExercise.SourceReference);
+        Assert.Equal(uncertainty, savedExercise.Sets[0].Uncertainty);
+        var restored = await imports.RestoreDraft(view.Id, saved.Revision, default);
+        Assert.Equal(day.SourcePage, restored.Draft!.Workouts[0].SourcePage);
+        Assert.Null(restored.Draft.Workouts[0].Exercises[0].Uncertainty);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Acceptance_drops_review_metadata_and_requires_acknowledgement_when_uncertain(bool uncertain)
+    {
+        var (h, imports, view) = await Ready();
+        await using var _ = h;
+        var day = view.Draft!.Workouts[0];
+        var exercise = day.Exercises[0];
+        var set = exercise.Sets[0];
+        var reference = new ImportSourceReference("sheetCell", Sheet: "Plan", Cell: "A1");
+        var uncertainty = uncertain ? new ImportUncertainty(true, "Check reps") : null;
+        var changed = day with { SourcePage = null, SourceReference = reference, Exercises = [exercise with {
+            SourcePage = null, SourceReference = reference, Uncertainty = uncertainty,
+            Sets = [set with { SourcePage = null, SourceReference = reference, Uncertainty = uncertainty }]
+        }] };
+        var saved = await imports.EditDays(view.Id, [changed], view.Revision, default);
+        if (uncertain)
+        {
+            Assert.Contains(saved.ReviewIssues!, issue => issue.Code == "external_uncertainty");
+            await Assert.ThrowsAsync<DomainException>(() => imports.Accept(view.Id, default, saved.Revision));
+            await Assert.ThrowsAsync<DomainException>(() => imports.Accept(view.Id, default, acknowledgeUncertainty: true));
+            Assert.Empty(await h.Programs.List(default));
+        }
+        var program = await imports.Accept(view.Id, default, saved.Revision, acknowledgeUncertainty: uncertain);
+        var json = Json.Write(program);
+        Assert.DoesNotContain("sourceReference", json, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("uncertainty", json, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public async Task Acceptance_refuses_a_draft_revision_that_is_no_longer_current()
     {
         var (h, imports, view) = await Ready();

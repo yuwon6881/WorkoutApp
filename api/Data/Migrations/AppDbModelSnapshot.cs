@@ -1694,6 +1694,9 @@ namespace Workout.Api.Data.Migrations
                     b.Property<bool>("Active")
                         .HasColumnType("boolean");
 
+                    b.Property<bool>("AllowUnspecifiedEffort")
+                        .HasColumnType("boolean");
+
                     b.Property<DateTime?>("CompletedAt")
                         .HasColumnType("timestamp with time zone");
 

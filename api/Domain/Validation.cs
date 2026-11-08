@@ -18,6 +18,8 @@ public record SetPrescription(
 
 public static class Validation
 {
+    public const int MaxSubstitutions = 2;
+    public const int MinPrescriptionSets = 1;
     public static void Require(bool condition, string message, int status = 400)
     { if (!condition) throw new DomainException(message, status); }
     public static void Number(double number, double min, double max, string name) => Require(double.IsFinite(number) && number >= min && number <= max, $"{name} must be between {min} and {max}.");
@@ -70,7 +72,7 @@ public static class Validation
 
     public static void Prescriptions(List<SetPrescription>? sets, bool requireWorkingRpe = false)
     {
-        Require(sets is { Count: > 0 }, "Each exercise needs at least one set.");
+        Require(sets is { Count: >= MinPrescriptionSets }, "Each exercise needs at least one set.");
         Require(sets!.Count <= 24, "An exercise can have at most 24 sets.");
         var workingStarted = false;
         foreach (var set in sets)
@@ -104,7 +106,7 @@ public static class Validation
 
     public static void Substitutions(List<string>? substitutions)
     {
-        Require(substitutions is null || substitutions.Count <= 2, "An exercise can have at most 2 substitutions.");
+        Require(substitutions is null || substitutions.Count <= MaxSubstitutions, "An exercise can have at most 2 substitutions.");
         foreach (var substitution in substitutions ?? []) Name(substitution, "Substitution", 160);
     }
 }

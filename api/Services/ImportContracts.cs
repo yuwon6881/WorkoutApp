@@ -8,7 +8,12 @@ public record DraftSet(
     int? RepMin, int? RepMax, double? TargetRpe, int? RestSeconds, string? Tempo, string? LoadText, string? Notes,
     string RepsSource = "extracted", string RpeSource = "extracted", string RestSource = "extracted",
     string? RepsText = null, string? RestText = null, string? Rir = null,
-    bool Warmup = false, int? SourcePage = null);
+    bool Warmup = false, int? SourcePage = null)
+{
+    private ImportSourceReference? sourceReference;
+    public ImportSourceReference? SourceReference { get => sourceReference ?? ImportSourceReference.FromPage(SourcePage); init => sourceReference = value; }
+    public ImportUncertainty? Uncertainty { get; init; }
+}
 
 public record DraftExercise(
     Guid LineId, string SourceName, Guid? ExerciseId, string? Notes, List<DraftSet> Sets,
@@ -18,16 +23,29 @@ public record DraftExercise(
     string? DemoUrl = null, Dictionary<string, string>? DemoLinks = null,
     /// The written movement this row names, shared by every occurrence however a page cased or placed it.
     /// Derived on every save so the editor can offer an edit to the other occurrences without re-deriving it.
-    string? MovementKey = null);
+    string? MovementKey = null)
+{
+    private ImportSourceReference? sourceReference;
+    public ImportSourceReference? SourceReference { get => sourceReference ?? ImportSourceReference.FromPage(SourcePage); init => sourceReference = value; }
+    public ImportUncertainty? Uncertainty { get; init; }
+}
 
 public record DraftWorkout(
     Guid LineId, int Week, string Name, string? Focus, string? Notes, List<DraftExercise> Exercises,
     string? Block = null, string? Phase = null, int PhaseWeek = 1, bool IsRestDay = false,
-    int? SourcePage = null, Guid? BlockId = null, Guid? WeekId = null);
+    int? SourcePage = null, Guid? BlockId = null, Guid? WeekId = null)
+{
+    private ImportSourceReference? sourceReference;
+    public ImportSourceReference? SourceReference { get => sourceReference ?? ImportSourceReference.FromPage(SourcePage); init => sourceReference = value; }
+}
 
 /// SourceWeekDays is the longest week the PDF itself confirms (a ten-day cycle is 10); a week beyond
 /// seven days is only accepted without review when its source says so.
-public record ImportDraft(string ProgramName, List<DraftWorkout> Workouts, int? SourceWeekDays = null);
+public record ImportDraft(string ProgramName, List<DraftWorkout> Workouts, int? SourceWeekDays = null)
+{
+    public List<ImportAlternativeGroup>? AlternativeGroups { get; init; }
+    public List<ImportAlternativeUncertainty>? AlternativeUncertainties { get; init; }
+}
 public record ImportMetadata(string ProgramName);
 /// Days replaced together by one exercise edit; every day not named keeps its stored content.
 public record ImportDaysInput(List<DraftWorkout>? Days, int? Revision);
@@ -54,7 +72,13 @@ public record ImportReviewIssue(
 public record ImportAlternative(
     string Id, string Name, int ChunkCount, int DayCount, List<ImportChunk>? Chunks = null,
     int? WeekCount = null, int? SessionsPerWeek = null, string Kind = ImportAlternativeKinds.Program,
-    string? Description = null, List<Guid>? DayLineIds = null);
+    string? Description = null, List<Guid>? DayLineIds = null)
+{
+    public ImportUncertainty? Uncertainty { get; init; }
+}
+
+public record ImportAlternativeGroup(string Id, List<ImportAlternative> Members);
+public record ImportAlternativeUncertainty(string Name, ImportUncertainty Uncertainty);
 
 public static class ImportAlternativeKinds
 {

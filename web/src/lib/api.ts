@@ -3,12 +3,15 @@ import { integrationGeneration, signalIntegrationPending } from './integrationDi
 import type { ExerciseLoadSettings, LoadRule, LoadSettingsOverview } from './exerciseLoads';
 import type { PdfExtraction } from './pdfText';
 import { sharedReads } from './readCoordinator';
+import { readFieldErrors, type ExternalImportFieldError, type ExternalImportPrompt } from './externalImport';
 import type { OneRepMaxView } from './oneRepMax';
 import type { Exercise, GymExerciseOverride, GymsView, HistorySummaryPage, ShellBootstrap, TrackingMode, Unit } from '../types';
 import type { Bootstrap, CustomExerciseCreated, DraftWorkout, ExerciseClearPreview, ExerciseInsight, HistoryPage, ImportDraft, ImportStatusView, ImportView, MuscleBalanceRange, MuscleBalanceView, Preferences, ProgressSummary, Program, ProgramDayActionInput, ProgramEditInput, ProgramEditorDocument, ProgramSummary, ProgramWeekResetInput, RestMutationInput, Session, Template, TemplateSubstitutionResult, WatchDevice, WorkoutActivityItem } from '../types';
 
 export class ApiError extends Error {
-  constructor(message: string, readonly status: number, readonly retryAfterMs: number | null = null) { super(message); }
+  constructor(message: string, readonly status: number, readonly retryAfterMs: number | null = null,
+    /// Per-field problems a rejected external import file reports, so they can be shown and copied.
+    readonly fieldErrors: ExternalImportFieldError[] = []) { super(message); }
   /// A conflict means someone else's newer work is on the server; the caller must refresh
   /// rather than retry, so it is never swallowed into a generic failure.
   get conflict() { return this.status === 409; }
@@ -73,7 +76,7 @@ async function requestWithMeta<T>(path: string, method: string, body?: unknown, 
     const date = raw !== null ? Date.parse(raw) : NaN;
     const retryAfterMs = response.status === 429 ? (seconds !== null ? seconds * 1000
       : Number.isFinite(date) ? Math.max(0, date - Date.now()) : 5000) : null;
-    throw new ApiError(payload?.message ?? 'Something went wrong. Try again.', response.status, retryAfterMs);
+    throw new ApiError(payload?.message ?? 'Something went wrong. Try again.', response.status, retryAfterMs, readFieldErrors(payload));
   }
   if (response.headers.get('X-Fitness-Integration-Pending') === '1') signalIntegrationPending(integrationEpoch);
   return { data: (response.status === 204 ? undefined : payload) as T, notModified: false, etag };
@@ -223,6 +226,10 @@ export const api = {
   createImport: (source: PdfExtraction) => callCompressed<ImportView>('/api/imports', {
     fileName: source.fileName, pageCount: source.pageCount, pages: source.pages, links: source.links
   }),
+  externalImportPrompt: () => call<ExternalImportPrompt>('/api/imports/external/prompt'),
+  /// Send the original bytes so invalid UTF-8 cannot be silently replaced before validation.
+  createExternalImport: (bytes: Uint8Array) => call<ImportView>('/api/imports/external', 'POST',
+    bytes, undefined, { 'Content-Type': 'application/json' }),
   extractImport: (id: string) => call<ImportView>(`/api/imports/${id}/extract`, 'POST'),
   retryImport: (id: string) => call<ImportView>(`/api/imports/${id}/retry`, 'POST'),
   editImport: (id: string, draft: Pick<ImportDraft, 'programName'> | ImportDraft, revision?: number) => call<ImportView>(`/api/imports/${id}`, 'PUT', revision == null ? draft : { ...draft, revision }),
@@ -230,7 +237,7 @@ export const api = {
   editImportDays: (id: string, days: DraftWorkout[], revision?: number) => call<ImportView>(`/api/imports/${id}/days`, 'PUT', { days, revision }),
   restoreImport: (id: string, revision?: number) => call<ImportView>(`/api/imports/${id}/restore`, 'POST', { revision }),
   restoreImportExercise: (id: string, exerciseLineId: string, revision?: number) => call<ImportView>(`/api/imports/${id}/exercises/${exerciseLineId}/restore`, 'POST', { revision }),
-  selectImportAlternative: (id: string, alternativeId: string) => call<ImportView>(`/api/imports/${id}/alternative`, 'POST', { alternativeId }),
-  acceptImport: (id: string, revision?: number) => call<Program>(`/api/imports/${id}/accept`, 'POST', revision === undefined ? undefined : { revision }),
+  selectImportAlternative: (id: string, alternativeId: string, groupId?: string) => call<ImportView>(`/api/imports/${id}/alternative`, 'POST', { alternativeId, groupId }),
+  acceptImport: (id: string, revision?: number, acknowledgeUncertainty = false) => call<Program>(`/api/imports/${id}/accept`, 'POST', { revision, acknowledgeUncertainty }),
   discardImport: (id: string) => call<void>(`/api/imports/${id}/discard`, 'POST')
 };

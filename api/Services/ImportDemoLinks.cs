@@ -23,6 +23,7 @@ internal static class ImportDemoLinks
     private static readonly HashSet<string> VideoHosts = new(StringComparer.OrdinalIgnoreCase)
         { "youtube.com", "www.youtube.com", "m.youtube.com", "youtu.be", "www.youtu.be",
           "exrx.net", "www.exrx.net", "roguefitness.com", "www.roguefitness.com" };
+    public static IReadOnlyCollection<string> ApprovedHosts => VideoHosts;
 
     public static List<ImportPageLink> Normalize(IEnumerable<ImportPageLink>? links, int pageCount)
     {

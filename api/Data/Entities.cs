@@ -93,7 +93,7 @@ public sealed class ExerciseAlias
     public string Alias { get; set; } = "";
 }
 
-public sealed class TrainingProgram : OwnedRecord
+public sealed partial class TrainingProgram : OwnedRecord
 {
     public string Name { get; set; } = "";
     public int Weeks { get; set; } = 1;

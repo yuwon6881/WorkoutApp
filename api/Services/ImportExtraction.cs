@@ -275,7 +275,7 @@ public sealed partial class ImportService
         import.UnresolvedCount = 0;
     }
 
-    public async Task<ImportView> SelectAlternative(Guid id, string alternativeId, CancellationToken ct)
+    public async Task<ImportView> SelectAlternative(Guid id, string alternativeId, CancellationToken ct, string? groupId = null)
     {
         await using (var gate = await MutationLock.Acquire(db, db.CurrentUser, ct))
         {
@@ -283,22 +283,33 @@ public sealed partial class ImportService
             Validation.Require(import != null, "That import no longer exists.", 404);
             Validation.Require(import!.Status == ImportStatus.Pending && import.Stage == "select", "This import is not waiting for an alternative selection.", 409);
             var alternatives = string.IsNullOrWhiteSpace(import.AlternativesJson) ? [] : Json.Read<List<ImportAlternative>>(import.AlternativesJson);
+            var selectionDraft = string.IsNullOrEmpty(import.DraftJson) ? null : Json.Read<ImportDraft>(import.DraftJson);
+            if (selectionDraft is not null)
+            {
+                selectionDraft = ImportDraftAlternatives.WithLegacyGroup(selectionDraft, alternatives);
+                var activeGroup = selectionDraft.AlternativeGroups?.FirstOrDefault(group =>
+                    (groupId is null || string.Equals(group.Id, groupId, StringComparison.OrdinalIgnoreCase)) &&
+                    group.Members.Any(member => string.Equals(member.Id, alternativeId, StringComparison.OrdinalIgnoreCase)));
+                Validation.Require(groupId is null || activeGroup is not null, "That alternative group is no longer available.", 409);
+                if (activeGroup is not null) alternatives = activeGroup.Members;
+                import.DraftJson = Json.Write(selectionDraft);
+            }
             var selected = alternatives.SingleOrDefault(a => string.Equals(a.Id, alternativeId, StringComparison.OrdinalIgnoreCase));
             Validation.Require(selected is not null, "That alternative is no longer available. Read the outline again.", 409);
-            if (selected!.Kind == ImportAlternativeKinds.Week)
+            if (selected!.Kind == ImportAlternativeKinds.Week || selected.DayLineIds is { Count: > 0 })
             {
                 // The program is already read; the choice only decides which version's days stay.
                 try
                 {
-                    var sourcePages = SourcePages(import);
-                    ChooseWeekVersion(import, selected, alternatives);
+                    var sourcePages = import.PromptVersion == ImportDraftAlternatives.ExternalPromptVersion ? null : SourcePages(import);
+                    ChooseWeekVersion(import, selected, alternatives, groupId);
                     var chosenDraft = Json.Read<ImportDraft>(import.DraftJson);
-                    Validation.Require(ImportWeekChoice.Offer(chosenDraft, sourcePages).Count == 0,
+                    Validation.Require(sourcePages is null || ImportWeekChoice.Offer(chosenDraft, sourcePages).Count == 0,
                         "The selected week version could not be separated from the other printed version. Read the PDF again.", 422);
                     await ValidateDraft(chosenDraft, ct);
                     ValidateDraftPages(chosenDraft, import.PageCoverageJson);
-                    RequireVerifiedDraft(chosenDraft, import, []);
-                    ClearSource(import);
+                    if (sourcePages is not null) RequireVerifiedDraft(chosenDraft, import, []);
+                    if (chosenDraft.AlternativeGroups is not { Count: > 0 }) ClearSource(import);
                 }
                 catch (ImportVerificationException verification)
                 {

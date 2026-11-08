@@ -17,6 +17,7 @@ import { ImportProgressCard } from './ImportProgressCard';
 import { ImportReadingStopped } from './ImportReadingStopped';
 import { ImportRestoreDraftModal } from './ImportRestoreDraftModal';
 import { ImportReviewPanel } from './ImportReviewPanel';
+import { ImportExternalPanel } from './ImportExternalPanel';
 import { ImportUploadPanel } from './ImportUploadPanel';
 import { StoppedImports } from './StoppedImports';
 import './Import.css';
@@ -35,7 +36,9 @@ export function ImportReview({ exercises, imports, onBack, onChanged, notify }: 
   const [saveError, setSaveError] = useState('');
   const [confirmRestoreDraft, setConfirmRestoreDraft] = useState(false);
   const [alternativeChoice, setAlternativeChoice] = useState<string | null>(null);
+  const [acknowledgedUncertainty, setAcknowledgedUncertainty] = useState(false);
   const file = useRef<HTMLInputElement>(null);
+  const jsonFile = useRef<HTMLInputElement>(null);
   const reviewRef = useRef<HTMLElement>(null);
   const outlineRef = useRef<DraftOutlineHandle>(null);
 
@@ -106,6 +109,8 @@ export function ImportReview({ exercises, imports, onBack, onChanged, notify }: 
     setAlternativeChoice(selected?.stage === 'select' ? selected.selectedAlternativeId ?? null : null);
   }, [selected?.id, selected?.stage, selected?.selectedAlternativeId]);
 
+  useEffect(() => { setAcknowledgedUncertainty(false); }, [selected?.id, selected?.revision]);
+
   async function handleRestoreExercise(exerciseLineId: string) {
     await saver.mutate((view, revision) => api.restoreImportExercise(view.id, exerciseLineId, revision), 'Could not restore exercise.');
     notify?.('Exercise restored to default.');
@@ -135,8 +140,15 @@ export function ImportReview({ exercises, imports, onBack, onChanged, notify }: 
         e.target.value = '';
         if (chosen) { setSaveError(''); void pipeline.upload(chosen); }
       }} />
-    <ImportUploadPanel hasDraft={hasDraft} fileName={selected?.fileName} busy={busy} onChooseFile={() => file.current?.click()}
-      onDropFile={dropped => { setSaveError(''); void pipeline.upload(dropped); }}
+    <input name="program-json" ref={jsonFile} type="file" accept="application/json,.json" hidden aria-label="Program JSON file"
+      onChange={e => {
+        const chosen = e.target.files?.[0];
+        e.target.value = '';
+        if (chosen) { setSaveError(''); void pipeline.uploadExternal(chosen); }
+      }} />
+    <ImportUploadPanel hasDraft={hasDraft} external={selected?.model === 'external'} fileName={selected?.fileName} busy={busy} onChooseFile={() => file.current?.click()}
+      // A JSON file dropped on the PDF reader belongs to the ChatGPT import, not a failed PDF read.
+      onDropFile={dropped => { setSaveError(''); void (/\.json$/i.test(dropped.name) ? pipeline.uploadExternal(dropped) : pipeline.upload(dropped)); }}
       footer={<StoppedImports imports={imports} busy={busy} onSelect={view => {
         pipeline.clearFailure();
         setSaveError('');
@@ -153,6 +165,13 @@ export function ImportReview({ exercises, imports, onBack, onChanged, notify }: 
       {saveError && <CardFeedback message={saveError} action={{ label: 'Retry save', disabled: busy,
         onClick: () => void saver.retry().catch(failure => setSaveError(failure instanceof Error ? failure.message : 'Could not save changes.')) }} />}
     </ImportUploadPanel>
+
+    {/* A separate choice beside the PDF reader; hidden once a draft is open, like the upload hero. */}
+    {!hasDraft && <ImportExternalPanel busy={busy} failure={pipeline.externalFailure}
+      progress={pipeline.progress?.label === 'Checking the JSON file' ? pipeline.progress : null}
+      onChooseFile={() => jsonFile.current?.click()} onDismissFailure={pipeline.clearFailure}
+      onDropFile={dropped => { setSaveError(''); void pipeline.uploadExternal(dropped); }}
+      onSubmitText={text => { setSaveError(''); void pipeline.uploadExternal(text); }} />}
 
     {selected && selected.status === 'pending' && selected.stage === 'select' && selected.alternatives?.length
       ? <ImportAlternatives view={selected} choice={alternativeChoice} busy={busy} onChoose={setAlternativeChoice}
@@ -173,6 +192,8 @@ export function ImportReview({ exercises, imports, onBack, onChanged, notify }: 
 
     {selected && draft && selected.status === 'ready' && <>
       <ImportReviewPanel ref={reviewRef} view={selected} draft={draft} attentionRows={attentionRows}
+        busy={busy}
+        acknowledgedUncertainty={acknowledgedUncertainty} onAcknowledgeUncertainty={setAcknowledgedUncertainty}
         onNameChange={programName => saver.editLocal({ ...draft, programName })}
         onNameCommit={() => void saver.persist(draft)} onFocusIssue={focusReviewIssue} />
       {draft.workouts.length > 0 ? (
@@ -189,11 +210,12 @@ export function ImportReview({ exercises, imports, onBack, onChanged, notify }: 
           restorableExerciseLineIds={selected.restorableExerciseLineIds}
           onRestoreExercise={handleRestoreExercise}
           canRestoreDraft={selected.canRestoreDraft || saver.localDirty}
-          acceptable={selected.acceptable && !saver.localDirty && !saveError}
+          acceptable={selected.acceptable && !saver.localDirty && !saveError &&
+            (!(selected.reviewIssues ?? []).some(issue => issue.code === 'external_uncertainty') || acknowledgedUncertainty)}
           busy={busy}
           onRestoreDraft={() => setConfirmRestoreDraft(true)}
           onDiscardDraft={() => pipeline.run('Discarding this draft…', async () => { discarded.current.add(selected.id); await api.discardImport(selected.id); setSelected(null); setDraft(null); })}
-          onAcceptProgram={() => pipeline.run('Creating the program…', async () => { await saver.flush(); await api.acceptImport(selected.id, saver.revision()); await onChanged(); setSelected(null); setDraft(null); onBack(); })}
+          onAcceptProgram={() => pipeline.run('Creating the program…', async () => { await saver.flush(); await api.acceptImport(selected.id, saver.revision(), acknowledgedUncertainty); await onChanged(); setSelected(null); setDraft(null); onBack(); })}
         />
       )
         : <section className="panel"><div className="empty-message"><AlertTriangle size={30} /><h3>No extracted days</h3><p>The draft needs at least one training or rest day.</p></div></section>}

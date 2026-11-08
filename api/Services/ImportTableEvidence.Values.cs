@@ -123,6 +123,10 @@ internal static partial class ImportTableEvidence
     private static int? ParseRestSeconds(string? text)
         => ParseRest(text, null).Seconds;
 
+    /// The seconds a printed rest stands for (a range gives its average), or null when the text is not a rest.
+    /// Shared so a JSON import reads "1-2 MIN" exactly as the PDF reader does.
+    internal static int? RestSecondsFromText(string? text) => ParseRestSeconds(text);
+
     private static bool IsRirCell(string? value) => IsUnavailable(value) || ParseRir(value) is not null;
     private static string? RirCellText(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
     private static bool IsUnavailable(string? value) => string.IsNullOrWhiteSpace(value) || value.Equals("N/A", StringComparison.OrdinalIgnoreCase);

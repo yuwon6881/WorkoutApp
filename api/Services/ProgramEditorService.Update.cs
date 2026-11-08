@@ -33,7 +33,7 @@ public sealed partial class ProgramEditorService
             .ToLookup(row => row.TemplateId);
 
         var plan = ProgramEditPlan.Build(input, stored, rows, locks);
-        await ValidateChangedDays(plan, requireWorkingRpe: program.SourceImportId is null, ct);
+        await ValidateChangedDays(plan, requireWorkingRpe: program.SourceImportId is null && !program.AllowUnspecifiedEffort, ct);
 
         var removed = stored.Where(day => plan.All(planned => planned.Stored?.Id != day.Id)).ToList();
         var final = new List<WorkoutTemplate>(plan.Count);

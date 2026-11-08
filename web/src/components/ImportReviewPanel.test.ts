@@ -6,6 +6,43 @@ import { GymAvailabilityContext } from '../lib/gymAvailability';
 import { ImportReviewPanel } from './ImportReviewPanel';
 
 describe('import gym review', () => {
+  it('shows source references for days, exercises and prescriptions', () => {
+    const draft = { programName: 'Plan', workouts: [{ lineId: 'd', name: 'Day one',
+      sourceReference: { kind: 'sheetCell', sheet: 'Plan', cell: 'A1:B2' },
+      exercises: [{ lineId: 'e', sourceName: 'Squat', exerciseId: null,
+        sourceReference: { kind: 'pdfPage', page: 3 },
+        sets: [{ sourceReference: { kind: 'text', text: 'Table row 4' } }] }] }] } as unknown as ImportDraft;
+    const view = { unresolved: [], acceptable: true, reviewIssues: [{ code: 'external_source_unverified', severity: 'info' }] } as unknown as ImportView;
+    const html = renderToStaticMarkup(createElement(ImportReviewPanel, { view, draft, attentionRows: [],
+      onNameChange: () => {}, onNameCommit: () => {}, onFocusIssue: () => {} }));
+    expect(html).toContain('Plan');
+    expect(html).toContain('A1:B2');
+    expect(html).toContain('page 3');
+    expect(html).toContain('Table row 4');
+  });
+  it('shows uncertain details and an unchecked acknowledgement', () => {
+    const draft = { programName: 'Plan', workouts: [] } as unknown as ImportDraft;
+    const view = { unresolved: [], acceptable: true, reviewIssues: [
+      { code: 'external_uncertainty', message: 'Check the set count', severity: 'info' }
+    ] } as unknown as ImportView;
+    const html = renderToStaticMarkup(createElement(ImportReviewPanel, { view, draft, attentionRows: [],
+      onNameChange: () => {}, onNameCommit: () => {}, onFocusIssue: () => {},
+      acknowledgedUncertainty: false, onAcknowledgeUncertainty: () => {} }));
+    expect(html).toContain('Check the set count');
+    expect(html).toContain('Review needed');
+    expect(html).toContain('I reviewed these uncertain details');
+    expect(html).toContain('type="checkbox"');
+    expect(html).not.toContain('checked=""');
+  });
+  it('prevents acknowledging uncertain details while the draft is still changing', () => {
+    const draft = { programName: 'Plan', workouts: [] } as unknown as ImportDraft;
+    const view = { unresolved: [], acceptable: true, reviewIssues: [
+      { code: 'external_uncertainty', message: 'Check the set count', severity: 'info' }
+    ] } as unknown as ImportView;
+    const html = renderToStaticMarkup(createElement(ImportReviewPanel, { view, draft, attentionRows: [], busy: true,
+      onNameChange: () => {}, onNameCommit: () => {}, onFocusIssue: () => {}, onAcknowledgeUncertainty: () => {} }));
+    expect(html).toContain('disabled=""');
+  });
   it('lists each unavailable movement group once and identifies the gym', () => {
     const movement = (lineId: string, sourceName: string) => ({ lineId, sourceName, exerciseId: 'squat', sets: [] });
     const draft = { programName: 'Plan', workouts: [

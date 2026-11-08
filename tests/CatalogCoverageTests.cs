@@ -242,18 +242,5 @@ public sealed class CatalogCoverageTests
     public void No_unweighted_bodyweight_catalog_entry_defaults_to_external_load()
         => Assert.DoesNotContain(SeedRows(), x => x.Equipment == "Bodyweight" && x.Slug != "weighted-crunch" && x.LoadModel == LoadModels.External);
 
-    private static string CatalogPath()
-    {
-        foreach (var start in new[] { AppContext.BaseDirectory, Directory.GetCurrentDirectory() })
-        {
-            DirectoryInfo? current = new(start);
-            while (current is not null)
-            {
-                var candidate = Path.Combine(current.FullName, "deploy", "exercises.json");
-                if (File.Exists(candidate)) return candidate;
-                current = current.Parent;
-            }
-        }
-        throw new InvalidOperationException("deploy/exercises.json was not found.");
-    }
+    private static string CatalogPath() => CatalogLocation.Path();
 }

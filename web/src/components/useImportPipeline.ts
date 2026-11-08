@@ -5,12 +5,18 @@ import { PdfTextError } from '../lib/pdfText';
 import { cancelLocalPdfRead, isLocalPdfReadActive, startLocalPdfRead, takeLocalPdfResult, useLocalPdfRead } from '../lib/localPdfRead';
 import { estimatedPercent } from '../lib/importProgress';
 import { clearRecordedImport, recordImportStatus } from '../lib/importStatusCache';
+import {
+  checkExternalImportFile, checkExternalImportText, locateParseError, type ExternalImportFieldError, type ParseExcerpt
+} from '../lib/externalImport';
 
 /// `percent` is null while the step has no measurable size, so the bar can stay indeterminate
 /// instead of inventing a number.
 export type ImportProgress = { label: string; detail: string; percent: number | null };
 
 export type ImportFailure = { message: string };
+
+/// A rejected AI-assistant JSON file: the summary plus each problem with its location in the file.
+export type ExternalImportFailure = { message: string; errors: ExternalImportFieldError[]; excerpt?: ParseExcerpt | null };
 
 const POLL_INTERVAL_MS = 2_000;
 const STALL_INTERVAL_MS = 90_000;
@@ -20,9 +26,12 @@ export type ImportPipeline = {
   uploadProgress: ImportProgress | null;
   failure: ImportFailure | null;
   notice: string;
+  externalFailure: ExternalImportFailure | null;
   busy: boolean;
   clearFailure: () => void;
   upload: (chosen: File) => Promise<void>;
+  /// A chosen or dropped .json file, or JSON text pasted into the panel.
+  uploadExternal: (source: File | string) => Promise<void>;
   cancelUpload: () => void;
   resume: (view: ImportView) => Promise<void>;
   cancel: (view: ImportView) => Promise<void>;
@@ -45,6 +54,7 @@ export function useImportPipeline({ selected, setSelected, setDraft, onChanged, 
   const [progress, setProgress] = useState<ImportProgress | null>(null);
   const [failure, setFailure] = useState<ImportFailure | null>(null);
   const [notice, setNotice] = useState('');
+  const [externalFailure, setExternalFailure] = useState<ExternalImportFailure | null>(null);
   const running = useRef(false);
   const idleWaiters = useRef<Array<() => void>>([]);
   /// An import someone cancelled while a pass was still out. Whatever that pass answers belongs to
@@ -239,6 +249,32 @@ export function useImportPipeline({ selected, setSelected, setDraft, onChanged, 
   // `progress` re-runs this once a pass that was already running lets go of the screen.
   }, [advance, drive, localRead, progress]);
 
+  /// The AI-assistant path: the chosen JSON is sent as-is and validated by the server, which answers with
+  /// a reviewable draft or the exact fields to fix. Nothing is created unless the whole file is valid.
+  const uploadExternal = useCallback(async (source: File | string) => {
+    if (running.current) return;
+    setFailure(null); setNotice(''); setExternalFailure(null);
+    const pasted = typeof source === 'string';
+    const problem = pasted ? checkExternalImportText(source) : checkExternalImportFile(source);
+    if (problem) { setExternalFailure({ message: problem, errors: [] }); return; }
+    await drive(async () => {
+      setProgress({ label: 'Checking the JSON file', detail: pasted ? 'Pasted JSON' : source.name, percent: null });
+      let bytes: Uint8Array;
+      // The original bytes are sent either way, so invalid UTF-8 is rejected by the server rather than altered here.
+      try { bytes = pasted ? new TextEncoder().encode(source) : new Uint8Array(await source.arrayBuffer()); }
+      catch { setExternalFailure({ message: 'That file could not be read. Choose it again.', errors: [] }); return; }
+      try {
+        setSelected(null); setDraft(null);
+        await advance(await api.createExternalImport(bytes));
+      } catch (error) {
+        setExternalFailure(error instanceof ApiError
+          // The offending line is found on this device from the text the user already has.
+          ? { message: error.message, errors: error.fieldErrors, excerpt: locateParseError(error.message, new TextDecoder().decode(bytes)) }
+          : { message: 'That file could not be imported. Try again.', errors: [] });
+      }
+    });
+  }, [advance, drive, setDraft, setSelected]);
+
   const cancelUpload = useCallback(() => { cancelLocalPdfRead(); }, []);
 
   const resume = useCallback(async (view: ImportView) => {
@@ -283,7 +319,7 @@ export function useImportPipeline({ selected, setSelected, setDraft, onChanged, 
   const chooseAlternative = useCallback(async (view: ImportView, alternativeId: string) => {
     await drive(async () => {
       setProgress({ label: 'Preparing the chosen program', detail: view.fileName, percent: null });
-      try { await advance(await api.selectImportAlternative(view.id, alternativeId)); }
+      try { await advance(await api.selectImportAlternative(view.id, alternativeId, view.draft?.alternativeGroups?.[0]?.id)); }
       catch (error) { report(error, 'That program could not be prepared. Try again.'); await refresh(view.id); }
     });
   }, [advance, drive, refresh, report]);
@@ -297,8 +333,8 @@ export function useImportPipeline({ selected, setSelected, setDraft, onChanged, 
   }, [drive, onChanged, report]);
 
   return {
-    progress, uploadProgress, failure, notice, busy: progress !== null || uploadProgress !== null,
-    clearFailure: useCallback(() => setFailure(null), []),
-    upload, cancelUpload, resume, cancel, chooseAlternative, run
+    progress, uploadProgress, failure, notice, externalFailure, busy: progress !== null || uploadProgress !== null,
+    clearFailure: useCallback(() => { setFailure(null); setExternalFailure(null); }, []),
+    upload, uploadExternal, cancelUpload, resume, cancel, chooseAlternative, run
   };
 }

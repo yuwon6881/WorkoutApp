@@ -28,17 +28,20 @@ public sealed partial class ImportService
     }
 
     /// Keeps the chosen week version and makes the draft ready for review.
-    private void ChooseWeekVersion(AiImport import, ImportAlternative chosen, IReadOnlyList<ImportAlternative> offered)
+    private void ChooseWeekVersion(AiImport import, ImportAlternative chosen, IReadOnlyList<ImportAlternative> offered, string? groupId)
     {
         Validation.Require(!string.IsNullOrWhiteSpace(import.DraftJson), "This import has no draft to choose from. Read the PDF again.", 409);
-        var draft = ImportValidation.NormalizeDraft(ImportWeekChoice.Apply(Json.Read<ImportDraft>(import.DraftJson), chosen, offered));
+        var draft = ImportValidation.NormalizeDraft(ImportWeekChoice.Apply(Json.Read<ImportDraft>(import.DraftJson), chosen, offered, groupId));
         // The notice that both versions were kept as weeks of their own no longer describes the draft.
         var notices = ReadNotices(import.NoticesJson).Where(notice => notice.Code != ImportWeekVariants.Code).ToList();
         import.NoticesJson = Json.Write(ImportReviewNotices.Merge(notices, [ImportWeekChoice.ChosenNotice(chosen, offered)]));
         import.DraftJson = Json.Write(draft);
         import.DraftBaselineJson = import.DraftJson;
         import.SelectedAlternativeId = chosen.Id;
-        import.Status = ImportStatus.Ready; import.Stage = "done";
+        var next = draft.AlternativeGroups?.FirstOrDefault();
+        import.Status = next is null ? ImportStatus.Ready : ImportStatus.Pending;
+        import.Stage = next is null ? "done" : "select";
+        if (next is not null) import.AlternativesJson = Json.Write(next.Members);
         UpdateCounters(import, draft);
     }
 

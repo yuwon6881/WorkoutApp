@@ -223,8 +223,15 @@ internal static partial class ImportValidation
             @"^\d+(?:\.\d+)?(?:\s*[-–]\s*\d+(?:\.\d+)?)?\s*%\s*(?:1\s*RM)?$",
             RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
 
+    /// A stated reps-in-reserve target: a number, a range ("1-2") or a floor ("5+"). The last two are real targets,
+    /// judged by their harder end, so a set that states one is not missing its effort.
     private static bool HasRirTarget(string? value)
-        => double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out var rir) && rir is >= 0 and <= 10;
+        => value is not null && RirTarget.Match(value.Trim()) is { Success: true } match
+            && double.Parse(match.Groups["low"].Value, CultureInfo.InvariantCulture) <= 10
+            && (!match.Groups["high"].Success || double.Parse(match.Groups["high"].Value, CultureInfo.InvariantCulture) <= 10);
+
+    private static readonly Regex RirTarget = new(@"^(?<low>\d+(?:\.\d+)?)(?:\s*[-–]\s*(?<high>\d+(?:\.\d+)?))?\+?$",
+        RegexOptions.Compiled | RegexOptions.CultureInvariant);
 
     private static string Count(int count, string one, string many)
         => count == 1 ? $"1 {one}" : $"{count} {many}";

@@ -136,17 +136,26 @@ export type ExerciseHistoryClear = { clearedAt: string; removedSets: number; aff
 export type ExerciseInsight = { id: string; name: string; muscle: string; equipment: string; loadModel: LoadModel; loadStepKg: number; isCustom: boolean; archived: boolean; sessions: number; setCount: number; clearableSetCount: number; estimated1RmKg: number | null; estimated1RmDate: string | null; heaviestKg: number | null; heaviestReps: number | null; heaviestDate: string | null; largestSetVolumeKg: number | null; largestSetVolumeDate: string | null; largestSessionVolumeKg: number | null; largestSessionVolumeDate: string | null; repPr: number | null; repPrDate: string | null; lastPerformedDate: string | null; partialVolume: boolean; points: ExerciseMetricPoint[]; history: ExerciseHistoryRow[]; page: number; size: number; totalHistoryRows: number; externalLoadPrKg?: number | null; addedLoadPrKg?: number | null; assistanceReductionPrKg?: number | null; systemLoadPrKg?: number | null; historyClears?: ExerciseHistoryClear[] };
 export type ExerciseClearPreview = { exerciseId: string; name: string; affectedWorkouts: number; affectedSets: number; hasActiveWorkout: boolean; canClear: boolean; activeWorkoutName?: string | null };
 
+export type ImportSourceReference =
+  | { kind: 'pdfPage'; page: number }
+  | { kind: 'sheetCell'; sheet: string; cell: string }
+  | { kind: 'text'; text: string }
+  | { kind: 'none' };
+export type ImportUncertainty = { flag: boolean; reason?: string | null };
 export type DraftSet = {
   repMin: number | null; repMax: number | null; targetRpe: number | null; restSeconds: number | null; tempo: string | null; loadText: string | null; notes: string | null;
   repsSource: Provenance; rpeSource: Provenance; restSource: Provenance; repsText: string | null; restText: string | null;
-  rir: string | null; warmup: boolean; sourcePage?: number | null;
+  rir: string | null; warmup: boolean; sourcePage?: number | null; sourceReference?: ImportSourceReference | null; uncertainty?: ImportUncertainty | null;
   /** Kept from a saved program so a day saved back does not lose it; imports leave it out. */
   resistanceMode?: ResistanceMode;
 };
-export type DraftExercise = { lineId: string; sourceName: string; exerciseId: string | null; notes: string | null; sets: DraftSet[]; sequenceGroup: string; substitutions: string[]; sourcePage?: number | null; slotKey?: string | null; restSeconds?: number | null; demoUrl?: string | null; demoLinks?: Record<string, string> | null; movementKey?: string | null };
-export type DraftWorkout = { lineId: string; week: number; name: string; focus: string | null; notes: string | null; exercises: DraftExercise[]; block: string | null; phase: string | null; phaseWeek: number; isRestDay: boolean; sourcePage?: number | null; blockId?: string | null; weekId?: string | null };
+export type DraftExercise = { lineId: string; sourceName: string; exerciseId: string | null; notes: string | null; sets: DraftSet[]; sequenceGroup: string; substitutions: string[]; sourcePage?: number | null; sourceReference?: ImportSourceReference | null; uncertainty?: ImportUncertainty | null; slotKey?: string | null; restSeconds?: number | null; demoUrl?: string | null; demoLinks?: Record<string, string> | null; movementKey?: string | null };
+export type DraftWorkout = { lineId: string; week: number; name: string; focus: string | null; notes: string | null; exercises: DraftExercise[]; block: string | null; phase: string | null; phaseWeek: number; isRestDay: boolean; sourcePage?: number | null; sourceReference?: ImportSourceReference | null; blockId?: string | null; weekId?: string | null };
 /// sourceWeekDays is the longest week the PDF confirms (10 for a ten-day cycle); set by the server.
-export type ImportDraft = { programName: string; workouts: DraftWorkout[]; sourceWeekDays?: number | null };
+export type ImportAlternativeMember = { id: string; name: string; chunkCount: number; dayCount: number; dayLineIds?: string[] | null; uncertainty?: ImportUncertainty | null };
+export type ImportDraft = { programName: string; workouts: DraftWorkout[]; sourceWeekDays?: number | null;
+  alternativeGroups?: { id: string; members: ImportAlternativeMember[] }[] | null;
+  alternativeUncertainties?: { name: string; uncertainty: ImportUncertainty }[] | null };
 /// Custom program drafts use the same editable workout document as PDF review, with stable
 /// structural IDs where the editor has assigned them.
 export type ProgramEditorDocument = ImportDraft;
@@ -154,7 +163,7 @@ export type ImportView = {
   id: string; status: 'pending' | 'ready' | 'failed' | 'accepted' | 'discarded';
   fileName: string; pages: number; error: string; created: string; model: string; stage: 'outline' | 'select' | 'extract' | 'verify' | 'recover' | 'done' | 'failed'; chunksDone: number; chunksTotal: number; currentChunkLabel: string | null; unresolvedCount: number;
   draft: ImportDraft | null; unresolved: { lineId: string; sourceName: string; slotKey?: string | null; block?: string | null; occurrences?: number }[]; acceptable: boolean; programId: string | null;
-  reviewIssues?: { code: string; message: string; severity: string; sourcePage?: number | null; workoutLineId?: string | null; exerciseLineId?: string | null; setIndex?: number | null; targetField?: string | null }[]; inputTokens?: number; outputTokens?: number; retries?: number; pageCoverage?: { page: number; hasText: boolean; characterCount: number }[]; alternatives?: { id: string; name: string; chunkCount: number; dayCount: number; weekCount?: number | null; sessionsPerWeek?: number | null; kind?: 'program' | 'week'; description?: string | null }[]; selectedAlternativeId?: string | null;
+  reviewIssues?: { code: string; message: string; severity: string; sourcePage?: number | null; workoutLineId?: string | null; exerciseLineId?: string | null; setIndex?: number | null; targetField?: string | null }[]; inputTokens?: number; outputTokens?: number; retries?: number; pageCoverage?: { page: number; hasText: boolean; characterCount: number }[]; alternatives?: { id: string; name: string; chunkCount: number; dayCount: number; weekCount?: number | null; sessionsPerWeek?: number | null; kind?: 'program' | 'week'; description?: string | null; uncertainty?: ImportUncertainty | null }[]; selectedAlternativeId?: string | null;
   revision: number; canRestoreDraft?: boolean; restorableExerciseLineIds?: string[]; progress?: ImportProgressDetails | null;
 };
 export type ImportProgressDetails = {

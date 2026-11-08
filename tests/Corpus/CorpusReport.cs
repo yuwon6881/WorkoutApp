@@ -481,13 +481,5 @@ public sealed partial class CorpusReport
         Content = new StringContent($$"""{"status":"completed","usage":{"input_tokens":1,"output_tokens":1},"output":[{"content":[{"type":"output_text","text":{{JsonSerializer.Serialize(body)}}}]}]}""")
     };
 
-    private static string CatalogPath()
-    {
-        for (var directory = new DirectoryInfo(AppContext.BaseDirectory); directory is not null; directory = directory.Parent)
-        {
-            var candidate = Path.Combine(directory.FullName, "deploy", "exercises.json");
-            if (File.Exists(candidate)) return candidate;
-        }
-        throw new InvalidOperationException("deploy/exercises.json was not found.");
-    }
+    private static string CatalogPath() => CatalogLocation.Path();
 }

@@ -6,6 +6,7 @@ import { Field } from './ui/Field';
 import { Button } from './ui/Button';
 import { ImportReviewIssues } from './ImportReviewIssues';
 import { GymSwitcher } from './GymSwitcher';
+import { ImportSourceReferences } from './ImportSourceReferences';
 import { useGymAvailabilityCheck } from '../lib/gymAvailability';
 import './ImportReview.css';
 
@@ -18,8 +19,12 @@ export const ImportReviewPanel = forwardRef<HTMLElement, {
   onNameChange: (name: string) => void;
   onNameCommit: () => void;
   onFocusIssue: (target: ImportIssueTarget) => void;
-}>(function ImportReviewPanel({ view, draft, attentionRows, onNameChange, onNameCommit, onFocusIssue }, ref) {
+  acknowledgedUncertainty?: boolean;
+  onAcknowledgeUncertainty?: (value: boolean) => void;
+  busy?: boolean;
+}>(function ImportReviewPanel({ view, draft, attentionRows, onNameChange, onNameCommit, onFocusIssue, acknowledgedUncertainty, onAcknowledgeUncertainty, busy }, ref) {
   const checkGym = useGymAvailabilityCheck();
+  const hasUncertainty = (view.reviewIssues ?? []).some(issue => issue.code === 'external_uncertainty');
   // Match the editor’s occurrence groups so each replacement can reach its repeats.
   const linked = new Map<string, { dayId: string; lineId: string; name: string; exerciseId: string }>();
   for (const day of draft.workouts) {
@@ -39,14 +44,14 @@ export const ImportReviewPanel = forwardRef<HTMLElement, {
       <div className="irev-header">
         <div className="irev-header-title-row">
           <h2>Review</h2>
-          {attentionRows.length === 0 ? (
+          {attentionRows.length === 0 && (!hasUncertainty || acknowledgedUncertainty) ? (
             <span className="irev-status-chip irev-status-chip--ready">
               <span>Ready to create</span>
             </span>
           ) : (
             <span className="irev-status-chip irev-status-chip--attention">
               <AlertTriangle size={14} />
-              <span>{attentionRows.length} to resolve</span>
+              <span>{attentionRows.length > 0 ? `${attentionRows.length} to resolve` : 'Review needed'}</span>
             </span>
           )}
         </div>
@@ -98,7 +103,19 @@ export const ImportReviewPanel = forwardRef<HTMLElement, {
         </section>
       )}
 
+      {(view.reviewIssues ?? []).some(issue => issue.code === 'external_source_unverified') &&
+        <p className="muted irev-notice-copy">WorkoutApp has not checked this JSON against the original document.</p>}
+      {(view.reviewIssues ?? []).some(issue => issue.code === 'external_source_unverified') && <ImportSourceReferences draft={draft} />}
       <ImportReviewIssues rows={attentionRows} onFocusIssue={onFocusIssue} />
+      {hasUncertainty && (
+        <section className="irev-uncertainty" aria-label="Uncertain import details">
+          <h3>Uncertain details</h3>
+          <ul>{view.reviewIssues?.filter(issue => issue.code === 'external_uncertainty').map((issue, index) =>
+            <li key={`${issue.exerciseLineId}-${issue.setIndex}-${index}`}>{issue.message}</li>)}</ul>
+          <label className="irev-uncertainty-confirm"><input type="checkbox" disabled={busy} checked={Boolean(acknowledgedUncertainty)}
+            onChange={event => onAcknowledgeUncertainty?.(event.target.checked)} /> I reviewed these uncertain details.</label>
+        </section>
+      )}
     </section>
   );
 });

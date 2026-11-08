@@ -10,6 +10,7 @@ import './ImportPrivacyNote.css';
 /// arrive as children and earlier attempts as the footer, so the panel owns only its shell.
 export function ImportUploadPanel({
   hasDraft,
+  external = false,
   fileName,
   busy,
   onChooseFile,
@@ -18,6 +19,7 @@ export function ImportUploadPanel({
   footer,
 }: {
   hasDraft: boolean;
+  external?: boolean;
   fileName?: string;
   busy: boolean;
   onChooseFile: () => void;
@@ -62,7 +64,7 @@ export function ImportUploadPanel({
               <FileText size={18} />
             </div>
             <div className="iup-draft-info">
-              <h2 className="iup-draft-heading">Source PDF</h2>
+              <h2 className="iup-draft-heading">{external ? 'Source JSON' : 'Source PDF'}</h2>
               <span className="iup-draft-filename" title={fileName}>
                 {fileName || 'Program PDF'}
               </span>
@@ -160,7 +162,7 @@ export function ImportUploadPanel({
 
       {children}
 
-      <details className="import-source-details iup-privacy-details" open={!hasDraft}>
+      {!external && <details className="import-source-details iup-privacy-details" open={!hasDraft}>
         <summary className="iup-privacy-summary">
           <span>How your PDF is read</span>
           <ChevronDown size={16} className="iup-privacy-chevron" aria-hidden="true" />
@@ -170,7 +172,7 @@ export function ImportUploadPanel({
           file itself stays here. It becomes an editable draft before it can affect your
           workouts.
         </p>
-      </details>
+      </details>}
 
       {footer}
     </section>

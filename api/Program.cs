@@ -145,6 +145,10 @@ builder.Services.AddRateLimiter(o=>
     o.AddPolicy("ai-extract",http=>RateLimitPartition.GetFixedWindowLimiter(
         string.IsNullOrEmpty(http.Request.Cookies[AuthService.Cookie])?"unauthenticated":AuthService.Hash(http.Request.Cookies[AuthService.Cookie]!),
         _=>new FixedWindowRateLimiterOptions { PermitLimit=40,Window=TimeSpan.FromMinutes(5),QueueLimit=0 }));
+    o.AddPolicy("external-import",http=>RateLimitPartition.GetFixedWindowLimiter(
+        http.RequestServices.GetRequiredService<AppDb>().CurrentUser?.ToString() ?? "unauthenticated",
+        _=>new FixedWindowRateLimiterOptions { PermitLimit=10,Window=TimeSpan.FromSeconds(
+            builder.Environment.IsDevelopment() ? Math.Clamp(builder.Configuration.GetValue<int?>("RateLimits:ExternalImportWindowSeconds") ?? 300, 1, 300) : 300),QueueLimit=0 }));
     o.AddPolicy("watch-pair-start",http=>RateLimitPartition.GetFixedWindowLimiter(
         http.Connection.RemoteIpAddress?.ToString() ?? "unknown",
         _=>new FixedWindowRateLimiterOptions { PermitLimit=5,Window=TimeSpan.FromMinutes(15),QueueLimit=0 }));
@@ -260,7 +264,11 @@ app.MapFallback(async http=>
 await using(var scope=app.Services.CreateAsyncScope())
 {
     var db=scope.ServiceProvider.GetRequiredService<AppDb>();
-    if(db.Database.IsSqlite()&&app.Environment.IsDevelopment()) await db.Database.EnsureCreatedAsync();
+    if(db.Database.IsSqlite()&&app.Environment.IsDevelopment())
+    {
+        await db.Database.EnsureCreatedAsync();
+        await SqliteImportCompatibility.EnsureEffortCapability(db, CancellationToken.None);
+    }
     else if(builder.Configuration.GetValue("Database:MigrateOnStartup",true)||args.Contains("--migrate-only")||args.Any(a=>a.StartsWith("--seed-exercises=",StringComparison.Ordinal)))
     {
         var rawConn=builder.Configuration.GetConnectionString("Database");

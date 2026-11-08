@@ -1,0 +1,244 @@
+/* ImportExternalPanel (prefix: iep-) - the ChatGPT-assisted import, a separate choice beside the PDF reader. */
+
+.panel.iep-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 18px 16px;
+}
+
+@media (min-width: 640px) {
+  .panel.iep-panel { padding: 24px; }
+}
+
+@media (min-width: 1024px) {
+  .panel.iep-panel { max-width: 1100px; padding: 28px 36px; }
+}
+
+.iep-head {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+  min-width: 0;
+}
+
+.iep-icon-tile {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-control);
+  background: var(--surface-2, var(--surface));
+  color: var(--accent);
+}
+
+.iep-head-text { min-width: 0; }
+.iep-title { margin: 0 0 4px; font-size: 1.05rem; }
+.iep-head-text p { margin: 0; }
+
+.iep-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.iep-step {
+  display: flex;
+  gap: 12px;
+  min-width: 0;
+}
+
+.iep-step-badge {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--on-accent);
+  font-size: 0.8rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.iep-step-body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  flex: 1;
+}
+
+.iep-step-text { font-weight: 600; color: var(--text); }
+.iep-step-body .small-copy { margin: 0; }
+
+.iep-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  margin-top: 4px;
+}
+
+/* An action row that does not fill its line sits on the trailing edge. */
+.iep-actions--end { justify-content: flex-end; }
+
+.iep-status { min-height: 1.2em; font-size: 0.85rem; color: var(--muted); }
+.iep-status:empty { display: none; }
+
+.iep-inline-error { margin: 0; color: var(--red); font-size: 0.9rem; }
+
+.iep-manual, .iep-paste-field { display: flex; flex-direction: column; gap: 6px; }
+.iep-manual textarea, .iep-paste-field textarea {
+  width: 100%;
+  box-sizing: border-box;
+  resize: vertical;
+  font: inherit;
+  font-size: 0.85rem;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border-hover);
+  border-radius: var(--radius-control);
+  padding: 10px;
+}
+
+.iep-failure {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  border-radius: var(--radius-control);
+  background: var(--red-soft);
+  border: 1px solid var(--red-border);
+  min-width: 0;
+}
+
+.iep-failure-head {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  color: var(--red);
+}
+
+.iep-failure-message { margin: 0; flex: 1; color: var(--text); font-weight: 600; }
+
+.iep-error-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.iep-error-list li {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  color: var(--text);
+  font-size: 0.9rem;
+}
+
+.iep-error-path {
+  font-size: 0.8rem;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
+.iep-error-message { overflow-wrap: anywhere; }
+
+/* Dragging a file anywhere over the panel outlines it; the drop zone below shows where it lands. */
+.panel.iep-panel.iep-dropping {
+  outline: 2px dashed var(--accent);
+  outline-offset: -6px;
+}
+
+.iep-mode { max-width: 360px; margin-top: 4px; }
+
+.iep-dropzone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 24px 16px;
+  text-align: center;
+  border: 2px dashed var(--border-hover);
+  border-radius: var(--radius);
+  background: var(--surface);
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.iep-dropzone.is-active {
+  border-color: var(--accent);
+  background: var(--accent-soft, var(--surface));
+}
+
+.iep-dropzone-icon { color: var(--accent); }
+.iep-dropzone-title { font-weight: 600; color: var(--text); }
+.iep-dropzone .small-copy { margin: 0; }
+
+@media (prefers-reduced-motion: reduce) {
+  .iep-dropzone { transition: none; }
+}
+
+.iep-paste { display: flex; flex-direction: column; gap: 8px; }
+
+.iep-paste-input {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.8rem;
+  line-height: 1.5;
+  min-height: 200px;
+  tab-size: 2;
+  white-space: pre;
+  overflow: auto;
+}
+
+.iep-paste-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.iep-paste-size { margin: 0; }
+
+/* The row does not fill its line, so its actions sit on the trailing edge. */
+.iep-paste-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  justify-content: flex-end;
+  margin-left: auto;
+}
+
+.iep-excerpt { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.iep-excerpt .small-copy { margin: 0; color: var(--muted); }
+
+.iep-excerpt-code {
+  margin: 0;
+  padding: 8px 10px;
+  overflow-x: auto;
+  border-radius: var(--radius-control);
+  background: var(--surface);
+  border: 1px solid var(--border-hover);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.8rem;
+  line-height: 1.5;
+  color: var(--text);
+}
+
+.iep-excerpt-code span { color: var(--red); }

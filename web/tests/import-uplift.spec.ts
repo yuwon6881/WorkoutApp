@@ -36,7 +36,7 @@ for (const theme of ['dark', 'light']) {
     let view: ImportView = { id: '00000000-0000-4000-8000-000000000091', status: 'ready', stage: 'done',
       fileName: 'Powerbuilding review.pdf', pages: 48, error: '', created: '2026-10-14T00:00:00Z', model: 'layout-fixture',
       chunksDone: 12, chunksTotal: 12, currentChunkLabel: null, unresolvedCount: 0, draft, unresolved: [],
-      acceptable: true, programId: null, reviewIssues: [], revision: 1 };
+      acceptable: true, programId: null, reviewIssues: [{ code: 'external_uncertainty', message: 'Check the set count', severity: 'info' }], revision: 1 };
     launch.activeWorkout = null;
     launch.exercises = catalog;
     launch.gym = { active: { id: 'gym', name: 'Lalaport', active: true, revision: 1,
@@ -50,6 +50,13 @@ for (const theme of ['dark', 'light']) {
     await page.route(`**/api/imports/${view.id}/**`, route => route.fulfill({ json: view }));
     await page.goto('/import');
     await expect(page.getByRole('heading', { name: 'Review', exact: true })).toBeVisible();
+    await expect(page.getByText('Check the set count')).toBeVisible();
+    await expect(page.getByText('Review needed', { exact: true })).toBeVisible();
+    const acknowledge = page.getByRole('checkbox', { name: 'I reviewed these uncertain details.' });
+    await expect(page.getByRole('button', { name: 'Accept and create program' })).toBeDisabled();
+    await acknowledge.check();
+    await expect(page.getByText('Ready to create', { exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Accept and create program' })).toBeEnabled();
     await page.evaluate(() => document.fonts.ready);
     const badge = page.locator('.pdl-day-badge').first();
     expect((await badge.boundingBox())!.height).toBeGreaterThanOrEqual(52);

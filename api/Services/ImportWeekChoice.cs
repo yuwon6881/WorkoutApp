@@ -47,22 +47,9 @@ internal static class ImportWeekChoice
     }
 
     /// The draft with only the chosen version's days, its weeks numbered as the document numbers them.
-    public static ImportDraft Apply(ImportDraft draft, ImportAlternative chosen, IReadOnlyList<ImportAlternative> offered)
+    public static ImportDraft Apply(ImportDraft draft, ImportAlternative chosen, IReadOnlyList<ImportAlternative> offered, string? groupId = null)
     {
-        var dropped = offered.Where(alternative => alternative.Id != chosen.Id)
-            .SelectMany(alternative => alternative.DayLineIds ?? []).ToHashSet();
-        var kept = draft.Workouts.Where(day => !dropped.Contains(day.LineId)).ToList();
-        // The versions were read as consecutive weeks; only the weeks the others held close up.
-        var emptied = draft.Workouts.Select(day => day.Week).Except(kept.Select(day => day.Week)).ToList();
-        return draft with
-        {
-            Workouts = [.. kept.Select(day =>
-            {
-                var week = day.Week - emptied.Count(empty => empty < day.Week);
-                var shift = week - day.Week;
-                return shift == 0 ? day : day with { Week = week, PhaseWeek = day.PhaseWeek > 0 ? Math.Max(1, day.PhaseWeek + shift) : day.PhaseWeek };
-            })]
-        };
+        return ImportDraftAlternatives.Select(ImportDraftAlternatives.WithLegacyGroup(draft, offered.ToList()), chosen.Id, groupId);
     }
 
     public static ImportReviewIssue ChosenNotice(ImportAlternative chosen, IReadOnlyList<ImportAlternative> offered)
