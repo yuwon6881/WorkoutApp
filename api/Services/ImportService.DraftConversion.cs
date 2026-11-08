@@ -112,10 +112,11 @@ public sealed partial class ImportService
                     var pauseVariant = ImportPause.Variant(library, cleanName)
                         ?? (baseId is { } baseExercise && canonicalNames.TryGetValue(baseExercise, out var baseName)
                             ? ImportPause.Variant(library, baseName) : null);
-                    if (pauseVariant is { } variant) id = variant;
+                    if (pauseVariant is { } variant && !ImportPause.LastOnly(coaching)) id = variant;
                     else
                     {
-                        id ??= baseId;
+                        if (ImportPause.LastOnly(coaching) && baseId is not null) id = baseId;
+                        else id ??= baseId;
                         working = ImportPause.MarkWorkingSets(working, coaching);
                     }
                 }

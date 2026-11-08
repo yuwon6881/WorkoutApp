@@ -39,6 +39,11 @@ public sealed class PercentageProgramStartTests
         var started = await h.Workouts.Start(template.Id, null, default);
         Assert.Null(started.Exercises.Single().Sets.Single().WeightKg);
         Assert.Contains(PercentageLoad.PriorSetNote, started.Exercises.Single().Prescription.Single().Notes);
+        var stored = h.Db.SessionExercises.Single(row => row.Id == started.Exercises.Single().Id);
+        stored.PrescriptionJson = Json.Write(new List<SetPrescription> { plan });
+        await h.Db.SaveChangesAsync();
+        var reopened = await h.Workouts.Get(started.Id, default);
+        Assert.Contains(PercentageLoad.PriorSetNote, reopened.Exercises.Single().Prescription.Single().Notes);
     }
     private static async Task<(Harness H, Guid ExerciseId, Guid TemplateId)> Setup(string load)
     {

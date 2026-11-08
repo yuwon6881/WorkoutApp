@@ -126,6 +126,15 @@ public sealed class PercentageLoadTests
     }
 
     [Fact]
+    public void Ninety_day_boundary_is_inclusive()
+    {
+        var now = new DateTime(2026, 11, 8, 0, 0, 0, DateTimeKind.Utc);
+        var boundary = new SetExposure(Guid.NewGuid(), now.AddDays(-90), 100, 3, 9);
+        Assert.NotNull(PercentageLoad.EstimateOneRepMax([boundary], now));
+        Assert.Null(PercentageLoad.EstimateOneRepMax([boundary with { CompletedAt = boundary.CompletedAt.AddTicks(-1) }], now));
+    }
+
+    [Fact]
     public void A_relative_top_set_percentage_never_borrows_a_one_rep_max_or_history_load()
     {
         var result = PercentageLoad.Apply(Plan("60% of top set"), Engine(100, true), 100, false, Step);

@@ -37,9 +37,11 @@ public static partial class PercentageLoad
     }
 
     /// The best honest 1RM the recent heavy sets imply; high-rep sets say too little about a max.
-    public static double? EstimateOneRepMax(IEnumerable<SetExposure> history)
-        => history
-            .Where(set => set.CompletedAt >= DateTime.UtcNow.AddDays(-MaxEstimateAgeDays) && set.Technique is null && set.LoadKg is > 0 && set.Reps is > 0 && set.Rir != "5+")
+    public static double? EstimateOneRepMax(IEnumerable<SetExposure> history, DateTime? now = null)
+    {
+        var cutoff = (now ?? DateTime.UtcNow).AddDays(-MaxEstimateAgeDays);
+        return history
+            .Where(set => set.CompletedAt >= cutoff && set.Technique is null && set.LoadKg is > 0 && set.Reps is > 0 && set.Rir != "5+")
             .Where(set => set.Reps + (set.Rpe is { } rpe ? 10 - rpe : 0) <= MaxEffectiveReps)
             .Select(set => (set.SessionId, set.CompletedAt, Estimate: Progression.Estimate1Rm(set.LoadKg, set.Reps, set.Rpe)))
             .Where(set => set.Estimate is not null)
@@ -47,6 +49,7 @@ public static partial class PercentageLoad
             .Select(session => (Date: session.Max(set => set.CompletedAt), Best: session.Max(set => set.Estimate)!.Value))
             .OrderByDescending(session => session.Date).Take(RecentSessions)
             .Select(session => (double?)session.Best).Max();
+    }
 
     public static OneRepMax? Resolve(double? typedKg, IEnumerable<SetExposure> history)
         => typedKg is > 0 ? new OneRepMax(typedKg.Value, false)

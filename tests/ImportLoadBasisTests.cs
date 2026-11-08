@@ -6,6 +6,23 @@ namespace Workout.Tests;
 public sealed class ImportLoadBasisTests
 {
     [Fact]
+    public void Relative_backoffs_do_not_change_the_top_set_in_draft_or_saved_prescriptions()
+    {
+        var top = new DraftSet(3, 3, null, null, null, "80%", null);
+        var backoff = top with { LoadText = "85%" };
+        const string coaching = "Top set 80% 1RM, then back-offs use ~85% of your top set.";
+        var draft = ImportLoadBasis.Apply([top, backoff, backoff], coaching);
+        Assert.Null(draft[0].Notes);
+        Assert.All(draft.Skip(1), set => Assert.Contains("Percentage of top set", set.Notes));
+        var plan = new Workout.Api.Domain.SetPrescription(3, 3, null, null, null, "80%", null);
+        var saved = ImportLoadBasis.ApplyPrescriptions([plan, plan with { LoadText = "85%" }], coaching);
+        Assert.Null(saved[0].Notes);
+        Assert.Contains("Percentage of top set", saved[1].Notes);
+        var samePercent = ImportLoadBasis.Apply([top, top], "Top set 80% 1RM, then use 80% of your top set.");
+        Assert.Null(samePercent[0].Notes);
+        Assert.Contains("Percentage of top set", samePercent[1].Notes);
+    }
+    [Fact]
     public async Task Imported_backoff_keeps_the_reference_in_its_draft()
     {
         await using var h = await Harness.Create();
@@ -27,6 +44,8 @@ public sealed class ImportLoadBasisTests
         var result = ImportLoadBasis.Apply([set], "Use ~60% of the weight you used on your top set.");
         Assert.Equal("60%", result.Single().LoadText);
         Assert.Contains("Percentage of top set", result.Single().Notes);
+        var repeated = ImportLoadBasis.Apply([set, set], "Use ~60% of the weight you used on your top set.");
+        Assert.All(repeated, item => Assert.Contains("Percentage of top set", item.Notes));
     }
 
     [Fact]

@@ -229,7 +229,7 @@ public static class WorkoutViewBuilder
                 var repRecords = previousRepRecords != null && previousRepRecords.TryGetValue(key, out var priorRecords)
                     ? priorRecords : null;
                 return new SessionExerciseView(e.Id, e.ExerciseId, e.NameSnapshot, e.Position, e.Note,
-                    CarryTargetUnits.Prescriptions(Json.Read<List<SetPrescription>>(e.PrescriptionJson), e.NameSnapshot, e.Note),
+                    CarryTargetUnits.Prescriptions(ImportLoadBasis.ApplyPrescriptions(Json.Read<List<SetPrescription>>(e.PrescriptionJson), e.Note), e.NameSnapshot, e.Note),
                     exerciseSets.Select(s =>
                     {
                         var (isSetPr, setE1rmKg, setPrKind, setPrReps) = setPrs.GetValueOrDefault(s.Id, (false, null, null, null));

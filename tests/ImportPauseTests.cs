@@ -13,8 +13,15 @@ public sealed class ImportPauseTests
     [InlineData("Bench Press", "Pause between sets", false)]
     [InlineData("Bench Press", "Do not pause between sets", false)]
     [InlineData("Bench Press", "Pause for 30 seconds between sets", false)]
+    [InlineData("Bench Press", "Rest-pause on the last set", false)]
     public void Identifies_pause_in_the_movement_or_coaching(string name, string? description, bool expected)
         => Assert.Equal(expected, ImportPause.Requested(name, description));
+
+    [Theory]
+    [InlineData("Bench Press with Pause", "Bench Press")]
+    [InlineData("Paused Barbell Bench Press", "Barbell Bench Press")]
+    public void Base_name_removes_the_pause_qualifier(string name, string expected)
+        => Assert.Equal(expected, ImportPause.BaseName(name));
 
     [Fact]
     public async Task Prefers_the_matching_pause_variant_and_marks_only_unmatched_movements()
@@ -54,5 +61,22 @@ public sealed class ImportPauseTests
         Assert.Null(marked[0].Notes);
         Assert.Null(marked[1].Notes);
         Assert.Equal("Pause set", marked[2].Notes);
+    }
+
+    [Fact]
+    public async Task Last_set_pause_keeps_base_movement_even_when_a_variant_exists()
+    {
+        await using var h = await Harness.Create();
+        await h.SignIn();
+        await h.Seed(new SeedExercise("bench", "Barbell Bench Press", "Chest", "Barbell", null, 2.5),
+            new SeedExercise("pause-bench", "Pause Barbell Bench Press", "Chest", "Barbell", null, 2.5));
+        var id = await h.ExerciseId("bench");
+        var set = new AiSet(8, 8, null, null, null, null, null);
+        var program = new AiProgram("Test", [new AiDay(null, null, 1, 1, "Day 1", false, null,
+            [new AiExercise("Barbell Bench Press", id.ToString(), "Pause 1.5 s on the last set.", [set, set])])]);
+        var exercise = (await h.Imports(StubHandler.Program("{}")).ToDraft(program, default)).Workouts.Single().Exercises.Single();
+        Assert.Equal(id, exercise.ExerciseId);
+        Assert.Null(exercise.Sets[0].Notes);
+        Assert.Equal("Pause set", exercise.Sets[1].Notes);
     }
 }
