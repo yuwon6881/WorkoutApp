@@ -54,10 +54,11 @@ internal static class ImportChunkReconciliation
         notices.AddRange(shaped.Notices);
         var strayed = printed ? [] : shaped.Workouts.Where(day => !versions.Moved.Contains(day.LineId)
             && (day.Week < chunk.WeekFrom || day.Week > chunk.WeekTo)).ToList();
-        if (strayed.Count > 0)
+        foreach (var day in strayed)
             notices.Add(new ImportReviewIssue("day_outside_section_weeks",
-                $"'{chunk.Label}' covers weeks {chunk.WeekFrom}-{chunk.WeekTo} but read {string.Join(", ", strayed.Select(day => day.Name).Distinct())} as week {string.Join(", ", strayed.Select(day => day.Week).Distinct().Order())}. The pages were followed; check the order in the review.",
-                "warning", strayed[0].SourcePage ?? chunk.PageFrom, WorkoutLineId: strayed[0].LineId, TargetField: "week"));
+                $"'{chunk.Label}' covers weeks {chunk.WeekFrom}-{chunk.WeekTo} but read {day.Name} as week {day.Week}. The pages were followed; check the order in the review.",
+                "warning", day.SourcePage ?? chunk.PageFrom, WorkoutLineId: day.LineId, TargetField: "week",
+                WeekFrom: chunk.WeekFrom, WeekTo: chunk.WeekTo));
 
         // Coverage describes everything the section read, before repeated days are removed.
         var sectionDayCount = shaped.Workouts.Count;

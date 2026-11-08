@@ -246,6 +246,16 @@ internal static class ImportLongWeeks
             foreach (var week in phase.GroupBy(day => day.Week))
             {
                 var days = week.ToList();
+                // Optional sessions use an available rest slot. Keep trailing rests after the
+                // placed session so the standard week shaper can remove only the excess slots.
+                var optional = days.Where(day => !day.IsRestDay && day.Notes?.Contains(
+                    "Optional session printed for weeks ", StringComparison.Ordinal) == true).ToList();
+                if (optional.Count > 0)
+                {
+                    days.RemoveAll(day => optional.Contains(day));
+                    var insertion = days.FindLastIndex(day => !day.IsRestDay) + 1;
+                    days.InsertRange(insertion, optional);
+                }
                 var firstWeek = week.Key + offset;
                 if (!SourceConfirmsLongWeek(days, sourceLabels, sourceRests))
                 {

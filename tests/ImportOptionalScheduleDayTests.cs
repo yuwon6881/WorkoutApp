@@ -6,6 +6,30 @@ namespace Workout.Tests;
 public sealed class ImportOptionalScheduleDayTests
 {
     [Fact]
+    public void Optional_session_uses_a_rest_slot_and_resolves_the_provisional_section_warning()
+    {
+        var days = Enumerable.Range(1, 4).Select(i => Training(1, $"Day {i}", i)).ToList();
+        days.AddRange(Enumerable.Range(0, 3).Select(_ => new DraftWorkout(Guid.NewGuid(), 1, "Rest Day", null, null,
+            [], "Block 1", "Build", 1, true, 4)));
+        var optional = Training(11, "Full Body 5: Arm & Pump Day", 71);
+        var page = new ImportPageText(71, "ARM & HYPERTROPHY DAY: OPTIONALLY RUN THIS DAY ON THE ODD WEEKS (WEEK 1, 3, 5, 7 AND 9) IF YOU HAVE AN EXTRA DAY TO TRAIN.\nDAY LABEL: FULL BODY 5: ARM & PUMP DAY");
+        var chunk = new ImportChunk("Optional Day", "Block 1", "Build", 1, 9, 71, 71, 1);
+        var section = ImportChunkReconciliation.ReconcileChunkCoverage(new ImportDraft("Program", []),
+            new ImportDraft("Program", [optional]), chunk, [page]);
+        var warning = Assert.Single(section.Notices, issue => issue.Code == "day_outside_section_weeks");
+
+        var placed = ImportLongWeeks.Reconcile([.. days, .. section.Workouts], [page]);
+        var shaped = ImportDayShape.Reconcile(placed.Workouts);
+        var draft = new ImportDraft("Program", shaped.Workouts);
+
+        Assert.True(ImportReviewNotices.IsResolved(warning, draft));
+        Assert.False(ImportReviewNotices.IsResolved(warning, new ImportDraft("Program", [optional])));
+        Assert.Equal(7, draft.Workouts.Count(day => day.Week == 1));
+        Assert.Contains(draft.Workouts, day => day.Week == 1 && day.LineId == optional.LineId);
+        Assert.DoesNotContain(ImportValidation.ReviewIssues(draft), issue => issue.Code == "week_day_overflow");
+    }
+
+    [Fact]
     public void Explicit_optional_day_is_placed_in_every_printed_target_week()
     {
         var workouts = new List<DraftWorkout>();

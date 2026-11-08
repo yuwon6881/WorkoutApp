@@ -8,6 +8,9 @@ internal static class ImportReviewNotices
 
     public static bool IsResolved(ImportReviewIssue notice, ImportDraft draft)
     {
+        if (notice.Code == "day_outside_section_weeks" && notice.WorkoutLineId is { } id &&
+            notice.WeekFrom is { } firstWeek && notice.WeekTo is { } lastWeek)
+            return draft.Workouts.Any(day => day.LineId == id && day.Week >= firstWeek && day.Week <= lastWeek);
         if (notice.Code != "chunk_day_count" || notice.ExpectedTrainingDays is not { } expected ||
             notice.SourcePage is not { } from || notice.SourcePageTo is not { } to) return false;
         return draft.Workouts.Count(day => !day.IsRestDay &&
