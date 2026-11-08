@@ -3,7 +3,7 @@ import type { Preferences, SessionExercise } from '../types';
 import { showReps } from '../lib/training';
 import { previousSetSummaries } from '../lib/previousSets';
 import { setTarget } from '../lib/setTarget';
-import { isPercentLoad } from '../lib/oneRepMax';
+import { isPercentLoad, percentagePrescription } from '../lib/oneRepMax';
 import { Modal } from './ui/Modal';
 import { OneRepMaxSettings } from './OneRepMaxSettings';
 import { Skeleton } from './ui/Skeleton';
@@ -100,10 +100,10 @@ export function WorkoutTargetsView({ exercise, unit, trackRir, previousSets, pre
                         <span>{suggestedWeight}</span>
                       </span>
                     )}
-                    {p.loadText && (!suggestedWeight || isPercentLoad(p.loadText, p.notes)) && (
+                    {p.loadText && (!suggestedWeight || percentagePrescription(p.loadText, p.notes)) && (
                       <span className="plan-pill plan-load-pill">
                         <Weight size={12} aria-hidden="true" />
-                        <span>{p.loadText}</span>
+                        <span>{percentagePrescription(p.loadText, p.notes) ?? p.loadText}</span>
                       </span>
                     )}
                     {p.tempo && (

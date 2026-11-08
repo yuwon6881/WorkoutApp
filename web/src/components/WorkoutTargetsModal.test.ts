@@ -39,6 +39,16 @@ describe('WorkoutTargetsModal', () => {
       unit: 'kg', trackRir: true, previousSets: [], onClose: () => undefined
     }));
     expect(markup).not.toContain('One-rep max');
+    expect(markup).toContain('60% of top set');
+  });
+  it('shows a percentage alongside a suggested weight', () => {
+    const percent = { ...plan(false), loadText: '70%' };
+    const markup = renderToStaticMarkup(createElement(WorkoutTargetsView, {
+      exercise: { ...exercise, prescription: [percent], sets: [set(0, false, 77.5)] },
+      unit: 'kg', trackRir: true, previousSets: [], onClose: () => undefined
+    }));
+    expect(markup).toContain('70% 1RM');
+    expect(markup).toContain('77.5 kg');
   });
   // A leading warm-up is not listed, but it still occupies the first set; each working row must
   // read its own set's suggestion and last result rather than its neighbour's.

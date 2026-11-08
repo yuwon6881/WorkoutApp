@@ -3,6 +3,7 @@ import { Check, Pause, Trash2 } from 'lucide-react';
 import type { LoggedSet, Preferences, SessionExercise, SetPrescription } from '../types';
 import { defaultLoadStepKg, toDisplay, toKg } from '../lib/training';
 import { setTarget } from '../lib/setTarget';
+import { percentagePrescription } from '../lib/oneRepMax';
 import { earlierPendingSet, effortPatch, effortValue, loadIsEditable, setNumberLabel } from '../lib/workoutDraft';
 import { Button } from './ui/Button';
 import { RepsRirControl } from './ui/RepsRirControl';
@@ -84,6 +85,7 @@ export function WorkoutSetRow({
   // Sets are logged in order; the tick still answers a tap, with a nudge and a note naming the set to log first.
   const waiting = !set.done && earlierPendingSet(exercise, si) >= 0;
   const target = setTarget(set, plan, exercise, unit, trackRir);
+  const prescribedPercentage = percentagePrescription(plan?.loadText, plan?.notes);
   const targetDescription = `set-target-reason-${set.id}`;
   const remove = () => {
     discardStopwatch(set.id);
@@ -119,6 +121,7 @@ export function WorkoutSetRow({
       <div className="set-target-cell" title={target.reason ?? undefined}
         aria-describedby={target.reason ? targetDescription : undefined}>
         <span className="target-text">{target.reps}</span>
+        {prescribedPercentage && <small className="set-percentage-target">{prescribedPercentage}</small>}
         {partialTechnique && <small className="set-technique-note">{partialTechnique}</small>}
         {target.load && <small className="suggestion-text">{target.load}</small>}
         {target.reason && <span id={targetDescription} className="sr-only">{target.reason}</span>}

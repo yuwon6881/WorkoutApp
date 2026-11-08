@@ -387,3 +387,10 @@
     mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent);
   }
 }
+
+.ptl-chip-group.ptl-chip-active .ptl-chip-delete-btn:hover:not(:disabled) {
+  background: transparent !important;
+}
+@media (min-width: 1024px) {
+  .ptl-chip-group .ptl-chip-delete-btn { width: 24px; min-width: 24px; }
+}

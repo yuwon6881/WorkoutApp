@@ -27,4 +27,8 @@ describe('WorkoutActiveExercise', () => {
     expect(render({ ...exercise, exerciseId: null }, () => undefined)).not.toContain('progress and history');
     expect(render(exercise)).not.toContain('progress and history');
   });
+
+  it('renders Done column header text in the set table head', () => {
+    expect(render(exercise)).toContain('<span class="col-log">Done</span>');
+  });
 });

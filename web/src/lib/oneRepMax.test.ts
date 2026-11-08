@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { isPercentLoad, oneRepMaxField, parseOneRepMax } from './oneRepMax';
+import { isPercentLoad, oneRepMaxField, parseOneRepMax, percentagePrescription } from './oneRepMax';
 
 describe('one-rep max entry', () => {
   it('reads kilograms and converts pounds to kilograms', () => {
@@ -24,5 +24,13 @@ describe('one-rep max entry', () => {
     expect(isPercentLoad('150%')).toBe(false);
     expect(isPercentLoad('85-80%')).toBe(false);
     expect(isPercentLoad('60%', 'Percentage of top set')).toBe(false);
+  });
+
+  it('labels the printed percentage with its basis without inventing one', () => {
+    expect(percentagePrescription('70%')).toBe('70% 1RM');
+    expect(percentagePrescription('82.5–87.5% 1RM')).toBe('82.5–87.5% 1RM');
+    expect(percentagePrescription('60%', 'Percentage of top set')).toBe('60% of top set');
+    expect(percentagePrescription('~60% of AMRAP set load')).toBe('~60% of AMRAP set load');
+    expect(percentagePrescription('add weight')).toBeNull();
   });
 });

@@ -38,16 +38,22 @@
   height: auto;
   min-height: 0;
   padding: 0;
+  border: none;
   border-radius: 0;
   background: transparent;
+  background-origin: border-box;
+  background-clip: border-box;
+  background-repeat: no-repeat;
   color: var(--text);
   transition: opacity var(--motion-control) var(--motion-ease);
 }
-.workout-strip-arrow.button:first-child { left: 0; justify-content: flex-start; padding-left: 10px; background: linear-gradient(90deg, var(--surface) 55%, transparent); }
-.workout-strip-arrow.button:last-child { right: 0; justify-content: flex-end; padding-right: 10px; background: linear-gradient(270deg, var(--surface) 55%, transparent); }
-/* Hover keeps the fade rather than taking the shared tertiary fill. */
-.workout-exercise-strip-container .workout-strip-arrow.button:first-child:hover:not(:disabled) { background: linear-gradient(90deg, var(--surface) 55%, transparent); color: var(--accent); }
-.workout-exercise-strip-container .workout-strip-arrow.button:last-child:hover:not(:disabled) { background: linear-gradient(270deg, var(--surface) 55%, transparent); color: var(--accent); }
+.workout-strip-arrow.button:first-child { left: 0; justify-content: flex-start; padding-left: 10px; background: linear-gradient(90deg, var(--surface) 55%, transparent) no-repeat; }
+.workout-strip-arrow.button:last-child { right: 0; justify-content: flex-end; padding-right: 10px; background: linear-gradient(270deg, var(--surface) 55%, transparent) no-repeat; }
+/* Hover and press keep the fade rather than taking the shared tertiary fill. */
+.workout-exercise-strip-container .workout-strip-arrow.button:first-child:hover:not(:disabled),
+.workout-exercise-strip-container .workout-strip-arrow.button:first-child:active:not(:disabled) { background: linear-gradient(90deg, var(--surface) 55%, transparent) no-repeat; color: var(--accent); }
+.workout-exercise-strip-container .workout-strip-arrow.button:last-child:hover:not(:disabled),
+.workout-exercise-strip-container .workout-strip-arrow.button:last-child:active:not(:disabled) { background: linear-gradient(270deg, var(--surface) 55%, transparent) no-repeat; color: var(--accent); }
 .workout-strip-arrow.button:disabled { opacity: 0; pointer-events: none; }
 
 .workout-strip-item {

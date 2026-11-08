@@ -274,7 +274,7 @@ export function WorkoutActiveExercise({
               <span className="col-reps">{trackRir ? 'Reps / RIR' : 'Reps'}</span>
             </>
           )}
-          <span className="col-log"><Check size={16} strokeWidth={2.5} aria-hidden="true" /><span className="sr-only">Done</span></span>
+          <span className="col-log">Done</span>
           <span className="col-del" />
         </div>
 

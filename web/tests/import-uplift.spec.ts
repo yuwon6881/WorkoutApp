@@ -15,7 +15,7 @@ const set = (type: SetType = 'normal', reps = 8): DraftSet => {
 };
 const catalog: Exercise[] = [
   { id: 'squat', slug: 'back-squat', name: 'Back Squat', muscle: 'Quads', secondaryMuscles: ['Glutes', 'Hamstrings'],
-    equipment: 'Barbell', aliases: [], loadStepKg: 2.5, trackingMode: 'reps' },
+    equipment: 'Barbell', aliases: [], loadStepKg: 2.5, trackingMode: 'reps', requires: ['rack'] },
   { id: 'pinch', slug: 'plate-pinch', name: 'Plate Pinch', muscle: 'Forearms', equipment: 'Plate', aliases: [], loadStepKg: 1, trackingMode: 'duration' }
 ];
 const names = ['BACK SQUAT', 'BARBELL BENCH PRESS', 'WIDE-GRIP LAT PULLDOWN', 'SLIDING LEG CURL', 'PLATE PINCH'];
@@ -38,6 +38,10 @@ for (const theme of ['dark', 'light']) {
       chunksDone: 12, chunksTotal: 12, currentChunkLabel: null, unresolvedCount: 0, draft, unresolved: [],
       acceptable: true, programId: null, reviewIssues: [], revision: 1 };
     launch.activeWorkout = null;
+    launch.exercises = catalog;
+    launch.gym = { active: { id: 'gym', name: 'Lalaport', active: true, revision: 1,
+      missingEquipment: ['rack'], exerciseOverrides: {} }, profiles: [{ id: 'gym', name: 'Lalaport' }],
+      missingLabels: { rack: 'Rack' } };
     launch.preferences = { ...launch.preferences, theme, trackRir: true };
     await page.route('**/api/bootstrap/launch', route => route.fulfill({ json: { ...launch, imports: [view] } }));
     await page.route('**/api/exercises', route => route.fulfill({ json: catalog }));
@@ -68,7 +72,9 @@ for (const theme of ['dark', 'light']) {
     await expect(page.locator('.ptl-icon-tile')).toHaveCSS('box-shadow', 'none');
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     await page.screenshot({ path: info.outputPath(`timeline-${theme}.png`), fullPage: true });
-    await page.locator('.draft-day-summary').first().click();
+    await expect(page.getByText('Lalaport', { exact: true })).toBeVisible();
+    await expect(page.getByText('Missing: Rack')).toBeVisible();
+    await page.getByRole('button', { name: 'Replace BACK SQUAT' }).click();
     const dialog = page.getByRole('dialog').filter({ has: page.locator('.day-detail-modal-body') });
     await expect(dialog).toBeVisible();
     const first = dialog.locator('.import-exercise').first();

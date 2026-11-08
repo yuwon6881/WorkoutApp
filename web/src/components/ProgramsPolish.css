@@ -265,6 +265,11 @@
    ============================================================================= */
 
 .panel.pp-library-empty-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px 20px;
   padding: 18px 24px;
   margin-bottom: 0;
   border-radius: var(--radius);
@@ -278,6 +283,7 @@
   align-items: center;
   gap: 16px;
   min-width: 0;
+  flex: 1 1 320px;
   text-align: left;
 }
 
@@ -292,6 +298,7 @@
   display: grid;
   place-items: center;
   flex-shrink: 0;
+  box-shadow: var(--shadow);
 }
 
 .pp-library-empty-text {
@@ -320,24 +327,29 @@
 
 .pp-library-empty-actions {
   display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 10px;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+.pp-library-empty-actions .button {
+  min-height: 40px;
 }
 
 @media (max-width: 639px) {
-  .pp-library-empty-actions > .button {
-    flex: 1 1 140px;
-    justify-content: center;
-  }
-
   .panel.pp-library-empty-card {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 16px;
     padding: 16px;
   }
 
   .pp-library-empty-content {
     align-items: flex-start;
     gap: 12px;
+    flex: 0 0 auto;
   }
 
   .pp-library-empty-icon {
@@ -345,6 +357,21 @@
     height: 40px;
     min-width: 40px;
     margin-top: 2px;
+  }
+
+  .pp-library-empty-actions {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+    gap: 8px;
+    width: 100%;
+    margin-top: 0;
+    margin-left: 0;
+  }
+
+  .pp-library-empty-actions > .button {
+    width: 100%;
+    min-height: 44px;
+    justify-content: center;
   }
 }
 
@@ -358,14 +385,6 @@
     gap: 14px;
   }
 
-  .pp-workouts-page .slot-library-list {
-    grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
-    gap: 14px;
-  }
-
-  .pp-workouts-page .slot-library-list .library-program-card.expanded {
-    grid-column: 1 / -1;
-  }
 }
 
 @media (prefers-reduced-motion: reduce) {

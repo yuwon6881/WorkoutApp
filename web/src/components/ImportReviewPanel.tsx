@@ -1,8 +1,9 @@
 import { forwardRef } from 'react';
-import { AlertTriangle, Check, Info } from 'lucide-react';
+import { AlertTriangle, ChevronRight, Info } from 'lucide-react';
 import type { ImportDraft, ImportView } from '../types';
 import type { AttentionRow, ImportIssueTarget } from '../lib/importAttentionRows';
 import { Field } from './ui/Field';
+import { Button } from './ui/Button';
 import { ImportReviewIssues } from './ImportReviewIssues';
 import { GymSwitcher } from './GymSwitcher';
 import { useGymAvailabilityCheck } from '../lib/gymAvailability';
@@ -19,9 +20,20 @@ export const ImportReviewPanel = forwardRef<HTMLElement, {
   onFocusIssue: (target: ImportIssueTarget) => void;
 }>(function ImportReviewPanel({ view, draft, attentionRows, onNameChange, onNameCommit, onFocusIssue }, ref) {
   const checkGym = useGymAvailabilityCheck();
-  // Each linked movement is counted once, however many days and weeks repeat it.
-  const linked = new Set(draft.workouts.flatMap(day => day.exercises.map(exercise => exercise.exerciseId)).filter(Boolean));
-  const unavailable = [...linked].map(id => checkGym(id)).filter(result => !result.available);
+  // Match the editor’s occurrence groups so each replacement can reach its repeats.
+  const linked = new Map<string, { dayId: string; lineId: string; name: string; exerciseId: string }>();
+  for (const day of draft.workouts) {
+    for (const exercise of day.exercises) {
+      const key = exercise.movementKey || `name\u001f${exercise.sourceName.trim().toLowerCase().replace(/\s+/g, ' ')}`;
+      if (exercise.exerciseId && !linked.has(key)) {
+        linked.set(key, { dayId: day.lineId, lineId: exercise.lineId, name: exercise.sourceName, exerciseId: exercise.exerciseId });
+      }
+    }
+  }
+  const unavailable = [...linked.values()].flatMap(exercise => {
+    const availability = checkGym(exercise.exerciseId);
+    return availability.available ? [] : [{ ...exercise, availability }];
+  });
   return (
     <section className="panel irev-panel" ref={ref}>
       <div className="irev-header">
@@ -29,7 +41,6 @@ export const ImportReviewPanel = forwardRef<HTMLElement, {
           <h2>Review</h2>
           {attentionRows.length === 0 ? (
             <span className="irev-status-chip irev-status-chip--ready">
-              <Check size={14} />
               <span>Ready to create</span>
             </span>
           ) : (
@@ -65,14 +76,26 @@ export const ImportReviewPanel = forwardRef<HTMLElement, {
       )}
 
       <GymSwitcher />
-      {unavailable[0] && !unavailable[0].available && (
-        <div className="irev-unresolved-banner irev-gym-banner" role="status">
-          <AlertTriangle size={16} className="irev-unresolved-icon irev-gym-icon" />
-          <span className="irev-unresolved-text">
-            {unavailable.length} {unavailable.length === 1 ? 'movement needs' : 'movements need'} equipment {unavailable[0].gymName} does
-            not have. They are marked on each exercise; swap them here or once a workout starts.
-          </span>
-        </div>
+      {unavailable[0] && (
+        <section className="irev-gym-section" aria-label="Exercises unavailable at your gym">
+          <div className="irev-unresolved-banner irev-gym-banner" role="status">
+            <AlertTriangle size={16} className="irev-unresolved-icon irev-gym-icon" />
+            <span className="irev-unresolved-text">
+              {unavailable.length} {unavailable.length === 1 ? 'movement is' : 'movements are'} unavailable at your gym, <strong>{unavailable[0].availability.gymName}</strong>.
+              Choose an exercise to replace it here, or swap it once a workout starts.
+            </span>
+          </div>
+          <div className="irev-gym-list">
+            {unavailable.map(item => (
+              <div className="irev-gym-row" key={item.lineId}>
+                <span><strong>{item.name}</strong><br /><span className="muted">{item.availability.marked ? 'Marked unavailable' : `Missing: ${item.availability.missing.join(', ')}`}</span></span>
+                <Button variant="secondary" className="irev-action-btn" aria-label={`Replace ${item.name}`} onClick={() => onFocusIssue({ workoutLineId: item.dayId, exerciseLineId: item.lineId, targetField: 'library' })}>
+                  Replace <ChevronRight size={14} />
+                </Button>
+              </div>
+            ))}
+          </div>
+        </section>
       )}
 
       <ImportReviewIssues rows={attentionRows} onFocusIssue={onFocusIssue} />

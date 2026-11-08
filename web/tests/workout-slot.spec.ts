@@ -97,11 +97,15 @@ test('workouts move between the library and the active slot, forgetting progress
     await expect(zone.getByRole('heading', { name: 'Drag a workout here to activate it' })).toBeVisible();
     const libraryCard = library.locator('.library-program-card').filter({ hasText: programName });
     await expect(libraryCard.getByText(/PDF|passed/)).toHaveCount(0);
+    const libraryWidth = (await library.locator('.slot-library-list').boundingBox())!.width;
+    const collapsedWidth = (await libraryCard.boundingBox())!.width;
+    expect(Math.abs(collapsedWidth - libraryWidth)).toBeLessThan(1);
     await page.screenshot({ path: join(screenshotsDirectory, `${info.project.name}-workout-slot-empty.png`), fullPage: true });
 
     // Expanded, a library program is the builder's timeline with nothing editable.
     await libraryCard.getByRole('button', { name: `Expand ${programName}`, exact: true }).click();
     await expect(libraryCard.getByRole('button', { name: 'Upper A', exact: true })).toBeVisible();
+    expect(Math.abs((await libraryCard.boundingBox())!.width - collapsedWidth)).toBeLessThan(1);
     await expect(libraryCard.getByRole('button', { name: /^Reorder |^Actions for Upper A|Add workout day/ })).toHaveCount(0);
     await page.screenshot({ path: join(screenshotsDirectory, `${info.project.name}-workout-slot-library-expanded.png`), fullPage: true });
     await libraryCard.getByRole('button', { name: 'Upper A', exact: true }).click();

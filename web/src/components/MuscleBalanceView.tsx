@@ -111,6 +111,7 @@ export function MuscleBalanceView({ timeZone, onExercise, refreshKey }: { timeZo
               value={range}
               options={RANGES.map(option => ({ value: option.value, label: option.label }))}
               onChange={value => setRange(value as BalanceRange)}
+              fitMenuToOptions
             />
           </div>
         </div>

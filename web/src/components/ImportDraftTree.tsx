@@ -1,5 +1,5 @@
 import { forwardRef, useCallback, useImperativeHandle, useMemo } from 'react';
-import { CalendarDays, Check, RotateCcw, Trash2 } from 'lucide-react';
+import { CalendarDays, RotateCcw, Trash2 } from 'lucide-react';
 import type { DraftWorkout, Exercise, ImportDraft } from '../types';
 import { applyExerciseEdit, countOccurrences, type ExerciseEditing } from '../lib/exerciseEditScope';
 import { hasFinePointer } from '../lib/inputModality';
@@ -191,7 +191,7 @@ export const DraftOutline = forwardRef<DraftOutlineHandle, {
                 onClick={onAcceptProgram}
                 className="ptl-primary-btn"
               >
-                <Check size={16} strokeWidth={2.5} />{actionLabel}
+                {actionLabel}
               </Button>
             )}
             {(onRestoreDraft || onDiscardDraft) && (

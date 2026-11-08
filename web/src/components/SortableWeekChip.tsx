@@ -166,7 +166,6 @@ export function SortableWeekChip({
           presentation="plain"
           className="chip-icon-btn ptl-chip-action-btn ptl-chip-delete-btn"
           aria-label={`Delete week ${week}`}
-          title={`Delete week ${week}`}
           onClick={onDelete}
         >
           <X size={14} />
