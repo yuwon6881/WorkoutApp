@@ -19,9 +19,6 @@ if(int.TryParse(Environment.GetEnvironmentVariable("PORT"),out var cloudRunPort)
 builder.Configuration.AddJsonFile("appsettings.Local.json",optional:true,reloadOnChange:false);
 if(!builder.Environment.IsDevelopment()&&(!Uri.TryCreate(builder.Configuration["PublicOrigin"],UriKind.Absolute,out var publicOrigin)||publicOrigin.Scheme!="https"))
     throw new InvalidOperationException("PublicOrigin must be the exact public HTTPS origin in production.");
-// Kept for legacy large requests; PDF imports now submit compressed extracted text, not PDF bytes.
-builder.WebHost.ConfigureKestrel(o=>o.Limits.MaxRequestBodySize=160 * 1024 * 1024);
-builder.Services.Configure<FormOptions>(o => o.MultipartBodyLengthLimit = 160 * 1024 * 1024);
 // Cloud Run's front end appends the caller's address to X-Forwarded-For from proxy addresses that
 // are not loopback, so the known lists are cleared. Only that last hop is read: the watch calls
 // Cloud Run directly, and any earlier entry could have been written by the client.
@@ -88,7 +85,6 @@ builder.Services.AddHttpClient<IWorkoutRestTaskQueue, CloudTasksRestAlertQueue>(
 builder.Services.AddSingleton<ICloudTaskTokenValidator, GoogleCloudTaskTokenValidator>();
 builder.Services.AddScoped<WorkoutRestAlertService>();
 builder.Services.AddScoped<ImportService>();
-builder.Services.AddSingleton<ImportRunner>();
 builder.Services.AddHostedService<ImportCleanupWorker>();
 builder.Services.AddAuthentication(options =>
 {
@@ -104,7 +100,6 @@ builder.Services.AddOpenIddict().AddValidation(options =>
     options.UseSystemNetHttp();
     options.UseAspNetCore();
 });
-builder.Services.AddHttpClient<WorkoutAi>(c=>c.Timeout=TimeSpan.FromSeconds(150)).AddHttpMessageHandler<ExternalCallMetricsHandler>();
 builder.Services.AddHttpClient<AiChatClient>(c=>c.Timeout=TimeSpan.FromSeconds(45)).AddHttpMessageHandler<ExternalCallMetricsHandler>();
 builder.Services.AddScoped<IAiTool, GetWorkoutHistoryTool>();
 builder.Services.AddScoped<IAiTool, GetWorkoutDetailTool>();
@@ -139,12 +134,6 @@ builder.Services.AddRateLimiter(o=>
     o.AddPolicy("ai-chat",http=>RateLimitPartition.GetFixedWindowLimiter(
         string.IsNullOrEmpty(http.Request.Cookies[AuthService.Cookie])?"unauthenticated":AuthService.Hash(http.Request.Cookies[AuthService.Cookie]!),
         _=>new FixedWindowRateLimiterOptions { PermitLimit=20,Window=TimeSpan.FromMinutes(1),QueueLimit=0 }));
-    o.AddPolicy("ai",http=>RateLimitPartition.GetFixedWindowLimiter(
-        string.IsNullOrEmpty(http.Request.Cookies[AuthService.Cookie])?"unauthenticated":AuthService.Hash(http.Request.Cookies[AuthService.Cookie]!),
-        _=>new FixedWindowRateLimiterOptions { PermitLimit=6,Window=TimeSpan.FromMinutes(5),QueueLimit=0 }));
-    o.AddPolicy("ai-extract",http=>RateLimitPartition.GetFixedWindowLimiter(
-        string.IsNullOrEmpty(http.Request.Cookies[AuthService.Cookie])?"unauthenticated":AuthService.Hash(http.Request.Cookies[AuthService.Cookie]!),
-        _=>new FixedWindowRateLimiterOptions { PermitLimit=40,Window=TimeSpan.FromMinutes(5),QueueLimit=0 }));
     o.AddPolicy("external-import",http=>RateLimitPartition.GetFixedWindowLimiter(
         http.RequestServices.GetRequiredService<AppDb>().CurrentUser?.ToString() ?? "unauthenticated",
         _=>new FixedWindowRateLimiterOptions { PermitLimit=10,Window=TimeSpan.FromSeconds(

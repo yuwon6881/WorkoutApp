@@ -148,31 +148,8 @@ namespace Workout.Api.Data.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<long>("CachedInputTokens")
-                        .HasColumnType("bigint");
-
-                    b.Property<int>("Calls")
-                        .HasColumnType("integer");
-
-                    b.Property<bool>("CatalogStale")
-                        .HasColumnType("boolean");
-
-                    b.Property<string>("ChunkResultsJson")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<int>("ChunksDone")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("ChunksTotal")
-                        .HasColumnType("integer");
-
                     b.Property<DateTime>("Created")
                         .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("DocumentHash")
-                        .IsRequired()
-                        .HasColumnType("text");
 
                     b.Property<string>("DraftBaselineJson")
                         .IsRequired()
@@ -190,36 +167,11 @@ namespace Workout.Api.Data.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<long>("InputTokens")
-                        .HasColumnType("bigint");
-
-                    b.Property<string>("LeaseId")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<DateTime?>("LeaseUntil")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("LinksJson")
-                        .IsRequired()
-                        .HasColumnType("text");
-
                     b.Property<string>("Model")
                         .IsRequired()
                         .HasColumnType("text");
 
                     b.Property<string>("NoticesJson")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("OutlineJson")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<long>("OutputTokens")
-                        .HasColumnType("bigint");
-
-                    b.Property<string>("PageCoverageJson")
                         .IsRequired()
                         .HasColumnType("text");
 
@@ -233,21 +185,11 @@ namespace Workout.Api.Data.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<int>("Retries")
-                        .HasColumnType("integer");
-
                     b.Property<int>("Revision")
                         .IsConcurrencyToken()
                         .HasColumnType("integer");
 
                     b.Property<string>("SelectedAlternativeId")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<DateTime?>("SourceExpiresAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("SourceTextJson")
                         .IsRequired()
                         .HasColumnType("text");
 
@@ -262,23 +204,15 @@ namespace Workout.Api.Data.Migrations
                     b.Property<int>("UnresolvedCount")
                         .HasColumnType("integer");
 
-                    b.Property<string>("WorkStateJson")
-                        .IsRequired()
-                        .HasColumnType("text");
-
                     b.HasKey("UserId", "Id");
 
                     b.HasIndex("Created");
 
-                    b.HasIndex("SourceExpiresAt");
-
-                    b.HasIndex("UserId", "DocumentHash", "PromptVersion");
-
                     b.ToTable("Imports", null, t =>
                         {
-                            t.HasCheckConstraint("CK_Imports_Stage", "\"Stage\" IN ('outline','select','extract','verify','recover','done','failed')");
+                            t.HasCheckConstraint("CK_Imports_Stage", "\"Stage\" IN ('select','done')");
 
-                            t.HasCheckConstraint("CK_Imports_Status", "\"Status\" IN ('pending','ready','failed','accepted','discarded')");
+                            t.HasCheckConstraint("CK_Imports_Status", "\"Status\" IN ('pending','ready','accepted','discarded')");
                         });
                 });
 

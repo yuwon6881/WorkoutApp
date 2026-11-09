@@ -71,7 +71,7 @@ public sealed class ExternalImportConversionTests
             case "set-type": exercise["sets"]![0]!["type"] = "mystery"; break;
         }
         await using var h = await Ready();
-        var error = await Assert.ThrowsAsync<DomainException>(() => h.Imports(StubHandler.Program("{}"))
+        var error = await Assert.ThrowsAsync<DomainException>(() => h.Imports()
             .CreateExternalImport(root.ToJsonString(), "program.json", default));
         Assert.Equal(path, error.Data["path"]);
         Assert.False(string.IsNullOrWhiteSpace(error.Message));
@@ -82,14 +82,14 @@ public sealed class ExternalImportConversionTests
             "unknown" => "Remove the unsupported", "demo" => "approved host", "set-type" => "Choose a supported set type", _ => null
         };
         if (expectedMessage is not null) Assert.Contains(expectedMessage, error.Message, StringComparison.OrdinalIgnoreCase);
-        Assert.Empty(await h.Imports(StubHandler.Program("{}")).List(default));
+        Assert.Empty(await h.Imports().List(default));
     }
 
     [Fact]
     public async Task Converts_capabilities_into_a_reviewable_draft_with_server_owned_ids()
     {
         await using var h = await Ready();
-        var imports = h.Imports(StubHandler.Program("{}"));
+        var imports = h.Imports();
         var view = await imports.CreateExternalImport(Fixture, "program.json", default);
         Assert.Equal(ImportStatus.Pending, view.Status);
         Assert.Equal("select", view.Stage);
@@ -149,7 +149,7 @@ public sealed class ExternalImportConversionTests
                 break;
         }
         await using var h = await Ready();
-        var imports = h.Imports(StubHandler.Program("{}"));
+        var imports = h.Imports();
         var error = await Assert.ThrowsAsync<DomainException>(() => imports.CreateExternalImport(root.ToJsonString(), "program.json", default));
         Assert.Contains(expected, error.Message, StringComparison.OrdinalIgnoreCase);
         Assert.Empty(await imports.List(default));
@@ -160,7 +160,7 @@ public sealed class ExternalImportConversionTests
     public async Task Oversized_input_creates_no_work()
     {
         await using var h = await Ready();
-        var imports = h.Imports(StubHandler.Program("{}"));
+        var imports = h.Imports();
         var failure = await Assert.ThrowsAsync<DomainException>(() => imports.CreateExternalImport(new string(' ', ExternalImportEnvelope.MaxBytes + 1), "large.json", default));
         Assert.Equal(413, failure.Status);
         Assert.Empty(await imports.List(default));
@@ -179,7 +179,7 @@ public sealed class ExternalImportConversionTests
         exercise["sets"]![0]!["rir"] = "2-3";
         exercise["sets"]![0]!["restSeconds"] = null;
         await using var h = await Ready();
-        var imports = h.Imports(StubHandler.Program("{}"));
+        var imports = h.Imports();
         var view = await imports.CreateExternalImport(root.ToJsonString(), "program.json", default);
         var actual = view.Draft!.Workouts[0].Exercises[0];
         Assert.Null(actual.ExerciseId);
@@ -196,7 +196,7 @@ public sealed class ExternalImportConversionTests
         var root = JsonNode.Parse(Fixture)!;
         root["program"]!["alternativeGroups"]![0]!["kind"] = "program";
         await using var h = await Ready();
-        var imports = h.Imports(StubHandler.Program("{}"));
+        var imports = h.Imports();
         var view = await imports.CreateExternalImport(root.ToJsonString(), "program.json", default);
         var group = Assert.Single(view.Draft!.AlternativeGroups!);
         Assert.NotEqual("week-choice", group.Id);
@@ -217,7 +217,7 @@ public sealed class ExternalImportConversionTests
             days.Add(new JsonObject { ["key"] = $"rest-{index}", ["week"] = 1, ["phaseWeek"] = 1,
                 ["name"] = $"Rest {index}", ["isRestDay"] = true, ["exercises"] = new JsonArray() });
         await using var h = await Ready();
-        var imports = h.Imports(StubHandler.Program("{}"));
+        var imports = h.Imports();
         var view = await imports.CreateExternalImport(root.ToJsonString(), "cycle.json", default);
         Assert.Equal(10, view.Draft!.SourceWeekDays);
         var result = await imports.Accept(view.Id, default, view.Revision, acknowledgeUncertainty: true);
@@ -232,7 +232,7 @@ public sealed class ExternalImportConversionTests
     public async Task Invalid_envelopes_are_atomic(string input)
     {
         await using var h = await Ready();
-        var imports = h.Imports(StubHandler.Program("{}"));
+        var imports = h.Imports();
         await Assert.ThrowsAsync<DomainException>(() => imports.CreateExternalImport(input, "program.json", default));
         Assert.Empty(await imports.List(default));
         Assert.Empty(await h.Programs.List(default));
@@ -244,7 +244,7 @@ public sealed class ExternalImportConversionTests
     public async Task Converted_draft_can_be_selected_edited_acknowledged_and_accepted(string kind)
     {
         await using var h = await Ready();
-        var imports = h.Imports(StubHandler.Program("{}"));
+        var imports = h.Imports();
         var root = JsonNode.Parse(Fixture)!;
         root["program"]!["alternativeGroups"]![0]!["kind"] = kind;
         var view = await imports.CreateExternalImport(root.ToJsonString(), "program.json", default);

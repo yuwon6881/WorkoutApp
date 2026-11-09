@@ -1,36 +1,19 @@
-using System.Diagnostics;
-using System.Security.Cryptography;
-using System.Text.RegularExpressions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.Logging;
 using Workout.Api.Data;
 using Workout.Api.Domain;
 
 namespace Workout.Api.Services;
 
-public sealed partial class ImportService(AppDb db, WorkoutAi ai, CatalogService catalog, ProgramService programs,
-    IConfiguration? config = null, ILogger<ImportService>? logger = null)
+public sealed partial class ImportService(AppDb db, CatalogService catalog, ProgramService programs,
+    IConfiguration? config = null)
 {
-    private readonly SemaphoreSlim importCatalogGate = new(1, 1);
-    private ImportCatalogSnapshot? importCatalogSnapshot;
-
-    private sealed record ImportCatalogSnapshot(HashSet<Guid> Active, Dictionary<string, Guid> Matches,
-        Dictionary<Guid, string> Names);
-
-    /// How long a failed attempt stays readable. Its explanation is only useful right after the
-    /// read; kept longer it reappears on the import screen as an attempt nobody is making anymore.
-    internal static readonly TimeSpan FailedImportRetention = TimeSpan.FromDays(1);
-
     /// Only work still in progress. A finished import is deleted rather than kept, so there is no
     /// import history to list: the program it produced is the lasting record.
     public async Task<List<ImportView>> List(CancellationToken ct)
     {
-        // Filtered here as well as swept, because the sweep runs on a schedule this request cannot see.
-        var failedCutoff = DateTime.UtcNow - FailedImportRetention;
         var rows = await db.Imports.AsNoTracking()
-            .Where(i => i.Status == ImportStatus.Pending || i.Status == ImportStatus.Ready
-                || (i.Status == ImportStatus.Failed && i.Created >= failedCutoff))
+            .Where(i => i.Status == ImportStatus.Pending || i.Status == ImportStatus.Ready)
             .OrderByDescending(i => i.Created).Take(10).ToListAsync(ct);
         var views = new List<ImportView>();
         // The listing reads the RIR preference once for all of its imports.
@@ -44,18 +27,6 @@ public sealed partial class ImportService(AppDb db, WorkoutAi ai, CatalogService
         var import = await db.Imports.AsNoTracking().SingleOrDefaultAsync(i => i.Id == id, ct);
         Validation.Require(import != null, "That import no longer exists.", 404);
         return await View(import!, includeDraft: true, ct);
-    }
-
-    public async Task<ImportStatusView> GetStatus(Guid id, CancellationToken ct)
-    {
-        var import = await db.Imports.AsNoTracking().SingleOrDefaultAsync(i => i.Id == id, ct);
-        Validation.Require(import != null, "That import no longer exists.", 404);
-        var chunks = ReadChunks(import!.OutlineJson);
-        var done = import.ChunksDone;
-        var progress = ProgressOf(import);
-        return new ImportStatusView(import.Id, import.Status, import.Stage, done, import.ChunksTotal,
-            chunks.ElementAtOrDefault(done)?.Label ?? chunks.ElementAtOrDefault(import.ChunksDone)?.Label, import.Error, import.Revision, import.Retries,
-            import.UnresolvedCount, progress);
     }
 
     public async Task<ImportView> MapSlot(Guid id, Guid exerciseLineId, Guid? replacementExerciseId, int? revision, CancellationToken ct)
@@ -98,7 +69,6 @@ public sealed partial class ImportService(AppDb db, WorkoutAi ai, CatalogService
             draft = ImportValidation.NormalizeDraft(Json.Read<ImportDraft>(import.DraftJson));
             unresolved = Unresolved(draft);
         }
-        var chunks = ReadChunks(import.OutlineJson);
         var unresolvedCount = includeDraft ? unresolved.Count : import.UnresolvedCount;
         var edits = import.Status == ImportStatus.Ready ? ImportReviewEdits.Compare(import.DraftBaselineJson, draft) : ImportReviewEdits.None;
         var issues = includeDraft && draft is not null ? ImportValidation.ReviewIssues(draft, edits) : [];
@@ -110,33 +80,15 @@ public sealed partial class ImportService(AppDb db, WorkoutAi ai, CatalogService
         if (import.PromptVersion == ImportDraftAlternatives.ExternalPromptVersion)
             issues = issues.Select(ExternalReviewWording.Apply).ToList();
         if (issues.Count > 0) issues = ImportReviewPolicy.ForReview(issues, await (tracksRir?.Invoke() ?? TracksRir(ct)));
-        var coverage = string.IsNullOrWhiteSpace(import.PageCoverageJson) ? [] : Json.Read<List<PdfPageCoverage>>(import.PageCoverageJson);
         var alternatives = string.IsNullOrWhiteSpace(import.AlternativesJson) ? [] : Json.Read<List<ImportAlternative>>(import.AlternativesJson);
         var acceptable = import.Status == ImportStatus.Ready && unresolved.Count == 0 && issues.All(i => i.Severity == "info");
         var (canRestoreDraft, restorableExerciseLineIds) = AnalyzeRestorability(import, draft);
-        var done = import.ChunksDone;
         return new ImportView(import.Id, import.Status, import.FileName, import.Pages, import.Error, import.Created, import.Model,
-            import.Stage, done, import.ChunksTotal, chunks.ElementAtOrDefault(done)?.Label ?? chunks.ElementAtOrDefault(import.ChunksDone)?.Label, unresolvedCount, draft,
-            unresolved, acceptable, import.ProgramId, issues,
-            import.InputTokens, import.OutputTokens, import.Retries, coverage, alternatives, import.SelectedAlternativeId,
-            import.Revision, canRestoreDraft, restorableExerciseLineIds,
-            ProgressOf(import));
-    }
-
-    /// Where every section of a pending import stands, read from its stored responses and the
-    /// stages the running pass last recorded.
-    private static ImportProgressDetails? ProgressOf(AiImport import)
-    {
-        if (import.Status != ImportStatus.Pending) return null;
-        var state = ImportWorkState.Read(import.WorkStateJson);
-        var finalResults = ReadChunkResults(import.ChunkResultsJson).Keys.ToHashSet();
-        var responses = finalResults.Concat(state.RecoveryCandidates?.Keys ?? Enumerable.Empty<int>()).ToHashSet();
-        return state.Progress(import.ChunksTotal, import.ChunksDone, finalResults, responses);
+            import.Stage, unresolvedCount, draft, unresolved, acceptable, import.ProgramId, issues,
+            alternatives, import.SelectedAlternativeId, import.Revision, canRestoreDraft, restorableExerciseLineIds);
     }
 
     public static List<UnresolvedExercise> Unresolved(ImportDraft draft) => ImportValidation.Unresolved(draft);
-
-    private static List<ImportReviewIssue> ReviewIssues(ImportDraft draft) => ImportValidation.ReviewIssues(draft);
 
     private Task<bool> TracksRir(CancellationToken ct)
         => db.Users.AsNoTracking().Where(u => u.Id == db.CurrentUser).Select(u => u.TrackRir).SingleAsync(ct);
@@ -236,7 +188,6 @@ public sealed partial class ImportService(AppDb db, WorkoutAi ai, CatalogService
         Validation.Require(acknowledgeUncertainty || !hasUncertainty,
             "Review and acknowledge the uncertain import details before creating this program.", 409);
         await ValidateDraft(draft, ct);
-        ValidateDraftPages(draft, import.PageCoverageJson);
         var unresolved = Unresolved(draft);
         var edits = ImportReviewEdits.Compare(import.DraftBaselineJson, draft);
         List<ImportReviewIssue> issues = [.. FilterNotices(ReadNotices(import.NoticesJson), draft, edits),
@@ -281,18 +232,10 @@ public sealed partial class ImportService(AppDb db, WorkoutAi ai, CatalogService
         try
         {
         var now = DateTime.UtcNow;
-        // An unfinished import left in pending state can never be completed.
+        // A draft still waiting for a version choice after a day has been abandoned.
         var pendingCutoff = now.AddDays(-1);
         await db.Imports.IgnoreQueryFilters()
-            .Where(i => i.Status == ImportStatus.Pending && i.Created < pendingCutoff &&
-                (i.LeaseUntil == null || i.LeaseUntil < now))
-            .ExecuteDeleteAsync(ct);
-        var failedCutoff = now - FailedImportRetention;
-        await db.Imports.IgnoreQueryFilters()
-            .Where(i => i.Status == ImportStatus.Failed && i.Created < failedCutoff)
-            .ExecuteDeleteAsync(ct);
-        await db.Imports.IgnoreQueryFilters()
-            .Where(i => i.SourceExpiresAt != null && i.SourceExpiresAt < now)
+            .Where(i => i.Status == ImportStatus.Pending && i.Created < pendingCutoff)
             .ExecuteDeleteAsync(ct);
 
         // Only unfinished imports exist beyond acceptance, so an abandoned one is removed outright

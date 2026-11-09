@@ -14,7 +14,6 @@ namespace Workout.Tests;
 public sealed class Harness : IAsyncDisposable
 {
     private readonly SqliteConnection connection;
-    private readonly List<ServiceProvider> backgroundProviders = [];
     public AppDb Db { get; }
     private MemoryCache Cache { get; } = new(new MemoryCacheOptions());
     public IConfiguration Config { get; }
@@ -78,27 +77,7 @@ public sealed class Harness : IAsyncDisposable
         return user;
     }
 
-    public ImportService Imports(HttpMessageHandler handler)
-        => new(Db, new WorkoutAi(new HttpClient(handler), Config), Catalog, Programs, Config);
-
-    public ImportRunner Runner(HttpMessageHandler handler)
-    {
-        var services = new ServiceCollection();
-        services.AddLogging();
-        services.AddSingleton<IConfiguration>(Config);
-        services.AddSingleton(Db);
-        services.AddScoped(_ => new WorkoutAi(new HttpClient(handler), Config));
-        services.AddScoped<CatalogService>();
-        services.AddScoped<TemplateService>();
-        services.AddScoped<ProgramProgressService>();
-        services.AddScoped<ProgramLifecycleService>();
-        services.AddScoped<ProgramService>();
-        services.AddScoped<ImportService>();
-        services.AddSingleton<ImportRunner>();
-        var provider = services.BuildServiceProvider();
-        backgroundProviders.Add(provider);
-        return provider.GetRequiredService<ImportRunner>();
-    }
+    public ImportService Imports() => new(Db, Catalog, Programs, Config);
 
     public async Task Seed(params SeedExercise[] exercises)
     {
@@ -122,7 +101,6 @@ public sealed class Harness : IAsyncDisposable
 
     public async ValueTask DisposeAsync()
     {
-        foreach (var provider in backgroundProviders) await provider.DisposeAsync();
         Cache.Dispose();
         await Db.DisposeAsync();
         await connection.DisposeAsync();
@@ -132,27 +110,4 @@ public sealed class Harness : IAsyncDisposable
 file sealed class TestHttpClientFactory : IHttpClientFactory
 {
     public HttpClient CreateClient(string name) => new();
-}
-
-/// Replays a canned OpenAI Responses payload without touching the network.
-public sealed class StubHandler(Func<HttpRequestMessage, HttpResponseMessage> respond) : HttpMessageHandler
-{
-    public HttpRequestMessage? LastRequest { get; private set; }
-    public int Calls { get; private set; }
-
-    public static StubHandler Returning(string json) => new(_ => new HttpResponseMessage(System.Net.HttpStatusCode.OK) { Content = new StringContent(json) });
-
-    public static StubHandler Program(string body) => Returning($$"""
-        {"status":"completed","usage":{"input_tokens":10,"output_tokens":20},
-         "output":[{"content":[{"type":"output_text","text":{{System.Text.Json.JsonSerializer.Serialize(body)}}}]}]}
-        """);
-
-    protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken ct)
-    {
-        Calls++;
-        LastRequest = request;
-        if (request.Content != null) Body = await request.Content.ReadAsStringAsync(ct);
-        return respond(request);
-    }
-    public string? Body { get; private set; }
 }

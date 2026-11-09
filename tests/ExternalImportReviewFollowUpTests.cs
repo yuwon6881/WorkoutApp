@@ -16,7 +16,7 @@ public sealed class ExternalImportReviewFollowUpTests
         await h.SignIn();
         await h.Seed(new SeedExercise("bench", "Bench press", "Chest", "Barbell", null),
             new SeedExercise("squat", "Squat", "Quads", "Barbell", null));
-        return h.Imports(new HttpClientHandler());
+        return h.Imports();
     }
 
     [Fact]
@@ -365,7 +365,7 @@ public sealed class ExternalImportReviewFollowUpTests
         var file = "{\"version\":1,\"program\":{\"name\":\"P\",\"days\":[{\"key\":\"a\",\"week\":1,\"name\":\"A\",\"exercises\":["
             + "{\"sourceName\":\"Bench press\",\"substitutions\":[" + string.Join(',', names.Select(name => $"\"{name}\"")) + "],"
             + "\"sets\":[{\"repMin\":8,\"repMax\":10}]}]}]}}";
-        var imports = h.Imports(new HttpClientHandler());
+        var imports = h.Imports();
         var view = await imports.CreateExternalImport(file, "p.json", default);
 
         await imports.Accept(view.Id, default, view.Revision);
@@ -400,7 +400,7 @@ public sealed class ExternalImportReviewFollowUpTests
         """;
         var h = await Harness.Create();
         await h.SignIn();
-        var imports = h.Imports(new HttpClientHandler());
+        var imports = h.Imports();
         var error = await Assert.ThrowsAsync<DomainException>(() => imports.CreateExternalImport(file, "p.json", default));
         Assert.All(ExternalImportPath.ErrorsOf(error), item => Assert.StartsWith("$.program.days[0].exercises[1]", item.Path));
         Assert.Empty(h.Db.Imports.IgnoreQueryFilters().ToList());
@@ -513,22 +513,6 @@ public sealed class ExternalImportReviewFollowUpTests
     }
 
     [Fact]
-    public void A_legacy_week_choice_still_tolerates_dangling_and_removed_days()
-    {
-        DraftWorkout Day(int week, string name) => new(Guid.NewGuid(), week, name, null, null, [], PhaseWeek: week);
-        var first = Day(1, "A");
-        var second = Day(2, "B");
-        var draft = new ImportDraft("P", [first, second]);
-        var chosen = new ImportAlternative("x", "Version X", 0, 2, DayLineIds: [first.LineId, Guid.NewGuid()]);
-        var other = new ImportAlternative("y", "Version Y", 0, 1, DayLineIds: [second.LineId]);
-
-        var result = ImportWeekChoice.Apply(draft, chosen, [chosen, other]);
-
-        var kept = Assert.Single(result.Workouts);
-        Assert.Equal(first.LineId, kept.LineId);
-    }
-
-    [Fact]
     public void An_uploaded_group_is_still_held_to_a_strict_day_map()
     {
         DraftWorkout Day(string name) => new(Guid.NewGuid(), 1, name, null, null, []);
@@ -536,8 +520,8 @@ public sealed class ExternalImportReviewFollowUpTests
         var draft = new ImportDraft("P", [first]) with
         {
             AlternativeGroups = [new("g", [
-                new ImportAlternative("x", "X", 0, 2, DayLineIds: [first.LineId, Guid.NewGuid()]),
-                new ImportAlternative("y", "Y", 0, 1, DayLineIds: [Guid.NewGuid()])])]
+                new ImportAlternative("x", "X", 2, DayLineIds: [first.LineId, Guid.NewGuid()]),
+                new ImportAlternative("y", "Y", 1, DayLineIds: [Guid.NewGuid()])])]
         };
         Assert.Throws<DomainException>(() => ImportDraftAlternatives.Select(draft, "x", "g"));
     }

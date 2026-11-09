@@ -15,17 +15,17 @@ public sealed class ImportDraftAlternativeGroupsTests
         DraftWorkout Day(int week, string name) => new(Guid.NewGuid(), week, name, null, null, [], IsRestDay: true);
         var a = Day(1, "A"); var b = Day(1, "B"); var c = Day(2, "C"); var d = Day(2, "D");
         List<ImportAlternativeGroup> groups = [
-            new("first", [new("a", "A", 0, 0, Kind: ImportAlternativeKinds.Week, DayLineIds: [a.LineId]) { Uncertainty = new(true, "Check option A") },
-                new("b", "B", 0, 0, Kind: ImportAlternativeKinds.Week, DayLineIds: [b.LineId])]),
-            new("second", [new("c", "C", 0, 0, Kind: ImportAlternativeKinds.Week, DayLineIds: [c.LineId]),
-                new("d", "D", 0, 0, Kind: ImportAlternativeKinds.Week, DayLineIds: [d.LineId])])
+            new("first", [new("a", "A", 0, Kind: ImportAlternativeKinds.Week, DayLineIds: [a.LineId]) { Uncertainty = new(true, "Check option A") },
+                new("b", "B", 0, Kind: ImportAlternativeKinds.Week, DayLineIds: [b.LineId])]),
+            new("second", [new("c", "C", 0, Kind: ImportAlternativeKinds.Week, DayLineIds: [c.LineId]),
+                new("d", "D", 0, Kind: ImportAlternativeKinds.Week, DayLineIds: [d.LineId])])
         ];
         var draft = new ImportDraft("Program", [a, b, c, d]) { AlternativeGroups = groups };
         var row = new AiImport { UserId = h.Db.CurrentUser!.Value, FileName = "external.json", PromptVersion = ImportDraftAlternatives.ExternalPromptVersion, Status = ImportStatus.Pending,
             Stage = "select", DraftJson = Json.Write(draft), AlternativesJson = Json.Write(groups[0].Members) };
         h.Db.Imports.Add(row);
         await h.Db.SaveChangesAsync();
-        var imports = h.Imports(StubHandler.Program("{}"));
+        var imports = h.Imports();
 
         var first = await imports.SelectAlternative(row.Id, "a", default, "first");
         Assert.Equal("select", first.Stage);
@@ -42,8 +42,8 @@ public sealed class ImportDraftAlternativeGroupsTests
         DraftWorkout Day(int week, string name) => new(Guid.NewGuid(), week, name, null, null, []);
         var a = Day(1, "A"); var b = Day(1, "B"); var c = Day(2, "C"); var d = Day(2, "D");
         List<ImportAlternativeGroup> groups = [
-            new("first", [new("a", "A", 0, 1, DayLineIds: [a.LineId]), new("b", "B", 0, 1, DayLineIds: [b.LineId])]),
-            new("second", [new("c", "C", 0, 1, DayLineIds: [c.LineId]), new("d", "D", 0, 1, DayLineIds: [d.LineId])])
+            new("first", [new("a", "A", 1, DayLineIds: [a.LineId]), new("b", "B", 1, DayLineIds: [b.LineId])]),
+            new("second", [new("c", "C", 1, DayLineIds: [c.LineId]), new("d", "D", 1, DayLineIds: [d.LineId])])
         ];
         var draft = new ImportDraft("Program", [a, b, c, d]) { AlternativeGroups = groups };
         var selected = ImportDraftAlternatives.Select(draft, "a");
@@ -54,7 +54,7 @@ public sealed class ImportDraftAlternativeGroupsTests
         Assert.Throws<DomainException>(() => ImportDraftAlternatives.Select(duplicate, "a"));
         Assert.Single(ImportDraftAlternatives.Select(duplicate, "a", "first").AlternativeGroups!);
         var overlapping = draft with { AlternativeGroups = [new ImportAlternativeGroup("bad", [
-            new("a", "A", 0, 1, DayLineIds: [a.LineId]), new("b", "B", 0, 1, DayLineIds: [a.LineId])])] };
+            new("a", "A", 1, DayLineIds: [a.LineId]), new("b", "B", 1, DayLineIds: [a.LineId])])] };
         Assert.Throws<DomainException>(() => ImportDraftAlternatives.Select(overlapping, "a", "bad"));
     }
 }

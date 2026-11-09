@@ -234,12 +234,6 @@ public sealed class CatalogService(AppDb db)
     public async Task<Guid?> Match(string name, CancellationToken ct)
         => CatalogMatching.Find(await MatchIndex(ct), name);
 
-    public async Task<HashSet<Guid>> ActiveIds(CancellationToken ct)
-    {
-        var ids = await db.Exercises.AsNoTracking().Where(x => x.Active).Select(x => x.Id).ToListAsync(ct);
-        ids.AddRange(await db.CustomExercises.AsNoTracking().Where(x => !x.Archived).Select(x => x.Id).ToListAsync(ct));
-        return ids.ToHashSet();
-    }
 
     public async Task RequireActive(Guid? id, CancellationToken ct)
     {

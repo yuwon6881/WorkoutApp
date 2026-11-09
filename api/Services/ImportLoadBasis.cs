@@ -30,31 +30,6 @@ internal static class ImportLoadBasis
         }).ToList();
     }
 
-    public static List<DraftSet> Apply(List<DraftSet> sets, string? coaching)
-    {
-        var instruction = coaching ?? "";
-        var opener = Opener.IsMatch(instruction);
-        var firstWorking = sets.FindIndex(set => !set.Warmup);
-        var workingCount = sets.Count(set => !set.Warmup);
-        var mixedLoads = sets.Where(set => !set.Warmup && PercentageLoad.Parse(set.LoadText) is not null).Select(set => set.LoadText).Distinct(StringComparer.OrdinalIgnoreCase).Skip(1).Any();
-        return sets.Select((set, index) =>
-        {
-            if (set.Warmup || PercentageLoad.Parse(set.LoadText) is not { } band) return set;
-            if (IsRelative(instruction, set.LoadText, set.Notes, index == firstWorking, workingCount, mixedLoads))
-            {
-                if ((set.Notes ?? "").Contains(PercentageLoad.PriorSetNote, StringComparison.OrdinalIgnoreCase)) return set;
-                var prior = string.IsNullOrWhiteSpace(set.Notes) ? PercentageLoad.PriorSetNote : $"{set.Notes} — {PercentageLoad.PriorSetNote}";
-                return set with { Notes = ImportNormalization.Text(prior, 400) };
-            }
-            if (opener && index == firstWorking && band.Low == 100)
-            {
-                var notes = string.IsNullOrWhiteSpace(set.Notes) ? "Start with 100%." : $"{set.Notes} — Start with 100%.";
-                return set with { Notes = ImportNormalization.Text(notes, 400) };
-            }
-            return set;
-        }).ToList();
-    }
-
     private static bool IsRelative(string coaching, string? load, string? notes, bool first, int workingCount, bool mixedLoads)
     {
         var own = $"{load} {notes}";

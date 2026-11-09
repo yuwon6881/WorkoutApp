@@ -3,19 +3,6 @@ using Workout.Api.Domain;
 
 namespace Workout.Api.Services;
 
-internal sealed class ImportVerificationException(ImportReviewIssue issue)
-    : DomainException(Describe(issue), 422)
-{
-    public ImportReviewIssue Issue { get; } = issue;
-
-    private static string Describe(ImportReviewIssue issue)
-    {
-        var location = issue.SourcePage is { } page ? $" on PDF page {page}" : "";
-        var field = string.IsNullOrWhiteSpace(issue.TargetField) ? "" : $" (field: {issue.TargetField})";
-        return $"The PDF could not be verified completely [{issue.Code}]{location}{field}: {issue.Message}";
-    }
-}
-
 public sealed partial class ImportService
 {
     public Task ValidateDraft(ImportDraft draft, CancellationToken ct) => ImportValidation.ValidateDraft(draft, catalog, ct);
@@ -24,38 +11,7 @@ public sealed partial class ImportService
 
     private static SetPrescription ToPrescription(DraftSet set) => ImportValidation.ToPrescription(set);
 
-    private static List<ImportChunk> SplitChunks(List<AiOutlineChunk> source) => ImportValidation.SplitChunks(source);
-
-    private static List<ImportChunk> SplitChunks(List<ImportChunk> source) => ImportValidation.SplitChunks(source);
-
-    private static List<ImportChunk> ReadChunks(string json) => ImportValidation.ReadChunks(json);
-
-    private static (List<DraftWorkout> Workouts, bool Renumbered) NormalizePhaseWeeks(List<DraftWorkout> workouts)
-        => ImportValidation.NormalizePhaseWeeks(workouts);
-
-    private static ImportChunkReconciliation.ChunkMerge ReconcileChunkCoverage(ImportDraft existing, ImportDraft extracted, ImportChunk chunk,
-        IReadOnlyList<ImportPageText>? pages = null, bool preserveTrailingRestDays = false,
-        IReadOnlyDictionary<int, int>? printedWeeks = null)
-        => ImportChunkReconciliation.ReconcileChunkCoverage(existing, extracted, chunk, pages, preserveTrailingRestDays, printedWeeks);
-
-    /// A week the source confirms as longer than seven days keeps its trailing rest days.
-    private static (List<DraftWorkout> Workouts, List<ImportReviewIssue> Notices) ReconcileDayShape(List<DraftWorkout> days,
-        int? sourceWeekDays = null)
-        => ImportDayShape.Reconcile(days, preserveTrailingRestDays: sourceWeekDays is > Workout.Api.Domain.ProgramLimits.StandardDaysPerWeek);
-
-    private static List<ImportReviewIssue> ReadNotices(string json) => ImportValidation.ReadNotices(json);
-
-    private static void RequireVerifiedDraft(ImportDraft draft, AiImport import, IEnumerable<ImportReviewIssue> currentNotices,
-        bool weekVersionChoicePending = false)
-    {
-        var notices = ImportReviewNotices.Merge(ReadNotices(import.NoticesJson), currentNotices);
-        var reviewIssues = ReviewIssues(draft);
-        if (weekVersionChoicePending)
-            reviewIssues = reviewIssues.Where(issue => issue.Code is not ("phase_week_gap" or "program_week_gap")).ToList();
-        var unresolved = FilterNotices(notices, draft).Concat(reviewIssues)
-            .FirstOrDefault(ImportReviewPolicy.StopsRead);
-        if (unresolved is not null) throw new ImportVerificationException(unresolved);
-    }
+    private static List<ImportReviewIssue> ReadNotices(string json) => string.IsNullOrWhiteSpace(json) ? [] : Json.Read<List<ImportReviewIssue>>(json);
 
     private static List<ImportReviewIssue> FilterNotices(IEnumerable<ImportReviewIssue> notices, ImportDraft? draft,
         ImportReviewEdits? edits = null)
@@ -76,12 +32,4 @@ public sealed partial class ImportService
         var unresolved = Unresolved(draft);
         import.UnresolvedCount = unresolved.Count;
     }
-
-    private static void ValidateChunkPages(IEnumerable<ImportChunk> chunks, string coverageJson)
-        => ImportValidation.ValidateChunkPages(chunks, coverageJson);
-
-    private static void ValidateDraftPages(ImportDraft draft, string coverageJson)
-        => ImportValidation.ValidateDraftPages(draft, coverageJson);
-
-    private static string? NullIfBlank(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 }

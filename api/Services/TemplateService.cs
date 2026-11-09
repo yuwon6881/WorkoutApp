@@ -338,7 +338,7 @@ public sealed partial class TemplateService(AppDb db, CatalogService catalog)
         {
             Validation.Name(exercise.SourceName, "Exercise name", 160);
             Validation.Text(exercise.Note, 1000, "Exercise notes");
-            Validation.Require(exercise.SourcePage is null || exercise.SourcePage.Value is > 0 and <= ImportSourceText.MaxPages, "Exercise source page is invalid.");
+            Validation.Require(exercise.SourcePage is null || exercise.SourcePage.Value is > 0 and <= ProgramLimits.MaxSourcePage, "Exercise source page is invalid.");
             Validation.Text(exercise.SequenceGroup, 8, "Sequence group");
             Validation.Substitutions(exercise.Substitutions);
             Validation.ExerciseRestSeconds(exercise.RestSeconds);

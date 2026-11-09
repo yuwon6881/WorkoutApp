@@ -34,13 +34,10 @@ public sealed class ImportPauseTests
             new SeedExercise("pause-bench", "Pause Barbell Bench Press", "Chest", "Barbell", null, 2.5),
             new SeedExercise("curl", "Barbell Curl", "Biceps", "Barbell", null, 2.5));
         var pauseId = await h.ExerciseId("pause-bench");
-        var benchId = await h.ExerciseId("bench");
-        var set = new AiSet(8, 8, null, null, null, null, null);
-        var program = new AiProgram("Test", [new AiDay(null, null, 1, 1, "Day 1", false, null,
-            [new AiExercise("Barbell Bench Press", benchId.ToString(), "Pause at the chest", [set]),
-             new AiExercise("Barbell Curl", null, "Pause at the top", [set])])]);
-
-        var draft = await h.Imports(StubHandler.Program("{}")).ToDraft(program, default);
+        var draft = (await ExternalDraftFixture.Create(h.Imports(), ExternalDraftFixture.Weeks(1, "Test", """
+            {"sourceName":"Barbell Bench Press","notes":"Pause at the chest","sets":[{"repMin":8,"repMax":8}]},
+            {"sourceName":"Barbell Curl","notes":"Pause at the top","sets":[{"repMin":8,"repMax":8}]}
+            """))).Draft!;
         var exercises = draft.Workouts.Single().Exercises;
         Assert.Equal(pauseId, exercises[0].ExerciseId);
         Assert.Null(SetTechniques.Of(exercises[0].Sets.Single().Notes));
@@ -73,10 +70,9 @@ public sealed class ImportPauseTests
         await h.Seed(new SeedExercise("bench", "Barbell Bench Press", "Chest", "Barbell", null, 2.5),
             new SeedExercise("pause-bench", "Pause Barbell Bench Press", "Chest", "Barbell", null, 2.5));
         var id = await h.ExerciseId("bench");
-        var set = new AiSet(8, 8, null, null, null, null, null);
-        var program = new AiProgram("Test", [new AiDay(null, null, 1, 1, "Day 1", false, null,
-            [new AiExercise("Barbell Bench Press", id.ToString(), "Pause 1.5 s on the last set.", [set, set])])]);
-        var exercise = (await h.Imports(StubHandler.Program("{}")).ToDraft(program, default)).Workouts.Single().Exercises.Single();
+        var exercise = (await ExternalDraftFixture.Create(h.Imports(), ExternalDraftFixture.Weeks(1, "Test", """
+            {"sourceName":"Barbell Bench Press","notes":"Pause 1.5 s on the last set.","sets":[{"repMin":8,"repMax":8},{"repMin":8,"repMax":8}]}
+            """))).Draft!.Workouts.Single().Exercises.Single();
         Assert.Equal(id, exercise.ExerciseId);
         Assert.Null(exercise.Sets[0].Notes);
         Assert.Equal("Pause set", exercise.Sets[1].Notes);

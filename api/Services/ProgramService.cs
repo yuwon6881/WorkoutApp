@@ -324,7 +324,7 @@ public sealed partial class ProgramService(AppDb db, TemplateService templates, 
         ValidateStructure(input.Workouts);
         foreach (var workout in input.Workouts)
         {
-            Validation.Require(workout.SourcePage is null || workout.SourcePage.Value is > 0 and <= ImportSourceText.MaxPages, "Workout source page is invalid.");
+            Validation.Require(workout.SourcePage is null || workout.SourcePage.Value is > 0 and <= ProgramLimits.MaxSourcePage, "Workout source page is invalid.");
             await templates.ValidateInput(new TemplateInput(workout.Name, workout.Focus, workout.Note, workout.Exercises, null, null,
                 workout.Block, workout.Phase, workout.PhaseWeek, workout.IsRestDay), ct, !allowMissingWorkingRpe);
         }

@@ -2,8 +2,6 @@ using Workout.Api.Domain;
 
 namespace Workout.Api.Services;
 
-public record ImportChunk(string Label, string? Block, string? Phase, int WeekFrom, int WeekTo, int PageFrom, int PageTo, int DayCount);
-
 public record DraftSet(
     int? RepMin, int? RepMax, double? TargetRpe, int? RestSeconds, string? Tempo, string? LoadText, string? Notes,
     string RepsSource = "extracted", string RpeSource = "extracted", string RestSource = "extracted",
@@ -39,7 +37,7 @@ public record DraftWorkout(
     public ImportSourceReference? SourceReference { get => sourceReference ?? ImportSourceReference.FromPage(SourcePage); init => sourceReference = value; }
 }
 
-/// SourceWeekDays is the longest week the PDF itself confirms (a ten-day cycle is 10); a week beyond
+/// SourceWeekDays is the longest week the source itself confirms (a ten-day cycle is 10); a week beyond
 /// seven days is only accepted without review when its source says so.
 public record ImportDraft(string ProgramName, List<DraftWorkout> Workouts, int? SourceWeekDays = null)
 {
@@ -65,13 +63,9 @@ public record ImportReviewIssue(
     int? SourcePageTo = null,
     int? WeekFrom = null,
     int? WeekTo = null);
-/// One version a document asks the lifter to choose between. A "program" version is one of
-/// several programs in one PDF and is chosen before its pages are read; a "week" version is one
-/// lettered week ("WEEK 10A" or "WEEK 10B") of a program that says to run only one, chosen once
-/// the program has been read, and it names the draft days that belong to it.
+/// One version the import offers to choose between; it names the draft days that belong to it.
 public record ImportAlternative(
-    string Id, string Name, int ChunkCount, int DayCount, List<ImportChunk>? Chunks = null,
-    int? WeekCount = null, int? SessionsPerWeek = null, string Kind = ImportAlternativeKinds.Program,
+    string Id, string Name, int DayCount, string Kind = ImportAlternativeKinds.Program,
     string? Description = null, List<Guid>? DayLineIds = null)
 {
     public ImportUncertainty? Uncertainty { get; init; }
@@ -90,35 +84,7 @@ public record ImportSlotMappingInput(Guid ExerciseLineId, Guid? ReplacementExerc
 
 public record ImportView(
     Guid Id, string Status, string FileName, int Pages, string Error, DateTime Created, string Model,
-    string Stage, int ChunksDone, int ChunksTotal, string? CurrentChunkLabel, int UnresolvedCount, ImportDraft? Draft,
+    string Stage, int UnresolvedCount, ImportDraft? Draft,
     List<UnresolvedExercise> Unresolved, bool Acceptable, Guid? ProgramId, List<ImportReviewIssue>? ReviewIssues = null,
-    long InputTokens = 0, long OutputTokens = 0, int Retries = 0,
-    List<PdfPageCoverage>? PageCoverage = null,
     List<ImportAlternative>? Alternatives = null, string? SelectedAlternativeId = null,
-    int Revision = 0, bool CanRestoreDraft = false, List<Guid>? RestorableExerciseLineIds = null,
-    ImportProgressDetails? Progress = null);
-
-/// SectionStates holds one entry per section in outline order — committed, saved, checking,
-/// repairing, reading or queued — so the import screen can show where every section stands.
-public record ImportProgressDetails(
-    int SectionsCompleted, int SectionsQueued, int SectionsReading, int SectionsVerifying, int SectionsRepairing,
-    int SectionsWithResponses, DateTime? StartedAtUtc, DateTime? LastProgressAtUtc,
-    List<string>? SectionStates = null);
-
-public static class ImportSectionStates
-{
-    public const string Committed = "committed";
-    public const string Saved = "saved";
-    public const string Checking = "checking";
-    public const string Repairing = "repairing";
-    public const string Reading = "reading";
-    public const string Queued = "queued";
-}
-
-/// Lightweight polling contract.  Extraction progress must not repeatedly serialize the
-/// potentially large draft, page coverage, and review metadata; the full view is fetched only
-/// when a draft or alternative selection is actually ready to display.
-public record ImportStatusView(
-    Guid Id, string Status, string Stage, int ChunksDone, int ChunksTotal,
-    string? CurrentChunkLabel, string Error, int Revision, int Retries,
-    int UnresolvedCount, ImportProgressDetails? Progress = null);
+    int Revision = 0, bool CanRestoreDraft = false, List<Guid>? RestorableExerciseLineIds = null);

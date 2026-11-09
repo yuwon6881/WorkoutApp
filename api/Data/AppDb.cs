@@ -217,14 +217,11 @@ public sealed class AppDb(DbContextOptions<AppDb> options) : DbContext(options)
         m.Entity<ExerciseProgress>().Property(x => x.NameKey).HasMaxLength(160);
         m.Entity<ExerciseProgress>().ToTable("Progress", t =>
             t.HasCheckConstraint("CK_Progress_E1rm", "\"TrendE1rmKg\" >= 0 AND \"LastE1rmKg\" >= 0"));
-        m.Entity<AiImport>().HasIndex(x => new { x.UserId, x.DocumentHash, x.PromptVersion });
         m.Entity<AiImport>().HasIndex(x => x.Created);
-        m.Entity<AiImport>().HasIndex(x => x.SourceExpiresAt);
-        m.Entity<AiImport>().Property(x => x.WorkStateJson).HasColumnType("text");
         m.Entity<AiImport>().ToTable("Imports", t =>
         {
-            t.HasCheckConstraint("CK_Imports_Status", "\"Status\" IN ('pending','ready','failed','accepted','discarded')");
-            t.HasCheckConstraint("CK_Imports_Stage", "\"Stage\" IN ('outline','select','extract','verify','recover','done','failed')");
+            t.HasCheckConstraint("CK_Imports_Status", "\"Status\" IN ('pending','ready','accepted','discarded')");
+            t.HasCheckConstraint("CK_Imports_Stage", "\"Stage\" IN ('select','done')");
         });
         m.Entity<CompletedSet>().ToTable("Sets", t =>
         {

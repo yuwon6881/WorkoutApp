@@ -14,7 +14,7 @@ public sealed class ExternalImportOptionsTests
         await h.Seed(new SeedExercise("bench", "Bench press", "Chest", "Barbell", null),
             new SeedExercise("squat", "Squat", "Quads", "Barbell", null),
             new SeedExercise("row", "Barbell row", "Back", "Barbell", null));
-        return (h, h.Imports(new HttpClientHandler()));
+        return (h, h.Imports());
     }
 
     private static string Exercise(string name, string uncertainty, string setUncertainty = "")

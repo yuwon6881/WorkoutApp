@@ -7,7 +7,7 @@ using System.Text.Json.Nodes;
 namespace Workout.Api.Services.AI;
 
 // Direct HTTP client for the OpenAI Responses API, supporting multi-round tool-calling and
-// streaming. The existing WorkoutAi handles PDF imports; this serves the Ask AI chat engine.
+// streaming. This serves the Ask AI chat engine.
 public sealed class AiChatClient
 {
     private const string DefaultModel = "gpt-5.4-mini";

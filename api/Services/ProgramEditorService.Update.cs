@@ -90,7 +90,7 @@ public sealed partial class ProgramEditorService
             var day = planned.Input;
             await templates.ValidateInput(new TemplateInput(day.Name, day.Focus, day.Note, day.Exercises, null, null,
                 day.Block, day.Phase, day.PhaseWeek, day.IsRestDay), ct, requireWorkingRpe);
-            Validation.Require(day.SourcePage is null || day.SourcePage.Value is > 0 and <= ImportSourceText.MaxPages,
+            Validation.Require(day.SourcePage is null || day.SourcePage.Value is > 0 and <= ProgramLimits.MaxSourcePage,
                 "Workout source page is invalid.");
             // Same rule as building a program: every training exercise comes from the library.
             Validation.Require(day.IsRestDay || day.Exercises.All(exercise => exercise.ExerciseId is not null),

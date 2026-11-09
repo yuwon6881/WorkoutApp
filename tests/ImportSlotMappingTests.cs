@@ -6,35 +6,25 @@ namespace Workout.Tests;
 
 public sealed class ImportSlotMappingTests
 {
-    private static Dictionary<string, string?> Configured() => new()
-    {
-        ["OpenAi:ApiKey"] = "test-key",
-        ["OpenAi:Model"] = "gpt-5.4-mini"
-    };
+    private static string Day(int week, string block, string phase, int phaseWeek, string exercise)
+        => $$"""{"key":"w{{week}}","week":{{week}},"name":"Lower 1","block":"{{block}}","phase":"{{phase}}","phaseWeek":{{phaseWeek}},"exercises":[{"sourceName":"{{exercise}}","sets":[{"repMin":6,"repMax":8,"targetRpe":8,"restSeconds":120}]}]}""";
 
-    private static ImportSourceInput Source() => new("min-max.pdf", 4,
-        Enumerable.Range(1, 4).Select(page => new ImportPageText(page,
-            $"{(page <= 2 ? "BLOCK 1" : "BLOCK 2")}{(page == 3 ? "\nDELOAD WEEK" : "")}\nWEEK {page}\nSquat (Your Choice) 2 x 6-8\nSmith Machine Leg Press Squat 2 x 6-8\nANDERSON SQUAT 2 x 6-8")).ToList());
-
-    private static string Program => $$"""
-        {"programName":"Min-Max","programTitle":"Min-Max","days":[
-          {"block":"BLOCK 1","phase":"Base","weekNumber":1,"phaseWeek":1,"dayName":"Lower 1","isRestDay":false,"notes":null,"sourcePage":1,"exercises":[{"sequenceGroup":"A1","sourceName":"Squat (Your Choice)","exerciseId":null,"notes":null,"sourcePage":1,"sets":[{"repMin":6,"repMax":8,"targetRpe":8,"restSeconds":120,"repsSource":"extracted","rpeSource":"extracted","restSource":"extracted"}]}]},
-          {"block":"Block 1","phase":"Base","weekNumber":2,"phaseWeek":2,"dayName":"Lower 1","isRestDay":false,"notes":null,"sourcePage":2,"exercises":[{"sequenceGroup":"A1","sourceName":"Squat","exerciseId":null,"notes":null,"sourcePage":2,"sets":[{"repMin":6,"repMax":8,"targetRpe":8,"restSeconds":120,"repsSource":"extracted","rpeSource":"extracted","restSource":"extracted"}]}]},
-          {"block":"Block 2","phase":"Deload Week","weekNumber":3,"phaseWeek":1,"dayName":"Lower 1","isRestDay":false,"notes":null,"sourcePage":3,"exercises":[{"sequenceGroup":"A1","sourceName":"Squat (Your Choice)","exerciseId":null,"notes":null,"sourcePage":3,"sets":[{"repMin":6,"repMax":8,"targetRpe":8,"restSeconds":120,"repsSource":"extracted","rpeSource":"extracted","restSource":"extracted"}]}]},
-          {"block":"BLOCK 2","phase":"Base","weekNumber":4,"phaseWeek":1,"dayName":"Lower 1","isRestDay":false,"notes":null,"sourcePage":4,"exercises":[{"sequenceGroup":"A1","sourceName":"Smith Machine Leg Press Squat","exerciseId":null,"notes":null,"sourcePage":4,"sets":[{"repMin":6,"repMax":8,"targetRpe":8,"restSeconds":120,"repsSource":"extracted","rpeSource":"extracted","restSource":"extracted"}]}]}
-        ]}
-        """;
+    private static string Program => ExternalDraftFixture.Program("Min-Max", string.Join(",",
+        Day(1, "BLOCK 1", "Base", 1, "Squat (Your Choice)"),
+        Day(2, "Block 1", "Base", 2, "Squat"),
+        Day(3, "Block 2", "Deload Week", 1, "Squat (Your Choice)"),
+        Day(4, "BLOCK 2", "Base", 1, "Smith Machine Leg Press Squat")));
 
     [Fact]
     public async Task Mapping_one_exact_recurring_choice_propagates_across_blocks_without_merging_other_names()
     {
-        await using var harness = await Harness.Create(Configured());
+        await using var harness = await Harness.Create();
         await harness.SignIn();
         await harness.Seed(new SeedExercise("bench", "Barbell Bench Press", "Chest", "Barbell", null));
         var benchId = await harness.ExerciseId("bench");
-        var imports = harness.Imports(StubHandler.Program(Program));
+        var imports = harness.Imports();
 
-        var view = await imports.Create(Source(), default);
+        var view = await ExternalDraftFixture.Create(imports, Program);
 
         Assert.Equal(3, view.Unresolved.Count);
         var choice = Assert.Single(view.Unresolved, item => item.SourceName == "Squat (Your Choice)");
@@ -70,11 +60,11 @@ public sealed class ImportSlotMappingTests
     [Fact]
     public async Task Mapping_requires_the_current_revision()
     {
-        await using var harness = await Harness.Create(Configured());
+        await using var harness = await Harness.Create();
         await harness.SignIn();
         await harness.Seed(new SeedExercise("bench", "Barbell Bench Press", "Chest", "Barbell", null));
-        var imports = harness.Imports(StubHandler.Program(Program));
-        var view = await imports.Create(Source(), default);
+        var imports = harness.Imports();
+        var view = await ExternalDraftFixture.Create(imports, Program);
         var line = view.Unresolved[0].LineId;
         var benchId = await harness.ExerciseId("bench");
 
@@ -157,33 +147,20 @@ public sealed class ImportSlotMappingTests
     [Fact]
     public async Task Mapping_a_movement_links_every_occurrence_and_leaves_the_movement_sharing_its_position_alone()
     {
-        const string program = """
-            {"programName":"PB3","programTitle":"PB3","days":[
-              {"block":null,"phase":null,"weekNumber":1,"phaseWeek":1,"dayName":null,"isRestDay":false,"notes":null,"sourcePage":1,"exercises":[
-                {"sourceName":"ANDERSON SQUAT","exerciseId":null,"notes":null,"sourcePage":1,"sets":[{"repMin":8,"repMax":8,"targetRpe":6,"restSeconds":180}]},
-                {"sourceName":"SEATED FACE PULL","exerciseId":null,"notes":null,"sourcePage":1,"sets":[{"repMin":15,"repMax":20,"targetRpe":9,"restSeconds":90}]}]},
-              {"block":null,"phase":null,"weekNumber":2,"phaseWeek":2,"dayName":null,"isRestDay":false,"notes":null,"sourcePage":2,"exercises":[
-                {"sourceName":"BARBELL BOX SQUAT","exerciseId":null,"notes":null,"sourcePage":2,"sets":[{"repMin":8,"repMax":8,"targetRpe":6,"restSeconds":180}]},
-                {"sourceName":"Seated Face Pull","exerciseId":null,"notes":null,"sourcePage":2,"sets":[{"repMin":15,"repMax":20,"targetRpe":9,"restSeconds":90}]}]},
-              {"block":null,"phase":null,"weekNumber":3,"phaseWeek":3,"dayName":null,"isRestDay":false,"notes":null,"sourcePage":3,"exercises":[
-                {"sourceName":"STRICT BENCH PRESS","exerciseId":null,"notes":null,"sourcePage":3,"sets":[{"repMin":1,"repMax":1,"targetRpe":9,"restSeconds":240}]},
-                {"sourceName":"Seated Leg Curl","exerciseId":null,"notes":null,"sourcePage":3,"sets":[{"repMin":6,"repMax":8,"targetRpe":10,"restSeconds":90}]},
-                {"sourceName":"SEATED FACE PULL","exerciseId":null,"notes":null,"sourcePage":3,"sets":[{"repMin":12,"repMax":15,"targetRpe":10,"restSeconds":90}]}]}
-            ]}
-            """;
-        await using var harness = await Harness.Create(Configured());
+        static string Face(int week, string first, string name, int repMin, int repMax) =>
+            $$"""{"key":"w{{week}}","week":{{week}},"name":"Day {{week}}","exercises":[{{first}},{"sourceName":"{{name}}","sets":[{"repMin":{{repMin}},"repMax":{{repMax}},"targetRpe":9,"restSeconds":90}]}]}""";
+        static string Lift(string name, int reps) =>
+            $$"""{"sourceName":"{{name}}","sets":[{"repMin":{{reps}},"repMax":{{reps}},"targetRpe":6,"restSeconds":180}]}""";
+        var program = ExternalDraftFixture.Program("PB3", string.Join(",",
+            Face(1, Lift("ANDERSON SQUAT", 8), "SEATED FACE PULL", 15, 20),
+            Face(2, Lift("BARBELL BOX SQUAT", 8), "Seated Face Pull", 15, 20),
+            $$"""{"key":"w3","week":3,"name":"Day 3","exercises":[{{Lift("STRICT BENCH PRESS", 1)}},{{Lift("Seated Leg Curl", 6)}},{{Lift("SEATED FACE PULL", 12)}}]}"""));
+        await using var harness = await Harness.Create();
         await harness.SignIn();
         await harness.Seed(new SeedExercise("rear-fly", "Cable Rear Delt Fly", "Rear delts", "Cable", null));
         var facePull = await harness.ExerciseId("rear-fly");
-        var imports = harness.Imports(StubHandler.Program(program));
-        var source = new ImportSourceInput("pb3.pdf", 3,
-        [
-            new(1, "WEEK 1\nANDERSON SQUAT 1x8\nSEATED FACE PULL | 0 | 3"),
-            new(2, "WEEK 2\nBARBELL BOX SQUAT 1x8\nSEATED FACE PULL | 0 | 3"),
-            new(3, "WEEK 3\nSTRICT BENCH PRESS 1x1\nSeated Leg Curl 1x6-8\nSEATED FACE PULL | 0 | 3")
-        ]);
-
-        var view = await imports.Create(source, default);
+        var imports = harness.Imports();
+        var view = await ExternalDraftFixture.Create(imports, program);
         var row = Assert.Single(view.Unresolved, item => item.SourceName.Equals("Seated Face Pull", StringComparison.OrdinalIgnoreCase));
         Assert.Equal(3, row.Occurrences);
 

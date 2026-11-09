@@ -42,7 +42,7 @@ public sealed partial class ImportService
                     });
                     ids.Add(dayKeys[key!]);
                 }
-                members.Add(new ImportAlternative(Guid.NewGuid().ToString(), member.Name, 0, ids.Count,
+                members.Add(new ImportAlternative(Guid.NewGuid().ToString(), member.Name, ids.Count,
                     Kind: group.Kind, Description: member.Description, DayLineIds: ids) { Uncertainty = member.Uncertainty });
             }
             output.Add(new ImportAlternativeGroup(Guid.NewGuid().ToString(), members));

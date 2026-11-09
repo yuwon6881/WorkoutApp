@@ -1,5 +1,3 @@
-using System.IO.Compression;
-using System.Text;
 using System.Text.Json;
 using Workout.Api.Data;
 using Workout.Api.Domain;
@@ -11,13 +9,6 @@ public record ImportRevisionInput(int? Revision, bool AcknowledgeUncertainty = f
 
 public static class ImportEndpoints
 {
-    /// The browser sends the text it read from the PDF, not the PDF. Even a large book's text
-    /// layer compresses to a small request, so the body is bounded here twice: once against the
-    /// bytes actually received and once against what they expand to, so a crafted archive cannot
-    /// turn a small upload into an unbounded allocation.
-    private const int MaxCompressedBytes = 8 * 1024 * 1024;
-    private const int MaxDecompressedBytes = 16 * 1024 * 1024;
-
     public static void MapImports(this WebApplication app)
     {
         // Cloud Scheduler invokes this daily to run the retention sweep that keeps imports,
@@ -51,38 +42,6 @@ public static class ImportEndpoints
             }
         }).RequireRateLimiting("external-import").DisableAntiforgery();
         app.MapGet("/api/imports/{id:guid}", async (Guid id, ImportService imports, CancellationToken ct) => await imports.Get(id, ct));
-        app.MapGet("/api/imports/{id:guid}/status", async (Guid id, HttpContext http, ImportService imports, CancellationToken ct) =>
-        {
-            var status = await imports.GetStatus(id, ct);
-            var etag = $"\"import-status:{status.Id:N}:{status.Revision}\"";
-            http.Response.Headers.ETag = etag;
-            if (http.Request.Headers.IfNoneMatch == etag) return Results.StatusCode(StatusCodes.Status304NotModified);
-            return Results.Ok(status);
-        });
-
-        app.MapPost("/api/imports", async (HttpRequest request, ImportService imports, CancellationToken ct) =>
-        {
-            var input = await ReadSource(request, ct);
-            // Once the text has been accepted, let the outline pass finish even if the browser
-            // closes: the read is billed either way and its result belongs to the import.
-            return await imports.Create(input, CancellationToken.None);
-        }).RequireRateLimiting("ai").DisableAntiforgery();
-
-        // A read is billed the moment it starts, so closing the tab must not throw it away. The
-        // runner owns the pass and this response only acknowledges the current persisted state;
-        // the browser polls the GET route while the model reads happen outside the proxy request.
-        app.MapPost("/api/imports/{id:guid}/extract", async (Guid id, AppDb db, ImportRunner runner, ImportService imports) =>
-        {
-            Validation.Require(db.CurrentUser is not null, "Sign in to load your training.", 401);
-            runner.Start(id, db.CurrentUser!.Value);
-            return await imports.Get(id, CancellationToken.None);
-        }).RequireRateLimiting("ai-extract").DisableAntiforgery();
-        app.MapPost("/api/imports/{id:guid}/retry", async (Guid id, AppDb db, ImportRunner runner, ImportService imports) =>
-        {
-            Validation.Require(db.CurrentUser is not null, "Sign in to load your training.", 401);
-            runner.Start(id, db.CurrentUser!.Value);
-            return await imports.Get(id, CancellationToken.None);
-        }).RequireRateLimiting("ai-extract").DisableAntiforgery();
 
         app.MapPut("/api/imports/{id:guid}", async (Guid id, HttpRequest request, JsonElement payload, ImportService imports, CancellationToken ct) =>
         {
@@ -119,47 +78,6 @@ public static class ImportEndpoints
         { await imports.Discard(id, ct); return Results.NoContent(); });
     }
 
-    /// Reads the submitted page text, transparently decompressing a gzip body. Compression is what
-    /// keeps a long document inside the hosting proxy's request limit, so it is a supported
-    /// encoding here rather than something the browser has to work around.
-    private static async Task<ImportSourceInput> ReadSource(HttpRequest request, CancellationToken ct)
-    {
-        var gzip = request.Headers.ContentEncoding.Any(value => value is not null && value.Contains("gzip", StringComparison.OrdinalIgnoreCase));
-        using var received = new MemoryStream();
-        await request.Body.CopyToAsync(received, ct);
-        Validation.Require(received.Length > 0, "Choose a PDF to import.");
-        Validation.Require(received.Length <= MaxCompressedBytes, "That request is larger than the importer accepts.", 413);
-        received.Position = 0;
-
-        Stream payload = received;
-        MemoryStream? expanded = null;
-        if (gzip)
-        {
-            expanded = new MemoryStream();
-            await using var decompressor = new GZipStream(received, CompressionMode.Decompress);
-            var buffer = new byte[64 * 1024];
-            int read;
-            while ((read = await decompressor.ReadAsync(buffer, ct)) > 0)
-            {
-                expanded.Write(buffer, 0, read);
-                Validation.Require(expanded.Length <= MaxDecompressedBytes, "That PDF holds more text than the importer supports. Split it into smaller files.", 413);
-            }
-            expanded.Position = 0;
-            payload = expanded;
-        }
-
-        try
-        {
-            var input = await JsonSerializer.DeserializeAsync<ImportSourceInput>(payload, Json.Options, ct);
-            Validation.Require(input is not null, "That PDF produced no readable text.", 422);
-            return input!;
-        }
-        catch (JsonException)
-        {
-            throw new DomainException("The extracted PDF text could not be read.", 400);
-        }
-        finally { expanded?.Dispose(); }
-    }
 }
 
 public record ImportAlternativeInput(string AlternativeId, string? GroupId = null);

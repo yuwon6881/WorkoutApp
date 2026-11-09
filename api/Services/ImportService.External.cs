@@ -24,7 +24,7 @@ public sealed partial class ImportService
         ExternalImportPath.At("$.program.name", () => Validation.Name(source!.Name, "Program name"));
         ExternalImportPath.At("$.program.sourceWeekDays", () => Validation.Require(source!.SourceWeekDays is null or >= 1 and <= ExternalImportLimits.MaxCycleDays, "Source cycle length must be between 1 and 14 days."));
         ExternalImportPath.At("$.program.days", () => Validation.Require(source!.Days!.Count is > 0 and <= ExternalImportLimits.MaxDays, "A program needs between 1 and 400 days."));
-        var snapshot = await ImportCatalog(ct);
+        var library = await catalog.MatchIndex(ct);
         var days = new List<DraftWorkout>();
         var exerciseErrors = new List<ExternalImportPath.FieldError>();
         var dayKeys = new Dictionary<string, Guid>(StringComparer.OrdinalIgnoreCase);
@@ -49,7 +49,7 @@ public sealed partial class ImportService
             foreach (var (exercise, index) in day!.Exercises!.Select((item, position) => (item, position)))
             {
                 var exercisePath = $"{dayPath}.exercises[{index}]";
-                var failures = ExternalImportPath.Collect(exercisePath, () => exercises.Add(ConvertExternalExercise(exercise, snapshot.Matches, exercisePath)));
+                var failures = ExternalImportPath.Collect(exercisePath, () => exercises.Add(ConvertExternalExercise(exercise, library, exercisePath)));
                 exerciseErrors.AddRange(failures.Take(ExternalImportLimits.MaxReportedErrors - exerciseErrors.Count));
             }
             // A failed exercise is missing from the list, so superset adjacency can only be judged for a clean day.
@@ -201,7 +201,7 @@ public sealed partial class ImportService
         var (targetRpe, rir, effortNote) = ExternalImportEffort.Express(set.TargetRpe, set.Rir);
         // A printed rest the file gives only as text ("1-2 MIN", "30SEC") still has to set the timer, as it does
         // for a PDF import. Seconds the file states win; text that is not a rest adds nothing.
-        var restSeconds = set.RestSeconds ?? ImportTableEvidence.RestSecondsFromText(set.RestText);
+        var restSeconds = set.RestSeconds ?? ExternalImportRest.Seconds(set.RestText);
         if (effortNote is not null) notes = string.IsNullOrWhiteSpace(notes) ? effortNote : $"{notes.Trim()} {effortNote}";
         Validation.Text(notes, 400, "Set notes");
         // A supplied value is marked "inferred": the file said it, and WorkoutApp has not checked it. A value the

@@ -9,31 +9,13 @@ namespace Workout.Tests;
 /// request stays the size of the edit rather than the size of the whole program.
 public sealed class ImportEditDaysTests
 {
-    private static Dictionary<string, string?> Configured => new() { ["OpenAi:ApiKey"] = "test-key", ["OpenAi:Model"] = "gpt-5.4-mini" };
-
-    private static ImportSourceInput Source() => new("block.pdf", 2, Enumerable.Range(1, 2)
-        .Select(page => new ImportPageText(page, $"WEEK {page}\nBarbell bench press 3 x 8-10 @ RPE 8")).ToList());
-
-    private const string ThreeWeeks = """
-    {"programName":"Hypertrophy block","weeks":[
-      {"week":1,"workouts":[{"name":"Day A","focus":"Push","notes":null,"exercises":[
-        {"sourceName":"Barbell bench press","exerciseId":null,"notes":null,"sets":[
-          {"repMin":8,"repMax":10,"targetRpe":8,"restSeconds":120,"tempo":null,"loadText":null,"notes":null,"repsSource":"extracted","rpeSource":"inferred","restSource":"extracted"}]}]}]},
-      {"week":2,"workouts":[{"name":"Day A","focus":"Push","notes":null,"exercises":[
-        {"sourceName":"Barbell bench press","exerciseId":null,"notes":null,"sets":[
-          {"repMin":8,"repMax":10,"targetRpe":8,"restSeconds":120,"tempo":null,"loadText":null,"notes":null,"repsSource":"extracted","rpeSource":"inferred","restSource":"extracted"}]}]}]},
-      {"week":3,"workouts":[{"name":"Day A","focus":"Push","notes":null,"exercises":[
-        {"sourceName":"Barbell bench press","exerciseId":null,"notes":null,"sets":[
-          {"repMin":8,"repMax":10,"targetRpe":8,"restSeconds":120,"tempo":null,"loadText":null,"notes":null,"repsSource":"extracted","rpeSource":"inferred","restSource":"extracted"}]}]}]}]}
-    """;
-
     private static async Task<(Harness Harness, ImportService Imports, ImportView View)> Ready()
     {
-        var h = await Harness.Create(Configured);
+        var h = await Harness.Create();
         await h.SignIn();
         await h.Seed(new SeedExercise("bench", "Barbell bench press", "Chest", "Barbell", null));
-        var imports = h.Imports(StubHandler.Program(ThreeWeeks));
-        var view = await imports.Create(Source(), default);
+        var imports = h.Imports();
+        var view = await ExternalDraftFixture.Create(imports, ExternalDraftFixture.Weeks(3));
         Assert.Equal(ImportStatus.Ready, view.Status);
         Assert.Equal(3, view.Draft!.Workouts.Count);
         return (h, imports, view);

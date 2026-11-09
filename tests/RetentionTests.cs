@@ -41,7 +41,7 @@ public sealed class RetentionTests : IAsyncLifetime
         );
         await harness.Db.SaveChangesAsync();
 
-        var imports = harness.Imports(new FakeHandler());
+        var imports = harness.Imports();
         await imports.CleanupExpired(default);
 
         var remaining = await harness.Db.Sessions.Where(s => s.UserId == user.Id).ToListAsync();
@@ -67,7 +67,7 @@ public sealed class RetentionTests : IAsyncLifetime
             new WatchDevice { UserId = user.Id, DeviceId = "paired", TokenHash = "c", ExpiresAt = now.AddDays(300) });
         await harness.Db.SaveChangesAsync();
 
-        await harness.Imports(new FakeHandler()).CleanupExpired(default);
+        await harness.Imports().CleanupExpired(default);
 
         Assert.Equal("in-flight", Assert.Single(await harness.Db.GoogleHealthOAuthStates.IgnoreQueryFilters().ToListAsync()).State);
         Assert.Equal("waiting", Assert.Single(await harness.Db.WatchPairings.IgnoreQueryFilters().ToListAsync()).DeviceId);
@@ -86,7 +86,7 @@ public sealed class RetentionTests : IAsyncLifetime
         harness.Db.Receipts.AddRange(oldReceipt, recentReceipt);
         await harness.Db.SaveChangesAsync();
 
-        var imports = harness.Imports(new FakeHandler());
+        var imports = harness.Imports();
         await imports.CleanupExpired(default);
 
         var remaining = await harness.Db.Receipts.IgnoreQueryFilters().ToListAsync();
@@ -106,7 +106,7 @@ public sealed class RetentionTests : IAsyncLifetime
         harness.Db.Usage.AddRange(oldUsage, recentUsage);
         await harness.Db.SaveChangesAsync();
 
-        var imports = harness.Imports(new FakeHandler());
+        var imports = harness.Imports();
         await imports.CleanupExpired(default);
 
         var remaining = await harness.Db.Usage.IgnoreQueryFilters().ToListAsync();
@@ -130,23 +130,18 @@ public sealed class RetentionTests : IAsyncLifetime
         var reviewable = new AiImport
         {
             Id = Guid.NewGuid(), UserId = user.Id, Status = ImportStatus.Ready,
-            DraftJson = "{\"sample\": true}", OutlineJson = "[{\"week\": 1}]", Created = now.AddDays(-2)
+            DraftJson = "{\"sample\": true}", AlternativesJson = "[{\"id\": \"x\"}]", Created = now.AddDays(-2)
         };
         harness.Db.Imports.AddRange(abandoned, reviewable);
         await harness.Db.SaveChangesAsync();
 
-        await harness.Imports(new FakeHandler()).CleanupExpired(default);
+        await harness.Imports().CleanupExpired(default);
 
         var rows = await harness.Db.Imports.IgnoreQueryFilters().ToListAsync();
         Assert.DoesNotContain(rows, i => i.Id == abandoned.Id);
         var kept = Assert.Single(rows, i => i.Id == reviewable.Id);
         Assert.Equal("{\"sample\": true}", kept.DraftJson);
-        Assert.Equal("[{\"week\": 1}]", kept.OutlineJson);
+        Assert.Equal("[{\"id\": \"x\"}]", kept.AlternativesJson);
     }
 
-    private sealed class FakeHandler : HttpMessageHandler
-    {
-        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
-            => Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK));
-    }
 }

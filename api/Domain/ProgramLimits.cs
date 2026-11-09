@@ -9,4 +9,7 @@ public static class ProgramLimits
     /// A program printed on a longer asynchronous cycle (a ten-day Push/Pull/Legs/Arms rotation)
     /// keeps the week its PDF prints, so a week may hold more than seven days, up to two weeks' worth.
     public const int MaxDaysPerWeek = 14;
+
+    /// The highest page number a stored source reference may cite.
+    public const int MaxSourcePage = 1000;
 }

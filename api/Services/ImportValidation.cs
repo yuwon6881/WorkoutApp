@@ -66,7 +66,7 @@ internal static partial class ImportValidation
                 SetIndex: loadSpecified[0].index, TargetField: "targetRpe"));
 
         var unrated = working.Where(item => item.set.TargetRpe is null && !HasRirTarget(item.set.Rir)
-            && !IsPercentageLoad(item.set.LoadText) && !ImportPrintedEffort.NeedsReview(item.set)).ToList();
+            && !IsPercentageLoad(item.set.LoadText)).ToList();
         AddUnspecified(issues, edits, unrated, "rpe_unspecified", "rpe_unread", "targetRpe", item => item.set.RpeSource,
             "working set has", "working sets have", "no target RIR");
 
@@ -79,7 +79,6 @@ internal static partial class ImportValidation
 
         issues.AddRange(PartialRepConflicts(training));
         issues.AddRange(ImportSetInstructionReview.Issues(training));
-        issues.AddRange(ImportPrintedEffort.Issues(training));
 
         var weeks = draft.Workouts.Select(day => day.Week).Distinct().Order().ToList();
         var missingWeeksBetweenPhases = new List<int>();
@@ -259,7 +258,7 @@ internal static partial class ImportValidation
             // they get here, so reaching this with a gap means an edit introduced one.
             var phaseWeeks = phase.Select(w => w.PhaseWeek).Distinct().OrderBy(value => value).ToList();
             Validation.Require(phaseWeeks.Count == 0 || phaseWeeks.Select((value, index) => value == index + 1).All(value => value),
-                $"Phase '{phase[0].Phase}' has a missing phase week. Review the outline before accepting it.", 422);
+                $"Phase '{phase[0].Phase}' has a missing phase week. Review the weeks before accepting it.", 422);
         }
         foreach (var workout in draft.Workouts) await ValidateWorkout(workout, catalog, ct);
     }
@@ -275,13 +274,13 @@ internal static partial class ImportValidation
         foreach (var exercise in workout.Exercises)
         {
             Validation.Name(exercise.SourceName, "Exercise name", 160); Validation.Text(exercise.Notes, 1000, "Exercise notes");
-            Validation.Require(exercise.SourcePage is null || exercise.SourcePage.Value is > 0 and <= ImportSourceText.MaxPages, "Exercise source page is invalid.");
+            Validation.Require(exercise.SourcePage is null || exercise.SourcePage.Value is > 0 and <= ProgramLimits.MaxSourcePage, "Exercise source page is invalid.");
             Validation.Text(exercise.SequenceGroup, 8, "Sequence group"); Validation.Substitutions(exercise.Substitutions);
             Validation.ExerciseRestSeconds(exercise.RestSeconds);
             Validation.Prescriptions(exercise.Sets.Select(ToPrescription).ToList(), false);
             foreach (var set in exercise.Sets)
             {
-                Validation.Require(set.SourcePage is null || set.SourcePage.Value is > 0 and <= ImportSourceText.MaxPages, "Set source page is invalid.");
+                Validation.Require(set.SourcePage is null || set.SourcePage.Value is > 0 and <= ProgramLimits.MaxSourcePage, "Set source page is invalid.");
                 foreach (var source in new[] { set.RepsSource, set.RpeSource, set.RestSource })
                     Validation.Require(source is "extracted" or "inferred" or "userEdited", "Unknown provenance label.");
             }
@@ -351,142 +350,4 @@ internal static partial class ImportValidation
         => new(set.RepMin, set.RepMax, set.TargetRpe, set.RestSeconds, set.Tempo, set.LoadText, set.Notes,
             set.RepsText, set.RestText, set.Rir, set.Warmup, set.RepsSource, set.RpeSource, set.RestSource,
             SourcePage: set.SourcePage);
-
-    public static List<ImportChunk> SplitChunks(List<AiOutlineChunk> source)
-    {
-        // The outline model owns the semantic boundaries. Never derive week ranges from a count
-        // of training days: a three-day schedule and a seven-day schedule have different weeks.
-        Validation.Require(source.Count is > 0 and <= 24, "This program has too many extraction chunks.", 422);
-        return Sections(source.Select((chunk, index) => new ImportChunk(
-            ImportNormalization.Label(chunk.Label, 200, $"Section {index + 1}"),
-            ImportNormalization.Text(chunk.Block, 80), ImportNormalization.Text(chunk.Phase, 120),
-            chunk.WeekFrom, chunk.WeekTo, chunk.PageFrom, chunk.PageTo, chunk.DayCount)).ToList());
-    }
-
-    public static List<ImportChunk> SplitChunks(List<ImportChunk> source)
-    {
-        Validation.Require(source.Count is > 0 and <= 24, "This program has too many extraction chunks.", 422);
-        Validation.Require(source.All(c => c.DayCount is > 0 and <= 80 && c.WeekFrom > 0 && c.WeekTo >= c.WeekFrom && c.PageFrom > 0 && c.PageTo >= c.PageFrom),
-            "AI returned an invalid extraction chunk.", 422);
-        return Sections(source);
-    }
-
-    /// The sections an import will actually read, from the boundaries the outline drew: divided so
-    /// no read is asked for more than one answer holds, then named apart and checked as a whole.
-    private static List<ImportChunk> Sections(List<ImportChunk> source)
-    {
-        var result = DistinctLabels(ImportSections.Divide(source));
-        Validation.Require(result.Count <= ImportSections.MaxSections, "This program has too many extraction chunks.", 422);
-        ValidateChunkRanges(result);
-        Validation.Require(result.Sum(c => c.DayCount) <= 400, "This program is larger than the importer supports.", 422);
-        return result;
-    }
-
-    /// A section label is what the reviewer reads while the import runs; nothing is keyed on it,
-    /// and sections are addressed by their outline position. A document regularly earns two
-    /// sections the same name — "Deload" printed at the end of every block, or one phase split
-    /// across page ranges — which is its naming convention rather than a defect in the read.
-    /// Refusing the whole outline over it left the import dead on arrival on a document that
-    /// failed the same way on every retry, so a repeat is renamed with whatever actually
-    /// separates it from the first.
-    public static List<ImportChunk> DistinctLabels(List<ImportChunk> chunks)
-    {
-        var taken = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        var first = new Dictionary<string, ImportChunk>(StringComparer.OrdinalIgnoreCase);
-        return chunks.Select(chunk =>
-        {
-            if (taken.Add(chunk.Label))
-            {
-                first[chunk.Label] = chunk;
-                return chunk;
-            }
-            // A name can also be taken by an earlier rename rather than by a section of its own,
-            // in which case there is nothing to compare against and every detail is worth trying.
-            var original = first.TryGetValue(chunk.Label, out var owner) ? owner : chunk with { WeekFrom = 0, PageFrom = 0 };
-            foreach (var candidate in LabelCandidates(chunk, original))
-                if (taken.Add(candidate)) return chunk with { Label = candidate };
-            return chunk;
-        }).ToList();
-    }
-
-    /// Ordered by how much a detail actually separates this section from the one that already
-    /// owns the name: a detail the two share says nothing and is skipped, and a plain count is
-    /// the last resort when they differ in nothing a reviewer can see.
-    private static IEnumerable<string> LabelCandidates(ImportChunk chunk, ImportChunk original)
-    {
-        var weeks = $"weeks {chunk.WeekFrom}-{chunk.WeekTo}";
-        var pages = $"pages {chunk.PageFrom}-{chunk.PageTo}";
-        var sameWeeks = chunk.WeekFrom == original.WeekFrom && chunk.WeekTo == original.WeekTo;
-        var samePages = chunk.PageFrom == original.PageFrom && chunk.PageTo == original.PageTo;
-        if (!sameWeeks) yield return Suffixed(chunk.Label, weeks);
-        if (!samePages) yield return Suffixed(chunk.Label, pages);
-        if (!sameWeeks && !samePages) yield return Suffixed(chunk.Label, $"{weeks}, {pages}");
-        for (var index = 2; index <= 32; index++) yield return Suffixed(chunk.Label, index.ToString());
-    }
-
-    /// Keeps a qualified label inside the 200 characters the column holds, trimming the name
-    /// rather than the detail that makes it distinct.
-    public static string SuffixedLabel(string label, string detail) => Suffixed(label, detail);
-
-    private static string Suffixed(string label, string detail)
-    {
-        var suffix = $" ({detail})";
-        var room = Math.Max(0, 200 - suffix.Length);
-        return (label.Length <= room ? label : label[..room].TrimEnd()) + suffix;
-    }
-
-    public static void ValidateChunkRanges(IEnumerable<ImportChunk> chunks)
-    {
-        foreach (var group in chunks.GroupBy(c => (Block: c.Block?.Trim() ?? "", Phase: c.Phase?.Trim() ?? "")))
-        {
-            var ordered = group.OrderBy(c => c.WeekFrom).ThenBy(c => c.PageFrom).ThenBy(c => c.WeekTo).ToList();
-            for (var index = 1; index < ordered.Count; index++)
-            {
-                var previous = ordered[index - 1]; var current = ordered[index];
-                if (current.WeekFrom <= previous.WeekTo)
-                {
-                    // A phase may be split into page sections for the same week. That is safe
-                    // only when the source ranges are disjoint; extracted duplicate slots are
-                    // rejected again when the chunks are merged.
-                    Validation.Require(current.PageFrom > previous.PageTo || current.PageTo < previous.PageFrom,
-                        $"Extraction chunks for phase '{group.Key.Phase}' overlap in their source pages. Review the outline before continuing.", 422);
-                }
-                else
-                {
-                    Validation.Require(current.WeekFrom == previous.WeekTo + 1,
-                        $"Extraction chunks for phase '{group.Key.Phase}' skip a week. Review the outline before continuing.", 422);
-                }
-            }
-        }
-    }
-
-    public static List<ImportChunk> ReadChunks(string json)
-        => string.IsNullOrWhiteSpace(json) ? [] : Json.Read<List<ImportChunk>>(json);
-
-    public static List<ImportReviewIssue> ReadNotices(string json)
-        => string.IsNullOrWhiteSpace(json) ? [] : Json.Read<List<ImportReviewIssue>>(json);
-
-    public static void ValidateChunkPages(IEnumerable<ImportChunk> chunks, string coverageJson)
-    {
-        if (string.IsNullOrWhiteSpace(coverageJson)) return;
-        var coverage = Json.Read<List<PdfPageCoverage>>(coverageJson);
-        if (coverage.Count == 0) return;
-        var pageCount = coverage.Max(page => page.Page);
-        foreach (var chunk in chunks)
-            Validation.Require(chunk.PageFrom <= pageCount && chunk.PageTo <= pageCount,
-                $"Extraction chunk '{chunk.Label}' refers to pages outside this PDF. Review the outline and retry.", 422);
-    }
-
-    public static void ValidateDraftPages(ImportDraft draft, string coverageJson)
-    {
-        if (string.IsNullOrWhiteSpace(coverageJson)) return;
-        var coverage = Json.Read<List<PdfPageCoverage>>(coverageJson);
-        if (coverage.Count == 0) return;
-        var pageCount = coverage.Max(page => page.Page);
-        foreach (var page in draft.Workouts.SelectMany(workout =>
-                     new[] { workout.SourcePage }.Concat(workout.Exercises.Select(exercise => exercise.SourcePage))
-                         .Concat(workout.Exercises.SelectMany(exercise => exercise.Sets).Select(set => set.SourcePage))))
-            Validation.Require(page is null || page.Value <= pageCount,
-                "The extracted program refers to a source page outside this PDF. Review the draft and retry.", 422);
-    }
 }

@@ -356,64 +356,31 @@ public sealed class ExerciseHistoryClear : OwnedRecord
 public sealed class AiImport : OwnedRecord
 {
     public string Status { get; set; } = ImportStatus.Pending;
-    public string DocumentHash { get; set; } = "";
     public string PromptVersion { get; set; } = "";
     public string FileName { get; set; } = "";
     public int Pages { get; set; }
     public string DraftJson { get; set; } = "";
-    /// Immutable copy of the normalized draft when extraction reaches Ready.
+    /// Immutable copy of the normalized draft when the draft is first converted.
     public string DraftBaselineJson { get; set; } = "";
     public string Error { get; set; } = "";
     public string Model { get; set; } = "";
     public string Stage { get; set; } = "done";
-    public string OutlineJson { get; set; } = "";
     public string AlternativesJson { get; set; } = "[]";
     public string SelectedAlternativeId { get; set; } = "";
-    public int ChunksDone { get; set; }
-    public int ChunksTotal { get; set; }
-    public int Calls { get; set; }
     public int UnresolvedCount { get; set; }
-    // Legacy persisted state retained for database compatibility; review mappings use the
-    // searchable picker now.
-    public bool CatalogStale { get; set; }
-    public long InputTokens { get; set; }
-    public long CachedInputTokens { get; set; }
-    public long OutputTokens { get; set; }
-    public int Retries { get; set; }
-    /// Durable execution lease used to fence duplicate workers across instances. A stale worker
-    /// may finish a provider call, but it cannot commit after another lease has taken ownership.
-    public string LeaseId { get; set; } = "";
-    public DateTime? LeaseUntil { get; set; }
-    /// Successful section responses survive a later section failure so a retry
-    /// never pays for work that the provider already completed.
-    public string ChunkResultsJson { get; set; } = "";
-    public string PageCoverageJson { get; set; } = "[]";
-    /// Reconciliation notes recorded while reading, such as a section whose day count differed
-    /// from the outline's estimate. They are shown in review rather than failing the import.
+    /// Notes recorded about the import, such as the source being unverified or the version chosen. They are shown in review.
     public string NoticesJson { get; set; } = "[]";
     public Guid? ProgramId { get; set; }
     public DateTime Created { get; set; } = DateTime.UtcNow;
-    /// The page text the browser extracted from the PDF. The document itself never reaches this
-    /// server, so this is the entire source: it is cleared once the import reaches ready,
-    /// accepted, failed, or discarded, and an unfinished import expires after 24 hours.
-    public string SourceTextJson { get; set; } = "";
-    /// Exercise demonstration links read from the document's annotation layer, held only until the
-    /// sections are assembled and cleared with the source text.
-    public string LinksJson { get; set; } = "";
-    /// Transient section progress and bounded corrective-read reservations for resumable imports.
-    /// Cleared with the PDF text when the import reaches a terminal state.
-    public string WorkStateJson { get; set; } = "";
-    public DateTime? SourceExpiresAt { get; set; }
 }
 
 public static class ImportStatus
 {
     public const string Pending = "pending";
     public const string Ready = "ready";
-    public const string Failed = "failed";
     public const string Accepted = "accepted";
     public const string Discarded = "discarded";
-    public static readonly string[] All = [Pending, Ready, Failed, Accepted, Discarded];
+    public static readonly string[] All = [Pending, Ready, Accepted, Discarded];
 }
 
 public sealed class MutationReceipt

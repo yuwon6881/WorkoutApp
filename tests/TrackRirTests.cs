@@ -54,7 +54,7 @@ public sealed class TrackRirTests
         var import = new AiImport { Id = Guid.NewGuid(), UserId = user.Id, Status = ImportStatus.Ready, DraftJson = draft };
         h.Db.Imports.Add(import);
         await h.Db.SaveChangesAsync();
-        var imports = h.Imports(new NoProvider());
+        var imports = h.Imports();
 
         var tracked = await imports.Get(import.Id, default);
         Assert.Contains(tracked.ReviewIssues!, issue => issue.Code == "rpe_unread");
@@ -71,10 +71,4 @@ public sealed class TrackRirTests
         Assert.Equal("Strength", program.Name);
     }
 
-    /// Review and acceptance never call the model provider.
-    private sealed class NoProvider : HttpMessageHandler
-    {
-        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
-            => throw new InvalidOperationException("No provider call is expected.");
-    }
 }

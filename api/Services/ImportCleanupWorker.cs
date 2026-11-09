@@ -2,8 +2,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace Workout.Api.Services;
 
-/// Removes abandoned source objects and marks unfinished imports failed. The short interval keeps
-/// the temporary store bounded; the database expiry check remains the source of truth.
+/// Sweeps stale imports and other expired rows between the daily maintenance requests.
 public sealed class ImportCleanupWorker(IServiceScopeFactory scopes, ILogger<ImportCleanupWorker> log) : BackgroundService
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)

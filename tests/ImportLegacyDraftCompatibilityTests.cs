@@ -61,7 +61,7 @@ public sealed class ImportLegacyDraftCompatibilityTests
         Assert.Equal(uncertainty, result.Workouts.Single().Exercises.Single().Uncertainty);
         Assert.Equal(reference, result.Workouts.Single().Exercises.Single().Sets.Single().SourceReference);
         Assert.Equal(uncertainty, result.Workouts.Single().Exercises.Single().Sets.Single().Uncertainty);
-        var alternative = new ImportAlternative("a", "Option A", 0, 1) { Uncertainty = uncertainty };
+        var alternative = new ImportAlternative("a", "Option A", 1) { Uncertainty = uncertainty };
         Assert.Equal(uncertainty, Json.Read<ImportAlternative>(Json.Write(alternative)).Uncertainty);
     }
 

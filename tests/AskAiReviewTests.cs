@@ -92,15 +92,9 @@ public sealed class AskAiReviewTests
             new AiConversationTurn { UserId = db.CurrentUser.Value, ConversationId = conversation.Id, ClientTurnId = "recent",
                 CreatedAt = DateTime.UtcNow.AddDays(-1), Status = "Completed" });
         await db.SaveChangesAsync();
-        await harness.Imports(new NoProvider()).CleanupExpired(default);
+        await harness.Imports().CleanupExpired(default);
         var remaining = await db.AiConversationTurns.AsNoTracking().SingleAsync();
         Assert.Equal("recent", remaining.ClientTurnId);
-    }
-
-    private sealed class NoProvider : HttpMessageHandler
-    {
-        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken ct) =>
-            throw new InvalidOperationException("Cleanup must not call the provider.");
     }
 
     [Fact]

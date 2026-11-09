@@ -15,7 +15,7 @@ public sealed record ImportSourceReference(string Kind, int? Page = null, string
         if (reference is null) return;
         var valid = reference.Kind switch
         {
-            "pdfPage" => reference.Page is > 0 and <= ImportSourceText.MaxPages
+            "pdfPage" => reference.Page is > 0 and <= ProgramLimits.MaxSourcePage
                 && reference.Sheet is null && reference.Cell is null && reference.Text is null
                 && (legacyPage is null || legacyPage == reference.Page),
             "sheetCell" => legacyPage is null && reference.Page is null && reference.Text is null
