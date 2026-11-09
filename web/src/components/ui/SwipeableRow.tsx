@@ -51,7 +51,10 @@ export function SwipeableRow({
   const close = useCallback(() => {
     cancelAnimationFrame(frame.current); frame.current = 0;
     dragOffset.current = 0;
-    if (surface.current) surface.current.style.transform = 'translate3d(0, 0, 0)';
+    if (surface.current) {
+      surface.current.style.transition = '';
+      surface.current.style.transform = 'translate3d(0, 0, 0)';
+    }
     setOpen(false);
     setOffset(0);
   }, []);
@@ -131,7 +134,10 @@ export function SwipeableRow({
     if (shouldOpen && !open) haptic('detent');
     setOpen(shouldOpen);
     dragOffset.current = shouldOpen ? -actionsWidth : 0;
-    if (surface.current) surface.current.style.transform = `translate3d(${dragOffset.current}px, 0, 0)`;
+    if (surface.current) {
+      surface.current.style.transition = '';
+      surface.current.style.transform = `translate3d(${dragOffset.current}px, 0, 0)`;
+    }
     setOffset(shouldOpen ? -actionsWidth : 0);
   }, [actionsWidth, open]);
 
@@ -152,7 +158,10 @@ export function SwipeableRow({
     });
     setOpen(shouldOpen);
     dragOffset.current = shouldOpen ? -actionsWidth : 0;
-    if (surface.current) surface.current.style.transform = `translate3d(${dragOffset.current}px, 0, 0)`;
+    if (surface.current) {
+      surface.current.style.transition = '';
+      surface.current.style.transform = `translate3d(${dragOffset.current}px, 0, 0)`;
+    }
     setOffset(shouldOpen ? -actionsWidth : 0);
   }, [actionsWidth, close, open]);
 

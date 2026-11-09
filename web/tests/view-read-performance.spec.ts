@@ -26,6 +26,7 @@ test('the library loading skeleton follows its responsive layout in both themes'
 
 test('library metadata and insight ranges survive a return visit in memory', async ({ page }, info) => {
   await signIn(page);
+  const headers = { 'X-Workout-Request': '1', Origin: new URL(page.url()).origin };
   // Replacing an older remembered launch correctly invalidates reads. Measure reuse only after
   // starting from the confirmed shell, rather than racing that independent startup transition.
   await page.evaluate(() => localStorage.removeItem('workout-launch-snapshot'));
@@ -34,35 +35,109 @@ test('library metadata and insight ranges survive a return visit in memory', asy
   await page.clock.setFixedTime(Date.now());
   const catalog = await (await page.request.get('/api/exercises')).json();
   const exercise = catalog[0];
+  const created = await page.request.post('/api/templates', { headers, data: {
+    name: `Cached plan ${info.project.name} ${Date.now()}`, focus: '', note: '',
+    exercises: [{ exerciseId: exercise.id, sourceName: exercise.name, sets: [{ repMin: 8, repMax: 10, targetRpe: 8, restSeconds: 90, warmup: false }] }]
+  } });
+  expect(created.ok(), await created.text()).toBeTruthy();
+  const template = await created.json();
   const baseline = await (await page.request.get(`/api/exercises/${exercise.id}/insight?range=3m&page=0&size=20`)).json();
   let metadataReads = 0;
   const rangeReads = new Map<string, number>();
+  await page.route('**/api/bootstrap/launch', async route => {
+    const response = await route.fetch();
+    const launch = await response.json();
+    await route.fulfill({ json: {
+      ...launch,
+      activeWorkout: null,
+      nextWorkout: { id: template.id, name: template.name, week: 1, position: 0, focus: '', exerciseCount: 1 }
+    } });
+  });
   await page.route('**/api/exercises/last-performed', route => {
     metadataReads++;
-    return route.fulfill({ json: [] });
+    return route.fulfill({ json: [{ exerciseId: exercise.id, weightKg: 100, reps: 8, durationSeconds: null, finishedAt: '2026-10-27T12:00:00Z' }] });
   });
   await page.route(`**/api/exercises/${exercise.id}/insight?*`, route => {
     const range = new URL(route.request().url()).searchParams.get('range')!;
     rangeReads.set(range, (rangeReads.get(range) ?? 0) + 1);
     return route.fulfill({ json: { ...baseline, sessions: 2, totalHistoryRows: 2, setCount: 6 } });
   });
-  await page.goto('/exercises');
-  await expect.poll(() => metadataReads).toBe(1);
-  await page.getByRole('textbox', { name: 'Search exercises', exact: true }).fill(exercise.name);
-  await page.getByRole('button', { name: `View ${exercise.name} details`, exact: true }).click();
-  const dialog = page.getByRole('dialog', { name: exercise.name, exact: true });
-  await dialog.getByRole('button', { name: 'Progress range' }).click();
-  await page.getByRole('option', { name: 'Last month', exact: true }).click();
-  await expect.poll(() => rangeReads.get('1m')).toBe(1);
-  await dialog.getByRole('button', { name: 'Progress range' }).click();
-  await page.getByRole('option', { name: 'Last 3 months', exact: true }).click();
-  await expect(dialog.getByRole('button', { name: 'Progress range' })).toContainText('Last 3 months');
-  expect(rangeReads.get('3m')).toBe(1);
-  await dialog.screenshot({ path: info.outputPath('cached-insight.png') });
-  await dialog.getByRole('button', { name: 'Close dialog', exact: true }).click();
-  await page.getByRole('button', { name: 'Overview', exact: true }).click();
-  await expect(page.getByRole('heading', { name: 'Overview', exact: true })).toBeVisible();
-  await page.getByRole('button', { name: 'Exercises', exact: true }).click();
-  await expect(page.getByRole('textbox', { name: 'Search exercises', exact: true })).toBeVisible();
-  expect(metadataReads).toBe(1);
+  try {
+    await page.goto('/exercises');
+    await expect.poll(() => metadataReads).toBe(1);
+    await page.getByRole('textbox', { name: 'Search exercises', exact: true }).fill(exercise.name);
+    await page.getByRole('button', { name: `View ${exercise.name} details`, exact: true }).click();
+    const dialog = page.getByRole('dialog', { name: exercise.name, exact: true });
+    await dialog.getByRole('button', { name: 'Progress range' }).click();
+    await page.getByRole('option', { name: 'Last month', exact: true }).click();
+    await expect.poll(() => rangeReads.get('1m')).toBe(1);
+    await dialog.getByRole('button', { name: 'Progress range' }).click();
+    await page.getByRole('option', { name: 'Last 3 months', exact: true }).click();
+    await expect(dialog.getByRole('button', { name: 'Progress range' })).toContainText('Last 3 months');
+    expect(rangeReads.get('3m')).toBe(1);
+    await dialog.screenshot({ path: info.outputPath('cached-insight.png') });
+    await dialog.getByRole('button', { name: 'Close dialog', exact: true }).click();
+    await page.getByRole('button', { name: 'Overview', exact: true }).click();
+    await expect(page.getByRole('heading', { name: 'Overview', exact: true })).toBeVisible();
+    // NextWorkoutPlan on Overview must reuse the cached last-performed metadata rather than fetching it again.
+    await expect(page.locator('.hero-plan')).toBeVisible();
+    await expect(page.locator('.hero-plan')).toContainText(exercise.name);
+    await page.getByRole('button', { name: 'Exercises', exact: true }).click();
+    await expect(page.getByRole('textbox', { name: 'Search exercises', exact: true })).toBeVisible();
+    expect(metadataReads).toBe(1);
+  } finally {
+    await page.unrouteAll({ behavior: 'ignoreErrors' });
+    await page.request.delete(`/api/templates/${template.id}`, { headers });
+  }
+});
+
+test('overview next-workout plan shares last-performed metadata with the library', async ({ page }, info) => {
+  await signIn(page);
+  const headers = { 'X-Workout-Request': '1', Origin: new URL(page.url()).origin };
+  await page.evaluate(() => localStorage.removeItem('workout-launch-snapshot'));
+  await page.clock.setFixedTime(Date.now());
+  const catalog = await (await page.request.get('/api/exercises')).json();
+  const exercise = catalog[0];
+  const created = await page.request.post('/api/templates', { headers, data: {
+    name: `Overview share ${info.project.name} ${Date.now()}`, focus: '', note: '',
+    exercises: [{ exerciseId: exercise.id, sourceName: exercise.name, sets: [{ repMin: 8, repMax: 10, targetRpe: 8, restSeconds: 90, warmup: false }] }]
+  } });
+  expect(created.ok(), await created.text()).toBeTruthy();
+  const template = await created.json();
+  let metadataReads = 0;
+  let templateReads = 0;
+  await page.route('**/api/bootstrap/launch', async route => {
+    const response = await route.fetch();
+    const launch = await response.json();
+    await route.fulfill({ json: {
+      ...launch,
+      activeWorkout: null,
+      nextWorkout: { id: template.id, name: template.name, week: 1, position: 0, focus: '', exerciseCount: 1 }
+    } });
+  });
+  await page.route(`**/api/templates/${template.id}`, route => {
+    templateReads++;
+    return route.continue();
+  });
+  await page.route('**/api/exercises/last-performed', route => {
+    metadataReads++;
+    return route.fulfill({ json: [{ exerciseId: exercise.id, weightKg: 100, reps: 8, durationSeconds: null, finishedAt: '2026-10-27T12:00:00Z' }] });
+  });
+  try {
+    await page.goto('/');
+    await expect(page.locator('.hero-plan')).toBeVisible();
+    await expect(page.locator('.hero-plan')).toContainText(exercise.name);
+    expect(metadataReads).toBe(1);
+    expect(templateReads).toBe(1);
+    await page.getByRole('button', { name: 'Exercises', exact: true }).click();
+    await expect(page.getByRole('textbox', { name: 'Search exercises', exact: true })).toBeVisible();
+    expect(metadataReads).toBe(1);
+    await page.getByRole('button', { name: 'Overview', exact: true }).click();
+    await expect(page.locator('.hero-plan')).toBeVisible();
+    expect(metadataReads).toBe(1);
+    expect(templateReads).toBe(1);
+  } finally {
+    await page.unrouteAll({ behavior: 'ignoreErrors' });
+    await page.request.delete(`/api/templates/${template.id}`, { headers });
+  }
 });
