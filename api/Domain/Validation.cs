@@ -90,7 +90,8 @@ public static class Validation
                 Number(target, 6, 10, "Target RPE");
                 Require(Math.Abs(target * 2 - Math.Round(target * 2)) < 1e-9, "Target RPE must use whole or half points.");
             }
-            else Require(!requireWorkingRpe || set.Warmup, "Working sets need a target RPE between 6 and 10.");
+            // Reps in reserve is the same effort stated the other way, so a set that gives it needs no RPE as well.
+            else Require(!requireWorkingRpe || set.Warmup || !string.IsNullOrWhiteSpace(set.Rir), "Working sets need a target RPE between 6 and 10, or reps in reserve.");
             if (set.RestSeconds is { } rest) Require(rest is >= 0 and <= 3600, "Rest must be between 0 and 3600 seconds.");
             Require(set.SourcePage is null || set.SourcePage.Value is > 0 and <= ImportSourceText.MaxPages, "Set source page is invalid.");
             if (!set.Warmup) workingStarted = true;

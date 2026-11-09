@@ -69,7 +69,8 @@ export function validatePrescription(set: ValidatablePrescription, requireWorkin
   if (set.repMin !== null && set.repMax !== null && set.repMin > set.repMax) return 'The lowest rep target cannot exceed the highest.';
   const targetRpe = validateRpe(set.targetRpe, 'Target RPE');
   if (targetRpe) return targetRpe;
-  if (requireWorkingRpe) {
+  // Reps in reserve states the same effort, so a set that gives it needs no RPE as well.
+  if (requireWorkingRpe && !set.rir?.trim()) {
     const targetError = validateTargetRpe(set.targetRpe, set.warmup);
     if (targetError) return targetError;
   }

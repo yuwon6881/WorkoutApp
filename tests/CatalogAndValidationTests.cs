@@ -109,6 +109,13 @@ public class CatalogAndValidationTests
         Validation.Prescriptions([new(8, 12, 8, null, null, null, null)]);
     }
 
+    [Fact] public void A_working_set_that_states_reps_in_reserve_does_not_also_need_an_rpe()
+    {
+        Validation.Prescriptions([new(8, 8, null, null, null, null, null, Rir: "3")], requireWorkingRpe: true);
+        Assert.Throws<DomainException>(() => Validation.Prescriptions([new(8, 8, null, null, null, null, null)], requireWorkingRpe: true));
+        Assert.Throws<DomainException>(() => Validation.Prescriptions([new(8, 8, null, null, null, null, null, Rir: " ")], requireWorkingRpe: true));
+    }
+
     [Fact] public void An_exercise_needs_at_least_one_set()
         => Assert.Throws<DomainException>(() => Validation.Prescriptions([]));
 

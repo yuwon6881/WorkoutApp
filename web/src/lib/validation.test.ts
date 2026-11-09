@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { TemplateExercise } from '../types';
 import type { ImportDraft } from '../types';
-import { validateLoggedSet, validateProgramEditorDocument, validateTemplateDraft } from './validation';
+import { validateLoggedSet, validatePrescription, validateProgramEditorDocument, validateTemplateDraft } from './validation';
 
 const exercise = (): TemplateExercise => ({
   id: 'exercise-row', exerciseId: 'exercise', sourceName: 'Bench press', name: 'Bench press', note: '', position: 0,
@@ -10,6 +10,13 @@ const exercise = (): TemplateExercise => ({
 });
 
 describe('application-owned validation', () => {
+  it('accepts reps in reserve in place of a working-set RPE', () => {
+    const set = { ...exercise().sets[0], targetRpe: null };
+    expect(validatePrescription(set, true)).toMatch(/target RPE/);
+    expect(validatePrescription({ ...set, rir: '3' }, true)).toBeUndefined();
+    expect(validatePrescription({ ...set, rir: ' ' }, true)).toMatch(/target RPE/);
+  });
+
 
   const programDraft = (): ImportDraft => ({ programName: 'Four day plan', workouts: Array.from({ length: 7 }, (_, index) => ({
     lineId: `day-${index}`, week: 1, weekId: 'week-1', blockId: 'block-1', name: index < 5 ? `Day ${index + 1}` : `Rest ${index - 4}`,
