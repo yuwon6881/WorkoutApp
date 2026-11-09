@@ -463,9 +463,6 @@
   margin-top: 1rem;
 }
 
-.irev-source-references { min-width: 0; overflow-wrap: anywhere; }
-.irev-source-references summary { cursor: pointer; min-height: 44px; display: flex; align-items: center; }
-.irev-source-references ul { margin: 0; padding-inline-start: 1.5rem; }
 
 .irev-uncertainty-confirm {
   display: flex;

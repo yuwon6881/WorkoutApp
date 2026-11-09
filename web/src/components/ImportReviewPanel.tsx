@@ -6,7 +6,6 @@ import { Field } from './ui/Field';
 import { Button } from './ui/Button';
 import { ImportReviewIssues } from './ImportReviewIssues';
 import { GymSwitcher } from './GymSwitcher';
-import { ImportSourceReferences } from './ImportSourceReferences';
 import { useGymAvailabilityCheck } from '../lib/gymAvailability';
 import './ImportReview.css';
 
@@ -103,9 +102,6 @@ export const ImportReviewPanel = forwardRef<HTMLElement, {
         </section>
       )}
 
-      {(view.reviewIssues ?? []).some(issue => issue.code === 'external_source_unverified') &&
-        <p className="muted irev-notice-copy">WorkoutApp has not checked this JSON against the original document.</p>}
-      {(view.reviewIssues ?? []).some(issue => issue.code === 'external_source_unverified') && <ImportSourceReferences draft={draft} />}
       <ImportReviewIssues rows={attentionRows} onFocusIssue={onFocusIssue} />
       {hasUncertainty && (
         <section className="irev-uncertainty" aria-label="Uncertain import details">

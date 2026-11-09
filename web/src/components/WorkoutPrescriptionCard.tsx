@@ -3,6 +3,7 @@ import { AlertTriangle, ArrowLeftRight, Dumbbell, FileText, Link2, Plus, Refresh
 import type { Exercise, SetPrescription, TemplateExercise } from '../types';
 import { restOptions } from '../lib/training';
 import { demoUrlForName } from '../lib/demoLinks';
+import { MAX_SUBSTITUTIONS } from '../lib/validation';
 import { Button } from './ui/Button';
 import { DemoLink } from './ui/DemoLink';
 import { TextAreaField } from './ui/Field';
@@ -56,7 +57,7 @@ export function WorkoutPrescriptionCard({
     if (!matched) return;
     const oldLibrary = exercises.find(e => e.id === exercise.exerciseId);
     const oldName = oldLibrary?.name || exercise.name;
-    const remainingSubs = [oldName, ...exercise.substitutions.filter(s => s.toLowerCase() !== subName.toLowerCase())].slice(0, 2);
+    const remainingSubs = [oldName, ...exercise.substitutions.filter(s => s.toLowerCase() !== subName.toLowerCase())].slice(0, MAX_SUBSTITUTIONS);
     onUpdateExercise({
       name: matched.name,
       sourceName: matched.name,

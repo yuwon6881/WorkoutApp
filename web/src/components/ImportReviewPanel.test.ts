@@ -6,7 +6,7 @@ import { GymAvailabilityContext } from '../lib/gymAvailability';
 import { ImportReviewPanel } from './ImportReviewPanel';
 
 describe('import gym review', () => {
-  it('shows source references for days, exercises and prescriptions', () => {
+  it('keeps source references and the unchecked-file notice out of the review', () => {
     const draft = { programName: 'Plan', workouts: [{ lineId: 'd', name: 'Day one',
       sourceReference: { kind: 'sheetCell', sheet: 'Plan', cell: 'A1:B2' },
       exercises: [{ lineId: 'e', sourceName: 'Squat', exerciseId: null,
@@ -16,9 +16,11 @@ describe('import gym review', () => {
     const html = renderToStaticMarkup(createElement(ImportReviewPanel, { view, draft, attentionRows: [],
       onNameChange: () => {}, onNameCommit: () => {}, onFocusIssue: () => {} }));
     expect(html).toContain('Plan');
-    expect(html).toContain('A1:B2');
-    expect(html).toContain('page 3');
-    expect(html).toContain('Table row 4');
+    expect(html).not.toContain('A1:B2');
+    expect(html).not.toContain('page 3');
+    expect(html).not.toContain('Table row 4');
+    expect(html).not.toContain('Source references');
+    expect(html).not.toContain('has not checked');
   });
   it('shows uncertain details and an unchecked acknowledgement', () => {
     const draft = { programName: 'Plan', workouts: [] } as unknown as ImportDraft;

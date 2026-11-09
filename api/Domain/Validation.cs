@@ -18,7 +18,7 @@ public record SetPrescription(
 
 public static class Validation
 {
-    public const int MaxSubstitutions = 2;
+    public const int MaxSubstitutions = 6;
     public const int MinPrescriptionSets = 1;
     public static void Require(bool condition, string message, int status = 400)
     { if (!condition) throw new DomainException(message, status); }
@@ -106,7 +106,7 @@ public static class Validation
 
     public static void Substitutions(List<string>? substitutions)
     {
-        Require(substitutions is null || substitutions.Count <= MaxSubstitutions, "An exercise can have at most 2 substitutions.");
+        Require(substitutions is null || substitutions.Count <= MaxSubstitutions, $"An exercise can have at most {MaxSubstitutions} substitutions.");
         foreach (var substitution in substitutions ?? []) Name(substitution, "Substitution", 160);
     }
 }

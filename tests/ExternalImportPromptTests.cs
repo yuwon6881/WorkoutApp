@@ -24,12 +24,12 @@ public sealed class ExternalImportPromptTests
     public void Prompt_makes_the_format_decisions_itself_instead_of_questioning_a_non_technical_user()
     {
         var prompt = ExternalImportPrompt.Text;
-        Assert.Contains("Do not ask the user any questions", prompt);
+        Assert.Contains("Never ask the user about this format", prompt);
         Assert.Contains("plain, everyday language", prompt);
         // The old instructions told the assistant to question the user; none of that may remain.
         Assert.DoesNotContain("Ask about genuine ambiguities", prompt);
-        // Every mention of asking the user must be a prohibition ("do not ask ...").
-        Assert.DoesNotMatch(@"(?<!not )\bask the user", prompt);
+        // Every mention of asking the user must be a prohibition ("do not ask ...", "never ask ...").
+        Assert.DoesNotMatch(@"(?<!not |Never )\bask the user", prompt);
         Assert.DoesNotContain("ask the user how to proceed", prompt, StringComparison.OrdinalIgnoreCase);
     }
 
@@ -37,12 +37,21 @@ public sealed class ExternalImportPromptTests
     [InlineData("lowest number")]                         // a range of set counts
     [InlineData("that many sets of type warmup")]         // count-only warm-ups
     [InlineData("separate consecutive exercises")]        // top set and back-off rows
-    [InlineData("up to 2 in total")]                      // alternatives beyond the limit
+    [InlineData("up to 6 in total")]                      // alternatives beyond the limit
     [InlineData("only where the source prints one")]      // rest days are not padded
     [InlineData("Optional")]                              // optional days and exercises
     [InlineData("the app asks the user which to follow")] // versions such as Week 10A and 10B
     [InlineData("repsText")]                              // 3/3, 10 sec and similar notation
     public void Prompt_states_a_default_for_each_decision_the_assistant_would_otherwise_ask_about(string rule)
+        => Assert.Contains(rule, ExternalImportPrompt.Text);
+
+    [Theory]
+    [InlineData("Questions you may ask")]                  // only program decisions, never format questions
+    [InlineData("at most three")]                          // and only a few, asked together
+    [InlineData("Never copy the exercise notes")]          // set notes are set specific
+    [InlineData("75% 1RM")]                                // percentage loads live in loadText
+    [InlineData("never write substitutions into notes")]   // the app swaps them in
+    public void Prompt_keeps_notes_loads_substitutions_and_questions_in_their_own_places(string rule)
         => Assert.Contains(rule, ExternalImportPrompt.Text);
 
     [Fact]

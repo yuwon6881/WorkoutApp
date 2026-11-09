@@ -107,8 +107,8 @@ public sealed partial class ProgramEditorService(ProgramService programs, AppDb 
                 Validation.Text(exercise.SourceName, 160, "Exercise name");
                 Validation.Text(exercise.Notes, 1000, "Exercise notes");
                 Validation.Text(exercise.SequenceGroup, 8, "Sequence group");
-                Validation.Require(exercise.Substitutions is null || exercise.Substitutions.Count <= 2,
-                    "An exercise can contain at most 2 substitutions.");
+                Validation.Require(exercise.Substitutions is null || exercise.Substitutions.Count <= Validation.MaxSubstitutions,
+                    $"An exercise can contain at most {Validation.MaxSubstitutions} substitutions.");
                 var sets = exercise.Sets ?? throw new DomainException("An exercise must include its set list.");
                 Validation.Require(sets.Count <= 24, "An exercise can contain at most 24 sets.");
                 Validation.Require(sets.All(set => set is not null), "A set is missing.");

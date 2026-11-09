@@ -1,5 +1,6 @@
 import type { DraftExercise, DraftSet, DraftWorkout, Exercise, ImportDraft } from '../types';
 import { demoUrlForName } from './demoLinks';
+import { MAX_SUBSTITUTIONS } from './validation';
 
 /// Which occurrences of a movement a saved exercise edit reaches. A block is the unit a
 /// program prints a movement in, so it is the sensible default; the whole program is the wide end.
@@ -196,7 +197,7 @@ function applyLibraryChange(
   if (change.viaSubstitution && change.exerciseId !== undefined) {
     const replacement = library.find(item => item.id === change.exerciseId);
     const previous = library.find(item => item.id === exercise.exerciseId)?.name ?? exercise.sourceName;
-    next.substitutions = [previous, ...exercise.substitutions.filter(name => name.toLowerCase() !== replacement?.name.toLowerCase())].slice(0, 2);
+    next.substitutions = [previous, ...exercise.substitutions.filter(name => name.toLowerCase() !== replacement?.name.toLowerCase())].slice(0, MAX_SUBSTITUTIONS);
   }
   return next;
 }

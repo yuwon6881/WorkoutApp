@@ -3,6 +3,7 @@ import { AlertTriangle, ArrowLeftRight, Check, Dumbbell, Link2, Loader2, Plus, R
 import type { CustomExerciseCreated, DraftExercise, DraftSet, Exercise } from '../types';
 import { restOptions } from '../lib/training';
 import { demoUrlForName } from '../lib/demoLinks';
+import { MAX_SUBSTITUTIONS } from '../lib/validation';
 import { Button } from './ui/Button';
 import { DemoLink } from './ui/DemoLink';
 import { Select } from './ui/Select';
@@ -137,7 +138,7 @@ export function ExerciseEditor({ exercise: saved, exercises, allDayExercises, re
     );
     if (!matched) return;
     const currentLibraryName = exercises.find(e => e.id === exercise.exerciseId)?.name ?? exercise.sourceName;
-    const remainingSubs = [currentLibraryName, ...exercise.substitutions.filter(s => s.toLowerCase() !== subName.toLowerCase())].slice(0, 2);
+    const remainingSubs = [currentLibraryName, ...exercise.substitutions.filter(s => s.toLowerCase() !== subName.toLowerCase())].slice(0, MAX_SUBSTITUTIONS);
     const nextExercise: DraftExercise = {
       ...exercise,
       sourceName: matched.name,

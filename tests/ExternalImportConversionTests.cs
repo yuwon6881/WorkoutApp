@@ -58,7 +58,7 @@ public sealed class ExternalImportConversionTests
             case "structure": exercise["sets"] = "wrong"; break;
             case "domain": exercise["sets"]![0]!["rir"] = "99"; break;
             case "reference": exercise["sourceReference"]!["page"] = 0; break;
-            case "limit": exercise["substitutions"] = new JsonArray("one", "two", "three"); break;
+            case "limit": exercise["substitutions"] = new JsonArray("one", "two", "three", "four", "five", "six", "seven"); break;
             case "alternative": root["program"]!["alternativeGroups"]![0]!["members"]![0]!["dayKeys"]![0] = "absent"; break;
             case "required": exercise.AsObject().Remove("sourceName"); break;
             case "unknown": exercise["unexpected"] = 3; break;
@@ -78,7 +78,7 @@ public sealed class ExternalImportConversionTests
         var expectedMessage = family switch
         {
             "structure" => "list", "domain" => "numeric RIR", "reference" => "Correct the source reference",
-            "limit" => "at most 2 substitutions", "alternative" => "day keys", "required" => "required",
+            "limit" => "at most 6 substitutions", "alternative" => "day keys", "required" => "required",
             "unknown" => "Remove the unsupported", "demo" => "approved host", "set-type" => "Choose a supported set type", _ => null
         };
         if (expectedMessage is not null) Assert.Contains(expectedMessage, error.Message, StringComparison.OrdinalIgnoreCase);

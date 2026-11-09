@@ -122,7 +122,7 @@ public sealed partial class ImportService
         ExternalImportPath.At(path + ".substitutions", () => Validation.Substitutions(exercise.Substitutions));
         var sets = exercise.Sets!.Select((set, index) => {
             var setPath = $"{path}.sets[{index}]";
-            return ExternalImportPath.At(setPath, () => ConvertExternalSet(set, setPath));
+            return ExternalImportPath.At(setPath, () => ConvertExternalSet(set, setPath, exercise.Notes));
         }).ToList();
         foreach (var (set, index) in sets.Select((item, index) => (item, index)))
             ExternalImportPath.At($"{path}.sets[{index}]", () => Validation.Prescriptions([ImportValidation.ToPrescription(set)]));
@@ -154,7 +154,14 @@ public sealed partial class ImportService
         return accepted;
     }
 
-    private static DraftSet ConvertExternalSet(ExternalSet set, string path)
+    /// A set note that only repeats the exercise note says nothing new; the exercise already shows it once.
+    private static string? SetSpecificNote(string? setNote, string? exerciseNote)
+    {
+        if (string.IsNullOrWhiteSpace(setNote)) return setNote;
+        return string.Equals(setNote.Trim(), exerciseNote?.Trim(), StringComparison.OrdinalIgnoreCase) ? null : setNote;
+    }
+
+    private static DraftSet ConvertExternalSet(ExternalSet set, string path, string? exerciseNotes)
     {
         if (set is null) throw new DomainException("Add the missing set object.");
         ExternalImportPath.Reference(path + ".sourceReference", set.SourceReference);
@@ -175,7 +182,8 @@ public sealed partial class ImportService
             _ => throw new DomainException("Choose a supported set type: normal, warmup, dropset, amrap, myoreps, partials, lengthenedPartials, integratedPartials, or pause.")
         });
         ExternalImportPath.At(path + ".warmup", () => Validation.Require(!set.Warmup || set.Type is null or "warmup", "Use the warmup type for a warm-up set; it cannot have another set type."));
-        var notes = technique is null ? set.Notes : string.IsNullOrWhiteSpace(set.Notes) ? technique : $"{set.Notes} — {technique}";
+        var setNote = SetSpecificNote(set.Notes, exerciseNotes);
+        var notes = technique is null ? setNote : string.IsNullOrWhiteSpace(setNote) ? technique : $"{setNote} — {technique}";
         var (targetRpe, rir, effortNote) = ExternalImportEffort.Express(set.TargetRpe, set.Rir);
         // A printed rest the file gives only as text ("1-2 MIN", "30SEC") still has to set the timer, as it does
         // for a PDF import. Seconds the file states win; text that is not a rest adds nothing.

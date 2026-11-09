@@ -268,6 +268,34 @@ public sealed class ExternalImportReviewFollowUpTests
     }
 
     [Fact]
+    public async Task A_set_note_that_repeats_the_exercise_note_is_dropped_and_a_set_specific_one_is_kept()
+    {
+        const string file = """
+        {"version":1,"program":{"name":"P","days":[{"key":"a","week":1,"name":"A","exercises":[
+          {"sourceName":"Bench press","notes":"Keep your hips down.","sets":[
+            {"repMin":8,"repMax":10,"loadText":"75% 1RM","notes":"Keep your hips down."},
+            {"repMin":8,"repMax":10,"notes":"  keep your hips DOWN. "},
+            {"repMin":6,"repMax":8,"notes":"Last set: add a pause."}]}]}]}}
+        """;
+        var sets = (await (await Ready()).CreateExternalImport(file, "p.json", default)).Draft!.Workouts[0].Exercises[0].Sets;
+        Assert.Null(sets[0].Notes);
+        Assert.Null(sets[1].Notes);
+        Assert.Equal("Last set: add a pause.", sets[2].Notes);
+        Assert.Equal("75% 1RM", sets[0].LoadText);
+    }
+
+    [Fact]
+    public async Task An_exercise_can_list_up_to_six_substitutions_for_the_swap_picker()
+    {
+        string File(int count) => "{\"version\":1,\"program\":{\"name\":\"P\",\"days\":[{\"key\":\"a\",\"week\":1,\"name\":\"A\",\"exercises\":["
+            + "{\"sourceName\":\"Bench press\",\"substitutions\":[" + string.Join(',', Enumerable.Range(1, count).Select(i => $"\"Option {i}\""))
+            + "],\"sets\":[{\"repMin\":8,\"repMax\":10}]}]}]}}";
+        var ok = await (await Ready()).CreateExternalImport(File(6), "p.json", default);
+        Assert.Equal(6, ok.Draft!.Workouts[0].Exercises[0].Substitutions.Count);
+        await Assert.ThrowsAsync<DomainException>(async () => await (await Ready()).CreateExternalImport(File(7), "p.json", default));
+    }
+
+    [Fact]
     public async Task A_value_the_file_states_stays_marked_as_supplied_rather_than_checked()
     {
         const string file = """

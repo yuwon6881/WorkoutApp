@@ -49,9 +49,11 @@ export function validateTargetRpe(value: number | null, warmup = false): string 
   return undefined;
 }
 
+export const MAX_SUBSTITUTIONS = 6;
+
 function validateSubstitutions(substitutions: string[] | null | undefined): string | undefined {
   if (!substitutions) return undefined;
-  if (substitutions.length > 2) return 'An exercise can have at most 2 substitutions.';
+  if (substitutions.length > MAX_SUBSTITUTIONS) return `An exercise can have at most ${MAX_SUBSTITUTIONS} substitutions.`;
   return substitutions.map(value => validateName(value, 'Substitution', 160)).find(Boolean);
 }
 
