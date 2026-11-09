@@ -205,6 +205,14 @@
   overflow: auto;
 }
 
+/* The shared focus treatment is an accent border plus a glow ring; on a large dark code box the ring reads as a
+   second outline. The accent border alone still marks focus clearly. */
+.iep-paste-input:focus,
+.iep-paste-input:focus-visible { box-shadow: none; }
+
+/* The global small-copy is 10px with a top margin, too small for the one instruction above the box. */
+.iep-paste-field .small-copy { display: block; margin: 0; font-size: 0.875rem; color: var(--muted); line-height: 1.4; }
+
 .iep-paste-bar {
   display: flex;
   flex-wrap: wrap;

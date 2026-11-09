@@ -208,6 +208,35 @@ public sealed class ExternalImportReviewFollowUpTests
     }
 
     [Fact]
+    public async Task Program_versions_in_one_file_each_keep_their_own_phase_weeks()
+    {
+        // Versions of one program (a full run and each phase alone) reuse the week numbers while the phases differ. Numbering phase weeks across the whole file
+        // interleaved them and squashed weeks 3 to 6 into "week 2", so each version is numbered by itself.
+        string Days(string prefix, string phase) => string.Join(",", Enumerable.Range(1, 4).Select(week =>
+            "{\"key\":\"" + prefix + week + "\",\"week\":" + week + ",\"name\":\"A\",\"block\":\"Block 1\",\"phase\":\"" + phase + "\",\"phaseWeek\":" + week
+            + ",\"exercises\":[{\"sourceName\":\"Bench press\",\"sets\":[{\"repMin\":8,\"repMax\":10}]}]}"));
+        var keys = (string prefix) => string.Join(",", Enumerable.Range(1, 4).Select(week => "\"" + prefix + week + "\""));
+        var file = "{\"version\":1,\"program\":{\"name\":\"P\",\"days\":[" + Days("x", "Phase 1") + "," + Days("y", "Phase 2") + "],\"alternativeGroups\":[{\"id\":\"v\",\"kind\":\"program\",\"members\":["
+            + "{\"id\":\"one\",\"name\":\"One\",\"dayKeys\":[" + keys("x") + "]},{\"id\":\"two\",\"name\":\"Two\",\"dayKeys\":[" + keys("y") + "]}]}]}}";
+        var view = await (await Ready()).CreateExternalImport(file, "p.json", default);
+
+        Assert.Equal([1, 2, 3, 4, 1, 2, 3, 4], view.Draft!.Workouts.Select(day => day.PhaseWeek));
+    }
+
+    [Theory]
+    [InlineData("dropset", "Two Drop Sets (~25% per)", "Two Drop Sets (~25% per)")]
+    [InlineData("myoreps", "Myo-reps", "Myo-reps")]
+    [InlineData("lengthenedPartials", "Lengthened Partials (Extend Set)", "Lengthened Partials (Extend Set)")]
+    [InlineData("dropset", "Reduce the weight 25%", "Reduce the weight 25% — Dropset")]
+    public async Task A_set_type_is_named_in_the_set_note_only_when_the_note_does_not_already_say_it(string type, string note, string expected)
+    {
+        var file = "{\"version\":1,\"program\":{\"name\":\"P\",\"days\":[{\"key\":\"a\",\"week\":1,\"name\":\"A\",\"exercises\":["
+            + "{\"sourceName\":\"Bench press\",\"sets\":[{\"repMin\":8,\"repMax\":10,\"type\":\"" + type + "\",\"notes\":\"" + note + "\"}]}]}]}}";
+        var set = (await (await Ready()).CreateExternalImport(file, "p.json", default)).Draft!.Workouts[0].Exercises[0].Sets[0];
+        Assert.Equal(expected, set.Notes);
+    }
+
+    [Fact]
     public async Task A_supported_effort_is_left_alone()
     {
         const string file = """

@@ -71,7 +71,7 @@ public sealed partial class ImportService
         // A phase's weeks count from one inside each run of that phase. A file that numbers them across the whole
         // program (an alternating Odd Week / Even Week schedule, say) uses a numbering convention, not a missing week;
         // the PDF reader renumbers it the same way, and the absolute weeks stay exactly as the file gave them.
-        draft = draft with { Workouts = ImportValidation.NormalizePhaseWeeks(draft.Workouts).Workouts };
+        draft = ImportValidation.NumberPhaseWeeks(draft);
         foreach (var (day, index) in draft.Workouts.Select((item, index) => (item, index)))
         {
             var dayPath = $"$.program.days[{index}]";
@@ -155,6 +155,13 @@ public sealed partial class ImportService
     }
 
     /// A set note that only repeats the exercise note says nothing new; the exercise already shows it once.
+    /// A note that already reads "Two Drop Sets" or "Myo-reps" does not need the type spelled out after it.
+    private static bool NamesTechnique(string? note, string technique)
+    {
+        static string Letters(string text) => new(text.Where(char.IsLetter).Select(char.ToLowerInvariant).ToArray());
+        return !string.IsNullOrWhiteSpace(note) && Letters(note).Contains(Letters(technique), StringComparison.Ordinal);
+    }
+
     private static string? SetSpecificNote(string? setNote, string? exerciseNote)
     {
         if (string.IsNullOrWhiteSpace(setNote)) return setNote;
@@ -183,7 +190,8 @@ public sealed partial class ImportService
         });
         ExternalImportPath.At(path + ".warmup", () => Validation.Require(!set.Warmup || set.Type is null or "warmup", "Use the warmup type for a warm-up set; it cannot have another set type."));
         var setNote = SetSpecificNote(set.Notes, exerciseNotes);
-        var notes = technique is null ? setNote : string.IsNullOrWhiteSpace(setNote) ? technique : $"{setNote} — {technique}";
+        var notes = technique is null || NamesTechnique(setNote, technique) ? setNote
+            : string.IsNullOrWhiteSpace(setNote) ? technique : $"{setNote} — {technique}";
         var (targetRpe, rir, effortNote) = ExternalImportEffort.Express(set.TargetRpe, set.Rir);
         // A printed rest the file gives only as text ("1-2 MIN", "30SEC") still has to set the timer, as it does
         // for a PDF import. Seconds the file states win; text that is not a rest adds nothing.

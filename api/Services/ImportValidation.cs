@@ -253,7 +253,7 @@ internal static partial class ImportValidation
         Validation.Require(draft.Workouts is { Count: > 0 and <= 400 }, "A program needs between 1 and 400 days.");
         Validation.Require(draft.Workouts.All(w => w.Week is > 0 and <= 104), "Program weeks must be between 1 and 104.");
         Validation.Require(draft.Workouts.Select(w => w.LineId).Distinct().Count() == draft.Workouts.Count, "A program contains duplicate workout rows.");
-        foreach (var phase in GroupDraftPhases(draft.Workouts))
+        foreach (var phase in Versions(draft).SelectMany(GroupDraftPhases))
         {
             // Phase weeks count from one inside their phase. Imported drafts are renumbered before
             // they get here, so reaching this with a gap means an edit introduced one.
@@ -307,6 +307,26 @@ internal static partial class ImportValidation
         return (workouts.Select(day => mapped.TryGetValue(day.LineId, out var week) && week != day.PhaseWeek
             ? day with { PhaseWeek = week }
             : day).ToList(), true);
+    }
+
+    /// Versions of one program in a single file (a full run and each phase alone) share week numbers and differ in
+    /// phase, so grouping their days together interleaves them. Each version is judged by itself; days outside every
+    /// version are judged together. A draft without versions is one version.
+    public static ImportDraft NumberPhaseWeeks(ImportDraft draft)
+    {
+        var numbered = Versions(draft).SelectMany(version => NormalizePhaseWeeks(version).Workouts).ToDictionary(day => day.LineId);
+        return draft with { Workouts = [.. draft.Workouts.Select(day => numbered[day.LineId])] };
+    }
+
+    public static List<List<DraftWorkout>> Versions(ImportDraft draft)
+    {
+        var members = (draft.AlternativeGroups ?? [])
+            .Where(group => group.Members.Count > 0 && group.Members.All(member => member.Kind == ImportAlternativeKinds.Program))
+            .SelectMany(group => group.Members).Select(member => (member.DayLineIds ?? []).ToHashSet()).ToList();
+        if (members.Count == 0) return [draft.Workouts];
+        var versions = members.Select(ids => draft.Workouts.Where(day => ids.Contains(day.LineId)).ToList()).ToList();
+        versions.Add([.. draft.Workouts.Where(day => !members.Any(ids => ids.Contains(day.LineId)))]);
+        return [.. versions.Where(version => version.Count > 0)];
     }
 
     public static List<List<DraftWorkout>> GroupDraftPhases(IEnumerable<DraftWorkout> workouts)
