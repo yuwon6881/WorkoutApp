@@ -1,5 +1,5 @@
 import { forwardRef } from 'react';
-import { AlertTriangle, ChevronRight, Info } from 'lucide-react';
+import { AlertTriangle, Check, ChevronRight, HelpCircle, Info } from 'lucide-react';
 import type { ImportDraft, ImportView } from '../types';
 import type { AttentionRow, ImportIssueTarget } from '../lib/importAttentionRows';
 import { Field } from './ui/Field';
@@ -8,6 +8,27 @@ import { ImportReviewIssues } from './ImportReviewIssues';
 import { GymSwitcher } from './GymSwitcher';
 import { useGymAvailabilityCheck } from '../lib/gymAvailability';
 import './ImportReview.css';
+import './ImportUncertainty.css';
+
+/// Decides which field or surface within an exercise to highlight when inspecting an uncertainty issue.
+export function resolveUncertaintyTargetField(issue: {
+  message: string;
+  setIndex?: number | null;
+  targetField?: string | null;
+}): string | undefined {
+  if (issue.targetField) return issue.targetField;
+  if (issue.setIndex != null) {
+    if (/\b(rpe|rir)\b/i.test(issue.message)) return 'targetRpe';
+    if (/\breps?\b/i.test(issue.message)) return 'repMin';
+    if (/\brest\b/i.test(issue.message)) return 'rest';
+    return undefined;
+  }
+  if (/\brest\b/i.test(issue.message)) return 'rest';
+  if (/\b(set count|working sets?|sets? prescription|sets?)\b/i.test(issue.message)) {
+    return 'sets';
+  }
+  return undefined;
+}
 
 /// The head of the review step: the program name, what could not be linked to the catalog, and
 /// the items that block creating the program.
@@ -103,15 +124,107 @@ export const ImportReviewPanel = forwardRef<HTMLElement, {
       )}
 
       <ImportReviewIssues rows={attentionRows} onFocusIssue={onFocusIssue} />
-      {hasUncertainty && (
-        <section className="irev-uncertainty" aria-label="Uncertain import details">
-          <h3>Uncertain details</h3>
-          <ul>{view.reviewIssues?.filter(issue => issue.code === 'external_uncertainty').map((issue, index) =>
-            <li key={`${issue.exerciseLineId}-${issue.setIndex}-${index}`}>{issue.message}</li>)}</ul>
-          <label className="irev-uncertainty-confirm"><input type="checkbox" disabled={busy} checked={Boolean(acknowledgedUncertainty)}
-            onChange={event => onAcknowledgeUncertainty?.(event.target.checked)} /> I reviewed these uncertain details.</label>
-        </section>
-      )}
+      {hasUncertainty && (() => {
+        const uncertaintyIssues = (view.reviewIssues ?? []).filter(issue => issue.code === 'external_uncertainty');
+        return (
+          <section className="irev-uncertainty" aria-label="Uncertain import details">
+            <div className="irev-uncertainty-header">
+              <div className="irev-uncertainty-title-group">
+                <div className="irev-uncertainty-title-row">
+                  <span className="irev-uncertainty-icon-badge" aria-hidden="true">
+                    <HelpCircle size={16} />
+                  </span>
+                  <h3 className="irev-uncertainty-title">Uncertain details</h3>
+                  <span className="pill irev-count-pill">
+                    {uncertaintyIssues.length} {uncertaintyIssues.length === 1 ? 'item' : 'items'}
+                  </span>
+                </div>
+                <p className="muted irev-uncertainty-desc">
+                  Values flagged for your review. Confirm them below before creating the program.
+                </p>
+              </div>
+            </div>
+            <ul className="irev-uncertainty-list">
+              {uncertaintyIssues.map((issue, index) => {
+                const colonIndex = issue.message.indexOf(': ');
+                const hasColon = colonIndex > -1;
+                const subject = hasColon ? issue.message.slice(0, colonIndex) : null;
+                const reason = hasColon ? issue.message.slice(colonIndex + 2) : issue.message;
+                return (
+                  <li key={`${issue.exerciseLineId}-${issue.setIndex}-${index}`} className="irev-uncertainty-row" role="listitem">
+                    <div className="irev-uncertainty-row-main">
+                      <span className="irev-uncertainty-row-icon" aria-hidden="true">
+                        <HelpCircle size={15} />
+                      </span>
+                      <div className="irev-uncertainty-row-body">
+                        {subject ? (
+                          <>
+                            <div className="irev-uncertainty-row-title-line">
+                              <strong className="irev-uncertainty-row-title">{subject}</strong>
+                              {issue.sourcePage && (
+                                <span className="pill irev-source-pill" aria-label={`PDF page ${issue.sourcePage}`}>p.{issue.sourcePage}</span>
+                              )}
+                            </div>
+                            <span className="irev-uncertainty-row-reason">{reason}</span>
+                          </>
+                        ) : (
+                          <div className="irev-uncertainty-row-title-line">
+                            <span className="irev-uncertainty-row-message">{issue.message}</span>
+                            {issue.sourcePage && (
+                              <span className="pill irev-source-pill" aria-label={`PDF page ${issue.sourcePage}`}>p.{issue.sourcePage}</span>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    {issue.workoutLineId && issue.exerciseLineId && (
+                      <div className="irev-uncertainty-row-action">
+                        <Button
+                          variant="secondary"
+                          className="irev-action-btn irev-uncertainty-inspect-btn"
+                          aria-label={`Inspect ${issue.message}`}
+                          onClick={() => onFocusIssue({
+                            workoutLineId: issue.workoutLineId,
+                            exerciseLineId: issue.exerciseLineId,
+                            setIndex: issue.setIndex,
+                            sourcePage: issue.sourcePage,
+                            targetField: resolveUncertaintyTargetField(issue)
+                          })}
+                        >
+                          Inspect <ChevronRight size={14} />
+                        </Button>
+                      </div>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+            <div className={`irev-uncertainty-confirm-card ${acknowledgedUncertainty ? 'is-confirmed' : ''}`}>
+              <label className="irev-uncertainty-confirm">
+                <input
+                  type="checkbox"
+                  disabled={busy}
+                  checked={Boolean(acknowledgedUncertainty)}
+                  onChange={event => onAcknowledgeUncertainty?.(event.target.checked)}
+                  className="irev-uncertainty-checkbox"
+                />
+                <span className="irev-uncertainty-confirm-text">I reviewed these uncertain details.</span>
+              </label>
+              <div className="irev-uncertainty-confirm-status" aria-hidden="true">
+                {acknowledgedUncertainty ? (
+                  <span className="irev-uncertainty-chip irev-uncertainty-chip--confirmed">
+                    <Check size={13} /> Reviewed
+                  </span>
+                ) : (
+                  <span className="irev-uncertainty-chip irev-uncertainty-chip--pending">
+                    Confirmation required
+                  </span>
+                )}
+              </div>
+            </div>
+          </section>
+        );
+      })()}
     </section>
   );
 });

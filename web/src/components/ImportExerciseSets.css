@@ -70,6 +70,12 @@
   background: transparent;
   opacity: 1;
 }
+:root .import-exercise.iex-card .iex-set-list.issue-focus {
+  border-radius: var(--radius-control) !important;
+}
+:root .import-exercise.iex-card .iex-set-list .import-set.issue-focus {
+  border-radius: var(--radius-control);
+}
 :root .import-exercise.iex-card .iex-set-row {
   display: grid !important;
   grid-template-columns: var(--iex-type-width) minmax(0, 1fr) 44px !important;

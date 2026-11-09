@@ -1,0 +1,290 @@
+/* Uncertain details section in import review */
+
+.irev-uncertainty {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-top: 6px;
+  padding: 18px 20px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  min-width: 0;
+  transition: border-color var(--motion-control) ease,
+              background-color var(--motion-control) ease;
+}
+
+.irev-uncertainty-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+}
+
+.irev-uncertainty-title-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  flex: 1;
+}
+
+.irev-uncertainty-title-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  flex-wrap: wrap;
+}
+
+.irev-uncertainty-icon-badge {
+  display: inline-grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-control);
+  background: color-mix(in srgb, var(--amber) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--amber) 25%, transparent);
+  color: var(--amber);
+  flex-shrink: 0;
+}
+
+.irev-uncertainty-title {
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+  color: var(--text);
+  margin: 0;
+}
+
+.irev-uncertainty-desc {
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--font-secondary);
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+/* Uncertain details list */
+.irev-uncertainty-list {
+  list-style: none;
+  margin: 2px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.irev-uncertainty-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  min-width: 0;
+  transition: background-color var(--motion-control) ease,
+              border-color var(--motion-control) ease;
+}
+
+.irev-uncertainty-row:hover {
+  background: var(--surface-hover);
+  border-color: var(--border-hover);
+}
+
+.irev-uncertainty-row-main {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  min-width: 0;
+  flex: 1;
+}
+
+.irev-uncertainty-row-icon {
+  color: var(--amber);
+  flex-shrink: 0;
+  margin-top: 2px;
+  display: flex;
+  align-items: center;
+}
+
+.irev-uncertainty-row-body {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+  flex: 1;
+}
+
+.irev-uncertainty-row-title-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  flex-wrap: wrap;
+}
+
+.irev-uncertainty-row-title {
+  font-size: 14px;
+  font-weight: 650;
+  color: var(--text);
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.irev-uncertainty-row-message {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.irev-uncertainty-row-reason {
+  font-size: var(--font-secondary);
+  color: var(--muted);
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.irev-source-pill {
+  font-size: 10px;
+  padding: 2px 7px;
+  border-radius: var(--radius-pill);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+}
+
+.irev-uncertainty-row-action {
+  flex-shrink: 0;
+}
+
+/* Confirmation box / card */
+.irev-uncertainty-confirm-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 4px;
+  padding: 4px 10px 4px 6px;
+  border-radius: var(--radius-control);
+  background: color-mix(in srgb, var(--amber) 6%, var(--surface-raised));
+  border: 1px solid color-mix(in srgb, var(--amber) 25%, var(--border));
+  transition: background-color var(--motion-control) ease,
+              border-color var(--motion-control) ease;
+}
+
+.irev-uncertainty-confirm-card:hover {
+  border-color: color-mix(in srgb, var(--amber) 40%, var(--border-hover));
+}
+
+.irev-uncertainty-confirm-card.is-confirmed {
+  background: var(--accent-soft);
+  border-color: var(--accent-border);
+}
+
+.irev-uncertainty-confirm-card.is-confirmed:hover {
+  border-color: var(--accent-border-strong);
+}
+
+.irev-uncertainty-confirm {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 48px;
+  padding: 10px 10px;
+  flex: 1;
+  cursor: pointer;
+  user-select: none;
+  min-width: 0;
+}
+
+.irev-uncertainty-confirm:has(input:disabled) {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.irev-uncertainty-checkbox {
+  width: 20px;
+  height: 20px;
+  border-radius: 5px;
+  accent-color: var(--accent);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.irev-uncertainty-confirm-text {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.irev-uncertainty-confirm-status {
+  padding-right: 6px;
+  flex-shrink: 0;
+}
+
+.irev-uncertainty-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border-radius: var(--radius-pill);
+  font-size: var(--font-secondary);
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+}
+
+.irev-uncertainty-chip--pending {
+  color: var(--amber);
+  background: color-mix(in srgb, var(--amber) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--amber) 25%, transparent);
+}
+
+.irev-uncertainty-chip--confirmed {
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 15%, transparent);
+  border: 1px solid var(--accent-border);
+}
+
+@media (max-width: 639px) {
+  .irev-uncertainty {
+    padding: 14px 14px;
+  }
+  .irev-uncertainty-confirm-card {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 6px;
+    padding: 8px 10px 10px;
+  }
+  .irev-uncertainty-confirm {
+    padding: 4px 2px;
+    width: 100%;
+  }
+  .irev-uncertainty-confirm-status {
+    display: flex;
+    justify-content: flex-end;
+    padding: 0;
+  }
+  .irev-uncertainty-row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+  .irev-uncertainty-row-action {
+    display: flex;
+    justify-content: flex-end;
+  }
+}

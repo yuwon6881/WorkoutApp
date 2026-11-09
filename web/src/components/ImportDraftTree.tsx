@@ -90,6 +90,7 @@ export const DraftOutline = forwardRef<DraftOutlineHandle, {
 
     const reveal = () => {
       let attempts = 0;
+      let scrolled = false;
       const tryFocus = () => {
         const modalNode = document.querySelector<HTMLElement>(`[data-import-day="${day.lineId}"].day-detail-modal-body`);
         const rowNode = [...document.querySelectorAll<HTMLElement>('[data-import-day]')]
@@ -110,26 +111,74 @@ export const DraftOutline = forwardRef<DraftOutlineHandle, {
           return;
         }
         const scope = exerciseNode ?? dayNode;
-        const fields = [...scope.querySelectorAll<HTMLElement>('[data-import-field]')]
-          .filter(node => !target.targetField || node.dataset.importField === target.targetField)
-          .filter(node => target.setIndex == null || node.dataset.importSetIndex === String(target.setIndex));
-        const field = fields[0];
-        const control = field?.matches('input,button,textarea,[tabindex]')
-          ? field
-          : field?.querySelector<HTMLElement>('input,button,textarea,[tabindex]');
-        if (target.targetField && !control) {
-          if (++attempts < 30) window.setTimeout(tryFocus, 20);
-          return;
+        let destination: HTMLElement;
+        let highlight: HTMLElement;
+        let control: HTMLElement | null = null;
+
+        if (target.targetField === 'week') {
+          destination = weekNode ?? scope;
+          highlight = weekNode ?? dayNode;
+          control = weekNode ?? null;
+        } else if (target.targetField) {
+          const matchingFields = [...scope.querySelectorAll<HTMLElement>('[data-import-field]')]
+            .filter(node => node.dataset.importField === target.targetField);
+          const field = (target.setIndex != null
+            ? matchingFields.find(node => node.dataset.importSetIndex === String(target.setIndex) || node.querySelector(`[data-import-set-index="${target.setIndex}"]`))
+            : null) ?? matchingFields[0];
+          if (!field) {
+            if (++attempts < 30) {
+              window.setTimeout(tryFocus, 20);
+              return;
+            }
+            destination = exerciseNode ?? dayNode;
+            highlight = exerciseNode ?? dayNode;
+            control = exerciseNode ?? dayNode;
+          } else {
+            control = field.matches('input,button,textarea,[tabindex]')
+              ? field
+              : field.querySelector<HTMLElement>('input,button,textarea,[tabindex]');
+            destination = field;
+            highlight = field;
+          }
+        } else if (target.setIndex != null) {
+          const setRowContent = scope.querySelector<HTMLElement>(`[data-import-set-index="${target.setIndex}"]`);
+          const setRow = setRowContent ? (setRowContent.closest('.import-set') as HTMLElement ?? setRowContent) : null;
+          if (!setRow) {
+            if (++attempts < 30) {
+              window.setTimeout(tryFocus, 20);
+              return;
+            }
+            destination = exerciseNode ?? dayNode;
+            highlight = exerciseNode ?? dayNode;
+            control = exerciseNode ?? dayNode;
+          } else {
+            control = setRow.querySelector<HTMLElement>('input,button,textarea,[tabindex]') ?? setRow;
+            destination = setRow;
+            highlight = setRow;
+          }
+        } else {
+          destination = exerciseNode ?? dayNode;
+          highlight = exerciseNode ?? dayNode;
+          control = exerciseNode ?? dayNode;
         }
-        const destination = target.targetField === 'week' ? weekNode ?? scope : control ?? field ?? scope;
-        destination.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
+
+        if (!scrolled) {
+          destination.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
+          scrolled = true;
+        }
         // On a phone a focused text field raises the keyboard over the issue being shown; the
         // highlight already points at it, and a tap starts the edit.
         const focusable = control && (hasFinePointer() || !control.matches('input, textarea')) ? control : null;
-        focusable?.focus();
-        const highlight = target.targetField === 'week' ? weekNode ?? dayNode : field ?? exerciseNode ?? dayNode;
-        highlight.classList.add('issue-focus');
-        window.setTimeout(() => highlight.classList.remove('issue-focus'), 1800);
+        if (focusable) {
+          if (!focusable.hasAttribute('tabindex') && !focusable.matches('input,button,textarea,select,a[href]')) {
+            focusable.setAttribute('tabindex', '-1');
+          }
+          focusable.focus({ preventScroll: true });
+        }
+        if (!highlight.classList.contains('issue-focus')) {
+          highlight.classList.add('issue-focus');
+          window.setTimeout(() => highlight.classList.remove('issue-focus'), 1800);
+        }
         if (focusable && attempts < 15) {
           attempts++;
           window.setTimeout(tryFocus, 25);

@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
-import { writeFileSync } from 'node:fs';
+import { mkdirSync, writeFileSync } from 'node:fs';
+import { join, resolve } from 'node:path';
 import type { DraftSet, Exercise, ImportDraft, ImportView } from '../src/types';
 import { applySetType, type SetType } from '../src/lib/importSetTypes';
 import { ensureStructureIds } from '../src/lib/importDraftWeeks';
@@ -36,7 +37,12 @@ for (const theme of ['dark', 'light']) {
     let view: ImportView = { id: '00000000-0000-4000-8000-000000000091', status: 'ready', stage: 'done',
       fileName: 'Powerbuilding review.pdf', pages: 48, error: '', created: '2026-10-14T00:00:00Z', model: 'layout-fixture',
       chunksDone: 12, chunksTotal: 12, currentChunkLabel: null, unresolvedCount: 0, draft, unresolved: [],
-      acceptable: true, programId: null, reviewIssues: [{ code: 'external_uncertainty', message: 'Check the set count', severity: 'info' }], revision: 1 };
+      acceptable: true, programId: null, reviewIssues: [
+        { code: 'external_uncertainty', message: 'BACK SQUAT: Working sets are printed as a range (1-3); used the lowest set count (1)', severity: 'info', sourcePage: 3, workoutLineId: 'day-0', exerciseLineId: 'exercise-0-0' },
+        { code: 'external_uncertainty', message: 'BACK SQUAT: Check the movement', severity: 'info', sourcePage: 3, workoutLineId: 'day-0', exerciseLineId: 'exercise-0-0' },
+        { code: 'external_uncertainty', message: 'BACK SQUAT, set 2: Check reps', severity: 'info', sourcePage: 3, workoutLineId: 'day-0', exerciseLineId: 'exercise-0-0', setIndex: 1 },
+        { code: 'external_uncertainty', message: 'Check the set count', severity: 'info' }
+      ], revision: 1 };
     launch.activeWorkout = null;
     launch.exercises = catalog;
     launch.gym = { active: { id: 'gym', name: 'Lalaport', active: true, revision: 1,
@@ -54,7 +60,42 @@ for (const theme of ['dark', 'light']) {
     await expect(page.getByText('Review needed', { exact: true })).toBeVisible();
     const acknowledge = page.getByRole('checkbox', { name: 'I reviewed these uncertain details.' });
     await expect(page.getByRole('button', { name: 'Accept and create program' })).toBeDisabled();
+    const screenshotDir = resolve('..', 'artifacts', 'uncertainty-ui-screenshots');
+    mkdirSync(screenshotDir, { recursive: true });
+    await page.evaluate(() => { document.querySelector('.irev-uncertainty')?.scrollIntoView({ block: 'center' }); });
+    await page.locator('.irev-uncertainty').screenshot({ path: join(screenshotDir, `${info.project.name}-uncertainty-unconfirmed-${theme}.png`) });
+    await page.locator('.irev-panel').screenshot({ path: join(screenshotDir, `${info.project.name}-review-panel-unconfirmed-${theme}.png`) });
+
+    // Inspect working sets range -> opens Day modal and highlights set prescriptions, not rest timer
+    await page.getByRole('button', { name: /Inspect BACK SQUAT: Working sets/i }).click();
+    const dayModal = page.getByRole('dialog').filter({ has: page.locator('.day-detail-modal-body') });
+    await expect(dayModal).toBeVisible();
+    const setsList = dayModal.locator('[data-import-field="sets"]').first();
+    await expect(setsList).toHaveClass(/issue-focus/);
+    const restField = dayModal.locator('[data-import-field="rest"]').first();
+    await expect(restField).not.toHaveClass(/issue-focus/);
+    await expect(setsList).toBeInViewport();
+    await page.waitForTimeout(350);
+    await page.screenshot({ path: join(screenshotDir, `${info.project.name}-inspect-sets-${theme}.png`) });
+    await dayModal.getByRole('button', { name: 'Close dialog', exact: true }).click();
+    await expect(dayModal).toBeHidden();
+
+    // Inspect exercise movement -> opens Day modal and highlights exercise card, not rest timer
+    await page.getByRole('button', { name: /Inspect BACK SQUAT: Check the movement/i }).click();
+    await expect(dayModal).toBeVisible();
+    const exerciseCard = dayModal.locator('[data-import-exercise="exercise-0-0"]');
+    await expect(exerciseCard).toHaveClass(/issue-focus/);
+    await expect(restField).not.toHaveClass(/issue-focus/);
+    await expect(exerciseCard).toBeInViewport();
+    await page.waitForTimeout(350);
+    await page.screenshot({ path: join(screenshotDir, `${info.project.name}-inspect-exercise-${theme}.png`) });
+    await dayModal.getByRole('button', { name: 'Close dialog', exact: true }).click();
+    await expect(dayModal).toBeHidden();
+
     await acknowledge.check();
+    await page.evaluate(() => { document.querySelector('.irev-uncertainty')?.scrollIntoView({ block: 'center' }); });
+    await page.locator('.irev-uncertainty').screenshot({ path: join(screenshotDir, `${info.project.name}-uncertainty-confirmed-${theme}.png`) });
+    await page.locator('.irev-panel').screenshot({ path: join(screenshotDir, `${info.project.name}-review-panel-confirmed-${theme}.png`) });
     await expect(page.getByText('Ready to create', { exact: true })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Accept and create program' })).toBeEnabled();
     await page.evaluate(() => document.fonts.ready);

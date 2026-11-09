@@ -459,15 +459,3 @@
 .irev-gym-list { margin-top: 8px; border: 1px solid var(--border); border-radius: var(--radius-control); }
 .irev-gym-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 14px; }
 .irev-gym-row + .irev-gym-row { border-top: 1px solid var(--border); }
-.irev-uncertainty {
-  margin-top: 1rem;
-}
-
-
-.irev-uncertainty-confirm {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  min-height: 44px;
-  cursor: pointer;
-}
