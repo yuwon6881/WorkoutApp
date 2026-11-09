@@ -405,6 +405,84 @@ public sealed class ExternalImportReviewFollowUpTests
         Assert.Empty(h.Db.Imports.IgnoreQueryFilters().ToList());
     }
 
+    private static async Task<List<DraftSet>> SetsOf(string exerciseNotes, string setsJson)
+    {
+        var file = "{\"version\":1,\"program\":{\"name\":\"P\",\"days\":[{\"key\":\"a\",\"week\":1,\"name\":\"A\",\"exercises\":["
+            + "{\"sourceName\":\"Bench press\",\"notes\":\"" + exerciseNotes + "\",\"sets\":" + setsJson + "}]}]}}";
+        var view = await (await Ready()).CreateExternalImport(file, "p.json", default);
+        return view.Draft!.Workouts[0].Exercises[0].Sets;
+    }
+
+    [Fact]
+    public async Task A_pause_on_every_rep_makes_each_working_set_a_pause_set_and_leaves_warm_ups_alone()
+    {
+        var sets = await SetsOf("Slight 1 second pause at the bottom of each rep.",
+            "[{\"type\":\"warmup\",\"warmup\":true},{\"repMin\":8,\"repMax\":10},{\"repMin\":8,\"repMax\":10}]");
+
+        Assert.Null(SetTechniques.Of(sets[0].Notes));
+        Assert.All(sets.Skip(1), set => Assert.Equal(SetTechniques.Pause, SetTechniques.Of(set.Notes)));
+    }
+
+    [Fact]
+    public async Task A_set_that_already_has_another_technique_keeps_it_when_the_exercise_pauses_each_rep()
+    {
+        var sets = await SetsOf("Pause for 1 second in the stretch of each rep.",
+            "[{\"repMin\":8,\"repMax\":10},{\"repMin\":8,\"repMax\":10,\"type\":\"lengthenedPartials\"}]");
+
+        Assert.Equal(SetTechniques.Pause, SetTechniques.Of(sets[0].Notes));
+        Assert.Equal(SetTechniques.LengthenedPartials, SetTechniques.Of(sets[1].Notes));
+    }
+
+    [Fact]
+    public async Task A_note_that_says_not_to_pause_leaves_the_sets_straight()
+    {
+        var sets = await SetsOf("Do not pause between reps.", "[{\"repMin\":8,\"repMax\":10}]");
+
+        Assert.Null(SetTechniques.Of(sets[0].Notes));
+    }
+
+    [Fact]
+    public async Task A_21s_set_printed_as_segments_targets_their_total_and_keeps_the_printed_text()
+    {
+        const string file = """
+        {"version":1,"program":{"name":"P","days":[
+          {"key":"a","week":1,"name":"A","exercises":[
+            {"sourceName":"Bench press","notes":"First 7 reps bottom half of ROM, next 7 reps top half of ROM, last 7 reps full ROM.",
+             "sets":[{"repsText":"7/7/7"},{"repsText":"7/7/7"}]}]}]}}
+        """;
+        var view = await (await Ready()).CreateExternalImport(file, "p.json", default);
+
+        Assert.All(view.Draft!.Workouts[0].Exercises[0].Sets, set =>
+        {
+            Assert.Equal(21, set.RepMin);
+            Assert.Equal(21, set.RepMax);
+            Assert.Equal("7/7/7", set.RepsText);
+        });
+        Assert.DoesNotContain(view.ReviewIssues!, issue => issue.Code == "rep_technique_conflict");
+    }
+
+    private static string BlockDays(params (string Block, int Week)[] days)
+        => "{\"version\":1,\"program\":{\"name\":\"P\",\"days\":[" + string.Join(',', days.Select((day, index) =>
+            $"{{\"key\":\"d{index}\",\"week\":{day.Week},\"name\":\"Day {index}\",\"block\":\"{day.Block}\",\"exercises\":[{{\"sourceName\":\"Bench press\",\"sets\":[{{\"repMin\":8,\"repMax\":10}}]}}]}}")) + "]}}";
+
+    [Fact]
+    public async Task A_later_block_that_restarts_its_week_numbers_continues_after_the_block_before_it()
+    {
+        var view = await (await Ready()).CreateExternalImport(
+            BlockDays(("Block 1", 1), ("Block 1", 2), ("Block 2", 1), ("Block 2", 2), ("Block 3", 1)), "p.json", default);
+
+        Assert.Equal([1, 2, 3, 4, 5], view.Draft!.Workouts.Select(day => day.Week));
+    }
+
+    [Fact]
+    public async Task Days_of_different_blocks_inside_one_week_stay_in_that_week()
+    {
+        var view = await (await Ready()).CreateExternalImport(
+            BlockDays(("Strength", 1), ("Size", 1), ("Strength", 2), ("Size", 2)), "p.json", default);
+
+        Assert.Equal([1, 1, 2, 2], view.Draft!.Workouts.Select(day => day.Week));
+    }
+
     private static string Weeks(params int[] daysInEachWeek)
     {
         var days = daysInEachWeek.SelectMany((count, week) => Enumerable.Range(1, count).Select(day =>

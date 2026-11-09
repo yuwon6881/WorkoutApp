@@ -68,7 +68,11 @@ public sealed partial class ImportService
         }
         if (exerciseErrors.Count > 0) throw ExternalImportPath.Aggregate(exerciseErrors);
         var groups = ExternalImportPath.At("$.program.alternativeGroups", () => ExternalGroups(source.AlternativeGroups, dayKeys));
-        var draft = ImportValidation.NormalizeDraft(new ImportDraft(source.Name, days, ExternalImportCycle.Length(source.SourceWeekDays, days)) { AlternativeGroups = groups });
+        // Alternative versions each count from their own first week, so only a program without them is continued.
+        if (source.AlternativeGroups is not { Count: > 0 }) days = ExternalImportWeeks.Continue(days);
+        // A 21s-style "7/7/7" is one logged set whose target is the total, exactly as for a PDF.
+        var draft = ImportValidation.NormalizeDraft(ImportRomRepTotals.Apply(
+            new ImportDraft(source.Name, days, ExternalImportCycle.Length(source.SourceWeekDays, days)) { AlternativeGroups = groups }));
         // A phase's weeks count from one inside each run of that phase. A file that numbers them across the whole
         // program (an alternating Odd Week / Even Week schedule, say) uses a numbering convention, not a missing week;
         // the PDF reader renumbers it the same way, and the absolute weeks stay exactly as the file gave them.
@@ -142,8 +146,9 @@ public sealed partial class ImportService
                 }
             });
         }
-        return new DraftExercise(Guid.NewGuid(), exercise.SourceName, CatalogMatching.Find(library, exercise.SourceName),
-            exercise.Notes, sets, exercise.SequenceGroup ?? "", exercise.Substitutions, RestSeconds: exercise.RestSeconds,
+        var (matched, paused) = ImportPause.ForFile(library, exercise.SourceName, exercise.Notes, CatalogMatching.Find(library, exercise.SourceName), sets);
+        return new DraftExercise(Guid.NewGuid(), exercise.SourceName, matched,
+            exercise.Notes, paused,exercise.SequenceGroup ?? "", exercise.Substitutions, RestSeconds: exercise.RestSeconds,
             DemoUrl: demo, DemoLinks: links) { SourceReference = exercise.SourceReference, Uncertainty = exercise.Uncertainty };
     }
 
