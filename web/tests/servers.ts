@@ -9,16 +9,14 @@ const database = process.env.WORKOUT_TEST_DATABASE
   : resolve('tests', `.e2e-${randomUUID()}.db`);
 const webPort = process.env.WORKOUT_TEST_WEB_PORT || '5182';
 const apiPort = process.env.WORKOUT_TEST_API_PORT || '5183';
-const openAiPort = process.env.WORKOUT_TEST_OPENAI_PORT || '5184';
 const identityPort = process.env.WORKOUT_TEST_IDP_PORT || '5185';
 const apiArtifacts = process.env.WORKOUT_TEST_API_ARTIFACTS || resolve('..', 'artifacts', 'workout-e2e-api');
 const runApi = `dotnet run --project ../api/Workout.Api.csproj --artifacts-path "${apiArtifacts}" --no-launch-profile`;
 
-/// The end-to-end suite runs the real API against a disposable database, with the AI provider
-/// replaced by a local stand-in so an import can be exercised without a paid call.
+/// The end-to-end suite runs the real API against a disposable database; the AI provider is never
+/// called, because the specs that touch Ask AI intercept its requests in the browser.
 export const testServers = [
   { command: `node tests/mock-idp.mjs ${identityPort}`, url: `http://127.0.0.1:${identityPort}/.well-known/openid-configuration`, reuseExistingServer: true, timeout: 30000 },
-  { command: `node tests/mock-openai.mjs ${openAiPort}`, url: `http://127.0.0.1:${openAiPort}`, reuseExistingServer: true, timeout: 30000 },
   {
     // The seed command exits when it finishes, so it runs first and the server follows. This
     // exercises the real seeding path rather than inserting catalog rows behind its back.
@@ -41,7 +39,6 @@ export const testServers = [
       Identity__ReturnUrl: '/',
       OpenAi__ApiKey: 'e2e-test-key',
       OpenAi__Model: 'gpt-5.4-mini',
-      OpenAi__BaseUrl: `http://127.0.0.1:${openAiPort}/v1/responses`
     }
   },
   {

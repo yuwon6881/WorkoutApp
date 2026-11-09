@@ -154,7 +154,7 @@ export type DraftSet = {
 export type DraftExercise = { lineId: string; sourceName: string; exerciseId: string | null; notes: string | null; sets: DraftSet[]; sequenceGroup: string; substitutions: string[]; sourcePage?: number | null; sourceReference?: ImportSourceReference | null; uncertainty?: ImportUncertainty | null; slotKey?: string | null; restSeconds?: number | null; demoUrl?: string | null; demoLinks?: Record<string, string> | null; movementKey?: string | null };
 export type DraftWorkout = { lineId: string; week: number; name: string; focus: string | null; notes: string | null; exercises: DraftExercise[]; block: string | null; phase: string | null; phaseWeek: number; isRestDay: boolean; sourcePage?: number | null; sourceReference?: ImportSourceReference | null; blockId?: string | null; weekId?: string | null };
 /// sourceWeekDays is the longest week the source confirms (10 for a ten-day cycle); set by the server.
-export type ImportAlternativeMember = { id: string; name: string; chunkCount: number; dayCount: number; dayLineIds?: string[] | null; uncertainty?: ImportUncertainty | null };
+export type ImportAlternativeMember = { id: string; name: string; dayCount: number; dayLineIds?: string[] | null; uncertainty?: ImportUncertainty | null };
 export type ImportDraft = { programName: string; workouts: DraftWorkout[]; sourceWeekDays?: number | null;
   alternativeGroups?: { id: string; members: ImportAlternativeMember[] }[] | null;
   alternativeUncertainties?: { name: string; uncertainty: ImportUncertainty }[] | null };
@@ -162,10 +162,10 @@ export type ImportDraft = { programName: string; workouts: DraftWorkout[]; sourc
 /// structural IDs where the editor has assigned them.
 export type ProgramEditorDocument = ImportDraft;
 export type ImportView = {
-  id: string; status: 'pending' | 'ready' | 'failed' | 'accepted' | 'discarded';
-  fileName: string; pages: number; error: string; created: string; model: string; stage: 'select' | 'done' | 'failed'; unresolvedCount: number;
+  id: string; status: 'pending' | 'ready' | 'accepted' | 'discarded';
+  fileName: string; pages: number; error: string; created: string; model: string; stage: 'select' | 'done'; unresolvedCount: number;
   draft: ImportDraft | null; unresolved: { lineId: string; sourceName: string; slotKey?: string | null; block?: string | null; occurrences?: number }[]; acceptable: boolean; programId: string | null;
-  reviewIssues?: { code: string; message: string; severity: string; sourcePage?: number | null; workoutLineId?: string | null; exerciseLineId?: string | null; setIndex?: number | null; targetField?: string | null }[]; alternatives?: { id: string; name: string; chunkCount: number; dayCount: number; weekCount?: number | null; sessionsPerWeek?: number | null; kind?: 'program' | 'week'; description?: string | null; uncertainty?: ImportUncertainty | null }[]; selectedAlternativeId?: string | null;
+  reviewIssues?: { code: string; message: string; severity: string; sourcePage?: number | null; workoutLineId?: string | null; exerciseLineId?: string | null; setIndex?: number | null; targetField?: string | null }[]; alternatives?: { id: string; name: string; dayCount: number; kind?: 'program' | 'week'; description?: string | null; uncertainty?: ImportUncertainty | null }[]; selectedAlternativeId?: string | null;
   revision: number; canRestoreDraft?: boolean; restorableExerciseLineIds?: string[];
 };
 export type WorkoutHeroSummary = {

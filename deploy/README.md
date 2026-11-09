@@ -41,23 +41,9 @@ September 2026 five-minute memory windows reached a maximum aligned p99 of 0.675
 2 GiB service. This is production observation, not a representative 1 GiB capacity trial; keep 2 GiB
 until an authorized isolated trial passes the workload and recovery gates in [`COST_FINDINGS.md`](../COST_FINDINGS.md).
 
-PDF import needs nothing else: the browser reads the document's text on the
-device and posts it gzipped. The extract endpoint starts an in-process background pass and returns
-immediately; the browser polls the import row while the runner reads sections and commits them in
-outline order. Concurrency is 4 rather than 1 so those two-second polls do not queue behind each
-other and behind the account's other calls on the single instance; it is still one container, so
-the billing shape is unchanged.
-
 Deploys add `--cpu-boost`, which gives an instance extra CPU only while it starts, so a cold start is shorter without a running instance. The page also calls `GET /health?db=1` from its boot script so the cold start and the database wake-up overlap the script download; the database ping is reused for 30 seconds, so the public probe cannot keep the database awake.
 
-CPU throttling stays on — `--no-cpu-throttling` is deliberately absent. It would keep the
-background pass on CPU between polls, but it switches the service to instance-based billing for the
-whole lifetime of the instance rather than per request. An import spends almost all of its wall
-clock awaiting the model over HTTPS, so the throttled work is only response parsing and the merge
-pass, and those already get CPU on each poll. Import latency is governed by `OpenAi:ReasoningEffort`
-and `OpenAi:MaxConcurrentChunks` (16, so a typical book's sections run in about two waves rather
-than three), neither of which costs Cloud Run anything. A rate-limited or briefly unavailable
-provider answer (429/502/503/504) is retried twice with backoff before the section is reported.
+CPU throttling stays on: `--no-cpu-throttling` is deliberately absent, so billing stays per request.
 
 Request-based billing scales to zero when idle. A daily maintenance request runs the retention sweep; because the API is reachable
 without Cloud Run IAM, `/internal/import-maintenance` and `/internal/google-health-workout-sync` answer 404 unless the request carries a Google identity token
@@ -83,7 +69,7 @@ worker only after the durable claim path has been staged and measured.
 
 The API emits low-cardinality OpenTelemetry-compatible meters for route requests, database command
 kind/duration, and outbound OpenAI, Nutrition, Fitness Account, and other provider calls. SQL text,
-URLs, account IDs, PDF text, and tokens are excluded. The progress response is a bounded 30-second
+URLs, account IDs, and tokens are excluded. The progress response is a bounded 30-second
 memory cache keyed by account and source revisions; it is rebuildable after an instance restart.
 
 ## Database and secrets

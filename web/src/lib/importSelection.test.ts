@@ -11,17 +11,16 @@ function view(id: string, status: ImportView['status'], overrides: Partial<Impor
 }
 
 describe('saved import selection', () => {
-  it('never opens a failed or stopped import left by an earlier importer', () => {
-    const failed = view('legacy', 'failed', { error: 'An old error', stage: 'failed' });
+  it('never opens a stopped import left by an earlier importer', () => {
     const stopped = view('stopped', 'pending', { error: 'Reading stopped' });
     const midRead = view('mid-read', 'pending');
-    expect(resumableImport([failed, stopped, midRead])).toBeNull();
+    expect(resumableImport([stopped, midRead])).toBeNull();
   });
 
   it('resumes the newest ready draft or version choice', () => {
-    const choice = view('choice', 'pending', { stage: 'select', alternatives: [{ id: 'a', name: 'A', chunkCount: 1, dayCount: 3 }] });
+    const choice = view('choice', 'pending', { stage: 'select', alternatives: [{ id: 'a', name: 'A', dayCount: 3 }] });
     const ready = view('older-ready', 'ready');
-    expect(resumableImport([view('legacy', 'failed'), choice, ready])).toBe(choice);
+    expect(resumableImport([choice, ready])).toBe(choice);
     expect(resumableImport([ready, choice])).toBe(ready);
   });
 

@@ -71,20 +71,10 @@ export function ImportAlternatives({ view, choice, busy, onChoose, onContinue }:
               </span>
 
               <span className="ialt-card-meta">
-                {alternative.weekCount != null && (
-                  <span className="ialt-pill ialt-pill--accent">
-                    {alternative.weekCount} week{alternative.weekCount === 1 ? '' : 's'}
-                  </span>
-                )}
-                {alternative.sessionsPerWeek != null && (
-                  <span className="ialt-pill">
-                    {alternative.sessionsPerWeek} sessions / week
-                  </span>
-                )}
                 <span className="ialt-pill ialt-pill--muted">
                   {alternative.kind === 'week'
                     ? `${alternative.dayCount} session${alternative.dayCount === 1 ? '' : 's'} in this version`
-                    : `${alternative.dayCount} estimated sessions`}
+                    : `${alternative.dayCount} session${alternative.dayCount === 1 ? '' : 's'}`}
                 </span>
               </span>
             </Button>
