@@ -237,6 +237,19 @@ public sealed class ExternalImportReviewFollowUpTests
     }
 
     [Fact]
+    public async Task A_superset_label_reused_for_a_later_pair_in_the_same_day_becomes_its_own_superset()
+    {
+        // The printed program labels both pairs of a day A1/A2, so the label is reused for a second, separate pair.
+        string Row(string name, string group) => "{\"sourceName\":\"" + name + "\"" + (group == "" ? "" : ",\"sequenceGroup\":\"" + group + "\"")
+            + ",\"sets\":[{\"repMin\":8,\"repMax\":10}]}";
+        var file = "{\"version\":1,\"program\":{\"name\":\"P\",\"days\":[{\"key\":\"a\",\"week\":1,\"name\":\"A\",\"exercises\":["
+            + string.Join(",", Row("Bench press", "A"), Row("Squat", "A"), Row("Bench press", ""), Row("Squat", "A"), Row("Bench press", "A"), Row("Squat", "B"), Row("Bench press", "B")) + "]}]}}";
+        var rows = (await (await Ready()).CreateExternalImport(file, "p.json", default)).Draft!.Workouts[0].Exercises;
+
+        Assert.Equal(["A", "A", "", "C", "C", "B", "B"], rows.Select(row => row.SequenceGroup));
+    }
+
+    [Fact]
     public async Task A_supported_effort_is_left_alone()
     {
         const string file = """

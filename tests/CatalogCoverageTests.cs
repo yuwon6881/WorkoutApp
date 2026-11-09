@@ -16,6 +16,7 @@ public sealed class CatalogCoverageTests
     public static TheoryData<string, string> WrittenNames => new()
     {
         { "Deficit Deadlift", "Deficit Deadlift" },
+        { "Banded Lateral Walk", "Lateral Band Walk" },
         { "Leg Curl", "Plate-Loaded Leg Curl" },
         { "Dumbbell Row", "Dumbbell Row" },
         { "Barbell Supinated Row", "Barbell Supinated Row" },

@@ -4039,7 +4039,10 @@
       "bands"
     ],
     "category": "Body Weight",
-    "aliases": []
+    "aliases": [
+      "Banded Lateral Walk",
+      "Band Lateral Walk"
+    ]
   },
   {
     "slug": "banded-clamshell",

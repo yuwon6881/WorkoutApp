@@ -53,6 +53,7 @@ public sealed partial class ImportService
                 exerciseErrors.AddRange(failures.Take(ExternalImportLimits.MaxReportedErrors - exerciseErrors.Count));
             }
             // A failed exercise is missing from the list, so superset adjacency can only be judged for a clean day.
+            if (exerciseErrors.Count == errorsBeforeDay) exercises = ExternalImportSupersets.SeparateReusedLabels(exercises);
             if (exerciseErrors.Count == errorsBeforeDay) ExternalImportPath.At(dayPath + ".exercises", () => { foreach (var group in exercises.Select((exercise, index) => (exercise, index))
                 .Where(item => !string.IsNullOrWhiteSpace(item.exercise.SequenceGroup))
                 .GroupBy(item => item.exercise.SequenceGroup, StringComparer.OrdinalIgnoreCase))
@@ -154,7 +155,6 @@ public sealed partial class ImportService
         return accepted;
     }
 
-    /// A set note that only repeats the exercise note says nothing new; the exercise already shows it once.
     /// A note that already reads "Two Drop Sets" or "Myo-reps" does not need the type spelled out after it.
     private static bool NamesTechnique(string? note, string technique)
     {
@@ -162,6 +162,7 @@ public sealed partial class ImportService
         return !string.IsNullOrWhiteSpace(note) && Letters(note).Contains(Letters(technique), StringComparison.Ordinal);
     }
 
+    /// A set note that only repeats the exercise note says nothing new; the exercise already shows it once.
     private static string? SetSpecificNote(string? setNote, string? exerciseNote)
     {
         if (string.IsNullOrWhiteSpace(setNote)) return setNote;
