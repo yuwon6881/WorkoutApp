@@ -90,7 +90,8 @@ public sealed partial class TemplateService(AppDb db, CatalogService catalog)
     {
         var wanted = ids.Where(i => i != null).Select(i => i!.Value).Distinct().ToList();
         if (wanted.Count == 0) return [];
-        var names = await db.Exercises.AsNoTracking().Where(x => wanted.Contains(x.Id)).ToDictionaryAsync(x => x.Id, x => x.Name, ct);
+        var shared = await CatalogMetadata.Read(db, ct);
+        var names = wanted.Where(shared.ContainsKey).Select(id => shared[id]).ToDictionary(x => x.Id, x => x.Name);
         var custom = await db.CustomExercises.AsNoTracking().Where(x => wanted.Contains(x.Id)).ToListAsync(ct);
         // Archived custom identities remain attached to existing templates. Keep the original
         // prescription usable, while making the replacement decision visible in the picker.

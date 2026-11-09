@@ -1,10 +1,10 @@
-import { useEffect, useState } from 'react';
+import { memo, useEffect, useState } from 'react';
 import { Check, Pause, Trash2 } from 'lucide-react';
 import type { LoggedSet, Preferences, SessionExercise, SetPrescription } from '../types';
 import { defaultLoadStepKg, toDisplay, toKg } from '../lib/training';
 import { setTarget } from '../lib/setTarget';
 import { percentagePrescription } from '../lib/oneRepMax';
-import { earlierPendingSet, effortPatch, effortValue, loadIsEditable, setNumberLabel } from '../lib/workoutDraft';
+import { effortPatch, effortValue, loadIsEditable } from '../lib/workoutDraft';
 import { Button } from './ui/Button';
 import { RepsRirControl } from './ui/RepsRirControl';
 import { SetTypeSelect } from './ui/SetTypeSelect';
@@ -21,11 +21,15 @@ import { WorkoutLoadInput } from './WorkoutLoadInput';
 import { useTrackRir } from '../lib/trackRir';
 import { loadEntryFor, loadFieldName, loadSign } from '../lib/resistanceVariant';
 
-export function WorkoutSetRow({
+export const WorkoutSetRow = memo(function WorkoutSetRow({
   set,
   si,
   ei,
   exercise,
+  label,
+  warmup,
+  waiting,
+  removable,
   plan,
   current = false,
   unit,
@@ -41,7 +45,11 @@ export function WorkoutSetRow({
   set: LoggedSet;
   si: number;
   ei: number;
-  exercise: SessionExercise;
+  exercise: Pick<SessionExercise, 'id' | 'name' | 'loadModel' | 'trackingMode' | 'weightBasis'>;
+  label: string;
+  warmup: boolean;
+  waiting: boolean;
+  removable: boolean;
   plan: SetPrescription | undefined;
   /** The first set still to log in this exercise, marked as the one the lifter is on. */
   current?: boolean;
@@ -70,7 +78,6 @@ export function WorkoutSetRow({
   }, [justLogged, nudging]);
   const shown = toDisplay(set.weightKg, unit);
   const stepKg = resolvedStepKg ?? defaultLoadStepKg(unit);
-  const { label, warmup } = setNumberLabel(exercise, si);
   const loadEntry = loadEntryFor(exercise);
   const sign = loadSign(loadEntry);
   const loadEditable = loadIsEditable(exercise);
@@ -80,10 +87,8 @@ export function WorkoutSetRow({
   // Phones hide delete behind a sideways swipe on the row; wider layouts keep it at the row's end.
   const compact = useWindowTier() === 'compact';
   const setName = `${exercise.name} set ${si + 1}`;
-  const removable = exercise.sets.length > 1;
   const locked = paused && !set.done;
   // Sets are logged in order; the tick still answers a tap, with a nudge and a note naming the set to log first.
-  const waiting = !set.done && earlierPendingSet(exercise, si) >= 0;
   const target = setTarget(set, plan, exercise, unit, trackRir);
   const prescribedPercentage = percentagePrescription(plan?.loadText, plan?.notes);
   const targetDescription = `set-target-reason-${set.id}`;
@@ -212,4 +217,4 @@ export function WorkoutSetRow({
       {row}
     </SwipeableRow>
   );
-}
+});

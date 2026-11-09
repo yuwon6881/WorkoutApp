@@ -22,11 +22,11 @@ public sealed partial class WorkoutService
     }
 
     private async Task RecordWorkoutMutation(Guid? mutationId, Guid sessionId, string operation,
-        string requestHash, CancellationToken ct)
+        string requestHash, CancellationToken ct, bool receiptChecked = false)
     {
         if (mutationId is not { } id) return;
         Validation.Require(id != Guid.Empty, "The mutation identity is invalid.");
-        Validation.Require(!await db.Receipts.AnyAsync(row => row.Id == id, ct), "This change was already saved.", 409);
+        Validation.Require(receiptChecked || !await db.Receipts.AnyAsync(row => row.Id == id, ct), "This change was already saved.", 409);
         db.Receipts.Add(new MutationReceipt
         {
             UserId = db.CurrentUser!.Value,

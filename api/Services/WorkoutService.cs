@@ -50,7 +50,8 @@ public sealed partial class WorkoutService(
     ProgressionService progression,
     NutritionContextService nutrition,
     ProgramService programs,
-    GoogleHealthWorkoutSyncService? workoutSync = null)
+    GoogleHealthWorkoutSyncService? workoutSync = null,
+    Microsoft.Extensions.Caching.Memory.IMemoryCache? readCache = null)
 {
     // Keep the pre-phase constructor usable for integrations and focused tests that create the
     // service directly. The application container resolves the primary constructor above.

@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
+import { useCallback, useEffect, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
 import { useWindowTier } from '../../lib/breakpoints';
 import { haptic } from '../../lib/platform';
 import { classifyGesture, settleOpen } from '../../lib/rowSwipe';
@@ -33,6 +33,10 @@ export function SwipeableRow({
   const [open, setOpen] = useState(false);
   const [offset, setOffset] = useState(0);
   const [dragging, setDragging] = useState(false);
+  const surface = useRef<HTMLDivElement>(null);
+  const dragOffset = useRef(0);
+  const frame = useRef(0);
+  useEffect(() => () => cancelAnimationFrame(frame.current), []);
   const pointer = useRef<{
     id: number;
     startX: number;
@@ -45,6 +49,9 @@ export function SwipeableRow({
   const suppressClick = useRef(false);
 
   const close = useCallback(() => {
+    cancelAnimationFrame(frame.current); frame.current = 0;
+    dragOffset.current = 0;
+    if (surface.current) surface.current.style.transform = 'translate3d(0, 0, 0)';
     setOpen(false);
     setOffset(0);
   }, []);
@@ -90,12 +97,17 @@ export function SwipeableRow({
     current.lastTime = now;
     event.preventDefault();
     const origin = open ? -actionsWidth : 0;
-    setOffset(clampOffset(origin + dx, actionsWidth));
+    dragOffset.current = clampOffset(origin + dx, actionsWidth);
+    if (!frame.current) frame.current = requestAnimationFrame(() => {
+      frame.current = 0;
+      if (surface.current) surface.current.style.transform = `translate3d(${dragOffset.current}px, 0, 0)`;
+    });
   }, [actionsWidth, open]);
 
   const finishPointer = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
     const current = pointer.current;
     pointer.current = null;
+    cancelAnimationFrame(frame.current); frame.current = 0;
     if (!current || current.id !== event.pointerId || !current.tracking) return;
     if (event.currentTarget.hasPointerCapture(event.pointerId)) {
       try {
@@ -111,19 +123,22 @@ export function SwipeableRow({
     const velocity = (now - current.lastTime > 80) ? 0 : current.velocity;
     const shouldOpen = settleOpen({
       wasOpen: open,
-      offset,
+      offset: dragOffset.current,
       velocityPxPerMs: velocity,
       actionsWidth
     });
     // The tray clicking into place tells the thumb the Delete is now one tap away.
     if (shouldOpen && !open) haptic('detent');
     setOpen(shouldOpen);
+    dragOffset.current = shouldOpen ? -actionsWidth : 0;
+    if (surface.current) surface.current.style.transform = `translate3d(${dragOffset.current}px, 0, 0)`;
     setOffset(shouldOpen ? -actionsWidth : 0);
-  }, [actionsWidth, offset, open]);
+  }, [actionsWidth, open]);
 
   const handlePointerCancel = useCallback(() => {
     const current = pointer.current;
     pointer.current = null;
+    cancelAnimationFrame(frame.current); frame.current = 0;
     setDragging(false);
     if (!current || !current.tracking) {
       close();
@@ -131,13 +146,15 @@ export function SwipeableRow({
     }
     const shouldOpen = settleOpen({
       wasOpen: open,
-      offset,
+      offset: dragOffset.current,
       velocityPxPerMs: 0,
       actionsWidth
     });
     setOpen(shouldOpen);
+    dragOffset.current = shouldOpen ? -actionsWidth : 0;
+    if (surface.current) surface.current.style.transform = `translate3d(${dragOffset.current}px, 0, 0)`;
     setOffset(shouldOpen ? -actionsWidth : 0);
-  }, [actionsWidth, close, offset, open]);
+  }, [actionsWidth, close, open]);
 
   const tier = useWindowTier();
   const showDesktop = !adaptive || tier !== 'compact';
@@ -161,6 +178,7 @@ export function SwipeableRow({
       </div>
       {/* The row owns its sideways drag, so a surrounding page swipe (useHorizontalSwipe) leaves it alone. */}
       <div
+        ref={surface}
         className="swipeable-row-surface"
         data-swipe-ignore=""
         data-swipe-open={open ? 'true' : 'false'}

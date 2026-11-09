@@ -94,7 +94,7 @@ export type RecentExerciseSession = Pick<Session, 'id' | 'name' | 'startedAt' | 
   exercises: (Pick<SessionExercise, 'id' | 'exerciseId' | 'sets'> & { techniques?: Array<string | null> })[];
 };
 export type HistoryPage = { total: number; page: number; size: number; sessions: Session[] };
-export type HistorySummaryPage = { total: number; sessions: Session[]; nextBeforeAt: string | null; nextBeforeId: string | null; summaryOnly: boolean };
+export type HistorySummaryPage = { total: number | null; sessions: Session[]; nextBeforeAt: string | null; nextBeforeId: string | null; summaryOnly: boolean };
 export type AppResource = 'catalog' | 'programs' | 'templates';
 export type NextWorkoutSummary = Pick<ProgramDay, 'id' | 'name' | 'focus' | 'week' | 'position' | 'exerciseCount'>;
 export type ShellBootstrap = Pick<Bootstrap, 'account' | 'preferences' | 'activeWorkout' | 'activeProgram' | 'imports' | 'resourceVersions' | 'gym'> & {

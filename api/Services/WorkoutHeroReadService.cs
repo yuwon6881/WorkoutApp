@@ -33,8 +33,9 @@ public static class WorkoutHeroReadService
                 .Select(row => row.Name).FirstOrDefaultAsync(ct);
 
         var ids = planned.Where(row => row.ExerciseId.HasValue).Select(row => row.ExerciseId!.Value).Distinct().ToList();
-        var catalog = await db.Exercises.AsNoTracking().Where(row => ids.Contains(row.Id))
-            .Select(row => new Metadata(row.Id, row.Muscle, row.SecondaryMusclesJson)).ToListAsync(ct);
+        var shared = ids.Count == 0 ? null : await CatalogMetadata.Read(db, ct);
+        var catalog = ids.Where(id => shared!.ContainsKey(id)).Select(id => shared![id])
+            .Select(row => new Metadata(row.Id, row.Muscle, row.SecondaryMusclesJson));
         var custom = await db.CustomExercises.AsNoTracking().Where(row => ids.Contains(row.Id))
             .Select(row => new Metadata(row.Id, row.Muscle, row.SecondaryMusclesJson)).ToListAsync(ct);
         var metadata = catalog.Concat(custom).ToDictionary(row => row.Id);

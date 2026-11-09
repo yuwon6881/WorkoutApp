@@ -50,6 +50,7 @@ vi.mock('react', () => ({
   useCallback: <T>(callback: T) => callback,
   useMemo: <T>(factory: () => T) => factory(),
   useEffect: () => undefined,
+  useSyncExternalStore: <T>(_subscribe: unknown, snapshot: () => T) => snapshot(),
   useState: <T>(initial: T) => {
     const idx = stateIndex++;
     if (!stateHolders[idx]) {

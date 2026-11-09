@@ -1,5 +1,6 @@
 import {resetGoogleHealthState} from '../lib/googleHealthAccount';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import { RecoveryStore } from '../lib/recoveryStore';
 import { ApiError, api } from '../lib/api';
 import { sharedReads } from '../lib/readCoordinator';
 import { viewReadCache } from '../lib/viewReadCache';
@@ -30,6 +31,7 @@ export type AppState = {
   signedOut: boolean;
   online: boolean;
   recovery: WorkoutRecoveryRecord | null;
+  recoveryStore: RecoveryStore;
   devicePreferences: DevicePreferences;
   reload: () => Promise<void>;
   ensureResources: (resources: AppResource[], throwOnError?: boolean, force?: boolean) => Promise<void>;
@@ -67,7 +69,10 @@ export function useApp(): AppState {
   // check is pending. Integration-consent callbacks in Settings keep their authenticated flow.
   const [signedOut, setSignedOut] = useState(signInFailed);
   const [online, setOnline] = useState(() => navigator.onLine);
-  const [recovery, setRecovery] = useState<WorkoutRecoveryRecord | null>(null);
+  const recoveryStore = useMemo(() => new RecoveryStore(), []);
+  useSyncExternalStore(recoveryStore.subscribe, recoveryStore.getShellSnapshot);
+  const recovery = recoveryStore.getSnapshot();
+  const setRecovery = recoveryStore.set;
   const [devicePreferences, setDevicePreferencesState] = useState<DevicePreferences>(defaultDevicePreferences);
   const queue = useMemo(() => new SaveQueue(), []);
   const [status, setStatus] = useState<QueueStatus>(queue.current);
@@ -381,7 +386,7 @@ export function useApp(): AppState {
     setData(null); setRecovery(null); setSignedOut(true);
   }, [queue, confirmDevice]);
 
-  return { data, status, loading, error, unconfirmed, signedOut, online, recovery, devicePreferences, reload, ensureResources, resourceError, queue, setData: patch, savePreferences, setActiveWorkout, setRecovery: updateRecovery, setDevicePreferences, signOut, preferencePending, retryPreferences, revertPreferences, isAccountCurrent };
+  return { data, status, loading, error, unconfirmed, signedOut, online, recovery, recoveryStore, devicePreferences, reload, ensureResources, resourceError, queue, setData: patch, savePreferences, setActiveWorkout, setRecovery: updateRecovery, setDevicePreferences, signOut, preferencePending, retryPreferences, revertPreferences, isAccountCurrent };
 }
 
 function signInFailed(): boolean {

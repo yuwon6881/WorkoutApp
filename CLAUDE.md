@@ -9,6 +9,8 @@ Applies only to this independent repository; app-specific rules override the par
 
 ## Implemented feature index
 
+- Performance reads reuse account/generation-scoped transient view caches and completed activity aggregates, preserve legacy cursor totals, and cache validated static assets only; the logger subscribes to detailed recovery separately from the shell while preserving durable-before-rest ordering. See `README.md` → Mobile performance architecture.
+
 - The additive external AI JSON v1 import provides a copyable provider-neutral prompt that makes its format decisions itself and asks only program decisions (week or program versions such as 10A/10B are offered by the app's own picker, either-or exercises and printed substitutions, up to six, become swap choices, and set notes never repeat the exercise note), bounded JSON upload by file picker, drag-and-drop, or pasted text (the original bytes are sent), actionable validation errors (a file that is not JSON says where it breaks; an omitted rest or effort value stays unspecified rather than blocking review), uncertainty review (source references stay in the draft, not on screen), and explicit acceptance into the existing program flow. The PDF importer remains available; see `docs/EXTERNAL_IMPORT_V1.md`.
 
 - Pause sets can be selected in the builder, import review, and logger; imports prefer a matching paused catalog movement and otherwise tag working sets. Pause-set history is kept separate from straight-set progression and strength records.

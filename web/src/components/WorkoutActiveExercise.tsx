@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useRef, useState } from 'react';
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ChartLine,
   Check,
@@ -22,7 +22,7 @@ import { api } from '../lib/api';
 import { restOptions } from '../lib/training';
 import { showExerciseWeight } from '../lib/weightBasis';
 import { ProgressionChangeBadge } from './ProgressionChangeBadge';
-import { setNumberLabel, withSetAdded, withSetRemoved } from '../lib/workoutDraft';
+import { earlierPendingSet, setNumberLabel, withSetAdded, withSetRemoved } from '../lib/workoutDraft';
 import { allowedSetTypes, withSetType } from '../lib/workoutSetTypes';
 import { Button } from './ui/Button';
 import { TextAreaField } from './ui/Field';
@@ -145,6 +145,20 @@ export function WorkoutActiveExercise({
     return () => controller.abort();
   }, [exercise.exerciseId, exercise.loadModel, libraryExercise, unit]);
   const resolvedLoads = libraryExercise ?? focusedLoads;
+  const rowExercise = useMemo(() => ({ id: exercise.id, name: exercise.name, loadModel: exercise.loadModel,
+    trackingMode: exercise.trackingMode, weightBasis: exercise.weightBasis }),
+  [exercise.id, exercise.name, exercise.loadModel, exercise.trackingMode, exercise.weightBasis]);
+  const liveActions = useRef({ editSet, toggle, removeSet, change, draft, index });
+  liveActions.current = { editSet, toggle, removeSet, change, draft, index };
+  const rowActions = useMemo(() => ({
+    editSet: (...args: Parameters<typeof editSet>) => liveActions.current.editSet(...args),
+    toggle: (...args: Parameters<typeof toggle>) => liveActions.current.toggle(...args),
+    onRemoveSet: (si: number) => liveActions.current.removeSet(si),
+    onSetType: (si: number, type: Parameters<typeof withSetType>[3]) => {
+      const current = liveActions.current;
+      current.change(withSetType(current.draft, current.index, si, type));
+    }
+  }), []);
   const warmups = warmupOffer(draft, index, exercises, unit);
   const nextUnloggedWorkingIndex = workingSets.findIndex(s => !s.done);
   // The row the lifter is on: the first set, warm-up or working, still to log.
@@ -288,18 +302,21 @@ export function WorkoutActiveExercise({
                 set={set}
                 si={si}
                 ei={index}
-                exercise={exercise}
+                exercise={rowExercise}
+                {...setNumberLabel(exercise, si)}
+                waiting={!set.done && earlierPendingSet(exercise, si) >= 0}
+                removable={exercise.sets.length > 1}
                 plan={plan}
                 current={si === nextSetIndex}
                 unit={unit}
                 loadStepKg={resolvedLoads?.loadStepKg}
                 availableLoadsKg={resolvedLoads?.availableLoadsKg}
-                editSet={editSet}
-                toggle={toggle}
+                editSet={rowActions.editSet}
+                toggle={rowActions.toggle}
                 paused={Boolean(draft.pausedAt)}
                 setTypes={allowedSetTypes(exercise, si)}
-                onSetType={(sidx, type) => change(withSetType(draft, index, sidx, type))}
-                onRemoveSet={sidx => removeSet(sidx)}
+                onSetType={rowActions.onSetType}
+                onRemoveSet={rowActions.onRemoveSet}
               />
               {removedSets.after(set.id).map(placeholder => <WorkoutRemovedSet key={placeholder.key} placeholder={placeholder} onUndo={removedSets.undo} onDismiss={removedSets.dismiss} />)}
               </Fragment>

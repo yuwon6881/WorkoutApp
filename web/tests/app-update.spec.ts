@@ -1,4 +1,27 @@
 import { expect, test } from '@playwright/test';
+import { readdirSync } from 'node:fs';
+import { resolve } from 'node:path';
+
+test('a fetched optional code chunk remains available offline without caching APIs', async ({ page, context }) => {
+  await page.goto('/');
+  await page.evaluate(async () => { await navigator.serviceWorker.ready; });
+  await expect.poll(() => page.evaluate(() => Boolean(navigator.serviceWorker.controller))).toBe(true);
+  const root = process.env.WORKOUT_BUILD_DIRECTORY || 'dist';
+  const file = readdirSync(resolve(root, 'assets')).find(name => /^Settings-[^/]+\.js$/.test(name))!;
+  expect(file).toBeTruthy();
+  const path = `/assets/${file}`;
+  const online = await page.evaluate(async path => (await fetch(path)).text(), path);
+  await expect.poll(() => page.evaluate(async path => Boolean(await (await caches.open('workout-static-assets-v1')).match(path)), path)).toBe(true);
+  await context.setOffline(true);
+  try {
+    expect(await page.evaluate(async path => (await fetch(path)).text(), path)).toBe(online);
+  } finally { await context.setOffline(false); }
+  const paths = await page.evaluate(async () => {
+    const keys = await caches.keys();
+    return (await Promise.all(keys.map(async key => (await (await caches.open(key)).keys()).map(request => new URL(request.url).pathname)))).flat();
+  });
+  expect(paths.some(path => path.startsWith('/api/'))).toBe(false);
+});
 
 test('Reload activates the waiting update and navigates the current tab', async ({ page }) => {
   await page.goto('/');

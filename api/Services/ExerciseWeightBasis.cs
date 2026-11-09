@@ -11,8 +11,8 @@ public static class ExerciseWeightBasis
     {
         var wanted = ids.OfType<Guid>().Distinct().ToList();
         if (wanted.Count == 0) return [];
-        var output = await db.Exercises.AsNoTracking().Where(x => wanted.Contains(x.Id))
-            .ToDictionaryAsync(x => x.Id, x => x.WeightBasis, ct);
+        var shared = await CatalogMetadata.Read(db, ct);
+        var output = wanted.Where(shared.ContainsKey).Select(id => shared[id]).ToDictionary(x => x.Id, x => x.WeightBasis);
         var custom = await db.CustomExercises.AsNoTracking().Where(x => wanted.Contains(x.Id))
             .Select(x => new { x.Id, x.WeightBasis }).ToListAsync(ct);
         foreach (var row in custom) output[row.Id] = row.WeightBasis;

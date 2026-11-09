@@ -72,7 +72,7 @@ export function WorkoutHistory({
       api.historySummaries(null, null, active.signal).then(next => {
         if (active.signal.aborted || generation !== epoch.current) return;
         viewReadCache.set(readKey, refreshKey, next);
-        setPage({ total: next.total, page: 0, size: 20, sessions: next.sessions });
+        setPage({ total: next.total ?? next.sessions.length, page: 0, size: 20, sessions: next.sessions });
         setCursor({ at: next.nextBeforeAt, id: next.nextBeforeId });
       }).catch(failure => {
         if (!active.signal.aborted) setError(failure instanceof ApiError ? failure.message : 'Could not load your history.');
@@ -81,7 +81,7 @@ export function WorkoutHistory({
     return () => { active.abort(); };
   }, [initial, accountId, refreshKey]);
 
-  const hasMore = !recent && page.sessions.length < page.total && Boolean(cursor.at && cursor.id);
+  const hasMore = !recent && Boolean(cursor.at && cursor.id);
   const loadMoreRef = useLoadMoreOnScroll(!loading && hasMore && !error, () => void more());
 
   async function more() {
@@ -91,7 +91,7 @@ export function WorkoutHistory({
     try {
       const next = await api.historySummaries(cursor.at, cursor.id, controller.current?.signal);
       if (generation !== epoch.current) return;
-      setPage(current => ({ ...current, total: next.total, page: current.page + 1,
+      setPage(current => ({ ...current, total: next.total ?? current.total, page: current.page + 1,
         sessions: [...new Map([...current.sessions, ...next.sessions].map(session => [session.id, session])).values()] }));
       setCursor({ at: next.nextBeforeAt, id: next.nextBeforeId });
     } catch (failure) {

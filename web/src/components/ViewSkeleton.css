@@ -1,0 +1,22 @@
+.view-skeleton-filters { display: flex; gap: 12px; }
+.view-skeleton-search { height: 48px; flex: 1; }
+.view-skeleton-filter { height: 48px; width: 160px; }
+.view-skeleton-cards { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; }
+.view-skeleton-exercises .view-skeleton-cards { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.view-skeleton-sections { display: grid; gap: 16px; }
+.view-skeleton .view-skeleton-exercise { height: 168px; }
+.view-skeleton .view-skeleton-slot { height: 280px; }
+.view-skeleton-muscle-grid { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 24px; }
+.view-skeleton-muscle-grid > div { display: grid; gap: 16px; align-content: start; }
+.view-skeleton-map { height: 520px; border-radius: var(--radius); }
+@media (max-width: 1190px) {
+  .view-skeleton-exercises .view-skeleton-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 1023px) {
+  .view-skeleton-muscle-grid { grid-template-columns: minmax(0, 1fr); gap: 20px; }
+}
+@media (max-width: 639px) {
+  .view-skeleton-exercises .view-skeleton-cards { grid-template-columns: minmax(0, 1fr); }
+  .view-skeleton-filter { width: 112px; }
+  .view-skeleton-map { height: 380px; }
+}

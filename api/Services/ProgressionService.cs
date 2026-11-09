@@ -33,15 +33,16 @@ public sealed class ProgressionService(AppDb db)
 
     /// The load rule each exercise is progressed with: its own setting, then the account's rule
     /// for its equipment, then the seed-owned or custom exercise default.
-    public async Task<Dictionary<Guid, ExerciseLoadInfo>> LoadInfo(IEnumerable<Guid?> exerciseIds, CancellationToken ct)
+    public async Task<Dictionary<Guid, ExerciseLoadInfo>> LoadInfo(IEnumerable<Guid?> exerciseIds, CancellationToken ct, string? unit = null)
     {
         var ids = exerciseIds.Where(id => id != null).Select(id => id!.Value).Distinct().ToList();
         if (ids.Count == 0) return [];
-        var rows = await db.Exercises.AsNoTracking().Where(x => ids.Contains(x.Id))
-            .Select(x => new { x.Id, x.LoadModel, x.LoadStepKg, LoadStepUnit = WeightUnits.Kg, x.Equipment }).ToListAsync(ct);
+        var metadata = await CatalogMetadata.Read(db, ct);
+        var rows = ids.Where(metadata.ContainsKey).Select(id => metadata[id])
+            .Select(x => new { x.Id, x.LoadModel, x.LoadStepKg, LoadStepUnit = WeightUnits.Kg, x.Equipment });
         var custom = await db.CustomExercises.AsNoTracking().Where(x => ids.Contains(x.Id))
             .Select(x => new { x.Id, x.LoadModel, x.LoadStepKg, x.LoadStepUnit, x.Equipment }).ToListAsync(ct);
-        var rules = await LoadRuleReader.Read(db, ids, ct);
+        var rules = await LoadRuleReader.Read(db, ids, ct, unit);
         var output = new Dictionary<Guid, ExerciseLoadInfo>();
         foreach (var row in rows.Concat(custom))
         {

@@ -51,7 +51,7 @@ public static class PerformanceEndpoints
                 navigationCounts = new { programs = await db.Programs.CountAsync(ct), templates = await db.Templates.CountAsync(x => x.ProgramId == null, ct) }
             };
         });
-        app.MapGet("/api/history/summaries", async (DateTime? beforeAt, Guid? beforeId, int? size, AppDb db, CancellationToken ct)
-            => await HistoryReadService.Get(db, beforeAt, beforeId, size ?? 20, ct));
+        app.MapGet("/api/history/summaries", async (DateTime? beforeAt, Guid? beforeId, int? size, bool? includeTotal, AppDb db, CancellationToken ct)
+            => await HistoryReadService.Get(db, beforeAt, beforeId, size ?? 20, ct, includeTotal ?? true));
     }
 }

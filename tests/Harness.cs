@@ -43,7 +43,7 @@ public sealed class Harness : IAsyncDisposable
         ProgramEditor = new ProgramEditorService(Programs, db, Templates, ProgramProgress, lifecycle);
         Progression = new ProgressionService(db);
         Workouts = new WorkoutService(db, Catalog, Templates, Progression,
-            new NutritionContextService(db, new TestHttpClientFactory(), config), Programs);
+            new NutritionContextService(db, new TestHttpClientFactory(), config), Programs, readCache: Cache);
     }
 
     public static async Task<Harness> Create(Dictionary<string, string?>? settings = null, DbCommandInterceptor? observer = null)

@@ -12,16 +12,16 @@ public sealed partial class ExerciseService
     /// Two bounded reads: the latest session exercise per movement, then only those rows' sets.
     public async Task<List<ExerciseLastPerformed>> LastPerformed(CancellationToken ct)
     {
-        var logged = await (
+        var logged = (
             from exercise in db.SessionExercises.AsNoTracking()
             join session in db.Workouts.AsNoTracking() on exercise.SessionId equals session.Id
             where exercise.ExerciseId != null && !session.Active && session.FinishedAt != null
                 && db.Sets.Any(set => set.SessionExerciseId == exercise.Id && set.Done && !set.Warmup)
             select new { exercise.Id, ExerciseId = exercise.ExerciseId!.Value, FinishedAt = session.FinishedAt!.Value }
-        ).ToListAsync(ct);
-        var latest = logged.GroupBy(row => row.ExerciseId)
+        );
+        var latest = await logged.GroupBy(row => row.ExerciseId)
             .Select(group => group.OrderByDescending(row => row.FinishedAt).ThenByDescending(row => row.Id).First())
-            .ToList();
+            .ToListAsync(ct);
         if (latest.Count == 0) return [];
 
         var rowIds = latest.Select(row => row.Id).ToList();

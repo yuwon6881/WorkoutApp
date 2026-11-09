@@ -6,6 +6,7 @@ import { readFileSync } from 'node:fs';
 import { featureCss } from './scripts/feature-css';
 import { preloadLatinFont } from './scripts/preload-latin-font';
 import { bootShell } from './scripts/boot-shell';
+import { assetResponsePlugin } from './scripts/static-asset-cache';
 
 const packageVersion = (JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8')) as { version: string }).version;
 const buildRevision = process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 7) ?? process.env.GITHUB_SHA?.slice(0, 7) ?? 'local';
@@ -102,6 +103,17 @@ export default defineConfig({
       // rather than hand-written as a whole worker so Workbox keeps owning the precache.
       importScripts: ['rest-alert-sw.js'],
       cleanupOutdatedCaches: true,
+      runtimeCaching: [{
+        urlPattern: ({ url, sameOrigin }) => sameOrigin && /^\/assets\/[^/]+\.(?:js|css)$/.test(url.pathname),
+        handler: 'CacheFirst',
+        options: { cacheName: 'workout-static-assets-v1', plugins: [assetResponsePlugin],
+          expiration: { maxEntries: 128, maxAgeSeconds: 30 * 24 * 60 * 60 } }
+      }, {
+        urlPattern: ({ url, sameOrigin }) => sameOrigin && /^\/assets\/[^/]+\.(?:woff2?|ttf|otf)$/.test(url.pathname),
+        handler: 'CacheFirst',
+        options: { cacheName: 'workout-static-fonts-v1', plugins: [assetResponsePlugin],
+          expiration: { maxEntries: 24, maxAgeSeconds: 365 * 24 * 60 * 60 } }
+      }],
       // The registration helper reloads only after the requested worker takes control.
       clientsClaim: true
     }

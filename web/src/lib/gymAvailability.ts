@@ -1,4 +1,4 @@
-import { createContext, useContext } from 'react';
+import { createContext, useCallback, useContext } from 'react';
 import type { Exercise, GymEquipmentItem, GymLaunch, GymsView } from '../types';
 
 /// Whether the active gym can host an exercise. Missing equipment is advisory: a warning never
@@ -54,7 +54,7 @@ export function useGymAvailability(exerciseId: string | null | undefined): GymAv
 
 export function useGymAvailabilityCheck(): (exerciseId: string | null | undefined) => GymAvailability {
   const { gym, requires } = useContext(GymAvailabilityContext);
-  return exerciseId => gymAvailability(gym, exerciseId, exerciseId ? requires.get(exerciseId) : undefined);
+  return useCallback(exerciseId => gymAvailability(gym, exerciseId, exerciseId ? requires.get(exerciseId) : undefined), [gym, requires]);
 }
 
 export function requirementsById(exercises: readonly Pick<Exercise, 'id' | 'requires'>[]): Map<string, readonly string[]> {

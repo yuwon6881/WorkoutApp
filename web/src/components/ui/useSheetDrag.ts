@@ -2,13 +2,14 @@ import { useCallback, useEffect, useRef } from 'react';
 import type { PointerEvent as ReactPointerEvent, RefObject } from 'react';
 import { windowTier } from '../../lib/breakpoints';
 import { haptic } from '../../lib/platform';
+import { GestureVelocity } from '../../lib/gestureVelocity';
 
 const DISMISS_DISTANCE = 140;
 const DISMISS_VELOCITY = 0.6; // px per ms, a deliberate flick
 const SETTLE_MS = 180;
 const INTERACTIVE = 'button,input,select,textarea,a,[role=button],[role=option],[role=slider],[contenteditable=true]';
 
-type Drag = { pointerId: number; startY: number; lastY: number; lastAt: number; velocity: number; moved: boolean };
+type Drag = { pointerId: number; startY: number; velocity: GestureVelocity; moved: boolean };
 
 function reducedMotion() {
   return typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
@@ -37,7 +38,9 @@ export function useSheetDrag(ref: RefObject<HTMLDialogElement | null>, onDismiss
     const onGrabStrip = event.clientY >= rect.top && event.clientY - rect.top < 24;
     const onHandle = Boolean(target.closest('dialog > header, [data-sheet-handle]'));
     if ((!onGrabStrip && !onHandle) || target.closest(INTERACTIVE)) return;
-    drag.current = { pointerId: event.pointerId, startY: event.clientY, lastY: event.clientY, lastAt: event.timeStamp, velocity: 0, moved: false };
+    const velocity = new GestureVelocity();
+    velocity.add(event.clientY, event.timeStamp);
+    drag.current = { pointerId: event.pointerId, startY: event.clientY, velocity, moved: false };
   }, [ref]);
 
   const onPointerMove = useCallback((event: ReactPointerEvent<HTMLDialogElement>) => {
@@ -50,10 +53,7 @@ export function useSheetDrag(ref: RefObject<HTMLDialogElement | null>, onDismiss
       current.moved = true;
       element.setPointerCapture?.(event.pointerId);
     }
-    const elapsed = Math.max(1, event.timeStamp - current.lastAt);
-    current.velocity = (event.clientY - current.lastY) / elapsed;
-    current.lastY = event.clientY;
-    current.lastAt = event.timeStamp;
+    current.velocity.add(event.clientY, event.timeStamp);
     dragOffset.current = offset;
     if (!frame.current) frame.current = requestAnimationFrame(() => {
       frame.current = 0;
@@ -69,7 +69,7 @@ export function useSheetDrag(ref: RefObject<HTMLDialogElement | null>, onDismiss
     cancelAnimationFrame(frame.current); frame.current = 0;
     if (!element || !current || current.pointerId !== event.pointerId || !current.moved) return;
     const offset = Math.max(0, event.clientY - current.startY);
-    const dismiss = event.type === 'pointerup' && (offset > Math.min(DISMISS_DISTANCE, element.offsetHeight * 0.3) || current.velocity > DISMISS_VELOCITY);
+    const dismiss = event.type === 'pointerup' && (offset > Math.min(DISMISS_DISTANCE, element.offsetHeight * 0.3) || current.velocity.at(event.timeStamp) > DISMISS_VELOCITY);
     if (!dismiss) { reset(element, true); return; }
     haptic('tick');
     if (reducedMotion()) { onDismiss(); return; }

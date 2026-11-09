@@ -11,6 +11,7 @@ import { MenuItem } from './ui/MenuButton';
 import { ProgramWeekChecklist } from './ProgramWeekChecklist';
 import { ProgramWeekMeter } from './ProgramWeekMeter';
 import { SlotCardHeader } from './SlotCardHeader';
+import { useCachedViewRead } from './useCachedViewRead';
 
 export type SlotCardActions = {
   busy: boolean;
@@ -42,8 +43,6 @@ export function ActiveProgramCard({ program, exercises, onStart, onPreview, onCh
 }) {
   const [expanded, setExpanded] = useState(true);
   const [draft, setDraft] = useState<ImportDraft | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
   const writes = useMemo(() => new ProgramDayWrites(api.updateTemplate, () => {}), [program.id]);
   const [resetOpen, setResetOpen] = useState(false);
@@ -70,23 +69,17 @@ export function ActiveProgramCard({ program, exercises, onStart, onPreview, onCh
   const weekIndex = progress ? [...new Set(program.days.map(day => day.week))].sort((a, b) => a - b).indexOf(progress.currentWeek) + 1 : 1;
   const canReset = Boolean(program.active && (progress?.passedDays ?? 0) > 0);
 
-  async function loadDetail() {
-    setLoading(true); setError('');
-    try {
-      const full = await api.getProgram(program.id);
+  const detail = useCachedViewRead(`program:${program.id}`, program.revision,
+    signal => api.getProgram(program.id, signal), !finished && Boolean(program.id));
+  const { loading, error } = detail;
+  const setError = detail.setError;
+  useEffect(() => {
+      const full = detail.value;
+      if (!full) return;
       writes.setTemplates(full.workouts);
       const loaded = programToDraft(full);
       setDraft({ ...loaded, workouts: loaded.workouts.map(day => writes.pending.get(day.lineId) ?? day) });
-    }
-    catch (failure) { setError(failure instanceof ApiError ? failure.message : 'Could not load this program.'); }
-    finally { setLoading(false); }
-  }
-
-  useEffect(() => {
-    if (!finished && program.id) {
-      void loadDetail();
-    }
-  }, [program.id, program.revision, finished]);
+  }, [detail.value, writes]);
 
   // A tall card is hard to carry across the page, so lifting it folds it down to its header.
   // When released on the active workout, it always expands automatically.
@@ -135,6 +128,7 @@ export function ActiveProgramCard({ program, exercises, onStart, onPreview, onCh
     try {
       await writes.flush();
       const full = await api.getProgram(program.id);
+      detail.replace(full);
       writes.setTemplates(full.workouts);
       setDraft(programToDraft(full));
       await onChanged();

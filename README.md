@@ -280,6 +280,16 @@ uses a daily, generation-keyed durable aggregate and a bounded memory cache; col
 64 sessions at a time. Neither cache changes the source of truth. History lists use deterministic
 cursor summaries and fetch full exercise/set detail only when expanded.
 
+The logger observes detailed recovery updates separately from the shell and memoizes set rows
+against their actual display inputs; local persistence still precedes rest and auto-advance.
+Last-performed metadata, program details, and exercise-insight ranges reuse the bounded memory-only
+view cache, scoped by account and server resource generations. Completed calendar aggregation uses
+a short, history-generation-keyed server cache; active workout activity is always read live.
+Cursor pages from the current client omit repeated total counts; older clients retain their totals.
+Catalog identity lookups reuse seed metadata, including inactive identities, with custom rows kept
+account-scoped. Optional code and font files cache after a successful fetch, with MIME validation;
+HTML fallbacks, API responses, and training data never enter that runtime asset cache.
+
 Elapsed/rest displays tick in their own visible components. Sheet pointer writes and navigation
 indicator geometry updates are coalesced into animation frames. Optional feature CSS loads before
 the shell stylesheet in a stable order, preserving themes and motion values. Prefetching responds

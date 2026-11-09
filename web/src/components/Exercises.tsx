@@ -7,6 +7,7 @@ import { ArrowLeftRight, Link2, Plus, Search, X, Trash2 } from 'lucide-react';
 import type { Exercise, ExerciseCategory, ExerciseInsight, Unit } from '../types';
 import { lastPerformedLabel } from '../lib/lastPerformed';
 import { useLastPerformed } from './useLastPerformed';
+import { useExerciseInsight } from './useExerciseInsight';
 import { ApiError, api } from '../lib/api';
 import { showSetCount } from '../lib/training';
 import { weightBasisDescription } from '../lib/weightBasis';
@@ -111,12 +112,13 @@ export function ExerciseLibrary({ exercises, onSelect, exclude = emptyIds, onOpe
   const checkGym = useGymAvailabilityCheck();
   // A swap or an addition is for this gym, so what it can host comes first; mapping a written
   // movement to the library is about identity and keeps the plain order.
-  const gymRank = (exercise: Exercise) => action !== 'map' && !checkGym(exercise.id).available ? 1 : 0;
+  const gymRanks = useMemo(() => new Map(filtered.map(exercise =>
+    [exercise.id, action !== 'map' && !checkGym(exercise.id).available ? 1 : 0])), [filtered, checkGym, action]);
   // While searching, the closest name match leads within its group; with no query the order is
   // the plain relevance rank and then the name.
-  const ordered = useMemo(() => [...filtered].sort((a, b) => gymRank(a) - gymRank(b) || (ranks.get(a.id) ?? 4) - (ranks.get(b.id) ?? 4)
+  const ordered = useMemo(() => [...filtered].sort((a, b) => (gymRanks.get(a.id) ?? 0) - (gymRanks.get(b.id) ?? 0) || (ranks.get(a.id) ?? 4) - (ranks.get(b.id) ?? 4)
     || (searchScores.get(a.id) ?? 0) - (searchScores.get(b.id) ?? 0)
-    || a.name.localeCompare(b.name)), [filtered, ranks, searchScores, checkGym, action]);
+    || a.name.localeCompare(b.name)), [filtered, ranks, searchScores, gymRanks]);
   const actionLabel = action === 'swap' ? 'Swap' : action === 'map' ? 'Map' : 'Add';
   const ActionIcon = action === 'add' ? Plus : action === 'swap' ? ArrowLeftRight : Link2;
 
@@ -353,17 +355,12 @@ function dateLabel(value: string | null | undefined) {
 
 export function ExerciseDetailModal({ exercise, unit, onClose, onChanged }: { exercise: Exercise; unit: 'kg' | 'lb'; onClose: () => void; onChanged?: () => Promise<void> | void }) {
   const [detailTab, setDetailTab] = useState<'progress' | 'history'>('progress');
-  const [insight, setInsight] = useState<ExerciseInsight | null>(null); const [range, setRange] = useState('3m'); const [selectedMetric, setSelectedMetric] = useState<ChartMetric | null>(null); const [error, setError] = useState(''); const [busy, setBusy] = useState(false); const [historyBusy, setHistoryBusy] = useState(false); const [deleteConfirm, setDeleteConfirm] = useState(false);
+  const { insight, range, setRange, error, setError, historyBusy, moreHistory, historyCleared } = useExerciseInsight(exercise.id, onChanged);
+  const [selectedMetric, setSelectedMetric] = useState<ChartMetric | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState(false);
   const metric = selectedMetric ?? defaultChartMetric(insight?.points ?? []);
-  useEffect(() => { const controller = new AbortController(); setInsight(null); setError(''); api.exerciseInsight(exercise.id, range, 0, 20, controller.signal).then(setInsight).catch(failure => { if (!controller.signal.aborted) setError(failure instanceof ApiError ? failure.message : 'Could not load exercise details.'); }); return () => controller.abort(); }, [exercise.id, range]);
-  async function historyCleared() {
-    setInsight(null);
-    await onChanged?.();
-    try { setInsight(await api.exerciseInsight(exercise.id, range, 0, 20)); }
-    catch (failure) { setError(failure instanceof ApiError ? failure.message : 'Could not load exercise details.'); }
-  }
   async function deleteExercise() { setBusy(true); try { await api.deleteCustomExercise(exercise.id); setDeleteConfirm(false); await onChanged?.(); onClose(); } catch (failure) { setError(failure instanceof ApiError ? failure.message : 'Could not delete this custom exercise.'); } finally { setBusy(false); } }
-  async function moreHistory() { if (!insight || historyBusy || insight.history.length >= insight.totalHistoryRows) return; setHistoryBusy(true); try { const next = await api.exerciseInsight(exercise.id, range, insight.page + 1, insight.size); setInsight(current => current ? { ...current, history: [...current.history, ...next.history], page: next.page } : next); } catch (failure) { setError(failure instanceof ApiError ? failure.message : 'Could not load more exercise history.'); } finally { setHistoryBusy(false); } }
   const customDeletable = exercise.isCustom && !exercise.archived && !insight?.archived;
   return <>
     <Modal title={exercise.name} onClose={onClose} wide>

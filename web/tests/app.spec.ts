@@ -347,6 +347,10 @@ test('personal exercise weights support uneven lists and kg/lb switching', async
         date: '2025-01-01', setCount: 1, volumeKg: null, partial: true
       }]
     } }));
+    // This installs a different history fixture without a server generation change. Begin a new
+    // page so the previous empty-history result is not intentionally reused from the view cache.
+    await page.reload();
+    await page.getByRole('textbox', { name: 'Search exercises', exact: true }).fill(name);
     await page.getByRole('button', { name: `View ${name} details`, exact: true }).click();
     await expect(dialog.getByRole('heading', { name: 'Progress', exact: true })).toBeVisible();
     await expect(dialog.getByText('No completed working sets in this range.', { exact: true })).toBeVisible();
@@ -1647,7 +1651,12 @@ test('overview calendar opens matching completed and active sessions and leaves 
   await expect(active).toBeVisible();
   await expect(active.getByText('Workout in progress', { exact: true })).toBeVisible();
   await active.getByRole('button', { name: 'Close dialog', exact: true }).click();
-  if (today.getDay() === 1) await page.getByRole('button', { name: 'Return to this week', exact: true }).click();
+  if (today.getDay() === 1) {
+    // Restoring focus after the phone sheet closes can already recenter the current week.
+    const returnToWeek = page.getByRole('button', { name: 'Return to this week', exact: true });
+    if (await returnToWeek.isVisible()) await returnToWeek.click();
+    await expect(calendar.locator('.calendar-range-relative')).toContainText('This week');
+  }
   const empty = page.getByRole('button', { name: emptyDay.toDateString() + ', no workout recorded', exact: true });
   await expect(empty).toHaveClass(/day-rest/);
   await empty.click();

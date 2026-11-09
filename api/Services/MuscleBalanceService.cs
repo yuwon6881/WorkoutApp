@@ -40,7 +40,7 @@ public sealed class MuscleBalanceService(AppDb db, CatalogService catalog, IMemo
 
         // Fetch finished sessions with padded UTC bounds, then apply the user's local date window.
         var candidateSessions = await db.Workouts.AsNoTracking().Where(w => w.FinishedAt != null &&
-            w.FinishedAt >= startUtc && w.FinishedAt < endUtc).ToListAsync(ct);
+            w.FinishedAt >= startUtc && w.FinishedAt < endUtc).WithoutSnapshots().ToListAsync(ct);
         var sessions = candidateSessions.Where(session =>
         {
             var localDate = LocalDate(session.FinishedAt!.Value, zone);
@@ -50,12 +50,12 @@ public sealed class MuscleBalanceService(AppDb db, CatalogService catalog, IMemo
         var sessionIds = sessions.Select(session => session.Id).ToList();
         var exercises = sessionIds.Count == 0
             ? []
-            : await db.SessionExercises.AsNoTracking().Where(exercise => sessionIds.Contains(exercise.SessionId)).ToListAsync(ct);
+            : await db.SessionExercises.AsNoTracking().Where(exercise => sessionIds.Contains(exercise.SessionId)).WithoutSnapshots().ToListAsync(ct);
         var exerciseIds = exercises.Select(exercise => exercise.Id).ToList();
         var sets = exerciseIds.Count == 0
             ? []
             : await db.Sets.AsNoTracking().Where(set => exerciseIds.Contains(set.SessionExerciseId) && set.Done && !set.Warmup)
-                .ToListAsync(ct);
+                .WithoutSnapshots().ToListAsync(ct);
         var profiles = await catalog.MuscleProfilesFor(exercises.Where(exercise => exercise.ExerciseId != null)
             .Select(exercise => exercise.ExerciseId!.Value), ct);
         var exerciseById = exercises.ToDictionary(exercise => exercise.Id);

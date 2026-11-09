@@ -1,4 +1,6 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
+using Workout.Api.Data;
 using Workout.Api.Domain;
 
 namespace Workout.Api.Services;
@@ -18,20 +20,39 @@ public sealed partial class WorkoutService
 
         var startUtc = start.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc).AddDays(-1);
         var endUtc = end.AddDays(2).ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc);
-        var rows = await db.Workouts.AsNoTracking().Where(w =>
-            (w.FinishedAt != null && w.FinishedAt >= startUtc && w.FinishedAt < endUtc) ||
-            (w.Active && w.StartedAt >= startUtc && w.StartedAt < endUtc))
-            .WithoutSnapshots().ToListAsync(ct);
+        var history = await db.ResourceGenerations.AsNoTracking().Select(x => x.History).SingleOrDefaultAsync(ct);
+        var cacheKey = $"activity:{db.CurrentUser}:{history}:{start:yyyy-MM-dd}:{end:yyyy-MM-dd}:{zone.Id}";
+        List<ActivityEntry>? completed = null;
+        var canCache = readCache is not null && db.Database.CurrentTransaction is null;
+        if (canCache) readCache!.TryGetValue(cacheKey, out completed);
+        if (completed is null)
+        {
+            var rows = await db.Workouts.AsNoTracking().Where(w => w.FinishedAt != null &&
+                w.FinishedAt >= startUtc && w.FinishedAt < endUtc).WithoutSnapshots().ToListAsync(ct);
+            completed = await ActivityRows(rows, start, end, zone, ct);
+            if (canCache) readCache!.Set(cacheKey, completed,
+                new MemoryCacheEntryOptions { Size = 1, AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(2) });
+        }
+        var active = await db.Workouts.AsNoTracking().Where(w => w.Active && w.FinishedAt == null &&
+            w.StartedAt >= startUtc && w.StartedAt < endUtc).WithoutSnapshots().ToListAsync(ct);
+        var live = await ActivityRows(active, start, end, zone, ct);
+        return completed.Concat(live).OrderBy(x => x.Item.Date).ThenBy(x => x.Timestamp).Select(x => x.Item).ToList();
+    }
 
+    private sealed record ActivityEntry(WorkoutActivityItem Item, DateTime Timestamp);
+
+    private async Task<List<ActivityEntry>> ActivityRows(List<WorkoutSession> rows, DateOnly start, DateOnly end,
+        TimeZoneInfo zone, CancellationToken ct)
+    {
         var completedIds = rows.Where(row => row.FinishedAt != null).Select(row => row.Id).ToList();
-        var workingSets = await (from set in db.Sets.AsNoTracking()
+        var workingSets = completedIds.Count == 0 ? new Dictionary<Guid, int>() : await (from set in db.Sets.AsNoTracking()
             join exercise in db.SessionExercises.AsNoTracking() on set.SessionExerciseId equals exercise.Id
             where completedIds.Contains(exercise.SessionId) && set.Done && !set.Warmup
             group set by exercise.SessionId into sessionSets
             select new { Id = sessionSets.Key, Count = sessionSets.Count() })
             .ToDictionaryAsync(row => row.Id, row => row.Count, ct);
 
-        var items = new List<(WorkoutActivityItem Item, DateTime Timestamp)>();
+        var items = new List<ActivityEntry>();
         foreach (var w in rows)
         {
             var isCompleted = w.FinishedAt != null;
@@ -48,15 +69,11 @@ public sealed partial class WorkoutService
                     ? Math.Max(0, (long)Math.Round((timestamp - at).TotalSeconds)) : 0);
                 minutes = Math.Max(1, (int)Math.Round(Math.Max(0, (timestamp - w.StartedAt).TotalSeconds - paused) / 60));
             }
-            items.Add((new WorkoutActivityItem(w.Id, w.Name, status, localDate,
+            items.Add(new ActivityEntry(new WorkoutActivityItem(w.Id, w.Name, status, localDate,
                 isCompleted ? workingSets.GetValueOrDefault(w.Id) : null, minutes), timestamp));
         }
 
-        return items
-            .OrderBy(x => x.Item.Date)
-            .ThenBy(x => x.Timestamp)
-            .Select(x => x.Item)
-            .ToList();
+        return items;
     }
 
 }

@@ -6,11 +6,11 @@ namespace Workout.Api.Services;
 
 public static class HistoryReadService
 {
-    public static async Task<object> Get(AppDb db, DateTime? beforeAt, Guid? beforeId, int size, CancellationToken ct)
+    public static async Task<object> Get(AppDb db, DateTime? beforeAt, Guid? beforeId, int size, CancellationToken ct, bool includeTotal = true)
     {
         Validation.Require(size is > 0 and <= 100 && (beforeAt == null) == (beforeId == null), "Invalid history cursor.");
         var query = db.Workouts.AsNoTracking().Where(x => x.FinishedAt != null);
-        var total = await query.CountAsync(ct);
+        int? total = beforeAt is null || includeTotal ? await query.CountAsync(ct) : null;
         if (beforeAt is { } at && beforeId is { } id)
         {
             at = HistoryCursorTime.Utc(at);

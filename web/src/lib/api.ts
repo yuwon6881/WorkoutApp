@@ -127,7 +127,7 @@ export const api = {
   },
   exercises: (signal?: AbortSignal) => call<Exercise[]>('/api/exercises', 'GET', undefined, signal),
   historySummaries: (beforeAt?: string | null, beforeId?: string | null, signal?: AbortSignal) =>
-    call<HistorySummaryPage>(`/api/history/summaries?size=20${beforeAt && beforeId ? `&beforeAt=${encodeURIComponent(beforeAt)}&beforeId=${encodeURIComponent(beforeId)}` : ''}`, 'GET', undefined, signal),
+    call<HistorySummaryPage>(`/api/history/summaries?size=20${beforeAt && beforeId ? `&beforeAt=${encodeURIComponent(beforeAt)}&beforeId=${encodeURIComponent(beforeId)}&includeTotal=false` : ''}`, 'GET', undefined, signal),
   activity: (from: string, to: string, timeZoneOrSignal?: string | AbortSignal, signal?: AbortSignal) => {
     const timeZone = typeof timeZoneOrSignal === 'string' ? timeZoneOrSignal : Intl.DateTimeFormat().resolvedOptions().timeZone;
     const sig = timeZoneOrSignal instanceof AbortSignal ? timeZoneOrSignal : signal;
@@ -177,7 +177,7 @@ export const api = {
   deleteTemplate: (id: string) => call<void>(`/api/templates/${id}`, 'DELETE'),
 
   programs: () => call<ProgramSummary[]>('/api/programs'),
-  getProgram: (id: string) => call<Program>(`/api/programs/${id}`),
+  getProgram: (id: string, signal?: AbortSignal) => call<Program>(`/api/programs/${id}`, 'GET', undefined, signal),
   createProgram: (input: unknown) => call<Program>('/api/programs', 'POST', input),
   updateProgramPlan: (id: string, input: ProgramEditInput) => call<Program>(`/api/programs/${id}/plan`, 'PUT', input),
   setProgramActive: (id: string, active: boolean, revision: number) => call<Program>(`/api/programs/${id}/active`, 'POST', { active, revision }),

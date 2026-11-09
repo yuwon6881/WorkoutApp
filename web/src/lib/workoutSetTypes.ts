@@ -3,6 +3,8 @@ import { applySetType, getSetType, setTypeOptions, type SetType } from './import
 import { blankPrescription } from './workoutDraft';
 
 const ALL_SET_TYPES = setTypeOptions.map(option => option.value as SetType);
+const WARMUP_ONLY: SetType[] = ['warmup'];
+const WORKING_SET_TYPES = ALL_SET_TYPES.filter(type => type !== 'warmup');
 
 /// What a set is in the active workout. The logged set carries the warm-up flag and the session's
 /// prescription carries any technique, the same split the server reads with SetTechniques.
@@ -27,9 +29,9 @@ export function allowedSetTypes(exercise: Pick<SessionExercise, 'sets' | 'prescr
   const before = exercise.sets.slice(0, setIndex).every((_, index) => isWarmup(index));
   if (isWarmup(setIndex)) {
     const after = exercise.sets.slice(setIndex + 1).every((_, offset) => !isWarmup(setIndex + 1 + offset));
-    return after ? ALL_SET_TYPES : ['warmup'];
+    return after ? ALL_SET_TYPES : WARMUP_ONLY;
   }
-  return before ? ALL_SET_TYPES : ALL_SET_TYPES.filter(type => type !== 'warmup');
+  return before ? ALL_SET_TYPES : WORKING_SET_TYPES;
 }
 
 /// Changes one set's type in the draft. The technique lives in the set's prescription notes and

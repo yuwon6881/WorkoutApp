@@ -75,10 +75,11 @@ public sealed partial class WorkoutService
         WorkoutSetValidation.Tracking(exercise.ExerciseId is { } trackingId && trackingModes.ContainsKey(trackingId),
             reps, durationSeconds, rpe, rir, done);
         var warmupChanged = warmup != set.Warmup;
-        var step = Progression.DefaultStep(await LoadRuleReader.AccountUnit(db, ct));
+        var unit = await LoadRuleReader.AccountUnit(db, ct);
+        var step = Progression.DefaultStep(unit);
         if (exercise.ExerciseId is { } exerciseId)
         {
-            var info = await progression.LoadInfo([exerciseId], ct);
+            var info = await progression.LoadInfo([exerciseId], ct, unit);
             if (info.TryGetValue(exerciseId, out var found)) step = found.AvailableLoadsKg is null ? found.StepKg : 0;
         }
         weight = NormalizeEnteredLoad(loadModel, resistanceMode, weight, step);
@@ -114,11 +115,13 @@ public sealed partial class WorkoutService
         }
         if (changed || restChanged || mutationId is not null)
         {
-            await RecordWorkoutMutation(mutationId, sessionId, "workout.set.patch", requestHash, ct);
+            // Replay checked this identity while the same account lock was held.
+            await RecordWorkoutMutation(mutationId, sessionId, "workout.set.patch", requestHash, ct, receiptChecked: true);
             await db.SaveChangesAsync(ct);
         }
+        var view = await View(session, ct);
         await gate.Commit(ct);
-        return await Get(sessionId, ct);
+        return view;
     }
 
     private static double? NullableDouble(JsonElement value, string label)
