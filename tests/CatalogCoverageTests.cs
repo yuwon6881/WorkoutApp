@@ -150,7 +150,8 @@ public sealed class CatalogCoverageTests
         { "RACK PULL (BELOW KNEE)", "Rack Pull" },
         { "Smith Machine Incline Press", "Incline Smith Machine Press" },
         { "BenCh press", "Bench Press" },
-        { "Banded Pushup", "Banded Push Up" }
+        { "Banded Pushup", "Banded Push Up" },
+        { "Seated Leg Curl Bottom-Half", "Plate-Loaded Seated Leg Curl" }
     };
 
     [Theory, MemberData(nameof(WrittenNames))]

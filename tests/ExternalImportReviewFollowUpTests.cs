@@ -405,6 +405,34 @@ public sealed class ExternalImportReviewFollowUpTests
         Assert.Empty(h.Db.Imports.IgnoreQueryFilters().ToList());
     }
 
+    private static string Weeks(params int[] daysInEachWeek)
+    {
+        var days = daysInEachWeek.SelectMany((count, week) => Enumerable.Range(1, count).Select(day =>
+            day == count
+                ? $"{{\"key\":\"w{week}d{day}\",\"week\":{week + 1},\"name\":\"Rest\",\"isRestDay\":true,\"exercises\":[]}}"
+                : $"{{\"key\":\"w{week}d{day}\",\"week\":{week + 1},\"name\":\"Day {day}\",\"exercises\":[{{\"sourceName\":\"Bench press\",\"sets\":[{{\"repMin\":8,\"repMax\":10}}]}}]}}"));
+        return "{\"version\":1,\"program\":{\"name\":\"P\",\"days\":[" + string.Join(',', days) + "]}}";
+    }
+
+    [Fact]
+    public async Task A_cycle_longer_than_seven_days_that_every_week_repeats_is_kept_whole_without_being_declared()
+    {
+        var view = await (await Ready()).CreateExternalImport(Weeks(10, 10), "p.json", default);
+
+        Assert.Equal(10, view.Draft!.SourceWeekDays);
+        Assert.DoesNotContain(view.ReviewIssues!, issue => issue.Code == "week_day_overflow");
+        Assert.All(view.Draft.Workouts.GroupBy(day => day.Week), week => Assert.Equal(10, week.Count()));
+    }
+
+    [Fact]
+    public async Task Weeks_of_different_lengths_without_a_declared_cycle_still_report_the_overflow()
+    {
+        var view = await (await Ready()).CreateExternalImport(Weeks(10, 9), "p.json", default);
+
+        Assert.Null(view.Draft!.SourceWeekDays);
+        Assert.Contains(view.ReviewIssues!, issue => issue.Code == "week_day_overflow");
+    }
+
     [Fact]
     public void A_legacy_week_choice_still_tolerates_dangling_and_removed_days()
     {

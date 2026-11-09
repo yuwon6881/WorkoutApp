@@ -68,7 +68,7 @@ public sealed partial class ImportService
         }
         if (exerciseErrors.Count > 0) throw ExternalImportPath.Aggregate(exerciseErrors);
         var groups = ExternalImportPath.At("$.program.alternativeGroups", () => ExternalGroups(source.AlternativeGroups, dayKeys));
-        var draft = ImportValidation.NormalizeDraft(new ImportDraft(source.Name, days, source.SourceWeekDays) { AlternativeGroups = groups });
+        var draft = ImportValidation.NormalizeDraft(new ImportDraft(source.Name, days, ExternalImportCycle.Length(source.SourceWeekDays, days)) { AlternativeGroups = groups });
         // A phase's weeks count from one inside each run of that phase. A file that numbers them across the whole
         // program (an alternating Odd Week / Even Week schedule, say) uses a numbering convention, not a missing week;
         // the PDF reader renumbers it the same way, and the absolute weeks stay exactly as the file gave them.

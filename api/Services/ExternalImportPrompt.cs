@@ -35,6 +35,7 @@ internal static class ExternalImportPrompt
         - An exercise name that is abbreviated or unclear: keep the printed spelling in sourceName. Blank cells stay absent.
         - Weeks that repeat with the same content: write out every week. Deload, test and optional weeks are included as printed.
         - Rest days: create a rest day only where the source prints one. Do not pad weeks to seven days.
+        - A printed week or cycle longer than seven days, rest days included (a ten-day rotation, say): give every day of it the same week number and set program.sourceWeekDays to its length.
         - Optional days or exercises: include them as ordinary days or exercises in the weeks where the source lists them, and write Optional in the day name or exercise notes.
         - A rep notation that is not a plain number or range (such as 3/3, 10 sec or AMRAP): leave repMin and repMax out and keep the printed text in repsText.
         Choices between whole days or weeks, such as Week 10A and Week 10B, Option A and Option B, three-day and four-day versions, beginner and advanced versions, or with and without an optional block: include every version and describe them in alternativeGroups with kind week or program; the app asks the user which to follow, so do not ask.
