@@ -153,6 +153,23 @@ public sealed class ExternalImportReviewFollowUpTests
         Assert.True(view.Acceptable);
     }
 
+    [Theory]
+    [InlineData("8.25", 8.5)]
+    [InlineData("8.2", 8)]
+    [InlineData("9.75", 10)]
+    [InlineData("7.3", 7.5)]
+    public async Task An_rpe_between_the_half_points_is_rounded_to_the_nearest_half_and_keeps_the_printed_value(string rpe, double expected)
+    {
+        var file = "{\"version\":1,\"program\":{\"name\":\"P\",\"days\":[{\"key\":\"a\",\"week\":1,\"name\":\"A\",\"exercises\":["
+            + "{\"sourceName\":\"Bench press\",\"sets\":[{\"repMin\":8,\"repMax\":10,\"targetRpe\":" + rpe + "}]}]}]}}";
+        var view = await (await Ready()).CreateExternalImport(file, "p.json", default);
+
+        var set = view.Draft!.Workouts[0].Exercises[0].Sets[0];
+        Assert.Equal(expected, set.TargetRpe);
+        Assert.Contains($"Printed RPE: {rpe}.", set.Notes);
+        Assert.True(view.Acceptable);
+    }
+
     [Fact]
     public async Task A_reps_in_reserve_value_the_file_states_is_kept_when_the_rpe_is_below_range()
     {
